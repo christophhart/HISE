@@ -812,6 +812,7 @@ void ScriptingApi::Message::onAllNotesOff()
 struct ScriptingApi::Engine::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
+	API_METHOD_WRAPPER_0(Engine, getProjectInfo);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
 	API_VOID_METHOD_WRAPPER_1(Engine, setHostBpm);
@@ -873,6 +874,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
+	API_METHOD_WRAPPER_1(Engine, intToHexString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
 	API_METHOD_WRAPPER_0(Engine, getSystemStats);
 	API_METHOD_WRAPPER_0(Engine, isPlugin);
@@ -909,6 +911,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_2(Engine, loadFontAs);
 	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalFont);
+	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
@@ -934,6 +937,7 @@ ScriptingObject(p),
 ApiClass(0),
 parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 {
+	ADD_API_METHOD_0(getProjectInfo);
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
@@ -994,6 +998,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(matchesRegex);
 	ADD_API_METHOD_2(getRegexMatches);
 	ADD_API_METHOD_2(doubleToString);
+	ADD_API_METHOD_1(intToHexString);
 	ADD_API_METHOD_1(getMasterPeakLevel);
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(getSystemStats);
@@ -1027,6 +1032,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(extendTimeOut);
 	ADD_API_METHOD_0(getControlRateDownsamplingFactor);
     ADD_API_METHOD_1(createFixObjectFactory);
+	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
@@ -1055,6 +1061,40 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 ScriptingApi::Engine::~Engine()
 {
 
+}
+
+var ScriptingApi::Engine::getProjectInfo()
+{		
+	auto obj = new DynamicObject();
+	
+	String licencee;
+
+	#if USE_BACKEND || USE_COPY_PROTECTION
+		if (auto ul = getProcessor()->getMainController()->getLicenseUnlocker())
+			licencee = ul->getUserEmail();
+	#endif
+
+	# if USE_BACKEND
+		obj->setProperty("Company", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::Company).toString());
+		obj->setProperty("CompanyURL", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyURL).toString());
+		obj->setProperty("CompanyCopyright", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyCopyright).toString());
+		obj->setProperty("ProjectName", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString());
+		obj->setProperty("ProjectVersion", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Version).toString());
+		obj->setProperty("EncryptionKey", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString());
+	#else 
+		obj->setProperty("Company", hise::FrontendHandler::getCompanyName());
+		obj->setProperty("CompanyURL", hise::FrontendHandler::getCompanyWebsiteName());
+		obj->setProperty("CompanyCopyright", hise::FrontendHandler::getCompanyCopyright());
+		obj->setProperty("ProjectName", hise::FrontendHandler::getProjectName());
+		obj->setProperty("ProjectVersion", hise::FrontendHandler::getVersionString());
+		obj->setProperty("EncryptionKey", hise::FrontendHandler::getExpansionKey());
+	#endif
+
+	obj->setProperty("HISEBuild", String(HISE_VERSION));
+	obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
+	obj->setProperty("LicensedEmail", licencee);
+			
+	return obj;
 }
 
 void ScriptingApi::Engine::allNotesOff()
@@ -2534,6 +2574,19 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
 String ScriptingApi::Engine::doubleToString(double value, int digits)
 {
     return String(value, digits);
+}
+
+
+void ScriptingApi::Engine::quit()
+{
+	#if IS_STANDALONE_APP
+		quit();
+	#endif
+}
+                
+String ScriptingApi::Engine::intToHexString(int value)
+{
+    return String::toHexString(value);
 }
 
 void ScriptingApi::Engine::undo()
@@ -5803,7 +5856,7 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 	return l;
 }
 
-String ScriptingApi::FileSystem::descriptionOfSizeInBytes(int bytes)
+String ScriptingApi::FileSystem::descriptionOfSizeInBytes(int64 bytes)
 {
 	return File::descriptionOfSizeInBytes(bytes);
 };

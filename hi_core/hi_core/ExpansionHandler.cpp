@@ -425,7 +425,7 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			data.supportFullDynamics = getInstallFullDynamics();
 			data.targetDirectory = samplesDir;
 			data.progress = &getMainController()->getSampleManager().getPreloadProgress();
-			data.totalProgress = &unused;
+			data.totalProgress = &totalProgress;
 			data.partProgress = &unused;
 			data.sourceFile = resourceFile;
 

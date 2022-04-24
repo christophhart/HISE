@@ -1526,8 +1526,8 @@ public:
 			FileName,
 			Offset,
 			Scale,
-			AllowCallbacks,
 			BlendMode,
+			AllowCallbacks,
 			PopupMenuItems,
 			PopupOnRightClick,
 			numProperties
@@ -1728,6 +1728,9 @@ public:
 
 		/** Unload all images from the panel. */
 		void unloadAllImages();
+		
+		/** Checks if the image has been loaded into the panel */
+		bool isImageLoaded(String prettyName);
 
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);

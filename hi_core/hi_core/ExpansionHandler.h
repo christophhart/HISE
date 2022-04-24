@@ -537,6 +537,8 @@ public:
 	
 	bool getInstallFullDynamics() const { return installFullDynamics; }
 
+	double getTotalProgress() const { return totalProgress; }
+
 	String getEncryptionKey() const { return keyCode; }
 
 	bool isEnabled() const noexcept { return enabled; };
@@ -602,6 +604,7 @@ private:
 	String keyCode;
 	var credentials;
 	bool installFullDynamics = false;
+	double totalProgress = 0.0;
 
 	void checkAllowedExpansions(Result& r, Expansion* e);
 
