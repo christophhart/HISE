@@ -381,6 +381,7 @@ public:
 	static String getProjectName();
 	static String getCompanyName();
 	static String getCompanyWebsiteName();
+	static String getCompanyCopyright();
 	static String getVersionString();
 	static String getAppGroupId();
 	static String getExpansionKey();

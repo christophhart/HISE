@@ -489,6 +489,9 @@ public:
     /** Returns the product name (not the HISE name!). */
     String getName();
 
+		/** Returns project and company info from the Project's preferences. */
+		var getProjectInfo();
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 

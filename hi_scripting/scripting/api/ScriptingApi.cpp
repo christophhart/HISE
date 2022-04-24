@@ -812,6 +812,7 @@ void ScriptingApi::Message::onAllNotesOff()
 struct ScriptingApi::Engine::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
+	API_METHOD_WRAPPER_0(Engine, getProjectInfo);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
 	API_VOID_METHOD_WRAPPER_1(Engine, setHostBpm);
@@ -935,6 +936,7 @@ ScriptingObject(p),
 ApiClass(0),
 parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 {
+	ADD_API_METHOD_0(getProjectInfo);
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
@@ -1057,6 +1059,40 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 ScriptingApi::Engine::~Engine()
 {
 
+}
+
+var ScriptingApi::Engine::getProjectInfo()
+{		
+	auto obj = new DynamicObject();
+	
+	String licencee;
+
+	#if USE_BACKEND || USE_COPY_PROTECTION
+		if (auto ul = getProcessor()->getMainController()->getLicenseUnlocker())
+			licencee = ul->getUserEmail();
+	#endif
+
+	# if USE_BACKEND
+		obj->setProperty("Company", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::Company).toString());
+		obj->setProperty("CompanyURL", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyURL).toString());
+		obj->setProperty("CompanyCopyright", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::User::CompanyCopyright).toString());
+		obj->setProperty("ProjectName", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString());
+		obj->setProperty("ProjectVersion", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Version).toString());
+		obj->setProperty("EncryptionKey", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString());
+	#else 
+		obj->setProperty("Company", hise::FrontendHandler::getCompanyName());
+		obj->setProperty("CompanyURL", hise::FrontendHandler::getCompanyWebsiteName());
+		obj->setProperty("CompanyCopyright", hise::FrontendHandler::getCompanyCopyright());
+		obj->setProperty("ProjectName", hise::FrontendHandler::getProjectName());
+		obj->setProperty("ProjectVersion", hise::FrontendHandler::getVersionString());
+		obj->setProperty("EncryptionKey", hise::FrontendHandler::getExpansionKey());
+	#endif
+
+	obj->setProperty("HISEBuild", String(HISE_VERSION));
+	obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
+	obj->setProperty("LicensedEmail", licencee);
+			
+	return obj;
 }
 
 void ScriptingApi::Engine::allNotesOff()
