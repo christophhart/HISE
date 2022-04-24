@@ -2372,6 +2372,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& 
 
 		p->getPath() = s;
 
+		obj->setProperty("enabled", graph.isEnabled());
 		obj->setProperty("isActive", isActive);
 		obj->setProperty("path", keeper);
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
@@ -2400,6 +2401,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBallPosition(Graphics&
 		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getLocalBounds().toFloat()));
 		obj->setProperty("position", ApiHelpers::getVarFromPoint(pos));
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
+		obj->setProperty("enabled", graph.isEnabled());
 
 		setColourOrBlack(obj, "bgColour",	 graph, AhdsrGraph::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  graph, AhdsrGraph::ColourIds::fillColour);
