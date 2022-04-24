@@ -320,7 +320,7 @@ public:
 
 	virtual ~OpNodeBase() {};
 
-	HISE_DEFAULT_INIT(OpType);
+	SN_DEFAULT_INIT(OpType);
 
 	float getDefaultValue() const
 	{
@@ -350,12 +350,12 @@ public:
 		DEF_PARAMETER(Value, OpNode);
 	}
 
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
-	SET_HISE_POLY_NODE_ID(OpType::getId());
+	SN_POLY_NODE_ID(OpType::getId());
 	SN_GET_SELF_AS_OBJECT(OpNode);
 	SN_DESCRIPTION("A math operator on the input signal");
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_HANDLE_EVENT;
 	
 	OpNode()
 	{
@@ -375,7 +375,7 @@ public:
 		this->obj.opSingle(d, value.get());
 	}
 
-	HISE_EMPTY_RESET;
+	SN_EMPTY_RESET;
 
 	void prepare(PrepareSpecs ps)
 	{

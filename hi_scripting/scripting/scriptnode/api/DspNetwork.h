@@ -1116,8 +1116,8 @@ struct OpaqueNetworkHolder
 
 	bool isPolyphonic() const { return false; }
 
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_PROCESS_SINGLE;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PROCESS_FRAME;
 
 	OpaqueNetworkHolder()
 	{

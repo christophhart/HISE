@@ -229,7 +229,7 @@ public:
 		DEF_PARAMETER(SplitSignal, CloneNode);
 	}
 
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	SCRIPTNODE_FACTORY(CloneNode, "clone");
 
@@ -435,7 +435,7 @@ public:
         DEF_PARAMETER(OversamplingFactor, OversampleNode);
     }
 
-    PARAMETER_MEMBER_FUNCTION;
+    SN_PARAMETER_MEMBER_FUNCTION;
 
     void setOversamplingFactor(double newFactor)
     {

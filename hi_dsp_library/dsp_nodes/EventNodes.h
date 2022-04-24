@@ -74,7 +74,7 @@ template <typename MidiType> class midi: public control::pimpl::templated_mode
 {
 public:
 
-	SET_HISE_NODE_ID("midi");
+	SN_NODE_ID("midi");
 	SN_GET_SELF_AS_OBJECT(midi);
 	SN_DESCRIPTION("Create a modulation signal from MIDI input");
 
@@ -86,9 +86,9 @@ public:
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
 	};
 	
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_CREATE_PARAM;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_CREATE_PARAM;
 
 	constexpr bool isProcessingHiseEvent() const { return true; }
 	static constexpr bool isNormalisedModulation() { return true; }
@@ -206,12 +206,12 @@ public:
 #endif
 	}
 
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr bool isNormalisedModulation() { return true; }
 	constexpr static int NumVoices = NV;
 
-	SET_HISE_POLY_NODE_ID("timer");
+	SN_POLY_NODE_ID("timer");
 	SN_GET_SELF_AS_OBJECT(timer);
 	SN_DESCRIPTION("Create a periodic modulation signal if active");
 
@@ -223,7 +223,7 @@ public:
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsOptionalSnexNode);
 	}
 
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_HANDLE_EVENT;
 
 	void prepare(PrepareSpecs ps)
 	{
