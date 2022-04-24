@@ -1526,8 +1526,8 @@ public:
 			FileName,
 			Offset,
 			Scale,
-			AllowCallbacks,
 			BlendMode,
+			AllowCallbacks,
 			PopupMenuItems,
 			PopupOnRightClick,
 			numProperties
