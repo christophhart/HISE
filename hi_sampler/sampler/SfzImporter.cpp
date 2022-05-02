@@ -224,6 +224,9 @@ void SfzImporter::parseOpcodes()
 
 		if (currentLine.startsWith(Control::getTag()))
 		{
+            if (currentTarget == nullptr)
+                setIfRoot(currentTarget = new Global(currentTarget.get()));
+            
 			currentTarget = new Control(currentTarget.get());
 
 			setIfRoot(currentTarget);
@@ -258,6 +261,14 @@ void SfzImporter::parseOpcodes()
 		}
 		else if (currentLine.startsWith(Region::getTag()))
 		{
+            if(currentTarget == nullptr)
+            {
+                setIfRoot(currentTarget = new Global(nullptr));
+                auto g = new Group(currentTarget.get());
+                g->groupName = "Group 1";
+                currentTarget = g;
+            }
+            
 			navigateToParent<Group>(ThrowErrorIfNotFound, "No Group for region");
 
 			currentTarget = new Region(currentTarget.get());
