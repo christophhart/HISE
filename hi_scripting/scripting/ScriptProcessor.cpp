@@ -1384,7 +1384,7 @@ void JavascriptProcessor::setConnectedFile(const String& fileReference, bool com
 	}
 	else
 	{
-		const File f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+		f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
 	}
 	
 	const String code = f.loadFileAsString();
