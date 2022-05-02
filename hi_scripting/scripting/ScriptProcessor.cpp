@@ -1373,10 +1373,23 @@ void JavascriptProcessor::setConnectedFile(const String& fileReference, bool com
 		connectedFileReference = fileReference;
 
 #if USE_BACKEND
+
+	const File f = File();
+	
+	if (fileReference.contains("{GLOBAL_SCRIPT_FOLDER}"))
+	{
+		File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<const Processor*>(this));
+		const String filePath = fileReference.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
+		f = globalScriptFolder.getChildFile(filePath);
+	}
+	else
+	{
 		const File f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
-		const String code = f.loadFileAsString();
+	}
+	
+	const String code = f.loadFileAsString();
 #else
-		const String code = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFromCollection(fileReference);
+	const String code = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFromCollection(fileReference);
 
 #endif
 
