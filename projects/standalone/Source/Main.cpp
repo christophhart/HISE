@@ -116,8 +116,6 @@ public:
 		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect' | 'midi')" );
 		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" );
 		print("          (Leave empty for standalone export)" );
-		print("-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." );
-		print("          (Leave empty on OSX for Universal binary.)" );
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
@@ -139,7 +137,6 @@ public:
         print("create-win-installer [-a:x64|x86] [-noaax] [-rlottie]" );
 		print("Creates a template install script for Inno Setup for the project" );
 		print("Add the -noaax flag to not include the AAX build");
-        print("Add the -a:x64 or -a:x86 flag to just create an installer for the specified platform");
         print("");
         print("create-docs -p:PATH");
         print("Creates the HISE documentation files from the markdown files in the given directory.");
@@ -164,7 +161,7 @@ public:
 
 		const bool includeAAX = !args.contains("-noaax");
         
-        const bool include32 = !args.contains("-a:x64");
+		const bool include32 = false;
         const bool include64 = !args.contains("-a:x86");
 
 		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64);
