@@ -183,8 +183,10 @@ juce::File ExpansionHandler::getExpansionFolder() const
 	{
 		auto f = getMainController()->getSampleManager().getProjectHandler().getRootFolder().getChildFile("Expansions");
 
+#if !DONT_CREATE_EXPANSIONS_FOLDER
 		if (!f.isDirectory())
 			f.createDirectory();
+#endif
 
 #if JUCE_WINDOWS
 		auto linkFile = f.getChildFile("LinkWindows");
@@ -196,9 +198,6 @@ juce::File ExpansionHandler::getExpansionFolder() const
 
 		if (linkFile.existsAsFile())
 			f = File(linkFile.loadFileAsString());
-		
-		if (!f.isDirectory())
-			f.createDirectory();
 
 		expansionFolder = f;
 	}

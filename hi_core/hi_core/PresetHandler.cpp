@@ -471,7 +471,7 @@ juce::StringArray UserPresetHelpers::getExpansionsForUserPreset(const File& user
 
 void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
 {
-#if USE_FRONTEND
+#if USE_FRONTEND && !DONT_CREATE_USER_PRESET_FOLDER
 	auto userPresetDirectory = FrontendHandler::getUserPresetDirectory();
 
 	if (userPresetDirectory.isDirectory())

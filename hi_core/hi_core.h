@@ -115,6 +115,22 @@ If true, then this will use some additional features for the standalone app (pop
 #define IS_STANDALONE_APP 0
 #endif
 
+/** Config: DONT_CREATE_USER_PRESET_FOLDER
+
+Set this to 1 to disable the creation of the User Presets folder at init (i.e. for non-audio related app)
+*/
+#ifndef DONT_CREATE_USER_PRESET_FOLDER
+#define DONT_CREATE_USER_PRESET_FOLDER 0
+#endif
+
+/** Config: DONT_CREATE_EXPANSIONS_FOLDER
+
+Set this to 1 to disable the creation of the Expansions folder at init (i.e. for non-audio related app)
+*/
+#ifndef DONT_CREATE_EXPANSIONS_FOLDER
+#define DONT_CREATE_EXPANSIONS_FOLDER 0
+#endif
+
 /** Config: USE_COPY_PROTECTION
 
 If true, then the copy protection will be used
