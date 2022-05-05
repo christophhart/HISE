@@ -774,4 +774,27 @@ void MarkdownPreviewPanel::initPanel()
 	resized();
 }
 
+Component* ScriptContentComponent::SimpleTraverser::getDefaultComponent(Component* parentComponent)
+{
+	if(parentComponent->getWantsKeyboardFocus())
+		return parentComponent;
+
+	return nullptr;
+}
+
+Component* ScriptContentComponent::SimpleTraverser::getNextComponent(Component* current)
+{
+	return nullptr;
+}
+
+Component* ScriptContentComponent::SimpleTraverser::getPreviousComponent(Component* current)
+{
+	return nullptr;
+}
+
+std::vector<Component*> ScriptContentComponent::SimpleTraverser::getAllComponents(Component* parentComponent)
+{
+	return {};
+}
+
 } // namespace hise
