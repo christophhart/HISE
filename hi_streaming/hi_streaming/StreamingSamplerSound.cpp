@@ -137,6 +137,16 @@ void StreamingSamplerSound::setDelayPreloadInitialisation(bool shouldDelay)
     }
 }
     
+void StreamingSamplerSound::setCrossfadeGammaValue(float newGammaValue)
+{
+	crossfadeGamma = newGammaValue;
+
+	if (newGammaValue != crossfadeGamma && crossfadeLength > 0)
+	{
+		loopChanged();
+	}
+}
+
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
     if(delayPreloadInitialisation)
@@ -670,6 +680,61 @@ void StreamingSamplerSound::loopChanged()
 	}
 }
 
+void applyCrossfade(float gammaValue, hlac::HiseSampleBuffer& buffer, bool fadeIn, int numToCopy)
+{
+	gammaValue = jlimit<float>(1.0f / 32.0f, 32.0f, gammaValue);
+
+	if(gammaValue == 1.0f)
+	{
+		if (fadeIn)
+		{
+			buffer.applyGainRamp(0, 0, numToCopy, 0.0f, 1.0f);
+			buffer.applyGainRamp(1, 0, numToCopy, 0.0f, 1.0f);
+		}
+		else
+		{
+			buffer.applyGainRamp(0, 0, numToCopy, 1.0f, 0.0f);
+			buffer.applyGainRamp(1, 0, numToCopy, 1.0f, 0.0f);
+		}
+	}
+	else
+	{
+		jassert(buffer.getNumSamples() >= numToCopy);
+		jassert(buffer.getNumChannels() == 2);
+		
+		bool isFloat = buffer.isFloatingPoint();
+
+		auto l = (float*)buffer.getWritePointer(0, 0);
+		auto r = (float*)buffer.getWritePointer(1, 0);
+
+		auto lInt = (int16*)buffer.getWritePointer(0, 0);
+		auto rInt = (int16*)buffer.getWritePointer(1, 0);
+
+		float gainFactor = 0.0f;
+
+		for (int i = 0; i < numToCopy; i++)
+		{
+			float indexToUse = (float)i / (float)numToCopy;
+
+			if (!fadeIn)
+				indexToUse = 1.0f - indexToUse;
+
+			gainFactor = std::pow(indexToUse, gammaValue);
+
+			if (isFloat)
+			{
+				l[i] *= gainFactor;
+				r[i] *= gainFactor;
+			}
+			else
+			{
+				lInt[i] = (int16)((float)lInt[i] * gainFactor);
+				rInt[i] = (int16)((float)rInt[i] * gainFactor);
+			}
+		}
+	}
+}
+
 void StreamingSamplerSound::rebuildCrossfadeBuffer()
 {
 	calculateCrossfadeArea();
@@ -716,20 +781,15 @@ void StreamingSamplerSound::rebuildCrossfadeBuffer()
 	jassert(loopBuffer != nullptr);
 
     fileReader.readFromDisk(*loopBuffer, 0, numToCopy, fadeInStartOffset, false);
-    
     loopBuffer->burnNormalisation();
-	loopBuffer->applyGainRamp(0, 0, numToCopy, 0.0f, 1.0f);
-	loopBuffer->applyGainRamp(1, 0, numToCopy, 0.0f, 1.0f);
-    
+	applyCrossfade(crossfadeGamma, *loopBuffer, true, numToCopy);
+
     // Calculate the fade out
     tempBuffer.clear();
-    
     fileReader.readFromDisk(tempBuffer, 0, numToCopy, fadeOutStartOffset, false);
-    
     tempBuffer.burnNormalisation();
-	tempBuffer.applyGainRamp(0, 0, numToCopy, 1.0f, 0.0f);
-	tempBuffer.applyGainRamp(1, 0, numToCopy, 1.0f, 0.0f);
-    
+	applyCrossfade(crossfadeGamma, tempBuffer, false, numToCopy);
+
     hlac::HiseSampleBuffer::add(*loopBuffer, tempBuffer, 0, 0, numToCopy);
 }
     
@@ -1080,7 +1140,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					if (memoryReader != nullptr)
 					{
 						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart), (int64)(sound->sampleEnd)));
-						sampleLength = jmax<int64>(0, memoryReader->getMappedSection().getLength());
+						sampleLength = jmax<int64_t>(0, memoryReader->getMappedSection().getLength());
 						stereo = memoryReader->numChannels > 1;
 					}
 				}

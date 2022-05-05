@@ -52,9 +52,9 @@ struct fix_delay : public HiseDspBase
 		DEF_PARAMETER(DelayTime, fix_delay);
 		DEF_PARAMETER(FadeTime, fix_delay);
 	}
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
-	SET_HISE_NODE_ID("fix_delay");
+	SN_NODE_ID("fix_delay");
 	SN_GET_SELF_AS_OBJECT(fix_delay);
 	SN_DESCRIPTION("a non-interpolating delay line");
 
@@ -70,7 +70,7 @@ struct fix_delay : public HiseDspBase
 		return *this;
 	}
 
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_HANDLE_EVENT;
 
 	void prepare(PrepareSpecs ps);
 	void reset() noexcept;

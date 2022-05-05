@@ -83,7 +83,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			if (start->hasCustomMemoryLocation())
 				cc.mov(startReg, start->getAsMemoryLocation());
 			else if (start->isMemoryLocation())
-				cc.mov(startReg, start->getImmediateIntValue());
+				cc.mov(startReg, (int64_t)start->getImmediateIntValue());
 			else
 				cc.mov(startReg, INT_REG_R(start));
 
@@ -92,7 +92,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 			if (size->hasCustomMemoryLocation())
 				cc.mov(sizeReg, size->getAsMemoryLocation());
 			else if (start->isMemoryLocation())
-				cc.mov(sizeReg, size->getImmediateIntValue());
+				cc.mov(sizeReg, (int64_t)size->getImmediateIntValue());
 			else
 				cc.mov(sizeReg, INT_REG_R(size));
 

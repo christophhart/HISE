@@ -410,6 +410,9 @@ namespace ScriptingObjects
 		/** Tries to draw a text string inside a given space. */
 		void drawFittedText(String text, var area, String alignment, int maxLines, float scale);
 
+		/** Break to new lines when the text becomes wider than maxWidth. */
+		void drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading);
+
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);
 
@@ -582,6 +585,7 @@ namespace ScriptingObjects
 
 			void drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown) override;
 
+			void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph) override;
 			void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
 			void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
 

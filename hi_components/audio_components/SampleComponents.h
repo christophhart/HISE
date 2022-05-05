@@ -495,6 +495,8 @@ public:
     
 private:
 
+	valuetree::PropertyListener gammaListener;
+
 	bool lastActive = false;
 	int xPos = -1;
 	bool previewHover = false;

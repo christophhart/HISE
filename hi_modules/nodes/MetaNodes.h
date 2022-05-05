@@ -58,7 +58,7 @@ namespace width_bandpass_impl
 
 struct instance : public hardcoded_pimpl
 {
-	SET_HISE_NODE_ID("width_bandpass");
+	SN_NODE_ID("width_bandpass");
 	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
@@ -78,7 +78,7 @@ namespace filter_delay_impl
 
 struct instance : public hardcoded_pimpl
 {
-	SET_HISE_NODE_ID("filter_delay");
+	SN_NODE_ID("filter_delay");
 	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
@@ -98,7 +98,7 @@ namespace tremolo_impl
 
 struct instance : public hardcoded_pimpl
 {
-	SET_HISE_NODE_ID("tremolo");
+	SN_NODE_ID("tremolo");
 	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 
@@ -117,7 +117,7 @@ namespace transient_designer_impl
 
 struct instance : public hardcoded_pimpl
 {
-	SET_HISE_NODE_ID("transient_designer");
+	SN_NODE_ID("transient_designer");
 	SN_GET_SELF_AS_OBJECT(instance);
 	SET_HISE_NODE_IS_MODULATION_SOURCE(false);
 

@@ -101,6 +101,9 @@ void NodeBase::prepare(PrepareSpecs specs)
 
 	for (auto p : parameters)
 	{
+        if(p == nullptr)
+            continue;
+        
 		if (p->isModulated())
 			continue;
 
@@ -1543,6 +1546,7 @@ scriptnode::NodeBase* ConnectionBase::Helpers::findRealSource(NodeBase* source)
 {
 	if (auto cableNode = dynamic_cast<InterpretedCableNode*>(source))
 	{
+<<<<<<< HEAD
 		source = nullptr;
 
 		auto valueParam = cableNode->getParameterFromIndex(0);
@@ -1551,6 +1555,8 @@ scriptnode::NodeBase* ConnectionBase::Helpers::findRealSource(NodeBase* source)
 
 		if (if(valueParam != nullptr && valueParam->isModulated())
 		{
+            source = nullptr;
+            
 			for (auto allMod : cableNode->getRootNetwork()->getListOfNodesWithType<ModulationSourceNode>(false))
 			{
 				auto am = dynamic_cast<ModulationSourceNode*>(allMod.get());

@@ -748,6 +748,11 @@ namespace pimpl
 		g.strokePath(p, PathStrokeType(1.0f / sf));
 	}
 
+	void complex_ui_laf::drawAhdsrBackground(Graphics& g, AhdsrGraph& graph)
+	{
+		drawOscilloscopeBackground(g, graph, graph.getLocalBounds().toFloat());
+	}
+
 	void complex_ui_laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
 	{
 		if (!isActive)

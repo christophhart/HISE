@@ -1025,6 +1025,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1073,6 +1074,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_5(drawFittedText);
+	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1334,6 +1336,20 @@ void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, Str
 		reportScriptError(re.getErrorMessage());
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, area, just, maxLines, scale));
+}
+
+void ScriptingObjects::GraphicsObject::drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading)
+{
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+    
+    int startX = (int)xy[0];
+    int baseLineY = (int)xy[1];
+    
+    drawActionHandler.addDrawAction(new ScriptedDrawActions::drawMultiLineText(text, startX, baseLineY, maxWidth, just, leading));
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -1639,6 +1655,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawThumbnailPath",
 		"drawThumbnailRange",
 		"drawThumbnailRuler",
+		"drawAhdsrBackground",
 		"drawAhdsrBall",
 		"drawAhdsrPath",
 		"drawKeyboardBackground",
@@ -2343,6 +2360,28 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 	GlobalHiseLookAndFeel::drawScrollbar(g_, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBackground(Graphics& g, AhdsrGraph& graph)
+{
+	if (functionDefined("drawAhdsrBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("enabled", graph.isEnabled());
+		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getBounds().toFloat()));
+		
+		setColourOrBlack(obj, "bgColour", graph, AhdsrGraph::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour", graph, AhdsrGraph::ColourIds::fillColour);
+		setColourOrBlack(obj, "itemColour2", graph, AhdsrGraph::ColourIds::lineColour);
+		setColourOrBlack(obj, "itemColour3", graph, AhdsrGraph::ColourIds::outlineColour);
+
+		addParentFloatingTile(graph, obj);
+
+		if (get()->callWithGraphics(g, "drawAhdsrBackground", var(obj), &graph))
+			return;
+	}
+
+	AhdsrGraph::LookAndFeelMethods::drawAhdsrBackground(g, graph);
+}
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
 {
@@ -2356,6 +2395,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& 
 
 		p->getPath() = s;
 
+		obj->setProperty("enabled", graph.isEnabled());
 		obj->setProperty("isActive", isActive);
 		obj->setProperty("path", keeper);
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
@@ -2384,6 +2424,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBallPosition(Graphics&
 		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getLocalBounds().toFloat()));
 		obj->setProperty("position", ApiHelpers::getVarFromPoint(pos));
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
+		obj->setProperty("enabled", graph.isEnabled());
 
 		setColourOrBlack(obj, "bgColour",	 graph, AhdsrGraph::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  graph, AhdsrGraph::ColourIds::fillColour);

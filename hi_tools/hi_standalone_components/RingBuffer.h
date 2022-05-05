@@ -548,6 +548,7 @@ public:
 	{
 		virtual ~LookAndFeelMethods() {};
 
+		virtual void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph);
 		virtual void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive);
 		virtual void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p);
 

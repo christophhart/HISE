@@ -43,14 +43,14 @@ namespace core
 
 struct snex_node : public SnexSource
 {
-	SET_HISE_NODE_ID("snex_node");
+	SN_NODE_ID("snex_node");
 	SN_GET_SELF_AS_OBJECT(snex_node);
 	SN_DESCRIPTION("A generic SNEX node with the complete callback set");
 
 	static constexpr bool isPolyphonic() { return false; }
 	static constexpr bool isProcessingHiseEvent() { return true; };
 
-	HISE_EMPTY_CREATE_PARAM;
+	SN_EMPTY_CREATE_PARAM;
 
 	struct NodeCallbacks : public SnexSource::CallbackHandlerBase
 	{

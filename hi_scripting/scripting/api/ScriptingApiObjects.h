@@ -299,6 +299,9 @@ namespace ScriptingObjects
 		/** Reads a file and generates the hash of its contents. */
 		String getHash();
 
+		/** true if it's possible to create and write to this file. If the file doesn't already exist, this will check its parent directory to see if writing is allowed. */
+		bool hasWriteAccess();
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
@@ -355,6 +358,9 @@ namespace ScriptingObjects
 
 		/** Extracts the ZIP archive if this file is a .zip file. */
 		void extractZipFile(var targetDirectory, bool overwriteFiles, var callback);
+
+		/** Returns the number of items in the zip file. */
+		int getNumZippedItems();
 
 		/** Changes the read/write permission for the given file. */
 		void setReadOnly(bool shouldBeReadOnly, bool applyRecursively);

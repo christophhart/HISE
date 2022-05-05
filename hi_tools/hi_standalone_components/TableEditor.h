@@ -293,6 +293,7 @@ public:
 			editedTable->addRulerListener(this);
 			createDragPoints();
 			refreshGraph();
+			setDisplayedIndex(editedTable->getUpdater().getLastDisplayValue());
 		}
 	}
 
@@ -462,11 +463,7 @@ public:
 	*
 	*	The range of newIndex is 0.0 - 1.0.
 	*/
-	void setDisplayedIndex(float newIndex)
-	{
-		lastIndex = newIndex;
-		ruler->setIndex(newIndex);
-	};
+	void setDisplayedIndex(float newIndex);;
 
 	/** \brief Sets the point at the left or right edge to the new value
 	 *  
