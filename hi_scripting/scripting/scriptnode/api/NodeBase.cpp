@@ -1547,7 +1547,9 @@ scriptnode::NodeBase* ConnectionBase::Helpers::findRealSource(NodeBase* source)
 
 		auto valueParam = cableNode->getParameterFromIndex(0);
 
-		if (valueParam->isModulated())
+		jassert(valueParam != nullptr);
+
+		if (if(valueParam != nullptr && valueParam->isModulated())
 		{
 			for (auto allMod : cableNode->getRootNetwork()->getListOfNodesWithType<ModulationSourceNode>(false))
 			{
