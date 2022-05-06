@@ -2469,6 +2469,10 @@ struct FFTHelpers
 
     static void applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise=true);
     
+	static float getFreqForLogX(float xPos, float width);
+
+	static float getPixelValueForLogXAxis(float freq, float width);
+
 	static void toComplexArray(const AudioSampleBuffer& phaseBuffer, const AudioSampleBuffer& magBuffer, AudioSampleBuffer& out)
 	{
 		auto phase = phaseBuffer.getReadPointer(0);

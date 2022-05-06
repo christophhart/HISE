@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
 	Modulation(m),
-	ProcessorWithStaticExternalData(mc, 1, 1, 0, 0),
+	ProcessorWithStaticExternalData(mc, 1, 1, 0, 1),
 	frequency(getDefaultValue(Frequency)),
 	run(false),
 	currentValue(1.0f),
@@ -62,6 +62,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 	connectWaveformUpdaterToComplexUI(data, true);
 	connectWaveformUpdaterToComplexUI(customTable, true);
+
+	connectWaveformUpdaterToComplexUI(getDisplayBuffer(0), true);
 
 	modChains.reserve(2);
 	
@@ -328,8 +330,21 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 	}
 	else if (currentWaveform == Steps)
 	{
-		*tableValues = data->getCachedData();
-		numValues = data->getNumSliders();
+		if (stepData.isEmpty())
+			stepData.setSize(SAMPLE_LOOKUP_TABLE_SIZE);
+
+		auto tv = data->getCachedData();
+		auto numSteps = (float)data->getNumSliders();
+		
+		for (int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
+		{
+			auto normI = (float)i / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+			auto ti = jlimit<int>(0, (int)numSteps - 1, (int)hmath::floor(normI * numSteps));
+			stepData[i] = tv[ti];
+		}
+		
+		*tableValues = stepData.begin();
+		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
 		normalizeValue = 1.0f;
 		interpolationMode = WaveformComponent::Truncate;
 	}

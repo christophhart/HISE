@@ -1532,9 +1532,17 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var strokeTy
 	{
 		Path p = pathObject->getPath();
 
+		
+
 		if (area.isArray())
 		{
 			Rectangle<float> r = getRectangleFromVar(area);
+
+			if (p.getBounds().isEmpty() || r.isEmpty())
+			{
+				return;
+			}
+
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
 		}
 

@@ -1428,6 +1428,7 @@ struct ScriptingObjects::ScriptRingBuffer::Wrapper
 	API_METHOD_WRAPPER_0(ScriptRingBuffer, getReadBuffer);
 	API_METHOD_WRAPPER_3(ScriptRingBuffer, createPath);
 	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
+	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setRingBufferProperties);
 };
 
 ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other/*=nullptr*/):
@@ -1436,6 +1437,7 @@ ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingConte
 	ADD_API_METHOD_0(getReadBuffer);
 	ADD_API_METHOD_3(createPath);
 	ADD_API_METHOD_2(getResizedBuffer);
+	ADD_API_METHOD_1(setRingBufferProperties);
 }
 
 var ScriptingObjects::ScriptRingBuffer::getReadBuffer()
@@ -1504,49 +1506,40 @@ var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange,
 	if (!r.wasOk())
 		reportScriptError(r.getErrorMessage());
 	
-	auto& b = *getReadBuffer().getBuffer();
-
 	auto hToUse = (int)src.getHeight();
 
-	if (hToUse == -1)
-		hToUse = b.size;
-
-	Range<int> s_range(jmax<int>(0, (int)src.getWidth()), jmin<int>(b.size, hToUse));
-	Range<float> valueRange(jmax<float>(-1.0f, src.getX()), jmin<float>(1.0f, src.getY()));
-
-	int numValues = s_range.getLength();
-	int numPixels = dst.getWidth();
-	auto stride = roundToInt((float)numValues / (float)numPixels);
-
 	auto sp = new PathObject(getScriptProcessor());
-	
-	auto& p = sp->getPath();
 
-	auto startv = valueRange.getEnd() - (double)startValue * valueRange.getLength();
-
-	p.startNewSubPath(0.0f, valueRange.getStart());
-	p.startNewSubPath(0.0f, valueRange.getEnd());
-    p.startNewSubPath(0.0f, startv);
-
-	for (int i = 0; i < numValues; i += stride)
+	if (SimpleRingBuffer::Ptr buffer = getRingBuffer())
 	{
-		int numToLook = jmin(stride, numValues - i);
+		
 
-		auto avg = FloatVectorOperations::findMinAndMax(b.buffer.getReadPointer(0, i), numToLook);
+		auto maxSize = hToUse = getRingBuffer()->getReadBuffer().getNumSamples();
 
-		auto value = avg.getEnd();
+		if (hToUse == -1)
+			hToUse = maxSize;
 
-		if(std::abs(avg.getStart()) > std::abs(avg.getEnd()))
-			value = avg.getStart();
+		Range<int> s_range(jmax<int>(0, (int)src.getWidth()), jmin<int>(maxSize, hToUse));
+		Range<float> valueRange(jmax<float>(-1.0f, src.getX()), jmin<float>(1.0f, src.getY()));
 
-		p.lineTo((float)i, valueRange.getEnd() - valueRange.clipValue(value));
-	};
+		SimpleReadWriteLock::ScopedReadLock sl(buffer->getDataLock());
 
-	p.lineTo(numValues, startv);
-
-	PathFactory::scalePath(p, dst);
+		sp->getPath() = getRingBuffer()->getPropertyObject()->createPath(s_range, valueRange, dst);
+	}
 
 	return var(sp);
+}
+
+void ScriptingObjects::ScriptRingBuffer::setRingBufferProperties(var propertyData)
+{
+	if (auto obj = getRingBuffer()->getPropertyObject())
+	{
+		if (auto dyn = propertyData.getDynamicObject())
+		{
+			for (auto& nv : dyn->getProperties())
+				obj->setProperty(nv.name, nv.value);
+		}
+	}
 }
 
 struct ScriptingObjects::ScriptTableData::Wrapper

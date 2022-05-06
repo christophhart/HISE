@@ -460,6 +460,81 @@ bool ahdsr_base::AhdsrRingBufferProperties::validateInt(const Identifier& id, in
 	return false;
 }
 
+
+
+
+juce::Path ahdsr_base::AhdsrRingBufferProperties::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+{
+	const auto& b = buffer->getReadBuffer();
+
+	if (b.getNumSamples() != 9)
+		return {};
+
+	float attack = b.getSample(0, (int)Parameters::Attack);
+	float attackLevel = b.getSample(0, (int)Parameters::AttackLevel);
+	float hold = b.getSample(0, (int)Parameters::Hold);
+	float decay = b.getSample(0, (int)Parameters::Decay);
+	float sustain = b.getSample(0, (int)Parameters::Sustain);
+	float release = b.getSample(0, (int)Parameters::Release);
+	float attackCurve = b.getSample(0, (int)Parameters::AttackCurve);
+
+	
+	
+	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.4f);
+	const float sn = pow((1.0f - (sustain + 100.0f) / 100.0f), 0.4f);
+
+	const float margin = 3.0f;
+
+	aln = sn < aln ? sn : aln;
+
+	const float width = (float)targetBounds.getWidth() - 2.0f*margin;
+	const float height = (float)targetBounds.getHeight() - 2.0f*margin;
+
+	const float an = pow((attack / 20000.0f), 0.2f) * (0.2f * width);
+	const float hn = pow((hold / 20000.0f), 0.2f) * (0.2f * width);
+	const float dn = pow((decay / 20000.0f), 0.2f) * (0.2f * width);
+	const float rn = pow((release / 20000.0f), 0.2f) * (0.2f * width);
+
+	float x = margin;
+	float lastX = x;
+
+	Path envelopePath;
+
+	envelopePath.startNewSubPath(x, margin);
+	
+	envelopePath.startNewSubPath(x, margin + height);
+
+	// Attack Curve
+
+	lastX = x;
+	x += an;
+
+	const float controlY = margin + aln * height + attackCurve * (height - aln * height);
+
+	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, margin + aln * height);
+
+
+	x += hn;
+
+	envelopePath.lineTo(x, margin + aln * height);
+
+	lastX = x;
+	x = jmin<float>(x + (dn * 4), 0.8f * width);
+
+	envelopePath.quadraticTo(lastX, margin + sn * height, x, margin + sn * height);
+
+	x = 0.8f * width;
+
+	envelopePath.lineTo(x, margin + sn * height);
+
+	lastX = x;
+	x += rn;
+
+	envelopePath.quadraticTo(lastX, margin + height, x, margin + height);
+	
+	return envelopePath;
+}
+
 bool simple_ar_base::PropertyObject::validateInt(const Identifier& id, int& v) const
 {
 	if (id == RingBufferIds::BufferLength)

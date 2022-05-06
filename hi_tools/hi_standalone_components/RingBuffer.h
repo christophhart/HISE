@@ -152,6 +152,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		{
 		}
 
+		virtual Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const;
+
 		Array<Identifier> getPropertyList() const
 		{
 			Array<Identifier> ids;
@@ -164,7 +166,7 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 		template <typename T> T* getTypedBase() { return dynamic_cast<T*>(writerBase.get()); }
 
-	private:
+	protected:
 
 		WeakReference<WriterBase> writerBase;
 		WeakReference<SimpleRingBuffer> buffer;

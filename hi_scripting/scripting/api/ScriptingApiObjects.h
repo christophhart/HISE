@@ -903,6 +903,9 @@ namespace ScriptingObjects
 		/** Creates a path objects scaled to the given bounds and sourceRange */
 		var createPath(var dstArea, var sourceRange, var normalisedStartValue);
 
+		/** Sets the ring buffer properties from an object (Use the JSON from the Edit Properties popup). */
+		void setRingBufferProperties(var propertyData);
+
 		// ============================================================================================================
 
 	private:
