@@ -200,6 +200,41 @@ void FilterGraph::changeListenerCallback(SafeChangeBroadcaster *b)
 #endif
 }
 
+void FilterGraph::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue)
+{
+	if (e == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+	{
+		if (filterData->getNumCoefficients() != numFilters)
+		{
+			clearBands();
+
+			for (int i = 0; i < filterData->getNumCoefficients(); i++)
+				filterVector.add(new FilterInfo());
+
+			this->numFilters = filterVector.size();
+		}
+
+		int numCoefficients = filterData->getNumCoefficients();
+
+		IIRCoefficients empty;
+
+		for (int i = 0; i < numCoefficients; i++)
+		{
+			auto co = filterData->getCoefficients(i);
+			auto isEmpty = memcmp(&empty, &co, sizeof(IIRCoefficients)) == 0;
+			auto shouldBeEnabled = !isEmpty;
+
+			if (shouldBeEnabled != filterVector[i]->isEnabled())
+				filterVector[i]->setEnabled(shouldBeEnabled);
+
+			filterVector[i]->setCoefficients(0, filterData->getSamplerate(), co);
+		}
+
+		fs = filterData->getSamplerate();
+		repaint();
+	}
+}
+
 void FilterGraph::paint (Graphics& g)
 {
 	if(drawType == Icon)

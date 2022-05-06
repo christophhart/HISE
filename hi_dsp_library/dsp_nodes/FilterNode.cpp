@@ -82,6 +82,14 @@ void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 }
 
 template <class FilterType, int NV>
+void FilterNodeBase<FilterType, NV>::setEnabled(double isEnabled)
+{
+	enabled = isEnabled;
+
+	sendCoefficientUpdateMessage();
+}
+
+template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::reset()
 {
 	for (auto& f : filter)
@@ -90,18 +98,25 @@ void FilterNodeBase<FilterType, NV>::reset()
 
 
 template <class FilterType, int NV>
+IIRCoefficients FilterNodeBase<FilterType, NV>::getApproximateCoefficients() const
+{
+	if (!enabled)
+		return {};
+
+	for (const auto& f : filter)
+		return f.getApproximateCoefficients();
+
+	return {};
+}
+
+template <class FilterType, int NV>
 void scriptnode::filters::FilterNodeBase<FilterType, NV>::onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue)
 {
 	if (e == ComplexDataUIUpdaterBase::EventType::ContentChange)
 	{
 		if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
 		{
-			for (auto& f : filter)
-			{
-				auto c = f.getApproximateCoefficients();
-				fd->setCoefficients(c);
-				break;
-			}
+			fd->setCoefficients(this, getApproximateCoefficients());
 		}
 	}
 }
@@ -165,6 +180,13 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 			break;
 		}
 		
+		parameters.add(std::move(p));
+	}
+	{
+		DEFINE_PARAMETERDATA(FilterNodeBase, Enabled);
+		p.setParameterValueNames({ "Off", "On" });
+		p.setDefaultValue(1.0);
+
 		parameters.add(std::move(p));
 	}
 }

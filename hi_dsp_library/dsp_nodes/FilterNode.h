@@ -39,8 +39,11 @@ using namespace hise;
 namespace filters
 {
 
+
+
+
 template <class FilterType, int NV> 
-class FilterNodeBase : public data::base,
+class FilterNodeBase : public data::filter_base,
 					   public hise::ComplexDataUIUpdaterBase::EventListener
 {
 public:
@@ -52,6 +55,7 @@ public:
 		Gain,
 		Smoothing,
 		Mode,
+		Enabled,
 		numParameters
 	};
 
@@ -78,7 +82,7 @@ public:
 
 		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
 
-		base::setExternalData(d, index);
+		filter_base::setExternalData(d, index);
 
 		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
 		{
@@ -89,18 +93,25 @@ public:
 		}
 	}
 
+	IIRCoefficients getApproximateCoefficients() const override;
+
 	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto b = data.toAudioSampleBuffer();
-		FilterHelpers::RenderData r(b, 0, data.getNumSamples());
-		filter.get().render(r);
+		if (enabled)
+		{
+			auto b = data.toAudioSampleBuffer();
+			FilterHelpers::RenderData r(b, 0, data.getNumSamples());
+			filter.get().render(r);
+		}
+		
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		filter.get().processFrame(data.begin(), data.size());
+		if(enabled)
+			filter.get().processFrame(data.begin(), data.size());
 	}
 
 	void sendCoefficientUpdateMessage()
@@ -116,23 +127,28 @@ public:
 	void setQ(double newQ);
 	void setMode(double newMode);
 	void setSmoothing(double newSmoothingTime);
+	void setEnabled(double isEnabled);
 
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(Frequency, FilterNodeBase);
 		DEF_PARAMETER(Gain, FilterNodeBase);
 		DEF_PARAMETER(Q, FilterNodeBase);
-		DEF_PARAMETER(Mode, FilterNodeBase);
 		DEF_PARAMETER(Smoothing, FilterNodeBase);
+		DEF_PARAMETER(Mode, FilterNodeBase);
+		DEF_PARAMETER(Enabled, FilterNodeBase);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
 	
 
 	PolyData<FilterObject, NumVoices> filter;
 	double sr = -1.0;
+	bool enabled = true;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterNodeBase);
 };
+
+
 
 
 
