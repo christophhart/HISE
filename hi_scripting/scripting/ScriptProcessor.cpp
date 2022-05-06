@@ -1374,11 +1374,11 @@ void JavascriptProcessor::setConnectedFile(const String& fileReference, bool com
 
 #if USE_BACKEND
 
-	const File f = File();
+	File f = File();
 	
 	if (fileReference.contains("{GLOBAL_SCRIPT_FOLDER}"))
 	{
-		File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<const Processor*>(this));
+		File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<Processor*>(this));
 		const String filePath = fileReference.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
 		f = globalScriptFolder.getChildFile(filePath);
 	}
