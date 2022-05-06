@@ -161,6 +161,20 @@ private:
 struct ahdsr_base: public mothernode,
 				   public data::display_buffer_base<true>
 {
+	enum Parameters
+	{
+		Attack,
+		AttackLevel,
+		Hold,
+		Decay,
+		Sustain,
+		Release,
+		AttackCurve,
+		Retrigger,
+		Gate,
+		numParameters
+	};
+
 	struct AhdsrRingBufferProperties : public SimpleRingBuffer::PropertyObject
 	{
 		static constexpr int PropertyIndex = 2002;
@@ -175,6 +189,8 @@ struct ahdsr_base: public mothernode,
 		RingBufferComponentBase* createComponent() { return new AhdsrGraph(); }
 
 		bool validateInt(const Identifier& id, int& v) const override;
+
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
 
 		void transformReadBuffer(AudioSampleBuffer& b) override
 		{
@@ -286,9 +302,8 @@ struct ahdsr_base: public mothernode,
 	{
 		if (convertDbValues && (index == 1 || index == 4))
 		{
-			value = Decibels::gainToDecibels(jlimit(-100.0f, 0.0f, value));
+			value = Decibels::gainToDecibels(jlimit(0.0f, 1.0f, value));
 		}
-		else
 			
 		if(rb != nullptr)
 			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, index);
@@ -646,19 +661,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_base<ParameterType>,
 														 public pimpl::ahdsr_base
 {
-	enum Parameters
-	{
-		Attack,
-		AttackLevel,
-		Hold,
-		Decay,
-		Sustain,
-		Release,
-		AttackCurve,
-		Retrigger,
-		Gate,
-		numParameters
-	};
+	
 
 	ahdsr():
 		pimpl::envelope_base<ParameterType>(getStaticId())
@@ -809,7 +812,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 		FloatSanitizers::sanitizeFloatNumber(v);
 
-		setDisplayValue(P, v);
+		setDisplayValue(P, v, true);
 
 		if (P == Parameters::AttackCurve)
 		{

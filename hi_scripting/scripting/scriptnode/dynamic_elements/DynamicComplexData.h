@@ -239,6 +239,8 @@ struct editor_base : public ScriptnodeExtraComponent<data::pimpl::dynamic_base>,
 
 	virtual ~editor_base();;
 
+	static void showProperties(SimpleRingBuffer* obj, Component* c);
+
 };
 
 struct RingBufferPropertyEditor: public Component
@@ -368,6 +370,8 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(complex_ui_laf);
 };
 
+
+
 template <class DynamicDataType, class DataType, class ComponentType, bool AddDragger> struct editorT : public editor_base,
 																										public ButtonListener
 {
@@ -475,13 +479,31 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			list.add(s);
 		}
 
+
+
 		auto index = getObject()->getIndex();
 
 		for (int i = 0; i < list.size(); i++)
 			m.addItem(i + 1, list[i], true, (i-1) == (index));
 
+		if constexpr (std::is_same<DynamicDataType, data::dynamic::displaybuffer>())
+		{
+			m.addSeparator();
+			m.addItem(9000, "Edit Properties");
+		}
+
 		if (auto r = m.show())
 		{
+			if (r == 9000)
+			{
+				if (auto obj = dynamic_cast<SimpleRingBuffer*>(getObject()->currentlyUsedData))
+				{
+					showProperties(obj, &externalButton);
+				}
+
+				return;
+			}
+
 			auto network = getObject()->parentNode->getRootNetwork();
 
 			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());

@@ -545,6 +545,11 @@ public:
 			reset(voiceIndex);
 	}
 
+	int getNumParameters() const override
+	{
+		return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)hise::EnvelopeModulator::Parameters::numParameters;
+	}
+
 	void setInternalAttribute(int index, float newValue) override
 	{
 		if (index < hise::EnvelopeModulator::Parameters::numParameters)

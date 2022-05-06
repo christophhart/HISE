@@ -106,7 +106,7 @@ public:
 
 
 
-	Component* createContentComponent(int /*index*/) override
+	Component* createContentComponent(int index) override
 	{
 		if (auto p = getProcessor())
 		{
@@ -136,7 +136,14 @@ public:
 				stopTimer();
 				updateEq(eq, c);
 			}
-
+			else if (auto d = dynamic_cast<ExternalDataHolder*>(p))
+			{
+				if (auto f = d->getFilterData(index))
+				{
+					c->setComplexDataUIBase(f);
+				}
+			}
+			
 			return c;
 		}
 

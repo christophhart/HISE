@@ -86,15 +86,182 @@ struct Helpers
 
 		static constexpr int NumChannels = 1;
 		
-		FFT(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
+		FFT(SimpleRingBuffer::WriterBase* w) : PropertyObject(w)
+		{
+			initProperties({
+				"BufferLength",
+				"WindowType",
+				"DecibelRange",
+				"UsePeakDecay",
+				"UseDecibelScale",
+				"YGamma",
+				"Decay",
+				"UseLogarithmicFreqAxis"
+			});
+		};
+
+		void initProperties(const StringArray& ids)
+		{
+			for (auto& s : ids)
+			{
+				Identifier id(s);
+				properties.set(id, getProperty(id));
+			}
+		}
+
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
+		{
+			PropertyObject::initialiseRingBuffer(b);
+			b->setRingBufferSize(1, properties["BufferLength"]);
+		}
 
 		RingBufferComponentBase* createComponent();
+
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
+
+		void setProperty(const Identifier& id, const var& newValue) override
+		{
+			if (id.toString() == "WindowType")
+			{
+				auto wt = newValue.toString();
+				auto types = FFTHelpers::getAvailableWindowTypes();
+
+				for (int i = 0; i < types.size(); i++)
+				{
+					if (FFTHelpers::getWindowType(types[i]).compare(wt) == 0)
+					{
+						if (currentWindow != types[i])
+						{
+							currentWindow = types[i];
+							buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+							refreshWindow();
+						}
+					}
+				}
+			}
+			if (id.toString() == "DecibelRange")
+			{
+				if (auto ar = newValue.isArray())
+				{
+					Range<float> newRange((float)newValue[0], (float)newValue[1]);
+
+					if (newRange != dbRange)
+					{
+						dbRange = newRange;
+						buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+					}
+				}
+
+			}
+			if (id.toString() == "UsePeakDecay")
+			{
+				usePeakDecay = (bool)newValue;
+			}
+			if (id.toString() == "UseDecibelScale")
+			{
+				auto shouldUse = (bool)newValue;
+
+				if (useDb != shouldUse)
+				{
+					useDb = shouldUse;
+					buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+				}
+			}
+			if (id.toString() == "YGamma")
+			{
+				yGamma = jlimit(0.1f, 32.0f, (float)newValue);
+			}
+			if (id.toString() == "Decay")
+			{
+				decay = jlimit(0.0f, 0.99999f, (float)newValue);
+			}
+			if (id.toString() == "UseLogarithmicFreqAxis")
+			{
+				auto shouldUseLogX = (bool)newValue;
+
+				if (useLogX != shouldUseLogX)
+				{
+					useLogX = shouldUseLogX;
+					buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+				}
+			}
+
+			PropertyObject::setProperty(id, newValue);
+		}
+
+		var getProperty(const Identifier& id) const override
+		{
+			if (id.toString() == "BufferLength")
+			{
+				if (buffer == nullptr)
+					return 8192;
+				return buffer->getReadBuffer().getNumSamples();
+			}
+			if (id.toString() == "Decay")
+			{
+				return var(decay);
+			}
+			if (id.toString() == "YGamma")
+			{
+				return var(yGamma);
+			}
+			if (id.toString() == "UsePeakDecay")
+			{
+				return var(usePeakDecay);
+			}
+			if (id.toString() == "WindowType")
+			{
+				return var(FFTHelpers::getWindowType(currentWindow));
+			}
+
+			if (id.toString() == "UseLogarithmicFreqAxis")
+			{
+				return var(useLogX);
+			}
+			if (id.toString() == "UseDecibelScale")
+			{
+				return var(useDb);
+			}
+			if (id.toString() == "DecibelRange")
+			{
+				Array<var> r;
+				r.add(dbRange.getStart());
+				r.add(dbRange.getEnd());
+				return var(r);
+			}
+
+			return PropertyObject::getProperty(id);
+		}
+
+		void resizeBuffers(int requiredSize)
+		{
+			if (lastBuffer.getNumSamples() != requiredSize)
+			{
+				lastBuffer.setSize(1, requiredSize, true, true, true);
+				lastBuffer.clear();
+			}
+
+			if (windowBuffer.getNumSamples() / 2 != requiredSize)
+			{
+				windowBuffer.setSize(1, requiredSize * 2);
+				refreshWindow();
+			}
+		}
+
+		void refreshWindow()
+		{
+			if (windowBuffer.getNumSamples() > 0)
+			{
+				FloatVectorOperations::fill(windowBuffer.getWritePointer(0, 0), 1.0f, windowBuffer.getNumSamples() / 2);
+				FFTHelpers::applyWindow(currentWindow, windowBuffer);
+			}
+		}
 
 		bool validateInt(const Identifier& id, int& desiredSize) const override
 		{
 			if (id == RingBufferIds::BufferLength)
 			{
-				auto capped = jlimit<int>(8192, 32768, desiredSize);
+				auto capped = jlimit<int>(1024, 32768, desiredSize);
 				auto ns = nextPowerOfTwo(capped);
 
 				if (ns != desiredSize)
@@ -111,10 +278,22 @@ struct Helpers
 			return false;
 		}
 
-		void transformReadBuffer(AudioSampleBuffer& b) override
-		{
-			// put the window function stuff here...
-		}
+		void transformReadBuffer(AudioSampleBuffer& b) override;
+
+		FFTHelpers::WindowType currentWindow = FFTHelpers::BlackmanHarris;
+
+		bool useLogX = true;
+		bool useDb = true;
+		Range<float> dbRange = { -50.0f, 0.0 };
+		float yGamma = 1.0f;
+		float decay = 0.7f;
+
+		mutable AudioSampleBuffer windowBuffer;
+		mutable AudioSampleBuffer lastBuffer;
+
+		CriticalSection fftLock;
+
+		bool usePeakDecay = false;
 	};
 
 	struct Oscilloscope: public SimpleRingBuffer::PropertyObject
@@ -127,9 +306,29 @@ struct Helpers
 
 		static String getDescription() { return "an oscilloscope with optional MIDI input sync"; };
 
-		
+		void initialiseRingBuffer(SimpleRingBuffer* b) override
+		{
+			PropertyObject::initialiseRingBuffer(b);
 
-		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w) {};
+			auto l = (int)getProperty(RingBufferIds::BufferLength);
+			auto c = (int)getProperty(RingBufferIds::NumChannels);
+
+			if (l == 0)
+				l = 8192;
+
+			if (c == 0)
+				c = 1;
+
+			b->setRingBufferSize(c, l);
+		}
+
+		Oscilloscope(SimpleRingBuffer::WriterBase* w) : PropertyObject(w)
+		{
+			setProperty(RingBufferIds::BufferLength, 8192);
+			setProperty(RingBufferIds::NumChannels, 1);
+		};
+
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
 
 		static constexpr int NumChannels = 2;
 
@@ -144,6 +343,10 @@ struct Helpers
 
 			return false;
 		}
+
+	private:
+
+		void drawPath(Path& p, Rectangle<float> bounds, int channelIndex) const;
 	};
 
 	struct GonioMeter : public SimpleRingBuffer::PropertyObject
@@ -292,7 +495,7 @@ struct simple_fft_display : public hise::FFTDisplayBase,
 
 	}
 
-	juce::Rectangle<int> getFixedBounds() const override { return { 0, 0, 512, 100 }; }
+	juce::Rectangle<int> getFixedBounds() const override { return { 0, 0, 512, 256 }; }
 
 	double getSamplerate() const override
 	{

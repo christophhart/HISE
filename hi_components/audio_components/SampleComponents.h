@@ -123,6 +123,32 @@ public:
                 return true;
 			}
 
+			Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override
+			{
+				const float* d[1] = { nullptr };
+				int numSamples = 0;
+				float nv;
+				br->getWaveformTableValues(0, d, numSamples, nv);
+
+				AudioSampleBuffer b((float**)d, 1, numSamples);
+				
+				Path p;
+				p.preallocateSpace(numSamples);
+				p.startNewSubPath(0.0f, 0.0f);
+				p.startNewSubPath(0.0f, -1.0f);
+				p.startNewSubPath(0.0f, -1.0f * b.getSample(0, 0));
+
+				for (int i = 1; i < numSamples; i++)
+					p.lineTo((float)i, -1.0f * b.getSample(0, i));
+
+				
+
+				if(!p.getBounds().isEmpty() && !targetBounds.isEmpty())
+					p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
+
+				return p;
+			}
+
 			void transformReadBuffer(AudioSampleBuffer& b) override
 			{
 				if (br != nullptr)

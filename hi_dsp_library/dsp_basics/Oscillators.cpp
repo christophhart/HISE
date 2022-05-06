@@ -77,6 +77,25 @@ hise::RingBufferComponentBase* OscillatorDisplayProvider::OscillatorDisplayObjec
 	return new osc_display();
 }
 
+juce::Path OscillatorDisplayProvider::OscillatorDisplayObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+{
+	Path p;
+	auto b = buffer->getReadBuffer();
+
+	p.startNewSubPath(0.0f, 0.0f);
+	p.preallocateSpace(256);
+
+	for (int i = 0; i < 256; i++)
+		p.lineTo((float)i, -1.0f * b.getSample(0, i));
+
+	p.lineTo(255.0f, 0.0f);
+
+	if (!p.getBounds().isEmpty())
+		p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
+
+	return p;
+}
+
 bool OscillatorDisplayProvider::OscillatorDisplayObject::validateInt(const Identifier& id, int& v) const
 {
 	if (id == RingBufferIds::BufferLength)
@@ -119,6 +138,7 @@ void OscillatorDisplayProvider::OscillatorDisplayObject::transformReadBuffer(Aud
 
 void OscillatorDisplayProvider::OscillatorDisplayObject::initialiseRingBuffer(SimpleRingBuffer* b)
 {
+	PropertyObject::initialiseRingBuffer(b);
 	b->setRingBufferSize(1, 256);
 }
 
@@ -191,28 +211,10 @@ OscillatorDisplayProvider::osc_display::osc_display()
 
 void OscillatorDisplayProvider::osc_display::refresh()
 {
-	waveform.clear();
-
 	if (rb != nullptr)
 	{
-		const auto& bf = rb->getReadBuffer();
-
-		if(bf.getNumSamples() == 256)
-		{
-			auto b = getLocalBounds().reduced(10, 3).withSizeKeepingCentre(180, getHeight() - 6).toFloat();
-
-			waveform.startNewSubPath(0.0f, 0.0f);
-
-			for (int i = 0; i < 256; i++)
-			{
-				waveform.lineTo((float)i, -1.0f * bf.getSample(0, i));
-			}
-
-			waveform.lineTo(255.0f, 0.0f);
-
-			if (!waveform.getBounds().isEmpty())
-				waveform.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), false);
-		}
+		auto bounds = getLocalBounds().reduced(10, 3).withSizeKeepingCentre(180, getHeight() - 6).toFloat();
+		waveform = rb->getPropertyObject()->createPath({ 0, 256 }, { -1.0f, 1.0f }, bounds);
 	}
 
 	repaint();

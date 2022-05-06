@@ -98,17 +98,7 @@ public:
 	
 	int getNumFilterBands() const { return numFilters; }
 
-	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override
-	{
-		if (e == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
-		{
-			jassert(numFilters == 1);
-			filterVector[0]->setCoefficients(0, filterData->getSamplerate(), filterData->getCoefficients());
-
-			fs = filterData->getSamplerate();
-			repaint();
-		}
-	}
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 
 	void clearBands()
 	{
@@ -168,15 +158,22 @@ public:
 		if (filterData != nullptr)
 			filterData->getUpdater().removeEventListener(this);
 
-		filterData = dynamic_cast<FilterDataObject*>(newData);
+		clearBands();
 
-		numFilters = 1;
+		if (filterData = dynamic_cast<FilterDataObject*>(newData))
+		{
+			numFilters = filterData->getNumCoefficients();
 
-		if(filterVector.isEmpty())
-			filterVector.add(new FilterInfo());
-
-		if (filterData != nullptr)
+			for (int i = 0; i < numFilters; i++)
+			{
+				filterVector.add(new FilterInfo());
+				filterVector[i]->setCoefficients(0, filterData->getSamplerate(), filterData->getCoefficients(i));
+			}
+			
 			filterData->getUpdater().addEventListener(this);
+		}
+
+		repaint();
 	}
 
 private:

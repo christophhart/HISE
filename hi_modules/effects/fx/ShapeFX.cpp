@@ -626,7 +626,7 @@ void ShapeFX::updateMix()
 
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
-	LookupTableProcessor(mc, 2),
+	ProcessorWithStaticExternalData(mc, 2, 0, 0, 1),
 	polyUpdater(*this),
 	dcRemovers(numVoices)
 {
@@ -635,6 +635,8 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	finaliseModChains();
 
 	modChains[InternalChains::DriveModulation].setExpandToAudioRate(true);
+
+	connectWaveformUpdaterToComplexUI(getDisplayBuffer(0), true);
 
 	for (int i = 0; i < numVoices; i++)
 	{
