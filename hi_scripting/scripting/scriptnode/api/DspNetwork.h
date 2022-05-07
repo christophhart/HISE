@@ -1098,7 +1098,7 @@ private:
 		void init(dll::ProjectDll::Ptr dllToUse);
 
 		bool hashMatches = false;
-		float parameterValues[16];
+		float parameterValues[OpaqueNode::NumMaxParameters];
 		DspNetwork& network;
 		dll::ProjectDll::Ptr dll;
 		OpaqueNode n;

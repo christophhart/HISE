@@ -224,7 +224,12 @@ struct OpaqueNode
 
 	bool handleModulation(double& d);
 
-	void* getObjectPtr() const { return this->object.getObjectPtr(); }
+	void* getObjectPtr() const
+    {
+        auto obj = this->object.getObjectPtr();
+        jassert(obj != nullptr);
+        return obj;
+    }
 
 	mothernode* getObjectAsMotherNode() { return mnPtr; }
 

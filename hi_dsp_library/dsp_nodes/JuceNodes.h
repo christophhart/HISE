@@ -151,7 +151,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 			if (P == 0)
 				obj.setThreshold(v);
 			if (P == 1)
-				obj.setRatio(v);
+				obj.setRatio(jmax(1.0, v));
 			if (P == 2)
 				obj.setAttack(v);
 			if (P == 3)
@@ -202,6 +202,9 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 
 	IIRCoefficients getApproximateCoefficients() const override
 	{
+        if(sr == 0)
+            return {};
+        
 		auto& o = objects.getFirst();
 
 		switch (o.getType())
