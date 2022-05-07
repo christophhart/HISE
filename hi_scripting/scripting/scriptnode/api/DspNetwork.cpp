@@ -233,6 +233,9 @@ void DspNetwork::createAllNodesOnce()
 
 	for (auto f : nodeFactories)
 	{
+        if(f->getId() == Identifier("project"))
+            continue;
+        
 		for (auto id : f->getModuleList())
 		{
 			NodeBase::Holder s;

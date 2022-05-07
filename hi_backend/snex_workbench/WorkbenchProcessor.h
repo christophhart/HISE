@@ -392,6 +392,7 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 		OK,
 		NoNetwork,
 		NonCompiledInclude,
+        CppGenError,
 		UninitialisedProperties
 	};
 

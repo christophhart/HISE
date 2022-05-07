@@ -932,7 +932,11 @@ void DspNetworkCompileExporter::run()
 			if (r.r.wasOk())
 				f.replaceWithText(r.code);
 			else
-				showStatusMessage(r.r.getErrorMessage());
+            {
+                ok = ErrorCodes::ProjectXmlInvalid;
+                errorMessage = r.r.getErrorMessage();
+                return;
+            };
 
 			includedFiles.add(f);
 		}
