@@ -226,8 +226,10 @@ void GlobalServer::WebThread::run()
 					if (!r.wasOk() || response.isEmpty())
 					{
 						args[1] = response;
-						job->responseObj = args[1];
+						
 					}
+                    
+                    job->responseObj = args[1];
 
 					job->f.call(args);
 
