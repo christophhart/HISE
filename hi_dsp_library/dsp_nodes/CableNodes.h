@@ -394,6 +394,42 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 	};
 
+    struct pack_resizer: public data::base,
+                         public pimpl::no_processing
+                         
+    {
+        SN_NODE_ID("pack_resizer");
+        SN_GET_SELF_AS_OBJECT(pack_resizer);
+        
+        SN_DESCRIPTION("Dynamically resizes a slider pack");
+        
+        template <int P> void setParameter(double v)
+        {
+            if(auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+            {
+                DataWriteLock sl(this);
+                
+                auto newNumSliders = jlimit<int>(1, 128, roundToInt(v));
+                
+                sp->setNumSliders(roundToInt(newNumSliders));
+            }
+        }
+        
+        void createParameters(ParameterDataList& data)
+        {
+            {
+                parameter::data p("NumSliders", { 0.0, 128.0, 1.0 });
+                p.callback = parameter::inner<pack_resizer, 0>(*this);
+                data.add(std::move(p));
+            }
+        }
+        
+        SN_FORWARD_PARAMETER_TO_MEMBER(pack_resizer);
+        
+        float something = 90.0f;
+    };
+
+
 	template <typename ParameterClass> struct resetter : public mothernode,
 														 public pimpl::no_processing,
 														 public pimpl::parameter_node_base<ParameterClass>
