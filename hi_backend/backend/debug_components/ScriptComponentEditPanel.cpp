@@ -194,6 +194,7 @@ void ScriptComponentEditPanel::fillPanel()
     parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parameterId));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::automationId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::defaultValue));
 
 		addSectionToPanel(parameterIds, "Parameter Properties");

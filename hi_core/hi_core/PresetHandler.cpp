@@ -131,12 +131,20 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 	{
-		ValueTree v = sp->getScriptingContent()->exportAsValueTree();
-
-		v.setProperty("Processor", sp->getId(), nullptr);
-
 		preset = ValueTree("Preset");
-		preset.addChild(v, -1, nullptr);
+
+		if (chain->getMainController()->getUserPresetHandler().isUsingCustomDataModel())
+		{
+			auto v = chain->getMainController()->getUserPresetHandler().createCustomValueTree("Unused");
+			preset.addChild(v, -1, nullptr);
+		}
+		else
+		{
+			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
+
+			v.setProperty("Processor", sp->getId(), nullptr);
+			preset.addChild(v, -1, nullptr);
+		}
 
 		auto modules = createModuleStateTree(chain);
 
@@ -149,8 +157,6 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 	ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
 	ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
-
-	
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 

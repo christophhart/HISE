@@ -233,9 +233,6 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	hasChanged(false),
 	customControlCallback(var())
 {
-
-	
-
 	jassert(propertyTree.isValid());
 
 	ADD_SCRIPT_PROPERTY(textId, "text");
@@ -260,14 +257,14 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
     ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(pId72, "linkedTo")			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId72, "linkedTo");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId73, "automationID");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId3, "processorId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId4, "parameterId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	handleDefaultDeactivatedProperties();
-
 
 	setDefaultValue(Properties::text, name.toString());
 	setDefaultValue(Properties::visible, true);
@@ -287,6 +284,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
     setDefaultValue(Properties::isMetaParameter, false);
+	setDefaultValue(automationId, "");
 	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
@@ -354,6 +352,10 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 		}
 
 		return sa;
+	}
+	else if (id == getIdFor(automationId))
+	{
+		return getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationIds();
 	}
 	else if (id == getIdFor(processorId))
 	{
@@ -488,6 +490,28 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		const int index = sa.indexOf(newValue.toString()) - 1;
 
 		addToMacroControl(index);
+	}
+	else if (id == getIdFor(automationId))
+	{
+		if (currentAutomationData != nullptr)
+		{
+			currentAutomationData->asyncListeners.removeListener(*this);
+		}
+
+		if (!newValue.toString().isEmpty())
+		{
+			Identifier newCustomId(newValue.toString());
+
+			if (currentAutomationData = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId))
+			{
+				currentAutomationData->asyncListeners.addListener(*this, [](ScriptComponent& c, double v)
+				{
+					c.setValue(v);
+				}, true);
+			}
+		}
+		else
+			currentAutomationData = nullptr;
 	}
 	else if (id == getIdFor(linkedTo))
 	{
@@ -1125,6 +1149,9 @@ ScriptingApi::Content::ScriptComponent::~ScriptComponent()
 {
 	if (linkedComponent != nullptr)
 		linkedComponent->removeLinkedTarget(this);
+
+	if (currentAutomationData != nullptr)
+		currentAutomationData->asyncListeners.removeListener(*this);
 }
 
 void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties()
@@ -2006,8 +2033,6 @@ struct ScriptingApi::Content::ScriptLabel::Wrapper
 ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int) :
 ScriptComponent(base, name)
 {
-	
-
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -2093,10 +2118,10 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 
 void ScriptingApi::Content::ScriptLabel::handleDefaultDeactivatedProperties()
 {
-
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 }
 
 struct ScriptingApi::Content::ScriptComboBox::Wrapper
@@ -2307,6 +2332,7 @@ void ScriptingApi::Content::ComplexDataScriptComponent::handleDefaultDeactivated
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 }
 
 var ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObjectAtParent(int index /*= -1*/)
@@ -2376,6 +2402,7 @@ ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 	setDefaultValue(ScriptTable::Properties::customColours, 0);
 
 	handleDefaultDeactivatedProperties();
+	
 	
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	initInternalPropertyFromValueTreeOrDefault(Properties::TableIndex);
@@ -2492,6 +2519,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	setDefaultValue(StepSize, 0.01);
 
 	handleDefaultDeactivatedProperties();
+	
 
 	initInternalPropertyFromValueTreeOrDefault(SliderAmount);
 	initInternalPropertyFromValueTreeOrDefault(min);
@@ -3033,7 +3061,9 @@ void ScriptingApi::Content::ScriptImage::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	
 }
 
 void ScriptingApi::Content::ScriptImage::updateBlendMode()
@@ -4217,6 +4247,7 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 }
 
 bool ScriptingApi::Content::ScriptFloatingTile::fillScriptPropertiesWithFloatingTile(FloatingTile* ft)
