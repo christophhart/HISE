@@ -35,20 +35,18 @@ namespace hise { using namespace juce;
 MacroModulationSource::MacroModulationSource(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		String s("Macro " + String(i + 1));
 		modChains += { this, s};
 		lastValues[i] = 0.0f;
 	}
 
-
-
 	finaliseModChains();
 
 	auto offset = 2;
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		macroChains.set(i, modChains[i + offset].getChain());
 		modChains[i + offset].setExpandToAudioRate(true);
@@ -95,7 +93,7 @@ void MacroModulationSource::preVoiceRendering(int startSample, int numThisTime)
 {
 	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		auto& mb = modChains[i+2];
 

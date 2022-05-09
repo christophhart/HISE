@@ -1305,7 +1305,7 @@ void ScriptingApi::Engine::setFrontendMacros(var nameList)
 	{
 		mm.setEnableMacroOnFrontend(!ar->isEmpty());
 		
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < HISE_NUM_MACROS; i++)
 		{
 			auto macroName = (*ar)[i].toString();
 			mm.getMacroChain()->getMacroControlData(i)->setMacroName(macroName);

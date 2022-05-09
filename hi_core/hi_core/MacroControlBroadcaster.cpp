@@ -37,7 +37,7 @@ MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
 
-	for(int i = 0; i < 8; i++)
+	for(int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		macroControls.add(new MacroControlData(i, *this));
 		
@@ -214,7 +214,7 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool l
 
 	auto data = macroData.createXml();
 
-	if(data != nullptr && data->getNumChildElements() == 8)
+	if(data != nullptr && data->getNumChildElements() == HISE_NUM_MACROS)
 	{
 		sendMacroConnectionChangeMessageForAll(false);
 

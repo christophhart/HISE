@@ -1108,7 +1108,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	case MainTopBar::PopupType::Macro:
 	{
 		c = new MacroComponent(getRootWindow());
-		c->setSize(90 * 8, 74);
+		c->setSize(90 * HISE_NUM_MACROS, 74);
 
 		button = macroButton;
 
