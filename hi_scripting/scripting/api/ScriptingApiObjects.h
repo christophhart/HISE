@@ -2100,6 +2100,9 @@ namespace ScriptingObjects
 		/** Registers a function that will be executed whenever a value is sent through the cable. */
 		void registerCallback(var callbackFunction, bool synchronous);
 
+		/** Connects the cable to a macro control. */
+		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
+
 		// =============================================================================================
 
 	private:

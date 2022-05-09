@@ -6257,6 +6257,7 @@ struct ScriptingObjects::GlobalCableReference::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithSkew);
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithStep);
 	API_VOID_METHOD_WRAPPER_2(GlobalCableReference, registerCallback);
+	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, connectToMacroControl);
 };
 
 struct ScriptingObjects::GlobalCableReference::DummyTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
@@ -6320,6 +6321,7 @@ ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScript
 	ADD_API_METHOD_3(setRangeWithSkew);
 	ADD_API_METHOD_3(setRangeWithStep);
 	ADD_API_METHOD_2(registerCallback);
+	ADD_API_METHOD_3(connectToMacroControl);
 }
 
 ScriptingObjects::GlobalCableReference::~GlobalCableReference()
@@ -6487,5 +6489,85 @@ void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFuncti
 		callbacks.add(nc);
 	}
 }
+
+struct MacroCableTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase,
+						 public ControlledObject
+{
+	MacroCableTarget(MainController* mc, int index, bool filterReps) :
+		ControlledObject(mc),
+		macroIndex(index),
+		filterRepetitions(filterReps)
+	{
+		macroData = mc->getMainSynthChain()->getMacroControlData(macroIndex);
+	};
+
+	void selectCallback(Component* rootEditor)
+	{
+		// maybe open the macro panel?
+		jassertfalse;
+	}
+
+	String getTargetId() const override
+	{
+		return "Macro " + String(macroIndex + 1);
+	}
+
+	void sendValue(double v) override
+	{
+		auto newValue = 127.0f * jlimit(0.0f, 1.0f, (float)v);
+		
+		if (!filterRepetitions || lastValue != newValue)
+		{
+			lastValue = newValue;
+			macroData->setValue(newValue);
+		}
+	}
+
+	Path getTargetIcon() const override
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		return p;
+	}
+
+	const bool filterRepetitions;
+	float lastValue = -1.0f;
+	const int macroIndex;
+	WeakReference<MacroControlBroadcaster::MacroControlData> macroData;
+};
+
+
+void ScriptingObjects::GlobalCableReference::connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions)
+{
+	if (auto c = getCableFromVar(cable))
+	{
+		if (macroIsTarget)
+		{
+			using CableType = scriptnode::routing::GlobalRoutingManager::CableTargetBase;
+
+			for (int i = 0; i < c->getTargetList().size(); i++)
+			{
+				if (auto m = dynamic_cast<MacroCableTarget*>(c->getTargetList()[i].get()))
+				{
+					if (macroIndex == -1 || m->macroIndex == macroIndex)
+					{
+						c->removeTarget(m);
+						i--;
+						continue;
+					}
+				}
+			}
+
+			if (macroIndex != -1)
+				c->addTarget(new MacroCableTarget(getScriptProcessor()->getMainController_(), macroIndex, filterRepetitions));
+		}
+		else
+		{
+			// not implemented
+			jassertfalse;
+		}
+	}
+}
+
 
 } // namespace hise
