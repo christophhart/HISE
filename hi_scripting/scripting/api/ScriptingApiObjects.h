@@ -1398,8 +1398,10 @@ namespace ScriptingObjects
 		/** Returns the Type of the modulator. */
 		String getType() const;
 		
+		/** Connects a receive modulator to a global modulator. */
 		void connectToGlobalModulator(String globalModulationContainerId, String modulatorId);
 		
+		/** Returns the id of the global modulation container and global modulator this modulator is connected to */
 		String getGlobalModulatorId();
 		
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
