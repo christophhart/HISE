@@ -1304,6 +1304,9 @@ void ModulatorSampler::reloadSampleMap()
 {
 	auto ref = getSampleMap()->getReference();
 
+	if (!ref.isValid())
+		return;
+
 	auto f = [ref](Processor* p)
 	{
 		auto s = static_cast<ModulatorSampler*>(p);

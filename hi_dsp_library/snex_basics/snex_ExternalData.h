@@ -769,6 +769,24 @@ struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
 namespace data
 {
 
+struct filter_base : public data::base,
+	public FilterDataObject::Broadcaster
+{
+	virtual ~filter_base() {};
+
+	virtual IIRCoefficients getApproximateCoefficients() const = 0;
+
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		deregisterAtObject(this->externalData.obj);
+		base::setExternalData(d, index);
+		registerAtObject(this->externalData.obj);
+
+		if (auto o = dynamic_cast<FilterDataObject*>(d.obj))
+			o->setCoefficients(this, getApproximateCoefficients());
+	}
+};
+
 #define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 
 template <bool EnableBuffer> struct display_buffer_base : public base,

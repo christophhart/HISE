@@ -675,14 +675,14 @@ void SliderPack::setValuesFromLine()
 
 void SliderPack::displayedIndexChanged(SliderPackData* d, int newIndex)
 {
-	if (auto s = sliders[newIndex])
-		s->setValue(getValue(newIndex), dontSendNotification);
-	else if (newIndex == -1)
+	auto f = [](SliderPack& s)
 	{
-		for (int i = 0; i < getNumSliders(); i++)
-			sliders[i]->setValue(getValue(i), dontSendNotification);
-	}
+		for (int i = 0; i < s.getNumSliders(); i++)
+			s.sliders[i]->setValue(s.getValue(i), dontSendNotification);
+	};
 
+	SafeAsyncCall::call<SliderPack>(*this, f);
+	
 	if (currentDisplayIndex != newIndex)
 	{
 		currentDisplayIndex = newIndex;

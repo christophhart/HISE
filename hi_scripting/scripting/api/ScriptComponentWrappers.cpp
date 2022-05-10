@@ -79,6 +79,14 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 	}
 }
 
+void ScriptCreatedComponentWrapper::sourceHasChanged(ComplexDataUIBase*, ComplexDataUIBase*)
+{
+	SafeAsyncCall::call<ScriptCreatedComponentWrapper>(*this, [](ScriptCreatedComponentWrapper& t)
+	{
+		t.updateComplexDataConnection();
+	});
+}
+
 bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
 {
 	if (sc == nullptr)
@@ -1176,7 +1184,7 @@ ScriptCreatedComponentWrapper(content, index)
 	t->setName(table->name.toString());
 	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
 
-	
+	table->getSourceWatcher().addSourceListener(this);
 
 	component = t;
 	
@@ -1200,6 +1208,8 @@ ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
 {
 	if (auto table = dynamic_cast<ScriptingApi::Content::ScriptTable*>(getScriptComponent()))
 	{
+		table->getSourceWatcher().removeSourceListener(this);
+
 		if (auto te = dynamic_cast<TableEditor*>(component.get()))
 			te->removeEditListener(this);
 	}
@@ -1235,6 +1245,8 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 		break;
 	}
 }
+
+
 
 juce::String ScriptCreatedComponentWrappers::TableWrapper::getTextForTablePopup(float x, float y)
 {
@@ -1938,6 +1950,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 	sp->setSliderWidths(pack->widthArray);
 
+	pack->getSourceWatcher().addSourceListener(this);
+
 	component = sp;
 
 	initAllProperties();
@@ -1945,6 +1959,10 @@ ScriptCreatedComponentWrapper(content, index)
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::~SliderPackWrapper()
 {
+	if (auto pack = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent()))
+	{
+		pack->getSourceWatcher().removeSourceListener(this);
+	}
 }
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent()
@@ -2218,6 +2236,8 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 		component = asb;
 	}
 
+	form->getSourceWatcher().addSourceListener(this);
+
 	initAllProperties();
 }
 
@@ -2226,6 +2246,11 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
 {
 	samplerListener = nullptr;
+
+	if (auto form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent()))
+	{
+		form->getSourceWatcher().removeSourceListener(this);
+	}
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()

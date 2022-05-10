@@ -255,6 +255,14 @@ void TableEditor::createDragPoints()
 	}
 };
 
+void TableEditor::setDisplayedIndex(float newIndex)
+{
+	lastIndex = newIndex;
+
+	if (ruler != nullptr)
+		ruler->setIndex(newIndex);
+}
+
 void TableEditor::setEdge(float f, bool setLeftEdge)
 {
 	auto a = getTableArea();

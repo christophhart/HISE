@@ -39,8 +39,11 @@ using namespace hise;
 namespace filters
 {
 
+
+
+
 template <class FilterType, int NV> 
-class FilterNodeBase : public data::base,
+class FilterNodeBase : public data::filter_base,
 					   public hise::ComplexDataUIUpdaterBase::EventListener
 {
 public:
@@ -52,6 +55,7 @@ public:
 		Gain,
 		Smoothing,
 		Mode,
+		Enabled,
 		numParameters
 	};
 
@@ -59,13 +63,13 @@ public:
 
 	static constexpr int NumVoices = NV;
 
-	SET_HISE_POLY_NODE_ID(FilterType::getFilterTypeId());
+	SN_POLY_NODE_ID(FilterType::getFilterTypeId());
 
 	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
 	SN_DESCRIPTION("A filter node");
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_INITIALISE;
 
 	void createParameters(ParameterDataList& parameters);
 	void prepare(PrepareSpecs ps);
@@ -78,7 +82,7 @@ public:
 
 		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
 
-		base::setExternalData(d, index);
+		filter_base::setExternalData(d, index);
 
 		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
 		{
@@ -89,18 +93,25 @@ public:
 		}
 	}
 
+	IIRCoefficients getApproximateCoefficients() const override;
+
 	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		auto b = data.toAudioSampleBuffer();
-		FilterHelpers::RenderData r(b, 0, data.getNumSamples());
-		filter.get().render(r);
+		if (enabled)
+		{
+			auto b = data.toAudioSampleBuffer();
+			FilterHelpers::RenderData r(b, 0, data.getNumSamples());
+			filter.get().render(r);
+		}
+		
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		filter.get().processFrame(data.begin(), data.size());
+		if(enabled)
+			filter.get().processFrame(data.begin(), data.size());
 	}
 
 	void sendCoefficientUpdateMessage()
@@ -116,23 +127,28 @@ public:
 	void setQ(double newQ);
 	void setMode(double newMode);
 	void setSmoothing(double newSmoothingTime);
+	void setEnabled(double isEnabled);
 
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(Frequency, FilterNodeBase);
 		DEF_PARAMETER(Gain, FilterNodeBase);
 		DEF_PARAMETER(Q, FilterNodeBase);
-		DEF_PARAMETER(Mode, FilterNodeBase);
 		DEF_PARAMETER(Smoothing, FilterNodeBase);
+		DEF_PARAMETER(Mode, FilterNodeBase);
+		DEF_PARAMETER(Enabled, FilterNodeBase);
 	}
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 	
 
 	PolyData<FilterObject, NumVoices> filter;
 	double sr = -1.0;
+	bool enabled = true;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterNodeBase);
 };
+
+
 
 
 
@@ -161,11 +177,11 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 
 	static constexpr int NumVoices = NV;
 
-	SET_HISE_NODE_ID("fir");
+	SN_NODE_ID("fir");
 	SN_GET_SELF_AS_OBJECT(fir_impl);
 
-	HISE_EMPTY_SET_PARAMETER;
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_SET_PARAMETER;
+	SN_EMPTY_HANDLE_EVENT;
 
 	fir_impl();;
 
@@ -241,7 +257,7 @@ template <int NV> struct fir_impl : public AudioFileNodeBase
 			f.reset();
 	}
 
-	HISE_EMPTY_MOD;
+	SN_EMPTY_MOD;
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{

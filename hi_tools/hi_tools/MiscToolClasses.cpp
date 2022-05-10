@@ -957,7 +957,21 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
     }
 }
 
+float FFTHelpers::getFreqForLogX(float xPos, float width)
+{
+	auto lowFreq = 20;
+	auto highFreq = 20000.0;
 
+	return lowFreq * pow((highFreq / lowFreq), ((xPos - 2.5f) / (width - 5.0f)));
+}
+
+float FFTHelpers::getPixelValueForLogXAxis(float freq, float width)
+{
+	auto lowFreq = 20;
+	auto highFreq = 20000.0;
+
+	return (width - 5) * (log(freq / lowFreq) / log(highFreq / lowFreq)) + 2.5f;
+}
 
 juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
 {

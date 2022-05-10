@@ -145,6 +145,8 @@ struct OscillatorDisplayProvider: public scriptnode::data::display_buffer_base<t
 
 		RingBufferComponentBase* createComponent() override;;
 
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
+
 		bool validateInt(const Identifier& id, int& v) const override;
 		void transformReadBuffer(AudioSampleBuffer& b) override;
 		void initialiseRingBuffer(SimpleRingBuffer* b) override;

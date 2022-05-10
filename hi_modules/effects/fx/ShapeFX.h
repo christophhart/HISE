@@ -351,7 +351,8 @@ private:
 *
 */
 class PolyshapeFX : public VoiceEffectProcessor,
-					public LookupTableProcessor,
+					//public LookupTableProcessor,
+					public ProcessorWithStaticExternalData,
 					public WaveformComponent::Broadcaster
 {
 public:

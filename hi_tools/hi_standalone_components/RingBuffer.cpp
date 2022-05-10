@@ -169,13 +169,13 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 
 		if (numSamples > 0)
 		{
-			jassert(numChannels == internalBuffer.getNumChannels());
+			int numChannelsToWrite = jmin(numChannels, internalBuffer.getNumChannels());
 
 			int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
 
 			if (numBeforeWrap > 0)
 			{
-				for (int i = 0; i < numChannels; i++)
+				for (int i = 0; i < numChannelsToWrite; i++)
 				{
 					auto buffer = internalBuffer.getWritePointer(i);
 					FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
@@ -190,7 +190,7 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 			{
 				auto numThisTime = jmin(internalBuffer.getNumSamples(), numAfterWrap);
 
-				for (int i = 0; i < numChannels; i++)
+				for (int i = 0; i < numChannelsToWrite; i++)
 				{
 					auto buffer = internalBuffer.getWritePointer(i);
 					FloatVectorOperations::copy(buffer, data[i] + numBeforeWrap, numThisTime);
@@ -455,10 +455,9 @@ AhdsrGraph::~AhdsrGraph()
 
 void AhdsrGraph::paint(Graphics &g)
 {
-	getSpecialLookAndFeel<RingBufferComponentBase::LookAndFeelMethods>()->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
-
 	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
+	laf->drawAhdsrBackground(g, *this);
 	laf->drawAhdsrPathSection(g, *this, envelopePath, false);
 
 
@@ -570,6 +569,10 @@ void AhdsrGraph::refresh()
 	repaint();
 }
 
+
+
+
+
 void AhdsrGraph::rebuildGraph()
 {
 	if (getLocalBounds().isEmpty())
@@ -656,7 +659,11 @@ void AhdsrGraph::rebuildGraph()
 	//envelopePath.closeSubPath();
 }
 
-
+void AhdsrGraph::LookAndFeelMethods::drawAhdsrBackground(Graphics& g, AhdsrGraph& graph)
+{
+	g.setColour(graph.getColourForAnalyserBase(RingBufferComponentBase::bgColour));
+	g.fillRect(graph.getLocalBounds());
+}
 
 void AhdsrGraph::LookAndFeelMethods::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)
 {
@@ -701,210 +708,87 @@ hise::RingBufferComponentBase* SimpleRingBuffer::PropertyObject::createComponent
 	return new ModPlotter();
 }
 
-void FFTDisplayBase::Properties::applyFFT(SimpleRingBuffer::Ptr p)
+juce::Path SimpleRingBuffer::PropertyObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
 {
+	if (buffer == nullptr)
+	{
+		jassertfalse;
+		return {};
+	}
 
+	int numValues = sampleRange.getLength();
+	int numPixels = targetBounds.getWidth();
+	auto stride = jmax(1, roundToInt((float)numValues / (float)numPixels));
+	
+	auto& b = buffer->getReadBuffer();
+
+	if (b.getNumChannels() == 0 || b.getNumSamples() == 0)
+		return {};
+
+	auto startValue = b.getSample(0, 0);
+
+	auto startv = valueRange.getEnd() - (double)startValue * valueRange.getLength();
+
+	Path p;
+
+	p.preallocateSpace(numValues / stride);
+
+	p.startNewSubPath(0.0f, valueRange.getStart());
+	p.startNewSubPath(0.0f, valueRange.getEnd());
+	p.startNewSubPath(0.0f, startv);
+
+	for (int i = sampleRange.getStart(); i < numValues; i += stride)
+	{
+		int numToLook = jmin(stride, numValues - i);
+
+		auto avg = FloatVectorOperations::findMinAndMax(b.getReadPointer(0, i), numToLook);
+
+		auto value = avg.getEnd();
+
+		if (std::abs(avg.getStart()) > std::abs(avg.getEnd()))
+			value = avg.getStart();
+
+		p.lineTo((float)i, valueRange.getEnd() - valueRange.clipValue(value));
+	};
+
+	p.lineTo(numValues, startv);
+
+	p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
+
+	return p;
 }
+
+
 
 void FFTDisplayBase::drawSpectrum(Graphics& g)
 {
 	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 
-	laf->drawOscilloscopeBackground(g, *this, dynamic_cast<Component*>(this)->getLocalBounds().toFloat());
+	auto targetBounds = dynamic_cast<Component*>(this)->getLocalBounds().toFloat();
+	laf->drawOscilloscopeBackground(g, *this, targetBounds);
 
 	if (rb != nullptr)
 	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(rb->getDataLock()))
-		{
-			const auto& b = rb->getReadBuffer();
+		auto lPath = rb->getPropertyObject()->createPath({}, {}, targetBounds);
 
-			int size = b.getNumSamples();
+		Path grid;
 
-            auto order = log2(size);
-            
-            auto fft = juce::dsp::FFT(order);
-            
-			if (windowBuffer.getNumSamples() == 0 || windowBuffer.getNumSamples() != size)
-			{
-				windowBuffer = AudioSampleBuffer(1, size);
-				fftBuffer = AudioSampleBuffer(1, size);
-				fftBuffer.clear();
-			}
+		auto x0 = FFTHelpers::getPixelValueForLogXAxis(100.0f, targetBounds.getWidth());
+		auto x1 = FFTHelpers::getPixelValueForLogXAxis(1000.0f, targetBounds.getWidth());
+		auto x2 = FFTHelpers::getPixelValueForLogXAxis(10000.0f, targetBounds.getWidth());
 
-			if (lastWindowType != fftProperties.window)
-			{
-				auto d = windowBuffer.getWritePointer(0);
+		grid.startNewSubPath(0.0f, 0.0f);
+		grid.startNewSubPath(targetBounds.getWidth(), 1.0f);
+		grid.startNewSubPath(x0, 0.0f);
+		grid.lineTo(x0, 1.0f);
+		grid.startNewSubPath(x1, 0.0f);
+		grid.lineTo(x1, 1.0f);
+		grid.startNewSubPath(x2, 0.0f);
+		grid.lineTo(x2, 1.0f);
+		grid.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
 
-                juce::dsp::WindowingFunction<float> w(size, juce::dsp::WindowingFunction<float>::blackmanHarris);
-
-                
-                FloatVectorOperations::fill(d, 1.0f, size);
-                w.multiplyWithWindowingTable(d, size);
-                
-				lastWindowType = fftProperties.window;
-			}
-
-			AudioSampleBuffer b2(2, size * 2);
-            b2.clear();
-            
-            auto data = b2.getWritePointer(0);
-            FloatVectorOperations::copy(data, rb->getReadBuffer().getReadPointer(0), size);
-            
-			
-
-			FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
-
-			auto lastValues = fftBuffer.getWritePointer(0);
-
-			auto sampleRate = getSamplerate();
-
-            fft.performRealOnlyForwardTransform(data);
-            
-			if (fftProperties.domain == Amplitude)
-			{
-				for (int i = 2; i < size; i += 2)
-				{
-					data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
-					data[i + 1] = data[i];
-				}
-			}
-			else
-			{
-				auto threshhold = FloatVectorOperations::findMaximum(data, size) / 10000.0;
-
-				data[0] = 0.0f;
-				data[1] = 0.0f;
-
-				for (int i = 2; i < size; i += 2)
-				{
-					auto real = data[i];
-					auto img = data[i + 1];
-
-					if (real < threshhold) real = 0.0f;
-					if (img < threshhold) img = 0.0f;
-
-					auto phase = atan2f(img, real);
-
-					data[i] = phase;
-					data[i + 1] = phase;
-				}
-			}
-
-			FloatVectorOperations::abs(data, b2.getReadPointer(0), size);
-			FloatVectorOperations::multiply(data, 1.0f / 95.0f, size);
-
-			auto asComponent = dynamic_cast<Component*>(this);
-
-			int stride = roundToInt((float)size / asComponent->getWidth());
-			stride *= 2;
-
-			lPath.clear();
-
-			lPath.startNewSubPath(0.0f, (float)asComponent->getHeight());
-
-			if (sampleRate == 0.0)
-				sampleRate = 44100.0;
-
-			int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
-
-			float lastIndex = 0.0f;
-			float value = 0.0f;
-			int lastI = 0;
-			int sumAmount = 0;
-
-			int lastLineLog = 1;
-
-			Path grid;
-
-			for (int i = log10Offset; i < size; i += 2)
-			{
-				auto f = (double)i / (double)size * sampleRate / 2.0;
-
-				auto thisLineLog = (int)log10(f);
-
-				if (thisLineLog == 0)
-					continue;
-
-				float xPos;
-
-				if (fftProperties.freq2x)
-					xPos = (float)fftProperties.freq2x((float)f);
-				else
-                {
-                    auto width = asComponent->getWidth();
-                    auto lowFreq = 20;
-                    auto highFreq = 20000.0;
-                    float freq = f;
-                    
-                    xPos = (width - 5) * (log (freq / lowFreq) / log (highFreq / lowFreq)) + 2.5f;
-                    //xPos = (float)log10((float)i) / maxPos * (float)(asComponent->getWidth() + xLog10Pos) - xLog10Pos;
-                }
-					
-
-				auto diff = xPos - lastIndex;
-
-				if ((int)thisLineLog != lastLineLog)
-				{
-                    FloatSanitizers::sanitizeFloatNumber(xPos);
-					grid.startNewSubPath(xPos, 0.0f);
-					grid.lineTo(xPos, asComponent->getHeight());
-
-					lastLineLog = (int)thisLineLog;
-				}
-
-				auto indexDiff = i - lastI;
-
-				float v = fabsf(data[i]);
-
-				if (fftProperties.gain2y)
-					v = fftProperties.gain2y(v);
-				else
-				{
-
-
-
-					v = Decibels::gainToDecibels(v);
-					v = jlimit<float>(fftProperties.dbRange.getStart(), 0.0f, v);
-					v = 1.0f + v / fftProperties.dbRange.getLength();
-					v = powf(v, 0.707f);
-				}
-
-				value += v;
-				sumAmount++;
-
-				if (diff > 1.0f && indexDiff > 4)
-				{
-					value /= (float)(sumAmount);
-
-					sumAmount = 0;
-
-					lastIndex = xPos;
-					lastI = i;
-
-					value = 0.6f * value + 0.4f * lastValues[i];
-
-					if (value > lastValues[i])
-						lastValues[i] = value;
-					else
-						lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.05f);
-
-					auto yPos = lastValues[i];
-					yPos = 1.0f - yPos;
-
-					yPos *= asComponent->getHeight();
-
-					lPath.lineTo(xPos, yPos);
-
-					value = 0.0f;
-				}
-			}
-
-			lPath.lineTo((float)asComponent->getWidth(), (float)asComponent->getHeight());
-			lPath.closeSubPath();
-
-			laf->drawAnalyserGrid(g, *this, grid);
-			laf->drawOscilloscopePath(g, *this, lPath);
-		}
+		laf->drawAnalyserGrid(g, *this, grid);
+		laf->drawOscilloscopePath(g, *this, lPath);
 	}
 }
 
@@ -938,10 +822,10 @@ void OscilloscopeBase::drawWaveform(Graphics& g)
 
 			laf->drawAnalyserGrid(g, *this, grid);
 
-
-
-
 			drawOscilloscope(g, rb->getReadBuffer());
+
+			
+
 		}
 	}
 }
@@ -1004,8 +888,19 @@ void OscilloscopeBase::drawPath(const float* l_, int numSamples, int width, Path
 
 void OscilloscopeBase::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 {
+	auto asComponent = dynamic_cast<Component*>(this);
+	auto lb = asComponent->getLocalBounds().toFloat();
+	auto path = rb->getPropertyObject()->createPath({ 0, b.getNumSamples() }, { -1.0f, 1.0f }, lb);
+
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+
+	jassert(laf != nullptr);
+
+	laf->drawOscilloscopePath(g, *this, path);
+
+#if 0
 	auto dataL = b.getReadPointer(0);
-	auto dataR = b.getReadPointer(1);
+	auto dataR = b.getReadPointer(jmin(1, b.getNumChannels() -1));
 	
 	auto asComponent = dynamic_cast<Component*>(this);
 
@@ -1025,6 +920,7 @@ void OscilloscopeBase::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 
 	laf->drawOscilloscopePath(g, *this, lPath);
 	laf->drawOscilloscopePath(g, *this, rPath);
+#endif
 }
 
 GoniometerBase::Shape::Shape(const AudioSampleBuffer& buffer, Rectangle<int> area)

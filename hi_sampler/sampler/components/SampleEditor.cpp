@@ -948,7 +948,8 @@ struct LoopImproveWindow: public Component,
       previewButton("preview", this, *this),
       findButton("find", this, *this),
       dragger(this, nullptr),
-	  findThread(*this)
+	  findThread(*this),
+	  crossfadeUpdater(*this)
     {
         addAndMakeVisible(dragger);
         
@@ -972,25 +973,45 @@ struct LoopImproveWindow: public Component,
         sizeSelector.setText("1024", dontSendNotification);
         sizeSelector.addListener(this);
         
+
+
         amountSlider.setRange(256, 8192, 1.0);
         amountSlider.setSkewFactor(0.3f);
         amountSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
         amountSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
         amountSlider.setLookAndFeel(&laf);
         amountSlider.setValue(1024.0, dontSendNotification);
-        
-        amountSlider.onValueChange = [this]()
-        {
-            this->refreshThumbnails();
-        };
-        
         amountSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
         amountSlider.setColour(Slider::trackColourId, Colours::orange.withSaturation(0.0f).withAlpha(0.5f));
-
         amountSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
         amountSlider.setTooltip("Change waveform zoom");
         
-        
+		amountSlider.onValueChange = [this]()
+		{
+			this->refreshThumbnails();
+		};
+
+		
+
+		crossfadeGammaSlider.setRange(0.125, 8, 0.01);
+		crossfadeGammaSlider.setSkewFactorFromMidPoint(1.0);
+		crossfadeGammaSlider.setDoubleClickReturnValue(true, 1.0);
+		crossfadeGammaSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+		crossfadeGammaSlider.setTextBoxStyle(Slider::TextEntryBoxPosition::TextBoxRight, false, 80, 20);
+		crossfadeGammaSlider.setLookAndFeel(&laf);
+		crossfadeGammaSlider.setValue(sampler->getSampleMap()->getValueTree()["CrossfadeGamma"], dontSendNotification);
+		crossfadeGammaSlider.setColour(Slider::backgroundColourId, Colours::white.withAlpha(0.2f));
+		crossfadeGammaSlider.setColour(Slider::trackColourId, Colours::orange.withSaturation(0.0f).withAlpha(0.5f));
+		crossfadeGammaSlider.setColour(Slider::thumbColourId, Colour(0xFFDDDDDD));
+		crossfadeGammaSlider.setTooltip("Change the X-Crossfade gamma value for this sample map");
+
+		crossfadeGammaSlider.onValueChange = [this]()
+		{
+			crossfadeUpdater.startTimer(800);
+		};
+
+		addAndMakeVisible(crossfadeGammaSlider);
+
         previewButton.setTooltip("Preview the current loop");
         applyButton.setTooltip("Write the current loop to the sample properties");
         sizeSelector.setTooltip("Select a zoom size");
@@ -1466,6 +1487,7 @@ struct LoopImproveWindow: public Component,
         
         loopStart.setRange(getWidth()/2, getWidth());
         loopEnd.setRange(0, getWidth() / 2);
+		crossfadeGammaSlider.setBounds(top.removeFromLeft(190));
     }
     
     void paint(Graphics& g) override
@@ -1511,9 +1533,32 @@ struct LoopImproveWindow: public Component,
 		s << statistics.toString();
 		s << (unappliedChanges ? "*" : "");
 
-        g.drawText(s, getLocalBounds().toFloat().removeFromTop(24.0f).reduced(10.0f, 0.0f), Justification::centredLeft);
+		auto t = getLocalBounds().toFloat().removeFromTop(24.0f);
+		t.setRight(findButton.getX() - 10);
+
+		t.removeFromLeft(crossfadeGammaSlider.getWidth() + 10);
+
+        g.drawText(s, t.reduced(10.0f, 0.0f), Justification::centredRight);
     }
     
+	struct CrossfadeUpdater : public Timer
+	{
+		CrossfadeUpdater(LoopImproveWindow& parent_) :
+			parent(parent_)
+		{};
+
+		void timerCallback() override
+		{
+			parent.sampler->getSampleMap()->getValueTree().setProperty(Identifier("CrossfadeGamma"), 
+																	   parent.crossfadeGammaSlider.getValue(), 
+																	   parent.sampler->getUndoManager());
+
+			stopTimer();
+		}
+		
+		LoopImproveWindow& parent;
+	} crossfadeUpdater;
+
     bool ok;
     
 	ErrorStats statistics;
@@ -1538,6 +1583,8 @@ struct LoopImproveWindow: public Component,
     Slider amountSlider;
     ModulatorSamplerSound::Ptr sound;
     
+	Slider crossfadeGammaSlider;
+
     ComboBox sizeSelector;
     GlobalHiseLookAndFeel claf;
     

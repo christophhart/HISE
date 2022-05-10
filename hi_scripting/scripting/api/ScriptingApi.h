@@ -489,6 +489,9 @@ public:
     /** Returns the product name (not the HISE name!). */
     String getName();
 
+		/** Returns project and company info from the Project's preferences. */
+		var getProjectInfo();
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 
@@ -545,6 +548,11 @@ public:
 
     /** Returns a string of the value with the supplied number of digits. */
     String doubleToString(double value, int digits);
+		
+		String intToHexString(int value);
+
+		/** Signals that the application should terminate. */
+		void quit();
 
 		/** Reverts the last controller change. */
 		void undo();
@@ -1494,7 +1502,7 @@ public:
 		String getSystemId();
 		
 		/**  Convert a file size in bytes to a neat string description. */
-		String descriptionOfSizeInBytes(int bytes);
+		String descriptionOfSizeInBytes(int64 bytes);
 
 		/** Returns the number of free bytes on the volume of a given folder. */
 		int64 getBytesFreeOnVolume(var folder);

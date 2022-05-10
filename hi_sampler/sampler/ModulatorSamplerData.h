@@ -152,6 +152,9 @@ public:
 		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
+	void updateCrossfades(Identifier id, var newValue);
+	
+
 	FileHandlerBase* getCurrentFileHandler() const;
 
 	ModulatorSamplerSoundPool* getCurrentSamplePool() const;
@@ -164,12 +167,12 @@ public:
 
 	void removeSound(ModulatorSamplerSound* s);
 
-	/** Exports the SampleMap as ValueTree.
-	*
-	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
-	*	if they don't exist yet.
-	*/
+	
 	const ValueTree getValueTree() const;
+
+	ValueTree getValueTree() { return data; }
+
+	float getCrossfadeGammaValue() const;
 
 	PoolReference getReference() const
 	{
@@ -325,6 +328,8 @@ private:
 	bool notificationPending = false;
 	
 	bool syncEditMode = false;
+
+	valuetree::PropertyListener crossfadeListener;
 
 	struct Notifier: public Dispatchable
 	{

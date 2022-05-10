@@ -73,8 +73,8 @@ template <typename T, int NV> struct jwrapper
 			obj.prepare(jps);
 	}
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_INITIALISE;
 	
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -151,7 +151,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 			if (P == 0)
 				obj.setThreshold(v);
 			if (P == 1)
-				obj.setRatio(v);
+				obj.setRatio(jmax(1.0, v));
 			if (P == 2)
 				obj.setAttack(v);
 			if (P == 3)
@@ -176,7 +176,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 };
 
 struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<float>, 1>,
-						public data::base,
+						public data::filter_base,
 						public hise::ComplexDataUIUpdaterBase::EventListener
 {
 	SNEX_NODE(jlinkwitzriley);
@@ -200,8 +200,11 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		sendCoefficientUpdateMessage();
 	}
 
-	IIRCoefficients getDisplayCoefficients() const
+	IIRCoefficients getApproximateCoefficients() const override
 	{
+        if(sr == 0)
+            return {};
+        
 		auto& o = objects.getFirst();
 
 		switch (o.getType())
@@ -223,7 +226,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 				if (sr > 0.0)
 					fd->setSampleRate(sr);
 
-				fd->setCoefficients(getDisplayCoefficients());
+				fd->setCoefficients(this, getApproximateCoefficients());
 			}
 		}
 	}
@@ -239,11 +242,14 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 	void setExternalData(const ExternalData& d, int index) override
 	{
 		if (this->externalData.obj != nullptr)
+		{
 			d.obj->getUpdater().removeEventListener(this);
+			
+		}
 
 		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
 
-		base::setExternalData(d, index);
+		filter_base::setExternalData(d, index);
 
 		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
 		{

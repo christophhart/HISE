@@ -196,7 +196,7 @@ public:
     {
 		jassert(type == dataType);
         
-        if(isPositiveAndBelow(srcIndex, getNumDataObjects(dataType)))
+        if(isPositiveAndBelow(srcIndex, src.getNumDataObjects(dataType)))
         {
             ComplexDataUIBase::Ptr old = getComplexBaseType(type, dstIndex);
 			auto otherData = src.getComplexBaseType(type, srcIndex);
@@ -425,6 +425,17 @@ public:
 		return ringBuffers[index].get();
 	}
 
+	FilterDataObject* getFilterData(int index) final override
+	{
+		if (auto d = filterData[index])
+			return d.get();
+
+		auto s = createAndInit(snex::ExternalData::DataType::FilterCoefficients);
+
+		filterData.set(index, static_cast<FilterDataObject*>(s));
+		return filterData[index].get();
+	}
+
 	int getNumDataObjects(ExternalData::DataType t) const
 	{
 		switch (t)
@@ -433,6 +444,7 @@ public:
 		case ExternalData::DataType::Table: return tables.size();
 		case ExternalData::DataType::AudioFile: return audioFiles.size();
 		case ExternalData::DataType::DisplayBuffer: return ringBuffers.size();
+		case ExternalData::DataType::FilterCoefficients: return filterData.size();
         default: return 0;
 		}
 
@@ -477,6 +489,8 @@ public:
 			audioFiles.set(index, dynamic_cast<MultiChannelAudioBuffer*>(obj)); break;
 		case ExternalData::DataType::DisplayBuffer:
 			ringBuffers.set(index, dynamic_cast<SimpleRingBuffer*>(obj)); break;
+		case ExternalData::DataType::FilterCoefficients:
+			filterData.set(index, dynamic_cast<FilterDataObject*>(obj)); break;
         default: jassertfalse; break;
 		}
 	}
@@ -498,6 +512,7 @@ private:
 	ReferenceCountedArray<Table> tables;
 	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
 	ReferenceCountedArray<SimpleRingBuffer> ringBuffers;
+	ReferenceCountedArray<FilterDataObject> filterData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorWithDynamicExternalData);
 };

@@ -499,7 +499,8 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
                     internalBuffer.setSample(0, startSample++, table->getInterpolatedValue(data[i++], dontSendNotification));
                 }
                 
-                invertBuffer(startSample, numSamples);
+				if(numSamples > 0)
+					invertBuffer(startSample, numSamples);
                 
                 
 				table->setNormalisedIndexSync(thisInputValue);

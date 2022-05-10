@@ -299,6 +299,9 @@ namespace ScriptingObjects
 		/** Reads a file and generates the hash of its contents. */
 		String getHash();
 
+		/** true if it's possible to create and write to this file. If the file doesn't already exist, this will check its parent directory to see if writing is allowed. */
+		bool hasWriteAccess();
+
 		/** Returns a String representation of that file. */
 		String toString(int formatType) const;
 		
@@ -899,6 +902,9 @@ namespace ScriptingObjects
 
 		/** Creates a path objects scaled to the given bounds and sourceRange */
 		var createPath(var dstArea, var sourceRange, var normalisedStartValue);
+
+		/** Sets the ring buffer properties from an object (Use the JSON from the Edit Properties popup). */
+		void setRingBufferProperties(var propertyData);
 
 		// ============================================================================================================
 

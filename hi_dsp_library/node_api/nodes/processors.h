@@ -85,7 +85,7 @@ template <int ChannelAmount> struct frame
 
 template <int BlockSize> struct fix_block
 {
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_INITIALISE;
 
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
@@ -290,12 +290,12 @@ public:
 
 	init() : obj(), i(obj) {};
 
-	HISE_DEFAULT_PREPARE(T);
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_HANDLE_EVENT(T);
-	HISE_DEFAULT_PROCESS_FRAME(T);
-	HISE_DEFAULT_PROCESS(T);
-	HISE_DEFAULT_MOD(T);
+	SN_DEFAULT_PREPARE(T);
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_HANDLE_EVENT(T);
+	SN_DEFAULT_PROCESS_FRAME(T);
+	SN_DEFAULT_PROCESS(T);
+	SN_DEFAULT_MOD(T);
 
 	void initialise(NodeBase* n)
 	{
@@ -372,11 +372,11 @@ public:
 	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
 	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
-	HISE_DEFAULT_INIT(T);
-	HISE_DEFAULT_PREPARE(T);
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_HANDLE_EVENT(T);
-	HISE_DEFAULT_PROCESS_FRAME(T);
+	SN_DEFAULT_INIT(T);
+	SN_DEFAULT_PREPARE(T);
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_HANDLE_EVENT(T);
+	SN_DEFAULT_PROCESS_FRAME(T);
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
@@ -399,13 +399,13 @@ public:
 	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
 	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
 
-	HISE_DEFAULT_INIT(T);
-	HISE_DEFAULT_PREPARE(T);
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_MOD(T);
-	HISE_DEFAULT_HANDLE_EVENT(T);
-	HISE_DEFAULT_PROCESS_FRAME(T);
-	HISE_DEFAULT_PROCESS(T);
+	SN_DEFAULT_INIT(T);
+	SN_DEFAULT_PREPARE(T);
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_MOD(T);
+	SN_DEFAULT_HANDLE_EVENT(T);
+	SN_DEFAULT_PROCESS_FRAME(T);
+	SN_DEFAULT_PROCESS(T);
 
 	constexpr auto& getParameter() { return obj.getParameter(); };
 
@@ -420,7 +420,7 @@ public:
 	{
 		this->obj.template setParameter<P>(v);
 	}
-	FORWARD_PARAMETER_TO_MEMBER(no_data)
+	SN_FORWARD_PARAMETER_TO_MEMBER(no_data)
 
 	T obj;
 };
@@ -478,8 +478,8 @@ template <int NumChannels, class T> class frame
 {
 public:
 
-	GET_SELF_OBJECT(obj);
-	GET_WRAPPED_OBJECT(obj);
+	SN_GET_SELF_OBJECT(obj);
+	SN_GET_WRAPPED_OBJECT(obj);
 
 	using FixProcessType = snex::Types::ProcessData<NumChannels>;
 	using FrameType = snex::Types::span<float, NumChannels>;
@@ -786,11 +786,11 @@ public:
 
 	SN_SELF_AWARE_WRAPPER(offline, T);
 
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_PREPARE;
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PREPARE;
+	SN_EMPTY_RESET;
+	SN_EMPTY_HANDLE_EVENT;
 	
 	void initialise(NodeBase* n) { obj.initialise(n); }
 
@@ -862,10 +862,10 @@ public:
 		jassertfalse;
 	}
 
-	HISE_DEFAULT_INIT(T);
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_MOD(T);
-	HISE_DEFAULT_HANDLE_EVENT(T);
+	SN_DEFAULT_INIT(T);
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_MOD(T);
+	SN_DEFAULT_HANDLE_EVENT(T);
 
 private:
 
@@ -877,13 +877,13 @@ template <class T> struct no_midi
 {
 	SN_OPAQUE_WRAPPER(no_midi, T);
 
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_MOD(T);
-	HISE_DEFAULT_INIT(T);
-	HISE_DEFAULT_PROCESS(T);
-	HISE_DEFAULT_PROCESS_FRAME(T);
-	HISE_DEFAULT_PREPARE(T);
-	HISE_EMPTY_HANDLE_EVENT;
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_MOD(T);
+	SN_DEFAULT_INIT(T);
+	SN_DEFAULT_PROCESS(T);
+	SN_DEFAULT_PROCESS_FRAME(T);
+	SN_DEFAULT_PREPARE(T);
+	SN_EMPTY_HANDLE_EVENT;
 
 	T obj;
 };
@@ -894,9 +894,9 @@ template <class T, typename FixBlockClass> struct fix_blockx
 	SN_OPAQUE_WRAPPER(fix_blockx, T);
 
 	
-	HISE_DEFAULT_RESET(T);
-	HISE_DEFAULT_MOD(T);
-	HISE_DEFAULT_HANDLE_EVENT(T);
+	SN_DEFAULT_RESET(T);
+	SN_DEFAULT_MOD(T);
+	SN_DEFAULT_HANDLE_EVENT(T);
 
 	void initialise(NodeBase* n)
 	{
@@ -1161,11 +1161,11 @@ template <typename T> struct illegal_poly: public scriptnode::data::base
     
 	SN_DESCRIPTION("(not available in a poly network)");
 
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_MOD;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_RESET;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_MOD;
 	
 	void initialise(NodeBase* n) { obj.initialise(n); }
 
@@ -1223,7 +1223,7 @@ template <class T> struct node : public scriptnode::data::base
 		T::template setParameterStatic<P>(objPtr, v);
 	}
 
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	void process(FixBlockType& d)
 	{

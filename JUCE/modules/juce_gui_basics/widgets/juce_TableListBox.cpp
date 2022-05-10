@@ -253,6 +253,8 @@ public:
 
         AccessibleState getCurrentState() const override
         {
+			return {};
+
             if (auto* m = rowComponent.owner.getModel())
                 if (rowComponent.row >= m->getNumRows())
                     return AccessibleState().withIgnored();

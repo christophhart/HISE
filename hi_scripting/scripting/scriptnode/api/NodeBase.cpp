@@ -1546,9 +1546,13 @@ scriptnode::NodeBase* ConnectionBase::Helpers::findRealSource(NodeBase* source)
 {
 	if (auto cableNode = dynamic_cast<InterpretedCableNode*>(source))
 	{
-        auto valueParam = cableNode->getParameterFromIndex(0);
-        
-		if (valueParam != nullptr && valueParam->isModulated())
+		source = nullptr;
+
+		auto valueParam = cableNode->getParameterFromIndex(0);
+
+		jassert(valueParam != nullptr);
+
+		if(valueParam != nullptr && valueParam->isModulated())
 		{
             source = nullptr;
             

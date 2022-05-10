@@ -231,4 +231,73 @@ void FilterInfo::setCustom (std::vector <double> numCoeffs, std::vector <double>
     denominatorCoeffs = denCoeffs;
 }
 
+bool FilterDataObject::Broadcaster::registerAtObject(ComplexDataUIBase* obj)
+{
+	if (auto f = dynamic_cast<FilterDataObject*>(obj))
+	{
+		for (auto& d : f->internalData)
+		{
+			if (d.broadcaster == this)
+				return false;
+		}
+
+		InternalData d;
+		d.broadcaster = this;
+		f->internalData.add(d);
+		return true;
+	}
+	
+	return false;
+}
+
+bool FilterDataObject::Broadcaster::deregisterAtObject(ComplexDataUIBase* obj)
+{
+	if (auto f = dynamic_cast<FilterDataObject*>(obj))
+	{
+		for (int i = 0; i < f->internalData.size(); i++)
+		{
+			if (f->internalData[i].broadcaster == this)
+			{
+				f->internalData.remove(i);
+				return true;
+			}
+		}
+
+		return false;
+	}
+	
+	return false;
+}
+
+void FilterDataObject::setCoefficients(Broadcaster* b, IIRCoefficients newCoefficients)
+{
+	auto isMessageThread = MessageManager::getInstance()->isThisTheMessageThread();
+
+	bool found = false;
+
+	for (auto& d : internalData)
+	{
+		if (d.broadcaster == b)
+		{
+			d.coefficients = newCoefficients;
+			found = true;
+			break;
+		}
+	}
+
+	if (sampleRate > 0.0 && found)
+		getUpdater().sendDisplayChangeMessage(sampleRate, isMessageThread ? sendNotificationSync : sendNotificationAsync, true);
+}
+
+juce::IIRCoefficients FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
+{
+	for (const auto& d : internalData)
+	{
+		if (b == d.broadcaster.get())
+			return d.coefficients;
+	}
+
+	return {};
+}
+
 } // namespace hise

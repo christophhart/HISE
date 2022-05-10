@@ -161,6 +161,20 @@ private:
 struct ahdsr_base: public mothernode,
 				   public data::display_buffer_base<true>
 {
+	enum Parameters
+	{
+		Attack,
+		AttackLevel,
+		Hold,
+		Decay,
+		Sustain,
+		Release,
+		AttackCurve,
+		Retrigger,
+		Gate,
+		numParameters
+	};
+
 	struct AhdsrRingBufferProperties : public SimpleRingBuffer::PropertyObject
 	{
 		static constexpr int PropertyIndex = 2002;
@@ -175,6 +189,8 @@ struct ahdsr_base: public mothernode,
 		RingBufferComponentBase* createComponent() { return new AhdsrGraph(); }
 
 		bool validateInt(const Identifier& id, int& v) const override;
+
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
 
 		void transformReadBuffer(AudioSampleBuffer& b) override
 		{
@@ -286,9 +302,8 @@ struct ahdsr_base: public mothernode,
 	{
 		if (convertDbValues && (index == 1 || index == 4))
 		{
-			value = Decibels::gainToDecibels(jlimit(-100.0f, 0.0f, value));
+			value = Decibels::gainToDecibels(jlimit(0.0f, 1.0f, value));
 		}
-		else
 			
 		if(rb != nullptr)
 			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, index);
@@ -472,11 +487,11 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 		DEF_PARAMETER(Gate, simple_ar);
 		DEF_PARAMETER(AttackCurve, simple_ar);
 	}
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr bool isPolyphonic() { return NumVoices > 1; }
 
-	SET_HISE_NODE_ID("simple_ar");
+	SN_NODE_ID("simple_ar");
 	SN_GET_SELF_AS_OBJECT(simple_ar);
 	SN_DESCRIPTION("A simple attack / release envelope");
 
@@ -646,19 +661,7 @@ template <int NV, typename ParameterType> struct simple_ar: public pimpl::envelo
 template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_base<ParameterType>,
 														 public pimpl::ahdsr_base
 {
-	enum Parameters
-	{
-		Attack,
-		AttackLevel,
-		Hold,
-		Decay,
-		Sustain,
-		Release,
-		AttackCurve,
-		Retrigger,
-		Gate,
-		numParameters
-	};
+	
 
 	ahdsr():
 		pimpl::envelope_base<ParameterType>(getStaticId())
@@ -677,7 +680,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 	static constexpr int NumVoices = NV;
 
-	SET_HISE_POLY_NODE_ID("ahdsr");
+	SN_POLY_NODE_ID("ahdsr");
 	SN_GET_SELF_AS_OBJECT(ahdsr);
 	SN_DESCRIPTION("The AHDSR envelope from HISE");
 
@@ -809,7 +812,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 
 		FloatSanitizers::sanitizeFloatNumber(v);
 
-		setDisplayValue(P, v);
+		setDisplayValue(P, v, true);
 
 		if (P == Parameters::AttackCurve)
 		{
@@ -875,7 +878,7 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		}
 	}
 
-	FORWARD_PARAMETER_TO_MEMBER(ahdsr);
+	SN_FORWARD_PARAMETER_TO_MEMBER(ahdsr);
 
 	void createParameters(ParameterDataList& data)
 	{
@@ -1045,20 +1048,20 @@ template <int NV> struct silent_killer_impl: public voice_manager_base
 
 	static constexpr int NumVoices = NV;
 
-	SET_HISE_POLY_NODE_ID("silent_killer");
+	SN_POLY_NODE_ID("silent_killer");
 	SN_GET_SELF_AS_OBJECT(silent_killer_impl);
 	SN_DESCRIPTION("Send a voice reset message as soon when silence is detected");
 
-	HISE_EMPTY_INITIALISE;
-	HISE_EMPTY_MOD;
-	HISE_EMPTY_RESET;
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_MOD;
+	SN_EMPTY_RESET;
 	
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(Threshold, silent_killer_impl);
 		DEF_PARAMETER(Active, silent_killer_impl);
 	}
-	PARAMETER_MEMBER_FUNCTION;
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	void prepare(PrepareSpecs ps) override
 	{
@@ -1139,18 +1142,18 @@ using silent_killer_poly = silent_killer_impl<NUM_POLYPHONIC_VOICES>;
 
 struct voice_manager: public voice_manager_base
 {
-	SET_HISE_NODE_ID("voice_manager");
+	SN_NODE_ID("voice_manager");
 	SN_GET_SELF_AS_OBJECT(voice_manager);
 	SN_DESCRIPTION("Sends a voice reset message when `Value > 0.5`");
 
 	static constexpr bool isPolyphonic() { return false; }
 
-	HISE_EMPTY_HANDLE_EVENT;
-	HISE_EMPTY_MOD;
-	HISE_EMPTY_RESET;
-	HISE_EMPTY_PROCESS;
-	HISE_EMPTY_PROCESS_SINGLE;
-	HISE_EMPTY_INITIALISE;
+	SN_EMPTY_HANDLE_EVENT;
+	SN_EMPTY_MOD;
+	SN_EMPTY_RESET;
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_INITIALISE;
 
 	template <int P> void setParameter(double v)
 	{
@@ -1163,7 +1166,7 @@ struct voice_manager: public voice_manager_base
 			p->sendVoiceResetMessage(true);
 	}
 
-	FORWARD_PARAMETER_TO_MEMBER(voice_manager);
+	SN_FORWARD_PARAMETER_TO_MEMBER(voice_manager);
 
 	void createParameters(ParameterDataList& data)
 	{

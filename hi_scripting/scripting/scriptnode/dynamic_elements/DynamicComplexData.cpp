@@ -308,7 +308,8 @@ void dynamic::displaybuffer::initialise(NodeBase* n)
 
 void dynamic::displaybuffer::updateProperty(Identifier id, const var& newValue)
 {
-	getCurrentRingBuffer()->setProperty(id, newValue);
+	if(!newValue.isVoid())
+		getCurrentRingBuffer()->setProperty(id, newValue);
 }
 
 namespace ui
@@ -326,6 +327,36 @@ namespace pimpl
 	{
 		if (getObject() != nullptr)
 			getObject()->sourceWatcher.removeSourceListener(this);
+	}
+
+	void editor_base::showProperties(SimpleRingBuffer* obj, Component* c)
+	{
+		XmlElement xml("Funky");
+
+		auto pObj = obj->getPropertyObject();
+
+		DynamicObject::Ptr dynObj = new DynamicObject();
+
+		for (auto& nv : pObj->properties)
+			dynObj->setProperty(nv.name, nv.value);
+
+		
+
+		auto ed = new JSONEditor(var(dynObj.get()));
+
+		ed->setSize(500, 400);
+		ed->setEditable(true);
+
+		ed->setCallback([pObj](const var& o)
+		{
+			if (auto d = o.getDynamicObject())
+			{
+				for (auto& nv : d->getProperties())
+					pObj->setProperty(nv.name, nv.value);
+			}
+		});
+
+		c->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(ed, c, {}, false);
 	}
 
 	void complex_ui_laf::drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition)
@@ -746,6 +777,11 @@ namespace pimpl
 
 		g.setColour(Colours::white.withAlpha(0.05f));
 		g.strokePath(p, PathStrokeType(1.0f / sf));
+	}
+
+	void complex_ui_laf::drawAhdsrBackground(Graphics& g, AhdsrGraph& graph)
+	{
+		drawOscilloscopeBackground(g, graph, graph.getLocalBounds().toFloat());
 	}
 
 	void complex_ui_laf::drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive)

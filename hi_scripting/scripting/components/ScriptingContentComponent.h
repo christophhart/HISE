@@ -199,6 +199,24 @@ public:
 
 	void updateValues();
 
+	struct SimpleTraverser : public ComponentTraverser
+	{
+		SimpleTraverser() = default;
+		
+		Component* getDefaultComponent(Component* parentComponent) override;
+		Component* getNextComponent(Component* current) override;
+		Component* getPreviousComponent(Component* current) override;
+		std::vector<Component*> getAllComponents(Component* parentComponent) override;
+
+	};
+
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override
+	{
+		std::unique_ptr<ComponentTraverser> s;
+		s.reset(new SimpleTraverser());
+		return s;
+	}
+
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 
 	void asyncValueTreePropertyChanged(ValueTree& v, const Identifier& id) override;
