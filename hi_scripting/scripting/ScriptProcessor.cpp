@@ -537,15 +537,15 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 {
 	String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
 
-	// Wow, much cross-platform, very OSX, totally Windows
-	fileName = fileName.replace("\\", "/");
-
 	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(chainToExport);
 
 	if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
 	{
 		fileName = "{GLOBAL_SCRIPT_FOLDER}" + scriptFile.getRelativePathFrom(globalScriptFolder);
 	}
+
+	// Wow, much cross-platform, very OSX, totally Windows
+	fileName = fileName.replace("\\", "/");
 
 	for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
 	{
