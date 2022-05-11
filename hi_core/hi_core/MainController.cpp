@@ -832,11 +832,29 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
+	MasterClock::GridInfo gridInfo;
 
-	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
+	bool useTime = false;
+
+	if (getMasterClock().allowExternalSync() && thisAsProcessor->getPlayHead() != nullptr)
 	{
-		handleTransportCallbacks(newTime);
+		useTime = thisAsProcessor->getPlayHead()->getCurrentPosition(newTime);
+	}
 
+	if (getMasterClock().shouldCreateInternalInfo(newTime))
+	{
+		gridInfo = getMasterClock().processAndCheckGrid(buffer.getNumSamples(), newTime);
+		newTime = getMasterClock().createInternalPlayHead();
+		useTime = true;
+	}
+	else 
+	{
+		gridInfo = getMasterClock().updateFromExternalPlayHead(newTime, buffer.getNumSamples());
+	}
+
+	if (useTime)
+	{
+		handleTransportCallbacks(newTime, gridInfo);
 		lastPosInfo = newTime;
 	}
 	else
@@ -869,6 +887,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	}
 	
 #endif
+
+	
 
 #if ENABLE_CPU_MEASUREMENT
 	startCpuBenchmark(numSamplesThisBlock);
@@ -1254,6 +1274,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 		getConsoleHandler().writeToConsole(s, 0, getMainSynthChain(), Colours::white.withAlpha(0.4f));
 	}
 
+	getMasterClock().setSamplerate(sampleRate);
+
 }
 
 void MainController::setBpm(double newTempo)
@@ -1262,6 +1284,8 @@ void MainController::setBpm(double newTempo)
     
 	if(bpm != newTempo)
 	{
+		getMasterClock().setBpm(newTempo);
+
 		bpm = newTempo;
 
 		for (auto& t : tempoListeners)
@@ -1304,7 +1328,7 @@ bool MainController::isSyncedToHost() const
 #endif
 }
 
-void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo)
+void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi)
 {
 	if (lastPosInfo.isPlaying != newInfo.isPlaying)
 	{
@@ -1341,6 +1365,12 @@ void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositi
 
 			for (auto tl : pulseListener)
 				tl->onBeatChange(beats, isBar);
+		}
+
+		if (gi.change)
+		{
+			for (auto tl : pulseListener)
+				tl->onGridChange(gi.gridIndex, gi.timestamp, gi.firstGridInPlayback);
 		}
 	}
 }

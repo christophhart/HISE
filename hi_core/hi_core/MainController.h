@@ -1378,7 +1378,7 @@ public:
 
 	bool isSyncedToHost() const;
 
-	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo);
+	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi);
 
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
@@ -1392,6 +1392,9 @@ public:
 	void addMusicalUpdateListener(TempoListener* t);
 
 	void removeMusicalUpdateListener(TempoListener* t);
+
+	MasterClock& getMasterClock() { return masterClock; }
+	const MasterClock& getMasterClock() const { return masterClock; }
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
@@ -1704,6 +1707,8 @@ protected:
 	
 
 private:
+
+	MasterClock masterClock;
 
 	ReferenceCountedObjectPtr<MultiChannelAudioBuffer::XYZPool> xyzPool;
 

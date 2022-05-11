@@ -1231,6 +1231,8 @@ public:
 	{
 	public:
 
+		
+
 		TransportHandler(ProcessorWithScriptingContent* sp);;
 		~TransportHandler();
 
@@ -1241,7 +1243,8 @@ public:
 		{
 			Callback(TransportHandler* p, const var& f, bool sync, int numArgs);
 
-			void call(var arg1, var arg2 = {}, bool forceSynchronous=false);
+			void call(var arg1, var arg2 = {}, var arg3 = {}, bool forceSynchronous = false);
+
 
 			void callAsync();
 
@@ -1252,7 +1255,7 @@ public:
 			void callSync();
 
 			const int numArgs;
-			var args[2];
+			var args[3];
 
 			JavascriptProcessor* jp;
 			WeakReference<TransportHandler> th;
@@ -1274,6 +1277,21 @@ public:
 		/** Registers a callback to changes in the musical position (bars / beats). */
 		void setOnBeatChange(bool sync, var f);
 
+		/** Registers a callback to changes in the grid. */
+		void setOnGridChange(bool sync, var f);
+
+		/** Enables a high precision grid timer. */
+		void setEnableGrid(bool shouldBeEnabled, int tempoFactor);
+
+		/** Starts the internal master clock. */
+		void startInternalClock(int timestamp);
+
+		/** Stops the internal master clock. */
+		void stopInternalClock(int timestamp);
+
+		/** Sets the sync mode for the global clock. */
+		void setSyncMode(int syncMode);
+
 	private:
 
 		void clearIf(ScopedPointer<Callback>& cb, const var& f)
@@ -1288,6 +1306,9 @@ public:
 		int denom = 4;
 		int beat = 0;
 		bool newBar = true;
+		int gridIndex = 0;
+		int gridTimestamp = 0;
+		bool firstGridInPlayback = false;
 
 		struct Wrapper;
 
@@ -1295,57 +1316,24 @@ public:
 		ScopedPointer<Callback> transportChangeCallback;
 		ScopedPointer<Callback> timeSignatureCallback;
 		ScopedPointer<Callback> beatCallback;
+		ScopedPointer<Callback> gridCallback;
 
 		ScopedPointer<Callback> tempoChangeCallbackAsync;
 		ScopedPointer<Callback> transportChangeCallbackAsync;
 		ScopedPointer<Callback> timeSignatureCallbackAsync;
 		ScopedPointer<Callback> beatCallbackAsync;
+		ScopedPointer<Callback> gridCallbackAsync;
+		
 
-		void tempoChanged(double newTempo) override
-		{
-			bpm = newTempo;
+		void tempoChanged(double newTempo) override;
 
-			if (tempoChangeCallback != nullptr)
-				tempoChangeCallback->call(newTempo);
+		void onTransportChange(bool isPlaying) override;
 
-			if (tempoChangeCallbackAsync != nullptr)
-				tempoChangeCallbackAsync->call(newTempo);
-		}
+		void onBeatChange(int newBeat, bool isNewBar) override;
 
-		void onTransportChange(bool isPlaying) override
-		{
-			play = isPlaying;
+		void onSignatureChange(int newNominator, int numDenominator) override;
 
-			if (transportChangeCallback != nullptr)
-				transportChangeCallback->call(isPlaying);
-
-			if (transportChangeCallbackAsync != nullptr)
-				transportChangeCallbackAsync->call(isPlaying);
-		}
-
-		void onBeatChange(int newBeat, bool isNewBar) override
-		{
-			beat = newBeat;
-			newBar = isNewBar;
-
-			if (beatCallback != nullptr)
-				beatCallback->call(newBeat, newBar);
-
-			if (beatCallbackAsync != nullptr)
-				beatCallbackAsync->call(newBeat, newBar);
-		}
-
-		void onSignatureChange(int newNominator, int numDenominator) override
-		{
-			nom = newNominator;
-			denom = numDenominator;
-
-			if (timeSignatureCallback != nullptr)
-				timeSignatureCallback->call(newNominator, numDenominator);
-
-			if (timeSignatureCallbackAsync != nullptr)
-				timeSignatureCallbackAsync->call(newNominator, numDenominator);
-		}
+		void onGridChange(int gridIndex_, uint16 timestamp, bool firstGridInPlayback_) override;
 
 		void handlePooledMessage(PooledUIUpdater::Broadcaster* b) override
 		{

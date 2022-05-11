@@ -4533,8 +4533,12 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, isEmpty);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumTracks);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getNumSequences);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getTicksPerQuarter);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setUseTimestampInTicks);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getTimeSignature);
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTimeSignature);
+	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getLastPlayedNotePosition);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSyncToMasterClock);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -4565,6 +4569,10 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(getNumSequences);
 	ADD_API_METHOD_0(getTimeSignature);
 	ADD_API_METHOD_1(setTimeSignature);
+	ADD_API_METHOD_1(setSyncToMasterClock);
+	ADD_API_METHOD_1(setUseTimestampInTicks);
+	ADD_API_METHOD_0(getTicksPerQuarter);
+	ADD_API_METHOD_0(getLastPlayedNotePosition);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -4578,18 +4586,6 @@ juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
 		return {};
 
 	return String(getPlayer()->getPlaybackPosition(), 2);
-}
-
-juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugName() const
-{
-
-	if (!sequenceValid())
-		return {};
-
-	if (auto seq = getPlayer()->getCurrentSequence())
-		return seq->getId().toString();
-
-	return "No sequence loaded";
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
@@ -4665,6 +4661,31 @@ var ScriptingObjects::ScriptedMidiPlayer::getPlaybackPosition()
 	return getPlayer()->getPlaybackPosition();
 }
 
+juce::var ScriptingObjects::ScriptedMidiPlayer::getLastPlayedNotePosition() const
+{
+	if (getPlayer()->getPlayState() == MidiPlayer::PlayState::Stop)
+		return -1;
+
+	if (auto seq = getPlayer()->getCurrentSequence())
+	{
+		return seq->getLastPlayedNotePosition();
+	}
+
+	return 0;
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setSyncToMasterClock(bool shouldSyncToMasterClock)
+{
+	if (shouldSyncToMasterClock && !getScriptProcessor()->getMainController_()->getMasterClock().isGridEnabled())
+	{
+		reportScriptError("You have to enable the master clock before using this method");
+	}
+	else
+	{
+		getPlayer()->setSyncToMasterClock(shouldSyncToMasterClock);
+	}
+}
+
 void ScriptingObjects::ScriptedMidiPlayer::setRepaintOnPositionChange(var shouldRepaintPanel)
 {
 	if ((bool)shouldRepaintPanel != repaintOnPlaybackChange)
@@ -4693,7 +4714,12 @@ var ScriptingObjects::ScriptedMidiPlayer::getEventList()
 	if (!sequenceValid())
 		return {};
 
-	auto list = getPlayer()->getCurrentSequence()->getEventList(getPlayer()->getSampleRate(), getPlayer()->getMainController()->getBpm());
+	auto sr = getPlayer()->getSampleRate();
+	auto bpm = getPlayer()->getMainController()->getBpm();
+
+	getPlayer()->getCurrentSequence()->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
+
+	auto list = getPlayer()->getCurrentSequence()->getEventList(sr, bpm);
 
 	Array<var> eventHolders;
 
@@ -4724,10 +4750,23 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
 				reportScriptError("Illegal item in message list: " + e.toString());
 		}
 
+		if (auto seq = getPlayer()->getCurrentSequence())
+			seq->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
+
 		getPlayer()->flushEdit(events);
 	}
 	else
 		reportScriptError("Input is not an array");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setUseTimestampInTicks(bool shouldUseTimestamps)
+{
+	useTicks = shouldUseTimestamps;
+}
+
+int ScriptingObjects::ScriptedMidiPlayer::getTicksPerQuarter() const
+{
+	return HiseMidiSequence::TicksPerQuarter;
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::create(int nominator, int denominator, int barLength)
