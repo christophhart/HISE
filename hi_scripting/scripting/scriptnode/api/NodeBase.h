@@ -409,6 +409,9 @@ public:
 	/** Returns a reference to a parameter.*/
 	var getParameter(var indexOrId) const;
 
+	/** Returns the number of parameters. */
+	int getNumParameters() const;;
+
 	// ============================================================================================= END NODE API
 
 	void setValueTreeProperty(const Identifier& id, const var value);
@@ -490,7 +493,7 @@ public:
 		int index = 0;
 	};
 	
-	int getNumParameters() const;;
+	
 	Parameter* getParameterFromName(const String& id) const;
 	Parameter* getParameterFromIndex(int index) const;
 

@@ -47,6 +47,7 @@ struct NodeBase::Wrapper
 	API_VOID_METHOD_WRAPPER_1(NodeBase, connectToBypass);
 	API_METHOD_WRAPPER_1(NodeBase, getParameter);
     API_METHOD_WRAPPER_3(NodeBase, setComplexDataIndex);
+	API_METHOD_WRAPPER_0(NodeBase, getNumParameters);
 };
 
 
@@ -81,6 +82,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_2(connectTo);
 	ADD_API_METHOD_1(connectToBypass);
     ADD_API_METHOD_3(setComplexDataIndex);
+	ADD_API_METHOD_0(getNumParameters);
 
 	for (auto c : getPropertyTree())
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
