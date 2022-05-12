@@ -217,6 +217,7 @@ String ScriptNetworkTest::dumpNetworkAsXml()
 	auto copy = v.createCopy();
 
 #if USE_BACKEND
+	DspNetworkListeners::PatchAutosaver::removeDanglingConnections(copy);
 	DspNetworkListeners::PatchAutosaver::stripValueTree(copy);
 #endif
 

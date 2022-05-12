@@ -1188,6 +1188,8 @@ bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
 #if USE_BACKEND
     auto saveCopy = g.network->getValueTree().createCopy();
 
+	DspNetworkListeners::PatchAutosaver::removeDanglingConnections(saveCopy);
+
     cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, DspNetworkListeners::PatchAutosaver::stripValueTree);
 
     auto xml = saveCopy.createXml();
