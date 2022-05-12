@@ -404,6 +404,8 @@ private:
     valuetree::RecursivePropertyListener complexDataSyncer;
 };
 
+
+
 template <int OversampleFactor> class OversampleNode : public SerialNode
 {
 public:
@@ -439,11 +441,57 @@ public:
 
     void setOversamplingFactor(double newFactor)
     {
-        obj.setOversamplingFactor(jlimit(0, 16, (int)newFactor));
+		if (!hasFixedParameters())
+			return;
+
+		obj.setOversamplingFactor(newFactor);
+
+		// We need to call this dynamically because the DynamicSerialProcessor::prepare does nothing
+		if(lastSpecs)
+			prepareNodes(lastSpecs);
     }
     
-    virtual bool hasFixedParameters() const { return OversampleFactor == -1; }
+    bool hasFixedParameters() const final override { return OversampleFactor == -1; }
     
+	Component* createLeftTabComponent() const override
+	{
+		if (hasFixedParameters())
+			return new Component();
+		else
+			return nullptr;
+	}
+
+	ParameterDataList createInternalParameterList() override
+	{
+		ParameterDataList data;
+
+		{
+			auto maxExponent = wrap::oversample_base::MaxOversamplingExponent;
+
+			parameter::data p("Oversampling");
+			p.callback = parameter::inner<OversampleNode<OversampleFactor>, (int)Parameters::OversamplingFactor>(*this);
+			p.setRange({ 0.0, (double)maxExponent, 1.0 });
+			
+			StringArray sa;
+			sa.add("None");
+
+			for (int i = 1; i < maxExponent + 1; i++)
+			{
+				auto os = (int)(std::pow(2.0, (double)(i)));
+				String name;
+				name << (int)os << "x";
+				sa.add(name);
+			}
+			
+			p.setParameterValueNames(sa);
+
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+
+		return data;
+	}
+
 	double getSampleRateForChildNodes() const override;
 
 	int getBlockSizeForChildNodes() const override;
