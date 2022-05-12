@@ -61,6 +61,35 @@ namespace control
 		control::multilogic::logic_op lastData;
 	};
 
+	struct intensity_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::intensity>>
+	{
+		using IntensityBase = pimpl::combined_parameter_base<multilogic::intensity>;
+
+		intensity_editor(IntensityBase* b, PooledUIUpdater* u);
+
+		void paint(Graphics& g) override;
+
+		void rebuildPaths();
+
+		void timerCallback() override;
+
+		void resized() override;
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new intensity_editor(dynamic_cast<IntensityBase*>(typed), updater);
+		}
+
+		Rectangle<float> pathArea;
+
+		Path fullPath, valuePath;
+
+		multilogic::intensity lastData;
+
+		ModulationSourceBaseComponent dragger;
+	};
+
 	struct minmax_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::minmax>>
 	{
 		using MinMaxBase = pimpl::combined_parameter_base<multilogic::minmax>;

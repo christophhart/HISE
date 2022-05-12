@@ -1036,6 +1036,58 @@ namespace control
 
 	namespace multilogic
 	{
+		struct intensity
+		{
+			SN_NODE_ID("intensity");
+			SN_DESCRIPTION("applies the HISE modulation intensity to the value");
+
+			static constexpr bool isNormalisedModulation() { return true; }
+
+			double intensityValue = 1.0;
+			double value = 1.0;
+			mutable bool dirty = false;
+
+			bool operator==(const intensity& other) const
+			{
+				return value == other.value && intensityValue == other.intensityValue;
+			}
+
+			double getValue() const
+			{
+				dirty = false;
+
+				return 1.0 * (1.0 - intensityValue) + intensityValue * value;
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					value = v;
+				if constexpr (P == 1)
+					intensityValue = jlimit(0.0, 1.0, v);
+				
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Intensity");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+			}
+		};
+
 		struct bipolar
 		{
 			SN_NODE_ID("bipolar");
@@ -1424,6 +1476,7 @@ namespace control
 	template <int NV, typename ParameterType> using bipolar = multi_parameter<NV, ParameterType, multilogic::bipolar>;
 	template <int NV, typename ParameterType> using minmax = multi_parameter<NV, ParameterType, multilogic::minmax>;
 	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
+	template <int NV, typename ParameterType> using intensity = multi_parameter<NV, ParameterType, multilogic::intensity>;
 
 	struct smoothed_parameter_base: public mothernode
 	{
