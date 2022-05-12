@@ -396,7 +396,7 @@ namespace conversion_logic
 {
 struct dynamic
 {
-    using NodeType = control::converter<dynamic, parameter::dynamic_base_holder>;
+    using NodeType = control::converter<parameter::dynamic_base_holder, dynamic>;
     
     enum class Mode
     {
@@ -406,6 +406,8 @@ struct dynamic
         Samples2Ms,
         Pitch2St,
         St2Pitch,
+		Pitch2Cent,
+		Cent2Pitch,
         Midi2Freq,
         Gain2dB,
         dB2Gain,
@@ -421,7 +423,7 @@ struct dynamic
     static StringArray getConverterNames()
     {
         return { "Ms2Freq", "Freq2Ms", "Ms2Samples", "Samples2Ms",
-                 "Pitch2St", "St2Pitch", "Midi2Freq", "Gain2dB", "db2Gain" };
+                 "Pitch2St", "St2Pitch", "Pitch2Cent", "Cent2Pitch", "Midi2Freq", "Gain2dB", "db2Gain" };
     }
     
     void initialise(NodeBase* n)
@@ -446,6 +448,8 @@ struct dynamic
             case Mode::Samples2Ms: return s.getValue(input);
             case Mode::Pitch2St: return pitch2st().getValue(input);
             case Mode::St2Pitch: return st2pitch().getValue(input);
+			case Mode::Pitch2Cent: return pitch2cent().getValue(input);
+			case Mode::Cent2Pitch: return cent2pitch().getValue(input);
             case Mode::Midi2Freq: return midi2freq().getValue(input);
             case Mode::Gain2dB: return gain2db().getValue(input);
             case Mode::dB2Gain: return db2gain().getValue(input);
@@ -508,6 +512,8 @@ struct dynamic
                 case Mode::Samples2Ms:  inputDomain = "smp"; outputDomain = "ms"; break;
                 case Mode::Pitch2St:  inputDomain = ""; outputDomain = "st"; break;
                 case Mode::St2Pitch:  inputDomain = "st"; outputDomain = ""; break;
+				case Mode::Cent2Pitch: inputDomain = "ct"; outputDomain = ""; break;
+				case Mode::Pitch2Cent: inputDomain = ""; outputDomain = "ct"; break;
                 case Mode::Midi2Freq:  inputDomain = ""; outputDomain = "Hz"; break;
                 case Mode::Gain2dB: inputDomain = ""; outputDomain = "dB"; break;
                 case Mode::dB2Gain: inputDomain = "dB"; outputDomain = ""; break;
@@ -533,6 +539,8 @@ struct dynamic
                 case Mode::Samples2Ms:  setRange({0.0, 44100.0, 1.0}); break;
                 case Mode::Pitch2St:  setRange({0.5, 2.0}, 1.0); break;
                 case Mode::St2Pitch:  setRange({-12.0, 12.0, 1.0}); break;
+				case Mode::Pitch2Cent: setRange({ 0.5, 2.0 }, 1.0); break;
+				case Mode::Cent2Pitch: setRange({ -100.0, 100.0, 0.0 }); break;
                 case Mode::Midi2Freq:  setRange({0, 127.0, 1.0}); break;
                 case Mode::Gain2dB: setRange({0.0, 1.0, 0.0}); break;
                 case Mode::dB2Gain: setRange({-100.0, 0.0, 0.1}, -12.0); break;

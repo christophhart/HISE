@@ -663,8 +663,9 @@ namespace control
 		double lastValue = 0.0;
 	};
 
-    template <typename ConverterClass, typename ParameterClass>
+    template <typename ParameterClass, typename ConverterClass>
         struct converter : public mothernode,
+						   public pimpl::templated_mode,
                            public pimpl::parameter_node_base<ParameterClass>,
                            public pimpl::no_processing
     {
@@ -675,7 +676,11 @@ namespace control
         SN_DEFAULT_INIT(ConverterClass);
         SN_DEFAULT_PREPARE(ConverterClass);
         SN_ADD_SET_VALUE(converter);
-        SN_PARAMETER_NODE_CONSTRUCTOR(converter, ParameterClass);
+
+		converter() :
+			templated_mode(getStaticId(), "conversion_logic"),
+			control::pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
 
         static constexpr bool isNormalisedModulation() { return false; }
         

@@ -47,7 +47,8 @@ struct AudioThreadGuard::GlobalData
 	Array<void*, DummyCriticalSection, 32> audioThreadIds;
 	ReadWriteLock arrayLock;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalData);
+	// We'll leave with this leak..
+	// JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalData);
 };
 
 juce::AudioThreadGuard::GlobalData& AudioThreadGuard::getGlobalData()
