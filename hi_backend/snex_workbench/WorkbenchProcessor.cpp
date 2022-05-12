@@ -914,6 +914,8 @@ void DspNetworkCompileExporter::run()
 
 			auto id = v[scriptnode::PropertyIds::ID].toString();
 
+			ValueTreeBuilder::cleanValueTreeIds(v);
+
 			if(cppgen::StringHelpers::makeValidCppName(id).compareIgnoreCase(id) != 0)
 			{
 				errorMessage << "Illegal ID: `" << id << "`  \n> The network ID must be a valid C++ identifier";
@@ -934,7 +936,11 @@ void DspNetworkCompileExporter::run()
 			else
             {
                 ok = ErrorCodes::ProjectXmlInvalid;
-                errorMessage = r.r.getErrorMessage();
+
+				errorMessage = "";
+				errorMessage << f.getFileNameWithoutExtension() << ": " << r.r.getErrorMessage();
+
+                
                 return;
             };
 

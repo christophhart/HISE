@@ -81,6 +81,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
     if(!data.hasProperty(PropertyIds::CompileChannelAmount))
         data.setProperty(PropertyIds::CompileChannelAmount, 2, nullptr);
     
+	if (!data.hasProperty(ExpansionIds::Version))
+	{
+		data.setProperty(ExpansionIds::Version, "0.0.0", nullptr);
+	}
+
 	if (dataHolder_ != nullptr)
 		setExternalDataHolder(dataHolder_);
 	else

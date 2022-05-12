@@ -935,6 +935,17 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 	}
 };
 
+Result DataLibraryBuilder::registerTypes()
+{
+	auto fid = NamespacedIdentifier(getFactoryId());
+
+	auto st = new StructType(fid.getChildId("base"));
+
+	c.registerExternalComplexType(st);
+
+	return Result::ok();
+}
+
 void InbuiltTypeLibraryBuilder::createExternalDataTemplates()
 {
 	ExternalData::forEachType([this](ExternalData::DataType t)
