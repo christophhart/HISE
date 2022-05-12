@@ -209,7 +209,7 @@ namespace control
 
 		file_analyser() :
 			templated_mode(getStaticId(), "file_analysers"),
-			parameter_node_base<ParameterClass>(getStaticId()),
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
 			no_mod_normalisation(getStaticId())
 		{};
 
@@ -248,8 +248,8 @@ namespace control
 		SN_GET_SELF_AS_OBJECT(input_toggle);
 
 		input_toggle() :
-			parameter_node_base<ParameterClass>(getStaticId()),
-			no_mod_normalisation(getStaticId())
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+			pimpl::no_mod_normalisation(getStaticId())
 		{};
 
 		SN_DESCRIPTION("Switch between two input values as modulation signal");
@@ -689,9 +689,9 @@ namespace control
         SN_ADD_SET_VALUE(converter);
 
 		converter() :
-			templated_mode(getStaticId(), "conversion_logic"),
-			no_mod_normalisation(getStaticId()),
-			parameter_node_base<ParameterClass>(getStaticId())
+			pimpl::templated_mode(getStaticId(), "conversion_logic"),
+			pimpl::no_mod_normalisation(getStaticId()),
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
 		{};
 
         void setValue(double input)
