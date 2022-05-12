@@ -58,6 +58,11 @@ struct granulator: public data::base
 	SNEX_NODE(granulator);
 	SN_DESCRIPTION("A granular synthesiser");
 
+	granulator()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	}
+
 	using AudioDataType = span<block, 2>;
 
 	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
@@ -1059,7 +1064,9 @@ struct SpecNode: public NodeBase
 
 	SpecNode(DspNetwork* n, ValueTree v) :
 		NodeBase(n, v, 0)
-	{};
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	};
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree v)
 	{

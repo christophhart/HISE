@@ -420,6 +420,13 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 
 	Node::Ptr newNode = createNode(n, typeId.getIdentifier(), getNodePath(n).toString());
 
+	if (newNode->hasProperty(PropertyIds::UncompileableNode, false))
+	{
+		Error e;
+		e.errorMessage << "You can't compile a Network with a " << getNodePath(n).toString() << " node.";
+		throw e;
+	}
+
 	if (newNode->hasProperty(PropertyIds::IsPolyphonic, false))
 	{
 		newNode->addTemplateIntegerArgument("NV", true);

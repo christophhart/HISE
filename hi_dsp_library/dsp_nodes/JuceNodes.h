@@ -119,6 +119,12 @@ protected:
 */
 template <bool NormalisedModulation=true> struct jmod: public data::display_buffer_base<true>
 {
+	jmod(const Identifier& id)
+	{
+		if(!NormalisedModulation)
+			cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::UseUnnormalisedModulation);
+	}
+
 	virtual ~jmod() {};
 
 	static constexpr bool isNormalisedModulation() { return NormalisedModulation; };
@@ -142,6 +148,10 @@ template <bool NormalisedModulation=true> struct jmod: public data::display_buff
 struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1>,
 					 public jdsp::base::jmod<true>
 {
+	jcompressor() :
+		jmod<true>(getStaticId())
+	{};
+
 	SNEX_NODE(jcompressor);
 
 	template <int P> void setParameter(double v)

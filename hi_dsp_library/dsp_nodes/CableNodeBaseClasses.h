@@ -76,6 +76,21 @@ struct templated_mode
 	}
 };
 
+/** Use this base class when you have a node that uses unnormalised modulation. This will cause the
+    C++ generator to ignore the parameter range. 
+*/
+struct no_mod_normalisation
+{
+	virtual ~no_mod_normalisation() {};
+
+	static constexpr bool isNormalisedModulation() { return false; }
+
+	no_mod_normalisation(const Identifier& nodeId)
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(nodeId, PropertyIds::UseUnnormalisedModulation);
+	}
+};
+
 /** Use this baseclass for nodes that do not process the signal. */
 struct no_processing
 {

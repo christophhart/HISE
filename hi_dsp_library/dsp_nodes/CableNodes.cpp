@@ -46,10 +46,9 @@ void tempo_sync::prepare(PrepareSpecs ps)
 	tempoSyncer->registerItem(this);
 }
 
-tempo_sync::tempo_sync()
-{
-	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseUnnormalisedModulation);
-}
+tempo_sync::tempo_sync():
+	no_mod_normalisation(getStaticId())
+{}
 
 tempo_sync::~tempo_sync()
 {

@@ -71,8 +71,6 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 
 		static Colour getColourFromId(const String& id);
 
-		static void throwErrorIfCompileable(NodeBase* n);
-
 		static void addGotoTargetCallback(Button* b, SlotBase* slot);
 	};
 
