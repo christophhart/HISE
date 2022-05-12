@@ -793,6 +793,8 @@ public:
 	virtual ~PresetBrowserLookAndFeelMethods()
 	{};
 
+	virtual Path createPresetBrowserIcons(const String& id);
+
 	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p);
 	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
 	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);

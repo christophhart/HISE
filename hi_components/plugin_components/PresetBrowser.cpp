@@ -937,18 +937,36 @@ void PresetBrowser::resized()
 
 		bool somethingInTopRow = false;
 
-		saveButton->setBounds(ar.removeFromRight(100));
-		manageButton->setBounds(ar.removeFromLeft(100));
-		favoriteButton->setVisible(showFavoritesButton);
+		auto r = Result::ok();
 
+		auto saveBounds = ApiHelpers::getIntRectangleFromVar(saveButtonBounds, &r);
 		
+		if (r.wasOk())
+			saveButton->setBounds(saveBounds);
+		else
+			saveButton->setBounds(ar.removeFromRight(100));
+
+		r = Result::ok();
+		
+		auto moreBounds = ApiHelpers::getIntRectangleFromVar(moreButtonBounds, &r);
+
+		if (r.wasOk())
+			manageButton->setBounds(moreBounds);
+		else
+			manageButton->setBounds(ar.removeFromLeft(100));
+
+		r = Result::ok();
+
+		favoriteButton->setVisible(showFavoritesButton);
 
 		if (showFavoritesButton)
 		{
-			if (favoriteButtonBounds.size() != 4)
+			auto bounds = ApiHelpers::getIntRectangleFromVar(favoriteButtonBounds, &r);
+
+			if (r.wasOk())
+				favoriteButton->setBounds(bounds);
+			else
 				favoriteButton->setBounds(ar.removeFromLeft(30));
-			else 
-				favoriteButton->setBounds((int)favoriteButtonBounds[0], (int)favoriteButtonBounds[1], (int)favoriteButtonBounds[2], (int)favoriteButtonBounds[3]);
 		}
 
 		ar.removeFromLeft(10);
@@ -1071,26 +1089,23 @@ void PresetBrowser::updateFavoriteButton()
 
 	showOnlyPresets = currentWildcard != "*" || on;
 
-static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+	auto path = getPresetBrowserLookAndFeel().createPresetBrowserIcons(on ? "favorite_on" : "favorite_off");
 
-	static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
-		80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
-		67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
-
-	Path path;
-
-	if (on)
-		path.loadPathFromData(onShape, sizeof(onShape));
-	else
-		path.loadPathFromData(offShape, sizeof(offShape));
 
 	favoriteButton->setShape(path, false, true, true);
 
-
+	if (presetColumn == nullptr)
+		return;
 
 	presetColumn->setShowFavoritesOnly(on);
 
 	resized();
+}
+
+void PresetBrowser::lookAndFeelChanged()
+{
+	Component::lookAndFeelChanged();
+	updateFavoriteButton();
 }
 
 void PresetBrowser::loadPresetDatabase(const File& rootDirectory)
@@ -1321,6 +1336,11 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	favoriteButtonBounds.clear();
 	favoriteButtonBounds.addArray(newOptions.favoriteButtonBounds);
 	
+	saveButtonBounds.clear();
+	saveButtonBounds.addArray(newOptions.saveButtonBounds);
+	moreButtonBounds.clear();
+	moreButtonBounds.addArray(newOptions.moreButtonBounds);
+
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
 	setShowEditButtons(0, newOptions.showEditButtons);

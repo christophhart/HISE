@@ -1647,6 +1647,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawDialogButton",
 		"drawComboBox",
 		"drawNumberTag",
+		"createPresetBrowserIcons",
 		"drawPresetBrowserBackground",
 		"drawPresetBrowserColumnBackground",
 		"drawPresetBrowserListItem",
@@ -2139,6 +2140,25 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Col
 	}
 
 	NumberTag::LookAndFeelMethods::drawNumberTag(g_, c, area, offset, size, number);
+}
+
+juce::Path ScriptingObjects::ScriptedLookAndFeel::Laf::createPresetBrowserIcons(const String& id)
+{
+	if (functionDefined("createPresetBrowserIcons"))
+	{
+		if (auto l = get())
+		{
+			var args = var(id);
+			auto returnPath = l->callDefinedFunction("createPresetBrowserIcons", &args, 1);
+
+			if (auto sg = dynamic_cast<PathObject*>(returnPath.getObject()))
+			{
+				return sg->getPath();
+			}
+		}
+	}
+
+	return PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(id);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
