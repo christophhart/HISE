@@ -217,6 +217,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto acg = CREATE_ASM_COMPILER(tReg->getType());
 
+        auto targetIsFunction = as<FunctionCall>(getSubExpr(1));
+        
 		if (overloadedAssignOperator.isResolved())
 		{
 			AssemblyRegister::List l;
@@ -227,19 +229,19 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 			if (!r.wasOk())
 				location.throwError(r.getErrorMessage());
-
-			return;
 		}
 
-		if (auto dt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<DynType>())
+		else if (auto dt = getSubExpr(1)->getTypeInfo().getTypedIfComplexType<DynType>())
 		{
 			acg.emitStackInitialisation(tReg, dt, value, nullptr);
-			return;
 		}
-
-		if (getTargetType() == TargetType::Reference && isFirstAssignment)
+        else if(targetIsFunction)
+        {
+            acg.writeRegisterToMemory(tReg, value);
+        }
+		else if (getTargetType() == TargetType::Reference && isFirstAssignment)
 		{
-			tReg->setReferToReg(value);
+            tReg->setReferToReg(value);
 #if 0
 			if (value->getTypeInfo().isNativePointer())
 			{
@@ -342,6 +344,15 @@ Operations::Assignment::TargetType Operations::Assignment::getTargetType() const
 
 		return TargetType::Reference;
 	}
+    else if (dynamic_cast<FunctionCall*>(target.get()))
+    {
+        auto t = target->getTypeInfo();
+
+        if(!t.isRef())
+            target->throwError("Can't assign to target");
+
+        return TargetType::Reference;
+    }
 
 	getSubExpr(1)->throwError("Can't assign to target");
 

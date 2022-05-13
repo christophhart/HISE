@@ -272,6 +272,9 @@ struct AsmCodeGenerator
 	X86Mem createFpuMem(RegPtr ptr);
 	void writeMemToReg(RegPtr target, X86Mem);
 
+    
+    void writeRegisterToMemory(RegPtr target, RegPtr source);
+    
 	AssemblyRegisterPool* registerPool;
 
     static X86Mem createValid64BitPointer(X86Compiler& cc, X86Mem source, int offset, int byteSize)
