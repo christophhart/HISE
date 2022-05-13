@@ -152,18 +152,26 @@ Result ComplexType::callConstructor(InitData& d)
 
 		cf.object = d.dataPointer;
 
-		if (args.size() > 1)
+        if(args.size() == 0)
+        {
+            cf.callVoid();
+        }
+        else if (args.size() > 1)
+        {
 			return Result::fail("constructor with more than one argument is not supported in SNEX");
+        }
+        else
+        {
+            auto fa = args[0];
 
-		auto fa = args[0];
-
-		switch (fa.getType())
-		{
-		case Types::ID::Integer: cf.callVoid((int)args[0]); break;
-		case Types::ID::Double: cf.callVoid((double)args[0]); break;
-		case Types::ID::Float: cf.callVoid((float)args[0]); break;
-		case Types::ID::Pointer: cf.callVoid(args[0].getDataPointer()); break;
-		}
+            switch (fa.getType())
+            {
+            case Types::ID::Integer: cf.callVoid((int)args[0]); break;
+            case Types::ID::Double: cf.callVoid((double)args[0]); break;
+            case Types::ID::Float: cf.callVoid((float)args[0]); break;
+            case Types::ID::Pointer: cf.callVoid(args[0].getDataPointer()); break;
+            }
+        }		
 	}
 
 	return Result::ok();
