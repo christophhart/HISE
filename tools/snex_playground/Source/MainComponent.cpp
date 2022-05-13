@@ -32,7 +32,7 @@ MainComponent::MainComponent() :
 		auto compileThread = new snex::jit::JitNodeCompileThread(data);
 		data->setCompileHandler(compileThread);
 
-		provider = new snex::ui::ValueTreeCodeProvider(data);
+		provider = new snex::ui::ValueTreeCodeProvider(data, 2);
 		data->setCodeProvider(provider);
 
 		playground = new snex::ui::SnexPlayground(data, true);
@@ -42,8 +42,8 @@ MainComponent::MainComponent() :
 
 		addAndMakeVisible(testData = new snex::ui::TestDataComponent(data));
 
-		addAndMakeVisible(graph1 = new snex::ui::Graph(data));
-		addAndMakeVisible(graph2 = new snex::ui::Graph(data));
+		addAndMakeVisible(graph1 = new snex::ui::Graph());
+		addAndMakeVisible(graph2 = new snex::ui::Graph());
 		addAndMakeVisible(complexData = new snex::ui::TestComplexDataManager(data));
 	}
 	else

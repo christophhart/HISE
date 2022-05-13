@@ -2161,7 +2161,7 @@ juce::Path ScriptingObjects::ScriptedLookAndFeel::Laf::createPresetBrowserIcons(
 	return PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(id);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, Component* p)
 {
 	if (functionDefined("drawPresetBrowserBackground"))
 	{
