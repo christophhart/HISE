@@ -1345,7 +1345,7 @@ void ConnectionSourceManager::CableRemoveListener::removeCable(ValueTree& v)
 	if (auto node = parent.n->getNodeForValueTree(v))
 	{
 		if (!node->isBeingMoved())
-			data.getParent().removeChild(data, parent.n->getUndoManager(true));
+			data.getParent().removeChild(data, parent.n->getUndoManager(false));
 	}
 }
 
@@ -1389,42 +1389,67 @@ ConnectionSourceManager::CableRemoveListener::CableRemoveListener(ConnectionSour
 {
 	targetNode = findTargetNodeData(parent.n->getValueTree().getChildWithName(PropertyIds::Node));
 
-	jassert(data.hasType(PropertyIds::Connection) || data.hasType(PropertyIds::ModulationTarget));
-	jassert(sourceNode.hasType(PropertyIds::Node));
-	jassert(targetNode.hasType(PropertyIds::Node));
+    if(!sourceNode.isValid() || !targetNode.isValid())
+    {
+        WeakReference<CableRemoveListener> safeThis(this);
+        
+        parent.n->addPostInitFunction([safeThis]()
+        {
+            if(safeThis.get() != nullptr)
+                return safeThis->initListeners();
+            
+            return true;
+        });
+    }
+    
+    initListeners();
+}
 
-	RangeHelpers::removeRangeProperties(data, parent.n->getUndoManager(true));
+bool ConnectionSourceManager::CableRemoveListener::initListeners()
+{
+    targetNode = findTargetNodeData(parent.n->getValueTree().getChildWithName(PropertyIds::Node));
+    
+    if(!targetNode.isValid())
+        return false;
+    
+    jassert(data.hasType(PropertyIds::Connection) || data.hasType(PropertyIds::ModulationTarget));
+    jassert(sourceNode.hasType(PropertyIds::Node));
+    jassert(targetNode.hasType(PropertyIds::Node));
 
-	//targetNode->getValueTree()
-	//parent->getValueTree()
+    RangeHelpers::removeRangeProperties(data, parent.n->getUndoManager(true));
 
-	targetRemoveUpdater.setCallback(targetNode,
-		valuetree::AsyncMode::Synchronously,
-		true,
-		BIND_MEMBER_FUNCTION_1(CableRemoveListener::removeCable));
+    //targetNode->getValueTree()
+    //parent->getValueTree()
 
-	sourceRemoveUpdater.setCallback(sourceNode,
-		valuetree::AsyncMode::Synchronously,
-		true,
-		BIND_MEMBER_FUNCTION_1(CableRemoveListener::removeCable));
+    targetRemoveUpdater.setCallback(targetNode,
+        valuetree::AsyncMode::Synchronously,
+        true,
+        BIND_MEMBER_FUNCTION_1(CableRemoveListener::removeCable));
 
-	if (data[PropertyIds::ParameterId].toString() != PropertyIds::Bypassed.toString())
-	{
-		targetParameterTree = targetNode.getChildWithName(PropertyIds::Parameters).getChildWithProperty(PropertyIds::ID, data[PropertyIds::ParameterId]);
+    sourceRemoveUpdater.setCallback(sourceNode,
+        valuetree::AsyncMode::Synchronously,
+        true,
+        BIND_MEMBER_FUNCTION_1(CableRemoveListener::removeCable));
 
-		jassert(targetParameterTree.isValid());
+    if (data[PropertyIds::ParameterId].toString() != PropertyIds::Bypassed.toString())
+    {
+        targetParameterTree = targetNode.getChildWithName(PropertyIds::Parameters).getChildWithProperty(PropertyIds::ID, data[PropertyIds::ParameterId]);
 
-		targetParameterTree.setProperty(PropertyIds::Automated, true, parent.n->getUndoManager());
+        jassert(targetParameterTree.isValid());
 
-		targetRangeListener.setCallback(targetParameterTree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Synchronously,
-			[this](Identifier, var) { this->parent.rebuildCallback(); });
-	}
+        targetParameterTree.setProperty(PropertyIds::Automated, true, parent.n->getUndoManager());
+
+        targetRangeListener.setCallback(targetParameterTree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Synchronously,
+            [this](Identifier, var) { this->parent.rebuildCallback(); });
+    }
+    
+    return true;
 }
 
 ConnectionSourceManager::CableRemoveListener::~CableRemoveListener()
 {
 	if(targetParameterTree.isValid())
-		targetParameterTree.setProperty(PropertyIds::Automated, false, parent.n->getUndoManager(true));
+		targetParameterTree.setProperty(PropertyIds::Automated, false, parent.n->getUndoManager(false));
 }
 
 ConnectionSourceManager::ConnectionSourceManager(DspNetwork* n_, ValueTree connectionsTree_) :

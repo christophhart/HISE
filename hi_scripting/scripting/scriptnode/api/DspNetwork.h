@@ -261,6 +261,12 @@ public:
 		const snex::Types::PolyHandler::ScopedAllVoiceSetter internalSetter;
 	};
 
+    struct IdChange
+    {
+        String oldId;
+        String newId;
+    };
+    
 	class Holder
 	{
 	public:
@@ -824,7 +830,7 @@ public:
 		NodeBase::Ptr root;
 	} networkParameterHandler;
 
-	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone);
+	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& idChanges, bool changeIds);
 
 	void setEnableUndoManager(bool shouldBeEnabled)
 	{
