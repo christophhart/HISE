@@ -2225,7 +2225,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getId);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getType);
-	API_VOID_METHOD_WRAPPER_2(ScriptingModulator, connectToGlobalModulator);
+	API_METHOD_WRAPPER_2(ScriptingModulator, connectToGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getGlobalModulatorId);
 };
 
@@ -2338,16 +2338,19 @@ String ScriptingObjects::ScriptingModulator::getType() const
 	return String();
 }
 
-void ScriptingObjects::ScriptingModulator::connectToGlobalModulator(String globalModulationContainerId, String modulatorId)
+bool ScriptingObjects::ScriptingModulator::connectToGlobalModulator(String globalModulationContainerId, String modulatorId)
 {
 	if (checkValidObject())
 	{
-		if (mod->getType().toString().startsWith("Global"))
-		{
-			GlobalModulator *gm = dynamic_cast<GlobalModulator*>(m->getProcessor());
-			gm->connectToGlobalModulator(globalModulationContainerId + ":" + modulatorId);
-		}
+        if(auto gm = dynamic_cast<GlobalModulator*>(mod.get()))
+        {
+            return gm->connectToGlobalModulator(globalModulationContainerId + ":" + modulatorId);
+        }
+        else
+            reportScriptError("connectToGlobalModulator() only works with global modulators!");
 	}
+    
+    return false;
 }
 
 String ScriptingObjects::ScriptingModulator::getGlobalModulatorId()

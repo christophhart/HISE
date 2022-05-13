@@ -1399,7 +1399,7 @@ namespace ScriptingObjects
 		String getType() const;
 		
 		/** Connects a receive modulator to a global modulator. */
-		void connectToGlobalModulator(String globalModulationContainerId, String modulatorId);
+		bool connectToGlobalModulator(String globalModulationContainerId, String modulatorId);
 		
 		/** Returns the id of the global modulation container and global modulator this modulator is connected to */
 		String getGlobalModulatorId();
