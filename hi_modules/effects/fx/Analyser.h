@@ -42,7 +42,8 @@ using namespace juce;
 /** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
 	@ingroup effectTypes
 */
-class AnalyserEffect : public MasterEffectProcessor
+class AnalyserEffect : public MasterEffectProcessor,
+                       public ProcessorWithStaticExternalData
 {
 public:
 
@@ -53,12 +54,21 @@ public:
 		numParameters
 	};
 
+    enum class AnalyseType
+    {
+        Nothing = 1,
+        Goniometer,
+        Oscilloscope,
+        SpectrumAnalyser
+    };
+    
 	SET_PROCESSOR_NAME("Analyser", "Analyser", "A audio analysis module");
 
 	AnalyserEffect(MainController *mc, const String &uid) :
-		MasterEffectProcessor(mc, uid)
+		MasterEffectProcessor(mc, uid),
+        ProcessorWithStaticExternalData(mc, 0, 0, 0, 1)
 	{
-		ringBuffer = new SimpleRingBuffer();
+        ringBuffer = getDisplayBuffer(0);
 		ringBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 		finaliseModChains();
 
@@ -70,12 +80,36 @@ public:
 		ringBuffer->setRingBufferSize(2, 8192);
 	};
 
+    void updateType(AnalyseType newType)
+    {
+        if(currentType != newType)
+        {
+            currentType = newType;
+            
+            SimpleRingBuffer::ScopedPropertyCreator spc(ringBuffer.get());
+            
+            switch(currentType)
+            {
+                case AnalyseType::Nothing: break;
+                case AnalyseType::Goniometer:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::GonioMeter>();
+                    break;
+                case AnalyseType::Oscilloscope:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::Oscilloscope>();
+                    break;
+                case AnalyseType::SpectrumAnalyser:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::FFT>();
+                    break;
+            }
+        }
+    }
+    
 	void setInternalAttribute(int index, float newValue)
 	{
 		switch (index)
 		{
-		case Parameters::PreviewType: currentType = (int)newValue; break;
-		case Parameters::BufferSize:  ringBuffer->setRingBufferSize(2, (int)newValue); break;
+            case Parameters::PreviewType: updateType((AnalyseType)(int)newValue); break;
+            case Parameters::BufferSize:  ringBuffer->setRingBufferSize(2, (int)newValue); break;
 		}
 	}
 
@@ -129,39 +163,22 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+    void prepareToPlay(double sr, int blockSize) override
+    {
+        MasterEffectProcessor::prepareToPlay(sr, blockSize);
+        ringBuffer->setSamplerate(sr);
+    }
+    
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
 		if (ringBuffer != nullptr && ringBuffer->isActive())
 			ringBuffer->write(b, startSample, numSamples);
 	}
 
-	const AudioSampleBuffer& getAnalyseBuffer() const
-	{
-		jassertfalse;
-		return ringBuffer->getReadBuffer();
-	}
-	
-	int getCurrentReadIndex() const
-	{
-		jassertfalse;
-		return 0;
-	}
-
-	SimpleReadWriteLock& getBufferLock() 
-	{
-		jassertfalse;
-		return ringBuffer->getDataLock(); 
-	}
-
-	const SimpleRingBuffer::Ptr getRingBuffer() const { return ringBuffer; }
-
 private:
 
 	SimpleRingBuffer::Ptr ringBuffer;
-
-	int currentType = 1;
-
-	
+	AnalyseType currentType = AnalyseType::Nothing;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserEffect);
 };
@@ -237,7 +254,7 @@ public:
 	   FFTDisplayBase(),
        AudioAnalyserComponent(p)
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
 	};
 
 	void paint(Graphics& g) override
@@ -259,7 +276,7 @@ public:
 		AudioAnalyserComponent(p),
 		OscilloscopeBase()
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
 	};
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
@@ -280,7 +297,7 @@ public:
 		AudioAnalyserComponent(p),
 		GoniometerBase()
 	{
-		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer().get());
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
 	}
 
 	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
