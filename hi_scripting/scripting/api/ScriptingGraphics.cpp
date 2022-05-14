@@ -357,6 +357,7 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 				colour = Colours::red.withSaturation(0.6f);
 				letter = 'A';
 				break;
+                default: jassertfalse; break;
 			}
 		}
 

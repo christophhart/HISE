@@ -254,8 +254,6 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 		info.length = sample.getProperty(MonolithIds::MonolithLength);
 		info.sampleRate = sample.getProperty("SampleRate");
 		
-		int splitIndex = sample.getProperty(MonolithIds::MonolithSplitIndex, 0);
-
 		if (numChannels == 1)
 		{
 			info.fileNames.add(sample.getProperty(MonolithIds::FileName));

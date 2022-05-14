@@ -1702,7 +1702,7 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 }
 
 
-
+#if USE_BACKEND
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
 	cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [v](ValueTree& c)
@@ -1776,6 +1776,7 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 
 	return false;
 }
+#endif
 
 }
 

@@ -612,7 +612,7 @@ struct GlobalRoutingNodeBase::Editor : public SlotBaseEditor<GlobalRoutingNodeBa
 
 		mp.getStyleData().fontSize = 13.0f;
 		mp.parse();
-		auto h = mp.getHeightForWidth(b.getWidth());
+		mp.getHeightForWidth(b.getWidth());
 		mp.draw(g, b.translated(0.0f, -10.0f));
 	}
 

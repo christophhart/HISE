@@ -204,6 +204,7 @@ void logic_op_editor::paint(Graphics& g)
 	case multilogic::logic_op::LogicType::AND: w = "AND"; break;
 	case multilogic::logic_op::LogicType::OR: w = "OR"; break;
 	case multilogic::logic_op::LogicType::XOR: w = "XOR"; break;
+    default: jassertfalse; break;
 	}
 
 	g.drawText(w, l.getUnion(r), Justification::centred);

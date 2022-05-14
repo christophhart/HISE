@@ -67,8 +67,6 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 
 	FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
 
-	auto sampleRate = buffer->getSamplerate();
-
 	fft.performRealOnlyForwardTransform(data, true);
 
 	auto useFreqDomain = true;
