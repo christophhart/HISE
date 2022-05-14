@@ -748,12 +748,15 @@ juce::Path SimpleRingBuffer::PropertyObject::createPath(Range<int> sampleRange, 
 		if (std::abs(avg.getStart()) > std::abs(avg.getEnd()))
 			value = avg.getStart();
 
+        FloatSanitizers::sanitizeFloatNumber(value);
+        
 		p.lineTo((float)i, valueRange.getEnd() - valueRange.clipValue(value));
 	};
 
 	p.lineTo(numValues, startv);
 
-	p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
+    if(!p.getBounds().isEmpty())
+        p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
 
 	return p;
 }

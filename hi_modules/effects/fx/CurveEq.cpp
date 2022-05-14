@@ -33,12 +33,18 @@
 namespace hise { using namespace juce;
 
 CurveEq::CurveEq(MainController *mc, const String &id) :
-	MasterEffectProcessor(mc, id)
+	MasterEffectProcessor(mc, id),
+    ProcessorWithStaticExternalData(mc, 0, 0, 0, 1)
 {
 	finaliseModChains();
 
-	fftBuffer = new SimpleRingBuffer();
-	fftBuffer->setRingBufferSize(2, 32768);
+    fftBuffer = getDisplayBuffer(0);
+    
+    {
+        SimpleRingBuffer::ScopedPropertyCreator sps(fftBuffer.get());
+        fftBuffer->registerPropertyObject<scriptnode::analyse::Helpers::FFT>();
+    }
+    
 	fftBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 
 	parameterNames.add("Gain");
