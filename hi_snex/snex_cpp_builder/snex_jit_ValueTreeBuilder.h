@@ -602,7 +602,7 @@ struct ValueTreeBuilder: public Base
 		codeProvider = p;
 	}
 
-	static void cleanValueTreeIds(ValueTree& vToClean);
+	static Result cleanValueTreeIds(ValueTree& vToClean);
 
 private:
 

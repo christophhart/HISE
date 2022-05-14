@@ -123,12 +123,30 @@ struct CloneHelpers
     }
 };
 
-void ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
+Result ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
 {
-	ValueTreeIterator::forEach(vToClean, ValueTreeIterator::ChildrenFirst, [](ValueTree& c)
+    Array<Identifier> existingIds;
+    
+    auto r = Result::ok();
+    auto rptr = &r;
+    
+	ValueTreeIterator::forEach(vToClean, ValueTreeIterator::ChildrenFirst, [&existingIds, rptr](ValueTree& c)
 	{
 		static const Array<Identifier> idsToClean = { PropertyIds::ID, PropertyIds::NodeId, PropertyIds::ParameterId };
 
+        if(c.getType() == PropertyIds::Node)
+        {
+            auto thisId = Identifier(c[PropertyIds::ID].toString());
+            
+            if(existingIds.contains(thisId))
+            {
+                *rptr = Result::fail("duplicate ID: " + thisId.toString());
+                return true;
+            }
+            
+            existingIds.add(thisId);
+        }
+        
 		for (const auto& id : idsToClean)
 		{
 			if (c.hasProperty(id))
@@ -145,6 +163,8 @@ void ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
 
 		return false;
 	});
+    
+    return r;
 }
 
 void ValueTreeBuilder::setHeaderForFormat()
