@@ -1283,15 +1283,26 @@ void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
 
 String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
 {
-	String regex("include\\(\"([/\\w\\s]+\\.\\w+)\"\\);");
+	String regex("include\\(\"(?:\\{GLOBAL_SCRIPT_FOLDER\\})?([/\\w\\s]+\\.\\w+)\"\\);");
 	StringArray results = RegexFunctions::search(regex, x, 0);
 	StringArray fileNames = RegexFunctions::search(regex, x, 1);
 	StringArray includedContents;
 
+	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<Processor*>(const_cast<JavascriptProcessor*>(p)));
+
 	for (int i = 0; i < fileNames.size(); i++)
-	{
-		File f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
-			GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(p)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);
+	{				
+		File f;
+		
+		if (results[i].contains("{GLOBAL_SCRIPT_FOLDER}"))
+		{
+			f = globalScriptFolder.getChildFile(fileNames[i]).getFullPathName();
+		}
+		else
+		{
+			f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
+				GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(p)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);	
+		}
 
 		if (includedFiles.contains(f)) // skip multiple inclusions...
 		{
