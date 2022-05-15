@@ -1571,8 +1571,6 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 {
 	if (auto n = synth->getActiveNetwork())
 	{
-		auto rootNode = n->getRootNode();
-
 		if (isVoiceStart)
 		{
 			synth->voiceData.startVoice(n, getVoiceIndex(), getCurrentHiseEvent());

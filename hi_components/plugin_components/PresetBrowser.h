@@ -84,6 +84,10 @@ public:
 		Array<var> columnRowPadding;
 		Array<var> searchBarBounds;
 		Array<var> favoriteButtonBounds;
+
+		Array<var> moreButtonBounds;
+		Array<var> saveButtonBounds;
+
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
@@ -176,6 +180,8 @@ public:
 	void updateFavoriteButton();
 	bool shouldShowFavoritesButton() { return showFavoritesButton; }
 
+	void lookAndFeelChanged() override;
+
 	void loadPresetDatabase(const File& rootDirectory);
 	void savePresetDatabase(const File& rootDirectory);
 	var getDataBase() { return presetDatabase; }
@@ -245,6 +251,8 @@ private:
 	Array<var> columnWidthRatios;
 	Array<var> searchBarBounds;
 	Array<var> favoriteButtonBounds;
+	Array<var> saveButtonBounds;
+	Array<var> moreButtonBounds;
 	
 	File defaultRoot;
 	File rootFile;

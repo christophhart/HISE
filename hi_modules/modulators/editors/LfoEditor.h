@@ -59,10 +59,9 @@ public:
 
 		phaseSlider->updateValue();
 
-
 		tempoSyncButton->updateValue();
 		retriggerButton->updateValue();
-
+		clockSyncButton->updateValue();
 		frequencySlider->updateValue();
 
 		smoothTimeSlider->updateValue();
@@ -72,13 +71,9 @@ public:
 		loopButton->updateValue();
 
 		if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
-		{
 			frequencySlider->setMode(HiSlider::Mode::TempoSync);
-		}
 		else
-		{
 			frequencySlider->setMode(HiSlider::Frequency, 0.5, 40.0, 10.0);
-		}
 
 		const bool newTableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
 		const bool newStepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;
@@ -105,8 +100,6 @@ public:
 	{
 		return (tableUsed || stepsUsed) ? h : 120 ;
 	};
-
-
 
     //[/UserMethods]
 
@@ -137,6 +130,7 @@ private:
     std::unique_ptr<HiComboBox> waveFormSelector;
     std::unique_ptr<WaveformComponent> waveformDisplay;
     std::unique_ptr<HiToggleButton> tempoSyncButton;
+	std::unique_ptr<HiToggleButton> clockSyncButton;
     std::unique_ptr<HiToggleButton> retriggerButton;
     std::unique_ptr<TableEditor> waveformTable;
     std::unique_ptr<HiSlider> smoothTimeSlider;

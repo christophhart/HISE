@@ -171,6 +171,7 @@ public:
 	{
 		DEF_PARAMETER(BitDepth, bitcrush_impl);
 	}
+	SN_PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr int NumVoices = V;
 

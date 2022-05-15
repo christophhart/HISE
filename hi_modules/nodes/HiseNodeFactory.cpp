@@ -58,6 +58,11 @@ struct granulator: public data::base
 	SNEX_NODE(granulator);
 	SN_DESCRIPTION("A granular synthesiser");
 
+	granulator()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	}
+
 	using AudioDataType = span<block, 2>;
 
 	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
@@ -1059,7 +1064,9 @@ struct SpecNode: public NodeBase
 
 	SpecNode(DspNetwork* n, ValueTree v) :
 		NodeBase(n, v, 0)
-	{};
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	};
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree v)
 	{
@@ -1348,6 +1355,7 @@ namespace control
 {
 	using dynamic_cable_table = wrap::data<control::cable_table<parameter::dynamic_base_holder>, data::dynamic::table>;
 	using dynamic_cable_pack = wrap::data<control::cable_pack<parameter::dynamic_base_holder>, data::dynamic::sliderpack>;
+    using dynamic_pack_resizer = wrap::data<control::pack_resizer, data::dynamic::sliderpack>;
 
 	template <int NV> using dynamic_smoother_parameter = control::smoothed_parameter<NV, smoothers::dynamic<NV>>;
 
@@ -1357,7 +1365,7 @@ namespace control
 
 		registerPolyNoProcessNode<control::bipolar<1, parameter::dynamic_base_holder>, control::bipolar<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, bipolar_editor>();
 
-
+		registerPolyNoProcessNode<control::intensity<1, parameter::dynamic_base_holder>, control::intensity<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, intensity_editor>();
 
 		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor>();
 
@@ -1365,6 +1373,8 @@ namespace control
 
 		registerPolyNoProcessNode<control::logic_op<1, parameter::dynamic_base_holder>, control::logic_op<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, logic_op_editor>();
 
+        registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
+        
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();

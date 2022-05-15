@@ -59,19 +59,6 @@ juce::Colour GlobalRoutingManager::Helpers::getColourFromId(const String& id)
 	return Colour(h).withSaturation(0.6f).withAlpha(1.0f).withBrightness(0.7f);
 }
 
-void GlobalRoutingManager::Helpers::throwErrorIfCompileable(NodeBase* n)
-{
-	auto network = n->getRootNetwork();
-
-	if (network->getValueTree()[PropertyIds::AllowCompilation])
-	{
-		Error e;
-		e.error = Error::IllegalCompilation;
-
-		throw e;
-	}
-}
-
 void GlobalRoutingManager::Helpers::addGotoTargetCallback(Button* b, SlotBase* slot)
 {
 #if USE_BACKEND
@@ -625,7 +612,7 @@ struct GlobalRoutingNodeBase::Editor : public SlotBaseEditor<GlobalRoutingNodeBa
 
 		mp.getStyleData().fontSize = 13.0f;
 		mp.parse();
-		auto h = mp.getHeightForWidth(b.getWidth());
+		mp.getHeightForWidth(b.getWidth());
 		mp.draw(g, b.translated(0.0f, -10.0f));
 	}
 
@@ -751,7 +738,6 @@ void GlobalRoutingNodeBase::initParameters()
 void GlobalRoutingNodeBase::prepare(PrepareSpecs specs)
 {
 	DspHelpers::throwIfFrame(specs);
-	GlobalRoutingManager::Helpers::throwErrorIfCompileable(this);
 
 	lastSpecs = specs;
 
@@ -993,6 +979,8 @@ GlobalCableNode::GlobalCableNode(DspNetwork* n, ValueTree d) :
 	ModulationSourceNode(n, d),
 	slotId(PropertyIds::Connection, "")
 {
+	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+
 	globalRoutingManager = GlobalRoutingManager::Helpers::getOrCreate(n->getScriptProcessor()->getMainController_());
 
 	slotId.initialise(this);
@@ -1017,7 +1005,6 @@ scriptnode::NodeBase* GlobalCableNode::createNode(DspNetwork* n, ValueTree d)
 
 void GlobalCableNode::prepare(PrepareSpecs ps)
 {
-	GlobalRoutingManager::Helpers::throwErrorIfCompileable(this);
 	ModulationSourceNode::prepare(ps);
 }
 
@@ -1173,6 +1160,8 @@ scriptnode::NodeComponent* GlobalCableNode::createComponent()
 GlobalSendNode::GlobalSendNode(DspNetwork* n, ValueTree d) :
 	GlobalRoutingNodeBase(n, d)
 {
+	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+
 	slotId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(GlobalRoutingNodeBase::updateConnection), true);
 	initParameters();
 }
@@ -1223,6 +1212,8 @@ template <int NV> struct GlobalReceiveNode : public GlobalRoutingNodeBase
 	GlobalReceiveNode(DspNetwork* n, ValueTree d) :
 		GlobalRoutingNodeBase(n, d)
 	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+
 		slotId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(GlobalRoutingNodeBase::updateConnection), true);
 		initParameters();
 	};

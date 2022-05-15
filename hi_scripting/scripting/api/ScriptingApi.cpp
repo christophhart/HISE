@@ -1305,7 +1305,7 @@ void ScriptingApi::Engine::setFrontendMacros(var nameList)
 	{
 		mm.setEnableMacroOnFrontend(!ar->isEmpty());
 		
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < HISE_NUM_MACROS; i++)
 		{
 			auto macroName = (*ar)[i].toString();
 			mm.getMacroChain()->getMacroControlData(i)->setMacroName(macroName);
@@ -2579,8 +2579,8 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 
 void ScriptingApi::Engine::quit()
 {
-	#if IS_STANDALONE_APP
-		quit();
+    #if IS_STANDALONE_APP
+    JUCEApplication::quit();
 	#endif
 }
                 
@@ -6219,10 +6219,11 @@ ScriptingApi::TransportHandler::Callback::Callback(TransportHandler* p, const va
 	
 }
 
-void ScriptingApi::TransportHandler::Callback::call(var arg1, var arg2, bool forceSync)
+void ScriptingApi::TransportHandler::Callback::call(var arg1, var arg2, var arg3, bool forceSync)
 {
 	args[0] = arg1;
 	args[1] = arg2;
+	args[2] = arg3;
 
 	if (synchronous || forceSync)
 		callSync();
@@ -6249,20 +6250,38 @@ struct ScriptingApi::TransportHandler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTempoChange);
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnBeatChange);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnGridChange);
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnSignatureChange);
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setOnTransportChange);
+	API_VOID_METHOD_WRAPPER_1(TransportHandler, setSyncMode);
+	API_VOID_METHOD_WRAPPER_2(TransportHandler, setEnableGrid);
+	API_VOID_METHOD_WRAPPER_1(TransportHandler, startInternalClock);
+	API_VOID_METHOD_WRAPPER_1(TransportHandler, stopInternalClock);
 };
 
 ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
-	ConstScriptingObject(sp, 0),
+	ConstScriptingObject(sp, (int)MasterClock::SyncModes::numSyncModes),
 	ControlledObject(sp->getMainController_())
 {
+	addConstant("Inactive", (int)MasterClock::SyncModes::Inactive);
+	addConstant("ExternalOnly", (int)MasterClock::SyncModes::ExternalOnly);
+	addConstant("InternalOnly", (int)MasterClock::SyncModes::InternalOnly);
+	addConstant("PreferInternal", (int)MasterClock::SyncModes::PreferInternal);
+	addConstant("PreferExternal", (int)MasterClock::SyncModes::PreferExternal);
+	addConstant("SyncInternal", (int)MasterClock::SyncModes::SyncInternal);
+
 	getMainController()->addTempoListener(this);
 
 	ADD_API_METHOD_2(setOnTempoChange);
 	ADD_API_METHOD_2(setOnBeatChange);
+	ADD_API_METHOD_2(setOnGridChange);
 	ADD_API_METHOD_2(setOnSignatureChange);
 	ADD_API_METHOD_2(setOnTransportChange);
+	ADD_API_METHOD_1(setSyncMode);
+	ADD_API_METHOD_1(startInternalClock);
+	ADD_API_METHOD_1(stopInternalClock);
+	ADD_API_METHOD_2(setEnableGrid);
+	
 }
 
 ScriptingApi::TransportHandler::~TransportHandler()
@@ -6278,14 +6297,14 @@ void ScriptingApi::TransportHandler::setOnTempoChange(bool sync, var f)
 		clearIf(tempoChangeCallbackAsync, f);
 
 		tempoChangeCallback = new Callback(this, f, sync, 1);
-		tempoChangeCallback->call(bpm, {}, true);
+		tempoChangeCallback->call(bpm, {}, {}, true);
 	}
 	else
 	{
 		clearIf(tempoChangeCallback, f);
 
 		tempoChangeCallbackAsync = new Callback(this, f, sync, 1);
-		tempoChangeCallbackAsync->call(bpm, {}, true);
+		tempoChangeCallbackAsync->call(bpm, {}, {}, true);
 	}
 }
 
@@ -6296,14 +6315,14 @@ void ScriptingApi::TransportHandler::setOnTransportChange(bool sync, var f)
 		clearIf(tempoChangeCallbackAsync, f);
 
 		transportChangeCallback = new Callback(this, f, sync, 1);
-		transportChangeCallback->call(play, {}, true);
+		transportChangeCallback->call(play, {}, {}, true);
 	}
 	else
 	{
 		clearIf(transportChangeCallback, f);
 
 		transportChangeCallbackAsync = new Callback(this, f, sync, 1);
-		transportChangeCallbackAsync->call(play, {}, true);
+		transportChangeCallbackAsync->call(play, {}, {}, true);
 	}
 	
 }
@@ -6315,15 +6334,76 @@ void ScriptingApi::TransportHandler::setOnSignatureChange(bool sync, var f)
 		clearIf(timeSignatureCallbackAsync, f);
 
 		timeSignatureCallback = new Callback(this, f, sync, 2);
-		timeSignatureCallback->call(nom, denom, true);
+		timeSignatureCallback->call(nom, denom, {}, true);
 	}
 	else
 	{
 		clearIf(timeSignatureCallback, f);
 
 		timeSignatureCallbackAsync = new Callback(this, f, sync, 2);
-		timeSignatureCallbackAsync->call(nom, denom, true);
+		timeSignatureCallbackAsync->call(nom, denom, {}, true);
 	}
+}
+
+void ScriptingApi::TransportHandler::tempoChanged(double newTempo)
+{
+	bpm = newTempo;
+
+	if (tempoChangeCallback != nullptr)
+		tempoChangeCallback->call(newTempo);
+
+	if (tempoChangeCallbackAsync != nullptr)
+		tempoChangeCallbackAsync->call(newTempo);
+}
+
+
+
+void ScriptingApi::TransportHandler::onTransportChange(bool isPlaying)
+{
+	play = isPlaying;
+
+	if (transportChangeCallback != nullptr)
+		transportChangeCallback->call(isPlaying);
+
+	if (transportChangeCallbackAsync != nullptr)
+		transportChangeCallbackAsync->call(isPlaying);
+}
+
+void ScriptingApi::TransportHandler::onBeatChange(int newBeat, bool isNewBar)
+{
+	beat = newBeat;
+	newBar = isNewBar;
+
+	if (beatCallback != nullptr)
+		beatCallback->call(newBeat, newBar);
+
+	if (beatCallbackAsync != nullptr)
+		beatCallbackAsync->call(newBeat, newBar);
+}
+
+void ScriptingApi::TransportHandler::onSignatureChange(int newNominator, int numDenominator)
+{
+	nom = newNominator;
+	denom = numDenominator;
+
+	if (timeSignatureCallback != nullptr)
+		timeSignatureCallback->call(newNominator, numDenominator);
+
+	if (timeSignatureCallbackAsync != nullptr)
+		timeSignatureCallbackAsync->call(newNominator, numDenominator);
+}
+
+void ScriptingApi::TransportHandler::onGridChange(int gridIndex_, uint16 timestamp, bool firstGridInPlayback_)
+{
+	gridIndex = gridIndex_;
+	gridTimestamp = timestamp;
+	firstGridInPlayback = firstGridInPlayback_;
+
+	if (gridCallback != nullptr)
+		gridCallback->call(gridIndex, gridTimestamp, firstGridInPlayback);
+
+	if (gridCallbackAsync != nullptr)
+		gridCallbackAsync->call(gridIndex, gridTimestamp, firstGridInPlayback);
 }
 
 void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
@@ -6345,6 +6425,55 @@ void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
 			beatCallbackAsync = new Callback(this, f, sync, 2);
 		}
 	}
+}
+
+void ScriptingApi::TransportHandler::setOnGridChange(bool sync, var f)
+{
+	if (f.isUndefined())
+		getMainController()->removeMusicalUpdateListener(this);
+	else
+	{
+		getMainController()->addMusicalUpdateListener(this);
+
+		if (sync)
+		{
+			clearIf(gridCallbackAsync, f);
+			gridCallback = new Callback(this, f, sync, 3);
+		}
+		else
+		{
+			clearIf(gridCallback, f);
+			gridCallbackAsync = new Callback(this, f, sync, 3);
+		}
+	}
+}
+
+void ScriptingApi::TransportHandler::setEnableGrid(bool shouldBeEnabled, int tempoFactor)
+{
+	if (isPositiveAndBelow(tempoFactor, (int)TempoSyncer::numTempos))
+	{
+		auto t = (TempoSyncer::Tempo)tempoFactor;
+		getMainController()->getMasterClock().setClockGrid(shouldBeEnabled, t);
+	}
+	else
+	{
+		reportScriptError("Illegal tempo value. Use 1-18");
+	}
+}
+
+void ScriptingApi::TransportHandler::startInternalClock(int timestamp)
+{
+	getMainController()->getMasterClock().changeState(timestamp, true, true);
+}
+
+void ScriptingApi::TransportHandler::stopInternalClock(int timestamp)
+{
+	getMainController()->getMasterClock().changeState(timestamp, true, false);
+}
+
+void ScriptingApi::TransportHandler::setSyncMode(int syncMode)
+{
+	getMainController()->getMasterClock().setSyncMode((MasterClock::SyncModes)syncMode);
 }
 
 } // namespace hise

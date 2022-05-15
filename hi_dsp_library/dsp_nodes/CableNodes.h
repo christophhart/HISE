@@ -201,16 +201,21 @@ namespace control
 	struct file_analyser: public scriptnode::data::base,
 						  public pimpl::no_processing,
 						  public pimpl::templated_mode,
+						  public pimpl::no_mod_normalisation,
 						  public pimpl::parameter_node_base<ParameterClass>
 	{
 		SN_NODE_ID("file_analyser");
 		SN_GET_SELF_AS_OBJECT(file_analyser);
-		SN_TEMPLATED_MODE_PARAMETER_NODE_CONSTRUCTOR(file_analyser, ParameterClass, "file_analysers");
+
+		file_analyser() :
+			templated_mode(getStaticId(), "file_analysers"),
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+			no_mod_normalisation(getStaticId())
+		{};
+
 		SN_DESCRIPTION("Extracts file information (pitch, length, etc) and sends it as modulation signal on file load");
 
 		SN_EMPTY_CREATE_PARAM;
-
-		static constexpr bool isNormalisedModulation() { return false; }
 
 		void initialise(NodeBase* n)
 		{
@@ -236,11 +241,17 @@ namespace control
 	};
 
 	template <typename ParameterClass> struct input_toggle : public pimpl::parameter_node_base<ParameterClass>,
+														     public pimpl::no_mod_normalisation,
 															 public pimpl::no_processing
 	{
 		SN_NODE_ID("input_toggle");
 		SN_GET_SELF_AS_OBJECT(input_toggle);
-		SN_PARAMETER_NODE_CONSTRUCTOR(input_toggle, ParameterClass);
+
+		input_toggle() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+			pimpl::no_mod_normalisation(getStaticId())
+		{};
+
 		SN_DESCRIPTION("Switch between two input values as modulation signal");
 
 		enum class Parameters
@@ -258,7 +269,7 @@ namespace control
 		};
 		SN_PARAMETER_MEMBER_FUNCTION;
 
-		static constexpr bool isNormalisedModulation() { return false; };
+		
 
 		void setInput(double input)
 		{
@@ -320,6 +331,7 @@ namespace control
 	};
 
 	class tempo_sync : public mothernode,
+					   public pimpl::no_mod_normalisation,
 					   public hise::TempoListener
 	{
 	public:
@@ -363,8 +375,6 @@ namespace control
 		void setTempo(double newTempoIndex);
 		bool handleModulation(double& max);
 
-		static constexpr bool isNormalisedModulation() { return false; }
-
 		void setMultiplier(double newMultiplier);
 
 		void setEnabled(double v);
@@ -393,6 +403,42 @@ namespace control
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 	};
+
+    struct pack_resizer: public data::base,
+                         public pimpl::no_processing
+                         
+    {
+        SN_NODE_ID("pack_resizer");
+        SN_GET_SELF_AS_OBJECT(pack_resizer);
+        
+        SN_DESCRIPTION("Dynamically resizes a slider pack");
+        
+        template <int P> void setParameter(double v)
+        {
+            if(auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+            {
+                DataWriteLock sl(this);
+                
+                auto newNumSliders = jlimit<int>(1, 128, roundToInt(v));
+                
+                sp->setNumSliders(roundToInt(newNumSliders));
+            }
+        }
+        
+        void createParameters(ParameterDataList& data)
+        {
+            {
+                parameter::data p("NumSliders", { 0.0, 128.0, 1.0 });
+                p.callback = parameter::inner<pack_resizer, 0>(*this);
+                data.add(std::move(p));
+            }
+        }
+        
+        SN_FORWARD_PARAMETER_TO_MEMBER(pack_resizer);
+        
+        float something = 90.0f;
+    };
+
 
 	template <typename ParameterClass> struct resetter : public mothernode,
 														 public pimpl::no_processing,
@@ -627,8 +673,10 @@ namespace control
 		double lastValue = 0.0;
 	};
 
-    template <typename ConverterClass, typename ParameterClass>
+    template <typename ParameterClass, typename ConverterClass>
         struct converter : public mothernode,
+						   public pimpl::templated_mode,
+						   public pimpl::no_mod_normalisation,
                            public pimpl::parameter_node_base<ParameterClass>,
                            public pimpl::no_processing
     {
@@ -639,10 +687,13 @@ namespace control
         SN_DEFAULT_INIT(ConverterClass);
         SN_DEFAULT_PREPARE(ConverterClass);
         SN_ADD_SET_VALUE(converter);
-        SN_PARAMETER_NODE_CONSTRUCTOR(converter, ParameterClass);
 
-        static constexpr bool isNormalisedModulation() { return false; }
-        
+		converter() :
+			pimpl::templated_mode(getStaticId(), "conversion_logic"),
+			pimpl::no_mod_normalisation(getStaticId()),
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
+
         void setValue(double input)
         {
             auto v = obj.getValue(input);
@@ -995,6 +1046,58 @@ namespace control
 
 	namespace multilogic
 	{
+		struct intensity
+		{
+			SN_NODE_ID("intensity");
+			SN_DESCRIPTION("applies the HISE modulation intensity to the value");
+
+			static constexpr bool isNormalisedModulation() { return true; }
+
+			double intensityValue = 1.0;
+			double value = 1.0;
+			mutable bool dirty = false;
+
+			bool operator==(const intensity& other) const
+			{
+				return value == other.value && intensityValue == other.intensityValue;
+			}
+
+			double getValue() const
+			{
+				dirty = false;
+
+				return 1.0 * (1.0 - intensityValue) + intensityValue * value;
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					value = v;
+				if constexpr (P == 1)
+					intensityValue = jlimit(0.0, 1.0, v);
+				
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.callback = parameter::inner<NodeType, 0>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Intensity");
+					p.callback = parameter::inner<NodeType, 1>(n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(1.0);
+					data.add(std::move(p));
+				}
+			}
+		};
+
 		struct bipolar
 		{
 			SN_NODE_ID("bipolar");
@@ -1143,12 +1246,14 @@ namespace control
 
 		};
 
-		struct minmax
+		struct minmax: public pimpl::no_mod_normalisation
 		{
 			SN_NODE_ID("minmax");
 			SN_DESCRIPTION("Scales the input value to a modifyable range");
 
-			static constexpr bool isNormalisedModulation() { return false; }
+			minmax() :
+				no_mod_normalisation(getStaticId())
+			{};
 
 			bool operator==(const minmax& other) const { return other.range == range && value == other.value; }
 
@@ -1383,6 +1488,7 @@ namespace control
 	template <int NV, typename ParameterType> using bipolar = multi_parameter<NV, ParameterType, multilogic::bipolar>;
 	template <int NV, typename ParameterType> using minmax = multi_parameter<NV, ParameterType, multilogic::minmax>;
 	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
+	template <int NV, typename ParameterType> using intensity = multi_parameter<NV, ParameterType, multilogic::intensity>;
 
 	struct smoothed_parameter_base: public mothernode
 	{

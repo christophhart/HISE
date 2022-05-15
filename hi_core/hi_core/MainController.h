@@ -580,6 +580,30 @@ public:
 	{
 	public:
 
+		struct CustomAutomationData : public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<CustomAutomationData>;
+			using List = ReferenceCountedArray<CustomAutomationData>;
+
+			CustomAutomationData(MainController* mc, int index_, const var& d);
+
+			void call(float newValue);
+
+			const int index;
+			Identifier id;
+			float lastValue = 0.0f;
+			bool allowMidi = true;
+			bool allowHost = true;
+			NormalisableRange<float> range;
+			Result r;
+			var args[2];
+
+			LambdaBroadcaster<var*> syncListeners;
+			LambdaBroadcaster<float> asyncListeners;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CustomAutomationData);
+		};
+
 		struct UndoableUserPresetLoad : public ControlledObject,
 										public UndoableAction
 		{
@@ -678,6 +702,10 @@ public:
 			*/
 			virtual ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) { return dataToLoad; };
 
+			virtual void loadCustomUserPreset(const var& dataObject) {};
+
+			virtual var saveCustomUserPreset(const String& presetName) { return {}; }
+
 		private:
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
@@ -704,6 +732,10 @@ public:
 		/** @internal */
 		void sendRebuildMessage();
 
+		bool isUsingCustomDataModel() const { return isUsingCustomData; };
+		
+		bool isUsingPersistentObject() const { return usePersistentObject; }
+
 		/** Checks if the current preset file (or directory) is marked as read-only.
 		
 			If READ_ONLY_FACTORY_PRESETS is true, this function will check the file path
@@ -716,6 +748,18 @@ public:
 		*	but for custom implementations, this will save the current UI state to the given file.
 		*/
 		void savePreset(String presetName = String());
+
+		void loadCustomValueTree(const ValueTree& presetData);
+
+		StringArray getCustomAutomationIds() const;
+
+		CustomAutomationData::Ptr getCustomAutomationData(const Identifier& id);
+
+		CustomAutomationData::Ptr getCustomAutomationData(int index);
+
+		int getCustomAutomationIndex(const Identifier& id) const;
+
+		ValueTree createCustomValueTree(const String& presetName);
 
 		/** Registers a listener that will be notified about preset changes. */
 		void addListener(Listener* listener);
@@ -734,10 +778,11 @@ public:
 
 		void postPresetLoad();
 
+		bool setCustomAutomationData(CustomAutomationData::List newList);
+
+		void setUseCustomDataModel(bool shouldUseCustomModel, bool usePersistentObject);
+
 #if READ_ONLY_FACTORY_PRESETS
-
-		
-
 	private:
 
 
@@ -771,12 +816,19 @@ public:
 
 		Array<WeakReference<Listener>, CriticalSection> listeners;
 
+
+
 		File currentlyLoadedFile;
 		ValueTree pendingPreset;
 		StringArray storedModuleIds;
 
 		MainController* mc;
 		bool useUndoForPresetLoads = false;
+
+		bool isUsingCustomData = false;
+		bool usePersistentObject = false;
+
+		CustomAutomationData::List customAutomationData;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
@@ -1326,7 +1378,7 @@ public:
 
 	bool isSyncedToHost() const;
 
-	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo);
+	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi);
 
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
@@ -1340,6 +1392,9 @@ public:
 	void addMusicalUpdateListener(TempoListener* t);
 
 	void removeMusicalUpdateListener(TempoListener* t);
+
+	MasterClock& getMasterClock() { return masterClock; }
+	const MasterClock& getMasterClock() const { return masterClock; }
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
@@ -1652,6 +1707,8 @@ protected:
 	
 
 private:
+
+	MasterClock masterClock;
 
 	ReferenceCountedObjectPtr<MultiChannelAudioBuffer::XYZPool> xyzPool;
 

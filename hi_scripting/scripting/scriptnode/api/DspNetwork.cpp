@@ -81,6 +81,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
     if(!data.hasProperty(PropertyIds::CompileChannelAmount))
         data.setProperty(PropertyIds::CompileChannelAmount, 2, nullptr);
     
+	if (!data.hasProperty(ExpansionIds::Version))
+	{
+		data.setProperty(ExpansionIds::Version, "0.0.0", nullptr);
+	}
+
 	if (dataHolder_ != nullptr)
 		setExternalDataHolder(dataHolder_);
 	else
@@ -233,6 +238,9 @@ void DspNetwork::createAllNodesOnce()
 
 	for (auto f : nodeFactories)
 	{
+        if(f->getId() == Identifier("project"))
+            continue;
+        
 		for (auto id : f->getModuleList())
 		{
 			NodeBase::Holder s;
@@ -994,14 +1002,8 @@ juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 	return id;
 }
 
-juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone)
+juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& changes, bool changeIds)
 {
-	struct IdChange
-	{
-		String oldId;
-		String newId;
-	};
-
 	auto c = treeToClone.createCopy();
 
 	StringArray sa;
@@ -1009,9 +1011,6 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 		sa.add(n->getId());
 
 	auto saRef = &sa;
-
-	Array<IdChange> changes;
-
 	auto changeRef = &changes;
 
 	auto setNewId = [changeRef, saRef, this](ValueTree& v)
@@ -1033,8 +1032,12 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 	valuetree::Helpers::foreach(c, setNewId);
 
-	for (auto& ch : changes)
-		changeNodeId(c, ch.oldId, ch.newId, nullptr);
+    if(changeIds)
+    {
+        for (auto& ch : changes)
+            changeNodeId(c, ch.oldId, ch.newId, nullptr);
+    }
+	
 
 	return c;
 }
@@ -1239,6 +1242,8 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 			}
 			else
             {
+				DspNetworkListeners::PatchAutosaver::removeDanglingConnections(c);
+
 				// look if there's a network file that we 
 				// need to replace with this content
                 cppgen::ValueTreeIterator::forEach(c,
@@ -1697,6 +1702,81 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 }
 
 
+#if USE_BACKEND
+void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
+{
+	cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [v](ValueTree& c)
+		{
+			auto nodeExists = [v](const String& id)
+			{
+				return cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [id](ValueTree& n)
+					{
+						if (n.getType() == PropertyIds::Node)
+						{
+							if (n[PropertyIds::ID].toString() == id)
+								return true;
+						}
+
+						return false;
+					});
+			};
+
+			if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
+			{
+				auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
+
+				int numBefore = idList.size();
+
+				for (int i = 0; i < idList.size(); i++)
+				{
+					if (!nodeExists(idList[i]))
+						idList.remove(i--);
+				}
+
+				if (idList.size() != numBefore)
+				{
+					c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
+				}
+			}
+
+			return false;
+		});
+}
+
+bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
+{
+	// Remove all child nodes from a project node
+	// (might be a leftover from the extraction process)
+	if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
+	{
+		v.removeChild(v.getChildWithName(PropertyIds::Nodes), nullptr);
+
+		for (auto p : v.getChildWithName(PropertyIds::Parameters))
+			p.removeChild(p.getChildWithName(PropertyIds::Connections), nullptr);
+	}
+
+	auto propChild = v.getChildWithName(PropertyIds::Properties);
+
+	// Remove all properties with the default value
+	for (int i = 0; i < propChild.getNumChildren(); i++)
+	{
+		if (removePropIfDefault(propChild.getChild(i), PropertyIds::IsVertical, 1))
+			propChild.removeChild(i--, nullptr);
+	}
+
+	removeIfNoChildren(propChild);
+
+	for (auto id : PropertyIds::Helpers::getDefaultableIds())
+		removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
+
+	removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+
+	removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
+	removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
+
+	return false;
+}
+#endif
 
 }
 

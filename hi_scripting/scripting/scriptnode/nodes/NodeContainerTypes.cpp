@@ -295,7 +295,13 @@ template <int OversampleFactor>
 OversampleNode<OversampleFactor>::OversampleNode(DspNetwork* network, ValueTree d) :
 	SerialNode(network, d)
 {
-	initListeners();
+	initListeners(false);
+
+	addFixedParameters();
+
+	
+
+	
 
 	obj.initialise(this);
 }
@@ -338,13 +344,15 @@ void OversampleNode<OversampleFactor>::setBypassed(bool shouldBeBypassed)
 template <int OversampleFactor>
 double OversampleNode<OversampleFactor>::getSampleRateForChildNodes() const
 {
-	return isBypassed() ? originalSampleRate : originalSampleRate * OversampleFactor;
+	auto os = isBypassed() ? 1 : obj.getOverSamplingFactor();
+	return originalSampleRate * os;
 }
 
 template <int OversampleFactor>
 int OversampleNode<OversampleFactor>::getBlockSizeForChildNodes() const
 {
-	return isBypassed() ? originalBlockSize : originalBlockSize * OversampleFactor;
+	auto os = isBypassed() ? 1 : obj.getOverSamplingFactor();
+	return originalBlockSize * os;
 }
 
 template <int OversampleFactor>
@@ -371,8 +379,19 @@ void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 	}
 	else
 	{
-		NodeProfiler np(this, d.getNumSamples() * OversampleFactor);
-		obj.process(d);
+		if (hasFixedParameters())
+		{
+#if USE_BACKEND
+			auto os = jlimit(1, 16, (int)std::pow(2.0, asNode()->getParameterFromIndex(0)->getValue()));
+			NodeProfiler np(this, d.getNumSamples() * os);
+#endif
+			obj.process(d);
+		}
+		else
+		{
+			NodeProfiler np(this, d.getNumSamples() * OversampleFactor);
+			obj.process(d);
+		}
 	}
 }
 
@@ -761,13 +780,15 @@ struct CloneOptionComponent : public Component,
 
 			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
 
+            Array<DspNetwork::IdChange> changes;
+            
 			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
 
 			while (numToAdd > 1)
 			{
 				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
 
-				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0));
+				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0), changes, true);
 				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
 				nt.addChild(copy, -1, parentNode->getUndoManager());
 				numToAdd--;
@@ -878,31 +899,7 @@ CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
 
 	initListeners(false);
 	
-	
-
-	auto pData = createInternalParameterList();
-
-	d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
-
-	for (auto p : pData)
-	{
-		auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
-
-		if (!existingChild.isValid())
-		{
-			existingChild = p.createValueTree();
-			getParameterTree().addChild(existingChild, -1, getUndoManager());
-		}
-
-		auto newP = new Parameter(this, existingChild);
-
-		auto ndb = new parameter::dynamic_base(p.callback);
-
-		newP->setDynamicParameter(ndb);
-		newP->valueNames = p.parameterNames;
-
-		addParameter(newP);
-	}
+	NodeContainer::addFixedParameters();
 
 	numVoicesListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, [this](const ValueTree&, bool wasAdded)
 	{

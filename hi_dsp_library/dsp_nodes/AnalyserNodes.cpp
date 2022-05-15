@@ -67,8 +67,6 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 
 	FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
 
-	auto sampleRate = buffer->getSamplerate();
-
 	fft.performRealOnlyForwardTransform(data, true);
 
 	auto useFreqDomain = true;
@@ -163,7 +161,7 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 	auto sampleRate = buffer->getSamplerate();
 
-	if (sampleRate == 0.0)
+	if (sampleRate <= 0.0)
 		sampleRate = 44100.0;
 
 	

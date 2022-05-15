@@ -136,6 +136,7 @@ DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
 DECLARE_ID(AllowPolyphonic);
 DECLARE_ID(AllowCompilation);
+DECLARE_ID(UncompileableNode);
 DECLARE_ID(CompileChannelAmount);
 
 
@@ -235,6 +236,8 @@ struct CustomNodeProperties
 	{
 		addNodeIdManually(T::getStaticId(), id);
 	}
+
+	
 
 	static void setInitialised(bool allInitialised)
 	{

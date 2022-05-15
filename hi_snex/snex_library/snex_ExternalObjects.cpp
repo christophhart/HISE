@@ -53,6 +53,9 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	WrapLibraryBuilder wBuilder(c, numChannels);
 	wBuilder.registerTypes();
 
+	DataLibraryBuilder dlBuilder(c, numChannels);
+	dlBuilder.registerTypes();
+
 #if 0
 	FxNodeLibrary fBuilder(c, numChannels);
 	fBuilder.registerTypes();

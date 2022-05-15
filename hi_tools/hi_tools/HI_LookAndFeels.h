@@ -769,9 +769,6 @@ public:
 	Colour propertyBgColour = Colour(0xff3d3d3d);
 };
 
-class PresetBrowser;
-
-
 
 class PresetBrowserLookAndFeelMethods
 {
@@ -793,7 +790,9 @@ public:
 	virtual ~PresetBrowserLookAndFeelMethods()
 	{};
 
-	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p);
+	virtual Path createPresetBrowserIcons(const String& id);
+
+	virtual void drawPresetBrowserBackground(Graphics& g, Component* p);
 	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
 	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
 	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);

@@ -119,6 +119,12 @@ protected:
 */
 template <bool NormalisedModulation=true> struct jmod: public data::display_buffer_base<true>
 {
+	jmod(const Identifier& id)
+	{
+		if(!NormalisedModulation)
+			cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::UseUnnormalisedModulation);
+	}
+
 	virtual ~jmod() {};
 
 	static constexpr bool isNormalisedModulation() { return NormalisedModulation; };
@@ -142,6 +148,10 @@ template <bool NormalisedModulation=true> struct jmod: public data::display_buff
 struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1>,
 					 public jdsp::base::jmod<true>
 {
+	jcompressor() :
+		jmod<true>(getStaticId())
+	{};
+
 	SNEX_NODE(jcompressor);
 
 	template <int P> void setParameter(double v)
@@ -151,7 +161,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 			if (P == 0)
 				obj.setThreshold(v);
 			if (P == 1)
-				obj.setRatio(v);
+				obj.setRatio(jmax(1.0, v));
 			if (P == 2)
 				obj.setAttack(v);
 			if (P == 3)
@@ -202,6 +212,9 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 
 	IIRCoefficients getApproximateCoefficients() const override
 	{
+        if(sr == 0)
+            return {};
+        
 		auto& o = objects.getFirst();
 
 		switch (o.getType())

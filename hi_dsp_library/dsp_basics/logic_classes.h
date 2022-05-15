@@ -107,6 +107,22 @@ struct st2pitch
     }
 };
 
+struct cent2pitch
+{
+	double getValue(double input) const
+	{
+		return pow(2.0, input / 1200.0);
+	}
+};
+
+struct pitch2cent
+{
+	double getValue(double input) const
+	{
+		return std::log2(input) * 1200.0;
+	}
+};
+
 struct midi2freq
 {
     double getValue(double input) const

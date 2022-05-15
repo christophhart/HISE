@@ -57,7 +57,9 @@ struct dynamic_base: public ReferenceCountedObject
 	virtual void call(double value)
 	{
 		setDisplayValue(value);
-		f(obj, lastValue);
+        
+        if(obj != nullptr && f)
+            f(obj, lastValue);
 	}
 
 	static dynamic_base::Ptr createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);

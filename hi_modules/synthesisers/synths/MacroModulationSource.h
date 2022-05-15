@@ -87,7 +87,7 @@ public:
 
 	int getNumChildProcessors() const override
 	{
-		return ModulatorSynth::numInternalChains + 8;
+		return ModulatorSynth::numInternalChains + HISE_NUM_MACROS;
 	}
 
 	Processor* getChildProcessor(int processorIndex) override
@@ -126,7 +126,7 @@ public:
 
 private:
 
-	float lastValues[8];
+	float lastValues[HISE_NUM_MACROS];
 
 	Array<ModulatorChain*> macroChains;
 

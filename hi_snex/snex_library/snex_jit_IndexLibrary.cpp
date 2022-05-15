@@ -683,9 +683,25 @@ snex::jit::FunctionData IndexBuilder::assignOp(StructType* st)
 	return af;
 }
 
-void IndexBuilder::initialise(const TemplateObject::ConstructData&, StructType* st)
+void IndexBuilder::initialise(const TemplateObject::ConstructData& td, StructType* st)
 {
 	MetaDataExtractor metadata(st);
+
+	auto sizeValue = metadata.getStaticBounds();
+
+	if (sizeValue < 0)
+	{
+		String e;
+
+		e << "Illegal size value: " + String(sizeValue) << ".Use zero for dynamic bounds.";
+
+		if (td.r != nullptr)
+			*td.r = Result::fail(e);
+		else
+			jassertfalse;
+
+		return;
+	}
 
 	if (metadata.isInterpolationType())
 	{

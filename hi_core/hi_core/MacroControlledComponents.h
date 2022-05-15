@@ -221,14 +221,7 @@ public:
 
 	void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) override;
 
-	bool canBeMidiLearned() const
-	{
-#if HISE_ENABLE_MIDI_LEARN
-		return midiLearnEnabled;
-#else
-		return false;
-#endif
-	}
+	bool canBeMidiLearned() const;
 
 	bool isConnectedToModulator() const;
 
@@ -242,6 +235,12 @@ public:
 	*	@param name_ the name of the element. This will also be the displayed name in the macro control panel.
 	*/
 	virtual void setup(Processor *p, int parameter_, const String &name_);
+
+	void connectToCustomAutomation(const Identifier& newCustomId);
+
+	int getAutomationIndex() const;
+
+
 
 	void initMacroControl(NotificationType notify);
 
@@ -300,13 +299,13 @@ protected:
 
 	int parameter;
 
-protected:
-
 	void enableMidiLearnWithPopup();
 
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	Identifier customId;
 
 	ScopedPointer<LookAndFeel> slaf;
 

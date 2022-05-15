@@ -1065,6 +1065,11 @@ public:
         values.ensureAllocatedSize (minNumElements);
     }
 
+	int getNumAllocated() const
+	{
+		return values.getNumAllocated();
+	}
+
     //==============================================================================
     /** Sorts the array using a default comparison operation.
         If the type of your elements isn't supported by the DefaultElementComparator class

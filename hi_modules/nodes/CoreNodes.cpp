@@ -51,6 +51,7 @@ void tempo_sync::initialise(NodeBase* n)
 }
 
 tempo_sync::tempo_sync():
+	no_mod_normalisation(getStaticId()),
 	useFreqDomain(PropertyIds::UseFreqDomain, false)
 {
 

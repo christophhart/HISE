@@ -62,14 +62,10 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     macroSelector->setTextWhenNothingSelected (String());
     macroSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     macroSelector->addItem (TRANS("Not connected"), 1);
-    macroSelector->addItem (TRANS("Macro 1"), 2);
-    macroSelector->addItem (TRANS("Macro 2"), 3);
-    macroSelector->addItem (TRANS("Macro 3"), 4);
-    macroSelector->addItem (TRANS("Macro 4"), 5);
-    macroSelector->addItem (TRANS("Macro 5"), 6);
-    macroSelector->addItem (TRANS("Macro 6"), 7);
-    macroSelector->addItem (TRANS("Macro 7"), 8);
-    macroSelector->addItem (TRANS("Macro 8"), 9);
+
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
+		macroSelector->addItem("Macro " + String(i + 1), i + 1);
+
     macroSelector->addListener (this);
 
 

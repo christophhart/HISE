@@ -74,6 +74,14 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 	case hise::ScriptingApi::Content::ScriptComponent::width:
 	case hise::ScriptingApi::Content::ScriptComponent::height: contentComponent->updateComponentPosition(this); break;
 	case hise::ScriptingApi::Content::ScriptComponent::parentComponent: contentComponent->updateComponentParent(this); break;
+	case hise::ScriptingApi::Content::ScriptComponent::automationId:
+	{
+		if (auto mco = dynamic_cast<MacroControlledObject*>(getComponent()))
+		{
+			auto id = newValue.toString();
+			mco->connectToCustomAutomation(id.isNotEmpty() ? Identifier(id) : Identifier());
+		}
+	}
 	default:
 		break;
 	}

@@ -129,16 +129,18 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 			(*b)[i] = FloatSanitizers::sanitizeFloatNumber(v);
 			return;
 		}
-		else if (Array<var>* array = result.getArray())
+		else if (Array<var>* ar = result.getArray())
 		{
 			const int i = index->getResult(s);
 
-			WARN_IF_AUDIO_THREAD(i >= array->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
+			
+			
+			WARN_IF_AUDIO_THREAD(i >= ar->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
 
-			while (array->size() < i)
-				array->add(var::undefined());
+			while (ar->size() < i)
+				ar->add(var::undefined());
 
-			array->set(i, newValue);
+			ar->set(i, newValue);
 			return;
 		}
 		else if (AssignableObject * instance = dynamic_cast<AssignableObject*>(result.getObject()))

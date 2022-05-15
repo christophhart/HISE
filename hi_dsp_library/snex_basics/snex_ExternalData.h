@@ -938,7 +938,7 @@ public:
 
 	template <typename NodeType> embedded(NodeType& n) 
 	{
-		ExternalData d(obj.data);
+		ExternalData d(obj.data, DType);
 		n.setExternalData(d, 0);
 	};
 

@@ -32,6 +32,97 @@
 
 namespace hise { using namespace juce;
 
+void MainController::UserPresetHandler::TagDataBase::buildDataBase(bool force /*= false*/)
+{
+	if (force || dirty)
+	{
+		buildInternal();
+	}
+}
+
+void MainController::UserPresetHandler::TagDataBase::buildInternal()
+{
+	cachedTags.clear();
+
+	Array<File> allPresets;
+
+	root.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+
+	PresetBrowser::DataBaseHelpers::cleanFileList(nullptr, allPresets);
+
+	for (auto f : allPresets)
+	{
+		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
+
+		CachedTag newTag;
+		newTag.hashCode = f.hashCode64();
+		for (auto t : sa)
+			newTag.tags.add(Identifier(t));
+
+		cachedTags.add(std::move(newTag));
+	}
+
+	dirty = false;
+}
+
+void MainController::UserPresetHandler::TagDataBase::setRootDirectory(const File& newRoot)
+{
+
+	if (root != newRoot)
+	{
+		root = newRoot;
+		dirty = true;
+	}
+}
+
+
+MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(MainController* mc, int index_, const var& d) :
+	index(index_),
+	r(Result::ok())
+{
+	static const Identifier id_("ID");
+	static const Identifier min("min");
+	static const Identifier max("max");
+	static const Identifier midPos("middlePosition");
+	static const Identifier step("stepSize");
+	static const Identifier isMidi("allowMidiAutomation");
+	static const Identifier isHost("allowHostAutomation");
+
+	id = d[id_].toString();
+
+	allowMidi = (bool)d[isMidi];
+	allowHost = (bool)d[isHost];
+
+	range.start = (float)d.getProperty(min, 0.0f);
+	range.end = (float)d.getProperty(max, 1.0f);
+
+	if (d.hasProperty(midPos))
+		range.setSkewForCentre((float)d[midPos]);
+
+	range.interval = (float)d.getProperty(step, 0.0f);
+
+	args[0] = id.toString();
+	args[1] = var(0.0f);
+
+	if (id.toString().isEmpty())
+		r = Result::fail("No ID");
+
+	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
+}
+
+void MainController::UserPresetHandler::CustomAutomationData::call(float newValue)
+{
+	FloatSanitizers::sanitizeFloatNumber(newValue);
+
+	newValue = range.getRange().clipValue(newValue);
+	newValue = range.snapToLegalValue(newValue);
+	lastValue = newValue;
+	args[1] = lastValue;
+
+	syncListeners.sendMessage(sendNotificationSync, args);
+	asyncListeners.sendMessage(sendNotificationAsync, lastValue);
+}
+
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_)
 {
@@ -181,12 +272,19 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 				ValueTree v;
 
-				for (auto c: userPresetToLoad)
+				if (mc->getUserPresetHandler().isUsingCustomDataModel())
 				{
-					if (c.getProperty("Processor") == sp->getId())
+					mc->getUserPresetHandler().loadCustomValueTree(userPresetToLoad);
+				}
+				else
+				{
+					for (auto c : userPresetToLoad)
 					{
-						v = c;
-						break;
+						if (c.getProperty("Processor") == sp->getId())
+						{
+							v = c;
+							break;
+						}
 					}
 				}
 
@@ -324,48 +422,189 @@ void MainController::UserPresetHandler::removeListener(Listener* listener)
 	listeners.removeAllInstancesOf(listener);
 }
 
-void MainController::UserPresetHandler::TagDataBase::buildDataBase(bool force /*= false*/)
+
+
+
+bool MainController::UserPresetHandler::isReadOnly(const File& f)
 {
-	if (force || dirty)
+#if READ_ONLY_FACTORY_PRESETS
+	return factoryPaths->contains(mc, f);
+#else
+	return false;
+#endif
+}
+
+void MainController::UserPresetHandler::loadCustomValueTree(const ValueTree& presetData)
+{
+	auto v = presetData.getChildWithName("CustomJSON");
+	if (v.isValid())
 	{
-		buildInternal();
+		auto obj = JSON::parse(v["Data"].toString());
+
+		if (obj.isObject() || obj.isArray())
+		{
+			for (auto l : listeners)
+			{
+				l->loadCustomUserPreset(obj);
+			}
+		}
 	}
 }
 
-void MainController::UserPresetHandler::TagDataBase::buildInternal()
+juce::StringArray MainController::UserPresetHandler::getCustomAutomationIds() const
 {
-	cachedTags.clear();
-
-	Array<File> allPresets;
-
-	root.findChildFiles(allPresets, File::findFiles, true, "*.preset");
-
-	PresetBrowser::DataBaseHelpers::cleanFileList(nullptr, allPresets);
-
-	for (auto f : allPresets)
+	StringArray sa;
+	for (auto l : customAutomationData)
 	{
-		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
-
-		CachedTag newTag;
-		newTag.hashCode = f.hashCode64();
-		for (auto t : sa)
-			newTag.tags.add(Identifier(t));
-
-		cachedTags.add(std::move(newTag));
+		sa.add(l->id.toString());
 	}
 
-	dirty = false;
+	return sa;
 }
 
-void MainController::UserPresetHandler::TagDataBase::setRootDirectory(const File& newRoot)
+int MainController::UserPresetHandler::getCustomAutomationIndex(const Identifier& id) const
 {
+	int index = 0;
 
-	if (root != newRoot)
+	for (auto l : customAutomationData)
 	{
-		root = newRoot;
-		dirty = true;
+		if (l->id == id)
+			return index;
+
+		index++;
+	}
+    
+    return -1;
+}
+
+juce::ValueTree MainController::UserPresetHandler::createCustomValueTree(const String& presetName)
+{
+	jassert(isUsingCustomData);
+
+	for (auto l : listeners)
+	{
+		auto obj = l->saveCustomUserPreset(presetName);
+
+		if (obj.isObject())
+		{
+			ValueTree v("CustomJSON");
+			auto data = JSON::toString(obj, true);
+			v.setProperty("Data", data, nullptr);
+			return v;
+		}
+	}
+
+	return {};
+}
+
+bool MainController::UserPresetHandler::setCustomAutomationData(CustomAutomationData::List newList)
+{
+	if (isUsingCustomData)
+	{
+		customAutomationData.swapWith(newList);
+		return true;
+	}
+
+	return false;
+}
+
+MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(const Identifier& id)
+{
+	for (auto l : customAutomationData)
+	{
+		if (l->id == id)
+			return l;
+	}
+
+	return nullptr;
+}
+
+void MainController::UserPresetHandler::setUseCustomDataModel(bool shouldUseCustomModel, bool shouldUsePersistentObject)
+{
+	isUsingCustomData = shouldUseCustomModel;
+	usePersistentObject = shouldUsePersistentObject;
+}
+
+#if READ_ONLY_FACTORY_PRESETS
+bool MainController::UserPresetHandler::FactoryPaths::contains(MainController* mc, const File& f)
+{
+	if (!initialised)
+		initialise(mc);
+
+	auto path = getPath(mc, f);
+
+	if (path.isNotEmpty())
+	{
+		auto ok = factoryPaths.contains(path);
+		return ok;
+	}
+
+
+	return false;
+}
+
+void MainController::UserPresetHandler::FactoryPaths::initialise(MainController* mc)
+{
+#if USE_FRONTEND
+	ScopedPointer<MemoryInputStream> mis = FrontendFactory::getEmbeddedData(FileHandlerBase::UserPresets);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+	MemoryBlock mb(mis->getData(), mis->getDataSize());
+	ValueTree presetTree;
+	decompressor.expand(mb, presetTree);
+
+	for (auto c : presetTree)
+		addRecursive(c, "{PROJECT_FOLDER}");
+#endif
+
+	initialised = true;
+
+}
+
+String MainController::UserPresetHandler::FactoryPaths::getPath(MainController* mc, const File& f)
+{
+	auto factoryFolder = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+
+	if (f.isAChildOf(factoryFolder))
+		return "{PROJECT_FOLDER}" + f.withFileExtension("").getRelativePathFrom(factoryFolder).replace("\\", "/");
+
+	for (int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+	{
+		auto e = mc->getExpansionHandler().getExpansion(i);
+		auto expFolder = e->getSubDirectory(FileHandlerBase::UserPresets);
+
+		if (f.isAChildOf(expFolder))
+			return e->getWildcard() + f.withFileExtension("").getRelativePathFrom(expFolder).replace("\\", "/");
+	}
+
+	return {};
+}
+
+void MainController::UserPresetHandler::FactoryPaths::addRecursive(const ValueTree& v, const String& path)
+{
+	if (v["isDirectory"])
+	{
+		String thisPath;
+
+		thisPath << path << v["FileName"].toString();
+
+		for (auto c : v)
+		{
+			addRecursive(c, thisPath + "/");
+		}
+
+		this->factoryPaths.addIfNotAlreadyThere(thisPath);
+	}
+	if (v.getType() == Identifier("PresetFile"))
+	{
+		String thisFile;
+
+		thisFile << path << v["FileName"].toString();
+
+		this->factoryPaths.addIfNotAlreadyThere(thisFile);
+		return;
 	}
 }
+#endif
 
 
 

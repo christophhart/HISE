@@ -243,7 +243,12 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
+/** Config: HISE_NUM_MACROS
 
+Set this to the number of macros you want in your project. */
+#ifndef HISE_NUM_MACROS
+#define HISE_NUM_MACROS 8
+#endif
 
 /** Config: ENABLE_SCRIPTING_SAFE_CHECKS
 

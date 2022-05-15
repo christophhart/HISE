@@ -37,7 +37,7 @@ MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
 
-	for(int i = 0; i < 8; i++)
+	for(int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		macroControls.add(new MacroControlData(i, *this));
 		
@@ -76,16 +76,30 @@ MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterD
 	if (controlledProcessor->getIdentifierForParameterIndex(parameter).toString().compare(parameterName) != 0)
 	{
 		// parameter name vs id mismatch, we'll resolve it now...
-		int numParameters = controlledProcessor->getNumParameters();
+		
 
 		Identifier pToLookFor(parameterName);
+		auto& uph = controlledProcessor->getMainController()->getUserPresetHandler();
 
-		for (int i = 0; i < numParameters; i++)
+		if (uph.isUsingCustomDataModel())
 		{
-			if (controlledProcessor->getIdentifierForParameterIndex(i) == pToLookFor)
+			if (auto d = uph.getCustomAutomationData(pToLookFor))
 			{
-				parameter = i;
-				break;
+				parameter = d->index;
+				setIsCustomAutomation(true);
+			}
+		}
+		else
+		{
+			int numParameters = controlledProcessor->getNumParameters();
+
+			for (int i = 0; i < numParameters; i++)
+			{
+				if (controlledProcessor->getIdentifierForParameterIndex(i) == pToLookFor)
+				{
+					parameter = i;
+					break;
+				}
 			}
 		}
 	}
@@ -99,17 +113,36 @@ bool MacroControlBroadcaster::MacroControlledParameterData::operator== (const Ma
 
 void MacroControlBroadcaster::MacroControlledParameterData::setAttribute(double normalizedInputValue)
 {
-	
 	const float value = getNormalizedValue(normalizedInputValue);
-			
+	
 	if(controlledProcessor.get() != nullptr)
 	{
-		controlledProcessor.get()->setAttribute(parameter, value, readOnly ? sendNotification : dontSendNotification);
+		if (customAutomation)
+		{
+			if (auto d = controlledProcessor->getMainController()->getUserPresetHandler().getCustomAutomationData(parameter))
+				d->call(value);
+		}
+		else
+			controlledProcessor.get()->setAttribute(parameter, value, readOnly ? sendNotification : dontSendNotification);
 	}
 	
 };
 
 		
+
+bool MacroControlBroadcaster::MacroControlledParameterData::matchesCustomAutomation(const Identifier& id) const
+{
+	if (controlledProcessor == nullptr)
+		return false;
+
+	if (!customAutomation)
+		return false;
+
+	if (auto ad = controlledProcessor->getMainController()->getUserPresetHandler().getCustomAutomationData(parameter))
+		return ad->id == id;
+
+	return false;
+}
 
 double MacroControlBroadcaster::MacroControlledParameterData::getParameterRangeLimit(bool getHighLimit) const
 {
@@ -214,7 +247,7 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool l
 
 	auto data = macroData.createXml();
 
-	if(data != nullptr && data->getNumChildElements() == 8)
+	if(data != nullptr && data->getNumChildElements() == HISE_NUM_MACROS)
 	{
 		sendMacroConnectionChangeMessageForAll(false);
 
@@ -409,7 +442,7 @@ bool MacroControlBroadcaster::MacroControlData::hasParameter(Processor *p, int p
 }
 
 
-void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly)
+void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly, bool isUsingCustomData)
 {
 	controlledParameters.add(new MacroControlledParameterData(p,
 																parameterId,
@@ -417,6 +450,8 @@ void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int p
 																range,
 																readOnly));
 
+	controlledParameters.getLast()->setIsCustomAutomation(isUsingCustomData);
+		
 	parent.sendMacroConnectionChangeMessage(macroIndex, p, parameterId, true);
 }
 
@@ -460,6 +495,46 @@ void MacroControlBroadcaster::setMacroControl(int macroIndex, float newValue, No
 		p->setParameterNotifyingHost(macroIndex, newValue / 127.0f);
 #endif
 	}
+}
+
+int MacroControlBroadcaster::getMacroControlIndexForCustomAutomation(const Identifier& customId) const
+{
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
+	for (int i = 0; i < macroControls.size(); i++)
+	{
+		for (int j = 0; j < macroControls[i]->getNumParameters(); j++)
+		{
+			if (macroControls[i]->getParameter(j)->matchesCustomAutomation(customId))
+				return i;
+		}
+	}
+
+	return -1;
+}
+
+int MacroControlBroadcaster::getMacroControlIndexForProcessorParameter(const Processor *p, int parameter) const
+{
+	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
+	for (int i = 0; i < macroControls.size(); i++)
+	{
+		for (int j = 0; j < macroControls[i]->getNumParameters(); j++)
+		{
+			auto pa = macroControls[i]->getParameter(j);
+
+			if (pa->isCustomAutomation())
+				continue;
+
+			if (pa->getProcessor() == p &&
+				pa->getParameter() == parameter)
+			{
+				return i;
+			}
+		}
+	}
+
+	return -1;
 }
 
 void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex, 
@@ -530,12 +605,27 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(const String &pa
 
 	for(int i = 0; i < controlledParameters.size(); i++)
 	{
-		const bool isProcessor = processor == nullptr || controlledParameters[i]->getProcessor() == processor;
+		auto pa = controlledParameters[i];
 
-		if(controlledParameters[i]->getParameterName() == parameterName && isProcessor)
+		if (pa->isCustomAutomation())
 		{
-			index = i;
-			break;
+			auto& uph = pa->getProcessor()->getMainController()->getUserPresetHandler();
+
+			if (uph.getCustomAutomationIndex(Identifier(parameterName)) == pa->getParameter())
+			{
+				index = i;
+				break;
+			}
+		}
+		else
+		{
+			const bool isProcessor = processor == nullptr || pa->getProcessor() == processor;
+
+			if (pa->getParameterName() == parameterName && isProcessor)
+			{
+				index = i;
+				break;
+			}
 		}
 	};
 
