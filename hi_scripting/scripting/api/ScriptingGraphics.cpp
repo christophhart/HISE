@@ -357,6 +357,7 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 				colour = Colours::red.withSaturation(0.6f);
 				letter = 'A';
 				break;
+                default: jassertfalse; break;
 			}
 		}
 
@@ -2161,7 +2162,7 @@ juce::Path ScriptingObjects::ScriptedLookAndFeel::Laf::createPresetBrowserIcons(
 	return PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(id);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, PresetBrowser* p)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Graphics& g_, Component* p)
 {
 	if (functionDefined("drawPresetBrowserBackground"))
 	{

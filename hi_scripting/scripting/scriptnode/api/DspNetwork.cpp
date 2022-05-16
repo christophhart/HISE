@@ -1002,14 +1002,8 @@ juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 	return id;
 }
 
-juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone)
+juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& changes, bool changeIds)
 {
-	struct IdChange
-	{
-		String oldId;
-		String newId;
-	};
-
 	auto c = treeToClone.createCopy();
 
 	StringArray sa;
@@ -1017,9 +1011,6 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 		sa.add(n->getId());
 
 	auto saRef = &sa;
-
-	Array<IdChange> changes;
-
 	auto changeRef = &changes;
 
 	auto setNewId = [changeRef, saRef, this](ValueTree& v)
@@ -1041,8 +1032,12 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 
 	valuetree::Helpers::foreach(c, setNewId);
 
-	for (auto& ch : changes)
-		changeNodeId(c, ch.oldId, ch.newId, nullptr);
+    if(changeIds)
+    {
+        for (auto& ch : changes)
+            changeNodeId(c, ch.oldId, ch.newId, nullptr);
+    }
+	
 
 	return c;
 }
@@ -1707,7 +1702,7 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 }
 
 
-
+#if USE_BACKEND
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
 	cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [v](ValueTree& c)
@@ -1781,6 +1776,7 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 
 	return false;
 }
+#endif
 
 }
 

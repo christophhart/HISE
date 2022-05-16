@@ -114,8 +114,6 @@ XYZSampleMapProvider::MonolithDataProvider::MonolithDataProvider(XYZSampleMapPro
 		auto files = info.getAllFiles();
 
 		hmToUse = pool->loadMonolithicData(sampleMap, files);
-
-		int numSamples = hmToUse->getNumSamplesInMonolith();
 	}
 }
 

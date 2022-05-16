@@ -39,7 +39,8 @@
     <FILE id="tPXHhn" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=1" extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a">
+    <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
+               xcodeValidArchs="x86_64">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"/>
@@ -63,8 +64,9 @@
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
@@ -93,6 +95,7 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
     <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
@@ -121,6 +124,7 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1">
@@ -147,12 +151,14 @@
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2019>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -175,5 +181,5 @@
     <OSX/>
     <LINUX/>
   </LIVE_SETTINGS>
-  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0"/>
+  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"/>
 </JUCERPROJECT>

@@ -220,6 +220,9 @@ namespace parameter
 	{
 		base = b;
 
+        
+        
+        
 		if (auto cn = dynamic_cast<CloneNode*>(connectedCloneContainer.get()))
 		{
 			cn->cloneChangeBroadcaster.removeListener(*this);
@@ -232,11 +235,11 @@ namespace parameter
 				base = c->targets.getFirst();
 		}
 
-		if (n != nullptr)
+		if (n != nullptr && b != nullptr)
 		{
 			if (!n->isClone())
 			{
-				n->getRootNetwork()->getExceptionHandler().addCustomError(n, Error::CloneMismatch, "Can't connect clone source to uncloned node");
+                n->getRootNetwork()->getExceptionHandler().addCustomError(n, Error::CloneMismatch, "Can't connect clone source to uncloned node");
 				setParameter(nullptr, nullptr);
 				return;
 			}

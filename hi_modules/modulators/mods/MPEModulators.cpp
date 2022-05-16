@@ -151,6 +151,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 		case Modulation::GainMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue); break;
 		case Modulation::PitchMode: defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f); break;
 		case Modulation::PanMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 200.0f + 0.5f); break;
+        default: jassertfalse; break;
 		}
 	}
 	else if (parameterIndex == SpecialParameters::SmoothedIntensity)

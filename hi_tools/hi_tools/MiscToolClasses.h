@@ -2525,8 +2525,6 @@ struct MasterClock
 
 		if (info.isPlaying && gridEnabled)
 		{
-			auto bufferMs = numSamples / sampleRate;
-
 			auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(info.bpm, sampleRate, 1.0f);
 			auto numSamplesInPPQ = (double)numSamples / quarterInSamples;
 			auto ppqBefore = info.ppqPosition;

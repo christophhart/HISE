@@ -642,6 +642,8 @@ struct ConnectionSourceManager
 
 		~CableRemoveListener();
 
+        bool initListeners();
+        
 		ValueTree data;
 		ValueTree sourceNode;
 		ValueTree targetNode;
@@ -653,6 +655,7 @@ struct ConnectionSourceManager
 		valuetree::RemoveListener sourceRemoveUpdater;
 		valuetree::PropertyListener targetRangeListener;
 
+        JUCE_DECLARE_WEAK_REFERENCEABLE(CableRemoveListener);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CableRemoveListener);
 	};
 

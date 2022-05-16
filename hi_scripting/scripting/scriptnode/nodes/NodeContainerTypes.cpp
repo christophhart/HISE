@@ -780,13 +780,15 @@ struct CloneOptionComponent : public Component,
 
 			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
 
+            Array<DspNetwork::IdChange> changes;
+            
 			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
 
 			while (numToAdd > 1)
 			{
 				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
 
-				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0));
+				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0), changes, true);
 				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
 				nt.addChild(copy, -1, parentNode->getUndoManager());
 				numToAdd--;

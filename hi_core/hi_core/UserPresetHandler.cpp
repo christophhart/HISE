@@ -473,6 +473,8 @@ int MainController::UserPresetHandler::getCustomAutomationIndex(const Identifier
 
 		index++;
 	}
+    
+    return -1;
 }
 
 juce::ValueTree MainController::UserPresetHandler::createCustomValueTree(const String& presetName)

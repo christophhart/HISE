@@ -502,7 +502,7 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		{
 			Identifier newCustomId(newValue.toString());
 
-			if (currentAutomationData = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId))
+            if ((currentAutomationData = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
 			{
 				currentAutomationData->asyncListeners.addListener(*this, [](ScriptComponent& c, double v)
 				{

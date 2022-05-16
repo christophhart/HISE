@@ -26,12 +26,12 @@
 /*
   ==============================================================================
 
-   In accordance with the terms of the JUCE 5 End-Use License Agreement, the
+   In accordance with the terms of the JUCE 6 End-Use License Agreement, the
    JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
    ineffective unless you have a JUCE Indie or Pro license, or are using JUCE
    under the GPL v3 license.
 
-   End User License Agreement: www.juce.com/juce-5-licence
+   End User License Agreement: www.juce.com/juce-6-licence
 
   ==============================================================================
 */
@@ -42,17 +42,16 @@
  #define JUCE_DISPLAY_SPLASH_SCREEN 0
 #endif
 
-#ifndef JUCE_REPORT_APP_USAGE
- #define JUCE_REPORT_APP_USAGE 0
-#endif
-
 // END SECTION A
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
+#define JUCE_PROJUCER_VERSION 0x60103
+
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library             1
 #define JUCE_MODULE_AVAILABLE_hi_lac                     1
+#define JUCE_MODULE_AVAILABLE_hi_rlottie                 1
 #define JUCE_MODULE_AVAILABLE_hi_snex                    1
 #define JUCE_MODULE_AVAILABLE_hi_tools                   1
 #define JUCE_MODULE_AVAILABLE_hi_zstd                    1
@@ -107,10 +106,29 @@
 #endif
 
 //==============================================================================
+// hi_rlottie flags:
+
+#ifndef    HISE_INCLUDE_RLOTTIE
+ #define   HISE_INCLUDE_RLOTTIE 0
+#endif
+
+#ifndef    HISE_RLOTTIE_DYNAMIC_LIBRARY
+ //#define HISE_RLOTTIE_DYNAMIC_LIBRARY 0
+#endif
+
+//==============================================================================
 // hi_snex flags:
+
+#ifndef    SNEX_ENABLE_SIMD
+ //#define SNEX_ENABLE_SIMD 0
+#endif
 
 #ifndef    HISE_INCLUDE_SNEX
  //#define HISE_INCLUDE_SNEX 0
+#endif
+
+#ifndef    SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP
+ //#define SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP 0
 #endif
 
 //==============================================================================
@@ -118,6 +136,18 @@
 
 #ifndef    HISE_NO_GUI_TOOLS
  //#define HISE_NO_GUI_TOOLS 0
+#endif
+
+#ifndef    HISE_USE_NEW_CODE_EDITOR
+ //#define HISE_USE_NEW_CODE_EDITOR 1
+#endif
+
+#ifndef    IS_MARKDOWN_EDITOR
+ //#define IS_MARKDOWN_EDITOR 0
+#endif
+
+#ifndef    HISE_INCLUDE_PITCH_DETECTION
+ //#define HISE_INCLUDE_PITCH_DETECTION 1
 #endif
 
 //==============================================================================
@@ -135,10 +165,6 @@
  //#define JUCE_WASAPI 1
 #endif
 
-#ifndef    JUCE_WASAPI_EXCLUSIVE
- //#define JUCE_WASAPI_EXCLUSIVE 0
-#endif
-
 #ifndef    JUCE_DIRECTSOUND
  //#define JUCE_DIRECTSOUND 1
 #endif
@@ -148,7 +174,7 @@
 #endif
 
 #ifndef    JUCE_JACK
- //#define JUCE_JACK 1
+ //#define JUCE_JACK 0
 #endif
 
 #ifndef    JUCE_BELA
@@ -156,7 +182,11 @@
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OBOE
- //#define JUCE_USE_ANDROID_OBOE 0
+ //#define JUCE_USE_ANDROID_OBOE 1
+#endif
+
+#ifndef    JUCE_USE_OBOE_STABILIZED_CALLBACK
+ //#define JUCE_USE_OBOE_STABILIZED_CALLBACK 0
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OPENSLES
@@ -209,11 +239,19 @@
  //#define JUCE_PLUGINHOST_LADSPA 0
 #endif
 
+#ifndef    JUCE_CUSTOM_VST3_SDK
+ //#define JUCE_CUSTOM_VST3_SDK 0
+#endif
+
 //==============================================================================
 // juce_core flags:
 
 #ifndef    JUCE_FORCE_DEBUG
  //#define JUCE_FORCE_DEBUG 0
+#endif
+
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ //#define JUCE_ENABLE_AUDIO_GUARD 0
 #endif
 
 #ifndef    JUCE_LOG_ASSERTIONS
@@ -233,7 +271,7 @@
 #endif
 
 #ifndef    JUCE_USE_CURL
- //#define JUCE_USE_CURL 0
+ //#define JUCE_USE_CURL 1
 #endif
 
 #ifndef    JUCE_LOAD_CURL_SYMBOLS_LAZILY
@@ -241,19 +279,19 @@
 #endif
 
 #ifndef    JUCE_CATCH_UNHANDLED_EXCEPTIONS
- //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 1
+ //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 0
 #endif
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
- //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+ //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 0
 #endif
 
 #ifndef    JUCE_STRICT_REFCOUNTEDPOINTER
  //#define JUCE_STRICT_REFCOUNTEDPOINTER 0
 #endif
 
-#ifndef    JUCE_ENABLE_AUDIO_GUARD
- //#define JUCE_ENABLE_AUDIO_GUARD 0
+#ifndef    JUCE_ENABLE_ALLOCATION_HOOKS
+ //#define JUCE_ENABLE_ALLOCATION_HOOKS 0
 #endif
 
 //==============================================================================
@@ -282,8 +320,8 @@
 //==============================================================================
 // juce_events flags:
 
-#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK
- //#define JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK 0
+#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK
+ //#define JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK 0
 #endif
 
 //==============================================================================
@@ -308,10 +346,6 @@
  //#define JUCE_ENABLE_REPAINT_DEBUGGING 0
 #endif
 
-#ifndef    JUCE_ENABLE_REPAINT_PROFILING
- //#define JUCE_ENABLE_REPAINT_PROFILING 1
-#endif
-
 #ifndef    JUCE_USE_XRANDR
  //#define JUCE_USE_XRANDR 1
 #endif
@@ -332,10 +366,6 @@
  //#define JUCE_USE_XCURSOR 1
 #endif
 
-#ifndef    JUCE_HEADLESS_PLUGIN_CLIENT
- //#define JUCE_HEADLESS_PLUGIN_CLIENT 0
-#endif
-
 #ifndef    JUCE_WIN_PER_MONITOR_DPI_AWARE
  //#define JUCE_WIN_PER_MONITOR_DPI_AWARE 1
 #endif
@@ -345,6 +375,10 @@
 
 #ifndef    JUCE_WEB_BROWSER
  //#define JUCE_WEB_BROWSER 1
+#endif
+
+#ifndef    JUCE_USE_WIN_WEBVIEW2
+ //#define JUCE_USE_WIN_WEBVIEW2 0
 #endif
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR

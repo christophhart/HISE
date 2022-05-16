@@ -663,8 +663,6 @@ int Array::indexOf(var obj) const
 {
 	if (auto o = dynamic_cast<ObjectReference*>(obj.getObject()))
 	{
-		int index = 0;
-
 		int numToSearch = size();
 
 		for (int i = 0; i < numToSearch; i++)
@@ -710,8 +708,6 @@ bool Array::copy(String propertyName, var target)
 	{
 		if (numElements != b->size)
 			reportScriptError("buffer size mismatch");
-
-		auto numToCopy = size();
 
 		for (int i = 0; i < numElements; i++)
 		{

@@ -1743,6 +1743,7 @@ ModulatorSamplerSound::EnvelopeTable::EnvelopeTable(ModulatorSamplerSound& paren
 		table.setYTextConverterRaw(getFreqencyString);
 		table.setStartAndEndY(1.0f, 1.0f);
 		break;
+    default: jassertfalse; break;
 	}
 
 	stopTimer();

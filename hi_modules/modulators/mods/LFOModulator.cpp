@@ -498,6 +498,7 @@ float LfoModulator::calculateNewValue ()
 		else
 			newValue *= attackValue;
 		break;
+    default: jassertfalse; break;
 	}
 	
 	currentValue = smoother.smooth(newValue);

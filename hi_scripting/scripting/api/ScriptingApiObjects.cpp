@@ -2220,12 +2220,13 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportScriptControls);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addModulator);
   API_METHOD_WRAPPER_1(ScriptingModulator, getModulatorChain);
-    
 	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
 	API_METHOD_WRAPPER_3(ScriptingModulator, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getId);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getType);
+	API_METHOD_WRAPPER_2(ScriptingModulator, connectToGlobalModulator);
+	API_METHOD_WRAPPER_0(ScriptingModulator, getGlobalModulatorId);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -2269,11 +2270,12 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_3(addModulator);
-  ADD_API_METHOD_1(getModulatorChain);
-    
+  ADD_API_METHOD_1(getModulatorChain);    
 	ADD_API_METHOD_3(addGlobalModulator);
 	ADD_API_METHOD_3(addStaticGlobalModulator);
 	ADD_API_METHOD_0(asTableProcessor);
+	ADD_API_METHOD_2(connectToGlobalModulator);
+	ADD_API_METHOD_0(getGlobalModulatorId);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -2333,6 +2335,34 @@ String ScriptingObjects::ScriptingModulator::getType() const
 	if (checkValidObject())
 		return mod->getType().toString();
 
+	return String();
+}
+
+bool ScriptingObjects::ScriptingModulator::connectToGlobalModulator(String globalModulationContainerId, String modulatorId)
+{
+	if (checkValidObject())
+	{
+        if(auto gm = dynamic_cast<GlobalModulator*>(mod.get()))
+        {
+            return gm->connectToGlobalModulator(globalModulationContainerId + ":" + modulatorId);
+        }
+        else
+            reportScriptError("connectToGlobalModulator() only works with global modulators!");
+	}
+    
+    return false;
+}
+
+String ScriptingObjects::ScriptingModulator::getGlobalModulatorId()
+{
+	if (checkValidObject())
+	{
+		if (mod->getType().toString().startsWith("Global"))
+		{
+			GlobalModulator *gm = dynamic_cast<GlobalModulator*>(m->getProcessor());
+			return gm->getItemEntryFor(gm->getConnectedContainer(), gm->getOriginalModulator());
+		}
+	}
 	return String();
 }
 
