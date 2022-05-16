@@ -58,6 +58,10 @@ struct PolyDataBuilder : public TemplateClassBuilder
 		addFunction(Functions::beginFunction);
 		addFunction(Functions::sizeFunction);
 		addFunction(Functions::getFunction);
+		addFunction(Functions::getVoiceIndexForData);
+
+
+
 	};
 
 private:
@@ -101,32 +105,10 @@ private:
 			cc.mov(r, x86::ptr(PTR_REG_R(d->args[0])).cloneAdjustedAndResized(sourceOffset, 8));
 			cc.mov(x86::ptr(PTR_REG_R(d->object)), r);
 
-#if 0
-			if (d->args[0]->isMemoryLocation())
-			{
-				auto source = d->args[0]->getAsMemoryLocation().cloneAdjustedAndResized(sourceOffset, 8);
-				cc.mov(r, source);
-			}
-			else
-			{
-				cc.mov(r, x86::ptr(PTR_REG_R(d->args[0])).cloneAdjustedAndResized(sourceOffset, 8));
-			}
-
-			if (d->object->isMemoryLocation())
-			{
-				auto target = d->object->getAsMemoryLocation().cloneAdjustedAndResized(targetOffset, 8);
-				cc.mov(target, r);
-			}
-			else
-			{
-				cc.mov(r, x86::ptr(r));
-
-				cc.mov(x86::ptr(PTR_REG_W(d->object)), r);
-			}
-#endif
-
 			return Result::ok();
 		}
+
+		
 
 		static FunctionData prepareFunction(StructType* st)
 		{
@@ -155,7 +137,34 @@ private:
 		}
 #endif
 
-		
+		static Result getVoiceIndexForDataInliner(InlineData* b)
+		{
+			auto d = b->toAsmInlineData();
+			
+			auto& cc = d->gen.cc;
+
+			d->target->createRegister(d->gen.cc);
+			d->object->loadMemoryIntoRegister(d->gen.cc);
+
+			auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
+			auto dataOffset = polyDataType->getMemberOffset("data");
+
+			auto targetMem = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(dataOffset, 8);
+
+			AsmCodeGenerator::TemporaryRegister voiceReg(d->gen, d->object->getScope(), Types::ID::Integer);
+
+			cc.lea(INT_REG_W(voiceReg.tempReg), targetMem);
+			cc.lea(PTR_REG_W(d->target), d->args[0]->getMemoryLocationForReference());
+			cc.sub(PTR_REG_W(d->target), INT_REG_R(voiceReg.tempReg));
+			cc.shr(PTR_REG_W(d->target), 3);
+
+
+			return Result::ok();
+
+
+
+			return Result::ok();
+		}
 
 		static Result getInliner(InlineData* b)
 		{
@@ -169,35 +178,6 @@ private:
 
 			if (isPolyphonyEnabled(polyDataType))
 			{
-#if 0
-				auto voiceIndexOffset = polyDataType->getMemberOffset("voiceIndex");
-
-				FunctionData f;
-
-				TypeInfo ptrType(Types::ID::Pointer, true);
-				
-				f.function = PolyHandler::getVoiceIndexStatic;
-				f.returnType = Types::ID::Integer;
-				f.setConst(true);
-				
-				AsmCodeGenerator::TemporaryRegister polyPtrReg(d->gen, d->object->getScope(), ptrType);
-
-				d->gen.cc.mov(polyPtrReg.get(), x86::ptr(PTR_REG_R(d->object)));
-
-				AsmCodeGenerator::TemporaryRegister voiceReg(d->gen, d->object->getScope(), Types::ID::Integer);
-				AssemblyRegister::List l;
-				auto ok = d->gen.emitFunctionCall(voiceReg.tempReg, f, polyPtrReg.tempReg, l); 
-
-				d->target->createRegister(d->gen.cc);
-				d->gen.cc.mov(PTR_REG_W(d->target), PTR_REG_R(d->object));
-				d->gen.cc.imul(INT_REG_W(voiceReg.tempReg), elementSize);
-				d->gen.cc.add(INT_REG_W(voiceReg.tempReg), dataOffset);
-
-				d->gen.cc.add(PTR_REG_W(d->target), INT_REG_W(voiceReg.tempReg));
-
-				return ok;
-#else
-
 				auto& cc = d->gen.cc;
 				d->target->createRegister(cc);
 				AsmCodeGenerator::TemporaryRegister voiceReg(d->gen, d->object->getScope(), Types::ID::Integer);
@@ -220,15 +200,12 @@ private:
 				cc.test(tmp, tmp);
 				cc.cmovns(vPtr, tmp);
 
-
-
 				cc.mov(tPtr, oPtr);
 				cc.imul(vPtr, elementSize);
 				cc.add(tPtr, (int)dataOffset);
 				cc.add(tPtr, vPtr.r64());
 				
 				return Result::ok();
-#endif
 			}
 			else
 			{
@@ -239,6 +216,23 @@ private:
 				d->gen.cc.lea(PTR_REG_W(d->target), targetMem);
 				return Result::ok();
 			}
+		}
+
+		static FunctionData getVoiceIndexForData(StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId("getVoiceIndexForData");
+			f.returnType = Types::ID::Integer;
+			f.setConst(true);
+			
+			auto argType = st->getTemplateInstanceParameters()[0].type.withModifiers(true, true, false);
+
+			f.addArgs("data", argType);
+
+			f.inliner = Inliner::createAsmInliner({}, getVoiceIndexForDataInliner);
+
+			return f;
 		}
 
 		static FunctionData beginFunction(StructType* st)
@@ -263,17 +257,6 @@ private:
 
 		static void asmGetVoiceIndex(AsmCodeGenerator& gen, AssemblyRegister::Ptr objReg, AssemblyRegister::Ptr retReg)
 		{
-#if 0
-			if (o == nullptr)
-				r = 0;
-			if (*o == nullptr)
-				r = *(o + 8);
-			else
-				r = call(getVoiceIndexWithThreadId(o));
-
-			r *= *(o + 12); // enabled
-#endif
-
 			auto& cc = gen.cc;
 
 			retReg->createRegister(cc);
@@ -347,28 +330,6 @@ private:
 					cc.mov(tmp, 18);
 					cc.mov(tPtr, 1);
 					cc.cmove(tPtr, tmp);
-
-
-#if 0
-					FunctionData f;
-					f.returnType = Types::ID::Integer;
-					f.function = PolyHandler::getSizeStatic;
-					f.setConst(true);
-
-					AssemblyRegister::List l;
-
-					AsmCodeGenerator::TemporaryRegister polyPtrReg(d->gen, d->object->getScope(), TypeInfo(Types::ID::Pointer, true));
-
-					d->gen.cc.mov(polyPtrReg.get(), x86::ptr(PTR_REG_R(d->object)));
-
-					auto ok = d->gen.emitFunctionCall(d->target, f, polyPtrReg.tempReg, l);
-
-					int numValues = polyDataType->getTemplateInstanceParameters()[1].constant;
-
-					
-					d->gen.cc.imul(INT_REG_W(d->target), numValues - 1);
-					d->gen.cc.add(INT_REG_W(d->target), 1);
-#endif
 				}
 
 				return Result::ok();
@@ -934,6 +895,17 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 		return s;
 	}
 };
+
+Result DataLibraryBuilder::registerTypes()
+{
+	auto fid = NamespacedIdentifier(getFactoryId());
+
+	auto st = new StructType(fid.getChildId("base"));
+
+	c.registerExternalComplexType(st);
+
+	return Result::ok();
+}
 
 void InbuiltTypeLibraryBuilder::createExternalDataTemplates()
 {

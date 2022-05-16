@@ -58,6 +58,11 @@ struct granulator: public data::base
 	SNEX_NODE(granulator);
 	SN_DESCRIPTION("A granular synthesiser");
 
+	granulator()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	}
+
 	using AudioDataType = span<block, 2>;
 
 	using IndexType = index::lerp<index::unscaled<double, index::clamped<0>>>;
@@ -1059,7 +1064,9 @@ struct SpecNode: public NodeBase
 
 	SpecNode(DspNetwork* n, ValueTree v) :
 		NodeBase(n, v, 0)
-	{};
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	};
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree v)
 	{
@@ -1358,7 +1365,7 @@ namespace control
 
 		registerPolyNoProcessNode<control::bipolar<1, parameter::dynamic_base_holder>, control::bipolar<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, bipolar_editor>();
 
-
+		registerPolyNoProcessNode<control::intensity<1, parameter::dynamic_base_holder>, control::intensity<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, intensity_editor>();
 
 		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor>();
 

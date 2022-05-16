@@ -1002,7 +1002,10 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 	if (auto fn = node->getEmbeddedNetwork())
 	{
 		auto newTree = fn->getRootNode()->getValueTree();
-		newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+        
+        Array<DspNetwork::IdChange> changes;
+        
+		newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
 
 		{
 			auto oldTree = node->getValueTree();
@@ -1187,6 +1190,8 @@ bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
 {
 #if USE_BACKEND
     auto saveCopy = g.network->getValueTree().createCopy();
+
+	DspNetworkListeners::PatchAutosaver::removeDanglingConnections(saveCopy);
 
     cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, DspNetworkListeners::PatchAutosaver::stripValueTree);
 
@@ -1750,6 +1755,57 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 	return true;
 }
 
+struct DuplicateHelpers
+{
+    static ValueTree findRoot(const ValueTree& v)
+    {
+        auto p = v.getParent();
+        
+        if(!p.isValid())
+            return v;
+        
+        return findRoot(p);
+    }
+    
+    static int getIndexInRoot(const ValueTree& v)
+    {
+        auto p = findRoot(v);
+        
+        int index = 0;
+        auto iptr = &index;
+        
+        valuetree::Helpers::foreach(p, [&iptr, v](ValueTree& c)
+        {
+            *iptr = *iptr + 1;
+            return c == v;
+        });
+        
+        return index;
+    }
+    
+    // This sorts it reversed so that the index works when duplicating
+    static int compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2)
+    {
+        if(n1 == n2)
+            return 0;
+        
+        if(n1 != nullptr && n2 != nullptr)
+        {
+            auto i1 = getIndexInRoot(n1->getValueTree());
+            auto i2 = getIndexInRoot(n2->getValueTree());
+            
+            if(i1 < i2)
+                return 1;
+            if(i1 > i2)
+                return -1;
+        }
+        
+        jassertfalse;
+        return 0;
+    }
+};
+
+
 bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 {
 	int insertIndex = 0;
@@ -1760,15 +1816,50 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree) + 1);
 	}
 
-	for (auto n : g.network->getSelection())
+    
+    
+    Array<DspNetwork::IdChange> changes;
+    
+    struct TreeData
+    {
+        ValueTree location;
+        ValueTree newTree;
+    };
+    
+    auto sortedSelection = g.network->getSelection();
+    
+    
+    DuplicateHelpers h;
+    
+    sortedSelection.sort(h);
+    
+    Array<TreeData> clonedTrees;
+    
+	for (auto n : sortedSelection)
 	{
 		auto tree = n->getValueTree();
-		auto copy = n->getRootNetwork()->cloneValueTreeWithNewIds(tree);
-		n->getRootNetwork()->createFromValueTree(true, copy, true);
-		tree.getParent().addChild(copy, insertIndex, n->getUndoManager());
-		insertIndex = tree.getParent().indexOf(copy);
+        
+        TreeData td;
+        td.location = tree;
+        td.newTree = n->getRootNetwork()->cloneValueTreeWithNewIds(tree, changes, false);
+        
+		clonedTrees.add(td);
+    }
+    
+    for(auto& ct: clonedTrees)
+    {
+        for(auto& c: changes)
+        {
+            g.network->changeNodeId(ct.newTree, c.oldId, c.newId, nullptr);
+        }
+        
+		g.network->createFromValueTree(true, ct.newTree, true);
+		ct.location.getParent().addChild(ct.newTree, insertIndex, g.network->getUndoManager());
+        insertIndex = ct.location.getParent().indexOf(ct.newTree);
 	}
 
+    g.network->runPostInitFunctions();
+    
 	return true;
 }
 

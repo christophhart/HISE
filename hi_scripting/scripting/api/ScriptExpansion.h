@@ -80,6 +80,12 @@ public:
 	/** Checks if the given version string is a older version than the current project version number. */
 	bool isOldVersion(const String& version);
 
+	/** Disables the default user preset data model and allows a manual data handling. */
+	void setUseCustomUserPresetModel(var loadCallback, var saveCallback, bool usePersistentObject);
+
+	/** Enables host / MIDI automation with the custom user preset model. */
+	void setCustomAutomation(var automationData, var updateCallback);
+
 	// ===============================================================================================
 
 	var convertToJson(const ValueTree& d);
@@ -95,14 +101,47 @@ public:
 
 	}
 
+	void loadCustomUserPreset(const var& dataObject) override
+	{
+		if (customLoadCallback)
+		{
+			var args = dataObject;
+			auto ok = customLoadCallback.callSync(&args, 1, nullptr);
+		}
+	}
+
+	var saveCustomUserPreset(const String& presetName) override
+	{
+		if (customSaveCallback)
+		{
+			var rv;
+			var args = presetName;
+			auto ok = customSaveCallback.callSync(&args, 1, &rv);
+
+			return rv;
+		}
+
+		return {};
+	}
+	
+
 private:
+
+	
 
 	bool enablePreprocessing = false;
 	bool unpackComplexData = false;
 	WeakCallbackHolder preCallback;
 	WeakCallbackHolder postCallback;
+
+	WeakCallbackHolder customLoadCallback;
+	WeakCallbackHolder customSaveCallback;
+	WeakCallbackHolder customUpdateCallback;
+
 	File currentlyLoadedFile;
 	struct Wrapper;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUserPresetHandler);
 };
 
 
@@ -489,8 +528,14 @@ public:
 	WeakReference<Expansion> e;
 };
 
+struct UnlockerHandler
+{
+	virtual ~UnlockerHandler() {};
+	virtual juce::OnlineUnlockStatus* getUnlockerObject() = 0;
+};
 
 struct ScriptUnlocker : public juce::OnlineUnlockStatus,
+					    public UnlockerHandler,
 					    public ControlledObject
 {
 	ScriptUnlocker(MainController* mc):
@@ -536,6 +581,8 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(RefObject);
 	};
+
+	juce::OnlineUnlockStatus* getUnlockerObject() override { return this; }
 
 	String getProductID() override;
 	bool doesProductIDMatch(const String& returnedIDFromServer) override;

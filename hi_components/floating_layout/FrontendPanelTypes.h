@@ -416,6 +416,8 @@ public:
 		ButtonsInsideBorder,
 		ColumnRowPadding,
 		SearchBarBounds,
+		SaveButtonBounds,
+		MoreButtonBounds,
 		FavoriteButtonBounds,
 		numSpecialProperties
 	};

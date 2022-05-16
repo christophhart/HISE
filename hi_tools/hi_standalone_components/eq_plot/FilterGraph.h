@@ -160,7 +160,7 @@ public:
 
 		clearBands();
 
-		if (filterData = dynamic_cast<FilterDataObject*>(newData))
+        if ((filterData = dynamic_cast<FilterDataObject*>(newData)))
 		{
 			numFilters = filterData->getNumCoefficients();
 

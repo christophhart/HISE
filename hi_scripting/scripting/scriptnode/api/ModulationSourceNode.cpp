@@ -86,7 +86,11 @@ void ModulationSourceNode::rebuildCallback()
 
 	auto mp = ConnectionBase::createParameterFromConnectionTree(this, getModulationTargetTree(), isUsingNormalisedRange());
 
-	p->setParameter(this, mp);
+    // we need to pass in the target node for the clone container to work...
+    auto firstId = getModulationTargetTree().getChild(0)[PropertyIds::NodeId].toString();
+    auto tn = getRootNetwork()->getNodeWithId(firstId);
+    
+	p->setParameter(tn, mp);
 }
 
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :

@@ -52,7 +52,8 @@ namespace hise { using namespace juce;
 *	@ingroup effectTypes
 *
 */
-class CurveEq: public MasterEffectProcessor
+class CurveEq: public MasterEffectProcessor,
+               public ProcessorWithStaticExternalData
 {
 public:
 

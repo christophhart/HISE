@@ -70,6 +70,40 @@ const scriptnode::NodeBase* NodeContainer::asNode() const
 	return n;
 }
 
+void NodeContainer::addFixedParameters()
+{
+	if (!hasFixedParameters())
+		return;
+
+	auto an = asNode();
+
+	auto pData = an->createInternalParameterList();
+
+	auto d = an->getValueTree();
+
+	d.getOrCreateChildWithName(PropertyIds::Parameters, an->getUndoManager());
+
+	for (auto p : pData)
+	{
+		auto existingChild = an->getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
+
+		if (!existingChild.isValid())
+		{
+			existingChild = p.createValueTree();
+			an->getParameterTree().addChild(existingChild, -1, an->getUndoManager());
+		}
+
+		auto newP = new Parameter(an, existingChild);
+
+		auto ndb = new parameter::dynamic_base(p.callback);
+
+		newP->setDynamicParameter(ndb);
+		newP->valueNames = p.parameterNames;
+
+		an->addParameter(newP);
+	}
+}
+
 Component* NodeContainer::createLeftTabComponent() const
 {
 	return new ContainerComponent::MacroToolbar();
@@ -512,6 +546,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<OversampleNode<4>>();
 	registerNodeRaw<OversampleNode<8>>();
 	registerNodeRaw<OversampleNode<16>>();
+	registerNodeRaw<OversampleNode<-1>>();
 	registerNodeRaw<FixedBlockNode<8>>();
 	registerNodeRaw<FixedBlockNode<16>>();
 	registerNodeRaw<FixedBlockNode<32>>();

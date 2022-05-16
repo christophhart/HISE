@@ -468,7 +468,7 @@ struct Operations::Assignment : public Expression,
 	void initClassMembers(BaseCompiler* compiler, BaseScope* scope);
 
 	TokenType assignmentType;
-	bool isFirstAssignment = false;
+	const bool isFirstAssignment = false;
 	FunctionData overloadedAssignOperator;
 
 private:

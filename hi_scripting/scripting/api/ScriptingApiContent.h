@@ -289,6 +289,8 @@ public:
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
 
+		using CustomAutomationPtr = MainController::UserPresetHandler::CustomAutomationData::Ptr;
+
 		struct PropertyWithValue
 		{
 			int id;
@@ -321,6 +323,7 @@ public:
 			pluginParameterName,
             isMetaParameter,
 			linkedTo,
+			automationId,
 			useUndoManager,
 			parentComponent,
 			processorId,
@@ -719,6 +722,8 @@ public:
 			zLevelListeners.removeAllInstancesOf(l);
 		}
 
+		CustomAutomationPtr getCustomAutomation() { return currentAutomationData; }
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -758,6 +763,8 @@ public:
 		Array<Identifier> priorityProperties;
 		
 		bool removePropertyIfDefault = true;
+
+		CustomAutomationPtr currentAutomationData;
 
 #if USE_BACKEND
 		juce::SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> selectorTypes;

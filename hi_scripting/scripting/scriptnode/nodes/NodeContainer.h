@@ -88,6 +88,8 @@ struct NodeContainer : public AssignableObject
 
 	virtual bool hasFixedParameters() const { return false; }
 
+	void addFixedParameters();
+
 	virtual Component* createLeftTabComponent() const;
 
 	void prepareContainer(PrepareSpecs& ps);

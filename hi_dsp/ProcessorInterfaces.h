@@ -354,6 +354,9 @@ public:
                 case ExternalData::DataType::DisplayBuffer:
                     displayBuffers.set(dstIndex, dynamic_cast<SimpleRingBuffer*>(externalData));
                     break;
+                default:
+                    jassertfalse;
+                    break;
             }
             
 			ProcessorWithExternalData::linkTo(type, src, srcIndex, dstIndex);

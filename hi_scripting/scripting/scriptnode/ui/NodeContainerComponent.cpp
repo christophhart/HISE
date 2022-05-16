@@ -244,9 +244,12 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 		auto newTree = newNode->node->getValueTree();
 		auto container = dynamic_cast<NodeContainer*>(node.get());
 
+        
+        
 		if (copyNode)
 		{
-			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+            Array<DspNetwork::IdChange> changes;
+			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
 			node->getRootNetwork()->createFromValueTree(container->isPolyphonic(), copy, true);
 			container->getNodeTree().addChild(copy, insertPosition, node->getUndoManager());
 		}

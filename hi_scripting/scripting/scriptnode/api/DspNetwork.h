@@ -261,6 +261,12 @@ public:
 		const snex::Types::PolyHandler::ScopedAllVoiceSetter internalSetter;
 	};
 
+    struct IdChange
+    {
+        String oldId;
+        String newId;
+    };
+    
 	class Holder
 	{
 	public:
@@ -824,7 +830,7 @@ public:
 		NodeBase::Ptr root;
 	} networkParameterHandler;
 
-	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone);
+	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& idChanges, bool changeIds);
 
 	void setEnableUndoManager(bool shouldBeEnabled)
 	{
@@ -1348,6 +1354,8 @@ struct DspNetworkListeners
 		{
 			auto saveCopy = network->getValueTree().createCopy();
 
+			DspNetworkListeners::PatchAutosaver::removeDanglingConnections(saveCopy);
+
 			cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, stripValueTree);
 
 			auto xml = saveCopy.createXml();
@@ -1388,39 +1396,9 @@ struct DspNetworkListeners
 
 	public:
 
-		static bool stripValueTree(ValueTree& v)
-		{
-			// Remove all child nodes from a project node
-			// (might be a leftover from the extraction process)
-			if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
-			{
-				v.removeChild(v.getChildWithName(PropertyIds::Nodes), nullptr);
+		static void removeDanglingConnections(ValueTree& v);
 
-				for (auto p : v.getChildWithName(PropertyIds::Parameters))
-					p.removeChild(p.getChildWithName(PropertyIds::Connections), nullptr);
-			}
-
-			auto propChild = v.getChildWithName(PropertyIds::Properties);
-
-			// Remove all properties with the default value
-			for (int i = 0; i < propChild.getNumChildren(); i++)
-			{
-				if (removePropIfDefault(propChild.getChild(i), PropertyIds::IsVertical, 1))
-					propChild.removeChild(i--, nullptr);
-			}
-
-			removeIfNoChildren(propChild);
-
-			for (auto id : PropertyIds::Helpers::getDefaultableIds())
-				removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
-
-			removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
-
-			removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
-			removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
-
-			return false;
-		}
+		static bool stripValueTree(ValueTree& v);
 
 		File d;
 	};

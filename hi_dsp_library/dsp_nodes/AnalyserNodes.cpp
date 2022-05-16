@@ -67,8 +67,6 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 
 	FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
 
-	auto sampleRate = buffer->getSamplerate();
-
 	fft.performRealOnlyForwardTransform(data, true);
 
 	auto useFreqDomain = true;
@@ -160,10 +158,14 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 	lPath.startNewSubPath(0.0f, targetBounds.getY());
 	lPath.startNewSubPath(0.0f, targetBounds.getHeight());
 
+    auto cpy = (float*)alloca(sizeof(float)*size);
 
+    FloatVectorOperations::copy(cpy, data, size);
+    data = cpy;
+    
 	auto sampleRate = buffer->getSamplerate();
 
-	if (sampleRate == 0.0)
+	if (sampleRate <= 0.0)
 		sampleRate = 44100.0;
 
 	
@@ -208,83 +210,6 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 	lPath.closeSubPath();
 
 	return lPath;
-
-#if 0
-	int log10Offset = (int)(10.0 / (sampleRate * 0.5) * (double)size + 1.0);
-
-	float lastIndex = 0.0f;
-	float value = 0.0f;
-	int lastI = 0;
-	int sumAmount = 0;
-
-	int lastLineLog = 1;
-
-	for (int i = log10Offset; i < size; i += 2)
-	{
-		auto f = (double)i / (double)size * sampleRate / 2.0;
-
-		float xPos;
-
-		if (!useLogX)
-			xPos = targetBounds.getWidth() * hmath::norm(f, 20.0, 20000.0);
-		else
-			xPos = FFTHelpers::getPixelValueForLogXAxis(f, targetBounds.getWidth());
-
-		if (xPos < 0.0f)
-			continue;
-
-		auto diff = xPos - lastIndex;
-
-		auto indexDiff = i - lastI;
-
-		float v = fabsf(data[i]);
-
-		if (!useDb)
-			v = v;
-		else
-		{
-			v = Decibels::gainToDecibels(v);
-			v = jlimit<float>(dbRange.getStart(), 0.0f, v);
-			v = 1.0f + v / dbRange.getLength();
-		}
-
-		value += v;
-		sumAmount++;
-
-		auto lastValues = lastBuffer.getWritePointer(0);
-
-		if (diff > 1.0f && indexDiff > 4)
-		{
-			value /= (float)(sumAmount);
-
-			sumAmount = 0;
-
-			lastIndex = xPos;
-			lastI = i;
-
-			//value = 0.6f * value + 0.4f * lastValues[i];
-
-			if (value > lastValues[i])
-				lastValues[i] = value;
-			else
-				lastValues[i] = jmax<float>(0.0f, lastValues[i] - 0.05f);
-
-			auto yPos = value;// lastValues[i];
-			yPos = 1.0f - yPos;
-
-			yPos *= targetBounds.getHeight();
-
-			lPath.lineTo(xPos, yPos);
-
-			value = 0.0f;
-		}
-	}
-
-	lPath.lineTo(targetBounds.getWidth(), targetBounds.getHeight());
-	lPath.closeSubPath();
-	
-	return lPath;
-#endif
 }
 
 

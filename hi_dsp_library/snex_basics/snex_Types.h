@@ -713,10 +713,25 @@ template <typename T, int NumVoices> struct PolyData
 #endif
 	}
 
+	bool isFirst() const
+	{
+		if constexpr (!isPolyphonic())
+			return true;
+
+		return begin() == getFirst();
+	}
+
 	/** Returns a reference to the first data. This can be used for UI purposes. */
 	const T& getFirst() const
 	{
 		return *data;
+	}
+
+	int getVoiceIndexForData(const T& d) const
+	{
+		auto off = (reinterpret_cast<uint64>(&d) - reinterpret_cast<uint64>(&data)) / sizeof(uint64);
+
+		return jlimit(0, NUM_POLYPHONIC_VOICES, (int)off);
 	}
 
 private:

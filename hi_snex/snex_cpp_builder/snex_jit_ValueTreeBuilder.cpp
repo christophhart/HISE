@@ -123,6 +123,50 @@ struct CloneHelpers
     }
 };
 
+Result ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
+{
+    Array<Identifier> existingIds;
+    
+    auto r = Result::ok();
+    auto rptr = &r;
+    
+	ValueTreeIterator::forEach(vToClean, ValueTreeIterator::ChildrenFirst, [&existingIds, rptr](ValueTree& c)
+	{
+		static const Array<Identifier> idsToClean = { PropertyIds::ID, PropertyIds::NodeId, PropertyIds::ParameterId };
+
+        if(c.getType() == PropertyIds::Node)
+        {
+            auto thisId = Identifier(c[PropertyIds::ID].toString());
+            
+            if(existingIds.contains(thisId))
+            {
+                *rptr = Result::fail("duplicate ID: " + thisId.toString());
+                return true;
+            }
+            
+            existingIds.add(thisId);
+        }
+        
+		for (const auto& id : idsToClean)
+		{
+			if (c.hasProperty(id))
+			{
+				auto possibleVariableName = c[id].toString();
+				auto betterVariableName = cppgen::StringHelpers::makeValidCppName(possibleVariableName);
+
+				if (possibleVariableName.compare(betterVariableName) != 0)
+				{
+					c.setProperty(id, betterVariableName, nullptr);
+				}
+			}
+		}
+
+		return false;
+	});
+    
+    return r;
+}
+
 void ValueTreeBuilder::setHeaderForFormat()
 {
 	switch (outputFormat)
@@ -395,6 +439,13 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 	auto typeId = getNodeId(n);
 
 	Node::Ptr newNode = createNode(n, typeId.getIdentifier(), getNodePath(n).toString());
+
+	if (newNode->hasProperty(PropertyIds::UncompileableNode, false))
+	{
+		Error e;
+		e.errorMessage << "You can't compile a Network with a " << getNodePath(n).toString() << " node.";
+		throw e;
+	}
 
 	if (newNode->hasProperty(PropertyIds::IsPolyphonic, false))
 	{

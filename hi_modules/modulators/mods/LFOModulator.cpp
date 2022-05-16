@@ -93,6 +93,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("NumSteps"));
 	parameterNames.add(Identifier("LoopEnabled"));
 	parameterNames.add(Identifier("PhaseOffset"));
+	parameterNames.add(Identifier("SyncToMasterClock"));
 
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
@@ -165,6 +166,7 @@ void LfoModulator::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(WaveFormType, "WaveformType");
 	loadAttribute(Legato, "Legato");
 	loadAttributeWithDefault(PhaseOffset);
+	loadAttributeWithDefault(SyncToMasterClock);
 
 	loadAttribute(SmoothingTime, "SmoothingTime");
 
@@ -188,6 +190,7 @@ juce::ValueTree LfoModulator::exportAsValueTree() const
 	saveAttribute(SmoothingTime, "SmoothingTime");
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(PhaseOffset, "PhaseOffset");
+	saveAttribute(SyncToMasterClock, "SyncToMasterClock");
 
 	saveTable(getTableUnchecked(0), "CustomWaveform");
 
@@ -236,6 +239,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return true;
 	case Parameters::PhaseOffset:
 		return 0.0;
+	case Parameters::SyncToMasterClock:
+		return false;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -264,9 +269,11 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return loopEnabled ? 1.0f : 0.0f;
 	case Parameters::PhaseOffset:
 		return (float)phaseOffset; 
+	case Parameters::SyncToMasterClock:
+		return syncToMasterClock ? 1.0f : 0.0f;
 	default: 
 		jassertfalse;
-		return -1.0f;
+		return 0.0f;
 	}
 
 };;
@@ -313,6 +320,17 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		break;
 	case Parameters::PhaseOffset:
 		phaseOffset = (double)newValue; break;
+	case Parameters::SyncToMasterClock:
+	{
+		auto shouldSync = newValue > 0.5f;
+
+		if (syncToMasterClock != shouldSync)
+		{
+			syncToMasterClock = shouldSync;
+		}
+
+		break;
+	}
 	default: 
 		jassertfalse;
 	}
@@ -480,6 +498,7 @@ float LfoModulator::calculateNewValue ()
 		else
 			newValue *= attackValue;
 		break;
+    default: jassertfalse; break;
 	}
 	
 	currentValue = smoother.smooth(newValue);
@@ -526,6 +545,16 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 	const int numValues = numSamples;
 
 	auto* modData = internalBuffer.getWritePointer(0, startSample);
+
+	if (syncToMasterClock && tempoSync)
+	{
+		auto startPPQ = getMainController()->getMasterClock().getPPQPos(numSamples - startSample);
+		auto cycleLength = (double)TempoSyncer::getTempoFactor(currentTempo);
+
+		auto uptimeNorm = startPPQ / cycleLength;
+
+		uptime = (int)(uptimeNorm * SAMPLE_LOOKUP_TABLE_SIZE);
+	}
 
 	while (--numSamples >= 0)
 	{

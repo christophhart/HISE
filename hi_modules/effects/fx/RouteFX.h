@@ -207,6 +207,12 @@ struct SendEffect : public MasterEffectProcessor
 {
 	SET_PROCESSOR_NAME("SendFX", "Send Effect", "A signal chain tool that allows to send the signal to a send container");
 
+    enum class InternalChains
+    {
+        SendLevel,
+        numInternalChains
+    };
+    
 	enum Parameters
 	{
 		Gain,
@@ -218,13 +224,40 @@ struct SendEffect : public MasterEffectProcessor
 	SendEffect(MainController *mc, const String &id) :
 		MasterEffectProcessor(mc, id)
 	{
-		finaliseModChains();
+        modChains.reserve((int)InternalChains::numInternalChains);
+
+        modChains += {this, "Send Modulation"};
+        
+        finaliseModChains();
+
+        sendChain = modChains[(int)InternalChains::SendLevel].getChain();
+        
+#if 0
+        auto gainConverter = [tmp](float input)
+        {
+            if (tmp)
+            {
+                auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Gain));
+                auto dbValue = Decibels::gainToDecibels(v * input);
+                return String(dbValue, 1) + " dB";
+            }
+
+            return Table::getDefaultTextValue(input);
+        };
+
+        sendChain->setTableValueConverter(gainConverter);
+#endif
         
         parameterNames.add("Gain");
         parameterNames.add("ChannelOffset");
         parameterNames.add("SendIndex");
 	};
 
+    ~SendEffect()
+    {
+        modChains.clear();
+    }
+    
 	float getAttribute(int index) const override 
 	{
 		switch (index)
@@ -267,15 +300,15 @@ struct SendEffect : public MasterEffectProcessor
 		return v;
 	}
 
-	int getNumInternalChains() const override { return 0; };
+	int getNumInternalChains() const override { return 1; };
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return sendChain; };
 
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return sendChain; };
 
-	int getNumChildProcessors() const override { return 0; };
+	int getNumChildProcessors() const override { return 1; };
 
 #if USE_BACKEND
 	struct Editor : public ProcessorEditorBody
@@ -362,6 +395,12 @@ struct SendEffect : public MasterEffectProcessor
             auto thisGain = gain.getCurrentValue();
             auto nextGain = gain.getNextValue();
             
+            const float startModValue = modChains[(int)InternalChains::SendLevel].getOneModulationValue(startSample);
+            const float endModValue = modChains[(int)InternalChains::SendLevel].getOneModulationValue(startSample + numSamples - 1);
+            
+            thisGain *= startModValue;
+            nextGain *= endModValue;
+            
             if(wasBypassed)
                 thisGain = 0.0f;
             
@@ -424,6 +463,8 @@ struct SendEffect : public MasterEffectProcessor
     
 	SimpleReadWriteLock lock;
 	WeakReference<SendContainer> container;
+    
+    ModulatorChain* sendChain;
 };
 
 

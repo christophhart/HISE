@@ -225,135 +225,6 @@ private:
 
 
 
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText)
-{
-	g.setColour(highlightColour.withAlpha(0.1f));
-	g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
-
-	if (emptyText.isNotEmpty())
-	{
-		g.setFont(font);
-		g.setColour(textColour.withAlpha(0.3f));
-		g.drawText(emptyText, 0, 0, listArea.getWidth(), listArea.getHeight(), Justification::centred);
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
-{
-	float alpha = active ? 0.4f : 0.1f;
-	alpha += (blinking ? 0.2f : 0.0f);
-
-	auto ar = position.toFloat().reduced(1.0f);
-
-	g.setColour(highlightColour.withAlpha(alpha));
-	g.fillRoundedRectangle(ar, 2.0f);
-	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-	g.setFont(font.withHeight(14.0f));
-	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
-
-	// Wow, so professional, good bug fix.
-	auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
-
-	g.drawText(nameToUse, ar, Justification::centred);
-
-	if (selected)
-		g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, PresetBrowser* p)
-{
-	if (!backgroundColour.isTransparent())
-	{
-		g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
-			backgroundColour, 0.0f, (float)p->getHeight(), false));
-
-		g.fillAll();
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
-{
-	g.setColour(modalBackgroundColour);
-	g.fillAll();
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
-	g.fillRoundedRectangle(area.expanded(40).toFloat(), 2.0f);
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
-
-	if (!labelArea.isEmpty())
-		g.fillRect(labelArea);
-
-	g.setColour(Colours::white.withAlpha(0.8f));
-	g.setFont(font.withHeight(18));
-	g.drawText(title, area.getX(), labelArea.getY() - 80, area.getWidth(), 30, Justification::centredTop);
-
-	g.setFont(font);
-
-	g.drawText(command, area, Justification::centredTop);
-}
-
-juce::Font PresetBrowserLookAndFeelMethods::getFont(bool fontForTitle)
-{
-	return fontForTitle ? GLOBAL_BOLD_FONT().withHeight(18.0f) : GLOBAL_BOLD_FONT();
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&, bool , bool )
-{
-	if (button.getToggleState())
-	{
-		auto r = button.getLocalBounds();
-
-		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
-{
-	float alphaBoost = hover ? 0.1f : 0.0f;
-
-	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f + alphaBoost), 0.0f, 0.0f,
-		highlightColour.withAlpha(0.2f + alphaBoost), 0.0f, (float)position.getHeight(), false));
-
-	if (rowIsSelected)
-		g.fillRect(position);
-
-	g.setColour(Colours::white.withAlpha(0.9f));
-
-	if (deleteMode)
-	{
-		Path p;
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
-
-		auto r = position.removeFromRight(position.getHeight()).reduced(3).toFloat();
-		p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), true);
-
-		g.fillPath(p);
-	}
-
-	g.setColour(textColour);
-	g.setFont(font.withHeight(16.0f));
-	g.drawText(itemName, columnIndex == 2 ? 10 + 26 : 10, 0, position.getWidth() - 20, position.getHeight(), Justification::centredLeft);
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
-{
-	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
-	g.setFont(font);
-	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
-
-	if (isMouseOverButton)
-	{
-		auto r = button.getLocalBounds();
-
-		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
-	}
-}
-
-
-
 PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	PresetBrowserChildComponentBase(p)
 {
@@ -937,18 +808,36 @@ void PresetBrowser::resized()
 
 		bool somethingInTopRow = false;
 
-		saveButton->setBounds(ar.removeFromRight(100));
-		manageButton->setBounds(ar.removeFromLeft(100));
-		favoriteButton->setVisible(showFavoritesButton);
+		auto r = Result::ok();
 
+		auto saveBounds = ApiHelpers::getIntRectangleFromVar(saveButtonBounds, &r);
 		
+		if (r.wasOk())
+			saveButton->setBounds(saveBounds);
+		else
+			saveButton->setBounds(ar.removeFromRight(100));
+
+		r = Result::ok();
+		
+		auto moreBounds = ApiHelpers::getIntRectangleFromVar(moreButtonBounds, &r);
+
+		if (r.wasOk())
+			manageButton->setBounds(moreBounds);
+		else
+			manageButton->setBounds(ar.removeFromLeft(100));
+
+		r = Result::ok();
+
+		favoriteButton->setVisible(showFavoritesButton);
 
 		if (showFavoritesButton)
 		{
-			if (favoriteButtonBounds.size() != 4)
+			auto bounds = ApiHelpers::getIntRectangleFromVar(favoriteButtonBounds, &r);
+
+			if (r.wasOk())
+				favoriteButton->setBounds(bounds);
+			else
 				favoriteButton->setBounds(ar.removeFromLeft(30));
-			else 
-				favoriteButton->setBounds((int)favoriteButtonBounds[0], (int)favoriteButtonBounds[1], (int)favoriteButtonBounds[2], (int)favoriteButtonBounds[3]);
 		}
 
 		ar.removeFromLeft(10);
@@ -1071,26 +960,23 @@ void PresetBrowser::updateFavoriteButton()
 
 	showOnlyPresets = currentWildcard != "*" || on;
 
-static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+	auto path = getPresetBrowserLookAndFeel().createPresetBrowserIcons(on ? "favorite_on" : "favorite_off");
 
-	static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
-		80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
-		67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
-
-	Path path;
-
-	if (on)
-		path.loadPathFromData(onShape, sizeof(onShape));
-	else
-		path.loadPathFromData(offShape, sizeof(offShape));
 
 	favoriteButton->setShape(path, false, true, true);
 
-
+	if (presetColumn == nullptr)
+		return;
 
 	presetColumn->setShowFavoritesOnly(on);
 
 	resized();
+}
+
+void PresetBrowser::lookAndFeelChanged()
+{
+	Component::lookAndFeelChanged();
+	updateFavoriteButton();
 }
 
 void PresetBrowser::loadPresetDatabase(const File& rootDirectory)
@@ -1321,6 +1207,11 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	favoriteButtonBounds.clear();
 	favoriteButtonBounds.addArray(newOptions.favoriteButtonBounds);
 	
+	saveButtonBounds.clear();
+	saveButtonBounds.addArray(newOptions.saveButtonBounds);
+	moreButtonBounds.clear();
+	moreButtonBounds.addArray(newOptions.moreButtonBounds);
+
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
 	setShowEditButtons(0, newOptions.showEditButtons);

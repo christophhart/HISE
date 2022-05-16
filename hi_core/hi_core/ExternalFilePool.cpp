@@ -510,6 +510,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 	
 
 	static const String projectFolderWildcard("{PROJECT_FOLDER}");
+	static const String sampleFolderWildcard("{SAMPLE_FOLDER}");
 
 	if (FullInstrumentExpansion::isEnabled(mc))
 	{
@@ -600,6 +601,19 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		}
 #endif
 
+		if (directoryType == FileHandlerBase::AudioFiles)
+		{
+			auto sampleDirectory = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+			if (f.isAChildOf(sampleDirectory))
+			{
+				m = ProjectPath;
+				auto relativePath = f.getRelativePathFrom(sampleDirectory).replace("\\", "/");
+				reference = sampleFolderWildcard + relativePath;
+				return;
+			}
+		}
+
 		m = AbsolutePath;
 
 		f = File(input);
@@ -626,6 +640,17 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		}
 	}
 	
+	if (input.startsWith(sampleFolderWildcard) && directoryType == FileHandlerBase::AudioFiles)
+	{
+		reference = input;
+		m = ProjectPath;
+
+		auto relativePath = input.replace("\\", "/").replace(sampleFolderWildcard, "");
+		auto& projectHandler = mc->getSampleManager().getProjectHandler();
+		f = projectHandler.getSubDirectory(FileHandlerBase::Samples).getChildFile(relativePath);
+		return;
+	}
+
 
 	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{

@@ -199,6 +199,18 @@ struct OscProcessDataJit : public OscProcessData
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 };
 
+struct DataLibraryBuilder: public LibraryBuilderBase
+{
+	DataLibraryBuilder(Compiler& c, int numChannels) :
+		LibraryBuilderBase(c, numChannels)
+	{};
+
+	Identifier getFactoryId() const override { RETURN_STATIC_IDENTIFIER("data"); }
+
+	Result registerTypes() override;
+	
+};
+
 struct InbuiltTypeLibraryBuilder : public LibraryBuilderBase
 {
 	InbuiltTypeLibraryBuilder(Compiler& c, int numChannels) :

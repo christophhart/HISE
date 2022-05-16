@@ -602,6 +602,8 @@ struct ValueTreeBuilder: public Base
 		codeProvider = p;
 	}
 
+	static Result cleanValueTreeIds(ValueTree& vToClean);
+
 private:
 
 	ScopedPointer<CodeProvider> codeProvider;

@@ -704,7 +704,8 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		for (state_base& s : states)
 			s.current_state = pimpl::ahdsr_base::state_base::IDLE;
 
-		this->sendGateOffAtReset();
+		if constexpr (!isPolyphonic())
+			this->sendGateOffAtReset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -885,8 +886,6 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		InvertableParameterRange timeRange(0.0, 10000.0, 0.1);
 		timeRange.setSkewForCentre(300.0);
 
-		
-
 		{
 			parameter::data p("Attack", timeRange);
 			p.callback = parameter::inner<ahdsr, Parameters::Attack>(*this);
@@ -902,16 +901,16 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		}
 
 		{
-			parameter::data p("Decay", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Decay>(*this);
-			p.setDefaultValue(300.0);
+			parameter::data p("Hold", timeRange);
+			p.callback = parameter::inner<ahdsr, Parameters::Hold>(*this);
+			p.setDefaultValue(20.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Hold", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Hold>(*this);
-			p.setDefaultValue(20.0);
+			parameter::data p("Decay", timeRange);
+			p.callback = parameter::inner<ahdsr, Parameters::Decay>(*this);
+			p.setDefaultValue(300.0);
 			data.add(p);
 		}
 

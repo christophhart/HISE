@@ -477,7 +477,7 @@ struct TemplateObject
 		NamespaceHandler* handler;
 		TemplateInstance id;
 		TemplateParameter::List tp;
-		juce::Result* r;
+		mutable juce::Result* r;
 	};
 
 	using ClassConstructor = std::function<ComplexType::Ptr(const ConstructData&)>;

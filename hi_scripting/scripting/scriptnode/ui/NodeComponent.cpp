@@ -1102,6 +1102,8 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 			auto parent = nodeTree.getParent();
 			auto nIndex = parent.indexOf(nodeTree);
 
+            
+            
 			parent.removeChild(nodeTree, um);
 			containerTree.getChildWithName(PropertyIds::Nodes).addChild(nodeTree, -1, um);
 
@@ -1114,10 +1116,14 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 			auto parent = selection.getFirst()->getValueTree().getParent();
 			auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
 
+            
+            
 			for (auto n : selection)
 			{
-				n->getValueTree().getParent().removeChild(n->getValueTree(), um);
-				containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
+                n->setParent(newContainer, -1);
+                
+				//n->getValueTree().getParent().removeChild(n->getValueTree(), um);
+				//containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
 			}
 
 			parent.addChild(containerTree, nIndex, um);

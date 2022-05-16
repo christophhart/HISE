@@ -1611,7 +1611,23 @@ asmjit::X86Mem AsmCodeGenerator::createFpuMem(RegPtr ptr)
 	return x;
 }
 
-
+void AsmCodeGenerator::writeRegisterToMemory(RegPtr target, RegPtr source)
+{
+    // The target must be a register holding a pointer value
+    jassert(target->getType() == Types::ID::Pointer);
+    
+    auto sourceType = source->getType();
+    source->loadMemoryIntoRegister(cc);
+    
+    auto ptr = x86::ptr(PTR_REG_R(target));
+    
+    switch(sourceType)
+    {
+        case Types::ID::Integer: cc.mov(ptr, INT_REG_R(source)); break;
+        case Types::ID::Float: cc.movss(ptr, FP_REG_R(source)); break;
+        case Types::ID::Double: cc.movsd(ptr, FP_REG_R(source)); break;
+    }
+}
 
 void AsmCodeGenerator::writeMemToReg(RegPtr target, X86Mem mem)
 {

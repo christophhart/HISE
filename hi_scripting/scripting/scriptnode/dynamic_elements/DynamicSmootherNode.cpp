@@ -204,6 +204,7 @@ void logic_op_editor::paint(Graphics& g)
 	case multilogic::logic_op::LogicType::AND: w = "AND"; break;
 	case multilogic::logic_op::LogicType::OR: w = "OR"; break;
 	case multilogic::logic_op::LogicType::XOR: w = "XOR"; break;
+    default: jassertfalse; break;
 	}
 
 	g.drawText(w, l.getUnion(r), Justification::centred);
@@ -437,9 +438,110 @@ void bipolar_editor::paint(Graphics& g)
 
 	PathStrokeType(2.0f * ps).createDashedStroke(dst, outlinePath, l, 2);
 
-	g.fillPath(dst);
 
+	g.fillPath(dst);
 	g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
+}
+
+intensity_editor::intensity_editor(IntensityBase* b, PooledUIUpdater* u):
+	ScriptnodeExtraComponent(b, u),
+	dragger(u)
+{
+	addAndMakeVisible(dragger);
+	setSize(256, 256);
+	start();
+}
+
+void intensity_editor::paint(Graphics& g)
+{
+	ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, pathArea, false);
+
+	UnblurryGraphics ug(g, *this, true);
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	auto pb = pathArea.reduced(UIValues::NodeMargin / 2);
+
+
+
+	ug.draw1PxHorizontalLine(pathArea.getCentreY(), pb.getX(), pb.getRight());
+	ug.draw1PxVerticalLine(pathArea.getCentreX(), pb.getY(), pb.getBottom());
+	ug.draw1PxRect(pb);
+
+	auto c = Colours::white.withAlpha(0.8f);
+
+	if (auto nc = findParentComponentOfClass<NodeComponent>())
+	{
+		auto c2 = nc->header.colour;
+		if (!c2.isTransparent())
+			c = c2;
+	}
+
+	g.setColour(c);
+
+	Path dst;
+
+	auto ps = ug.getPixelSize();
+	float l[2] = { 4.0f * ps, 4.0f * ps };
+
+	PathStrokeType(2.0f * ps).createDashedStroke(dst, fullPath, l, 2);
+
+
+	g.fillPath(dst);
+	g.strokePath(valuePath, PathStrokeType(4.0f * ug.getPixelSize()));
+}
+
+void intensity_editor::rebuildPaths()
+{
+	fullPath.clear();
+	valuePath.clear();
+
+	fullPath.startNewSubPath(1.0f, 0.0f);
+	valuePath.startNewSubPath(1.0f, 0.0f);
+
+	fullPath.startNewSubPath(0.0f, 1.0f);
+	valuePath.startNewSubPath(0.0f, 1.0f);
+
+	
+
+	fullPath.lineTo(0.0f, lastData.intensityValue);
+	valuePath.lineTo(0.0f, lastData.intensityValue);
+
+	fullPath.lineTo(1.0, 0.0f);
+
+	auto valuePos1 = lastData.intensityValue;
+	auto valuePos2 = 0.0;
+
+	valuePath.lineTo(lastData.value, (float)Interpolator::interpolateLinear(valuePos1, valuePos2, lastData.value));
+	
+	auto pb = pathArea.reduced(UIValues::NodeMargin);
+
+	fullPath.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+	valuePath.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), false);
+
+	repaint();
+}
+
+void intensity_editor::timerCallback()
+{
+	auto thisData = getObject()->getUIData();
+
+	if (!(thisData == lastData))
+	{
+		lastData = thisData;
+		rebuildPaths();
+	}
+}
+
+void intensity_editor::resized()
+{
+	auto b = getLocalBounds();
+
+	dragger.setBounds(b.removeFromBottom(28));
+
+	pathArea = b.toFloat();
+	pathArea = pathArea.withSizeKeepingCentre(pathArea.getHeight(), pathArea.getHeight()).reduced(10.0f);
+	rebuildPaths();
 }
 
 }

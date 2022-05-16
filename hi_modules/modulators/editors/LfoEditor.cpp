@@ -94,6 +94,12 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     tempoSyncButton->addListener (this);
     tempoSyncButton->setColour (ToggleButton::textColourId, Colours::white);
 
+	clockSyncButton.reset(new HiToggleButton("Clock Sync"));
+	addAndMakeVisible(clockSyncButton.get());
+	clockSyncButton->setTooltip(TRANS("Enables sync to Master Clock"));
+	clockSyncButton->addListener(this);
+	clockSyncButton->setColour(ToggleButton::textColourId, Colours::white);
+
     retriggerButton.reset (new HiToggleButton ("Legato"));
     addAndMakeVisible (retriggerButton.get());
     retriggerButton->setTooltip (TRANS("Disables retriggering of the LFO if multiple keys are pressed."));
@@ -156,6 +162,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	tempoSyncButton->setNotificationType(sendNotification);
 
+	clockSyncButton->setup(getProcessor(), LfoModulator::SyncToMasterClock, "Clock Sync");
 
 
 	waveformTable->connectToLookupTableProcessor(getProcessor());
@@ -209,6 +216,7 @@ LfoEditorBody::~LfoEditorBody()
     smoothTimeSlider = nullptr;
     loopButton = nullptr;
     phaseSlider = nullptr;
+	clockSyncButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -237,11 +245,14 @@ void LfoEditorBody::resized()
     fadeInSlider->setBounds ((getWidth() / 2) + -55, 16, 120, 48);
     label->setBounds (getWidth() - 50 - 264, 7, 264, 40);
     tempoSyncButton->setBounds ((getWidth() / 2) + -73 - 128, 68, 128, 32);
-    retriggerButton->setBounds ((getWidth() / 2) + -55, 68, 128, 32);
+
+	clockSyncButton->setBounds((getWidth() / 2) + -55, 68, 128, 32);
+
+    retriggerButton->setBounds ((getWidth() / 2) + 84, 68, 128, 32);
     waveformTable->setBounds ((getWidth() / 2) - ((getWidth() - 112) / 2), 111, getWidth() - 112, 121);
     smoothTimeSlider->setBounds ((getWidth() / 2) + 85, 16, 120, 48);
-    loopButton->setBounds ((getWidth() / 2) + 84, 68, 120, 32);
-    phaseSlider->setBounds ((getWidth() / 2) + 213, 56, 128, 48);
+    loopButton->setBounds ((getWidth() / 2) + 213, 68, 120, 32);
+    phaseSlider->setBounds ((getWidth() / 2) + 213, 16, 128, 48);
     //[UserResized] Add your own custom resize handling here..
 
 	waveformTable->setVisible(tableUsed && !stepsUsed);

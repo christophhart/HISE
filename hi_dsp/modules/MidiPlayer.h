@@ -59,6 +59,13 @@ class HiseMidiSequence : public ReferenceCountedObject,
 {
 public:
 
+	enum class TimestampEditFormat
+	{
+		Samples,
+		Ticks,
+		numTimestampFormats
+	};
+
 	struct TimeSignature: public RestorableObject
 	{
 		double numBars = 0.0;
@@ -158,9 +165,11 @@ public:
 	double getLength() const;
 
 	/** Returns the length of the MIDI sequence in quarter beats. */
-	double getLengthInQuarters();
+	double getLengthInQuarters() const;
 
 	double getLengthInSeconds(double bpm);
+
+	double getLastPlayedNotePosition() const;
 
 	/** Forces the length of the sequence to this value. If you want to use the original length, pass in -1.0. */
 	void setLengthInQuarters(double newLength);
@@ -241,7 +250,16 @@ public:
 	/** Creates an empty track and selects it. */
 	void createEmptyTrack();
 
+	TimestampEditFormat getTimestampEditFormat() const { return timestampFormat; }
+
+	void setTimeStampEditFormat(TimestampEditFormat formatToUse)
+	{
+		timestampFormat = formatToUse;
+	}
+
 private:
+
+	TimestampEditFormat timestampFormat = TimestampEditFormat::Samples;
 
 	TimeSignature signature;
 
@@ -431,6 +449,9 @@ public:
 	/**@ internal */
 	void tempoChanged(double newTempo) override;
 
+	void onGridChange(int gridIndex, uint16 timestamp, bool firstGridEventInPlayback) override;
+
+	void onTransportChange(bool isPlaying) override;
 	
 	enum class RecordState
 	{
@@ -627,7 +648,17 @@ public:
 		forcedReference = r;
 	}
 
+	void setSyncToMasterClock(bool shouldSyncToMasterClock);
+
 private:
+
+	bool stopInternal(int timestamp);
+
+	bool startInternal(int timestamp);
+
+	bool recordInternal(int timestamp);
+
+	bool syncToMasterClock = false;
 
 	PoolReference forcedReference;
 

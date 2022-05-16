@@ -713,7 +713,18 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 					{
 						if (a.lastValue != snappedValue)
 						{
-							a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
+							auto& uph = a.processor->getMainController()->getUserPresetHandler();
+
+							if (uph.isUsingCustomDataModel())
+							{
+								if (auto ad = uph.getCustomAutomationData(a.attribute))
+									ad->call(snappedValue);
+							}
+							else
+							{
+								a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
+							}
+
 							a.lastValue = snappedValue;
 						}
 					}

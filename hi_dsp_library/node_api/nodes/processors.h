@@ -522,19 +522,26 @@ private:
 
 struct oversample_base
 {
+	static constexpr int MaxOversamplingExponent = 4; // => 16x oversampling (2^4).
+
 	using Oversampler = juce::dsp::Oversampling<float>;
 
 	oversample_base(int factor) :
-		oversamplingFactor(factor)
+		oversamplingFactor(jmax(1, factor))
 	{};
 
     virtual ~oversample_base() {};
     
+	
+
     void rebuildOversampler()
     {
         if(originalBlockSize == 0)
             return;
         
+		if (oversamplingFactor == -1)
+			return;
+
         ScopedPointer<Oversampler> newOverSampler;
         
         newOverSampler = new Oversampler(numChannels, (int)std::log2(oversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
@@ -542,20 +549,20 @@ struct oversample_base
         if (originalBlockSize > 0)
             newOverSampler->initProcessing(originalBlockSize);
 
-        {
-            hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
-            oversampler.swapWith(newOverSampler);
-        }
+		oversampler.swapWith(newOverSampler);
     }
     
 	void prepare(PrepareSpecs ps)
 	{
+		SimpleReadWriteLock::ScopedWriteLock sl(this->lock);
+
+		originalSpecs = ps;
+
 		if (ps.voiceIndex != nullptr && ps.voiceIndex->isEnabled())
 		{
 			scriptnode::Error::throwError(Error::IllegalPolyphony);
 			return;
 		}
-            
         
         originalBlockSize = ps.blockSize;
         numChannels = ps.numChannels;
@@ -569,14 +576,26 @@ struct oversample_base
         rebuildOversampler();
 	}
 
+	int getOverSamplingFactor() const
+	{
+		return oversamplingFactor;
+	}
     
-    void setOversamplingFactor(int factor)
+    void setOversamplingFactor(int factorExponent)
     {
-        oversamplingFactor = factor;
-        rebuildOversampler();
+		SimpleReadWriteLock::ScopedWriteLock sl(this->lock);
+
+		factorExponent = jlimit(0, MaxOversamplingExponent, factorExponent);
+
+		oversamplingFactor = std::pow(2, factorExponent);
+
+		if(originalSpecs)
+			prepare(originalSpecs);
     }
     
 protected:
+
+	PrepareSpecs originalSpecs;
 
 	hise::SimpleReadWriteLock lock;
 
@@ -600,28 +619,31 @@ public:
 	oversample():
 		oversample_base(OversamplingFactor)
 	{
-        
         this->prepareFunc = prototypes::static_wrappers<T>::prepare;
 		this->pObj = &obj;
 	}
 
-    template <int P> static void setParameter(void* t, double newValue)
+	// Forward the get calls to the wrapped container
+	template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
+	template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
+
+    template <int P> void setParameter(double newValue)
     {
+		static_assert(P == 0, "illegal parameter index");
+
         if constexpr(P == 0)
-            static_cast<oversample*>(t)->setOversamplingFactor((int)newValue);
+            this->setOversamplingFactor((int)newValue);
     }
-    
+	SN_FORWARD_PARAMETER_TO_MEMBER(oversample);
+
 	forcedinline void reset() noexcept 
 	{
-		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
+		hise::SimpleReadWriteLock::ScopedReadLock sl(this->lock);
 
-		if (sl)
-		{
-			if(oversampler != nullptr)
-				oversampler->reset();
-		}
+		if (oversampler != nullptr)
+			oversampler->reset();
 
-		obj.reset(); 
+		obj.reset();
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -637,28 +659,25 @@ public:
 
 	template <typename ProcessDataType>  void process(ProcessDataType& data)
 	{
-		hise::SimpleReadWriteLock::ScopedTryReadLock sl(this->lock);
+ 		hise::SimpleReadWriteLock::ScopedReadLock sl(this->lock);
 
-		if (sl)
-		{
-			if (oversampler == nullptr)
-				return;
+		if (oversampler == nullptr)
+			return;
 
-			auto bl = data.toAudioBlock();
-			auto output = oversampler->processSamplesUp(bl);
+		auto bl = data.toAudioBlock();
+		auto output = oversampler->processSamplesUp(bl);
 
-			float* tmp[NUM_MAX_CHANNELS];
+		float* tmp[NUM_MAX_CHANNELS];
 
-			for (int i = 0; i < data.getNumChannels(); i++)
-				tmp[i] = output.getChannelPointer(i);
+		for (int i = 0; i < data.getNumChannels(); i++)
+			tmp[i] = output.getChannelPointer(i);
 
-			ProcessDataType od(tmp, data.getNumSamples() * OversamplingFactor, data.getNumChannels());
+		ProcessDataType od(tmp, data.getNumSamples() * oversamplingFactor, data.getNumChannels());
 
-			od.copyNonAudioDataFrom(data);
-			obj.process(od);
+		od.copyNonAudioDataFrom(data);
+		obj.process(od);
 
-			oversampler->processSamplesDown(bl);
-		}
+		oversampler->processSamplesDown(bl);
 	}
 
 	void initialise(NodeBase* n)

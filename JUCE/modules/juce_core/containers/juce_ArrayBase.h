@@ -222,6 +222,11 @@ public:
         numAllocated = numElements;
     }
 
+	int getNumAllocated() const
+	{
+		return numAllocated;
+	}
+
     void ensureAllocatedSize (int minNumElements)
     {
         if (minNumElements > numAllocated)

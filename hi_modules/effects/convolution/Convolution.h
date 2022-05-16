@@ -445,11 +445,14 @@ struct convolution : public data::base,
 
 	SN_EMPTY_HANDLE_EVENT;
 	SN_EMPTY_INITIALISE;
+	SN_EMPTY_MOD;
+
+	convolution()
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	}
 
 	static constexpr bool isPolyphonic() { return false; }
-	static constexpr bool isNormalisedModulation() { return false; }
-
-	bool handleModulation(double& d) { return false; }
 
 	MultiChannelAudioBuffer& getImpulseBufferBase() override
 	{
@@ -475,59 +478,14 @@ struct convolution : public data::base,
 	void prepare(PrepareSpecs specs)
 	{
 		DspHelpers::setErrorIfFrameProcessing(specs);
+		
 		prepareBase(specs.sampleRate, specs.blockSize);
 	}
-
-#if 0
-	void rebuildImpulse()
-	{
-		OwnedArray<MultithreadedConvolver> newConvolvers;
-
-		for (int i = 0; i < lastSpecs.numChannels; i++)
-			newConvolvers.add(new MultithreadedConvolver(audiofft::ImplementationType::BestAvailable));
-
-		AudioSampleBuffer impulseBuffer;
-
-		if(externalData.isNotEmpty())
-		{
-			DataReadLock l(this);
-
-			auto ratio = MultithreadedConvolver::getResampleFactor(lastSpecs.sampleRate, externalData.sampleRate);
-			MultithreadedConvolver::prepareImpulseResponse(externalData.toAudioSampleBuffer(), impulseBuffer, nullptr, {0, externalData.numSamples}, ratio);
-		}
-
-		if (impulseBuffer.getNumSamples() != 0)
-		{
-			const auto headSize = nextPowerOfTwo(lastSpecs.blockSize);
-			const auto fullTailLength = nextPowerOfTwo(impulseBuffer.getNumSamples() - headSize);
-
-			{
-				for (int i = 0; i < newConvolvers.size(); i++)
-				{
-					int channelIndex = i % impulseBuffer.getNumChannels();
-					auto c = newConvolvers[i];
-
-					c->init(headSize, fullTailLength, impulseBuffer.getReadPointer(channelIndex), impulseBuffer.getNumSamples());
-				}
-			}
-		}
-
-		for (auto c : newConvolvers)
-			c->setUseBackgroundThread(multithread);
-
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(impulseLock);
-			convolvers.swapWith(newConvolvers);
-		}
-	}
-#endif
 
 	void reset()
 	{
 		resetBase();
 	}
-
-	
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
