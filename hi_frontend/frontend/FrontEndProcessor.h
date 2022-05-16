@@ -41,12 +41,16 @@ namespace hise { using namespace juce;
 using Unlocker = hise::ScriptUnlocker;
 #else
 
-class Unlocker
+
+
+class Unlocker : public UnlockerHandler
 {
 public:
 
 	Unlocker();
 	~Unlocker();
+
+	OnlineUnlockStatus* getUnlockerObject() final override;
 
 	var loadKeyFile();
 
@@ -202,7 +206,7 @@ public:
 	void setCurrentProgram(int index) override;
 	
 #if USE_COPY_PROTECTION
-	juce::OnlineUnlockStatus* getLicenseUnlocker() override { return &unlocker; };
+	juce::OnlineUnlockStatus* getLicenseUnlocker() override { return unlocker.getUnlockerObject(); };
 	Unlocker unlocker;
 #endif
 

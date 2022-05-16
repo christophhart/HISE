@@ -928,6 +928,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 	API_METHOD_WRAPPER_0(Engine, getClipboardContent);
 	API_VOID_METHOD_WRAPPER_1(Engine, copyToClipboard);
+	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 };
 
 
@@ -1055,6 +1056,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(copyToClipboard);
 	ADD_API_METHOD_0(isHISE);
 	ADD_API_METHOD_0(reloadAllSamples);
+	ADD_API_METHOD_1(decodeBase64ValueTree);
 }
 
 
@@ -1569,6 +1571,38 @@ void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage,
 	};
 
 	MessageManager::callAsync(f);
+}
+
+String ScriptingApi::Engine::decodeBase64ValueTree(const String& b64Data)
+{
+	zstd::ZDefaultCompressor comp;
+
+	
+
+	auto v = ValueTreeConverters::convertBase64ToValueTree(b64Data, true);
+
+	if (!v.isValid())
+	{
+		auto r = comp.expand(b64Data, v);
+
+		if (!r.wasOk())
+		{
+			MemoryBlock mb;
+			mb.fromBase64Encoding(b64Data);
+
+			v = ValueTree::readFromData(mb.getData(), mb.getSize());
+		}
+	}
+
+	
+
+	if (v.isValid())
+	{
+		auto xml = v.createXml();
+		return xml->createDocument("");
+	}
+
+	return {};
 }
 
 var ScriptingApi::Engine::createGlobalScriptLookAndFeel()

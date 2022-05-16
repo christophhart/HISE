@@ -84,7 +84,7 @@ void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	isInSend = dynamic_cast<SendContainer*>(getParentProcessor(true)) != nullptr;
+	isInSend = dynamic_cast<SendContainer*>(getParentProcessor(true, false)) != nullptr;
 
 	for (auto& mc : modChains)
 		mc.prepareToPlay(sampleRate, samplesPerBlock);
