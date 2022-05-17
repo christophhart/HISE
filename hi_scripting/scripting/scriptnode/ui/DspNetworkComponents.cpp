@@ -487,6 +487,11 @@ void drawBlockrateForCable(Graphics& g, Point<float> midPoint, Colour cableColou
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
+	float HoverAlpha = 0.4f;
+
+	if (Component::isMouseButtonDownAnywhere())
+		HoverAlpha += 0.1f;
+
 	if (network->isFrozen())
 		return;
 
@@ -527,23 +532,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	Array<ModulationSourceBaseComponent*> modSourceList;
 	fillChildComponentList(modSourceList, this);
 
-#if 0
-	for (auto modSource : modSourceList)
-	{
-		auto ms = modSource->getSourceNodeFromParent();
-
-		if (ms == nullptr || !ms->isBodyShown())
-			continue;
-
-		auto start = getCircle(modSource, false);
-
-		g.setColour(Colours::black);
-		g.fillEllipse(start);
-		g.setColour(Colour(0xFFAAAAAA));
-		g.drawEllipse(start, 2.0f);
-	}
-#endif
-
 	float alpha = showCables ? 1.0f : 0.1f;
 
 	Array<ParameterSlider*> sliderList;
@@ -551,6 +539,63 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	Array<MultiOutputDragSource*> multiOutputList;
 	fillChildComponentList(multiOutputList, this);
+
+	Array<MacroParameterSlider*> hoveredMacros;
+	Array<ModulationSourceBaseComponent*> hoveredModSources;
+	Array<MultiOutputDragSource*> hoveredDragSources;
+
+	auto addDragSource = [&](ParameterSlider* sliderToCheck)
+	{
+		auto isCableNode = dynamic_cast<InterpretedCableNode*>(sliderToCheck->parameterToControl->parent);
+
+		if (isCableNode)
+		{
+			if (auto nc = sliderToCheck->findParentComponentOfClass<NodeComponent>())
+			{
+				Component::callRecursive<MultiOutputDragSource>(nc, [&](MultiOutputDragSource* msc)
+				{
+					hoveredDragSources.add(msc);
+					return false;
+				});
+			}
+		}
+	};
+
+	auto addModSource = [&](ParameterSlider* sliderToCheck)
+	{
+		auto isCableNode = dynamic_cast<InterpretedCableNode*>(sliderToCheck->parameterToControl->parent);
+
+		if (isCableNode)
+		{
+			if (auto nc = sliderToCheck->findParentComponentOfClass<NodeComponent>())
+			{
+				Component::callRecursive<ModulationSourceBaseComponent>(nc, [&](ModulationSourceBaseComponent* msc)
+				{
+					hoveredModSources.add(msc);
+					return true;
+				});
+			}
+		}
+	};
+
+	if (!showCables)
+	{
+		auto hoveredComponent = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+
+		auto hoveredMacro = dynamic_cast<MacroParameterSlider*>(hoveredComponent);
+
+		if (hoveredMacro == nullptr && hoveredComponent != nullptr)
+			hoveredMacro = hoveredComponent->findParentComponentOfClass<MacroParameterSlider>();
+
+		if (hoveredMacro != nullptr)
+			hoveredMacros.add(hoveredMacro);
+
+		if (auto hoveredModSource = dynamic_cast<ModulationSourceBaseComponent*>(hoveredComponent))
+			hoveredModSources.add(hoveredModSource);
+
+		if (auto hoveredDragSource = dynamic_cast<MultiOutputDragSource*>(hoveredComponent))
+			hoveredDragSources.add(hoveredDragSource);
+	}
 
 	for (auto sourceSlider : sliderList)
 	{
@@ -585,6 +630,20 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		
 		if (auto macro = dynamic_cast<NodeContainer::MacroParameter*>(sourceSlider->parameterToControl.get()))
 		{
+			auto isActiveMacro = false;
+
+			if (!showCables)
+			{
+				for (auto& hv : hoveredMacros)
+				{
+					if (hv->getParameter() == macro)
+					{
+						isActiveMacro = true;
+						break;
+					}
+				}
+			}
+
 			for (auto targetSlider : sliderList)
 			{
 				auto target = targetSlider->parameterToControl;
@@ -606,7 +665,20 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 					Colour hc = targetSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-					paintCable(g, start, end, colourToUse, alpha, hc);
+					float thisAlpha = alpha;
+
+					if (isActiveMacro)
+					{
+						if (auto newHv = targetSlider->findParentComponentOfClass<MacroParameterSlider>())
+							hoveredMacros.add(newHv);
+
+						thisAlpha = HoverAlpha;
+
+						addModSource(targetSlider);
+						addDragSource(targetSlider);
+					}
+					
+					paintCable(g, start, end, colourToUse, thisAlpha, hc);
 				}
 			}
 		}
@@ -617,6 +689,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		if (!multiSource->getNode()->isBodyShown())
 			continue;
 
+		auto isHovered = !showCables && hoveredDragSources.contains(multiSource);
+
 		for (auto s : sliderList)
 		{
 			if (!s->node->isBodyShown())
@@ -624,6 +698,15 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 			if (multiSource->matchesParameter(s->parameterToControl))
 			{
+				float thisAlpha = alpha;
+				
+				if (isHovered)
+				{
+					addModSource(s);
+					addDragSource(s);
+					thisAlpha = HoverAlpha;
+				}
+
 				auto start = getCircle(multiSource->asComponent(), false);
 				auto end = getCircle(s);
 
@@ -632,11 +715,11 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
 
 				Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
-				auto midPoint = paintCable(g, start, end, c, alpha, hc, network->getCpuProfileFlag());
+				auto midPoint = paintCable(g, start, end, c, thisAlpha, hc, network->getCpuProfileFlag());
 
 				if (!midPoint.isOrigin())
 				{
-					drawBlockrateForCable(g, midPoint, c, alpha, multiSource->getNode(), s->node);
+					drawBlockrateForCable(g, midPoint, c, thisAlpha, multiSource->getNode(), s->node);
 				}
 			}
 		}
@@ -646,6 +729,12 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 	for (auto modSource : modSourceList)
 	{
+		float thisAlpha = alpha;
+		bool isActiveModSource = !showCables && hoveredModSources.contains(modSource);
+
+		if (isActiveModSource)
+			thisAlpha = HoverAlpha;
+
 		auto start = getCircle(modSource, false);
 
 		auto cableColour = getSpecialColour(modSource, Colour(0xffbe952c));
@@ -672,11 +761,16 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 					if (parentMatch && paraMatch)
 					{
+						if (isActiveModSource)
+						{
+							addModSource(s);
+						}
+
 						auto end = getCircle(s);
 
 						Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						auto midPoint = paintCable(g, start, end, cableColour, alpha, hc, network->getCpuProfileFlag());
+						auto midPoint = paintCable(g, start, end, cableColour, thisAlpha, hc, network->getCpuProfileFlag());
 
 						if (!midPoint.isOrigin())
 						{
@@ -684,7 +778,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 							auto thisTarget = ConnectionBase::Helpers::findRealSource(s->parameterToControl->parent);
 
 							if(thisSource != nullptr && thisTarget != nullptr)
-								drawBlockrateForCable(g, midPoint, cableColour, alpha, thisSource, thisTarget);
+								drawBlockrateForCable(g, midPoint, cableColour, thisAlpha, thisSource, thisTarget);
 						}
 
 						auto drawSiblingCables = s->node->isClone() && !sourceNode->isClone();
@@ -705,7 +799,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 									if (cs->parameterToControl->data == cv)
 									{
 										auto cend = getCircle(cs);
-										paintCable(g, start, cend, i++ < numClones ? cableColour : Colours::grey, alpha * 0.1f, hc);
+										paintCable(g, start, cend, i++ < numClones ? cableColour : Colours::grey, thisAlpha * 0.1f, hc);
 									}
 								}
 							}

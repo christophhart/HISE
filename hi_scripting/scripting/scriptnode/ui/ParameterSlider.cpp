@@ -1493,6 +1493,21 @@ void MacroParameterSlider::mouseUp(const MouseEvent& e)
 	findParentComponentOfClass<DspNetworkGraph>()->repaint();
 }
 
+void MacroParameterSlider::mouseEnter(const MouseEvent& e)
+{
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+}
+
+void MacroParameterSlider::mouseExit(const MouseEvent& e)
+{
+	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+}
+
+WeakReference<NodeBase::Parameter> MacroParameterSlider::getParameter()
+{
+	return slider.parameterToControl;
+}
+
 void MacroParameterSlider::paintOverChildren(Graphics& g)
 {
 	if (editEnabled)
@@ -1548,6 +1563,31 @@ void MacroParameterSlider::setEditEnabled(bool shouldBeEnabled)
 
 bool MacroParameterSlider::keyPressed(const KeyPress& key)
 {
+	if (key == KeyPress::F11Key)
+	{
+		NodeBase::List newSelection;
+		auto network = getParameter()->parent->getRootNetwork();
+
+		network->deselectAll();
+
+		for (auto c : getParameter()->data.getChildWithName(PropertyIds::Connections))
+		{
+			auto nId = c[PropertyIds::NodeId].toString();
+			if (auto n = network->getNodeWithId(nId))
+				network->addToSelection(n, ModifierKeys::commandModifier);
+		}
+
+		if (!newSelection.isEmpty())
+		{
+			if (auto g = findParentComponentOfClass<DspNetworkGraph>())
+			{
+				DspNetworkGraph::Actions::foldUnselectedNodes(*g);
+			}
+			
+		}
+
+		return true;
+	}
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 	{
 		auto treeToRemove = slider.parameterToControl->data;

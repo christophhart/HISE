@@ -266,7 +266,10 @@ struct MacroParameterSlider : public Component
 
 	void mouseUp(const MouseEvent& e) override;
 
-	
+	void mouseEnter(const MouseEvent& e) override;
+	void mouseExit(const MouseEvent& e) override;
+
+	WeakReference<NodeBase::Parameter> getParameter();
 
 	void paintOverChildren(Graphics& g) override;
 
