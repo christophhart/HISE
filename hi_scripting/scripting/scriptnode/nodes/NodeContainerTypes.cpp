@@ -221,8 +221,6 @@ void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 		return;
 
 	NodeProfiler np(this, data.getNumSamples());
-	ProcessDataPeakChecker pd(this, data);
-	
 	obj.process(data);
 }
 

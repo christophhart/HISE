@@ -1332,11 +1332,6 @@ juce::String ParameterSlider::getTextFromValue(double value)
 	if (parameterToControl == nullptr)
 		return "Empty";
 
-    if(!isEnabled() && parameterToControl != nullptr)
-    {
-        value = parameterToControl->getValue();
-    }
-    
 	if (parameterToControl->valueNames.isEmpty())
 	{
         auto min = getMinimum();
@@ -1600,6 +1595,27 @@ void ParameterSlider::showRangeComponent(bool temporary)
 }
 
 
+
+void ParameterKnobLookAndFeel::SliderLabel::updateText()
+{
+	if (!enableTextSwitch)
+		return;
+
+	if (parent->isMouseOverOrDragging(true))
+	{
+		auto value = parent->getValue();
+		auto p = dynamic_cast<ParameterSlider*>(parent.getComponent())->parameterToControl;
+
+		if (!parent->isEnabled() && p != nullptr)
+			value = p->getValue();
+
+		setText(parent->getTextFromValue(value), dontSendNotification);
+	}
+	else
+		setText(parent->getName(), dontSendNotification);
+
+	repaint();
+}
 
 }
 

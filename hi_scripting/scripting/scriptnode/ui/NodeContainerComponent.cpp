@@ -116,8 +116,6 @@ ContainerComponent::ContainerComponent(NodeContainer* b) :
 	updater(*this),
 	parameters(new ParameterComponent(*this))
 {
-    start();
-    
 	if (auto sn = dynamic_cast<SerialNode*>(b))
 	{
 		verticalValue.referTo(sn->getNodePropertyAsValue(PropertyIds::IsVertical));

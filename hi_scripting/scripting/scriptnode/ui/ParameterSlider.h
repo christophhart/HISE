@@ -105,18 +105,7 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
             
 		}
 
-		void updateText()
-		{
-            if(!enableTextSwitch)
-                return;
-            
-			if (parent->isMouseOverOrDragging(true))
-				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
-			else
-				setText(parent->getName(), dontSendNotification);
-            
-            repaint();
-		}
+		void updateText();
         
 		void startDrag()
 		{
