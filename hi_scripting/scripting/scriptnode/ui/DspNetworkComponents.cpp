@@ -46,6 +46,10 @@ namespace ScriptnodeIcons
 42,67,172,28,101,66,98,176,18,42,67,166,27,101,66,139,204,41,67,160,26,101,66,102,134,41,67,166,27,101,66,99,109,0,0,0,0,0,0,0,0,108,172,92,218,66,176,114,136,63,108,176,114,136,63,172,92,218,66,108,0,0,0,0,0,0,0,0,99,109,23,57,182,67,0,0,0,0,108,215,
 67,127,67,176,114,136,63,108,164,176,181,67,172,92,218,66,108,23,57,182,67,0,0,0,0,99,101,0,0 };
 
+static const unsigned char signalIcon[] = { 110,109,244,229,47,68,184,230,154,68,108,205,140,56,68,184,230,154,68,108,244,229,47,68,205,196,161,68,108,244,229,47,68,174,119,167,68,108,119,118,56,68,174,119,167,68,108,160,202,45,68,236,1,176,68,108,184,30,35,68,174,119,167,68,108,59,175,43,68,174,
+119,167,68,108,59,175,43,68,205,196,161,68,108,115,8,35,68,184,230,154,68,108,59,175,43,68,184,230,154,68,108,59,175,43,68,195,253,153,68,108,244,229,47,68,195,253,153,68,108,244,229,47,68,184,230,154,68,99,109,145,101,27,68,215,179,160,68,108,145,101,
+27,68,195,253,153,68,108,217,46,23,68,195,253,153,68,108,217,46,23,68,215,179,160,68,108,172,236,13,68,215,179,160,68,108,217,46,23,68,82,168,167,68,108,217,46,23,68,102,222,175,68,108,145,101,27,68,102,222,175,68,108,145,101,27,68,82,168,167,68,108,
+174,167,36,68,215,179,160,68,108,145,101,27,68,215,179,160,68,99,101,0,0 };
 
 	static const unsigned char zoomIn[] = { 110,109,125,159,52,67,90,68,76,67,98,47,189,27,67,154,89,94,67,244,253,246,66,154,153,102,67,90,36,185,66,119,222,96,67,98,176,242,58,66,66,96,88,67,193,202,1,65,211,141,49,67,37,6,145,63,74,236,1,67,98,143,194,157,192,154,25,177,66,61,10,91,65,6,1,50,
 66,45,50,67,66,100,59,161,65,98,248,83,134,66,115,104,237,64,18,131,178,66,231,251,169,62,63,181,223,66,188,116,19,60,98,14,237,224,66,111,18,3,59,221,36,226,66,111,18,131,186,172,92,227,66,0,0,0,0,98,12,34,27,67,57,180,72,62,37,102,67,67,76,55,197,65,
@@ -215,6 +219,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("zoom-out", ScriptnodeIcons::zoomOut);
 	LOAD_PATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 	LOAD_PATH_IF_URL("zoom-sel", ScriptnodeIcons::zoomSelection);
+    LOAD_PATH_IF_URL("signal", ScriptnodeIcons::signalIcon);
 	LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
 	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
@@ -310,7 +315,10 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 	if (key.getKeyCode() == KeyPress::F11Key)
 	{
 		if (key.getModifiers().isCommandDown())
-			return Actions::addBookMark(*this);
+        {
+			Actions::addBookMark(network.get());
+            return true;
+        }
 		if(key.getModifiers().isShiftDown())
 			return Actions::zoomFit(*this);
 		else
@@ -1147,6 +1155,26 @@ bool DspNetworkGraph::Actions::toggleBypass(DspNetworkGraph& g)
 	}
 
 	return true;
+}
+
+bool DspNetworkGraph::Actions::toggleSignalDisplay(DspNetworkGraph& g)
+{
+    auto shouldBeOn = !g.network->isSignalDisplayEnabled();
+    
+    g.network->setSignalDisplayEnabled(shouldBeOn);
+    
+    Component::callRecursive<ContainerComponent>(&g, [shouldBeOn](ContainerComponent* c)
+    {
+        if(shouldBeOn)
+            c->start();
+        else
+            c->stop();
+        
+        c->repaint();
+        return false;
+    });
+    
+    return true;
 }
 
 bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
@@ -2019,19 +2047,19 @@ bool DspNetworkGraph::Actions::redo(DspNetworkGraph& g)
 }
 
 
-bool DspNetworkGraph::Actions::addBookMark(DspNetworkGraph& g)
+int DspNetworkGraph::Actions::addBookMark(DspNetwork* network)
 {
 	auto name = PresetHandler::getCustomName("Bookmark", "Enter the name for the bookmark");
 
 	if (name.isEmpty())
-		return true;
+		return -1;
 
-	auto um = g.network->getUndoManager();
-	auto bms = g.network->getValueTree().getOrCreateChildWithName(PropertyIds::Bookmarks, um);
+	auto um = network->getUndoManager();
+	auto bms = network->getValueTree().getOrCreateChildWithName(PropertyIds::Bookmarks, um);
 
 	StringArray sa;
 
-	for (auto n : g.network->getSelection())
+	for (auto n : network->getSelection())
 	{
 		sa.add(n->getId());
 	}
@@ -2043,7 +2071,7 @@ bool DspNetworkGraph::Actions::addBookMark(DspNetworkGraph& g)
 		if (b[PropertyIds::ID].toString() == name)
 		{
 			b.setProperty(PropertyIds::Value, bValue, um);
-			return false;
+            return bms.indexOf(b);
 		}
 	}
 
@@ -2052,7 +2080,7 @@ bool DspNetworkGraph::Actions::addBookMark(DspNetworkGraph& g)
 	bm.setProperty(PropertyIds::Value, bValue, nullptr);
 	bms.addChild(bm, -1, nullptr);
 
-	return true;
+    return bms.getNumChildren() - 1;
 }
 
 bool DspNetworkGraph::Actions::zoomIn(DspNetworkGraph& g)
@@ -2390,6 +2418,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 	addButton("error");
 	addButton("cable");
 	addButton("probe");
+    addButton("signal");
 	addSpacer(10);
 	addButton("wrap");
 	addButton("colour");
@@ -2422,6 +2451,12 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
     if(name == "save")
     {
         b->actionFunction = Actions::save;
+    }
+    if(name == "signal")
+    {
+        b->actionFunction = Actions::toggleSignalDisplay;
+        b->stateFunction = [](DspNetworkGraph& g) { return g.network->isSignalDisplayEnabled(); };
+        b->setTooltip("Display the signal flow in the cables");
     }
     
     if(name == "export")

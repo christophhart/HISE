@@ -941,8 +941,17 @@ public:
 
 	void runPostInitFunctions();
 
+    bool isSignalDisplayEnabled() const { return signalDisplayEnabled; }
+    
+    void setSignalDisplayEnabled(bool shouldBeEnabled)
+    {
+        signalDisplayEnabled = shouldBeEnabled;
+    }
+    
 private:
 
+    bool signalDisplayEnabled = false;
+    
 	Array<std::function<bool()>> postInitFunctions;
 
 	ModValue networkModValue;

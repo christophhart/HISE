@@ -164,6 +164,9 @@ void InterpretedNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, data.getNumSamples());
 	this->obj.process(data);
+    
+    ProcessDataPeakChecker(this, data);
+    
 }
 
 void InterpretedNode::setBypassed(bool shouldBeBypassed)

@@ -537,6 +537,17 @@ public:
 
 	int getCurrentBlockRate() const { return lastBlockSize; }
 
+    void setSignalPeaks(float* p, int numChannels)
+    {
+        for(int i = 0; i < numChannels; i++)
+        {
+            signalPeaks[i] *= 0.5f;
+            signalPeaks[i] += 0.5f * p[i];
+        }
+    }
+    
+    float getSignalPeak(int channel) const { return signalPeaks[channel]; }
+    
 protected:
 
 	ValueTree v_data;
@@ -544,6 +555,8 @@ protected:
 
 private:
 
+    span<float, NUM_MAX_CHANNELS> signalPeaks;
+    
 	void updateBypassState(Identifier, var newValue)
 	{
 		auto shouldBeBypassed = (bool)newValue;
@@ -595,6 +608,22 @@ struct DummyNodeProfiler
 	{
 		ignoreUnused(unused, unused2);
 	}
+};
+
+struct ProcessDataPeakChecker
+{
+    ProcessDataPeakChecker(NodeBase* n, ProcessDataDyn& d_):
+      p(*n),
+      d(d_)
+    {
+        
+    }
+    
+    ~ProcessDataPeakChecker();
+    
+    
+    NodeBase& p;
+    ProcessDataDyn& d;
 };
 
 struct RealNodeProfiler

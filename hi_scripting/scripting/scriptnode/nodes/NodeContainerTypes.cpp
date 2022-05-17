@@ -54,7 +54,11 @@ void ChainNode::process(ProcessDataDyn& data)
 	if (isBypassed())
 		return;
 
+    ProcessDataPeakChecker(this, data);
+    
 	wrapper.process(data);
+    
+    
 }
 
 
@@ -133,6 +137,8 @@ void SplitNode::process(ProcessDataDyn& data)
 
 	NodeProfiler np(this, data.getNumSamples());
 
+    ProcessDataPeakChecker(this, data);
+    
 	float* ptrs[NUM_MAX_CHANNELS];
 	int numSamples = data.getNumSamples();
 
@@ -564,6 +570,8 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 {
 	NodeProfiler np(this, d.getNumSamples());
 
+    ProcessDataPeakChecker(this, d);
+    
 	int channelIndex = 0;
 
 	for (auto n : nodes)
@@ -584,6 +592,12 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 
 		channelIndex += numChannelsThisTime;
 	}
+    
+    // We'll overwrite the peak values for the first node
+    if(auto f = nodes.getFirst())
+    {
+        ProcessDataPeakChecker(f, d);
+    }
 }
 
 SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :

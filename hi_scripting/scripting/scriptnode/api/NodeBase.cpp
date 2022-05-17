@@ -1305,7 +1305,31 @@ juce::ValueTree ConnectionSourceManager::Helpers::getOrCreateConnection(ValueTre
 	return newC;
 }
 
-
+ProcessDataPeakChecker::~ProcessDataPeakChecker()
+{
+#if USE_BACKEND
+    if(!p.getRootNetwork()->isSignalDisplayEnabled())
+        return;
+    
+    span<float, NUM_MAX_CHANNELS> peaks;
+    
+    int index = 0;
+    
+    int halfIndex = d.getNumSamples() / 2;
+    
+    for(auto& ch: d)
+    {
+        auto b = d.toChannelData(ch);
+        
+        auto first = b[0];
+        auto half = b[halfIndex];
+        auto peak = jmax(hmath::abs(first), hmath::abs(half));
+        peaks[index++] = peak;
+    }
+    
+    p.setSignalPeaks(peaks.begin(), d.getNumChannels());
+#endif
+}
 
 RealNodeProfiler::RealNodeProfiler(NodeBase* n, int numSamples_) :
 	enabled(n->getRootNetwork()->getCpuProfileFlag()),
