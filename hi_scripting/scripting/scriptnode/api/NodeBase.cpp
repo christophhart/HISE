@@ -1305,29 +1305,41 @@ juce::ValueTree ConnectionSourceManager::Helpers::getOrCreateConnection(ValueTre
 	return newC;
 }
 
+ProcessDataPeakChecker::ProcessDataPeakChecker(NodeBase* n, ProcessDataDyn& d_) :
+	p(*n),
+	d(d_)
+{
+	check(false);
+}
+
 ProcessDataPeakChecker::~ProcessDataPeakChecker()
 {
+	check(true);
+}
+
+void ProcessDataPeakChecker::check(bool post)
+{
 #if USE_BACKEND
-    if(!p.getRootNetwork()->isSignalDisplayEnabled())
-        return;
-    
-    span<float, NUM_MAX_CHANNELS> peaks;
-    
-    int index = 0;
-    
-    int halfIndex = d.getNumSamples() / 2;
-    
-    for(auto& ch: d)
-    {
-        auto b = d.toChannelData(ch);
-        
-        auto first = b[0];
-        auto half = b[halfIndex];
-        auto peak = jmax(hmath::abs(first), hmath::abs(half));
-        peaks[index++] = peak;
-    }
-    
-    p.setSignalPeaks(peaks.begin(), d.getNumChannels());
+	if (!p.getRootNetwork()->isSignalDisplayEnabled())
+		return;
+
+	span<float, NUM_MAX_CHANNELS> peaks;
+
+	int index = 0;
+
+	int halfIndex = d.getNumSamples() / 2;
+
+	for (auto& ch : d)
+	{
+		auto b = d.toChannelData(ch);
+
+		auto first = b[0];
+		auto half = b[halfIndex];
+		auto peak = jmax(hmath::abs(first), hmath::abs(half));
+		peaks[index++] = peak;
+	}
+
+	p.setSignalPeaks(peaks.begin(), d.getNumChannels(), post);
 #endif
 }
 
@@ -1618,6 +1630,25 @@ scriptnode::NodeBase* ConnectionBase::Helpers::findRealSource(NodeBase* source)
 	}
 
 	return source;
+}
+
+FrameDataPeakChecker::FrameDataPeakChecker(NodeBase* n, float* d, int s) :
+	p(*n),
+	b(d, s)
+{
+	check(false);
+}
+
+FrameDataPeakChecker::~FrameDataPeakChecker()
+{
+	check(true);
+}
+
+void FrameDataPeakChecker::check(bool post)
+{
+#if USE_BACKEND && ALLOW_FRAME_SIGNAL_CHECK
+	p.setSignalPeaks(b.begin(), b.size(), post);
+#endif
 }
 
 }

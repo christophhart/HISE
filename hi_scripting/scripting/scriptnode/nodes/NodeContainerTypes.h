@@ -789,16 +789,17 @@ public:
 	void process(ProcessDataDyn& data) final override
 	{
 		
-
 		if (isBypassed())
 		{
 			NodeProfiler np(this, data.getNumSamples());
+			ProcessDataPeakChecker pd(this, data);
 			obj.getObject().process(data.as<FixProcessType>());
 		}
 			
 		else
 		{
 			NodeProfiler np(this, 1);
+			ProcessDataPeakChecker pd(this, data);
 			float* channels[NumChannels];
 			int numChannels = jmin(NumChannels, data.getNumChannels());
 			memcpy(channels, data.getRawDataPointers(), numChannels * sizeof(float*));
@@ -825,6 +826,7 @@ public:
 	void processFrame(FrameType& d) final override
 	{
 		jassert(d.size() == NumChannels);
+		FrameDataPeakChecker fd(this, d.begin(), d.size());
 
 		auto& s = FixFrameType::as(d.begin());
 		obj.processFrame(s);

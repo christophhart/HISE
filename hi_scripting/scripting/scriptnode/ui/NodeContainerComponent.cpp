@@ -711,7 +711,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
         p.startNewSubPath(start);
         p.lineTo(start1);//  addLineSegment({ start, start1 }, 2.0f);
         
-        addCircleAtMidpoint(p, {start, start1}, signalDotOffset, true, getCircleAmp(-1, cableIndex));
+        addCircleAtMidpoint(p, {start, start1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
         
     }
     
@@ -723,7 +723,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
         p.startNewSubPath(end);
         p.lineTo(end1);
         
-        addCircleAtMidpoint(p, {end1, end}, signalDotOffset, true, getCircleAmp(childNodeComponents.size() - 1, cableIndex));
+        addCircleAtMidpoint(p, {end1, end}, signalDotOffset, true, getCircleAmp(childNodeComponents.size() - 1, cableIndex, true));
     }
 
     DropShadow sh;
@@ -746,7 +746,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
             p.startNewSubPath(l.getStart());
             p.lineTo(l.getEnd());
             
-            addCircleAtMidpoint(p, l, signalDotOffset, false, getCircleAmp(i, cableIndex));
+            addCircleAtMidpoint(p, l, signalDotOffset, false, getCircleAmp(i, cableIndex, true));
 
             //p.addLineSegment(l, 2.0f);
         }
@@ -1039,14 +1039,13 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
                 if(shouldPaintCable(CableLocation::Input))
                 {
                     p.addLineSegment({ start, p1 }, 2.0f);
-                    addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(idx-1, cableIndex));
+                    addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
                 }
                 
                 if(shouldPaintCable(CableLocation::Output))
                 {
                     p.addLineSegment({ p2, end }, 2.0f);
-                    
-                    addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(idx, cableIndex));
+                    addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(idx, cableIndex, true));
                 }
                 
                 idx++;
@@ -1161,8 +1160,8 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 			p.addLineSegment({ start, p1 }, 2.0f);
 			p.addLineSegment({ p2, end }, 2.0f);
             
-            addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(-1, cableIndex));
-            addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(0, cableIndex));
+            addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
+            addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(-1, cableIndex, true));
             
 		}
 	}

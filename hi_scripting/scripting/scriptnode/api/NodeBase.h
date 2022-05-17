@@ -537,16 +537,18 @@ public:
 
 	int getCurrentBlockRate() const { return lastBlockSize; }
 
-    void setSignalPeaks(float* p, int numChannels)
+    void setSignalPeaks(float* p, int numChannels, bool postSignal)
     {
+		auto& s = signalPeaks[(int)postSignal];
+
         for(int i = 0; i < numChannels; i++)
         {
-            signalPeaks[i] *= 0.5f;
-            signalPeaks[i] += 0.5f * p[i];
+            s[i] *= 0.5f;
+            s[i] += 0.5f * p[i];
         }
     }
     
-    float getSignalPeak(int channel) const { return signalPeaks[channel]; }
+    float getSignalPeak(int channel, bool post) const { return signalPeaks[(int)post][channel]; }
     
 protected:
 
@@ -555,7 +557,7 @@ protected:
 
 private:
 
-    span<float, NUM_MAX_CHANNELS> signalPeaks;
+    span<span<float, NUM_MAX_CHANNELS>, 2> signalPeaks;
     
 	void updateBypassState(Identifier, var newValue)
 	{
@@ -612,18 +614,29 @@ struct DummyNodeProfiler
 
 struct ProcessDataPeakChecker
 {
-    ProcessDataPeakChecker(NodeBase* n, ProcessDataDyn& d_):
-      p(*n),
-      d(d_)
-    {
-        
-    }
-    
+    ProcessDataPeakChecker(NodeBase* n, ProcessDataDyn& d_);
     ~ProcessDataPeakChecker();
     
+	void check(bool post);
     
     NodeBase& p;
     ProcessDataDyn& d;
+};
+
+#ifndef ALLOW_FRAME_SIGNAL_CHECK
+#define ALLOW_FRAME_SIGNAL_CHECK 1
+#endif
+
+struct FrameDataPeakChecker
+{
+	FrameDataPeakChecker(NodeBase* n, float* d, int s);
+
+	~FrameDataPeakChecker();
+
+	void check(bool post);
+
+	NodeBase& p;
+	dyn<float> b;
 };
 
 struct RealNodeProfiler

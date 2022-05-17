@@ -632,7 +632,7 @@ public:
 
     void timerCallback() override { repaint(); }
 
-    float getCircleAmp(int nodeIndex, int channelIndex)
+    float getCircleAmp(int nodeIndex, int channelIndex, bool post)
     {
         if(!node->getRootNetwork()->isSignalDisplayEnabled())
             return 0.0f;
@@ -650,7 +650,7 @@ public:
         }
             
         
-        auto peak = jlimit(0.0f, 1.0f, n->getSignalPeak(channelIndex));
+        auto peak = jlimit(0.0f, 1.0f, n->getSignalPeak(channelIndex, post));
         
         if(peak >= 0.001f)
             peak = 0.25f + 0.75f * peak;

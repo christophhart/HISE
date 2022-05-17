@@ -417,6 +417,7 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 	void process(ProcessDataDyn& data) final override
 	{
+		ProcessDataPeakChecker fd(this, data);
 		this->obj.process(data);
 	}
 
@@ -434,6 +435,7 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 	void processFrame(FrameType& data) final override
 	{
+		FrameDataPeakChecker fd(this, data.begin(), data.size());
 		this->obj.processFrame(*reinterpret_cast<span<float, 1>*>(data.begin()));
 	}
 
