@@ -364,23 +364,15 @@ void NodeComponent::paint(Graphics& g)
 	g.setColour(getOutlineColour());
 	g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
-#if 0
-	if (node->getAsRestorableNode() != nullptr)
-		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+    g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x69181818)));
     
-#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
-	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
-		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
-#endif
-
-	if(!p.isEmpty())
-	{
-		auto b = getLocalBounds().removeFromRight(22).removeFromBottom(22).reduced(3).toFloat();
-		p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), true);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.fillPath(p);
-	}
-#endif
+    
+    b.removeFromLeft(2.0f);
+    b.removeFromRight(2.0f);
+    b.removeFromBottom(2.0f);
+    b.removeFromTop(1.0f);
+    
+    g.drawRect(b, 1.0f);
 }
 
 

@@ -54,7 +54,7 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 		SliderLabel(Slider& s) :
 			parent(&s)
 		{
-			auto tmp = Component::SafePointer<SliderLabel>(this);
+            auto tmp = Component::SafePointer<SliderLabel>(this);
 			auto n = parent->getName();
 
 			auto f = [tmp, n]()
@@ -76,10 +76,19 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 			updateText();
 		}
 
+        void textEditorReturnKeyPressed(TextEditor& t) override
+        {
+            NiceLabel::textEditorReturnKeyPressed(t);
+            
+            enableTextSwitch = true;
+        }
+        
 		void editorShown(TextEditor* ed)
 		{
+            enableTextSwitch = false;
 			Label::editorShown(ed);
 
+            ed->setJustification(Justification::centred);
 			ed->setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			ed->selectAll();
 			ed->setBounds(getLocalBounds());
@@ -98,12 +107,17 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 
 		void updateText()
 		{
-			if (parent->isMouseButtonDown(true))
+            if(!enableTextSwitch)
+                return;
+            
+			if (parent->isMouseOverOrDragging(true))
 				setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
 			else
 				setText(parent->getName(), dontSendNotification);
+            
+            repaint();
 		}
-
+        
 		void startDrag()
 		{
 			setText(parent->getTextFromValue(parent->getValue()), dontSendNotification);
@@ -114,6 +128,8 @@ struct ParameterKnobLookAndFeel : public GlobalHiseLookAndFeel
 			setText(parent->getName(), dontSendNotification);
 		}
 
+        
+        bool enableTextSwitch = true;
         Component::SafePointer<Slider> parent;
 	};
 
@@ -243,6 +259,10 @@ struct ParameterSlider : public Slider,
 	const int index;
 	double lastDisplayValue = -1.0;
 	bool illegal = false;
+    
+    bool skipTextUpdate = false;
+    
+    float blinkAlpha = 0.0f;
 
 };
 

@@ -873,6 +873,8 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	setName(pTree[PropertyIds::ID].toString());
     setLearnable(node->getRootNetwork()->getRootNode() == node);
 
+    setTooltip(node->getId() + "." + getName());
+    
 	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets, PropertyIds::Nodes });
 	connectionListener.setCallback(pTree.getRoot(), valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(ParameterSlider::updateOnConnectionChange));
@@ -1016,6 +1018,19 @@ void ParameterSlider::paint(Graphics& g)
 {
 	Slider::paint(g);
 
+    if(blinkAlpha > 0.0f && modulationActive)
+    {
+        auto b = getLocalBounds().toFloat();
+        b = b.removeFromTop(48);
+        b = b.withSizeKeepingCentre(48, 48).translated(0.0f, 3.0f);
+        g.setColour(Colours::white.withAlpha(blinkAlpha * JUCE_LIVE_CONSTANT_OFF(0.7f)));
+        
+        auto m = JUCE_LIVE_CONSTANT_OFF(8.8f);
+        auto r = JUCE_LIVE_CONSTANT_OFF(4.0f);
+        
+        g.drawEllipse(b.reduced(m), r);
+    }
+    
 	if (macroHoverIndex != -1)
 	{
 		g.setColour(Colour(SIGNAL_COLOUR));
@@ -1046,9 +1061,26 @@ void ParameterSlider::timerCallback()
 {
 	auto thisDisplayValue = getValueToDisplay();
 
-	if (thisDisplayValue != lastDisplayValue)
+	if (thisDisplayValue != lastDisplayValue || blinkAlpha > 0.0f)
 	{
-		lastDisplayValue = thisDisplayValue;
+        auto sl = getRange().getLength();
+        auto delta = std::abs(thisDisplayValue - lastDisplayValue);
+        
+        if(delta / sl > 0.01)
+        {
+            blinkAlpha = 1.0f;
+            lastDisplayValue = thisDisplayValue;
+            
+            if(auto l = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+            {
+                l->updateText();
+            }
+        }
+        else
+        {
+            blinkAlpha = jmax(0.0f, blinkAlpha - 0.08f);
+        }
+        
 		repaint();
 	}
 }
@@ -1146,7 +1178,9 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
     
 	if (e.mods.isShiftDown())
 	{
+        ScopedValueSetter<bool> svs(skipTextUpdate, true);
 		Slider::showTextBox();
+        
 		return;
 	}
 
@@ -1181,6 +1215,11 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 
 void ParameterSlider::mouseEnter(const MouseEvent& e)
 {
+    if(auto l = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+    {
+        l->updateText();
+    }
+    
 	if (!isEnabled())
 	{
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
@@ -1210,6 +1249,12 @@ void ParameterSlider::mouseMove(const MouseEvent& e)
 
 void ParameterSlider::mouseExit(const MouseEvent& e)
 {
+    if(auto l = dynamic_cast<ParameterKnobLookAndFeel::SliderLabel*>(getTextBox()))
+    {
+        if(!skipTextUpdate)
+            l->updateText();
+    }
+    
 	if (!isEnabled())
 	{
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
@@ -1287,6 +1332,11 @@ juce::String ParameterSlider::getTextFromValue(double value)
 	if (parameterToControl == nullptr)
 		return "Empty";
 
+    if(!isEnabled() && parameterToControl != nullptr)
+    {
+        value = parameterToControl->getValue();
+    }
+    
 	if (parameterToControl->valueNames.isEmpty())
 	{
         auto min = getMinimum();
@@ -1400,6 +1450,8 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 	b = b.removeFromTop(48);
 	b = b.withSizeKeepingCentre(48, 48).translated(0.0f, 3.0f);
 
+    
+    
 	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true) || ps->parameterToControl->isModulated(), s.isMouseButtonDown(), s.isEnabled(), modProportion);
 }
 
