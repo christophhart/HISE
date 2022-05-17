@@ -322,9 +322,22 @@ Set this to 0 to disable host information like tempo, playing position etc...
 #define ENABLE_HOST_INFO 1
 #endif
 
-
+/** Config: HISE_USE_OPENGL_FOR_PLUGIN
+ 
+ Enables OpenGL support for your project.
+ */
 #ifndef HISE_USE_OPENGL_FOR_PLUGIN
 #define HISE_USE_OPENGL_FOR_PLUGIN 0
+#endif
+
+/** Config: HISE_DEFAULT_OPENGL_VALUE
+ 
+ If HISE_USE_OPENGL_FOR_PLUGIN is enabled, this can be used to specify whether
+OpenGL should be enabled by default or not.
+  
+*/
+#ifndef HISE_DEFAULT_OPENGL_VALUE
+#define HISE_DEFAULT_OPENGL_VALUE 1
 #endif
 
 /** Config: ENABLE_STARTUP_LOGGER
