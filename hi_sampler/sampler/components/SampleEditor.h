@@ -174,7 +174,7 @@ public:
 
 	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
 
-	bool isInWorkspace() const { return findParentComponentOfClass<ProcessorEditor>() == nullptr; }
+	bool isInWorkspace() const;
 
 	void sampleMapWasChanged(PoolReference r) override
 	{

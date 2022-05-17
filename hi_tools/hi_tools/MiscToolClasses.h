@@ -1735,7 +1735,7 @@ template <typename...Ps> struct LambdaBroadcaster final
 
 	void enableLockFreeUpdate(PooledUIUpdater* updater)
 	{
-		if (updater != nullptr)
+		if (updater != nullptr && lockfreeUpdater != nullptr)
 			lockfreeUpdater = new LockFreeUpdater(*this, updater);
 	}
 
