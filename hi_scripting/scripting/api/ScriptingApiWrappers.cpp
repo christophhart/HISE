@@ -105,6 +105,8 @@ struct ScriptingApi::Content::Wrapper
 
 	static var addVisualGuide(const var::NativeFunctionArgs& args);
 
+	static var getScreenBounds(const var::NativeFunctionArgs& args);
+
 	static var setImageFile(const var::NativeFunctionArgs& args);
 	static var setImageAlpha(const var::NativeFunctionArgs& args);
 	static var showControl(const var::NativeFunctionArgs& args);
@@ -964,6 +966,17 @@ juce::var ScriptingApi::Content::Wrapper::createLocalLookAndFeel(const var::Nati
 	{
 		CHECK_ARGUMENTS("createLocalLookAndFeel()", 0);
 		return thisObject->createLocalLookAndFeel();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getScreenBounds(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getScreenBounds()", 1);
+		return thisObject->getScreenBounds(args.arguments[0]);
 	}
 
 	return var();

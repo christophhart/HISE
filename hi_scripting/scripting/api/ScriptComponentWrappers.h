@@ -625,6 +625,7 @@ public:
 		void subComponentAdded(ScriptComponent* newComponent) override;
 		void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) override;
 
+		static void cursorChanged(PanelWrapper& p, ScriptingApi::Content::ScriptPanel::MouseCursorInfo newInfo);
 
 		void animationChanged() override;
 
@@ -650,6 +651,7 @@ public:
 		void boundsChanged(const Rectangle<int> &newBounds) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PanelWrapper)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(PanelWrapper);
 	};
 
 

@@ -104,7 +104,12 @@ bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponen
 	{
 		auto cursor = sp->getMouseCursorPath();
 
-		if (!cursor.path.isEmpty())
+		if (cursor.path.isEmpty() && cursor.defaultCursorType != MouseCursor::NumStandardCursorTypes)
+		{
+			c = MouseCursor(cursor.defaultCursorType);
+			return true;
+		}
+		else if (!cursor.path.isEmpty())
 		{
 #if JUCE_WINDOWS
 			auto s = 80;
@@ -1881,6 +1886,19 @@ void ScriptCreatedComponentWrappers::PanelWrapper::subComponentRemoved(ScriptCom
 
 
 
+void ScriptCreatedComponentWrappers::PanelWrapper::cursorChanged(PanelWrapper& p, ScriptingApi::Content::ScriptPanel::MouseCursorInfo newInfo)
+{
+	MouseCursor cursor;
+
+	auto panel = p.getScriptComponent();
+	auto bp = p.getComponent();
+
+	if (p.setMouseCursorFromParentPanel(panel, cursor))
+	{
+		bp->setMouseCursor(cursor);
+	}
+}
+
 void ScriptCreatedComponentWrappers::PanelWrapper::animationChanged()
 {
 #if HISE_INCLUDE_RLOTTIE
@@ -1912,14 +1930,11 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 
 	bp->setEnableFileDrop(panel->fileDropLevel, panel->fileDropExtension);
 
-	MouseCursor cursor;
+	
 
-	if (setMouseCursorFromParentPanel(panel, cursor))
-	{
-		bp->setMouseCursor(cursor);
-	}
 
 	component = bp;
+
 
 #if HISE_INCLUDE_RLOTTIE
 	animationChanged();
@@ -1931,6 +1946,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 
 	panel->repaint();
 
+	panel->getCursorUpdater().addListener(*this, cursorChanged);
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::rebuildChildPanels()
