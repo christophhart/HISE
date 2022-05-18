@@ -179,6 +179,8 @@ int Base::getRealLineLength(const String& s)
 
 String Base::toString() const
 {
+    DBG("Saved using templates: " + String(numSavedTemplates));
+    
 	switch (t)
 	{
 	case OutputType::Uglify:       return const_cast<Base*>(this)->parseUglified();
@@ -564,6 +566,7 @@ Function::Function(Base& parent, const jit::FunctionData& f) :
 	parent.pushScope(copy.id.getIdentifier());
 }
 
+
 String UsingTemplate::toString() const
 {
 	String s;
@@ -579,7 +582,31 @@ String UsingTemplate::toString() const
 	s << scopedId.getIdentifier() << " ";
 	s << JitTokens::assign_ << " ";
 
-	s << toExpression();
+    auto e = toExpression();
+    
+    auto existingId = parent.pushDefinition(scopedId, e);
+    
+    if(existingId.isValid())
+    {
+        if(existingId.getParent() == scopedId.getParent())
+        {
+            s << existingId.getIdentifier().toString();
+        }
+        else
+            s << existingId.toString();
+        
+        appendTemplateParameters(s);
+        
+        if(s.length() < 80)
+            s = s.replaceCharacter('\n', ' ');
+        
+    }
+    else
+    {
+        s << e;
+    }
+    
+    
 	s << JitTokens::semicolon;
 
 	return s;
@@ -591,20 +618,9 @@ String UsingTemplate::toExpression() const
 	{
 		auto s = DefinitionBase::toExpression();
 
-		if (!templateArguments.isEmpty())
-		{
-			s << "<";
-
-			for (int i = 0; i < templateArguments.size(); i++)
-			{
-				s << templateArguments[i].argumentId.toString();
-
-				if(isPositiveAndBelow(i, templateArguments.size() - 1))
-					s << ", ";
-			}
-
-			s << ">";
-		}
+        appendTemplateParameters(s);
+        
+		
 		
 		return s;
 	}
@@ -649,6 +665,19 @@ String UsingTemplate::getUsingExpression() const
 	}
 
 	return s;
+}
+
+void UsingTemplate::flush()
+{
+    auto e = toExpression();
+
+    if (!e.isEmpty())
+    {
+        if(scopedId != parent.getCurrentScope())
+            parent << toString();
+    }
+
+    Op::flush();
 }
 
 StackVariable::StackVariable(Base& parent, const Identifier& id, const jit::TypeInfo& t) :
