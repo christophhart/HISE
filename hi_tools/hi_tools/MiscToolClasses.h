@@ -2753,6 +2753,16 @@ public:
 
 };
 
+/** A interface class for getting notified when the realtime mode changed (eg. at DAW export). */
+class NonRealtimeProcessor
+{
+public:
+
+	virtual ~NonRealtimeProcessor() {};
+
+	virtual void nonRealtimeModeChanged(bool isNonRealtime) = 0;
+};
+
 struct FFTHelpers
 {
     enum WindowType

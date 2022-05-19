@@ -144,11 +144,19 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_basics/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
 #include "dsp_basics/AllpassDelay.h"
 
+
 #include "dsp_basics/logic_classes.h"
 #include "dsp_basics/DelayLine.h"
 #include "dsp_basics/DelayLine.cpp"
 #include "dsp_basics/Oscillators.h"
 #include "dsp_basics/MultiChannelFilters.h"
+
+
+#include "fft_convolver/Utilities.h"
+#include "fft_convolver/AudioFFT.h"
+#include "fft_convolver/FFTConvolver.h"
+#include "fft_convolver/TwoStageFFTConvolver.h"
+#include "dsp_basics/ConvolutionBase.h"
 
 #include "node_api/helpers/Error.h"
 #include "node_api/helpers/node_ids.h"
@@ -180,6 +188,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 
 #include "dsp_nodes/CoreNodes.h"
 
+
 #include "dsp_nodes/CableNodeBaseClasses.h"
 #include "dsp_nodes/CableNodes.h"
 #include "dsp_nodes/RoutingNodes.h"
@@ -187,6 +196,8 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/DelayNode.h"
 #include "dsp_nodes/MathNodes.h"
 #include "dsp_nodes/FXNodes.h"
+
+#include "dsp_nodes/ConvolutionNode.h"
 #include "dsp_nodes/FilterNode.h"
 #include "dsp_nodes/EventNodes.h"
 #include "dsp_nodes/EnvelopeNodes.h"

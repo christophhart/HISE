@@ -49,28 +49,3 @@ namespace icstdsp
 
 #pragma warning (pop)
 
-#include "fft_convolver/Utilities.cpp"
-#include "fft_convolver/AudioFFT.cpp"
-#include "fft_convolver/FFTConvolver.cpp"
-#include "fft_convolver/TwoStageFFTConvolver.cpp"
-
-#if JUCE_MSVC
-#pragma warning (push)
-#pragma warning (disable: 4244 4127 4267)
-
-#endif
-
-
-#if HISE_IOS
-#else
-extern "C"
-{
-#include "kiss_fft/kiss_fft.c"
-#include "kiss_fft/kiss_fftr.c"
-}
-#endif
-
-#if JUCE_MSVC
-#pragma warning (pop)
-#endif
-

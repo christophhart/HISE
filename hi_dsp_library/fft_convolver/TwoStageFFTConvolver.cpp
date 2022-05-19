@@ -100,7 +100,7 @@ bool TwoStageFFTConvolver::init(size_t headBlockSize,
     return false;
   }
   
-  headBlockSize = std::max(size_t(1), headBlockSize);
+  headBlockSize = jmax(size_t(1), headBlockSize);
   if (headBlockSize > tailBlockSize)
   {
     assert(false);
@@ -121,12 +121,12 @@ bool TwoStageFFTConvolver::init(size_t headBlockSize,
   _headBlockSize = NextPowerOf2(headBlockSize);
   _tailBlockSize = NextPowerOf2(tailBlockSize);
 
-  const size_t headIrLen = std::min(irLen, _tailBlockSize);
+  const size_t headIrLen = jmin(irLen, _tailBlockSize);
   _headConvolver.init(_headBlockSize, ir, headIrLen);
 
   if (irLen > _tailBlockSize)
   {
-    const size_t conv1IrLen = std::min(irLen-_tailBlockSize, _tailBlockSize);
+    const size_t conv1IrLen = jmin(irLen-_tailBlockSize, _tailBlockSize);
     _tailConvolver0.init(_headBlockSize, ir+_tailBlockSize, conv1IrLen);
     _tailOutput0.resize(_tailBlockSize);
     _tailPrecalculated0.resize(_tailBlockSize);
@@ -164,7 +164,7 @@ void TwoStageFFTConvolver::process(const Sample* input, Sample* output, size_t l
     while (processed < len)
     {
       const size_t remaining = len - processed;
-      const size_t processing = std::min(remaining, _headBlockSize - (_tailInputFill % _headBlockSize));
+      const size_t processing = jmin(remaining, _headBlockSize - (_tailInputFill % _headBlockSize));
       assert(_tailInputFill + processing <= _tailBlockSize);
 
       // Sum head and tail

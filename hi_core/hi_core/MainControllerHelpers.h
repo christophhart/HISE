@@ -541,14 +541,7 @@ private:
 };
 
 
-class NonRealtimeProcessor
-{
-public:
 
-	virtual ~NonRealtimeProcessor() {};
-
-	virtual void nonRealtimeModeChanged(bool isNonRealtime) = 0;
-};
 
 } // namespace hise
 
