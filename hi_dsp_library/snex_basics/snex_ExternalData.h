@@ -954,6 +954,15 @@ template <int Index, ExternalData::DataType DType> struct plain : index_type_bas
 	}
 };
 
+template <typename T> class has_initialise
+{
+    typedef char one; struct two { char x[2]; };
+    template <typename C> static one test(decltype(&C::initialise));
+    template <typename C> static two test(...);
+public:
+    enum { value = sizeof(test<T>(0)) == sizeof(char) };
+};
+
 template <typename DataClass, ExternalData::DataType DType> struct embedded : public index_type_base<-1, DType>
 {
 private:
@@ -982,7 +991,7 @@ public:
 
 	void initialise(NodeBase* n) override
 	{
-		if constexpr (prototypes::check::initialise<DataClass>::value)
+		if constexpr (has_initialise<DataClass>::value)
 			obj.initialise(n);
 	}
 

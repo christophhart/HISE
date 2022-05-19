@@ -170,7 +170,7 @@ void FFTConvolver::process(const Sample* input, Sample* output, size_t len)
   while (processed < len)
   {
     const bool inputBufferWasEmpty = (_inputBufferFill == 0);
-    const size_t processing = jmin<size_t>(len-processed, _blockSize-_inputBufferFill);
+    const size_t processing = (size_t)jmin((int)len-(int)processed, (int)_blockSize-(int)_inputBufferFill);
     const size_t inputBufferPos = _inputBufferFill;
     ::memcpy(_inputBuffer.data()+inputBufferPos, input+processed, processing * sizeof(Sample));
 
