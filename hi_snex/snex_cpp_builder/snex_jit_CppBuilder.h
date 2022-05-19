@@ -176,12 +176,39 @@ public:
 		header = h;
 	}
 
+    struct ExistingDefinition
+    {
+        NamespacedIdentifier nid;
+        String value;
+    };
+    
+    NamespacedIdentifier pushDefinition(const NamespacedIdentifier& id, const String& value)
+    {
+        for(const auto& s: existingDefinitions)
+        {
+            if(s.nid.getParent() == id.getParent() && s.value == value)
+            {
+                numSavedTemplates++;
+                return s.nid;
+            }
+        }
+        
+        existingDefinitions.add({id, value});
+        return {};
+    }
+    
 protected:
 
+    
+    
 	StringArray lines;
 
 private:
 
+    mutable int numSavedTemplates = 0;
+    
+    Array<ExistingDefinition> existingDefinitions;
+    
 	Header header;
 
 	struct ParseState
@@ -870,19 +897,26 @@ struct UsingTemplate: public DefinitionBase,
 
 private:
 
-	void flush() override
-	{
-		auto e = toExpression();
+    void flush() override;
+	
+    void appendTemplateParameters(String& s) const
+    {
+        if (!templateArguments.isEmpty())
+        {
+            s << "<";
 
-		if (!e.isEmpty())
-		{
-			if(scopedId != parent.getCurrentScope())
-				parent << toString();
-		}
+            for (int i = 0; i < templateArguments.size(); i++)
+            {
+                s << templateArguments[i].argumentId.toString();
 
-		Op::flush();
-	}
+                if(isPositiveAndBelow(i, templateArguments.size() - 1))
+                    s << ", ";
+            }
 
+            s << ">";
+        }
+    }
+    
 	NamespacedIdentifier tId;
 	StringArray args;
 
