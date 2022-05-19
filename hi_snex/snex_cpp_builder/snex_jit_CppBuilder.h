@@ -361,6 +361,10 @@ struct Struct : public Op,
 {
 	Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>& baseClasses, const jit::TemplateParameter::List& tp);
 
+	Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier> baseClasses, const jit::TemplateParameter::List& tp, bool useIds);
+
+
+
 	~Struct()
 	{
 		flushIfNot();
@@ -374,6 +378,105 @@ private:
 		parent << "};";
 		Op::flush();
 	}
+};
+
+template <typename IntegerType, typename OriginalDataType> struct IntegerArray : public Op,
+				   public DefinitionBase
+{
+	IntegerArray(Base& parent, const Identifier& id, const OriginalDataType* originalData, int numOriginalElements) :
+		DefinitionBase(parent, id),
+		Op(parent)
+	{
+		static_assert(std::is_unsigned<IntegerType>(), "you need to use unsigned integer types");
+
+		auto ratio = (float)sizeof(OriginalDataType) / (float)sizeof(IntegerType);
+		auto leftOver = hmath::fmod((float)numOriginalElements, 1.0f / ratio);
+
+		if (leftOver != 0.0f)
+		{
+			// If the integer type has more bytes and we have some leftovers, we need
+			// zero pad once
+
+			auto numToAdd = (int)(numOriginalElements * ratio);
+
+			HeapBlock<OriginalDataType> paddedData;
+			paddedData.calloc(numOriginalElements + (int)leftOver);
+
+			memcpy(paddedData.getData(), originalData, numOriginalElements * sizeof(OriginalDataType));
+			
+			data.addArray(reinterpret_cast<const IntegerType*>(paddedData.getData()), numToAdd);
+		}
+		else
+		{
+			auto numToAdd = (int)(numOriginalElements * ratio);
+			data.addArray(reinterpret_cast<const IntegerType*>(originalData), numToAdd);
+		}
+	}
+
+	~IntegerArray()
+	{
+		flushIfNot();
+	}
+
+	static String getTypeName()
+	{
+		
+		if(sizeof(IntegerType) == 1) return "uint8";
+		if (sizeof(IntegerType) == 2) return "uint16";
+		if (sizeof(IntegerType) == 4) return "uint32";
+		if (sizeof(IntegerType) == 8) return "uint64";
+
+		jassertfalse;
+
+		return "int";
+	}
+
+	static constexpr int NumPerLine = 80;
+
+	static void writeToStream(OutputStream& output, IntegerType* dataToWrite, int numElements)
+	{
+		String line;
+
+		line.preallocateBytes(NumPerLine + 10);
+
+		for (int i = 0; i < numElements; i++)
+		{
+			if (line.length() > NumPerLine)
+			{
+				line << "\n";
+
+				output << line;
+				line = {};
+				line.preallocateBytes(NumPerLine + 10);
+			}
+
+			line << "0x" << String::toHexString(dataToWrite[i]).toUpperCase();
+
+			if (i != numElements - 1)
+				line << ",";
+		}
+	}
+
+	void flush() override
+	{
+		String def;
+
+		def << "span<" << getTypeName() << ", " << String(data.size()) << "> " << scopedId.getIdentifier() << " = ";
+
+		parent << def;
+		parent << "{";
+
+		MemoryOutputStream mos;
+		writeToStream(mos, data.begin(), data.size());
+		mos.flush();
+		parent << mos.toString();
+
+		parent << "};";
+
+		Op::flush();
+	}
+
+	Array<IntegerType> data;
 };
 
 struct FloatArray : public Op,

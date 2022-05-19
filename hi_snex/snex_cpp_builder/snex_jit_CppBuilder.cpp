@@ -541,6 +541,46 @@ Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>&
 	parent.pushScope(id);
 }
 
+Struct::Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier> baseClasses, const jit::TemplateParameter::List& tp, bool /*useIds*/) :
+	Op(parent),
+	DefinitionBase(parent, id)
+{
+	templateArguments.addArray(tp);
+	parent.addIfNotEmptyLine();
+
+	String def;
+
+	if (!tp.isEmpty())
+	{
+		def << JitTokens::template_ << Space << TemplateParameter::ListOps::toString(tp, true) << Space;
+	}
+
+	def << JitTokens::struct_ << Space << id;
+
+	if (!baseClasses.isEmpty())
+	{
+		def << JitTokens::colon;
+
+		auto useIntend = baseClasses.size() > 1;
+
+		for (auto bc : baseClasses)
+		{
+			def << Space;
+
+			if (useIntend)
+				def << AlignMarker;
+
+			def << JitTokens::public_ << Space << bc.toString() << ", \n";
+		}
+
+		def = def.upToLastOccurrenceOf(", \n", false, false);
+	}
+
+	parent << def;
+	parent << "{";
+	parent.pushScope(id);
+}
+
 Namespace::Namespace(Base& parent, const Identifier& id, bool isEmpty_) :
 	Op(parent),
 	isEmpty(isEmpty_)

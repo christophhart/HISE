@@ -2455,11 +2455,95 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 	auto sId = n->scopedId;
 	StringHelpers::addSuffix(sId, "_data");
 
-	Struct s(parent, sId.getIdentifier(), {}, {});
-	FloatArray(parent, "data", getEmbeddedData(n->nodeTree, t, 0));
-	s.flushIfNot();
+	if (t == ExternalData::DataType::AudioFile)
+	{
+		auto cTree = n->nodeTree.getChildWithName(PropertyIds::ComplexData);
+		auto dTree = cTree.getChildWithName(ExternalData::getDataTypeName(t, true));
+		auto sTree = dTree.getChild(0);
+		auto base64 = sTree[PropertyIds::EmbeddedData].toString();
 
-	ed << s.toExpression();
+		if (auto ref = parent.loadAudioFile(base64))
+		{
+			Array<NamespacedIdentifier> baseClasses;
+			baseClasses.add(NamespacedIdentifier::fromString("data::embedded::multichannel_data"));
+
+			Struct s(parent, sId.getIdentifier(), baseClasses, {}, true);
+
+			String l1, l2, l3;
+
+			auto embedDirectly = ref->buffer.getNumSamples() < 8000;
+
+			l1 << "int    getNumSamples()     const override { return " << ref->buffer.getNumSamples() << "; }";
+			l2 << "double getSamplerate()     const override { return " << Helpers::getCppValueString(ref->sampleRate) << "; }";
+			l3 << "int    getNumChannels()    const override { return " << ref->buffer.getNumChannels() << "; }";
+
+			parent.addComment("Metadata functions for embedded data", Base::CommentType::FillTo80Light);
+			parent << l1;
+			parent << l2;
+			parent << l3;
+
+
+
+			parent << "const float* getChannelData(int index) override";
+			
+			{
+				StatementBlock sb(parent, true);
+
+				for (int i = 0; i < ref->buffer.getNumChannels(); i++)
+				{
+					String l;
+
+					String variableName;
+
+					if (embedDirectly)
+						variableName << "data" << i << ".begin()";
+					else
+						variableName << "audiodata::" << sId.toString().replace("::", "_") << i;
+
+					l << "if(index == " << i << ") { return reinterpret_cast<const float*>(" << variableName << "); }";
+					parent << l;
+				}
+
+				parent << "jassertfalse;    return nullptr;";
+			}
+			
+
+			if (embedDirectly)
+			{
+				parent.addEmptyLine();
+				parent.addComment("Zero-padded 64bit encoded data:", Base::CommentType::FillTo80Light);
+
+				for (int i = 0; i < ref->buffer.getNumChannels(); i++)
+				{
+					parent.addEmptyLine();
+
+					if (embedDirectly)
+						IntegerArray<uint32, float>(parent, "data" + String(i), ref->buffer.getReadPointer(0), ref->buffer.getNumSamples());
+				}
+			}
+			else
+				parent.addExternalSample(sId.toString().replace("::", "_"), ref);
+
+			s.flushIfNot();
+
+			ed << s.toExpression();
+		}
+		else
+		{
+			Error e;
+			e.v = n->nodeTree;
+			e.errorMessage << "Error at embedding audio file: " << base64 << " not found";
+			throw e;
+		}
+	}
+	else
+	{
+		Struct s(parent, sId.getIdentifier(), {}, {});
+		FloatArray(parent, "data", getEmbeddedData(n->nodeTree, t, 0));
+		s.flushIfNot();
+
+		ed << s.toExpression();
+	}
 
 	parent.addEmptyLine();
 

@@ -905,6 +905,9 @@ void DspNetworkCompileExporter::run()
 
 	using namespace snex::cppgen;
 
+	ValueTreeBuilder::SampleList externalSamples;
+	
+
 	for (auto e : list)
 	{
 		if (auto xml = XmlDocument::parse(e))
@@ -934,10 +937,14 @@ void DspNetworkCompileExporter::run()
 			ValueTreeBuilder b(v, ValueTreeBuilder::Format::CppDynamicLibrary);
 
 			b.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));
+			b.addAudioFileProvider(new PooledAudioFileDataProvider(getMainController()));
 
 			auto f = sourceDir.getChildFile(id).withFileExtension(".h");
 
 			auto r = b.createCppCode();
+
+			externalSamples.addArray(b.getExternalSampleList());
+			
 
 			if (r.r.wasOk())
 				f.replaceWithText(r.code);
@@ -954,6 +961,35 @@ void DspNetworkCompileExporter::run()
 
 			includedFiles.add(f);
 		}
+	}
+
+	if (!externalSamples.isEmpty())
+	{
+		auto eadFile = getSourceDirectory(true).getChildFile("embedded_audiodata.h");
+		eadFile.deleteFile();
+
+		FileOutputStream fos(eadFile);
+
+		fos << "// Embedded audiodata" << "\n";
+
+		fos << "namespace audiodata {\n";
+
+		for (const auto& es : externalSamples)
+		{
+			auto& bf = es.data->buffer;
+
+			for (int i = 0; i < bf.getNumChannels(); i++)
+			{
+				fos << "static const uint32 " << es.className << i << "[] = { \n";
+				cppgen::IntegerArray<uint32, float>::writeToStream(fos, reinterpret_cast<uint32*>(bf.getWritePointer(i)), bf.getNumSamples());
+				fos << "};\n";
+			}
+		}
+
+		fos << "}\n";
+		fos.flush();
+
+		eadFile.copyFileTo(getSourceDirectory(false).getChildFile("embedded_audiodata.h"));
 	}
 
 	for (auto u : unsortedListU)

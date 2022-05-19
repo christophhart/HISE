@@ -604,7 +604,44 @@ struct ValueTreeBuilder: public Base
 
 	static Result cleanValueTreeIds(ValueTree& vToClean);
 
+	void addAudioFileProvider(hise::MultiChannelAudioBuffer::DataProvider* p)
+	{
+		audioFileProviders.add(p);
+	}
+
+	hise::MultiChannelAudioBuffer::SampleReference::Ptr loadAudioFile(const String& ref)
+	{
+		for (auto sr : audioFileProviders)
+		{
+			auto p = sr->loadFile(ref);
+
+			if (p != nullptr && p->r.wasOk())
+				return p;
+		}
+
+		return nullptr;
+	}
+
+	struct ExternalSample
+	{
+		String className;
+		hise::MultiChannelAudioBuffer::SampleReference::Ptr data;
+	};
+
+	void addExternalSample(const String& id, hise::MultiChannelAudioBuffer::SampleReference::Ptr s)
+	{
+		externalReferences.add({ id, s });
+	}
+
+	using SampleList = Array<ExternalSample>;
+
+	SampleList getExternalSampleList() const { return externalReferences; };
+
 private:
+
+	SampleList externalReferences;
+
+	ReferenceCountedArray<hise::MultiChannelAudioBuffer::DataProvider> audioFileProviders;
 
 	ScopedPointer<CodeProvider> codeProvider;
 
