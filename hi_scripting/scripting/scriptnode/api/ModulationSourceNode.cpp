@@ -310,7 +310,67 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 {
 	auto d = getValueTree();
 
-	d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+	auto pTree = d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+
+	int numParameters = pData.size();
+
+	if (pTree.getNumChildren() != 0)
+	{
+		for (int i = 0; i < numParameters; i++)
+		{
+			auto idInTree = pTree.getChild(i)[PropertyIds::ID].toString();
+			auto idInList = pData[i].info.getId();
+
+			if (idInTree != idInList)
+			{
+				auto faultyId = d[PropertyIds::ID].toString();
+
+				std::vector<String> treeList;
+				std::vector<String> parameterList;
+
+				for (auto c : pTree)
+					treeList.push_back(c[PropertyIds::ID].toString());
+
+				for (auto c : pData)
+					parameterList.push_back(c.info.getId());
+
+				String errorMessage;
+
+				errorMessage << "Error when loading " << faultyId << ": Wrong parameter list in XML data:  \n";
+
+				errorMessage << "> ";
+
+				for (auto& c : treeList)
+					errorMessage << "`" << c << "`, ";
+
+				errorMessage << "  \nExpected parameter list:  \n> ";
+
+				for (auto& p : parameterList)
+					errorMessage << "`" << p << "`, ";
+
+#if USE_BACKEND 
+
+				if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+				{
+					PresetHandler::showMessageWindow("Error", errorMessage, PresetHandler::IconType::Error);
+				}
+				else
+				{
+					// Don't want to interupt the loading on another thread
+					jassertfalse;
+				}
+#else
+				// There's a mismatch between parameters in the value tree
+				// and the list
+				jassertfalse;
+#endif
+
+				getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::InitialisationError, errorMessage);
+
+				
+			}
+		}
+	}
 
 	for (auto p : pData)
 	{

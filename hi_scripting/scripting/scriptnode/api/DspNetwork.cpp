@@ -796,6 +796,18 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 	{
 		auto n = createFromValueTree(createPolyIfAvailable, c, forceCreate);
 
+		if (n == nullptr)
+		{
+			String errorMessage;
+			errorMessage << "Error at node `" << id << "`:  \n> ";
+			errorMessage << "Can't create node with factory path `" << d[PropertyIds::FactoryPath].toString() << "`";
+
+			if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+			{
+				PresetHandler::showMessageWindow("Error", errorMessage, PresetHandler::IconType::Error);
+			}
+		}
+
 		if (currentNodeHolder != nullptr)
 		{
 			currentNodeHolder->nodes.addIfNotAlreadyThere(n);

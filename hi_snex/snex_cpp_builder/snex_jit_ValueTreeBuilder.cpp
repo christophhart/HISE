@@ -1134,6 +1134,8 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 						if (c == t)
 							return true;
+
+						return false;
 					});
 
 					ScopedChannelSetter svs(*this, numChannelsToUse);
