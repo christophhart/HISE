@@ -1339,6 +1339,42 @@ juce::File FrontendHandler::getAppDataDirectory()
 	return f;
 }
 
+juce::ValueTree FrontendHandler::getEmbeddedNetwork(const String& id)
+{
+	for (auto n : networks)
+	{
+		if (n["ID"].toString() == id)
+			return n;
+	}
+
+#if USE_FRONTEND
+	if (ScopedPointer<scriptnode::dll::FactoryBase> f = FrontendHostFactory::createStaticFactory())
+	{
+		// We need to look in the compiled networks and return a dummy ValueTree
+		int numNodes = f->getNumNodes();
+
+		for (int i = 0; i < numNodes; i++)
+		{
+			if (f->getId(i) == id)
+			{
+				ValueTree v(PropertyIds::Network);
+				v.setProperty(PropertyIds::ID, id, nullptr);
+
+				ValueTree r(PropertyIds::Node);
+				r.setProperty(PropertyIds::FactoryPath, "container.chain", nullptr);
+				r.setProperty(PropertyIds::ID, id, nullptr);
+				v.addChild(r, -1, nullptr);
+
+				return v;
+			}
+		}
+	}
+#endif
+
+	jassertfalse;
+	return {};
+}
+
 void FrontendHandler::loadSamplesAfterSetup()
 {
 	if (shouldLoadSamplesAfterSetup())

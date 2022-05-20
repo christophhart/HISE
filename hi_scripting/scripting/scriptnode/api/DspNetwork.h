@@ -1065,14 +1065,18 @@ private:
 
 		void prepare(PrepareSpecs ps)
 		{
-			dll->clearError();
+			if(dll != nullptr)
+				dll->clearError();
 
 			n.prepare(ps);
 
-			auto e = dll->getError();
+			if (dll != nullptr)
+			{
+				auto e = dll->getError();
 
-			if (!e.isOk())
-				throw e;
+				if (!e.isOk())
+					throw e;
+			}
 
 			n.reset();
 		}
@@ -1109,6 +1113,8 @@ private:
 					nh->setParameter(i, oh->getParameter(i));
 			}
 		}
+
+		void init(dll::StaticLibraryHostFactory* staticLibrary);
 
 		void init(dll::ProjectDll::Ptr dllToUse);
 

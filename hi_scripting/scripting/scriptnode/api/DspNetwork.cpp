@@ -117,7 +117,18 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
-		ownedFactories.add(new hise::FrontendHostFactory(this));
+		auto nf = new hise::FrontendHostFactory(this);
+
+		ownedFactories.add(nf);
+
+		String selfId = "project." + getId();
+
+		if (nf->getModuleList().contains(selfId))
+		{
+			// This network is supposed to be frozen
+			projectNodeHolder.init(nf->staticFactory.get());
+			projectNodeHolder.setEnabled(true);
+		}
 	}
 #endif
 
@@ -1594,6 +1605,20 @@ void DspNetwork::ProjectNodeHolder::init(dll::ProjectDll::Ptr dllToUse)
 		}
 	}
 #endif
+}
+
+void DspNetwork::ProjectNodeHolder::init(dll::StaticLibraryHostFactory* staticLibrary)
+{
+	int numNodes = staticLibrary->getNumNodes();
+
+	for (int i = 0; i < numNodes; i++)
+	{
+		if (network.getId() == staticLibrary->getId(i))
+		{
+			staticLibrary->initOpaqueNode(&n, i, network.isPolyphonic());
+			loaded = true;
+		}
+	}
 }
 
 int HostHelpers::getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t)
