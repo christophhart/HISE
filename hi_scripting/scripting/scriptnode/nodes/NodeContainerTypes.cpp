@@ -398,6 +398,33 @@ void FixedBlockNode<B>::process(ProcessDataDyn& d)
 	}
 }
 
+
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if (data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
+}
+
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::processStereoFrame(StereoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::processMonoFrame(MonoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+
 template <int B>
 void FixedBlockNode<B>::setBypassed(bool shouldBeBypassed)
 {
@@ -419,8 +446,6 @@ void FixedBlockNode<B>::setBypassed(bool shouldBeBypassed)
 template <int B>
 void FixedBlockNode<B>::prepare(PrepareSpecs ps)
 {
-	DspHelpers::setErrorIfFrameProcessing(ps);
-
 	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
@@ -1200,6 +1225,12 @@ void FixedBlockXNode::process(ProcessDataDyn& data)
 	NodeProfiler np(this, getBlockSizeForChildNodes());
 	ProcessDataPeakChecker pd(this, data);
 	obj.process(data);
+}
+
+void FixedBlockXNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
 }
 
 void FixedBlockXNode::prepare(PrepareSpecs ps)

@@ -78,7 +78,7 @@ template <int ChannelAmount> struct frame
 {
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
-		auto ps_ = ps.withNumChannelsT<ChannelAmount>().withBlockSize(1);
+		auto ps_ = ps.withNumChannelsT<ChannelAmount>().withBlockSize(1, true);
 		f(obj, &ps_);
 	}
 };
@@ -89,7 +89,7 @@ template <int BlockSize> struct fix_block
 
 	static void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 	{
-		auto ps_ = ps.withBlockSizeT<BlockSize>();
+		auto ps_ = ps.withBlockSizeT<BlockSize>(true);
 		f(obj, &ps_);
 	}
 
@@ -958,8 +958,7 @@ template <class T, typename FixBlockClass> struct fix_blockx
 
 	template <typename FrameDataType> void processFrame(FrameDataType& t)
 	{
-		// should never happen...
-		jassertfalse;
+		obj.processFrame(t);
 	}
 
 	T obj;

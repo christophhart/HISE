@@ -1138,7 +1138,7 @@ struct OpaqueNetworkHolder
 	bool isPolyphonic() const { return false; }
 
 	SN_EMPTY_INITIALISE;
-	SN_EMPTY_PROCESS_FRAME;
+	
 
 	OpaqueNetworkHolder()
 	{
@@ -1168,6 +1168,20 @@ struct OpaqueNetworkHolder
 	void reset()
 	{
 		ownedNetwork->reset();
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		// this might be the most inefficient code ever but we need
+		// to allow frame based processing of wrapped networks
+		float* channels[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < d.size(); i++)
+			channels[i] = d.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, d.size());
+
+		ownedNetwork->process(pd);
 	}
 
 	void prepare(PrepareSpecs ps)
