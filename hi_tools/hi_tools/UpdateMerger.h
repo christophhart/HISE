@@ -449,8 +449,6 @@ public:
 
 		currentValue = a0 * newValue - b0 * prevValue;
 
-		FloatSanitizers::sanitizeFloatNumber(currentValue);
-
 		jassert(currentValue >= -1100.0f);
 		jassert(currentValue <= 1100.0f);
 
