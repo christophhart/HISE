@@ -418,8 +418,7 @@ juce::Result CoreNodeLibrary::registerTypes()
 
 juce::Result FxNodeLibrary::registerTypes()
 {
-	LibraryNode<fx::reverb>(c, numChannels, getFactoryId());
-	LibraryNode<fx::phase_delay>(c, numChannels, getFactoryId());
+	
 
 	return Result::ok();
 }
