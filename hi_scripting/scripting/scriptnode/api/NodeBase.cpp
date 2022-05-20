@@ -663,11 +663,12 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 {
 	auto weakThis = WeakReference<Parameter>(this);
 
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(addConnectionFrom);
 	ADD_API_METHOD_1(setValueAsync);
 	ADD_API_METHOD_1(setValueSync);
-    ADD_API_METHOD_2(setRangeProperty);
+  ADD_API_METHOD_2(setRangeProperty);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
 
