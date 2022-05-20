@@ -70,8 +70,6 @@ void ChainNode::processFrame(NodeBase::FrameType& data)
 		processMonoFrame(MonoFrameType::as(data.begin()));
 	if(data.size() == 2)
 		processStereoFrame(StereoFrameType::as(data.begin()));
-
-	wrapper.processFrame(data);
 }
 
 void ChainNode::processMonoFrame(MonoFrameType& data)
