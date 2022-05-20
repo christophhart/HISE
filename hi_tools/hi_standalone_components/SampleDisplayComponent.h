@@ -1037,7 +1037,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		
 		auto mag = r->buffer.getMagnitude(0, r->buffer.getNumSamples());
 
-
+		jassert(mag < 1.0f);
 
 		originalBuffer.makeCopyOf(r->buffer);
 

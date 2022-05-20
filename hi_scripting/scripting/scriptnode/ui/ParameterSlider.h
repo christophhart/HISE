@@ -234,6 +234,10 @@ struct ParameterSlider : public Slider,
 
 	bool isControllingFrozenNode() const;
 
+	void repaintParentGraph();
+
+
+
 	int macroHoverIndex = -1;
 	double lastModValue = 0.0f;
 	bool modulationActive = false;

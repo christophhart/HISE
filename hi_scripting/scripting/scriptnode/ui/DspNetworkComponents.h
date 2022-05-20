@@ -756,6 +756,8 @@ public:
 
         static bool eject(DspNetworkGraph& g);
 
+		static bool showParameterPopup(DspNetworkGraph& g);
+
         static bool toggleSignalDisplay(DspNetworkGraph& g);
         
 		static bool copyToClipboard(DspNetworkGraph& g);

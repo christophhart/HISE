@@ -942,8 +942,7 @@ void ParameterSlider::checkEnabledState()
 	else
 		stop();
 
-	if (auto g = findParentComponentOfClass<DspNetworkGraph>())
-		g->repaint();
+	repaintParentGraph();
 }
 
 void ParameterSlider::updateRange(Identifier, var)
@@ -1190,20 +1189,23 @@ void ParameterSlider::mouseDown(const MouseEvent& e)
 
 		pe->setName("Edit Parameter");
 
-		auto g = findParentComponentOfClass<ZoomableViewport>();
-		auto b = g->getLocalArea(this, getLocalBounds());
+		if (auto g = findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto b = g->getLocalArea(this, getLocalBounds());
 
-		g->setCurrentModalWindow(pe, b);
+			g->setCurrentModalWindow(pe, b);
+		}
 	}
 	else
 	{
-		auto dp = findParentComponentOfClass<DspNetworkGraph>();
-
-		if (dp->probeSelectionEnabled && isEnabled())
+		if (auto dp = findParentComponentOfClass<DspNetworkGraph>())
 		{
-			parameterToControl->isProbed = !parameterToControl->isProbed;
-			dp->repaint();
-			return;
+			if (dp->probeSelectionEnabled && isEnabled())
+			{
+				parameterToControl->isProbed = !parameterToControl->isProbed;
+				dp->repaint();
+				return;
+			}
 		}
 
 		Slider::mouseDown(e);
@@ -1222,7 +1224,7 @@ void ParameterSlider::mouseEnter(const MouseEvent& e)
     
 	if (!isEnabled())
 	{
-		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+		repaintParentGraph();
 	}
 
 	if (e.mods.isAltDown())
@@ -1257,7 +1259,7 @@ void ParameterSlider::mouseExit(const MouseEvent& e)
     
 	if (!isEnabled())
 	{
-		findParentComponentOfClass<DspNetworkGraph>()->repaint();
+		repaintParentGraph();
 	}
 
 	Slider::mouseExit(e);
@@ -1390,6 +1392,12 @@ bool ParameterSlider::isControllingFrozenNode() const
 	return false;
 }
 
+void ParameterSlider::repaintParentGraph()
+{
+	if (auto dp = findParentComponentOfClass<DspNetworkGraph>())
+		dp->repaint();
+}
+
 ParameterKnobLookAndFeel::ParameterKnobLookAndFeel()
 {
 	//cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
@@ -1434,6 +1442,10 @@ juce::Label* ParameterKnobLookAndFeel::createSliderTextBox(Slider& slider)
 void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int width, int height, float , float , float , Slider& s)
 {
 	auto ps = dynamic_cast<ParameterSlider*>(&s);
+
+	if (ps->parameterToControl == nullptr)
+		return;
+
     auto modValue = ps->getValueToDisplay();
     const double normalisedModValue = (modValue - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
 	float modProportion = jlimit<float>(0.0f, 1.0f, pow((float)normalisedModValue, (float)s.getSkewFactor()));
@@ -1483,24 +1495,24 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& )
 
 			container->startDragging(details, &slider, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
 
-			findParentComponentOfClass<DspNetworkGraph>()->repaint();
+			slider.repaintParentGraph();
 		}
 	}
 }
 
 void MacroParameterSlider::mouseUp(const MouseEvent& e)
 {
-	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	slider.repaintParentGraph();
 }
 
 void MacroParameterSlider::mouseEnter(const MouseEvent& e)
 {
-	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	slider.repaintParentGraph();
 }
 
 void MacroParameterSlider::mouseExit(const MouseEvent& e)
 {
-	findParentComponentOfClass<DspNetworkGraph>()->repaint();
+	slider.repaintParentGraph();
 }
 
 WeakReference<NodeBase::Parameter> MacroParameterSlider::getParameter()
@@ -1617,14 +1629,16 @@ void ParameterSlider::showRangeComponent(bool temporary)
 {
 	if (temporary)
 	{
-		auto dng = findParentComponentOfClass<DspNetworkGraph>();
-		Array<RangeComponent*> list;
-		DspNetworkGraph::fillChildComponentList<RangeComponent>(list, dng);
-		
-		for (auto c : list)
+		if (auto dng = findParentComponentOfClass<DspNetworkGraph>())
 		{
-			if(c->temporary)
-				c->close(100);
+			Array<RangeComponent*> list;
+			DspNetworkGraph::fillChildComponentList<RangeComponent>(list, dng);
+
+			for (auto c : list)
+			{
+				if (c->temporary)
+					c->close(100);
+			}
 		}
 	}
 

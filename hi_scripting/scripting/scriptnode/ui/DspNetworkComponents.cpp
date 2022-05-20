@@ -223,6 +223,7 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
 	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
+	LOAD_PATH_IF_URL("parameters", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
     LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
     LOAD_PATH_IF_URL("export", SampleMapIcons::monolith);
@@ -2124,6 +2125,116 @@ bool DspNetworkGraph::Actions::eject(DspNetworkGraph& g)
 	return true;
 }
 
+struct ParameterPopup: public Component,
+					   public PooledUIUpdater::SimpleTimer
+{
+	ParameterPopup(DspNetwork* n) :
+		SimpleTimer(n->getMainController()->getGlobalUIUpdater()),
+		network(n)
+	{
+		
+		setName(n->getId() + " Parameters");
+
+		rebuild({ }, true);
+		
+		updater.setCallback(n->getRootNode()->getParameterTree(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(ParameterPopup::rebuild));
+
+		start();
+	};
+
+	void timerCallback() override
+	{
+		if (network == nullptr)
+		{
+			sliders.clear();
+			stop();
+			repaint();
+			return;
+		}
+
+
+		for(auto s: sliders)
+			s->repaint();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().reduced(0, UIValues::NodeMargin);
+
+		for (auto s : sliders)
+			s->setBounds(b.removeFromLeft(128));
+
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (sliders.isEmpty())
+		{
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawText("No parameters available", getLocalBounds().toFloat(), Justification::centred);
+		}
+	}
+
+	void rebuild(ValueTree, bool)
+	{
+		sliders.clear();
+
+		if (network == nullptr)
+			return;
+
+		for (int i = 0; i < network->getRootNode()->getNumParameters(); i++)
+		{
+			addSlider(i);
+		}
+
+		setSize(128 * jmax(2, sliders.size()), UIValues::ParameterHeight + 1 * UIValues::NodeMargin);
+		resized();
+	}
+
+	void addSlider(int index)
+	{
+		auto ps = new ParameterSlider(network->getRootNode(), index);
+		sliders.add(ps);
+		addAndMakeVisible(ps);
+	}
+
+	OwnedArray<ParameterSlider> sliders;
+
+	WeakReference<DspNetwork> network;
+	valuetree::ChildListener updater;
+};
+
+bool DspNetworkGraph::Actions::showParameterPopup(DspNetworkGraph& g)
+{
+	auto s = new ParameterPopup(g.network.get());
+
+	auto ft = g.findParentComponentOfClass<FloatingTile>();
+
+	auto wb = g.findParentComponentOfClass<WrapperWithMenuBar>();
+
+	Component* b = nullptr;
+
+	Component::callRecursive<ActionButton>(wb, [&b](ActionButton* p)
+	{
+		if (p->getName() == "parameters")
+		{
+			b = p;
+			return true;
+		}
+
+		return false;
+	});
+
+	if (b == nullptr)
+		b = &g;
+
+	ft->showComponentInRootPopup(s, b, {12, 24});
+
+	return true;
+}
+
 bool DspNetworkGraph::Actions::undo(DspNetworkGraph& g)
 {
 	if (auto um = g.network->getUndoManager())
@@ -2513,6 +2624,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 	addButton("cable");
 	addButton("probe");
     addButton("signal");
+	addButton("parameters");
 	addSpacer(10);
 	addButton("wrap");
 	addButton("colour");
@@ -2558,6 +2670,11 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
         b->actionFunction = Actions::exportAsSnippet;
         b->setTooltip("Export the node and all references SNEX files as snippet");
     }
+	if (name == "parameters")
+	{
+		b->actionFunction = Actions::showParameterPopup;
+		b->setTooltip("Show all parameters in a popup");
+	}
     
     if(name == "eject")
     {
