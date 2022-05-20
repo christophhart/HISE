@@ -792,6 +792,8 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 #pragma clang diagnostic pop
 
+
+
 /** A wrapper node that will render its child node to a external data object. */
 template <class T> class offline : public scriptnode::data::base
 {
@@ -891,6 +893,27 @@ private:
 	T obj;
 };
 #endif
+
+template <class T> struct no_process
+{
+	SN_OPAQUE_WRAPPER(no_process, T);
+
+	SN_DEFAULT_RESET(T);
+	SN_EMPTY_MOD;
+	SN_DEFAULT_INIT(T);
+	SN_EMPTY_PROCESS;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_DEFAULT_PREPARE(T);
+	SN_EMPTY_HANDLE_EVENT;
+
+	template <int P> void setParameter(double v)
+	{
+		this->obj.template setParameter<P>(v);
+	}
+	SN_FORWARD_PARAMETER_TO_MEMBER(no_process)
+
+	T obj;
+};
 
 template <class T> struct no_midi
 {

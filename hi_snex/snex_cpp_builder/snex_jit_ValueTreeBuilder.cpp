@@ -452,6 +452,14 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 		newNode->addTemplateIntegerArgument("NV", true);
 	}
 
+	auto isBypassed = (bool)newNode->nodeTree[PropertyIds::Bypassed];
+	auto isContainer = FactoryIds::isContainer(getNodePath(n));
+
+	if (isBypassed && !isContainer)
+	{
+		newNode = wrapNode(newNode, NamespacedIdentifier::fromString("wrap::no_process"));
+	}
+
 	return parseRoutingNode(newNode);
 }
 
@@ -511,7 +519,6 @@ Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
 		}
 
 		*u << nc->toExpression();
-
 	}
 
 	return parseOptionalSnexNode(u);
@@ -586,6 +593,8 @@ Node::Ptr ValueTreeBuilder::parseSnexNode(Node::Ptr u)
 	return parseMod(s.parse());
 }
 
+
+
 Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 {
     jassert(u->nodeTree.isValid());
@@ -597,21 +606,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 	if (FactoryIds::isContainer(getNodePath(u->nodeTree)))
 	{
-		
+		auto numToUse = ValueTreeIterator::calculateChannelCount(u->nodeTree, numChannelsToCompile);
 
-        int numToUse = numChannelsToCompile;
-        
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
-        if(realPath.startsWith("multi"))
-        {
-            int numChildren = u->nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
-            numToUse /= jmax(1, numChildren);
-        }
-
-		if (realPath.startsWith("modchain"))
-			numToUse = 1;
-		
         ScopedChannelSetter sns(*this, numToUse);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
@@ -630,11 +628,13 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		if (needsInitialisation)
 			return parseRootContainer(u);
 
+		auto useSpecialWrapper = !(bool)u->nodeTree[PropertyIds::Bypassed];
+
 		if (realPath.startsWith("modchain"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::control_rate"));
 		}
-		if (realPath.startsWith("frame"))
+		if (useSpecialWrapper && realPath.startsWith("frame"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::frame"), numChannelsToCompile);
 		}
@@ -642,7 +642,7 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("bypass::smoothed"));
 		}
-		if (realPath.startsWith("midi"))
+		if (useSpecialWrapper && realPath.startsWith("midi"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::event"));
 		}
@@ -650,12 +650,12 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::no_midi"));
 		}
-		if (realPath.startsWith("fix"))
+		if (useSpecialWrapper && realPath.startsWith("fix"))
 		{
 			auto bs = realPath.fromFirstOccurrenceOf("fix", false, false).getIntValue();
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::fix_block"), bs);
 		}
-		if (realPath.startsWith("oversample"))
+		if (useSpecialWrapper && realPath.startsWith("oversample"))
 		{
 			auto os = realPath.fromFirstOccurrenceOf("oversample", false, false).getIntValue();
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::oversample"), os);
@@ -795,7 +795,12 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 	{
 		UsingTemplate u(*this, "empty", NamespacedIdentifier::fromString("core::empty"));
 
-		*container << u;
+		auto wf = createNode(container->nodeTree, {}, "wrap::fix");
+
+		*wf << numChannelsToCompile;
+		*wf << u;
+
+		*container << *wf;
 	}
 		
 	for (auto& c : children)
@@ -1116,7 +1121,24 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 					rc.index = pTree.indexOf(c);
 
 				if (getNode(t, true) == nullptr)
+				{
+					// We need to calculate the channel amount from scratch
+					// because we're not in the right container
+					auto root = ValueTreeIterator::getRoot(t);
+					auto numChannelsToUse = rootChannelAmount;
+
+					ValueTreeIterator::forEach(root, ValueTreeIterator::Forward, [&](ValueTree& c)
+					{
+						if (FactoryIds::isContainer(getNodePath(c)))
+							numChannelsToUse = ValueTreeIterator::calculateChannelCount(c, numChannelsToUse);
+
+						if (c == t)
+							return true;
+					});
+
+					ScopedChannelSetter svs(*this, numChannelsToUse);
 					pooledTypeDefinitions.add(parseNode(t));
+				}
 
 				return true;
 			}
@@ -1706,6 +1728,22 @@ juce::ValueTree ValueTreeIterator::getTargetParameterTree(const ValueTree& conne
 	});
 
 	return ptr;
+}
+
+int ValueTreeIterator::calculateChannelCount(const ValueTree& nodeTree, int numCurrentChannels)
+{
+	auto realPath = nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
+
+	if (realPath.startsWith("multi"))
+	{
+		int numChildren = nodeTree.getChildWithName(PropertyIds::Nodes).getNumChildren();
+		numCurrentChannels /= jmax(1, numChildren);
+	}
+
+	if (realPath.startsWith("modchain"))
+		numCurrentChannels = 1;
+
+	return numCurrentChannels;
 }
 
 bool ValueTreeIterator::hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId)
@@ -2471,7 +2509,7 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseEmbeddedDataNode(ExternalDa
 
 			String l1, l2, l3;
 
-			auto embedDirectly = ref->buffer.getNumSamples() < 8000;
+			auto embedDirectly = false;// ref->buffer.getNumSamples() < 8000;
 
 			l1 << "int    getNumSamples()     const override { return " << ref->buffer.getNumSamples() << "; }";
 			l2 << "double getSamplerate()     const override { return " << Helpers::getCppValueString(ref->sampleRate) << "; }";

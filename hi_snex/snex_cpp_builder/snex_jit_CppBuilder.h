@@ -482,6 +482,9 @@ template <typename IntegerType, typename OriginalDataType> struct IntegerArray :
 			if (i != numElements - 1)
 				line << ",";
 		}
+
+		if(!line.isEmpty())
+			output << line;
 	}
 
 	void flush() override

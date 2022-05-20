@@ -121,6 +121,8 @@ struct ValueTreeIterator
 
 	static ValueTree getTargetParameterTree(const ValueTree& connectionTree);
 
+	static int calculateChannelCount(const ValueTree& nodeTree, int numCurrentChannels);
+
 	static bool hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId);
 
 	static bool isPolyphonicOrHasPolyphonicTemplate(const ValueTree& v)
@@ -566,12 +568,23 @@ struct ValueTreeBuilder: public Base
 		numFormatGlueCodes
 	};
 
+	static int getRootChannelAmount(const ValueTree& v)
+	{
+		auto c = (int)v.getParent()[PropertyIds::CompileChannelAmount];
+
+		if (c == 0)
+			return 2;
+
+		return c;
+	}
+
 	ValueTreeBuilder(const ValueTree& data, Format outputFormatToUse) :
 		Base(Base::OutputType::AddTabs),
 		v(data),
 		outputFormat(Format::CppDynamicLibrary),
 		r(Result::ok()),
-        numChannelsToCompile((int)v.getParent()[PropertyIds::CompileChannelAmount])
+		rootChannelAmount(getRootChannelAmount(v)),
+        numChannelsToCompile(rootChannelAmount)
 	{
 		if (numChannelsToCompile == 0)
 			numChannelsToCompile = 2;
@@ -889,7 +902,9 @@ private:
 	NamespacedIdentifier getNodeVariable(const ValueTree& n);
 
 	ValueTree v;
+	const int rootChannelAmount;
     int numChannelsToCompile;
+	
 };
 
 
