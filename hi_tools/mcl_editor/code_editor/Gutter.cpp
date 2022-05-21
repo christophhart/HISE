@@ -355,9 +355,7 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 
 					auto calloutBounds = getRowBounds(hoveredData).toNearestInt();
 					calloutBounds.setWidth(calloutBounds.getHeight());
-					auto screenBounds = getScreenBounds();
-					calloutBounds = calloutBounds.translated(screenBounds.getX(), screenBounds.getY());
-
+					
 					if (r == 1)
 					{
 						bp->enabled.setValue(!bp->enabled.getValue());
@@ -474,12 +472,14 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 							juce::ToggleButton breakButton;
 							juce::ToggleButton blinkButton;
 						};
-
-						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Popup>(new Popup(bp)), calloutBounds, nullptr);
+                        
+                        
+                        auto root = getTopLevelComponent();
+						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(new Popup(bp)), root->getLocalArea(this, calloutBounds), root);
 
 						cb.setColour(LookAndFeel_V4::ColourScheme::UIColour::widgetBackground, Colours::white);
 
-						cb.grabKeyboardFocus();
+						//cb.grabKeyboardFocus();
 						return;
 					}
 					else if (r == 3)
@@ -506,7 +506,9 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 						t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
 						t->setText(line, dontSendNotification);
 						t->setReadOnly(true);
-						CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), calloutBounds, nullptr);
+                        
+                        auto root = getTopLevelComponent();
+                        CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), root->getLocalArea(this, calloutBounds), root);
 					}
 				}
 				else
