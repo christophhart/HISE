@@ -269,6 +269,7 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 
 		P(HiseSettings::Project::OSXStaticLibs);
 		D("If you need to link a static library on macOS, supply the path to the .a library file here.");
+        D("> This can also be used to set additional linker flags for additional frameworks (eg. iLok).");
 		P_();
 
 		P(HiseSettings::Project::ExtraDefinitionsWindows);
