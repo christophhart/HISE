@@ -69,6 +69,14 @@
 #include "dsp_basics/Oscillators.cpp"
 #include "dsp_basics/MultiChannelFilters.cpp"
 
+#include "fft_convolver/Utilities.cpp"
+#include "fft_convolver/AudioFFT.cpp"
+#include "fft_convolver/FFTConvolver.cpp"
+#include "fft_convolver/TwoStageFFTConvolver.cpp"
+
+
+#include "dsp_basics/ConvolutionBase.cpp"
+
 #include "unit_test/wrapper_tests.cpp"
 #include "unit_test/node_tests.cpp"
 #include "unit_test/container_tests.cpp"

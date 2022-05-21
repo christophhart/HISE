@@ -2015,7 +2015,14 @@ String CompileExporter::ProjectTemplateHelpers::getTargetFamilyString(BuildOptio
 
 juce::String CompileExporter::ProjectTemplateHelpers::getPluginChannelAmount(ModulatorSynthChain* chain)
 {
-	return "HISE_NUM_PLUGIN_CHANNELS=" + String(chain->getMatrix().getNumSourceChannels());
+    auto& dataObject = dynamic_cast<BackendProcessor*>(chain->getMainController())->getSettingsObject();
+    
+    int numChannels = chain->getMatrix().getNumSourceChannels();
+    
+    if(IS_SETTING_TRUE(HiseSettings::Project::ForceStereoOutput))
+        numChannels = 2;
+    
+	return "HISE_NUM_PLUGIN_CHANNELS=" + String(numChannels);
 }
 
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles()

@@ -1,5 +1,5 @@
 
-
+#if 0
 #include "hi_modules.h"
 #include "nodes/examples/hello_world.h"
 //#include "nodes/examples/property_demo.h"
@@ -36,3 +36,4 @@ Factory::Factory(DspNetwork* network) :
 
 }
 
+#endif

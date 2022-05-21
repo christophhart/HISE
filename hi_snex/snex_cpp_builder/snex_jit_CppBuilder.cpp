@@ -179,6 +179,8 @@ int Base::getRealLineLength(const String& s)
 
 String Base::toString() const
 {
+    DBG("Saved using templates: " + String(numSavedTemplates));
+    
 	switch (t)
 	{
 	case OutputType::Uglify:       return const_cast<Base*>(this)->parseUglified();
@@ -541,6 +543,46 @@ Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>&
 	parent.pushScope(id);
 }
 
+Struct::Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier> baseClasses, const jit::TemplateParameter::List& tp, bool /*useIds*/) :
+	Op(parent),
+	DefinitionBase(parent, id)
+{
+	templateArguments.addArray(tp);
+	parent.addIfNotEmptyLine();
+
+	String def;
+
+	if (!tp.isEmpty())
+	{
+		def << JitTokens::template_ << Space << TemplateParameter::ListOps::toString(tp, true) << Space;
+	}
+
+	def << JitTokens::struct_ << Space << id;
+
+	if (!baseClasses.isEmpty())
+	{
+		def << JitTokens::colon;
+
+		auto useIntend = baseClasses.size() > 1;
+
+		for (auto bc : baseClasses)
+		{
+			def << Space;
+
+			if (useIntend)
+				def << AlignMarker;
+
+			def << JitTokens::public_ << Space << bc.toString() << ", \n";
+		}
+
+		def = def.upToLastOccurrenceOf(", \n", false, false);
+	}
+
+	parent << def;
+	parent << "{";
+	parent.pushScope(id);
+}
+
 Namespace::Namespace(Base& parent, const Identifier& id, bool isEmpty_) :
 	Op(parent),
 	isEmpty(isEmpty_)
@@ -564,6 +606,7 @@ Function::Function(Base& parent, const jit::FunctionData& f) :
 	parent.pushScope(copy.id.getIdentifier());
 }
 
+
 String UsingTemplate::toString() const
 {
 	String s;
@@ -579,7 +622,31 @@ String UsingTemplate::toString() const
 	s << scopedId.getIdentifier() << " ";
 	s << JitTokens::assign_ << " ";
 
-	s << toExpression();
+    auto e = toExpression();
+    
+    auto existingId = parent.pushDefinition(scopedId, e);
+    
+    if(existingId.isValid())
+    {
+        if(existingId.getParent() == scopedId.getParent())
+        {
+            s << existingId.getIdentifier().toString();
+        }
+        else
+            s << existingId.toString();
+        
+        appendTemplateParameters(s);
+        
+        if(s.length() < 80)
+            s = s.replaceCharacter('\n', ' ');
+        
+    }
+    else
+    {
+        s << e;
+    }
+    
+    
 	s << JitTokens::semicolon;
 
 	return s;
@@ -591,20 +658,9 @@ String UsingTemplate::toExpression() const
 	{
 		auto s = DefinitionBase::toExpression();
 
-		if (!templateArguments.isEmpty())
-		{
-			s << "<";
-
-			for (int i = 0; i < templateArguments.size(); i++)
-			{
-				s << templateArguments[i].argumentId.toString();
-
-				if(isPositiveAndBelow(i, templateArguments.size() - 1))
-					s << ", ";
-			}
-
-			s << ">";
-		}
+        appendTemplateParameters(s);
+        
+		
 		
 		return s;
 	}
@@ -649,6 +705,19 @@ String UsingTemplate::getUsingExpression() const
 	}
 
 	return s;
+}
+
+void UsingTemplate::flush()
+{
+    auto e = toExpression();
+
+    if (!e.isEmpty())
+    {
+        if(scopedId != parent.getCurrentScope())
+            parent << toString();
+    }
+
+    Op::flush();
 }
 
 StackVariable::StackVariable(Base& parent, const Identifier& id, const jit::TypeInfo& t) :

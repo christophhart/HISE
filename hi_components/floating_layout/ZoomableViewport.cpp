@@ -188,7 +188,7 @@ void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetai
 		else
 			zoomFactor /= 1.15f;
 
-		zoomFactor = jlimit(0.25f, 3.0f, zoomFactor);
+		zoomFactor = jlimit(0.25f, maxZoomFactor, zoomFactor);
 
 		setZoomFactor(zoomFactor, {});
 	}
@@ -272,12 +272,12 @@ void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
 	auto xZoom = tBounds.getWidth() / aBounds.getWidth();
 	auto yZoom = tBounds.getHeight() / aBounds.getHeight();
 
-	setZoomFactor(jmin(xZoom, yZoom, 3.0f), aBounds.getCentre());
+	setZoomFactor(jmin(xZoom, yZoom, maxZoomFactor), aBounds.getCentre());
 }
 
 void ZoomableViewport::setZoomFactor(float newZoomFactor, Point<float> centerPositionInGraph)
 {
-	zoomFactor = newZoomFactor;
+	zoomFactor = jmin(maxZoomFactor, newZoomFactor);
 
 	auto trans = AffineTransform::scale(zoomFactor);
 
@@ -320,7 +320,7 @@ bool ZoomableViewport::changeZoom(bool zoomIn)
 	else
 		newZoom /= 1.1f;
 
-	newZoom = jlimit(0.25f, 3.0f, newZoom);
+	newZoom = jlimit(0.25f, maxZoomFactor, newZoom);
 
 	if (newZoom != zoomFactor)
 	{

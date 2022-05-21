@@ -1735,7 +1735,7 @@ template <typename...Ps> struct LambdaBroadcaster final
 
 	void enableLockFreeUpdate(PooledUIUpdater* updater)
 	{
-		if (updater != nullptr)
+		if (updater != nullptr && lockfreeUpdater != nullptr)
 			lockfreeUpdater = new LockFreeUpdater(*this, updater);
 	}
 
@@ -2751,6 +2751,16 @@ public:
 		return invDelta * lowValue + delta * highValue;
 	}
 
+};
+
+/** A interface class for getting notified when the realtime mode changed (eg. at DAW export). */
+class NonRealtimeProcessor
+{
+public:
+
+	virtual ~NonRealtimeProcessor() {};
+
+	virtual void nonRealtimeModeChanged(bool isNonRealtime) = 0;
 };
 
 struct FFTHelpers

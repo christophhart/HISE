@@ -528,8 +528,14 @@ public:
 	WeakReference<Expansion> e;
 };
 
+struct UnlockerHandler
+{
+	virtual ~UnlockerHandler() {};
+	virtual juce::OnlineUnlockStatus* getUnlockerObject() = 0;
+};
 
 struct ScriptUnlocker : public juce::OnlineUnlockStatus,
+					    public UnlockerHandler,
 					    public ControlledObject
 {
 	ScriptUnlocker(MainController* mc):
@@ -575,6 +581,8 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(RefObject);
 	};
+
+	juce::OnlineUnlockStatus* getUnlockerObject() override { return this; }
 
 	String getProductID() override;
 	bool doesProductIDMatch(const String& returnedIDFromServer) override;

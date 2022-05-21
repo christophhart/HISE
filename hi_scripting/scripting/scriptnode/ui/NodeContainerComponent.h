@@ -433,6 +433,7 @@ class ContainerComponent :  public NodeComponent,
 							public DragAndDropContainer,
 							public HelpManager::Listener,
 							public Value::Listener,
+                            public PooledUIUpdater::SimpleTimer,
 						    public LassoSource<NodeBase::Ptr>
 {
 public:
@@ -629,8 +630,36 @@ public:
 	void mouseDrag(const MouseEvent& event) override;
 	void mouseUp(const MouseEvent& e) override;
 
-	
+    void timerCallback() override { repaint(); }
 
+    float getCircleAmp(int nodeIndex, int channelIndex, bool post)
+    {
+        if(!node->getRootNetwork()->isSignalDisplayEnabled())
+            return 0.0f;
+        
+        NodeBase* n;
+        
+        if(nodeIndex == -1)
+            n = node.get();
+        else
+        {
+            if(auto nc = childNodeComponents[nodeIndex])
+                n = nc->node.get();
+            else
+                return 0.0f;
+        }
+            
+        
+        auto peak = jlimit(0.0f, 1.0f, n->getSignalPeak(channelIndex, post));
+        
+        if(peak >= 0.001f)
+            peak = 0.25f + 0.75f * peak;
+        
+        return getMaxCircleRadius() * peak;
+    }
+    
+    virtual float getMaxCircleRadius() const = 0;
+    
 	virtual int getInsertPosition(Point<int> x) const = 0;
 	void removeDraggedNode(NodeComponent* draggedNode);
 	void insertDraggedNode(NodeComponent* newNode, bool copyNode);
@@ -699,8 +728,6 @@ public:
 
 protected:
 
-
-
 	Value verticalValue;
 
 	Point<int> getStartPosition() const;
@@ -712,6 +739,8 @@ protected:
 
 	ScopedPointer<Component> duplicateDisplay;
 
+    float signalDotOffset = 0.0f;
+    
 private:
 
 	struct Updater : public SafeChangeBroadcaster,
@@ -749,6 +778,7 @@ private:
 
 	LassoComponent<NodeBase::Ptr> lasso;
 	
+    
 };
 
 struct SerialNodeComponent : public ContainerComponent
@@ -758,6 +788,8 @@ struct SerialNodeComponent : public ContainerComponent
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
 
+    float getMaxCircleRadius() const override { return 4.0f; }
+    
 	Colour getOutlineColour() const override;
 
 	void resized() override;
@@ -769,6 +801,8 @@ struct ParallelNodeComponent : public ContainerComponent
 {
 	ParallelNodeComponent(NodeContainer* node);;
 
+    float getMaxCircleRadius() const override { return 6.0f; }
+    
 	bool isMultiChannelNode() const;
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;

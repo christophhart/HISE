@@ -1304,10 +1304,10 @@ Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
 	registerPolyNode<reverb, wrap::illegal_poly<reverb>, reverb_editor>();
-	registerPolyNode<sampleandhold, sampleandhold_poly, sampleandhold_editor>();
-	registerPolyNode<bitcrush, bitcrush_poly, bitcrush_editor>();
+	registerPolyNode<sampleandhold<1>, sampleandhold<NUM_POLYPHONIC_VOICES>, sampleandhold_editor>();
+	registerPolyNode<bitcrush<1>, bitcrush<NUM_POLYPHONIC_VOICES>, bitcrush_editor>();
 	registerPolyNode<wrap::fix<2, haas<1>>, wrap::fix<2, haas<NUM_POLYPHONIC_VOICES>>>();
-	registerPolyNode<phase_delay, phase_delay_poly, phase_delay_editor>();
+	registerPolyNode<phase_delay<1>, phase_delay<NUM_POLYPHONIC_VOICES>, phase_delay_editor>();
 }
 
 }

@@ -424,17 +424,7 @@ public:
 		return ValueTree();
 	}
 
-	ValueTree getEmbeddedNetwork(const String& id) override
-	{
-		for (auto n : networks)
-		{
-			if (n["ID"].toString() == id)
-				return n;
-		}
-
-		jassertfalse;
-		return {};
-	}
+	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	void setNetworkData(const ValueTree& nData)
 	{

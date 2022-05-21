@@ -129,15 +129,16 @@ public:
 
 	struct InternalData
 	{
+		bool operator==(const InternalData& other) const { return broadcaster == other.broadcaster; }
 		WeakReference<Broadcaster> broadcaster;
 		IIRCoefficients coefficients;
 	};
 
 	using Ptr = ReferenceCountedObjectPtr<FilterDataObject>;
 
-	FilterDataObject() :
-		ComplexDataUIBase()
-	{};
+	FilterDataObject();;
+
+	~FilterDataObject();
 
 	bool fromBase64String(const String& b64) override { return true; };
 	String toBase64String() const override { return ""; };
@@ -153,22 +154,19 @@ public:
 		}
 	}
 
-	IIRCoefficients getCoefficients(int index) const
-	{
-		jassert(isPositiveAndBelow(index, internalData.size()));
-		return internalData[index].coefficients;
-	}
+	IIRCoefficients getCoefficients(int index) const;
 
 	IIRCoefficients getCoefficientsForBroadcaster(Broadcaster* b) const;
 
 	double getSamplerate() const { return sampleRate; }
 
-	int getNumCoefficients() const { return internalData.size(); }
+	int getNumCoefficients() const;
 
 private:
 
 	double sampleRate = -1.0;
-	Array<InternalData> internalData;
+
+	UnorderedStack<InternalData> internalData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterDataObject);
 };

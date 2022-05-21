@@ -1031,6 +1031,24 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		}
 	}
 
+	void loadFromEmbeddedData(SampleReference::Ptr r)
+	{
+		referenceString = "{INTERNAL}";
+		
+		auto mag = r->buffer.getMagnitude(0, r->buffer.getNumSamples());
+
+		jassert(mag < 1.0f);
+
+		originalBuffer.makeCopyOf(r->buffer);
+
+		auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+		SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
+		sampleRate = r->sampleRate;
+		bufferRange = { 0, originalBuffer.getNumSamples() };
+		loopRange = r->loopRange;
+		setDataBuffer(nb);
+	}
+
 	void loadBuffer(const AudioSampleBuffer& b, double sr)
 	{
 		referenceString = "{INTERNAL}";

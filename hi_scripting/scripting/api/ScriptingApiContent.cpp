@@ -3121,7 +3121,8 @@ isChildPanel(true),
 loadRoutine(base, var(), 1),
 timerRoutine(base, var(), 0),
 mouseRoutine(base, var(), 1),
-fileDropRoutine(base, var(), 1)
+fileDropRoutine(base, var(), 1),
+mouseCursorPath(MouseCursor::NormalCursor)
 {
 	init();
 }
@@ -3134,7 +3135,8 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	loadRoutine(parent->getScriptProcessor(), var(), 1),
 	mouseRoutine(parent->getScriptProcessor(), var(), 1),
 	timerRoutine(parent->getScriptProcessor(), var(), 0),
-	fileDropRoutine(parent->getScriptProcessor(), var(), 1)
+	fileDropRoutine(parent->getScriptProcessor(), var(), 1),
+	mouseCursorPath(MouseCursor::NormalCursor)
 {
 	
 	init();
@@ -3215,6 +3217,8 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(getAnimationData);
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
+
+	
 }
 
 
@@ -3595,6 +3599,8 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 
 void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour, var hitPoint)
  {
+	getCursorUpdater().enableLockFreeUpdate(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+
 	if (auto po = dynamic_cast<ScriptingObjects::PathObject*>(pathIcon.getObject()))
 	{
 		mouseCursorPath.path = po->getPath();
@@ -3616,8 +3622,46 @@ void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour
 		else
 			reportScriptError("hitPoint must be a [x, y] array");
 	}
+	else if (pathIcon.isString())
+	{
+		static const StringArray iconIds =
+		{
+		"ParentCursor",               /**< Indicates that the component's parent's cursor should be used. */
+		"NoCursor",                       /**< An invisible cursor. */
+		"NormalCursor",                   /**< The standard arrow cursor. */
+		"WaitCursor",                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
+		"IBeamCursor",                    /**< A vertical I-beam for positioning within text. */
+		"CrosshairCursor",                /**< A pair of crosshairs. */
+		"CopyingCursor",                  /**< The normal arrow cursor, but with a "+" on it to indicate that you're dragging a copy of something. */
+		"PointingHandCursor",             /**< A hand with a pointing finger, for clicking on web-links. */
+		"DraggingHandCursor",             /**< An open flat hand for dragging heavy objects around. */
+		"LeftRightResizeCursor",          /**< An arrow pointing left and right. */
+		"UpDownResizeCursor",             /**< an arrow pointing up and down. */
+		"UpDownLeftRightResizeCursor",    /**< An arrow pointing up, down, left and right. */
+		"TopEdgeResizeCursor",            /**< A platform-specific cursor for resizing the top-edge of a window. */
+		"BottomEdgeResizeCursor",         /**< A platform-specific cursor for resizing the bottom-edge of a window. */
+		"LeftEdgeResizeCursor",           /**< A platform-specific cursor for resizing the left-edge of a window. */
+		"RightEdgeResizeCursor",          /**< A platform-specific cursor for resizing the right-edge of a window. */
+		"TopLeftCornerResizeCursor",      /**< A platform-specific cursor for resizing the top-left-corner of a window. */
+		"TopRightCornerResizeCursor",     /**< A platform-specific cursor for resizing the top-right-corner of a window. */
+		"BottomLeftCornerResizeCursor",   /**< A platform-specific cursor for resizing the bottom-left-corner of a window. */
+		"BottomRightCornerResizeCursor"  /**< A platform-specific cursor for resizing the bottom-right-corner of a window. */
+		};
+
+		auto index = iconIds.indexOf(pathIcon.toString());
+
+		if (isPositiveAndBelow(index, (MouseCursor::NumStandardCursorTypes)))
+		{
+			auto standardCursor = (MouseCursor::StandardCursorType)index;
+			mouseCursorPath = MouseCursorInfo(standardCursor);
+		}
+		else
+			reportScriptError("Unknown Cursor name. Use the JUCE enum as string");
+	}
 	else
 		reportScriptError("pathIcon is not a path");
+
+	getCursorUpdater().sendMessage(sendNotificationAsync, mouseCursorPath);
 }
 
 Rectangle<int> ScriptingApi::Content::ScriptPanel::getBoundsForImage() const
@@ -4354,6 +4398,7 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
+	setMethod("getScreenBounds", Wrapper::getScreenBounds);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
 }
@@ -4481,6 +4526,28 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 		return components[index].get();
 
 	return nullptr;
+}
+
+juce::var ScriptingApi::Content::getScreenBounds(bool getTotalArea)
+{
+	Rectangle<int> b;
+
+	{
+		MessageManagerLock mm;
+
+		if (getTotalArea)
+			b = Desktop::getInstance().getDisplays().getMainDisplay().totalArea;
+		else
+			b = Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+	}
+
+	Array<var> vb;
+	vb.add(b.getX());
+	vb.add(b.getY());
+	vb.add(b.getWidth());
+	vb.add(b.getHeight());
+
+	return var(vb);
 }
 
 var ScriptingApi::Content::getComponent(var componentName)
@@ -5256,6 +5323,8 @@ String ScriptingApi::Content::getCurrentTooltip()
 
 	return {};
 }
+
+
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

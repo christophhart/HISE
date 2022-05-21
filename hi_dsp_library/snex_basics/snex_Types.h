@@ -532,17 +532,17 @@ struct PrepareSpecs
 	/** The number of channels for the signal. */
 	int numChannels = 0;
 
-	PrepareSpecs withBlockSize(int newBlockSize) const
+	PrepareSpecs withBlockSize(int newBlockSize, bool overwriteIfFrame) const
 	{
 		PrepareSpecs copy(*this);
-		copy.blockSize = newBlockSize;
+		copy.blockSize = (overwriteIfFrame && copy.blockSize == 1) ? 1 : newBlockSize;
 		return copy;
 	}
 
-	template <int BlockSize> PrepareSpecs withBlockSizeT() const
+	template <int BlockSize> PrepareSpecs withBlockSizeT(bool overwriteIfFrame) const
 	{
 		PrepareSpecs copy(*this);
-		copy.blockSize = BlockSize;
+		copy.blockSize = (overwriteIfFrame && copy.blockSize == 1) ? 1 : BlockSize;
 		return copy;
 	}
 

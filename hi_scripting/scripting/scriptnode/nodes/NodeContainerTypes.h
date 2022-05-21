@@ -530,7 +530,10 @@ public:
 
 	void process(ProcessDataDyn& data) final override;
 
-	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
+	void processFrame(FrameType& data) noexcept final override;
+
+	void processMonoFrame(MonoFrameType& data);
+	void processStereoFrame(StereoFrameType& data);
 
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
@@ -538,14 +541,13 @@ public:
 
 	int getBlockSizeForChildNodes() const override
 	{
-		return isBypassed() ? originalBlockSize : FixedBlockSize;
+		return (isBypassed() || originalBlockSize == 1) ? originalBlockSize : FixedBlockSize;
 	}
 
 	void setBypassed(bool shouldBeBypassed) override;
 
 	wrap::fix_block<FixedBlockSize, DynamicSerialProcessor> obj;
 };
-
 
 
 class FixedBlockXNode : public SerialNode
@@ -586,7 +588,7 @@ public:
 		void prepare(void* obj, prototypes::prepare f, const PrepareSpecs& ps)
 		{
 			originalSpecs = ps;
-			auto ps_ = ps.withBlockSize(blockSize);
+			auto ps_ = ps.withBlockSize(blockSize, true);
 			f(obj, &ps_);
 		}
 
@@ -619,7 +621,7 @@ public:
 
 	void process(ProcessDataDyn& data) final override;
 
-	void processFrame(FrameType& data) noexcept final override { jassertfalse; }
+	void processFrame(FrameType& data) noexcept final override;
 
 	void prepare(PrepareSpecs ps) final override;
 	void reset() final override;
@@ -629,7 +631,7 @@ public:
 
 	int getBlockSizeForChildNodes() const override
 	{
-		return isBypassed() ? originalBlockSize : obj.fbClass.blockSize;
+		return (isBypassed() || originalBlockSize == 1) ? originalBlockSize : obj.fbClass.blockSize;
 	}
 
 	void setBypassed(bool shouldBeBypassed) override;
@@ -789,16 +791,17 @@ public:
 	void process(ProcessDataDyn& data) final override
 	{
 		
-
 		if (isBypassed())
 		{
 			NodeProfiler np(this, data.getNumSamples());
+			ProcessDataPeakChecker pd(this, data);
 			obj.getObject().process(data.as<FixProcessType>());
 		}
 			
 		else
 		{
 			NodeProfiler np(this, 1);
+			ProcessDataPeakChecker pd(this, data);
 			float* channels[NumChannels];
 			int numChannels = jmin(NumChannels, data.getNumChannels());
 			memcpy(channels, data.getRawDataPointers(), numChannels * sizeof(float*));
@@ -825,6 +828,7 @@ public:
 	void processFrame(FrameType& d) final override
 	{
 		jassert(d.size() == NumChannels);
+		FrameDataPeakChecker fd(this, d.begin(), d.size());
 
 		auto& s = FixFrameType::as(d.begin());
 		obj.processFrame(s);

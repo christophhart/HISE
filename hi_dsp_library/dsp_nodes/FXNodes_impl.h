@@ -42,13 +42,14 @@ namespace fx
 {
 
 template <int V>
-sampleandhold_impl<V>::sampleandhold_impl()
+sampleandhold<V>::sampleandhold():
+	polyphonic_base(getStaticId(), false)
 {
 
 }
 
 template <int V>
-void sampleandhold_impl<V>::setCounter(double value)
+void sampleandhold<V>::setCounter(double value)
 {
 	auto factor = jlimit(1, 44100, roundToInt(value));
 
@@ -57,10 +58,10 @@ void sampleandhold_impl<V>::setCounter(double value)
 }
 
 template <int V>
-void sampleandhold_impl<V>::createParameters(ParameterDataList& d)
+void sampleandhold<V>::createParameters(ParameterDataList& d)
 {
 	{
-		DEFINE_PARAMETERDATA(sampleandhold_impl, Counter);
+		DEFINE_PARAMETERDATA(sampleandhold, Counter);
 		p.setRange({ 1.0, 64, 1.0 });
 		p.setDefaultValue(1.0);
 		d.add(std::move(p));
@@ -68,37 +69,35 @@ void sampleandhold_impl<V>::createParameters(ParameterDataList& d)
 }
 
 template <int V>
-void sampleandhold_impl<V>::reset() noexcept
+void sampleandhold<V>::reset() noexcept
 {
 	for (auto& d : data)
 		d.clear(lastChannelAmount);
 }
 
 template <int V>
-void sampleandhold_impl<V>::prepare(PrepareSpecs ps)
+void sampleandhold<V>::prepare(PrepareSpecs ps)
 {
 	data.prepare(ps);
 	lastChannelAmount = ps.numChannels;
 }
 
 template <int V>
-void sampleandhold_impl<V>::initialise(NodeBase*)
+void sampleandhold<V>::initialise(NodeBase*)
 {
 
 }
 
-DEFINE_EXTERN_NODE_TEMPIMPL(sampleandhold_impl);
-
-
 
 template <int V>
-bitcrush_impl<V>::bitcrush_impl()
+bitcrush<V>::bitcrush():
+	polyphonic_base(getStaticId(), false)
 {
 	bitDepth.setAll(16.0f);
 }
 
 template <int V>
-void bitcrush_impl<V>::setBitDepth(double newBitDepth)
+void bitcrush<V>::setBitDepth(double newBitDepth)
 {
 	auto v = jlimit(1.0f, 16.0f, (float)newBitDepth);
 
@@ -107,10 +106,10 @@ void bitcrush_impl<V>::setBitDepth(double newBitDepth)
 }
 
 template <int V>
-void bitcrush_impl<V>::createParameters(ParameterDataList& data)
+void bitcrush<V>::createParameters(ParameterDataList& data)
 {
 	{
-		DEFINE_PARAMETERDATA(bitcrush_impl, BitDepth);
+		DEFINE_PARAMETERDATA(bitcrush, BitDepth);
 		p.setRange({ 4.0, 16.0, 0.1 });
 		p.setDefaultValue(16.0);
 		data.add(std::move(p));
@@ -118,45 +117,46 @@ void bitcrush_impl<V>::createParameters(ParameterDataList& data)
 }
 
 template <int V>
-bool bitcrush_impl<V>::handleModulation(double&) noexcept
+bool bitcrush<V>::handleModulation(double&) noexcept
 {
 	return false;
 }
 
 template <int V>
-void bitcrush_impl<V>::reset() noexcept
+void bitcrush<V>::reset() noexcept
 {
 
 }
 
 template <int V>
-void bitcrush_impl<V>::prepare(PrepareSpecs ps)
+void bitcrush<V>::prepare(PrepareSpecs ps)
 {
 	bitDepth.prepare(ps);
 }
 
 template <int V>
-void bitcrush_impl<V>::initialise(NodeBase*)
+void bitcrush<V>::initialise(NodeBase*)
 {
 
 }
 
-DEFINE_EXTERN_NODE_TEMPIMPL(bitcrush_impl)
 
-	template <int V>
-phase_delay_impl<V>::phase_delay_impl()
+
+template <int V>
+phase_delay<V>::phase_delay():
+	polyphonic_base(getStaticId(), false)
 {
 
 }
 
 template <int V>
-void phase_delay_impl<V>::initialise(NodeBase*)
+void phase_delay<V>::initialise(NodeBase*)
 {
 
 }
 
 template <int V>
-void phase_delay_impl<V>::prepare(PrepareSpecs ps)
+void phase_delay<V>::prepare(PrepareSpecs ps)
 {
 	sr = ps.sampleRate * 0.5;
 	delays[0].prepare(ps);
@@ -164,7 +164,7 @@ void phase_delay_impl<V>::prepare(PrepareSpecs ps)
 }
 
 template <int V>
-void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
+void phase_delay<V>::reset() noexcept
 {
 	for (auto& ds : delays)
 	{
@@ -176,16 +176,16 @@ void scriptnode::fx::phase_delay_impl<V>::reset() noexcept
 
 
 template <int V>
-bool phase_delay_impl<V>::handleModulation(double&) noexcept
+bool phase_delay<V>::handleModulation(double&) noexcept
 {
 	return false;
 }
 
 template <int V>
-void phase_delay_impl<V>::createParameters(ParameterDataList& data)
+void phase_delay<V>::createParameters(ParameterDataList& data)
 {
 	{
-		DEFINE_PARAMETERDATA(phase_delay_impl, Frequency);
+		DEFINE_PARAMETERDATA(phase_delay, Frequency);
 		p.setRange({ 20.0, 20000.0, 0.1 });
 		p.setSkewForCentre(1000.0);
 		p.setDefaultValue(400.0);
@@ -194,7 +194,7 @@ void phase_delay_impl<V>::createParameters(ParameterDataList& data)
 }
 
 template <int V>
-void phase_delay_impl<V>::setFrequency(double newFrequency)
+void phase_delay<V>::setFrequency(double newFrequency)
 {
 	newFrequency /= sr;
 
@@ -207,8 +207,6 @@ void phase_delay_impl<V>::setFrequency(double newFrequency)
 	}
 
 }
-
-DEFINE_EXTERN_NODE_TEMPIMPL(phase_delay_impl);
 
 template <int V>
 void haas<V>::setPosition(double newValue)

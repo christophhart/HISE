@@ -40,6 +40,7 @@
 #include "hi_dsp_library.h"
 
 
+
 #include "dsp_nodes/CoreNodes.cpp"
 #include "dsp_nodes/DelayNode.cpp"
 #include "dsp_nodes/MathNodes.cpp"
@@ -51,7 +52,7 @@
 #include "dsp_nodes/CableNodes.cpp"
 #include "dsp_nodes/EnvelopeNodes.cpp"
 #include "dsp_nodes/AnalyserNodes.cpp"
-
+#include "dsp_nodes/ConvolutionNode.cpp"
 
 #endif
 

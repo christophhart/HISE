@@ -1785,6 +1785,15 @@ void SampleEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRa
 	overview.setRange(start * overview.getWidth(), end * overview.getWidth());
 }
 
+bool SampleEditor::isInWorkspace() const
+{
+#if USE_BACKEND
+	return findParentComponentOfClass<ProcessorEditor>() == nullptr;
+#else
+	return false;
+#endif
+}
+
 void SampleEditor::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& /*newValue*/)
 {
 	if (s == currentWaveForm->getCurrentSound() && SampleIds::Helpers::isAudioProperty(id))

@@ -70,34 +70,6 @@ namespace icstdsp
 }
 
 
-#include "fft_convolver/Utilities.h"
-#include "fft_convolver/AudioFFT.h"
-#include "fft_convolver/FFTConvolver.h"
-#include "fft_convolver/TwoStageFFTConvolver.h"
-
-#if JUCE_MSVC
-#pragma warning (push)
-#pragma warning (disable: 4244 4127 4267)
-#endif
-
-#if JUCE_IOS
-#else
-extern "C"
-{
-#include "kiss_fft/kiss_fft.h"
-#include "kiss_fft/kiss_fftr.h"
-    
-}
-
-#endif
-
-
-#if JUCE_MSVC
-#pragma warning (pop)
-
-#endif
-
-
 
 
 #endif  // ADDITIONAL_LIBRARIES_H_INCLUDED

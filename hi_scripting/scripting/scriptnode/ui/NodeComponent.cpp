@@ -246,6 +246,11 @@ bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& detail
 
 void NodeComponent::Header::paint(Graphics& g)
 {
+	auto textArea = getLocalBounds().toFloat();
+
+	auto leftMargin = 0.0f;
+	auto rightMargin = 0.0f;
+
 	g.setColour(parent.getOutlineColour());
 	g.fillAll();
 
@@ -271,18 +276,27 @@ void NodeComponent::Header::paint(Graphics& g)
 		s << parent.node->getCpuUsageInPercent();
 	}
 
+	leftMargin += textArea.getHeight();
 
-	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
-	g.drawText(s, getLocalBounds(), Justification::centred);
+	if(parameterButton.isVisible())
+		leftMargin += textArea.getHeight();
+
+	if(freezeButton.isVisible())
+		rightMargin += textArea.getHeight();
+
 
 	auto ar = getLocalBounds().toFloat();
 	ar.removeFromRight(ar.getHeight());
+
+	rightMargin += textArea.getHeight();
 
 	if (parent.node->isClone())
 	{
 		g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.05f : 0.2f));
 		auto p = f.createPath("clone");
 		f.scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(5.0f));
+
+		rightMargin += textArea.getHeight();
 
 		g.fillPath(p);
 	}
@@ -297,6 +311,8 @@ void NodeComponent::Header::paint(Graphics& g)
 
 		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(4.0f));
 
+		rightMargin += textArea.getHeight();
+
 		g.setColour(Colours::white.withAlpha(hasMidiParent ? 0.5f : 0.1f));
 		g.fillPath(p);
 	}
@@ -306,6 +322,12 @@ void NodeComponent::Header::paint(Graphics& g)
 		g.setColour(Colour(SIGNAL_COLOUR));
 		g.drawRect(powerButton.getBounds().expanded(3).toFloat(), 1.0f);
 	}
+
+	textArea.removeFromLeft(jmax(leftMargin, rightMargin));
+	textArea.removeFromRight(jmax(leftMargin, rightMargin));
+
+	g.setColour(Colours::white.withAlpha(parent.node->isBypassed() ? 0.5f : 1.0f));
+	g.drawText(s, textArea, Justification::centred);
 }
 
 
@@ -364,23 +386,15 @@ void NodeComponent::paint(Graphics& g)
 	g.setColour(getOutlineColour());
 	g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
-#if 0
-	if (node->getAsRestorableNode() != nullptr)
-		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+    g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x69181818)));
     
-#if HISE_INCLUDE_SNEX && OLD_JIT_STUFF
-	else if (dynamic_cast<JitNodeBase*>(node.get()) != nullptr)
-		p.loadPathFromData(HnodeIcons::jit, sizeof(HnodeIcons::jit));
-#endif
-
-	if(!p.isEmpty())
-	{
-		auto b = getLocalBounds().removeFromRight(22).removeFromBottom(22).reduced(3).toFloat();
-		p.scaleToFit(b.getX(), b.getY(), b.getWidth(), b.getHeight(), true);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.fillPath(p);
-	}
-#endif
+    
+    b.removeFromLeft(2.0f);
+    b.removeFromRight(2.0f);
+    b.removeFromBottom(2.0f);
+    b.removeFromTop(1.0f);
+    
+    g.drawRect(b, 1.0f);
 }
 
 

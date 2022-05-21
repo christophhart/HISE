@@ -190,9 +190,11 @@ struct empty
 
 	bool isConnected() const { return true; }
 
-	void addToList(ParameterDataList& )
+	void addToList(ParameterDataList& d)
 	{
-		
+		data p("plainUnNamed");
+		p.callback.referTo(this, callStatic);
+		d.add(p);
 	}
 
 	template <int P> auto& getParameter()

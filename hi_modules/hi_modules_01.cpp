@@ -9,21 +9,9 @@
 
 #include "synthesisers/synths/PolyBlep.cpp"
 
-#if 0
-namespace wdl
-{
-
-#include "effects/convolution/wdl/convoengine.cpp"
-#include "effects/convolution/wdl/fft.c"
-
-}
-#endif
-
 #if JUCE_MSVC
 #pragma warning (pop)
 #endif
-
-
 
 #include "nodes/HardcodedNetworkModuleBase.cpp"
 
@@ -97,7 +85,7 @@ namespace wdl
 #include "effects/fx/GainEffect.cpp"
 #include "effects/fx/Chorus.cpp"
 #include "effects/fx/Phaser.cpp"
-#include "effects/convolution/Convolution.cpp"
+#include "effects/fx/Convolution.cpp"
 #include "effects/mda/mdaLimiter.cpp"
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Dynamics.cpp"

@@ -454,6 +454,8 @@ public:
 
 		prevValue = currentValue;
 
+		
+
 		return currentValue;
 	};
 

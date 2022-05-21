@@ -117,7 +117,18 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
-		ownedFactories.add(new hise::FrontendHostFactory(this));
+		auto nf = new hise::FrontendHostFactory(this);
+
+		ownedFactories.add(nf);
+
+		String selfId = "project." + getId();
+
+		if (nf->getModuleList().contains(selfId))
+		{
+			// This network is supposed to be frozen
+			projectNodeHolder.init(nf->staticFactory.get());
+			projectNodeHolder.setEnabled(true);
+		}
 	}
 #endif
 
@@ -784,6 +795,18 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 	for (auto c : childNodes)
 	{
 		auto n = createFromValueTree(createPolyIfAvailable, c, forceCreate);
+
+		if (n == nullptr)
+		{
+			String errorMessage;
+			errorMessage << "Error at node `" << id << "`:  \n> ";
+			errorMessage << "Can't create node with factory path `" << d[PropertyIds::FactoryPath].toString() << "`";
+
+			if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+			{
+				PresetHandler::showMessageWindow("Error", errorMessage, PresetHandler::IconType::Error);
+			}
+		}
 
 		if (currentNodeHolder != nullptr)
 		{
@@ -1594,6 +1617,20 @@ void DspNetwork::ProjectNodeHolder::init(dll::ProjectDll::Ptr dllToUse)
 		}
 	}
 #endif
+}
+
+void DspNetwork::ProjectNodeHolder::init(dll::StaticLibraryHostFactory* staticLibrary)
+{
+	int numNodes = staticLibrary->getNumNodes();
+
+	for (int i = 0; i < numNodes; i++)
+	{
+		if (network.getId() == staticLibrary->getId(i))
+		{
+			staticLibrary->initOpaqueNode(&n, i, network.isPolyphonic());
+			loaded = true;
+		}
+	}
 }
 
 int HostHelpers::getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t)

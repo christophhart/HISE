@@ -87,6 +87,7 @@ DECLARE_ID(ExpansionType);
 DECLARE_ID(EncryptionKey);
 DECLARE_ID(LinkExpansionsToProject);
 DECLARE_ID(ReadOnlyFactoryPresets);
+DECLARE_ID(ForceStereoOutput);
 
 Array<Identifier> getAllIds();
 

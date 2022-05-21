@@ -305,7 +305,7 @@ GlobalSettingManager::GlobalSettingManager()
 		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
-		bool dv = true;
+		bool dv = (bool)HISE_DEFAULT_OPENGL_VALUE;
 #else
 		bool dv = false;
 #endif
@@ -339,7 +339,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
-		bool dv = true;
+		bool dv = (bool)HISE_DEFAULT_OPENGL_VALUE;
 #else
 		bool dv = false;
 #endif

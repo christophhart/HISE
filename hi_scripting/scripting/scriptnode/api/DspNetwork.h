@@ -941,8 +941,17 @@ public:
 
 	void runPostInitFunctions();
 
+    bool isSignalDisplayEnabled() const { return signalDisplayEnabled; }
+    
+    void setSignalDisplayEnabled(bool shouldBeEnabled)
+    {
+        signalDisplayEnabled = shouldBeEnabled;
+    }
+    
 private:
 
+    bool signalDisplayEnabled = false;
+    
 	Array<std::function<bool()>> postInitFunctions;
 
 	ModValue networkModValue;
@@ -1056,14 +1065,18 @@ private:
 
 		void prepare(PrepareSpecs ps)
 		{
-			dll->clearError();
+			if(dll != nullptr)
+				dll->clearError();
 
 			n.prepare(ps);
 
-			auto e = dll->getError();
+			if (dll != nullptr)
+			{
+				auto e = dll->getError();
 
-			if (!e.isOk())
-				throw e;
+				if (!e.isOk())
+					throw e;
+			}
 
 			n.reset();
 		}
@@ -1101,6 +1114,8 @@ private:
 			}
 		}
 
+		void init(dll::StaticLibraryHostFactory* staticLibrary);
+
 		void init(dll::ProjectDll::Ptr dllToUse);
 
 		bool hashMatches = false;
@@ -1123,7 +1138,7 @@ struct OpaqueNetworkHolder
 	bool isPolyphonic() const { return false; }
 
 	SN_EMPTY_INITIALISE;
-	SN_EMPTY_PROCESS_FRAME;
+	
 
 	OpaqueNetworkHolder()
 	{
@@ -1153,6 +1168,20 @@ struct OpaqueNetworkHolder
 	void reset()
 	{
 		ownedNetwork->reset();
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& d)
+	{
+		// this might be the most inefficient code ever but we need
+		// to allow frame based processing of wrapped networks
+		float* channels[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < d.size(); i++)
+			channels[i] = d.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, d.size());
+
+		ownedNetwork->process(pd);
 	}
 
 	void prepare(PrepareSpecs ps)

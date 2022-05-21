@@ -152,17 +152,20 @@ void InterpretedNode::processFrame(NodeBase::FrameType& data)
 
 void InterpretedNode::processMonoFrame(MonoFrameType& data)
 {
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
 	this->obj.processFrame(data);
 }
 
 void InterpretedNode::processStereoFrame(StereoFrameType& data)
 {
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
 	this->obj.processFrame(data);
 }
 
 void InterpretedNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, data.getNumSamples());
+	ProcessDataPeakChecker fd(this, data);
 	this->obj.process(data);
 }
 
@@ -246,17 +249,21 @@ void InterpretedModNode::processFrame(NodeBase::FrameType& data)
 
 void InterpretedModNode::processMonoFrame(MonoFrameType& data)
 {
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+
 	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::processStereoFrame(StereoFrameType& data)
 {
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
 	this->obj.processFrame(data);
 }
 
 void InterpretedModNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, data.getNumSamples());
+	ProcessDataPeakChecker pd(this, data);
 	this->obj.process(data);
 }
 

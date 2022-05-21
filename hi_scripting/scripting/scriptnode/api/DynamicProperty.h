@@ -165,7 +165,10 @@ template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 
 	void addParameter(dynamic_base::Ptr p)
 	{
-		targets.add(p);
+		jassert(p != nullptr);
+
+		if(p != nullptr)
+			targets.add(p);
 	}
 
 	void call(double v)

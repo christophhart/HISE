@@ -123,6 +123,36 @@ hise::ComplexDataUIBase* ExternalDataHolder::getComplexBaseType(ExternalData::Da
 	return nullptr;
 }
 
+
+ExternalData::ExternalData(scriptnode::data::embedded::multichannel_data& d, DataType type_):
+	dataType(DataType::AudioFile),
+	obj(d.buffer.get())
+{
+	jassert(type_ == DataType::AudioFile);
+	numSamples = d.getNumSamples();
+	numChannels = d.getNumChannels();
+	sampleRate = d.getSamplerate();
+
+	for (int i = 0; i < numChannels; i++)
+		d.channelData[i] = const_cast<float*>(d.getChannelData(i));
+
+	data = d.channelData;
+
+	auto mb = dynamic_cast<MultiChannelAudioBuffer*>(obj);
+
+	MultiChannelAudioBuffer::SampleReference::Ptr newRef = new hise::MultiChannelAudioBuffer::SampleReference();
+
+	newRef->buffer.setDataToReferTo(d.channelData, numChannels, numSamples);
+	newRef->r = Result::ok();
+	newRef->sampleRate = sampleRate;
+	newRef->loopRange = {}; // Implement this maybe?
+	
+	mb->loadFromEmbeddedData(newRef);
+}
+
+
+
+
 ExternalData::ExternalData(ComplexDataUIBase* b, int absoluteIndex) :
 	dataType(getDataTypeForClass(b)),
 	obj(b)

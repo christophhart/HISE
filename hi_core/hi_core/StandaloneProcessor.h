@@ -16,6 +16,8 @@ namespace hise { using namespace juce;
 class ToggleButtonList;
 
 
+
+
 class GlobalSettingManager
 {
 
@@ -124,7 +126,7 @@ public:
 	int channelData = 1;
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
-	bool useOpenGL = true;
+	bool useOpenGL = (bool)HISE_DEFAULT_OPENGL_VALUE;
 #else
 	bool useOpenGL = false;
 #endif

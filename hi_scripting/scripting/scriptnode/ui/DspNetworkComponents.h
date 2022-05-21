@@ -705,6 +705,11 @@ public:
 			return n.get() != nullptr;
 		}
 
+        int bookmarkAdded() override
+        {
+            return Actions::addBookMark(n.get());
+        }
+        
 		virtual void bookmarkUpdated(const StringArray& idsToShow)
 		{
 			n->deselectAll();
@@ -751,6 +756,10 @@ public:
 
         static bool eject(DspNetworkGraph& g);
 
+		static bool showParameterPopup(DspNetworkGraph& g);
+
+        static bool toggleSignalDisplay(DspNetworkGraph& g);
+        
 		static bool copyToClipboard(DspNetworkGraph& g);
 		static bool toggleCableDisplay(DspNetworkGraph& g);
 		static bool toggleCpuProfiling(DspNetworkGraph& g);
@@ -769,7 +778,7 @@ public:
         static bool exportAsSnippet(DspNetworkGraph& g);
         static bool save(DspNetworkGraph& g);
         
-		static bool addBookMark(DspNetworkGraph& g);
+		static int addBookMark(DspNetwork* n);
 
 		static bool zoomIn(DspNetworkGraph& g);
 		static bool zoomOut(DspNetworkGraph& g);

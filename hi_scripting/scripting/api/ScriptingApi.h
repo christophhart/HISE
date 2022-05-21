@@ -286,6 +286,9 @@ public:
 		/** Shows a message with a question and executes the function after the user has selected his choice. */
 		void showYesNoWindow(String title, String markdownMessage, var callback);
 
+		/** Decodes an Base64 encrypted valuetree (eg. HiseSnippets). */
+		String decodeBase64ValueTree(const String& b64Data);
+
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
 

@@ -32,6 +32,35 @@
 
 #pragma once
 
+namespace scriptnode
+{
+namespace data
+{
+
+namespace embedded
+{
+struct multichannel_data
+{
+	multichannel_data& data = *this;
+
+	multichannel_data() :
+		buffer(new MultiChannelAudioBuffer())
+	{};
+
+	virtual ~multichannel_data() {};
+
+	virtual double getSamplerate() const = 0;
+	virtual int getNumChannels() const = 0;
+	virtual int getNumSamples() const = 0;
+	virtual const float* getChannelData(int index) = 0;
+
+	MultiChannelAudioBuffer::Ptr buffer;
+	float* channelData[NUM_MAX_CHANNELS];
+};
+}
+}
+}
+
 namespace snex {
 
 using namespace juce;
@@ -330,6 +359,8 @@ template <int NumChannels> struct SampleData
 using StereoSample = SampleData<2>;
 using MonoSample = SampleData<1>;
 
+
+
 /** A wrapper around one of the complex data types with a update message. */
 struct ExternalData
 {
@@ -364,6 +395,8 @@ struct ExternalData
 	};
 
 	ExternalData(ComplexDataUIBase* b, int absoluteIndex);
+
+	ExternalData(scriptnode::data::embedded::multichannel_data& d, DataType type);
 
 	/** Creates an external data object from a constant value class. */
 	template <typename T> ExternalData(T& other, DataType type):
@@ -907,8 +940,6 @@ public:
 	static constexpr int NumDisplayBuffers = getNum(ExternalData::DataType::DisplayBuffer);
 	
 private:
-
-	
 };
 
 template <int Index, ExternalData::DataType DType> struct plain : index_type_base<Index, DType>
@@ -921,6 +952,15 @@ template <int Index, ExternalData::DataType DType> struct plain : index_type_bas
 		if (index == Index && b.dataType == DType)
 			n.setExternalData(b, 0);
 	}
+};
+
+template <typename T> class has_initialise
+{
+    typedef char one; struct two { char x[2]; };
+    template <typename C> static one test(decltype(&C::initialise));
+    template <typename C> static two test(...);
+public:
+    enum { value = sizeof(test<T>(0)) == sizeof(char) };
 };
 
 template <typename DataClass, ExternalData::DataType DType> struct embedded : public index_type_base<-1, DType>
@@ -939,10 +979,23 @@ public:
 	template <typename NodeType> embedded(NodeType& n) 
 	{
 		ExternalData d(obj.data, DType);
-		n.setExternalData(d, 0);
+		
+		if (d.obj != nullptr)
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(d.obj->getDataLock());
+			n.setExternalData(d, 0);
+		}
+		else
+			n.setExternalData(d, 0);
 	};
 
-	template <typename NodeType> void setExternalData(NodeType& , const ExternalData&, int)
+	void initialise(NodeBase* n) override
+	{
+		if constexpr (has_initialise<DataClass>::value)
+			obj.initialise(n);
+	}
+
+	template <typename NodeType> void setExternalData(NodeType& , const ExternalData& , int )
 	{
 		
 	}
