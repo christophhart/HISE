@@ -95,6 +95,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(EncryptionKey);
 	ids.add(LinkExpansionsToProject);
 	ids.add(ReadOnlyFactoryPresets);
+    ids.add(ForceStereoOutput);
 
 	return ids;
 }
@@ -390,6 +391,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("You will have to implement a custom C++ class in the `AdditionalSourceCode` subfolder.");
 		P_();
 
+        P(HiseSettings::Project::ForceStereoOutput);
+        D("If you export a plugin with HISE it will create as much channels as the routing matrix of the master container requires.");
+        D(" If you don't want this behaviour, you can enable this option to force the plugin to just use a stereo channel configuration");
+        P_();
+        
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -697,6 +703,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::LinkExpansionsToProject ||
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Project::ReadOnlyFactoryPresets ||
+        id == Project::ForceStereoOutput ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade)
@@ -875,6 +882,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::EnableMidiInputFX)		return "No";
 	else if (id == Project::EnableSoundGeneratorsFX) return "No";
 	else if (id == Project::ReadOnlyFactoryPresets) return "No";
+    else if (id == Project::ForceStereoOutput)      return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
