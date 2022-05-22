@@ -71,7 +71,36 @@ struct Helpers
 	}
 };
 
-/** The base class for integer indexes. */
+/** The base class for integer indexes.
+    @ingroup snex_index
+ 
+    This class can be used to safely access an array with a defined out-of-bounds behaviour:
+    - wrapped: wrap indexes over the upper limit into the valid range (=modulo operator)
+    - clamped: clamps to the highest / lowest valid index:
+    - zeroed: when the index is invalid, a zero value will be used
+    - looped: like wrapped, but negative indexes get wrapped around too
+    - unsafe: zero overhead, unsafe array access
+ 
+    In order to use this class, just create an instance of it with the integer index you try to access,
+    then pass this object into the []-operator of the span<T> or dyn<T> container:
+ 
+    @code
+    // pass the index into the constructor
+    index::wrapped<0, false> idx(6);
+
+    // create a dummy data array
+    span<float, 5> data = {1, 2, 3, 4, 5 };
+
+    // using this index will wrap around the data bounds.
+    auto x = data[idx]; // => 6
+    @endcode
+ 
+    You can supply a compile-time boundary as template argument that will lead to optimized code (but then it's
+    your responsibility to make sure you call it with suitable container types).
+ 
+    An integer index class can be further refined into a float_index in order to use (normalised)
+    float numbers as index.
+    */
 template <typename LT, bool CheckOnAssign> struct integer_index
 {
 	using Type = int;
@@ -90,11 +119,13 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		return s;
 	}
 
+    /** Creates an index with the given init value. */
 	integer_index(Type initValue=Type(0))
 	{
 		*this = initValue;
 	};
 
+    /** Assigns the given integer value to this object. */
 	integer_index& operator=(Type v)
 	{ 
 		value = v; 
@@ -105,7 +136,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		return *this;
 	}
 
-	// Preinc
+    /** The index type supports preincrementation so you can use it in a loop. */
 	integer_index& operator++()
 	{
 		if constexpr (checkBoundsOnAssign())
@@ -116,7 +147,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		return *this;
 	}
 
-	// Postinc will always return a checked index
+	/** Postinc will always return a checked index because it will return an integer value. Use preincrementation if possible. */
 	int operator++(int)
 	{
 		if constexpr (checkBoundsOnAssign())
@@ -133,7 +164,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		}
 	}
 
-	// Preinc
+	/** Predecrement operator with a bound check. */
 	integer_index& operator--()
 	{
 		if constexpr (checkBoundsOnAssign())
@@ -161,16 +192,19 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		}
 	}
 
+    /** Returns a copy of that index type with the  delta value added to its value. */
 	integer_index operator+(int delta) const
 	{
 		return integer_index(value + delta);
 	}
 
+    /** Returns a copy of that index type with the delta  subtracted from its value. */
 	integer_index operator-(int delta) const
 	{
 		return integer_index(value - delta);
 	}
 
+    /** increments the index and returns true if it's within the bounds. This only works with unsafe and compile-time sized index types. */
 	bool next() const
 	{
 		static_assert(LogicType::getUpperLimit() > 0, "can't check dynamic index without container arguments");
@@ -195,6 +229,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		return ok;
 	}
 
+    /** Cast operator to an integer value. This only works with compile-time sized indexes. */
 	explicit operator int() const
 	{
 		static_assert(!LogicType::hasDynamicBounds(), "can't use int operator with dynamic indexes");
@@ -229,6 +264,7 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 		return t;
 	}
 
+    /** Sets the loop range (only valid for index::looped) */
 	void setLoopRange(int start, int end)
 	{
 		getLogicType().setLoopRange({ start, end });
@@ -242,7 +278,25 @@ private:
 
 
 
-
+/** A second level index type which takes a integer index type and allows floating point number indexing.
+    @ingroup snex_index
+ 
+    There are two modes that this index can operate in: unscaled and scaled. The latter allows indexing
+    using a normalized value between 0...1 which is very common in DSP applications.
+ 
+    ```
+    using MyIntegerIndex = index::clamped<512, false>;
+    using MyFloatIndex = index::scaled<double, MyIntegerIndex>;
+ 
+    span<float, 512> data;
+ 
+    MyFloatIndex idx(0.5);
+ 
+    data[0.5] = 90.0f; // data[256] = 90.0f
+    ```
+ 
+        
+ */
 template <typename FloatType, typename IntegerIndexType, bool IsNormalised> struct float_index
 {
 	using Type = FloatType;
@@ -259,6 +313,7 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		return s;
 	}
 
+    /** Creates a float_index with the given value. */
 	float_index(FloatType initValue = 0)
 	{
 		*this = initValue;
@@ -275,6 +330,7 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 	static constexpr bool hasBoundCheck() { return LogicType::hasBoundCheck(); };
 	static constexpr bool checkBoundsOnAssign() { return !hasDynamicBounds() && IntegerIndexType::checkBoundsOnAssign(); }
 
+    /** This will return the fractional part of the index. You won't need to use this manually. */
 	FloatType getAlpha(int limit) const
 	{
 		auto f = from0To1(v, limit);
@@ -289,6 +345,7 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		return t.getWithDynamicLimit(scaled, jmax(1, limit));
 	}
 
+    /** Assigns a new value to the index. */
 	float_index& operator=(FloatType v_)
 	{
 		v = v_;
@@ -303,16 +360,19 @@ template <typename FloatType, typename IntegerIndexType, bool IsNormalised> stru
 		return *this;
 	}
 
+    /** Adds the given value to the index. */
 	float_index operator+(FloatType t) const
 	{
 		return float_index(v + t);
 	}
 
+    /** Subtracts the index. */
 	float_index operator-(FloatType t) const
 	{
 		return float_index(v - t);
 	}
 
+    /** Cast the index to the native float type. You can only do this with a fixed boundary type. */
 	explicit operator FloatType() const
 	{
 		static_assert(!LogicType::hasDynamicBounds(), "can't use int operator with dynamic indexes");
@@ -441,15 +501,45 @@ template <typename IndexType> struct interpolator_base
 	IndexType idx;
 };
 
+/** A index type with linear interpolation
+    @ingroup snex_index
+ 
+    This index type builts upon the float_index type and offers inbuilt interpolation when accessing a floating point array!
+ 
+    @code
+    span<float, 4> data = { 10.0f, 11.0f, 12.0f, 13.0f };
+ 
+    // First we define an integer index with the wrap logic and a matching upper limit
+    // to the span above
+    using WrapIndex = index::wrapped<4, true>;
+ 
+    // Now we take this index and transform it to an unscaled float index
+    // using double precision as input
+    using FloatIndex = index::unscaled<double, WrapIndex>;
+ 
+    // We can now wrap the float index into the lerp template and get linear interpolation.
+    using Interpolator = index::lerp<FloatIndex>;
+ 
+    Interpolator idx(5.5); // the wrap logic transforms this to 1.5
+
+    // Calculate the interpolated value (11.5f)
+    auto x = data[idx];
+ 
+    // Compile error! The interpolation will calculate a value so you can't reference it!
+    auto& x = data[idx];
+    @endcode
+*/
 template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 {
     using LogicType = typename IndexType::LogicType;
     using Type = typename IndexType::Type;
     
+    /** Create a interpolator with the given value. */
 	lerp(Type initValue=Type(0)):
 		interpolator_base<IndexType>(initValue)
 	{}
 
+    /** Assign a new value to the interpolator. */
 	lerp& operator=(Type v)
 	{
 		this->idx = v;
@@ -472,8 +562,6 @@ template <typename IndexType> struct lerp: public interpolator_base<IndexType>
 
 		return getFromImpl(t, i1, i2, alpha, std::is_floating_point<typename ContainerType::DataType>());
 	}
-
-	
 
 private:
 
@@ -515,6 +603,13 @@ private:
 	}
 };
 
+/** A index type with cubic interpolation
+    @ingroup snex_index
+ 
+    This index type builts upon the float_index type and offers inbuilt interpolation when accessing a floating point array!
+ 
+    @see index::lerp
+*/
 template <typename IndexType> struct hermite : public interpolator_base<IndexType>
 {
     using LogicType = typename IndexType::LogicType;

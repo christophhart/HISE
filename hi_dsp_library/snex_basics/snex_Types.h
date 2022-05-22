@@ -1,5 +1,110 @@
 #pragma once
 
+/** @mainpage SNEX Api Documentation
+ 
+    This website contains a reference manual to all classes available in SNEX. It's generated directly
+    from the C++ source code and is grouped into 4 categories:
+ 
+    @ref snex_data_structures.
+ 
+    @ref snex_helpers.
+ 
+    @ref snex_containers
+ 
+    @ref snex_index
+ 
+    @ref snex_math
+ 
+    @ref snex_nodes
+    
+    
+ Hello @ref snex_data_structures.
+ **/
+
+/** \defgroup snex_helpers SNEX helper classes
+ 
+    The classes in this module offer some convenience features for DSP development and are available in SNEX as well as C++.
+*/
+
+/** \defgroup snex_data_structures SNEX data structures
+ 
+    The classes in this module are used as parameter in certain callbacks.
+*/
+
+/** \defgroup snex_containers SNEX container types
+ 
+    The classes in this module are templated container types that can be used to create multi-dimensional data structures.
+    If you don't know C++, here's a quick rundown of the template concept:
+ 
+    A template is a class declaration which contains data members and functions but unlike a "real" class, the template class
+    can be created with multiple types (or integer arguments). This makes a template more like a "class generator" than a class.
+ 
+    The advantage of templates is that they are created at compile time with the types you specify so you can abstract the logic
+    away from the underlying types. This makes it a perfect tool for the creation of container types which should be agnostic of their element type.
+ 
+    All the classes in this group are templated containers with `T` indicating the element type.
+ 
+    @code
+    // Using the span template to declare a float array with 4 elements:
+    span<float, 4> data = { 1, 2, 3, 4 };
+ 
+    // You can define aliases for later usage
+    using StereoFrame = span<float, 2>;
+ 
+    // You can also nest templates to create multidimensional structures.
+    span<StereoFrame, 512> stereoBuffer;
+    @endcode
+*/
+
+/** @defgroup snex_nodes SNEX Node Types
+
+    There are multiple SNEX nodes available in scriptnode that can be used for different purposes. If you want to use SNEX,
+    just add one of the nodes above (they are in the `core` factory, so the full iD is eg. `core.snex_osc`.
+ 
+    ## File organization
+ 
+    The XML file of a DspNetwork usually contains the entire signal graph with the exception of the SNEX node code. As soon as you
+    create a new node class, a file called `node_id.h` will be added to one of the sub directories:
+ 
+    @code
+    - DspNetworks
+    -- code_library
+    --- snex_nodes
+    --- snex_timer
+    --- snex_shaper
+    @endcode
+ 
+    > This file will contain the code class (the .h extension comes from it being a valid C++ file). In addition to this, it will also create a
+    `node_id.xml` file in the same directory that contains the metadata of the node (how many parameters, their range and some information about ExternalData usage).
+ 
+ 
+*/
+
+/** \defgroup snex_index SNEX index types
+ 
+    The classes in this module can be used for a safe array access with a defined out-of bounds behaviour.
+*/
+
+/** \defgroup snex_math SNEX math functions
+ 
+    This module lists all math functions available in SNEX. It offers the exact same functions as the Math class
+    in HiseScript and in SNEX you will use the exact same syntax so the sin function can be called with `Math.sin()`.
+ 
+    However this is just syntactic sugar and you can call it also with `hmath::sin()`.
+ 
+    @code
+    // All functions are available for single precision
+    float x = Math.sin((float)Math.PI * 2.9f);
+ 
+    // and double precision floating point numbers
+    double x = Math.sin(Math.PI * 2.9);
+ 
+    // Watch out when mixing types with multiple arguments, this won't compile because
+    // it can't resolve the function overload!
+    auto nope = Math.max(2.0f, 1.5);
+    @endcode
+*/
+
 namespace snex {
 using namespace juce;
 
@@ -118,6 +223,13 @@ struct FunctionType
 
 namespace pimpl
 {
+    /** A floating point value that creates a ramp between value changes in order to smooth the steps.
+        \ingroup snex_helpers
+     
+        If you need to remove zipper artifacts with your parameters, use one of these instead of a raw floating point variable.
+        
+        You should not use this class directly, but its subclasses sfloat and sdouble.
+    */
 	template <typename T> struct _ramp
 	{
 		using Type = _ramp<T>;
@@ -203,20 +315,21 @@ namespace pimpl
 }
 
 
-/** A smoothed float value.
-
-	This object can be used to get a ramped value for parameter changes etc.
-
-
+/** A single precision smoothed floating point value.
+ 
+ \ingroup snex_helpers
 */
 struct sfloat : public pimpl::_ramp<float>
 {};
 
+/** A double precision smoothed floating point value.
+ \ingroup snex_helpers*/
 struct sdouble : public pimpl::_ramp<double>
 {};
 
 
-/** A small helper class for usage within a wrap::mod node. 
+/** A small helper class for usage within a wrap::mod node.
+ \ingroup snex_helpers
 */
 struct ModValue
 {
@@ -337,7 +450,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	// Oh boy, what a disgrace...
 	ModValue* publicModValue = nullptr;
 
-	/** This can be used to temporarily change the pointer to the mod value.
+	/** @internal This can be used to temporarily change the pointer to the mod value.
 		The OpaqueNetworkHolder uses this abomination of a class in the prepare
 		call back in order to allow public_mod nodes to use the parent's network mod value.
 	*/
@@ -360,7 +473,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	};
 };
 
-/** The PolyHandler can be used in order to create data structures that can be used
+/** @internal The PolyHandler can be used in order to create data structures that can be used
     in a polyphonic context.
 	
 	It assumes that the processing is being performed on a single thread and the voice
@@ -411,7 +524,7 @@ struct PolyHandler
 		void* prevThread = nullptr;
 	};
 
-	/** Create an instance of this class with the given voice index and it will return this voice
+	/** @internal Create an instance of this class with the given voice index and it will return this voice
 	    index for each call that happens on this thread as long as this object exists.
 	*/
 	struct ScopedVoiceSetter
@@ -516,6 +629,7 @@ private:
 
 
 /** A data structure containing the processing details for the context.
+    @ingroup snex_data_structures
 
 	This is being passed into the `prepare()` method of each node and
 	can be used to setup the internals.
@@ -546,6 +660,7 @@ struct PrepareSpecs
 		return copy;
 	}
 
+    /** The bool operator is overwritten so you can use it inside a if condition. It will return true if the specification is valid. */
 	operator bool() const
 	{
 		return numChannels > 0 && sampleRate > 0.0 && blockSize > 0;
@@ -583,6 +698,7 @@ struct PrepareSpecs
 
 
 /** A data structure that handles polyphonic voice data.
+    @ingroup snex_containers
 
 	In order to use it, create it (just like a span) and then
 	use the range-based iterator to fetch the data.
@@ -599,6 +715,74 @@ struct PrepareSpecs
 	If the PolyData class is being used with NumVoices=1, the compiler should
 	be able to remove the overhead of the class completely so you don't get
 	any performance penalty by making your classes capable of handling polyphony!
+ 
+    @code
+     // A SNEX node is usually templated with the polyphony voice count
+     // so you can also forward it to every PolyData member of your class
+     template <int NV> struct my_class
+     {
+         // Wrap the data that defines a voice state into a PolyData
+         // container.
+         // Note: you can use more complex types than just a primitive
+         // integer and for performance reasons (cache alignment) it's
+         // actually recommended to create one data structure that holds
+         // the entire state.
+         PolyData<float, NV> data;
+
+         void prepare(PrepareSpecs ps)
+         {
+             // All you need to do is to forward the prepare
+             // call to *every* PolyData container that you
+             // want to use.
+             data.prepare(ps);
+         }
+
+         // This is your render callback where you want to use the state
+         template <typename PD> void process(PD& pd)
+         {
+             // the get() method will point to the current voice
+             // (so if the 8th voice is rendered, it would be a the same
+             // as a `data[7]` access for a standard container)
+             auto& current_data = data.get();
+
+             // Do whatever you want with the current voice state
+             current_data = Math.fmod(current_data + 0.1f, 1.0f);
+         }
+
+         // If you want to change the data through a parameter callback
+         // it's recommended to use the iterator.
+         template <int P> void setParameter(double value)
+         {
+             // the iterator will either loop through
+             // all data elements if it's outside a
+             // voice rendering (most likely caused by a UI callback)
+             // or just one element of the active voice (most likely used
+             // by modulation inside the audio rendering).
+
+             for(auto& d: data)
+                 d = (float)value;
+         }
+
+         // The reset() callback will either be called after initialisation
+         // or when a voice is started. Again, using the iterator makes sure that
+         // it resets all values at initialisation and just the current voice
+         // at voice start (just like the parameter callback).
+         void reset()
+         {
+             for(auto& d: data)
+                 d = 0.0f;
+         }
+     };
+
+     // This will create a polyphonic version of your node with the
+     // global HISE polyphonic voice count (defaults to 256).
+     using poly_class = my_class<NUM_POLYPHONIC_VOICES>;
+
+     // a monophonic version of your node. Note that this will produce
+     // the exact same machine code as if you would just use a normal
+     // integer variable so there is absolutely no CPU overhead!
+     using mono_class = my_class<1>;
+    @endcode
 */
 template <typename T, int NumVoices> struct PolyData
 {

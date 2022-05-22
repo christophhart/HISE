@@ -37,7 +37,8 @@ namespace Types {
 using namespace juce;
 
 
-/** The ChannelPtr is just a lightweight wrapper around the start of the channel data of a ProcessDataFix object. 
+/** The ChannelPtr is just a lightweight wrapper around the start of the channel data of a ProcessData object.
+    @ingroup snex_data_structures
 
 	It is returned by the iterator and can be used to create a dyn<float> object to iterate over the samples:
 	
@@ -167,7 +168,8 @@ protected:
 };
 
 
-/** A data structure that contains the processing context for a DSP algorithm. 
+/** A data structure that contains the processing context for a DSP algorithm.
+    @ingroup snex_data_structures
 
 	It has a compile-time channel amount to that you can use channel loop iterators
 	without performance overhead (because it will be most likely unrolled).
@@ -326,7 +328,7 @@ struct ProcessDataDyn: public InternalData
 
 
 
-/** This helper class takes a process data type and allows chunk-wise processing.
+/** @internal This helper class takes a process data type and allows chunk-wise processing.
 
 	Just create one of these from any process data type, then call
 */
@@ -355,7 +357,7 @@ template <typename ProcessDataType, bool IncludeEvents=true> struct ChunkablePro
 	/** Returns the amount of samples already processed. */
 	int getNumProcessed() const { return numProcessed; }
 
-	/** This helper method will create a ProcessDataType of the given size and 
+	/** @internal This helper method will create a ProcessDataType of the given size and 
 		bump the pointers when it goes out of scope. 
 		
 		It also will refer to events in that range and adjust the timestamps 

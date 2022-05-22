@@ -39,7 +39,7 @@ body {
 .mainHeader
 {
 	height: 55px;
-	background-color: #333;
+	background-color: #222;
 	border-bottom: 1px solid #111;
 	
 }
@@ -47,7 +47,7 @@ body {
 .jumboImage
 {	
 	//background-color: rgba(0,0,0, 0.0);
-	background-image: url(http://hise.audio/images/All.png) !important;
+	background-image: url(https://i.imgur.com/83oFmVA.png) !important;
 
 	background-size: cover;
 	background-position: center center;
@@ -122,7 +122,8 @@ h1.groupheader {
 
 h1
 {
-	margin-bottom: 40px;
+	margin-bottom: 10px;
+	border-top: 10px solid;
 }
 
 .title {
@@ -131,7 +132,7 @@ h1
 	text-align: center;
 	font-weight: bold;
 	margin: 0px 2px;
-	color: #90FFB1;
+	color: #fff;
 	
 }
 
@@ -213,6 +214,34 @@ div.qindex, div.navtab{
 div.qindex, div.navpath {
 	width: 100%;
 	line-height: 140%;
+}
+
+.compoundTemplParams
+{
+	display: none;
+}
+
+.ingroups
+{
+	display: none;
+}
+
+.tabs2
+{
+	display: none;
+}
+
+.navpath
+{
+	display: none;
+}
+
+#navrow1 {
+	display: none;
+}
+
+#navrow1 {
+	display: none;
 }
 
 div.navtab {
@@ -1051,8 +1080,9 @@ div.ingroups a
 
 div.header
 {
-    border-bottom: 15px solid #ddd;
-    background-color: #666;
+	border-top: 4px solid #222;
+    border-bottom: 4px solid #222;
+    background-color: #5979B2;
 	margin:  0px;
 	
 	
@@ -1062,10 +1092,11 @@ div.headertitle
 {
 	margin-top: 1.5em;
     font-size: 1.5em;
-    padding: 20px;
+    padding: 40px;
     margin-top: 0px;
     max-width: 1000px;
 	margin: 0 auto;
+
 	
 	
 }
@@ -1145,6 +1176,7 @@ dl.section dd {
 
 #projectlogo
 {
+	font-size: 2em;
 	text-align: center;
 	vertical-align: bottom;
 	border-collapse: separate;
