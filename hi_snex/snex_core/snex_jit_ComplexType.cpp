@@ -259,7 +259,7 @@ bool ComplexType::hasDefaultConstructor()
 
 		for (auto& m : matches)
 		{
-			if (m.args.isEmpty())
+            if(m.matchesArgumentTypesWithDefault({}));
 				return true;
 		}
 
