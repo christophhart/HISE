@@ -154,6 +154,15 @@ struct audio_spin_mutex_shared
 {
 	void lock() noexcept
 	{
+		// We need to check the counter before
+		// locking the internal mutex to allow reentrant
+		// read locks
+		while (sharedCounter.load() > 0)
+		{
+			_mm_pause();
+			_mm_pause();
+		}
+
 		w.lock();
 
 		constexpr std::array<int, 3> iterations = { 5, 10, 3000 };
@@ -187,8 +196,6 @@ struct audio_spin_mutex_shared
 				_mm_pause();
 				_mm_pause();
 			}
-
- 			jassertfalse;
 		}
 	}
 
