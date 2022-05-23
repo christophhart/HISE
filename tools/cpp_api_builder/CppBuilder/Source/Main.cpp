@@ -50,6 +50,7 @@ DECLARE_ID(level);
 DECLARE_ID(title);
 DECLARE_ID(innernamespace);
 DECLARE_ID(templateparamlist);
+DECLARE_ID(initializer);
 DECLARE_ID(param);
 DECLARE_ID(declname);
 
@@ -63,6 +64,12 @@ DECLARE_ID(ShowBaseClasses);
 DECLARE_ID(ShowDerivedClasses);
 DECLARE_ID(Summary);
 DECLARE_ID(CustomLinkPrefix);
+DECLARE_ID(UseGroupFileAsReadme);
+DECLARE_ID(StripNamespaceFromTitle);
+DECLARE_ID(RenameMarkdownToTitle);
+DECLARE_ID(RootKeyword);
+DECLARE_ID(RootSummary);
+DECLARE_ID(StripKeywords);
 
 static Array<Identifier> getAllIds()
 {
@@ -71,6 +78,12 @@ static Array<Identifier> getAllIds()
     ids.add(ShowDerivedClasses);
     ids.add(Summary);
     ids.add(CustomLinkPrefix);
+    ids.add(UseGroupFileAsReadme);
+    ids.add(StripNamespaceFromTitle);
+    ids.add(RenameMarkdownToTitle);
+    ids.add(RootKeyword);
+    ids.add(RootSummary);
+    ids.add(StripKeywords);
     
     return ids;
 }
@@ -160,6 +173,18 @@ struct Helpers
     
     static File inputRoot;
     
+    
+    static String sanitize(const String& s)
+    {
+        auto p = s.removeCharacters("():,;?").toLowerCase();
+
+        if (!p.isEmpty() && p.endsWith("/"))
+            p = p.upToLastOccurrenceOf("/", false, false);
+
+        p = p.replace(".md", "");
+
+        return p.replaceCharacter(' ', '-').toLowerCase();
+    }
     static var getJSONSetting(const Identifier& id, var defaultValue)
     {
         jassert(inputRoot.isDirectory());
@@ -183,6 +208,13 @@ struct Helpers
         return defaultValue;
     }
 
+    
+    
+    static bool isGroupReadme(const File& f)
+    {
+        return f.getFileNameWithoutExtension().startsWith("group") && getJSONSetting(JsonSettings::UseGroupFileAsReadme, false);
+    }
+    
 	static bool writeTextIntoAttribute(XmlElement* xml, XmlElement* parent)
 	{
 
@@ -209,7 +241,6 @@ struct Helpers
 				DoxygenTags::listofallmembers,
 				DoxygenTags::inheritancegraph,
 				DoxygenTags::collaborationgraph,
-			    DoxygenTags::title,
 				DoxygenTags::innernamespace };
 
 			Identifier id(xml->getTagName());
@@ -273,6 +304,17 @@ struct Helpers
 
 		String s;
 		appendValueTree(s, v, noLinks);
+        
+        auto keywordsToStrip = Helpers::getJSONSetting(JsonSettings::StripKeywords, "").toString();
+        
+        if(!keywordsToStrip.isEmpty())
+        {
+            auto kw = StringArray::fromTokens(keywordsToStrip, " ,;", "");
+            
+            for(auto& k: kw)
+                s = s.replace(k, "");
+        }
+        
 		return s;
 	}
 
@@ -300,9 +342,9 @@ struct Helpers
 		return m;
 	}
 
-    static void appendTemplateArguments(String& s, ValueTree v)
+    static void appendTemplateArguments(String& s, ValueTree v, bool includeTypes=false)
     {
-        if(v.getType() == DoxygenTags::compounddef)
+        if(v.getType() == DoxygenTags::compounddef && !includeTypes)
             return;
         
         auto tp = v.getChildWithName(DoxygenTags::templateparamlist);
@@ -311,7 +353,10 @@ struct Helpers
         
         if(tp.isValid())
         {
-            s << "template <";
+            if(!includeTypes)
+                s << "template <";
+            else
+                s << "<";
             
             for(const auto& p: tp)
             {
@@ -386,9 +431,16 @@ struct Helpers
             if (description.isEmpty())
                 return;
             
+            s << "#### " << memberName;
             
+            s << "\n```cpp\n " << findAllText(v, DoxygenTags::definition, true);
             
-            s << "\n```cpp\n " << findAllText(v, DoxygenTags::definition, true) << "\n```\n";
+            String initValue = findAllText(v, DoxygenTags::initializer);
+            
+            if(initValue.isNotEmpty())
+                s << " " << initValue;
+            
+            s << "\n```\n";
             
             s << description;
             
@@ -518,9 +570,56 @@ struct Helpers
 
 	}
 
+    static String getIdFromFile(const File& f)
+    {
+        jassert(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false));
+        
+        if(auto xml = XmlDocument::parse(f))
+        {
+            if(auto c = xml->getChildByName(DoxygenTags::compounddef))
+            {
+                if(auto c1 = c->getChildByName(DoxygenTags::compoundname))
+                {
+                    auto t = c1->getAllSubText().trim();
+                    
+                    if(getJSONSetting(JsonSettings::StripNamespaceFromTitle, false))
+                    {
+                        t = t.fromLastOccurrenceOf("::", false, false);
+                        t = sanitize(t);
+                    }
+                    
+                    return t;
+                }
+            }
+        }
+        
+        return f.getFileNameWithoutExtension();
+    }
+    
 	static String getProperLink(String link)
 	{
         auto customLink = getJSONSetting(JsonSettings::CustomLinkPrefix, "").toString();
+        
+        if(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false))
+        {
+            auto allFiles = inputRoot.findChildFiles(File::findFiles, true);
+            
+            for(auto& f: allFiles)
+            {
+                if(link.startsWith(f.getFileNameWithoutExtension()))
+                {
+                    
+                    auto r = f.getParentDirectory().getRelativePathFrom(inputRoot);
+                    
+                    auto l = getIdFromFile(f);
+                    
+                    String s;
+                    
+                    s << r << "/" << l << "/";
+                    link = s;
+                }
+            }
+        }
         
         String s;
         
@@ -774,10 +873,17 @@ struct XmlToMarkdownConverter
 
 		std::cout << "\ncreate " << targetFile.getFullPathName() << "\n";
 
-		if (ReadmeFiles::isReadmeFile(targetFile))
+		if (ReadmeFiles::isReadmeFile(targetFile) || Helpers::isGroupReadme(targetFile))
 		{
 			targetFile = targetFile.getSiblingFile("readme.md");
 		}
+        else if(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false))
+        {
+            auto t = c.getChildWithName(DoxygenTags::compoundname).getChildWithName(DoxygenTags::text);
+            auto title = Helpers::findAllText(t, {}).fromLastOccurrenceOf("::", false, false).trim();
+            
+            targetFile = targetFile.getSiblingFile(Helpers::sanitize(title)).withFileExtension("md");
+        }
 
 		targetFile.create();
 		targetFile.replaceWithText(process());
@@ -824,12 +930,19 @@ struct XmlToMarkdownConverter
 	{
 		Helpers::currentPage = Helpers::getProperLink(f.getFileNameWithoutExtension());
 
-		Helpers::moveInheritanceToSubtree(c);
+        String briefSummary;
+        
+        if(c.isValid())
+        {
+            briefSummary = Helpers::findAllText(c, DoxygenTags::briefdescription).trim();
+            
+            Helpers::moveInheritanceToSubtree(c);
 
-		auto description = c.getChildWithName(DoxygenTags::detaileddescription);
+            auto description = c.getChildWithName(DoxygenTags::detaileddescription);
 
-		c.removeChild(description, nullptr);
-		c.addChild(description, 1, nullptr);
+            c.removeChild(description, nullptr);
+            c.addChild(description, 1, nullptr);
+        }
 
 		auto t = c.getChildWithName(DoxygenTags::compoundname).getChildWithName(DoxygenTags::text);
 
@@ -844,28 +957,42 @@ struct XmlToMarkdownConverter
 
 			if (id == ReadmeFiles::indexpage)
 			{
-				keyword = "C++ API";
-				summary = "The C++ API reference\n";
+				keyword = Helpers::getJSONSetting(JsonSettings::RootKeyword, "C++ API").toString().trim();
+                summary = Helpers::getJSONSetting(JsonSettings::RootSummary, "The C++ API reference").toString().trim();
 			}
 				
 			if (id == ReadmeFiles::namespacehise)
 			{
 				keyword = "namespace hise";
-				summary = "A collection of important classes from the HISE codebase\n";
+				summary = "A collection of important classes from the HISE codebase";
 			}
 				
 			if (id == ReadmeFiles::namespacehise_1_1raw)
 			{
 				keyword = "namespace raw";
-				summary = "A high-level API for creating projects using C++\n";
+				summary = "A high-level API for creating projects using C++";
 			}
 		}
 		else
 		{
-			keyword = Helpers::findAllText(t, {}).fromFirstOccurrenceOf("::", false, false).trim();
+            if(Helpers::isGroupReadme(f))
+            {
+                DBG(c.createXml()->createDocument(""));
+                keyword = Helpers::findAllText(c, DoxygenTags::title);
+            }
+            else
+            {
+                keyword = Helpers::findAllText(t, {}).fromLastOccurrenceOf("::", false, false).trim();
+                
+                Helpers::appendTemplateArguments(keyword, c, true);
+            }
+            
 			summary = Helpers::getJSONSetting(JsonSettings::Summary, "C++ API Class reference").toString().trim();
 		}
 
+        if(briefSummary.isNotEmpty())
+            summary = briefSummary;
+        
 		d << "---\n";
 		d << "keywords: " << keyword << "\n";
 		d << "summary:  " << summary << "\n";
