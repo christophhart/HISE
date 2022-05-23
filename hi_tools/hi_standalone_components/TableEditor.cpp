@@ -95,7 +95,7 @@ int TableEditor::snapXValueToGrid(int x) const
 	if (snapValues.size() == 0)
 		return x;
 
-	auto normalizedX = a.getX() / a.getWidth();
+	auto normalizedX = (x - a.getX()) / a.getWidth();
 
 	auto snapRangeHalfWidth = 10.0f / a.getWidth();
 
@@ -105,7 +105,7 @@ int TableEditor::snapXValueToGrid(int x) const
 		auto snapRange = Range<float>(snapValue - snapRangeHalfWidth, snapValue + snapRangeHalfWidth);
 
 		if (snapRange.contains(normalizedX))
-			return (int)(snapValue * a.getWidth());
+			return a.getX() + (int)(snapValue * a.getWidth());
 	}
 
 	return x;
@@ -368,6 +368,20 @@ void TableEditor::setDomain(DomainType newDomainType, Range<int> newRange)
 	if( currentType == DomainType::scaled ) domainRange = newRange;
 	else jassert ( newRange.isEmpty() );
 };
+
+void TableEditor::setSnapValues(var snapArray)
+{
+	if (auto ar = snapArray.getArray())
+	{
+		snapValues.clear();
+
+		for (const auto& v : *ar)
+		{
+			DBG((float)v);
+			snapValues.add((float)v);
+		}
+	}
+}
 
 void TableEditor::mouseDown(const MouseEvent &e)
 {

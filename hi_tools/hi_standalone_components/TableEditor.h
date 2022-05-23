@@ -364,18 +364,7 @@ public:
 		fontToUse = newFont;
 	}
 
-	void setSnapValues(var snapArray)
-	{
-		if (auto ar = snapArray.getArray())
-		{
-			snapValues.clear();
-
-			for (const auto& v : *ar)
-			{
-				snapValues.add((float)v);
-			}
-		}
-	}
+	void setSnapValues(var snapArray);
 
 	/** A left mouse click creates a new DragPoint or selects the DragPoint under the mouse which can be dragged.
 	*	
