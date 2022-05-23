@@ -46,6 +46,8 @@ CurveEq::CurveEq(MainController *mc, const String &id) :
     }
     
 	fftBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
+    
+    fftBuffer->setActive(false);
 
 	parameterNames.add("Gain");
 	parameterDescriptions.add("The gain in decibels if supported from the filter type.");
