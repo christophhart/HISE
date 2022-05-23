@@ -2117,7 +2117,7 @@ juce::RSAKey ScriptUnlocker::getPublicKey()
 {
 	return juce::RSAKey(getMainController()->getSampleManager().getProjectHandler().getPublicKey());
 }
-#elif !USE_COPY_PROTECTION
+#elif !USE_COPY_PROTECTION || !USE_SCRIPT_COPY_PROTECTION
 juce::RSAKey ScriptUnlocker::getPublicKey()
 {
     return RSAKey();
