@@ -365,7 +365,7 @@ public:
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);
 		static void createUIDataFromDesktop(BackendRootWindow * bpe);
 
-		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64);
+		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64, bool includeVST2, bool includeVST3);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 		static void checkDeviceSanity(BackendRootWindow * bpe);

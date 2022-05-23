@@ -246,6 +246,8 @@ protected:
 	
 	static bool useCIMode;
 
+	static int forcedVSTVersion;
+
 	struct HelperClasses
 	{
 		static String getFileNameForCompiledPlugin(const HiseSettings::Data& dataObject, ModulatorSynthChain* chain, BuildOption option);
