@@ -628,9 +628,12 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 	auto rawStride = (float)numSamples / width;
     
 	int stride = roundToInt(rawStride);
-    
+
     auto downSamplingFactor = jlimit(1, 3, roundToInt(width / 1000));
     
+	if (parent->manualDownSampleFactor != -1.0f)
+		downSamplingFactor = (int)parent->manualDownSampleFactor;
+
 	stride = jmax<int>(1, stride * downSamplingFactor);
 
 	if (parent->displayMode == DisplayMode::DownsampledCurve)
