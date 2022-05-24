@@ -87,6 +87,7 @@ struct OptionalSnexSource
 		static Component* createExtraComponent(void*, PooledUIUpdater*) { return nullptr; }
 	};
 
+    /** You can define additional parameters that control the behaviour of this node. Be aware that the parameter offset starts after the fixed parameters of this node (so P==0 is your first parameter). */
 	template <int P> void setParameter(double) {};
 
 private:
@@ -128,7 +129,10 @@ namespace control
 {
 
 
-
+/** A node that will send a periodic modulation signal.
+    @ingroup snex_nodes
+ 
+ */
 struct snex_timer : public OptionalSnexSource
 {
 	enum class TimerMode
@@ -256,8 +260,13 @@ struct snex_timer : public OptionalSnexSource
 		reset();
 	}
 
+    /** This function will be called once for each timer interval and specifies which value it should send
+     
+        The return value must be between 0.0 and 1.0 and will be scaled to the target parameter automatically.
+    */
 	double getTimerValue();
 
+    /** You can use this callback to reset the state of the timer. */
 	void reset()
 	{
 		switch (currentMode)
@@ -278,7 +287,7 @@ struct snex_timer : public OptionalSnexSource
 		return true;
 	}
 
-
+    /** Initialises the processing. */
 	void prepare(PrepareSpecs ps)
 	{
 		callbacks.prepare(ps);

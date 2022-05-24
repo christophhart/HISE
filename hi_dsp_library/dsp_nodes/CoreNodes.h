@@ -458,7 +458,43 @@ public:
 };
 
 
-
+/** A SNEX node that can be used to implement waveshaping algorithms.
+   @ingroup snex_nodes
+ 
+    If you're writing a waveshaper that transforms the audio signal, you can use this
+    class. It gives you a special callback and also a display that shows the waveshaper function.
+ 
+    > Be aware that if you export this node to C++, it will use this class as template to create a full node, but in SNEX you don't need to supply the ShaperType template parameter.
+ 
+    The default code template forwards all rendering functions to a single `getSample(float input)` method. As long as you your algorithm is stateless,
+    you can just implement the logic there, otherwise you have to adapt the boilerplate process calls accordingly:
+ 
+    @code
+    // this will be called for every sample in every channel
+    float getSample(float input)
+    {
+        return input;
+    }
+ 
+    // these callbacks just forward to the method above
+    template <typename T> void process(T& data)
+    {
+        for(auto ch: data)
+        {
+            for(auto& s: data.toChannelData(ch))
+            {
+                s = getSample(s);
+            }
+        }
+    }
+ 
+    template <typename T> void processFrame(T& data)
+    {
+        for(auto& s: data)
+            s = getSample(s);
+    }
+    @endcode
+ */
 template <class ShaperType> struct snex_shaper
 {
 	SN_NODE_ID("snex_shaper");
@@ -472,11 +508,13 @@ template <class ShaperType> struct snex_shaper
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
 	}
 
+    /** @see snex_node::prepare() */
 	void prepare(PrepareSpecs ps)
 	{
 		shaper.prepare(ps);
 	}
 
+    /** @see snex_node::reset() */
 	void reset()
 	{
 		shaper.reset();
@@ -492,16 +530,19 @@ template <class ShaperType> struct snex_shaper
 
 	ShaperType shaper;
 
+    /** @see snex_node::process*/
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
 		shaper.process(data);
 	}
 
+    /** @see snex_node::processFrame */
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
 		shaper.processFrame(data);
 	}
 
+    /** @see snex_node::setExternalData(). */
 	void setExternalData(const ExternalData& d, int index)
 	{
 		if constexpr (prototypes::check::setExternalData<ShaperType>::value)
@@ -513,8 +554,13 @@ template <class ShaperType> struct snex_shaper
 		auto t = static_cast<snex_shaper<ShaperType>*>(obj);
 		t->shaper.template setParameter<P>(v);
 	}
-    SN_PARAMETER_MEMBER_FUNCTION;
-
+    
+    /** @see snex_node::setParameter<P>() */
+    template <int P> void setParameter(double v)
+    {
+        setParameterStatic<P>(this, v);
+    }
+    
 	SN_EMPTY_CREATE_PARAM;
 };
 

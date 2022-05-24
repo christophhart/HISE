@@ -192,7 +192,7 @@ using namespace Types;
         
         struct MemberPointer;
         
-        /** This is used when a struct is being initialised by a externally defined C++ struct
+        /** @internal This is used when a struct is being initialised by a externally defined C++ struct
          (via placement new) and has the sole purpose of avoiding compile warnings...
          */
         struct ExternalInitialiser : public ChildBase
@@ -361,16 +361,26 @@ using MonoSample = SampleData<1>;
 
 
 
-/** A wrapper around one of the complex data types with a update message. */
+/** HISE has a few complex inbuilt data structures that are connected to various UI elements (Tables, SliderPacks) etc.
+    @ingroup snex_data_structures
+ 
+    The access to those classes and their underlying data is handled by this class.
+ 
+    This class is used as parameter in the `setExternalData` callback, which will be called whenever something changes.
+ 
+    It's usually good practice to keep a copy of the last ExternalData around in your class to refer blocks to it or synchronize
+    access using a DataReadLock or - more unusual - DataWriteLock.
+ */
 struct ExternalData
 {
+    /** There are different data types that are supported. */
 	enum class DataType: int
 	{
-		Table,
-		SliderPack,
-		AudioFile,
-		FilterCoefficients,
-		DisplayBuffer,
+		Table, ///< the data of a Table object (a look up table with 512 float numbers)
+		SliderPack, ///< the data of a SliderPack (a resizable array of float numbers)
+		AudioFile, ///< a multichannel audio file with some metadata (loop points, samplerate).
+		FilterCoefficients, ///< filter coefficients that can be used for displaying purposes
+		DisplayBuffer, ///< a FIFO buffer that can be used for analysing / visualisations
 		numDataTypes,
 		ConstantLookUp
 	};
@@ -411,10 +421,12 @@ struct ExternalData
 	static String getDataTypeName(DataType t, bool plural=false);
 	static Identifier getNumIdentifier(DataType t);
 
-	static void forEachType(const std::function<void(DataType)>& f);
+    static void forEachType(const std::function<void(DataType)>& f);
 
+    /** assigns a block container to the data type. If the external data is pointing to an audio file you can specify the channelIndex. */
 	void referBlockTo(block& b, int channelIndex) const;
 
+    /** This will send a update message to the UI so you can implement eg. a playback position. */
 	void setDisplayedValue(double valueToDisplay);
 	
 	static void setDisplayValueStatic(void* externalObj, double valueToDisplay)
@@ -447,6 +459,7 @@ struct ExternalData
 		return DataType::numDataTypes;
 	}
 
+    /** Returns true if there is no data associated with this object. */
 	bool isEmpty() const
 	{
 		return dataType == DataType::numDataTypes || numSamples == 0 || obj == nullptr || numChannels == 0 || data == nullptr;
@@ -477,6 +490,7 @@ struct ExternalData
 		return nullptr;
 	}
 
+    /** If the ExternalData object points to audio data this specifies whether it's a multisample set or a single sample. */
 	bool isXYZ() const { return isXYZAudioData; };
 
 	template <int NumChannels> static int getXYZData(const void* obj_, SampleData<NumChannels>* dataToFill, const HiseEvent& e)
@@ -549,17 +563,30 @@ struct ExternalData
 
 	static ComplexDataUIBase::EditorBase* createEditor(ComplexDataUIBase* dataObject);
 	
+    /** the data type of the target data. */
 	DataType dataType = DataType::numDataTypes;
+    
+    /** The number of samples (= the length of the float array) */
 	int numSamples = 0;
+    
+    /** The number of audio channels (usually 1 if not an audio file). */
 	int numChannels = 0;
+    
+    /** Specifies whether the data points to a multichannel sample set. */
 	int isXYZAudioData = 0;
+    
+    /** An untyped pointer to the actual data. */
 	void* data = nullptr;
+    
+    /** A pointer to the complex data object that is used for eg. UI updates. */
 	hise::ComplexDataUIBase* obj = nullptr;
+    
+    /** the samplerate (if the data is an audio file). */
 	double sampleRate = 0.0;
 	
 };
 
-/** A interface class that handles the communication between a SNEX node and externally defined complex data types of HISE.
+/** @internal A interface class that handles the communication between a SNEX node and externally defined complex data types of HISE.
 
 	This is the lowest common denominator for all the different data management situations in HISE and is used
 	by the ExternalDataProviderBase to fetch the data required by the internal processing.
@@ -612,7 +639,7 @@ struct ExternalDataHolder
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalDataHolder);
 };
 
-/** This interface class adds the ability to send a "force update" message
+/** @internal This interface class adds the ability to send a "force update" message
     to all its registered listeners. 
 */
 struct ExternalDataHolderWithForcedUpdate : public ExternalDataHolder
@@ -660,7 +687,7 @@ private:
 
 
 
-/** A base class that fetches the data from the ExternalDataHolder and forwards it to
+/** @internal A base class that fetches the data from the ExternalDataHolder and forwards it to
     its inner structure (either JIT compiled, hardcoded C++ or interpreted nodes)
 */
 struct ExternalDataProviderBase
@@ -703,7 +730,7 @@ namespace data
 {
 
 
-/** Subclass this when you want to show a UI for the given data. */
+/** @internal Subclass this when you want to show a UI for the given data. */
 struct base
 {
 	
@@ -732,7 +759,10 @@ struct base
 
 }
 
-/** Use this in order to lock the access to the external data. */
+/** Use this in order to lock the access to the external data.
+    @ingroup snex_helpers
+ 
+    */
 struct DataReadLock
 {
 	DataReadLock(data::base* d, bool tryRead=false) :
@@ -747,6 +777,7 @@ struct DataReadLock
 		}
 	}
 
+    /** Create a data lock from the external data object. */
 	DataReadLock(snex::ExternalData& d, bool tryRead=false) :
 		lockToUse(d.obj != nullptr ? &d.obj->getDataLock() : nullptr)
 	{
@@ -759,6 +790,17 @@ struct DataReadLock
 		}
 	}
 
+    /** Returns true if the lock could be acquired (if `tryRead` is false, then this will always return true).
+     
+        You can use this for a scoped based approach to data synchronisation:
+     
+            
+            if(auto lock = DataReadLock(ed, true))
+            {
+                doSomethingWhileLocked();
+            }
+            
+     */
 	operator bool() const { return isLocked(); }
 
 	bool isLocked() const { return lockToUse != nullptr && holdsLock; };
@@ -773,7 +815,6 @@ struct DataReadLock
 	bool holdsLock = false;
 };
 
-/** Use this in order to lock the access to the external data. */
 struct DataTryReadLock : hise::SimpleReadWriteLock::ScopedTryReadLock
 {
 	DataTryReadLock(data::base* d) :
@@ -918,7 +959,7 @@ struct base
 };
 
 
-/** This is used as interface class for the wrap::data template in order to access the base. */
+/** @internal This is used as interface class for the wrap::data template in order to access the base. */
 struct provider_base
 {
 	virtual ~provider_base() {};
@@ -1036,7 +1077,7 @@ public:
 
 }
 
-/** This data type will be used when there are multiple data slots used in the node.
+/** @internal This data type will be used when there are multiple data slots used in the node.
 
 	The template argument must be a class with the following properties:
 

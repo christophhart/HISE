@@ -533,6 +533,14 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 		root.addChild(std::move(manual));
 	}
 	
+    {
+        MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/snex_api"), root.c);
+
+        auto manual = mgen.createRootItem(parent);
+        manual.fillMetadataFromURL();
+
+        root.addChild(std::move(manual));
+    }
 
     data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(true);
     

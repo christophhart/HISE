@@ -9,8 +9,7 @@
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
-<script type="text/javascript" src="search/searchdata.js"></script>
-<script type="text/javascript" src="search/search.js"></script>
+
 <script type="text/javascript">
   $(document).ready(function() { init_search(); });
 </script>
@@ -19,43 +18,20 @@
 <body>
 <div class="mainHeader">
 <div class="mainTitle">
-<div class="hiseLogo"><a href="http://hise.audio/"><img src="http://hise.audio/logo_new.png"></a></div>
-<div class="hise"><a href="index.html">HISE DSP Module API</a></div>
-<div class="menuItem"><a href="class_dsp_base_object.html">DspBaseObject</a></div>
+<div class="hise"><a href="http://hise.audio/"><b>HISE</b></a></div>
+<div class="hise">
+    <a href="index.html">SNEX API Overview</a>
+    <a href="group__snex__nodes.html">Node Types</a>
+    <a href="group__snex__data__structures.html">Data Structures</a>
+    <a href="group__snex__helpers.html">DSP Helper Classes</a>
+    <a href="group__snex__containers.html">Containers</a>
+    <a href="group__snex__index.html">Index Types</a>
+    <a href="group__snex__math.html">Math API</a>
+</div>
 
 
 </div>
-<script type="text/javascript">
-var searchBox = new SearchBox("searchBox", "search",false,'Search');
-</script>
-<div id="MSearchBox" class="MSearchBoxInactive">
-        <span class="left">
-          <img id="MSearchSelect" src="search/mag_sel.png"
-               onmouseover="return searchBox.OnSearchSelectShow()"
-               onmouseout="return searchBox.OnSearchSelectHide()"
-               alt=""/>
-          <input type="text" id="MSearchField" value="Search" accesskey="S"
-               onfocus="searchBox.OnSearchFieldFocus(true)" 
-               onblur="searchBox.OnSearchFieldFocus(false)" 
-               onkeyup="searchBox.OnSearchFieldChange(event)"/>
-          </span><span class="right">
-            <a id="MSearchClose" href="javascript:searchBox.CloseResultsWindow()"><img id="MSearchCloseImg" border="0" src="search/close.png" alt=""/></a>
-          </span>
-        </div>
 
-<!-- window showing the filter options -->
-<div id="MSearchSelectWindow"
-     onmouseover="return searchBox.OnSearchSelectShow()"
-     onmouseout="return searchBox.OnSearchSelectHide()"
-     onkeydown="return searchBox.OnSearchSelectKey(event)">
-</div>
-
-<!-- iframe showing the search results (closed by default) -->
-<div id="MSearchResultsWindow">
-<iframe src="javascript:void(0)" frameborder="0" 
-        name="MSearchResults" id="MSearchResults">
-</iframe>
-</div>
 </div>
 <div class="jumboImage"></div>
 <div class="mainContent">

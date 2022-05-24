@@ -48,7 +48,8 @@ using namespace juce;
 
 
 
-/** A simple helper class that provides interleaved iteration over a multichannel signal. 
+/** A simple helper class that provides interleaved iteration over a multichannel signal.
+    @ingroup snex_helpers
 
 	Some processing algorithms require interleaved processing so that you have all samples 
 	for all channels available. 
@@ -198,28 +199,40 @@ private:
 };
 
 /** This data structure is useful if you're writing any kind of oscillator.
+    @ingroup snex_data_structures
 
 	It contains the buffer that the signal is supposed to be added to as well
-	as the pitch information and current state.
+	as the pitch information and current state. @ref snex_data_structures
 
 	It has an overloaded ++-operator that will bump up the uptime.
 
-	@code
-	void process(OscProcessData& d)
-	{
-		for(auto& s: d.data)
-		{
-			s += Math.sin(d++);
-		}
-	}
-	@endcode
+    If you create an oscillator using the `snex_osc` node, this will take in the
+    two parameters Frequency and FreqRatio into account and calculates a
+    per sample counter that can be used to generate any kind of signal. If you
+    eg. want to generate a (naive) saw waveform, all you have to do is
+ 
+    @code
+    void process(OscProcessData& d)
+    {
+        for (auto& s : d.data)
+        {
+            s = Math.fmod(d++, 1.0);
+        }
+    }
+    @endcode
 */
 struct OscProcessData
 {
+    /** A monophonic audio buffer that needs to be filled with your signal. */
 	dyn<float> data;		// 16 bytes
+    
+    /** The uptime since the voice start. */
 	double uptime = 0.0;    // 8 bytes
+    
+    /** The delta that is added to the uptime for each sample. This is automatically calculated using the samplerate, frequency and ratio! */
 	double delta = 0.0;     // 8 bytes
 	
+    /** This bumps the uptime with the delta value and returns the previous uptime value (post incrementor). */
 	double operator++()
 	{
 		auto v = uptime;

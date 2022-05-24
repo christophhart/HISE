@@ -41,6 +41,12 @@ using namespace snex;
 namespace core
 {
 
+/** A general purpose node with all callbacks.
+    @ingroup snex_nodes
+ 
+    This node is the most comprehensive one and offers the complete set of callbacks.
+    Depending on your use case, it might be easier to use one of the more specialised callbacks.
+*/
 struct snex_node : public SnexSource
 {
 	SN_NODE_ID("snex_node");
@@ -245,28 +251,38 @@ struct snex_node : public SnexSource
 		return new SnexSource::Tester<NodeCallbacks>(*this);
 	}
 
+    /** This function will be called whenever the processing specifications change. You can use this to setup your processing. */
 	void prepare(PrepareSpecs ps)
 	{
 		rebuildCallbacksAfterChannelChange(ps.numChannels);
 		callbacks.prepare(ps);
 	}
 
+    /** This callback will be called whenever a HiseEvent (=MIDI event on steroids) should be executed. Note that the execution of HiseEvents depends on the surrounding context. */
 	void handleHiseEvent(HiseEvent& e)
 	{
 		callbacks.handleHiseEvent(e);
 	}
 
+    /** This callback will be called whenever the processing pipeline needs to be resetted (eg. after unbypassing an effect or starting a polyphonic voice).*/
 	void reset()
 	{
 		callbacks.resetFunc();
 	}
 
+    /** This callback will be executed periodically in the audio thread and should contain your DSP code. */
+    template <int C> void process(ProcessData<C>& d)
+    {
+        jassertfalse;
+    }
+    
 	void process(ProcessDataDyn& data)
 	{
 		callbacks.process(data);
 	}
 
-	template <typename T> void processFrame(T& data)
+    /** This callback will be executed if the node is inside a frame processing context. */
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
 		callbacks.processFrame(data);
 	}

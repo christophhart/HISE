@@ -41,6 +41,7 @@ DECLARE_ID(refid);
 DECLARE_ID(baseclasses);
 DECLARE_ID(derivedclasses);
 DECLARE_ID(basecompoundref);
+DECLARE_ID(definition);
 DECLARE_ID(derivedcompoundref);
 DECLARE_ID(inheritancegraph);
 DECLARE_ID(collaborationgraph);
@@ -48,6 +49,44 @@ DECLARE_ID(heading);
 DECLARE_ID(level);
 DECLARE_ID(title);
 DECLARE_ID(innernamespace);
+DECLARE_ID(templateparamlist);
+DECLARE_ID(initializer);
+DECLARE_ID(param);
+DECLARE_ID(declname);
+
+
+}
+
+namespace JsonSettings
+{
+DECLARE_ID(build_settings);
+DECLARE_ID(ShowBaseClasses);
+DECLARE_ID(ShowDerivedClasses);
+DECLARE_ID(Summary);
+DECLARE_ID(CustomLinkPrefix);
+DECLARE_ID(UseGroupFileAsReadme);
+DECLARE_ID(StripNamespaceFromTitle);
+DECLARE_ID(RenameMarkdownToTitle);
+DECLARE_ID(RootKeyword);
+DECLARE_ID(RootSummary);
+DECLARE_ID(StripKeywords);
+
+static Array<Identifier> getAllIds()
+{
+    Array<Identifier> ids;
+    ids.add(ShowBaseClasses);
+    ids.add(ShowDerivedClasses);
+    ids.add(Summary);
+    ids.add(CustomLinkPrefix);
+    ids.add(UseGroupFileAsReadme);
+    ids.add(StripNamespaceFromTitle);
+    ids.add(RenameMarkdownToTitle);
+    ids.add(RootKeyword);
+    ids.add(RootSummary);
+    ids.add(StripKeywords);
+    
+    return ids;
+}
 
 }
 
@@ -123,13 +162,59 @@ static bool isReadmeFile(const File& f)
 }
 }
 
+
+
 struct Helpers
 {
-	static XmlElement* loadFile(const File& f)
+	static auto loadFile(const File& f)
 	{
 		return XmlDocument::parse(f);
 	}
+    
+    static File inputRoot;
+    
+    
+    static String sanitize(const String& s)
+    {
+        auto p = s.removeCharacters("():,;?").toLowerCase();
 
+        if (!p.isEmpty() && p.endsWith("/"))
+            p = p.upToLastOccurrenceOf("/", false, false);
+
+        p = p.replace(".md", "");
+
+        return p.replaceCharacter(' ', '-').toLowerCase();
+    }
+    static var getJSONSetting(const Identifier& id, var defaultValue)
+    {
+        jassert(inputRoot.isDirectory());
+        
+        auto f = inputRoot.getChildFile(JsonSettings::build_settings.toString()).withFileExtension("json");
+        
+        if(f.existsAsFile())
+        {
+            var v;
+            auto r = JSON::parse(f.loadFileAsString(), v);
+            
+            if(!r.wasOk())
+            {
+                std::cout << "Error parsing JSON setting file: " << r.getErrorMessage();
+                exit(1);
+            }
+            
+            return v.getProperty(id, defaultValue);
+        }
+        
+        return defaultValue;
+    }
+
+    
+    
+    static bool isGroupReadme(const File& f)
+    {
+        return f.getFileNameWithoutExtension().startsWith("group") && getJSONSetting(JsonSettings::UseGroupFileAsReadme, false);
+    }
+    
 	static bool writeTextIntoAttribute(XmlElement* xml, XmlElement* parent)
 	{
 
@@ -156,7 +241,6 @@ struct Helpers
 				DoxygenTags::listofallmembers,
 				DoxygenTags::inheritancegraph,
 				DoxygenTags::collaborationgraph,
-			    DoxygenTags::title,
 				DoxygenTags::innernamespace };
 
 			Identifier id(xml->getTagName());
@@ -215,11 +299,22 @@ struct Helpers
 
 	static String findAllText(ValueTree v, Identifier id, bool noLinks=false)
 	{
-		if (id.isValid())
+        if (id.isValid())
 			v = v.getChildWithName(id);
 
 		String s;
 		appendValueTree(s, v, noLinks);
+        
+        auto keywordsToStrip = Helpers::getJSONSetting(JsonSettings::StripKeywords, "").toString();
+        
+        if(!keywordsToStrip.isEmpty())
+        {
+            auto kw = StringArray::fromTokens(keywordsToStrip, " ,;", "");
+            
+            for(auto& k: kw)
+                s = s.replace(k, "");
+        }
+        
 		return s;
 	}
 
@@ -247,6 +342,45 @@ struct Helpers
 		return m;
 	}
 
+    static void appendTemplateArguments(String& s, ValueTree v, bool includeTypes=false)
+    {
+        if(v.getType() == DoxygenTags::compounddef && !includeTypes)
+            return;
+        
+        auto tp = v.getChildWithName(DoxygenTags::templateparamlist);
+        
+        
+        
+        if(tp.isValid())
+        {
+            if(!includeTypes)
+                s << "template <";
+            else
+                s << "<";
+            
+            for(const auto& p: tp)
+            {
+                jassert(p.getType() == DoxygenTags::param);
+                
+                s << findAllText(p, DoxygenTags::type).trim();
+                
+                auto nn = findAllText(p, DoxygenTags::declname).trim();
+                
+                if(nn.isNotEmpty())
+                {
+                    s << " ";
+                    s << nn;
+                }
+                
+                auto isLast = tp.indexOf(p) == tp.getNumChildren() -1;
+                
+                if(!isLast)
+                    s << ", ";
+            }
+            
+            s << "> ";
+        }
+    }
 
 	static void appendMemberDef(String& s, ValueTree v)
 	{
@@ -255,6 +389,8 @@ struct Helpers
 		String memberName;
 		appendValueTree(memberName, v.getChildWithName(DoxygenTags::name), false);
 
+        
+        
 		if (memberType == "enum")
 		{
 			if (v.getNumChildren() == 0)
@@ -288,6 +424,28 @@ struct Helpers
 				s << e;
 			
 		}
+        if(memberType == "variable")
+        {
+            String description = findAllText(v, DoxygenTags::detaileddescription);
+
+            if (description.isEmpty())
+                return;
+            
+            s << "#### " << memberName;
+            
+            s << "\n```cpp\n " << findAllText(v, DoxygenTags::definition, true);
+            
+            String initValue = findAllText(v, DoxygenTags::initializer);
+            
+            if(initValue.isNotEmpty())
+                s << " " << initValue;
+            
+            s << "\n```\n";
+            
+            s << description;
+            
+            
+        }
 		if (memberType == "function")
 		{
 			String description = findAllText(v, DoxygenTags::detaileddescription);
@@ -298,6 +456,9 @@ struct Helpers
 			s << "\n### " << memberName << "\n";
 
 			s << "\n```cpp" << "\n";
+            
+            appendTemplateArguments(s, v);
+            
 			s << findAllText(v, DoxygenTags::type, true) << " " << memberName << findAllText(v, DoxygenTags::argsstring, true) << "\n";
 			s << "```\n\n";
 
@@ -325,11 +486,47 @@ struct Helpers
 		}
 		if (sectionType == "public-func")
 		{
-			s << "\n## Class methods\n";
-
-			for (auto c : v)
-				appendValueTree(s, c, false);
+            String sf;
+            
+            for (auto c : v)
+                appendValueTree(sf, c, false);
+            
+            if(sf.isNotEmpty())
+            {
+                s << "\n## Class methods\n";
+                s << sf;
+            }
 		}
+        if(sectionType == "public-attrib")
+        {
+            
+            
+            String sf;
+            
+            for (auto c : v)
+                appendValueTree(sf, c, false);
+            
+            if(sf.containsNonWhitespaceChars())
+            {
+                s << "\n## Class members\n";
+                s << sf;
+            }
+        }
+        if(sectionType == "public-static-func")
+        {
+            String sf;
+            
+            
+            
+            for(auto c: v)
+                appendValueTree(sf, c, false);
+            
+            if(sf.containsNonWhitespaceChars())
+            {
+                s << "\n## Static functions\n";
+                s << sf;
+            }
+        }
 	}
 
 	static void appendInheritance(String& s, ValueTree v)
@@ -344,7 +541,7 @@ struct Helpers
 		for (auto c : v.getChildWithName(DoxygenTags::baseclasses))
 			appendValueTree(b, c, false);
 
-		if (b.isNotEmpty())
+		if (b.isNotEmpty() && Helpers::getJSONSetting(JsonSettings::ShowBaseClasses, true))
 		{
 			c << "### Base Classes\n\n";
 			c << b;
@@ -356,7 +553,7 @@ struct Helpers
 		for (auto c : v.getChildWithName(DoxygenTags::derivedclasses))
 			appendValueTree(d, c, false);
 
-		if (d.isNotEmpty())
+		if (d.isNotEmpty() && Helpers::getJSONSetting(JsonSettings::ShowDerivedClasses, true))
 		{
 			c << "\n### Derived Classes\n\n";
 			c << d;
@@ -373,17 +570,76 @@ struct Helpers
 
 	}
 
+    static String getIdFromFile(const File& f)
+    {
+        jassert(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false));
+        
+        if(auto xml = XmlDocument::parse(f))
+        {
+            if(auto c = xml->getChildByName(DoxygenTags::compounddef))
+            {
+                if(auto c1 = c->getChildByName(DoxygenTags::compoundname))
+                {
+                    auto t = c1->getAllSubText().trim();
+                    
+                    if(getJSONSetting(JsonSettings::StripNamespaceFromTitle, false))
+                    {
+                        t = t.fromLastOccurrenceOf("::", false, false);
+                        t = sanitize(t);
+                    }
+                    
+                    return t;
+                }
+            }
+        }
+        
+        return f.getFileNameWithoutExtension();
+    }
+    
 	static String getProperLink(String link)
 	{
-		bool isRawLink = link.contains("raw");
+        auto customLink = getJSONSetting(JsonSettings::CustomLinkPrefix, "").toString();
+        
+        if(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false))
+        {
+            auto allFiles = inputRoot.findChildFiles(File::findFiles, true);
+            
+            for(auto& f: allFiles)
+            {
+                if(link.startsWith(f.getFileNameWithoutExtension()))
+                {
+                    
+                    auto r = f.getParentDirectory().getRelativePathFrom(inputRoot);
+                    
+                    auto l = getIdFromFile(f);
+                    
+                    String s;
+                    
+                    s << r << "/" << l << "/";
+                    link = s;
+                }
+            }
+        }
+        
+        String s;
+        
+        if(customLink.isNotEmpty())
+        {
+            s << "/";
+            s << customLink.trimCharactersAtEnd("/").trimCharactersAtStart("/");
+            s << "/";
+            s << link;
+        }
+        else
+        {
+            bool isRawLink = link.contains("raw");
 
-		String s;
-
-		if (isRawLink)
-			s = "/cpp_api/raw/" + link;
-		else
-			s = "/cpp_api/hise/" + link;
-		
+            if (isRawLink)
+                s << "/cpp_api/raw/" << link;
+            else
+                s << "/cpp_api/hise/" << link;
+        }
+        
 		if (auto anchor = createAnchorItem(s))
 			return anchor.toString();
 
@@ -408,14 +664,11 @@ struct Helpers
 	
 	static void appendValueTree(String& s, ValueTree v, bool noLinks)
 	{
+        if(v.getType() == DoxygenTags::templateparamlist)
+            return;
 		if (v.getType() == Identifier(DoxygenTags::compoundname))
 		{
 			return;
-#if 0
-			s << "# ";
-			appendValueTree(s, v.getChildWithName("text"), noLinks);
-			s << "\n\n";
-#endif
 		}
 		else if (v.getType() == DoxygenTags::inheritance)
 		{
@@ -455,6 +708,8 @@ struct Helpers
 		}
 		else if (v.getType() == DoxygenTags::sectiondef)
 		{
+            
+            
 			appendSection(s, v);
 		}
 		else if (v.getType() == DoxygenTags::ref)
@@ -565,26 +820,14 @@ struct Helpers
 		return {};
 	}
 
-#if 0
-	static void resolveAllAnchors(AnchorCache& cache, ValueTree v)
-	{
-		if (v.getType() == DoxygenTags::basecompoundref || v.getType() == DoxygenTags::derivedcompoundref || v.getType() == DoxygenTags::ref)
-		{
-			
-		}
-
-		for (auto c : v)
-		{
-			resolveAllAnchors(cache, c);
-		}
-	}
-#endif
 
 	static String currentPage;
 
 	static AnchorCache currentCache;
 
 };
+
+File Helpers::inputRoot;
 
 String Helpers::currentPage;
 AnchorCache Helpers::currentCache;
@@ -596,11 +839,11 @@ struct XmlToMarkdownConverter
 		root(root_),
 		target(target_)
 	{
-		ScopedPointer<XmlElement> xml = Helpers::loadFile(f);
+		auto xml = Helpers::loadFile(f);
 
 		path = f.getRelativePathFrom(root);
 
-		Helpers::writeTextIntoAttribute(xml, nullptr);
+		Helpers::writeTextIntoAttribute(xml.get(), nullptr);
 
 		auto v = ValueTree::fromXml(*xml);
 
@@ -630,10 +873,17 @@ struct XmlToMarkdownConverter
 
 		std::cout << "\ncreate " << targetFile.getFullPathName() << "\n";
 
-		if (ReadmeFiles::isReadmeFile(targetFile))
+		if (ReadmeFiles::isReadmeFile(targetFile) || Helpers::isGroupReadme(targetFile))
 		{
 			targetFile = targetFile.getSiblingFile("readme.md");
 		}
+        else if(Helpers::getJSONSetting(JsonSettings::RenameMarkdownToTitle, false))
+        {
+            auto t = c.getChildWithName(DoxygenTags::compoundname).getChildWithName(DoxygenTags::text);
+            auto title = Helpers::findAllText(t, {}).fromLastOccurrenceOf("::", false, false).trim();
+            
+            targetFile = targetFile.getSiblingFile(Helpers::sanitize(title)).withFileExtension("md");
+        }
 
 		targetFile.create();
 		targetFile.replaceWithText(process());
@@ -680,12 +930,19 @@ struct XmlToMarkdownConverter
 	{
 		Helpers::currentPage = Helpers::getProperLink(f.getFileNameWithoutExtension());
 
-		Helpers::moveInheritanceToSubtree(c);
+        String briefSummary;
+        
+        if(c.isValid())
+        {
+            briefSummary = Helpers::findAllText(c, DoxygenTags::briefdescription).trim();
+            
+            Helpers::moveInheritanceToSubtree(c);
 
-		auto description = c.getChildWithName(DoxygenTags::detaileddescription);
+            auto description = c.getChildWithName(DoxygenTags::detaileddescription);
 
-		c.removeChild(description, nullptr);
-		c.addChild(description, 1, nullptr);
+            c.removeChild(description, nullptr);
+            c.addChild(description, 1, nullptr);
+        }
 
 		auto t = c.getChildWithName(DoxygenTags::compoundname).getChildWithName(DoxygenTags::text);
 
@@ -700,31 +957,45 @@ struct XmlToMarkdownConverter
 
 			if (id == ReadmeFiles::indexpage)
 			{
-				keyword = "C++ API";
-				summary = "The C++ API reference\n";
+				keyword = Helpers::getJSONSetting(JsonSettings::RootKeyword, "C++ API").toString().trim();
+                summary = Helpers::getJSONSetting(JsonSettings::RootSummary, "The C++ API reference").toString().trim();
 			}
 				
 			if (id == ReadmeFiles::namespacehise)
 			{
 				keyword = "namespace hise";
-				summary = "A collection of important classes from the HISE codebase\n";
+				summary = "A collection of important classes from the HISE codebase";
 			}
 				
 			if (id == ReadmeFiles::namespacehise_1_1raw)
 			{
 				keyword = "namespace raw";
-				summary = "A high-level API for creating projects using C++\n";
+				summary = "A high-level API for creating projects using C++";
 			}
 		}
 		else
 		{
-			keyword = Helpers::findAllText(t, {}).fromFirstOccurrenceOf("::", false, false).trim();
-			summary = " C++ API Class reference\n";
+            if(Helpers::isGroupReadme(f))
+            {
+                DBG(c.createXml()->createDocument(""));
+                keyword = Helpers::findAllText(c, DoxygenTags::title);
+            }
+            else
+            {
+                keyword = Helpers::findAllText(t, {}).fromLastOccurrenceOf("::", false, false).trim();
+                
+                Helpers::appendTemplateArguments(keyword, c, true);
+            }
+            
+			summary = Helpers::getJSONSetting(JsonSettings::Summary, "C++ API Class reference").toString().trim();
 		}
 
+        if(briefSummary.isNotEmpty())
+            summary = briefSummary;
+        
 		d << "---\n";
 		d << "keywords: " << keyword << "\n";
-		d << "summary:  " << summary;
+		d << "summary:  " << summary << "\n";
 		d << "author:   Christoph Hart\n";
 		d << "---\n\n";
 
@@ -750,7 +1021,13 @@ int main (int argc, char* argv[])
 	{
 		std::cout << "Doxygen XML2MarkdownConverter\n\n";
 		std::cout << "Usage: cpp_api_builder [INPUT_DIRECTORY] [OUTPUT_DIRECTORY] [--valuetree]";
-		
+        std::cout << "In order to customize the build, supply a " << JsonSettings::build_settings.toString() << ".json\n";
+        std::cout << "file in the root directory. Supported properties:\n";
+        
+        for(auto& id: JsonSettings::getAllIds())
+        {
+            std::cout << " - " << id.toString() << "\n";
+        }
 	}
 	else
 	{
@@ -766,6 +1043,8 @@ int main (int argc, char* argv[])
 		else
 			root = File(argv[0]).getParentDirectory().getChildFile(inputString);
 
+        Helpers::inputRoot = root;
+        
 		if (File::isAbsolutePath(outputString))
 			target = File(outputString);
 		else

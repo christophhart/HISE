@@ -328,6 +328,8 @@ void ConvolutionEffectBase::prepareBase(double sampleRate, int samplesPerBlock)
 {
 	if (wetBuffer.getNumSamples() < samplesPerBlock)
 	{
+
+
 		wetBuffer.setSize(wetBuffer.getNumChannels(), samplesPerBlock);
 		wetBuffer.clear();
 	}
@@ -380,6 +382,12 @@ void ConvolutionEffectBase::processBase(ProcessDataDyn& d)
 		{
 			float* convolutedL = wetBuffer.getWritePointer(0);
 			float* convolutedR = numChannels > 1 ? wetBuffer.getWritePointer(1) : nullptr;
+
+			if (convolutedL == nullptr)
+			{
+				jassertfalse;
+				return;
+			}
 
 			if (smoothInputBuffer)
 			{

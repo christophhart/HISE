@@ -187,6 +187,17 @@ public:
 		}
 	};
 
+	void setManualDownsampleFactor(float newDownSampleFactor)
+	{
+		FloatSanitizers::sanitizeFloatNumber(newDownSampleFactor);
+
+		if (newDownSampleFactor == -1)
+			manualDownSampleFactor = -1.0f;
+		else
+			manualDownSampleFactor = jlimit<float>(1.0f, 10.0f, newDownSampleFactor);
+
+	}
+
 	void setDrawHorizontalLines(bool shouldDrawHorizontalLines)
 	{
 		drawHorizontalLines = shouldDrawHorizontalLines;
@@ -234,6 +245,8 @@ public:
 	float spectrumAlpha = 0.0f;
 
 private:
+
+	float manualDownSampleFactor = -1.0f;
 
 	AudioDataProcessor sampleProcessor;
 

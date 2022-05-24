@@ -176,24 +176,31 @@ struct SendContainer : public ModulatorSynth
 	{
 		processHiseEventBuffer(inputMidi, outputAudio.getNumSamples());
 
-		effectChain->renderMasterEffects(internalBuffer);
-		
-        
+		int numSamplesToProcess;
+
+		if (outputAudio.getNumSamples() < internalBuffer.getNumSamples())
+		{
+			numSamplesToProcess = outputAudio.getNumSamples();
+			AudioSampleBuffer truncatedInternalBuffer(internalBuffer.getArrayOfWritePointers(), internalBuffer.getNumChannels(), numSamplesToProcess);
+			effectChain->renderMasterEffects(truncatedInternalBuffer);
+		}
+		else
+		{
+			numSamplesToProcess = internalBuffer.getNumSamples();
+			effectChain->renderMasterEffects(internalBuffer);
+		}
+
         for(int i = 0; i < internalBuffer.getNumChannels(); i++)
         {
             auto idx = getMatrix().getConnectionForSourceChannel(i);
             
             if(isPositiveAndBelow(idx, outputAudio.getNumChannels()))
-            {
-                outputAudio.addFrom(idx, 0, internalBuffer, i, 0, internalBuffer.getNumSamples());
-            }
+                outputAudio.addFrom(idx, 0, internalBuffer, i, 0, numSamplesToProcess);
         }
         
         getMatrix().handleDisplayValues(internalBuffer, outputAudio);
 
-        
-
-        handlePeakDisplay(internalBuffer.getNumSamples());
+        handlePeakDisplay(numSamplesToProcess);
         
         internalBuffer.clear();
 	}

@@ -503,13 +503,19 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 				return var();
 			};
 
-			String mid;
-			mid << "%PARENT%" << "." << l->getProperties().getName(index + 1);
+			auto& prop = l->getProperties();
 
-			return new LambdaValueInformation(vf, mid, {}, DebugInformation::Type::ExternalFunction, getLocation());
+			
+
+			if (isPositiveAndBelow(index + 1, prop.size()))
+			{
+				String mid;
+				mid << "%PARENT%" << "." << l->getProperties().getName(index + 1);
+				return new LambdaValueInformation(vf, mid, {}, DebugInformation::Type::ExternalFunction, getLocation());
+			}
 		}
 
-		return 0;
+		return nullptr;
 	}
 
 	AttributedString getDescription() const override

@@ -182,6 +182,7 @@ private:
 	int length = 0;
 };
 
+
 template <int UpperLimit, bool CheckOnAssign = false> using wrapped = integer_index<wrapped_logic<UpperLimit>, CheckOnAssign>;
 template <int UpperLimit, bool CheckOnAssign = false> using clamped = integer_index<clamped_logic<UpperLimit>, CheckOnAssign>;
 template <int UpperLimit, bool CheckOnAssign = false> using unsafe = integer_index<unsafe_logic<UpperLimit, 0>, false>;

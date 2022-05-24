@@ -114,8 +114,9 @@ public:
 		print("-ipp      enables Intel Performance Primitives for fast convolution." );
 		print("-l        This can be used to compile a version that runs on legacy CPU models.");
 		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect' | 'midi')" );
-		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" );
-		print("          (Leave empty for standalone export)" );
+		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL' | 'VST2' | 'VST3' )" );
+		print("          (Leave empty for standalone export). Note that if you use the VST2 or VST3 it will" );
+		print("          override the project settings (so you can export both versions).");
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
@@ -134,9 +135,11 @@ public:
 		print("Cleans the Binaries folder of the given project.");
 		print("-p:PATH - the path to the project folder.");
 		print("");
-        print("create-win-installer [-a:x64|x86] [-noaax] [-rlottie]" );
+        print("create-win-installer [-a:x64|x86] [-noaax] [-vst2] [-vst3]" );
 		print("Creates a template install script for Inno Setup for the project" );
 		print("Add the -noaax flag to not include the AAX build");
+		print("If you want to include VST2 and or VST3 plugins, specify the version.");
+		print("If no VST flag is set, then the VST2 plugin is included as default");
         print("");
         print("create-docs -p:PATH");
         print("Creates the HISE documentation files from the markdown files in the given directory.");
@@ -164,7 +167,11 @@ public:
 		const bool include32 = false;
         const bool include64 = !args.contains("-a:x86");
 
-		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64);
+		const bool includeVST3 = args.contains("-vst3");
+
+		const bool includeVST2 = !includeVST3 || args.contains("-vst2");
+
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeVST2, includeVST3);
 
 		auto root = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
 

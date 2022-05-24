@@ -120,7 +120,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "      </MODULEPATHS>\r\n"
 "    </%VS_VERSION%>\r\n"
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstLegacyFolder=\"%VSTSDK_FOLDER%\" vst3Folder=\"%VSTSDK3_FOLDER%\"  aaxFolder=\"%AAX_PATH%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override  -fno-aligned-allocation\"\r\n"
-"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"0\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\" xcodeValidArchs=\"arm64,arm64e,x86_64\">\r\n"
+"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%\" hardenedRuntime=\"0\" hardenedRuntimeOptions=\"com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input\" xcodeValidArchs=\"%ARM_ARCH%\">\r\n"
 "                \r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" osxSDK=\"default\" osxCompatibility=\"10.9 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
