@@ -150,7 +150,7 @@ template <int C, int AddToSignal=1> struct block
 		auto d = ProcessDataHelpers<C>::makeChannelData(buffer);
 
 		for (auto& ch : d)
-			channels[index++].referToRawData(ch, (size_t)ps.blockSize);
+			channels[index++].referToRawData(ch, ps.blockSize);
 	};
 
 	template <typename T> void connect(T& receiveTarget)

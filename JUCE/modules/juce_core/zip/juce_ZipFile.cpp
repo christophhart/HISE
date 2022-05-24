@@ -461,7 +461,7 @@ Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool sh
 			static constexpr int BufferSize = 32768;
 
 			int numWritten = 0;
-			int numTotal = jmax<int64>(1, in->getTotalLength());
+			auto numTotal = jmax<int64>(1, in->getTotalLength());
 
 			while (!in->isExhausted())
 			{
