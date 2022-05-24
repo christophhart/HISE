@@ -353,7 +353,6 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 		if (!upImages[i])
 		{
-			jassertfalse;
 			useCustomGraphics = false;
 			break;
 		}
@@ -364,7 +363,6 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 
 		if (!downImages[i])
 		{
-			jassertfalse;
 			useCustomGraphics = false;
 			break;
 		}
