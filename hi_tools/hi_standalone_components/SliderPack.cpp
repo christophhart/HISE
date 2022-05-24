@@ -687,8 +687,11 @@ void SliderPack::displayedIndexChanged(SliderPackData* d, int newIndex)
 	{
 		currentDisplayIndex = newIndex;
 
-		displayAlphas.set(newIndex, 0.4f);
-		startTimer(30);
+        if(newIndex != -1)
+        {
+            displayAlphas.set(newIndex, 0.4f);
+            startTimer(30);
+        }
 	}
 }
 

@@ -360,6 +360,7 @@ public:
 	{
 		DEF_PARAMETER(Position, haas);
 	}
+    SN_PARAMETER_MEMBER_FUNCTION;
 
 	SN_POLY_NODE_ID("haas");
 	SN_GET_SELF_AS_OBJECT(haas);

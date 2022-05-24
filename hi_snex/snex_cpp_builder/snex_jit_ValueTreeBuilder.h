@@ -86,6 +86,17 @@ struct ValueTreeIterator
 		return v;
 	}
 
+    static bool fixCppIllegalCppKeyword(String& s)
+    {
+        if(s == "switch")
+        {
+            s = "switcher";
+            return true;
+        }
+        
+        return false;
+    }
+    
 	static bool isBetween(IterationType l, IterationType u, IterationType v);
 	static bool isBackwards(IterationType t);
 	static bool isRecursive(IterationType t);
@@ -187,6 +198,9 @@ struct Node : public ReferenceCountedObject,
 			auto fId = NamespacedIdentifier(CustomNodeProperties::getModeNamespace(nodeTree));
 			auto cId = ValueTreeIterator::getNodeProperty(nodeTree, PropertyIds::Mode).toString().toLowerCase().replaceCharacter(' ', '_');
 
+            ValueTreeIterator::fixCppIllegalCppKeyword(cId);
+            
+            
 			UsingTemplate ud(parent, "unused", fId.getChildId(cId));
 
 			if (hasProperty(PropertyIds::TemplateArgumentIsPolyphonic))

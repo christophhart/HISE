@@ -150,6 +150,8 @@ template <class T, int P> struct single_base
 
 	template <int Index, class OtherType> void connect(OtherType& element)
 	{
+        static_assert(P >= 0, "parameter index must be positive");
+        
 		static_assert(Index == 0, "Index must be zero");
         static_assert(std::is_same<typename OtherType::ObjectType, typename T::ObjectType>(), "target type mismatch");
 

@@ -1627,8 +1627,7 @@ void DspNetwork::ProjectNodeHolder::init(dll::StaticLibraryHostFactory* staticLi
 	{
 		if (network.getId() == staticLibrary->getId(i))
 		{
-			staticLibrary->initOpaqueNode(&n, i, network.isPolyphonic());
-			loaded = true;
+			loaded = staticLibrary->initOpaqueNode(&n, i, network.isPolyphonic());
 		}
 	}
 }
