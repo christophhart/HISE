@@ -1273,6 +1273,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			if (archiveTime > existingTime)
 				targetHlacFile.deleteFile();
+			else
+				overwriteThisFile = false;
+				
 		}
 
 		if (thread->threadShouldExit())
