@@ -972,6 +972,8 @@ void DspNetworkCompileExporter::run()
 
 		fos << "// Embedded audiodata" << "\n";
 
+        fos << "#pragma once\n\n";
+        
 		fos << "namespace audiodata {\n";
 
 		for (const auto& es : externalSamples)
@@ -1209,11 +1211,21 @@ void DspNetworkCompileExporter::createIncludeFile(const File& sourceDir)
 {
 	File includeFile = sourceDir.getChildFile("includes.h");
 
-	cppgen::Base i(cppgen::Base::OutputType::AddTabs);
+	cppgen::Base i(cppgen::Base::OutputType::NoProcessing);
 
 	i.setHeader([]() { return "/* Include file. */"; });
 
-	for (auto f : sourceDir.findChildFiles(File::findFiles, false, "*.h"))
+    auto fileList = sourceDir.findChildFiles(File::findFiles, false, "*.h");
+    auto dataFile = sourceDir.getChildFile("embedded_audiodata.h");
+    
+    if(dataFile.existsAsFile())
+    {
+        // Make sure it's first in the list.
+        cppgen::Include m(i, sourceDir, dataFile);
+        fileList.removeAllInstancesOf(dataFile);
+    }
+    
+	for (auto f : fileList)
 	{
 		cppgen::Include m(i, sourceDir, f);
 	}
