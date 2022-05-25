@@ -80,6 +80,8 @@ public:
 
 private:
 
+	ValueTree treeWhenNotLoaded;
+
 	String currentEffect = "No network";
 
 	void prepareOpaqueNode(OpaqueNode* n);

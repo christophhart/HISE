@@ -368,6 +368,12 @@ void HardcodedMasterFX::voicesKilled()
 
 juce::ValueTree HardcodedMasterFX::exportAsValueTree() const
 {
+	if (factory->getNumNodes() == 0)
+	{
+		jassert(treeWhenNotLoaded.isValid());
+		return treeWhenNotLoaded;
+	}
+
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();
 
 	v.setProperty("Network", currentEffect, nullptr);
@@ -391,6 +397,12 @@ void HardcodedMasterFX::restoreFromValueTree(const ValueTree& v)
 {
 	LockHelpers::noMessageThreadBeyondInitialisation(getMainController());
 	MasterEffectProcessor::restoreFromValueTree(v);
+
+	if (factory->getNumNodes() == 0)
+	{
+		treeWhenNotLoaded = v.createCopy();
+		return;
+	}
 
 	auto effect = v.getProperty("Network", "No Effect").toString();
 
