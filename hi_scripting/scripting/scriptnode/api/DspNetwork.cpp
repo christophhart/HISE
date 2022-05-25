@@ -1759,19 +1759,26 @@ void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v
 
 			if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
 			{
-				auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
+				// A global cable will also store its cable ID as Connection property so we need to avoid stripping this
+				// vital information...
+				auto isGlobalCableConnection = c.getParent().getParent()[PropertyIds::FactoryPath].toString().startsWith("routing.global");
 
-				int numBefore = idList.size();
-
-				for (int i = 0; i < idList.size(); i++)
+				if (!isGlobalCableConnection)
 				{
-					if (!nodeExists(idList[i]))
-						idList.remove(i--);
-				}
+					auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
 
-				if (idList.size() != numBefore)
-				{
-					c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
+					int numBefore = idList.size();
+
+					for (int i = 0; i < idList.size(); i++)
+					{
+						if (!nodeExists(idList[i]))
+							idList.remove(i--);
+					}
+
+					if (idList.size() != numBefore)
+					{
+						c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
+					}
 				}
 			}
 
@@ -1781,6 +1788,7 @@ void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v
 
 bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 {
+	
 	// Remove all child nodes from a project node
 	// (might be a leftover from the extraction process)
 	if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))
