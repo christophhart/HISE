@@ -244,6 +244,7 @@ HardcodedMasterFX::~HardcodedMasterFX()
 	factory = nullptr;
 }
 
+#if USE_BACKEND
 struct HardcodedMasterEditor : public ProcessorEditorBody
 {
 	static constexpr int Margin = 10;
@@ -355,6 +356,7 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 
 	ComboBox selector;
 };
+#endif
 
 juce::ValueTree HardcodedMasterFX::exportAsValueTree() const
 {
