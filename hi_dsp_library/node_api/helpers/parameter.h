@@ -235,6 +235,8 @@ template <typename T, typename RangeType=typename ranges::Identity> struct bypas
 			auto shouldBeOn = v >= s[0] && v <= s[1];
 			v = (double)!shouldBeOn;
 		}
+		else
+			v = v < 0.5;
 
 		T::template setParameter<9000>(obj, v);
 	}
