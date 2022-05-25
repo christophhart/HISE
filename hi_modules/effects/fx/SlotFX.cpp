@@ -358,6 +358,14 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 };
 #endif
 
+void HardcodedMasterFX::voicesKilled()
+{
+	SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+	if (opaqueNode != nullptr)
+		opaqueNode->reset();
+}
+
 juce::ValueTree HardcodedMasterFX::exportAsValueTree() const
 {
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();

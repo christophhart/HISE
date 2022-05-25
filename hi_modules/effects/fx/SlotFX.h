@@ -24,7 +24,7 @@ public:
 
 	~HardcodedMasterFX();;
 
-	bool hasTail() const override { return false; };
+	bool hasTail() const override { return true; };
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 
@@ -32,6 +32,8 @@ public:
 
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
+
+	void voicesKilled() override;
 
 	void setInternalAttribute(int index, float newValue) override
 	{
