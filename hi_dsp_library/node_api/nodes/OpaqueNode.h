@@ -312,6 +312,8 @@ namespace dll
 
 		virtual Error getError() const = 0;
 		virtual void clearError() const = 0;
+
+		virtual void deinitOpaqueNode(OpaqueNode* n) { }
 	};
 
 	/** A Factory that initialises the nodes using the templated OpaqueNode::create function.
@@ -502,6 +504,8 @@ namespace dll
 
 		Error getError() const override;
 		
+		void deinitOpaqueNode(scriptnode::OpaqueNode* n) override;
+
 	private:
 
 		ProjectDll::Ptr projectDll;

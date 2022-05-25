@@ -298,6 +298,12 @@ Error DynamicLibraryHostFactory::getError() const
 	return {};
 }
 
+void DynamicLibraryHostFactory::deinitOpaqueNode(scriptnode::OpaqueNode* n)
+{
+	if (projectDll != nullptr)
+		projectDll->deInitOpaqueNode(n);
+}
+
 String ProjectDll::getFuncName(ExportedFunction f)
 {
 	switch (f)

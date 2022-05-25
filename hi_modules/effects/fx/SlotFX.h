@@ -12,8 +12,90 @@
 #define SLOTFX_H_INCLUDED
 
 namespace hise { using namespace juce;
+using namespace scriptnode;
 
-/** A placeholder for another effect that can be swapped pretty conveniently.
+class HardcodedMasterFX: public MasterEffectProcessor
+{
+public:
+
+	SET_PROCESSOR_NAME("Hardcoded Master FX", "HardcodedMasterFX", "A master effect wrapper around a compiled DSP network");
+
+	HardcodedMasterFX(MainController* mc, const String& uid);
+
+	~HardcodedMasterFX();;
+
+	bool hasTail() const override { return true; };
+
+	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
+
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
+
+	int getNumInternalChains() const override { return 0; };
+	int getNumChildProcessors() const override { return 0; };
+
+	void voicesKilled() override;
+
+	void setInternalAttribute(int index, float newValue) override
+	{
+		lastParameters[index] = newValue;
+
+		SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+		if (opaqueNode != nullptr && isPositiveAndBelow(index, opaqueNode->numParameters))
+			opaqueNode->parameterFunctions[index](opaqueNode->parameterObjects[index], (double)newValue);
+	}
+
+	ValueTree exportAsValueTree() const override;
+
+	void restoreFromValueTree(const ValueTree& v) override;
+
+	float getAttribute(int index) const override 
+	{ 
+		if (isPositiveAndBelow(index, OpaqueNode::NumMaxParameters))
+			return lastParameters[index];
+
+		return 0.0f;
+	}
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void setEffect(const String& factoryId);
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock);
+
+	Path getSpecialSymbol() const override
+	{
+		Path p;
+		p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+		return p;
+	}
+
+	void handleHiseEvent(const HiseEvent &m) override
+	{
+	}
+
+	StringArray getListOfAvailableNetworks() const;
+
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
+
+private:
+
+	String currentEffect = "No network";
+
+	void prepareOpaqueNode(OpaqueNode* n);
+
+	friend class HardcodedMasterEditor;
+
+	float lastParameters[OpaqueNode::NumMaxParameters];
+	
+	scriptnode::PolyHandler polyHandler;
+	mutable SimpleReadWriteLock lock;
+	ScopedPointer<scriptnode::OpaqueNode> opaqueNode;
+	ScopedPointer<scriptnode::dll::FactoryBase> factory;
+};
+
+
+/** Aplaceholder for another effect that can be swapped pretty conveniently.
 	@ingroup effectTypes.
 	
 	Use this as building block for dynamic signal chains.

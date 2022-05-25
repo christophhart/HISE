@@ -375,6 +375,12 @@ Node::Ptr ValueTreeBuilder::parseFixChannel(const ValueTree& n, int numChannelsT
 {
 	auto u = getNode(n, false);
 
+	auto id = n[PropertyIds::ID].toString();
+
+#if ENABLE_CPP_DEBUG_LOG
+	DBG("Parse with fix channel: " + id + " Channels: " + String(numChannelsToUse));
+#endif
+
 	auto wf = createNode(n, {}, "wrap::fix");
 
 	*wf << numChannelsToUse;
@@ -610,7 +616,7 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
-        ScopedChannelSetter sns(*this, numToUse);
+        ScopedChannelSetter sns(*this, numToUse, false);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
         {
@@ -1122,6 +1128,13 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 				if (getNode(t, true) == nullptr)
 				{
+#if ENABLE_CPP_DEBUG_LOG
+					auto id = t[PropertyIds::ID].toString();
+
+					DBG("Node " + id + " does not exist yet. Precursoring...");
+
+#endif
+
 					// We need to calculate the channel amount from scratch
 					// because we're not in the right container
 					auto root = ValueTreeIterator::getRoot(t);
@@ -1129,7 +1142,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 					ValueTreeIterator::forEach(root, ValueTreeIterator::Forward, [&](ValueTree& c)
 					{
-						if (FactoryIds::isContainer(getNodePath(c)))
+						if (FactoryIds::isContainer(getNodePath(c)) && ValueTreeIterator::isParent(t, c))
 							numChannelsToUse = ValueTreeIterator::calculateChannelCount(c, numChannelsToUse);
 
 						if (c == t)
@@ -1138,7 +1151,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 						return false;
 					});
 
-					ScopedChannelSetter svs(*this, numChannelsToUse);
+					// We allow setting a higher channel count here because the node is not necessarily
+					// inside the current channel container
+					ScopedChannelSetter svs(*this, numChannelsToUse, true);
 					pooledTypeDefinitions.add(parseNode(t));
 				}
 
@@ -1231,6 +1246,11 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		*u << "parameter::empty";
 		jassertfalse;
 	}
+	else
+	{
+		// Could be an unused node with a template parameter (like smoothed_parameter)...
+		u->addOptionalModeTemplate();
+	}
 
 	addNodeComment(u);
 
@@ -1309,7 +1329,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		auto up = makeParameter(p, "bypass", c);
 		*up << *c.n;
 
-		if (!RangeHelpers::isBypassIdentity(c.targetRange))
+		if (!RangeHelpers::isIdentity(c.targetRange))
 		{
 			String fWhat;
 
