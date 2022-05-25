@@ -326,25 +326,62 @@ void dynamic_expression::editor::paint(Graphics& g)
 
 	auto b = darkBackground.removeFromTop(jmax<float>(te.getHeight(), 24 - 3.0)).toFloat();
 
-	auto c = Colours::green;
-
-	if (!getObject()->warning.wasOk())
-		c = Colours::yellow;
-
-	if (!getObject()->r.wasOk())
-		c = Colours::red;
-
+    Colour resultColours[3] = { Colour(0xFFBB3434),
+                                Colour(0xFFFFBA00),
+                                Colour(0xFF4E8E35) };
+        
+    
+    
+	
+#if 0
 	c = c.withSaturation(0.5f);
 
 	g.setColour(c.withAlpha(0.05f));
 	g.fillRect(b);
+#endif
 
 	g.setColour(Colours::white.withAlpha(0.4f));
 	g.setFont(GLOBAL_MONOSPACE_FONT());
 
 	auto ta = b.removeFromLeft(65.0f).translated(0.0f, 4.5f);
 
-	g.drawText("output =", ta, Justification::topRight);
+    auto op = ta.removeFromTop(16.0f);
+    
+	g.drawText("output =", op, Justification::topRight);
+    
+    
+    
+    auto circleWidth = JUCE_LIVE_CONSTANT_OFF(10.0f);
+    auto margin = JUCE_LIVE_CONSTANT_OFF(5);
+    auto padding = JUCE_LIVE_CONSTANT_OFF(2);
+    float noAlpha = JUCE_LIVE_CONSTANT_OFF(0.2f);
+    auto xMargin = JUCE_LIVE_CONSTANT_OFF(8.5f);
+    
+    ta.removeFromTop(2);
+    
+    ta.removeFromLeft(xMargin);
+    auto c1 = ta.removeFromLeft(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
+    ta.removeFromLeft(margin);
+    auto c2 = ta.removeFromLeft(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
+    ta.removeFromLeft(margin);
+    auto c3 = ta.removeFromLeft(circleWidth).withSizeKeepingCentre(circleWidth, circleWidth);
+    
+    auto isWarning = !getObject()->warning.wasOk();
+    auto isError = !getObject()->r.wasOk();
+    
+    g.setColour(resultColours[0].withAlpha(isError ? 0.7f : noAlpha));
+    g.drawEllipse(c1, 1.0f);
+    g.setColour(resultColours[1].withAlpha((!isError && isWarning) ? 0.7f : noAlpha));
+    g.drawEllipse(c2, 1.0f);
+    g.setColour(resultColours[2].withAlpha((!isError && !isWarning) ? 0.7f : noAlpha));
+    g.drawEllipse(c3, 1.0f);
+    
+    g.setColour(resultColours[0].withAlpha(isError ? 1.0f : noAlpha));
+    g.fillEllipse(c1.reduced(padding));
+    g.setColour(resultColours[1].withAlpha((!isError && isWarning) ? 1.0f : noAlpha));
+    g.fillEllipse(c2.reduced(padding));
+    g.setColour(resultColours[2].withAlpha((!isError && !isWarning) ? 1.0f : noAlpha));
+    g.fillEllipse(c3.reduced(padding));
 }
 
 void dynamic_expression::editor::timerCallback()
