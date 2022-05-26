@@ -2406,16 +2406,18 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     }
     else
     {
+        // Allow the errorcode to flow through xcpretty
+        ADD_LINE("set -o pipefail");
+        
         ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
 
 		int threads = SystemStats::getNumCpus() - 2;
 		String xcodeLine;
+        
 		xcodeLine << "xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"" << exporter->configurationName << "\" -jobs \"" << threads << "\"";
 		xcodeLine << " | xcpretty";
 		
-
         ADD_LINE(xcodeLine);
-        ADD_LINE("echo Compiling finished. Cleaning up...");
     }
     
     File tempFile = batchFile.getSiblingFile("tempBatch");
