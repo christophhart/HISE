@@ -14,7 +14,22 @@
 namespace hise { using namespace juce;
 using namespace scriptnode;
 
-class HardcodedMasterFX: public MasterEffectProcessor
+struct HotswappableProcessor
+{
+	virtual ~HotswappableProcessor() {};
+
+	virtual bool setEffect(const String& name, bool synchronously) = 0;
+	virtual bool swap(HotswappableProcessor* other) = 0;
+
+	virtual void clearEffect() { setEffect("", false); }
+
+	virtual MasterEffectProcessor* getCurrentEffect() = 0;
+	virtual const MasterEffectProcessor* getCurrentEffect() const = 0;
+};
+
+class HardcodedMasterFX: public MasterEffectProcessor,
+						 public ProcessorWithExternalData,
+					     public HotswappableProcessor
 {
 public:
 
@@ -33,6 +48,9 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
+	MasterEffectProcessor* getCurrentEffect() { return this; }
+	const MasterEffectProcessor* getCurrentEffect() const override { return this; }
+
 	void voicesKilled() override;
 
 	void setInternalAttribute(int index, float newValue) override
@@ -44,6 +62,8 @@ public:
 		if (opaqueNode != nullptr && isPositiveAndBelow(index, opaqueNode->numParameters))
 			opaqueNode->parameterFunctions[index](opaqueNode->parameterObjects[index], (double)newValue);
 	}
+
+	
 
 	ValueTree exportAsValueTree() const override;
 
@@ -59,7 +79,9 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	void setEffect(const String& factoryId);
+	bool setEffect(const String& factoryId, bool /*unused*/) override;
+
+	bool swap(HotswappableProcessor* other) override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
 
@@ -78,7 +100,92 @@ public:
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
+	int getNumDataObjects(ExternalData::DataType t) const override
+	{
+		switch (t)
+		{
+		case ExternalData::DataType::Table: return tables.size();
+		case ExternalData::DataType::SliderPack: return sliderPacks.size();
+		case ExternalData::DataType::AudioFile: return audioFiles.size();
+		case ExternalData::DataType::DisplayBuffer: return displayBuffers.size();
+		case ExternalData::DataType::FilterCoefficients: return 0;
+		default: jassertfalse; return 0;
+		}
+	}
+
+	Table* getTable(int index) override { return getOrCreate<Table>(tables, index); }
+	SliderPackData* getSliderPack(int index) override { return getOrCreate<SliderPackData>(sliderPacks, index); }
+	MultiChannelAudioBuffer* getAudioFile(int index) override { return getOrCreate<MultiChannelAudioBuffer>(audioFiles, index); }
+	FilterDataObject* getFilterData(int index) override { return getOrCreate<FilterDataObject>(filterData, index);; }
+	SimpleRingBuffer* getDisplayBuffer(int index) override { return getOrCreate<SimpleRingBuffer>(displayBuffers, index); }
+
 private:
+
+	struct DataWithListener : public ComplexDataUIUpdaterBase::EventListener
+	{
+		DataWithListener(HardcodedMasterFX& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise) :
+			node(nodeToInitialise),
+			data(p),
+			index(index_)
+		{
+			if (data != nullptr)
+			{
+				data->getUpdater().setUpdater(parent.getMainController()->getGlobalUIUpdater());
+				data->getUpdater().addEventListener(this);
+				updateData();
+			}
+		};
+
+		~DataWithListener()
+		{
+			if (data != nullptr)
+				data->getUpdater().removeEventListener(this);
+		}
+
+		void updateData()
+		{
+			if (node != nullptr)
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(data->getDataLock());
+				ExternalData ed(data.get(), index);
+				node->setExternalData(ed, index);
+			}
+			
+		}
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var newValue) override
+		{
+			if (t == ComplexDataUIUpdaterBase::EventType::ContentRedirected ||
+				t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+			{
+				updateData();
+			}
+		}
+
+		OpaqueNode* node;
+		const int index = 0;
+		ComplexDataUIBase::Ptr data;
+	};
+
+	OwnedArray<DataWithListener> listeners;
+
+	LambdaBroadcaster<String, int, bool> effectUpdater;
+
+	template <typename T> T* getOrCreate(ReferenceCountedArray<T>& list, int index)
+	{
+		if (isPositiveAndBelow(index, list.size()))
+			return list[index].get();
+
+		auto t = createAndInit(ExternalData::getDataTypeForClass<T>());
+		list.add(dynamic_cast<T*>(t));
+		return list.getLast().get();
+	}
+
+	ReferenceCountedArray<Table> tables;
+	ReferenceCountedArray<SliderPackData> sliderPacks;
+	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
+	ReferenceCountedArray<FilterDataObject> filterData;
 
 	ValueTree treeWhenNotLoaded;
 
@@ -102,7 +209,8 @@ private:
 	
 	Use this as building block for dynamic signal chains.
 */
-class SlotFX : public MasterEffectProcessor
+class SlotFX : public MasterEffectProcessor,
+			   public HotswappableProcessor
 {
 public:
 
@@ -215,7 +323,7 @@ public:
 		//
 	}
 
-	void reset()
+	void clearEffect() override
 	{
 		ScopedPointer<MasterEffectProcessor> newEmptyFX;
 		
@@ -246,41 +354,13 @@ public:
 		}
 	}
 
-	void swap(SlotFX* otherSlot)
-	{
-		auto te = wrappedEffect.release();
-		auto oe = otherSlot->wrappedEffect.release();
-
-		int tempIndex = currentIndex;
-
-		
-
-		currentIndex = otherSlot->currentIndex;
-		otherSlot->currentIndex = tempIndex;
-
-		{
-			ScopedLock sl(getMainController()->getLock());
-
-			bool tempClear = isClear;
-			isClear = otherSlot->isClear;
-			otherSlot->isClear = tempClear;
-
-			wrappedEffect = oe;
-			otherSlot->wrappedEffect = te;
-		}
-		
-		wrappedEffect.get()->sendRebuildMessage(true);
-		otherSlot->wrappedEffect.get()->sendRebuildMessage(true);
-
-		sendChangeMessage();
-		otherSlot->sendChangeMessage();
-	}
+	bool swap(HotswappableProcessor* otherSlot) override;
 
 	int getCurrentEffectID() const { return currentIndex; }
 
-	MasterEffectProcessor* getCurrentEffect();
+	MasterEffectProcessor* getCurrentEffect() override;
 
-	const MasterEffectProcessor* getCurrentEffect() const { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
+	const MasterEffectProcessor* getCurrentEffect() const override { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
 
 	const StringArray& getEffectList() const { return effectList; }
 

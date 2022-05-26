@@ -3020,7 +3020,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
 {
     API_METHOD_WRAPPER_1(ScriptingSlotFX, setEffect);
     API_VOID_METHOD_WRAPPER_0(ScriptingSlotFX, clear);
-	API_VOID_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
+	API_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 };
 
@@ -3056,7 +3056,7 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 {
 	if (auto slot = getSlotFX())
 	{
-        slot->reset();
+        slot->clearEffect();
 	}
 	else
 	{
@@ -3078,15 +3078,13 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
 		{
-			SuspendHelpers::ScopedTicket ticket(slot->getMainController());
+			SuspendHelpers::ScopedTicket ticket(slotFX->getMainController());
 
-			slot->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
+			slotFX->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
 
-			LockHelpers::freeToGo(slot->getMainController());
-			slot->setEffect(effectName);
+			LockHelpers::freeToGo(slotFX->getMainController());
+			slot->setEffect(effectName, false);
 		}
-
-		jassert(slot->getCurrentEffect()->getType() == Identifier(effectName));
 
 		return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
     }
@@ -3110,7 +3108,7 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrent
 	return {};
 }
 
-void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
+bool ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 {
 	if (auto t = getSlotFX())
 	{
@@ -3118,7 +3116,7 @@ void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 		{
 			if (auto other = sl->getSlotFX())
 			{
-				t->swap(other);
+				return t->swap(other);
 			}
 			else
 			{
@@ -3136,9 +3134,9 @@ void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 	}
 }
 
-SlotFX* ScriptingObjects::ScriptingSlotFX::getSlotFX()
+HotswappableProcessor* ScriptingObjects::ScriptingSlotFX::getSlotFX()
 {
-	return dynamic_cast<SlotFX*>(slotFX.get());
+	return dynamic_cast<HotswappableProcessor*>(slotFX.get());
 }
 
 struct ScriptingObjects::ScriptRoutingMatrix::Wrapper

@@ -4858,13 +4858,12 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
-		Processor::Iterator<SlotFX> it(owner);
+		Processor::Iterator<HotswappableProcessor> it(owner);
 
-		while (SlotFX *s = it.getNextProcessor())
+		while (auto s = dynamic_cast<EffectProcessor*>(it.getNextProcessor()))
 		{
 			if (s->getId() == name)
 			{
-
 				return new ScriptSlotFX(getScriptProcessor(), s);
 			}
 		}

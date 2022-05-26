@@ -17,7 +17,7 @@ SlotFX::SlotFX(MainController *mc, const String &uid) :
 
 	createList();
 
-	reset();
+	clearEffect();
 }
 
 ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
@@ -124,6 +124,41 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 	}
 }
 
+bool SlotFX::swap(HotswappableProcessor* otherSwap)
+{
+	if (auto otherSlot = dynamic_cast<SlotFX*>(otherSwap))
+	{
+		auto te = wrappedEffect.release();
+		auto oe = otherSlot->wrappedEffect.release();
+
+		int tempIndex = currentIndex;
+
+		currentIndex = otherSlot->currentIndex;
+		otherSlot->currentIndex = tempIndex;
+
+		{
+			ScopedLock sl(getMainController()->getLock());
+
+			bool tempClear = isClear;
+			isClear = otherSlot->isClear;
+			otherSlot->isClear = tempClear;
+
+			wrappedEffect = oe;
+			otherSlot->wrappedEffect = te;
+		}
+
+		wrappedEffect.get()->sendRebuildMessage(true);
+		otherSlot->wrappedEffect.get()->sendRebuildMessage(true);
+
+		sendChangeMessage();
+		otherSlot->sendChangeMessage();
+
+		return true;
+	}
+
+	return false;
+}
+
 hise::MasterEffectProcessor* SlotFX::getCurrentEffect()
 {
 	if (wrappedEffect != nullptr)
@@ -194,14 +229,14 @@ bool SlotFX::setEffect(const String& typeName, bool /*synchronously*/)
 			// Should have been catched before...
 			jassertfalse;
 
-			reset();
+			clearEffect();
 			return true;
 		}
 	}
 	else
 	{
 		jassertfalse;
-		reset();
+		clearEffect();
 		return false;
 	}
 }
@@ -220,6 +255,7 @@ void SlotFX::createList()
 
 HardcodedMasterFX::HardcodedMasterFX(MainController* mc, const String& uid) :
 	MasterEffectProcessor(mc, uid),
+	ProcessorWithExternalData(mc),
 	polyHandler(false)
 {
 	finaliseModChains();
@@ -252,6 +288,8 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 	HardcodedMasterEditor(ProcessorEditor* pe) :
 		ProcessorEditorBody(pe)
 	{
+		getEffect()->effectUpdater.addListener(*this, update, true);
+
 		auto networkList = getEffect()->getListOfAvailableNetworks();
 
 		selector.addItem("No network", 1);
@@ -268,19 +306,39 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 
 	};
 
+	static void update(HardcodedMasterEditor& ed, String newEffect, bool complexDataChanged, int numParameters)
+	{
+		ed.rebuildParameters();
+		ed.selector.setText(newEffect, dontSendNotification);
+	}
+
 	void onEffectChange()
 	{
-		getEffect()->setEffect(selector.getText());
-		
-		rebuildParameters();
+		getEffect()->setEffect(selector.getText(), true);
 	}
 
 	void rebuildParameters()
 	{
+		currentEditors.clear();
 		currentParameters.clear();
 
 		if (auto on = getEffect()->opaqueNode.get())
 		{
+			ExternalData::forEachType([&](ExternalData::DataType dt)
+			{
+				int numObjects = on->numDataObjects[(int)dt];
+
+				for (int i = 0; i < numObjects; i++)
+				{
+					auto f = ExternalData::createEditor(getEffect()->getComplexBaseType(dt, i));
+
+					auto c = dynamic_cast<Component*>(f);
+
+					currentEditors.add(f);
+					addAndMakeVisible(c);
+				}
+			});
+
 			for (int i = 0; i < on->numParameters; i++)
 			{
 				auto pData = on->parameters[i];
@@ -319,6 +377,12 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 
 		Rectangle<int> currentRow;
 
+		for (auto e : currentEditors)
+		{
+			dynamic_cast<Component*>(e)->setBounds(b.removeFromTop(120));
+			b.removeFromTop(Margin);
+		}
+
 		for (int i = 0; i < currentParameters.size(); i++)
 		{
 			if ((i % 4) == 0)
@@ -337,12 +401,15 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 
 	int getBodyHeight() const override 
 	{ 
-		if(currentParameters.isEmpty())
+		if(currentParameters.isEmpty() && currentEditors.isEmpty())
 			return 32 * 2 * Margin; 
 		else
 		{
 			int numRows = currentParameters.size() / 4 + 1;
-			return numRows * (48 + 4 * Margin);
+
+			int numEditorRows = currentEditors.size();
+
+			return numRows * (48 + 4 * Margin) + numEditorRows * (120 + Margin);
 		}
 	}
 
@@ -352,9 +419,13 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 			p->updateValue();
 	}
 
+	OwnedArray<ComplexDataUIBase::EditorBase> currentEditors;
+
 	OwnedArray<MacroControlledObject> currentParameters;
 
 	ComboBox selector;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HardcodedMasterEditor);
 };
 #endif
 
@@ -388,6 +459,39 @@ juce::ValueTree HardcodedMasterFX::exportAsValueTree() const
 			auto value = lastParameters[i];
 			v.setProperty(id, value, nullptr);
 		}
+
+		ExternalData::forEachType([&](ExternalData::DataType dt)
+		{
+			if (dt == ExternalData::DataType::DisplayBuffer ||
+				dt == ExternalData::DataType::FilterCoefficients)
+				return;
+
+			int numObjects = opaqueNode->numDataObjects[(int)dt];
+
+			ValueTree dataTree(ExternalData::getDataTypeName(dt, true));
+
+			for (int i = 0; i < numObjects; i++)
+			{
+				ValueTree d(ExternalData::getDataTypeName(dt, false));
+
+				jassert(isPositiveAndBelow(i, getNumDataObjects(dt)));
+				auto constThis = const_cast<HardcodedMasterFX*>(this);
+
+				d.setProperty(PropertyIds::EmbeddedData, constThis->getComplexBaseType(dt, i)->toBase64String(), nullptr);
+
+				if (dt == ExternalData::DataType::AudioFile)
+				{
+					auto range = audioFiles[i]->getCurrentRange();
+					d.setProperty(PropertyIds::MinValue, range.getStart(), nullptr);
+					d.setProperty(PropertyIds::MaxValue, range.getEnd(), nullptr);
+				}
+
+				dataTree.addChild(d, -1, nullptr);
+			}
+
+			if (dataTree.getNumChildren() > 0)
+				v.addChild(dataTree, -1, nullptr);
+		});
 	}
 
 	return v;
@@ -406,12 +510,43 @@ void HardcodedMasterFX::restoreFromValueTree(const ValueTree& v)
 
 	auto effect = v.getProperty("Network", "No Effect").toString();
 
-	setEffect(effect);
+	setEffect(effect, false);
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
 	if (opaqueNode != nullptr)
 	{
+		ExternalData::forEachType([&](ExternalData::DataType dt)
+		{
+			if (dt == ExternalData::DataType::DisplayBuffer ||
+				dt == ExternalData::DataType::FilterCoefficients)
+				return;
+
+			auto parentId = Identifier(ExternalData::getDataTypeName(dt, true));
+
+			auto dataTree = v.getChildWithName(parentId);
+
+			jassert(dataTree.getNumChildren() == opaqueNode->numDataObjects[(int)dt]);
+
+			int index = 0;
+			for (auto d : dataTree)
+			{
+				if (auto cd = getComplexBaseType(dt, index))
+				{
+					auto b64 = d[PropertyIds::EmbeddedData].toString();
+					cd->fromBase64String(b64);
+
+					if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(cd))
+					{
+						auto min = (int)d[PropertyIds::MinValue];
+						auto max = (int)d[PropertyIds::MaxValue];
+						af->setRange({min, max});
+					}
+				}
+
+				index++;
+			}
+		});
 
 		for (int i = 0; i < opaqueNode->numParameters; i++)
 		{
@@ -438,14 +573,15 @@ hise::ProcessorEditorBody * HardcodedMasterFX::createEditor(ProcessorEditor *par
 #endif
 }
 
-void HardcodedMasterFX::setEffect(const String& factoryId)
+bool HardcodedMasterFX::setEffect(const String& factoryId, bool /*unused*/)
 {
 	if (factoryId == currentEffect)
-		return;
+		return true;
 
 	auto idx = getListOfAvailableNetworks().indexOf(factoryId);
 
 	ScopedPointer<OpaqueNode> newNode;
+	listeners.clear();
 
 	if (idx != -1)
 	{
@@ -454,6 +590,21 @@ void HardcodedMasterFX::setEffect(const String& factoryId)
 
 		if (!factory->initOpaqueNode(newNode, idx, false))
 			newNode = nullptr;
+
+		bool somethingChanged = false;
+
+		// Create all complex data types we need...
+		ExternalData::forEachType([&](ExternalData::DataType dt)
+		{
+			auto numObjects = newNode->numDataObjects[(int)dt];
+			somethingChanged |= (getNumDataObjects(dt) != numObjects);
+
+			for (int i = 0; i < numObjects; i++)
+			{
+				auto ed = getComplexBaseType(dt, i);
+				listeners.add(new DataWithListener(*this, ed, i, newNode.get()));
+			}
+		});
 
 		prepareOpaqueNode(newNode);
 
@@ -469,6 +620,8 @@ void HardcodedMasterFX::setEffect(const String& factoryId)
 
 		for (int i = 0; i < opaqueNode->numParameters; i++)
 			parameterNames.add(opaqueNode->parameters[i].getId());
+
+		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, somethingChanged, opaqueNode->numParameters);
 	}
 	else
 	{
@@ -478,15 +631,69 @@ void HardcodedMasterFX::setEffect(const String& factoryId)
 			SimpleReadWriteLock::ScopedWriteLock sl(lock);
 			std::swap(newNode, opaqueNode);
 		}
+
+		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, true, 0);
 	}
 
 	if (newNode != nullptr)
 	{
 		// We need to deinitialise it with the DLL to prevent heap corruption
 		factory->deinitOpaqueNode(newNode);
-
 		newNode = nullptr;
 	}
+
+	return opaqueNode != nullptr;
+}
+
+bool HardcodedMasterFX::swap(HotswappableProcessor* other)
+{
+	if (auto otherFX = dynamic_cast<HardcodedMasterFX*>(other))
+	{
+		std::swap(treeWhenNotLoaded, otherFX->treeWhenNotLoaded);
+		std::swap(currentEffect, otherFX->currentEffect);
+
+		parameterNames.swapWith(otherFX->parameterNames);
+		tables.swapWith(otherFX->tables);
+		sliderPacks.swapWith(otherFX->sliderPacks);
+		audioFiles.swapWith(otherFX->audioFiles);
+		filterData.swapWith(otherFX->filterData);
+		displayBuffers.swapWith(otherFX->displayBuffers);
+		listeners.swapWith(otherFX->listeners);
+
+		for (int i = 0; i < OpaqueNode::NumMaxParameters; i++)
+		{
+			std::swap(lastParameters[i], otherFX->lastParameters[i]);
+		}
+
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(lock);
+			SimpleReadWriteLock::ScopedWriteLock sl2(otherFX->lock);
+
+			std::swap(opaqueNode, otherFX->opaqueNode);
+		}
+		
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(lock);
+			SimpleReadWriteLock::ScopedWriteLock sl2(otherFX->lock);
+
+			prepareToPlay(getSampleRate(), getLargestBlockSize());
+			otherFX->prepareToPlay(otherFX->getSampleRate(), otherFX->getLargestBlockSize());
+		}
+		
+		effectUpdater.sendMessage(sendNotificationAsync, 
+								  currentEffect, 
+								  true, 
+								  opaqueNode != nullptr ? opaqueNode->numParameters : 0);
+
+		otherFX->effectUpdater.sendMessage(sendNotificationAsync, 
+										   otherFX->currentEffect, 
+										   true, 
+										   otherFX->opaqueNode != nullptr ? otherFX->opaqueNode->numParameters : 0);
+
+		return true;
+	}
+
+	return false;
 }
 
 void HardcodedMasterFX::prepareOpaqueNode(OpaqueNode* n)
