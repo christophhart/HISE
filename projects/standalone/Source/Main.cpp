@@ -114,9 +114,11 @@ public:
 		print("-ipp      enables Intel Performance Primitives for fast convolution." );
 		print("-l        This can be used to compile a version that runs on legacy CPU models.");
 		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect' | 'midi')" );
-		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL' | 'VST2' | 'VST3' )" );
-		print("          (Leave empty for standalone export). Note that if you use the VST2 or VST3 it will" );
-		print("          override the project settings (so you can export both versions).");
+		print("-p:{TEXT} sets the plugin type ('VST'  | 'AU'   | 'VST_AU' | 'AAX' |)" );
+		print("                                'ALL'  | 'VST2' | 'VST3'   | 'VST23AU' )");
+		print("          (Leave empty for standalone export). Note that if you use the VST2, VST3,");
+		print("           VST23AU it will override the project settings so you can export both versions).");
+		print("           Note: The VST23AU flag will skip AU on Windows and build only VST2 and VST3.");
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
