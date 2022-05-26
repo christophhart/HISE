@@ -1,5 +1,9 @@
-#ifndef SSE2NEON_H
-#define SSE2NEON_H
+#pragma once
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
 
 // This header file provides a simple API translation layer
 // between SSE intrinsics to their corresponding Arm/Aarch64 NEON versions
@@ -8280,4 +8284,6 @@ FORCE_INLINE int64_t _mm_popcnt_u64(uint64_t a)
 #pragma GCC pop_options
 #endif
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
 #endif

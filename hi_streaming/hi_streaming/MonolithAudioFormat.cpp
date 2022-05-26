@@ -125,6 +125,7 @@ Array<juce::File> MonolithFileReference::getAllFiles()
 	}
 
 	int numExpected = numChannels * jmax(1, numParts);
+    ignoreUnused(numExpected);
 	jassert(filesToLoad.size() == numExpected);
 
 	return filesToLoad;

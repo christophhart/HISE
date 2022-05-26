@@ -326,7 +326,7 @@ juce::String Types::Helpers::getCppValueString(const var& v, ID type)
 
 		auto fracPart = fmod(dValue, 1.0);
 
-		if (fracPart == 0.0f || (hmath::abs(dValue) > 10.0) && fracPart < 0.001)
+		if (fracPart == 0.0f || ((hmath::abs(dValue) > 10.0) && fracPart < 0.001))
 			value << juce::String(static_cast<int>(dValue)) << ".0";
 		else
 		{

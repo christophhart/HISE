@@ -194,7 +194,7 @@ struct ScriptingApi::Content::ScriptComponent::GlobalCableConnection : public sc
 		auto f = [sc]()
 		{
 			auto b = sc->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
-			b->setSelection({ sc }, sendNotificationAsync);
+			b->setSelection(sc, sendNotificationAsync);
 		};
 
 		Timer::callAfterDelay(400, f);

@@ -1063,13 +1063,14 @@ void ProjectHandler::checkActiveProject()
 juce::File ProjectHandler::getAppDataRoot()
 {
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-
+    
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
 #elif JUCE_MAC
 
 
 #if ENABLE_APPLE_SANDBOX
+    ignoreUnused(appDataDirectoryToUse);
 	return File::getSpecialLocation(File::userMusicDirectory);
 #else
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support");

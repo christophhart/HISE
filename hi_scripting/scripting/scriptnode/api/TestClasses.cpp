@@ -283,6 +283,7 @@ String ScriptNetworkTest::createAsciiDiff(var data1, var data2, int numLines)
 		int l = s1.length();
 		int l2 = s2.length();
 
+        ignoreUnused(l2);
 		jassert(l == l2);
 
 		String newC;

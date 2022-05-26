@@ -564,6 +564,8 @@ private:
 		auto shouldBeBypassed = (bool)newValue;
 		setBypassed((bool)newValue);
 
+        ignoreUnused(shouldBeBypassed);
+        
 		// This needs to be set in the virtual method above
 		jassert(shouldBeBypassed == bypassState);
 	}
