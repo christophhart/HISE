@@ -402,7 +402,7 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 	int getBodyHeight() const override 
 	{ 
 		if(currentParameters.isEmpty() && currentEditors.isEmpty())
-			return 32 * 2 * Margin; 
+			return 32 + 2 * Margin; 
 		else
 		{
 			int numRows = currentParameters.size() / 4 + 1;
