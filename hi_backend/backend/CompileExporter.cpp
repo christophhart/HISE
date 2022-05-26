@@ -362,6 +362,12 @@ int CompileExporter::getBuildOptionPart(const String& argument)
 	{
 		const String pluginName = argument.fromFirstOccurrenceOf("-p:", false, true).toUpperCase();
 
+		if (pluginName == "VST23AU")
+		{
+			CompileExporter::forcedVSTVersion = 23; // you now, 2 + 3...
+			return 0x0010;
+		}
+
 		if (pluginName == "VST2")
 		{
 			CompileExporter::forcedVSTVersion = 2;
@@ -1591,7 +1597,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	{
 		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
 
-		const bool buildAU = BuildOptionHelpers::isAU(option);
+		bool buildAU = BuildOptionHelpers::isAU(option);
 		bool buildVST = BuildOptionHelpers::isVST(option);
 		const bool headlessLinux = BuildOptionHelpers::isHeadlessLinuxPlugin(option);
 
@@ -1608,8 +1614,12 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 			jassert(isExportingFromCommandLine());
 			jassert(isUsingCIMode());
 			jassert(BuildOptionHelpers::isVST(option));
-			buildVST2 = forcedVSTVersion == 2;
-			buildVST3 = forcedVSTVersion == 3;
+			buildVST2 = forcedVSTVersion == 2 || forcedVSTVersion == 23;
+			buildVST3 = forcedVSTVersion == 3 || forcedVSTVersion == 23;
+
+#if JUCE_MAC
+			buildAU = forcedVSTVersion == 23;
+#endif
 		}
 
 #if JUCE_LINUX
