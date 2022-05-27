@@ -636,6 +636,18 @@ void ScriptingObjects::ScriptShader::makeStatistics()
 
 	int major = 0, minor = 0;
 	
+    if(OpenGLContext::getCurrentContext() == nullptr)
+    {
+        d->setProperty("VersionString", "0.0");
+        d->setProperty("Major", minor);
+        d->setProperty("Minor", major);
+        d->setProperty("Vendor", "Inactive");
+        d->setProperty("Renderer", "Inactive");
+        d->setProperty("GLSL Version", "0.0.0");
+                       
+        openGLStats = var(d);
+        return;
+    }
     
 	auto vendor = String((const char*)glGetString(GL_VENDOR));
     jassert(glGetError() == GL_NO_ERROR);

@@ -3132,6 +3132,8 @@ bool ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 	{
 		reportScriptError("Source Slot is invalid");
 	}
+    
+    RETURN_IF_NO_THROW(false);
 }
 
 HotswappableProcessor* ScriptingObjects::ScriptingSlotFX::getSlotFX()
