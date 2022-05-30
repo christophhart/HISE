@@ -1979,6 +1979,17 @@ ScriptCreatedComponentWrapper(content, index)
 	component = sp;
 
 	initAllProperties();
+
+	auto slaf = &pack->getScriptProcessor()->getMainController_()->getGlobalLookAndFeel();
+
+	if (auto l = dynamic_cast<SliderPack::LookAndFeelMethods*>(localLookAndFeel.get()))
+	{
+		sp->setSpecialLookAndFeel(localLookAndFeel, false);
+	}
+	else if (auto s = dynamic_cast<SliderPack::LookAndFeelMethods*>(slaf))
+	{
+		sp->setSpecialLookAndFeel(slaf, false);
+	}
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::~SliderPackWrapper()

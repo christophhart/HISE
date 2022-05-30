@@ -1682,7 +1682,11 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawAhdsrPath",
 		"drawKeyboardBackground",
 		"drawWhiteNote",
-		"drawBlackNote"
+		"drawBlackNote",
+		"drawSliderPackBackground",
+		"drawSliderPackFlashOverlay",
+		"drawSliderPackRightClickLine",
+		"drawSliderPackTextPopup"
 	};
 
 	return sa;
@@ -2652,6 +2656,112 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawBlackNote(CustomKeyboardSta
 	}
 
 	CustomKeyboardLookAndFeelBase::drawBlackNote(state, c, midiNoteNumber, g_, x, y, w, h, isDown, isOver, noteFillColour);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackBackground(Graphics& g_, SliderPack& s)
+{
+	if (functionDefined("drawSliderPackBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("id", s.getName());
+
+		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
+		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
+		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
+		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
+		
+
+		obj->setProperty("numSliders", s.getNumSliders());
+		obj->setProperty("displayIndex", s.getData()->getNextIndexToDisplay());
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
+
+		if(get()->callWithGraphics(g_, "drawSliderPackBackground", var(obj), &s))
+			return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackBackground(g_, s);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackFlashOverlay(Graphics& g_, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity)
+{
+	if (functionDefined("drawSliderPackFlashOverlay"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("id", s.getName());
+
+		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
+		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
+		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
+		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
+
+		obj->setProperty("numSliders", s.getNumSliders());
+		obj->setProperty("displayIndex", sliderIndex);
+		obj->setProperty("value", s.getValue(sliderIndex));
+		obj->setProperty("intensity", intensity);
+
+		auto sBounds = sliderBounds;
+		sBounds.setY(0);
+		sBounds.setHeight(s.getHeight()); s.getValue(sliderIndex);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(sBounds.toFloat()));
+
+		if (get()->callWithGraphics(g_, "drawSliderPackFlashOverlay", var(obj), &s))
+			return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackFlashOverlay(g_, s, sliderIndex, sliderBounds, intensity);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackRightClickLine(Graphics& g_, SliderPack& s, Line<float> lineToDraw)
+{
+	if (functionDefined("drawSliderPackRightClickLine"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("id", s.getName());
+
+		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
+		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
+		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
+		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
+
+		obj->setProperty("x1", lineToDraw.getStartX());
+		obj->setProperty("x2", lineToDraw.getEndX());
+		obj->setProperty("y1", lineToDraw.getStartY());
+		obj->setProperty("y2", lineToDraw.getEndY());
+
+		if (get()->callWithGraphics(g_, "drawSliderPackRightClickLine", var(obj), &s))
+			return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackRightClickLine(g_, s, lineToDraw);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackTextPopup(Graphics& g_, SliderPack& s, const String& textToDraw)
+{
+	if (functionDefined("drawSliderPackTextPopup"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("id", s.getName());
+
+		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
+		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
+		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
+		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
+		
+		obj->setProperty("text", textToDraw);
+
+		if (get()->callWithGraphics(g_, "drawSliderPackTextPopup", var(obj), &s))
+			return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(g_, s, textToDraw);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

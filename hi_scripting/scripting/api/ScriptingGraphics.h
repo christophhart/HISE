@@ -511,6 +511,7 @@ namespace ScriptingObjects
 			public RingBufferComponentBase::LookAndFeelMethods,
 			public AhdsrGraph::LookAndFeelMethods,
 			public MidiFileDragAndDropper::LookAndFeelMethods,
+			public SliderPack::LookAndFeelMethods,
 			public CustomKeyboardLookAndFeelBase
 		{
 			Laf(MainController* mc) :
@@ -601,6 +602,11 @@ namespace ScriptingObjects
 			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override;
 			void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override;
 			void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) override;
+
+			void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
+			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
+			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
+			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
 
 			Image createIcon(PresetHandler::IconType type) override;
 

@@ -295,8 +295,9 @@ public:
 		virtual ~LookAndFeelMethods() {};
 
 		virtual void drawSliderPackBackground(Graphics& g, SliderPack& s);
-
 		virtual void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity);
+		virtual void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw);
+		virtual void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw);
 	};
 
 	struct SliderLookAndFeel : public BiPolarSliderLookAndFeel,
