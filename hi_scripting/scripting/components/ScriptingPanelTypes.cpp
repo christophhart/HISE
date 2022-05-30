@@ -543,6 +543,8 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	//canvas.setColour(ZoomableViewport::ColourIds::backgroundColourId, Colour(0xff262626));
 
 	rebuildAfterContentChange();
+
+	canvas.setMaxZoomFactor(2.0);
 }
 
 
