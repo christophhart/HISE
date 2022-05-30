@@ -889,6 +889,8 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
 	API_METHOD_WRAPPER_2(PathObject, createStrokedPath);
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
+	API_METHOD_WRAPPER_0(PathObject, toString);
+	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
 
 ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
@@ -903,6 +905,8 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_3(addArc);
 	ADD_API_METHOD_1(getBounds);
 	ADD_API_METHOD_2(createStrokedPath);
+	ADD_API_METHOD_0(toString);
+	ADD_API_METHOD_1(fromString);
 }
 
 ScriptingObjects::PathObject::~PathObject()
@@ -1021,6 +1025,16 @@ juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var do
 	np->p.startNewSubPath(p.getBounds().getBottomRight());
 
 	return var(np);
+}
+
+String ScriptingObjects::PathObject::toString()
+{
+	return p.toString();
+}
+
+void ScriptingObjects::PathObject::fromString(String stringPath)
+{
+	p.restoreFromString(stringPath);
 }
 
 struct ScriptingObjects::GraphicsObject::Wrapper
