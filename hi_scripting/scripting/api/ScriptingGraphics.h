@@ -314,6 +314,12 @@ namespace ScriptingObjects
 		/** Creates a fillable path using the provided strokeData (with optional dot. */
 		var createStrokedPath(var strokeData, var dotData);
 
+		/** Creates a string representation of this path. */
+		String toString();
+
+		/** Restores a path that has been converted into a string. */
+		void fromString(String stringPath);
+
 		// ============================================================================================================
 
 		struct Wrapper;
