@@ -1115,4 +1115,33 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 	}
 }
 
+DrawActions::NoiseMapManager::NoiseMap::NoiseMap(Rectangle<int> a, bool monochrom_) :
+	width(a.getWidth()),
+	height(a.getHeight()),
+	img(Image::ARGB, width, height, false),
+	monochrom(monochrom_)
+{
+	Image::BitmapData bd(img, Image::BitmapData::readWrite);
+	Random r;
+
+	if (monochrom)
+	{
+		for (int y = 0; y < bd.height; y++)
+		{
+			for (int x = 0; x < bd.width; x++)
+				bd.setPixelColour(x, y, Colours::white.withBrightness(r.nextFloat()));
+		}
+	}
+	else
+	{
+		for (int y = 0; y < bd.height; y++)
+		{
+			for (int x = 0; x < bd.width; x++)
+				bd.setPixelColour(x, y, Colour((uint32)r.nextInt()));
+		}
+	}
+
+	
+}
+
 } // namespace hise

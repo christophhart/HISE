@@ -73,17 +73,32 @@ struct ScriptedPostDrawActions
 		int blurAmount;
 	};
 
-	struct addNoise : public DrawActions::PostActionBase
+	struct addNoise : public DrawActions::ActionBase
 	{
-		addNoise(float v) : noise(v) {};
+		addNoise(DrawActions::NoiseMapManager* manager, float v, Rectangle<int> area_, bool monochrom_=false, float scale_=1.0f) : 
+			m(manager),
+			noise(v), 
+			area(area_), 
+			scale(scale_), 
+			monochrom(monochrom_) 
+		{};
 
-		bool needsStackData() const override { return false; }
-		void perform(PostGraphicsRenderer& r) override
+		void perform(Graphics& g) override
 		{
-			r.addNoise(noise);
+			m->drawNoiseMap(g, area, noise, monochrom, scale);
 		}
 
-		float noise;
+		bool wantsCachedImage() const override { return false; };
+		bool wantsToDrawOnParent() const override { return false; }
+
+		DrawActions::NoiseMapManager* m;
+
+		const float noise;
+		const float scale;
+
+		
+		const Rectangle<int> area;
+		const bool monochrom;
 	};
 
 	struct applyHSL : public DrawActions::PostActionBase

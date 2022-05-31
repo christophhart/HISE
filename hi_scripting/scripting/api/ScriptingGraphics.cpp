@@ -1235,12 +1235,48 @@ void ScriptingObjects::GraphicsObject::applyVignette(float amount, float radius,
 
 void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
 {
-	if (auto cl = drawActionHandler.getCurrentLayer())
+	auto m = drawActionHandler.getNoiseMapManager();
+
+	Rectangle<int> ar;
+
+	if (auto sc = dynamic_cast<ScriptComponent*>(parent))
 	{
-		cl->addPostAction(new ScriptedPostDrawActions::addNoise(jlimit(0.0f, 1.0f, (float)noiseAmount)));
+		ar = Rectangle<int>(0, 0, (int)sc->getScriptObjectProperty(ScriptComponent::Properties::width), (int)sc->getScriptObjectProperty(ScriptComponent::Properties::height));
 	}
-	else
-		reportScriptError("You need to create a layer for adding noise");
+
+	if (noiseAmount.isDouble())
+	{
+		if (ar.isEmpty())
+			reportScriptError("No valid area for noise map specified");
+		else
+			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoise(m, jlimit(0.0f, 1.0f, (float)noiseAmount), ar));
+	}
+	else if (auto obj = noiseAmount.getDynamicObject())
+	{
+		auto alpha = jlimit(0.0f, 1.0f, (float)noiseAmount["alpha"]);
+		auto monochrom = (bool)noiseAmount["monochromatic"];
+
+		auto sf = (float)noiseAmount.getProperty("scaleFactor", 1.0);
+
+		auto customArea = noiseAmount.getProperty("area", var());
+
+		if (customArea.isArray())
+		{
+			ar = ApiHelpers::getIntRectangleFromVar(customArea);
+		}
+
+		if(ar.isEmpty())
+			reportScriptError("Invalid area for noise map");
+		else
+		{
+			if (sf == -1.0f)
+				sf = drawActionHandler.getScaleFactor();
+
+			auto scale = jlimit(0.125, 2.0, (double)sf);
+
+			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoise(m, jlimit(0.0f, 1.0f, (float)alpha), ar, monochrom, scale));
+		}
+	}
 }
 
 void ScriptingObjects::GraphicsObject::desaturate()
