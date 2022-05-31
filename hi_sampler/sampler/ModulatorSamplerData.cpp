@@ -1286,7 +1286,7 @@ juce::File MonolithExporter::getNextMonolith(const File& f) const
 	MonolithFileReference ref(f, numChannels, numMonolithSplitParts);
 
 	ref.bumpToNextMonolith(false);
-	return ref.getFile();
+	return ref.getFile(false);
 
 #if 0
 	auto p = f.getParentDirectory();
@@ -1346,7 +1346,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	
 	Array<File> firstChannelMonolithFiles;
 
-	auto outputFile = monolithFileReference->getFile();
+	auto outputFile = monolithFileReference->getFile(false);
 
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
@@ -1430,7 +1430,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 				}
 
 				monolithFileReference->bumpToNextMonolith(false);
-				outputFile = monolithFileReference->getFile();
+				outputFile = monolithFileReference->getFile(false);
 
 				if (outputFile.existsAsFile())
 					outputFile.deleteFile();
@@ -1463,7 +1463,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 			if (renameFirstMonolith)
 			{
 				auto actualFile = outputFile;
-				auto expectedFile = monolithFileReference->getFile();
+				auto expectedFile = monolithFileReference->getFile(false);
 
 				auto ok = expectedFile.deleteFile();
 				ok &= actualFile.moveFileTo(expectedFile);
