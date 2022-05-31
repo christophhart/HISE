@@ -652,6 +652,21 @@ public:
 
 private:
 
+	struct Updater : private PooledUIUpdater::SimpleTimer
+	{
+		Updater(MidiPlayer& mp);;
+
+		void timerCallback() override;
+
+		bool handleUpdate(HiseMidiSequence::Ptr seq, NotificationType n);
+
+		bool dirty = false;
+
+		HiseMidiSequence::Ptr sequenceToUpdate;
+
+		MidiPlayer& parent;
+	} updater;
+
 	bool stopInternal(int timestamp);
 
 	bool startInternal(int timestamp);
@@ -686,6 +701,7 @@ private:
 
 	Array<PoolReference> currentlyLoadedFiles;
 
+	SimpleReadWriteLock listenerLock;
 	Array<WeakReference<SequenceListener>> sequenceListeners;
 	void changeTransportState(PlayState newState);
 
