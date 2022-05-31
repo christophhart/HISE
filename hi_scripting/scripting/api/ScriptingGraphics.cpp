@@ -1049,6 +1049,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawLine);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, setFontWithSpacing);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
@@ -1098,6 +1099,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_5(drawLine);
 	ADD_API_METHOD_3(drawHorizontalLine);
 	ADD_API_METHOD_2(setFont);
+	ADD_API_METHOD_3(setFontWithSpacing);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_5(drawFittedText);
@@ -1368,6 +1370,16 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
+}
+
+void ScriptingObjects::GraphicsObject::setFontWithSpacing(String fontName, float fontSize, float spacing)
+{
+	MainController *mc = getScriptProcessor()->getMainController_();
+	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+
+	f.setExtraKerningFactor(spacing);
+
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 

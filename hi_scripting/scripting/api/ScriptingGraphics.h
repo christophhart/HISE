@@ -407,6 +407,9 @@ namespace ScriptingObjects
 		/** Sets the current font. */
 		void setFont(String fontName, float fontSize);
 
+		/** Sets the current font with the specified spacing between the characters. */
+		void setFontWithSpacing(String fontName, float fontSize, float spacing);
+
 		/** Draws a centered and vertically stretched text. */
 		void drawText(String text, var area);
 
