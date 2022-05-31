@@ -38,20 +38,18 @@ void AudioDisplayComponent::drawPlaybackBar(Graphics &g)
 {
 	if(playBackPosition > 0.0 && getSampleArea(0)->getWidth() != 0)
 	{
+		if (auto tlaf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&getThumbnail()->getLookAndFeel()))
+		{
+			NormalisableRange<double> range((double)getSampleArea(0)->getX(), (double)getSampleArea(0)->getRight());
 
-		NormalisableRange<double> range((double)getSampleArea(0)->getX(), (double)getSampleArea(0)->getRight());
+			playBackPosition = jlimit<double>(0.0, 1.0, playBackPosition);
 
-		playBackPosition = jlimit<double>(0.0, 1.0, playBackPosition);
+			const int x = (int)(range.convertFrom0to1(playBackPosition));
 
-		const int x = (int)(range.convertFrom0to1(playBackPosition));
-
-		g.setColour(Colours::lightgrey.withAlpha(0.05f));
-		g.fillRect((float)x, 0.0f, x == 0 ? 5.0f : 10.0f, (float)getHeight());
-		
-		//g.fillRect(jmax(0.0f, value * (float)getWidth()-5.0f), 0.0f, value == 0.0f ? 5.0f : 10.0f, (float)getHeight());
-		g.setColour(Colours::white.withAlpha(0.6f));
-		g.drawLine(Line<float>((float)x, 0.0f, (float)x, (float)getHeight()), 0.5f);
-
+			tlaf->drawThumbnailRuler(g, *getThumbnail(), x);
+		}
+		else
+			jassertfalse;
 	}
 }
 
@@ -214,6 +212,18 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(Graphics& g, His
 
     g.setColour(c.withAlpha(0.3f));
     ug.draw1PxRect(area);
+}
+
+void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int x)
+{
+	auto l = Line<float>((float)x, 0.0f, (float)x, (float)te.getHeight());
+	auto r = Rectangle<float>((float)x, 0.0f, x == 0 ? 5.0f : 10.0f, (float)te.getHeight());
+
+	g.setColour(Colours::lightgrey.withAlpha(0.05f));
+	g.fillRect(r);
+
+	g.setColour(Colours::white.withAlpha(0.6f));
+	g.drawLine(l, 0.5f);
 }
 
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)

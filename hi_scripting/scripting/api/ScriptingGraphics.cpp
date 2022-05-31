@@ -2561,6 +2561,27 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailRectList(Graph
 	jassertfalse; // should never happen
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRuler(Graphics& g_, HiseAudioThumbnail& th, int xPosition)
+{
+	if (functionDefined("drawThumbnailRuler"))
+	{
+		auto obj = new DynamicObject();
+		auto area = th.getLocalBounds();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+		
+		obj->setProperty("xPosition", xPosition);
+
+		setColourOrBlack(obj, "bgColour", th, AudioDisplayComponent::ColourIds::bgColour);
+		setColourOrBlack(obj, "itemColour", th, AudioDisplayComponent::ColourIds::fillColour);
+		setColourOrBlack(obj, "textColour", th, AudioDisplayComponent::ColourIds::outlineColour);
+
+		if (get()->callWithGraphics(g_, "drawThumbnailRuler", var(obj), &th))
+			return;
+	}
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(g_, th, xPosition);
+}
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_, HiseAudioThumbnail& th, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
 {
 	if (functionDefined("drawThumbnailRange"))

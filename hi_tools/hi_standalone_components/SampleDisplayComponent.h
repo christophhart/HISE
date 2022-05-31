@@ -73,6 +73,8 @@ public:
 		virtual void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const RectangleListType& rectList);
 		virtual void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area);
         virtual void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled);
+
+		virtual void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition);
 	};
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,

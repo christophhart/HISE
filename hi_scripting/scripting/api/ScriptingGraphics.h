@@ -597,6 +597,9 @@ namespace ScriptingObjects
             void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
             void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
             void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
+
+			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
+
             void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
             
 			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override;
