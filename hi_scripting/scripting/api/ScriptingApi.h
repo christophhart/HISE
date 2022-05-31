@@ -345,6 +345,12 @@ public:
 		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
 		void extendTimeOut(int additionalMilliseconds);
 
+		/** Sets the global pitch factor (in semitones). */
+		void setGlobalPitchFactor(double pitchFactorInSemitones);
+
+		/** Returns the global pitch factor (in semitones). */
+		double getGlobalPitchFactor() const;
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 

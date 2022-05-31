@@ -920,6 +920,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, clearSampleMapPool);
 	API_METHOD_WRAPPER_2(Engine, getSampleFilesFromDirectory);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
+	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalPitchFactor);
+	API_METHOD_WRAPPER_0(Engine, getGlobalPitchFactor);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
@@ -984,6 +986,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(setUserPresetTagList);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
+	ADD_API_METHOD_0(getGlobalPitchFactor);
+	ADD_API_METHOD_1(setGlobalPitchFactor);
 	ADD_API_METHOD_1(saveUserPreset);
 	ADD_API_METHOD_1(loadUserPreset);
 	ADD_API_METHOD_0(getUserPresetList);
@@ -1712,6 +1716,17 @@ void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getPro
 void ScriptingApi::Engine::extendTimeOut(int additionalMilliseconds)
 {
 	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(additionalMilliseconds);
+}
+
+void ScriptingApi::Engine::setGlobalPitchFactor(double pitchFactorInSemitones)
+{
+	pitchFactorInSemitones = jlimit(-12.0, 12.0, pitchFactorInSemitones);
+	getScriptProcessor()->getMainController_()->setGlobalPitchFactor(pitchFactorInSemitones);
+}
+
+double ScriptingApi::Engine::getGlobalPitchFactor() const
+{
+	return getScriptProcessor()->getMainController_()->getGlobalPitchFactorSemiTones();
 }
 
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
