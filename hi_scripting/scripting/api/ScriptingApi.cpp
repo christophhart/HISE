@@ -5554,6 +5554,7 @@ struct ScriptingApi::Colours::Wrapper
 	API_METHOD_WRAPPER_2(Colours, withMultipliedSaturation);
 	API_METHOD_WRAPPER_1(Colours, fromVec4);
 	API_METHOD_WRAPPER_1(Colours, toVec4);
+	API_METHOD_WRAPPER_3(Colours, mix);
 };
 
 ScriptingApi::Colours::Colours() :
@@ -5706,6 +5707,7 @@ ApiClass(139)
 	ADD_API_METHOD_2(withMultipliedAlpha);
 	ADD_API_METHOD_2(withMultipliedBrightness);
 	ADD_API_METHOD_2(withMultipliedSaturation);
+	ADD_API_METHOD_3(mix);
 	ADD_API_METHOD_1(toVec4);
 	ADD_API_METHOD_1(fromVec4);
 }
@@ -5778,6 +5780,14 @@ int ScriptingApi::Colours::fromVec4(var vec4)
 	}
 
 	return 0;
+}
+
+int ScriptingApi::Colours::mix(int colour1, int colour2, float alpha)
+{
+	Colour c1((uint32)colour1);
+	Colour c2((uint32)colour2);
+
+	return c1.interpolatedWith(c2, alpha).getARGB();
 }
 
 ScriptingApi::ModuleIds::ModuleIds(ModulatorSynth* s):

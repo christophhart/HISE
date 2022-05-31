@@ -1559,6 +1559,9 @@ public:
 		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
 		int fromVec4(var vec4);
 
+		/** Linear interpolation between two colours. */
+		int mix(int colour1, int colour2, float alpha);
+
 		// ============================================================================================================
 
 		struct Wrapper;

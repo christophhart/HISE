@@ -1432,6 +1432,16 @@ void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 
 			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
 		}
+		else if (gradientData.getArray()->size() == 7)
+		{
+			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
+			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
+
+			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
+				c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), (bool)data->getUnchecked(6));
+
+			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
+		}
 		else
 			reportScriptError("Gradient Data must have six elements");
 	}
