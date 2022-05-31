@@ -1271,8 +1271,13 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		auto pId = c[PropertyIds::ParameterId].toString();
 		auto tn = n->getRootNetwork()->getNodeWithId(nId);
 
+		
+
 		if (tn == nullptr)
 			return nullptr;
+
+		n->getRootNetwork()->getExceptionHandler().removeError(tn, Error::UnscaledModRangeMismatch);
+
 
 		parameter::dynamic_base::Ptr p;
 
@@ -1291,6 +1296,24 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		else if (auto param = tn->getParameterFromName(pId))
 		{
 			p = param->getDynamicParameter();
+		}
+
+		if (auto modNode = dynamic_cast<ModulationSourceNode*>(tn))
+		{
+			// If a unscaled mod is getting a normalised parameter from a macro parameter connection
+			// then it might lead to wrong values
+			if (!modNode->isUsingNormalisedRange() && connectionTree.getType() == PropertyIds::Connections)
+			{
+				auto targetRange = p->getRange();
+
+				if (!RangeHelpers::equalsWithError(targetRange, inputRange, 0.001))
+				{
+					scriptnode::Error e;
+					
+					e.error = Error::UnscaledModRangeMismatch;
+					modNode->getRootNetwork()->getExceptionHandler().addError(modNode, e);
+				}
+			}
 		}
 
 		if (numConnections == 1)

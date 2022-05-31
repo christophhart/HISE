@@ -650,14 +650,21 @@ namespace control
 	
 	template <typename ExpressionClass, typename ParameterClass> struct cable_expr : public mothernode,
 																					 public pimpl::parameter_node_base<ParameterClass>,
+																					 public pimpl::no_mod_normalisation,
 																					 public pimpl::no_processing
 	{
+		
+
 		SN_NODE_ID("cable_expr");
 		SN_GET_SELF_AS_OBJECT(cable_expr);
 		SN_DESCRIPTION("evaluates an expression for the control value");
 
 		SN_ADD_SET_VALUE(cable_expr);
-		SN_PARAMETER_NODE_CONSTRUCTOR(cable_expr, ParameterClass);
+		
+		cable_expr() : 
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+			no_mod_normalisation(getStaticId())
+		{};
 
 		SN_DEFAULT_INIT(ExpressionClass);
 
