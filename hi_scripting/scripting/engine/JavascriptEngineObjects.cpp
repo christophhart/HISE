@@ -290,6 +290,8 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("parseAsJSON", parseAsJSON);
 		setMethod("trim", trim);
 		setMethod("concat", concat);
+		setMethod("encrypt", encrypt);
+		setMethod("decrypt", decrypt);
 	}
 
 	static Identifier getClassName()  { static const Identifier i("String"); return i; }
@@ -358,6 +360,44 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		return var(result.joinIntoString(" ", 0, -1));
 	}
 
+	static var encrypt(Args a)
+	{
+		const String str(a.thisObject.toString());
+		const String key(getString(a, 0));
+
+		auto data = key.getCharPointer().getAddress();
+		auto size = jlimit(0, 72, key.length());
+
+		BlowFish bf(data, size);
+
+		MemoryOutputStream mos;
+		mos.writeString(str);
+		mos.flush();
+		
+		auto out = mos.getMemoryBlock();
+
+		bf.encrypt(out);
+
+		return out.toBase64Encoding();
+	}
+
+	static var decrypt(Args a)
+	{
+		const String encStr(a.thisObject.toString());
+		const String key(getString(a, 0));
+
+		auto data = key.getCharPointer().getAddress();
+		auto size = jlimit(0, 72, key.length());
+
+		BlowFish bf(data, size);
+
+		MemoryBlock in;
+		
+		in.fromBase64Encoding(encStr);
+		bf.decrypt(in);
+
+		return in.toString();
+	}
 };
 
 #define Array Array<var>
