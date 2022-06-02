@@ -447,6 +447,12 @@ public:
 
 	/** Joins two or more strings, and returns a new joined strings. */
 	String concat(var stringlist) { return String(); }
+
+	/** Encrypt a string using Blowfish encryption. */
+	String encrypt(var key) { return String(); }
+
+	/** Decrypt a string from Blowfish encryption. */
+	String decrypt(var key) { return String(); }
 };
 
 #if JUCE_MSVC
