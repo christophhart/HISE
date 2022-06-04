@@ -157,6 +157,8 @@ struct OpaqueNode
 		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
 			shouldProcessHiseEvent = t->isProcessingHiseEvent();
 
+		if constexpr (prototypes::check::hasTail<T>::value)
+			hasTail_ = t->hasTail();
 		if constexpr (prototypes::check::handleModulation<T>::value)
 		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
@@ -259,6 +261,8 @@ struct OpaqueNode
 
 	String getDescription() const { return description; }
 
+	bool hasTail() const { return hasTail_; }
+
 private:
 
 	String description;
@@ -271,6 +275,8 @@ private:
 
 	bool isPoly = false;
 	bool isPolyPossible = false;
+
+	bool hasTail_ = true;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
 	prototypes::destruct destructFunc = nullptr;

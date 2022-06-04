@@ -138,6 +138,7 @@ DECLARE_ID(AllowPolyphonic);
 DECLARE_ID(AllowCompilation);
 DECLARE_ID(UncompileableNode);
 DECLARE_ID(CompileChannelAmount);
+DECLARE_ID(HasTail);
 
 
 struct Helpers
@@ -157,6 +158,7 @@ struct Helpers
 			Automated,
 			AllowPolyphonic,
 			AllowCompilation,
+			HasTail,
             CompileChannelAmount
 		};
 
@@ -176,6 +178,7 @@ struct Helpers
 		returnIfDefault(Inverted, false);
 		returnIfDefault(EmbeddedData, -1);
 		returnIfDefault(Automated, false);
+		returnIfDefault(HasTail, true);
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
         returnIfDefault(CompileChannelAmount, 2);

@@ -983,6 +983,8 @@ private:
 
 	const bool isPoly;
 
+	CachedValue<bool> hasTailProperty;
+
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	snex::Types::PolyHandler polyHandler;
 

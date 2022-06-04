@@ -1231,6 +1231,8 @@ template <class T> struct node : public scriptnode::data::base
 	static constexpr bool isModulationSource = T::isModulationSource;
 	static constexpr bool isNormalisedModulation() { return true; };
 
+	static constexpr bool hasTail() { return T::hasTail(); }
+
 	static constexpr int NumChannels =	  MetadataClass::NumChannels;
 	static constexpr int NumTables =	  MetadataClass::NumTables;
 	static constexpr int NumSliderPacks = MetadataClass::NumSliderPacks;

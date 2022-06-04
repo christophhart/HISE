@@ -729,6 +729,7 @@ juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithS
 
 	if (propId == SplitSignal ||
 		propId == AllowCompilation ||
+		propId == HasTail ||
 		propId == AllowPolyphonic)
 		return new ToggleButtonPropertyComponent(d, id, um);
     
