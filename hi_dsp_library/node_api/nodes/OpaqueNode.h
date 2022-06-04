@@ -313,6 +313,8 @@ namespace dll
 		virtual Error getError() const = 0;
 		virtual void clearError() const = 0;
 
+		virtual bool isThirdPartyNode(int index) const = 0;
+
 		virtual void deinitOpaqueNode(OpaqueNode* n) { }
 	};
 
@@ -345,6 +347,9 @@ namespace dll
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		/** We don't bother about whether it's a third party node or not in a static compiled plugin. */
+		bool isThirdPartyNode(int index) const override { return false; };
 
 		template <typename T, typename PolyT> void registerPolyNode()
 		{
@@ -402,6 +407,7 @@ namespace dll
 			GetNumDataObjects,
 			GetError,
 			ClearError,
+			IsThirdPartyNode,
 			numFunctions
 		};
 
@@ -416,12 +422,15 @@ namespace dll
 		typedef int(*GetNumDataObjects)(int, int);
 		typedef Error(*GetError)();
 		typedef void(*ClearError)();
+		typedef bool(*IsThirdPartyNode)(int);
 
 		int getWrapperType(int index) const;
 
 		int getNumNodes() const;
 
 		int getNumDataObjects(int nodeIndex, int dataTypeAsInt) const;
+
+		bool isThirdPartyNode(int nodeIndex) const;
 
 		String getNodeId(int index) const;
 
@@ -499,6 +508,8 @@ namespace dll
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
 		int getWrapperType(int index) const override;
+
+		bool isThirdPartyNode(int index) const override;
 
 		void clearError() const override;
 
