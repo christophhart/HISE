@@ -2026,6 +2026,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		obj->setProperty("text", s.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 
+		obj->setProperty("valueAsText", s.getTextFromValue(s.getValue()));
 		obj->setProperty("value", s.getValue());
 
 		NormalisableRange<double> range = NormalisableRange<double>(s.getMinimum(), s.getMaximum(), s.getInterval(), s.getSkewFactor());
@@ -2065,6 +2066,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
+
+		obj->setProperty("valueAsText", slider.getTextFromValue(slider.getValue()));
 
 		obj->setProperty("valueSuffixString", slider.getTextFromValue(slider.getValue()));
 		obj->setProperty("suffix", slider.getTextValueSuffix());
