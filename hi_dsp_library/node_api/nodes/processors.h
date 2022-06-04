@@ -210,6 +210,8 @@ public:
 
 	static Identifier getStaticId() { return T::getStaticId(); }
 
+	static constexpr int getFixChannelAmount() { return NumChannels; };
+
 	/** Forwards the callback to its wrapped object. */
 	void initialise(NodeBase* n)
 	{
@@ -1088,6 +1090,8 @@ template <class ParameterClass, class T> struct mod
 		checkModValue();
 	}
 
+	static Identifier getStaticId() { return T::getStaticId(); }
+
 	/** Resets the node and sends a modulation signal if required. */
 	void reset() noexcept 
 	{
@@ -1239,6 +1243,8 @@ template <class T> struct node : public scriptnode::data::base
 	static constexpr int NumAudioFiles =  MetadataClass::NumAudioFiles;
 	static constexpr int NumFilters =  MetadataClass::NumFilters;
 	static constexpr int NumDisplayBuffers = MetadataClass::NumDisplayBuffers;
+
+	static constexpr int getFixChannelAmount() { return NumChannels; };
 
 	// We treat everything in this node as opaque...
 	SN_GET_SELF_AS_OBJECT(node);

@@ -159,6 +159,12 @@ struct OpaqueNode
 
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
+
+		if constexpr (prototypes::check::getFixChannelAmount<T>::value)
+			numChannels = t->getFixChannelAmount();
+		else
+			numChannels = -1;
+
 		if constexpr (prototypes::check::handleModulation<T>::value)
 		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
@@ -298,6 +304,7 @@ public:
 	span<void*, NumMaxParameters> parameterObjects;
 	span<StringArray, NumMaxParameters> parameterNames;
 
+	int numChannels = -1;
 	int numParameters = 0;
 	int numDataObjects[(int)ExternalData::DataType::numDataTypes];
 };
