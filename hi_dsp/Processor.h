@@ -872,6 +872,8 @@ public:
 			getChildProcessor(i)->setParentProcessor(this);
 	}
 
+	Array<Identifier> parameterNames;
+
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 
@@ -918,7 +920,7 @@ protected:
 	
 	bool consoleEnabled;
 
-	Array<Identifier> parameterNames;
+	
 	StringArray parameterDescriptions;
 	Array<Identifier> editorStateIdentifiers;
 

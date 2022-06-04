@@ -580,6 +580,27 @@ public:
 	{
 	public:
 
+		struct StoredModuleData : public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
+			using List = ReferenceCountedArray<StoredModuleData>;
+
+			StoredModuleData(var moduleId, Processor* pToRestore);
+
+			void stripValueTree(ValueTree& v);
+
+			void restoreValueTree(ValueTree& v);
+
+			String id;
+
+			WeakReference<Processor> p;
+			NamedValueSet removedProperties;
+			Array<ValueTree> removedChildElements;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(StoredModuleData);
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StoredModuleData);
+		};
+
 		struct CustomAutomationData : public ReferenceCountedObject
 		{
 			using Ptr = ReferenceCountedObjectPtr<CustomAutomationData>;
@@ -757,6 +778,8 @@ public:
 
 		CustomAutomationData::Ptr getCustomAutomationData(int index);
 
+		StoredModuleData::List& getStoredModuleData() { return storedModuleData; }
+
 		int getCustomAutomationIndex(const Identifier& id) const;
 
 		ValueTree createCustomValueTree(const String& presetName);
@@ -829,6 +852,8 @@ public:
 		bool usePersistentObject = false;
 
 		CustomAutomationData::List customAutomationData;
+
+		StoredModuleData::List storedModuleData;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
