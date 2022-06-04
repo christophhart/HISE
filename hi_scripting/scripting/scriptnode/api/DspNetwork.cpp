@@ -256,17 +256,22 @@ void DspNetwork::createAllNodesOnce()
 
 	for (auto f : nodeFactories)
 	{
-        if(f->getId() == Identifier("project"))
-            continue;
-        
+		auto isProjectFactory = f->getId() == Identifier("project");
+            
+		if (isProjectFactory)
+			continue;
+
+		int index = 0;
 		for (auto id : f->getModuleList())
 		{
-			NodeBase::Holder s;
+			ScopedPointer<NodeBase::Holder> s = new NodeBase::Holder();
 
-			currentNodeHolder = &s;
+			currentNodeHolder = s;
 			create(id, "unused");
 			exceptionHandler.removeError(nullptr);
 			currentNodeHolder = nullptr;
+
+			s = nullptr;
 		}
 	}
 
@@ -449,8 +454,8 @@ void DspNetwork::reset()
 	
 	if (projectNodeHolder.isActive())
 		projectNodeHolder.n.reset();
-	else
-		getRootNode()->reset();
+	else if (auto rn = getRootNode())
+		rn->reset();
 }
 
 void DspNetwork::handleHiseEvent(HiseEvent& e)
@@ -1404,6 +1409,7 @@ DspNetwork::SelectionUpdater::SelectionUpdater(DspNetwork& parent_) :
 
 DspNetwork::SelectionUpdater::~SelectionUpdater()
 {
+	MessageManagerLock mm;
 	parent.selection.removeChangeListener(this);
 }
 

@@ -125,8 +125,8 @@ public:
 		return nullptr;
 	}
 
-	StringArray& getListOfModuleIds() {
-		return storedModuleIds;
+	MainController::UserPresetHandler::StoredModuleData::List& getListOfModuleIds() {
+		return getMainController()->getUserPresetHandler().getStoredModuleData();
 	}
 
 	ScriptingApi::Server::WeakPtr getServerObject() { return serverObject; }
@@ -211,7 +211,9 @@ private:
 
 	bool front, deferred, deferredUpdatePending;
 
-	StringArray storedModuleIds;
+	
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptMidiProcessor);
 };

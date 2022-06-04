@@ -3086,7 +3086,7 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 			slot->setEffect(effectName, false);
 		}
 
-		return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
+		return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(slot->getCurrentEffect()));
     }
 	else
 	{
@@ -3101,7 +3101,7 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrent
 	{
 		if (auto fx = slot->getCurrentEffect())
 		{
-			return new ScriptingEffect(getScriptProcessor(), fx);
+			return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(fx));
 		}
 	}
 
