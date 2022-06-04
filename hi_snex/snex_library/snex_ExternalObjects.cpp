@@ -363,6 +363,11 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 
 ScriptnodeCallbacks::ID ScriptnodeCallbacks::getCallbackId(const NamespacedIdentifier& p)
 {
+	// This must be handled extra because the enum is behind the numFunctions value
+	// (as this is not an obligatory callback that must be defined).
+	if (p.getIdentifier() == Identifier("handleModulation"))
+		return ScriptnodeCallbacks::ID::HandleModulation;
+
 	auto l = getIds(p.getParent());
 
 	for (int i = 0; i < l.size(); i++)

@@ -226,9 +226,9 @@ bool argumentMatch(const TypeInfo& functionArgs, const TypeInfo& actualArgs)
 	return functionArgs == actualArgs;
 }
 
-bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
+bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList, bool checkIfEmpty) const
 {
-	if (args.isEmpty())
+	if (!checkIfEmpty && args.isEmpty())
 		return true;
 
 	if (args.size() != typeList.size())
@@ -246,12 +246,12 @@ bool FunctionData::matchesArgumentTypes(const Array<TypeInfo>& typeList) const
 	return true;
 }
 
-bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const
+bool FunctionData::matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList, bool checkIfEmpty) const
 {
 	if (r != returnType && !returnType.isDynamic())
 		return false;
 
-	return matchesArgumentTypes(argsList);
+	return matchesArgumentTypes(argsList, checkIfEmpty);
 }
 
 
