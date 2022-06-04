@@ -186,7 +186,7 @@ private:
 
 struct pod
 {
-	static constexpr int MaxParameterNameLength = 16;
+	static constexpr int MaxParameterNameLength = 32;
 
 	pod()
 	{
