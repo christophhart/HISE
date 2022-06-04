@@ -1772,15 +1772,15 @@ Factory::Factory(DspNetwork* n) :
 {
 	using namespace data::ui;
 
-	registerPolyNode<df<one_pole>,		df<one_pole_poly>,		filter_editor>();
-	registerPolyNode<df<svf>,			df<svf_poly>,			filter_editor>();
-	registerPolyNode<df<svf_eq>,		df<svf_eq_poly>,		filter_editor>();
-	registerPolyNode<df<biquad>,		df<biquad_poly>,		filter_editor>();
-	registerPolyNode<df<ladder>,		df<ladder_poly>,		filter_editor>();
-	registerPolyNode<df<ring_mod>,		df<ring_mod_poly>,		filter_editor>();
-	registerPolyNode<df<moog>,			df<moog_poly>,			filter_editor>();
-	registerPolyNode<df<allpass>,		df<allpass_poly>,		filter_editor>();
-	registerPolyNode<df<linkwitzriley>,	df<linkwitzriley_poly>, filter_editor>();
+	registerPolyNode<df<one_pole<1>>,		df<one_pole<NUM_POLYPHONIC_VOICES>>,	filter_editor>();
+	registerPolyNode<df<svf<1>>,			df<svf<NUM_POLYPHONIC_VOICES>>,			filter_editor>();
+	registerPolyNode<df<svf_eq<1>>,			df<svf_eq<NUM_POLYPHONIC_VOICES>>,		filter_editor>();
+	registerPolyNode<df<biquad<1>>,			df<biquad<NUM_POLYPHONIC_VOICES>>,		filter_editor>();
+	registerPolyNode<df<ladder<1>>,			df<ladder<NUM_POLYPHONIC_VOICES>>,		filter_editor>();
+	registerPolyNode<df<ring_mod<1>>,		df<ring_mod<NUM_POLYPHONIC_VOICES>>,	filter_editor>();
+	registerPolyNode<df<moog<1>>,			df<moog<NUM_POLYPHONIC_VOICES>>,		filter_editor>();
+	registerPolyNode<df<allpass<1>>,		df<allpass<NUM_POLYPHONIC_VOICES>>,		filter_editor>();
+	registerPolyNode<df<linkwitzriley<1>>,	df<linkwitzriley<NUM_POLYPHONIC_VOICES>>, filter_editor>();
 
 	registerNode<wrap::data<convolution, data::dynamic::audiofile>, data::ui::audiofile_editor>();
 	//registerPolyNode<fir, fir_poly>();
