@@ -4763,21 +4763,24 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
 
-	Processor::Iterator<AudioSampleProcessor> it(owner);
+	Processor::Iterator<ProcessorWithExternalData> it(owner);
 
-		AudioSampleProcessor *asp;
+	ProcessorWithExternalData *asp;
 
 
-		while ((asp = it.getNextProcessor()) != nullptr)
+	while ((asp = it.getNextProcessor()) != nullptr)
+	{
+		if (dynamic_cast<Processor*>(asp)->getId() == name)
 		{
-			if (dynamic_cast<Processor*>(asp)->getId() == name)
+			if (asp->getNumDataObjects(ExternalData::DataType::AudioFile) > 0)
 			{
-				return new ScriptAudioSampleProcessor(getScriptProcessor(), asp);
+				return new ScriptAudioSampleProcessor(getScriptProcessor(), dynamic_cast<Processor*>(asp));
 			}
 		}
+	}
 
-        reportScriptError(name + " was not found. ");
-		RETURN_IF_NO_THROW(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
+    reportScriptError(name + " was not found. ");
+	RETURN_IF_NO_THROW(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
 }
 
 

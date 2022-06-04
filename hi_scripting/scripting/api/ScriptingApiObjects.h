@@ -1884,7 +1884,7 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
-		ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor);
+		ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, Processor *sampleProcessor);
 		~ScriptingAudioSampleProcessor() {};
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioSampleProcessor"); };
