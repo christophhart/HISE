@@ -427,8 +427,23 @@ struct HiseJavascriptEngine::RootObject::JSONClass : public DynamicObject
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::IntegerClass : public DynamicObject
 {
-	IntegerClass()                     { setMethod("parseInt", parseInt); }
+	IntegerClass() 
+	{
+		setMethod("parseInt", parseInt); 
+		setMethod("parseFloat", parseFloat);
+	}
 	static Identifier getClassName()   { static const Identifier i("Integer"); return i; }
+
+	static var parseFloat(Args a)
+	{
+		var v = get(a, 0);
+
+		if (v.isDouble() || v.isInt() || v.isInt64()) { return var((double)v); }
+
+		const String s(getString(a, 0).trim());
+
+		return var(s.getDoubleValue());
+	}
 
 	static var parseInt(Args a)
 	{
