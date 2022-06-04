@@ -743,11 +743,11 @@ struct ParameterSlider::RangeComponent : public Component,
 			{
 				auto cr = getParentRange();
 
-				auto sourceParameterTree = connectionSource.getParent().getParent();
+				auto parameterTrees = ParameterSlider::getValueTreesForSourceConnection(connectionSource);
 
-				if (sourceParameterTree.isValid() && sourceParameterTree.getType() == PropertyIds::Parameter)
+				for (auto ptree : parameterTrees)
 				{
-					RangeHelpers::storeDoubleRange(sourceParameterTree, cr, getParent().node->getUndoManager());
+					RangeHelpers::storeDoubleRange(ptree, cr, getParent().node->getUndoManager());
 				}
 			}
 			if (r > 9000)
@@ -860,6 +860,31 @@ struct ParameterSlider::RangeComponent : public Component,
 	ScopedPointer<TextEditor> editor;
 };
 
+Array<juce::ValueTree> ParameterSlider::getValueTreesForSourceConnection(const ValueTree& connectionSourceTree)
+{
+	Array<ValueTree> parameterTrees;
+
+	auto sourceParameterTree = connectionSourceTree.getParent().getParent();
+
+	ValueTree thisParameter;
+
+	if (sourceParameterTree.isValid())
+	{
+		if (sourceParameterTree.getType() == PropertyIds::Parameter)
+		{
+			thisParameter = sourceParameterTree;
+		}
+		else if (sourceParameterTree.getType() == PropertyIds::Node)
+		{
+			auto nodeType = Identifier(sourceParameterTree[PropertyIds::FactoryPath].toString());
+			thisParameter = sourceParameterTree.getChildWithName(PropertyIds::Parameters).getChildWithProperty(PropertyIds::ID, "Value");
+		}
+	}
+
+	parameterTrees.add(thisParameter);
+
+	return parameterTrees;
+}
 
 ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 	SimpleTimer(node_->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
@@ -952,6 +977,8 @@ void ParameterSlider::updateRange(Identifier, var)
 	setRange(range.rng.getRange(), range.rng.interval);
 	setSkewFactor(range.rng.skew);
 
+	
+
 	repaint();
 }
 
@@ -1016,6 +1043,15 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 void ParameterSlider::paint(Graphics& g)
 {
 	Slider::paint(g);
+
+	if (cppgen::CustomNodeProperties::isUnscaledParameter(pTree))
+	{
+		ParameterIcons pi;
+		auto p = pi.createPath("unscaled");
+		pi.scalePath(p, getLocalBounds().removeFromTop(10).removeFromRight(10).toFloat());
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.fillPath(p);
+	}
 
     if(blinkAlpha > 0.0f && modulationActive)
     {
@@ -1669,6 +1705,34 @@ void ParameterKnobLookAndFeel::SliderLabel::updateText()
 		setText(parent->getName(), dontSendNotification);
 
 	repaint();
+}
+
+juce::Path ParameterSlider::ParameterIcons::createPath(const String& path) const
+{
+	Path p;
+
+	if (path == "range")
+	{
+		static const unsigned char pathData[] = { 110,109,246,40,170,65,102,102,214,65,108,246,40,170,65,240,39,42,66,108,0,0,0,0,246,40,170,65,108,246,40,170,65,0,0,0,0,108,246,40,170,65,242,210,123,65,108,147,24,34,66,242,210,123,65,108,147,24,34,66,0,0,0,0,108,14,45,119,66,246,40,170,65,108,147,24,
+34,66,240,39,42,66,108,147,24,34,66,102,102,214,65,108,246,40,170,65,102,102,214,65,99,101,0,0 };
+
+		p.loadPathFromData(pathData, sizeof(pathData));
+	}
+	if (path == "unscaled")
+	{
+		static const unsigned char pathData[] = { 110,109,123,204,59,68,236,201,154,68,108,123,204,59,68,174,135,158,68,98,123,204,59,68,184,198,158,68,70,102,59,68,154,249,158,68,98,232,58,68,154,249,158,68,108,92,199,51,68,154,249,158,68,98,121,73,51,68,154,249,158,68,68,227,50,68,184,198,158,68,68,
+227,50,68,174,135,158,68,108,68,227,50,68,225,130,154,68,98,68,227,50,68,41,68,154,68,121,73,51,68,246,16,154,68,92,199,51,68,246,16,154,68,108,98,232,58,68,246,16,154,68,98,70,102,59,68,246,16,154,68,123,204,59,68,41,68,154,68,123,204,59,68,225,130,
+154,68,108,123,204,59,68,0,200,154,68,108,35,99,58,68,0,200,154,68,108,35,99,58,68,51,163,154,68,108,254,252,56,68,51,163,154,68,108,254,252,56,68,92,255,156,68,98,254,252,56,68,174,79,157,68,231,219,56,68,225,138,157,68,219,153,56,68,0,176,157,68,98,
+190,87,56,68,31,213,157,68,47,237,55,68,174,231,157,68,12,90,55,68,174,231,157,68,98,57,196,54,68,174,231,157,68,131,88,54,68,31,213,157,68,233,22,54,68,82,176,157,68,98,63,213,53,68,51,139,157,68,106,180,53,68,164,80,157,68,106,180,53,68,0,0,157,68,
+108,106,180,53,68,51,163,154,68,108,238,76,52,68,51,163,154,68,108,238,76,52,68,10,15,157,68,98,238,76,52,68,236,129,157,68,152,142,52,68,51,219,157,68,219,17,53,68,61,26,158,68,98,31,149,53,68,154,89,158,68,162,85,54,68,72,121,158,68,100,83,55,68,72,
+121,158,68,98,12,82,56,68,72,121,158,68,90,20,57,68,154,89,158,68,61,154,57,68,61,26,158,68,98,49,32,58,68,51,219,157,68,35,99,58,68,143,130,157,68,35,99,58,68,82,16,157,68,108,35,99,58,68,236,201,154,68,108,123,204,59,68,236,201,154,68,99,101,0,0 };
+
+		
+		p.loadPathFromData(pathData, sizeof(pathData));
+
+	}
+
+	return p;
 }
 
 }

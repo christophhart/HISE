@@ -102,6 +102,8 @@ ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* up
 
 	setRepaintsOnMouseActivity(true);
 	setMouseCursor(createMouseCursor());
+
+	setSize(256, 28);
 }
 
 void ModulationSourceBaseComponent::paint(Graphics& g)

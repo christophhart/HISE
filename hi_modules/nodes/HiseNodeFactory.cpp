@@ -677,9 +677,9 @@ template <typename ParameterClass> struct xy :
 
 struct TempoDisplay : public ModulationSourceBaseComponent
 {
-	using ObjectType = tempo_sync;
+	using ObjectType = tempo_sync_base;
 
-	TempoDisplay(PooledUIUpdater* updater, tempo_sync* p_) :
+	TempoDisplay(PooledUIUpdater* updater, ObjectType* p_) :
 		ModulationSourceBaseComponent(updater),
 		p(p_)
 	{
@@ -698,7 +698,9 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 		if (p == nullptr)
 			return;
 
-		auto thisValue = p->currentTempoMilliseconds;
+		auto td = p->getUIData();
+
+		auto thisValue = td.currentTempoMilliseconds;
 
 		if (thisValue != lastValue)
 		{
@@ -756,7 +758,7 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 
 	uint32_t lastTime;
 
-	WeakReference<tempo_sync> p;
+	WeakReference<ObjectType> p;
 };
 
 struct resetter_editor: public ScriptnodeExtraComponent<control::resetter<parameter::dynamic_base_holder>>
@@ -1367,11 +1369,16 @@ namespace control
 
 		registerPolyNoProcessNode<control::intensity<1, parameter::dynamic_base_holder>, control::intensity<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, intensity_editor>();
 
-		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor>();
+		
+
+		registerPolyNoProcessNode<control::pma<1, parameter::dynamic_base_holder>, control::pma<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor<multilogic::pma>>();
+		registerPolyNoProcessNode<control::pma_unscaled<1, parameter::dynamic_base_holder>, control::pma_unscaled<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, pma_editor<multilogic::pma_unscaled>>();
 
 		registerPolyNoProcessNode<control::minmax<1, parameter::dynamic_base_holder>, control::minmax<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, minmax_editor>();
 
 		registerPolyNoProcessNode<control::logic_op<1, parameter::dynamic_base_holder>, control::logic_op<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, logic_op_editor>();
+
+		registerPolyNoProcessNode<control::bang<1, parameter::dynamic_base_holder>, control::bang<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
         registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
         
@@ -1379,6 +1386,8 @@ namespace control
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
+		registerNoProcessNode<control::normaliser<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+
 		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
 
         registerNoProcessNode<conversion_logic::dynamic::NodeType, conversion_logic::dynamic::editor>();
@@ -1402,7 +1411,7 @@ namespace control
 
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
-		registerModNode<tempo_sync, TempoDisplay>();
+		registerPolyModNode<tempo_sync<1>, tempo_sync<NUM_POLYPHONIC_VOICES>, TempoDisplay>();
 	}
 }
 
@@ -1688,7 +1697,7 @@ Factory::Factory(DspNetwork* network) :
 
 #if HISE_INCLUDE_SNEX
 	registerPolyNode<snex_osc<1, SnexOscillator>, snex_osc<NUM_POLYPHONIC_VOICES, SnexOscillator>, NewSnexOscillatorDisplay>();
-	registerNode<core::snex_node, core::snex_node::editor>();
+	registerModNode<core::snex_node, core::snex_node::editor>();
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
 #endif
 

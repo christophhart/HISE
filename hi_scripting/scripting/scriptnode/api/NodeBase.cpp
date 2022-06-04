@@ -1271,7 +1271,7 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		auto pId = c[PropertyIds::ParameterId].toString();
 		auto tn = n->getRootNetwork()->getNodeWithId(nId);
 
-		
+		bool isUnscaledTarget = false;
 
 		if (tn == nullptr)
 			return nullptr;
@@ -1296,29 +1296,18 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		else if (auto param = tn->getParameterFromName(pId))
 		{
 			p = param->getDynamicParameter();
-		}
 
-		if (auto modNode = dynamic_cast<ModulationSourceNode*>(tn))
-		{
-			// If a unscaled mod is getting a normalised parameter from a macro parameter connection
-			// then it might lead to wrong values
-			if (!modNode->isUsingNormalisedRange() && connectionTree.getType() == PropertyIds::Connections)
-			{
-				auto targetRange = p->getRange();
-
-				if (!RangeHelpers::equalsWithError(targetRange, inputRange, 0.001))
-				{
-					scriptnode::Error e;
-					
-					e.error = Error::UnscaledModRangeMismatch;
-					modNode->getRootNetwork()->getExceptionHandler().addError(modNode, e);
-				}
-			}
+			isUnscaledTarget = cppgen::CustomNodeProperties::isUnscaledParameter(param->data);
 		}
+		else
+			return nullptr;
+
 
 		if (numConnections == 1)
 		{
-			if (!scaleInput || RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001))
+			auto sameRange = RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001);
+			
+			if (!scaleInput || sameRange || isUnscaledTarget)
 				return p;
 		}
 
@@ -1333,9 +1322,9 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		}
 
 		if (scaleInput)
-			dynamic_cast<parameter::dynamic_chain<true>*>(chain.get())->addParameter(p);
+			dynamic_cast<parameter::dynamic_chain<true>*>(chain.get())->addParameter(p, isUnscaledTarget);
 		else
-			dynamic_cast<parameter::dynamic_chain<false>*>(chain.get())->addParameter(p);
+			dynamic_cast<parameter::dynamic_chain<false>*>(chain.get())->addParameter(p, isUnscaledTarget);
 	}
 
 	return chain;
@@ -1579,8 +1568,11 @@ bool ConnectionSourceManager::CableRemoveListener::initListeners()
 
 ConnectionSourceManager::CableRemoveListener::~CableRemoveListener()
 {
-	if(targetParameterTree.isValid())
-		targetParameterTree.setProperty(PropertyIds::Automated, false, parent.n->getUndoManager(false));
+	if (targetParameterTree.isValid())
+	{
+		auto um = parent.n != nullptr ? parent.n->getUndoManager(false) : nullptr;
+		targetParameterTree.setProperty(PropertyIds::Automated, false, um);
+	}
 }
 
 ConnectionSourceManager::ConnectionSourceManager(DspNetwork* n_, ValueTree connectionsTree_) :

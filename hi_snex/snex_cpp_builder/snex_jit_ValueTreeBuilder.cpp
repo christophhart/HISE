@@ -976,7 +976,6 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	if (numConnections == 0)
 		return createParameterFromConnection({}, pId, -1, p);
 
-
 	auto inputRange = RangeHelpers::getDoubleRange(p);
 
 	auto mustCreateChain = !RangeHelpers::isIdentity(inputRange) || numConnections > 1;
@@ -986,7 +985,12 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	if (numConnections == 1)
 	{
 		auto pTree = ValueTreeIterator::getTargetParameterTree(cTree.getChild(0));
-		if(RangeHelpers::isEqual(inputRange, RangeHelpers::getDoubleRange(pTree)))
+		auto targetRange = RangeHelpers::getDoubleRange(pTree);
+
+		auto isSameRange = RangeHelpers::equalsWithError(inputRange, targetRange, 0.001);
+		auto isUnscaledMod = cppgen::CustomNodeProperties::isUnscaledParameter(pTree);
+
+		if(isSameRange || isUnscaledMod)
 			mustCreateChain = false;
 	}
 
@@ -1008,10 +1012,14 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		{
             auto targetTree = ValueTreeIterator::getTargetParameterTree(c);
             
-			auto cRange = RangeHelpers::getDoubleRange(targetTree);
+			auto targetRange = RangeHelpers::getDoubleRange(targetTree);
+			auto isSameRange = RangeHelpers::equalsWithError(inputRange, targetRange, 0.001);
+			auto isUnscaled = cppgen::CustomNodeProperties::isUnscaledParameter(targetTree);
 
-			if(!useUnnormalisedModulation)
-				unEqualRange |= !RangeHelpers::isEqual(inputRange, cRange);
+			// Only check the range if the target parameter is scaled
+			// and the source is using a scaled input range
+			if(!useUnnormalisedModulation && !isUnscaled)
+				unEqualRange |= !isSameRange;
 
 			chainList.add(getConnection(c));
 		}
@@ -1042,7 +1050,9 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 			if (c.n->isPolyphonicOrHasPolyphonicTemplate())
 				isPoly = true;
 
-			auto up = createParameterFromConnection(c, pId, cIndex++, unEqualRange ? ValueTree() : p);
+			auto up = createParameterFromConnection(c, pId, cIndex++, p);
+
+			//auto up = createParameterFromConnection(c, pId, cIndex++, unEqualRange ? ValueTree() : p);
 			*ch << *up;
 		}
 
@@ -1101,6 +1111,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	rc.targetRange = RangeHelpers::getDoubleRange(targetTree);
 	
+	if (cppgen::CustomNodeProperties::isUnscaledParameter(targetTree))
+		rc.targetRange = {};
+
 	if (c.getParent().getType() == PropertyIds::ModulationTargets)
 		rc.cableType = Connection::CableType::Modulation;
 	else
