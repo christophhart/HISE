@@ -1669,20 +1669,13 @@ void ModulatorSynth::killAllVoices()
 	effectChain->killMasterEffects();
 }
 
-    void ModulatorSynth::updateShouldHaveEnvelope()
-    {
-        {
-            shouldHaveEnvelope = false;
-            
-            if (isInGroup())
-                shouldHaveEnvelope = false;
-            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this) || ProcessorHelpers::is<MacroModulationSource>(this))
-                shouldHaveEnvelope = false;
-            else 
-                shouldHaveEnvelope = true;
-        }
-
-    }
+void ModulatorSynth::updateShouldHaveEnvelope()
+{
+	if (isInGroup())
+		shouldHaveEnvelope = false;
+	else
+		shouldHaveEnvelope = synthNeedsEnvelope();
+}
     
 bool ModulatorSynth::areVoicesActive() const
 {
@@ -1785,6 +1778,7 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(JavascriptSynthesiser);
 	ADD_NAME_TO_TYPELIST(MacroModulationSource);
 	ADD_NAME_TO_TYPELIST(SendContainer);
+	ADD_NAME_TO_TYPELIST(SilentSynth);
 }
 
 
@@ -1807,6 +1801,7 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case scriptSynth:			return new JavascriptSynthesiser(m, id, numVoices);
 	case macroModulationSource: return new MacroModulationSource(m, id, numVoices);
 	case sendContainer:			return new SendContainer(m, id);
+	case silentSynth:			return new SilentSynth(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };

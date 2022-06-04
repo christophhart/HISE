@@ -50,9 +50,7 @@ NoiseSynth::NoiseSynth(MainController *mc, const String &id, int numVoices) :
 ProcessorEditorBody* NoiseSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
-
 	return new EmptyProcessorEditorBody(parentEditor);
-
 #else 
 
 	ignoreUnused(parentEditor);
@@ -246,6 +244,35 @@ void NoiseVoice::calculateBlock(int startSample, int numSamples)
 	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 	
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+}
+
+SilentSynth::SilentSynth(MainController *mc, const String &id, int numVoices) :
+	ModulatorSynth(mc, id, numVoices)
+{
+	finaliseModChains();
+
+	modChains[BasicChains::GainChain].getChain()->setBypassed(true);
+	modChains[BasicChains::PitchChain].getChain()->setBypassed(true);
+
+	for (int i = 0; i < numVoices; i++) 
+		addVoice(new SilentVoice(this));
+	
+	addSound(new SilentSound());
+
+	getMatrix().setAllowResizing(true);
+}
+
+hise::ProcessorEditorBody* SilentSynth::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new EmptyProcessorEditorBody(parentEditor);
+#else 
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+
+#endif
 }
 
 } // namespace hise

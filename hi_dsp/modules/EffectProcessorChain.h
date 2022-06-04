@@ -344,6 +344,7 @@ public:
 		shapeFX,
 		polyshapeFx,
 		hardcodedMasterFx,
+		polyHardcodedFx,
 		midiMetronome
 	};
 

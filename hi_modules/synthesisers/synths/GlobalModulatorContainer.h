@@ -365,6 +365,8 @@ public:
 
 	void restoreModulatedParameters(const ValueTree& v);
 
+	bool synthNeedsEnvelope() const override { return false; }
+
 private:
 
 	Array<VoiceStartData> voiceStartData;

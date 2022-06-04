@@ -124,6 +124,8 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
+	bool synthNeedsEnvelope() const override { return false; }
+
 private:
 
 	float lastValues[HISE_NUM_MACROS];

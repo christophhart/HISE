@@ -358,7 +358,12 @@ public:
 		void setVoiceKillerToUse(snex::Types::VoiceResetter* vk_)
 		{
 			if (isPolyphonic())
+			{
 				vk = vk_;
+
+				if (getActiveNetwork())
+					getActiveNetwork()->setVoiceKiller(vk);
+			}
 		}
 
 		SimpleReadWriteLock& getNetworkLock() { return connectLock; }
