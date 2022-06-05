@@ -533,19 +533,26 @@ namespace ScriptedDrawActions
 					{
 						int safeCount = 0;
 
-						while (glGetError() != GL_NO_ERROR)
-						{
-							safeCount++;
+                        if(OpenGLContext::getCurrentContext() != nullptr)
+                        {
+                            while (glGetError() != GL_NO_ERROR)
+                            {
+                                safeCount++;
 
-							if (safeCount > 10000)
-								break;
-						};
+                                if (safeCount > 10000)
+                                    break;
+                            };
+                            
+                            auto s = StringArray::fromLines(obj->getErrorMessage(true));
+                            s.removeEmptyStrings();
 
-						auto s = StringArray::fromLines(obj->getErrorMessage(true));
-						s.removeEmptyStrings();
-
-						for (auto l : s)
-							handler->logError(l);
+                            for (auto l : s)
+                                handler->logError(l);
+                        }
+                        else
+                        {
+                            handler->logError("Open GL is not enabled");
+                        }
 					}
 #endif
 				}
