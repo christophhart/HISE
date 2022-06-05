@@ -369,8 +369,10 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 				}
 				else
 				{
-					// Don't want to interupt the loading on another thread
-					jassertfalse;
+                    auto p = dynamic_cast<Processor*>(getRootNetwork()->getScriptProcessor());
+                    
+                    // Don't want to interupt the loading on another thread
+                    debugError(p, errorMessage);					
 				}
 #else
 				// There's a mismatch between parameters in the value tree
