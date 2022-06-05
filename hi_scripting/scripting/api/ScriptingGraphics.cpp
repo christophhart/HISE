@@ -1082,6 +1082,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
 	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
+    API_VOID_METHOD_WRAPPER_2(GraphicsObject, flip);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1123,6 +1124,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(desaturate);
 	ADD_API_METHOD_1(addNoise);
 	ADD_API_METHOD_3(applyMask);
+    ADD_API_METHOD_2(flip);
 
 	ADD_API_METHOD_3(applyHSL);
 	ADD_API_METHOD_1(applyGamma);
@@ -1645,6 +1647,26 @@ void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
+
+void ScriptingObjects::GraphicsObject::flip(bool horizontally, var area)
+{
+    AffineTransform a;
+    auto r = getIntRectangleFromVar(area);
+    
+    if(horizontally)
+    {
+        a = AffineTransform(-1.0f,  0.0f, (float)r.getWidth(),
+                            0.0f,   1.0f, 0.0f);
+    }
+    else
+    {
+        a = AffineTransform(1.0f,  0.0f, 0.0f,
+                            0.0f, -1.0f, (float)r.getHeight());
+    }
+    
+    drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
+}
+
 
 Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
 {

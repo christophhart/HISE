@@ -480,6 +480,9 @@ namespace ScriptingObjects
 		/** Rotates the canvas around center `[x, y]` by the given amount in radian. */
 		void rotate(var angleInRadian, var center);
 
+        /** Flips the canvas at the center. */
+        void flip(bool horizontally, var totalArea);
+        
 		// ============================================================================================================
 
 		struct Wrapper;
