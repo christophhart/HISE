@@ -706,6 +706,7 @@ namespace ScriptingObjects
 
 		static Array<Identifier> getAllFunctionNames();
 
+        SimpleReadWriteLock lock;
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;
 

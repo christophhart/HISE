@@ -515,6 +515,11 @@ struct DrawActions
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
+        ~Handler()
+        {
+            cancelPendingUpdate();
+        }
+        
 		void beginDrawing()
 		{
 			currentActions.clear();
