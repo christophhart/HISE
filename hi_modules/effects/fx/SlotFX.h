@@ -180,8 +180,16 @@ public:
 	HardcodedMasterFX(MainController* mc, const String& uid);
 	~HardcodedMasterFX();;
 
-	bool hasTail() const override;;
+	bool hasTail() const override;
 
+    bool isFadeOutPending() const noexcept override
+    {
+        if(numChannelsToRender == 2)
+            return MasterEffectProcessor::isFadeOutPending();
+        
+        return false;
+    }
+    
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
 	int getNumInternalChains() const override { return 0; };
