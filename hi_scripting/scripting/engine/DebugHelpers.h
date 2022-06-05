@@ -330,7 +330,7 @@ public:
 		{
 			auto numCustom = obj->getNumChildElements();
 
-			if (numCustom != -1)
+			if (isPositiveAndBelow(index, numCustom))
 				return obj->getChildElement(index);
 		}
 

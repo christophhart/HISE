@@ -140,6 +140,11 @@ public:
 
 		void addTokens(mcl::TokenCollection::List& tokens) override;
 
+        static void precompileCallback(TokenProvider& p, bool unused)
+        {
+            p.signalClear(sendNotificationSync);
+        }
+        
 		void scriptWasCompiled(JavascriptProcessor *processor) override
 		{
 			if (jp == processor)
@@ -147,6 +152,7 @@ public:
 		}
 
 		WeakReference<JavascriptProcessor> jp;
+        JUCE_DECLARE_WEAK_REFERENCEABLE(TokenProvider);
 	};
 
 	/** Attempts to parse and run a block of javascript code.
@@ -1035,8 +1041,12 @@ public:
 
 	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location);
 
+    LambdaBroadcaster<bool> preCompileListeners;
+    
 private:
 
+    
+    
     bool initialising = false;
 	bool externalFunctionPending = false;
 
