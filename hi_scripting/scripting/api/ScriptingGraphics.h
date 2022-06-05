@@ -620,6 +620,9 @@ namespace ScriptingObjects
 			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
 			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
 
+            void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
+            
+            
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);

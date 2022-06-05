@@ -1761,7 +1761,8 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawSliderPackBackground",
 		"drawSliderPackFlashOverlay",
 		"drawSliderPackRightClickLine",
-		"drawSliderPackTextPopup"
+		"drawSliderPackTextPopup",
+        "getIdealPopupMenuItemSize"
 	};
 
 	return sa;
@@ -1912,6 +1913,36 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAlertBox(Graphics& g_, Aler
 	}
 
 	GlobalHiseLookAndFeel::drawAlertBox(g_, w, ta, tl);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight)
+{
+    if (functionDefined("getIdealPopupMenuItemSize"))
+    {
+        auto obj = new DynamicObject();
+
+        obj->setProperty("text", text);
+        obj->setProperty("isSeparator", isSeparator);
+        obj->setProperty("standardMenuHeight", standardMenuItemHeight);
+        
+        var x = var(obj);
+
+        auto nObj = get()->callDefinedFunction("getIdealPopupMenuItemSize", &x, 1);
+
+        if (nObj.isArray())
+        {
+            idealWidth = (int)nObj[0];
+            idealHeight = (int)nObj[1];
+            return;
+        }
+        if(nObj.isInt() || nObj.isInt64() || nObj.isDouble())
+        {
+            idealHeight = (int)nObj;
+            return;
+        }
+    }
+    
+    GlobalHiseLookAndFeel::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
 }
 
 hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowMarkdownStyleData()
