@@ -427,6 +427,8 @@ void HiseAudioThumbnail::LoadingThread::run()
 	var rb;
 	ScopedPointer<AudioFormatReader> reader;
 
+    
+    
 	bool sv = false;
 
 	{
@@ -435,6 +437,7 @@ void HiseAudioThumbnail::LoadingThread::run()
 
 		ScopedLock sl(parent->lock);
 
+        
 		sv = parent->shouldScaleVertically();
 
 		bounds = parent->getBounds();
@@ -641,19 +644,19 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
     auto downSamplingFactor = jlimit(1, 3, roundToInt(width / 1000));
     
-	if (parent->manualDownSampleFactor != -1.0f)
-		downSamplingFactor = (int)parent->manualDownSampleFactor;
+	if (parent->currentOptions.manualDownSampleFactor != -1.0f)
+		downSamplingFactor = (int)parent->currentOptions.manualDownSampleFactor;
 
 	stride = jmax<int>(1, stride * downSamplingFactor);
 
-	if (parent->displayMode == DisplayMode::DownsampledCurve)
+	if (parent->currentOptions.displayMode == DisplayMode::DownsampledCurve)
 	{
 		p.clear();
 		stride = jmax(1, roundToInt(rawStride));
 
-        parent->useRectList = stride > JUCE_LIVE_CONSTANT_OFF(20);
+        parent->currentOptions.useRectList = stride > JUCE_LIVE_CONSTANT_OFF(20);
         
-        if(parent->useRectList)
+        if(parent->currentOptions.useRectList)
             stride /= 2;
         
 		auto numDownsampled = numSamples / stride;
@@ -665,7 +668,7 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 
         auto getBufferValue = [&](int i)
         {
-            int numToCheck = jmin(numSamples - i, parent->useRectList ? stride * 2 : stride);
+            int numToCheck = jmin(numSamples - i, parent->currentOptions.useRectList ? stride * 2 : stride);
             auto range = FloatVectorOperations::findMinAndMax(l_ + i, numToCheck);
 
             float v = useMax ? range.getStart() : range.getEnd();
@@ -725,6 +728,11 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 		p.startNewSubPath(0.0f, 0.0f);
 		
         bool useSymmetricWaveforms = stride > JUCE_LIVE_CONSTANT_OFF(60);
+        
+        if(parent->currentOptions.forceSymmetry != 0)
+        {
+            useSymmetricWaveforms = parent->currentOptions.forceSymmetry == 2;
+        }
         
         if(useSymmetricWaveforms)
         {
@@ -869,7 +877,7 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphic
     
 	g.setColour(fillColour.withAlpha(0.15f * wAlpha));
 
-	if (th.drawHorizontalLines)
+	if (th.currentOptions.drawHorizontalLines)
 	{
 		g.drawHorizontalLine(area.getY() + area.getHeight() / 4, 0.0f, (float)th.getWidth());
 		g.drawHorizontalLine(area.getY() + 3 * area.getHeight() / 4, 0.0f, (float)th.getWidth());
@@ -911,7 +919,7 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(Graphics&
 	Colour fillColour = th.findColour(AudioDisplayComponent::ColourIds::fillColour).withMultipliedAlpha(wAlpha);
 	Colour outlineColour = th.findColour(AudioDisplayComponent::ColourIds::outlineColour).withMultipliedAlpha(wAlpha);
 
-    if(th.displayMode == DisplayMode::DownsampledCurve)
+    if(th.currentOptions.displayMode == DisplayMode::DownsampledCurve)
         fillColour = outlineColour;
     
 	if (!areaIsEnabled)
@@ -1328,7 +1336,7 @@ void HiseAudioThumbnail::setRange(const int left, const int right)
 
 void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<int> area)
 {
-	if (displayMode != DisplayMode::DownsampledCurve)
+	if (currentOptions.displayMode != DisplayMode::DownsampledCurve)
 		return;
 
     auto& rToUse = isLeft ? leftPeaks : rightPeaks;
@@ -1375,7 +1383,7 @@ void HiseAudioThumbnail::createCurvePathForCurrentView(bool isLeft, Rectangle<in
         return -1.0f * v;
     };
     
-    if(!useRectList)
+    if(!currentOptions.useRectList)
     {
         pToUse.preallocateSpace((end - start) + 3);
         
