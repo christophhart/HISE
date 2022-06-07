@@ -5869,6 +5869,8 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 	API_METHOD_WRAPPER_1(FileSystem, getBytesFreeOnVolume);
+    API_METHOD_WRAPPER_2(FileSystem, encryptWithRSA);
+    API_METHOD_WRAPPER_2(FileSystem, decryptWithRSA);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -5897,6 +5899,9 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_2(browseForDirectory);
 	ADD_API_METHOD_1(fromAbsolutePath);
 	ADD_API_METHOD_1(getBytesFreeOnVolume);
+    ADD_API_METHOD_2(encryptWithRSA);
+    ADD_API_METHOD_2(decryptWithRSA);
+    
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -6030,6 +6035,44 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 
 	MessageManager::callAsync(cb);
 }
+
+
+String ScriptingApi::FileSystem::encryptWithRSA(const String& dataToEncrypt, const String& privateKey)
+{
+    juce::RSAKey key(privateKey);
+    
+    MemoryOutputStream text;
+    text << dataToEncrypt;
+
+    BigInteger val;
+    val.loadFromMemoryBlock (text.getMemoryBlock());
+
+    key.applyToValue (val);
+
+    return val.toString(16);
+}
+
+
+String ScriptingApi::FileSystem::decryptWithRSA(const String& dataToDecrypt, const String& publicKey)
+{
+    BigInteger val;
+    val.parseString (dataToDecrypt, 16);
+
+    RSAKey key (publicKey);
+    
+    if(key.isValid())
+    {
+        key.applyToValue (val);
+
+        auto mb = val.toMemoryBlock();
+
+        if (CharPointer_UTF8::isValidString (static_cast<const char*> (mb.getData()), (int) mb.getSize()))
+            return mb.toString();
+    }
+    
+    return {};
+}
+
 
 juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 {

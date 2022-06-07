@@ -1504,6 +1504,12 @@ public:
 		/** Returns the number of free bytes on the volume of a given folder. */
 		int64 getBytesFreeOnVolume(var folder);
 
+        /** Encrypts the given string using a RSA private key. */
+        String encryptWithRSA(const String& dataToEncrypt, const String& privateKey);
+        
+        /** Decrypts the given string using a RSA public key. */
+        String decryptWithRSA(const String& dataToDecrypt, const String& publicKey);
+        
 		// ========================================================= End of API calls
 
 		ProcessorWithScriptingContent* p;
