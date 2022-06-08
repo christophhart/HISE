@@ -213,7 +213,7 @@ void ApiCollection::MethodItem::insertIntoCodeEditor()
 
 void ApiCollection::MethodItem::paint(Graphics& g)
 {
-	if (getWidth() <= 0)
+	if (getWidth() <= 8)
 		return;
 
 	Colour c(0xFF000000);

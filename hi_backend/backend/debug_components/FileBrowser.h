@@ -232,6 +232,25 @@ private:
         
         bool isFileSuitable(const File &file) const override
         {
+			if (additionalWildcard.isNotEmpty())
+			{
+				if (file.isDirectory())
+				{
+					jassertfalse;
+				}
+
+				if (additionalWildcard.contains("*"))
+				{
+					if (!file.getFullPathName().matchesWildcard(additionalWildcard, !File::areFileNamesCaseSensitive()))
+						return false;
+				}
+				else
+				{
+					if (!file.getFileNameWithoutExtension().contains(additionalWildcard))
+						return false;
+				}
+			}
+
 #if JUCE_WINDOWS
 			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
 #endif
@@ -246,7 +265,7 @@ private:
 #else
 				file.getFileName() == "LinkOSX" ||
 #endif
-				isAudioFile(file) || isImageFile(file) || isXmlFile(file) || isScriptFile(file);
+				isAudioFile(file) || isImageFile(file) || isXmlFile(file) || isScriptFile(file) || isUserPresetFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -264,15 +283,24 @@ private:
 			return file.hasFileExtension("xml");
 		}
 
-        bool isDirectorySuitable(const File &) const override
-        {
-            return true;
-        }
+		bool isUserPresetFile(const File& file) const
+		{
+			return file.hasFileExtension("preset");
+		}
+
+        bool isDirectorySuitable(const File& directory) const override;
 
 		bool isScriptFile(const File &f) const
 		{
 			return f.hasFileExtension("js");
 		}
+
+		void setWildcard(const String& wc)
+		{
+			additionalWildcard = wc;
+		}
+
+		String additionalWildcard;
     };
     
     
@@ -350,6 +378,13 @@ private:
     
     WeakReference<Processor> currentWorkspaceProcessor;
     
+	Rectangle<float> pathArea;
+
+	Rectangle<float> searchIcon;
+
+
+	std::unique_ptr<XmlElement> prevState;
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };
 

@@ -352,6 +352,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
     ib.setCustomName(fileBrowserTab, "Project Directory");
     ib.setCustomName(apiBrowser, "API");
     
+	
 	ib.setDynamic(leftTab, false);
 	ib.setDynamic(masterVertical, false);
 	ib.setDynamic(swappableVertical, false);
@@ -548,6 +549,7 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
 	ib.setDynamic(codeVertical, false);
 	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
+	ib.setId(codeTabs, "ScriptEditorTabs");
 	ib.addChild<CodeEditorPanel>(codeTabs);
     
     ib.addChild<SnexEditorPanel>(codeTabs);

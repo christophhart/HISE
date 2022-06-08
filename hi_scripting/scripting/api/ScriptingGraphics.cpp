@@ -1655,7 +1655,7 @@ void ScriptingObjects::GraphicsObject::flip(bool horizontally, var area)
     
     if(horizontally)
     {
-        a = AffineTransform(-1.0f,  0.0f, (float)r.getWidth(),
+		a = AffineTransform(-1.0f,  0.0f, (float)r.getWidth(),
                             0.0f,   1.0f, 0.0f);
     }
     else

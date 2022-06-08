@@ -226,6 +226,8 @@ public:
 
 	void setAddButtonCallback(const std::function<void()>& f);
 
+	void currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName) override;
+
 private:
 
 	ScopedPointer<ShapeButton> addButton;

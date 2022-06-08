@@ -506,7 +506,19 @@ bool TextEditor::copy()
         }
     }
     
-	SystemClipboard::copyTextToClipboard(document.getSelectionContent(document.getSelections().getFirst()));
+	auto s = document.getSelections().getFirst();
+	
+	if (s.isSingular())
+	{
+		// expand to whole line
+		document.navigate(s.head, TextDocument::Target::line, TextDocument::Direction::backwardCol);
+		document.navigate(s.head, TextDocument::Target::character, TextDocument::Direction::backwardCol);
+		document.navigate(s.tail, TextDocument::Target::line, TextDocument::Direction::forwardCol);
+	}
+
+	auto content = document.getSelectionContent(s);
+
+	SystemClipboard::copyTextToClipboard(content);
 	return true;
 }
 
@@ -921,6 +933,9 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 
 void mcl::TextEditor::mouseDown (const MouseEvent& e)
 {
+	if (e.mods.isX1ButtonDown() || e.mods.isX2ButtonDown())
+		return;
+
     tokenSelection.clear();
     
 	if (readOnly)
@@ -1141,6 +1156,15 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 	if (readOnly)
 		return;
 
+	if (e.mods.isX1ButtonDown())
+		return;
+
+	if (e.mods.isX2ButtonDown())
+		return;
+
+	if (e.mods.isMiddleButtonDown())
+		return;
+
     if (e.mouseWasDraggedSinceMouseDown())
     {
 		if (e.mods.isAltDown())
@@ -1177,6 +1201,9 @@ void mcl::TextEditor::mouseDrag (const MouseEvent& e)
 
 void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
 {
+	if (e.mods.isX1ButtonDown() || e.mods.isX2ButtonDown())
+		return;
+
 	if (readOnly)
 		return;
 
@@ -1737,7 +1764,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		auto s = document.getSelections().getFirst();
 
-		if (!s.isSingular())
+		if (!s.isSingular() || key.getModifiers().isShiftDown())
 		{
 			CodeDocument::Position start(document.getCodeDocument(), s.head.x, s.head.y);
 			CodeDocument::Position end(document.getCodeDocument(), s.tail.x, s.tail.y);
@@ -1829,7 +1856,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 
 	if (key.isKeyCode(KeyPress::backspaceKey)) return remove(Target::character, Direction::backwardCol);
-	if (key.isKeyCode(KeyPress::deleteKey))	   return remove(Target::character, Direction::forwardCol);
+	if (key.isKeyCode(KeyPress::deleteKey))
+	{
+		// Deactivate double delete when pressing del key
+		lastInsertWasDouble = false;
+		return remove(Target::character, Direction::forwardCol);
+	}
 
 #if JUCE_WINDOWS || JUCE_LINUX
     // Home/End: End / start of line
@@ -1872,7 +1904,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         return true;
     }
     
-	if (key.isKeyCode(KeyPress::F4Key))
+	if ((key.getKeyCode() == 35) && key.getModifiers().isCommandDown()) // "Cmd + #"
 	{
 		auto isComment = [this](Selection s)
 		{

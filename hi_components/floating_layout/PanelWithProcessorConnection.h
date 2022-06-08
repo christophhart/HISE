@@ -173,7 +173,7 @@ public:
 
 		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
 
-		if (getProcessor())
+		if (getProcessor() && !hasCustomTitle())
 		{
 			titleToUse << ": " << getConnectedProcessor()->getId();
 		}
