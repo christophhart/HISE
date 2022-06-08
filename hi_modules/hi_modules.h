@@ -56,6 +56,11 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
 
+/** Defines the number of modulation slots to use in the hardcoded master FX. */
+#ifndef NUM_HARDCODED_FX_MODS
+#define NUM_HARDCODED_FX_MODS 0
+#endif
+
 #include "synthesisers/synths/PolyBlep.h"
 
 

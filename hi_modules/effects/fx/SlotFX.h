@@ -190,10 +190,16 @@ public:
         return false;
     }
     
-	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
-	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
-	int getNumInternalChains() const override { return 0; };
-	int getNumChildProcessors() const override { return 0; };
+#if NUM_HARDCODED_FX_MODS
+	Processor *getChildProcessor(int processorIndex) override { return paramModulation[processorIndex]; };
+	const Processor *getChildProcessor(int processorIndex) const override { return paramModulation[processorIndex]; };
+#else
+	Processor *getChildProcessor(int ) override { return nullptr; };
+	const Processor *getChildProcessor(int ) const override { return nullptr; };
+#endif
+
+	int getNumInternalChains() const override { return NUM_HARDCODED_FX_MODS; };
+	int getNumChildProcessors() const override { return NUM_HARDCODED_FX_MODS; };
 
 	void connectionChanged()
 	{
@@ -216,6 +222,10 @@ public:
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) final override;
 
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
+
+#if NUM_HARDCODED_FX_MODS
+	ModulatorChain* paramModulation[NUM_HARDCODED_FX_MODS];
+#endif
 
 };
 
