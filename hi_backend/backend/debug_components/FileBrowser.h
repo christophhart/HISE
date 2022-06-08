@@ -265,7 +265,8 @@ private:
 #else
 				file.getFileName() == "LinkOSX" ||
 #endif
-				isAudioFile(file) || isImageFile(file) || isXmlFile(file) || isScriptFile(file) || isUserPresetFile(file);
+				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -277,6 +278,11 @@ private:
 		{
 			return MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
+        
+        bool isMidiFile(const File& file) const
+        {
+            return file.hasFileExtension("mid");
+        }
         
 		bool isXmlFile(const File& file) const
 		{

@@ -417,7 +417,265 @@ void FileBrowser::paint(Graphics &g)
 	}
 }
 
+struct AudioPreviewComponent: public Component,
+                              public ControlledObject,
+                              public BufferPreviewListener,
+                              public PooledUIUpdater::SimpleTimer,
+                              public ButtonListener,
+                              public AsyncUpdater
+{
+    AudioPreviewComponent(MainController* mc, const File& f):
+      ControlledObject(mc),
+      SimpleTimer(mc->getGlobalUIUpdater()),
+      fileToPreview(f),
+      startButton("Start", this, factory),
+      stopButton("Stop", this, factory)
+    {
+        setName("Preview " + f.getFileName());
+        startButton.setToggleModeWithColourChange(true);
+        
+        addAndMakeVisible(startButton);
+        addAndMakeVisible(stopButton);
+        
+        double unused;
+        b = hlac::CompressionHelpers::loadFile(f, unused);
+        
+        getMainController()->addPreviewListener(this);
+        
+        setSize(600, 200);
+        
+        addAndMakeVisible(thumbnail);
+        
+        auto l = new VariantBuffer(b.getWritePointer(0), b.getNumSamples());
+        
+        auto r = new VariantBuffer(b.getWritePointer(jmin(1, b.getNumChannels()-1)), b.getNumSamples());
+        
+        thumbnail.setBuffer(var(l), var(r), true);
+        grabKeyboardFocusAsync();
+        startPreview();
+    }
+    
+    void buttonClicked(Button* b) override
+    {
+        if(b == &startButton)
+        {
+            startPreview();
+        }
+        if(b == &stopButton)
+        {
+            stopPreview();
+        }
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        
+        auto bottomRow = b.removeFromBottom(28);
+        
+        startButton.setBounds(bottomRow.removeFromLeft(bottomRow.getHeight()));
+        stopButton.setBounds(bottomRow.removeFromLeft(bottomRow.getHeight()));
+        
+        thumbnail.setBounds(b);
+    }
+    
+    bool currentPlayState = false;
+    
+    void handleAsyncUpdate()
+    {
+        startButton.setToggleStateAndUpdateIcon(currentPlayState);
+        
+        if(currentPlayState)
+            start();
+        else
+            stop();
+    }
+    
+    bool keyPressed(const KeyPress& k) override
+    {
+        if(k == KeyPress::spaceKey)
+        {
+            if(currentPlayState)
+                stopPreview();
+            else
+                startPreview();
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    void previewStateChanged(bool isPlaying, const AudioSampleBuffer& currentBuffer) override
+    {
+        currentPlayState = isPlaying;
+        triggerAsyncUpdate();
+        
+        
+    }
+    
+    void paint(Graphics& g) override
+    {
+        int pixelPos = roundToInt(currentPos * (double)getWidth());
+        
+        g.setColour(Colours::white);
+        g.fillRect(pixelPos, 0, 1, getHeight()-24);
+    }
+    
+    void timerCallback() override
+    {
+        auto pos = getMainController()->getPreviewBufferPosition();
+        
+        currentPos = (double)pos / jmax(1.0, (double)b.getNumSamples());
+        
+        if(pos == -1)
+            stopPreview();
+        
+        repaint();
+    }
+    
+    ~AudioPreviewComponent()
+    {
+        stopPreview();
+        getMainController()->removePreviewListener(this);
+    }
+    
+    void startPreview()
+    {
+        getMainController()->setBufferToPlay(b);
+    }
+    
+    void stopPreview()
+    {
+        getMainController()->stopBufferToPlay();
+        currentPos = -1.0;
+        repaint();
+    }
+    
+    MidiPlayerBaseType::TransportPaths factory;
+    
+    HiseShapeButton startButton;
+    HiseShapeButton stopButton;
+    
+    AudioSampleBuffer b;
+    File fileToPreview;
+    HiseAudioThumbnail thumbnail;
+    double currentPos = -1.0;
+};
 
+struct MidiFilePreviewer: public Component
+{
+    MidiFilePreviewer(const File& f)
+    {
+        MidiFile mf;
+        
+        FileInputStream fis(f);
+        mf.readFrom(fis);
+        
+        midiFile = new HiseMidiSequence();
+        midiFile->loadFrom(mf);
+        
+        auto list = midiFile->getEventList(960, 120.0);
+        
+        for(const auto& e: list)
+        {
+            if(e.isNoteOn())
+            {
+                NoteData newData;
+                newData.on = e;
+                noteData.add(newData);
+            }
+            if(e.isNoteOff())
+            {
+                for(auto& nd: noteData)
+                {
+                    if(nd.on.getEventId() == e.getEventId())
+                    {
+                        nd.off = e;
+                        break;
+                    }
+                }
+                
+            }
+        }
+        
+        setSize(600, 400);
+        setName("Preview MIDI file " + f.getFileName());
+    }
+    
+    void paint(Graphics& g) override
+    {
+        g.setColour(Colours::white);
+        g.fillRectList(noteList);
+        
+        auto b = getLocalBounds();
+        
+        if(currentNoteData)
+        {
+            auto text = currentNoteData.toString();
+            g.drawText(text, b.removeFromTop(24).toFloat(), Justification::left);
+            
+            g.setColour(Colours::red);
+            g.fillRect(currentRect);
+        }
+    }
+    
+    void mouseMove(const MouseEvent& e) override
+    {
+        auto pos = e.getPosition().toFloat();
+        
+        int index = 0;
+        
+        currentNoteData = {};
+        currentRect = {};
+        
+        for(auto& n: noteList)
+        {
+            if(n.expanded(5, 5).contains(pos))
+            {
+                currentNoteData = noteData[index];
+                currentRect = n;
+                break;
+            }
+            
+            index++;
+        }
+        
+        repaint();
+    }
+    
+    void resized() override
+    {
+        noteList = midiFile->getRectangleList(getLocalBounds().toFloat());
+        repaint();
+    }
+    
+    RectangleList<float> noteList;
+    
+    struct NoteData
+    {
+        operator bool() const { return !on.isEmpty(); }
+        HiseEvent on;
+        HiseEvent off;
+        
+        String toString() const
+        {
+            String s;
+            s << MidiMessage::getMidiNoteName(on.getNoteNumber(), true, true, 3);
+            s << " Start: " << on.getTimeStamp();
+            s << " Length: " << (off.getTimeStamp() - on.getTimeStamp());
+            s << " Velocity: " << on.getVelocity();
+            return s;
+        }
+    };
+    
+    Array<NoteData> noteData;
+    
+    hise::HiseMidiSequence::Ptr midiFile;
+    Rectangle<float> currentRect;
+    StringArray eventList;
+    NoteData currentNoteData;
+};
 
 
 void FileBrowser::previewFile(const File& f)
@@ -434,6 +692,7 @@ void FileBrowser::previewFile(const File& f)
 	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
 
 	Component* content = nullptr;
+    bool wrapInViewport = false;
 
 	if (ff->isImageFile(f))
 	{
@@ -449,6 +708,21 @@ void FileBrowser::previewFile(const File& f)
 	{
 		auto c = new JSONEditor(f.loadFileAsString(), new JavascriptTokeniser());
 
+        c->setEditable(true);
+        
+        auto fileCopy = f;
+        auto mc = rootWindow->getBackendProcessor();
+        
+        c->setCompileCallback([fileCopy, mc](const String& newContent, var& d)
+        {
+            fileCopy.replaceWithText(newContent);
+            mc->compileAllScripts();
+            return Result::ok();
+        }, true);
+        
+        c->setCallback([](const var& d){}, true);
+                              
+                              
 		c->setSize(600, 500);
 
 		content = c;
@@ -458,6 +732,17 @@ void FileBrowser::previewFile(const File& f)
         auto c = new mcl::XmlEditor(f);
         content = c;
 	}
+    else if (ff->isAudioFile(f))
+    {
+        auto c = new AudioPreviewComponent(rootWindow->getBackendProcessor(), f);
+        content = c;
+    }
+    else if (ff->isMidiFile(f))
+    {
+        auto c = new MidiFilePreviewer(f);
+        content = c;
+        wrapInViewport = true;
+    }
 
 	auto s = fileTreeComponent->getSelectedItem(0);
 
@@ -468,7 +753,7 @@ void FileBrowser::previewFile(const File& f)
 		bounds = s->getItemPosition(true);
 	}
 
-	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre());
+	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre(), wrapInViewport);
 }
 
 FileBrowser::~FileBrowser()

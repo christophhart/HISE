@@ -1037,6 +1037,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			{
 				previewBuffer = AudioSampleBuffer();
 				previewBufferIndex = -1;
+                
+                for(auto pl: previewListeners)
+                {
+                    if(pl != nullptr)
+                        pl->previewStateChanged(false, previewBuffer);
+                }
 			}
 		}
 		
@@ -1044,6 +1050,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		{
 			previewBuffer = AudioSampleBuffer();
 			previewBufferIndex = -1;
+            
+            for(auto pl: previewListeners)
+            {
+                if(pl != nullptr)
+                    pl->previewStateChanged(false, previewBuffer);
+            }
 		}
 	}
 
