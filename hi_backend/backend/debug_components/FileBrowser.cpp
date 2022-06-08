@@ -188,6 +188,8 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
     
 	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
 
+    rootWindow->getBackendProcessor()->workspaceBroadcaster.addListener(*this, FileBrowser::updateWorkspace);
+    
     if(!rootWindow_->getBackendProcessor()->isFlakyThreadingAllowed())
        directorySearcher.startThread(3);
 
@@ -552,21 +554,17 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     }
     else if (newRoot.getFileExtension() == ".js")
     {
-        // First look if the script is already used
-        
-        Processor::Iterator<JavascriptProcessor> iter(rw->getMainSynthChain());
-        
-        while (JavascriptProcessor *sp = iter.getNextProcessor())
+        if(auto jsp = dynamic_cast<JavascriptProcessor*>(currentWorkspaceProcessor.get()))
         {
-            for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+            for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
             {
-                if (sp->getWatchedFile(i) == newRoot)
+                if (jsp->getWatchedFile(i) == newRoot)
                 {
-                    sp->showPopupForFile(i);
-                    return;
+                    jassertfalse;
                 }
             }
         }
+        
     }
     else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
     {

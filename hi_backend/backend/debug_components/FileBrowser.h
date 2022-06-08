@@ -122,6 +122,11 @@ public:
 
 	SET_GENERIC_PANEL_ID("FileBrowser");
 
+    static void updateWorkspace(FileBrowser& f, const Identifier& id, Processor* p)
+    {
+        f.currentWorkspaceProcessor = p;
+    }
+    
 	ApplicationCommandTarget* getNextCommandTarget() override
 	{
 		return findFirstTargetParentComponent();
@@ -342,6 +347,10 @@ private:
 	ScopedPointer<TextEditor> textEditor;
 
 	OwnedArray<Favorite> favorites;
+    
+    WeakReference<Processor> currentWorkspaceProcessor;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };
 
 } // namespace hise
