@@ -81,6 +81,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
     if(!data.hasProperty(PropertyIds::CompileChannelAmount))
         data.setProperty(PropertyIds::CompileChannelAmount, 2, nullptr);
     
+	if (!data.hasProperty(PropertyIds::HasTail))
+		data.setProperty(PropertyIds::HasTail, true, nullptr);
+
+	hasTailProperty.referTo(data, PropertyIds::HasTail, &um, true);
+
 	if (!data.hasProperty(ExpansionIds::Version))
 	{
 		data.setProperty(ExpansionIds::Version, "0.0.0", nullptr);
@@ -222,6 +227,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 DspNetwork::~DspNetwork()
 {
+	stopTimer();
+
 	root = nullptr;
 	selectionUpdater = nullptr;
 	nodes.clear();
@@ -249,17 +256,22 @@ void DspNetwork::createAllNodesOnce()
 
 	for (auto f : nodeFactories)
 	{
-        if(f->getId() == Identifier("project"))
-            continue;
-        
+		auto isProjectFactory = f->getId() == Identifier("project");
+            
+		if (isProjectFactory)
+			continue;
+
+		int index = 0;
 		for (auto id : f->getModuleList())
 		{
-			NodeBase::Holder s;
+			ScopedPointer<NodeBase::Holder> s = new NodeBase::Holder();
 
-			currentNodeHolder = &s;
+			currentNodeHolder = s;
 			create(id, "unused");
 			exceptionHandler.removeError(nullptr);
 			currentNodeHolder = nullptr;
+
+			s = nullptr;
 		}
 	}
 
@@ -442,8 +454,8 @@ void DspNetwork::reset()
 	
 	if (projectNodeHolder.isActive())
 		projectNodeHolder.n.reset();
-	else
-		getRootNode()->reset();
+	else if (auto rn = getRootNode())
+		rn->reset();
 }
 
 void DspNetwork::handleHiseEvent(HiseEvent& e)
@@ -482,7 +494,7 @@ void DspNetwork::process(ProcessDataDyn& data)
 
 bool DspNetwork::hasTail() const
 {
-	return true;
+	return hasTailProperty.get();
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
@@ -1397,6 +1409,7 @@ DspNetwork::SelectionUpdater::SelectionUpdater(DspNetwork& parent_) :
 
 DspNetwork::SelectionUpdater::~SelectionUpdater()
 {
+	MessageManagerLock mm;
 	parent.selection.removeChangeListener(this);
 }
 
@@ -1759,19 +1772,26 @@ void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v
 
 			if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
 			{
-				auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
+				// A global cable will also store its cable ID as Connection property so we need to avoid stripping this
+				// vital information...
+				auto isGlobalCableConnection = c.getParent().getParent()[PropertyIds::FactoryPath].toString().startsWith("routing.global");
 
-				int numBefore = idList.size();
-
-				for (int i = 0; i < idList.size(); i++)
+				if (!isGlobalCableConnection)
 				{
-					if (!nodeExists(idList[i]))
-						idList.remove(i--);
-				}
+					auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
 
-				if (idList.size() != numBefore)
-				{
-					c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
+					int numBefore = idList.size();
+
+					for (int i = 0; i < idList.size(); i++)
+					{
+						if (!nodeExists(idList[i]))
+							idList.remove(i--);
+					}
+
+					if (idList.size() != numBefore)
+					{
+						c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
+					}
 				}
 			}
 
@@ -1781,6 +1801,7 @@ void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v
 
 bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 {
+	
 	// Remove all child nodes from a project node
 	// (might be a leftover from the extraction process)
 	if (v.getType() == PropertyIds::Node && v[PropertyIds::FactoryPath].toString().startsWith("project"))

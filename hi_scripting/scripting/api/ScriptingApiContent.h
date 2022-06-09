@@ -387,6 +387,7 @@ public:
 		virtual void preRecompileCallback() 
 		{
 			controlSender.cancelMessage();
+            localLookAndFeel = var();
 		};
 
 		virtual ValueTree exportAsValueTree() const override;;
@@ -1684,6 +1685,7 @@ public:
 
 			ScriptComponent::preRecompileCallback();
 
+            
 			timerRoutine.clear();
 			loadRoutine.clear();
 			mouseRoutine.clear();

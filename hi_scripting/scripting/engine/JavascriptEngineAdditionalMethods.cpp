@@ -71,6 +71,7 @@ hiseSpecialData(this)
 	setMethod("trace", trace);
 	setMethod("charToInt", charToInt);
 	setMethod("parseInt", IntegerClass::parseInt);
+	setMethod("parseFloat", IntegerClass::parseFloat);
 	setMethod("typeof", typeof_internal);
 }
 

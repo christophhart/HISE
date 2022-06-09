@@ -375,6 +375,12 @@ Node::Ptr ValueTreeBuilder::parseFixChannel(const ValueTree& n, int numChannelsT
 {
 	auto u = getNode(n, false);
 
+	auto id = n[PropertyIds::ID].toString();
+
+#if ENABLE_CPP_DEBUG_LOG
+	DBG("Parse with fix channel: " + id + " Channels: " + String(numChannelsToUse));
+#endif
+
 	auto wf = createNode(n, {}, "wrap::fix");
 
 	*wf << numChannelsToUse;
@@ -610,7 +616,7 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
-        ScopedChannelSetter sns(*this, numToUse);
+        ScopedChannelSetter sns(*this, numToUse, false);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
         {
@@ -970,7 +976,6 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	if (numConnections == 0)
 		return createParameterFromConnection({}, pId, -1, p);
 
-
 	auto inputRange = RangeHelpers::getDoubleRange(p);
 
 	auto mustCreateChain = !RangeHelpers::isIdentity(inputRange) || numConnections > 1;
@@ -980,7 +985,12 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 	if (numConnections == 1)
 	{
 		auto pTree = ValueTreeIterator::getTargetParameterTree(cTree.getChild(0));
-		if(RangeHelpers::isEqual(inputRange, RangeHelpers::getDoubleRange(pTree)))
+		auto targetRange = RangeHelpers::getDoubleRange(pTree);
+
+		auto isSameRange = RangeHelpers::equalsWithError(inputRange, targetRange, 0.001);
+		auto isUnscaledMod = cppgen::CustomNodeProperties::isUnscaledParameter(pTree);
+
+		if(isSameRange || isUnscaledMod)
 			mustCreateChain = false;
 	}
 
@@ -1002,10 +1012,14 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		{
             auto targetTree = ValueTreeIterator::getTargetParameterTree(c);
             
-			auto cRange = RangeHelpers::getDoubleRange(targetTree);
+			auto targetRange = RangeHelpers::getDoubleRange(targetTree);
+			auto isSameRange = RangeHelpers::equalsWithError(inputRange, targetRange, 0.001);
+			auto isUnscaled = cppgen::CustomNodeProperties::isUnscaledParameter(targetTree);
 
-			if(!useUnnormalisedModulation)
-				unEqualRange |= !RangeHelpers::isEqual(inputRange, cRange);
+			// Only check the range if the target parameter is scaled
+			// and the source is using a scaled input range
+			if(!useUnnormalisedModulation && !isUnscaled)
+				unEqualRange |= !isSameRange;
 
 			chainList.add(getConnection(c));
 		}
@@ -1036,7 +1050,9 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 			if (c.n->isPolyphonicOrHasPolyphonicTemplate())
 				isPoly = true;
 
-			auto up = createParameterFromConnection(c, pId, cIndex++, unEqualRange ? ValueTree() : p);
+			auto up = createParameterFromConnection(c, pId, cIndex++, p);
+
+			//auto up = createParameterFromConnection(c, pId, cIndex++, unEqualRange ? ValueTree() : p);
 			*ch << *up;
 		}
 
@@ -1095,6 +1111,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	rc.targetRange = RangeHelpers::getDoubleRange(targetTree);
 	
+	if (cppgen::CustomNodeProperties::isUnscaledParameter(targetTree))
+		rc.targetRange = {};
+
 	if (c.getParent().getType() == PropertyIds::ModulationTargets)
 		rc.cableType = Connection::CableType::Modulation;
 	else
@@ -1122,6 +1141,13 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 				if (getNode(t, true) == nullptr)
 				{
+#if ENABLE_CPP_DEBUG_LOG
+					auto id = t[PropertyIds::ID].toString();
+
+					DBG("Node " + id + " does not exist yet. Precursoring...");
+
+#endif
+
 					// We need to calculate the channel amount from scratch
 					// because we're not in the right container
 					auto root = ValueTreeIterator::getRoot(t);
@@ -1129,7 +1155,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 					ValueTreeIterator::forEach(root, ValueTreeIterator::Forward, [&](ValueTree& c)
 					{
-						if (FactoryIds::isContainer(getNodePath(c)))
+						if (FactoryIds::isContainer(getNodePath(c)) && ValueTreeIterator::isParent(t, c))
 							numChannelsToUse = ValueTreeIterator::calculateChannelCount(c, numChannelsToUse);
 
 						if (c == t)
@@ -1138,7 +1164,9 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 						return false;
 					});
 
-					ScopedChannelSetter svs(*this, numChannelsToUse);
+					// We allow setting a higher channel count here because the node is not necessarily
+					// inside the current channel container
+					ScopedChannelSetter svs(*this, numChannelsToUse, true);
 					pooledTypeDefinitions.add(parseNode(t));
 				}
 
@@ -1231,6 +1259,11 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		*u << "parameter::empty";
 		jassertfalse;
 	}
+	else
+	{
+		// Could be an unused node with a template parameter (like smoothed_parameter)...
+		u->addOptionalModeTemplate();
+	}
 
 	addNodeComment(u);
 
@@ -1309,7 +1342,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		auto up = makeParameter(p, "bypass", c);
 		*up << *c.n;
 
-		if (!RangeHelpers::isBypassIdentity(c.targetRange))
+		if (!RangeHelpers::isIdentity(c.targetRange))
 		{
 			String fWhat;
 
@@ -1843,6 +1876,18 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 		{
 			parent.addEmptyLine();
 			parent << "static constexpr bool isProcessingHiseEvent() { return true; };";
+		}
+
+		
+
+
+		{
+			auto hasTail = parent.v.getParent().getProperty(PropertyIds::HasTail, true);
+			parent.addEmptyLine();
+
+			String def;
+			def << "static constexpr bool hasTail() { return " << (hasTail ? "true" : "false") << "; };";
+			parent << def;
 		}
 
 		if (hasComplexTypes())

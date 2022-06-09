@@ -122,7 +122,11 @@ public:
 		void paint(Graphics& g) override;
 		void resized();
 
-		
+		void providerCleared() override
+        {
+            visibleInfo.clear();
+            allInfo.clear();
+        }
 
 		void selectRowInfo(int rowIndex);
 		void rebuildVisibleItems(const String &selection);

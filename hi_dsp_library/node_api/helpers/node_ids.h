@@ -138,6 +138,7 @@ DECLARE_ID(AllowPolyphonic);
 DECLARE_ID(AllowCompilation);
 DECLARE_ID(UncompileableNode);
 DECLARE_ID(CompileChannelAmount);
+DECLARE_ID(HasTail);
 
 
 struct Helpers
@@ -157,6 +158,7 @@ struct Helpers
 			Automated,
 			AllowPolyphonic,
 			AllowCompilation,
+			HasTail,
             CompileChannelAmount
 		};
 
@@ -176,6 +178,7 @@ struct Helpers
 		returnIfDefault(Inverted, false);
 		returnIfDefault(EmbeddedData, -1);
 		returnIfDefault(Automated, false);
+		returnIfDefault(HasTail, true);
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
         returnIfDefault(CompileChannelAmount, 2);
@@ -230,6 +233,7 @@ struct CustomNodeProperties
 	{
 		bool initialised = false;
 		NamedValueSet properties;
+		NamedValueSet unscaledParameterIds;
 	};
 
 	template <typename T> static void setPropertyForObject(T& obj, const Identifier& id)
@@ -298,6 +302,20 @@ struct CustomNodeProperties
 #endif
 	}
 
+	static StringArray getAllNodesWithProperty(const Identifier& propId)
+	{
+		CustomNodeProperties d;
+		StringArray sa;
+
+		if (auto ar = d.data->properties[propId].getArray())
+		{
+			for (const auto& a : *ar)
+				sa.add(a);
+		}
+
+		return sa;
+	}
+
 	static bool nodeHasProperty(const juce::String& nodeName, const Identifier& propId)
 	{
 		CustomNodeProperties d;
@@ -312,6 +330,76 @@ struct CustomNodeProperties
 	{
 		auto p = nodeTree[PropertyIds::FactoryPath].toString();
 		return p.fromFirstOccurrenceOf(".", false, false);
+	}
+
+	/** Use this function whenever you create an unscaled modulation and it will check that
+		against the values.
+	*/
+	static void addUnscaledParameter(const Identifier& id, const String& parameterName)
+	{
+		CustomNodeProperties d;
+
+		var ar = d.data->unscaledParameterIds[id];
+
+		if (!ar.isArray())
+			ar = var(Array<var>());
+
+		ar.insert(ar.size(), parameterName);
+
+		d.data->unscaledParameterIds.set(id, ar);
+	}
+
+	static bool isUnscaledParameter(const ValueTree& parameterTree)
+	{
+		if (!parameterTree.isValid())
+			return false;
+
+		jassert(parameterTree.getType() == PropertyIds::Parameter);
+
+		auto nodeTree = parameterTree.getParent().getParent();
+
+		jassert(nodeTree.getType() == PropertyIds::Node);
+
+		auto pId = parameterTree[PropertyIds::ID].toString();
+		auto nId = getIdFromValueTree(nodeTree);
+
+		CustomNodeProperties n;
+		auto ar = n.data->unscaledParameterIds[nId];
+		return ar.indexOf(pId) != -1;
+	}
+	
+	/** This will return the parameter tree that is used to determine the source range of the node.
+	
+		If you're using an unscaled modulation node that is supposed to forward its incoming value to the target,
+		make sure to call addUnscaledParameter() in the createParameter() function.
+		
+		This information will be used by the code generator as well as the scriptnode UI to figure out
+		if the range scale is working correctly (and display the warning icon if there's a range mismatch).
+	*/
+	static ValueTree getParameterTreeForSourceRange(const ValueTree& nodeTree)
+	{
+		if (nodeTree.getType() == PropertyIds::Parameter)
+		{
+			return nodeTree;
+		}
+
+		if (nodeTree.getType() == PropertyIds::Node)
+		{
+			auto id = Identifier(getIdFromValueTree(nodeTree));
+
+			CustomNodeProperties d;
+			
+			auto l = d.data->unscaledParameterIds[id];
+
+			if (l.isArray())
+			{
+				for (auto& v : *l.getArray())
+				{
+					auto pId = v.toString();
+					jassertfalse;
+				}
+			}
+		}
 	}
 
 	static bool nodeHasProperty(const ValueTree& nodeTree, const Identifier& propId)

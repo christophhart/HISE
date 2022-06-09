@@ -125,8 +125,8 @@ public:
 		return nullptr;
 	}
 
-	StringArray& getListOfModuleIds() {
-		return storedModuleIds;
+	MainController::UserPresetHandler::StoredModuleData::List& getListOfModuleIds() {
+		return getMainController()->getUserPresetHandler().getStoredModuleData();
 	}
 
 	ScriptingApi::Server::WeakPtr getServerObject() { return serverObject; }
@@ -211,7 +211,9 @@ private:
 
 	bool front, deferred, deferredUpdatePending;
 
-	StringArray storedModuleIds;
+	
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptMidiProcessor);
 };
@@ -488,9 +490,71 @@ struct VoiceDataStack
 
 	void reset(int voiceIndex);
 
-	void handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent& m);
+	bool containsVoiceIndex(int voiceIndex) const
+	{
+		for (const auto& vd : voiceNoteOns)
+		{
+			if (voiceIndex == vd.voiceIndex)
+				return true;
+		}
 
-	void startVoice(scriptnode::DspNetwork* n, int voiceIndex, const HiseEvent& e);
+		return false;
+	}
+
+	template <typename T> void handleHiseEvent(T& n, PolyHandler& ph, const HiseEvent& m)
+	{
+		if (m.isNoteOff())
+		{
+			for (auto vd : voiceNoteOns)
+			{
+				if (vd.noteOn.getEventId() == m.getEventId())
+				{
+					HiseEvent c(m);
+					PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
+					n.handleHiseEvent(c);
+				}
+			}
+		}
+		else if (m.isPitchWheel() || m.isAftertouch() || m.isControllerOfType(74))
+		{
+			for (auto vd : voiceNoteOns)
+			{
+				if (vd.noteOn.getChannel() == m.getChannel())
+				{
+					HiseEvent c(m);
+					PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
+					n.handleHiseEvent(c);
+				}
+			}
+		}
+		else if (!m.isNoteOn())
+		{
+			for (auto vd : voiceNoteOns)
+			{
+				HiseEvent c(m);
+				PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
+				n.handleHiseEvent(c);
+			}
+		}
+	}
+
+	template <typename T> void startVoice(T& n, PolyHandler& ph, int voiceIndex, const HiseEvent& e)
+	{
+		voiceNoteOns.insertWithoutSearch({ voiceIndex, e });
+		HiseEvent c(e);
+
+		PolyHandler::ScopedVoiceSetter vs(ph, voiceIndex);
+
+		HiseEvent copy(e);
+
+		{
+			// Deactivate reset calls of envelopes killing the voice before it begins...
+			scriptnode::PolyHandler::ScopedNoReset vs(ph, voiceIndex);
+			n.reset();
+		}
+
+		n.handleHiseEvent(copy);
+	}
 
 	UnorderedStack<VoiceData, NUM_POLYPHONIC_VOICES> voiceNoteOns;
 };

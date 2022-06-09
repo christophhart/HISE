@@ -86,6 +86,12 @@ struct BufferViewer : public Component,
 		setSize(500, 200);
 	}
 
+    void providerCleared() override
+    {
+        bufferToUse = nullptr;
+        
+    }
+    
 	void providerWasRebuilt() override
 	{
 		if (auto p = getProviderBase())

@@ -502,16 +502,9 @@ struct GlobalCableCollection : public SearchableListComponent::Collection,
 		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 7.0f,
 			c.withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
 
-		//g.fillRoundedRectangle(iconSpace.reduced(2.0f), 2.0f);
-
-		auto iconArea = iconSpace.toNearestInt();
-
 		g.setColour(Colour(0xFF222222));
-
 		g.drawRoundedRectangle(iconSpace.reduced(2.0f), 2.0f, 1.0f);
-
 		g.setColour(Colours::white.withAlpha(0.7f));
-
 		g.drawText("Global Cables", iconSpace2.reduced(10.0f, 0.0f), Justification::left);
 	}
 

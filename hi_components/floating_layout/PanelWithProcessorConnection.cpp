@@ -44,6 +44,7 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 
 	followWorkspaceButton.setToggleModeWithColourChange(true);
 	followWorkspaceButton.setTooltip("Enables updating the content when a workspace button is clicked in the patch browser");
+	followWorkspaceButton.setWantsKeyboardFocus(false);
 
 	connectionSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
 	connectionSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
@@ -61,6 +62,9 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 
 	connectionSelector->setLookAndFeel(&hlaf);
 	indexSelector->setLookAndFeel(&hlaf);
+
+	connectionSelector->setWantsKeyboardFocus(false);
+	indexSelector->setWantsKeyboardFocus(false);
 
 #if USE_BACKEND
 

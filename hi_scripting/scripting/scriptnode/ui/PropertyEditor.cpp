@@ -286,6 +286,7 @@ NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 		te->addListener(this);
 		editor = te;
 		valueChanged(v);
+		v.addListener(this);
 	}
 
 	if (editor != nullptr)

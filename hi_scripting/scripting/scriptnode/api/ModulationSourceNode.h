@@ -184,6 +184,7 @@ struct ModulationSourceBaseComponent : public Component,
 protected:
 
 	Path dragPath;
+	Path unscaledPath;
 
 	mutable WeakReference<ModulationSourceNode> sourceNode;
 };

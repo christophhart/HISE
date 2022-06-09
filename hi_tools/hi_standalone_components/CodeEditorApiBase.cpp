@@ -205,6 +205,15 @@ void ApiProviderBase::Holder::rebuild()
 	}
 }
 
+void ApiProviderBase::Holder::sendClearMessage()
+{
+    for (auto c : registeredComponents)
+    {
+        if (c != nullptr)
+            c->providerCleared();
+    }
+}
+
 void DebugableObjectBase::updateLocation(Location& l, var possibleObject)
 {
 	if (auto obj = dynamic_cast<DebugableObjectBase*>(possibleObject.getObject()))

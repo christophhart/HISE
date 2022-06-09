@@ -216,15 +216,20 @@ juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* ch
 
 	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 	{
-		for (auto id : sp->getListOfModuleIds())
+		for (auto ms : sp->getListOfModuleIds())
 		{
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
-			auto mTree = p->exportAsValueTree();
+			auto id = ms->id;
 
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+			if (auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id))
+			{
+				auto mTree = p->exportAsValueTree();
 
-			modules.addChild(mTree, -1, nullptr);
+				mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+
+				ms->stripValueTree(mTree);
+
+				modules.addChild(mTree, -1, nullptr);
+			}
 		}
 	}
 
@@ -262,17 +267,30 @@ void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const Va
 
 	if (modules.isValid())
 	{
+		auto& md = chain->getMainController()->getUserPresetHandler().getStoredModuleData();
+
 		for (auto m : modules)
 		{
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, m["ID"]);
+			auto id = m["ID"].toString();
+			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
 
 			if (p != nullptr)
 			{
-				auto copy = p->exportAsValueTree();
+				auto mcopy = m.createCopy();
 
-				if (p->getType().toString() == m["Type"].toString())
+				for (auto ms : md)
 				{
-					p->restoreFromValueTree(m);
+					if (ms->id == id)
+					{
+						ms->restoreValueTree(mcopy);
+						break;
+					}
+				}
+
+				if (p->getType().toString() == mcopy["Type"].toString())
+				{
+					p->restoreFromValueTree(mcopy);
+					p->sendPooledChangeMessage();
 				}
 			}
 		}
@@ -1063,13 +1081,14 @@ void ProjectHandler::checkActiveProject()
 juce::File ProjectHandler::getAppDataRoot()
 {
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-
+    
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
 #elif JUCE_MAC
 
 
 #if ENABLE_APPLE_SANDBOX
+    ignoreUnused(appDataDirectoryToUse);
 	return File::getSpecialLocation(File::userMusicDirectory);
 #else
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support");

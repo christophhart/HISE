@@ -32,6 +32,7 @@
 
 namespace hise { using namespace juce;
 
+
 class NoiseSound : public ModulatorSynthSound
 {
 public:
@@ -42,48 +43,27 @@ public:
 	bool appliesToVelocity (int /*midiChannel*/) override  { return true; }
 };
 
-
 class NoiseVoice: public ModulatorSynthVoice
 {
 public:
 
-	NoiseVoice(ModulatorSynth *ownerSynth):
-		ModulatorSynthVoice(ownerSynth)
-	{
-	};
+	NoiseVoice(ModulatorSynth *ownerSynth): ModulatorSynthVoice(ownerSynth) {};
 
-	bool canPlaySound(SynthesiserSound *) override
-	{
-		return true;
-	};
+	bool canPlaySound(SynthesiserSound *) override { return true; };
 
 	void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/) override
 	{
 		ModulatorSynthVoice::startNote(0, 0.0f, nullptr, -1);
 
         voiceUptime = 0.0;
-        
         uptimeDelta = 1.0;
-#if HI_RUN_UNIT_TESTS
-		lastUptime = -1.0;
-#endif
     }
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
 private:
 
-#if HI_RUN_UNIT_TESTS
-	double lastUptime = 0.0;
-#endif
-
-	inline float getNextValue() const
-	{
-		return 2.0f * ((float)(rand()) / (float)(RAND_MAX)) - 1.0f;
-	};
-
-	
-
+	inline float getNextValue() const { return 2.0f * ((float)(rand()) / (float)(RAND_MAX)) - 1.0f; };
 };
 
 /** A simple noise generator.
@@ -127,6 +107,116 @@ public:
 private:
 
 	TestSignal signalType = Normal;;
+};
+
+
+class SilentSound : public ModulatorSynthSound
+{
+public:
+	SilentSound() {} // Sound of silence
+
+	bool appliesToNote(int /*midiNoteNumber*/) override { return true; }
+	bool appliesToChannel(int /*midiChannel*/) override { return true; }
+	bool appliesToVelocity(int /*midiChannel*/) override { return true; }
+};
+
+class SilentVoice : public ModulatorSynthVoice
+{
+public:
+
+	SilentVoice(ModulatorSynth *ownerSynth) : ModulatorSynthVoice(ownerSynth) {};
+	bool canPlaySound(SynthesiserSound *) override { return true; };
+	void calculateBlock(int startSample, int numSamples) override 
+	{
+		// Sound of silence
+		voiceBuffer.clear(startSample, numSamples);
+		
+		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
+	};
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		auto numSourceChannels = getOwnerSynth()->getMatrix().getNumSourceChannels();
+
+		if (voiceBuffer.getNumChannels() != numSourceChannels)
+		{
+			voiceBuffer.setSize(numSourceChannels, samplesPerBlock);
+			voiceBuffer.clear();
+		}
+
+		ModulatorSynthVoice::prepareToPlay(sampleRate, samplesPerBlock);
+	}
+
+	void checkRelease() override
+	{
+		if (killThisVoice && (killFadeLevel < 0.001f))
+		{
+			resetVoice();
+			return;
+		}
+
+		if (!getOwnerSynth()->effectChain->hasTailingPolyEffects())
+			resetVoice();
+	}
+};
+
+class SilentSynth : public ModulatorSynth
+{
+public:
+
+	SET_PROCESSOR_NAME("SilentSynth", "Silent Synth", "A sound generator that produces silence.");
+
+	SilentSynth(MainController *mc, const String &id, int numVoices);
+
+	void addProcessorsWhenEmpty() override
+	{
+
+	}
+
+	bool synthNeedsEnvelope() const override { return false; }
+
+	bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity)
+	{
+		return true;
+	}
+
+	void numSourceChannelsChanged() 
+	{
+		auto sr = getSampleRate();
+
+		if (sr > 0.0)
+		{
+			for (auto v : voices)
+				dynamic_cast<ModulatorSynthVoice*>(v)->prepareToPlay(getSampleRate(), getLargestBlockSize());
+		}
+
+		if (internalBuffer.getNumSamples() != 0)
+		{
+			jassert(getLargestBlockSize() > 0);
+			internalBuffer.setSize(getMatrix().getNumSourceChannels(), internalBuffer.getNumSamples());
+		}
+
+		for (int i = 0; i < effectChain->getNumChildProcessors(); i++)
+		{
+			RoutableProcessor *rp = dynamic_cast<RoutableProcessor*>(effectChain->getChildProcessor(i));
+
+			if (rp != nullptr)
+			{
+				rp->getMatrix().setNumSourceChannels(getMatrix().getNumSourceChannels());
+				rp->getMatrix().setNumDestinationChannels(getMatrix().getNumSourceChannels());
+			}
+		}
+	}
+
+	void numDestinationChannelsChanged() {}
+	void connectionChanged() {};
+
+	void preVoiceRendering(int startSample, int numThisTime) override
+	{
+		effectChain->preRenderCallback(startSample, numThisTime);
+	}
+
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 };
 
 } // namespace hise

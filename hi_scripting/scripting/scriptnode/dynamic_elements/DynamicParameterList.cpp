@@ -266,10 +266,12 @@ namespace parameter
 				auto p = getParameterForDynamicParameter(targetContainer, b);
 				auto firstTargets = getCloneParameters(p);
 
+				auto isUnscaled = cppgen::CustomNodeProperties::isUnscaledParameter(p->data);
+
 				for (auto ft : firstTargets)
 				{
 					auto newChain = new parameter::dynamic_chain<true>();
-					newChain->addParameter(ft);
+					newChain->addParameter(ft, isUnscaled);
 					chains.add(newChain);
 				}
 			}
@@ -280,9 +282,11 @@ namespace parameter
 				auto c = getParameterForDynamicParameter(targetContainer, ch->targets[i]);
 				auto cTargets = getCloneParameters(c);
 
+				auto isUnscaled = cppgen::CustomNodeProperties::isUnscaledParameter(c->data);
+
 				for (int j = 0; j < chains.size(); j++)
 				{
-					dynamic_cast<parameter::dynamic_chain<true>*>(chains[j].get())->addParameter(cTargets[j]);
+					dynamic_cast<parameter::dynamic_chain<true>*>(chains[j].get())->addParameter(cTargets[j], isUnscaled);
 				}
 			}
 

@@ -737,7 +737,7 @@ bool Array::copy(String propertyName, var target)
 
 int Array::size() const
 {
-	return numElements;
+	return (int)numElements;
 }
 
 bool Array::contains(var obj) const

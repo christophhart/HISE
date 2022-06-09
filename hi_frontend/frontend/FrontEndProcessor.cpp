@@ -92,7 +92,7 @@ FrontendProcessor* FrontendFactory::createPlugin(AudioDeviceManager* deviceManag
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 #if USE_COPY_PROTECTION
-	if (!keyFileCorrectlyLoaded || ((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked())
+	if (!keyFileCorrectlyLoaded || (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()))
     {
         buffer.clear();
         midiMessages.clear();

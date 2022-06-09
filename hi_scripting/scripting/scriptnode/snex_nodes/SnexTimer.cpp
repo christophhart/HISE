@@ -86,6 +86,7 @@ namespace control
 			v = callbacks.getTimerValue(); 
 #else
 			jassertfalse;
+            v = 0.0;
 #endif
 			break;
 		case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;

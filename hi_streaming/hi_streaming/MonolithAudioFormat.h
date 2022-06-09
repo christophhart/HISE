@@ -86,7 +86,7 @@ struct MonolithFileReference
 
 	static String getIdFromValueTree(const ValueTree& v);
 
-	File getFile();
+	File getFile(bool checkIfFileExists);
 
 	Array<File> getAllFiles();
 

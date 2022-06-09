@@ -625,7 +625,7 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 			}
 			else
 			{
-				
+				return f;
 			}
 		}
 	}

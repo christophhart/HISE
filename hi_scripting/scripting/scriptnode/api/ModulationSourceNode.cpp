@@ -96,10 +96,14 @@ void ModulationSourceNode::rebuildCallback()
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :
 	SimpleTimer(updater, true)
 {
+	unscaledPath.loadPathFromData(ScriptnodeIcons::unscaledMod, sizeof(ScriptnodeIcons::unscaledMod));
+
 	dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
 
 	setRepaintsOnMouseActivity(true);
 	setMouseCursor(createMouseCursor());
+
+	setSize(256, 28);
 }
 
 void ModulationSourceBaseComponent::paint(Graphics& g)
@@ -150,11 +154,18 @@ void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b
 
 	g.fillPath(dragPath);
 
+	getSourceNodeFromParent();
+
+	if (sourceNode != nullptr && !sourceNode->isUsingNormalisedRange())
+		g.fillPath(unscaledPath);
+
 	if (text.isEmpty())
 		text = "Drag to modulation target";
 
 	if(GLOBAL_BOLD_FONT().getStringWidth(text) < b.getWidth() * 0.8f)
 		g.drawText(text, b, Justification::centred);
+
+	
 }
 
 juce::MouseCursor ModulationSourceBaseComponent::createMouseCursor()
@@ -199,6 +210,8 @@ void ModulationSourceBaseComponent::resized()
 	auto b = getLocalBounds();
 	auto p = b.removeFromLeft(b.getHeight()).toFloat().reduced(4.0f);
 	PathFactory::scalePath(dragPath, p);
+	auto p2 = b.removeFromRight(b.getHeight()).toFloat().reduced(4.0f);
+	PathFactory::scalePath(unscaledPath, p2);
 
 	getProperties().set("circleOffsetX", p.getCentreX() - (float)(getWidth() / 2));
 	getProperties().set("circleOffsetY", -0.5f * (float)getHeight() -3.0f);
@@ -356,8 +369,10 @@ void WrapperNode::initParameterData(ParameterDataList& pData)
 				}
 				else
 				{
-					// Don't want to interupt the loading on another thread
-					jassertfalse;
+                    auto p = dynamic_cast<Processor*>(getRootNetwork()->getScriptProcessor());
+                    
+                    // Don't want to interupt the loading on another thread
+                    debugError(p, errorMessage);					
 				}
 #else
 				// There's a mismatch between parameters in the value tree

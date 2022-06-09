@@ -48,6 +48,7 @@ struct NodeBase::Wrapper
 	API_METHOD_WRAPPER_1(NodeBase, getParameter);
     API_METHOD_WRAPPER_3(NodeBase, setComplexDataIndex);
 	API_METHOD_WRAPPER_0(NodeBase, getNumParameters);
+	API_METHOD_WRAPPER_1(NodeBase, getChildNodes);
 };
 
 
@@ -83,6 +84,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(connectToBypass);
     ADD_API_METHOD_3(setComplexDataIndex);
 	ADD_API_METHOD_0(getNumParameters);
+	ADD_API_METHOD_1(getChildNodes);
 
 	for (auto c : getPropertyTree())
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
@@ -341,6 +343,31 @@ int NodeBase::getNumParameters() const
 	return parameters.size();
 }
 
+
+juce::var NodeBase::getChildNodes(bool recursive)
+{
+	Array<var> nodes;
+
+	if (auto asContainer = dynamic_cast<NodeContainer*>(this))
+	{
+		auto list = asContainer->getNodeList();
+
+		for (auto cn : list)
+		{
+			var childNode(cn);
+
+			nodes.add(childNode);
+
+			if (recursive)
+			{
+				auto cArray = cn->getChildNodes(true);
+				nodes.addArray(*cArray.getArray());
+			}
+		}
+	}
+
+	return var(nodes);
+}
 
 NodeBase::Parameter* NodeBase::getParameterFromName(const String& id) const
 {
@@ -653,6 +680,8 @@ struct Parameter::Wrapper
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueSync);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueAsync);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setRangeFromObject);
+	API_METHOD_WRAPPER_0(NodeBase::Parameter, getRangeObject);
 };
 
 Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
@@ -668,6 +697,9 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ADD_API_METHOD_1(setValueAsync);
 	ADD_API_METHOD_1(setValueSync);
     ADD_API_METHOD_2(setRangeProperty);
+	ADD_API_METHOD_0(getId);
+	ADD_API_METHOD_1(setRangeFromObject);
+	ADD_API_METHOD_0(getRangeObject);
 
 #define ADD_PROPERTY_ID_CONSTANT(id) addConstant(id.toString(), id.toString());
 
@@ -733,6 +765,46 @@ void Parameter::setValueAsync(double newValue)
 	{
 		DspNetwork::NoVoiceSetter nvs(*parent->getRootNetwork());
 		dynamicParameter->call(newValue);
+	}
+}
+
+juce::var Parameter::getRangeObject() const
+{
+	auto nr = RangeHelpers::getDoubleRange(data);
+
+	auto obj = new DynamicObject();
+
+	obj->setProperty(PropertyIds::MinValue, nr.rng.start);
+	obj->setProperty(PropertyIds::MaxValue, nr.rng.end);
+	obj->setProperty(PropertyIds::SkewFactor, nr.rng.skew);
+	obj->setProperty(PropertyIds::StepSize, nr.rng.interval);
+	obj->setProperty(PropertyIds::Inverted, nr.inv);
+
+	return var(obj);
+}
+
+void Parameter::setRangeFromObject(var obj)
+{
+	InvertableParameterRange nr;
+	
+	nr.rng.start = obj.getProperty(PropertyIds::MinValue, 0.0);
+	nr.rng.end = obj.getProperty(PropertyIds::MaxValue, 1.0);
+	nr.rng.skew = obj.getProperty(PropertyIds::SkewFactor, 1.0);
+	nr.rng.interval = obj.getProperty(PropertyIds::StepSize, 0.0);
+	nr.inv = obj.getProperty(PropertyIds::Inverted, false);
+
+	nr.checkIfIdentity();
+
+	RangeHelpers::storeDoubleRange(data, nr, parent->getUndoManager());
+}
+
+void Parameter::setRangeProperty(String id, var newValue)
+{
+	Identifier i(id);
+
+	if (RangeHelpers::isRangeId(i))
+	{
+		data.setProperty(i, newValue, nullptr);
 	}
 }
 
@@ -1199,8 +1271,13 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		auto pId = c[PropertyIds::ParameterId].toString();
 		auto tn = n->getRootNetwork()->getNodeWithId(nId);
 
+		bool isUnscaledTarget = false;
+
 		if (tn == nullptr)
 			return nullptr;
+
+		n->getRootNetwork()->getExceptionHandler().removeError(tn, Error::UnscaledModRangeMismatch);
+
 
 		parameter::dynamic_base::Ptr p;
 
@@ -1219,11 +1296,18 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		else if (auto param = tn->getParameterFromName(pId))
 		{
 			p = param->getDynamicParameter();
+
+			isUnscaledTarget = cppgen::CustomNodeProperties::isUnscaledParameter(param->data);
 		}
+		else
+			return nullptr;
+
 
 		if (numConnections == 1)
 		{
-			if (!scaleInput || RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001))
+			auto sameRange = RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001);
+			
+			if (!scaleInput || sameRange || isUnscaledTarget)
 				return p;
 		}
 
@@ -1238,9 +1322,9 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		}
 
 		if (scaleInput)
-			dynamic_cast<parameter::dynamic_chain<true>*>(chain.get())->addParameter(p);
+			dynamic_cast<parameter::dynamic_chain<true>*>(chain.get())->addParameter(p, isUnscaledTarget);
 		else
-			dynamic_cast<parameter::dynamic_chain<false>*>(chain.get())->addParameter(p);
+			dynamic_cast<parameter::dynamic_chain<false>*>(chain.get())->addParameter(p, isUnscaledTarget);
 	}
 
 	return chain;
@@ -1484,8 +1568,11 @@ bool ConnectionSourceManager::CableRemoveListener::initListeners()
 
 ConnectionSourceManager::CableRemoveListener::~CableRemoveListener()
 {
-	if(targetParameterTree.isValid())
-		targetParameterTree.setProperty(PropertyIds::Automated, false, parent.n->getUndoManager(false));
+	if (targetParameterTree.isValid())
+	{
+		auto um = parent.n != nullptr ? parent.n->getUndoManager(false) : nullptr;
+		targetParameterTree.setProperty(PropertyIds::Automated, false, um);
+	}
 }
 
 ConnectionSourceManager::ConnectionSourceManager(DspNetwork* n_, ValueTree connectionsTree_) :

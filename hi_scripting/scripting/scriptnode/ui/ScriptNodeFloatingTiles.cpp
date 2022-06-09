@@ -141,7 +141,7 @@ struct Selector : public Component,
         
         p->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
 
-		if (findParentComponentOfClass<BackendProcessorEditor>() != nullptr)
+		if (rootWindow != nullptr)
 		{
 			auto gw = [rootWindow, jsp]()
 			{

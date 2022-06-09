@@ -547,7 +547,7 @@ private:
 	/** The max monolith size is 2GB - 60MB (to guarantee to stay below 2GB for FAT32. */
 	//constexpr static int maxMonolithSize = 2084569088;
 
-	uint32 getNumBytesForSplitSize() const;
+	int64 getNumBytesForSplitSize() const;
 
 	void checkSanity();
 
@@ -557,7 +557,7 @@ private:
 	void writeFiles(int channelIndex, bool overwriteExistingData);
 
 	/** Checks whether the monolith needs to be split up. */
-	bool shouldSplit(int channelIndex, int numBytesWritten, int sampleIndex) const;
+	bool shouldSplit(int channelIndex, int64 numBytesWritten, int sampleIndex) const;
 
 	void updateSampleMap();
 

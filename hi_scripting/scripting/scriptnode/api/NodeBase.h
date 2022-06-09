@@ -127,18 +127,14 @@ public:
 	/** Sets the value immediately and stores it asynchronously. */
 	void setValueAsync(double newValue);
 
+	/** Returns the range properties as JSON object. */
+	var getRangeObject() const;
 
+	/** Updates the parameter range from the given object. */
+	void setRangeFromObject(var propertyObject);
 
     /** Sets a range property. */
-    void setRangeProperty(String id, var newValue)
-    {
-        Identifier i(id);
-        
-        if(RangeHelpers::isRangeId(i))
-        {
-            data.setProperty(i, newValue, nullptr);
-        }
-    }
+    void setRangeProperty(String id, var newValue);
     
 	/** Stores the value synchronously and calls the callback. */
 	void setValueSync(double newValue);
@@ -412,6 +408,9 @@ public:
 	/** Returns the number of parameters. */
 	int getNumParameters() const;;
 
+	/** Returns a list of child nodes if this node is a container. */
+	var getChildNodes(bool recursive);
+
 	// ============================================================================================= END NODE API
 
 	void setValueTreeProperty(const Identifier& id, const var value);
@@ -564,6 +563,8 @@ private:
 		auto shouldBeBypassed = (bool)newValue;
 		setBypassed((bool)newValue);
 
+        ignoreUnused(shouldBeBypassed);
+        
 		// This needs to be set in the virtual method above
 		jassert(shouldBeBypassed == bypassState);
 	}

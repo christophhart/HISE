@@ -1208,13 +1208,9 @@ ScriptCreatedComponentWrapper(content, index)
     auto slaf = &mc->getGlobalLookAndFeel();
 
     if(auto l = dynamic_cast<TableEditor::LookAndFeelMethods*>(localLookAndFeel.get()))
-    {
         t->setSpecialLookAndFeel(localLookAndFeel, false);
-    }
     else if (auto s = dynamic_cast<TableEditor::LookAndFeelMethods*>(slaf))
-    {
         t->setSpecialLookAndFeel(slaf, false);
-    }
 }
 
 ScriptCreatedComponentWrappers::TableWrapper::~TableWrapper()
@@ -1979,6 +1975,17 @@ ScriptCreatedComponentWrapper(content, index)
 	component = sp;
 
 	initAllProperties();
+
+	auto slaf = &pack->getScriptProcessor()->getMainController_()->getGlobalLookAndFeel();
+
+	if (auto l = dynamic_cast<SliderPack::LookAndFeelMethods*>(localLookAndFeel.get()))
+	{
+		sp->setSpecialLookAndFeel(localLookAndFeel, false);
+	}
+	else if (auto s = dynamic_cast<SliderPack::LookAndFeelMethods*>(slaf))
+	{
+		sp->setSpecialLookAndFeel(slaf, false);
+	}
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::~SliderPackWrapper()
@@ -2226,8 +2233,6 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 {
     auto slaf = &form->getScriptProcessor()->getMainController_()->getGlobalLookAndFeel();
     
-    
-    
 	if (auto s = form->getSampler())
 	{
 		SamplerSoundWaveform* ssw = new SamplerSoundWaveform(s);
@@ -2239,11 +2244,6 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 
 		component = ssw;
 
-        if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))
-        {
-            ssw->getThumbnail()->setLookAndFeel(slaf);
-        }
-        
 		samplerListener = new SamplerListener(s, ssw);
 	}
 	else
@@ -2251,18 +2251,20 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 		auto asb = new MultiChannelAudioBufferDisplay();
 		asb->setName(form->name.toString());
         
-        
-        if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))
-        {
-            asb->getThumbnail()->setLookAndFeel(slaf);
-        }
-        
 		component = asb;
 	}
 
 	form->getSourceWatcher().addSourceListener(this);
 
 	initAllProperties();
+
+	if (auto adc = dynamic_cast<AudioDisplayComponent*>(component.get()))
+	{
+		if (auto l = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(localLookAndFeel.get()))
+			adc->getThumbnail()->setLookAndFeel(localLookAndFeel);
+		else if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))
+			adc->getThumbnail()->setLookAndFeel(slaf);
+	}
 }
 
 

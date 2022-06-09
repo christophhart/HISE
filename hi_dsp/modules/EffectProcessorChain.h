@@ -343,6 +343,8 @@ public:
 		analyser,
 		shapeFX,
 		polyshapeFx,
+		hardcodedMasterFx,
+		polyHardcodedFx,
 		midiMetronome
 	};
 

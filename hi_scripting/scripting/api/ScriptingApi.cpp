@@ -920,6 +920,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, clearSampleMapPool);
 	API_METHOD_WRAPPER_2(Engine, getSampleFilesFromDirectory);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLatencySamples);
+	API_VOID_METHOD_WRAPPER_1(Engine, setGlobalPitchFactor);
+	API_METHOD_WRAPPER_0(Engine, getGlobalPitchFactor);
 	API_METHOD_WRAPPER_0(Engine, getLatencySamples);
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
@@ -984,6 +986,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setCurrentExpansion);
 	ADD_API_METHOD_1(setUserPresetTagList);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
+	ADD_API_METHOD_0(getGlobalPitchFactor);
+	ADD_API_METHOD_1(setGlobalPitchFactor);
 	ADD_API_METHOD_1(saveUserPreset);
 	ADD_API_METHOD_1(loadUserPreset);
 	ADD_API_METHOD_0(getUserPresetList);
@@ -1108,16 +1112,27 @@ void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
 {
 	if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
 	{
-		auto newId = moduleId.toString();
+		String newId;
 
 		auto& ids = jmp->getListOfModuleIds();
 
-		if (newId.isEmpty())
+		if (moduleId.isString())
 		{
-			ids.clear();
-			debugToConsole(getProcessor(), "Removed all stored modules");
-			return;
+			newId = moduleId.toString();
+
+			if (newId.isEmpty())
+			{
+				ids.clear();
+				debugToConsole(getProcessor(), "Removed all stored modules");
+				return;
+			}
+
 		}
+		else
+			newId = moduleId["ID"].toString();
+
+		if (newId.isEmpty())
+			reportScriptError("Invalid ID");
 
 		auto p = ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), newId);
 
@@ -1138,9 +1153,23 @@ void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
 			}
 		}
 
-		if (!ids.contains(newId))
+		bool wasRemoved = false;
+
+		for (auto ms : ids)
 		{
-			ids.add(newId);
+			if (ms->id == newId)
+			{
+				ids.removeObject(ms);
+				wasRemoved = true;
+				
+				break;
+			}
+		}
+
+		ids.add(new MainController::UserPresetHandler::StoredModuleData(moduleId, p));
+
+		if (!wasRemoved)
+		{
 			debugToConsole(getProcessor(), "Added " + newId + " to user preset system");
 		}
 	}
@@ -1712,6 +1741,17 @@ void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getPro
 void ScriptingApi::Engine::extendTimeOut(int additionalMilliseconds)
 {
 	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(additionalMilliseconds);
+}
+
+void ScriptingApi::Engine::setGlobalPitchFactor(double pitchFactorInSemitones)
+{
+	pitchFactorInSemitones = jlimit(-12.0, 12.0, pitchFactorInSemitones);
+	getScriptProcessor()->getMainController_()->setGlobalPitchFactor(pitchFactorInSemitones);
+}
+
+double ScriptingApi::Engine::getGlobalPitchFactor() const
+{
+	return getScriptProcessor()->getMainController_()->getGlobalPitchFactorSemiTones();
 }
 
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
@@ -4723,21 +4763,24 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::ObjectCreation);
 
-	Processor::Iterator<AudioSampleProcessor> it(owner);
+	Processor::Iterator<ProcessorWithExternalData> it(owner);
 
-		AudioSampleProcessor *asp;
+	ProcessorWithExternalData *asp;
 
 
-		while ((asp = it.getNextProcessor()) != nullptr)
+	while ((asp = it.getNextProcessor()) != nullptr)
+	{
+		if (dynamic_cast<Processor*>(asp)->getId() == name)
 		{
-			if (dynamic_cast<Processor*>(asp)->getId() == name)
+			if (asp->getNumDataObjects(ExternalData::DataType::AudioFile) > 0)
 			{
-				return new ScriptAudioSampleProcessor(getScriptProcessor(), asp);
+				return new ScriptAudioSampleProcessor(getScriptProcessor(), dynamic_cast<Processor*>(asp));
 			}
 		}
+	}
 
-        reportScriptError(name + " was not found. ");
-		RETURN_IF_NO_THROW(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
+    reportScriptError(name + " was not found. ");
+	RETURN_IF_NO_THROW(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
 }
 
 
@@ -4858,13 +4901,12 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 
 	if (getScriptProcessor()->objectsCanBeCreated())
 	{
-		Processor::Iterator<SlotFX> it(owner);
+		Processor::Iterator<HotswappableProcessor> it(owner);
 
-		while (SlotFX *s = it.getNextProcessor())
+		while (auto s = dynamic_cast<EffectProcessor*>(it.getNextProcessor()))
 		{
 			if (s->getId() == name)
 			{
-
 				return new ScriptSlotFX(getScriptProcessor(), s);
 			}
 		}
@@ -5540,6 +5582,7 @@ struct ScriptingApi::Colours::Wrapper
 	API_METHOD_WRAPPER_2(Colours, withMultipliedSaturation);
 	API_METHOD_WRAPPER_1(Colours, fromVec4);
 	API_METHOD_WRAPPER_1(Colours, toVec4);
+	API_METHOD_WRAPPER_3(Colours, mix);
 };
 
 ScriptingApi::Colours::Colours() :
@@ -5692,6 +5735,7 @@ ApiClass(139)
 	ADD_API_METHOD_2(withMultipliedAlpha);
 	ADD_API_METHOD_2(withMultipliedBrightness);
 	ADD_API_METHOD_2(withMultipliedSaturation);
+	ADD_API_METHOD_3(mix);
 	ADD_API_METHOD_1(toVec4);
 	ADD_API_METHOD_1(fromVec4);
 }
@@ -5766,6 +5810,14 @@ int ScriptingApi::Colours::fromVec4(var vec4)
 	return 0;
 }
 
+int ScriptingApi::Colours::mix(int colour1, int colour2, float alpha)
+{
+	Colour c1((uint32)colour1);
+	Colour c2((uint32)colour2);
+
+	return c1.interpolatedWith(c2, alpha).getARGB();
+}
+
 ScriptingApi::ModuleIds::ModuleIds(ModulatorSynth* s):
 	ApiClass(getTypeList(s).size()),
 	ownerSynth(s)
@@ -5817,6 +5869,8 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 	API_METHOD_WRAPPER_1(FileSystem, getBytesFreeOnVolume);
+    API_METHOD_WRAPPER_2(FileSystem, encryptWithRSA);
+    API_METHOD_WRAPPER_2(FileSystem, decryptWithRSA);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -5845,6 +5899,9 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_2(browseForDirectory);
 	ADD_API_METHOD_1(fromAbsolutePath);
 	ADD_API_METHOD_1(getBytesFreeOnVolume);
+    ADD_API_METHOD_2(encryptWithRSA);
+    ADD_API_METHOD_2(decryptWithRSA);
+    
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -5978,6 +6035,44 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 
 	MessageManager::callAsync(cb);
 }
+
+
+String ScriptingApi::FileSystem::encryptWithRSA(const String& dataToEncrypt, const String& privateKey)
+{
+    juce::RSAKey key(privateKey);
+    
+    MemoryOutputStream text;
+    text << dataToEncrypt;
+
+    BigInteger val;
+    val.loadFromMemoryBlock (text.getMemoryBlock());
+
+    key.applyToValue (val);
+
+    return val.toString(16);
+}
+
+
+String ScriptingApi::FileSystem::decryptWithRSA(const String& dataToDecrypt, const String& publicKey)
+{
+    BigInteger val;
+    val.parseString (dataToDecrypt, 16);
+
+    RSAKey key (publicKey);
+    
+    if(key.isValid())
+    {
+        key.applyToValue (val);
+
+        auto mb = val.toMemoryBlock();
+
+        if (CharPointer_UTF8::isValidString (static_cast<const char*> (mb.getData()), (int) mb.getSize()))
+            return mb.toString();
+    }
+    
+    return {};
+}
+
 
 juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 {

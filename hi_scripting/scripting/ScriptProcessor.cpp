@@ -1054,6 +1054,8 @@ void JavascriptProcessor::setupApi()
 {
 	clearFileWatchers();
 
+    sendClearMessage();
+    
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
 
 	scriptEngine = new HiseJavascriptEngine(this);

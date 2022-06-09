@@ -12,13 +12,320 @@
 #define SLOTFX_H_INCLUDED
 
 namespace hise { using namespace juce;
+using namespace scriptnode;
 
-/** A placeholder for another effect that can be swapped pretty conveniently.
+struct HotswappableProcessor
+{
+	virtual ~HotswappableProcessor() {};
+
+	virtual bool setEffect(const String& name, bool synchronously) = 0;
+	virtual bool swap(HotswappableProcessor* other) = 0;
+
+	virtual void clearEffect() { setEffect("", false); }
+
+	virtual Processor* getCurrentEffect() = 0;
+	virtual const Processor* getCurrentEffect() const = 0;
+};
+
+class HardcodedSwappableEffect : public HotswappableProcessor,
+							     public ProcessorWithExternalData
+{
+public:
+
+	virtual ~HardcodedSwappableEffect();
+
+	// ===================================================================================== Complex Data API calls
+
+	int getNumDataObjects(ExternalData::DataType t) const override;
+	Table* getTable(int index) override { return getOrCreate<Table>(tables, index); }
+	SliderPackData* getSliderPack(int index) override { return getOrCreate<SliderPackData>(sliderPacks, index); }
+	MultiChannelAudioBuffer* getAudioFile(int index) override { return getOrCreate<MultiChannelAudioBuffer>(audioFiles, index); }
+	FilterDataObject* getFilterData(int index) override { return getOrCreate<FilterDataObject>(filterData, index);; }
+	SimpleRingBuffer* getDisplayBuffer(int index) override { return getOrCreate<SimpleRingBuffer>(displayBuffers, index); }
+
+	
+
+	// ===================================================================================== Custom hardcoded API calls
+
+	Processor* getCurrentEffect() { return dynamic_cast<Processor*>(this); }
+	const Processor* getCurrentEffect() const override { return dynamic_cast<const Processor*>(this); }
+
+	StringArray getListOfAvailableNetworks() const;
+	bool setEffect(const String& factoryId, bool /*unused*/) override;
+	bool swap(HotswappableProcessor* other) override;
+	bool isPolyphonic() const { return polyHandler.isEnabled(); }
+
+	Processor& asProcessor() { return *dynamic_cast<Processor*>(this); }
+	const Processor& asProcessor() const { return *dynamic_cast<const Processor*>(this); }
+
+	// ===================================================================================== Processor API tool functions
+
+	void setHardcodedAttribute(int index, float newValue);
+	float getHardcodedAttribute(int index) const;
+	Path getHardcodedSymbol() const;
+	ProcessorEditorBody* createHardcodedEditor(ProcessorEditor* parent);
+	void restoreHardcodedData(const ValueTree& v);
+	ValueTree writeHardcodedData(ValueTree& v) const;
+
+	void checkHardcodedChannelCount();
+
+	bool processHardcoded(AudioSampleBuffer& b, HiseEventBuffer* e, int startSample, int numSamples);
+
+	bool hasHardcodedTail() const;
+
+protected:
+	
+	HardcodedSwappableEffect(MainController* mc, bool isPolyphonic);
+
+	struct DataWithListener : public ComplexDataUIUpdaterBase::EventListener
+	{
+		DataWithListener(HardcodedSwappableEffect& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise) :
+			node(nodeToInitialise),
+			data(p),
+			index(index_)
+		{
+			if (data != nullptr)
+			{
+				auto mc = dynamic_cast<ControlledObject*>(&parent)->getMainController();
+				data->getUpdater().setUpdater(mc->getGlobalUIUpdater());
+				data->getUpdater().addEventListener(this);
+				updateData();
+			}
+		};
+
+		~DataWithListener()
+		{
+			if (data != nullptr)
+				data->getUpdater().removeEventListener(this);
+		}
+
+		void updateData()
+		{
+			if (node != nullptr)
+			{
+				SimpleReadWriteLock::ScopedWriteLock sl(data->getDataLock());
+				ExternalData ed(data.get(), index);
+				node->setExternalData(ed, index);
+			}
+
+		}
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var newValue) override
+		{
+			if (t == ComplexDataUIUpdaterBase::EventType::ContentRedirected ||
+				t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+			{
+				updateData();
+			}
+		}
+
+		OpaqueNode* node;
+		const int index = 0;
+		ComplexDataUIBase::Ptr data;
+	};
+
+	OwnedArray<DataWithListener> listeners;
+
+	LambdaBroadcaster<String, int, bool> effectUpdater;
+
+	template <typename T> T* getOrCreate(ReferenceCountedArray<T>& list, int index)
+	{
+		if (isPositiveAndBelow(index, list.size()))
+			return list[index].get();
+
+		auto t = createAndInit(ExternalData::getDataTypeForClass<T>());
+		list.add(dynamic_cast<T*>(t));
+		return list.getLast().get();
+	}
+
+	ReferenceCountedArray<Table> tables;
+	ReferenceCountedArray<SliderPackData> sliderPacks;
+	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
+	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
+	ReferenceCountedArray<FilterDataObject> filterData;
+
+	ValueTree treeWhenNotLoaded;
+
+	String currentEffect = "No network";
+
+	float lastParameters[OpaqueNode::NumMaxParameters];
+
+	snex::Types::ModValue modValue;
+	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
+	scriptnode::PolyHandler polyHandler;
+	mutable SimpleReadWriteLock lock;
+	ScopedPointer<scriptnode::OpaqueNode> opaqueNode;
+	ScopedPointer<scriptnode::dll::FactoryBase> factory;
+
+	void prepareOpaqueNode(OpaqueNode* n);
+
+	bool channelCountMatches = false;
+
+	int channelIndexes[NUM_MAX_CHANNELS];
+	int numChannelsToRender = 0;
+
+private:
+
+	MainController* mc_;
+	friend class HardcodedMasterEditor;
+};
+
+class HardcodedMasterFX: public MasterEffectProcessor,
+						 public HardcodedSwappableEffect
+{
+public:
+
+	SET_PROCESSOR_NAME("Hardcoded Master FX", "HardcodedMasterFX", "A master effect wrapper around a compiled DSP network");
+
+	HardcodedMasterFX(MainController* mc, const String& uid);
+	~HardcodedMasterFX();;
+
+	bool hasTail() const override;
+
+    bool isFadeOutPending() const noexcept override
+    {
+        if(numChannelsToRender == 2)
+            return MasterEffectProcessor::isFadeOutPending();
+        
+        return false;
+    }
+    
+#if NUM_HARDCODED_FX_MODS
+	Processor *getChildProcessor(int processorIndex) override { return paramModulation[processorIndex]; };
+	const Processor *getChildProcessor(int processorIndex) const override { return paramModulation[processorIndex]; };
+#else
+	Processor *getChildProcessor(int ) override { return nullptr; };
+	const Processor *getChildProcessor(int ) const override { return nullptr; };
+#endif
+
+	int getNumInternalChains() const override { return NUM_HARDCODED_FX_MODS; };
+	int getNumChildProcessors() const override { return NUM_HARDCODED_FX_MODS; };
+
+	void connectionChanged()
+	{
+		MasterEffectProcessor::connectionChanged();
+		checkHardcodedChannelCount();
+	}
+
+	void voicesKilled() override;
+	void setInternalAttribute(int index, float newValue) override;
+	ValueTree exportAsValueTree() const override;
+	void restoreFromValueTree(const ValueTree& v) override;
+	float getAttribute(int index) const override;
+
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock);
+
+	Path getSpecialSymbol() const override;
+	void handleHiseEvent(const HiseEvent &m) override {}
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) final override;
+
+	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
+
+#if NUM_HARDCODED_FX_MODS
+	ModulatorChain* paramModulation[NUM_HARDCODED_FX_MODS];
+#endif
+
+};
+
+
+/** A simple stereo panner which can be modulated using all types of Modulators
+*	@ingroup effectTypes
+*
+*/
+class HardcodedPolyphonicFX : public VoiceEffectProcessor,
+						      public HardcodedSwappableEffect,
+							  public RoutableProcessor,
+						      public VoiceResetter
+{
+public:
+
+	SET_PROCESSOR_NAME("HardcodedPolyphonicFX", "Hardcoded Polyphonic FX", "A polyphonic hardcoded FX.");
+
+	HardcodedPolyphonicFX(MainController *mc, const String &uid, int numVoices);;
+
+	float getAttribute(int parameterIndex) const override;
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+	
+
+	void restoreFromValueTree(const ValueTree &v) override;;
+	ValueTree exportAsValueTree() const override;
+
+	bool hasTail() const override;;
+
+	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
+	const Processor *getChildProcessor(int processorIndex) const override { return nullptr; };
+	int getNumChildProcessors() const override { return 0; };
+	int getNumInternalChains() const override { return 0; };
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) final override;
+
+	void startVoice(int voiceIndex, const HiseEvent& e) final override;
+
+	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) final override;
+
+	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int /*startSample*/, int /*numSamples*/) override
+	{
+		
+	}
+
+	void reset(int voiceIndex) override 
+	{
+		voiceStack.reset(voiceIndex);
+	}
+	
+	void handleHiseEvent(const HiseEvent &m) override
+	{
+		if (opaqueNode != nullptr)
+			voiceStack.handleHiseEvent(*opaqueNode, polyHandler, m);
+	}
+
+	
+
+	void connectionChanged() override
+	{
+		checkHardcodedChannelCount();
+		
+	};
+
+	void numSourceChannelsChanged() override {};
+	void numDestinationChannelsChanged() override {};
+
+	/** renders a voice and applies the effect on the voice. */
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override
+	{
+		applyEffect(voiceIndex, b, startSample, numSamples);
+	}
+
+	int getNumActiveVoices() const override
+	{
+		return voiceStack.voiceNoteOns.size();
+	}
+
+	void onVoiceReset(bool allVoices, int voiceIndex) override
+	{
+		if (allVoices)
+			voiceStack.voiceNoteOns.clear();
+		else
+			voiceStack.reset(voiceIndex);
+	}
+
+	VoiceDataStack voiceStack;
+
+	
+	
+};
+
+/** Aplaceholder for another effect that can be swapped pretty conveniently.
 	@ingroup effectTypes.
 	
 	Use this as building block for dynamic signal chains.
 */
-class SlotFX : public MasterEffectProcessor
+class SlotFX : public MasterEffectProcessor,
+			   public HotswappableProcessor
 {
 public:
 
@@ -131,7 +438,7 @@ public:
 		//
 	}
 
-	void reset()
+	void clearEffect() override
 	{
 		ScopedPointer<MasterEffectProcessor> newEmptyFX;
 		
@@ -162,41 +469,13 @@ public:
 		}
 	}
 
-	void swap(SlotFX* otherSlot)
-	{
-		auto te = wrappedEffect.release();
-		auto oe = otherSlot->wrappedEffect.release();
-
-		int tempIndex = currentIndex;
-
-		
-
-		currentIndex = otherSlot->currentIndex;
-		otherSlot->currentIndex = tempIndex;
-
-		{
-			ScopedLock sl(getMainController()->getLock());
-
-			bool tempClear = isClear;
-			isClear = otherSlot->isClear;
-			otherSlot->isClear = tempClear;
-
-			wrappedEffect = oe;
-			otherSlot->wrappedEffect = te;
-		}
-		
-		wrappedEffect.get()->sendRebuildMessage(true);
-		otherSlot->wrappedEffect.get()->sendRebuildMessage(true);
-
-		sendChangeMessage();
-		otherSlot->sendChangeMessage();
-	}
+	bool swap(HotswappableProcessor* otherSlot) override;
 
 	int getCurrentEffectID() const { return currentIndex; }
 
-	MasterEffectProcessor* getCurrentEffect();
+	Processor* getCurrentEffect() override;
 
-	const MasterEffectProcessor* getCurrentEffect() const { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
+	const Processor* getCurrentEffect() const override { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
 
 	const StringArray& getEffectList() const { return effectList; }
 

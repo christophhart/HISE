@@ -194,7 +194,7 @@ struct ScriptingApi::Content::ScriptComponent::GlobalCableConnection : public sc
 		auto f = [sc]()
 		{
 			auto b = sc->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
-			b->setSelection({ sc }, sendNotificationAsync);
+			b->setSelection(sc, sendNotificationAsync);
 		};
 
 		Timer::callAfterDelay(400, f);
@@ -2702,7 +2702,7 @@ void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 
 void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
 {
-    if(getNumSliders() != normalizedWidths.size() + 1)
+    if((getNumSliders() + 1) != normalizedWidths.size())
     {
         logErrorAndContinue("Width array length must be numSliders + 1");
     }

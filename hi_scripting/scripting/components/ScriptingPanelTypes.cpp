@@ -382,6 +382,50 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 		overlay->setShowEditButton(false);
 	}
 
+
+#if USE_BACKEND
+	void mouseDown(const MouseEvent& e) override
+	{
+		if (e.mods.isMiddleButtonDown())
+		{
+			if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+			{
+				setMouseCursor(MouseCursor::DraggingHandCursor);
+				auto ze = e.getEventRelativeTo(zp);
+				zp->mouseDown(ze);
+				return;
+			}
+		}
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		if (e.mods.isMiddleButtonDown())
+		{
+			if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+			{
+				setMouseCursor(MouseCursor::NormalCursor);
+				auto ze = e.getEventRelativeTo(zp);
+				zp->mouseUp(ze);
+				return;
+			}
+		}
+	}
+
+	void mouseDrag(const MouseEvent& e) override
+	{
+		if (e.mods.isMiddleButtonDown())
+		{
+			if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+			{
+				auto ze = e.getEventRelativeTo(zp);
+				zp->mouseDrag(ze);
+				return;
+			}
+		}
+	}
+#endif
+
 	void paint(Graphics& g) override;
 
 	void selectOnInitCallback() override
@@ -543,6 +587,8 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	//canvas.setColour(ZoomableViewport::ColourIds::backgroundColourId, Colour(0xff262626));
 
 	rebuildAfterContentChange();
+
+	canvas.setMaxZoomFactor(4.0);
 }
 
 

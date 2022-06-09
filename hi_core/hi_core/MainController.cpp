@@ -1037,6 +1037,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			{
 				previewBuffer = AudioSampleBuffer();
 				previewBufferIndex = -1;
+                
+                for(auto pl: previewListeners)
+                {
+                    if(pl != nullptr)
+                        pl->previewStateChanged(false, previewBuffer);
+                }
 			}
 		}
 		
@@ -1044,6 +1050,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		{
 			previewBuffer = AudioSampleBuffer();
 			previewBufferIndex = -1;
+            
+            for(auto pl: previewListeners)
+            {
+                if(pl != nullptr)
+                    pl->previewStateChanged(false, previewBuffer);
+            }
 		}
 	}
 
@@ -1779,6 +1791,76 @@ hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainControlle
 	}
 
 	return nullptr;
+}
+
+MainController::UserPresetHandler::StoredModuleData::StoredModuleData(var moduleId, Processor* pToRestore) :
+	p(pToRestore)
+{
+	if (moduleId.isString())
+		id = moduleId.toString();
+	else
+	{
+		id = moduleId["ID"].toString();
+
+		auto rp = moduleId["RemovedProperties"];
+		auto rc = moduleId["RemovedChildElements"];
+
+		if (rp.isArray() || rc.isArray())
+		{
+			auto v = p->exportAsValueTree();
+
+			for (auto propertyToRemove : *rp.getArray())
+			{
+				auto pid_ = propertyToRemove.toString();
+				if (pid_.isNotEmpty())
+				{
+					Identifier pid(pid_);
+
+					if (v.hasProperty(pid))
+					{
+						auto value = v.getProperty(pid, var());
+						removedProperties.set(pid, value);
+					}
+				}
+			}
+
+			for (auto childToRemove : *rc.getArray())
+			{
+				auto pid_ = childToRemove.toString();
+
+				if (pid_.isNotEmpty())
+				{
+					Identifier pid(pid_);
+					removedChildElements.add(v.getChildWithName(pid).createCopy());
+				}
+			}
+		}
+	}
+}
+
+void MainController::UserPresetHandler::StoredModuleData::stripValueTree(ValueTree& v)
+{
+	for (const auto& rp : removedProperties)
+		v.removeProperty(rp.name, nullptr);
+
+	for (const auto& rc : removedChildElements)
+	{
+		auto cToRemove = v.getChildWithName(rc.getType());
+
+		if (cToRemove.isValid())
+			v.removeChild(cToRemove, nullptr);
+	}
+}
+
+void MainController::UserPresetHandler::StoredModuleData::restoreValueTree(ValueTree& v)
+{
+	stripValueTree(v);
+
+	for (const auto& rp : removedProperties)
+		v.setProperty(rp.name, rp.value, nullptr);
+
+	for (const auto& rc : removedChildElements)
+		v.addChild(rc.createCopy(), -1, nullptr);
 }
 
 } // namespace hise

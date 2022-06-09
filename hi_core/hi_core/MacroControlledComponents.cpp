@@ -359,8 +359,6 @@ void MacroControlledObject::connectToCustomAutomation(const Identifier& newCusto
 	customId = newCustomId;
 	updateValue(sendNotificationSync);
 
-	auto p = processor.get();
-
 	auto mIndex = getMacroIndex();
 
 	if (mIndex != -1)

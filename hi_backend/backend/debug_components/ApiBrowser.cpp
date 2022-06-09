@@ -35,6 +35,31 @@ namespace scriptnode
 using namespace hise;
 using namespace juce;
 
+void drawPlug(Graphics& g, Rectangle<float> area, Colour c)
+{
+    static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
+
+    Path plug;
+
+    plug.loadPathFromData(pathData, sizeof(pathData));
+    
+    PathFactory::scalePath(plug, area.reduced(1.5f));
+    
+    
+    
+    if(c.isTransparent())
+        c = Colours::white;
+    
+    g.setColour(Colours::black.withAlpha(0.5f));
+    g.strokePath(plug, PathStrokeType(1.0f));
+    
+    g.setColour(c.withAlpha(0.5f));
+    g.fillPath(plug);
+    
+}
+
 void DspNodeList::NodeItem::paint(Graphics& g)
 {
     if (node != nullptr)
@@ -42,15 +67,70 @@ void DspNodeList::NodeItem::paint(Graphics& g)
         bool selected = node->getRootNetwork()->isSelected(node);
 
         
-        
-        auto ca = area.withWidth(5);
+        auto ca = area.withWidth(4);
         
         
         auto colour = node->getColour();
         paintItemBackground(g, area.toFloat());
         
+        Colour pColour;
+        
+        auto parent = node->getParentNode();
+        
+        float parentX = (float)area.getX() - 3.0f;
+        
+        float alpha = 1.0f;
+        
+        while(parent != nullptr)
+        {
+            pColour = parent->getColour();
+            
+            if(pColour != Colours::transparentBlack)
+            {
+                if(!parent->isBypassed())
+                {
+                    g.setColour(pColour.withAlpha(alpha));
+                    
+                    Rectangle<float> line(parentX, 0.0f, 1.0f, (float)getHeight());
+                    g.fillRect(line);
+                    
+                    g.setColour(pColour.withAlpha(0.06f));
+                    g.fillRoundedRectangle(area.toFloat(), 2.0f);
+                }
+                
+                alpha -= 0.2f;
+                
+                if(alpha == 0.0f)
+                    break;
+            }
+            
+            parent = parent->getParentNode();
+            parentX -= 4.0f;
+        }
+        
+        auto pTree = node->getValueTree().getChildWithName(PropertyIds::Parameters);
+        
+        for(auto p: pTree)
+        {
+            if(p[PropertyIds::Automated])
+            {
+                
+                auto copy = area.toFloat();
+                copy = copy.removeFromRight(copy.getHeight()).reduced(3.0f);
+                drawPlug(g, copy, colour);
+                break;
+            }
+        }
+        
+        
         g.setColour(colour);
-        g.fillRect(ca.reduced(1.0f));
+        g.fillRoundedRectangle(ca.toFloat(), 2.0f);
+        
+        if(!icon.isEmpty())
+        {
+            g.setColour(label.findColour(Label::ColourIds::textColourId));
+            g.fillPath(icon);
+        }
         
         if(selected)
         {
@@ -133,7 +213,7 @@ void ApiCollection::MethodItem::insertIntoCodeEditor()
 
 void ApiCollection::MethodItem::paint(Graphics& g)
 {
-	if (getWidth() <= 0)
+	if (getWidth() <= 8)
 		return;
 
 	Colour c(0xFF000000);

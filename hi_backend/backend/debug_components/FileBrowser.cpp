@@ -188,6 +188,8 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
     
 	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
 
+    rootWindow->getBackendProcessor()->workspaceBroadcaster.addListener(*this, FileBrowser::updateWorkspace, true);
+    
     if(!rootWindow_->getBackendProcessor()->isFlakyThreadingAllowed())
        directorySearcher.startThread(3);
 
@@ -240,6 +242,8 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	fileTreeComponent->addMouseListener(this, true);
 
+	
+
 #if HISE_IOS
 #else
     goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
@@ -271,8 +275,6 @@ void FileBrowser::expansionPackLoaded(Expansion* currentExpansion)
 
 void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)
 {
-    textEditor->setText(newRoot.getFullPathName(), dontSendNotification);
-    
     if(useUndoManager)
     {
         browseUndoManager->beginNewTransaction();
@@ -281,10 +283,12 @@ void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)
     }
     else
     {
+		
         directoryList->setDirectory(newRoot, true, true);
     }
 	
 	browserCommandManager->commandStatusChanged();
+	repaint();
 }
 
 void FileBrowser::getAllCommands(Array<CommandID>& commands)
@@ -381,16 +385,297 @@ void FileBrowser::paint(Graphics &g)
 		return;
 
     g.fillAll(Colour(0xFF353535));
+
+	static const unsigned char si[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
+		103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
+		191, 194, 127, 164, 151, 68, 251, 78, 102, 65, 0, 224, 137, 68, 0, 0, 248, 66, 98, 186, 89, 77, 68, 68, 20, 162, 194, 42, 153, 195, 67, 58, 106, 186, 193, 135, 70, 41, 67, 157, 224, 115, 67, 98, 13, 96, 218, 193, 104, 81, 235, 67, 243, 198, 99, 194, 8, 94, 78, 68, 70, 137, 213, 66, 112, 211, 134, 68, 98, 109, 211, 138, 67,
+		218, 42, 170, 68, 245, 147, 37, 68, 128, 215, 185, 68, 117, 185, 113, 68, 28, 189, 169, 68, 98, 116, 250, 155, 68, 237, 26, 156, 68, 181, 145, 179, 68, 76, 44, 108, 68, 16, 184, 175, 68, 102, 10, 33, 68, 98, 249, 118, 174, 68, 137, 199, 2, 68, 156, 78, 169, 68, 210, 27, 202, 67, 0, 128, 160, 68, 0, 128, 152, 67, 98, 163,
+		95, 175, 68, 72, 52, 56, 67, 78, 185, 190, 68, 124, 190, 133, 66, 147, 74, 205, 68, 52, 157, 96, 194, 98, 192, 27, 207, 68, 217, 22, 154, 194, 59, 9, 208, 68, 237, 54, 205, 194, 0, 0, 208, 68, 0, 0, 0, 195, 99, 101, 0, 0 };
+
+	Path path;
+	path.loadPathFromData(si, sizeof(si));
+	path.applyTransform(AffineTransform::rotation(float_Pi));
+
+	PathFactory::scalePath(path, searchIcon);
+
+	g.setColour(Colours::white.withAlpha(0.3f));
+	g.fillPath(path);
+
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.drawText(directoryList->getDirectory().getFullPathName(), pathArea, Justification::centredLeft);
+
+	
+
 	if (directoryList->getNumFiles() == 0)
 	{
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.setFont(GLOBAL_BOLD_FONT());
+		
+		
 
 		g.drawText("This directory is empty", getLocalBounds(), Justification::centred);
 	}
 }
 
+struct AudioPreviewComponent: public Component,
+                              public ControlledObject,
+                              public BufferPreviewListener,
+                              public PooledUIUpdater::SimpleTimer,
+                              public ButtonListener,
+                              public AsyncUpdater
+{
+    AudioPreviewComponent(MainController* mc, const File& f):
+      ControlledObject(mc),
+      SimpleTimer(mc->getGlobalUIUpdater()),
+      fileToPreview(f),
+      startButton("Start", this, factory),
+      stopButton("Stop", this, factory)
+    {
+        setName("Preview " + f.getFileName());
+        startButton.setToggleModeWithColourChange(true);
+        
+        addAndMakeVisible(startButton);
+        addAndMakeVisible(stopButton);
+        
+        double unused;
+        b = hlac::CompressionHelpers::loadFile(f, unused);
+        
+        getMainController()->addPreviewListener(this);
+        
+        setSize(600, 200);
+        
+        addAndMakeVisible(thumbnail);
+        
+        auto l = new VariantBuffer(b.getWritePointer(0), b.getNumSamples());
+        
+        auto r = new VariantBuffer(b.getWritePointer(jmin(1, b.getNumChannels()-1)), b.getNumSamples());
+        
+        thumbnail.setBuffer(var(l), var(r), true);
+        grabKeyboardFocusAsync();
+        startPreview();
+    }
+    
+    void buttonClicked(Button* b) override
+    {
+        if(b == &startButton)
+        {
+            startPreview();
+        }
+        if(b == &stopButton)
+        {
+            stopPreview();
+        }
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        
+        auto bottomRow = b.removeFromBottom(28);
+        
+        startButton.setBounds(bottomRow.removeFromLeft(bottomRow.getHeight()));
+        stopButton.setBounds(bottomRow.removeFromLeft(bottomRow.getHeight()));
+        
+        thumbnail.setBounds(b);
+    }
+    
+    bool currentPlayState = false;
+    
+    void handleAsyncUpdate()
+    {
+        startButton.setToggleStateAndUpdateIcon(currentPlayState);
+        
+        if(currentPlayState)
+            start();
+        else
+            stop();
+    }
+    
+    bool keyPressed(const KeyPress& k) override
+    {
+        if(k == KeyPress::spaceKey)
+        {
+            if(currentPlayState)
+                stopPreview();
+            else
+                startPreview();
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    void previewStateChanged(bool isPlaying, const AudioSampleBuffer& currentBuffer) override
+    {
+        currentPlayState = isPlaying;
+        triggerAsyncUpdate();
+        
+        
+    }
+    
+    void paint(Graphics& g) override
+    {
+        int pixelPos = roundToInt(currentPos * (double)getWidth());
+        
+        g.setColour(Colours::white);
+        g.fillRect(pixelPos, 0, 1, getHeight()-24);
+    }
+    
+    void timerCallback() override
+    {
+        auto pos = getMainController()->getPreviewBufferPosition();
+        
+        currentPos = (double)pos / jmax(1.0, (double)b.getNumSamples());
+        
+        if(pos == -1)
+            stopPreview();
+        
+        repaint();
+    }
+    
+    ~AudioPreviewComponent()
+    {
+        stopPreview();
+        getMainController()->removePreviewListener(this);
+    }
+    
+    void startPreview()
+    {
+        getMainController()->setBufferToPlay(b);
+    }
+    
+    void stopPreview()
+    {
+        getMainController()->stopBufferToPlay();
+        currentPos = -1.0;
+        repaint();
+    }
+    
+    MidiPlayerBaseType::TransportPaths factory;
+    
+    HiseShapeButton startButton;
+    HiseShapeButton stopButton;
+    
+    AudioSampleBuffer b;
+    File fileToPreview;
+    HiseAudioThumbnail thumbnail;
+    double currentPos = -1.0;
+};
 
+struct MidiFilePreviewer: public Component
+{
+    MidiFilePreviewer(const File& f)
+    {
+        MidiFile mf;
+        
+        FileInputStream fis(f);
+        mf.readFrom(fis);
+        
+        midiFile = new HiseMidiSequence();
+        midiFile->loadFrom(mf);
+        
+        auto list = midiFile->getEventList(960, 120.0);
+        
+        for(const auto& e: list)
+        {
+            if(e.isNoteOn())
+            {
+                NoteData newData;
+                newData.on = e;
+                noteData.add(newData);
+            }
+            if(e.isNoteOff())
+            {
+                for(auto& nd: noteData)
+                {
+                    if(nd.on.getEventId() == e.getEventId())
+                    {
+                        nd.off = e;
+                        break;
+                    }
+                }
+                
+            }
+        }
+        
+        setSize(600, 400);
+        setName("Preview MIDI file " + f.getFileName());
+    }
+    
+    void paint(Graphics& g) override
+    {
+        g.setColour(Colours::white);
+        g.fillRectList(noteList);
+        
+        auto b = getLocalBounds();
+        
+        if(currentNoteData)
+        {
+            auto text = currentNoteData.toString();
+            g.drawText(text, b.removeFromTop(24).toFloat(), Justification::left);
+            
+            g.setColour(Colours::red);
+            g.fillRect(currentRect);
+        }
+    }
+    
+    void mouseMove(const MouseEvent& e) override
+    {
+        auto pos = e.getPosition().toFloat();
+        
+        int index = 0;
+        
+        currentNoteData = {};
+        currentRect = {};
+        
+        for(auto& n: noteList)
+        {
+            if(n.expanded(5, 5).contains(pos))
+            {
+                currentNoteData = noteData[index];
+                currentRect = n;
+                break;
+            }
+            
+            index++;
+        }
+        
+        repaint();
+    }
+    
+    void resized() override
+    {
+        noteList = midiFile->getRectangleList(getLocalBounds().toFloat());
+        repaint();
+    }
+    
+    RectangleList<float> noteList;
+    
+    struct NoteData
+    {
+        operator bool() const { return !on.isEmpty(); }
+        HiseEvent on;
+        HiseEvent off;
+        
+        String toString() const
+        {
+            String s;
+            s << MidiMessage::getMidiNoteName(on.getNoteNumber(), true, true, 3);
+            s << " Start: " << on.getTimeStamp();
+            s << " Length: " << (off.getTimeStamp() - on.getTimeStamp());
+            s << " Velocity: " << on.getVelocity();
+            return s;
+        }
+    };
+    
+    Array<NoteData> noteData;
+    
+    hise::HiseMidiSequence::Ptr midiFile;
+    Rectangle<float> currentRect;
+    StringArray eventList;
+    NoteData currentNoteData;
+};
 
 
 void FileBrowser::previewFile(const File& f)
@@ -407,6 +692,7 @@ void FileBrowser::previewFile(const File& f)
 	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
 
 	Component* content = nullptr;
+    bool wrapInViewport = false;
 
 	if (ff->isImageFile(f))
 	{
@@ -422,15 +708,41 @@ void FileBrowser::previewFile(const File& f)
 	{
 		auto c = new JSONEditor(f.loadFileAsString(), new JavascriptTokeniser());
 
+        c->setEditable(true);
+        
+        auto fileCopy = f;
+        auto mc = rootWindow->getBackendProcessor();
+        
+        c->setCompileCallback([fileCopy, mc](const String& newContent, var& d)
+        {
+            fileCopy.replaceWithText(newContent);
+            mc->compileAllScripts();
+            return Result::ok();
+        }, true);
+        
+        c->setCallback([](const var& d){}, true);
+                              
+                              
 		c->setSize(600, 500);
 
 		content = c;
 	}
-	else if (ff->isXmlFile(f))
+	else if (ff->isXmlFile(f) || ff->isUserPresetFile(f))
 	{
         auto c = new mcl::XmlEditor(f);
         content = c;
 	}
+    else if (ff->isAudioFile(f))
+    {
+        auto c = new AudioPreviewComponent(rootWindow->getBackendProcessor(), f);
+        content = c;
+    }
+    else if (ff->isMidiFile(f))
+    {
+        auto c = new MidiFilePreviewer(f);
+        content = c;
+        wrapInViewport = true;
+    }
 
 	auto s = fileTreeComponent->getSelectedItem(0);
 
@@ -441,7 +753,7 @@ void FileBrowser::previewFile(const File& f)
 		bounds = s->getItemPosition(true);
 	}
 
-	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre());
+	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre(), wrapInViewport);
 }
 
 FileBrowser::~FileBrowser()
@@ -462,9 +774,21 @@ FileBrowser::~FileBrowser()
 
 void FileBrowser::resized()
 {
-	browserToolbar->setBounds(2, 2, getWidth()-4, 20);
-	textEditor->setBounds(3 * 20 + 4, 0, getWidth() - 3 * 20 - 4, 24);
-	fileTreeComponent->setBounds(0, 24, getWidth(), getHeight() - 24);
+	auto b = getLocalBounds();
+
+	auto topBar = b.removeFromTop(24);
+
+	browserToolbar->setBounds(topBar.reduced(2));
+
+	topBar.removeFromLeft(3 * 20 + 4);
+
+	searchIcon = topBar.removeFromLeft(topBar.getHeight()).reduced(4).toFloat();
+
+	textEditor->setBounds(topBar);
+
+	pathArea = b.removeFromTop(24).toFloat();
+
+	fileTreeComponent->setBounds(b);
 }
 
 
@@ -515,8 +839,6 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 	
 }
 
-
-
 void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
@@ -552,21 +874,80 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     }
     else if (newRoot.getFileExtension() == ".js")
     {
-        // First look if the script is already used
-        
-        Processor::Iterator<JavascriptProcessor> iter(rw->getMainSynthChain());
-        
-        while (JavascriptProcessor *sp = iter.getNextProcessor())
+        if(auto jsp = dynamic_cast<JavascriptProcessor*>(currentWorkspaceProcessor.get()))
         {
-            for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+            for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
             {
-                if (sp->getWatchedFile(i) == newRoot)
+				auto idx = jsp->getNumSnippets() + i;
+
+                if (jsp->getWatchedFile(i) == newRoot)
                 {
-                    sp->showPopupForFile(i);
-                    return;
+					auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+					
+					if (auto mws = FloatingTileHelpers::findTileWithId<FloatingTabComponent>(root, Identifier("ScriptEditorTabs")))
+					{
+						for (int tabIndex = 0; tabIndex < mws->getNumTabs(); tabIndex++)
+						{
+							if (auto tc = dynamic_cast<FloatingTile*>(mws->getTabContentComponent(tabIndex)))
+							{
+								if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
+								{
+									auto processorMatches = cep->getConnectedProcessor() == currentWorkspaceProcessor;
+									auto indexMatches = cep->getCurrentIndex() == idx;
+
+									if (processorMatches && indexMatches)
+									{
+										mws->setCurrentTabIndex(tabIndex);
+										
+										return;
+									}
+								}
+							}
+						}
+
+						FloatingInterfaceBuilder ib(mws->getParentShell());
+						
+						auto newEditor = ib.addChild<CodeEditorPanel>(0);
+
+						auto ed = ib.getContent<CodeEditorPanel>(newEditor);
+						ed->setCustomTitle(newRoot.getFileName());
+
+						ib.finalizeAndReturnRoot();
+
+						ed->setContentWithUndo(currentWorkspaceProcessor, idx);
+						mws->setCurrentTabIndex(mws->getNumTabs() - 1);
+					}
+					else
+					{
+						PresetHandler::showMessageWindow("Can't open file", "Tab floating tile not found. Reset the workspace", PresetHandler::IconType::Error);
+					}
+
+
+					return;
                 }
             }
+
+			if (PresetHandler::showYesNoWindow("Not included", "The file is not included in the current script processor. Do you want to create a include line and copy it to the clipboard?"))
+			{
+				String s;
+
+				auto scriptRoot = GET_PROJECT_HANDLER(currentWorkspaceProcessor.get()).getSubDirectory(FileHandlerBase::Scripts);
+
+				auto path = newRoot.getRelativePathFrom(scriptRoot).replaceCharacter('\\', '/');
+
+				s << "include(\"" << path << "\");\n";
+
+				SystemClipboard::copyTextToClipboard(s);
+
+				String message;
+				message << "> `" << s << "`  \nwas copied to the clipboard. Paste it and recompile the script to include that file.";
+
+				PresetHandler::showMessageWindow("Copied included statement", message);
+			}
+
+			return;
         }
+        
     }
     else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
     {
@@ -580,11 +961,12 @@ void FileBrowser::textEditorReturnKeyPressed(TextEditor& editor)
 {
 	if (&editor == textEditor)
 	{
-		File newRoot = File(editor.getText());
-
-		if (newRoot.isDirectory())
+		if (auto filter = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get()))
 		{
-			goToDirectory(newRoot, true);
+			fileTreeComponent->setDefaultOpenness(!editor.getText().isEmpty());
+
+			filter->setWildcard(editor.getText());
+			directoryList->refresh();
 		}
 	}
 }
@@ -637,6 +1019,30 @@ bool FileBrowser::keyPressed(const KeyPress& key)
 
 
 	return false;
+}
+
+bool FileBrowser::HiseFileBrowserFilter::isDirectorySuitable(const File& directory) const
+{
+	if (directory.getFileName() == "Binaries")
+		return false;
+
+	if (directory.getFileName() == "PooledResources")
+		return false;
+
+	if (additionalWildcard.isNotEmpty())
+	{
+		auto cf = directory.findChildFiles(File::findFiles, true);
+
+		for (const auto& f : cf)
+		{
+			if (isFileSuitable(f))
+				return true;
+		}
+
+		return false;
+	}
+
+	return true;
 }
 
 } // namespace hise

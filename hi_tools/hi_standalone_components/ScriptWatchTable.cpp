@@ -133,6 +133,18 @@ int ScriptWatchTable::getNumRows()
 	return filteredFlatList.size();
 };
 
+void ScriptWatchTable::providerCleared()
+{
+    rootValues.clear();
+    filteredFlatList.clear();
+    
+    SafeAsyncCall::call<ScriptWatchTable>(*this, [](ScriptWatchTable& t)
+    {
+        t.table->updateContent();
+        t.repaint();
+    });
+}
+
 void ScriptWatchTable::rebuildLines()
 {
 	bool rootWasFound = viewInfo.currentRoot.isEmpty();

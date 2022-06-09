@@ -345,6 +345,12 @@ public:
 		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
 		void extendTimeOut(int additionalMilliseconds);
 
+		/** Sets the global pitch factor (in semitones). */
+		void setGlobalPitchFactor(double pitchFactorInSemitones);
+
+		/** Returns the global pitch factor (in semitones). */
+		double getGlobalPitchFactor() const;
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 
@@ -1498,6 +1504,12 @@ public:
 		/** Returns the number of free bytes on the volume of a given folder. */
 		int64 getBytesFreeOnVolume(var folder);
 
+        /** Encrypts the given string using a RSA private key. */
+        String encryptWithRSA(const String& dataToEncrypt, const String& privateKey);
+        
+        /** Decrypts the given string using a RSA public key. */
+        String decryptWithRSA(const String& dataToDecrypt, const String& publicKey);
+        
 		// ========================================================= End of API calls
 
 		ProcessorWithScriptingContent* p;
@@ -1552,6 +1564,9 @@ public:
 
 		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
 		int fromVec4(var vec4);
+
+		/** Linear interpolation between two colours. */
+		int mix(int colour1, int colour2, float alpha);
 
 		// ============================================================================================================
 

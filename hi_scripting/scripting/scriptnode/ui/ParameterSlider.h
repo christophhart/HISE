@@ -136,6 +136,20 @@ struct ParameterSlider : public Slider,
     public hise::Learnable,
 	public PooledUIUpdater::SimpleTimer
 {
+	
+	/** This function will find all valuetrees that are connected to the given connection source tree. 
+		
+		This is used by the `Copy range to source` function as well as the warning display on 
+		unscaled modulation draggers.
+
+	*/
+	static Array<ValueTree> getValueTreesForSourceConnection(const ValueTree& connectionSourceTree);
+
+	struct ParameterIcons : public PathFactory
+	{
+		Path createPath(const String& path) const override;
+	};
+
 	struct RangeButton : public Component
 	{
 		RangeButton()
@@ -150,14 +164,13 @@ struct ParameterSlider : public Slider,
 
 		void paint(Graphics& g) override
 		{
-			static const unsigned char pathData[] = { 110,109,246,40,170,65,102,102,214,65,108,246,40,170,65,240,39,42,66,108,0,0,0,0,246,40,170,65,108,246,40,170,65,0,0,0,0,108,246,40,170,65,242,210,123,65,108,147,24,34,66,242,210,123,65,108,147,24,34,66,0,0,0,0,108,14,45,119,66,246,40,170,65,108,147,24,
-34,66,240,39,42,66,108,147,24,34,66,102,102,214,65,108,246,40,170,65,102,102,214,65,99,101,0,0 };
+			auto p = ParameterIcons().createPath("range");
+
+			
 
 			auto over = isMouseOver(true);
 			auto down = isMouseButtonDown(true);
 
-			Path p;
-			p.loadPathFromData(pathData, sizeof(pathData));
 			PathFactory::scalePath(p, getLocalBounds().toFloat().reduced(isMouseButtonDown() ? 2.0f : 1.0f));
 
 			float alpha = 0.0f;

@@ -207,9 +207,9 @@ struct FunctionData
 
 	bool matchIdArgsAndTemplate(const FunctionData& other) const;
 
-	bool matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList) const;
+	bool matchesArgumentTypes(TypeInfo r, const Array<TypeInfo>& argsList, bool checkIfEmpty=false) const;
 
-	bool matchesArgumentTypes(const Array<TypeInfo>& typeList) const;
+	bool matchesArgumentTypes(const Array<TypeInfo>& typeList, bool checkIfEmpty=false) const;
 
 	bool matchesArgumentTypes(const FunctionData& otherFunctionData, bool checkReturnType = true) const;
 
