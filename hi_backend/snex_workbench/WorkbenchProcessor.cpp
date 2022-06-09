@@ -775,6 +775,10 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 {
 	addComboBox("build", { "Debug", "CI", "Release" }, "Build Configuration");
 
+#if !JUCE_DEBUG
+    getComboBoxComponent("build")->setText("Release", dontSendNotification);
+#endif
+    
 	if (auto n = getNetwork())
 		n->createAllNodesOnce();
 
