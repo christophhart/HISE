@@ -38,7 +38,7 @@ ModulatorSynth(mc, id, numVoices)
 	finaliseModChains();
 
 	gainChain = modChains[BasicChains::GainChain].getChain();
-	gainChain->setMode(Modulation::Mode::GlobalMode);
+	gainChain->setMode(Modulation::Mode::GlobalMode, dontSendNotification);
 
 	// Do not expand the values, but leave them compressed for the receivers to expand them...
 	modChains[BasicChains::GainChain].setExpandToAudioRate(false);

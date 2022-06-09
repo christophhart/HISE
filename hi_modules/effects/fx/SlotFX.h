@@ -164,6 +164,8 @@ protected:
 	int channelIndexes[NUM_MAX_CHANNELS];
 	int numChannelsToRender = 0;
 
+    Array<scriptnode::InvertableParameterRange> parameterRanges;
+    
 private:
 
 	MainController* mc_;
@@ -191,8 +193,8 @@ public:
     }
     
 #if NUM_HARDCODED_FX_MODS
-	Processor *getChildProcessor(int processorIndex) override { return paramModulation[processorIndex]; };
-	const Processor *getChildProcessor(int processorIndex) const override { return paramModulation[processorIndex]; };
+	Processor *getChildProcessor(int processorIndex) override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
+    const Processor *getChildProcessor(int processorIndex) const override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
 #else
 	Processor *getChildProcessor(int ) override { return nullptr; };
 	const Processor *getChildProcessor(int ) const override { return nullptr; };

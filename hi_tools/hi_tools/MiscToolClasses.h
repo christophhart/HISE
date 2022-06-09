@@ -1778,6 +1778,9 @@ private:
 
 	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
 	{
+        if(n == dontSendNotification)
+            return;
+        
 		if (valueQueue != nullptr)
 			valueQueue.get()->push(value);
 
