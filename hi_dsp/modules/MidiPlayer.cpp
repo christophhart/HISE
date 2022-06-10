@@ -1118,7 +1118,20 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			newEvent.setArtificial();
 			newEvent.setChannel(currentTrackIndex + 1);
 
-			if (newEvent.isNoteOn() && !isBypassed())
+			if (newEvent.isController())
+			{
+				bool consumed = false;
+
+				if (globalMidiHandlerConsumesCC)
+				{
+					auto handler = getMainController()->getMacroManager().getMidiControlAutomationHandler();
+					consumed = handler->handleControllerMessage(newEvent);
+				}
+				
+				if(!consumed)
+					buffer.addEvent(newEvent);
+			}
+			else if (newEvent.isNoteOn() && !isBypassed())
 			{
 				getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
 
@@ -1674,8 +1687,7 @@ void MidiPlayer::finishRecording()
 					l->add(artificialNoteOff);
 				}
 			}
-
-			if (currentEvent.isNoteOff())
+			else if (currentEvent.isNoteOff())
 			{
 				bool found = false;
 

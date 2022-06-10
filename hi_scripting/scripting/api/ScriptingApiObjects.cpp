@@ -3594,6 +3594,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getId);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, asMidiPlayer);
 	
+	
 };
 
 ScriptingObjects::ScriptingMidiProcessor::ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
@@ -3629,6 +3630,7 @@ mp(mp_)
 	ADD_API_METHOD_1(getAttributeId);
 	ADD_API_METHOD_1(getAttributeIndex);
 	ADD_API_METHOD_0(asMidiPlayer);
+	
 }
 
 Component* ScriptingObjects::ScriptingMidiProcessor::createPopupComponent(const MouseEvent& e, Component* t)
@@ -4578,11 +4580,15 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTimeSignature);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getLastPlayedNotePosition);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSyncToMasterClock);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequenceCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setAutomationHandlerConsumesControllerEvents);
+	
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
 	MidiPlayerBaseType(player_),
-	ConstScriptingObject(p, 0)
+	ConstScriptingObject(p, 0),
+	updateCallback(p, var(), 0)
 {
 	ADD_API_METHOD_0(getPlaybackPosition);
 	ADD_API_METHOD_1(setPlaybackPosition);
@@ -4612,6 +4618,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(setUseTimestampInTicks);
 	ADD_API_METHOD_0(getTicksPerQuarter);
 	ADD_API_METHOD_0(getLastPlayedNotePosition);
+	ADD_API_METHOD_1(setAutomationHandlerConsumesControllerEvents);
+	ADD_API_METHOD_1(setSequenceCallback);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -4629,6 +4637,8 @@ juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
 
 void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
 {
+	callUpdateCallback();
+
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
 		panel->repaint();
@@ -4637,6 +4647,8 @@ void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
 
 void ScriptingObjects::ScriptedMidiPlayer::sequenceIndexChanged()
 {
+	callUpdateCallback();
+
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
 		panel->repaint();
@@ -4645,6 +4657,8 @@ void ScriptingObjects::ScriptedMidiPlayer::sequenceIndexChanged()
 
 void ScriptingObjects::ScriptedMidiPlayer::sequencesCleared()
 {
+	callUpdateCallback();
+
 	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
 	{
 		panel->repaint();
@@ -4750,8 +4764,10 @@ void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)
 
 var ScriptingObjects::ScriptedMidiPlayer::getEventList()
 {
+	Array<var> eventHolders;
+
 	if (!sequenceValid())
-		return {};
+		return var(eventHolders);
 
 	auto sr = getPlayer()->getSampleRate();
 	auto bpm = getPlayer()->getMainController()->getBpm();
@@ -4759,8 +4775,6 @@ var ScriptingObjects::ScriptedMidiPlayer::getEventList()
 	getPlayer()->getCurrentSequence()->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
 
 	auto list = getPlayer()->getCurrentSequence()->getEventList(sr, bpm);
-
-	Array<var> eventHolders;
 
 	for (const auto& e : list)
 	{
@@ -5016,9 +5030,34 @@ bool ScriptingObjects::ScriptedMidiPlayer::setTimeSignature(var timeSignatureObj
 	return false;
 }
 
+void ScriptingObjects::ScriptedMidiPlayer::setAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled)
+{
+	if (auto player = getPlayer())
+	{
+		player->setMidiControlAutomationHandlerConsumesControllerEvents(shouldBeEnabled);
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(updateFunction))
+	{
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), updateFunction, 0);
+		updateCallback.setThisObject(this);
+		updateCallback.incRefCount();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::callUpdateCallback()
+{
+	if (updateCallback)
+		updateCallback.call(nullptr, 0);
+}
+
 void ScriptingObjects::ScriptedMidiPlayer::sequenceLoaded(HiseMidiSequence::Ptr newSequence)
 {
-
+	callUpdateCallback();
+	
 }
 
 int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()

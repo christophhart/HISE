@@ -2316,11 +2316,21 @@ namespace ScriptingObjects
 		/** Sets the timing information of the current sequence using the given object. */
 		bool setTimeSignature(var timeSignatureObject);
 
+		/** This will send any CC messages from the MIDI file to the global MIDI handler. */
+		void setAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled);
+
+		/** Attaches a callback that gets executed whenever the sequence was changed. */
+		void setSequenceCallback(var updateFunction);
+
 		// ============================================================================================================
 
 		struct Wrapper;
 
 	private:
+
+		void callUpdateCallback();
+
+		WeakCallbackHolder updateCallback;
 
 		bool useTicks = false;
 

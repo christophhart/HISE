@@ -38,9 +38,11 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPreCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostCallback);
 	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
-	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, setCustomAutomation);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setCustomAutomation);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, setUseCustomUserPresetModel);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
+	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
+	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 };
 
 ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
@@ -49,8 +51,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	preCallback(pwsc, var(), 1),
 	postCallback(pwsc, var(), 1),
 	customLoadCallback(pwsc, var(), 1),
-	customSaveCallback(pwsc, var(), 1),
-	customUpdateCallback(pwsc, var(), 2)
+	customSaveCallback(pwsc, var(), 1)
 {
 	getMainController()->getUserPresetHandler().addListener(this);
 
@@ -58,12 +59,17 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(setPostCallback);
 	ADD_API_METHOD_1(setPreCallback);
 	ADD_API_METHOD_2(setEnableUserPresetPreprocessing);
-	ADD_API_METHOD_2(setCustomAutomation);
+	ADD_API_METHOD_1(setCustomAutomation);
 	ADD_API_METHOD_3(setUseCustomUserPresetModel);
+	ADD_API_METHOD_3(attachAutomationCallback);
+	ADD_API_METHOD_0(clearAttachedCallbacks);
 }
 
 ScriptUserPresetHandler::~ScriptUserPresetHandler()
 {
+	clearAttachedCallbacks();
+	
+
 	getMainController()->getUserPresetHandler().removeListener(this);
 }
 
@@ -118,12 +124,10 @@ void ScriptUserPresetHandler::setUseCustomUserPresetModel(var loadCallback, var 
 
 
 
-void ScriptUserPresetHandler::setCustomAutomation(var automationData, var updateCallback)
+void ScriptUserPresetHandler::setCustomAutomation(var automationData)
 {
-	if (automationData.isArray() && HiseJavascriptEngine::isJavascriptFunction(updateCallback))
+	if (automationData.isArray())
 	{
-		customUpdateCallback = WeakCallbackHolder(getScriptProcessor(), updateCallback, 2);
-		
 		using CustomData = MainController::UserPresetHandler::CustomAutomationData;
 
 		CustomData::List newList;
@@ -136,18 +140,93 @@ void ScriptUserPresetHandler::setCustomAutomation(var automationData, var update
 			{
 				auto nd = new CustomData(getScriptProcessor()->getMainController_(), index++, ad);
 
-				nd->syncListeners.addListener(*this, [](ScriptUserPresetHandler& v, var* args)
-				{
-					if (v.customUpdateCallback)
-						v.customUpdateCallback.callSync(args, 2, nullptr);
-				}, false);
-
 				newList.add(nd);
 			}
 		}
 
-		getMainController()->getUserPresetHandler().setCustomAutomationData(newList);
+		if (!getMainController()->getUserPresetHandler().setCustomAutomationData(newList))
+		{
+			reportScriptError("you need to enable setUseCustomDataModel() before calling this method");
+		}
 	}
+}
+
+ScriptUserPresetHandler::AttachedCallback::AttachedCallback(ProcessorWithScriptingContent* pwsc, MainController::UserPresetHandler::CustomAutomationData::Ptr cData_, var f, bool isSynchronous) :
+  cData(cData_),
+  customUpdateCallback(pwsc, var(), 2),
+  customAsyncUpdateCallback(pwsc, var(), 2)
+{
+	if (isSynchronous)
+	{
+		customUpdateCallback = WeakCallbackHolder(pwsc, f, 2);
+		cData->syncListeners.addListener(*this, AttachedCallback::onCallbackSync, false);
+	}
+	else
+	{
+		customAsyncUpdateCallback = WeakCallbackHolder(pwsc, f, 2);
+		cData->asyncListeners.addListener(*this, AttachedCallback::onCallbackAsync, false);
+	}
+}
+
+ScriptUserPresetHandler::AttachedCallback::~AttachedCallback()
+{
+	if (customUpdateCallback)
+		cData->syncListeners.removeListener(*this);
+
+	if (customAsyncUpdateCallback)
+		cData->asyncListeners.removeListener(*this);
+
+	cData = nullptr;
+}
+
+void ScriptUserPresetHandler::AttachedCallback::onCallbackSync(AttachedCallback& c, var* args)
+{
+	if (c.customUpdateCallback)
+		c.customUpdateCallback.callSync(args, 2, nullptr);
+}
+
+void ScriptUserPresetHandler::AttachedCallback::onCallbackAsync(AttachedCallback& c, int index, float newValue)
+{
+	if (c.customAsyncUpdateCallback)
+	{
+		var args[2];
+		args[0] = index;
+		args[1] = newValue;
+		c.customAsyncUpdateCallback.call(args, 2);
+	}
+}
+
+void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var updateCallback, bool isSynchronous)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(updateCallback))
+	{
+		if (auto cData = getMainController()->getUserPresetHandler().getCustomAutomationData(Identifier(automationId)))
+		{
+			for (auto& c : attachedCallbacks)
+			{
+				if (automationId == c->id)
+				{
+					attachedCallbacks.removeObject(c);
+					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "removing old attached callback for " + automationId);
+					break;
+				}
+			}
+
+			attachedCallbacks.add(new AttachedCallback(getScriptProcessor(), cData, updateCallback, isSynchronous));
+
+
+			return;
+		}
+		else
+		{
+			reportScriptError(automationId + " not found");
+		}
+	}
+}
+
+void ScriptUserPresetHandler::clearAttachedCallbacks()
+{
+	attachedCallbacks.clear();
 }
 
 var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
@@ -2293,5 +2372,7 @@ String ScriptUnlocker::RefObject::getRegisteredMachineId()
 {
 	return unlocker->registeredMachineId;
 }
+
+
 
 } // namespace hise
