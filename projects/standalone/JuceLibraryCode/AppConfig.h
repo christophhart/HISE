@@ -118,6 +118,10 @@
  #define   USE_COPY_PROTECTION 0
 #endif
 
+#ifndef    USE_SCRIPT_COPY_PROTECTION
+ //#define USE_SCRIPT_COPY_PROTECTION 0
+#endif
+
 #ifndef    USE_IPP
  #define   USE_IPP 1
 #endif
@@ -170,6 +174,10 @@
  #define   ENABLE_PLOTTER 1
 #endif
 
+#ifndef    HISE_NUM_MACROS
+ //#define HISE_NUM_MACROS 1
+#endif
+
 #ifndef    ENABLE_SCRIPTING_SAFE_CHECKS
  #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
@@ -194,12 +202,24 @@
  //#define READ_ONLY_FACTORY_PRESETS 0
 #endif
 
+#ifndef    CONFIRM_PRESET_OVERWRITE
+ //#define CONFIRM_PRESET_OVERWRITE 1
+#endif
+
 #ifndef    ENABLE_CONSOLE_OUTPUT
  //#define ENABLE_CONSOLE_OUTPUT 1
 #endif
 
 #ifndef    ENABLE_HOST_INFO
  //#define ENABLE_HOST_INFO 1
+#endif
+
+#ifndef    HISE_USE_OPENGL_FOR_PLUGIN
+ //#define HISE_USE_OPENGL_FOR_PLUGIN 0
+#endif
+
+#ifndef    HISE_DEFAULT_OPENGL_VALUE
+ //#define HISE_DEFAULT_OPENGL_VALUE 1
 #endif
 
 #ifndef    ENABLE_STARTUP_LOGGER
@@ -436,6 +456,10 @@
 
 #ifndef    JUCE_FORCE_DEBUG
  //#define JUCE_FORCE_DEBUG 0
+#endif
+
+#ifndef    JUCE_ENABLE_AUDIO_GUARD
+ //#define JUCE_ENABLE_AUDIO_GUARD 0
 #endif
 
 #ifndef    JUCE_LOG_ASSERTIONS

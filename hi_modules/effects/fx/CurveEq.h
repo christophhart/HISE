@@ -45,7 +45,7 @@ namespace hise { using namespace juce;
 	some time in the future
 */
 #ifndef HISE_USE_SVF_FOR_CURVE_EQ
-#define HISE_USE_SVF_FOR_CURVE_EQ 0
+#define HISE_USE_SVF_FOR_CURVE_EQ 1
 #endif
 
 /** A parametriq equalizer with unlimited bands and FFT display. 
