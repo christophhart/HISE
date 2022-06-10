@@ -505,7 +505,21 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 		asProcessor().parameterNames.clear();
 
 		for (int i = 0; i < opaqueNode->numParameters; i++)
+        {
+            parameterRanges.set(i, opaqueNode->parameters[i].toRange());
 			asProcessor().parameterNames.add(opaqueNode->parameters[i].getId());
+            
+            if(auto cp = asProcessor().getChildProcessor(i))
+            {
+                if(auto modChain = dynamic_cast<ModulatorChain*>(cp))
+                {
+                    auto rng = parameterRanges[i].rng;
+                    
+                    auto bipolar = rng.start < 0.0 && rng.end > 0.0;
+                    modChain->setMode(bipolar ? Modulation::PanMode : Modulation::GainMode, sendNotificationAsync);
+                }
+            }
+        }
 
 		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, somethingChanged, opaqueNode->numParameters);
 

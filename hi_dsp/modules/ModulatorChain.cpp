@@ -618,7 +618,7 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 {
 	activeVoices.setRange(0, numVoices, false);
 
-	setMode(m);
+	setMode(m, dontSendNotification);
 
 	
 
@@ -929,10 +929,17 @@ void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 	jassert(checkModulatorStructure());
 };
 
-void ModulatorChain::setMode(Mode newMode)
+void ModulatorChain::setMode(Mode newMode, NotificationType n)
 {
-	Modulation::setMode(newMode);
-	setFactoryType(new ModulatorChainFactoryType(polyManager.getVoiceAmount(), newMode, parentProcessor));
+    setFactoryType(new ModulatorChainFactoryType(polyManager.getVoiceAmount(), newMode, parentProcessor));
+    
+    if(getMode() != newMode)
+    {
+        Modulation::setMode(newMode, n);
+        
+        for(auto m: allModulators)
+            dynamic_cast<Modulation*>(m)->setMode(newMode, n);
+    }
 }
 
 void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
