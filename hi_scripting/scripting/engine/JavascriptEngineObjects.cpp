@@ -20,12 +20,98 @@ struct HiseJavascriptEngine::RootObject::ObjectClass : public DynamicObject
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 {
+	typedef var(*ScopedNativeFunction)(Args, const Scope&);
+
+	// This is annoying, but in order to get the scope we have to hack this stuff here...
+	static ScopedNativeFunction getScopedFunction(const Identifier& id)
+	{
+		static const Array<Identifier> scopedFunctions =
+		{
+			"find",
+			"some",
+			"map",
+			"filter"
+		};
+
+		static constexpr int NumFunctionPointers = 4;
+
+		static const ScopedNativeFunction scopedFunctionPointers[NumFunctionPointers] =
+		{
+			ArrayClass::find,
+			ArrayClass::some,
+			ArrayClass::map,
+			ArrayClass::filter
+		};
+
+		auto idx = scopedFunctions.indexOf(id);
+
+		if (isPositiveAndBelow(idx, NumFunctionPointers))
+		{
+			return scopedFunctionPointers[idx];
+		}
+		
+		return nullptr;
+	}
+
+private:
+
+	static bool isFunctionObject(const var& f)
+	{
+		if (dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(f.getObject()))
+			return true;
+
+		if (dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
+			return true;
+
+		if (f.isMethod())
+			return true;
+
+		return false;
+	}
+
+	static int getNumArgs(const var& f)
+	{
+		if (auto fo = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(f.getObject()))
+		{
+			return fo->parameters.size();
+		}
+		if (auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
+		{
+			return ilf->parameterNames.size();
+		}
+
+		return 0;
+	}
+
+	static var callScopedFunction(const var& f, const var::NativeFunctionArgs& args, const HiseJavascriptEngine::RootObject::Scope* parent, DynamicObject::Ptr scopeObject)
+	{
+		jassert(parent != nullptr);
+
+		if (f.isMethod())
+			return f.getNativeFunction()(args);
+
+		if (auto fo = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(f.getObject()))
+		{
+			HiseJavascriptEngine::RootObject::Scope s(parent, parent != nullptr ? parent->root.get() : nullptr, scopeObject.get());
+			return fo->invokeWithoutAllocation(s, args, scopeObject.get());
+		}
+		if (auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
+		{
+			HiseJavascriptEngine::RootObject::Scope s(parent, parent != nullptr ? parent->root.get() : nullptr, scopeObject.get());
+			return ilf->performDynamically(s, args.arguments, args.numArguments);
+		}
+
+		return var();
+	}
+
+public:
 	ArrayClass()
 	{
 		setMethod("contains", contains);
 		setMethod("remove", remove);
 		setMethod("join", join);
 		setMethod("push", push);
+		setMethod("pop", pop);
         setMethod("sort", sort);
         setMethod("sortNatural", sortNatural);
 		setMethod("insert", insert);
@@ -35,6 +121,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("reverse", reverse);
         setMethod("reserve", reserve);
 		setMethod("clear", clear);
+		
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -92,6 +179,18 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 
 		return var();
 	}
+
+	static var pop(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto v = array->getLast();
+			array->removeLast();
+			return v;
+		}
+
+		return var();
+	}
     
 	static var reverse(Args a)
 	{
@@ -132,6 +231,182 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         return var();
     }
     
+	static var map(Args a, const Scope& parent)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto f = get(a, 0);
+
+			if (isFunctionObject(f))
+			{
+				int numArgs = getNumArgs(f);
+
+				Array<var> newArray;
+				auto thisObject = get(a, 1);
+				newArray.ensureStorageAllocated(array->size());
+
+				DynamicObject::Ptr scopeObject = new DynamicObject();
+
+				int index = 0;
+
+				for (const auto& element : *array)
+				{
+					if (element.isUndefined() || element.isVoid())
+						continue;
+
+					var arg[3];
+					arg[0] = element;
+					arg[1] = index++;
+					arg[2] = a.thisObject;
+
+					var::NativeFunctionArgs args(thisObject, arg, numArgs);
+					
+					auto mappedElement = callScopedFunction(f, args, &parent, scopeObject);
+					newArray.add(mappedElement);
+				}
+
+				return var(newArray);
+			}
+			else
+			{
+				throw String("not a function");
+			}
+		}
+
+		return var();
+	}
+
+	static var filter(Args a, const Scope& parent)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto f = get(a, 0);
+
+			if (isFunctionObject(f))
+			{
+				int numArgs = getNumArgs(f);
+
+				Array<var> newArray;
+				auto thisObject = get(a, 1);
+				newArray.ensureStorageAllocated(array->size());
+
+				DynamicObject::Ptr scopeObject = new DynamicObject();
+
+				int index = 0;
+
+				for (const auto& element : *array)
+				{
+					if (element.isUndefined() || element.isVoid())
+						continue;
+
+					var arg[3];
+					arg[0] = element;
+					arg[1] = index++;
+					arg[2] = a.thisObject;
+
+					var::NativeFunctionArgs args(thisObject, arg, numArgs);
+
+					if (callScopedFunction(f, args, &parent, scopeObject))
+						newArray.add(element);
+				}
+
+				return var(newArray);
+			}
+			else
+			{
+				throw String("not a function");
+			}
+		}
+
+		return var();
+	}
+
+	static var some(Args a, const Scope& parent)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto f = get(a, 0);
+
+			if (isFunctionObject(f))
+			{
+				int numArgs = getNumArgs(f);
+
+				auto thisObject = get(a, 1);
+
+				DynamicObject::Ptr scopeObject = new DynamicObject();
+
+				int index = 0;
+
+				for (const auto& element : *array)
+				{
+					if (element.isUndefined() || element.isVoid())
+						continue;
+
+					var arg[3];
+					arg[0] = element;
+					arg[1] = index++;
+					arg[2] = a.thisObject;
+
+					var::NativeFunctionArgs args(thisObject, arg, numArgs);
+
+					if (callScopedFunction(f, args, &parent, scopeObject))
+						return true;
+				}
+
+				return var(false);
+			}
+			else
+			{
+				throw String("not a function");
+			}
+		}
+
+		return var();
+	}
+
+	static var find(Args a, const Scope& parent)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto f = get(a, 0);
+
+			if (isFunctionObject(f))
+			{
+				int numArgs = getNumArgs(f);
+
+				auto thisObject = get(a, 1);
+
+				DynamicObject::Ptr scopeObject = new DynamicObject();
+
+				int index = 0;
+
+				for (const auto& element : *array)
+				{
+					if (element.isUndefined() || element.isVoid())
+						continue;
+
+					var arg[3];
+					arg[0] = element;
+					arg[1] = index++;
+					arg[2] = a.thisObject;
+
+					var::NativeFunctionArgs args(thisObject, arg, numArgs);
+
+					if (callScopedFunction(f, args, &parent, scopeObject))
+						return element;
+				}
+
+				return var();
+			}
+			else
+			{
+				throw String("not a function");
+			}
+		}
+
+		return var();
+	}
+
 
     static var reserve(Args a)
     {
@@ -211,6 +486,9 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
     {
         return get(a, 0).isArray();
     }
+
+
+
     
 };
 
@@ -263,6 +541,21 @@ public:
 
 	/** Checks if the given variable is an array. */
 	bool isArray(var variableToTest) { return false; }
+
+	/** Returns the value of the first element that passes the function test. */
+	var find(var testFunction, var optionalThisObject) { return var(); }
+
+	/** Creates a new array from calling a function for every array element. */
+	var map(var testFunction, var optionalThisObject) { return var(); }
+
+	/* Checks if any array elements pass a function test. */
+	var some(var testFunction, var optionalThisObject) { return var(); }
+
+	/* Creates a new array filled with elements that pass the function test. */
+	var filter(var testFunction, var optionalThisObject) { return var(); }
+
+	/** Removes and returns the last element. */
+	var pop() { return var(); }
 };
 
 #if JUCE_MSVC
