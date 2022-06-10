@@ -1421,8 +1421,8 @@ public:
 		/** Returns the value at the given index. */
 		double getSliderValueAt(int index);
 
-		/** Sets all slider values to the given value. */
-		void setAllValues(double value);
+		/** Sets all slider values to the given value. If value is a number it will be filled with the number. If it's a buffer (or array) it will set the values accordingly (without resizing the slider packs). */
+		void setAllValues(var value);
 
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
@@ -1434,6 +1434,9 @@ public:
 		var registerAtParent(int pIndex);
 
 		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+
+		/** Returns a Buffer object containing all slider values (as reference). */
+		var getDataAsBuffer();
 
 		// ========================================================================================================
 
