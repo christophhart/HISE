@@ -2128,6 +2128,11 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("id", slider.getComponentID());
 		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
+
+		auto parentPack = slider.findParentComponentOfClass<SliderPack>();
+
+		
+
 		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
 
 		obj->setProperty("valueAsText", slider.getTextFromValue(slider.getValue()));
@@ -2169,6 +2174,16 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		setColourOrBlack(obj, "itemColour1", slider, HiseColourScheme::ComponentFillTopColourId);
 		setColourOrBlack(obj, "itemColour2", slider, HiseColourScheme::ComponentFillBottomColourId);
 		setColourOrBlack(obj, "textColour",  slider, HiseColourScheme::ComponentTextColourId);
+
+		if (parentPack != nullptr)
+		{
+			obj->setProperty("text", parentPack->getName());
+
+			setColourOrBlack(obj, "bgColour", *parentPack, Slider::ColourIds::backgroundColourId);
+			setColourOrBlack(obj, "itemColour1", *parentPack, Slider::thumbColourId);
+			setColourOrBlack(obj, "itemColour2", *parentPack, Slider::textBoxOutlineColourId);
+			setColourOrBlack(obj, "textColour", *parentPack, Slider::trackColourId);
+		}
 
 		addParentFloatingTile(slider, obj);
 

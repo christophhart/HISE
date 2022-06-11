@@ -2041,9 +2041,6 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateColours(SliderPack
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateRange(SliderPackData* data)
 {
-	return;
-
-#if 0
 	ScriptingApi::Content::ScriptSliderPack *ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent());
 
 	double min = GET_SCRIPT_PROPERTY(min);
@@ -2054,9 +2051,8 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateRange(SliderPackDa
 	{
 		data->setRange(min, max, stepSize);
 		SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
-		sp->updateSliders();
+		sp->updateSliderRange();
 	}
-#endif
 }
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue)

@@ -354,6 +354,8 @@ public:
 			setSliderPackData(sp);
 	}
 
+	void updateSliderRange();
+
 	void updateSliders();
 
 #if 0
