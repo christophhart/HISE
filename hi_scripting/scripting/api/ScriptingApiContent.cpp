@@ -2599,7 +2599,7 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 		{
 			if (!isMultiValue || isPositiveAndBelow(i, maxIndex))
 			{
-				auto vToSet = isMultiValue ? value[i] : (float)value;
+				auto vToSet = isMultiValue ? (float)value[i] : (float)value;
 				d->setValue(i, (float)vToSet, dontSendNotification);
 			}
 		}
