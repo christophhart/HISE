@@ -2497,6 +2497,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
 	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getDataAsBuffer);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValueChangeCausesCallback);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
@@ -2549,6 +2550,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
     ADD_API_METHOD_1(setWidthArray);
 	ADD_API_METHOD_1(registerAtParent);
 	ADD_API_METHOD_0(getDataAsBuffer);
+	ADD_API_METHOD_1(setAllValueChangeCausesCallback);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -2566,7 +2568,9 @@ void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double
 	{
 		value = index;
 		d->setValue(index, (float)newValue, dontSendNotification);
-		d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
+
+		if(allValueChangeCausesCallback)
+			d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
 	}
 }
 
@@ -2602,7 +2606,10 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 
 		value = -1;
 
-		d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+		if (allValueChangeCausesCallback)
+		{
+			d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+		}
 	}
 }
 
@@ -2758,6 +2765,11 @@ void ScriptingApi::Content::ScriptSliderPack::changed()
 juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
 {
 	return getCachedSliderPack()->getDataArray();
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bool shouldBeEnabled)
+{
+	allValueChangeCausesCallback = shouldBeEnabled;
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
