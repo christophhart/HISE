@@ -1389,7 +1389,7 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 };
 
 ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index_, ExternalDataHolder* otherHolder) :
-	ScriptComplexDataReferenceBase(pwsc, 0, snex::ExternalData::DataType::AudioFile, otherHolder)
+	ScriptComplexDataReferenceBase(pwsc, index_, snex::ExternalData::DataType::AudioFile, otherHolder)
 {
 	ADD_API_METHOD_2(setRange);
 	ADD_API_METHOD_1(loadFile);
