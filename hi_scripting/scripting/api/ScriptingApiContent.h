@@ -593,6 +593,9 @@ public:
 		/** Attaches the local look and feel to this component. */
 		void setLocalLookAndFeel(var lafObject);
 
+		/** Manually sends a repaint message for the component. */
+		void sendRepaintMessage();
+
 		// End of API Methods ============================================================================================
 
 		bool handleKeyPress(const KeyPress& k);
@@ -724,6 +727,8 @@ public:
 		}
 
 		CustomAutomationPtr getCustomAutomation() { return currentAutomationData; }
+
+		LambdaBroadcaster<bool> repaintBroadcaster;
 
 	protected:
 

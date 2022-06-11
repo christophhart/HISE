@@ -132,6 +132,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -316,6 +317,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setKeyPressCallback);
 	ADD_API_METHOD_0(loseFocus);
 	ADD_API_METHOD_1(setLocalLookAndFeel);
+	ADD_API_METHOD_0(sendRepaintMessage);
+	
 
 	//setName(name_.toString());
 
@@ -1404,6 +1407,11 @@ void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
 
 	while (auto childPanel = iter.getNextChildComponent())
 		childPanel->repaint();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendRepaintMessage()
+{
+	repaintBroadcaster.sendMessage(sendNotificationAsync, true);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

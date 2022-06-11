@@ -163,6 +163,8 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 {
 	scriptComponent = content->contentData->getComponent(index_);
 
+	scriptComponent->repaintBroadcaster.addListener(*this, ScriptCreatedComponentWrapper::repaintComponent, false);
+
 	scriptComponent->addZLevelListener(this);
 }
 
@@ -174,6 +176,7 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 	scriptComponent(sc)
 {
 	scriptComponent->addZLevelListener(this);
+	scriptComponent->repaintBroadcaster.addListener(*this, ScriptCreatedComponentWrapper::repaintComponent, false);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
