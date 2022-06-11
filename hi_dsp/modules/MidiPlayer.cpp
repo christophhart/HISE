@@ -666,7 +666,7 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 	auto maxLength = destination->getLength();
 
-	for (const auto& e : arrayToWrite)
+	for (auto& e : arrayToWrite)
 	{
 		if (e.isEmpty())
 			continue;
@@ -680,6 +680,9 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 		if (maxLength != 0.0)
 			timeStamp = jmin(maxLength, timeStamp);
+
+		if (e.getChannel() == 0)
+			e.setChannel(1);
 
 		if (e.isNoteOn() && e.getTransposeAmount() != 0)
 		{

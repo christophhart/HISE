@@ -329,6 +329,12 @@ namespace ScriptingObjects
 		/** Writes the given data (either a Buffer or Array of Buffers) to a audio file. */
 		bool writeAudioFile(var audioData, double sampleRate, int bitDepth);
 
+		/** Writes the array of MessageHolders as MIDI file using the metadataObject to determine time signature, tempo, etc. */
+		bool writeMidiFile(var eventList, var metadataObject);
+
+		/** Loads the track (zero-based) of the MIDI file. If successful, it returns an object containing the time signature and a list of all events. */
+		var loadAsMidiFile(int trackIndex);
+
 		/** Replaces the file content with the given text. */
 		bool writeString(String text);
 
@@ -2321,6 +2327,9 @@ namespace ScriptingObjects
 
 		/** Attaches a callback that gets executed whenever the sequence was changed. */
 		void setSequenceCallback(var updateFunction);
+
+		/** Returns a typed MIDI processor reference (for setting attributes etc). */
+		var asMidiProcessor();
 
 		// ============================================================================================================
 
