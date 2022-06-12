@@ -233,10 +233,24 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 					return obj->performDynamically(s, parameters, arguments.size());
 				}
 			}
+			if (thisObject.isArray())
+			{
+				if (auto sf = ArrayClass::getScopedFunction(dot->child))
+				{
+					s.checkTimeOut(location);
+					Array<var> argVars;
+
+					for (auto* a : arguments)
+						argVars.add(a->getResult(s));
+
+					const var::NativeFunctionArgs args(thisObject, argVars.begin(), argVars.size());
+
+					return sf(args, s);
+				}
+			}
 
 			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
 		}
-
 
 		var r = object->getResult(s);
 
@@ -379,6 +393,7 @@ root(root_)
 		hiddenProperties.addIfNotAlreadyThere(Identifier("trace"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("charToInt"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("parseInt"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("parseFloat"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("typeof"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Object"));
 		//hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
@@ -1006,6 +1021,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 	return var();
 }
+
 
 void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s) noexcept
 {

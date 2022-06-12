@@ -593,6 +593,9 @@ public:
 		/** Attaches the local look and feel to this component. */
 		void setLocalLookAndFeel(var lafObject);
 
+		/** Manually sends a repaint message for the component. */
+		void sendRepaintMessage();
+
 		// End of API Methods ============================================================================================
 
 		bool handleKeyPress(const KeyPress& k);
@@ -724,6 +727,8 @@ public:
 		}
 
 		CustomAutomationPtr getCustomAutomation() { return currentAutomationData; }
+
+		LambdaBroadcaster<bool> repaintBroadcaster;
 
 	protected:
 
@@ -1415,14 +1420,17 @@ public:
 		/** Connects this SliderPack to an existing SliderPackData object. -1 sets it back to its internal data object. */
 		void referToData(var sliderPackData);
 
+		/** Enables or disables the control callback execution when the SliderPack is changed via setAllValues. */
+		void setAllValueChangeCausesCallback(bool shouldBeEnabled);
+
 		/** sets the slider value at the given index.*/
 		void setSliderAtIndex(int index, double value);
 
 		/** Returns the value at the given index. */
 		double getSliderValueAt(int index);
 
-		/** Sets all slider values to the given value. */
-		void setAllValues(double value);
+		/** Sets all slider values to the given value. If value is a number it will be filled with the number. If it's a buffer (or array) it will set the values accordingly (without resizing the slider packs). */
+		void setAllValues(var value);
 
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
@@ -1435,6 +1443,9 @@ public:
 
 		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
 
+		/** Returns a Buffer object containing all slider values (as reference). */
+		var getDataAsBuffer();
+
 		// ========================================================================================================
 
 		void changed() override;
@@ -1446,6 +1457,8 @@ public:
 		Array<var> widthArray;
 
 	private:
+
+		bool allValueChangeCausesCallback = true;
 
 		const SliderPackData* getCachedSliderPack() const { return static_cast<const SliderPackData*>(getCachedDataObject()); };
 		SliderPackData* getCachedSliderPack() { return static_cast<SliderPackData*>(getCachedDataObject()); };

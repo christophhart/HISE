@@ -84,7 +84,13 @@ public:
 	void setUseCustomUserPresetModel(var loadCallback, var saveCallback, bool usePersistentObject);
 
 	/** Enables host / MIDI automation with the custom user preset model. */
-	void setCustomAutomation(var automationData, var updateCallback);
+	void setCustomAutomation(var automationData);
+
+	/** Attaches a callback to automation changes. Use empty string to attach to all callbacks. */
+	void attachAutomationCallback(String automationId, var updateCallback, bool isSynchronous);
+
+	/** Clears all attached callbacks. */
+	void clearAttachedCallbacks();
 
 	// ===============================================================================================
 
@@ -127,7 +133,24 @@ public:
 
 private:
 
-	
+	struct AttachedCallback: public ReferenceCountedObject
+	{
+		AttachedCallback(ProcessorWithScriptingContent* p, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
+
+		~AttachedCallback();
+
+		String id;
+		WeakCallbackHolder customUpdateCallback;
+		WeakCallbackHolder customAsyncUpdateCallback;
+
+		static void onCallbackSync(AttachedCallback& c, var* args);
+
+		static void onCallbackAsync(AttachedCallback& c, int index, float newValue);
+
+		MainController::UserPresetHandler::CustomAutomationData::Ptr cData;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(AttachedCallback);
+	};
 
 	bool enablePreprocessing = false;
 	bool unpackComplexData = false;
@@ -136,7 +159,8 @@ private:
 
 	WeakCallbackHolder customLoadCallback;
 	WeakCallbackHolder customSaveCallback;
-	WeakCallbackHolder customUpdateCallback;
+	
+	ReferenceCountedArray<AttachedCallback> attachedCallbacks;
 
 	File currentlyLoadedFile;
 	struct Wrapper;

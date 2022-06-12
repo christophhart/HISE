@@ -230,30 +230,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 		bipolarModButton->setVisible(false);
 
-		auto m = getModulatorMode();
-
-		if(m == Modulation::PitchMode)
-		{
-			intensitySlider->setRange(-12.0, 12.0, 0.01);
-			intensitySlider->setTextValueSuffix(" st");
-			intensitySlider->setTextBoxIsEditable(true);
-			bipolarModButton->setVisible(!isHeaderOfChain());
-			bipolarModButton->addListener(this);
-		}
-		else if (m == Modulation::PanMode)
-		{
-			intensitySlider->setRange(-100.0, 100.0, 1);
-			intensitySlider->setTextValueSuffix("%");
-			intensitySlider->setTextBoxIsEditable(true);
-			bipolarModButton->setVisible(!isHeaderOfChain());
-			bipolarModButton->addListener(this);
-		}
-		else if (m == Modulation::GlobalMode)
-		{
-			bipolarModButton->setVisible(!isHeaderOfChain());
-			bipolarModButton->addListener(this);
-		}
-
+        dynamic_cast<Modulation*>(getProcessor())->modeBroadcaster.addListener(*this, updateModulationMode, true);
+        
 		intensitySlider->setTooltip("Set the intensity of the modulation. 0 = no effect, 1 = full range modulation.");
 
 		valueMeter->setType(VuMeter::MonoHorizontal);
@@ -354,6 +332,44 @@ void ProcessorEditorHeader::setLookAndFeel()
 	
 	repaint();
 };
+
+void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m_)
+{
+    auto m = (Modulation::Mode)m_;
+    
+    if(m == Modulation::GainMode)
+    {
+        h.bipolarModButton->setVisible(false);
+        h.intensitySlider->setTextValueSuffix("");
+        h.intensitySlider->setRange (0, 1, 0.01);
+    }
+    else if(m == Modulation::PitchMode)
+    {
+        h.intensitySlider->setRange(-12.0, 12.0, 0.01);
+        h.intensitySlider->setTextValueSuffix(" st");
+        h.intensitySlider->setTextBoxIsEditable(true);
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    else if (m == Modulation::PanMode)
+    {
+        h.intensitySlider->setRange(-100.0, 100.0, 1);
+        h.intensitySlider->setTextValueSuffix("%");
+        h.intensitySlider->setTextBoxIsEditable(true);
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    else if (m == Modulation::GlobalMode)
+    {
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    
+    const double intensity = dynamic_cast<Modulation*>(h.getProcessor())->getDisplayIntensity();
+    h.intensitySlider->setValue(intensity, dontSendNotification);
+    
+    h.resized();
+}
 
 bool ProcessorEditorHeader::isHeaderOfModulator() const		{ return dynamic_cast<const Modulator*>(getProcessor()) != nullptr;	};
 

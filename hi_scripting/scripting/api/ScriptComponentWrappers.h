@@ -319,6 +319,12 @@ public:
 
 	ScopedPointer<ValuePopup> currentPopup;
 
+	static void repaintComponent(ScriptCreatedComponentWrapper& w, bool unused)
+	{
+		if (auto c = w.getComponent())
+			c->repaint();
+	}
+
 protected:
 
 	/** You need to do this tasks in your constructor:

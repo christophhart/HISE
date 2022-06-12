@@ -691,47 +691,9 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 				setUnlearndedMidiControlNumber(number, sendNotification);
 			}
 
-			for (auto& a : automationData[number])
-			{
-				if (a.used && a.processor.get() != nullptr)
-				{
-					jassert(a.processor.get() != nullptr);
+			HiseEvent he(m);
 
-					auto normalizedValue = (double)m.getControllerValue() / 127.0;
-
-					if (a.inverted) normalizedValue = 1.0 - normalizedValue;
-
-					const double value = a.parameterRange.convertFrom0to1(normalizedValue);
-
-					const float snappedValue = (float)a.parameterRange.snapToLegalValue(value);
-
-					if (a.macroIndex != -1)
-					{
-						a.processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a.macroIndex, (float)m.getControllerValue(), sendNotification);
-					}
-					else
-					{
-						if (a.lastValue != snappedValue)
-						{
-							auto& uph = a.processor->getMainController()->getUserPresetHandler();
-
-							if (uph.isUsingCustomDataModel())
-							{
-								if (auto ad = uph.getCustomAutomationData(a.attribute))
-									ad->call(snappedValue);
-							}
-							else
-							{
-								a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
-							}
-
-							a.lastValue = snappedValue;
-						}
-					}
-
-					consumed = true;
-				}
-			}
+			consumed = handleControllerMessage(he);
 		}
 
 		if (!consumed) tempBuffer.addEvent(m, samplePos);
@@ -741,6 +703,55 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 	b.addEvents(tempBuffer, 0, -1, 0);
 }
 
+
+bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e)
+{
+	auto number = e.getControllerNumber();
+
+	for (auto& a : automationData[number])
+	{
+		if (a.used && a.processor.get() != nullptr)
+		{
+			jassert(a.processor.get() != nullptr);
+
+			auto normalizedValue = (double)e.getControllerValue() / 127.0;
+
+			if (a.inverted) normalizedValue = 1.0 - normalizedValue;
+
+			const double value = a.parameterRange.convertFrom0to1(normalizedValue);
+
+			const float snappedValue = (float)a.parameterRange.snapToLegalValue(value);
+
+			if (a.macroIndex != -1)
+			{
+				a.processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a.macroIndex, (float)e.getControllerValue(), sendNotification);
+			}
+			else
+			{
+				if (a.lastValue != snappedValue)
+				{
+					auto& uph = a.processor->getMainController()->getUserPresetHandler();
+
+					if (uph.isUsingCustomDataModel())
+					{
+						if (auto ad = uph.getCustomAutomationData(a.attribute))
+							ad->call(snappedValue);
+					}
+					else
+					{
+						a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
+					}
+
+					a.lastValue = snappedValue;
+				}
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
 
 hise::MidiControllerAutomationHandler::AutomationData MidiControllerAutomationHandler::getDataFromIndex(int index) const
 {

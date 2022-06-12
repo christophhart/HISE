@@ -290,7 +290,7 @@ struct ProcessDataDyn: public InternalData
 	{
 		numChannels = numChannels_;
 
-		jassert(numChannels < NUM_MAX_CHANNELS);
+		jassert(numChannels <= NUM_MAX_CHANNELS);
 
 	}
 

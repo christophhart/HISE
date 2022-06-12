@@ -356,7 +356,7 @@ public:
 	/** Sets the sample rate for all modulators in the chain and initialized the UpdateMerger. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	
-	void setMode(Mode newMode) override;
+	void setMode(Mode newMode, NotificationType n) override;
 
 	bool hasActivePolyMods() const noexcept;
 	bool hasActiveVoiceStartMods() const noexcept;

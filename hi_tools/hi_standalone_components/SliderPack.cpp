@@ -278,6 +278,27 @@ void SliderPack::setNumSliders(int numSliders)
 	data->setNumSliders(numSliders);
 }
 
+void SliderPack::updateSliderRange()
+{
+	auto rToUse = data->getRange();
+	auto stepSize = data->getStepSize();
+
+	for (int i = 0; i < sliders.size(); i++)
+	{
+		Slider *s = sliders[i];
+
+		s->setRange(rToUse, stepSize);
+
+		float v = (float)data->getValue(i);
+		v = FloatSanitizers::sanitizeFloatNumber(v);
+
+		s->setValue((double)v, dontSendNotification);
+		s->repaint();
+	}
+
+	repaint();
+}
+
 void SliderPack::updateSliders()
 {
 	for (int i = 0; i < sliders.size(); i++)

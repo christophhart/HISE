@@ -122,6 +122,7 @@ public:
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
 
+	bool handleControllerMessage(const HiseEvent& e);
 		
 	class MPEData : public ControlledObject,
 					public RestorableObject,

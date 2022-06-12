@@ -132,6 +132,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -316,6 +317,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setKeyPressCallback);
 	ADD_API_METHOD_0(loseFocus);
 	ADD_API_METHOD_1(setLocalLookAndFeel);
+	ADD_API_METHOD_0(sendRepaintMessage);
+	
 
 	//setName(name_.toString());
 
@@ -504,7 +507,7 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 
             if ((currentAutomationData = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
 			{
-				currentAutomationData->asyncListeners.addListener(*this, [](ScriptComponent& c, double v)
+				currentAutomationData->asyncListeners.addListener(*this, [](ScriptComponent& c, int index, float v)
 				{
 					c.setValue(v);
 				}, true);
@@ -1404,6 +1407,11 @@ void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
 
 	while (auto childPanel = iter.getNextChildComponent())
 		childPanel->repaint();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendRepaintMessage()
+{
+	repaintBroadcaster.sendMessage(sendNotificationAsync, true);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -2488,6 +2496,8 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
 	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
+	API_METHOD_WRAPPER_0(ScriptSliderPack, getDataAsBuffer);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValueChangeCausesCallback);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
@@ -2539,6 +2549,8 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	ADD_API_METHOD_1(referToData);
     ADD_API_METHOD_1(setWidthArray);
 	ADD_API_METHOD_1(registerAtParent);
+	ADD_API_METHOD_0(getDataAsBuffer);
+	ADD_API_METHOD_1(setAllValueChangeCausesCallback);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -2556,7 +2568,9 @@ void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double
 	{
 		value = index;
 		d->setValue(index, (float)newValue, dontSendNotification);
-		d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
+
+		if(allValueChangeCausesCallback)
+			d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
 	}
 }
 
@@ -2571,17 +2585,31 @@ double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
 	return 0.0;
 }
 
-void ScriptingApi::Content::ScriptSliderPack::setAllValues(double newValue)
+
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 {
 	if (auto d = getCachedSliderPack())
 	{
+		auto isMultiValue = value.isBuffer() || value.isArray();
+
+		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : 0);
+
 		for (int i = 0; i < d->getNumSliders(); i++)
 		{
-			d->setValue(i, (float)newValue, dontSendNotification);
+			if (!isMultiValue || isPositiveAndBelow(i, maxIndex))
+			{
+				auto vToSet = isMultiValue ? (float)value[i] : (float)value;
+				d->setValue(i, (float)vToSet, dontSendNotification);
+			}
 		}
 
 		value = -1;
-		d->getUpdater().sendDisplayChangeMessage(-1.0f, sendNotificationAsync, true);
+
+		if (allValueChangeCausesCallback)
+		{
+			d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+		}
 	}
 }
 
@@ -2732,6 +2760,16 @@ void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUp
 void ScriptingApi::Content::ScriptSliderPack::changed()
 {
 	getScriptProcessor()->controlCallback(this, value);
+}
+
+juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
+{
+	return getCachedSliderPack()->getDataArray();
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bool shouldBeEnabled)
+{
+	allValueChangeCausesCallback = shouldBeEnabled;
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper

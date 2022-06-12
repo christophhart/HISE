@@ -620,7 +620,22 @@ public:
 			var args[2];
 
 			LambdaBroadcaster<var*> syncListeners;
-			LambdaBroadcaster<float> asyncListeners;
+			LambdaBroadcaster<int, float> asyncListeners;
+
+			struct ProcessorConnection
+			{
+				WeakReference<Processor> connectedProcessor;
+				int connectedParameterIndex = -1;
+
+				operator bool() const
+				{
+					return connectedProcessor != nullptr && connectedParameterIndex != -1;
+				}
+
+				void call(float v) const;
+			};
+
+			Array<ProcessorConnection> processorConnections;
 
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CustomAutomationData);
 		};
