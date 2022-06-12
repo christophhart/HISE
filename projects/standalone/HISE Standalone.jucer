@@ -153,7 +153,7 @@
                        isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
+                       linkTimeOptimisation="1" defines="HISE_USE_SVF_FOR_CURVE_EQ"/>
         <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="2" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
