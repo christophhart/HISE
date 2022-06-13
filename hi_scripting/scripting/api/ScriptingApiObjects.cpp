@@ -5130,6 +5130,8 @@ void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunctio
 		updateCallback = WeakCallbackHolder(getScriptProcessor(), updateFunction, 0);
 		updateCallback.setThisObject(this);
 		updateCallback.incRefCount();
+
+		callUpdateCallback();
 	}
 }
 
