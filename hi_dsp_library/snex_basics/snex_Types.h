@@ -394,8 +394,6 @@ struct VoiceResetter
 	virtual void onVoiceReset(bool allVoices, int voiceIndex) = 0;
 	virtual int getNumActiveVoices() const = 0;
 
-	int skipResetIndex = -1;
-
 	JUCE_DECLARE_WEAK_REFERENCEABLE(VoiceResetter);
 };
 
@@ -403,7 +401,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 {
 	DllBoundaryTempoSyncer()
 	{
-		
+		tempoListeners.ensureStorageAllocated(256);
 	}
 	~DllBoundaryTempoSyncer() = default;
 	
@@ -414,7 +412,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
-			tempoListeners.insert(obj);
+			tempoListeners.addIfNotAlreadyThere(obj);
 		}
 		
 		obj->tempoChanged(bpm);
@@ -424,7 +422,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	void deregisterItem(hise::TempoListener* obj)
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
-		tempoListeners.remove(obj);
+		tempoListeners.removeAllInstancesOf(obj);
 	}
 
 	void tempoChanged(double newTempo)
@@ -447,7 +445,7 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	
 	hise::SimpleReadWriteLock listenerLock;
 
-	hise::UnorderedStack<WeakReference<hise::TempoListener>, 256> tempoListeners;
+	Array<WeakReference<hise::TempoListener>> tempoListeners;
 
 	// Oh boy, what a disgrace...
 	ModValue* publicModValue = nullptr;
@@ -553,29 +551,6 @@ struct PolyHandler
 		PolyHandler& p;
 	};
 
-	struct ScopedNoReset
-	{
-		ScopedNoReset(PolyHandler& p, int voiceIndex):
-			parent(p),
-			prevValue(-1)
-		{
-			if (auto vr = p.getVoiceResetter())
-			{
-				prevValue = vr->skipResetIndex;
-				vr->skipResetIndex = voiceIndex;
-			}
-		}
-
-		~ScopedNoReset()
-		{
-			if (auto vr = parent.getVoiceResetter())
-				vr->skipResetIndex = prevValue;
-		}
-
-		PolyHandler& parent;
-		int prevValue;
-	};
-
 	/** Returns the voice index. If its disabled, it will return always zero. If the thread is the processing thread
 	    it will return the voice index that is being set with ScopedVoiceSetter, or -1 if it's called from another thread
 		(or if the voice index has not been set). */
@@ -626,12 +601,7 @@ struct PolyHandler
 	void sendVoiceResetMessage(bool allVoices)
 	{
 		if (vr.get() != nullptr)
-		{
-			auto currentIndex = getVoiceIndex();
-
-			if(vr->skipResetIndex != currentIndex || allVoices)
-				vr->onVoiceReset(allVoices, currentIndex);
-		}
+			vr->onVoiceReset(allVoices, getVoiceIndex());
 	}
 
 	void setVoiceResetter(VoiceResetter* newVr)
@@ -943,17 +913,9 @@ template <typename T, int NumVoices> struct PolyData
 
 	int getVoiceIndexForData(const T& d) const
 	{
-		auto off = (reinterpret_cast<uint64>(&d) - reinterpret_cast<uint64>(&data)) / sizeof(T);
+		auto off = (reinterpret_cast<uint64>(&d) - reinterpret_cast<uint64>(&data)) / sizeof(uint64);
 
 		return jlimit(0, NUM_POLYPHONIC_VOICES, (int)off);
-	}
-
-	bool isMonophonicOrInsideVoiceRendering() const
-	{
-		if (!isPolyphonic() || voicePtr == nullptr)
-			return true;
-
-		return isVoiceRenderingActive();
 	}
 
 private:
@@ -962,7 +924,13 @@ private:
 	
 	static constexpr bool isPolyphonic() { return NumVoices > 1; }
 
-	
+	bool isMonophonicOrInsideVoiceRendering() const
+	{
+		if (!isPolyphonic() || voicePtr == nullptr)
+			return true;
+
+		return isVoiceRenderingActive();
+	}
 
 	bool isVoiceRenderingActive() const
 	{

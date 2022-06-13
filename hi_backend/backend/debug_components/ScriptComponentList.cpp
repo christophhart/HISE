@@ -727,7 +727,7 @@ void ScriptComponentList::resetRootItem()
 	auto v = content->getContentProperties();
 
 	tree->setRootItem(nullptr);
-	tree->setDefaultOpenness(true);
+	tree->setDefaultOpenness(false);
 
 	rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
     

@@ -128,8 +128,6 @@ public:
 	{
 		rebuildLines();
 	}
-    
-    void providerCleared() override;
 
 	void buttonClicked(Button* b) override;
 

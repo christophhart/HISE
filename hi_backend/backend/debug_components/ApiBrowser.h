@@ -337,17 +337,10 @@ public:
 
 			label.setFont(GLOBAL_BOLD_FONT());
 			label.setColour(Label::ColourIds::textColourId, Colours::white);
-            label.setInterceptsMouseClicks(false, true);
+			label.setEditable(false, true);
 			label.refreshWithEachKey = false;
 			label.addMouseListener(this, true);
 
-            
-            label.setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
-            label.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
-            label.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
-            label.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
-            label.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-            
 			powerButton.setToggleModeWithColourChange(true);
 
 			idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
@@ -355,26 +348,11 @@ public:
 
 			bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
 				BIND_MEMBER_FUNCTION_2(NodeItem::updateBypassState));
-            
-            scriptnode::NodeComponent::Factory f;
-            
-            auto fid = node->getValueTree()[PropertyIds::FactoryPath].toString();
-            
-            searchKeywords << " " << fid;
-            
-            if(fid.startsWith("container.") && fid != "container.chain")
-            {
-                icon = f.createPath(fid.fromFirstOccurrenceOf("container.", false, false));
-            }
 		}
-        
-        Path icon;
 
 		void updateBypassState(Identifier id, var newValue)
 		{
 			powerButton.setToggleStateAndUpdateIcon(!newValue);
-            label.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(!newValue ? 0.8f : 0.3f));
-            repaint();
 		}
 
 		void updateId(Identifier id, var newValue)
@@ -421,23 +399,13 @@ public:
             area = b;
             b.removeFromLeft(5);
             
-            powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
-            
-            if(!icon.isEmpty())
-            {
-                
-                
-                PathFactory::scalePath(icon, b.removeFromLeft(b.getHeight() - 4).reduced(2).toFloat());
-            }
-            
+			powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
 			label.setBounds(b);
 		}
-        
+
 		void mouseUp(const MouseEvent& event) override
 		{
-            if(event.mods.isShiftDown())
-                label.showEditor();
-			else if (node != nullptr)
+			if (node != nullptr)
             {
 				node->getRootNetwork()->addToSelection(node, event.mods);
                 
@@ -563,11 +531,6 @@ public:
 		{
 			this->rebuildModuleList(true);
 		});
-        
-        colourUpdater.setCallback(networkTree, { PropertyIds::NodeColour, PropertyIds::Automated }, valuetree::AsyncMode::Asynchronously, [this](ValueTree, Identifier)
-        {
-            this->selectionChanged({});
-        });
 	}
 
 	~DspNodeList()
@@ -587,7 +550,6 @@ public:
 	ValueTree networkTree;
 
 	valuetree::RecursiveTypedChildListener nodeUpdater;
-    valuetree::RecursivePropertyListener colourUpdater;
 
 };
 }

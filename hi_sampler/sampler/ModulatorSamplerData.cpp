@@ -1243,7 +1243,7 @@ juce::AudioFormatWriter* MonolithExporter::createWriter(hlac::HiseLosslessAudioF
 	return writer.release();
 }
 
-int64 MonolithExporter::getNumBytesForSplitSize() const
+juce::uint32 MonolithExporter::getNumBytesForSplitSize() const
 {
 	auto mb = getComboBoxComponent("splitsize")->getText().getIntValue();
 
@@ -1252,7 +1252,7 @@ int64 MonolithExporter::getNumBytesForSplitSize() const
 
 	auto sixtyMB = 1024 * 1024 * 60;
 
-	return (int64)(mb * 1024 * 1024 - sixtyMB);
+	return mb * 1024 * 1024 - sixtyMB;
 }
 
 void MonolithExporter::checkSanity()
@@ -1286,7 +1286,7 @@ juce::File MonolithExporter::getNextMonolith(const File& f) const
 	MonolithFileReference ref(f, numChannels, numMonolithSplitParts);
 
 	ref.bumpToNextMonolith(false);
-	return ref.getFile(false);
+	return ref.getFile();
 
 #if 0
 	auto p = f.getParentDirectory();
@@ -1346,7 +1346,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	
 	Array<File> firstChannelMonolithFiles;
 
-	auto outputFile = monolithFileReference->getFile(false);
+	auto outputFile = monolithFileReference->getFile();
 
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
@@ -1376,7 +1376,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 			hWriter->preallocateMemory(numSamplesToWrite, numChannelsInSample);
 		}
 
-		int64 numBytesWritten = 0;
+		uint32 numBytesWritten = 0;
 
 		for (int i = 0; i < channelList->size(); i++)
 		{
@@ -1430,7 +1430,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 				}
 
 				monolithFileReference->bumpToNextMonolith(false);
-				outputFile = monolithFileReference->getFile(false);
+				outputFile = monolithFileReference->getFile();
 
 				if (outputFile.existsAsFile())
 					outputFile.deleteFile();
@@ -1463,7 +1463,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 			if (renameFirstMonolith)
 			{
 				auto actualFile = outputFile;
-				auto expectedFile = monolithFileReference->getFile(false);
+				auto expectedFile = monolithFileReference->getFile();
 
 				auto ok = expectedFile.deleteFile();
 				ok &= actualFile.moveFileTo(expectedFile);
@@ -1479,7 +1479,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	}
 }
 
-bool MonolithExporter::shouldSplit(int channelIndex, int64 numBytesWritten, int sampleIndex) const
+bool MonolithExporter::shouldSplit(int channelIndex, int numBytesWritten, int sampleIndex) const
 {
 	if (channelIndex == 0)
 		return numBytesWritten > getNumBytesForSplitSize();

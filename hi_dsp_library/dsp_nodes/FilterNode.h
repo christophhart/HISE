@@ -44,7 +44,6 @@ namespace filters
 
 template <class FilterType, int NV> 
 class FilterNodeBase : public data::filter_base,
-					   public polyphonic_base,
 					   public hise::ComplexDataUIUpdaterBase::EventListener
 {
 public:
@@ -65,10 +64,6 @@ public:
 	static constexpr int NumVoices = NV;
 
 	SN_POLY_NODE_ID(FilterType::getFilterTypeId());
-
-	FilterNodeBase() :
-		polyphonic_base(getStaticId(), false)
-	{};
 
 	SN_GET_SELF_AS_OBJECT(FilterNodeBase);
 	SN_DESCRIPTION("A filter node");
@@ -157,27 +152,22 @@ public:
 
 
 
-
-#define DEFINE_FILTER_NODE_TEMPLATE2(fid, FilterType) template <int NV> using fid = FilterNodeBase<hise::MultiChannelFilter<FilterType>, NV>;
-
-#if 0
 #define DEFINE_FILTER_NODE_TEMPLATE(monoName, polyName, className) extern template class FilterNodeBase<className, 1>; \
 using monoName = FilterNodeBase<hise::MultiChannelFilter<className>, 1>; \
 extern template class FilterNodeBase<className, NUM_POLYPHONIC_VOICES>; \
 using polyName = FilterNodeBase<hise::MultiChannelFilter<className>, NUM_POLYPHONIC_VOICES>; 
-#endif
 
-DEFINE_FILTER_NODE_TEMPLATE2(svf, StateVariableFilterSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(biquad, StaticBiquadSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(one_pole, SimpleOnePoleSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(ring_mod, RingmodFilterSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(allpass, PhaseAllpassSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(ladder, LadderSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(moog, MoogFilterSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(svf_eq, StateVariableEqSubType);
-DEFINE_FILTER_NODE_TEMPLATE2(linkwitzriley, LinkwitzRiley);
+DEFINE_FILTER_NODE_TEMPLATE(svf, svf_poly, StateVariableFilterSubType);
+DEFINE_FILTER_NODE_TEMPLATE(biquad, biquad_poly, StaticBiquadSubType);
+DEFINE_FILTER_NODE_TEMPLATE(one_pole, one_pole_poly, SimpleOnePoleSubType);
+DEFINE_FILTER_NODE_TEMPLATE(ring_mod, ring_mod_poly, RingmodFilterSubType);
+DEFINE_FILTER_NODE_TEMPLATE(allpass, allpass_poly, PhaseAllpassSubType);
+DEFINE_FILTER_NODE_TEMPLATE(ladder, ladder_poly, LadderSubType);
+DEFINE_FILTER_NODE_TEMPLATE(moog, moog_poly, MoogFilterSubType);
+DEFINE_FILTER_NODE_TEMPLATE(svf_eq, svf_eq_poly, StateVariableEqSubType);
+DEFINE_FILTER_NODE_TEMPLATE(linkwitzriley, linkwitzriley_poly, LinkwitzRiley);
 
-#undef DEFINE_FILTER_NODE_TEMPLATE2
+#undef DEFINE_FILTER_NODE_TEMPLATE
 
 #if 0
 template <int NV> struct fir_impl : public AudioFileNodeBase

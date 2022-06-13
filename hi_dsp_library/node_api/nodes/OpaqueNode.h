@@ -157,14 +157,6 @@ struct OpaqueNode
 		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
 			shouldProcessHiseEvent = t->isProcessingHiseEvent();
 
-		if constexpr (prototypes::check::hasTail<T>::value)
-			hasTail_ = t->hasTail();
-
-		if constexpr (prototypes::check::getFixChannelAmount<T>::value)
-			numChannels = t->getFixChannelAmount();
-		else
-			numChannels = -1;
-
 		if constexpr (prototypes::check::handleModulation<T>::value)
 		{
 			modFunc = prototypes::static_wrappers<T>::handleModulation;
@@ -267,8 +259,6 @@ struct OpaqueNode
 
 	String getDescription() const { return description; }
 
-	bool hasTail() const { return hasTail_; }
-
 private:
 
 	String description;
@@ -281,8 +271,6 @@ private:
 
 	bool isPoly = false;
 	bool isPolyPossible = false;
-
-	bool hasTail_ = true;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
 	prototypes::destruct destructFunc = nullptr;
@@ -304,7 +292,6 @@ public:
 	span<void*, NumMaxParameters> parameterObjects;
 	span<StringArray, NumMaxParameters> parameterNames;
 
-	int numChannels = -1;
 	int numParameters = 0;
 	int numDataObjects[(int)ExternalData::DataType::numDataTypes];
 };
@@ -325,10 +312,6 @@ namespace dll
 
 		virtual Error getError() const = 0;
 		virtual void clearError() const = 0;
-
-		virtual bool isThirdPartyNode(int index) const = 0;
-
-		virtual void deinitOpaqueNode(OpaqueNode* n) { }
 	};
 
 	/** A Factory that initialises the nodes using the templated OpaqueNode::create function.
@@ -360,9 +343,6 @@ namespace dll
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
-
-		/** We don't bother about whether it's a third party node or not in a static compiled plugin. */
-		bool isThirdPartyNode(int index) const override { return false; };
 
 		template <typename T, typename PolyT> void registerPolyNode()
 		{
@@ -420,7 +400,6 @@ namespace dll
 			GetNumDataObjects,
 			GetError,
 			ClearError,
-			IsThirdPartyNode,
 			numFunctions
 		};
 
@@ -435,15 +414,12 @@ namespace dll
 		typedef int(*GetNumDataObjects)(int, int);
 		typedef Error(*GetError)();
 		typedef void(*ClearError)();
-		typedef bool(*IsThirdPartyNode)(int);
 
 		int getWrapperType(int index) const;
 
 		int getNumNodes() const;
 
 		int getNumDataObjects(int nodeIndex, int dataTypeAsInt) const;
-
-		bool isThirdPartyNode(int nodeIndex) const;
 
 		String getNodeId(int index) const;
 
@@ -522,14 +498,10 @@ namespace dll
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
 		int getWrapperType(int index) const override;
 
-		bool isThirdPartyNode(int index) const override;
-
 		void clearError() const override;
 
 		Error getError() const override;
 		
-		void deinitOpaqueNode(scriptnode::OpaqueNode* n) override;
-
 	private:
 
 		ProjectDll::Ptr projectDll;

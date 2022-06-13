@@ -636,18 +636,6 @@ void ScriptingObjects::ScriptShader::makeStatistics()
 
 	int major = 0, minor = 0;
 	
-    if(OpenGLContext::getCurrentContext() == nullptr)
-    {
-        d->setProperty("VersionString", "0.0");
-        d->setProperty("Major", minor);
-        d->setProperty("Minor", major);
-        d->setProperty("Vendor", "Inactive");
-        d->setProperty("Renderer", "Inactive");
-        d->setProperty("GLSL Version", "0.0.0");
-                       
-        openGLStats = var(d);
-        return;
-    }
     
 	auto vendor = String((const char*)glGetString(GL_VENDOR));
     jassert(glGetError() == GL_NO_ERROR);
@@ -889,8 +877,6 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
 	API_METHOD_WRAPPER_2(PathObject, createStrokedPath);
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
-	API_METHOD_WRAPPER_0(PathObject, toString);
-	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
 
 ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
@@ -905,8 +891,6 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_3(addArc);
 	ADD_API_METHOD_1(getBounds);
 	ADD_API_METHOD_2(createStrokedPath);
-	ADD_API_METHOD_0(toString);
-	ADD_API_METHOD_1(fromString);
 }
 
 ScriptingObjects::PathObject::~PathObject()
@@ -1027,16 +1011,6 @@ juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var do
 	return var(np);
 }
 
-String ScriptingObjects::PathObject::toString()
-{
-	return p.toString();
-}
-
-void ScriptingObjects::PathObject::fromString(String stringPath)
-{
-	p.restoreFromString(stringPath);
-}
-
 struct ScriptingObjects::GraphicsObject::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillAll);
@@ -1049,7 +1023,6 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawLine);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
-	API_VOID_METHOD_WRAPPER_3(GraphicsObject, setFontWithSpacing);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
@@ -1082,7 +1055,6 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, applySepia);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
 	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
-    API_VOID_METHOD_WRAPPER_2(GraphicsObject, flip);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1100,7 +1072,6 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_5(drawLine);
 	ADD_API_METHOD_3(drawHorizontalLine);
 	ADD_API_METHOD_2(setFont);
-	ADD_API_METHOD_3(setFontWithSpacing);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_5(drawFittedText);
@@ -1124,7 +1095,6 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(desaturate);
 	ADD_API_METHOD_1(addNoise);
 	ADD_API_METHOD_3(applyMask);
-    ADD_API_METHOD_2(flip);
 
 	ADD_API_METHOD_3(applyHSL);
 	ADD_API_METHOD_1(applyGamma);
@@ -1239,48 +1209,12 @@ void ScriptingObjects::GraphicsObject::applyVignette(float amount, float radius,
 
 void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
 {
-	auto m = drawActionHandler.getNoiseMapManager();
-
-	Rectangle<int> ar;
-
-	if (auto sc = dynamic_cast<ScriptComponent*>(parent))
+	if (auto cl = drawActionHandler.getCurrentLayer())
 	{
-		ar = Rectangle<int>(0, 0, (int)sc->getScriptObjectProperty(ScriptComponent::Properties::width), (int)sc->getScriptObjectProperty(ScriptComponent::Properties::height));
+		cl->addPostAction(new ScriptedPostDrawActions::addNoise(jlimit(0.0f, 1.0f, (float)noiseAmount)));
 	}
-
-	if (noiseAmount.isDouble())
-	{
-		if (ar.isEmpty())
-			reportScriptError("No valid area for noise map specified");
-		else
-			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoise(m, jlimit(0.0f, 1.0f, (float)noiseAmount), ar));
-	}
-	else if (auto obj = noiseAmount.getDynamicObject())
-	{
-		auto alpha = jlimit(0.0f, 1.0f, (float)noiseAmount["alpha"]);
-		auto monochrom = (bool)noiseAmount["monochromatic"];
-
-		auto sf = (float)noiseAmount.getProperty("scaleFactor", 1.0);
-
-		auto customArea = noiseAmount.getProperty("area", var());
-
-		if (customArea.isArray())
-		{
-			ar = ApiHelpers::getIntRectangleFromVar(customArea);
-		}
-
-		if(ar.isEmpty())
-			reportScriptError("Invalid area for noise map");
-		else
-		{
-			if (sf == -1.0f)
-				sf = drawActionHandler.getScaleFactor();
-
-			auto scale = jlimit(0.125, 2.0, (double)sf);
-
-			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoise(m, jlimit(0.0f, 1.0f, (float)alpha), ar, monochrom, scale));
-		}
-	}
+	else
+		reportScriptError("You need to create a layer for adding noise");
 }
 
 void ScriptingObjects::GraphicsObject::desaturate()
@@ -1375,16 +1309,6 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
-void ScriptingObjects::GraphicsObject::setFontWithSpacing(String fontName, float fontSize, float spacing)
-{
-	MainController *mc = getScriptProcessor()->getMainController_();
-	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
-
-	f.setExtraKerningFactor(spacing);
-
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
-}
-
 void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 {
 	Rectangle<float> r = getRectangleFromVar(area);
@@ -1443,16 +1367,6 @@ void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
 			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
 				c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
 
-
-			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
-		}
-		else if (gradientData.getArray()->size() == 7)
-		{
-			auto c1 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(0));
-			auto c2 = ScriptingApi::Content::Helpers::getCleanedObjectColour(data->getUnchecked(3));
-
-			auto grad = ColourGradient(c1, (float)data->getUnchecked(1), (float)data->getUnchecked(2),
-				c2, (float)data->getUnchecked(4), (float)data->getUnchecked(5), (bool)data->getUnchecked(6));
 
 			drawActionHandler.addDrawAction(new ScriptedDrawActions::setGradientFill(grad));
 		}
@@ -1648,26 +1562,6 @@ void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
 }
 
-void ScriptingObjects::GraphicsObject::flip(bool horizontally, var area)
-{
-    AffineTransform a;
-    auto r = getIntRectangleFromVar(area);
-    
-    if(horizontally)
-    {
-		a = AffineTransform(-1.0f,  0.0f, (float)r.getWidth(),
-                            0.0f,   1.0f, 0.0f);
-    }
-    else
-    {
-        a = AffineTransform(1.0f,  0.0f, 0.0f,
-                            0.0f, -1.0f, (float)r.getHeight());
-    }
-    
-    drawActionHandler.addDrawAction(new ScriptedDrawActions::addTransform(a));
-}
-
-
 Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
 {
 	Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
@@ -1723,10 +1617,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 
 ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
 {
-    SimpleReadWriteLock::ScopedWriteLock sl(lock);
-    functions = var();
-    g = nullptr;
-    loadedImages.clear();
+
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, var function)
@@ -1774,18 +1665,12 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawThumbnailPath",
 		"drawThumbnailRange",
 		"drawThumbnailRuler",
-        "getThumbnailRenderOptions",
 		"drawAhdsrBackground",
 		"drawAhdsrBall",
 		"drawAhdsrPath",
 		"drawKeyboardBackground",
 		"drawWhiteNote",
-		"drawBlackNote",
-		"drawSliderPackBackground",
-		"drawSliderPackFlashOverlay",
-		"drawSliderPackRightClickLine",
-		"drawSliderPackTextPopup",
-        "getIdealPopupMenuItemSize"
+		"drawBlackNote"
 	};
 
 	return sa;
@@ -1798,58 +1683,54 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 
 	auto f = functions.getProperty(functionname, {});
 
-    
-    
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
 	{
-        var args[2];
+		var args[2];
 
-        args[0] = var(g.get());
-        args[1] = argsObject;
-        
-        if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
-        {
-            if (c != nullptr && c->getParentComponent() != nullptr)
-            {
-                var n = c->getParentComponent()->getName();
-                argsObject.getDynamicObject()->setProperty("parentName", n);
-            }
+		args[0] = var(g.get());
+		args[1] = argsObject;
 
-            var thisObject(this);
-            var::NativeFunctionArgs arg(thisObject, args, 2);
-            auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-            Result r = Result::ok();
+		if (c != nullptr && c->getParentComponent() != nullptr)
+		{
+			var n = c->getParentComponent()->getName();
+			argsObject.getDynamicObject()->setProperty("parentName", n);
+		}
 
-            try
-            {
-                ScopedLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
-                engine->callExternalFunctionRaw(f, arg);
-            }
-            catch (String& errorMessage)
-            {
-                debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
-            }
-            catch (HiseJavascriptEngine::RootObject::Error& e)
-            {
-                auto p = dynamic_cast<Processor*>(getScriptProcessor());
-                debugToConsole(p, e.toString(p) + e.errorMessage);
-            }
+		var thisObject(this);
+		var::NativeFunctionArgs arg(thisObject, args, 2);
+		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+		Result r = Result::ok();
 
-            g->getDrawHandler().flush();
+		try
+		{
+			ScopedLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+			engine->callExternalFunctionRaw(f, arg);
+		}
+		catch (String& errorMessage)
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+		}
+		catch (HiseJavascriptEngine::RootObject::Error& e)
+		{
+			auto p = dynamic_cast<Processor*>(getScriptProcessor());
+			debugToConsole(p, e.toString(p) + e.errorMessage);
+		}
 
-            DrawActions::Handler::Iterator it(&g->getDrawHandler());
+		g->getDrawHandler().flush();
 
-            if (c != nullptr)
-            {
-                it.render(g_, c);
-            }
-            else
-            {
-                while (auto action = it.getNextAction())
-                    action->perform(g_);
-            }
-        }
-        
+		DrawActions::Handler::Iterator it(&g->getDrawHandler());
+
+		if (c != nullptr)
+		{
+			it.render(g_, c);
+		}
+		else
+		{
+			while (auto action = it.getNextAction())
+				action->perform(g_);
+		}
+
+
 		return true;
 	}
 
@@ -1865,8 +1746,6 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
 	{
-        SimpleReadWriteLock::ScopedReadLock sl(lock);
-        
 		var thisObject(this);
 		var::NativeFunctionArgs arg(thisObject, args, numArgs);
 		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
@@ -1936,36 +1815,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAlertBox(Graphics& g_, Aler
 	}
 
 	GlobalHiseLookAndFeel::drawAlertBox(g_, w, ta, tl);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight)
-{
-    if (functionDefined("getIdealPopupMenuItemSize"))
-    {
-        auto obj = new DynamicObject();
-
-        obj->setProperty("text", text);
-        obj->setProperty("isSeparator", isSeparator);
-        obj->setProperty("standardMenuHeight", standardMenuItemHeight);
-        
-        var x = var(obj);
-
-        auto nObj = get()->callDefinedFunction("getIdealPopupMenuItemSize", &x, 1);
-
-        if (nObj.isArray())
-        {
-            idealWidth = (int)nObj[0];
-            idealHeight = (int)nObj[1];
-            return;
-        }
-        if(nObj.isInt() || nObj.isInt64() || nObj.isDouble())
-        {
-            idealHeight = (int)nObj;
-            return;
-        }
-    }
-    
-    GlobalHiseLookAndFeel::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
 }
 
 hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowMarkdownStyleData()
@@ -2089,7 +1938,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 		obj->setProperty("text", s.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 
-		obj->setProperty("valueAsText", s.getTextFromValue(s.getValue()));
 		obj->setProperty("value", s.getValue());
 
 		NormalisableRange<double> range = NormalisableRange<double>(s.getMinimum(), s.getMaximum(), s.getInterval(), s.getSkewFactor());
@@ -2129,8 +1977,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(slider.getLocalBounds().toFloat()));
-
-		obj->setProperty("valueAsText", slider.getTextFromValue(slider.getValue()));
 
 		obj->setProperty("valueSuffixString", slider.getTextFromValue(slider.getValue()));
 		obj->setProperty("suffix", slider.getTextValueSuffix());
@@ -2696,68 +2542,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailPath(Graphics&
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList)
 {
-    HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(g, th, areaIsEnabled, rectList);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRuler(Graphics& g_, HiseAudioThumbnail& th, int xPosition)
-{
-	if (functionDefined("drawThumbnailRuler"))
-	{
-		auto obj = new DynamicObject();
-		auto area = th.getLocalBounds();
-		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
-		
-		obj->setProperty("xPosition", xPosition);
-
-		setColourOrBlack(obj, "bgColour", th, AudioDisplayComponent::ColourIds::bgColour);
-		setColourOrBlack(obj, "itemColour", th, AudioDisplayComponent::ColourIds::fillColour);
-		setColourOrBlack(obj, "textColour", th, AudioDisplayComponent::ColourIds::outlineColour);
-
-		if (get()->callWithGraphics(g_, "drawThumbnailRuler", var(obj), &th))
-			return;
-	}
-
-	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(g_, th, xPosition);
-}
-
-HiseAudioThumbnail::RenderOptions ScriptingObjects::ScriptedLookAndFeel::Laf::getThumbnailRenderOptions(HiseAudioThumbnail& th, const HiseAudioThumbnail::RenderOptions& defaultOptions)
-{
-    if (functionDefined("getThumbnailRenderOptions"))
-    {
-        auto obj = new DynamicObject();
-
-        obj->setProperty("displayMode", (int)defaultOptions.displayMode);
-        obj->setProperty("manualDownSampleFactor", defaultOptions.manualDownSampleFactor);
-        obj->setProperty("drawHorizontalLines", defaultOptions.drawHorizontalLines);
-        obj->setProperty("scaleVertically", defaultOptions.scaleVertically);
-        obj->setProperty("displayGain", defaultOptions.displayGain);
-        obj->setProperty("useRectList", defaultOptions.useRectList);
-        obj->setProperty("forceSymmetry", defaultOptions.forceSymmetry);
-
-        var x = var(obj);
-
-        auto nObj = get()->callDefinedFunction("getThumbnailRenderOptions", &x, 1);
-
-        if (auto no = nObj.getDynamicObject() != nullptr)
-        {
-            auto newOptions = defaultOptions;
-            
-            newOptions.displayMode = (HiseAudioThumbnail::DisplayMode)(int)nObj.getProperty("displayMode", (int)defaultOptions.displayMode);
-            newOptions.manualDownSampleFactor = nObj.getProperty("manualDownSampleFactor", defaultOptions.manualDownSampleFactor);
-            newOptions.drawHorizontalLines = nObj.getProperty("drawHorizontalLines", defaultOptions.drawHorizontalLines);
-            newOptions.scaleVertically = nObj.getProperty("scaleVertically", defaultOptions.scaleVertically);
-            newOptions.displayGain = nObj.getProperty("displayGain", defaultOptions.displayGain);
-            newOptions.useRectList = nObj.getProperty("useRectList", defaultOptions.useRectList);
-            newOptions.forceSymmetry = nObj.getProperty("forceSymmetry", defaultOptions.forceSymmetry);
-            
-            FloatSanitizers::sanitizeFloatNumber(newOptions.manualDownSampleFactor);
-            FloatSanitizers::sanitizeFloatNumber(newOptions.displayGain);
-            
-            return newOptions;
-        }
-    }
-
-    return defaultOptions;
+	jassertfalse; // should never happen
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_, HiseAudioThumbnail& th, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
@@ -2855,112 +2640,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawBlackNote(CustomKeyboardSta
 	}
 
 	CustomKeyboardLookAndFeelBase::drawBlackNote(state, c, midiNoteNumber, g_, x, y, w, h, isDown, isOver, noteFillColour);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackBackground(Graphics& g_, SliderPack& s)
-{
-	if (functionDefined("drawSliderPackBackground"))
-	{
-		auto obj = new DynamicObject();
-
-		obj->setProperty("id", s.getName());
-
-		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
-		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
-		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
-		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
-		
-
-		obj->setProperty("numSliders", s.getNumSliders());
-		obj->setProperty("displayIndex", s.getData()->getNextIndexToDisplay());
-
-		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
-
-		if(get()->callWithGraphics(g_, "drawSliderPackBackground", var(obj), &s))
-			return;
-	}
-
-	SliderPack::LookAndFeelMethods::drawSliderPackBackground(g_, s);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackFlashOverlay(Graphics& g_, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity)
-{
-	if (functionDefined("drawSliderPackFlashOverlay"))
-	{
-		auto obj = new DynamicObject();
-
-		obj->setProperty("id", s.getName());
-
-		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
-		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
-		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
-		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
-
-		obj->setProperty("numSliders", s.getNumSliders());
-		obj->setProperty("displayIndex", sliderIndex);
-		obj->setProperty("value", s.getValue(sliderIndex));
-		obj->setProperty("intensity", intensity);
-
-		auto sBounds = sliderBounds;
-		sBounds.setY(0);
-		sBounds.setHeight(s.getHeight()); s.getValue(sliderIndex);
-
-		obj->setProperty("area", ApiHelpers::getVarRectangle(sBounds.toFloat()));
-
-		if (get()->callWithGraphics(g_, "drawSliderPackFlashOverlay", var(obj), &s))
-			return;
-	}
-
-	SliderPack::LookAndFeelMethods::drawSliderPackFlashOverlay(g_, s, sliderIndex, sliderBounds, intensity);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackRightClickLine(Graphics& g_, SliderPack& s, Line<float> lineToDraw)
-{
-	if (functionDefined("drawSliderPackRightClickLine"))
-	{
-		auto obj = new DynamicObject();
-
-		obj->setProperty("id", s.getName());
-
-		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
-		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
-		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
-		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
-
-		obj->setProperty("x1", lineToDraw.getStartX());
-		obj->setProperty("x2", lineToDraw.getEndX());
-		obj->setProperty("y1", lineToDraw.getStartY());
-		obj->setProperty("y2", lineToDraw.getEndY());
-
-		if (get()->callWithGraphics(g_, "drawSliderPackRightClickLine", var(obj), &s))
-			return;
-	}
-
-	SliderPack::LookAndFeelMethods::drawSliderPackRightClickLine(g_, s, lineToDraw);
-}
-
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackTextPopup(Graphics& g_, SliderPack& s, const String& textToDraw)
-{
-	if (functionDefined("drawSliderPackTextPopup"))
-	{
-		auto obj = new DynamicObject();
-
-		obj->setProperty("id", s.getName());
-
-		setColourOrBlack(obj, "bgColour", s, Slider::ColourIds::backgroundColourId);
-		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
-		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
-		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
-
-		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
-		
-		obj->setProperty("text", textToDraw);
-
-		if (get()->callWithGraphics(g_, "drawSliderPackTextPopup", var(obj), &s))
-			return;
-	}
-
-	SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(g_, s, textToDraw);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

@@ -103,7 +103,7 @@ class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
 class AudioProcessorWrapper;
-class HotswappableProcessor;
+class SlotFX;
 
 /** This class wrapps all available objects that can be created by a script.
 *	@ingroup scripting
@@ -1631,13 +1631,13 @@ namespace ScriptingObjects
 		ScriptingEffect* getCurrentEffect();
 
 		/** Swaps the effect with the other slot. */
-		bool swap(var otherSlot);
+		void swap(var otherSlot);
 
 		// ============================================================================================================
 
 		struct Wrapper;
 
-		HotswappableProcessor* getSlotFX();
+		SlotFX* getSlotFX();
 
 	private:
 
@@ -1884,7 +1884,7 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
-		ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, Processor *sampleProcessor);
+		ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor);
 		~ScriptingAudioSampleProcessor() {};
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("AudioSampleProcessor"); };

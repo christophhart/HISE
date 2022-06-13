@@ -490,7 +490,6 @@ private:
 
 protected:
 
-	virtual bool synthNeedsEnvelope() const { return true; };
 	
 	void finaliseModChains();
 	
@@ -885,13 +884,10 @@ protected:
 
     bool isActive = false;
     
-	float killFadeLevel;
-	float killFadeFactor;
-	bool killThisVoice;
-
 private:
 
 	
+
 	HiseEvent currentHiseEvent;
 
 	LinearSmoothedValue<double> pitchFader;
@@ -899,11 +895,12 @@ private:
 
 	friend class ModulatorSynthGroupVoice;
 
-	
+	bool killThisVoice;
 
 	bool isTailing;
 
-	
+	float killFadeLevel;
+	float killFadeFactor;
 	
 	double startUptime;
 
@@ -944,8 +941,7 @@ public:
 		modulatorSynthGroup,
 		scriptSynth,
 		macroModulationSource,
-		sendContainer,
-		silentSynth
+		sendContainer
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

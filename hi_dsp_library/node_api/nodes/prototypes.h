@@ -90,15 +90,6 @@ namespace prototypes
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
 
-		template <typename T> class hasTail
-		{
-			typedef char one; struct two { char x[2]; };
-			template <typename C> static one test(decltype(&C::hasTail));
-			template <typename C> static two test(...);
-		public:
-			enum { value = sizeof(test<T>(0)) == sizeof(char) };
-		};
-
 		template <typename T> class createParameters
 		{
 			typedef char one; struct two { char x[2]; };
@@ -157,15 +148,6 @@ namespace prototypes
 		{
 			typedef char one; struct two { char x[2]; };
 			template <typename C> static one test(decltype(&C::handleModulation));
-			template <typename C> static two test(...);
-		public:
-			enum { value = sizeof(test<T>(0)) == sizeof(char) };
-		};
-
-		template <typename T> class getFixChannelAmount
-		{
-			typedef char one; struct two { char x[2]; };
-			template <typename C> static one test(decltype(&C::getFixChannelAmount));
 			template <typename C> static two test(...);
 		public:
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };

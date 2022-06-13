@@ -1056,8 +1056,6 @@ void HiseJavascriptEngine::extendTimeout(int milliSeconds)
 
 void HiseJavascriptEngine::abortEverything()
 {
-    preCompileListeners.sendMessage(sendNotificationSync, true);
-    
 	if(root != nullptr)
 		root->timeout = Time(0);
 }
@@ -1571,8 +1569,6 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 		if (WeakReference<HiseJavascriptEngine> e = jp->getScriptEngine())
 		{
-            e->preCompileListeners.addListener(*this, TokenProvider::precompileCallback, false);
-            
 			auto numObjects = e->getNumDebugObjects();
 
 			if (true)

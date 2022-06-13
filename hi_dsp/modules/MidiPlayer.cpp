@@ -711,8 +711,7 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 MidiPlayer::MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ) :
 	MidiProcessor(mc, id),
-	ownedUndoManager(new UndoManager()),
-	updater(*this)
+	ownedUndoManager(new UndoManager())
 {
 	addAttributeID(Stop);
 	addAttributeID(Play);
@@ -1207,13 +1206,11 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 
 void MidiPlayer::addSequenceListener(SequenceListener* newListener)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
 	sequenceListeners.addIfNotAlreadyThere(newListener);
 }
 
 void MidiPlayer::removeSequenceListener(SequenceListener* listenerToRemove)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
 	sequenceListeners.removeAllInstancesOf(listenerToRemove);
 }
 
@@ -1286,7 +1283,35 @@ void MidiPlayer::sendPlaybackChangeMessage(int timestamp)
 
 void MidiPlayer::sendSequenceUpdateMessage(NotificationType notification)
 {
-	updater.handleUpdate(getCurrentSequence(), notification);
+	WeakReference<MidiPlayer> mp = this;
+
+	auto update = [mp]()
+	{
+		if (mp.get() == nullptr)
+			return;
+
+		if (auto seq = mp->getCurrentSequence())
+		{
+			for (auto l : mp->sequenceListeners)
+			{
+				if (l != nullptr)
+					l->sequenceLoaded(seq);
+			}
+		}
+		else
+		{
+			for (auto l : mp->sequenceListeners)
+			{
+				if (l != nullptr)
+					l->sequencesCleared();
+			}
+		}
+	};
+
+	if (notification == sendNotificationAsync)
+		MessageManager::callAsync(update);
+	else
+		update();
 }
 
 void MidiPlayer::changeTransportState(PlayState newState)
@@ -1302,9 +1327,6 @@ void MidiPlayer::changeTransportState(PlayState newState)
 
 double MidiPlayer::getPlaybackPositionFromTicksSinceStart() const
 {
-	if (playState == PlayState::Stop)
-		return 0.0;
-
 	if (auto seq = getCurrentSequence())
 	{
 		auto range = seq->getTimeSignature().normalisedLoopRange;
@@ -1956,63 +1978,6 @@ void MidiPlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* )
 	{
 		lastTrackIndex = trackIndex;
 		trackIndexChanged();
-	}
-}
-
-
-
-MidiPlayer::Updater::Updater(MidiPlayer& mp) :
-	SimpleTimer(mp.getMainController()->getGlobalUIUpdater()),
-	parent(mp)
-{
-	start();
-}
-
-void MidiPlayer::Updater::timerCallback()
-{
-	if (dirty)
-	{
-		if (handleUpdate(sequenceToUpdate, sendNotificationSync))
-		{
-			dirty = false;
-			sequenceToUpdate = nullptr;
-		}
-	}
-}
-
-bool MidiPlayer::Updater::handleUpdate(HiseMidiSequence::Ptr seq, NotificationType n)
-{
-	if (n != sendNotificationAsync)
-	{
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(parent.listenerLock))
-		{
-			if (seq != nullptr)
-			{
-				for (auto l : parent.sequenceListeners)
-				{
-					if (l != nullptr)
-						l->sequenceLoaded(seq);
-				}
-			}
-			else
-			{
-				for (auto l : parent.sequenceListeners)
-				{
-					if (l != nullptr)
-						l->sequencesCleared();
-				}
-			}
-
-			return true;
-		}
-		else
-			return false;
-	}
-	else
-	{
-		sequenceToUpdate = seq;
-		dirty = true;
-		return true;
 	}
 }
 

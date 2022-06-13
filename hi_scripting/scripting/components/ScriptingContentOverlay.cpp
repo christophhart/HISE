@@ -518,31 +518,11 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 	b->setSelection(newSelection, sendNotificationAsync);
 }
 
-void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
-{
-	if (e.mods.isMiddleButtonDown())
-	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			setMouseCursor(MouseCursor::DraggingHandCursor);
-			zp->mouseDown(ze);
-			return;
-		}
-	}
-}
-
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
 	if (e.mods.isMiddleButtonDown())
 	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			setMouseCursor(MouseCursor::NormalCursor);
-			zp->mouseUp(ze);
-			return;
-		}
+		return;
 	}
 		
 
@@ -727,15 +707,8 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 {
 	if (e.mods.isMiddleButtonDown())
-	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			zp->mouseDrag(ze);
-			return;
-		}
-	}
-		
+		return;
+
 	if (isDisabledUntilUpdate)
 		return;
 

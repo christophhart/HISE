@@ -34,8 +34,6 @@
 
 #define BETTER_TEMPLATE_FORWARDING 1
 
-#define ENABLE_CPP_DEBUG_LOG 0
-
 namespace snex {
 namespace cppgen {
 using namespace juce;
@@ -71,17 +69,6 @@ struct ValueTreeIterator
 	static bool isLast(const ValueTree& v)
 	{
 		return (v.getParent().getNumChildren() - 1) == getIndexInParent(v);
-	}
-
-	static bool isParent(const ValueTree& v, const ValueTree& possibleParent)
-	{
-		if (!v.isValid())
-			return false;
-
-		if (v == possibleParent)
-			return true;
-
-		return isParent(v.getParent(), possibleParent);
 	}
 
 	static int getIndexInParent(const ValueTree& v)
@@ -562,24 +549,15 @@ struct ValueTreeBuilder: public Base
     
     struct ScopedChannelSetter
     {
-        ScopedChannelSetter(ValueTreeBuilder& vtb_, int numChannels, bool allowHigherChannelCount):
+        ScopedChannelSetter(ValueTreeBuilder& vtb_, int numChannels):
           vtb(vtb_),
           prevNumChannels(vtb_.numChannelsToCompile)
         {
-            jassert(numChannels <= vtb.numChannelsToCompile || allowHigherChannelCount);
-
-#if ENABLE_CPP_DEBUG_LOG
-			DBG("Setting channel count to " + String(numChannels));
-#endif
-
+            jassert(numChannels <= vtb.numChannelsToCompile);
             vtb.numChannelsToCompile = numChannels;
         }
         ~ScopedChannelSetter()
         {
-#if ENABLE_CPP_DEBUG_LOG
-			DBG("Setting channel count back to " + String(prevNumChannels));
-#endif
-
             vtb.numChannelsToCompile = prevNumChannels;
         }
         

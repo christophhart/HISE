@@ -406,17 +406,6 @@ struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread
 
 private:
 
-	enum CppFileLocationType
-	{
-		UnknownFileType,
-		CompiledNetworkFile,
-		ThirdPartyFile,
-		ThirdPartySourceFile,
-		EmbeddedDataFile
-	};
-
-	CppFileLocationType getLocationType(const File& f) const;
-
 	DspNetwork* getNetwork();
 
 	static Array<File> getIncludedNetworkFiles(const File& networkFile);
@@ -443,7 +432,6 @@ private:
 	String errorMessage;
 
 	Array<File> includedFiles;
-	Array<File> includedThirdPartyFiles;
 	
 
 	File getSourceDirectory(bool isDllMainFile) const;

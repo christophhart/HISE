@@ -73,32 +73,17 @@ struct ScriptedPostDrawActions
 		int blurAmount;
 	};
 
-	struct addNoise : public DrawActions::ActionBase
+	struct addNoise : public DrawActions::PostActionBase
 	{
-		addNoise(DrawActions::NoiseMapManager* manager, float v, Rectangle<int> area_, bool monochrom_=false, float scale_=1.0f) : 
-			m(manager),
-			noise(v), 
-			area(area_), 
-			scale(scale_), 
-			monochrom(monochrom_) 
-		{};
+		addNoise(float v) : noise(v) {};
 
-		void perform(Graphics& g) override
+		bool needsStackData() const override { return false; }
+		void perform(PostGraphicsRenderer& r) override
 		{
-			m->drawNoiseMap(g, area, noise, monochrom, scale);
+			r.addNoise(noise);
 		}
 
-		bool wantsCachedImage() const override { return false; };
-		bool wantsToDrawOnParent() const override { return false; }
-
-		DrawActions::NoiseMapManager* m;
-
-		const float noise;
-		const float scale;
-
-		
-		const Rectangle<int> area;
-		const bool monochrom;
+		float noise;
 	};
 
 	struct applyHSL : public DrawActions::PostActionBase
@@ -533,26 +518,19 @@ namespace ScriptedDrawActions
 					{
 						int safeCount = 0;
 
-                        if(OpenGLContext::getCurrentContext() != nullptr)
-                        {
-                            while (glGetError() != GL_NO_ERROR)
-                            {
-                                safeCount++;
+						while (glGetError() != GL_NO_ERROR)
+						{
+							safeCount++;
 
-                                if (safeCount > 10000)
-                                    break;
-                            };
-                            
-                            auto s = StringArray::fromLines(obj->getErrorMessage(true));
-                            s.removeEmptyStrings();
+							if (safeCount > 10000)
+								break;
+						};
 
-                            for (auto l : s)
-                                handler->logError(l);
-                        }
-                        else
-                        {
-                            handler->logError("Open GL is not enabled");
-                        }
+						auto s = StringArray::fromLines(obj->getErrorMessage(true));
+						s.removeEmptyStrings();
+
+						for (auto l : s)
+							handler->logError(l);
 					}
 #endif
 				}

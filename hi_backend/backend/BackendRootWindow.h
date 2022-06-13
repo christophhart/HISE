@@ -59,8 +59,7 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public ComponentWithBackendConnection,
 						  public DragAndDropContainer,
 						  public ComponentWithHelp::GlobalHandler,
-						  public PeriodicScreenshotter::Holder,
-						  public MainController::LockFreeDispatcher::PresetLoadListener
+						  public PeriodicScreenshotter::Holder
 {
 public:
 
@@ -154,8 +153,6 @@ public:
 
 	void loadNewContainer(const File &f);
 	
-	void newHisePresetLoaded() override;
-
 	FloatingTile* getRootFloatingTile() override { return floatingRoot; }
 
 	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }

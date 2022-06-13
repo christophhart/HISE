@@ -177,12 +177,6 @@ public:
 			if (assignedCollection != nullptr)
 				assignedCollection->signalRebuild();
 		}
-        
-        void signalClear(NotificationType n)
-        {
-            if(assignedCollection != nullptr)
-                assignedCollection->signalClear(n);
-        }
 
 		WeakReference<TokenCollection> assignedCollection;
 	};
@@ -218,20 +212,6 @@ public:
 		startThread();
 	}
 
-    void signalClear(NotificationType n)
-    {
-        SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
-        dirty = false;
-        tokens.clear();
-        cancelPendingUpdate();
-        
-        for(auto l: listeners)
-        {
-            if(l != nullptr)
-                l->tokenListWasRebuild();
-        }
-    }
-    
 	void run() override
 	{
 		dirty = true;

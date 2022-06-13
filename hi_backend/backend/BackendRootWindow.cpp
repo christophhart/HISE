@@ -43,8 +43,6 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
-	getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
-
 	if (GET_HISE_SETTING(owner->getMainSynthChain(), HiseSettings::Other::GlassEffect))
 	{
 		if(!CompileExporter::isExportingFromCommandLine())
@@ -261,8 +259,6 @@ BackendRootWindow::~BackendRootWindow()
 	saveInterfaceData();
 
 	popoutWindows.clear();
-
-	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
 
 	getBackendProcessor()->getCommandManager()->clearCommands();
 	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
@@ -497,7 +493,11 @@ void BackendRootWindow::loadNewContainer(ValueTree & v)
 
 	mainEditor->loadNewContainer(v);
 
-	
+	if (auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain()))
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+	}
 }
 
 void BackendRootWindow::loadNewContainer(const File &f)
@@ -508,15 +508,6 @@ void BackendRootWindow::loadNewContainer(const File &f)
 		p->setContentWithUndo(nullptr, 0);
 
 	mainEditor->loadNewContainer(f);
-}
-
-void BackendRootWindow::newHisePresetLoaded()
-{
-	if (auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain()))
-	{
-		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
-		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
-	}
 }
 
 void BackendRootWindow::gotoIfWorkspace(Processor* p)

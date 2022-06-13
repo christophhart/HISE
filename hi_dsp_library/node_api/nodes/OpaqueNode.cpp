@@ -284,14 +284,6 @@ int DynamicLibraryHostFactory::getWrapperType(int index) const
 	return 0;
 }
 
-bool DynamicLibraryHostFactory::isThirdPartyNode(int index) const
-{
-	if (projectDll != nullptr)
-		return projectDll->isThirdPartyNode(index);
-
-	return false;
-}
-
 void DynamicLibraryHostFactory::clearError() const
 {
 	if (projectDll != nullptr)
@@ -304,12 +296,6 @@ Error DynamicLibraryHostFactory::getError() const
 		return projectDll->getError();
 
 	return {};
-}
-
-void DynamicLibraryHostFactory::deinitOpaqueNode(scriptnode::OpaqueNode* n)
-{
-	if (projectDll != nullptr)
-		projectDll->deInitOpaqueNode(n);
 }
 
 String ProjectDll::getFuncName(ExportedFunction f)
@@ -325,7 +311,6 @@ String ProjectDll::getFuncName(ExportedFunction f)
 	case ExportedFunction::GetNumDataObjects:	return "getNumDataObjects";
 	case ExportedFunction::GetError:			return "getError";
 	case ExportedFunction::ClearError:			return "clearError";
-	case ExportedFunction::IsThirdPartyNode:	return "isThirdPartyNode";
 	default: jassertfalse; return "";
 	}
 }
@@ -354,14 +339,6 @@ int ProjectDll::getNumDataObjects(int nodeIndex, int dataTypeAsInt) const
 		return DLL_FUNCTION(GetNumDataObjects)(nodeIndex, dataTypeAsInt);
 
 	return 0;
-}
-
-bool ProjectDll::isThirdPartyNode(int nodeIndex) const
-{
-	if (*this)
-		return DLL_FUNCTION(IsThirdPartyNode)(nodeIndex);
-
-	return false;
 }
 
 String ProjectDll::getNodeId(int index) const

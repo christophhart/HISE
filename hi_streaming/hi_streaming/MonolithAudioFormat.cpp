@@ -64,7 +64,7 @@ int MonolithFileReference::getSplitPartFromChar(juce_wchar splitChar)
 	return (int)splitChar - 'a';
 }
 
-juce::File MonolithFileReference::getFile(bool checkIfFileExists)
+juce::File MonolithFileReference::getFile()
 {
 	jassert(referenceString.isNotEmpty());
 
@@ -94,11 +94,13 @@ juce::File MonolithFileReference::getFile(bool checkIfFileExists)
 
 	for (const auto& f : sampleRoots)
 	{
+		
+
 		auto mf = f.getChildFile(path);
 
 		lastFile = mf;
 
-		if (!checkIfFileExists || mf.existsAsFile())
+		if (mf.existsAsFile())
 			return mf;
 	}
 
@@ -115,15 +117,14 @@ Array<juce::File> MonolithFileReference::getAllFiles()
 	
 	Array<File> filesToLoad;
 
-	filesToLoad.addIfNotAlreadyThere(getFile(true));
+	filesToLoad.addIfNotAlreadyThere(getFile());
 
 	while (bumpToNextMonolith(true))
 	{
-		filesToLoad.addIfNotAlreadyThere(getFile(true));
+		filesToLoad.addIfNotAlreadyThere(getFile());
 	}
 
 	int numExpected = numChannels * jmax(1, numParts);
-    ignoreUnused(numExpected);
 	jassert(filesToLoad.size() == numExpected);
 
 	return filesToLoad;

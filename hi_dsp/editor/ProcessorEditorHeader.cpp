@@ -1109,18 +1109,7 @@ void ProcessorEditorHeader::scriptWasCompiled(JavascriptProcessor *processor)
 	{
 		if (jmp->isFront())
 		{
-			storedInPreset = false;
-			auto id = getProcessor()->getId();
-
-			for (auto ms : jmp->getListOfModuleIds())
-			{
-				if (id == ms->id)
-				{
-					storedInPreset = true;
-					break;
-				}
-			}
-			
+			storedInPreset = jmp->getListOfModuleIds().contains(getProcessor()->getId());
 			resized();
 		}
 	}

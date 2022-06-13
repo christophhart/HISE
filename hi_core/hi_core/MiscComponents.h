@@ -405,59 +405,6 @@ struct DrawActions
 		gin::BlendMode blendMode;
 	};
 
-	struct NoiseMapManager
-	{
-		struct NoiseMap
-		{
-			NoiseMap(Rectangle<int> a, bool monochrom_);;
-
-			const int width;
-			const int height;
-			Image img;
-			const bool monochrom;
-		};
-
-		void drawNoiseMap(Graphics& g, Rectangle<int> area, float alpha, bool monochrom, float scale)
-		{
-			auto originalArea = area;
-
-			if(scale != 1.0f)
-				area = area.transformed(AffineTransform::scale(scale));
-
-			const auto& m = getNoiseMap(area, monochrom);
-
-			g.setColour(Colours::black.withAlpha(alpha));
-
-			if (scale != 1.0f)
-				g.drawImageWithin(m.img, originalArea.getX(), originalArea.getY(), originalArea.getWidth(), originalArea.getHeight(), RectanglePlacement::stretchToFit);
-			else
-				g.drawImageAt(m.img, area.getX(), area.getY());
-		}
-
-	private:
-
-		NoiseMap& getNoiseMap(Rectangle<int> area, bool monochrom)
-		{
-			for (auto m : maps)
-			{
-
-				if (area.getWidth() == m->width &&
-					area.getHeight() == m->height &&
-					monochrom == m->monochrom)
-				{
-					return *m;
-				}
-			}
-
-			maps.add(new NoiseMap(area, monochrom));
-
-			return *maps.getLast();
-		}
-
-		SimpleReadWriteLock lock;
-		OwnedArray<NoiseMap> maps;
-	};
-
 	struct Handler: private AsyncUpdater
 	{
 		struct Iterator
@@ -515,11 +462,6 @@ struct DrawActions
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
-        ~Handler()
-        {
-            cancelPendingUpdate();
-        }
-        
 		void beginDrawing()
 		{
 			currentActions.clear();
@@ -591,11 +533,7 @@ struct DrawActions
 
 		bool recursion = false;
 
-		NoiseMapManager* getNoiseMapManager() { return &noiseManager.getObject(); }
-
 	private:
-
-		SharedResourcePointer<NoiseMapManager> noiseManager;
 
 		Rectangle<int> globalBounds;
 		Rectangle<int> topLevelBounds;

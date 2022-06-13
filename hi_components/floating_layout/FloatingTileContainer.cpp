@@ -361,7 +361,6 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 	m.addSeparator();
 	m.addItem(2, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
 	m.addItem(3, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
-	m.addItem(4, "Close all tabs", getNumTabs() != 0);
 
 	const int result = m.show();
 
@@ -379,13 +378,6 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 	else if (result == 3)
 	{
 		getComponent(tabIndex)->loadFromJSON(SystemClipboard::getTextFromClipboard());
-	}
-	else if (result == 4)
-	{
-		while (getNumTabs() > 0)
-		{
-			removeFloatingTile(getComponent(0));
-		}
 	}
 }
 
@@ -450,23 +442,21 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
 
 void FloatingTabComponent::mouseDown(const MouseEvent& event)
 {
-	if (getNumTabs() <= 1)
+	if (getNumTabs() == 1)
 		return;
 
 	int newTabIndex = getCurrentTabIndex();
 
 	if (event.mods.isX2ButtonDown())
 	{
-		if (++newTabIndex == getNumTabs())
-			newTabIndex = 0;
+		newTabIndex = jmin<int>(newTabIndex + 1, getNumTabs() - 1);
 
 		if (newTabIndex != getCurrentTabIndex())
 			setCurrentTabIndex(newTabIndex);
 	}
 	else if (event.mods.isX1ButtonDown())
 	{
-		if (--newTabIndex < 0)
-			newTabIndex = getNumTabs() - 1;
+		newTabIndex = jmax<int>(newTabIndex - 1, 0);
 
 		if (newTabIndex != getCurrentTabIndex())
 			setCurrentTabIndex(newTabIndex);
@@ -587,17 +577,6 @@ void FloatingTabComponent::setAddButtonCallback(const std::function<void()>& f)
 		addButton->onClick = f;
 	else
 		addButton->onClick = BIND_MEMBER_FUNCTION_0(FloatingTabComponent::addButtonClicked);
-}
-
-void FloatingTabComponent::currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName)
-{
-	TabbedComponent::currentTabChanged(newCurrentTabIndex, newCurrentTabName);
-
-	if (auto fc = getComponent(newCurrentTabIndex))
-	{
-		if (auto fp = fc->getCurrentFloatingPanel())
-			dynamic_cast<Component*>(fp)->grabKeyboardFocusAsync();
-	}
 }
 
 void ResizableFloatingTileContainer::refreshLayout()

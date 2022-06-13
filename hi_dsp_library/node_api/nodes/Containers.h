@@ -78,8 +78,6 @@ template <class ParameterClass, typename... Processors> struct container_base
 
     virtual ~container_base() {};
     
-	static constexpr int getFixChannelAmount() { return Helpers::getNumChannelsOfFirstElement<Processors...>(); };
-
 	void initialise(NodeBase* b)
 	{
 		call_tuple_iterator1(initialise, b);

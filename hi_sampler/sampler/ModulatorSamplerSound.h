@@ -40,7 +40,7 @@ struct CascadedEnvelopeLowPass
 
 	CascadedEnvelopeLowPass(bool isPoly);
 
-	using FilterType = scriptnode::filters::one_pole<NUM_POLYPHONIC_VOICES>;
+	using FilterType = scriptnode::filters::one_pole_poly;
 
 	FilterType** begin()
 	{
@@ -81,7 +81,7 @@ struct CascadedEnvelopeLowPass
 private:
 
 	int order = 1;
-	OwnedArray<scriptnode::filters::one_pole<NUM_POLYPHONIC_VOICES>> filters;
+	OwnedArray<scriptnode::filters::one_pole_poly> filters;
 };
 
 typedef ReferenceCountedArray<StreamingSamplerSound> StreamingSamplerSoundArray;

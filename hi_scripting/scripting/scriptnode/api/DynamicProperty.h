@@ -155,31 +155,20 @@ protected:
 
 template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 {
-	static constexpr int NumMaxSlots = 32;
-
 	using Ptr = ReferenceCountedObjectPtr<dynamic_chain>;
 
 	dynamic_chain() :
 		dynamic_base()
-	{
-		for (int i = 0; i < NumMaxSlots; i++)
-			unscaleValue[i] = false;
-	};
+	{};
 
 	bool isEmpty() const { return targets.isEmpty(); }
 
-	void addParameter(dynamic_base::Ptr p, bool isUnscaled)
+	void addParameter(dynamic_base::Ptr p)
 	{
 		jassert(p != nullptr);
-		
-		if (p != nullptr)
-		{
-			jassert(targets.size() < NumMaxSlots);
 
-			unscaleValue[targets.size()] = isUnscaled;
+		if(p != nullptr)
 			targets.add(p);
-			
-		}
 	}
 
 	void call(double v)
@@ -187,21 +176,14 @@ template <bool ScaleInput> struct dynamic_chain : public dynamic_base
 		setDisplayValue(v);
 		auto nv = ScaleInput ? getRange().convertTo0to1(v, true) : v;
 
-		int index = 0;
-
 		for (auto& t : targets)
 		{
-			auto isUnscaled = (double)unscaleValue[index++];
 			auto tv = ScaleInput ? t->getRange().convertFrom0to1(nv, true) : v;
-			auto valueToSend = isUnscaled * v + (1.0 - isUnscaled) * tv;
-
-			t->call(valueToSend);
+			t->call(tv);
 		}
 	}
 
 	dynamic_base::List targets;
-	bool unscaleValue[NumMaxSlots];
-	
 };
 
 

@@ -516,7 +516,7 @@ void JavascriptPolyphonicEffect::startVoice(int voiceIndex, const HiseEvent& e)
 {
 	if (auto n = getActiveNetwork())
 	{
-		voiceData.startVoice(*n, *n->getPolyHandler(), voiceIndex, e);
+		voiceData.startVoice(n, voiceIndex, e);
 		
 	}
 }
@@ -535,7 +535,7 @@ void JavascriptPolyphonicEffect::handleHiseEvent(const HiseEvent &m)
 
 	if (auto n = getActiveNetwork())
 	{
-		voiceData.handleHiseEvent(*n, *n->getPolyHandler(), m);
+		voiceData.handleHiseEvent(n, m);
 	}
 }
 
@@ -1249,7 +1249,7 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 
 	if (auto n = getActiveNetwork())
 	{
-		voiceData.handleHiseEvent(*n, *n->getPolyHandler(), m);
+		voiceData.handleHiseEvent(n, m);
 	}
 }
 
@@ -1299,7 +1299,7 @@ float JavascriptEnvelopeModulator::startVoice(int voiceIndex)
 
 	if (auto n = getActiveNetwork())
 	{
-		voiceData.startVoice(*n, *n->getPolyHandler(), voiceIndex, lastNoteOn);
+		voiceData.startVoice(n, voiceIndex, lastNoteOn);
 	}
 
     return 0.0f;
@@ -1510,7 +1510,20 @@ void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
 
 	if (auto n = getActiveNetwork())
 	{
-		voiceData.handleHiseEvent(*n, *n->getPolyHandler(), e);
+		voiceData.handleHiseEvent(n, e);
+
+#if 0
+		for (auto av : activeVoices)
+		{
+			if (e.isNoteOff() && av->getCurrentHiseEvent().getEventId() != e.getEventId())
+				continue;
+
+			scriptnode::DspNetwork::VoiceSetter vs(*n, av->getVoiceIndex());
+
+			HiseEvent copy(e);
+			n->getRootNode()->handleHiseEvent(copy);
+		}
+#endif
 	}
 }
 
@@ -1535,13 +1548,8 @@ void JavascriptSynthesiser::prepareToPlay(double newSampleRate, int samplesPerBl
 
 	if (auto n = getActiveNetwork())
 	{
-		if (auto vk = ProcessorHelpers::getFirstProcessorWithType<ScriptnodeVoiceKiller>(gainChain))
-			setVoiceKillerToUse(vk);
-
         n->prepareToPlay(newSampleRate, (double)samplesPerBlock);
         n->setNumChannels(getMatrix().getNumSourceChannels());
-		
-		
 	}
 }
 
@@ -1565,8 +1573,7 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 	{
 		if (isVoiceStart)
 		{
-			n->setVoiceKiller(synth->vk);
-			synth->voiceData.startVoice(*n, *n->getPolyHandler(), getVoiceIndex(), getCurrentHiseEvent());
+			synth->voiceData.startVoice(n, getVoiceIndex(), getCurrentHiseEvent());
 			isVoiceStart = false;
 		}
 
@@ -1624,6 +1631,56 @@ void VoiceDataStack::reset(int voiceIndex)
 			break;
 		}
 	}
+}
+
+void VoiceDataStack::handleHiseEvent(scriptnode::DspNetwork* n, const HiseEvent& m)
+{
+	if (m.isNoteOff())
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			if (vd.noteOn.getEventId() == m.getEventId())
+			{
+				HiseEvent c(m);
+				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+				n->handleHiseEvent(c);
+			}
+		}
+	}
+	else if (m.isPitchWheel() || m.isAftertouch() || m.isControllerOfType(74))
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			if (vd.noteOn.getChannel() == m.getChannel())
+			{
+				HiseEvent c(m);
+				scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+				n->handleHiseEvent(c);
+			}
+		}
+	}
+	else if (!m.isNoteOn())
+	{
+		for (auto vd : voiceNoteOns)
+		{
+			HiseEvent c(m);
+			scriptnode::DspNetwork::VoiceSetter vs(*n, vd.voiceIndex);
+			n->handleHiseEvent(c);
+}
+	}
+}
+
+void VoiceDataStack::startVoice(scriptnode::DspNetwork* n, int voiceIndex, const HiseEvent& e)
+{
+	voiceNoteOns.insertWithoutSearch({ voiceIndex, e });
+	HiseEvent c(e);
+
+	scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
+    
+    HiseEvent copy(e);
+    
+    n->reset();
+    n->handleHiseEvent(copy);
 }
 
 } // namespace hise

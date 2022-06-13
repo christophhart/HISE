@@ -3020,7 +3020,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
 {
     API_METHOD_WRAPPER_1(ScriptingSlotFX, setEffect);
     API_VOID_METHOD_WRAPPER_0(ScriptingSlotFX, clear);
-	API_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
+	API_VOID_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 };
 
@@ -3056,7 +3056,7 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 {
 	if (auto slot = getSlotFX())
 	{
-        slot->clearEffect();
+        slot->reset();
 	}
 	else
 	{
@@ -3078,15 +3078,17 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 		auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
 		{
-			SuspendHelpers::ScopedTicket ticket(slotFX->getMainController());
+			SuspendHelpers::ScopedTicket ticket(slot->getMainController());
 
-			slotFX->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
+			slot->getMainController()->getJavascriptThreadPool().killVoicesAndExtendTimeOut(jp);
 
-			LockHelpers::freeToGo(slotFX->getMainController());
-			slot->setEffect(effectName, false);
+			LockHelpers::freeToGo(slot->getMainController());
+			slot->setEffect(effectName);
 		}
 
-		return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(slot->getCurrentEffect()));
+		jassert(slot->getCurrentEffect()->getType() == Identifier(effectName));
+
+		return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
     }
 	else
 	{
@@ -3101,14 +3103,14 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrent
 	{
 		if (auto fx = slot->getCurrentEffect())
 		{
-			return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(fx));
+			return new ScriptingEffect(getScriptProcessor(), fx);
 		}
 	}
 
 	return {};
 }
 
-bool ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
+void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 {
 	if (auto t = getSlotFX())
 	{
@@ -3116,7 +3118,7 @@ bool ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 		{
 			if (auto other = sl->getSlotFX())
 			{
-				return t->swap(other);
+				t->swap(other);
 			}
 			else
 			{
@@ -3132,13 +3134,11 @@ bool ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
 	{
 		reportScriptError("Source Slot is invalid");
 	}
-    
-    RETURN_IF_NO_THROW(false);
 }
 
-HotswappableProcessor* ScriptingObjects::ScriptingSlotFX::getSlotFX()
+SlotFX* ScriptingObjects::ScriptingSlotFX::getSlotFX()
 {
-	return dynamic_cast<HotswappableProcessor*>(slotFX.get());
+	return dynamic_cast<SlotFX*>(slotFX.get());
 }
 
 struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
@@ -3817,7 +3817,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 };
 
 
-ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, Processor *sampleProcessor) :
+ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor) :
 ConstScriptingObject(p, dynamic_cast<Processor*>(sampleProcessor) != nullptr ? dynamic_cast<Processor*>(sampleProcessor)->getNumParameters() : 0),
 audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 {
@@ -3924,20 +3924,11 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 		auto pool = audioSampleProcessor->getMainController()->getCurrentAudioSampleBufferPool();
 
 		if (!fileName.contains("{EXP::") && !pool->areAllFilesLoaded())
-		{
-			PoolReference ref(getScriptProcessor()->getMainController_(), fileName, FileHandlerBase::AudioFiles);
-
-			if (ref.getReferenceString().contains("{PROJECT_FOLDER}"))
-			{
-				reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
-			}
-		}
-			
+			reportScriptError("You must call Engine.loadAudioFilesIntoPool() before using this method");
 #endif
 
-		auto p = dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get());
-		jassert(p != nullptr);
-		p->getAudioFile(0)->fromBase64String(fileName);
+		auto asp = dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get());
+		asp->getBuffer().fromBase64String(fileName);
 	}
 }
 
@@ -3947,7 +3938,7 @@ String ScriptingObjects::ScriptingAudioSampleProcessor::getFilename()
 	{
 		if (checkValidObject())
 		{
-            return dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get())->getAudioFile(0)->toBase64String();
+			return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getFileName();
 		}
 	}
 
@@ -3957,7 +3948,7 @@ String ScriptingObjects::ScriptingAudioSampleProcessor::getFilename()
 var ScriptingObjects::ScriptingAudioSampleProcessor::getSampleStart()
 {
 	if (checkValidObject())
-		return dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get())->getAudioFile(0)->getCurrentRange().getStart();
+		return dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().getCurrentRange().getStart();
 
 	return 0;
 }
@@ -3965,7 +3956,7 @@ var ScriptingObjects::ScriptingAudioSampleProcessor::getSampleStart()
 void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
 {
 	if (checkValidObject())
-        return dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get())->getAudioFile(0)->setRange(Range<int>(start, end));
+		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().setRange(Range<int>(start, end));
 }
 
 var ScriptingObjects::ScriptingAudioSampleProcessor::getAudioFile(int slotIndex)
@@ -3984,7 +3975,7 @@ int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 {
 	if (checkValidObject())
 	{
-        return dynamic_cast<ProcessorWithExternalData*>(audioSampleProcessor.get())->getAudioFile(0)->getCurrentRange().getLength();
+		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getBuffer().getCurrentRange().getLength();
 	}
 	else return 0;
 }

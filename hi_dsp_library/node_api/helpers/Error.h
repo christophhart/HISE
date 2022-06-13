@@ -70,7 +70,6 @@ struct Error
 		IllegalCompilation,
 		CloneMismatch,
 		IllegalMod,
-		UnscaledModRangeMismatch,
 		numErrorCodes
 	};
 

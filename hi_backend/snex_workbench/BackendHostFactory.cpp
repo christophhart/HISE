@@ -47,85 +47,39 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	dllFactory(dll)
 {
 	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
-	auto numNetworks = networks.size();
+	auto numNodes = networks.size();
 
-	int numNodesInDll = dllFactory.getNumNodes();
-
-	int thirdPartyOffset = 0;
-
-	for (int i = 0; i < numNodesInDll; i++)
+	for (int i = 0; i < numNodes; i++)
 	{
-		auto isThirdPartyNode = dllFactory.isThirdPartyNode(i);
-
-		if (isThirdPartyNode)
+		auto f = networks[i];
+		NodeFactory::Item item;
+		item.id = f.getFileNameWithoutExtension();
+		item.cb = [this, i, f](DspNetwork* p, ValueTree v)
 		{
-			thirdPartyOffset = i + 1;
+			auto nodeId = f.getFileNameWithoutExtension();
+			auto networkFile = f;
 
-			NodeFactory::Item item;
-			item.id = dllFactory.getId(i);
-
-			dll::FactoryBase* f = &dllFactory;
-			
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+			if (networkFile.existsAsFile())
 			{
-				auto isModNode = f->getWrapperType(i) == 1;
-
-				NodeBase* n;
-
-				if (isModNode)
+				if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
 				{
-					auto mn = new InterpretedModNode(p, v);
-					mn->initFromDll(f, i, false);
-					n = mn;
+					auto nv = ValueTree::fromXml(*xml);
+
+					auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
+
+					if (useMod)
+						return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
+					else
+						return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
 				}
-				else
-				{
-					auto in = new InterpretedNode(p, v);
-					in->initFromDll(f, i, false);
-					n = in;
-				}
-				
-				return n;
-			};
+			}
+            
+            jassertfalse;
+            NodeBase* n = nullptr;
+            return n;
+		};
 
-			monoNodes.add(item);
-			
-		}
-		else
-		{
-			auto networkIndex = i - thirdPartyOffset;
-
-			auto f = networks[networkIndex];
-			NodeFactory::Item item;
-			item.id = f.getFileNameWithoutExtension();
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
-			{
-				auto nodeId = f.getFileNameWithoutExtension();
-				auto networkFile = f;
-
-				if (networkFile.existsAsFile())
-				{
-					if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
-					{
-						auto nv = ValueTree::fromXml(*xml);
-
-						auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
-
-						if (useMod)
-							return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
-						else
-							return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
-					}
-				}
-
-				jassertfalse;
-				NodeBase* n = nullptr;
-				return n;
-			};
-
-			monoNodes.add(item);
-		}
-		
+		monoNodes.add(item);
 	}
 }
 
@@ -159,36 +113,6 @@ juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc, b
 	}
 
 	return files;
-}
-
-Array<juce::File> BackendDllManager::getThirdPartyFiles(MainController* mc, bool getSrcDirectory)
-{
-	auto thirdPartyFolder = getSubFolder(mc, FolderSubType::ThirdParty);
-
-	Array<File> fileList;
-
-	if (getSrcDirectory)
-	{
-		auto srcFolder = thirdPartyFolder.getChildFile("src");
-
-		if (srcFolder.isDirectory())
-			fileList.add(srcFolder);
-	}
-	else
-	{
-		auto thirdPartyFiles = thirdPartyFolder.findChildFiles(File::findFilesAndDirectories, false);
-
-		for (auto f : thirdPartyFiles)
-		{
-			if (f.isHidden())
-				continue;
-
-			if (f.getFileExtension() == ".h")
-				fileList.add(f);
-		}
-	}
-		
-	return fileList;
 }
 
 int BackendDllManager::getDllHash(int index)
@@ -359,7 +283,6 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 	case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
 	case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
 	case FolderSubType::CodeLibrary:			return createIfNotDirectory(f.getChildFile("CodeLibrary"));
-	case FolderSubType::ThirdParty:				return createIfNotDirectory(f.getChildFile("ThirdParty"));
 	case FolderSubType::DllLocation:
 #if JUCE_WINDOWS
 		return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("dll").getChildFile("Dynamic Library"));

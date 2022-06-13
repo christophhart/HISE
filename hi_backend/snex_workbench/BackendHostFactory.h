@@ -102,7 +102,6 @@ struct BackendDllManager : public ReferenceCountedObject,
 		DllLocation,
 		ProjucerSourceFolder,
 		Layouts,
-		ThirdParty,
 		numFolderSubTypes
 	};
 
@@ -113,8 +112,6 @@ struct BackendDllManager : public ReferenceCountedObject,
 	using Ptr = ReferenceCountedObjectPtr<BackendDllManager>;
 
 	static Array<File> getNetworkFiles(MainController* mc, bool includeNoCompilers = true);
-
-	static Array<File> getThirdPartyFiles(MainController* mc, bool getSrcDirectory);
 
 	int getDllHash(int index);
 

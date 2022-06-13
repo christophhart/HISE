@@ -551,8 +551,6 @@ public:
 
 		virtual void rebuild();;
 
-        void sendClearMessage();
-        
 		virtual bool handleKeyPress(const KeyPress& k, Component* c) 
 		{
 			ignoreUnused(k, c);
@@ -656,8 +654,6 @@ public:
 
 		virtual void providerWasRebuilt() {};
 
-        virtual void providerCleared() {};
-        
 	protected:
 
 		void registerAtHolder()
