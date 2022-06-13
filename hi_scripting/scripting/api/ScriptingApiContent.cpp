@@ -2613,6 +2613,8 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 		{
 			d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
 		}
+		else
+			d->getUpdater().sendDisplayChangeMessage(-1, sendNotificationAsync, true);
 	}
 }
 
