@@ -717,8 +717,6 @@ public:
 			startOrStop(false);
 		}
 
-		bool isTimerRunning() const { return isRunning; };
-
 		virtual void timerCallback() = 0;
 
 	private:
@@ -731,8 +729,6 @@ public:
 			{
 				if (safeThis.get() != nullptr)
 				{
-					safeThis->isRunning = shouldStart;
-
 					if(shouldStart)
 						safeThis.get()->updater->simpleTimers.addIfNotAlreadyThere(safeThis);
 					else
@@ -748,7 +744,6 @@ public:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(SimpleTimer);
 
-		bool isRunning = false;
 		WeakReference<PooledUIUpdater> updater;
 	};
 
@@ -1700,14 +1695,12 @@ template <typename...Ps> struct LambdaBroadcaster final
 	template <typename T, typename F> void addListener(T& obj, const F& f, bool sendWithInitialValue=true)
 	{
         {
+            
             removeDanglingObjects();
             
             auto t = new SafeLambda<T, void, Ps...>(obj, f);
             SimpleReadWriteLock::ScopedWriteLock sl(lock);
             listeners.add(t);
-
-			if (lockfreeUpdater != nullptr && !lockfreeUpdater->isTimerRunning())
-				lockfreeUpdater->start();
         }
 
 		if(sendWithInitialValue)
@@ -1734,9 +1727,6 @@ template <typename...Ps> struct LambdaBroadcaster final
 			}
 		}
 
-		if (listeners.isEmpty() && lockfreeUpdater != nullptr)
-			lockfreeUpdater->stop();
-
 		removeDanglingObjects();
 
 		return true;
@@ -1748,9 +1738,6 @@ template <typename...Ps> struct LambdaBroadcaster final
         
 		SimpleReadWriteLock::ScopedWriteLock sl(lock);
         std::swap(listeners, pendingDelete);
-
-		if (lockfreeUpdater != nullptr)
-			lockfreeUpdater->stop();
 	}
 
 	void enableLockFreeUpdate(PooledUIUpdater* updater)
@@ -1791,9 +1778,6 @@ private:
 
 	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
 	{
-        if(n == dontSendNotification)
-            return;
-        
 		if (valueQueue != nullptr)
 			valueQueue.get()->push(value);
 
@@ -1874,8 +1858,7 @@ private:
 			SimpleTimer(updater),
 			parent(p)
 		{
-			if(!p.listeners.isEmpty())
-				start();
+			start();
 		};
 
 		void timerCallback() override

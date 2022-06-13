@@ -112,9 +112,7 @@ public:
 		intensity(m == PitchMode ? 0.0f : 1.0f), 
 		modulationMode(m), 
 		bipolar(m == PitchMode || m == PanMode)
-	{
-        modeBroadcaster.sendMessage(dontSendNotification, m);
-    };
+	{};
 
     virtual ~Modulation();;
 
@@ -226,15 +224,11 @@ public:
 		smoothedIntensity.reset(44100.0, 0.0);
 	}
 
-	virtual void setMode(Mode newMode, NotificationType n=dontSendNotification)
+	virtual void setMode(Mode newMode)
 	{
 		modulationMode = newMode;
-        
-        modeBroadcaster.sendMessage(n, (int)newMode);
 	}
 
-    LambdaBroadcaster<int> modeBroadcaster;
-    
 protected:
 
 	Mode modulationMode;

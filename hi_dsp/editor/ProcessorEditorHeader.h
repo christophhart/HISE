@@ -93,8 +93,6 @@ public:
 
 	bool hasWorkspaceButton() const;
 
-    static void updateModulationMode(ProcessorEditorHeader& h, int m);
-    
 	/** Returns the Modulation::Mode of the ModulatorChain. */
 	int getModulatorMode() const;
 	
@@ -184,7 +182,6 @@ private:
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorHeader)
-    JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorEditorHeader);
 };
 
 } // namespace hise

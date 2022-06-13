@@ -87,9 +87,6 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Ma
 	static const Identifier step("stepSize");
 	static const Identifier isMidi("allowMidiAutomation");
 	static const Identifier isHost("allowHostAutomation");
-	static const Identifier connections("connections");
-	static const Identifier processorId("processorId");
-	static const Identifier parameterId("parameterId");
 
 	id = d[id_].toString();
 
@@ -104,29 +101,7 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Ma
 
 	range.interval = (float)d.getProperty(step, 0.0f);
 
-	auto cArray = d[connections];
-
-	if (cArray.isArray())
-	{
-		for (const auto& c : *cArray.getArray())
-		{
-			auto pId = c[processorId].toString();
-			auto paramId = c[parameterId].toString();
-
-			if (pId.isNotEmpty() && paramId.isNotEmpty())
-			{
-				ProcessorConnection pc;
-
-				if (pc.connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), pId))
-					pc.connectedParameterIndex = pc.connectedProcessor->getParameterIndexForIdentifier(paramId);
-
-				if (pc)
-					processorConnections.add(std::move(pc));
-			}
-		}
-	}
-
-	args[0] = index;
+	args[0] = id.toString();
 	args[1] = var(0.0f);
 
 	if (id.toString().isEmpty())
@@ -142,25 +117,11 @@ void MainController::UserPresetHandler::CustomAutomationData::call(float newValu
 	newValue = range.getRange().clipValue(newValue);
 	newValue = range.snapToLegalValue(newValue);
 	lastValue = newValue;
-	args[0] = index;
 	args[1] = lastValue;
 
-	for (const auto& pc : processorConnections)
-		pc.call(newValue);
-
 	syncListeners.sendMessage(sendNotificationSync, args);
-	asyncListeners.sendMessage(sendNotificationAsync, index, lastValue);
+	asyncListeners.sendMessage(sendNotificationAsync, lastValue);
 }
-
-void MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::call(float v) const
-{
-	jassert(connectedProcessor != nullptr);
-
-	if (*this)
-		connectedProcessor.get()->setAttribute(connectedParameterIndex, v, sendNotification);
-}
-
-
 
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_)
@@ -543,7 +504,7 @@ bool MainController::UserPresetHandler::setCustomAutomationData(CustomAutomation
 		customAutomationData.swapWith(newList);
 		return true;
 	}
-	
+
 	return false;
 }
 

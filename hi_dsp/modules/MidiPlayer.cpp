@@ -666,7 +666,7 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 	auto maxLength = destination->getLength();
 
-	for (auto& e : arrayToWrite)
+	for (const auto& e : arrayToWrite)
 	{
 		if (e.isEmpty())
 			continue;
@@ -680,9 +680,6 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 
 		if (maxLength != 0.0)
 			timeStamp = jmin(maxLength, timeStamp);
-
-		if (e.getChannel() == 0)
-			e.setChannel(1);
 
 		if (e.isNoteOn() && e.getTransposeAmount() != 0)
 		{
@@ -1121,20 +1118,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			newEvent.setArtificial();
 			newEvent.setChannel(currentTrackIndex + 1);
 
-			if (newEvent.isController())
-			{
-				bool consumed = false;
-
-				if (globalMidiHandlerConsumesCC)
-				{
-					auto handler = getMainController()->getMacroManager().getMidiControlAutomationHandler();
-					consumed = handler->handleControllerMessage(newEvent);
-				}
-				
-				if(!consumed)
-					buffer.addEvent(newEvent);
-			}
-			else if (newEvent.isNoteOn() && !isBypassed())
+			if (newEvent.isNoteOn() && !isBypassed())
 			{
 				getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
 
@@ -1690,7 +1674,8 @@ void MidiPlayer::finishRecording()
 					l->add(artificialNoteOff);
 				}
 			}
-			else if (currentEvent.isNoteOff())
+
+			if (currentEvent.isNoteOff())
 			{
 				bool found = false;
 
