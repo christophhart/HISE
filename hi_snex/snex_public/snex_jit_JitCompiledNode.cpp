@@ -86,7 +86,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 		s << "void setExternalData(const ExternalData& d, int index) { instance.setExternalData(d, index); }\n";
 	}
 
-	for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(c, numChannels))
+	for (auto f : Types::ScriptnodeCallbacks::getAllPrototypes(&c, numChannels))
 	{
 		addCallbackWrapper(s, f);
 		fIds.add(f.id.getIdentifier());

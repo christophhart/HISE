@@ -821,6 +821,60 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 	showStatusMessage("Press OK to compile the nodes into a DLL");
 }
 
+void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
+{
+#if 0
+	<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>D:\Development\HISE modules\projects\standalone\Builds\VisualStudio2017\x64\Debug\App\HISE Debug.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>
+#endif
+
+	ScopedPointer<XmlElement> xml = new XmlElement("Project");
+	xml->setAttribute("ToolsVersion", "15.0");
+	xml->setAttribute("xmlns", "http://schemas.microsoft.com/developer/msbuild/2003");
+	auto pg = new XmlElement("PropertyGroup");
+	pg->setAttribute("Condition", "'$(Configuration)|$(Platform)'=='Debug|x64'");
+	xml->addChildElement(pg);
+
+	auto ldc = new XmlElement("LocalDebuggerCommand");
+
+	auto& settings = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
+
+	auto hisePath = settings.getSetting(HiseSettings::Compiler::HisePath).toString();
+	auto debugExecutable =  File(hisePath).getChildFile("projects/standalone/Builds/VisualStudio2017/x64/Debug/App/HISE Debug.exe");
+
+	jassert(debugExecutable.existsAsFile());
+
+	ldc->addTextElement(debugExecutable.getFullPathName());
+	
+	pg->addChildElement(ldc);
+	auto df = new XmlElement("DebuggerFlavor");
+	df->addTextElement("WindowsLocalDebugger");
+	pg->addChildElement(df);
+
+	auto solutionFolder = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Binaries).getChildFile("Builds/VisualStudio2017");
+
+	auto projectName = settings.getSetting(HiseSettings::Project::Name).toString();
+
+	auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("sln");
+
+	auto userFile = solutionFile.getSiblingFile(projectName + "_DynamicLibrary.vcxproj.user");
+
+	auto fileContent = xml->createDocument("");
+
+	userFile.replaceWithText(fileContent);
+
+	if (PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
+	{
+		solutionFile.revealToUser();
+		JUCEApplication::quit();
+	}
+}
+
 hise::DspNetworkCompileExporter::CppFileLocationType DspNetworkCompileExporter::getLocationType(const File& f) const
 {
 	if (f.getParentDirectory().getFileNameWithoutExtension() == "src")
@@ -1202,6 +1256,10 @@ void DspNetworkCompileExporter::threadFinished()
 
 	if (ok == ErrorCodes::OK)
 	{
+#if JUCE_DEBUG && JUCE_WINDOWS
+		writeDebugFileAndShowSolution();
+#endif
+
 		globalCommandLineExport = false;
 
 		if (auto ed = getEditorWorkbench())

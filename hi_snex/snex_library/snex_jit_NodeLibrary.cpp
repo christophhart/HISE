@@ -117,7 +117,7 @@ template <class Node> struct LibraryNode
 	{
 		if (c.allowInlining())
 		{
-			auto f = ScriptnodeCallbacks::getPrototype(c, callback, numChannels);
+			auto f = ScriptnodeCallbacks::getPrototype(&c, callback, numChannels);
 			st->injectInliner(f.id.getIdentifier(), type, func);
 		}
 	}
@@ -216,9 +216,9 @@ private:
 		st->setInternalProperty(WrapIds::NumChannels, numChannels);
 		st->setInternalProperty(WrapIds::IsObjectWrapper, 0);
 
-		auto prepaFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::PrepareFunction, numChannels).withParent(id);
-		auto eventFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleEventFunction, numChannels).withParent(id);
-		auto resetFunction = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ResetFunction, numChannels).withParent(id);
+		auto prepaFunction = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::PrepareFunction, numChannels).withParent(id);
+		auto eventFunction = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::HandleEventFunction, numChannels).withParent(id);
+		auto resetFunction = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::ResetFunction, numChannels).withParent(id);
 
 		st->addJitCompiledMemberFunction(prepaFunction);
 		st->addJitCompiledMemberFunction(eventFunction);
@@ -226,8 +226,8 @@ private:
 
 		auto addProcessCallbacks = [&](int i)
 		{
-			auto pi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFunction, i).withParent(id);
-			auto fi = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::ProcessFrameFunction, i).withParent(id);
+			auto pi = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::ProcessFunction, i).withParent(id);
+			auto fi = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::ProcessFrameFunction, i).withParent(id);
 
 			st->addJitCompiledMemberFunction(pi);
 			st->addJitCompiledMemberFunction(fi);

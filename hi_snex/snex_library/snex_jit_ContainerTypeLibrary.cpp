@@ -107,7 +107,7 @@ ContainerNodeBuilder::ContainerNodeBuilder(Compiler& c, const Identifier& id, in
 	
 	for (int i = 1; i < numChannels + 1; i++)
 	{
-		auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(c, i);
+		auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(&c, i);
 
 		for (auto& c : prototypes)
 			callbacks.add(c);

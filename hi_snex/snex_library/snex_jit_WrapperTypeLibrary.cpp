@@ -98,7 +98,7 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 
 		for (int i = 1; i < numChannels + 1; i++)
 		{
-			auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(*compiler, i);
+			auto prototypes = Types::ScriptnodeCallbacks::getAllPrototypes(compiler, i);
 
 			for (auto p : prototypes)
 				st->addWrappedMemberMethod("obj", p);
@@ -327,7 +327,7 @@ snex::jit::FunctionData WrapBuilder::createGetSelfAsObjectFunction(StructType* s
 
 void WrapBuilder::setInlinerForCallback(Types::ScriptnodeCallbacks::ID cb, CallbackList requiredFunctions, Inliner::InlineType t, const Inliner::Func& inliner)
 {
-	auto fToReplace = Types::ScriptnodeCallbacks::getPrototype(c, cb, numChannels);
+	auto fToReplace = Types::ScriptnodeCallbacks::getPrototype(&c, cb, numChannels);
 
 	auto compiler = &c;
 	auto thisNumChannels = numChannels;
@@ -405,7 +405,7 @@ void WrapBuilder::setEmptyCallback(Types::ScriptnodeCallbacks::ID cb)
 
 	addPostFunctionBuilderInitFunction([cb, numChannels_](const TemplateObject::ConstructData& cd, StructType* st)
 	{
-		auto f = ScriptnodeCallbacks::getPrototype(*st->getCompiler(), cb, numChannels_);
+		auto f = ScriptnodeCallbacks::getPrototype(st->getCompiler(), cb, numChannels_);
 
 		using namespace scriptnode;
 
@@ -652,7 +652,7 @@ void* WrapBuilder::ExternalFunctionMapData::getWrappedFunctionPtr(Types::Scriptn
 		jassert(t.isComplexType());
 
 		// We have to recreate the argument list from the default callbacks because it might want another callback
-		auto prototypes = ScriptnodeCallbacks::getAllPrototypes(c, getChannelFromLastArg());
+		auto prototypes = ScriptnodeCallbacks::getAllPrototypes(&c, getChannelFromLastArg());
 
 		Array<TypeInfo> args;
 
@@ -692,7 +692,7 @@ snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallback(TypeIn
 
 	FunctionClass::Ptr fc = st->getFunctionClass();
 
-	auto prototype = Types::ScriptnodeCallbacks::getPrototype(c, cb, getChannelFromLastArg());
+	auto prototype = Types::ScriptnodeCallbacks::getPrototype(&c, cb, getChannelFromLastArg());
 	fc->addMatchingFunctions(matches, fc->getClassName().getChildId(prototype.id.getIdentifier()));
 
 	for (auto& m : matches)
@@ -1018,7 +1018,7 @@ Result WrapLibraryBuilder::registerTypes()
 		auto compiler = st->getCompiler();
 		jassert(compiler != nullptr);
 
-		auto c = ScriptnodeCallbacks::getPrototype(*compiler, ScriptnodeCallbacks::SetExternalDataFunction, 2);
+		auto c = ScriptnodeCallbacks::getPrototype(compiler, ScriptnodeCallbacks::SetExternalDataFunction, 2);
 
 		c.inliner = Inliner::createHighLevelInliner({}, [](InlineData* b)
 		{
@@ -1053,7 +1053,7 @@ void WrapLibraryBuilder::registerCoreTemplates()
 	coreMidi.addFunction([](StructType* st)
 		{
 			auto c_ = st->getCompiler();
-			auto f = ScriptnodeCallbacks::getPrototype(*c_, ScriptnodeCallbacks::HandleModulation, 2);
+			auto f = ScriptnodeCallbacks::getPrototype(c_, ScriptnodeCallbacks::HandleModulation, 2);
 			f.id = st->id.getChildId(f.id.getIdentifier());
 			f.inliner = Inliner::createHighLevelInliner({}, Callbacks::core_midi::handleModulation);
 			return f;

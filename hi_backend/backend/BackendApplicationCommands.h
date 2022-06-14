@@ -108,6 +108,7 @@ public:
 		MenuFileSettingsUser,
 		MenuFileSettingCheckSanity,
 		MenuFileSettingsCleanBuildDirectory,
+		MenuFileCreateThirdPartyNode,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
@@ -373,6 +374,8 @@ public:
 		static void createRecoveryXml(BackendRootWindow * bpe);
 		static void showDocWindow(BackendRootWindow * bpe);
 		static void showNetworkDllInfo(BackendRootWindow * bpe);
+
+		static void createThirdPartyNode(BackendRootWindow* bpe);
 	};
 
 private:

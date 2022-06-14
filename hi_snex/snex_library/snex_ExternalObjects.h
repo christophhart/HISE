@@ -81,9 +81,9 @@ struct ScriptnodeCallbacks
 
 	static Array<NamespacedIdentifier> getIds(const NamespacedIdentifier& p);
 
-	static Array<FunctionData> getAllPrototypes(Compiler& c, int numChannels);
+	static Array<FunctionData> getAllPrototypes(Compiler* c, int numChannels);
 
-	static jit::FunctionData getPrototype(Compiler& c, ID id, int numChannels);
+	static jit::FunctionData getPrototype(Compiler* c, ID id, int numChannels);
 };
 
 

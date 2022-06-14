@@ -112,7 +112,7 @@ private:
 
 		static FunctionData prepareFunction(StructType* st)
 		{
-			auto f = ScriptnodeCallbacks::getPrototype(*st->getCompiler(), ScriptnodeCallbacks::PrepareFunction, 2);
+			auto f = ScriptnodeCallbacks::getPrototype(st->getCompiler(), ScriptnodeCallbacks::PrepareFunction, 2);
 
 			f.id = st->id.getChildId(f.id.getIdentifier());
 

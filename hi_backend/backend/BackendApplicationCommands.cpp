@@ -109,6 +109,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileSettingsCompiler,
 		MenuFileSettingCheckSanity,
 		MenuFileSettingsCleanBuildDirectory,
+		MenuFileCreateThirdPartyNode,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
@@ -306,6 +307,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Save current state as new User Preset", true, false, 'X', false);
 		result.categoryName = "File";
         break;
+	case MenuFileCreateThirdPartyNode:
+		setCommandTarget(result, "Create C++ third party node template", true, false, 'X', false);
+		result.categoryName = "File";
+		break;
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as Instrument (VSTi / AUi) plugin", true, false, 'X', false);
 		result.categoryName = "Export";
@@ -702,6 +707,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuFileSettingsCompiler:		Actions::showFileCompilerSettings(bpe); return true;
 	case MenuFileSettingCheckSanity:	Actions::checkSettingSanity(bpe); return true;
 	case MenuFileSettingsCleanBuildDirectory:	Actions::cleanBuildDirectory(bpe); return true;
+	case MenuFileCreateThirdPartyNode:	Actions::createThirdPartyNode(bpe); return true;
 	case MenuReplaceWithClipboardContent: Actions::replaceWithClipboardContent(bpe); return true;
 	case MenuFileQuit:                  if (PresetHandler::showYesNoWindow("Quit Application", "Do you want to quit?"))
                                             JUCEApplicationBase::quit(); return true;
@@ -868,6 +874,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("File Management");
 
 		ADD_ALL_PLATFORMS(MenuNewFile);
+		ADD_ALL_PLATFORMS(MenuFileCreateThirdPartyNode);
 		
 
 		
@@ -2835,6 +2842,169 @@ void BackendCommandTarget::Actions::showNetworkDllInfo(BackendRootWindow * bpe)
 	t << "DLL Info:  \n> `" << JSON::toString(v, true) << "`";
 
 	PresetHandler::showMessageWindow("DllInfo", t, PresetHandler::IconType::Info);
+}
+
+void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
+{
+	auto n = PresetHandler::getCustomName("custom_node", "Please enter the name of the custom node");
+
+	if (n.isNotEmpty())
+	{
+		using namespace snex::cppgen;
+
+		n = StringHelpers::makeValidCppName(n);
+
+		auto thirdPartyFolder = BackendDllManager::getSubFolder(bpe->getMainController(), BackendDllManager::FolderSubType::ThirdParty);
+		auto codeFile = thirdPartyFolder.getChildFile(n).withFileExtension("h");
+
+		Base b(Base::OutputType::AddTabs);
+
+		b.addComment("Third Party Node Template", Base::CommentType::FillTo80);
+
+		{
+			Namespace pn(b, "project", false);
+
+			UsingNamespace(b, NamespacedIdentifier("juce"));
+			UsingNamespace(b, NamespacedIdentifier("hise"));
+			UsingNamespace(b, NamespacedIdentifier("scriptnode"));
+
+			Array<NamespacedIdentifier> baseClasses;
+			baseClasses.add(snex::NamespacedIdentifier::fromString("data::base"));
+
+			snex::TemplateParameter::List templates;
+			templates.add(snex::TemplateParameter(NamespacedIdentifier::fromString("NV"), 0, false));
+
+			b.addComment("The node class with all required callbacks", snex::cppgen::Base::CommentType::FillTo80);
+
+			Struct s(b, Identifier(n), baseClasses, templates, true);
+
+			b.addComment("Metadata definitions", snex::cppgen::Base::CommentType::FillTo80Light);
+
+			Macro(b, "SNEX_NODE", { n });
+
+			{
+				Struct mt(b, "MetadataClass", {}, {});
+				cppgen::Macro(b, "SN_NODE_ID", { n.quoted() });
+			}
+			
+			b.addEmptyLine();
+
+			b.addComment("set to true if you want this node to have a modulation dragger", snex::cppgen::Base::CommentType::Raw);
+			b << "static constexpr bool isModNode() { return false; };";
+			b << "static constexpr bool isPolyphonic() { return NV > 1; };";
+
+			b.addComment("set to true if your node produces a tail", Base::CommentType::Raw);
+			b << "static constexpr bool hasTail() { return false; };";
+
+			b.addComment("Undefine this method if you want a dynamic channel count", Base::CommentType::Raw);
+			b << "static constexpr int getFixChannelAmount() { return 2; };";
+
+			b.addEmptyLine();
+
+			ExternalData::forEachType([&](ExternalData::DataType t)
+			{
+				String s;
+				s << "static constexpr int Num" << ExternalData::getDataTypeName(t, true) << " = 0;" ;
+				b << s;
+			});
+
+			b.addEmptyLine();
+
+			auto callbacks = snex::jit::ScriptnodeCallbacks::getAllPrototypes(nullptr, -1);
+
+			callbacks.add(ScriptnodeCallbacks::getPrototype(nullptr, ScriptnodeCallbacks::ID::HandleModulation, 2));
+			callbacks.add(ScriptnodeCallbacks::getPrototype(nullptr, ScriptnodeCallbacks::ID::SetExternalDataFunction, 2));
+			
+			b.addComment("Scriptnode callbacks", snex::cppgen::Base::CommentType::FillTo80Light);
+
+			for (auto c : callbacks)
+			{
+				b.addEmptyLine();
+				if (c.id.getIdentifier().toString().startsWith("process"))
+				{
+					String s;
+					s << "template <typename T> void " << c.id.getIdentifier() << "(T& data)";
+					b << s;
+				}
+				else
+					Function f(b, c);
+
+				StatementBlock sb(b, false);
+
+				b << "";
+
+				if (c.returnType.isValid())
+				{
+					VariableStorage v(c.returnType.getType(), var(0));
+					String rt;
+					rt << "return " << Types::Helpers::getCppValueString(v) << ";";
+					b << rt;
+				}
+
+				b.addEmptyLine();
+			}
+
+			{
+				b.addEmptyLine();
+				String pf;
+				pf << "template <int P> void setParameter(double v)";
+				b << pf;
+				StatementBlock sb(b, false);
+
+				b << "if (P == 0)";
+
+				{
+					StatementBlock sb2(b, false);
+					b.addComment("This will be executed for MyParameter (see below)", snex::cppgen::Base::CommentType::Raw);
+					b << "jassertfalse;";
+				}
+
+				b.addEmptyLine();
+			}
+
+			{
+				b.addEmptyLine();
+				
+				b << "void createParameters(ParameterDataList& data)";
+				StatementBlock sb(b);
+
+				{
+					StatementBlock sb2(b);
+					String l;
+					b.addComment("Create a parameter like this", Base::CommentType::Raw);
+					b << "parameter::data p(\"MyParameter\", { 0.0, 1.0 });";
+					b << "p.setDefaultValue(0.5);";
+
+					b.addComment("The template parameter (<0>) will be forwarded to setParameter<P>()", Base::CommentType::Raw);
+					b << "p.callback.referTo(this, setParameterStatic<0>);";
+					b << "data.add(std::move(p));";
+				}
+			}
+		}
+
+		codeFile.replaceWithText(b.toString());
+
+		codeFile.revealToUser();
+
+		File npFile = thirdPartyFolder.getChildFile("node_properties").withFileExtension("json");
+
+		var np;
+
+		if(npFile.existsAsFile())
+			np = JSON::parse(npFile);
+
+		if (np.getDynamicObject() == nullptr)
+			np = var(new DynamicObject());
+
+		auto obj = np.getDynamicObject();
+
+		Array<var> propList;
+		propList.add(PropertyIds::IsPolyphonic.toString());
+
+		obj->setProperty(Identifier(n), var(propList));
+
+		npFile.replaceWithText(JSON::toString(np));
+	}
 }
 
 #undef REPLACE_WILDCARD
