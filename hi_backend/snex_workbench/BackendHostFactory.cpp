@@ -53,7 +53,9 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 	int thirdPartyOffset = 0;
 
-	for (int i = 0; i < numNodesInDll; i++)
+	auto numNodesToCreate = jmax(numNetworks, numNodesInDll);
+
+	for (int i = 0; i < numNodesToCreate; i++)
 	{
 		auto isThirdPartyNode = dllFactory.isThirdPartyNode(i);
 
