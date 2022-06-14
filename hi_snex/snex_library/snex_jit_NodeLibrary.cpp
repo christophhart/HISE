@@ -151,7 +151,7 @@ template <class Node> struct LibraryNode
 
 	void addSetExternalFunction()
 	{
-		auto f = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::SetExternalDataFunction, numChannels);
+		auto f = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::SetExternalDataFunction, numChannels);
 		f.id = st->id.getChildId(f.id.getIdentifier());
 		st->addJitCompiledMemberFunction(f);
 		st->injectMemberFunctionPointer(f, (void*)Wrapper::setExternalData);
@@ -159,7 +159,7 @@ template <class Node> struct LibraryNode
 
 	void addModulationFunction(const Inliner::Func& highLevelInliner = {})
 	{
-		auto f = ScriptnodeCallbacks::getPrototype(c, ScriptnodeCallbacks::HandleModulation, numChannels);
+		auto f = ScriptnodeCallbacks::getPrototype(&c, ScriptnodeCallbacks::HandleModulation, numChannels);
 
 		f.id = st->id.getChildId(f.id.getIdentifier());
 
