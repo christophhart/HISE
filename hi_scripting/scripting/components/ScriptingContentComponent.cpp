@@ -304,6 +304,10 @@ void ScriptContentComponent::updateComponentVisibility(ScriptCreatedComponentWra
 	}
 
 	const bool e = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
+    
+    if(wrapper->getComponent()->isEnabled() != e)
+        wrapper->getComponent()->repaint();
+    
 	wrapper->getComponent()->setEnabled(e);
 	wrapper->getComponent()->setInterceptsMouseClicks(sc->isClickable(), true);
 
