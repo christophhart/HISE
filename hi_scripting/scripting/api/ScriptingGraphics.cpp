@@ -2434,6 +2434,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableBackground(Graphics& g
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("id", te.getName());
 		obj->setProperty("position", rulerPosition);
+		obj->setProperty("enabled", te.isEnabled());
+		
 		setColourOrBlack(obj, "bgColour",    te, TableEditor::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  te, TableEditor::ColourIds::fillColour);
 		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
@@ -2462,7 +2464,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePath(Graphics& g_, Tab
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("lineThickness", lineThickness);
-
+		obj->setProperty("enabled", te.isEnabled());
+		
 		setColourOrBlack(obj, "bgColour", te, TableEditor::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour", te, TableEditor::ColourIds::fillColour);
 		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
@@ -2487,7 +2490,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePoint(Graphics& g_, Ta
 		obj->setProperty("isEdge", isEdge);
 		obj->setProperty("hover", isHover);
 		obj->setProperty("clicked", isDragged);
-
+		obj->setProperty("enabled", te.isEnabled());
+		
 		setColourOrBlack(obj, "bgColour", te, TableEditor::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour", te, TableEditor::ColourIds::fillColour);
 		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
@@ -2511,6 +2515,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("position", rulerPosition);
 		obj->setProperty("lineThickness", lineThickness);
+		obj->setProperty("enabled", te.isEnabled());
+		
 		setColourOrBlack(obj, "bgColour",    te, TableEditor::ColourIds::bgColour);
 		setColourOrBlack(obj, "itemColour",  te, TableEditor::ColourIds::fillColour);
 		setColourOrBlack(obj, "itemColour2", te, TableEditor::ColourIds::lineColour);
