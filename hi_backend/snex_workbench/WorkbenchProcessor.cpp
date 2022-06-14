@@ -823,16 +823,17 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 
 void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 {
-#if 0
-	<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommand>D:\Development\HISE modules\projects\standalone\Builds\VisualStudio2017\x64\Debug\App\HISE Debug.exe</LocalDebuggerCommand>
-    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-  </PropertyGroup>
-</Project>
-#endif
-
+    auto& settings = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
+    auto hisePath = settings.getSetting(HiseSettings::Compiler::HisePath).toString();
+    auto solutionFolder = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Binaries).getChildFile("Builds");
+    auto projectName = settings.getSetting(HiseSettings::Project::Name).toString();
+    auto debugExecutable = File(hisePath).getChildFile("projects/standalone/Builds/");
+    
+#if JUCE_WINDOWS
+    debugExecutable = debugExectuable.getChildFile("VisualStudio2017/x64/Debug/App/HISE Debug.exe");
+    solutionFolder = solutionFolder.getChildFile("VisualStudio2017");
+    auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("sln");
+    
 	ScopedPointer<XmlElement> xml = new XmlElement("Project");
 	xml->setAttribute("ToolsVersion", "15.0");
 	xml->setAttribute("xmlns", "http://schemas.microsoft.com/developer/msbuild/2003");
@@ -841,11 +842,6 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 	xml->addChildElement(pg);
 
 	auto ldc = new XmlElement("LocalDebuggerCommand");
-
-	auto& settings = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
-
-	auto hisePath = settings.getSetting(HiseSettings::Compiler::HisePath).toString();
-	auto debugExecutable =  File(hisePath).getChildFile("projects/standalone/Builds/VisualStudio2017/x64/Debug/App/HISE Debug.exe");
 
 	jassert(debugExecutable.existsAsFile());
 
@@ -856,23 +852,32 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 	df->addTextElement("WindowsLocalDebugger");
 	pg->addChildElement(df);
 
-	auto solutionFolder = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Binaries).getChildFile("Builds/VisualStudio2017");
-
-	auto projectName = settings.getSetting(HiseSettings::Project::Name).toString();
-
-	auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("sln");
-
 	auto userFile = solutionFile.getSiblingFile(projectName + "_DynamicLibrary.vcxproj.user");
 
 	auto fileContent = xml->createDocument("");
 
 	userFile.replaceWithText(fileContent);
-
-	if (PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
-	{
-		solutionFile.revealToUser();
-		JUCEApplication::quit();
-	}
+    
+    if (PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
+    {
+        solutionFile.revealToUser();
+        JUCEApplication::quit();
+    }
+    
+#elif JUCE_MAC
+    debugExecutable = debugExecutable.getChildFile("MacOSX/build/Debug/HISE Debug.app");
+    
+    jassert(debugExecutable.existsAsFile());
+    solutionFolder = solutionFolder.getChildFile("MacOSX");
+    auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("xcodeproj");
+    
+    if (PresetHandler::showYesNoWindow("Show XCode Project", "Do you want to show the Xcode Project file?  \n> Double click on the file to open XCode, then choose `Debug->Attach to Process->HISE Debug` in order to run your C++ node in the Xcode Debugger"))
+    {
+        solutionFile.revealToUser();
+    }
+#endif
+    
+	
 }
 
 hise::DspNetworkCompileExporter::CppFileLocationType DspNetworkCompileExporter::getLocationType(const File& f) const
@@ -1256,7 +1261,7 @@ void DspNetworkCompileExporter::threadFinished()
 
 	if (ok == ErrorCodes::OK)
 	{
-#if JUCE_DEBUG && JUCE_WINDOWS
+#if JUCE_DEBUG
 		writeDebugFileAndShowSolution();
 #endif
 
