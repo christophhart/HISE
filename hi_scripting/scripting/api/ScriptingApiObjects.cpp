@@ -4666,6 +4666,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequenceCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setAutomationHandlerConsumesControllerEvents);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, asMidiProcessor);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setGlobalPlaybackRatio);
 	
 };
 
@@ -4705,6 +4706,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(setAutomationHandlerConsumesControllerEvents);
 	ADD_API_METHOD_1(setSequenceCallback);
 	ADD_API_METHOD_0(asMidiProcessor);
+	ADD_API_METHOD_1(setGlobalPlaybackRatio);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -5142,6 +5144,11 @@ juce::var ScriptingObjects::ScriptedMidiPlayer::asMidiProcessor()
 	}
 
 	return var();
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setGlobalPlaybackRatio(double globalRatio)
+{
+	getScriptProcessor()->getMainController_()->setGlobalMidiPlaybackSpeed(globalRatio);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::callUpdateCallback()

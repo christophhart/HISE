@@ -969,8 +969,8 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	case PlaybackSpeed: 
 		if (playbackSpeed != (double)newAmount)
 		{
-			playbackSpeed = jlimit(0.1, 10.0, (double)newAmount);
-			getMainController()->allNotesOff();
+			playbackSpeed = jlimit(0.01, 16.0, (double)newAmount);
+			//getMainController()->allNotesOff();
 		}
 		break;
 	case LoopEnabled: loopEnabled = newAmount > 0.5f; break;
@@ -1110,7 +1110,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 			if (timeStampInThisBuffer < 0.0)
 				timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 
-			auto timeStamp = (int)MidiPlayerHelpers::ticksToSamples(timeStampInThisBuffer / playbackSpeed, getMainController()->getBpm(), getSampleRate());
+			auto timeStamp = (int)MidiPlayerHelpers::ticksToSamples(timeStampInThisBuffer / getPlaybackSpeed(), getMainController()->getBpm(), getSampleRate());
 			timeStamp += timeStampForNextCommand;
 
 			jassert(isPositiveAndBelow(timeStamp, numSamples));

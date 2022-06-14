@@ -2331,6 +2331,9 @@ namespace ScriptingObjects
 		/** Returns a typed MIDI processor reference (for setting attributes etc). */
 		var asMidiProcessor();
 
+		/** Sets a global playback ratio (for all MIDI players). */
+		void setGlobalPlaybackRatio(double globalRatio);
+
 		// ============================================================================================================
 
 		struct Wrapper;

@@ -604,7 +604,9 @@ public:
 		by passing in the timestamp of the current event within the buffer. */
 	bool stop(int timestampInBuffer=0);
 
-	double getTicksPerSample() const { return ticksPerSample * playbackSpeed; }
+	double getTicksPerSample() const { return ticksPerSample * getPlaybackSpeed(); }
+
+	double getPlaybackSpeed() const { return playbackSpeed * getMainController()->getGlobalPlaybackSpeed(); }
 
 	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
 	bool record(int timestampInBuffer=0);
