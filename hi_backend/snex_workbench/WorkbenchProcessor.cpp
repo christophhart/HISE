@@ -830,7 +830,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     auto debugExecutable = File(hisePath).getChildFile("projects/standalone/Builds/");
     
 #if JUCE_WINDOWS
-    debugExecutable = debugExectuable.getChildFile("VisualStudio2017/x64/Debug/App/HISE Debug.exe");
+    debugExecutable = debugExecutable.getChildFile("VisualStudio2017/x64/Debug/App/HISE Debug.exe");
     solutionFolder = solutionFolder.getChildFile("VisualStudio2017");
     auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("sln");
     
