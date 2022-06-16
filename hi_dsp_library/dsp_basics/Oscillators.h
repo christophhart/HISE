@@ -91,6 +91,11 @@ struct OscData
 		}
 	}
 
+	float getNyquistAttenuationGain() const noexcept
+	{
+		return (float)(1 - (int)((multiplier * uptimeDelta) > 1024.0));
+	}
+
 	double tick()
 	{
 		auto rv = uptime;

@@ -798,6 +798,8 @@ public:
 	{
 		currentVoiceData = &voiceData.get();
 
+		currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
+
 		if (currentVoiceData->enabled == 0)
 			return;
 
@@ -805,29 +807,25 @@ public:
 		{
 			auto fd = data.template as<ProcessData<2>>().toFrameData();
 			while (fd.next())
-				processFrame(fd.toSpan());
+				processFrameInternal(fd.toSpan());
 		}
 		else
 		{
 			for (auto& s : data[0])
 			{
 				auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
-				processFrame(*asSpan);
+				processFrameInternal(*asSpan);
 			}
 		}
 	}
 
-	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	template <typename FrameDataType> void processFrameInternal(FrameDataType& data)
 	{
-		if (currentVoiceData == nullptr)
-			currentVoiceData = &voiceData.get();
+		jassert(currentVoiceData != nullptr);
 
-		if (currentVoiceData->enabled == 0)
-			return;
+		float v = 0.0f;
 
-        float v = 0.0f;
-
-		auto g = currentVoiceData->gain;
+		auto g = currentVoiceData->gain * currentNyquistGain;
 
 		switch (currentMode)
 		{
@@ -836,11 +834,25 @@ public:
 		case Mode::Saw:		 v = g * tickSaw(*currentVoiceData); break;
 		case Mode::Square:	 v = g * tickSquare(*currentVoiceData); break;
 		case Mode::Noise:	 v = g * (Random::getSystemRandom().nextFloat() * 2.0f - 1.0f);
-        default: break;
+		default: break;
 		}
-        
+
 		for (auto& s : data)
 			s += v;
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		if (currentVoiceData == nullptr)
+		{
+			currentVoiceData = &voiceData.get();
+			currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
+		}
+
+		if (currentVoiceData->enabled == 0)
+			return;
+
+		processFrameInternal(data);
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -986,6 +998,7 @@ public:
 
 	double freqValue = 220.0;
 	
+	float currentNyquistGain = 1.0f;
 };
 
 template class oscillator<1>;
