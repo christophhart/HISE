@@ -2862,12 +2862,22 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 		b.addComment("Third Party Node Template", Base::CommentType::FillTo80);
 
 		{
+            b << "#pragma once";
+            
+            b << "#include <JuceHeader.h>";
+            
+            b.addEmptyLine();
+            
 			Namespace pn(b, "project", false);
 
+            auto rawComment = snex::cppgen::Base::CommentType::Raw;
+            
 			UsingNamespace(b, NamespacedIdentifier("juce"));
 			UsingNamespace(b, NamespacedIdentifier("hise"));
 			UsingNamespace(b, NamespacedIdentifier("scriptnode"));
 
+            b.addEmptyLine();
+            
 			Array<NamespacedIdentifier> baseClasses;
 			baseClasses.add(snex::NamespacedIdentifier::fromString("data::base"));
 
@@ -2878,7 +2888,7 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
 			Struct s(b, Identifier(n), baseClasses, templates, true);
 
-			b.addComment("Metadata definitions", snex::cppgen::Base::CommentType::FillTo80Light);
+			b.addComment("Metadata Definitions", snex::cppgen::Base::CommentType::FillTo80Light);
 
 			Macro(b, "SNEX_NODE", { n });
 
@@ -2889,7 +2899,7 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 			
 			b.addEmptyLine();
 
-			b.addComment("set to true if you want this node to have a modulation dragger", snex::cppgen::Base::CommentType::Raw);
+			b.addComment("set to true if you want this node to have a modulation dragger", rawComment);
 			b << "static constexpr bool isModNode() { return false; };";
 			b << "static constexpr bool isPolyphonic() { return NV > 1; };";
 
@@ -2900,7 +2910,13 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 			b << "static constexpr int getFixChannelAmount() { return 2; };";
 
 			b.addEmptyLine();
+            
+            b << "using FixProcessData = ProcessData<getFixChannelAmount()>;";
+            
+            b.addEmptyLine();
 
+            b.addComment("Define the amount and types of external data slots you want to use", Base::CommentType::Raw);
+            
 			ExternalData::forEachType([&](ExternalData::DataType t)
 			{
 				String s;
@@ -2915,7 +2931,7 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 			callbacks.add(ScriptnodeCallbacks::getPrototype(nullptr, ScriptnodeCallbacks::ID::HandleModulation, 2));
 			callbacks.add(ScriptnodeCallbacks::getPrototype(nullptr, ScriptnodeCallbacks::ID::SetExternalDataFunction, 2));
 			
-			b.addComment("Scriptnode callbacks", snex::cppgen::Base::CommentType::FillTo80Light);
+			b.addComment("Scriptnode Callbacks", snex::cppgen::Base::CommentType::FillTo80Light);
 
 			for (auto c : callbacks)
 			{
@@ -2933,6 +2949,23 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
 				b << "";
 
+                if(c.id.getIdentifier() == Identifier("process"))
+                {
+                    b.addComment("Cast the dynamic channel data to a fixed channel amount", rawComment);
+                    b << "auto& fixData = data.template as<FixProcessData>();";
+                    b.addEmptyLine();
+                    
+                    b.addComment("Create a FrameProcessor object", rawComment);
+                    b << "auto fd = fixData.toFrameData();";
+                    b.addEmptyLine();
+                    b << "while(fd.next())";
+                    {
+                        StatementBlock sb3(b, false);
+                        b.addComment("Forward to frame processing", rawComment);
+                        b << "processFrame(fd.toSpan());";
+                    }
+                }
+                
 				if (c.returnType.isValid())
 				{
 					VariableStorage v(c.returnType.getType(), var(0));
@@ -2944,6 +2977,8 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 				b.addEmptyLine();
 			}
 
+            b.addComment("Parameter Functions", snex::cppgen::Base::CommentType::FillTo80Light);
+            
 			{
 				b.addEmptyLine();
 				String pf;

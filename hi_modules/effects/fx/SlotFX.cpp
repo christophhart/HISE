@@ -494,10 +494,20 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(lock);
+            
+            // Init the default values
+            for (int i = 0; i < newNode->numParameters; i++)
+            {
+                auto defaultValue = newNode->parameters[i].defaultValue;
+                newNode->parameterFunctions[i](newNode->parameterObjects[i], defaultValue);
+            }
+            
 			std::swap(newNode, opaqueNode);
 
 			for (int i = 0; i < opaqueNode->numParameters; i++)
+            {
 				lastParameters[i] = opaqueNode->parameters[i].defaultValue;
+            }
 
 			checkHardcodedChannelCount();
 		}		
