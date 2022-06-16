@@ -239,7 +239,7 @@ public:
 	
 		
 	*/
-	Array<HiseEvent> getEventList(double sampleRate, double bpm);
+	Array<HiseEvent> getEventList(double sampleRate, double bpm, HiseMidiSequence::TimestampEditFormat formatToUse=HiseMidiSequence::TimestampEditFormat::numTimestampFormats);
 
 	/** Swaps the current track with the given MidiMessageSequence. */
 	void swapCurrentSequence(MidiMessageSequence* sequenceToSwap);
@@ -341,7 +341,7 @@ public:
 		
 		    Upon construction, it will create a list of events from the current sequence that
 			will be used for undo operations. */
-		EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_);;
+		EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse);;
 
 		/** Applies the given event list. */
 		bool perform() override;
@@ -349,7 +349,7 @@ public:
 		/** Restores the previous event list. */
 		bool undo() override;
 
-		static void writeArrayToSequence(HiseMidiSequence::Ptr destination, Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate);
+		static void writeArrayToSequence(HiseMidiSequence::Ptr destination, Array<HiseEvent>& arrayToWrite, double bpm, double sampleRate, HiseMidiSequence::TimestampEditFormat formatToUse=HiseMidiSequence::TimestampEditFormat::numTimestampFormats);
 
 	private:
 
@@ -361,6 +361,7 @@ public:
 		double sampleRate;
 		double bpm;
 		Identifier sequenceId;
+		HiseMidiSequence::TimestampEditFormat formatToUse;
 	};
 
 	/** An undoable operation that exchanges the entire sequence set. */
@@ -551,7 +552,7 @@ public:
 	
 		It locks the sequence just for a very short time so you should be able to use this from any
 		thread without bothering about multi-threading. */
-	void flushEdit(const Array<HiseEvent>& newEvents);
+	void flushEdit(const Array<HiseEvent>& newEvents, HiseMidiSequence::TimestampEditFormat formatToUse=HiseMidiSequence::TimestampEditFormat::numTimestampFormats);
 
 	/** Clears the current sequence and any recorded events. */
 	void clearCurrentSequence();
@@ -659,6 +660,54 @@ public:
 	void setSyncToMasterClock(bool shouldSyncToMasterClock);
 
 private:
+
+	struct NotePair
+	{
+		bool operator==(const NotePair& other) const { return on == other.on && off == other.off; }
+		HiseEvent on;
+		HiseEvent off;
+	};
+
+	struct OverdubUpdater : public PooledUIUpdater::SimpleTimer
+	{
+		OverdubUpdater(MidiPlayer& mp) :
+			SimpleTimer(mp.getMainController()->getGlobalUIUpdater()),
+			parent(mp)
+		{};
+
+		void timerCallback() override
+		{
+			if (dirty)
+			{
+				parent.flushOverdubNotes(lastTimestamp);
+				lastTimestamp = -1.0;
+				dirty.store(false);
+			}
+		}
+
+		void setDirty(double activeNoteTimestamp=-1.0)
+		{
+			if (activeNoteTimestamp != lastTimestamp)
+			{
+				lastTimestamp = activeNoteTimestamp;
+			}
+
+			dirty.store(true);
+		}
+
+		double lastTimestamp = -1.0;
+		std::atomic<bool> dirty = { false };
+
+		MidiPlayer& parent;
+	} overdubUpdater;
+
+	void flushOverdubNotes(double timestampForActiveNotes=-1.0);
+
+	
+
+	bool overdubMode = true;
+	hise::UnorderedStack<NotePair> overdubNoteOns;
+	SimpleReadWriteLock overdubLock;
 
 	struct Updater : private PooledUIUpdater::SimpleTimer
 	{
