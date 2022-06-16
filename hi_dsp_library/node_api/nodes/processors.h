@@ -625,6 +625,9 @@ public:
 		this->pObj = &obj;
 	}
 
+    // A oversample node is never polyphonic
+    static constexpr bool isPolyphonic() { return false; }
+    
 	// Forward the get calls to the wrapped container
 	template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
 	template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
