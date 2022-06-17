@@ -2237,6 +2237,8 @@ namespace ScriptingObjects
 
 		void timerCallback() override;
 
+		
+
 		// ============================================================================================================ API Methods
 
 		/** Returns an array containing all notes converted to the space supplied with the target bounds [x, y, w, h]. */
@@ -2331,6 +2333,9 @@ namespace ScriptingObjects
 		/** Attaches a callback that gets executed whenever the sequence was changed. */
 		void setSequenceCallback(var updateFunction);
 
+		/** Attaches a callback with two arguments (timestamp, playState) that gets executed when the play state changes. */
+		void setPlaybackCallback(var playbackCallback, bool synchronous);
+
 		/** Returns a typed MIDI processor reference (for setting attributes etc). */
 		var asMidiProcessor();
 
@@ -2344,6 +2349,29 @@ namespace ScriptingObjects
 	private:
 
 		void callUpdateCallback();
+
+		
+
+		struct PlaybackUpdater : public PooledUIUpdater::SimpleTimer,
+								 public MidiPlayer::PlaybackListener
+		{
+			PlaybackUpdater(ScriptedMidiPlayer& parent_, var f, bool sync_);
+
+			~PlaybackUpdater();
+
+			void timerCallback() override;
+
+			void playbackChanged(int timestamp, MidiPlayer::PlayState newState) override;
+
+			bool dirty = false;
+			const bool sync;
+			ScriptedMidiPlayer& parent;
+			WeakCallbackHolder playbackCallback;
+
+			var args[2];
+		};
+
+		ScopedPointer<PlaybackUpdater> playbackUpdater;
 
 		WeakCallbackHolder updateCallback;
 

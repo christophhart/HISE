@@ -1679,6 +1679,8 @@ bool MidiPlayer::recordInternal(int timestamp)
 {
 	sendAllocationFreeChangeMessage();
 
+	
+
 	if (overdubMode)
 	{
 		overdubUpdater.start();
@@ -1694,6 +1696,8 @@ bool MidiPlayer::recordInternal(int timestamp)
 	}
 
 	playState = PlayState::Record;
+	sendPlaybackChangeMessage(timestamp);
+
 	timeStampForNextCommand = timestamp;
 
 	updatePositionInCurrentSequence();

@@ -1446,7 +1446,15 @@ void DspNetworkCompileExporter::createIncludeFile(const File& sourceDir)
 				somethingFound = true;
 			}
 
-			cppgen::Include m(i, sourceDir, f);
+			cppgen::Base dummyInclude(cppgen::Base::OutputType::NoProcessing);
+			{
+				dummyInclude.addComment("This just references the real file", cppgen::Base::CommentType::RawWithNewLine);
+				cppgen::Include m(dummyInclude, sourceDir, f);
+			}
+			
+			auto fInDir = sourceDir.getChildFile(f.getFileName());
+			fInDir.replaceWithText(dummyInclude.toString());
+			cppgen::Include m2(i, sourceDir, fInDir);
 		}
 	}
 

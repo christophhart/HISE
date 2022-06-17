@@ -1873,6 +1873,341 @@ public:
 	ScopedPointer<PropertySelector> propertySelector;
 };
 
+class SVGToPathDataConverter : public Component,
+							   public Value::Listener,
+							   public QuasiModalComponent,
+							   public PathFactory,
+							   public juce::FileDragAndDropTarget
+{
+public:
+
+	enum class OutputFormat
+	{
+		CppString,
+		HiseScriptNumbers,
+		Base64,
+		numOutputFormats
+	};
+
+	SVGToPathDataConverter(BackendRootWindow* bpe):
+		QuasiModalComponent(),
+		loadClipboard("Load from clipboard"),
+		copyClipboard("Copy to clipboard"),
+		resizer(this, nullptr),
+		closeButton("close", nullptr, *this)
+	{
+		outputFormatSelector.addItemList({ "C++ String", "HiseScript number array", "Base64 String" }, 1);
+		
+		addAndMakeVisible(outputFormatSelector);
+		addAndMakeVisible(inputEditor);
+		addAndMakeVisible(outputEditor);
+		addAndMakeVisible(loadClipboard);
+		addAndMakeVisible(copyClipboard);
+		addAndMakeVisible(resizer);
+		addAndMakeVisible(closeButton);
+
+		GlobalHiseLookAndFeel::setTextEditorColours(inputEditor);
+		GlobalHiseLookAndFeel::setTextEditorColours(outputEditor);
+		inputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		outputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+
+		inputEditor.setMultiLine(true);
+		outputEditor.setMultiLine(true);
+
+		inputEditor.getTextValue().referTo(inputDoc);
+		outputEditor.getTextValue().referTo(outputDoc);
+
+		inputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
+		outputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
+
+		outputFormatSelector.setSelectedItemIndex(0);
+
+		copyClipboard.setLookAndFeel(&alaf);
+		loadClipboard.setLookAndFeel(&alaf);
+		outputFormatSelector.setLookAndFeel(&alaf);
+
+		filename = "pathData";
+
+		outputFormatSelector.onChange = [&]()
+		{
+			currentOutputFormat = (OutputFormat)outputFormatSelector.getSelectedItemIndex();
+			update();
+		};
+
+		loadClipboard.onClick = [&]()
+		{
+			inputDoc.setValue(SystemClipboard::getTextFromClipboard());
+		};
+
+		copyClipboard.onClick = [&]()
+		{
+			SystemClipboard::copyTextToClipboard(outputDoc.getValue().toString());
+		};
+
+		GlobalHiseLookAndFeel::setDefaultColours(outputFormatSelector);
+
+		inputDoc.addListener(this);
+
+		closeButton.onClick = [this]()
+		{
+			this->destroy();
+		};
+
+		setSize(800, 600);
+	}
+
+	~SVGToPathDataConverter()
+	{
+		inputDoc.removeListener(this);
+	}
+
+	void valueChanged(Value& v) override
+	{
+		update();
+	}
+
+	static String parse(const String& input)
+	{
+		String rt;
+
+		if (auto xml = XmlDocument::parse(input))
+		{
+			auto v = ValueTree::fromXml(*xml);
+
+			
+
+			cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& c)
+			{
+				if (c.hasType("path"))
+				{
+					rt = c["d"].toString();
+					return true;
+				}
+
+				return false;
+			});
+		}
+
+		return rt;
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+		return p;
+	}
+
+	
+
+	Path pathFromPoints(String pointsText)
+	{
+		auto points = StringArray::fromTokens(pointsText, " ,", "");
+		points.removeEmptyStrings();
+
+		jassert(points.size() % 2 == 0);
+
+		Path p;
+
+		for (int i = 0; i < points.size() / 2; i++)
+		{
+			auto x = points[i * 2].getFloatValue();
+			auto y = points[i * 2 + 1].getFloatValue();
+
+			if (i == 0)
+				p.startNewSubPath({ x, y });
+			else
+				p.lineTo({ x, y });
+		}
+
+		p.closeSubPath();
+
+		return p;
+	}
+
+	bool isInterestedInFileDrag(const StringArray& files) override
+	{
+		return File(files[0]).getFileExtension() == ".svg";
+	}
+
+	void filesDropped(const StringArray& files, int x, int y) override
+	{
+		File f(files[0]);
+		filename = f.getFileNameWithoutExtension();
+		inputDoc.setValue(f.loadFileAsString());
+	}
+
+	void writeDataAsCppLiteral(const MemoryBlock& mb, OutputStream& out,
+		bool breakAtNewLines, bool allowStringBreaks, String bracketSet = "{}")
+	{
+		const int maxCharsOnLine = 250;
+
+		auto data = (const unsigned char*)mb.getData();
+		int charsOnLine = 0;
+
+		bool canUseStringLiteral = mb.getSize() < 32768; // MS compilers can't handle big string literals..
+
+		if (canUseStringLiteral)
+		{
+			unsigned int numEscaped = 0;
+
+			for (size_t i = 0; i < mb.getSize(); ++i)
+			{
+				auto num = (unsigned int)data[i];
+
+				if (!((num >= 32 && num < 127) || num == '\t' || num == '\r' || num == '\n'))
+				{
+					if (++numEscaped > mb.getSize() / 4)
+					{
+						canUseStringLiteral = false;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!canUseStringLiteral)
+		{
+			out << bracketSet.substring(0, 1) << " ";
+
+			for (size_t i = 0; i < mb.getSize(); ++i)
+			{
+				auto num = (int)(unsigned int)data[i];
+				out << num << ',';
+
+				charsOnLine += 2;
+
+				if (num >= 10)
+				{
+					++charsOnLine;
+
+					if (num >= 100)
+						++charsOnLine;
+				}
+
+				if (charsOnLine >= maxCharsOnLine)
+				{
+					charsOnLine = 0;
+					out << newLine;
+				}
+			}
+
+			out << "0,0 " << bracketSet.substring(1) << ";";
+		}
+		
+	}
+
+	void update()
+	{
+		auto inputText = parse(inputDoc.toString());
+
+		auto text = inputText.trim().unquoted().trim();
+
+		path = Drawable::parseSVGPath(text);
+
+		if (path.isEmpty())
+			path = pathFromPoints(text);
+
+		String result = "No path generated.. Not a valid SVG path string?";
+
+		if (!path.isEmpty())
+		{
+			MemoryOutputStream data;
+			path.writePathToStream(data);
+
+			MemoryOutputStream out;
+
+			if (currentOutputFormat == OutputFormat::CppString)
+			{
+				out << "static const unsigned char " << filename <<"[] = ";
+
+				writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "{}");
+
+				out << newLine
+					<< newLine
+					<< "Path path;" << newLine
+					<< "path.loadPathFromData (pathData, sizeof (pathData));" << newLine;
+
+			}
+			else if (currentOutputFormat == OutputFormat::Base64)
+			{
+				out << "const var " << filename << " = ";
+				out << "\"" << data.getMemoryBlock().toBase64Encoding() << "\"";
+			}
+			else if (currentOutputFormat == OutputFormat::HiseScriptNumbers)
+			{
+				out << "const var " << filename << " = ";
+				writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
+			}
+			
+			result = out.toString();
+		}
+
+		outputDoc.setValue(result);
+
+		PathFactory::scalePath(path, pathArea);
+
+		repaint();
+	}
+
+	void paint(Graphics& g)
+	{
+		g.fillAll(Colour(0xFF333333));
+		g.setColour(Colour(0xFFAAAAAA));
+		g.fillPath(path);
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().reduced(10);
+		
+		auto top = b.removeFromTop(32);
+
+		outputFormatSelector.setBounds(top.removeFromLeft(300));
+
+		auto bottom = b.removeFromBottom(32);
+
+		b.removeFromBottom(5);
+
+		bottom.removeFromRight(15);
+
+		auto w = getWidth() / 3;
+
+		inputEditor.setBounds(b.removeFromLeft(w-5));
+		b.removeFromLeft(5);
+		outputEditor.setBounds(b.removeFromLeft(w-5));
+		b.removeFromLeft(5);
+		pathArea = b.toFloat();
+
+		loadClipboard.setBounds(bottom.removeFromLeft(150));
+		bottom.removeFromLeft(10);
+		copyClipboard.setBounds(bottom.removeFromLeft(150));
+
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+		closeButton.setBounds(top.removeFromRight(top.getHeight()).reduced(2));
+
+		scalePath(path, pathArea);
+		repaint();
+	}
+
+	Path path;
+	Rectangle<float> pathArea;
+
+	Value inputDoc, outputDoc;
+
+	TextEditor inputEditor, outputEditor;
+	ComboBox outputFormatSelector;
+
+	OutputFormat currentOutputFormat = OutputFormat::CppString;
+	TextButton loadClipboard, copyClipboard;
+
+	ResizableCornerComponent resizer;
+	HiseShapeButton closeButton;
+	AlertWindowLookAndFeel alaf;
+
+	String filename;
+
+};
 
 class ProjectDownloader : public DialogWindowWithBackgroundThread,
 	public TextEditor::Listener

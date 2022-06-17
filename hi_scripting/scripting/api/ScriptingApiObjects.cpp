@@ -4685,6 +4685,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setAutomationHandlerConsumesControllerEvents);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, asMidiProcessor);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setGlobalPlaybackRatio);
+	API_VOID_METHOD_WRAPPER_2(ScriptedMidiPlayer, setPlaybackCallback);
 	
 };
 
@@ -4725,6 +4726,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(setSequenceCallback);
 	ADD_API_METHOD_0(asMidiProcessor);
 	ADD_API_METHOD_1(setGlobalPlaybackRatio);
+	ADD_API_METHOD_2(setPlaybackCallback);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -4782,6 +4784,8 @@ void ScriptingObjects::ScriptedMidiPlayer::timerCallback()
 		}
 	}
 }
+
+
 
 var ScriptingObjects::ScriptedMidiPlayer::getNoteRectangleList(var targetBounds)
 {
@@ -5151,6 +5155,18 @@ void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunctio
 		updateCallback.incRefCount();
 
 		callUpdateCallback();
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setPlaybackCallback(var newPlaybackCallback, bool synchronous)
+{
+	auto mp = getPlayer();
+
+	playbackUpdater = nullptr;
+
+	if (HiseJavascriptEngine::isJavascriptFunction(newPlaybackCallback))
+	{
+		playbackUpdater = new PlaybackUpdater(*this, newPlaybackCallback, synchronous);
 	}
 }
 
@@ -6811,5 +6827,44 @@ void ScriptingObjects::GlobalCableReference::connectToMacroControl(int macroInde
 	}
 }
 
+
+ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::PlaybackUpdater(ScriptedMidiPlayer& parent_, var f, bool sync_) :
+	SimpleTimer(parent_.getScriptProcessor()->getMainController_()->getGlobalUIUpdater(), !sync_),
+	sync(sync_),
+	parent(parent_),
+	playbackCallback(parent.getScriptProcessor(), f, 2)
+{
+	if (auto mp = parent.getPlayer())
+		mp->addPlaybackListener(this);
+
+	playbackCallback.incRefCount();
+	playbackCallback.setThisObject(&parent);
+}
+
+ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::~PlaybackUpdater()
+{
+	if (auto mp = parent.getPlayer())
+		mp->removePlaybackListener(this);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::timerCallback()
+{
+	if (dirty)
+	{
+		playbackCallback.call(args, 2);
+		dirty = false;
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::playbackChanged(int timestamp, MidiPlayer::PlayState newState)
+{
+	args[0] = var(timestamp);
+	args[1] = var((int)newState);
+
+	if (sync)
+		playbackCallback.callSync(args, 2, nullptr);
+	else
+		dirty = true;
+}
 
 } // namespace hise

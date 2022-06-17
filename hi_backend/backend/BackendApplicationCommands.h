@@ -174,6 +174,7 @@ public:
 		MenuToolsCheckCyclicReferences,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
+		MenuToolsConvertSVGToPathData,
 		MenuToolsValidateUserPresets,
 		MenuToolsExternalScriptFileOffset,
 		MenuToolsResolveMissingSamples = 0x60000,
@@ -312,6 +313,8 @@ public:
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
+
+		static void convertSVGToPathData(BackendRootWindow* bpe);
 
 		static void applySampleMapProperties(BackendRootWindow* bpe);
 
