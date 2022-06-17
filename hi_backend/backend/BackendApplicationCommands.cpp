@@ -2909,10 +2909,6 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 			b.addComment("Undefine this method if you want a dynamic channel count", Base::CommentType::Raw);
 			b << "static constexpr int getFixChannelAmount() { return 2; };";
 
-			b.addEmptyLine();
-            
-            b << "using FixProcessData = ProcessData<getFixChannelAmount()>;";
-            
             b.addEmptyLine();
 
             b.addComment("Define the amount and types of external data slots you want to use", Base::CommentType::Raw);
@@ -2951,8 +2947,9 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
                 if(c.id.getIdentifier() == Identifier("process"))
                 {
+					b << "static constexpr int NumChannels = getFixChannelAmount();";
                     b.addComment("Cast the dynamic channel data to a fixed channel amount", rawComment);
-                    b << "auto& fixData = data.template as<FixProcessData>();";
+                    b << "auto& fixData = data.template as<ProcessData<NumChannels>>();";
                     b.addEmptyLine();
                     
                     b.addComment("Create a FrameProcessor object", rawComment);

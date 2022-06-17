@@ -434,22 +434,15 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler* c, ID id, in
 		f.id = NamespacedIdentifier("process");
 		f.returnType = TypeInfo(Types::ID::Void);
 
-		if (c != nullptr)
-		{
-			nid = NamespacedIdentifier("ProcessData");
-			TemplateParameter ct(numChannels);
-			ct.argumentId = nid.getChildId("NumChannels");
-			f.addArgs("data", TypeInfo(p, false, true));
-		}
-		else
-		{
-			TemplateParameter ct(NamespacedIdentifier("ProcessDataType"), {});
-			TypeInfo d(NamespacedIdentifier("ProcessDataType"), false, true);
+		NamespacedIdentifier pId("ProcessData");
 
-			f.addArgs("data", d);
-			f.templateParameters.add(ct);
-		}
-		
+		TemplateParameter ct(numChannels);
+
+		ct.argumentId = pId.getChildId("NumChannels");
+
+		if(c != nullptr)
+			f.addArgs("data", TypeInfo(c->getComplexType(pId, ct), false, true));
+
 		break;
 	}
 	case ResetFunction:
@@ -461,17 +454,11 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler* c, ID id, in
 		f.id = NamespacedIdentifier("processFrame");
 		f.returnType = TypeInfo(Types::ID::Void);
 
-		p = new SpanType(TypeInfo(Types::ID::Float), numChannels);
+		ComplexType::Ptr t = new SpanType(TypeInfo(Types::ID::Float), numChannels);
 
-		if (c != nullptr)
-			c->registerExternalComplexType(p);
-		else
-		{
-			
-		}
+		if(c != nullptr)
+			f.addArgs("frame", TypeInfo(c->registerExternalComplexType(t), false, true));
 
-		f.addArgs("frame", TypeInfo(p, false, true));
-		
 		break;
 	}
 	case HandleEventFunction:
