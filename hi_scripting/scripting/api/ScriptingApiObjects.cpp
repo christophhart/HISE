@@ -3108,6 +3108,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getModuleList);
     API_METHOD_WRAPPER_0(ScriptingSlotFX, getParameterProperties);
+    API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffectId);
 };
 
 ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -3136,6 +3137,7 @@ slotFX(fx)
 	ADD_API_METHOD_1(swap);
 	ADD_API_METHOD_0(getModuleList);
     ADD_API_METHOD_0(getParameterProperties);
+    ADD_API_METHOD_0(getCurrentEffectId);
 };
 
 
@@ -3237,6 +3239,16 @@ juce::var ScriptingObjects::ScriptingSlotFX::getModuleList()
 	}
 
 	return var(list);
+}
+
+String ScriptingObjects::ScriptingSlotFX::getCurrentEffectId()
+{
+    if (auto slot = getSlotFX())
+    {
+        return slot->getCurrentEffectId();
+    }
+    
+    return "";
 }
 
 var ScriptingObjects::ScriptingSlotFX::getParameterProperties()

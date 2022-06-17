@@ -1645,6 +1645,9 @@ namespace ScriptingObjects
         /** Returns a JSON object containing all parameters with their range properties. */
         var getParameterProperties();
         
+        /** Returns the ID of the effect that is currently loaded. */
+        String getCurrentEffectId();
+        
 		// ============================================================================================================
 
 		struct Wrapper;
