@@ -713,9 +713,8 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 
 ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 {
-	if (factory->getNumNodes() == 0)
+	if (factory->getNumNodes() == 0 && treeWhenNotLoaded.isValid())
 	{
-		jassert(treeWhenNotLoaded.isValid());
 		return treeWhenNotLoaded;
 	}
 
