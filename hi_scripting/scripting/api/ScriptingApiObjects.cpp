@@ -3107,6 +3107,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
 	API_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffect);
 	API_METHOD_WRAPPER_0(ScriptingSlotFX, getModuleList);
+    API_METHOD_WRAPPER_0(ScriptingSlotFX, getParameterProperties);
 };
 
 ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -3134,6 +3135,7 @@ slotFX(fx)
     ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(swap);
 	ADD_API_METHOD_0(getModuleList);
+    ADD_API_METHOD_0(getParameterProperties);
 };
 
 
@@ -3235,6 +3237,14 @@ juce::var ScriptingObjects::ScriptingSlotFX::getModuleList()
 	}
 
 	return var(list);
+}
+
+var ScriptingObjects::ScriptingSlotFX::getParameterProperties()
+{
+    if(auto slot = getSlotFX())
+        return slot->getParameterProperties();
+    
+    return var();
 }
 
 HotswappableProcessor* ScriptingObjects::ScriptingSlotFX::getSlotFX()

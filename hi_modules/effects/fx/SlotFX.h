@@ -27,6 +27,8 @@ struct HotswappableProcessor
 
 	virtual Processor* getCurrentEffect() = 0;
 	virtual const Processor* getCurrentEffect() const = 0;
+    
+    virtual var getParameterProperties() const = 0;
 };
 
 class HardcodedSwappableEffect : public HotswappableProcessor,
@@ -75,6 +77,8 @@ public:
 
 	bool hasHardcodedTail() const;
 
+    var getParameterProperties() const override;
+    
 protected:
 	
 	HardcodedSwappableEffect(MainController* mc, bool isPolyphonic);
@@ -427,6 +431,8 @@ public:
 		wrappedEffect->setKillBuffer(*killBuffer);
 	}
 	
+    var getParameterProperties() const override { return var(); };
+    
 	void handleHiseEvent(const HiseEvent &m) override;
 
 	void startMonophonicVoice() override;

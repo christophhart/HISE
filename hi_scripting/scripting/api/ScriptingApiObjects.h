@@ -1642,6 +1642,9 @@ namespace ScriptingObjects
 		/** Returns the list of all available modules that you can load into the slot (might be empty if there is no compiled dll present). */
 		var getModuleList();
 
+        /** Returns a JSON object containing all parameters with their range properties. */
+        var getParameterProperties();
+        
 		// ============================================================================================================
 
 		struct Wrapper;
