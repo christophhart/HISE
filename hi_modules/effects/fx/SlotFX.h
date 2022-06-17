@@ -23,6 +23,8 @@ struct HotswappableProcessor
 
 	virtual void clearEffect() { setEffect("", false); }
 
+	virtual StringArray getModuleList() const = 0;
+
 	virtual Processor* getCurrentEffect() = 0;
 	virtual const Processor* getCurrentEffect() const = 0;
 };
@@ -50,7 +52,7 @@ public:
 	Processor* getCurrentEffect() { return dynamic_cast<Processor*>(this); }
 	const Processor* getCurrentEffect() const override { return dynamic_cast<const Processor*>(this); }
 
-	StringArray getListOfAvailableNetworks() const;
+	StringArray getModuleList() const override;
 	bool setEffect(const String& factoryId, bool /*unused*/) override;
 	bool swap(HotswappableProcessor* other) override;
 	bool isPolyphonic() const { return polyHandler.isEnabled(); }
@@ -479,7 +481,7 @@ public:
 
 	const Processor* getCurrentEffect() const override { return const_cast<SlotFX*>(this)->getCurrentEffect(); }
 
-	const StringArray& getEffectList() const { return effectList; }
+	StringArray getModuleList() const override { return effectList; }
 
 	/** This creates a new processor and sets it as processed FX.
 	*

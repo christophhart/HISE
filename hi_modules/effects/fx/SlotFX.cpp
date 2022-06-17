@@ -263,7 +263,7 @@ struct HardcodedMasterEditor : public ProcessorEditorBody
 	{
 		getEffect()->effectUpdater.addListener(*this, update, true);
 
-		auto networkList = getEffect()->getListOfAvailableNetworks();
+		auto networkList = getEffect()->getModuleList();
 
 		selector.addItem("No network", 1);
 		selector.addItemList(networkList, 2);
@@ -462,7 +462,7 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 	if (factoryId == currentEffect)
 		return true;
 
-	auto idx = getListOfAvailableNetworks().indexOf(factoryId);
+	auto idx = getModuleList().indexOf(factoryId);
 
 	ScopedPointer<OpaqueNode> newNode;
 	listeners.clear();
@@ -871,8 +871,11 @@ int HardcodedSwappableEffect::getNumDataObjects(ExternalData::DataType t) const
 	}
 }
 
-juce::StringArray HardcodedSwappableEffect::getListOfAvailableNetworks() const
+juce::StringArray HardcodedSwappableEffect::getModuleList() const
 {
+	if (factory == nullptr)
+		return {};
+
 	jassert(factory != nullptr);
 
 	StringArray sa;
@@ -883,7 +886,6 @@ juce::StringArray HardcodedSwappableEffect::getListOfAvailableNetworks() const
 		sa.add(factory->getId(i));
 
 	return sa;
-
 }
 
 

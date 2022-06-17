@@ -1639,6 +1639,9 @@ namespace ScriptingObjects
 		/** Swaps the effect with the other slot. */
 		bool swap(var otherSlot);
 
+		/** Returns the list of all available modules that you can load into the slot (might be empty if there is no compiled dll present). */
+		var getModuleList();
+
 		// ============================================================================================================
 
 		struct Wrapper;
