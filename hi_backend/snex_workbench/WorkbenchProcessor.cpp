@@ -779,6 +779,16 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
     getComboBoxComponent("build")->setText("Release", dontSendNotification);
 #endif
     
+	if (getNetwork() == nullptr)
+	{
+		if (PresetHandler::showYesNoWindow("No DSP Network detected", "You need an active DspNetwork for the compilation process.  \n> Press OK to create a Script FX with an empty embedded Network"))
+		{
+			raw::Builder builder(bp);
+			auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
+			jmp->getOrCreate("internal_dsp");
+		}
+	}
+
 	if (auto n = getNetwork())
 		n->createAllNodesOnce();
 
@@ -858,7 +868,9 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 
 	userFile.replaceWithText(fileContent);
     
-    if (PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
+	auto hasThirdPartyFiles = includedThirdPartyFiles.isEmpty();
+
+    if (hasThirdPartyFiles && PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
     {
         solutionFile.revealToUser();
         JUCEApplication::quit();
