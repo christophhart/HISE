@@ -127,7 +127,7 @@ struct midi2freq
 {
     double getValue(double input) const
     {
-        return MidiMessage::getMidiNoteInHertz(input);
+        return MidiMessage::getMidiNoteInHertz(hmath::round(input*127.0));
     }
 };
 
