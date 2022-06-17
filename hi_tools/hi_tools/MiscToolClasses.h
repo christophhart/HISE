@@ -84,6 +84,11 @@ public:
 		MessageManager::callAsync(SafeAsyncCaller<T>(&object, f));
 	}
 
+	template <typename T> static void callWithDelay(T& object, std::function<void(T&)> f, int milliseconds)
+	{
+		Timer::callAfterDelay(milliseconds, SafeAsyncCaller<T>(&object, f));
+	}
+
 	static void resized(Component* c)
 	{
 		call<Component>(*c, [](Component& c) { c.resized(); });

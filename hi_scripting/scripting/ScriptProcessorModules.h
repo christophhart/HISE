@@ -416,7 +416,11 @@ public:
 		Modulation(Modulation::GainMode)
 	{
 		for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
+
+		SafeAsyncCall::callWithDelay<ScriptnodeVoiceKiller>(*this, initialiseNetworks, 300);
 	};
+
+	static void initialiseNetworks(ScriptnodeVoiceKiller& v);
 
 	void setInternalAttribute(int parameter_index, float newValue) override {}
 	float getDefaultValue(int parameterIndex) const override { return 0.0f; }
@@ -427,13 +431,15 @@ public:
 	Processor *getChildProcessor(int) override { return nullptr; };
 	const Processor *getChildProcessor(int) const override { return nullptr; };
 
-	float startVoice(int voiceIndex) final override { getState(voiceIndex)->active.store(true); return 1.0f; }
+	float startVoice(int voiceIndex) final override;
 	void stopVoice(int voiceIndex) override {}
 	void reset(int voiceIndex) final override { getState(voiceIndex)->active = false; }
 	bool isPlaying(int voiceIndex) const override { return getState(voiceIndex)->active; }
 
 	void calculateBlock(int startSample, int numSamples) override { FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples); }
 	void handleHiseEvent(const HiseEvent& m) override {}
+
+	
 
 	struct State : public ModulatorState
 	{
@@ -473,6 +479,8 @@ public:
 	ModulatorState *createSubclassedState(int voiceIndex) const override { return new State(voiceIndex); };
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptnodeVoiceKiller);
+
+	bool initialised = false;
 };
 
 struct VoiceDataStack

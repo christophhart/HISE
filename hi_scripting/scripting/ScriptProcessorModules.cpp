@@ -1561,6 +1561,7 @@ void JavascriptSynthesiser::restoreFromValueTree(const ValueTree &v)
 
 void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
 {
+	
 	if (auto n = synth->getActiveNetwork())
 	{
 		if (isVoiceStart)
@@ -1602,6 +1603,35 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
 	}
+}
+
+void ScriptnodeVoiceKiller::initialiseNetworks(ScriptnodeVoiceKiller& v)
+{
+	if (!v.initialised)
+	{
+		auto parentSynth = v.getParentProcessor(true, false);
+		auto modParent = v.getParentProcessor(false, false);
+
+		auto modParentIsGain = parentSynth->getChildProcessor(ModulatorSynth::GainModulation) == modParent;
+
+		if (!modParentIsGain)
+		{
+			// nothing to do here...
+			v.initialised = true;
+			return;
+		}
+
+		if (auto holder = dynamic_cast<DspNetwork::Holder*>(parentSynth))
+		{
+			holder->setVoiceKillerToUse(&v);
+			v.initialised = true;
+		}
+	}
+}
+
+float ScriptnodeVoiceKiller::startVoice(int voiceIndex)
+{
+	getState(voiceIndex)->active.store(true); return 1.0f;
 }
 
 hise::ProcessorEditorBody * ScriptnodeVoiceKiller::createEditor(ProcessorEditor *parentEditor)

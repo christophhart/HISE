@@ -959,38 +959,48 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 struct voice_manager_base : public mothernode
 {
 	struct editor : public Component,
-		public PooledUIUpdater::SimpleTimer
+		public PooledUIUpdater::SimpleTimer,
+		public hise::PathFactory
 	{
-		editor(PooledUIUpdater* updater, VoiceResetter* n) :
+		editor(PooledUIUpdater* updater, PolyHandler* ph_) :
 			SimpleTimer(updater),
-			vr(n)
+			ph(ph_),
+			panicButton("panic", nullptr, *this)
 		{
-			setSize(100, 32 + 10);
+			addAndMakeVisible(panicButton);
+
+			panicButton.setTooltip("Send a reset message for all active voices");
+			panicButton.onClick = [this]()
+			{
+				if (auto vr = getVoiceResetter())
+					vr->onVoiceReset(true, -1);
+			};
+
+			setSize(256, 32 + 10);
 		};
 
 		void timerCallback() override
 		{
-			auto thisVoice = vr != nullptr ? vr->getNumActiveVoices() : 0;
+			auto isOk = getVoiceResetter() != nullptr;
 
-			if (lastVoiceAmount != thisVoice)
+			auto thisVoice = isOk ? getVoiceResetter()->getNumActiveVoices() : 0;
+
+			if (lastVoiceAmount != thisVoice || isOk != ok)
 			{
+				ok = isOk;
 				lastVoiceAmount = thisVoice;
 				repaint();
 			}
 		}
+
+		Path createPath(const String& id) const override;
 
 		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
 		{
 			auto t = static_cast<mothernode*>(obj);
 			auto t2 = dynamic_cast<voice_manager_base*>(t);
 
-			return new editor(updater, t2->p->getVoiceResetter());
-		}
-
-		void mouseUp(const MouseEvent& e) override
-		{
-			if (vr != nullptr)
-				vr->onVoiceReset(true, -1);
+			return new editor(updater, t2->p);
 		}
 
 		void paint(Graphics& g) override
@@ -1014,17 +1024,42 @@ struct voice_manager_base : public mothernode
 			g.setColour(Colours::white.withAlpha(alpha));
 			g.setFont(GLOBAL_BOLD_FONT());
 
-			String s;
-			s << String(lastVoiceAmount) << " active voice";
 
-			if (lastVoiceAmount != 1)
-				s << "s";
+			String s;
+
+			if(ok)
+			{
+				s << String(lastVoiceAmount) << " active voice";
+
+				if (lastVoiceAmount != 1)
+					s << "s";
+			}
+			else
+			{
+				s << "    Add a ScriptnodeVoiceKillerEnvelope.";
+			}
 
 			g.drawText(s, b, Justification::centred);
 		}
 
+		VoiceResetter* getVoiceResetter()
+		{
+			return ph != nullptr ? ph->getVoiceResetter() : nullptr;
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromBottom(10);
+			panicButton.setBounds(b.removeFromLeft(32).reduced(4));
+		}
+
 		int lastVoiceAmount = 0;
-		WeakReference<VoiceResetter> vr;
+		
+		PolyHandler* ph;
+		bool ok = false;
+
+		HiseShapeButton panicButton;
 	};
 
 	virtual ~voice_manager_base() {};
