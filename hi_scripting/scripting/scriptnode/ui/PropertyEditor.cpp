@@ -52,7 +52,8 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 
 NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
 	nc(nc_),
-	editor(nc->node.get(), false, nc->node->getValueTree()),
+	editor(nc->node.get(), false, nc->node->getValueTree(), { PropertyIds::Bypassed} ),
+	networkEditor(nc->node.get(), false, nc->node->getRootNetwork()->getValueTree(), { PropertyIds::ID }, false),
 	exportButton("export", this, factory),
 	wrapButton("wrap", this, factory),
 	surroundButton("surround", this, factory)
@@ -60,11 +61,12 @@ NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
 	setName("Edit Node Properties");
 
 	addAndMakeVisible(editor);
+	addAndMakeVisible(networkEditor);
 	addAndMakeVisible(exportButton);
 	addAndMakeVisible(wrapButton);
 	addAndMakeVisible(surroundButton);
 	setWantsKeyboardFocus(true);
-	setSize(editor.getWidth(), editor.getHeight() + 50);
+	setSize(editor.getWidth(), editor.getHeight() + networkEditor.getHeight() + 50);
 }
 
 bool NodePopupEditor::keyPressed(const KeyPress& key)
@@ -205,6 +207,32 @@ void NodePopupEditor::buttonClicked(Button* b)
 
 
 
+
+void NodePopupEditor::resized()
+{
+	auto b = getLocalBounds();
+
+	auto top = b.removeFromTop(50);
+
+	auto w3 = getWidth() / 3;
+
+	wrapButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+	surroundButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+	exportButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
+
+	editor.setBounds(b.removeFromTop(editor.getHeight()));
+
+	globalTextArea = b.removeFromTop(28).toFloat();
+
+	networkEditor.setBounds(b);
+}
+
+void NodePopupEditor::paint(Graphics& g)
+{
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.drawText("DSP Network Properties", globalTextArea, Justification::centred);
+}
 
 NodePropertyComponent::Comp::Comp(ValueTree d, NodeBase* n) :
 	v(d.getPropertyAsValue(PropertyIds::Value, n->getUndoManager()))

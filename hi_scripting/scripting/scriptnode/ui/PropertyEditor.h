@@ -205,23 +205,15 @@ struct NodePopupEditor : public Component,
 
 	void buttonClicked(Button* b) override;
 
-	void resized() override
-	{
-		auto b = getLocalBounds();
+	void resized() override;
 
-		auto top = b.removeFromTop(50);
+	void paint(Graphics& g) override;
 
-		auto w3 = getWidth() / 3;
-
-		wrapButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
-		surroundButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
-		exportButton.setBounds(top.removeFromLeft(w3).withSizeKeepingCentre(32, 32));
-
-		editor.setBounds(b);
-	}
+	Rectangle<float> globalTextArea;
 
 	Component::SafePointer<NodeComponent> nc;
 	PropertyEditor editor;
+	PropertyEditor networkEditor;
 	HiseShapeButton exportButton, wrapButton, surroundButton;
 };
 
