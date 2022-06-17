@@ -889,7 +889,7 @@ juce::StringArray HardcodedSwappableEffect::getModuleList() const
 
 var HardcodedSwappableEffect::getParameterProperties() const
 {
-    auto dyn = new DynamicObject();
+    Array<var> list;
     
     if(opaqueNode != nullptr)
     {
@@ -903,17 +903,18 @@ var HardcodedSwappableEffect::getParameterProperties() const
             
             auto prop = new DynamicObject();
             
+            prop->setProperty("text", key);
             prop->setProperty("min", range.start);
             prop->setProperty("max", range.end);
             prop->setProperty("stepSize", range.interval);
             prop->setProperty("middlePosition", range.convertFrom0to1(0.5));
             prop->setProperty("defaultValue", defaultValue);
             
-            dyn->setProperty(key, var(prop));
+            list.add(var(prop));
         }
     }
     
-    return var(dyn);
+    return var(list);
 }
 
 
