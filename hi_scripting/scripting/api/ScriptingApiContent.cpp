@@ -3583,6 +3583,47 @@ void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position
 	}
 }
 
+struct PanelComplexDataUndoEvent : public UndoableAction
+{
+	PanelComplexDataUndoEvent(ScriptingApi::Content::ScriptComponent* c, int index_, var old_, var new_) :
+		p(c),
+		oldValue(old_),
+		newValue(new_),
+		index(index_)
+	{
+	}
+
+	bool perform() override
+	{
+		if (p != nullptr)
+		{
+			p->setValue(newValue);
+			p->changed();
+			return true;
+		}
+
+		return false;
+	}
+
+	bool undo() override
+	{
+		if (p != nullptr)
+		{
+			p->setValue(oldValue);
+			p->changed();
+			return true;
+		}
+
+		return false;
+	}
+
+	var oldValue;
+	var newValue;
+
+	WeakReference<ScriptComponent> p;
+	int index;
+};
+
 void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newValue, var actionName)
 {
     auto p = dynamic_cast<Processor*>(getScriptProcessor());
@@ -3591,10 +3632,19 @@ void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newV
     
     const int index = sc->getComponentIndex(getName());
     
-    auto newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
+	UndoableAction* newEvent;
+
+	if (newValue.isArray() || newValue.isObject() ||
+		oldValue.isArray() || oldValue.isObject())
+	{
+		newEvent = new PanelComplexDataUndoEvent(this, index, oldValue, newValue);
+	}
+	else
+	{
+		newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
+	}
     
     getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
-    
 }
 
 void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset, int yOffset)
