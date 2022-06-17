@@ -1953,6 +1953,8 @@ public:
 
 		GlobalHiseLookAndFeel::setDefaultColours(outputFormatSelector);
 
+        inputDoc.setValue("Paste the SVG data here, drop a SVG file or use the Load from Clipboard button.\nThen select the output format xand variable name above, and click Copy to Clipboard to paste the path data");
+        
 		inputDoc.addListener(this);
 
 		closeButton.onClick = [this]()
@@ -2164,8 +2166,19 @@ public:
 	void paint(Graphics& g)
 	{
 		g.fillAll(Colour(0xFF333333));
-		g.setColour(Colour(0xFFAAAAAA));
-		g.fillPath(path);
+		g.setColour(Colours::white.withAlpha(0.5f));
+        
+        if(path.isEmpty())
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.drawText("No valid path", pathArea, Justification::centred);
+        }
+        else
+        {
+            g.fillPath(path);
+            g.strokePath(path, PathStrokeType(1.0f));
+        }
+		
 	}
 
 	void resized() override
