@@ -917,6 +917,13 @@ ScriptingObjects::PathObject::~PathObject()
 
 void ScriptingObjects::PathObject::loadFromData(var data)
 {
+	if (data.isString())
+	{
+		juce::MemoryBlock mb;
+		mb.fromBase64Encoding(data.toString());
+		p.clear();
+		p.loadPathFromData(mb.getData(), mb.getSize());
+	}
 	if (data.isArray())
 	{
 		p.clear();

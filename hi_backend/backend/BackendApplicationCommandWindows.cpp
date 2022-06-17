@@ -1883,9 +1883,9 @@ public:
 
 	enum class OutputFormat
 	{
+		Base64,
 		CppString,
 		HiseScriptNumbers,
-		Base64,
 		numOutputFormats
 	};
 
@@ -1896,11 +1896,12 @@ public:
 		resizer(this, nullptr),
 		closeButton("close", nullptr, *this)
 	{
-		outputFormatSelector.addItemList({ "C++ String", "HiseScript number array", "Base64 String" }, 1);
+		outputFormatSelector.addItemList({ "Base64 String", "C++ String", "HiseScript number array" }, 1);
 		
 		addAndMakeVisible(outputFormatSelector);
 		addAndMakeVisible(inputEditor);
 		addAndMakeVisible(outputEditor);
+		addAndMakeVisible(variableName);
 		addAndMakeVisible(loadClipboard);
 		addAndMakeVisible(copyClipboard);
 		addAndMakeVisible(resizer);
@@ -1910,12 +1911,20 @@ public:
 		GlobalHiseLookAndFeel::setTextEditorColours(outputEditor);
 		inputEditor.setFont(GLOBAL_MONOSPACE_FONT());
 		outputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		GlobalHiseLookAndFeel::setTextEditorColours(variableName);
+		
+		inputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		variableName.setFont(GLOBAL_MONOSPACE_FONT());
 
 		inputEditor.setMultiLine(true);
 		outputEditor.setMultiLine(true);
 
 		inputEditor.getTextValue().referTo(inputDoc);
 		outputEditor.getTextValue().referTo(outputDoc);
+		variableName.getTextValue().referTo(variableDoc);
+		variableDoc.addListener(this);
+
+		variableDoc.setValue("pathData");
 
 		inputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
 		outputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
@@ -1925,8 +1934,6 @@ public:
 		copyClipboard.setLookAndFeel(&alaf);
 		loadClipboard.setLookAndFeel(&alaf);
 		outputFormatSelector.setLookAndFeel(&alaf);
-
-		filename = "pathData";
 
 		outputFormatSelector.onChange = [&]()
 		{
@@ -1959,6 +1966,7 @@ public:
 	~SVGToPathDataConverter()
 	{
 		inputDoc.removeListener(this);
+		variableDoc.removeListener(this);
 	}
 
 	void valueChanged(Value& v) override
@@ -1968,13 +1976,11 @@ public:
 
 	static String parse(const String& input)
 	{
-		String rt;
+		String rt = input;
 
 		if (auto xml = XmlDocument::parse(input))
 		{
 			auto v = ValueTree::fromXml(*xml);
-
-			
 
 			cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& c)
 			{
@@ -2033,7 +2039,8 @@ public:
 	void filesDropped(const StringArray& files, int x, int y) override
 	{
 		File f(files[0]);
-		filename = f.getFileNameWithoutExtension();
+		auto filename = f.getFileNameWithoutExtension();
+		variableDoc.setValue(filename);
 		inputDoc.setValue(f.loadFileAsString());
 	}
 
@@ -2110,6 +2117,8 @@ public:
 
 		String result = "No path generated.. Not a valid SVG path string?";
 
+		auto filename = variableDoc.toString();
+
 		if (!path.isEmpty())
 		{
 			MemoryOutputStream data;
@@ -2126,7 +2135,7 @@ public:
 				out << newLine
 					<< newLine
 					<< "Path path;" << newLine
-					<< "path.loadPathFromData (pathData, sizeof (pathData));" << newLine;
+					<< "path.loadPathFromData (" << filename << ", sizeof (" << filename << "));" << newLine;
 
 			}
 			else if (currentOutputFormat == OutputFormat::Base64)
@@ -2138,6 +2147,8 @@ public:
 			{
 				out << "const var " << filename << " = ";
 				writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
+
+				out << ";";
 			}
 			
 			result = out.toString();
@@ -2163,7 +2174,13 @@ public:
 		
 		auto top = b.removeFromTop(32);
 
+
+		
 		outputFormatSelector.setBounds(top.removeFromLeft(300));
+
+		top.removeFromLeft(5);
+
+		variableName.setBounds(top.removeFromLeft(200));
 
 		auto bottom = b.removeFromBottom(32);
 
@@ -2193,20 +2210,19 @@ public:
 	Path path;
 	Rectangle<float> pathArea;
 
-	Value inputDoc, outputDoc;
+	Value inputDoc, outputDoc, variableDoc;
 
 	TextEditor inputEditor, outputEditor;
+	TextEditor variableName;
+
 	ComboBox outputFormatSelector;
 
-	OutputFormat currentOutputFormat = OutputFormat::CppString;
+	OutputFormat currentOutputFormat = OutputFormat::Base64;
 	TextButton loadClipboard, copyClipboard;
 
 	ResizableCornerComponent resizer;
 	HiseShapeButton closeButton;
 	AlertWindowLookAndFeel alaf;
-
-	String filename;
-
 };
 
 class ProjectDownloader : public DialogWindowWithBackgroundThread,
