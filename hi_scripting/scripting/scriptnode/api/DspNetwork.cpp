@@ -1119,6 +1119,12 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 
 void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
 {
+	if (projectNodeHolder.isActive() == shouldBeEnabled)
+		return;
+
+	if (shouldBeEnabled && currentSpecs)
+		projectNodeHolder.prepare(currentSpecs);
+
 	projectNodeHolder.setEnabled(shouldBeEnabled);
 	reset();
 }
