@@ -1164,8 +1164,12 @@ namespace fx
 			for (int i = 0; i < 100; i++)
 				x[i] = (float)i / 100.0f;
 			
-			getBitcrushedValue(x, getParameter(0) / 2.5);
+            
+            
+			getBitcrushedValue(x, getParameter(0) / 2.5, false);
 			
+            FloatSanitizers::sanitizeArray(x.begin(), x.size());
+            
 			p.startNewSubPath(0, 1.0f - x[0]);
 
 			for (int i = 1; i < 100; i++)

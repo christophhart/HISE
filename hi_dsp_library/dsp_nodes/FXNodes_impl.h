@@ -106,6 +106,12 @@ void bitcrush<V>::setBitDepth(double newBitDepth)
 }
 
 template <int V>
+void bitcrush<V>::setMode(double newMode)
+{
+    bipolar = newMode > 0.5;
+}
+
+template <int V>
 void bitcrush<V>::createParameters(ParameterDataList& data)
 {
 	{
@@ -114,6 +120,12 @@ void bitcrush<V>::createParameters(ParameterDataList& data)
 		p.setDefaultValue(16.0);
 		data.add(std::move(p));
 	}
+    {
+        DEFINE_PARAMETERDATA(bitcrush, Mode);
+        p.setParameterValueNames({"DC", "Bipolar"});
+        p.setDefaultValue(0.0);
+        data.add(std::move(p));
+    }
 }
 
 template <int V>

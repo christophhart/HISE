@@ -148,13 +148,30 @@ private:
 	int lastChannelAmount = NUM_MAX_CHANNELS;
 };
 
-template <typename T> static void getBitcrushedValue(T& data, float bitDepth)
+template <typename T> static void getBitcrushedValue(T& data, float bitDepth, bool bipolar)
 {
 	const float invStepSize = hmath::pow(2.0f, bitDepth);
 	const float stepSize = 1.0f / invStepSize;
 
-	for(auto& s: data)
-		s = (stepSize * ceil(s * invStepSize) - 0.5f * stepSize);
+    if(bipolar)
+    {
+        for(auto& s: data)
+        {
+            if(s > 0.0f)
+                s = stepSize * floor(s * invStepSize);
+            else
+                s = stepSize * ceil(s * invStepSize);
+        }
+    }
+    else
+    {
+        for(auto& s: data)
+        {
+            s = (stepSize * ceil(s * invStepSize)) - 0.5 * stepSize;
+        }
+    }
+    
+	
 }
 
 template <int V> class bitcrush : public polyphonic_base
@@ -163,12 +180,14 @@ public:
 
 	enum class Parameters
 	{
-		BitDepth
+		BitDepth,
+        Mode
 	};
 
 	DEFINE_PARAMETERS
 	{
 		DEF_PARAMETER(BitDepth, bitcrush);
+        DEF_PARAMETER(Mode, bitcrush);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
 
@@ -191,14 +210,14 @@ public:
 		for (auto ch : d)
 		{
 			auto b = d.toChannelData(ch);
-			getBitcrushedValue(b, bitDepth.get());
+			getBitcrushedValue(b, bitDepth.get(), bipolar);
 		}
 			
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		getBitcrushedValue(data, bitDepth.get());
+		getBitcrushedValue(data, bitDepth.get(), bipolar);
 	}
 
 
@@ -207,10 +226,13 @@ public:
 	void createParameters(ParameterDataList& data);
 
 	void setBitDepth(double newBitDepth);
+    
+    void setMode(double newMode);
 
 private:
 
 	PolyData<float, NumVoices> bitDepth;
+    bool bipolar = false;
 };
 
 template <int NV> class phase_delay : public polyphonic_base
