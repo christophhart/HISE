@@ -6889,4 +6889,104 @@ void ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::playbackChanged(int 
 		dirty = true;
 }
 
+struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptedMidiAutomationHandler, getAutomationDataObject);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setAutomationDataFromObject);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setControllerNumbersInPopup);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setExclusiveMode);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setUpdateCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setConsumeAutomatedControllers);
+	API_VOID_METHOD_WRAPPER_2(ScriptedMidiAutomationHandler, setControllerNumberNames);
+};
+
+ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp) :
+	ConstScriptingObject(sp, 0),
+	handler(sp->getMainController_()->getMacroManager().getMidiControlAutomationHandler()),
+	updateCallback(getScriptProcessor(), var(), 0)
+{
+	handler->addChangeListener(this);
+
+	ADD_API_METHOD_0(getAutomationDataObject);
+	ADD_API_METHOD_1(setAutomationDataFromObject);
+	ADD_API_METHOD_1(setControllerNumbersInPopup);
+	ADD_API_METHOD_1(setExclusiveMode);
+	ADD_API_METHOD_1(setUpdateCallback);
+	ADD_API_METHOD_1(setConsumeAutomatedControllers);
+	ADD_API_METHOD_2(setControllerNumberNames);
+}
+
+ScriptingObjects::ScriptedMidiAutomationHandler::~ScriptedMidiAutomationHandler()
+{
+	handler->removeChangeListener(this);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::changeListenerCallback(SafeChangeBroadcaster *b)
+{
+	if (updateCallback)
+		updateCallback.call(nullptr, 0);
+}
+
+juce::var ScriptingObjects::ScriptedMidiAutomationHandler::getAutomationDataObject()
+{
+	auto data = handler->exportAsValueTree();
+	return var(ValueTreeConverters::convertFlatValueTreeToVarArray(data));
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setAutomationDataFromObject(var automationData)
+{
+	auto vt = ValueTreeConverters::convertVarArrayToFlatValueTree(automationData, "MidiAutomation", "Controller");
+	handler->restoreFromValueTree(vt);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setControllerNumbersInPopup(var numberArray)
+{
+	BigInteger bi;
+
+	if (auto a = numberArray.getArray())
+	{
+		for (auto v : *a)
+			bi.setBit((int)v, true);
+	}
+
+	handler->setControllerPopupNumbers(bi);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setControllerNumberNames(var ccName, var nameArray)
+{
+	handler->setCCName(ccName);
+	
+	StringArray sa;
+
+	if (auto a = nameArray.getArray())
+	{
+		for (const auto& v : *a)
+		{
+			sa.add(v.toString());
+		}
+	}
+
+	handler->setControllerPopupNames(sa);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setExclusiveMode(bool shouldBeExclusive)
+{
+	handler->setExclusiveMode(shouldBeExclusive);
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setUpdateCallback(var callback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), callback, 0);
+		updateCallback.incRefCount();
+		updateCallback.setThisObject(this);
+	}
+}
+
+void ScriptingObjects::ScriptedMidiAutomationHandler::setConsumeAutomatedControllers(bool shouldBeConsumed)
+{
+	handler->setConsumeAutomatedControllers(shouldBeConsumed);
+}
+
 } // namespace hise

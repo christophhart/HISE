@@ -331,6 +331,8 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 			getSampleManager().setCurrentPreloadMessage("Compiling scripts...");
 
+			getMacroManager().getMidiControlAutomationHandler()->setUnloadedData(v.getChildWithName("MidiAutomation"));
+
 			synthChain->compileAllScripts();
 
 			if (sampleRate > 0.0)
@@ -341,12 +343,9 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				prepareToPlay(sampleRate, maxBufferSize.get());
 			}
 
-			ValueTree autoData = v.getChildWithName("MidiAutomation");
-
 			// We need to postpone this until after compilation in order to resolve the 
 			// attribute indexes for the CC mappings
-			if (autoData.isValid())
-				getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+			getMacroManager().getMidiControlAutomationHandler()->loadUnloadedData();
 
 			synthChain->loadMacrosFromValueTree(v);
 

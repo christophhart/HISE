@@ -133,18 +133,22 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	m.setLookAndFeel(&plaf);
 
+	auto ccName = handler->getCCName();
 
 	if (!isOnHiseModuleUI)
 	{
-		m.addItem(Learn, "Learn MIDI CC", true, learningActive);
+		m.addItem(Learn, "Learn " + ccName, true, learningActive);
 		
-		auto value = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMidiControllerNumber(processor, parameterToUse);
+		auto value = handler->getMidiControllerNumber(processor, parameterToUse);
 
 		PopupMenu s;
 		for (int i = 1; i < 127; i++)
-			s.addItem(i + MidiOffset, "CC #" + String(i), true, i == value);
+		{
+			if(handler->shouldAddControllerToPopup(i))
+				s.addItem(i + MidiOffset, handler->getControllerName(i), handler->isMappable(i), i == value);
+		}
 
-		m.addSubMenu("Assign MIDI CC", s, true);
+		m.addSubMenu("Assign " + ccName, s, true);
 	}
 		
 
@@ -168,7 +172,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	if (midiController != -1)
 	{
-		m.addItem(Remove, "Remove CC " + String(midiController));
+		m.addItem(Remove, "Remove " + handler->getControllerName(midiController));
 	}
 
 	if (macroIndex != -1)

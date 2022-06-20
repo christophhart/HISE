@@ -312,6 +312,9 @@ public:
 		/** Creates (and activates) the expansion handler. */
 		var createExpansionHandler();
 
+		/** Creates a MIDI Automation handler. */
+		var createMidiAutomationHandler();
+
 		/** Creates an user preset handler. */
 		var createUserPresetHandler();
 
@@ -1115,7 +1118,6 @@ public:
 
 		friend class ModuleHandler;
 
-		
 		WeakReference<Message> messageObject;
 
 		ModulatorSynth * const owner;
