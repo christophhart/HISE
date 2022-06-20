@@ -1175,10 +1175,7 @@ public:
 
 	void drawAlertBox (Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout) override;;
 
-private:
-
 	Colour dark, bright, special;
-
 };
 
 
