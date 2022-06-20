@@ -616,7 +616,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 	}
 	if (result == (int)MenuActions::WrapIntoDspNetwork)
 	{
-		if (node->getRootNetwork()->getRootNode() == node)
+		if (node->getRootNetwork()->getRootNode() == node.get())
 		{
 			PresetHandler::showMessageWindow("Nope", "You don't need to wrap the root node.  \n> Just tick the `AllowCompilation` flag in the properties, save this network and export the DLL");
 			return;
