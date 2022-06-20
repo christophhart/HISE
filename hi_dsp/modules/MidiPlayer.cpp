@@ -187,10 +187,8 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 					afterEvent = seq->getEventPointer(indexAfterWrap);
 				}
 
-				if (afterEvent != nullptr)
+				if (afterEvent != nullptr && afterEvent->message.isNoteOn())
 				{
-					jassert(afterEvent->message.isNoteOn());
-
 					auto ts = afterEvent->message.getTimeStamp();
 
 					if (afterWrap.contains(ts))
@@ -560,6 +558,24 @@ Array<HiseEvent> HiseMidiSequence::getEventList(double sampleRate, double bpm, H
 
 				newBuffer.add(on);
 				newBuffer.add(off);
+			}
+			else if (ev->message.isController() || ev->message.isPitchWheel())
+			{
+				HiseEvent cc(ev->message);
+
+				auto ccTsTicks = jmin(getLength() - 1.0, ev->message.getTimeStamp());
+				
+				auto fToUse = formatToUse != TimestampEditFormat::numTimestampFormats ? formatToUse : timestampFormat;
+
+				if (fToUse == TimestampEditFormat::Samples)
+				{
+					auto onTs = (int)(samplePerQuarter * ccTsTicks / (double)HiseMidiSequence::TicksPerQuarter);
+					cc.setTimeStamp(onTs);
+				}
+				else
+					cc.setTimeStamp(ccTsTicks);
+
+				newBuffer.add(cc);
 			}
 		}
 	}

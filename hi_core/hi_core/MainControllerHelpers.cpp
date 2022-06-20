@@ -37,7 +37,8 @@ namespace hise { using namespace juce;
 MidiControllerAutomationHandler::MidiControllerAutomationHandler(MainController *mc_) :
 anyUsed(false),
 mpeData(mc_),
-mc(mc_)
+mc(mc_),
+ccName("MIDI CC")
 {
 	tempBuffer.ensureSize(2048);
 
@@ -82,7 +83,14 @@ void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumbe
 
 	unlearnedData.ccNumber = ccNumber;
 
-	automationData[ccNumber].addIfNotAlreadyThere(unlearnedData);
+	if (exclusiveMode)
+	{
+		automationData[ccNumber].clearQuick();
+		automationData[ccNumber].add(unlearnedData);
+	}
+	else
+		automationData[ccNumber].addIfNotAlreadyThere(unlearnedData);
+
 	unlearnedData = AutomationData();
 
 	anyUsed = true;
@@ -620,6 +628,9 @@ bool MidiControllerAutomationHandler::MPEData::contains(MPEModulator* mod) const
 
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 {
+	if (unloadedData.isValid())
+		return unloadedData;
+
 	ValueTree v("MidiAutomation");
 
 	for (int i = 0; i < 128; i++)
@@ -746,7 +757,7 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 				}
 			}
 
-			return true;
+			return consumeEvents;
 		}
 	}
 

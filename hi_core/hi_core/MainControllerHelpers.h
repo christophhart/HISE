@@ -267,6 +267,8 @@ public:
 	{
 		AutomationData();
 
+		~AutomationData() { clear(); }
+
 		void clear();
 
 		bool operator==(const AutomationData& other) const;
@@ -297,7 +299,88 @@ public:
 	int getNumActiveConnections() const;
 	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
 	bool setParameterInverted(int index, bool value);
+
+	void setUnloadedData(const ValueTree& v)
+	{
+		unloadedData = v;
+	};
+
+	void loadUnloadedData()
+	{
+		if(unloadedData.isValid())
+			restoreFromValueTree(unloadedData);
+
+		unloadedData = {};
+	}
+
+	void setControllerPopupNumbers(BigInteger controllerNumberToShow)
+	{
+		controllerNumbersInPopup = controllerNumberToShow;
+	}
+
+	bool shouldAddControllerToPopup(int controllerValue) const
+	{
+		if (controllerNumbersInPopup.isZero())
+			return true;
+
+		return controllerNumbersInPopup[controllerValue];
+	}
+
+	bool isMappable(int controllerValue) const
+	{
+		if (!exclusiveMode)
+			return shouldAddControllerToPopup(controllerValue);
+
+		if (isPositiveAndBelow(controllerValue, 128))
+			return automationData[controllerValue].isEmpty();
+
+		return false;
+	}
+
+	void setExclusiveMode(bool shouldBeExclusive)
+	{
+		exclusiveMode = shouldBeExclusive;
+	}
+
+	void setConsumeAutomatedControllers(bool shouldConsume)
+	{
+		consumeEvents = shouldConsume;
+	}
+
+	void setControllerPopupNames(const StringArray& newControllerNames)
+	{
+		controllerNames = newControllerNames;
+	}
+
+	String getControllerName(int controllerIndex)
+	{
+		if (isPositiveAndBelow(controllerIndex, controllerNames.size()))
+		{
+			return controllerNames[controllerIndex];
+		}
+		else
+		{
+			String s;
+			s << "CC#" << controllerIndex;
+			return s;
+		}
+	}
+
+	void setCCName(const String& newCCName) { ccName = newCCName; }
+
+	String getCCName() const { return ccName; }
+
 private:
+
+	bool exclusiveMode = false;
+	bool consumeEvents = true;
+
+	StringArray controllerNames;
+	String ccName;
+
+	BigInteger controllerNumbersInPopup;
+
+	ValueTree unloadedData;
 
 	// ========================================================================================================
 

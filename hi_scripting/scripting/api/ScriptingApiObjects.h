@@ -2219,6 +2219,53 @@ namespace ScriptingObjects
         JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
 	};
 
+	class ScriptedMidiAutomationHandler : public ConstScriptingObject,
+									      public SafeChangeListener
+	{
+	public:
+
+		struct Wrapper;
+
+		ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp);
+
+		~ScriptedMidiAutomationHandler();
+
+		void changeListenerCallback(SafeChangeBroadcaster *b) override;
+
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("MidiAutomationHandler"); };
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiAutomationHandler"); }
+
+		// ============================================================================================================ API Methods
+
+		/** Returns an object that contains the MIDI automation data. */
+		var getAutomationDataObject();
+
+		/** Sets the MIDI automation from the automation data object. */
+		void setAutomationDataFromObject(var automationData);
+
+		/** Sets the numbers that are displayed in the MIDI automation popup. */
+		void setControllerNumbersInPopup(var numberArray);
+
+		/** Replaces the names in the popup. */
+		void setControllerNumberNames(var ccName, var nameArray);
+
+		/** Enables the "exclusive" mode for MIDI automation (only one active parameter for each controller). */
+		void setExclusiveMode(bool shouldBeExclusive);
+
+		/** Set a function (without parameters) that will be executed whenever the MIDI automation changes. */
+		void setUpdateCallback(var callback);
+
+		/** Sets whether a automated MIDI CC message should be consumed by the automation handler (default is enabled). */
+		void setConsumeAutomatedControllers(bool shouldBeConsumed);
+
+		// ============================================================================================================ End of API Methods
+
+	private:
+
+		MidiControllerAutomationHandler* handler;
+		WeakCallbackHolder updateCallback;
+	};
 
 	class ScriptedMidiPlayer : public MidiPlayerBaseType,
 								public ConstScriptingObject,

@@ -1926,9 +1926,6 @@ public:
 
 		variableDoc.setValue("pathData");
 
-		inputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
-		outputEditor.setColour(TextEditor::ColourIds::backgroundColourId, Colours::grey);
-
 		outputFormatSelector.setSelectedItemIndex(0);
 
 		copyClipboard.setLookAndFeel(&alaf);
@@ -1953,7 +1950,7 @@ public:
 
 		GlobalHiseLookAndFeel::setDefaultColours(outputFormatSelector);
 
-        inputDoc.setValue("Paste the SVG data here, drop a SVG file or use the Load from Clipboard button.\nThen select the output format xand variable name above, and click Copy to Clipboard to paste the path data");
+        inputDoc.setValue("Paste the SVG data here, drop a SVG file or use the Load from Clipboard button.\nThen select the output format xand variable name above, and click Copy to Clipboard to paste the path data.\nYou can also paste an array that you've previously exported to convert it to Base64");
         
 		inputDoc.addListener(this);
 
@@ -1976,9 +1973,34 @@ public:
 		update();
 	}
 
+	void mouseDown(const MouseEvent& e) override
+	{
+		dragger.startDraggingComponent(this, e);
+	}
+
+	void mouseDrag(const MouseEvent& e) override
+	{
+		dragger.dragComponent(this, e, nullptr);
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		
+	}
+
+	static bool isHiseScriptArray(const String& input)
+	{
+		return input.startsWith("const var") || input.startsWith("[");
+	}
+
 	static String parse(const String& input)
 	{
-		String rt = input;
+		String rt = input.trim();
+
+		if (isHiseScriptArray(rt))
+		{
+			return rt;
+		}
 
 		if (auto xml = XmlDocument::parse(input))
 		{
@@ -2110,52 +2132,87 @@ public:
 	{
 		auto inputText = parse(inputDoc.toString());
 
-		auto text = inputText.trim().unquoted().trim();
-
-		path = Drawable::parseSVGPath(text);
-
-		if (path.isEmpty())
-			path = pathFromPoints(text);
-
 		String result = "No path generated.. Not a valid SVG path string?";
 
-		auto filename = variableDoc.toString();
-
-		if (!path.isEmpty())
+		if (isHiseScriptArray(inputText))
 		{
-			MemoryOutputStream data;
-			path.writePathToStream(data);
+			auto ar = JSON::parse(inputText.fromFirstOccurrenceOf("[", true, true));
 
-			MemoryOutputStream out;
-
-			if (currentOutputFormat == OutputFormat::CppString)
+			if (ar.isArray())
 			{
-				out << "static const unsigned char " << filename <<"[] = ";
+				MemoryOutputStream mos;
 
-				writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "{}");
+				for (auto v : *ar.getArray())
+				{
+					auto byte = (uint8)(int)v;
+					mos.write(&byte, 1);
+				}
+				
+				mos.flush();
 
-				out << newLine
-					<< newLine
-					<< "Path path;" << newLine
-					<< "path.loadPathFromData (" << filename << ", sizeof (" << filename << "));" << newLine;
+				path.clear();
+				path.loadPathFromData(mos.getData(), mos.getDataSize());
 
+				auto b64 = mos.getMemoryBlock().toBase64Encoding();
+
+				result = {};
+
+				if (!inputText.startsWith("["))
+					result << inputText.upToFirstOccurrenceOf("[", false, false);
+
+				result << b64.quoted();
+
+				if (inputText.endsWith(";"))
+					result << ";";
 			}
-			else if (currentOutputFormat == OutputFormat::Base64)
-			{
-				out << "const var " << filename << " = ";
-				out << "\"" << data.getMemoryBlock().toBase64Encoding() << "\"";
-			}
-			else if (currentOutputFormat == OutputFormat::HiseScriptNumbers)
-			{
-				out << "const var " << filename << " = ";
-				writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
-
-				out << ";";
-			}
-			
-			result = out.toString();
 		}
+		else
+		{
+			auto text = inputText.trim().unquoted().trim();
 
+			path = Drawable::parseSVGPath(text);
+
+			if (path.isEmpty())
+				path = pathFromPoints(text);
+
+			auto filename = variableDoc.toString();
+
+			if (!path.isEmpty())
+			{
+				MemoryOutputStream data;
+				path.writePathToStream(data);
+
+				MemoryOutputStream out;
+
+				if (currentOutputFormat == OutputFormat::CppString)
+				{
+					out << "static const unsigned char " << filename << "[] = ";
+
+					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "{}");
+
+					out << newLine
+						<< newLine
+						<< "Path path;" << newLine
+						<< "path.loadPathFromData (" << filename << ", sizeof (" << filename << "));" << newLine;
+
+				}
+				else if (currentOutputFormat == OutputFormat::Base64)
+				{
+					out << "const var " << filename << " = ";
+					out << "\"" << data.getMemoryBlock().toBase64Encoding() << "\"";
+				}
+				else if (currentOutputFormat == OutputFormat::HiseScriptNumbers)
+				{
+					out << "const var " << filename << " = ";
+					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
+
+					out << ";";
+				}
+
+				result = out.toString();
+			}
+		}
+		
 		outputDoc.setValue(result);
 
 		PathFactory::scalePath(path, pathArea);
@@ -2165,9 +2222,20 @@ public:
 
 	void paint(Graphics& g)
 	{
-		g.fillAll(Colour(0xFF333333));
-		g.setColour(Colours::white.withAlpha(0.5f));
-        
+		ColourGradient grad(alaf.dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+			alaf.dark, 0.0f, (float)getHeight(), false);
+
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRect(getLocalBounds().removeFromTop(37).toFloat());
+		g.setColour(alaf.bright);
+
+		g.drawRect(getLocalBounds().toFloat());
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
+		g.drawText("SVG to Path converter", titleArea, Justification::centred);
+
         if(path.isEmpty())
         {
             g.setFont(GLOBAL_BOLD_FONT());
@@ -2178,13 +2246,16 @@ public:
             g.fillPath(path);
             g.strokePath(path, PathStrokeType(1.0f));
         }
-		
 	}
 
 	void resized() override
 	{
-		auto b = getLocalBounds().reduced(10);
+		auto b = getLocalBounds();
 		
+		titleArea = b.removeFromTop(37).toFloat();
+
+		b = b.reduced(10);
+
 		auto top = b.removeFromTop(32);
 
 
@@ -2214,7 +2285,7 @@ public:
 		copyClipboard.setBounds(bottom.removeFromLeft(150));
 
 		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
-		closeButton.setBounds(top.removeFromRight(top.getHeight()).reduced(2));
+		closeButton.setBounds(getLocalBounds().removeFromRight(titleArea.getHeight()).removeFromTop(titleArea.getHeight()).reduced(6));
 
 		scalePath(path, pathArea);
 		repaint();
@@ -2222,6 +2293,7 @@ public:
 
 	Path path;
 	Rectangle<float> pathArea;
+	Rectangle<float> titleArea;
 
 	Value inputDoc, outputDoc, variableDoc;
 
@@ -2236,6 +2308,7 @@ public:
 	ResizableCornerComponent resizer;
 	HiseShapeButton closeButton;
 	AlertWindowLookAndFeel alaf;
+	juce::ComponentDragger dragger;
 };
 
 class ProjectDownloader : public DialogWindowWithBackgroundThread,
