@@ -428,7 +428,8 @@ int ProjectDll::getHash(int index) const
 #undef DLL_FUNCTION
 
 ProjectDll::ProjectDll(const File& f):
-	r(Result::fail("Can't find DLL file "  + f.getFullPathName()))
+	r(Result::fail("Can't find DLL file "  + f.getFullPathName())),
+    loadedFile(f)
 {
 	dll = new DynamicLibrary();
 

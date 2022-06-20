@@ -468,6 +468,8 @@ namespace dll
 
 		int getHash(int index) const;
 
+        File getDllFile() const { return loadedFile; }
+        
 	private:
 
 		void clearAllFunctions()
@@ -495,6 +497,7 @@ namespace dll
 			return func;
 		};
 
+        File loadedFile;
 		Result r;
 
 		void* functions[(int)ExportedFunction::numFunctions];

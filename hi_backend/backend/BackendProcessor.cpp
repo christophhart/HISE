@@ -141,6 +141,7 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 
 	refreshExpansionType();
 	
+    dllManager->loadDll(true);
 }
 
 void BackendProcessor::refreshExpansionType()

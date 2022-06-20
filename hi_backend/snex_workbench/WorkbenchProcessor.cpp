@@ -1493,10 +1493,12 @@ void DspNetworkCompileExporter::createProjucerFile()
 
 	auto projectName = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
 
+    auto dllprefix = cppgen::StringHelpers::makeValidCppName(projectName);
+    
 	auto dllFolder = getFolder(BackendDllManager::FolderSubType::DllLocation);
-	auto dbgFile = dllFolder.getChildFile("project_debug").withFileExtension(".dll");
-	auto rlsFile = dllFolder.getChildFile("project").withFileExtension(".dll");
-	auto ciFile = dllFolder.getChildFile("project_ci").withFileExtension(".dll");
+	auto dbgFile = dllFolder.getChildFile(dllprefix + "_debug").withFileExtension(".dll");
+	auto rlsFile = dllFolder.getChildFile(dllprefix).withFileExtension(".dll");
+	auto ciFile = dllFolder.getChildFile(dllprefix + "_ci").withFileExtension(".dll");
 
 	auto dbgName = dbgFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
 	auto rlsName = rlsFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
