@@ -247,7 +247,9 @@ void MainController::clearPreset()
 		mc->setCurrentScriptLookAndFeel(nullptr);
 		mc->clearIncludedFiles();
 		mc->changed = false;
-
+        
+        mc->prepareToPlay(mc->sampleRate, mc->numSamplesThisBlock);
+        
 		return SafeFunctionCall::OK;
 	};
 

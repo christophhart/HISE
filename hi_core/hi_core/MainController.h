@@ -1695,11 +1695,13 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 
-	/** Sets the sample rate for the cpu meter. */
-	void prepareToPlay(double sampleRate_, int samplesPerBlock);
+	
 
 protected:
 
+    /** Sets the sample rate for the cpu meter. */
+    void prepareToPlay(double sampleRate_, int samplesPerBlock);
+    
 	bool deletePendingFlag = false;
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
