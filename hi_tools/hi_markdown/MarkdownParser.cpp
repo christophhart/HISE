@@ -615,9 +615,21 @@ void MarkdownParser::parseTable()
 
 	it.peek();
 
+	bool first = true;
+	
 	while (!Helpers::isEndOfLine(it.peek()))
 	{
 		skipTagAndTrailingSpace();
+
+		if (first)
+		{
+			auto isHeadless = (it.peek() == '-' || it.peek() == '=');
+
+			if (isHeadless)
+				break;
+
+			first = false;
+		}
 
 		resetForNewLine();
 		resetCurrentBlock();

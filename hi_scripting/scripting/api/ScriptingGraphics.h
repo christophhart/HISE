@@ -275,11 +275,12 @@ namespace ScriptingObjects
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Path"); }
 
+		String getDebugName() const override { return "Path"; }
 
 		String getDebugValue() const override {
 			return p.getBounds().toString();
 		}
-		String getDebugName() const override { return "Path"; }
+		
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
@@ -337,6 +338,46 @@ namespace ScriptingObjects
 		// ============================================================================================================
 	};
 
+	class MarkdownObject : public ConstScriptingObject
+	{
+	public:
+
+		MarkdownObject(ProcessorWithScriptingContent* pwsc);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MarkdownRenderer"); }
+
+		String getDebugName() const override { return "MarkdownRenderer"; }
+
+		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
+
+		// ============================================================================================================ API
+
+		/** Set the markdown text to be displayed. */
+		void setText(const String& markdownText);
+
+		/** Parses the text for the specified area and returns the used height (might be more or less than the height of the area passed in). */
+		float setTextBounds(var area);
+
+		/** Sets the style data for the markdown renderer. */
+		void setStyleData(var styleData);
+
+		/** Returns the current style data. */
+		var getStyleData();
+
+		/** Creates an image provider from the given JSON data that resolves image links. */
+		void setImageProvider(var data);
+
+		// ============================================================================================================ API End
+
+		hise::DrawActions::MarkdownAction::Ptr obj;
+
+	private:
+
+		struct ScriptedImageProvider;
+
+		struct Preview;
+		struct Wrapper;
+	};
 
 	class GraphicsObject : public ConstScriptingObject
 	{
@@ -421,6 +462,9 @@ namespace ScriptingObjects
 
 		/** Break to new lines when the text becomes wider than maxWidth. */
 		void drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading);
+
+		/** Draws the text of the given markdown renderer to its specified area. */
+		void drawMarkdownText(var markdownRenderer);
 
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);

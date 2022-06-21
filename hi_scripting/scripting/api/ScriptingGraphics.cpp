@@ -917,32 +917,9 @@ ScriptingObjects::PathObject::~PathObject()
 
 void ScriptingObjects::PathObject::loadFromData(var data)
 {
-	if (data.isString())
-	{
-		juce::MemoryBlock mb;
-		mb.fromBase64Encoding(data.toString());
-		p.clear();
-		p.loadPathFromData(mb.getData(), mb.getSize());
-	}
-	if (data.isArray())
-	{
-		p.clear();
+	ApiHelpers::loadPathFromData(p, data);
 
-		Array<unsigned char> pathData;
-
-		Array<var> *varData = data.getArray();
-
-		const int numElements = varData->size();
-
-		pathData.ensureStorageAllocated(numElements);
-
-		for (int i = 0; i < numElements; i++)
-		{
-			pathData.add(static_cast<unsigned char>((int)varData->getUnchecked(i)));
-		}
-
-		p.loadPathFromData(pathData.getRawDataPointer(), numElements);
-	}
+	
 }
 
 void ScriptingObjects::PathObject::clear()
@@ -1044,6 +1021,269 @@ void ScriptingObjects::PathObject::fromString(String stringPath)
 	p.restoreFromString(stringPath);
 }
 
+
+
+class ScriptingObjects::MarkdownObject::Preview : public Component,
+												  public ComponentForDebugInformation,
+												  public PooledUIUpdater::SimpleTimer
+{
+public:
+
+	Preview(ScriptingObjects::MarkdownObject* obj) :
+		ComponentForDebugInformation(obj, dynamic_cast<ApiProviderBase::Holder*>(obj->getScriptProcessor())),
+		SimpleTimer(obj->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+	{
+		if (auto o = getObject<ScriptingObjects::MarkdownObject>())
+		{
+			auto b = o->obj->area.toNearestInt();
+
+			if (b.isEmpty())
+				setSize(200, 400);
+			else
+				setSize(b.getWidth(), b.getHeight());
+		}
+	}
+
+	void timerCallback() override
+	{
+		auto b = getLocalBounds();
+
+		if (auto o = getObject<ScriptingObjects::MarkdownObject>())
+		{
+			auto tb = o->obj->area.toNearestInt();
+
+			tb.setPosition(0, 0);
+
+			if (b != tb)
+			{
+				setSize(tb.getWidth(), tb.getHeight());
+				repaint();
+			}
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (auto o = getObject<ScriptingObjects::MarkdownObject>())
+		{
+			o->obj->perform(g);
+		}
+	}
+
+	DrawActions::MarkdownAction::Ptr obj;
+};
+
+class ScriptingObjects::MarkdownObject::ScriptedImageProvider : public MarkdownParser::ImageProvider,
+															    public ControlledObject
+{
+public:
+
+	struct Entry
+	{
+		Entry(var data)
+		{
+			auto urlString = data.getProperty("URL", "").toString();
+
+			if (urlString.isNotEmpty())
+				url = MarkdownLink::createWithoutRoot(MarkdownLink::Helpers::getSanitizedURL(urlString), MarkdownLink::Image);
+		}
+			
+		virtual ~Entry() {};
+
+		Image getImage(const MarkdownLink& urlToResolve, float width)
+		{
+			if (url.toString(MarkdownLink::UrlWithoutAnchor) == urlToResolve.toString(MarkdownLink::UrlWithoutAnchor))
+			{
+				MarkdownParser::ImageProvider::updateWidthFromURL(urlToResolve, width);
+				auto img = getImageInternal(width);
+				return MarkdownParser::ImageProvider::resizeImageToFit(img, width);
+			}
+
+			return {};
+		}
+
+		virtual Image getImageInternal(float width) = 0;
+
+		MarkdownLink url;
+	};
+
+	struct PathEntry : public Entry
+	{
+		PathEntry(var data):
+			Entry(data)
+		{
+			jassert(data.getProperty("Type", "").toString() == "Path");
+
+			var pathData = data.getProperty("Data", var());
+
+			ApiHelpers::loadPathFromData(p, pathData);
+			c = scriptnode::PropertyHelpers::getColourFromVar(data.getProperty("Colour", 0xFF888888));
+		}
+
+		Image getImageInternal(float width) override
+		{
+			Image img(Image::ARGB, (int)width, (int)width, true);
+			Graphics g2(img);
+			g2.setColour(c);
+			PathFactory::scalePath(p, { 0.0f, 0.0f, width, width });
+			g2.fillPath(p);
+			return img;
+		}
+
+		Path p;
+		Colour c;
+	};
+
+	struct ImageEntry: public ControlledObject,
+					   public Entry
+	{
+		ImageEntry(MainController* mc, var data) :
+			ControlledObject(mc),
+			Entry(data)
+		{
+			auto link = data.getProperty("Reference", "").toString();
+
+			if (link.isNotEmpty())
+			{
+				PoolReference ref(getMainController(), link, FileHandlerBase::Images);
+				pooledImage = getMainController()->getCurrentImagePool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			}
+		};
+
+		Image getImageInternal(float width) override
+		{
+			if (pooledImage)
+				return *pooledImage.getData();
+
+			return {};
+		}
+
+		ImagePool::ManagedPtr pooledImage;
+	};
+
+	OwnedArray<Entry> entries;
+
+	ScriptedImageProvider(MainController* mc, MarkdownParser* parent, var data_) :
+		ImageProvider(parent),
+		ControlledObject(mc),
+		data(data_)
+	{
+		if (data.isArray())
+		{
+			for (auto v : *data.getArray())
+			{
+				auto isPath = v.getProperty("Type", "").toString() == "Path";
+
+				if (isPath)
+					entries.add(new PathEntry(v));
+				else
+					entries.add(new ImageEntry(mc, v));
+			}
+		}
+	};
+
+	MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::EmbeddedPath; };
+
+	ImageProvider* clone(MarkdownParser* newParser) const override { return new ScriptedImageProvider(const_cast<MainController*>(getMainController()), newParser, data); }
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("ScriptedImageProvider"); };
+
+	Image getImage(const MarkdownLink& urlName, float width) override
+	{
+		for (auto e : entries)
+		{
+			auto img = e->getImage(urlName, width);
+
+			if (img.isValid())
+				return img;
+		}
+
+		jassertfalse;
+		return {};
+	}
+
+	var data;
+};
+
+struct ScriptingObjects::MarkdownObject::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(MarkdownObject, setText);
+	API_VOID_METHOD_WRAPPER_1(MarkdownObject, setStyleData);
+	API_VOID_METHOD_WRAPPER_1(MarkdownObject, setImageProvider);
+	API_METHOD_WRAPPER_1(MarkdownObject, setTextBounds);
+	API_METHOD_WRAPPER_0(MarkdownObject, getStyleData);
+};
+
+ScriptingObjects::MarkdownObject::MarkdownObject(ProcessorWithScriptingContent* pwsc) :
+	ConstScriptingObject(pwsc, 0),
+	obj(new DrawActions::MarkdownAction())
+{
+	ADD_API_METHOD_1(setText);
+	ADD_API_METHOD_1(setStyleData);
+	ADD_API_METHOD_1(setTextBounds);
+	ADD_API_METHOD_0(getStyleData);
+	ADD_API_METHOD_1(setImageProvider);
+}
+
+
+
+Component* ScriptingObjects::MarkdownObject::createPopupComponent(const MouseEvent& e, Component *c)
+{
+#if USE_BACKEND
+	return new Preview(this);
+#else
+	ignoreUnused(e, componentToNotify);
+	return nullptr;
+#endif
+}
+
+void ScriptingObjects::MarkdownObject::setText(const String& markdownText)
+{
+	ScopedLock sl(obj->lock);
+	obj->renderer.setNewText(markdownText);
+}
+
+float ScriptingObjects::MarkdownObject::setTextBounds(var area)
+{
+	auto r = Result::ok();
+	obj->area = ApiHelpers::getRectangleFromVar(area, &r);
+
+	if (r.failed())
+		reportScriptError(r.getErrorMessage());
+
+	ScopedLock sl(obj->lock);
+	return obj->renderer.getHeightForWidth(obj->area.getWidth());
+}
+
+void ScriptingObjects::MarkdownObject::setStyleData(var styleData)
+{
+	MarkdownLayout::StyleData s;
+
+	auto mc = getScriptProcessor()->getMainController_();
+
+	s.fromDynamicObject(styleData, [mc](const String& n)
+	{
+		return mc->getFontFromString(n, 14.0f);
+	});
+
+	ScopedLock sl(obj->lock);
+	obj->renderer.setStyleData(s);
+}
+
+juce::var ScriptingObjects::MarkdownObject::getStyleData()
+{
+	ScopedLock sl(obj->lock);
+	return obj->renderer.getStyleData().toDynamicObject();
+}
+
+void ScriptingObjects::MarkdownObject::setImageProvider(var data)
+{
+	auto newProvider = new ScriptedImageProvider(getScriptProcessor()->getMainController_(), &obj->renderer, data);
+
+	ScopedLock sl(obj->lock);
+	obj->renderer.clearResolvers();
+	obj->renderer.setImageProvider(newProvider);
+}
+
 struct ScriptingObjects::GraphicsObject::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillAll);
@@ -1061,6 +1301,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, drawMarkdownText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1112,6 +1353,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_5(drawFittedText);
 	ADD_API_METHOD_5(drawMultiLineText);
+	ADD_API_METHOD_1(drawMarkdownText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1434,6 +1676,19 @@ void ScriptingObjects::GraphicsObject::drawMultiLineText(String text, var xy, in
     int baseLineY = (int)xy[1];
     
     drawActionHandler.addDrawAction(new ScriptedDrawActions::drawMultiLineText(text, startX, baseLineY, maxWidth, just, leading));
+}
+
+void ScriptingObjects::GraphicsObject::drawMarkdownText(var markdownRenderer)
+{
+	if (auto obj = dynamic_cast<MarkdownObject*>(markdownRenderer.getObject()))
+	{
+		if (obj->obj->area.isEmpty())
+			reportScriptError("You have to call setTextBounds() before using this method");
+
+		drawActionHandler.addDrawAction(obj->obj.get());
+	}
+	else
+		reportScriptError("not a markdown renderer");
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -3135,5 +3390,7 @@ hise::ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFe
 {
 	return weakLaf.get();
 }
+
+
 
 } 

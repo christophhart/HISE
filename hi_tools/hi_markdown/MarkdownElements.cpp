@@ -983,7 +983,8 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	static constexpr int FixOffset = 100000;
 
 	MarkdownTable(MarkdownParser* p, int lineNumber, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
-		Element(p, lineNumber)
+		Element(p, lineNumber),
+		styleData(p->getStyleData())
 	{
 		int index = 0;
 
@@ -1098,12 +1099,14 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		area.removeFromTop(10.0f);
 		area.removeFromBottom(10.0f);
 
-		g.setColour(Colours::grey.withAlpha(0.2f));
+		g.setColour(styleData.tableBgColour);
 		g.fillRect(area);
 
 		auto headerArea = area.removeFromTop(headers.rowHeight);
-		g.fillRect(headerArea);
-		g.setColour(Colours::grey.withAlpha(0.2f));
+		g.setColour(styleData.tableHeaderBackgroundColour);
+		g.fillRect(headerArea.reduced(1.0f));
+		g.setColour(styleData.tableLineColour);
+		g.drawRect(headerArea, 1.0f);
 		g.drawVerticalLine((int)area.getX(), area.getY(), area.getBottom());
 
 		for (const auto& c : headers.columns)
@@ -1114,14 +1117,24 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 		g.drawVerticalLine((int)area.getRight()-1, area.getY(), area.getBottom());
 		
-		headers.draw(g, headerArea);
+		auto yOffset = 20.0f - styleData.fontSize;
+
+		headers.draw(g, headerArea, yOffset);
+
+		if (headers.columns.isEmpty())
+		{
+			g.drawHorizontalLine((int)area.getY(), area.getX(), area.getRight());
+		}
+
+		
 
 		for (auto& r : rows)
 		{
 			auto rowArea = area.removeFromTop(r.rowHeight);
-			r.draw(g, rowArea);
 
-			g.setColour(Colours::grey.withAlpha(0.2f));
+			r.draw(g, rowArea, yOffset);
+
+			g.setColour(styleData.tableLineColour);
 			g.drawHorizontalLine((int)rowArea.getBottom(), rowArea.getX(), rowArea.getRight());
 		}
 	}
@@ -1254,7 +1267,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			y += rowHeight;
 		}
 
-		void draw(Graphics& g, Rectangle<float> area)
+		void draw(Graphics& g, Rectangle<float> area, float textOffset)
 		{
 			for (const auto& c : columns)
 			{
@@ -1264,10 +1277,14 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				Random r;
 
 				if (c.img.isNull())
-					c.l.drawCopyWithOffset(g, area);
+					c.l.drawCopyWithOffset(g, area.translated(0.0f, -textOffset));
 				else
 				{
 					g.setOpacity(1.0f);
+
+					// Align the image vertically..
+					ar.setHeight(area.getHeight());
+
 					ar = ar.withSizeKeepingCentre((float)c.img.getWidth(), (float)c.img.getHeight());
 					g.drawImageAt(c.img, (int)ar.getX(), (int)ar.getY());
 				}
@@ -1310,7 +1327,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	float lastWidth = -1.0f;
 	float lastHeight = -1.0f;
 
-	
+	MarkdownLayout::StyleData styleData;
 };
 
 struct MarkdownParser::ContentFooter : public MarkdownParser::Element

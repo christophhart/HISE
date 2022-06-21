@@ -34,25 +34,14 @@
 namespace hise {
 using namespace juce;
 
-MarkdownLink MarkdownLink::createWithoutRoot(const String& validURL)
+MarkdownLink MarkdownLink::createWithoutRoot(const String& validURL, Type forcedType)
 {
-	return { {}, validURL };
+	auto l = MarkdownLink(File(), validURL);
 
-#if 0
-	MarkdownLink newLink;
+	if(forcedType != Type::numTypes)
+		l.type = forcedType;
 
-	auto withoutExtra = Helpers::removeExtraData(validURL);
-
-	newLink.extraString = Helpers::getExtraData(validURL);
-	newLink.anchor = Helpers::getAnchor(withoutExtra);
-	newLink.sanitizedURL = Helpers::removeAnchor(withoutExtra);
-	newLink.type = Type::Rootless;
-
-	if (newLink.sanitizedURL.startsWith("/images/icon_"))
-		newLink.type = Type::Icon;
-
-	return newLink;
-#endif
+	return l;
 }
 
 
@@ -423,8 +412,6 @@ MarkdownLink MarkdownLink::withExtraData(String extraData) const
 
 juce::String MarkdownLink::getExtraData() const noexcept
 {
-	jassert(isImageType());
-
 	return extraString;
 }
 

@@ -342,7 +342,7 @@ public:
 	MarkdownLink(const File& rootDirectory, const String& url);
 
 	/** Creates a markdown link without a root. In this case, there will be no processing and the link must be formatted correctly. */
-	static MarkdownLink createWithoutRoot(const String& validURL);
+	static MarkdownLink createWithoutRoot(const String& validURL, Type forcedType=Type::numTypes);
 
 	/** Resolves the link to a file in the given root directory. */
 	File toFile(FileType type, File rootToUse = {}) const noexcept;

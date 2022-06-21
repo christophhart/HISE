@@ -295,7 +295,24 @@ struct DrawActions
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ActionBase);
 	};
 
-	
+	struct MarkdownAction: public ActionBase
+	{
+		MarkdownAction() :
+			renderer("")
+		{};
+
+		using Ptr = ReferenceCountedObjectPtr<MarkdownAction>;
+
+		void perform(Graphics& g) override
+		{
+			ScopedLock sl(lock);
+			renderer.draw(g, area);
+		}
+
+		CriticalSection lock;
+		MarkdownRenderer renderer;
+		Rectangle<float> area;
+	};
 
 	class ActionLayer : public ActionBase
 	{

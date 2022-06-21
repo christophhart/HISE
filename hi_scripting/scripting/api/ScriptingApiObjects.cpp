@@ -5265,6 +5265,31 @@ juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 	return ids;
 }
 
+void ApiHelpers::loadPathFromData(Path& p, var data)
+{
+	if (data.isString())
+	{
+		juce::MemoryBlock mb;
+		mb.fromBase64Encoding(data.toString());
+		p.clear();
+		p.loadPathFromData(mb.getData(), mb.getSize());
+	}
+	if (data.isArray())
+	{
+		p.clear();
+		Array<unsigned char> pathData;
+		Array<var> *varData = data.getArray();
+		const int numElements = varData->size();
+
+		pathData.ensureStorageAllocated(numElements);
+
+		for (int i = 0; i < numElements; i++)
+			pathData.add(static_cast<unsigned char>((int)varData->getUnchecked(i)));
+
+		p.loadPathFromData(pathData.getRawDataPointer(), numElements);
+	}
+}
+
 juce::PathStrokeType ApiHelpers::createPathStrokeType(var strokeType)
 {
 	PathStrokeType s(1.0f);

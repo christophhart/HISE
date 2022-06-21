@@ -64,6 +64,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\s
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_markdown_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 
@@ -88,6 +89,7 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
+
 
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
@@ -155,6 +157,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xm
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_timer_object.xml" "Timer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "MidiPlayer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_automation_handler.xml" "MidiAutomationHandler.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_markdown_object.xml" "MarkdownRenderer.xml"
 
 
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"

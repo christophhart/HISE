@@ -85,6 +85,8 @@ public:
 
 	static Array<Identifier> getGlobalApiClasses();
 
+	static void loadPathFromData(Path& p, var data);
+
 	static PathStrokeType createPathStrokeType(var strokeType);
 
 #if USE_BACKEND

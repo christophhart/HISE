@@ -4491,6 +4491,7 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
+	setMethod("createMarkdownRenderer", Wrapper::createMarkdownRenderer);
 	setMethod("getScreenBounds", Wrapper::getScreenBounds);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
@@ -5417,6 +5418,10 @@ String ScriptingApi::Content::getCurrentTooltip()
 	return {};
 }
 
+juce::var ScriptingApi::Content::createMarkdownRenderer()
+{
+	return var(new ScriptingObjects::MarkdownObject(getScriptProcessor()));
+}
 
 
 #undef ADD_TO_TYPE_SELECTOR

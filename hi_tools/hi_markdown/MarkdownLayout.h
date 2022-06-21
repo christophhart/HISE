@@ -35,7 +35,25 @@
 namespace hise {
 using namespace juce;
 
-
+#define DECLARE_ID(x) static const Identifier x(#x);
+namespace MarkdownStyleIds
+{
+	DECLARE_ID(Font);
+	DECLARE_ID(BoldFont);
+	DECLARE_ID(FontSize);
+	DECLARE_ID(bgColour);
+	DECLARE_ID(codeBgColour);
+	DECLARE_ID(linkBgColour);
+	DECLARE_ID(textColour);
+	DECLARE_ID(codeColour);
+	DECLARE_ID(linkColour);
+	DECLARE_ID(headlineColour);
+	DECLARE_ID(tableBgColour);
+	DECLARE_ID(tableHeaderBgColour);
+	DECLARE_ID(tableLineColour);
+	DECLARE_ID(UseSpecialBoldFont);
+}
+#undef DECLARE_ID
 
 struct MarkdownLayout
 {
@@ -55,6 +73,11 @@ struct MarkdownLayout
 		Colour linkColour;
 		Colour headlineColour;
 		Colour backgroundColour;
+
+		Colour tableBgColour;
+		Colour tableHeaderBackgroundColour;
+		Colour tableLineColour;
+
 		bool useSpecialBoldFont = false;
 
 		static StyleData createBrightStyle()
@@ -65,9 +88,15 @@ struct MarkdownLayout
 			l.backgroundColour = Colour(0xFFEEEEEE);
 			l.linkColour = Colour(0xFF000044);
 			l.codeColour = Colour(0xFF333333);
-			
+			l.tableHeaderBackgroundColour = Colours::grey.withAlpha(0.2f);
+			l.tableLineColour = Colours::grey.withAlpha(0.2f);
+
 			return l;
 		}
+
+		bool fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader);
+
+		var toDynamicObject() const;
 
 		static StyleData createDarkStyle()
 		{
@@ -84,8 +113,6 @@ struct MarkdownLayout
 
 		Font getFont() const { return f.withHeight(fontSize); }
 	};
-
-
 
 	void addYOffset(float delta);
 
