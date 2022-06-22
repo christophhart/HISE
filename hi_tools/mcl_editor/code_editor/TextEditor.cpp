@@ -389,10 +389,50 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 
 			if (textToInsert.isNotEmpty())
 			{
+                auto textWithoutScope = textToInsert;
+                Array<Range<int>> rangesWithScope = selectRanges;
+                
+                auto lr = document.getFoldableLineRangeHolder();
+                if(auto n = lr.getRangeContainingLine(autocompleteSelection.head.x))
+                {
+                    auto scopeId = n->getBookmark().name.replace("namespace ", "").upToFirstOccurrenceOf("(", false, false) + ".";
+                    
+                    if(textToInsert.startsWith(scopeId))
+                    {
+                        textWithoutScope = textToInsert.fromFirstOccurrenceOf(scopeId, false, false);
+                        
+                        auto lengthToSubtract = scopeId.length();
+                        
+                        rangesWithScope.clear();
+                        
+                        for(auto& sr: selectRanges)
+                            rangesWithScope.add(sr - (int)lengthToSubtract);
+                    }
+                }
+                
+                if(textWithoutScope.contains("\n"))
+                {
+                    // Intend
+                    auto start = autocompleteSelection.head;
+                    auto end = autocompleteSelection.head;
+                    document.navigate(start, TextDocument::Target::line, TextDocument::Direction::backwardCol);
+                    document.navigate(end, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
+
+                    Selection emptyBeforeText(end, start);
+
+                    auto ws = document.getSelectionContent(emptyBeforeText);
+                    
+                    if(ws.isNotEmpty())
+                    {
+                        rangesWithScope.clear();
+                        textWithoutScope = textWithoutScope.replace("\n", "\n" + ws);
+                    }
+                }
+                
 				ScopedValueSetter<bool> svs(skipTextUpdate, true);
 				document.setSelections({ autocompleteSelection }, false);
 
-				insert(textToInsert);
+				insert(textWithoutScope);
 
 				auto s = document.getSelection(0).oriented();
 				CodeDocument::Position insertStart(document.getCodeDocument(), s.tail.x, s.tail.y);
@@ -404,7 +444,7 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 				updateViewTransform();
 				translateView(0.0f, 0.0f);
 
-				auto l = textToInsert.length();
+				auto l = textWithoutScope.length();
 
 				if (currentParameterSelection.size() == 0)
 					setParameterSelectionInternal(currentParameterSelection, nullptr, true);
@@ -413,11 +453,11 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 				{
 					clearParameters(true);
 
-					if (!selectRanges.isEmpty())
+					if (!rangesWithScope.isEmpty())
 					{
 						Action::List newList;
 
-						for (auto sr : selectRanges)
+						for (auto sr : rangesWithScope)
 						{
 							auto copy = insertStart;
 

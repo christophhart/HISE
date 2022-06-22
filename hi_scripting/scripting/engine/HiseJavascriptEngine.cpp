@@ -1198,12 +1198,95 @@ struct TokenWithDot : public mcl::TokenCollection::Token
 			return Token::matches(input, previousToken, lineNumber);
 		}
 
+#if 0
 		if (previousToken.isNotEmpty() && !previousToken.startsWith(classId))
 			return false;
+#endif
 
 		return matchesInput(previousToken + input, tokenContent);
 	}
 
+    static bool hasCallbackArgument(const ValueTree& method)
+    {
+        auto s = method["name"].toString();
+
+        auto isArrayFunction = [](const String& s)
+        {
+            return s == "find" ||
+                   s == "filter" ||
+                   s == "map" ||
+                   s == "some";
+        };
+        
+        return s.contains("Callback") || s.contains("setPaintRoutine") || s.contains("setErrorFunction") || s.contains("setOn") || isArrayFunction(s);
+    }
+    
+    static String getContent(const ValueTree& method, const Identifier objectId)
+    {
+        String s;
+        s << objectId << "." << method["name"].toString();
+        
+        if (hasCallbackArgument(method))
+        {
+            auto args = method["arguments"].toString();
+            static const String body = "\n{\n\t \n}";
+
+            auto replaceArgs = [&](const String& varName, const String& newArgs)
+            {
+                if (args.contains(varName))
+                {
+                    String newF;
+                    newF << "function(" << newArgs << ")" << body;
+
+                    args = args.replace("var " + varName, newF);
+                }
+            };
+
+            auto replaceFCallback = [&](const String& methodName, const String& newArgs)
+            {
+                if (s.contains(methodName))
+                {
+                    String func;
+                    func << "function(" << newArgs << ")" << body;
+                    args = args.replace("var f", func);
+                }
+            };
+
+            replaceArgs("timerCallback", "");
+            replaceArgs("paintFunction", "g");
+            replaceArgs("mouseCallbackFunction", "event");
+            replaceArgs("loadingCallback", "isPreloading");
+            replaceArgs("loadCallback", "obj");
+            replaceArgs("saveCallback", "");
+            replaceArgs("loadingFunction", ""); // this is peak code quality right here...
+            replaceArgs("displayFunction", "displayValue");
+            replaceArgs("contentFunction", "changedIndex");
+            replaceArgs("testFunction", "currentValue, index, arr");
+            
+            replaceArgs("playbackCallback", "timestamp, playState");
+            replaceArgs("updateCallback", "index, value");
+            replaceArgs("presetPreCallback", "presetData");
+            replaceArgs("presetPostCallback", "presetFile");
+            replaceArgs("newProcessFunction", "fftData, startIndex");
+            replaceArgs("backgroundTaskFunction", "thread");
+            replaceArgs("newFinishCallback", "isFinished, wasCancelled");
+
+            replaceFCallback("setOnBeatChange", "beatIndex, isNewBar");
+            replaceFCallback("setOnSignatureChange", "nom, denom");
+            replaceFCallback("setOnTempoChange", "newTempo");
+            replaceFCallback("setOnTransportChange", "isPlaying");
+            
+            s << args;
+            s << ";";
+        }
+        else
+        {
+            s << method["arguments"].toString().replace("var callback", "function()\n{\t \n}");
+        }
+
+        return s;
+    }
+    
 	String classId;
 };
 
@@ -1239,20 +1322,7 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 		link = { File(), s };
 	}
 
-	static bool hasCallbackArgument(const ValueTree& method)
-	{
-		auto s = method["name"].toString();
-
-        auto isArrayFunction = [](const String& s)
-        {
-            return s == "find" ||
-                   s == "filter" ||
-                   s == "map" ||
-                   s == "some";
-        };
-        
-		return s.contains("Callback") || s.contains("setPaintRoutine") || s.contains("setErrorFunction") || s.contains("setOn") || disArrayFunction(s);
-	}
+	
 
 	Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
 	{
@@ -1271,71 +1341,7 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 		return TokenWithDot::getSelectionRangeAfterInsert(input);
 	}
 
-	static String getContent(const ValueTree& method, const Identifier objectId)
-	{
-		String s;
-		s << objectId << "." << method["name"].toString();
-		
-		if (hasCallbackArgument(method))
-		{
-			auto args = method["arguments"].toString();
-			static const String body = "\n{\n\t \n}";
-
-			auto replaceArgs = [&](const String& varName, const String& newArgs)
-			{
-				if (args.contains(varName))
-				{
-					String newF;
-					newF << "function(" << newArgs << ")" << body;
-
-					args = args.replace("var " + varName, newF);
-				}
-			};
-
-			auto replaceFCallback = [&](const String& methodName, const String& newArgs)
-			{
-				if (s.contains(methodName))
-				{
-					String func;
-					func << "function(" << newArgs << ")" << body;
-					args = args.replace("var f", func);
-				}
-			};
-
-			replaceArgs("timerCallback", "");
-			replaceArgs("paintFunction", "g");
-			replaceArgs("mouseCallbackFunction", "event");
-			replaceArgs("loadingCallback", "isPreloading");
-            replaceArgs("loadCallback", "obj");
-            replaceArgs("saveCallback", "");
-            replaceArgs("loadingFunction", ""); // this is peak code quality right here...
-            replaceArgs("displayFunction", "displayValue");
-			replaceArgs("contentFunction", "changedIndex");
-            replaceArgs("testFunction", "currentValue, index, arr");
-            
-            replaceArgs("playbackCallback", "timestamp, playState");
-            replaceArgs("updateCallback", "index, value");
-			replaceArgs("presetPreCallback", "presetData");
-			replaceArgs("presetPostCallback", "presetFile");
-			replaceArgs("newProcessFunction", "fftData, startIndex");
-			replaceArgs("backgroundTaskFunction", "thread");
-			replaceArgs("newFinishCallback", "isFinished, wasCancelled");
-
-			replaceFCallback("setOnBeatChange", "beatIndex, isNewBar");
-			replaceFCallback("setOnSignatureChange", "nom, denom");
-			replaceFCallback("setOnTempoChange", "newTempo");
-			replaceFCallback("setOnTransportChange", "isPlaying");
-			
-			s << args;
-			s << ";";
-		}
-		else
-		{
-			s << method["arguments"].toString().replace("var callback", "function()\n{\t \n}");
-		}
-
-		return s;
-	}
+	
 
 
 	MarkdownLink getLink() const override
@@ -1352,8 +1358,9 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 struct TemplateToken : public TokenWithDot
 {
 	TemplateToken(const String& expression, const ValueTree& mTree) :
-		TokenWithDot(expression + "." + mTree["name"].toString() + mTree["arguments"].toString(), expression)
+		TokenWithDot(getContent(mTree, expression), expression)
 	{
+        // expression + "." + mTree["name"].toString() + mTree["arguments"].toString(), expression
 		priority = expression == "g" ? 100 : 110;
 		c = Colour(0xFFAAAA66);
 		markdownDescription = mTree["description"].toString();
