@@ -1243,7 +1243,15 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 	{
 		auto s = method["name"].toString();
 
-		return s.contains("Callback") || s.contains("setPaintRoutine") || s.contains("setErrorFunction") || s.contains("setOn");
+        auto isArrayFunction = [](const String& s)
+        {
+            return s == "find" ||
+                   s == "filter" ||
+                   s == "map" ||
+                   s == "some";
+        };
+        
+		return s.contains("Callback") || s.contains("setPaintRoutine") || s.contains("setErrorFunction") || s.contains("setOn") || disArrayFunction(s);
 	}
 
 	Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
@@ -1298,11 +1306,15 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 			replaceArgs("paintFunction", "g");
 			replaceArgs("mouseCallbackFunction", "event");
 			replaceArgs("loadingCallback", "isPreloading");
+            replaceArgs("loadCallback", "obj");
+            replaceArgs("saveCallback", "");
             replaceArgs("loadingFunction", ""); // this is peak code quality right here...
             replaceArgs("displayFunction", "displayValue");
 			replaceArgs("contentFunction", "changedIndex");
+            replaceArgs("testFunction", "currentValue, index, arr");
             
-			
+            replaceArgs("playbackCallback", "timestamp, playState");
+            replaceArgs("updateCallback", "index, value");
 			replaceArgs("presetPreCallback", "presetData");
 			replaceArgs("presetPostCallback", "presetFile");
 			replaceArgs("newProcessFunction", "fftData, startIndex");
@@ -1325,10 +1337,6 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 		return s;
 	}
 
-	bool matches(const String& input, const String& previousToken, int lineNumber) const override
-	{
-		return classId.contains(previousToken.upToLastOccurrenceOf(".", false, false));
-	}
 
 	MarkdownLink getLink() const override
 	{
@@ -1436,7 +1444,7 @@ struct HiseJavascriptEngine::TokenProvider::DebugInformationToken : public Token
 			link = MarkdownLink(File(), ml);
 		}
 		
-		priority = isGlobalClass ? 110 : 90;;
+        priority = 110;
 		c = c_;
 
 		if (isGlobalClass)
@@ -1518,6 +1526,17 @@ bool addObjectAPIMethods(JavascriptProcessor* jp, mcl::TokenCollection::List& to
 {
 	auto os = ptr->getTextForType();
 
+    if (auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(ptr->getObject()))
+    {
+        auto l = ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames();
+
+        for (auto id : l)
+            tokens.add(new LookAndFeelToken(ptr->getTextForName(), id));
+        
+        return true;
+    }
+
+    
 	if (os.isNotEmpty())
 	{
 		Identifier oid(os);
@@ -1576,7 +1595,9 @@ static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& to
 
 		Colour childColour = c2;
 
-		if (ptr->getTextForName() == "Colours")
+        bool isColour = ptr->getTextForName() == "Colours";
+        
+		if (isColour)
 		{
 			auto vs = c->getTextForValue();
             childColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(vs);
@@ -1584,6 +1605,9 @@ static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& to
 
 		tokens.add(new HiseJavascriptEngine::TokenProvider::DebugInformationToken(c, v, childColour, ptr));
 
+        if(isColour)
+            tokens.getLast()->priority = 60;
+        
 		if(!addObjectAPIMethods(jp, tokens, c, v))
 			addRecursive(jp, tokens, c, childColour, v);
 	}

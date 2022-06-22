@@ -5253,6 +5253,7 @@ juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 		"Engine",
 		"Console",
 		"Content",
+        "Colours",
 		"Sampler",
 		"Synth",
 		"Math",
