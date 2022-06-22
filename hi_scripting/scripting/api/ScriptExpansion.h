@@ -92,6 +92,9 @@ public:
 	/** Clears all attached callbacks. */
 	void clearAttachedCallbacks();
 
+	/** Updates the given automation values and optionally sends out a message. */
+	void updateAutomationValues(var data, bool sendMessage);
+
 	// ===============================================================================================
 
 	var convertToJson(const ValueTree& d);

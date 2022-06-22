@@ -608,7 +608,7 @@ public:
 
 			CustomAutomationData(MainController* mc, int index_, const var& d);
 
-			void call(float newValue);
+			void call(float newValue, bool sendToListeners=true);
 
 			const int index;
 			Identifier id;

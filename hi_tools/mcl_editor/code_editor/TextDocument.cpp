@@ -1040,7 +1040,7 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
         
         if(direction == TextDocument::Direction::forwardRow ||
            direction == TextDocument::Direction::forwardCol)
-            i = { getNumRows()-1, getNumColumns(getNumRows()-1)-1};
+            i = { getNumRows()-1, getNumColumns(getNumRows()-1)};
         else
             i = {0, 0};
             

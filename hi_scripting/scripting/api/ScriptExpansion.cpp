@@ -43,6 +43,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
+	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, updateAutomationValues);
 };
 
 ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
@@ -63,6 +64,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_3(setUseCustomUserPresetModel);
 	ADD_API_METHOD_3(attachAutomationCallback);
 	ADD_API_METHOD_0(clearAttachedCallbacks);
+	ADD_API_METHOD_2(updateAutomationValues);
 }
 
 ScriptUserPresetHandler::~ScriptUserPresetHandler()
@@ -227,6 +229,24 @@ void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var 
 void ScriptUserPresetHandler::clearAttachedCallbacks()
 {
 	attachedCallbacks.clear();
+}
+
+void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage)
+{
+	if (auto obj = data.getDynamicObject())
+	{
+		for (auto& nv : obj->getProperties())
+		{
+			if (auto cData = getMainController()->getUserPresetHandler().getCustomAutomationData(Identifier(nv.name)))
+			{
+				float value = nv.value;
+				FloatSanitizers::sanitizeFloatNumber(value);
+
+				if (sendMessage)
+					cData->call(value, sendMessage);	
+			}
+		}
+	}
 }
 
 var ScriptUserPresetHandler::convertToJson(const ValueTree& d)

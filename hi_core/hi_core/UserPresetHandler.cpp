@@ -121,21 +121,29 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Ma
 					pc.connectedParameterIndex = pc.connectedProcessor->getParameterIndexForIdentifier(paramId);
 
 				if (pc)
+				{
+					lastValue = pc.connectedProcessor->getAttribute(pc.connectedParameterIndex);
+
+
 					processorConnections.add(std::move(pc));
+				}
 			}
 		}
 	}
 
 	args[0] = index;
-	args[1] = var(0.0f);
+	args[1] = var(lastValue);
 
 	if (id.toString().isEmpty())
 		r = Result::fail("No ID");
 
 	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
+
+	asyncListeners.sendMessage(dontSendNotification, index, lastValue);
+	syncListeners.sendMessage(dontSendNotification, args);
 }
 
-void MainController::UserPresetHandler::CustomAutomationData::call(float newValue)
+void MainController::UserPresetHandler::CustomAutomationData::call(float newValue, bool sendToListeners)
 {
 	FloatSanitizers::sanitizeFloatNumber(newValue);
 
@@ -145,11 +153,19 @@ void MainController::UserPresetHandler::CustomAutomationData::call(float newValu
 	args[0] = index;
 	args[1] = lastValue;
 
-	for (const auto& pc : processorConnections)
-		pc.call(newValue);
+	if (sendToListeners)
+	{
+		for (const auto& pc : processorConnections)
+			pc.call(newValue);
 
-	syncListeners.sendMessage(sendNotificationSync, args);
-	asyncListeners.sendMessage(sendNotificationAsync, index, lastValue);
+		syncListeners.sendMessage(sendNotificationSync, args);
+		asyncListeners.sendMessage(sendNotificationAsync, index, lastValue);
+	}
+	else
+	{
+		syncListeners.sendMessage(dontSendNotification, args);
+		asyncListeners.sendMessage(dontSendNotification, index, lastValue);
+	}
 }
 
 void MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::call(float v) const

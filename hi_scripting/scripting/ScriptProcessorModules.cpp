@@ -1612,6 +1612,9 @@ void ScriptnodeVoiceKiller::initialiseNetworks(ScriptnodeVoiceKiller& v)
 		auto parentSynth = v.getParentProcessor(true, false);
 		auto modParent = v.getParentProcessor(false, false);
 
+		if (parentSynth == nullptr)
+			return;
+
 		auto modParentIsGain = parentSynth->getChildProcessor(ModulatorSynth::GainModulation) == modParent;
 
 		if (!modParentIsGain)
