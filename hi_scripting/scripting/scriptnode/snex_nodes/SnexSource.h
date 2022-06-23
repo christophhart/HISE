@@ -44,6 +44,15 @@ struct SnexSource : public WorkbenchData::Listener,
 {
 	using SnexTestBase = snex::ui::WorkbenchData::TestRunnerBase;
 
+    enum class ErrorLevel
+    {
+        Uncompiled,
+        CompileFail,
+        Warning,
+        OK,
+        numErrorLevel
+    };
+    
 	struct SnexSourceListener
 	{
 		virtual ~SnexSourceListener() {};
@@ -557,11 +566,14 @@ struct SnexSource : public WorkbenchData::Listener,
 
 	void preCompile() override
 	{
+        errorLevel = ErrorLevel::Uncompiled;
 		callbackHandler->reset();
 		parameterHandler.reset();
 		getComplexDataHandler().reset();
 	}
 
+    ErrorLevel getErrorLevel() const { return errorLevel; }
+    
 	void recompiled(WorkbenchData::Ptr wb) final override;
 
 	void throwScriptnodeErrorIfCompileFail();
@@ -788,6 +800,8 @@ protected:
 
 private:
 
+    ErrorLevel errorLevel = ErrorLevel::Uncompiled;
+    
 	SimpleRingBuffer::Ptr mainDisplayBuffer;
 
 	valuetree::ParentListener compileChecker;
@@ -860,64 +874,6 @@ struct SnexMenuBar : public Component,
 
 		String getId() const override { return {}; }
 	} f;
-
-#if 0
-	struct ComplexDataPopupButton : public Button
-	{
-		ComplexDataPopupButton(SnexSource* s);
-
-		String getText()
-		{
-			bool containsSomething = false;
-
-			String s;
-
-			ExternalData::forEachType([this, &s, &containsSomething](ExternalData::DataType t)
-			{
-				auto numObjects = source->getComplexDataHandler().getNumDataObjects(t);
-
-				containsSomething |= numObjects > 0;
-
-				if (numObjects > 0)
-				{
-					s << ExternalData::getDataTypeName(t).substring(0, 1);
-					s << String(numObjects);
-					s << " | ";
-				}
-			});
-
-			setEnabled(containsSomething);
-
-			return s.upToLastOccurrenceOf(" | ", false, false);
-		}
-
-		void update(ValueTree, bool)
-		{
-			text = getText();
-			repaint();
-		}
-
-		void paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
-		{
-			float alpha = 0.6f;
-
-			if (shouldDrawButtonAsDown)
-				alpha += 0.2f;
-
-			if (shouldDrawButtonAsDown)
-				alpha += 0.2f;
-
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.setColour(Colours::white.withAlpha(alpha));
-			g.drawText(text, getLocalBounds().toFloat(), Justification::centred);
-		}
-
-		String text;
-		SnexSource* source;
-		ValueTree t;
-		valuetree::RecursiveTypedChildListener l;
-	};
-#endif
 
 	ComboBox classSelector;
 	HiseShapeButton popupButton;

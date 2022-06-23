@@ -119,7 +119,7 @@ struct WorkbenchData : public ReferenceCountedObject,
 
 	void logMessage(int level, const juce::String& s) override
 	{
-		if (!getGlobalScope().isDebugModeEnabled())
+		if (!getGlobalScope().isDebugModeEnabled() && level > 1)
 			return;
 
 		if (MessageManager::getInstance()->isThisTheMessageThread())
