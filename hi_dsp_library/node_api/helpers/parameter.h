@@ -253,35 +253,7 @@ template <typename T, typename RangeType=typename ranges::Identity> struct bypas
 };
 
 
-template <typename T, int P> struct inner
-{
-	PARAMETER_SPECS(ParameterType::Single, 1);
 
-	inner(T& obj_) :
-		obj(&obj_)
-	{}
-
-	void call(double v)
-	{
-		jassert(isConnected());
-		callStatic(obj, v);
-	}
-
-	bool isConnected() const noexcept
-	{
-		return true;
-	}
-
-	static void callStatic(void* obj_, double v)
-	{
-		auto f = T::template setParameterStatic<P>;
-		f(obj_, v);
-	}
-
-	void* getObjectPtr() { return obj; }
-
-	void* obj;
-};
 
 
 
