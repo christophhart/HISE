@@ -233,6 +233,7 @@ struct pod
 struct data
 {
 	data();
+	~data() { parameterNames.clear(); }
 	data(const String& id_);;
 	data(const String& id_, InvertableParameterRange r);
 	data withRange(InvertableParameterRange r);
@@ -249,6 +250,12 @@ struct data
 		return info.toRange();
 	}
 	
+	template <typename T, int P> void setParameterCallbackWithIndex(T* obj)
+	{
+		callback = parameter::inner<T, P>(*obj);
+		info.index = P;
+	}
+
 	void setSkewForCentre(double midPoint)
 	{
 		auto r = info.toRange();

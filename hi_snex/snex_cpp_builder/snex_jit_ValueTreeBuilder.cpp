@@ -822,14 +822,6 @@ void ValueTreeBuilder::parseContainerParameters(Node::Ptr c)
 	auto pTree = c->nodeTree.getChildWithName(PropertyIds::Parameters);
 	auto numParameters = pTree.getNumChildren();
 
-    if(c->isRootNode() && numParameters > OpaqueNode::NumMaxParameters)
-    {
-        Error e;
-        e.v = c->nodeTree;
-        e.errorMessage = "Too many parameters in the root node.\n> If you need that many parameters, raise the `OpaqueNode::NumMaxParameter` constant in `hi_dsp_library/node_api/nodes/OpaqueNode.h` and recompile HISE.";
-        throw e;
-    }
-    
 	Namespace n(*this, c->scopedId.getIdentifier().toString() + "_parameters", !ValueTreeIterator::hasRealParameters(c->nodeTree));
 
 	if(numParameters == 0)

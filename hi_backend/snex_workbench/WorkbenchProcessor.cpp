@@ -1741,6 +1741,12 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 			StatementBlock bk(b);
 			b << "f.clearError();";
 		}
+
+		{
+			b << "DLL_EXPORT int getDllVersionCounter()";
+			StatementBlock bk(b);
+			b << "return scriptnode::dll::ProjectDll::DllUpdateCounter;";
+		}
 	}
 	else
 	{

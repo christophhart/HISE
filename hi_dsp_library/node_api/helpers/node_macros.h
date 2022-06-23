@@ -49,9 +49,10 @@ struct NodeBase;
 */
 #define DEFINE_PARAMETERS template <int P> static void setParameterStatic(void* obj, double value)
 #define DEF_PARAMETER(ParameterName, ClassName) if constexpr (P == (int)Parameters::ParameterName) static_cast<ClassName*>(obj)->set##ParameterName(value);
-#define DEFINE_PARAMETERDATA(ClassName, ParameterName) parameter::data p(#ParameterName); p.callback = parameter::inner<ClassName, (int)Parameters::ParameterName>(*this);
+#define DEFINE_PARAMETERDATA(ClassName, ParameterName) scriptnode::parameter::data p(#ParameterName); registerCallback<(int)Parameters::ParameterName>(p); 
 
 
+#define SN_REGISTER_CALLBACK(className) template <int P> void registerCallback(parameter::data& p) { p.template setParameterCallbackWithIndex<className, P>(this); }
 #define SN_PARAMETER_MEMBER_FUNCTION template <int P> void setParameter(double v) { setParameterStatic<P>(this, v); }
 
 /** Object Accessors
@@ -66,7 +67,7 @@ constexpr const auto& getObject() const { return x; }
 constexpr const auto& getWrappedObject() const { return x; }
 
 /** Use this macro in order to create the getObject() / getWrappedObject() methods that return the object itself. */
-#define SN_GET_SELF_AS_OBJECT(x) SN_GET_SELF_OBJECT(*this); SN_GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x;
+#define SN_GET_SELF_AS_OBJECT(x) SN_GET_SELF_OBJECT(*this); SN_GET_WRAPPED_OBJECT(*this); using ObjectType = x; using WrappedObjectType = x; SN_REGISTER_CALLBACK(x);
 
 #define SN_DESCRIPTION(x) static juce::String getDescription() { return x; }
 
@@ -77,9 +78,9 @@ constexpr const auto& getWrappedObject() const { return x; }
 	control::pimpl::parameter_node_base<ParameterId>(getStaticId()),\
     control::pimpl::templated_mode(getStaticId(), namespaceId) {};
 
-#define SN_SELF_AWARE_WRAPPER(x, ObjectClass) SN_GET_SELF_OBJECT(*this); SN_GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType;
+#define SN_SELF_AWARE_WRAPPER(x, ObjectClass) SN_GET_SELF_OBJECT(*this); SN_GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = x; using WrappedObjectType = typename ObjectClass::WrappedObjectType; SN_REGISTER_CALLBACK(ObjectClass);
 
-#define SN_OPAQUE_WRAPPER(x, ObjectClass) SN_GET_SELF_OBJECT(this->obj.getObject()); SN_GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType;
+#define SN_OPAQUE_WRAPPER(x, ObjectClass) SN_GET_SELF_OBJECT(this->obj.getObject()); SN_GET_WRAPPED_OBJECT(this->obj.getWrappedObject()); using ObjectType = typename ObjectClass::ObjectType; using WrappedObjectType= typename ObjectClass::WrappedObjectType; SN_REGISTER_CALLBACK(ObjectClass);
 
 
 /** Use this to define an optional function that will be forwarded to the object. */
@@ -182,6 +183,8 @@ using polyName = className<NUM_POLYPHONIC_VOICES>;
 #else // defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
 #define EMPTY_BASES
 #endif // defined(_MSC_VER) && _MSC_VER >= 1900 && _MSC_FULL_VER >= 190023918 && _MSC_VER < 2000
+
+
 
 
 // Use this in every node to add the boiler plate for C++ compilation

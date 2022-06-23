@@ -879,7 +879,7 @@ public:
 			parameter::data p("Freq Ratio");
 			p.setRange({ 1.0, 16.0, 1.0 });
 			p.setDefaultValue(1.0);
-			p.callback = parameter::inner<oscillator, (int)Parameters::PitchMultiplier>(*this);
+			registerCallback<(int)Parameters::PitchMultiplier>(p);
 			data.add(std::move(p));
 		}
 		{

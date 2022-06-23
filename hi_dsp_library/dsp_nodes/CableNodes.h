@@ -586,7 +586,7 @@ namespace control
 		{
 			{
 				parameter::data p("Value", { 0.0, 1.0 });
-				p.callback = parameter::inner<resetter, 0>(*this);
+				registerCallback<0>(p);
 				data.add(std::move(p));
 			}
 		}
@@ -1239,14 +1239,14 @@ namespace control
 			{
 				{
 					parameter::data p("Value");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Intensity");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(1.0);
 					data.add(std::move(p));
@@ -1280,14 +1280,14 @@ namespace control
 			{
 				{
 					parameter::data p("Value");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Bang");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ 0.0, 1.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
@@ -1347,21 +1347,21 @@ namespace control
 			{
 				{
 					parameter::data p("Value");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Scale");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ -1.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Gamma");
-					p.callback = parameter::inner<NodeType, 2>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 2>(&n);
 					p.setRange({ 0.5, 2.0 });
 					p.setSkewForCentre(1.0);
 					p.setDefaultValue(1.0);
@@ -1454,21 +1454,21 @@ namespace control
 			{
 				{
 					parameter::data p("Left");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Right");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Operator");
-					p.callback = parameter::inner<NodeType, 2>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 2>(&n);
 					p.setParameterValueNames({ "AND", "OR", "XOR" });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
@@ -1525,28 +1525,28 @@ namespace control
 			{
 				{
 					parameter::data p("Value");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Minimum");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Maximum");
-					p.callback = parameter::inner<NodeType, 2>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 2>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(1.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Skew");
-					p.callback = parameter::inner<NodeType, 3>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 3>(&n);
 					p.setRange({ 0.1, 10.0 });
 					p.setSkewForCentre(1.0);
 					p.setDefaultValue(1.0);
@@ -1554,15 +1554,14 @@ namespace control
 				}
 				{
 					parameter::data p("Step");
-					p.callback = parameter::inner<NodeType, 4>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 4>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
                 {
                     parameter::data p("Polarity");
-                    p.callback = parameter::inner<NodeType, 5>(n);
-                    p.setRange({ 0.0, 1.0, 1.0 });
+					p.template setParameterCallbackWithIndex<NodeType, 5>(&n);
                     p.setParameterValueNames({"Normal", "Inverted"});
                     p.setDefaultValue(0.0);
                     data.add(std::move(p));
@@ -1594,21 +1593,21 @@ namespace control
 			{
 				{
 					parameter::data p("Value");
-					p.callback = parameter::inner<NodeType, 0>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
 					p.setRange({ 0.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Multiply");
-					p.callback = parameter::inner<NodeType, 1>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
 					p.setRange({ -1.0, 1.0 });
 					p.setDefaultValue(1.0);
 					data.add(std::move(p));
 				}
 				{
 					parameter::data p("Add");
-					p.callback = parameter::inner<NodeType, 2>(n);
+					p.template setParameterCallbackWithIndex<NodeType, 2>(&n);
 					p.setRange({ -1.0, 1.0 });
 					p.setDefaultValue(0.0);
 					data.add(std::move(p));

@@ -49,8 +49,6 @@ void OpaqueNode::allocateObjectSize(int numBytes)
 	object.setSize(numBytes);
 }
 
-
-
 void OpaqueNode::prepare(PrepareSpecs ps)
 {
 	if (prepareFunc)
@@ -93,14 +91,8 @@ void OpaqueNode::setExternalData(const ExternalData& b, int index)
 
 void OpaqueNode::createParameters(ParameterDataList& l)
 {
-	for (int i = 0; i < numParameters; i++)
-	{
-		parameter::data d;
-		d.info = parameters[i];
-		d.callback.referTo(parameterObjects[i], parameterFunctions[i]);
-		d.parameterNames = parameterNames[i];
-		l.add(d);
-	}
+	for (const auto& p : ParameterIterator(*this))
+		l.add(p);
 }
 
 void OpaqueNode::initExternalData(ExternalDataHolder* externalDataHolder)
@@ -138,6 +130,7 @@ void OpaqueNode::callDestructor()
 		destructFunc(getObjectPtr());
 
 		object.free();
+		parameters.clear();
 		destructFunc = nullptr;
 	}
 }
@@ -147,17 +140,36 @@ bool OpaqueNode::handleModulation(double& d)
 	return modFunc(getObjectPtr(), &d) > 0;
 }
 
+
+
 void OpaqueNode::fillParameterList(ParameterDataList& pList)
 {
-	numParameters = pList.size();
+	constexpr int NumBytes = sizeof(parameter::data);
+	constexpr int NumCallbackBytes = sizeof(parameter::dynamic);
 
-	for (int i = 0; i < numParameters; i++)
+	struct
 	{
-		parameters[i] = pList[i].info;
-		parameterFunctions[i] = pList[i].callback.getFunction();
-		parameterObjects[i] = pList[i].callback.getObjectPtr();
-		parameterNames[i] = pList[i].parameterNames;
-	}
+		static int compareElements(const parameter::data& first, const parameter::data& second)
+		{
+			jassert(first.info.index != -1);
+
+			if (first.info.index < second.info.index)
+				return -1;
+			if (first.info.index > second.info.index)
+				return 1;
+
+			// must never happen...
+			jassertfalse;
+			return 0;
+		}
+	} sorter;
+
+	pList.sort(sorter);
+
+	numParameters = pList.size();
+	parameters.clear();
+	parameters.ensureStorageAllocated(numParameters);	
+	parameters.addArray(pList);
 }
 
 namespace dll
@@ -319,16 +331,17 @@ String ProjectDll::getFuncName(ExportedFunction f)
 {
 	switch (f)
 	{
-	case ExportedFunction::GetHash:				return "getHash";
-	case ExportedFunction::GetWrapperType:		return "getWrapperType";
-	case ExportedFunction::GetNumNodes:			return "getNumNodes";
-	case ExportedFunction::GetNodeId:			return "getNodeId";
-	case ExportedFunction::InitOpaqueNode:		return "initOpaqueNode";
-	case ExportedFunction::DeInitOpaqueNode:	return "deInitOpaqueNode";
-	case ExportedFunction::GetNumDataObjects:	return "getNumDataObjects";
-	case ExportedFunction::GetError:			return "getError";
-	case ExportedFunction::ClearError:			return "clearError";
-	case ExportedFunction::IsThirdPartyNode:	return "isThirdPartyNode";
+	case ExportedFunction::GetHash:				 return "getHash";
+	case ExportedFunction::GetWrapperType:		 return "getWrapperType";
+	case ExportedFunction::GetNumNodes:			 return "getNumNodes";
+	case ExportedFunction::GetNodeId:			 return "getNodeId";
+	case ExportedFunction::InitOpaqueNode:		 return "initOpaqueNode";
+	case ExportedFunction::DeInitOpaqueNode:	 return "deInitOpaqueNode";
+	case ExportedFunction::GetNumDataObjects:	 return "getNumDataObjects";
+	case ExportedFunction::GetError:			 return "getError";
+	case ExportedFunction::ClearError:			 return "clearError";
+	case ExportedFunction::IsThirdPartyNode:	 return "isThirdPartyNode";
+	case ExportedFunction::GetDLLVersionCounter: return "getDllVersionCounter";
 	default: jassertfalse; return "";
 	}
 }
@@ -439,6 +452,16 @@ ProjectDll::ProjectDll(const File& f):
 
 		for (int i = 0; i < (int)ExportedFunction::numFunctions; i++)
 			functions[i] = getFromDll((ExportedFunction)i, f);
+
+		int dllVersion = -1;
+
+		if (auto gf = (GetDllVersionCounter)functions[(int)ExportedFunction::GetDLLVersionCounter])
+			dllVersion = gf();
+		
+		if (dllVersion != DllUpdateCounter)
+		{
+			r = Result::fail("DLL Version mismatch. The DLL API has changed Reexport your nodes in order to use the dll.");
+		}
 	}
 	else
 	{

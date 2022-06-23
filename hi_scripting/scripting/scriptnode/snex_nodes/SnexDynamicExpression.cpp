@@ -329,17 +329,7 @@ void dynamic_expression::editor::paint(Graphics& g)
     Colour resultColours[3] = { Colour(0xFFBB3434),
                                 Colour(0xFFFFBA00),
                                 Colour(0xFF4E8E35) };
-        
     
-    
-	
-#if 0
-	c = c.withSaturation(0.5f);
-
-	g.setColour(c.withAlpha(0.05f));
-	g.fillRect(b);
-#endif
-
 	g.setColour(Colours::white.withAlpha(0.4f));
 	g.setFont(GLOBAL_MONOSPACE_FONT());
 

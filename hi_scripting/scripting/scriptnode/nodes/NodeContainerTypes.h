@@ -230,6 +230,7 @@ public:
 	}
 
 	SN_PARAMETER_MEMBER_FUNCTION;
+	SN_REGISTER_CALLBACK(CloneNode);
 
 	SCRIPTNODE_FACTORY(CloneNode, "clone");
 

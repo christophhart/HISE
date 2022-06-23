@@ -299,14 +299,13 @@ template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float
 	{
 		{
 			parameter::data p("Pan", { -1.0, 1.0 });
-
-			p.callback = parameter::inner<jpanner, 0>(*this);
+			registerCallback<0>(p);
 			p.setDefaultValue(0.0);
 			d.add(p);
 		}
 		{
 			parameter::data p("Rule");
-			p.callback = parameter::inner<jpanner, 1>(*this);
+			registerCallback<1>(p);
 			p.setParameterValueNames({ "Linear", "Balanced", "Sine3dB", "Sine4.5dB", "Sine6dB", "Sqrt3dB", "Sqrt4p5dB" });
 			p.setDefaultValue(1.0);
 			d.add(p);

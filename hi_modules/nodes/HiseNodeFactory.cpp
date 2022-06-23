@@ -472,35 +472,35 @@ struct granulator: public data::base
 	{
 		{
 			parameter::data d("Position", { 0.0, 1.0 });
-			d.callback = parameter::inner<granulator, 0>(*this);
+			registerCallback<0>(d);
 			l.add(d);
 		}
 		{
 			parameter::data d("Pitch", { 0.5, 2.0 });
+			registerCallback<1>(d);
 			d.setSkewForCentre(1.0);
-			d.callback = parameter::inner<granulator, 1>(*this);
 			d.setDefaultValue(1.0);
 			l.add(d);
 		}
 		{
 			parameter::data d("GrainSize", { 20.0, 800.0 });
-			d.callback = parameter::inner<granulator, 2>(*this);
+			registerCallback<2>(d);
 			d.setDefaultValue(80.0);
 			l.add(d);
 		}
 		{
 			parameter::data d("Density", { 0.0, 1.0 });
-			d.callback = parameter::inner<granulator, 3>(*this);
+			registerCallback<3>(d);
 			l.add(d);
 		}
 		{
 			parameter::data d("Spread", { 0.0, 1.0 });
-			d.callback = parameter::inner<granulator, 4>(*this);
+			registerCallback<4>(d);
 			l.add(d);
 		}
 		{
 			parameter::data d("Detune", { 0.0, 1.0 });
-			d.callback = parameter::inner<granulator, 5>(*this);
+			registerCallback<5>(d);
 			l.add(d);
 		}
 	}

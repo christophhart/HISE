@@ -887,63 +887,60 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 		timeRange.setSkewForCentre(300.0);
 
 		{
-			parameter::data p("Attack", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Attack>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Attack);
+			p.setRange(timeRange);
 			p.setDefaultValue(10.0);
 			data.add(p);
 		}
 		
 		{
-			parameter::data p("AttackLevel", { 0.0, 1.0, 0.001 });
-			p.callback = parameter::inner<ahdsr, Parameters::AttackLevel>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, AttackLevel);
 			p.setDefaultValue(1.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Hold", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Hold>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Hold);
+			p.setRange(timeRange);
 			p.setDefaultValue(20.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Decay", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Decay>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Decay);
+			p.setRange(timeRange);
 			p.setDefaultValue(300.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Sustain", { 0.0, 1.0, 0.001 });
-			p.callback = parameter::inner<ahdsr, Parameters::Sustain>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Sustain);
 			p.setDefaultValue(0.5);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Release", timeRange);
-			p.callback = parameter::inner<ahdsr, Parameters::Release>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Release);
+			p.setRange(timeRange);
 			p.setDefaultValue(20.0);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("AttackCurve", { 0.0, 1.0, 0.01 });
-			p.callback = parameter::inner<ahdsr, Parameters::AttackCurve>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, AttackCurve);
 			p.setDefaultValue(0.5);
 			data.add(p);
 		}
 
 		{
-			parameter::data p("Retrigger", { 0.0, 1.0, 1.0 });
-			p.callback = parameter::inner<ahdsr, Parameters::Retrigger>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Retrigger);
+			p.setRange({ 0.0, 1.0, 1.0 });
 			p.setDefaultValue(0.0);
 			data.add(p);
 		}
 		{
-			parameter::data p("Gate", { 0.0, 1.0, 1.0 });
-			p.callback = parameter::inner<ahdsr, Parameters::Gate>(*this);
+			DEFINE_PARAMETERDATA(ahdsr, Gate);
+			p.setRange({ 0.0, 1.0, 1.0 });
 			p.setDefaultValue(0.0);
 			data.add(p);
 		}

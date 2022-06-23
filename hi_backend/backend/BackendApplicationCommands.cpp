@@ -3018,10 +3018,9 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 					String l;
 					b.addComment("Create a parameter like this", Base::CommentType::Raw);
 					b << "parameter::data p(\"MyParameter\", { 0.0, 1.0 });";
-					b << "p.setDefaultValue(0.5);";
-
 					b.addComment("The template parameter (<0>) will be forwarded to setParameter<P>()", Base::CommentType::Raw);
-					b << "p.callback.referTo(this, setParameterStatic<0>);";
+					b << "registerCallback<0>(p);";
+					b << "p.setDefaultValue(0.5);";
 					b << "data.add(std::move(p));";
 				}
 			}

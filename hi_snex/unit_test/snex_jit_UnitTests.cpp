@@ -470,47 +470,6 @@ public:
 #define START_BENCHMARK const double start = Time::getMillisecondCounterHiRes();
 #define STOP_BENCHMARK_AND_LOG const double end = Time::getMillisecondCounterHiRes(); logPerformanceMessage(m->executionTime, end - start);
 
-namespace AccessTestClasses
-{
-struct A
-{
-	SN_GET_SELF_AS_OBJECT(A);
-
-	static constexpr int getValue() { return 3; }
-};
-
-struct B
-{
-	SN_GET_SELF_AS_OBJECT(B);
-
-	static constexpr int getValue() { return 7; }
-};
-
-struct WrappedA
-{
-	SN_SELF_AWARE_WRAPPER(WrappedA, A);
-
-	static constexpr int getValue() { return A::getValue() * getOtherValue(); };
-	static constexpr int getOtherValue() { return 8; }
-
-	A obj;
-};
-
-template <typename T> struct OpaqueT
-{
-	SN_OPAQUE_WRAPPER(OpaqueT, T);
-
-	static constexpr int getValue() { return T::getValue() * 5; };
-
-	T obj;
-};
-
-using OpaqueB = OpaqueT<B>;
-using OpaqueSquare = OpaqueT<OpaqueT<B>>;
-using OpaqueAccessible = OpaqueT<WrappedA>;
-
-
-}
 #endif
 
 
@@ -522,44 +481,6 @@ public:
 
 	HiseJITUnitTest() : UnitTest("HiseJIT UnitTest", "snex") {}
 
-#if INCLUDE_SNEX_BIG_TESTSUITE
-	void testAccessWrappers()
-	{
-#define expect_access(expr, result, error) expectEquals<int>(expr, result, error);
-#define test_constexpr(expr, result, error) static_assert(expr == (result), error);
-#define test_and_constexpr(expr, result, error) expect_access(expr, result, error); test_constexpr(expr, result, error);
-
-		constexpr AccessTestClasses::A a;
-		constexpr AccessTestClasses::WrappedA wa;
-		constexpr AccessTestClasses::B b;
-		constexpr AccessTestClasses::OpaqueB wb;
-		constexpr AccessTestClasses::OpaqueSquare os;
-
-		constexpr AccessTestClasses::OpaqueAccessible oa;
-
-		test_and_constexpr(a.getValue(), 3, "A doesn't work");
-		test_and_constexpr(wa.getValue(), 3 * 8, "WrappedA doesn't work");
-		test_and_constexpr(wa.getWrappedObject().getValue(), 3, "WrappedObject::getWrappedObject doesn't return wrapped object");
-		test_and_constexpr(wa.getObject().getValue(), 3 * 8, "WrappedA::getObject() doesn't return itself");
-
-
-		test_and_constexpr(b.getValue(), 7, "B doesn't work");
-		test_and_constexpr(wb.getValue(), 7 * 5, "OpaqueB doesn't work");
-		test_and_constexpr(wb.getObject().getValue(), 7, "OpaqueB::getObject() doesn't return wrapped object");
-
-		test_and_constexpr(os.getValue(), 7 * 5 * 5, "OpaqueSquare doesn't work");
-
-		test_and_constexpr(os.getWrappedObject().getValue(), 7, "OpaqueSquare::getObject() doesn't return most nested object");
-
-		test_and_constexpr(oa.getValue(), 120, "OpaqueAccessible doesn't work");
-
-		test_and_constexpr(oa.getObject().getValue(), 8 * 3, "OpaqueAccesible::getObject() doesn't return accessible");
-
-		test_and_constexpr(oa.getWrappedObject().getValue(), 3, "OpaqueAccessible::getWrappedObject() doesn't work");
-
-		test_and_constexpr(oa.getObject().getOtherValue(), 8, "OpaqueAccessible::getObject part II");
-	}
-#endif
 	
 
 
@@ -868,7 +789,7 @@ public:
 		testMacOSRelocation();
 
 		testExternalFunctionCalls();
-		testAccessWrappers();
+		
 		testEvents();
 
 		runTestFiles();

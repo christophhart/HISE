@@ -599,8 +599,6 @@ private:
 };
 
 
-
-
 /** A simple container holding NUM_POLYPHONIC_VOICES elements of the given ObjectType
 *	@ingroup data_containers
 *

@@ -295,14 +295,41 @@ private:
 	prototypes::setExternalData externalDataFunc = nullptr;
 	prototypes::handleModulation modFunc;
 
+	Array<parameter::data> parameters;
+
 public:
 
 	bool shouldProcessHiseEvent = false;
 	bool isNormalised = false;
-	span<parameter::pod, NumMaxParameters> parameters;
-	span<prototypes::setParameter, NumMaxParameters> parameterFunctions;
-	span<void*, NumMaxParameters> parameterObjects;
-	span<StringArray, NumMaxParameters> parameterNames;
+
+	parameter::data* getParameter(int index)
+	{
+		if (isPositiveAndBelow(index, numParameters))
+		{
+			return parameters.getRawDataPointer() + index;
+		}
+
+		return nullptr;
+	}
+
+	struct ParameterIterator
+	{
+		ParameterIterator(OpaqueNode& on_) :
+			on(on_)
+		{};
+
+		parameter::data* begin() const
+		{
+			return on.parameters.begin();
+		}
+
+		parameter::data* end() const
+		{
+			return on.parameters.end();
+		}
+
+		OpaqueNode& on;
+	};
 
 	int numChannels = -1;
 	int numParameters = 0;
@@ -407,6 +434,10 @@ namespace dll
 		for creating / querying node specs. */
 	struct ProjectDll : public ReferenceCountedObject
 	{
+		// This is just used to check whether the dll is deprecated and needs to be recompiled...
+		// (It will be bumped whenever a breaking change into the DLL API is introduced)...
+		static constexpr int DllUpdateCounter = 1;
+
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 
 		enum class ExportedFunction
@@ -421,6 +452,7 @@ namespace dll
 			GetError,
 			ClearError,
 			IsThirdPartyNode,
+			GetDLLVersionCounter,
 			numFunctions
 		};
 
@@ -436,6 +468,7 @@ namespace dll
 		typedef Error(*GetError)();
 		typedef void(*ClearError)();
 		typedef bool(*IsThirdPartyNode)(int);
+		typedef int(*GetDllVersionCounter)();
 
 		int getWrapperType(int index) const;
 

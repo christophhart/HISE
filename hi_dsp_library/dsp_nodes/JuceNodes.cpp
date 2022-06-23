@@ -44,28 +44,28 @@ void jcompressor::createParameters(ParameterDataList& d)
 	{
 		parameter::data p("Treshold", { -100.0, 0.0 });
 		p.setSkewForCentre(-12.0);
-		p.callback = parameter::inner<jcompressor, 0>(*this);
+		registerCallback<0>(p);
 		p.setDefaultValue(0.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Ratio", { 1.0, 32.0 });
 		p.setSkewForCentre(8.0);
-		p.callback = parameter::inner<jcompressor, 1>(*this);
+		registerCallback<1>(p);
 		p.setDefaultValue(1.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Attack", { 0.0, 300.0 });
 		p.setSkewForCentre(50.0);
-		p.callback = parameter::inner<jcompressor, 2>(*this);
+		registerCallback<2>(p);
 		p.setDefaultValue(1.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Release", { 0.0, 300.0 });
 		p.setSkewForCentre(50.0);
-		p.callback = parameter::inner<jcompressor, 3>(*this);
+		registerCallback<3>(p);
 		p.setSkewForCentre(10.0);
 		p.setDefaultValue(100.0);
 		d.add(p);
@@ -76,32 +76,32 @@ void jchorus::createParameters(ParameterDataList& d)
 {
 	{
 		parameter::data p("CentreDelay", { 0.0, 100.0 });
-		p.callback = parameter::inner<jchorus, 0>(*this);
+		registerCallback<0>(p);
 		p.setDefaultValue(7.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Depth", { 0.0, 1.0 });
-		p.callback = parameter::inner<jchorus, 1>(*this);
+		registerCallback<1>(p);
 		p.setDefaultValue(0.25);
 		d.add(p);
 	}
 	{
 		parameter::data p("Feedback", { -1.0, 1.0 });
-		p.callback = parameter::inner<jchorus, 2>(*this);
+		registerCallback<2>(p);
 		p.setDefaultValue(0.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Rate", { 0.0, 100.0 });
-		p.callback = parameter::inner<jchorus, 3>(*this);
+		registerCallback<3>(p);
 		p.setSkewForCentre(10.0);
 		p.setDefaultValue(1.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Mix", { 0.0, 1.0 });
-		p.callback = parameter::inner<jchorus, 4>(*this);
+		registerCallback<4>(p);
 		p.setDefaultValue(0.5);
 		d.add(p);
 	}
@@ -111,15 +111,14 @@ void jlinkwitzriley::createParameters(ParameterDataList& d)
 {
 	{
 		parameter::data p("Frequency", { 20.0, 20000.0 });
-
-		p.callback = parameter::inner<jlinkwitzriley, 0>(*this);
+		registerCallback<0>(p);
 		p.setSkewForCentre(1000.0);
 		p.setDefaultValue(2000.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("Type");
-		p.callback = parameter::inner<jlinkwitzriley, 1>(*this);
+		registerCallback<1>(p);
 		p.setParameterValueNames({ "LP", "HP", "AP" });
 		p.setDefaultValue(0.0);
 		d.add(p);
@@ -133,21 +132,18 @@ void jdelay::createParameters(ParameterDataList& d)
 {
 	{
 		parameter::data p("Limit", { 0.0, 1000.0 });
-
-		p.callback = parameter::inner<jdelay, 0>(*this);
+		registerCallback<0>(p);
 		p.setSkewForCentre(100.0);
 		p.setDefaultValue(1000.0);
 		d.add(p);
 	}
 	{
 		parameter::data p("DelayTime", { 0.0, 1000.0 });
-
-		p.callback = parameter::inner<jdelay, 1>(*this);
+		registerCallback<1>(p);
 		p.setSkewForCentre(100.0);
 		p.setDefaultValue(0.0);
 		d.add(p);
 	}
-	
 }
 
 } // namespace scriptnode

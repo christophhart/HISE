@@ -1052,10 +1052,10 @@ private:
 
 		void setParameter(int index, float newValue) override
 		{
-			if (isPositiveAndBelow(index, n.numParameters))
+			if (auto p = n.getParameter(index))
 			{
 				parameterValues[index] = newValue;
-				n.parameterFunctions[index](n.parameterObjects[index], (double)newValue);
+				p->callback.call(newValue);
 			}
 		}
 
@@ -1127,6 +1127,7 @@ private:
 		void init(dll::ProjectDll::Ptr dllToUse);
 
 		bool hashMatches = false;
+
 		float parameterValues[OpaqueNode::NumMaxParameters];
 		DspNetwork& network;
 		dll::ProjectDll::Ptr dll;
