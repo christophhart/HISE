@@ -135,6 +135,9 @@ public:
 	/** \internal Overwrite this method and check if the object exists. Best thing is to initialize the pointer to nullptr and check that. */
 	virtual bool objectExists() const { return false; }
 
+	/** Return all attached functions and callbacks of this object so that the compiler can run its optimisations. */
+	virtual var getOptimizableFunctions() const { return {}; }
+
 	/** \internal This method combines the calls to objectDeleted() and objectExists() and creates a nice error message. */
 	bool checkValidObject() const
 	{

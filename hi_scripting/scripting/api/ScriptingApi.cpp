@@ -5738,16 +5738,16 @@ ApiClass(139)
 	addConstant("yellow", (int64)0xffffff00);
 	addConstant("yellowgreen", (int64)0xff9acd32);
 
-	ADD_API_METHOD_2(withAlpha);
-	ADD_API_METHOD_2(withHue);
-	ADD_API_METHOD_2(withBrightness);
-	ADD_API_METHOD_2(withSaturation);
-	ADD_API_METHOD_2(withMultipliedAlpha);
-	ADD_API_METHOD_2(withMultipliedBrightness);
-	ADD_API_METHOD_2(withMultipliedSaturation);
-	ADD_API_METHOD_3(mix);
-	ADD_API_METHOD_1(toVec4);
-	ADD_API_METHOD_1(fromVec4);
+	ADD_INLINEABLE_API_METHOD_2(withAlpha);
+	ADD_INLINEABLE_API_METHOD_2(withHue);
+	ADD_INLINEABLE_API_METHOD_2(withBrightness);
+	ADD_INLINEABLE_API_METHOD_2(withSaturation);
+	ADD_INLINEABLE_API_METHOD_2(withMultipliedAlpha);
+	ADD_INLINEABLE_API_METHOD_2(withMultipliedBrightness);
+	ADD_INLINEABLE_API_METHOD_2(withMultipliedSaturation);
+	ADD_INLINEABLE_API_METHOD_3(mix);
+	ADD_INLINEABLE_API_METHOD_1(toVec4);
+	ADD_INLINEABLE_API_METHOD_1(fromVec4);
 }
 
 int ScriptingApi::Colours::withAlpha(int colour, float alpha)

@@ -864,12 +864,14 @@ void HardcodedSwappableEffect::prepareOpaqueNode(OpaqueNode* n)
 		n->prepare(ps);
 		n->reset();
 
+#if USE_BACKEND
 		auto e = factory->getError();
 
 		if (e.error != Error::OK)
 		{
 			jassertfalse;
 		}
+#endif
 	}
 }
 

@@ -133,6 +133,7 @@ Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
 	Array<Identifier> ids;
 
 	ids.add(EnableCallstack);
+	ids.add(EnableOptimizations);
 	ids.add(GlobalScriptPath);
 	ids.add(CompileTimeout);
 	ids.add(CodeFontSize);
@@ -445,6 +446,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("> You can temporarily change the font size for individual elements using Cmd+Scrollwheel, however this will not be persistent.");
 		P_();
 
+		P(HiseSettings::Scripting::EnableOptimizations);
+		D("Enables some compiler optimizations like constant folding or dead code removal for the HiseScript compiler");
+		D("> This setting is baked into a plugin when you compile it");
+		P_();
+
 		P(HiseSettings::Compiler::Support32BitMacOS);
 		D("If enabled (which is still the default), the compiler will build both 32bit and 64bit versions as universal binary on macOS. However since 32bit binaries are deprecated in the most recent versions of macOS / XCode, you can tell the exporter to just generate 64bit binaries by disabling this flag. If you see this error messag in the compile terminal:");
 		D("> error: The i386 architecture is deprecated. You should update your ARCHS build setting to remove the i386 architecture.");
@@ -689,6 +695,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
+		id == Scripting::EnableOptimizations ||
 		id == Other::AudioThreadGuardEnabled ||
 		id == Other::UseOpenGL ||
 		id == Other::GlassEffect ||
@@ -899,6 +906,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
+	else if (id == Scripting::EnableOptimizations)	return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
@@ -1045,7 +1053,8 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		mc->getAutoSaver().updateAutosaving();
 	else if (id == Other::AudioThreadGuardEnabled)
 		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
-
+	else if (id == Scripting::EnableOptimizations)
+		mc->compileAllScripts();
 	else if (id == Scripting::EnableDebugMode)
 		newValue ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();
 	else if (id == Audio::Samplerate)

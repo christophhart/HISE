@@ -566,20 +566,62 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 struct HiseJavascriptEngine::RootObject::Statement
 {
+	using Ptr = ScopedPointer<Statement>;
+
 	Statement(const CodeLocation& l) noexcept : location(l) {}
 	virtual ~Statement() {}
 
 	enum ResultCode  { ok = 0, returnWasHit, breakWasHit, continueWasHit, breakpointWasHit };
 	virtual ResultCode perform(const Scope&, var*) const  { return ok; }
 
+	virtual bool isConstant() const { return false; }
+
 	CodeLocation location;
+	
+	/** Return nullptr if there is no child, otherwise a reference to the child statement. 
+		This makes the syntax tree iteratable for optimisations.
+	*/
+	virtual Statement* getChildStatement(int index) { return nullptr; };
+	
+	/** Helper function to quickly replace expression children that are optimized away. 
+	
+		Use inside replaceChildStatement with each childStatement
+	*/
+	template <typename T> static bool swapIf(Ptr& newChild, Statement* childToReplace, ScopedPointer<T>& currentChild)
+	{
+		if (childToReplace == currentChild.get())
+		{
+			auto nc = newChild.release();
+			auto oc = currentChild.release();
+
+			newChild = dynamic_cast<Statement*>(oc);
+			currentChild = dynamic_cast<T*>(nc);
+
+			return true;
+		}
+
+		return false;
+	}
+
+	template <typename T> static bool swapIfArrayElement(Ptr& newChild, Statement* childToReplace, OwnedArray<T>& arrayToSwap)
+	{
+		auto idx = arrayToSwap.indexOf(dynamic_cast<T*>(childToReplace));
+
+		if (idx != -1)
+		{
+			arrayToSwap.set(idx, dynamic_cast<T*>(newChild.release()), true);
+			return true;
+		}
+
+		return false;
+	}
+
+	virtual bool replaceChildStatement(Ptr& newChild, Statement* oldChild) { return false; };
 
 	Breakpoint::Reference breakpointReference;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
-
-
 
 struct HiseJavascriptEngine::RootObject::Expression : public Statement
 {
@@ -590,6 +632,8 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override  { getResult(s); return ok; }
 };
+
+
 
 
 void HiseJavascriptEngine::RootObject::addToCallStack(const Identifier& id, const CodeLocation* location)
@@ -1728,5 +1772,53 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 #undef X
 	}
 }
+
+hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::OptimizationPass::executePass(Statement* rootStatementToOptimize)
+{
+	OptimizationResult r;
+	r.passName = getPassName();
+
+	callForEach(rootStatementToOptimize, [this, &r](Statement* st)
+	{
+		int index = 0;
+
+		while (auto child = st->getChildStatement(index++))
+		{
+			auto optimizedStatement = getOptimizedStatement(st, child);
+
+			if (optimizedStatement != child)
+			{
+				ScopedPointer<Statement> newExpr(optimizedStatement);
+				auto ok = st->replaceChildStatement(newExpr, child);
+				jassert(ok);
+				r.numOptimizedStatements++;
+			}
+		}
+
+		return false;
+	});
+
+	return r;
+}
+
+bool HiseJavascriptEngine::RootObject::OptimizationPass::callForEach(Statement* root, const std::function<bool(Statement* child)>& f)
+{
+	if (f(root))
+		return true;
+
+	int index = 0;
+
+	while (auto child = root->getChildStatement(index++))
+	{
+		if (callForEach(child, f))
+			return true;
+	}
+
+	return false;
+}
+
+
+
+
 
 } // namespace hise

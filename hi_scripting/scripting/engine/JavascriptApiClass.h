@@ -265,6 +265,16 @@ public:
 
 	bool isAutocompleteable() const override { return true; }
 
+	void setFunctionIsInlineable(const Identifier& id)
+	{
+		inlineableFunctions.add(id);
+	}
+
+	bool isInlineableFunction(const Identifier& id) const
+	{
+		return inlineableFunctions.contains(id);
+	}
+
 private:
 
 	// ================================================================================================================
@@ -302,6 +312,8 @@ private:
 	Constant* constantsToUse;
 
 	Array<Constant> constantBigStorage;
+
+	Array<Identifier> inlineableFunctions;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ApiClass)
 

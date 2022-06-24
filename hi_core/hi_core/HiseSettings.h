@@ -125,6 +125,7 @@ DECLARE_ID(EnableCallstack);
 DECLARE_ID(GlobalScriptPath);
 DECLARE_ID(CompileTimeout);
 DECLARE_ID(CodeFontSize);
+DECLARE_ID(EnableOptimizations);
 DECLARE_ID(EnableDebugMode);
 
 Array<Identifier> getAllIds();

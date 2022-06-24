@@ -441,6 +441,29 @@ public:
 		struct Scope;
 		struct Statement;
 		struct Expression;
+		
+		struct OptimizationPass
+		{
+			struct OptimizationResult
+			{
+				String passName;
+				int numOptimizedStatements = 0;
+			};
+
+			virtual ~OptimizationPass() {};
+
+			virtual String getPassName() const = 0;
+
+			/** Override this method and return a new optimized statement if this pass can be applied to the statementToOptimize. 
+				
+				You can use the parentStatement to figure out whether this optimisation pass should apply.
+			*/
+			virtual Statement* getOptimizedStatement(Statement* parentStatement, Statement* statementToOptimize) = 0;
+
+			static bool callForEach(Statement* root, const std::function<bool(Statement* child)>& f);
+
+			OptimizationResult executePass(Statement* rootStatementToOptimize);
+		};
 
 		struct ScriptAudioThreadGuard;
 
@@ -708,9 +731,12 @@ public:
 
 			NamedValueSet localProperties;
 
-		private:
+		
 
 			ScopedPointer<BlockStatement> statements;
+
+			private:
+
 			double lastExecutionTime;
 			const Identifier callbackName;
 			int numArgs;
@@ -774,6 +800,10 @@ public:
 
 			void prepareCycleReferenceCheck() override;
 
+			virtual OptimizationPass::OptimizationResult runOptimisation(OptimizationPass* p);
+
+			bool optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p);
+
 			DebugInformation* createDebugInformation(int index);
 
 			const Identifier id;
@@ -818,15 +848,23 @@ public:
 
 			DynamicObject* getInlineFunction(const Identifier &id);
 
-			
+			OptimizationPass::OptimizationResult runOptimisation(OptimizationPass* p) override;
 
 			bool updateCyclicReferenceList(CyclicReferenceCheckBase::ThreadData& data, const Identifier& id) override;
 
 			void prepareCycleReferenceCheck() override;
 
-			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
+			void setProcessor(JavascriptProcessor *p) noexcept 
+			{ 
+				processor = p; 
+				registerOptimisationPasses();
+			}
+
+			void registerOptimisationPasses();
 
 			static bool initHiddenProperties;
+
+			
 
 			ReferenceCountedArray<ApiClass> apiClasses;
 			Array<Identifier> apiIds;
@@ -839,7 +877,7 @@ public:
 			OwnedArray<RootObject::BlockStatement> callbacks;
 			JavascriptProcessor* processor;
 
-
+			OwnedArray<OptimizationPass> optimizations;
 
 			DynamicObject::Ptr globals;
 

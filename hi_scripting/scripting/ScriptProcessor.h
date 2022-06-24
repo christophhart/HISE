@@ -713,7 +713,16 @@ public:
 
 	Array<AutocompleteTemplate> autoCompleteTemplates;
 
+	MainController* mainController;
+
+	void setOptimisationReport(const String& report)
+	{
+		lastOptimisationReport = report;
+	}
+
 protected:
+
+	String lastOptimisationReport;
 
 	void clearExternalWindows();
 
@@ -754,7 +763,7 @@ protected:
 
 	ScopedPointer<HiseJavascriptEngine> scriptEngine;
 
-	MainController* mainController;
+	
 
 	bool lastCompileWasOK;
 	bool useStoredContentData = false;

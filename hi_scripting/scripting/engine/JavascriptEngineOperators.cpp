@@ -5,6 +5,24 @@ struct HiseJavascriptEngine::RootObject::BinaryOperatorBase : public Expression
 	BinaryOperatorBase(const CodeLocation& l, ExpPtr& a, ExpPtr& b, TokenType op) noexcept
 	: Expression(l), lhs(a), rhs(b), operation(op) {}
 
+	bool isConstant() const override
+	{
+		return lhs->isConstant() && rhs->isConstant();
+	}
+
+	Statement* getChildStatement(int index) override 
+	{
+		if (index == 0) return lhs.get();
+		if (index == 1) return rhs.get();
+		return nullptr;
+	};
+	
+	bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+	{
+		return swapIf(newS, sToReplace, lhs) ||
+			   swapIf(newS, sToReplace, rhs);
+	}
+
 	ExpPtr lhs, rhs;
 	TokenType operation;
 };
@@ -38,6 +56,8 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
 
 		return getWithStrings(a.toString(), b.toString());
 	}
+
+	
 
 	var throwError(const char* typeName) const
 	{
@@ -370,6 +390,28 @@ struct HiseJavascriptEngine::RootObject::ConditionalOp : public Expression
 
 	var getResult(const Scope& s) const override              { return (condition->getResult(s) ? trueBranch : falseBranch)->getResult(s); }
 	void assign(const Scope& s, const var& v) const override  { (condition->getResult(s) ? trueBranch : falseBranch)->assign(s, v); }
+
+	bool isConstant() const override
+	{
+		return condition->isConstant() && trueBranch->isConstant() && falseBranch->isConstant();
+	}
+
+	Statement* getChildStatement(int index) override 
+	{
+		if (index == 0) return condition;
+		if (index == 1) return trueBranch;
+		if (index == 2) return falseBranch;
+		return nullptr;
+	};
+	
+	bool replaceChildStatement(Ptr& n, Statement* sToReplace) override
+	{
+		return swapIf(n, sToReplace, condition) ||
+			   swapIf(n, sToReplace, trueBranch) ||
+			   swapIf(n, sToReplace, falseBranch);
+	}
+
+
 
 	ExpPtr condition, trueBranch, falseBranch;
 };

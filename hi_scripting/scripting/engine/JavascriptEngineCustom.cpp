@@ -10,6 +10,8 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 		return ok;
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; };
+
 	VarRegister* varRegister = nullptr;
 
 	Identifier name;
@@ -29,6 +31,8 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 		reg->setRegister(registerIndex, value);
 		return value;
 	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? source.get() : nullptr; };
 
 	int registerIndex;
 
@@ -54,6 +58,8 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 		*data = newValue;
 	}
 
+	Statement* getChildStatement(int ) override { return nullptr; };
+
 	VarRegister* rootRegister;
 	int indexInRegister;
 
@@ -67,6 +73,10 @@ struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 {
 	ApiConstant(const CodeLocation& l) noexcept : Expression(l) {}
 	var getResult(const Scope&) const override   { return value; }
+
+	Statement* getChildStatement(int) override { return nullptr; };
+
+	bool isConstant() const override { return true; }
 
 	var value;
 };
@@ -135,6 +145,37 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		}
 	}
 
+	Statement* getChildStatement(int index) override 
+	{
+		if (isPositiveAndBelow(index, expectedNumArguments))
+			return argumentList[index].get();
+
+		return nullptr;
+	};
+
+	bool isConstant() const override
+	{
+		if (!apiClass->isInlineableFunction(callbackName))
+			return false;
+
+		for (int i = 0; i < expectedNumArguments; i++)
+		{
+			if (!argumentList[i]->isConstant())
+				return false;
+		}
+
+		return true;
+	}
+
+	bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+	{
+		return  swapIf(newS, sToReplace, argumentList[0]) ||
+				swapIf(newS, sToReplace, argumentList[1]) ||
+				swapIf(newS, sToReplace, argumentList[2]) ||
+				swapIf(newS, sToReplace, argumentList[3]) ||
+				swapIf(newS, sToReplace, argumentList[4]);
+	}
+
 	const int expectedNumArguments;
 
 	ExpPtr argumentList[5];
@@ -143,8 +184,10 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	bool isDebugCall = false;
 	int lineNumber;
-	Identifier callbackName;
+	
 #endif
+
+	Identifier callbackName;
 
 	const ReferenceCountedObjectPtr<ApiClass> apiClass;
 };
@@ -165,6 +208,13 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 			argumentList[i] = nullptr;
 		}
 	};
+
+	bool isConstant() const override
+	{
+		// this might be turned into a constant...
+		jassertfalse;
+		return false;
+	}
 
 	var getResult(const Scope& s) const override
 	{
@@ -197,7 +247,22 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 		return object->callFunction(functionIndex, results, expectedNumArguments);
 	}
 
-	
+	Statement* getChildStatement(int index) override
+	{
+		if (isPositiveAndBelow(index, 4))
+			return argumentList[index].get();
+
+		return nullptr;
+	};
+
+	bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+	{
+		return  swapIf(newS, sToReplace, argumentList[0]) ||
+				swapIf(newS, sToReplace, argumentList[1]) ||
+				swapIf(newS, sToReplace, argumentList[2]) ||
+				swapIf(newS, sToReplace, argumentList[3]);
+	}
+
 	mutable bool initialised;
 	ExpPtr argumentList[4];
 	mutable int expectedNumArguments;
@@ -227,6 +292,10 @@ struct HiseJavascriptEngine::RootObject::IsDefinedTest : public Expression
 
 		return var(true);
 	}
+
+	bool isConstant() const override { return test->isConstant(); }
+
+	Statement* getChildStatement(int index) override { return index == 0 ? test.get() : nullptr; };
 
 	ExpPtr test;
 };
@@ -485,7 +554,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 				if(f->e == this)
 					f->cleanUpAfterExecution();
-
+				 
 				f->lastReturnValue = returnVar;
 
 				for (int i = 0; i < numArgs; i++)
@@ -507,7 +576,18 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			
 		}
 
+		Statement* getChildStatement(int index) override 
+		{ 
+			if(isPositiveAndBelow(index, parameterExpressions.size()))
+				return parameterExpressions[index];
+			
+			return nullptr;
+		};
 		
+		bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+		{
+			return swapIfArrayElement(newS, sToReplace, parameterExpressions);
+		}
 
 		Object::Ptr referenceToObject;
 
@@ -547,6 +627,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 		}
 
+		Statement* getChildStatement(int) override { return nullptr; };
+
 		Object* f;
 		int index;
 	};
@@ -564,6 +646,8 @@ struct HiseJavascriptEngine::RootObject::GlobalVarStatement : public Statement
 		return ok;
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; };
+	
 	Identifier name;
 	ExpPtr initialiser;
 };
@@ -582,6 +666,8 @@ struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 		s.root->hiseSpecialData.globals->setProperty(id, newValue);
 	}
 
+	Statement* getChildStatement(int) override { return nullptr; };
+
 	DynamicObject::Ptr globals;
 	const Identifier id;
 
@@ -598,6 +684,13 @@ struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Statement
 	{
 		parentFunction->localProperties.set(name, initialiser->getResult(s));
 		return ok;
+	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; };
+	
+	bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+	{
+		return swapIf(newS, sToReplace, initialiser);
 	}
 
 	mutable InlineFunction::Object* parentFunction;
@@ -621,6 +714,8 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 		parentFunction->localProperties.set(id, newValue);
 	}
 
+	Statement* getChildStatement(int) override { return nullptr; };
+
 	InlineFunction::Object* parentFunction;
 	const Identifier id;
 
@@ -638,6 +733,8 @@ struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expr
 		return *data;
 	}
 
+	Statement* getChildStatement(int) override { return nullptr; };
+
 	var* data;
 };
 
@@ -651,6 +748,8 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalStatement : public Stateme
 		return ok;
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; };
+	
 	mutable Callback* parentCallback;
 	Identifier name;
 	ExpPtr initialiser;
@@ -674,11 +773,114 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Express
 		parentCallback->localProperties.set(name, newValue);
 	}
 
+	Statement* getChildStatement(int) override { return nullptr; };
+
 	Callback* parentCallback;
 	Identifier name;
 
 	CallbackLocalStatement* target;
 };
+
+struct ConstantFolding : public HiseJavascriptEngine::RootObject::OptimizationPass
+{
+	using Statement = HiseJavascriptEngine::RootObject::Statement;
+
+	ConstantFolding()
+	{}
+
+	String getPassName() const override { return "Constant Folding"; };
+
+	Statement* getOptimizedStatement(Statement* parent, Statement* statementToOptimize) override
+	{
+		if (statementToOptimize->isConstant() && dynamic_cast<HiseJavascriptEngine::RootObject::LiteralValue*>(statementToOptimize) == nullptr)
+		{
+			HiseJavascriptEngine::RootObject::Scope s(nullptr, nullptr, nullptr);
+			auto immValue = dynamic_cast<HiseJavascriptEngine::RootObject::Expression*>(statementToOptimize)->getResult(s);
+			return new HiseJavascriptEngine::RootObject::LiteralValue(statementToOptimize->location, immValue);
+		}
+
+		return statementToOptimize;
+	}
+};
+
+struct BlockRemover : public HiseJavascriptEngine::RootObject::OptimizationPass
+{
+	using Statement = HiseJavascriptEngine::RootObject::Statement;
+
+	String getPassName() const override { return "Redundant StatementBlock Remover"; }
+
+	Statement* getOptimizedStatement(Statement* parentStatement, Statement* statementToOptimize) override
+	{
+		if (auto sb = dynamic_cast<HiseJavascriptEngine::RootObject::BlockStatement*>(statementToOptimize))
+		{
+			if (sb->lockStatements.isEmpty())
+			{
+				if (sb->statements.isEmpty())
+					return nullptr;
+
+				if (sb->statements.size() == 1)
+					return sb->statements.removeAndReturn(0);
+			}
+		}
+
+		return statementToOptimize;
+	}
+};
+
+struct FunctionInliner : public HiseJavascriptEngine::RootObject::OptimizationPass
+{
+	using Statement = HiseJavascriptEngine::RootObject::Statement;
+
+	String getPassName() const override { return "Function inliner"; }
+
+	Statement* getOptimizedStatement(Statement* parentStatement, Statement* statementToOptimize) override
+	{
+		if (auto apiCall = dynamic_cast<HiseJavascriptEngine::RootObject::ApiCall*>(statementToOptimize))
+		{
+			if (apiCall->isConstant())
+			{
+				jassertfalse;
+				auto apiClass = apiCall->apiClass;
+				auto fId = apiCall->callbackName;
+
+				if (apiClass->isInlineableFunction(fId))
+				{
+					int numArgs, idx;
+					apiClass->getIndexAndNumArgsForFunction(fId, idx, numArgs);
+
+					HiseJavascriptEngine::RootObject::Scope s(nullptr, nullptr, nullptr);
+					
+					auto immValue = apiCall->getResult(s);
+
+					return new HiseJavascriptEngine::RootObject::LiteralValue(apiCall->location, immValue);
+				}
+			}
+		}
+
+		return statementToOptimize;
+	}
+};
+
+void HiseJavascriptEngine::RootObject::HiseSpecialData::registerOptimisationPasses()
+{
+	bool shouldOptimize = false;
+
+#if USE_BACKEND
+
+	auto enable = GET_HISE_SETTING(processor->mainController->getMainSynthChain(), HiseSettings::Scripting::EnableOptimizations).toString();
+	
+	shouldOptimize = enable == "1";
+
+#endif
+
+	if (shouldOptimize)
+	{
+		optimizations.add(new ConstantFolding());
+		optimizations.add(new BlockRemover());
+		optimizations.add(new FunctionInliner());
+	}
+}
+
 
 
 } // namespace hise

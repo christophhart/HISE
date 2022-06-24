@@ -6,6 +6,8 @@ struct HiseJavascriptEngine::RootObject::LockStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override;
 
+	Statement* getChildStatement(int index) override { return index == 0 ? lockedObj.get() : nullptr; };
+
 	ExpPtr lockedObj;
 
 	mutable ReadWriteLock* currentLock;
@@ -96,6 +98,36 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		SpinLock accessLock;
 	};
 
+	bool replaceChildStatement(ScopedPointer<Statement>& newStatement, Statement* childToReplace) override
+	{
+		if (newStatement == nullptr)
+		{
+			statements.removeObject(childToReplace);
+			return true;
+		}
+		else
+		{
+			auto idx = statements.indexOf(childToReplace);
+			statements.set(idx, newStatement.release(), true);
+			return true;
+		}
+
+		return false;
+	}
+
+	Statement* getChildStatement(int index) override 
+	{
+		if (isPositiveAndBelow(index, statements.size()))
+			return statements[index];
+
+		index -= statements.size();
+
+		if (isPositiveAndBelow(index, lockStatements.size()))
+			return lockStatements[index];
+
+		return nullptr;
+	};
+
 	OwnedArray<Statement> statements;
 	OwnedArray<LockStatement> lockStatements;
 };
@@ -107,6 +139,19 @@ struct HiseJavascriptEngine::RootObject::IfStatement : public Statement
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
 		return (condition->getResult(s) ? trueBranch : falseBranch)->perform(s, returnedValue);
+	}
+
+	Statement* getChildStatement(int index) override
+	{
+		if (index == 0) return condition;
+		if (index == 1) return trueBranch.get();
+		if (index == 2) return falseBranch.get();
+		return nullptr;
+	};
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, condition) || swapIf(s, n, trueBranch) || swapIf(s, n, falseBranch);
 	}
 
 	ExpPtr condition;
@@ -133,6 +178,21 @@ struct HiseJavascriptEngine::RootObject::CaseStatement : public Statement
 				values.add(conditions[i]->getResult(s));
 		}
 	}
+
+	Statement* getChildStatement(int index) override
+	{
+		if (isPositiveAndBelow(index, conditions.size()))
+		{
+			return conditions[index];
+		}
+
+		index -= conditions.size();
+
+		if (index == 0)
+			return body.get();
+
+		return nullptr;
+	};
 
 	Array<ExpPtr> conditions;
 	Array<var> values;
@@ -177,6 +237,12 @@ struct HiseJavascriptEngine::RootObject::SwitchStatement : public Statement
 		return Statement::ok;
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		// too lazy LOL
+		return nullptr;
+	};
+
 	OwnedArray<CaseStatement> cases;
 
 	ScopedPointer<CaseStatement> defaultCase;
@@ -192,6 +258,13 @@ struct HiseJavascriptEngine::RootObject::VarStatement : public Statement
 	{
 		s.scope->setProperty(name, initialiser->getResult(s));
 		return ok;
+	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, initialiser);
 	}
 
 	Identifier name;
@@ -210,6 +283,13 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 
 		return ok;
 		
+	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, initialiser);
 	}
 
 	JavascriptNamespace* ns = nullptr;
@@ -249,6 +329,8 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 			return var();
 		}
+
+		Statement* getChildStatement(int) override { return nullptr; }
 
 		void assign(const Scope& s, const var& newValue) const override
 		{
@@ -344,6 +426,33 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		}
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		if (isIterator)
+		{
+			if (index == 0) return currentIterator.get();
+			if (index == 1) return body.get();
+		}
+		else
+		{
+			if (index == 0) return initialiser.get();
+			if (index == 1) return iterator.get();
+			if (index == 2) return condition.get();
+			if (index == 3) return body.get();
+		}
+		
+		return nullptr;
+	}
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return	swapIf(s, n, body) ||
+				swapIf(s, n, condition) ||
+				swapIf(s, n, currentIterator) ||
+				swapIf(s, n, initialiser) ||
+				swapIf(s, n, iterator);
+	}
+
 	ScopedPointer<Statement> initialiser, iterator, body;
 
 	ExpPtr condition;
@@ -370,6 +479,13 @@ struct HiseJavascriptEngine::RootObject::ReturnStatement : public Statement
 		return returnWasHit;
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? returnValue.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& newChild, Statement* oldChild) override
+	{ 
+		return swapIf(newChild, oldChild, returnValue);
+	};
+
 	ExpPtr returnValue;
 };
 
@@ -378,6 +494,8 @@ struct HiseJavascriptEngine::RootObject::BreakStatement : public Statement
 {
 	BreakStatement(const CodeLocation& l) noexcept : Statement(l) {}
 	ResultCode perform(const Scope&, var*) const override  { return breakWasHit; }
+
+	Statement* getChildStatement(int) override { return nullptr; }
 };
 
 
@@ -385,6 +503,8 @@ struct HiseJavascriptEngine::RootObject::ContinueStatement : public Statement
 {
 	ContinueStatement(const CodeLocation& l) noexcept : Statement(l) {}
 	ResultCode perform(const Scope&, var*) const override  { return continueWasHit; }
+
+	Statement* getChildStatement(int) override { return nullptr; }
 };
 
 } // namespace hise

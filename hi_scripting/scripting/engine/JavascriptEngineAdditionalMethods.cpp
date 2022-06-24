@@ -37,6 +37,10 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
 bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 {
 	if (auto obj = v.getObject())
@@ -59,6 +63,82 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExec
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }
 
+bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p)
+{
+	if (auto fo = dynamic_cast<InlineFunction::Object*>(function.getObject()))
+	{
+		auto tr = p->executePass(fo->body);
+		r.numOptimizedStatements += tr.numOptimizedStatements;
+		return true;
+	}
+	else if (auto fo = dynamic_cast<FunctionObject*>(function.getObject()))
+	{
+		auto tr = p->executePass(fo->body);
+		r.numOptimizedStatements += tr.numOptimizedStatements;
+		return true;
+	}
+
+	return false;
+}
+
+hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::JavascriptNamespace::runOptimisation(OptimizationPass* p)
+{
+	OptimizationPass::OptimizationResult r;
+	r.passName = p->getPassName();
+
+	for (auto o : inlineFunctions)
+	{
+		optimiseFunction(r, var(o), p);
+	}
+
+	for (auto& co : constObjects)
+	{
+		if (auto cso = dynamic_cast<ConstScriptingObject*>(co.value.getObject()))
+		{
+			auto fList = cso->getOptimizableFunctions();
+
+			if (optimiseFunction(r, fList, p))
+			{
+				;
+			}
+			else if (fList.isArray())
+			{
+				for(auto& f: *fList.getArray())
+					optimiseFunction(r, f, p);
+			}
+			else if (auto obj = fList.getDynamicObject())
+			{
+				for (auto& nv : obj->getProperties())
+					optimiseFunction(r, nv.value, p);
+			}
+		}
+	}
+
+	return r;
+}
+
+HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::HiseSpecialData::runOptimisation(OptimizationPass* p)
+{
+	auto r = JavascriptNamespace::runOptimisation(p);
+
+	for (auto n : namespaces)
+	{
+		auto tr = n->runOptimisation(p);
+		r.numOptimizedStatements += tr.numOptimizedStatements;
+	}
+
+	for (auto c : callbackNEW)
+	{
+		if (c->statements != nullptr)
+		{
+			auto tr = p->executePass(c->statements);
+			r.numOptimizedStatements += tr.numOptimizedStatements;
+		}
+	}
+
+	return r;
+}
+
 HiseJavascriptEngine::RootObject::RootObject() :
 hiseSpecialData(this)
 {
@@ -73,6 +153,8 @@ hiseSpecialData(this)
 	setMethod("parseInt", IntegerClass::parseInt);
 	setMethod("parseFloat", IntegerClass::parseFloat);
 	setMethod("typeof", typeof_internal);
+
+	
 }
 
 
@@ -416,6 +498,7 @@ root(root_)
 	{
 		callbackTimes[i] = 0.0;
 	}
+
 }
 
 HiseJavascriptEngine::RootObject::HiseSpecialData::~HiseSpecialData()

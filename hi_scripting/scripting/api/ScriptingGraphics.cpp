@@ -1231,7 +1231,7 @@ Component* ScriptingObjects::MarkdownObject::createPopupComponent(const MouseEve
 #if USE_BACKEND
 	return new Preview(this);
 #else
-	ignoreUnused(e, componentToNotify);
+	ignoreUnused(e, c);
 	return nullptr;
 #endif
 }
@@ -3378,6 +3378,11 @@ void ScriptingObjects::ScriptedLookAndFeel::loadImage(String imageName, String p
 }
 
 
+
+juce::var ScriptingObjects::ScriptedLookAndFeel::getOptimizableFunctions() const
+{
+	return functions;
+}
 
 ScriptingObjects::ScriptedLookAndFeel::LocalLaf::LocalLaf(ScriptedLookAndFeel* l) :
 	Laf(l->getScriptProcessor()->getMainController_()),

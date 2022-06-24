@@ -2240,6 +2240,29 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 		prepareCycleReferenceCheck();
 
 	sl->perform(Scope(nullptr, this, this), nullptr);
+
+	Array<OptimizationPass::OptimizationResult> results;
+
+	auto before = Time::getMillisecondCounter();
+
+	for (auto o : hiseSpecialData.optimizations)
+		results.add(hiseSpecialData.runOptimisation(o));
+
+	auto after = Time::getMillisecondCounter();
+	
+	auto optimisationTimeMs = after - before;
+	
+	if (!results.isEmpty())
+	{
+		String s;
+
+		for (auto r : results)
+			s << r.passName << ": " << String(r.numOptimizedStatements) << "\n";
+
+		s << "Optimization Duration: " << String(optimisationTimeMs) << "ms";
+
+		hiseSpecialData.processor->setOptimisationReport(s);
+	}
 }
 
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)
