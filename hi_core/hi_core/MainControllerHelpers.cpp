@@ -284,7 +284,16 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 	cc.setProperty("FullEnd", fullRange.end, nullptr);
 	cc.setProperty("Skew", parameterRange.skew, nullptr);
 	cc.setProperty("Interval", parameterRange.interval, nullptr);
-	cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+
+	if (auto ap = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(attribute))
+	{
+		cc.setProperty("Attribute", ap->id.toString(), nullptr);
+	}
+	else
+	{
+		cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+	}
+
 	cc.setProperty("Inverted", inverted, nullptr);
 
 	return cc;

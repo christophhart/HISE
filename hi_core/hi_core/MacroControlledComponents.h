@@ -240,8 +240,6 @@ public:
 
 	int getAutomationIndex() const;
 
-
-
 	void initMacroControl(NotificationType notify);
 
 	virtual void addToMacroController(int newMacroIndex)

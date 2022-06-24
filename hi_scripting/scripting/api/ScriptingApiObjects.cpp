@@ -4708,7 +4708,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, asMidiProcessor);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setGlobalPlaybackRatio);
 	API_VOID_METHOD_WRAPPER_2(ScriptedMidiPlayer, setPlaybackCallback);
-	
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setUseGlobalUndoManager);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -4749,6 +4749,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(asMidiProcessor);
 	ADD_API_METHOD_1(setGlobalPlaybackRatio);
 	ADD_API_METHOD_2(setPlaybackCallback);
+	ADD_API_METHOD_1(setUseGlobalUndoManager);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -4881,6 +4882,14 @@ void ScriptingObjects::ScriptedMidiPlayer::setRepaintOnPositionChange(var should
 		else
 			stopTimer();
 	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setUseGlobalUndoManager(bool shouldUseGlobalUndoManager)
+{
+	if (shouldUseGlobalUndoManager)
+		getPlayer()->setExternalUndoManager(getScriptProcessor()->getMainController_()->getControlUndoManager());
+	else
+		getPlayer()->setExternalUndoManager(nullptr);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)

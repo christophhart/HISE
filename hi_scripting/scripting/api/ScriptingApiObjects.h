@@ -2316,6 +2316,9 @@ namespace ScriptingObjects
 			Otherwise it will only be updated when the sequence changes. */
 		void setRepaintOnPositionChange(var shouldRepaintPanel);
 
+		/** If enabled, it uses the global undo manager for all edits (So you can use Engine.undo()). */
+		void setUseGlobalUndoManager(bool shouldUseGlobalUndoManager);
+
 		/** Connect this to the panel and it will be automatically updated when something changes. */
 		void connectToPanel(var panel);
 

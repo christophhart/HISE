@@ -566,6 +566,14 @@ public:
 		and MIDI edits. */
 	UndoManager* getUndoManager() { return undoManager; };
 
+	void setUseExternalUndoManager(UndoManager* externalUndoManagerToUse)
+	{
+		if (externalUndoManagerToUse == nullptr)
+			undoManager = ownedUndoManager.get();
+		else
+			undoManager = externalUndoManagerToUse;
+	}
+
 	/** If set to false, the recording will not be flushed and you can preprocess it. */
 	void setFlushRecordingOnStop(bool shouldFlushRecording)
 	{
