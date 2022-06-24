@@ -243,7 +243,7 @@ public:
 
 		ValuePopup(ScriptCreatedComponentWrapper& p):
 			parent(p),
-			shadow({ Colours::black, 10,{ 0, 0 } })
+			shadow({ Colours::black.withAlpha(0.4f), 5,{ 0, 0 } })
 		{
 			f = GLOBAL_BOLD_FONT();
 
@@ -267,6 +267,7 @@ public:
 
 		void paint(Graphics& g) override;
 
+		Colour shadowColour;
 		Colour bgColour;
 		Colour itemColour;
 		Colour itemColour2;
