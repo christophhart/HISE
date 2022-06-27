@@ -3154,6 +3154,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_0(ScriptPanel, getAnimationData);
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
+	API_METHOD_WRAPPER_3(ScriptPanel, startExternalFileDrag);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
@@ -3260,8 +3261,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(getAnimationData);
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
-
-	
+	ADD_API_METHOD_3(startExternalFileDrag);
 }
 
 
@@ -4091,6 +4091,46 @@ int ScriptingApi::Content::ScriptPanel::getNumChildElements() const
 {
 	buildDebugListIfEmpty();
 	return cachedList.size();
+}
+
+bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, bool moveOriginal, var finishCallback)
+{
+	StringArray files;
+
+	auto addToArray = [&](var v)
+	{
+		if (v.isString())
+			files.add(v.toString());
+
+		if (auto fObj = dynamic_cast<ScriptingObjects::ScriptFile*>(v.getObject()))
+			files.add(fObj->f.getFullPathName());
+	};
+
+	if (fileToDrag.isArray())
+	{
+		for (const auto& f : *fileToDrag.getArray())
+			addToArray(f);
+	}
+	else
+		addToArray(fileToDrag);
+
+	if (files.isEmpty())
+		return false;
+
+	WeakReference<ProcessorWithScriptingContent> sp = getScriptProcessor();
+
+	std::function<void()> f;
+
+	if (HiseJavascriptEngine::isJavascriptFunction(finishCallback))
+	{
+		f = [sp, finishCallback]()
+		{
+			WeakCallbackHolder cb(sp, finishCallback, 0);
+			cb.callSync(nullptr, 0);
+		};
+	}
+
+	return DragAndDropContainer::performExternalDragDropOfFiles(files, moveOriginal, nullptr, f);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)

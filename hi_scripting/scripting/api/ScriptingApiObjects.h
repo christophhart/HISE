@@ -295,6 +295,9 @@ namespace ScriptingObjects
 		/** Changes the execute-permissions of a file. */
 		bool setExecutePermission(bool shouldBeExecutable);
 
+		/** Returns a sibling file that doesn't exist. */
+		var getNonExistentSibling();
+
 		/** Launches the file as a process. */
 		bool startAsProcess(String parameters);
 		

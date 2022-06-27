@@ -1759,6 +1759,9 @@ public:
 		/** Disables the paint routine and just uses the given (clipped) image. */
 		void setImage(String imageName, int xOffset, int yOffset);
 
+		/** Starts dragging an external file (or a number of files). */
+		bool startExternalFileDrag(var fileOrFilesToDrag, bool moveOriginalFiles, var finishCallback);
+
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 

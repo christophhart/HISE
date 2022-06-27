@@ -204,6 +204,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsAudioFile);
+	API_METHOD_WRAPPER_0(ScriptFile, getNonExistentSibling);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
@@ -262,6 +263,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_0(show);
+	ADD_API_METHOD_0(getNonExistentSibling);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_0(getNumZippedItems);
 	ADD_API_METHOD_2(setReadOnly);
@@ -305,6 +307,11 @@ int64 ScriptingObjects::ScriptFile::getBytesFreeOnVolume()
 bool ScriptingObjects::ScriptFile::setExecutePermission(bool shouldBeExecutable)
 {
 	return f.setExecutePermission(shouldBeExecutable);
+}
+
+juce::var ScriptingObjects::ScriptFile::getNonExistentSibling()
+{
+	return var(new ScriptFile(getScriptProcessor(), f.getNonexistentSibling(false)));
 }
 
 bool ScriptingObjects::ScriptFile::startAsProcess(String parameters)

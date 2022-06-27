@@ -333,6 +333,9 @@ public:
 		/** Creates a reference to the script license manager. */
 		var createLicenseUnlocker();
 
+		/** Renders a MIDI event list as audio data on a background thread and calls a function when it's ready. */
+		void renderAudio(var eventList, var finishCallback);
+
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 
@@ -586,6 +589,8 @@ public:
 		double unused = 0.0;
 
 		ScriptBaseMidiProcessor* parentMidiProcessor;
+
+		ScopedPointer<Thread> currentExportThread;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Engine);
 	};

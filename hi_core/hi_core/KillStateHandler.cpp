@@ -128,6 +128,10 @@ bool MainController::KillStateHandler::handleKillState()
 #endif
 		}
 
+		// Let the audio export thread through...
+		if (threadIds[TargetThread::AudioExportThread] == Thread::getCurrentThreadId())
+			return true;
+
 		return false;
 	}
 	case State::ShutdownSignalReceived:
@@ -560,7 +564,7 @@ bool MainController::KillStateHandler::voiceStartIsDisabled() const
 #if HI_RUN_UNIT_TESTS
 	return false;
 #else
-	return currentState > State::Clear;
+	return currentState > State::Clear && threadIds[TargetThread::AudioExportThread] == nullptr;
 #endif
 }
 
@@ -611,6 +615,16 @@ void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 	auto threadId = Thread::getCurrentThreadId();
 
 	audioThreads.addIfNotAlreadyThere(threadId);
+}
+
+void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
+{
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+		return;
+
+	auto threadId = Thread::getCurrentThreadId();
+
+	audioThreads.removeAllInstancesOf(threadId);
 }
 
 void MainController::KillStateHandler::initAudioThreadId()
