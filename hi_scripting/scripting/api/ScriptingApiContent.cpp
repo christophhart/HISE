@@ -4121,6 +4121,7 @@ bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, b
 
 	std::function<void()> f;
 
+
 	if (HiseJavascriptEngine::isJavascriptFunction(finishCallback))
 	{
 		f = [sp, finishCallback]()
@@ -4130,7 +4131,18 @@ bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, b
 		};
 	}
 
-	return DragAndDropContainer::performExternalDragDropOfFiles(files, moveOriginal, nullptr, f);
+    auto f2 = [files, f]()
+    {
+        DragAndDropContainer::performExternalDragDropOfFiles(files, false, nullptr, f);
+    };
+    
+#if JUCE_WINDOWS
+    f2();
+#else
+    MessageManager::callAsync(f2);
+#endif
+    
+    return true;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
