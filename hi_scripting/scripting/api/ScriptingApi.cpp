@@ -1664,6 +1664,8 @@ juce::var ScriptingApi::Engine::createLicenseUnlocker()
 struct AudioRenderer : public Thread,
 					   public ControlledObject
 {
+	static constexpr int NumThrowAwayBuffers = 4;
+
 	AudioRenderer(ProcessorWithScriptingContent* pwsc, var eventList_, var finishCallback_):
 		Thread("AudioExportThread"),
 		ControlledObject(pwsc->getMainController_()),
@@ -1671,6 +1673,7 @@ struct AudioRenderer : public Thread,
 		finishCallback(pwsc, finishCallback_, 1)
 	{
 		finishCallback.incRefCount();
+		finishCallback.setHighPriority();
 		
 		if (auto a = eventList_.getArray())
 		{
@@ -1697,10 +1700,12 @@ struct AudioRenderer : public Thread,
 				if (leftOver != 0)
 				{
 					// pad to blocksize
-					numSamplesToRender += (bufferSize - leftOver);
+					//numSamplesToRender += (bufferSize - leftOver);
 				}
 
 				numChannelsToRender = getMainController()->getMainSynthChain()->getMatrix().getNumSourceChannels();
+
+				events.subtractFromTimeStamps(-bufferSize * NumThrowAwayBuffers);
 
 				events.template alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesToRender);
 
@@ -1718,11 +1723,34 @@ struct AudioRenderer : public Thread,
 		cleanup();
 	}
 
+	void callUpdateCallback(bool isFinished, double progress)
+	{
+		if (finishCallback)
+		{
+			Array<var> finalChannels;
+
+			for (auto& c : channels)
+				finalChannels.add(c.get());
+
+			var args(new DynamicObject());
+			
+			args.getDynamicObject()->setProperty("channels", finalChannels);
+			args.getDynamicObject()->setProperty("finished", isFinished);
+			args.getDynamicObject()->setProperty("progress", progress);
+
+			getMainController()->getKillStateHandler().removeThreadIdFromAudioThreadList();
+			finishCallback.call(&args, 1);
+
+			if(!isFinished)
+				getMainController()->getKillStateHandler().addThreadIdToAudioThreadList();
+		}
+	}
+
 	bool renderAudio()
 	{
 		SuspendHelpers::ScopedTicket st(getMainController());
 
-		
+		callUpdateCallback(false, 0.0);
 
 		while (getMainController()->getKillStateHandler().isAudioRunning())
 		{
@@ -1742,12 +1770,19 @@ struct AudioRenderer : public Thread,
 		dynamic_cast<AudioProcessor*>(getMainController())->setNonRealtime(true);
 		getMainController()->getSampleManager().handleNonRealtimeState();
 		
-
 		{
 			LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
 
 			int numTodo = numSamplesToRender;
 			int pos = 0;
+
+			int numThrowAway = NumThrowAwayBuffers;
+
+			AudioSampleBuffer nirvana(numChannelsToRender, bufferSize);
+
+			auto startTime = Time::getMillisecondCounter();
+
+			
 
 			while (numTodo > 0)
 			{
@@ -1766,10 +1801,37 @@ struct AudioRenderer : public Thread,
 				for (const auto& e : thisBuffer)
 					mb.addEvent(e.toMidiMesage(), e.getTimeStamp());
 
-				dynamic_cast<AudioProcessor*>(getMainController())->processBlock(ab, mb);
+				auto& bufferToUse = numThrowAway > 0 ? nirvana : ab;
 
-				pos += numThisTime;
-				numTodo -= numThisTime;
+				dynamic_cast<AudioProcessor*>(getMainController())->processBlock(bufferToUse, mb);
+
+				if (numThrowAway > 0)
+				{
+					--numThrowAway;
+					events.subtractFromTimeStamps(numThisTime);
+				}
+				else
+				{
+					pos += numThisTime;
+					numTodo -= numThisTime;
+				}
+
+				auto now = Time::getMillisecondCounter();
+
+				if (now - startTime > 90)
+				{
+					auto p = (double)numTodo / (double)numSamplesToRender;
+					callUpdateCallback(false, 1.0 - p);
+					startTime = now;
+					Thread::wait(60);
+				}
+			}
+
+			MidiBuffer emptyBuffer;
+
+			for (int i = 0; i < 50; i++)
+			{
+				dynamic_cast<AudioProcessor*>(getMainController())->processBlock(nirvana, emptyBuffer);
 			}
 		}
 
@@ -1787,17 +1849,7 @@ struct AudioRenderer : public Thread,
 			return;
 		}
 		
-		if (finishCallback)
-		{
-			Array<var> finalChannels;
-			
-			for (auto& c : channels)
-				finalChannels.add(c.get());
-
-			var args(finalChannels);
-
-			finishCallback.call(&args, 1);
-		}
+		callUpdateCallback(true, 1.0);
 
 		cleanup();
 	}
@@ -1829,9 +1881,9 @@ struct AudioRenderer : public Thread,
 	int bufferSize = 0;
 };
 
-void ScriptingApi::Engine::renderAudio(var eventList, var finishCallback)
+void ScriptingApi::Engine::renderAudio(var eventList, var updateCallback)
 {
-	currentExportThread = new AudioRenderer(getScriptProcessor(), eventList, finishCallback);
+	currentExportThread = new AudioRenderer(getScriptProcessor(), eventList, updateCallback);
 }
 
 var ScriptingApi::Engine::createFFT()
