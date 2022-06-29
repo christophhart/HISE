@@ -1051,8 +1051,26 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 		{
 			auto mv = modChains[i].getOneModulationValue(startSample);
 
-			auto value = lastParameters[i] * mv;
-			opaqueNode->parameterFunctions[i](opaqueNode->parameterObjects[i], (double)value);
+			auto p = opaqueNode->getParameter(i);
+
+			if (modChains[i].getChain()->getMode() == Modulation::PanMode)
+			{
+				if (!modChains[i].getChain()->shouldBeProcessedAtAll())
+					mv = 1.0f;
+
+				auto value = lastParameters[i] * mv;
+				p->callback.call((double)value);
+			}
+			else
+			{
+				auto r = p->toRange();
+
+				auto normMaxValue = r.convertTo0to1(lastParameters[i], false);
+				normMaxValue *= mv;
+				auto value = r.convertFrom0to1(normMaxValue, false);
+
+				p->callback.call((double)value);
+			}
 		}
 	}
 
