@@ -44,6 +44,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setUseUndoForPresetLoading);
 };
 
 ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
@@ -65,6 +66,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_3(attachAutomationCallback);
 	ADD_API_METHOD_0(clearAttachedCallbacks);
 	ADD_API_METHOD_3(updateAutomationValues);
+	ADD_API_METHOD_1(setUseUndoForPresetLoading);
 }
 
 ScriptUserPresetHandler::~ScriptUserPresetHandler()
@@ -73,6 +75,11 @@ ScriptUserPresetHandler::~ScriptUserPresetHandler()
 	
 
 	getMainController()->getUserPresetHandler().removeListener(this);
+}
+
+void ScriptUserPresetHandler::setUseUndoForPresetLoading(bool shouldUseUndoManager)
+{
+	getMainController()->getUserPresetHandler().setAllowUndoAtUserPresetLoad(shouldUseUndoManager);
 }
 
 void ScriptUserPresetHandler::setPreCallback(var presetCallback)
@@ -286,19 +293,33 @@ struct AutomationValueUndoAction: public UndoableAction
 
 void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage, bool useUndoManager)
 {
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	if (data.isInt() || data.isInt64())
+	{
+		auto preferredProcessorIndex = (int)data;
+
+		// just refresh the values from the current processor states
+		for (int i = 0; i < uph.getNumCustomAutomationData(); i++)
+		{
+			uph.getCustomAutomationData(i)->updateFromProcessorConnection(preferredProcessorIndex);
+		}
+
+		return;
+	}
+
     if(!useUndoManager)
     {
         if (auto obj = data.getDynamicObject())
         {
             for (auto& nv : obj->getProperties())
             {
-                if (auto cData = getMainController()->getUserPresetHandler().getCustomAutomationData(Identifier(nv.name)))
+                if (auto cData = uph.getCustomAutomationData(Identifier(nv.name)))
                 {
                     float value = nv.value;
                     FloatSanitizers::sanitizeFloatNumber(value);
 
-                    if (sendMessage)
-                        cData->call(value, sendMessage);
+                    cData->call(value, sendMessage);
                 }
             }
         }

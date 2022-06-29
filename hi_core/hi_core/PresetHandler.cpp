@@ -269,8 +269,12 @@ void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const Va
 	{
 		auto& md = chain->getMainController()->getUserPresetHandler().getStoredModuleData();
 
+		bool didSomething = false;
+
 		for (auto m : modules)
 		{
+			didSomething = true;
+
 			auto id = m["ID"].toString();
 			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
 
@@ -292,6 +296,19 @@ void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const Va
 					p->restoreFromValueTree(mcopy);
 					p->sendPooledChangeMessage();
 				}
+			}
+		}
+
+		auto& uph = chain->getMainController()->getUserPresetHandler();
+
+		if (didSomething && uph.isUsingCustomDataModel())
+		{
+			auto numDataObjects = uph.getNumCustomAutomationData();
+
+			// We might need to update the custom automation data values.
+			for (int i = 0; i < numDataObjects; i++)
+			{
+				uph.getCustomAutomationData(i)->updateFromProcessorConnection(0);
 			}
 		}
 	}

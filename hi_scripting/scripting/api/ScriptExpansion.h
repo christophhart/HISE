@@ -68,6 +68,9 @@ public:
 
 	// =================================================================================== API Methods
 
+	/** Enables Engine.undo() to restore the previous user preset (default is disabled). */
+	void setUseUndoForPresetLoading(bool shouldUseUndoManager);
+
 	/** Sets a callback that will be executed synchronously before the preset was loaded*/
 	void setPreCallback(var presetPreCallback);
 

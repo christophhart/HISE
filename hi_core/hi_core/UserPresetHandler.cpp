@@ -143,6 +143,28 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Ma
 	syncListeners.sendMessage(dontSendNotification, args);
 }
 
+void MainController::UserPresetHandler::CustomAutomationData::updateFromProcessorConnection(int preferredIndex)
+{
+	auto pc = processorConnections[preferredIndex];
+
+	if (!pc)
+		pc = processorConnections.getFirst();
+
+	if (pc)
+	{
+		auto newValue = pc.connectedProcessor->getAttribute(pc.connectedParameterIndex);
+		
+		FloatSanitizers::sanitizeFloatNumber(newValue);
+
+		lastValue = newValue;
+		args[0] = index;
+		args[1] = newValue;
+
+		syncListeners.sendMessage(sendNotificationSync, args);
+		asyncListeners.sendMessage(sendNotificationAsync, index, newValue);
+	}
+}
+
 void MainController::UserPresetHandler::CustomAutomationData::call(float newValue, bool sendToListeners)
 {
 	FloatSanitizers::sanitizeFloatNumber(newValue);

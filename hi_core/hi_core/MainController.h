@@ -610,6 +610,8 @@ public:
 
 			void call(float newValue, bool sendToListeners=true);
 
+			void updateFromProcessorConnection(int preferredIndex);
+
 			const int index;
 			Identifier id;
 			float lastValue = 0.0f;
@@ -788,6 +790,8 @@ public:
 		void loadCustomValueTree(const ValueTree& presetData);
 
 		StringArray getCustomAutomationIds() const;
+
+		int getNumCustomAutomationData() const { return customAutomationData.size(); }
 
 		CustomAutomationData::Ptr getCustomAutomationData(const Identifier& id);
 
