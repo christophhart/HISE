@@ -1365,6 +1365,8 @@ namespace control
 
 	template <int NV> using dynamic_smoother_parameter = control::smoothed_parameter<NV, smoothers::dynamic<NV>>;
 
+	template <int NV> using dynamic_smoother_parameter_unscaled = control::smoothed_parameter_unscaled<NV, smoothers::dynamic<NV>>;
+
  	Factory::Factory(DspNetwork* network) :
 		NodeFactory(network)
 	{
@@ -1402,6 +1404,8 @@ namespace control
 		registerNoProcessNode<control::xy_editor::NodeType, control::xy_editor>();
 		registerNoProcessNode<control::resetter_editor::NodeType, control::resetter_editor>();
 		registerPolyModNode<dynamic_smoother_parameter<1>, dynamic_smoother_parameter<NUM_POLYPHONIC_VOICES>, smoothers::dynamic_base::editor>();
+
+		registerPolyModNode<dynamic_smoother_parameter_unscaled<1>, dynamic_smoother_parameter_unscaled<NUM_POLYPHONIC_VOICES>, smoothers::dynamic_base::editor>();
 
 #if HISE_INCLUDE_SNEX
 		registerNoProcessNode<dynamic_expression::ControlNodeType, dynamic_expression::editor>();

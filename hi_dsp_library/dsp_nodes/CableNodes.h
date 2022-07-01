@@ -1767,9 +1767,10 @@ namespace control
 		virtual smoothers::base* getSmootherObject() = 0;
 	};
 
-	template <int NV, typename SmootherClass> struct smoothed_parameter: public control::pimpl::templated_mode,
-                                                                         public polyphonic_base,
-																		 public smoothed_parameter_base
+	template <int NV, typename SmootherClass, bool IsScaled> 
+	struct smoothed_parameter_pimpl: public control::pimpl::templated_mode,
+                                     public polyphonic_base,
+									 public smoothed_parameter_base
 	{
 		static constexpr int NumVoices = NV;
 
@@ -1780,25 +1781,32 @@ namespace control
 			Enabled
 		};
 
-		smoothed_parameter():
+		smoothed_parameter_pimpl():
           polyphonic_base(getStaticId(), false),
           templated_mode(getStaticId(), "smoothers")
 		{
+			if (!IsScaled)
+			{
+				cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::UseUnnormalisedModulation);
+				cppgen::CustomNodeProperties::addUnscaledParameter(getStaticId(), "Value");
+			}
+
             cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
             
 			static_assert(std::is_base_of<smoothers::base, SmootherClass>(), "Not a smoother class");
 			static_assert(SmootherClass::NumVoices == NumVoices, "Voice amount mismatch");
 		}
 
-		SN_NODE_ID("smoothed_parameter");
-		SN_GET_SELF_AS_OBJECT(smoothed_parameter);
+		static Identifier getStaticId() { return IsScaled ? "smoothed_parameter" : "smoothed_parameter_unscaled"; };
+
+		SN_GET_SELF_AS_OBJECT(smoothed_parameter_pimpl);
 		SN_DESCRIPTION("Smoothes an incoming modulation signal");
 
 		DEFINE_PARAMETERS
 		{
-			DEF_PARAMETER(Value, smoothed_parameter);
-			DEF_PARAMETER(SmoothingTime, smoothed_parameter);
-			DEF_PARAMETER(Enabled, smoothed_parameter);
+			DEF_PARAMETER(Value, smoothed_parameter_pimpl);
+			DEF_PARAMETER(SmoothingTime, smoothed_parameter_pimpl);
+			DEF_PARAMETER(Enabled, smoothed_parameter_pimpl);
 		}
 		SN_PARAMETER_MEMBER_FUNCTION;
 
@@ -1810,7 +1818,7 @@ namespace control
 
 		SN_EMPTY_HANDLE_EVENT;
 
-		static constexpr bool isNormalisedModulation() { return true; };
+		static constexpr bool isNormalisedModulation() { return IsScaled; };
 
 		static constexpr bool isPolyphonic() { return NumVoices > 1; };
 
@@ -1852,18 +1860,18 @@ namespace control
 		void createParameters(ParameterDataList& data)
 		{
 			{
-				DEFINE_PARAMETERDATA(smoothed_parameter, Value);
+				DEFINE_PARAMETERDATA(smoothed_parameter_pimpl, Value);
 				p.setRange({ 0.0, 1.0 });
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(smoothed_parameter, SmoothingTime);
+				DEFINE_PARAMETERDATA(smoothed_parameter_pimpl, SmoothingTime);
 				p.setRange({ 0.1, 1000.0, 0.1 });
 				p.setDefaultValue(100.0);
 				data.add(std::move(p));
 			}
 			{
-				DEFINE_PARAMETERDATA(smoothed_parameter, Enabled);
+				DEFINE_PARAMETERDATA(smoothed_parameter_pimpl, Enabled);
 				p.setRange({ 0.0, 1.0, 1.0 });
 				p.setDefaultValue(1.0);
 				data.add(std::move(p));
@@ -1889,5 +1897,8 @@ namespace control
 		ModValue modValue;
 	};
 
+	template <int NV, typename SmootherClass> using smoothed_parameter = smoothed_parameter_pimpl<NV, SmootherClass, true>;
+	template <int NV, typename SmootherClass> using smoothed_parameter_unscaled = smoothed_parameter_pimpl<NV, SmootherClass, false>;
 }
+
 }

@@ -1083,6 +1083,10 @@ void HardcodedMasterFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
 	if (numChannelsToRender == 2)
 	{
+		// Rewrite the channel indexes, the buffer already points to the
+		// correct channels...
+		channelIndexes[0] = 0;
+		channelIndexes[1] = 1;
 		MasterEffectProcessor::renderWholeBuffer(buffer);
 	}
 	else
