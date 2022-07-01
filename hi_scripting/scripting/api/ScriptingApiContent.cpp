@@ -733,13 +733,13 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 {
 	Identifier propertyId = Identifier(propertyName);
 
-	handleScriptPropertyChange(propertyId);
-
-	if (!defaultValues.contains(propertyId))
+	if (!propertyIds.contains(propertyId))
 	{
-		logErrorAndContinue("the property does not exist");
+		reportScriptError("the property doesn't exist");
 		RETURN_VOID_IF_NO_THROW();
 	}
+
+	handleScriptPropertyChange(propertyId);
 
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
