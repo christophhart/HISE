@@ -2872,6 +2872,8 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parse()
 	p = getNodePath(n->nodeTree);
 	classId = ValueTreeIterator::getSnexCode(n->nodeTree);
 
+	
+
 	if (classId.isEmpty())
 	{
 		Error e;
@@ -2899,9 +2901,13 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseWrappedSnexNode()
 	Node::Ptr wn = new Node(parent, n->scopedId.id, p);
 	wn->nodeTree = n->nodeTree;
 	
-	parent << code;
-	parent.addEmptyLine();
-
+	if (!parent.definedSnexClasses.contains(classId))
+	{
+		parent << code;
+		parent.addEmptyLine();
+		parent.definedSnexClasses.add(classId);
+	}
+		
 	if (CustomNodeProperties::nodeHasProperty(wn->nodeTree, PropertyIds::IsPolyphonic))
 		wn->addTemplateIntegerArgument("NV", true);
 

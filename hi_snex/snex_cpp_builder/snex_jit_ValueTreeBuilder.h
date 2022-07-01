@@ -934,6 +934,8 @@ private:
 	PoolBase<PooledExpression> pooledExpressions;
 	PoolBase<PooledCableType> pooledCables;
 
+	StringArray definedSnexClasses;
+
 	NamespacedIdentifier getNodeId(const ValueTree& n);
 	NamespacedIdentifier getNodeVariable(const ValueTree& n);
 
