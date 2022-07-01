@@ -1417,6 +1417,8 @@ namespace control
 
 		registerNoProcessNode<control::midi_cc<parameter::dynamic_base_holder>, midi_cc_editor>();
 
+		registerNoProcessNode<control::voice_bang<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
 		registerPolyModNode<tempo_sync<1>, tempo_sync<NUM_POLYPHONIC_VOICES>, TempoDisplay>();

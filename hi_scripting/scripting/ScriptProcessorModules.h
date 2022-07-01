@@ -525,13 +525,21 @@ struct VoiceDataStack
 		}
 		else if (m.isPitchWheel() || m.isAftertouch() || m.isControllerOfType(74))
 		{
-			for (auto vd : voiceNoteOns)
+			if (voiceNoteOns.isEmpty())
 			{
-				if (vd.noteOn.getChannel() == m.getChannel())
+				HiseEvent c(m);
+				n.handleHiseEvent(c);
+			}
+			else
+			{
+				for (auto vd : voiceNoteOns)
 				{
-					HiseEvent c(m);
-					PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
-					n.handleHiseEvent(c);
+					if (vd.noteOn.getChannel() == m.getChannel())
+					{
+						HiseEvent c(m);
+						PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
+						n.handleHiseEvent(c);
+					}
 				}
 			}
 		}

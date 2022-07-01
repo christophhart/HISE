@@ -806,6 +806,37 @@ namespace control
 		double lastValue = 0.0;
 	};
 
+	template <typename ParameterClass> struct voice_bang : public mothernode,
+														   public pimpl::parameter_node_base<ParameterClass>,
+														   public pimpl::no_processing
+	{
+		SN_NODE_ID("voice_bang");
+		SN_GET_SELF_AS_OBJECT(voice_bang);
+		SN_DESCRIPTION("sends out the current value when a voice is started (note-on is received)");
+
+		SN_ADD_SET_VALUE(voice_bang);
+
+		voice_bang() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
+
+		void handleHiseEvent(HiseEvent& e)
+		{
+			if (e.isNoteOn())
+			{
+				if (this->getParameter().isConnected())
+					this->getParameter().call(value);
+			}
+		}
+
+		void setValue(double input)
+		{
+			value = input;
+		}
+
+		double value = 0.0;
+	};
+
 	template <typename ParameterClass> struct normaliser : public mothernode,
 														   public pimpl::parameter_node_base<ParameterClass>,
 														   public pimpl::no_processing
