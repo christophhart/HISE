@@ -535,7 +535,7 @@ bool ConvolutionEffectBase::reloadInternal()
 		applyHighFrequencyDamping(scratchBuffer, resampledLength, cutoffFrequency, sampleRate);
 
 	headSize = nextPowerOfTwo(headSize);
-	const auto fullTailLength = nextPowerOfTwo(resampledLength - headSize);
+	const auto fullTailLength = jmax(headSize, nextPowerOfTwo(resampledLength - headSize));
 
 	ScopedPointer<MultithreadedConvolver> s1, s2;
 
