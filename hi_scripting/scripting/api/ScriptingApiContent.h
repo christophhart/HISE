@@ -2281,6 +2281,12 @@ public:
 	/** Creates a look and feel that you can attach manually to certain components. */
 	var createLocalLookAndFeel();
 
+	/** Returns 1 if the left mouse button is clicked somewhere on the interface and 2 if the right button is clicked. */
+	int isMouseDown();
+
+	/** Returns the name of the component that is currently hovered. */
+	String getComponentUnderMouse();
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.

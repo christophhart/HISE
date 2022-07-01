@@ -4547,6 +4547,8 @@ colour(Colour(0xff777777))
 	setMethod("getScreenBounds", Wrapper::getScreenBounds);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
+	setMethod("isMouseDown", Wrapper::isMouseDown);
+	setMethod("getComponentUnderMouse", Wrapper::getComponentUnderMouse);
 }
 
 ScriptingApi::Content::~Content()
@@ -5475,6 +5477,27 @@ juce::var ScriptingApi::Content::createMarkdownRenderer()
 	return var(new ScriptingObjects::MarkdownObject(getScriptProcessor()));
 }
 
+int ScriptingApi::Content::isMouseDown()
+{
+	auto mods = Desktop::getInstance().getMainMouseSource().getCurrentModifiers();
+
+	if (mods.isLeftButtonDown())
+		return 1;
+	if (mods.isRightButtonDown())
+		return 2;
+
+	return 0;
+}
+
+String ScriptingApi::Content::getComponentUnderMouse()
+{
+	if (auto c = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse())
+	{
+		return c->getComponentID();
+	}
+
+	return "";
+}
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

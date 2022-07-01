@@ -193,8 +193,12 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 {
 	auto sc = getScriptComponent();
 
+	component->setComponentID(sc->getName().toString());
+
 	if (sc->wantsKeyboardFocus())
 	{
+		
+
 		component->addKeyListener(this);
 		component->setWantsKeyboardFocus(true);
 		Desktop::getInstance().addFocusChangeListener(this);

@@ -129,6 +129,8 @@ struct ScriptingApi::Content::Wrapper
 	static var createPath(const var::NativeFunctionArgs& args);
 	static var createShader(const var::NativeFunctionArgs& args);
 	static var createMarkdownRenderer(const var::NativeFunctionArgs& args);
+	static var isMouseDown(const var::NativeFunctionArgs& args);
+	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
 };
 
 var ScriptingApi::Content::Wrapper::addButton (const var::NativeFunctionArgs& args)
@@ -992,6 +994,26 @@ juce::var ScriptingApi::Content::Wrapper::getScreenBounds(const var::NativeFunct
 	{
 		CHECK_ARGUMENTS("getScreenBounds()", 1);
 		return thisObject->getScreenBounds(args.arguments[0]);
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getComponentUnderMouse(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getComponentUnderMouse();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::isMouseDown(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->isMouseDown();
 	}
 
 	return var();
