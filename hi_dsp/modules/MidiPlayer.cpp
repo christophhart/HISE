@@ -1170,6 +1170,10 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 				if(!consumed)
 					buffer.addEvent(newEvent);
 			}
+			else if (newEvent.isPitchWheel())
+			{
+				buffer.addEvent(newEvent);
+			}
 			else if (newEvent.isNoteOn() && !isBypassed())
 			{
 				getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
@@ -1251,7 +1255,6 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 
 			if (overdubMode)
 			{
-				
 				HiseEvent copy(m);
 
 				copy.setChannel(currentTrackIndex + 1);
@@ -1268,25 +1271,26 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 					SimpleReadWriteLock::ScopedWriteLock sl(overdubLock);
 					overdubNoteOns.insert(newPair);
 				}
-				else
+				else if (copy.isNoteOff())
 				{
-					if (copy.isNoteOff())
+					bool found = false;
+
 					{
-						bool found = false;
+						SimpleReadWriteLock::ScopedReadLock sl(overdubLock);
 
+						for (auto& e : overdubNoteOns)
 						{
-							SimpleReadWriteLock::ScopedReadLock sl(overdubLock);
-
-							for (auto& e : overdubNoteOns)
+							if (e.on.getEventId() == copy.getEventId())
 							{
-								if (e.on.getEventId() == copy.getEventId())
-								{
-									e.off = copy;
-									break;
-								}
+								e.off = copy;
+								break;
 							}
 						}
 					}
+				}
+				else
+				{
+					controllerEvents.insertWithoutSearch(copy);
 				}
 
 				return;
@@ -1584,10 +1588,20 @@ hise::PoolReference MidiPlayer::getPoolReference(int index /*= -1*/)
 
 void MidiPlayer::flushOverdubNotes(double timestampForActiveNotes/*=-1.0*/)
 {
-	if (overdubNoteOns.isEmpty())
+	if (overdubNoteOns.isEmpty() && controllerEvents.isEmpty())
 		return;
 
 	auto l = getCurrentSequence()->getEventList(44100.0, 120.0, HiseMidiSequence::TimestampEditFormat::Ticks);
+
+	bool didSomething = false;
+
+	for (const auto& c : controllerEvents)
+	{
+		l.add(c);
+		didSomething = true;
+	}
+	
+	controllerEvents.clearQuick();
 
 	for (auto& np : overdubNoteOns)
 	{
@@ -1610,6 +1624,7 @@ void MidiPlayer::flushOverdubNotes(double timestampForActiveNotes/*=-1.0*/)
 
 		if (!np.off.isEmpty())
 		{
+			didSomething = true;
 			l.add(np.on);
 			l.add(np.off);
 		}
@@ -1621,7 +1636,8 @@ void MidiPlayer::flushOverdubNotes(double timestampForActiveNotes/*=-1.0*/)
 			overdubNoteOns.removeElement(i--);
 	}
 
-	flushEdit(l, HiseMidiSequence::TimestampEditFormat::Ticks);
+	if(didSomething)
+		flushEdit(l, HiseMidiSequence::TimestampEditFormat::Ticks);
 }
 
 bool MidiPlayer::stopInternal(int timestamp)

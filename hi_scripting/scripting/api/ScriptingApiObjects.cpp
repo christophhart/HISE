@@ -4460,14 +4460,43 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 }
 
 int ScriptingObjects::ScriptingMessageHolder::getNoteNumber() const { return (int)e.getNoteNumber(); }
-var ScriptingObjects::ScriptingMessageHolder::getControllerNumber() const { return (int)e.getControllerNumber(); }
-var ScriptingObjects::ScriptingMessageHolder::getControllerValue() const { return (int)e.getControllerValue(); }
+var ScriptingObjects::ScriptingMessageHolder::getControllerNumber() const 
+{ 
+	if (e.isPitchWheel())
+		return 129;
+
+	if (e.isAftertouch())
+		return 128;
+
+	return (int)e.getControllerNumber(); 
+}
+var ScriptingObjects::ScriptingMessageHolder::getControllerValue() const 
+{ 
+	if (e.isPitchWheel())
+		return e.getPitchWheelValue();
+	else
+		return (int)e.getControllerValue(); 
+}
 int ScriptingObjects::ScriptingMessageHolder::getChannel() const { return (int)e.getChannel(); }
 void ScriptingObjects::ScriptingMessageHolder::setChannel(int newChannel) { e.setChannel(newChannel); }
 void ScriptingObjects::ScriptingMessageHolder::setNoteNumber(int newNoteNumber) { e.setNoteNumber(newNoteNumber); }
 void ScriptingObjects::ScriptingMessageHolder::setVelocity(int newVelocity) { e.setVelocity((uint8)newVelocity); }
-void ScriptingObjects::ScriptingMessageHolder::setControllerNumber(int newControllerNumber) { e.setControllerNumber(newControllerNumber);}
-void ScriptingObjects::ScriptingMessageHolder::setControllerValue(int newControllerValue) { e.setControllerValue(newControllerValue); }
+void ScriptingObjects::ScriptingMessageHolder::setControllerNumber(int newControllerNumber) 
+{ 
+	if (newControllerNumber == 128)
+		e.setType(HiseEvent::Type::Aftertouch);
+	else if (newControllerNumber == 129)
+		e.setType(HiseEvent::Type::PitchBend);
+	else
+		e.setControllerNumber(newControllerNumber);
+}
+void ScriptingObjects::ScriptingMessageHolder::setControllerValue(int newControllerValue) 
+{ 
+	if (e.isPitchWheel())
+		e.setPitchWheelValue(newControllerValue);
+	else
+		e.setControllerValue(newControllerValue); 
+}
 
 void ScriptingObjects::ScriptingMessageHolder::setType(int type)
 {
@@ -4495,7 +4524,7 @@ void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) 
 void ScriptingObjects::ScriptingMessageHolder::setStartOffset(int offset) { e.setStartOffset((uint16)offset); }
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOn() const { return e.isNoteOn(); }
 bool ScriptingObjects::ScriptingMessageHolder::isNoteOff() const { return e.isNoteOff(); }
-bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController(); }
+bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.isController() || e.isPitchWheel() || e.isAftertouch(); }
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const
 {

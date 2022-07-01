@@ -715,6 +715,7 @@ private:
 
 	bool overdubMode = true;
 	hise::UnorderedStack<NotePair> overdubNoteOns;
+	hise::UnorderedStack<HiseEvent> controllerEvents;
 	SimpleReadWriteLock overdubLock;
 
 	struct Updater : private PooledUIUpdater::SimpleTimer
