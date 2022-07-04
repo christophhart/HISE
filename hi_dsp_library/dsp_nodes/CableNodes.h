@@ -607,8 +607,8 @@ namespace control
 			Volume = 7,
 			Expression = 11,
 			Sustain = 64,
-			Aftertouch = 128,
-			Pitchbend = 129,
+			Aftertouch = HiseEvent::AfterTouchCCNumber,
+			Pitchbend = HiseEvent::PitchWheelCCNumber,
 			Stroke = 130,
 			Release = 131
 		};

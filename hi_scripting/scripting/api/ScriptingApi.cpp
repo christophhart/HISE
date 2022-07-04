@@ -276,11 +276,14 @@ struct ScriptingApi::Message::Wrapper
 
 ScriptingApi::Message::Message(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
-ApiClass(0),
+ApiClass(2),
 messageHolder(nullptr),
 constMessageHolder(nullptr),
 allNotesOffCallback(p, var(), 0)
 {
+	addConstant("PITCH_BEND_CC", HiseEvent::PitchWheelCCNumber);
+	addConstant("AFTERTOUC_CC", HiseEvent::AfterTouchCCNumber);
+
 	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
 
 	ADD_API_METHOD_1(setNoteNumber);
@@ -466,10 +469,7 @@ var ScriptingApi::Message::getControllerNumber() const
 	}
 #endif
 
-	if(constMessageHolder->isController())		  return constMessageHolder->getControllerNumber();
-	else if (constMessageHolder->isPitchWheel())	  return 128;
-	else if (constMessageHolder->isAftertouch())   return 129;
-	else									  return var::undefined();
+	return constMessageHolder->getControllerNumber();
 };
 
 
@@ -4753,11 +4753,15 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 			{
                 HiseEvent e;
 
-                if(controllerNumber == 129)
+                if(controllerNumber == HiseEvent::PitchWheelCCNumber)
                 {
                     e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
                     e.setPitchWheelValue(controllerValue);
                 }
+				else if (controllerNumber == HiseEvent::AfterTouchCCNumber)
+				{
+					e = HiseEvent(HiseEvent::Type::Aftertouch, 0, controllerValue);
+				}
                 else
                 {
                     e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);

@@ -4462,13 +4462,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 int ScriptingObjects::ScriptingMessageHolder::getNoteNumber() const { return (int)e.getNoteNumber(); }
 var ScriptingObjects::ScriptingMessageHolder::getControllerNumber() const 
 { 
-	if (e.isPitchWheel())
-		return 129;
-
-	if (e.isAftertouch())
-		return 128;
-
-	return (int)e.getControllerNumber(); 
+	return (int)e.getControllerNumber();
 }
 var ScriptingObjects::ScriptingMessageHolder::getControllerValue() const 
 { 
@@ -4483,9 +4477,9 @@ void ScriptingObjects::ScriptingMessageHolder::setNoteNumber(int newNoteNumber) 
 void ScriptingObjects::ScriptingMessageHolder::setVelocity(int newVelocity) { e.setVelocity((uint8)newVelocity); }
 void ScriptingObjects::ScriptingMessageHolder::setControllerNumber(int newControllerNumber) 
 { 
-	if (newControllerNumber == 128)
+	if (newControllerNumber == HiseEvent::AfterTouchCCNumber)
 		e.setType(HiseEvent::Type::Aftertouch);
-	else if (newControllerNumber == 129)
+	else if (newControllerNumber == HiseEvent::PitchWheelCCNumber)
 		e.setType(HiseEvent::Type::PitchBend);
 	else
 		e.setControllerNumber(newControllerNumber);
@@ -4528,12 +4522,24 @@ bool ScriptingObjects::ScriptingMessageHolder::isController() const { return e.i
 
 String ScriptingObjects::ScriptingMessageHolder::dump() const
 {
+
 	String x;
 	x << "Type: " << e.getTypeAsString() << ", ";
 	x << "Channel: " << String(e.getChannel()) << ", ";
-	x << "Number: " << String(e.getNoteNumber()) << ", ";
-	x << "Value: " << String(e.getVelocity()) << ", ";
-	x << "EventId: " << String(e.getEventId()) << ", ";
+
+	if (e.isPitchWheel())
+	{
+		x << "Value: " << String(e.getPitchWheelValue()) << ", ";
+	}
+	else
+	{
+		x << "Number: " << String(e.getNoteNumber()) << ", ";
+		x << "Value: " << String(e.getVelocity()) << ", ";
+		x << "EventId: " << String(e.getEventId()) << ", ";
+	}
+
+	
+	
 	x << "Timestamp: " << String(e.getTimeStamp()) << ", ";
 
 	return x;

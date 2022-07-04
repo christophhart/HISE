@@ -321,6 +321,16 @@ uint16 HiseEvent::getStartOffset() const noexcept
 	return startOffset;
 }
 
+int HiseEvent::getControllerNumber() const noexcept
+{
+	if (type == Type::PitchBend)
+		return PitchWheelCCNumber;
+	if (type == Type::Aftertouch)
+		return AfterTouchCCNumber;
+
+	return  number;
+}
+
 void HiseEvent::setSongPositionValue(int positionInMidiBeats)
 {
 	number = positionInMidiBeats & 127;

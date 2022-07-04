@@ -84,6 +84,9 @@ class event_alignment HiseEvent
 {
 public:
 
+	static constexpr int PitchWheelCCNumber = 128;
+	static constexpr int AfterTouchCCNumber = 129;
+
 	/** The type of the event. The most important MIDI types are there, but there are a few
 	    more interesting types for internal HISE stuff. */
 	enum class Type : uint8
@@ -380,7 +383,7 @@ public:
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
 
 	/** Copied from MidiMessage. */
-	int getControllerNumber() const noexcept{ return number; };
+	int getControllerNumber() const noexcept;;
 
 	/** Copied from MidiMessage. */
 	int getControllerValue() const noexcept{ return value; };
