@@ -360,6 +360,8 @@ struct encoder
 	const pod* begin() const { return items.begin(); }
 	const pod* end() const { return items.end(); }
 
+	bool isEmpty() const { return begin() == end(); }
+
 	MemoryBlock writeItems();
 
 private:

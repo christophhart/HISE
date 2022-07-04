@@ -1349,6 +1349,8 @@ template <class T> struct node : public scriptnode::data::base
 
 		auto peList = parameter::encoder::fromNode<node>();
 
+		
+
 		for (const parameter::pod& p : peList)
 		{
 			if (isPositiveAndBelow(p.index, l.size()))
@@ -1358,7 +1360,8 @@ template <class T> struct node : public scriptnode::data::base
 			}
 		}
 
-		data.addArray(l);
+		if (!peList.isEmpty())
+			data.addArray(l);
 	}
 
 
