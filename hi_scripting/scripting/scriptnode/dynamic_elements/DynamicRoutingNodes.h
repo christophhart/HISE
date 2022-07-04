@@ -224,6 +224,7 @@ struct dynamic_matrix : public RoutableProcessor
 {
 	static constexpr bool isFixedChannelMatrix() { return false; }
 	static constexpr int getNumChannels() { return NUM_MAX_CHANNELS; };
+	static constexpr bool hasSendChannels() { return true; }
 
 	dynamic_matrix() :
 		internalData(PropertyIds::EmbeddedData, "")

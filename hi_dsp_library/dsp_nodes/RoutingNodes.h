@@ -565,6 +565,74 @@ struct ms_decode: public HiseDspBase
 	}
 };
 
+struct matrix_helpers
+{
+	enum class SpecialType
+	{
+		NoSpecialType,
+		LeftToRight,
+		RightToLeft,
+		SwapChannels,
+		LeftOnly,
+		RightOnly,
+		numSpecialTypes
+	};
+
+	template <SpecialType Type> static void applySpecialType(ProcessData<2>& d)
+	{
+		static_assert(Type != SpecialType::NoSpecialType);
+
+		auto ptrs = d.getRawDataPointers();
+
+		switch (Type)
+		{
+		case SpecialType::LeftOnly:
+			FloatVectorOperations::clear(ptrs[1], d.getNumSamples());
+			break;
+		case SpecialType::RightOnly:
+			FloatVectorOperations::clear(ptrs[0], d.getNumSamples());
+			break;
+		case SpecialType::LeftToRight:
+			FloatVectorOperations::copy(ptrs[1], ptrs[0], d.getNumSamples());
+			FloatVectorOperations::clear(ptrs[0], d.getNumSamples());
+			break;
+		case SpecialType::RightToLeft:
+			FloatVectorOperations::copy(ptrs[0], ptrs[1], d.getNumSamples());
+			FloatVectorOperations::clear(ptrs[1], d.getNumSamples());
+			break;
+		case SpecialType::SwapChannels:
+		{
+			auto bf = (float*)alloca(sizeof(float) * d.getNumSamples());
+			FloatVectorOperations::copy(bf, ptrs[0], d.getNumSamples());
+			FloatVectorOperations::copy(ptrs[0], ptrs[1], d.getNumSamples());
+			FloatVectorOperations::copy(ptrs[1], bf, d.getNumSamples());
+			break;
+		}
+		}
+	}
+
+	template <typename MatrixType> static constexpr SpecialType getSpecialType()
+	{
+		if constexpr (MatrixType::getNumChannels() != 2 || MatrixType::hasSendChannels())
+			return SpecialType::NoSpecialType;
+
+		constexpr int l = MatrixType::getChannel(0);
+		constexpr int r = MatrixType::getChannel(1);
+
+		if constexpr (l == 0 && r == 0)
+			return SpecialType::RightToLeft;
+		else if constexpr (l == 1 && r == 1)
+			return SpecialType::LeftToRight;
+		else if constexpr (l == 0 && r == -1)
+			return SpecialType::LeftOnly;
+		else if constexpr (l == -1 && r == 1)
+			return SpecialType::RightOnly;
+		else if constexpr (l == 1 && r == 0)
+			return SpecialType::SwapChannels;
+
+		return SpecialType::NoSpecialType;
+	}
+};
 
 template <class MatrixType> struct matrix
 {
@@ -590,15 +658,22 @@ template <class MatrixType> struct matrix
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (MatrixType::isFixedChannelMatrix())
-			FrameConverters::processFix<MatrixType::getNumChannels()>(this, data);
+		if constexpr (MatrixType::isFixedChannelMatrix())
+		{
+			constexpr auto SType = matrix_helpers::getSpecialType<MatrixType>();
+
+			if constexpr (SType != matrix_helpers::SpecialType::NoSpecialType)
+				matrix_helpers::applySpecialType<SType>(data);
+			else
+				FrameConverters::processFix<MatrixType::getNumChannels()>(this, data);
+		}
 		else
 			FrameConverters::forwardToFrame16(this, data);
 	}
 	
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (MatrixType::isFixedChannelMatrix())
+		if constexpr (MatrixType::isFixedChannelMatrix())
 		{
 			auto& fd = span<float, MatrixType::getNumChannels()>::as(data.begin());
 			processMatrixFrame(fd);
@@ -630,10 +705,13 @@ template <class MatrixType> struct matrix
 			if (index != -1)
 				data[index] += chData[i];
 
-			auto sendIndex = m.getSendChannel(i);
+			if constexpr (m.hasSendChannels())
+			{
+				auto sendIndex = m.getSendChannel(i);
 
-			if (sendIndex != -1)
-				data[sendIndex] += chData[i];
+				if (sendIndex != -1)
+					data[sendIndex] += chData[i];
+			}
 		}
 	}
 
@@ -647,6 +725,30 @@ template <class MatrixType> struct matrix
 	MatrixType m;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(matrix);
+};
+
+
+
+template <int N, typename SubType, bool HasSendChannels> struct static_matrix
+{
+	virtual ~static_matrix() {};
+	static constexpr bool isFixedChannelMatrix() { return true; }
+	static constexpr bool hasSendChannels() { return HasSendChannels; }
+
+	static constexpr int getChannel(int index) { return SubType::channels[index]; }
+
+	static constexpr int getSendChannel(int index)
+	{ 
+		if constexpr(hasSendChannels())
+			return SubType::sendChannels[index]; 
+		else
+			return -1;
+	}
+
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PREPARE;
+
+	static constexpr int getNumChannels() { return N; }
 };
 
 }
