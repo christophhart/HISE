@@ -705,7 +705,7 @@ template <class MatrixType> struct matrix
 			if (index != -1)
 				data[index] += chData[i];
 
-			if constexpr (m.hasSendChannels())
+			if constexpr (MatrixType::hasSendChannels())
 			{
 				auto sendIndex = m.getSendChannel(i);
 
