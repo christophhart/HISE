@@ -71,6 +71,8 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		ADD_INLINEABLE_API_METHOD_1(floor);
 		ADD_INLINEABLE_API_METHOD_2(fmod);
 		ADD_INLINEABLE_API_METHOD_2(wrap);
+		ADD_INLINEABLE_API_METHOD_2(from0To1);
+		ADD_INLINEABLE_API_METHOD_2(to0To1);
 
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
@@ -118,6 +120,8 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_1(MathClass, floor);
 		API_METHOD_WRAPPER_2(MathClass, fmod);
 		API_METHOD_WRAPPER_2(MathClass, wrap);
+		API_METHOD_WRAPPER_2(MathClass, from0To1);
+		API_METHOD_WRAPPER_2(MathClass, to0To1);
 	};
 
 	/** Returns a random number between 0.0 and 1.0. */
@@ -246,7 +250,58 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	/** Wraps the value around the limit (always positive). */
 	var wrap(var value, var limit) { return hmath::wrap((double)value, (double)limit); }
 
+	
+	/** Converts a normalised value (between 0 and 1) to a range defined by the JSON data in rangeObj. */
+	var from0To1(var value, var rangeObj)
+	{
+		return getRange(rangeObj).convertFrom0to1((double)value, true);
+	}
+
+	/** Converts a value inside a range defined by the JSON data in range obj to a normalised value. */
+	var to0To1(var value, var rangeObj)
+	{
+		return getRange(rangeObj).convertTo0to1((double)value, true);
+	}
+
 	template <typename Type> static Type sign_(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
+
+	static scriptnode::InvertableParameterRange getRange(var rangeObj)
+	{
+		InvertableParameterRange r;
+
+		if (auto dyn = rangeObj.getDynamicObject())
+		{
+			const auto& set = dyn->getProperties();
+
+			r.inv = set.getWithDefault(PropertyIds::Inverted, false);
+
+			if (set.contains(PropertyIds::MaxValue)) // scriptnode range object
+			{
+				r.rng.start = set.getWithDefault(PropertyIds::MinValue, 0.0);
+				r.rng.end = set.getWithDefault(PropertyIds::MaxValue, 1.0);
+				r.rng.interval = set.getWithDefault(PropertyIds::StepSize, 0.0);
+				r.rng.skew = set.getWithDefault(PropertyIds::SkewFactor, 1.0);
+			}
+			else if (set.contains("max")) // UI Component properties
+			{
+				r.rng.start = set.getWithDefault("min", 0.0);
+				r.rng.end = set.getWithDefault("max", 1.0);
+				r.rng.interval = set.getWithDefault("stepSize", 0.0);
+
+				if (set.contains("middlePosition"))
+					r.rng.setSkewForCentre(set["middlePosition"]);
+			}
+			else if (set.contains("Start")) // MIDI Automation object
+			{
+				r.rng.start = set.getWithDefault("Start", 0.0);
+				r.rng.end = set.getWithDefault("End", 1.0);
+				r.rng.interval = set.getWithDefault(PropertyIds::StepSize, 0.0);
+				r.rng.skew = set.getWithDefault("Skew", 1.0);
+			}
+		}
+
+		return r;
+	}
 };
 
 } // namespace hise

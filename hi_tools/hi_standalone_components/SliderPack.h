@@ -346,6 +346,9 @@ public:
 	/** Sets the value of one of the sliders. If the index is bigger than the slider amount, it will do nothing. */
 	void setValue(int sliderIndex, double newValue);
 
+	int getCurrentlyDraggedSliderIndex() const { return currentlyDraggedSlider; }
+	double getCurrentlyDraggedSliderValue() const { return currentlyDraggedSliderValue; }
+
 	void setSliderPackData(SliderPackData* newData);
 
 	void setComplexDataUIBase(ComplexDataUIBase* newData) override
