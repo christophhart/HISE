@@ -585,11 +585,12 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("concat", concat);
 		setMethod("encrypt", encrypt);
 		setMethod("decrypt", decrypt);
+		setMethod("contains", contains);
 	}
 
 	static Identifier getClassName()  { static const Identifier i("String"); return i; }
 
-	
+	static var contains(Args a)		 { return a.thisObject.toString().contains(getString(a, 0)); }
 	static var fromCharCode(Args a)  { return String::charToString(getInt(a, 0)); }
 	static var substring(Args a)     { return a.thisObject.toString().substring(getInt(a, 0), getInt(a, 1)); }
 	static var indexOf(Args a)       { return a.thisObject.toString().indexOf(getString(a, 0)); }
@@ -728,6 +729,9 @@ public:
 
 	/** Converts a string to lowercase letters. */
 	String toLowerCase() { return String(); }
+
+	/** Checks if the string contains the given substring. */
+	bool contains(String otherString) { return false; }
 
 	/** Converts a string to uppercase letters. */
 	String toUpperCase() { return String(); }
