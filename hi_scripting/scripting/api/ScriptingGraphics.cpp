@@ -1331,6 +1331,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyVignette);
 	API_METHOD_WRAPPER_2(GraphicsObject, applyShader);
     API_VOID_METHOD_WRAPPER_2(GraphicsObject, flip);
+	API_METHOD_WRAPPER_1(GraphicsObject, getStringWidth);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1385,6 +1386,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 
 	ADD_API_METHOD_0(endLayer);
 	ADD_API_METHOD_2(beginBlendLayer);
+	ADD_API_METHOD_1(getStringWidth);
 
 	WeakReference<Processor> safeP(dynamic_cast<Processor*>(p));
 
@@ -1621,6 +1623,7 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
+	currentFont = f;
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
@@ -1630,7 +1633,7 @@ void ScriptingObjects::GraphicsObject::setFontWithSpacing(String fontName, float
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
 
 	f.setExtraKerningFactor(spacing);
-
+	currentFont = f;
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
@@ -1854,6 +1857,11 @@ bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 	}
 
 	return false;
+}
+
+float ScriptingObjects::GraphicsObject::getStringWidth(String text)
+{
+	return currentFont.getStringWidthFloat(text);
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
@@ -3234,6 +3242,12 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackTextPopup(Graphic
 		setColourOrBlack(obj, "itemColour", s, Slider::thumbColourId);
 		setColourOrBlack(obj, "itemColour2", s, Slider::textBoxOutlineColourId);
 		setColourOrBlack(obj, "textColour", s, Slider::trackColourId);
+
+		auto index = s.getCurrentlyDraggedSliderIndex();
+		auto value = s.getCurrentlyDraggedSliderValue();
+
+		obj->setProperty("index", index);
+		obj->setProperty("value", value);
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
 		

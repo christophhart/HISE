@@ -514,6 +514,8 @@ namespace ScriptingObjects
 		/** Applies an OpenGL shader to the panel. Returns false if the shader could not be compiled. */
 		bool applyShader(var shader, var area);
 
+		/** Returns the width of the string using the current font. */
+		float getStringWidth(String text);
 
 		/** Fills a Path. */
 		void fillPath(var path, var area);
@@ -539,6 +541,8 @@ namespace ScriptingObjects
 		Point<float> getPointFromVar(const var& data);
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
+
+		Font currentFont;
 
 		Result rectangleResult;
 
