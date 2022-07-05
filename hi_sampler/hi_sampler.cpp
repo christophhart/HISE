@@ -47,8 +47,6 @@
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.cpp"
 
-#include "sampler/MachFiveImporter.cpp"
-
 #include "sampler/components/FileNamePartComponent.cpp"
 #include "sampler/components/FileNameImporterDialog.cpp"
 #include "sampler/components/FileImportDialog.cpp"
