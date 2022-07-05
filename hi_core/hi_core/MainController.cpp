@@ -1166,18 +1166,6 @@ void MainController::skin(Component &c)
 };
 
 
-
-void MainController::setCurrentViewChanged()
-{
-#if USE_BACKEND
-	if(getMainSynthChain() != nullptr)
-	{
-		getMainSynthChain()->setCurrentViewChanged();
-	}
-#endif
-}
-
-
 void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
 {
 	//static const Identifier bpmId("bpm");

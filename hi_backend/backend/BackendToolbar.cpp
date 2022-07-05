@@ -92,28 +92,11 @@ Path MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 			path.loadPathFromData (BackendBinaryData::ToolbarIcons::macros, sizeof (BackendBinaryData::ToolbarIcons::macros));
 		break;
 		}
-	case BackendCommandTarget::MenuViewBack:
-	{
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-	}
-	case BackendCommandTarget::MenuViewForward:
-	{
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-	}
-
+	
 	default: jassertfalse;
 	}
 	
 	return path;
-
-#if 0
-	DrawablePath *p = new DrawablePath();
-
-	p->setFill(FillType(!isOn ? Colours::white.withAlpha(0.8f) : Colours::white.withAlpha(0.2f)));
-	p->setPath(path);
-#endif
 };
 #endif
 

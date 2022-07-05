@@ -95,7 +95,7 @@ public:
 
 	void removeContainer();
 
-	void setRootProcessorWithUndo(Processor *p);
+	
 
 	void preloadStateChanged(bool isPreloading) override;
 
@@ -209,11 +209,6 @@ public:
 
 	void loadNewContainer(const ValueTree &v);
 
-	
-	void addProcessorToPanel(Processor *p);
-
-	void removeProcessorFromPanel(Processor *p);
-
 	/** returns the ProcessorEditor for the path. */
     void refreshInterfaceAfterPresetLoad();
     
@@ -223,12 +218,6 @@ public:
 	const BackendProcessor *getBackendProcessor() const { return owner; };
 
 	void setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight);
-	
-	UndoManager * getViewUndoManager()
-	{
-		return owner->viewUndoManager;
-	}
-
 	
 
 	void setPluginPreviewWindow(PluginPreviewWindow *newWindow)

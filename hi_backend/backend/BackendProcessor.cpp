@@ -35,12 +35,11 @@ namespace hise { using namespace juce;
 BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
-viewUndoManager(new UndoManager()),
 scriptUnlocker(this)
 {
 	ExtendedApiDocumentation::init();
 
-    synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
+    synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES);
     
 	synthChain->addProcessorsWhenEmpty();
 

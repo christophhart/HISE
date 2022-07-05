@@ -2521,21 +2521,7 @@ bool ScriptingObjects::ScriptingModulator::isBypassed() const
 
 void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
 {
-#if USE_BACKEND
-	if (objectExists() && !objectDeleted())
-	{
-		auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
-
-		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
-
-		if (p != nullptr)
-		{
-			editor->getMainPanel()->setRootProcessorWithUndo(p);
-		}
-	}
-#else 
 	ignoreUnused(componentToNotify);
-#endif
 }
 
 Component* ScriptingObjects::ScriptingModulator::createPopupComponent(const MouseEvent& e, Component* t)

@@ -101,9 +101,6 @@ private:
 */
 class ModulatorSynthChain: public ModulatorSynth,
 						   public MacroControlBroadcaster,
-#if USE_BACKEND
-						   public ViewManager,
-#endif
 						   public Chain
 {
 public:
@@ -116,7 +113,7 @@ public:
 
 	};
 
-	ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager = nullptr);;
+	ModulatorSynthChain(MainController *mc, const String &id, int numVoices_);;
 	~ModulatorSynthChain();
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;

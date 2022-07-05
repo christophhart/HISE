@@ -837,9 +837,6 @@ void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 	{
 		const bool isSolo = getProcessor()->getEditorState(Processor::EditorState::Solo);
 
-		if (!isSolo) mainEditor->addProcessorToPanel(getProcessor());
-		else		 mainEditor->removeProcessorFromPanel(getProcessor());
-
 		refreshButtonState(soloButton, !isSolo);
 	}
 
@@ -1342,10 +1339,7 @@ void PatchBrowser::PatchItem::fillPopupMenu(PopupMenu &m)
 
 	m.addSeparator();
 
-	const bool isRoot = GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()->getRootProcessor() == getProcessor();
-	m.addItem((int)ModuleDragTarget::ViewSettings::Root, "Set Fullscreen", true, isRoot);
 	m.addItem((int)ModuleDragTarget::ViewSettings::Visible, "Show module", true, getProcessor()->getEditorState(Processor::Visible));
-	m.addItem((int)ModuleDragTarget::ViewSettings::Solo, "Add module to Root", true, getProcessor()->getEditorState(Processor::Solo));
 
 	m.addSeparator();
 	
@@ -1378,13 +1372,9 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Solo:
 		getProcessor()->toggleEditorState(Processor::Solo, sendNotification);
 
-		if (getProcessor()->getEditorState(Processor::EditorState::Solo))
-			mainEditor->addProcessorToPanel(getProcessor());
-		else
-			mainEditor->removeProcessorFromPanel(getProcessor());
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Root:
-		mainEditor->setRootProcessorWithUndo(p);
+		mainEditor->setRootProcessor(p);
 		findParentComponentOfClass<SearchableListComponent>()->repaint();
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Bypassed:

@@ -1513,7 +1513,7 @@ public:
 
 	void setPlotter(Plotter *p);
 
-	void setCurrentViewChanged();
+	
 	
 	DynamicObject *getGlobalVariableObject() { return globalVariableObject.get(); };
 

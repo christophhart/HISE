@@ -935,17 +935,7 @@ void ProcessorEditorHeader::enableChainHeader()
 
 void ProcessorEditorHeader::checkSoloLabel()
 {
-	const bool isInMasterPanel = getEditor()->getIndentationLevel() == 0;
-	const bool isRootProcessor = getProcessor()->getMainController()->getMainSynthChain()->getRootProcessor() == getProcessor();
-
-	if(isInMasterPanel && !isRootProcessor)
-	{
-		isSoloHeader = true;
-		parentName = ProcessorHelpers::findParentProcessor(getProcessor(), true)->getId();
-		deleteButton->setVisible(false);
-			
-		repaint();
-	}
+	
 };
 
 

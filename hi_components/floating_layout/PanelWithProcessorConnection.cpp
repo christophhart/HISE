@@ -471,27 +471,12 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 	fillIndexList(indexes);
 
 	refreshIndexList();
-
-#if USE_BACKEND
-	auto undoManager = dynamic_cast<BackendProcessor*>(getMainController())->getViewUndoManager();
-
-	String undoText;
-
-	
-	undoText << (currentProcessor.get() != nullptr ? currentProcessor->getId() : "Disconnected") << ": " << indexes[currentIndex] << " -> ";
-	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
-
-	undoManager->beginNewTransaction(undoText);
-	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation()));
-#else
-
+    
 	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation());
 
 	connection->perform();
 
 	connection = nullptr;
-
-#endif
 
 	if (newIndex != -1)
 	{

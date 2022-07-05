@@ -110,8 +110,6 @@ public:
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
 
-	UndoManager* getViewUndoManager() { return viewUndoManager; }
-
 	AudioProcessorEditor* createEditor();
 	bool hasEditor() const {return true;};
 
@@ -220,8 +218,6 @@ private:
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
 	
-	ScopedPointer<UndoManager> viewUndoManager;
-
 	var editorInformation;
 
 	ScopedPointer<BackendProcessor> docProcessor;

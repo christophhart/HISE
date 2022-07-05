@@ -509,11 +509,6 @@ public:
 		const Identifier stateId = getEditorStateForIndex(state);
 
 		editorStateValueSet.set(stateId, isOn);
-
-        if(notifyView)
-		{
-			getMainController()->setCurrentViewChanged();
-		}
 	};
 
 	const var getEditorState(Identifier editorStateId) const
@@ -526,11 +521,6 @@ public:
 		jassert(state.isValid());
 
 		editorStateValueSet.set(state, stateValue);
-
-		if(notifyView)
-		{
-			getMainController()->setCurrentViewChanged();
-		}
 	}
 
 	Identifier getEditorStateForIndex(int index) const

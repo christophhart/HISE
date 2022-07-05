@@ -78,7 +78,7 @@ END_JUCE_MODULE_DECLARATION
 #include "editor/ProcessorEditorHeader.h"
 #include "editor/ProcessorEditorChainBar.h"
 #include "editor/ProcessorEditorPanel.h"
-#include "editor/ProcessorViews.h"
+
 
 #else
 

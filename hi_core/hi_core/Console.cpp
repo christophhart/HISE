@@ -173,7 +173,7 @@ void Console::mouseDown(const MouseEvent &e)
 					js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 				}
 
-				GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
+                GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessor(js);
 			}
 		}
     }
@@ -189,11 +189,9 @@ void Console::mouseDown(const MouseEvent &e)
         {
 			auto editor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel();
 
-            Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
-            
-            if(p != nullptr)
+            if(auto p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name))
             {
-                editor->setRootProcessorWithUndo(p);
+                editor->setRootProcessor(p);
             }
         }
 #endif

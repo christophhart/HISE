@@ -47,7 +47,7 @@
 #include "editor/ProcessorEditorChainBar.cpp"
 
 #include "editor/ProcessorEditorPanel.cpp"
-#include "editor/ProcessorViews.cpp"
+
 
 #endif
 

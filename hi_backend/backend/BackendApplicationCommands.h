@@ -134,13 +134,9 @@ public:
 		MenuEditCreateScriptVariable,
 		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
-		MenuViewOffset = 0x40000,
-        MenuViewRotate,
+		MenuViewRotate,
         MenuViewFullscreen,
 		MenuViewReset,
-		MenuViewBack,
-		MenuViewForward,
-		MenuViewSetMainContainerAsRoot,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
@@ -152,15 +148,8 @@ public:
 		MenuViewShowPluginPopupPreview,
         MenuViewIncreaseCodeFontSize,
         MenuViewDecreaseCodeFontSize,
-		MenuAddView,
-		MenuDeleteView,
-		MenuRenameView,
 		MenuViewResetLookAndFeel,
-        MenuViewSaveCurrentView,
-        MenuViewRemoveAllSoloProcessors,
         MenuViewShowAllHiddenProcessors,
-        MenuViewListOffset = 0x70000,
-		MenuViewProcessorListOffset = 0x80000,
 		
 		MenuToolsRecompile = 0x50000,
 		
@@ -231,12 +220,6 @@ public:
 
 	bool clipBoardNotEmpty() const { return SystemClipboard::getTextFromClipboard().isNotEmpty(); }
     
-    bool viewActive() const
-    {
-        return owner->synthChain->getCurrentViewInfo() != nullptr;
-    }
-
-	
 	void setEditor(BackendRootWindow *editor);
 
 	void getAllCommands(Array<CommandID>& commands) override;;
@@ -296,10 +279,6 @@ public:
 		static void recompileAllScripts(BackendRootWindow * bpe);
 		static void toggleFullscreen(BackendRootWindow * bpe);
 		static void resetLookAndFeel(BackendRootWindow* bpe);
-		static void addView(BackendRootWindow *bpe);
-		static void deleteView(BackendRootWindow *bpe);
-		static void saveView(BackendRootWindow *bpe);
-		static void renameView(BackendRootWindow *bpe);
 		static void closeAllChains(BackendRootWindow *bpe);
 		static void validatePluginParameters(BackendRootWindow *bpe);
 		static void showAboutPage(BackendRootWindow * bpe);

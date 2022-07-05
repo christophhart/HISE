@@ -79,33 +79,12 @@ BackendProcessorEditor::~BackendProcessorEditor()
 	viewport = nullptr;
 }
 
-
-void BackendProcessorEditor::addProcessorToPanel(Processor *p)
-{
-	if (p != owner->synthChain->getRootProcessor() && p != owner->synthChain)
-	{
-		p->setEditorState("Solo", true, sendNotification);
-		container->addSoloProcessor(p);
-	}
-}
-
-void BackendProcessorEditor::removeProcessorFromPanel(Processor *p)
-{
-	if (p != owner->synthChain->getRootProcessor() && p != owner->synthChain)
-	{
-		p->setEditorState("Solo", false, sendNotification);
-		container->removeSoloProcessor(p);
-	}
-}
-
-
 void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 {
 	const bool rootEditorWasMainSynthChain = rootEditorIsMainSynthChain;
 
 	rootEditorIsMainSynthChain = (p == owner->synthChain);
 
-	owner->synthChain->setRootProcessor(p);
 
 	if (p == nullptr) return;
 
@@ -142,15 +121,6 @@ void BackendProcessorEditor::removeContainer()
 	container = nullptr;
 }
 
-void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
-{
-    if(getRootContainer()->getRootEditor()->getProcessor() != p)
-    {
-        owner->viewUndoManager->beginNewTransaction(getRootContainer()->getRootEditor()->getProcessor()->getId() + " -> " + p->getId());
-        owner->viewUndoManager->perform(new ViewBrowsing(owner->synthChain, this, viewport->viewport->getViewPositionY(), p));
-        parentRootWindow->updateCommands();
-    }
-}
 
 void BackendProcessorEditor::preloadStateChanged(bool isPreloading)
 {
@@ -398,14 +368,12 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 
 	addAndMakeVisible(backButton = new ShapeButton("Back", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
 	backButton->setShape(f.createPath("back"), false, true, true);
-	backButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewBack, true);
-
+	
 	parent->getRootFloatingTile()->addPopupListener(this);
 
 	addAndMakeVisible(forwardButton = new ShapeButton("Forward", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
 	forwardButton->setShape(f.createPath("forward"), false, true, true);
-	forwardButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewForward, true);
-
+	
 	addAndMakeVisible(macroButton = new HiseShapeButton("Macro Controls", this, f));
 	macroButton->setToggleModeWithColourChange(true);
 	macroButton->setTooltip("Show 8 Macro Controls");
