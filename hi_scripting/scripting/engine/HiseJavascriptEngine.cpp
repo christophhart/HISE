@@ -1219,7 +1219,9 @@ struct TokenWithDot : public mcl::TokenCollection::Token
 	TokenWithDot(const String& token, const String& classId_) :
 		Token(token),
 		classId(classId_)
-	{};
+	{
+		
+	};
 
 	String getCodeToInsert(const String& input) const override
 	{
@@ -1573,96 +1575,127 @@ struct LookAndFeelToken : public TokenWithDot
 	}
 };
 
-bool addObjectAPIMethods(JavascriptProcessor* jp, mcl::TokenCollection::List& tokens, DebugInformationBase::Ptr ptr, const ValueTree& apiTree)
+struct TokenHelpers
 {
-	auto os = ptr->getTextForType();
-
-    if (auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(ptr->getObject()))
-    {
-        auto l = ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames();
-
-        for (auto id : l)
-            tokens.add(new LookAndFeelToken(ptr->getTextForName(), id));
-        
-        return true;
-    }
-
-    
-	if (os.isNotEmpty())
+	static bool addObjectAPIMethods(JavascriptProcessor* jp, mcl::TokenCollection::List& tokens, DebugInformationBase::Ptr ptr, const ValueTree& apiTree, bool addStringMethods)
 	{
-		Identifier oid(os);
+		auto os = ptr->getTextForType();
 
-		auto classTree = apiTree.getChildWithName(oid);
-
-		if (classTree.isValid())
+		if (auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(ptr->getObject()))
 		{
-			for (auto method : classTree)
-			{
-				if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
-					return false;
+			auto l = ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames();
 
-				tokens.add(new HiseJavascriptEngine::TokenProvider::ObjectMethodToken(method, ptr));
-			}
-
-			if (auto a = dynamic_cast<ApiClass*>(ptr->getObject()))
-			{
-				Array<Identifier> ids;
-				a->getAllConstants(ids);
-
-				int i = 0;
-				for (const auto& id : ids)
-				{
-					tokens.add(new ObjectConstantToken(ptr, id, a->getConstantValue(i++)));
-				}
-			}
+			for (auto id : l)
+				tokens.add(new LookAndFeelToken(ptr->getTextForName(), id));
 
 			return true;
 		}
-	}
 
-	return false;
-}
 
-static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& tokens, DebugInformationBase::Ptr ptr, Colour c2, ValueTree v)
-{
-	if (!ptr->isAutocompleteable())
-		return;
-
-	int numChildren = ptr->getNumChildElements();
-
-	for (int j = 0; j < numChildren; j++)
-	{
-		if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
-			return;
-
-		auto c = ptr->getChildElement(j);
-        
-        if(c == nullptr)
-            break;
-        
-		char s;
-
-		jp->getProviderBase()->getColourAndLetterForType(c->getType(), c2, s);
-
-		Colour childColour = c2;
-
-        bool isColour = ptr->getTextForName() == "Colours";
-        
-		if (isColour)
+		if (os.isNotEmpty())
 		{
-			auto vs = c->getTextForValue();
-            childColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(vs);
+			Identifier oid(os);
+
+			auto classTree = apiTree.getChildWithName(oid);
+
+			if (classTree.isValid() && (addStringMethods || os != String("String")))
+			{
+				for (auto method : classTree)
+				{
+					if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+						return false;
+
+					tokens.add(new HiseJavascriptEngine::TokenProvider::ObjectMethodToken(method, ptr));
+				}
+
+				if (auto a = dynamic_cast<ApiClass*>(ptr->getObject()))
+				{
+					Array<Identifier> ids;
+					a->getAllConstants(ids);
+
+
+
+					int i = 0;
+					for (const auto& id : ids)
+					{
+						auto constantValue = a->getConstantValue(i++);
+
+						if (auto obj = constantValue.getDynamicObject())
+						{
+							auto thisIndex = i-1;
+
+							auto f = [a, thisIndex]()
+							{
+								return a->getConstantValue(thisIndex);
+							};
+
+							DebugInformationBase::Ptr optr = new LambdaValueInformation(f, id, ptr->getCodeToInsert(), DebugInformation::Type::Constant, ptr->getLocation());
+
+							tokens.add(new HiseJavascriptEngine::TokenProvider::DebugInformationToken(optr, apiTree, Colours::white, ptr));
+							addRecursive(jp, tokens, optr, Colours::white, apiTree, false);
+						}
+						else
+						{
+							tokens.add(new ObjectConstantToken(ptr, id, constantValue));
+						}
+
+
+
+					}
+				}
+
+				return true;
+			}
 		}
 
-		tokens.add(new HiseJavascriptEngine::TokenProvider::DebugInformationToken(c, v, childColour, ptr));
-
-        if(isColour)
-            tokens.getLast()->priority = 60;
-        
-		if(!addObjectAPIMethods(jp, tokens, c, v))
-			addRecursive(jp, tokens, c, childColour, v);
+		return false;
 	}
-}
+
+	static void addRecursive(JavascriptProcessor* jp, mcl::TokenCollection::List& tokens, DebugInformationBase::Ptr ptr, Colour c2, ValueTree v, bool addStringMethods)
+	{
+		if (!ptr->isAutocompleteable())
+			return;
+
+		int numChildren = ptr->getNumChildElements();
+
+		for (int j = 0; j < numChildren; j++)
+		{
+			if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+				return;
+
+			auto c = ptr->getChildElement(j);
+
+			if (c == nullptr)
+				break;
+
+			char s;
+
+			jp->getProviderBase()->getColourAndLetterForType(c->getType(), c2, s);
+
+			Colour childColour = c2;
+
+			bool isColour = ptr->getTextForName() == "Colours";
+
+			if (isColour)
+			{
+				auto vs = c->getTextForValue();
+				childColour = ScriptingApi::Content::Helpers::getCleanedObjectColour(vs);
+			}
+
+			tokens.add(new HiseJavascriptEngine::TokenProvider::DebugInformationToken(c, v, childColour, ptr));
+
+			if (isColour)
+				tokens.getLast()->priority = 60;
+
+			if (!addObjectAPIMethods(jp, tokens, c, v, addStringMethods))
+				addRecursive(jp, tokens, c, childColour, v, addStringMethods);
+		}
+	}
+};
+
+
+
+
 
 void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
@@ -1684,6 +1717,9 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 			for (auto m : cTree)
 			{
+				if (t.expression.isEmpty())
+					continue;
+
 				tokens.add(new TemplateToken(t.expression, m));
 			}
 		}
@@ -1751,10 +1787,10 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 					}
 					else
 					{
-						addObjectAPIMethods(jp, tokens, ptr.get(), v);
+						TokenHelpers::addObjectAPIMethods(jp, tokens, ptr.get(), v, true);
 					}
 
-					addRecursive(jp, tokens, ptr, c2, v);
+					TokenHelpers::addRecursive(jp, tokens, ptr, c2, v, true);
 				}
 			}
 		}
