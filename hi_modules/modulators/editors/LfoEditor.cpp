@@ -164,8 +164,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	clockSyncButton->setup(getProcessor(), LfoModulator::SyncToMasterClock, "Clock Sync");
 
-
-	waveformTable->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*waveformTable, getProcessor());
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 

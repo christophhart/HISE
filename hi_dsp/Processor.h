@@ -1090,7 +1090,17 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
-
+    static void connectTableEditor(TableEditor& t, Processor* p, int index=0)
+    {
+        if(auto eh = dynamic_cast<snex::ExternalDataHolder*>(p))
+        {
+            t.setEditedTable(eh->getTable(index));
+        }
+        else
+        {
+            jassertfalse;
+        }
+    }
 	
 
 	/** Returns a list of all processors that can be connected to a parameter. */

@@ -63,8 +63,8 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
 
 	tableUsed = getProcessor()->getAttribute(GlobalModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
+    
 	useTableButton->setup(getProcessor(), GlobalModulator::UseTable, "Use Table");
 
 	invertButton->setup(getProcessor(), GlobalModulator::Inverted, "Inverted");

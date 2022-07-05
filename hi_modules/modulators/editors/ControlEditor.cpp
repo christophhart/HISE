@@ -104,7 +104,7 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
 
 	tableUsed = cm->getAttribute(ControlModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(cm);
+    ProcessorHelpers::connectTableEditor(*midiTable, cm);
 
     //[/UserPreSize]
 

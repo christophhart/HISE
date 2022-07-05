@@ -316,8 +316,6 @@ public:
 		refreshGraph();
 	}
 
-	void connectToLookupTableProcessor(Processor *p, int tableIndex=0);
-
 	/** Set the display of the domain value to the desired type. If you want a scaled value to be displayed, pass a Range<int> object */
 	void setDomain(DomainType newDomainType, Range<int> newRange=Range<int>());
 
@@ -436,6 +434,8 @@ public:
 
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
 
+    
+    
 	/** You can set a value which is displayed as input here. If the value is changed, the table will be repainted. 
 	*
 	*	The range of newIndex is 0.0 - 1.0.

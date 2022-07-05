@@ -451,7 +451,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 	showCrossfadeLabel->setEditable(false);
 
 
-	crossfadeEditor->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*crossfadeEditor, getProcessor());
+    
 
 	purgeChannelLabel->setEditable(false);
 
@@ -758,7 +759,6 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 			int crossfadeShown = sampler->getEditorState(sampler->getEditorStateForIndex(ModulatorSampler::CrossfadeTableShown));
 
 			crossfadeEditor->setEditedTable(sampler->getTable(crossfadeShown));
-			crossfadeEditor->connectToLookupTableProcessor(sampler);
 		}
 		else
 		{

@@ -61,7 +61,7 @@ RandomEditorBody::RandomEditorBody (ProcessorEditor *p)
 
 	tableUsed = rm->getAttribute(RandomModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*midiTable, rm);
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 

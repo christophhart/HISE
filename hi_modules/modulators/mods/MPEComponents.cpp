@@ -517,8 +517,8 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
 
-		currentTable.connectToLookupTableProcessor(newMod);
-
+        ProcessorHelpers::connectTableEditor(currentTable, newMod);
+        
 		repaint();
 		resized();
 	}
@@ -919,8 +919,8 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 
 	mod->addChangeListener(this);
 
+    ProcessorHelpers::connectTableEditor(curvePreview, mod);
 
-	curvePreview.connectToLookupTableProcessor(mod);
 	curvePreview.setEnabled(false);
 	curvePreview.setUseFlatDesign(true);
 	curvePreview.setColour(TableEditor::ColourIds::lineColour, Colours::transparentBlack);

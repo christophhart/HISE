@@ -78,8 +78,8 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
 	smoothingSlider->setup(getProcessor(), MacroModulator::SmoothTime, "Smoothing");
     smoothingSlider->setMode(HiSlider::Time, 0.0, 1000.0, 100.0);
 
-	valueTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*valueTable, getProcessor());
+    
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     
     //[/UserPreSize]

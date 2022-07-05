@@ -71,8 +71,8 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
 	tableUsed = vm->getAttribute(VelocityModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
+    
     decibelButton->setup(getProcessor(), VelocityModulator::DecibelMode, "Decibel Mode");
     
     //[/UserPreSize]

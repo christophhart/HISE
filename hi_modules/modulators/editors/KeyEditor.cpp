@@ -39,7 +39,7 @@ KeyEditor::KeyEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 	
-	midiTable->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
 
     //[/UserPreSize]
 

@@ -70,7 +70,7 @@ PitchWheelEditorBody::PitchWheelEditorBody (ProcessorEditor *p)
 
 	pm = static_cast<PitchwheelModulator*>(this->getProcessor());
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
 
 	smoothingSlider->setup(getProcessor(), PitchwheelModulator::SmoothTime, "Smoothing");
 	smoothingSlider->setMode(HiSlider::Mode::Time, 0, 1000.0, 100.0);
