@@ -270,10 +270,6 @@ public:
 
 			return;
 		}
-
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-		updateFromProcessor(b);
-#endif
 	}
 
 	Table *getEditedTable() const
@@ -439,14 +435,6 @@ public:
 	}
 
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
-
-	void updateFromProcessor(SafeChangeBroadcaster* b);
-
-	bool isInMainPanel() const;
-
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	bool isInMainPanelInternal() const;
-#endif
 
 	/** You can set a value which is displayed as input here. If the value is changed, the table will be repainted. 
 	*

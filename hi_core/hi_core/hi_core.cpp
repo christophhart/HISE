@@ -51,9 +51,6 @@
 #include "xmmintrin.h"
 #endif
 
-
-#include "DepentUtilityFunctions.cpp"
-
 #include "UtilityClasses.cpp"
 #include "DebugLogger.cpp"
 #include "ThreadWithQuasiModalProgressWindow.cpp"
