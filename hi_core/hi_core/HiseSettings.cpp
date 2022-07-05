@@ -138,6 +138,7 @@ Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
 	ids.add(CompileTimeout);
 	ids.add(CodeFontSize);
 	ids.add(EnableDebugMode);
+	ids.add(SaveConnectedFilesOnCompile);
 
 	return ids;
 }
@@ -479,6 +480,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("```\n");
 		P_();
 
+		P(HiseSettings::Scripting::SaveConnectedFilesOnCompile);
+		D("If this is enabled, it will save a connected script file everytime the script is compiled. By default this is disabled, but if you want to apply changes to a connected script file, you will have to enable this setting");
+		P_();
+
 		P(HiseSettings::Scripting::GlobalScriptPath);
 		D("There is a folder that can be used to store global script files like additional API functions or generic UI Component definitions.");
 		D("By default, this folder is stored in the application data folder, but you can choose to redirect it to another location, which may be useful if you want to put it under source control.");
@@ -714,7 +719,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
         id == Project::ForceStereoOutput ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
-		id == SnexWorkbench::AddFade)
+		id == SnexWorkbench::AddFade ||
+		id == Scripting::SaveConnectedFilesOnCompile)
 	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -908,6 +914,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::EnableOptimizations)	return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
+	else if (id == Scripting::SaveConnectedFilesOnCompile) return "No";
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";

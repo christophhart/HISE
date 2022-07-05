@@ -127,6 +127,7 @@ DECLARE_ID(CompileTimeout);
 DECLARE_ID(CodeFontSize);
 DECLARE_ID(EnableOptimizations);
 DECLARE_ID(EnableDebugMode);
+DECLARE_ID(SaveConnectedFilesOnCompile);
 
 Array<Identifier> getAllIds();
 

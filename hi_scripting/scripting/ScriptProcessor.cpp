@@ -1548,6 +1548,24 @@ void JavascriptProcessor::stuffAfterCompilation(const SnippetResult& result)
 
 	mainController->checkAndAbortMessageThreadOperation();
 
+#if USE_BACKEND
+	if (isConnectedToExternalFile())
+	{
+		auto shouldSave = (bool)GET_HISE_SETTING(dynamic_cast<Processor*>(this), HiseSettings::Scripting::SaveConnectedFilesOnCompile);
+
+		if (shouldSave)
+		{
+			String x;
+			mergeCallbacksToScript(x);
+		
+			const File f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(connectedFileReference, ProjectHandler::SubDirectories::Scripts);
+
+			f.replaceWithText(x);
+		}
+	}
+#endif
+	
+
 	clearFileWatchers();
 
 	const int numFiles = scriptEngine->getNumIncludedFiles();
