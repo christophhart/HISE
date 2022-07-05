@@ -125,12 +125,7 @@ END_JUCE_MODULE_DECLARATION
 *	A list of all available HISE MIDI processors.
 */
 
-#include "midi_processor/mps/MidiDelay.h"
 #include "midi_processor/mps/Transposer.h"
-#include "midi_processor/mps/SampleRaster.h"
-#include "midi_processor/mps/RoundRobin.h"
-
-
 
 #if USE_BACKEND
 
@@ -164,7 +159,6 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/mda/mdaDegrade.h"
 #include "effects/fx/Dynamics.h"
 #include "effects/fx/Saturator.h"
-#include "effects/fx/AudioProcessorWrapper.h"
 #include "effects/fx/Analyser.h"
 #include "effects/fx/ShapeFX.h"
 #include "effects/fx/SlotFX.h"
@@ -194,10 +188,6 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/editors/AnalyserEditor.h"
 
 #endif
-
-#include "effects/editors/AudioProcessorEditorWrapper.h"
-
-#include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.h"
 
 
 /** @defgroup synthTypes HISE Sound Generators

@@ -798,21 +798,6 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 {
 	if (! FactoryType::allowType(typeName) ) return false;
 
-	if(typeName == RoundRobinMidiProcessor::getClassType())
-	{
-		const bool isChildSynthOfGroup = dynamic_cast<const ModulatorSynthGroup*>(getOwnerProcessor()) != nullptr;// && owner->getGroup() != nullptr;
-
-		if (!isChildSynthOfGroup) return false;
-
-		const MidiProcessorChain* c = dynamic_cast<const MidiProcessorChain*>(owner->getChildProcessor(ModulatorSynth::MidiProcessor));
-		jassert(c != nullptr);
-
-		for(int i = 0; i < c->getHandler()->getNumProcessors(); i++)
-		{
-			if(c->getHandler()->getProcessor(i)->getType() == RoundRobinMidiProcessor::getClassType()) return false;
-		}
-	}
-	
 	return true;
 
 }

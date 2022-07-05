@@ -52,10 +52,7 @@
 
 #endif
 
-#include "midi_processor/mps/MidiDelay.cpp"
 #include "midi_processor/mps/Transposer.cpp"
-#include "midi_processor/mps/SampleRaster.cpp"
-#include "midi_processor/mps/RoundRobin.cpp"
 
 
 #if USE_BACKEND
@@ -90,7 +87,6 @@
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Dynamics.cpp"
 #include "effects/fx/Saturator.cpp"
-#include "effects/fx/AudioProcessorWrapper.cpp"
 #include "effects/fx/SlotFX.cpp"
 #include "effects/fx/Analyser.cpp"
 #include "effects/fx/WaveShapers.cpp"
@@ -121,12 +117,6 @@
 #include "effects/editors/PolyShapeFXEditor.cpp"
 
 #endif
-
-#include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.cpp"
-
-#include "effects/editors/AudioProcessorEditorWrapper.cpp"
-
-
 
 #include "synthesisers/synths/GlobalModulatorContainer.cpp"
 #include "synthesisers/synths/MacroModulationSource.cpp"
