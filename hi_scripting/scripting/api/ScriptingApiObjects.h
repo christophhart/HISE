@@ -1689,6 +1689,9 @@ namespace ScriptingObjects
 
 		// ============================================================================================================ 
 
+		/** Sets the amount of channels (if the matrix is resizeable). */
+		void setNumChannels(int numSourceChannels);
+
 		/** adds a connection to the given channels. */
 		bool addConnection(int sourceIndex, int destinationIndex);
 

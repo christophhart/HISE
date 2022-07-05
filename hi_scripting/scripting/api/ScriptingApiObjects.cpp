@@ -3279,6 +3279,7 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 	API_METHOD_WRAPPER_2(ScriptRoutingMatrix, removeSendConnection);
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
+	API_VOID_METHOD_WRAPPER_1(ScriptRoutingMatrix, setNumChannels);
 };
 
 ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptingContent *p, Processor *processor):
@@ -3291,6 +3292,7 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 	ADD_API_METHOD_2(removeSendConnection);
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
+	ADD_API_METHOD_1(setNumChannels);
 
 	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 	{
@@ -3302,6 +3304,27 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 		jassertfalse;
 		addConstant("NumInputs", -1);
 		addConstant("NumOutputs", -1);
+	}
+}
+
+void ScriptingObjects::ScriptRoutingMatrix::setNumChannels(int numSourceChannels)
+{
+	if (!isPositiveAndBelow(numSourceChannels, NUM_MAX_CHANNELS + 1))
+	{
+		reportScriptError("illegal channel amount: " + String(numSourceChannels));
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+	{
+		if (!r->getMatrix().resizingIsAllowed())
+		{
+			reportScriptError("Can't resize this matrix");
+			RETURN_VOID_IF_NO_THROW();
+		}
+
+		r->getMatrix().setNumSourceChannels(numSourceChannels);
+		r->getMatrix().setNumAllowedConnections(numSourceChannels);
 	}
 }
 
