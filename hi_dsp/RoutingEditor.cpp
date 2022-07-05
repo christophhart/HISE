@@ -100,12 +100,19 @@ RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
 
 RouterComponent::~RouterComponent()
 {
-	data->removeChangeListener(this);
-	data->setEditorShown(false);
+	if (data != nullptr)
+	{
+		data->removeChangeListener(this);
+		data->setEditorShown(false);
+	}
+	
 }
 
 void RouterComponent::resized()
 {
+	if (data == nullptr)
+		return;
+
 	const int width = jmin<int>(getWidth()-16, jmax<int>(data->getNumSourceChannels(), data->getNumDestinationChannels()) * 60);
 
 	Rectangle<int> routingBounds(0, 0, width, findParentComponentOfClass<ProcessorEditorBody>() != nullptr ? 128 : 192);
@@ -140,6 +147,13 @@ void RouterComponent::paint(Graphics& g)
 	
 	g.setColour(Colours::white);
 	g.setFont(GLOBAL_BOLD_FONT());
+
+	if (data == nullptr)
+	{
+		g.drawText("Matrix was deleted, reopen this window", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+		
 
 	g.drawText(data->getSourceName(), 0, sourceChannels[0]->getY() - 20, getWidth(), 20, Justification::centred, true);
 

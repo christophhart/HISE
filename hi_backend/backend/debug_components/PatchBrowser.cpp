@@ -1839,13 +1839,18 @@ void PatchBrowser::MiniPeak::timerCallback()
 	}
 	case ProcessorType::Midi:
 	{
-		auto newValue = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true))->getMidiInputFlag();
-
-		if (channelValues[0] != newValue)
+		if (auto pp = p->getParentProcessor(true, false))
 		{
-			channelValues[0] = newValue;
-			repaint();
+			auto newValue = dynamic_cast<ModulatorSynth*>(pp)->getMidiInputFlag();
+
+			if (channelValues[0] != newValue)
+			{
+				channelValues[0] = newValue;
+				repaint();
+			}
 		}
+
+		
 		
 		break;
 	}
