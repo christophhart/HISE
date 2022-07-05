@@ -64,16 +64,6 @@ public:
 		rebuildRectangles();
 	};
 
-	void sequenceIndexChanged() override
-	{
-		rebuildRectangles();
-	}
-
-	void trackIndexChanged() override
-	{
-		rebuildRectangles();
-	}
-
 	void paint(Graphics& g) override;
 
 	void rebuildRectangles();

@@ -2123,13 +2123,7 @@ juce::Path MidiPlayerBaseType::TransportPaths::createPath(const String& name) co
 
 MidiPlayerBaseType::~MidiPlayerBaseType()
 {
-	
-
-	if (player != nullptr)
-	{
-		player->removeSequenceListener(this);
-		player->removeChangeListener(this);
-	}
+	cancelUpdates();
 }
 
 MidiPlayerBaseType::MidiPlayerBaseType(MidiPlayer* player_) :
@@ -2146,28 +2140,6 @@ void MidiPlayerBaseType::initMidiPlayer(MidiPlayer* newPlayer)
 	if (player != nullptr)
 	{
 		player->addSequenceListener(this);
-		player->addChangeListener(this);
-	}
-}
-
-
-
-void MidiPlayerBaseType::changeListenerCallback(SafeChangeBroadcaster* )
-{
-	int thisSequence = (int)getPlayer()->getAttribute(MidiPlayer::CurrentSequence);
-
-	if (thisSequence != lastSequenceIndex)
-	{
-		lastSequenceIndex = thisSequence;
-		sequenceIndexChanged();
-	}
-
-	int trackIndex = (int)getPlayer()->getAttribute(MidiPlayer::CurrentTrack);
-
-	if (trackIndex != lastTrackIndex)
-	{
-		lastTrackIndex = trackIndex;
-		trackIndexChanged();
 	}
 }
 

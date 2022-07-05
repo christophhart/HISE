@@ -4796,6 +4796,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
 {
+	cancelUpdates();
 	connectedPanel = nullptr;
 }
 
@@ -4805,26 +4806,6 @@ juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
 		return {};
 
 	return String(getPlayer()->getPlaybackPosition(), 2);
-}
-
-void ScriptingObjects::ScriptedMidiPlayer::trackIndexChanged()
-{
-	callUpdateCallback();
-
-	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
-	{
-		panel->repaint();
-	}
-}
-
-void ScriptingObjects::ScriptedMidiPlayer::sequenceIndexChanged()
-{
-	callUpdateCallback();
-
-	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(connectedPanel.get()))
-	{
-		panel->repaint();
-	}
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::sequencesCleared()

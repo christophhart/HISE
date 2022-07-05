@@ -2281,16 +2281,13 @@ namespace ScriptingObjects
 		ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_);
 		~ScriptedMidiPlayer();
 
-		
 		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("MidiPlayer"); };
-
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiPlayer"); }
+		Identifier getObjectName() const override { return getClassName(); }
 
 		String getDebugValue() const override;
 
 		void sequenceLoaded(HiseMidiSequence::Ptr newSequence) override;
-		void trackIndexChanged() override;
-		void sequenceIndexChanged() override;
+		
 		void sequencesCleared() override;
 
 		void timerCallback() override;
