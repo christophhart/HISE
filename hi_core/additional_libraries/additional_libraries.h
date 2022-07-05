@@ -53,23 +53,6 @@ namespace hise
 	class IppFFT;
 }
 
-#include "icst/MathDefs.h"
-#include "icst/Common.h"  	
-
-
-namespace icstdsp
-{
-	using namespace juce;
-
-	#include "icst/fftooura.h"	
-	#include "icst/BlkDsp.h"	
-	#include "icst/AudioAnalysis.h"
-	#include "icst/AudioSynth.h"
-	#include "icst/Neuro.h"
-	#include "icst/SpecMath.h"
-}
-
-
 
 
 #endif  // ADDITIONAL_LIBRARIES_H_INCLUDED

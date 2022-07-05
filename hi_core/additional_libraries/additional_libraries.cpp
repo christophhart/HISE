@@ -31,21 +31,3 @@
 */
 
 
-#pragma warning (push)
-#pragma warning (disable: 4127)
-
-namespace icstdsp
-{
-	#include "icst/AudioAnalysis.cpp"
-	#include "icst/fftoourad.cpp"
-	#include "icst/fftoouraf.cpp"
-	#include "icst/AudioSynth.cpp"
-	#include "icst/BlkDsp.cpp"
-	#include "icst/Chart.cpp"
-	#include "icst/Neuro.cpp"
-	#include "icst/SpecMath.cpp"
-}
-
-
-#pragma warning (pop)
-

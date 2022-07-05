@@ -2828,6 +2828,8 @@ struct FFTHelpers
 
     static void applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise=true);
     
+    static void applyWindow(WindowType t, float* d, int size, bool normalise=true);
+    
 	static float getFreqForLogX(float xPos, float width);
 
 	static float getPixelValueForLogXAxis(float freq, float width);

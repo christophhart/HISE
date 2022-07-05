@@ -921,13 +921,10 @@ void ScrollbarFader::startFadeOut()
     startTimer(500);
 }
 
-void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
+void FFTHelpers::applyWindow(WindowType t, float* data, int s, bool normalise)
 {
-    auto s = b.getNumSamples() / 2;
-    auto data = b.getWritePointer(0);
-
     using DspWindowType = juce::dsp::WindowingFunction<float>;
-
+    
     switch (t)
     {
     case Rectangle:
@@ -941,9 +938,9 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
     case Hann:
         DspWindowType(s, DspWindowType::hann, normalise).multiplyWithWindowingTable(data, s);
         break;
-	case Kaiser:
-		DspWindowType(s, DspWindowType::kaiser, normalise, 15.0f).multiplyWithWindowingTable(data, s);
-		break;
+    case Kaiser:
+        DspWindowType(s, DspWindowType::kaiser, normalise, 15.0f).multiplyWithWindowingTable(data, s);
+        break;
     case Triangle:
         DspWindowType(s, DspWindowType::triangular, normalise).multiplyWithWindowingTable(data, s);
         break;
@@ -955,6 +952,14 @@ void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
         FloatVectorOperations::clear(data, s);
         break;
     }
+}
+
+void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
+{
+    auto s = b.getNumSamples() / 2;
+    auto data = b.getWritePointer(0);
+
+    applyWindow(t, data, s, normalise);
 }
 
 float FFTHelpers::getFreqForLogX(float xPos, float width)

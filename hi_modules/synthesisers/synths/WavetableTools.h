@@ -80,19 +80,8 @@ class SampleMapToWavetableConverter : public SafeChangeBroadcaster
 {
 public:
 
-	enum WindowType
-	{
-		FlatTop = 0,
-		BlackmanHarris,
-		Hann,
-		Hamming,
-		Kaiser,
-		Gaussian,
-		Triangle,
-		Rectangular,
-		numWindowTypes
-	};
-
+    using WindowType = FFTHelpers::WindowType;
+    
 	struct WavetableIndex
 	{
 		bool operator==(const WavetableIndex& other) const
@@ -172,7 +161,7 @@ public:
 	bool reverseOrder = true;
 	bool useOriginalGain = true;
 	bool channelToUse = 0;
-	WindowType windowType = FlatTop;
+    WindowType windowType = FFTHelpers::FlatTop;
 
 	Result refreshCurrentWavetable(double& progress, bool forceReanalysis = true);
 

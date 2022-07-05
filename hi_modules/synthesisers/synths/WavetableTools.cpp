@@ -142,40 +142,7 @@ struct ResynthesisHelpers
 	static double getRootFrequencyInBuffer(const AudioSampleBuffer &buffer, double sampleRate, double estimatedFreq)
 	{
 		float pitch = (float)PitchDetection::detectPitch(buffer, 0, buffer.getNumSamples(), sampleRate);
-
 		FloatSanitizers::sanitizeFloatNumber(pitch);
-
-		if (PitchDetection::getNumSamplesNeeded(sampleRate, estimatedFreq) >= buffer.getNumSamples())
-			pitch = 0.0;
-
-		if (pitch != 0.0)
-			return (double)pitch;
-
-		icstdsp::FrequencyAnalysis analysis;
-
-		analysis.prepareFundamentalFrequencyBuffers(buffer.getNumSamples());
-
-		float* data_ = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* temp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* freq = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* amp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* time = nullptr;
-		float* dw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-		float* rw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-		float aic[4];
-		float* w = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-
-		icstdsp::VectorFunctions::blackman(w, buffer.getNumSamples());
-		FloatVectorOperations::copy(data_, buffer.getReadPointer(0), buffer.getNumSamples());
-		auto freq_ = analysis.getFundamentalFrequency(data_, buffer.getNumSamples(), icstdsp::FrequencyAnalysis::NormalisationScheme::CauchySchwarz);
-		analysis.prepareWindow(w, dw, rw, aic, buffer.getNumSamples());
-		analysis.analyseSpectrum(data_, freq, amp, time, buffer.getNumSamples(), w, dw, rw, temp, aic);
-
-		FloatVectorOperations::multiply(freq, (float)sampleRate, buffer.getNumSamples());
-		int index = analysis.verifyFundamentalFrequency(amp, buffer.getNumSamples(), freq_.re);
-		pitch = jlimit<float>(0.0, (float)sampleRate / 2.0f, freq[index]);
-		pitch = FloatSanitizers::sanitizeFloatNumber(pitch);
-
 		return (double)pitch;
 	}
 
@@ -214,21 +181,9 @@ struct ResynthesisHelpers
 
 			float* w = (float*)alloca(sizeof(float)*size);
 
+            FloatVectorOperations::fill(w, 1.0f, size);
+            FFTHelpers::applyWindow(windowType, w, size);
 			
-			switch (windowType)
-			{
-			case hise::SampleMapToWavetableConverter::FlatTop:		  icstdsp::VectorFunctions::flattop(w, size); break;;
-			case hise::SampleMapToWavetableConverter::BlackmanHarris: icstdsp::VectorFunctions::blackman(w, size); break;
-			case hise::SampleMapToWavetableConverter::Rectangular:    FloatVectorOperations::fill(w, 1.0f, size); break;
-			case hise::SampleMapToWavetableConverter::Gaussian:		  icstdsp::VectorFunctions::gauss(w, size, 0.5f); break;
-			case hise::SampleMapToWavetableConverter::Hann:			  icstdsp::VectorFunctions::hann(w, size); break;
-			case hise::SampleMapToWavetableConverter::Hamming:		  icstdsp::VectorFunctions::hamming(w, size); break;
-			case hise::SampleMapToWavetableConverter::Kaiser:		  icstdsp::VectorFunctions::kaiser(w, size, 8.0f);
-			case hise::SampleMapToWavetableConverter::Triangle:		  icstdsp::VectorFunctions::triangle(w, size); break;
-			default:												  break;
-			}
-
-
 			FloatVectorOperations::multiply(dl, w, size);
 			FloatVectorOperations::multiply(dr, w, size);
 
@@ -252,8 +207,6 @@ struct ResynthesisHelpers
 			}
 
 			auto halfSize = (double)size / 2.0;
-
-
 			int numHarmonics = harmonicSpectrum.getNumSamples();
 
 			float* ampL = harmonicSpectrum.getWritePointer(0);
@@ -280,10 +233,6 @@ struct ResynthesisHelpers
 					ampL[i] = magL[index];
 					ampR[i] = magR[index];
 				}
-
-				
-
-				
 			}
 
 			auto maxL = FloatVectorOperations::findMaximum(ampL, numHarmonics);
@@ -753,12 +702,33 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	int partIndex = 0;
 
+    auto totalLength = buffer.getNumSamples() - fftSize;
+    
+    
+    
 	for (const auto& p : parts)
 	{
 		AudioSampleBuffer harmonics(2, numHarmonics);
 
+        auto offsetNormalized = (double)partIndex / (double)numParts;
+        auto offsetSample = roundToInt(offsetNormalized * (double)totalLength);
+        
+        
+        
 		auto estimatedPitch = MidiMessage::getMidiNoteInHertz(m.index.noteNumber);
-		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(p, sampleRate, estimatedPitch);
+        
+        auto numSamplesRequired = PitchDetection::getNumSamplesNeeded(sampleRate, estimatedPitch * 0.9);
+        
+        auto numToUse = jmin(numSamplesRequired, buffer.getNumSamples() - offsetSample);
+        
+        if(numToUse < 0)
+            break;
+        
+        float* d[1] = { buffer.getWritePointer(0, offsetSample) };
+        
+        AudioSampleBuffer pitchBuffer(d, 1, numToUse);
+        
+		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(pitchBuffer, sampleRate, estimatedPitch);
         auto estimatedRatio = thisPitch / estimatedPitch;
 
 		if(isBetween(estimatedRatio, 0.0, 0.33) || estimatedRatio > 3.0)
