@@ -732,6 +732,20 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		if (useSpecialWrapper && realPath.startsWith("fix"))
 		{
 			auto bs = realPath.fromFirstOccurrenceOf("fix", false, false).getIntValue();
+            
+            if(bs == 0)
+            {
+                // fetch the block size from the property
+                bs = ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::BlockSize);
+            }
+            
+            if(bs == 0 || !isPowerOfTwo(bs))
+            {
+                Error e;
+                e.errorMessage << "Illegal block size for fix_block container: " << String(bs);
+                throw e;
+            }
+            
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::fix_block"), bs);
 		}
 		if (useSpecialWrapper && realPath.startsWith("oversample"))
