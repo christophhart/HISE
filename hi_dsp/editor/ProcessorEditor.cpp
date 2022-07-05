@@ -611,13 +611,8 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
             dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
 
         c->getHandler()->add(processorToBeAdded, insertBeforeSibling);
-
-        
         
         PresetHandler::setUniqueIdsForProcessor(processorToBeAdded);
-
-        if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded))
-            processorToBeAdded->getMainController()->getMainSynthChain()->compileAllScripts();
 
         MessageManager::callAsync([brw, c, editor, processorToBeAdded]()
         {
