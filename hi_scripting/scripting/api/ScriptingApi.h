@@ -721,7 +721,9 @@ public:
 		Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler);
 		~Sampler() {};
 
-		Identifier getObjectName() const override { return "Sampler"; }
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Sampler"); }
+
+		Identifier getObjectName() const override { return getClassName(); }
 		bool objectDeleted() const override { return sampler.get() == nullptr; }
 		bool objectExists() const override { return sampler.get() != nullptr; }
 
@@ -956,6 +958,9 @@ public:
 
 		/** Returns the attribute of the parent synth. */
 		float getAttribute(int attributeIndex) const;
+
+		/** Creates a Builder object that can be used to create the module tree. */
+		var createBuilder();
 
 		/** Adds a note on to the buffer. */
 		int addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples);

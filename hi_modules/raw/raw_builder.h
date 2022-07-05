@@ -121,6 +121,9 @@ public:
 	*/
 	template <class T> T* create(Processor* parent, int chainIndex = IDs::Chains::Direct);
 
+	/** Creates a module with the given type name. If you're in C++ world, better use the templated method (this method was just added to add this functionality on the scripting layer). */
+	Processor* create(Processor* parent, const Identifier& processorType, int chainIndex);
+
 	/** Removes a processor and all its child processors from the signal path. */
 	template <class T> bool remove(Processor* p);
 

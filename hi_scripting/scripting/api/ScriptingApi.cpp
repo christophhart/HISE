@@ -4326,6 +4326,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, isArtificialEventActive);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
+	API_METHOD_WRAPPER_0(Synth, createBuilder);
 	
 };
 
@@ -4400,6 +4401,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_1(isArtificialEventActive);
 	ADD_API_METHOD_1(setClockSpeed);
 	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
+	ADD_API_METHOD_0(createBuilder);
 	
 };
 
@@ -5232,6 +5234,11 @@ float ScriptingApi::Synth::getAttribute(int attributeIndex) const
 	}
 
 	return owner->getAttribute(attributeIndex);
+}
+
+juce::var ScriptingApi::Synth::createBuilder()
+{
+	return var(new ScriptingObjects::ScriptBuilder(getScriptProcessor()));
 }
 
 int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples, int startOffset)

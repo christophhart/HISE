@@ -7075,4 +7075,281 @@ void ScriptingObjects::ScriptedMidiAutomationHandler::setConsumeAutomatedControl
 	handler->setConsumeAutomatedControllers(shouldBeConsumed);
 }
 
+struct ScriptingObjects::ScriptBuilder::Wrapper
+{
+	API_METHOD_WRAPPER_4(ScriptBuilder, create);
+	API_METHOD_WRAPPER_2(ScriptBuilder, get);
+	API_VOID_METHOD_WRAPPER_2(ScriptBuilder, setAttributes);
+	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, clear);
+	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, flush);
+	API_VOID_METHOD_WRAPPER_2(ScriptBuilder, connectToScript);
+};
+
+ScriptingObjects::ScriptBuilder::ScriptBuilder(ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(p, 6)
+{
+	createdModules.add(getScriptProcessor()->getMainController_()->getMainSynthChain());
+
+	createJSONConstants();
+
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_4(create);
+	ADD_API_METHOD_2(get);
+	ADD_API_METHOD_2(setAttributes);
+	ADD_API_METHOD_0(flush);
+	ADD_API_METHOD_2(connectToScript);
+}
+
+ScriptingObjects::ScriptBuilder::~ScriptBuilder()
+{
+	if (!flushed && !createdModules.isEmpty())
+	{
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), "forgot to flush() a Builder!");
+	}
+}
+
+template <typename T> void addScriptProcessorInterfaceID(var& ids)
+{
+	auto i = T::getClassName();
+	ids.getDynamicObject()->setProperty(i, i.toString());
+}
+
+void ScriptingObjects::ScriptBuilder::createJSONConstants()
+{
+	auto root = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	auto createObjectForFactory = [](hise::FactoryType* f)
+	{
+		DynamicObject::Ptr p = new DynamicObject();
+
+		f->setConstrainer(nullptr);
+
+		for (auto& t : f->getAllowedTypes())
+			p->setProperty(Identifier(t.type.toString().removeCharacters(" ")), t.type.toString());
+
+		return var(p.get());
+	};
+
+	{
+		MidiProcessorFactoryType f(root);
+		addConstant("MidiProcessors", createObjectForFactory(&f));
+	}
+
+	{
+		ModulatorChainFactoryType f(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+		addConstant("Modulators", createObjectForFactory(&f));
+	}
+
+	{
+		ModulatorSynthChainFactoryType m(NUM_POLYPHONIC_VOICES, root);
+		addConstant("SoundGenerators", createObjectForFactory(&m));
+	}
+
+	{
+		EffectProcessorChainFactoryType e(NUM_POLYPHONIC_VOICES, root);
+		addConstant("Effects", createObjectForFactory(&e));
+	}
+	{
+		var s(new DynamicObject());
+
+		addScriptProcessorInterfaceID<ScriptingMidiProcessor>(s);
+		addScriptProcessorInterfaceID<ScriptingModulator>(s);
+		addScriptProcessorInterfaceID<ScriptingSynth>(s);
+		addScriptProcessorInterfaceID<ScriptingEffect>(s);
+		addScriptProcessorInterfaceID<ScriptingAudioSampleProcessor>(s);
+		addScriptProcessorInterfaceID<ScriptSliderPackProcessor>(s);
+		addScriptProcessorInterfaceID<ScriptingTableProcessor>(s);
+		addScriptProcessorInterfaceID<ScriptingApi::Sampler>(s);
+		addScriptProcessorInterfaceID<ScriptedMidiPlayer>(s);
+		addScriptProcessorInterfaceID<ScriptRoutingMatrix>(s);
+		addScriptProcessorInterfaceID<ScriptingSlotFX>(s);
+
+		addConstant("InterfaceTypes", s);
+	}
+	{
+		var chainIds(new DynamicObject());
+
+		chainIds.getDynamicObject()->setProperty("Direct", raw::IDs::Chains::Direct);
+		chainIds.getDynamicObject()->setProperty("Midi", raw::IDs::Chains::Midi);
+		chainIds.getDynamicObject()->setProperty("Gain", raw::IDs::Chains::Gain);
+		chainIds.getDynamicObject()->setProperty("Pitch", raw::IDs::Chains::Pitch);
+		chainIds.getDynamicObject()->setProperty("FX", raw::IDs::Chains::FX);
+		chainIds.getDynamicObject()->setProperty("GlobalMod", raw::IDs::Chains::GlobalModulatorSlot);
+
+		addConstant("ChainIndexes", chainIds);
+	}
+}
+
+int ScriptingObjects::ScriptBuilder::create(var type, var id, int rootBuildIndex, int chainIndex)
+{
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("You can't use this method after the onInit callback!");
+		RETURN_IF_NO_THROW(-1);
+	}
+	
+	if (auto p = createdModules[rootBuildIndex])
+	{
+		if (auto existing = ProcessorHelpers::getFirstProcessorWithName(p, id.toString()))
+		{
+			createdModules.add(existing);
+			return createdModules.size() - 1;
+		}
+
+		raw::Builder b(getScriptProcessor()->getMainController_());
+
+		Identifier t_(type.toString());
+
+		
+
+		auto newP = b.create(p, t_, chainIndex);
+
+		if (newP != nullptr)
+		{
+			newP->setId(id.toString(), dontSendNotification);
+			createdModules.add(newP);
+			
+			flushed = false;
+
+			return createdModules.size() - 1;
+		}
+		else
+			reportScriptError("Couldn't create module with ID " + t_.toString());
+	}
+	else
+	{
+		reportScriptError("Couldn't find parent module with index " + String(rootBuildIndex));
+	}
+
+	RETURN_IF_NO_THROW(-1);
+}
+
+bool ScriptingObjects::ScriptBuilder::connectToScript(int buildIndex, String relativePath)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(createdModules[buildIndex].get()))
+	{
+		jp->setConnectedFile(relativePath, true);
+		return true;
+	}
+
+	return false;
+}
+
+juce::var ScriptingObjects::ScriptBuilder::get(int buildIndex, String interfaceType)
+{
+	if (auto p = createdModules[buildIndex])
+	{
+		Identifier id(interfaceType);
+
+#define RETURN_IF_MATCH(Type, PType) if(id == Type::getClassName() && dynamic_cast<PType*>(p.get()) != nullptr) return var(new Type(getScriptProcessor(), dynamic_cast<PType*>(p.get())));
+
+		RETURN_IF_MATCH(ScriptingMidiProcessor, hise::MidiProcessor);
+		RETURN_IF_MATCH(ScriptingModulator, hise::Modulator);
+		RETURN_IF_MATCH(ScriptingSynth, hise::ModulatorSynth);
+		RETURN_IF_MATCH(ScriptingEffect, hise::EffectProcessor);
+		RETURN_IF_MATCH(ScriptingAudioSampleProcessor, hise::Processor);
+		RETURN_IF_MATCH(ScriptSliderPackProcessor, snex::ExternalDataHolder);
+		RETURN_IF_MATCH(ScriptingTableProcessor, snex::ExternalDataHolder);
+		RETURN_IF_MATCH(ScriptingApi::Sampler, hise::ModulatorSampler);
+		RETURN_IF_MATCH(ScriptedMidiPlayer, hise::MidiPlayer);
+		RETURN_IF_MATCH(ScriptRoutingMatrix, hise::Processor);
+		RETURN_IF_MATCH(ScriptingSlotFX, hise::EffectProcessor);
+
+#undef RETURN_IF_MATCH
+
+	}
+	return var();
+}
+
+void ScriptingObjects::ScriptBuilder::setAttributes(int buildIndex, var attributeValues)
+{
+	if (auto p = createdModules[buildIndex])
+	{
+		Array<Identifier> attributeIds;
+
+		for (int i = 0; i < p->getNumParameters(); i++)
+			attributeIds.add(p->getIdentifierForParameterIndex(i));
+
+		if (auto obj = attributeValues.getDynamicObject())
+		{
+			for (const auto& a : obj->getProperties())
+			{
+				auto idx = attributeIds.indexOf(a.name);
+
+				if (idx == -1)
+				{
+					reportScriptError("Can't find attribute " + a.name);
+					break;
+				}
+				else
+				{
+					auto v = (float)a.value;
+					FloatSanitizers::sanitizeFloatNumber(v);
+
+					p->setAttribute(idx, v, dontSendNotification);
+				}
+			}
+
+			p->sendPooledChangeMessage();
+		}
+	}
+}
+
+void ScriptingObjects::ScriptBuilder::clear()
+{
+	if (getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread)
+	{
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "skipping Builder.clear() on project load");
+		return;
+	}
+
+	auto thisAsP = dynamic_cast<Processor*>(getScriptProcessor());
+
+	raw::Builder b(getScriptProcessor()->getMainController_());
+
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+	
+	for (int i = 0; i < synthChain->getNumChildProcessors(); i++)
+	{
+		if (i < ModulatorSynth::numInternalChains)
+		{
+			auto m = synthChain->getChildProcessor(i);
+
+			for (int j = 0; j < m->getNumChildProcessors(); j++)
+			{
+				auto cToRemove = m->getChildProcessor(j);
+
+				// please don't kill yourself.
+				if (cToRemove == thisAsP)
+					continue;
+
+				else
+				{
+					b.remove<Processor>(cToRemove);
+					j--;
+				}
+			}
+		}
+		else
+		{
+			b.remove<Processor>(synthChain->getChildProcessor(i--));
+		}
+	}
+
+	flushed = false;
+}
+
+
+
+void ScriptingObjects::ScriptBuilder::flush()
+{
+	flushed = true;
+
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	synthChain->sendRebuildMessage(true);
+
+	getScriptProcessor()->getMainController_()->getProcessorChangeHandler().sendProcessorChangeMessage(synthChain, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+}
+
 } // namespace hise

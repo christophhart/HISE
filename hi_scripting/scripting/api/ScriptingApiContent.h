@@ -2470,6 +2470,11 @@ public:
 
 	
 
+	bool interfaceCreationAllowed() const
+	{
+		return allowGuiCreation;
+	}
+
 	bool asyncFunctionsAllowed() const
 	{
 		return allowAsyncFunctions;
