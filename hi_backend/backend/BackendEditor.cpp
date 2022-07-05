@@ -68,7 +68,6 @@ BackendProcessorEditor::~BackendProcessorEditor()
 	// Remove the popup components
 
 	popupEditor = nullptr;
-	stupidRectangle = nullptr;
 	
 	// Remove the toolbar stuff
 
@@ -175,8 +174,6 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	if (currentPopupComponent != nullptr)
 	{
-		jassert(stupidRectangle != nullptr);
-		stupidRectangle->setBounds(viewport->getBounds());
 		currentPopupComponent->setTopLeftPosition(currentPopupComponent->getX(), viewportY + 40);
 	}
 }
@@ -233,11 +230,7 @@ void BackendProcessorEditor::resized()
 
 	viewport->viewport->setViewPosition(0, owner->getScrollY());
 
-	if(stupidRectangle != nullptr && currentPopupComponent.get() != nullptr)
-    {
-        stupidRectangle->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
-        currentPopupComponent->setBounds(viewportX, viewportY + 40, viewportWidth, viewportHeight-40);
-    }
+	
     
 }
 
@@ -264,21 +257,15 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 		currentPopupComponent = componentToShow;
 	}
 
-	addAndMakeVisible(stupidRectangle = new StupidRectangle());
-
-	stupidRectangle->setText(title);
-
-	stupidRectangle->addMouseListener(this, true);
+	
 
 	const int height = getHeight() - viewport->getY();
-
-	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, height);
 
 	addAndMakeVisible(componentToShow);
 
 	componentToShow->setBounds(viewport->getX(), viewport->getY() + 40, viewport->getWidth()-SCROLLBAR_WIDTH, componentToShow->getHeight());
 
-	stupidRectangle->setVisible(true);
+	
 	componentToShow->setVisible(true);
 
 	viewport->setEnabled(false);

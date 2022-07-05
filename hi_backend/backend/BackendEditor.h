@@ -296,7 +296,7 @@ private:
     WeakReference<CopyPasteTarget> currentlySelectedCopyableObject;
     
 	ScopedPointer<ProcessorEditor> popupEditor;
-	ScopedPointer<StupidRectangle> stupidRectangle;
+	
 	
 	ScopedPointer<BreadcrumbComponent> breadCrumbComponent;
 
