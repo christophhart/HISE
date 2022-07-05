@@ -66,7 +66,6 @@
 #include "UserPresetHandler.cpp"
 #include "KillStateHandler.cpp"
 #include "PresetHandler.cpp"
-#include "SampleExporter.cpp"
 #include "GlobalAsyncModuleHandler.cpp"
 #include "Popup.cpp"
 #include "Console.cpp"

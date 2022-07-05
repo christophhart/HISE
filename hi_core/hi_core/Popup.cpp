@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+
+
 namespace hise { using namespace juce;
 
 TooltipBar::TooltipBar():
@@ -118,3 +120,5 @@ void TooltipBar::mouseDown(const MouseEvent &)
 }
 
 } // namespace hise
+
+

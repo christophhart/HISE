@@ -183,7 +183,6 @@ public:
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsApplySampleMapProperties,
 		MenuToolsImportArchivedSamples,
-		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
 		MenuToolsRedirectScriptFolder,
 		MenuToolsCreateUIDataFromDesktop,
@@ -324,7 +323,6 @@ public:
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		static void saveUserPreset(BackendRootWindow *bpe);
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
-		static void collectExternalFiles(BackendRootWindow * bpe);
 		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);

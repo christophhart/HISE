@@ -30,56 +30,12 @@
 *   ===========================================================================
 */
 
-#ifndef SINGLETONPOPUP_H_INCLUDED
-#define SINGLETONPOPUP_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
 class BaseDebugArea;
 class BackendProcessorEditor;
-
-
-
-/** A small utility class that allows popups for console and plotter. 
-*
-*	@ingroup utility
-*/
-class PopupWindow: public DocumentWindow
-{
-public:
-
-	/** Creates a basic Popup window with all Buttons .
-	*
-	*	@param t the Popup title.
-	*/
-	PopupWindow(const String &t): DocumentWindow(t, Colours::lightgrey, DocumentWindow::allButtons, true)
-	{
-		
-	};
-
-	virtual ~PopupWindow()
-	{ };
-
-	void setDeleteOnClose(bool shouldBeDeleted)
-	{
-		deleteWhenClosed = shouldBeDeleted;
-	};
-
-	/** Removes the instance from the desktop. You have to take care about ownership elsewhere! */
-	virtual void closeButtonPressed()
-	{ 
-		deleteWhenClosed ? delete this : removeFromDesktop(); 
-	};
-
-private: 
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupWindow)
-
-	
-
-	bool deleteWhenClosed;
-};
-
 class AboutPage;
 
 class TooltipBar: public Component,
@@ -242,5 +198,3 @@ private:
 };
 
 } // namespace hise
-
-#endif  // SINGLETONPOPUP_H_INCLUDED

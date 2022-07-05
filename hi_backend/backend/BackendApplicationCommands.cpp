@@ -150,7 +150,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
-		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
 		MenuToolsGetMissingSampleList,
 		MenuToolsRedirectScriptFolder,
@@ -510,10 +509,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Import archived samples", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
-	case MenuToolsCollectExternalFiles:
-		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
-		result.categoryName = "Tools";
-		break;
 	case MenuToolsShowDspNetworkDllInfo:
 		setCommandTarget(result, "Show DSP Network DLL info", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -738,7 +733,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsGetMissingSampleList:	Actions::copyMissingSampleListToClipboard(bpe); return true;
-	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
 	case MenuToolsCheckDeviceSanity:	Actions::checkDeviceSanity(bpe); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
@@ -1014,7 +1008,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsApplySampleMapProperties);
 		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
-		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		
@@ -1847,12 +1840,6 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRoot
 }
 
 
-void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe)
-{
-	ExternalResourceCollector *resource = new ExternalResourceCollector(bpe->getBackendProcessor());
-
-	resource->setModalBaseWindowComponent(bpe);
-}
 
 
 void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)

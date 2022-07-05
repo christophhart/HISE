@@ -96,7 +96,6 @@
 #include "MainControllerHelpers.h"
 #include "LockHelpers.h"
 #include "MainController.h"
-#include "SampleExporter.h"
 #include "Console.h"
 
 #include "MacroControlBroadcaster.h"
