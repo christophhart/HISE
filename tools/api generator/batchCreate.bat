@@ -87,10 +87,9 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_plotter.xml" "x
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_image.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_panel.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\selection"
-xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
-
 
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 

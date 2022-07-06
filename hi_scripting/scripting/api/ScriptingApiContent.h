@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 class ValueTreeUpdateWatcher : ValueTree::Listener
 {
 public:
@@ -2001,6 +2003,8 @@ public:
 	{
 	public:
 
+		
+
 		enum Properties
 		{
 			scrollbarThickness = ScriptComponent::numProperties,
@@ -2034,11 +2038,33 @@ public:
 			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
+		// ============================================================================ API Methods
+
+		/** Turns this viewport into a table with the given metadata. This can only be done in the onInit callback. */
+		void setTableMode(var tableMetadata);
+
+		/** Define the columns of the table. This can only be done in the onInit callback. */
+		void setTableColumns(var columnMetadata);
+
+		/** Update the row data for the table. */
+		void setTableRowData(var tableData);
+
+		/** Set a function that is notified for all user interaction with the table. */
+		void setTableCallback(var callbackFunction);
+
+		// ============================================================================ API Methods
+
 		Array<PropertyWithValue> getLinkProperties() const override;
 
 		LambdaBroadcaster<double, double> positionBroadcaster;
 
+		ScriptTableListModel::Ptr getTableModel() { return tableModel; }
+
 	private:
+
+		ScriptTableListModel::Ptr tableModel;
+
+		struct Wrapper;
 
 		StringArray currentItems;
 

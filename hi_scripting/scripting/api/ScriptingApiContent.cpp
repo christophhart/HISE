@@ -55,6 +55,7 @@
 namespace hise { using namespace juce;
 
 
+
 #define ID(id) Identifier(#id)
 
 void ScriptingApi::Content::initNumberProperties()
@@ -4150,6 +4151,14 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createC
 	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
 }
 
+struct ScriptingApi::Content::ScriptedViewport::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableMode);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableColumns);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableRowData);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableCallback);
+};
+
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
 	ScriptComponent(base, viewportName)
 {
@@ -4185,6 +4194,11 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(Items);
+
+	ADD_API_METHOD_1(setTableMode);
+	ADD_API_METHOD_1(setTableColumns);
+	ADD_API_METHOD_1(setTableRowData);
+	ADD_API_METHOD_1(setTableCallback);
 }
 
 void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
@@ -4263,7 +4277,63 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	return vArray;
 }
 
+void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
+{
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table Metadata must be set in the onInit callback");
+		RETURN_IF_NO_THROW();
+	}
 
+	tableModel = new ScriptTableListModel(getScriptProcessor(), tableMetadata);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableColumns(var columnMetadata)
+{
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table Metadata must be set in the onInit callback");
+		RETURN_IF_NO_THROW();
+	}
+
+	if (tableModel == nullptr)
+	{
+		reportScriptError("You need to call setTableMode first");
+		RETURN_IF_NO_THROW();
+	}
+
+	tableModel->setTableColumnData(columnMetadata);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableRowData(var tableData)
+{
+	if (tableModel == nullptr)
+	{
+		reportScriptError("You need to call setTableMode first");
+		RETURN_IF_NO_THROW();
+	}
+
+	
+
+	tableModel->setRowData(tableData);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableCallback(var callbackFunction)
+{
+	if (tableModel == nullptr)
+	{
+		reportScriptError("You need to call setTableMode first");
+		RETURN_IF_NO_THROW();
+	}
+
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table callback must be set in the onInit callback");
+		RETURN_IF_NO_THROW();
+	}
+
+	tableModel->setCallback(callbackFunction);
+}
 
 // ====================================================================================================== ScriptFloatingTile functions
 
@@ -6186,5 +6256,6 @@ void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, 
 		break;
 	}
 }
+
 
 } // namespace hise

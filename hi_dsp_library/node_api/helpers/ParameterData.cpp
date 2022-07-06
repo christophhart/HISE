@@ -172,6 +172,19 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 	return r;
 }
 
+scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const var& obj)
+{
+	ValueTree v(PropertyIds::ID);
+
+	for (auto r : getRangeIds(false))
+	{
+		if (obj.hasProperty(r))
+			v.setProperty(r, obj[r], nullptr);
+	}
+
+	return getDoubleRange(v);
+}
+
 namespace parameter
 {
 

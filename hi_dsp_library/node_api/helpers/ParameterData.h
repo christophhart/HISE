@@ -114,6 +114,9 @@ struct RangeHelpers
 	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
 	static InvertableParameterRange getDoubleRange(const ValueTree& t);
 
+
+	static InvertableParameterRange getDoubleRange(const var& obj);
+
 	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um);
 
 	static bool equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError);

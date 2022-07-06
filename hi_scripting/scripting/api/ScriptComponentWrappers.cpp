@@ -1364,11 +1364,20 @@ public:
 ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index):
 	ScriptCreatedComponentWrapper(content, index)
 {
-	shouldUseList = (bool)viewport->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::useList);
+	if (tableModel = viewport->getTableModel())
+	{
+		mode = Mode::Table;
+		tableModel->tableRefreshBroadcaster.addListener(*this, ViewportWrapper::tableUpdated, false);
+	}
+	else
+	{
+		auto shouldUseList = (bool)viewport->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::useList);
+		mode = shouldUseList ? Mode::List : Mode::Viewport;
+	}
 
 	Viewport* vp = nullptr;
 
-	if (!shouldUseList)
+	if (mode == Mode::Viewport)
 	{
 		vp = new Viewport();
 		vp->setName(viewport->name.toString());
@@ -1384,7 +1393,7 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 
 		component = vp;
 	}
-	else
+	else if (mode == Mode::List)
 	{
 		model = new ColumnListBoxModel(this);
 		auto table = new ListBox();
@@ -1405,6 +1414,13 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 		vp = table->getViewport();
 
 		component = table;
+	}
+	else
+	{
+		auto t = new TableListBox();
+		tableModel->setup(t);
+		vp = t->getViewport();
+		component = t;
 	}
 	
 	viewport->positionBroadcaster.addListener(*this, [vp](ViewportWrapper& v, double x, double y)
@@ -1427,20 +1443,29 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent()
 {
 	auto vpc = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
 
-	if (shouldUseList)
+	if (mode == Mode::List)
 	{
 		updateFont(vpc);
 
 		updateColours();
 		updateItems(vpc);
-
 	}
-	else
+	else if (mode == Mode::Viewport)
 	{
 		auto vp = dynamic_cast<Viewport*>(component.get());
 
 		vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
 		vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+	}
+	else
+	{
+		auto list = dynamic_cast<TableListBox*>(getComponent());
+		auto vp = list->getViewport();
+		vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
+		
+		updateColours();
+		updateFont(vpc);
+		list->updateContent();
 	}
 }
 
@@ -1456,7 +1481,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int proper
 	auto vpc = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
 	auto vp = dynamic_cast<Viewport*>(component.get());
 
-	if (shouldUseList)
+	if (mode != Mode::Viewport)
 	{
 		switch (propertyIndex)
 		{
@@ -1469,6 +1494,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int proper
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(); break;
 			PROPERTY_CASE::ScriptedViewport::Properties::Items: updateItems(vpc); break;
+			PROPERTY_CASE::ScriptedViewport::Properties::scrollbarThickness: 
+				dynamic_cast<ListBox*>(getComponent())->getViewport()->setScrollBarThickness(newValue); break;
 		}
 	}
 	else
@@ -1492,15 +1519,22 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateValue(var newValue)
 	}
 }
 
+void ScriptCreatedComponentWrappers::ViewportWrapper::tableUpdated(ViewportWrapper& w, int index)
+{
+	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
+	{
+		t->updateContent();
+	}
+}
+
 void ScriptCreatedComponentWrappers::ViewportWrapper::updateItems(ScriptingApi::Content::ScriptedViewport * vpc)
 {
 	auto listBox = dynamic_cast<ListBox*>(component.get());
 
 	if (listBox != nullptr)
 	{
-		if (model->shouldUpdate(vpc->getItemList()))
+		if (model != nullptr && model->shouldUpdate(vpc->getItemList()))
 		{
-			
 			model->setItems(vpc->getItemList());
 			listBox->deselectAllRows();
 			listBox->repaint();
@@ -1526,20 +1560,23 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateColours()
 		auto bgColour = GET_OBJECT_COLOUR(bgColour);
 		auto textColour = GET_OBJECT_COLOUR(textColour);
 
-
-		model->itemColour1 = itemColour1;
-		model->itemColour2 = itemColour2;
-		model->bgColour = bgColour;
-		model->textColour = textColour;
-
-
+		if (model != nullptr)
+		{
+			model->itemColour1 = itemColour1;
+			model->itemColour2 = itemColour2;
+			model->bgColour = bgColour;
+			model->textColour = textColour;
+		}
+		else if (tableModel != nullptr)
+		{
+			tableModel->setColours(textColour, bgColour, itemColour1, itemColour2);
+		}
 
 		listBox->getViewport()->setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
 
 		listBox->setColour(ListBox::ColourIds::backgroundColourId, bgColour);
 		listBox->setColour(ListBox::ColourIds::outlineColourId, itemColour2);
 		listBox->repaint();
-
 	}
 }
 
@@ -1584,10 +1621,18 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateFont(ScriptingApi::C
 			}
 		}
 
-		model->font = f;
-		model->justification = vpc->getJustification();
-		listBox->setRowHeight((int)f.getHeight() + 15);
-		listBox->repaint();
+		if (tableModel != nullptr)
+		{
+			tableModel->setFont(f, vpc->getJustification());
+			getComponent()->repaint();
+		}
+		else if (model != nullptr)
+		{
+			model->font = f;
+			model->justification = vpc->getJustification();
+			listBox->setRowHeight((int)f.getHeight() + 15);
+			listBox->repaint();
+		}
 	}
 }
 

@@ -50,6 +50,9 @@ bool MacroControlledObject::checkLearnMode()
 {
 #if USE_BACKEND
 
+	if (getProcessor() == nullptr)
+		return false;
+
 	auto b = getProcessor()->getMainController()->getScriptComponentEditBroadcaster();
 
 	if (auto l = b->getCurrentlyLearnedComponent())
@@ -816,6 +819,9 @@ void HiToggleButton::buttonClicked(Button *b)
 {
 	jassert(b == this);
     
+	if (getProcessor() == nullptr)
+		return;
+
 	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
 

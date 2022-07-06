@@ -3260,6 +3260,46 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackTextPopup(Graphic
 	SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(g_, s, textToDraw);
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRowBackground(Graphics& g_, const ScriptTableListModel::LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected)
+{
+	if (functionDefined("paintTableRowBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("bgColour", d.bgColour.getARGB());
+		obj->setProperty("itemColour", d.itemColour1.getARGB());
+		obj->setProperty("itemColour2", d.itemColour2.getARGB());
+		obj->setProperty("textColour", d.textColour.getARGB());
+
+		obj->setProperty("rowIndex", rowNumber);
+		obj->setProperty("selected", rowIsSelected);
+
+		Rectangle<int> a(0, 0, width, height);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+
+		if (get()->callWithGraphics(g_, "drawTableRowBackground", var(obj), nullptr))
+			return;
+	}
+
+	ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(g_, d, rowNumber, width, height, rowIsSelected);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+{
+
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderBackground(Graphics& g, TableHeaderComponent& h)
+{
+
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
+{
+
+}
+
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
 {
 	auto img = MessageWithIcon::LookAndFeelMethods::createIcon(type);

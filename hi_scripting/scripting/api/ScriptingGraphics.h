@@ -572,7 +572,8 @@ namespace ScriptingObjects
 			public AhdsrGraph::LookAndFeelMethods,
 			public MidiFileDragAndDropper::LookAndFeelMethods,
 			public SliderPack::LookAndFeelMethods,
-			public CustomKeyboardLookAndFeelBase
+			public CustomKeyboardLookAndFeelBase,
+			public ScriptTableListModel::LookAndFeelMethods
 		{
 			Laf(MainController* mc) :
 				ControlledObject(mc)
@@ -672,6 +673,14 @@ namespace ScriptingObjects
 			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
 			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
 			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
+
+			void drawTableRowBackground(Graphics& g, const ScriptTableListModel::LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected) override;
+
+			void drawTableCell(Graphics& g, const  ScriptTableListModel::LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected) override;
+
+			void drawTableHeaderBackground(Graphics& g, TableHeaderComponent& h) override;
+
+			void drawTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override;
 
             void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
             
