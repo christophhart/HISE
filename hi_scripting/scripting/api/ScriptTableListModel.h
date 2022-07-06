@@ -110,7 +110,11 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	{
 		jassert(isPositiveAndBelow(columnIndex, columnMetadata.size()));
 		auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
-		return rowData[rowIndex][Identifier(id)];
+        
+        if(isPositiveAndBelow(rowIndex, rowData.size()))
+            return rowData[rowIndex][Identifier(id)];
+        
+        return {};
 	}
 
 	Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
