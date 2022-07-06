@@ -44,6 +44,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		SliderCallback,
 		ButtonCallback,
 		Selection,
+		SingleClick,
 		DoubleClick,
 		ReturnKey,
 		DeleteRow
@@ -71,11 +72,13 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 		virtual void drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected);
 
-		virtual void drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected);
+		virtual void drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected, bool cellIsClicked, bool cellIsHovered);
 
 		void drawDefaultTableHeaderBackground(Graphics& g, TableHeaderComponent& h);
 
 		void drawDefaultTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags);
+
+		LookAndFeelData getDataFromTableHeader(TableHeaderComponent& h);
 	};
 
 	struct DefaultLookAndFeel : public GlobalHiseLookAndFeel,
@@ -94,16 +97,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		return rowData.size();
 	}
 
-	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected) override
-	{
-		columnId--;
-
-		auto lafToUse = laf != nullptr ? laf : &fallback;
-
-		auto s = getCellValue(rowNumber, columnId).toString();
-
-		lafToUse->drawTableCell(g, d, s, rowNumber, columnId, width, height, rowIsSelected);
-	}
+	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected) override;
 
 	void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
 	{
@@ -148,13 +142,66 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		return columnMetadata[columnId - 1].getProperty("MaxWidth", 10000);
 	}
 
+	void cellClicked(int rowNumber, int columnId, const MouseEvent&) override;
 	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e) override;
 	void backgroundClicked(const MouseEvent&) override;
 	void selectedRowsChanged(int lastRowSelected) override;
 	void deleteKeyPressed(int lastRowSelected) override;
 	void returnKeyPressed(int lastRowSelected) override;
 
+	void setExternalLookAndFeel(LookAndFeelMethods* l)
+	{
+		laf = l;
+	}
+
 private:
+
+	struct TableRepainter : public MouseListener,
+						    public KeyListener
+	{
+		TableRepainter(TableListBox* t_, ScriptTableListModel& parent_):
+			t(t_),
+			parent(parent_)
+		{
+			t_->addMouseListener(this, true);
+			t_->addKeyListener(this);
+		}
+
+		bool keyPressed(const KeyPress& key,
+			Component* originatingComponent) override;
+
+		~TableRepainter()
+		{
+			if(auto tt = t.getComponent())
+			{
+				tt->removeMouseListener(this);
+				tt->removeKeyListener(this);
+			}
+				
+		}
+
+		void mouseDown(const MouseEvent& e) override;
+
+		void mouseExit(const MouseEvent& event) override;
+
+		void mouseEnter(const MouseEvent& e) override
+		{
+			repaintIfCellChange(e);
+		}
+
+		void repaintIfCellChange(const MouseEvent& e);
+
+		void mouseMove(const MouseEvent& e) override
+		{
+			repaintIfCellChange(e);
+		}
+
+		Point<int> hoverCell;
+		Component::SafePointer<TableListBox> t;
+		ScriptTableListModel& parent;
+	};
+
+	OwnedArray<TableRepainter> tableRepainters;
 
 	mutable Array<CellType> cellTypes;
 
@@ -162,6 +209,9 @@ private:
 
 	DefaultLookAndFeel fallback;
 	LookAndFeelMethods* laf = nullptr;
+
+	Point<int> hoverPos;
+	Point<int> lastClickedCell;
 
 	var tableMetadata;
 	var columnMetadata;

@@ -1430,6 +1430,14 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 
 	initAllProperties();
 	updateValue(viewport->value);
+
+	if (mode == Mode::Table && localLookAndFeel != nullptr)
+	{
+		if (auto typed = dynamic_cast<ScriptTableListModel::LookAndFeelMethods*>(localLookAndFeel.get()))
+		{
+			tableModel->setExternalLookAndFeel(typed);
+		}
+	}
 }
 
 

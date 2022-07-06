@@ -429,6 +429,8 @@ namespace ScriptingObjects
 			return new TaskViewer(this);
 		}
 
+		static void recompiled(ScriptBackgroundTask& task, bool unused);
+
 		// ==================================================================================== Start of API Methods
 
 		/** Signal that this thread should exit. */

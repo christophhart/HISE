@@ -5930,6 +5930,8 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	currentTask(p, var(), 1),
 	finishCallback(p, var(), 2)
 {
+	dynamic_cast<JavascriptProcessor*>(p)->getScriptEngine()->preCompileListeners.addListener(*this, recompiled, false);
+
 	ADD_API_METHOD_1(sendAbortSignal);
 	ADD_API_METHOD_0(shouldAbort);
 	ADD_API_METHOD_2(setProperty);
@@ -5943,6 +5945,11 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	ADD_API_METHOD_1(setStatusMessage);
 	ADD_API_METHOD_0(getStatusMessage);
 	ADD_API_METHOD_1(setForwardStatusToLoadingThread);
+}
+
+void ScriptingObjects::ScriptBackgroundTask::recompiled(ScriptBackgroundTask& task, bool unused)
+{
+	task.sendAbortSignal(true);
 }
 
 void ScriptingObjects::ScriptBackgroundTask::sendAbortSignal(bool blockUntilStopped)

@@ -41,6 +41,18 @@ ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, con
 	tableRefreshBroadcaster.enableLockFreeUpdate(p->getMainController_()->getGlobalUIUpdater());
 }
 
+void ScriptTableListModel::paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+{
+	auto lafToUse = laf != nullptr ? laf : &fallback;
+
+	auto s = getCellValue(rowNumber, columnId - 1).toString();
+
+	auto isClicked = lastClickedCell.y == rowNumber && lastClickedCell.x == columnId;
+	auto isHover = hoverPos.y == rowNumber && hoverPos.x == columnId;
+
+	lafToUse->drawTableCell(g, d, s, rowNumber, columnId - 1, width, height, rowIsSelected, isClicked, isHover);
+}
+
 Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected, Component* existingComponentToUpdate)
 {
 	columnId--;
@@ -96,6 +108,20 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 
 			b->setIsMomentary(momentary);
 
+			auto r = rowNumber;
+			auto c = columnId + 1;
+			
+			b->onClick = [r, c, b, this]()
+			{
+				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
+				
+				if (auto obj = rowData[r].getDynamicObject())
+				{
+					obj->setProperty(id, b->getToggleState());
+				}
+
+				sendCallback(r, c, b->getToggleState(), EventType::ButtonCallback);
+			};
 
 			fallback.setDefaultColours(*b);
 
@@ -116,6 +142,23 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			auto r = scriptnode::RangeHelpers::getDoubleRange(cd);
 
 			s->setSliderStyle(Slider::LinearBar);
+			s->setScrollWheelEnabled(false);
+
+			auto s_ = s;
+			auto r_ = rowNumber;
+			auto c = columnId+1;
+
+			s->onValueChange = [s_, r_, c, this]()
+			{
+				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
+
+				if (auto obj = rowData[r_].getDynamicObject())
+				{
+					obj->setProperty(id, s_->getValue());
+				}
+
+				sendCallback(r_, c, s_->getValue(), EventType::SliderCallback);
+			};
 
 			fallback.setDefaultColours(*s);
 
@@ -123,7 +166,7 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			s->setRange(r.rng.getRange(), r.rng.interval);
 			s->setSkewFactor(r.rng.skew);
 
-			s->setValue((double)getCellValue(rowNumber, columnId));
+			s->setValue((double)getCellValue(rowNumber, columnId), dontSendNotification);
 			return s;
 		}
 		case CellType::Image:
@@ -145,6 +188,9 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 	auto& header = t->getHeader();
 
 	t->setLookAndFeel(&fallback);
+
+	if(tableMetadata.getProperty("MultiColumnMode", false))
+		tableRepainters.add(new TableRepainter(t, *this));
 
 	int idx = 1;
 
@@ -207,7 +253,7 @@ void ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(Graphics& 
 	}
 }
 
-void ScriptTableListModel::LookAndFeelMethods::drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+void ScriptTableListModel::LookAndFeelMethods::drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected, bool cellIsClicked, bool cellIsHovered)
 {
 	g.setColour(d.textColour);
 	g.setFont(d.f);
@@ -222,15 +268,7 @@ void ScriptTableListModel::DefaultLookAndFeel::drawTableHeaderBackground(Graphic
 
 void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderBackground(Graphics& g, TableHeaderComponent& h)
 {
-	LookAndFeelData d;
-
-	if (TableListBox* table = h.findParentComponentOfClass<TableListBox>())
-	{
-		if (auto st = dynamic_cast<ScriptTableListModel*>(table->getModel()))
-		{
-			d = st->d;
-		}
-	}
+	auto d = getDataFromTableHeader(h);
 
 	g.setColour(d.itemColour2);
 	g.fillAll();
@@ -240,15 +278,7 @@ void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderBackground(
 
 void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderColumn(Graphics& g, TableHeaderComponent& h, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
 {
-	LookAndFeelData d;
-
-	if (TableListBox* table = h.findParentComponentOfClass<TableListBox>())
-	{
-		if (auto st = dynamic_cast<ScriptTableListModel*>(table->getModel()))
-		{
-			d = st->d;
-		}
-	}
+	auto d = getDataFromTableHeader(h);
 
 	g.setFont(d.f);
 	Rectangle<int> a(0, 0, width - 1, height);
@@ -258,6 +288,19 @@ void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderColumn(Grap
 
 	g.setColour(d.textColour);
 	g.drawText(columnName, a.toFloat().reduced(3.0f), d.c);
+}
+
+ScriptTableListModel::LookAndFeelData ScriptTableListModel::LookAndFeelMethods::getDataFromTableHeader(TableHeaderComponent& h)
+{
+	if (TableListBox* table = h.findParentComponentOfClass<TableListBox>())
+	{
+		if (auto st = dynamic_cast<ScriptTableListModel*>(table->getModel()))
+		{
+			return st->d;
+		}
+	}
+	
+	return {};
 }
 
 void ScriptTableListModel::DefaultLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderComponent& h, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
@@ -315,22 +358,36 @@ void ScriptTableListModel::setColours(Colour textColour, Colour bgColour, Colour
 	d.itemColour2 = itemColour2;
 }
 
+void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseEvent& e)
+{
+	lastClickedCell = { columnId, rowNumber };
+
+	TableListBoxModel::cellClicked(rowNumber, columnId, e);
+	sendCallback(rowNumber, columnId, rowData[rowNumber], EventType::SingleClick);
+}
+
 void ScriptTableListModel::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e)
 {
+	lastClickedCell = { columnId, rowNumber };
+
 	TableListBoxModel::cellDoubleClicked(rowNumber, columnId, e);
-	sendCallback(rowNumber, 0, rowData[rowNumber], EventType::DoubleClick);
+	sendCallback(rowNumber, lastClickedCell.x, rowData[rowNumber], EventType::DoubleClick);
 }
 
 void ScriptTableListModel::backgroundClicked(const MouseEvent& e)
 {
+	lastClickedCell = {};
+
 	TableListBoxModel::backgroundClicked(e);
 	sendCallback(-1, -1, var(Array<var>()), EventType::Selection);
 }
 
 void ScriptTableListModel::selectedRowsChanged(int lastRowSelected)
 {
+	lastClickedCell.y = lastRowSelected;
+
 	TableListBoxModel::selectedRowsChanged(lastRowSelected);
-	sendCallback(lastRowSelected, 0, rowData[lastRowSelected], EventType::Selection);
+	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::Selection);
 }
 
 void ScriptTableListModel::deleteKeyPressed(int lastRowSelected)
@@ -342,7 +399,7 @@ void ScriptTableListModel::deleteKeyPressed(int lastRowSelected)
 void ScriptTableListModel::returnKeyPressed(int lastRowSelected)
 {
 	TableListBoxModel::returnKeyPressed(lastRowSelected);
-	sendCallback(lastRowSelected, 0, rowData[lastRowSelected], EventType::ReturnKey);
+	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::ReturnKey);
 }
 
 void ScriptTableListModel::setRowData(var rd)
@@ -366,10 +423,6 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 	{
 		auto obj = new DynamicObject();
 
-		obj->setProperty("rowIndex", rowId);
-		obj->setProperty("columnIndex", columnId - 1);
-		obj->setProperty("value", value);
-
 		switch (type)
 		{
 		case EventType::SliderCallback:
@@ -380,6 +433,9 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 			break;
 		case EventType::Selection:
 			obj->setProperty("Type", "Selection");
+			break;
+		case EventType::SingleClick:
+			obj->setProperty("Type", "Click");
 			break;
 		case EventType::DoubleClick:
 			obj->setProperty("Type", "DoubleClick");
@@ -392,8 +448,118 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 			break;
 		}
 
+		obj->setProperty("rowIndex", rowId);
+
+		if (isPositiveAndBelow(columnId - 1, columnMetadata.size()))
+			obj->setProperty("columnID", columnMetadata[columnId - 1][scriptnode::PropertyIds::ID]);
+		
+		obj->setProperty("value", value);
+
 		var a(obj);
 		cellCallback.call1(a);
+	}
+}
+
+bool ScriptTableListModel::TableRepainter::keyPressed(const KeyPress& key, Component* originatingComponent)
+{
+	if (key == KeyPress::leftKey ||
+		key == KeyPress::rightKey)
+	{
+		auto delta = key == KeyPress::leftKey ? -1 : 1;
+
+		auto c = parent.lastClickedCell.x;
+		auto fc = c;
+
+		auto isEOF = [&](int columnId)
+		{
+			return !isPositiveAndBelow(columnId - 1, parent.columnMetadata.size());
+		};
+
+		auto canBeFocused = [&](int columnId)
+		{
+			jassert(!isEOF(columnId));
+			return (bool)parent.columnMetadata[columnId - 1].getProperty("Focus", true);
+		};
+
+		c += delta;
+
+		while (!isEOF(c))
+		{
+			if (canBeFocused(c))
+			{
+				fc = c;
+				break;
+			}
+
+			c += delta;
+		}
+
+		parent.lastClickedCell.x = fc;
+		parent.selectedRowsChanged(parent.lastClickedCell.y);
+		t.getComponent()->repaintRow(parent.lastClickedCell.y);
+		return true;
+	}
+
+	return false;
+}
+
+void ScriptTableListModel::TableRepainter::mouseDown(const MouseEvent& e)
+{
+	if(dynamic_cast<Button*>(e.eventComponent) ||
+		dynamic_cast<Slider*>(e.eventComponent))
+	{
+		return;
+	}
+
+	auto send = false;
+
+	if (parent.lastClickedCell.y == parent.hoverPos.y)
+		send = true;
+
+	parent.lastClickedCell = parent.hoverPos;
+
+	if (send)
+		parent.selectedRowsChanged(parent.lastClickedCell.y);
+
+	t.getComponent()->repaintRow(parent.hoverPos.y);
+}
+
+void ScriptTableListModel::TableRepainter::mouseExit(const MouseEvent& event)
+{
+	t.getComponent()->repaintRow(parent.hoverPos.y);
+	parent.hoverPos = {};
+}
+
+void ScriptTableListModel::TableRepainter::repaintIfCellChange(const MouseEvent& e)
+{
+	auto te = e.getEventRelativeTo(t.getComponent());
+	auto pos = te.getPosition();
+
+	Point<int> s;
+
+	s.y = t.getComponent()->getRowContainingPosition(pos.x, pos.y);
+
+	int index = 0;
+
+	for (int i = 0; i < parent.columnMetadata.size(); i++)
+	{
+		auto c = t.getComponent()->getCellPosition(i + 1, s.y, true);
+
+		if (c.isEmpty())
+			break;
+
+		if (c.contains(pos))
+		{
+			s.x = i + 1;
+			break;
+		}
+	}
+
+	if (parent.hoverPos != s)
+	{
+		t->repaintRow(parent.hoverPos.y);
+		parent.hoverPos = s;
+		t->repaintRow(parent.hoverPos.y);
 	}
 }
 

@@ -2055,7 +2055,11 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawSliderPackFlashOverlay",
 		"drawSliderPackRightClickLine",
 		"drawSliderPackTextPopup",
-        "getIdealPopupMenuItemSize"
+        "getIdealPopupMenuItemSize",
+		"drawTableRowBackground",
+		"drawTableCell",
+		"drawTableHeaderBackground",
+		"drawTableHeaderColumn"
 	};
 
 	return sa;
@@ -3262,7 +3266,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSliderPackTextPopup(Graphic
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRowBackground(Graphics& g_, const ScriptTableListModel::LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected)
 {
-	if (functionDefined("paintTableRowBackground"))
+	if (functionDefined("drawTableRowBackground"))
 	{
 		auto obj = new DynamicObject();
 
@@ -3285,19 +3289,85 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRowBackground(Graphics
 	ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(g_, d, rowNumber, width, height, rowIsSelected);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableCell(Graphics& g_, const ScriptTableListModel::LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected, bool cellIsClicked, bool cellIsHovered)
 {
+	if (functionDefined("drawTableCell"))
+	{
+		auto obj = new DynamicObject();
 
+		obj->setProperty("bgColour", d.bgColour.getARGB());
+		obj->setProperty("itemColour", d.itemColour1.getARGB());
+		obj->setProperty("itemColour2", d.itemColour2.getARGB());
+		obj->setProperty("textColour", d.textColour.getARGB());
+
+		obj->setProperty("text", text);
+		obj->setProperty("rowIndex", rowNumber);
+		obj->setProperty("columnIndex", columnId - 1);
+		obj->setProperty("selected", rowIsSelected);
+		obj->setProperty("clicked", cellIsClicked);
+		obj->setProperty("hover", cellIsHovered);
+
+		Rectangle<int> a(0, 0, width, height);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+
+		if (get()->callWithGraphics(g_, "drawTableCell", var(obj), nullptr))
+			return;
+	}
+
+	ScriptTableListModel::LookAndFeelMethods::drawTableCell(g_, d, text, rowNumber, columnId, width, height, rowIsSelected, cellIsClicked, cellIsHovered);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderBackground(Graphics& g, TableHeaderComponent& h)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderBackground(Graphics& g_, TableHeaderComponent& h)
 {
+	if (functionDefined("drawTableHeaderBackground"))
+	{
+		auto obj = new DynamicObject();
 
+		auto d = getDataFromTableHeader(h);
+
+		obj->setProperty("bgColour", d.bgColour.getARGB());
+		obj->setProperty("itemColour", d.itemColour1.getARGB());
+		obj->setProperty("itemColour2", d.itemColour2.getARGB());
+		obj->setProperty("textColour", d.textColour.getARGB());
+
+		auto a = h.getLocalBounds();
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+
+		if (get()->callWithGraphics(g_, "drawTableHeaderBackground", var(obj), &h))
+			return;
+	}
+
+	drawDefaultTableHeaderBackground(g_, h);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics& g_, TableHeaderComponent& h, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
 {
+	if (functionDefined("drawTableHeaderColumn"))
+	{
+		auto obj = new DynamicObject();
 
+		auto d = getDataFromTableHeader(h);
+
+		obj->setProperty("bgColour", d.bgColour.getARGB());
+		obj->setProperty("itemColour", d.itemColour1.getARGB());
+		obj->setProperty("itemColour2", d.itemColour2.getARGB());
+		obj->setProperty("textColour", d.textColour.getARGB());
+
+		obj->setProperty("text", columnName);
+		obj->setProperty("columnIndex", columnId - 1);
+		obj->setProperty("hover", isMouseOver);
+		obj->setProperty("down", isMouseDown);
+
+		Rectangle<int> a(0, 0, width, height);
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
+
+		if (get()->callWithGraphics(g_, "drawTableHeaderColumn", var(obj), &h))
+			return;
+	}
+
+	drawDefaultTableHeaderColumn(g_, h, columnName, columnId, width, height, isMouseOver, isMouseDown, columnFlags);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)
