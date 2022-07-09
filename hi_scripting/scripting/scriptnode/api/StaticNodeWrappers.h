@@ -118,7 +118,13 @@ public:
 
 	using WrapperType = WType;
 
-	virtual ~InterpretedNodeBase() {};
+	virtual ~InterpretedNodeBase() 
+	{
+		if (nodeFactory != nullptr)
+		{
+			nodeFactory->deinitOpaqueNode(&obj.getWrappedObject());
+		}
+	};
 
 	InterpretedNodeBase() = default;
 
@@ -175,6 +181,8 @@ public:
 
 	void initFromDll(dll::FactoryBase* f, int index, bool addDragger)
 	{
+		nodeFactory = f;
+
 		f->initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
 		this->obj.initialise(asWrapperNode());
 
@@ -215,6 +223,8 @@ protected:
 	}
 
 private:
+
+	dll::FactoryBase* nodeFactory = nullptr;
 
 	ScopedPointer<OpaqueNodeDataHolder> opaqueDataHolder;
 

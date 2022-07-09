@@ -695,7 +695,7 @@ using sliderpack_editor_without_mod = data::ui::pimpl::editorT<data::dynamic::sl
 using table_editor = data::ui::pimpl::editorT<data::dynamic::table, hise::Table, hise::TableEditor, true>;
 using sliderpack_editor = data::ui::pimpl::editorT<data::dynamic::sliderpack, hise::SliderPackData, hise::SliderPack, true>;
 using audiofile_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor, false>;
-using audiofile_editor_with_mod = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::MultiChannelAudioBufferDisplay, true>;
+using audiofile_editor_with_mod = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor, true>;
 
 
 using xyz_audio_editor = data::ui::pimpl::editorT<data::dynamic::audiofile, hise::MultiChannelAudioBuffer, hise::XYZMultiChannelAudioBufferEditor, false>;
