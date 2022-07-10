@@ -38,7 +38,7 @@ Component* ScriptComponentList::Panel::createContentComponent(int /*index*/)
 	auto jp = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor());
 	auto c = jp->getContent();
 
-	return new ScriptComponentList(c);
+	return new ScriptComponentList(c, defaultOpeness);
 }
 
 
@@ -414,11 +414,12 @@ void ScriptComponentListItem::updateSelection(ScriptComponentSelection newSelect
 
 #define ADD_SCRIPT_COMPONENT(cIndex, cClass) case (int)cIndex: ScriptingApi::Content::Helpers::createNewComponentData(content, pTree, cClass::getStaticObjectName().toString(), ScriptingApi::Content::Helpers::getUniqueIdentifier(content, cClass::getStaticObjectName().toString()).toString()); break;
 
-ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c) :
+ScriptComponentList::ScriptComponentList(ScriptingApi::Content* c, bool openess) :
 	ScriptComponentEditListener(dynamic_cast<Processor*>(c->getScriptProcessor())),
 	undoManager(getScriptComponentEditBroadcaster()->getUndoManager()),
 	content(c),
-	foldState(ValueTree("FoldState"))
+	foldState(ValueTree("FoldState")),
+    defaultOpeness(openess)
 {
 	
 
@@ -523,6 +524,8 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 			PasteProperties,
 			CreateCppPositionData,
 			CopyToAllDevices,
+            CollapseAll,
+            UnCollapseAll,
 			CopyToDeviceOffset,
 			numOptions = CopyToDeviceOffset + 10
 		};
@@ -539,20 +542,7 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		m.addItem(PopupMenuOptions::CreateCppPositionData, "Copy C++ position data to clipboard", somethingSelected, false);
 
 
-		PopupMenu s;
-
-		s.addItem(CopyToAllDevices, "Copy selection to all devices", somethingSelected);
-
-		for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
-		{
-			
-
-			int resultValue = (int)PopupMenuOptions::CopyToDeviceOffset + i;
-
-			s.addItem(resultValue, "Copy selection to " + HiseDeviceSimulator::getDeviceName(i), somethingSelected, false);
-		}
-
-		m.addSubMenu("Copy to Device", s, somethingSelected);
+        m.addItem(PopupMenuOptions::CollapseAll, "Open tree by default", true, defaultOpeness);
 		
 
 		const bool isSingleSelection = tree->getNumSelectedItems() == 1;
@@ -617,6 +607,12 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 
 			break;
 		}
+        case CollapseAll:
+        {
+            defaultOpeness = !defaultOpeness;
+            resetRootItem();
+            break;
+        }
 		case CopyToAllDevices:
 		case CopyToDeviceOffset+0:
 		case CopyToDeviceOffset+1:
@@ -727,13 +723,16 @@ void ScriptComponentList::resetRootItem()
 	auto v = content->getContentProperties();
 
 	tree->setRootItem(nullptr);
-	tree->setDefaultOpenness(true);
+	tree->setDefaultOpenness(defaultOpeness);
 
 	rootItem = new ScriptComponentListItem(v, undoManager, content, searchTerm);
     
 	tree->setRootItem(rootItem);
 
 	
+    if(!defaultOpeness)
+        rootItem->setOpen(true);
+    
 	if (openState != nullptr)
 	{
 		tree->restoreOpennessState(*openState, false);
