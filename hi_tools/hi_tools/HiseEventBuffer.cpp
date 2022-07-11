@@ -57,6 +57,9 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	number = data[1];
 	value = data[2];
 
+    if(message.isChannelPressure())
+        value = number;
+    
 	setTimeStamp((int)message.getTimeStamp());
 }
 
