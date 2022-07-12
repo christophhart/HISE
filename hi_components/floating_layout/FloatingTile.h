@@ -235,6 +235,8 @@ public:
 			ForceFoldButton,
             ForceShowTitle,
 			MinSize,
+			FocusKeyPress,
+			FoldKeyPress,
 			numProperties
 		};
 
@@ -257,6 +259,8 @@ public:
 			case FloatingTile::LayoutData::LayoutDataIds::Visible: return var(true);
 			case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
             case FloatingTile::LayoutData::LayoutDataIds::ForceShowTitle: return var(0);
+			case FloatingTile::LayoutData::LayoutDataIds::FocusKeyPress: return var("");
+			case FloatingTile::LayoutData::LayoutDataIds::FoldKeyPress: return var("");
 			default:
 				break;
 			}
@@ -303,6 +307,26 @@ public:
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
 			cachedValues.folded = newFoldState;
+		}
+
+		KeyPress getFoldKeyPress() const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
+
+			if (s.isEmpty())
+				return {};
+
+			return KeyPress::createFromDescription(s);
+		}
+
+		KeyPress getFocusKeyPress() const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FocusKeyPress).toString();
+
+			if (s.isEmpty())
+				return {};
+
+			return KeyPress::createFromDescription(s);
 		}
 
 		double getCurrentSize() const
@@ -399,6 +423,8 @@ public:
 		CachedValues cachedValues; 
 
 		var layoutDataObject;
+
+		KeyPress focusShortcut;
 
 	};
 
@@ -598,6 +624,8 @@ public:
 	/** Returns the current size in the container. */
 	double getCurrentSizeInContainer();
 	
+	bool keyPressed(const KeyPress& k) override;
+
 	const FloatingTileContent* getCurrentFloatingPanel() const;
 	FloatingTileContent* getCurrentFloatingPanel();
 	
@@ -648,7 +676,7 @@ public:
 	bool canBeDeleted() const;
 	bool isSwappable() const;
 
-	
+	FloatingTile* toggleFold();
 
 	void setCloseTogglesVisibility(bool shouldToggleVisibility)
 	{

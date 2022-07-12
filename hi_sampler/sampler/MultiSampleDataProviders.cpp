@@ -398,7 +398,7 @@ void XYZSampleMapProvider::Editor::updateComboBoxItem()
 			{
 				auto t = currentData;
 
-				SafeAsyncCall::call<Component>(cb, [t](Component& c)
+				SafeAsyncCall::call<Component>(*dynamic_cast<Component*>(&cb), [t](Component& c)
 				{
 					dynamic_cast<ComboBox*>(&c)->setText(t, dontSendNotification);
 				});

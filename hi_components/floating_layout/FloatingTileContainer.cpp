@@ -330,6 +330,7 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 	Path p;
 	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
 
+	addButton->setWantsKeyboardFocus(false);
 	addButton->setShape(p, false, false, true);
 
 	setAddButtonCallback({});

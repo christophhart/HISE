@@ -231,10 +231,14 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 
 	g.drawRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f, 2.0f);
 
-	g.setColour(Colours::white.withAlpha(0.7f));
-	g.setFont(GLOBAL_MONOSPACE_FONT());
-	g.drawText(name, 10, 0, getWidth() - 20, ITEM_HEIGHT, Justification::centredLeft, true);
+	auto wd = getWidth() - 20;
 
+	if (wd > 40)
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_MONOSPACE_FONT());
+		g.drawText(name, 10, 0, wd, ITEM_HEIGHT, Justification::centredLeft, true);
+	}
 }
 
 
