@@ -199,7 +199,11 @@ bool XYZSampleMapProvider::parseAdditionalProperties(const ValueTree& s, MultiCh
 	{
 		auto ns = d.data->buffer.getNumSamples();
 		auto l = d.data->buffer.getWritePointer(0);
-		auto r = d.data->buffer.getWritePointer(1);
+		
+		auto r = l;
+
+		if(d.data->buffer.getNumChannels() > 1)
+			r = d.data->buffer.getWritePointer(1);
 
 		auto lGain = 1.0f;
 		auto rGain = 1.0f;
@@ -391,7 +395,14 @@ void XYZSampleMapProvider::Editor::updateComboBoxItem()
 			currentData = currentData.fromFirstOccurrenceOf(provider->getWildcard(), false, false);
 
 			if (currentData.isNotEmpty())
-				cb.setText(currentData, dontSendNotification);
+			{
+				auto t = currentData;
+
+				SafeAsyncCall::call<Component>(cb, [t](Component& c)
+				{
+					dynamic_cast<ComboBox*>(&c)->setText(t, dontSendNotification);
+				});
+			}
 		}
 	}
 }

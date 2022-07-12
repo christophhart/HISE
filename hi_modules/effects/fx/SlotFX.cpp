@@ -1036,6 +1036,13 @@ juce::Path HardcodedMasterFX::getSpecialSymbol() const
 	return getHardcodedSymbol();
 }
 
+void HardcodedMasterFX::handleHiseEvent(const HiseEvent &m)
+{
+	HiseEvent copy(m);
+	if (opaqueNode != nullptr)
+		opaqueNode->handleHiseEvent(copy);
+}
+
 void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
@@ -1183,6 +1190,33 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 	auto ok = processHardcoded(b, nullptr, startSample, numSamples);
 
 	isTailing = ok && voiceStack.containsVoiceIndex(voiceIndex);
+}
+
+HardcodedSwappableEffect::DataWithListener::DataWithListener(HardcodedSwappableEffect& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise) :
+	node(nodeToInitialise),
+	data(p),
+	index(index_)
+{
+	auto mc = dynamic_cast<ControlledObject*>(&parent)->getMainController();
+
+	if (data != nullptr)
+	{
+
+		data->getUpdater().setUpdater(mc->getGlobalUIUpdater());
+		data->getUpdater().addEventListener(this);
+		updateData();
+	}
+
+	if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(p))
+	{
+		af->setProvider(new PooledAudioFileDataProvider(mc));
+
+		af->registerXYZProvider("SampleMap",
+			[mc]() { return static_cast<MultiChannelAudioBuffer::XYZProviderBase*>(new hise::XYZSampleMapProvider(mc)); });
+
+		af->registerXYZProvider("SFZ",
+			[mc]() { return static_cast<MultiChannelAudioBuffer::XYZProviderBase*>(new hise::XYZSFZProvider(mc)); });
+	}
 }
 
 } // namespace hise

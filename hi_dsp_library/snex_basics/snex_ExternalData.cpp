@@ -325,7 +325,12 @@ hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBas
 	}
 	else if (auto t = dynamic_cast<hise::MultiChannelAudioBuffer*>(dataObject))
 	{
-		c = new hise::MultiChannelAudioBufferDisplay();
+		auto availableProviders = t->getAvailableXYZProviders();
+
+		if (availableProviders.size() != 1)
+			c = new hise::XYZMultiChannelAudioBufferEditor();
+		else
+			c = new hise::MultiChannelAudioBufferDisplay();
 	}
 	else if (auto t = dynamic_cast<hise::FilterDataObject*>(dataObject))
 	{

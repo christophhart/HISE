@@ -372,7 +372,8 @@ public:
 	SN_OPAQUE_WRAPPER(event, T);
 
 	constexpr OPTIONAL_BOOL_CLASS_FUNCTION(isPolyphonic);
-	OPTIONAL_BOOL_CLASS_FUNCTION(isProcessingHiseEvent);
+
+	static constexpr bool isProcessingHiseEvent() { return true; };
 
 	SN_DEFAULT_INIT(T);
 	SN_DEFAULT_PREPARE(T);
@@ -380,11 +381,25 @@ public:
 	SN_DEFAULT_HANDLE_EVENT(T);
 	SN_DEFAULT_PROCESS_FRAME(T);
 
+	
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
         auto p = prototypes::static_wrappers<T>::template process<ProcessDataType>;
 		auto e = prototypes::static_wrappers<T>::handleHiseEvent;
 		static_functions::event::process<ProcessDataType>(this, p, e, data);
+	}
+
+	void createParameters(ParameterDataList& d)
+	{
+		if constexpr (prototypes::check::createParameters<T::ObjectType>::value)
+			this->obj.createParameters(d);
+	}
+
+	void setExternalData(const ExternalData& s, int i)
+	{
+		if constexpr (prototypes::check::setExternalData<T::ObjectType>::value)
+			this->obj.setExternalData(s, i);
 	}
 
 	T obj;

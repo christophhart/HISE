@@ -160,8 +160,8 @@ struct OpaqueNode
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
 
-		if constexpr (prototypes::check::getFixChannelAmount<T>::value)
-			numChannels = t->getFixChannelAmount();
+		if constexpr (prototypes::check::getFixChannelAmount<T::ObjectType>::value)
+			numChannels = T::ObjectType::getFixChannelAmount();
 		else
 			numChannels = -1;
 
@@ -412,15 +412,15 @@ namespace dll
 		template <typename T> void registerNode()
 		{
 			Item i;
-			i.id = T::MetadataClass::getStaticId().toString();
-			i.isModNode = T::isModNode();
+			i.id = T::ObjectType::MetadataClass::getStaticId().toString();
+			i.isModNode = T::ObjectType::isModNode();
 			i.f = [](scriptnode::OpaqueNode* n) { n->create<T>(); };
 
-			i.numDataObjects[(int)ExternalData::DataType::Table] = T::NumTables;
-			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::NumSliderPacks;
-			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::NumAudioFiles;
-			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::NumFilters;
-			i.numDataObjects[(int)ExternalData::DataType::DisplayBuffer] = T::NumDisplayBuffers;
+			i.numDataObjects[(int)ExternalData::DataType::Table] = T::ObjectType::NumTables;
+			i.numDataObjects[(int)ExternalData::DataType::SliderPack] = T::ObjectType::NumSliderPacks;
+			i.numDataObjects[(int)ExternalData::DataType::AudioFile] = T::ObjectType::NumAudioFiles;
+			i.numDataObjects[(int)ExternalData::DataType::FilterCoefficients] = T::ObjectType::NumFilters;
+			i.numDataObjects[(int)ExternalData::DataType::DisplayBuffer] = T::ObjectType::NumDisplayBuffers;
 
 			items.add(i);
 		}

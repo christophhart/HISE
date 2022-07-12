@@ -300,7 +300,12 @@ struct granulator: public data::base
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		if (!ed.isEmpty() && d.getNumChannels() == 2)
-			processFix(d.template as<ProcessData<2>>());
+		{
+			if (auto s = DataTryReadLock(ed))
+			{
+				processFix(d.template as<ProcessData<2>>());
+			}
+		}
 	}
 
 	void processFix(ProcessData<2>& d)

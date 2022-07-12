@@ -89,19 +89,7 @@ protected:
 
 	struct DataWithListener : public ComplexDataUIUpdaterBase::EventListener
 	{
-		DataWithListener(HardcodedSwappableEffect& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise) :
-			node(nodeToInitialise),
-			data(p),
-			index(index_)
-		{
-			if (data != nullptr)
-			{
-				auto mc = dynamic_cast<ControlledObject*>(&parent)->getMainController();
-				data->getUpdater().setUpdater(mc->getGlobalUIUpdater());
-				data->getUpdater().addEventListener(this);
-				updateData();
-			}
-		};
+		DataWithListener(HardcodedSwappableEffect& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise);;
 
 		~DataWithListener()
 		{
@@ -230,7 +218,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
 
 	Path getSpecialSymbol() const override;
-	void handleHiseEvent(const HiseEvent &m) override {}
+	void handleHiseEvent(const HiseEvent &m) override;
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) final override;
 
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
