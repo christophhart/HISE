@@ -386,7 +386,13 @@ void ScriptTableListModel::selectedRowsChanged(int lastRowSelected)
 {
 	lastClickedCell.y = lastRowSelected;
 
+	
+
 	TableListBoxModel::selectedRowsChanged(lastRowSelected);
+
+	if (lastRowSelected == -1)
+		return;
+
 	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::Selection);
 }
 

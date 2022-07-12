@@ -2081,6 +2081,8 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
         args[0] = var(g.get());
         args[1] = argsObject;
         
+		var thisObject(this);
+
         if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
         {
             if (c != nullptr && c->getParentComponent() != nullptr)
@@ -2089,7 +2091,6 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
                 argsObject.getDynamicObject()->setProperty("parentName", n);
             }
 
-            var thisObject(this);
             var::NativeFunctionArgs arg(thisObject, args, 2);
             auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
             Result r = Result::ok();

@@ -79,6 +79,8 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		void drawDefaultTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags);
 
 		LookAndFeelData getDataFromTableHeader(TableHeaderComponent& h);
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(LookAndFeelMethods);
 	};
 
 	struct DefaultLookAndFeel : public GlobalHiseLookAndFeel,
@@ -212,7 +214,7 @@ private:
 	LookAndFeelData d;
 
 	DefaultLookAndFeel fallback;
-	LookAndFeelMethods* laf = nullptr;
+	WeakReference<LookAndFeelMethods> laf = nullptr;
 
 	Point<int> hoverPos;
 	Point<int> lastClickedCell;
