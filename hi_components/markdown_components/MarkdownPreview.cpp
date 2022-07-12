@@ -175,6 +175,9 @@ void DocUpdater::run()
 
 		if (!areMajorWebsitesAvailable())
 		{
+			if (editingShouldBeEnabled)
+				getHolder().setForceCachedDataUse(false);
+
 			holder.sendServerUpdateMessage(false, false);
 			return;
 		}
