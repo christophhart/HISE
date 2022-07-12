@@ -1345,10 +1345,20 @@ void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
 		obj->setProperty("isFocusChange", true);
 		obj->setProperty("hasFocus", isFocused);
 		
-		auto ok = keyboardCallback.callSync(&args, 1);
+		try
+		{
+			auto ok = keyboardCallback.callSync(&args, 1);
 
-		if (!ok.wasOk())
-			reportScriptError(ok.getErrorMessage());
+			if (!ok.wasOk())
+				reportScriptError(ok.getErrorMessage());
+		}
+		catch (String& s)
+		{
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), s);
+		}
+		
+
+		
 	}
 }
 
