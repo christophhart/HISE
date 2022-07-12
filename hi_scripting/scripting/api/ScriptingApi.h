@@ -558,6 +558,9 @@ public:
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
+		/** Creates an error handler that reacts on initialisation errors. */
+		var createErrorHandler();
+
     /** Returns an array with all matches. */
     var getRegexMatches(String stringToMatch, String regex);
 

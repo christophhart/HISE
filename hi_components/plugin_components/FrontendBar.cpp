@@ -38,8 +38,6 @@ DeactiveOverlay::DeactiveOverlay(MainController* mc) :
 {
 	alaf = PresetHandler::createAlertWindowLookAndFeel();
 
-	
-
 	addAndMakeVisible(descriptionLabel = new Label());
 
 	descriptionLabel->setFont(alaf->getAlertWindowMessageFont());
@@ -67,6 +65,13 @@ DeactiveOverlay::DeactiveOverlay(MainController* mc) :
 	registerProductButton->addListener(this);
 	ignoreButton->addListener(this);
 	installSampleButton->addListener(this);
+
+	getMainController()->addOverlayListener(this);
+}
+
+DeactiveOverlay::~DeactiveOverlay()
+{
+	getMainController()->removeOverlayListener(this);
 }
 
 void DeactiveOverlay::buttonClicked(Button *b)
@@ -89,7 +94,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 	else if (b == resolveSamplesButton)
 	{
-		if (currentState[SamplesNotInstalled])
+		if (currentState[State::SamplesNotInstalled])
 		{
 #if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
 			bool ask = !PresetHandler::showYesNoWindow("Have you installed the samples yet", "Use this only if you have previously installed and extracted all samples from the .hr1 file.\nIf you don't have installed them yet, press cancel to open the sample install dialogue instead");
@@ -130,13 +135,13 @@ void DeactiveOverlay::buttonClicked(Button *b)
 					PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you might need to open a new instance of this plugin before it can be used.");
 				}
 
-				setState(SamplesNotFound, !handler.areSampleReferencesCorrect());
-				setState(SamplesNotInstalled, !handler.areSampleReferencesCorrect());
+				setStateInternal(State::SamplesNotFound, !handler.areSampleReferencesCorrect());
+				setStateInternal(State::SamplesNotInstalled, !handler.areSampleReferencesCorrect());
 #endif
 			}
 			else
 			{
-				setState(SamplesNotFound, true);
+				setStateInternal(State::SamplesNotFound, true);
 			}
 		}
 	}
@@ -148,15 +153,15 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 	else if (b == ignoreButton)
 	{
-		if (currentState[CustomErrorMessage])
+		if (currentState[State::CustomErrorMessage])
 		{
-			setState(CustomErrorMessage, false);
+			setStateInternal(State::CustomErrorMessage, false);
 		}
-		if (currentState[CustomInformation])
+		if (currentState[State::CustomInformation])
 		{
-			setState(CustomInformation, false);
+			setStateInternal(State::CustomInformation, false);
 		}
-		else if (currentState[SamplesNotFound])
+		else if (currentState[State::SamplesNotFound])
 		{
 			auto& handler = dynamic_cast<MainController*>(findParentComponentOfClass<AudioProcessorEditor>()->getAudioProcessor())->getSampleManager().getProjectHandler();
 
@@ -165,7 +170,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 			// Allows partial sample loading the next time
 			FRONTEND_ONLY(handler.setAllSampleReferencesCorrect());
 
-			setState(SamplesNotFound, false);
+			setStateInternal(State::SamplesNotFound, false);
 		}
 	}
 }
@@ -216,7 +221,7 @@ bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
 DeactiveOverlay::State DeactiveOverlay::checkLicense(const String &keyContent)
 {
 	ignoreUnused(keyContent);
-	return numReasons;
+	return State::numReasons;
 }
 
 #endif
@@ -225,86 +230,14 @@ DeactiveOverlay::State DeactiveOverlay::checkLicense(const String &keyContent)
 
 String DeactiveOverlay::getTextForError(State s) const
 {
-	switch (s)
+	if (s == State::CustomInformation ||
+		s == State::CustomErrorMessage ||
+		s == State::CriticalCustomErrorMessage)
 	{
-	case DeactiveOverlay::AppDataDirectoryNotFound:
-		return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
-		break;
-	case DeactiveOverlay::SamplesNotFound:
-		return "The sample directory could not be located. \nClick below to choose the sample folder.";
-		break;
-	case DeactiveOverlay::SamplesNotInstalled:
-#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
-		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
-#elif HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
-        return "Please click below to install the samples from the downloaded archive.";
-#elif HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
-		return "Please click below to point to the location where you've already installed the samples.";
-#else
-		return "This should never show :)";
-		jassertfalse;
-#endif
-
-		break;
-	case DeactiveOverlay::LicenseNotFound:
-	{
-#if USE_COPY_PROTECTION
-#if HISE_ALLOW_OFFLINE_ACTIVATION
-		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
-#else
-
-		registerProductButton->triggerClick();
-
-		return "This computer is not registered.";
-#endif
-#else
-		return "";
-#endif
-	}
-	case DeactiveOverlay::ProductNotMatching:
-		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
-		break;
-	case DeactiveOverlay::MachineNumbersNotMatching:
-		return "The machine ID is invalid / not matching.\nThis might be caused by a major OS / or system hardware update which change the identification of this computer.\nIn order to solve the issue, just repeat the activation process again to register this system with the new specifications.";
-		break;
-	case DeactiveOverlay::UserNameNotMatching:
-		return "The user name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
-		break;
-	case DeactiveOverlay::EmailNotMatching:
-		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
-		break;
-	case DeactiveOverlay::LicenseInvalid:
-	{
-#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
-
-		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-
-		return ul->getProductErrorMessage();
-#else
-		return "";
-#endif
-	}
-	case DeactiveOverlay::LicenseExpired:
-	{
-#if USE_COPY_PROTECTION
-		return "The license key is expired. Press OK to reauthenticate (you'll need to be online for this)";
-#else
-		return "";
-#endif
-	}
-	case DeactiveOverlay::CustomErrorMessage:
 		return customMessage;
-	case DeactiveOverlay::CriticalCustomErrorMessage:
-		return customMessage;
-	case DeactiveOverlay::CustomInformation:
-		return customMessage;
-	case DeactiveOverlay::numReasons:
-		break;
-	default:
-		break;
 	}
 
-	return String();
+	return getMainController()->getOverlayTextMessage(s);
 }
 
 void DeactiveOverlay::resized()
@@ -324,7 +257,7 @@ void DeactiveOverlay::resized()
 		descriptionLabel->centreWithSize(getWidth() - 20, 150);
 	}
 
-	if (currentState[CustomInformation])
+	if (currentState[State::CustomInformation])
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
@@ -335,7 +268,7 @@ void DeactiveOverlay::resized()
 		ignoreButton->setButtonText("OK");
 	}
 
-	if (currentState[CustomErrorMessage])
+	if (currentState[State::CustomErrorMessage])
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
@@ -347,7 +280,7 @@ void DeactiveOverlay::resized()
 	}
 	
 
-	if (currentState[SamplesNotFound])
+	if (currentState[State::SamplesNotFound])
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
@@ -366,7 +299,7 @@ void DeactiveOverlay::resized()
 		ignoreButton->setButtonText("Ignore");
 	}
 
-	if (currentState[SamplesNotInstalled])
+	if (currentState[State::SamplesNotInstalled])
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
@@ -391,11 +324,11 @@ void DeactiveOverlay::resized()
 		ignoreButton->setVisible(false);
 	}
 
-	if (currentState[LicenseNotFound] ||
-		currentState[LicenseInvalid] ||
-		currentState[MachineNumbersNotMatching] ||
-		currentState[UserNameNotMatching] ||
-		currentState[ProductNotMatching])
+	if (currentState[State::LicenseNotFound] ||
+		currentState[State::LicenseInvalid] ||
+		currentState[State::MachineNumbersNotMatching] ||
+		currentState[State::UserNameNotMatching] ||
+		currentState[State::ProductNotMatching])
 	{
 #if HISE_ALLOW_OFFLINE_ACTIVATION
 		resolveLicenseButton->setVisible(true);
@@ -415,7 +348,7 @@ void DeactiveOverlay::resized()
 			registerProductButton->getY() + 40);
 	}
 	
-	if (currentState[CriticalCustomErrorMessage])
+	if (currentState[State::CriticalCustomErrorMessage])
 	{
 		resolveLicenseButton->setVisible(false);
 		registerProductButton->setVisible(false);
@@ -425,5 +358,50 @@ void DeactiveOverlay::resized()
 	}
 }
 
+
+void DeactiveOverlay::clearState(State s)
+{
+	setStateInternal(s, false);
+}
+
+void DeactiveOverlay::setStateInternal(State s, bool value)
+{
+	bool wasVisible = currentState != 0;
+
+#if !HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+	if (s == OverlayMessageBroadcaster::SamplesNotInstalled && value)
+		return;
+#endif
+
+	currentState.setBit(s, value);
+
+	if (!wasVisible && currentState != 0)
+	{
+		numFramesLeft = 10;
+		setVisible(true);
+		refreshLabel();
+		resized();
+	}
+
+	if (wasVisible && currentState == 0)
+	{
+		refreshLabel();
+		fadeout();
+		resized();
+	}
+
+	if (wasVisible && currentState != 0)
+	{
+		refreshLabel();
+		resized();
+	}
+
+	if (!wasVisible && currentState == 0)
+	{
+		setVisible(false);
+		refreshLabel();
+		resized();
+	}
+}
 
 } // namespace hise

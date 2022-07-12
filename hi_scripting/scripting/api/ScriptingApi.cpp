@@ -904,6 +904,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
 	API_METHOD_WRAPPER_1(Engine, createBackgroundTask);
     API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
+	API_METHOD_WRAPPER_0(Engine, createErrorHandler);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
@@ -1051,6 +1052,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(loadImageIntoPool);
 	ADD_API_METHOD_1(createDspNetwork);
 	ADD_API_METHOD_0(createTransportHandler);
+	ADD_API_METHOD_0(createErrorHandler);
 	ADD_API_METHOD_1(setLatencySamples);
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
@@ -1992,36 +1994,14 @@ void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()
 
 void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
 {
-#if USE_FRONTEND
-
-	if (isCritical)
-	{
-		getProcessor()->getMainController()->sendOverlayMessage(isCritical ? DeactiveOverlay::State::CriticalCustomErrorMessage :
-			DeactiveOverlay::State::CustomErrorMessage,
-			message);
-	}
-
-
-
-
-#else
-
-	ignoreUnused(isCritical);
-
-	reportScriptError(message);
-
-#endif
+	getProcessor()->getMainController()->sendOverlayMessage(isCritical ? DeactiveOverlay::State::CriticalCustomErrorMessage :
+		DeactiveOverlay::State::CustomErrorMessage,
+		message);
 }
 
 void ScriptingApi::Engine::showMessage(String message)
 {
-#if USE_FRONTEND
-
 	getProcessor()->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, message);
-
-#else
-	debugToConsole(getProcessor(), message);
-#endif
 }
 
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
@@ -2848,6 +2828,11 @@ bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 		debugError(getProcessor(), e.what());
 		return false;
 	}
+}
+
+juce::var ScriptingApi::Engine::createErrorHandler()
+{
+	return new ScriptingObjects::ScriptErrorHandler(getScriptProcessor());
 }
 
 var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)

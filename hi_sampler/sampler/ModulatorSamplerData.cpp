@@ -382,7 +382,7 @@ void SampleMap::parseValueTree(const ValueTree &v)
 #if USE_BACKEND
 		debugToConsole(sampler, s);
 #else
-		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::SamplesNotFound, {});
+		sampler->getMainController()->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotFound);
 #endif
 
 	}

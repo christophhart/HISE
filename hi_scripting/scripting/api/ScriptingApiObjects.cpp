@@ -7345,4 +7345,157 @@ void ScriptingObjects::ScriptBuilder::flush()
 	getScriptProcessor()->getMainController_()->getProcessorChangeHandler().sendProcessorChangeMessage(synthChain, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
 }
 
+struct ScriptingObjects::ScriptErrorHandler::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptErrorHandler, setErrorCallback);
+	API_VOID_METHOD_WRAPPER_2(ScriptErrorHandler, setCustomMessageToShow);
+	API_VOID_METHOD_WRAPPER_1(ScriptErrorHandler, clearErrorLevel);
+	API_VOID_METHOD_WRAPPER_0(ScriptErrorHandler, clearAllErrors);
+	API_METHOD_WRAPPER_0(ScriptErrorHandler, getErrorMessage);
+	API_METHOD_WRAPPER_0(ScriptErrorHandler, getNumActiveErrors);
+	API_METHOD_WRAPPER_0(ScriptErrorHandler, getCurrentErrorLevel);
+	API_VOID_METHOD_WRAPPER_1(ScriptErrorHandler, simulateErrorEvent);
+};
+
+ScriptingObjects::ScriptErrorHandler::ScriptErrorHandler(ProcessorWithScriptingContent* p) :
+	ConstScriptingObject(p, OverlayMessageBroadcaster::State::numReasons),
+	callback(p, var(), 2)
+{
+	addConstant("AppDataDirectoryNotFound", (int)OverlayMessageBroadcaster::AppDataDirectoryNotFound);
+	addConstant("LicenseNotFound", (int)OverlayMessageBroadcaster::LicenseNotFound);
+	addConstant("ProductNotMatching", (int)OverlayMessageBroadcaster::ProductNotMatching);
+	addConstant("UserNameNotMatching", (int)OverlayMessageBroadcaster::UserNameNotMatching);
+	addConstant("EmailNotMatching", (int)OverlayMessageBroadcaster::EmailNotMatching);
+	addConstant("MachineNumbersNotMatching", (int)OverlayMessageBroadcaster::MachineNumbersNotMatching);
+	addConstant("LicenseExpired", (int)OverlayMessageBroadcaster::LicenseExpired);
+	addConstant("LicenseInvalid", (int)OverlayMessageBroadcaster::LicenseInvalid);
+	addConstant("CriticalCustomErrorMessage", (int)OverlayMessageBroadcaster::CriticalCustomErrorMessage);
+	addConstant("SamplesNotInstalled", (int)OverlayMessageBroadcaster::SamplesNotInstalled);
+	addConstant("SamplesNotFound", (int)OverlayMessageBroadcaster::SamplesNotFound);
+	addConstant("IllegalBufferSize", (int)OverlayMessageBroadcaster::IllegalBufferSize);
+	addConstant("CustomErrorMessage", (int)OverlayMessageBroadcaster::CustomErrorMessage);
+	addConstant("CustomInformation", (int)OverlayMessageBroadcaster::CustomInformation);
+
+	p->getMainController_()->addOverlayListener(this);
+
+	// Deactivate the default overlay if you create this object.
+	p->getMainController_()->setUseDefaultOverlay(false);
+
+	ADD_API_METHOD_1(setErrorCallback);
+	ADD_API_METHOD_2(setCustomMessageToShow);
+	ADD_API_METHOD_1(clearErrorLevel);
+	ADD_API_METHOD_0(clearAllErrors);
+	ADD_API_METHOD_0(getErrorMessage);
+	ADD_API_METHOD_0(getNumActiveErrors);
+	ADD_API_METHOD_0(getCurrentErrorLevel);
+	ADD_API_METHOD_1(simulateErrorEvent);
+
+	for (int i = 0; i < OverlayMessageBroadcaster::State::numReasons; i++)
+		customErrorMessages.add({});
+}
+
+void ScriptingObjects::ScriptErrorHandler::overlayMessageSent(int state, const String& message)
+{
+	errorStates.setBit(state, true);
+
+	if (state == OverlayMessageBroadcaster::CustomErrorMessage ||
+		state == OverlayMessageBroadcaster::CustomInformation ||
+		state == OverlayMessageBroadcaster::CriticalCustomErrorMessage)
+	{
+		customErrorMessages.set(state, message);
+	}
+
+	sendErrorForHighestState();
+}
+
+void ScriptingObjects::ScriptErrorHandler::setErrorCallback(var errorCallback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(errorCallback))
+	{
+		callback = WeakCallbackHolder(getScriptProcessor(), errorCallback, 2);
+		callback.incRefCount();
+		callback.setThisObject(this);
+		callback.setHighPriority();
+	}
+}
+
+void ScriptingObjects::ScriptErrorHandler::setCustomMessageToShow(int state, String messageToShow)
+{
+	customErrorMessages.set(state, messageToShow);
+}
+
+void ScriptingObjects::ScriptErrorHandler::clearErrorLevel(int stateToClear)
+{
+	errorStates.clearBit(stateToClear);
+
+	if (!errorStates.isZero())
+	{
+		sendErrorForHighestState();
+	}
+}
+
+void ScriptingObjects::ScriptErrorHandler::clearAllErrors()
+{
+	errorStates.clear();
+}
+
+String ScriptingObjects::ScriptErrorHandler::getErrorMessage() const
+{
+	auto el = getCurrentErrorLevel();
+
+	if (el == -1)
+		return {};
+
+	auto m = customErrorMessages[el];
+
+	if (m.isNotEmpty())
+		return m;
+
+	return getScriptProcessor()->getMainController_()->getOverlayTextMessage((OverlayMessageBroadcaster::State)el);
+}
+
+int ScriptingObjects::ScriptErrorHandler::getNumActiveErrors() const
+{
+	return errorStates.countNumberOfSetBits();
+}
+
+int ScriptingObjects::ScriptErrorHandler::getCurrentErrorLevel() const
+{
+	if (errorStates.isZero())
+		return -1;
+
+	for (int i = 0; i < errorStates.getHighestBit() + 1; i++)
+	{
+		if (errorStates[i])
+			return i;
+	}
+
+	jassertfalse;
+	return -1;
+}
+
+void ScriptingObjects::ScriptErrorHandler::simulateErrorEvent(int state)
+{
+#if USE_BACKEND
+	getScriptProcessor()->getMainController_()->sendOverlayMessage(state);
+#else
+	ignoreUnused(state);
+#endif
+}
+
+void ScriptingObjects::ScriptErrorHandler::sendErrorForHighestState()
+{
+	if (callback)
+	{
+		args[0] = getCurrentErrorLevel();
+		args[1] = getErrorMessage();
+		callback.call(args, 2);
+	}
+}
+
+ScriptingObjects::ScriptErrorHandler::~ScriptErrorHandler()
+{
+	getScriptProcessor()->getMainController_()->removeOverlayListener(this);
+}
+
 } // namespace hise

@@ -716,11 +716,7 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 		if (!r.wasOk())
 		{
-#if USE_BACKEND
-			debugToConsole(getMainSynthChain(), r.getErrorMessage());
-#else
-			sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, r.getErrorMessage());
-#endif
+			sendOverlayMessage(OverlayMessageBroadcaster::CustomErrorMessage, r.getErrorMessage());
 		}
 	}
 
@@ -1221,7 +1217,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 	if (maxBufferSize.get() % HISE_EVENT_RASTER != 0)
 	{
-		sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
+		sendOverlayMessage(State::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
 	}
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);

@@ -50,31 +50,18 @@ class DeactiveOverlay : public Component,
 	public ButtonListener,
 	public ControlledObject,
 	public Timer,
-	public AsyncUpdater
+	public AsyncUpdater,
+	public OverlayMessageBroadcaster::Listener
 {
 public:
 
 	DeactiveOverlay(MainController* mc);;
 
+	~DeactiveOverlay();
+
 	void buttonClicked(Button *b);
 
-	enum State
-	{
-		AppDataDirectoryNotFound,
-		LicenseNotFound,
-		ProductNotMatching,
-		UserNameNotMatching,
-		EmailNotMatching,
-		MachineNumbersNotMatching,
-		LicenseExpired,
-		LicenseInvalid,
-		CriticalCustomErrorMessage,
-		SamplesNotInstalled,
-		SamplesNotFound,
-		CustomErrorMessage,
-		CustomInformation,
-		numReasons
-	};
+	using State = OverlayMessageBroadcaster::State;
 
 	void paint(Graphics &g)
 	{
@@ -113,57 +100,28 @@ public:
 
 	void rebuildImage();
 
-	void setState(State s, bool value)
+	void overlayMessageSent(int state, const String& message) override
 	{
-		
-		bool wasVisible = currentState != 0;
-
-#if !HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && !HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
-		if (s == SamplesNotInstalled && value)
-			return;
-#endif
-
-		currentState.setBit(s, value);
-
-		if (!wasVisible && currentState != 0)
+		if (state == OverlayMessageBroadcaster::CustomErrorMessage ||
+			state == OverlayMessageBroadcaster::CustomInformation ||
+			state == OverlayMessageBroadcaster::CriticalCustomErrorMessage)
 		{
-			numFramesLeft = 10;
-			setVisible(true);
-			refreshLabel();
-			resized();
+			customMessage = message;
 		}
 
-		if (wasVisible && currentState == 0)
-		{
-			refreshLabel();
-			fadeout();
-			resized();
-		}
-
-		if (wasVisible && currentState != 0)
-		{
-			refreshLabel();
-			resized();
-		}
-
-		if (!wasVisible && currentState == 0)
-		{
-			setVisible(false);
-			refreshLabel();
-			resized();
-		}
+		setStateInternal((State)state, true);
 	}
 
+	void checkVisibility()
+	{
+		setVisible(currentState != 0);
+	}
+	
     void clearAllFlags()
     {
         currentState = 0;
     }
     
-	void setCustomMessage(const String newCustomMessage)
-	{
-		customMessage = newCustomMessage;
-	}
-
 	bool check(State s, const String &value = String());
 
 #if !USE_SCRIPT_COPY_PROTECTION
@@ -177,7 +135,7 @@ public:
 			descriptionLabel->setText("", dontSendNotification);
 		}
 
-		for (int i = 0; i < numReasons; i++)
+		for (int i = 0; i < State::numReasons; i++)
 		{
 			if (currentState[i])
 			{
@@ -193,7 +151,14 @@ public:
 
 	void resized();
 
+	void clearState(State s);
+
 private:
+
+	void setStateInternal(State s, bool value);
+
+
+	String customMessage;
 
 	int numFramesLeft = 0;
 	
@@ -204,8 +169,6 @@ private:
 	Image img;
 
 	ScopedPointer<LookAndFeel> alaf;
-	String customMessage;
-
 	ScopedPointer<Label> descriptionLabel;
 
 	ScopedPointer<TextButton> resolveLicenseButton;

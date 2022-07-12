@@ -1298,6 +1298,9 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 	{
 		illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
 
+		if (illegalBufferSize)
+			mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
+
 		mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, HISE_MAX_PROCESSING_BLOCKSIZE));
 	}
 }
@@ -1310,17 +1313,99 @@ void OverlayMessageBroadcaster::sendOverlayMessage(int newState, const String& n
 
 #if USE_BACKEND
 
-	ignoreUnused(newState);
+	
 
 	// Just print it on the console
 	Logger::getCurrentLogger()->writeToLog("!" + newCustomMessage);
-#else
+#endif
 
 	currentState = newState;
 	customMessage = newCustomMessage;
 
 	internalUpdater.triggerAsyncUpdate();
+}
+
+String OverlayMessageBroadcaster::getOverlayTextMessage(State s) const
+{
+	switch (s)
+	{
+	case AppDataDirectoryNotFound:
+		return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
+		break;
+	case IllegalBufferSize:
+	{
+		String s;
+		s << "The audio buffer size must be a multiple of " << String(HISE_EVENT_RASTER) << ". Please adjust your audio settings";
+		return s;
+	}
+	case SamplesNotFound:
+		return "The sample directory could not be located. \nClick below to choose the sample folder.";
+		break;
+	case SamplesNotInstalled:
+#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
+#elif HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+		return "Please click below to install the samples from the downloaded archive.";
+#elif HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		return "Please click below to point to the location where you've already installed the samples.";
+#else
+		return "This should never show :)";
+		jassertfalse;
 #endif
+
+		break;
+	case LicenseNotFound:
+	{
+#if USE_COPY_PROTECTION
+#if HISE_ALLOW_OFFLINE_ACTIVATION
+		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
+#else
+		return "This computer is not registered.";
+#endif
+#else
+		return "";
+#endif
+	}
+	case ProductNotMatching:
+		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
+		break;
+	case MachineNumbersNotMatching:
+		return "The machine ID is invalid / not matching.\nThis might be caused by a major OS / or system hardware update which change the identification of this computer.\nIn order to solve the issue, just repeat the activation process again to register this system with the new specifications.";
+		break;
+	case UserNameNotMatching:
+		return "The user name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case EmailNotMatching:
+		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case LicenseInvalid:
+	{
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
+		auto ul = &dynamic_cast<const FrontendProcessor*>(this)->unlocker;
+		return ul->getProductErrorMessage();
+#else
+		return "";
+#endif
+	}
+	case LicenseExpired:
+	{
+#if USE_COPY_PROTECTION
+		return "The license key is expired. Press OK to reauthenticate (you'll need to be online for this)";
+#else
+		return "";
+#endif
+	}
+	case State::CustomErrorMessage:
+	case State::CriticalCustomErrorMessage:
+	case State::CustomInformation:
+	case State::numReasons:
+		jassertfalse;
+		break;
+	default:
+		break;
+	}
+
+	return String();
 }
 
 ScopedSoftBypassDisabler::ScopedSoftBypassDisabler(MainController* mc) :

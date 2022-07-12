@@ -63,11 +63,8 @@ AudioProcessorEditor(fp)
 #endif
 #endif
 
-
-#if !HISE_DEACTIVATE_OVERLAY
-	fp->addOverlayListener(this);
-	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
-#endif
+	if(fp->isUsingDefaultOverlay())
+		container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
 
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;
@@ -76,26 +73,36 @@ AudioProcessorEditor(fp)
     
 #endif
 
-#if !HISE_DEACTIVATE_OVERLAY
     if(searchSamples && !fp->deactivatedBecauseOfMemoryLimitation)
     {
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
-        
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly());
-    }
-    else
-    {
-        // make sure to call setState at least once or the overlay will be visible...
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
-    }
-    
+		auto samplesInstalled = FrontendHandler::checkSamplesCorrectlyInstalled();
+		auto samplesLoaded = GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly();
+
+		if (!samplesInstalled)
+			fp->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotInstalled);
+
+		if (!samplesLoaded)
+			fp->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotFound);
+	}
+
+
+
 #if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
 	if (!fp->unlocker.isUnlocked())
-		deactiveOverlay->checkLicense();
+	{
+		if (deactiveOverlay != nullptr)
+		{
+			auto s = deactiveOverlay->checkLicense();
 
-	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
+			fp->sendOverlayMessage(s);
+		}
+	}
 #endif
-#endif
+
+	if (deactiveOverlay != nullptr)
+	{
+		deactiveOverlay->checkVisibility();
+	}
 
 	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
     
@@ -112,10 +119,11 @@ AudioProcessorEditor(fp)
         
         getContentComponent()->setVisible(false);
         
-#if !HISE_DEACTIVATE_OVERLAY
-        deactiveOverlay->clearAllFlags();
-        deactiveOverlay->setVisible(false);
-#endif
+		if (deactiveOverlay != nullptr)
+		{
+			deactiveOverlay->clearAllFlags();
+			deactiveOverlay->setVisible(false);
+		}
 
         container->setVisible(false);
         
@@ -189,8 +197,7 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
 	dynamic_cast<GlobalSettingManager*>(getAudioProcessor())->removeScaleFactorListener(this);
-	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
-
+	
 #if USE_RAW_FRONTEND
 	container->removeChildComponent(rawEditor);
 	rawEditor = nullptr;
@@ -199,6 +206,7 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 	rootTile = nullptr;
 #endif
 
+	deactiveOverlay = nullptr;
 	container = nullptr;
 	loaderOverlay = nullptr;
 	debugLoggerComponent = nullptr;
@@ -273,9 +281,8 @@ void FrontendProcessorEditor::resized()
     container->setBounds(0, 0, width, height);
 	getContentComponent()->setBounds(0, 0, width, height);
 
-#if !HISE_DEACTIVATE_OVERLAY
-    deactiveOverlay->setBounds(0, 0, width, height);
-#endif
+	if(deactiveOverlay != nullptr)
+		deactiveOverlay->setBounds(0, 0, width, height);
 
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height -90, width, 90);

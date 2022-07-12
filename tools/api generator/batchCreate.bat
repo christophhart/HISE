@@ -76,6 +76,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_script_download_object.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_script_background_task.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_script_builder.xml" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_objects_1_1_script_error_handler.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -177,6 +178,7 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewpor
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "ScriptFloatingTile.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "ScriptAudioWaveform.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "Buffer.xml"
+ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_error_handler.xml" "ErrorHandler.xml"
 
 ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler.xml"
 ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"

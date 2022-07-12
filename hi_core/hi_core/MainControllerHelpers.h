@@ -423,6 +423,25 @@ class OverlayMessageBroadcaster
 {
 public:
 
+	enum State
+	{
+		AppDataDirectoryNotFound,
+		LicenseNotFound,
+		ProductNotMatching,
+		UserNameNotMatching,
+		EmailNotMatching,
+		MachineNumbersNotMatching,
+		LicenseExpired,
+		LicenseInvalid,
+		CriticalCustomErrorMessage,
+		SamplesNotInstalled,
+		SamplesNotFound,
+		IllegalBufferSize,
+		CustomErrorMessage,
+		CustomInformation,
+		numReasons
+	};
+
 	class Listener
 	{
 	public:
@@ -447,6 +466,8 @@ public:
 
 	}
 
+	virtual ~OverlayMessageBroadcaster() {};
+
 	void addOverlayListener(Listener *listener)
 	{
 		listeners.addIfNotAlreadyThere(listener);
@@ -459,7 +480,18 @@ public:
 
 	void sendOverlayMessage(int newState, const String& newCustomMessage=String());
 
+	String getOverlayTextMessage(State s) const;
+
+	bool isUsingDefaultOverlay() const { return useDefaultOverlay; }
+
+	void setUseDefaultOverlay(bool shouldUseOverlay)
+	{
+		useDefaultOverlay = shouldUseOverlay;
+	}
+
 private:
+
+	bool useDefaultOverlay = !HISE_DEACTIVATE_OVERLAY;
 
 	struct InternalAsyncUpdater: public AsyncUpdater
 	{

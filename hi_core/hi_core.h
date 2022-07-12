@@ -179,6 +179,14 @@ This can be used to simulate an audio effect routing setup (when the appropriate
 #define FORCE_INPUT_CHANNELS 0
 #endif
 
+/** Config: HISE_DEACTIVATE_OVERLAY
+	If enabled, this will deactivate the dark overlay that shows error messages so you
+	can define your own thing.
+*/
+#ifndef HISE_DEACTIVATE_OVERLAY
+#define HISE_DEACTIVATE_OVERLAY 0
+#endif
+
 /** Config: HISE_MIDIFX_PLUGIN
 
 If set to 1, then the plugin will be a MIDI effect plugin.

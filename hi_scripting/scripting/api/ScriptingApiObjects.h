@@ -387,6 +387,64 @@ namespace ScriptingObjects
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptFile);
 	};
 
+	struct ScriptErrorHandler : public ConstScriptingObject,
+								public OverlayMessageBroadcaster::Listener
+	{
+		ScriptErrorHandler(ProcessorWithScriptingContent* p);
+
+		~ScriptErrorHandler();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ErrorHandler"); }
+
+		void overlayMessageSent(int state, const String& message) override;
+
+		// =============================================================== API Methods
+
+		/** Sets a function with two arguments (int state, String message) that will be
+            notified at error events. 
+		*/
+		void setErrorCallback(var errorCallback);
+
+		/** Overrides the default HISE error messages with custom text. */
+		void setCustomMessageToShow(int state, String messageToShow);
+
+		/** Clears a state. If there is another error, it will send it again. */
+		void clearErrorLevel(int stateToClear);
+
+		/** Clear all states. */
+		void clearAllErrors();
+
+		/** Returns the current error message. */
+		String getErrorMessage() const;
+
+		/** Returns the number of currently active errors. */
+		int getNumActiveErrors() const;
+
+		/** Returns the current error level (and -1 if there is no error). */
+		int getCurrentErrorLevel() const;
+
+		/** Causes an error event to be sent through the system (for development purposes only). */
+		void simulateErrorEvent(int state);
+
+		// =============================================================== API Methods
+
+	private:
+
+		StringArray customErrorMessages;
+
+		void sendErrorForHighestState();
+
+		BigInteger errorStates;
+
+		
+
+		struct Wrapper;
+
+		WeakCallbackHolder callback;
+
+		var args[2];
+	};
+
 	struct ScriptBackgroundTask : public ConstScriptingObject,
 								  public Thread
 	{
@@ -418,10 +476,8 @@ namespace ScriptingObjects
 				cancelButton.setBounds(b.removeFromBottom(24));
 			}
 
-			
 			BlackTextButtonLookAndFeel laf;
 			TextButton cancelButton;
-			
 		};
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override

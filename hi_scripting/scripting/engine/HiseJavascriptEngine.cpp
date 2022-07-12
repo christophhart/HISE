@@ -1308,7 +1308,8 @@ struct TokenWithDot : public mcl::TokenCollection::Token
             replaceArgs("displayFunction", "displayValue");
             replaceArgs("contentFunction", "changedIndex");
             replaceArgs("testFunction", "currentValue, index, arr");
-            
+			replaceArgs("errorCallback", "state, message");
+
             replaceArgs("playbackCallback", "timestamp, playState");
             replaceArgs("updateCallback", "index, value");
             replaceArgs("presetPreCallback", "presetData");

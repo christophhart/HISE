@@ -58,13 +58,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-/** Config: HISE_DEACTIVATE_OVERLAY
-	If enabled, this will deactivate the dark overlay that shows error messages so you 
-	can define your own thing. 
-*/
-#ifndef HISE_DEACTIVATE_OVERLAY
-#define HISE_DEACTIVATE_OVERLAY 0
-#endif
+
 
 #include "frontend/FrontendHostFactory.h"
 #include "frontend/FrontEndProcessor.h"
