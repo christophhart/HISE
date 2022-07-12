@@ -501,7 +501,9 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 	{
 		panel->setCurrentProcessor(newProcessor.get());
 		panel->refreshIndexList();
-		panel->currentIndex = newIndex;
+
+		if(newIndex != -1)
+			panel->currentIndex = newIndex;
 		
 		panel->refreshContent();
 		
@@ -541,7 +543,9 @@ void PanelWithProcessorConnection::setContentForIdentifier(Identifier idToSearch
                 if (p->getProcessorTypeId() != idToSearch)
                     continue;
                 
-                p->setContentWithUndo(getProcessor(), 0);
+				auto currentIndex = jmax(0, p->getCurrentIndex());
+
+                p->setContentWithUndo(getProcessor(), currentIndex);
             }
         }
     }

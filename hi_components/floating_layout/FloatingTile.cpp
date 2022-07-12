@@ -1239,6 +1239,9 @@ bool FloatingTile::keyPressed(const KeyPress& key)
 
 	return forEach<FloatingTileContent>([key](FloatingTileContent* c)
 	{
+		if (!c->getParentShell()->isShowing())
+			return false;
+
 		auto& ld = c->getParentShell()->getLayoutData();
 		auto k = ld.getFoldKeyPress();
 		auto fk = ld.getFocusKeyPress();

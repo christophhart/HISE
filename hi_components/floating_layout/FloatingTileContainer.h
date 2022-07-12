@@ -131,6 +131,8 @@ public:
 
 	void notifySiblingChange();
 
+	void moveContent(int oldIndex, int newIndex);
+
 protected:
 
 	virtual void componentAdded(FloatingTile* newComponent) = 0;

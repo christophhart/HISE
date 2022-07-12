@@ -32,6 +32,50 @@
 
 namespace hise { using namespace juce;
 
+juce::var ScriptWatchTable::getColumnVisiblilityData() const
+{
+	Array<var> visibleColumns;
+
+	auto& header = table->getHeader();
+	auto numColumns = header.getNumColumns(true);
+
+	for (int i = 0; i < numColumns; i++)
+	{
+		auto id = header.getColumnIdOfIndex(i, true);
+		visibleColumns.add(header.getColumnName(id));
+	}
+
+	return var(visibleColumns);
+}
+
+void ScriptWatchTable::restoreColumnVisibility(const var& d)
+{
+	if (auto a = d.getArray())
+	{
+		auto& header = table->getHeader();
+		auto numColumns = header.getNumColumns(false);
+
+		for (int i = 0; i < numColumns; i++)
+			header.setColumnVisible(i, false);
+
+		for (const auto& v : *a)
+		{
+			auto name = v.toString();
+
+			for (int i = 0; i < numColumns; i++)
+			{
+				auto id = header.getColumnIdOfIndex(i, false);
+
+				if (header.getColumnName(id) == name)
+				{
+					header.setColumnVisible(id, true);
+					break;
+				}
+			}
+		}
+	}
+}
+
 ScriptWatchTable::ScriptWatchTable() :
 	rebuilder(this),
 	ApiComponentBase(nullptr),
@@ -79,6 +123,8 @@ ScriptWatchTable::ScriptWatchTable() :
 	
 
 	table->addMouseListener(this, true);
+
+	
 
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 

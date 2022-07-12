@@ -309,9 +309,9 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::redo(*this);
 	if ((key.isKeyCode('d') || key.isKeyCode('D')) && key.getModifiers().isCommandDown())
 		return Actions::duplicateSelection(*this);
-	if ((key.isKeyCode('n') || key.isKeyCode('N')))
+	if ((key.isKeyCode('n') || key.isKeyCode('N')) && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
-	if ((key).isKeyCode('f') || key.isKeyCode('F'))
+	if ((key).isKeyCode('f') || key.isKeyCode('F') && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::foldSelection(*this);
 	if (key.getKeyCode() == KeyPress::F11Key)
 	{
@@ -325,17 +325,17 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		else
 			return Actions::foldUnselectedNodes(*this);
 	}
-	if ((key).isKeyCode('u') || key.isKeyCode('U'))
+	if ((key).isKeyCode('u') || key.isKeyCode('U') && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::toggleFreeze(*this);
-	if ((key).isKeyCode('p') || key.isKeyCode('P'))
+	if ((key).isKeyCode('p') || key.isKeyCode('P') && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('+') && key.getModifiers().isCommandDown())
 		return Actions::zoomIn(*this);
 	if ((key).isKeyCode('-') && key.getModifiers().isCommandDown())
 		return Actions::zoomOut(*this);
-	if ((key).isKeyCode('q') || key.isKeyCode('Q'))
+	if ((key).isKeyCode('q') || key.isKeyCode('Q') && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::toggleBypass(*this);
-	if (((key).isKeyCode('c') || key.isKeyCode('C')))
+	if (((key).isKeyCode('c') || key.isKeyCode('C')) && !key.getModifiers().isAnyModifierKeyDown())
 		return Actions::toggleCableDisplay(*this);
 	if (((key).isKeyCode('c') || key.isKeyCode('C')) && key.getModifiers().isCommandDown())
 		return Actions::copyToClipboard(*this);

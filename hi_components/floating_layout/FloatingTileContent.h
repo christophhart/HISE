@@ -552,10 +552,7 @@ public:
 	static FloatingTileContent* createNewPanel(const Identifier& id, FloatingTile* parent);
 
 	/** Set a custom title to the panel that will be displayed in tabs, etc. */
-	void setCustomTitle(String newCustomTitle)
-	{
-		customTitle = newCustomTitle;
-	}
+	void setCustomTitle(String newCustomTitle);
 
 	/** If you set a custom title, this will return it. */
 	String getCustomTitle() const

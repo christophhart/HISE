@@ -64,7 +64,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 
 	const bool isCallback = index < numSnippets;
 	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
-	
+
 	if (isCallback)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
@@ -126,6 +126,20 @@ void CodeEditorPanel::fillModuleList(StringArray& moduleList)
 }
 
 
+void CodeEditorPanel::contentChanged()
+{
+	refreshIndexList();
+
+	StringArray indexList;
+	fillIndexList(indexList);
+	auto titleToShow = indexList[getCurrentIndex()];
+
+	setCustomTitle(titleToShow);
+
+	if (titleToShow.isNotEmpty())
+		setDynamicTitle(titleToShow);
+}
+
 void CodeEditorPanel::fromDynamicObject(const var& object)
 {
 	PanelWithProcessorConnection::fromDynamicObject(object);
@@ -134,6 +148,40 @@ void CodeEditorPanel::fromDynamicObject(const var& object)
 var CodeEditorPanel::toDynamicObject() const
 {
 	return PanelWithProcessorConnection::toDynamicObject();
+}
+
+CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index)
+{
+	for (int tabIndex = 0; tabIndex < parentTab->getNumTabs(); tabIndex++)
+	{
+		if (auto tc = dynamic_cast<FloatingTile*>(parentTab->getTabContentComponent(tabIndex)))
+		{
+			if (auto cep = dynamic_cast<CodeEditorPanel*>(tc->getCurrentFloatingPanel()))
+			{
+				auto processorMatches = cep->getConnectedProcessor() == dynamic_cast<Processor*>(jp);
+				auto indexMatches = cep->getCurrentIndex() == index;
+
+				if (processorMatches && indexMatches)
+				{
+					parentTab->setCurrentTabIndex(tabIndex);
+
+					return cep;
+				}
+			}
+		}
+	}
+
+	FloatingInterfaceBuilder ib(parentTab->getParentShell());
+
+	auto newEditor = ib.addChild<CodeEditorPanel>(0);
+
+	auto ed = ib.getContent<CodeEditorPanel>(newEditor);
+	
+	ib.finalizeAndReturnRoot();
+
+	ed->setContentWithUndo(dynamic_cast<Processor*>(jp), index);
+	parentTab->setCurrentTabIndex(parentTab->getNumTabs() - 1);
+	return ed;
 }
 
 void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
@@ -1848,9 +1896,16 @@ Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 
 Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 {
+	if (auto sw = getContent<ScriptWatchTable>())
+	{
+		columnData = sw->getColumnVisiblilityData();
+	}
+
 	setStyleProperty("showConnectionBar", false);
 
 	auto swt = new ScriptWatchTable();
+
+	swt->restoreColumnVisibility(columnData);
 
 	auto f = [this](Component* p, Component* c, Point<int> s)
 	{

@@ -45,6 +45,8 @@ class DebugInformation;
 class ScriptingEditor;
 
 
+
+
 /** A table component containing all variables and their current value for the currently debugged ScriptProcessor.
  *	@ingroup debugComponents
  */
@@ -67,6 +69,10 @@ public:
         numColumns
     };
     
+	var getColumnVisiblilityData() const;
+
+	void restoreColumnVisibility(const var& d);
+
 	enum class RefreshEvent
 	{
 		timerCallback = 0,

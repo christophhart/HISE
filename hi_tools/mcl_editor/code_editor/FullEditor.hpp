@@ -26,6 +26,7 @@
 namespace TextEditorSettings
 {
 	DECLARE_ID(MapWidth);
+	DECLARE_ID(EnableMap);
 	DECLARE_ID(LineBreaks);
 	DECLARE_ID(EnableHover);
     DECLARE_ID(AutoAutocomplete);
@@ -76,7 +77,11 @@ struct FullEditor: public Component,
 
 		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
 		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
+		
+		mapButton.setToggleStateAndUpdateIcon(s.getProperty(TextEditorSettings::EnableMap, false));
+
 		resized();
+
 		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
         editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
 	}
@@ -109,6 +114,11 @@ struct FullEditor: public Component,
 		if (id == TextEditorSettings::LineBreaks)
 		{
 			pe->editor.setLineBreakEnabled((bool)newValue);
+		}
+		if (id == TextEditorSettings::EnableMap)
+		{
+			pe->mapButton.setToggleStateAndUpdateIcon((bool)newValue);
+			pe->resized();
 		}
 	}
 

@@ -118,8 +118,10 @@ public:
 		{
 			static const StringArray skipWords = { "for", "if", "else", "while", "switch", "/*", "```", "---" };
 
+			auto trimmed = s.trim();
+
 			for (auto& w : skipWords)
-				if (s.startsWith(w))
+				if (trimmed.startsWith(w))
 					return EntryType::Skip;
 
 			if (s.startsWith("template"))
@@ -144,7 +146,6 @@ public:
 			trimIf(s, "int");
 			trimIf(s, "float");
 			trimIf(s, "double");
-
 
 			return EntryType::Function;
 		}

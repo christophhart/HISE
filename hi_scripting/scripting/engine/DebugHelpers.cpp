@@ -226,6 +226,62 @@ String DebugInformation::toString()
 	return output;
 }
 
+CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* processor, DebugableObject::Location location)
+{
+	auto getSanitizedId = [](DebugableObject::Location l)
+	{
+		auto s = l.fileName;
+
+		if (s.isEmpty())
+			return String("onInit");
+
+		if (s.contains("("))
+			return s.removeCharacters("()");
+			
+		if (File::isAbsolutePath(s))
+			return File(s).getFileName();
+
+		return s;
+	};
+
+	auto matches = [&](CodeEditorPanel* p)
+	{
+		if (p->getConnectedProcessor() == processor)
+		{
+			StringArray indexList;
+			p->fillIndexList(indexList);
+			auto idx = p->getCurrentIndex();
+			auto id = indexList[idx];
+
+			auto expId = getSanitizedId(location);
+
+			if (expId == id)
+				return true;
+		}
+
+		return false;
+	};
+	
+	if (matches(panel))
+		return panel;
+
+	if (auto tabs = panel->getParentShell()->findParentComponentOfClass<FloatingTabComponent>())
+	{
+		int idx = 0;
+		if (location.fileName.isNotEmpty())
+		{
+			StringArray indexList;
+			panel->fillIndexList(indexList);
+
+			auto expId = getSanitizedId(location);
+			idx = indexList.indexOf(expId);
+		}
+
+		return CodeEditorPanel::showOrCreateTab(tabs, dynamic_cast<JavascriptProcessor*>(processor), idx);
+	}
+
+	return panel;
+}
 
 void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
 {
@@ -237,6 +293,8 @@ void gotoLocationInternal(Processor* processor, DebugableObject::Location locati
 
 	if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
 	{
+		editorPanel = findOrCreateEditorPanel(editorPanel, processor, location);
+
 		editorPanel->gotoLocation(processor, location.fileName, location.charNumber);
 	}
 	else if (location.fileName.isNotEmpty())

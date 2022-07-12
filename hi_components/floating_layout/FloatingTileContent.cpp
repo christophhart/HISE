@@ -161,10 +161,25 @@ FloatingTileContent* FloatingTileContent::createNewPanel(const Identifier& id, F
 	return parent->getPanelFactory()->createFromId(id, parent);
 }
 
+void FloatingTileContent::setCustomTitle(String newCustomTitle)
+{
+	customTitle = newCustomTitle;
+
+	
+}
+
 void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
 {
 	dynamicTitle = newDynamicTitle;
 	getParentShell()->repaint();
+
+	if (auto asComponent = dynamic_cast<Component*>(this))
+	{
+		asComponent->repaint();
+
+		if (auto c = dynamic_cast<Component*>(asComponent->findParentComponentOfClass<FloatingTileContainer>()))
+			c->resized();
+	}
 }
 
 String FloatingTileContent::getBestTitle() const

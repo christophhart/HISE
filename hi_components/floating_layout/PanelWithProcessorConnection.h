@@ -152,7 +152,7 @@ public:
 		if (getConnectedProcessor())
 			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
 		else
-			connectionSelector->setSelectedId(1);
+			connectionSelector->setSelectedId(1, dontSendNotification);
 
 		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
 
@@ -309,7 +309,8 @@ public:
 	{
 		if (auto p = ProcessorHelpers::getFirstProcessorWithType<ProcessorType>(getMainController()->getMainSynthChain()))
 		{
-			setContentWithUndo(dynamic_cast<Processor*>(p), 0);
+			auto idx = getCurrentIndex();
+			setContentWithUndo(dynamic_cast<Processor*>(p), idx);
 		}
 	}
 

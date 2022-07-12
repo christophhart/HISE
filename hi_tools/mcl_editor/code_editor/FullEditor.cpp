@@ -95,8 +95,12 @@ void FullEditor::buttonClicked(Button* b)
 	if (b == &foldButton && !overlayFoldMap)
 		mapButton.setToggleStateAndUpdateIcon(false);
 	
-	if(b == &mapButton)
+	if (b == &mapButton)
+	{
+		FullEditor::saveSetting(&mapButton, TextEditorSettings::EnableMap, b->getToggleState());
 		foldButton.setToggleStateAndUpdateIcon(false);
+	}
+		
 
 	resized();
 
