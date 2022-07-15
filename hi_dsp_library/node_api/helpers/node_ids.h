@@ -95,6 +95,7 @@ DECLARE_ID(SwitchTarget);
 DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
 DECLARE_ID(Automated);
+DECLARE_ID(SmoothingTime);
 DECLARE_ID(ModulationChain);
 DECLARE_ID(SplitSignal);
 DECLARE_ID(ValueTarget);

@@ -719,7 +719,12 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		}
 		if (realPath.startsWith("soft_bypass"))
 		{
-			u = wrapNode(u, NamespacedIdentifier::fromString("bypass::smoothed"));
+			auto smoothingTime = (int)ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::SmoothingTime);
+
+			if (smoothingTime == 0)
+				smoothingTime = 20;
+
+			u = wrapNode(u, NamespacedIdentifier::fromString("bypass::smoothed"), smoothingTime);
 		}
 		if (useSpecialWrapper && realPath.startsWith("midi"))
 		{

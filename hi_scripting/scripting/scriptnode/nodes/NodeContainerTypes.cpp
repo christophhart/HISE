@@ -1330,10 +1330,14 @@ void NoMidiChainNode::reset()
 }
 
 SoftBypassNode::SoftBypassNode(DspNetwork* n, ValueTree t):
-	SerialNode(n, t)
+	SerialNode(n, t),
+	smoothingTime(PropertyIds::SmoothingTime, 20)
 {
 	initListeners();
 	obj.initialise(this);
+
+	smoothingTime.initialise(this);
+	smoothingTime.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SoftBypassNode::updateSmoothingTime), true);
 }
 
 void SoftBypassNode::processFrame(FrameType& data) noexcept
@@ -1366,11 +1370,22 @@ void SoftBypassNode::reset()
 	obj.reset();
 }
 
+void SoftBypassNode::updateSmoothingTime(Identifier id, var newValue)
+{
+	if (id == PropertyIds::Value)
+	{
+		auto newTime = (int)newValue;
+		obj.setSmoothingTime(newTime);
+	}
+}
+
 void SoftBypassNode::setBypassed(bool shouldBeBypassed)
 {
 	SerialNode::setBypassed(shouldBeBypassed);
 	WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
 }
+
+
 
 
 

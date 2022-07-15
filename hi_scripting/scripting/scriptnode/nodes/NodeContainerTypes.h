@@ -162,9 +162,13 @@ public:
 
 	String getNodeDescription() const override { return "Allows soft bypassing without clicks"; }
 
+	void updateSmoothingTime(Identifier id, var newValue);
+
 private:
 
-	using WrapperType = bypass::smoothed<SerialNode::DynamicSerialProcessor>;
+	NodePropertyT<int> smoothingTime;
+
+	using WrapperType = bypass::smoothed<-1, SerialNode::DynamicSerialProcessor>;
 	
 	WrapperType obj;
 };
