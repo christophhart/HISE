@@ -226,6 +226,7 @@ String DebugInformation::toString()
 	return output;
 }
 
+#if USE_BACKEND
 CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* processor, DebugableObject::Location location)
 {
 	auto getSanitizedId = [](DebugableObject::Location l)
@@ -282,6 +283,7 @@ CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* proc
 
 	return panel;
 }
+#endif
 
 void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
 {

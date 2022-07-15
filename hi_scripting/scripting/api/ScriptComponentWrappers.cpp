@@ -1375,8 +1375,6 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 		mode = shouldUseList ? Mode::List : Mode::Viewport;
 	}
 
-	Viewport* vp = nullptr;
-
 	if (mode == Mode::Viewport)
 	{
 		vp = new Viewport();
@@ -1423,10 +1421,13 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 		component = t;
 	}
 	
-	viewport->positionBroadcaster.addListener(*this, [vp](ViewportWrapper& v, double x, double y)
+	vp->getVerticalScrollBar().addListener(this);
+	vp->getHorizontalScrollBar().addListener(this);
+
+	viewport->positionBroadcaster.addListener(*this, [](ViewportWrapper& v, double x, double y)
 	{
-		vp->setViewPositionProportionately(x, y);
-	});
+		v.vp.getComponent()->setViewPositionProportionately(x, y);
+	}, true);
 
 	initAllProperties();
 	updateValue(viewport->value);
@@ -1443,6 +1444,13 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 
 ScriptCreatedComponentWrappers::ViewportWrapper::~ViewportWrapper()
 {
+	if (vp.getComponent() != nullptr)
+	{
+		juce::Viewport* v = vp.getComponent();
+		v->getHorizontalScrollBar().removeListener(this);
+		v->getVerticalScrollBar().removeListener(this);
+	}
+
 	component = nullptr;
 	model = nullptr;
 }
@@ -1555,6 +1563,35 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateItems(ScriptingApi::
 }
 
 
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
+{
+	auto isY = &vp->getVerticalScrollBar() == scrollBarThatHasMoved;
+
+	auto limit = scrollBarThatHasMoved->getRangeLimit();
+	auto s = scrollBarThatHasMoved->getCurrentRange();
+
+	limit.setEnd(limit.getEnd() - s.getLength());
+	if (limit.getLength() > 0.0)
+	{
+		auto normPos  = jlimit(0.0, 1.0, s.getStart() / limit.getLength());
+
+		double pos[2];
+
+		pos[0] = (double)getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::viewPositionX);
+
+		pos[1] = (double)getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::viewPositionY);
+
+		auto propertyToChange = isY ? ScriptingApi::Content::ScriptedViewport::Properties::viewPositionY :
+									  ScriptingApi::Content::ScriptedViewport::Properties::viewPositionX;
+
+		pos[(int)isY] = normPos;
+
+		auto sv = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
+		sv->positionBroadcaster.sendMessage(dontSendNotification, pos[0], pos[1]);
+		getScriptComponent()->setScriptObjectProperty(propertyToChange, normPos, dontSendNotification);
+	}
+}
 
 void ScriptCreatedComponentWrappers::ViewportWrapper::updateColours()
 {

@@ -662,7 +662,8 @@ public:
 	};
 
 
-	class ViewportWrapper : public ScriptCreatedComponentWrapper
+	class ViewportWrapper : public ScriptCreatedComponentWrapper,
+							public juce::ScrollBar::Listener
 	{
 	public:
 
@@ -683,6 +684,10 @@ public:
 		static void tableUpdated(ViewportWrapper& w, int index);
 
 	private:
+
+		void scrollBarMoved(ScrollBar* scrollBarThatHasMoved,
+			double newRangeStart) override;
+
 
 		void updateItems(ScriptingApi::Content::ScriptedViewport * vpc);
 		void updateColours();
@@ -727,6 +732,8 @@ public:
 		Mode mode;
 
 		ScriptTableListModel::Ptr tableModel;
+
+		Component::SafePointer<juce::Viewport> vp;
 
 		ScopedPointer<ColumnListBoxModel> model;
 		ScopedPointer<LookAndFeel> slaf;
