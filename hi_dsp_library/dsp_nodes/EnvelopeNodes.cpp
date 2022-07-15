@@ -463,7 +463,7 @@ bool ahdsr_base::AhdsrRingBufferProperties::validateInt(const Identifier& id, in
 
 
 
-juce::Path ahdsr_base::AhdsrRingBufferProperties::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+juce::Path ahdsr_base::AhdsrRingBufferProperties::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const
 {
 	const auto& b = buffer->getReadBuffer();
 

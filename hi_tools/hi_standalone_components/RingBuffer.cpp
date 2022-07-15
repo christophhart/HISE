@@ -262,6 +262,10 @@ juce::Array<juce::Identifier> SimpleRingBuffer::getIdentifiers() const
 
 void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
 {
+#if HI_EXPORT_AS_PROJECT_DLL
+	jassertfalse;
+#endif
+
 	properties = newObject;
 
 	properties->initialiseRingBuffer(this);
@@ -390,6 +394,9 @@ void ModPlotter::refresh()
 		for (float i = 0; i <= width; i += rectangleWidth)
 		{
 			auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+
+			if (numThisTime <= 0)
+				break;
 
 			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
 			FloatSanitizers::sanitizeFloatNumber(maxValue);
@@ -708,7 +715,7 @@ hise::RingBufferComponentBase* SimpleRingBuffer::PropertyObject::createComponent
 	return new ModPlotter();
 }
 
-juce::Path SimpleRingBuffer::PropertyObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+juce::Path SimpleRingBuffer::PropertyObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const
 {
 	if (buffer == nullptr)
 	{
@@ -725,7 +732,7 @@ juce::Path SimpleRingBuffer::PropertyObject::createPath(Range<int> sampleRange, 
 	if (b.getNumChannels() == 0 || b.getNumSamples() == 0)
 		return {};
 
-	auto startValue = b.getSample(0, 0);
+	//auto startValue = b.getSample(0, 0);
 
 	auto startv = valueRange.getEnd() - (double)startValue * valueRange.getLength();
 
@@ -772,7 +779,7 @@ void FFTDisplayBase::drawSpectrum(Graphics& g)
 
 	if (rb != nullptr)
 	{
-		auto lPath = rb->getPropertyObject()->createPath({}, {}, targetBounds);
+		auto lPath = rb->getPropertyObject()->createPath({}, {}, targetBounds, 0.0);
 
 		Path grid;
 
@@ -893,7 +900,7 @@ void OscilloscopeBase::drawOscilloscope(Graphics &g, const AudioSampleBuffer &b)
 {
 	auto asComponent = dynamic_cast<Component*>(this);
 	auto lb = asComponent->getLocalBounds().toFloat();
-	auto path = rb->getPropertyObject()->createPath({ 0, b.getNumSamples() }, { -1.0f, 1.0f }, lb);
+	auto path = rb->getPropertyObject()->createPath({ 0, b.getNumSamples() }, { -1.0f, 1.0f }, lb, 0.0);
 
 	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
 

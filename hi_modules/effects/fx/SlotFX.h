@@ -102,7 +102,11 @@ protected:
 			if (node != nullptr)
 			{
 				SimpleReadWriteLock::ScopedWriteLock sl(data->getDataLock());
+
 				ExternalData ed(data.get(), index);
+
+				SimpleRingBuffer::ScopedPropertyCreator sps(data.get());
+
 				node->setExternalData(ed, index);
 			}
 

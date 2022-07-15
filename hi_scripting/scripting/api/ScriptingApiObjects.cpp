@@ -1602,8 +1602,6 @@ var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange,
 
 	if (SimpleRingBuffer::Ptr buffer = getRingBuffer())
 	{
-		
-
 		auto maxSize = hToUse = getRingBuffer()->getReadBuffer().getNumSamples();
 
 		if (hToUse == -1)
@@ -1614,7 +1612,7 @@ var ScriptingObjects::ScriptRingBuffer::createPath(var dstArea, var sourceRange,
 
 		SimpleReadWriteLock::ScopedReadLock sl(buffer->getDataLock());
 
-		sp->getPath() = getRingBuffer()->getPropertyObject()->createPath(s_range, valueRange, dst);
+		sp->getPath() = getRingBuffer()->getPropertyObject()->createPath(s_range, valueRange, dst, startValue);
 	}
 
 	return var(sp);

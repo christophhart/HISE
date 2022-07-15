@@ -123,7 +123,7 @@ public:
                 return true;
 			}
 
-			Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override
+			Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const override
 			{
 				const float* d[1] = { nullptr };
 				int numSamples = 0;
@@ -136,9 +136,9 @@ public:
 				p.preallocateSpace(numSamples);
 				p.startNewSubPath(0.0f, 0.0f);
 				p.startNewSubPath(0.0f, -1.0f);
-				p.startNewSubPath(0.0f, -1.0f * b.getSample(0, 0));
+				p.startNewSubPath(0.0f, -1.0f * startValue);
 
-				for (int i = 1; i < numSamples; i++)
+				for (int i = 0; i < numSamples; i++)
 					p.lineTo((float)i, -1.0f * b.getSample(0, i));
 
 				

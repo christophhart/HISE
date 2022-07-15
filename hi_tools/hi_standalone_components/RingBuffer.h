@@ -152,7 +152,7 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		{
 		}
 
-		virtual Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const;
+		virtual Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const;
 
 		Array<Identifier> getPropertyList() const
 		{

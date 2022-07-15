@@ -307,7 +307,7 @@ struct WrapperTests : public UnitTest
 
 		node_test t;
 
-		using BypassNodeType = bypass::smoothed<helper_nodes::dc>;
+		using BypassNodeType = bypass::smoothed<20, helper_nodes::dc>;
 		
 		BypassNodeType obj;
 

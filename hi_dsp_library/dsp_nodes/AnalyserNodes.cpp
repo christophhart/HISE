@@ -141,7 +141,7 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 }
 
 
-juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const
 {
 	ScopedLock sl(fftLock);
 
@@ -214,7 +214,7 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 
 
-juce::Path Helpers::Oscilloscope::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+juce::Path Helpers::Oscilloscope::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const
 {
 	bool isStereo = buffer->getReadBuffer().getNumChannels() == 2;
 

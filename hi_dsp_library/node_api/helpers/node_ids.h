@@ -77,7 +77,6 @@ DECLARE_ID(ShowParameters);
 DECLARE_ID(ShowClones);
 DECLARE_ID(DisplayedClones);
 DECLARE_ID(Bypassed);
-DECLARE_ID(SoulPatch);
 DECLARE_ID(Debug);
 DECLARE_ID(NumParameters);
 DECLARE_ID(Value);

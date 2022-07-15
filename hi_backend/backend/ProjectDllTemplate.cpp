@@ -11,7 +11,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
-"    <VS2017 targetFolder=\"Builds/VisualStudio2017\" IPPLibrary=\"Sequential\" extraCompilerFlags=\"/W0\" >\r\n"
+"    <VS2017 targetFolder=\"Builds/VisualStudio2017\" IPPLibrary=\"Sequential\" extraCompilerFlags=\"/bigobj /W0\" >\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION isDebug=\"1\" name=\"Debug\" binaryPath=\"dll\" targetName=\"%DEBUG_DLL_NAME%\"/>\r\n"
 "		 <CONFIGURATION isDebug = \"0\" name = \"CI\" targetName=\"%CI_DLL_NAME%\"  binaryPath = \"dll\"\r\n"

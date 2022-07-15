@@ -135,13 +135,14 @@ constexpr const auto& getWrappedObject() const { return x; }
 
 /** Node empty callback macros. */
 
-#define SN_EMPTY_INITIALISE void initialise(NodeBase* b) {}
+#define SN_EMPTY_INITIALISE void initialise(NodeBase* ) {}
 #define SN_EMPTY_PREPARE void prepare(PrepareSpecs) {}
 #define SN_EMPTY_RESET void reset() {}
 #define SN_EMPTY_PROCESS template <typename ProcessDataType> void process(ProcessDataType&) {}
 #define SN_EMPTY_PROCESS_FRAME template <typename FrameDataType> void processFrame(FrameDataType& ) {}
 #define SN_EMPTY_MOD bool handleModulation(double& ) { return false; } static constexpr bool isNormalisedModulation() { return false; }
-#define SN_EMPTY_HANDLE_EVENT void handleHiseEvent(HiseEvent& e) {};
+#define SN_EMPTY_HANDLE_EVENT void handleHiseEvent(HiseEvent& ) {};
+#define SN_EMPTY_SET_EXTERNAL_DATA void setExternalData(const ExternalData& , int) {};
 
 #define SN_EMPTY_CREATE_PARAM void createParameters(ParameterDataList&){}
 #define SN_EMPTY_SET_PARAMETER template <int P> static void setParameterStatic(void* , double ) {} template <int P> void setParameter(double) {}

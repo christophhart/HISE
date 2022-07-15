@@ -117,7 +117,7 @@ struct Helpers
 
 		RingBufferComponentBase* createComponent();
 
-		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const override;
 
 		void setProperty(const Identifier& id, const var& newValue) override
 		{
@@ -328,7 +328,7 @@ struct Helpers
 			setProperty(RingBufferIds::NumChannels, 1);
 		};
 
-		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const override;
 
 		static constexpr int NumChannels = 2;
 

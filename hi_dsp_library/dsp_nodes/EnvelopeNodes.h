@@ -190,7 +190,7 @@ struct ahdsr_base: public mothernode,
 
 		bool validateInt(const Identifier& id, int& v) const override;
 
-		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const override;
+		Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const override;
 
 		void transformReadBuffer(AudioSampleBuffer& b) override
 		{

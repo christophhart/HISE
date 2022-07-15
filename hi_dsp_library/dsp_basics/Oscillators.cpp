@@ -77,12 +77,12 @@ hise::RingBufferComponentBase* OscillatorDisplayProvider::OscillatorDisplayObjec
 	return new osc_display();
 }
 
-juce::Path OscillatorDisplayProvider::OscillatorDisplayObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds) const
+juce::Path OscillatorDisplayProvider::OscillatorDisplayObject::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const
 {
 	Path p;
 	auto b = buffer->getReadBuffer();
 
-	p.startNewSubPath(0.0f, 0.0f);
+	p.startNewSubPath(0.0f, startValue);
 	p.preallocateSpace(256);
 
 	for (int i = 0; i < 256; i++)
@@ -214,7 +214,7 @@ void OscillatorDisplayProvider::osc_display::refresh()
 	if (rb != nullptr)
 	{
 		auto bounds = getLocalBounds().reduced(10, 3).withSizeKeepingCentre(180, getHeight() - 6).toFloat();
-		waveform = rb->getPropertyObject()->createPath({ 0, 256 }, { -1.0f, 1.0f }, bounds);
+		waveform = rb->getPropertyObject()->createPath({ 0, 256 }, { -1.0f, 1.0f }, bounds, 0.0);
 	}
 
 	repaint();

@@ -912,7 +912,12 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 		if (rb != nullptr)
 		{
 			auto numSamples = rb->getReadBuffer().getNumSamples();
+
+			
+#if !HI_EXPORT_AS_PROJECT_DLL
+			// We can only reallocate here if we're not in the dll memory space
 			rb->setRingBufferSize(ps.numChannels, numSamples);
+#endif
 			rb->setSamplerate(ps.sampleRate);
 		}
 	}

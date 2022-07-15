@@ -77,7 +77,7 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 				if (isModNode)
 				{
 					auto mn = new InterpretedModNode(p, v);
-					mn->initFromDll(f, i, false);
+					mn->initFromDll(f, i, true);
 					n = mn;
 				}
 				else
