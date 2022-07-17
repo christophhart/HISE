@@ -160,7 +160,7 @@ struct OpaqueNode
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
 
-		if constexpr (prototypes::check::getFixChannelAmount<T::ObjectType>::value)
+		if constexpr (prototypes::check::getFixChannelAmount<typename T::ObjectType>::value)
 			numChannels = T::ObjectType::getFixChannelAmount();
 		else
 			numChannels = -1;

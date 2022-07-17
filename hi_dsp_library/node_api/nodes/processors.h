@@ -392,13 +392,13 @@ public:
 
 	void createParameters(ParameterDataList& d)
 	{
-		if constexpr (prototypes::check::createParameters<T::ObjectType>::value)
+		if constexpr (prototypes::check::createParameters<typename T::ObjectType>::value)
 			this->obj.createParameters(d);
 	}
 
 	void setExternalData(const ExternalData& s, int i)
 	{
-		if constexpr (prototypes::check::setExternalData<T::ObjectType>::value)
+		if constexpr (prototypes::check::setExternalData<typename T::ObjectType>::value)
 			this->obj.setExternalData(s, i);
 	}
 
