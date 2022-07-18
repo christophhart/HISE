@@ -1102,6 +1102,17 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 		nextDownSizes.add(nextPanel->getLayoutData().getCurrentSize());
 		totalNextDownSize += nextDownSizes.getLast();
 	}
+
+	auto sum = totalNextDownSize + totalPrevDownSize;
+
+	sum *= -1.0;
+
+	totalNextDownSize /= sum;
+	totalPrevDownSize /= sum;
+
+	sum = totalNextDownSize + totalPrevDownSize;
+
+	int x = 5;
 }
 
 
