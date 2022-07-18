@@ -1242,9 +1242,24 @@ bool FloatingTile::keyPressed(const KeyPress& key)
 		if (!c->getParentShell()->isShowing())
 			return false;
 
+		if (auto t = dynamic_cast<FloatingTabComponent*>(c))
+		{
+			if (t->matchesCycleKey(key))
+			{
+				int numTabs = t->getNumTabs();
+				auto newIndex = (t->getCurrentTabIndex() + 1) % numTabs;
+				t->setCurrentTabIndex(newIndex);
+				dynamic_cast<Component*>(t)->grabKeyboardFocusAsync();
+				return true;
+			}
+		};
+
+
 		auto& ld = c->getParentShell()->getLayoutData();
-		auto k = ld.getFoldKeyPress();
-		auto fk = ld.getFocusKeyPress();
+		auto k = ld.getFoldKeyPress(c->getParentShell());
+		auto fk = ld.getFocusKeyPress(c->getParentShell());
+
+
 
 		if (fk.isValid() && fk == key)
 		{

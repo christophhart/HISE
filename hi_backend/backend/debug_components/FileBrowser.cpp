@@ -211,7 +211,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	addKeyListener(browserCommandManager->getKeyMappings());
 
-	setWantsKeyboardFocus(true);
+	setWantsKeyboardFocus(false);
 
 	browseUndoManager = new UndoManager();
 

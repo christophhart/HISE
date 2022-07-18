@@ -963,8 +963,25 @@ private:
 
 };
 
+#define DECLARE_ID(x) static const Identifier x(#x);
 
+namespace FloatingTileKeyPressIds
+{
+	DECLARE_ID(fold_editor);
+	DECLARE_ID(fold_interface);
+	DECLARE_ID(fold_browser)
+	DECLARE_ID(focus_editor);
+	DECLARE_ID(fold_watch);
+	DECLARE_ID(fold_list);
+	DECLARE_ID(fold_console);
+	DECLARE_ID(fold_properties);
+	DECLARE_ID(focus_interface);
+	DECLARE_ID(focus_browser)
+	DECLARE_ID(cycle_editor);
+	DECLARE_ID(cycle_browser)
+}
 
+#undef DECLARE_ID
 
 struct FloatingPanelTemplates
 {

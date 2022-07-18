@@ -49,7 +49,10 @@ class BackendProcessorEditor;
 
 
 
+
+
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
+						  public TopLevelWindowWithKeyMappings,
 						  public AudioProcessorEditor,
 						  public BackendCommandTarget,
                           public snex::ui::WorkbenchManager::WorkbenchChangeListener,
@@ -69,6 +72,13 @@ public:
 	~BackendRootWindow();
 
 	bool isFullScreenMode() const;
+
+	File getKeyPressSettingFile() const override
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+	}
+
+	void initialiseAllKeyPresses() override;
 
 	void paint(Graphics& g) override
 	{
@@ -209,11 +219,40 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
+	
+
 private:
+
+	struct FocusDrawer : public FocusChangeListener,
+		public Timer
+	{
+		FocusDrawer(BackendRootWindow& p) :
+			parent(p)
+		{
+			Desktop::getInstance().addFocusChangeListener(this);
+		};
+
+		~FocusDrawer()
+		{
+			Desktop::getInstance().removeFocusChangeListener(this);
+		}
+
+		void globalFocusChanged(Component* focusedComponent) override;
+
+		void timerCallback() override;
+
+		void draw(Graphics& g);
+
+		Component* lastFocusComponent = nullptr;
+
+		Rectangle<int> focusArea;
+		float alpha = 0.0f;
+		BackendRootWindow& parent;
+	} drawer;
 
 	bool learnMode = false;
 
-	LookAndFeel_V3 globalLookAndFeel;
+	GlobalHiseLookAndFeel globalLookAndFeel;
 
 	OwnedArray<FloatingTileDocumentWindow> popoutWindows;
 

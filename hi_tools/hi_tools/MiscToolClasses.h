@@ -509,6 +509,117 @@ private:
 	juce::Colour backgroundColour{ juce::Colours::black };
 };
 
+
+struct TopLevelWindowWithKeyMappings
+{
+	static KeyPress getKeyPressFromString(Component* c, const String& s)
+	{
+		if (s.isEmpty())
+			return {};
+
+		if (s.startsWith("$"))
+		{
+			auto id = Identifier(s.removeCharacters("$"));
+			return getKeyPress(c, id);
+		}
+		else
+			return KeyPress::createFromDescription(s);
+	}
+
+	static void addShortcut(Component* c, const String& category, const Identifier& id, const String& description, const KeyPress& k)
+	{
+		if (auto t = getFromComponent(c))
+		{
+			if (t->shortcutIds.contains(id))
+				return;
+
+			auto info = ApplicationCommandInfo(t->shortcutIds.size() + 1);
+			t->shortcutIds.add(id);
+
+			info.categoryName = category;
+			info.shortName << description << " ($" << id.toString() << ")";
+			info.defaultKeypresses.add(k);
+			t->m.registerCommand(info);
+			t->keyMap.resetToDefaultMapping(info.commandID);
+		}
+	}
+
+	static KeyPress getKeyPress(Component* c, const Identifier& id)
+	{
+		if (auto t = getFromComponent(c))
+		{
+			if (auto idx = t->shortcutIds.indexOf(id) + 1)
+				return t->keyMap.getKeyPressesAssignedToCommand(idx).getFirst();
+		}
+
+		return {};
+	}
+
+	KeyPressMappingSet& getKeyPressMappingSet() { return keyMap; };
+
+protected:
+
+	TopLevelWindowWithKeyMappings() :
+		keyMap(m)
+	{};
+
+	virtual ~TopLevelWindowWithKeyMappings()
+	{
+		jassert(loaded);
+		// If you hit this assertion, you need to store the data in your
+		// sub class constructor
+		jassert(saved);
+	};
+
+	/** Call this function and initialise all key presses that you want to define. */
+	virtual void initialiseAllKeyPresses()
+	{
+		initialised = true;
+	}
+
+	void saveKeyPressMap()
+	{
+		auto f = getKeyPressSettingFile();
+		auto xml = keyMap.createXml(true);
+		f.replaceWithText(xml->createDocument(""));
+		saved = true;
+	}
+
+	void loadKeyPressMap()
+	{
+		initialiseAllKeyPresses();
+
+		auto f = getKeyPressSettingFile();
+
+		if (auto xml = XmlDocument::parse(f))
+			keyMap.restoreFromXml(*xml);
+
+		loaded = true;
+	}
+
+	virtual File getKeyPressSettingFile() const = 0;
+
+	
+
+private:
+
+	bool initialised = false;
+	bool saved = false;
+	bool loaded = false;
+
+	static TopLevelWindowWithKeyMappings* getFromComponent(Component* c)
+	{
+		if (auto same = dynamic_cast<TopLevelWindowWithKeyMappings*>(c))
+			return same;
+
+		return c->findParentComponentOfClass<TopLevelWindowWithKeyMappings>();
+	}
+
+	Array<Identifier> shortcutIds;
+	juce::ApplicationCommandManager m;
+	juce::KeyPressMappingSet keyMap;
+};
+
 /** A small helper interface class that allows you to find the topmost component
 	that might have a OpenGL context attached.
 

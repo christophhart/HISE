@@ -806,6 +806,9 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 		auto sc = b->getFirstFromSelection();
 
+		if (sc == nullptr)
+			return false;
+
 		auto oldName = sc->getName().toString();
 		auto newName = PresetHandler::getCustomName(oldName);
 

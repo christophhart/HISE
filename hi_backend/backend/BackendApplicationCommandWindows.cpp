@@ -1123,6 +1123,86 @@ private:
 	BackendProcessorEditor* bpe;
 };
 
+
+
+struct ShortcutEditor : public QuasiModalComponent,
+						public Component,
+					    public PathFactory
+{
+	ShortcutEditor(BackendRootWindow* t) :
+		QuasiModalComponent(),
+		editor(t->getKeyPressMappingSet(), true),
+		closeButton("close", nullptr, *this)
+	{
+		addAndMakeVisible(editor);
+		setName("Edit Shortcuts");
+		setSize(600, 700);
+
+		editor.setLookAndFeel(&alaf);
+		editor.setColours(Colours::transparentBlack, alaf.bright);
+		setLookAndFeel(&alaf);
+		addAndMakeVisible(closeButton);
+
+		closeButton.onClick = [&]()
+		{
+			destroy();
+		};
+	};
+
+	Path createPath(const String&) const override
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromTop(32);
+
+		closeButton.setBounds(getLocalBounds().removeFromTop(37).removeFromRight(37).reduced(6));
+		editor.setBounds(b.reduced(10));
+	}
+
+	void mouseDown(const MouseEvent& e)
+	{
+		dragger.startDraggingComponent(this, e);
+	}
+
+	void mouseDrag(const MouseEvent& e)
+	{
+		dragger.dragComponent(this, e, nullptr);
+	}
+
+	juce::ComponentDragger dragger;
+
+	void paint(Graphics& g) override
+	{
+		ColourGradient grad(alaf.dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+			alaf.dark, 0.0f, (float)getHeight(), false);
+
+		auto a = getLocalBounds().removeFromTop(37).toFloat();
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRect(a);
+		g.setColour(alaf.bright);
+
+		g.drawRect(getLocalBounds().toFloat());
+
+		g.drawText("Edit Shortcuts", a, Justification::centred);
+		
+		
+	}
+
+	HiseShapeButton closeButton;
+	AlertWindowLookAndFeel alaf;
+	juce::KeyMappingEditorComponent editor;
+};
+
 class SampleMapPropertySaverWithBackup : public DialogWindowWithBackgroundThread,
 										 public ControlledObject
 {

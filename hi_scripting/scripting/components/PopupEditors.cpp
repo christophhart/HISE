@@ -551,7 +551,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
 			return true;
 		}
-		if (k == KeyPress('f', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 'F'))
+		if (k == TopLevelWindowWithKeyMappings::getKeyPress(getEditor(), TextEditorShortcuts::show_full_search))
 		{
 			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::FindAllOccurences, getEditor());
 			return true;

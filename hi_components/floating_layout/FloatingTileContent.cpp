@@ -343,12 +343,20 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	
 
 	auto leftTab = ib.addChild<FloatingTabComponent>(masterVertical);
+	ib.getPanel(leftTab)->getLayoutData().setKeyPress(true, FloatingTileKeyPressIds::focus_browser);
+	ib.getPanel(leftTab)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_browser);
+	ib.getContent<FloatingTabComponent>(leftTab)->setCycleKeyPress(FloatingTileKeyPressIds::cycle_browser);
+
 	const int swappableVertical = ib.addChild<VerticalTile>(masterVertical);
+
+	
 
 	ib.getContent(masterVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
 	ib.getContent(swappableVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xFF404040));
 
 	ib.getPanel(swappableVertical)->setForceShowTitle(false);
+
+	
 
 	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colour(0xff353535));
 	ib.getContent(leftTab)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF232323));
@@ -438,7 +446,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setDynamic(samplePanel, false);
 	ib.setId(samplePanel, "SamplerWorkspace");
 
-    ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF262626));
+	ib.getContent(samplePanel)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF262626));
     
     
     
@@ -564,16 +572,24 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
 	ib.setDynamic(codeVertical, false);
 	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
+
+	ib.getPanel(codeTabs)->getLayoutData().setKeyPress(true, FloatingTileKeyPressIds::focus_editor);
+	ib.getPanel(codeEditor)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_editor);
+	ib.getContent<FloatingTabComponent>(codeTabs)->setCycleKeyPress(FloatingTileKeyPressIds::cycle_editor);
+
+
+
 	ib.setId(codeTabs, "ScriptEditorTabs");
 	ib.addChild<CodeEditorPanel>(codeTabs);
-    
     ib.addChild<SnexEditorPanel>(codeTabs);
     
 	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
 
-	ib.addChild<ConsolePanel>(codeEditor);
+	const int consoleId = ib.addChild<ConsolePanel>(codeEditor);
 
+	ib.getPanel(variableWatch)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_watch);
 
+	ib.getPanel(consoleId)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_console);
 
 	ib.setCustomName(codeEditor, "Code Editor");
 	ib.setSizes(codeEditor, { -0.75, -0.25 });
@@ -610,6 +626,8 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.setDynamic(mainVertical, false);
 	ib.setId(mainVertical, "ScriptingWorkspace");
 
+	
+
 	const int scriptNode = ib.addChild<VerticalTile>(mainVertical);
 
 	{
@@ -624,9 +642,13 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		ib.setCustomName(nodeList, "Node List");
 		
+		ib.getPanel(nodeList)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_list);
+
 		const int nodePropertyEditor = ib.addChild<scriptnode::NodePropertyPanel>(scriptNode);
 
 		ib.setCustomName(nodePropertyEditor, "Node Properties");
+
+		ib.getPanel(nodePropertyEditor)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_properties);
 
 		ib.getContent<FloatingTileContent>(interfacePanel)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(nodeList)->setStyleProperty("showConnectionBar", false);
@@ -636,6 +658,8 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
         ib.getPanel(interfacePanel)->setForceShowTitle(false);
         
+
+
 		ib.setSizes(scriptNode, { 200, -0.7, -0.15 });
 
 		ib.setId(scriptNode, "ScriptingWorkspaceScriptnode");
@@ -651,6 +675,8 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		const int componentList = ib.addChild<ScriptComponentList::Panel>(interfaceDesigner);
 
+		ib.getPanel(componentList)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_list);
+
 		const int interfaceHorizontal = ib.addChild<HorizontalTile>(interfaceDesigner);
 
 		ib.getContent(interfaceHorizontal)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
@@ -661,12 +687,17 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		
 		const int propertyEditor = ib.addChild<ScriptComponentEditPanel::Panel>(interfaceDesigner);
 
+		ib.getPanel(propertyEditor)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_properties);
+
 		ib.setSizes(interfaceHorizontal, { -0.5 });
 		ib.setCustomName(interfaceHorizontal, "", { "Canvas"});
 
 		ib.setCustomName(interfaceDesigner, "Interface Designer");
 		ib.setCustomName(propertyEditor, "Property Editor");
 		ib.setCustomName(componentList, "Component List");
+
+		ib.getPanel(interfacePanel)->getLayoutData().setKeyPress(true, FloatingTileKeyPressIds::focus_interface);
+		rootTile->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_interface);
 
 		
 		ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");

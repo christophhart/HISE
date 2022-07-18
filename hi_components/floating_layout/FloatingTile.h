@@ -35,6 +35,11 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
+
 class FloatingTilePopup: public Component,
 							public ButtonListener,
 							public ComponentListener
@@ -309,24 +314,24 @@ public:
 			cachedValues.folded = newFoldState;
 		}
 
-		KeyPress getFoldKeyPress() const
+		void setKeyPress(bool isFocus, const Identifier& shortcutId)
 		{
-			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
-
-			if (s.isEmpty())
-				return {};
-
-			return KeyPress::createFromDescription(s);
+			String s;
+			s << "$" << shortcutId.toString();
+			
+			storePropertyInObject(layoutDataObject, isFocus ? LayoutDataIds::FocusKeyPress : LayoutDataIds::FoldKeyPress, s);
 		}
 
-		KeyPress getFocusKeyPress() const
+		KeyPress getFoldKeyPress(Component* c) const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
+			return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
+		}
+
+		KeyPress getFocusKeyPress(Component* c) const
 		{
 			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FocusKeyPress).toString();
-
-			if (s.isEmpty())
-				return {};
-
-			return KeyPress::createFromDescription(s);
+			return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
 		}
 
 		double getCurrentSize() const

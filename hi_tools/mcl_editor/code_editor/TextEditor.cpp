@@ -148,6 +148,8 @@ int TextEditor::getNumDisplayedRows() const
 	return roundToInt((float)getHeight() / viewScaleFactor / document.getRowHeight());
 }
 
+
+
 bool TextEditor::shouldSkipInactiveUpdate() const
 {
 	auto docHasMultipleEditors = document.getCodeDocument().getNumListeners() > 10;
@@ -1365,6 +1367,23 @@ void mcl::TextEditor::mouseMagnify (const MouseEvent& e, float scaleFactor)
 }
 
 
+bool TextEditor::keyMatchesId(const KeyPress& k, const Identifier& id)
+{
+	return k == TopLevelWindowWithKeyMappings::getKeyPress(this, id);
+}
+
+void TextEditor::initKeyPresses(Component* root)
+{
+	String category = "Code Editor";
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::show_autocomplete, "Show Autocomplete", KeyPress(KeyPress::escapeKey));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::goto_definition, "Goto definition", KeyPress(KeyPress::F12Key));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::show_search, "Search in current file", 
+		KeyPress('f', ModifierKeys::ctrlModifier, 0));
+}
+
 bool mcl::TextEditor::keyPressed (const KeyPress& key)
 {
     autocompleteTimer.abortAutocomplete();
@@ -1693,7 +1712,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 	};
 
     // =======================================================================================
-    if (key.isKeyCode (KeyPress::escapeKey))
+    if (keyMatchesId(key, TextEditorShortcuts::show_autocomplete))
     {
 		clearParameters();
 
@@ -1725,8 +1744,6 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			{
 				document.setSelections(document.getSelections().getLast(), true);
 			}
-
-			
 		}
 			
         updateSelections();
@@ -1869,7 +1886,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		}
 	}
 
-	if (key.isKeyCode(KeyPress::F12Key))
+	if (keyMatchesId(key, TextEditorShortcuts::goto_definition))
 	{
 		return gotoDefinition();
 
@@ -1919,14 +1936,6 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('a', ModifierKeys::commandModifier, 0)) return expand (Target::document);
 	if (key == KeyPress('d', ModifierKeys::commandModifier, 0))  return addNextTokenToSelection();
     if (key == KeyPress ('l', ModifierKeys::commandModifier, 0)) return expand (Target::line);
-    if (key == KeyPress ('u', ModifierKeys::commandModifier, 0))
-    {
-        return document.viewUndoManager.undo();
-    }
-    if (key == KeyPress ('u', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
-    {
-        return document.viewUndoManager.redo();
-    }
     if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
     {
         return document.getCodeDocument().getUndoManager().undo();
@@ -2009,7 +2018,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return copy();
 	if (key == KeyPress('v', ModifierKeys::commandModifier, 0))
 		return paste();
-	if (key == KeyPress('f', ModifierKeys::ctrlModifier, 0))
+	if (keyMatchesId(key, TextEditorShortcuts::show_search))
 	{
 		currentSearchBox = new SearchBoxComponent(document, transform.getScaleFactor());
 		addAndMakeVisible(currentSearchBox);

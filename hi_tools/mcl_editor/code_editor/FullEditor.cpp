@@ -78,9 +78,22 @@ FullEditor::FullEditor(TextDocument& d) :
 	codeMap.transformToUse = editor.transform;
 }
 
+void FullEditor::initKeyPresses(Component* root)
+{
+	String category = "Code Editor";
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::show_fold_map, "Show Editor Fold Map", 
+											   KeyPress('r', ModifierKeys::commandModifier, 0));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::show_full_search, "Find all occurrences",
+		KeyPress('f', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 'F'));
+
+	mcl::TextEditor::initKeyPresses(root);
+}
+
 bool FullEditor::keyPressed(const KeyPress& k)
 {
-	if (k == KeyPress('r', ModifierKeys::commandModifier, 0))
+	if (k == TopLevelWindowWithKeyMappings::getKeyPress(this, TextEditorShortcuts::show_fold_map))
 	{
 		ScopedValueSetter<bool> svs(overlayFoldMap, true);
 		foldButton.triggerClick(sendNotificationSync);
@@ -115,6 +128,10 @@ void FullEditor::buttonClicked(Button* b)
 
 void FullEditor::resized()
 {
+	;
+	
+	
+
 	auto b = getLocalBounds();
 
 	codeMap.setVisible(mapButton.getToggleState());

@@ -96,6 +96,11 @@ public:
     void mouseDoubleClick (const juce::MouseEvent& e) override;
     void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& d) override;
     void mouseMagnify (const juce::MouseEvent& e, float scaleFactor) override;
+
+	bool keyMatchesId(const KeyPress& k, const Identifier& id);
+
+	static void initKeyPresses(Component* root);
+
     bool keyPressed (const juce::KeyPress& key) override;
     juce::MouseCursor getMouseCursor() override;
 

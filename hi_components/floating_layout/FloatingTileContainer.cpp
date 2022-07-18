@@ -521,6 +521,7 @@ var FloatingTabComponent::toDynamicObject() const
 	var obj = FloatingTileContainer::toDynamicObject();
 
 	storePropertyInObject(obj, TabPropertyIds::CurrentTab, getCurrentTabIndex());
+	storePropertyInObject(obj, TabPropertyIds::CycleKeyPress, cycleKey.isValid() ? cycleKey.getTextDescription() : "");
 
 	return obj;
 }
@@ -529,9 +530,11 @@ void FloatingTabComponent::fromDynamicObject(const var& objectData)
 {
 	clear();
 	clearTabs();
-	
 
 	FloatingTileContainer::fromDynamicObject(objectData);
+
+	auto t = getPropertyWithDefault(objectData, TabPropertyIds::CycleKeyPress).toString();
+	cycleKey = TopLevelWindowWithKeyMappings::getKeyPressFromString(this, t);
 
 	setCurrentTabIndex(getPropertyWithDefault(objectData, TabPropertyIds::CurrentTab));
 }
@@ -547,6 +550,7 @@ Identifier FloatingTabComponent::getDefaultablePropertyId(int index) const
 		return FloatingTileContainer::getDefaultablePropertyId(index);
 
 	RETURN_DEFAULT_PROPERTY_ID(index, TabPropertyIds::CurrentTab, "CurrentTab");
+	RETURN_DEFAULT_PROPERTY_ID(index, TabPropertyIds::CycleKeyPress, "CycleKeyPress");
 
 	jassertfalse;
 	return Identifier();
@@ -558,6 +562,7 @@ var FloatingTabComponent::getDefaultProperty(int id) const
 		return FloatingTileContainer::getDefaultProperty(id);
 
 	RETURN_DEFAULT_PROPERTY(id, TabPropertyIds::CurrentTab, -1);
+	RETURN_DEFAULT_PROPERTY(id, TabPropertyIds::CycleKeyPress, "");
 
 	jassertfalse;
 
@@ -641,6 +646,11 @@ void FloatingTabComponent::currentTabChanged(int newCurrentTabIndex, const Strin
 		if (auto fp = fc->getCurrentFloatingPanel())
 			dynamic_cast<Component*>(fp)->grabKeyboardFocusAsync();
 	}
+}
+
+void FloatingTabComponent::setCycleKeyPress(const Identifier& k)
+{
+	cycleKey = TopLevelWindowWithKeyMappings::getKeyPress(this, k);
 }
 
 void ResizableFloatingTileContainer::refreshLayout()

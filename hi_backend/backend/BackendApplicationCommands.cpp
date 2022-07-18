@@ -132,7 +132,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuEditCloseAllChains,
         MenuEditPlotModulator,
 		MenuViewShowSelectedProcessorInPopup,
-		
+		MenuToolsEditShortcuts,
 		MenuToolsRecompile,
 		MenuToolsCreateInterface,
         MenuToolsClearConsole,
@@ -373,6 +373,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false);
 		result.categoryName = "File";
+		break;
 	case MenuEditUndo:
 		setCommandTarget(result, "Undo: " + bpe->owner->getControlUndoManager()->getUndoDescription(), bpe->owner->getControlUndoManager()->canUndo(), false, 'Z', true, ModifierKeys::commandModifier);
 		result.categoryName = "Edit";
@@ -393,6 +394,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Move up", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
 		result.categoryName = "Edit";
 		result.addDefaultKeypress(KeyPress::upKey, ModifierKeys::ctrlModifier);
+		break;
+	case MenuToolsEditShortcuts:
+		setCommandTarget(result, "Edit Shortcuts", true, false, 'x', false);
+		result.categoryName = "Tools";
 		break;
 	case MenuEditMoveDown:
 		setCommandTarget(result, "Move down", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
@@ -727,6 +732,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
 	case MenuToolsApplySampleMapProperties: Actions::applySampleMapProperties(bpe); return true;
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
+	case MenuToolsEditShortcuts:		Actions::editShortcuts(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
 	case MenuViewRotate:
@@ -895,6 +901,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSeparator();
 
 		ADD_ALL_PLATFORMS(MenuFileSettingsProject);
+		ADD_DESKTOP_ONLY(MenuToolsEditShortcuts);
 
 		p.addSeparator();
 		ADD_ALL_PLATFORMS(MenuFileQuit);
@@ -952,6 +959,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSVGToPathData);
 		
+
 		p.addSeparator();
 
 		PopupMenu sub;
@@ -1228,6 +1236,13 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 }
 
 
+
+void BackendCommandTarget::Actions::editShortcuts(BackendRootWindow* bpe)
+{
+	auto s = new ShortcutEditor(bpe);
+
+	s->setModalBaseWindowComponent(bpe);
+}
 
 bool BackendCommandTarget::Actions::hasProcessorInClipboard()
 {

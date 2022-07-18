@@ -109,6 +109,7 @@ public:
 		MenuFileSettingCheckSanity,
 		MenuFileSettingsCleanBuildDirectory,
 		MenuFileCreateThirdPartyNode,
+		MenuFileQuit,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
@@ -119,7 +120,7 @@ public:
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
-		MenuFileQuit,
+		
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -156,6 +157,7 @@ public:
 		MenuToolsCreateInterface,
         MenuToolsSanityCheck,
         MenuToolsClearConsole,
+		MenuToolsEditShortcuts,
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
@@ -190,6 +192,7 @@ public:
 		MenuToolsRecordOneSecond,
 		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
+		
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
 		MenuHelpShowHelpForComponents,
@@ -270,6 +273,7 @@ public:
 	{
 	public:
 
+		static void editShortcuts(BackendRootWindow* bpe);
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
 		static void openFile(BackendRootWindow *bpe);

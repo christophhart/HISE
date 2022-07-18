@@ -160,6 +160,7 @@ public:
 	enum TabPropertyIds
 	{
 		CurrentTab = FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds,
+		CycleKeyPress,
 		numTabPropertyIds
 	};
 
@@ -230,7 +231,13 @@ public:
 
 	void currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName) override;
 
+	bool matchesCycleKey(const KeyPress& k) const { return cycleKey.isValid() && k == cycleKey; }
+
+	void setCycleKeyPress(const Identifier& k);
+
 private:
+
+	KeyPress cycleKey;
 
 	ScopedPointer<ShapeButton> addButton;
 
