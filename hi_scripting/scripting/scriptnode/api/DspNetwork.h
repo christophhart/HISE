@@ -947,6 +947,10 @@ public:
 
 	void runPostInitFunctions();
 
+	static void initKeyPresses(Component* root);
+
+
+
     bool isSignalDisplayEnabled() const { return signalDisplayEnabled; }
     
     void setSignalDisplayEnabled(bool shouldBeEnabled)

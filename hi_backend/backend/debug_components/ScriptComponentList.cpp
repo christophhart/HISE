@@ -775,7 +775,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		return true;
 	}
 
-	if (key == KeyPress::escapeKey)
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_deselect_all))
 	{
 		getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 		return true;
@@ -794,10 +794,9 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 		return true;
 	}
-	if ((key.isKeyCode('j') || key.isKeyCode('J')) )
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_show_json))
 	{
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
-
 		return true;
 	}
 	else if (key.isKeyCode(KeyPress::F2Key))

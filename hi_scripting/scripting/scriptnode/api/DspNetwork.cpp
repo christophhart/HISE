@@ -1156,6 +1156,25 @@ void DspNetwork::runPostInitFunctions()
 	}
 }
 
+void DspNetwork::initKeyPresses(Component* root)
+{
+	using namespace ScriptnodeShortcuts;
+	String cat = "Scriptnode";
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_deselect_all, "Deselect all nodes", KeyPress(KeyPress::escapeKey));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_duplicate, "Duplicate nodes", KeyPress('d', ModifierKeys::commandModifier, 'd'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_new_node, "Create Node", KeyPress('n'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_fold, "Create Node", KeyPress('f'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_add_bookmark, "Add selection bookmark", KeyPress(KeyPress::F11Key, ModifierKeys::commandModifier, 0));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_zoom_reset, "Show all nodes", KeyPress(KeyPress::F11Key, ModifierKeys::shiftModifier, 0));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_zoom_fit, "Fold unselected nodes", KeyPress(KeyPress::F11Key));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_edit_property, "Edit Node properties", KeyPress('p'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_toggle_bypass, "Toggle Bypass", KeyPress('q'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, sn_toggle_cables, "Show cables", KeyPress('c'));
+}
+
 DspNetwork::Holder::Holder()
 {
 	JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;

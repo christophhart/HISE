@@ -78,6 +78,8 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
+	static void initKeyPresses(Component* root);
+
 	File getFile() const;
 	
 	JavascriptProcessor* getScriptProcessor() { return jp; }

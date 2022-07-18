@@ -290,52 +290,40 @@ DspNetworkGraph::~DspNetworkGraph()
 	network = nullptr;
 }
 
-
-
-
 bool DspNetworkGraph::keyPressed(const KeyPress& key)
 {
-	if (key == KeyPress::escapeKey)
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_deselect_all))
 		return Actions::deselectAll(*this);
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 		return Actions::deleteSelection(*this);
-#if 0
-	if ((key.isKeyCode('j') || key.isKeyCode('J')))
-		return Actions::showJSONEditorForSelection(*this);
-#endif
 	if ((key.isKeyCode('z') || key.isKeyCode('Z')) && key.getModifiers().isCommandDown())
 		return Actions::undo(*this);
 	if ((key.isKeyCode('Y') || key.isKeyCode('Y')) && key.getModifiers().isCommandDown())
 		return Actions::redo(*this);
-	if ((key.isKeyCode('d') || key.isKeyCode('D')) && key.getModifiers().isCommandDown())
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_duplicate))
 		return Actions::duplicateSelection(*this);
-	if ((key.isKeyCode('n') || key.isKeyCode('N')) && !key.getModifiers().isAnyModifierKeyDown())
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_new_node))
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
-	if ((key).isKeyCode('f') || key.isKeyCode('F') && !key.getModifiers().isAnyModifierKeyDown())
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_fold))
 		return Actions::foldSelection(*this);
-	if (key.getKeyCode() == KeyPress::F11Key)
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_add_bookmark))
 	{
-		if (key.getModifiers().isCommandDown())
-        {
-			Actions::addBookMark(network.get());
-            return true;
-        }
-		if(key.getModifiers().isShiftDown())
-			return Actions::zoomFit(*this);
-		else
-			return Actions::foldUnselectedNodes(*this);
+		Actions::addBookMark(network.get());
+		return true;
 	}
-	if ((key).isKeyCode('u') || key.isKeyCode('U') && !key.getModifiers().isAnyModifierKeyDown())
-		return Actions::toggleFreeze(*this);
-	if ((key).isKeyCode('p') || key.isKeyCode('P') && !key.getModifiers().isAnyModifierKeyDown())
+	if(key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_zoom_fit))
+		return Actions::zoomFit(*this);
+	if(key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_zoom_reset))
+		return Actions::foldUnselectedNodes(*this);
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_edit_property))
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('+') && key.getModifiers().isCommandDown())
 		return Actions::zoomIn(*this);
 	if ((key).isKeyCode('-') && key.getModifiers().isCommandDown())
 		return Actions::zoomOut(*this);
-	if ((key).isKeyCode('q') || key.isKeyCode('Q') && !key.getModifiers().isAnyModifierKeyDown())
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_toggle_bypass))
 		return Actions::toggleBypass(*this);
-	if (((key).isKeyCode('c') || key.isKeyCode('C')) && !key.getModifiers().isAnyModifierKeyDown())
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_toggle_cables))
 		return Actions::toggleCableDisplay(*this);
 	if (((key).isKeyCode('c') || key.isKeyCode('C')) && key.getModifiers().isCommandDown())
 		return Actions::copyToClipboard(*this);

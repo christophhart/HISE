@@ -35,6 +35,19 @@
 namespace hise { 
 using namespace juce;
 
+#define DECLARE_ID(x) static const juce::Identifier x(#x);
+
+namespace InterfaceDesignerShortcuts
+{
+	DECLARE_ID(id_toggle_edit);
+	DECLARE_ID(id_deselect_all);
+	DECLARE_ID(id_rebuild);
+	DECLARE_ID(id_lock_selection);
+	DECLARE_ID(id_show_json);
+	DECLARE_ID(id_duplicate);
+}
+#undef DECLARE_ID
+
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
 
@@ -109,6 +122,8 @@ public:
 	};
 
 	struct Canvas;
+
+	static void initKeyPresses(Component* root);
 
 	class Editor : public WrapperWithMenuBarBase,
 				   public Button::Listener,

@@ -37,6 +37,26 @@ namespace hise
 using namespace juce;
 
 class ProcessorWithScriptingContent;
+
+#define DECLARE_ID(x) static const juce::Identifier x(#x);
+
+namespace ScriptnodeShortcuts
+{
+	DECLARE_ID(sn_deselect_all);
+	DECLARE_ID(sn_duplicate);
+	DECLARE_ID(sn_new_node);
+	DECLARE_ID(sn_fold);
+	DECLARE_ID(sn_add_bookmark);
+	DECLARE_ID(sn_zoom_in);
+	DECLARE_ID(sn_zoom_out);
+	DECLARE_ID(sn_zoom_fit);
+	DECLARE_ID(sn_zoom_reset);
+	DECLARE_ID(sn_edit_property);
+	DECLARE_ID(sn_toggle_bypass);
+	DECLARE_ID(sn_toggle_cables);
+}
+#undef DECLARE_ID
+
 }
 
 namespace scriptnode

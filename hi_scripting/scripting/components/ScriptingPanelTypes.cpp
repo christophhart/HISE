@@ -352,6 +352,8 @@ void ConsolePanel::resized()
 
 
 
+
+
 void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {
 	if (processor == dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
@@ -1081,19 +1083,40 @@ bool ScriptContentPanel::Editor::Actions::undo(Editor* e, bool shouldUndo)
 	return true;
 }
 
+void ScriptContentPanel::initKeyPresses(Component* root)
+{
+	using namespace InterfaceDesignerShortcuts;
+
+	String cat = "Interface Designer";
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_deselect_all, "Deselect all", KeyPress(KeyPress::escapeKey));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_toggle_edit, "Toggle Edit mode", KeyPress(KeyPress::F4Key));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_rebuild, "Rebuild & Recompile", KeyPress(KeyPress::F5Key));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_lock_selection, "Lock selected components", KeyPress('l', ModifierKeys::commandModifier, 'l'));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_duplicate, "Duplicate selection at cursor", KeyPress('d', ModifierKeys::commandModifier, 'd'));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_json, "Show JSON properties", KeyPress('j'));
+}
+
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 {
-	if (key == KeyPress::F4Key)
+	using namespace InterfaceDesignerShortcuts;
+
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_toggle_edit))
 		return Actions::toggleEditMode(*this);
-	if (key == KeyPress::escapeKey)
+	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_deselect_all))
 		return Actions::deselectAll(*this);
-	else if (key == KeyPress::F5Key)
+	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_rebuild))
 		return Actions::rebuildAndRecompile(*this);
 	else if (key.getKeyCode() == '+' && key.getModifiers().isCommandDown())
 		return Actions::zoomIn(*this);
 	else if (key.getKeyCode() == '-' && key.getModifiers().isCommandDown())
 		return Actions::zoomOut(*this);
-	else if (key.getKeyCode() == 'L' && key.getModifiers().isCommandDown())
+	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_lock_selection))
 		return Actions::lockSelection(*this);
 
 	return false;

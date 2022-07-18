@@ -40,6 +40,10 @@ namespace TextEditorShortcuts
 	DECLARE_ID(goto_definition);
 	DECLARE_ID(show_search);
 	DECLARE_ID(show_full_search);
+	DECLARE_ID(breakpoint_resume);
+	DECLARE_ID(show_search_replace);
+	DECLARE_ID(add_autocomplete_template);
+	DECLARE_ID(clear_autocomplete_templates);
 }
 
 #undef DECLARE_ID

@@ -431,6 +431,21 @@ void PopupIncludeEditor::paintOverChildren(Graphics& g)
 	}
 }
 
+void PopupIncludeEditor::initKeyPresses(Component* root)
+{
+	String cat = "Code Editor";
+	
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::add_autocomplete_template, "Add Autocomplete Template", 
+		KeyPress(KeyPress::F8Key));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::clear_autocomplete_templates, "Clear Autocomplete Templates", 
+		KeyPress(KeyPress::F8Key, ModifierKeys::commandModifier, 0));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::show_search_replace, "Search & Replace", KeyPress('g', ModifierKeys::commandModifier, 'g'));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_resume, "Resume breakpoint", KeyPress(KeyPress::F10Key));
+}
+
 File PopupIncludeEditor::getFile() const
 {
 	return externalFile != nullptr ? externalFile->getFile() : File();
@@ -532,13 +547,14 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	ed.addKeyPressFunction([this](const KeyPress& k)
 	{
-		if (k == KeyPress::F8Key)
+		if (k == TopLevelWindowWithKeyMappings::getKeyPress(getEditor(), TextEditorShortcuts::add_autocomplete_template))
 		{
-			auto id = k.getModifiers().isCommandDown() ?
-				JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates :
-				JavascriptProcessor::ScriptContextActions::AddAutocompleteTemplate;
-
-			jp->performPopupMenuAction(id, getEditor());
+			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::AddAutocompleteTemplate, getEditor());
+			return true;
+		}
+		if (k == TopLevelWindowWithKeyMappings::getKeyPress(getEditor(), TextEditorShortcuts::clear_autocomplete_templates))
+		{
+			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::ClearAutocompleteTemplates, getEditor());
 			return true;
 		}
 		if (k == KeyPress::F9Key)
@@ -546,7 +562,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			resultLabel->gotoText();
 			return true;
 		}
-		if (k == KeyPress::F10Key)
+		if (k == TopLevelWindowWithKeyMappings::getKeyPress(getEditor(), TextEditorShortcuts::breakpoint_resume))
 		{
 			dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
 			return true;
@@ -556,7 +572,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::FindAllOccurences, getEditor());
 			return true;
 		}
-		if (k == KeyPress('g', ModifierKeys::commandModifier, 'g'))
+		if (k == TopLevelWindowWithKeyMappings::getKeyPress(getEditor(), TextEditorShortcuts::show_search_replace))
 		{
 			jp->performPopupMenuAction(JavascriptProcessor::ScriptContextActions::SearchAndReplace, getEditor());
 			return true;
