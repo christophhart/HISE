@@ -202,7 +202,7 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 			auto label = c.getProperty("Label", id);
 
 			auto w = (int)c["Width"];
-			auto min = jmax(10, (int)c["MinWidth"]);
+			auto min = jmax(1, (int)c["MinWidth"]);
 			auto max = (int)c.getProperty("MaxWidth", -1);
 
 			if (max != -1)
