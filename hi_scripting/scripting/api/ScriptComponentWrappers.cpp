@@ -2474,16 +2474,19 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
 
-    if (auto l = floatingTile->createLocalLookAndFeel())
+	LookAndFeel* laf = &mc->getGlobalLookAndFeel();
+
+	if (auto l = floatingTile->createLocalLookAndFeel())
     {
         localLookAndFeel = l;
-        
-        Component::callRecursive<Component>(ft, [l](Component* c)
-        {
-            c->setLookAndFeel(l);
-            return false;
-        });
+		laf = localLookAndFeel.get();
     }
+
+	Component::callRecursive<Component>(ft, [laf](Component* c)
+	{
+		c->setLookAndFeel(laf);
+		return false;
+	});
 }
 
 

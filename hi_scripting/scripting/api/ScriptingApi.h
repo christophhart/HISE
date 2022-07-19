@@ -561,12 +561,15 @@ public:
 		/** Creates an error handler that reacts on initialisation errors. */
 		var createErrorHandler();
 
-    /** Returns an array with all matches. */
-    var getRegexMatches(String stringToMatch, String regex);
+		/** Returns an array with all matches. */
+		var getRegexMatches(String stringToMatch, String regex);
 
-    /** Returns a string of the value with the supplied number of digits. */
-    String doubleToString(double value, int digits);
+		/** Returns a string of the value with the supplied number of digits. */
+		String doubleToString(double value, int digits);
 		
+		/** Returns the width of the string for the given font properties. */
+		float getStringWidth(String text, String fontName, float fontSize, float fontSpacing);
+
 		String intToHexString(int value);
 
 		/** Signals that the application should terminate. */

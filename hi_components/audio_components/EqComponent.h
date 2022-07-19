@@ -49,7 +49,51 @@ class FilterDragOverlay : public Component,
 {
 public:
 
+	struct FilterResizeAction : public UndoableAction
+	{
+		FilterResizeAction(CurveEq* eq_, int index_, bool add, double freq_=0.0, double gain_=0.0);;
 
+		bool perform() override;
+
+		bool undo() override;
+
+		WeakReference<CurveEq> eq;
+		int index;
+		bool isAddAction;
+
+		double freq;
+		double gain;
+		int type;
+		double q;
+		bool enabled;
+	};
+
+	enum class SpectrumVisibility
+	{
+		Dynamic,
+		AlwaysOn,
+		AlwaysOff
+	};
+
+	struct DragData
+	{
+		DragData() = default;
+
+		bool selected;
+		bool enabled;
+		bool dragging;
+		bool hover;
+		float frequency;
+		float q;
+		float gain;
+		String type;
+	};
+
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+		virtual void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const DragData& d);
+	};
 
 	struct Factory : public PathFactory
 	{
@@ -89,6 +133,7 @@ public:
 	void timerCallback() override;
 	void resized() override;
 	void paint(Graphics &g);
+	void paintOverChildren(Graphics& g);
 
 	void mouseMove(const MouseEvent &e);
 	void mouseDown(const MouseEvent &e);
@@ -101,6 +146,8 @@ public:
 	void addFilterToGraph(int filterIndex, int filterType);
 	void updatePositions(bool forceUpdate);
 	Point<int> getPosition(int index);
+
+	void lookAndFeelChanged() override;
 
 	virtual void fillPopupMenu(PopupMenu& m, int handleIndex);
 
@@ -118,21 +165,35 @@ public:
 
 		void setConstrainer(ComponentBoundsConstrainer *constrainer_);;
 
+		void mouseEnter(const MouseEvent& e);
+		void mouseExit(const MouseEvent& e);
 		void mouseDown(const MouseEvent& e);
 		void mouseUp(const MouseEvent& e);
 		void mouseDrag(const MouseEvent& e);
 		void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &d) override;
+		void mouseDoubleClick(const MouseEvent& e);
 		void setSelected(bool shouldBeSelected);
 		void paint(Graphics &g);;
 		void setIndex(int newIndex);;
 
+		bool isSelected() const { return selected; }
+		bool isDragging() const { return !menuActive && draggin; }
+		bool isOver() const { return !menuActive && over; }
+		int getIndex() const { return index; }
+
 	private:
 
+		
+
+		bool down = false;
+		bool over = false;
 		bool draggin = false;
 
 		int index;
 
 		bool selected;
+
+		bool menuActive = false;
 
 		ComponentBoundsConstrainer *constrainer;
 		ComponentDragger dragger;
@@ -146,6 +207,24 @@ public:
 	void selectDragger(int index);
 	void addListener(Listener* l);
 	void removeListener(Listener* l);
+
+	void setAllowFilterResizing(bool shouldBeAllowed)
+	{
+		allowFilterResizing = shouldBeAllowed;
+	}
+
+	void setSpectrumVisibility(SpectrumVisibility m)
+	{
+		fftVisibility = m;
+		fftAnalyser.setVisible(m != SpectrumVisibility::AlwaysOff);
+	}
+
+	void setUndoManager(UndoManager* newUndoManager)
+	{
+		um = newUndoManager;
+	}
+
+	void setEqAttribute(int b, int filterIndex, float value);
 
 protected:
 
@@ -170,6 +249,13 @@ public:
 	FilterGraph filterGraph;
 
 private:
+
+	UndoManager* um = nullptr;
+
+	bool allowFilterResizing = true;
+	SpectrumVisibility fftVisibility = SpectrumVisibility::Dynamic;
+
+	LookAndFeelMethods defaultLaf;
 
 	Array<WeakReference<Listener>> listeners;
 

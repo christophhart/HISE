@@ -387,11 +387,16 @@ void FilterGraph::setCoefficients(int filterNum, double sampleRate, IIRCoefficie
 {
 	if (filterNum < filterVector.size())
 	{
-		filterVector[filterNum]->setSampleRate(sampleRate);
-		filterVector[filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);
+		auto old = filterVector[filterNum]->getCoefficients();
 
-		fs = sampleRate;
-		repaint();
+		if (memcmp(&old.coefficients, newCoefficients.coefficients, sizeof(IIRCoefficients::coefficients)) != 0)
+		{
+			filterVector[filterNum]->setSampleRate(sampleRate);
+			filterVector[filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);
+
+			fs = sampleRate;
+			repaint();
+		}
 	}
 }
 

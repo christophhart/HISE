@@ -116,19 +116,20 @@ void FilterInfo::zeroCoeffs()
     denominatorCoeffs [0] = 1;
 }
  
-void FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCoefficients newCoefficients)
+bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCoefficients newCoefficients)
 {
 	numNumeratorCoeffs = 3;
     numDenominatorCoeffs = 3;
         
     numeratorCoeffs.resize (3, 0);
     denominatorCoeffs.resize (3, 0);
+
+	coefficients = newCoefficients;
         
     zeroCoeffs();
 
 	for (int numOrder = 0; numOrder < 3; numOrder++)
     {
-		
         numeratorCoeffs [numOrder] = newCoefficients.coefficients[numOrder];
     }
         
@@ -138,6 +139,7 @@ void FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCo
     }
     
     gainValue = 1;
+	return true;
 }
 
 void FilterInfo::setFilter (double frequency, FilterType filterType)

@@ -555,7 +555,8 @@ namespace ScriptingObjects
 		// ============================================================================================================
 	};
 
-	class ScriptedLookAndFeel : public ConstScriptingObject
+	class ScriptedLookAndFeel : public ConstScriptingObject,
+								public ControlledObject
 	{
 	public:
 
@@ -568,6 +569,8 @@ namespace ScriptingObjects
 			public NumberTag::LookAndFeelMethods,
 			public MessageWithIcon::LookAndFeelMethods,
 			public ControlledObject,
+			public FilterGraph::LookAndFeelMethods,
+			public FilterDragOverlay::LookAndFeelMethods,
 			public RingBufferComponentBase::LookAndFeelMethods,
 			public AhdsrGraph::LookAndFeelMethods,
 			public MidiFileDragAndDropper::LookAndFeelMethods,
@@ -593,6 +596,8 @@ namespace ScriptingObjects
 				else
 					return GLOBAL_BOLD_FONT();
 			}
+
+			
 
 			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
 
@@ -684,7 +689,17 @@ namespace ScriptingObjects
 
             void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
             
+			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
+
+			void drawFilterBackground(Graphics &g, FilterGraph& fg) override;
+			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
+			void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath) override;
             
+			void drawOscilloscopeBackground(Graphics& g, RingBufferComponentBase& ac, Rectangle<float> areaToFill) override;
+			void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
+			void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
+			void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
+
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);
@@ -773,7 +788,7 @@ namespace ScriptingObjects
 
 		static Array<Identifier> getAllFunctionNames();
 
-        SimpleReadWriteLock lock;
+        
 		Font f = GLOBAL_BOLD_FONT();
 		ReferenceCountedObjectPtr<GraphicsObject> g;
 

@@ -83,7 +83,7 @@ public:
     
     void setCustom (std::vector <double> numCoeffs, std::vector <double> denCoeffs);
 
-	void setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
+	bool setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
 
 	Array<double> toDoubleArray() const;
 	void fromDoubleArray(Array<double>& d);

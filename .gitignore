@@ -102,3 +102,6 @@ tools/snex_workbench_plugin/Builds/
 tools/snex_workbench_plugin/JuceLibraryCode/include_hi_backend.cpp
 tools/snex_workbench_plugin/JuceLibraryCode/
 extras/demo_project/AdditionalSourceCode/nodes/
+extras/hball/
+extras/demo_project/UserPresets/
+hi_snex/xml/

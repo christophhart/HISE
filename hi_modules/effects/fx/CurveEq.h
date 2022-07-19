@@ -186,7 +186,7 @@ public:
 		fftBuffer->setActive(shouldBeEnabled);
 	}
 
-	void addFilterBand(double freq, double gain)
+	void addFilterBand(double freq, double gain, int insertIndex=-1)
 	{
 		ScopedLock sl(getMainController()->getLock());
 
@@ -197,7 +197,10 @@ public:
 		f->setGain(gain);
 		f->setFrequency(freq);
 
-		filterBands.add(f);
+		if (insertIndex == -1)
+			filterBands.add(f);
+		else
+			filterBands.insert(insertIndex, f);
 
 		sendChangeMessage();
 	}

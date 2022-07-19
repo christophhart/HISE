@@ -679,7 +679,7 @@ public:
 
 	void refresh() override
 	{
-		dynamic_cast<Component*>(this)->repaint();
+		SafeAsyncCall::repaint(dynamic_cast<Component*>(this));
 	}
 
 protected:
