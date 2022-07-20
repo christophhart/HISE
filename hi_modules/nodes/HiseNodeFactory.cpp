@@ -1391,6 +1391,8 @@ namespace control
 
 		registerPolyNoProcessNode<control::bang<1, parameter::dynamic_base_holder>, control::bang<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
+		registerPolyNoProcessNode<control::change<1, parameter::dynamic_base_holder>, control::change<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+
         registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
         
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();

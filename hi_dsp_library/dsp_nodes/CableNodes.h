@@ -773,7 +773,6 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(midi_cc);
 	};
 
-	
 	template <typename ExpressionClass, typename ParameterClass> struct cable_expr : public mothernode,
 																					 public pimpl::parameter_node_base<ParameterClass>,
 																					 public pimpl::no_mod_normalisation,
@@ -836,6 +835,8 @@ namespace control
 
 		double value = 0.0;
 	};
+
+	
 
 	template <typename ParameterClass> struct normaliser : public mothernode,
 														   public pimpl::parameter_node_base<ParameterClass>,
@@ -1513,6 +1514,47 @@ namespace control
 
 		};
 
+		struct change: public pimpl::no_mod_normalisation
+		{
+			SN_NODE_ID("change");
+			SN_DESCRIPTION("Filters out repetitions of the same value");
+
+			change() :
+				no_mod_normalisation(getStaticId(), { "Value" })
+			{};
+
+			bool operator==(const change& other) const { return other.value == value; }
+
+			double getValue() const
+			{
+				dirty = false;
+				return value;
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+				{
+					dirty = v != value;
+					value = v;
+				}
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Value");
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
+					p.setRange({ 0.0, 1.0 });
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+			}
+
+			double value = 0.0;
+			mutable bool dirty = false;
+		};
+
 		struct minmax: public pimpl::no_mod_normalisation
 		{
 			SN_NODE_ID("minmax");
@@ -1791,6 +1833,7 @@ namespace control
 	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
 	template <int NV, typename ParameterType> using intensity = multi_parameter<NV, ParameterType, multilogic::intensity>;
 	template <int NV, typename ParameterType> using bang = multi_parameter<NV, ParameterType, multilogic::bang>;
+	template <int NV, typename ParameterType> using change = multi_parameter<NV, ParameterType, multilogic::change>;
 
 	struct smoothed_parameter_base: public mothernode
 	{
