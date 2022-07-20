@@ -84,6 +84,14 @@ public:
 		MessageManager::callAsync(SafeAsyncCaller<T>(&object, f));
 	}
 
+	template <typename T> static void callAsyncIfNotOnMessageThread(T& object, std::function<void(T&)> f)
+	{
+		if (MessageManager::getInstance()->isThisTheMessageThread())
+			f(object);
+		else
+			MessageManager::callAsync(SafeAsyncCaller<T>(&object, f));
+	}
+
 	template <typename T> static void callWithDelay(T& object, std::function<void(T&)> f, int milliseconds)
 	{
 		Timer::callAfterDelay(milliseconds, SafeAsyncCaller<T>(&object, f));
@@ -91,12 +99,12 @@ public:
 
 	static void resized(Component* c)
 	{
-		call<Component>(*c, [](Component& c) { c.resized(); });
+		callAsyncIfNotOnMessageThread<Component>(*c, [](Component& c) { c.resized(); });
 	}
 
 	static void repaint(Component* c)
 	{
-		call<Component>(*c, [](Component& c) { c.repaint(); });
+		callAsyncIfNotOnMessageThread<Component>(*c, [](Component& c) { c.repaint(); });
 	}
 };
 

@@ -2751,10 +2751,51 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 	return wn;
 }
 
+bool needsMatrix(const ValueTree& nodeTree)
+{
+	int numThisTime = -1;
+	ExternalData::DataType dt = ExternalData::DataType::numDataTypes;
+	bool multipleDataTypes = false;
+
+	// Check if multiple data types are defined
+	ExternalData::forEachType([&](ExternalData::DataType t)
+	{
+		int num = ValueTreeIterator::getNumDataTypes(nodeTree, t);
+
+		if (num == 0)
+			return;
+
+		if (numThisTime == -1)
+		{
+			numThisTime = num;
+			dt = t;
+		}
+			
+		else if ( numThisTime != num)
+			multipleDataTypes = true;
+	});
+
+	if (multipleDataTypes)
+		return true;
+
+	for (int i = 0; i < numThisTime; i++)
+	{
+		auto slotIndex = ValueTreeIterator::getDataIndex(nodeTree, dt, i);
+
+		if (i != slotIndex)
+			return true;
+	}
+
+	return false;
+}
+
 Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 {
 	if (ValueTreeIterator::getMaxDataTypeIndex(n->nodeTree, ExternalData::DataType::DisplayBuffer) > 0)
 		n = parseSingleDisplayBufferNode(true);
+
+	if (!needsMatrix(n->nodeTree))
+		return n;
 
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
 	wn->nodeTree = n->nodeTree;
@@ -2769,14 +2810,6 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 		numMax = jmax(numMax, ValueTreeIterator::getNumDataTypes(n->nodeTree, t));
 	});
 
-#if 0
-	auto numTables = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::Table);
-	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
-	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
-	auto numFilters = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::FilterCoefficients);
-	auto numDisplayBuffers = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::DisplayBuffer);
-	auto numMax = jmax(numTables, numSliderPacks, numAudioFiles, numFilters, numDisplayBuffers);
-#endif
 
 	auto sId = n->scopedId;
 	StringHelpers::addSuffix(sId, "_matrix");
@@ -2790,15 +2823,6 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 		l << "static const int " << ExternalData::getNumIdentifier(t) << " = " << num << ";";
 		parent << l;
 	});
-
-#if 0
-	String l1, l2, l3, l4, l5;
-	l1 << "static const int NumTables = " << numTables << ";";
-	l2 << "static const int NumSliderPacks = " << numSliderPacks << ";";
-	l3 << "static const int NumAudioFiles = " << numAudioFiles << ";";
-	l3 << "static const int NumFilters = " << numFilters << ";";
-	l4 << "static const int NumDisplayBuffers = " << numDisplayBuffers << ";";
-#endif
 
 	String l5;
 	l5 << "const int matrix[3][" << numMax << "] =";

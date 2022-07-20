@@ -273,9 +273,27 @@ void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
 	auto ns = internalBuffer.getNumSamples();
 	auto nc = internalBuffer.getNumChannels();
 
+	bool updateBuffer = false;
+
+	if (ns == 0 && properties->getPropertyList().contains(RingBufferIds::BufferLength))
+	{
+		ns = (int)properties->properties[RingBufferIds::BufferLength];
+		updateBuffer = true;
+	}
+
+	if (nc == 0 && properties->getPropertyList().contains(RingBufferIds::NumChannels))
+	{
+		nc = (int)properties->properties[RingBufferIds::NumChannels];
+		updateBuffer = true;
+	}
+		
+
 	if (validateChannels(nc) ||
-		validateLength(ns))
+		validateLength(ns) || updateBuffer)
+	{
 		setRingBufferSize(nc, ns);
+	}
+		
 
 	getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
 	clear();
@@ -335,13 +353,23 @@ int ModPlotter::getSamplesPerPixel(float rectangleWidth) const
 
 	auto width = (float)getWidth() - 2.0f * offset;
 
-	int samplesPerPixel = SimpleRingBuffer::RingBufferSize / jmax((int)(width / rectangleWidth), 1);
-	return samplesPerPixel;
+	if (rb != nullptr)
+	{
+		auto numSamples = (int)rb->getReadBuffer().getNumSamples();
+
+		int samplesPerPixel = numSamples / jmax((int)(width / rectangleWidth), 1);
+		return samplesPerPixel;
+	}
+
+	return 1;
 }
 
 void RingBufferComponentBase::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue)
 {
-	refresh();
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<RingBufferComponentBase>(*this, [](RingBufferComponentBase& c)
+	{
+		c.refresh();
+	});
 }
 
 void RingBufferComponentBase::setComplexDataUIBase(ComplexDataUIBase* newData)

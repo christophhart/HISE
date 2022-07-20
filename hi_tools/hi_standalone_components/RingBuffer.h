@@ -101,7 +101,7 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		virtual bool validateInt(const Identifier& id, int& v) const
 		{
 			if (id == RingBufferIds::BufferLength)
-				return withinRange<512, 65536>(v);
+				return withinRange<512, 65536*2>(v);
 
 			if (id == RingBufferIds::NumChannels)
 				return withinRange<1, 2>(v);
@@ -171,8 +171,6 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		WeakReference<WriterBase> writerBase;
 		WeakReference<SimpleRingBuffer> buffer;
 	};
-
-	static constexpr int RingBufferSize = 65536;
 
 	using Ptr = ReferenceCountedObjectPtr<SimpleRingBuffer>;
 
@@ -438,6 +436,8 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 protected:
 
 	SimpleRingBuffer::Ptr rb;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(RingBufferComponentBase);
 };
 
 struct ComponentWithDefinedSize
@@ -466,7 +466,10 @@ struct ModPlotter : public Component,
 
 		ModPlotterPropertyObject(SimpleRingBuffer::WriterBase* wb) :
 			PropertyObject(wb)
-		{};
+		{
+			setProperty(RingBufferIds::BufferLength, 32768 * 2);
+			setProperty(RingBufferIds::NumChannels, 1);
+		};
 		
 		int getClassIndex() const override { return PropertyIndex; }
 
@@ -475,7 +478,14 @@ struct ModPlotter : public Component,
 		virtual bool validateInt(const Identifier& id, int& v) const
 		{
 			if (id == RingBufferIds::BufferLength)
-				return SimpleRingBuffer::toFixSize<32768 * 2>(v);
+			{
+				bool wasPowerOfTwo = isPowerOfTwo(v);
+
+				if (!wasPowerOfTwo)
+					v = nextPowerOfTwo(v);
+				
+				return SimpleRingBuffer::withinRange<4096, 32768 * 4>(v) && wasPowerOfTwo;
+			}
 
 			if (id == RingBufferIds::NumChannels)
 				return SimpleRingBuffer::toFixSize<1>(v);
