@@ -96,6 +96,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(LinkExpansionsToProject);
 	ids.add(ReadOnlyFactoryPresets);
     ids.add(ForceStereoOutput);
+		ids.add(AdminPermissions);
 
 	return ids;
 }
@@ -388,7 +389,7 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If enabled, the exported plugins will use the VST3 SDK standard instead of the VST 2.x SDK. Until further notice, this is a experimental feature so proceed with caution.");
 		D("> Be aware that Steinberg stopped support for the VST 2.4 SDK in October 2018 so if you don't have a valid VST2 license agreement in place, you must use the VST3 SDK.");
 		P_();
-		
+				
 		P(HiseSettings::Project::UseRawFrontend);
 		D("If enabled, the project will not use the preset structure and scripted user interface and lets you use HISE as C++ framework.");
 		D("You will have to implement a custom C++ class in the `AdditionalSourceCode` subfolder.");
@@ -398,7 +399,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
         D("If you export a plugin with HISE it will create as much channels as the routing matrix of the master container requires.");
         D(" If you don't want this behaviour, you can enable this option to force the plugin to just use a stereo channel configuration");
         P_();
-        
+    
+				P(HiseSettings::Project::AdminPermissions);
+				D("If enabled, standalone builds on Windows will prompt the user for administrator privileges.");
+				D(" This is neccessary for tasks that access restricted locations such as the user's VST3 directory.");
+				P_();
+		    
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -717,6 +723,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Project::ReadOnlyFactoryPresets ||
         id == Project::ForceStereoOutput ||
+				id == Project::AdminPermissions ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -897,6 +904,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::EnableSoundGeneratorsFX) return "No";
 	else if (id == Project::ReadOnlyFactoryPresets) return "No";
     else if (id == Project::ForceStereoOutput)      return "No";
+		else if (id == Project::AdminPermissions) return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";

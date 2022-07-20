@@ -69,7 +69,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
-"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%/\" IPPLibrary=\"%IPP_WIN_SETTING%\" %ICON_FILE% extraDefs=\"%EXTRA_DEFINES_WIN%\" extraCompilerFlags=\"/bigobj /W0\">\r\n"
+"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%/\" IPPLibrary=\"%IPP_WIN_SETTING%\" %ICON_FILE% extraDefs=\"%EXTRA_DEFINES_WIN%\"  extraLinkerFlags=\"%UAC_LEVEL%\" extraCompilerFlags=\"/bigobj /W0\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"1\" generateManifest=\"1\" winArchitecture=\"x64\"\r\n"
 "                       libraryPath=\"%WIN_STATIC_LIB_FOLDER_D64%\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME% Debug\"\r\n"
