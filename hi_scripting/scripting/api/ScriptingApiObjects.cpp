@@ -7070,6 +7070,7 @@ struct ScriptingObjects::ScriptBuilder::Wrapper
 {
 	API_METHOD_WRAPPER_4(ScriptBuilder, create);
 	API_METHOD_WRAPPER_2(ScriptBuilder, get);
+	API_METHOD_WRAPPER_1(ScriptBuilder, getExisting);
 	API_VOID_METHOD_WRAPPER_2(ScriptBuilder, setAttributes);
 	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, clear);
 	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, flush);
@@ -7086,6 +7087,7 @@ ScriptingObjects::ScriptBuilder::ScriptBuilder(ProcessorWithScriptingContent* p)
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_4(create);
 	ADD_API_METHOD_2(get);
+	ADD_API_METHOD_1(getExisting);
 	ADD_API_METHOD_2(setAttributes);
 	ADD_API_METHOD_0(flush);
 	ADD_API_METHOD_2(connectToScript);
@@ -7250,6 +7252,25 @@ juce::var ScriptingObjects::ScriptBuilder::get(int buildIndex, String interfaceT
 
 	}
 	return var();
+}
+
+int ScriptingObjects::ScriptBuilder::getExisting(String processorId)
+{
+	for (auto p : createdModules)
+	{
+		if (p->getId() == processorId)
+			return createdModules.indexOf(p);
+	}
+
+	auto pToAdd = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), processorId);
+
+	if (pToAdd == nullptr)
+	{
+		reportScriptError("Can't find processor with ID " + processorId);
+	}
+
+	createdModules.add(pToAdd);
+	return createdModules.size() - 1;
 }
 
 void ScriptingObjects::ScriptBuilder::setAttributes(int buildIndex, var attributeValues)

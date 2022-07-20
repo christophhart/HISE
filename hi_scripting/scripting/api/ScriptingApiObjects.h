@@ -707,6 +707,9 @@ namespace ScriptingObjects
 		/** Returns a typed reference for the module with the given build index. */
 		var get(int buildIndex, String interfaceType);
 
+		/** Adds the existing module to the internal list and returns the index for refering to it. */
+		int getExisting(String processorId);
+
 		/** Set multiple attributes for the given module at once using a JSON object. */
 		void setAttributes(int buildIndex, var attributeValues);
 
