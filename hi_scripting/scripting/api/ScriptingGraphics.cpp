@@ -2004,7 +2004,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 
 ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
 {
-	ScopedLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
 
     functions = var();
     g = nullptr;
@@ -2102,7 +2102,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		var thisObject(this);
 
 		{
-			ScopedLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+			SimpleReadWriteLock::ScopedReadLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
 
 			if (c != nullptr && c->getParentComponent() != nullptr)
 			{
@@ -2159,7 +2159,7 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
 	{
-		ScopedLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+		SimpleReadWriteLock::ScopedReadLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
 
 		var thisObject(this);
 		var::NativeFunctionArgs arg(thisObject, args, numArgs);
