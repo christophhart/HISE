@@ -935,6 +935,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, copyToClipboard);
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
+	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
 };
 
 
@@ -1069,6 +1070,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(reloadAllSamples);
 	ADD_API_METHOD_1(decodeBase64ValueTree);
 	ADD_API_METHOD_2(renderAudio);
+	ADD_API_METHOD_2(playBuffer);
 }
 
 
@@ -1888,6 +1890,154 @@ struct AudioRenderer : public Thread,
 void ScriptingApi::Engine::renderAudio(var eventList, var updateCallback)
 {
 	currentExportThread = new AudioRenderer(getScriptProcessor(), eventList, updateCallback);
+}
+
+struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
+											 public AsyncUpdater,
+											 public BufferPreviewListener
+{
+	PreviewHandler(ProcessorWithScriptingContent* p) :
+		ControlledObject(p->getMainController_()),
+		pwsc(p)
+	{
+		getMainController()->addPreviewListener(this);
+	}
+
+	~PreviewHandler()
+	{
+		getMainController()->stopBufferToPlay();
+		getMainController()->removePreviewListener(this);
+	}
+
+	struct Job: public ControlledObject,
+				private PooledUIUpdater::SimpleTimer
+	{
+		Job(ProcessorWithScriptingContent* p, var buffer, var callbackFunction) :
+			ControlledObject(p->getMainController_()),
+			SimpleTimer(p->getMainController_()->getGlobalUIUpdater(), true),
+			bufferToPreview(buffer),
+			callback(p, callbackFunction, 2)
+		{
+			callback.incRefCount();
+			memset(channels, 0, sizeof(float*) * HISE_NUM_PLUGIN_CHANNELS);
+
+			if (buffer.isArray())
+			{
+				numChannels = buffer.size();
+				
+				for (int i = 0; i < numChannels; i++)
+				{
+					if (auto b = buffer[i].getBuffer())
+					{
+						if (numSamples == -1)
+							numSamples = b->buffer.getNumSamples();
+
+						channels[i] = b->buffer.getWritePointer(0);
+					}
+				}
+			}
+			else if(auto b = buffer.getBuffer())
+			{
+				numSamples = b->buffer.getNumSamples();
+				numChannels = 1;
+				channels[0] = b->buffer.getWritePointer(0);
+			}
+
+			if (numChannels == 1)
+			{
+				numChannels = 2;
+				channels[1] = channels[0];
+			}
+		}
+
+		void play()
+		{
+			AudioSampleBuffer b(channels, numChannels, numSamples);
+
+			AudioSampleBuffer copy;
+			copy.makeCopyOf(b);
+
+			getMainController()->setBufferToPlay(copy);
+			start();
+		}
+
+		void sendCallback(bool isPlaying, double position)
+		{
+			args[0] = isPlaying;
+			args[1] = position;
+
+			if (callback)
+				callback.call(args, 2);
+
+			if (!isPlaying)
+				stop();
+		}
+
+		void timerCallback() override
+		{
+			auto pos = getMainController()->getPreviewBufferPosition();
+			double normPos = (double)pos / (double)numSamples;
+			sendCallback(true, normPos);
+		}
+		
+		float* channels[HISE_NUM_PLUGIN_CHANNELS];
+		int numChannels;
+		int numSamples = -1;
+
+
+		var args[2];
+		var bufferToPreview;
+		WeakCallbackHolder callback;
+	};
+
+	void addJob(var buffer, var callback)
+	{
+		ScopedLock sl(jobLock);
+
+		getMainController()->stopBufferToPlay();
+		currentJobs.add(new Job(pwsc, buffer, callback));
+
+		if (currentJobs.size() == 1)
+			startNextJob();
+	}
+
+	void handleAsyncUpdate()
+	{
+		ScopedLock sl(jobLock);
+
+		if (auto j = currentJobs.removeAndReturn(0))
+		{
+			j->sendCallback(false, 1.0);
+		}
+
+		startNextJob();
+	}
+
+	void previewStateChanged(bool isPlaying, const AudioSampleBuffer& currentBuffer) override
+	{
+		if (!isPlaying && !currentJobs.isEmpty())
+			triggerAsyncUpdate();
+	}
+
+	void startNextJob()
+	{
+		ScopedLock sl(jobLock);
+
+		if (!currentJobs.isEmpty())
+			currentJobs[0]->play();
+	}
+
+	CriticalSection jobLock;
+	OwnedArray<Job> currentJobs;
+	ProcessorWithScriptingContent* pwsc;
+};
+
+void ScriptingApi::Engine::playBuffer(var bufferData, var callback)
+{
+	if (previewHandler == nullptr)
+		previewHandler = new PreviewHandler(getScriptProcessor());
+
+	previewHandler->addJob(bufferData, callback);
 }
 
 var ScriptingApi::Engine::createFFT()

@@ -39,6 +39,16 @@ ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, con
 	pwsc(p)
 {
 	tableRefreshBroadcaster.enableLockFreeUpdate(p->getMainController_()->getGlobalUIUpdater());
+
+	eventTypesForCallback.add(EventType::SingleClick);
+	eventTypesForCallback.add(EventType::DoubleClick);
+	eventTypesForCallback.add(EventType::ReturnKey);
+	eventTypesForCallback.add(EventType::SpaceKey);
+}
+
+bool ScriptTableListModel::isMultiColumn() const
+{
+	return tableMetadata.getProperty("MultiColumnMode", false);
 }
 
 void ScriptTableListModel::paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
@@ -189,7 +199,7 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 
 	t->setLookAndFeel(&fallback);
 
-	if(tableMetadata.getProperty("MultiColumnMode", false))
+	if(isMultiColumn())
 		tableRepainters.add(new TableRepainter(t, *this));
 
 	int idx = 1;
@@ -358,6 +368,53 @@ void ScriptTableListModel::setColours(Colour textColour, Colour bgColour, Colour
 	d.itemColour2 = itemColour2;
 }
 
+Result ScriptTableListModel::setEventTypesForValueCallback(var eventTypeList)
+{
+	StringArray eventTypes =
+	{
+		"SliderCallback",
+		"ButtonCallback",
+		"Selection",
+		"SingleClick",
+		"DoubleClick",
+		"ReturnKey",
+		"SetValue",
+		"Undo",
+		"DeleteRow"
+	};
+
+	Array<EventType> illegalTypes =
+	{
+		EventType::SliderCallback,
+		EventType::ButtonCallback,
+		EventType::SetValue,
+		EventType::Undo,
+		EventType::DeleteRow
+	};
+
+	eventTypesForCallback.clear();
+
+	if (eventTypeList.isArray())
+	{
+		for (const auto& r : *eventTypeList.getArray())
+		{
+			auto idx = eventTypes.indexOf(r.toString());
+			
+			if (idx == -1)
+				return Result::fail("unknown event type: " + r.toString());
+
+			if (illegalTypes.contains((EventType)idx))
+				return Result::fail("illegal event type for value callback: " + r.toString());
+			
+			eventTypesForCallback.add((EventType)idx);
+		}
+	}
+	else
+		return Result::fail("event type list is not an array");
+
+	return Result::ok();
+}
+
 void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseEvent& e)
 {
 	lastClickedCell = { columnId, rowNumber };
@@ -384,11 +441,12 @@ void ScriptTableListModel::backgroundClicked(const MouseEvent& e)
 
 void ScriptTableListModel::selectedRowsChanged(int lastRowSelected)
 {
+	Point<int> newSelection(lastClickedCell.x, lastRowSelected);
+
+	if (newSelection == lastClickedCell)
+		return;
+
 	lastClickedCell.y = lastRowSelected;
-
-	
-
-	TableListBoxModel::selectedRowsChanged(lastRowSelected);
 
 	if (lastRowSelected == -1)
 		return;
@@ -452,7 +510,29 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 		case EventType::DeleteRow:
 			obj->setProperty("Type", "DeleteRow");
 			break;
+		case EventType::SetValue:
+			obj->setProperty("Type", "SetValue");
+			break;
+		case EventType::Undo:
+			obj->setProperty("Type", "Undo");
+		case EventType::SpaceKey:
+			obj->setProperty("Type", "SpaceKey");
 		}
+
+		if (type == EventType::SetValue ||
+			type == EventType::Undo)
+		{
+			Point<int> newCell(columnId, rowId);
+
+			if (lastClickedCell == newCell)
+				return;
+
+			lastClickedCell = newCell;
+
+			value = rowData[rowId];
+		}
+
+		bool notifyParent = eventTypesForCallback.contains(type);
 
 		obj->setProperty("rowIndex", rowId);
 
@@ -463,6 +543,11 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 
 		var a(obj);
 		cellCallback.call1(a);
+
+		if (notifyParent && additionalCallback)
+		{
+			additionalCallback(columnId - 1, rowId);
+		}
 	}
 }
 
@@ -501,8 +586,17 @@ bool ScriptTableListModel::TableRepainter::keyPressed(const KeyPress& key, Compo
 		}
 
 		parent.lastClickedCell.x = fc;
-		parent.selectedRowsChanged(parent.lastClickedCell.y);
-		t.getComponent()->repaintRow(parent.lastClickedCell.y);
+
+		// force an update like this
+		auto oldY = parent.lastClickedCell.y;
+		parent.lastClickedCell.y = -1;
+		parent.selectedRowsChanged(oldY);
+		t.getComponent()->repaintRow(oldY);
+		return true;
+	}
+	if (key == KeyPress::spaceKey)
+	{
+		parent.sendCallback(parent.lastClickedCell.x, parent.lastClickedCell.y, parent.rowData[parent.lastClickedCell.y], EventType::SpaceKey);
 		return true;
 	}
 

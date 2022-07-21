@@ -614,6 +614,8 @@ void MainController::stopBufferToPlay()
 {
 	if (previewBufferIndex != -1)
 	{
+		bool sendToListeners = true;
+
 		{
 			LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
@@ -623,12 +625,16 @@ void MainController::stopBufferToPlay()
 			{
 				fadeOutPreviewBufferGain = 1.0f;
 				fadeOutPreviewBuffer = true;
+				sendToListeners = false;
 			}
 		}
 
-		for (auto pl : previewListeners)
+		if (sendToListeners)
 		{
-			pl->previewStateChanged(false, previewBuffer);
+			for (auto pl : previewListeners)
+			{
+				pl->previewStateChanged(false, previewBuffer);
+			}
 		}
 	}
 }

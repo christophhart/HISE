@@ -442,7 +442,12 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 {
 	const var data = v.getProperty("value", var::undefined());
 	bool allowStrings = dynamic_cast<Label*>(this) != nullptr;
-	value = Content::Helpers::getCleanedComponentValue(data, allowStrings);
+
+	
+
+	auto newValue = Content::Helpers::getCleanedComponentValue(data, allowStrings);
+
+	setValue(newValue);
 }
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* /*componentToNotify*/)
@@ -4167,6 +4172,7 @@ struct ScriptingApi::Content::ScriptedViewport::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableColumns);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableRowData);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setEventTypesForValueCallback);
 };
 
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
@@ -4209,6 +4215,7 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	ADD_API_METHOD_1(setTableColumns);
 	ADD_API_METHOD_1(setTableRowData);
 	ADD_API_METHOD_1(setTableCallback);
+	ADD_API_METHOD_1(setEventTypesForValueCallback);
 }
 
 void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
@@ -4287,6 +4294,56 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	return vArray;
 }
 
+struct UndoableTableSelection : public UndoableAction
+{
+	UndoableTableSelection(ScriptingApi::Content::ScriptedViewport* v, int nc, int nr):
+		UndoableAction(),
+		vp(v),
+		newColumn(nc),
+		newRow(nr)
+	{
+		auto old = v->getValue();
+
+		if (old.isArray())
+		{
+			oldColumn = old[0];
+			oldRow = old[1];
+		}
+		else
+		{
+			oldColumn = -1;
+			oldRow = -1;
+		}
+	}
+
+	bool perform() override
+	{
+		if (vp != nullptr)
+		{
+			vp->getTableModel()->sendCallback(newRow, newColumn + 1, true, ScriptTableListModel::EventType::SetValue);
+		}
+
+		return false;
+	}
+
+	bool undo() override
+	{
+		if (oldColumn == -1 && oldRow == -1)
+			return false;
+
+		if (vp != nullptr)
+		{
+			vp->getTableModel()->sendCallback(oldRow, oldColumn + 1, true, ScriptTableListModel::EventType::Undo);
+		}
+
+		return false;
+	}
+
+	int oldColumn, oldRow, newColumn, newRow;
+
+	WeakReference<ScriptingApi::Content::ScriptedViewport> vp;
+};
+
 void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
 {
 	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
@@ -4296,6 +4353,23 @@ void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
 	}
 
 	tableModel = new ScriptTableListModel(getScriptProcessor(), tableMetadata);
+
+	if (tableModel->isMultiColumn())
+	{
+		WeakReference<ScriptedViewport> safeThis(this);
+
+		tableModel->addAdditionalCallback([safeThis](int c, int r)
+		{
+			if (safeThis == nullptr)
+				return;
+
+			Array<var> v;
+			v.add(c);
+			v.add(r);
+
+			safeThis->setValue(v);
+		});
+	}
 }
 
 void ScriptingApi::Content::ScriptedViewport::setTableColumns(var columnMetadata)
@@ -4343,6 +4417,41 @@ void ScriptingApi::Content::ScriptedViewport::setTableCallback(var callbackFunct
 	}
 
 	tableModel->setCallback(callbackFunction);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setValue(var newValue)
+{
+	if (tableModel != nullptr)
+	{
+		if (newValue.isArray() && newValue.size() == 2)
+		{
+			auto c = (int)newValue[0];
+			auto r = (int)newValue[1];
+			auto useUndo = (bool)getScriptObjectProperty(getIdFor(ScriptComponent::Properties::useUndoManager));
+
+			ScopedPointer<UndoableAction> u = new UndoableTableSelection(this, c, r);
+
+			if (useUndo)
+				getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(u.release());
+			else
+				u->perform();
+		}
+	}
+
+	ScriptComponent::setValue(newValue);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setEventTypesForValueCallback(var eventTypeList)
+{
+	if (tableModel != nullptr)
+	{
+		auto r = tableModel->setEventTypesForValueCallback(eventTypeList);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
 }
 
 // ====================================================================================================== ScriptFloatingTile functions

@@ -336,6 +336,9 @@ public:
 		/** Renders a MIDI event list as audio data on a background thread and calls a function when it's ready. */
 		void renderAudio(var eventList, var finishCallback);
 
+		/** Previews a audio buffer with a callback indicating the state. */
+		void playBuffer(var bufferData, var callback);
+
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 
@@ -598,6 +601,10 @@ public:
 
 		ScopedPointer<Thread> currentExportThread;
 
+		struct PreviewHandler;
+
+		ScopedPointer<PreviewHandler> previewHandler;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Engine);
 	};
 
@@ -709,6 +716,8 @@ public:
 		// ============================================================================================================
 
 	private:
+
+		
 
 		GlobalSettingManager* gm;
 		AudioProcessorDriver* driver;

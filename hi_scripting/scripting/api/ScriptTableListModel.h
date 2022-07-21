@@ -47,6 +47,9 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		SingleClick,
 		DoubleClick,
 		ReturnKey,
+		SpaceKey,
+		SetValue,
+		Undo,
 		DeleteRow
 	};
 
@@ -99,6 +102,8 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		return rowData.size();
 	}
 
+	bool isMultiColumn() const;
+
 	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected) override;
 
 	void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
@@ -148,6 +153,8 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		return columnMetadata[columnId - 1].getProperty("MaxWidth", 10000);
 	}
 
+	Result setEventTypesForValueCallback(var eventTypeList);
+
 	void cellClicked(int rowNumber, int columnId, const MouseEvent&) override;
 	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e) override;
 	void backgroundClicked(const MouseEvent&) override;
@@ -160,7 +167,16 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		laf = l;
 	}
 
+	void addAdditionalCallback(const std::function<void(int columnIndex, int rowIndex)>& f)
+	{
+		additionalCallback = f;
+	}
+
 private:
+
+	Array<EventType> eventTypesForCallback;
+
+	std::function<void(int columnIndex, int rowIndex)> additionalCallback;
 
 	struct TableRepainter : public MouseListener,
 						    public KeyListener

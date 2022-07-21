@@ -1528,7 +1528,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateValue(var newValue)
 {
 	auto listBox = dynamic_cast<ListBox*>(component.get());
 
-	if (listBox != nullptr)
+	if (listBox != nullptr && !newValue.isArray())
 	{
 		int viewportIndex = (int)newValue;
 		listBox->selectRow(viewportIndex);
