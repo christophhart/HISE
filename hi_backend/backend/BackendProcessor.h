@@ -127,6 +127,11 @@ public:
 	File getCachedDocFolder() const override;
 	File getDatabaseRootDirectory() const override;
 
+	void toggleDynamicBufferSize() 
+	{
+		simulateDynamicBufferSize = !isUsingDynamicBufferSize();
+	}
+
 	void setDatabaseRootDirectory(File newDatabaseDirectory)
 	{
 		databaseRoot = newDatabaseDirectory;

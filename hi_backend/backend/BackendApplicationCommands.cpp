@@ -166,6 +166,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenseFile,
 		MenuToolsApplySampleMapProperties,
+		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
@@ -465,6 +466,11 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Check Javascript objects for cyclic references", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsSimulateChangingBufferSize:
+		setCommandTarget(result, "Simulate varying audio buffer size", true, bpe->getBackendProcessor()->isUsingDynamicBufferSize(), 'X', false);
+
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsRecompileScriptsOnReload:
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
 		result.categoryName = "Tools";
@@ -723,6 +729,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsRemoveAllSampleMaps:	Actions::removeAllSampleMaps(bpe); return true;
+	case MenuToolsSimulateChangingBufferSize: bpe->getBackendProcessor()->toggleDynamicBufferSize(); return true;
 	case MenuToolsUnloadAllAudioFiles:  Actions::unloadAllAudioFiles(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
@@ -995,6 +1002,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsUnloadAllAudioFiles);
 		ADD_DESKTOP_ONLY(MenuToolsShowDspNetworkDllInfo);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
+		ADD_DESKTOP_ONLY(MenuToolsSimulateChangingBufferSize);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenseFile);

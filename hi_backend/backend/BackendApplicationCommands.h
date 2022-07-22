@@ -190,9 +190,9 @@ public:
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsRecordOneSecond,
+		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
-		
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
 		MenuHelpShowHelpForComponents,

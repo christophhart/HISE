@@ -1592,6 +1592,16 @@ public:
     
     float getGlobalCodeFontSize() const;;
     
+	
+
+	bool isUsingDynamicBufferSize() const
+	{
+#if USE_BACKEND
+		return simulateDynamicBufferSize;
+#else
+		return false;
+#endif
+	}
 
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
@@ -1768,7 +1778,9 @@ protected:
 		maxEventTimestamp = newMaxTimestamp;
 	}
 
-	
+#if USE_BACKEND
+	bool simulateDynamicBufferSize = false;
+#endif
 
 private:
 
@@ -1957,6 +1969,8 @@ private:
     std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
+
+
 
     // Make sure that this is alive all the time...
     snex::cppgen::CustomNodeProperties data;

@@ -330,7 +330,12 @@ void XmlBackupFunctions::restoreAllScripts(ValueTree& v, ModulatorSynthChain *ma
 
 		if (!sf.existsAsFile())
 		{
-			jassertfalse;
+			auto isExternal = v.getProperty(scr).toString().startsWith("{EXTERNAL_SCRIPT}");
+
+			if (!isExternal)
+			{
+				PresetHandler::showMessageWindow("Script not found", "Error loading script " + fileName, PresetHandler::IconType::Error);
+			}
 		}
 
         for(auto f: RangedDirectoryIterator(scriptDirectory, false, "*.js", File::findFiles))

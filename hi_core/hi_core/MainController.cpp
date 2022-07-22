@@ -815,7 +815,10 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		int maxAligned = maxEventTimestamp - maxEventTimestamp % HISE_EVENT_RASTER;
 
 		for (auto& e : masterEventBuffer)
-			e.setTimeStamp(jmin(maxAligned, e.getTimeStamp()));
+		{
+			if (e.getTimeStamp() > maxAligned)
+				e.setTimeStamp(maxAligned);
+		}
 	}
 
 	handleSuspendedNoteOffs();

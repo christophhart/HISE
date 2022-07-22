@@ -1202,8 +1202,6 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 		buffer.clear();
 #else
 
-		DBG(buffer.getNumSamples());
-
 		int numSamplesToCalculate = buffer.getNumSamples() - numLeftOvers;
 
 		// use a temp buffer and pad to the event raster size...
@@ -1232,7 +1230,34 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		if (paddedBufferSize > 0)
 		{
+			auto lastTimestamp = (int)midiMessages.getLastEventTime();
+
+			jassert(lastTimestamp < buffer.getNumSamples());
+
 			AudioSampleBuffer tempBuffer(ptrs, buffer.getNumChannels(), paddedBufferSize);
+
+			const int lastEventTime = midiMessages.getLastEventTime();
+
+
+
+			if (lastEventTime > numSamplesToCalculate)
+			{
+				MidiBuffer other;
+
+				MidiBuffer::Iterator it(midiMessages);
+
+				MidiMessage m;
+				int pos;
+
+				while (it.getNextEvent(m, pos))
+				{
+					other.addEvent(m, jmin(pos, numSamplesToCalculate));
+				}
+
+				other.swapWith(midiMessages);
+
+				//jassertfalse;
+			}
 
 			mc->setMaxEventTimestamp(numSamplesToCalculate);
 			mc->processBlockCommon(tempBuffer, midiMessages);
