@@ -1699,14 +1699,14 @@ struct AudioRenderer : public Thread,
 				numSamplesToRender = (int)events.getEvent(events.getNumUsed() - 1).getTimeStamp();
 
 				// we'll trim it later
-				numActualSamples = 0;
+				numActualSamples = numSamplesToRender;
 
 				auto leftOver = numSamplesToRender % bufferSize;
 
 				if (leftOver != 0)
 				{
 					// pad to blocksize
-					//numSamplesToRender += (bufferSize - leftOver);
+					numSamplesToRender += (bufferSize - leftOver);
 				}
 
 				numChannelsToRender = getMainController()->getMainSynthChain()->getMatrix().getNumSourceChannels();
@@ -1788,8 +1788,6 @@ struct AudioRenderer : public Thread,
 
 			auto startTime = Time::getMillisecondCounter();
 
-			
-
 			while (numTodo > 0)
 			{
 				if (threadShouldExit())
@@ -1841,6 +1839,12 @@ struct AudioRenderer : public Thread,
 			}
 		}
 
+                                                                                                                                                      		for (int i = 0; i < numChannelsToRender; i++)
+		{
+			VariantBuffer* b = channels[i].get();
+			b->size = numActualSamples;
+		}
+
 		getMainController()->getKillStateHandler().removeThreadIdFromAudioThreadList();
 		dynamic_cast<AudioProcessor*>(getMainController())->setNonRealtime(false);
 		getMainController()->getSampleManager().handleNonRealtimeState();
@@ -1872,6 +1876,8 @@ struct AudioRenderer : public Thread,
 	{
 		for (int i = 0; i < numChannelsToRender; i++)
 			splitData[i] = channels[i]->buffer.getWritePointer(0, startSample);
+
+		jassert(isPositiveAndBelow(startSample + numSamples, numSamplesToRender + 1));
 
 		return AudioSampleBuffer(splitData, numChannelsToRender, numSamples);
 	}
