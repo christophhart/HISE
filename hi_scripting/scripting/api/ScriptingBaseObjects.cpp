@@ -112,8 +112,15 @@ ValueTree ValueTreeConverters::convertDynamicObjectToValueTree(const var& object
 {
 	ValueTree v(id);
 
-	
-	d2v_internal(v, "Data", object);
+	if (object.isArray())
+	{
+		a2v_internal(v, id, *object.getArray());
+		return v.getChild(0);
+	}
+	else
+	{
+		d2v_internal(v, "Data", object);
+	}
 
 	return v;
 }
@@ -391,9 +398,42 @@ juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var ob
 	return t;
 }
 
+juce::var ValueTreeConverters::convertStringIfNumeric(const var& value)
+{
+	if (value.isString())
+	{
+		auto asString = value.toString();
+
+		if (asString.containsOnly("1234567890"))
+			return var((int)value);
+		else if (asString.containsOnly("1234567890."))
+			return var((double)value);
+	}
+
+	return value;
+}
+
 void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 {
-	if (auto dyn = object.getDynamicObject())
+	if (isLikelyVarArray(v))
+	{
+		Array<var> childList;
+
+		for (auto& c : v)
+		{
+			if (c.getNumProperties() == 1 && c.hasProperty("value"))
+				childList.add(convertStringIfNumeric(c["value"]));
+			else
+			{
+				var childObj(new DynamicObject());
+				v2d_internal(childObj, c);
+				childList.add(childObj);
+			}
+		}
+
+		object = var(childList);
+	}
+	else if (auto dyn = object.getDynamicObject())
 	{
 		auto& dynSet = dyn->getProperties();
 
@@ -402,9 +442,10 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 			auto propId = v.getPropertyName(i);
 			auto value = v.getProperty(propId);
 
-			jassert(!value.isObject());
 
-			dynSet.set(propId, value);
+
+			jassert(!value.isObject());
+			dynSet.set(propId, convertStringIfNumeric(value));
 		}
 
 		for (int i = 0; i < v.getNumChildren(); i++)
@@ -426,7 +467,7 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 	}
 }
 
-void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, const var& object)
+void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& id, const var& object)
 {
 	if (auto dyn = object.getDynamicObject())
 	{
@@ -437,7 +478,11 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 			auto v1 = dynSet.getValueAt(i);
 			auto id1 = dynSet.getName(i);
 
-			if (v1.isObject())
+			if (v1.isArray())
+			{
+				a2v_internal(v, id1, *v1.getArray());
+			}
+			else if (v1.isObject())
 			{
 				ValueTree child(dynSet.getName(i));
 
@@ -446,7 +491,6 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 			}
 			else
 			{
-				jassert(!v1.isArray());
 				v.setProperty(id1, v1, nullptr);
 			}
 		}
@@ -455,6 +499,54 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 	{
 		jassertfalse;
 	}
+}
+
+void ValueTreeConverters::a2v_internal(ValueTree& v, const Identifier& id, const Array<var>& list)
+{
+	auto parentId = id;
+	auto childId = parentId;
+
+	ValueTree listParent(parentId);
+
+	for (const auto& cv : list)
+	{
+		ValueTree child(childId);
+
+		if (cv.isArray())
+			a2v_internal(child, childId, *cv.getArray());
+		else if (cv.isObject())
+			d2v_internal(child, childId, cv);
+		else
+			child.setProperty("value", cv, nullptr);
+
+		listParent.addChild(child, -1, nullptr);
+	}
+
+	v.addChild(listParent, -1, nullptr);
+}
+
+void ValueTreeConverters::v2a_internal(var& object, ValueTree& v, const Identifier& id)
+{
+
+}
+
+bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
+{
+	if (v.getNumChildren() == 0 || v.getNumProperties() != 0)
+		return false;
+
+	if (v.getNumChildren() == 1)
+		return v.getType() == v.getChild(0).getType();
+
+	auto firstId = v.getChild(0).getType();
+
+	for (auto& c : v)
+	{
+		if (c.getType() != firstId)
+			return false;
+	}
+
+	return true;
 }
 
 WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs_) :

@@ -2359,6 +2359,8 @@ public:
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;
 
+	StringArray getMacroNames();
+
 	bool hasComponent(const ScriptComponent* sc) const { return components.indexOf(sc) != -1; };
 
 	int getContentHeight() const { return height; }

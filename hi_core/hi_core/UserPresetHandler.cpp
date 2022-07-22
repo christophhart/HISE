@@ -347,7 +347,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			{
 				if (!sp->isFront()) continue;
 
-				ValueTree v;
+				UserPresetHelpers::restoreModuleStates(mc->getMainSynthChain(), userPresetToLoad);
 
 				if (mc->getUserPresetHandler().isUsingCustomDataModel())
 				{
@@ -355,6 +355,8 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 				}
 				else
 				{
+					ValueTree v;
+
 					for (auto c : userPresetToLoad)
 					{
 						if (c.getProperty("Processor") == sp->getId())
@@ -363,13 +365,9 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 							break;
 						}
 					}
-				}
 
-				UserPresetHelpers::restoreModuleStates(mc->getMainSynthChain(), userPresetToLoad);
-
-				if (v.isValid())
-				{
-					sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+					if (v.isValid())
+						sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 				}
 			}
 		}
@@ -516,7 +514,11 @@ void MainController::UserPresetHandler::loadCustomValueTree(const ValueTree& pre
 	auto v = presetData.getChildWithName("CustomJSON");
 	if (v.isValid())
 	{
-		auto obj = JSON::parse(v["Data"].toString());
+		auto obj = ValueTreeConverters::convertValueTreeToDynamicObject(v);
+
+		//auto obj = JSON::parse(v["Data"].toString());
+
+		
 
 		if (obj.isObject() || obj.isArray())
 		{
@@ -564,7 +566,12 @@ juce::ValueTree MainController::UserPresetHandler::createCustomValueTree(const S
 
 		if (obj.isObject())
 		{
+			return ValueTreeConverters::convertDynamicObjectToValueTree(obj, "CustomJSON");
+
 			ValueTree v("CustomJSON");
+
+			
+
 			auto data = JSON::toString(obj, true);
 			v.setProperty("Data", data, nullptr);
 			return v;

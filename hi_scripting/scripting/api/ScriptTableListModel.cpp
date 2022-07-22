@@ -529,7 +529,8 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 
 			lastClickedCell = newCell;
 
-			value = rowData[rowId];
+			if(rowData.isArray() && isPositiveAndBelow(rowId, rowData.size()))
+				value = rowData[rowId];
 		}
 
 		bool notifyParent = eventTypesForCallback.contains(type);

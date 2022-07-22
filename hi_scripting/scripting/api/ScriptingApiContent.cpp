@@ -2730,10 +2730,6 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 		if (auto d = getCachedSliderPack())
 			d->swapData(newValue, dontSendNotification);
 	}
-	else
-	{
-		logErrorAndContinue("You must call setValue() with an array or Buffer for Slider Packs");
-	}
 }
 
 var ScriptingApi::Content::ScriptSliderPack::getValue() const
@@ -5081,6 +5077,19 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 }
 
 
+juce::StringArray ScriptingApi::Content::getMacroNames()
+{
+	StringArray macroNames;
+
+	if (components.size() != 0)
+	{
+		macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
+	}
+
+	return macroNames;
+}
+
+
 void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 {
 #if USE_FRONTEND
@@ -5165,12 +5174,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 {
 	restoreFromValueTree(preset);
 
-	StringArray macroNames;
-
-	if (components.size() != 0)
-	{
-		macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
-	}
+	auto macroNames = getMacroNames();
 
 	for (int i = 0; i < components.size(); i++)
 	{

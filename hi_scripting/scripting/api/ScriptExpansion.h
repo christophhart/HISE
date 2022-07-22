@@ -98,6 +98,21 @@ public:
 	/** Updates the given automation values and optionally sends out a message. */
 	void updateAutomationValues(var data, bool sendMessage, bool useUndoManager);
 
+	/** Creates an object containing the values for every automation ID. */
+	var createObjectForAutomationValues();
+
+	/** Creates an object containing all values of components with the `saveInPreset` flag. */
+	var createObjectForSaveInPresetComponents();
+
+	/** Restores all values of components with the `saveInPreset` flag. */
+	void updateSaveInPresetComponents(var obj);
+
+	/** Restores the values for all UI elements that are connected to a processor with the `processorID` / `parameterId` properties. */
+	void updateConnectedComponentsFromModuleState();
+	
+	/** Runs a few tests that catches data persistency issues. */
+	void runTest();
+
 	// ===============================================================================================
 
 	var convertToJson(const ValueTree& d);
@@ -112,6 +127,8 @@ public:
 	{
 
 	}
+
+	
 
 	void loadCustomUserPreset(const var& dataObject) override
 	{

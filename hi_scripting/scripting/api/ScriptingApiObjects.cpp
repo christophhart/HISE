@@ -399,6 +399,13 @@ bool ScriptingObjects::ScriptFile::writeAsXmlFile(var jsonDataToBeXmled, String 
 {
 	ScopedPointer<XmlElement> xml = new XmlElement(tagName);
 
+	auto v = ValueTreeConverters::convertDynamicObjectToValueTree(jsonDataToBeXmled, Identifier(tagName));
+
+	auto s = v.createXml()->createDocument("");
+
+	return writeString(s);
+
+#if 0
 	if (auto obj = jsonDataToBeXmled.getDynamicObject())
 	{
 		for (const auto& p : obj->getProperties())
@@ -414,6 +421,7 @@ bool ScriptingObjects::ScriptFile::writeAsXmlFile(var jsonDataToBeXmled, String 
 
 	auto content = xml->createDocument("");
 	return writeString(content);
+#endif
 }
 
 
@@ -424,22 +432,8 @@ juce::var ScriptingObjects::ScriptFile::loadFromXmlFile()
 
 	if (auto xml = XmlDocument::parse(s))
 	{
-		DynamicObject::Ptr p = new DynamicObject();
-
-		for (int i = 0; i < xml->getNumAttributes(); i++)
-		{
-			auto id = xml->getAttributeName(i);
-			auto sv = xml->getStringAttribute(id);
-
-			if (sv.containsOnly("1234567890"))
-				p->setProperty(Identifier(id), sv.getIntValue());
-			else if (sv.containsOnly("1234567890."))
-				p->setProperty(Identifier(id), sv.getDoubleValue());
-			else
-				p->setProperty(Identifier(id), sv);
-		}
-
-		return var(p.get());
+		auto v = ValueTree::fromXml(*xml);
+		return ValueTreeConverters::convertValueTreeToDynamicObject(v);
 	}
 
 	return var();

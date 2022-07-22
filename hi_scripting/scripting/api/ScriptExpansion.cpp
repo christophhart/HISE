@@ -44,7 +44,12 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, updateSaveInPresetComponents);
+	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, updateConnectedComponentsFromModuleState);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setUseUndoForPresetLoading);
+	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForSaveInPresetComponents);
+	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForAutomationValues);
+	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, runTest);
 };
 
 ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
@@ -66,7 +71,13 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_3(attachAutomationCallback);
 	ADD_API_METHOD_0(clearAttachedCallbacks);
 	ADD_API_METHOD_3(updateAutomationValues);
+	ADD_API_METHOD_1(updateSaveInPresetComponents);
+	ADD_API_METHOD_0(updateConnectedComponentsFromModuleState);
 	ADD_API_METHOD_1(setUseUndoForPresetLoading);
+	ADD_API_METHOD_0(createObjectForSaveInPresetComponents);
+	ADD_API_METHOD_0(createObjectForAutomationValues);
+	ADD_API_METHOD_0(runTest);
+	
 }
 
 ScriptUserPresetHandler::~ScriptUserPresetHandler()
@@ -310,24 +321,277 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 
     if(!useUndoManager)
     {
-        if (auto obj = data.getDynamicObject())
-        {
-            for (auto& nv : obj->getProperties())
-            {
-                if (auto cData = uph.getCustomAutomationData(Identifier(nv.name)))
-                {
-                    float value = nv.value;
-                    FloatSanitizers::sanitizeFloatNumber(value);
+		if (data.getDynamicObject() != nullptr)
+		{
+			reportScriptError("data must be a list of JSON objects with the structure {\"id\": \"My ID\", \"value\": 0.5}");
+		}
 
-                    cData->call(value, sendMessage);
-                }
-            }
-        }
+		if (data.isArray())
+		{
+			for (auto& v : *data.getArray())
+			{
+				Identifier id(v["id"].toString());
+				auto value = v["value"];
+
+				if (auto cData = uph.getCustomAutomationData(id))
+				{
+					float fv = (float)value;
+					FloatSanitizers::sanitizeFloatNumber(fv);
+					cData->call(fv, sendMessage);
+				}
+			}
+		}
     }
     else
     {
         getMainController()->getControlUndoManager()->perform(new AutomationValueUndoAction(this, data, sendMessage));
     }
+}
+
+juce::var ScriptUserPresetHandler::createObjectForAutomationValues()
+{
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	Array<var> list;
+
+	// just refresh the values from the current processor states
+	for (int i = 0; i < uph.getNumCustomAutomationData(); i++)
+	{
+		auto ad = uph.getCustomAutomationData(i);
+
+		DynamicObject* obj = new DynamicObject();
+		obj->setProperty("id", ad->id.toString());
+		obj->setProperty("value", ad->lastValue);
+		list.add(var(obj));
+	}
+
+	return var(list);
+}
+
+juce::var ScriptUserPresetHandler::createObjectForSaveInPresetComponents()
+{
+	auto content = getScriptProcessor()->getScriptingContent();
+
+	auto v = content->exportAsValueTree();
+
+	for (auto& c : v)
+		c.removeProperty("type", nullptr);
+
+	return ValueTreeConverters::convertValueTreeToDynamicObject(v);
+
+#if 0
+	static const Identifier sip("saveInPreset");
+
+	auto nObj = new DynamicObject();
+
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		auto sc = content->getComponent(i);
+		if ((bool)sc->getScriptObjectProperty(sip))
+		{
+			auto id = Identifier(sc->getName());
+			auto value = sc->getValue();
+
+			if (auto cd = dynamic_cast<ScriptingApi::Content::ComplexDataScriptComponent*>(sc))
+				value = cd->exportAsValueTree()["data"];
+
+			nObj->setProperty(id, value);
+		}
+	}
+
+
+	return var(nObj);
+#endif
+}
+
+void ScriptUserPresetHandler::updateSaveInPresetComponents(var obj)
+{
+	auto content = getScriptProcessor()->getScriptingContent();
+
+	auto v = ValueTreeConverters::convertDynamicObjectToValueTree(obj, "Content");
+
+	for (auto c : v)
+	{
+		auto type = content->getComponentWithName(Identifier(c["id"]))->getScriptObjectProperty("type");
+		c.setProperty("type", type, nullptr);
+	}
+
+	content->restoreAllControlsFromPreset(v);
+
+#if 0
+	static const Identifier sip("saveInPreset");
+
+	auto macroNames = content->getMacroNames();
+
+	if (auto o = obj.getDynamicObject())
+	{
+		for (const auto& nv : o->getProperties())
+		{
+			if (auto sc = content->getComponentWithName(nv.name))
+			{
+				if ((bool)sc->getScriptObjectProperty(sip))
+					content->restoreComponent(sc, nv.value, macroNames);
+				else
+					reportScriptError(nv.name.toString() + " has saveInPreset disabled.");
+			}
+			else
+				reportScriptError(nv.name.toString() + " wasn't found.");
+		}
+	}
+#endif
+}
+
+void ScriptUserPresetHandler::updateConnectedComponentsFromModuleState()
+{
+	auto content = getScriptProcessor()->getScriptingContent();
+
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		auto sc = content->getComponent(i);
+
+		if (auto cp = sc->getConnectedProcessor())
+		{
+			auto parameterIndex = sc->getConnectedParameterIndex();
+			auto value = 0.0f;
+
+			if (parameterIndex == -2)
+			{
+				if (auto mod = dynamic_cast<Modulation*>(cp))
+					value = mod->getIntensity();
+			}
+			else if (parameterIndex == -3)
+				value = cp->isBypassed() ? 1.0f : 0.0f;
+			else if (parameterIndex == -4)
+				value = cp->isBypassed() ? 0.0f : 1.0f;
+			else
+				value = cp->getAttribute(parameterIndex);
+
+			FloatSanitizers::sanitizeFloatNumber(value);
+			sc->setValue(value);
+		}
+	}
+}
+
+void ScriptUserPresetHandler::runTest()
+{
+	auto content = getScriptProcessor()->getScriptingContent();
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	String report = "\n";
+
+	auto addLine = [&](const String& s)
+	{
+		report << s << "\n";
+	};
+
+	auto addLineFromTokens = [&](const StringArray& s)
+	{
+		for (auto& t : s)
+			report << t;
+
+		report << "\n";
+	};
+
+	auto addWarning = [&](const String& s)
+	{
+		report << "WARNING: " << s << "\n";
+	};
+
+	auto boolString = [](bool v)
+	{
+		return String(v ? "true" : "false");
+	};
+
+	auto getNumElements = [&](const String& type)
+	{
+		if (type == "allComponents")
+		{
+			return String(content->getNumComponents());
+		}
+		if (type == "saveInPreset")
+		{
+			int counter = 0;
+
+			for (int i = 0; i < content->getNumComponents(); i++)
+			{
+				if (content->getComponent(i)->getScriptObjectProperty("saveInPreset"))
+					counter++;
+			}
+
+			return String(counter);
+		}
+		if (type == "automationID")
+		{
+			return String(uph.getNumCustomAutomationData());
+		}
+		if (type == "moduleStates")
+		{
+			return String(uph.getStoredModuleData().size());
+		}
+	};
+
+				addLine("| ====================== USER PRESET TEST ================== |");
+	addLineFromTokens({ "| Stats: ", "isCustomModel: ", boolString(uph.isUsingCustomDataModel()) });
+	addLineFromTokens({ "|        ", "isCustomAutomation: ", boolString(uph.isUsingCustomDataModel()) });
+	addLineFromTokens({ "|        ", "numSaveInPreset: ", getNumElements("saveInPreset") });
+	addLineFromTokens({ "|        ", "totalComponents: ", getNumElements("allComponents")});
+	addLineFromTokens({ "|        ", "automationSlots: ", getNumElements("automationID")});
+	addLineFromTokens({ "|        ", "moduleStates: ", getNumElements("moduleStates") });
+				addLine("| ========================================================== |");
+
+	addLine("Testing persistency of connected components...");
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		auto cp = content->getComponent(i)->getConnectedProcessor();
+		auto sip = content->getComponent(i)->getScriptObjectProperty("saveInPreset");
+		auto id = content->getComponent(i)->getName().toString();
+
+		if (cp != nullptr)
+		{
+			if (!sip)
+			{
+				addWarning(id + " is connected to a processor but does not have saveInPreset enabled");
+			}
+
+			for (auto l : uph.getStoredModuleData())
+			{
+				if (l->p == cp)
+				{
+					addWarning(id + " is connected to a processor that is restored with a module state.");
+				}	
+			}
+		}
+	}
+	addLine("...OK");
+	
+	if (uph.isUsingCustomDataModel())
+	{
+		addLine("Test custom data consistency...");
+		auto data1 = saveCustomUserPreset("test_save");
+		loadCustomUserPreset(data1);
+		auto data2 = saveCustomUserPreset("test_save");
+		auto ok = JSON::toString(data1).compare(JSON::toString(data2)) == 0;
+
+		if (!ok)
+			addWarning("Data inconsistency detected");
+		addLine("...OK");
+	}
+
+	if (!uph.getStoredModuleData().isEmpty())
+	{
+		addLine("| ============== Module State Information ================== |");
+		for (auto l : uph.getStoredModuleData())
+		{
+			addLineFromTokens({ "Module State for ", l->p->getId() });
+			auto v = l->p->exportAsValueTree();
+			l->stripValueTree(v);
+			
+			addLine(v.createXml()->createDocument(""));
+		}
+		addLine("| ========================================================== |");
+	}
+
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), report);
 }
 
 var ScriptUserPresetHandler::convertToJson(const ValueTree& d)

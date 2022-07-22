@@ -1787,6 +1787,24 @@ hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainControlle
 	return nullptr;
 }
 
+void removePropertyRecursive(NamedValueSet& removedProperties, String currentPath, ValueTree v, const Identifier& id)
+{
+	if (!currentPath.isEmpty())
+		currentPath << ":";
+
+	currentPath << v.getType();
+
+	if (v.hasProperty(id))
+	{
+		auto value = v.getProperty(id);
+		v.removeProperty(id, nullptr);
+		removedProperties.set(Identifier(currentPath + ":" + id.toString()), value);
+	}
+	
+	for (auto c : v)
+		removePropertyRecursive(removedProperties, currentPath, c, id);
+}
+
 MainController::UserPresetHandler::StoredModuleData::StoredModuleData(var moduleId, Processor* pToRestore) :
 	p(pToRestore)
 {
@@ -1803,39 +1821,70 @@ MainController::UserPresetHandler::StoredModuleData::StoredModuleData(var module
 		{
 			auto v = p->exportAsValueTree();
 
-			for (auto propertyToRemove : *rp.getArray())
+			if (rp.isArray())
 			{
-				auto pid_ = propertyToRemove.toString();
-				if (pid_.isNotEmpty())
+				for (auto propertyToRemove : *rp.getArray())
 				{
-					Identifier pid(pid_);
-
-					if (v.hasProperty(pid))
+					auto pid_ = propertyToRemove.toString();
+					if (pid_.isNotEmpty())
 					{
-						auto value = v.getProperty(pid, var());
-						removedProperties.set(pid, value);
+						Identifier pid(pid_);
+						removePropertyRecursive(removedProperties, {}, v, pid);
+					}
+				}
+			}
+			
+			if (rc.isArray())
+			{
+				for (auto childToRemove : *rc.getArray())
+				{
+					auto pid_ = childToRemove.toString();
+
+					if (pid_.isNotEmpty())
+					{
+						Identifier pid(pid_);
+						removedChildElements.add(v.getChildWithName(pid).createCopy());
 					}
 				}
 			}
 
-			for (auto childToRemove : *rc.getArray())
-			{
-				auto pid_ = childToRemove.toString();
-
-				if (pid_.isNotEmpty())
-				{
-					Identifier pid(pid_);
-					removedChildElements.add(v.getChildWithName(pid).createCopy());
-				}
-			}
+			removedProperties.remove(Identifier("Processor:ID"));
 		}
+	}
+}
+
+void restorePropertiesRecursive(ValueTree v, StringArray path, const var& value, bool restore)
+{
+	if (path.size() == 2)
+	{
+		if (Identifier(path[0]) == v.getType())
+		{
+			auto id = Identifier(path[1]);
+
+			if (restore)
+				v.setProperty(id, value, nullptr);
+			else
+				v.removeProperty(id, nullptr);
+		}
+	}
+	else
+	{
+		path.remove(0);
+
+		for (auto& c : v)
+			restorePropertiesRecursive(c, path, value, restore);
 	}
 }
 
 void MainController::UserPresetHandler::StoredModuleData::stripValueTree(ValueTree& v)
 {
 	for (const auto& rp : removedProperties)
-		v.removeProperty(rp.name, nullptr);
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+		
+		restorePropertiesRecursive(v, path, {}, false);
+	}
+		
 
 	for (const auto& rc : removedChildElements)
 	{
@@ -1846,12 +1895,19 @@ void MainController::UserPresetHandler::StoredModuleData::stripValueTree(ValueTr
 	}
 }
 
+
+
 void MainController::UserPresetHandler::StoredModuleData::restoreValueTree(ValueTree& v)
 {
 	stripValueTree(v);
 
 	for (const auto& rp : removedProperties)
-		v.setProperty(rp.name, rp.value, nullptr);
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+		auto value = rp.value;
+		restorePropertiesRecursive(v, path, value, true);
+	}
+		
 
 	for (const auto& rc : removedChildElements)
 		v.addChild(rc.createCopy(), -1, nullptr);

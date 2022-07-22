@@ -404,6 +404,26 @@ struct ValueTreeConverters
 {
 	static String convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress);;
 
+	/** This converts a dynamic object to a value tree.
+	
+		If the JSON object contains arrays, the value tree will create child trees with the
+		same name (minus a optional `s` at the end to indicate plural vs. singular). 
+		If the array is only a simple number / string, it will be stored as `value` property.
+
+		Example:
+
+		{
+		  "Object":
+		  {
+			"Property1": "SomeValue  
+		  },
+		  "ListElements": [
+		  12,
+		  14,
+		  []
+		  ]
+		}
+	*/
 	static ValueTree convertDynamicObjectToValueTree(const var& object, const Identifier& id);
 
 	static String convertValueTreeToBase64(const ValueTree& v, bool compress);
@@ -432,10 +452,17 @@ struct ValueTreeConverters
 
 private:
 
+	static var convertStringIfNumeric(const var& value);
+
 	static void v2d_internal(var& object, const ValueTree& v);
 
 	static void d2v_internal(ValueTree& v, const Identifier& id, const var& object);;
 
+	static void a2v_internal(ValueTree& v, const Identifier& id, const Array<var>& list);
+
+	static void v2a_internal(var& object, ValueTree& v, const Identifier& id);
+
+	static bool isLikelyVarArray(const ValueTree& v);
 
 };
 
