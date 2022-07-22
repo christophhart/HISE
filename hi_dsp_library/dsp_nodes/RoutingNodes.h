@@ -61,7 +61,7 @@ namespace cable
 {
 
 /** A cable type for usage in a frame-processing context. */
-template <int C, int AddToSignal=1> struct frame
+template <int C> struct frame
 {
 	using FrameType = span<float, C>;
 	using BlockType = ProcessData<C>;
@@ -69,7 +69,6 @@ template <int C, int AddToSignal=1> struct frame
 	Colour colour = Colours::transparentBlack;
 
 	constexpr int  getNumChannels() const { return C; };
-	constexpr bool addToSignal() const { return AddToSignal != 0; };
 	static constexpr bool allowFrame() { return true; };
 	static constexpr bool allowBlock() { return false; };
 
@@ -118,7 +117,82 @@ template <int C, int AddToSignal=1> struct frame
 };
 
 
-template <int C, int AddToSignal=1> struct block
+template <int NumChannels> struct block_base
+{
+	template <typename PD> void readIntoBuffer(PD& data, float feedback)
+	{
+		int numTotal = data.getNumSamples();
+		const int readBufferSize = channels[0].size();
+		int numToDo = numTotal;
+		int writePos = 0;
+		
+		while (numToDo > 0)
+		{
+			int index = 0;
+			int numThisTime = jmin(numToDo, readBufferSize - readIndex);
+
+			for (auto& ch : data)
+			{
+				jassert(isPositiveAndBelow(readIndex + numThisTime, readBufferSize + 1));
+				auto src = channels[index++].begin() + readIndex;
+				auto dst = ch.getRawWritePointer() + writePos;
+
+				FloatVectorOperations::addWithMultiply(dst, src, feedback, numThisTime);
+			}
+			
+			incCounter(true, numThisTime);
+			numToDo -= numThisTime,
+			writePos += numThisTime;
+		}
+	}
+
+	template <typename PD> void writeToBuffer(PD& data)
+	{
+		int numTotal = data.getNumSamples();
+		const int writeBufferSize = channels[0].size();
+		int numToDo = numTotal;
+		int readPos = 0;
+
+		while (numToDo > 0)
+		{
+			int index = 0;
+			int numThisTime = jmin(numToDo, writeBufferSize - writeIndex);
+
+			for (auto c : data)
+			{
+				jassert(isPositiveAndBelow(writeIndex + numThisTime, writeBufferSize + 1));
+				auto src = c.getRawWritePointer() + readPos;
+				auto dst = channels[index++].begin() + writeIndex;
+				
+				FloatVectorOperations::copy(dst, src, numThisTime);
+			}
+
+			incCounter(false, numThisTime);
+			numToDo -= numThisTime;
+			readPos += numThisTime;
+		}
+	}
+
+protected:
+
+	span<dyn<float>, NumChannels> channels;
+
+private:
+
+	void incCounter(bool incReadCounter, int delta)
+	{
+		auto& counter = incReadCounter ? readIndex : writeIndex;
+		counter += delta;
+
+		if (counter == channels[0].size())
+			counter = 0;
+	}
+
+	int writeIndex = 0;
+	int readIndex = 0;
+};
+
+template <int C> struct block: public block_base<C>
 {
 	using FrameType = span<float, C>;
 	using BlockType = ProcessData<C>;
@@ -126,7 +200,6 @@ template <int C, int AddToSignal=1> struct block
 	Colour colour = Colours::transparentBlack;
 
 	constexpr int  getNumChannels() const { return C; };
-	constexpr bool addToSignal() const { return AddToSignal != 0; };
 
 	static constexpr bool allowFrame() { return false; };
 	static constexpr bool allowBlock() { return true; };
@@ -170,36 +243,12 @@ template <int C, int AddToSignal=1> struct block
 		jassertfalse;
 	}
 
-	void incCounter(bool incReadCounter, int delta)
-	{
-		auto& counter = incReadCounter ? readIndex : writeIndex;
-
-		counter += delta;
-
-		if (counter == channels[0].size())
-			counter = 0;
-	}
-
 	void process(BlockType& data)
 	{
-		int numThisTime = data.getNumSamples();
-
-		int index = 0;
-		for (auto c : data)
-		{
-			auto src = c.getRawWritePointer();
-			auto dst = channels[index++].begin() + writeIndex;
-
-			FloatVectorOperations::copy(dst, src, numThisTime);
-		}
-
-		incCounter(false, numThisTime);
+		writeToBuffer(data);
 	};
 
 	heap<float> buffer;
-	span<dyn<float>, C> channels;
-	int writeIndex = 0;
-	int readIndex = 0;
 };
 
 }
@@ -348,27 +397,7 @@ template <typename CableType> struct receive: public base
 		if (CableType::allowBlock())
 		{
 			if (auto srcPointer = source->buffer.begin())
-			{
-				int numToReadThisTime = data.getNumSamples();
-
-				int i = 0;
-
-				
-
-				for (auto& ch : data)
-				{
-					jassert(isPositiveAndBelow(numToReadThisTime-1, source->channels[i].size()));
-					
-					auto src = source->channels[i++].begin() + source->readIndex;
-
-					if (source->addToSignal())
-						FloatVectorOperations::addWithMultiply(ch.getRawWritePointer(), src, feedback, data.getNumSamples());
-					else
-						FloatVectorOperations::copy(ch.getRawWritePointer(), src, data.getNumSamples());
-				}
-
-				source->incCounter(true, numToReadThisTime);
-			}
+				source->readIntoBuffer(data, feedback);
 		}
 	}
 
@@ -378,20 +407,10 @@ template <typename CableType> struct receive: public base
 		{
 			jassert(data.size() <= source->frameData.size());
 
-			if (source->addToSignal())
-			{
-				int index = 0;
+			int index = 0;
 
-				for (auto& d : data)
-					d += source->frameData[index++] * feedback;
-			}
-			else
-			{
-				int index = 0;
-
-				for (auto& d : data)
-					d = source->frameData[index++] * feedback;
-			}
+			for (auto& d : data)
+				d += source->frameData[index++] * feedback;
 		}
 		else
 		{

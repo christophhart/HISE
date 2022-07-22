@@ -55,7 +55,7 @@ Refactor ideas:
 namespace cable
 {
 
-struct dynamic
+struct dynamic: public cable::block_base<NUM_MAX_CHANNELS>
 {
 	using dynamic_send = routing::send<dynamic>;
 	using dynamic_receive = routing::receive<dynamic>;
@@ -68,7 +68,6 @@ struct dynamic
 		return numChannels;
 	};
 
-	bool addToSignal() const { return shouldAdd; };
 	Colour colour = Colours::blue;
 
 	static constexpr bool allowFrame() { return true; };
@@ -95,26 +94,13 @@ struct dynamic
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		int numThisTime = data.getNumSamples();
-
-		int index = 0;
-		for (auto c : data)
-		{
-			auto src = c.getRawWritePointer();
-			auto dst = channels[index++].begin() + writeIndex;
-
-			FloatVectorOperations::copy(dst, src, numThisTime);
-		}
-
-		incCounter(false, numThisTime);
+		writeToBuffer(data);
 	};
 
 	void setIsNull()
 	{
 		isNull = true;
 	}
-
-	void incCounter(bool incReadCounter, int delta);
 
 	String getSendId() const
 	{
@@ -132,13 +118,8 @@ struct dynamic
 	dyn<float> frameData;
 
 	heap<float> buffer;
-	span<dyn<float>, NUM_MAX_CHANNELS> channels;
 
-	int writeIndex = 0;
-	int readIndex = 0;
 	int numChannels = 0;
-
-	bool shouldAdd = true;
 	bool useFrameDataForDisplay = false;
 	bool isNull = false;
 

@@ -300,16 +300,6 @@ void dynamic::initialise(NodeBase* n)
 	receiveIds.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::restoreConnections), true);
 }
 
-void dynamic::incCounter(bool incReadCounter, int delta)
-{
-	auto& counter = incReadCounter ? readIndex : writeIndex;
-
-	counter += delta;
-
-	if (counter == channels[0].size())
-		counter = 0;
-}
-
 void dynamic::connect(routing::receive<cable::dynamic>& receiveTarget)
 {
 	setConnection(receiveTarget, true);
