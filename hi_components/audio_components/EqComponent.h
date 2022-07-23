@@ -30,17 +30,12 @@
 *   ===========================================================================
 */
 
-#ifndef __MAINCOMPONENT_H_5C0D5756__
-#define __MAINCOMPONENT_H_5C0D5756__
+#pragma once;
 
 namespace hise { using namespace juce;
 
 class ModulatorSynth;
-
-
-
 class CurveEq;
-
 
 class FilterDragOverlay : public Component,
 	public SettableTooltipClient,
@@ -54,7 +49,6 @@ public:
 		FilterResizeAction(CurveEq* eq_, int index_, bool add, double freq_=0.0, double gain_=0.0);;
 
 		bool perform() override;
-
 		bool undo() override;
 
 		WeakReference<CurveEq> eq;
@@ -98,9 +92,7 @@ public:
 	struct Factory : public PathFactory
 	{
 		String getId() const override { return "FilterIcons"; }
-
 		Path createPath(const String& url) const override;
-
 	};
 
 	enum ColourIds
@@ -118,7 +110,6 @@ public:
 		virtual ~Listener() {};
 
 		virtual void bandRemoved(int index) = 0;
-
 		virtual void filterBandSelected(int index) = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
@@ -183,16 +174,11 @@ public:
 
 	private:
 
-		
-
 		bool down = false;
 		bool over = false;
 		bool draggin = false;
-
 		int index;
-
 		bool selected;
-
 		bool menuActive = false;
 
 		ComponentBoundsConstrainer *constrainer;
@@ -208,31 +194,17 @@ public:
 	void addListener(Listener* l);
 	void removeListener(Listener* l);
 
-	void setAllowFilterResizing(bool shouldBeAllowed)
-	{
-		allowFilterResizing = shouldBeAllowed;
-	}
-
-	void setSpectrumVisibility(SpectrumVisibility m)
-	{
-		fftVisibility = m;
-		fftAnalyser.setVisible(m != SpectrumVisibility::AlwaysOff);
-	}
-
-	void setUndoManager(UndoManager* newUndoManager)
-	{
-		um = newUndoManager;
-	}
-
+	void setAllowFilterResizing(bool shouldBeAllowed);
+	void setSpectrumVisibility(SpectrumVisibility m);
+	void setUndoManager(UndoManager* newUndoManager);
 	void setEqAttribute(int b, int filterIndex, float value);
 
 protected:
 
-	CurveEq *eq;
+	WeakReference<CurveEq> eq;
 	int numFilters = 0;
 
 public:
-
 
 	struct FFTDisplay : public Component,
 		public FFTDisplayBase
@@ -254,19 +226,13 @@ private:
 
 	bool allowFilterResizing = true;
 	SpectrumVisibility fftVisibility = SpectrumVisibility::Dynamic;
-
 	LookAndFeelMethods defaultLaf;
-
 	Array<WeakReference<Listener>> listeners;
-
 	UpdateMerger repaintUpdater;
-
 	int selectedIndex;
-
 	ScopedPointer<ComponentBoundsConstrainer> constrainer;
-
 	OwnedArray<FilterDragComponent> dragComponents;
 };
 
 } // namespace hise;
-#endif  // __MAINCOMPONENT_H_5C0D5756__
+

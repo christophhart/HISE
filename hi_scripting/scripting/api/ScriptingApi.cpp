@@ -929,6 +929,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getDspNetworkReference);
 	API_METHOD_WRAPPER_1(Engine, getSystemTime);
 	API_METHOD_WRAPPER_0(Engine, createLicenseUnlocker);
+	API_METHOD_WRAPPER_1(Engine, createBroadcaster);
 	API_METHOD_WRAPPER_0(Engine, getGlobalRoutingManager);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 	API_METHOD_WRAPPER_0(Engine, getClipboardContent);
@@ -1002,6 +1003,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createUnorderedStack);
 	ADD_API_METHOD_1(createBackgroundTask);
 	ADD_API_METHOD_0(createFFT);
+	ADD_API_METHOD_1(createBroadcaster);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
 	ADD_API_METHOD_1(loadFromJSON);
@@ -2098,6 +2100,11 @@ juce::var ScriptingApi::Engine::createMidiAutomationHandler()
 var ScriptingApi::Engine::createUserPresetHandler()
 {
 	return var(new ScriptUserPresetHandler(getScriptProcessor()));
+}
+
+juce::var ScriptingApi::Engine::createBroadcaster(var defaultValues)
+{
+	return var(new ScriptingObjects::ScriptBroadcaster(getScriptProcessor(), defaultValues));
 }
 
 var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)

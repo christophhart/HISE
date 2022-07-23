@@ -641,9 +641,27 @@ void WeakCallbackHolder::clear()
 	decRefCount();
 }
 
+void WeakCallbackHolder::setThisObject(ReferenceCountedObject* thisObj)
+{
+	thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
+
+	// Must call incRefCount before this method
+	jassert(anonymousFunctionRef.isObject());
+}
+
 bool WeakCallbackHolder::matches(const var& f) const
 {
 	return castedObj == f.getObject();
+}
+
+juce::var WeakCallbackHolder::getThisObject()
+{
+	if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
+	{
+		return var(d);
+	}
+
+	return {};
 }
 
 void WeakCallbackHolder::call(var* arguments, int numArgs)
@@ -679,6 +697,12 @@ void WeakCallbackHolder::call(var* arguments, int numArgs)
 
 Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
+	auto a = var::NativeFunctionArgs(getThisObject(), arguments, numArgs);
+	return callSync(a, returnValue);
+}
+
+Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
+{
 	if (engineToUse.get() == nullptr)
 	{
 		clear();
@@ -689,12 +713,6 @@ Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValu
 	{
 		jassert(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()) == castedObj);
 
-		var thisObj;
-
-		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
-			thisObj = var(d);
-
-		var::NativeFunctionArgs a(thisObj, arguments, numArgs);
 		auto rv = engineToUse->callExternalFunction(var(castedObj), a, &r, true);
 
 		if (returnValue != nullptr)

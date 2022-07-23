@@ -7511,4 +7511,403 @@ ScriptingObjects::ScriptErrorHandler::~ScriptErrorHandler()
 	getScriptProcessor()->getMainController_()->removeOverlayListener(this);
 }
 
+struct ScriptingObjects::ScriptBroadcaster::Wrapper
+{
+	API_METHOD_WRAPPER_2(ScriptBroadcaster, addListener);
+	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
+	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
+};
+
+struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
+													 public ComponentForDebugInformation,
+													 public PooledUIUpdater::SimpleTimer,
+													 public Label::Listener,
+													 public PathFactory
+{
+	static constexpr int HeaderHeight = 28;
+	static constexpr int RowHeight = 28;
+	static constexpr int Width = 400;
+
+	Display(ScriptBroadcaster* sb) :
+		ComponentForDebugInformation(sb, dynamic_cast<ApiProviderBase::Holder*>(sb->getScriptProcessor())),
+		SimpleTimer(sb->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+		resetButton("reset", nullptr, *this),
+		breakpointButton("breakpoint", nullptr, *this),
+		input()
+	{
+		setName("Broadcaster Controller");
+		rebuild(*sb);
+
+		resetButton.onClick = [this]()
+		{
+			if (auto obj = getObject<ScriptBroadcaster>())
+			{
+				obj->reset();
+			}
+		};
+
+		breakpointButton.setToggleModeWithColourChange(true);
+
+		breakpointButton.onClick = [this]()
+		{
+			if (auto obj = getObject<ScriptBroadcaster>())
+			{
+				obj->triggerBreakpoint = breakpointButton.getToggleState();
+			}
+		};
+
+		addAndMakeVisible(resetButton);
+		addAndMakeVisible(breakpointButton);
+
+		input.setColour(TextEditor::ColourIds::textColourId, Colours::black);
+		input.setColour(Label::ColourIds::backgroundColourId, Colours::white.withAlpha(0.35f));
+		input.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+		input.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+		input.setColour(TextEditor::ColourIds::outlineColourId, Colours::black.withAlpha(0.8f));
+		input.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+		input.setFont(GLOBAL_BOLD_FONT());
+
+		input.setEditable(true, true);
+		addAndMakeVisible(input);
+		input.setFont(GLOBAL_MONOSPACE_FONT());
+		input.addListener(this);
+	};
+
+	String getTextEditorAsCode() const
+	{
+		String c = "[";
+		c << input.getText() << "]";
+		return c;
+	}
+
+	
+
+	void labelTextChanged(Label*) override
+	{
+		auto c = getTextEditorAsCode();
+
+		auto r = Result::ok();
+
+		juce::JavascriptEngine engine;
+		auto values = engine.evaluate(c, &r);
+
+		if (r.wasOk())
+		{
+			if (auto obj = getObject<ScriptBroadcaster>())
+			{
+				try
+				{
+					obj->sendMessage(values, false);
+				}
+				catch (String& message)
+				{
+					r = Result::fail(message);
+				}
+			}
+		}
+
+		if (!r.wasOk())
+			PresetHandler::showMessageWindow("Error at evaluating input", r.getErrorMessage(), PresetHandler::IconType::Error);
+	}
+
+	void updateTextEditor(ScriptBroadcaster& b)
+	{
+		if (input.isBeingEdited())
+			return;
+
+		auto t = JSON::toString(var(b.lastValues), true);
+		input.setText(t.fromFirstOccurrenceOf("[", false, false).upToLastOccurrenceOf("]", false, false), dontSendNotification);
+	}
+
+	struct Row : public Component
+	{
+		Row(Item* i, Display& parent) :
+			item(i),
+			gotoButton("workspace", nullptr, parent)
+		{
+			addAndMakeVisible(gotoButton);
+		}
+
+		String getText() const
+		{
+			if (item == nullptr)
+				return "Dangling";
+
+			auto o = item->obj;
+
+			if (o.isString())
+				return o.toString();
+
+			if (auto d = o.getDynamicObject())
+				return JSON::toString(o, true);
+
+			if (auto d = dynamic_cast<DebugableObjectBase*>(o.getObject()))
+				return d->getDebugName();
+
+			return {};
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.1f));
+			
+			auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+			g.fillRoundedRectangle(b, 3.0f);
+			g.drawRoundedRectangle(b, 3.0f, 1.0f);
+
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setColour(Colours::white.withAlpha(.7f));
+			g.drawText(getText(), b.reduced(10.0f, 0.0f), Justification::left);
+		}
+
+		void resized() override
+		{
+			gotoButton.setBounds(getLocalBounds().removeFromRight(RowHeight).reduced(3));
+		}
+
+		HiseShapeButton gotoButton;
+		WeakReference<Item> item;
+	};
+
+	void rebuild(ScriptBroadcaster& b)
+	{
+		rows.clear();
+
+		for (auto i : b.items)
+		{
+			rows.add(new Row(i, *this));
+			addAndMakeVisible(rows.getLast());
+		}
+
+		setSize(Width, HeaderHeight + RowHeight * rows.size() + 32);
+		resized();
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		auto top = b.removeFromTop(HeaderHeight);
+
+		resetButton.setBounds(top.removeFromLeft(HeaderHeight).reduced(4));
+		breakpointButton.setBounds(top.removeFromLeft(HeaderHeight).reduced(4));
+
+		for (auto r : rows)
+			r->setBounds(b.removeFromTop(RowHeight));
+
+		b.removeFromTop(5);
+
+		currentLabel = b.removeFromLeft(95).toFloat();
+		b.removeFromLeft(5);
+
+		input.setBounds(b);
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+		LOAD_PATH_IF_URL("reset", ColumnIcons::resetIcon);
+		LOAD_PATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
+		
+		return p;
+	}
+
+	void timerCallback() override
+	{
+		if (auto obj = getObject<ScriptBroadcaster>())
+		{
+			if ((rows.size() != obj->items.size()) || lastOne == nullptr)
+			{
+				rebuild(*obj.obj);
+			}
+
+			lastOne = obj.obj;
+
+			updateTextEditor(*obj.obj);
+
+			if (obj->lastMessageTime != lastTime)
+				alpha = 1.0f;
+			else
+				alpha *= 0.7f;
+
+			lastTime = obj->lastMessageTime;
+
+			repaint();
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().removeFromTop(HeaderHeight);
+
+		g.setColour(Colours::white.withAlpha(alpha * 0.3f));
+		g.fillRect(b);
+
+		g.setColour(Colours::white.withAlpha(0.8f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Current Value: ", currentLabel, Justification::right);
+	}
+
+	OwnedArray<Row> rows;
+
+	WeakReference<ScriptBroadcaster> lastOne;
+
+	Rectangle<float> currentLabel;
+	Label input;
+
+	uint32 lastTime = 0;
+	float alpha = 0.0f;
+
+	HiseShapeButton resetButton;
+	HiseShapeButton breakpointButton;
+};
+
+ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue):
+	ConstScriptingObject(p, 0)
+{
+	ADD_API_METHOD_2(addListener);
+	ADD_API_METHOD_1(removeListener);
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_2(sendMessage);
+
+	if (defaultValue.isArray())
+		defaultValues.addArray(*defaultValue.getArray());
+	else
+		defaultValues.add(defaultValue);
+
+	lastValues.addArray(defaultValues);
+
+	Array<var> k;
+	k.add(lastValues);
+	k.add(defaultValues);
+	keepers = var(k);
+}
+
+Component* ScriptingObjects::ScriptBroadcaster::createPopupComponent(const MouseEvent& e, Component* parent)
+{
+	return new Display(this);
+}
+
+bool ScriptingObjects::ScriptBroadcaster::addListener(var object, var function)
+{
+	ScopedPointer<Item> ni = new Item(getScriptProcessor(), defaultValues.size(), object, function);
+
+	if (items.contains(ni))
+		return false;
+
+	
+
+	auto r = ni->callSync(lastValues);
+
+	if (!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+
+	items.add(ni.release());
+
+	return true;
+}
+
+bool ScriptingObjects::ScriptBroadcaster::removeListener(var objectToRemove)
+{
+	for (auto i : items)
+	{
+		if (i->obj == objectToRemove)
+		{
+			items.removeObject(i);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
+{
+	if (triggerBreakpoint)
+	{
+		reportScriptError("There you go...");
+	}
+
+	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
+	{
+		String e;
+		e << "argument amount mismatch. Expected: " << String(defaultValues.size());
+		reportScriptError(e);
+	}
+
+	bool somethingChanged = false;
+
+	for (int i = 0; i < defaultValues.size(); i++)
+	{
+		auto v = getArg(args, i);
+		somethingChanged |= lastValues[i] != v;
+		lastValues.set(i, v);
+	}
+
+	if (somethingChanged)
+	{
+		if (isSync)
+			sendInternal(lastValues);
+		else
+		{
+			WeakReference<ScriptBroadcaster> safeThis(this);
+
+			auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+			
+			auto f = [safeThis](JavascriptProcessor* jp)
+			{
+				if (safeThis == nullptr)
+					return Result::fail("dangling listener");
+
+				return safeThis->sendInternal(safeThis->lastValues);
+			};
+
+			pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
+						dynamic_cast<JavascriptProcessor*>(getScriptProcessor()),	
+						f);
+		}
+	}
+}
+
+void ScriptingObjects::ScriptBroadcaster::reset()
+{
+	auto ok = sendInternal(defaultValues);
+
+	if (!ok.wasOk())
+		reportScriptError(ok.getErrorMessage());
+}
+
+juce::var ScriptingObjects::ScriptBroadcaster::getArg(const var& v, int idx)
+{
+	if (v.isArray())
+		return v[idx];
+
+	jassert(idx == 0);
+	return v;
+}
+
+Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
+{
+	for (auto i : items)
+	{
+		auto r = i->callSync(args);
+		if (!r.wasOk())
+		{
+			return r;
+		}
+	}
+
+	return Result::ok();
+}
+
+Result ScriptingObjects::ScriptBroadcaster::Item::callSync(const Array<var>& args)
+{
+	auto a = var::NativeFunctionArgs(obj, args.getRawDataPointer(), args.size());
+	return callback.callSync(a, nullptr);
+}
+
 } // namespace hise

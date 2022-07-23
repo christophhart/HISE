@@ -260,6 +260,9 @@ struct WeakCallbackHolder : private ScriptingObject
 	/** Call the function with the given arguments. */
 	void call(var* arguments, int numArgs);
 
+	
+	Result callSync(const var::NativeFunctionArgs& args, var* returnValue = nullptr);
+
 	/** Call the functions synchronously. */
 	Result callSync(var* arguments, int numArgs, var* returnValue=nullptr);
 
@@ -314,14 +317,13 @@ struct WeakCallbackHolder : private ScriptingObject
 		return weakCallback.get() != nullptr && engineToUse.get() != nullptr;
 	}
 
-	void setThisObject(ReferenceCountedObject* thisObj)
-	{
-		thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
-	}
+	void setThisObject(ReferenceCountedObject* thisObj);
 
 	bool matches(const var& f) const;
 
 private:
+
+	var getThisObject();
 
 	bool highPriority = false;
 	int numExpectedArgs;

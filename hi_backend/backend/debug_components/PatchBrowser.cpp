@@ -1523,60 +1523,63 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 {
 	idLabel.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(bypassed ? 0.2f : 0.8f));
 
+	Colour pColour = Colours::grey;
+	
+
+
 	if (p.get() != nullptr)
+		pColour = p.get()->getColour();
+
+	auto b = getLocalBounds().toFloat();
+
+	b.removeFromLeft(hierarchy * 10.0f + 10.0f);
+	b.removeFromLeft(findParentComponentOfClass<PatchCollection>()->getIntendation());
+
+	auto pb = findParentComponentOfClass<PatchBrowser>();
+
+	if (pb->showChains)
 	{
-		auto b = getLocalBounds().toFloat();
-
-		b.removeFromLeft(hierarchy * 10.0f + 10.0f);
-		b.removeFromLeft(findParentComponentOfClass<PatchCollection>()->getIntendation());
-
-		auto pb = findParentComponentOfClass<PatchBrowser>();
-
-		if (pb->showChains)
-		{
-			b.removeFromRight(getHeight());
-		}
-
-		paintItemBackground(g, b);
-
-		if (isMouseOver(false))
-		{
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-			g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
-		}
-
-		if (inPopup)
-		{
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
-			g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.6f));
-			g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
-		}
-
-		g.setColour(p->getColour().withAlpha(!bypassed ? 1.0f : 0.5f));
-
-		auto iconSpace = b.removeFromLeft(b.getHeight()).reduced(2.0f);
-
-		bypassArea = iconSpace.toNearestInt();
-
-		auto canBeBypassed = dynamic_cast<Chain*>(getProcessor()) == nullptr;
-		canBeBypassed |= dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr;
-
-		if (!canBeBypassed)
-		{
-			g.drawRoundedRectangle(iconSpace.reduced(1.0f), 2.0f, 2.0f);
-			g.setColour(p->getColour().withAlpha(0.2f));
-		}
-
-		g.fillRoundedRectangle(iconSpace, 2.0f);
-
-		g.setColour(Colour(0xFF222222));
-
-		g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
-
-		g.setColour(ProcessorHelpers::is<Chain>(p.get()) ? Colours::black.withAlpha(0.6f) : Colours::black);
-
+		b.removeFromRight(getHeight());
 	}
+
+	paintItemBackground(g, b);
+
+	if (isMouseOver(false))
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+		g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
+	}
+
+	if (inPopup)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+		g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.6f));
+		g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
+	}
+
+	g.setColour(pColour.withAlpha(!bypassed ? 1.0f : 0.5f));
+
+	auto iconSpace = b.removeFromLeft(b.getHeight()).reduced(2.0f);
+
+	bypassArea = iconSpace.toNearestInt();
+
+	auto canBeBypassed = dynamic_cast<Chain*>(getProcessor()) == nullptr;
+	canBeBypassed |= dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr;
+
+	if (!canBeBypassed)
+	{
+		g.drawRoundedRectangle(iconSpace.reduced(1.0f), 2.0f, 2.0f);
+		g.setColour(pColour.withAlpha(0.2f));
+	}
+
+	g.fillRoundedRectangle(iconSpace, 2.0f);
+
+	g.setColour(Colour(0xFF222222));
+
+	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
+
+	g.setColour(ProcessorHelpers::is<Chain>(p.get()) ? Colours::black.withAlpha(0.6f) : Colours::black);
 }
 
 void PatchBrowser::PatchItem::resized()
@@ -1771,7 +1774,7 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
 		g.fillPath(mp);
 		g.setColour(p->getColour());
 
-		if (auto synth = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true)))
+		if (auto synth = dynamic_cast<ModulatorSynth*>(p->getParentProcessor(true, false)))
 		{
 			g.setColour(Colours::white.withAlpha(channelValues[0]));
 			g.fillPath(mp);

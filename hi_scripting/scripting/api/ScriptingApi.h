@@ -318,6 +318,9 @@ public:
 		/** Creates an user preset handler. */
 		var createUserPresetHandler();
 
+		/** Creates a broadcaster that can send messages to attached listeners. */
+		var createBroadcaster(var defaultValues);
+
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
 

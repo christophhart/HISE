@@ -3426,8 +3426,8 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
 
 		loadRoutine = WeakCallbackHolder(getScriptProcessor(), loadingCallback, 1);
-		loadRoutine.setThisObject(this);
 		loadRoutine.incRefCount();
+		loadRoutine.setThisObject(this);
 		loadRoutine.setHighPriority();
 	}
     else
@@ -3488,8 +3488,8 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 {
 	timerRoutine = WeakCallbackHolder(getScriptProcessor(), timerCallback_, 0);
-	timerRoutine.setThisObject(this);
 	timerRoutine.incRefCount();
+	timerRoutine.setThisObject(this);
 }
 
 

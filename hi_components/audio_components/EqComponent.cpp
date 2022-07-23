@@ -392,7 +392,8 @@ FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= fa
 
 FilterDragOverlay::~FilterDragOverlay()
 {
-	eq->removeChangeListener(this);
+	if(eq.get() != nullptr)
+		eq->removeChangeListener(this);
 }
 
 void FilterDragOverlay::paint(Graphics &g)
@@ -419,6 +420,9 @@ void FilterDragOverlay::paintOverChildren(Graphics& g)
 	auto draw = [&](FilterDragComponent* c)
 	{
 		auto index = c->getIndex();
+
+		if (eq == nullptr)
+			return;
 
 		if (auto b = eq->getFilterBand(index))
 		{
@@ -466,6 +470,9 @@ void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *)
 
 void FilterDragOverlay::checkEnabledBands()
 {
+	if (eq == nullptr)
+		return;
+
 	numFilters = eq->getNumFilterBands();
 
 	for (int i = 0; i < numFilters; i++)
@@ -484,6 +491,9 @@ void FilterDragOverlay::resized()
 
 void FilterDragOverlay::addFilterDragger(int index)
 {
+	if (eq == nullptr)
+		return;
+
 	if (auto fb = eq->getFilterBand(index))
 	{
 		FilterDragComponent *dc = new FilterDragComponent(*this, index);
@@ -508,6 +518,9 @@ void FilterDragOverlay::timerCallback()
 
 void FilterDragOverlay::updateFilters()
 {
+	if (eq == nullptr)
+		return;
+
 	numFilters = eq->getNumFilterBands();
 
 	if (numFilters != dragComponents.size())
@@ -531,6 +544,9 @@ void FilterDragOverlay::updateFilters()
 
 void FilterDragOverlay::updateCoefficients()
 {
+	if (eq == nullptr)
+		return;
+
 	for (int i = 0; i < eq->getNumFilterBands(); i++)
 	{
 		IIRCoefficients ic = eq->getCoefficients(i);
@@ -548,6 +564,9 @@ void FilterDragOverlay::addFilterToGraph(int filterIndex, int filterType)
 	case CurveEq::HighShelf:	filterGraph.addEqBand(BandType::HighShelf); break;
 	case CurveEq::Peak:			filterGraph.addEqBand(BandType::Peak); break;
 	}
+
+	if (eq == nullptr)
+		return;
 
 	if(auto b = eq->getFilterBand(filterIndex))
 		filterGraph.enableBand(filterIndex, b->isEnabled());
@@ -577,6 +596,9 @@ double FilterDragOverlay::getGain(int y)
 
 void FilterDragOverlay::removeFilter(int index)
 {
+	if (eq == nullptr)
+		return;
+
 	eq->removeFilterBand(index);
 
 	for (auto l : listeners)
@@ -597,6 +619,22 @@ void FilterDragOverlay::removeListener(Listener* l)
 	listeners.removeAllInstancesOf(l);
 }
 
+void FilterDragOverlay::setAllowFilterResizing(bool shouldBeAllowed)
+{
+	allowFilterResizing = shouldBeAllowed;
+}
+
+void FilterDragOverlay::setSpectrumVisibility(SpectrumVisibility m)
+{
+	fftVisibility = m;
+	fftAnalyser.setVisible(m != SpectrumVisibility::AlwaysOff);
+}
+
+void FilterDragOverlay::setUndoManager(UndoManager* newUndoManager)
+{
+	um = newUndoManager;
+}
+
 void FilterDragOverlay::mouseDrag(const MouseEvent &e)
 {
 	if (dragComponents[selectedIndex] != nullptr)
@@ -607,6 +645,9 @@ void FilterDragOverlay::mouseDrag(const MouseEvent &e)
 
 Point<int> FilterDragOverlay::getPosition(int index)
 {
+	if (eq == nullptr)
+		return {};
+
 	if (isPositiveAndBelow(index, eq->getNumFilterBands()))
 	{
 		const int freqIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Freq);
@@ -636,6 +677,9 @@ void FilterDragOverlay::lookAndFeelChanged()
 
 void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 {
+	if (eq == nullptr)
+		return;
+
 	if (handleIndex != -1)
 	{
 		StringArray sa = { "Low Pass", "High Pass", "Low Shelf", "High Shelf", "Peak" };
@@ -686,6 +730,9 @@ void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 
 void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 {
+	if (eq == nullptr)
+		return;
+
 	if (handleIndex != -1)
 	{
 		if (auto thisBand = eq->getFilterBand(handleIndex))
@@ -733,6 +780,9 @@ void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
+	if (eq == nullptr)
+		return;
+
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
 		PopupMenu m;
@@ -858,6 +908,9 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 
 void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &d)
 {
+	if (parent.eq == nullptr)
+		return;
+
 	if (e.mods.isCtrlDown() || parent.isInFloatingTile)
 	{
 		double q = parent.eq->getFilterBand(index)->getQ();
@@ -881,6 +934,9 @@ void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e,
 
 void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& e)
 {
+	if (parent.eq == nullptr)
+		return;
+
 	if (parent.allowFilterResizing)
 		return;
 
@@ -935,6 +991,9 @@ void FilterDragOverlay::FilterDragComponent::setIndex(int newIndex)
 
 void FilterDragOverlay::setEqAttribute(int bp, int filterIndex, float value)
 {
+	if (eq == nullptr)
+		return;
+
 	auto idx = eq->getParameterIndex(filterIndex, bp);
 
 	if (um != nullptr)
@@ -958,12 +1017,18 @@ FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :
 
 void FilterDragOverlay::FFTDisplay::paint(Graphics& g)
 {
+	if (parent.eq == nullptr)
+		return;
+
 	if (rb != nullptr && rb->isActive() && !parent.eq->isBypassed())
 		FFTDisplayBase::drawSpectrum(g);
 }
 
 double FilterDragOverlay::FFTDisplay::getSamplerate() const
 {
+	if (parent.eq == nullptr)
+		return 44100.0;
+
 	return parent.eq->getSampleRate();
 }
 

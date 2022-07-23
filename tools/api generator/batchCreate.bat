@@ -70,6 +70,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_objects_1_1_global_cable_reference.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_global_routing_manager_reference.xml" "xml\selection"
+xcopy "xml\structhise_1_1_scripting_objects_1_1_script_broadcaster.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_timer_object.xml" "xml\selection"
@@ -91,6 +92,7 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_pack.xml" 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
+
 
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
@@ -179,6 +181,7 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "ScriptAudioWaveform.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "Buffer.xml"
 ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_error_handler.xml" "ErrorHandler.xml"
+ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_broadcaster.xml" "Broadcaster.xml"
 
 ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler.xml"
 ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"

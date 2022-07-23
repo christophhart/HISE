@@ -2102,35 +2102,40 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		var thisObject(this);
 
 		{
-			SimpleReadWriteLock::ScopedReadLock sl(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+			if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock()))
+			{
+				if (c != nullptr && c->getParentComponent() != nullptr)
+				{
+					var n = c->getParentComponent()->getName();
+					argsObject.getDynamicObject()->setProperty("parentName", n);
+				}
 
-			if (c != nullptr && c->getParentComponent() != nullptr)
-			{
-				var n = c->getParentComponent()->getName();
-				argsObject.getDynamicObject()->setProperty("parentName", n);
-			}
+				var::NativeFunctionArgs arg(thisObject, args, 2);
+				auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+				Result r = Result::ok();
 
-			var::NativeFunctionArgs arg(thisObject, args, 2);
-			auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-			Result r = Result::ok();
+				try
+				{
+					engine->callExternalFunctionRaw(f, arg);
+				}
+				catch (String& errorMessage)
+				{
+					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+				}
+				catch (HiseJavascriptEngine::RootObject::Error& e)
+				{
+					auto p = dynamic_cast<Processor*>(getScriptProcessor());
+					debugToConsole(p, e.toString(p) + e.errorMessage);
+				}
 
-			try
-			{
-				engine->callExternalFunctionRaw(f, arg);
+				g->getDrawHandler().flush();
 			}
-			catch (String& errorMessage)
+			else
 			{
-				debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+				g_.fillAll(Colours::black);
+				return false;
 			}
-			catch (HiseJavascriptEngine::RootObject::Error& e)
-			{
-				auto p = dynamic_cast<Processor*>(getScriptProcessor());
-				debugToConsole(p, e.toString(p) + e.errorMessage);
-			}
-				
-			g->getDrawHandler().flush();
 		}
-
 
 		DrawActions::Handler::Iterator it(&g->getDrawHandler());
 

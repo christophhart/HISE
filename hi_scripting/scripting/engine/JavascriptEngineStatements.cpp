@@ -304,29 +304,33 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 {
 	struct IteratorName : public Expression
 	{
-		IteratorName(const CodeLocation& l, Identifier id_) noexcept : Expression(l), id(id_) {}
+		IteratorName(const CodeLocation& l, LoopStatement* loop, Identifier id_) noexcept : Expression(l), loopToUse(loop), id(id_) {}
 
 		var getResult(const Scope& s) const override
 		{
-			LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
-			var *data = &loop->currentObject;
-			CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
+			//LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
 
-			if (data->isArray())
+			if (auto loop = loopToUse)
 			{
-				if (loop->index >= data->size())
-					location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+				var *data = &loop->currentObject;
+				CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
 
-				return data->getArray()->getUnchecked(loop->index);
+				if (data->isArray())
+				{
+					if (loop->index >= data->size())
+						location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+
+					return data->getArray()->getUnchecked(loop->index);
+				}
+				else if (data->isBuffer())
+					return data->getBuffer()->getSample(loop->index);
+				else if (auto obj = data->getDynamicObject())
+					return obj->getProperties().getName(loop->index).toString();
+				else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
+					return fo->getAssignedValue(loop->index);
+				else location.throwError("Illegal iterator target");
 			}
-			else if (data->isBuffer())
-				return data->getBuffer()->getSample(loop->index);
-			else if (auto obj = data->getDynamicObject())
-				return obj->getProperties().getName(loop->index).toString();
-			else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
-				return fo->getAssignedValue(loop->index);
-			else location.throwError("Illegal iterator target");
-
+			
 			return var();
 		}
 
@@ -355,6 +359,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		bool isBuffer;
 
 		const Identifier id;
+		LoopStatement* loopToUse = nullptr;
 	};
 
 	LoopStatement(const CodeLocation& l, bool isDo, bool isIterator_ = false) noexcept : Statement(l), isDoLoop(isDo), isIterator(isIterator_) {}

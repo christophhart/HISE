@@ -96,15 +96,16 @@ void ScriptUserPresetHandler::setUseUndoForPresetLoading(bool shouldUseUndoManag
 void ScriptUserPresetHandler::setPreCallback(var presetCallback)
 {
 	preCallback = WeakCallbackHolder(getScriptProcessor(), presetCallback, 1);
-	preCallback.setThisObject(this);
 	preCallback.incRefCount();
+	preCallback.setThisObject(this);
 }
 
 void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
 {
 	postCallback = WeakCallbackHolder(getScriptProcessor(), presetPostCallback, 1);
-	postCallback.setThisObject(this);
 	postCallback.incRefCount();
+	postCallback.setThisObject(this);
+
 }
 
 void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData)
@@ -888,8 +889,9 @@ void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
 	{
 		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
-		expansionCallback.setThisObject(this);
 		expansionCallback.incRefCount();
+		expansionCallback.setThisObject(this);
+		
 	}
 
 	expansionCallback.setHighPriority();
@@ -900,8 +902,8 @@ void ScriptExpansionHandler::setInstallCallback(var installationCallback)
 	if (HiseJavascriptEngine::isJavascriptFunction(installationCallback))
 	{
 		installCallback = WeakCallbackHolder(getScriptProcessor(), installationCallback, 1);
-		installCallback.setThisObject(this);
 		installCallback.incRefCount();
+		installCallback.setThisObject(this);
 	}
 }
 

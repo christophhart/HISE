@@ -445,6 +445,78 @@ namespace ScriptingObjects
 		var args[2];
 	};
 
+	struct ScriptBroadcaster : public ConstScriptingObject
+	{
+		ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Broadcaster"); }
+
+		Component* createPopupComponent(const MouseEvent& e, Component* parent) override;
+
+		// =============================================================================== API Methods
+
+		/** Adds a listener that is notified when a message is send. The object can be either a JSON object, a script object or a simple string. */
+		bool addListener(var object, var function);
+
+		/** Removes the listener that was assigned with the given object. */
+		bool removeListener(var objectToRemove);
+
+		/** Sends a message to all listeners. the length of args must match the default value list. if isSync is false, then it will be deferred. */
+		void sendMessage(var args, bool isSync);
+
+		/** Resets the state. */
+		void reset();
+
+		// ===============================================================================
+
+	private:
+
+		uint32 lastMessageTime = 0;
+
+		bool triggerBreakpoint = false;
+
+		struct Display;
+
+		static var getArg(const var& v, int idx);
+
+		Result sendInternal(const Array<var>& args);
+
+		bool cancelIfSame = true;
+
+		Array<var> defaultValues;
+		Array<var> lastValues;
+
+		var keepers;
+
+		struct Wrapper;
+
+		struct Item
+		{
+			Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f) :
+				callback(p, f, numArgs),
+				obj(obj_)
+			{
+				callback.incRefCount();
+			};
+
+			Result callSync(const Array<var>& args);
+
+			bool operator==(const Item& other) const
+			{
+				return obj == other.obj;
+			}
+
+			WeakCallbackHolder callback;
+			var obj;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Item);
+		};
+
+		OwnedArray<Item> items;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBroadcaster);
+	};
+
 	struct ScriptBackgroundTask : public ConstScriptingObject,
 								  public Thread
 	{

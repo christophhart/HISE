@@ -276,7 +276,7 @@ public:
     
 	static bool isJavascriptFunction(const var& v);
     
-	
+	static bool isInlineFunction(const var& v);
 
 	struct ExternalFileData
 	{

@@ -391,7 +391,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		{
 			ExpPtr rhs(parseExpression());
 
-			currentIterator = id;
+			IteratorData d;
+
+			d.id = id;
+			currentIterators.add(d);
 
 			return rhs.release();
 		}
@@ -1343,8 +1346,6 @@ private:
 	{
 		match(TokenTypes::openParen);
 
-		const Identifier previousIteratorName = currentIterator;
-
 		const bool isVarInitialiser = matchIf(TokenTypes::var);
 		
 		Expression *iter = parseExpression();
@@ -1360,6 +1361,15 @@ private:
 		{
 			ScopedPointer<LoopStatement> s(new LoopStatement(location, false, true));
 
+			for (auto& it : currentIterators)
+			{
+				if (it.loop == nullptr)
+				{
+					it.loop = s;
+					break;
+				}
+			}
+
 			s->currentIterator = iter;
 
 			s->iterator = nullptr;
@@ -1370,7 +1380,14 @@ private:
 
 			s->body = parseStatement();
 
-			currentIterator = previousIteratorName;
+			for (const auto& it: currentIterators)
+			{
+				if (it.loop == s)
+				{
+					currentIterators.remove(currentIterators.indexOf(it));
+					break;
+				}
+			}
 
 			return s.release();
 		}
@@ -1634,9 +1651,20 @@ private:
 				}
 			}
 
-			if (id == currentIterator)
+			LoopStatement* iteratorLoop = nullptr;
+
+			for (const auto& it : currentIterators)
 			{
-				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
+				if (it.id == id)
+				{
+					iteratorLoop = it.loop;
+					break;
+				}
+			}
+
+			if (iteratorLoop != nullptr)
+			{
+				return parseSuffixes(new LoopStatement::IteratorName(location, iteratorLoop, parseIdentifier()));
 			}
 			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
 			{
@@ -1971,7 +1999,18 @@ private:
 
 	Array<Identifier> registerIdentifiers;
 
-	Identifier currentIterator;
+	struct IteratorData
+	{
+		bool operator==(const IteratorData& other) const
+		{
+			return loop == other.loop;
+		}
+
+		LoopStatement* loop = nullptr;
+		Identifier id;
+	};
+
+	Array<IteratorData> currentIterators;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 };

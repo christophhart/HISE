@@ -51,6 +51,17 @@ bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 	return false;
 }
 
+
+bool HiseJavascriptEngine::isInlineFunction(const var& v)
+{
+	if (auto obj = v.getObject())
+	{
+		return dynamic_cast<RootObject::InlineFunction::Object*>(obj);
+	}
+
+	return false;
+}
+
 HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
 	root->hiseSpecialData.setProcessor(p);
@@ -405,7 +416,17 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 	}
 	else if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(function.getObject()))
 	{
-		return ifo->performDynamically(RootObject::Scope(nullptr, root.get(), root.get()), const_cast<var*>(args.arguments), args.numArguments);
+		static const Identifier this_("this");
+
+		if (!args.thisObject.isUndefined())
+			root.get()->setProperty(this_, args.thisObject);
+		
+		auto rv = ifo->performDynamically(RootObject::Scope(nullptr, root.get(), root.get()), const_cast<var*>(args.arguments), args.numArguments);
+
+		if (args.thisObject.isObject())
+			root.get()->removeProperty(this_);
+
+		return rv;
 	}
     
     return var();
