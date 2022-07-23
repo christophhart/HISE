@@ -39,6 +39,30 @@ SimpleRingBuffer::SimpleRingBuffer()
 	setPropertyObject(new PropertyObject(nullptr));
 }
 
+void SimpleRingBuffer::setupReadBuffer(AudioSampleBuffer& b)
+{
+	auto numChannels = internalBuffer.getNumChannels();
+	auto numSamples = internalBuffer.getNumSamples();
+
+	if (b.getNumChannels() != numChannels || b.getNumSamples() != numSamples)
+	{
+		// must be called during a write lock
+		jassert(getDataLock().writeAccessIsLocked());
+
+		Array<var> newData;
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			auto p = new VariantBuffer(numSamples);
+			externalBufferChannels[i] = p->buffer.getWritePointer(0);
+			newData.add(var(p));
+		}
+
+		newData.swapWith(externalBufferData);
+		b.setDataToReferTo(externalBufferChannels, numChannels, numSamples);
+	}
+}
+
 void SimpleRingBuffer::clear()
 {
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))

@@ -208,13 +208,7 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		}
 	}
 
-	void setupReadBuffer(AudioSampleBuffer& b)
-	{
-		// must be called during a write lock
-		jassert(getDataLock().writeAccessIsLocked());
-		b.setSize(internalBuffer.getNumChannels(), internalBuffer.getNumSamples());
-		b.clear();
-	}
+	void setupReadBuffer(AudioSampleBuffer& b);
 
 	String toBase64String() const override { return {}; }
 
@@ -237,6 +231,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	{
 		return active;
 	}
+
+	var getReadBufferAsVar() { return externalBufferData; }
 
 	const AudioSampleBuffer& getReadBuffer() const { return externalBuffer; }
 
@@ -292,42 +288,6 @@ private:
 
 	static PropertyObject* createPropertyObject(int propertyIndex, WriterBase* b);
 
-#if 0
-	struct PropertyFactory
-	{
-		using CreateFunction = std::function<PropertyObject*(WriterBase*)>;
-
-		struct Item
-		{
-			bool operator==(const Item& other) const { return propertyId == other.propertyId; }
-			int propertyId;
-			CreateFunction f;
-		};
-
-		PropertyObject* createPropertyObject(int index, WriterBase* wb)
-		{
-			for (auto& p : items)
-				if (p.propertyId == index)
-					return p.f(wb);
-
-			return nullptr;
-		}
-
-		void registerPropertyObjectType(int index, const CreateFunction& f)
-		{
-			items.addIfNotAlreadyThere({ index, f });
-		}
-
-	private:
-
-		Array<Item> items;
-	};
-	juce::SharedResourcePointer<PropertyFactory> factory;
-
-#endif
-
-	
-
 	public:
 
 	template <typename T> void registerPropertyObject()
@@ -370,7 +330,10 @@ private:
 	bool active = true;
 
 	AudioSampleBuffer externalBuffer;
-	
+	float* externalBufferChannels[NUM_MAX_CHANNELS];
+	Array<var> externalBufferData;
+
+
 	std::atomic<bool> isBeingWritten = { false };
 	std::atomic<int> numAvailable = { 0 };
 	std::atomic<int> writeIndex = { 0 };
