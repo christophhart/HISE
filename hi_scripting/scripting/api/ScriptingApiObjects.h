@@ -467,6 +467,9 @@ namespace ScriptingObjects
 		/** Resets the state. */
 		void reset();
 
+		/** Returns the current value. */
+		var getCurrentValue() const;
+		
 		// ===============================================================================
 
 	private:
@@ -492,12 +495,7 @@ namespace ScriptingObjects
 
 		struct Item
 		{
-			Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f) :
-				callback(p, f, numArgs),
-				obj(obj_)
-			{
-				callback.incRefCount();
-			};
+			Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f);;
 
 			Result callSync(const Array<var>& args);
 
@@ -506,6 +504,9 @@ namespace ScriptingObjects
 				return obj == other.obj;
 			}
 
+			DebugableObjectBase::Location location;
+
+			bool enabled = true;
 			WeakCallbackHolder callback;
 			var obj;
 

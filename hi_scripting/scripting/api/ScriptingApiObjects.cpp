@@ -4359,8 +4359,8 @@ void ScriptingObjects::TimerObject::stopTimer()
 void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 {
 	tc = WeakCallbackHolder(getScriptProcessor(), callbackFunction, 0);
-	tc.setThisObject(this);
 	tc.incRefCount();
+	tc.setThisObject(this);
 }
 
 
@@ -7516,6 +7516,7 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_2(ScriptBroadcaster, addListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
+	API_METHOD_WRAPPER_0(ScriptBroadcaster, getCurrentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 };
 
@@ -7622,11 +7623,29 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 
 	struct Row : public Component
 	{
-		Row(Item* i, Display& parent) :
+		Row(Item* i, Display& parent, JavascriptProcessor* jp_) :
 			item(i),
-			gotoButton("workspace", nullptr, parent)
+			jp(jp_),
+			gotoButton("workspace", nullptr, parent),
+			powerButton("enable", nullptr, parent)
 		{
+			gotoButton.onClick = [this]()
+			{
+				if(item != nullptr)
+					DebugableObject::Helpers::gotoLocation(nullptr, jp, item->location);
+			};
+
+			powerButton.onClick = [this]()
+			{
+				if(item != nullptr)
+					item->enabled = powerButton.getToggleState();
+			};
+
+			powerButton.setToggleModeWithColourChange(true);
+			powerButton.setToggleStateAndUpdateIcon(i->enabled);
+
 			addAndMakeVisible(gotoButton);
+			addAndMakeVisible(powerButton);
 		}
 
 		String getText() const
@@ -7659,15 +7678,21 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 
 			g.setFont(GLOBAL_MONOSPACE_FONT());
 			g.setColour(Colours::white.withAlpha(.7f));
+
+			b.removeFromLeft(RowHeight);
+
 			g.drawText(getText(), b.reduced(10.0f, 0.0f), Justification::left);
 		}
 
 		void resized() override
 		{
+			powerButton.setBounds(getLocalBounds().removeFromLeft(RowHeight).reduced(3));
 			gotoButton.setBounds(getLocalBounds().removeFromRight(RowHeight).reduced(3));
 		}
 
+		JavascriptProcessor* jp;
 		HiseShapeButton gotoButton;
+		HiseShapeButton powerButton;
 		WeakReference<Item> item;
 	};
 
@@ -7675,9 +7700,11 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 	{
 		rows.clear();
 
+		auto jp = dynamic_cast<JavascriptProcessor*>(b.getScriptProcessor());
+
 		for (auto i : b.items)
 		{
-			rows.add(new Row(i, *this));
+			rows.add(new Row(i, *this, jp));
 			addAndMakeVisible(rows.getLast());
 		}
 
@@ -7712,7 +7739,8 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
 		LOAD_PATH_IF_URL("reset", ColumnIcons::resetIcon);
 		LOAD_PATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
-		
+		LOAD_PATH_IF_URL("enable", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+
 		return p;
 	}
 
@@ -7732,7 +7760,7 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 			if (obj->lastMessageTime != lastTime)
 				alpha = 1.0f;
 			else
-				alpha *= 0.7f;
+				alpha *= 0.8f;
 
 			lastTime = obj->lastMessageTime;
 
@@ -7773,6 +7801,7 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
+	ADD_API_METHOD_0(getCurrentValue);
 
 	if (defaultValue.isArray())
 		defaultValues.addArray(*defaultValue.getArray());
@@ -7827,10 +7856,14 @@ bool ScriptingObjects::ScriptBroadcaster::removeListener(var objectToRemove)
 
 void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 {
+#if USE_BACKEND
+	lastMessageTime = Time::getMillisecondCounter();
+
 	if (triggerBreakpoint)
 	{
 		reportScriptError("There you go...");
 	}
+#endif
 
 	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
 	{
@@ -7881,6 +7914,14 @@ void ScriptingObjects::ScriptBroadcaster::reset()
 		reportScriptError(ok.getErrorMessage());
 }
 
+juce::var ScriptingObjects::ScriptBroadcaster::getCurrentValue() const
+{
+	if (lastValues.size() == 1)
+		return lastValues[0];
+
+	return var(lastValues);
+}
+
 juce::var ScriptingObjects::ScriptBroadcaster::getArg(const var& v, int idx)
 {
 	if (v.isArray())
@@ -7904,8 +7945,25 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 	return Result::ok();
 }
 
+ScriptingObjects::ScriptBroadcaster::Item::Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f) :
+	callback(p, f, numArgs),
+	obj(obj_)
+{
+	if (auto dl = dynamic_cast<DebugableObjectBase*>(f.getObject()))
+	{
+		location = dl->getLocation();
+	}
+
+	callback.incRefCount();
+}
+
 Result ScriptingObjects::ScriptBroadcaster::Item::callSync(const Array<var>& args)
 {
+#if USE_BACKEND
+	if (!enabled)
+		return Result::ok();
+#endif
+
 	auto a = var::NativeFunctionArgs(obj, args.getRawDataPointer(), args.size());
 	return callback.callSync(a, nullptr);
 }
