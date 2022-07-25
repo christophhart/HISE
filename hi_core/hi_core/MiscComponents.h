@@ -42,6 +42,8 @@ class MouseCallbackComponent : public Component,
 {
 	// ================================================================================================================
 
+public:
+
 	enum EnterState
 	{
 		Nothing = 0,
@@ -64,8 +66,6 @@ class MouseCallbackComponent : public Component,
 		FileDrop,
 		Nothing
 	};
-
-public:
 
 	enum class CallbackLevel
 	{
@@ -161,6 +161,8 @@ public:
 	void addMouseCallbackListener(Listener *l);
 	void removeCallbackListener(Listener *l);
 	void removeAllCallbackListeners();
+
+	static var getMouseCallbackObject(Component* c, const MouseEvent& e, CallbackLevel level, Action action, EnterState state);
 
 	void mouseDown(const MouseEvent& event) override;
 

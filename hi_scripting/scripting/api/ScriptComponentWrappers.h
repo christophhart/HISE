@@ -282,6 +282,8 @@ public:
 		DropShadower shadow;
 	};
 
+	struct AdditionalMouseCallback;
+
 	/** Don't forget to deregister the listener here. */
 	virtual ~ScriptCreatedComponentWrapper();;
 
@@ -422,7 +424,7 @@ private:
 
 	const int index;
 
-	
+	ScopedPointer<AdditionalMouseCallback> mouseCallback;
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptCreatedComponentWrapper)
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptCreatedComponentWrapper);

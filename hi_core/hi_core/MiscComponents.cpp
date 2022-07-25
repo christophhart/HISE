@@ -136,6 +136,8 @@ void MouseCallbackComponent::removeAllCallbackListeners()
 	listenerList.clear();
 }
 
+
+
 void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
 {
     if (callbackLevel < CallbackLevel::ClicksOnly) return;
@@ -565,17 +567,17 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 	}
 }
 
-void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
-{
-	if (callbackLevel == CallbackLevel::NoCallbacks) return;
 
+
+juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
+{
 	auto e = new DynamicObject();
 	var clickInformation(e);
 
 	static const Identifier x("x");
 	static const Identifier y("y");
 	static const Identifier clicked("clicked");
-    static const Identifier doubleClick("doubleClick");
+	static const Identifier doubleClick("doubleClick");
 	static const Identifier rightClick("rightClick");
 	static const Identifier drag("drag");
 	static const Identifier dragX("dragX");
@@ -585,26 +587,26 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
 	static const Identifier mouseUp("mouseUp");
-    static const Identifier shiftDown("shiftDown");
-    static const Identifier cmdDown("cmdDown");
-    static const Identifier altDown("altDown");
-    static const Identifier ctrlDown("ctrlDown");
-    
+	static const Identifier shiftDown("shiftDown");
+	static const Identifier cmdDown("cmdDown");
+	static const Identifier altDown("altDown");
+	static const Identifier ctrlDown("ctrlDown");
+
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
 		e->setProperty(clicked, action == Action::Clicked);
-        e->setProperty(doubleClick, action == Action::DoubleClicked);
+		e->setProperty(doubleClick, action == Action::DoubleClicked);
 		e->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
-											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
+			(action == Action::MouseUp && event.mods.isRightButtonDown()));
 		e->setProperty(mouseUp, action == Action::MouseUp);
 		e->setProperty(mouseDownX, event.getMouseDownX());
 		e->setProperty(mouseDownY, event.getMouseDownY());
 		e->setProperty(x, event.getPosition().getX());
 		e->setProperty(y, event.getPosition().getY());
-        e->setProperty(shiftDown, event.mods.isShiftDown());
-        e->setProperty(cmdDown, event.mods.isCommandDown());
-        e->setProperty(altDown, event.mods.isAltDown());
-        e->setProperty(ctrlDown, event.mods.isCtrlDown());
+		e->setProperty(shiftDown, event.mods.isShiftDown());
+		e->setProperty(cmdDown, event.mods.isCommandDown());
+		e->setProperty(altDown, event.mods.isAltDown());
+		e->setProperty(ctrlDown, event.mods.isCtrlDown());
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
@@ -614,20 +616,24 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 
 	if (callbackLevel >= CallbackLevel::Drag)
 	{
-		const bool isIn = getLocalBounds().contains(event.position.toInt());
+		const bool isIn = c->getLocalBounds().contains(event.position.toInt());
 
-		e->setProperty(insideDrag, isIn ? 1: 0);
+		e->setProperty(insideDrag, isIn ? 1 : 0);
 		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
 
-	
-
-	sendToListeners(clickInformation);
+	return clickInformation;
 }
 
+void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, EnterState state)
+{
+	if (callbackLevel == CallbackLevel::NoCallbacks) 
+		return;
 
+	sendToListeners(getMouseCallbackObject(this, e, callbackLevel, action, state));
+}
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
 {
