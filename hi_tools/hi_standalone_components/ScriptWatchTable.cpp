@@ -286,7 +286,9 @@ void ScriptWatchTable::applySearchFilter()
 				if (!viewInfo.matchesRoot(i))
 					return false;
 
-				if (i->name.contains(filterText) || filterText.isEmpty())
+				if (filterText.isEmpty() ||
+					i->name.containsIgnoreCase(filterText) ||
+					i->dataType.containsIgnoreCase(filterText))
 					filteredFlatList.add(i);
 
 				return false;
