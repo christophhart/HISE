@@ -455,6 +455,14 @@ namespace ScriptingObjects
 
 		Component* createPopupComponent(const MouseEvent& e, Component* parent) override;
 
+		Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue) override;
+
+		int getNumChildElements() const override { return defaultValues.size(); }
+
+		DebugInformationBase* getChildElement(int index) override;
+
+		bool isAutocompleteable() const override { return false; }
+
 		void timerCallback() override
 		{
 			sendMessage(pendingData, false);
@@ -481,16 +489,32 @@ namespace ScriptingObjects
 		/** Returns the current value. */
 		var getCurrentValue() const;
 		
+		/** Registers this broadcaster to be called when one of the properties of the given components change. */
+		void attachToComponentProperties(var componentIds, var propertyIds);
+
+		/** Registers this broadcaster to be called when the value of the given components change. */
+		void attachToComponentValue(var componentIds);
+
+		/** Registers this broadcaster to be notified for mouse events for the given components. */
+		void attachToComponentMouseEvents(var componentIds, var callbackLevel);
+
 		// ===============================================================================
 
 	private:
+
+		var pendingData;
+
+		Array<Identifier> argumentIds;
+
+		SimpleReadWriteLock lastValueLock;
+
+		String sourceType;
 
 		uint32 lastMessageTime = 0;
 
 		bool triggerBreakpoint = false;
 
 		struct Display;
-
 		static var getArg(const var& v, int idx);
 
 		Result sendInternal(const Array<var>& args);
@@ -503,6 +527,11 @@ namespace ScriptingObjects
 		var keepers;
 
 		struct Wrapper;
+
+		struct ScriptComponentPropertyEvent;
+		OwnedArray<ScriptComponentPropertyEvent> eventSources;
+		
+		struct ProcessorBypassEvent;
 
 		struct Item
 		{
@@ -525,6 +554,8 @@ namespace ScriptingObjects
 		};
 
 		OwnedArray<Item> items;
+
+		Result lastResult;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBroadcaster);
 	};

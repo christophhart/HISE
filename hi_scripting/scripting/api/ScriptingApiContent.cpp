@@ -601,12 +601,11 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		const bool wasVisible = (bool)getScriptObjectProperty(visible);
 		const bool isNowVisible = (bool)newValue;
 
-		setScriptObjectProperty(visible, newValue);
+		setScriptObjectProperty(visible, newValue, notifyEditor);
 
 		if (wasVisible != isNowVisible)
 		{
 			repaintThisAndAllChildren();
-
 		}
 	}
 	else if (id == getIdFor(processorId))
@@ -750,12 +749,27 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
+
+void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
+{
+	if (valueListener != nullptr)
+	{
+		var a[2];
+		a[0] = var(this);
+		a[1] = getValue();
+		var::NativeFunctionArgs args(var(this), a, 2);
+		valueListener->call(nullptr, args, nullptr);
+	}
+}
+
+
 void ScriptingApi::Content::ScriptComponent::changed()
 {
 	if (!parent->asyncFunctionsAllowed())
 		return;
 
 	controlSender.sendControlCallbackMessage();
+	sendValueListenerMessage();
 }
 
 
@@ -834,6 +848,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 
 	triggerAsyncUpdate();
+	sendValueListenerMessage();
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)

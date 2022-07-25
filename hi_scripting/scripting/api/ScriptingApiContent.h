@@ -600,6 +600,25 @@ public:
 
 		// End of API Methods ============================================================================================
 
+		void attachValueListener(WeakCallbackHolder::CallableObject* obj)
+		{
+			valueListener = obj;
+			sendValueListenerMessage();
+		}
+
+		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl)
+		{
+			mouseListener = obj;
+			mouseCallbackLevel = cl;
+		}
+
+		MouseCallbackComponent::CallbackLevel getMouseCallbackLevel() const
+		{
+			return mouseCallbackLevel;
+		}
+
+		WeakCallbackHolder::CallableObject* getMouseListener() { return mouseListener; }
+
 		bool handleKeyPress(const KeyPress& k);
 
 		void handleFocusChange(bool isFocused);
@@ -625,6 +644,9 @@ public:
 		Identifier name;
 		Content *parent;
 		bool skipRestoring;
+
+		WeakReference<WeakCallbackHolder::CallableObject> mouseListener, valueListener;
+		MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
 
 		struct Wrapper;
 
@@ -779,6 +801,8 @@ public:
 #endif
 
 	private:
+
+		void sendValueListenerMessage();
 
 		var localLookAndFeel;
 

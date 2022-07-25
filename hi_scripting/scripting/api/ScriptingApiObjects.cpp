@@ -7519,6 +7519,9 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_0(ScriptBroadcaster, getCurrentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentProperties);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentMouseEvents);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToComponentValue);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -7538,7 +7541,7 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		breakpointButton("breakpoint", nullptr, *this),
 		input()
 	{
-		setName("Broadcaster Controller");
+		setName(getTitle());
 		rebuild(*sb);
 
 		resetButton.onClick = [this]()
@@ -7779,6 +7782,12 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		g.setColour(Colours::white.withAlpha(0.8f));
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText("Current Value: ", currentLabel, Justification::right);
+
+		if (auto obj = getObject<ScriptBroadcaster>())
+		{
+			if (obj->sourceType.isNotEmpty())
+				g.drawText("Source: " + obj->sourceType, b.toFloat(), Justification::centred);
+		}
 	}
 
 	OwnedArray<Row> rows;
@@ -7796,15 +7805,27 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 };
 
 ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue):
-	ConstScriptingObject(p, 0)
+	ConstScriptingObject(p, 0),
+	lastResult(Result::ok())
 {
 	ADD_API_METHOD_2(addListener);
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
 	ADD_API_METHOD_0(getCurrentValue);
-
-	if (defaultValue.isArray())
+	ADD_API_METHOD_2(attachToComponentProperties);
+	ADD_API_METHOD_2(attachToComponentMouseEvents);
+	ADD_API_METHOD_1(attachToComponentValue);
+	
+	if (auto obj = defaultValue.getDynamicObject())
+	{
+		for (const auto& p : obj->getProperties())
+		{
+			defaultValues.add(p.value);
+			argumentIds.add(p.name);
+		}
+	}
+	else if (defaultValue.isArray())
 		defaultValues.addArray(*defaultValue.getArray());
 	else
 		defaultValues.add(defaultValue);
@@ -7820,6 +7841,57 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 Component* ScriptingObjects::ScriptBroadcaster::createPopupComponent(const MouseEvent& e, Component* parent)
 {
 	return new Display(this);
+}
+
+Result ScriptingObjects::ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
+{
+	if (args.numArguments == defaultValues.size())
+	{
+		Array<var> argArray;
+
+		for (int i = 0; i < args.numArguments; i++)
+			argArray.add(args.arguments[i]);
+
+		try
+		{
+			bool shouldBeSync = sourceType.isEmpty();
+
+			sendMessage(var(argArray), shouldBeSync);
+			return lastResult;
+		}
+		catch (String& s)
+		{
+			return Result::fail(s);
+		}
+	}
+
+	return Result::fail("argument amount mismatch. Expected: " + String(defaultValues.size()));
+}
+
+hise::DebugInformationBase* ScriptingObjects::ScriptBroadcaster::getChildElement(int index)
+{
+	Identifier id;
+
+	if (isPositiveAndBelow(index, argumentIds.size()))
+		id = argumentIds[index];
+	else
+		id = Identifier("arg" + String(index));
+
+	WeakReference<ScriptBroadcaster> safeThis(this);
+
+	return new LambdaValueInformation([index, safeThis]()
+	{
+		var x;
+			
+		if (safeThis != nullptr)
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(safeThis->lastValueLock);
+			x = safeThis->lastValues[index];
+		}
+
+		return x;
+			
+	}, id, {}, (DebugInformation::Type)getTypeNumber(), getLocation());
 }
 
 bool ScriptingObjects::ScriptBroadcaster::addListener(var object, var function)
@@ -7875,17 +7947,25 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 
 	bool somethingChanged = false;
 
+	Array<var> newValues;
+
 	for (int i = 0; i < defaultValues.size(); i++)
 	{
 		auto v = getArg(args, i);
 		somethingChanged |= lastValues[i] != v;
-		lastValues.set(i, v);
+
+		newValues.add(v);
 	}
 
 	if (somethingChanged)
 	{
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(lastValueLock);
+			lastValues.swapWith(newValues);
+		}
+
 		if (isSync)
-			sendInternal(lastValues);
+			lastResult = sendInternal(lastValues);
 		else
 		{
 			WeakReference<ScriptBroadcaster> safeThis(this);
@@ -7936,6 +8016,188 @@ juce::var ScriptingObjects::ScriptBroadcaster::getCurrentValue() const
 	return var(lastValues);
 }
 
+Array<ScriptingApi::Content::ScriptComponent*> getComponentsFromVar(ProcessorWithScriptingContent* p, var componentIds)
+{
+	using ScriptComp = ScriptingApi::Content::ScriptComponent;
+
+	Array<ScriptComp*> list;
+
+	auto content = p->getScriptingContent();
+
+	auto getComponentFromSingleVar = [&](const var& v)
+	{
+		ScriptComp* p = nullptr;
+
+		if (v.isString())
+			p = content->getComponentWithName(Identifier(v.toString()));
+
+		else if (v.isObject())
+			p = dynamic_cast<ScriptComp*>(v.getObject());
+
+		return p;
+	};
+
+	if (componentIds.isArray())
+	{
+		for (auto& v : *componentIds.getArray())
+			list.add(getComponentFromSingleVar(v));
+	}
+	else
+		list.add(getComponentFromSingleVar(componentIds));
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		if (list[i] == nullptr)
+			list.remove(i--);
+	}
+
+	return list;
+}
+
+struct ScriptingObjects::ScriptBroadcaster::ScriptComponentPropertyEvent
+{
+	ScriptComponentPropertyEvent(ScriptBroadcaster& parent, var componentIds, const Array<Identifier>& propertyIds)
+	{
+		for (auto sc : getComponentsFromVar(parent.getScriptProcessor(), componentIds))
+		{
+			for (auto& id : propertyIds)
+			{
+				if (sc->getIndexForProperty(id) == -1)
+				{
+					illegalId = id;
+					return;
+				}
+			}
+
+			internalListeners.add(new InternalListener(parent, sc, propertyIds));
+		}
+	}
+
+	struct InternalListener
+	{
+		InternalListener(ScriptBroadcaster& parent_, ScriptingApi::Content::ScriptComponent* sc, const Array<Identifier>& propertyIds) :
+			parent(parent_)
+		{
+			args.add(var(sc));
+			args.add("");
+			args.add(0);
+
+			keeper = var(args);
+
+			for (const auto& id : propertyIds)
+				idSet.set(id, id.toString());
+				
+			listener.setCallback(sc->getPropertyValueTree(), propertyIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(InternalListener::update));
+		}
+
+		Identifier illegalId;
+
+		void update(const Identifier& id, var newValue)
+		{
+			if (newValue.isUndefined() || newValue.isVoid())
+			{
+				newValue = dynamic_cast<ScriptComponent*>(args[0].getObject())->getScriptObjectProperty(id);
+			}
+
+			args.set(1, idSet[id]);
+			args.set(2, newValue);
+			
+			parent.sendMessage(var(args), false);
+		}
+
+		NamedValueSet idSet;
+		Array<var> args;
+
+		WeakReference<ScriptComponent> sc;
+		
+		var keeper;
+		ScriptBroadcaster& parent;
+		String id;
+
+		valuetree::PropertyListener listener;
+	};
+
+	Identifier illegalId;
+	OwnedArray<InternalListener> internalListeners;
+};
+
+void ScriptingObjects::ScriptBroadcaster::attachToComponentProperties(var componentIds, var propertyIds)
+{
+	if (sourceType.isNotEmpty())
+		reportScriptError("This callback is already registered to " + sourceType);
+
+	if (defaultValues.size() != 3)
+	{
+		reportScriptError("If you want to attach a broadcaster to property events, it needs three parameters (component, propertyId, value)");
+	}
+
+	Array<Identifier> idList;
+
+	idList.add(Identifier(getArg(propertyIds, 0).toString()));
+
+	if (propertyIds.isArray())
+	{
+		for(int i = 1; i < propertyIds.size(); i++)
+			idList.add(Identifier(getArg(propertyIds, i).toString()));
+	}
+
+	eventSources.clear();
+
+	for (auto l : getComponentsFromVar(getScriptProcessor(), componentIds))
+	{
+		eventSources.add(new ScriptComponentPropertyEvent(*this, componentIds, idList));
+
+		auto illegalId = eventSources.getLast()->illegalId;
+
+		if (illegalId.isValid())
+			reportScriptError("Illegal property id: " + illegalId.toString());
+	}
+
+	sourceType = "ComponentProperties";
+}
+
+void ScriptingObjects::ScriptBroadcaster::attachToComponentValue(var componentIds)
+{
+	if (sourceType.isNotEmpty())
+		reportScriptError("This callback is already registered to " + sourceType);
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to value events, it needs two parameters (component, value)");
+	}
+
+	for (auto l : getComponentsFromVar(getScriptProcessor(), componentIds))
+	{
+		l->attachValueListener(this);
+	}
+
+	sourceType = "ComponentValue";
+}
+
+
+
+void ScriptingObjects::ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callbackLevel)
+{
+	if (sourceType.isNotEmpty())
+		reportScriptError("This callback is already registered to " + sourceType);
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to mouse events, it needs two parameters (component, event)");
+	}
+
+	auto cl = callbackLevel.toString();
+	auto clValue = MouseCallbackComponent::getCallbackLevels(false).indexOf(cl);
+
+	if (clValue == -1)
+		reportScriptError("illegal callback level: " + cl);
+
+	for (auto l : getComponentsFromVar(getScriptProcessor(), componentIds))
+		l->attachMouseListener(this, (MouseCallbackComponent::CallbackLevel)clValue);
+
+	sourceType = "MouseEvents";
+}
+
 juce::var ScriptingObjects::ScriptBroadcaster::getArg(const var& v, int idx)
 {
 	if (v.isArray())
@@ -7949,7 +8211,15 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 {
 	for (auto i : items)
 	{
-		auto r = i->callSync(args);
+		Array<var> thisValues;
+		thisValues.ensureStorageAllocated(lastValues.size());
+
+		{
+			SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
+			thisValues.addArray(lastValues);
+		}
+
+		auto r = i->callSync(thisValues);
 		if (!r.wasOk())
 		{
 			return r;
