@@ -375,34 +375,10 @@ juce::var ScriptUserPresetHandler::createObjectForSaveInPresetComponents()
 
 	auto v = content->exportAsValueTree();
 
-	for (auto& c : v)
+	for (auto c : v)
 		c.removeProperty("type", nullptr);
 
 	return ValueTreeConverters::convertValueTreeToDynamicObject(v);
-
-#if 0
-	static const Identifier sip("saveInPreset");
-
-	auto nObj = new DynamicObject();
-
-	for (int i = 0; i < content->getNumComponents(); i++)
-	{
-		auto sc = content->getComponent(i);
-		if ((bool)sc->getScriptObjectProperty(sip))
-		{
-			auto id = Identifier(sc->getName());
-			auto value = sc->getValue();
-
-			if (auto cd = dynamic_cast<ScriptingApi::Content::ComplexDataScriptComponent*>(sc))
-				value = cd->exportAsValueTree()["data"];
-
-			nObj->setProperty(id, value);
-		}
-	}
-
-
-	return var(nObj);
-#endif
 }
 
 void ScriptUserPresetHandler::updateSaveInPresetComponents(var obj)
@@ -418,28 +394,6 @@ void ScriptUserPresetHandler::updateSaveInPresetComponents(var obj)
 	}
 
 	content->restoreAllControlsFromPreset(v);
-
-#if 0
-	static const Identifier sip("saveInPreset");
-
-	auto macroNames = content->getMacroNames();
-
-	if (auto o = obj.getDynamicObject())
-	{
-		for (const auto& nv : o->getProperties())
-		{
-			if (auto sc = content->getComponentWithName(nv.name))
-			{
-				if ((bool)sc->getScriptObjectProperty(sip))
-					content->restoreComponent(sc, nv.value, macroNames);
-				else
-					reportScriptError(nv.name.toString() + " has saveInPreset disabled.");
-			}
-			else
-				reportScriptError(nv.name.toString() + " wasn't found.");
-		}
-	}
-#endif
 }
 
 void ScriptUserPresetHandler::updateConnectedComponentsFromModuleState()

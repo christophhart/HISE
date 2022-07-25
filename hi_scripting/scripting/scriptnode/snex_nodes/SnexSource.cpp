@@ -752,6 +752,7 @@ SnexMenuBar::SnexMenuBar(SnexSource* s) :
 	cdp("popup", this, f),
 	source(s)
 {
+    editButton.setTooltip("Edit this SNEX node in the SNEX Editor floating tile");
     snexIcon = f.createPath("snex");
 	s->addCompileListener(this);
 

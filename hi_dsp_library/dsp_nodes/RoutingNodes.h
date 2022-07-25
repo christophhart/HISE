@@ -222,8 +222,10 @@ template <int C> struct block: public block_base<C>
 
 		auto d = ProcessDataHelpers<C>::makeChannelData(buffer);
 
+        auto& c = this->channels;
+        
 		for (auto& ch : d)
-			channels[index++].referToRawData(ch, ps.blockSize);
+			c[index++].referToRawData(ch, ps.blockSize);
 	};
 
 	template <typename T> void connect(T& receiveTarget)
@@ -233,7 +235,7 @@ template <int C> struct block: public block_base<C>
 
 	void reset()
 	{
-		for (auto& d : channels)
+		for (auto& d : this->channels)
 			hmath::vset(d, 0.0f);
 	}
 

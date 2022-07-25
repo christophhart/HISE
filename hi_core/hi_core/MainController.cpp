@@ -1871,7 +1871,7 @@ void restorePropertiesRecursive(ValueTree v, StringArray path, const var& value,
 	{
 		path.remove(0);
 
-		for (auto& c : v)
+		for (auto c : v)
 			restorePropertiesRecursive(c, path, value, restore);
 	}
 }

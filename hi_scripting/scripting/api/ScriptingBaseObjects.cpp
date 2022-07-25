@@ -419,7 +419,7 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 	{
 		Array<var> childList;
 
-		for (auto& c : v)
+		for (auto c : v)
 		{
 			if (c.getNumProperties() == 1 && c.hasProperty("value"))
 				childList.add(convertStringIfNumeric(c["value"]));
@@ -540,7 +540,7 @@ bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
 
 	auto firstId = v.getChild(0).getType();
 
-	for (auto& c : v)
+	for (auto c : v)
 	{
 		if (c.getType() != firstId)
 			return false;
@@ -891,6 +891,7 @@ String JSONConversionHelpers::convertDataToBase64(const var& d, const ValueTree&
 	return "";
 }
 
+
 Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
 {
 	if (thisAsRef == nullptr)
@@ -909,3 +910,4 @@ Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, co
 }
 
 } // namespace hise
+

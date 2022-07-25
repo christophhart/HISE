@@ -1797,12 +1797,13 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	{
 		CompilationTask ct;
 
-		SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
+		
 
 		allowSleep = true;
 
 		while (compilationQueue.pop(ct))
 		{
+            SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
 			SuspendHelpers::ScopedTicket ticket;
 
 			lowPriorityQueue.clear();
@@ -1813,8 +1814,6 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			r = ct.call();
 
 			pendingCompilations.addIfNotAlreadyThere(ct.getFunction().getProcessor());
-
-			wait(100);
 		}
 
 		return r;
