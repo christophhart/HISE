@@ -150,7 +150,13 @@ public:
 			return;
 		}
 
-		fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
+		if (searchTerm_.startsWithIgnoreCase("REGEX"))
+		{
+			auto s = searchTerm_.substring(5).trim();
+			fitsSearch = hise::RegexFunctions::matchesWildcard(s, getItemIdentifierString());
+		}
+		else
+			fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
 	}
 
 private:
