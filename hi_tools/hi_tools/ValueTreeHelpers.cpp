@@ -109,7 +109,7 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 	{
 		auto thisValue = v[id];
 
-		if (lastValue == thisValue)
+		if (v.hasProperty(id) && lastValue == thisValue)
 		{
 			//probably priorised
 			return;
