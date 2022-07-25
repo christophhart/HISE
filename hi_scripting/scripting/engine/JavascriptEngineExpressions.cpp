@@ -261,6 +261,11 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
                 location.throwError("can't find property " + child.toString());
         }
 
+		if (auto ad = dynamic_cast<AssignableDotObject*>(p.getObject()))
+		{
+			return ad->getDotProperty(child);
+		}
+
 		return var::undefined();
 	}
 
@@ -285,6 +290,11 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
             else
                 location.throwError("Can't find property " + child.toString());
         }
+		else if (auto aObj = dynamic_cast<AssignableDotObject*>(v.getObject()))
+		{
+			if (!aObj->assign(child, newValue))
+				location.throwError("Cannot assign to " + child + " property");
+		}
         else
 			Expression::assign(s, newValue);
 	}

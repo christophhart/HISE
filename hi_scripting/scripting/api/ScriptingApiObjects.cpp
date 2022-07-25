@@ -7516,7 +7516,6 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_2(ScriptBroadcaster, addListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
-	API_METHOD_WRAPPER_0(ScriptBroadcaster, getCurrentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentProperties);
@@ -7804,6 +7803,16 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 	HiseShapeButton breakpointButton;
 };
 
+int getNumArgs(const var& defaultValue)
+{
+	if (defaultValue.isArray())
+		return defaultValue.size();
+	else if (auto obj = defaultValue.getDynamicObject())
+		return obj->getProperties().size();
+	else
+		return 1;
+}
+
 ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue):
 	ConstScriptingObject(p, 0),
 	lastResult(Result::ok())
@@ -7812,7 +7821,6 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
-	ADD_API_METHOD_0(getCurrentValue);
 	ADD_API_METHOD_2(attachToComponentProperties);
 	ADD_API_METHOD_2(attachToComponentMouseEvents);
 	ADD_API_METHOD_1(attachToComponentValue);
@@ -7831,6 +7839,12 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 		defaultValues.add(defaultValue);
 
 	lastValues.addArray(defaultValues);
+
+	for(auto p: argumentIds)
+	{
+
+	}
+
 
 	Array<var> k;
 	k.add(lastValues);
@@ -7870,12 +7884,13 @@ Result ScriptingObjects::ScriptBroadcaster::call(HiseJavascriptEngine* engine, c
 
 hise::DebugInformationBase* ScriptingObjects::ScriptBroadcaster::getChildElement(int index)
 {
-	Identifier id;
+	String id = "%PARENT%.";
+	
 
 	if (isPositiveAndBelow(index, argumentIds.size()))
-		id = argumentIds[index];
+		id << argumentIds[index];
 	else
-		id = Identifier("arg" + String(index));
+		id << "arg" << String(index);
 
 	WeakReference<ScriptBroadcaster> safeThis(this);
 
@@ -7891,7 +7906,7 @@ hise::DebugInformationBase* ScriptingObjects::ScriptBroadcaster::getChildElement
 
 		return x;
 			
-	}, id, {}, (DebugInformation::Type)getTypeNumber(), getLocation());
+	}, Identifier(id), {}, (DebugInformation::Type)getTypeNumber(), getLocation());
 }
 
 bool ScriptingObjects::ScriptBroadcaster::addListener(var object, var function)
@@ -7929,14 +7944,7 @@ bool ScriptingObjects::ScriptBroadcaster::removeListener(var objectToRemove)
 
 void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 {
-#if USE_BACKEND
-	lastMessageTime = Time::getMillisecondCounter();
-
-	if (triggerBreakpoint)
-	{
-		reportScriptError("There you go...");
-	}
-#endif
+	handleDebugStuff();
 
 	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
 	{
@@ -8006,14 +8014,6 @@ void ScriptingObjects::ScriptBroadcaster::reset()
 
 	if (!ok.wasOk())
 		reportScriptError(ok.getErrorMessage());
-}
-
-juce::var ScriptingObjects::ScriptBroadcaster::getCurrentValue() const
-{
-	if (lastValues.size() == 1)
-		return lastValues[0];
-
-	return var(lastValues);
 }
 
 Array<ScriptingApi::Content::ScriptComponent*> getComponentsFromVar(ProcessorWithScriptingContent* p, var componentIds)
@@ -8196,6 +8196,56 @@ void ScriptingObjects::ScriptBroadcaster::attachToComponentMouseEvents(var compo
 		l->attachMouseListener(this, (MouseCallbackComponent::CallbackLevel)clValue);
 
 	sourceType = "MouseEvents";
+}
+
+bool ScriptingObjects::ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
+{
+	auto idx = argumentIds.indexOf(id);
+
+	if (idx == -1)
+	{
+		reportScriptError("This broadcaster doesn't have a " + id.toString() + " property");
+		return false;
+	}
+	
+	handleDebugStuff();
+
+	if (lastValues[idx] != newValue)
+	{
+		lastValues.set(idx, newValue);
+
+		lastResult = sendInternal(lastValues);
+
+		if (!lastResult.wasOk())
+			reportScriptError(lastResult.getErrorMessage());
+	}
+
+	return true;
+}
+
+juce::var ScriptingObjects::ScriptBroadcaster::getDotProperty(const Identifier& id) const
+{
+	auto idx = argumentIds.indexOf(id);
+
+	if (idx == -1)
+		reportScriptError("This broadcaster doesn't have a " + id.toString() + " property");
+
+	if(isPositiveAndBelow(idx, lastValues.size()))
+		return lastValues[idx];
+
+	return var();
+}
+
+void ScriptingObjects::ScriptBroadcaster::handleDebugStuff()
+{
+#if USE_BACKEND
+	lastMessageTime = Time::getMillisecondCounter();
+
+	if (triggerBreakpoint)
+	{
+		reportScriptError("There you go...");
+	}
+#endif
 }
 
 juce::var ScriptingObjects::ScriptBroadcaster::getArg(const var& v, int idx)

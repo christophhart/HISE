@@ -352,6 +352,19 @@ private:
 	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 
+class AssignableDotObject
+{
+public:
+
+	virtual ~AssignableDotObject() {};
+
+	/** Override this method and assign the new value to the given id. */
+	virtual bool assign(const Identifier& id, const var& newValue) = 0;
+
+	/** Override this method and return the given id. */
+	virtual var getDotProperty(const Identifier& id) const = 0;
+};
+
 
 /** @internal A interface class for objects that can be used with the [] operator in Javascript.
 	

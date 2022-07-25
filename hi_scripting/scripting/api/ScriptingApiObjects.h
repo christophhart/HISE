@@ -447,6 +447,7 @@ namespace ScriptingObjects
 
 	struct ScriptBroadcaster : public ConstScriptingObject,
 							   public WeakCallbackHolder::CallableObject,
+							   public AssignableDotObject,
 							   private Timer
 	{
 		ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
@@ -461,7 +462,7 @@ namespace ScriptingObjects
 
 		DebugInformationBase* getChildElement(int index) override;
 
-		bool isAutocompleteable() const override { return false; }
+		bool isAutocompleteable() const override { return true; }
 
 		void timerCallback() override
 		{
@@ -486,9 +487,6 @@ namespace ScriptingObjects
 		/** Resets the state. */
 		void reset();
 
-		/** Returns the current value. */
-		var getCurrentValue() const;
-		
 		/** Registers this broadcaster to be called when one of the properties of the given components change. */
 		void attachToComponentProperties(var componentIds, var propertyIds);
 
@@ -500,7 +498,13 @@ namespace ScriptingObjects
 
 		// ===============================================================================
 
+		bool assign(const Identifier& id, const var& newValue) override;
+
+		var getDotProperty(const Identifier& id) const override;
+
 	private:
+
+		void handleDebugStuff();
 
 		var pendingData;
 
