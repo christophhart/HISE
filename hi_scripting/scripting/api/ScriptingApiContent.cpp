@@ -2810,6 +2810,7 @@ struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeStart);
 	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeEnd);
 	API_METHOD_WRAPPER_1(ScriptAudioWaveform, registerAtParent);
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setDefaultFolder);
 };
 
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
@@ -2846,6 +2847,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	ADD_API_METHOD_1(referToData);
 	ADD_API_METHOD_0(getRangeStart);
 	ADD_API_METHOD_0(getRangeEnd);
+	ADD_API_METHOD_1(setDefaultFolder);
 	ADD_API_METHOD_1(registerAtParent);
 }
 
@@ -2939,6 +2941,17 @@ int ScriptingApi::Content::ScriptAudioWaveform::getRangeEnd()
 var ScriptingApi::Content::ScriptAudioWaveform::registerAtParent(int pIndex)
 {
 	return registerComplexDataObjectAtParent(pIndex);
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::setDefaultFolder(var newDefaultFolder)
+{
+	if (auto af = getCachedAudioFile())
+	{
+		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(newDefaultFolder.getObject()))
+			af->getProvider()->setRootDirectory(sf->f);
+		else
+			reportScriptError("newDefaultFolder must be a File object");
+	}
 }
 
 struct ScriptingApi::Content::ScriptImage::Wrapper

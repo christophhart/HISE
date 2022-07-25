@@ -840,7 +840,13 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		virtual SampleReference::Ptr loadFile(const String& referenceString) = 0;
 
 		/** This directory will be used as default directory when opening files. */
-		virtual File getRootDirectory() { return File(); }
+		virtual File getRootDirectory() { return rootDir; }
+
+		/** Allows you to change the default root directory. */
+		virtual void setRootDirectory(const File& rootDirectory) 
+		{ 
+			rootDir = rootDirectory; 
+		}
 
 	protected:
 
@@ -850,6 +856,8 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		AudioFormatManager afm;
 
 	private:
+
+		File rootDir;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(DataProvider);
 	};

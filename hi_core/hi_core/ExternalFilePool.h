@@ -1228,7 +1228,14 @@ struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataP
 
 	File getRootDirectory() override;
 
+	void setRootDirectory(const File& rootDirectory) override
+	{
+		customDefaultFolder = rootDirectory;
+	}
+
 private:
+
+	File customDefaultFolder;
 
 	FileHandlerBase* getFileHandlerBase(const String& wildcard);
 

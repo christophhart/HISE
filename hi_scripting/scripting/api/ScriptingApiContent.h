@@ -1536,6 +1536,9 @@ public:
 		/** Registers this waveform to the script processor to be acessible from the outside. */
 		var registerAtParent(int pIndex);
 
+		/** Set the folder to be used when opening the file browser. */
+		void setDefaultFolder(var newDefaultFolder);
+
 		// ========================================================================================================
 
 		void handleDefaultDeactivatedProperties() override;

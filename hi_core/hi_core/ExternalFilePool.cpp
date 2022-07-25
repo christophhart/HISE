@@ -1293,6 +1293,9 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider:
 
 juce::File PooledAudioFileDataProvider::getRootDirectory()
 {
+	if (customDefaultFolder.isDirectory())
+		return customDefaultFolder;
+
 	if (lastHandler == nullptr)
 		lastHandler = getMainController()->getActiveFileHandler();
 
