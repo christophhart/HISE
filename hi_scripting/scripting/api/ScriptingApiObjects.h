@@ -496,6 +496,9 @@ namespace ScriptingObjects
 		/** Registers this broadcaster to be notified for mouse events for the given components. */
 		void attachToComponentMouseEvents(var componentIds, var callbackLevel);
 
+		/** Registers this broadcaster to be notified when a button of a radio group is clicked. */
+		void attachToRadioGroup(int radioGroupIndex);
+
 		// ===============================================================================
 
 		bool assign(const Identifier& id, const var& newValue) override;
@@ -535,6 +538,8 @@ namespace ScriptingObjects
 		struct ScriptComponentPropertyEvent;
 		OwnedArray<ScriptComponentPropertyEvent> eventSources;
 		
+		var radioButtons;
+
 		struct ProcessorBypassEvent;
 
 		struct Item

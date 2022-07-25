@@ -7521,6 +7521,7 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentProperties);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentMouseEvents);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToComponentValue);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToRadioGroup);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -7824,6 +7825,7 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	ADD_API_METHOD_2(attachToComponentProperties);
 	ADD_API_METHOD_2(attachToComponentMouseEvents);
 	ADD_API_METHOD_1(attachToComponentValue);
+	ADD_API_METHOD_1(attachToRadioGroup);
 	
 	if (auto obj = defaultValue.getDynamicObject())
 	{
@@ -7859,6 +7861,19 @@ Component* ScriptingObjects::ScriptBroadcaster::createPopupComponent(const Mouse
 
 Result ScriptingObjects::ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
 {
+	if (radioButtons.isArray())
+	{
+		if ((bool)args.arguments[1])
+		{
+			auto clickedIndex = radioButtons.indexOf(args.arguments[0]);
+			jassert(clickedIndex != -1);
+
+			sendMessage(clickedIndex, false);
+		}
+
+		return lastResult;
+	}
+
 	if (args.numArguments == defaultValues.size())
 	{
 		Array<var> argArray;
@@ -8198,6 +8213,57 @@ void ScriptingObjects::ScriptBroadcaster::attachToComponentMouseEvents(var compo
 	sourceType = "MouseEvents";
 }
 
+void ScriptingObjects::ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex)
+{
+	if (sourceType.isNotEmpty())
+		reportScriptError("This callback is already registered to " + sourceType);
+
+	auto content = getScriptProcessor()->getScriptingContent();
+
+	static const Identifier radioGroup("radioGroup");
+
+	if ((int)radioGroupIndex == 0)
+		reportScriptError("illegal radio group index " + radioGroupIndex);
+
+	Array<var> buttonList;
+
+	int currentIndex = -1;
+
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		ScriptComponent* sc = content->getComponent(i);
+		
+		if ((int)sc->getPropertyValueTree()[radioGroup] == radioGroupIndex)
+		{
+			if (sc->getValue())
+				currentIndex = buttonList.size();
+
+			buttonList.add(sc);
+
+			sc->valueListener = this;
+		}
+	}
+
+	if (buttonList.isEmpty())
+	{
+		String e;
+		e << "No buttons with radio group ";
+		e << String(radioGroupIndex);
+		e << " found";
+		reportScriptError(e);
+	}
+
+	radioButtons = var(buttonList);
+	sourceType = "RadioGroup";
+	
+	currentIndex = defaultValues[0];
+
+	// force initial update
+	lastValues.set(0, -1);
+
+	sendMessage(currentIndex, true);
+}
+
 bool ScriptingObjects::ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
 {
 	auto idx = argumentIds.indexOf(id);
@@ -8275,6 +8341,20 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 			return r;
 		}
 	}
+
+	if (radioButtons.isArray())
+	{
+		int idx = (int)lastValues[0];
+
+		for (auto b : *radioButtons.getArray())
+		{
+			if (auto sc = dynamic_cast<ScriptComponent*>(b.getObject()))
+			{
+				sc->setValue(radioButtons.indexOf(b) == idx);
+			}
+		}
+	}
+	
 
 	return Result::ok();
 }
