@@ -445,13 +445,21 @@ namespace ScriptingObjects
 		var args[2];
 	};
 
-	struct ScriptBroadcaster : public ConstScriptingObject
+	struct ScriptBroadcaster : public ConstScriptingObject,
+							   public WeakCallbackHolder::CallableObject,
+							   private Timer
 	{
 		ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Broadcaster"); }
 
 		Component* createPopupComponent(const MouseEvent& e, Component* parent) override;
+
+		void timerCallback() override
+		{
+			sendMessage(pendingData, false);
+			stopTimer();
+		}
 
 		// =============================================================================== API Methods
 
@@ -463,6 +471,9 @@ namespace ScriptingObjects
 
 		/** Sends a message to all listeners. the length of args must match the default value list. if isSync is false, then it will be deferred. */
 		void sendMessage(var args, bool isSync);
+
+		/** Sends a message to all listeners with a delay. */
+		void sendMessageWithDelay(var args, int delayInMilliseconds);
 
 		/** Resets the state. */
 		void reset();

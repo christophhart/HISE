@@ -561,8 +561,9 @@ WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const v
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		weakCallback = dynamic_cast<DebugableObjectBase*>(callback.getObject());
-		castedObj = callback.getObject();
+		weakCallback = dynamic_cast<CallableObject*>(callback.getObject());
+		
+		jassert(weakCallback != nullptr);
 
 		// Store it ref-counted if the ref count is one to avoid deletion
 		if (callback.getObject()->getReferenceCount() == 1)
@@ -576,7 +577,6 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	ScriptingObject(const_cast<ProcessorWithScriptingContent*>(copy.getScriptProcessor())),
 	r(Result::ok()),
 	weakCallback(copy.weakCallback),
-	castedObj(copy.castedObj),
 	numExpectedArgs(copy.numExpectedArgs),
 	highPriority(copy.highPriority),
 	engineToUse(copy.engineToUse),
@@ -590,7 +590,6 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	ScriptingObject(other.getScriptProcessor()),
 	r(other.r),
 	weakCallback(other.weakCallback),
-	castedObj(other.castedObj),
 	numExpectedArgs(other.numExpectedArgs),
 	highPriority(other.highPriority),
 	anonymousFunctionRef(other.anonymousFunctionRef),
@@ -609,7 +608,6 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 {
 	r = other.r;
 	weakCallback = other.weakCallback;
-	castedObj = other.castedObj;
 	numExpectedArgs = other.numExpectedArgs;
 	highPriority = other.highPriority;
 	anonymousFunctionRef = other.anonymousFunctionRef;
@@ -624,7 +622,7 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 {
 	if (weakCallback != nullptr)
 	{
-		return new ObjectDebugInformationWithCustomName(weakCallback.get(), (int)DebugInformation::Type::Callback, "%PARENT%." + n);
+		return new ObjectDebugInformationWithCustomName(dynamic_cast<DebugableObjectBase*>(weakCallback.get()), (int)DebugInformation::Type::Callback, "%PARENT%." + n);
 	}
 
 	return nullptr;
@@ -634,7 +632,6 @@ void WeakCallbackHolder::clear()
 {
 	engineToUse = nullptr;
 	weakCallback = nullptr;
-	castedObj = nullptr;
 	thisObject = nullptr;
 	args.clear();
 
@@ -651,7 +648,7 @@ void WeakCallbackHolder::setThisObject(ReferenceCountedObject* thisObj)
 
 bool WeakCallbackHolder::matches(const var& f) const
 {
-	return castedObj == f.getObject();
+	return weakCallback == dynamic_cast<CallableObject*>(f.getObject());
 }
 
 juce::var WeakCallbackHolder::getThisObject()
@@ -711,12 +708,7 @@ Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* retur
 
 	if (weakCallback.get() != nullptr)
 	{
-		jassert(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()) == castedObj);
-
-		auto rv = engineToUse->callExternalFunction(var(castedObj), a, &r, true);
-
-		if (returnValue != nullptr)
-			*returnValue = rv;
+		return weakCallback->call(engineToUse, a, returnValue);
 	}
 	else
 		jassertfalse;
@@ -736,15 +728,14 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 
 	if (weakCallback.get() != nullptr)
 	{
-		jassert(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()) == castedObj);
-
 		var thisObj;
 
 		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
 			thisObj = var(d);
 
-		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
-		engineToUse->callExternalFunction(var(castedObj), a, &r);
+		var::NativeFunctionArgs a(getThisObject(), args.getRawDataPointer(), args.size());
+
+		r = weakCallback->call(engineToUse, a, nullptr);
 
 		if (!r.wasOk())
 			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
@@ -898,6 +889,23 @@ String JSONConversionHelpers::convertDataToBase64(const var& d, const ValueTree&
 		return d.toString();
 
 	return "";
+}
+
+Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
+{
+	if (thisAsRef == nullptr)
+	{
+		thisAsRef = dynamic_cast<ReferenceCountedObject*>(this);
+		jassert(thisAsRef != nullptr);
+		jassert(thisAsRef->getReferenceCount() > 1);
+	}
+
+	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult);
+
+	if (returnValue != nullptr)
+		*returnValue = rv;
+
+	return lastResult;
 }
 
 } // namespace hise

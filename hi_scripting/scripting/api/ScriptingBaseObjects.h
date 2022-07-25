@@ -246,6 +246,23 @@ class HiseJavascriptEngine;
 	*/
 struct WeakCallbackHolder : private ScriptingObject
 {
+	struct CallableObject
+	{
+		CallableObject() :
+			lastResult(Result::ok())
+		{};
+
+		virtual ~CallableObject() {};
+		virtual Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue);
+
+	protected:
+
+		Result lastResult;
+		ReferenceCountedObject* thisAsRef = nullptr;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(CallableObject);
+	};
+
 	WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs);
 
 	/** @internal: used by the scripting thread. */
@@ -330,9 +347,8 @@ private:
 	Result r;
 	Array<var> args;
 	var anonymousFunctionRef;
-	WeakReference<DebugableObjectBase> weakCallback;
+	WeakReference<CallableObject> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
-	ReferenceCountedObject* castedObj = nullptr;
 	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 

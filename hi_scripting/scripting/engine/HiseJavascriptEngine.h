@@ -435,6 +435,32 @@ public:
 
 		void prepareCycleReferenceCheck() override;
 
+		struct ScopedLocalThisObject
+		{
+			ScopedLocalThisObject(RootObject& r_, const var& newObject):
+				r(r_)
+			{
+				if (!newObject.isUndefined())
+				{
+					prevObject = r.localThreadThisObject.get();
+					r.localThreadThisObject = newObject;
+				}
+			}
+
+			~ScopedLocalThisObject()
+			{
+				if (!prevObject.isUndefined())
+				{
+					r.localThreadThisObject = prevObject;
+				}
+			}
+
+			RootObject& r;
+			var prevObject;
+		};
+
+		var getLocalThisObject() const { return localThreadThisObject.get(); }
+
 		//==============================================================================
 		struct CodeLocation;
 		struct CallStackEntry;
@@ -955,7 +981,7 @@ public:
 
 		bool shouldUseCycleCheck = false;
 
-
+		ThreadLocalValue<var> localThreadThisObject;
 	};
 
 	
@@ -1083,7 +1109,7 @@ public:
     
 private:
 
-    
+	
     
     bool initialising = false;
 	bool externalFunctionPending = false;

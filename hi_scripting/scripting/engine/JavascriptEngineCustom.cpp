@@ -311,6 +311,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 	struct Object : public DynamicObject,
 					public DebugableObjectBase,
+					public WeakCallbackHolder::CallableObject,
 					public CyclicReferenceCheckBase
 	{
 	public:

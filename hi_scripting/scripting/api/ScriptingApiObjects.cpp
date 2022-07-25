@@ -7518,6 +7518,7 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
 	API_METHOD_WRAPPER_0(ScriptBroadcaster, getCurrentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -7904,6 +7905,19 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 						f);
 		}
 	}
+}
+
+void ScriptingObjects::ScriptBroadcaster::sendMessageWithDelay(var args, int delayInMilliseconds)
+{
+#if USE_BACKEND
+	if (triggerBreakpoint)
+	{
+		reportScriptError("There you go...");
+	}
+#endif
+
+	pendingData = args;
+	startTimer(delayInMilliseconds);
 }
 
 void ScriptingObjects::ScriptBroadcaster::reset()
