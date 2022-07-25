@@ -223,32 +223,7 @@ public:
 
 private:
 
-	struct FocusDrawer : public FocusChangeListener,
-		public Timer
-	{
-		FocusDrawer(BackendRootWindow& p) :
-			parent(p)
-		{
-			Desktop::getInstance().addFocusChangeListener(this);
-		};
-
-		~FocusDrawer()
-		{
-			Desktop::getInstance().removeFocusChangeListener(this);
-		}
-
-		void globalFocusChanged(Component* focusedComponent) override;
-
-		void timerCallback() override;
-
-		void draw(Graphics& g);
-
-		Component* lastFocusComponent = nullptr;
-
-		Rectangle<int> focusArea;
-		float alpha = 0.0f;
-		BackendRootWindow& parent;
-	} drawer;
+	
 
 	bool learnMode = false;
 

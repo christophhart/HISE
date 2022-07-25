@@ -35,10 +35,8 @@ namespace hise { using namespace juce;
 BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
-	owner(static_cast<BackendProcessor*>(ownerProcessor)),
-	drawer(*this)
+	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
-	
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
@@ -674,8 +672,6 @@ MarkdownPreview* BackendRootWindow::createOrShowDocWindow(const MarkdownLink& li
 
 void BackendRootWindow::paintOverChildren(Graphics& g)
 {
-	drawer.draw(g);
-
 	if (learnMode)
 	{
 		RectangleList<float> areas;
@@ -853,53 +849,6 @@ void PeriodicScreenshotter::run()
 	}
 }
 
-void BackendRootWindow::FocusDrawer::globalFocusChanged(Component* focusedComponent)
-{
-	if(focusedComponent != nullptr)
-		focusedComponent = focusedComponent->findParentComponentOfClass<FloatingTile>();
 
-	if (lastFocusComponent != focusedComponent) 
-	{
-		lastFocusComponent = focusedComponent;
-
-		if (lastFocusComponent != nullptr)
-		{
-			focusArea = parent.getLocalArea(lastFocusComponent, lastFocusComponent->getLocalBounds());
-			startTimer(30);
-			alpha = 1.0f;
-			parent.repaint();
-		}
-	}
-}
-
-void BackendRootWindow::FocusDrawer::timerCallback()
-{
-	alpha -= 0.08f;
-
-	if (lastFocusComponent != nullptr)
-	{
-		focusArea = parent.getLocalArea(lastFocusComponent, lastFocusComponent->getLocalBounds());
-	}
-
-	
-
-	parent.repaint();
-
-	if (alpha <= 0.0f)
-	{
-		alpha = 0.0f;
-		stopTimer();
-	}
-		
-}
-
-void BackendRootWindow::FocusDrawer::draw(Graphics& g)
-{
-	if (alpha != 0.0f)
-	{
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(jlimit(0.0f, 1.0f, alpha * 0.4f)));
-		g.drawRect(focusArea, 1.0f);
-	}
-}
 
 } // namespace hise
