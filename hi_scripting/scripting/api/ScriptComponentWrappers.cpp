@@ -2558,6 +2558,9 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
 
+	if (floatingTile->getMouseCallbackLevel() != MouseCallbackComponent::CallbackLevel::NoCallbacks)
+		mouseCallback = new AdditionalMouseCallback(floatingTile, component);
+
 	LookAndFeel* laf = &mc->getGlobalLookAndFeel();
 
 	if (auto l = floatingTile->createLocalLookAndFeel())
@@ -2566,11 +2569,14 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 		laf = localLookAndFeel.get();
     }
 
-	Component::callRecursive<Component>(ft, [laf](Component* c)
+	if (true || dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
 	{
-		c->setLookAndFeel(laf);
-		return false;
-	});
+		Component::callRecursive<Component>(ft, [laf](Component* c)
+		{
+			c->setLookAndFeel(laf);
+			return false;
+		});
+	}
 }
 
 
