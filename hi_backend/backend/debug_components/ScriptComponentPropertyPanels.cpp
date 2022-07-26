@@ -728,10 +728,23 @@ HiColourPropertyComponent::ColourComp::Popup::Popup(ColourComp* parent) :
 		ColourSelector::ColourSelectorOptions::showColourspace |
 		ColourSelector::ColourSelectorOptions::showSliders)
 {
+	setLookAndFeel(&laf);
+
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+
+	juce::Component::callRecursive<Component>(&selector, [](Component* s)
+	{
+		s->setColour(Slider::ColourIds::textBoxTextColourId, Colours::white.withAlpha(0.8f));
+		s->setColour(Slider::ColourIds::backgroundColourId, Colours::black.withAlpha(0.3f));
+		s->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.8f));
+		s->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.5f));
+		return false;
+	});
 
 	selector.setCurrentColour(parent->colour);
+	
 
 	addAndMakeVisible(selector);
 

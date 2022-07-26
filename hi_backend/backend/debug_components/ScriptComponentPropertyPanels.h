@@ -267,6 +267,7 @@ private:
 			void resized() override;
 
 			ColourSelector selector;
+			LookAndFeel_V4 laf;
 		};
 
 		ColourComp();
