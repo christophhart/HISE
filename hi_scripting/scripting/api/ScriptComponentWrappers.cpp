@@ -2569,7 +2569,7 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 		laf = localLookAndFeel.get();
     }
 
-	if (true || dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
+	if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
 	{
 		Component::callRecursive<Component>(ft, [laf](Component* c)
 		{
