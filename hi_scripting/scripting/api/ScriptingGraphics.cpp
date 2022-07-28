@@ -1992,7 +1992,8 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ControlledObject(sp->getMainController_()),
 	g(new GraphicsObject(sp, this)),
 	functions(new DynamicObject()),
-	wasGlobal(isGlobal)
+	wasGlobal(isGlobal),
+	lastResult(Result::ok())
 {
 	ADD_API_METHOD_2(registerFunction);
 	ADD_API_METHOD_2(setGlobalFont);
@@ -2090,6 +2091,9 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 	// If this hits, you need to add that id to the array above.
 	jassert(getAllFunctionNames().contains(functionname));
 
+	if (!lastResult.wasOk())
+		return false;
+
 	auto f = functions.getProperty(functionname, {});
 
 	if (HiseJavascriptEngine::isJavascriptFunction(f))
@@ -2112,10 +2116,14 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 
 				var::NativeFunctionArgs arg(thisObject, args, 2);
 				auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-				Result r = Result::ok();
+				lastResult = Result::ok();
 
+				engine->callExternalFunction(f, arg, &lastResult, true);
+
+#if 0
 				try
 				{
+					
 					engine->callExternalFunctionRaw(f, arg);
 				}
 				catch (String& errorMessage)
@@ -2127,8 +2135,12 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 					auto p = dynamic_cast<Processor*>(getScriptProcessor());
 					debugToConsole(p, e.toString(p) + e.errorMessage);
 				}
+#endif
 
-				g->getDrawHandler().flush();
+				if (lastResult.wasOk())
+					g->getDrawHandler().flush();
+				else
+					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), lastResult.getErrorMessage());
 			}
 			else
 			{

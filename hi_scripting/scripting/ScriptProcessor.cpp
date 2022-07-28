@@ -1849,16 +1849,18 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		CallbackTask hpt;
 
-		while (highPriorityQueue.pop(hpt))
+		while (r.wasOk() && highPriorityQueue.pop(hpt))
 		{
 			jassert(hpt.getFunction().isHiPriority());
 
 			if (alreadyCompiled(hpt))
 				continue;
 
-			
 			r = hpt.call();
 		}
+
+		if (!r.wasOk())
+			lowPriorityQueue.clear();
 
 		return r;
 	}
@@ -1868,7 +1870,7 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		CallbackTask lpt;
 
-		while (lowPriorityQueue.pop(lpt))
+		while (r.wasOk() && lowPriorityQueue.pop(lpt))
 		{
 			SimpleReadWriteLock::ScopedReadLock sl(getLookAndFeelRenderLock());
 
@@ -1880,16 +1882,26 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			r = lpt.call();
 		}
 
+		if (!r.wasOk())
+			lowPriorityQueue.clear();
+
 		WeakReference<ScriptingApi::Content::ScriptPanel> sp;
 
-		while (deferredPanels.pop(sp))
+		if (r.wasOk())
 		{
-			ScopedValueSetter<bool> svs(busy, true);
-			
-			if(sp.get() != nullptr)
-				sp->repaint();
+			while (deferredPanels.pop(sp))
+			{
+				ScopedValueSetter<bool> svs(busy, true);
+
+				if (sp.get() != nullptr)
+					sp->repaint();
+			}
 		}
-		
+		else
+		{
+			deferredPanels.clear();
+		}
+
 		return r;
 	}
 	default:
@@ -1906,8 +1918,13 @@ void JavascriptThreadPool::run()
 		Array<WeakReference<JavascriptProcessor>> compiledProcessors;
 		compiledProcessors.ensureStorageAllocated(16);
 
-		executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
+		auto r = executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
 		
+		if (!r.wasOk() && r.getErrorMessage() != "Engine is dangling")
+		{
+			debugError(getMainController()->getMainSynthChain(), r.getErrorMessage());
+		}
+
 		wait(500);
 	}
 }

@@ -136,6 +136,9 @@ public:
 		{
 			var args = dataObject;
 			auto ok = customLoadCallback.callSync(&args, 1, nullptr);
+
+			if (!ok.wasOk())
+				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
 		}
 	}
 
@@ -146,6 +149,9 @@ public:
 			var rv;
 			var args = presetName;
 			auto ok = customSaveCallback.callSync(&args, 1, &rv);
+
+			if (!ok.wasOk())
+				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
 
 			return rv;
 		}
