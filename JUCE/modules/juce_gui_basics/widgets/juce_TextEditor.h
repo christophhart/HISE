@@ -305,6 +305,12 @@ public:
     */
     void setScrollBarThickness (int newThicknessPixels);
 
+	/** If this is enabled, pressing up / down will not move the cursor in single-line text editors.
+
+		This is useful if you're displaying a list of matches and want to forward the key stroke to the table. 
+	*/
+	void setIgnoreUpDownKeysWhenSingleLine(bool shouldIgnoreKeyPresses);
+
     //==============================================================================
     /**
         Receives callbacks from a TextEditor component when it changes.
@@ -765,6 +771,7 @@ private:
     bool valueTextNeedsUpdating = false;
     bool consumeEscAndReturnKeys = true;
     bool underlineWhitespace = true;
+	bool ignoreUpDownKeysOnSingleLine = false;
 
     UndoManager undoManager;
     std::unique_ptr<CaretComponent> caret;

@@ -1204,6 +1204,11 @@ void TextEditor::setScrollBarThickness (int newThicknessPixels)
     viewport->setScrollBarThickness (newThicknessPixels);
 }
 
+void TextEditor::setIgnoreUpDownKeysWhenSingleLine(bool shouldIgnoreKeyPresses)
+{
+	ignoreUpDownKeysOnSingleLine = shouldIgnoreKeyPresses;
+}
+
 //==============================================================================
 void TextEditor::clear()
 {
@@ -1985,6 +1990,9 @@ bool TextEditor::moveCaretRight (bool moveInWholeWordSteps, bool selecting)
 
 bool TextEditor::moveCaretUp (bool selecting)
 {
+	if (!isMultiLine() && ignoreUpDownKeysOnSingleLine)
+		return false;
+
     if (! isMultiLine())
         return moveCaretToStartOfLine (selecting);
 
@@ -1994,6 +2002,9 @@ bool TextEditor::moveCaretUp (bool selecting)
 
 bool TextEditor::moveCaretDown (bool selecting)
 {
+	if (!isMultiLine() && ignoreUpDownKeysOnSingleLine)
+		return false;
+
     if (! isMultiLine())
         return moveCaretToEndOfLine (selecting);
 
@@ -2026,12 +2037,18 @@ void TextEditor::scrollByLines (int deltaLines)
 
 bool TextEditor::scrollDown()
 {
+	if (ignoreUpDownKeysOnSingleLine && !isMultiLine())
+		return false;
+
     scrollByLines (-1);
     return true;
 }
 
 bool TextEditor::scrollUp()
 {
+	if (ignoreUpDownKeysOnSingleLine && !isMultiLine())
+		return false;
+
     scrollByLines (1);
     return true;
 }
