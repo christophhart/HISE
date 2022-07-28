@@ -383,7 +383,7 @@ protected:
 
     ScopedPointer<LookAndFeel> localLookAndFeel;
     
-	ScopedPointer<AdditionalMouseCallback> mouseCallback;
+	OwnedArray<AdditionalMouseCallback> mouseCallbacks;
 
 private:
 

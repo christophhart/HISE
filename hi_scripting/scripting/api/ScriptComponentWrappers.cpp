@@ -44,11 +44,11 @@ namespace hise { using namespace juce;
 
 struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListener
 {
-	AdditionalMouseCallback(ScriptComponent* sc, Component* c) :
+	AdditionalMouseCallback(ScriptComponent* sc, Component* c, const ScriptComponent::MouseListenerData& cd) :
 		scriptComponent(sc),
 		component(c),
-		callbackLevel(sc->getMouseCallbackLevel()),
-		broadcaster(sc->getMouseListener())
+		callbackLevel(cd.mouseCallbackLevel),
+		broadcaster(cd.listener)
 	{
 		component->addMouseListener(this, true);
 	};
@@ -123,7 +123,7 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()
 {
-	mouseCallback = nullptr;
+	mouseCallbacks.clear();
 
 	Desktop::getInstance().removeFocusChangeListener(this);
 
@@ -286,10 +286,8 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 	component->setComponentID(sc->getName().toString());
 
-	if (sc->getMouseCallbackLevel() != MouseCallbackComponent::CallbackLevel::NoCallbacks)
-	{
-		mouseCallback = new AdditionalMouseCallback(sc, component);
-	}
+	for(const auto& c: sc->getMouseListeners())
+		mouseCallbacks.add(new AdditionalMouseCallback(sc, component, c));
 
 	if (sc->wantsKeyboardFocus())
 	{
@@ -2568,8 +2566,8 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setContent(floatingTile->getContentData());
 	ft->refreshRootLayout();
 
-	if (floatingTile->getMouseCallbackLevel() != MouseCallbackComponent::CallbackLevel::NoCallbacks)
-		mouseCallback = new AdditionalMouseCallback(floatingTile, component);
+	for (const auto& c : floatingTile->getMouseListeners())
+		mouseCallbacks.add(new AdditionalMouseCallback(floatingTile, component, c));
 
 	LookAndFeel* laf = &mc->getGlobalLookAndFeel();
 

@@ -299,6 +299,12 @@ public:
 			var value = var::undefined();
 		};
 
+		struct MouseListenerData
+		{
+			WeakReference<WeakCallbackHolder::CallableObject> listener;
+			MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
+		};
+
 		// ============================================================================================================
 
 		enum Properties
@@ -614,16 +620,10 @@ public:
 
 		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl)
 		{
-			mouseListener = obj;
-			mouseCallbackLevel = cl;
+			mouseListeners.add({ obj, cl });
 		}
 
-		MouseCallbackComponent::CallbackLevel getMouseCallbackLevel() const
-		{
-			return mouseCallbackLevel;
-		}
-
-		WeakCallbackHolder::CallableObject* getMouseListener() { return mouseListener; }
+		const Array<MouseListenerData>& getMouseListeners() const { return mouseListeners; }
 
 		bool handleKeyPress(const KeyPress& k);
 
@@ -651,8 +651,11 @@ public:
 		Content *parent;
 		bool skipRestoring;
 
-		WeakReference<WeakCallbackHolder::CallableObject> mouseListener, valueListener;
-		MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
+		
+
+		WeakReference<WeakCallbackHolder::CallableObject> valueListener;
+		
+		Array<MouseListenerData> mouseListeners;
 
 		struct Wrapper;
 
