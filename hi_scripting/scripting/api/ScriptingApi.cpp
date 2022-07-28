@@ -6342,10 +6342,16 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 	{
 		if (root->isDirectory())
 		{
-			auto list = root->f.findChildFiles(File::findFilesAndDirectories, recursive, wildcard);
+			auto list = root->f.findChildFiles(File::findFilesAndDirectories & File::ignoreHiddenFiles, recursive, wildcard);
 
 			for (auto sf : list)
-				l.add(new ScriptingObjects::ScriptFile(p, sf));
+            {
+                if(sf.isHidden())
+                    continue;
+                
+                l.add(new ScriptingObjects::ScriptFile(p, sf));
+            }
+				
 		}
 	}
 

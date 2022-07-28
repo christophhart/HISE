@@ -466,6 +466,8 @@ public:
 
 		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
+        void updateValueFromProcessorConnection();
+        
 		virtual void cancelPendingFunctions() {};
 
 		virtual bool isShowing(bool checkParentComponentVisibility = true) const;

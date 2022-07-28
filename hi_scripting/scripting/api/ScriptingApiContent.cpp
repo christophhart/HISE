@@ -632,6 +632,8 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		{
 			connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId);
 		}
+        
+        updateValueFromProcessorConnection();
 	}
 	else if (id == getIdFor(parameterId))
 	{
@@ -653,9 +655,34 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			else
 				connectedParameterIndex = -1;
 		}
+        
+        updateValueFromProcessorConnection();
 	}
 
 	setScriptObjectProperty(propertyIds.indexOf(id), newValue, notifyEditor);
+}
+
+void ScriptingApi::Content::ScriptComponent::updateValueFromProcessorConnection()
+{
+    if(connectedProcessor != nullptr && connectedParameterIndex != -1)
+    {
+        float value = 0.0f;
+        
+        if (connectedParameterIndex == -2)
+        {
+            if (auto mod = dynamic_cast<Modulation*>(connectedProcessor.get()))
+                value = mod->getIntensity();
+        }
+        else if (connectedParameterIndex == -3)
+            value = connectedProcessor->isBypassed() ? 1.0f : 0.0f;
+        else if (connectedParameterIndex == -4)
+            value = connectedProcessor->isBypassed() ? 0.0f : 1.0f;
+        else
+            value = connectedProcessor->getAttribute(connectedParameterIndex);
+
+        FloatSanitizers::sanitizeFloatNumber(value);
+        setValue(value);
+    }
 }
 
 const Identifier ScriptingApi::Content::ScriptComponent::getIdFor(int p) const

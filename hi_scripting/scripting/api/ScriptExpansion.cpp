@@ -404,26 +404,7 @@ void ScriptUserPresetHandler::updateConnectedComponentsFromModuleState()
 	{
 		auto sc = content->getComponent(i);
 
-		if (auto cp = sc->getConnectedProcessor())
-		{
-			auto parameterIndex = sc->getConnectedParameterIndex();
-			auto value = 0.0f;
-
-			if (parameterIndex == -2)
-			{
-				if (auto mod = dynamic_cast<Modulation*>(cp))
-					value = mod->getIntensity();
-			}
-			else if (parameterIndex == -3)
-				value = cp->isBypassed() ? 1.0f : 0.0f;
-			else if (parameterIndex == -4)
-				value = cp->isBypassed() ? 0.0f : 1.0f;
-			else
-				value = cp->getAttribute(parameterIndex);
-
-			FloatSanitizers::sanitizeFloatNumber(value);
-			sc->setValue(value);
-		}
+        sc->updateValueFromProcessorConnection();
 	}
 }
 

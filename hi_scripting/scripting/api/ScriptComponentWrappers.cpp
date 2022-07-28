@@ -243,7 +243,10 @@ void ScriptCreatedComponentWrapper::asyncValueTreePropertyChanged(ValueTree& v, 
 
 void ScriptCreatedComponentWrapper::valueTreeParentChanged(ValueTree& /*v*/)
 {
-	contentComponent->updateComponentParent(this);
+    SafeAsyncCall::callAsyncIfNotOnMessageThread<ScriptCreatedComponentWrapper>(*this, [](ScriptCreatedComponentWrapper& f)
+    {
+        f.contentComponent->updateComponentParent(&f);
+    });
 }
 
 ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentComponent *content, int index_) :
