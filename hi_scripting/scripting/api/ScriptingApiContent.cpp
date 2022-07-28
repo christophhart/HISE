@@ -110,6 +110,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, set);
 	API_METHOD_WRAPPER_1(ScriptComponent, get);
+	API_METHOD_WRAPPER_0(ScriptComponent, getId);
 	API_METHOD_WRAPPER_0(ScriptComponent, getValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValueNormalized);
@@ -134,6 +135,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
+	API_VOID_METHOD_WRAPPER_2(ScriptComponent, fadeComponent);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
@@ -295,6 +297,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 
 	ADD_API_METHOD_2(set);
 	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(setValue);
 	ADD_API_METHOD_1(setValueNormalized);
@@ -319,7 +322,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(loseFocus);
 	ADD_API_METHOD_1(setLocalLookAndFeel);
 	ADD_API_METHOD_0(sendRepaintMessage);
-	
+	ADD_API_METHOD_2(fadeComponent);
 
 	//setName(name_.toString());
 
@@ -1443,6 +1446,26 @@ void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
 void ScriptingApi::Content::ScriptComponent::sendRepaintMessage()
 {
 	repaintBroadcaster.sendMessage(sendNotificationAsync, true);
+}
+
+String ScriptingApi::Content::ScriptComponent::getId() const
+{
+	return getName().toString();
+}
+
+
+
+void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible, int milliseconds)
+{
+	auto isVisible = (bool)getScriptObjectProperty(getIdFor(Properties::visible));
+
+	if (shouldBeVisible != isVisible)
+	{
+		setScriptObjectProperty(Properties::visible, shouldBeVisible);
+
+		fadeListener.enableLockFreeUpdate(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+		fadeListener.sendMessage(sendNotificationAsync, shouldBeVisible, milliseconds);
+	}
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

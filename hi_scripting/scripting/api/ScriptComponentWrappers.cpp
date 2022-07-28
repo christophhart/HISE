@@ -168,6 +168,14 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 	}
 }
 
+void ScriptCreatedComponentWrapper::updateFadeState(ScriptCreatedComponentWrapper& wrapper, bool shouldBeVisible, int fadeTime)
+{
+	if(shouldBeVisible)
+		Desktop::getInstance().getAnimator().fadeIn(wrapper.component, fadeTime);
+	else
+		Desktop::getInstance().getAnimator().fadeOut(wrapper.component, fadeTime);
+}
+
 void ScriptCreatedComponentWrapper::sourceHasChanged(ComplexDataUIBase*, ComplexDataUIBase*)
 {
 	SafeAsyncCall::call<ScriptCreatedComponentWrapper>(*this, [](ScriptCreatedComponentWrapper& t)
@@ -244,6 +252,7 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 {
 	scriptComponent = content->contentData->getComponent(index_);
 
+	scriptComponent->fadeListener.addListener(*this, ScriptCreatedComponentWrapper::updateFadeState, false);
 	scriptComponent->repaintBroadcaster.addListener(*this, ScriptCreatedComponentWrapper::repaintComponent, false);
 
 	scriptComponent->addZLevelListener(this);
@@ -258,6 +267,7 @@ ScriptCreatedComponentWrapper::ScriptCreatedComponentWrapper(ScriptContentCompon
 {
 	scriptComponent->addZLevelListener(this);
 	scriptComponent->repaintBroadcaster.addListener(*this, ScriptCreatedComponentWrapper::repaintComponent, false);
+	scriptComponent->fadeListener.addListener(*this, ScriptCreatedComponentWrapper::updateFadeState, false);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()

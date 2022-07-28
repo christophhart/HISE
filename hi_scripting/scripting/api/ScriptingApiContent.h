@@ -598,6 +598,12 @@ public:
 		/** Manually sends a repaint message for the component. */
 		void sendRepaintMessage();
 
+		/** Returns the ID of the component. */
+		String getId() const;
+
+		/** Toggles the visibility and fades a component using the global animator. */
+		void fadeComponent(bool shouldBeVisible, int milliseconds);
+
 		// End of API Methods ============================================================================================
 
 		void attachValueListener(WeakCallbackHolder::CallableObject* obj)
@@ -753,6 +759,8 @@ public:
 		CustomAutomationPtr getCustomAutomation() { return currentAutomationData; }
 
 		LambdaBroadcaster<bool> repaintBroadcaster;
+
+		LambdaBroadcaster<bool, int> fadeListener;
 
 	protected:
 
