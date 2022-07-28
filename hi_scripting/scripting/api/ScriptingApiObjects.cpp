@@ -8646,7 +8646,7 @@ struct ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::ProcessorLi
 	const Array<int> parameterIndexes;
 };
 
-ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& const parameterIndexes)
+ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes)
 {
 	for (auto& p : processors)
 		listeners.add(new ProcessorListener(b, p, parameterIndexes));

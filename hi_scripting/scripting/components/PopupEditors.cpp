@@ -302,7 +302,9 @@ PopupIncludeEditor::~PopupIncludeEditor()
 		auto& doc = editor->editor.getDocument();
 		auto pos = editor->editor.getTextDocument().getSelection(0).head;
 
-		jp->setWatchedFilePosition(CodeDocument::Position(doc, pos.x, pos.y));
+        CodeDocument::Position p(doc, pos.x, pos.y);
+        
+		jp->setWatchedFilePosition(p);
 	}
 
 	editor = nullptr;

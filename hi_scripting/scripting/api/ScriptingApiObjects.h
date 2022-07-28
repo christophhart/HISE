@@ -655,7 +655,7 @@ namespace ScriptingObjects
 		{
 			struct ProcessorListener;
 
-			ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& const parameterIndexes);
+			ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes);
 
 			Result callItem(ItemBase* n);
 
