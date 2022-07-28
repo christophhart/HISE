@@ -4997,6 +4997,7 @@ void ScriptingObjects::ScriptedMidiPlayer::create(int nominator, int denominator
 	
 	HiseMidiSequence::Ptr seq = new HiseMidiSequence();
 	seq->setLengthFromTimeSignature(sig);
+	seq->createEmptyTrack();
 	getPlayer()->addSequence(seq);
 }
 
