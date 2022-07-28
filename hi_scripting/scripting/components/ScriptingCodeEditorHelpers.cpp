@@ -82,6 +82,9 @@ public:
 #if HISE_USE_NEW_CODE_EDITOR
 		Array<mcl::Selection> newSelections;
 
+		if (ed == nullptr)
+			return;
+
 		auto& doc = ed->editor.getDocument();
 
 		for (auto h : newHighlight)
@@ -265,9 +268,22 @@ private:
 class ReferenceFinder : public DialogWindowWithBackgroundThread,
 	public TableListBoxModel,
 	public TextEditorListener,
-	public ComboBoxListener
+	public ComboBoxListener,
+	public ControlledObject,
+	public KeyListener,
+	public GlobalScriptCompileListener
 {
 public:
+
+	enum class SearchMode
+	{
+		TextSearch,
+		FileSearch,
+		SymbolSearch,
+		NamespaceSearch,
+		VariableSearch,
+		FunctionSearch
+	};
 
 	enum Columns
 	{
@@ -277,14 +293,78 @@ public:
 		numColumns
 	};
 
+	void scriptWasCompiled(JavascriptProcessor *processor) override
+	{
+		if (jp == processor)
+		{
+			rebuildLines();
+			
+		}
+	}
+
+	struct DummyThread : public Thread
+	{
+		DummyThread(JavascriptProcessor* p) :
+			Thread("dummy"),
+			jp(p)
+		{
+			startThread();
+		};
+
+		void checkRecursive(DebugInformationBase::Ptr b)
+		{
+			if (b != nullptr)
+			{
+				auto v = b->getTextForValue();
+
+				for (int i = 0; i < b->getNumChildElements(); i++)
+				{
+					checkRecursive(b->getChildElement(i));
+				}
+			}
+			
+		}
+
+		void run() override
+		{
+			while (!threadShouldExit())
+			{
+				ApiProviderBase* base = dynamic_cast<ApiProviderBase::Holder*>(jp)->getProviderBase();
+				
+				int numObjects = base->getNumDebugObjects();
+
+				for (int i = 0; i < numObjects; i++)
+				{
+					checkRecursive(base->getDebugInformation(i));
+				}
+			}
+		}
+
+		JavascriptProcessor* jp;
+	};
+
 	ReferenceFinder(PopupIncludeEditor::EditorType* editor_, JavascriptProcessor* jp_) :
 		DialogWindowWithBackgroundThread("Find all occurrences"),
+		ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 		editor(editor_),
-		mc(dynamic_cast<Processor*>(jp_)->getMainController()),
 		jp(jp_)
 	{
-		addTextEditor("searchTerm", CommonEditorFunctions::getCurrentToken(editor), "Search term");
+		// This simulates a tightly condensed multithreading access scenario to increase
+		// the crash probability for debugging...
+		//new DummyThread(jp_);
+
+		setDestroyWhenFinished(false);
+
+		auto initSearchTerm = CommonEditorFunctions::getCurrentToken(editor);
+
+		if (initSearchTerm.contains("\n"))
+			initSearchTerm = {};
+
+		addTextEditor("searchTerm", initSearchTerm, "Search term");
 		getTextEditor("searchTerm")->addListener(this);
+		getTextEditor("searchTerm")->setIgnoreUpDownKeysWhenSingleLine(true);
+
+		getTextEditor("searchTerm")->addKeyListener(this);
 
 		StringArray sa;
 
@@ -293,6 +373,8 @@ public:
 
 		addComboBox("searchArea", sa, "Look in");
 		getComboBoxComponent("searchArea")->addListener(this);
+
+		GlobalHiseLookAndFeel::setDefaultColours(*getComboBoxComponent("searchArea"));
 
 		addAndMakeVisible(table = new TableListBox());
 		table->setModel(this);
@@ -311,10 +393,13 @@ public:
 
 		table->setSize(600, 300);
 
+		table->setMultipleSelectionEnabled(true);
+
 		addCustomComponent(table);
 
 		addTextEditor("state", "", "Status", false);
 		getTextEditor("state")->setReadOnly(true);
+
 
 		addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
@@ -323,16 +408,24 @@ public:
 		rebuildLines();
 
 		getTextEditor("searchTerm")->grabKeyboardFocusAsync();
+
+		numFixedComponents = getNumCustomComponents();
+		getMainController()->addScriptListener(this);
 	}
 
 	~ReferenceFinder()
 	{
+		getMainController()->removeScriptListener(this);
+
 		if(editor != nullptr)
 			CodeReplacer::refreshSelection(editor, "");
 	}
 
-	struct TableEntry
+	struct TableEntry: public ReferenceCountedObject
 	{
+		using Ptr = ReferenceCountedObjectPtr<TableEntry>;
+		using List = ReferenceCountedArray<TableEntry>;
+
 		bool operator==(const TableEntry& other) const
 		{
 			return other.doc == this->doc && other.pos.getLineNumber() == this->pos.getLineNumber();
@@ -342,7 +435,8 @@ public:
 
 		const CodeDocument* doc;
 		CodeDocument::Position pos;
-		String lineContent;
+		DebugInformationBase::Ptr info;
+
 	};
 
 	void textEditorTextChanged(TextEditor&) override
@@ -350,7 +444,7 @@ public:
 		rebuildLines();
 	}
 
-	OwnedArray<TableEntry> entries;
+	TableEntry::List entries;
 
 	void comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/) override
 	{
@@ -359,83 +453,394 @@ public:
 
 	void rebuildLines()
 	{
-		entries.clear();
+		pending = true;
+		table->repaint();
+		runThread();
+	}
 
-		auto search = getTextEditor("searchTerm")->getText();
+	void selectedRowsChanged(int lastRowSelected) override
+	{
+		removeCustomComponent(numFixedComponents);
+		
+		MouseEvent e(Desktop::getInstance().getMainMouseSource(), {}, {}, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+			this, this, Time::getCurrentTime(), {}, Time::getCurrentTime(), 1, false);
 
+		debugComponentRow = new AdditionalRow(this);
+
+		auto ranges = table->getSelectedRows().getRanges();
+		int maxHeight = 0;
+
+		bool addedSomething = false;
+
+		for (const auto& r : ranges)
+		{
+			for (int i = r.getStart(); i < r.getEnd(); i++)
+			{
+				if (auto eb = entries[i])
+				{
+					if (auto info = eb->info)
+					{
+						if (auto c = info->createPopupComponent(e, this))
+						{
+							c->setSize(c->getWidth(), 250);
+							debugComponentRow->addCustomComponent(c);
+							addedSomething = true;
+						}
+					}
+				}
+			}
+		}
+
+		debugComponentRow->setSize(table->getWidth(), 250);
+
+		if(addedSomething)
+			addCustomComponent(debugComponentRow);
+	}
+
+	int getFileIndex(const String& filename)
+	{
+		if (filename.isEmpty())
+			return -1;
+
+		if (File::isAbsolutePath(filename))
+		{
+			File f(filename);
+
+			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if (f == jp->getWatchedFile(i))
+					return i;
+			}
+
+			return -1;
+		}
+		else
+		{
+			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if (jp->getWatchedFile(i).getFileName() == filename)
+					return i;
+			}
+
+			return -1;
+		}
+	}
+
+	void fillRecursive(TableEntry::List& listToUse, DebugInformationBase::Ptr db, const String& searchTerm, const Array<DebugInformation::Type>& typeFilters)
+	{
+		if (db == nullptr)
+			return;
+
+		if (threadShouldExit())
+			return;
+
+		auto location = db->getLocation();
+		auto match = [searchTerm](const String& t) { return searchTerm.isEmpty() || t.containsIgnoreCase(searchTerm); };
+
+		if (location.fileName.isNotEmpty() || location.charNumber != 0)
+		{
+			auto type = db->getTextForDataType();
+			auto name = db->getTextForName();
+
+			auto typeIndex = (DebugInformation::Type)db->getType();
+			auto typeFilterMatch = typeFilters.isEmpty() || typeFilters.contains(typeIndex);
+
+			if (typeFilterMatch && (match(type) || match(name)))
+			{
+				auto j = getFileIndex(location.fileName);
+
+				if (j == -1)
+				{
+					auto doc = jp->getSnippet(0);
+
+					TableEntry::Ptr e = new TableEntry;
+					e->fileName = "onInit()";
+
+					e->doc = doc;
+					e->pos = CodeDocument::Position(*doc, location.charNumber);
+					e->info = db;
+
+					addIfSameLineDoesntExist(listToUse, e);
+				}
+				else
+				{
+					auto& doc = jp->getWatchedFileDocument(j);
+
+					TableEntry::Ptr e = new TableEntry;
+					e->fileName = jp->getWatchedFile(j).getFullPathName();
+
+					e->doc = &doc;
+					e->pos = CodeDocument::Position(doc, location.charNumber);
+					e->info = db;
+
+					addIfSameLineDoesntExist(listToUse, e);
+				}
+			}
+		}
+
+		int numChildren = db->getNumChildElements();
+
+		for (int i = 0; i < numChildren; i++)
+			fillRecursive(listToUse, db->getChildElement(i), searchTerm, typeFilters);
+	}
+
+
+	static Array<DebugInformation::Type> getTypeFilterForMode(SearchMode m)
+	{
+		if (m == SearchMode::NamespaceSearch)
+			return { DebugInformation::Type::Namespace };
+		if (m == SearchMode::FunctionSearch)
+			return { DebugInformation::Type::ExternalFunction, DebugInformation::Type::InlineFunction, DebugInformation::Type::Callback };
+		if (m == SearchMode::SymbolSearch)
+			return {};
+		if (m == SearchMode::VariableSearch)
+			return { DebugInformation::Type::Variables, DebugInformation::Type::Constant, DebugInformation::Type::RegisterVariable, DebugInformation::Type::Globals };
+
+		return {};
+	}
+
+	void fillForDocument(TableEntry::List& listToUse, SearchMode mode, const String& searchTerm, CodeDocument& t, const String& fileName)
+	{
+		if (mode == SearchMode::TextSearch)
+		{
+			auto allText = t.getAllContent();
+
+			String analyseString = allText;
+
+			while (searchTerm.isNotEmpty() && analyseString.contains(searchTerm))
+			{
+				if (threadShouldExit())
+					return;
+
+				analyseString = analyseString.fromFirstOccurrenceOf(searchTerm, false, false);
+
+				const int index = allText.length() - analyseString.length() - searchTerm.length();
+
+				JavascriptCodeEditor::CodeRegion newRegion;
+				newRegion.setStart(index);
+				newRegion.setLength(searchTerm.length());
+
+				TableEntry::Ptr newEntry = new TableEntry();
+
+				newEntry->doc = &t;
+				newEntry->pos = CodeDocument::Position(t, index);
+				newEntry->fileName = fileName;
+
+				addIfSameLineDoesntExist(listToUse, newEntry);
+			}
+		}
+		if (mode == SearchMode::FileSearch)
+		{
+			if (searchTerm.isEmpty() || fileName.containsIgnoreCase(searchTerm))
+			{
+				TableEntry::Ptr e = new TableEntry();
+				e->doc = &t;
+				e->fileName = fileName;
+				e->pos = jp->getLastPosition(t);
+
+				addIfSameLineDoesntExist(listToUse, e);
+			}
+		}
+		else if (mode == SearchMode::SymbolSearch ||
+			mode == SearchMode::FunctionSearch ||
+			mode == SearchMode::NamespaceSearch ||
+			mode == SearchMode::VariableSearch)
+		{
+			// Only do this once...
+			if (fileName != "onInit()")
+				return;
+
+			auto typeFilters = getTypeFilterForMode(mode);
+
+			ScopedReadLock sl(jp->getDebugLock());
+
+			auto numObjects = jp->getProviderBase()->getNumDebugObjects();
+
+			for (int i = 0; i < numObjects; i++)
+			{
+				fillRecursive(listToUse, jp->getProviderBase()->getDebugInformation(i), searchTerm, typeFilters);
+			}
+		}
+	}
+
+	void fillSearchList(TableEntry::List& listToUse, SearchMode mode, const String& searchTerm)
+	{
 		const bool lookInAllFiles = getComboBoxComponent("searchArea")->getSelectedItemIndex() == 0;
 
-		if (search.isNotEmpty())
+		bool displayAllResults = mode != SearchMode::TextSearch || searchTerm.isNotEmpty();
+
+		if (displayAllResults && editor != nullptr)
 		{
 			auto thisDoc = &CommonEditorFunctions::getDoc(editor);
 
 			for (int i = 0; i < jp->getNumSnippets(); i++)
 			{
-				auto f = jp->getSnippet(i);
+				if (threadShouldExit())
+					return;
 
+				auto f = jp->getSnippet(i);
 				const bool useFile = lookInAllFiles || f == thisDoc;
 
 				if (!useFile)
 					continue;
 
-				fillArrayWithDoc(*f, search, jp->getSnippet(i)->getCallbackName().toString() + "()");
+				fillForDocument(listToUse, mode, searchTerm, *f, jp->getSnippet(i)->getCallbackName().toString() + "()");
 			}
 
 			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
 			{
 				auto& doc = jp->getWatchedFileDocument(i);
-
 				const bool useFile = lookInAllFiles || &doc == thisDoc;
 
 				if (!useFile)
 					continue;
 
-				fillArrayWithDoc(doc, search, jp->getWatchedFile(i).getFullPathName());
+				fillForDocument(listToUse, mode, searchTerm, doc, jp->getWatchedFile(i).getFullPathName());
+
+				if (threadShouldExit())
+					return;
 			}
 		}
-
-		showStatusMessage(String(entries.size()) + " occurrences found");
-
-		table->updateContent();
-
-		CodeReplacer::refreshSelection(editor, search);
 	}
 
-	void fillArrayWithDoc(const CodeDocument &doc, const String &search, const String& nameToShow)
+	
+
+	static void addIfSameLineDoesntExist(TableEntry::List& listToUse, TableEntry::Ptr newEntry)
 	{
-		auto allText = doc.getAllContent();
-
-		String analyseString = allText;
-
-		while (search.isNotEmpty() && analyseString.contains(search))
+		for (auto e : listToUse)
 		{
-			analyseString = analyseString.fromFirstOccurrenceOf(search, false, false);
-
-			const int index = allText.length() - analyseString.length() - search.length();
-
-			JavascriptCodeEditor::CodeRegion newRegion;
-			newRegion.setStart(index);
-			newRegion.setLength(search.length());
-
-			auto newEntry = new TableEntry();
-
-			newEntry->doc = &doc;
-			newEntry->pos = CodeDocument::Position(doc, index);
-			newEntry->lineContent = doc.getLine(newEntry->pos.getLineNumber());
-			newEntry->fileName = nameToShow;
-
-			entries.add(newEntry);
+			if (e->pos.getLineNumber() == newEntry->pos.getLineNumber() &&
+				e->fileName == newEntry->fileName)
+				return;
 		}
+
+		listToUse.add(newEntry);
+	}	
+
+	bool keyPressed(const KeyPress& k, Component* o) override
+	{
+		if (k == KeyPress::upKey || k == KeyPress::downKey ||
+			k == KeyPress::pageDownKey || k == KeyPress::pageUpKey)
+		{
+			if (table->keyPressed(k))
+				return true;
+		}
+		
+		if (k == KeyPress::returnKey)
+		{
+			gotoEntry(table->getSelectedRow());
+			return false;
+		}
+
+		if (k == KeyPress::F5Key)
+		{
+			selectedRowsChanged(-1);
+			return true;
+		}
+
+		if (k == KeyPress('c', ModifierKeys::commandModifier, 'c'))
+		{
+			jassertfalse;
+		}
+
+		return false;
 	}
+
+#if 0
+	bool keyPressed(const KeyPress& k) override
+	{
+		if (k == KeyPress::returnKey)
+		{
+			table->keyPressed(k);
+		}
+
+		if (DialogWindowWithBackgroundThread::keyPressed(k))
+			return true;
+
+		if (k == KeyPress::upKey ||
+			k == KeyPress::downKey)
+		{
+			if (table->getNumRows() != 0)
+			{
+				auto selectedRow = table->getSelectedRow();
+
+				selectedRow += ((k == KeyPress::upKey) ? -1 : 1);
+
+				selectedRow = jlimit(0, table->getNumRows(), selectedRow);
+				table->selectRow(selectedRow, true);
+				table->scrollToEnsureRowIsOnscreen(selectedRow);
+			}
+
+			return true;
+		}
+
+		if (k == KeyPress('c', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 'c'))
+		{
+			
+
+			return true;
+		}
+
+		return false;
+	}
+#endif
+	
 
 	void run() override
 	{
+		TableEntry::List newEntries;
 
+		auto search = getTextEditor("searchTerm")->getText();
+
+		if (search.startsWithIgnoreCase("f "))
+		{
+			auto fileToSearch = search.substring(2).trim();
+			fillSearchList(newEntries, SearchMode::FileSearch, fileToSearch);
+			newEntries.swapWith(entries);
+		}
+		else if (search.startsWithIgnoreCase("s "))
+		{
+			auto symbolToSearch = search.substring(2).trim();
+			fillSearchList(newEntries, SearchMode::SymbolSearch, symbolToSearch);
+			newEntries.swapWith(entries);
+		}
+		else if (search.startsWithIgnoreCase("n "))
+		{
+			auto symbolToSearch = search.substring(2).trim();
+			fillSearchList(newEntries, SearchMode::NamespaceSearch, symbolToSearch);
+			newEntries.swapWith(entries);
+		}
+		else if (search.startsWithIgnoreCase("fn "))
+		{
+			auto symbolToSearch = search.substring(3).trim();
+			fillSearchList(newEntries, SearchMode::FunctionSearch, symbolToSearch);
+			newEntries.swapWith(entries);
+		}
+		else if (search.startsWithIgnoreCase("v "))
+		{
+			auto symbolToSearch = search.substring(2).trim();
+			fillSearchList(newEntries, SearchMode::VariableSearch, symbolToSearch);
+			newEntries.swapWith(entries);
+		}
+		else
+		{
+			fillSearchList(newEntries, SearchMode::TextSearch, search);
+			newEntries.swapWith(entries);	
+		}
 	}
 
 	void threadFinished() override
 	{
+		showStatusMessage(String(entries.size()) + " occurrences found");
+		table->updateContent();
+		selectedRowsChanged(-1);
+		auto search = getTextEditor("searchTerm")->getText();
 
+		if(editor != nullptr)
+			CodeReplacer::refreshSelection(editor, search);
+
+		pending = false;
+		repaint();
 	}
 
 	int getNumRows() override
@@ -461,9 +866,20 @@ public:
 
 	
 
-	void selectedRowsChanged(int lastRowSelected) override
+	void cellClicked(int rowNumber, int columnId, const MouseEvent& e) override
 	{
-		if (auto entry = entries[lastRowSelected])
+		if (!e.mods.isRightButtonDown())
+			gotoEntry(rowNumber);
+	}
+
+	void returnKeyPressed(int lastRowSelected) override
+	{
+		gotoEntry(lastRowSelected);
+	}
+
+	void gotoEntry(int rowIndex)
+	{
+		if (auto entry = entries[rowIndex])
 		{
 			DebugableObject::Location loc;
 
@@ -472,7 +888,7 @@ public:
 
 			DebugableObject::Helpers::gotoLocation(editor, jp, loc);
 
-			editor = CommonEditorFunctions::as(mc->getLastActiveEditor());
+			editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
 
 			if (editor != nullptr)
 			{
@@ -486,7 +902,7 @@ public:
 	{
 		auto area = Rectangle<float>({ 2.0f, 0.f, (float)width, (float)height });
 
-		g.setColour(Colours::white);
+		g.setColour(Colours::white.withAlpha(pending ? 0.6f : 0.8f));
 		g.setFont(GLOBAL_BOLD_FONT());
 
 		if (auto entry = entries[rowNumber])
@@ -520,11 +936,16 @@ public:
 		}
 	}
 
+	int numFixedComponents;
+
+	bool pending = false;
+
 	TableHeaderLookAndFeel laf;
 	Component::SafePointer<PopupIncludeEditor::EditorType> editor;
 	ScopedPointer<TableListBox> table;
-	MainController* mc;
 	JavascriptProcessor* jp;
+
+	ScopedPointer<DialogWindowWithBackgroundThread::AdditionalRow> debugComponentRow;
 };
 
 

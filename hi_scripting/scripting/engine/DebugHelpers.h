@@ -273,8 +273,8 @@ public:
 		id(id_),
 		location(location_)
 	{
-		auto v = f();
-		DebugableObjectBase::updateLocation(location, v);
+		cachedValue = f();
+		DebugableObjectBase::updateLocation(location, cachedValue);
 	}
 
 	DebugableObjectBase::Location getLocation() const override
@@ -282,7 +282,7 @@ public:
 		return location;
 	}
 
-	String getTextForDataType() const override { return getVarType(getCachedValueFunction()); }
+	String getTextForDataType() const override { return getVarType(getCachedValueFunction(false)); }
 	
 	String getTextForName() const override 
 	{ 
@@ -292,7 +292,7 @@ public:
 
 	int getNumChildElements() const override
 	{
-		auto value = vf();
+		auto value = getCachedValueFunction(false);
 
 		if (auto obj = getDebugableObject(value))
 		{
@@ -324,7 +324,7 @@ public:
 	 
 	DebugInformation::Ptr getChildElement(int index) override
 	{
-		auto value = vf();
+		auto value = getCachedValueFunction(false);
 
 		if (auto obj = getDebugableObject(value))
 		{
@@ -343,7 +343,7 @@ public:
 				if (safeThis == nullptr)
 					return var();
 
-				if (auto b = safeThis->vf().getBuffer())
+				if (auto b = safeThis->getCachedValueFunction(false).getBuffer())
 				{
 					if (isPositiveAndBelow(index, b->size))
 						return var(b->getSample(index));
@@ -356,30 +356,30 @@ public:
 
 			return new LambdaValueInformation(actualValueFunction, Identifier(cid), namespaceId, (Type)getType(), location);
 		}
-			
-
-		if (auto dyn = value.getDynamicObject())
+		else if (auto dyn = value.getDynamicObject())
 		{
 			String cid;
 
 			const NamedValueSet& s = dyn->getProperties();
 
-			auto mid = s.getName(index);
-			cid << id << "." << mid;
-
-			auto cf = [safeThis, mid]()
+			if (isPositiveAndBelow(index, s.size()))
 			{
-				if (safeThis == nullptr)
-					return var();
+				auto mid = s.getName(index);
+				cid << id << "." << mid;
 
-				auto v = safeThis->vf();
-				return v.getProperty(mid, {});
-			};
+				auto cf = [safeThis, mid]()
+				{
+					if (safeThis == nullptr)
+						return var();
 
-			return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+					auto v = safeThis->getCachedValueFunction(false);
+					return v.getProperty(mid, {});
+				};
+
+					return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+			}
 		}
-
-		if (auto ar = value.getArray())
+		else if (auto ar = value.getArray())
 		{
 			String cid;
 			cid << id << "[" << String(index) << "]";
@@ -389,7 +389,7 @@ public:
 				if (safeThis == nullptr)
 					return var();
 
-				auto a = safeThis->vf();
+				auto a = safeThis->getCachedValueFunction(false);
 
 				if (auto ar = a.getArray())
 					return (*ar)[index];
@@ -403,34 +403,51 @@ public:
 		return new DebugInformationBase();
 	}
 
-	var getCachedValueFunction() const
+	var getCachedValueFunction(bool forceLookup) const
 	{
-		return vf();
+		if (forceLookup || cachedValue.isUndefined())
+			cachedValue = vf();
+
+		return cachedValue;
 	}
 
 	bool isAutocompleteable() const override
 	{
-		auto v = vf();
+		if (customAutoComplete)
+			return autocompleteable;
+
+		auto v = getCachedValueFunction(false);
 
 		if (v.isObject())
 			return true;
-
-		return false;
 	}
 
-	const var getVariantCopy() const override { return var(getCachedValueFunction()); };
+	void setAutocompleteable(bool shouldBe)
+	{
+		customAutoComplete = true;
+		autocompleteable = shouldBe;
+	}
+
+	const var getVariantCopy() const override { return var(getCachedValueFunction(false)); };
 
 	String getTextForValue() const override {
-		auto v = getCachedValueFunction();
+		auto v = getCachedValueFunction(true);
 		return getVarValue(v); 
 	}
-	DebugableObjectBase *getObject() override { return getDebugableObject(getCachedValueFunction()); }
+	DebugableObjectBase *getObject() override { return getDebugableObject(getCachedValueFunction(false)); }
 
-	ValueFunction vf;
+	mutable var cachedValue;
+	
 
 	const Identifier id;
 	const Identifier namespaceId;
 	DebugableObjectBase::Location location;
+	bool customAutoComplete = false;
+
+private:
+
+	bool autocompleteable = true;
+	ValueFunction vf;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(LambdaValueInformation);
 };

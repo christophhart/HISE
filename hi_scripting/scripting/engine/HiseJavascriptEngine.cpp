@@ -1508,10 +1508,8 @@ struct HiseJavascriptEngine::TokenProvider::DebugInformationToken : public Token
 		else
 		{
 			markdownDescription << "**Type:** `" << i->getTextForType() << "`  \n";
-			markdownDescription << "**Value:** " << i->getTextForValue();
+			//markdownDescription << "**Value:** " << i->getTextForValue();
 		}
-
-		
 	};
 
 	MarkdownLink getLink() const override { return link; }

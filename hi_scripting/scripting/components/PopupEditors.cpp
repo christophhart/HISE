@@ -116,6 +116,22 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 
 	addButtonAndCompileLabel();
 	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
+
+	for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+	{
+		if (jp->getWatchedFile(i) == fileToEdit)
+		{
+			auto storedPos = jp->getLastPosition(jp->getWatchedFileDocument(i));
+
+			if (storedPos.getPosition() != 0)
+			{
+				mcl::Selection sel;
+				sel.head = { storedPos.getLineNumber(), storedPos.getIndexInLine() };
+				sel.tail = sel.head;
+				editor->editor.getTextDocument().setSelection(0, sel, false);
+			}
+		}
+	}
 }
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_) :
@@ -281,6 +297,14 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
+	if (jp != nullptr && editor != nullptr)
+	{
+		auto& doc = editor->editor.getDocument();
+		auto pos = editor->editor.getTextDocument().getSelection(0).head;
+
+		jp->setWatchedFilePosition(CodeDocument::Position(doc, pos.x, pos.y));
+	}
+
 	editor = nullptr;
 	resultLabel = nullptr;
 

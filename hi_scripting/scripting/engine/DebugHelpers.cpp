@@ -154,15 +154,36 @@ Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component
 	{
 #if USE_BACKEND
 
-		auto p = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>()->getProcessor();
-		auto holder = dynamic_cast<ApiProviderBase::Holder*>(p);
-		jassert(holder != nullptr);
+		PanelWithProcessorConnection* pc = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>();
 
-		auto display = new BufferViewer(this, holder);
-		return display;
-#else
-		return nullptr;
+		if (pc == nullptr)
+		{
+			auto co = dynamic_cast<ControlledObject*>(componentToNotify);
+
+			if (co == nullptr)
+				co = componentToNotify->findParentComponentOfClass<ControlledObject>();
+
+			if (co != nullptr)
+			{
+				if (auto activeEditor = co->getMainController()->getLastActiveEditor())
+				{
+					pc = activeEditor->findParentComponentOfClass<PanelWithProcessorConnection>();
+				}
+			}
+		}
+
+		if (pc != nullptr)
+		{
+			auto p = pc->getProcessor();
+			auto holder = dynamic_cast<ApiProviderBase::Holder*>(p);
+			jassert(holder != nullptr);
+
+			auto display = new BufferViewer(this, holder);
+			return display;
+		}
+
 #endif
+		return nullptr;
 	}
 
 	if (v.isObject() || v.isArray())

@@ -255,6 +255,10 @@ public:
 
 	Result getWatchedResult(int index);
 
+	CodeDocument::Position getLastPosition(CodeDocument& docToLookFor) const;
+
+	void setWatchedFilePosition(CodeDocument::Position& newPos);
+
 	void clearFileWatchers()
 	{
 		watchers.clear();
@@ -308,6 +312,8 @@ private:
 	CodeDocument emptyDoc;
 
 	ReferenceCountedArray<ExternalScriptFile> watchers;
+
+	Array<CodeDocument::Position> lastPositions;
 
 	Array<Component::SafePointer<DocumentWindow>> currentPopups;
 

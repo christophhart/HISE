@@ -381,6 +381,31 @@ Result FileChangeListener::getWatchedResult(int index)
 	return watchers[index]->getResult();
 }
 
+juce::CodeDocument::Position FileChangeListener::getLastPosition(CodeDocument& docToLookFor) const
+{
+	for (const auto& pos : lastPositions)
+	{
+		if (pos.getOwner() == &docToLookFor)
+			return pos;
+	}
+
+	return CodeDocument::Position(docToLookFor, 0);
+}
+
+void FileChangeListener::setWatchedFilePosition(CodeDocument::Position& newPos)
+{
+	for (auto& p : lastPositions)
+	{
+		if (p.getOwner() == newPos.getOwner())
+		{
+			p = newPos;
+			return;
+		}
+	}
+
+	lastPositions.add(newPos);
+}
+
 File FileChangeListener::getWatchedFile(int index) const
 {
 	if (index < watchers.size())

@@ -149,7 +149,7 @@ ScriptWatchTable::~ScriptWatchTable()
 
 void ScriptWatchTable::timerCallback()
 {
-	if (table != nullptr)
+	if (table != nullptr && isShowing())
 	{
 		refreshChangeStatus();
 	}
