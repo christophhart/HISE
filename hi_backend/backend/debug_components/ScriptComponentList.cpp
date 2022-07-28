@@ -775,7 +775,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		return true;
 	}
 
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_deselect_all))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_deselect_all))
 	{
 		getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
 		return true;
@@ -794,7 +794,7 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 
 		return true;
 	}
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_show_json))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_show_json))
 	{
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;

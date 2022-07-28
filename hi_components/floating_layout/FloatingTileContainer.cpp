@@ -369,6 +369,7 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 	m.addItem(2, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
 	m.addItem(3, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
 	m.addItem(4, "Close all tabs", getNumTabs() != 0);
+	m.addItem(7, "Close other tabs", getNumTabs() > 1);
 	m.addItem(5, "Move to front", getComponent(tabIndex) != nullptr, tabIndex == 0);
 	m.addItem(6, "Sort tabs");
 
@@ -395,6 +396,14 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 		{
 			removeFloatingTile(getComponent(0));
 		}
+	}
+	else if (result == 7)
+	{
+		moveTab(tabIndex, 0, false);
+		moveContent(tabIndex, 0);
+
+		while (getNumTabs() > 1)
+			removeFloatingTile(getComponent(1));
 	}
 	else if (result == 5)
 	{
@@ -650,7 +659,7 @@ void FloatingTabComponent::currentTabChanged(int newCurrentTabIndex, const Strin
 
 void FloatingTabComponent::setCycleKeyPress(const Identifier& k)
 {
-	cycleKey = TopLevelWindowWithKeyMappings::getKeyPress(this, k);
+	cycleKey = TopLevelWindowWithKeyMappings::getFirstKeyPress(this, k);
 }
 
 void ResizableFloatingTileContainer::refreshLayout()

@@ -93,7 +93,7 @@ void FullEditor::initKeyPresses(Component* root)
 
 bool FullEditor::keyPressed(const KeyPress& k)
 {
-	if (k == TopLevelWindowWithKeyMappings::getKeyPress(this, TextEditorShortcuts::show_fold_map))
+	if (TopLevelWindowWithKeyMappings::matches(this, k, TextEditorShortcuts::show_fold_map))
 	{
 		ScopedValueSetter<bool> svs(overlayFoldMap, true);
 		foldButton.triggerClick(sendNotificationSync);

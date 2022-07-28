@@ -420,7 +420,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 		b->getUndoManager().undo();
 		return true;
 	}
-	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_duplicate))
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_duplicate))
 	{
 		if (draggers.size() > 0)
 		{
@@ -444,7 +444,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
-	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, InterfaceDesignerShortcuts::id_show_json))
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_show_json))
 	{
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;

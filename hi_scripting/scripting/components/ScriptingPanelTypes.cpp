@@ -1106,17 +1106,17 @@ bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 {
 	using namespace InterfaceDesignerShortcuts;
 
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_toggle_edit))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, id_toggle_edit))
 		return Actions::toggleEditMode(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_deselect_all))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, id_deselect_all))
 		return Actions::deselectAll(*this);
-	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_rebuild))
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, id_rebuild))
 		return Actions::rebuildAndRecompile(*this);
 	else if (key.getKeyCode() == '+' && key.getModifiers().isCommandDown())
 		return Actions::zoomIn(*this);
 	else if (key.getKeyCode() == '-' && key.getModifiers().isCommandDown())
 		return Actions::zoomOut(*this);
-	else if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, id_lock_selection))
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, id_lock_selection))
 		return Actions::lockSelection(*this);
 
 	return false;

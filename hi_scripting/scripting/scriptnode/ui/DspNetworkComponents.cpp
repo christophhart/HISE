@@ -292,7 +292,7 @@ DspNetworkGraph::~DspNetworkGraph()
 
 bool DspNetworkGraph::keyPressed(const KeyPress& key)
 {
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_deselect_all))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_deselect_all))
 		return Actions::deselectAll(*this);
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 		return Actions::deleteSelection(*this);
@@ -300,30 +300,30 @@ bool DspNetworkGraph::keyPressed(const KeyPress& key)
 		return Actions::undo(*this);
 	if ((key.isKeyCode('Y') || key.isKeyCode('Y')) && key.getModifiers().isCommandDown())
 		return Actions::redo(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_duplicate))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_duplicate))
 		return Actions::duplicateSelection(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_new_node))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_new_node))
 		return Actions::showKeyboardPopup(*this, KeyboardPopup::Mode::New);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_fold))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_fold))
 		return Actions::foldSelection(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_add_bookmark))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_add_bookmark))
 	{
 		Actions::addBookMark(network.get());
 		return true;
 	}
-	if(key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_zoom_fit))
+	if(TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_zoom_fit))
 		return Actions::zoomFit(*this);
-	if(key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_zoom_reset))
+	if(TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_zoom_reset))
 		return Actions::foldUnselectedNodes(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_edit_property))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_edit_property))
 		return Actions::editNodeProperty(*this);
 	if ((key).isKeyCode('+') && key.getModifiers().isCommandDown())
 		return Actions::zoomIn(*this);
 	if ((key).isKeyCode('-') && key.getModifiers().isCommandDown())
 		return Actions::zoomOut(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_toggle_bypass))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_toggle_bypass))
 		return Actions::toggleBypass(*this);
-	if (key == TopLevelWindowWithKeyMappings::getKeyPress(this, ScriptnodeShortcuts::sn_toggle_cables))
+	if (TopLevelWindowWithKeyMappings::matches(this, key, ScriptnodeShortcuts::sn_toggle_cables))
 		return Actions::toggleCableDisplay(*this);
 	if (((key).isKeyCode('c') || key.isKeyCode('C')) && key.getModifiers().isCommandDown())
 		return Actions::copyToClipboard(*this);

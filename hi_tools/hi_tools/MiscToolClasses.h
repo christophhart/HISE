@@ -528,7 +528,7 @@ struct TopLevelWindowWithKeyMappings
 		if (s.startsWith("$"))
 		{
 			auto id = Identifier(s.removeCharacters("$"));
-			return getKeyPress(c, id);
+			return getFirstKeyPress(c, id);
 		}
 		else
 			return KeyPress::createFromDescription(s);
@@ -552,6 +552,31 @@ struct TopLevelWindowWithKeyMappings
 		}
 	}
 
+	static KeyPress getFirstKeyPress(Component* c, const Identifier& id)
+	{
+		if (auto t = getFromComponent(c))
+		{
+			if (auto idx = t->shortcutIds.indexOf(id) + 1)
+				return t->keyMap.getKeyPressesAssignedToCommand(idx).getFirst();
+		}
+
+		return KeyPress();
+	}
+
+	static bool matches(Component* c, const KeyPress& k, const Identifier& id)
+	{
+		if (auto t = getFromComponent(c))
+		{
+			if (auto idx = t->shortcutIds.indexOf(id) + 1)
+			{
+				return t->keyMap.getKeyPressesAssignedToCommand(idx).contains(k);
+			}
+		}
+
+		return false;
+	}
+
+	/*
 	static KeyPress getKeyPress(Component* c, const Identifier& id)
 	{
 		if (auto t = getFromComponent(c))
@@ -562,6 +587,7 @@ struct TopLevelWindowWithKeyMappings
 
 		return {};
 	}
+	*/
 
 	KeyPressMappingSet& getKeyPressMappingSet() { return keyMap; };
 
