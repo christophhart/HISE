@@ -87,7 +87,12 @@ AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
+#if USE_BACKEND
+	laf = new GlobalHiseLookAndFeel();
+#else
 	laf = PresetHandler::createAlertWindowLookAndFeel();
+#endif
+
 	setLookAndFeel(laf);
 
 	setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
@@ -171,18 +176,13 @@ void DialogWindowWithBackgroundThread::handleAsyncUpdate()
 		return;
 	}
 
-
-
-
-
-
-
 	threadFinished();
 
 	if (additionalFinishCallback)
 		additionalFinishCallback();
 
-	destroy();
+	if (destroyWhenFinished)
+		destroy();
 }
 
 void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
@@ -198,28 +198,30 @@ void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
 		}
 		else if (thread == nullptr)
 		{
-			thread = new LoadingThread(this);
-			thread->startThread();
+			runThread();
 		}
-		
 	}
 	else if (b->getName() == "Cancel")
 	{
-		if (thread != nullptr)
-		{
-			thread->signalThreadShouldExit();
-			thread->notify();
-			destroy();
-		}
-		else
-		{
-			destroy();
-		}
+		stopThread();
+		destroy();
 	}
 	else
 	{
 		resultButtonClicked(b->getName());
 	}
+}
+
+void DialogWindowWithBackgroundThread::stopThread()
+{
+	if (thread != nullptr)
+	{
+		thread->signalThreadShouldExit();
+		thread->notify();
+		thread->waitForThreadToExit(timeoutMs);
+	}
+
+	thread = nullptr;
 }
 
 void DialogWindowWithBackgroundThread::runSynchronous()
@@ -269,6 +271,7 @@ void DialogWindowWithBackgroundThread::reset()
 
 void DialogWindowWithBackgroundThread::runThread()
 {
+	stopThread();
 	thread = new LoadingThread(this);
 	thread->startThread();
 }
