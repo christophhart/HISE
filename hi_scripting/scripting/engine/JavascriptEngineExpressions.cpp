@@ -562,11 +562,14 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 			lastScopeForCycleCheck = var(functionRoot.get());
 #endif
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		lastScope = functionRoot;
-#endif
-
 		functionRoot->removeProperty("this");
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
+			lastScope = functionRoot;
+		}
+#endif
 
 		return result;
 	}
@@ -612,42 +615,51 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	int getNumChildElements() const override
 	{
-		if (lastScope != nullptr)
-			return lastScope->getProperties().size() - 1;
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(debugScopeLock))
+		{
+			if (lastScope != nullptr)
+				return lastScope->getProperties().size();
+		}
 
 		return 0;
 	}
 
 	DebugInformationBase* getChildElement(int index) override
 	{
-		if (lastScope != nullptr)
+		DynamicObject::Ptr l;
+
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(debugScopeLock))
+			l = lastScope;
+			
+		if (l != nullptr)
 		{
 			WeakReference<FunctionObject> safeThis(this);
-
-			DynamicObject::Ptr l = lastScope;
 
 			auto vf = [safeThis, index]()
 			{
 				if (safeThis == nullptr)
 					return var();
 
-				if (auto l = safeThis->lastScope)
+				DynamicObject::Ptr l;
+
+				if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(safeThis->debugScopeLock))
+					l = safeThis->lastScope;
+
+				if (l != nullptr)
 				{
-					if (auto v = l->getProperties().getVarPointerAt(index + 1))
+					if (auto v = l->getProperties().getVarPointerAt(index))
 						return *v;
 				}
-
+				
 				return var();
 			};
 
 			auto& prop = l->getProperties();
 
-			
-
-			if (isPositiveAndBelow(index + 1, prop.size()))
+			if (isPositiveAndBelow(index, prop.size()))
 			{
 				String mid;
-				mid << "%PARENT%" << "." << l->getProperties().getName(index + 1);
+				mid << "%PARENT%" << "." << prop.getName(index);
 				return new LambdaValueInformation(vf, mid, {}, DebugInformation::Type::ExternalFunction, getLocation());
 			}
 		}
@@ -679,6 +691,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	DynamicObject::Ptr unneededScope;
 
+	mutable SimpleReadWriteLock debugScopeLock;
 	mutable DynamicObject::Ptr lastScope;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FunctionObject);

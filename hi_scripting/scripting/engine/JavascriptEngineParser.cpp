@@ -861,7 +861,7 @@ private:
 			
 			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
 
-			ifo->localProperties.set(s->name, var::undefined());
+			ifo->localProperties->set(s->name, {});
 
 			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1669,7 +1669,7 @@ private:
 			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
 			{
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-				const int localParameterIndex = ob->localProperties.indexOf(id);
+				const int localParameterIndex = ob->localProperties->indexOf(id);
 
 				if (inlineParameterIndex != -1)
 					location.throwError("Can't reference inline function parameters in nested function body");
@@ -1682,7 +1682,7 @@ private:
 				
 
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-				const int localParameterIndex = ob->localProperties.indexOf(id);
+				const int localParameterIndex = ob->localProperties->indexOf(id);
 
 				if (inlineParameterIndex >= 0)
 				{

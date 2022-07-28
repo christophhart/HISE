@@ -450,11 +450,11 @@ bool ScriptingApi::Content::ScriptPanel::updateCyclicReferenceList(ThreadData& d
 
 bool HiseJavascriptEngine::RootObject::InlineFunction::Object::updateCyclicReferenceList(ThreadData& data, const Identifier &id)
 {
-	for (int i = 0; i < localProperties.size(); i++)
+	for (int i = 0; i < localProperties->size(); i++)
 	{
-		auto lId = Identifier(id.toString() + "." + localProperties.getName(i).toString());
+		auto lId = Identifier(id.toString() + "." + localProperties->getName(i).toString());
 
-		if (!updateList(data, localProperties.getValueAt(i), lId))
+		if (!updateList(data, localProperties->getValueAt(i), lId))
 		{
 			enableCycleCheck = false;
 			cleanLocalProperties();

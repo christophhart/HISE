@@ -317,8 +317,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	public:
 
 		Object(Identifier &n, const Array<Identifier> &p) : 
-			name(n),
-			e(nullptr)
+			name(n)
 		{
 			parameterNames.addArray(p);
 
@@ -361,11 +360,12 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		int getNumChildElements() const override
 		{
-			return localProperties.size();
+			return ENABLE_SCRIPTING_BREAKPOINTS * 2;
 		}
 
 		DebugInformationBase* getChildElement(int index) override
 		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
 			WeakReference<Object> safeThis(this);
 
 			auto vf = [safeThis, index]()
@@ -373,16 +373,23 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				if (safeThis == nullptr)
 					return var();
 
-				if (auto p = safeThis->localProperties.getVarPointerAt(index))
-					return *p;
-
-				return var();
+				SimpleReadWriteLock::ScopedReadLock s(safeThis->debugLock);
+				return index == 1 ? safeThis->debugLocalProperties : safeThis->debugArgumentProperties;
 			};
 
 			String mId;
-			mId << name << "." << localProperties.getName(index);
+			mId << name << ".";
 
-			return new LambdaValueInformation(vf, Identifier(mId), {}, DebugInformation::Type::InlineFunction, location);
+			mId << (index == 0 ? "args" : "locals");
+
+			auto mi = new LambdaValueInformation(vf, Identifier(mId), {}, DebugInformation::Type::InlineFunction, location);
+			mi->setAutocompleteable(false);
+
+			return mi;
+#else
+			return nullptr;
+#endif
+
 		}
 
 		void doubleClickCallback(const MouseEvent &/*event*/, Component* ed)
@@ -401,7 +408,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
-			e = e_;
+			e.get() = e_;
 		}
 
 		void cleanUpAfterExecution()
@@ -410,7 +417,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			for (int i = 0; i < numArgs; i++)
 			{
-				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
+				dynamicFunctionCall->parameterResults.setUnchecked(i, var());
 			}
 
 			cleanLocalProperties();
@@ -420,23 +427,24 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var createDynamicObjectForBreakpoint()
 		{
-			auto functionCallToUse = e != nullptr ? e : dynamicFunctionCall;
+
+			auto functionCallToUse = *e != nullptr ? *e : dynamicFunctionCall;
 
 			if (functionCallToUse == nullptr)
 				return var();
 
 			auto object = new DynamicObject();
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
 			auto arguments = new DynamicObject();
 			auto locals = new DynamicObject();
 
 			for (int i = 0; i < parameterNames.size(); i++)
 				arguments->setProperty(parameterNames[i], functionCallToUse->parameterResults[i]);
 
-			for (int i = 0; i < localProperties.size(); i++)
-				locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
-
 			object->setProperty("args", var(arguments));
-			object->setProperty("locals", var(locals));
+			object->setProperty("locals", debugLocalProperties);
+#endif
 
 			return var(object);
 		}
@@ -466,17 +474,43 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 #endif
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-			// We favor having the local properties visible in the script watch table
-			// over occasional leaks in the backend system...
-			return;
+			if (!localProperties->isEmpty())
+			{
+				DynamicObject::Ptr n = new DynamicObject();
+
+				for (auto& v : *localProperties)
+					n->setProperty(v.name, v.value);
+
+				var nObj(n.get());
+
+				{
+					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					std::swap(nObj, debugLocalProperties);
+				}
+			}
+
+			if (dynamicFunctionCall != nullptr && !parameterNames.isEmpty())
+			{
+				DynamicObject::Ptr obj = new DynamicObject();
+
+				int index = 0;
+
+				for (auto& p : parameterNames)
+					obj->setProperty(p, dynamicFunctionCall->parameterResults[index++]);
+
+				var nObj(obj.get());
+
+				{
+					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					std::swap(nObj, debugArgumentProperties);
+				}
+			}
 #endif
 
-			if (!localProperties.isEmpty())
+			if (!localProperties->isEmpty())
 			{
-				for (int i = 0; i < localProperties.size(); i++)
-				{
-					*localProperties.getVarPointerAt(i) = var();
-				}
+				for (int i = 0; i < localProperties->size(); i++)
+					*localProperties->getVarPointerAt(i) = var();
 			}
 		}
 
@@ -490,11 +524,17 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var lastReturnValue = var::undefined();
 		
-		const FunctionCall *e;
+		ThreadLocalValue<const FunctionCall*> e;
 
 		ScopedPointer<FunctionCall> dynamicFunctionCall;
 
-		NamedValueSet localProperties;
+		ThreadLocalValue<NamedValueSet> localProperties;
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		SimpleReadWriteLock debugLock;
+		var debugArgumentProperties;
+		var debugLocalProperties;
+#endif
 
 		bool enableCycleCheck = false;
 
@@ -553,7 +593,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 				s.root->removeFromCallStack(f->name);
 
-				if(f->e == this)
+				if(f->e.get() == this)
 					f->cleanUpAfterExecution();
 				 
 				f->lastReturnValue = returnVar;
@@ -617,9 +657,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var getResult(const Scope&) const override 
 		{
-			if (f->e != nullptr)
+			if (f->e.get() != nullptr)
 			{
-				return  (f->e->parameterResults[index]);
+				return  (f->e.get()->parameterResults[index]);
 			}
 			else
 			{
@@ -683,7 +723,7 @@ struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		parentFunction->localProperties.set(name, initialiser->getResult(s));
+		parentFunction->localProperties->set(name, initialiser->getResult(s));
 		return ok;
 	}
 
@@ -707,12 +747,12 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 
 	var getResult(const Scope& /*s*/) const override
 	{
-		return parentFunction->localProperties[id];
+		return (parentFunction->localProperties.get())[id];
 	}
 
 	void assign(const Scope& /*s*/, const var& newValue) const override
 	{
-		parentFunction->localProperties.set(id, newValue);
+		parentFunction->localProperties->set(id, newValue);
 	}
 
 	Statement* getChildStatement(int) override { return nullptr; };
