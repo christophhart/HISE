@@ -576,6 +576,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("fromCharCode", fromCharCode);
 		setMethod("replace", replace);
 		setMethod("split", split);
+		setMethod("splitCamelCase", splitCamelCase);
 		setMethod("lastIndexOf", lastIndexOf);
 		setMethod("toLowerCase", toLowerCase);
 		setMethod("toUpperCase", toUpperCase);
@@ -634,6 +635,59 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		return array;
 	}
 	
+	static var splitCamelCase(Args a)
+	{
+		auto trimmed = a.thisObject.toString().removeCharacters(" \t\n\r");
+		auto current = trimmed.begin();
+		auto end = trimmed.end();
+		auto lastUpperCharacter = current;
+		
+		Array<var> list;
+
+		String currentToken;
+
+		auto flush = [&]()
+		{
+			if (currentToken.isNotEmpty())
+			{
+				list.add(currentToken);
+				currentToken = {};
+			}
+		};
+
+		
+
+		while (current != end)
+		{
+			if (CharacterFunctions::isDigit(*current))
+			{
+				flush();
+
+				while (CharacterFunctions::isDigit(*current))
+					currentToken << *current++;
+
+				continue;
+			}
+			
+			if (CharacterFunctions::isUpperCase(*current))
+			{
+				flush();
+
+				while (CharacterFunctions::isUpperCase(*current))
+					currentToken << *current++;
+				
+				continue;
+			}
+			
+
+			currentToken << *current++;
+		}
+
+		flush();
+
+		return var(list);
+	}
+
 	static var capitalize(Args a)
 	{
 		const String str(a.thisObject.toString());
@@ -738,6 +792,9 @@ public:
 	
 	/** Converts a string to start case (first letter of every word is uppercase). */
 	String capitalize() { return String(); }
+
+	/** Splits the string at uppercase characters (so MyValue becomes ["My", "Value"]. */
+	Array splitCamelCase();
 
 	/** Returns a copy of this string with any whitespace characters removed from the start and end. */
 	String trim() { return String(); }
