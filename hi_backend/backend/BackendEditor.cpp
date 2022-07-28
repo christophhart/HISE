@@ -227,10 +227,6 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 		currentPopupComponent = componentToShow;
 	}
 
-	
-
-	const int height = getHeight() - viewport->getY();
-
 	addAndMakeVisible(componentToShow);
 
 	componentToShow->setBounds(viewport->getX(), viewport->getY() + 40, viewport->getWidth()-SCROLLBAR_WIDTH, componentToShow->getHeight());
@@ -239,7 +235,6 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 	componentToShow->setVisible(true);
 
 	viewport->setEnabled(false);
-
 	viewport->viewport->setScrollBarsShown(false, false);
 
 	componentToShow->setAlwaysOnTop(true);

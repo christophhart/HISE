@@ -261,7 +261,6 @@ void DspNetwork::createAllNodesOnce()
 		if (isProjectFactory)
 			continue;
 
-		int index = 0;
 		for (auto id : f->getModuleList())
 		{
 			ScopedPointer<NodeBase::Holder> s = new NodeBase::Holder();

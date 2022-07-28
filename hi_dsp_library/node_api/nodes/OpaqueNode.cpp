@@ -144,9 +144,6 @@ bool OpaqueNode::handleModulation(double& d)
 
 void OpaqueNode::fillParameterList(ParameterDataList& pList)
 {
-	constexpr int NumBytes = sizeof(parameter::data);
-	constexpr int NumCallbackBytes = sizeof(parameter::dynamic);
-
 	struct
 	{
 		static int compareElements(const parameter::data& first, const parameter::data& second)
@@ -159,8 +156,7 @@ void OpaqueNode::fillParameterList(ParameterDataList& pList)
 				return 1;
 
 			// must never happen...
-			jassertfalse;
-			return 0;
+			return first.info.getId().compare(second.info.getId());
 		}
 	} sorter;
 

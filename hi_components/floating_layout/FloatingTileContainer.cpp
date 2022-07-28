@@ -1130,8 +1130,6 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 	totalPrevDownSize /= sum;
 
 	sum = totalNextDownSize + totalPrevDownSize;
-
-	int x = 5;
 }
 
 

@@ -472,8 +472,6 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 	Rectangle<int> thisBounds(0, 0, getWidth(), getHeight());
 
-	NotificationType n = sendNotificationSync;
-
 	if (!rightClickLine.getStart().isOrigin())
 	{
 		if (!thisBounds.contains(Point<int>(x, y)))

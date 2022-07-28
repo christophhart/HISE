@@ -1275,8 +1275,6 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 				}
 				else if (copy.isNoteOff())
 				{
-					bool found = false;
-
 					{
 						SimpleReadWriteLock::ScopedReadLock sl(overdubLock);
 

@@ -640,7 +640,6 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		auto trimmed = a.thisObject.toString().removeCharacters(" \t\n\r");
 		auto current = trimmed.begin();
 		auto end = trimmed.end();
-		auto lastUpperCharacter = current;
 		
 		Array<var> list;
 
@@ -654,8 +653,6 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 				currentToken = {};
 			}
 		};
-
-		
 
 		while (current != end)
 		{

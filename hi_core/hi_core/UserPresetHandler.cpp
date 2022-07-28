@@ -117,7 +117,7 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Ma
 			{
 				ProcessorConnection pc;
 
-				if (pc.connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), pId))
+				if ((pc.connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), pId)))
 					pc.connectedParameterIndex = pc.connectedProcessor->getParameterIndexForIdentifier(paramId);
 
 				if (pc)

@@ -468,7 +468,6 @@ public:
 		debugComponentRow = new AdditionalRow(this);
 
 		auto ranges = table->getSelectedRows().getRanges();
-		int maxHeight = 0;
 
 		bool addedSomething = false;
 

@@ -420,6 +420,8 @@ public:
 
 		if (v.isObject())
 			return true;
+        
+        return false;
 	}
 
 	void setAutocompleteable(bool shouldBe)

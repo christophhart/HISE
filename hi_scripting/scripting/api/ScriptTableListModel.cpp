@@ -223,10 +223,7 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 			else
 				w = jmax(min, w);
 
-			auto visible = (bool)c.getProperty("Visible", true);
-
-			int flag = 0;
-			flag |= TableHeaderComponent::ColumnPropertyFlags::visible;
+			int flag = TableHeaderComponent::ColumnPropertyFlags::visible;
 
 			header.addColumn(label, idx, w, min, max, flag);
 			idx++;

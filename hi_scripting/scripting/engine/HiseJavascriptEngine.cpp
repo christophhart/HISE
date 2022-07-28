@@ -1825,6 +1825,7 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 			{
 				ScopedPointer<Statement> newExpr(optimizedStatement);
 				auto ok = st->replaceChildStatement(newExpr, child);
+                ignoreUnused(ok);
 				jassert(ok);
 				r.numOptimizedStatements++;
 			}

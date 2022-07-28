@@ -1232,6 +1232,7 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 		{
 			auto lastTimestamp = (int)midiMessages.getLastEventTime();
 
+            ignoreUnused(lastTimestamp);
 			jassert(lastTimestamp < buffer.getNumSamples());
 
 			AudioSampleBuffer tempBuffer(ptrs, buffer.getNumChannels(), paddedBufferSize);

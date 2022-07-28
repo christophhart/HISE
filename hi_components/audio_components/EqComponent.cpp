@@ -920,8 +920,6 @@ void FilterDragOverlay::FilterDragComponent::mouseWheelMove(const MouseEvent &e,
 		else
 			q = jmax<double>(0.1, q / 1.3);
 
-		const int qIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
-
 		parent.setEqAttribute(CurveEq::BandParameter::Q, index, q);
 	}
 	else

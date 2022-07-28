@@ -141,7 +141,7 @@ template <int NumChannels> struct block_base
 			}
 			
 			incCounter(true, numThisTime);
-			numToDo -= numThisTime,
+            numToDo -= numThisTime;
 			writePos += numThisTime;
 		}
 	}
@@ -247,7 +247,7 @@ template <int C> struct block: public block_base<C>
 
 	void process(BlockType& data)
 	{
-		writeToBuffer(data);
+		this->writeToBuffer(data);
 	};
 
 	heap<float> buffer;

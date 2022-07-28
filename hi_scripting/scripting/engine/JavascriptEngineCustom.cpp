@@ -437,8 +437,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 			auto arguments = new DynamicObject();
-			auto locals = new DynamicObject();
-
+			
 			for (int i = 0; i < parameterNames.size(); i++)
 				arguments->setProperty(parameterNames[i], functionCallToUse->parameterResults[i]);
 

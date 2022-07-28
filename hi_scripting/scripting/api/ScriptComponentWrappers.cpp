@@ -1456,7 +1456,7 @@ public:
 ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index):
 	ScriptCreatedComponentWrapper(content, index)
 {
-	if (tableModel = viewport->getTableModel())
+	if ((tableModel = viewport->getTableModel()))
 	{
 		mode = Mode::Table;
 		tableModel->tableRefreshBroadcaster.addListener(*this, ViewportWrapper::tableUpdated, false);

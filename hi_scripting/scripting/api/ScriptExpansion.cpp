@@ -483,6 +483,8 @@ void ScriptUserPresetHandler::runTest()
 		{
 			return String(uph.getStoredModuleData().size());
 		}
+        
+        return String("unknown");
 	};
 
 				addLine("| ====================== USER PRESET TEST ================== |");

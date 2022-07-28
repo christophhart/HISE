@@ -5216,8 +5216,6 @@ void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunctio
 
 void ScriptingObjects::ScriptedMidiPlayer::setPlaybackCallback(var newPlaybackCallback, bool synchronous)
 {
-	auto mp = getPlayer();
-
 	playbackUpdater = nullptr;
 
 	if (HiseJavascriptEngine::isJavascriptFunction(newPlaybackCallback))
@@ -8250,15 +8248,12 @@ void ScriptingObjects::ScriptBroadcaster::attachToComponentProperties(var compon
 
 	eventSources.clear();
 
-	for (auto l : getComponentsFromVar(getScriptProcessor(), componentIds))
-	{
-		eventSources.add(new ScriptComponentPropertyEvent(*this, componentIds, idList));
+    eventSources.add(new ScriptComponentPropertyEvent(*this, componentIds, idList));
 
-		auto illegalId = eventSources.getLast()->illegalId;
+    auto illegalId = eventSources.getLast()->illegalId;
 
-		if (illegalId.isValid())
-			reportScriptError("Illegal property id: " + illegalId.toString());
-	}
+    if (illegalId.isValid())
+        reportScriptError("Illegal property id: " + illegalId.toString());
 
 	sourceType = "ComponentProperties";
 }
@@ -8376,7 +8371,7 @@ void ScriptingObjects::ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex
 	static const Identifier radioGroup("radioGroup");
 
 	if ((int)radioGroupIndex == 0)
-		reportScriptError("illegal radio group index " + radioGroupIndex);
+		reportScriptError("illegal radio group index " + String(radioGroupIndex));
 
 	Array<var> buttonList;
 
