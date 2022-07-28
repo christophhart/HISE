@@ -170,6 +170,8 @@ void ScriptCreatedComponentWrapper::updateComponent(int propertyIndex, var newVa
 
 void ScriptCreatedComponentWrapper::updateFadeState(ScriptCreatedComponentWrapper& wrapper, bool shouldBeVisible, int fadeTime)
 {
+    wrapper.component->repaint();
+    
 	if(shouldBeVisible)
 		Desktop::getInstance().getAnimator().fadeIn(wrapper.component, fadeTime);
 	else

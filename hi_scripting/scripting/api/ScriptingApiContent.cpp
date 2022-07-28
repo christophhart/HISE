@@ -1461,7 +1461,7 @@ void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible,
 
 	if (shouldBeVisible != isVisible)
 	{
-		setScriptObjectProperty(Properties::visible, shouldBeVisible);
+        setScriptObjectPropertyWithChangeMessage(getIdFor(Properties::visible), shouldBeVisible);
 
 		fadeListener.enableLockFreeUpdate(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
 		fadeListener.sendMessage(sendNotificationAsync, shouldBeVisible, milliseconds);
