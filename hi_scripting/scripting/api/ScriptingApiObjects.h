@@ -475,6 +475,9 @@ namespace ScriptingObjects
 		/** Adds a listener that is notified when a message is send. The object can be either a JSON object, a script object or a simple string. */
 		bool addListener(var object, var function);
 
+		/** Adds a listener that will be executed with a delay. */
+		bool addDelayedListener(int delayInMilliSeconds, var obj, var function);
+
 		/** Removes the listener that was assigned with the given object. */
 		bool removeListener(var objectToRemove);
 
@@ -496,8 +499,20 @@ namespace ScriptingObjects
 		/** Registers this broadcaster to be notified for mouse events for the given components. */
 		void attachToComponentMouseEvents(var componentIds, var callbackLevel);
 
+		/** Registers this broadcaster to be notified when a module parameter changes. */
+		void attachToModuleParameter(var moduleIds, var parameterIds);
+
 		/** Registers this broadcaster to be notified when a button of a radio group is clicked. */
 		void attachToRadioGroup(int radioGroupIndex);
+
+		/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
+		void callWithDelay(int delayInMilliseconds, var argArray, var function);
+
+		/** This will control whether the `this` reference for the listener function will be replaced with the object passed into `addListener`. */
+		void setReplaceThisReference(bool shouldReplaceThisReference);
+
+		/** If this is enabled, the broadcaster will keep an internal queue of all messages and will guarantee to send them all. */
+		void setEnableQueue(bool shouldUseQueue);
 
 		// ===============================================================================
 
@@ -506,6 +521,51 @@ namespace ScriptingObjects
 		var getDotProperty(const Identifier& id) const override;
 
 	private:
+
+
+		bool enableQueue = false;
+
+		struct DelayedFunction : public Timer
+		{
+			DelayedFunction(ScriptBroadcaster* b, var f, const Array<var>& args_, int milliSeconds):
+				c(b->getScriptProcessor(), f, 0),
+				bc(b),
+				args(args_)
+			{
+				c.setHighPriority();
+				c.incRefCount();
+				startTimer(milliSeconds);
+			}
+
+			~DelayedFunction()
+			{
+				stopTimer();
+			}
+
+			void timerCallback() override
+			{
+				if (bc != nullptr)
+				{
+					ScopedLock sl(bc->delayFunctionLock);
+
+					c.setThisObject(bc.get());
+					c.call(args);
+				}
+				
+				stopTimer();
+			}
+
+			Array<var> args;
+			WeakCallbackHolder c;
+			WeakReference<ScriptBroadcaster> bc;
+		};
+
+		
+
+		CriticalSection delayFunctionLock;
+		ScopedPointer<DelayedFunction> currentDelayedFunction;
+
+		std::atomic<bool> asyncPending = { false };
 
 		void handleDebugStuff();
 
@@ -540,29 +600,72 @@ namespace ScriptingObjects
 		
 		var radioButtons;
 
+		bool replaceThisReference = true;
+
 		struct ProcessorBypassEvent;
 
-		struct Item
+		struct ItemBase
 		{
-			Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f);;
+			ItemBase(const var& obj_, const var& f) :
+				obj(obj_)
+			{
+				if (auto dl = dynamic_cast<DebugableObjectBase*>(f.getObject()))
+				{
+					location = dl->getLocation();
+				}
+			};
 
-			Result callSync(const Array<var>& args);
+			virtual ~ItemBase() {};
 
-			bool operator==(const Item& other) const
+			virtual Result callSync(const Array<var>& args) = 0;
+
+			bool operator==(const ItemBase& other) const
 			{
 				return obj == other.obj;
 			}
 
+			var obj;
+			bool enabled = true;
 			DebugableObjectBase::Location location;
 
-			bool enabled = true;
-			WeakCallbackHolder callback;
-			var obj;
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Item);
+			JUCE_DECLARE_WEAK_REFERENCEABLE(ItemBase);
 		};
 
-		OwnedArray<Item> items;
+		struct Item: ItemBase
+		{
+			Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f);;
+
+			Result callSync(const Array<var>& args) override;
+			WeakCallbackHolder callback;
+		};
+
+		struct DelayedItem: public ItemBase
+		{
+			DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f, int milliseconds);
+			Result callSync(const Array<var>& args) override;
+
+			int ms;
+			var f;
+
+			ScopedPointer<DelayedFunction> delayedFunction;
+			WeakReference<ScriptBroadcaster> parent;
+		};
+
+		struct ModuleParameterListener
+		{
+			struct ProcessorListener;
+
+			ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& const parameterIndexes);
+
+			Result callItem(ItemBase* n);
+
+			OwnedArray<ProcessorListener> listeners;
+		};
+
+		ScopedPointer<ModuleParameterListener> moduleListener;
+
+
+		OwnedArray<ItemBase> items;
 
 		Result lastResult;
 

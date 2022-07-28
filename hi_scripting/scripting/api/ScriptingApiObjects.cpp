@@ -7514,6 +7514,7 @@ ScriptingObjects::ScriptErrorHandler::~ScriptErrorHandler()
 struct ScriptingObjects::ScriptBroadcaster::Wrapper
 {
 	API_METHOD_WRAPPER_2(ScriptBroadcaster, addListener);
+	API_METHOD_WRAPPER_3(ScriptBroadcaster, addDelayedListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
@@ -7521,7 +7522,11 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentProperties);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentMouseEvents);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToComponentValue);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToRadioGroup);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -7627,12 +7632,15 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 
 	struct Row : public Component
 	{
-		Row(Item* i, Display& parent, JavascriptProcessor* jp_) :
+		Row(ItemBase* i, Display& parent, JavascriptProcessor* jp_) :
 			item(i),
 			jp(jp_),
 			gotoButton("workspace", nullptr, parent),
 			powerButton("enable", nullptr, parent)
 		{
+			if(dynamic_cast<DelayedItem*>(i) != nullptr)
+				delayIcon = parent.createPath("delay");
+
 			gotoButton.onClick = [this]()
 			{
 				if(item != nullptr)
@@ -7673,9 +7681,17 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 
 		void paint(Graphics& g) override
 		{
+			bool delayActive = false;
+
+			if (auto d = dynamic_cast<DelayedItem*>(item.get()))
+				delayActive = d->delayedFunction != nullptr && d->delayedFunction->isTimerRunning();
+
+			auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+			
 			g.setColour(Colours::white.withAlpha(0.1f));
 			
-			auto b = getLocalBounds().toFloat().reduced(1.0f);
+			
 
 			g.fillRoundedRectangle(b, 3.0f);
 			g.drawRoundedRectangle(b, 3.0f, 1.0f);
@@ -7685,6 +7701,15 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 
 			b.removeFromLeft(RowHeight);
 
+			if (!delayIcon.isEmpty())
+			{
+				scalePath(delayIcon, b.removeFromLeft(RowHeight).reduced(3));
+				g.setColour(delayActive ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.3f));
+				g.fillPath(delayIcon);
+				b.removeFromLeft(10);
+			}
+			
+			g.setColour(Colours::white.withAlpha(.7f));
 			g.drawText(getText(), b.reduced(10.0f, 0.0f), Justification::left);
 		}
 
@@ -7697,7 +7722,8 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		JavascriptProcessor* jp;
 		HiseShapeButton gotoButton;
 		HiseShapeButton powerButton;
-		WeakReference<Item> item;
+		WeakReference<ItemBase> item;
+		Path delayIcon;
 	};
 
 	void rebuild(ScriptBroadcaster& b)
@@ -7744,6 +7770,7 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		LOAD_PATH_IF_URL("reset", ColumnIcons::resetIcon);
 		LOAD_PATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
 		LOAD_PATH_IF_URL("enable", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+		LOAD_PATH_IF_URL("delay", ColumnIcons::delayIcon);
 
 		return p;
 	}
@@ -7819,13 +7846,18 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	lastResult(Result::ok())
 {
 	ADD_API_METHOD_2(addListener);
+	ADD_API_METHOD_3(addDelayedListener);
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
 	ADD_API_METHOD_2(attachToComponentProperties);
 	ADD_API_METHOD_2(attachToComponentMouseEvents);
 	ADD_API_METHOD_1(attachToComponentValue);
+	ADD_API_METHOD_2(attachToModuleParameter);
 	ADD_API_METHOD_1(attachToRadioGroup);
+	ADD_API_METHOD_3(callWithDelay);
+	ADD_API_METHOD_1(setReplaceThisReference);
+	ADD_API_METHOD_1(setEnableQueue);
 	
 	if (auto obj = defaultValue.getDynamicObject())
 	{
@@ -7928,18 +7960,53 @@ bool ScriptingObjects::ScriptBroadcaster::addListener(var object, var function)
 {
 	ScopedPointer<Item> ni = new Item(getScriptProcessor(), defaultValues.size(), object, function);
 
-	if (items.contains(ni))
+	if (items.contains(ni.get()))
+	{
+		reportScriptError("this object is already registered to the listener");
 		return false;
+	}
 
+	// Skip the initial call for mouse event types...
+	auto callListener = sourceType != "MouseEvents";
+
+	for (const auto& v : lastValues)
+		callListener &= !v.isUndefined();
+
+	if (moduleListener != nullptr)
+	{
+		// If it's attached to a module listener, we'll update it with the current values.
+		auto r = moduleListener->callItem(ni);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+	}
+	else if (callListener)
+	{
+		auto r = ni->callSync(lastValues);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+	}
 	
-
-	auto r = ni->callSync(lastValues);
-
-	if (!r.wasOk())
-		reportScriptError(r.getErrorMessage());
-
 	items.add(ni.release());
 
+	return true;
+}
+
+bool ScriptingObjects::ScriptBroadcaster::addDelayedListener(int delayInMilliSeconds, var obj, var function)
+{
+	if (delayInMilliSeconds == 0)
+		return addListener(obj, function);
+
+	ScopedPointer<DelayedItem> ni = new DelayedItem(this, obj, function, delayInMilliSeconds);
+
+	if (items.contains(ni.get()))
+	{
+		reportScriptError("this object is already registered to the listener");
+		return false;
+	}
+
+	items.add(ni.release());
 	return true;
 }
 
@@ -7976,11 +8043,10 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 	{
 		auto v = getArg(args, i);
 		somethingChanged |= lastValues[i] != v;
-
 		newValues.add(v);
 	}
 
-	if (somethingChanged)
+	if (somethingChanged || enableQueue)
 	{
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(lastValueLock);
@@ -7988,24 +8054,49 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 		}
 
 		if (isSync)
+		{
 			lastResult = sendInternal(lastValues);
+
+			if (!lastResult.wasOk())
+				reportScriptError(lastResult.getErrorMessage());
+		}
 		else
 		{
-			WeakReference<ScriptBroadcaster> safeThis(this);
-
-			auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-			
-			auto f = [safeThis](JavascriptProcessor* jp)
+			if (!asyncPending.load() || enableQueue)
 			{
-				if (safeThis == nullptr)
-					return Result::fail("dangling listener");
+				WeakReference<ScriptBroadcaster> safeThis(this);
 
-				return safeThis->sendInternal(safeThis->lastValues);
-			};
+				auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
 
-			pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
-						dynamic_cast<JavascriptProcessor*>(getScriptProcessor()),	
-						f);
+				Array<var> queuedValue;
+
+				if (enableQueue)
+				{
+					for (auto& lv : lastValues)
+						queuedValue.add(lv);
+				}
+
+				auto f = [safeThis, queuedValue](JavascriptProcessor* jp)
+				{
+					if (safeThis == nullptr)
+						return Result::fail("dangling listener");
+
+					auto& arrayToUse = safeThis->enableQueue ? queuedValue : safeThis->lastValues;
+
+					auto r = safeThis->sendInternal(arrayToUse);
+
+					safeThis->asyncPending.store(false);
+					return r;
+				};
+
+				// If the queue is enabled, we want all to go through
+				if(!enableQueue)
+					asyncPending.store(true);
+
+				pool.addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution,
+					dynamic_cast<JavascriptProcessor*>(getScriptProcessor()),
+					f);
+			}
 		}
 	}
 }
@@ -8213,6 +8304,67 @@ void ScriptingObjects::ScriptBroadcaster::attachToComponentMouseEvents(var compo
 	sourceType = "MouseEvents";
 }
 
+void ScriptingObjects::ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds)
+{
+	if (sourceType.isNotEmpty())
+		reportScriptError("This callback is already registered to " + sourceType);
+
+	if (defaultValues.size() != 3)
+	{
+		reportScriptError("If you want to attach a broadcaster to mouse events, it needs three parameters (processorId, parameterId, value)");
+	}
+
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	Array<WeakReference<Processor>> processors;
+	
+	if (moduleIds.isArray())
+	{
+		for (const auto& pId : *moduleIds.getArray())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+			if (!processors.isEmpty() && p->getType() != processors.getFirst()->getType())
+				reportScriptError("the modules must have the same type");
+
+			processors.add(p);
+		}
+	}
+	else
+		processors.add(ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString()));
+
+	
+	Array<int> parameterIndexes;
+
+	if (parameterIds.isArray())
+	{
+		for (const auto& pId : *parameterIds.getArray())
+		{
+			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pId.toString());
+
+			if (idx == -1)
+				reportScriptError("unknown parameter ID: " + pId.toString());
+
+			parameterIndexes.add(idx);
+		}
+	}
+	else
+	{
+		auto idx = processors.getFirst()->getParameterIndexForIdentifier(parameterIds.toString());
+
+		if (idx == -1)
+			reportScriptError("unknown parameter ID: " + parameterIds.toString());
+
+		parameterIndexes.add(idx);
+	}
+
+	moduleListener = new ModuleParameterListener(this, processors, parameterIndexes);
+
+	enableQueue = true;
+
+	sourceType = "ModuleParameter";
+}
+
 void ScriptingObjects::ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex)
 {
 	if (sourceType.isNotEmpty())
@@ -8256,12 +8408,39 @@ void ScriptingObjects::ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex
 	radioButtons = var(buttonList);
 	sourceType = "RadioGroup";
 	
-	currentIndex = defaultValues[0];
+	if (currentIndex == -1)
+		currentIndex = defaultValues[0];
 
 	// force initial update
 	lastValues.set(0, -1);
 
 	sendMessage(currentIndex, true);
+}
+
+void ScriptingObjects::ScriptBroadcaster::callWithDelay(int delayInMilliseconds, var argArray, var function)
+{
+	if (currentDelayedFunction != nullptr)
+		currentDelayedFunction->stopTimer();
+
+	ScopedPointer<DelayedFunction> newFunction;
+
+	if (HiseJavascriptEngine::isJavascriptFunction(function) && argArray.isArray())
+		newFunction = new DelayedFunction(this, function, *argArray.getArray(), delayInMilliseconds);
+	else if (!argArray.isArray())
+		reportScriptError("argArray must be an array");
+	
+	ScopedLock sl(delayFunctionLock);
+	std::swap(newFunction, currentDelayedFunction);
+}
+
+void ScriptingObjects::ScriptBroadcaster::setReplaceThisReference(bool shouldReplaceThisReference)
+{
+	replaceThisReference = shouldReplaceThisReference;
+}
+
+void ScriptingObjects::ScriptBroadcaster::setEnableQueue(bool shouldUseQueue)
+{
+	enableQueue = shouldUseQueue;
 }
 
 bool ScriptingObjects::ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
@@ -8325,6 +8504,17 @@ juce::var ScriptingObjects::ScriptBroadcaster::getArg(const var& v, int idx)
 
 Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 {
+	{
+		SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
+
+		for (int i = 0; i < defaultValues.size(); i++)
+		{
+			auto v = args[i];
+			if (v.isUndefined() || v.isVoid())
+				return Result::ok();
+		}
+	}
+	
 	for (auto i : items)
 	{
 		Array<var> thisValues;
@@ -8332,7 +8522,7 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 
 		{
 			SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
-			thisValues.addArray(lastValues);
+			thisValues.addArray(args);
 		}
 
 		auto r = i->callSync(thisValues);
@@ -8360,14 +8550,9 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 }
 
 ScriptingObjects::ScriptBroadcaster::Item::Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f) :
-	callback(p, f, numArgs),
-	obj(obj_)
+	ItemBase(obj_, f),
+	callback(p, f, numArgs)
 {
-	if (auto dl = dynamic_cast<DebugableObjectBase*>(f.getObject()))
-	{
-		location = dl->getLocation();
-	}
-
 	callback.incRefCount();
 }
 
@@ -8380,6 +8565,123 @@ Result ScriptingObjects::ScriptBroadcaster::Item::callSync(const Array<var>& arg
 
 	auto a = var::NativeFunctionArgs(obj, args.getRawDataPointer(), args.size());
 	return callback.callSync(a, nullptr);
+}
+
+ScriptingObjects::ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f_, int milliseconds):
+	ItemBase(obj_, f_),
+	ms(milliseconds),
+	f(f_),
+	parent(bc)
+{
+
+}
+
+Result ScriptingObjects::ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
+{
+	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms);
+	return Result::ok();
+}
+
+struct ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener
+{
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_) :
+		parameterIndexes(parameterIndexes_),
+		p(p_),
+		sb(sb_)
+	{
+		for (auto pi : parameterIndexes)
+		{
+			lastValues.add(p->getAttribute(pi));
+			parameterNames.add(p->getIdentifierForParameterIndex(pi).toString());
+		}
+			
+		args.add(p->getId());
+		args.add(0);
+		args.add(0.0f);
+
+		p->addChangeListener(this);
+	}
+
+	~ProcessorListener()
+	{
+		if (p != nullptr)
+			p->removeChangeListener(this);
+	}
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+		if (p == nullptr)
+			return;
+
+		for (int i = 0; i < parameterIndexes.size(); i++)
+		{
+			auto newValue = p->getAttribute(parameterIndexes[i]);
+
+			if (lastValues[i] != newValue)
+			{
+				lastValues.set(i, newValue);
+				args.set(1, parameterNames[i]);
+				args.set(2, newValue);
+
+				try
+				{
+					sb->sendMessage(args, false);
+				}
+				catch (String& s)
+				{
+					debugError(dynamic_cast<Processor*>(sb->getScriptProcessor()), s);
+				}
+				
+			}
+		}
+	}
+
+	Array<var> args;
+
+	WeakReference<ScriptBroadcaster> sb;
+	WeakReference<Processor> p;
+	Array<float> lastValues;
+	Array<var> parameterNames;
+	const Array<int> parameterIndexes;
+};
+
+ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& const parameterIndexes)
+{
+	for (auto& p : processors)
+		listeners.add(new ProcessorListener(b, p, parameterIndexes));
+}
+
+Result ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::callItem(ItemBase* n)
+{
+	Array<var> args;
+	args.add("");
+	args.add("");
+	args.add(0.0f);
+
+	for (auto p : listeners)
+	{
+		Processor* processor = p->p.get();
+
+		if (processor == nullptr)
+			continue;
+
+		args.set(0, processor->getId());
+
+		for (int i = 0; i < p->parameterNames.size(); i++)
+		{
+			auto parameterIndex = p->parameterIndexes[i];
+
+			args.set(1, processor->getIdentifierForParameterIndex(parameterIndex).toString());
+			args.set(2, processor->getAttribute(parameterIndex));
+
+			auto r = n->callSync(args);
+
+			if (!r.wasOk())
+				return r;
+		}
+	}
+
+	return Result::ok();
 }
 
 } // namespace hise
