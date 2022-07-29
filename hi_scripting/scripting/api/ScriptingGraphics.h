@@ -790,7 +790,16 @@ namespace ScriptingObjects
 
         
 		Font f = GLOBAL_BOLD_FONT();
-		ReferenceCountedObjectPtr<GraphicsObject> g;
+        
+        struct GraphicsWithComponent
+        {
+            ReferenceCountedObjectPtr<GraphicsObject> g;
+            Component* c = nullptr;
+        };
+        
+        Array<GraphicsWithComponent> graphics;
+        
+		
 
 		var functions;
 

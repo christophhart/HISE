@@ -1872,7 +1872,7 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		while (r.wasOk() && lowPriorityQueue.pop(lpt))
 		{
-			SimpleReadWriteLock::ScopedReadLock sl(getLookAndFeelRenderLock());
+			SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
 
 			jassert(!lpt.getFunction().isHiPriority());
 
