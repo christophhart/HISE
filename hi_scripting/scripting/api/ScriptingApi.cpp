@@ -1756,10 +1756,16 @@ struct AudioRenderer : public Thread,
 
 	bool renderAudio()
 	{
+        // Stop all clocks...
+        getMainController()->getMasterClock().changeState(0, true, false);
+        getMainController()->getMasterClock().changeState(0, false, false);
+        
 		SuspendHelpers::ScopedTicket st(getMainController());
 
 		callUpdateCallback(false, 0.0);
 
+        
+        
 		while (getMainController()->getKillStateHandler().isAudioRunning())
 		{
 			if (threadShouldExit())
