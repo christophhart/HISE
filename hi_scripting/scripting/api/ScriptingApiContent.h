@@ -1698,6 +1698,7 @@ public:
 			enableMidiLearn,
 			holdIsRightClick,
 			isPopupPanel,
+            bufferToImage,
 			numProperties
 		};
 

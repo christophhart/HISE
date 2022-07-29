@@ -3292,7 +3292,8 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_SCRIPT_PROPERTY(i10, "enableMidiLearn");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i11, "holdIsRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i12, "isPopupPanel");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
+    ADD_SCRIPT_PROPERTY(i13, "bufferToImage");      ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 100);
@@ -3315,6 +3316,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	setDefaultValue(enableMidiLearn, false);
 	setDefaultValue(holdIsRightClick, true);
 	setDefaultValue(isPopupPanel, false);
+    setDefaultValue(bufferToImage, false);
 
 	handleDefaultDeactivatedProperties();
 

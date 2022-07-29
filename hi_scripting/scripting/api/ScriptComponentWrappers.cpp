@@ -2121,7 +2121,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 	bp->setEnableFileDrop(panel->fileDropLevel, panel->fileDropExtension);
 
 	
-
+    bp->setBufferedToImage(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::bufferToImage));
 
 	component = bp;
 
