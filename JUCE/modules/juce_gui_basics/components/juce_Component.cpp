@@ -896,7 +896,7 @@ void Component::grabKeyboardFocusAsync()
 {
 Component::SafePointer<Component> safeC(this);
 	
-	Timer::callAfterDelay(300, [safeC]()
+	Timer::callAfterDelay(100, [safeC]()
 	{
 		if (safeC == nullptr)
 			return;

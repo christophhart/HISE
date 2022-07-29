@@ -1784,7 +1784,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			return insert("");
 		}
 
-        if (key.isKeyCode (KeyPress::backspaceKey)) return (   expandBack (Target::commandTokenNav, Direction::backwardCol)
+        if (key.isKeyCode (KeyPress::backspaceKey) && !key.getModifiers().isAnyModifierKeyDown())
+            return (expandBack (Target::commandTokenNav, Direction::backwardCol)
                                                             && insert (""));
 
 		if (key == KeyPress('e', ModifierKeys::ctrlModifier, 0) ||
@@ -1915,7 +1916,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 
 
-	if (key.isKeyCode(KeyPress::backspaceKey)) return remove(Target::character, Direction::backwardCol);
+	if (key.isKeyCode(KeyPress::backspaceKey) && !key.getModifiers().isAnyModifierKeyDown())
+        return remove(Target::character, Direction::backwardCol);
 	if (key.isKeyCode(KeyPress::deleteKey))
 	{
 		// Deactivate double delete when pressing del key

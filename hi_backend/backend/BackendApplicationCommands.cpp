@@ -75,7 +75,9 @@ void BackendCommandTarget::setEditor(BackendRootWindow *editor)
 	mainCommandManager = owner->getCommandManager();
 	mainCommandManager->registerAllCommandsForTarget(this);
 	mainCommandManager->getKeyMappings()->resetToDefaultMappings();
-
+    
+    updater = new Updater(*this);
+    
 	bpe->addKeyListener(mainCommandManager->getKeyMappings());
 	mainCommandManager->setFirstCommandTarget(this);
 	mainCommandManager->commandStatusChanged();
@@ -175,6 +177,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
+        MenuViewGotoUndo,
+        MenuViewGotoRedo,
         MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -587,6 +591,30 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
 		result.categoryName = "View";
 		break;
+    case MenuViewGotoUndo:
+    case MenuViewGotoRedo:
+    {
+        auto isUndo = commandID == MenuViewGotoUndo;
+        auto l = bpe->getBackendProcessor()->getLocationUndoManager();
+        auto shortcutId = isUndo ? TextEditorShortcuts::goto_undo : TextEditorShortcuts::goto_redo;
+        String name;
+            
+        if(isUndo)
+        {
+            
+            name << "Go back to ";
+            name << l->getUndoDescription();
+        }
+        else
+            name << "Goto next location";
+            
+        result.setInfo(name, name, "Unused", 0);
+        result.setActive(true);
+        result.categoryName = "View";
+            result.defaultKeypresses.add(TopLevelWindowWithKeyMappings::getFirstKeyPress(bpe, shortcutId));
+        
+        break;
+    }
     case MenuViewFullscreen:
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'X', false);
 		result.categoryName = "View";
@@ -752,6 +780,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
+    case MenuViewGotoUndo: bpe->getBackendProcessor()->getLocationUndoManager()->undo(); updateCommands(); return true;
+    case MenuViewGotoRedo:  bpe->getBackendProcessor()->getLocationUndoManager()->redo(); updateCommands(); return true;
 	case MenuExportFileAsPlugin:
     {
         CompileExporter exporter(bpe->getMainSynthChain());
@@ -1012,6 +1042,11 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	}
 	case BackendCommandTarget::ViewMenu: {
 
+        ADD_ALL_PLATFORMS(MenuViewGotoUndo);
+        ADD_ALL_PLATFORMS(MenuViewGotoRedo);
+        
+        p.addSeparator();
+        
         ADD_ALL_PLATFORMS(MenuViewFullscreen);
         ADD_ALL_PLATFORMS(MenuViewRotate);
 

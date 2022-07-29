@@ -304,37 +304,162 @@ CodeEditorPanel* findOrCreateEditorPanel(CodeEditorPanel* panel, Processor* proc
 
 	return panel;
 }
+
+
+struct UndoableLocationSwitch: public UndoableAction
+{
+    static String getLocationString(JavascriptProcessor* p, const String& indexString)
+    {
+        if(indexString == "onInit")
+            return "";
+        
+        for(int i = 0; i < p->getNumWatchedFiles(); i++)
+        {
+            auto f = p->getWatchedFile(i);
+            
+            if(f.getFileName() == indexString)
+            {
+                return f.getFullPathName();
+            }
+        }
+        
+        return indexString + "()";
+    }
+    
+    static String getDescription(Processor* p)
+    {
+        String d;
+        
+        if (auto editor = p->getMainController()->getLastActiveEditor())
+        {
+            if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+            {
+                mcl::TextEditor& e = dynamic_cast<mcl::FullEditor*>(editor)->editor;
+                auto s = e.getTextDocument().getSelection(0).head;
+                
+                StringArray indexList;
+                editorPanel->fillIndexList(indexList);
+                auto idx = editorPanel->getCurrentIndex();
+                d << indexList[idx];
+                d << ":";
+                d << String(s.x);
+                
+            }
+        }
+        
+        
+        
+        return d;
+    }
+    
+    DebugableObject::Location getPosition(Processor* p)
+    {
+        DebugableObject::Location location;
+        
+        if (auto editor = p->getMainController()->getLastActiveEditor())
+        {
+            if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+            {
+                mcl::TextEditor& e = dynamic_cast<mcl::FullEditor*>(editor)->editor;
+                auto s = e.getTextDocument().getSelection(0).head;
+                
+                CodeDocument::Position pos(e.getDocument(), s.x, s.y);
+                
+                StringArray indexList;
+                editorPanel->fillIndexList(indexList);
+                auto idx = editorPanel->getCurrentIndex();
+                
+                location.charNumber = pos.getPosition();
+                location.fileName = getLocationString(dynamic_cast<JavascriptProcessor*>(p), indexList[idx]);
+            }
+        }
+        
+        return location;
+    }
+    
+    UndoableLocationSwitch(Processor* p, DebugableObject::Location location)
+    {
+        newProcessor = p;
+        newLocation = location;
+        
+        if (auto editor = p->getMainController()->getLastActiveEditor())
+        {
+            if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+                oldProcessor = editorPanel->getConnectedProcessor();
+        }
+        
+        oldLocation = getPosition(oldProcessor);
+    }
+    
+    bool perform() override
+    {
+        if(oldProcessor != nullptr)
+            oldLocation = getPosition(oldProcessor);
+        
+        return gotoInternal(newProcessor.get(), newLocation);
+    }
+    
+    bool undo() override
+    {
+        if(newProcessor != nullptr)
+            newLocation = getPosition(newProcessor);
+        
+        return gotoInternal(oldProcessor.get(), oldLocation);
+    }
+    
+    bool gotoInternal(Processor* processor, DebugableObject::Location location)
+    {
+        if(processor == nullptr)
+            return false;
+        
+        auto editor = processor->getMainController()->getLastActiveEditor();
+
+        if (editor == nullptr)
+            return false;
+
+        if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+        {
+            editorPanel = findOrCreateEditorPanel(editorPanel, processor, location);
+            editorPanel->gotoLocation(processor, location.fileName, location.charNumber);
+            return true;
+        }
+        else if (location.fileName.isNotEmpty())
+        {
+            auto jsp = dynamic_cast<JavascriptProcessor*>(processor);
+
+            File f(location.fileName);
+
+            jsp->showPopupForFile(f, location.charNumber);
+            return true;
+        }
+        else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
+        {
+            scriptEditor->showOnInitCallback();
+            scriptEditor->gotoChar(location.charNumber);
+            return true;
+        }
+    
+        return false;
+    }
+    
+    WeakReference<Processor> oldProcessor, newProcessor;
+    DebugableObject::Location oldLocation, newLocation;
+};
 #endif
 
 void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
 {
 #if USE_BACKEND
-	auto editor = processor->getMainController()->getLastActiveEditor();
-
-	if (editor == nullptr)
-		return;
-
-	if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-	{
-		editorPanel = findOrCreateEditorPanel(editorPanel, processor, location);
-
-		editorPanel->gotoLocation(processor, location.fileName, location.charNumber);
-	}
-	else if (location.fileName.isNotEmpty())
-	{
-		auto jsp = dynamic_cast<JavascriptProcessor*>(processor);
-
-		File f(location.fileName);
-
-		jsp->showPopupForFile(f, location.charNumber);
-	}
-	else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
-	{
-		scriptEditor->showOnInitCallback();
-		scriptEditor->gotoChar(location.charNumber);
-	}
+    auto um = processor->getMainController()->getLocationUndoManager();
+    
+    um->beginNewTransaction();
+    um->perform(new UndoableLocationSwitch(processor, location),
+                UndoableLocationSwitch::getDescription(processor));
+    
+    processor->getMainController()->getCommandManager()->commandStatusChanged();
+    
 #else
-	ignoreUnused(processor, location);
+    ignoreUnused(processor, location);
 #endif
 }
 

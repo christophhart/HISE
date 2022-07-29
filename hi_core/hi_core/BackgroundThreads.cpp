@@ -284,6 +284,8 @@ void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& 
 	t->setName(name);
 	t->addItemList(items, 1);
 
+    GlobalHiseLookAndFeel::setDefaultColours(*t);
+    
 	if (listener != nullptr)
 		t->addListener(listener);
 

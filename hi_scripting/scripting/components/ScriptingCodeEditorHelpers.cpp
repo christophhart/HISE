@@ -343,11 +343,88 @@ public:
 		JavascriptProcessor* jp;
 	};
 
+    struct SearchOptions
+    {
+        SearchMode currentMode;
+        String searchTerm;
+        bool currentFileOnly = false;
+        bool ignoreCase = false;
+        bool wholeWord = false;
+        bool regex = false;
+        
+        void parse(const String& search)
+        {
+            if (search.startsWithIgnoreCase("f "))
+            {
+                searchTerm = search.substring(2).trim();
+                currentMode = SearchMode::FileSearch;
+            }
+            else if (search.startsWithIgnoreCase("s "))
+            {
+                searchTerm = search.substring(2).trim();
+                currentMode = SearchMode::SymbolSearch;
+            }
+            else if (search.startsWithIgnoreCase("n "))
+            {
+                searchTerm = search.substring(2).trim();
+                currentMode = SearchMode::NamespaceSearch;
+            }
+            else if (search.startsWithIgnoreCase("fn "))
+            {
+                searchTerm = search.substring(3).trim();
+                currentMode = SearchMode::FunctionSearch;
+            }
+            else if (search.startsWithIgnoreCase("v "))
+            {
+                searchTerm = search.substring(2).trim();
+                currentMode = SearchMode::VariableSearch;
+            }
+            else
+            {
+                searchTerm = search;
+                currentMode = SearchMode::TextSearch;
+            }
+        }
+        
+        bool matchesWholeWord(const String& expandedSearch) const
+        {
+            if(!wholeWord)
+                return true;
+            
+            auto first = expandedSearch[0];
+            auto last = expandedSearch.getLastCharacter();
+            
+            auto valid = [](juce_wchar c)
+            {
+                return !CharacterFunctions::isLetter(c) &&
+                       c != '_';
+            };
+            
+            return valid(first) && valid(last);
+        }
+        
+        bool matches(const String& expected, const String& expandedSearch) const
+        {
+            if(currentMode != SearchMode::TextSearch && searchTerm.isEmpty())
+                return true;
+            
+            if(regex)
+                return hise::RegexFunctions::matchesWildcard(expected, searchTerm);
+            
+            if(ignoreCase)
+                return expected.containsIgnoreCase(searchTerm);
+            else
+                return expected.contains(searchTerm);
+        }
+        
+    } currentOptions;
+    
 	ReferenceFinder(PopupIncludeEditor::EditorType* editor_, JavascriptProcessor* jp_) :
 		DialogWindowWithBackgroundThread("Find all occurrences"),
 		ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 		editor(editor_),
-		jp(jp_)
+		jp(jp_),
+        optionsRow(new AdditionalRow(this))
 	{
 		// This simulates a tightly condensed multithreading access scenario to increase
 		// the crash probability for debugging...
@@ -363,7 +440,6 @@ public:
 		addTextEditor("searchTerm", initSearchTerm, "Search term");
 		getTextEditor("searchTerm")->addListener(this);
 		getTextEditor("searchTerm")->setIgnoreUpDownKeysWhenSingleLine(true);
-
 		getTextEditor("searchTerm")->addKeyListener(this);
 
 		StringArray sa;
@@ -371,10 +447,16 @@ public:
 		sa.add("All included files");
 		sa.add("Currently opened script");
 
-		addComboBox("searchArea", sa, "Look in");
-		getComboBoxComponent("searchArea")->addListener(this);
+		optionsRow->addComboBox("searchArea", sa, "Look in");
+        optionsRow->addComboBox("ignoreCase", {"No", "Yes"}, "Ignore Case");
+        optionsRow->addComboBox("wholeWord", {"No", "Yes"}, "WholeWord");
+        optionsRow->addComboBox("regex", { "No", "Yes"}, "Use RegEx");
 
-		GlobalHiseLookAndFeel::setDefaultColours(*getComboBoxComponent("searchArea"));
+        optionsRow->setSize(600, 40);
+        addCustomComponent(optionsRow);
+        
+        
+		
 
 		addAndMakeVisible(table = new TableListBox());
 		table->setModel(this);
@@ -407,6 +489,8 @@ public:
         
 		rebuildLines();
 
+        
+        
 		getTextEditor("searchTerm")->grabKeyboardFocusAsync();
 
 		numFixedComponents = getNumCustomComponents();
@@ -439,15 +523,27 @@ public:
 
 	};
 
-	void textEditorTextChanged(TextEditor&) override
+	void textEditorTextChanged(TextEditor& t) override
 	{
+        currentOptions.parse(t.getText());
 		rebuildLines();
 	}
 
 	TableEntry::List entries;
 
-	void comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/) override
+	void comboBoxChanged(ComboBox* cb) override
 	{
+        auto id = cb->getName();
+        
+        if(id == "searchArea")
+            currentOptions.currentFileOnly = (bool)cb->getSelectedItemIndex();
+        else if (id == "ignoreCase")
+            currentOptions.ignoreCase = (bool)cb->getSelectedItemIndex();
+        else if (id == "wholeWord")
+            currentOptions.wholeWord = (bool)cb->getSelectedItemIndex();
+        else if (id == "regex")
+            currentOptions.regex = (bool)cb->getSelectedItemIndex();
+            
 		rebuildLines();
 	}
 
@@ -525,6 +621,8 @@ public:
 		}
 	}
 
+    
+    
 	void fillRecursive(TableEntry::List& listToUse, DebugInformationBase::Ptr db, const String& searchTerm, const Array<DebugInformation::Type>& typeFilters)
 	{
 		if (db == nullptr)
@@ -534,8 +632,7 @@ public:
 			return;
 
 		auto location = db->getLocation();
-		auto match = [searchTerm](const String& t) { return searchTerm.isEmpty() || t.containsIgnoreCase(searchTerm); };
-
+        
 		if (location.fileName.isNotEmpty() || location.charNumber != 0)
 		{
 			auto type = db->getTextForDataType();
@@ -544,7 +641,8 @@ public:
 			auto typeIndex = (DebugInformation::Type)db->getType();
 			auto typeFilterMatch = typeFilters.isEmpty() || typeFilters.contains(typeIndex);
 
-			if (typeFilterMatch && (match(type) || match(name)))
+            if (typeFilterMatch && (currentOptions.matches(type, {}) ||
+                                    currentOptions.matches(name, {})))
 			{
 				auto j = getFileIndex(location.fileName);
 
@@ -606,15 +704,27 @@ public:
 
 			String analyseString = allText;
 
+            
 			while (searchTerm.isNotEmpty() && analyseString.contains(searchTerm))
 			{
 				if (threadShouldExit())
 					return;
 
-				analyseString = analyseString.fromFirstOccurrenceOf(searchTerm, false, false);
+				analyseString = analyseString.fromFirstOccurrenceOf(searchTerm, false, currentOptions.ignoreCase);
 
 				const int index = allText.length() - analyseString.length() - searchTerm.length();
 
+                if(index > 1)
+                {
+                    auto expanded = allText.substring(index-1, jmin(allText.length(), index + searchTerm.length() + 1));
+                    
+                    if(!currentOptions.matchesWholeWord(expanded))
+                        continue;
+                }
+                
+                
+                
+                
 				JavascriptCodeEditor::CodeRegion newRegion;
 				newRegion.setStart(index);
 				newRegion.setLength(searchTerm.length());
@@ -664,10 +774,11 @@ public:
 
 	void fillSearchList(TableEntry::List& listToUse, SearchMode mode, const String& searchTerm)
 	{
-		const bool lookInAllFiles = getComboBoxComponent("searchArea")->getSelectedItemIndex() == 0;
-
 		bool displayAllResults = mode != SearchMode::TextSearch || searchTerm.isNotEmpty();
 
+        if(editor == nullptr)
+            editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
+        
 		if (displayAllResults && editor != nullptr)
 		{
 			auto thisDoc = &CommonEditorFunctions::getDoc(editor);
@@ -678,7 +789,7 @@ public:
 					return;
 
 				auto f = jp->getSnippet(i);
-				const bool useFile = lookInAllFiles || f == thisDoc;
+				const bool useFile = !currentOptions.currentFileOnly || f == thisDoc;
 
 				if (!useFile)
 					continue;
@@ -689,7 +800,7 @@ public:
 			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
 			{
 				auto& doc = jp->getWatchedFileDocument(i);
-				const bool useFile = lookInAllFiles || &doc == thisDoc;
+				const bool useFile = !currentOptions.currentFileOnly || &doc == thisDoc;
 
 				if (!useFile)
 					continue;
@@ -725,6 +836,12 @@ public:
 				return true;
 		}
 		
+        if(k == KeyPress::escapeKey)
+        {
+            if(auto e = getMainController()->getLastActiveEditor())
+                e->grabKeyboardFocusAsync();
+        }
+        
 		if (k == KeyPress::returnKey)
 		{
 			gotoEntry(table->getSelectedRow());
@@ -742,90 +859,22 @@ public:
 			jassertfalse;
 		}
 
+        if(auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile())
+        {
+            if(root->keyPressed(k))
+                return true;
+        }
+        
 		return false;
 	}
-
-#if 0
-	bool keyPressed(const KeyPress& k) override
-	{
-		if (k == KeyPress::returnKey)
-		{
-			table->keyPressed(k);
-		}
-
-		if (DialogWindowWithBackgroundThread::keyPressed(k))
-			return true;
-
-		if (k == KeyPress::upKey ||
-			k == KeyPress::downKey)
-		{
-			if (table->getNumRows() != 0)
-			{
-				auto selectedRow = table->getSelectedRow();
-
-				selectedRow += ((k == KeyPress::upKey) ? -1 : 1);
-
-				selectedRow = jlimit(0, table->getNumRows(), selectedRow);
-				table->selectRow(selectedRow, true);
-				table->scrollToEnsureRowIsOnscreen(selectedRow);
-			}
-
-			return true;
-		}
-
-		if (k == KeyPress('c', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 'c'))
-		{
-			
-
-			return true;
-		}
-
-		return false;
-	}
-#endif
 	
 
 	void run() override
 	{
 		TableEntry::List newEntries;
 
-		auto search = getTextEditor("searchTerm")->getText();
-
-		if (search.startsWithIgnoreCase("f "))
-		{
-			auto fileToSearch = search.substring(2).trim();
-			fillSearchList(newEntries, SearchMode::FileSearch, fileToSearch);
-			newEntries.swapWith(entries);
-		}
-		else if (search.startsWithIgnoreCase("s "))
-		{
-			auto symbolToSearch = search.substring(2).trim();
-			fillSearchList(newEntries, SearchMode::SymbolSearch, symbolToSearch);
-			newEntries.swapWith(entries);
-		}
-		else if (search.startsWithIgnoreCase("n "))
-		{
-			auto symbolToSearch = search.substring(2).trim();
-			fillSearchList(newEntries, SearchMode::NamespaceSearch, symbolToSearch);
-			newEntries.swapWith(entries);
-		}
-		else if (search.startsWithIgnoreCase("fn "))
-		{
-			auto symbolToSearch = search.substring(3).trim();
-			fillSearchList(newEntries, SearchMode::FunctionSearch, symbolToSearch);
-			newEntries.swapWith(entries);
-		}
-		else if (search.startsWithIgnoreCase("v "))
-		{
-			auto symbolToSearch = search.substring(2).trim();
-			fillSearchList(newEntries, SearchMode::VariableSearch, symbolToSearch);
-			newEntries.swapWith(entries);
-		}
-		else
-		{
-			fillSearchList(newEntries, SearchMode::TextSearch, search);
-			newEntries.swapWith(entries);	
-		}
+        fillSearchList(newEntries, currentOptions.currentMode, currentOptions.searchTerm);
+        newEntries.swapWith(entries);
 	}
 
 	void threadFinished() override
@@ -885,14 +934,14 @@ public:
 			loc.fileName = entry->fileName;
 			loc.charNumber = entry->pos.getPosition();
 
-			DebugableObject::Helpers::gotoLocation(editor, jp, loc);
-
-			editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
-
+            editor = CommonEditorFunctions::as(getMainController()->getLastActiveEditor());
+			
 			if (editor != nullptr)
 			{
+                DebugableObject::Helpers::gotoLocation(editor, jp, loc);
 				auto search = getTextEditor("searchTerm")->getText();
 				CodeReplacer::refreshSelection(editor, search);
+                editor->grabKeyboardFocusAsync();
 			}
 		}
 	}
@@ -944,6 +993,7 @@ public:
 	ScopedPointer<TableListBox> table;
 	JavascriptProcessor* jp;
 
+    ScopedPointer<DialogWindowWithBackgroundThread::AdditionalRow> optionsRow;
 	ScopedPointer<DialogWindowWithBackgroundThread::AdditionalRow> debugComponentRow;
 };
 

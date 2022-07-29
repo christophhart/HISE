@@ -46,6 +46,8 @@ namespace TextEditorShortcuts
 	DECLARE_ID(add_autocomplete_template);
 	DECLARE_ID(clear_autocomplete_templates);
 	DECLARE_ID(select_token);
+    DECLARE_ID(goto_undo);
+    DECLARE_ID(goto_redo);
 }
 
 #undef DECLARE_ID

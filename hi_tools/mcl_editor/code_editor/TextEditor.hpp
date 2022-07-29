@@ -121,6 +121,8 @@ public:
 		if (onFocusChange)
 			onFocusChange(false, t);
 
+        closeAutocomplete(true, {}, {});
+        
 		caret.stopTimer();
 		caret.repaint();
 	}

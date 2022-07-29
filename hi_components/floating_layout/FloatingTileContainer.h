@@ -231,14 +231,17 @@ public:
 
 	void currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName) override;
 
-	bool matchesCycleKey(const KeyPress& k) const { return cycleKey.isValid() && k == cycleKey; }
-
-	void setCycleKeyPress(const Identifier& k);
-
+    Identifier getCycleKeyPress() const { return cycleKeyId; }
+    
+    void setCycleKeyPress(const Identifier& k)
+    {
+        cycleKeyId = k;
+    }
+    
 private:
 
-	KeyPress cycleKey;
-
+    Identifier cycleKeyId;
+    
 	ScopedPointer<ShapeButton> addButton;
 
 	PopupLookAndFeel plaf;

@@ -141,6 +141,8 @@ public:
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
+        MenuViewGotoUndo,
+        MenuViewGotoRedo,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -200,10 +202,43 @@ public:
 		numCommands
 	};
 
+    struct Updater: public juce::ApplicationCommandManagerListener
+    {
+        Updater(BackendCommandTarget& parent_):
+          parent(parent_)
+        {
+            parent.mainCommandManager->addListener(this);
+        }
+        
+        ~Updater()
+        {
+            if(parent.mainCommandManager)
+                parent.mainCommandManager->removeListener(this);
+        }
+        
+        void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo&) override
+        {
+            
+        }
+        
+        void applicationCommandListChanged() override
+        {
+            parent.menuItemsChanged();
+        }
+        
+        BackendCommandTarget& parent;
+    };
+    
+    ScopedPointer<Updater> updater;
+    
 	virtual ~BackendCommandTarget()
 	{
+        updater = nullptr;
+        
 		if(mainCommandManager != nullptr)
+        {
 			mainCommandManager->setFirstCommandTarget(nullptr);
+        }
 
 		CopyPasteTarget::setHandlerFunction(nullptr);
 	};
@@ -213,6 +248,8 @@ public:
 		return findFirstTargetParentComponent();
 	};
 
+   
+    
 	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
 		result.setInfo(name, name, "Unused", 0);
 		result.setActive(active); 

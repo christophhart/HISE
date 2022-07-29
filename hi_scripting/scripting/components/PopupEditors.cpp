@@ -338,6 +338,19 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 		return true;
 	}
 
+#if 0
+    if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_undo))
+    {
+        return dynamic_cast<Processor*>(jp.get())->getMainController()->getLocationUndoManager()->undo();
+        return true;
+    }
+    if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_redo))
+    {
+        return dynamic_cast<Processor*>(jp.get())->getMainController()->getLocationUndoManager()->redo();
+        return true;
+    }
+#endif
+    
 	if (TopLevelWindowWithKeyMappings::matches(this, key, TextEditorShortcuts::goto_file))
 	{
 		jassertfalse;
@@ -481,6 +494,10 @@ void PopupIncludeEditor::initKeyPresses(Component* root)
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::breakpoint_resume, "Resume breakpoint", KeyPress(KeyPress::F10Key));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_file, "Goto file", KeyPress('t', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 't'));
+    
+    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_undo, "Undo Goto", KeyPress(KeyPress::backspaceKey, ModifierKeys::commandModifier, 0));
+    
+    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_redo, "Redo Goto", KeyPress(KeyPress::backspaceKey, ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
 }
 
 File PopupIncludeEditor::getFile() const

@@ -1244,14 +1244,21 @@ bool FloatingTile::keyPressed(const KeyPress& key)
 
 		if (auto t = dynamic_cast<FloatingTabComponent*>(c))
 		{
-			if (t->matchesCycleKey(key))
-			{
-				int numTabs = t->getNumTabs();
-				auto newIndex = (t->getCurrentTabIndex() + 1) % numTabs;
-				t->setCurrentTabIndex(newIndex);
-				dynamic_cast<Component*>(t)->grabKeyboardFocusAsync();
-				return true;
-			}
+            auto ck = t->getCycleKeyPress();
+            
+            if(ck.isValid())
+            {
+                auto cycleKey = TopLevelWindowWithKeyMappings::getFirstKeyPress(t, ck);
+                
+                if (cycleKey == key)
+                {
+                    int numTabs = t->getNumTabs();
+                    auto newIndex = (t->getCurrentTabIndex() + 1) % numTabs;
+                    t->setCurrentTabIndex(newIndex);
+                    dynamic_cast<Component*>(t)->grabKeyboardFocusAsync();
+                    return true;
+                }
+            }
 		};
 
 
