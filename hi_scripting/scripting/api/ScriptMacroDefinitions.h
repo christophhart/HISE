@@ -14,14 +14,14 @@
 
 // Macros for APIClass objects
 
-#define ADD_API_METHOD_0(name) addFunction(Identifier(#name), &Wrapper::name)
-#define ADD_API_METHOD_1(name) addFunction1(Identifier(#name), &Wrapper::name)
-#define ADD_API_METHOD_2(name) addFunction2(Identifier(#name), &Wrapper::name)
-#define ADD_API_METHOD_3(name) addFunction3(Identifier(#name), &Wrapper::name)
-#define ADD_API_METHOD_4(name) addFunction4(Identifier(#name), &Wrapper::name)
-#define ADD_API_METHOD_5(name) addFunction5(Identifier(#name), &Wrapper::name)
+#define ADD_API_METHOD_0(name) static const Identifier name ## _id (#name); addFunction(name ## _id, &Wrapper::name)
+#define ADD_API_METHOD_1(name) static const Identifier name ## _id (#name); addFunction1(name ## _id, &Wrapper::name)
+#define ADD_API_METHOD_2(name) static const Identifier name ## _id (#name); addFunction2(name ## _id, &Wrapper::name)
+#define ADD_API_METHOD_3(name) static const Identifier name ## _id (#name); addFunction3(name ## _id, &Wrapper::name)
+#define ADD_API_METHOD_4(name) static const Identifier name ## _id (#name); addFunction4(name ## _id, &Wrapper::name)
+#define ADD_API_METHOD_5(name) static const Identifier name ## _id (#name); addFunction5(name ## _id, &Wrapper::name)
 
-#define ADD_INLINEABLE_API_METHOD_0(name) addFunction(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
+#define ADD_INLINEABLE_API_METHOD_0(name) ADD_API_METHOD(name) setFunctionIsInlineable(name ## _id);
 #define ADD_INLINEABLE_API_METHOD_1(name) addFunction1(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
 #define ADD_INLINEABLE_API_METHOD_2(name) addFunction2(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
 #define ADD_INLINEABLE_API_METHOD_3(name) addFunction3(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));

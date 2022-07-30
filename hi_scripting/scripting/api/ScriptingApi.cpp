@@ -958,7 +958,6 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMilliSecondsForTempo);
 	ADD_API_METHOD_1(getSamplesForMilliSeconds);
 	ADD_API_METHOD_1(getMilliSecondsForSamples);
-	ADD_API_METHOD_1(getMilliSecondsForSamples);
 	ADD_API_METHOD_1(getQuarterBeatsForMilliSeconds);
 	ADD_API_METHOD_1(getQuarterBeatsForSamples);
 	ADD_API_METHOD_1(getSamplesForQuarterBeats);
@@ -6351,13 +6350,7 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 			auto list = root->f.findChildFiles(File::findFilesAndDirectories | File::ignoreHiddenFiles, recursive, wildcard);
 
 			for (auto sf : list)
-            {
-                if(sf.isHidden())
-                    continue;
-                
                 l.add(new ScriptingObjects::ScriptFile(p, sf));
-            }
-				
 		}
 	}
 

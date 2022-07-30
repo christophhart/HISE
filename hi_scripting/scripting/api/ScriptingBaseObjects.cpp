@@ -901,7 +901,7 @@ Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, co
 		jassert(thisAsRef->getReferenceCount() > 1);
 	}
 
-	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult);
+	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult, true);
 
 	if (returnValue != nullptr)
 		*returnValue = rv;

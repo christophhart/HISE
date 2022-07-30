@@ -794,6 +794,7 @@ namespace ScriptingObjects
         struct GraphicsWithComponent
         {
             ReferenceCountedObjectPtr<GraphicsObject> g;
+            Identifier functionName;
             Component* c = nullptr;
         };
         

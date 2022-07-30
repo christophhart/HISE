@@ -1216,7 +1216,6 @@ ConnectionBase::ConnectionBase(DspNetwork* network_, ValueTree data_) :
 	ADD_API_METHOD_0(isConnected);
 	ADD_API_METHOD_0(getConnectionType);
 	ADD_API_METHOD_0(getUpdateRate);
-	ADD_API_METHOD_0(getTarget);
 
 	auto nodeId = data[PropertyIds::NodeId].toString();
 
