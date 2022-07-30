@@ -800,7 +800,8 @@ void BorderPanel::paint(Graphics &g)
 	}
 	else
 	{
-		ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+        
+		
 		Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
 
 		fillR.expand(borderSize * 0.5f, borderSize * 0.5f);
@@ -811,11 +812,34 @@ void BorderPanel::paint(Graphics &g)
 
 		if (fillR.isEmpty() || fillR.getX() < 0 || fillR.getY() < 0) return;
 
-		g.setGradientFill(grad);
-		g.fillRoundedRectangle(fillR, borderRadius);
+        if(c1 != c2)
+        {
+            ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+            g.setGradientFill(grad);
+        }
+        else
+            g.setColour(c1);
 
-		g.setColour(borderColour);
-		g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+        
+
+        
+        if(borderSize > 0)
+        {
+            if(borderRadius != 0)
+                g.fillRoundedRectangle(fillR, borderRadius);
+            else
+                g.fillRect(fillR);
+            
+            g.setColour(borderColour);
+            g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+        }
+        else
+        {
+            if(borderRadius != 0)
+                g.fillRoundedRectangle(fillR, borderRadius);
+            else
+                g.fillAll();
+        }
 	}
 }
 

@@ -2103,7 +2103,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
         
         for(auto& gr: graphics)
         {
-            if(gr.c == c)
+            if(gr.c == c && gr.functionName == functionname)
             {
                 g = gr.g;
                 break;
@@ -2115,6 +2115,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
             GraphicsWithComponent gr;
             gr.g = new GraphicsObject(getScriptProcessor(), this);
             gr.c = c;
+            gr.functionName = functionname;
             graphics.add(gr);
             g = gr.g;
         }
