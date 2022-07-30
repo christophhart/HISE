@@ -112,7 +112,7 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		{
 		case CellType::Button:
 		{
-			auto b = new HiToggleButton(cd.getProperty("Text", "Button"));
+			auto b = new MomentaryToggleButton(cd.getProperty("Text", "Button"));
 
 			auto momentary = !(bool)cd.getProperty("Toggle", false);
 

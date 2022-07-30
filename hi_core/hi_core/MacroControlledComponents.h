@@ -422,7 +422,49 @@ public:
 	Font font;
 };
 
-class HiToggleButton: public ToggleButton,
+class MomentaryToggleButton: public ToggleButton
+{
+public:
+    
+    MomentaryToggleButton(const String& name):
+      ToggleButton(name)
+    {};
+    
+    void setIsMomentary(bool shouldBeMomentary)
+    {
+        isMomentary = shouldBeMomentary;
+    }
+    
+    void mouseDown(const MouseEvent& e) override
+    {
+        if (isMomentary)
+        {
+            setToggleState(true, sendNotification);
+        }
+        else
+        {
+            ToggleButton::mouseDown(e);
+        }
+    }
+    
+    void mouseUp(const MouseEvent& e) override
+    {
+        if (isMomentary)
+        {
+            setToggleState(false, sendNotification);
+        }
+        else
+        {
+            ToggleButton::mouseUp(e);
+        }
+    }
+    
+private:
+    
+    bool isMomentary = false;
+};
+
+class HiToggleButton: public MomentaryToggleButton,
 					  public Button::Listener,
 				      public MacroControlledObject,
                       public TouchAndHoldComponent
@@ -430,7 +472,7 @@ class HiToggleButton: public ToggleButton,
 public:
 
 	HiToggleButton(const String &name):
-		ToggleButton(name),
+		MomentaryToggleButton(name),
         MacroControlledObject(),
 		notifyEditor(dontSendNotification)
 	{
@@ -459,10 +501,7 @@ public:
 		notifyEditor = notify;
 	}
 
-	void setIsMomentary(bool shouldBeMomentary)
-	{
-		isMomentary = shouldBeMomentary;
-	}
+	
 
 	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition)
 	{
@@ -499,7 +538,7 @@ private:
 
 	Component::SafePointer<Component> currentPopup;
 
-	bool isMomentary = false;
+	
 
 	NotificationType notifyEditor;
 	ScopedPointer<LookAndFeel> laf;

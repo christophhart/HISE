@@ -670,14 +670,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
         
         startTouch(e.getMouseDownPosition());
         
-		if (isMomentary)
-		{
-			setToggleState(true, sendNotification);
-		}
-		else
-		{
-			ToggleButton::mouseDown(e);
-		}
+        MomentaryToggleButton::mouseDown(e);
 
 		if (popupData.isObject())
 		{
@@ -717,15 +710,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 void HiToggleButton::mouseUp(const MouseEvent& e)
 {
     abortTouch();
-    
-	if (isMomentary)
-	{
-		setToggleState(false, sendNotification);
-	}
-	else
-	{
-		ToggleButton::mouseUp(e);
-	}
+    MomentaryToggleButton::mouseUp(e);
 }
 
 void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
