@@ -34,6 +34,11 @@
 
 namespace hise { using namespace juce;
 
+void MatrixPeakMeter::fillModuleList(StringArray& moduleList)
+{
+    fillModuleListWithType<RoutableProcessor>(moduleList);
+}
+
 ActivityLedPanel::ActivityLedPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {

@@ -36,6 +36,371 @@
 namespace hise { using namespace juce;
 
 
+class MatrixPeakMeter: public PanelWithProcessorConnection
+{
+public:
+    
+    enum ColourIds
+    {
+        bgColour,
+        trackColour,
+        peakColour,
+        maxPeakColour
+    };
+    
+    enum class SpecialProperties
+    {
+        SegmentLedSize = (int)SpecialPanelIds::numSpecialPanelIds,
+        UseSourceChannels,
+        UpDecayTime,
+        DownDecayTime,
+        SkewFactor,
+        PaddingSize,
+        ShowMaxPeak,
+        numSpecialProperties
+    };
+    
+    struct LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+        
+        void drawPeak(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c)
+        {
+            auto b = c->getLocalBounds().toFloat().reduced(paddingSize);
+            
+            g.fillAll(c->findColour(bgColour));
+            
+            auto w = isVertical ? b.getWidth() : b.getHeight();
+            
+            w -= (float)(numChannels - 1) * paddingSize;
+            
+            auto wPerPeak = w / numChannels;
+            
+            auto tc = c->findColour(trackColour);
+            auto pc = c->findColour(peakColour);
+            auto mc = c->findColour(maxPeakColour);
+            
+            RectangleList<float> onSegments, offSegments, maxSegments;
+            
+            for(int i = 0; i < numChannels; i++)
+            {
+                const float fullSize = (isVertical ? b.getHeight() : b.getWidth());
+                
+                auto thisTrack = isVertical ? b.removeFromLeft(wPerPeak) : b.removeFromTop(wPerPeak);
+                
+                if(segmentSize < 1.0f)
+                {
+                    auto maxCopy = thisTrack;
+                    
+                    g.setColour(tc);
+                    g.fillRect(thisTrack);
+                    g.setColour(pc);
+                    
+                    auto gainSize = peakValues[i] * fullSize;
+                    auto thisPeak = isVertical ? thisTrack.removeFromBottom(gainSize) : thisTrack.removeFromLeft(gainSize);
+                    g.fillRect(thisPeak);
+                    
+                    if(maxPeaks != nullptr && maxPeaks[i] > 0.0f)
+                    {
+                        auto maxPos = fullSize * maxPeaks[i];
+                        
+                        g.setColour(mc);
+                        
+                        auto c = isVertical ? maxCopy.removeFromBottom(maxPos).withHeight(2.0f) :
+                                              maxCopy.removeFromLeft(maxPos).withWidth(2.0f);
+                        
+                        g.fillRect(c);
+                    }
+                }
+                else
+                {
+                    float sw = segmentSize + paddingSize;
+                    
+                    int numSegments = roundToInt(fullSize / sw);
+                    int peakIndex = roundToInt((float)numSegments * peakValues[i]);
+                    
+                    int maxPeakIndex = maxPeaks != nullptr ? roundToInt((float)numSegments * maxPeaks[i]) : -1;
+                    
+                    for(int j = 0; j < numSegments; j++)
+                    {
+                        auto segment = isVertical ? thisTrack.removeFromBottom(sw) :
+                                                    thisTrack.removeFromLeft(sw);
+                        
+                        isVertical ? segment.removeFromTop(paddingSize) : segment.removeFromRight(paddingSize);
+                        
+                        if(j < peakIndex)
+                            onSegments.addWithoutMerging(segment);
+                        else
+                            offSegments.addWithoutMerging(segment);
+                        
+                        if(j == maxPeakIndex)
+                            maxSegments.addWithoutMerging(segment);
+                    }
+                }
+                
+                if(isVertical)
+                    b.removeFromLeft(paddingSize);
+                else
+                    b.removeFromTop(paddingSize);
+            }
+            
+            if(!onSegments.isEmpty() || !offSegments.isEmpty())
+            {
+                g.setColour(pc);
+                g.fillRectList(onSegments);
+                g.setColour(tc);
+                g.fillRectList(offSegments);
+                g.setColour(mc);
+                g.fillRectList(maxSegments);
+            }
+        }
+    };
+    
+    struct InternalComp: public Component,
+                         public ControlledObject,
+                         public PooledUIUpdater::SimpleTimer
+    {
+        InternalComp(MainController* mc, RoutableProcessor::MatrixData* d):
+          ControlledObject(mc),
+          SimpleTimer(mc->getGlobalUIUpdater()),
+          data(d)
+        {
+            memset(currentPeaks, 0, sizeof(float) * NUM_MAX_CHANNELS);
+            memset(maxPeaks, 0, sizeof(float) * NUM_MAX_CHANNELS);
+            memset(maxPeakCounter, 0, sizeof(int) * NUM_MAX_CHANNELS);
+            data->setEditorShown(true);
+        }
+        
+        ~InternalComp()
+        {
+            if(data != nullptr)
+                data->setEditorShown(false);
+        }
+        
+        void timerCallback() override
+        {
+            if(!isShowing())
+                return;
+            
+            if(data == nullptr)
+                return;
+            
+            bool change = false;
+            
+            auto numChannels = getSource ? data->getNumDestinationChannels() :
+                                           data->getNumSourceChannels();
+            
+            change |= numChannels != lastNumChannels;
+            lastNumChannels = numChannels;
+            
+            for(int i = 0; i < numChannels; i++)
+            {
+                auto thisValue = data->getGainValue(i, getSource);
+                
+                thisValue = std::pow(thisValue, skewFactor);
+                
+                if(showMaxPeaks)
+                {
+                    if(thisValue > maxPeaks[i])
+                    {
+                        maxPeaks[i] = thisValue;
+                        maxPeakCounter[i] = MaxCounter;
+                        change = true;
+                    }
+                    else if(--maxPeakCounter[i] == 0)
+                    {
+                        maxPeaks[i] = 0.0f;
+                        change = true;
+                    }
+                }
+                
+                auto oldValue = currentPeaks[i];
+                
+                change |= hmath::abs(thisValue - oldValue) > 0.001;
+                currentPeaks[i] = thisValue;
+            }
+            
+            if(change)
+                repaint();
+        }
+        
+        void paint(Graphics& g) override
+        {
+            if(data == nullptr)
+                return;
+            
+            auto lafToUse = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel());
+            
+            if(lafToUse == nullptr)
+                lafToUse = &fallback;
+            
+            lafToUse->drawPeak(g,
+                               currentPeaks,
+                               showMaxPeaks ? maxPeaks : nullptr,
+                               getSource ? data->getNumSourceChannels() : data->getNumDestinationChannels(),
+                               getWidth() < getHeight(),
+                               segmentSize,
+                               paddingSize,
+                               this);
+        }
+        
+        LookAndFeelMethods fallback;
+        bool getSource = true;
+        bool isVertical = false;
+        
+        float currentPeaks[NUM_MAX_CHANNELS];
+        float maxPeaks[NUM_MAX_CHANNELS];
+        int maxPeakCounter[NUM_MAX_CHANNELS];
+        
+        WeakReference<RoutableProcessor::MatrixData> data;
+        int lastNumChannels = 0;
+        
+        float skewFactor = 1.0f;
+        float segmentSize = 0.0f;
+        float paddingSize = 1.0f;
+        
+        bool showMaxPeaks = false;
+        
+        static constexpr int MaxCounter = 40;
+    };
+    
+    MatrixPeakMeter(FloatingTile* parent):
+      PanelWithProcessorConnection(parent)
+    {
+        setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+        setDefaultPanelColour(PanelColourId::itemColour1, Colour(0xFF555555));
+        setDefaultPanelColour(PanelColourId::itemColour2, Colour(0xFF222222));
+        setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+    }
+    
+    SET_PANEL_NAME("MatrixPeakMeter");
+    
+    void fillModuleList(StringArray& moduleList) override;
+    
+    var toDynamicObject() const override
+    {
+        auto obj = PanelWithProcessorConnection::toDynamicObject();
+        
+        storePropertyInObject(obj, (int)SpecialProperties::SegmentLedSize, segmentSize);
+        storePropertyInObject(obj, (int)SpecialProperties::UpDecayTime, upDecayFactor);
+        storePropertyInObject(obj, (int)SpecialProperties::DownDecayTime, downDecayFactor);
+        storePropertyInObject(obj, (int)SpecialProperties::UseSourceChannels, useSourceChannel);
+        storePropertyInObject(obj, (int)SpecialProperties::SkewFactor, skewFactor);
+        storePropertyInObject(obj, (int)SpecialProperties::PaddingSize, paddingSize);
+        storePropertyInObject(obj, (int)SpecialProperties::ShowMaxPeak, showMaxPeak);
+        
+        return obj;
+    }
+
+    void fromDynamicObject(const var& obj) override
+    {
+        segmentSize =  getPropertyWithDefault(obj, (int)SpecialProperties::SegmentLedSize);
+        upDecayFactor = getPropertyWithDefault(obj, (int)SpecialProperties::UpDecayTime);
+        downDecayFactor = getPropertyWithDefault(obj, (int)SpecialProperties::DownDecayTime);
+        useSourceChannel = getPropertyWithDefault(obj, (int)SpecialProperties::UseSourceChannels);
+        skewFactor = getPropertyWithDefault(obj, (int)SpecialProperties::SkewFactor);
+        paddingSize = getPropertyWithDefault(obj, (int)SpecialProperties::PaddingSize);
+        showMaxPeak = getPropertyWithDefault(obj, (int)SpecialProperties::ShowMaxPeak);
+        
+        PanelWithProcessorConnection::fromDynamicObject(obj);
+    }
+
+
+    int getNumDefaultableProperties() const override
+    {
+        return (int)SpecialProperties::numSpecialProperties;
+    }
+
+    Identifier getDefaultablePropertyId(int index) const override
+    {
+        if(isPositiveAndBelow(index, (int)SpecialPanelIds::numSpecialPanelIds))
+            return PanelWithProcessorConnection::getDefaultablePropertyId(index);
+        
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::SegmentLedSize, "SegmentLedSize");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::UpDecayTime, "UpDecayTime");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::DownDecayTime, "DownDecayTime");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::UseSourceChannels, "UseSourceChannels");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::SkewFactor, "SkewFactor");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::PaddingSize, "PaddingSize");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::ShowMaxPeak, "ShowMaxPeak");
+        
+        jassertfalse;
+        return {};
+    }
+
+    var getDefaultProperty(int index) const override
+    {
+        if(isPositiveAndBelow(index, (int)SpecialPanelIds::numSpecialPanelIds))
+            return PanelWithProcessorConnection::getDefaultProperty(index);
+        
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::SegmentLedSize, var(0.0f));
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::UpDecayTime, 0.0f);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::DownDecayTime, 0.0f);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::UseSourceChannels, false);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::SkewFactor, 1.0f);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::PaddingSize, 1.0f);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::ShowMaxPeak, true);
+        
+        return {};
+    }
+    
+    static float getCoefficient(double sr, float timeMs)
+    {
+        if(sr <= 0.0)
+            return 1.0f;
+        
+        if(timeMs == 0.0f)
+            return 1.0f;
+        
+        const float freq = 1000.0f / timeMs;
+        auto x = expf(-2.0f * float_Pi * freq / sr);
+        FloatSanitizers::sanitizeFloatNumber(x);
+        
+        return x;
+    }
+    
+    Component* createContentComponent(int index) override
+    {
+        if(auto rp = dynamic_cast<RoutableProcessor*>(getConnectedProcessor()))
+        {
+            auto ni = new InternalComp(getMainController(), &rp->getMatrix());
+            ni->getSource = useSourceChannel;
+            
+            auto sr = getConnectedProcessor()->getSampleRate();
+            sr /= (double)getConnectedProcessor()->getLargestBlockSize();
+            
+            auto upCoeff = getCoefficient(sr, upDecayFactor);
+            auto downCoeff = getCoefficient(sr, downDecayFactor);
+            ni->data->setDecayCoefficients(upCoeff, downCoeff);
+            
+            ni->setColour(bgColour, findPanelColour(PanelColourId::bgColour));
+            ni->setColour(peakColour, findPanelColour(PanelColourId::itemColour1));
+            ni->setColour(trackColour, findPanelColour(PanelColourId::itemColour2));
+            ni->setColour(maxPeakColour, findPanelColour(PanelColourId::textColour));
+            
+            if(ni->findColour(bgColour).isOpaque())
+                ni->setOpaque(true);
+            
+            ni->skewFactor = skewFactor;
+            ni->segmentSize = segmentSize;
+            ni->paddingSize = paddingSize;
+            ni->showMaxPeaks = showMaxPeak;
+            
+            return ni;
+        }
+        
+        return nullptr;
+    }
+    
+    float segmentSize = 0.0f;
+    float upDecayFactor = 1.0f;
+    float downDecayFactor = 1.0f;
+    bool useSourceChannel = false;
+    float skewFactor = 1.0f;
+    float paddingSize = 1.0f;
+    float showMaxPeak = true;
+};
+
 
 /** A LED that will light up when an MIDI message was received.
 *

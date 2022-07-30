@@ -162,7 +162,8 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	
 	registerType<AhdsrEnvelope::Panel>(PopupMenuOptions::AHDSRGraph);
 	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);
-
+    registerType<MatrixPeakMeter>(PopupMenuOptions::MatrixPeakMeterPanel);
+    
 #if HI_ENABLE_EXTERNAL_CUSTOM_TILES
 	registerExternalPanelTypes();
 #endif
@@ -633,6 +634,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiPlayerOverlay, "MIDI Player Overlay");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
+            addToPopupMenu(fm, PopupMenuOptions::MatrixPeakMeterPanel, "MatrixPeakMeter");
 			addToPopupMenu(fm, PopupMenuOptions::MPEPanel, "MPE Panel");
 			addToPopupMenu(fm, PopupMenuOptions::MarkdownPreviewPanel, "Markdown Panel");
 
@@ -731,6 +733,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
+        
+    case PopupMenuOptions::MatrixPeakMeterPanel: parent->setNewContent(GET_PANEL_NAME(MatrixPeakMeter)); break;
 	case PopupMenuOptions::ComplexDataManager:  parent->setNewContent(GET_PANEL_NAME(ComplexDataManager)); break;
 	case PopupMenuOptions::DspNetworkGraph:		parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNetworkGraphPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;

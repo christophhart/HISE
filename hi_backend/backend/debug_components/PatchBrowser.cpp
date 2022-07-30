@@ -1655,6 +1655,9 @@ PatchBrowser::MiniPeak::MiniPeak(Processor* p_) :
 		{
 			numChannels = rp->getMatrix().getNumSourceChannels();
 			rp->getMatrix().addChangeListener(this);
+            
+            if(numChannels != 2)
+                rp->getMatrix().setEditorShown(true);
 		}
 			
 		else
@@ -1671,6 +1674,9 @@ PatchBrowser::MiniPeak::~MiniPeak()
 	if (auto rp = dynamic_cast<RoutableProcessor*>(p.get()))
 	{
 		rp->getMatrix().removeChangeListener(this);
+        
+        if(numChannels != 2)
+            rp->getMatrix().setEditorShown(false);
 	}
 }
 
@@ -1858,7 +1864,7 @@ void PatchBrowser::MiniPeak::timerCallback()
 		{
 			auto& mat = rp->getMatrix();
 			thisNumChannels = mat.getNumSourceChannels();
-			mat.setEditorShown(thisNumChannels != 2);
+			
 
 			somethingChanged = numChannels != thisNumChannels;
 

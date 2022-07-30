@@ -38,7 +38,7 @@ numSourceChannels(2),
 numDestinationChannels(2),
 resizeAllowed(false),
 allowEnablingOnly(false),
-editorShown(false)
+numEditors(0)
 {
 	
     
@@ -448,25 +448,28 @@ void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer&
 	if (isEditorShown())
 	{
 		auto numToCheck = jmin(input.getNumSamples(), output.getNumSamples());
-		static constexpr float DecayFactor = 0.97f;
 
+        float thisPeaks[NUM_MAX_CHANNELS];
+        
 		for (int i = 0; i < input.getNumChannels(); i++)
 		{
 			auto max = input.getMagnitude(i, 0, numToCheck);
-			auto& v = sourceGainValues[i];
-			v = max > v ? max : v * DecayFactor;
+            thisPeaks[i] = max;
 		}
 
+        setGainValues(thisPeaks, true);
+        
 		for (int i = 0; i < output.getNumChannels(); i++)
 		{
 			auto max = output.getMagnitude(i, 0, numToCheck);
-			auto& v = targetGainValues[i];
-			v = max > v ? max : v * DecayFactor;
+            thisPeaks[i] = max;
 		}
+        
+        setGainValues(thisPeaks, false);
 	}
 }
 
-SimpleReadWriteLock& RoutableProcessor::MatrixData::getLock()
+SimpleReadWriteLock& RoutableProcessor::MatrixData::getLock() const
 {
 	return lock;
 }
@@ -476,11 +479,51 @@ void RoutableProcessor::MatrixData::setTargetProcessor(Processor *p)
 	targetProcessor = p;
 }
 
+float RoutableProcessor::MatrixData::getGainValue(int channelIndex, bool getSource) const
+{
+    if(auto sl =  SimpleReadWriteLock::ScopedTryReadLock(getLock()))
+    {
+        auto ptr = getSource ? sourceGainValues : targetGainValues;
+        int numValues = (getSource ? numSourceChannels : numDestinationChannels);
+        
+        if(isPositiveAndBelow(channelIndex, numValues))
+            return ptr[channelIndex];
+    }
+    
+    return 0.0f;
+}
+
 void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bool isSourceValue)
 {
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getLock()))
 	{
-		memcpy(isSourceValue ? sourceGainValues : targetGainValues, numMaxChannelValues, (isSourceValue ? numSourceChannels : numDestinationChannels) * sizeof(float));
+        auto dst = isSourceValue ? sourceGainValues : targetGainValues;
+        int numValues = (isSourceValue ? numSourceChannels : numDestinationChannels);
+        
+        auto useDecayFactors = upDecayFactor != 1.0f || downDecayFactor != 1.0f;
+        
+        if(useDecayFactors)
+        {
+            for(int i = 0; i < numValues; i++)
+            {
+                auto lastValue = dst[i];
+                auto newValue = numMaxChannelValues[i];
+                
+                if(newValue > lastValue)
+                    newValue = upDecayFactor * newValue + (1.0f - upDecayFactor) * lastValue;
+                else
+                    newValue = downDecayFactor * lastValue + (1.0f - downDecayFactor) * newValue;
+                
+                if(newValue < 0.0005f)
+                    newValue = 0.0f;
+                
+                dst[i] = newValue;
+            }
+        }
+        else
+        {
+            memcpy(dst, numMaxChannelValues, numValues * sizeof(float));
+        }
 	}
 }
 

@@ -63,6 +63,12 @@ public:
 	{
 	public:
 
+        void setDecayCoefficients(float newUpDecayFactor, float newDownDecayFactor)
+        {
+            upDecayFactor = jlimit(0.0f, 1.0f, newUpDecayFactor);
+            downDecayFactor = jlimit(0.0f, 1.0f, newDownDecayFactor);
+        }
+        
 		MatrixData(RoutableProcessor *p);
 
 		void clearAllConnections();
@@ -70,6 +76,8 @@ public:
 		void setAllowResizing(bool shouldAllowResizing) noexcept{ resizeAllowed = shouldAllowResizing; }
 		bool isUsed(int sourceChannel) const noexcept;;
 
+        float getGainValue(int channelIndex, bool getSource) const;
+        
 		bool toggleEnabling(int sourceChannel) noexcept;
 		bool toggleSendEnabling(int sourceChannel) noexcept;
 		bool toggleConnection(int sourceChannel, int destinationChannel) noexcept;;
@@ -95,7 +103,7 @@ public:
 
 		void handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output);
 
-		SimpleReadWriteLock& getLock();
+		SimpleReadWriteLock& getLock() const;
 
 		int getNumSourceChannels() const { return numSourceChannels; }
 		int getNumDestinationChannels() const { return numDestinationChannels; };
@@ -103,8 +111,14 @@ public:
 		void setOnlyEnablingAllowed(bool noRouting) { allowEnablingOnly = noRouting; }
 		void setNumAllowedConnections(int newNum) noexcept { numAllowedConnections = newNum; };
 
-		bool isEditorShown() const noexcept { return editorShown; }
-		void setEditorShown(bool isShown) noexcept { editorShown = isShown; }
+		bool isEditorShown() const noexcept { return numEditors > 0; }
+		void setEditorShown(bool isShown) noexcept
+        {
+            if(isShown)
+                numEditors++;
+            else
+                numEditors = jmax(0, numEditors-1);
+        }
 
 		void setTargetProcessor(Processor *p);
 		String getTargetName() const 
@@ -123,7 +137,7 @@ public:
 		}
 
 		void setGainValues(float *numMaxChannelValues, bool isSourceValue);
-		float getGainValue(int channelIndex, bool getSourceValue) const { return getSourceValue ? sourceGainValues[channelIndex] : targetGainValues[channelIndex]; };
+		
 
 		void init(Processor* pTouse=nullptr)
 		{
@@ -146,10 +160,13 @@ public:
 
 	private:
 
+        float upDecayFactor = 1.0f;
+        float downDecayFactor = 0.97f;
+        
 		void refreshSourceUseStates();
 
 		friend class RoutableProcessor;
-		SimpleReadWriteLock lock;
+		mutable SimpleReadWriteLock lock;
 
 		WeakReference<Processor> targetProcessor;
 		RoutableProcessor *owningProcessor;
@@ -157,7 +174,7 @@ public:
 
 		bool resizeAllowed;
 		bool allowEnablingOnly;
-		bool editorShown;
+        int numEditors = 0;
 
 		float sourceGainValues[NUM_MAX_CHANNELS];
 		float targetGainValues[NUM_MAX_CHANNELS];

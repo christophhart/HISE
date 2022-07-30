@@ -470,6 +470,9 @@ String FactoryType::getUniqueName(Processor *id, String name/*=String()*/)
 
 Processor *ProcessorHelpers::getFirstProcessorWithName(const Processor *root, const String &name)
 {
+    if(root->getId() == name)
+        return const_cast<Processor*>(root);
+    
 	Processor::Iterator<Processor> iter(const_cast<Processor*>(root), false);
 
 	Processor *p;

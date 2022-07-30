@@ -642,6 +642,7 @@ public:
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
+            MatrixPeakMeterPanel,
 			ActivationPanel,
 			TuningWindow,
 			PluginSettings,
