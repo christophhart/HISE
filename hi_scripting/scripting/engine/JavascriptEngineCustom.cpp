@@ -351,7 +351,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("InlineFunction"); }
 
-		String getDebugValue() const override { return lastReturnValue.toString(); }
+		String getDebugValue() const override { return lastReturnValue->toString(); }
 
 		/** This will be shown as name of the object. */
 		String getDebugName() const override { return functionDef; }
@@ -413,15 +413,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void cleanUpAfterExecution()
 		{
-			const int numArgs = dynamicFunctionCall->parameterResults.size();
-
-			for (int i = 0; i < numArgs; i++)
-			{
-				dynamicFunctionCall->parameterResults.setUnchecked(i, var());
-			}
-
-			cleanLocalProperties();
-
+            cleanLocalProperties();
 			setFunctionCall(nullptr);
 		}
 
@@ -457,11 +449,16 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				dynamicFunctionCall->parameterResults.setUnchecked(i, args[i]);
 			}
 
-			Statement::ResultCode c = body->perform(s, &lastReturnValue);
+			Statement::ResultCode c = body->perform(s, &lastReturnValue.get());
 
+            for (int i = 0; i < numArgs; i++)
+            {
+                dynamicFunctionCall->parameterResults.setUnchecked(i, {});
+            }
+            
 			cleanUpAfterExecution();
 
-			if (c == Statement::returnWasHit) return lastReturnValue;
+			if (c == Statement::returnWasHit) return lastReturnValue.get();
 			else return var::undefined();
 		}
 
@@ -521,7 +518,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		String functionDef;
 		String commentDoc;
 
-		var lastReturnValue = var::undefined();
+        ThreadLocalValue<var> lastReturnValue;
 		
 		ThreadLocalValue<const FunctionCall*> e;
 
@@ -581,7 +578,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			for (int i = 0; i < numArgs; i++)
 			{
-				parameterResults.setUnchecked(i, parameterExpressions.getUnchecked(i)->getResult(s));
+                auto v = parameterExpressions.getUnchecked(i)->getResult(s);
+				parameterResults.setUnchecked(i, v);
 			}
 
 			s.root->addToCallStack(f->name, &location);

@@ -1872,7 +1872,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		while (r.wasOk() && lowPriorityQueue.pop(lpt))
 		{
-			SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
+            // We're trying to leave this unlocked here as the
+            // localised inline function scope might resolve all
+            // multithreading issues (???)
+			//SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
 
 			jassert(!lpt.getFunction().isHiPriority());
 
