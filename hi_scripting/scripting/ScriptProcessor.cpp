@@ -893,9 +893,16 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	auto& uph = thisAsScriptBaseProcessor->getMainController_()->getUserPresetHandler();
 
+    bool useCustomPreset = false;
+    
+    if(auto asJmp = dynamic_cast<JavascriptMidiProcessor*>(this))
+    {
+        useCustomPreset = asJmp->isFront() && uph.isUsingCustomDataModel();
+    }
+    
 	if (saveThisContent)
 	{
-		if (uph.isUsingCustomDataModel())
+		if (useCustomPreset)
 		{
 			if (uph.isUsingPersistentObject())
 			{
@@ -994,7 +1001,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	try
 	{
-		if (uph.isUsingCustomDataModel())
+		if (useCustomPreset)
 		{
 			// We need to reinitialise the automation ID property here because
 			// it might not find the automation data before
