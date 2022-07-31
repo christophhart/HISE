@@ -1341,14 +1341,16 @@ void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositi
 	if (lastPosInfo.isPlaying != newInfo.isPlaying)
 	{
 		for (auto tl : tempoListeners)
-			tl->onTransportChange(newInfo.isPlaying);
+			if(tl != nullptr)
+				tl->onTransportChange(newInfo.isPlaying);
 	}
 
 	if (lastPosInfo.timeSigNumerator != newInfo.timeSigNumerator ||
 		lastPosInfo.timeSigDenominator != newInfo.timeSigDenominator)
 	{
 		for (auto tl : tempoListeners)
-			tl->onSignatureChange(newInfo.timeSigNumerator, newInfo.timeSigDenominator);
+			if(tl != nullptr)
+				tl->onSignatureChange(newInfo.timeSigNumerator, newInfo.timeSigDenominator);
 	}
 
 	if (!pulseListener.isEmpty())
@@ -1372,13 +1374,15 @@ void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositi
 			}
 
 			for (auto tl : pulseListener)
-				tl->onBeatChange(beats, isBar);
+				if(tl != nullptr)
+					tl->onBeatChange(beats, isBar);
 		}
 
 		if (gi.change)
 		{
 			for (auto tl : pulseListener)
-				tl->onGridChange(gi.gridIndex, gi.timestamp, gi.firstGridInPlayback);
+				if(tl != nullptr)
+					tl->onGridChange(gi.gridIndex, gi.timestamp, gi.firstGridInPlayback);
 		}
 	}
 }

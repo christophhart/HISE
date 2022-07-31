@@ -268,6 +268,9 @@ void ComponentForDebugInformation::search()
 
 bool ComponentForDebugInformation::searchRecursive(DebugInformationBase* b)
 {
+	if (b == nullptr)
+		return false;
+
 	if (holder->shouldReleaseDebugLock())
 		return true;
 
