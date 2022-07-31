@@ -2078,7 +2078,8 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawFilterGridLines",
 		"drawAnalyserBackground",
 		"drawAnalyserPath",
-		"drawAnalyserGrid"
+		"drawAnalyserGrid",
+        "drawMatrixPeakMeter"
 
 	};
 
@@ -3603,6 +3604,49 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics&
 	}
 
 	drawDefaultTableHeaderColumn(g_, h, columnName, columnId, width, height, isMouseOver, isMouseDown, columnFlags);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g_, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c)
+{
+    if (functionDefined("drawMatrixPeakMeter"))
+    {
+        auto obj = new DynamicObject();
+ 
+        Array<var> peaks, maxPeakArray;
+        
+        for(int i = 0; i < numChannels; i++)
+        {
+            peaks.add(peakValues[i]);
+            
+            if(maxPeaks != nullptr)
+                maxPeakArray.add(maxPeaks[numChannels]);
+        }
+        
+        obj->setProperty("area", ApiHelpers::getVarRectangle(c->getLocalBounds().toFloat()));
+        
+        obj->setProperty("numChannels", numChannels);
+        obj->setProperty("peaks", var(peaks));
+        obj->setProperty("maxPeaks", var(maxPeakArray));
+        
+        obj->setProperty("isVertical", isVertical);
+        obj->setProperty("segmentSize", segmentSize);
+        obj->setProperty("paddingSize", paddingSize);
+        
+        if(auto pc = c->findParentComponentOfClass<PanelWithProcessorConnection>())
+        {
+            obj->setProperty("processorId", pc->getConnectedProcessor()->getId());
+        }
+                                 
+        setColourOrBlack(obj, "bgColour", *c, MatrixPeakMeter::ColourIds::bgColour);
+        setColourOrBlack(obj, "itemColour", *c, MatrixPeakMeter::ColourIds::peakColour);
+        setColourOrBlack(obj, "itemColour2", *c, MatrixPeakMeter::ColourIds::trackColour);
+        setColourOrBlack(obj, "textColour", *c, MatrixPeakMeter::ColourIds::maxPeakColour);
+
+        if (get()->callWithGraphics(g_, "drawMatrixPeakMeter", var(obj), c))
+            return;
+    }
+
+    MatrixPeakMeter::LookAndFeelMethods::drawMatrixPeakMeter(g_, peakValues, maxPeaks, numChannels, isVertical, segmentSize, paddingSize, c);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

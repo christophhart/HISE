@@ -576,7 +576,8 @@ namespace ScriptingObjects
 			public MidiFileDragAndDropper::LookAndFeelMethods,
 			public SliderPack::LookAndFeelMethods,
 			public CustomKeyboardLookAndFeelBase,
-			public ScriptTableListModel::LookAndFeelMethods
+			public ScriptTableListModel::LookAndFeelMethods,
+            public MatrixPeakMeter::LookAndFeelMethods
 		{
 			Laf(MainController* mc) :
 				ControlledObject(mc)
@@ -700,6 +701,8 @@ namespace ScriptingObjects
 			void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
 			void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 
+            void drawMatrixPeakMeter(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c) override;
+            
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);

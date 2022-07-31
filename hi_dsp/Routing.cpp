@@ -502,6 +502,8 @@ void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bo
         
         auto useDecayFactors = upDecayFactor != 1.0f || downDecayFactor != 1.0f;
         
+        const float s = Decibels::decibelsToGain(SilenceThreshold);
+        
         if(useDecayFactors)
         {
             for(int i = 0; i < numValues; i++)
@@ -514,7 +516,7 @@ void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bo
                 else
                     newValue = downDecayFactor * lastValue + (1.0f - downDecayFactor) * newValue;
                 
-                if(newValue < 0.0005f)
+                if(newValue < s)
                     newValue = 0.0f;
                 
                 dst[i] = newValue;

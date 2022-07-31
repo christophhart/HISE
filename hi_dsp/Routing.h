@@ -54,6 +54,8 @@ public:
 		AllChannelsToStereo
 	};
 
+    static constexpr float SilenceThreshold = -90.f;
+    
 	RoutableProcessor();
 
 	virtual ~RoutableProcessor() {};

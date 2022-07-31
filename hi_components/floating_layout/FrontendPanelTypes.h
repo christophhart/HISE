@@ -52,6 +52,7 @@ public:
     {
         SegmentLedSize = (int)SpecialPanelIds::numSpecialPanelIds,
         UseSourceChannels,
+        ChannelIndexes,
         UpDecayTime,
         DownDecayTime,
         SkewFactor,
@@ -64,7 +65,7 @@ public:
     {
         virtual ~LookAndFeelMethods() {}
         
-        void drawPeak(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c)
+        virtual void drawMatrixPeakMeter(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c)
         {
             auto b = c->getLocalBounds().toFloat().reduced(paddingSize);
             
@@ -187,15 +188,25 @@ public:
             
             bool change = false;
             
-            auto numChannels = getSource ? data->getNumDestinationChannels() :
-                                           data->getNumSourceChannels();
+            const auto numTotalChannels = getSource ? data->getNumSourceChannels() :
+                                                      data->getNumDestinationChannels();
+            
+            auto numChannels = numTotalChannels;
+            
+            if(!channelIndexes.isEmpty())
+                numChannels = jmin(numChannels, channelIndexes.size());
             
             change |= numChannels != lastNumChannels;
             lastNumChannels = numChannels;
             
             for(int i = 0; i < numChannels; i++)
             {
-                auto thisValue = data->getGainValue(i, getSource);
+                int channelIndex = i;
+                
+                if(!channelIndexes.isEmpty() && isPositiveAndBelow(i, channelIndexes.size()))
+                    channelIndex = jlimit(0, numTotalChannels-1, channelIndexes[i]);
+                
+                auto thisValue = data->getGainValue(channelIndex, getSource);
                 
                 thisValue = std::pow(thisValue, skewFactor);
                 
@@ -226,18 +237,21 @@ public:
         
         void paint(Graphics& g) override
         {
-            if(data == nullptr)
+            if(data == nullptr || lastNumChannels == 0)
+            {
                 return;
+            }
+                
             
             auto lafToUse = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel());
             
             if(lafToUse == nullptr)
                 lafToUse = &fallback;
             
-            lafToUse->drawPeak(g,
+            lafToUse->drawMatrixPeakMeter(g,
                                currentPeaks,
                                showMaxPeaks ? maxPeaks : nullptr,
-                               getSource ? data->getNumSourceChannels() : data->getNumDestinationChannels(),
+                               lastNumChannels,
                                getWidth() < getHeight(),
                                segmentSize,
                                paddingSize,
@@ -258,6 +272,8 @@ public:
         float skewFactor = 1.0f;
         float segmentSize = 0.0f;
         float paddingSize = 1.0f;
+        
+        Array<int> channelIndexes;
         
         bool showMaxPeaks = false;
         
@@ -289,6 +305,20 @@ public:
         storePropertyInObject(obj, (int)SpecialProperties::PaddingSize, paddingSize);
         storePropertyInObject(obj, (int)SpecialProperties::ShowMaxPeak, showMaxPeak);
         
+        var ad;
+        
+        if(!channelIndexes.isEmpty())
+        {
+            Array<var> d;
+            
+            for(auto c: channelIndexes)
+                d.add(var(c));
+            
+            ad = var(d);
+        }
+        
+        storePropertyInObject(obj, (int)SpecialProperties::ChannelIndexes, ad);
+        
         return obj;
     }
 
@@ -301,6 +331,15 @@ public:
         skewFactor = getPropertyWithDefault(obj, (int)SpecialProperties::SkewFactor);
         paddingSize = getPropertyWithDefault(obj, (int)SpecialProperties::PaddingSize);
         showMaxPeak = getPropertyWithDefault(obj, (int)SpecialProperties::ShowMaxPeak);
+        
+        auto cArray = getPropertyWithDefault(obj, (int)SpecialProperties::ChannelIndexes);
+        
+        if(cArray.isArray())
+        {
+            channelIndexes.clear();
+            for(auto& v: *cArray.getArray())
+                channelIndexes.add((int)v);
+        }
         
         PanelWithProcessorConnection::fromDynamicObject(obj);
     }
@@ -323,6 +362,7 @@ public:
         RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::SkewFactor, "SkewFactor");
         RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::PaddingSize, "PaddingSize");
         RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::ShowMaxPeak, "ShowMaxPeak");
+        RETURN_DEFAULT_PROPERTY_ID(index, (int)SpecialProperties::ChannelIndexes, "ChannelIndexes");
         
         jassertfalse;
         return {};
@@ -340,6 +380,7 @@ public:
         RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::SkewFactor, 1.0f);
         RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::PaddingSize, 1.0f);
         RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::ShowMaxPeak, true);
+        RETURN_DEFAULT_PROPERTY(index, (int)SpecialProperties::ChannelIndexes, var(Array<var>()));
         
         return {};
     }
@@ -386,6 +427,8 @@ public:
             ni->paddingSize = paddingSize;
             ni->showMaxPeaks = showMaxPeak;
             
+            ni->channelIndexes.addArray(channelIndexes);
+            
             return ni;
         }
         
@@ -399,6 +442,7 @@ public:
     float skewFactor = 1.0f;
     float paddingSize = 1.0f;
     float showMaxPeak = true;
+    Array<int> channelIndexes;
 };
 
 
