@@ -49,26 +49,8 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 	}
 
 	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
-
-	File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-
-#else
-
-    File userPresetDir;
-    
-    try
-    {
-        userPresetDir = FrontendHandler::getUserPresetDirectory();
-    }
-    catch(String& s)
-    {
-        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return;
-    }
-
 #endif
-
-	
+    
 	File presetFile = File(targetFile);
 	
     String existingNote;
@@ -83,7 +65,6 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		presetFile.deleteFile();
 	}
-
 #else
 
 	if (presetFile.existsAsFile())
@@ -93,7 +74,6 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		presetFile.deleteFile();
 	}
-
 #endif
 	
 	if (!presetFile.existsAsFile())
@@ -373,31 +353,7 @@ String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 #endif
 }
 
-File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
-{
-#if USE_BACKEND
-    return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");
-#else
 
-	ignoreUnused(chain);
-
-    
-    File userPresetDir;
-    
-    try
-    {
-        userPresetDir = FrontendHandler::getUserPresetDirectory();
-    }
-    catch(String& s)
-    {
-        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return File();
-    }
-    
-    
-	return userPresetDir.getChildFile(fileNameWithoutExtension + ".preset");
-#endif
-}
 
 ValueTree parseUserPreset(const File& f)
 {
@@ -1519,7 +1475,7 @@ File FrontendHandler::getSampleLinkFile()
 
 
 
-File FrontendHandler::getUserPresetDirectory()
+File FrontendHandler::getUserPresetDirectory(bool getRedirect)
 {
 #if HISE_IOS
     
@@ -1561,9 +1517,9 @@ File FrontendHandler::getUserPresetDirectory()
     
 #else
     
-    
 	File presetDir = getAppDataDirectory().getChildFile("User Presets");
 	
+    return FileHandlerBase::getFolderOrRedirect(presetDir);
 
 	return presetDir;
     
@@ -2607,6 +2563,21 @@ juce::File FileHandlerBase::getLinkFile(const File &subDirectory)
 #endif
 }
 
+File FileHandlerBase::getFolderOrRedirect(const File& folder)
+{
+    auto lf = getLinkFile(folder);
+    
+    if(lf.existsAsFile())
+    {
+        auto rd = File(lf.loadFileAsString());
+        
+        if(rd.isDirectory())
+            return rd;
+    }
+    
+    return folder;
+}
+
 void FileHandlerBase::createLinkFile(SubDirectories dir, const File &relocation)
 {
 	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
@@ -2620,6 +2591,9 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 
 	if (linkFile.existsAsFile())
 	{
+        if(linkFile.loadFileAsString() == target.getFullPathName())
+            return;
+        
 		if (!target.isDirectory())
 		{
 			linkFile.deleteFile();

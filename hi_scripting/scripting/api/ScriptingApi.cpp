@@ -2659,7 +2659,10 @@ void ScriptingApi::Engine::loadUserPreset(var file)
 		File userPresetRoot = FrontendHandler::getUserPresetDirectory();
 #endif
 
-		userPresetToLoad = userPresetRoot.getChildFile(file.toString() + ".preset");
+        userPresetToLoad = userPresetRoot.getChildFile(file.toString());
+        
+        if(userPresetToLoad.hasFileExtension(".preset"))
+            userPresetToLoad = userPresetToLoad.withFileExtension(".preset");
 	}
 
     if(!getProcessor()->getMainController()->isInitialised())
