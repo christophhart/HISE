@@ -1730,10 +1730,10 @@ void SampleEditor::perform(SampleMapCommands c)
 
 #if JUCE_WINDOWS
         for(auto& f: editedFiles)
-            args << "\"" << f.getFullPathName() << "\" ";
+            args << "\"" << f.getFullPathName().replace(" ", "\\ ") << "\" ";
 #else
         for(auto& f: editedFiles)
-            args << f.getFullPathName() << " ";
+            args << f.getFullPathName().replace(" ", "\\ ") << " ";
 #endif
 
         externalWatcher = new ExternalFileChangeWatcher(sampler, editedFiles);
