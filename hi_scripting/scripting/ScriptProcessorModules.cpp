@@ -488,6 +488,8 @@ void JavascriptPolyphonicEffect::prepareToPlay(double sampleRate, int samplesPer
 	{
 		auto numChannels = dynamic_cast<RoutableProcessor*>(getParentProcessor(true))->getMatrix().getNumSourceChannels();
 
+        setVoiceKillerToUse(this);
+        
 		n->setNumChannels(numChannels);
 		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
 	}
@@ -509,6 +511,8 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 
 		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
 		n->getRootNode()->process(d);
+        
+        isTailing = voiceData.containsVoiceIndex(voiceIndex);
 	}
 }
 

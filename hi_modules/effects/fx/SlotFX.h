@@ -283,6 +283,10 @@ public:
 	
 	void handleHiseEvent(const HiseEvent &m) override
 	{
+        // Already handled...
+        if(m.isNoteOn())
+            return;
+        
 		if (opaqueNode != nullptr)
 			voiceStack.handleHiseEvent(*opaqueNode, polyHandler, m);
 	}

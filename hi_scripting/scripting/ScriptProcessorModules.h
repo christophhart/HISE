@@ -838,7 +838,8 @@ private:
 
 class JavascriptPolyphonicEffect : public JavascriptProcessor,
 	public ProcessorWithScriptingContent,
-	public VoiceEffectProcessor
+	public VoiceEffectProcessor,
+    public VoiceResetter
 {
 public:
 
@@ -873,7 +874,15 @@ public:
 	void registerApiClasses() override;
 	void postCompileCallback() override;
 
-	bool hasTail() const override { return false; };
+	bool hasTail() const override
+    {
+        if (auto n = getActiveNetwork())
+        {
+            return n->hasTail();
+        }
+        
+        return false;        
+    };
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
@@ -923,6 +932,19 @@ public:
 
 	}
 
+    int getNumActiveVoices() const override
+    {
+        return voiceData.voiceNoteOns.size();
+    }
+
+    void onVoiceReset(bool allVoices, int voiceIndex) override
+    {
+        if (allVoices)
+            voiceData.voiceNoteOns.clear();
+        else
+            voiceData.reset(voiceIndex);
+    }
+    
 private:
 
 	VoiceDataStack voiceData;
