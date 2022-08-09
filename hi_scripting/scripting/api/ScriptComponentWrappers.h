@@ -809,6 +809,8 @@ public:
 		void updateComponent(int index, var newValue) override;
 		void updateValue(var newValue) override;
 
+        void updateLookAndFeel();
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
 	};
 

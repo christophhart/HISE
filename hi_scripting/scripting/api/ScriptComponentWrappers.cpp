@@ -2574,25 +2574,38 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	for (const auto& c : floatingTile->getMouseListeners())
 		mouseCallbacks.add(new AdditionalMouseCallback(floatingTile, component, c));
 
-	LookAndFeel* laf = &mc->getGlobalLookAndFeel();
-
-	if (auto l = floatingTile->createLocalLookAndFeel())
-    {
-        localLookAndFeel = l;
-		laf = localLookAndFeel.get();
-    }
-
-	if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
-	{
-		Component::callRecursive<Component>(ft, [laf](Component* c)
-		{
-			c->setLookAndFeel(laf);
-			return false;
-		});
-	}
+    updateLookAndFeel();
 }
 
+void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateLookAndFeel()
+{
+    auto mc = const_cast<MainController*>(dynamic_cast<const Processor*>(getScriptComponent()->getScriptProcessor())->getMainController());
+    
+    auto ft = dynamic_cast<FloatingTile*>(getComponent());
+    auto floatingTile = getScriptComponent();
+    
+    LookAndFeel* laf = localLookAndFeel.get();
+    
+    if(laf == nullptr)
+    {
+        laf = &mc->getGlobalLookAndFeel();
 
+        if (auto l = floatingTile->createLocalLookAndFeel())
+        {
+            localLookAndFeel = l;
+            laf = localLookAndFeel.get();
+        }
+    }
+    
+    if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
+    {
+        Component::callRecursive<Component>(ft, [laf](Component* c)
+        {
+            c->setLookAndFeel(laf);
+            return false;
+        });
+    }
+}
 
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
 {
@@ -2619,7 +2632,10 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int pr
 	PROPERTY_CASE::ScriptFloatingTile::Properties::Font:
 	PROPERTY_CASE::ScriptFloatingTile::Properties::FontSize:
 	PROPERTY_CASE::ScriptFloatingTile::Properties::Data :
-	PROPERTY_CASE::ScriptFloatingTile::Properties::ContentType: ft->setContent(sft->getContentData()); break;
+	PROPERTY_CASE::ScriptFloatingTile::Properties::ContentType:
+        ft->setContent(sft->getContentData());
+        updateLookAndFeel();
+        break;
 	}
 
 #if USE_BACKEND
