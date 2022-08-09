@@ -1300,7 +1300,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 	t->setName(table->name.toString());
 	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
-
+    t->setDrawTableValueLabel(false);
+    
 	table->getSourceWatcher().addSourceListener(this);
 
 	component = t;

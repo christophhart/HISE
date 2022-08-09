@@ -952,6 +952,9 @@ void FileNameValuePropertyComponent::MyFunkyFilenameComponent::updateFromTextEdi
 
 void TableEditor::LookAndFeelMethods::drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox)
 {
+    if(!te.shouldDrawTableValueLabel())
+        return;
+    
 	g.setFont(f);
 	g.setColour(te.findColour(TableEditor::ColourIds::overlayBgColour));
 	g.fillRect(textBox);
