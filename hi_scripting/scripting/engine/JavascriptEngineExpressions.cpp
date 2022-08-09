@@ -539,6 +539,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
+    bool isRealtimeSafe() const { return false; }
+    
 	void prepareCycleReferenceCheck() override;
 
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const

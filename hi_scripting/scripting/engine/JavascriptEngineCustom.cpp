@@ -417,6 +417,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			setFunctionCall(nullptr);
 		}
 
+        bool isRealtimeSafe() const override { return true; }
+        
 		var createDynamicObjectForBreakpoint()
 		{
 

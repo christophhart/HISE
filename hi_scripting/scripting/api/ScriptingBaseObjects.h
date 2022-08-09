@@ -255,6 +255,8 @@ struct WeakCallbackHolder : private ScriptingObject
 		virtual ~CallableObject() {};
 		virtual Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue);
 
+        virtual bool isRealtimeSafe() const = 0;
+        
 	protected:
 
 		Result lastResult;

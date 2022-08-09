@@ -464,6 +464,8 @@ namespace ScriptingObjects
 
 		bool isAutocompleteable() const override { return true; }
 
+        bool isRealtimeSafe() const override { return realtimeSafe; }
+        
 		void timerCallback() override
 		{
 			sendMessage(pendingData, false);
@@ -499,6 +501,9 @@ namespace ScriptingObjects
 		/** Registers this broadcaster to be notified for mouse events for the given components. */
 		void attachToComponentMouseEvents(var componentIds, var callbackLevel);
 
+        /** Registers this broadcaster to be notified when a complex data object changes. */
+        void attachToComplexData(String dataTypeAndEvent, var moduleIds, var dataIndexes);
+        
 		/** Registers this broadcaster to be notified when a module parameter changes. */
 		void attachToModuleParameter(var moduleIds, var parameterIds);
 
@@ -514,6 +519,12 @@ namespace ScriptingObjects
 		/** If this is enabled, the broadcaster will keep an internal queue of all messages and will guarantee to send them all. */
 		void setEnableQueue(bool shouldUseQueue);
 
+        /** Guarantees that the synchronous execution of the listener callbacks can be called from the audio thread. */
+        void setRealtimeMode(bool enableRealTimeMode)
+        {
+            realtimeSafe = enableRealTimeMode;
+        }
+        
 		// ===============================================================================
 
 		bool assign(const Identifier& id, const var& newValue) override;
@@ -522,7 +533,7 @@ namespace ScriptingObjects
 
 	private:
 
-
+        bool realtimeSafe = false;
 		bool enableQueue = false;
 
 		struct DelayedFunction : public Timer
@@ -651,19 +662,40 @@ namespace ScriptingObjects
 			WeakReference<ScriptBroadcaster> parent;
 		};
 
-		struct ModuleParameterListener
+        struct ListenerBase
+        {
+            virtual ~ListenerBase() {};
+            
+            virtual Result callItem(ItemBase* n) = 0;
+        };
+        
+		struct ModuleParameterListener: public ListenerBase
 		{
 			struct ProcessorListener;
 
 			ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes);
 
-			Result callItem(ItemBase* n);
+			Result callItem(ItemBase* n) override;
 
 			OwnedArray<ProcessorListener> listeners;
 		};
+        
+        struct ComplexDataListener: public ListenerBase
+        {
+            struct Item;
+            
+            ComplexDataListener(ScriptBroadcaster* b,
+                                Array<WeakReference<ExternalDataHolder>> list,
+                                ExternalData::DataType dataType,
+                                bool isDisplayListener,
+                                Array<int> indexList);
+            
+            Result callItem(ItemBase* n) override;
+            
+            OwnedArray<Item> items;
+        };
 
-		ScopedPointer<ModuleParameterListener> moduleListener;
-
+		ScopedPointer<ListenerBase> moduleListener;
 
 		OwnedArray<ItemBase> items;
 
@@ -792,6 +824,8 @@ namespace ScriptingObjects
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
 
+        bool realtimeSafe = true;
+        
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBackgroundTask);
 	};
 

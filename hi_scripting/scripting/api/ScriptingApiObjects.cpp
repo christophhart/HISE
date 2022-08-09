@@ -7529,9 +7529,11 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToRadioGroup);
+    API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComplexData);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
+    API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setRealtimeMode);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -7860,10 +7862,12 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	ADD_API_METHOD_1(attachToComponentValue);
 	ADD_API_METHOD_2(attachToModuleParameter);
 	ADD_API_METHOD_1(attachToRadioGroup);
+    ADD_API_METHOD_3(attachToComplexData);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
 	ADD_API_METHOD_1(setEnableQueue);
-	
+    ADD_API_METHOD_1(setRealtimeMode);
+    
 	if (auto obj = defaultValue.getDynamicObject())
 	{
 		for (const auto& p : obj->getProperties())
@@ -7963,6 +7967,15 @@ hise::DebugInformationBase* ScriptingObjects::ScriptBroadcaster::getChildElement
 
 bool ScriptingObjects::ScriptBroadcaster::addListener(var object, var function)
 {
+    if(isRealtimeSafe())
+    {
+        if(auto c = dynamic_cast<WeakCallbackHolder::CallableObject*>(function.getObject()))
+        {
+            if(!c->isRealtimeSafe())
+                reportScriptError("You need to use inline functions in order to ensure realtime safe execution");
+        }
+    }
+    
 	ScopedPointer<Item> ni = new Item(getScriptProcessor(), defaultValues.size(), object, function);
 
 	if (items.contains(ni.get()))
@@ -8031,6 +8044,15 @@ bool ScriptingObjects::ScriptBroadcaster::removeListener(var objectToRemove)
 
 void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 {
+#if USE_BACKEND
+    if(isSync && getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread() ==
+       MainController::KillStateHandler::TargetThread::AudioThread)
+    {
+        if(!isRealtimeSafe())
+            reportScriptError("You need to enable realtime safe execution if you want to call synchronously on the audio thread");
+    }
+#endif
+    
 	handleDebugStuff();
 
 	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
@@ -8042,6 +8064,21 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 
 	bool somethingChanged = false;
 
+    if(isSync && isRealtimeSafe())
+    {
+        for(int i = 0; i < lastValues.size(); i++)
+        {
+            lastValues.set(i, getArg(args, i));
+        }
+        
+        lastResult = sendInternal(lastValues);
+        
+        if (!lastResult.wasOk())
+            reportScriptError(lastResult.getErrorMessage());
+        
+        return;
+    }
+    
 	Array<var> newValues;
 
 	for (int i = 0; i < defaultValues.size(); i++)
@@ -8419,6 +8456,98 @@ void ScriptingObjects::ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex
 	sendMessage(currentIndex, true);
 }
 
+void ScriptingObjects::ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList)
+{
+    const String dataType = dataTypeAndEvent.upToFirstOccurrenceOf(".", false, false);
+    const String eventType = dataTypeAndEvent.fromFirstOccurrenceOf(".", false, false);
+    
+    if(dataType.isEmpty() || eventType.isEmpty())
+    {
+        reportScriptError("dataTypeAndEvent must be formatted like `AudioFile.Content`");
+    }
+    
+    ExternalData::DataType type;
+    
+    ExternalData::forEachType([&type, dataType](ExternalData::DataType t)
+    {
+        if(ExternalData::getDataTypeName(t, false) == dataType)
+            type = t;
+    });
+    
+    bool isDisplay = eventType == "Display";
+    
+    if (sourceType.isNotEmpty())
+        reportScriptError("This callback is already registered to " + sourceType);
+
+    if (defaultValues.size() != 3)
+    {
+        reportScriptError("If you want to attach a broadcaster to complex data events, it needs three parameters (processorId, index, value)");
+    }
+
+    sourceType = dataTypeAndEvent;
+    
+    auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+    Array<WeakReference<ExternalDataHolder>> processors;
+    
+    if (moduleIds.isArray())
+    {
+        for (const auto& pId : *moduleIds.getArray())
+        {
+            auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+            if (auto asHolder = dynamic_cast<ExternalDataHolder*>(p))
+            {
+                processors.add(asHolder);
+            }
+            else
+                reportScriptError(pId.toString() + " is not a complex data module");
+        }
+    }
+    else
+    {
+        auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+        if (auto asHolder = dynamic_cast<ExternalDataHolder*>(p))
+        {
+            processors.add(asHolder);
+        }
+        else
+            reportScriptError(moduleIds.toString() + " is not a complex data module");
+    }
+        
+
+    
+    Array<int> indexListArray;
+
+    if (indexList.isArray())
+    {
+        for (const auto& idx : *indexList.getArray())
+        {
+            indexListArray.add((int)idx);
+        }
+    }
+    else
+    {
+        indexListArray.add((int)indexList);
+    }
+
+    for(auto idx: indexListArray)
+    {
+        for(auto h: processors)
+        {
+            if(!isPositiveAndBelow(idx, h->getNumDataObjects(type)))
+            {
+                reportScriptError("illegal index: " + idx);
+            }
+        }
+    }
+    
+    moduleListener = new ComplexDataListener(this, processors, type, isDisplay, indexListArray);
+    
+    enableQueue = processors.size() > 1 || indexListArray.size() > 1;
+}
+
 void ScriptingObjects::ScriptBroadcaster::callWithDelay(int delayInMilliseconds, var argArray, var function)
 {
 	if (currentDelayedFunction != nullptr)
@@ -8517,37 +8646,49 @@ Result ScriptingObjects::ScriptBroadcaster::sendInternal(const Array<var>& args)
 		}
 	}
 	
-	for (auto i : items)
-	{
-		Array<var> thisValues;
-		thisValues.ensureStorageAllocated(lastValues.size());
+    if(realtimeSafe)
+    {
+        for (auto i : items)
+        {
+            auto r = i->callSync(args);
+            
+            if(!r.wasOk())
+                return r;
+        }
+    }
+    else
+    {
+        for (auto i : items)
+        {
+            Array<var> thisValues;
+            thisValues.ensureStorageAllocated(lastValues.size());
 
-		{
-			SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
-			thisValues.addArray(args);
-		}
+            {
+                SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
+                thisValues.addArray(args);
+            }
 
-		auto r = i->callSync(thisValues);
-		if (!r.wasOk())
-		{
-			return r;
-		}
-	}
+            auto r = i->callSync(thisValues);
+            if (!r.wasOk())
+            {
+                return r;
+            }
+        }
 
-	if (radioButtons.isArray())
-	{
-		int idx = (int)lastValues[0];
+        if (radioButtons.isArray())
+        {
+            int idx = (int)lastValues[0];
 
-		for (auto b : *radioButtons.getArray())
-		{
-			if (auto sc = dynamic_cast<ScriptComponent*>(b.getObject()))
-			{
-				sc->setValue(radioButtons.indexOf(b) == idx);
-			}
-		}
-	}
-	
-
+            for (auto b : *radioButtons.getArray())
+            {
+                if (auto sc = dynamic_cast<ScriptComponent*>(b.getObject()))
+                {
+                    sc->setValue(radioButtons.indexOf(b) == idx);
+                }
+            }
+        }
+    }
+    
 	return Result::ok();
 }
 
@@ -8684,6 +8825,69 @@ Result ScriptingObjects::ScriptBroadcaster::ModuleParameterListener::callItem(It
 	}
 
 	return Result::ok();
+}
+
+struct ScriptingObjects::ScriptBroadcaster::ComplexDataListener::Item: public ComplexDataUIUpdaterBase::EventListener
+{
+    Item(ScriptBroadcaster* sb, ComplexDataUIBase::Ptr data_, bool isDisplay_, String pid, int index_):
+      isDisplay(isDisplay_),
+      parent(sb),
+      data(data_),
+      processorId(pid),
+      index(index_)
+    {
+        data->getUpdater().addEventListener(this);
+        
+        args.add(pid);
+        args.add(index);
+        args.add(0);
+        keeper = var(args);
+    }
+    
+    ~Item()
+    {
+        data->getUpdater().removeEventListener(this);
+    }
+    
+    void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var newData) override
+    {
+        if(isDisplay == (t == ComplexDataUIUpdaterBase::EventType::DisplayIndex))
+        {
+            auto valueToUse = isDisplay ? newData : var(data->toBase64String());
+            args.set(2, valueToUse);
+            parent->sendMessage(args, false);
+        }
+    }
+    
+    Array<var> args;
+    var keeper;
+    
+    const bool isDisplay;
+    WeakReference<ScriptBroadcaster> parent;
+    ComplexDataUIBase::Ptr data;
+    String processorId;
+    int index;
+};
+
+ScriptingObjects::ScriptBroadcaster::ComplexDataListener::ComplexDataListener(ScriptingObjects::ScriptBroadcaster* b,
+                    Array<WeakReference<ExternalDataHolder>> list,
+                    ExternalData::DataType dataType,
+                    bool isDisplayListener,
+                    Array<int> indexList)
+{
+    for(auto eh: list)
+    {
+        for(auto idx: indexList)
+        {
+            ComplexDataUIBase::Ptr d = eh->getComplexBaseType(dataType, idx);
+            items.add(new Item(b, d, isDisplayListener, dynamic_cast<Processor*>(eh.get())->getId(), idx));
+        }
+    }
+}
+
+Result ScriptingObjects::ScriptBroadcaster::ComplexDataListener::callItem(ItemBase* n)
+{
+    return Result::ok();
 }
 
 } // namespace hise
