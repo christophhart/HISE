@@ -849,10 +849,12 @@ private:
 			}
 		}
 
-		if (maxChannelAmount > 8)
+        static constexpr int NumMaxMicPositions = NUM_MAX_CHANNELS/2;
+        
+		if (maxChannelAmount > NumMaxMicPositions)
 		{
 			errorStatus = Error::TooMuchChannels;
-			errorMessage = "Too many channels: " + String(maxChannelAmount) + ". Max Channel Amount: " + String(NUM_MAX_CHANNELS / 2);
+			errorMessage = "Too many channels: " + String(maxChannelAmount) + ". Max Channel Amount: " + String(NumMaxMicPositions);
 			return false;
 		}
 
