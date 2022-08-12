@@ -73,7 +73,7 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	{
 		if (tmp.get() != nullptr)
 		{
-			auto v = -1.0f * tmp->getAttribute(StereoEffect::Pan) * input;
+			auto v = tmp->getAttribute(StereoEffect::Pan) * input;
 
 			return BalanceCalculator::getBalanceAsString(roundToInt(v));
 		}
