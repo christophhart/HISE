@@ -208,6 +208,8 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
+	API_METHOD_WRAPPER_1(ScriptFile, move);
+	API_METHOD_WRAPPER_1(ScriptFile, copy);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
@@ -262,6 +264,8 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsAudioFile);
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_1(rename);
+	ADD_API_METHOD_1(move);
+	ADD_API_METHOD_1(copy);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_0(getNonExistentSibling);
 	ADD_API_METHOD_3(extractZipFile);
@@ -707,6 +711,16 @@ bool ScriptingObjects::ScriptFile::rename(String newName)
 {	
 	auto newFile = f.getSiblingFile(newName).withFileExtension(f.getFileExtension());
 	return f.moveFileTo(newFile);
+}
+
+bool ScriptingObjects::ScriptFile::move(String target)
+{	
+	return f.moveFileTo(target);
+}
+
+bool ScriptingObjects::ScriptFile::copy(String target)
+{	
+	return f.copyFileTo(target);
 }
 
 juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
