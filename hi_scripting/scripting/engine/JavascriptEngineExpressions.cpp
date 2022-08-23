@@ -545,6 +545,20 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
     
 	void prepareCycleReferenceCheck() override;
 
+	void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) override
+	{
+		if (capturedLocals.isEmpty())
+			return;
+
+		if (swap)
+			std::swap(setFromHolder, capturedLocalValues);
+		else
+		{
+			for (const auto& nv : setFromHolder)
+				capturedLocalValues.set(nv.name, nv.value);
+		}
+	}
+
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{
 		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::FunctionCall);
@@ -562,8 +576,6 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		{
 			for (const auto& c : capturedLocalValues)
 				functionRoot->setProperty(c.name, c.value);
-
-			capturedLocalValues.clear();
 		}
 
 		var result;
@@ -600,8 +612,6 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		{
 			for (const auto& c : capturedLocalValues)
 				scope->setProperty(c.name, c.value);
-
-			capturedLocalValues.clear();
 		}
 		
 		body->perform(Scope(&s, s.root.get(), scope), &result);
