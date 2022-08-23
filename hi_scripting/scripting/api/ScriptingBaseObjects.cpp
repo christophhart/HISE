@@ -898,7 +898,6 @@ Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, co
 	{
 		thisAsRef = dynamic_cast<ReferenceCountedObject*>(this);
 		jassert(thisAsRef != nullptr);
-		jassert(thisAsRef->getReferenceCount() > 1);
 	}
 
 	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult, true);

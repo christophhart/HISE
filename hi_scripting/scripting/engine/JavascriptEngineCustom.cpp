@@ -654,6 +654,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			f = nullptr;
 		}
 
+		Identifier getVariableName() const override
+		{
+			return f->parameterNames[index];
+		}
+
 		var getResult(const Scope&) const override 
 		{
 			if (f->e.get() != nullptr)
@@ -753,6 +758,8 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 	{
 		parentFunction->localProperties->set(id, newValue);
 	}
+
+	Identifier getVariableName() const override { return id; }
 
 	Statement* getChildStatement(int) override { return nullptr; };
 

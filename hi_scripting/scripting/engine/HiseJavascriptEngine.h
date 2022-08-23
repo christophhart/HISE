@@ -600,7 +600,7 @@ public:
 
 		struct VarStatement;			struct LiteralValue; 		struct UnqualifiedName;
 		struct ArraySubscript;			struct Assignment;
-		struct SelfAssignment;			struct PostAssignment;
+		struct SelfAssignment;			struct PostAssignment;		struct AnonymousFunctionWithCapture;
 
 		// Function / Objects
 

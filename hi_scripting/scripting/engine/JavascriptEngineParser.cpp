@@ -354,6 +354,29 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	void parseFunctionParamsAndBody(FunctionObject& fo)
 	{
+		if (matchIf(TokenTypes::openBracket))
+		{
+			while (currentType != TokenTypes::closeBracket)
+			{
+				auto paramName = currentValue.toString();
+
+				fo.capturedLocals.add(parseExpression());
+
+				if (currentType != TokenTypes::closeBracket)
+					match(TokenTypes::comma);
+			}
+
+			for (auto e : fo.capturedLocals)
+			{
+				if (e->getVariableName().isNull())
+				{
+					location.throwError("Can't capture anonymous expressions");
+				}
+			}
+
+			match(TokenTypes::closeBracket);
+		}
+
 		match(TokenTypes::openParen);
 
 		while (currentType != TokenTypes::closeParen)
@@ -365,7 +388,34 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 				match(TokenTypes::comma);
 		}
 
+		struct ScopedFunctionSetter
+		{
+			ScopedFunctionSetter(ExpressionTreeBuilder& p, FunctionObject* o):
+				parent(p)
+			{
+				lastObject = parent.currentFunctionObject;
+				parent.currentFunctionObject = o;
+			}
+
+			~ScopedFunctionSetter()
+			{
+				parent.currentFunctionObject = lastObject;
+			}
+
+			ExpressionTreeBuilder& parent;
+			DynamicObject* lastObject;
+		};
+
 		match(TokenTypes::closeParen);
+
+		ScopedFunctionSetter svs(*this, &fo);
+
+		// We need to temporarily set the currentInlineFunction to nullptr to avoid
+		// local references inside the nested function body which will fail when
+		// ENABLE_SCRIPTING_BREAKPOINTS is disabled
+		ScopedValueSetter<DynamicObject*> svs1(outerInlineFunction, currentInlineFunction);
+		ScopedValueSetter<DynamicObject*> svs2(currentInlineFunction, nullptr);
+
 		fo.body = parseBlock();
 	}
 
@@ -431,6 +481,7 @@ private:
 
 	Identifier fileId;
 
+	DynamicObject* currentFunctionObject = nullptr;
 	DynamicObject* outerInlineFunction = nullptr;
 	DynamicObject* currentInlineFunction = nullptr;
 
@@ -1461,11 +1512,7 @@ private:
 		if (currentType == TokenTypes::identifier)
 			functionName = parseIdentifier();
 
-		// We need to temporarily set the currentInlineFunction to nullptr to avoid
-		// local references inside the nested function body which will fail when
-		// ENABLE_SCRIPTING_BREAKPOINTS is disabled
-		ScopedValueSetter<DynamicObject*> svs1(outerInlineFunction, currentInlineFunction);
-		ScopedValueSetter<DynamicObject*> svs2(currentInlineFunction, nullptr);
+		
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
@@ -1671,11 +1718,21 @@ private:
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
 				const int localParameterIndex = ob->localProperties->indexOf(id);
 
-				if (inlineParameterIndex != -1)
-					location.throwError("Can't reference inline function parameters in nested function body");
+				int captureIndex = -1;
 
-				if (localParameterIndex != -1)
-					location.throwError("Can't reference local variables in nested function body");
+				if (auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+				{
+					captureIndex = fo->getCaptureIndex(id);
+				}
+
+				if (captureIndex == -1)
+				{
+					if (inlineParameterIndex != -1)
+						location.throwError("Can't reference inline function parameters in nested function body");
+
+					if (localParameterIndex != -1)
+						location.throwError("Can't reference local variables in nested function body");
+				}
 			}
 			else if (auto ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
 			{
@@ -1830,6 +1887,12 @@ private:
 
 			if (name.isValid())
 				throwError("Inline functions definitions cannot have a name");
+
+			if (auto fo = dynamic_cast<FunctionObject*>(fn.getDynamicObject()))
+			{
+				if (!fo->capturedLocals.isEmpty())
+					return new AnonymousFunctionWithCapture(location, fn);
+			}
 
 			return new LiteralValue(location, fn);
 		}
