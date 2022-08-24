@@ -1277,7 +1277,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, C
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText)
+void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
     g.setColour(highlightColour.withAlpha(0.1f));
     g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
