@@ -423,6 +423,18 @@ void NodeBase::removeParameter(int index)
 	parameters.remove(index);
 }
 
+void NodeBase::removeParameter(const String& id)
+{
+    for (int i=0; i<getNumParameters(); i++)
+    {
+        if (parameters[i]->getId() == id)
+        {
+            removeParameter(i);
+            return;
+        }
+    }
+}
+
 void NodeBase::setParentNode(Ptr newParentNode)
 {
 	if (newParentNode == nullptr && getRootNetwork() != nullptr)
