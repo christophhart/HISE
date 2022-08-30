@@ -53,6 +53,7 @@
 
 #include "UtilityClasses.cpp"
 #include "DebugLogger.cpp"
+#include "MainControllerShell.cpp" // provides encapsulated access to MainController functions
 #include "ThreadWithQuasiModalProgressWindow.cpp"
 #include "ExternalFilePool.cpp"
 #include "ExpansionHandler.cpp"
