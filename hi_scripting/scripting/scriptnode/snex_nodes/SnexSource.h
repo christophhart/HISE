@@ -44,6 +44,12 @@ struct SnexSource : public WorkbenchData::Listener,
 {
 	using SnexTestBase = snex::ui::WorkbenchData::TestRunnerBase;
 
+	struct SnexTestBaseHelper
+	{
+	    static void *getNodeWorkbench(NodeBase* node);
+	};
+
+
     enum class ErrorLevel
     {
         Uncompiled,
@@ -328,7 +334,8 @@ struct SnexSource : public WorkbenchData::Listener,
 		OwnedArray<snex::ExternalDataHolder> audioFiles;
 	};
 
-	struct CallbackHandlerBase : public HandlerBase
+	struct CallbackHandlerBase : public HandlerBase,
+	                             public SnexTestBaseHelper
 	{
 		CallbackHandlerBase(SnexSource& p, ObjectStorageType& o) :
 			HandlerBase(p, o)
@@ -410,7 +417,8 @@ struct SnexSource : public WorkbenchData::Listener,
 		std::atomic<bool> ok = { false };
 	};
 
-	template <class T, bool UseRootTest=false> struct Tester: public SnexTestBase
+	template <class T, bool UseRootTest=false> struct Tester: public SnexTestBase,
+	                                                          public SnexTestBaseHelper
 	{
 		Tester(SnexSource& s) :
 			dataHandler(s, obj),
@@ -487,7 +495,7 @@ struct SnexSource : public WorkbenchData::Listener,
 
 			if (callbacks.runRootTest())
 			{
-				auto wb = static_cast<snex::ui::WorkbenchManager*>(original.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+				auto wb = static_cast<snex::ui::WorkbenchManager*>(getNodeWorkbench(original.getParentNode()));
 
 				if (auto rwb = wb->getRootWorkbench())
 				{

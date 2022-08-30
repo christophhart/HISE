@@ -40,6 +40,11 @@ using namespace juce;
 using namespace hise;
 using namespace snex;
 
+void* SnexSource::SnexTestBaseHelper::getNodeWorkbench(NodeBase* node)
+{
+    return node->getScriptProcessor()->getMainController_()->getWorkbenchManager();
+
+}
 
 void SnexSource::recompiled(WorkbenchData::Ptr wb)
 {
