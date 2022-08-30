@@ -2185,4 +2185,10 @@ juce::Path FloatingTilePopup::Factory::createPath(const String& url) const
 	return path;
 }
 
+
+const Identifier FloatingTileHelpers::getTileID(FloatingTile* parent)
+{
+	return parent->getLayoutData().getID();
+}
+
 } // namespace hise
