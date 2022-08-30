@@ -540,6 +540,8 @@ public:
 		return parent; 
 	}
 
+	Rectangle<int> getParentContentBounds();
+
 	virtual String getTitle() const { return getIdentifierForBaseClass().toString(); };
 	virtual Identifier getIdentifierForBaseClass() const = 0;
 
