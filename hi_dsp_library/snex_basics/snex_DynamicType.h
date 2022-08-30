@@ -54,6 +54,7 @@ namespace snex
 			data.p.type = Types::ID::Pointer;
 			data.p.data = ptr;
 			data.p.size = sizeof(T);
+			return *this;
 		}
 
 		VariableStorage(void* objectPointer, int objectSize);

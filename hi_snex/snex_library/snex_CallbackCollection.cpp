@@ -237,6 +237,8 @@ float JitExpression::getFloatValueWithInput(float input, float value)
 
 	if (f)
 		return getFloatValueWithInputUnchecked(input, value);
+
+	return nanf("");
 }
 
 float JitExpression::getFloatValueWithInputUnchecked(float input, float value)

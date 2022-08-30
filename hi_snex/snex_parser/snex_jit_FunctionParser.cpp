@@ -606,10 +606,7 @@ snex::jit::BlockParser::ExprPtr SyntaxTreeInlineParser::parseUnary()
 		
 		l.throwError("Can't find external expression " + id.toString());
 	}
-	else
-	{
-		return BlockParser::parseUnary();
-	}
+	return BlockParser::parseUnary();
 }
 
 

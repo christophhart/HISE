@@ -154,11 +154,9 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 				cc.mov(x86::ptr(PTR_REG_R(obj)), tmp);
 				return Result::ok();
 			});
-
-		return cFunc;
 	}
 
-	
+	return cFunc;
 }
 
 bool ParameterBuilder::Helpers::isParameterClass(const TypeInfo& type)

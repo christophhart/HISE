@@ -303,8 +303,8 @@ snex::jit::FunctionData WrapBuilder::createGetWrappedObjectFunction(StructType* 
 				return Result::ok();
 			});
 
-		return getObjectFunction;
 	}
+	return getObjectFunction;
 }
 
 snex::jit::FunctionData WrapBuilder::createGetSelfAsObjectFunction(StructType* st)
