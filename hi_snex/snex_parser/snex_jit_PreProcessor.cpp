@@ -83,7 +83,7 @@ void Preprocessor::TextBlock::parseBlockStart()
 		MATCH_TOKEN(PreprocessorTokens::else_);
 		MATCH_TOKEN(PreprocessorTokens::endif_);
 		MATCH_TOKEN(PreprocessorTokens::undef_);
-#undef MATCH_TOKEN(x);
+#undef MATCH_TOKEN
 
 		auto tokenLength = String(blockType).length();
 
