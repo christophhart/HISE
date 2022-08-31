@@ -734,6 +734,8 @@ template <class T> class default_data
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 
 /** A wrapper that extends the wrap::init class with the possibility of handling external data.
