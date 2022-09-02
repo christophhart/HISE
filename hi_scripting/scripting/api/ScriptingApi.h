@@ -1366,7 +1366,7 @@ public:
 
 		void tempoChanged(double newTempo) override;
 
-		void onTransportChange(bool isPlaying) override;
+		void onTransportChange(bool isPlaying, double ppqPosition) override;
 
 		void onBeatChange(int newBeat, bool isNewBar) override;
 

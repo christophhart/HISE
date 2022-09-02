@@ -1338,11 +1338,11 @@ bool MainController::isSyncedToHost() const
 
 void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi)
 {
-	if (lastPosInfo.isPlaying != newInfo.isPlaying)
+	if (lastPosInfo.isPlaying != newInfo.isPlaying || (gi.change && gi.firstGridInPlayback))
 	{
 		for (auto tl : tempoListeners)
 			if(tl != nullptr)
-				tl->onTransportChange(newInfo.isPlaying);
+				tl->onTransportChange(newInfo.isPlaying, newInfo.ppqPosition);
 	}
 
 	if (lastPosInfo.timeSigNumerator != newInfo.timeSigNumerator ||
@@ -1396,7 +1396,7 @@ void MainController::addTempoListener(TempoListener *t)
 	
 	t->tempoChanged(getBpm());
 	t->onSignatureChange(lastPosInfo.timeSigNumerator, lastPosInfo.timeSigDenominator);
-	t->onTransportChange(lastPosInfo.isPlaying);
+	t->onTransportChange(lastPosInfo.isPlaying, lastPosInfo.ppqPosition);
 }
 
 void MainController::removeTempoListener(TempoListener *t)
