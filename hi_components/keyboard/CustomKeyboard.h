@@ -174,9 +174,9 @@ public:
 	void setMidiChannelBase(int newChannel) override 
 	{ 
 		setMidiChannel(newChannel); 
-		BigInteger mask = 0;
-		mask.setBit(newChannel-1, true);
-		setMidiChannelsToDisplay(mask.toInteger());
+		//BigInteger mask = 0;
+		//mask.setBit(newChannel-1, true);
+		//setMidiChannelsToDisplay(mask.toInteger());
 	}
 
 	int getLowKey() const { return lowKey; }
