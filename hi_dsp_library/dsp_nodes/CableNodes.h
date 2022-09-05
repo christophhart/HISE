@@ -589,6 +589,8 @@ namespace control
 	{
 	public:
 
+        static constexpr int NumVoices = NV;
+        
 		SN_GET_SELF_AS_OBJECT(transport);
 		SN_DESCRIPTION("Sends a modulation signal when the transport state changes");
 		SN_POLY_NODE_ID("transport");
