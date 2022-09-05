@@ -72,7 +72,7 @@ struct dynamic_base: public ReferenceCountedObject
 		return lastValue; 
 	}
 
-	InvertableParameterRange getRange() const { return range; }
+	virtual InvertableParameterRange getRange() const { return range; }
 
 	virtual void updateRange(const ValueTree& v)
 	{
@@ -107,6 +107,14 @@ struct dynamic_base_holder: public dynamic_base
 
 		if (base != nullptr)
 			base->call(v);
+	}
+
+	virtual InvertableParameterRange getRange() const final override
+	{
+		if (base != nullptr)
+			return base->getRange();
+
+		return {};
 	}
 
 	virtual void updateRange(const ValueTree& v) override

@@ -532,5 +532,395 @@ scriptnode::parameter::dynamic_base_holder* control::dynamic_dupli_pack::getPara
 	return &typed->getParameter();
 }
 
+namespace node_templates
+{
+struct mid_side
+{
+	SN_NODE_ID("mid_side");
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		TemplateNodeFactory::Builder h(n, v);
+		h.setRootType("container.chain");
+
+		h.addNode(0, "routing.ms_decode", "decoder");
+
+		auto multi = h.addNode(0, "container.multi", "ms_splitter");
+
+		h.addNode(0, "routing.ms_encode", "encoder");
+
+		auto mid = h.addNode(multi, "container.chain", "mid_chain");
+		auto side = h.addNode(multi, "container.chain", "side_chain");
+
+		h.addNode(mid, "math.mul", "mid_gain");
+		h.addNode(side, "math.mul", "side_gain");
+
+		return h.flush();
+	}
+};
+
+struct dry_wet
+{
+	SN_NODE_ID("dry_wet");
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		TemplateNodeFactory::Builder h(n, v);
+		h.setRootType("container.split");
+
+		auto dryPath = h.addNode(0, "container.chain", "dry_path");
+		auto wetPath = h.addNode(0, "container.chain", "wet_path");
+
+		auto xfader = h.addNode(dryPath, "control.xfader", "dry_wet_mixer");
+
+		h.addParameter(0, "DryWet", InvertableParameterRange(0.0, 1.0));
+
+		auto dry_gain = h.addNode(dryPath, "core.gain", "dry_gain");
+
+		auto dummy = h.addNode(wetPath, "math.mul", "dummy");
+
+		h.nodes[dummy].setProperty(PropertyIds::Comment, "Add the wet DSP processing here...", nullptr);
+		h.setNodeColour({ dummy }, Colours::white);
+
+		auto wet_gain = h.addNode(wetPath, "core.gain", "wet_gain");
+
+		h.connect(0, PropertyIds::Parameters, 0, xfader, 0);
+		h.connect(xfader, PropertyIds::SwitchTargets, 0, dry_gain, 0);
+		h.connect(xfader, PropertyIds::SwitchTargets, 1, wet_gain, 0);
+
+		h.setNodeColour({ 0, xfader, dry_gain, wet_gain }, h.getRandomColour());
+
+		h.setFolded({ xfader, dry_gain, wet_gain });
+
+		return h.flush();
+	}
+};
+
+
+struct feedback_delay
+{
+	SN_NODE_ID("feedback_delay");
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		TemplateNodeFactory::Builder b(n, v);
+		b.setRootType("container.fix32_block");
+
+		auto out = b.addNode(0, "routing.receive", "fb_out");
+		b.addNode(0, "core.fix_delay", "delay");
+		auto in = b.addNode(0, "routing.send", "fb_in");
+
+		b.connectSendReceive(in, { out });
+
+		b.setParameterValues({ out }, { "Feedback" }, { 0.4 });
+		
+
+
+		return b.flush();
+	}
+};
+
+struct bipolar_mod
+{
+	SN_NODE_ID("bipolar_mod");
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		Array<int> foldNodes;
+
+		TemplateNodeFactory::Builder b(n, v);
+
+		b.setRootType("container.modchain");
+
+		auto modSignal = b.addNode(0, "container.chain", "mod_signal");
+
+		b.addComment(modSignal, "Create a signal between 0...1 here");
+
+		auto dummy = b.addNode(modSignal, "core.ramp", "dummy");
+
+		b.setParameterValues({ dummy }, { "PeriodTime" }, { 1000.0 });
+
+		b.setNodeColour({ dummy }, Colours::white);
+
+		auto sig2mod = b.addNode(0, "math.sig2mod", "sig2mod");
+
+		auto peak = b.addNode(0, "core.peak", "peak");
+		auto bipolar = b.addNode(0, "control.bipolar", "bipolar");
+		auto pma = b.addNode(0, "control.pma", "pma");
+
+		b.connect(peak, PropertyIds::ModulationTargets, 0, bipolar, 0);
+		b.connect(bipolar, PropertyIds::ModulationTargets, 0, pma, 2);
+
+		b.setFolded({ dummy, sig2mod, peak, bipolar });
+
+		b.addComment(pma, "Connect this to the target knob");
+
+		b.addParameter(0, "Value", {});
+		b.addParameter(0, "Intensity", {});
+
+		b.connect(0, PropertyIds::Parameters, 0, pma, 0);
+		b.connect(0, PropertyIds::Parameters, 1, bipolar, 1);
+		
+		
+
+		return b.flush();
+	}
+};
+
+template <int NumBands> struct freq_split
+{
+	static Identifier getStaticId() { return Identifier("freq_split" + String(NumBands)); }
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		TemplateNodeFactory::Builder b(n, v);
+
+		b.setRootType("container.split");
+
+		InvertableParameterRange fr(20.0, 20000.0);
+		fr.setSkewForCentre(1000.0);
+
+		StringArray bandNames;
+		Array<double> values;
+
+		for (int i = 0; i < NumBands - 1; i++)
+		{
+
+			bandNames.add("Band " + String(i + 1));
+			b.addParameter(0, bandNames[bandNames.size() - 1], fr);
+
+			auto normFreq = (double)(i + 1) / (double)(NumBands + 1);
+
+			values.add(fr.convertFrom0to1(normFreq, false));
+
+		}
+
+		b.setParameterValues({ 0 }, bandNames, values);
+
+		Array<Array<int>> filters;
+
+		Array<int> dummies;
+
+		for (int i = 0; i < NumBands; i++)
+		{
+			Array<int> thisFilter;
+
+			auto bandChain = b.addNode(0, "container.chain", "band" + String(i + 1));
+
+			for (int j = 0; j < NumBands-1; j++)
+			{
+				String id = "lr";
+				id << String(i + 1) << "_" << String(j + 1);
+				thisFilter.add(b.addNode(bandChain, "jdsp.jlinkwitzriley", id));
+			}
+
+			//b.setComplexDataIndex(thisFilter, ExternalData::DataType::FilterCoefficients, i);
+
+			filters.add(thisFilter);
+
+			b.setNodeColour(filters[i], b.getRandomColour());
+			b.setFolded(filters[i]);
+
+			dummies.add(b.addNode(bandChain, "math.mul", "dummy" + String(i + 1)));
+		}
+
+		b.setNodeColour(dummies, Colours::white);
+
+		enum class FilterType { LP, HP, AP};
+		auto setFilterType = [&](int bandIndex, int filterIndex, FilterType t)
+		{
+			auto n = filters[bandIndex][filterIndex];
+			b.setParameterValues({ n }, { "Type" }, (double)(int)t);
+		};
+
+		for (int bi = 0; bi < NumBands; bi++)
+		{
+			for (int fi = 0; fi < NumBands - 1; fi++)
+			{
+				if (bi == fi && (bi != NumBands - 1))
+					setFilterType(bi, fi, FilterType::LP);
+				else if (bi == fi + 1)
+					setFilterType(bi, fi, FilterType::HP);
+				else
+					setFilterType(bi, fi, FilterType::AP);
+
+				b.connect(0, PropertyIds::Parameters, fi, filters[bi][fi], 0);
+			}
+		}
+
+		return b.flush();
+	}
+};
+
+
+
+
+}
+
+
+
+
+
+TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
+	NodeFactory(n)
+{
+	registerNodeRaw<node_templates::mid_side>();
+	registerNodeRaw<node_templates::dry_wet>();
+	registerNodeRaw<node_templates::feedback_delay>();
+	registerNodeRaw<node_templates::bipolar_mod>();
+	registerNodeRaw<node_templates::freq_split<2>>();
+	registerNodeRaw<node_templates::freq_split<3>>();
+	registerNodeRaw<node_templates::freq_split<4>>();
+	registerNodeRaw<node_templates::freq_split<5>>();
+	
+}
+
+int TemplateNodeFactory::Builder::addNode(int parent, const String& path, const String& id, int index)
+{
+	ValueTree v(PropertyIds::Node);
+
+	auto newId = network->getNonExistentId(id, existingIds);
+
+	v.setProperty(PropertyIds::ID, newId, nullptr);
+	v.setProperty(PropertyIds::FactoryPath, path, nullptr);
+
+	nodes[parent].getOrCreateChildWithName(PropertyIds::Nodes, nullptr).addChild(v, index, nullptr);
+
+	nodes.add(v);
+
+	return nodes.size()-1;
+}
+
+void TemplateNodeFactory::Builder::addParameter(int nodeIndex, const String& name, InvertableParameterRange r)
+{
+	ValueTree p(PropertyIds::Parameter);
+
+	nodes[nodeIndex].setProperty(PropertyIds::ShowParameters, true, nullptr);
+
+	RangeHelpers::storeDoubleRange(p, r, nullptr);
+	p.setProperty(PropertyIds::ID, name, nullptr);
+	nodes[nodeIndex].getOrCreateChildWithName(PropertyIds::Parameters, nullptr).addChild(p, -1, nullptr);
+}
+
+
+bool TemplateNodeFactory::Builder::connectSendReceive(int sendIndex, Array<int> receiveIndexes)
+{
+	StringArray sa;
+
+	for (auto r : receiveIndexes)
+	{
+		sa.add(nodes[r][PropertyIds::ID].toString());
+	}
+
+	fillValueTree(sendIndex);
+	auto ctree = nodes[sendIndex].getChildWithName(PropertyIds::Properties).getChildWithProperty(PropertyIds::ID, PropertyIds::Connection.toString());
+
+	jassert(ctree.isValid());
+
+	ctree.setProperty(PropertyIds::Value, sa.joinIntoString(";"), nullptr);
+	return true;
+}
+
+bool TemplateNodeFactory::Builder::connect(int nodeIndex, const Identifier sourceType, int sourceIndex, int targetNodeIndex, int targetParameterIndex)
+{
+	fillValueTree(nodeIndex);
+	fillValueTree(targetNodeIndex);
+
+	jassert(sourceType == PropertyIds::Parameters ||
+			sourceType == PropertyIds::ModulationTargets ||
+			sourceType == PropertyIds::SwitchTargets);
+
+	auto sourceTree = nodes[nodeIndex].getChildWithName(sourceType);
+	
+	if (sourceType != PropertyIds::ModulationTargets)
+		sourceTree = sourceTree.getChild(sourceIndex).getOrCreateChildWithName(PropertyIds::Connections, nullptr);
+
+	auto targetTree = nodes[targetNodeIndex].getChildWithName(PropertyIds::Parameters).getChild(targetParameterIndex);
+
+	ValueTree c(PropertyIds::Connection);
+	c.setProperty(PropertyIds::NodeId, nodes[targetNodeIndex][PropertyIds::ID], nullptr);
+	c.setProperty(PropertyIds::ParameterId, targetTree[PropertyIds::ID], nullptr);
+
+
+
+	sourceTree.addChild(c, -1, nullptr);
+	targetTree.setProperty(PropertyIds::Automated, true, nullptr);
+
+	jassert(sourceTree.isValid());
+	jassert(targetTree.isValid());
+
+	return true;
+}
+
+void TemplateNodeFactory::Builder::setNodeColour(Array<int> nodeIndexes, Colour c)
+{
+	for (auto n : nodeIndexes)
+	{
+		nodes[n].setProperty(PropertyIds::NodeColour, (int64)c.getARGB(), nullptr);
+	}
+}
+
+void TemplateNodeFactory::Builder::setParameterValues(Array<int> nodeIndexes, StringArray parameterIds, Array<double> values)
+{
+	for (auto n : nodeIndexes)
+	{
+		fillValueTree(n);
+
+		auto ptree = nodes[n].getChildWithName(PropertyIds::Parameters);
+
+		for (int i = 0; i < parameterIds.size(); i++)
+		{
+			auto p = ptree.getChildWithProperty(PropertyIds::ID, parameterIds[i]);
+			p.setProperty(PropertyIds::Value, values[i], nullptr);
+		}
+	}
+}
+
+void TemplateNodeFactory::Builder::setComplexDataIndex(Array<int> nodeIndexes, ExternalData::DataType type, int index)
+{
+	for (auto n : nodeIndexes)
+	{
+		fillValueTree(n);
+
+		auto ctree = nodes[n].getChildWithName(PropertyIds::ComplexData);
+
+		auto typeTree = ctree.getChildWithName(ExternalData::getDataTypeName(type, true));
+
+		for (auto c : typeTree)
+		{
+			c.setProperty(PropertyIds::Index, index, nullptr);
+		}
+	}
+}
+
+void TemplateNodeFactory::Builder::addComment(Array<int> nodeIndexes, const String& comment)
+{
+	for (auto n : nodeIndexes)
+	{
+		nodes[n].setProperty(PropertyIds::Comment, comment, nullptr);
+	}
+}
+
+void TemplateNodeFactory::Builder::setFolded(Array<int> nodeIndexes)
+{
+	for (auto n : nodeIndexes)
+	{
+		nodes[n].setProperty(PropertyIds::Folded, true, nullptr);
+	}
+}
+
+void TemplateNodeFactory::Builder::fillValueTree(int nodeIndex)
+{
+	// Do not create containers
+	if (nodes[nodeIndex][PropertyIds::FactoryPath].toString().startsWith("container"))
+		return;
+
+	if (network->getNodeForValueTree(nodes[nodeIndex]))
+		return;
+
+	network->createFromValueTree(network->isPolyphonic(), nodes[nodeIndex], false);
+	network->deleteIfUnused(nodes[nodeIndex][PropertyIds::ID].toString());
+}
+
 }
 

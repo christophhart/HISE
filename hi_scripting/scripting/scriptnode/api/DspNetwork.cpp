@@ -119,6 +119,9 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
                 projectNodeHolder.init(ah->projectDll);
         }
 	}
+
+	ownedFactories.add(new TemplateNodeFactory(this));
+
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
