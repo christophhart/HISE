@@ -363,7 +363,37 @@ namespace control
 		}
 	};
 
-	class tempo_sync_base: public mothernode
+	class clock_base : public mothernode,
+					   public hise::TempoListener
+	{
+	public:
+
+		virtual ~clock_base()
+		{
+			if (tempoSyncer != nullptr)
+				tempoSyncer->deregisterItem(this);
+		}
+
+		SN_EMPTY_INITIALISE;
+		SN_EMPTY_RESET;
+		SN_EMPTY_PROCESS;
+		SN_EMPTY_PROCESS_FRAME;
+		SN_EMPTY_HANDLE_EVENT
+
+		void prepare(PrepareSpecs ps)
+		{
+			jassert(ps.voiceIndex != nullptr);
+
+			tempoSyncer = ps.voiceIndex->getTempoSyncer();
+			tempoSyncer->registerItem(this);
+		}
+
+	protected:
+
+		DllBoundaryTempoSyncer* tempoSyncer = nullptr;
+	};
+
+	class tempo_sync_base: public clock_base
 	{
 	public:
 
@@ -371,14 +401,15 @@ namespace control
 
 		virtual TempoData getUIData() const = 0;
 
+
 	private:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync_base);
 	};
 
+
 	template <int NV> class tempo_sync : public tempo_sync_base,
 										 public polyphonic_base,
-										 public pimpl::no_mod_normalisation,
-										 public hise::TempoListener
+										 public pimpl::no_mod_normalisation
 	{
 	public:
 
@@ -408,8 +439,6 @@ namespace control
 
 		SN_POLY_NODE_ID("tempo_sync");
 
-		
-
 		SN_GET_SELF_AS_OBJECT(tempo_sync);
 		SN_DESCRIPTION("Sends the tempo duration as modulation signal");
 
@@ -421,17 +450,13 @@ namespace control
 
 		void prepare(PrepareSpecs ps)
 		{
-			jassert(ps.voiceIndex != nullptr);
-
-			tempoSyncer = ps.voiceIndex->getTempoSyncer();
-			tempoSyncer->registerItem(this);
+			clock_base::prepare(ps);
 			data.prepare(ps);
 		}
 
 		~tempo_sync()
 		{
-			if (tempoSyncer != nullptr)
-				tempoSyncer->deregisterItem(this);
+			
 		}
 
 		void createParameters(ParameterDataList& data)
@@ -468,7 +493,6 @@ namespace control
 				t.bpm = newTempo;
 				t.refresh();
 			}
-			
 		}
 
 		void setTempo(double newTempoIndex)
@@ -525,10 +549,126 @@ namespace control
 
 		PolyData<TempoData, NV> data;
 
-		DllBoundaryTempoSyncer* tempoSyncer = nullptr;
-
 		JUCE_DECLARE_WEAK_REFERENCEABLE(tempo_sync);
 	};
+
+	template <typename T, int NV> class transport_base : public clock_base
+	{
+	public:
+
+		SN_EMPTY_CREATE_PARAM;
+
+		static constexpr int NumVoices = NV;
+
+		void prepare(PrepareSpecs ps)
+		{
+			clock_base::prepare(ps);
+			polyValue.prepare(ps);
+		}
+
+		bool handleModulation(double& v)
+		{
+			if (polyValue.get() != value)
+			{
+				v = (double)value;
+				polyValue.get() = value;
+				return true;
+			}
+
+			return false;
+		}
+
+	protected:
+
+		PolyData<T, NumVoices> polyValue;
+
+		T value = false;
+	};
+
+	template <int NV> class transport : public transport_base<bool, NV>
+	{
+	public:
+
+		SN_GET_SELF_AS_OBJECT(transport);
+		SN_DESCRIPTION("Sends a modulation signal when the transport state changes");
+		SN_POLY_NODE_ID("transport");
+		
+		void onTransportChange(bool isPlaying, double /*ppqPosition*/) override
+		{
+			value = isPlaying;
+		}
+	};
+
+	template <int NV> class ppq : public transport_base<double, NV>
+	{
+	public:
+
+		ppq()
+		{
+			loopLengthQuarters = TempoSyncer::getTempoFactor(TempoSyncer::Tempo::Quarter);
+		}
+
+		SN_GET_SELF_AS_OBJECT(ppq);
+		SN_DESCRIPTION("Sends a modulation signal with the playback position in quarters when the clock starts.");
+		SN_POLY_NODE_ID("ppq");
+
+		void onTransportChange(bool isPlaying, double ppqPosition) override
+		{
+			if (isPlaying)
+			{
+				ppqPos = ppqPosition;
+				updateValue();
+			}
+		}
+
+		template <int P> void setParameter(double v)
+		{
+			if (P == 0)
+				t = (TempoSyncer::Tempo)(int)v;
+			else if (P == 1)
+				factor = jlimit(1.0, 64.0, v);
+			
+			loopLengthQuarters = TempoSyncer::getTempoFactor(t) * factor;
+
+			if (loopLengthQuarters == 0.0)
+				loopLengthQuarters = 1.0;
+
+			updateValue();
+		}
+
+		SN_FORWARD_PARAMETER_TO_MEMBER(ppq);
+		
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				parameter::data p("Tempo", { 0.0, 1.0 });
+				p.setParameterValueNames(TempoSyncer::getTempoNames());
+				p.setParameterCallbackWithIndex<ppq, 0>(this);
+				p.setDefaultValue((double)TempoSyncer::getTempoIndex("1/4"));
+				data.add(std::move(p));
+			}
+			{
+				parameter::data p("Multiplier", { 1.0, 16.0, 1.0 });
+				p.setParameterCallbackWithIndex<ppq, 1>(this);
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
+		}
+
+		void updateValue()
+		{
+			value = hmath::fmod(ppqPos, loopLengthQuarters) / loopLengthQuarters;
+		}
+
+		double ppqPos = 0.0;
+		TempoSyncer::Tempo t;
+		double factor;
+
+		double loopLengthQuarters;
+		
+	};
+
+	
 
     struct pack_resizer: public data::base,
                          public pimpl::no_processing

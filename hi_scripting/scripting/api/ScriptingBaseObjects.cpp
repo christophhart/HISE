@@ -563,6 +563,8 @@ WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const v
 	{
 		weakCallback = dynamic_cast<CallableObject*>(callback.getObject());
 		
+		weakCallback->storeCapturedLocals(capturedLocals, true);
+
 		jassert(weakCallback != nullptr);
 
 		// Store it ref-counted if the ref count is one to avoid deletion
@@ -581,7 +583,8 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	highPriority(copy.highPriority),
 	engineToUse(copy.engineToUse),
 	anonymousFunctionRef(copy.anonymousFunctionRef),
-	thisObject(copy.thisObject)
+	thisObject(copy.thisObject),
+	capturedLocals(copy.capturedLocals)
 {
 	args.addArray(copy.args);
 }
@@ -594,7 +597,8 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	highPriority(other.highPriority),
 	anonymousFunctionRef(other.anonymousFunctionRef),
 	engineToUse(other.engineToUse),
-	thisObject(other.thisObject)
+	thisObject(other.thisObject),
+	capturedLocals(other.capturedLocals)
 {
 	args.swapWith(other.args);
 }
@@ -613,7 +617,9 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	anonymousFunctionRef = other.anonymousFunctionRef;
 	engineToUse = other.engineToUse;
 	thisObject = other.thisObject;
+	capturedLocals = other.capturedLocals;
 	args.swapWith(other.args);
+
 
 	return *this;
 }
@@ -700,7 +706,7 @@ Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValu
 
 Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
 {
-	if (engineToUse.get() == nullptr)
+	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();
 		return Result::fail("Engine is dangling");
@@ -708,6 +714,9 @@ Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* retur
 
 	if (weakCallback.get() != nullptr)
 	{
+		if(!capturedLocals.isEmpty())
+			weakCallback->storeCapturedLocals(capturedLocals, false);
+
 		return weakCallback->call(engineToUse, a, returnValue);
 	}
 	else
@@ -720,28 +729,15 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 {
 	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
 
-	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
-	{
-		clear();
-		return Result::fail("Engine is dangling");
-	}
+	var thisObj;
 
-	if (weakCallback.get() != nullptr)
-	{
-		var thisObj;
+	if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
+		thisObj = var(d);
 
-		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
-			thisObj = var(d);
+	auto r = callSync(args.getRawDataPointer(), args.size(), nullptr);
 
-		var::NativeFunctionArgs a(getThisObject(), args.getRawDataPointer(), args.size());
-
-		r = weakCallback->call(engineToUse, a, nullptr);
-
-		if (!r.wasOk())
-			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
-	}
-	else
-		jassertfalse;
+	if (!r.wasOk())
+		debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
 
 	return r;
 }
@@ -898,7 +894,6 @@ Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, co
 	{
 		thisAsRef = dynamic_cast<ReferenceCountedObject*>(this);
 		jassert(thisAsRef != nullptr);
-		jassert(thisAsRef->getReferenceCount() > 1);
 	}
 
 	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult, true);

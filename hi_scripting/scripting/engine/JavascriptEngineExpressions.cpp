@@ -28,6 +28,8 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		return v;
 	}
 
+	Identifier getVariableName() const override { return name; }
+
 	Statement* getChildStatement(int) override { return nullptr; };
 
 	void assign(const Scope& s, const var& newValue) const override
@@ -543,6 +545,20 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
     
 	void prepareCycleReferenceCheck() override;
 
+	void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) override
+	{
+		if (capturedLocals.isEmpty())
+			return;
+
+		if (swap)
+			std::swap(setFromHolder, capturedLocalValues);
+		else
+		{
+			for (const auto& nv : setFromHolder)
+				capturedLocalValues.set(nv.name, nv.value);
+		}
+	}
+
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{
 		WARN_IF_AUDIO_THREAD(true, ScriptAudioThreadGuard::FunctionCall);
@@ -555,6 +571,12 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		for (int i = 0; i < parameters.size(); ++i)
 			functionRoot->setProperty(parameters.getReference(i),
 			i < args.numArguments ? args.arguments[i] : var::undefined());
+
+		if (!capturedLocals.isEmpty())
+		{
+			for (const auto& c : capturedLocalValues)
+				functionRoot->setProperty(c.name, c.value);
+		}
 
 		var result;
 		body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
@@ -586,6 +608,12 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 				i < args.numArguments ? args.arguments[i] : var::undefined());
 		}
 
+		if (!capturedLocals.isEmpty())
+		{
+			for (const auto& c : capturedLocalValues)
+				scope->setProperty(c.name, c.value);
+		}
+		
 		body->perform(Scope(&s, s.root.get(), scope), &result);
 
 		return result;
@@ -669,6 +697,17 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return nullptr;
 	}
 
+	int getCaptureIndex(const Identifier& id) const
+	{
+		for (int i = 0; i < capturedLocals.size(); i++)
+		{
+			if (capturedLocals[i]->getVariableName() == id)
+				return i;
+		}
+
+		return -1;
+	}
+
 	AttributedString getDescription() const override
 	{
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
@@ -684,6 +723,10 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	String functionCode;
 	Array<Identifier> parameters;
+
+	OwnedArray<Expression> capturedLocals;
+	mutable NamedValueSet capturedLocalValues;
+	
 	ScopedPointer<Statement> body;
 
 	String commentDoc;
@@ -699,6 +742,42 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FunctionObject);
 };
 
+struct HiseJavascriptEngine::RootObject::AnonymousFunctionWithCapture : public Expression
+{
+	AnonymousFunctionWithCapture(const CodeLocation& l, const var& f) : Expression(l), function(f)
+	{
+		if (auto fo = dynamic_cast<FunctionObject*>(function.getDynamicObject()))
+		{
+
+		}
+	};
+
+	var getResult(const Scope& s) const override
+	{
+		// time to capture
+		
+		if (auto fo = dynamic_cast<FunctionObject*>(function.getObject()))
+		{
+
+			for (auto e: fo->capturedLocals)
+			{
+				auto id = e->getVariableName();
+				auto value = e->getResult(s);
+				fo->capturedLocalValues.set(id, value);
+			}
+		}
+
+		return function;
+	}
+
+	bool isConstant() const override { return true; }
+
+	Statement* getChildStatement(int) override { return nullptr; };
+
+	var function;
+
+	OwnedArray<Expression> expressions;
+};
 
 var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& s, const var& function, const var& thisObject) const
 {

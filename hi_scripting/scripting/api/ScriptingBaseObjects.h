@@ -257,6 +257,9 @@ struct WeakCallbackHolder : private ScriptingObject
 
         virtual bool isRealtimeSafe() const = 0;
         
+		/** Override this and either clone or swap the captured values. */
+		virtual void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) {};
+
 	protected:
 
 		Result lastResult;
@@ -349,6 +352,7 @@ private:
 	Result r;
 	Array<var> args;
 	var anonymousFunctionRef;
+	NamedValueSet capturedLocals;
 	WeakReference<CallableObject> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
 	WeakReference<HiseJavascriptEngine> engineToUse;

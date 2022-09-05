@@ -958,6 +958,8 @@ public:
         signalDisplayEnabled = shouldBeEnabled;
     }
     
+	String getNonExistentId(String id, StringArray& usedIds) const;
+
 private:
 
     bool signalDisplayEnabled = false;
@@ -1021,7 +1023,7 @@ private:
 
 	Array<WeakReference<NodeFactory>> nodeFactories;
 
-	String getNonExistentId(String id, StringArray& usedIds) const;
+	
 
 	valuetree::RecursivePropertyListener idUpdater;
 	valuetree::RecursiveTypedChildListener exceptionResetter;

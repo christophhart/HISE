@@ -290,6 +290,14 @@ If true, then the FX plugin will have a MIDI input and the MIDI processor chain 
 #define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
 #endif
 
+/** Config: HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
+
+If true then the plugin will complain about the buffer size not being a multiple of HISE_EVENT_RASTER. 
+*/
+#ifndef HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
+#define HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE 1
+#endif
+
 /** Config: ENABLE_ALL_PEAK_METERS
 
 Set this to 0 to deactivate peak collection for any other processor than the main synth chain

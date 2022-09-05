@@ -131,6 +131,8 @@ struct ScriptingApi::Content::Wrapper
 	static var createMarkdownRenderer(const var::NativeFunctionArgs& args);
 	static var isMouseDown(const var::NativeFunctionArgs& args);
 	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
+	static var callAfterDelay(const var::NativeFunctionArgs& args);
+
 };
 
 var ScriptingApi::Content::Wrapper::addButton (const var::NativeFunctionArgs& args)
@@ -1013,6 +1015,17 @@ juce::var ScriptingApi::Content::Wrapper::isMouseDown(const var::NativeFunctionA
 {
 	if (auto thisObject = GET_OBJECT(Content))
 	{
+		return thisObject->isMouseDown();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::callAfterDelay(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		thisObject->callAfterDelay(args.arguments[0], args.arguments[1], args.numArguments == 3 ? args.arguments[2] : var());
 		return thisObject->isMouseDown();
 	}
 

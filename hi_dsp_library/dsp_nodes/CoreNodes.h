@@ -757,6 +757,307 @@ private:
 	PolyData<State, NumVoices> state;
 };
 
+template <int NV, bool UseRingBuffer> class clock_ramp : public polyphonic_base,
+														 public data::display_buffer_base<UseRingBuffer>,
+														 public hise::TempoListener
+{
+public:
+
+	enum class InactiveMode
+	{
+		LastValue,
+		Zero,
+		One,
+		numInactiveModes
+	};
+
+	enum class Parameters
+	{
+		Tempo,
+		Multiplier,
+		AddToSignal,
+		UpdateMode,
+		Inactive,
+		numParameters
+	};
+
+	static constexpr int NumVoices = NV;
+
+	SN_POLY_NODE_ID("clock_ramp");
+	SN_GET_SELF_AS_OBJECT(clock_ramp);
+	SN_DESCRIPTION("Creates a (monophonic) ramp signal that is synced to the HISE clock");
+
+	static constexpr bool isNormalisedModulation() { return true; };
+
+	clock_ramp():
+		polyphonic_base(getStaticId())
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
+	}
+
+	~clock_ramp()
+	{
+		if (syncer != nullptr)
+			syncer->deregisterItem(this);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		ps.voiceIndex->getTempoSyncer()->registerItem(this);
+		sr = ps.sampleRate;
+	}
+
+	SN_EMPTY_INITIALISE;
+
+	
+
+	SN_EMPTY_RESET;
+	SN_EMPTY_HANDLE_EVENT;
+	
+	void onTransportChange(bool isPlaying_, double ppqPosition) override
+	{
+		isPlaying = isPlaying_;
+
+		if (isPlaying)
+		{
+			if (isContinuous)
+			{
+				startOffset = ppqPosition / (startMultiplier * startFactor);
+			}
+			else
+				startOffset = ppqPosition;
+
+			for (auto& s : state)
+				s.ppqPos = 0.0;
+		}
+	}
+
+	void tempoChanged(double newTempo) override
+	{
+		bpm = newTempo;
+	}
+
+	bool handleModulation(double& v)
+	{
+		return state.get().modValue.getChangedValue(v);
+	}
+
+	double getPPQDelta(int numSamples) const
+	{
+		if (auto tempoSamples = TempoSyncer::getTempoInSamples(bpm, sr, 1.0f))
+			return (double)numSamples / tempoSamples;
+		else
+			return 0.0;
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& d)
+	{
+		auto& s = state.get();
+
+		double valueToUse[(int)InactiveMode::numInactiveModes];
+
+		valueToUse[(int)InactiveMode::Zero] = 0.0;
+		valueToUse[(int)InactiveMode::One] = 1.0;
+
+		if (isPlaying)
+		{
+			auto ppqDelta = getPPQDelta(d.getNumSamples());
+			auto tf = s.tempoFactor * s.multiplier;
+
+			double tfDelta;
+			double start;
+
+			if (isContinuous)
+			{
+				tfDelta = ppqDelta / tf;
+				start = std::fmod(s.ppqPos + startOffset, 1.0);
+				s.ppqPos += tfDelta;
+			}
+				
+			else
+			{
+				tfDelta = ppqDelta * tf;
+				start = std::fmod(s.ppqPos + startOffset, tf) / tf;
+				s.ppqPos += ppqDelta;
+			}
+
+			double lastValue = 0.0;
+
+			if (addToSignal)
+			{
+				auto data = d.getRawChannelPointers()[0];
+				auto inc = tfDelta / (double)d.getNumSamples();
+
+				for (int i = 0; i < d.getNumSamples(); i++)
+				{
+					lastValue = hmath::fmod(start + (double)inc, 1.0);
+					data[i] = (float)lastValue;
+				}
+			}
+			else
+			{
+				lastValue = hmath::fmod(start + tfDelta, 1.0);
+			}
+
+			s.modValue.setModValue(lastValue);	
+		}
+		else if (addToSignal)
+		{
+			valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
+
+			FloatVectorOperations::fill(d.getRawChannelPointers()[0], (float)valueToUse[(int)inactiveMode], d.getNumSamples());
+		}
+
+		valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
+
+		this->updateBuffer((float)valueToUse[(int)inactiveMode], d.getNumSamples());
+	}
+
+	template <typename FrameType> void processFrame(FrameType& d)
+	{
+		auto& s = state.get();
+
+		double valueToUse[(int)InactiveMode::numInactiveModes];
+
+		valueToUse[(int)InactiveMode::Zero] = 0.0;
+		valueToUse[(int)InactiveMode::One] = 1.0;
+
+		if (isPlaying)
+		{
+			auto ppqDelta = getPPQDelta(1);
+			auto tf = s.tempoFactor * s.multiplier;
+			auto start = hmath::fmod(s.ppqPos + startOffset, tf) / tf;
+			auto modValue = hmath::fmod(start + ppqDelta * tf, 1.0);
+
+			if (addToSignal)
+				d[0] = (float)modValue;
+
+			s.ppqPos += ppqDelta;
+			s.modValue.setModValue(modValue);
+		}
+		else if(addToSignal)
+		{
+			valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
+
+			d[0] = (float)valueToUse[(int)inactiveMode];
+		}
+
+		valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
+
+		updateBuffer(valueToUse[(int)inactiveMode], 1);
+	}
+
+	void setTempo(double newTempo)
+	{
+		auto newFactor = TempoSyncer::getTempoFactor((TempoSyncer::Tempo)(int)newTempo);
+
+		startFactor = newFactor;
+
+		for (auto& s : state)
+			s.tempoFactor = newFactor;
+	}
+
+	void setMultiplier(double newMultiplier)
+	{
+		startMultiplier = newMultiplier;
+
+		for (auto& s : state)
+			s.multiplier = newMultiplier;
+	}
+
+	void setAddToSignal(double newValue)
+	{
+		addToSignal = newValue > 0.5;
+	}
+
+	void setUpdateMode(double newBehaviour)
+	{
+		isContinuous = newBehaviour < 0.5;
+	}
+
+	void setInactive(double newInactiveMode)
+	{
+		inactiveMode = (InactiveMode)(int)newInactiveMode;
+	}
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Tempo, clock_ramp);
+		DEF_PARAMETER(Multiplier, clock_ramp);
+		DEF_PARAMETER(AddToSignal, clock_ramp);
+		DEF_PARAMETER(UpdateMode, clock_ramp);
+		DEF_PARAMETER(Inactive, clock_ramp);
+	};
+
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			parameter::data p("Tempo");
+			p.setRange({ 0.0, 1.0 });
+			p.setParameterValueNames(TempoSyncer::getTempoNames());
+			p.setDefaultValue((double)TempoSyncer::getTempoIndex("1/4"));
+			registerCallback<(int)Parameters::Tempo>(p);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Multiplier");
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
+			registerCallback<(int)Parameters::Multiplier>(p);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("AddToSignal");
+			p.setParameterValueNames({ "No", "Yes" });
+			p.setDefaultValue(0.0);
+			registerCallback<(int)Parameters::AddToSignal>(p);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("UpdateMode");
+			p.setParameterValueNames({ "Continuous", "Synced" });
+			p.setDefaultValue(1.0);
+			registerCallback<(int)Parameters::UpdateMode>(p);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Inactive");
+			p.setParameterValueNames({ "Current", "Zero", "One" });
+			p.setDefaultValue(0.0);
+			registerCallback<(int)Parameters::Inactive>(p);
+			data.add(std::move(p));
+		}
+	}
+
+	double startOffset = 0.0;
+	double bpm = 120.0;
+	double sr = 44100.0;
+	bool addToSignal = false;
+	bool isPlaying = false;
+	double startFactor = 1.0f;
+	double startMultiplier = 1.0f;
+
+	bool isContinuous = false;
+	InactiveMode inactiveMode = InactiveMode::LastValue;
+
+	struct State
+	{
+		double tempoFactor = 1.0;
+		double multiplier = 1.0;
+		double ppqPos = 0.0;
+		ModValue modValue;
+	};
+
+	PolyData<State, NV> state;
+	
+
+
+	DllBoundaryTempoSyncer* syncer = nullptr;
+};
+
 
 template <int NV> class oscillator: public OscillatorDisplayProvider,
 								    public polyphonic_base

@@ -634,5 +634,65 @@ protected:
     WeakReference<DspNetwork> network;
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeFactory);
 };
+
+struct TemplateNodeFactory : public NodeFactory
+{
+	struct Builder
+	{
+		Builder(DspNetwork* n, ValueTree v):
+			network(n)
+		{
+			jassert(!v.getParent().isValid());
+			nodes.add(v);
+			existingIds.addArray(n->getListOfUnusedNodeIds());
+			existingIds.addArray(n->getListOfUsedNodeIds());
+		}
+
+		WeakReference<DspNetwork> network;
+
+		StringArray existingIds;
+
+		Array<ValueTree> nodes;
+
+		int addNode(int parent, const String& path, const String& id, int index=-1);
+		void addParameter(int nodeIndex, const String& name, InvertableParameterRange r);
+
+		bool connectSendReceive(int sendIndex, Array<int> receiveIndexes);
+
+		bool connect(int nodeIndex, const Identifier sourceType, int sourceIndex, int targetNodeIndex, int targetParameterIndex);
+
+		void setNodeColour(Array<int> nodeIndexes, Colour c);
+
+		void setParameterValues(Array<int> nodeIndexes, StringArray parameterNames, Array<double> values);
+
+		void setComplexDataIndex(Array<int> nodeIndexes, ExternalData::DataType type, int index);
+
+		void addComment(Array<int> nodeIndexes, const String& comment);
+
+		Colour getRandomColour() const
+		{
+			return Colour(Random::getSystemRandom().nextFloat(), 0.33f, 0.6f, 1.0f);
+		}
+
+		void setFolded(Array<int> nodeIndexes);
+
+		void fillValueTree(int nodeIndex);
+
+		void setRootType(const String& rootPath)
+		{
+			nodes[0].setProperty(PropertyIds::FactoryPath, rootPath, nullptr);
+		}
+
+		NodeBase* flush()
+		{
+			return network->createFromValueTree(network->isPolyphonic(), nodes[0], true);
+		}
+	};
+
+	TemplateNodeFactory(DspNetwork* n);;
+
+	virtual Identifier getId() const override { RETURN_STATIC_IDENTIFIER("template"); }
+};
+
     
 }

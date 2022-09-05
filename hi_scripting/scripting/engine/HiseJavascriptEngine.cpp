@@ -630,6 +630,8 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 	virtual var getResult(const Scope&) const            { return var::undefined(); }
 	virtual void assign(const Scope&, const var&) const  { location.throwError("Cannot assign to this expression!"); }
 
+	virtual Identifier getVariableName() const { return {}; }
+
 	ResultCode perform(const Scope& s, var*) const override  { getResult(s); return ok; }
 };
 

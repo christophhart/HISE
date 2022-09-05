@@ -2554,6 +2554,9 @@ struct MasterClock
 		if (currentSyncMode == SyncModes::Inactive)
 			return;
 
+		if (internalClock)
+			internalClockIsRunning = startPlayback;
+
 		// Already stopped / not running, just return
 		if (!startPlayback && currentState == State::Idle)
 			return;
@@ -2584,6 +2587,12 @@ struct MasterClock
 			nextState = internalClock ? State::InternalClockPlay : State::ExternalClockPlay;
 		else
 			nextState = State::Idle;
+
+		// Restart the internal clock when the external is stopped
+		if (!internalClock && !startPlayback && internalClockIsRunning)
+		{
+			nextState = State::InternalClockPlay;
+		}
 	}
 
 	struct GridInfo
@@ -2657,6 +2666,11 @@ struct MasterClock
 		return gi;
 	}
 
+	bool isPlaying() const
+	{
+		return currentState == State::ExternalClockPlay || currentState == State::InternalClockPlay;
+	}
+
 	GridInfo updateFromExternalPlayHead(const AudioPlayHead::CurrentPositionInfo& info, int numSamples)
 	{
 		GridInfo gi;
@@ -2671,6 +2685,15 @@ struct MasterClock
  		if (isPlayingExternally != shouldPlayExternally)
 		{
 			changeState(0, false, shouldPlayExternally);
+
+			if (currentSyncMode == SyncModes::PreferExternal &&
+				currentState == State::InternalClockPlay &&
+				nextState == State::ExternalClockPlay)
+			{
+				gi.change = true;
+				gi.gridIndex = 0;
+				gi.firstGridInPlayback = true;
+			}
 
 			currentState = nextState;
 
@@ -2827,6 +2850,8 @@ private:
 	int gridDelta = 1;
 	int currentGridIndex = 0;
 
+	bool internalClockIsRunning = false;
+
 	double sampleRate = 44100.0;
 	double bpm = 120.0;
 
@@ -2867,7 +2892,7 @@ public:
 	virtual void tempoChanged(double newTempo) {};
 
 	/** The callback function that will be called when the transport state changes (=the user presses play on the DAW). */
-	virtual void onTransportChange(bool isPlaying) {};
+	virtual void onTransportChange(bool isPlaying, double ppqPosition) {};
 
 	/** The callback function that will be called for each musical pulse.
 

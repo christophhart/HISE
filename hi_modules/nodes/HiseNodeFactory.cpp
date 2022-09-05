@@ -680,6 +680,65 @@ template <typename ParameterClass> struct xy :
 	JUCE_DECLARE_WEAK_REFERENCEABLE(xy);
 };
 
+struct TransportDisplay : public juce::Component,
+						  public PooledUIUpdater::SimpleTimer
+{
+	TransportDisplay(PooledUIUpdater* updater) :
+		SimpleTimer(updater),
+		dragger(updater)
+	{
+		addAndMakeVisible(dragger);
+
+		setSize(128, 32);
+	};
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		iconBounds = b.removeFromLeft(b.getHeight()).toFloat().reduced(4);
+
+		dragger.setBounds(b);
+		repaint();
+	}
+
+	void paint(Graphics& g) override
+	{
+		MidiPlayerBaseType::TransportPaths f;
+		auto p = f.createPath(isPlaying ? "Start" : "Stop");
+		f.scalePath(p, iconBounds);
+		g.setColour(Colours::white.withAlpha(0.8f));
+		g.fillPath(p);
+
+	}
+
+	bool isPlaying = false;
+
+	void timerCallback() override
+	{
+		if (auto c = findParentComponentOfClass<ControlledObject>())
+		{
+			hise::MainController* mc = c->getMainController();
+			auto shouldBePlaying = mc->getMasterClock().isPlaying();
+
+			if (isPlaying != shouldBePlaying)
+			{
+				isPlaying = shouldBePlaying;
+				repaint();
+			}
+		}
+	}
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		return new TransportDisplay(updater);
+	}
+
+	ModulationSourceBaseComponent dragger;
+
+	Rectangle<float> iconBounds;
+};
+
 struct TempoDisplay : public ModulationSourceBaseComponent
 {
 	using ObjectType = tempo_sync_base;
@@ -1391,6 +1450,8 @@ namespace control
 
 		registerPolyNoProcessNode<control::bang<1, parameter::dynamic_base_holder>, control::bang<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
+		
+
 		registerPolyNoProcessNode<control::change<1, parameter::dynamic_base_holder>, control::change<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
         registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
@@ -1429,6 +1490,10 @@ namespace control
 		registerNoProcessNode<file_analysers::dynamic::NodeType, file_analysers::dynamic::editor, false>(); //>();
 
 		registerPolyModNode<tempo_sync<1>, tempo_sync<NUM_POLYPHONIC_VOICES>, TempoDisplay>();
+
+		registerPolyModNode<transport<1>, transport<NUM_POLYPHONIC_VOICES>, TransportDisplay>();
+
+		registerPolyModNode<ppq<1>, ppq<NUM_POLYPHONIC_VOICES>, TransportDisplay>();
 	}
 }
 
@@ -1724,6 +1789,8 @@ Factory::Factory(DspNetwork* network) :
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
+
+	registerPolyModNode<dp<clock_ramp<1, true>>, dp<clock_ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
 
 	registerNode<core::mono2stereo>();
 

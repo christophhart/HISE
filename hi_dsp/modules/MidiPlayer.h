@@ -452,7 +452,7 @@ public:
 
 	void onGridChange(int gridIndex, uint16 timestamp, bool firstGridEventInPlayback) override;
 
-	void onTransportChange(bool isPlaying) override;
+	void onTransportChange(bool isPlaying, double ppqPosition) override;
 	
 	enum class RecordState
 	{

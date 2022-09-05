@@ -1324,8 +1324,12 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 	{
 		illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
 
+#if HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
 		if (illegalBufferSize)
 			mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
+#endif
+
+		samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
 
 		mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, HISE_MAX_PROCESSING_BLOCKSIZE));
 	}
@@ -1361,7 +1365,7 @@ String OverlayMessageBroadcaster::getOverlayTextMessage(State s) const
 	case IllegalBufferSize:
 	{
 		String s;
-		s << "The audio buffer size must be a multiple of " << String(HISE_EVENT_RASTER) << ". Please adjust your audio settings";
+		s << "The audio buffer size should be a multiple of " << String(HISE_EVENT_RASTER) << ". Please adjust your audio settings";
 		return s;
 	}
 	case SamplesNotFound:
