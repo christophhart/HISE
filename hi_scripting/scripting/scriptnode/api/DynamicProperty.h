@@ -135,6 +135,9 @@ struct dynamic_base_holder: public dynamic_base
 	{
 		dynamic_base::Ptr old = base;
 
+		if (auto s = dynamic_cast<dynamic_base_holder*>(b.get()))
+			b = s->base;
+
 		auto oldValue = getDisplayValue();
 
 		{
