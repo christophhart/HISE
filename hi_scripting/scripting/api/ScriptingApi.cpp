@@ -269,6 +269,7 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
 	API_METHOD_WRAPPER_0(Message, isArtificial);
+	API_VOID_METHOD_WRAPPER_0(Message, sendToMidiOut);
 	API_VOID_METHOD_WRAPPER_1(Message, setAllNotesOffCallback);
 
 };
@@ -316,6 +317,7 @@ allNotesOffCallback(p, var(), 0)
 	ADD_API_METHOD_0(makeArtificial);
 	ADD_API_METHOD_0(isArtificial);
 	ADD_API_METHOD_1(setAllNotesOffCallback);
+	ADD_API_METHOD_0(sendToMidiOut);
 }
 
 
@@ -777,6 +779,12 @@ void ScriptingApi::Message::setAllNotesOffCallback(var onAllNotesOffCallback)
 {
 	allNotesOffCallback = WeakCallbackHolder(getScriptProcessor(), onAllNotesOffCallback, 0);
 	allNotesOffCallback.incRefCount();
+}
+
+void ScriptingApi::Message::sendToMidiOut()
+{
+	makeArtificial();
+	getScriptProcessor()->getMainController_()->sendToMidiOut(*messageHolder);
 }
 
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)

@@ -162,6 +162,9 @@ public:
 		/** Sets a callback that will be performed when an all notes off message is received. */
 		void setAllNotesOffCallback(var onAllNotesOffCallback);
 
+		/** This will forward the message to the MIDI out of the plugin. */
+		void sendToMidiOut();
+
 		// ============================================================================================================
 
 		void setHiseEvent(HiseEvent &m);

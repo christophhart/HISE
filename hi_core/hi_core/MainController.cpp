@@ -496,6 +496,16 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
+void MainController::sendToMidiOut(const HiseEvent& e)
+{
+	// Only send out artificial notes
+	jassert(e.isArtificial());
+
+	SimpleReadWriteLock::ScopedWriteLock sl(midiOutputLock);
+
+	outputMidiBuffer.addEvent(e);
+}
+
 bool MainController::refreshOversampling()
 {
 	auto requiredOversamplingFactor = (double)jlimit(1, 8, nextPowerOfTwo((int)(minimumSamplerate / getOriginalSamplerate())));
@@ -537,6 +547,29 @@ bool MainController::refreshOversampling()
 	}
 
 	return false;
+}
+
+
+
+void MainController::processMidiOutBuffer(MidiBuffer& mb, int numSamples)
+{
+	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(midiOutputLock))
+	{
+		if (!outputMidiBuffer.isEmpty())
+		{
+			HiseEventBuffer thisTime;
+			outputMidiBuffer.moveEventsBelow(thisTime, numSamples);
+
+			HiseEventBuffer::Iterator it(thisTime);
+
+			while (auto e = it.getNextEventPointer(true, false))
+			{
+				mb.addEvent(e->toMidiMesage(), e->getTimeStamp());
+			}
+
+			outputMidiBuffer.subtractFromTimeStamps(numSamples);
+		}
+	}
 }
 
 bool MainController::shouldUseSoftBypassRamps() const noexcept
@@ -993,6 +1026,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		midiMessages.addEvent(m, e->getTimeStamp());
 	}
 
+	processMidiOutBuffer(midiMessages, numSamplesThisBlock);
+
 #else
 
 
@@ -1150,6 +1185,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !HISE_MIDIFX_PLUGIN
 	midiMessages.clear();
+
+	processMidiOutBuffer(midiMessages, numSamplesThisBlock);
 #endif
 
 }

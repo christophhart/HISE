@@ -1386,8 +1386,11 @@ public:
 	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
     void clearPreset();
     
+
 	/** Compiles all scripts in the main synth chain */
 	void compileAllScripts();
+
+	void sendToMidiOut(const HiseEvent& e);
 
 	/** Call this if you want all voices to stop. */
 	void allNotesOff(bool resetSoftBypassState=false);;
@@ -1774,6 +1777,7 @@ protected:
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+	
 
 	void setMaxEventTimestamp(int newMaxTimestamp)
 	{
@@ -1798,6 +1802,8 @@ private:
 
 	int getOversampleFactor() const { return currentOversampleFactor; }
 	
+	void processMidiOutBuffer(MidiBuffer& mb, int numSamples);
+
 
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
@@ -1845,6 +1851,8 @@ private:
 	UnorderedStack<HiseEvent> suspendedNoteOns;
 
 	HiseEventBuffer masterEventBuffer;
+	SimpleReadWriteLock midiOutputLock;
+	HiseEventBuffer outputMidiBuffer;
 	EventIdHandler eventIdHandler;
 	LockFreeDispatcher lockfreeDispatcher;
 	UserPresetHandler userPresetHandler;
