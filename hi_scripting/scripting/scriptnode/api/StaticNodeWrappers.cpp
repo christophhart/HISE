@@ -752,7 +752,68 @@ template <int NumBands> struct freq_split
 	}
 };
 
+template <int NumSwitches> struct softbypass_switch
+{
+	static Identifier getStaticId() { return Identifier("softbypass_switch" + String(NumSwitches)); }
 
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		TemplateNodeFactory::Builder b(n, v);
+
+		b.setRootType("container.chain");
+
+		auto xfader = b.addNode(0, "control.xfader", "switcher");
+
+		auto c1 = b.addNode(0, "container.chain", "sb_container");
+
+		Array<int> dummies, sbContainers;
+
+		InvertableParameterRange pr(0.0, (double)NumSwitches-1.0, 1.0);
+
+		b.addParameter(0, "Switch", pr);
+
+		b.connect(0, PropertyIds::Parameters, 0, xfader, 0);
+
+		auto stree = b.nodes[xfader].getOrCreateChildWithName(PropertyIds::SwitchTargets, nullptr);
+
+		auto numToAdd = NumSwitches - stree.getNumChildren();
+
+		for (int i = 0; i < numToAdd; i++)
+		{
+			ValueTree v(PropertyIds::SwitchTarget);
+			stree.addChild(v, -1, nullptr);
+		}
+
+		b.setNodeProperty({xfader},
+		{
+			{"NumParameters", var(NumSwitches)},
+			{"Mode", var("Switch")}
+		});
+
+		// make it create the switch target trees.
+		b.fillValueTree(xfader);
+
+		b.setNodeProperty({ c1 }, { {PropertyIds::IsVertical, false} });
+
+		for (int i = 0; i < NumSwitches; i++)
+		{
+			sbContainers.add(b.addNode(c1, "container.soft_bypass", "sb" + String(i + 1)));
+			dummies.add(b.addNode(sbContainers.getLast(), "math.mul", "dummy"));
+
+			b.connect(xfader, PropertyIds::SwitchTargets, i, sbContainers.getLast(), TemplateNodeFactory::Builder::BypassIndex);
+		}
+
+		sbContainers.add(xfader);
+		sbContainers.add(c1);
+		
+
+		b.setNodeColour(sbContainers, b.getRandomColour());
+
+		b.setNodeColour(dummies, Colours::white);
+
+		return b.flush();
+	}
+};
 
 
 }
@@ -772,6 +833,13 @@ TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
 	registerNodeRaw<node_templates::freq_split<3>>();
 	registerNodeRaw<node_templates::freq_split<4>>();
 	registerNodeRaw<node_templates::freq_split<5>>();
+	registerNodeRaw<node_templates::softbypass_switch<2>>();
+	registerNodeRaw<node_templates::softbypass_switch<3>>();
+	registerNodeRaw<node_templates::softbypass_switch<4>>();
+	registerNodeRaw<node_templates::softbypass_switch<5>>();
+	registerNodeRaw<node_templates::softbypass_switch<6>>();
+	registerNodeRaw<node_templates::softbypass_switch<7>>();
+	registerNodeRaw<node_templates::softbypass_switch<8>>();
 	
 }
 
@@ -833,21 +901,31 @@ bool TemplateNodeFactory::Builder::connect(int nodeIndex, const Identifier sourc
 	auto sourceTree = nodes[nodeIndex].getChildWithName(sourceType);
 	
 	if (sourceType != PropertyIds::ModulationTargets)
-		sourceTree = sourceTree.getChild(sourceIndex).getOrCreateChildWithName(PropertyIds::Connections, nullptr);
+	{
+		sourceTree = sourceTree.getChild(sourceIndex);
 
-	auto targetTree = nodes[targetNodeIndex].getChildWithName(PropertyIds::Parameters).getChild(targetParameterIndex);
-
+		jassert(sourceTree.isValid());
+		sourceTree = sourceTree.getOrCreateChildWithName(PropertyIds::Connections, nullptr);
+	}
+	
 	ValueTree c(PropertyIds::Connection);
 	c.setProperty(PropertyIds::NodeId, nodes[targetNodeIndex][PropertyIds::ID], nullptr);
-	c.setProperty(PropertyIds::ParameterId, targetTree[PropertyIds::ID], nullptr);
 
+	if (targetParameterIndex == BypassIndex) // connect to bypass
+	{
+		c.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
+	}
+	else
+	{
+		auto targetTree = nodes[targetNodeIndex].getChildWithName(PropertyIds::Parameters).getChild(targetParameterIndex);
+		jassert(targetTree.isValid());
 
+		c.setProperty(PropertyIds::ParameterId, targetTree[PropertyIds::ID], nullptr);
+		targetTree.setProperty(PropertyIds::Automated, true, nullptr);
+	}
 
+	
 	sourceTree.addChild(c, -1, nullptr);
-	targetTree.setProperty(PropertyIds::Automated, true, nullptr);
-
-	jassert(sourceTree.isValid());
-	jassert(targetTree.isValid());
 
 	return true;
 }
@@ -857,6 +935,37 @@ void TemplateNodeFactory::Builder::setNodeColour(Array<int> nodeIndexes, Colour 
 	for (auto n : nodeIndexes)
 	{
 		nodes[n].setProperty(PropertyIds::NodeColour, (int64)c.getARGB(), nullptr);
+	}
+}
+
+void TemplateNodeFactory::Builder::setProperty(Array<int> nodeIndexes, const Identifier& id, const var& value)
+{
+	for (auto n : nodeIndexes)
+		nodes[n].setProperty(id, value, nullptr);
+}
+
+void TemplateNodeFactory::Builder::setNodeProperty(Array<int> nodeIndexes, const NamedValueSet& properties)
+{
+	for (auto n : nodeIndexes)
+	{
+		fillValueTree(n);
+
+		auto propTree = nodes[n].getOrCreateChildWithName(PropertyIds::Properties, nullptr);
+
+		for (auto p : properties)
+		{
+			auto existing = propTree.getChildWithProperty(PropertyIds::ID, p.name.toString());
+
+			if (existing.isValid())
+				existing.setProperty(PropertyIds::Value, p.value, nullptr);
+			else
+			{
+				ValueTree np(PropertyIds::Property);
+				np.setProperty(PropertyIds::ID, p.name.toString(), nullptr);
+				np.setProperty(PropertyIds::Value, p.value, nullptr);
+				propTree.addChild(np, -1, nullptr);
+			}
+		}
 	}
 }
 

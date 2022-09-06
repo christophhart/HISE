@@ -639,6 +639,8 @@ struct TemplateNodeFactory : public NodeFactory
 {
 	struct Builder
 	{
+		static constexpr int BypassIndex = -1;
+
 		Builder(DspNetwork* n, ValueTree v):
 			network(n)
 		{
@@ -662,6 +664,10 @@ struct TemplateNodeFactory : public NodeFactory
 		bool connect(int nodeIndex, const Identifier sourceType, int sourceIndex, int targetNodeIndex, int targetParameterIndex);
 
 		void setNodeColour(Array<int> nodeIndexes, Colour c);
+
+		void setProperty(Array<int> nodeIndexes, const Identifier& id, const var& value);
+
+		void setNodeProperty(Array<int> nodeIndexes, const NamedValueSet& properties);
 
 		void setParameterValues(Array<int> nodeIndexes, StringArray parameterNames, Array<double> values);
 

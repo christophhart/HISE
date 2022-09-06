@@ -202,7 +202,10 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		for (auto& o : objects)
 		{
 			if (P == 0)
-				o.setCutoffFrequency(v);
+			{
+				if(std::isfinite(v) && v > 20.0)
+					o.setCutoffFrequency(v);
+			}
 			if (P == 1)
 				o.setType((JuceDspType::Type)(int)v);
 		}
