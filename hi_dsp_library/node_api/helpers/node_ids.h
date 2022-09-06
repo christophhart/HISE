@@ -400,6 +400,9 @@ struct CustomNodeProperties
 				}
 			}
 		}
+        
+        jassertfalse;
+        return {};
 	}
 
 	static bool nodeHasProperty(const ValueTree& nodeTree, const Identifier& propId)

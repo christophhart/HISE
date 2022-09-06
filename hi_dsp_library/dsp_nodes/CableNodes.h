@@ -597,7 +597,7 @@ namespace control
 		
 		void onTransportChange(bool isPlaying, double /*ppqPosition*/) override
 		{
-			value = isPlaying;
+			this->value = isPlaying;
 		}
 	};
 
@@ -605,6 +605,8 @@ namespace control
 	{
 	public:
 
+        static constexpr int NumVoices = NV;
+        
 		ppq()
 		{
 			loopLengthQuarters = TempoSyncer::getTempoFactor(TempoSyncer::Tempo::Quarter);
@@ -659,7 +661,7 @@ namespace control
 
 		void updateValue()
 		{
-			value = hmath::fmod(ppqPos, loopLengthQuarters) / loopLengthQuarters;
+			this->value = hmath::fmod(ppqPos, loopLengthQuarters) / loopLengthQuarters;
 		}
 
 		double ppqPos = 0.0;

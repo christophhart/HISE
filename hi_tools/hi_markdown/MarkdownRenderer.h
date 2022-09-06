@@ -611,7 +611,7 @@ public:
 		navigationShown = shouldBeShown;
 	}
 
-	virtual void showDoc() { jassertfalse; };
+	virtual void showDoc() { ; };
 
 	virtual void enableEditing(bool shouldBeEnabled) {};
 

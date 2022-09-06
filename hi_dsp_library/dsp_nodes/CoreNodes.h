@@ -945,7 +945,7 @@ public:
 
 		valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
 
-		updateBuffer(valueToUse[(int)inactiveMode], 1);
+		this->updateBuffer(valueToUse[(int)inactiveMode], 1);
 	}
 
 	void setTempo(double newTempo)
