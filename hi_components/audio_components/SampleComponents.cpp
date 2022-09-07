@@ -831,6 +831,8 @@ void SamplerSoundWaveform::mouseMove(const MouseEvent& e)
 	if (onInterface)
 		return;
 
+	AudioDisplayComponent::mouseMove(e);
+
 	if (currentSound != nullptr)
 	{
 		auto n = (double)e.getPosition().getX() / (double)getWidth();

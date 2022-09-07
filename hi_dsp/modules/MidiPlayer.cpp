@@ -1077,151 +1077,152 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 		}
 #endif
 
-		auto seq = getCurrentSequence();
-
-		if (playState == PlayState::Stop)
+		if (auto seq = getCurrentSequence())
 		{
-			seq->resetPlayback();
-			playState = PlayState::Stop;
-			timeStampForNextCommand = 0;
-			currentPosition = -1.0;
-			return;
-		}
-
-		seq->setCurrentTrackIndex(currentTrackIndex);
-
-		if (currentPosition < loopStart)
-		{
-			updatePositionInCurrentSequence();
-		}
-		else if (currentPosition > loopEnd)
-		{
-			updatePositionInCurrentSequence();
-		}
-
-		auto tickThisTime = (numSamples - timeStampForNextCommand) * getTicksPerSample();
-		auto lengthInTicks = seq->getLength();
-
-		if (lengthInTicks == 0.0)
-			return;
-
-		auto positionInTicks = getPlaybackPosition() * lengthInTicks;
-
-		auto delta = tickThisTime / lengthInTicks;
-
-		Range<double> currentRange;
-		
-		if(loopEnabled)
-			currentRange = { positionInTicks, positionInTicks + tickThisTime };
-		else
-			currentRange = { positionInTicks, jmin<double>(lengthInTicks, positionInTicks + tickThisTime) };
-
-		MidiMessage* eventsInThisCallback[16];
-		memset(eventsInThisCallback, 0, sizeof(MidiMessage*) * 16);
-
-		
-
-		while (auto e = seq->getNextEvent(currentRange))
-		{
-			bool found = false;
-
-			for (int i = 0; i < 16; i++)
+			if (playState == PlayState::Stop)
 			{
-				if (eventsInThisCallback[i] == e)
-				{
-					found = true;
-					break;
-				}
-
-				if (eventsInThisCallback[i] == nullptr)
-				{
-					eventsInThisCallback[i] = e;
-					break;
-				}
+				seq->resetPlayback();
+				playState = PlayState::Stop;
+				timeStampForNextCommand = 0;
+				currentPosition = -1.0;
+				return;
 			}
 
-			if (found)
-				break;
+			seq->setCurrentTrackIndex(currentTrackIndex);
 
-			auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
-
-			if (timeStampInThisBuffer < 0.0)
-				timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
-
-			auto timeStamp = (int)MidiPlayerHelpers::ticksToSamples(timeStampInThisBuffer / getPlaybackSpeed(), getMainController()->getBpm(), getSampleRate());
-			timeStamp += timeStampForNextCommand;
-
-			jassert(isPositiveAndBelow(timeStamp, numSamples));
-
-			HiseEvent newEvent(*e);
-
-			newEvent.setTimeStamp(timeStamp);
-			newEvent.setArtificial();
-			newEvent.setChannel(currentTrackIndex + 1);
-
-			if (newEvent.isController())
+			if (currentPosition < loopStart)
 			{
-				bool consumed = false;
+				updatePositionInCurrentSequence();
+			}
+			else if (currentPosition > loopEnd)
+			{
+				updatePositionInCurrentSequence();
+			}
 
-				if (globalMidiHandlerConsumesCC)
+			auto tickThisTime = (numSamples - timeStampForNextCommand) * getTicksPerSample();
+			auto lengthInTicks = seq->getLength();
+
+			if (lengthInTicks == 0.0)
+				return;
+
+			auto positionInTicks = getPlaybackPosition() * lengthInTicks;
+
+			auto delta = tickThisTime / lengthInTicks;
+
+			Range<double> currentRange;
+
+			if (loopEnabled)
+				currentRange = { positionInTicks, positionInTicks + tickThisTime };
+			else
+				currentRange = { positionInTicks, jmin<double>(lengthInTicks, positionInTicks + tickThisTime) };
+
+			MidiMessage* eventsInThisCallback[16];
+			memset(eventsInThisCallback, 0, sizeof(MidiMessage*) * 16);
+
+
+
+			while (auto e = seq->getNextEvent(currentRange))
+			{
+				bool found = false;
+
+				for (int i = 0; i < 16; i++)
 				{
-					auto handler = getMainController()->getMacroManager().getMidiControlAutomationHandler();
-					consumed = handler->handleControllerMessage(newEvent);
+					if (eventsInThisCallback[i] == e)
+					{
+						found = true;
+						break;
+					}
+
+					if (eventsInThisCallback[i] == nullptr)
+					{
+						eventsInThisCallback[i] = e;
+						break;
+					}
 				}
-				
-				if(!consumed)
+
+				if (found)
+					break;
+
+				auto timeStampInThisBuffer = e->getTimeStamp() - positionInTicks;
+
+				if (timeStampInThisBuffer < 0.0)
+					timeStampInThisBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
+
+				auto timeStamp = (int)MidiPlayerHelpers::ticksToSamples(timeStampInThisBuffer / getPlaybackSpeed(), getMainController()->getBpm(), getSampleRate());
+				timeStamp += timeStampForNextCommand;
+
+				jassert(isPositiveAndBelow(timeStamp, numSamples));
+
+				HiseEvent newEvent(*e);
+
+				newEvent.setTimeStamp(timeStamp);
+				newEvent.setArtificial();
+				newEvent.setChannel(currentTrackIndex + 1);
+
+				if (newEvent.isController())
+				{
+					bool consumed = false;
+
+					if (globalMidiHandlerConsumesCC)
+					{
+						auto handler = getMainController()->getMacroManager().getMidiControlAutomationHandler();
+						consumed = handler->handleControllerMessage(newEvent);
+					}
+
+					if (!consumed)
+						buffer.addEvent(newEvent);
+				}
+				else if (newEvent.isPitchWheel())
+				{
 					buffer.addEvent(newEvent);
-			}
-			else if (newEvent.isPitchWheel())
-			{
-				buffer.addEvent(newEvent);
-			}
-			else if (newEvent.isNoteOn() && !isBypassed())
-			{
-				getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
-
-				buffer.addEvent(newEvent);
-
-				if (auto noteOff = seq->getMatchingNoteOffForCurrentEvent())
+				}
+				else if (newEvent.isNoteOn() && !isBypassed())
 				{
-					HiseEvent newNoteOff(*noteOff);
-					newNoteOff.setArtificial();
+					getMainController()->getEventHandler().pushArtificialNoteOn(newEvent);
 
-					auto noteOffTimeStampInBuffer = noteOff->getTimeStamp() - positionInTicks;
-					
-					if (noteOffTimeStampInBuffer < 0.0)
-						noteOffTimeStampInBuffer += lengthInTicks;
+					buffer.addEvent(newEvent);
 
-					timeStamp += timeStampForNextCommand;
+					if (auto noteOff = seq->getMatchingNoteOffForCurrentEvent())
+					{
+						HiseEvent newNoteOff(*noteOff);
+						newNoteOff.setArtificial();
 
-					auto noteOffTimeStamp = (int)MidiPlayerHelpers::ticksToSamples(noteOffTimeStampInBuffer, getMainController()->getBpm(), getSampleRate());
+						auto noteOffTimeStampInBuffer = noteOff->getTimeStamp() - positionInTicks;
 
-					newNoteOff.setChannel(currentTrackIndex + 1);
+						if (noteOffTimeStampInBuffer < 0.0)
+							noteOffTimeStampInBuffer += lengthInTicks;
 
-					auto on_id = getMainController()->getEventHandler().getEventIdForNoteOff(newNoteOff);
+						timeStamp += timeStampForNextCommand;
 
-					jassert(newEvent.getEventId() == on_id);
+						auto noteOffTimeStamp = (int)MidiPlayerHelpers::ticksToSamples(noteOffTimeStampInBuffer, getMainController()->getBpm(), getSampleRate());
 
-					newNoteOff.setEventId(on_id);
-					newNoteOff.setTimeStamp(noteOffTimeStamp);
-					newNoteOff.setTimeStamp(noteOffTimeStamp);
-					
+						newNoteOff.setChannel(currentTrackIndex + 1);
 
-					if (noteOffTimeStamp < numSamples)
-						buffer.addEvent(newNoteOff);
-					else
-						addHiseEventToBuffer(newNoteOff);
+						auto on_id = getMainController()->getEventHandler().getEventIdForNoteOff(newNoteOff);
+
+						jassert(newEvent.getEventId() == on_id);
+
+						newNoteOff.setEventId(on_id);
+						newNoteOff.setTimeStamp(noteOffTimeStamp);
+						newNoteOff.setTimeStamp(noteOffTimeStamp);
+
+
+						if (noteOffTimeStamp < numSamples)
+							buffer.addEvent(newNoteOff);
+						else
+							addHiseEventToBuffer(newNoteOff);
+					}
 				}
 			}
-		}
 
-		timeStampForNextCommand = 0;
-		currentPosition += delta;
-		ticksSincePlaybackStart += tickThisTime;
+			timeStampForNextCommand = 0;
+			currentPosition += delta;
+			ticksSincePlaybackStart += tickThisTime;
 
-		if (isRecording() && overdubMode)
-		{
-			overdubUpdater.setDirty();
+			if (isRecording() && overdubMode)
+			{
+				overdubUpdater.setDirty();
+			}
 		}
 	}
 }

@@ -1271,6 +1271,11 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 
 	ScopedPointer<AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
 	
+	if (sound->sampleLength == MAX_SAMPLE_NUMBER)
+	{
+		sound->sampleLength = getSampleLength();
+	}
+
 	if (readerToUse != nullptr) 
 		readerToUse->readMaxLevels(sound->sampleStart, sound->sampleLength, l1, l2, r1, r2);
 	else return 0.0f;

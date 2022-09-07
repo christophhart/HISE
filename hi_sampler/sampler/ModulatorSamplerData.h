@@ -148,7 +148,8 @@ public:
 
 	void setId(Identifier newIdentifier)
     {
-        sampleMapId = newIdentifier.toString();
+        sampleMapId = newIdentifier.toString().replaceCharacter('\\', '/');
+
 		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
