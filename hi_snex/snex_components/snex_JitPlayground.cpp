@@ -833,7 +833,11 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 {
 	auto& result = wb->getTestData();
 
-	if (!result.testWasOk())
+    if(!wb->getLastResult().compiledOk())
+    {
+        resultLabel.setText(wb->getLastResult().compileResult.getErrorMessage(), dontSendNotification);
+    }
+	else if (!result.testWasOk())
 	{
 		resultLabel.setText(result.getErrorMessage(), dontSendNotification);
 	}

@@ -783,6 +783,18 @@ void ScriptingApi::Message::setAllNotesOffCallback(var onAllNotesOffCallback)
 
 void ScriptingApi::Message::sendToMidiOut()
 {
+#if USE_BACKEND
+    
+    auto mc = getScriptProcessor()->getMainController_();
+    
+    auto midiOutputEnabled = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::EnableMidiOut);
+    
+    if(!midiOutputEnabled)
+    {
+        reportScriptError("You need to enable EnableMidiOut in the project settings for this function to work");
+    }
+#endif
+    
 	makeArtificial();
 	getScriptProcessor()->getMainController_()->sendToMidiOut(*messageHolder);
 }

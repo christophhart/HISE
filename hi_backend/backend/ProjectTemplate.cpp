@@ -42,7 +42,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              buildVST3=\"%BUILD_VST3%\" buildAU=\"%BUILD_AU%\" buildAUv3=\"%BUILD_AUV3%\" buildStandalone=\"%BUILD_AUV3%\" buildRTAS=\"0\" buildAAX=\"%BUILD_AAX%\" pluginName=\"%NAME%\"\r\n"
 "              pluginDesc=\"%NAME%\" pluginManufacturer=\"%COMPANY%\" pluginManufacturerCode=\"%MC%\"\r\n"
 "              pluginCode=\"%PC%\" pluginChannelConfigs=\"%CHANNEL_CONFIG%\" pluginIsSynth=\"%PLUGINISSYNTH%\"\r\n"
-"              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN%\" pluginProducesMidiOut=\"%PLUGINISMIDIFX%\" pluginIsMidiEffectPlugin=\"%PLUGINISMIDIFX%\"\r\n"
+"              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN%\" pluginProducesMidiOut=\"%PLUGIN_PRODUCES_MIDI_OUT%\" pluginIsMidiEffectPlugin=\"%PLUGINISMIDIFX%\"\r\n"
 "              pluginEditorRequiresKeys=\"1\" pluginAUExportPrefix=\"DemoProjectAU\"\r\n"
 "              pluginRTASCategory=\"\" aaxIdentifier=\"%AAX_IDENTIFIER%\"\r\n"
 "              pluginAAXCategory=\"%AAX_CATEGORY%\" jucerVersion=\"5.2.0\"\r\n"
