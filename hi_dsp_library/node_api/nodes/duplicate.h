@@ -400,7 +400,7 @@ template <typename DataType, CloneProcessType ProcessType>
                 FloatVectorOperations::clear(d.getRawDataPointers()[i], d.getNumSamples());
         }
         
-		auto wcd = snex::Types::ProcessDataHelpers<NumChannels>::makeChannelData(workBuffer);
+		auto wcd = snex::Types::ProcessDataHelpers<NumChannels>::makeChannelData(workBuffer, d.getNumSamples());
         ProcessData<NumChannels> wd(wcd.begin(), d.getNumSamples());
         wd.copyNonAudioDataFrom(d);
         

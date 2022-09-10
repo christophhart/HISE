@@ -1473,13 +1473,13 @@ Result GlobalRoutingManager::Signal::setSource(NodeBase* newSendNode, PrepareSpe
 
 			switch (p.numChannels)
 			{
-			case 1: channelData = std::move(ProcessDataHelpers<1>::makeChannelData(buffer)); break;
-			case 2: channelData = ProcessDataHelpers<2>::makeChannelData(buffer); break;
-			case 3: channelData = ProcessDataHelpers<3>::makeChannelData(buffer); break;
-			case 4: channelData = ProcessDataHelpers<4>::makeChannelData(buffer); break;
-			case 5: channelData = ProcessDataHelpers<5>::makeChannelData(buffer); break;
-			case 6: channelData = ProcessDataHelpers<6>::makeChannelData(buffer); break;
-			case 8: channelData = ProcessDataHelpers<8>::makeChannelData(buffer); break;
+			case 1: channelData = std::move(ProcessDataHelpers<1>::makeChannelData(buffer, -1)); break;
+			case 2: channelData = ProcessDataHelpers<2>::makeChannelData(buffer, -1); break;
+			case 3: channelData = ProcessDataHelpers<3>::makeChannelData(buffer, -1); break;
+			case 4: channelData = ProcessDataHelpers<4>::makeChannelData(buffer, -1); break;
+			case 5: channelData = ProcessDataHelpers<5>::makeChannelData(buffer, -1); break;
+			case 6: channelData = ProcessDataHelpers<6>::makeChannelData(buffer, -1); break;
+			case 8: channelData = ProcessDataHelpers<8>::makeChannelData(buffer, -1); break;
 			}
 		}
 	}

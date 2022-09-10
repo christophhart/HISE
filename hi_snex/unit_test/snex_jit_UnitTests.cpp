@@ -342,7 +342,7 @@ public:
 
 	ProcessType::ChannelDataType makeChannelData()
 	{
-		return Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		return Types::ProcessDataHelpers<NumChannels>::makeChannelData(data, -1);
 	}
 
 	ProcessTestCase(UnitTest* test, GlobalScope& memory, const juce::String& code)
@@ -359,8 +359,8 @@ public:
 		b.addEvent(on);
 		b.addEvent(off);
 		
-		auto cd = Types::ProcessDataHelpers<NumChannels>::makeChannelData(data);
-		int numSamples = Types::ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
+		auto cd = Types::ProcessDataHelpers<NumChannels>::makeChannelData(data, -1);
+		int numSamples = Types::ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data, -1);
 		ProcessType d(cd.begin(), numSamples);
 		
 		d.setEventBuffer(b);
