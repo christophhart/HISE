@@ -291,18 +291,54 @@ namespace ScriptedDrawActions
 	{
 		fillRoundedRect(Rectangle<float> area_, float cornerSize_) :
 			area(area_), cornerSize(cornerSize_) {};
-		void perform(Graphics& g) { g.fillRoundedRectangle(area, cornerSize); };
+		void perform(Graphics& g) 
+		{ 
+			if(allRounded)
+				g.fillRoundedRectangle(area, cornerSize); 
+			else if (!rounded[0] && !rounded[1] && !rounded[2] && !rounded[3])
+				g.fillRect(area);
+			else
+			{
+				Path p;
+				p.addRoundedRectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight(), 
+									  cornerSize, cornerSize, 
+									  rounded[0], rounded[1], rounded[2], rounded[3]);
+
+				g.fillPath(p);
+			}
+		};
 		Rectangle<float> area;
 		float cornerSize;
+
+		bool allRounded = true;
+		bool rounded[4] = { true, true, true, true };
 	};
 
 	struct drawRoundedRectangle : public DrawActions::ActionBase
 	{
 		drawRoundedRectangle(Rectangle<float> area_, float borderSize_, float cornerSize_) :
 			area(area_), borderSize(borderSize_), cornerSize(cornerSize_) {};
-		void perform(Graphics& g) { g.drawRoundedRectangle(area, cornerSize, borderSize); };
+		void perform(Graphics& g) 
+		{ 
+			if(allRounded)
+				g.drawRoundedRectangle(area, cornerSize, borderSize); 
+			else if (!rounded[0] && !rounded[1] && !rounded[2] && !rounded[3])
+				g.drawRect(area, borderSize);
+			else
+			{
+				Path p;
+				p.addRoundedRectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight(),
+					cornerSize, cornerSize,
+					rounded[0], rounded[1], rounded[2], rounded[3]);
+
+				g.strokePath(p, PathStrokeType(borderSize));
+			}
+		};
 		Rectangle<float> area;
 		float cornerSize, borderSize;
+
+		bool allRounded = true;
+		bool rounded[4] = { true, true, true, true };
 	};
 
 	struct drawImageWithin : public DrawActions::ActionBase

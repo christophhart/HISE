@@ -521,6 +521,10 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 					c.setValue(v);
 				}, true);
 			}
+			else
+			{
+				logErrorAndContinue("Automation ID " + newValue.toString() + " wasn't found");
+			}
 		}
 		else
 			currentAutomationData = nullptr;

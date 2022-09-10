@@ -771,6 +771,9 @@ private:
 		}
 #endif
 
+		if (currentInlineFunction != nullptr)
+			location.throwError("Can't declare var statement in inline function");
+
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
 
