@@ -1582,19 +1582,65 @@ void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRect(getRectangleFromVar(area), SANITIZED(bs)));
 }
 
-void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
+void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, var cornerData)
 {
-	auto cs = (float)cornerSize;
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), SANITIZED(cs)));
+	if (cornerData.isObject())
+	{
+		auto cs = (float)cornerData["CornerSize"];
+		cs = SANITIZED(cs);
+
+		auto newAction = new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), cs);
+		auto ra = cornerData["Rounded"];
+
+		if (ra.isArray())
+		{
+			newAction->allRounded = false;
+			newAction->rounded[0] = ra[0];
+			newAction->rounded[1] = ra[1];
+			newAction->rounded[2] = ra[2];
+			newAction->rounded[3] = ra[3];
+		}
+
+		drawActionHandler.addDrawAction(newAction);
+	}
+	else
+	{
+		auto cs = (float)cornerData;
+		cs = SANITIZED(cs);
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::fillRoundedRect(getRectangleFromVar(area), cs));
+	}
 }
 
-void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
+void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, var cornerData, float borderSize)
 {
-	auto cs = SANITIZED(cornerSize);
 	auto bs = SANITIZED(borderSize);
 	auto ar = getRectangleFromVar(area);
 
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRoundedRectangle(ar, bs, cs));
+	if (cornerData.isObject())
+	{
+		auto cs = (float)cornerData["CornerSize"];
+		cs = SANITIZED(cs);
+
+		auto newAction = new ScriptedDrawActions::drawRoundedRectangle(getRectangleFromVar(area), borderSize, cs);
+		auto ra = cornerData["Rounded"];
+
+		if (ra.isArray())
+		{
+			newAction->allRounded = false;
+			newAction->rounded[0] = ra[0];
+			newAction->rounded[1] = ra[1];
+			newAction->rounded[2] = ra[2];
+			newAction->rounded[3] = ra[3];
+		}
+
+		drawActionHandler.addDrawAction(newAction);
+	}
+	else
+	{
+		auto cs = (float)cornerData;
+		cs = SANITIZED(cs);
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRoundedRectangle(ar, bs, cs));
+	}
 }
 
 void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)

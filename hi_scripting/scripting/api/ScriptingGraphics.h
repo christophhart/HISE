@@ -427,11 +427,11 @@ namespace ScriptingObjects
 		/** Draws a rectangle. */
 		void drawRect(var area, float borderSize);
 
-		/** Fills a rounded rectangle. */
-		void fillRoundedRectangle(var area, float cornerSize);
+		/** Fills a rounded rectangle. cornerData can be either a float number (for the corner size) or a JSON object for more customization options. */
+		void fillRoundedRectangle(var area, var cornerData);
 
-		/** Draws a rounded rectangle. */
-		void drawRoundedRectangle(var area, float cornerSize, float borderSize);
+		/** Draws a rounded rectangle. cornerData can be either a float number (for the corner size) or a JSON object for more customization options.*/
+		void drawRoundedRectangle(var area, var cornerData, float borderSize);
 
 		/** Draws a (non interpolated) horizontal line. */
 		void drawHorizontalLine(int y, float x1, float x2);
