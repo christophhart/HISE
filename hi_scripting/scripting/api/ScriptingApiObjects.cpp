@@ -8887,6 +8887,27 @@ ScriptingObjects::ScriptBroadcaster::ComplexDataListener::ComplexDataListener(Sc
 
 Result ScriptingObjects::ScriptBroadcaster::ComplexDataListener::callItem(ItemBase* n)
 {
+	Array<var> args;
+	args.add("");
+	args.add(0);
+	args.add("");
+
+	for (auto p : items)
+	{
+		args.setUnchecked(0, p->processorId);
+		args.setUnchecked(1, p->index);
+
+		if (p->isDisplay)
+			args.setUnchecked(2, p->data->getUpdater().getLastDisplayValue());
+		else
+			args.setUnchecked(2, p->data->toBase64String());
+
+		auto r = n->callSync(args);
+
+		if (!r.wasOk())
+			return r;
+	}
+
     return Result::ok();
 }
 
