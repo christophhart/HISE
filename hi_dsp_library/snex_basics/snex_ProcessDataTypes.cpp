@@ -73,10 +73,10 @@ template <int C> struct ProcessDataHelpers
 	using ChannelDataType = Types::span<float*, NumChannels>;
 
 	/** @internal. Used on the C++ side to create a ProcessData<> object from a consecutive float memory range. */
-	template <typename T> static ChannelDataType makeChannelData(T& obj)
+	template <typename T> static ChannelDataType makeChannelData(T& obj, int numSamples)
 	{
 		auto ptr = obj.begin();
-		auto numSamples = getNumSamplesForConsequentData(obj);
+		numSamples = getNumSamplesForConsequentData(obj, numSamples);
 
 		ChannelDataType d;
 
@@ -87,9 +87,17 @@ template <int C> struct ProcessDataHelpers
 	}
 
 	/** @internal A helper function that creates the sample amount for a data array. */
-	template <typename T> constexpr static int getNumSamplesForConsequentData(T& obj)
+	template <typename T> constexpr static int getNumSamplesForConsequentData(T& obj, int numSamples)
 	{
-		return obj.size() / NumChannels;
+		auto fullSamples = obj.size() / NumChannels;
+
+		if (numSamples != -1)
+		{
+			jassert(isPositiveAndBelow(numSamples, fullSamples + 1));
+			return numSamples;
+		}
+		
+		return fullSamples;
 	}
 
 	template <typename OtherContainer> static void copyFrom(const ProcessData<C>& target, OtherContainer& s)
