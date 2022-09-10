@@ -712,6 +712,7 @@ private:
 	void flushOverdubNotes(double timestampForActiveNotes=-1.0);
 
 	
+	bool recordOnNextPlaybackStart = false;
 
 	bool overdubMode = true;
 	hise::UnorderedStack<NotePair> overdubNoteOns;
