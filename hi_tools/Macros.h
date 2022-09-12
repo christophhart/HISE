@@ -446,6 +446,18 @@ private:
 #define SIGNAL_COLOUR 0xFF90FFB1
 #endif
 
+#ifndef HISE_OK_COLOUR
+#define HISE_OK_COLOUR 0xFF4E8E35
+#endif
+
+#ifndef HISE_WARNING_COLOUR
+#define HISE_WARNING_COLOUR 0xFFFFBA00
+#endif
+
+#ifndef HISE_ERROR_COLOUR
+#define HISE_ERROR_COLOUR 0xFFBB3434
+#endif
+
 #define FLOAT_RECTANGLE(r) r.toFloat();
 #define INT_RECTANGLE(r) r.toInt();
 

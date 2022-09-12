@@ -40,6 +40,37 @@ using namespace hise;
 
 
 
+String RangeHelpers::toDisplayString(InvertableParameterRange d)
+{
+	String s = "[";
+
+	auto numDigits = 0;
+	
+	if (d.rng.interval != 0)
+	{
+		numDigits = -1 * log10(d.rng.interval);
+	}
+	else
+	{
+		auto range = d.rng.getRange().getLength();
+
+		numDigits = range > 2.0 ? 1 : 2;
+	}
+
+	auto getString = [numDigits](double d)
+	{
+		return String(d, numDigits, false);
+	};
+
+	auto start = getString(d.inv ? d.rng.end : d.rng.start);
+	auto end = getString(d.inv ? d.rng.start : d.rng.end);
+	auto mid = getString(d.convertFrom0to1(0.5, true));
+
+	s << start << " - " << mid << " - " << end << "]";
+
+	return s;
+}
+
 bool RangeHelpers::isRangeId(const Identifier& id)
 {
 	using namespace PropertyIds;
@@ -474,6 +505,62 @@ void InvertableParameterRange::checkIfIdentity()
 void InvertableParameterRange::store(ValueTree& v, UndoManager* um)
 {
 	RangeHelpers::storeDoubleRange(v, *this, um);
+}
+
+OSCConnectionData::OSCConnectionData(const var& data /*= var()*/)
+{
+	domain = data.getProperty("Domain", "/hise_osc_receiver");
+
+	if (!domain.startsWithChar('/'))
+		domain = "/" + domain;
+
+	if (domain.endsWithChar('/'))
+		domain = domain.upToLastOccurrenceOf("/", false, false);
+
+	sourceURL = data.getProperty("SourceURL", "127.0.0.1");
+	sourcePort = data.getProperty("SourcePort", 9000);
+	targetURL = data.getProperty("TargetURL", "127.0.0.1");
+	targetPort = data.getProperty("TargetPort", -1);
+	isReadOnly = targetPort == -1;
+
+	if (data.hasProperty("Parameters"))
+	{
+		if (auto obj = data["Parameters"].getDynamicObject())
+		{
+			for (const auto& nv : obj->getProperties())
+			{
+				NamedRange nr;
+				nr.id = nv.name.toString();
+				nr.rng = RangeHelpers::getDoubleRange(nv.value);
+				inputRanges.add(nr);
+			}
+		}
+	}
+}
+
+bool OSCConnectionData::operator==(const OSCConnectionData& otherData) const
+{
+	auto sameData = domain == otherData.domain &&
+					sourceURL == otherData.sourceURL &&
+					sourcePort == otherData.sourcePort &&
+					targetURL == otherData.targetURL &&
+					targetPort == otherData.targetPort &&
+					isReadOnly == otherData.isReadOnly;
+	
+	if (sameData)
+	{
+		auto numToCheck = jmax(inputRanges.size(), otherData.inputRanges.size());
+
+		for (int i = 0; i < numToCheck; i++)
+		{
+			if (!(inputRanges[i] == otherData.inputRanges[i]))
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 }

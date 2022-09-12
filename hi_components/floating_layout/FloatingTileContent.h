@@ -616,6 +616,7 @@ public:
 			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,
+			OSCLogger,
 			ScriptComponentList,
 			InterfaceContent,
 			TablePanel,

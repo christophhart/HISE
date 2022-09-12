@@ -96,8 +96,40 @@ private:
 	bool isIdentity = false;
 };
 
+struct OSCConnectionData: public ReferenceCountedObject
+{
+	struct NamedRange
+	{
+		bool operator==(const NamedRange& other) const
+		{
+			return id == other.id && rng == other.rng;
+		}
+
+		String id;
+		InvertableParameterRange rng;
+	};
+
+	using Ptr = ReferenceCountedObjectPtr<OSCConnectionData>;
+
+	OSCConnectionData(const var& data = var());
+
+	String domain;
+	String sourceURL;
+	int sourcePort;
+	String targetURL;
+	int targetPort;
+	bool isReadOnly;
+	Array<NamedRange> inputRanges;
+
+	bool operator==(const OSCConnectionData& otherData) const;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSCConnectionData);
+};
+
 struct RangeHelpers
 {
+	static String toDisplayString(InvertableParameterRange d);
+
 	static bool isRangeId(const Identifier& id);
 
 	static bool isBypassIdentity(InvertableParameterRange d);

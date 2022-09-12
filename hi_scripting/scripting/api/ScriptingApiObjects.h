@@ -2456,22 +2456,91 @@ namespace ScriptingObjects
 
 
 	struct GlobalRoutingManagerReference : public ConstScriptingObject,
-										  public ControlledObject
+										   public ControlledObject,
+										   public WeakErrorHandler,
+										   public OSCReceiver::Listener<OSCReceiver::RealtimeCallback>
+										   
 	{
 		GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp);;
+
+		~GlobalRoutingManagerReference();
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("GlobalRoutingManager"); }
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
+
+		void handleErrorMessage(const String& error) override
+		{
+			if(errorCallback)
+				errorCallback.call1(error);
+		}
+
+		void oscBundleReceived(const OSCBundle& bundle) override;
+
+		void oscMessageReceived(const OSCMessage& message) override;
 
 		// =============================================================================================
 
 		/** Returns a scripted reference to the global cable (and creates a cable with this ID if it can't be found. */
 		var getCable(String cableId);
 
+		/** Allows the global routing manager to send and receive OSC messages through the cables. */
+		bool connectToOSC(var connectionData, var errorFunction);
+
+		/** Register a scripting callback to be executed when a OSC message that matches the subAddress is received. */
+		void addOSCCallback(String oscSubAddress, var callback);
+
+		/** Send an OSC message to the output port. */
+		bool sendOSCMessage(String oscSubAddress, var data);
+
 		// =============================================================================================
 
 	private:
+
+		WeakCallbackHolder errorCallback;
+
+		struct OSCCallback: public ReferenceCountedObject
+		{
+			using List = ReferenceCountedArray<OSCCallback>;
+
+			OSCCallback(ProcessorWithScriptingContent* pwsc, String& sd, const var& cb) :
+				callback(pwsc, cb, 2),
+				subDomain(sd),
+				fullAddress("/*")
+			{
+				callback.incRefCount();
+				callback.setHighPriority();
+			};
+
+			WeakCallbackHolder callback;
+			const String subDomain;
+			OSCAddressPattern fullAddress;
+
+			void rebuildFullAddress(const String& newRoot)
+			{
+				try
+				{
+					fullAddress = OSCAddressPattern(newRoot + subDomain);
+				}
+				catch (OSCFormatError& e)
+				{
+					throw e.description;
+				}
+			}
+
+			void callForMessage(const OSCMessage& c);
+
+			var args[2];
+
+			bool shouldFire(const OSCAddress& oscAddress)
+			{
+				return callback && fullAddress.matches(oscAddress);
+			}
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSCCallback);
+		};
+
+		OSCCallback::List callbacks;
 
 		struct Wrapper;
 

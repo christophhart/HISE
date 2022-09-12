@@ -5,15 +5,16 @@
               buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
               pluginManufacturerCode="Hain" pluginCode="Hise" pluginChannelConfigs=""
-              pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="0"
+              pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="1"
               pluginSilenceInIsSilenceOut="0" pluginEditorRequiresKeys="1"
               pluginAUExportPrefix="TestPluginAU" pluginRTASCategory="" aaxIdentifier="com.hartinstruments.HISE"
               pluginAAXCategory="2048" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               pluginIsMidiEffectPlugin="0" buildAUv3="0" companyCopyright="Hart Instruments"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
               buildStandalone="0" enableIAA="0" cppLanguageStandard="17" pluginFormats="buildVST,buildAU"
-              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginEditorRequiresKeys"
-              jucerFormatVersion="1">
+              pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut,pluginEditorRequiresKeys"
+              jucerFormatVersion="1" pluginRTASDisableBypass="0" pluginRTASDisableMultiMono="0"
+              pluginAAXDisableBypass="0" pluginAAXDisableMultiMono="0">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
       <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
@@ -52,27 +53,27 @@
                        cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
+                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
         <CONFIGURATION name="Release" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
                        cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
+                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
         <CONFIGURATION name="Debug MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug 16 Out" cppLanguageStandard="c++11"
                        cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
+                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
         <CONFIGURATION name="Release MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE 16 Out" linkTimeOptimisation="1"
                        cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
-                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/"/>
+                       auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -105,6 +106,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -113,7 +115,7 @@
             extraCompilerFlags="/bigobj" extraDefs="USE_IPP=1">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath=""
+                       isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath="C:\Program Files\VSTPlugins"
                        libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        headerPath="../../../../tools/SDK/VST3 SDK"/>
@@ -166,6 +168,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -205,6 +208,7 @@
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../../HISE modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -238,6 +242,7 @@
     <MODULES id="juce_gui_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_gui_extra" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
   </MODULES>

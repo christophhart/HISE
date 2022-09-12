@@ -57,6 +57,8 @@ namespace routing
 
 struct GlobalRoutingManager: public ReferenceCountedObject
 {
+	
+
 	using Ptr = ReferenceCountedObjectPtr<GlobalRoutingManager>;
 
 	using IdList = StringArray;
@@ -72,6 +74,10 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 		static Colour getColourFromId(const String& id);
 
 		static void addGotoTargetCallback(Button* b, SlotBase* slot);
+
+		static int getOSCMessageIndex(const String& id);
+
+		static StringArray getCableIds(const OSCMessage& m, const String& domain);
 	};
 
 	struct SelectableTargetBase
@@ -204,6 +210,9 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 
 	struct DebugComponent;
 
+	/** Connects the global routing manager to an OSC port. */
+	bool connectToOSC(OSCConnectionData::Ptr data);
+
 	void removeUnconnectedSlots(SlotBase::SlotType type);
 
 	IdList getIdList(SlotBase::SlotType type)
@@ -223,6 +232,48 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 	SlotBase::List signals, cables;
 
 	LambdaBroadcaster<SlotBase::SlotType, IdList> listUpdater;
+
+	WeakErrorHandler::Ptr oscErrorHandler;
+
+	LambdaBroadcaster<OSCConnectionData::Ptr> oscListeners;
+
+	void sendOSCError(const String& r);
+
+	void setOSCErrorHandler(WeakErrorHandler* errorHandler)
+	{
+		oscErrorHandler = errorHandler;
+	}
+
+	Array<OSCAddressPattern> scriptCallbackPatterns;
+
+	bool sendOSCMessageToOutput(const String& subAddress, const var& data);
+
+	void handleParsingError(const char* data, int dataSize);
+
+	void addOSCTarget(SlotBase::Ptr p);
+
+	struct OSCBase: public ReferenceCountedObject
+	{
+		OSCBase(GlobalRoutingManager* p) :
+			parent(p)
+		{};
+
+		using Ptr = ReferenceCountedObjectPtr<OSCBase>;
+
+		virtual ~OSCBase() {};
+
+		virtual bool matches(const String& url, int port) const = 0;
+
+		bool ok = false;
+		WeakReference<GlobalRoutingManager> parent;
+	};
+
+	scriptnode::OSCConnectionData::Ptr lastData;
+
+	OSCBase::Ptr sender;
+	OSCBase::Ptr receiver;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(GlobalRoutingManager);
 };
 
 struct GlobalRoutingNodeBase: public NodeBase,
@@ -245,6 +296,8 @@ struct GlobalRoutingNodeBase: public NodeBase,
 	{
 		jassertfalse;
 	}
+
+	
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 

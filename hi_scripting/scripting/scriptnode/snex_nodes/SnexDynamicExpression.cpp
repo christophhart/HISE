@@ -326,9 +326,9 @@ void dynamic_expression::editor::paint(Graphics& g)
 
 	auto b = darkBackground.removeFromTop(jmax<float>(te.getHeight(), 24 - 3.0)).toFloat();
 
-    Colour resultColours[3] = { Colour(0xFFBB3434),
-                                Colour(0xFFFFBA00),
-                                Colour(0xFF4E8E35) };
+	Colour resultColours[3] = { Colour(HISE_ERROR_COLOUR),
+                                Colour(HISE_WARNING_COLOUR),
+                                Colour(HISE_OK_COLOUR) };
     
 	g.setColour(Colours::white.withAlpha(0.4f));
 	g.setFont(GLOBAL_MONOSPACE_FONT());

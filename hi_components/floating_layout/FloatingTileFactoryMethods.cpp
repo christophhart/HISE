@@ -124,6 +124,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
 	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
+	registerType<OSCLogger>(PopupMenuOptions::OSCLogger);
 #endif
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
@@ -581,6 +582,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
 			addToPopupMenu(m, PopupMenuOptions::ComplexDataManager, "Complex Data Manager");
 			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
+			addToPopupMenu(m, PopupMenuOptions::OSCLogger, "OSC Logger");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeList, "DSP Node list");
 			addToPopupMenu(m, PopupMenuOptions::DspNetworkGraph, "DSP Network Graph");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeParameterEditor, "DSP Network Node Editor");
@@ -728,6 +730,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::OSCLogger:			parent->setNewContent(GET_PANEL_NAME(OSCLogger)); break;
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;

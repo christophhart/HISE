@@ -403,7 +403,117 @@ private:
 };
 
 
+class OSCLogger : public FloatingTileContent,
+				  public Component,
+				  private ListBoxModel,
+				  public AsyncUpdater,
+				  public PathFactory,
+				  private OSCReceiver::Listener<OSCReceiver::MessageLoopCallback>
+{
+public:
 
+	HiseShapeButton filterButton, clearButton, pauseButton;
+	
+	Path createPath(const String& url) const override;
+
+	scriptnode::OSCConnectionData::Ptr lastData;
+
+	ScopedPointer<OSCAddressPattern> searchPattern;
+
+	struct MessageItem
+	{
+		MessageItem() :
+			address("/")
+		{};
+
+		String message;
+		Colour c;
+		bool matchesDomain;
+		bool isError;
+		bool scaled = false;
+		bool hasScriptCallback = false;
+		bool hasCableConnection = false;
+
+		OSCAddress address;
+	};
+
+	OSCLogger(FloatingTile* parent);
+
+	~OSCLogger();
+
+	SET_PANEL_NAME("OSCLogger");
+
+	//==============================================================================
+	int getNumRows() override
+	{
+		return displayedItems.size();
+	}
+
+	//==============================================================================
+	void paintListBoxItem(int row, Graphics& g, int width, int height, bool rowIsSelected) override;
+
+	//==============================================================================
+	void addOSCMessage(const OSCMessage& message, int level = 0);
+
+	void oscMessageReceived(const OSCMessage& message) override
+	{
+		addOSCMessage(message);
+	}
+
+	void oscBundleReceived(const OSCBundle& bundle) override
+	{
+		addOSCBundle(bundle);
+	}
+
+	//==============================================================================
+	void addOSCBundle(const OSCBundle& bundle, int level = 0);
+
+	//==============================================================================
+	void addOSCMessageArgument(const MessageItem& m, const OSCArgument& arg, int level, const String& cableId);
+
+	//==============================================================================
+	void addInvalidOSCPacket(const char* /* data */, int dataSize);
+
+	//==============================================================================
+	void clear();
+
+	void paint(Graphics& g);
+
+	void resized() override;
+
+	static void updateConnection(OSCLogger& logger, scriptnode::OSCConnectionData::Ptr data);
+
+	//==============================================================================
+	void handleAsyncUpdate() override;
+
+	
+
+private:
+
+	ScrollbarFader fader;
+
+	TextEditor searchBox;
+	
+
+	static String getIndentationString(int level)
+	{
+		return String().paddedRight(' ', 2 * level);
+	}
+
+	//==============================================================================
+	Array<MessageItem> oscLogList;
+
+	Array<MessageItem> displayedItems;
+
+	scriptnode::routing::GlobalRoutingManager::Ptr rm;
+
+	Rectangle<int> topRow;
+
+	ListBox list;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSCLogger);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(OSCLogger);
+};
 
 class ConsolePanel : public FloatingTileContent,
 	public Component

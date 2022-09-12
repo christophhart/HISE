@@ -2141,4 +2141,419 @@ juce::Component* ComplexDataManager::createContentComponent(int index)
 	
 }
 
+juce::Path OSCLogger::createPath(const String& url) const
+{
+	Path p;
+
+	LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
+	LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
+	LOAD_PATH_IF_URL("pause", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	LOAD_PATH_IF_URL("scale", ScriptnodeIcons::scaleIcon);
+	LOAD_PATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
+
+	return p;
+}
+
+OSCLogger::OSCLogger(FloatingTile* parent) :
+	FloatingTileContent(parent),
+	rm(scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(parent->getMainController())),
+	clearButton("clear", nullptr, *this),
+	filterButton("filter", nullptr, *this),
+	pauseButton("pause", nullptr, *this)
+{
+	addAndMakeVisible(searchBox);
+
+	GlobalHiseLookAndFeel::setTextEditorColours(searchBox);
+
+	rm->oscListeners.addListener(*this, OSCLogger::updateConnection, false);
+
+	updateConnection(*this, rm->lastData);
+
+	clearButton.onClick = [this]()
+	{
+		oscLogList.clear();
+		triggerAsyncUpdate();
+	};
+
+	pauseButton.setToggleModeWithColourChange(true);
+	pauseButton.setToggleStateAndUpdateIcon(true);
+
+	searchBox.onReturnKey = [this]()
+	{
+		searchPattern = nullptr;
+
+		auto content = searchBox.getText();
+
+		if (content.isNotEmpty())
+		{
+			try
+			{
+				searchPattern = new OSCAddressPattern(content);
+			}
+			catch (String& e)
+			{
+				PresetHandler::showMessageWindow("OSC Address Pattern error", e, PresetHandler::IconType::Error);
+			}
+		}
+
+		triggerAsyncUpdate();
+	};
+
+	filterButton.onClick = BIND_MEMBER_FUNCTION_0(OSCLogger::triggerAsyncUpdate);
+
+	list.setColour(ListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+	list.setModel(this);
+	addAndMakeVisible(list);
+
+	addAndMakeVisible(filterButton);
+	addAndMakeVisible(clearButton);
+	addAndMakeVisible(pauseButton);
+
+	filterButton.setToggleModeWithColourChange(true);
+
+	fader.addScrollBarToAnimate(list.getVerticalScrollBar());
+	list.getViewport()->setScrollBarThickness(12);
+}
+
+OSCLogger::~OSCLogger()
+{
+	if (rm != nullptr && rm->receiver != nullptr)
+		dynamic_cast<OSCReceiver*>(rm->receiver.get())->removeListener(this);
+}
+
+void OSCLogger::paintListBoxItem(int row, Graphics& g, int width, int height, bool rowIsSelected)
+{
+	ignoreUnused(rowIsSelected);
+
+	if (isPositiveAndBelow(row, displayedItems.size()))
+	{
+		auto& data = displayedItems.getReference(row);
+
+		auto b = Rectangle<float>((float)width, (float)height);
+		auto circle = b.removeFromLeft(b.getHeight()).reduced(4.0f);
+
+		if (data.hasScriptCallback)
+		{
+			g.setColour(data.c);
+			auto p = createPath("script");
+			scalePath(p, circle);
+			g.fillPath(p);
+		}
+		else
+		{
+			g.setColour(data.c);
+			g.drawEllipse(circle, 2.0f);
+			g.fillEllipse(circle.reduced(3.0f));
+		}
+
+		
+
+		if (data.scaled)
+		{
+			auto p = createPath("scale");
+			scalePath(p, b.withWidth(b.getHeight()).reduced(2.0f));
+
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.fillPath(p);
+		}
+
+		g.setColour(Colours::white.withAlpha(data.matchesDomain ? 0.8f : 0.3f));
+
+		g.setFont(GLOBAL_MONOSPACE_FONT());
+
+		g.drawText(data.message,
+			b.toFloat(),
+			Justification::centredLeft, true);
+	}
+}
+
+void OSCLogger::addOSCMessage(const OSCMessage& message, int level /*= 0*/)
+{
+	if (!pauseButton.getToggleState())
+		return;
+
+	MessageItem m;
+	
+	auto pattern = message.getAddressPattern();
+
+	if (!pattern.containsWildcards())
+	{
+		m.address = OSCAddress(pattern.toString());
+	}
+	
+
+	m.message = getIndentationString(level)
+		+ "- osc message, address = '"
+		+ message.getAddressPattern().toString()
+		+ "', "
+		+ String(message.size())
+		+ " argument(s)";
+
+	m.isError = false;
+	m.c = Colours::white.withAlpha(0.3f);
+
+	
+
+	if (lastData != nullptr)
+	{
+		auto id = message.getAddressPattern().toString().fromFirstOccurrenceOf(lastData->domain, false, false);
+
+		for (auto c : rm->cables)
+		{
+			if (c->id == id)
+			{
+				m.c = scriptnode::routing::GlobalRoutingManager::Helpers::getColourFromId(id);
+				break;
+			}
+				
+		}
+
+		m.matchesDomain = message.getAddressPattern().toString().startsWith(lastData->domain);
+	}
+
+	oscLogList.add(m);
+
+	if (!message.isEmpty())
+	{
+		auto cableIds = scriptnode::routing::GlobalRoutingManager::Helpers::getCableIds(message, lastData->domain);
+
+		int index = 0;
+
+		for (auto& arg : message)
+			addOSCMessageArgument(m, arg, level + 1, cableIds[index++]);
+	}
+
+	triggerAsyncUpdate();
+}
+
+void OSCLogger::addOSCBundle(const OSCBundle& bundle, int level /*= 0*/)
+{
+	if (!pauseButton.getToggleState())
+		return;
+
+	OSCTimeTag timeTag = bundle.getTimeTag();
+
+	MessageItem m;
+	
+	m.message = getIndentationString(level)
+		+ "- osc bundle, time tag = "
+		+ timeTag.toTime().toString(true, true, true, true);
+
+	for (auto& element : bundle)
+	{
+		if (element.isMessage())
+			addOSCMessage(element.getMessage(), level + 1);
+		else if (element.isBundle())
+			addOSCBundle(element.getBundle(), level + 1);
+	}
+
+	triggerAsyncUpdate();
+}
+
+void OSCLogger::addOSCMessageArgument(const MessageItem& m, const OSCArgument& arg, int level, const String& cableId)
+{
+	String typeAsString;
+	String valueAsString;
+
+	if (arg.isFloat32())
+	{
+		typeAsString = "float32";
+		valueAsString = String(arg.getFloat32());
+	}
+	else if (arg.isInt32())
+	{
+		typeAsString = "int32";
+		valueAsString = String(arg.getInt32());
+	}
+	else if (arg.isString())
+	{
+		typeAsString = "string";
+		valueAsString = arg.getString();
+	}
+	else if (arg.isBlob())
+	{
+		typeAsString = "blob";
+		auto& blob = arg.getBlob();
+		valueAsString = String::fromUTF8((const char*)blob.getData(), (int)blob.getSize());
+	}
+	else
+	{
+		typeAsString = "(unknown)";
+	}
+
+	
+
+	MessageItem am;
+	
+	OSCAddress address(lastData->domain + cableId.upToFirstOccurrenceOf("[", false, false));
+
+	for (const auto& a : rm->scriptCallbackPatterns)
+	{
+		if (a.matches(address))
+		{
+			am.hasScriptCallback = true;
+			break;
+		}
+	}
+
+	for (const auto& nr : lastData->inputRanges)
+	{
+		if (nr.id == cableId)
+		{
+			am.scaled = true;
+			auto inputValue = valueAsString.getDoubleValue();
+			valueAsString << " -> " << String((float)nr.rng.convertTo0to1(inputValue, true));
+
+			valueAsString << " (Input Range: " << scriptnode::RangeHelpers::toDisplayString(nr.rng) << ")";
+
+			break;
+		}
+	}
+
+	am.address = m.address;
+	am.message = getIndentationString(level + 1) + "- " + cableId + ": " + typeAsString.paddedRight(' ', 12) + valueAsString;
+	am.c = m.c;
+	am.matchesDomain = m.matchesDomain;
+
+	if (lastData != nullptr)
+	{
+		for (auto c : rm->cables)
+		{
+			if (c->id == cableId)
+			{
+				am.c = scriptnode::routing::GlobalRoutingManager::Helpers::getColourFromId(cableId);
+				am.hasCableConnection = true;
+				break;
+			}
+
+		}
+	}
+
+	oscLogList.add(am);
+}
+
+void OSCLogger::addInvalidOSCPacket(const char* /* data */, int dataSize)
+
+{
+	MessageItem i;
+	i.message = "(" + String(dataSize) + "bytes with invalid format)";
+	i.matchesDomain = false;
+	i.isError = true;
+
+	oscLogList.add(i);
+}
+
+void OSCLogger::clear()
+{
+	oscLogList.clear();
+	triggerAsyncUpdate();
+}
+
+void OSCLogger::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF222222));
+
+	Path searchIcon;
+	searchIcon.loadPathFromData(EditorIcons::searchIcon, sizeof(EditorIcons::searchIcon));
+	searchIcon.applyTransform(AffineTransform::rotation(float_Pi));
+
+	auto c = topRow.toFloat();
+	scalePath(searchIcon, c.removeFromLeft(c.getHeight()).reduced(2.0f));
+
+	GlobalHiseLookAndFeel::drawFake3D(g, topRow);
+
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.fillPath(searchIcon);
+
+	const float labelAlpha = 0.6f;
+	const float valueAlpha = 0.8f;
+
+	if (lastData != nullptr)
+	{
+		AttributedString stats;
+		auto lf = GLOBAL_BOLD_FONT();
+		auto vf = GLOBAL_MONOSPACE_FONT();
+
+		auto receiveOK = rm != nullptr && rm->receiver != nullptr && rm->receiver->ok;
+		auto sendOk = rm != nullptr && rm->sender != nullptr && rm->sender->ok;
+
+		stats.append("Domain: ", lf, Colours::white.withAlpha(labelAlpha));
+		stats.append(lastData->domain, vf, Colours::white.withAlpha(valueAlpha));
+		stats.append(", Input Port: ", lf, Colours::white.withAlpha(labelAlpha));
+		stats.append(String(lastData->sourcePort), vf, Colour(receiveOK ? HISE_OK_COLOUR : HISE_ERROR_COLOUR));
+		stats.append(", Output Port: ", lf, Colours::white.withAlpha(labelAlpha));
+		stats.append(String(lastData->targetPort), vf, Colour(sendOk ? HISE_OK_COLOUR : HISE_ERROR_COLOUR));
+		stats.setJustification(Justification::centredLeft);
+
+		auto copy = topRow.toFloat();
+		copy.removeFromLeft(clearButton.getRight() + 15.0f);
+
+		stats.draw(g, copy);
+	}
+
+	if (oscLogList.isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("No OSC messages received", getLocalBounds().toFloat(), Justification::centred);
+	}
+}
+
+void OSCLogger::resized()
+{
+	auto b = getParentShell()->getContentBounds();
+
+	topRow = b.removeFromTop(24);
+
+	auto copy = topRow;
+
+	copy.removeFromLeft(copy.getHeight());
+
+	searchBox.setBounds(copy.removeFromLeft(150));
+
+	pauseButton.setBounds(copy.removeFromLeft(copy.getHeight()).reduced(2));
+	filterButton.setBounds(copy.removeFromLeft(copy.getHeight()).reduced(2));
+	clearButton.setBounds(copy.removeFromLeft(copy.getHeight()).reduced(2));
+
+	
+
+	list.setBounds(b);
+}
+
+void OSCLogger::updateConnection(OSCLogger& logger, OSCConnectionData::Ptr data)
+{
+	logger.lastData = data;
+
+	if (logger.rm->receiver != nullptr)
+	{
+		dynamic_cast<OSCReceiver*>(logger.rm->receiver.get())->addListener(&logger);
+		logger.repaint();
+	}
+}
+
+void OSCLogger::handleAsyncUpdate()
+{
+	displayedItems.clear();
+
+	int startIndex = jmax(0, oscLogList.size() - 128);
+
+	for(int i = startIndex; i < oscLogList.size(); i++)
+	{
+		auto item = oscLogList[i];
+
+		auto isActive = !filterButton.getToggleState() || item.matchesDomain;
+
+		auto matchesWildcard = searchPattern == nullptr || searchPattern->matches(item.address);
+
+		if (isActive && matchesWildcard)
+			displayedItems.add(item);
+	}
+	
+	list.updateContent();
+	list.scrollToEnsureRowIsOnscreen(displayedItems.size() - 1);
+	repaint();
+}
+
+
+
 } // namespace hise

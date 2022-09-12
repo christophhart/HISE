@@ -251,6 +251,18 @@ struct audio_spin_mutex_shared
 };
 
 
+struct WeakErrorHandler
+{
+	using Ptr = WeakReference<WeakErrorHandler>;
+
+	virtual ~WeakErrorHandler() {};
+	virtual void handleErrorMessage(const String& error) = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WeakErrorHandler);
+};
+
+
+
 /** Same as MessageManager::callAsync, but uses a Safe pointer for a component and cancels the async execution if the object is deleted. */
 struct LambdaWithComponent
 {

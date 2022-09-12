@@ -6567,17 +6567,36 @@ void ScriptingObjects::ScriptFFT::applyInverseFFT(int numChannelsThisTime)
 struct ScriptingObjects::GlobalRoutingManagerReference::Wrapper
 {
 	API_METHOD_WRAPPER_1(GlobalRoutingManagerReference, getCable);
+	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, connectToOSC);
+	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, sendOSCMessage);
+	API_VOID_METHOD_WRAPPER_2(GlobalRoutingManagerReference, addOSCCallback);
 };
 
 
 ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),
-	ControlledObject(sp->getMainController_())
+	ControlledObject(sp->getMainController_()),
+	errorCallback(sp, var(), 1)
 {
 	auto ptr = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getMainController());
 	manager = ptr.get();
 
 	ADD_API_METHOD_1(getCable);
+	ADD_API_METHOD_2(connectToOSC);
+	ADD_API_METHOD_2(sendOSCMessage);
+	ADD_API_METHOD_2(addOSCCallback);
+}
+
+ScriptingObjects::GlobalRoutingManagerReference::~GlobalRoutingManagerReference()
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		if (auto r = dynamic_cast<OSCReceiver*>(m->receiver.get()))
+			r->removeListener(this);
+
+		for (auto c : callbacks)
+			m->scriptCallbackPatterns.removeAllInstancesOf(c->fullAddress);
+	}
 }
 
 scriptnode::routing::GlobalRoutingManager::Cable* getCableFromVar(const var& v)
@@ -6595,6 +6614,38 @@ Component* ScriptingObjects::GlobalRoutingManagerReference::createPopupComponent
 	return scriptnode::routing::GlobalRoutingManager::Helpers::createDebugViewer(getScriptProcessor()->getMainController_());
 }
 
+void ScriptingObjects::GlobalRoutingManagerReference::oscBundleReceived(const OSCBundle& bundle)
+{
+	for (const auto& element : bundle)
+	{
+		if (element.isMessage())
+			oscMessageReceived(element.getMessage());
+		else if (element.isBundle())
+			oscBundleReceived(element.getBundle());
+	}
+}
+
+void ScriptingObjects::GlobalRoutingManagerReference::oscMessageReceived(const OSCMessage& message)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		auto ap = message.getAddressPattern();
+
+		if (!ap.containsWildcards())
+		{
+			OSCAddress a(ap.toString());
+
+			for (auto c : callbacks)
+			{
+				if (c->shouldFire(a))
+				{
+					c->callForMessage(message);
+				}
+			}
+		}
+	}
+}
+
 juce::var ScriptingObjects::GlobalRoutingManagerReference::getCable(String cableId)
 {
 	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
@@ -6605,6 +6656,109 @@ juce::var ScriptingObjects::GlobalRoutingManagerReference::getCable(String cable
 	}
 
 	return var();
+}
+
+bool ScriptingObjects::GlobalRoutingManagerReference::connectToOSC(var connectionData, var errorFunction)
+{
+	
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		if (HiseJavascriptEngine::isJavascriptFunction(errorFunction))
+		{
+			errorCallback = WeakCallbackHolder(getScriptProcessor(), errorFunction, 1);
+			errorCallback.incRefCount();
+
+			m->setOSCErrorHandler(this);
+		}
+		else
+		{
+			errorCallback = WeakCallbackHolder(getScriptProcessor(), var(), 1);
+			m->setOSCErrorHandler(nullptr);
+		}
+
+		scriptnode::OSCConnectionData::Ptr data = new scriptnode::OSCConnectionData(connectionData);
+		auto ok = m->connectToOSC(data);
+
+		if (ok)
+		{
+			if (auto r = dynamic_cast<juce::OSCReceiver*>(m->receiver.get()))
+			{
+				r->addListener(this);
+
+				for (auto c : callbacks)
+				{
+					c->rebuildFullAddress(m->lastData->domain);
+					m->scriptCallbackPatterns.addIfNotAlreadyThere(c->fullAddress);
+				}
+					
+
+
+			}
+		}
+
+	}
+
+	return false;
+}
+
+void ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::callForMessage(const OSCMessage& c)
+{
+	if (c.isEmpty())
+		return;
+
+	auto getVar = [](const OSCArgument& a)
+	{
+		if (a.isFloat32())
+			return var(a.getFloat32());
+		if (a.isString())
+			return var(a.getString());
+		if (a.isInt32())
+			return var(a.getInt32());
+
+		return var();
+	};
+
+	if (c.size() == 1)
+		args[1] = getVar(c[0]);
+	else
+	{
+		auto newArray = Array<var>();
+
+		for (auto& a : c)
+			newArray.add(getVar(a));
+
+		args[1] = var(newArray);
+	}
+
+	callback.call(args, 2);
+}
+
+void ScriptingObjects::GlobalRoutingManagerReference::addOSCCallback(String oscSubAddress, var callback)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		auto c = new OSCCallback(getScriptProcessor(), oscSubAddress, callback);
+
+		if (m->lastData != nullptr)
+		{
+			c->rebuildFullAddress(m->lastData->domain);
+			m->scriptCallbackPatterns.addIfNotAlreadyThere(c->fullAddress);
+		}
+		
+		callbacks.add(c);
+	}
+}
+
+
+
+bool ScriptingObjects::GlobalRoutingManagerReference::sendOSCMessage(String oscSubAddress, var data)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		return m->sendOSCMessageToOutput(oscSubAddress, data);
+	}
+
+	return false;
 }
 
 struct ScriptingObjects::GlobalCableReference::Wrapper
@@ -6745,10 +6899,15 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 		id << dynamic_cast<Processor*>(p.getScriptProcessor())->getId();
 		id << ".";
 
-		if (auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
+		auto ilf = dynamic_cast<WeakCallbackHolder::CallableObject*>(f.getObject());
+
+		if (ilf != nullptr && (!synchronous || ilf->isRealtimeSafe()))
 		{
-			id << ilf->name;
-			funcLocation = ilf->getLocation();
+			if (auto dobj = dynamic_cast<DebugableObjectBase*>(ilf))
+			{
+				id << dobj->getDebugName();
+				funcLocation = dobj->getLocation();
+			}
 
 			callback.incRefCount();
 			callback.setHighPriority();
@@ -8910,5 +9069,7 @@ Result ScriptingObjects::ScriptBroadcaster::ComplexDataListener::callItem(ItemBa
 
     return Result::ok();
 }
+
+
 
 } // namespace hise

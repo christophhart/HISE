@@ -71,6 +71,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
+#include "../JUCE/modules/juce_osc/juce_osc.h"
 #include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../hi_snex/hi_snex.h"

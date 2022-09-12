@@ -1330,6 +1330,4 @@ void Spectrum2D::Parameters::Editor::resized()
 	}	
 }
 
-
-
 }
