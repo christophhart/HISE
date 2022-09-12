@@ -626,7 +626,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			for (auto& v : buffer)
 				v = 3.0f;
 
-			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer, numSamples);
 			ProcessData<NumChannels> data(cd.begin(), numSamples);
 
 			chain->process(data);
@@ -681,7 +681,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			chain.prepare(ps);
 
-			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer, numSamples);
 			ProcessData<NumChannels> data(cd.begin(), numSamples);
 
 			chain.process(data);
@@ -737,7 +737,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		heap<float> buffer;
 		DspHelpers::increaseBuffer(buffer, ps);
 		
-		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer);
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(buffer, numSamples);
 		ProcessData<NumChannels> d(cd.begin(), numSamples, NumChannels);
 
 		clear(buffer);
@@ -855,7 +855,7 @@ struct ScriptNodeTests : public juce::UnitTest
 	
 	template <int NumChannels> void testProcessDataFix(heap<float>& data)
 	{
-		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data, numSamples);
 		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 
 		ProcessData<NumChannels> pd(cd.begin(), numSamples);
@@ -891,7 +891,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 	template <int NumChannels> void testProcessDataDyn(heap<float>& data)
 	{
-		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+		auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data, -1);
 		int numSamples = ProcessDataHelpers<NumChannels>::getNumSamplesForConsequentData(data);
 
 		ProcessDataDyn pd(cd.begin(), numSamples, NumChannels);
@@ -930,7 +930,7 @@ struct ScriptNodeTests : public juce::UnitTest
 			data.setSize(NumChannels * NumSamples);
 			fillWithInc(data);
 
-			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data);
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(data, NumSamples);
 			ProcessType d(cd.begin(), NumSamples);
 			obj.process(d);
 		}
@@ -940,7 +940,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		{
 			singleData.setSize(NumChannels * NumSamples);
 			fillWithInc(singleData);
-			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(singleData);
+			auto cd = ProcessDataHelpers<NumChannels>::makeChannelData(singleData, NumSamples);
 			ProcessType d(cd.begin(), NumSamples);
 
 			auto frames = d.toFrameData();

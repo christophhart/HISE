@@ -220,7 +220,7 @@ template <int C> struct block: public block_base<C>
 
 		int index = 0;
 
-		auto d = ProcessDataHelpers<C>::makeChannelData(buffer);
+		auto d = ProcessDataHelpers<C>::makeChannelData(buffer, ps.blockSize);
 
         auto& c = this->channels;
         
