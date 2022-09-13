@@ -92,6 +92,8 @@ struct VectorMathFunction
 	}
 };
 
+#define FAST_DESCRIPTION(functionName, min, max) setDescription(juce::String("Calculates a fast approximation of the ") + String(functionName) + String(" function. The input range should not exceed [") + String(min) + " - " + String(max), { "input" }); 
+
 #define DESCRIPTION(type, x) setDescription(juce::String("Calculates the ") + #type + " " + #x + " value", { "input" }); 
 #define HNODE_JIT_VECTOR_FUNCTION_1(name) addFunction((void*)VectorMathFunction::createSingleArgsFunction(static_cast<block&(*)(block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
 #define HNODE_JIT_VECTOR_FUNCTION(name) addFunction((void*)VectorMathFunction::createForTwoBlocks(static_cast<block&(*)(block&, const block&)>(hmath::name), #name, blockType)); DESCRIPTION(name, block);
@@ -166,6 +168,22 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::floor, double, "floor");	DESCRIPTION(double, floor);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::round, double, "round");	DESCRIPTION(double, round);
 
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastsin, double, "fastsin");		FAST_DESCRIPTION("sin", -3.14, 3.14);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastsinh, double, "fastsinh");	FAST_DESCRIPTION("sinh", -5, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastcos,  double, "fastcos");		FAST_DESCRIPTION("cos", -3.14, 3.14);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastcosh, double, "fastcosh");	FAST_DESCRIPTION("cosh", -5.0, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fasttanh, double, "fasttanh");	FAST_DESCRIPTION("tanh", -5.0, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fasttan,  double, "fasttan");		FAST_DESCRIPTION("tan", -3.14/2, 3.14/2);
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastexp,  double, "fastexp");		FAST_DESCRIPTION("exp", -6.0, 4.0);
+
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fastsin,  float, "fastsin");		FAST_DESCRIPTION("sin", -3.14, 3.14);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fastsinh, float, "fastsinh");		FAST_DESCRIPTION("sinh", -5, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fastcos,  float, "fastcos");		FAST_DESCRIPTION("cos", -3.14, 3.14);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fastcosh, float, "fastcosh");		FAST_DESCRIPTION("cosh", -5.0, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fasttanh, float, "fasttanh");		FAST_DESCRIPTION("tanh", -5.0, 5.0);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fasttan,  float, "fasttan");		FAST_DESCRIPTION("tan", -3.14/2, 3.14/2);
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::fastexp,  float, "fastexp");		FAST_DESCRIPTION("exp", -6.0, 4.0);
+	
 	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::pow, double, double, "pow");
 	setDescription("Calculates the power", { "base", "exponent" });
 	HNODE_JIT_ADD_C_FUNCTION_2(double, hmath::fmod, double, double, "fmod");

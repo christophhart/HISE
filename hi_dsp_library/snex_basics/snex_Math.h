@@ -218,6 +218,22 @@ return b1; \
 		return range(t * t * (3.0 - 2.0 * t), 0.0, 1.0);
 	}
 
+	static forcedinline double fastsin (double a) noexcept { return juce::dsp::FastMathApproximations::sin(a); }
+	static forcedinline double fastsinh(double a) noexcept { return juce::dsp::FastMathApproximations::sinh(a); }
+	static forcedinline double fastcos (double a) noexcept { return juce::dsp::FastMathApproximations::cos(a); }
+	static forcedinline double fastcosh(double a) noexcept { return juce::dsp::FastMathApproximations::cosh(a); }
+	static forcedinline double fasttanh(double a) noexcept { return juce::dsp::FastMathApproximations::tanh(a); }
+	static forcedinline double fasttan (double a) noexcept { return juce::dsp::FastMathApproximations::tan(a); }
+	static forcedinline double fastexp (double a) noexcept { return juce::dsp::FastMathApproximations::exp(a); }
+
+	static forcedinline float fastsin (float a) noexcept { return juce::dsp::FastMathApproximations::sin(a); }
+	static forcedinline float fastsinh(float a) noexcept { return juce::dsp::FastMathApproximations::sinh(a); }
+	static forcedinline float fastcos (float a) noexcept { return juce::dsp::FastMathApproximations::cos(a); }
+	static forcedinline float fastcosh(float a) noexcept { return juce::dsp::FastMathApproximations::cosh(a); }
+	static forcedinline float fasttanh(float a) noexcept { return juce::dsp::FastMathApproximations::tanh(a); }
+	static forcedinline float fasttan (float a) noexcept { return juce::dsp::FastMathApproximations::tan(a); }
+	static forcedinline float fastexp (float a) noexcept { return juce::dsp::FastMathApproximations::exp(a); }
+
 	static constexpr	double sig2mod(double v) { return v * 0.5 + 0.5; };
 	static constexpr	double mod2sig(double v) { return v * 2.0 - 1.0; };
 	static constexpr	double norm(double v, double minValue, double maxValue) { return (v - minValue) / (maxValue - minValue); }
