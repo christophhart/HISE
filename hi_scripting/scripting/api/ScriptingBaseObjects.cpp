@@ -404,9 +404,52 @@ juce::var ValueTreeConverters::convertStringIfNumeric(const var& value)
 	{
 		auto asString = value.toString();
 
-		if (asString.containsOnly("1234567890"))
+		auto s = asString.begin();
+		auto e = asString.end();
+
+		int numNonNumeric = 0;
+		int numDigits = 0;
+		int numDots = 0;
+
+		// Unfortunately, this will parse version numbers (1.0.0) as double,
+		// so we need to do a better way of detecting double numbers...
+		//if (asString.containsOnly("1234567890."))
+		//	return var((double)value);
+
+		// This beauty will be used in programming 101 books from now on...
+		while (s != e)
+		{
+			auto isDigit = CharacterFunctions::isDigit(*s) || 
+						   *s == '-'; // because of negative numbers, yo.
+
+			numDigits += (int)isDigit;
+			
+			if (!isDigit)
+			{
+				numDots += (int)(*s == '.'); // because branching is for losers.
+				numNonNumeric++;
+			}
+			
+			// We've seen enough, thanks.
+			if (numNonNumeric > 1)
+				break;
+
+			++s;
+		}
+
+		auto isAnIntForSure = numDigits != 0 && numNonNumeric == 0 && numDots == 0;
+
+		auto isAnInt64ForSure = isAnIntForSure && (std::abs((int64)value) > (int64)(INT_MAX));
+
+		auto isADoubleForSure = numDigits != 0 && numNonNumeric == 1 && numDots == 1;
+
+		if (isAnInt64ForSure)
+			return var((int64)value);
+
+		if (isAnIntForSure)
 			return var((int)value);
-		else if (asString.containsOnly("1234567890."))
+
+		if (isADoubleForSure)
 			return var((double)value);
 	}
 

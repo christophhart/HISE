@@ -487,9 +487,11 @@ struct ValueTreeConverters
 
 	static ValueTree convertDynamicObjectToScriptNodeTree(var obj);
 
+	static var convertStringIfNumeric(const var& value);
+
 private:
 
-	static var convertStringIfNumeric(const var& value);
+	
 
 	static void v2d_internal(var& object, const ValueTree& v);
 
