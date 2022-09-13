@@ -96,7 +96,6 @@ public:
 		loadAttribute(LowPassFreq, "LowPassFreq");
 		loadAttribute(HiPassFreq, "HiPassFreq");
 		loadAttribute(Mix, "Mix");
-		
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -113,7 +112,6 @@ public:
 		saveAttribute(TempoSync, "TempoSync");
 
 		return v;
-
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -124,9 +122,6 @@ public:
         rightDelay.prepareToPlay(sampleRate);
         
 		calcDelayTimes();
-
-		ProcessorHelpers::increaseBufferIfNeeded(leftDelayFrames, samplesPerBlock);
-		ProcessorHelpers::increaseBufferIfNeeded(rightDelayFrames, samplesPerBlock);
 	};
 
 	void calcDelayTimes()
@@ -147,44 +142,11 @@ public:
 		const float actualRightTime = tempoSync ? TempoSyncer::getTempoInMilliSeconds(getMainController()->getBpm(), syncTimeRight) :
 			delayTimeRight;
 
-
-		
-
         leftDelay.setDelayTimeSeconds(actualLeftTime * 0.001);
         rightDelay.setDelayTimeSeconds(actualRightTime * 0.001);
 	}
 
-	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
-	{
-		if(skipFirstBuffer)
-		{
-			skipFirstBuffer = false;
-			return;
-		}
-        
-		const int sampleIndex = startSample;
-		const int samplesToCopy = numSamples;
-
-		float *inputL = buffer.getWritePointer(0, 0);
-		float *inputR = buffer.getWritePointer(1, 0);
-        
-        while(--numSamples >= 0)
-        {
-            leftDelayFrames.setSample(0, startSample, (float)leftDelay.getDelayedValue(inputL[startSample] + feedbackLeft * leftDelayFrames.getSample(0, startSample)));
-            rightDelayFrames.setSample(0, startSample, (float)rightDelay.getDelayedValue(inputR[startSample] + feedbackRight * rightDelayFrames.getSample(0, startSample)));
-            
-            ++startSample;
-        }
-
-        const float dryMix = (mix < 0.5f) ? 1.0f : (2.0f - 2.0f * mix);
-        const float wetMix = (mix > 0.5f) ? 1.0f : (2.0f * mix);
-        
-        FloatVectorOperations::multiply(buffer.getWritePointer(0, sampleIndex), dryMix, samplesToCopy);
-        FloatVectorOperations::multiply(buffer.getWritePointer(1, sampleIndex), dryMix, samplesToCopy);
-
-		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, sampleIndex), leftDelayFrames.getReadPointer(0, sampleIndex), wetMix, samplesToCopy);
-		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, sampleIndex), rightDelayFrames.getReadPointer(0, sampleIndex), wetMix, samplesToCopy);
-	};
+	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;;
 
 	bool hasTail() const override {return true; };
 
@@ -192,8 +154,6 @@ public:
 	{
 		leftDelay.clear();
 		rightDelay.clear();
-		leftDelayFrames.clear();
-		rightDelayFrames.clear();
 	}
 
 	int getNumChildProcessors() const override { return 0; };
@@ -223,9 +183,6 @@ private:
 	float mix;
 	bool tempoSync;
 
-	AudioSampleBuffer leftDelayFrames;
-	AudioSampleBuffer rightDelayFrames;
-    
     DelayLine<> leftDelay;
     DelayLine<> rightDelay;
 
