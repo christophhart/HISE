@@ -3039,17 +3039,22 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
         std::regex reg(wildcard.toStdString());
         std::smatch match;
 
-        if (std::regex_search(s, match, reg))
+		var returnArray = var();
+
+		// If you're trying to find more than 100000 matches here
+		// then you need to step back and evaluate some life choices that
+		// lead you to this moment.
+		int safeCount = 0;
+
+        while (std::regex_search(s, match, reg) && ++safeCount < 100000)
         {
-            var returnArray = var();
-
-            for (auto x:match)
-            {
+			for (auto x:match)
                 returnArray.insert(-1, String(x));
-            }
 
-            return returnArray;
+			s = match.suffix();
         }
+
+		return returnArray;
     }
     catch (std::regex_error e)
     {
