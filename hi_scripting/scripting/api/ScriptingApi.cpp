@@ -1622,6 +1622,7 @@ void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage,
 	auto p = getScriptProcessor();
 
 	WeakCallbackHolder cb(p, callback, 1);
+	cb.incRefCount();
 
 	auto f = [markdownMessage, title, cb]() mutable
 	{
