@@ -159,7 +159,10 @@ void ScriptUserPresetHandler::setCustomAutomation(var automationData)
 		{
 			for (const auto& ad : *ar)
 			{
-				auto nd = new CustomData(getScriptProcessor()->getMainController_(), index++, ad);
+				auto nd = new CustomData(newList, getScriptProcessor()->getMainController_(), index++, ad);
+
+				if (!nd->r.wasOk())
+					reportScriptError(nd->id.toString() + " - " + nd->r.getErrorMessage());
 
 				newList.add(nd);
 			}
@@ -314,7 +317,7 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 		// just refresh the values from the current processor states
 		for (int i = 0; i < uph.getNumCustomAutomationData(); i++)
 		{
-			uph.getCustomAutomationData(i)->updateFromProcessorConnection(preferredProcessorIndex);
+			uph.getCustomAutomationData(i)->updateFromConnectionValue(preferredProcessorIndex);
 		}
 
 		return;
@@ -329,6 +332,40 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 
 		if (data.isArray())
 		{
+			struct IndexSorter
+			{
+				IndexSorter(MainController::UserPresetHandler& p) :
+					uph(p)
+				{};
+
+				int compareElements(const var& first, const var& second) const
+				{
+					Identifier i1(first["id"].toString());
+					Identifier i2(first["id"].toString());
+
+					auto firstIndex = uph.getCustomAutomationData(i1)->index;
+					auto secondIndex = uph.getCustomAutomationData(i2)->index;
+
+					if (firstIndex < secondIndex)
+						return -1;
+					if (firstIndex > secondIndex)
+						return 1;
+
+					return 0;
+				};
+
+				MainController::UserPresetHandler& uph;
+			};
+
+			IndexSorter sorter(uph);
+
+			data.getArray()->sort(sorter);
+
+			// We need to be careful to not call parameters in the meta parameter if they are
+			// part of the 
+			Array<Identifier> calledIds;
+			calledIds.ensureStorageAllocated(data.size());
+
 			for (auto& v : *data.getArray())
 			{
 				Identifier id(v["id"].toString());
@@ -338,7 +375,24 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 				{
 					float fv = (float)value;
 					FloatSanitizers::sanitizeFloatNumber(fv);
-					cData->call(fv, sendMessage);
+
+					// Do not call meta parameters here
+					auto metaFilter = [&calledIds](MainController::UserPresetHandler::CustomAutomationData::ConnectionBase* b)
+					{
+						if (auto metaConnection = dynamic_cast<MainController::UserPresetHandler::CustomAutomationData::MetaConnection*>(b))
+						{
+							auto alreadyCalled = !calledIds.contains(metaConnection->target->id);
+
+							if (alreadyCalled)
+								return false;
+						}
+
+						return true;
+					};
+
+					cData->call(fv, sendMessage, metaFilter);
+
+					calledIds.add(id);
 				}
 			}
 		}

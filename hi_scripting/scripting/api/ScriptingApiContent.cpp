@@ -362,7 +362,10 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 	}
 	else if (id == getIdFor(automationId))
 	{
-		return getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationIds();
+		StringArray sa;
+		sa.add("");
+		sa.addArray(getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationIds());
+		return sa;
 	}
 	else if (id == getIdFor(processorId))
 	{
@@ -514,16 +517,30 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		{
 			Identifier newCustomId(newValue.toString());
 
-            if ((currentAutomationData = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
+			auto registerAutomationId = [newCustomId](ScriptComponent& sc, bool unused)
 			{
-				currentAutomationData->asyncListeners.addListener(*this, [](ScriptComponent& c, int index, float v)
+				if ((sc.currentAutomationData = sc.getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
 				{
-					c.setValue(v);
-				}, true);
-			}
-			else
+					sc.currentAutomationData->asyncListeners.addListener(sc, [](ScriptComponent& c, int index, float v)
+					{
+						c.setValue(v);
+					}, true);
+				}
+			};
+
+			registerAutomationId(*this, true);
+
+			if(currentAutomationData == nullptr)
 			{
-				logErrorAndContinue("Automation ID " + newValue.toString() + " wasn't found");
+				if(getScriptProcessor()->getMainController_()->getUserPresetHandler().getNumCustomAutomationData() != 0)
+					logErrorAndContinue("Automation ID " + newValue.toString() + " wasn't found");
+				else
+				{
+					// This usually means that the script that initialises the custom data model hasn't run yet
+					// so we can defer the automation setup to later...
+					
+					getScriptProcessor()->getMainController_()->getUserPresetHandler().deferredAutomationListener.addListener(*this, registerAutomationId, false);
+				}
 			}
 		}
 		else

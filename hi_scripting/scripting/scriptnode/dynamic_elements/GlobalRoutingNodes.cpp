@@ -657,13 +657,12 @@ juce::ReferenceCountedObjectPtr<scriptnode::routing::GlobalRoutingManager::SlotB
 			return c;
 	}
 
-	ReferenceCountedObjectPtr<SlotBase> newSlot;
+	SlotBase::Ptr newSlot;
 
 	if (isCable)
 	{
 		newSlot = new Cable(id);
-
-
+		addOSCTarget(newSlot);
 	}
 	else
 		newSlot = new Signal(id);

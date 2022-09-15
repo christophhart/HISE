@@ -33,37 +33,125 @@
 
 namespace hise { using namespace juce;
 
+
+struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
+{
+	using Data = MainController::UserPresetHandler::CustomAutomationData;
+
+	CustomAutomationParameter(Data::Ptr data_) :
+		AudioProcessorParameterWithID(data_->id.toString(), data_->id.toString()),
+		data(data_)
+	{
+		data->syncListeners.addListener(*this, update, false);
+	};
+
+	static void update(CustomAutomationParameter& d, var* args)
+	{
+		auto v = (float)args[1];
+
+		FloatSanitizers::sanitizeFloatNumber(v);
+
+
+		v = d.data->range.convertTo0to1(v);
+
+		ScopedValueSetter<bool> svs(d.recursive, true);
+
+		d.setValueNotifyingHost(v);
+	}
+
+	float getValue() const override
+	{
+		return data->lastValue;
+	}
+
+	void setValue(float newValue)
+	{
+		if (recursive)
+			return;
+
+		newValue = data->range.convertFrom0to1(newValue);
+
+		data->call(newValue, true);
+	}
+
+	float getValueForText(const String& text) const override
+	{
+		return text.getFloatValue();
+	}
+
+	float getDefaultValue() const
+	{
+		return 0.0f;
+	}
+
+	bool isMetaParameter() const
+	{
+		for (auto c : data->connectionList)
+		{
+			if (dynamic_cast<Data::MetaConnection*>(c) != nullptr)
+				return true;
+		}
+
+		return false;
+	}
+
+	Data::Ptr data;
+
+	bool recursive = false;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CustomAutomationParameter);
+};
+
+
 void PluginParameterAudioProcessor::addScriptedParameters()
 {
-	ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
+	auto& uph = dynamic_cast<MainController*>(this)->getUserPresetHandler();
 
-	jassert(synthChain != nullptr);
-
-	Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
-
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+	if (uph.isUsingCustomDataModel())
 	{
-		if (sp->isFront())
+		for (int i = 0; i < uph.getNumCustomAutomationData(); i++)
 		{
-			ScriptingApi::Content *content = sp->getScriptingContent();
-
-			for (int i = 0; i < content->getNumComponents(); i++)
+			if (auto data = uph.getCustomAutomationData(i))
 			{
-				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
-
-				const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
-				const bool isAutomatable = c->isAutomatable();
-
-				if (wantsAutomation && !isAutomatable)
+				if (data->allowHost)
 				{
-					// You specified a parameter for a unsupported component type...
-					jassertfalse;
+					addParameter(new CustomAutomationParameter(data));
 				}
+			}
+		}
+	}
+	else
+	{
+		ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
 
-				if (wantsAutomation && isAutomatable)
+		jassert(synthChain != nullptr);
+
+		Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
+
+		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+		{
+			if (sp->isFront())
+			{
+				ScriptingApi::Content *content = sp->getScriptingContent();
+
+				for (int i = 0; i < content->getNumComponents(); i++)
 				{
-					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
-					addParameter(newParameter);
+					ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
+
+					const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
+					const bool isAutomatable = c->isAutomatable();
+
+					if (wantsAutomation && !isAutomatable)
+					{
+						// You specified a parameter for a unsupported component type...
+						jassertfalse;
+					}
+
+					if (wantsAutomation && isAutomatable)
+					{
+						ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
+						addParameter(newParameter);
+					}
 				}
 			}
 		}

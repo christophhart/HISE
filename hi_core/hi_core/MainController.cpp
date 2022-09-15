@@ -1819,7 +1819,7 @@ void MainController::SampleManager::handleNonRealtimeState()
 
 
 
-hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(int index)
+hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(int index) const
 {
 	if (auto p = customAutomationData[index])
 	{

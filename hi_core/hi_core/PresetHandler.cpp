@@ -288,7 +288,7 @@ void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const Va
 			// We might need to update the custom automation data values.
 			for (int i = 0; i < numDataObjects; i++)
 			{
-				uph.getCustomAutomationData(i)->updateFromProcessorConnection(0);
+				uph.getCustomAutomationData(i)->updateFromConnectionValue(0);
 			}
 		}
 	}
