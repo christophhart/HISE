@@ -1774,7 +1774,7 @@ private:
                     {
                         if(cl->getVariableName() == id)
                         {
-                            return new UnqualifiedName(location, parseIdentifier(), false);
+                            return parseSuffixes(new UnqualifiedName(location, parseIdentifier(), false));
                         }
                     }
                 }
