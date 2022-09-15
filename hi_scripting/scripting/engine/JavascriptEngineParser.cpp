@@ -1768,6 +1768,18 @@ private:
 			}
 			else
 			{
+                if(auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+                {
+                    for(auto cl : fo->capturedLocals)
+                    {
+                        if(cl->getVariableName() == id)
+                        {
+                            return new UnqualifiedName(location, parseIdentifier(), false);
+                        }
+                    }
+                }
+                
+                
 				if (JavascriptNamespace* inlineNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::InlineFunction, ns, id))
 				{
 					InlineFunction::Object *obj = getInlineFunction(id, inlineNamespace);
