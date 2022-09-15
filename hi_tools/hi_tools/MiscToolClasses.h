@@ -1794,6 +1794,8 @@ template <typename ReturnType, typename... Ps> struct SafeLambdaBase
 	virtual bool isValid() const = 0;
 
 	virtual bool matches(void* other) const = 0;
+
+	
 };
 
 template <class T, typename ReturnType, typename...Ps> struct SafeLambda : public SafeLambdaBase<ReturnType, Ps...>
@@ -1874,6 +1876,22 @@ template <typename...Ps> struct LambdaBroadcaster final
 
 		if(sendWithInitialValue)
 			std::apply(*listeners.getLast(), lastValue);
+	}
+
+	/** Returns the number of listeners with the given class T (!= not a base class) that are registered to this object. */
+	template <typename T> int getNumListenersWithClass() const
+	{
+		using TypeToLookFor = SafeLambda<T, void, Ps...>;
+
+		int numListeners = 0;
+
+		for (auto l : listeners)
+		{
+			if (l->isValid() && dynamic_cast<TypeToLookFor*>(l) != nullptr)
+				numListeners++;
+		}
+
+		return numListeners;
 	}
 
 	/** Removes all callbacks for the given object. 

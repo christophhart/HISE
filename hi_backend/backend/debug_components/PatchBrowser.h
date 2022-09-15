@@ -435,6 +435,86 @@ private:
 };
 
 
+class AutomationDataBrowser : public SearchableListComponent,
+							  public ControlledObject,
+							  public ButtonListener
+{
+public:
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	using AutomationData = MainController::UserPresetHandler::CustomAutomationData;
+
+	SET_GENERIC_PANEL_ID("AutomationDataBrowser");
+
+	AutomationDataBrowser(BackendRootWindow* bw);
+
+	static void updateList(AutomationDataBrowser& c, bool unused)
+	{
+		SafeAsyncCall::callAsyncIfNotOnMessageThread<AutomationDataBrowser>(c, [](AutomationDataBrowser& d)
+		{
+			d.rebuildModuleList(true);
+			d.getMainController()->getUserPresetHandler().deferredAutomationListener.addListener(d, updateList, false);
+		});
+	}
+
+	struct AutomationCollection : public SearchableListComponent::Collection,
+								  public ControlledObject,
+								  public PooledUIUpdater::SimpleTimer
+	{
+		struct ConnectionItem : public SearchableListComponent::Item,
+								public SafeChangeListener
+		{
+			ConnectionItem(AutomationData::Ptr d_, AutomationData::ConnectionBase::Ptr c_);
+
+			~ConnectionItem();
+
+			void changeListenerCallback(SafeChangeBroadcaster* b) override
+			{
+				repaint();
+			}
+
+			void paint(Graphics& g) override;
+
+			AutomationData::Ptr d;
+			AutomationData::ConnectionBase::Ptr c;
+		};
+
+		void paint(Graphics& g) override;
+
+		AutomationCollection(MainController* mc, AutomationData::Ptr data_, int index);
+		
+		void checkIfChanged(bool rebuildIfChanged);
+
+		void timerCallback() override;
+
+		const int index;
+		AutomationData::Ptr data;
+
+		bool hasMidiConnection = false;
+		bool hasComponentConnection = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationCollection);
+	};
+
+	void buttonClicked(Button* b) override;
+
+	int getNumCollectionsToCreate() const override;
+
+	Collection* createCollection(int index) override;
+
+	AutomationData::List filteredList;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationDataBrowser);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationDataBrowser);
+
+	ScopedPointer<HiseShapeButton> midiButton, componentButton;
+};
+
+
 } // namespace hise
 
 

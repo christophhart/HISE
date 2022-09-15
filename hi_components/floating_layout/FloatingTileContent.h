@@ -634,6 +634,7 @@ public:
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
+			AutomationDataBrowser,
 			FileBrowser,
 			ImageTable,
 			AudioFileTable,

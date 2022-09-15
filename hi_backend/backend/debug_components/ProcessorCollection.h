@@ -71,7 +71,7 @@ public:
 			isSelected(false),
 			includedInSearch(true),
 			usePopupMenu(false),
-			searchKeywords(searchString)
+			searchKeywords(searchString.toLowerCase())
 		{}
 
 		~Item()

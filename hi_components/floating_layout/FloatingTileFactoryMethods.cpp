@@ -83,6 +83,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<scriptnode::DspNodeList::Panel>(PopupMenuOptions::DspNodeList);
 	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
 	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
+	registerType<GenericPanel<AutomationDataBrowser>>(PopupMenuOptions::AutomationDataBrowser);
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
 	
@@ -612,6 +613,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 			addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
 			addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
+			addToPopupMenu(m, PopupMenuOptions::AutomationDataBrowser, "Automation Data Browser");
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
@@ -757,6 +759,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::DspNodeParameterEditor: parent->setNewContent(GET_PANEL_NAME(scriptnode::NodePropertyPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
+	case PopupMenuOptions::AutomationDataBrowser: parent->setNewContent(GET_PANEL_NAME(GenericPanel<AutomationDataBrowser>)); break;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
