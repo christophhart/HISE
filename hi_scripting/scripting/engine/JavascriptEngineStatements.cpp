@@ -250,9 +250,9 @@ struct HiseJavascriptEngine::RootObject::SwitchStatement : public Statement
 };
 
 
-struct HiseJavascriptEngine::RootObject::VarStatement : public Statement
+struct HiseJavascriptEngine::RootObject::VarStatement : public Expression
 {
-	VarStatement(const CodeLocation& l) noexcept : Statement(l) {}
+	VarStatement(const CodeLocation& l) noexcept : Expression(l) {}
 
 	ResultCode perform(const Scope& s, var*) const override
 	{

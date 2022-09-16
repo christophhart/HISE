@@ -1402,13 +1402,53 @@ private:
 
 		const bool isVarInitialiser = matchIf(TokenTypes::var);
 		
+        if(currentInlineFunction && isVarInitialiser)
+        {
+            location.throwError("Can't use var initialiser inside inline function");
+        }
+        
 		Expression *iter = parseExpression();
 
 		// Allow unqualified names in for loop initialisation for convenience
 		if (auto assignment = dynamic_cast<Assignment*>(iter))
 		{
 			if (auto un = dynamic_cast<UnqualifiedName*>(assignment->target.get()))
+            {
 				un->allowUnqualifiedDefinition = true;
+                
+                ScopedPointer<Expression> newExpression;
+                
+                auto id = un->getVariableName();
+                
+                // replace the anonymous initialiser with a local / var assignment
+                // in order to prevent global leakage
+                
+                if(auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+                {
+                    auto s = new VarStatement(location);
+                    s->name = id;
+
+                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, id, location);
+
+                    s->initialiser.swapWith(assignment->newValue);
+                    
+                    newExpression = assignment;
+                    iter = s;
+                }
+                else if(auto ifo = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
+                {
+                    auto lv = new LocalVarStatement(location, ifo);
+                    lv->name = id;
+                    
+                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id, location);
+                    
+                    ifo->localProperties->set(lv->name, {});
+                    lv->initialiser.swapWith(assignment->newValue);
+                    
+                    newExpression = assignment;
+                    iter = lv;
+                }
+            }
 		}
 
 		if (!isVarInitialiser && currentType == TokenTypes::closeParen)

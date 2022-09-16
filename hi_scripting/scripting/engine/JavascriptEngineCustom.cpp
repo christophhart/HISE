@@ -721,9 +721,9 @@ struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 
 
 
-struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Statement
+struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Expression
 {
-	LocalVarStatement(const CodeLocation& l, InlineFunction::Object* parentFunction_) noexcept : Statement(l), parentFunction(parentFunction_) {}
+	LocalVarStatement(const CodeLocation& l, InlineFunction::Object* parentFunction_) noexcept : Expression(l), parentFunction(parentFunction_) {}
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
