@@ -336,7 +336,7 @@ template <class T, int P, class Expression> struct expression : public single_ba
 		Expression e;
 		v = e.op(v);
 
-		ObjectType::setParameterStatic<P>(this->obj, v);
+		ObjectType:: template setParameterStatic<P>(this->obj, v);
 	}
 
 	void operator()(double v)

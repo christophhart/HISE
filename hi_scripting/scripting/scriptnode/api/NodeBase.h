@@ -205,7 +205,7 @@ class NodeBase : public ConstScriptingObject
 {
 public:
 
-	using Parameter = Parameter;
+	using Parameter = scriptnode::Parameter;
 
 	using FrameType = snex::Types::dyn<float>;
 	using MonoFrameType = snex::Types::span<float, 1>;

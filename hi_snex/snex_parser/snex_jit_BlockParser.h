@@ -104,6 +104,7 @@ public:
 	{
 		p->comment = lastComment;
 		lastComment = {};
+		return p;
 	}
 
 	struct ScopedTemplateArgParser

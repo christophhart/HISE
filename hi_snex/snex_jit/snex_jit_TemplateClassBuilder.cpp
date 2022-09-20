@@ -222,6 +222,7 @@ int TemplateClassBuilder::Helpers::getTemplateConstant(StructType* st, int index
 		return tp.constant;
 
 	r = Result::fail("Expected template constant at index " + String(index));
+	return -1;
 }
 
 snex::jit::TemplateClassBuilder::StatementPtr TemplateClassBuilder::Helpers::createFunctionCall(ComplexType::Ptr converterType, SyntaxTreeInlineData* d, const Identifier& functionId, StatementList originalArgs)

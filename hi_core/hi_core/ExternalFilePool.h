@@ -673,7 +673,7 @@ private:
 
 
 /** Implementations of the data pool. */
-template <class DataType> class SharedPoolBase : public PoolBase
+template <class DataType> class SharedPoolBase : public PoolBase, public InternalLogger
 {
 public:
 
@@ -1084,7 +1084,7 @@ public:
 					}
 					else
 					{
-						getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+						logMessage(getMainController(), r.getReferenceString() + " wasn't found.");
 
 						jassertfalse; // This shouldn't happen...
 						return ManagedPtr();
@@ -1169,7 +1169,7 @@ public:
 			}
 			else
 			{
-				getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+				logMessage(getMainController(), r.getReferenceString() + " wasn't found.");
 				return ManagedPtr();
 			}
 		}
