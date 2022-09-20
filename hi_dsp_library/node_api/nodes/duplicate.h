@@ -238,8 +238,8 @@ template <typename DataType, CloneProcessType ProcessType>
     constexpr auto& getObject() { return *this; }
 	constexpr const auto& getObject() const { return *this; }
 
-	constexpr auto& getWrappedObject() { return *DataType::Iterator<false>(cloneData).begin(); }
-	constexpr const auto& getWrappedObject() const { return *DataType::Iterator<false>(cloneData).begin(); }
+	constexpr auto& getWrappedObject() { return *DataType:: template Iterator<false>(cloneData).begin(); }
+	constexpr const auto& getWrappedObject() const { return *DataType:: template Iterator<false>(cloneData).begin(); }
 
     static constexpr int NumChannels = DataType::ObjectType::NumChannels;
     

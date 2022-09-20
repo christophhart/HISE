@@ -124,6 +124,8 @@ bool IndexBuilder::MetaDataExtractor::isLoopType() const
 
 	if (indexStruct != nullptr && indexStruct->id.getIdentifier() == IndexIds::looped)
 		return true;
+
+	return false;
 }
 
 String IndexBuilder::MetaDataExtractor::getWithLimit(const String& v, const String& l, Types::ID dataType/*=Types::ID::Void*/) const

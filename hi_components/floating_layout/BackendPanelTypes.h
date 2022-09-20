@@ -368,7 +368,7 @@ public:
 
 	void resized() override
 	{
-		auto area = getParentShell()->getContentBounds();
+		auto area = getParentContentBounds();
 
 		auto top = area.removeFromTop(32).reduced(4);
 
@@ -384,7 +384,7 @@ public:
 
 	void paint(Graphics& g)
 	{
-		auto area = getParentShell()->getContentBounds();
+		auto area = getParentContentBounds();
 
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -553,11 +553,6 @@ struct PoolTableSubTypes
 	using SampleMapPoolTable = ExternalFileTableBase<ValueTree>;
 	using MidiFilePoolTable = ExternalFileTableBase<MidiFileReference>;
 };
-
-
-
-
-
 
 } // namespace hise
 

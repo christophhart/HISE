@@ -93,6 +93,10 @@ const BackendRootWindow* FloatingTileContent::getRootWindow() const
 	return getParentShell()->getBackendRootWindow();
 }
 
+Rectangle<int> FloatingTileContent::getParentContentBounds() {
+    return getParentShell()->getContentBounds();
+}
+
 var FloatingTileContent::toDynamicObject() const
 {
 	auto o = new DynamicObject();

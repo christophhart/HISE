@@ -66,7 +66,7 @@ struct SnexOscillator : public SnexSource
 				OscProcessData d;
 			};
 
-			auto wb = static_cast<snex::ui::WorkbenchManager*>(parent.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+			auto wb = static_cast<snex::ui::WorkbenchManager*>(getNodeWorkbench(parent.getParentNode()));
 
 			ScopedPointer<OscTestData> td = new OscTestData(wb->getRootWorkbench());
 

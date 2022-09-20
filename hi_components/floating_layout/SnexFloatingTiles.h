@@ -176,7 +176,7 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 	void resized() override
 	{
 		if(content != nullptr)
-			content->setBounds(getParentShell()->getContentBounds());
+			content->setBounds(getParentContentBounds());
 	}
 
 	bool forceShowTitle = true;
@@ -234,7 +234,7 @@ struct SnexEditorPanel : public Component,
 
 	void resized() override
 	{
-		auto b = FloatingTileContent::getParentShell()->getContentBounds();
+		auto b = FloatingTileContent::getParentContentBounds();
 		if (playground != nullptr)
 			playground->setBounds(b);
 	}

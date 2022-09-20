@@ -54,6 +54,9 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 6. Hit compile and wait...
 
+### Install xcpretty on OSX 
+[xcpretty](https://github.com/xcpretty/xcpretty) is a formatter for xcode. You can install it from the terminal using the command `sudo gem install xcpretty`.
+
 ### Compiling without IPP on OSX
 
 If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 3 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:

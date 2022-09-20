@@ -650,7 +650,7 @@ public:
 #if USE_FRONTEND
 		component->setBounds(getLocalBounds());
 #else
-		component->setBounds(getParentShell()->getContentBounds());
+		component->setBounds(getParentContentBounds());
 #endif
 	}
 

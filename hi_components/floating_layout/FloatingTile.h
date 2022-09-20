@@ -898,13 +898,15 @@ private:
 
 struct FloatingTileHelpers
 {
+	static const Identifier getTileID(FloatingTile* parent);
 	template <class ContentType> static ContentType* findTileWithId(FloatingTile* root, const Identifier& id)
 	{
 		FloatingTile::Iterator<ContentType> iter(root);
 
 		while (auto t = iter.getNextPanel())
 		{
-			if (t->getParentShell()->getLayoutData().getID() == id || id.isNull())
+			auto tid = getTileID(t->getParentShell());
+			if (tid == id || id.isNull())
 				return t;
 		}
 

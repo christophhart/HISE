@@ -73,7 +73,7 @@ struct dynamic : public OptionalSnexSource
 
 		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
 		{
-			auto wb = static_cast<snex::ui::WorkbenchManager*>(parent.getParentNode()->getScriptProcessor()->getMainController_()->getWorkbenchManager());
+			auto wb = static_cast<snex::ui::WorkbenchManager*>(getNodeWorkbench(parent.getParentNode()));
 			
 			if (auto rwb = wb->getRootWorkbench())
 			{

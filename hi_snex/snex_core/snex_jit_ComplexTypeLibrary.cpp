@@ -1379,7 +1379,7 @@ bool StructType::createDefaultConstructor()
 	if (hasConstructor())
 		return false;
 
-
+	return true;
 }
 
 void StructType::registerExternalAtNamespaceHandler(NamespaceHandler* handler, const String& description)

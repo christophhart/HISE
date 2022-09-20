@@ -1295,6 +1295,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillRoundedRectangle);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawLine);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawVerticalLine);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, setFontWithSpacing);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
@@ -1348,6 +1349,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(fillRoundedRectangle);
 	ADD_API_METHOD_5(drawLine);
 	ADD_API_METHOD_3(drawHorizontalLine);
+	ADD_API_METHOD_3(drawVerticalLine);
 	ADD_API_METHOD_2(setFont);
 	ADD_API_METHOD_3(setFontWithSpacing);
 	ADD_API_METHOD_2(drawText);
@@ -1646,6 +1648,11 @@ void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, var corner
 void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
 {
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawHorizontalLine(y, SANITIZED(x1), SANITIZED(x2)));
+}
+
+void ScriptingObjects::GraphicsObject::drawVerticalLine(int x, float y1, float y2)
+{
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawVerticalLine(x, SANITIZED(y1), SANITIZED(y2)));
 }
 
 void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
@@ -2905,12 +2912,13 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Gra
 	PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(g_, p);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& g_, Rectangle<int> listArea, const String& emptyText)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& g_, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
 	if (functionDefined("drawPresetBrowserColumnBackground"))
 	{
 		auto obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(listArea.toFloat()));
+		obj->setProperty("columnIndex", columnIndex);
 		obj->setProperty("text", emptyText);
 		obj->setProperty("bgColour", backgroundColour.getARGB());
 		obj->setProperty("itemColour", highlightColour.getARGB());
@@ -2921,7 +2929,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& 
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, listArea, emptyText);
+	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, columnIndex, listArea, emptyText);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)

@@ -50,7 +50,7 @@ namespace IndexIds
 	DECLARE_ID(lerp);
 	DECLARE_ID(hermite);
 	DECLARE_ID(looped);
-#undef DECLARE_ID;
+#undef DECLARE_ID
 }
 
 struct IndexBuilder : public TemplateClassBuilder
