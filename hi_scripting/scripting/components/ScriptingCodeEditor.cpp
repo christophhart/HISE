@@ -153,23 +153,29 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		codeToEvaluate = codeToEvaluate.substring(2);
 	}
 
-	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
+    auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+    
+    processor->getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::Compilation,
+                                                                     jsp, [codeToEvaluate](JavascriptProcessor* p)
+    {
+        Result r = Result::ok();
+        HiseJavascriptEngine* engine = p->getScriptEngine();
+        
+        var returnValue = engine->evaluate(codeToEvaluate, &r);
 
-	if (engine != nullptr)
-	{
-		Result r = Result::ok();
-
-		var returnValue = engine->evaluate(codeToEvaluate, &r);
-
-		if (r.wasOk())
-		{
-			debugToConsole(processor, "> " + returnValue.toString());
-		}
-		else
-		{
-			debugToConsole(processor, r.getErrorMessage());
-		}
-	}
+        auto pr = dynamic_cast<Processor*>(p);
+        
+        if (r.wasOk())
+        {
+            pr->getMainController()->writeToConsole("> " + returnValue.toString(), 0, nullptr);
+        }
+        else
+        {
+            debugToConsole(pr, r.getErrorMessage());
+        }
+        
+        return r;
+    });
 }
 
 

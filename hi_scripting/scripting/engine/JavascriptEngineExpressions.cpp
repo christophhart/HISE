@@ -524,7 +524,8 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 														  public DebugableObject,
 														  public WeakCallbackHolder::CallableObject,
-														  public CyclicReferenceCheckBase
+														  public CyclicReferenceCheckBase,
+                                                          public LocalScopeCreator
 {
 	FunctionObject() noexcept{}
 
@@ -545,6 +546,16 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
     
 	void prepareCycleReferenceCheck() override;
 
+    DynamicObject::Ptr createScope(RootObject* r) override
+    {
+        DynamicObject::Ptr copy = new DynamicObject();
+        
+        for(auto& x: lastScope->getProperties())
+            copy->setProperty(x.name, x.value);
+        
+        return copy;
+    };
+    
 	void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) override
 	{
 		if (capturedLocals.isEmpty())
@@ -579,6 +590,17 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		}
 
 		var result;
+        
+#if ENABLE_SCRIPTING_BREAKPOINTS
+        
+        LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, const_cast<FunctionObject*>(this));
+        
+        {
+            SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
+            lastScope = functionRoot;
+        }
+#endif
+        
 		body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -588,12 +610,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 		functionRoot->removeProperty("this");
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
-			lastScope = functionRoot;
-		}
-#endif
+
 
 		return result;
 	}
@@ -735,6 +752,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	mutable var lastScopeForCycleCheck;
 
 	DynamicObject::Ptr unneededScope;
+    
+    
 
 	mutable SimpleReadWriteLock debugScopeLock;
 	mutable DynamicObject::Ptr lastScope;
@@ -799,7 +818,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 		return nativeFunction(args);
 
 	if (FunctionObject* fo = dynamic_cast<FunctionObject*> (function.getObject()))
+    {
+        LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, fo);
 		return fo->invoke(s, args);
+    }
 
 	if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		if (DynamicObject* o = thisObject.getDynamicObject())

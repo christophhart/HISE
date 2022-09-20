@@ -465,6 +465,22 @@ public:
 		struct CodeLocation;
 		struct CallStackEntry;
 		struct Scope;
+        
+        struct LocalScopeCreator
+        {
+            using Ptr = WeakReference<LocalScopeCreator>;
+            
+            using ScopedSetter = ScopedValueSetter<LocalScopeCreator::Ptr>;
+            
+            virtual ~LocalScopeCreator() {};
+            
+            virtual DynamicObject::Ptr createScope(RootObject* r) = 0;
+            
+            JUCE_DECLARE_WEAK_REFERENCEABLE(LocalScopeCreator);
+        };
+        
+        LocalScopeCreator::Ptr currentLocalScopeCreator;
+        
 		struct Statement;
 		struct Expression;
 		
@@ -649,14 +665,15 @@ public:
 		static var typeof_internal(Args a);
 		static var exec(Args a);
 		static var eval(Args a);
-
+                            
 		void addToCallStack(const Identifier& id, const CodeLocation* location);
 		void removeFromCallStack(const Identifier& id);
 		String dumpCallStack(const Error& lastError, const Identifier& rootFunctionName);
 		void setCallStackEnabled(bool shouldeBeEnabled) { enableCallstack = shouldeBeEnabled; }
 
 		class Callback:  public DynamicObject,
-					     public DebugableObject
+					     public DebugableObject,
+                         public LocalScopeCreator
 		{
 		public:
 
@@ -678,6 +695,19 @@ public:
 
 			String getDebugName() const override { return callbackName.toString() + "()"; }
 
+            DynamicObject::Ptr createScope(RootObject* r) override
+            {
+                DynamicObject::Ptr obj = new DynamicObject();
+                
+                for (int i = 0; i < numArgs; i++)
+                    obj->setProperty(parameters[i], parameterValues[i]);
+
+                for (int i = 0; i < localProperties.size(); i++)
+                    obj->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+
+                return obj;
+            }
+            
 			int getNumChildElements() const override
 			{
 				return getNumArgs() + localProperties.size();

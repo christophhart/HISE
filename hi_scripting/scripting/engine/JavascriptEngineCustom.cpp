@@ -312,7 +312,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	struct Object : public DynamicObject,
 					public DebugableObjectBase,
 					public WeakCallbackHolder::CallableObject,
-					public CyclicReferenceCheckBase
+					public CyclicReferenceCheckBase,
+                    public LocalScopeCreator
 	{
 	public:
 
@@ -349,6 +350,29 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return location;
 		}
 
+        DynamicObject::Ptr createScope(RootObject* r) override
+        {
+            DynamicObject::Ptr n = new DynamicObject();
+
+            for (auto& v : *localProperties)
+                n->setProperty(v.name, v.value);
+            
+            auto fToUse = e.get();
+            
+            if(fToUse == nullptr)
+                fToUse = dynamicFunctionCall;
+            
+            if(fToUse != nullptr)
+            {
+                int index = 0;
+
+                for (auto& p : parameterNames)
+                    n->setProperty(p, fToUse->parameterResults[index++]);
+            }
+            
+            return n;
+        }
+        
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("InlineFunction"); }
 
 		String getDebugValue() const override { return lastReturnValue->toString(); }
@@ -444,6 +468,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var performDynamically(const Scope& s, const var* args, int numArgs)
 		{
+            LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, this);
+            
 			setFunctionCall(dynamicFunctionCall);
 
 			for (int i = 0; i < numArgs; i++)
@@ -559,7 +585,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			for (int i = 0; i < numArgs; i++)
 			{
-				parameterResults.add(var::undefined());
+                parameterResults.add({});
 			}
 		};
 
@@ -578,6 +604,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		{
 			f->setFunctionCall(this);
 
+            LocalScopeCreator::ScopedSetter svs(s.root->currentLocalScopeCreator, f);
+            
 			for (int i = 0; i < numArgs; i++)
 			{
                 auto v = parameterExpressions.getUnchecked(i)->getResult(s);

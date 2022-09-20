@@ -1715,6 +1715,9 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 	highPriorityQueue(2048),
 	compilationQueue(128),
 	deferredPanels(1024),
+#if USE_BACKEND
+    replQueue(128),
+#endif
 	globalServer(new GlobalServer(mc))
 {
 	startThread(6);
@@ -1850,9 +1853,31 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		return r;
 	}
+    case Task::ReplEvaluation:
+    {
+        r = executeQueue(Task::Compilation, pendingCompilations);
+        
+#if USE_BACKEND
+        CallbackTask hpt;
+
+        while (r.wasOk() && replQueue.pop(hpt))
+        {
+            if (alreadyCompiled(hpt))
+                continue;
+
+            r = hpt.call();
+        }
+#endif
+
+        return r;
+    }
 	case Task::HiPriorityCallbackExecution:
 	{
-		r = executeQueue(Task::Compilation, pendingCompilations);
+#if USE_BACKEND
+		r = executeQueue(Task::ReplEvaluation, pendingCompilations);
+#else
+        r = executeQueue(Task::Compilation, pendingCompilations);
+#endif
 
 		CallbackTask hpt;
 

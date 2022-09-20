@@ -1139,6 +1139,7 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 	root->addToCallStack(callbackName, nullptr);
 
 
+    LocalScopeCreator::ScopedSetter svs(root->currentLocalScopeCreator, this);
 
 	statements->perform(s, &returnValue);
 

@@ -2378,7 +2378,18 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
 	tb.setupApiData(hiseSpecialData, code);
-	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
+    
+    DynamicObject::Ptr localScope = currentLocalScopeCreator != nullptr ? currentLocalScopeCreator->createScope(this) : nullptr;
+    
+    if(localScope == nullptr)
+        localScope = this;
+    else
+    {
+        for(const auto& x: getProperties())
+            localScope->setProperty(x.name, x.value);
+    }
+    
+	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
 }
 
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)

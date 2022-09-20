@@ -855,6 +855,7 @@ public:
 		enum Type
 		{
 			Compilation,
+            ReplEvaluation,
 			HiPriorityCallbackExecution,
 			LowPriorityCallbackExecution,
 			DeferredPanelRepaintJob,
@@ -963,6 +964,9 @@ public:
 
 			while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
 			{
+                PendingCompilationList l;
+                auto r = p.executeQueue(Task::ReplEvaluation, l);
+                
 				Thread::sleep(200);
 			}
 
@@ -1051,6 +1055,10 @@ private:
 	MultithreadedLockfreeQueue<CompilationTask, queueConfig> compilationQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> lowPriorityQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> highPriorityQueue;
+    
+#if USE_BACKEND
+    MultithreadedLockfreeQueue<CallbackTask, queueConfig> replQueue;
+#endif
 
 	MultithreadedLockfreeQueue<WeakReference<ScriptingApi::Content::ScriptPanel>, queueConfig> deferredPanels;
 };
