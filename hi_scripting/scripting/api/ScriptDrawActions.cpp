@@ -385,6 +385,14 @@ namespace ScriptedDrawActions
 		int y; float x1; float x2;
 	};
 
+	struct drawVerticalLine : public DrawActions::ActionBase
+	{
+		drawVerticalLine(int x_, float y1_, float y2_) :
+			x(x_), y1(y1_), y2(y2_) {};
+		void perform(Graphics& g) { g.drawVerticalLine(x, y1, y2); };
+		int x; float y1; float y2;
+	};
+
 	struct setOpacity : public DrawActions::ActionBase
 	{
 		setOpacity(float alpha_) :
