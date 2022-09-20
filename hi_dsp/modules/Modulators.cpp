@@ -712,9 +712,7 @@ void Modulation::PitchConverters::normalisedRangeToPitchFactor(float* rangeValue
 #endif
 
 		if (hasDeltaSignChange)
-		{
-			DBG("USE RANGE");
-			
+		{			
 			for (int i = 0; i < numValues; i++)
 				rangeValues[i] = normalisedRangeToPitchFactor(rangeValues[i]);
 		}
