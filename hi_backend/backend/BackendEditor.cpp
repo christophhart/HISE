@@ -832,6 +832,7 @@ struct ToolkitPopup : public Component,
 		ControlledObject(mc),
 		SimpleTimer(mc->getGlobalUIUpdater()),
 		panicButton("Panic", this, *this),
+        sustainButton("pedal", this, *this),
 		keyboard(mc),
 		masterConnection(&masterVolume, mc, mc->getMainSynthChain()->getId()),
 		resizer(this, &constrainer, ResizableEdgeComponent::rightEdge)
@@ -843,6 +844,7 @@ struct ToolkitPopup : public Component,
 		addAndMakeVisible(resizer);
 		addAndMakeVisible(panicButton);
 		addAndMakeVisible(tempoKnob);
+        addAndMakeVisible(sustainButton);
 		addAndMakeVisible(peakMeter);
 		addAndMakeVisible(masterVolume);
 		addAndMakeVisible(keyboard);
@@ -858,19 +860,39 @@ struct ToolkitPopup : public Component,
 		masterVolume.setRange(0.0, 1.0, 0.01);
 		masterVolume.setName("Volume");
 
+        masterVolume.setSkewFactor(0.5);
+        
+        masterVolume.textFromValueFunction = [](double v)
+        {
+            v = Decibels::gainToDecibels(v);
+            
+            return String((int)v) + " dB";
+        };
+        
 		peakMeter.setType(VuMeter::Type::StereoHorizontal);
 		peakMeter.setOpaque(false);
 		peakMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 		peakMeter.setColour(VuMeter::ledColour, Colours::white.withAlpha(0.5f));
 		peakMeter.setName("Output");
 
+        panicButton.setTooltip("Send All-Note-Off message.");
+        sustainButton.setTooltip("Enable Toggle mode (sustain) for keyboard.");
+        sustainButton.setToggleModeWithColourChange(true);
+        
 		keyboard.setUseVectorGraphics(true);
 
-		setSize(600, 72 + 48 + 30);
+		setSize(650, 72 + 48 + 35);
 	}
 
 	void buttonClicked(Button* b) override
 	{
+        if(b == &sustainButton)
+        {
+            keyboard.setEnableToggleMode(b->getToggleState());
+            
+            if(!b->getToggleState())
+                getMainController()->allNotesOff(true);
+        }
 		if (b == &panicButton)
 			getMainController()->allNotesOff(true);
 	}
@@ -888,7 +910,7 @@ struct ToolkitPopup : public Component,
 
 		g.drawText(getStatistics(), statBounds.toFloat(), Justification::centredLeft);
 
-		g.setColour(Colours::white.withAlpha(0.4f));
+		g.setColour(Colours::white.withAlpha(0.2f));
 		g.fillPath(midiPath);
 
 		if (midiAlpha != 0.0f)
@@ -900,7 +922,6 @@ struct ToolkitPopup : public Component,
 		paintName(g, peakMeter);
 		paintName(g, masterVolume);
 		paintName(g, tempoKnob);
-		paintName(g, panicButton);
 	}
 
 	void paintName(Graphics& g, Component& c)
@@ -915,19 +936,32 @@ struct ToolkitPopup : public Component,
 		auto b = getLocalBounds();
 		b.removeFromLeft(10);
 		resizer.setBounds(b.removeFromRight(10));
-		keyboard.setBounds(b.removeFromBottom(72));
+        
+        auto bottom = b.removeFromBottom(72);
+        
+        b.removeFromBottom(5);
+        
+        auto r = bottom.removeFromLeft(32);
+        
+        sustainButton.setBounds(r.removeFromBottom(32));
+        panicButton.setBounds(r.removeFromTop(32));
+        
+        bottom.removeFromLeft(10);
+		keyboard.setBounds(bottom);
 
 		b.removeFromTop(30);
 
+        midiPath = createPath("midi");
+        scalePath(midiPath, b.removeFromLeft(b.getHeight()).reduced(0, 10).toFloat().translated(-8.0f, 0.0f));
+        
 		masterVolume.setBounds(b.removeFromRight(b.getHeight()));
 		b.removeFromRight(10);
-		peakMeter.setBounds(b.removeFromRight(200).reduced(0, 10));
+		peakMeter.setBounds(b.removeFromRight(200).reduced(0, 13));
 
-		midiPath = createPath("midi");
-		scalePath(midiPath, b.removeFromRight(b.getHeight()).reduced(0, 13).toFloat());
+		
 		b.removeFromRight(5);
 		tempoKnob.setBounds(b.removeFromRight(b.getHeight()));
-		panicButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(10));
+		
 
 		
 	}
@@ -960,6 +994,7 @@ struct ToolkitPopup : public Component,
 
 		LOAD_PATH_IF_URL("Panic", HiBinaryData::FrontendBinaryData::panicButtonShape);
 		LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
+        LOAD_PATH_IF_URL("pedal", BackendBinaryData::PopupSymbols::sustainIcon);
 
 		return p;
 	}
@@ -986,7 +1021,7 @@ struct ToolkitPopup : public Component,
 
 	Path midiPath;
 	float midiAlpha = 0.0f;
-	HiseShapeButton panicButton;
+    HiseShapeButton panicButton, sustainButton;
 	
 	MacroKnobLookAndFeel slaf;
 	Slider tempoKnob;

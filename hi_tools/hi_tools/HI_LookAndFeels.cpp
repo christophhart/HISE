@@ -543,7 +543,10 @@ void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
 	g.setColour(Colours::white.withAlpha(0.3f));
 
 	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText(String((int)value), 0, 0, 48, 48, Justification::centred, false);
+    
+    
+    
+	g.drawText(s.getTextFromValue(value), 0, 0, 48, 48, Justification::centred, false);
 
 
 	

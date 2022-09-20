@@ -372,6 +372,8 @@ public:
 			timerCallback();
 			stop();
 		}
+        
+        repaint();
 	}
 
 	void paint(Graphics& g) override;
