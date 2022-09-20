@@ -82,7 +82,11 @@ void DebugConsoleTextEditor::scriptWasCompiled(JavascriptProcessor *jp)
 
 		if (r.wasOk()) setText("Compiled OK", dontSendNotification);
 		else
-			setText(r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false), dontSendNotification);
+        {
+            fullErrorMessage = r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false);
+            
+            setText(fullErrorMessage.upToFirstOccurrenceOf("{", false, false), dontSendNotification);
+        }
 
 		setColour(TextEditor::backgroundColourId, r.wasOk() ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
 	}
@@ -109,8 +113,8 @@ bool DebugConsoleTextEditor::keyPressed(const KeyPress& k)
 
 void DebugConsoleTextEditor::mouseDown(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
-		setText("> ", dontSendNotification);
+	if(!getText().containsChar('>'))
+        setText("> ", dontSendNotification);
 
 	TextEditor::mouseDown(e);
 }
@@ -122,7 +126,7 @@ void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& /*e*/)
 
 void DebugConsoleTextEditor::gotoText()
 {
-	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), getText());
+	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), fullErrorMessage);
 }
 
 void DebugConsoleTextEditor::addToHistory(const String& s)

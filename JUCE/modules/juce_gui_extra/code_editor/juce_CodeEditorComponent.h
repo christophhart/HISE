@@ -347,6 +347,11 @@ public:
     */
     void setCommandManager (ApplicationCommandManager* newManager) noexcept;
 
+    ScrollBar& getScrollbar(bool getHorizontal)
+    {
+        return getHorizontal ? horizontalScrollBar : verticalScrollBar;
+    }
+    
     //==============================================================================
     /** @internal */
     void paint (Graphics&) override;

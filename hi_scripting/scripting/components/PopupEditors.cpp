@@ -222,15 +222,35 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 	compileButton->setButtonText(TRANS("Compile"));
 	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 	compileButton->addListener(this);
-	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
+	compileButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
 
 	addAndMakeVisible(resumeButton = new TextButton("new button"));
 	resumeButton->setButtonText(TRANS("Resume"));
 	resumeButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 	resumeButton->addListener(this);
-	resumeButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
+	resumeButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
 	resumeButton->setVisible(false);
 
+    addAndMakeVisible(errorButton = new HiseShapeButton("error", nullptr, factory));
+    
+    errorButton->setVisible(false);
+    
+    auto offColour = Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
+    
+    errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
+    
+    errorButton->setTooltip("Navigate to the code position that causes the compiliation error.");
+    
+    
+    errorButton->onClick = [this]()
+    {
+        resultLabel->gotoText();
+        dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor()->grabKeyboardFocusAsync();
+    };
+    
+    compileButton->setLookAndFeel(&blaf);
+    resumeButton->setLookAndFeel(&blaf);
+    
 	setSize(800, 800);
 }
 
@@ -323,9 +343,12 @@ PopupIncludeEditor::~PopupIncludeEditor()
 
 void PopupIncludeEditor::timerCallback()
 {
-	resultLabel->setColour(TextEditor::backgroundColourId, lastCompileOk ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
+    errorButton->setVisible(!lastCompileOk);
+    resultLabel->setOK(lastCompileOk);
 	repaint();
+    resized();
 	stopTimer();
+    
 }
 
 
@@ -399,16 +422,19 @@ void PopupIncludeEditor::resized()
 	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
 
 	if(isInPanel)
-		editor->setBounds(0, 0, getWidth(), getHeight() - 18);
+		editor->setBounds(0, 0, getWidth(), getHeight() - BOTTOM_HEIGHT);
 	else
 		editor->setBounds(0, 5, getWidth(), getHeight() - 23);
 
-	auto b = getLocalBounds().removeFromBottom(18);
+	auto b = getLocalBounds().removeFromBottom(BOTTOM_HEIGHT);
 
-	compileButton->setBounds(b.removeFromRight(95));
+	compileButton->setBounds(b.removeFromRight(75));
 
+    if(errorButton->isVisible())
+        errorButton->setBounds(b.removeFromLeft(35).reduced(2).translated(0, 1));
+    
 	if (resumeButton->isVisible())
-		resumeButton->setBounds(b.removeFromRight(95));
+		resumeButton->setBounds(b.removeFromRight(75));
 
 	resultLabel->setBounds(b);
 }

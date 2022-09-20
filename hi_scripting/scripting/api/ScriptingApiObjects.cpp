@@ -7736,6 +7736,9 @@ struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
 		addAndMakeVisible(resetButton);
 		addAndMakeVisible(breakpointButton);
 
+        resetButton.setTooltip("Reset to initial value");
+        breakpointButton.setTooltip("Set a breakpoint when a message is sent");
+        
 		input.setColour(TextEditor::ColourIds::textColourId, Colours::black);
 		input.setColour(Label::ColourIds::backgroundColourId, Colours::white.withAlpha(0.35f));
 		input.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));

@@ -129,6 +129,8 @@ private:
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
 		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
+        
+        ScrollbarFader fader;
 	};
 
 	ScopedPointer<ConsoleEditorComponent> newTextConsole;

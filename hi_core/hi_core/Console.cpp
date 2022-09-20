@@ -44,7 +44,13 @@ CodeEditorComponent(doc, tok)
 
     
 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
+    setColour(CodeEditorComponent::ColourIds::highlightColourId, Colours::white.withAlpha(0.15f));
+    
 	setLineNumbersShown(false);
+    setScrollbarThickness(14);
+    
+    fader.addScrollBarToAnimate(getScrollbar(true));
+    fader.addScrollBarToAnimate(getScrollbar(false));
 }
 
 
@@ -100,12 +106,16 @@ void Console::mouseDown(const MouseEvent &e)
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
+        const int SNIPPET_OFFSET = 1000;
+        const int FILE_OFFSET = 2000;
+
+        JavascriptProcessor *jsp = nullptr;
+        
 		if (id.isNotEmpty() && findParentComponentOfClass<ComponentWithBackendConnection>() != nullptr)
 		{
-			JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
-
-			const int SNIPPET_OFFSET = 1000;
-			const int FILE_OFFSET = 2000;
+            auto rootChain = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain();
+            
+            jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(rootChain, id));
 
 			if (jsp != nullptr)
 			{
@@ -143,39 +153,40 @@ void Console::mouseDown(const MouseEvent &e)
 					m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
 				}
 			}
+		}
+        
+        const int result = m.show();
 
-			const int result = m.show();
+        if (result == 1)
+        {
+            newTextConsole->getDocument().replaceAllContent("");
+            newTextConsole->scrollToLine(0);
 
-			if (result == 1)
-			{
-				newTextConsole->getDocument().replaceAllContent("");
-				newTextConsole->scrollToLine(0);
+        }
+        else if (result == 2)
+        {
+            newTextConsole->moveCaretToEnd(false);
+        }
+        else if (result >= FILE_OFFSET)
+        {
+            if(jsp != nullptr)
+                jsp->showPopupForFile(result - FILE_OFFSET);
+        }
+        else if (result >= SNIPPET_OFFSET)
+        {
+            if(auto js = dynamic_cast<Processor*>(jsp))
+            {
+                const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
+                const int editorStateIndex = (result - SNIPPET_OFFSET);
 
-			}
-			else if (result == 2)
-			{
-				newTextConsole->moveCaretToEnd(false);
-			}
-			else if (result >= FILE_OFFSET)
-			{
-				jsp->showPopupForFile(result - FILE_OFFSET);
-			}
-			else if (result >= SNIPPET_OFFSET)
-			{
-				Processor *js = dynamic_cast<Processor*>(jsp);
-
-				const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
-
-				const int editorStateIndex = (result - SNIPPET_OFFSET);
-
-				for (int i = 0; i < jsp->getNumSnippets(); i++)
-				{
-					js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
-				}
+                for (int i = 0; i < jsp->getNumSnippets(); i++)
+                {
+                    js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
+                }
 
                 GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessor(js);
-			}
-		}
+            }
+        }
     }
     else if (e.mods.isAltDown())
     {
@@ -235,45 +246,37 @@ Console::ConsoleTokeniser::ConsoleTokeniser()
 {
 	s.set("id", Colours::white);
 	s.set("default", Colours::white.withBrightness(0.75f));
-	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
-	s.set("url", Colour(0xFF555555));
-	s.set("callstack", JUCE_LIVE_CONSTANT_OFF(Colour(0xffAA3939)));
+	s.set("error", Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.5f));
+	s.set("url", Colour(0xFF444444));
+	s.set("callstack", Colour(HISE_WARNING_COLOUR));
+    s.set("repl", Colour(0xFF67A2BF));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	while (state == 0 && source.nextChar() != ':')
-	{
-		return state;
-	}
-
-	auto c = source.nextChar();
-
-	switch (c)
-	{
-	case '!':
-	{
-		state = 2;
-		break;
-	}
-	case '{':
-	{
-		state = 3;
-		break;
-	}
-	case '\t':
-	{
-		state = 4;
-		break;
-	}
-	case '\n':
-	{
-		state = 0;
-		break;
-	}
-	}
-	
-	return state;
+    auto c = source.peekNextChar();
+    
+    static const String tokenChars = ":\n!{\t>";
+    
+    auto tokenIndex = tokenChars.indexOfChar(c);
+    
+    if(tokenIndex == -1)
+        tokenIndex = 1;
+    else
+        c = source.nextChar();
+    
+    while(!source.isEOF())
+    {
+        auto nextToken = tokenChars.indexOfChar(source.peekNextChar());
+        auto newToken = nextToken != -1;
+        
+        if(newToken)
+            break;
+        else
+            source.skip();
+    }
+    
+    return tokenIndex;
 }
 
 
