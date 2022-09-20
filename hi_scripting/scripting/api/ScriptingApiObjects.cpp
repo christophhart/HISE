@@ -713,14 +713,20 @@ bool ScriptingObjects::ScriptFile::rename(String newName)
 	return f.moveFileTo(newFile);
 }
 
-bool ScriptingObjects::ScriptFile::move(String target)
+bool ScriptingObjects::ScriptFile::move(var target)
 {	
-	return f.moveFileTo(target);
+	if (auto sf = dynamic_cast<ScriptFile*>(target.getObject()))
+		return f.moveFileTo(sf->f);
+	else
+		reportScriptError("target is not a file");
 }
 
-bool ScriptingObjects::ScriptFile::copy(String target)
+bool ScriptingObjects::ScriptFile::copy(var target)
 {	
-	return f.copyFileTo(target);
+	if (auto sf = dynamic_cast<ScriptFile*>(target.getObject()))
+		return f.copyFileTo(sf->f);
+	else
+			reportScriptError("target is not a file");
 }
 
 juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
