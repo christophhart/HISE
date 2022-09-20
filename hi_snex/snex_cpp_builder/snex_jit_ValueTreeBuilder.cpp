@@ -466,7 +466,22 @@ Node::Ptr ValueTreeBuilder::parseNode(const ValueTree& n)
 		newNode = wrapNode(newNode, NamespacedIdentifier::fromString("wrap::no_process"));
 	}
 
-	return parseRoutingNode(newNode);
+	return parseFaustNode(newNode);
+}
+
+Node::Ptr ValueTreeBuilder::parseFaustNode(Node::Ptr u)
+{
+	if (u->nodeTree[PropertyIds::FactoryPath].toString() == "core.faust")
+	{
+		auto nodeProperties = u->nodeTree.getChildWithName(PropertyIds::Properties);
+		auto faustClass = nodeProperties.getChildWithProperty(PropertyIds::ID, PropertyIds::ClassId.toString())[PropertyIds::Value].toString();
+		auto faustPath = "project::" + faustClass;
+		u = createNode(u->nodeTree, getNodeId(u->nodeTree).getIdentifier(), faustPath);
+		faustClassIds->insert(faustClass);
+		DBG("Exporting faust scriptnode, class: " + faustClass);
+	}
+		
+	return parseRoutingNode(u);
 }
 
 Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
