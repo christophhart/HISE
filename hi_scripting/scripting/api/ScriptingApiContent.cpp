@@ -1516,6 +1516,11 @@ void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible,
 	}
 }
 
+juce::var ScriptingApi::Content::ScriptComponent::getLookAndFeelObject()
+{
+	return localLookAndFeel;
+}
+
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setValuePopupFunction);
@@ -4992,7 +4997,17 @@ var ScriptingApi::Content::getComponent(var componentName)
 	for (int i = 0; i < components.size(); i++)
 	{
 		if (n == components[i]->getName())
+		{
+#if USE_BACKEND
+			if (componentToThrowAtDefinition.get() == components[i].get())
+			{
+				componentToThrowAtDefinition = nullptr;
+				reportScriptError(n.toString() + " is defined here");
+			}
+#endif
+
 			return var(components[i].get());
+		}
 	}
 
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
@@ -5806,6 +5821,22 @@ void ScriptingApi::Content::callAfterDelay(int milliSeconds, var function, var t
 		{
 			cb.call(nullptr, 0);
 		});
+}
+
+void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)
+{
+	componentToThrowAtDefinition = sc;
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		auto rf = [this, jp](const JavascriptProcessor::SnippetResult& r)
+		{
+			componentToThrowAtDefinition = nullptr;
+			jp->compileScript({});
+		};
+
+		jp->compileScript(rf);
+	}
 }
 
 #undef ADD_TO_TYPE_SELECTOR

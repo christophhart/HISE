@@ -762,6 +762,8 @@ namespace ScriptingObjects
             return 0;
 		}
 
+		Location getLocation() const override;
+
 		DebugInformationBase* getChildElement(int index) override
 		{
 			WeakReference<ScriptedLookAndFeel> safeThis(this);

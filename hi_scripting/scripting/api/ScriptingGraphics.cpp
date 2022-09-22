@@ -2256,6 +2256,19 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 	return {};
 }
 
+hise::DebugableObjectBase::Location ScriptingObjects::ScriptedLookAndFeel::getLocation() const
+{
+	for (const auto& s : functions.getDynamicObject()->getProperties())
+	{
+		if (auto obj = dynamic_cast<DebugableObjectBase*>(s.value.getObject()))
+		{
+			return obj->getLocation();
+		}
+	}
+
+	return Location();
+}
+
 Identifier ScriptingObjects::ScriptedLookAndFeel::Laf::getIdOfParentFloatingTile(Component& c)
 {
 	if (auto ft = c.findParentComponentOfClass<FloatingTile>())

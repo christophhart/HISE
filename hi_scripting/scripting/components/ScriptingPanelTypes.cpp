@@ -304,7 +304,10 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 
 		for (int i = 0; i < jp->getNumWatchedFiles(); i++)
 		{
-			if (jp->getWatchedFile(i).getFullPathName() == fileName)
+			auto f = jp->getWatchedFile(i);
+
+			if (f.getFullPathName() == fileName ||
+				f.getFileName() == fileName)
 			{
 				fileIndex = i;
 				break;
