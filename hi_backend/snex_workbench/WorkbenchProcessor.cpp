@@ -1055,6 +1055,15 @@ void DspNetworkCompileExporter::run()
                 return;
             }
             
+			if (id.compareIgnoreCase(e.getFileNameWithoutExtension()) != 0)
+			{
+				errorMessage << "Error at exporting `" << e.getFileName() << "`: Name mismatch between DSP network file and Root container.  \n>";
+				errorMessage << "You need to either rename the file to `" << id;
+				errorMessage << ".xml` or edit the XML data and set the root node's ID to `" << e.getFileNameWithoutExtension() << "`.";
+				ok = ErrorCodes::ProjectXmlInvalid;
+				return;
+			}
+
 			if(cppgen::StringHelpers::makeValidCppName(id).compareIgnoreCase(id) != 0)
 			{
 				errorMessage << "Illegal ID: `" << id << "`  \n> The network ID must be a valid C++ identifier";

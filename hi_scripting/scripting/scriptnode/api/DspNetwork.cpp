@@ -148,6 +148,10 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	setRootNode(createFromValueTree(true, data.getChild(0), true));
 	networkParameterHandler.root = getRootNode();
 
+	initialId = getId();
+
+	idGuard.setCallback(getRootNode()->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(DspNetwork::checkId));
+
 	ADD_API_METHOD_1(processBlock);
 	ADD_API_METHOD_2(prepareToPlay);
 	ADD_API_METHOD_2(create);
@@ -1037,6 +1041,22 @@ juce::String DspNetwork::getNonExistentId(String id, StringArray& usedIds) const
 	usedIds.add(id);
 
 	return id;
+}
+
+void DspNetwork::checkId(const Identifier& id, const var& newValue)
+{
+	auto newId = newValue.toString();
+
+	auto ok = newId == initialId;
+
+	if (ok)
+		getExceptionHandler().removeError(getRootNode(), scriptnode::Error::RootIdMismatch);
+	else
+	{
+		Error e;
+		e.error = Error::RootIdMismatch;
+		getExceptionHandler().addError(getRootNode(), e, "ID mismatch between DSP network file and root container.  \n> Rename the root container back to `" + initialId + "` in order to clear this error.");
+	}
 }
 
 juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& changes, bool changeIds)

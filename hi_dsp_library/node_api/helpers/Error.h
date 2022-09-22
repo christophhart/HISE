@@ -54,6 +54,7 @@ struct Error
 	{
 		OK,
 		NoMatchingParent,
+		RootIdMismatch,
 		ChannelMismatch,
 		BlockSizeMismatch,
 		IllegalFrameCall,

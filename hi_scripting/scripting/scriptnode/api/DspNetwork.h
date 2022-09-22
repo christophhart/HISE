@@ -960,7 +960,15 @@ public:
     
 	String getNonExistentId(String id, StringArray& usedIds) const;
 
+	
+
 private:
+
+	String initialId;
+
+	void checkId(const Identifier& id, const var& newValue);
+
+	valuetree::PropertyListener idGuard;
 
     bool signalDisplayEnabled = false;
     
