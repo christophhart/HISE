@@ -593,7 +593,7 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
         
 #if ENABLE_SCRIPTING_BREAKPOINTS
         
-        LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, const_cast<FunctionObject*>(this));
+        LocalScopeCreator::ScopedSetter sls(s.root, const_cast<FunctionObject*>(this));
         
         {
             SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
@@ -819,7 +819,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 
 	if (FunctionObject* fo = dynamic_cast<FunctionObject*> (function.getObject()))
     {
-        LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, fo);
+        LocalScopeCreator::ScopedSetter sls(s.root, fo);
 		return fo->invoke(s, args);
     }
 

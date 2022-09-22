@@ -470,8 +470,40 @@ public:
         {
             using Ptr = WeakReference<LocalScopeCreator>;
             
-            using ScopedSetter = ScopedValueSetter<LocalScopeCreator::Ptr>;
-            
+			struct ScopedSetter
+			{
+				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p):
+					r(r_.get())
+				{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+					auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+
+					if (!isMessageThread)
+					{
+						auto& cp = r->currentLocalScopeCreator.get();
+						prevValue = p;
+						std::swap(prevValue, cp);
+						ok = true;
+					}
+#endif
+				}
+
+				~ScopedSetter()
+				{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+					if (ok)
+					{
+						auto& cp = r->currentLocalScopeCreator.get();
+						std::swap(cp, prevValue);
+					}
+#endif
+				};
+
+				RootObject* r;
+				LocalScopeCreator::Ptr prevValue;
+				bool ok = false;
+			};
+
             virtual ~LocalScopeCreator() {};
             
             virtual DynamicObject::Ptr createScope(RootObject* r) = 0;
@@ -479,7 +511,7 @@ public:
             JUCE_DECLARE_WEAK_REFERENCEABLE(LocalScopeCreator);
         };
         
-        LocalScopeCreator::Ptr currentLocalScopeCreator;
+		ThreadLocalValue<LocalScopeCreator::Ptr> currentLocalScopeCreator;
         
 		struct Statement;
 		struct Expression;

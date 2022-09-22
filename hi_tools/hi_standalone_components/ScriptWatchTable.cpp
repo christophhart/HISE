@@ -959,12 +959,15 @@ ScriptWatchTable::Info::Info(DebugInformationBase::Ptr di, Info* p_, int l /*= 0
 	
 	auto numElements = di->getNumChildElements();
 
-	for (int i = 0; i < numElements; i++)
+	if (l < 10)
 	{
-		if (auto li = di->getChildElement(i))
+		for (int i = 0; i < numElements; i++)
 		{
-			if (li->isWatchable())
-				children.add(new Info(li, this, l + 1));
+			if (auto li = di->getChildElement(i))
+			{
+				if (li->isWatchable())
+					children.add(new Info(li, this, l + 1));
+			}
 		}
 	}
 }

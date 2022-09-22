@@ -468,7 +468,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var performDynamically(const Scope& s, const var* args, int numArgs)
 		{
-            LocalScopeCreator::ScopedSetter sls(s.root->currentLocalScopeCreator, this);
+            LocalScopeCreator::ScopedSetter sls(s.root, this);
             
 			setFunctionCall(dynamicFunctionCall);
 
@@ -604,7 +604,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		{
 			f->setFunctionCall(this);
 
-            LocalScopeCreator::ScopedSetter svs(s.root->currentLocalScopeCreator, f);
+            LocalScopeCreator::ScopedSetter svs(s.root, f);
             
 			for (int i = 0; i < numArgs; i++)
 			{
