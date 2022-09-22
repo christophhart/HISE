@@ -2988,8 +2988,6 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parse()
 	p = getNodePath(n->nodeTree);
 	classId = ValueTreeIterator::getSnexCode(n->nodeTree);
 
-	
-
 	if (classId.isEmpty())
 	{
 		Error e;
@@ -2998,31 +2996,27 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parse()
 		throw e;
 	}
 
-	// You have to set a code provider
-	jassert(parent.codeProvider != nullptr);
-	code = parent.codeProvider->getCode(getNodePath(n->nodeTree), classId);
+	if (!parent.definedSnexClasses.contains(classId))
+	{
+		// You have to set a code provider
+		jassert(parent.codeProvider != nullptr);
+		code = parent.codeProvider->getCode(getNodePath(n->nodeTree), classId);
+
+		parent << code;
+		parent.addEmptyLine();
+		parent.definedSnexClasses.add(classId);
+	}
 
 	if (needsWrapper(p))
-	{
 		return parseWrappedSnexNode();
-	}
 	else
-	{
 		return parseUnwrappedSnexNode();
-	}
 }
 
 Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseWrappedSnexNode()
 {
 	Node::Ptr wn = new Node(parent, n->scopedId.id, p);
 	wn->nodeTree = n->nodeTree;
-	
-	if (!parent.definedSnexClasses.contains(classId))
-	{
-		parent << code;
-		parent.addEmptyLine();
-		parent.definedSnexClasses.add(classId);
-	}
 		
 	if (CustomNodeProperties::nodeHasProperty(wn->nodeTree, PropertyIds::IsPolyphonic))
 		wn->addTemplateIntegerArgument("NV", true);
@@ -3030,9 +3024,7 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseWrappedSnexNode()
 	UsingTemplate ud(parent, "unused", NamespacedIdentifier(classId));
 
 	if (wn->hasProperty(PropertyIds::TemplateArgumentIsPolyphonic))
-	{
 		ud.addTemplateIntegerArgument("NV", true);
-	}
 
 	*wn << ud;
 
@@ -3048,9 +3040,6 @@ Node::Ptr ValueTreeBuilder::SnexNodeBuilder::parseUnwrappedSnexNode()
 	wn->nodeTree = n->nodeTree;
 
 	wn->addTemplateIntegerArgument("NV", true);
-
-	parent << code;
-	parent.addEmptyLine();
 
 	return wn;
 }
