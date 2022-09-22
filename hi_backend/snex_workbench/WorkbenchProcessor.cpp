@@ -1520,6 +1520,12 @@ void DspNetworkCompileExporter::createProjucerFile()
     REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", useIpp ? "/opt/intel/ipp/lib" : String());
 #endif
 
+#if JUCE_LINUX
+    REPLACE_WILDCARD_WITH_STRING("%USE_IPP_LINUX%", useIpp ? "USE_IPP=1" : "USE_IPP=0");
+    REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
+    REPLACE_WILDCARD_WITH_STRING("%HEADER_PATH_LINUX%", "headerPath=\"/home/etxzat/Repo/GSoC/faust_wrap\""); // TODO: replace with runtime path!
+#endif
+
 	REPLACE_WILDCARD_WITH_STRING("%DEBUG_DLL_NAME%", dbgName);
 	REPLACE_WILDCARD_WITH_STRING("%RELEASE_DLL_NAME%", rlsName);
 	REPLACE_WILDCARD_WITH_STRING("%CI_DLL_NAME%", ciName);
