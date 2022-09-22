@@ -50,7 +50,7 @@ template <typename T> struct RampWrapper
 		JIT_MEMBER_WRAPPER_0(T, Type, advance);
 		JIT_MEMBER_WRAPPER_0(T, Type, get);
 		JIT_MEMBER_WRAPPER_2(void, Type, prepare, double, double);
-		JIT_MEMBER_WRAPPER_0(bool, Type, isActive);
+		JIT_MEMBER_WRAPPER_0(int, Type, isActive);
 	};
 
 
@@ -72,11 +72,14 @@ struct EventWrapper
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setChannel, int);
 		JIT_MEMBER_WRAPPER_1(void, HiseEvent, setNoteNumber, int);
 		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getTimeStamp);
-		JIT_MEMBER_WRAPPER_0(bool, HiseEvent, isNoteOn);
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, isNoteOn);
 		JIT_MEMBER_WRAPPER_0(double, HiseEvent, getFrequency);
-		JIT_MEMBER_WRAPPER_0(bool, HiseEvent, isEmpty);
+		JIT_MEMBER_WRAPPER_0(int, HiseEvent, isEmpty);
 		JIT_MEMBER_WRAPPER_0(void, HiseEvent, clear);
 		JIT_MEMBER_WRAPPER_0(int, HiseEvent, getEventId);
+
+
+#define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
 	};
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
