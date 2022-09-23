@@ -7693,6 +7693,7 @@ struct ScriptingObjects::ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
     API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setRealtimeMode);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, resendLastMessage);
 };
 
 struct ScriptingObjects::ScriptBroadcaster::Display: public Component,
@@ -8029,6 +8030,7 @@ ScriptingObjects::ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingCon
 	ADD_API_METHOD_1(setReplaceThisReference);
 	ADD_API_METHOD_1(setEnableQueue);
     ADD_API_METHOD_1(setRealtimeMode);
+	ADD_API_METHOD_1(resendLastMessage);
     
 	if (auto obj = defaultValue.getDynamicObject())
 	{
@@ -8250,7 +8252,7 @@ void ScriptingObjects::ScriptBroadcaster::sendMessage(var args, bool isSync)
 		newValues.add(v);
 	}
 
-	if (somethingChanged || enableQueue)
+	if (somethingChanged || enableQueue || forceSend)
 	{
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(lastValueLock);
@@ -8324,6 +8326,13 @@ void ScriptingObjects::ScriptBroadcaster::reset()
 
 	if (!ok.wasOk())
 		reportScriptError(ok.getErrorMessage());
+}
+
+void ScriptingObjects::ScriptBroadcaster::resendLastMessage(bool isSync)
+{
+	ScopedValueSetter<bool> svs(forceSend, true);
+
+	sendMessage(var(lastValues), isSync);
 }
 
 Array<ScriptingApi::Content::ScriptComponent*> getComponentsFromVar(ProcessorWithScriptingContent* p, var componentIds)
