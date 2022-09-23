@@ -473,9 +473,6 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 
 	setEnabled(enabled);
 
-	numberTag->setNumber(enabled ? 0 : getMacroIndex()+1);
-	
-
 	const double value = (double)getProcessor()->getAttribute(parameter);
 
 	modeValues[mode] = value;
@@ -747,8 +744,6 @@ void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
 void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)
 {
 	const bool enabled = !isLocked();
-
-	if(enabled) numberTag->setNumber(0);
 
 	setEnabled(enabled);
 
