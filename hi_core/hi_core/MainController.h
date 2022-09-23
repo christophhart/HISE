@@ -671,6 +671,8 @@ public:
 				{
 					if (target != nullptr)
 						return target->lastValue;
+                    
+                    return 0.0;
 				}
 
 				CustomAutomationData::Ptr target;

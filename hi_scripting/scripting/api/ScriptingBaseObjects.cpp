@@ -752,7 +752,7 @@ Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* retur
 	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();
-		return Result::fail("Engine is dangling");
+        return Result::ok();
 	}
 
 	if (weakCallback.get() != nullptr)
