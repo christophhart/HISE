@@ -725,6 +725,7 @@ void OfflineChainNode::handleHiseEvent(HiseEvent& e)
 
 void OfflineChainNode::reset()
 {
+	obj.reset();
 }
 
 struct CloneOptionComponent : public Component,

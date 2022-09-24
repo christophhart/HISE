@@ -189,7 +189,7 @@ public:
 
 private:
 
-	wrap::data<wrap::offline<SerialNode::DynamicSerialProcessor>, scriptnode::data::dynamic::audiofile> obj;
+	wrap::offline<SerialNode::DynamicSerialProcessor> obj;
 };
 
 namespace wrap {

@@ -817,67 +817,25 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 
 
 /** A wrapper node that will render its child node to a external data object. */
-template <class T> class offline : public scriptnode::data::base
+template <class T> class offline
 {
 public:
 
-	static const int NumTables = 0;
-	static const int NumSliderPacks = 0;
-	static const int NumAudioFiles = 1;
-	static const int NumFilters = 0;
-	static const int NumDisplayBuffers = 0;
-
-	SN_SELF_AWARE_WRAPPER(offline, T);
+	SN_OPAQUE_WRAPPER(offline, T);
 
 	SN_EMPTY_PROCESS;
 	SN_EMPTY_PROCESS_FRAME;
-	SN_EMPTY_PREPARE;
-	SN_EMPTY_RESET;
 	SN_EMPTY_HANDLE_EVENT;
 	
 	void initialise(NodeBase* n) { obj.initialise(n); }
 
-	void setExternalData(const snex::ExternalData& data, int index) override
-	{
-		if (recursion || data.isEmpty())
-			return;
+	void prepare(PrepareSpecs ps) { obj.prepare(ps); }
 
-		ScopedValueSetter<bool> svs(recursion, true);
-
-		PrepareSpecs ps;
-		ps.blockSize = 512;
-		ps.numChannels = data.numChannels;
-		ps.sampleRate = data.sampleRate;
-
-		getWrappedObject().prepare(ps);
-		getWrappedObject().reset();
-		
-		ProcessDataDyn pd((float**)data.data, data.numSamples, data.numChannels);
-
-		ChunkableProcessData cd(pd);
-
-		while (cd.getNumLeft() > ps.blockSize)
-		{
-			auto c = cd.getChunk(ps.blockSize);
-			getWrappedObject().process(c.toData());
-		}
-
-		if (cd.getNumLeft() > 0)
-		{
-			auto c = cd.getRemainder();
-			getWrappedObject().process(c.toData());
-		}
-
-		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(data.obj))
-		{
-			af->loadBuffer(data.toAudioSampleBuffer(), data.sampleRate);
-		}
-	}
+	void reset() { obj.reset(); }
 
 private:
 
 	T obj;
-	bool recursion = false;
 };
 
 #if 0

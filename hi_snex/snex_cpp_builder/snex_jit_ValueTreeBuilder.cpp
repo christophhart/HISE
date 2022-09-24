@@ -730,6 +730,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::event"));
 		}
+		if (realPath.startsWith("offline"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::offline"));
+		}
 		if (realPath.startsWith("no_midi"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::no_midi"));
