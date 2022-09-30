@@ -589,17 +589,23 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
     
 	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
 
+
+	const int broadcasterMap = ib.addChild<ScriptingObjects::ScriptBroadcaster::Panel>(codeEditor);
 	const int consoleId = ib.addChild<ConsolePanel>(codeEditor);
+
 
 	ib.getPanel(variableWatch)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_watch);
 
 	ib.getPanel(consoleId)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_console);
 
 	ib.setCustomName(codeEditor, "Code Editor");
-	ib.setSizes(codeEditor, { -0.75, -0.25 });
+	ib.setSizes(codeEditor, { -0.6, -0.2, -0.2 });
 	ib.setSizes(codeVertical, { -0.8, -0.2 });
 
+
+
 	ib.getContent<FloatingTileContent>(variableWatch)->setStyleProperty("showConnectionBar", false);
+	ib.getContent<FloatingTileContent>(broadcasterMap)->setStyleProperty("showConnectionBar", false);
 
 	ib.getContent(codeVertical)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);
 	ib.getContent(codeEditor)->setPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::transparentBlack);

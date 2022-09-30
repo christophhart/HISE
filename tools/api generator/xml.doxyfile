@@ -854,7 +854,8 @@ FILE_PATTERNS          = ScriptingApiObjects.h \
                          ScriptExpansion.h \
                          ScriptingGraphics.h \
                          FixLayoutObjects.h \
-                         TestClasses.h
+                         TestClasses.h \
+                         ScriptBroadcaster.h
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.

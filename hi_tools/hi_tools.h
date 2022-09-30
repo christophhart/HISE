@@ -219,6 +219,7 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"
 #include "hi_standalone_components/ScriptWatchTable.h"
+#include "hi_standalone_components/ComponentWithPreferredSize.h"
 #endif
 
 #if HISE_INCLUDE_RLOTTIE

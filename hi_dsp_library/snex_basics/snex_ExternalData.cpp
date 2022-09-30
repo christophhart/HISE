@@ -295,6 +295,20 @@ juce::AudioSampleBuffer ExternalData::toAudioSampleBuffer() const
 		return AudioSampleBuffer((float**)&data, 1, numSamples);
 }
 
+snex::ExternalData::DataType ExternalData::getDataTypeForId(const Identifier& id, bool plural/*=false*/)
+{
+	for (int i = 0; i < (int)DataType::numDataTypes; i++)
+	{
+		Identifier a(getDataTypeName((DataType)i, plural));
+
+		if (a == id)
+			return (DataType)i;
+	}
+
+	jassertfalse;
+	return DataType::numDataTypes;
+}
+
 snex::ExternalData::DataType ExternalData::getDataTypeForClass(ComplexDataUIBase* d)
 {
 	if (auto s = dynamic_cast<SliderPackData*>(d))

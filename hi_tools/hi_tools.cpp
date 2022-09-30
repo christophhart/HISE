@@ -79,6 +79,7 @@
 #include "hi_standalone_components/CodeEditorApiBase.cpp"
 #include "hi_standalone_components/AdvancedCodeEditor.cpp"
 #include "hi_standalone_components/ScriptWatchTable.cpp"
+#include "hi_standalone_components/ComponentWithPreferredSize.cpp"
 
 
 #include "hi_tools/JavascriptTokeniser.cpp"

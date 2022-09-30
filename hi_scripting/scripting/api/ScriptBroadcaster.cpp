@@ -47,6 +47,48 @@ struct BroadcasterHelpers
 			return 1;
 	}
 
+	static var getArg(const var& v, int idx)
+	{
+		if (v.isArray())
+			return v[idx];
+
+		jassert(idx == 0);
+		return v;
+	}
+
+	static var getListOrFirstElement(const var& l)
+	{
+		if (!l.isArray() || l.size() != 1)
+			return l;
+
+		return l[0];
+	}
+
+	static var getIdListAsVar(const Array<Identifier>& propertyIds)
+	{
+		Array<var> list;
+
+		for (const auto& id : propertyIds)
+			list.add(id.toString());
+
+		return var(list);
+	}
+
+	static Array<Identifier> getIdListFromVar(const var& propertyIds)
+	{
+		Array<Identifier> idList;
+
+		idList.add(Identifier(getArg(propertyIds, 0).toString()));
+
+		if (propertyIds.isArray())
+		{
+			for (int i = 1; i < propertyIds.size(); i++)
+				idList.add(Identifier(getArg(propertyIds, i).toString()));
+		}
+
+		return idList;
+	}
+
 	static Array<ScriptingApi::Content::ScriptComponent*> getComponentsFromVar(ProcessorWithScriptingContent* p, var componentIds)
 	{
 		using ScriptComp = ScriptingApi::Content::ScriptComponent;
@@ -83,6 +125,86 @@ struct BroadcasterHelpers
 		}
 
 		return list;
+	}
+
+	static void callForEachIfArray(const var& obj, const std::function<bool(const var& d)>& f)
+	{
+		if (obj.isArray())
+		{
+			for (const auto& v : *obj.getArray())
+			{
+				if (!f(v))
+					break;
+			}
+		}
+		else
+			f(obj);
+	}
+};
+
+struct ComponentPropertyMapItem : public hise::MapItemWithScriptComponentConnection
+{
+	ComponentPropertyMapItem(ScriptComponent* sc, const Array<Identifier>& ids) :
+		MapItemWithScriptComponentConnection(sc, 180, 24)
+	{
+		auto updater = sc->getScriptProcessor()->getMainController_()->getGlobalUIUpdater();
+		WeakReference<ScriptComponent> weakRef(sc);
+
+		childLayout = ComponentWithPreferredSize::Layout::ChildrenAreRows;
+
+		for (auto id : ids)
+		{
+			addChildWithPreferredSize(new LiveUpdateVarBody(updater, id, [weakRef, id]()
+				{
+					if (weakRef != nullptr)
+					{
+						return weakRef->getScriptObjectProperty(id);
+					}
+
+					return var();
+				}));
+		}
+
+		marginTop = 24;
+		marginLeft = 5;
+		marginRight = 5;
+		marginBottom = 5;
+	}
+
+	int getPreferredWidth() const override { return getMaxWidthOfChildComponents(this); };
+	int getPreferredHeight() const override { return getSumOfChildComponentHeight(this); };
+
+	void resized() override
+	{
+		resizeChildren(this);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		if (sc != nullptr)
+			g.drawText(sc->getName().toString(), getLocalBounds().removeFromTop(28).toFloat(), Justification::centred);
+	}
+
+	void timerCallback() override
+	{
+
+	};
+
+	static ComponentWithPreferredSize* create(Component* root, const var& v)
+	{
+		if (auto obj = v.getDynamicObject())
+		{
+			auto c = obj->getProperty("component");
+			auto p = obj->getProperty("properties");
+
+			if (auto sc = dynamic_cast<ScriptComponent*>(c.getObject()))
+				return new ComponentPropertyMapItem(sc, BroadcasterHelpers::getIdListFromVar(p));
+		}
+
+		return nullptr;
 	}
 };
 
@@ -192,7 +314,7 @@ struct ScriptBroadcaster::Display: public Component,
 
 	struct Row : public Component
 	{
-		Row(ItemBase* i, Display& parent, JavascriptProcessor* jp_) :
+		Row(TargetBase* i, Display& parent, JavascriptProcessor* jp_) :
 			item(i),
 			jp(jp_),
 			gotoButton("workspace", nullptr, parent),
@@ -282,7 +404,7 @@ struct ScriptBroadcaster::Display: public Component,
 		JavascriptProcessor* jp;
 		HiseShapeButton gotoButton;
 		HiseShapeButton powerButton;
-		WeakReference<ItemBase> item;
+		WeakReference<TargetBase> item;
 		Path delayIcon;
 	};
 
@@ -373,7 +495,7 @@ struct ScriptBroadcaster::Display: public Component,
 		if (auto obj = getObject<ScriptBroadcaster>())
 		{
 			if (obj->attachedListener != nullptr)
-				g.drawText("Source: " + obj->attachedListener->getListenerType().toString(), b.toFloat(), Justification::centred);
+				g.drawText("Source: " + obj->attachedListener->getItemId().toString(), b.toFloat(), Justification::centred);
 		}
 	}
 
@@ -436,7 +558,24 @@ struct ScriptBroadcaster::ComponentPropertyListener::InternalListener
 	valuetree::PropertyListener listener;
 };
 
-ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBroadcaster* b, var componentIds, const Array<Identifier>& propertyIds)
+Array<juce::var> ScriptBroadcaster::ComponentPropertyListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+	{
+		DynamicObject::Ptr obj = new DynamicObject();
+		obj->setProperty("component", var(i->sc.get()));
+		obj->setProperty("properties", BroadcasterHelpers::getIdListAsVar(propertyIds));
+		list.add(var(obj.get()));
+	}
+
+	return list;
+}
+
+ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBroadcaster* b, var componentIds, const Array<Identifier>& propertyIds_, const var& metadata):
+	ListenerBase(metadata),
+	propertyIds(propertyIds_)
 {
 	for (auto sc : BroadcasterHelpers::getComponentsFromVar(b->getScriptProcessor(), componentIds))
 	{
@@ -453,7 +592,12 @@ ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBr
 	}
 }
 
-juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(ItemBase* n)
+void ScriptBroadcaster::ComponentPropertyListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	factory.registerWithCreate<ComponentPropertyMapItem>();
+}
+
+juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add(0);
@@ -483,14 +627,16 @@ juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(ItemBase* n)
 
 
 
-ScriptBroadcaster::Item::Item(ProcessorWithScriptingContent* p, int numArgs, const var& obj_, const var& f) :
-	ItemBase(obj_, f),
-	callback(p, f, numArgs)
+
+
+ScriptBroadcaster::ScriptTarget::ScriptTarget(ScriptBroadcaster* sb, int numArgs, const var& obj_, const var& f, const var& metadata) :
+	TargetBase(obj_, f, metadata),
+	callback(sb->getScriptProcessor(), sb, f, numArgs)
 {
 	callback.incRefCount();
 }
 
-Result ScriptBroadcaster::Item::callSync(const Array<var>& args)
+Result ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
 {
 #if USE_BACKEND
 	if (!enabled)
@@ -501,8 +647,8 @@ Result ScriptBroadcaster::Item::callSync(const Array<var>& args)
 	return callback.callSync(a, nullptr);
 }
 
-ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f_, int milliseconds) :
-	ItemBase(obj_, f_),
+ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f_, int milliseconds, const var& metadata) :
+	TargetBase(obj_, f_, metadata),
 	ms(milliseconds),
 	f(f_),
 	parent(bc)
@@ -512,15 +658,15 @@ ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& ob
 
 Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 {
-	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms);
+	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms, obj);
 	return Result::ok();
 }
 
-ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_):
-	ItemBase(var(target_), transformFunction),
+ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_, const var& metadata):
+	TargetBase(var(target_), transformFunction, metadata),
 	parent(parent_),
 	target(target_),
-	argTransformFunction(parent->getScriptProcessor(), transformFunction, parent->defaultValues.size()),
+	argTransformFunction(parent->getScriptProcessor(), parent_, transformFunction, parent->defaultValues.size()),
 	async(async_)
 {
 	argTransformFunction.incRefCount();
@@ -621,13 +767,150 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	const Array<int> parameterIndexes;
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes)
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata):
+	ListenerBase(metadata)
 {
 	for (auto& p : processors)
 		listeners.add(new ProcessorListener(b, p, parameterIndexes));
 }
 
-Result ScriptBroadcaster::ModuleParameterListener::callItem(ItemBase* n)
+void ScriptBroadcaster::ModuleParameterListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct ModuleConnectionViewer : public Component,
+									public ComponentWithPreferredSize
+	{
+		struct ParameterConnection : public Component,
+									 public ComponentWithPreferredSize,
+									 PooledUIUpdater::SimpleTimer
+		{
+			ParameterConnection(Processor* p, int index_):
+				SimpleTimer(p->getMainController()->getGlobalUIUpdater()),
+				index(index_),
+				processor(p)
+			{
+
+			}
+
+			void timerCallback() override
+			{
+				if (processor != nullptr)
+				{
+					if (value.setModValueIfChanged(processor->getAttribute(index)))
+						alpha.setModValue(1.0);
+				}
+
+				if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05f)))
+				{
+					repaint();
+				}
+			}
+
+			String getText() const
+			{
+				String t;
+
+				if (processor != nullptr)
+				{
+					t << processor->getId();
+					t << ".";
+					t << processor->getIdentifierForParameterIndex(index).toString();
+					t << ": ";
+					t << String(processor->getAttribute(index), 1);
+				}
+
+				return t;
+			}
+
+			void paint(Graphics& g) override
+			{
+				auto t = getText();
+
+				auto b = getLocalBounds().toFloat().reduced(4.0f);
+
+				auto a = (float)jlimit(0.0, 1.0, 0.3 + 0.7 * alpha.getModValue());
+
+				g.setColour(Colours::white.withAlpha(a));
+				g.setFont(GLOBAL_MONOSPACE_FONT());
+				g.drawText(t, b.reduced(5), Justification::left);
+			}
+
+			int getPreferredWidth() const override { return GLOBAL_MONOSPACE_FONT().getStringWidth(getText()) + 30; }
+			int getPreferredHeight() const override { return 24; };
+
+			const int index;
+			WeakReference<Processor> processor;
+			ModValue value;
+			ModValue alpha;
+		};
+
+		ModuleConnectionViewer(Processor* p, const Array<int> parameterIndexes)
+		{
+			childLayout = ComponentWithPreferredSize::Layout::ChildrenAreRows;
+
+			marginTop = 10;
+
+			for (auto i : parameterIndexes)
+			{
+				addChildWithPreferredSize(new ParameterConnection(p, i));
+			}
+		};
+
+		void resized() override { resizeChildren(this); };
+
+		int getPreferredWidth() const override { return getMaxWidthOfChildComponents(this); };
+
+		int getPreferredHeight() const override { return getSumOfChildComponentHeight(this); };
+
+		static ComponentWithPreferredSize* create(Component* r, const var& value)
+		{
+			auto mc = dynamic_cast<ControlledObject*>(r)->getMainController();
+			jassert(mc != nullptr);
+
+			if (auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), value["processorId"].toString()))
+			{
+				auto list = value["parameterIds"];
+
+				if (list.isArray())
+				{
+					Array<int> indexes;
+
+					for (auto param : *list.getArray())
+					{
+						auto idx = p->getParameterIndexForIdentifier(param.toString());
+
+						if (idx != -1)
+							indexes.add(idx);
+					}
+
+					return new ModuleConnectionViewer(p, indexes);
+				}
+			}
+
+			return nullptr;
+		}
+	};
+
+	factory.registerWithCreate<ModuleConnectionViewer>();
+}
+
+Array<juce::var> ScriptBroadcaster::ModuleParameterListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : listeners)
+	{
+		DynamicObject::Ptr p = new DynamicObject();
+		
+		p->setProperty("processorId", i->p->getId());
+		p->setProperty("parameterIds", i->parameterNames);
+
+		list.add(var(p.get()));
+	}
+
+	return list;
+}
+
+Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -702,7 +985,7 @@ struct ScriptBroadcaster::ComplexDataListener::Item : public ComplexDataUIUpdate
 	int index;
 };
 
-juce::Identifier ScriptBroadcaster::ComplexDataListener::getListenerType() const
+juce::Identifier ScriptBroadcaster::ComplexDataListener::getItemId() const
 {
 	return typeId;
 }
@@ -712,7 +995,9 @@ ScriptBroadcaster::ComplexDataListener::ComplexDataListener(ScriptBroadcaster* b
 	ExternalData::DataType dataType,
 	bool isDisplayListener,
 	Array<int> indexList,
-	const String& typeString):
+	const String& typeString,
+	const var& metadata):
+	  ListenerBase(metadata),
 	  typeId(typeString)
 {
 	for (auto eh : list)
@@ -725,7 +1010,24 @@ ScriptBroadcaster::ComplexDataListener::ComplexDataListener(ScriptBroadcaster* b
 	}
 }
 
-Result ScriptBroadcaster::ComplexDataListener::callItem(ItemBase* n)
+Array<juce::var> ScriptBroadcaster::ComplexDataListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+	{
+		DynamicObject* d = new DynamicObject();
+		d->setProperty("processorId", i->processorId);
+		d->setProperty("type", typeId.toString());
+		d->setProperty("index", i->index);
+
+		list.add(var(d));
+	}
+
+	return list;
+}
+
+Result ScriptBroadcaster::ComplexDataListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add("");
@@ -751,10 +1053,68 @@ Result ScriptBroadcaster::ComplexDataListener::callItem(ItemBase* n)
 	return Result::ok();
 }
 
-ScriptBroadcaster::MouseEventListener::MouseEventListener(ScriptBroadcaster* parent, var componentIds, MouseCallbackComponent::CallbackLevel level)
+
+void ScriptBroadcaster::ComplexDataListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	auto f = [](Component* c, const var& v)
+	{
+		ComponentWithPreferredSize* newComp = nullptr;
+
+		if (auto obj = v.getDynamicObject())
+		{
+			auto mc = dynamic_cast<ControlledObject*>(c)->getMainController();
+			jassert(mc != nullptr);
+
+			DBG(JSON::toString(v));
+
+			auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), v["processorId"].toString());
+
+			if (auto h = dynamic_cast<ExternalDataHolder*>(p))
+			{
+				auto idx = (int)v["index"];
+				auto typeId = Identifier(v["type"].toString().upToFirstOccurrenceOf(".", false, false));
+				auto dataType = ExternalData::getDataTypeForId(typeId);
+				auto dataObject = h->getData(dataType, idx);
+
+				jassert(obj != nullptr);
+
+				auto comp = ExternalData::createEditor(dataObject.obj);
+				newComp = new PrefferedSizeWrapper<ComplexDataUIBase::EditorBase, 200, 100>(comp);
+			}
+		}
+
+		return newComp;
+	};
+
+	factory.registerFunction(f);
+}
+
+struct ScriptBroadcaster::MouseEventListener::InternalMouseListener
+{
+	InternalMouseListener(ScriptBroadcaster* parent, ScriptComponent* sc_, MouseCallbackComponent::CallbackLevel l):
+		sc(sc_)
+	{
+		sc->attachMouseListener(parent, l);
+	}
+
+	WeakReference<ScriptComponent> sc;
+};
+
+ScriptBroadcaster::MouseEventListener::MouseEventListener(ScriptBroadcaster* parent, var componentIds, MouseCallbackComponent::CallbackLevel level, const var& metadata):
+	ListenerBase(metadata)
 {
 	for (auto l : BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds))
-		l->attachMouseListener(parent, level);
+		items.add(new InternalMouseListener(parent, l, level));
+}
+
+Array<juce::var> ScriptBroadcaster::MouseEventListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+		list.add(var(i->sc.get()));
+	
+	return list;
 }
 
 struct ScriptBroadcaster::ComponentValueListener::InternalListener
@@ -773,7 +1133,8 @@ struct ScriptBroadcaster::ComponentValueListener::InternalListener
 	WeakReference<ScriptComponent> sc;
 };
 
-ScriptBroadcaster::ComponentValueListener::ComponentValueListener(ScriptBroadcaster* parent, var componentIds)
+ScriptBroadcaster::ComponentValueListener::ComponentValueListener(ScriptBroadcaster* parent, var componentIds, const var& metadata):
+	ListenerBase(metadata)
 {
 	for (auto l : BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds))
 	{
@@ -781,7 +1142,66 @@ ScriptBroadcaster::ComponentValueListener::ComponentValueListener(ScriptBroadcas
 	}
 }
 
-juce::Result ScriptBroadcaster::ComponentValueListener::callItem(ItemBase* n)
+
+
+void ScriptBroadcaster::ComponentValueListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct ComponentValueDisplay : public MapItemWithScriptComponentConnection
+	{
+		ComponentValueDisplay(ScriptComponent* c) :
+			MapItemWithScriptComponentConnection(c, 170, 52)
+		{};
+
+		void timerCallback() override
+		{
+			if (lastValue.setModValueIfChanged(sc->getValueNormalized()))
+			{
+				alpha.setModValue(1.0);
+			}
+			
+			if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05)))
+				repaint();
+		}
+
+		ModValue lastValue, alpha;
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().reduced(8);
+
+			auto valueArea = b.removeFromRight(50).withSizeKeepingCentre(45, 14).toFloat();
+
+			auto top = b.removeFromTop(b.getHeight() / 2).toFloat();
+			auto bottom = b.toFloat();
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(sc->get("text"), top, Justification::left);
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawText(sc->getObjectName().toString(), bottom, Justification::left);
+
+			g.setColour(Colours::white.withAlpha(0.8f * (float)alpha.getModValue() + 0.2f));
+
+			g.drawRoundedRectangle(valueArea, valueArea.getHeight() / 2.0f, 1.0f);
+			valueArea = valueArea.reduced(3.0f);
+
+			g.fillRoundedRectangle(valueArea.removeFromLeft(jmax<float>(valueArea.getHeight(), lastValue.getModValue() * valueArea.getWidth())), valueArea.getHeight() / 2.0f);
+		}
+
+		static ComponentWithPreferredSize* create(Component* c, const var& v)
+		{
+			if (auto sc = dynamic_cast<ScriptComponent*>(v.getObject()))
+				return new ComponentValueDisplay(sc);
+
+			return nullptr;
+		}
+	};
+
+	factory.registerFunction(ComponentValueDisplay::create);
+}
+
+juce::Result ScriptBroadcaster::ComponentValueListener::callItem(TargetBase* n)
 {
 	Array<var> args;
 	args.add(0);
@@ -800,6 +1220,16 @@ juce::Result ScriptBroadcaster::ComponentValueListener::callItem(ItemBase* n)
 	return Result::ok();
 }
 
+Array<juce::var> ScriptBroadcaster::ComponentValueListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+		list.add(i->sc.get());
+
+	return list;
+}
+
 struct ScriptBroadcaster::RadioGroupListener::InternalListener
 {
 	InternalListener(ScriptBroadcaster* b, ScriptComponent* sc) :
@@ -811,7 +1241,8 @@ struct ScriptBroadcaster::RadioGroupListener::InternalListener
 	WeakReference<ScriptComponent> radioButton;
 };
 
-ScriptBroadcaster::RadioGroupListener::RadioGroupListener(ScriptBroadcaster* b, int radioGroupIndex):
+ScriptBroadcaster::RadioGroupListener::RadioGroupListener(ScriptBroadcaster* b, int radioGroupIndex, const var& metadata):
+	ListenerBase(metadata),
 	radioGroup(radioGroupIndex)
 {
 	auto content = b->getScriptProcessor()->getScriptingContent();
@@ -854,6 +1285,74 @@ ScriptBroadcaster::RadioGroupListener::RadioGroupListener(ScriptBroadcaster* b, 
 #endif
 }
 
+Array<juce::var> ScriptBroadcaster::RadioGroupListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+		list.add(var(i->radioButton.get()));
+
+	return list;
+}
+
+
+
+void ScriptBroadcaster::RadioGroupListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct RadioButtonItem : public MapItemWithScriptComponentConnection
+	{
+		RadioButtonItem(ScriptComponent* b) :
+			MapItemWithScriptComponentConnection(b, 100, 28)
+		{
+			text = sc->get("text").toString();
+		}
+
+		static ComponentWithPreferredSize* create(Component* r, const var& v)
+		{
+			if (auto sc = dynamic_cast<ScriptComponent*>(v.getObject()))
+				return new RadioButtonItem(sc);
+
+			return nullptr;
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(on ? 0.8f : 0.4f));
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			auto b = getLocalBounds().toFloat();
+
+			auto circle = b.removeFromLeft(b.getHeight()).withSizeKeepingCentre(8, 8);
+
+			g.drawEllipse(circle, 1.0f);
+
+			if (on)
+				g.fillEllipse(circle.reduced(2.0f));
+
+			g.drawText(text, b, Justification::left);
+		}
+
+		void timerCallback() override
+		{
+			if (sc != nullptr)
+			{
+				auto shouldBeOn = (bool)sc->getValue();
+
+				if (on != shouldBeOn)
+				{
+					on = shouldBeOn;
+					repaint();
+				};
+			}
+		}
+
+		String text;
+		bool on = false;
+	};
+
+	factory.registerFunction(RadioButtonItem::create);
+}
+
 void ScriptBroadcaster::RadioGroupListener::setButtonValueFromIndex(int newIndex)
 {
 	if (currentIndex != newIndex)
@@ -865,7 +1364,7 @@ void ScriptBroadcaster::RadioGroupListener::setButtonValueFromIndex(int newIndex
 	}
 }
 
-juce::Result ScriptBroadcaster::RadioGroupListener::callItem(ItemBase* n)
+juce::Result ScriptBroadcaster::RadioGroupListener::callItem(TargetBase* n)
 {
 	int index = 0;
 	currentIndex = -1;
@@ -881,7 +1380,7 @@ juce::Result ScriptBroadcaster::RadioGroupListener::callItem(ItemBase* n)
 		index++;
 	}
 
-	if (currentIndex != 0)
+	if (currentIndex != -1)
 	{
 		Array<var> args;
 		args.add(currentIndex);
@@ -894,56 +1393,420 @@ juce::Result ScriptBroadcaster::RadioGroupListener::callItem(ItemBase* n)
 	return Result::ok();
 }
 
+
+
+
+Array<juce::var> ScriptBroadcaster::OtherBroadcasterListener::createChildArray() const
+{
+	Array<var> list;
+
+	for(auto s: sources)
+		list.add(var(s.get()));
+
+	return list;
+}
+
+juce::Result ScriptBroadcaster::OtherBroadcasterListener::callItem(TargetBase* n)
+{
+	return Result::ok();
+}
+
+ScriptBroadcaster::DebugableObjectListener::DebugableObjectListener(const var& metadata, DebugableObjectBase* obj_, const Identifier& callbackId_) :
+	ListenerBase(metadata),
+	obj(obj_),
+	callbackId(callbackId_)
+{
+
+}
+
+Array<juce::var> ScriptBroadcaster::DebugableObjectListener::createChildArray() const
+{
+	Array<var> list;
+
+	if (obj != nullptr)
+		list.add(var(dynamic_cast<ReferenceCountedObject*>(obj.get())));
+
+	return list;
+}
+
+void ScriptBroadcaster::DebugableObjectListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct DebugableObjectItem : public Component,
+								 public ComponentWithPreferredSize,
+							     public PathFactory
+	{
+		DebugableObjectItem(Processor* p, DebugableObjectBase* obj):
+			gotoButton("goto", nullptr, *this)
+		{
+			addAndMakeVisible(gotoButton);
+
+			if (auto ptr = DebugableObject::Helpers::getDebugInformation(dynamic_cast<JavascriptProcessor*>(p)->getProviderBase(), obj))
+			{
+				displayText = ptr->getTextForName();
+				location = ptr->getLocation();
+
+				auto loc = location;
+
+				gotoButton.onClick = [p, loc]()
+				{
+					DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(p), loc);
+				};
+			}
+
+			f = GLOBAL_MONOSPACE_FONT();
+			w = f.getStringWidth(displayText) + 24 + 30;
+		}
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+			return p;
+		}
+
+		int getPreferredWidth() const override { return w; };
+		int getPreferredHeight() const override { return 28; };
+
+		void resized() override
+		{
+			gotoButton.setBounds(getLocalBounds().removeFromLeft(getHeight()).reduced(6));
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setFont(f);
+			g.setColour(Colours::white.withAlpha(0.5f));
+
+			auto b = getLocalBounds().toFloat();
+			b.removeFromLeft(28.0f);
+
+			g.drawText(displayText, b, Justification::centredLeft);
+		}
+
+		HiseShapeButton gotoButton;
+
+		static ComponentWithPreferredSize* create(Component* r, const var& obj)
+		{
+			if (auto o = obj.getObject())
+			{
+				Processor* p = nullptr;
+
+				if (auto so = dynamic_cast<ScriptingObject*>(o))
+					p = dynamic_cast<Processor*>(so->getScriptProcessor());
+				else
+					return nullptr;
+
+				if (auto dbo = dynamic_cast<DebugableObjectBase*>(o))
+					return new DebugableObjectItem(p, dbo);
+			}
+		}
+
+		WeakReference<DebugableObjectBase> obj;
+		String displayText;
+		Font f;
+		int w;
+
+		DebugableObject::Location location;
+	};
+
+	factory.registerFunction(DebugableObjectItem::create);
+}
+
+struct ScriptBroadcaster::ScriptCallListener::ScriptCallItem: public ReferenceCountedObject
+{
+	void bang()
+	{
+		lastBangTime = Time::getMillisecondCounter();
+	}
+
+	uint32 lastBangTime = 0;
+	Processor* p;
+	Identifier id;
+	DebugableObject::Location location;
+};
+
+ScriptBroadcaster::ScriptCallListener::ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, DebugableObjectBase::Location location):
+	ListenerBase(var())
+{
+	auto ni = new ScriptCallItem();
+	ni->p = dynamic_cast<Processor*>(b->getScriptProcessor());
+	ni->id = id;
+	ni->location = location;
+	items.add(ni);
+}
+
+Array<juce::var> ScriptBroadcaster::ScriptCallListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto l : items)
+		list.add(var(l));
+
+	return list;
+}
+
+juce::Result ScriptBroadcaster::ScriptCallListener::callItem(TargetBase* n)
+{
+	return Result::ok();
+}
+
+void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct CallItem : public Component,
+					  public PooledUIUpdater::SimpleTimer,
+					  public ComponentWithPreferredSize,
+					  public PathFactory
+	{
+		CallItem(ScriptCallListener::ScriptCallItem* item_):
+			SimpleTimer(item_->p->getMainController()->getGlobalUIUpdater()),
+			item(item_),
+			gotoButton("goto", nullptr, *this)
+		{
+			addAndMakeVisible(gotoButton);
+
+			gotoButton.onClick = [this]()
+			{
+				DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(item->p), item->location);
+			};
+		}
+
+		void resized() override
+		{
+			gotoButton.setBounds(getLocalBounds().removeFromLeft(getHeight()).reduced(5));
+		}
+
+		void timerCallback() override
+		{
+			auto thisBang = item->lastBangTime;
+
+			if (thisBang != lastBang)
+			{
+				lastBang = thisBang;
+				alpha.setModValue(1.0);
+			}
+
+			if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05)))
+				repaint();
+		}
+
+		ModValue alpha;
+
+		uint32 lastBang = 0;
+
+		HiseShapeButton gotoButton;
+
+		int getPreferredWidth() const override { return 150; };
+		int getPreferredHeight() const override { return 24; };
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+			return p;
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setColour(Colours::white.withAlpha((float)alpha.getModValue() * 0.8f + 0.2f));
+			auto b = getLocalBounds().toFloat();
+			b.removeFromLeft(30.0f);
+			g.drawText(item->id.toString(), b, Justification::centredLeft);
+		}
+
+		static ComponentWithPreferredSize* create(Component*, const var& obj)
+		{
+			if (auto o = dynamic_cast<ScriptCallItem*>(obj.getObject()))
+				return new CallItem(o);
+
+			return nullptr;
+		}
+
+		ReferenceCountedObjectPtr<ScriptCallItem> item;
+	};
+
+	factory.registerWithCreate<CallItem>();
+}
+
+ScriptBroadcaster::ComponentPropertyItem::ComponentPropertyItem(ScriptBroadcaster* sb,
+																const var& obj, 
+																const Array<Identifier>& properties_, 
+																const var& f,
+															    const var& metadata):
+	TargetBase(obj, f, metadata),
+	properties(properties_)
+{
+	auto numArgs = sb->defaultValues.size();
+
+	if (HiseJavascriptEngine::isJavascriptFunction(f))
+	{
+		optionalCallback = new WeakCallbackHolder(sb->getScriptProcessor(), sb, f, numArgs + 1);
+		optionalCallback->setHighPriority();
+		optionalCallback->incRefCount();
+	}
+	else
+	{
+		if (numArgs != 3)
+			sb->reportScriptError("A Component property target must be added to a broadcaster with three arguments (component, property, value)");
+	}
+}
+
+void ScriptBroadcaster::ComponentPropertyItem::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	factory.registerWithCreate<ComponentPropertyMapItem>();
+}
+
+Array<var> ScriptBroadcaster::ComponentPropertyItem::createChildArray() const
+{
+	Array<var> list;
+
+	BroadcasterHelpers::callForEachIfArray(obj, [&](const var& v)
+	{
+		DynamicObject::Ptr o = new DynamicObject();
+		o->setProperty("component", v);
+		o->setProperty("properties", BroadcasterHelpers::getIdListAsVar(properties));
+		list.add(var(o.get()));
+		return true;
+	});
+
+	return list;
+}
+
+juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>& args)
+{
+	auto r = Result::ok();
+	
+	if (!enabled)
+		return r;
+	
+	if (optionalCallback == nullptr)
+	{
+		auto component = args[0];
+		
+		auto value = args[2];
+
+		BroadcasterHelpers::callForEachIfArray(obj, [&](const var& v)
+		{
+			// Skip setting the same property
+			if (v == component)
+				return true;
+
+			if (auto sc = dynamic_cast<ScriptComponent*>(v.getObject()))
+			{
+				for (const auto& prop : properties)
+				{
+					if (!sc->hasProperty(prop))
+					{
+						r = Result::fail("illegal property " + prop.toString());
+						break;
+					}
+
+					sc->setScriptObjectPropertyWithChangeMessage(prop, value);
+				}
+			}
+
+			return r.wasOk();
+		});
+	}
+	else
+	{
+		Array<var> optionalArgs;
+		optionalArgs.add(-1);
+		optionalArgs.addArray(args);
+		
+		BroadcasterHelpers::callForEachIfArray(obj, [&](const var& v)
+		{
+			optionalArgs.set(0, obj.indexOf(v));
+			var::NativeFunctionArgs a(obj, optionalArgs.getRawDataPointer(), optionalArgs.size());
+
+			var rv;
+
+			r = optionalCallback->callSync(a, &rv);
+
+			if (r.wasOk())
+			{
+				if (auto sc = dynamic_cast<ScriptComponent*>(v.getObject()))
+				{
+					for (auto& prop : properties)
+					{
+						if (!sc->hasProperty(prop))
+						{
+							r = Result::fail("illegal property " + properties[0].toString());
+							break;
+						}
+
+						sc->setScriptObjectPropertyWithChangeMessage(prop, rv);
+					}
+				}
+			}
+
+			return r.wasOk();
+		});
+	}
+
+	return r;
+}
+
 struct ScriptBroadcaster::Wrapper
 {
-	API_METHOD_WRAPPER_2(ScriptBroadcaster, addListener);
-	API_METHOD_WRAPPER_3(ScriptBroadcaster, addDelayedListener);
+	API_METHOD_WRAPPER_3(ScriptBroadcaster, addListener);
+	API_METHOD_WRAPPER_4(ScriptBroadcaster, addDelayedListener);
+	API_METHOD_WRAPPER_4(ScriptBroadcaster, addComponentPropertyListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
-	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentProperties);
-	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentMouseEvents);
-	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToComponentValue);
-	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToModuleParameter);
-	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToRadioGroup);
-    API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComplexData);
-	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToOtherBroadcaster);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentProperties);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentMouseEvents);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
+    API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
+	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
     API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setRealtimeMode);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, setBypassed);
-	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setId);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setMetadata);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, resendLastMessage);
+	API_METHOD_WRAPPER_0(ScriptBroadcaster, isBypassed);
 };
 
 ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue):
 	ConstScriptingObject(p, 0),
 	lastResult(Result::ok())
 {
-	ADD_API_METHOD_2(addListener);
-	ADD_API_METHOD_3(addDelayedListener);
+	ADD_API_METHOD_3(addListener);
+	ADD_API_METHOD_4(addDelayedListener);
+	ADD_API_METHOD_4(addComponentPropertyListener);
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
-	ADD_API_METHOD_2(attachToComponentProperties);
-	ADD_API_METHOD_2(attachToComponentMouseEvents);
-	ADD_API_METHOD_1(attachToComponentValue);
-	ADD_API_METHOD_2(attachToModuleParameter);
-	ADD_API_METHOD_1(attachToRadioGroup);
-    ADD_API_METHOD_3(attachToComplexData);
-	ADD_API_METHOD_3(attachToOtherBroadcaster);
+	ADD_API_METHOD_3(attachToComponentProperties);
+	ADD_API_METHOD_3(attachToComponentMouseEvents);
+	ADD_API_METHOD_2(attachToComponentValue);
+	ADD_API_METHOD_3(attachToModuleParameter);
+	ADD_API_METHOD_2(attachToRadioGroup);
+    ADD_API_METHOD_4(attachToComplexData);
+	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
 	ADD_API_METHOD_1(setEnableQueue);
     ADD_API_METHOD_1(setRealtimeMode);
 	ADD_API_METHOD_1(resendLastMessage);
 	ADD_API_METHOD_3(setBypassed);
-	ADD_API_METHOD_1(setId);
+	ADD_API_METHOD_0(isBypassed);
+	ADD_API_METHOD_1(setMetadata);
     
 	if (auto obj = defaultValue.getDynamicObject())
 	{
+		if (obj->hasProperty("id") && obj->hasProperty("args"))
+		{
+			setMetadata(defaultValue);
+			obj = defaultValue["args"].getDynamicObject();
+		}
+
 		for (const auto& p : obj->getProperties())
 		{
 			defaultValues.add(p.value);
@@ -957,16 +1820,12 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 
 	lastValues.addArray(defaultValues);
 
-	for(auto p: argumentIds)
-	{
-
-	}
-
-
 	Array<var> k;
 	k.add(lastValues);
 	k.add(defaultValues);
 	keepers = var(k);
+
+	setWantsCurrentLocation(true);
 }
 
 Component* ScriptBroadcaster::createPopupComponent(const MouseEvent& e, Component* parent)
@@ -1050,7 +1909,7 @@ hise::DebugInformationBase* ScriptBroadcaster::getChildElement(int index)
 	}, Identifier(id), {}, (DebugInformation::Type)getTypeNumber(), getLocation());
 }
 
-bool ScriptBroadcaster::addListener(var object, var function)
+bool ScriptBroadcaster::addListener(var object, var metadata, var function)
 {
     if(isRealtimeSafe())
     {
@@ -1061,7 +1920,7 @@ bool ScriptBroadcaster::addListener(var object, var function)
         }
     }
     
-	ScopedPointer<Item> ni = new Item(getScriptProcessor(), defaultValues.size(), object, function);
+	ScopedPointer<ScriptTarget> ni = new ScriptTarget(this, defaultValues.size(), object, function, metadata);
 
 	if (items.contains(ni.get()))
 	{
@@ -1069,41 +1928,19 @@ bool ScriptBroadcaster::addListener(var object, var function)
 		return false;
 	}
 
-	if (attachedListener != nullptr)
-	{
-		// If it's attached to a listener, we'll update it with the current values.
-		auto r = attachedListener->callItem(ni);
-
-		if (!r.wasOk())
-			reportScriptError(r.getErrorMessage());
-	}
-	else
-	{
-		auto callListener = true;
-
-		for (const auto& v : lastValues)
-			callListener &= !v.isUndefined();
-
-		if (callListener)
-		{
-			auto r = ni->callSync(lastValues);
-
-			if (!r.wasOk())
-				reportScriptError(r.getErrorMessage());
-		}
-	}
+	initItem(ni.get());
 	
 	items.add(ni.release());
 
 	return true;
 }
 
-bool ScriptBroadcaster::addDelayedListener(int delayInMilliSeconds, var obj, var function)
+bool ScriptBroadcaster::addDelayedListener(int delayInMilliSeconds, var obj, var metadata, var function)
 {
 	if (delayInMilliSeconds == 0)
-		return addListener(obj, function);
+		return addListener(obj, metadata, function);
 
-	ScopedPointer<DelayedItem> ni = new DelayedItem(this, obj, function, delayInMilliSeconds);
+	ScopedPointer<DelayedItem> ni = new DelayedItem(this, obj, function, delayInMilliSeconds, metadata);
 
 	if (items.contains(ni.get()))
 	{
@@ -1115,11 +1952,31 @@ bool ScriptBroadcaster::addDelayedListener(int delayInMilliSeconds, var obj, var
 	return true;
 }
 
+bool ScriptBroadcaster::addComponentPropertyListener(var object, var propertyList, var metadata, var optionalFunction)
+{
+	auto list = BroadcasterHelpers::getComponentsFromVar(getScriptProcessor(), object);
+	auto idList = BroadcasterHelpers::getIdListFromVar(propertyList);
+
+	Array<var> l;
+
+	for (auto sc : list)
+		l.add(var(sc));
+
+	ScopedPointer<TargetBase> ni = new ComponentPropertyItem(this, BroadcasterHelpers::getListOrFirstElement(var(l)), idList, optionalFunction, metadata);
+
+	initItem(ni);
+
+	items.add(ni.release());
+
+	return true;
+}
+
+
 bool ScriptBroadcaster::removeListener(var objectToRemove)
 {
 	for (auto i : items)
 	{
-		if (i->obj == objectToRemove)
+		if (i->metadata == objectToRemove)
 		{
 			items.removeObject(i);
 			return true;
@@ -1140,6 +1997,17 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
     }
 #endif
     
+	if (auto sl = dynamic_cast<ScriptCallListener*>(attachedListener.get()))
+	{
+		for (auto i : sl->items)
+		{
+			if (i->location == getCurrentLocationInFunctionCall())
+			{
+				i->bang();
+			}
+		}
+	}
+
 	handleDebugStuff();
 
 	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
@@ -1155,7 +2023,7 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
     {
         for(int i = 0; i < lastValues.size(); i++)
         {
-            lastValues.set(i, getArg(args, i));
+            lastValues.set(i, BroadcasterHelpers::getArg(args, i));
         }
         
         lastResult = sendInternal(lastValues);
@@ -1170,7 +2038,7 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
 
 	for (int i = 0; i < defaultValues.size(); i++)
 	{
-		auto v = getArg(args, i);
+		auto v = BroadcasterHelpers::getArg(args, i);
 		somethingChanged |= lastValues[i] != v;
 		newValues.add(v);
 	}
@@ -1265,12 +2133,12 @@ void ScriptBroadcaster::resendLastMessage(bool isSync)
 
 
 
-void ScriptBroadcaster::setId(String newName)
+void ScriptBroadcaster::setMetadata(var newMetadata)
 {
-	this->currentExpression = newName;
+	metadata = Metadata(newMetadata, true);
 }
 
-void ScriptBroadcaster::attachToComponentProperties(var componentIds, var propertyIds)
+void ScriptBroadcaster::attachToComponentProperties(var componentIds, var propertyIds, var optionalMetadata)
 {
 	throwIfAlreadyConnected();
 
@@ -1279,17 +2147,9 @@ void ScriptBroadcaster::attachToComponentProperties(var componentIds, var proper
 		reportScriptError("If you want to attach a broadcaster to property events, it needs three parameters (component, propertyId, value)");
 	}
 
-	Array<Identifier> idList;
+	auto idList = BroadcasterHelpers::getIdListFromVar(propertyIds);
 
-	idList.add(Identifier(getArg(propertyIds, 0).toString()));
-
-	if (propertyIds.isArray())
-	{
-		for(int i = 1; i < propertyIds.size(); i++)
-			idList.add(Identifier(getArg(propertyIds, i).toString()));
-	}
-
-	attachedListener = new ComponentPropertyListener(this, componentIds, idList);
+	attachedListener = new ComponentPropertyListener(this, componentIds, idList, optionalMetadata);
 
 #if 0
 	eventSources.clear();
@@ -1303,7 +2163,7 @@ void ScriptBroadcaster::attachToComponentProperties(var componentIds, var proper
         reportScriptError("Illegal property id: " + illegalId.toString());
 }
 
-void ScriptBroadcaster::attachToComponentValue(var componentIds)
+void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMetadata)
 {
 	throwIfAlreadyConnected();
 
@@ -1312,12 +2172,12 @@ void ScriptBroadcaster::attachToComponentValue(var componentIds)
 		reportScriptError("If you want to attach a broadcaster to value events, it needs two parameters (component, value)");
 	}
 
-	attachedListener = new ComponentValueListener(this, componentIds);
+	attachedListener = new ComponentValueListener(this, componentIds, optionalMetadata);
 }
 
 
 
-void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callbackLevel)
+void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callbackLevel, var optionalMetadata)
 {
 	throwIfAlreadyConnected();
 
@@ -1334,10 +2194,10 @@ void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callb
 
 	auto cLevel = (MouseCallbackComponent::CallbackLevel)clValue;
 
-	attachedListener = new MouseEventListener(this, componentIds, cLevel);
+	attachedListener = new MouseEventListener(this, componentIds, cLevel, optionalMetadata);
 }
 
-void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds)
+void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds, var optionalMetadata)
 {
 	throwIfAlreadyConnected();
 
@@ -1390,22 +2250,24 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds)
 		parameterIndexes.add(idx);
 	}
 
-	attachedListener = new ModuleParameterListener(this, processors, parameterIndexes);
+	attachedListener = new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata);
 
 	enableQueue = true;
 }
 
-void ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex)
+void ScriptBroadcaster::attachToRadioGroup(int radioGroupIndex, var optionalMetadata)
 {
 	if (attachedListener != nullptr)
-		reportScriptError("This callback is already registered to " + attachedListener->getListenerType().toString());
+		reportScriptError("This callback is already registered to " + attachedListener->getItemId().toString());
 
-	attachedListener = new RadioGroupListener(this, radioGroupIndex);
+	attachedListener = new RadioGroupListener(this, radioGroupIndex, optionalMetadata);
 }
 
-void ScriptBroadcaster::attachToOtherBroadcaster(var otherBroadcaster, var argTransformFunction, bool async)
+void ScriptBroadcaster::attachToOtherBroadcaster(var otherBroadcaster, var argTransformFunction, bool async, var optionalMetadata)
 {
-	Array<ScriptBroadcaster*> sources;
+	throwIfAlreadyConnected();
+
+	Array<WeakReference<ScriptBroadcaster>> sources;
 
 	if (otherBroadcaster.isArray())
 	{
@@ -1432,12 +2294,13 @@ void ScriptBroadcaster::attachToOtherBroadcaster(var otherBroadcaster, var argTr
 
 	for (auto bc : sources)
 		bc->addBroadcasterAsListener(this, argTransformFunction, async);
+
+	attachedListener = new OtherBroadcasterListener(sources, optionalMetadata);
 }
 
-void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList)
+void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList, var optionalMetadata)
 {
-	if (attachedListener != nullptr)
-		reportScriptError("This callback is already registered to " + attachedListener->getListenerType().toString());
+	throwIfAlreadyConnected();
 
     const String dataType = dataTypeAndEvent.upToFirstOccurrenceOf(".", false, false);
     const String eventType = dataTypeAndEvent.fromFirstOccurrenceOf(".", false, false);
@@ -1521,7 +2384,7 @@ void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleI
         }
     }
     
-    attachedListener = new ComplexDataListener(this, processors, type, isDisplay, indexListArray, dataTypeAndEvent);
+    attachedListener = new ComplexDataListener(this, processors, type, isDisplay, indexListArray, dataTypeAndEvent, optionalMetadata);
     
     enableQueue = processors.size() > 1 || indexListArray.size() > 1;
 }
@@ -1534,7 +2397,7 @@ void ScriptBroadcaster::callWithDelay(int delayInMilliseconds, var argArray, var
 	ScopedPointer<DelayedFunction> newFunction;
 
 	if (HiseJavascriptEngine::isJavascriptFunction(function) && argArray.isArray())
-		newFunction = new DelayedFunction(this, function, *argArray.getArray(), delayInMilliseconds);
+		newFunction = new DelayedFunction(this, function, *argArray.getArray(), delayInMilliseconds, var());
 	else if (!argArray.isArray())
 		reportScriptError("argArray must be an array");
 	
@@ -1561,6 +2424,11 @@ void ScriptBroadcaster::setBypassed(bool shouldBeBypassed, bool sendMessageIfEna
 		if (!bypassed && sendMessageIfEnabled)
 			resendLastMessage(async);
 	}
+}
+
+bool ScriptBroadcaster::isBypassed() const
+{
+	return bypassed;
 }
 
 bool ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
@@ -1601,6 +2469,47 @@ juce::var ScriptBroadcaster::getDotProperty(const Identifier& id) const
 	return var();
 }
 
+void ScriptBroadcaster::addAsSource(DebugableObjectBase* b, const Identifier& callbackId)
+{
+	throwIfAlreadyConnected();
+
+	attachedListener = new DebugableObjectListener({}, b, callbackId);
+}
+
+bool ScriptBroadcaster::addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location)
+{
+	if (!argumentIds.contains(id) && id.toString() != "sendMessage")
+		return false;
+
+	/** TODO:
+
+		- fix not being detected in function calls
+		- add logic for bang callback
+		- add visualisation  for last called function
+	*/
+	if (auto existing = dynamic_cast<ScriptCallListener*>(attachedListener.get()))
+	{
+		for (auto t : existing->items)
+		{
+			if (t->location == location)
+				return false;
+		}
+
+		auto ni = new ScriptCallListener::ScriptCallItem();
+		ni->id = id;
+		ni->location = location;
+		ni->p = dynamic_cast<Processor*>(getScriptProcessor());
+
+		existing->items.add(ni);
+		return true;
+	}
+	
+	throwIfAlreadyConnected();
+
+	attachedListener = new ScriptCallListener(this, id, location);
+	return true;
+}
+
 void ScriptBroadcaster::handleDebugStuff()
 {
 #if USE_BACKEND
@@ -1614,15 +2523,6 @@ void ScriptBroadcaster::handleDebugStuff()
 		reportScriptError("There you go...");
 	}
 #endif
-}
-
-juce::var ScriptBroadcaster::getArg(const var& v, int idx)
-{
-	if (v.isArray())
-		return v[idx];
-
-	jassert(idx == 0);
-	return v;
 }
 
 Result ScriptBroadcaster::sendInternal(const Array<var>& args)
@@ -1678,10 +2578,37 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 	return Result::ok();
 }
 
+void ScriptBroadcaster::initItem(TargetBase* ni)
+{
+	if (attachedListener != nullptr)
+	{
+		// If it's attached to a listener, we'll update it with the current values.
+		auto r = attachedListener->callItem(ni);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+	}
+	else
+	{
+		auto callListener = true;
+
+		for (const auto& v : lastValues)
+			callListener &= !v.isUndefined();
+
+		if (callListener)
+		{
+			auto r = ni->callSync(lastValues);
+
+			if (!r.wasOk())
+				reportScriptError(r.getErrorMessage());
+		}
+	}
+}
+
 void ScriptBroadcaster::throwIfAlreadyConnected()
 {
 	if (attachedListener != nullptr)
-		reportScriptError("This callback is already registered to " + attachedListener->getListenerType().toString());
+		reportScriptError("This callback is already registered to " + attachedListener->getItemId().toString());
 }
 
 void ScriptBroadcaster::timerCallback()
@@ -1697,198 +2624,16 @@ void ScriptBroadcaster::setRealtimeMode(bool enableRealTimeMode)
 
 void ScriptBroadcaster::addBroadcasterAsListener(ScriptBroadcaster* targetBroadcaster, const var& transformFunction, bool async)
 {
-	items.add(new OtherBroadcasterTarget(this, targetBroadcaster, transformFunction, async));
+	items.add(new OtherBroadcasterTarget(this, targetBroadcaster, transformFunction, async, targetBroadcaster->metadata.toJSON()));
 }
 
-ScriptBroadcaster::Panel::Panel(FloatingTile* parent) :
-	PanelWithProcessorConnection(parent)
-{
 
-}
 
-juce::Identifier ScriptBroadcaster::Panel::getProcessorTypeId() const
-{
-	return JavascriptProcessor::getConnectorId();
-}
 
-#if 0
-struct ScriptBroadcasterMap : public Component,
-							  public ControlledObject,
-							  public GlobalScriptCompileListener,
-							  public AsyncUpdater
-{
-	using BroadcasterList = Array<WeakReference<ScriptBroadcaster>>;
 
-	struct Row : public Component
-	{
-		struct EntryBase : public Component
-		{
-			using List = Array<WeakReference<EntryBase>>;
 
-			virtual int getPreferredHeight() const = 0;
 
-			virtual ~EntryBase() {};
 
-			List inputPins, outputPins;
-
-			JUCE_DECLARE_WEAK_REFERENCEABLE(EntryBase);
-		};
-
-		struct BroadcasterEntry : public EntryBase
-		{
-			BroadcasterEntry(ScriptBroadcaster* sb) :
-				b(sb)
-			{};
-
-			int getPreferredHeight() const override { return 80; }
-
-			void paint(Graphics& g) override
-			{
-				g.fillAll(Colours::blue);
-			}
-
-			WeakReference<ScriptBroadcaster> b;
-		};
-
-		struct ListenerEntry : public EntryBase
-		{
-			ScriptBroadcaster::ListenerBase
-		};
-
-		struct Column : public Component
-		{
-			int getPreferredHeight() const
-			{
-				int y = 0;
-
-				for (auto e : entries)
-				{
-					y += e->getPreferredHeight();
-				}
-
-				return y;
-			}
-
-			void resized() override
-			{
-				auto b = getLocalBounds();
-
-				for (auto e : entries)
-				{
-					e->setBounds(b.removeFromTop(e->getPreferredHeight()));
-				}
-			}
-
-			OwnedArray<EntryBase> entries;
-		};
-
-		int getPreferredHeight() const
-		{
-			int h = 0;
-
-			for (auto c : columns)
-				h = jmax(h, c->getPreferredHeight());
-
-			return h;
-		}
-
-		Row(ScriptBroadcaster* b)
-		{
-			ScopedPointer<Column> sources;
-			ScopedPointer<Column> object;
-			ScopedPointer<Column> targets;
-
-			
-
-			if (sources->getPreferredHeight() > 0)
-				columns.add(sources.release());
-
-			if (object->getPreferredHeight() > 0)
-				columns.add(object.release());
-
-			if (targets->getPreferredHeight() > 0)
-				columns.add(targets.release());
-		}
-
-		OwnedArray<Column> columns;
-	};
-
-	void handleAsyncUpdate() override { rebuild(); }
-
-	ScriptBroadcasterMap(JavascriptProcessor* p_):
-		ControlledObject(dynamic_cast<Processor*>(p_)->getMainController()),
-		p(p_)
-	{
-		rebuild();
-
-		getMainController()->addScriptListener(this);
-	}
-
-	~ScriptBroadcasterMap()
-	{
-		getMainController()->removeScriptListener(this);
-	}
-
-	void rebuild()
-	{
-		auto broadcasters = createBroadcasterList();
-
-		rows.clear();
-
-		for (auto b : broadcasters)
-		{
-
-		}
-	}
-
-	static void forEachDebugInformation(DebugInformationBase::Ptr di, const std::function<void(DebugInformationBase::Ptr)>& f)
-	{
-		f(di);
-
-		for (int i = 0; i < di->getNumChildElements(); i++)
-			f(di->getChildElement(i));
-	}
-
-	BroadcasterList createBroadcasterList()
-	{
-		BroadcasterList list;
-
-		if (auto ah = dynamic_cast<ApiProviderBase*>(p.get()))
-		{
-			auto check = [&](DebugInformation::Ptr di)
-			{
-				if (auto sb = dynamic_cast<ScriptBroadcaster*>(di->getObject()))
-					list.add(sb);
-			};
-
-			for (int i = 0; i < ah->getNumDebugObjects(); i++)
-				forEachDebugInformation(ah->getDebugInformation(i), check);
-		}
-
-		return list;
-	}
-
-	void scriptWasCompiled(JavascriptProcessor *processor) override
-	{
-		if (p == processor)
-		{
-			triggerAsyncUpdate();
-		}
-	}
-
-	WeakReference<JavascriptProcessor> p;
-
-	OwnedArray<Row> rows;
-};
-#endif
-
-Component* ScriptBroadcaster::Panel::createContentComponent(int)
-{
-	//if (auto jp = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
-		//return new ScriptBroadcasterMap(jp);
-
-	return nullptr;
-}
 
 
 

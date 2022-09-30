@@ -439,6 +439,8 @@ struct ExternalData
 		return std::is_same<B, D>() || std::is_base_of<B, D>();
 	}
 
+	static DataType getDataTypeForId(const Identifier& id, bool plural=false);
+
 	template <class DataClass> static constexpr DataType getDataTypeForClass()
 	{
 		if (isSameOrBase<hise::Table, DataClass>())

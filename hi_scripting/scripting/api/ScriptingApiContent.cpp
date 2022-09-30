@@ -1924,8 +1924,14 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 {
 	const double minValue = getScriptObjectProperty(min);
 	const double maxValue = getScriptObjectProperty(max);
-	const double midPoint = getScriptObjectProperty(middlePosition);
+	double midPoint = getScriptObjectProperty(middlePosition);
 	const double step = getScriptObjectProperty(stepSize);
+
+	Range<double> r(minValue, maxValue);
+
+	if (!r.contains(midPoint))
+		midPoint = r.getStart() + 0.5 * r.getLength();
+		
 
 	if (minValue < maxValue &&
 		midPoint > minValue &&
@@ -6528,5 +6534,136 @@ void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, 
 	}
 }
 
+
+MapItemWithScriptComponentConnection::MapItemWithScriptComponentConnection(ScriptComponent* c, int width, int height) :
+	SimpleTimer(c->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	sc(c),
+	w(width),
+	h(height)
+{
+	
+}
+
+SimpleVarBody::SimpleVarBody(const var& v) :
+	value(v)
+{
+	s = getSensibleStringRepresentation();
+}
+
+void SimpleVarBody::paint(Graphics& g)
+{
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawText(s, getLocalBounds().toFloat(), Justification::centred);
+}
+
+String SimpleVarBody::getSensibleStringRepresentation() const
+{
+	if (auto dObj = dynamic_cast<DebugableObjectBase*>(value.getObject()))
+	{
+		return dObj->getDebugName();
+	}
+
+	return value.toString();
+}
+
+LiveUpdateVarBody::DisplayType LiveUpdateVarBody::getDisplayType(const Identifier& id)
+{
+	if (id.toString().containsIgnoreCase("colour"))
+		return DisplayType::Colour;
+
+	static const Array<Identifier> boolIds = { "visible", "enabled", "on" };
+
+	if (boolIds.contains(id))
+		return DisplayType::Bool;
+
+	return DisplayType::Text;
+}
+
+LiveUpdateVarBody::LiveUpdateVarBody(PooledUIUpdater* updater, const Identifier& id_, const std::function<var()>& f) :
+	SimpleVarBody(f()),
+	SimpleTimer(updater),
+	id(id_),
+	valueFunction(f),
+	displayType(getDisplayType(id_))
+{
+
+}
+
+void LiveUpdateVarBody::timerCallback()
+{
+	auto newValue = valueFunction();
+
+	if (value != newValue)
+	{
+		alpha.setModValue(1.0);
+		value = newValue;
+
+		if (displayType == DisplayType::Colour)
+			s = scriptnode::PropertyHelpers::getColourFromVar(newValue).toString();
+		else if (displayType == DisplayType::Bool)
+			s = (bool)newValue ? "true" : "";
+		else
+			s = getSensibleStringRepresentation();
+
+		if (getPreferredWidth() > getWidth())
+			resetRootSize();
+	}
+
+	if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05)))
+		repaint();
+}
+
+String LiveUpdateVarBody::getTextToDisplay() const
+{
+	String text;
+
+	if (id.isValid())
+		text << id.toString() << ": ";
+
+	if(displayType == DisplayType::Text)
+		text << s;
+
+	return text;
+}
+
+void LiveUpdateVarBody::paint(Graphics& g)
+{
+	auto b = getLocalBounds().toFloat().reduced(6.0f, 8.0f);
+
+	auto a = (float)jlimit(0.0f, 1.0f, 0.5f + 0.5f * (float)alpha.getModValue());
+
+	g.setColour(Colours::black.withAlpha(a * 0.7f));
+	g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+
+	auto text = getTextToDisplay();
+	g.setColour(Colours::white.withAlpha(a));
+	g.setFont(GLOBAL_MONOSPACE_FONT());
+	g.drawText(text, b.reduced(12.0f, 4.0f), Justification::left);
+
+	auto circle = b.removeFromRight(b.getHeight()).reduced(1.0f);
+
+	switch (displayType)
+	{
+	case DisplayType::Colour:
+	{
+		g.drawEllipse(circle, 1.0f);
+		g.setColour(Colour::fromString(s));
+		g.fillEllipse(circle.reduced(1.0f));
+		break;
+	}
+	case DisplayType::Bool:
+	{
+		g.drawEllipse(circle, 1.0f);
+
+		if(s == "true")
+			g.fillEllipse(circle.reduced(2.0f));
+
+		break;
+	}
+	}
+
+	
+}
 
 } // namespace hise
