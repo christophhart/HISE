@@ -55,10 +55,10 @@ struct ScriptUserPresetHandler::Wrapper
 ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, 0),
 	ControlledObject(pwsc->getMainController_()),
-	preCallback(pwsc, var(), 1),
-	postCallback(pwsc, var(), 1),
-	customLoadCallback(pwsc, var(), 1),
-	customSaveCallback(pwsc, var(), 1)
+	preCallback(pwsc, nullptr, var(), 1),
+	postCallback(pwsc, nullptr, var(), 1),
+	customLoadCallback(pwsc, nullptr, var(), 1),
+	customSaveCallback(pwsc, nullptr, var(), 1)
 {
 	getMainController()->getUserPresetHandler().addListener(this);
 
@@ -95,15 +95,17 @@ void ScriptUserPresetHandler::setUseUndoForPresetLoading(bool shouldUseUndoManag
 
 void ScriptUserPresetHandler::setPreCallback(var presetCallback)
 {
-	preCallback = WeakCallbackHolder(getScriptProcessor(), presetCallback, 1);
+	preCallback = WeakCallbackHolder(getScriptProcessor(), this, presetCallback, 1);
 	preCallback.incRefCount();
+	preCallback.addAsSource(this, "preCallback");
 	preCallback.setThisObject(this);
 }
 
 void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
 {
-	postCallback = WeakCallbackHolder(getScriptProcessor(), presetPostCallback, 1);
+	postCallback = WeakCallbackHolder(getScriptProcessor(), this, presetPostCallback, 1);
 	postCallback.incRefCount();
+	postCallback.addAsSource(this, "postCallback");
 	postCallback.setThisObject(this);
 
 }
@@ -133,11 +135,13 @@ void ScriptUserPresetHandler::setUseCustomUserPresetModel(var loadCallback, var 
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(loadCallback) && HiseJavascriptEngine::isJavascriptFunction(saveCallback))
 	{
-		customLoadCallback = WeakCallbackHolder(getScriptProcessor(), loadCallback, 1);
+		customLoadCallback = WeakCallbackHolder(getScriptProcessor(), this, loadCallback, 1);
 		customLoadCallback.incRefCount();
+		customLoadCallback.addAsSource(this, "customLoadCallback");
 		
-		customSaveCallback = WeakCallbackHolder(getScriptProcessor(), saveCallback, 1);
+		customSaveCallback = WeakCallbackHolder(getScriptProcessor(), this, saveCallback, 1);
 		customSaveCallback.incRefCount();
+		customSaveCallback.addAsSource(this, "customSaveCallback");
 
 		getMainController()->getUserPresetHandler().setUseCustomDataModel(true, usePersistentObject);
 	}
@@ -175,19 +179,19 @@ void ScriptUserPresetHandler::setCustomAutomation(var automationData)
 	}
 }
 
-ScriptUserPresetHandler::AttachedCallback::AttachedCallback(ProcessorWithScriptingContent* pwsc, MainController::UserPresetHandler::CustomAutomationData::Ptr cData_, var f, bool isSynchronous) :
+ScriptUserPresetHandler::AttachedCallback::AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData_, var f, bool isSynchronous) :
   cData(cData_),
-  customUpdateCallback(pwsc, var(), 2),
-  customAsyncUpdateCallback(pwsc, var(), 2)
+  customUpdateCallback(parent->getScriptProcessor(), nullptr, var(), 2),
+  customAsyncUpdateCallback(parent->getScriptProcessor(), nullptr, var(), 2)
 {
 	if (isSynchronous)
 	{
-		customUpdateCallback = WeakCallbackHolder(pwsc, f, 2);
+		customUpdateCallback = WeakCallbackHolder(parent->getScriptProcessor(), parent, f, 2);
 		cData->syncListeners.addListener(*this, AttachedCallback::onCallbackSync, false);
 	}
 	else
 	{
-		customAsyncUpdateCallback = WeakCallbackHolder(pwsc, f, 2);
+		customAsyncUpdateCallback = WeakCallbackHolder(parent->getScriptProcessor(), parent, f, 2);
 		cData->asyncListeners.addListener(*this, AttachedCallback::onCallbackAsync, false);
 	}
 }
@@ -236,7 +240,7 @@ void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var 
 				}
 			}
 
-			attachedCallbacks.add(new AttachedCallback(getScriptProcessor(), cData, updateCallback, isSynchronous));
+			attachedCallbacks.add(new AttachedCallback(this, cData, updateCallback, isSynchronous));
 
 
 			return;
@@ -772,9 +776,9 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ConstScriptingObject(dynamic_cast<ProcessorWithScriptingContent*>(jp_), 3),
 	ControlledObject(dynamic_cast<ControlledObject*>(jp_)->getMainController()),
 	jp(jp_),
-	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1),
-	errorFunction(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 2),
-	installCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), var(), 1)
+	expansionCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), nullptr, var(), 1),
+	errorFunction(dynamic_cast<ProcessorWithScriptingContent*>(jp_), nullptr, var(), 2),
+	installCallback(dynamic_cast<ProcessorWithScriptingContent*>(jp_), nullptr, var(), 1)
 {
 	getMainController()->getExpansionHandler().addListener(this);
 
@@ -832,7 +836,7 @@ void ScriptExpansionHandler::setInstallFullDynamics(bool shouldInstallFullDynami
 void ScriptExpansionHandler::setErrorFunction(var newErrorFunction)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(newErrorFunction))
-		errorFunction = WeakCallbackHolder(getScriptProcessor(), newErrorFunction, 1);
+		errorFunction = WeakCallbackHolder(getScriptProcessor(), this, newErrorFunction, 1);
 
 	errorFunction.setHighPriority();
 }
@@ -879,8 +883,9 @@ void ScriptExpansionHandler::setExpansionCallback(var expansionLoadedCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(expansionLoadedCallback))
 	{
-		expansionCallback = WeakCallbackHolder(getScriptProcessor(), expansionLoadedCallback, 1);
+		expansionCallback = WeakCallbackHolder(getScriptProcessor(), this, expansionLoadedCallback, 1);
 		expansionCallback.incRefCount();
+		expansionCallback.addAsSource(this, "onExpansionLoad");
 		expansionCallback.setThisObject(this);
 		
 	}
@@ -892,8 +897,9 @@ void ScriptExpansionHandler::setInstallCallback(var installationCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(installationCallback))
 	{
-		installCallback = WeakCallbackHolder(getScriptProcessor(), installationCallback, 1);
+		installCallback = WeakCallbackHolder(getScriptProcessor(), this, installationCallback, 1);
 		installCallback.incRefCount();
+		installCallback.addAsSource(this, "onExpansionInstall");
 		installCallback.setThisObject(this);
 	}
 }
@@ -2657,7 +2663,7 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 #if USE_BACKEND || USE_COPY_PROTECTION
 	unlocker(dynamic_cast<ScriptUnlocker*>(p->getMainController_()->getLicenseUnlocker())),
 #endif
-	pcheck(p, var(), 1)
+	pcheck(p, nullptr, var(), 1)
 {
 	if (unlocker->getLicenseKeyFile().existsAsFile())
 	{
@@ -2688,7 +2694,7 @@ juce::var ScriptUnlocker::RefObject::isUnlocked() const
 
 void ScriptUnlocker::RefObject::setProductCheckFunction(var f)
 {
-	pcheck = WeakCallbackHolder(getScriptProcessor(), f, 1);
+	pcheck = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
 	pcheck.incRefCount();
 	pcheck.setThisObject(this);
 }

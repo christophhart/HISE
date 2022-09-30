@@ -111,7 +111,7 @@ using namespace juce;
 	{
 	public:
 
-		HiseShapeButton(const String& name, ButtonListener* listener, PathFactory& factory, const String& offName = String()) :
+		HiseShapeButton(const String& name, ButtonListener* listener, const PathFactory& factory, const String& offName = String()) :
 			ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
 		{
 			onShape = factory.createPath(name);

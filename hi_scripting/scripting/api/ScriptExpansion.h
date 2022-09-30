@@ -159,12 +159,13 @@ public:
 		return {};
 	}
 	
+	
 
 private:
 
 	struct AttachedCallback: public ReferenceCountedObject
 	{
-		AttachedCallback(ProcessorWithScriptingContent* p, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
+		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
 
 		~AttachedCallback();
 
@@ -180,6 +181,10 @@ private:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AttachedCallback);
 	};
+
+public:
+
+private:
 
 	bool enablePreprocessing = false;
 	bool unpackComplexData = false;

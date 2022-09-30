@@ -1270,6 +1270,8 @@ public:
 
 	static void fillPathHiStyle(Graphics &g, const Path &p, int , int , bool drawBorders = true);;
 
+	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true);;
+
 	static void setTextEditorColours(TextEditor& ed);
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }

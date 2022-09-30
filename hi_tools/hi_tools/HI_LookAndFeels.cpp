@@ -351,6 +351,76 @@ void GlobalHiseLookAndFeel::fillPathHiStyle(Graphics &g, const Path &p, int, int
 	d.drawForPath(g, p);
 }
 
+Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/)
+{
+	if (start.getCentreY() > end.getCentreY())
+		std::swap(start, end);
+
+	if (alpha != 1.0f)
+	{
+		holeColour = c;
+	}
+
+	static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
+
+	Path plug;
+
+	plug.loadPathFromData(pathData, sizeof(pathData));
+	PathFactory::scalePath(plug, start.expanded(1.5f));
+
+	g.setColour(Colours::black.withAlpha(alpha));
+	g.fillEllipse(start);
+	g.setColour(holeColour);
+
+	g.fillPath(plug);
+
+	//g.drawEllipse(start, 2.0f);
+
+	g.setColour(Colours::black.withAlpha(alpha));
+	g.fillEllipse(end);
+	g.setColour(holeColour);
+	PathFactory::scalePath(plug, end.expanded(1.5f));
+	g.fillPath(plug);
+	//g.drawEllipse(end, 2.0f);
+
+	Path p;
+
+	p.startNewSubPath(start.getCentre());
+
+	if (useHangingCable)
+	{
+		Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
+		p.quadraticTo(controlPoint, end.getCentre());
+		
+	}
+	else
+	{
+		Rectangle<float> cableBounds(start.getCentre(), end.getCentre());
+
+		Line<float> cableAsLine(start.getCentre(), end.getCentre());
+
+		auto mid = cableBounds.getCentre();
+
+		Point<float> c1 = { cableAsLine.getPointAlongLineProportionally(0.2f).getX(), start.getCentreY() };
+		Point<float> c2 = { cableAsLine.getPointAlongLineProportionally(0.8f).getX(), end.getCentreY() };
+
+		p.quadraticTo(c1, mid);
+		p.quadraticTo(c2, end.getCentre());
+	}
+
+	g.setColour(Colours::black.withMultipliedAlpha(alpha));
+	g.strokePath(p, PathStrokeType(3.0f, PathStrokeType::curved, PathStrokeType::rounded));
+	g.setColour(c.withMultipliedAlpha(alpha));
+	g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+
+	if (returnMidPoint)
+		return p.getPointAlongPath(p.getLength() / 2.0f);
+
+	return {};
+}
+
 void GlobalHiseLookAndFeel::setTextEditorColours(TextEditor& ed)
 {
 	ed.setColour(TextEditor::ColourIds::textColourId, Colours::black);

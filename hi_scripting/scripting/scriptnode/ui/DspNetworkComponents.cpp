@@ -37,14 +37,7 @@ using namespace hise;
 
 namespace ScriptnodeIcons
 {
-	static const unsigned char zoomFit[] = { 110,109,0,0,0,0,27,95,166,67,108,172,92,218,66,168,214,165,67,108,176,114,136,63,223,143,95,67,108,0,0,0,0,27,95,166,67,99,109,23,57,182,67,27,95,166,67,108,215,67,127,67,168,214,165,67,108,164,176,181,67,223,143,95,67,108,23,57,182,67,27,95,166,67,99,
-109,188,212,138,67,29,154,136,67,108,35,27,109,67,162,165,104,67,98,213,56,84,67,225,186,122,67,160,250,51,67,113,125,129,67,211,13,21,67,190,63,125,67,98,164,112,206,66,137,193,116,67,164,48,129,66,27,239,77,67,195,117,102,66,145,77,30,67,98,70,54,78,
-66,41,220,233,66,147,88,140,66,18,195,145,66,98,144,210,66,209,34,66,66,98,68,75,247,66,45,50,15,66,47,189,17,67,45,178,229,65,70,86,40,67,172,28,227,65,98,45,242,40,67,86,14,227,65,20,142,41,67,49,8,227,65,252,41,42,67,61,10,227,65,98,178,157,83,67,
-166,155,228,65,137,225,123,67,197,32,84,66,129,117,135,67,246,232,180,66,98,131,16,144,67,123,148,248,66,188,100,143,67,168,166,38,67,35,155,133,67,0,192,71,67,108,254,148,154,67,182,179,113,67,108,188,212,138,67,29,154,136,67,99,109,102,134,41,67,166,
-27,101,66,98,109,103,20,67,6,129,101,66,27,239,254,66,41,92,131,66,233,38,224,66,164,48,160,66,98,47,93,172,66,33,176,208,66,188,180,155,66,244,93,17,67,86,14,187,66,143,34,50,67,98,2,171,218,66,14,45,83,67,139,236,19,67,78,194,103,67,233,70,57,67,4,
-214,96,67,98,100,123,91,67,125,127,90,67,10,87,120,67,160,90,61,67,145,109,125,67,219,217,25,67,98,86,158,128,67,74,140,254,66,125,127,119,67,162,69,198,66,242,18,100,67,106,60,161,66,98,104,177,84,67,240,231,131,66,231,187,63,67,180,200,101,66,213,88,
-42,67,172,28,101,66,98,176,18,42,67,166,27,101,66,139,204,41,67,160,26,101,66,102,134,41,67,166,27,101,66,99,109,0,0,0,0,0,0,0,0,108,172,92,218,66,176,114,136,63,108,176,114,136,63,172,92,218,66,108,0,0,0,0,0,0,0,0,99,109,23,57,182,67,0,0,0,0,108,215,
-67,127,67,176,114,136,63,108,164,176,181,67,172,92,218,66,108,23,57,182,67,0,0,0,0,99,101,0,0 };
+	
 
 static const unsigned char signalIcon[] = { 110,109,244,229,47,68,184,230,154,68,108,205,140,56,68,184,230,154,68,108,244,229,47,68,205,196,161,68,108,244,229,47,68,174,119,167,68,108,119,118,56,68,174,119,167,68,108,160,202,45,68,236,1,176,68,108,184,30,35,68,174,119,167,68,108,59,175,43,68,174,
 119,167,68,108,59,175,43,68,205,196,161,68,108,115,8,35,68,184,230,154,68,108,59,175,43,68,184,230,154,68,108,59,175,43,68,195,253,153,68,108,244,229,47,68,195,253,153,68,108,244,229,47,68,184,230,154,68,99,109,145,101,27,68,215,179,160,68,108,145,101,
@@ -164,11 +157,7 @@ static const unsigned char signalIcon[] = { 110,109,244,229,47,68,184,230,154,68
 	164,65,98,176,114,252,64,18,131,214,65,211,77,139,65,213,120,228,65,61,10,182,65,45,178,188,65,98,215,163,210,65,111,18,162,65,109,231,219,65,76,55,105,65,221,36,203,65,188,116,33,65,98,244,253,187,65,76,55,193,64,106,188,153,65,129,149,83,64,137,65,
 	106,65,104,145,85,64,99,101,0,0 };
 
-	static const unsigned char errorIcon[] = { 110,109,186,73,129,65,23,217,150,64,108,225,122,129,65,250,126,54,65,108,55,137,55,65,113,61,129,65,108,145,237,152,64,152,110,129,65,108,182,243,253,60,164,112,55,65,108,0,0,0,0,14,45,154,64,108,219,249,150,64,166,155,196,60,108,141,151,54,65,0,0,0,
-	0,98,133,235,79,65,135,22,201,63,125,63,105,65,233,38,73,64,186,73,129,65,23,217,150,64,99,109,27,47,181,64,37,6,17,64,108,158,239,15,64,188,116,183,64,108,115,104,17,64,127,106,40,65,108,152,110,182,64,96,229,94,65,108,43,135,40,65,166,155,94,65,108,
-	244,253,94,65,119,190,39,65,108,82,184,94,65,47,221,180,64,108,35,219,39,65,59,223,15,64,98,147,24,14,65,137,65,16,64,8,172,232,64,215,163,16,64,27,47,181,64,37,6,17,64,99,109,55,137,1,65,229,208,206,64,108,137,65,38,65,66,96,133,64,108,162,69,64,65,
-	115,104,185,64,108,80,141,27,65,139,108,1,65,108,162,69,64,65,221,36,38,65,108,137,65,38,65,246,40,64,65,108,55,137,1,65,164,112,27,65,108,203,161,185,64,246,40,64,65,108,154,153,133,64,221,36,38,65,108,61,10,207,64,139,108,1,65,108,154,153,133,64,115,
-	104,185,64,108,203,161,185,64,66,96,133,64,108,55,137,1,65,229,208,206,64,99,101,0,0 };
+	
 
 	static const unsigned char profileIcon[] = { 110,109,72,225,30,66,0,0,0,0,98,248,211,103,66,197,32,48,62,39,177,149,66,201,118,98,65,217,142,156,66,33,48,0,66,98,195,117,161,66,174,71,51,66,193,202,152,66,131,192,106,66,84,35,134,66,10,151,135,66,98,70,182,96,66,166,219,156,66,109,103,27,66,170,
 	241,163,66,113,61,196,65,231,59,152,66,98,201,118,254,64,20,174,138,66,61,10,39,192,98,16,73,66,59,223,15,63,197,32,2,66,98,158,239,111,64,238,124,107,65,47,221,163,65,115,104,209,62,217,206,26,66,66,96,229,59,98,252,41,28,66,111,18,131,58,37,134,29,
@@ -217,10 +206,10 @@ juce::Path DspNetworkPathFactory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("zoom", ScriptnodeIcons::zoomOriginal);
 	LOAD_PATH_IF_URL("zoom-in", ScriptnodeIcons::zoomIn);
 	LOAD_PATH_IF_URL("zoom-out", ScriptnodeIcons::zoomOut);
-	LOAD_PATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
+	LOAD_PATH_IF_URL("zoom-fit", ::ScriptnodeIcons::zoomFit);
 	LOAD_PATH_IF_URL("zoom-sel", ScriptnodeIcons::zoomSelection);
     LOAD_PATH_IF_URL("signal", ScriptnodeIcons::signalIcon);
-	LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
+	LOAD_PATH_IF_URL("error", ::ScriptnodeIcons::errorIcon);
 	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
 	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
 	LOAD_PATH_IF_URL("parameters", HiBinaryData::SpecialSymbols::macros);
@@ -515,7 +504,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		auto start = getCircle(e->getDetails().sourceComponent, false);
 		auto end = a.withSize(start.getWidth(), start.getHeight());
 
-		paintCable(g, start, end, Colours::white, 0.6f);
+		GlobalHiseLookAndFeel::paintCable(g, start, end, Colours::white, 0.6f);
 	}
 
 	Array<ModulationSourceBaseComponent*> modSourceList;
@@ -667,7 +656,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 						addDragSource(targetSlider);
 					}
 					
-					paintCable(g, start, end, colourToUse, thisAlpha, hc);
+					GlobalHiseLookAndFeel::paintCable(g, start, end, colourToUse, thisAlpha, hc);
 				}
 			}
 		}
@@ -704,7 +693,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
 
 				Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
-				auto midPoint = paintCable(g, start, end, c, thisAlpha, hc, network->getCpuProfileFlag());
+				auto midPoint = GlobalHiseLookAndFeel::paintCable(g, start, end, c, thisAlpha, hc, network->getCpuProfileFlag());
 
 				if (!midPoint.isOrigin())
 				{
@@ -759,7 +748,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						auto midPoint = paintCable(g, start, end, cableColour, thisAlpha, hc, network->getCpuProfileFlag());
+						auto midPoint = GlobalHiseLookAndFeel::paintCable(g, start, end, cableColour, thisAlpha, hc, network->getCpuProfileFlag());
 
 						if (!midPoint.isOrigin())
 						{
@@ -788,7 +777,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 									if (cs->parameterToControl->data == cv)
 									{
 										auto cend = getCircle(cs);
-										paintCable(g, start, cend, i++ < numClones ? cableColour : Colours::grey, thisAlpha * 0.1f, hc);
+										GlobalHiseLookAndFeel::paintCable(g, start, cend, i++ < numClones ? cableColour : Colours::grey, thisAlpha * 0.1f, hc);
 									}
 								}
 							}
@@ -842,7 +831,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 							Colour hc = b->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-							paintCable(g, start, end, c, alpha, hc);
+							GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
 						}
 					}
 				}
@@ -872,7 +861,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						Colour hc = sourceSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						paintCable(g, start, end, c, alpha, hc);
+						GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
 						break;
 					}
 				}
@@ -911,7 +900,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						Colour hc = r->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
-						paintCable(g, start, end, c, alpha, hc);
+						GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
 					}
 				}
 			}

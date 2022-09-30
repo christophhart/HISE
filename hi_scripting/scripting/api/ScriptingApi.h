@@ -1283,7 +1283,7 @@ public:
 
 		struct Callback: public PooledUIUpdater::Broadcaster
 		{
-			Callback(TransportHandler* p, const var& f, bool sync, int numArgs);
+			Callback(TransportHandler* p, const String& name, const var& f, bool sync, int numArgs);
 
 			void call(var arg1, var arg2 = {}, var arg3 = {}, bool forceSynchronous = false);
 

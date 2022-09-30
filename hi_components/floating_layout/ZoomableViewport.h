@@ -530,6 +530,32 @@ struct WrapperWithMenuBarBase : public Component,
 			return changed;
 		}
 
+		/** Call this function with a lambda that creates a component and it will be shown as Floating Tile popup. */
+		void setControlsPopup(const std::function<Component*()>& createFunc)
+		{
+			stateFunction = [this](ContentType&)
+			{
+				return this->currentPopup != nullptr;
+			};
+
+			actionFunction = [this, createFunc](ContentType&)
+			{
+				auto ft = findParentComponentOfClass<FloatingTile>();
+
+				if (this->currentPopup)
+				{
+					ft->showComponentInRootPopup(nullptr, this, {});
+				}
+				else
+				{
+					this->currentPopup = createFunc();
+					ft->showComponentInRootPopup(this->currentPopup, this, { getWidth() / 2, getHeight() });
+				}
+
+				return false;
+			};
+		}
+
 		void paint(Graphics& g) override
 		{
 			auto on = stateFunction ? stateFunction(*parent) : false;
@@ -581,6 +607,10 @@ struct WrapperWithMenuBarBase : public Component,
 		Callback actionFunction;
 		bool lastState = false;
 		bool lastEnableState = false;
+
+		Component::SafePointer<Component> currentPopup;
+
+		bool isPopupShown = false;
 	};
 
 	constexpr static int MenuHeight = 24;
