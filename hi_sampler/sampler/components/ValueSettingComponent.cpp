@@ -260,7 +260,7 @@ void ValueSettingComponent::resized()
 {
 	auto b = getLocalBounds().reduced(2, 0);
 
-	descriptionLabel->setBounds(b.removeFromTop(JUCE_LIVE_CONSTANT(15)));
+	descriptionLabel->setBounds(b.removeFromTop(JUCE_LIVE_CONSTANT_OFF(15)));
 
 	minusButton->setBounds(b.removeFromLeft(b.getHeight()));
 	plusButton->setBounds(b.removeFromRight(b.getHeight()));

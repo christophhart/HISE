@@ -1914,7 +1914,7 @@ void ModulatorSamplerSound::EnvelopeTable::processBuffer(AudioSampleBuffer& b, i
 		ps.numChannels = b.getNumChannels();
 
 		filter.prepare(ps);
-		filter.setOrder(JUCE_LIVE_CONSTANT(1));
+		filter.setOrder(JUCE_LIVE_CONSTANT_OFF(1));
 		
 		int offset = 0;
 

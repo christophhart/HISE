@@ -1067,7 +1067,7 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
             alpha = std::pow(alpha, JUCE_LIVE_CONSTANT_OFF(0.6f));
 
 			auto lutValue = parameters->lut->getColouredPixel(alpha);
-            newImage.setPixelAt(i, y, lutValue);//Colour::fromHSV(hue, JUCE_LIVE_CONSTANT(1.0f), 1.0f, alpha));
+            newImage.setPixelAt(i, y, lutValue);
         }
     }
 

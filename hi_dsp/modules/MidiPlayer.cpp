@@ -1613,7 +1613,7 @@ void MidiPlayer::flushOverdubNotes(double timestampForActiveNotes/*=-1.0*/)
 		{
 			auto delta = timestampForActiveNotes - np.on.getTimeStamp();
 
-			if (delta < JUCE_LIVE_CONSTANT(192.0))
+			if (delta < JUCE_LIVE_CONSTANT_OFF(192.0))
 			{
 				np.on.setTimeStamp(0);
 			}

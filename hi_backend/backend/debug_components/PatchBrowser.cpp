@@ -1107,7 +1107,7 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 	auto c = synth->getIconColour();
 
 	if (c.isTransparent() && getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
-		c = JUCE_LIVE_CONSTANT(Colour(0xff828282));
+		c = JUCE_LIVE_CONSTANT_OFF(Colour(0xff828282));
 
 	if (getProcessor()->isBypassed())
 		c = c.withMultipliedAlpha(0.4f);
@@ -1170,7 +1170,7 @@ void PatchBrowser::PatchCollection::applyLayout()
 
     auto rectSpace = b.reduced(0, 7);
 	rectSpace.removeFromLeft(7);
-	rectSpace.removeFromRight(JUCE_LIVE_CONSTANT(3));
+	rectSpace.removeFromRight(JUCE_LIVE_CONSTANT_OFF(3));
     auto iconSpace = rectSpace.removeFromLeft(rectSpace.getHeight());
     
     foldButton->setBorderSize(BorderSize<int>(JUCE_LIVE_CONSTANT_OFF(10)));
@@ -1202,7 +1202,7 @@ void PatchBrowser::PatchCollection::applyLayout()
         gotoWorkspace->setBounds(rectSpace.removeFromRight(b.getHeight()).expanded(0, b.getHeight() - rectSpace.getHeight()));
     }
 
-	rectSpace.removeFromLeft(JUCE_LIVE_CONSTANT(5));
+	rectSpace.removeFromLeft(JUCE_LIVE_CONSTANT_OFF(5));
 	idLabel.setBounds(rectSpace.toNearestInt());
 
 	repaint();

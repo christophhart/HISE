@@ -161,7 +161,7 @@ void FloatingTilePopup::rebuildBoxPath()
 
 	shadowImage = Image(Image::ARGB, fb.getWidth(), fb.getHeight(), true);
 	Graphics g2(shadowImage);
-	g2.setColour(Colour(JUCE_LIVE_CONSTANT(Colour(0x32000000))));
+	g2.setColour(Colour(JUCE_LIVE_CONSTANT_OFF(Colour(0x32000000))));
 	g2.fillRect(bb);
 	gin::applyStackBlur(shadowImage, 3);
 }

@@ -479,7 +479,6 @@ void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> a
 	PathFactory::scalePath(ring3, area.reduced(ringWidth));
 	g.strokePath(ring3, PathStrokeType(ringWidth * (down ? 1.55 : 1.4)));
 
-	//auto c = JUCE_LIVE_CONSTANT(Colour(0xFF120412));
 	auto c = Colour(rColour);
 
 

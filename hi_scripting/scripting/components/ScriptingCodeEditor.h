@@ -78,7 +78,7 @@ private:
             {
                 auto ta = Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
                 
-                auto br = JUCE_LIVE_CONSTANT(1.3f);
+                auto br = JUCE_LIVE_CONSTANT_OFF(1.3f);
                 
                 Colour resultColours[2] = { Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(br),
                                             Colour(HISE_OK_COLOUR).withMultipliedBrightness(br) };
