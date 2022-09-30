@@ -102,24 +102,17 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 
 	for (auto& co : constObjects)
 	{
-		if (auto cso = dynamic_cast<ConstScriptingObject*>(co.value.getObject()))
+		if (auto cso = dynamic_cast<ApiClass*>(co.value.getObject()))
 		{
-			auto fList = cso->getOptimizableFunctions();
+			auto fList = cso->getListOfOptimizableFunctions();
 
-			if (optimiseFunction(r, fList, p))
+			if (fList.isArray())
 			{
-				;
-			}
-			else if (fList.isArray())
-			{
-				for(auto& f: *fList.getArray())
+				for (auto& f : *fList.getArray())
 					optimiseFunction(r, f, p);
 			}
-			else if (auto obj = fList.getDynamicObject())
-			{
-				for (auto& nv : obj->getProperties())
-					optimiseFunction(r, nv.value, p);
-			}
+			else
+				jassertfalse;
 		}
 	}
 
@@ -129,6 +122,19 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::HiseSpecialData::runOptimisation(OptimizationPass* p)
 {
 	auto r = JavascriptNamespace::runOptimisation(p);
+
+	for (auto api : this->apiClasses)
+	{
+		auto list = api->getListOfOptimizableFunctions();
+
+		for (auto f : *list.getArray())
+			optimiseFunction(r, f, p);
+	}
+
+	for (auto& nv : this->root->getProperties())
+	{
+		optimiseFunction(r, nv.value, p);
+	}
 
 	for (auto n : namespaces)
 	{
@@ -287,6 +293,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				HiseJavascriptEngine::checkValidParameter(i, parameters[i], location);
 			}
 				
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			if(constObject->wantsCurrentLocation())
+				constObject->setCurrentLocation(object->location.externalFile, object->location.getCharIndex());
+#endif
 
 			return constObject->callFunction(functionIndex, parameters, numArgs);
 		}

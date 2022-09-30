@@ -592,11 +592,14 @@ bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
 	return true;
 }
 
-WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs_) :
+WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs_) :
 	ScriptingObject(p),
 	r(Result::ok()),
 	numExpectedArgs(numExpectedArgs_)
 {
+	if (parentObject != nullptr)
+		parentObject->addOptimizableFunction(callback);
+
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(p))
 	{
 		engineToUse = jp->getScriptEngine();
@@ -627,6 +630,7 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	engineToUse(copy.engineToUse),
 	anonymousFunctionRef(copy.anonymousFunctionRef),
 	thisObject(copy.thisObject),
+	refCountedThisObject(copy.refCountedThisObject),
 	capturedLocals(copy.capturedLocals)
 {
 	args.addArray(copy.args);
@@ -640,6 +644,7 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	highPriority(other.highPriority),
 	anonymousFunctionRef(other.anonymousFunctionRef),
 	engineToUse(other.engineToUse),
+	refCountedThisObject(other.refCountedThisObject),
 	thisObject(other.thisObject),
 	capturedLocals(other.capturedLocals)
 {
@@ -659,6 +664,7 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	highPriority = other.highPriority;
 	anonymousFunctionRef = other.anonymousFunctionRef;
 	engineToUse = other.engineToUse;
+	refCountedThisObject = other.refCountedThisObject;
 	thisObject = other.thisObject;
 	capturedLocals = other.capturedLocals;
 	args.swapWith(other.args);
@@ -675,6 +681,15 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 	}
 
 	return nullptr;
+}
+
+void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId)
+{
+	if (weakCallback != nullptr)
+	{
+		auto id = sourceObject->getDebugName() + "." + callbackId;
+		weakCallback->addAsSource(sourceObject, Identifier(id));
+	}
 }
 
 void WeakCallbackHolder::clear()
@@ -695,6 +710,11 @@ void WeakCallbackHolder::setThisObject(ReferenceCountedObject* thisObj)
 	jassert(anonymousFunctionRef.isObject());
 }
 
+void WeakCallbackHolder::setThisObjectRefCounted(const var& t)
+{
+	refCountedThisObject = t;
+}
+
 bool WeakCallbackHolder::matches(const var& f) const
 {
 	return weakCallback == dynamic_cast<CallableObject*>(f.getObject());
@@ -702,6 +722,9 @@ bool WeakCallbackHolder::matches(const var& f) const
 
 juce::var WeakCallbackHolder::getThisObject()
 {
+	if (refCountedThisObject.isObject())
+		return refCountedThisObject;
+
 	if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
 	{
 		return var(d);
@@ -712,21 +735,24 @@ juce::var WeakCallbackHolder::getThisObject()
 
 void WeakCallbackHolder::call(var* arguments, int numArgs)
 {
+	call(var::NativeFunctionArgs(var(), arguments, numArgs));
+}
+
+void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
+{
 	try
 	{
 		if (weakCallback != nullptr && getScriptProcessor() != nullptr)
 		{
-			checkArguments("external call", numArgs, numExpectedArgs);
+			checkArguments("external call", args.numArguments, numExpectedArgs);
 			auto copy = *this;
-			copy.args.addArray(arguments, numArgs);
+			copy.args.addArray(args.arguments, args.numArguments);
 
-			var thisObj;
-
-			if (thisObject.get() != nullptr)
-				thisObj = var(dynamic_cast<ReferenceCountedObject*>(thisObject.get()));
-
-			var::NativeFunctionArgs args_(thisObj, arguments, numArgs);
-			checkValidArguments(args_);
+			{
+				var::NativeFunctionArgs args_(var(), args.arguments, args.numArguments);
+				checkValidArguments(args_);
+			}
+			
 			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
 			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
 		}
@@ -945,6 +971,16 @@ Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, co
 		*returnValue = rv;
 
 	return lastResult;
+}
+
+void ConstScriptingObject::gotoLocationWithDatabaseLookup()
+{
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+	
+	if (auto loc = DebugableObject::Helpers::getLocationFromProvider(p, this))
+	{
+		DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(p), loc);
+	}
 }
 
 } // namespace hise

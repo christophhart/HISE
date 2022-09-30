@@ -55,6 +55,8 @@ public:
 
 	struct Location
 	{
+		operator bool() const { return charNumber != 0 || fileName.isNotEmpty(); }
+		bool operator==(const Location& other) { return other.charNumber == charNumber && fileName == other.fileName; }
 		String fileName = String();
 		int charNumber = 0;
 	};

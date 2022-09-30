@@ -275,7 +275,51 @@ public:
 		return inlineableFunctions.contains(id);
 	}
 
+	var getListOfOptimizableFunctions() const
+	{
+		Array<var> l;
+
+		for (auto o : optimizableFunctions)
+		{
+			if (o != nullptr)
+				l.add(var(dynamic_cast<ReferenceCountedObject*>(o.get())));
+		}
+
+		return var(l);
+	}
+
+	void addOptimizableFunction(const var& functionObject)
+	{
+		if (auto obj = dynamic_cast<DebugableObjectBase*>(functionObject.getObject()))
+		{
+			optimizableFunctions.addIfNotAlreadyThere(obj);
+		}
+	}
+
+	DebugableObjectBase::Location getCurrentLocationInFunctionCall()
+	{
+		return currentLocation;
+	}
+
+	void setWantsCurrentLocation(bool shouldSaveCurrentLocation)
+	{
+		wantsLocation = shouldSaveCurrentLocation;
+	}
+
+	bool wantsCurrentLocation() const { return wantsLocation; }
+
+	void setCurrentLocation(const String& file, int charNumber)
+	{
+		currentLocation.fileName = file;
+		currentLocation.charNumber = charNumber;
+	}
+
 private:
+
+	bool wantsLocation = false;
+	DebugableObjectBase::Location currentLocation;
+
+	Array<WeakReference<DebugableObjectBase>> optimizableFunctions;
 
 	// ================================================================================================================
 

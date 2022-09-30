@@ -163,6 +163,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #if USE_BACKEND
 #include "scripting/components/ScriptingPanelTypes.h"
+
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"

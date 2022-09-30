@@ -446,7 +446,7 @@ void ScriptNetworkTest::CHandler::processTest(ProcessDataDyn& data)
 }
 
 ScriptNetworkTest::CHandler::RuntimeFunction::RuntimeFunction(DspNetwork* n, const var& f_, int timestamp_) :
-	f(n->getScriptProcessor(), f_, 0),
+	f(n->getScriptProcessor(), nullptr, f_, 0),
 	timestamp(timestamp_)
 {
 	f.incRefCount();

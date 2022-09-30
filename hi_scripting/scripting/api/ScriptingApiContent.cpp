@@ -228,7 +228,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ConstScriptingObject(base, numConstants),
 	UpdateDispatcher::Listener(base->getScriptingContent()->getUpdateDispatcher()),
 	name(name_),
-	keyboardCallback(base, {}, 1),
+	keyboardCallback(base, nullptr, {}, 1),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
@@ -1367,7 +1367,7 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 
 void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)
 {
-	keyboardCallback = WeakCallbackHolder(getScriptProcessor(), keyboardFunction, 1);
+	keyboardCallback = WeakCallbackHolder(getScriptProcessor(), this, keyboardFunction, 1);
 	keyboardCallback.incRefCount();
 	keyboardCallback.setThisObject(this);
 }
@@ -3278,10 +3278,10 @@ ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 isChildPanel(true),
-loadRoutine(base, var(), 1),
-timerRoutine(base, var(), 0),
-mouseRoutine(base, var(), 1),
-fileDropRoutine(base, var(), 1),
+loadRoutine(base, nullptr, var(), 1),
+timerRoutine(base, nullptr, var(), 0),
+mouseRoutine(base, nullptr, var(), 1),
+fileDropRoutine(base, nullptr, var(), 1),
 mouseCursorPath(MouseCursor::NormalCursor)
 {
 	init();
@@ -3292,10 +3292,10 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	PreloadListener(parent->getScriptProcessor()->getMainController_()->getSampleManager()),
 	graphics(new ScriptingObjects::GraphicsObject(parent->getScriptProcessor(), this)),
 	parentPanel(parent),
-	loadRoutine(parent->getScriptProcessor(), var(), 1),
-	mouseRoutine(parent->getScriptProcessor(), var(), 1),
-	timerRoutine(parent->getScriptProcessor(), var(), 0),
-	fileDropRoutine(parent->getScriptProcessor(), var(), 1),
+	loadRoutine		(parent->getScriptProcessor(), nullptr, var(), 1),
+	mouseRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
+	timerRoutine	(parent->getScriptProcessor(), nullptr, var(), 0),
+	fileDropRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
 	mouseCursorPath(MouseCursor::NormalCursor)
 {
 	
@@ -3531,7 +3531,7 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 	{
 		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
 
-		loadRoutine = WeakCallbackHolder(getScriptProcessor(), loadingCallback, 1);
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), this, loadingCallback, 1);
 		loadRoutine.incRefCount();
 		loadRoutine.setThisObject(this);
 		loadRoutine.setHighPriority();
@@ -3539,7 +3539,7 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
     else
     {
         getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
-		loadRoutine = WeakCallbackHolder(getScriptProcessor(), var(), 1);
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), this, var(), 1);
     }
 }
 
@@ -3554,7 +3554,7 @@ void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLeve
 {
 	fileDropLevel = callbackLevel;
 	fileDropExtension = wildcard;
-	fileDropRoutine = WeakCallbackHolder(getScriptProcessor(), dropFunction, 1);
+	fileDropRoutine = WeakCallbackHolder(getScriptProcessor(), this, dropFunction, 1);
 	fileDropRoutine.incRefCount();
 	fileDropRoutine.setThisObject(this);
 	fileDropRoutine.setHighPriority();
@@ -3563,7 +3563,7 @@ void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLeve
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
-	mouseRoutine = WeakCallbackHolder(getScriptProcessor(), mouseCallbackFunction, 1);
+	mouseRoutine = WeakCallbackHolder(getScriptProcessor(), this, mouseCallbackFunction, 1);
 	mouseRoutine.incRefCount();
 	mouseRoutine.setThisObject(this);
 	mouseRoutine.setHighPriority();
@@ -3593,7 +3593,7 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 {
-	timerRoutine = WeakCallbackHolder(getScriptProcessor(), timerCallback_, 0);
+	timerRoutine = WeakCallbackHolder(getScriptProcessor(), this, timerCallback_, 0);
 	timerRoutine.incRefCount();
 	timerRoutine.setThisObject(this);
 }
@@ -4239,12 +4239,13 @@ bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, b
 
 	std::function<void()> f;
 
+	WeakReference<ScriptPanel> safeThis(this);
 
 	if (HiseJavascriptEngine::isJavascriptFunction(finishCallback))
 	{
-		f = [sp, finishCallback]()
+		f = [sp, finishCallback, safeThis]()
 		{
-			WeakCallbackHolder cb(sp, finishCallback, 0);
+			WeakCallbackHolder cb(sp, safeThis.get(), finishCallback, 0);
 			cb.callSync(nullptr, 0);
 		};
 	}
@@ -5811,16 +5812,16 @@ String ScriptingApi::Content::getComponentUnderMouse()
 
 void ScriptingApi::Content::callAfterDelay(int milliSeconds, var function, var thisObject)
 {
-	WeakCallbackHolder cb(getScriptProcessor(), function, 0);
+	WeakCallbackHolder cb(getScriptProcessor(), nullptr, function, 0);
 	cb.incRefCount();
 
 	if (auto obj = thisObject.getObject())
 		cb.setThisObject(obj);
 
 	Timer::callAfterDelay(milliSeconds, [cb]() mutable
-		{
-			cb.call(nullptr, 0);
-		});
+	{
+		cb.call(nullptr, 0);
+	});
 }
 
 void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)

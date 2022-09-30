@@ -70,6 +70,9 @@ public:
 		
 		static void gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
 
+		/** This will try to resolve the location from the provider if the obj has not a valid location. */
+		static Location getLocationFromProvider(Processor* p, DebugableObjectBase* obj);
+
 		static Component* showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
 
 		static Component* createJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
@@ -79,6 +82,8 @@ public:
 		static var getCleanedVar(const var& value);
 
 		static var getCleanedObjectForJSONDisplay(const var& object);
+
+		static DebugInformationBase::Ptr getDebugInformation(DebugInformationBase::Ptr parent, DebugableObjectBase* object);
 
 		static DebugInformationBase::Ptr getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object);
 

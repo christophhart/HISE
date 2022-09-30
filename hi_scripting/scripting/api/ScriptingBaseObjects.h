@@ -135,8 +135,17 @@ public:
 	/** \internal Overwrite this method and check if the object exists. Best thing is to initialize the pointer to nullptr and check that. */
 	virtual bool objectExists() const { return false; }
 
+	
 	/** Return all attached functions and callbacks of this object so that the compiler can run its optimisations. */
-	virtual var getOptimizableFunctions() const { return {}; }
+	//virtual var getOptimizableFunctions() const { return {}; }
+
+	/** The parser will call this function with every function call and its location so you can use it to track down calls. 
+		Note: this will only work with objects that are defined as const variables. */
+	virtual bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location) 
+	{
+		ignoreUnused(id, location);
+		return false;
+	};
 
 	/** \internal This method combines the calls to objectDeleted() and objectExists() and creates a nice error message. */
 	bool checkValidObject() const
@@ -158,9 +167,14 @@ public:
 
 	void setName(const Identifier &name_) noexcept{ name = name_; };
 
+	void gotoLocationWithDatabaseLookup();
+
+	
+
 private:
 
 	Identifier name;
+
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstScriptingObject);
 };
@@ -260,6 +274,8 @@ struct WeakCallbackHolder : private ScriptingObject
 		/** Override this and either clone or swap the captured values. */
 		virtual void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) {};
 
+		virtual void addAsSource(DebugableObjectBase* b, const Identifier& callbackId) { ignoreUnused(b, callbackId); };
+
 	protected:
 
 		Result lastResult;
@@ -268,7 +284,7 @@ struct WeakCallbackHolder : private ScriptingObject
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CallableObject);
 	};
 
-	WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs);
+	WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs);
 
 	/** @internal: used by the scripting thread. */
 	WeakCallbackHolder(const WeakCallbackHolder& copy);
@@ -282,6 +298,7 @@ struct WeakCallbackHolder : private ScriptingObject
 	/** Call the function with the given arguments. */
 	void call(var* arguments, int numArgs);
 
+	void call(const var::NativeFunctionArgs& args);
 	
 	Result callSync(const var::NativeFunctionArgs& args, var* returnValue = nullptr);
 
@@ -332,6 +349,8 @@ struct WeakCallbackHolder : private ScriptingObject
 		anonymousFunctionRef = var();
 	}
 
+	void addAsSource(DebugableObjectBase* sourceObject, const String& callbackId);
+
 	void clear();
 
 	operator bool() const
@@ -340,6 +359,8 @@ struct WeakCallbackHolder : private ScriptingObject
 	}
 
 	void setThisObject(ReferenceCountedObject* thisObj);
+
+	void setThisObjectRefCounted(const var& t);
 
 	bool matches(const var& f) const;
 
@@ -355,6 +376,9 @@ private:
 	NamedValueSet capturedLocals;
 	WeakReference<CallableObject> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
+
+	var refCountedThisObject;
+
 	WeakReference<HiseJavascriptEngine> engineToUse;
 };
 

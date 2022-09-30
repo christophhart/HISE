@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, const var& td) :
 	TableListBoxModel(),
 	tableMetadata(td),
-	cellCallback(p, var(), 3),
+	cellCallback(p, nullptr, var(), 3),
 	pwsc(p)
 {
 	tableRefreshBroadcaster.enableLockFreeUpdate(p->getMainController_()->getGlobalUIUpdater());
@@ -473,7 +473,7 @@ void ScriptTableListModel::setCallback(var callback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		cellCallback = WeakCallbackHolder(pwsc, callback, 1);
+		cellCallback = WeakCallbackHolder(pwsc, nullptr, callback, 1);
 		cellCallback.incRefCount();
 	}
 }

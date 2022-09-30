@@ -495,6 +495,24 @@ void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformati
 
 
 
+DebugableObject::Location DebugableObject::Helpers::getLocationFromProvider(Processor* p, DebugableObjectBase* obj)
+{
+	auto loc = obj->getLocation();
+
+	if (loc.charNumber != 0 || loc.fileName.isNotEmpty())
+		return loc;
+
+	if (auto asProvider = dynamic_cast<ApiProviderBase::Holder*>(p))
+	{
+		auto engine = asProvider->getProviderBase();
+
+		if (auto ptr = getDebugInformation(engine, obj))
+			return ptr->getLocation();
+	}
+
+	return loc;
+}
+
 Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
 {
 #if USE_BACKEND
@@ -588,10 +606,10 @@ DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProvi
 {
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
-		if (engine->getDebugInformation(i)->getObject() == object)
-		{
-			return engine->getDebugInformation(i);
-		}
+		auto dobj = engine->getDebugInformation(i);
+
+		if (auto ptr = getDebugInformation(dobj, object))
+			return ptr;
 	}
 
 	return nullptr;
@@ -613,6 +631,20 @@ DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProvi
 			if(dbg->getVariantCopy() == v)
 				return b;
 		}
+	}
+
+	return nullptr;
+}
+
+hise::DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(DebugInformationBase::Ptr parent, DebugableObjectBase* object)
+{
+	if (parent->getObject() == object)
+		return parent;
+
+	for (int i = 0; i < parent->getNumChildElements(); i++)
+	{
+		if (auto p = getDebugInformation(parent->getChildElement(i), object))
+			return p;
 	}
 
 	return nullptr;

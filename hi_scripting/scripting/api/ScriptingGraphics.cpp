@@ -2068,6 +2068,7 @@ void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, v
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(function))
 	{
+		addOptimizableFunction(function);
 		functions.getDynamicObject()->setProperty(Identifier(functionName.toString()), function);
 	}
 }
@@ -3849,10 +3850,7 @@ void ScriptingObjects::ScriptedLookAndFeel::loadImage(String imageName, String p
 
 
 
-juce::var ScriptingObjects::ScriptedLookAndFeel::getOptimizableFunctions() const
-{
-	return functions;
-}
+
 
 ScriptingObjects::ScriptedLookAndFeel::LocalLaf::LocalLaf(ScriptedLookAndFeel* l) :
 	Laf(l->getScriptProcessor()->getMainController_()),

@@ -550,8 +550,6 @@ namespace ScriptingObjects
 
 		void callFinishCallback(bool isFinished, bool wasCancelled)
 		{
-			
-
 			if (finishCallback)
 			{
 				var args[2] = { var(isFinished), var(wasCancelled) };
@@ -891,8 +889,6 @@ namespace ScriptingObjects
 				contentCallback.call1(data);
 			}
 		}
-
-		
 
 	protected:
 
@@ -2246,8 +2242,8 @@ namespace ScriptingObjects
 		{
 			using List = ReferenceCountedArray<OSCCallback>;
 
-			OSCCallback(ProcessorWithScriptingContent* pwsc, String& sd, const var& cb) :
-				callback(pwsc, cb, 2),
+			OSCCallback(GlobalRoutingManagerReference* parent, String& sd, const var& cb) :
+				callback(parent->getScriptProcessor(), parent, cb, 2),
 				subDomain(sd),
 				fullAddress("/*")
 			{
@@ -2491,8 +2487,6 @@ namespace ScriptingObjects
 
 		void timerCallback() override;
 
-		
-
 		// ============================================================================================================ API Methods
 
 		/** Returns an array containing all notes converted to the space supplied with the target bounds [x, y, w, h]. */
@@ -2602,6 +2596,8 @@ namespace ScriptingObjects
 		// ============================================================================================================
 
 		struct Wrapper;
+
+		
 
 	private:
 

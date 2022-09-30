@@ -878,6 +878,43 @@ struct ConstantFolding : public HiseJavascriptEngine::RootObject::OptimizationPa
 	}
 };
 
+struct LocationInjector : public HiseJavascriptEngine::RootObject::OptimizationPass
+{
+	using Statement = HiseJavascriptEngine::RootObject::Statement;
+
+	LocationInjector()
+	{}
+
+	String getPassName() const override { return "Location Injector"; };
+
+	Statement* getOptimizedStatement(Statement* parent, Statement* statementToOptimize) override
+	{
+		if (auto dot = dynamic_cast<HiseJavascriptEngine::RootObject::DotOperator*>(statementToOptimize))
+		{
+			if (auto cr = dynamic_cast<HiseJavascriptEngine::RootObject::ConstReference*>(dot->parent.get()))
+			{
+				HiseJavascriptEngine::RootObject::Scope s(nullptr, nullptr, nullptr);
+
+				auto obj = cr->getResult(s);
+
+				if (auto cso = dynamic_cast<ConstScriptingObject*>(obj.getObject()))
+				{
+					DebugableObjectBase::Location loc;
+					loc.charNumber = dot->location.getCharIndex();
+					loc.fileName = dot->location.externalFile;
+
+					if (cso->addLocationForFunctionCall(dot->child, loc))
+					{
+						
+					}
+				}
+			}
+		}
+
+		return statementToOptimize;
+	}
+};
+
 struct BlockRemover : public HiseJavascriptEngine::RootObject::OptimizationPass
 {
 	using Statement = HiseJavascriptEngine::RootObject::Statement;
@@ -946,7 +983,11 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::registerOptimisationPass
 	
 	shouldOptimize = enable == "1";
 
+	optimizations.add(new LocationInjector());
+
 #endif
+
+
 
 	if (shouldOptimize)
 	{
@@ -954,6 +995,8 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::registerOptimisationPass
 		optimizations.add(new BlockRemover());
 		optimizations.add(new FunctionInliner());
 	}
+
+	
 }
 
 

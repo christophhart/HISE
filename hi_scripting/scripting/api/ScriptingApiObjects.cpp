@@ -833,7 +833,7 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 		
 		int64 numBytesWritten = 0;
 
-		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), callback, 1);
+		WeakCallbackHolder cb(safeThis.get()->getScriptProcessor(), safeThis.get(), callback, 1);
 		//cb.setThisObject(safeThis.get());
 		cb.incRefCount();
 
@@ -977,7 +977,7 @@ struct ScriptingObjects::ScriptDownloadObject::Wrapper
 
 ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader_, const File& targetFile_, var callback_) :
 	ConstScriptingObject(pwsc, 3),
-	callback(pwsc, callback_, 0),
+	callback(pwsc, this, callback_, 0),
 	downloadURL(url),
 	targetFile(targetFile_),
 	extraHeaders(extraHeader_),
@@ -1329,8 +1329,8 @@ ScriptingObjects::ScriptComplexDataReferenceBase::ScriptComplexDataReferenceBase
 	index(dataIndex),
 	type(type_),
 	holder(otherHolder != nullptr ? otherHolder : dynamic_cast<ExternalDataHolder*>(c)),
-	displayCallback(c, var(), 1),
-	contentCallback(c, var(), 1)
+	displayCallback(c, this, var(), 1),
+	contentCallback(c, this, var(), 1)
 {
 	if (holder != nullptr)
 	{
@@ -1369,9 +1369,10 @@ void ScriptingObjects::ScriptComplexDataReferenceBase::setCallbackInternal(bool 
 	{
 		auto& cb = isDisplay ? displayCallback : contentCallback;
 
-		cb = WeakCallbackHolder(getScriptProcessor(), f, 1);
+		cb = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
 		cb.setThisObject(this);
 		cb.incRefCount();
+		cb.addAsSource(this, "onComplexDataEvent");
 	}
 }
 
@@ -4298,7 +4299,7 @@ ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
 	ConstScriptingObject(p, 0),
 	ControlledObject(p->getMainController_(), true),
 	it(this),
-	tc(p, {}, 0)
+	tc(p, this, {}, 0)
 {
 	ADD_API_METHOD_0(isTimerRunning);
 	ADD_API_METHOD_1(startTimer);
@@ -4368,9 +4369,10 @@ void ScriptingObjects::TimerObject::stopTimer()
 
 void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
 {
-	tc = WeakCallbackHolder(getScriptProcessor(), callbackFunction, 0);
+	tc = WeakCallbackHolder(getScriptProcessor(), this, callbackFunction, 0);
 	tc.incRefCount();
 	tc.setThisObject(this);
+	tc.addAsSource(this, "onTimerCallback");
 }
 
 
@@ -4767,7 +4769,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
 	MidiPlayerBaseType(player_),
 	ConstScriptingObject(p, 0),
-	updateCallback(p, var(), 1)
+	updateCallback(p, this, var(), 1)
 {
 	ADD_API_METHOD_0(getPlaybackPosition);
 	ADD_API_METHOD_1(setPlaybackPosition);
@@ -5217,8 +5219,9 @@ void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunctio
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(updateFunction))
 	{
-		updateCallback = WeakCallbackHolder(getScriptProcessor(), updateFunction, 1);
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), this, updateFunction, 1);
 		updateCallback.incRefCount();
+		updateCallback.addAsSource(this, "onMidiSequenceUpdate");
 
 		callUpdateCallback();
 	}
@@ -5422,7 +5425,7 @@ struct ScriptingObjects::ScriptUnorderedStack::Wrapper
 
 ScriptingObjects::ScriptUnorderedStack::ScriptUnorderedStack(ProcessorWithScriptingContent *p):
 	ConstScriptingObject(p, 5),
-	compareFunction(p, var(), 2)
+	compareFunction(p, this, var(), 2)
 {
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_0(size);
@@ -5819,7 +5822,7 @@ void ScriptingObjects::ScriptUnorderedStack::setIsEventStack(bool shouldBeEventS
 
 	if (eventCompareFunction.isObject())
 	{
-		compareFunction = WeakCallbackHolder(getScriptProcessor(), eventCompareFunction, 2);
+		compareFunction = WeakCallbackHolder(getScriptProcessor(), this, eventCompareFunction, 2);
 		compareFunctionType = CompareFunctions::Custom;
 
 		if (compareFunction)
@@ -5928,8 +5931,8 @@ struct ScriptingObjects::ScriptBackgroundTask::Wrapper
 ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScriptingContent* p, const String& name) :
 	ConstScriptingObject(p, 0),
 	Thread(name),
-	currentTask(p, var(), 1),
-	finishCallback(p, var(), 2)
+	currentTask(p, this, var(), 1),
+	finishCallback(p, this, var(), 2)
 {
 	dynamic_cast<JavascriptProcessor*>(p)->getScriptEngine()->preCompileListeners.addListener(*this, recompiled, false);
 
@@ -6004,9 +6007,10 @@ void ScriptingObjects::ScriptBackgroundTask::setFinishCallback(var newFinishCall
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(newFinishCallback))
 	{
-		finishCallback = WeakCallbackHolder(getScriptProcessor(), newFinishCallback, 2);
+		finishCallback = WeakCallbackHolder(getScriptProcessor(), this, newFinishCallback, 2);
 		finishCallback.setThisObject(this);
 		finishCallback.incRefCount();
+		finishCallback.addAsSource(this, "onTaskFinished");
 	}
 }
 
@@ -6016,8 +6020,9 @@ void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgrou
 	{
 		callFinishCallback(false, false);
 		stopThread(timeOut);
-		currentTask = WeakCallbackHolder(getScriptProcessor(), backgroundTaskFunction, 1);
+		currentTask = WeakCallbackHolder(getScriptProcessor(), this, backgroundTaskFunction, 1);
 		currentTask.incRefCount();
+		currentTask.addAsSource(this, "backgroundFunction");
 		startThread(6);
 	}
 }
@@ -6027,9 +6032,10 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 	if (HiseJavascriptEngine::isJavascriptFunction(loadingFunction))
 	{
 		stopThread(timeOut);
-		currentTask = WeakCallbackHolder(getScriptProcessor(), loadingFunction, 0);
+		currentTask = WeakCallbackHolder(getScriptProcessor(), this, loadingFunction, 0);
 		currentTask.incRefCount();
-		
+		currentTask.addAsSource(this, "backgroundFunction");
+
 		WeakReference<ScriptBackgroundTask> safeThis(this);
 
 		auto f = [safeThis](Processor* p)
@@ -6105,8 +6111,8 @@ void ScriptingObjects::ScriptBackgroundTask::run()
 
 ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(p, WindowType::numWindowType),
-	phaseFunction(p, var(), 2),
-	magnitudeFunction(p, var(), 2)
+	phaseFunction(p, this, var(), 2),
+	magnitudeFunction(p, this, var(), 2)
 {
 	addConstant("Rectangle", WindowType::Rectangle);
 	addConstant("Triangle", WindowType::Triangle);
@@ -6200,7 +6206,7 @@ void ScriptingObjects::ScriptFFT::setMagnitudeFunction(var newMagnitudeFunction,
 	if (HiseJavascriptEngine::isJavascriptFunction(newMagnitudeFunction))
 	{
 		convertMagnitudesToDecibel = convertDb;
-		magnitudeFunction = WeakCallbackHolder(getScriptProcessor(), newMagnitudeFunction, 2);
+		magnitudeFunction = WeakCallbackHolder(getScriptProcessor(), this, newMagnitudeFunction, 2);
 		magnitudeFunction.incRefCount();
 		reinitialise();
 	}
@@ -6212,7 +6218,7 @@ void ScriptingObjects::ScriptFFT::setPhaseFunction(var newPhaseFunction)
 
 	if (HiseJavascriptEngine::isJavascriptFunction(newPhaseFunction))
 	{
-		phaseFunction = WeakCallbackHolder(getScriptProcessor(), newPhaseFunction, 2);
+		phaseFunction = WeakCallbackHolder(getScriptProcessor(), this, newPhaseFunction, 2);
 		phaseFunction.incRefCount();
 		reinitialise();
 	}
@@ -6576,7 +6582,7 @@ struct ScriptingObjects::GlobalRoutingManagerReference::Wrapper
 ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),
 	ControlledObject(sp->getMainController_()),
-	errorCallback(sp, var(), 1)
+	errorCallback(sp, this, var(), 1)
 {
 	auto ptr = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getMainController());
 	manager = ptr.get();
@@ -6665,14 +6671,14 @@ bool ScriptingObjects::GlobalRoutingManagerReference::connectToOSC(var connectio
 	{
 		if (HiseJavascriptEngine::isJavascriptFunction(errorFunction))
 		{
-			errorCallback = WeakCallbackHolder(getScriptProcessor(), errorFunction, 1);
+			errorCallback = WeakCallbackHolder(getScriptProcessor(), this, errorFunction, 1);
 			errorCallback.incRefCount();
 
 			m->setOSCErrorHandler(this);
 		}
 		else
 		{
-			errorCallback = WeakCallbackHolder(getScriptProcessor(), var(), 1);
+			errorCallback = WeakCallbackHolder(getScriptProcessor(), this, var(), 1);
 			m->setOSCErrorHandler(nullptr);
 		}
 
@@ -6737,7 +6743,7 @@ void ScriptingObjects::GlobalRoutingManagerReference::addOSCCallback(String oscS
 {
 	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
 	{
-		auto c = new OSCCallback(getScriptProcessor(), oscSubAddress, callback);
+		auto c = new OSCCallback(this, oscSubAddress, callback);
 
 		if (m->lastData != nullptr)
 		{
@@ -6894,7 +6900,7 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 		SimpleTimer(p.getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 		parent(p),
 		sync(synchronous),
-		callback(p.getScriptProcessor(), f, 1)
+		callback(p.getScriptProcessor(), &p, f, 1)
 	{
 		id << dynamic_cast<Processor*>(p.getScriptProcessor())->getId();
 		id << ".";
@@ -7093,7 +7099,7 @@ ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::PlaybackUpdater(ScriptedM
 	SimpleTimer(parent_.getScriptProcessor()->getMainController_()->getGlobalUIUpdater(), !sync_),
 	sync(sync_),
 	parent(parent_),
-	playbackCallback(parent.getScriptProcessor(), f, 2)
+	playbackCallback(parent.getScriptProcessor(), &parent, f, 2)
 {
 	if (auto mp = parent.getPlayer())
 		mp->addPlaybackListener(this);
@@ -7142,7 +7148,7 @@ struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),
 	handler(sp->getMainController_()->getMacroManager().getMidiControlAutomationHandler()),
-	updateCallback(getScriptProcessor(), var(), 0)
+	updateCallback(getScriptProcessor(), this, var(), 0)
 {
 	handler->addChangeListener(this);
 
@@ -7217,8 +7223,9 @@ void ScriptingObjects::ScriptedMidiAutomationHandler::setUpdateCallback(var call
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		updateCallback = WeakCallbackHolder(getScriptProcessor(), callback, 0);
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 0);
 		updateCallback.incRefCount();
+		updateCallback.addAsSource(this, "onMidiAutomationUpdate");
 		updateCallback.setThisObject(this);
 	}
 }
@@ -7540,7 +7547,7 @@ struct ScriptingObjects::ScriptErrorHandler::Wrapper
 
 ScriptingObjects::ScriptErrorHandler::ScriptErrorHandler(ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(p, OverlayMessageBroadcaster::State::numReasons),
-	callback(p, var(), 2)
+	callback(p, this, var(), 2)
 {
 	addConstant("AppDataDirectoryNotFound", (int)OverlayMessageBroadcaster::AppDataDirectoryNotFound);
 	addConstant("LicenseNotFound", (int)OverlayMessageBroadcaster::LicenseNotFound);
@@ -7593,8 +7600,9 @@ void ScriptingObjects::ScriptErrorHandler::setErrorCallback(var errorCallback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(errorCallback))
 	{
-		callback = WeakCallbackHolder(getScriptProcessor(), errorCallback, 2);
+		callback = WeakCallbackHolder(getScriptProcessor(), this, errorCallback, 2);
 		callback.incRefCount();
+		callback.addAsSource(this, "onErrorCallback");
 		callback.setThisObject(this);
 		callback.setHighPriority();
 	}

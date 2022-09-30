@@ -237,7 +237,7 @@ hise::fixobj::LayoutBase::MemoryLayoutItem::List LayoutBase::createLayout(Alloca
 
 Factory::Factory(ProcessorWithScriptingContent* s, const var& d) :
 	ConstScriptingObject(s, 0),
-	customCompareFunction(getScriptProcessor(), var(), 2)
+	customCompareFunction(getScriptProcessor(), this, var(), 2)
 {
 	allocator = new Allocator();
 
@@ -300,7 +300,7 @@ void Factory::setCompareFunction(var newCompareFunction)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(newCompareFunction))
 	{
-		customCompareFunction = WeakCallbackHolder(getScriptProcessor(), newCompareFunction, 2);
+		customCompareFunction = WeakCallbackHolder(getScriptProcessor(), this, newCompareFunction, 2);
 		customCompareFunction.incRefCount();
 	}
 }
