@@ -2872,6 +2872,8 @@ struct LiveUpdateVarBody : public SimpleVarBody,
 
 	void timerCallback() override;
 
+	void mouseDown(const MouseEvent& e);
+
 	String getTextToDisplay() const;
 
 	int getPreferredWidth() const override { return 35 + GLOBAL_MONOSPACE_FONT().getStringWidth(getTextToDisplay()); }

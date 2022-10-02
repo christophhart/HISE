@@ -6614,6 +6614,22 @@ void LiveUpdateVarBody::timerCallback()
 		repaint();
 }
 
+void LiveUpdateVarBody::mouseDown(const MouseEvent& e)
+{
+	auto isViewable = value.getDynamicObject() != nullptr || value.isArray();
+
+	if (isViewable)
+	{
+		auto ft = findParentComponentOfClass<FloatingTile>();
+
+		auto editor = new JSONEditor(value);
+		editor->setSize(600, 400);
+		editor->setName("JSON Viewer: " + id.toString());
+
+		ft->showComponentInRootPopup(editor, this, { getWidth() / 2, getHeight() });
+	}
+}
+
 String LiveUpdateVarBody::getTextToDisplay() const
 {
 	String text;
