@@ -277,31 +277,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 
 		Colour lineColour = isInPopup ? Colours::white : Colours::black;
 
-		UnblurryGraphics ug(g, *this, true);
-
-		auto mulAlpha = 1.0f - jlimit(0.0f, 1.0f, (1.0f / 3.0f * ug.getPixelSize()));
-
-		float tenAlpha = JUCE_LIVE_CONSTANT_OFF(0.15f);
-		float oneAlpha = JUCE_LIVE_CONSTANT_OFF(.06f);
-		
-		if (mulAlpha > 0.1f)
-		{
-			for (int x = 10; x < getWidth(); x += 10)
-			{
-				float alpha = (x % 100 == 0) ? tenAlpha : oneAlpha;
-				alpha *= mulAlpha;
-				g.setColour(lineColour.withAlpha(alpha));
-				ug.draw1PxVerticalLine(x, 0.0f, (float)getHeight());
-			}
-
-			for (int y = 10; y < getHeight(); y += 10)
-			{
-				float alpha = (y % 100 == 0) ? tenAlpha : oneAlpha;
-				alpha *= mulAlpha;
-				g.setColour(lineColour.withAlpha(alpha));
-				ug.draw1PxHorizontalLine(y, 0.0f, (float)getWidth());
-			}
-		}
+        GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), lineColour);
 	}
 
 	if (dragModeButton->isVisible())

@@ -84,6 +84,7 @@ struct ComponentWithPreferredSize
 	OwnedArray<ComponentWithPreferredSize> children;
 
 	Layout childLayout = Layout::NoChildren;
+    bool stretchChildren = true;
 	int padding = 0;
 
 	int marginTop = 0;

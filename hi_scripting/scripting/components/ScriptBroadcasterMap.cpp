@@ -130,6 +130,11 @@ namespace ScriptBroadcasterMapIcons
 41,100,240,68,201,238,35,68,99,101,0,0 };
 
 
+static const unsigned char queueIcon[] = { 110,109,221,68,34,67,92,119,149,68,108,221,68,34,67,41,124,140,68,108,27,223,144,67,133,251,155,68,108,221,68,34,67,225,122,171,68,108,221,68,34,67,174,127,162,68,108,244,221,87,67,133,251,155,68,108,221,68,34,67,92,119,149,68,99,109,61,202,133,67,92,
+119,149,68,108,61,202,133,67,41,124,140,68,108,233,134,197,67,133,251,155,68,108,61,202,133,67,225,122,171,68,108,61,202,133,67,174,127,162,68,108,168,150,160,67,133,251,155,68,108,61,202,133,67,92,119,149,68,99,109,186,25,239,67,92,119,149,68,108,186,
+25,239,67,41,124,140,68,108,51,107,23,68,133,251,155,68,108,186,25,239,67,225,122,171,68,108,186,25,239,67,174,127,162,68,108,35,243,4,68,133,251,155,68,108,186,25,239,67,92,119,149,68,99,109,12,114,186,67,92,119,149,68,108,12,114,186,67,41,124,140,68,
+108,184,46,250,67,133,251,155,68,108,12,114,186,67,225,122,171,68,108,12,114,186,67,174,127,162,68,108,119,62,213,67,133,251,155,68,108,12,114,186,67,92,119,149,68,99,101,0,0 };
+
 }
 
 namespace ScriptingObjects {
@@ -274,26 +279,8 @@ void ScriptBroadcasterMap::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xFF282828));
 
-	UnblurryGraphics ug(g, *this);
-
-	int index = 0;
-
-	float a1 = JUCE_LIVE_CONSTANT_OFF(0.05f);
-	float a2 = JUCE_LIVE_CONSTANT_OFF(0.02f);
-
-	for (int i = 0; i < getWidth(); i += 10)
-	{
-		g.setColour(Colours::white.withAlpha(index++ % 10 == 0 ? a1 : a2));
-		ug.draw1PxVerticalLine((float)i, 0.0f, (float)getHeight());
-	}
-
-	index = 0;
-
-	for (int i = 0; i < getHeight(); i += 10)
-	{
-		g.setColour(Colours::white.withAlpha(index++ % 10 == 0 ? a1 : a2));
-		ug.draw1PxHorizontalLine((float)i, 0.0f, (float)getWidth());
-	}
+    GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds());
+    
 }
 
 void ScriptBroadcasterMap::updateTagFilter()
@@ -752,11 +739,24 @@ juce::Path ScriptBroadcasterMap::ListenerEntry::createPath(const String& url) co
 	LOAD_PATH_IF_URL("broadcastersource", ScriptBroadcasterMapIcons::otherBroadcasterIcon);
 	LOAD_PATH_IF_URL("componentvalue", ScriptBroadcasterMapIcons::valueIcon);
 	LOAD_PATH_IF_URL("componentproperties", ScriptBroadcasterMapIcons::propertyIcon);
+    LOAD_PATH_IF_URL("scriptfunctioncalls", HiBinaryData::SpecialSymbols::scriptProcessor);
 
 	if (p.isEmpty())
 		p.loadPathFromData(ScriptBroadcasterMapIcons::complexDataIcon, sizeof(ScriptBroadcasterMapIcons::complexDataIcon));
 
 	return p;
+}
+
+juce::Path ScriptBroadcasterMapFactory::createPath(const String& url) const
+{
+    Path p;
+
+    LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+    LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+    LOAD_PATH_IF_URL("queue", ScriptBroadcasterMapIcons::queueIcon);
+    LOAD_PATH_IF_URL("realtime", HnodeIcons::jit);
+    
+    return p;
 }
 
 int ScriptBroadcasterMap::EntryBase::addPinWidth(int innerWidth) const

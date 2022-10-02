@@ -2849,7 +2849,7 @@ struct SimpleVarBody : public ComponentWithPreferredSize,
 	String getSensibleStringRepresentation() const;
 
 	int getPreferredWidth() const override { return 128; }
-	int getPreferredHeight() const override { return 28; };
+	int getPreferredHeight() const override { return 32; };
 
 	var value;
 	String s;

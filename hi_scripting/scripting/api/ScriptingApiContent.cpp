@@ -6600,7 +6600,7 @@ void LiveUpdateVarBody::timerCallback()
 		value = newValue;
 
 		if (displayType == DisplayType::Colour)
-			s = scriptnode::PropertyHelpers::getColourFromVar(newValue).toString();
+            s = "colour";
 		else if (displayType == DisplayType::Bool)
 			s = (bool)newValue ? "true" : "";
 		else
@@ -6648,7 +6648,7 @@ void LiveUpdateVarBody::paint(Graphics& g)
 	case DisplayType::Colour:
 	{
 		g.drawEllipse(circle, 1.0f);
-		g.setColour(Colour::fromString(s));
+		g.setColour(scriptnode::PropertyHelpers::getColourFromVar(value));
 		g.fillEllipse(circle.reduced(1.0f));
 		break;
 	}

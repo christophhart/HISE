@@ -80,7 +80,12 @@ void ComponentWithPreferredSize::resizeChildren(Component* asComponent)
 			if (!dynamic_cast<Component*>(c)->isVisible())
 				continue;
 
-			dynamic_cast<Component*>(c)->setBounds(b.removeFromLeft(c->getPreferredWidth()));
+            auto cb = b.removeFromLeft(c->getPreferredWidth());
+            
+            if(!stretchChildren)
+                cb = cb.removeFromTop(c->getPreferredHeight());
+            
+			dynamic_cast<Component*>(c)->setBounds(cb);
 			b.removeFromLeft(padding);
 		}
 	}
@@ -91,7 +96,12 @@ void ComponentWithPreferredSize::resizeChildren(Component* asComponent)
 			if (!dynamic_cast<Component*>(c)->isVisible())
 				continue;
 
-			dynamic_cast<Component*>(c)->setBounds(b.removeFromTop(c->getPreferredHeight()));
+            auto cb = b.removeFromTop(c->getPreferredHeight());
+            
+            if(!stretchChildren)
+                cb = cb.removeFromLeft(c->getPreferredWidth());
+            
+			dynamic_cast<Component*>(c)->setBounds(cb);
 			b.removeFromTop(padding);
 		}
 	}

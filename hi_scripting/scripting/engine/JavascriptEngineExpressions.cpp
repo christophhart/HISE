@@ -294,6 +294,14 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
         }
 		else if (auto aObj = dynamic_cast<AssignableDotObject*>(v.getObject()))
 		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+            if(auto o = dynamic_cast<ApiClass*>(aObj))
+            {
+                if(o->wantsCurrentLocation())
+                    o->setCurrentLocation(location.externalFile, location.getCharIndex());
+            }
+#endif
+            
 			if (!aObj->assign(child, newValue))
 				location.throwError("Cannot assign to " + child + " property");
 		}

@@ -351,6 +351,35 @@ void GlobalHiseLookAndFeel::fillPathHiStyle(Graphics &g, const Path &p, int, int
 	d.drawForPath(g, p);
 }
 
+void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<int> bounds, Colour lineColour)
+{
+    UnblurryGraphics ug(g, *c, true);
+
+    auto mulAlpha = 1.0f - jlimit(0.0f, 1.0f, (1.0f / 3.0f * ug.getPixelSize()));
+
+    float tenAlpha = JUCE_LIVE_CONSTANT_OFF(0.15f);
+    float oneAlpha = JUCE_LIVE_CONSTANT_OFF(.06f);
+    
+    if (mulAlpha > 0.1f)
+    {
+        for (int x = 10; x < bounds.getWidth(); x += 10)
+        {
+            float alpha = (x % 100 == 0) ? tenAlpha : oneAlpha;
+            alpha *= mulAlpha;
+            g.setColour(lineColour.withAlpha(alpha));
+            ug.draw1PxVerticalLine(x, 0.0f, (float)bounds.getHeight());
+        }
+
+        for (int y = 10; y < bounds.getHeight(); y += 10)
+        {
+            float alpha = (y % 100 == 0) ? tenAlpha : oneAlpha;
+            alpha *= mulAlpha;
+            g.setColour(lineColour.withAlpha(alpha));
+            ug.draw1PxHorizontalLine(y, 0.0f, (float)bounds.getWidth());
+        }
+    }
+}
+
 Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/)
 {
 	if (start.getCentreY() > end.getCentreY())

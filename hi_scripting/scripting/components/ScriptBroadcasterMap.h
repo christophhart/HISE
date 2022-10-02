@@ -115,6 +115,13 @@ struct ButtonWithState: public ButtonListener
 			buttons.add(nb);
 		}
 
+        void paint(Graphics& g) override
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.setColour(textColour);
+            g.drawText(getName(), textBounds, Justification::centred);
+        }
+        
 		int checkSize(int preferredWidth)
 		{
 			if (isEmpty())
@@ -145,10 +152,14 @@ struct ButtonWithState: public ButtonListener
 				else
 					jassertfalse;
 			}
+            
+            textBounds = bounds.toFloat();
 		}
 
+        Colour textColour = Colours::white.withAlpha(0.7f);
 		ScopedPointer<PathFactory> factory;
 		OwnedArray<ButtonWithState> buttons;
+        Rectangle<float> textBounds;
 	};
 
 	HiseShapeButton button;
@@ -387,6 +398,7 @@ struct ScriptBroadcasterMap : public Component,
 				if (position == Justification::top)
 				{
 					auto r = new Column();
+                    r->stretchChildren = false;
 					r->addChildWithPreferredSize(c);
 					r->addChildWithPreferredSize(item);
 					return r;
@@ -394,6 +406,7 @@ struct ScriptBroadcasterMap : public Component,
 				else if (position == Justification::right)
 				{
 					auto r = new Row();
+                    r->stretchChildren = false;
 					r->addChildWithPreferredSize(item);
 					r->addChildWithPreferredSize(c);
 					return r;

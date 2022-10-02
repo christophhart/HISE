@@ -1518,7 +1518,8 @@ struct ScriptBroadcaster::ScriptCallListener::ScriptCallItem: public ReferenceCo
 	{
 		lastBangTime = Time::getMillisecondCounter();
 	}
-
+    
+    bool isLastBang = false;
 	uint32 lastBangTime = 0;
 	Processor* p;
 	Identifier id;
@@ -1528,6 +1529,7 @@ struct ScriptBroadcaster::ScriptCallListener::ScriptCallItem: public ReferenceCo
 ScriptBroadcaster::ScriptCallListener::ScriptCallListener(ScriptBroadcaster* b, const Identifier& id, DebugableObjectBase::Location location):
 	ListenerBase(var())
 {
+    metadata.c = Colour(MIDI_PROCESSOR_COLOUR);
 	auto ni = new ScriptCallItem();
 	ni->p = dynamic_cast<Processor*>(b->getScriptProcessor());
 	ni->id = id;
@@ -1564,6 +1566,9 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 		{
 			addAndMakeVisible(gotoButton);
 
+            font = GLOBAL_MONOSPACE_FONT();
+            w = font.getStringWidth(item->id.toString()) + 50;
+            
 			gotoButton.onClick = [this]()
 			{
 				DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(item->p), item->location);
@@ -1579,6 +1584,14 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 		{
 			auto thisBang = item->lastBangTime;
 
+            auto thisLast = item->isLastBang;
+            
+            if(thisLast != isLast)
+            {
+                isLast = thisLast;
+                repaint();
+            }
+            
 			if (thisBang != lastBang)
 			{
 				lastBang = thisBang;
@@ -1592,10 +1605,11 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 		ModValue alpha;
 
 		uint32 lastBang = 0;
+        bool isLast = false;
 
 		HiseShapeButton gotoButton;
 
-		int getPreferredWidth() const override { return 150; };
+		int getPreferredWidth() const override { return w; };
 		int getPreferredHeight() const override { return 24; };
 
 		Path createPath(const String& url) const override
@@ -1607,10 +1621,18 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 
 		void paint(Graphics& g) override
 		{
-			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setFont(font);
 			g.setColour(Colours::white.withAlpha((float)alpha.getModValue() * 0.8f + 0.2f));
 			auto b = getLocalBounds().toFloat();
-			b.removeFromLeft(30.0f);
+			b.removeFromLeft(6.0f);
+            
+            auto r = b.removeFromLeft(getHeight()).reduced(8.0f);
+            
+            g.drawEllipse(r, 1.0f);
+            
+            if(isLast)
+                g.fillEllipse(r.reduced(2.0f));
+            
 			g.drawText(item->id.toString(), b, Justification::centredLeft);
 		}
 
@@ -1621,7 +1643,9 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 
 			return nullptr;
 		}
-
+        
+        int w;
+        Font font;
 		ReferenceCountedObjectPtr<ScriptCallItem> item;
 	};
 
@@ -1804,17 +1828,38 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 		if (obj->hasProperty("id") && obj->hasProperty("args"))
 		{
 			setMetadata(defaultValue);
-			obj = defaultValue["args"].getDynamicObject();
+            
+            auto args = defaultValue["args"];
+            
+            obj = args.getDynamicObject();
+            
+            if(args.isArray())
+            {
+                for(const auto& v: *args.getArray())
+                {
+                    defaultValues.add(var());
+                    argumentIds.add(Identifier(v.toString()));
+                }
+            }
 		}
 
-		for (const auto& p : obj->getProperties())
-		{
-			defaultValues.add(p.value);
-			argumentIds.add(p.name);
-		}
+        if(obj != nullptr)
+        {
+            for (const auto& p : obj->getProperties())
+            {
+                defaultValues.add(p.value);
+                argumentIds.add(p.name);
+            }
+        }
 	}
 	else if (defaultValue.isArray())
-		defaultValues.addArray(*defaultValue.getArray());
+    {
+        for(const auto& v: *defaultValue.getArray())
+        {
+            defaultValues.add(var());
+            argumentIds.add(Identifier(v.toString()));
+        }
+    }
 	else
 		defaultValues.add(defaultValue);
 
@@ -1997,17 +2042,6 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
     }
 #endif
     
-	if (auto sl = dynamic_cast<ScriptCallListener*>(attachedListener.get()))
-	{
-		for (auto i : sl->items)
-		{
-			if (i->location == getCurrentLocationInFunctionCall())
-			{
-				i->bang();
-			}
-		}
-	}
-
 	handleDebugStuff();
 
 	if ((args.isArray() && args.size() != defaultValues.size()) || (!args.isArray() && defaultValues.size() != 1))
@@ -2435,6 +2469,8 @@ bool ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
 {
 	auto idx = argumentIds.indexOf(id);
 
+
+    
 	if (idx == -1)
 	{
 		reportScriptError("This broadcaster doesn't have a " + id.toString() + " property");
@@ -2516,6 +2552,25 @@ void ScriptBroadcaster::handleDebugStuff()
 	if (bypassed)
 		return;
 
+    if (auto sl = dynamic_cast<ScriptCallListener*>(attachedListener.get()))
+    {
+        ScriptCallListener::ScriptCallItem* bangItem = nullptr;
+        
+        for (auto i : sl->items)
+        {
+            if (i->location == getCurrentLocationInFunctionCall())
+            {
+                bangItem = i;
+                i->bang();
+            }
+        }
+        
+        for(auto i: sl->items)
+        {
+            i->isLastBang = i == bangItem;
+        }
+    }
+    
 	lastMessageTime = Time::getMillisecondCounter();
 
 	if (triggerBreakpoint)

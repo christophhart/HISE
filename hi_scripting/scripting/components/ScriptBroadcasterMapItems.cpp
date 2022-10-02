@@ -35,15 +35,8 @@ namespace ScriptingObjects {
 
 struct ScriptBroadcasterMapFactory : public PathFactory
 {
-	Path createPath(const String& url) const override
-	{
-		Path p;
-
-		LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-		LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
-
-		return p;
-	}
+    Path createPath(const String& url) const override;
+	
 };
 
 
@@ -174,6 +167,7 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 			addNeighbourData(sb->attachedListener->metadata);
 
 		childLayout = ComponentWithPreferredSize::Layout::ChildrenAreColumns;
+        stretchChildren = false;
 
 		int numValues = sb->lastValues.size();
 
@@ -193,6 +187,7 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 			}));
 		}
 
+        menubar.setName(b->metadata.id.toString());
 		menubar.setFactory(new ScriptBroadcasterMapFactory());
 
 		menubar.addButton("bypass", Justification::left, [weakSb](Button*, bool value)
@@ -214,6 +209,37 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 				weakSb->gotoLocationWithDatabaseLookup();
 		});
 
+        if(weakSb->enableQueue)
+        {
+            menubar.addButton("queue", Justification::right, [weakSb](Button*, bool value)
+            {
+                if (weakSb != nullptr)
+                    weakSb->setEnableQueue(value);
+            },
+            [weakSb](Button*)
+            {
+                if (weakSb != nullptr)
+                    return weakSb->enableQueue;
+
+                return true;
+            });
+        }
+        
+        if(weakSb->realtimeSafe)
+        {
+            menubar.addButton("realtime", Justification::right, [weakSb](Button*, bool value)
+            {
+                if (weakSb != nullptr)
+                    weakSb->setRealtimeMode(value);
+            },
+            [weakSb](Button*)
+            {
+                if (weakSb != nullptr)
+                    return weakSb->realtimeSafe;
+
+                return true;
+            });
+        }
 		marginTop = 45;
 		marginLeft = sb->attachedListener != nullptr ? PinWidth : 0;
 		marginRight = sb->items.isEmpty() ? 0 : PinWidth;
@@ -223,7 +249,7 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 	{
 		auto maxPins = jmax(inputPins.size(), outputPins.size());
 
-		return jmax(80, maxPins * PinWidth);
+		return jmax(80, 6 + maxPins * PinWidth);
 	}
 
 	int getPreferredWidth() const override { return jmax(250, getSumOfChildComponentWidth(this)); };
@@ -236,10 +262,6 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 		auto c = b->metadata.c;
 
 		paintBackground(g, c);
-
-		g.setColour(Colours::white.withAlpha(0.8f));
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(b->metadata.id.toString(), getLocalBounds().toFloat().reduced(7.0f), Justification::centredTop);
 	}
 
 	WeakReference<ScriptBroadcaster> b;
@@ -305,10 +327,11 @@ struct ScriptBroadcasterMap::ListenerEntry : public ScriptBroadcasterMap::EntryB
 		if (listener == nullptr)
 			return;
 
-		
-
 		auto c = getColourFromString(id);
 
+        if(metadata.c != Colours::grey)
+            c = metadata.c;
+        
 		paintBackground(g, c, false);
 
 		g.setColour(c.withAlpha(0.8f));
@@ -420,8 +443,13 @@ struct ScriptBroadcasterMap::TargetEntry : public ScriptBroadcasterMap::EntryBas
 		{
 			if(weakItem != nullptr)
 				return weakItem->enabled;
+            
+            return false;
 		});
 
+        menubar.setName(textToDisplay);
+        menubar.textColour = weakItem->metadata.c;
+        
 		auto jp = dynamic_cast<ScriptBroadcasterMap*>(&f.parent)->p;
 		auto loc = weakItem->location;
 
@@ -444,11 +472,6 @@ struct ScriptBroadcasterMap::TargetEntry : public ScriptBroadcasterMap::EntryBas
 
 		paintBackground(g, c, children.isEmpty());
 
-		g.setFont(GLOBAL_BOLD_FONT());
-
-		g.setColour(c.withAlpha(0.85f));
-
-		g.drawText(textToDisplay, b.removeFromTop(24.0f).translated(0.0f, 3.0f), Justification::centred);
 	}
 
 	int getPreferredHeight() const override
@@ -510,11 +533,9 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 		ScopedPointer<Column> targets;
 
 		padding = 30;
+        stretchChildren = false;
 
 		auto bcEntry = new BroadcasterEntry(f, b);
-
-		
-
 		auto bcWithComment = CommentDisplay::attachComment(bcEntry, b->metadata, Justification::top);
 		
 
@@ -543,9 +564,8 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 				auto te = new TargetEntry(f, b, i);
 				te->connectToOutput(bcEntry);
 				
-				auto tar = CommentDisplay::attachComment(te, i->metadata, Justification::right);
-
-				targets->addChildWithPreferredSize(TagItem::attachTags(tar, i->metadata));
+                auto tar = TagItem::attachTags(te, i->metadata);
+				targets->addChildWithPreferredSize(CommentDisplay::attachComment(tar, i->metadata, Justification::right));
 			}
 		}
 
