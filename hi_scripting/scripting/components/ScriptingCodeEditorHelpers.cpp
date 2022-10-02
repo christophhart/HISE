@@ -487,10 +487,9 @@ public:
 
         getButton("Cancel")->addListener(this);
         
+		currentOptions.parse(initSearchTerm);
 		rebuildLines();
 
-        
-        
 		getTextEditor("searchTerm")->grabKeyboardFocusAsync();
 
 		numFixedComponents = getNumCustomComponents();
