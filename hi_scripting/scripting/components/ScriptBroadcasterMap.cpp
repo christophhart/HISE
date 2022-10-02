@@ -117,18 +117,12 @@ namespace ScriptBroadcasterMapIcons
 21,68,2,131,96,68,108,188,228,18,68,45,58,92,68,99,109,184,46,15,68,45,58,92,68,108,102,214,17,68,45,58,92,68,108,102,214,17,68,8,68,94,68,108,35,83,17,68,123,92,98,68,108,217,174,15,68,123,92,98,68,108,184,46,15,68,8,68,94,68,108,184,46,15,68,45,58,
 92,68,99,101,0,0 };
 
-	static const unsigned char neighbourIcon[] = { 110,109,184,22,232,68,59,23,39,68,108,123,156,235,68,59,23,39,68,108,123,156,235,68,70,6,40,68,108,20,46,239,68,129,37,44,68,108,0,192,242,68,70,6,40,68,108,0,192,242,68,207,199,31,68,108,20,46,239,68,147,168,27,68,108,123,156,235,68,207,199,31,68,108,
-123,156,235,68,156,148,32,68,108,184,22,232,68,156,148,32,68,108,184,22,232,68,61,2,22,68,108,51,71,2,69,61,2,22,68,108,51,71,2,69,49,136,68,68,108,205,128,0,69,49,136,68,68,108,205,128,0,69,123,148,67,68,108,174,111,253,68,63,117,63,68,108,195,221,249,
-68,123,148,67,68,108,195,221,249,68,242,210,75,68,108,174,111,253,68,45,242,79,68,108,205,128,0,69,242,210,75,68,108,205,128,0,69,193,10,75,68,108,51,71,2,69,193,10,75,68,108,51,71,2,69,43,199,85,68,108,184,22,232,68,43,199,85,68,108,184,22,232,68,59,
-23,39,68,99,109,133,179,3,69,49,136,68,68,108,133,179,3,69,53,230,57,68,108,174,243,10,69,53,230,57,68,108,174,243,10,69,223,175,85,68,108,133,179,3,69,223,175,85,68,108,133,179,3,69,193,10,75,68,108,184,138,5,69,193,10,75,68,108,184,138,5,69,61,234,
-75,68,108,133,83,7,69,121,9,80,68,108,123,28,9,69,61,234,75,68,108,123,28,9,69,215,171,67,68,108,133,83,7,69,156,140,63,68,108,184,138,5,69,215,171,67,68,108,184,138,5,69,49,136,68,68,108,133,179,3,69,49,136,68,68,99,109,154,233,7,69,121,201,71,68,98,
-154,233,7,69,233,230,70,68,133,187,7,69,10,47,70,68,10,131,7,69,10,47,70,68,108,41,124,253,68,10,47,70,68,98,225,10,253,68,10,47,70,68,10,175,252,68,233,230,70,68,10,175,252,68,121,201,71,68,98,10,175,252,68,248,171,72,68,225,10,253,68,231,99,73,68,41,
-124,253,68,231,99,73,68,108,10,131,7,69,231,99,73,68,98,133,187,7,69,231,99,73,68,154,233,7,69,248,171,72,68,154,233,7,69,121,201,71,68,99,109,246,240,228,68,59,23,39,68,108,246,240,228,68,215,203,49,68,108,246,112,214,68,215,203,49,68,108,246,112,214,
-68,61,2,22,68,108,246,240,228,68,61,2,22,68,108,246,240,228,68,156,148,32,68,108,143,66,225,68,156,148,32,68,108,143,66,225,68,207,199,31,68,108,246,176,221,68,147,168,27,68,108,10,31,218,68,207,199,31,68,108,10,31,218,68,70,6,40,68,108,246,176,221,68,
-129,37,44,68,108,143,66,225,68,70,6,40,68,108,143,66,225,68,59,23,39,68,108,246,240,228,68,59,23,39,68,99,109,41,100,240,68,201,238,35,68,98,41,100,240,68,74,12,35,68,82,8,240,68,90,84,34,68,10,151,239,68,90,84,34,68,108,143,194,221,68,90,84,34,68,98,
-72,81,221,68,90,84,34,68,113,245,220,68,74,12,35,68,113,245,220,68,201,238,35,68,98,113,245,220,68,72,209,36,68,72,81,221,68,55,137,37,68,143,194,221,68,55,137,37,68,108,10,151,239,68,55,137,37,68,98,82,8,240,68,55,137,37,68,41,100,240,68,72,209,36,68,
-41,100,240,68,201,238,35,68,99,101,0,0 };
-
+	static const unsigned char neighbourIcon[] = { 110,109,31,69,131,68,41,60,212,68,108,236,161,138,68,205,252,224,68,108,102,62,107,68,123,176,2,69,108,150,51,23,68,123,176,2,69,108,106,92,218,67,205,252,224,68,108,150,51,23,68,164,152,188,68,108,102,62,107,68,164,152,188,68,108,195,53,122,68,102,142,
+201,68,108,139,252,93,68,41,180,209,68,98,170,217,80,68,195,133,203,68,213,168,60,68,133,19,202,68,129,61,44,68,246,208,206,68,98,168,46,24,68,51,155,212,68,172,76,17,68,225,114,225,68,72,225,28,68,143,122,235,68,98,227,117,40,68,236,129,245,68,162,37,
+66,68,225,242,248,68,123,52,86,68,164,40,243,68,98,180,120,102,68,102,118,238,68,176,18,110,68,246,32,229,68,131,48,106,68,133,107,220,68,108,31,69,131,68,41,60,212,68,99,109,0,24,133,68,154,241,196,68,108,123,52,147,68,215,203,188,68,98,225,34,145,68,
+123,4,180,68,102,238,148,68,31,141,170,68,215,35,157,68,0,208,165,68,98,133,43,167,68,113,5,160,68,51,3,180,68,102,118,163,68,113,205,185,68,20,126,173,68,98,0,152,191,68,113,133,183,68,10,39,188,68,31,93,196,68,92,31,178,68,174,39,202,68,98,113,253,
+169,68,154,217,206,68,154,1,160,68,154,121,205,68,92,111,153,68,82,112,199,68,108,61,66,139,68,92,159,207,68,108,10,159,146,68,0,96,220,68,108,123,164,188,68,0,96,220,68,108,10,167,209,68,215,251,183,68,108,123,164,188,68,174,151,147,68,108,10,159,146,
+68,174,151,147,68,108,246,56,123,68,215,251,183,68,108,0,24,133,68,154,241,196,68,99,101,0,0 };
 
 static const unsigned char queueIcon[] = { 110,109,221,68,34,67,92,119,149,68,108,221,68,34,67,41,124,140,68,108,27,223,144,67,133,251,155,68,108,221,68,34,67,225,122,171,68,108,221,68,34,67,174,127,162,68,108,244,221,87,67,133,251,155,68,108,221,68,34,67,92,119,149,68,99,109,61,202,133,67,92,
 119,149,68,108,61,202,133,67,41,124,140,68,108,233,134,197,67,133,251,155,68,108,61,202,133,67,225,122,171,68,108,61,202,133,67,174,127,162,68,108,168,150,160,67,133,251,155,68,108,61,202,133,67,92,119,149,68,99,109,186,25,239,67,92,119,149,68,108,186,
@@ -249,8 +243,18 @@ ScriptBroadcasterMap::ScriptBroadcasterMap(JavascriptProcessor* p_) :
 
 void ScriptBroadcasterMap::rebuild()
 {
+	availableTags.clear();
+
 	allBroadcasters = createBroadcasterList();
 
+	for (auto br : allBroadcasters)
+	{
+		br->errorBroadcaster.addListener(*this, [](ScriptBroadcasterMap& m, ScriptBroadcaster::ItemBase* i, const String& e)
+		{
+			m.ok |= !e.isEmpty();
+		});
+	}
+	
 	children.clear();
 
 	for (auto b : allBroadcasters)
@@ -271,6 +275,14 @@ void ScriptBroadcasterMap::rebuild()
 	callRecursive<TagItem::TagButton>(this, [this](TagItem::TagButton* tb)
 	{
 		tb->setBroadcasterMap(this);
+		return false;
+	});
+
+	callRecursive<ComponentWithMetadata>(this, [this](ComponentWithMetadata* tb)
+	{
+		for (auto tag : tb->metadata.tags)
+			availableTags.addIfNotAlreadyThere(tag.toString());
+		
 		return false;
 	});
 }
@@ -565,17 +577,12 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 
 	void rebuildAfterContentChange() override
 	{
-		addBookmarkComboBox();
-		addSpacer(10);
-
 		addButton("error");
 		addSpacer(10);
 		
 
 		addButton("tags");
 		addButton("dim");
-		addButton("and");
-		addButton("not");
 		addButton("neighbour");
 
 		addSpacer(10);
@@ -585,16 +592,44 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 
 		addSpacer(10);
 
-		addButton("filter");
+		//addButton("filter");
 		addButton("showall");
 	}
 
 	struct Actions
 	{
 		static bool enableWatch(ScriptBroadcasterMap& m) { return true; }
-		static bool gotoError(ScriptBroadcasterMap& m) { return true; }
+		static bool gotoError(ScriptBroadcasterMap& m) 
+		{ 
+			auto vp = m.findParentComponentOfClass<ZoomableViewport>();
+			
+			Component* errorComponent = nullptr;
 
-		static bool isError(ScriptBroadcasterMap& m) { return !m.p->wasLastCompileOK(); }
+			Component::callRecursive<ScriptBroadcasterMap::EntryBase>(&m, [&](ScriptBroadcasterMap::EntryBase* e)
+			{
+				if (e->currentError.isNotEmpty())
+				{
+					errorComponent = e;
+					return true;
+				}
+
+				return false;
+			});
+
+			if (errorComponent != nullptr)
+			{
+				auto zoomBounds = m.getLocalArea(errorComponent, errorComponent->getLocalBounds().expanded(50));
+
+				vp->zoomToRectangle(zoomBounds);
+
+			}
+
+			return true; 
+		}
+
+		static bool isError(ScriptBroadcasterMap& m) { return !m.ok; }
+
+		static bool hasTags(ScriptBroadcasterMap& m) { return !m.availableTags.isEmpty(); }
 
 		static bool showAll(ScriptBroadcasterMap& m)
 		{
@@ -645,6 +680,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		{
 			b->setControlsPopup([this]() { return new TagEditor(this->map); });
 			b->setTooltip("Show all tag filters in a popup");
+			b->enabledFunction = Actions::hasTags;
 		}
 
 		if (name == "neighbour")
@@ -652,6 +688,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			b->stateFunction = [](ScriptBroadcasterMap& m) { return m.tagFilterOptions.showNextSibling; };
 			b->actionFunction = [](ScriptBroadcasterMap& m) { m.tagFilterOptions.showNextSibling = !m.tagFilterOptions.showNextSibling; m.updateTagFilter(); return false; };
 			b->setTooltip("Show immediate neighbours of filtered items");
+			b->enabledFunction = Actions::hasTags;
 		}
 
 		if (name == "and")
@@ -674,6 +711,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			b->stateFunction = [](ScriptBroadcasterMap& m) { return m.tagFilterOptions.dimOpacity; };
 			b->actionFunction = [](ScriptBroadcasterMap& m) { m.tagFilterOptions.dimOpacity = !m.tagFilterOptions.dimOpacity; m.updateTagFilter(); return false; };
 			b->setTooltip("Dim unselected items instead of hiding them");
+			b->enabledFunction = Actions::hasTags;
 		}
 
 		if (name == "showall")
@@ -688,8 +726,6 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			b->stateFunction = Actions::isError;
 			b->setColour(TextButton::ColourIds::buttonOnColourId, Colour(0xFFAA4444));
 			
-			b->enabledFunction = b->stateFunction;
-
 			b->setTooltip("Goto error item");
 
 
@@ -754,6 +790,7 @@ juce::Path ScriptBroadcasterMapFactory::createPath(const String& url) const
     LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
     LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
     LOAD_PATH_IF_URL("queue", ScriptBroadcasterMapIcons::queueIcon);
+	LOAD_PATH_IF_URL("error", ColumnIcons::errorIcon);
     LOAD_PATH_IF_URL("realtime", HnodeIcons::jit);
     
     return p;
@@ -774,6 +811,9 @@ void ScriptBroadcasterMap::EntryBase::paintBackground(Graphics& g, Colour c, boo
 {
 	auto b = getLocalBounds().toFloat().reduced(3.0f);
 
+	if (currentError.isNotEmpty())
+		c = Colour(HISE_ERROR_COLOUR);
+
 	if (fill)
 	{
 		auto fillRect = getContentBounds(true).toFloat();
@@ -788,6 +828,14 @@ void ScriptBroadcasterMap::EntryBase::paintBackground(Graphics& g, Colour c, boo
 	{
 		g.setColour(Colour(0xFF333333));
 		g.fillRect(b);
+
+		if (currentError.isNotEmpty())
+		{
+			g.setColour(c.withAlpha(0.15f));
+			g.fillRect(b);
+		}
+		
+
 	}
 
 	g.setColour(c.withAlpha(0.5f));
@@ -803,6 +851,32 @@ void ScriptBroadcasterMap::EntryBase::connectToOutput(EntryBase* source)
 }
 
 
+
+void ScriptBroadcasterMap::EntryBase::setCurrentError(const String& e)
+{
+	currentError = e;
+	
+	if (!hasErrorButton)
+	{
+		auto errorLocation = e.fromFirstOccurrenceOf("{", false, false);
+
+		menubar.addButton("error", Justification::right, [errorLocation](Button* b, bool value)
+		{
+			auto synthChain = b->findParentComponentOfClass<ControlledObject>()->getMainController()->getMainSynthChain();
+			DebugableObject::Helpers::gotoLocation(synthChain, errorLocation);
+		});
+
+		auto b = menubar.buttons.getLast();
+		b->margin = 0;
+		b->setColour(Colour(HISE_ERROR_COLOUR));
+
+		menubar.resized();
+
+		hasErrorButton = true;
+	}
+
+	repaint();
+}
 
 ScriptBroadcasterMap::TagItem::TagItem(const ScriptBroadcaster::Metadata& m):
 	ComponentWithMetadata(m)

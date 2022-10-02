@@ -2193,20 +2193,30 @@ void ScriptBroadcaster::attachToComponentProperties(var componentIds, var proper
 
 	auto illegalId = dynamic_cast<ComponentPropertyListener*>(attachedListener.get())->illegalId;
 
-    if (illegalId.isValid())
-        reportScriptError("Illegal property id: " + illegalId.toString());
+	if (illegalId.isValid())
+	{
+		String e;
+		e << "Illegal property id: " + illegalId.toString();
+		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListener.get(), e);
+		reportScriptError(e);
+	}
+        
 }
 
 void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMetadata)
 {
 	throwIfAlreadyConnected();
 
+	attachedListener = new ComponentValueListener(this, componentIds, optionalMetadata);
+
 	if (defaultValues.size() != 2)
 	{
-		reportScriptError("If you want to attach a broadcaster to value events, it needs two parameters (component, value)");
+		String e = "If you want to attach a broadcaster to value events, it needs two parameters (component, value)";
+		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListener.get(), e);
+		reportScriptError(e);
 	}
 
-	attachedListener = new ComponentValueListener(this, componentIds, optionalMetadata);
+	
 }
 
 
@@ -2599,8 +2609,12 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
         {
             auto r = i->callSync(args);
             
-            if(!r.wasOk())
-                return r;
+			if (!r.wasOk())
+			{
+				sendErrorMessage(i, r.getErrorMessage(), false);
+				return r;
+			}
+                
         }
     }
     else
@@ -2618,6 +2632,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
             auto r = i->callSync(thisValues);
             if (!r.wasOk())
             {
+				sendErrorMessage(i, r.getErrorMessage(), false);
                 return r;
             }
         }
@@ -2633,6 +2648,15 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 	return Result::ok();
 }
 
+void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const String& message, bool throwError/*=true*/)
+{
+	if (throwError)
+		reportScriptError(message);
+
+	if (i != nullptr)
+		errorBroadcaster.sendMessage(sendNotificationAsync, i, message);
+}
+
 void ScriptBroadcaster::initItem(TargetBase* ni)
 {
 	if (attachedListener != nullptr)
@@ -2641,7 +2665,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 		auto r = attachedListener->callItem(ni);
 
 		if (!r.wasOk())
-			reportScriptError(r.getErrorMessage());
+			sendErrorMessage(ni, r.getErrorMessage());
 	}
 	else
 	{
@@ -2655,7 +2679,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 			auto r = ni->callSync(lastValues);
 
 			if (!r.wasOk())
-				reportScriptError(r.getErrorMessage());
+				sendErrorMessage(ni, r.getErrorMessage());
 		}
 	}
 }
@@ -2663,7 +2687,9 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 void ScriptBroadcaster::throwIfAlreadyConnected()
 {
 	if (attachedListener != nullptr)
-		reportScriptError("This callback is already registered to " + attachedListener->getItemId().toString());
+	{
+		sendErrorMessage(attachedListener, "This callback is already registered to " + attachedListener->getItemId().toString());
+	}
 }
 
 void ScriptBroadcaster::timerCallback()

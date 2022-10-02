@@ -586,6 +586,9 @@ struct WrapperWithMenuBarBase : public Component,
 
 		void mouseDown(const MouseEvent& e) override
 		{
+			if (enabledFunction && !enabledFunction(*parent))
+				return;
+
 			if (actionFunction)
 				actionFunction(*parent);
 

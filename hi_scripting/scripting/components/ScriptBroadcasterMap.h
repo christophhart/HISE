@@ -56,6 +56,13 @@ struct ButtonWithState: public ButtonListener
 		}
 	}
 
+	void setColour(Colour c)
+	{
+		button.onColour = c;
+		button.offColour = c;
+		button.refreshButtonColours();
+	}
+
 	void buttonClicked(Button*) override
 	{
 		if(clickFunction)
@@ -141,12 +148,12 @@ struct ButtonWithState: public ButtonListener
 			{
 				if (b->alignment == Justification::left)
 				{
-					b->button.setBounds(bounds.removeFromLeft(bounds.getHeight()).reduced(3));
+					b->button.setBounds(bounds.removeFromLeft(bounds.getHeight()).reduced(b->margin));
 					bounds.removeFromLeft(b->padding);
 				}
 				else if (b->alignment == Justification::right)
 				{
-					b->button.setBounds(bounds.removeFromRight(bounds.getHeight()).reduced(3));
+					b->button.setBounds(bounds.removeFromRight(bounds.getHeight()).reduced(b->margin));
 					bounds.removeFromRight(b->padding);
 				}
 				else
@@ -167,6 +174,7 @@ struct ButtonWithState: public ButtonListener
 	Callback clickFunction;
 	Justification alignment;
 	int padding = 0;
+	int margin = 3;
 };
 
 
@@ -635,11 +643,16 @@ struct ScriptBroadcasterMap : public Component,
 			resizeChildren(this);
 		}
 
+		void setCurrentError(const String& e);
+
 		virtual ~EntryBase() {};
 
 		List inputPins, outputPins;
 
+		String currentError;
+
 		ButtonWithState::MenuBar menubar;
+		bool hasErrorButton = false;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(EntryBase);
 	};
@@ -754,6 +767,8 @@ struct ScriptBroadcasterMap : public Component,
 
 	void updateTagFilter();
 
+	StringArray availableTags;
+
 	Array<int64> currentTags;
 
 	ComponentWithMetadata::TagFilterOptions tagFilterOptions;
@@ -766,11 +781,15 @@ struct ScriptBroadcasterMap : public Component,
 
 	WeakReference<JavascriptProcessor> p;
 
+	bool ok = true;
+
 	private:
 
 	void paintCablesForOutputs(Graphics& g, EntryBase* b);
 	static void forEachDebugInformation(DebugInformationBase::Ptr di, const std::function<void(DebugInformationBase::Ptr)>& f);
 	BroadcasterList createBroadcasterList();
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBroadcasterMap);
 };

@@ -521,6 +521,29 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 		return getMaxHeightOfChildComponents(this);
 	}
 
+	static void handleError(BroadcasterRow& row, ScriptBroadcaster::ItemBase* item, String error)
+	{
+		Component::callRecursive<ListenerEntry>(&row, [&](ListenerEntry* e)
+		{
+			if (e->listener.get() == item)
+			{
+				e->setCurrentError(error);
+				return true;
+			}
+			return false;
+		});
+
+		Component::callRecursive<TargetEntry>(&row, [&](TargetEntry* t)
+		{
+			if (t->item.get() == item)
+			{
+				t->setCurrentError(error);
+				return true;
+			}
+			return false;
+		});
+	}
+
 	BroadcasterRow(BodyFactory& f, ScriptBroadcaster* b):
 		broadcaster(b)
 	{
@@ -538,6 +561,7 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 		auto bcEntry = new BroadcasterEntry(f, b);
 		auto bcWithComment = CommentDisplay::attachComment(bcEntry, b->metadata, Justification::top);
 		
+		b->errorBroadcaster.addListener(*this, BroadcasterRow::handleError, true);
 
 		if (b->attachedListener != nullptr)
 		{
@@ -596,6 +620,8 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 	WeakReference<ScriptBroadcaster> broadcaster;
 
 	OwnedArray<Column> columns;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BroadcasterRow);
 };
 
 

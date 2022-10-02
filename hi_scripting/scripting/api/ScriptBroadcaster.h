@@ -245,6 +245,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location) override;
 
+	
+
 private:
 
 	Metadata metadata;
@@ -343,6 +345,10 @@ private:
 
 		Metadata metadata;
 	};
+
+	void sendErrorMessage(ItemBase* i, const String& message, bool throwError=true);
+
+	LambdaBroadcaster<ItemBase*, String> errorBroadcaster;
 
 	struct TargetBase: public ItemBase
 	{
