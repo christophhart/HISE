@@ -593,6 +593,7 @@ Component* FloatingPanelTemplates::createCodeEditorPanel(FloatingTile* root)
 	const int broadcasterMap = ib.addChild<ScriptingObjects::ScriptBroadcaster::Panel>(codeEditor);
 	const int consoleId = ib.addChild<ConsolePanel>(codeEditor);
 
+    ib.getPanel(broadcasterMap)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_map);
 
 	ib.getPanel(variableWatch)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_watch);
 

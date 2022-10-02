@@ -373,7 +373,8 @@ void BackendRootWindow::initialiseAllKeyPresses()
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::focus_browser, "Focus Browser Tab", KeyPress(KeyPress::F2Key));
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::focus_editor, "Focus Code Editor", KeyPress(KeyPress::F3Key));
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::focus_interface, "Focus Interface Designer", KeyPress(KeyPress::F4Key));
-
+    addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_map, "Focus BroadcasterMap", KeyPress(KeyPress::F6Key));
+    
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::cycle_browser, "Cycle Browser Tabs", KeyPress(KeyPress::F2Key, ModifierKeys::commandModifier, 0));
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::cycle_editor, "Cycle Code Editor Tabs", KeyPress(KeyPress::F3Key, ModifierKeys::commandModifier, 0));
 
