@@ -44,7 +44,7 @@ struct ScriptBroadcasterMapFactory : public PathFactory
 
 
 
-
+#if 0
 struct JSONBody : public ComponentWithPreferredSize,
 				  public Component
 {
@@ -116,6 +116,7 @@ struct JSONBody : public ComponentWithPreferredSize,
 	var value;
 	String s;
 };
+#endif
 
 struct ScriptBroadcasterMap::VarEntry : public ScriptBroadcasterMap::EntryBase
 {
@@ -163,8 +164,8 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
 		for (auto t : sb->items)
 			addNeighbourData(t->metadata);
 
-		if (sb->attachedListener != nullptr)
-			addNeighbourData(sb->attachedListener->metadata);
+		for(auto l: sb->attachedListeners)
+			addNeighbourData(l->metadata);
 
 		childLayout = ComponentWithPreferredSize::Layout::ChildrenAreColumns;
         stretchChildren = false;
@@ -241,7 +242,7 @@ struct ScriptBroadcasterMap::BroadcasterEntry : public ScriptBroadcasterMap::Ent
             });
         }
 		marginTop = 45;
-		marginLeft = sb->attachedListener != nullptr ? PinWidth : 0;
+		marginLeft = sb->attachedListeners.isEmpty() ? 0 : PinWidth;
 		marginRight = sb->items.isEmpty() ? 0 : PinWidth;
 	};
 
@@ -547,6 +548,8 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 	BroadcasterRow(BodyFactory& f, ScriptBroadcaster* b):
 		broadcaster(b)
 	{
+		b->metadata.attachCommentFromCallableObject(var(b), true);
+
 		setInterceptsMouseClicks(false, true);
 
 		childLayout = ComponentWithPreferredSize::Layout::ChildrenAreColumns;
@@ -563,18 +566,23 @@ struct ScriptBroadcasterMap::BroadcasterRow : public Component,
 		
 		b->errorBroadcaster.addListener(*this, BroadcasterRow::handleError, true);
 
-		if (b->attachedListener != nullptr)
+		if (!b->attachedListeners.isEmpty())
 		{
 			sources = new Column();
 
-			auto le = new ListenerEntry(f, b, b->attachedListener);
+			sources->padding = 20;
 
-			for (auto c : le->children)
-				bcEntry->connectToOutput(dynamic_cast<EntryBase*>(c));
+			for (auto al : b->attachedListeners)
+			{
+				auto le = new ListenerEntry(f, b, al);
 
-			auto l = TagItem::attachTags(le, b->attachedListener->metadata);
+				for (auto c : le->children)
+					bcEntry->connectToOutput(dynamic_cast<EntryBase*>(c));
 
-			sources->addChildWithPreferredSize(CommentDisplay::attachComment(l, b->attachedListener->metadata, Justification::left));
+				auto l = TagItem::attachTags(le, al->metadata);
+
+				sources->addChildWithPreferredSize(CommentDisplay::attachComment(l, al->metadata, Justification::left));
+			}
 		}
 
 		if (!b->items.isEmpty())
@@ -674,6 +682,8 @@ struct ScriptBroadcasterMap::EmptyDisplay : public Component
 		g.drawText("No broadcasters available / selected", getLocalBounds().toFloat(), Justification::centred);
 	}
 };
+
+
 
 } // namespace ScriptingObjects
 } // namespace hise

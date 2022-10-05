@@ -47,87 +47,27 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** This object holds the metadata for any broadcaster item. */
 	struct Metadata
 	{
-		Metadata() :
-			r(Result::fail("uninitialised")),
-			hash(0)
-		{};
+		Metadata();;
 
-		Metadata(const var& obj, bool mustBeValid) :
-			r(Result::ok())
-		{
-			if (obj.isString())
-			{
-				id = Identifier(obj.toString());
-				c = Colours::grey;
-				return;
-			}
-
-			if (mustBeValid)
-			{
-				if (obj.getDynamicObject() == nullptr)
-					r = Result::fail("metadata must be a JSON object with `id`, [`commment` and `colour`]");
-				else if (obj["id"].toString().isEmpty())
-					r = Result::fail("metadata must have at least a id property");
-			}
-
-			comment = obj["comment"];
-
-			auto tags_ = obj["tags"];
-
-			if (tags_.isArray())
-			{
-				for (auto& t : *tags_.getArray())
-					tags.add(Identifier(t.toString()));
-			}
-
-			auto idString = obj["id"].toString();
-
-			if(idString.isNotEmpty())
-				id = Identifier(idString);
-
-			hash = idString.hashCode64();
-
-			if (!obj.hasProperty("colour"))
-			{
-				c = Colours::lightgrey;
-			}
-			else if ((int)obj["colour"] == -1)
-			{
-				c = Colour((uint32)hash).withBrightness(0.7f).withSaturation(0.6f);
-			}
-			else
-				c = scriptnode::PropertyHelpers::getColourFromVar(obj["colour"]);
-		}
+		Metadata(const var& obj, bool mustBeValid);
 
 		operator bool() const { return hash != 0; }
 
 		bool operator==(const Metadata& other) const { return hash == other.hash; }
 		bool operator==(const var& other) const { return Metadata(other, true) == *this; }
 
-		var toJSON() const
-		{
-			DynamicObject::Ptr obj = new DynamicObject();
-			obj->setProperty("id", id.toString());
-			obj->setProperty("comment", var(comment));
-			obj->setProperty("colour", (int64)c.getARGB());
+		void attachCommentFromCallableObject(const var& callableObject, bool useDebugInformation=false);
 
-			Array<var> tags_;
-
-			for (auto& t : tags)
-				tags_.add(t.toString());
-
-			obj->setProperty("tags", var(tags_));
-
-			return var(obj.get());
-		}
+		var toJSON() const;
 
 		String getErrorMessage() const { return r.getErrorMessage(); }
 
 		Result r;
 		String comment;
 		Identifier id;
-		int64 hash;
+		int64 hash = 0;
 		Colour c;
+		int priority = 0;
 		Array<Identifier> tags;
 	};
 
@@ -175,6 +115,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	/** Adds a listener that sets the properties of the given components when the broadcaster receives a message. */
 	bool addComponentPropertyListener(var object, var propertyList, var metadata, var optionalFunction);
+
+	/** Adds a listener that sets the value of the given components when the broadcaster receives a message. */
+	bool addComponentValueListener(var object, var metadata, var optionalFunction);
 
 	/** Removes the listener that was assigned with the given object. */
 	bool removeListener(var idFromMetadata);
@@ -245,7 +188,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location) override;
 
-	
+	const Metadata& getMetadata() const { return metadata; }
+
+	static bool isPrimitiveArray(const var& obj);
 
 private:
 
@@ -333,6 +278,20 @@ private:
 
 	struct ItemBase
 	{
+		struct PrioritySorter
+		{
+			static int compareElements(ItemBase* m1, ItemBase* m2)
+			{
+				if (m1->metadata.priority > m2->metadata.priority)
+					return -1; 
+
+				if (m1->metadata.priority < m2->metadata.priority)
+					return 1;
+
+				return 0;
+			}
+		};
+
 		ItemBase(const Metadata& m) :
 			metadata(m)
 		{};
@@ -352,6 +311,8 @@ private:
 
 	struct TargetBase: public ItemBase
 	{
+		
+
 		TargetBase(const var& obj_, const var& f, const var& metadata_) :
 			ItemBase(Metadata(metadata_, true)),
 			obj(obj_)
@@ -396,6 +357,10 @@ private:
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("Script Callback"); };
 
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		Array<var> createChildArray() const override;
+
 		Result callSync(const Array<var>& args) override;
 		WeakCallbackHolder callback;
 	};
@@ -432,6 +397,21 @@ private:
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
 	};
 
+	struct ComponentValueItem : public TargetBase
+	{
+		ComponentValueItem(ScriptBroadcaster* sb, const var& obj, const var& f, const var& metadata);
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ComponentValue"); }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;;
+		
+		Array<var> createChildArray() const override;
+
+		Result callSync(const Array<var>& args) override;
+
+		ScopedPointer<WeakCallbackHolder> optionalCallback;
+	};
+
 	struct OtherBroadcasterTarget : public TargetBase
 	{
 		OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async, const var& metadata);
@@ -460,7 +440,7 @@ private:
     
 	struct DebugableObjectListener : public ListenerBase
 	{
-		DebugableObjectListener(const var& metadata, DebugableObjectBase* obj_, const Identifier& callbackId_);;
+		DebugableObjectListener(ScriptBroadcaster* parent_, const var& metadata, DebugableObjectBase* obj_, const Identifier& callbackId_);;
 
 		Identifier getItemId() const override { return callbackId; }
 
@@ -472,7 +452,9 @@ private:
 		Identifier callbackId;
 
 		/** Just a dummy for debugging. */
-		virtual Result callItem(TargetBase* n) override { return Result::ok(); }
+		virtual Result callItem(TargetBase* n) override;
+
+		WeakReference<ScriptBroadcaster> parent;
 	};
 
 	struct ModuleParameterListener: public ListenerBase
@@ -631,7 +613,9 @@ private:
 
 	void initItem(TargetBase* n);
 
-	ScopedPointer<ListenerBase> attachedListener;
+	void checkMetadata(ItemBase* i);
+
+	OwnedArray<ListenerBase> attachedListeners;
 
 	OwnedArray<TargetBase> items;
 

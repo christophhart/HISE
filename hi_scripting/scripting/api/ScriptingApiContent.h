@@ -2846,6 +2846,10 @@ struct SimpleVarBody : public ComponentWithPreferredSize,
 		return new SimpleVarBody(v);
 	};
 
+	void mouseDown(const MouseEvent& e);
+
+
+
 	String getSensibleStringRepresentation() const;
 
 	int getPreferredWidth() const override { return 128; }
@@ -2872,8 +2876,6 @@ struct LiveUpdateVarBody : public SimpleVarBody,
 
 	void timerCallback() override;
 
-	void mouseDown(const MouseEvent& e);
-
 	String getTextToDisplay() const;
 
 	int getPreferredWidth() const override { return 35 + GLOBAL_MONOSPACE_FONT().getStringWidth(getTextToDisplay()); }
@@ -2886,6 +2888,27 @@ struct LiveUpdateVarBody : public SimpleVarBody,
 	const DisplayType displayType;
 };
 
+struct PrimitiveArrayDisplay : public SimpleVarBody,
+	public PooledUIUpdater::SimpleTimer
+{
+	PrimitiveArrayDisplay(Processor* jp, const var& obj);;
+
+	void timerCallback() override;
+
+	int h;
+	int w;
+
+	String id;
+
+	int getPreferredWidth() const override { return w; };
+	int getPreferredHeight() const override { return h; }
+
+	void paint(Graphics& g) override;
+
+	static ComponentWithPreferredSize* create(Component* r, const var& obj);
+
+	Array<var> lastValues;
+};
 
 
 } // namespace hise

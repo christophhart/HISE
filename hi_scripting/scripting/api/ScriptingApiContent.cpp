@@ -6557,6 +6557,22 @@ void SimpleVarBody::paint(Graphics& g)
 	g.drawText(s, getLocalBounds().toFloat(), Justification::centred);
 }
 
+void SimpleVarBody::mouseDown(const MouseEvent& e)
+{
+	auto isViewable = value.getDynamicObject() != nullptr || value.isArray();
+
+	if (isViewable)
+	{
+		auto ft = findParentComponentOfClass<FloatingTile>();
+
+		auto editor = new JSONEditor(value);
+		editor->setSize(600, 400);
+		editor->setName("JSON Viewer");
+
+		ft->showComponentInRootPopup(editor, this, { getWidth() / 2, getHeight() });
+	}
+}
+
 String SimpleVarBody::getSensibleStringRepresentation() const
 {
 	if (auto dObj = dynamic_cast<DebugableObjectBase*>(value.getObject()))
@@ -6579,6 +6595,8 @@ LiveUpdateVarBody::DisplayType LiveUpdateVarBody::getDisplayType(const Identifie
 
 	return DisplayType::Text;
 }
+
+
 
 LiveUpdateVarBody::LiveUpdateVarBody(PooledUIUpdater* updater, const Identifier& id_, const std::function<var()>& f) :
 	SimpleVarBody(f()),
@@ -6612,22 +6630,6 @@ void LiveUpdateVarBody::timerCallback()
 
 	if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05)))
 		repaint();
-}
-
-void LiveUpdateVarBody::mouseDown(const MouseEvent& e)
-{
-	auto isViewable = value.getDynamicObject() != nullptr || value.isArray();
-
-	if (isViewable)
-	{
-		auto ft = findParentComponentOfClass<FloatingTile>();
-
-		auto editor = new JSONEditor(value);
-		editor->setSize(600, 400);
-		editor->setName("JSON Viewer: " + id.toString());
-
-		ft->showComponentInRootPopup(editor, this, { getWidth() / 2, getHeight() });
-	}
 }
 
 String LiveUpdateVarBody::getTextToDisplay() const
@@ -6681,5 +6683,88 @@ void LiveUpdateVarBody::paint(Graphics& g)
 
 	
 }
+
+PrimitiveArrayDisplay::PrimitiveArrayDisplay(Processor* jp, const var& obj) :
+	SimpleTimer(jp->getMainController()->getGlobalUIUpdater()),
+	SimpleVarBody(obj)
+{
+	lastValues.addArray(*obj.getArray());
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+
+	h = roundToInt((float)value.size() * f.getHeight()) + 16;
+
+	id = "data";
+
+#if 0
+	if (auto di = DebugableObject::Helpers::getDebugInformation(dynamic_cast<ApiProviderBase::Holder*>(jp)->getProviderBase(), obj))
+	{
+		id = di->getTextForName();
+	}
+	else
+	{
+	}
+#endif
+
+	w = 0;
+
+	for (auto v : lastValues)
+	{
+		w = jmax(w, f.getStringWidth(v.toString()));
+	}
+
+	w += 80 + f.getStringWidth(id);
+}
+
+void PrimitiveArrayDisplay::timerCallback()
+{
+	bool changed = false;
+
+	for (int i = 0; i < value.size(); i++)
+	{
+		changed |= lastValues[i] != value[i];
+		lastValues.set(i, value[i]);
+	}
+
+	if (changed)
+		repaint();
+}
+
+hise::ComponentWithPreferredSize* hise::PrimitiveArrayDisplay::create(Component* r, const var& obj)
+{
+	auto p = dynamic_cast<ProcessorHelpers::ObjectWithProcessor*>(r)->getProcessor();
+
+	if (ScriptingObjects::ScriptBroadcaster::isPrimitiveArray(obj))
+		return new PrimitiveArrayDisplay(p, obj);
+
+	return nullptr;
+}
+
+void PrimitiveArrayDisplay::paint(Graphics& g)
+{
+	auto bounds = getLocalBounds().reduced(5);
+
+	AttributedString c;
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+
+	auto c1 = Colours::white.withAlpha(0.4f);
+	auto c2 = Colours::white.withAlpha(0.8f);
+
+	for (int i = 0; i < lastValues.size(); i++)
+	{
+		String s1, s2;
+
+		s1 << id << "[" << i << "] = ";
+		s2 << lastValues[i].toString() << "\n";
+
+		c.append(s1, f, c1);
+		c.append(s2, f, c2);
+	}
+
+	c.draw(g, getLocalBounds().toFloat().reduced(8));
+}
+
+
 
 } // namespace hise

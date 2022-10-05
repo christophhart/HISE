@@ -293,6 +293,7 @@ struct ComponentWithMetadata
 struct ScriptBroadcasterMap : public Component,
 							  public ComponentWithPreferredSize,
 							  public ControlledObject,
+							  public ProcessorHelpers::ObjectWithProcessor,
 							  public GlobalScriptCompileListener,
 							  public AsyncUpdater
 {
@@ -322,6 +323,8 @@ struct ScriptBroadcasterMap : public Component,
 
 	static constexpr int PinWidth = 20;
 	static constexpr int ButtonHeight = 20;
+
+	Processor* getProcessor() override { return dynamic_cast<Processor*>(p.get()); };
 
 	static Colour getColourFromString(const String& s)
 	{
@@ -740,7 +743,7 @@ struct ScriptBroadcasterMap : public Component,
 #endif
 
 	BroadcasterList allBroadcasters;
-	StringArray filteredBroadcasters;
+	Array<ScriptBroadcaster::Metadata> filteredBroadcasters;
 	BodyFactory factory;
 
 	void paint(Graphics& g) override;
@@ -781,7 +784,12 @@ struct ScriptBroadcasterMap : public Component,
 
 	WeakReference<JavascriptProcessor> p;
 
+	void setShowComments(bool shouldShowComments);
+
+	bool showComments() const { return commentsShown; }
+
 	bool ok = true;
+	bool commentsShown = true;
 
 	private:
 

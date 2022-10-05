@@ -969,6 +969,13 @@ class ProcessorHelpers
 {
 public:
 
+	struct ObjectWithProcessor
+	{
+		virtual ~ObjectWithProcessor() {};
+
+		virtual Processor* getProcessor() = 0;
+	};
+
 	/** Small helper function that returns the parent processor of the given child processor. 
 	*
 	*	@param childProcessor the processor which parent should be found. It must be within the normal tree structure.
