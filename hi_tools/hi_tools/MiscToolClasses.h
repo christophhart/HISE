@@ -2491,7 +2491,16 @@ public:
 	/** The note values. */
 	enum Tempo
 	{
+#if HISE_USE_EXTENDED_TEMPO_VALUES
+		EightBar = 0,
+		SixBar,
+		FourBar,
+		ThreeBar,
+		TwoBars,
+		Whole,
+#else
 		Whole = 0, ///< a whole note (1/1)
+#endif
 		HalfDuet, ///< a half note duole (1/2D)
 		Half, ///< a half note (1/2)
 		HalfTriplet, ///< a half triplet note (1/2T)

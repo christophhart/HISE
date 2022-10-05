@@ -818,6 +818,13 @@ void TempoSyncer::initTempoData()
 		tempoFactors[t] = value;
 	};
 
+#if HISE_USE_EXTENDED_TEMPO_VALUES
+	setTempo(EightBar, "8/1", 4.0f * 8.0f);
+	setTempo(SixBar, "6/1", 4.0f * 6.0f);
+	setTempo(FourBar, "4/1", 4.0f * 4.0f);
+	setTempo(ThreeBar, "3/1", 4.0f * 3.0f);
+	setTempo(TwoBars, "2/1", 4.0f * 2.0f);
+#endif
 	setTempo(Whole, "1/1", 4.0f);
 	setTempo(HalfDuet, "1/2D", 2.0f * 1.5f);
 	setTempo(Half, "1/2", 2.0f);
