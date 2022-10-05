@@ -275,7 +275,11 @@ void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
 	auto xZoom = tBounds.getWidth() / aBounds.getWidth();
 	auto yZoom = tBounds.getHeight() / aBounds.getHeight();
 
-	setZoomFactor(jmin(xZoom, yZoom, maxZoomFactor), aBounds.getCentre());
+	auto minZoom = 0.25f;
+
+	auto zf = jmin(xZoom, yZoom, maxZoomFactor);
+
+	setZoomFactor(jmax(minZoom, zf), aBounds.getCentre());
 }
 
 void ZoomableViewport::setZoomFactor(float newZoomFactor, Point<float> centerPositionInGraph)
