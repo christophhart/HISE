@@ -2453,7 +2453,7 @@ namespace ScriptingObjects
 		/** Enables the "exclusive" mode for MIDI automation (only one active parameter for each controller). */
 		void setExclusiveMode(bool shouldBeExclusive);
 
-		/** Set a function (without parameters) that will be executed whenever the MIDI automation changes. */
+		/** Set a function (with one parameter containing the automation data as JSON) that will be executed whenever the MIDI automation changes. */
 		void setUpdateCallback(var callback);
 
 		/** Sets whether a automated MIDI CC message should be consumed by the automation handler (default is enabled). */

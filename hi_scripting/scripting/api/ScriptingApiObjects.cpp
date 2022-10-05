@@ -7148,7 +7148,7 @@ struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),
 	handler(sp->getMainController_()->getMacroManager().getMidiControlAutomationHandler()),
-	updateCallback(getScriptProcessor(), this, var(), 0)
+	updateCallback(getScriptProcessor(), this, var(), 1)
 {
 	handler->addChangeListener(this);
 
@@ -7169,7 +7169,7 @@ ScriptingObjects::ScriptedMidiAutomationHandler::~ScriptedMidiAutomationHandler(
 void ScriptingObjects::ScriptedMidiAutomationHandler::changeListenerCallback(SafeChangeBroadcaster *b)
 {
 	if (updateCallback)
-		updateCallback.call(nullptr, 0);
+		updateCallback.call1(getAutomationDataObject());
 }
 
 juce::var ScriptingObjects::ScriptedMidiAutomationHandler::getAutomationDataObject()
@@ -7223,10 +7223,17 @@ void ScriptingObjects::ScriptedMidiAutomationHandler::setUpdateCallback(var call
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		updateCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 0);
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 1);
 		updateCallback.incRefCount();
 		updateCallback.addAsSource(this, "onMidiAutomationUpdate");
 		updateCallback.setThisObject(this);
+
+		auto obj = getAutomationDataObject();
+
+		auto r = updateCallback.callSync(&obj, 1);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
 	}
 }
 
