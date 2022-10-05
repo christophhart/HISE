@@ -520,6 +520,8 @@ public:
 		{
 			struct OptimizationResult
 			{
+				operator bool() const { return passName.isNotEmpty() && numOptimizedStatements > 0; }
+
 				String passName;
 				int numOptimizedStatements = 0;
 			};
@@ -899,6 +901,8 @@ public:
 			ReferenceCountedArray<DynamicObject> inlineFunctionSnexBindings;
 			NamedValueSet constObjects;
 			VarRegister	varRegister;
+
+			NamedValueSet comments;
 
 			Array<DebugableObject::Location> registerLocations;
 			Array<DebugableObject::Location> constLocations;

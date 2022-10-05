@@ -564,6 +564,11 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
         return copy;
     };
     
+	String getComment() const override
+	{
+		return commentDoc;
+	}
+
 	void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) override
 	{
 		if (capturedLocals.isEmpty())

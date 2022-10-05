@@ -580,6 +580,21 @@ public:
 							debugComponentRow->addCustomComponent(c);
 							addedSomething = true;
 						}
+						else
+						{
+							auto text = info->getDescription().getText();
+
+							if (text.isNotEmpty())
+							{
+								auto c = new SimpleMarkdownDisplay();
+								c->setText(text);
+								auto h = c->r.getHeightForWidth(table->getWidth());
+								c->setSize(table->getWidth(), h);
+								debugComponentRow->addCustomComponent(c);
+								addedSomething = true;
+								break;
+							}
+						}
 					}
 				}
 			}

@@ -1503,13 +1503,22 @@ struct HiseJavascriptEngine::TokenProvider::DebugInformationToken : public Token
         priority = 110;
 		c = c_;
 
+		
+
+		
 		if (isGlobalClass)
 		{
 			markdownDescription << "Global API class `" << s << "`  \n> Press F1 to open the documentation";
 		}
 		else
 		{
+			auto comment = i->getDescription().getText();
+
 			markdownDescription << "**Type:** `" << i->getTextForType() << "`  \n";
+
+			if (comment.isNotEmpty())
+				markdownDescription << comment;
+
 			//markdownDescription << "**Value:** " << i->getTextForValue();
 		}
 	};

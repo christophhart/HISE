@@ -276,6 +276,8 @@ struct WeakCallbackHolder : private ScriptingObject
 
 		virtual void addAsSource(DebugableObjectBase* b, const Identifier& callbackId) { ignoreUnused(b, callbackId); };
 
+		virtual String getComment() const { return {}; }
+
 	protected:
 
 		Result lastResult;
@@ -339,8 +341,6 @@ struct WeakCallbackHolder : private ScriptingObject
 	{
 		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
 	}
-
-	
 
 	DebugInformationBase* createDebugObject(const String& n) const;
 

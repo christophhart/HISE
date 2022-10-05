@@ -819,6 +819,10 @@ private:
 		ns->constObjects.set(s->name, uninitialised); // Will be initialied at runtime
 		s->ns = ns;
 
+		ns->comments.set(s->name, lastComment);
+
+		clearLastComment();
+
 		return s.release();
 	}
 
@@ -830,6 +834,9 @@ private:
 
 			ns->varRegister.addRegister(name, var::undefined());
             ns->registerLocations.add(preparser->createDebugLocation());
+
+			ns->comments.set(name, lastComment);
+			clearLastComment();
 
 			if (ns->registerLocations.size() != ns->varRegister.getNumUsedRegisters())
 			{

@@ -76,9 +76,12 @@ bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(Opt
 {
 	if (auto fo = dynamic_cast<InlineFunction::Object*>(function.getObject()))
 	{
-		auto tr = p->executePass(fo->body);
-		r.numOptimizedStatements += tr.numOptimizedStatements;
-		return true;
+		if (fo->body != nullptr)
+		{
+			auto tr = p->executePass(fo->body);
+			r.numOptimizedStatements += tr.numOptimizedStatements;
+			return true;
+		}
 	}
 	else if (auto fo = dynamic_cast<FunctionObject*>(function.getObject()))
 	{
@@ -798,7 +801,9 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 			return var();
 		};
 
-		DebugInformation* di = new LambdaValueInformation(vf, varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable, registerLocations[index]);
+		auto rid = varRegister.getRegisterId(index);
+
+		DebugInformation* di = new LambdaValueInformation(vf, rid, id, DebugInformation::Type::RegisterVariable, registerLocations[index], comments[rid].toString());
 		return di;
 	}
 
@@ -811,7 +816,7 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(inlineIndex).get());
 
-		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction, id);
+		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction, id, o->getComment());
 	}
 
 	prevLimit = upperLimit;
@@ -832,7 +837,13 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 			return var();
 		};
 
-		DebugInformation* di = new LambdaValueInformation(vf, constObjects.getName(constIndex), id, DebugInformation::Type::Constant, constLocations[constIndex]);
+		auto cid = constObjects.getName(constIndex);
+
+		DebugInformation* di = new LambdaValueInformation(vf, 
+													      cid, 
+														  id, 
+														  DebugInformation::Type::Constant, constLocations[constIndex],
+														  comments[cid].toString());
 	
 		return di;
 	}

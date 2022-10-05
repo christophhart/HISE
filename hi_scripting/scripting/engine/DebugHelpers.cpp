@@ -643,8 +643,11 @@ hise::DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(De
 
 	for (int i = 0; i < parent->getNumChildElements(); i++)
 	{
-		if (auto p = getDebugInformation(parent->getChildElement(i), object))
-			return p;
+		if (auto c = parent->getChildElement(i))
+		{
+			if (auto p = getDebugInformation(c, object))
+				return p;
+		}
 	}
 
 	return nullptr;

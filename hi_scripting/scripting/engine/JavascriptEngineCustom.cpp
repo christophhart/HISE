@@ -382,6 +382,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		String getDebugDataType() const override { return "function"; }
 
+		String getComment() const override { return commentDoc; }
+
 		int getNumChildElements() const override
 		{
 			return ENABLE_SCRIPTING_BREAKPOINTS * 2;
@@ -903,10 +905,15 @@ struct LocationInjector : public HiseJavascriptEngine::RootObject::OptimizationP
 					loc.charNumber = dot->location.getCharIndex();
 					loc.fileName = dot->location.externalFile;
 
-					if (cso->addLocationForFunctionCall(dot->child, loc))
+					try
 					{
-						
+						cso->addLocationForFunctionCall(dot->child, loc);
 					}
+					catch (String& e)
+					{
+						dot->location.throwError(e);
+					}
+					
 				}
 			}
 		}
