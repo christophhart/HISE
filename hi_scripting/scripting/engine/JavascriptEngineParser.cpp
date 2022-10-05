@@ -2416,8 +2416,11 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 	auto before = Time::getMillisecondCounter();
 
 	for (auto o : hiseSpecialData.optimizations)
-		results.add(hiseSpecialData.runOptimisation(o));
-
+	{
+		if(auto or = hiseSpecialData.runOptimisation(o))
+			results.add(or);
+	}
+	
 	auto after = Time::getMillisecondCounter();
 	
 	auto optimisationTimeMs = after - before;

@@ -1817,6 +1817,9 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 
 	callForEach(rootStatementToOptimize, [this, &r](Statement* st)
 	{
+		if (st == nullptr)
+			return false;
+
 		int index = 0;
 
 		while (auto child = st->getChildStatement(index++))
