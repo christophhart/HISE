@@ -679,6 +679,10 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 	{
 		return new ObjectDebugInformationWithCustomName(dynamic_cast<DebugableObjectBase*>(weakCallback.get()), (int)DebugInformation::Type::Callback, "%PARENT%." + n);
 	}
+	else
+	{
+		return new DebugInformation(DebugInformation::Type::Constant);
+	}
 
 	return nullptr;
 }

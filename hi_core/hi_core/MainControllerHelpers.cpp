@@ -221,14 +221,33 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 	// The parameter was stored correctly as ID
 	if (isParameterId && processor.get() != nullptr)
 	{
-		const Identifier pId(attributeString);
+		auto numCustomAutomationSlots = processor->getMainController()->getUserPresetHandler().getNumCustomAutomationData();
 
-		for (int j = 0; j < processor->getNumParameters(); j++)
+		if (numCustomAutomationSlots != 0)
 		{
-			if (processor->getIdentifierForParameterIndex(j) == pId)
+			for (int j = 0; j < numCustomAutomationSlots; j++)
 			{
-				attribute = j;
-				break;
+				if (auto ah = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(j))
+				{
+					if (ah->id.toString() == attributeString)
+					{
+						attribute = j;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			const Identifier pId(attributeString);
+
+			for (int j = 0; j < processor->getNumParameters(); j++)
+			{
+				if (processor->getIdentifierForParameterIndex(j) == pId)
+				{
+					attribute = j;
+					break;
+				}
 			}
 		}
 	}
