@@ -226,6 +226,8 @@ ScriptBroadcasterMap::ScriptBroadcasterMap(JavascriptProcessor* p_) :
 
 	childLayout = ComponentWithPreferredSize::Layout::ChildrenAreRows;
 
+	
+
 	getMainController()->addScriptListener(this);
 
 	factory.registerWithCreate<SimpleVarBody>();
@@ -237,6 +239,13 @@ ScriptBroadcasterMap::ScriptBroadcasterMap(JavascriptProcessor* p_) :
 	{
 		m.updateTagFilter();
 	}, false);
+
+	p->addCallbackObjectClearListener<ScriptBroadcasterMap>(*this, [](ScriptBroadcasterMap& m, bool)
+	{
+		m.children.clear();
+		m.addChildWithPreferredSize(new PrefferedSizeWrapper<EmptyDisplay, 400, 400>("Recompiling..."));
+		m.resetSize();
+	});
 
 	rebuild();
 }
@@ -270,7 +279,7 @@ void ScriptBroadcasterMap::rebuild()
 	}
 
 	if (children.isEmpty())
-		addChildWithPreferredSize(new PrefferedSizeWrapper<EmptyDisplay, 400, 400>());
+		addChildWithPreferredSize(new PrefferedSizeWrapper<EmptyDisplay, 400, 400>("No broadcasters available"));
 
 	resetSize();
 
@@ -336,13 +345,29 @@ void ScriptBroadcasterMap::forEachDebugInformation(DebugInformationBase::Ptr di,
 	f(di);
 
 	for (int i = 0; i < di->getNumChildElements(); i++)
-		f(di->getChildElement(i));
+	{
+		if (auto c = di->getChildElement(i))
+		{
+			f(di->getChildElement(i));
+		}
+		else
+			jassertfalse;
+		
+	}
+		
 }
 
 hise::ScriptingObjects::ScriptBroadcasterMap::BroadcasterList ScriptBroadcasterMap::createBroadcasterList()
 {
 	BroadcasterList list;
 
+	for (int i = 0; i < p->getNumRegisteredCallableObjects(); i++)
+	{
+		if(auto b = p->getRegisteredCallableObject<ScriptBroadcaster>(i))
+			list.addIfNotAlreadyThere(b);
+	}
+
+#if 0
 	if (auto ah = dynamic_cast<ApiProviderBase::Holder*>(p.get()))
 	{
 		if (auto provider = ah->getProviderBase())
@@ -353,10 +378,16 @@ hise::ScriptingObjects::ScriptBroadcasterMap::BroadcasterList ScriptBroadcasterM
 					list.add(sb);
 			};
 
+			ScopedReadLock sl(ah->getDebugLock());
+
 			for (int i = 0; i < provider->getNumDebugObjects(); i++)
-				forEachDebugInformation(provider->getDebugInformation(i), check);
+			{
+				auto di = provider->getDebugInformation(i);
+				forEachDebugInformation(di, check);
+			}
 		}
 	}
+#endif
 
 	return list;
 }

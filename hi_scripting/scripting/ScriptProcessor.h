@@ -337,6 +337,7 @@ class JavascriptProcessor :	public FileChangeListener,
 							public Dispatchable,
 							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
+							public WeakCallbackHolder::CallableObjectManager,
 							public scriptnode::DspNetwork::Holder
 {
 public:

@@ -670,7 +670,8 @@ void ScriptBroadcaster::OtherBroadcasterListener::registerSpecialBodyItems(Compo
 
 struct ScriptBroadcasterMap::EmptyDisplay : public Component
 {
-	EmptyDisplay()
+	EmptyDisplay(const String& text_):
+		text(text_)
 	{
 		setInterceptsMouseClicks(false, true);
 	}
@@ -679,8 +680,10 @@ struct ScriptBroadcasterMap::EmptyDisplay : public Component
 	{
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText("No broadcasters available / selected", getLocalBounds().toFloat(), Justification::centred);
+		g.drawText(text, getLocalBounds().toFloat(), Justification::centred);
 	}
+
+	String text;
 };
 
 

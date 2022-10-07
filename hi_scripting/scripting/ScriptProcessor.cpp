@@ -1051,6 +1051,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunction()*/)
 {
     inplaceValues.clearQuick();
+
+	clearCallableObjects();
     
 	auto f = [rf](Processor* p)
 	{

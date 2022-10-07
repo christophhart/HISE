@@ -72,6 +72,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	};
 
 	ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
+	~ScriptBroadcaster();
 
 	struct Panel : public PanelWithProcessorConnection
 	{
@@ -121,6 +122,15 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	/** Removes the listener that was assigned with the given object. */
 	bool removeListener(var idFromMetadata);
+
+	/** Removes the source with the given metadata. */
+	bool removeSource(var metadata);
+
+	/** Removes all listeners. */
+	void removeAllListeners();
+
+	/** Removes all sources. */
+	void removeAllSources();
 
 	/** Sends a message to all listeners. the length of args must match the default value list. if isSync is false, then it will be deferred. */
 	void sendMessage(var args, bool isSync);
@@ -175,7 +185,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
     /** Guarantees that the synchronous execution of the listener callbacks can be called from the audio thread. */
     void setRealtimeMode(bool enableRealTimeMode);
-        
+
 	// ===============================================================================
 
 	void addBroadcasterAsListener(ScriptBroadcaster* targetBroadcaster, const var& transformFunction, bool async);

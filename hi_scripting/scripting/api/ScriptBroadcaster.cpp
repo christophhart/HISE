@@ -144,6 +144,22 @@ struct BroadcasterHelpers
 		return idList;
 	}
 
+	static Identifier getIllegalProperty(Array<ScriptingApi::Content::ScriptComponent*>& componentList, const Array<Identifier>& propertyIds)
+	{
+		for (auto sc : componentList)
+		{
+			for (const auto& id : propertyIds)
+			{
+				if (sc->getIndexForProperty(id) == -1)
+				{
+					return id;
+				}
+			}
+		}
+
+		return {};
+	}
+
 	static Array<ScriptingApi::Content::ScriptComponent*> getComponentsFromVar(ProcessorWithScriptingContent* p, var componentIds)
 	{
 		using ScriptComp = ScriptingApi::Content::ScriptComponent;
@@ -635,19 +651,12 @@ ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBr
 	ListenerBase(metadata),
 	propertyIds(propertyIds_)
 {
-	for (auto sc : BroadcasterHelpers::getComponentsFromVar(b->getScriptProcessor(), componentIds))
-	{
-		for (auto& id : propertyIds)
-		{
-			if (sc->getIndexForProperty(id) == -1)
-			{
-				illegalId = id;
-				return;
-			}
-		}
+	auto list = BroadcasterHelpers::getComponentsFromVar(b->getScriptProcessor(), componentIds);
 
+	illegalId = BroadcasterHelpers::getIllegalProperty(list, propertyIds_);
+
+	for (auto sc : list)
 		items.add(new InternalListener(*b, sc, propertyIds));
-	}
 }
 
 void ScriptBroadcaster::ComponentPropertyListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -1911,6 +1920,9 @@ struct ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_4(ScriptBroadcaster, addComponentPropertyListener);
 	API_METHOD_WRAPPER_3(ScriptBroadcaster, addComponentValueListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
+	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeSource);
+	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, removeAllListeners);
+	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, removeAllSources);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
@@ -1935,11 +1947,16 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ConstScriptingObject(p, 0),
 	lastResult(Result::ok())
 {
+	dynamic_cast<JavascriptProcessor*>(p)->registerCallableObject(this);
+
 	ADD_API_METHOD_3(addListener);
 	ADD_API_METHOD_4(addDelayedListener);
 	ADD_API_METHOD_4(addComponentPropertyListener);
 	ADD_API_METHOD_3(addComponentValueListener);
 	ADD_API_METHOD_1(removeListener);
+	ADD_API_METHOD_1(removeSource);
+	ADD_API_METHOD_0(removeAllListeners);
+	ADD_API_METHOD_0(removeAllSources);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
 	ADD_API_METHOD_3(attachToComponentProperties);
@@ -2006,6 +2023,14 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	keepers = var(k);
 
 	setWantsCurrentLocation(true);
+}
+
+ScriptBroadcaster::~ScriptBroadcaster()
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		jp->deregisterCallableObject(this);
+	}
 }
 
 Component* ScriptBroadcaster::createPopupComponent(const MouseEvent& e, Component* parent)
@@ -2143,6 +2168,11 @@ bool ScriptBroadcaster::addComponentPropertyListener(var object, var propertyLis
 	auto list = BroadcasterHelpers::getComponentsFromVar(getScriptProcessor(), object);
 	auto idList = BroadcasterHelpers::getIdListFromVar(propertyList);
 
+	auto illegalId = BroadcasterHelpers::getIllegalProperty(list, idList);
+	
+	if (illegalId.isValid())
+		reportScriptError("illegal property: " + illegalId.toString());
+
 	Array<var> l;
 
 	for (auto sc : list)
@@ -2191,6 +2221,30 @@ bool ScriptBroadcaster::removeListener(var objectToRemove)
 	}
 
 	return false;
+}
+
+bool ScriptBroadcaster::removeSource(var metadata)
+{
+	for (auto a : attachedListeners)
+	{
+		if (a->metadata == metadata)
+		{
+			attachedListeners.removeObject(a);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ScriptBroadcaster::removeAllListeners()
+{
+	items.clear();
+}
+
+void ScriptBroadcaster::removeAllSources()
+{
+	attachedListeners.clear();
 }
 
 void ScriptBroadcaster::sendMessage(var args, bool isSync)
