@@ -2225,7 +2225,9 @@ bool ScriptBroadcaster::addListener(var object, var metadata, var function)
 
 	initItem(ni.get());
 	
-	items.addSorted(ItemBase::PrioritySorter(), ni.release());
+    ItemBase::PrioritySorter sorter;
+    
+	items.addSorted(sorter, ni.release());
 
 	return true;
 }
@@ -2243,7 +2245,9 @@ bool ScriptBroadcaster::addDelayedListener(int delayInMilliSeconds, var obj, var
 		return false;
 	}
 
-	items.addSorted(ItemBase::PrioritySorter(), ni.release());
+    ItemBase::PrioritySorter sorter;
+    
+	items.addSorted(sorter, ni.release());
 	return true;
 }
 
@@ -2266,7 +2270,9 @@ bool ScriptBroadcaster::addComponentPropertyListener(var object, var propertyLis
 
 	initItem(ni);
 
-	items.addSorted(ItemBase::PrioritySorter(), ni.release());
+    ItemBase::PrioritySorter sorter;
+    
+	items.addSorted(sorter, ni.release());
 
 	
 
@@ -2287,7 +2293,9 @@ bool ScriptBroadcaster::addComponentValueListener(var object, var metadata, var 
 
 	initItem(ni);
 
-	items.addSorted(ItemBase::PrioritySorter(), ni.release());
+    ItemBase::PrioritySorter sorter;
+    
+	items.addSorted(sorter, ni.release());
 
 
 	return true;
