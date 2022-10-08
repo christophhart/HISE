@@ -693,8 +693,90 @@ juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* 
 }
 
 
+struct ScriptBroadcaster::ComponentVisibilityListener::InternalListener
+{
+	InternalListener(ScriptBroadcaster& parent_, ScriptComponent* sc_):
+		sc(sc_),
+		parent(parent_),
+		componentTree(sc_->getPropertyValueTree()),
+		id("visible")
+	{
+		auto root = componentTree.getRoot();
+		listener.setCallback(root, { id }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(InternalListener::update));
+	}
+
+	Array<var> getArgs() const
+	{
+		auto v = componentTree;
+
+		auto isVisible = true;
+
+		while (isVisible && v.getType() == Identifier("Component"))
+		{
+			isVisible &= (bool)v.getProperty(id, true);
+			v = v.getParent();
+		}
+
+		return { componentTree["id"], var(isVisible) };
+	}
+
+	void update(const ValueTree& tree, const Identifier&)
+	{
+		if (tree == componentTree || componentTree.isAChildOf(tree))
+		{
+			parent.sendMessage(getArgs(), false);
+		}
+	}
+
+	const Identifier id;
+	ValueTree d;
+	
+	WeakReference<ScriptComponent> sc;
+	ScriptBroadcaster& parent;
+
+	ValueTree componentTree;
+	valuetree::RecursivePropertyListener listener;
+};
+
+ScriptBroadcaster::ComponentVisibilityListener::ComponentVisibilityListener(ScriptBroadcaster* b, var componentIds, const var& metadata):
+	ListenerBase(metadata)
+{
+	auto list = BroadcasterHelpers::getComponentsFromVar(b->getScriptProcessor(), componentIds);
+
+	for (auto sc : list)
+		items.add(new InternalListener(*b, sc));
+}
 
 
+
+
+void ScriptBroadcaster::ComponentVisibilityListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	factory.registerWithCreate<ComponentPropertyMapItem>();
+}
+
+juce::Result ScriptBroadcaster::ComponentVisibilityListener::callItem(TargetBase* n)
+{
+	for (auto item : items)
+	{
+		auto ok = n->callSync(item->getArgs());
+
+		if (!ok.wasOk())
+			return ok;
+	}
+
+	return Result::ok();
+}
+
+Array<juce::var> ScriptBroadcaster::ComponentVisibilityListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+		list.add(var(i->sc));
+	
+	return list;
+}
 
 ScriptBroadcaster::ScriptTarget::ScriptTarget(ScriptBroadcaster* sb, int numArgs, const var& obj_, const var& f, const var& metadata_) :
 	TargetBase(obj_, f, metadata_),
@@ -1927,6 +2009,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentProperties);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentVisibility);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentMouseEvents);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
@@ -1962,6 +2045,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToComponentProperties);
 	ADD_API_METHOD_3(attachToComponentMouseEvents);
 	ADD_API_METHOD_2(attachToComponentValue);
+	ADD_API_METHOD_2(attachToComponentVisibility);
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
@@ -2431,6 +2515,22 @@ void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMet
 }
 
 
+
+void ScriptBroadcaster::attachToComponentVisibility(var componentIds, var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	attachedListeners.add(new ComponentVisibilityListener(this, componentIds, optionalMetadata));
+
+	if (defaultValues.size() != 2)
+	{
+		String e = "If you want to attach a broadcaster to visibility events, it needs two parameters (id, isVisible)";
+		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListeners.getLast(), e);
+		reportScriptError(e);
+	}
+
+	checkMetadata(attachedListeners.getLast());
+}
 
 void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callbackLevel, var optionalMetadata)
 {

@@ -153,6 +153,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Registers this broadcaster to be called when the value of the given components change. */
 	void attachToComponentValue(var componentIds, var optionalMetadata);
 
+	/** Registers this broadcaster to be called when the visibility of one of the components (or one of its parent component) changes. */
+	void attachToComponentVisibility(var componentIds, var optionalMetadata);
+
 	/** Registers this broadcaster to be notified for mouse events for the given components. */
 	void attachToComponentMouseEvents(var componentIds, var callbackLevel, var optionalMetadata);
 
@@ -543,6 +546,24 @@ private:
 		Array<Identifier> propertyIds;
 		Identifier illegalId;
 		OwnedArray<InternalListener> items;
+	};
+
+	struct ComponentVisibilityListener : public ListenerBase
+	{
+		struct InternalListener;
+
+		ComponentVisibilityListener(ScriptBroadcaster* b, var componentIds, const var& metadata);
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ComponentVisibility"); }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		Result callItem(TargetBase* n) override;
+
+		Array<var> createChildArray() const override;
+
+		OwnedArray<InternalListener> items;
+
 	};
 
 	struct MouseEventListener : public ListenerBase
