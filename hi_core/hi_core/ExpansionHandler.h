@@ -100,7 +100,8 @@ public:
 
 	~Expansion()
 	{
-		saveExpansionInfoFile();
+		if (root.isDirectory() && root.getChildFile("expansion_info.xml").existsAsFile())
+			saveExpansionInfoFile();
 	}
 
 	/** Override this method and initialise the expansion. You need to do at least those things:
