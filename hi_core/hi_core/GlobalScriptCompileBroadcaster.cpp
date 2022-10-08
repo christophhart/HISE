@@ -136,8 +136,7 @@ String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const Str
     
 	for (int i = 0; i < externalScripts.getNumChildren(); i++)
 	{
-        const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
-
+    const String thisName = externalScripts.getChild(i).getProperty("FileName").toString().replace("\\", "/");
         
 		if (thisName == realFileName)
 		{

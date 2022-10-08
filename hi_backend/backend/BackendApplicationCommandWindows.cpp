@@ -321,8 +321,12 @@ void XmlBackupFunctions::restoreAllScripts(ValueTree& v, ModulatorSynthChain *ma
 	if (v.getType() == Identifier(pr) && v[typ].toString().contains("Script"))
 	{
 		auto fileName = getSanitiziedName(v[id]);
+		const String t = v[scr];
 		
-		
+		if (t.startsWith("{EXTERNAL_SCRIPT}"))
+		{
+			return;
+		}
 
 		File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
 

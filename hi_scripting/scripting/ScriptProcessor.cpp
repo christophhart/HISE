@@ -577,15 +577,15 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 {
 	String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
 
-	// Wow, much cross-platform, very OSX, totally Windows
-	fileName = fileName.replace("\\", "/");
-
 	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(chainToExport);
 
 	if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
 	{
 		fileName = "{GLOBAL_SCRIPT_FOLDER}" + scriptFile.getRelativePathFrom(globalScriptFolder);
 	}
+
+	// Wow, much cross-platform, very OSX, totally Windows
+	fileName = fileName.replace("\\", "/");
 
 	for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
 	{
@@ -1367,15 +1367,26 @@ void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
 
 String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
 {
-	String regex("include\\(\"([/\\w\\s]+\\.\\w+)\"\\);");
+	String regex("include\\(\"(?:\\{GLOBAL_SCRIPT_FOLDER\\})?([/\\w\\s]+\\.\\w+)\"\\);");
 	StringArray results = RegexFunctions::search(regex, x, 0);
 	StringArray fileNames = RegexFunctions::search(regex, x, 1);
 	StringArray includedContents;
 
+	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<Processor*>(const_cast<JavascriptProcessor*>(p)));
+
 	for (int i = 0; i < fileNames.size(); i++)
-	{
-		File f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
-			GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(p)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);
+	{				
+		File f;
+		
+		if (results[i].contains("{GLOBAL_SCRIPT_FOLDER}"))
+		{
+			f = globalScriptFolder.getChildFile(fileNames[i]).getFullPathName();
+		}
+		else
+		{
+			f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
+				GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(p)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);	
+		}
 
 		if (includedFiles.contains(f)) // skip multiple inclusions...
 		{
@@ -1457,10 +1468,23 @@ void JavascriptProcessor::setConnectedFile(const String& fileReference, bool com
 		connectedFileReference = fileReference;
 
 #if USE_BACKEND
-		const File f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
-		const String code = f.loadFileAsString();
+
+	File f = File();
+	
+	if (fileReference.contains("{GLOBAL_SCRIPT_FOLDER}"))
+	{
+		File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<Processor*>(this));
+		const String filePath = fileReference.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
+		f = globalScriptFolder.getChildFile(filePath);
+	}
+	else
+	{
+		f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+	}
+	
+	const String code = f.loadFileAsString();
 #else
-		const String code = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFromCollection(fileReference);
+	const String code = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFromCollection(fileReference);
 
 #endif
 
