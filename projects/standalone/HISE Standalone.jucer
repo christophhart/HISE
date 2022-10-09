@@ -92,6 +92,10 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_faust" path="../../"/>
+        <MODULEPATH id="hi_faust_jit" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
@@ -140,6 +144,10 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_faust" path="../../"/>
+        <MODULEPATH id="hi_faust_jit" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -191,6 +199,10 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_faust" path="../../"/>
+        <MODULEPATH id="hi_faust_jit" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
@@ -234,6 +246,10 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_faust" path="../../"/>
+        <MODULEPATH id="hi_faust_jit" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -243,6 +259,10 @@
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_faust" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_faust_jit" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_faust_lib" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_faust_types" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -277,7 +297,8 @@
                ENABLE_ALL_PEAK_METERS="1" JUCE_ASIO="1" JUCE_DIRECTSOUND="1"
                JUCE_USE_DIRECTWRITE="1" JUCE_JACK="1" HISE_ENABLE_EXPANSIONS="1"
                HISE_ENABLE_MIDI_INPUT_FOR_FX="1" JUCE_STRICT_REFCOUNTEDPOINTER="1"
-               HISE_INCLUDE_RLOTTiE="1"/>
+               HISE_INCLUDE_RLOTTiE="1" HISE_INCLUDE_FAUST="1" HISE_INCLUDE_FAUST_JIT="1"
+               HISE_FAUST_USE_LLVM_JIT="1"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
     <WINDOWS/>
