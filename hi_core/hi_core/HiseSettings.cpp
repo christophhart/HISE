@@ -113,6 +113,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(RebuildPoolFiles);
 	ids.add(Support32BitMacOS);
 	ids.add(CustomNodePath);
+	ids.add(FaustPath);
 
 	return ids;
 }
@@ -438,9 +439,15 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P_();
 
 		P(HiseSettings::Compiler::UseIPP);
-		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order");
+		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order ");
 		D("to speed up the convolution reverb");
 		D("> If you use the convolution reverb in your project, this is almost mandatory, but there are a few other places that benefit from having this library");
+		P_();
+
+		P(HiseSettings::Compiler::FaustPath);
+		D("Set the path to your Faust installation here. ");
+		D("It will be used to look up the standard faust libraries on platforms which don't have a default path. ");
+		D("There should be at least the following directories inside: \"share\", \"lib\", \"include\"");
 		P_();
 
         P(HiseSettings::Compiler::LegacyCPUSupport);
@@ -827,6 +834,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 		   id == Scripting::GlobalScriptPath || 
 		   id == Project::RedirectSampleFolder ||
 		   id == Compiler::CustomNodePath ||
+		   id == Compiler::FaustPath ||
 		   id == Other::GlobalSamplePath ||
 		   id == Other::ExternalEditorPath ||
 		   id == Documentation::DocRepository;
