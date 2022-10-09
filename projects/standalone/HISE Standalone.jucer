@@ -51,11 +51,11 @@
         <CONFIGURATION name="Debug" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
-                       macOSDeploymentTarget="10.9"/>
+                       macOSDeploymentTarget="10.9" headerPath="/usr/local/include"/>
         <CONFIGURATION name="Release" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
-                       macOSDeploymentTarget="10.9"/>
+                       macOSDeploymentTarget="10.9" headerPath="/usr/local/include"/>
         <CONFIGURATION name="CI" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
                        isDebug="0" optimisation="4" targetName="HISE" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
