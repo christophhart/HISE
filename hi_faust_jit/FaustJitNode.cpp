@@ -98,8 +98,17 @@ void faust_jit_node::initialise(NodeBase* n)
 
 void faust_jit_node::prepare(PrepareSpecs specs)
 {
-	lastSpecs = specs;
-	faust->prepare(specs);
+	try
+	{
+		getRootNetwork()->getExceptionHandler().removeError(this, Error::ErrorCode::IllegalFaustChannelCount);
+
+		lastSpecs = specs;
+		faust->prepare(specs);
+	}
+	catch (scriptnode::Error& e)
+	{
+		getRootNetwork()->getExceptionHandler().addError(this, e);
+	}
 }
 
 void faust_jit_node::reset()
@@ -237,15 +246,27 @@ void faust_jit_node::reinitFaustWrapper()
 		logError("Invalid name for exported C++ class: " + newClassId.toStdString());
 		return;
 	}
-	// Setup DSP
-	std::string error_msg;
-	bool success = faust->setup(getFaustLibraryPaths(), error_msg);
-	DBG("Faust initialization: " + std::string(success ? "success" : "failed"));
-	if (!success)
+
+	try
 	{
-		logError(error_msg);
+		getRootNetwork()->getExceptionHandler().removeError(this);
+
+		std::string error_msg;
+		bool success = faust->setup(getFaustLibraryPaths(), error_msg);
+		DBG("Faust initialization: " + std::string(success ? "success" : "failed"));
+		if (!success)
+		{
+			logError(error_msg);
+		}
+		setupParameters();
 	}
-	setupParameters();
+	catch (scriptnode::Error& e)
+	{
+		getRootNetwork()->getExceptionHandler().addError(this, e);
+	}
+
+	// Setup DSP
+	
 }
 
 void faust_jit_node::setClass(const String& newClassId)

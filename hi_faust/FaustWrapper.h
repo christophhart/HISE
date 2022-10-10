@@ -47,11 +47,19 @@ struct faust_base_wrapper {
 		}
 
 		init();
+		
 		return true;
 	}
 
 	void prepare(PrepareSpecs specs)
 	{
+		if (_nChannels != specs.numChannels || _nFramesMax != specs.blockSize) {
+			DBG("Faust: Resizing buffers: nChannels=" << _nChannels << ", blockSize=" << _nFramesMax);
+			_nChannels = specs.numChannels;
+			_nFramesMax = specs.blockSize;
+			resizeBuffer();
+		}
+
 		// recompile if sample rate changed
 		int newSampleRate = (int)specs.sampleRate;
 		if (newSampleRate != sampleRate) {
@@ -59,18 +67,36 @@ struct faust_base_wrapper {
 			// init samplerate
 			init();
 		}
+		else
+			throwErrorIfChannelMismatch();
+	}
 
-		if (_nChannels != specs.numChannels || _nFramesMax != specs.blockSize) {
-			DBG("Faust: Resizing buffers: nChannels=" << _nChannels << ", blockSize=" << _nFramesMax);
-			_nChannels = specs.numChannels;
-			_nFramesMax = specs.blockSize;
-			resizeBuffer();
+	void throwErrorIfChannelMismatch()
+	{
+		if (faustDsp)
+		{
+			auto numInputs = faustDsp->getNumInputs();
+			auto numOutputs = faustDsp->getNumOutputs();
+			auto numHiseChannels = _nChannels;
+
+			if (numInputs != numOutputs ||
+				numInputs != numHiseChannels)
+			{
+				// the error system expects a single integer as "expected value", so we need
+				// to encode both input and output channels into a single integer using a magic trick
+				auto encodedChannelCount = 1000 * numInputs + numOutputs;
+
+				scriptnode::Error::throwError(Error::IllegalFaustChannelCount, numHiseChannels, encodedChannelCount);
+			}
 		}
 	}
 
 	void init() {
 		if (faustDsp)
+		{
+			throwErrorIfChannelMismatch();
 			faustDsp->init(sampleRate);
+		}
 	}
 
 	void reset()
@@ -101,7 +127,8 @@ struct faust_base_wrapper {
 			bufferChannelsData(channel_data, n_hise_channels, nFrames);
 			faustDsp->compute(nFrames, getRawInputChannelPointers(), channel_data);
 		} else {
-			// TODO error indication
+			// should be catched by the init check
+			jassertfalse;
 		}
 	}
 

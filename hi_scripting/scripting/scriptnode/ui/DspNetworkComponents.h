@@ -1026,6 +1026,8 @@ public:
 	ScopedPointer<NodeComponent> currentlyDraggedComponent;
 
 	ReferenceCountedObjectPtr<DspNetwork> network;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraph);
 };
 
 

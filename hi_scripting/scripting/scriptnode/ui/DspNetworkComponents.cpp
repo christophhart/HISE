@@ -264,6 +264,11 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 			this->resizeNodes();
 	});
 
+	n->getExceptionHandler().errorBroadcaster.addListener(*this, [](DspNetworkGraph& g, NodeBase* , Error )
+	{
+		g.resizeNodes();
+	});
+
 	setOpaque(true);
 }
 

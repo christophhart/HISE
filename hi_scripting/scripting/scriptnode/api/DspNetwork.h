@@ -134,17 +134,22 @@ public:
 		}
 
 		items.add({ n, e });
+
+		errorBroadcaster.sendMessage(sendNotificationAsync, n, e);
 	}
 
 	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes)
 	{
 		customErrorMessage = {};
 
+		bool didSomething = false;
+
 		for (int i = 0; i < items.size(); i++)
 		{
 			if(items[i].node == nullptr)
 			{
 				items.remove(i--);
+				didSomething = true;
 				continue;
 			}
 
@@ -156,8 +161,16 @@ public:
 				  e != Error::ErrorCode::IllegalBypassConnection);
 
 			if ((n == nullptr || (items[i].node == n)) && isErrorCode)
+			{
 				items.remove(i--);
+				didSomething = true;
+			}
 		}
+
+		auto lastItem = items.getLast();
+
+		if(didSomething)
+			errorBroadcaster.sendMessage(sendNotificationAsync, lastItem.node, lastItem.error);
 	}
 
 	static String getErrorMessage(Error e)
@@ -181,6 +194,11 @@ public:
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 		case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
+		case Error::IllegalFaustChannelCount: 
+			s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
+			s << "  \nActual input channels: `" << String(e.actual / 1000) << "`";
+			s << "  \nActual output channels: `" << String(e.actual % 1000) << "`";
+			return s;
 		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
 		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
 		case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
@@ -207,6 +225,8 @@ public:
 
 		return {};
 	}
+
+	LambdaBroadcaster<NodeBase*, Error> errorBroadcaster;
 
 private:
 

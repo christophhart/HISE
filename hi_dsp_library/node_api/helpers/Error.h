@@ -70,6 +70,7 @@ struct Error
 		IllegalBypassConnection,
 		IllegalCompilation,
 		IllegalFaustNode,
+		IllegalFaustChannelCount,
 		CloneMismatch,
 		IllegalMod,
 		UnscaledModRangeMismatch,
