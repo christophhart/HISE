@@ -60,11 +60,13 @@ Enables static Faust wrapper code. Needed for anything related to Faust, includi
 
 /** Config: HISE_FAUST_USE_LLVM_JIT
 
-Use the Faust interpreter instead of the LLVM JIT. This is deactivated by default
-and only activated for the HISE backend application.
+Use the LLVM JIT backend for runtime Faust compilation (Enabled by default)
+If disabled the significantly slower interpreter backend will be used as a fallback.
+Disable if you have issues with the LLVM backend.
+Does not affect exported code.
 */
 #ifndef HISE_FAUST_USE_LLVM_JIT
-#define HISE_FAUST_USE_LLVM_JIT 0
+#define HISE_FAUST_USE_LLVM_JIT 1
 #endif // HISE_FAUST_USE_LLVM_JIT
 
 /** Config: HISE_INCLUDE_FAUST_JIT
