@@ -43,14 +43,44 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL
 
-  dependencies:      hi_dsp_library hi_faust_types
+  dependencies:      hi_dsp_library
 
 END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 #pragma once
 
-#include "../hi_faust_types/hi_faust_types.h"
+/** Config: HISE_INCLUDE_FAUST
+
+Enables the Faust Compiler
+*/
+#ifndef HISE_INCLUDE_FAUST
+#define HISE_INCLUDE_FAUST 0
+#endif // HISE_INCLUDE_FAUST
+
+/** Config: HISE_FAUST_USE_LLVM_JIT
+
+Use the Faust interpreter instead of the LLVM JIT. This is deactivated by default
+and only activated for the HISE backend application.
+*/
+#ifndef HISE_FAUST_USE_LLVM_JIT
+#define HISE_FAUST_USE_LLVM_JIT 0
+#endif // HISE_FAUST_USE_LLVM_JIT
+
+// On Windows we'll use libfaust's C interface instead of C++ (Enabled by default on Windows)
+#ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
+#if (defined (_WIN32) || defined (_WIN64))
+#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 1
+#else
+#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 0
+#endif
+#endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
+
+#if HISE_INCLUDE_FAUST
+#include "faust_wrap/dsp/dsp.h"
+#include "faust_wrap/gui/UI.h"
+#include "faust_wrap/gui/meta.h"
+#endif
 
 #if HISE_INCLUDE_FAUST
 #include "JuceHeader.h"

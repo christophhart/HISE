@@ -7,7 +7,7 @@
 #include <faust/gui/meta.h>
 #include <faust/dsp/libfaust.h>
 
-#include "../hi_faust_types/hi_faust_types.h"
+#include "../hi_faust/hi_faust.h"
 #include "faust_wrap/dsp/libfaust.h"
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #include "faust_wrap/dsp/libfaust-c-backend-placeholder.cpp"

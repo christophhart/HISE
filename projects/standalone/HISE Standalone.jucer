@@ -94,7 +94,6 @@
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
@@ -146,7 +145,6 @@
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
@@ -201,7 +199,6 @@
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </VS2017>
@@ -248,7 +245,6 @@
         <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
@@ -262,7 +258,6 @@
     <MODULE id="hi_faust" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_jit" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_lib" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
-    <MODULE id="hi_faust_types" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>

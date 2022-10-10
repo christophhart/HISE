@@ -6,7 +6,7 @@
 #include <faust/dsp/dsp.h>
 #include <faust/gui/UI.h>
 #include <faust/gui/meta.h>
-#include "../hi_faust_types/hi_faust_types.h"
+#include "../hi_faust/hi_faust.h"
 #endif
 
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE

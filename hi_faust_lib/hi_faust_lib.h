@@ -44,7 +44,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL
 
-  dependencies: hi_faust_types
+  dependencies: hi_faust
 
   
 
@@ -53,7 +53,7 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 
 
-#include "../hi_faust_types/hi_faust_types.h"
+#include "../hi_faust/hi_faust.h"
 
 #if HISE_INCLUDE_FAUST
 #if HISE_FAUST_USE_LLVM_JIT
