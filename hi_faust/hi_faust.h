@@ -48,25 +48,16 @@ BEGIN_JUCE_MODULE_DECLARATION
 END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
-#ifndef HI_FAUST_INCLUDED
-#define HI_FAUST_INCLUDED
+#pragma once
 
-/** Config: HISE_INCLUDE_FAUST
-
-Enables the Faust Compiler
-*/
-#ifndef HISE_INCLUDE_FAUST
-#define HISE_INCLUDE_FAUST 1
-#endif // HISE_INCLUDE_FAUST
-
+#include "../hi_faust_types/hi_faust_types.h"
 
 #if HISE_INCLUDE_FAUST
 #include "JuceHeader.h"
 #include <optional>
-#include "../hi_faust_types/hi_faust_types.h"
 #include "FaustUI.h"
 #include "FaustWrapper.h"
 #include "FaustStaticWrapper.h"
 #endif // HISE_INCLUDE_FAUST
 
-#endif // HI_FAUST_INCLUDED
+

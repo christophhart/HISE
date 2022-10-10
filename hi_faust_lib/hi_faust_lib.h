@@ -46,37 +46,20 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   dependencies: hi_faust_types
 
-  linuxLibs: faust
-  windowsLibs: faust
-  OSXLibs: faust
+  
 
 END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
-#ifndef HISE_FAUST_LIB_INCLUDED
-#define HISE_FAUST_LIB_INCLUDED 1
-#endif
-
-/** Config: HISE_FAUST_USE_LLVM_JIT
-
-Use the Faust interpreter instead of the LLVM JIT
-*/
-#ifndef HISE_FAUST_USE_LLVM_JIT
-#define HISE_FAUST_USE_LLVM_JIT 1
-#endif // HISE_FAUST_USE_LLVM_JIT
-
-/** Config: HISE_FAUST_USE_LIBFAUST_C_INTERFACE
-
-Use libfaust's C interface instead of C++ (Recommended for Windows)
-*/
-#ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
-#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 0
-#endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 
 #include "../hi_faust_types/hi_faust_types.h"
+
+#if HISE_INCLUDE_FAUST
 #if HISE_FAUST_USE_LLVM_JIT
 #include "faust_wrap/dsp/llvm-dsp.h"
-#endif
+#else
 #include "faust_wrap/dsp/interpreter-dsp.h"
+#endif
 #include "faust_wrap/dsp/libfaust.h"
+#endif

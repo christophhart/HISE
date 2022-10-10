@@ -51,14 +51,7 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 #pragma once
 
-/** Config: HISE_INCLUDE_FAUST_JIT
-
-Enables the Faust JIT Compiler.
-*/
-#ifndef HISE_INCLUDE_FAUST_JIT
-#define HISE_INCLUDE_FAUST_JIT 0
-#endif // HISE_INCLUDE_FAUST_JIT
-
+#include "../hi_faust_types/hi_faust_types.h"
 
 #if HISE_INCLUDE_FAUST_JIT
 #include <optional>
