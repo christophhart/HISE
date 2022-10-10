@@ -51,8 +51,6 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 #pragma once
 
-#include "../hi_faust_types/hi_faust_types.h"
-
 #if HISE_FAUST_USE_LLVM_JIT
 #include <optional>
 #include "../hi_faust/hi_faust.h"

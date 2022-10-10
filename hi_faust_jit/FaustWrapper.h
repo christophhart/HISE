@@ -183,7 +183,7 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 		std::string faustClassId = prefixClassForFaust(_classId);
 		std::string body =
 			"#pragma once\n"
-			"#include \"hi_faust_types/hi_faust_types.h\"\n"
+			"#include \"hi_faust/hi_faust.h\"\n"
 			"using Meta = faust::Meta;\n"
 			"using UI = faust::UI;\n"
 			"#define FAUST_UIMACROS\n"
