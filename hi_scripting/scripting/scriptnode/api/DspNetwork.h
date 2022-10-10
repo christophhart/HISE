@@ -180,6 +180,7 @@ public:
 		case Error::NodeDebuggerEnabled: return "Node is being debugged";
 		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
+		case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
 		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
 		case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
@@ -194,7 +195,7 @@ public:
 		return s;
 	}
 
-	String getErrorMessage(NodeBase* n = nullptr) const
+	String getErrorMessage(const NodeBase* n = nullptr) const
 	{
 		for (auto& i : items)
 		{
@@ -850,6 +851,11 @@ public:
 	}
 
 	ScriptnodeExceptionHandler& getExceptionHandler()
+	{
+		return exceptionHandler;
+	}
+
+	const ScriptnodeExceptionHandler& getExceptionHandler() const
 	{
 		return exceptionHandler;
 	}
