@@ -365,6 +365,89 @@ private:
 	T obj;
 };
 
+template <class T> class sidechain
+{
+public:
+    
+    SN_OPAQUE_WRAPPER(sidechain, T);
+    
+    void prepare(PrepareSpecs ps)
+    {
+        if(ps.blockSize == 1)
+        {
+            sideChainBuffer.setSize(0);
+        }
+        else
+        {
+            auto numChannels = ps.numChannels;
+            auto numSamples = ps.blockSize;
+            auto numElements = numChannels * numSamples;
+
+            if (numElements > sideChainBuffer.size())
+                sideChainBuffer.setSize(numElements);
+        }
+        
+        ps.numChannels *= 2;
+        obj.prepare(ps);
+    }
+    
+    SN_DEFAULT_INIT(T);
+    SN_DEFAULT_RESET(T);
+    SN_DEFAULT_HANDLE_EVENT(T);
+    SN_DEFAULT_MOD(T);
+    
+    template <typename ProcessDataType> void process(ProcessDataType& data)
+    {
+        auto numChannels = data.getNumChannels();
+        auto numSamples = data.getNumSamples();
+        
+        auto ptrs = (float**)alloca(sizeof(float*) * numChannels * 2);
+        auto sourcePtrs = data.getRawChannelPointers();
+        
+        for(int i = 0; i < numChannels; i++)
+        {
+            ptrs[i] = sourcePtrs[i];
+            ptrs[i + numChannels] = sideChainBuffer.begin() + i * numSamples;
+            FloatVectorOperations::clear(ptrs[i + numChannels], numSamples);
+        }
+        
+        if constexpr(ProcessDataType::hasCompileTimeSize())
+        {
+            constexpr int NumChannelsWithSidechain = ProcessDataType::getNumFixedChannels() * 2;
+            ProcessData<NumChannelsWithSidechain> doubleData(ptrs, numSamples, numChannels);
+            doubleData.copyNonAudioDataFrom(data);
+            obj.process(doubleData);
+        }
+        else
+        {
+            ProcessDataDyn doubleData(ptrs, numSamples, numChannels * 2);
+            doubleData.copyNonAudioDataFrom(data);
+            obj.process(doubleData);
+        }
+        
+    }
+    
+    template <typename FrameDataType> void processFrame(FrameDataType& data)
+    {
+        jassertfalse;
+    }
+    
+    void createParameters(ParameterDataList& d)
+    {
+        if constexpr (prototypes::check::createParameters<typename T::ObjectType>::value)
+            this->obj.createParameters(d);
+    }
+
+    void setExternalData(const ExternalData& s, int i)
+    {
+        if constexpr (prototypes::check::setExternalData<typename T::ObjectType>::value)
+            this->obj.setExternalData(s, i);
+    }
+    
+    T obj;
+    heap<float> sideChainBuffer;
+};
+
 template <class T> class event
 {
 public:

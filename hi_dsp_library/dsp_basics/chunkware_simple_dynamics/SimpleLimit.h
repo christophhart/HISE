@@ -63,8 +63,10 @@ namespace chunkware_simple
 		// runtime
 		virtual void initRuntime( void );			// call before runtime (in resume())
 		
-        void process( SimpleDataType &in1, SimpleDataType &in2 );
-
+        void process( SimpleDataType& in1, SimpleDataType& in2);
+        
+        void process( SimpleDataType& in1, SimpleDataType& in2, SimpleDataType keyIn);
+        
 		SimpleDataType getGainReduction() const { return gR; }
 
 		void setRatio(SimpleDataType) {}

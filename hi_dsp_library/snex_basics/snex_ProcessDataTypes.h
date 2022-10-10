@@ -519,6 +519,7 @@ struct FrameConverters
 		{
 		case 1:   processFix<1>(ptr, data); break;
 		case 2:   processFix<2>(ptr, data); break;
+        case 4:   processFix<4>(ptr, data); break;
 		}
 	}
 

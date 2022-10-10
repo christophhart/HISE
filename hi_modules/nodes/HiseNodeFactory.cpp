@@ -1764,7 +1764,9 @@ struct faust : public mothernode
 	SN_EMPTY_PROCESS_FRAME;
 	SN_EMPTY_RESET;
 	SN_EMPTY_HANDLE_EVENT;
-
+    
+    template <int P> void setParameter(double){};
+    
 	void prepare(PrepareSpecs )
 	{
 		Error::throwError(Error::IllegalFaustNode);

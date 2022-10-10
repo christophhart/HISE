@@ -533,6 +533,8 @@ public:
 
     int getCurrentChannelAmount() const { return lastSpecs.numChannels; };
     
+    virtual int getNumChannelsToDisplay() const { return getCurrentChannelAmount(); };
+    
 	String getDynamicBypassSource(bool forceUpdate) const;
 
 	int getCurrentBlockRate() const { return lastBlockSize; }

@@ -89,8 +89,17 @@ public:
 		Threshhold,
 		Attack,
 		Release,
-		Ratio
+		Ratio,
+        Sidechain
 	};
+    
+    enum class SidechainMode
+    {
+        Disabled = 0,
+        Original,
+        Sidechain,
+        numSideChainModes
+    };
 
 	DEFINE_PARAMETERS
 	{
@@ -98,6 +107,7 @@ public:
 		DEF_PARAMETER(Attack, dynamics_wrapper);
 		DEF_PARAMETER(Release, dynamics_wrapper);
 		DEF_PARAMETER(Ratio, dynamics_wrapper);
+        DEF_PARAMETER(Sidechain, dynamics_wrapper);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
 
@@ -157,6 +167,13 @@ public:
             p.setDefaultValue(1.0);
             data.add(std::move(p));
         }
+        
+        {
+            DEFINE_PARAMETERDATA(dynamics_wrapper, Sidechain);
+            p.setParameterValueNames({"Disabled", "Original", "Sidechain"});
+            p.setDefaultValue(0.0);
+            data.add(std::move(p));
+        }
     }
     
 	bool handleModulation(double& max) noexcept
@@ -188,19 +205,39 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
 	{
-		if (data.size() == 2)
+        int numSignalChannels = data.size();
+        
+        if(sidechainMode != SidechainMode::Disabled)
+            numSignalChannels /= 2;
+        
+        
+		if (numSignalChannels == 2)
 		{
 			double values[2] = { data[0], data[1] };
-			obj.process(values[0], values[1]);
+            
+            if(sidechainMode == SidechainMode::Sidechain)
+            {
+                float sideChainValue = hmath::max(hmath::abs(data[2]), hmath::abs(data[3]));
+                obj.process(values[0], values[1], sideChainValue);
+            }
+            else
+            {
+                obj.process(values[0], values[1]);
+            }
+            
+			
 			data[0] = (float)values[0];
 			data[1] = (float)values[1];
 		}
 		else
 		{
-			jassert(data.size() == 1);
-
 			double values[2] = { data[0], data[0] };
-			obj.process(values[0], values[1]);
+            
+            if(sidechainMode == SidechainMode::Sidechain)
+                obj.process(values[0], values[1], data[1]);
+            else
+                obj.process(values[0], values[1]);
+            
 			data[0] = (float)values[0];
 		}
 
@@ -227,9 +264,16 @@ public:
         auto ratio = (v != 0.0) ? 1.0 / v : 1.0;
         obj.setRatio(ratio);
     }
+    
+    void setSidechain(double newMode)
+    {
+        sidechainMode = (SidechainMode)(int)newMode;
+    }
 
 	DynamicProcessorType obj;
 	int lastNumSamples = 0;
+    
+    SidechainMode sidechainMode = SidechainMode::Disabled;
 };
 
 template class dynamics_wrapper<chunkware_simple::SimpleGate>;

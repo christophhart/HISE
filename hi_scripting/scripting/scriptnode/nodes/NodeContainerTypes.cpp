@@ -649,6 +649,49 @@ void SingleSampleBlockX::handleHiseEvent(HiseEvent& e)
 	obj.handleHiseEvent(e);
 }
 
+SidechainNode::SidechainNode(DspNetwork* n, ValueTree d) :
+    SerialNode(n, d)
+{
+    initListeners();
+    obj.getObject().initialise(this);
+}
+
+void SidechainNode::prepare(PrepareSpecs ps)
+{
+    obj.prepare(ps);
+    NodeBase::prepare(ps);
+    ps.numChannels *= 2;
+    prepareNodes(ps);
+}
+
+void SidechainNode::reset()
+{
+    obj.reset();
+}
+
+void SidechainNode::process(ProcessDataDyn& data)
+{
+    NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
+    ProcessDataPeakChecker pd(this, data);
+    obj.process(data);
+}
+
+void SidechainNode::processFrame(NodeBase::FrameType& data)
+{
+    FrameDataPeakChecker fd(this, data.begin(), data.size());
+    obj.processFrame(data);
+}
+
+int SidechainNode::getBlockSizeForChildNodes() const
+{
+    return originalBlockSize;
+}
+
+void SidechainNode::handleHiseEvent(HiseEvent& e)
+{
+    obj.handleHiseEvent(e);
+}
+
 MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	SerialNode(n, t)
 {

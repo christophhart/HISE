@@ -706,7 +706,12 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 		auto realPath = u->nodeTree[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf("container.", false, false);
 
-        ScopedChannelSetter sns(*this, numToUse, false);
+        auto isSidechain = realPath.startsWith("sidechain");
+        
+        if(isSidechain)
+            numToUse *= 2;
+        
+        ScopedChannelSetter sns(*this, numToUse, isSidechain);
         
 		for (auto c : u->nodeTree.getChildWithName(PropertyIds::Nodes))
         {
@@ -751,6 +756,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::offline"));
 		}
+        if (isSidechain)
+        {
+            u = wrapNode(u, NamespacedIdentifier::fromString("wrap::sidechain"));
+        }
 		if (realPath.startsWith("no_midi"))
 		{
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::no_midi"));

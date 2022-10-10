@@ -250,7 +250,7 @@ void NodeContainer::updateChannels(ValueTree v, Identifier id)
 		if (originalSampleRate > 0.0)
 		{
 			PrepareSpecs ps;
-			ps.numChannels = asNode()->getCurrentChannelAmount();
+            ps.numChannels = asNode()->getCurrentChannelAmount();
 			ps.blockSize = originalBlockSize;
 			ps.sampleRate = originalSampleRate;
 			ps.voiceIndex = lastVoiceIndex;
@@ -270,7 +270,7 @@ void NodeContainer::updateChannels(ValueTree v, Identifier id)
 		if (originalSampleRate > 0.0)
 		{
 			PrepareSpecs ps;
-			ps.numChannels = asNode()->getCurrentChannelAmount();
+            ps.numChannels = asNode()->getCurrentChannelAmount();
 			ps.blockSize = originalBlockSize;
 			ps.sampleRate = originalSampleRate;
 			ps.voiceIndex = lastVoiceIndex;
@@ -562,6 +562,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<CloneNode>();
 	registerNodeRaw<NoMidiChainNode>();
 	registerNodeRaw<SoftBypassNode>();
+    registerNodeRaw<SidechainNode>();
 }
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()

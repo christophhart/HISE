@@ -757,6 +757,27 @@ public:
 	AudioSampleBuffer leftoverBuffer;
 };
 
+class SidechainNode : public SerialNode
+{
+public:
+
+    SidechainNode(DspNetwork* n, ValueTree d);
+
+    SCRIPTNODE_FACTORY(SidechainNode, "sidechain");
+
+    String getNodeDescription() const override { return "Creates a empty audio by duplicating the channel amount for sidechain routing."; }
+
+    void prepare(PrepareSpecs ps) final override;
+    void reset() final override;
+    void process(ProcessDataDyn& data) final override;
+    void processFrame(FrameType& data) final override;
+    int getBlockSizeForChildNodes() const override;;
+    int getNumChannelsToDisplay() const override { return lastSpecs.numChannels * 2; };
+    void handleHiseEvent(HiseEvent& e) override;
+
+    wrap::sidechain<SerialNode::DynamicSerialProcessor> obj;
+};
+
 template <int NumChannels> class SingleSampleBlock : public SerialNode
 {
 public:
