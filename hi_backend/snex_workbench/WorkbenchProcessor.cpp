@@ -1034,7 +1034,9 @@ void DspNetworkCompileExporter::run()
 	using namespace snex::cppgen;
 
 	ValueTreeBuilder::SampleList externalSamples;
-	
+
+	// set with all files to generate for all networks
+	std::set<String> faustClassIds;
 
 	for (auto e : list)
 	{
@@ -1082,6 +1084,8 @@ void DspNetworkCompileExporter::run()
 
 			auto r = b.createCppCode();
 
+			faustClassIds.insert(r.faustClassIds->begin(), r.faustClassIds->end());
+
 			externalSamples.addArray(b.getExternalSampleList());
 			
 
@@ -1101,6 +1105,54 @@ void DspNetworkCompileExporter::run()
 			includedFiles.add(f);
 		}
 	}
+
+#if HISE_INCLUDE_FAUST_JIT
+	DBG("sourceDir: " + sourceDir.getFullPathName());
+	auto codeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src");
+	auto codeDestDirPath = codeDestDir.getFullPathName().toStdString();
+	if (!codeDestDir.isDirectory())
+		codeDestDir.createDirectory();
+	DBG("codeDestDirPath: " + codeDestDirPath);
+
+	auto boilerplateDestDirPath = codeDestDir.getParentDirectory().getFullPathName().toStdString();
+	DBG("boilerplateDestDirPath: " + boilerplateDestDirPath);
+	// we either need to hard code this path and keep it consistent with faust_jit_node or hi_backend will have to depend on hi_faust_jit
+	auto codeLibDir = getFolder(BackendDllManager::FolderSubType::CodeLibrary).getChildFile("faust");
+	auto codeLibDirPath = codeLibDir.getFullPathName().toStdString();
+	DBG("codeLibDirPath: " + codeLibDirPath);
+
+	// create all necessary files before thirdPartyFiles
+	for (const auto& classId : faustClassIds)
+	{
+		auto _classId = classId.toStdString();
+		DBG("Found Faust classId: " + classId);
+		auto faustSourcePath = codeLibDir.getChildFile(classId + ".dsp").getFullPathName().toStdString();
+
+		auto boilerplate_path = scriptnode::faust::faust_jit_wrapper::genStaticInstanceBoilerplate(boilerplateDestDirPath, _classId);
+		if (boilerplate_path.size() > 0)
+			DBG("Wrote boilerplate file to " + boilerplate_path);
+		else
+			DBG("Writing generated boilerplate failed.");
+
+		std::vector<std::string> faustLibraryPaths = {codeLibDirPath};
+		// lookup FaustPath from settings
+		auto& settings = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
+		juce::String faustPath = settings.getSetting(hise::HiseSettings::Compiler::FaustPath);
+		if (faustPath.length() > 0) {
+			auto globalFaustLibraryPath = juce::File(faustPath).getChildFile("share").getChildFile("faust");
+			if (globalFaustLibraryPath.isDirectory()) {
+				faustLibraryPaths.push_back(globalFaustLibraryPath.getFullPathName().toStdString());
+			}
+		}
+
+		auto code_path = scriptnode::faust::faust_jit_wrapper::genStaticInstanceCode(_classId, faustSourcePath, faustLibraryPaths, codeDestDirPath);
+		if (code_path.size() > 0)
+			DBG("Wrote code file to " + code_path);
+		else
+			DBG("Writing generated code failed.");
+	}
+
+#endif // HISE_INCLUDE_FAUST_JIT
 
 	auto thirdPartyFiles = BackendDllManager::getThirdPartyFiles(getMainController(), false);
 
@@ -1518,6 +1570,11 @@ void DspNetworkCompileExporter::createProjucerFile()
     REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
     REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", useIpp ? "/opt/intel/ipp/include" : String());
     REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", useIpp ? "/opt/intel/ipp/lib" : String());
+#endif
+
+#if JUCE_LINUX
+    REPLACE_WILDCARD_WITH_STRING("%USE_IPP_LINUX%", useIpp ? "USE_IPP=1" : "USE_IPP=0");
+    REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
 #endif
 
 	REPLACE_WILDCARD_WITH_STRING("%DEBUG_DLL_NAME%", dbgName);

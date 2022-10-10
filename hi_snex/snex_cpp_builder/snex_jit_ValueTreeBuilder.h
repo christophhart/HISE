@@ -558,6 +558,7 @@ struct ValueTreeBuilder: public Base
 
 		Result r;
 		String code;
+		std::shared_ptr<std::set<String>> faustClassIds;
 	};
     
     struct ScopedChannelSetter
@@ -620,7 +621,8 @@ struct ValueTreeBuilder: public Base
 		outputFormat(Format::CppDynamicLibrary),
 		r(Result::ok()),
 		rootChannelAmount(getRootChannelAmount(v)),
-        numChannelsToCompile(rootChannelAmount)
+		numChannelsToCompile(rootChannelAmount),
+		faustClassIds(new std::set<String>)
 	{
 		if (numChannelsToCompile == 0)
 			numChannelsToCompile = 2;
@@ -639,9 +641,12 @@ struct ValueTreeBuilder: public Base
 
 
 		if (r.wasOk())
+		{
 			br.code = getCurrentCode();
+		}
 		else
 			br.code = wrongNodeCode;
+		br.faustClassIds = faustClassIds;
 
 		return br;
 	}
@@ -694,9 +699,12 @@ private:
 
 	ScopedPointer<CodeProvider> codeProvider;
 
+	std::shared_ptr<std::set<String>> faustClassIds;
+
 	void setHeaderForFormat();
 
 	String getCurrentCode() const { return toString(); }
+
 
 	struct Error
 	{
@@ -879,6 +887,8 @@ private:
 	Node::Ptr getNode(const ValueTree& n, bool allowZeroMatch);
 
 	Node::Ptr getNode(const NamespacedIdentifier& id, bool allowZeroMatch) const;
+
+	Node::Ptr parseFaustNode(Node::Ptr u);
 
 	Node::Ptr parseRoutingNode(Node::Ptr u);
 

@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_scripting, hi_sampler
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_scripting, hi_sampler, hi_faust_jit
 
 END_JUCE_MODULE_DECLARATION
 
@@ -240,5 +240,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "nodes/MetaNodes.h"
 #include "nodes/snex_library/snex_NodeLibrary.h"
+
 
 #endif   // HI_MODULES_INCLUDED

@@ -139,7 +139,7 @@ DECLARE_ID(AllowCompilation);
 DECLARE_ID(UncompileableNode);
 DECLARE_ID(CompileChannelAmount);
 DECLARE_ID(HasTail);
-
+DECLARE_ID(SourceId);
 
 struct Helpers
 {
