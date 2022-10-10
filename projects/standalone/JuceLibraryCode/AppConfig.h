@@ -55,7 +55,6 @@
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library              1
 #define JUCE_MODULE_AVAILABLE_hi_faust                    1
 #define JUCE_MODULE_AVAILABLE_hi_faust_jit                1
-#define JUCE_MODULE_AVAILABLE_hi_faust_lib                1
 #define JUCE_MODULE_AVAILABLE_hi_faust_types              1
 #define JUCE_MODULE_AVAILABLE_hi_lac                      1
 #define JUCE_MODULE_AVAILABLE_hi_modules                  1
@@ -116,6 +115,14 @@
 
 #ifndef    IS_STANDALONE_APP
  #define   IS_STANDALONE_APP 1
+#endif
+
+#ifndef    DONT_CREATE_USER_PRESET_FOLDER
+ //#define DONT_CREATE_USER_PRESET_FOLDER 0
+#endif
+
+#ifndef    DONT_CREATE_EXPANSIONS_FOLDER
+ //#define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
 #ifndef    USE_COPY_PROTECTION
@@ -285,21 +292,14 @@
 // hi_faust flags:
 
 #ifndef    HISE_INCLUDE_FAUST
- #define   HISE_INCLUDE_FAUST 1
+ #define   HISE_INCLUDE_FAUST 0
 #endif
 
 //==============================================================================
 // hi_faust_jit flags:
 
 #ifndef    HISE_INCLUDE_FAUST_JIT
- #define   HISE_INCLUDE_FAUST_JIT 1
-#endif
-
-//==============================================================================
-// hi_faust_lib flags:
-
-#ifndef    HISE_FAUST_USE_LLVM_JIT
- #define   HISE_FAUST_USE_LLVM_JIT 1
+ #define   HISE_INCLUDE_FAUST_JIT 0
 #endif
 
 //==============================================================================
@@ -378,6 +378,10 @@
 
 #ifndef    HISE_INCLUDE_PITCH_DETECTION
  //#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+#ifndef    HISE_USE_EXTENDED_TEMPO_VALUES
+ //#define HISE_USE_EXTENDED_TEMPO_VALUES 0
 #endif
 
 //==============================================================================

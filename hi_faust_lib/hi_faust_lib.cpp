@@ -1,3 +1,7 @@
+#include <AppConfig.h>
+
+#if HISE_INCLUDE_FAUST
+
 #include <faust/dsp/dsp.h>
 #include <faust/gui/UI.h>
 #include <faust/gui/meta.h>
@@ -30,3 +34,6 @@
 #include "faust_wrap/dsp/interpreter-dsp.cpp"
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #endif // HISE_FAUST_USE_LLVM_JIT
+
+
+#endif

@@ -54,6 +54,10 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
+#ifndef HISE_FAUST_LIB_INCLUDED
+#define HISE_FAUST_LIB_INCLUDED 1
+#endif
+
 /** Config: HISE_FAUST_USE_LLVM_JIT
 
 Use the Faust interpreter instead of the LLVM JIT

@@ -53,3 +53,4 @@ END_JUCE_MODULE_DECLARATION
 #include "faust_wrap/dsp/dsp.h"
 #include "faust_wrap/gui/UI.h"
 #include "faust_wrap/gui/meta.h"
+

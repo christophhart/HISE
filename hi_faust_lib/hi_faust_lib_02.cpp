@@ -1,9 +1,13 @@
 // This is the land of the faust C interface, which is needed for windows
 
+#include <AppConfig.h>
+
+#if HISE_INCLUDE_FAUST
 #include <faust/dsp/dsp.h>
 #include <faust/gui/UI.h>
 #include <faust/gui/meta.h>
 #include "../hi_faust_types/hi_faust_types.h"
+#endif
 
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #include <faust/dsp/libfaust-c.h>
