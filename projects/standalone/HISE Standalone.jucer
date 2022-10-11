@@ -95,6 +95,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
@@ -146,6 +147,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -201,6 +203,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
@@ -247,6 +250,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -259,6 +263,7 @@
     <MODULE id="hi_faust" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_jit" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_lib" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_faust_types" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>

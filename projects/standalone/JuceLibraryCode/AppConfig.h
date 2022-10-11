@@ -45,7 +45,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60103
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -56,6 +56,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_faust                    1
 #define JUCE_MODULE_AVAILABLE_hi_faust_jit                1
 #define JUCE_MODULE_AVAILABLE_hi_faust_lib                1
+#define JUCE_MODULE_AVAILABLE_hi_faust_types              1
 #define JUCE_MODULE_AVAILABLE_hi_lac                      1
 #define JUCE_MODULE_AVAILABLE_hi_modules                  1
 #define JUCE_MODULE_AVAILABLE_hi_rlottie                  1
@@ -296,7 +297,11 @@
 #endif
 
 #ifndef    HISE_FAUST_USE_LLVM_JIT
- //#define HISE_FAUST_USE_LLVM_JIT 0
+ //#define HISE_FAUST_USE_LLVM_JIT 1
+#endif
+
+#ifndef    HISE_INCLUDE_FAUST_JIT
+ //#define HISE_INCLUDE_FAUST_JIT 0
 #endif
 
 //==============================================================================
