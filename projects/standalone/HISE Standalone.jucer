@@ -152,7 +152,7 @@
     </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj /W0"
+            extraDefs="USE_IPP=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000" extraCompilerFlags="/bigobj /W2"
             IPP1ALibrary="Static_Library">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="2" generateManifest="1" winArchitecture="x64"
