@@ -96,9 +96,7 @@ Not needed if you just want to build already exported code.
 
 #if HISE_INCLUDE_FAUST
 #include <optional>
-#include "faust_wrap/gui/UI.h"
-#include "faust_wrap/gui/meta.h"
-#include "faust_wrap/dsp/dsp.h"
+#include "../hi_faust_types/hi_faust_types.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "FaustUI.h"
 #include "FaustWrapper.h"
