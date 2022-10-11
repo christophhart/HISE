@@ -52,7 +52,7 @@ END_JUCE_MODULE_DECLARATION
 
 /** Config: HISE_INCLUDE_FAUST
 
-Enables the Faust Compiler
+Enables static Faust wrapper code. Needed for anything related to Faust, including compilation of previously exported code.
 */
 #ifndef HISE_INCLUDE_FAUST
 #define HISE_INCLUDE_FAUST 0
@@ -66,6 +66,22 @@ and only activated for the HISE backend application.
 #ifndef HISE_FAUST_USE_LLVM_JIT
 #define HISE_FAUST_USE_LLVM_JIT 0
 #endif // HISE_FAUST_USE_LLVM_JIT
+
+/** Config: HISE_INCLUDE_FAUST_JIT
+
+Enables the "core.faust" node for dynamic compilation/interpretation of Faust
+code and the static code export mechanism.
+Enable if you want to develop Faust code in HISE.
+Not needed if you just want to build already exported code.
+*/
+#ifndef HISE_INCLUDE_FAUST_JIT
+#define HISE_INCLUDE_FAUST_JIT 0
+#endif // HISE_INCLUDE_FAUST_JIT
+
+// HISE_INCLUDE_FAUST depends on HISE_INCLUDE_FAUST
+#if HISE_INCLUDE_FAUST_JIT && !HISE_INCLUDE_FAUST
+#error "HISE_INCLUDE_FAUST_JIT was enabled but depends on HISE_INCLUDE_FAUST, which is disabled."
+#endif
 
 // On Windows we'll use libfaust's C interface instead of C++ (Enabled by default on Windows)
 #ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
