@@ -55,11 +55,11 @@ END_JUCE_MODULE_DECLARATION
 
 #include "../hi_faust/hi_faust.h"
 
-#if HISE_INCLUDE_FAUST
+#if HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
 #if HISE_FAUST_USE_LLVM_JIT
 #include "faust_wrap/dsp/llvm-dsp.h"
 #else
 #include "faust_wrap/dsp/interpreter-dsp.h"
 #endif // HISE_FAUST_USE_LLVM_JIT
 #include "faust_wrap/dsp/libfaust.h"
-#endif // HISE_INCLUDE_FAUST
+#endif // HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
