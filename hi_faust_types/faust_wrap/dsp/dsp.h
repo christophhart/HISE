@@ -34,6 +34,11 @@
 #define FAUSTFLOAT float
 #endif
 
+
+#if defined (__SSE__)
+#include <xmmintrin.h>
+#endif
+
 namespace faust {
 // forward declarations only when including this library
 // but not in library code after wrapped header has been
@@ -239,9 +244,6 @@ class FAUST_API dsp_factory {
 
 // Denormal handling
 
-#if defined (__SSE__)
-#include <xmmintrin.h>
-#endif
 
 class FAUST_API ScopedNoDenormals {
     
