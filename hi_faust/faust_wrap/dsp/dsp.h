@@ -28,12 +28,11 @@
 #include <string>
 #include <vector>
 
-#include "../export.h"
+#include <faust/export.h>
 
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float
 #endif
-
 
 #if defined (__SSE__)
 #include <xmmintrin.h>
