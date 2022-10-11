@@ -60,6 +60,6 @@ END_JUCE_MODULE_DECLARATION
 #include "faust_wrap/dsp/llvm-dsp.h"
 #else
 #include "faust_wrap/dsp/interpreter-dsp.h"
-#endif
+#endif // HISE_FAUST_USE_LLVM_JIT
 #include "faust_wrap/dsp/libfaust.h"
-#endif
+#endif // HISE_INCLUDE_FAUST

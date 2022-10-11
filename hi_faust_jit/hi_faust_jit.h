@@ -51,7 +51,24 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 #pragma once
 
-#if HISE_FAUST_USE_LLVM_JIT
+/** Config: HISE_INCLUDE_FAUST_JIT
+
+Enables the "core.faust" node for dynamic compilation/interpretation of Faust
+code and the static code export mechanism.
+Enable if you want to develop Faust code in HISE.
+Not needed if you just want to build already exported code.
+*/
+#ifndef HISE_INCLUDE_FAUST_JIT
+#define HISE_INCLUDE_FAUST_JIT 0
+#endif // HISE_INCLUDE_FAUST_JIT
+
+// HISE_INCLUDE_FAUST depends on HISE_INCLUDE_FAUST, disable accordingly
+#if !HISE_INCLUDE_FAUST
+#undef HISE_INCLUDE_FAUST_JIT
+#define HISE_INCLUDE_FAUST_JIT 0
+#endif
+
+#if HISE_INCLUDE_FAUST_JIT
 #include <optional>
 #include "../hi_faust/hi_faust.h"
 #include "../hi_faust_lib/hi_faust_lib.h"
@@ -59,6 +76,6 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_core/hi_core.h" // FileHandlerBase
 #include "FaustJitNode.h"
 #include "FaustWrapper.h"
-#endif // HISE_FAUST_USE_LLVM_JIT
+#endif // HISE_INCLUDE_FAUST_JIT
 
 
