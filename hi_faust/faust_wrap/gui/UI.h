@@ -25,7 +25,7 @@
 #ifndef __UI_H_wrap__
 #define __UI_H_wrap__
 
-#include "../export.h"
+#include <faust/export.h>
 
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float

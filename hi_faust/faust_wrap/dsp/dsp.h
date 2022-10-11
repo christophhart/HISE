@@ -28,25 +28,17 @@
 #include <string>
 #include <vector>
 
-#include "../export.h"
+#include <faust/export.h>
 
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float
 #endif
-
 
 #if defined (__SSE__)
 #include <xmmintrin.h>
 #endif
 
 namespace faust {
-// forward declarations only when including this library
-// but not in library code after wrapped header has been
-// included
-#ifndef __dsp__
-struct FAUST_API UI;
-struct FAUST_API Meta;
-#endif // __dsp__
 
 /**
  * DSP memory manager.

@@ -51,16 +51,15 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 #pragma once
 
-#include "../hi_faust_types/hi_faust_types.h"
-
-#if HISE_FAUST_USE_LLVM_JIT
-#include <optional>
 #include "../hi_faust/hi_faust.h"
+
+#if HISE_INCLUDE_FAUST_JIT
+#include <optional>
 #include "../hi_faust_lib/hi_faust_lib.h"
 #include "../hi_scripting/hi_scripting.h" // DspNetwork, NodeBase, WrapperNode
 #include "../hi_core/hi_core.h" // FileHandlerBase
 #include "FaustJitNode.h"
 #include "FaustWrapper.h"
-#endif // HISE_FAUST_USE_LLVM_JIT
+#endif // HISE_INCLUDE_FAUST_JIT
 
 

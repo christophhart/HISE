@@ -1750,7 +1750,7 @@ namespace core
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
 
-#if !HISE_FAUST_USE_LLVM_JIT
+#if !HISE_INCLUDE_FAUST_JIT
 struct faust : public mothernode
 {
 	SNEX_NODE(faust);
@@ -1803,11 +1803,11 @@ Factory::Factory(DspNetwork* network) :
 	registerNode<waveshapers::dynamic::NodeType, waveshapers::dynamic::editor>();
 #endif
 
-#if HISE_FAUST_USE_LLVM_JIT
+#if HISE_INCLUDE_FAUST_JIT
 	registerNodeRaw<faust::faust_jit_node>();
 #else
 	registerNode<faust>();
-#endif // HISE_FAUST_USE_LLVM_JIT
+#endif // HISE_INCLUDE_FAUST_JIT
 
 	registerModNode<dp<extra_mod>, data::ui::displaybuffer_editor>();
 	registerModNode<dp<pitch_mod>, data::ui::displaybuffer_editor>();

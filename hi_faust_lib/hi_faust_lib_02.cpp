@@ -1,14 +1,13 @@
 // This is the land of the faust C interface, which is needed for windows
 
 #include <AppConfig.h>
-
-#if HISE_INCLUDE_FAUST
+#if HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
 #include <faust/dsp/dsp.h>
 #include <faust/gui/UI.h>
 #include <faust/gui/meta.h>
-#include "../hi_faust_types/hi_faust_types.h"
-#endif
 
+// libfaust headers need to be included before hi_faust.h in hi_faust_lib.h
+#include "hi_faust_lib.h"
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #include <faust/dsp/libfaust-c.h>
 #include "faust_wrap/dsp/libfaust.h"
@@ -23,3 +22,5 @@
 #include "faust_wrap/dsp/interpreter-dsp-c-backend.cpp"
 #endif // HISE_FAUST_USE_LLVM_JIT
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
+
+#endif // HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT

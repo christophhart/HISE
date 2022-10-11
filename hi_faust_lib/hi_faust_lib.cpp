@@ -1,13 +1,15 @@
 #include <AppConfig.h>
 
-#if HISE_INCLUDE_FAUST
+#if HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
 
 #include <faust/dsp/dsp.h>
 #include <faust/gui/UI.h>
 #include <faust/gui/meta.h>
 #include <faust/dsp/libfaust.h>
 
-#include "../hi_faust_types/hi_faust_types.h"
+// libfaust headers need to be included before hi_faust.h in hi_faust_lib.h
+#include "hi_faust_lib.h"
+
 #include "faust_wrap/dsp/libfaust.h"
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #include "faust_wrap/dsp/libfaust-c-backend-placeholder.cpp"
@@ -35,5 +37,4 @@
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #endif // HISE_FAUST_USE_LLVM_JIT
 
-
-#endif
+#endif // HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT

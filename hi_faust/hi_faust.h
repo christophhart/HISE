@@ -43,18 +43,63 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL
 
-  dependencies:      hi_dsp_library hi_faust_types
+  dependencies:      hi_dsp_library
 
 END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 #pragma once
 
-#include "../hi_faust_types/hi_faust_types.h"
+/** Config: HISE_INCLUDE_FAUST
+
+Enables static Faust wrapper code. Needed for anything related to Faust, including compilation of previously exported code.
+*/
+#ifndef HISE_INCLUDE_FAUST
+#define HISE_INCLUDE_FAUST 0
+#endif // HISE_INCLUDE_FAUST
+
+/** Config: HISE_FAUST_USE_LLVM_JIT
+
+Use the LLVM JIT backend for runtime Faust compilation (Enabled by default)
+If disabled the significantly slower interpreter backend will be used as a fallback.
+Disable if you have issues with the LLVM backend.
+Does not affect exported code.
+*/
+#ifndef HISE_FAUST_USE_LLVM_JIT
+#define HISE_FAUST_USE_LLVM_JIT 1
+#endif // HISE_FAUST_USE_LLVM_JIT
+
+/** Config: HISE_INCLUDE_FAUST_JIT
+
+Enables the "core.faust" node for dynamic compilation/interpretation of Faust
+code and the static code export mechanism.
+Enable if you want to develop Faust code in HISE.
+Not needed if you just want to build already exported code.
+*/
+#ifndef HISE_INCLUDE_FAUST_JIT
+#define HISE_INCLUDE_FAUST_JIT 0
+#endif // HISE_INCLUDE_FAUST_JIT
+
+// HISE_INCLUDE_FAUST depends on HISE_INCLUDE_FAUST
+#if HISE_INCLUDE_FAUST_JIT && !HISE_INCLUDE_FAUST
+#error "HISE_INCLUDE_FAUST_JIT was enabled but depends on HISE_INCLUDE_FAUST, which is disabled."
+#endif
+
+// On Windows we'll use libfaust's C interface instead of C++ (Enabled by default on Windows)
+#ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
+#if (defined (_WIN32) || defined (_WIN64))
+#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 1
+#else
+#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 0
+#endif
+#endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 
 #if HISE_INCLUDE_FAUST
-#include "JuceHeader.h"
 #include <optional>
+#include "faust_wrap/gui/UI.h"
+#include "faust_wrap/gui/meta.h"
+#include "faust_wrap/dsp/dsp.h"
+#include "../hi_dsp_library/hi_dsp_library.h"
 #include "FaustUI.h"
 #include "FaustWrapper.h"
 #include "FaustStaticWrapper.h"
