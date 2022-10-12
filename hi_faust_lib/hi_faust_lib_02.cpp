@@ -12,15 +12,15 @@
 #include <faust/dsp/libfaust-c.h>
 #include "faust_wrap/dsp/libfaust.h"
 #include "faust_wrap/dsp/libfaust-c-backend.cpp"
-#if HISE_FAUST_USE_LLVM_JIT
+
+// llvm jit
 #include <faust/dsp/llvm-dsp-c.h>
 #include "faust_wrap/dsp/llvm-dsp.h"
 #include "faust_wrap/dsp/llvm-dsp-c-backend.cpp"
-#else // !HISE_FAUST_USE_LLVM_JIT
+// interpreter
 #include <faust/dsp/interpreter-dsp-c.h>
 #include "faust_wrap/dsp/interpreter-dsp.h"
 #include "faust_wrap/dsp/interpreter-dsp-c-backend.cpp"
-#endif // HISE_FAUST_USE_LLVM_JIT
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 
 #endif // HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT

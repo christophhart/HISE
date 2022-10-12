@@ -24,7 +24,7 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 			return false;
 
 		for (auto c : cid) {
-			if (!isalnum(c) && cid[0] != '_')
+			if (!isalnum(c) && c != '_')
 				return false;
 		}
 
