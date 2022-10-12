@@ -110,6 +110,11 @@ struct faust_base_wrapper {
 		return classId;
 	}
 
+	void handleHiseEvent(HiseEvent& e)
+	{
+		ui.handleHiseEvent(e);
+	}
+
 	// This method assumes faustDsp to be initialized correctly
 	void process(ProcessDataDyn& data)
 	{

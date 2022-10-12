@@ -17,6 +17,10 @@ struct faust_jit_node: public scriptnode::WrapperNode
 	virtual void reset() override;
 	virtual void process(ProcessDataDyn& data) override;
 	virtual void processFrame(FrameType& data) override;
+	virtual void handleHiseEvent(HiseEvent& e) override;
+
+	/** This method will check whether the node header should draw the MIDI icon or not. */
+	virtual bool isProcessingHiseEvent() const override;
 
 	static NodeBase* createNode(DspNetwork* n, ValueTree v)
 	{

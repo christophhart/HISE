@@ -24,6 +24,18 @@ struct faust_ui : public ::faust::UI {
 		OTHER=0xffff,
 	};
 
+	/** Faust is using a convention that maps MIDI input to
+		"freq", "gate" and "gain" parameters and this will implement
+		the logic to do this when the node is placed within a context
+		that processes MIDI events.
+	*/
+	enum class HardcodedMidiZones {
+		Frequency,
+		Gate,
+		Gain,
+		numHardcodedMidiZones
+	};
+
 	struct Parameter {
 		ControlType type;
 		String label;
@@ -76,13 +88,59 @@ struct faust_ui : public ::faust::UI {
 
 	};
 
-	faust_ui() { }
+	faust_ui() 
+	{
+		reset();
+	}
 
 	std::vector<std::shared_ptr<Parameter>> parameters;
+
+	float* midiZones[(int)HardcodedMidiZones::numHardcodedMidiZones];
+	bool anyMidiZonesActive = false;
+
+	/** This checks the parameter name and stores the zone pointer to be updated when a MIDI event is received. */
+	void addHardcodedMidiZone(const String& parameterName, float* zonePtr)
+	{
+		auto id = parameterName.toLowerCase();
+
+		static const StringArray zoneNames = { "freq", "gate", "gain"};
+
+		auto idx = zoneNames.indexOf(id);
+
+		if (idx != -1)
+		{
+			midiZones[idx] = zonePtr;
+			anyMidiZonesActive = true;
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		// We don't want to bother if there are no zones defined or it's not a note on/off message
+		if (!anyMidiZonesActive || !e.isNoteOnOrOff())
+			return;
+
+		if (e.isNoteOn())
+		{
+			if (auto gatePtr = midiZones[(int)HardcodedMidiZones::Gate])
+				*gatePtr = 1.0f;
+			if (auto freqPtr = midiZones[(int)HardcodedMidiZones::Frequency])
+				*freqPtr = e.getFrequency();
+			if (auto gainPtr = midiZones[(int)HardcodedMidiZones::Gain])
+				*gainPtr = e.getFloatVelocity();
+		}
+		else
+		{
+			if (auto gatePtr = midiZones[(int)HardcodedMidiZones::Gate])
+				*gatePtr = 0.0f;
+		}
+	}
 
 	void reset()
 	{
 		parameters.clear();
+		memset(midiZones, 0, sizeof(float*)*(int)HardcodedMidiZones::numHardcodedMidiZones);
+		anyMidiZonesActive = false;
 	}
 
 	std::optional<std::shared_ptr<Parameter>> getParameterByLabel(String label)
@@ -211,6 +269,8 @@ struct faust_ui : public ::faust::UI {
 
 	virtual void addButton(const char* label, float* zone) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::BUTTON,
 														 String(label),
 														 zone,
@@ -221,6 +281,8 @@ struct faust_ui : public ::faust::UI {
 	}
 	virtual void addCheckButton(const char* label, float* zone) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::CHECK_BUTTON,
 														 String(label),
 														 zone,
@@ -232,6 +294,8 @@ struct faust_ui : public ::faust::UI {
 	}
 	virtual void addVerticalSlider(const char* label, float* zone, float init, float min, float max, float step) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::VERTICAL_SLIDER,
 														 String(label),
 														 zone,
@@ -242,6 +306,8 @@ struct faust_ui : public ::faust::UI {
 	}
 	virtual void addHorizontalSlider(const char* label, float* zone, float init, float min, float max, float step) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::HORIZONTAL_SLIDER,
 														 String(label),
 														 zone,
@@ -252,6 +318,8 @@ struct faust_ui : public ::faust::UI {
 	}
 	virtual void addNumEntry(const char* label, float* zone, float init, float min, float max, float step) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::NUM_ENTRY,
 														 String(label),
 														 zone,
@@ -265,6 +333,8 @@ struct faust_ui : public ::faust::UI {
 
 	virtual void addHorizontalBargraph(const char* label, float* zone, float min, float max) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::HORIZONTAL_BARGRAPH,
 														 String(label),
 														 zone,
@@ -275,6 +345,8 @@ struct faust_ui : public ::faust::UI {
 	}
 	virtual void addVerticalBargraph(const char* label, float* zone, float min, float max) override
 	{
+		addHardcodedMidiZone(label, zone);
+
 		parameters.push_back(std::make_shared<Parameter>(ControlType::VERTICAL_BARGRAPH,
 														 String(label),
 														 zone,

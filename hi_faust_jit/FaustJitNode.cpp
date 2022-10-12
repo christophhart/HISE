@@ -128,6 +128,17 @@ void faust_jit_node::processFrame(FrameType& data)
 	faust->faust_jit_wrapper::processFrame<FrameType>(data);
 }
 
+void faust_jit_node::handleHiseEvent(HiseEvent& e)
+{
+	if (isBypassed()) return;
+	faust->handleHiseEvent(e);
+}
+
+bool faust_jit_node::isProcessingHiseEvent() const
+{
+	return faust->ui.anyMidiZonesActive;
+}
+
 File faust_jit_node::getFaustRootFile()
 {
 	auto mc = this->getScriptProcessor()->getMainController_();

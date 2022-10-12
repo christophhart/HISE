@@ -35,12 +35,6 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 
 	// Scriptnode Callbacks ------------------------------------------------------
 
-
-	void handleHiseEvent(HiseEvent& e)
-	{
-
-	}
-
 	template <typename T> void process(T& data)
 	{
 		faust_base_wrapper::process(data.template as<ProcessDataDyn>());
