@@ -79,8 +79,8 @@ struct faust_base_wrapper {
 			auto numOutputs = faustDsp->getNumOutputs();
 			auto numHiseChannels = _nChannels;
 
-			if (numInputs != numOutputs ||
-				numInputs != numHiseChannels)
+			if (numInputs > numHiseChannels ||
+				numOutputs != numHiseChannels)
 			{
 				// the error system expects a single integer as "expected value", so we need
 				// to encode both input and output channels into a single integer using a magic trick
@@ -114,12 +114,15 @@ struct faust_base_wrapper {
 	void process(ProcessDataDyn& data)
 	{
 		// we have either a static ::faust::dsp object here, or we hold the jit lock
-		// TODO: stable and sane sample format matching
+		
 		int n_faust_inputs = faustDsp->getNumInputs();
 		int n_faust_outputs = faustDsp->getNumOutputs();
 		int n_hise_channels = data.getNumChannels();
 
-		if (n_faust_inputs == n_hise_channels && n_faust_outputs == n_hise_channels) {
+		// We allow the input channel amount to be less than the HISE channel count
+		auto ok = n_hise_channels == n_faust_outputs && n_faust_inputs <= n_hise_channels;
+
+		if (ok) {
 			int nFrames = data.getNumSamples();
 			float** channel_data = data.getRawDataPointers();
 			// copy input data, because even with -inpl not all faust generated code can handle
