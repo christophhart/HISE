@@ -1783,7 +1783,18 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	
 	auto includeFaust = BackendDllManager::shouldIncludeFaust(exporter->chainToExport->getMainController());
 
+
 	REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_FAUST%", includeFaust ? "enabled" : "disabled");
+
+	if (includeFaust)
+	{
+		auto headerPath = File(exporter->dataObject.getSetting(HiseSettings::Compiler::FaustPath)).getChildFile("include");
+		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath.getFullPathName());
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", "");
+	}
 
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "1" : "0");
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
