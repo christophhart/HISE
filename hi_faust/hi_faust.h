@@ -85,15 +85,6 @@ Not needed if you just want to build already exported code.
 #error "HISE_INCLUDE_FAUST_JIT was enabled but depends on HISE_INCLUDE_FAUST, which is disabled."
 #endif
 
-// On Windows we'll use libfaust's C interface instead of C++ (Enabled by default on Windows)
-#ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
-#if (defined (_WIN32) || defined (_WIN64))
-#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 1
-#else
-#define HISE_FAUST_USE_LIBFAUST_C_INTERFACE 0
-#endif
-#endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
-
 #if HISE_INCLUDE_FAUST
 #include <optional>
 #include "../hi_faust_types/hi_faust_types.h"
