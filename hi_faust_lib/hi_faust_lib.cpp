@@ -17,8 +17,7 @@
 #include "faust_wrap/dsp/libfaust.cpp"
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 
-
-#if HISE_FAUST_USE_LLVM_JIT
+// llvm jit
 #include <faust/dsp/llvm-dsp.h>
 #include "faust_wrap/dsp/llvm-dsp.h"
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
@@ -27,7 +26,7 @@
 #include "faust_wrap/dsp/llvm-dsp.cpp"
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 
-#else // !HISE_FAUST_USE_LLVM_JIT
+// interpreter
 #include <faust/dsp/interpreter-dsp.h>
 #include "faust_wrap/dsp/interpreter-dsp.h"
 #if HISE_FAUST_USE_LIBFAUST_C_INTERFACE
@@ -35,6 +34,4 @@
 #else // !HISE_FAUST_USE_LIBFAUST_C_INTERFACE
 #include "faust_wrap/dsp/interpreter-dsp.cpp"
 #endif // HISE_FAUST_USE_LIBFAUST_C_INTERFACE
-#endif // HISE_FAUST_USE_LLVM_JIT
-
 #endif // HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
