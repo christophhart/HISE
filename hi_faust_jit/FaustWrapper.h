@@ -184,8 +184,8 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 		std::string body =
 			"#pragma once\n"
 			"#include \"hi_faust/hi_faust.h\"\n"
-			"using Meta = faust::Meta;\n"
-			"using UI = faust::UI;\n"
+			"using Meta = ::faust::Meta;\n"
+			"using UI = ::faust::UI;\n"
 			"#define FAUST_UIMACROS\n"
 			" // define dummy macros\n"
 			"#define FAUST_ADDCHECKBOX(...)\n"
@@ -267,7 +267,7 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 		std::string faustClassId = prefixClassForFaust(_classId);
 
 		const char* incl = "-I";
-		std::vector<const char*> argv = {"-uim", "-nvi", "-rui", "-lang", "cpp", "-scn", "faust::dsp", "-cn", faustClassId.c_str(), "-O", dest_dir.c_str(), "-o", dest_file.c_str()};
+		std::vector<const char*> argv = {"-uim", "-nvi", "-rui", "-lang", "cpp", "-scn", "::faust::dsp", "-cn", faustClassId.c_str(), "-O", dest_dir.c_str(), "-o", dest_file.c_str()};
 		for (const std::string &p : faustLibraryPaths) {
 			argv.push_back(incl);
 			argv.push_back(p.c_str());

@@ -125,6 +125,9 @@ struct BackendDllManager : public ReferenceCountedObject,
 
 	var getStatistics();
 
+	/** This function will check whether the project that is about to be compiled requires the faust modules to be enabled. */
+	static bool shouldIncludeFaust(MainController* mc);
+
 	static bool allowCompilation(const File& networkFile);
 	static bool allowPolyphonic(const File& networkFile);
 

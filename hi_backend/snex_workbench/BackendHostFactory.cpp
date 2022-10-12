@@ -302,6 +302,23 @@ juce::var BackendDllManager::getStatistics()
 	return var(obj.get());
 }
 
+bool BackendDllManager::shouldIncludeFaust(MainController* mc)
+{
+#if !HISE_INCLUDE_FAUST
+	return false;
+#else
+	auto hasFaustFiles = getSubFolder(mc, FolderSubType::CodeLibrary).getChildFile("faust").getNumberOfChildFiles(File::findFiles) != 0;
+	auto faustPathDefined = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Compiler::FaustPath).toString().isNotEmpty();
+
+	if (hasFaustFiles && !faustPathDefined)
+	{
+		jassertfalse;
+	}
+
+	return hasFaustFiles && faustPathDefined;
+#endif
+}
+
 bool BackendDllManager::allowCompilation(const File& networkFile)
 {
 	if (auto xml = XmlDocument::parse(networkFile))
