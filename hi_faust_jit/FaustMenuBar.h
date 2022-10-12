@@ -101,8 +101,10 @@ struct FaustMenuBar : public Component,
 
 		if (name.isNotEmpty())
 		{
-			if (!faust_jit_wrapper::isValidClassId(name)) {
-				DBG("Can't add file, because its name is not a valid class identifier: " + name);
+			if (!faust_jit_wrapper::isValidClassId(name)) 
+			{
+				// We want a clear and modal feedback that that wasn't a good idea...
+				PresetHandler::showMessageWindow("Illegal file name", "Can't add file, because its name is not a valid class identifier: " + name, PresetHandler::IconType::Error);
 				return;
 			}
 			node->createSourceAndSetClass(name);

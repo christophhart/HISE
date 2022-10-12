@@ -254,8 +254,14 @@ void faust_jit_node::reinitFaustWrapper()
 		std::string error_msg;
 		bool success = faust->setup(getFaustLibraryPaths(), error_msg);
 		DBG("Faust initialization: " + std::string(success ? "success" : "failed"));
-		if (!success)
+
+		if (success)
 		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Faust file " + sourceFile.getFileName() + " compiled OK");
+		}
+		else
+		{
+			getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::CompileFail, String(error_msg));
 			logError(error_msg);
 		}
 		setupParameters();
