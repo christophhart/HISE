@@ -50,9 +50,11 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
+#if HISE_INCLUDE_FAUST
 #include "faust_wrap/dsp/dsp.h"
 #include "faust_wrap/gui/UI.h"
 #include "faust_wrap/gui/meta.h"
+#endif
 
 // On Windows we'll use libfaust's C interface instead of C++ (Enabled by default on Windows)
 #ifndef HISE_FAUST_USE_LIBFAUST_C_INTERFACE
