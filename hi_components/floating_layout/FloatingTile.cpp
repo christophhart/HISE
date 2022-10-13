@@ -1393,8 +1393,18 @@ struct ResizableViewport: public Component,
 			contentHeight += fixComponent->getHeight();
 
         auto maxHeightToUse = jmin(maxHeight - 80, contentHeight + EdgeHeight);
-        
-        setSize(getWidth(), maxHeightToUse);
+		auto contentWidth = vp.getViewedComponent()->getWidth() + EdgeHeight;
+		auto maxWidthToUse = jmin(1800 - 80, contentWidth + EdgeHeight);
+
+        setSize(maxWidthToUse, maxHeightToUse);
+		setName(vp.getViewedComponent()->getName());
+		
+		if (auto pc = findParentComponentOfClass<FloatingTilePopup>())
+		{
+			pc->rebuildBoxPath();
+			pc->repaint();
+		}
+		
         edge.setVisible(false);
     }
     
@@ -1480,10 +1490,10 @@ Component* FloatingTile::wrapInViewport(Component* c, bool shouldBeMaximised)
 	return vp;
 }
 
-FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool shouldWrapInViewport)
+FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool shouldWrapInViewport, bool maximiseViewport)
 {
     if(newComponent != nullptr && shouldWrapInViewport)
-		newComponent = wrapInViewport(newComponent, false);    
+		newComponent = wrapInViewport(newComponent, maximiseViewport);    
     
     if(attachedComponent != nullptr)
     {

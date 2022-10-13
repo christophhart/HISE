@@ -1,10 +1,540 @@
+#include "FaustMenuBar.h"
+
 namespace scriptnode {
 namespace faust {
+
+struct FaustGraphViewer : public Component,
+						  public ControlledObject,
+						  public PooledUIUpdater::SimpleTimer,
+						  public Thread
+{
+	/** Apply this scale factor to the SVG */
+	static constexpr float ScaleFactor = 1.8f;
+	static constexpr int HeaderHeight = 28;
+
+	static bool callRecursive(XmlElement& xml, const std::function<bool(XmlElement&)>& f)
+	{
+		if (f(xml))
+			return true;
+
+		for (auto* child : xml.getChildIterator())
+		{
+			if (callRecursive(*child, f))
+				return true;
+		}
+
+		return false;
+	}
+
+	struct Map
+	{
+		struct Link
+		{
+			File url;
+			Rectangle<int> clickPosition;
+		};
+
+		File getLink(const MouseEvent& e) const
+		{
+			auto scaledPos = e.getPosition().transformedBy(AffineTransform::scale(ScaleFactor).followedBy(
+														   AffineTransform::translation(0.0f, (float)HeaderHeight)).inverted());
+
+			for (auto l: links)
+			{
+				if (l.clickPosition.contains(scaledPos))
+					return l.url;
+			}
+			
+			return {};
+		}
+
+		bool processed = false;
+
+		void lazyProcess()
+		{
+			if (!processed)
+			{
+				auto svgDirectory = f.getParentDirectory();
+
+				
+
+				
+
+				processed = true;
+
+				// Set all text colours to bright grey
+				callRecursive(*root, [](XmlElement& c)
+				{
+					if (c.getTagName() == "text")
+					{
+						auto isBoxContent = c.getStringAttribute("text-anchor") == "middle";
+
+						c.setAttribute("fill", "#DDDDDD");
+						auto hiseFontName = GLOBAL_BOLD_FONT().getTypefaceName();
+
+						if (isBoxContent)
+							hiseFontName = GLOBAL_FONT().getTypefaceName();
+
+						c.setAttribute("font-family", hiseFontName);
+
+						if (isBoxContent)
+							c.setAttribute("font-size", 8);
+					}
+						
+
+					return false;
+				});
+
+				// Set all line strokes to white
+				callRecursive(*root, [](XmlElement& c)
+				{
+					if (c.hasAttribute("style"))
+					{
+						auto styleAttribute = c.getStringAttribute("style");
+
+						auto replaceColour = [&](const String& oldColour, const Colour& nc)
+						{
+							String newColour = "#" + nc.toDisplayString(false);
+							styleAttribute = styleAttribute.replace("fill:"+ oldColour, "fill:"+newColour);
+						};
+
+						styleAttribute = styleAttribute.replace("stroke:black", "stroke:white");
+						styleAttribute = styleAttribute.replace("stroke: black", "stroke:white");
+
+						
+
+						// Turn on dark mode
+						replaceColour("#ffffff", Colour(0xFF222222));
+						replaceColour("#aaaaaa", Colour(0xFF333333));
+						replaceColour("#cccccc", Colour(0xFF555555));
+
+						// green (variables)
+						//replaceColour("#47945E", Colour(0xFF776666));
+
+						// blue (container links)
+						//replaceColour("#003366", );
+
+						// greyblue(UI elements)
+						replaceColour("#477881", Colour(EFFECT_PROCESSOR_COLOUR));
+
+						// lightblue (operators)
+						//replaceColour("#4B71A1", Colour(0xFF666677));
+
+						// orange(constants)
+						replaceColour("#f44800", Colour(MIDI_PROCESSOR_COLOUR));
+						
+						c.setAttribute("style", styleAttribute);
+					}
+
+					return false;
+				});
+
+				callRecursive(*root, [&](XmlElement& c)
+				{
+					if (c.getTagName() == "a")
+					{
+						if (auto rectChild = c.getChildByName("rect"))
+						{
+							auto x = roundToInt(rectChild->getDoubleAttribute("x"));
+							auto y = roundToInt(rectChild->getDoubleAttribute("y"));
+							auto w = roundToInt(rectChild->getDoubleAttribute("width"));
+							auto h = roundToInt(rectChild->getDoubleAttribute("height"));
+
+							auto url = c.getStringAttribute("xlink:href");
+
+							links.add({ svgDirectory.getChildFile(url), {x, y, w, h} });
+						}
+					}
+
+					return false;
+				});
+
+				struct LinkSorter
+				{
+					static int compareElements(const Link& l1, const Link& l2)
+					{
+						if (l1.clickPosition.contains(l2.clickPosition))
+							return 1;
+						if (l2.clickPosition.contains(l1.clickPosition))
+							return -1;
+
+						return 0;
+					}
+				} sorter;
+
+				links.sort(sorter);
+			}
+		}
+
+		Map(const File& f_):
+			f(f_)
+		{
+			root = XmlDocument::parse(f);
+		}
+
+		void lazyCreate()
+		{
+			lazyProcess();
+
+			if (content == nullptr)
+			{
+				content = Drawable::createFromSVG(*root);
+			}
+		}
+
+		Rectangle<int> getBounds()
+		{
+			lazyCreate();
+
+			auto tb = content->getDrawableBounds().toNearestInt();
+			return tb.transformed(AffineTransform::scale(ScaleFactor));
+		}
+
+		File f;
+		Array<Link> links;
+
+		std::unique_ptr<XmlElement> root;
+		std::unique_ptr<Drawable> content;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Map);
+	};
+
+	struct Breadcrumb: public Component
+	{
+		Breadcrumb(const File& f_):
+			f(f_)
+		{
+			font = GLOBAL_BOLD_FONT();
+			setSize(font.getStringWidth(getText()) + 30, HeaderHeight);
+			setRepaintsOnMouseActivity(true);
+		}
+
+		Font font;
+
+		String getText() const { return f.getFileNameWithoutExtension().upToFirstOccurrenceOf("-", false, false);  }
+
+		void mouseDown(const MouseEvent& e)
+		{
+			auto parent = findParentComponentOfClass<FaustGraphViewer>();
+
+			for (auto map : parent->directoryContent)
+			{
+				if (map->f == f)
+				{
+					MessageManager::callAsync([parent, map]()
+					{
+						parent->setCurrentlyViewedContent(map);
+					});
+					
+					return;
+				}
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			float alpha = 0.6f;
+
+			if (isMouseOver())
+				alpha += 0.2f;
+
+			if (isMouseButtonDown())
+				alpha += 0.2f;
+
+			g.setColour(Colours::white.withAlpha(0.05f));
+
+			auto tb = getLocalBounds().toFloat().reduced(6.0f);
+
+			g.fillRoundedRectangle(tb, tb.getHeight() * 0.5f);
+
+			g.setColour(Colours::white.withAlpha(alpha));
+
+			String t;
+
+			t << "> " << getText();
+
+			g.setFont(font);
+
+			
+
+			g.drawText(t, tb, Justification::centred);
+		}
+
+		File f;
+	};
+
+	OwnedArray<Map> directoryContent;
+
+	Map* currentlyViewedContent = nullptr;
+
+	void createSvgFiles(const File& sourceFile)
+	{
+		// Create the SVG file
+		auto fileAsString = sourceFile.getFullPathName().toStdString();
+
+		StringArray stringArgs;
+
+		Array<char*> args;
+
+		//stringArgs.add("-O"); stringArgs.add(sourceFile.getParentDirectory().getFullPathName());
+		//stringArgs.add("-o"); stringArgs.add(sourceFile.withFileExtension("svg").getFullPathName());
+		stringArgs.add("-svg");
+
+		stringArgs.add("-O"); stringArgs.add(sourceFile.getParentDirectory().getFullPathName());
+		stringArgs.add("-o"); stringArgs.add(sourceFile.withFileExtension("cpp").getFileName());
+
+		{
+			// Add include directories
+			auto faustPath = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::FaustPath).toString();
+
+			stringArgs.add("-I"); stringArgs.add(sourceFile.getParentDirectory().getFullPathName());
+			stringArgs.add("-I"); stringArgs.add(File(faustPath).getChildFile("share").getChildFile("faust").getFullPathName());
+		}
+
+		for (auto& a : stringArgs)
+		{
+			DBG(a);
+			args.add(a.getCharPointer().getAddress());
+		}
+		
+		std::string error_msg;
+
+		::faust::generateAuxFilesFromFile(fileAsString, args.size(), (const char**)args.begin(), error_msg);
+	}
+
+	void run()
+	{
+		auto svgDirectoryName = faustFile.getFileNameWithoutExtension() + "-svg";
+		svgDirectory = faustFile.getParentDirectory().getChildFile(svgDirectoryName);
+
+		setStatus("Creating SVG files...");
+
+		createSvgFiles(faustFile);
+
+		if (threadShouldExit())
+			return;
+
+		Map* firstMap = nullptr;
+
+		auto list = svgDirectory.findChildFiles(File::findFiles, false, "*.svg");
+
+		int index = 0;
+
+		for (auto f : list)
+		{
+			if (threadShouldExit())
+				return;
+
+			auto progress = (double)(index++) / (double)list.size();
+
+			String message;
+
+			message << "parsing SVG files. ";
+			message << String(roundToInt(progress * 100)) << "%";
+
+			setStatus(message);
+
+			directoryContent.add(new Map(f));
+
+			if (f.getFileNameWithoutExtension() == "process")
+				firstMap = directoryContent.getLast();
+		}
+
+		MessageManager::callAsync([this, firstMap]()
+		{
+			setCurrentlyViewedContent(firstMap);
+		});
+	}
+
+	void setStatus(const String& message)
+	{
+		lastMessage= message;
+	}
+
+	void timerCallback() override
+	{
+		if (lastMessage != statusMessage)
+		{
+			statusMessage = lastMessage;
+			repaint();
+		}
+	}
+
+	String lastMessage;
+	String statusMessage;
+
+	FaustGraphViewer(MainController* mc, const File& faustFile_):
+		ControlledObject(mc),
+		SimpleTimer(mc->getGlobalUIUpdater()),
+		Thread("SVG Creator"),
+		faustFile(faustFile_)
+	{
+		setSize(600, 300);
+		startThread(5);
+	}
+
+	~FaustGraphViewer()
+	{
+		stopThread(3000);
+
+		if (svgDirectory.isDirectory())
+		{
+			auto ok = svgDirectory.deleteRecursively();
+
+			jassert(ok);
+		}
+	}
+
+	void mouseDown(const MouseEvent& e)
+	{
+		if (currentlyViewedContent == nullptr)
+			return;
+
+		currentHoverLink = currentlyViewedContent->getLink(e);
+		
+
+		if (currentHoverLink.existsAsFile())
+		{
+			for (auto m : directoryContent)
+			{
+				if (m->f == currentHoverLink)
+				{
+					setCurrentlyViewedContent(m);
+				}
+			}
+		}
+	}
+
+	void mouseExit(const MouseEvent& e)
+	{
+		validHoverLink = false;
+		currentHoverLink = {};
+		repaint();
+	}
+
+	void mouseMove(const MouseEvent& e)
+	{
+		if (currentlyViewedContent != nullptr)
+		{
+			auto prevLink = currentHoverLink;
+
+			currentHoverLink = currentlyViewedContent->getLink(e);
+			validHoverLink = currentHoverLink.existsAsFile();
+
+			for (auto l : currentlyViewedContent->links)
+			{
+				if (l.url == currentHoverLink)
+				{
+					auto b1 = l.clickPosition.transformed(AffineTransform::scale(ScaleFactor));
+					auto b2 = getLocalBounds();
+
+					isZoomOutLink = hmath::abs(b1.getWidth() - b2.getWidth()) < 5;
+				}
+			}
+
+			setMouseCursor(currentHoverLink.existsAsFile() ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
+
+			if (currentHoverLink != prevLink)
+				repaint();
+		}
+	}
+
+	void setCurrentlyViewedContent(Map* m)
+	{
+		if (currentlyViewedContent = m)
+		{
+			for (auto br : breadcrumbs)
+			{
+				if (br->f == m->f)
+				{
+					breadcrumbs.removeRange(breadcrumbs.indexOf(br), breadcrumbs.size());
+					break;
+				}
+			}
+
+			breadcrumbs.add(new Breadcrumb(m->f));
+			addAndMakeVisible(breadcrumbs.getLast());
+
+			auto b = m->getBounds();
+
+			setName("Graph preview for " + m->f.getFileNameWithoutExtension().upToFirstOccurrenceOf("-", false, false));
+			setSize(b.getWidth(), b.getHeight() + HeaderHeight);
+			
+			currentHoverLink = {};
+			validHoverLink = false;
+
+			repaint();
+			resized();
+		}
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds().removeFromTop(HeaderHeight);
+
+		for (auto br : breadcrumbs)
+		{
+			br->setBounds(b.removeFromLeft(br->getWidth()));
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		if (currentlyViewedContent != nullptr)
+		{
+			currentlyViewedContent->content->draw(g, 1.0f, AffineTransform::scale(ScaleFactor).followedBy(
+														   AffineTransform::translation(0.0f, (float)HeaderHeight)));
+		}
+		else
+		{
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.drawText(statusMessage, getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		if (validHoverLink)
+		{
+			auto b = getLocalBounds().toFloat();
+			
+			auto f = GLOBAL_BOLD_FONT();
+
+			String text;
+
+			if (!isZoomOutLink)
+				text << "=> ";
+			
+			text << currentHoverLink.getFileNameWithoutExtension().upToFirstOccurrenceOf("-", false, false);
+
+			if (isZoomOutLink)
+				text << " <=";
+
+			auto ta = b.removeFromBottom(20).removeFromRight(f.getStringWidth(text) + 20);
+
+			g.setColour(Colours::white.withAlpha(0.7f));
+			g.fillRect(ta);
+			g.setColour(Colours::black.withAlpha(0.7f));
+			g.drawRect(ta, 1.0f);
+			g.setFont(f);
+			g.drawText(text, ta, Justification::centred);
+		}
+	}
+
+	operator bool() const { return !directoryContent.isEmpty(); }
+
+	File faustFile;
+	File svgDirectory;
+	File currentHoverLink;
+	bool validHoverLink = false;
+	bool isZoomOutLink = false;
+
+	OwnedArray<Breadcrumb> breadcrumbs;
+};
 
 FaustMenuBar::FaustMenuBar(faust_jit_node *n) :
 	addButton("add", this, factory),
 	editButton("edit", this, factory),
 	reloadButton("reset", this, factory),
+	svgButton("preview", this, factory),
 	node(n)
 {
 	// we must provide a valid faust_jit_node pointer
@@ -20,6 +550,10 @@ FaustMenuBar::FaustMenuBar(faust_jit_node *n) :
 	editButton.setTooltip("Edit the current Faust source file in external editor");
 	addAndMakeVisible(addButton);
 	addAndMakeVisible(editButton);
+	addAndMakeVisible(svgButton);
+
+	editButton.setTooltip("Show the SVG diagram in a popup");
+
 	addAndMakeVisible(reloadButton);
 	// gather existing source files
 	rebuildComboBoxItems();
@@ -157,6 +691,7 @@ void FaustMenuBar::resized()
 	classSelector.setBounds(b.removeFromLeft(100));
 	b.removeFromLeft(3);
 	editButton.setBounds(b.removeFromRight(h).reduced(2));
+	svgButton.setBounds(b.removeFromRight(h).reduced(2));
 	reloadButton.setBounds(b.removeFromRight(h + editButton.getWidth() / 2).reduced(2));
 
 	b.removeFromLeft(10);
@@ -175,6 +710,14 @@ void FaustMenuBar::buttonClicked(Button* b)
 		int menu_selection = (MenuOption)m.show();
 		if (menu_selection > 0)
 			executeMenuAction(menu_selection);
+	}
+	else if (b == &svgButton)
+	{
+		auto fc = findParentComponentOfClass<FloatingTile>();
+
+		auto sourceFile = node->getFaustFile(node->getClassId());
+
+		fc->showComponentInRootPopup(new FaustGraphViewer(node->getScriptProcessor()->getMainController_(), sourceFile), b, { 7, 20 }, true, true);
 	}
 	else if (b == &editButton) {
 		DBG("Edit button pressed");
@@ -217,6 +760,7 @@ juce::Path FaustMenuBar::Factory::createPath(const String& url) const
 	LOAD_PATH_IF_URL("compile", EditorIcons::compileIcon);
 	LOAD_PATH_IF_URL("reset", EditorIcons::swapIcon);
 	LOAD_PATH_IF_URL("add", ColumnIcons::threeDots);
+	LOAD_PATH_IF_URL("preview", BackendBinaryData::ToolbarIcons::viewPanel);
 
 	return p;
 }

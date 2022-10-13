@@ -5,6 +5,7 @@ namespace scriptnode {
 namespace faust {
 
 
+
 // Additional types for faust_jit_node
 struct FaustMenuBar : public Component,
 					  public ButtonListener,
@@ -24,6 +25,7 @@ struct FaustMenuBar : public Component,
 	HiseShapeButton addButton;
 	HiseShapeButton editButton;
 	HiseShapeButton reloadButton;
+	HiseShapeButton svgButton;
 
 	WeakReference<faust_jit_node> node;
 	hise::ScriptnodeComboBoxLookAndFeel claf;
