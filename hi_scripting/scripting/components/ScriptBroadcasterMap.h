@@ -362,7 +362,6 @@ struct ScriptBroadcasterMap : public Component,
 
 		void drawArrow(Graphics& g, Rectangle<float> area, float rotateFactor)
 		{
-			auto size = jmin(area.getHeight(), area.getWidth());
 			area = area.withSizeKeepingCentre(14.0f, 10.0f);
 			g.setColour(r.getStyleData().headlineColour);
 

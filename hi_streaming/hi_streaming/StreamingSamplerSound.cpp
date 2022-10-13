@@ -1273,7 +1273,7 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 	
 	if (sound->sampleLength == MAX_SAMPLE_NUMBER)
 	{
-		sound->sampleLength = getSampleLength();
+		sound->sampleLength = (int)getSampleLength();
 	}
 
 	if (readerToUse != nullptr) 

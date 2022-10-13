@@ -575,7 +575,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		void resized() override
 		{
 			auto b = getLocalBounds();
-			auto header = b.removeFromTop(HeaderHeight);
+			b.removeFromTop(HeaderHeight);
 
 			auto currentRow = b.removeFromTop(24);
 

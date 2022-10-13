@@ -637,8 +637,6 @@ void ScriptTableListModel::TableRepainter::repaintIfCellChange(const MouseEvent&
 
 	s.y = t.getComponent()->getRowContainingPosition(pos.x, pos.y);
 
-	int index = 0;
-
 	for (int i = 0; i < parent.columnMetadata.size(); i++)
 	{
 		auto c = t.getComponent()->getCellPosition(i + 1, s.y, true);

@@ -408,7 +408,7 @@ struct FaustGraphViewer : public Component,
 	void mouseExit(const MouseEvent& e)
 	{
 		validHoverLink = false;
-		currentHoverLink = {};
+		currentHoverLink = File();
 		repaint();
 	}
 
@@ -460,7 +460,7 @@ struct FaustGraphViewer : public Component,
 			setName("Graph preview for " + m->f.getFileNameWithoutExtension().upToFirstOccurrenceOf("-", false, false));
 			setSize(b.getWidth(), b.getHeight() + HeaderHeight);
 			
-			currentHoverLink = {};
+			currentHoverLink = File();
 			validHoverLink = false;
 
 			repaint();

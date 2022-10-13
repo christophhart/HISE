@@ -109,7 +109,7 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 		DBG("Faust interpreter instantiation successful");
 		faustDsp = interpreterFactory->createDSPInstance();
 #else // HISE_FAUST_USE_LLVM_JIT
-		jitFactory = ::faust::createDSPFactoryFromString("faust", code, llvm_argv.size() - 1, &(llvm_argv[0]),
+		jitFactory = ::faust::createDSPFactoryFromString("faust", code, (int)llvm_argv.size() - 1, &(llvm_argv[0]),
 														 "", errorMessage, jitOptimize);
 		if (jitFactory == nullptr) {
 			// error indication
@@ -274,7 +274,7 @@ struct faust_jit_wrapper : public faust_base_wrapper {
 		}
 		argv.push_back(nullptr);
 
-		if (genAuxFile(srcPath, argv.size() - 1, &(argv[0]))) {
+		if (genAuxFile(srcPath, (int)argv.size() - 1, &(argv[0]))) {
 			DBG("hi_faust_jit: Static code generation successful: " + dest_file);
 			return dest_file;
 		}

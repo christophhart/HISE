@@ -21,7 +21,7 @@ struct faust_base_wrapper {
 		// faustDsp will be instantiated in templated class here
 	}
 
-	~faust_base_wrapper()
+	virtual ~faust_base_wrapper()
 	{
 	}
 

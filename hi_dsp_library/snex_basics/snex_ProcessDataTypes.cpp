@@ -93,7 +93,6 @@ template <int C> struct ProcessDataHelpers
 
 		if (numSamples != -1)
 		{
-			jassert(isPositiveAndBelow(numSamples, fullSamples + 1));
 			return numSamples;
 		}
 		

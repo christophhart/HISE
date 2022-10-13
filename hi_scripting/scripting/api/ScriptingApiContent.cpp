@@ -6742,8 +6742,6 @@ hise::ComponentWithPreferredSize* hise::PrimitiveArrayDisplay::create(Component*
 
 void PrimitiveArrayDisplay::paint(Graphics& g)
 {
-	auto bounds = getLocalBounds().reduced(5);
-
 	AttributedString c;
 
 	auto f = GLOBAL_MONOSPACE_FONT();

@@ -1718,7 +1718,7 @@ struct AudioRenderer : public Thread,
 
 		if (!events.isEmpty())
 		{
-			if (bufferSize = getMainController()->getMainSynthChain()->getLargestBlockSize())
+			if ((bufferSize = getMainController()->getMainSynthChain()->getLargestBlockSize()))
 			{
 				numSamplesToRender = (int)events.getEvent(events.getNumUsed() - 1).getTimeStamp();
 

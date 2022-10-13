@@ -469,10 +469,7 @@ struct ScriptBroadcasterMap::TargetEntry : public ScriptBroadcasterMap::EntryBas
 
 		auto c = item->metadata.c;
 
-		auto b = getLocalBounds().toFloat();
-
 		paintBackground(g, c, children.isEmpty());
-
 	}
 
 	int getPreferredHeight() const override
