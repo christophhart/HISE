@@ -53,7 +53,9 @@ END_JUCE_MODULE_DECLARATION
 ******************************************************************************/
 
 
+#if HISE_INCLUDE_FAUST
 #include "../hi_faust_types/hi_faust_types.h"
+#endif
 
 #if HISE_INCLUDE_FAUST && HISE_INCLUDE_FAUST_JIT
 #if HISE_FAUST_USE_LLVM_JIT
