@@ -115,6 +115,11 @@ struct faust_base_wrapper {
 		ui.handleHiseEvent(e);
 	}
 
+    bool handleModulation(double& v)
+    {
+        return ui.handleModulation(v);
+    }
+    
 	// This method assumes faustDsp to be initialized correctly
 	void process(ProcessDataDyn& data)
 	{

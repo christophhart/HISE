@@ -9,7 +9,7 @@ namespace faust {
 // faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 //      NodeBase(n, v, 0) { }
 faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
-	WrapperNode(n, v),
+	ModulationSourceNode(n, v),
 	classId(PropertyIds::ClassId, ""),
 	faust(new faust_jit_wrapper())
 {
@@ -95,9 +95,15 @@ void faust_jit_node::initialise(NodeBase* n)
 	classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(faust_jit_node::updateClassId), true);
 }
 
+bool faust_jit_node::isUsingNormalisation() const
+{
+    return faust->ui.modZone != nullptr;
+}
 
 void faust_jit_node::prepare(PrepareSpecs specs)
 {
+    ModulationSourceNode::prepare(specs);
+    
 	try
 	{
 		getRootNetwork()->getExceptionHandler().removeError(this, Error::ErrorCode::IllegalFaustChannelCount);
@@ -120,6 +126,11 @@ void faust_jit_node::process(ProcessDataDyn& data)
 {
 	if (isBypassed()) return;
 	faust->process(data);
+    
+    double v = 0.0;
+    
+    if(faust->handleModulation(v))
+        parameterHolder.call(v);
 }
 
 void faust_jit_node::processFrame(FrameType& data)
@@ -132,6 +143,11 @@ void faust_jit_node::handleHiseEvent(HiseEvent& e)
 {
 	if (isBypassed()) return;
 	faust->handleHiseEvent(e);
+    
+    double v = 0.0;
+    
+    if(faust->handleModulation(v))
+        parameterHolder.call(v);
 }
 
 bool faust_jit_node::isProcessingHiseEvent() const
@@ -282,6 +298,9 @@ void faust_jit_node::reinitFaustWrapper()
 		getRootNetwork()->getExceptionHandler().addError(this, e);
 	}
 
+    // The faust menu bar might be resized if a mod 
+    setCachedSize(-1, -1);
+    
 	// Setup DSP
 	
 }

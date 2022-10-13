@@ -6,7 +6,7 @@ namespace faust {
 
 struct faust_jit_wrapper;
 
-struct faust_jit_node: public scriptnode::WrapperNode
+struct faust_jit_node: public scriptnode::ModulationSourceNode
 {
 	SN_NODE_ID("faust");
 	JUCE_DECLARE_WEAK_REFERENCEABLE(faust_jit_node);
@@ -22,6 +22,18 @@ struct faust_jit_node: public scriptnode::WrapperNode
 	/** This method will check whether the node header should draw the MIDI icon or not. */
 	virtual bool isProcessingHiseEvent() const override;
 
+    bool isUsingNormalisation() const;
+    
+    
+    virtual bool isUsingNormalisedRange() const override { return false; };
+    
+    virtual parameter::dynamic_base_holder* getParameterHolder() override
+    {
+        return &parameterHolder;
+    }
+    
+    parameter::dynamic_base_holder parameterHolder;
+    
 	static NodeBase* createNode(DspNetwork* n, ValueTree v)
 	{
 		return new faust_jit_node(n, v);

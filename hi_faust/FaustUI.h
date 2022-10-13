@@ -97,6 +97,9 @@ struct faust_ui : public ::faust::UI {
 
 	float* midiZones[(int)HardcodedMidiZones::numHardcodedMidiZones];
 	bool anyMidiZonesActive = false;
+    
+    float* modZone = nullptr;
+    ModValue modValue;
 
 	/** This checks the parameter name and stores the zone pointer to be updated when a MIDI event is received. */
 	void addHardcodedMidiZone(const String& parameterName, float* zonePtr)
@@ -114,6 +117,20 @@ struct faust_ui : public ::faust::UI {
 		}
 	}
 
+    bool handleModulation(double& v)
+    {
+        if(modZone != nullptr)
+        {
+            if(modValue.setModValueIfChanged((double)*modZone))
+            {
+                v = modValue.getModValue();
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
 	void handleHiseEvent(HiseEvent& e)
 	{
 		// We don't want to bother if there are no zones defined or it's not a note on/off message
@@ -141,6 +158,7 @@ struct faust_ui : public ::faust::UI {
 		parameters.clear();
 		memset(midiZones, 0, sizeof(float*)*(int)HardcodedMidiZones::numHardcodedMidiZones);
 		anyMidiZonesActive = false;
+        modZone = nullptr;
 	}
 
 	std::optional<std::shared_ptr<Parameter>> getParameterByLabel(String label)
@@ -335,6 +353,11 @@ struct faust_ui : public ::faust::UI {
 	{
 		addHardcodedMidiZone(label, zone);
 
+        // only a single mod value output is supported
+        jassert(modZone != nullptr);
+        
+        modZone = zone;
+        
 		parameters.push_back(std::make_shared<Parameter>(ControlType::HORIZONTAL_BARGRAPH,
 														 String(label),
 														 zone,
@@ -347,6 +370,11 @@ struct faust_ui : public ::faust::UI {
 	{
 		addHardcodedMidiZone(label, zone);
 
+        // only a single mod value output is supported
+        jassert(modZone != nullptr);
+        
+        modZone = zone;
+        
 		parameters.push_back(std::make_shared<Parameter>(ControlType::VERTICAL_BARGRAPH,
 														 String(label),
 														 zone,

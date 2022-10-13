@@ -45,13 +45,6 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 
 	}
 
-	int handleModulation(double& value)
-	{
-
-		return 0;
-
-	}
-
 	void setExternalData(const ExternalData& data, int index)
 	{
 

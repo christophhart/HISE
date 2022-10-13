@@ -535,13 +535,23 @@ FaustMenuBar::FaustMenuBar(faust_jit_node *n) :
 	editButton("edit", this, factory),
 	reloadButton("reset", this, factory),
 	svgButton("preview", this, factory),
-	node(n)
+	node(n),
+    dragger(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
 	// we must provide a valid faust_jit_node pointer
 	jassert(n);
 	setLookAndFeel(&claf);
-	setSize(200, 24);
-
+    
+    auto h = 24;
+    
+    if(n->isUsingNormalisation())
+    {
+        addAndMakeVisible(dragger);
+        h += 28 + UIValues::NodeMargin;
+    }
+    
+	setSize(256, h);
+    
 	addAndMakeVisible(classSelector);
 	classSelector.setColour(ComboBox::ColourIds::textColourId, Colour(0xFFAAAAAA));
 	classSelector.setLookAndFeel(&claf);
@@ -685,8 +695,16 @@ void FaustMenuBar::resized()
 {
 	// DBG("FaustMenuBar resized");
 	auto b = getLocalBounds().reduced(0, 1);
-	auto h = getHeight();
+	
 
+    if(dragger.isVisible())
+    {
+        dragger.setBounds(b.removeFromBottom(28));
+        b.removeFromBottom(UIValues::NodeMargin);
+    }
+    
+    auto h = b.getHeight();
+    
 	addButton.setBounds(b.removeFromLeft(h - 4));
 	classSelector.setBounds(b.removeFromLeft(100));
 	b.removeFromLeft(3);

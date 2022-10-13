@@ -27,6 +27,8 @@ struct FaustMenuBar : public Component,
 	HiseShapeButton reloadButton;
 	HiseShapeButton svgButton;
 
+    scriptnode::ModulationSourceBaseComponent dragger;
+    
 	WeakReference<faust_jit_node> node;
 	hise::ScriptnodeComboBoxLookAndFeel claf;
 
