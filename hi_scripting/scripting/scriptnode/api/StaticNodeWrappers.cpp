@@ -69,9 +69,9 @@ juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 
 	if (numParameters == 7)
 		return createRectangleForParameterSliders(4).withPosition(topLeft);
-	if (numParameters == 0)
+	else if (numParameters == 0)
 		return createRectangleForParameterSliders(0).withPosition(topLeft);
-	if (numParameters % 5 == 0)
+	else if (numParameters % 5 == 0)
 		return createRectangleForParameterSliders(5).withPosition(topLeft);
 	else if (numParameters % 4 == 0)
 		return createRectangleForParameterSliders(4).withPosition(topLeft);
@@ -81,6 +81,8 @@ juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 		return createRectangleForParameterSliders(2).withPosition(topLeft);
 	else if (numParameters == 1)
 		return createRectangleForParameterSliders(1).withPosition(topLeft);
+    else
+        return createRectangleForParameterSliders(5).withPosition(topLeft);
 
 	return {};
 }

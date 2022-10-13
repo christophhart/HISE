@@ -2181,6 +2181,9 @@ hise::SearchableListComponent::Collection* AutomationDataBrowser::createCollecti
 			return new AutomationCollection(getMainController(), ptr, index);
 		}
 	}
+    
+    jassertfalse;
+    return nullptr;
 }
 
 juce::Path AutomationDataBrowser::Factory::createPath(const String& url) const

@@ -82,20 +82,32 @@ void DefaultParameterNodeComponent::resized()
 
 	auto rowIndex = 0;
 
-	for (int i = 0; i < sliders.size(); i += numPerRow)
-	{
-		auto row = b.removeFromTop(48 + 18).translated(staticIntend, 0);
-
-		if (intendOddRows && (rowIndex % 2 != 0))
-			row = row.translated(50, 0);
-
-		for (int j = 0; j < numPerRow && (i+j) < sliders.size(); j++)
-		{
-			sliders[i+j]->setBounds(row.removeFromLeft(100));
-		}
-
-		rowIndex++;
-	}
+    auto row = b.removeFromTop(48 + 18);
+    row.removeFromLeft(staticIntend);
+    row.removeFromRight(staticIntend);
+    
+    for(auto s: sliders)
+    {
+        auto sliderBounds = row.removeFromLeft(100);
+        
+        if(sliderBounds.getWidth() < 100)
+        {
+            rowIndex++;
+            row = b.removeFromTop(48 + 18);
+        
+            auto intend = staticIntend;
+            
+            if (intendOddRows && (rowIndex % 2 != 0))
+                intend += 50;
+            
+            row.removeFromLeft(intend);
+            row.removeFromRight(staticIntend);
+            
+            sliderBounds = row.removeFromLeft(100);
+        }
+        
+        s->setBounds(sliderBounds);
+    }
 }
 
 
