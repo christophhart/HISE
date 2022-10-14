@@ -53,6 +53,11 @@ struct faust_base_wrapper {
 
 	void prepare(PrepareSpecs specs)
 	{
+        // Skip the prepare call when the processing context
+        // isn't valid yet
+        if(!specs)
+            return;
+        
 		if (_nChannels != specs.numChannels || _nFramesMax != specs.blockSize) {
 			DBG("Faust: Resizing buffers: nChannels=" << _nChannels << ", blockSize=" << _nFramesMax);
 			_nChannels = specs.numChannels;
@@ -92,7 +97,7 @@ struct faust_base_wrapper {
 	}
 
 	void init() {
-		if (faustDsp)
+		if (faustDsp && sampleRate > 0)
 		{
 			throwErrorIfChannelMismatch();
 			faustDsp->init(sampleRate);
