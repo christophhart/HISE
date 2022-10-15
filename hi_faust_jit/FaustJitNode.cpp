@@ -34,13 +34,65 @@ faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 
 void faust_jit_node::setupParameters()
 {
+    auto numHolders = parameterHolders.size();
+    auto numParameters = faust->ui.parameters.size();
+    
+    // make sure there are enough parameter holders
+    while(numHolders < numParameters)
+    {
+        auto h = new parameter::dynamic_base_holder();
+        h->setAllowForwardToParameter(false);
+        parameterHolders.add(h);
+        numHolders = parameterHolders.size();
+    }
+    
+    
+    
+    int pIndex = 0;
+    
 	// setup parameters from faust code
 	for (auto p : faust->ui.parameters)
 	{
 		DBG("adding parameter " << p->label << ", step: " << p->step);
 		auto pd = p->toParameterData();
+        
+        auto newDynamicParameter = new parameter::dynamic_base(pd.callback);
+        
+        auto h = dynamic_cast<parameter::dynamic_base_holder*>(parameterHolders[pIndex++].get());
+        
+        jassert(h != nullptr);
+        
+        h->setParameter(this, newDynamicParameter);
+        
 		addNewParameter(pd);
 	}
+    
+    auto pTree = getParameterTree();
+    
+    for(int i = 0; i < pTree.getNumChildren(); i++)
+    {
+        auto c = pTree.getChild(i);
+        
+        auto id = c[PropertyIds::ID].toString();
+        
+        bool found = false;
+        
+        for(auto p: faust->ui.parameters)
+        {
+            if(p->label == id)
+            {
+                found = true;
+                break;
+            }
+        }
+        
+        if(!found)
+        {
+            pTree.removeChild(c, getUndoManager());
+            i--;
+        }
+    }
+    
 	DBG("Num parameters in NodeBase: " << getNumParameters());
 }
 
@@ -54,6 +106,26 @@ void faust_jit_node::parameterUpdated(ValueTree child, bool wasAdded)
 {
 	if (wasAdded)
 	{
+        auto index = child.getParent().indexOf(child);
+        
+        while(parameterHolders.size() < (index + 1))
+        {
+            auto h = new parameter::dynamic_base_holder();
+            h->setAllowForwardToParameter(false);
+            parameterHolders.add(h);
+        }
+        
+        jassert(isPositiveAndBelow(index, parameterHolders.size()));
+        
+        auto p = new scriptnode::Parameter(this, child);
+        p->setDynamicParameter(parameterHolders[index]);
+
+        NodeBase::addParameter(p);
+        
+        
+#if 0
+        
+        
 		String parameterLabel = child.getProperty(PropertyIds::ID);
 		auto faustParameter = faust->ui.getParameterByLabel(parameterLabel).value_or(nullptr);
 
@@ -63,13 +135,21 @@ void faust_jit_node::parameterUpdated(ValueTree child, bool wasAdded)
 
 		float* zonePointer = faustParameter->zone;
 
+#if 0
+        faustParameter.toParameterData().callback
+        
 		// setup dynamic parameter
 		auto dp = new scriptnode::parameter::dynamic();
 		// install callback and zone pointer into dynamic parameter
-		dp->referTo(zonePointer, updateFaustZone);
+		dp->referTo(faustParameter, faust_ui::Parameter::setParameter);
+#endif
 
+        auto pData = faustParameter->toParameterData();
+        
+        
+        
 		// create dynamic_base from dynamic parameter to attach to the new Parameter
-		auto dyn_base = new scriptnode::parameter::dynamic_base(*dp);
+        auto dyn_base = new scriptnode::parameter::dynamic_base(pData.callback);
 
 		// create and setup parameter
 		auto p = new scriptnode::Parameter(this, child);
@@ -80,6 +160,7 @@ void faust_jit_node::parameterUpdated(ValueTree child, bool wasAdded)
 			auto index = child.getParent().indexOf(child);
 			DBG("parameter added, index=" << index);
 		}
+#endif
 	}
 	else
 	{
@@ -194,18 +275,25 @@ std::vector<std::string> faust_jit_node::getFaustLibraryPaths()
 void faust_jit_node::addNewParameter(parameter::data p)
 {
 	if (auto existing = getParameterFromName(p.info.getId()))
-		return;
+    {
+        return;
+    }
 
 	auto newTree = p.createValueTree();
 	getParameterTree().addChild(newTree, -1, getUndoManager());
 }
 
-// Remove all HISE Parameters. Parameters will still be present in faust->ui
-// and will be cleared in faust->setup() automatically
 void faust_jit_node::resetParameters()
 {
-	DBG("Resetting parameters");
-	getParameterTree().removeAllChildren(getUndoManager());
+    // clear all parameter holders (most of them will be updated with the new zone
+    // but there might be some remaining parameters that could point to a dangling
+    // zone when modulated, also the zones are invalidated during compilation
+    // so accessing those while compiling will cause a crash too
+    for(auto ph: parameterHolders)
+    {
+        auto h = dynamic_cast<parameter::dynamic_base_holder*>(ph);
+        h->setParameter(this, nullptr);
+    }
 }
 
 String faust_jit_node::getClassId()
@@ -254,7 +342,7 @@ void faust_jit_node::logError(String errorMessage)
 void faust_jit_node::reinitFaustWrapper()
 {
 	String newClassId = getClassId();
-	resetParameters();
+	//resetParameters();
 	File sourceFile = getFaustFile(newClassId);
 
 	// Do nothing if file doesn't exist:
@@ -276,6 +364,8 @@ void faust_jit_node::reinitFaustWrapper()
 
 	try
 	{
+        resetParameters();
+        
 		getRootNetwork()->getExceptionHandler().removeError(this);
 
 		std::string error_msg;

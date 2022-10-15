@@ -67,6 +67,13 @@ protected:
 	void resetParameters();
 
 private:
+    
+    // the faust parameters need to be wrapped into dynamic_base_holders
+    // and they need to be assigned with NodeBase::Parameter::setDynamicParameter()
+    // (if a macro or modulation source grabs the dynamic parameter, it might
+    // cause a crash when you recompile the faust node because the connection
+    // points to a dangling zone pointer.
+    parameter::dynamic_base::List parameterHolders;
 	void initialise(NodeBase* n);
 	void loadSource();
 	NodePropertyT<String> classId;

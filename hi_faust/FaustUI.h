@@ -62,6 +62,11 @@ struct faust_ui : public ::faust::UI {
 			max(max),
 			step(step) {}
 
+        static void setParameter(void* obj, double newValue)
+        {
+            *static_cast<Parameter*>(obj)->zone = (float)newValue;
+        }
+        
 		parameter::data toParameterData() const {
 			switch (type) {
 			case faust_ui::ControlType::VERTICAL_SLIDER:
@@ -70,6 +75,7 @@ struct faust_ui : public ::faust::UI {
 			{
 				parameter::data pd(label, {(double)(min), (double)(max), (double)(step)});
 				pd.setDefaultValue((double)(init));
+                pd.callback.referTo((void*)this, setParameter);
 				return pd;
 			}
 			break;
@@ -78,6 +84,7 @@ struct faust_ui : public ::faust::UI {
 				parameter::data pd(label, {0.0, 1.0});
 				pd.setDefaultValue((double)(init));
 				pd.setParameterValueNames({"off", "on"});
+                pd.callback.referTo((void*)this, setParameter);
 				return pd;
 			}
 			break;
