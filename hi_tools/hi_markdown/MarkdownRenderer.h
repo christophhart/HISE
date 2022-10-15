@@ -259,6 +259,16 @@ public:
 		return undoManager.perform(new NavigationAction(this, url));
 	}
 
+    bool gotoLinkFromMouseEvent(const MouseEvent& e, Rectangle<float> markdownBounds, const File& root)
+    {
+        auto l = getLinkForMouseEvent(e, markdownBounds);
+
+        if (l.isValid())
+            return gotoLink(l.withRoot(root, true));
+        
+        return false;
+    }
+    
 	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 	void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
 
@@ -445,6 +455,15 @@ public:
 			parent.r.draw(g, b);
 		}
 
+        void mouseDown(const MouseEvent& e) override
+        {
+            if(e.mods.isLeftButtonDown())
+            {
+                auto markdownBounds = getLocalBounds().toFloat();
+                parent.r.gotoLinkFromMouseEvent(e, markdownBounds, File());
+            }
+        }
+        
 		SimpleMarkdownDisplay& parent;
 	};
 

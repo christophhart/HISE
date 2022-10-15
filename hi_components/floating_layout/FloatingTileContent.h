@@ -633,6 +633,7 @@ public:
 			DspNetworkGraph,
 			DspNodeList,
 			DspNodeParameterEditor,
+            DspFaustEditorPanel,
 			ScriptBroadcasterMap,
 			ExpansionEditBar,
 			ModuleBrowser,

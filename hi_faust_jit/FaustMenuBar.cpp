@@ -5,6 +5,7 @@ namespace faust {
 
 struct FaustGraphViewer : public Component,
 						  public ControlledObject,
+                          public DspNetwork::FaustManager::FaustListener,
 						  public PooledUIUpdater::SimpleTimer,
 						  public Thread
 {
@@ -199,6 +200,21 @@ struct FaustGraphViewer : public Component,
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Map);
 	};
 
+    virtual void faustFileSelected(const File& f) override {};
+    virtual Result compileFaustCode(const File& f) override { return Result::ok(); }
+    
+    virtual void faustCodeCompiled(const File& f, const Result& compileResult) override
+    {
+        if(faustFile == f)
+        {
+            setCurrentlyViewedContent(nullptr);
+            setSize(600, 300);
+            stopThread(1000);
+            startThread(5);
+            repaint();
+        }
+    }
+    
 	struct Breadcrumb: public Component
 	{
 		Breadcrumb(const File& f_):
@@ -307,8 +323,17 @@ struct FaustGraphViewer : public Component,
 		auto svgDirectoryName = faustFile.getFileNameWithoutExtension() + "-svg";
 		svgDirectory = faustFile.getParentDirectory().getChildFile(svgDirectoryName);
 
+        if (svgDirectory.isDirectory())
+        {
+            auto ok = svgDirectory.deleteRecursively();
+
+            jassert(ok);
+        }
+        
 		setStatus("Creating SVG files...");
 
+        directoryContent.clear();
+        
 		createSvgFiles(faustFile);
 
 		if (threadShouldExit())
@@ -363,18 +388,25 @@ struct FaustGraphViewer : public Component,
 	String lastMessage;
 	String statusMessage;
 
-	FaustGraphViewer(MainController* mc, const File& faustFile_):
-		ControlledObject(mc),
-		SimpleTimer(mc->getGlobalUIUpdater()),
+	FaustGraphViewer(DspNetwork* n, const File& faustFile_):
+		ControlledObject(n->getScriptProcessor()->getMainController_()),
+		SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 		Thread("SVG Creator"),
+        network(n),
 		faustFile(faustFile_)
 	{
+        network->faustManager.addFaustListener(this);
+        
 		setSize(600, 300);
 		startThread(5);
 	}
-
+    
+    WeakReference<DspNetwork> network;
+    
 	~FaustGraphViewer()
 	{
+        network->faustManager.removeFaustListener(this);
+        
 		stopThread(3000);
 
 		if (svgDirectory.isDirectory())
@@ -443,7 +475,7 @@ struct FaustGraphViewer : public Component,
 	{
 		if (currentlyViewedContent = m)
 		{
-			for (auto br : breadcrumbs)
+            for (auto br : breadcrumbs)
 			{
 				if (br->f == m->f)
 				{
@@ -466,6 +498,10 @@ struct FaustGraphViewer : public Component,
 			repaint();
 			resized();
 		}
+        else
+        {
+            breadcrumbs.clear();
+        }
 	}
 
 	void resized() override
@@ -567,7 +603,20 @@ FaustMenuBar::FaustMenuBar(faust_jit_node *n) :
 	addAndMakeVisible(reloadButton);
 	// gather existing source files
 	rebuildComboBoxItems();
+    
+    auto& fb = n->getRootNetwork()->faustManager;
+    
+    editButton.setToggleModeWithColourChange(true);
+    
+    fb.addFaustListener(this);
+    
 }
+
+FaustMenuBar::~FaustMenuBar()
+{
+    node->getRootNetwork()->faustManager.removeFaustListener(this);
+}
+
 
 void FaustMenuBar::createNewFile()
 {
@@ -735,23 +784,34 @@ void FaustMenuBar::buttonClicked(Button* b)
 
 		auto sourceFile = node->getFaustFile(node->getClassId());
 
-		fc->showComponentInRootPopup(new FaustGraphViewer(node->getScriptProcessor()->getMainController_(), sourceFile), b, { 7, 20 }, true, true);
+		fc->showComponentInRootPopup(new FaustGraphViewer(node->getRootNetwork(), sourceFile), b, { 7, 20 }, true, true);
 	}
 	else if (b == &editButton) {
 		DBG("Edit button pressed");
 		auto sourceFile = node->getFaustFile(node->getClassId());
 		auto sourceFilePath = sourceFile.getFullPathName();
-		if (sourceFile.existsAsFile()) {
-			juce::Process::openDocument(sourceFilePath, "");
-			DBG("Opened file: " + sourceFilePath);
-		}
-		else {
-			DBG("File not found: " + sourceFilePath);
-		}
+        
+        auto p = dynamic_cast<Processor*>(node->getScriptProcessor());
+        
+        auto openInEditor = GET_HISE_SETTING(p, HiseSettings::Compiler::FaustExternalEditor);
+        
+        if(openInEditor)
+        {
+            juce::Process::openDocument(sourceFilePath, "");
+        }
+        else
+        {
+            auto& faustManager = node->getRootNetwork()->faustManager;
+            faustManager.setSelectedFaustFile(sourceFile, sendNotificationSync);
+        }
 	}
 	else if (b == &reloadButton) {
 		DBG("Reload button pressed");
-		node->reinitFaustWrapper();
+        
+        auto& faustManager = node->getRootNetwork()->faustManager;
+        auto sourceFile = node->getFaustFile(node->getClassId());
+        
+        faustManager.sendCompileMessage(sourceFile, sendNotificationSync);
 	}
 }
 
@@ -760,6 +820,24 @@ void FaustMenuBar::comboBoxChanged(ComboBox *comboBoxThatHasChanged)
 	auto name = comboBoxThatHasChanged->getText();
 	DBG("Combobox changed, new text: " + name);
 	node->setClass(name);
+}
+
+void FaustMenuBar::faustFileSelected(const File& f)
+{
+    auto sourceFile = node->getFaustFile(node->getClassId());
+    
+    editButton.setToggleStateAndUpdateIcon(sourceFile == f);
+}
+
+Result FaustMenuBar::compileFaustCode(const File& f)
+{
+    // Nothing to do here
+    return Result::ok();
+}
+
+void FaustMenuBar::faustCodeCompiled(const File& f, const Result& compileResult)
+{
+    ignoreUnused(f, compileResult);
 }
 
 juce::Path FaustMenuBar::Factory::createPath(const String& url) const

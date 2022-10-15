@@ -655,9 +655,10 @@ void TextEditor::setLanguageManager(LanguageManager* ownedLanguageManager)
 	{
 		tokenCollection.clearTokenProviders();
         tokenCollection.addTokenProvider(new SimpleDocumentTokenProvider(document.getCodeDocument()));
+        ownedLanguageManager->setupEditor(this);
 		ownedLanguageManager->addTokenProviders(&tokenCollection);
 		setCodeTokeniser(languageManager->createCodeTokeniser());
-		ownedLanguageManager->setupEditor(this);
+		
 		tokenCollection.signalRebuild();
         updateLineRanges();
 	}

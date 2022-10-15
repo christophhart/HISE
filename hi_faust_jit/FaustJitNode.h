@@ -6,13 +6,19 @@ namespace faust {
 
 struct faust_jit_wrapper;
 
-struct faust_jit_node: public scriptnode::ModulationSourceNode
+
+
+struct faust_jit_node: public scriptnode::ModulationSourceNode,
+                       public DspNetwork::FaustManager::FaustListener
 {
 	SN_NODE_ID("faust");
 	JUCE_DECLARE_WEAK_REFERENCEABLE(faust_jit_node);
 	virtual Identifier getTypeId() const { RETURN_STATIC_IDENTIFIER("faust"); }
 
 	faust_jit_node(DspNetwork* n, ValueTree v);
+    
+    ~faust_jit_node();
+    
 	virtual void prepare(PrepareSpecs specs) override;
 	virtual void reset() override;
 	virtual void process(ProcessDataDyn& data) override;
@@ -31,6 +37,8 @@ struct faust_jit_node: public scriptnode::ModulationSourceNode
     {
         return &parameterHolder;
     }
+    
+    Result getLastResult() const { return compileResult; }
     
     parameter::dynamic_base_holder parameterHolder;
     
@@ -61,6 +69,10 @@ struct faust_jit_node: public scriptnode::ModulationSourceNode
 
 	void logError(String errorMessage);
 
+    virtual void faustFileSelected(const File& ) override {};
+    virtual Result compileFaustCode(const File& f) override;
+    virtual void faustCodeCompiled(const File& f, const Result& compileResult) override {};
+    
 protected:
 	std::unique_ptr<faust_jit_wrapper> faust;
 	void setupParameters();
@@ -74,6 +86,9 @@ private:
     // cause a crash when you recompile the faust node because the connection
     // points to a dangling zone pointer.
     parameter::dynamic_base::List parameterHolders;
+    
+    Result compileResult;
+    
 	void initialise(NodeBase* n);
 	void loadSource();
 	NodePropertyT<String> classId;

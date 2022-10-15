@@ -81,6 +81,9 @@
 #include "hi_standalone_components/ScriptWatchTable.cpp"
 #include "hi_standalone_components/ComponentWithPreferredSize.cpp"
 
+#if USE_BACKEND // Only include this file in the GPL build configuration
+#include "hi_tools/FaustTokeniser.cpp"
+#endif
 
 #include "hi_tools/JavascriptTokeniser.cpp"
 #include "hi_markdown/MarkdownLink.cpp"

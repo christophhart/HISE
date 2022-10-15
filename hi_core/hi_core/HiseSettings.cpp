@@ -114,6 +114,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(Support32BitMacOS);
 	ids.add(CustomNodePath);
 	ids.add(FaustPath);
+    ids.add(FaustExternalEditor);
 
 	return ids;
 }
@@ -450,6 +451,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("There should be at least the following directories inside: \"share\", \"lib\", \"include\"");
 		P_();
 
+        P(HiseSettings::Compiler::FaustExternalEditor);
+        D("If enabled, the edit button in the faust node will launch an external editor for ");
+        D("editing the faust source files. If disabled, it will use a FaustCodeEditor floating tile");
+        P_();
+        
         P(HiseSettings::Compiler::LegacyCPUSupport);
 		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
@@ -726,6 +732,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Other::EnableShaderLineNumbers ||
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
+        id == Compiler::FaustExternalEditor ||
 		id == Project::SupportMonoFX ||
 		id == Project::EnableMidiInputFX ||
         id == Project::EnableMidiOut ||
@@ -943,6 +950,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
+    else if (id == Compiler::FaustExternalEditor)   return "No";
 	else if (id == SnexWorkbench::AddFade)			return "Yes";
 	else if (id == SnexWorkbench::PlayOnRecompile)  return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";

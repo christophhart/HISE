@@ -852,7 +852,8 @@ public:
 
 			for (auto sl : selectionListeners)
 			{
-				sl->displayedLineRangeChanged(currentlyDisplayedLineRange);
+                if(sl != nullptr)
+                    sl->displayedLineRangeChanged(currentlyDisplayedLineRange);
 			}
 		}
 	}

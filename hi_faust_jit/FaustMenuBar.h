@@ -9,12 +9,15 @@ namespace faust {
 // Additional types for faust_jit_node
 struct FaustMenuBar : public Component,
 					  public ButtonListener,
-					  public ComboBox::Listener
+					  public ComboBox::Listener,
+                      public DspNetwork::FaustManager::FaustListener
 
 {
 
 	FaustMenuBar(faust_jit_node *n);
 
+    ~FaustMenuBar();
+    
 	struct Factory : public PathFactory
 	{
 		String getId() const override { return {}; }
@@ -79,6 +82,10 @@ struct FaustMenuBar : public Component,
 
 	void rebuildComboBoxItems();
 
+    virtual void faustFileSelected(const File& f) override;
+    virtual Result compileFaustCode(const File& f) override;
+    virtual void faustCodeCompiled(const File& f, const Result& compileResult) override;
+    
 	virtual void resized() override;
 
 	virtual void buttonClicked(Button* b) override;

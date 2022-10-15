@@ -428,6 +428,115 @@ public:
 	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic, ExternalDataHolder* dataHolder=nullptr);
 	~DspNetwork();
 
+    /** The faust manager will handle the IDE editing features by sending out compilation and selection messages to its registered listeners. */
+    struct FaustManager
+    {
+        struct FaustListener
+        {
+            virtual ~FaustListener() {};
+            
+            /** This message will be sent out when the faust file is selected for editing. */
+            virtual void faustFileSelected(const File& f) = 0;
+            
+            /** This message is sent out when the faust code needs to be recompiled. */
+            virtual Result compileFaustCode(const File& f) = 0;
+            
+            /** This message will be sent out when the faust code was recompiled. */
+            virtual void faustCodeCompiled(const File& f, const Result& compileResult) = 0;
+            
+            JUCE_DECLARE_WEAK_REFERENCEABLE(FaustListener);
+        };
+        
+        /** Adds a listener and calls all messages with the current state. */
+        void addFaustListener(FaustListener* l)
+        {
+            listeners.addIfNotAlreadyThere(l);
+            
+            l->faustFileSelected(currentFile);
+            l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+        }
+        
+        /** Removes a listener. */
+        void removeFaustListener(FaustListener* l)
+        {
+            listeners.removeAllInstancesOf(l);
+        }
+        
+        /** Call this function when you want to set a FAUST file to be selected for editing.
+            There is only a single edited file per faust_manager instance and the listeners
+            will receive a message that the edited file changed.
+        */
+        void setSelectedFaustFile(const File& f, NotificationType n)
+        {
+            currentFile = f;
+            
+            if(n != dontSendNotification)
+            {
+                for(auto l: listeners)
+                {
+                    if(l != nullptr)
+                    {
+                        l->faustFileSelected(currentFile);
+                    }
+                }
+            }
+        }
+        
+        /** Send a message that this file is about to be compiled.
+            The listeners will be called with `compileFaustCode()` which can be override
+            to implement the actual compilation.
+         
+            After the compilation the `faustCodeCompiled()` function will be called with the
+            file and the compile result.
+        */
+        void sendCompileMessage(const File& f, NotificationType n)
+        {
+            lastCompiledFile = f;
+            lastCompileResult = Result::ok();
+            
+            for(auto l: listeners)
+            {
+                if(l != nullptr)
+                {
+                    auto thisOk = l->compileFaustCode(lastCompiledFile);
+                    
+                    if(!thisOk.wasOk())
+                    {
+                        lastCompileResult = thisOk;
+                        break;
+                    }
+                }
+            }
+            
+            if(n != dontSendNotification)
+            {
+                for(auto l: listeners)
+                {
+                    if(l != nullptr)
+                    {
+                        l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+                    }
+                }
+            }
+        }
+        
+        FaustManager():
+          lastCompileResult(Result::ok())
+        {};
+        
+        virtual ~FaustManager() {};
+        
+    private:
+        
+        Result lastCompileResult;
+        File currentFile;
+        File lastCompiledFile;
+        
+        Array<WeakReference<FaustListener>> listeners;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FaustManager);
+    } faustManager;
+    
 #if HISE_INCLUDE_SNEX
 	struct CodeManager
 	{

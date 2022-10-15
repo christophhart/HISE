@@ -355,7 +355,146 @@ juce::Component* NodePropertyPanel::createComponentForNetwork(DspNetwork* p)
 	return new NodePropertyContent(p);
 }
 
+struct FaustEditorWrapper: public Component,
+                           public DspNetwork::FaustManager::FaustListener
+{
+    FaustEditorWrapper(DspNetwork* network_):
+      network(network_)
+    {
+        network->faustManager.addFaustListener(this);
+    }
+    
+    ~FaustEditorWrapper()
+    {
+        network->faustManager.removeFaustListener(this);
+    }
+    
+    
+    bool keyPressed(const KeyPress& k) override
+    {
+        if(k == KeyPress::F5Key)
+        {
+            recompile();
+            return true;
+        }
+        
+        return false;
+    }
+    
+    
+    void recompile()
+    {
+        if(currentDocument != nullptr)
+        {
+            currentDocument->file.replaceWithText(currentDocument->d.getAllContent());
+            network->faustManager.sendCompileMessage(currentDocument->file, sendNotificationSync);
+        }
+    }
+    
+    void faustFileSelected(const File& f) override
+    {
+        currentDocument = nullptr;
+        
+        for(auto d: documents)
+        {
+            if(d->file == f)
+            {
+                currentDocument = d;
+                break;
+            }
+        }
+        
+        if(currentDocument == nullptr)
+        {
+            documents.add(new FaustDocument(f));
+            currentDocument = documents.getLast();
+        }
+        
+        editor = new mcl::FullEditor(currentDocument->doc);
+       
+        editor->editor.setLanguageManager(new mcl::FaustLanguageManager());
+        
+        addAndMakeVisible(editor);
+        resized();
+    }
+    
+    Result compileFaustCode(const File& f) override
+    {
+        return Result::ok();
+    }
+    
+    void faustCodeCompiled(const File& f, const Result& compileResult) override
+    {
+        if(editor != nullptr)
+        {
+            if(currentDocument != nullptr &&
+               currentDocument->file == f)
+            {
+                editor->editor.clearWarningsAndErrors();
+                
+                if(!compileResult.wasOk())
+                {
+                    auto e = compileResult.getErrorMessage();
+                    
+                    auto sa = StringArray::fromTokens(e, ":", "");
+                    
+                    String errorMessage;
+                    
+                    errorMessage << "Line " << sa[1] << "(0): " << sa[3];
+                    
+                    if(sa.size() > 4)
+                        errorMessage << ": " << sa[4];
+                    
+                    editor->editor.setError(errorMessage);
+                }
+            }
+        }
+    }
+    
+    
+    
+    void resized() override
+    {
+        if(editor != nullptr)
+        {
+            editor->setBounds(getLocalBounds());
+        }
+    }
+    
+    struct FaustDocument
+    {
+        FaustDocument(const File& f):
+          file(f),
+          doc(d)
+        {
+            d.replaceAllContent(f.loadFileAsString());
+        };
+        
+        File file;
+        CodeDocument d;
+        mcl::TextDocument doc;
+    };
+    
+    OwnedArray<FaustDocument> documents;
+    FaustDocument* currentDocument = nullptr;
+    
+    ScopedPointer<mcl::FullEditor> editor;
+    
+    WeakReference<DspNetwork> network;
+    JUCE_DECLARE_WEAK_REFERENCEABLE(FaustEditorWrapper);
+};
 
+
+FaustEditorPanel::FaustEditorPanel(FloatingTile* parent):
+    NetworkPanel(parent)
+{
+
+}
+
+juce::Component* FaustEditorPanel::createComponentForNetwork(DspNetwork* p)
+{
+    return new FaustEditorWrapper(p);
+}
 
 #if 0
 SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPopup) :

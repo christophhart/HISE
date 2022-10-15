@@ -11,7 +11,8 @@ namespace faust {
 faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 	ModulationSourceNode(n, v),
 	classId(PropertyIds::ClassId, ""),
-	faust(new faust_jit_wrapper())
+	faust(new faust_jit_wrapper()),
+    compileResult(Result::ok())
 {
 	extraComponentFunction = [](void* o, PooledUIUpdater* u)
 	{
@@ -22,6 +23,8 @@ faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 								  valuetree::AsyncMode::Synchronously,
 								  BIND_MEMBER_FUNCTION_2(faust_jit_node::parameterUpdated));
 
+    n->faustManager.addFaustListener(this);
+    
 	File f = getFaustRootFile();
 	// Create directory if it's not already there
 	if (!f.isDirectory()) {
@@ -30,6 +33,11 @@ faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 	// we can't init yet, because we don't know the sample rate
 	initialise(this);
 	setClass(classId.getValue());
+}
+
+faust_jit_node::~faust_jit_node()
+{
+    getRootNetwork()->faustManager.removeFaustListener(this);
 }
 
 void faust_jit_node::setupParameters()
@@ -313,7 +321,10 @@ void faust_jit_node::loadSource()
 {
 	auto newClassId = getClassId();
 	if (faust->getClassId() != newClassId)
-		reinitFaustWrapper();
+    {
+        auto sourceFile = getFaustFile(newClassId);
+        getRootNetwork()->faustManager.sendCompileMessage(sourceFile, sendNotificationSync);
+    }
 }
 
 void faust_jit_node::createSourceAndSetClass(const String newClassId)
@@ -374,10 +385,13 @@ void faust_jit_node::reinitFaustWrapper()
 
 		if (success)
 		{
+            compileResult = Result::ok();
 			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Faust file " + sourceFile.getFileName() + " compiled OK");
 		}
 		else
 		{
+            compileResult = Result::fail(String(error_msg));
+            
 			getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::CompileFail, String(error_msg));
 			logError(error_msg);
 		}
@@ -388,11 +402,28 @@ void faust_jit_node::reinitFaustWrapper()
 		getRootNetwork()->getExceptionHandler().addError(this, e);
 	}
 
+    auto p = dynamic_cast<Processor*>(getScriptProcessor());
+    
     // The faust menu bar might be resized if a mod 
     setCachedSize(-1, -1);
     
 	// Setup DSP
 	
+}
+
+Result faust_jit_node::compileFaustCode(const File& f)
+{
+    String newClassId = getClassId();
+    File sourceFile = getFaustFile(newClassId);
+    
+    if(sourceFile == f)
+    {
+        reinitFaustWrapper();
+    
+        return compileResult;
+    }
+    
+    return Result::ok();
 }
 
 void faust_jit_node::setClass(const String& newClassId)

@@ -85,6 +85,16 @@ public:
 	Component* createComponentForNetwork(DspNetwork* p) override;
 };
 
+class FaustEditorPanel: public NetworkPanel
+{
+public:
+    
+    FaustEditorPanel(FloatingTile* parent);
+    
+    SET_PANEL_NAME("FaustEditorPanel");
+    Component* createComponentForNetwork(DspNetwork* p) override;
+};
+
 #if USE_BACKEND
 struct WorkbenchTestPlayer : public FloatingTileContent,
 	public Component,

@@ -393,10 +393,10 @@ void MarkdownPreview::InternalComponent::mouseUp(const MouseEvent& e)
 	{
 		clickedLink = {};
 
-		auto l = renderer.getLinkForMouseEvent(e, getLocalBounds().toFloat());
-
-		if (l.isValid())
-			renderer.gotoLink(l.withRoot(parent.rootDirectory, true));
+        auto markdownBounds = getLocalBounds().toFloat();
+        auto root = parent.rootDirectory;
+        
+        renderer.gotoLinkFromMouseEvent(e, markdownBounds, root);
 	}
 
 	repaint();

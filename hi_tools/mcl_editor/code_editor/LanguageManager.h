@@ -123,5 +123,28 @@ struct MarkdownLanguageManager : public LanguageManager
 };
 
 
+struct FaustLanguageManager: public LanguageManager
+{
+    CodeTokeniser* createCodeTokeniser() override
+    {
+#if USE_BACKEND
+        return new FaustTokeniser();
+#else
+        // I don't know of any use case where the faust tokeniser is required
+        // in a compiled project so this will most likely never get called
+        jassertfalse;
+        return new JavascriptCodeTokeniser();
+#endif
+    }
+    
+    void processBookmarkTitle(juce::String& bookmarkTitle) {};
+
+    void setupEditor(mcl::TextEditor* e) override;
+    
+    void addTokenProviders(TokenCollection* t) override;
+    
+    mcl::TextEditor* currentEditor = nullptr;
+};
+
 
 }
