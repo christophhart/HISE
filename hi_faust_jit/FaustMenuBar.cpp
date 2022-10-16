@@ -718,10 +718,36 @@ void FaustMenuBar::executeMenuAction(int option)
 	case IMPORT_LIB:
 		importFile("lib");
 		break;
+    case REBUILD_PARAMETERS:
+    {
+        StringArray automatedProperties;
+        
+        for(auto p: node->getParameterTree())
+        {
+            if(p[PropertyIds::Automated])
+                automatedProperties.add(p[PropertyIds::ID].toString());
+        }
+        
+        node->getParameterTree().removeAllChildren(node->getUndoManager());
+        buttonClicked(&reloadButton);
+        
+        for(auto s: automatedProperties)
+        {
+            auto newP = node->getParameterTree().getChildWithProperty(PropertyIds::ID, s);
+            
+            if(newP.isValid())
+                newP.setProperty(PropertyIds::Automated, true, node->getUndoManager());
+        }
+        
+        break;
+    }
+        
 	case RENAME_FILE:
 		renameFile();
+        break;
 	case REMOVE_FILE:
 		removeFile();
+        break;
 
 		// add code for more functions here
 	default:

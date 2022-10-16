@@ -119,8 +119,18 @@ struct dynamic_base_holder: public dynamic_base
 
 	virtual void updateRange(const ValueTree& v) override
 	{
-		// Do nothing here because the holder is not supposed to 
-		// change the range?
+        if(!allowForwardToParameter)
+        {
+            // If we do not allow forwarding of parameters
+            // we need to at least forward the range call
+            if(base != nullptr)
+                base->updateRange(v);
+        }
+        else
+        {
+            // Do nothing here because the holder is not supposed to
+            // change the range.
+        }
 	}
 
 	virtual double getDisplayValue() const

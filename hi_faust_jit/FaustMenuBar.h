@@ -43,6 +43,7 @@ struct FaustMenuBar : public Component,
 		IMPORT_LIB,
 		RENAME_FILE,
 		REMOVE_FILE,
+        REBUILD_PARAMETERS,
 		// add more options here
 		MENU_OPTION_LAST,
 		MENU_OPTION_INVALID,
@@ -54,6 +55,7 @@ struct FaustMenuBar : public Component,
 		{IMPORT_LIB, "Import library into project"},
 		{RENAME_FILE, "Rename file"},
 		{REMOVE_FILE, "Remove entry and file"},
+        {REBUILD_PARAMETERS, "Rebuild parameters from FAUST file"},
 			// add description for more options here
 		{MENU_OPTION_INVALID, "Invalid Option (BUG)"}
 	};

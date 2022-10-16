@@ -89,6 +89,15 @@ void faust_jit_node::setupParameters()
         
         auto newDynamicParameter = new parameter::dynamic_base(pd.callback);
         
+        // Try to use the existing value tree so that it can take the
+        // customized parameter ranges
+        auto parameterValueTree = pTree.getChildWithProperty(PropertyIds::ID, p->label);
+        
+        if(!parameterValueTree.isValid())
+            parameterValueTree = pd.createValueTree();
+        
+        newDynamicParameter->updateRange(parameterValueTree);
+        
         auto h = dynamic_cast<parameter::dynamic_base_holder*>(parameterHolders[pIndex++].get());
         
         jassert(h != nullptr);
