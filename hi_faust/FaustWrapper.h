@@ -100,6 +100,9 @@ struct faust_base_wrapper {
 		if (faustDsp && sampleRate > 0)
 		{
 			throwErrorIfChannelMismatch();
+            
+            faust_ui::ScopedZoneSetter szs(ui);
+            
 			faustDsp->init(sampleRate);
 		}
 	}

@@ -36,6 +36,43 @@ struct faust_ui : public ::faust::UI {
 		numHardcodedMidiZones
 	};
 
+    /** This struct will take a snapshot of the current values and reset the zone pointers
+        to this value when it goes out of scope.
+     
+        It is used by the `faust->init()` call to prevent resetting the internal values everytime
+        it is called which happens when changing the processing context.
+    */
+    struct ScopedZoneSetter
+    {
+        struct Item
+        {
+            Item(float* zone_): zone(zone_), value(*zone) {};
+            
+            void reset()
+            {
+                jassert(zone != nullptr);
+                *zone = value;
+            }
+            
+            float* zone;
+            float value;
+        };
+        
+        Array<Item> items;
+        
+        ScopedZoneSetter(faust_ui& ui)
+        {
+            for(auto p: ui.parameters)
+                items.add({p->zone});
+        }
+        
+        ~ScopedZoneSetter()
+        {
+            for(auto& i: items)
+                i.reset();
+        }
+    };
+    
 	struct Parameter {
 		ControlType type;
 		String label;
