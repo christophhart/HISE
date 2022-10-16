@@ -32,6 +32,7 @@ faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 	}
 	// we can't init yet, because we don't know the sample rate
 	initialise(this);
+
 	setClass(classId.getValue());
 }
 
@@ -42,6 +43,30 @@ faust_jit_node::~faust_jit_node()
 
 void faust_jit_node::setupParameters()
 {
+	auto pTree = getParameterTree();
+
+	for (int i = 0; i < pTree.getNumChildren(); i++)
+	{
+		auto c = pTree.getChild(i);
+		auto id = c[PropertyIds::ID].toString();
+		bool found = false;
+
+		for (auto p : faust->ui.parameters)
+		{
+			if (p->label == id)
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			pTree.removeChild(c, getUndoManager());
+			i--;
+		}
+	}
+
     auto numHolders = parameterHolders.size();
     auto numParameters = faust->ui.parameters.size();
     
@@ -53,8 +78,6 @@ void faust_jit_node::setupParameters()
         parameterHolders.add(h);
         numHolders = parameterHolders.size();
     }
-    
-    
     
     int pIndex = 0;
     
@@ -75,38 +98,7 @@ void faust_jit_node::setupParameters()
 		addNewParameter(pd);
 	}
     
-    auto pTree = getParameterTree();
-    
-    for(int i = 0; i < pTree.getNumChildren(); i++)
-    {
-        auto c = pTree.getChild(i);
-        
-        auto id = c[PropertyIds::ID].toString();
-        
-        bool found = false;
-        
-        for(auto p: faust->ui.parameters)
-        {
-            if(p->label == id)
-            {
-                found = true;
-                break;
-            }
-        }
-        
-        if(!found)
-        {
-            pTree.removeChild(c, getUndoManager());
-            i--;
-        }
-    }
-    
 	DBG("Num parameters in NodeBase: " << getNumParameters());
-}
-
-static void updateFaustZone(void* obj, double value)
-{
-	*static_cast<float*>(obj) = (float)value;
 }
 
 // ParameterTree listener callback: This function is called when the ParameterTree changes
@@ -428,20 +420,20 @@ Result faust_jit_node::compileFaustCode(const File& f)
 
 void faust_jit_node::setClass(const String& newClassId)
 {
-	classId.storeValue(newClassId, getUndoManager());
-	updateClassId({}, newClassId);
-	loadSource();
+	// If the faust file is changed, remove all parameters from the previous patch
+	if (getClassId() != newClassId)
+		getParameterTree().removeAllChildren(getUndoManager());
+
+	setNodeProperty(PropertyIds::ClassId, newClassId);
 }
 
 void faust_jit_node::updateClassId(Identifier, var newValue)
 {
 	auto newId = newValue.toString();
 
-	DBG(newId);
 	if (newId.isNotEmpty())
 	{
-		auto nb = getRootNetwork()->codeManager.getOrCreate(getTypeId(), Identifier(newValue.toString()));
-		// TODO: workbench
+		loadSource();
 	}
 }
 

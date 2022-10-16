@@ -1044,7 +1044,7 @@ void ParameterSlider::paint(Graphics& g)
 {
 	Slider::paint(g);
 
-	if (cppgen::CustomNodeProperties::isUnscaledParameter(pTree))
+	if (pTree.getParent().isValid() && cppgen::CustomNodeProperties::isUnscaledParameter(pTree))
 	{
 		ParameterIcons pi;
 		auto p = pi.createPath("unscaled");
