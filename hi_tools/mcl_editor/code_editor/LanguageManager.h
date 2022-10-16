@@ -133,7 +133,7 @@ struct FaustLanguageManager: public LanguageManager
         // I don't know of any use case where the faust tokeniser is required
         // in a compiled project so this will most likely never get called
         jassertfalse;
-        return new JavascriptCodeTokeniser();
+        return nullptr;
 #endif
     }
     
