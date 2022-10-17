@@ -1952,8 +1952,6 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 
 		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Compile Faust file " + file.getFileNameWithoutExtension());
 
-		Thread::getCurrentThread()->wait(4000);
-
 		for (auto l : safeThis->listeners)
 		{
 			if (l != nullptr)
