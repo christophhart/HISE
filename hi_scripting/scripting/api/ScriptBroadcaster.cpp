@@ -1486,6 +1486,8 @@ void ScriptBroadcaster::RadioGroupListener::setButtonValueFromIndex(int newIndex
 {
 	if (currentIndex != newIndex)
 	{
+		currentIndex = newIndex;
+
 		for (int i = 0; i < items.size(); i++)
 		{
 			items[i]->radioButton->setValue(newIndex == i);
