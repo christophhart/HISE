@@ -434,6 +434,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
+			if (e_ != nullptr && e.get() == e_)
+			{
+				e_->location.throwError("Inline functions can't be called recursively");
+			}
+
 			e.get() = e_;
 		}
 
