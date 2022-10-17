@@ -1890,6 +1890,17 @@ DspNetwork::FaustManager::FaustManager(DspNetwork& n) :
 
 }
 
+void DspNetwork::FaustManager::sendPostCompileMessage()
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+		{
+			l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+		}
+	}
+}
+
 void DspNetwork::FaustManager::addFaustListener(FaustListener* l)
 {
 	listeners.addIfNotAlreadyThere(l);
@@ -1921,33 +1932,57 @@ void DspNetwork::FaustManager::setSelectedFaustFile(const File& f, NotificationT
 
 void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationType n)
 {
+	WeakReference<FaustManager> safeThis(this);
+
 	lastCompiledFile = f;
 	lastCompileResult = Result::ok();
 
 	for (auto l : listeners)
 	{
 		if (l != nullptr)
-		{
-			auto thisOk = l->compileFaustCode(lastCompiledFile);
-
-			if (!thisOk.wasOk())
-			{
-				lastCompileResult = thisOk;
-				break;
-			}
-		}
+			l->preCompileFaustCode(lastCompiledFile);
 	}
 
-	if (n != dontSendNotification)
+	auto pf = [safeThis, n](Processor* p)
 	{
-		for (auto l : listeners)
+		if (safeThis == nullptr)
+			return SafeFunctionCall::Status::nullPointerCall;
+
+		auto file = safeThis->lastCompiledFile;
+
+		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Compile Faust file " + file.getFileNameWithoutExtension());
+
+		Thread::getCurrentThread()->wait(4000);
+
+		for (auto l : safeThis->listeners)
 		{
 			if (l != nullptr)
 			{
-				l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+				auto thisOk = l->compileFaustCode(file);
+
+				if (!thisOk.wasOk())
+				{
+					safeThis->lastCompileResult = thisOk;
+					break;
+				}
 			}
 		}
-	}
+
+		if (n != dontSendNotification)
+		{
+			SafeAsyncCall::call<FaustManager>(*safeThis, [](FaustManager& m)
+			{
+				m.sendPostCompileMessage();
+			});
+		}
+
+		return SafeFunctionCall::OK;
+	};
+
+	
+
+	processor->getMainController()->getKillStateHandler().killVoicesAndCall(processor, pf, 
+		MainController::KillStateHandler::SampleLoadingThread);
 }
 
 

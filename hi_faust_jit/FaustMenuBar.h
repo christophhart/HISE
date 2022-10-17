@@ -30,6 +30,8 @@ struct FaustMenuBar : public Component,
 	HiseShapeButton reloadButton;
 	HiseShapeButton svgButton;
 
+	bool compilePending = false;
+
     scriptnode::ModulationSourceBaseComponent dragger;
     
 	WeakReference<faust_jit_node> node;
@@ -79,12 +81,16 @@ struct FaustMenuBar : public Component,
 
 	}
 
+	void paintOverChildren(Graphics& g) override;
+
 	void executeMenuAction(int option);
 
 
 	void rebuildComboBoxItems();
 
     virtual void faustFileSelected(const File& f) override;
+	virtual void preCompileFaustCode(const File& f) override;
+
     virtual Result compileFaustCode(const File& f) override;
     virtual void faustCodeCompiled(const File& f, const Result& compileResult) override;
     
@@ -93,6 +99,12 @@ struct FaustMenuBar : public Component,
 	virtual void buttonClicked(Button* b) override;
 
 	virtual void comboBoxChanged (ComboBox *comboBoxThatHasChanged) override;
+
+	bool matchesFile(const File& f) const
+	{
+		auto sourceFile = node->getFaustFile(node->getClassId());
+		return sourceFile == f;
+	}
 
 };
 

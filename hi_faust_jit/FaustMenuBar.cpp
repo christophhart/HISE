@@ -706,6 +706,18 @@ void FaustMenuBar::renameFile()
 	node->setClass(destFile.getFileNameWithoutExtension());
 }
 
+
+void FaustMenuBar::paintOverChildren(Graphics& g)
+{
+	if (compilePending)
+	{
+		g.fillAll(Colour(0xCC353535));
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Recompiling Faust code...", getLocalBounds().toFloat(), Justification::verticallyCentred);
+	}
+}
+
 void FaustMenuBar::executeMenuAction(int option)
 {
 	switch (option) {
@@ -852,7 +864,16 @@ void FaustMenuBar::faustFileSelected(const File& f)
 {
     auto sourceFile = node->getFaustFile(node->getClassId());
     
-    editButton.setToggleStateAndUpdateIcon(sourceFile == f);
+    editButton.setToggleStateAndUpdateIcon(matchesFile(f));
+}
+
+void FaustMenuBar::preCompileFaustCode(const File& f)
+{
+	if (matchesFile(f))
+	{
+		compilePending = true;
+		SafeAsyncCall::repaint(this);
+	}
 }
 
 Result FaustMenuBar::compileFaustCode(const File& f)
@@ -863,6 +884,12 @@ Result FaustMenuBar::compileFaustCode(const File& f)
 
 void FaustMenuBar::faustCodeCompiled(const File& f, const Result& compileResult)
 {
+	if (matchesFile(f))
+	{
+		compilePending = false;
+		repaint();
+	}
+	
     ignoreUnused(f, compileResult);
 }
 

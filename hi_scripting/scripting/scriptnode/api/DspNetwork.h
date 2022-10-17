@@ -435,13 +435,16 @@ public:
         {
             virtual ~FaustListener() {};
             
-            /** This message will be sent out when the faust file is selected for editing. */
+            /** This message will be sent out synchronously when the faust file is selected for editing. */
             virtual void faustFileSelected(const File& f) = 0;
             
-            /** This message is sent out when the faust code needs to be recompiled. */
+			/** This message will be sent out synchronously before compileFaustCode and can be overriden to indicate a pending compilation. */
+			virtual void preCompileFaustCode(const File& f) {};
+
+            /** This message is sent out on the sample loading thread when the faust code needs to be recompiled. */
             virtual Result compileFaustCode(const File& f) = 0;
             
-            /** This message will be sent out when the faust code was recompiled. */
+            /** This message will be sent out on the message thread after the faust code was recompiled. */
             virtual void faustCodeCompiled(const File& f, const Result& compileResult) = 0;
             
             JUCE_DECLARE_WEAK_REFERENCEABLE(FaustListener);
@@ -474,6 +477,8 @@ public:
         
     private:
         
+		void sendPostCompileMessage();
+
         Result lastCompileResult;
         File currentFile;
         File lastCompiledFile;
