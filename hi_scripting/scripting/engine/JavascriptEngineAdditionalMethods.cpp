@@ -699,7 +699,9 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 			return var();
 		};
 
-		debugInformation.add(new LambdaValueInformation(vf, constObjects.getName(i), Identifier(), DebugInformation::Type::Constant, constLocations[i]));
+		auto cid = constObjects.getName(i);
+
+		debugInformation.add(new LambdaValueInformation(vf, cid, Identifier(), DebugInformation::Type::Constant, constLocations[i], comments[cid].toString()));
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
@@ -717,7 +719,9 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 			return var();
 		};
 
-		debugInformation.add(new LambdaValueInformation(vf, varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i]));
+		auto rid = constObjects.getName(i);
+
+		debugInformation.add(new LambdaValueInformation(vf, rid, Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i], comments[rid].toString()));
 	}
 	
 	for (int i = 0; i < apiClasses.size(); i++)
