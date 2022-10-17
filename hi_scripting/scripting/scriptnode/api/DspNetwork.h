@@ -448,39 +448,16 @@ public:
         };
         
         /** Adds a listener and calls all messages with the current state. */
-        void addFaustListener(FaustListener* l)
-        {
-            listeners.addIfNotAlreadyThere(l);
-            
-            l->faustFileSelected(currentFile);
-            l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
-        }
+        void addFaustListener(FaustListener* l);
         
         /** Removes a listener. */
-        void removeFaustListener(FaustListener* l)
-        {
-            listeners.removeAllInstancesOf(l);
-        }
+        void removeFaustListener(FaustListener* l);
         
         /** Call this function when you want to set a FAUST file to be selected for editing.
             There is only a single edited file per faust_manager instance and the listeners
             will receive a message that the edited file changed.
         */
-        void setSelectedFaustFile(const File& f, NotificationType n)
-        {
-            currentFile = f;
-            
-            if(n != dontSendNotification)
-            {
-                for(auto l: listeners)
-                {
-                    if(l != nullptr)
-                    {
-                        l->faustFileSelected(currentFile);
-                    }
-                }
-            }
-        }
+        void setSelectedFaustFile(const File& f, NotificationType n);
         
         /** Send a message that this file is about to be compiled.
             The listeners will be called with `compileFaustCode()` which can be override
@@ -489,40 +466,9 @@ public:
             After the compilation the `faustCodeCompiled()` function will be called with the
             file and the compile result.
         */
-        void sendCompileMessage(const File& f, NotificationType n)
-        {
-            lastCompiledFile = f;
-            lastCompileResult = Result::ok();
-            
-            for(auto l: listeners)
-            {
-                if(l != nullptr)
-                {
-                    auto thisOk = l->compileFaustCode(lastCompiledFile);
-                    
-                    if(!thisOk.wasOk())
-                    {
-                        lastCompileResult = thisOk;
-                        break;
-                    }
-                }
-            }
-            
-            if(n != dontSendNotification)
-            {
-                for(auto l: listeners)
-                {
-                    if(l != nullptr)
-                    {
-                        l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
-                    }
-                }
-            }
-        }
+        void sendCompileMessage(const File& f, NotificationType n);
         
-        FaustManager():
-          lastCompileResult(Result::ok())
-        {};
+        FaustManager(DspNetwork& n);;
         
         virtual ~FaustManager() {};
         
@@ -532,9 +478,12 @@ public:
         File currentFile;
         File lastCompiledFile;
         
+		WeakReference<Processor> processor;
+
         Array<WeakReference<FaustListener>> listeners;
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FaustManager);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(FaustManager);
     } faustManager;
     
 #if HISE_INCLUDE_SNEX

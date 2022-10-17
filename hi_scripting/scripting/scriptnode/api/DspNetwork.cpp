@@ -59,6 +59,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	data(data_),
 	isPoly(poly),
 	polyHandler(poly),
+	faustManager(*this),
 #if HISE_INCLUDE_SNEX
 	codeManager(*this),
 #endif
@@ -1881,6 +1882,75 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 	return false;
 }
 #endif
+
+DspNetwork::FaustManager::FaustManager(DspNetwork& n) :
+	lastCompileResult(Result::ok()),
+	processor(dynamic_cast<Processor*>(n.getScriptProcessor()))
+{
+
+}
+
+void DspNetwork::FaustManager::addFaustListener(FaustListener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+
+	l->faustFileSelected(currentFile);
+	l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+}
+
+void DspNetwork::FaustManager::removeFaustListener(FaustListener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+void DspNetwork::FaustManager::setSelectedFaustFile(const File& f, NotificationType n)
+{
+	currentFile = f;
+
+	if (n != dontSendNotification)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+			{
+				l->faustFileSelected(currentFile);
+			}
+		}
+	}
+}
+
+void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationType n)
+{
+	lastCompiledFile = f;
+	lastCompileResult = Result::ok();
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+		{
+			auto thisOk = l->compileFaustCode(lastCompiledFile);
+
+			if (!thisOk.wasOk())
+			{
+				lastCompileResult = thisOk;
+				break;
+			}
+		}
+	}
+
+	if (n != dontSendNotification)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+			{
+				l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
+			}
+		}
+	}
+}
+
+
 
 }
 
