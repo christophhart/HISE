@@ -2026,6 +2026,8 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 
 	ScopedPointer<FactoryType> t = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, root);
 
+	root->getMainController()->setAllowFlakyThreading(true);
+
 	xml->addChildElement(buildFactory(t, "ModulatorSynths"));
 
 	t = new MidiProcessorFactoryType(root);
@@ -2048,6 +2050,10 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 	xml->addChildElement(buildFactory(t, "Effects"));
 
 
+	t = nullptr;
+
+	root->getMainController()->setAllowFlakyThreading(false);
+
 	xml->writeToFile(f, "");
 #endif
 }
@@ -2064,7 +2070,10 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 
 		if (p == nullptr) continue;
 
-		XmlElement *child = new XmlElement(p->getType());
+		// "Hardcoded Master FX", aaarg!
+		auto tagName = p->getType().toString().removeCharacters(" ");
+
+		XmlElement *child = new XmlElement(tagName);
 
 		for (int i = 0; i < p->getNumParameters(); i++)
 		{
@@ -2673,6 +2682,9 @@ void FileHandlerBase::checkSubDirectories()
 {
 	subDirectories.clear();
 
+	if (!getRootFolder().isDirectory())
+		return;
+
 	auto subDirList = getSubDirectoryIds();
 
 	for (auto dir : subDirList)
@@ -2805,6 +2817,7 @@ juce::Result FileHandlerBase::updateSampleMapIds(bool silentMode)
 
 juce::File FileHandlerBase::checkSubDirectory(SubDirectories dir)
 {
+	
 	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
 
 	jassert(subDirectory.exists());

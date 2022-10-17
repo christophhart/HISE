@@ -141,6 +141,9 @@ using namespace juce;
 
 juce::Array<juce::File> BackendDllManager::getNetworkFiles(MainController* mc, bool includeNoCompilers)
 {
+	if (!mc->getCurrentFileHandler().getRootFolder().isDirectory())
+		return {};
+
 	auto networkDirectory = getSubFolder(mc, FolderSubType::Networks);
 
 	auto files = networkDirectory.findChildFiles(File::findFiles, false, "*.xml");
@@ -249,6 +252,9 @@ bool BackendDllManager::unloadDll()
 
 bool BackendDllManager::loadDll(bool forceUnload)
 {
+	if (!getMainController()->getCurrentFileHandler().getRootFolder().isDirectory())
+		return false;
+
 	if (forceUnload)
 		unloadDll();
 

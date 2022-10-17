@@ -64,7 +64,8 @@ scriptUnlocker(this)
 
 	dllManager = new BackendDllManager(this);
 
-	refreshExpansionType();
+	if(getCurrentFileHandler().getRootFolder().isDirectory())
+		refreshExpansionType();
 
 	//getExpansionHandler().createAvailableExpansions();
 
