@@ -43,6 +43,8 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	threadIds[TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
 	threadIds[TargetThread::ScriptingThread] = mc->javascriptThreadPool->getThreadId();
 	threadIds[TargetThread::MessageThread] = nullptr;
+
+	setAudioExportThread(nullptr);
 }
 
 
@@ -490,7 +492,7 @@ bool MainController::KillStateHandler::killVoicesAndWait(int* timeoutMillisecond
 
 	int safeguard = 0;
 	int timeout = timeoutMilliseconds != nullptr ? *timeoutMilliseconds : 1000;
-	int numRetries = timeout / 20;
+	int numRetries = timeout / 20 + 10;
 
 	while (isAudioRunning() && safeguard < numRetries)
 	{
