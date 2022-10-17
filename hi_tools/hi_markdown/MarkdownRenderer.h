@@ -455,6 +455,13 @@ public:
 			parent.r.draw(g, b);
 		}
 
+		void mouseMove(const MouseEvent& e) override
+		{
+			auto l = parent.r.getLinkForMouseEvent(e, getLocalBounds().toFloat());
+
+			setMouseCursor(l.isValid() ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
+		}
+
         void mouseDown(const MouseEvent& e) override
         {
             if(e.mods.isLeftButtonDown())

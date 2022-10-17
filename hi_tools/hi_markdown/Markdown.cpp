@@ -261,6 +261,11 @@ Array<MarkdownLink> MarkdownParser::getImageLinks() const
 
 hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)
 {
+	if (!containsLinks)
+	{
+		return {};
+	}
+
 	float y = 0.0f;
 
 	for (auto* e : elements)

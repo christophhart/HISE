@@ -39,6 +39,8 @@ void MarkdownParser::parse()
 {
 	try
 	{
+		containsLinks = false;
+
 		if (it.getRestString().startsWith("---"))
 		{
 			parseMarkdownHeader();
@@ -384,6 +386,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					hyperLink.valid = true;
 
 					currentLinks.add(std::move(hyperLink));
+					containsLinks = true;
 				}
 				else
 				{

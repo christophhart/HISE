@@ -168,6 +168,26 @@ bool TextEditor::shouldSkipInactiveUpdate() const
 	return false;
 }
 
+void TextEditor::focusLost(FocusChangeType t)
+{
+	tokenCollection.setEnabled(false);
+
+	if (onFocusChange)
+		onFocusChange(false, t);
+
+	auto newFocus = Component::getCurrentlyFocusedComponent();
+
+
+	// Do not close the autocomplete when the user clicks on the help popup
+	if (newFocus != nullptr && newFocus->findParentComponentOfClass<SimpleMarkdownDisplay>() != nullptr)
+		return;
+
+	closeAutocomplete(true, {}, {});
+
+	caret.stopTimer();
+	caret.repaint();
+}
+
 void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
 	if (scrollBarRecursion)

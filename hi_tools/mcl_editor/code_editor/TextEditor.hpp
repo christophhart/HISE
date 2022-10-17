@@ -114,18 +114,7 @@ public:
 
 	bool shouldSkipInactiveUpdate() const;
 
-	void focusLost(FocusChangeType t) override
-	{
-		tokenCollection.setEnabled(false);
-
-		if (onFocusChange)
-			onFocusChange(false, t);
-
-        closeAutocomplete(true, {}, {});
-        
-		caret.stopTimer();
-		caret.repaint();
-	}
+	void focusLost(FocusChangeType t) override;
 
 	Font getFont() const { return document.getFont(); }
 

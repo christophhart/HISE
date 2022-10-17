@@ -457,6 +457,8 @@ public:
 		lastLink = {};
 	}
 
+	bool hasLinks() const { return containsLinks; }
+
 protected:
 
 	struct Element
@@ -593,6 +595,8 @@ protected:
 	String markdownCode;
 
 private:
+
+	bool containsLinks = false;
 
 	bool createFooter = false;
 
