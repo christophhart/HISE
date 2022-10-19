@@ -510,7 +510,7 @@ void* Operations::Function::compileFunction(FunctionCompileData& f, const Functi
 	ScopedPointer<asmjit::CodeHolder> ch = new asmjit::CodeHolder();
 	ch->setLogger(f.assemblyLogger);
 	ch->setErrorHandler(f.errorHandler);
-	ch->init(runtime->codeInfo());
+	ch->init(runtime->environment());
 
 	//code->setErrorHandler(this);
 

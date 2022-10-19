@@ -179,7 +179,7 @@ int Base::getRealLineLength(const String& s)
 
 String Base::toString() const
 {
-    DBG("Saved using templates: " + String(numSavedTemplates));
+    
     
 	switch (t)
 	{

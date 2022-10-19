@@ -410,14 +410,14 @@ void AssemblyRegister::createMemoryLocation(asmjit::X86Compiler& cc)
 			auto v = *reinterpret_cast<float*>(memoryLocation);
 			isZeroValue = v == 0.0f;
 			
-			memory = cc.newFloatConst(ConstPool::kScopeLocal, v);
+			memory = cc.newFloatConst(ConstPoolScope::kLocal, v);
 		}
 		if (getType() == Types::ID::Double)
 		{
 			auto v = *reinterpret_cast<double*>(memoryLocation);
 			isZeroValue = v == 0.0;
 
-			memory = cc.newDoubleConst(ConstPool::kScopeLocal, v);
+			memory = cc.newDoubleConst(ConstPoolScope::kLocal, v);
 		}
 		if (getType() == Types::ID::Integer)
 		{

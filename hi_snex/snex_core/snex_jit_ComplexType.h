@@ -43,6 +43,104 @@ struct SubTypeConstructData;
 struct FunctionData;
 struct InlineData;
 
+template <int BitLength> struct ConstDataBase
+{
+    static constexpr int NumU32 = BitLength / 32;
+    static constexpr int NumU64 = BitLength / 64;
+    
+    const void* getData() const { return reinterpret_cast<const void*>(values); }
+    
+    static auto fromU32(uint32_t value)
+    {
+        ConstDataBase<BitLength> l;
+        
+        for(int i = 0; i < NumU32; i++)
+        {
+            l.values[i] = value;
+        }
+        
+        return l;
+    }
+    
+    static auto fromF32(float value)
+    {
+        ConstDataBase<BitLength> l;
+        
+        auto ptr = reinterpret_cast<float*>(l.values);
+        
+        for(int i = 0; i < NumU32; i++)
+        {
+            ptr[i] = value;
+        }
+        
+        return l;
+    }
+    
+    static auto fromF32(float value1, float value2)
+    {
+        ConstDataBase<BitLength> l;
+        
+        auto ptr = reinterpret_cast<float*>(l.values);
+        
+        for(int i = 0; i < NumU32; i += 2)
+        {
+            ptr[i] = value1;
+            ptr[i+1] = value2;
+        }
+        
+        return l;
+    }
+    
+    static auto fromF64(double v1, double v2)
+    {
+        static_assert(BitLength == 128, "not possible on 64bit structs");
+        
+        ConstDataBase<BitLength> l;
+        
+        auto ptr = reinterpret_cast<double*>(l.values);
+        
+        ptr[0] = v1;
+        ptr[1] = v2;
+        
+        return l;
+    }
+    
+    static auto fromU64(uint64_t value)
+    {
+        ConstDataBase<BitLength> l;
+        
+        auto ptr = reinterpret_cast<uint64_t*>(l.values);
+        
+        for(int i = 0; i < NumU64; i++)
+        {
+            ptr[i] = value;
+        }
+        
+        return l;
+    }
+    
+    static auto fromU64(uint64_t value1, uint64_t value2)
+    {
+        ConstDataBase<BitLength> l;
+        
+        static_assert(BitLength == 128, "not possible on 64bit structs");
+        
+        auto ptr = reinterpret_cast<uint64_t*>(l.values);
+        
+        ptr[0] = value1;
+        ptr[1] = value2;
+        
+        return l;
+    }
+    
+    constexpr uint32 size()          { return BitLength / 8; };
+    
+    uint32_t values[NumU32];
+};
+
+using Data128 = ConstDataBase<128>;
+using Data64 = ConstDataBase<64>;
+
 struct ComplexType : public ReferenceCountedObject
 {
 	static int numInstances;

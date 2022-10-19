@@ -46,7 +46,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60103
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library             1
@@ -148,6 +148,10 @@
 
 #ifndef    HISE_INCLUDE_PITCH_DETECTION
  //#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+#ifndef    HISE_USE_EXTENDED_TEMPO_VALUES
+ //#define HISE_USE_EXTENDED_TEMPO_VALUES 0
 #endif
 
 //==============================================================================

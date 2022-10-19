@@ -543,29 +543,9 @@ public:
 
 	void runTest() override
 	{
+        runTestsWithOptimisation({});
+        return;
 		
-
-		return;
-		beginTest("Funky");
-		optimizations = OptimizationIds::getAllIds();
-        testIndexTypes();
-		runTestFiles("");
-		return;
-
-		optimizations = OptimizationIds::getAllIds();
-		testIndexTypes();
-		runTestFiles("mono_sample2");
-		//runTestFiles("");
-		
-		
-		return;
-
-		testSpanOperators();
-
-		optimizations = OptimizationIds::getDefaultIds();
-		
-
-		return;
 #if INCLUDE_SNEX_BIG_TESTSUITE
 		
 		optimizations = {};
@@ -2218,7 +2198,7 @@ private:
 		JitRuntime rt;
 		CodeHolder ch;
 
-		ok = ch.init(rt.codeInfo());
+        ok = ch.init(rt.environment());
 
 
 		X86Compiler cc(&ch);
@@ -2272,7 +2252,7 @@ private:
         JitRuntime rt;
         CodeHolder ch;
         
-        ok = ch.init(rt.codeInfo());
+        ok = ch.init(rt.environment());
         
         
         X86Compiler cc(&ch);

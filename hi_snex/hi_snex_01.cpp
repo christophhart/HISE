@@ -2,7 +2,10 @@
 
 #if HISE_INCLUDE_SNEX
 
+#if HISE_INCLUDE_SNEX_X64_CODEGEN
 #include "src/asmjit/asmjit.h"
+
+
 
 namespace asmjit
 {
@@ -16,6 +19,8 @@ using Runtime = JitRuntime;
 using FuncSignatureX = FuncSignatureBuilder;
 using CodeEmitter = x86::Emitter;
 }
+
+#endif
 
 using String = juce::String;
 

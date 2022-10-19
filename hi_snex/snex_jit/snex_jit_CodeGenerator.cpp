@@ -176,7 +176,7 @@ void AsmCodeGenerator::emitStore(RegPtr target, RegPtr value)
 				if (value->getImmediateValue(immValue))
 				{
 					auto d = Data128::fromF32(immValue);
-					auto mem = cc.newXmmConst(ConstPool::kScopeGlobal, d);
+					auto mem = cc.newConst(ConstPoolScope::kGlobal, d.getData(), d.size());
 
 					if (target->hasCustomMemoryLocation())
 					{
@@ -557,7 +557,7 @@ AsmCodeGenerator::RegPtr AsmCodeGenerator::emitBinaryOp(OpType op, RegPtr l, Reg
 
 				if (r->isMemoryLocation())
 				{
-					auto forcedMemory = cc.newInt32Const(ConstPool::kScopeLocal, static_cast<int>(INT_IMM(r)));
+					auto forcedMemory = cc.newInt32Const(ConstPoolScope::kLocal, static_cast<int>(INT_IMM(r)));
 					cc.idiv(dummy.get(), INT_REG_W(l), forcedMemory);
 				}
 				else
@@ -1099,7 +1099,7 @@ Result AsmCodeGenerator::emitStackInitialisation(RegPtr target, ComplexType::Ptr
 					uint64_t* s = reinterpret_cast<uint64_t*>(start);
 
 					auto d = Data128::fromU64(s[0], s[1]);
-					auto c = cc.newXmmConst(ConstPool::kScopeLocal, d);
+					auto c = cc.newConst(ConstPoolScope::kLocal, d.getData(), d.size());
 					cc.movaps(tmpSSE, c);
 				}
 				
@@ -1362,7 +1362,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 			if (IS_REG(expr))    cc.cvtsi2sd(FP_REG_W(target), INT_REG_R(expr));
 			else if (IS_IMM(expr))
 			{
-				auto m = cc.newDoubleConst(ConstPool::kScopeLocal, static_cast<double>(INT_IMM(expr)));
+				auto m = cc.newDoubleConst(ConstPoolScope::kLocal, static_cast<double>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
 			else if (IS_CMEM(expr) || IS_MEM(expr))   
@@ -1387,7 +1387,7 @@ void AsmCodeGenerator::emitCast(RegPtr target, RegPtr expr, Types::ID sourceType
 			if     (IS_REG(expr))    cc.cvtsi2ss(FP_REG_W(target), INT_REG_R(expr));
 			else if (IS_IMM(expr))
 			{
-				auto m = cc.newFloatConst(ConstPool::kScopeLocal, static_cast<float>(INT_IMM(expr)));
+				auto m = cc.newFloatConst(ConstPoolScope::kLocal, static_cast<float>(INT_IMM(expr)));
 				target->setCustomMemoryLocation(m, false);
 			}
 		    else if(IS_CMEM(expr) || IS_MEM(expr))   cc.cvtsi2ss(FP_REG_W(target), INT_MEM(expr));
@@ -1407,9 +1407,9 @@ void AsmCodeGenerator::emitNegation(RegPtr target, RegPtr expr)
 	IF_(int)
 		cc.neg(INT_REG_W(target));
 	IF_(float)
-		cc.mulss(FP_REG_W(target), cc.newFloatConst(ConstPool::kScopeLocal, -1.0f));
+		cc.mulss(FP_REG_W(target), cc.newFloatConst(ConstPoolScope::kLocal, -1.0f));
 	IF_(float)
-		cc.mulsd(FP_REG_W(target), cc.newDoubleConst(ConstPool::kScopeLocal, -1.0));
+		cc.mulsd(FP_REG_W(target), cc.newDoubleConst(ConstPoolScope::kLocal, -1.0));
 }
 
 
@@ -1486,7 +1486,9 @@ Result AsmCodeGenerator::emitFunctionCall(RegPtr returnReg, const FunctionData& 
 		pr->loadMemoryIntoRegister(cc);
 	}
 
-	FuncCallNode* call = cc.call((uint64_t)f.function, sig);
+    InvokeNode* call;
+    
+	auto error = cc.invoke(&call, (uint64_t)f.function, sig);
 
 	//call->setInlineComment(f.functionName.getCharPointer().getAddress());
 
@@ -1573,12 +1575,12 @@ Result AsmCodeGenerator::emitSimpleToComplexTypeCopy(RegPtr target, InitialiserL
 		IF_(int) cc.mov(INT_REG_W(target), v.toInt());
 		IF_(float)
 		{
-			auto c = cc.newFloatConst(asmjit::ConstPool::kScopeLocal, v.toFloat());
+			auto c = cc.newFloatConst(asmjit::ConstPoolScope::kLocal, v.toFloat());
 			cc.movss(FP_REG_W(target), c);
 		}
 		IF_(double)
 		{
-			auto c = cc.newFloatConst(asmjit::ConstPool::kScopeLocal, v.toDouble());
+			auto c = cc.newFloatConst(asmjit::ConstPoolScope::kLocal, v.toDouble());
 			cc.movsd(FP_REG_W(target), c);
 		}
 		
