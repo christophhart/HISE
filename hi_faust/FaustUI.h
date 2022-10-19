@@ -104,6 +104,13 @@ struct faust_ui : public ::faust::UI {
             *static_cast<Parameter*>(obj)->zone = (float)newValue;
         }
         
+        /** Skip parameter creation for those, as they are used as draggable modulation source. */
+        bool isModParameter() const
+        {
+            return type == ControlType::HORIZONTAL_BARGRAPH ||
+                   type == ControlType::VERTICAL_BARGRAPH;
+        }
+        
 		parameter::data toParameterData() const {
 			switch (type) {
 			case faust_ui::ControlType::VERTICAL_SLIDER:
@@ -398,10 +405,11 @@ struct faust_ui : public ::faust::UI {
 		addHardcodedMidiZone(label, zone);
 
         // only a single mod value output is supported
-        jassert(modZone != nullptr);
+        jassert(modZone == nullptr || modZone == zone);
         
         modZone = zone;
         
+        /*
 		parameters.push_back(std::make_shared<Parameter>(ControlType::HORIZONTAL_BARGRAPH,
 														 String(label),
 														 zone,
@@ -409,16 +417,18 @@ struct faust_ui : public ::faust::UI {
 														 min,
 														 max,
 														 1.f));
+         */
 	}
 	virtual void addVerticalBargraph(const char* label, float* zone, float min, float max) override
 	{
 		addHardcodedMidiZone(label, zone);
 
         // only a single mod value output is supported
-        jassert(modZone != nullptr);
+        jassert(modZone == nullptr || modZone == zone);
         
         modZone = zone;
         
+        /*
 		parameters.push_back(std::make_shared<Parameter>(ControlType::VERTICAL_BARGRAPH,
 														 String(label),
 														 zone,
@@ -426,6 +436,7 @@ struct faust_ui : public ::faust::UI {
 														 min,
 														 max,
 														 1.f));
+        */
 	}
 
 	// -- soundfiles -- TODO

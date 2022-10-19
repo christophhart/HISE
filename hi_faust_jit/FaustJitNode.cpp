@@ -448,7 +448,7 @@ void faust_jit_node::updateClassId(Identifier, var newValue)
 
 StringArray faust_jit_node::getAvailableClassIds()
 {
-	return getRootNetwork()->codeManager.getClassList(getTypeId());
+	return getRootNetwork()->codeManager.getClassList(getTypeId(), "*.dsp");
 }
 
 

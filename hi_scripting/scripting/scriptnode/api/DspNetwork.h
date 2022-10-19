@@ -612,7 +612,7 @@ public:
 			return {};
 		}
 		
-		StringArray getClassList(const Identifier& id)
+		StringArray getClassList(const Identifier& id, const String& fileExtension = "*.h")
 		{
 			auto f = getCodeFolder();
 
@@ -621,7 +621,7 @@ public:
 
 			StringArray sa;
 
-			for (auto& l : f.findChildFiles(File::findFiles, true, "*.h"))
+			for (auto& l : f.findChildFiles(File::findFiles, true, fileExtension))
 			{
 				sa.add(l.getFileNameWithoutExtension());
 			}
