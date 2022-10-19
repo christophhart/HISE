@@ -238,7 +238,7 @@ void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Con
 	{
 		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::ScriptLock);
 
-		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 		thisAsJavascriptProcessor->breakpointWasHit(-1);
@@ -271,7 +271,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 	{
 		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::ScriptLock);
 
-		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 		thisAsJavascriptProcessor->breakpointWasHit(-1);

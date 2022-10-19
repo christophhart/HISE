@@ -3525,7 +3525,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 
 	if (!engine->isInitialising())
 	{
-		engine->maximumExecutionTime = RelativeTime(0.2);
+		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 	}
 
 	engine->callExternalFunction(paintRoutine, args, &r);
@@ -3975,7 +3975,7 @@ bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * 
 		var thisObject(this);
 		var::NativeFunctionArgs args(thisObject, nullptr, 0);
 
-		engine->maximumExecutionTime = RelativeTime(0.5);
+		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 		engine->callExternalFunction(timerRoutine, args, &r);
 
 		if (r.failed())

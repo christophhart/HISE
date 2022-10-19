@@ -203,6 +203,11 @@ public:
 
 	void abortEverything();
 
+	static RelativeTime getDefaultTimeOut()
+	{
+		return  RelativeTime(5.0);
+	}
+
 	void extendTimeout(int milliSeconds);
 
 	/** Registers a callback to the engine.
