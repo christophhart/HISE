@@ -862,6 +862,7 @@ private:
 class FloatingTileDocumentWindow : public DocumentWindow,
 								   public ComponentWithBackendConnection,
 								   public TopLevelWindowWithOptionalOpenGL,
+                                   public TopLevelWindowWithKeyMappings,
 							       public ModalBaseWindow
 {
 public:
@@ -888,6 +889,14 @@ public:
 	virtual const MainController* getMainControllerToUse() const;
 	virtual MainController* getMainControllerToUse();
 
+    void initialiseAllKeyPresses() override;
+    
+    
+    File getKeyPressSettingFile() const override
+    {
+        return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+    }
+    
 private:
 
 	BackendRootWindow* parent;

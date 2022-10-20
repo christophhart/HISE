@@ -645,12 +645,12 @@ protected:
 
 	virtual File getKeyPressSettingFile() const = 0;
 
-	
+    bool saved = false;
 
 private:
 
 	bool initialised = false;
-	bool saved = false;
+	
 	bool loaded = false;
 
 	static TopLevelWindowWithKeyMappings* getFromComponent(Component* c)
