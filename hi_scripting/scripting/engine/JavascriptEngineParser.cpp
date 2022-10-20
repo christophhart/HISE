@@ -835,8 +835,8 @@ private:
 			ns->varRegister.addRegister(name, var::undefined());
             ns->registerLocations.add(preparser->createDebugLocation());
 
-			ns->comments.set(name, lastComment);
-			clearLastComment();
+			ns->comments.set(name, preparser->lastComment);
+			preparser->clearLastComment();
 
 			if (ns->registerLocations.size() != ns->varRegister.getNumUsedRegisters())
 			{
