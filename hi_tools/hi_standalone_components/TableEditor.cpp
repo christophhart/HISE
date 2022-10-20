@@ -113,7 +113,7 @@ int TableEditor::snapXValueToGrid(int x) const
 
 void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)
 {
-	return;
+#if HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE
 
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
@@ -158,6 +158,7 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
+#endif
 };
 
 

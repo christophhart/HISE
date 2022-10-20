@@ -107,6 +107,11 @@ will break compatibility with older projects / presets because the tempo indexes
 #define HISE_USE_EXTENDED_TEMPO_VALUES 0
 #endif
 
+/** Reenables using the mouse wheel to control the table curve if set to 1. */
+#ifndef HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE
+#define HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE 0
+#endif
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 
