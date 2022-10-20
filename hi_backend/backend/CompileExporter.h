@@ -279,6 +279,8 @@ protected:
 
 	struct ProjectTemplateHelpers
 	{
+		static void handleCompilerWarnings(String& templateProject);
+
 		static void handleCompilerInfo(CompileExporter* exporter, String& templateProject);
 		static void handleCompanyInfo(CompileExporter* exporter, String& templateProject);
 		static void handleVisualStudioVersion(const HiseSettings::Data& dataObject, String& templateProject);

@@ -1,10 +1,16 @@
 
-// Don't bother fixing warnings for Snex before HISE 3.0
-#pragma clang diagnostic ignored "-Weverything"
+#define ASMJIT_STATIC 1
+#define ASMJIT_EMBED 1
 
 #include "hi_snex.h"
 
+#if JUCE_MAC
+#pragma clang diagnostic ignored "-Weverything"
+#endif
+
 #if HISE_INCLUDE_SNEX
+
+
 
 #include "src/asmjit/asmjit.h"
 

@@ -501,10 +501,6 @@ public:
     
 };
 
-#if JUCE_MSVC
-#pragma warning (push)
-#pragma warning (disable: 4100)
-#endif
 
 
 /** This is a dummy class that contains the array functions. */
@@ -569,10 +565,6 @@ public:
 	/** Removes and returns the last element. */
 	var pop() { return var(); }
 };
-
-#if JUCE_MSVC
-#pragma warning (pop)
-#endif
 
 
 //==============================================================================
@@ -759,10 +751,6 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 
 #define Array Array<var>
 
-#if JUCE_MSVC
-#pragma warning (push)
-#pragma warning (disable: 4100)
-#endif
 
 /** Doxy functions for String operations. */
 class DoxygenStringFunctions
@@ -818,9 +806,6 @@ public:
 	String decrypt(var key) { return String(); }
 };
 
-#if JUCE_MSVC
-#pragma warning (pop)
-#endif
 
 
 #undef Array

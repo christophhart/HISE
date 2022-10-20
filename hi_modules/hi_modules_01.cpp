@@ -4,7 +4,7 @@
 
 #if JUCE_MSVC
 #pragma warning (push)
-#pragma warning (disable: 4127 4706 4100)
+#pragma warning (disable: 4127 4706)
 #endif
 
 #include "synthesisers/synths/PolyBlep.cpp"

@@ -1,8 +1,9 @@
-#pragma clang diagnostic ignored "-Weverything"
 
+#if !(defined (_WIN32) || defined (_WIN64))
+#pragma clang diagnostic ignored "-Weverything"
+#endif
 
 #include "hi_zstd.h"
-
 
 // Contains compression files
 
@@ -19,3 +20,7 @@
 
 #include "zstd/decompress/huf_decompress.c"
 #include "zstd/decompress/zstd_decompress.c"
+
+#if !(defined (_WIN32) || defined (_WIN64))
+#pragma warning( pop ) 
+#endif

@@ -106,10 +106,6 @@ SampleComponent::SampleComponent(ModulatorSamplerSound *s, SamplerSoundMap *pare
 		enabled = false;
 };
 
-#pragma warning( push )
-#pragma warning( disable: 4100 )
-
-#pragma warning( pop )
 
 
 SamplerTools::Mode SampleComponent::getModeForSample() const

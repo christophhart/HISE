@@ -1,8 +1,15 @@
+#define ASMJIT_STATIC 1
+#define ASMJIT_EMBED 1
+
 #include "hi_snex.h"
 
 #if HISE_INCLUDE_SNEX
 
 #if HISE_INCLUDE_SNEX_X64_CODEGEN
+
+
+
+
 #include "src/asmjit/asmjit.h"
 
 

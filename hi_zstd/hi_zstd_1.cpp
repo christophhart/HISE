@@ -1,4 +1,6 @@
+#if !(defined (_WIN32) || defined (_WIN64))
 #pragma clang diagnostic ignored "-Weverything"
+#endif
 
 #include "hi_zstd.h"
 
@@ -18,3 +20,7 @@
 #include "zstd/common/threading.c"
 #include "zstd/common/xxhash.c"
 #include "zstd/common/zstd_common.c"
+
+#if !(defined (_WIN32) || defined (_WIN64))
+#pragma warning( pop ) 
+#endif

@@ -106,15 +106,13 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-#pragma warning( push )
-#pragma warning( disable: 4100 )
 
 	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
 	{
 		
 	};
 
-#pragma warning( pop )
+
 
 	void updateGui() override
 	{
