@@ -719,7 +719,7 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 			return var();
 		};
 
-		auto rid = constObjects.getName(i);
+		auto rid = varRegister.getRegisterId(i);
 
 		debugInformation.add(new LambdaValueInformation(vf, rid, Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i], comments[rid].toString()));
 	}
