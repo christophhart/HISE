@@ -269,6 +269,8 @@ void DspNetwork::createAllNodesOnce()
 		if (isProjectFactory)
 			continue;
 
+		getScriptProcessor()->getMainController_()->setAllowFlakyThreading(true);
+
 		for (auto id : f->getModuleList())
 		{
 			ScopedPointer<NodeBase::Holder> s = new NodeBase::Holder();
@@ -280,6 +282,8 @@ void DspNetwork::createAllNodesOnce()
 
 			s = nullptr;
 		}
+
+		getScriptProcessor()->getMainController_()->setAllowFlakyThreading(false);
 	}
 
 #if USE_BACKEND
