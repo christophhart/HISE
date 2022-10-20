@@ -38,7 +38,7 @@ using namespace juce;
 using namespace hise;
 
 // We'll define it here once so that it can be used in the initialise() callback
-struct NodeBase;
+class NodeBase;
 
 /** Parameter Preprocessors
 
@@ -87,7 +87,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define OPTIONAL_BOOL_CLASS_FUNCTION(functionName) bool functionName() const { \
 		if constexpr (prototypes::check::functionName<WrappedObjectType>::value) \
 			return getWrappedObject().functionName(); \
-		return false; };
+		else return false; };
 
 
 /** Callback macros.
@@ -100,7 +100,7 @@ constexpr const auto& getWrappedObject() const { return x; }
 #define SN_DEFAULT_MOD(ObjectType) bool handleModulation(double& v) { \
 	if constexpr(prototypes::check::handleModulation<ObjectType>::value) \
 		return obj.handleModulation(v); \
-	return false; }
+	else return false; }
 
 
 #define SN_DEFAULT_INIT(ObjectType)  void initialise(NodeBase* n)  { \

@@ -158,13 +158,13 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 	{
 		for (auto& obj : this->objects)
 		{
-			if (P == 0)
+			if constexpr (P == 0)
 				obj.setThreshold(v);
-			if (P == 1)
+			if constexpr (P == 1)
 				obj.setRatio(jmax(1.0, v));
-			if (P == 2)
+			if constexpr (P == 2)
 				obj.setAttack(v);
-			if (P == 3)
+			if constexpr (P == 3)
 				obj.setRelease(v);
 		}
 	}
@@ -344,14 +344,14 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 
 		for (auto& obj : objects)
 		{
-			if (P == 0)
+			if constexpr (P == 0)
 			{
 				if (sr != 0.0)
 					obj.setMaxDelaySamples(sampleValue);
 				else
 					maxSize = v;
 			}
-			if (P == 1)
+			if constexpr (P == 1)
 				obj.setDelay(sampleValue);
 		}
 	}

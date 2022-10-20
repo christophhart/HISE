@@ -125,7 +125,7 @@ juce::Result SpanType::callDestructor(InitData& d)
 					auto outer = d.functionTree->toSyntaxTreeData();
 					jassert(outer != nullptr);
 					inner = new SyntaxTreeInlineData(*outer);
-					inner->object = new Operations::MemoryReference(outer->location, outer->object, elementType, offset);
+					inner->object = new Operations::MemoryReference(outer->location, outer->object, elementType, (int)offset);
 				}
 
 				auto r = typePtr->callDestructor(sd);
@@ -206,15 +206,10 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 			if (!d->gen.canVectorize())
 				return Result::fail("Vectorization is deactivated");
 
-			auto& cc = d->gen.cc;
-
 			if (d->object->isMemoryLocation())
 				d->target->setCustomMemoryLocation(d->object->getAsMemoryLocation(), d->object->isGlobalMemory());
 			else
-			{
 				d->target->setCustomMemoryLocation(x86::qword_ptr(PTR_REG_R(d->object)), d->object->isGlobalMemory());
-			}
-				
 
 			return Result::ok();
 		});
@@ -370,7 +365,7 @@ juce::Result SpanType::initialise(InitData d)
 
 			if (d.asmPtr != nullptr)
 			{
-				cm = d.asmPtr->cloneWithOffset(offset);
+				cm = d.asmPtr->cloneWithOffset((int)offset);
 				c.asmPtr = &cm;
 			}
 			
@@ -411,11 +406,11 @@ juce::Result SpanType::initialise(InitData d)
 					return Result::fail(e);
 				}
 
-				ComplexType::writeNativeMemberType(d.dataPointer, getElementSize() * i, valueToUse);
+				ComplexType::writeNativeMemberType(d.dataPointer, (int)getElementSize() * i, valueToUse);
 			}
 			else
 			{
-				ComplexType::writeNativeMemberTypeToAsmStack(d, indexToUse, getElementSize() * i, getElementSize());
+				ComplexType::writeNativeMemberTypeToAsmStack(d, indexToUse, (int)getElementSize() * i, (int)getElementSize());
 			}
 			
 		}
@@ -442,10 +437,10 @@ size_t SpanType::getElementSize() const
 
 			if (childSize % alignment != 0)
 			{
-				elementPadding = alignment - childSize % alignment;
+				elementPadding = alignment - (size_t)childSize % alignment;
 			}
 
-			childSize += elementPadding;
+			childSize += (int)elementPadding;
 		}
 
 		return childSize;
@@ -666,7 +661,6 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			auto limitReg = cc.newGpd();
 			auto error = cc.newLabel();
 			auto ok = cc.newLabel();
-			bool isSizeError = false;
 			auto sourceSizePtr = dynSourcePtr.cloneAdjustedAndResized(4, 4);
 			auto destSizePtr = ptr.cloneAdjustedAndResized(4, 4);
 
@@ -740,10 +734,13 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			return Result::ok();
 		}
-#endif
+
 		juce::String s;
 		s << "Can't assign" << valueType.toString() << " to " << thisObj->getTypeInfo().toString();
 		return Result::fail(s);
+
+#endif
+		
 	}, {});
 
 	dynOperators->addFunction(assignFunction);
@@ -793,7 +790,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			auto& cc = d->gen.cc;
 
-			auto mem = cc.newStack(getRequiredByteSize(), getRequiredAlignment());
+			auto mem = cc.newStack((uint32_t)getRequiredByteSize(), (uint32_t)getRequiredAlignment());
 
 			auto dataReg = cc.newGpq();
 			auto sizeReg = cc.newGpd();
@@ -998,18 +995,13 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				
 				cc.lea(memReg, target->getMemoryLocationForReference());
 
-				target->setCustomMemoryLocation(x86::ptr(memReg).cloneResized(t.getRequiredByteSize()), target->isGlobalMemory());
+				target->setCustomMemoryLocation(x86::ptr(memReg).cloneResized((uint32_t)t.getRequiredByteSize()), target->isGlobalMemory());
 				
 				cc.jmp(endLabel);
 				cc.bind(errorBranch);
-				auto nirvana = cc.newStack(t.getRequiredByteSize(), t.getRequiredAlignment());
-				
-				
-				
+				auto nirvana = cc.newStack((uint32_t)t.getRequiredByteSize(), (uint32_t)t.getRequiredAlignment());
 				
 				cc.lea(memReg, nirvana);
-
-				
 
 #if 0
 				auto type = d->target->getType();
@@ -1054,8 +1046,7 @@ juce::Result DynType::initialise(InitData d)
 		d.initValues->getValue(0, ptr);
 
 		jassert(ptr.getType() == Types::ID::Pointer);
-		auto data = ptr.getDataPointer();
-
+		
 		VariableStorage s;
 		d.initValues->getValue(1, s);
 
@@ -1226,7 +1217,7 @@ juce::Result StructType::initialise(InitData d)
 					c.dataPointer = getMemberPointer(m, d.dataPointer);
 				else
 				{
-					cm = d.asmPtr->cloneWithOffset(m->offset + m->padding);
+					cm = d.asmPtr->cloneWithOffset((int)(m->offset + m->padding));
 					c.asmPtr = &cm;
 				}
 
@@ -1259,7 +1250,7 @@ juce::Result StructType::initialise(InitData d)
 					auto offset = m->offset + m->padding;
 					auto size = m->typeInfo.getRequiredByteSize();
 
-					ComplexType::writeNativeMemberTypeToAsmStack(d, index, offset, size);
+					ComplexType::writeNativeMemberTypeToAsmStack(d, index, (int)offset, (int)size);
 				}
 			}
 		}
@@ -1300,7 +1291,6 @@ bool StructType::forEach(const TypeFunction& t, ComplexType::Ptr typePtr, void* 
 
 void StructType::dumpTable(juce::String& s, int& intendLevel, void* dataStart, void* complexTypeStartPointer) const
 {
-	size_t offset = 0;
 	intendLevel++;
 
 	if (customDumpFunction)
@@ -1657,7 +1647,7 @@ juce::Result StructType::callDestructor(InitData& d)
 					jassert(d.functionTree != nullptr);
 					auto outer = d.functionTree->toSyntaxTreeData();
 					inner = new SyntaxTreeInlineData(*d.functionTree->toSyntaxTreeData());
-					inner->expression = new Operations::MemoryReference(outer->location, outer->expression, memberData[i]->typeInfo, offset);
+					inner->expression = new Operations::MemoryReference(outer->location, outer->expression, memberData[i]->typeInfo, (int)offset);
 				}
 
 				sd.functionTree = inner.get();
@@ -1826,7 +1816,7 @@ void StructType::finaliseAlignment()
 				auto f = sfc->getSpecialFunction(FunctionClass::Constructor);
 
 				auto call = new FunctionCall(d->location, nullptr, Symbol(f.id, TypeInfo(Types::ID::Void)), f.templateParameters);
-				call->setObjectExpression(new MemoryReference(d->location, parent, TypeInfo(sc.childType.get()), sc.offset));
+				call->setObjectExpression(new MemoryReference(d->location, parent, TypeInfo(sc.childType.get()), (int)sc.offset));
 
 				
 

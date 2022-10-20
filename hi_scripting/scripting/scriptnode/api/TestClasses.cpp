@@ -737,7 +737,7 @@ String Buffer2Ascii::printBufferSlice(VariantBuffer::Ptr b, int i, int numSample
 	auto absStart = hmath::abs(magRange.getStart());
 	auto absEnd = hmath::abs(magRange.getEnd());
 
-	float mag;
+	float mag = 0.0f;
 
 	if (absStart > absEnd)
 		mag = magRange.getStart();

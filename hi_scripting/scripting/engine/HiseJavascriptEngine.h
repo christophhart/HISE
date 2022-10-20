@@ -803,22 +803,18 @@ public:
 
 			void cleanLocalProperties()
 			{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-				return;
-#endif
-
+// Only clear the local properties when the breakpoints are disabled
+// to allow the inspection of local variables
+#if !ENABLE_SCRIPTING_BREAKPOINTS
 				if (!localProperties.isEmpty())
 				{
 					for (int i = 0; i < localProperties.size(); i++)
-					{
 						*localProperties.getVarPointerAt(i) = var();
-					}
 				}
 
 				for (int i = 0; i < numArgs; i++)
-				{
 					parameterValues[i] = var();
-				}
+#endif
 			}
 
 			Identifier parameters[4];

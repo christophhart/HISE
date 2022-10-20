@@ -183,7 +183,6 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		{
 			jassertfalse;
 			break;
-			return existingComponentToUpdate;
 		}
 		}
 

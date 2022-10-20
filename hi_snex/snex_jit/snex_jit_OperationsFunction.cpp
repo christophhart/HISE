@@ -537,26 +537,13 @@ void* Operations::Function::compileFunction(FunctionCompileData& f, const Functi
 
 	f.cc = nullptr;
 
-	asmjit::ErrorCode ok = (asmjit::ErrorCode)runtime->add(&f.data.function, ch);
+	(asmjit::ErrorCode)runtime->add(&f.data.function, ch);
 
 	jassert(f.data.function != nullptr);
 
 	auto& as = dynamic_cast<ClassCompiler*>(f.compiler)->assembly;
 
 	juce::String fName = f.data.getSignature();
-
-#if 0
-	if (auto cs = findParentStatementOfType<ClassStatement>(this))
-	{
-		if (auto st = cs->getStructType())
-		{
-			auto name = st->id.toString();
-			auto templated = st->toString();
-
-			fName = fName.replace(name, templated);
-		}
-	}
-#endif
 
 	as << "; function " << fName << "\n";
 	as << f.assemblyLogger->data();
@@ -580,14 +567,14 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 	auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
 
 	AsmCodeGenerator::fillSignature(f.data, sig, objectType);
-	f.cc->addFunc(sig);
+	auto funcNode = f.cc->addFunc(sig);
 
 	if (hasObjectPtr)
 	{
 		auto rType = compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get()));
 		objectPtr = compiler->registerPool.getNextFreeRegister(f.functionScopeToUse, TypeInfo(rType, true));
 		auto asg = CREATE_ASM_COMPILER(rType);
-		asg.emitParameter(this, objectPtr, -1);
+		asg.emitParameter(this, funcNode, objectPtr, -1);
 	}
 
 	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile.get());
@@ -606,14 +593,14 @@ void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f
 
 	FuncSignatureX sig;
 	AsmCodeGenerator::fillSignature(f.data, sig, Types::ID::Pointer);
-	f.cc->addFunc(sig);
+	auto funcNode = f.cc->addFunc(sig);
 
 	auto rType = compiler->getRegisterType(TypeInfo(st));
 	auto objectPtr = compiler->registerPool.getNextFreeRegister(f.scope, TypeInfo(st));
 
 	auto acg = CREATE_ASM_COMPILER(rType);
 
-	acg.emitParameter(f.data, objectPtr, -1, true);
+	acg.emitParameter(f.data, funcNode, objectPtr, -1, true);
 
 	AssemblyRegister::List parameters;
 
@@ -622,7 +609,7 @@ void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f
 	for (auto a : f.data.args)
 	{
 		auto pReg = compiler->registerPool.getNextFreeRegister(f.scope, a.typeInfo);
-		acg.emitParameter(f.data, pReg, i++, true);
+		acg.emitParameter(f.data, funcNode, pReg, i++, true);
 	}
 
 	AssemblyRegister::Ptr returnReg;
@@ -990,7 +977,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 					if (size % 16 == 0 && size > 0)
 						alignment = 16;
 
-					auto objCopy = asg.cc.newStack(size, alignment);
+					auto objCopy = asg.cc.newStack((uint32_t)size, (uint32_t)alignment);
 					auto pReg = compiler->getRegFromPool(scope, TypeInfo(Types::ID::Pointer, true));
 					pReg->setCustomMemoryLocation(objCopy, false);
 					parameterRegs.add(pReg);

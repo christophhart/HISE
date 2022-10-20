@@ -383,10 +383,12 @@ struct TestRunWindow : public hise::DialogWindowWithBackgroundThread,
 	WorkbenchData::Ptr data;
 };
 
-struct DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread,
+class DspNetworkCompileExporter : public hise::DialogWindowWithBackgroundThread,
 	public ControlledObject,
 	public CompileExporter
 {
+public:
+
 	enum class DspNetworkErrorCodes
 	{
 		OK,

@@ -38,7 +38,7 @@ using namespace juce;
 using namespace hise;
 using namespace snex::Types;
 
-struct NodeBase;
+class NodeBase;
 
 class ParameterHolder
 {

@@ -422,7 +422,7 @@ BlockParser::StatementPtr ClassParser::parseSubclass(NamespaceHandler::Visibilit
 	{
 		while (!isEOF() && currentType != JitTokens::openBrace)
 		{
-			auto v = parseVisibility();
+			parseVisibility();
 
 			SymbolParser sp(*this, compiler->namespaceHandler);
 

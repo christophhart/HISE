@@ -37,13 +37,14 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-static int counter = 0;
+// Just for debugging purposes...
+static int reg_counter = 0;
 
 AssemblyRegister::AssemblyRegister(BaseCompiler* compiler_, TypeInfo type_) :
 	type(type_),
 	compiler(compiler_)
 {
-	debugId = counter++;
+	debugId = reg_counter++;
 }
 
 bool AssemblyRegister::matchesMemoryLocation(Ptr other) const

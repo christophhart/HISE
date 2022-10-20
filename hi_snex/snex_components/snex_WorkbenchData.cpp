@@ -692,7 +692,7 @@ Result ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 					numThisTime -= numBeforeParam;
 				}
 
-				if (thisParameterIndex != -1 & p.timeStamp != 0)
+				if (thisParameterIndex != -1 && p.timeStamp != 0)
 					tester->processTestParameterEvent(p.parameterIndex, p.valueToUse);
 
 				auto numBeforeEvent = e.getTimeStamp() - samplePos;

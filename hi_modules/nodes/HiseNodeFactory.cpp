@@ -1163,7 +1163,7 @@ struct SpecNode: public NodeBase
 			ScriptnodeExceptionHandler::validateMidiProcessingContext(this);
 			processMidi = true;
 		}
-		catch (scriptnode::Error& e)
+		catch (scriptnode::Error& )
 		{
 			processMidi = false;
 		}

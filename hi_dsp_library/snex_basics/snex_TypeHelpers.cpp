@@ -195,9 +195,6 @@ size_t Types::Helpers::getSizeForType(ID type)
 	case Types::ID::Pointer: return sizeof(int*);
     default: return 0;
 	}
-
-	jassertfalse;
-	return 0;
 }
 
 bool Types::Helpers::matchesTypeLoose(ID expected, ID actual)

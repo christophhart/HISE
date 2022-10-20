@@ -38,8 +38,10 @@ using namespace juce;
 
 
 
-struct NamespaceHandler: public ReferenceCountedObject
+class NamespaceHandler: public ReferenceCountedObject
 {
+public:
+
 	enum class Visibility
 	{
 		Public = 0,

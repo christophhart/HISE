@@ -214,14 +214,6 @@ private:
 		Range<int> getLineRange() const
 		{
 			return lineRange;
-
-			ParserHelpers::CodeLocation s(originalLocation, program);
-			ParserHelpers::CodeLocation e(originalLocation + length, program);
-
-			auto sLine = s.getLine();
-			auto eLine = jmax(sLine + 1, e.getLine());
-
-			return { sLine, eLine };
 		}
 
 		DEBUG_ONLY(std::string debugString);

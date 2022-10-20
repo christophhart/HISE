@@ -1096,7 +1096,7 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 
 	if (auto n = parent)
 	{
-		while ((n = n->getParentNode()))
+		while ((n = n->getParentNode()) != nullptr)
 		{
 			for (auto m : NodeBase::ParameterIterator(*n))
 			{

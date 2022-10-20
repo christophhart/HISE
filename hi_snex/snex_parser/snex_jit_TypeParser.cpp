@@ -78,8 +78,6 @@ juce::Array<snex::jit::TemplateParameter> TypeParser::parseTemplateParameters()
 
 	match(JitTokens::lessThan);
 
-	bool parseNextParameter = true;
-
 	while (currentType != JitTokens::greaterThan && !isEOF())
 	{
 		TypeParser tp(*this, namespaceHandler, {});
@@ -354,7 +352,7 @@ snex::jit::TypeInfo ExpressionTypeParser::parseType()
 		auto ct = nh.getVariableType(currentId);
 		return parseDot(ct);
 	}
-	catch (ParserHelpers::Error& e)
+	catch (ParserHelpers::Error& )
 	{
 		return TypeInfo();
 	}

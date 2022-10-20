@@ -550,7 +550,7 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
             
             initialised = true;
 		}
-		catch (String& errorMessage)
+		catch (String& )
 		{
 			jassertfalse;
 		}
@@ -1589,7 +1589,6 @@ void DeprecationChecker::throwIf(DeprecationId id)
 
 bool DeprecationChecker::check(DeprecationId id)
 {
-	
 	switch (id)
 	{
 	case DeprecationId::OpTypeNonSet:
@@ -1598,8 +1597,6 @@ bool DeprecationChecker::check(DeprecationId id)
 		return !v.hasProperty("Converter") || v["Converter"] == var("Identity");
     default: return false;
 	}
-
-	return false;
 }
 
 DspNetwork::AnonymousNodeCloner::AnonymousNodeCloner(DspNetwork& p, NodeBase::Holder* other):

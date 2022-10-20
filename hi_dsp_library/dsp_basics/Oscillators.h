@@ -77,6 +77,8 @@ private:
 
 struct OscData
 {
+	OscData() = default;
+
 	void reset()
 	{
 		uptime = 0.0;

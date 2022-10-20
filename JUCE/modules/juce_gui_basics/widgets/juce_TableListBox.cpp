@@ -255,6 +255,7 @@ public:
         {
 			return {};
 
+#if 0
             if (auto* m = rowComponent.owner.getModel())
                 if (rowComponent.row >= m->getNumRows())
                     return AccessibleState().withIgnored();
@@ -270,6 +271,7 @@ public:
                 return state.withSelected();
 
             return state;
+#endif
         }
 
         class RowComponentCellInterface  : public AccessibilityCellInterface

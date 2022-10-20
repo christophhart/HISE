@@ -473,7 +473,7 @@ struct FaustGraphViewer : public Component,
 
 	void setCurrentlyViewedContent(Map* m)
 	{
-		if (currentlyViewedContent = m)
+		if ((currentlyViewedContent = m) != nullptr)
 		{
             for (auto br : breadcrumbs)
 			{

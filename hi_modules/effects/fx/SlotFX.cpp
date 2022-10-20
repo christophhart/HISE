@@ -254,8 +254,10 @@ void SlotFX::createList()
 }
 
 #if USE_BACKEND
-struct HardcodedMasterEditor : public ProcessorEditorBody
+class HardcodedMasterEditor : public ProcessorEditorBody
 {
+public:
+
 	static constexpr int Margin = 10;
 
 	HardcodedMasterEditor(ProcessorEditor* pe) :

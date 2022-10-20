@@ -365,19 +365,6 @@ juce::File BackendProcessor::getDatabaseRootDirectory() const
 hise::BackendProcessor* BackendProcessor::getDocProcessor()
 {
     return this;
-    
-	if (isFlakyThreadingAllowed())
-		return this;
-
-	if (docProcessor == nullptr)
-	{
-		docProcessor = new BackendProcessor(deviceManager, callback);
-		docProcessor->setAllowFlakyThreading(true);
-		docProcessor->prepareToPlay(44100.0, 512);
-		
-	}
-
-	return docProcessor;
 }
 
 hise::BackendRootWindow* BackendProcessor::getDocWindow()

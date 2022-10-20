@@ -45,9 +45,11 @@ struct InlineData;
 
 
 /** A function class is a collection of functions. */
-struct FunctionClass : public DebugableObjectBase,
+class FunctionClass : public DebugableObjectBase,
 	public ReferenceCountedObject
 {
+public:
+
 	// Sort the matches so that resolved functions come first
 			// This avoids templated functions without inliner to be picked over their
 			// actual functions with proper inlining.

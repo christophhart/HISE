@@ -83,8 +83,6 @@ juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 		return createRectangleForParameterSliders(1).withPosition(topLeft);
     else
         return createRectangleForParameterSliders(5).withPosition(topLeft);
-
-	return {};
 }
 
 juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColumns) const
@@ -375,9 +373,6 @@ scriptnode::data::pimpl::dynamic_base* OpaqueNodeDataHolder::create(ExternalData
 	case ExternalData::DataType::DisplayBuffer: return new data::dynamic::displaybuffer(*this, i);
     default: jassertfalse; return nullptr;
 	}
-
-	jassertfalse;
-	return nullptr;
 }
 
 void OpaqueNodeDataHolder::createDataType(ExternalData::DataType dt)
@@ -469,7 +464,7 @@ void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 
 	auto dt = ExternalData::getDataTypeForClass(d->getInternalData());
 
-	data::ui::pimpl::editor_base* e;
+	data::ui::pimpl::editor_base* e = nullptr;
 
 	if (dt == snex::ExternalData::DataType::Table)
 		e = new data::ui::table_editor_without_mod(updater, dynamic_cast<data::dynamic::table*>(d));
@@ -485,8 +480,6 @@ void OpaqueNodeDataHolder::Editor::addEditor(data::pimpl::dynamic_base* d)
 
 	if (dt == snex::ExternalData::DataType::DisplayBuffer)
 		e = new data::ui::displaybuffer_editor_nomod(updater, dynamic_cast<data::dynamic::displaybuffer*>(d));
-
-	
 
 	addAndMakeVisible(e);
 	editors.add(e);

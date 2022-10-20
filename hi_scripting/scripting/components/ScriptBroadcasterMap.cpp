@@ -145,7 +145,7 @@ ScriptBroadcasterMap::MessageWatcher::MessageWatcher(ScriptBroadcasterMap& map) 
 	for (auto b : parent.allBroadcasters)
 	{
 		parent.filteredBroadcasters.add(b->metadata);
-		times.add({ b });
+		times.add(LastTime(b));
 	}
 
 	parent.rebuild();
@@ -887,7 +887,7 @@ void ScriptBroadcasterMap::EntryBase::paintBackground(Graphics& g, Colour c, boo
 		if (!menubar.isEmpty())
 			fillRect.removeFromTop(24);
 
-		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1), 0.0f, 0.0f, c.withMultipliedBrightness(0.9f), 0.0f, (float)getHeight(), false));
+		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 0.0f, c.withMultipliedBrightness(0.9f), 0.0f, (float)getHeight(), false));
 		g.fillRoundedRectangle(fillRect.reduced(5.0f), 2.0f);
 	}
 	else

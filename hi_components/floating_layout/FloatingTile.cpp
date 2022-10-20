@@ -38,12 +38,12 @@ juce::Rectangle<int> FloatingTilePopup::getRectangle(RectangleType t) const
 {
 	static constexpr int BoxMargin = 12;
 	static constexpr int ContentMargin = 8;
-	static constexpr int TitleHeight = 22;
+	static constexpr int PopupTitleHeight = 22;
 	static constexpr int CloseButtonWidth = 24;
 
 	auto b = content->getLocalBounds();
 
-	auto th = hasTitle() ? TitleHeight : 0;
+	auto th = hasTitle() ? PopupTitleHeight : 0;
 
 	if (t == RectangleType::FullBounds)
 		return b.expanded(BoxMargin + ContentMargin, BoxMargin + ContentMargin + th / 2)

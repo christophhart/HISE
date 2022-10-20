@@ -372,7 +372,7 @@ juce::Result RootClassData::callRootConstructors()
 							{
 								auto offset = st->getMemberOffset(ph->variableId);
 								auto dataToUse = reinterpret_cast<void*>((uint8*)ts.data + offset);
-								ph->value = VariableStorage(dataToUse, st->getMemberTypeInfo(ph->variableId).getRequiredByteSize());
+								ph->value = VariableStorage(dataToUse, (int)st->getMemberTypeInfo(ph->variableId).getRequiredByteSize());
 							}
 							else
 							{
@@ -384,7 +384,7 @@ juce::Result RootClassData::callRootConstructors()
 
 					if (auto e = dynamic_cast<InitialiserList::ExpressionChild*>(b))
 					{
-						Types::ID type;
+						Types::ID type = Types::ID::Void;
 						void* data = nullptr;
 						size_t size = 0;
 
@@ -419,7 +419,7 @@ juce::Result RootClassData::callRootConstructors()
 							IF_(int) e->value = *reinterpret_cast<int*>(data);
 							IF_(double) e->value = *reinterpret_cast<double*>(data);
 							IF_(float) e->value = *reinterpret_cast<float*>(data);
-							IF_(void*) e->value = VariableStorage(data, size);
+							IF_(void*) e->value = VariableStorage(data, (int)size);
 
 							jassert(!e->value.isVoid());
 						}

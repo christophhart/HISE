@@ -167,10 +167,12 @@ protected:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(LayoutBase);
 };
 
-struct ObjectReference : public LayoutBase,
+class ObjectReference : public LayoutBase,
 	public ReferenceCountedObject,
 	public DebugableObjectBase
 {
+public:
+
 	using Ptr = ReferenceCountedObjectPtr<ObjectReference>;
 	using CompareFunction = std::function<int(Ptr, Ptr)>;
 

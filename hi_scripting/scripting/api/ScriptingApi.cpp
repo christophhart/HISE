@@ -1718,7 +1718,7 @@ struct AudioRenderer : public Thread,
 
 		if (!events.isEmpty())
 		{
-			if ((bufferSize = getMainController()->getMainSynthChain()->getLargestBlockSize()))
+			if ((bufferSize = getMainController()->getMainSynthChain()->getLargestBlockSize()) != 0)
 			{
 				numSamplesToRender = (int)events.getEvent(events.getNumUsed() - 1).getTimeStamp();
 
@@ -3061,8 +3061,6 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
         debugError(getProcessor(), e.what());
         return var::undefined();
     }
-
-    return var::undefined();
 }
 
 String ScriptingApi::Engine::doubleToString(double value, int digits)

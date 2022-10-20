@@ -188,7 +188,7 @@ void TemplateClassBuilder::Helpers::addChildObjectPtr(StatementPtr newCall, Synt
 
 	if (auto fc = dynamic_cast<Operations::FunctionCall*>(newCall.get()))
 	{
-		auto obj = new Operations::MemoryReference(d->location, d->object->clone(d->location), TypeInfo(childType, false, true), offset);
+		auto obj = new Operations::MemoryReference(d->location, d->object->clone(d->location), TypeInfo(childType, false, true), (int)offset);
 		fc->setObjectExpression(obj);
 	}
 }
@@ -377,7 +377,7 @@ snex::jit::FunctionData TemplateClassBuilder::VariadicHelpers::getFunction(Struc
 		auto pId = getVariadicMemberIdFromIndex(d->templateParameters.getFirst().constant);
 
 		WrapBuilder::InnerData id(st->getMemberComplexType(pId).get(), WrapBuilder::GetSelfAsObject);
-		id.offset = st->getMemberOffset(pId);
+		id.offset = (int)st->getMemberOffset(pId);
 
 		if (id.resolve())
 		{

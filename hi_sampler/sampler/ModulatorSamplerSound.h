@@ -161,8 +161,6 @@ struct Helpers
 		case Modulation::Mode::PanMode:   return SampleIds::LowPassTable;
         default:                          return {};
 		}
-			
-		return {};
 	}
 	static Modulation::Mode getEnvelopeType(const Identifier& id)
 	{

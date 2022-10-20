@@ -1398,12 +1398,10 @@ struct NamespaceHandler::SymbolToken::Parser: public ParserHelpers::TokenIterato
 
 			return handler.get(id).get();
 		}
-		catch (ParserHelpers::Error& e)
+		catch (ParserHelpers::Error& )
 		{
 			return nullptr;
 		}
-		
-		return nullptr;
 	}
 
 	NamespacedIdentifier id;
@@ -1420,8 +1418,6 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 
 	if (previousToken.isNotEmpty())
 	{
-		Namespace* c = n.get();
-
 		try
 		{
 			Parser p(*root.get(), root->getNamespaceForLineNumber(lineNumber), previousToken);
@@ -1438,7 +1434,7 @@ bool NamespaceHandler::SymbolToken::matches(const String& input, const String& p
 				}
 			}
 		}
-		catch (ParserHelpers::Error& e)
+		catch (ParserHelpers::Error& )
 		{
 			return false;
 		}

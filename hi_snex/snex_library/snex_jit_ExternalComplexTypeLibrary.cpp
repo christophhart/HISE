@@ -158,11 +158,6 @@ private:
 			cc.sub(PTR_REG_W(d->target), INT_REG_R(voiceReg.tempReg));
 			cc.shr(PTR_REG_W(d->target), 3);
 
-
-			return Result::ok();
-
-
-
 			return Result::ok();
 		}
 
@@ -491,17 +486,17 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 #endif
 
 	ADD_INLINER(get,
-		{
-			SETUP_INLINER(T);
-			d->target->createRegister(cc);
-			auto ret = FP_REG_W(d->target);
+	{
+		SETUP_INLINER(T);
+		d->target->createRegister(cc);
+		auto ret = FP_REG_W(d->target);
 
-			cc.setInlineComment("inline get()");
-			IF_(float) cc.movss(ret, MEMBER_PTR(value));
-			IF_(double) cc.movsd(ret, MEMBER_PTR(value));
+		cc.setInlineComment("inline get()");
+		IF_(float) cc.movss(ret, MEMBER_PTR(value));
+		IF_(double) cc.movsd(ret, MEMBER_PTR(value));
 
-			return Result::ok();
-		});
+		return Result::ok();
+	});
 
 
 	return obj->finaliseAndReturn();
@@ -785,11 +780,6 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 		return Result::ok();
 
 #else
-		auto d = b->toSyntaxTreeData()->object->getTypeInfo().getTypedComplexType<StructType>();
-
-		auto size = d->getRequiredByteSize();
-		auto a = d->getRequiredAlignment();
-
 		cppgen::Base c;
 
 		c << "ExternalData d(this->embeddedData);";
@@ -813,8 +803,6 @@ struct ExternalDataTemplateBuilder: public TemplateClassBuilder
 		c << "    n.setExternalData(b, 0);";
 
 		return SyntaxTreeInlineParser(b, { "n", "b", "index" }, c).flush();
-
-		return Result::ok();
 	}
 
 	ExternalDataTemplateBuilder(Compiler& c, bool isEmbedded, ExternalData::DataType d) :
@@ -1033,7 +1021,7 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 
 					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), tmp);
 
-					int sizeOffset = pType->getMemberOffset("numSamples");
+					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
 
 					auto size = x86::ptr(PTR_REG_R(dataObject)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 					auto tmp2 = cc.newGpd();
@@ -1094,7 +1082,7 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 					}
 					else
 					{
-						int sizeOffset = pType->getMemberOffset("numChannels");
+						auto sizeOffset = (int64_t)pType->getMemberOffset("numChannels");
 						auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 						cc.mov(INT_REG_W(d->target), size);
 
@@ -1129,7 +1117,7 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 					cc.mov(data, x86::qword_ptr(PTR_REG_R(d->args[0])));
 
 					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
-					int sizeOffset = pType->getMemberOffset("numSamples");
+					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
 					auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 
 					auto tmp = cc.newGpd();
@@ -1166,13 +1154,13 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 					auto data = cc.newGpq();
 					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
 
-					int eventOffset = pType->getMemberOffset("events");
+					auto eventOffset = (int64_t)pType->getMemberOffset("events");
 					auto eventDataPtr = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(eventOffset, sizeof(int));
 
 					cc.mov(data, eventDataPtr);
 					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
 
-					int sizeOffset = pType->getMemberOffset("numEvents");
+					auto sizeOffset = (int64_t)pType->getMemberOffset("numEvents");
 					auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 
 					auto tmp = cc.newGpd();
@@ -1206,7 +1194,7 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 
 					auto size = frameProcessor->getRequiredByteSize();
 
-					auto frameStackData = cc.newStack(size, 0);
+					auto frameStackData = cc.newStack((uint32_t)size, 0);
 
 					/*
 					span<float*, NumChannels>& channels; // 8 byte
@@ -1217,12 +1205,10 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 
 					cc.mov(frameStackData.cloneResized(8), PTR_REG_R(d->object));
 
-
-					int sizeOffset = pType->getMemberOffset("numSamples");
-
 					auto channelsPtrReg = cc.newGpq();
 					cc.mov(channelsPtrReg, x86::qword_ptr(PTR_REG_R(d->object)));
 
+					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
 					auto frameSize = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 
 					auto sizeReg = cc.newGpd();
@@ -1492,7 +1478,6 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 				subscript.inliner = Inliner::createAsmInliner(subscript.id, [](InlineData* b)
 					{
 						auto d = b->toAsmInlineData();
-						auto& cc = d->gen.cc;
 
 						X86Mem frameStack;
 
@@ -1530,7 +1515,7 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 					auto fType = d->object->getTypeInfo().getTypedComplexType<StructType>();
 
 					auto mt = fType->getMemberTypeInfo("frameData");
-					auto mo = fType->getMemberOffset("frameData");
+					auto mo = (int)fType->getMemberOffset("frameData");
 
 					d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), mt, mo);
 
@@ -1665,8 +1650,6 @@ void InbuiltTypeLibraryBuilder::addRangeFunction(FunctionClass* fc, const Identi
 
 		SyntaxTreeInlineParser p(b, parameters, c);
 		return p.flush();
-
-		return Result::ok();
 	}));
 }
 

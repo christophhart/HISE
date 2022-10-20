@@ -111,8 +111,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			statements.set(idx, newStatement.release(), true);
 			return true;
 		}
-
-		return false;
 	}
 
 	Statement* getChildStatement(int index) override 

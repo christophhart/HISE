@@ -206,6 +206,8 @@ void Operations::Assignment::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto targetType = getTargetType();
 
+		ignoreUnused(targetType);
+
 		auto value = getSubRegister(0);
 		auto tReg = getSubRegister(1);
 

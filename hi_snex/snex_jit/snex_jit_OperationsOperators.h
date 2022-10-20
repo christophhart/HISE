@@ -403,6 +403,8 @@ struct Operations::Assignment : public Expression,
 		auto sourceType = getSubExpr(0)->getType();
 		auto targetType = getType();
 
+		ignoreUnused(sourceType, targetType);
+
 		auto t = Expression::toValueTree();
 		t.setProperty("First", isFirstAssignment, nullptr);
 		t.setProperty("AssignmentType", assignmentType, nullptr);
@@ -500,6 +502,8 @@ struct Operations::Compare : public Expression
 	{
 		auto sourceType = getSubExpr(0)->getType();
 		auto targetType = getType();
+
+		ignoreUnused(sourceType, targetType);
 
 		auto t = Expression::toValueTree();
 		t.setProperty("OpType", op, nullptr);

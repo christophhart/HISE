@@ -403,7 +403,7 @@ void faust_jit_node::reinitFaustWrapper()
 		getRootNetwork()->getExceptionHandler().addError(this, e);
 	}
 
-    auto p = dynamic_cast<Processor*>(getScriptProcessor());
+    //auto p = dynamic_cast<Processor*>(getScriptProcessor());
     
     // The faust menu bar might be resized if a mod 
     setCachedSize(-1, -1);

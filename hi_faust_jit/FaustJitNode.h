@@ -8,9 +8,11 @@ struct faust_jit_wrapper;
 
 
 
-struct faust_jit_node: public scriptnode::ModulationSourceNode,
+class faust_jit_node: public scriptnode::ModulationSourceNode,
                        public DspNetwork::FaustManager::FaustListener
 {
+public:
+
 	SN_NODE_ID("faust");
 	JUCE_DECLARE_WEAK_REFERENCEABLE(faust_jit_node);
 	virtual Identifier getTypeId() const { RETURN_STATIC_IDENTIFIER("faust"); }

@@ -256,8 +256,6 @@ public:
 		case ExternalData::DataType::DisplayBuffer: return displayBuffers.size();
         default: return 0;
 		}
-
-		return 0;
 	}
 
 	Table* getTable(int index) final override
@@ -450,8 +448,6 @@ public:
 		case ExternalData::DataType::FilterCoefficients: return filterData.size();
         default: return 0;
 		}
-
-		return 0;
 	}
 
 	void saveComplexDataTypeAmounts(ValueTree& v) const

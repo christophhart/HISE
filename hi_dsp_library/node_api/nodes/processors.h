@@ -814,12 +814,14 @@ template <class T> class default_data
 	}
 };
 
+#if !JUCE_WINDOWS
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
+#endif
 
 /** A wrapper that extends the wrap::init class with the possibility of handling external data.
 
@@ -841,17 +843,6 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	{
         using D = data<T, DataHandler>;
         return offsetof(D, i);
-
-        
-        
-        D* d = nullptr;
-        
-        auto x1 = reinterpret_cast<uint64>(&d->i);
-        auto x2 = reinterpret_cast<uint64>(&d->obj);
-        
-        return static_cast<size_t>(x1 - x2);
-        
-		//return offsetof(D, i);
 	}
 
 	data()
@@ -895,7 +886,9 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 	JUCE_DECLARE_WEAK_REFERENCEABLE(data);
 };
 
+#if !JUCE_WINDOWS
 #pragma clang diagnostic pop
+#endif
 
 
 
@@ -1372,16 +1365,16 @@ template <class T> struct node : public scriptnode::data::base
 	{
 		if constexpr (prototypes::check::isPolyphonic<T>::value)
 			return obj.isPolyphonic();
-
-		return false;
+		else
+			return false;
 	}
 
 	static constexpr bool isProcessingHiseEvent()
 	{
 		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
 			return T::isProcessingHiseEvent();
-
-		return false;
+		else
+			return false;
 	}
 
 	void reset() noexcept { obj.reset(); }
@@ -1390,8 +1383,8 @@ template <class T> struct node : public scriptnode::data::base
 	{
 		if constexpr(prototypes::check::handleModulation<T>::value)
 			return obj.handleModulation(value);
-
-		return false;
+		else
+			return false;
 	}
 
 	void setExternalData(const ExternalData& d, int index) override

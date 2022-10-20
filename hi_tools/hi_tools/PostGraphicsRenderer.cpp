@@ -246,26 +246,6 @@ void PostGraphicsRenderer::boxBlur(int blur)
 {
 	if(blur != 0)
 		stackBlur(blur);
-	return;
-
-#if USE_IPP
-	auto& bf = getNextData();
-
-	IppStatus status = ippStsNoErr;
-
-	IppiSize maskSize = { blur,blur };
-	IppiSize srcSize = { bd.width, bd.height };
-	Ipp8u* pSrc = bd.data;
-	Ipp8u* pDst = bd.data;
-	int thisBufSize;
-
-	status = ippiFilterBoxBorderGetBufferSize(srcSize, maskSize, ipp8u, 4, &thisBufSize);
-
-	bf.increaseIfNecessary(thisBufSize);
-
-	if (status >= ippStsNoErr)
-		status = ippiFilterBoxBorder_8u_C4R(pSrc, bd.pixelStride * bd.width, pDst, bd.pixelStride * bd.width, srcSize, maskSize, ippBorderRepl, NULL, bf.pBuffer);
-#endif
 }
 
 void PostGraphicsRenderer::stackBlur(int blur)

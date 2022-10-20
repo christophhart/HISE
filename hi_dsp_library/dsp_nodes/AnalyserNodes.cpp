@@ -265,7 +265,7 @@ void Helpers::Oscilloscope::drawPath(Path& p, Rectangle<float> bounds, int chann
 		p.startNewSubPath(0.0f, -1.0f);
 		p.startNewSubPath(0.0f, 0.0f);
 
-		float x;
+		float x = 0.0f;
 
 		bool mirrorMode = stride > 100;
 

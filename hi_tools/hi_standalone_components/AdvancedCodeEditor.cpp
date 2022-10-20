@@ -1740,7 +1740,7 @@ hise::CommonEditorFunctions::EditorType* CommonEditorFunctions::as(Component* c)
 	{
 		for (int i = 0; i < c->getNumChildComponents(); i++)
 		{
-			if ((e = dynamic_cast<EditorType*>(c->getChildComponent(i))))
+			if ((e = dynamic_cast<EditorType*>(c->getChildComponent(i))) != nullptr)
 				return e;
 		}
 	}

@@ -432,15 +432,6 @@ namespace Operations
 		intLevel--;
 	}
 
-
-	static void dumpSyntaxTree(Statement::Ptr p)
-	{
-		juce::String s;
-		int level = 0;
-		dumpSyntaxTreeRecursive(p, s, level);
-		DBG(s);
-	}
-
 	static bool isOpAssignment(Expression::Ptr p);
 
 	template <class T> static T* as(Statement::Ptr p)
@@ -725,13 +716,6 @@ public:
 
 	SyntaxTree(ParserHelpers::CodeLocation l, const NamespacedIdentifier& ns);
 	TypeInfo getTypeInfo() const { return returnType; }
-
-	
-
-	~SyntaxTree()
-	{
-		int x = 5;
-	}
 
 	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const
 	{

@@ -76,7 +76,7 @@ struct ParameterBuilder : public TemplateClassBuilder
 
 			if (parameterType->id.getIdentifier() == Identifier("list"))
 			{
-				return parameterType->getMemberOffset(index);
+				return (int)parameterType->getMemberOffset(index);
 			}
 			else
 			{

@@ -127,12 +127,8 @@ juce::Array<snex::jit::TemplateParameter> BlockParser::parseTemplateParameters(b
 
 	match(JitTokens::lessThan);
 
-	bool parseNextParameter = true;
-
 	while (currentType != JitTokens::greaterThan && !isEOF())
 	{
-		TemplateParameter::ParameterType parameterType;
-
 		if (parseTemplateDefinition)
 		{
 			if (matchIf(JitTokens::int_))

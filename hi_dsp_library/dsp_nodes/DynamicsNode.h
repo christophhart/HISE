@@ -119,7 +119,7 @@ public:
 
 	static String getDescription()
     {
-        DynamicProcessorType* t;
+        DynamicProcessorType* t = nullptr;
         return DynamicHelpers::getDescription(t);
     }
 

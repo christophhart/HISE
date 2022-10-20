@@ -764,17 +764,7 @@ juce::ValueTree MainController::UserPresetHandler::createCustomValueTree(const S
 		auto obj = l->saveCustomUserPreset(presetName);
 
 		if (obj.isObject())
-		{
 			return ValueTreeConverters::convertDynamicObjectToValueTree(obj, "CustomJSON");
-
-			ValueTree v("CustomJSON");
-
-			
-
-			auto data = JSON::toString(obj, true);
-			v.setProperty("Data", data, nullptr);
-			return v;
-		}
 	}
 
 	return {};

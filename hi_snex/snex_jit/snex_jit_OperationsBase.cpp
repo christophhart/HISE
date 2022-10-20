@@ -99,14 +99,6 @@ snex::jit::TemplateParameter::List Operations::collectParametersFromParentClass(
 	return list;
 }
 
-bool Operations::isOpAssignment(Expression::Ptr p)
-{
-	if (auto as = dynamic_cast<Assignment*>(p.get()))
-		return as->assignmentType != JitTokens::assign_;
-
-	return false;
-}
-
 bool Operations::canBeReferenced(Expression::Ptr p)
 {
 	if (as<SymbolStatement>(p) != nullptr)
@@ -154,22 +146,6 @@ snex::jit::Operations::Expression::Ptr Operations::evalConstExpr(Expression::Ptr
 
 	return dynamic_cast<Operations::Expression*>(tr->getChildStatement(0).get());
 }
-
-Operations::Expression* Operations::findAssignmentForVariable(Expression::Ptr variable, BaseScope*)
-{
-	if (auto sBlock = findParentStatementOfType<SyntaxTree>(variable.get()))
-	{
-		for (auto s : *sBlock)
-		{
-			if (isStatementType<Assignment>(s))
-				return dynamic_cast<Expression*>(s);
-		}
-	}
-
-	return nullptr;
-}
-
-
 
 void Operations::Expression::attachAsmComment(const juce::String& message)
 {
@@ -736,63 +712,8 @@ void Operations::ScopeStatementBase::addDestructors(BaseScope* scope)
 		return false;
 	}, IterationType::NoChildInlineFunctionBlocks);
 
-	bool destructorsAdded = false;
-
 	for (auto dv : destructorIds)
-	{
 		StatementWithControlFlowEffectBase::addDestructorToAllChildStatements(asStatement, dv);
-	}
-
-	
-#if 0
-	asStatement->forEachRecursive([&destructorIds, asStatement, path, &destructorsAdded](Statement::Ptr p)
-	{
-		if (auto rt = as<ReturnStatement>(p))
-		{
-			// Only add the destructors to the return statements of this block
-			// (inlined functions will also have a return statement
-			if (rt->findRoot() == as<ScopeStatementBase>(asStatement))
-			{
-				//  Reverse the order of destructor execution.
-				for (int i = destructorIds.size() - 1; i >= 0; i--)
-				{
-					auto id = destructorIds[i];
-
-					ComplexType::InitData d;
-					ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(p, path, {});
-					d.t = ComplexType::InitData::Type::Desctructor;
-					d.functionTree = b.get();
-					b->object = p;
-					b->expression = new Operations::VariableReference(p->location, id);
-					auto r = id.typeInfo.getComplexType()->callDestructor(d);
-					p->location.test(r);
-				}
-
-				destructorsAdded = true;
-			}
-		}
-
-		return false;
-	});
-
-
-	if (!destructorsAdded)
-	{
-		for (int i = destructorIds.size() - 1; i >= 0; i--)
-		{
-			auto id = destructorIds[i];
-
-			ComplexType::InitData d;
-			ScopedPointer<SyntaxTreeInlineData> b = new SyntaxTreeInlineData(asStatement, path, {});
-			d.t = ComplexType::InitData::Type::Desctructor;
-			d.functionTree = b.get();
-			b->object = asStatement;
-			b->expression = new Operations::VariableReference(asStatement->location, id);
-			auto r = id.typeInfo.getComplexType()->callDestructor(d);
-			asStatement->location.test(r);
-		}
-	}
-#endif
 }
 
 void Operations::ScopeStatementBase::removeStatementsAfterReturn()

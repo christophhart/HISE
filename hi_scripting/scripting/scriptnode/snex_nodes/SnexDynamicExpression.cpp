@@ -50,7 +50,7 @@ dynamic_expression::graph::graph(PooledUIUpdater* u, dynamic_expression* e) :
 
 float dynamic_expression::graph::intersectsPath(Path& path, Rectangle<float> b)
 {
-	PathFlatteningIterator i(path, AffineTransform(), JUCE_LIVE_CONSTANT_OFF(0.6));
+	PathFlatteningIterator i(path, AffineTransform(), JUCE_LIVE_CONSTANT_OFF(0.6f));
 
 	while (i.next())
 	{

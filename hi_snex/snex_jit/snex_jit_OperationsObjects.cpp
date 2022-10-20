@@ -278,8 +278,6 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 
 				for (auto s : stackLocations)
 				{
-					auto sizeToInitialise = type.getRequiredByteSizeNonZero();
-
 					if (initValues == nullptr && overloadedAssignOp.canBeInlined(false))
 					{
 						AsmInlineData d(acg);

@@ -177,7 +177,7 @@ template <int NumChannels> struct FrameProcessor
 
 private:
 
-	friend class SnexObjectDatabase;
+	friend struct SnexObjectDatabase;
 	template <int C> friend struct ProcessData;
 	friend struct ProcessDataDyn;
 

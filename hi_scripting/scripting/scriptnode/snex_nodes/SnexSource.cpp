@@ -404,8 +404,6 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 	case snex::ExternalData::DataType::FilterCoefficients:  return 0;
     default: return 0;
 	}
-
-	return 0;
 }
 
 hise::FilterDataObject* SnexSource::ComplexDataHandler::getFilterData(int index) 

@@ -55,7 +55,7 @@ using namespace asmjit;
 #define PTR_REG_W(x) x->getRegisterForWriteOp().as<X86Gpq>()
 #define PTR_REG_R(x) x->getRegisterForReadOp().as<X86Gpq>()
 
-#define MEMBER_PTR(x) base.cloneAdjustedAndResized(obj->getMemberOffset(#x), obj->getMemberTypeInfo(#x).getRequiredByteSize())
+#define MEMBER_PTR(x) base.cloneAdjustedAndResized((uint32_t)obj->getMemberOffset(#x), (uint32_t)obj->getMemberTypeInfo(#x).getRequiredByteSize())
 
 #define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
@@ -211,7 +211,7 @@ struct AsmCodeGenerator
 
 	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes=0);
 
-	void emitParameter(const FunctionData& f, RegPtr parameterRegister, int parameterIndex, bool hasObjectPointer=false)
+	void emitParameter(const FunctionData& f, FuncNode* fn, RegPtr parameterRegister, int parameterIndex, bool hasObjectPointer=false)
 	{
 		parameterRegister->createRegister(cc);
 
@@ -220,17 +220,23 @@ struct AsmCodeGenerator
 		if (f.object != nullptr || hasObjectPointer)
 			parameterIndex += 1;
 
+		if (fn == nullptr)
+			fn = cc.func();
+
 		if (useParameterAsAdress)
 		{
 			auto aReg = cc.newGpq();
-			cc.setArg(parameterIndex, aReg);
+
+			fn->setArg(parameterIndex, aReg);
+
 			parameterRegister->setCustomMemoryLocation(x86::ptr(aReg), true);
 		}
 		else
-			cc.setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
+
+			fn->setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
 	}
 
-	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
+	void emitParameter(Operations::Function* f, FuncNode* fn, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);
 

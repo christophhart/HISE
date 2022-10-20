@@ -43,6 +43,8 @@ template <typename T> struct RampWrapper
 {
 	using Type = pimpl::_ramp<T>;
 
+	RampWrapper() {};
+
 	struct Wrapper
 	{
 		JIT_MEMBER_WRAPPER_0(void, Type, reset);

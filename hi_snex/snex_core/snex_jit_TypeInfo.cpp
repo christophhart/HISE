@@ -294,7 +294,7 @@ int TypeInfo::getRequiredByteSizeNonZero() const
 	if (s == 0)
 		return 1;
 
-	return s;
+	return (int)s;
 }
 
 int TypeInfo::getRequiredAlignmentNonZero() const
@@ -308,7 +308,7 @@ int TypeInfo::getRequiredAlignmentNonZero() const
 	if (s == 0)
 		return 1;
 
-	return s;
+	return (int)s;
 }
 
 snex::jit::TypeInfo TypeInfo::asConst()

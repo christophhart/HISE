@@ -1508,21 +1508,13 @@ File FrontendHandler::getUserPresetDirectory(bool getRedirect)
         userPresetDirectory.createDirectory();
         
         factoryPresets.copyDirectoryTo(userPresetDirectory);
-        
-        
-        
     }
     
     return userPresetDirectory;
     
 #else
-    
 	File presetDir = getAppDataDirectory().getChildFile("User Presets");
-	
     return FileHandlerBase::getFolderOrRedirect(presetDir);
-
-	return presetDir;
-    
 #endif
 }
 

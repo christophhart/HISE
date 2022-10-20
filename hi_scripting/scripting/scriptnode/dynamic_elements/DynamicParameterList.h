@@ -117,8 +117,6 @@ namespace duplilogic
 			case DupliMode::Nyquist:    return nyquist().getMidiValue(e, v);
             default:                    return false;
 			}
-
-			return false;
 		}
 
 		double getValue(int index, int numDuplicates, double input, double gamma)

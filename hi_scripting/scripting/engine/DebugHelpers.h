@@ -145,7 +145,6 @@ public:
         case Type::numTypes:
         default:                     return {};
 		}
-		return "";
 	}
 
 	virtual const var getVariantCopy() const { return var(); };

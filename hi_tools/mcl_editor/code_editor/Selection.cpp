@@ -218,7 +218,7 @@ mcl::Transaction mcl::Transaction::accountingForSpecialCharacters(const TextDocu
 	auto& s = t.selection;
 
 
-	if (content.getLastCharacter() == KeyPress::backspaceKey)
+	if ((int)content.getLastCharacter() == KeyPress::backspaceKey)
 	{
 		if (s.head.y == s.tail.y)
 		{
@@ -226,7 +226,7 @@ mcl::Transaction mcl::Transaction::accountingForSpecialCharacters(const TextDocu
 		}
 		t.content.clear();
 	}
-	else if (content.getLastCharacter() == KeyPress::deleteKey)
+	else if ((int)content.getLastCharacter() == KeyPress::deleteKey)
 	{
 		if (s.head.y == s.tail.y)
 		{

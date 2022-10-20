@@ -119,8 +119,6 @@ hise::ComplexDataUIBase* ExternalDataHolder::getComplexBaseType(ExternalData::Da
 	case ExternalData::DataType::DisplayBuffer: return getDisplayBuffer(index);
     default: return nullptr;
 	}
-
-	return nullptr;
 }
 
 

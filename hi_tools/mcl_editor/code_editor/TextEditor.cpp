@@ -2055,7 +2055,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		auto sel = document.getSelectionContent(s);
 
 		if(sel.isNotEmpty())
-			currentSearchBox->searchField.setText(sel, sendNotificationSync);
+			currentSearchBox->searchField.setText(sel, true);
 
 		currentSearchBox->grabKeyboardFocus();
 

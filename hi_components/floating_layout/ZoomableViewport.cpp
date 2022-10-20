@@ -406,7 +406,7 @@ void ZoomableViewport::setCurrentModalWindow(Component* newComponent, Rectangle<
 
 void ZoomableViewport::setNewContent(Component* newContentToDisplay, Component* target)
 {
-	makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005));
+	makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005f));
 
 	pendingNewComponent = newContentToDisplay;
 

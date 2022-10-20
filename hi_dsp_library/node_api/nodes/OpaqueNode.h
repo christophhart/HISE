@@ -120,8 +120,8 @@ struct OpaqueNode
 	{
 		if constexpr (prototypes::check::getDescription<typename T::WrappedObjectType>::value)
 			return t.getWrappedObject().getDescription();
-
-		return {};
+		else 
+			return {};
 	}
 
 	template <typename T> void create()

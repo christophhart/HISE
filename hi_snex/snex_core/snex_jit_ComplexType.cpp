@@ -78,7 +78,7 @@ Result ComplexType::callConstructor(InitData& d)
 				VariableStorage v;
 
 				if (!mp->getValue(v))
-					mp->value = VariableStorage(memberData, mp->st->getMemberTypeInfo(mp->variableId).getRequiredByteSize());
+					mp->value = VariableStorage(memberData, (int)mp->st->getMemberTypeInfo(mp->variableId).getRequiredByteSize());
 
 				providedArgs.add(mp->st->getMemberTypeInfo(mp->variableId).withModifiers(false, true));
 			}
@@ -259,11 +259,9 @@ bool ComplexType::hasDefaultConstructor()
 
 		for (auto& m : matches)
 		{
-            if(m.matchesArgumentTypesWithDefault({}));
+            if(m.matchesArgumentTypesWithDefault({}))
 				return true;
 		}
-
-		return false;
 	}
 
 	return false;

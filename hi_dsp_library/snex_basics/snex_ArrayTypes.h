@@ -190,7 +190,7 @@ template <class T, int Size, int Alignment=16> struct span
 		return *begin();
 	}
 
-	
+	JUCE_BEGIN_IGNORE_WARNINGS_MSVC(4267);
 
 	template <typename OpType, typename OperandType> Type& performOp(const OperandType& op)
 	{
@@ -236,8 +236,8 @@ template <class T, int Size, int Alignment=16> struct span
 #endif
 			static_assert(std::is_same<typename OperandType::DataType, T>(), "type mismatch");
 
-			memset(begin(), 0, sizeof(void*) * size());
-			memcpy(begin(), op.begin(), sizeof(void*) * jmin<int>(op.size(), size()));
+			memset(begin(), 0, sizeof(void*) * (size_t)size());
+			memcpy(begin(), op.begin(), sizeof(void*) * jmin<size_t>((size_t)op.size(), (size_t)size()));
 		}
 		else
 		{
@@ -279,11 +279,11 @@ template <class T, int Size, int Alignment=16> struct span
 				}
 				else
 				{
-					static constexpr int MaxIndex = jmin(ThisSize, OtherSize) / getSimdSize();
+					static constexpr int MaxIndex = jmin(ThisSize, OtherSize) / (int)getSimdSize();
 					
 
-					using SSESpanType = span<span<float, getSimdSize()>, ThisSize / getSimdSize()>;
-					using OpSSESpanType = span<span<float, getSimdSize()>, OtherSize / getSimdSize()>;
+					using SSESpanType = span<span<float, (int)getSimdSize()>, ThisSize / (int)getSimdSize()>;
+					using OpSSESpanType = span<span<float, (int)getSimdSize()>, OtherSize / (int)getSimdSize()>;
 
 					auto& thisSSE = *reinterpret_cast<SSESpanType*>(this);
 					auto& opSSE = *reinterpret_cast<const OpSSESpanType*>(&op);
@@ -334,12 +334,12 @@ template <class T, int Size, int Alignment=16> struct span
 						OpType::op((*this)[i], op[jmin<int>(i, OtherSize)]);
 				}
 			}
-
-			return *this;
 		}
 
 		return *this;
 	}
+
+	JUCE_END_IGNORE_WARNINGS_MSVC;
 
 	template <typename OperandType> Type& operator+(const OperandType& op) { return this->performOp<typename SpanOperators<T>::add>(op); }
 	template <typename OperandType> Type& operator+=(const OperandType& t) { return *this + t; }

@@ -290,8 +290,8 @@ GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 
 	ring.loadPathFromData(ringData, sizeof(ringData));
 
-	ring2.startNewSubPath(0.5, 1.0);
-	ring2.addArc(0.0, 0.0, 1.0, 1.0, -double_Pi * 0.75 - 0.04, double_Pi * 0.75 + 0.04, true);
+	ring2.startNewSubPath(0.5f, 1.0f);
+	ring2.addArc(0.0f, 0.0f, 1.0f, 1.0f, -float_Pi * 0.75f - 0.04f, float_Pi * 0.75f + 0.04f, true);
 
 #if INCLUDE_STOCK_FILMSTRIPS
 	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);

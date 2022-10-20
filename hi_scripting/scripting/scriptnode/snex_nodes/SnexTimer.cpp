@@ -176,10 +176,10 @@ void FlashingModKnob::paint(Graphics& g)
 
 	Path p;
 
-	const double s = 2.4;
+	const float s = 2.4f;
 
 	p.addPieSegment(flashDot.reduced(maxSize * 0.02f), -s, s, JUCE_LIVE_CONSTANT_OFF(0.93f));
-	p.addPieSegment(flashDot, -s, -s + s * 2.0 * v, JUCE_LIVE_CONSTANT_OFF(0.85f));
+	p.addPieSegment(flashDot, -s, -s + s * 2.0f * (float)v, JUCE_LIVE_CONSTANT_OFF(0.85f));
 
 	g.setColour(c);
 

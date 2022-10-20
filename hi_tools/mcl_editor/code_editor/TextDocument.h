@@ -961,8 +961,8 @@ private:
 	juce::Array<Selection> selections;
 };
 
-struct TokenCollection;
-struct LanguageManager;
+class TokenCollection;
+class LanguageManager;
 
 
 }

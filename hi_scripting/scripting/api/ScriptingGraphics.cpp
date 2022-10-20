@@ -800,7 +800,7 @@ void ScriptingObjects::ScriptShader::compileRawCode(const String& code)
 	dirty = true;
 }
 
-struct Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& r)
+Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& r)
 {
 	return r;
 }

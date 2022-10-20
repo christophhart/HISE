@@ -254,10 +254,7 @@ namespace ScriptingObjects
 
 		void compileRawCode(const String& code);
 
-		
-		
-
-		struct Result processErrorMessage(const Result& r);
+		Result processErrorMessage(const Result& r);
 
 		Result r;
 
@@ -373,9 +370,9 @@ namespace ScriptingObjects
 
 	private:
 
-		struct ScriptedImageProvider;
+		class ScriptedImageProvider;
 
-		struct Preview;
+		class Preview;
 		struct Wrapper;
 	};
 

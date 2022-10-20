@@ -78,7 +78,7 @@ float mcl::CaretComponent::squareWave(float wt) const
 
 void mcl::CaretComponent::timerCallback()
 {
-	phase += 3.2e-1;
+	phase += 0.32f;
 
 	for (const auto &r : getCaretRectangles())
 		repaint(r.getSmallestIntegerContainer().expanded(3));

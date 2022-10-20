@@ -541,10 +541,11 @@ private:
 
 #define ADD_INLINER(x, f) fc->addInliner(#x, [obj](InlineData* d_)f);
 
-#define SETUP_INLINER(X) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto base = x86::ptr(PTR_REG_R(d->object)); auto type = Types::Helpers::getTypeFromTypeId<X>();
-
-
-
+#define SETUP_INLINER(X) auto d = d_->toAsmInlineData(); \
+						 auto& cc = d->gen.cc; \
+						 auto base = x86::ptr(PTR_REG_R(d->object)); \
+					     auto type = Types::Helpers::getTypeFromTypeId<X>(); \
+						 ignoreUnused(type, base, cc, d);
 
 }
 }

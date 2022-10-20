@@ -719,6 +719,8 @@ bool ScriptingObjects::ScriptFile::move(var target)
 		return f.moveFileTo(sf->f);
 	else
 		reportScriptError("target is not a file");
+
+	RETURN_IF_NO_THROW(false);
 }
 
 bool ScriptingObjects::ScriptFile::copy(var target)
@@ -726,7 +728,9 @@ bool ScriptingObjects::ScriptFile::copy(var target)
 	if (auto sf = dynamic_cast<ScriptFile*>(target.getObject()))
 		return f.copyFileTo(sf->f);
 	else
-			reportScriptError("target is not a file");
+		reportScriptError("target is not a file");
+
+	RETURN_IF_NO_THROW(false);
 }
 
 juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
@@ -760,8 +764,6 @@ juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
 
 		return var(channels);
 	}
-
-	return var();
 }
 
 String ScriptingObjects::ScriptFile::getRelativePathFrom(var otherFile)
@@ -2633,7 +2635,7 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 		if (!vt.isValid())
 		{
 			reportScriptError("Can't load module state");
-			RETURN_IF_NO_THROW();
+			RETURN_VOID_IF_NO_THROW();
 		}
 
 		ProcessorHelpers::restoreFromBase64String(mod, base64State);
@@ -2936,7 +2938,7 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 		if (!vt.isValid())
 		{
 			reportScriptError("Can't load module state");
-			RETURN_IF_NO_THROW();
+			RETURN_VOID_IF_NO_THROW();
 		}
 
 		SuspendHelpers::ScopedTicket ticket(effect->getMainController());
@@ -3610,7 +3612,7 @@ void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
 		if (!vt.isValid())
 		{
 			reportScriptError("Can't load module state");
-			RETURN_IF_NO_THROW();
+			RETURN_VOID_IF_NO_THROW();
 		}
 
 		ProcessorHelpers::restoreFromBase64String(synth, base64State);
@@ -3915,7 +3917,7 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
 		if (!vt.isValid())
 		{
 			reportScriptError("Can't load module state");
-			RETURN_IF_NO_THROW();
+			RETURN_VOID_IF_NO_THROW();
 		}
 
 		ProcessorHelpers::restoreFromBase64String(mp, base64State, false);

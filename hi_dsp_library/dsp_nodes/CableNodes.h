@@ -1599,8 +1599,6 @@ namespace control
 				case LogicType::XOR: return (lv || rv) && !(lv == rv) ? 1.0 : 0.0;
                 default: return 0.0;
 				}
-                
-                return 0.0;
 			}
 
 			template <int P> void setParameter(double v)

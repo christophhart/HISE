@@ -230,7 +230,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 		}
 		else if (auto typePtr = compiler->namespaceHandler.getVariableType(id.id).getTypedIfComplexType<ComplexType>())
 		{
-			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id.id), typePtr->getRequiredByteSize());
+			objectAdress = VariableStorage(scope->getRootData()->getDataPointer(id.id), (int)typePtr->getRequiredByteSize());
 			objectPtr = typePtr;
 
 			id.typeInfo = TypeInfo(typePtr, id.isConst());
@@ -306,7 +306,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 				if (auto fScope = scope->getParentScopeOfType<FunctionScope>())
 				{
 					AsmCodeGenerator asg(getFunctionCompiler(compiler), &compiler->registerPool, getType(), location, compiler->getOptimizations());
-					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), reg, parameterIndex);
+					asg.emitParameter(dynamic_cast<Function*>(fScope->parentFunction), nullptr, reg, parameterIndex);
 				}
 			}
 
@@ -685,7 +685,7 @@ void Operations::InlinedArgument::process(BaseCompiler* compiler, BaseScope* sco
 		if (s.typeInfo.isComplexType() && !s.isReference())
 		{
 			auto acg = CREATE_ASM_COMPILER(getTypeInfo().getType());
-			auto stackPtr = acg.cc.newStack(s.typeInfo.getRequiredByteSize(), s.typeInfo.getRequiredAlignment());
+			auto stackPtr = acg.cc.newStack((uint32_t)s.typeInfo.getRequiredByteSize(), (uint32_t)s.typeInfo.getRequiredAlignment());
 			auto target = compiler->getRegFromPool(scope, s.typeInfo);
 			target->setCustomMemoryLocation(stackPtr, false);
 			auto source = getSubRegister(0);
@@ -723,6 +723,7 @@ void Operations::MemoryReference::process(BaseCompiler* compiler, BaseScope* sco
 	{
 		auto registerType = compiler->getRegisterType(type);
 
+		ignoreUnused(registerType);
 
 		auto baseReg = getSubRegister(0);
 

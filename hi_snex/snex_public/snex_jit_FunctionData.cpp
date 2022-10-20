@@ -820,8 +820,6 @@ struct VariadicCallHelpers
 
 void FunctionData::callVoidDynamic(VariableStorage* args, int numArgs) const
 {
-	Types::ID type;
-
 	switch (numArgs)
 	{
 	case 0: callVoid(); break;
@@ -845,7 +843,6 @@ snex::VariableStorage FunctionData::callDynamic(VariableStorage* args, int numAr
 		jassertfalse;
 		return {};
 	}
-	return {};
 }
 
 ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String::CharPointerType wholeProgram) :

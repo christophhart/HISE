@@ -106,7 +106,7 @@ bool debug::SymbolProvider::ComplexMemberToken::matches(const String& input, con
 			if (typeInfo.getTypedIfComplexType<ComplexType>() == p.get())
 				return matchesInput(input, codeToSearch);
 		}
-		catch (ParserHelpers::Error& e)
+		catch (ParserHelpers::Error& )
 		{
 			return false;
 		}

@@ -1712,9 +1712,6 @@ struct Helpers
 
 			if (m1.baseId() == m2.baseId())
 			{
-				auto m1Type = m1.baseType();
-				auto m2Type = m2.baseType();
-
 				auto sameIndexType = m1.hasIndexReg() == m2.hasIndexReg();
 
 				if (sameIndexType)
@@ -1816,6 +1813,8 @@ struct Helpers
 			auto firstId = o1.id();
 			auto idMatch = o1.id() == o2.id();
 			
+			ignoreUnused(firstId);
+
 			auto sameType = o1.as<X86Reg>().isXmm() == o2.as<X86Reg>().isXmm();
 
 			return same || (isRegister && idMatch && sameType);
@@ -2304,6 +2303,8 @@ struct RemoveDoubleRegisterWrites : public AsmCleanupPass::SubPass<InstructionFi
 						{
 							auto idThatIsRemoved = thisTarget.id();
 							auto isMemTarget = nextTarget.isMem();
+
+							ignoreUnused(idThatIsRemoved, isMemTarget);
 
 							it.removeNode(thisNode);
 							return true;

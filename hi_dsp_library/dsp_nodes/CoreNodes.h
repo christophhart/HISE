@@ -181,8 +181,6 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		snex::hmath Math;
-
 		max = 0.0f;
 
 		for (auto& ch : data)
@@ -196,8 +194,6 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		snex::hmath Math;
-
 		max = 0.0;
 
 		for (auto& s : data)

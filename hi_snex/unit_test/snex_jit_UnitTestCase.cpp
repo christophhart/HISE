@@ -670,7 +670,7 @@ void JitFileTestCase::parseFunctionData()
 				{
 					outputBuffer = Helpers::loadFile(s[output]);
 				}
-				catch (String& e)
+				catch (String& )
 				{
 					outputBuffer.makeCopyOf(inputBuffer);
 					outputWasEmpty = true;
@@ -856,7 +856,7 @@ void JitFileTestCase::parseFunctionData()
 					outputBuffer = Helpers::loadFile(v);
 					expectedResult = block(outputBuffer.getWritePointer(0), outputBuffer.getNumSamples());
 				}
-				catch (juce::String& s)
+				catch (juce::String& )
 				{
 					if (inputBuffer.getNumChannels() == 0)
 						throwError("Must supply input buffer");

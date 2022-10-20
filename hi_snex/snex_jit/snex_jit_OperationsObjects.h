@@ -48,7 +48,6 @@ struct Operations::ClassStatement : public Statement,
 	~ClassStatement()
 	{
 		classType = nullptr;
-		int x = 5;
 	}
 
 	Result addBaseClasses();

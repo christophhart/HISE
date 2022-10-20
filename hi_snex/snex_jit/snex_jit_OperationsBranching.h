@@ -81,8 +81,6 @@ struct Operations::StatementBlock : public Expression,
 
 	bool isConstExpr() const override
 	{
-		int numStatements = 0;
-
 		for (auto s : *this)
 		{
 			if (!s->isConstExpr())

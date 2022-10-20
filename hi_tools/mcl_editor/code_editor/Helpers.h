@@ -103,8 +103,6 @@ struct Helpers
 		case EditorBackgroundColour: return Colour(0xff282829);
             default:                 return Colours::transparentBlack;
 		}
-
-		return Colours::transparentBlack;
 	}
 
 	static String replaceTabsWithSpaces(const String& s, int numToInsert)

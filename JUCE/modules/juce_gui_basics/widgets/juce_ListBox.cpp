@@ -215,6 +215,7 @@ public:
         {
 			return {};
 
+#if 0
             if (auto* m = rowComponent.owner.getModel())
                 if (rowComponent.row >= m->getNumRows())
                     return AccessibleState().withIgnored();
@@ -230,6 +231,7 @@ public:
                 state = state.withSelected();
 
             return state;
+#endif
         }
 
     private:

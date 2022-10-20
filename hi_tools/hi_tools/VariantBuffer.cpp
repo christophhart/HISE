@@ -167,7 +167,6 @@ void VariantBuffer::addMethods()
 			if (n.numArguments == 0)
 			{
 				throw String("samplerate expected as first argument");
-				return var(0);
 			}
 
 			auto sampleRate = (double)n.arguments[0];

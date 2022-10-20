@@ -111,8 +111,6 @@ public:
 
 			newScope->pimpl->getRootData()->finalise();
 
-			auto d = (int*)newScope->pimpl->getRootData()->data.get();
-
 			executePass(DataAllocation, newScope->pimpl, sTree);
 			executePass(DataInitialisation, newScope->pimpl, sTree);
 			executePass(PreSymbolOptimization, newScope->pimpl, sTree);

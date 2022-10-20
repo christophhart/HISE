@@ -93,10 +93,12 @@ namespace ui
 using namespace Types;
 using namespace jit;
 
-struct WorkbenchData : public ReferenceCountedObject,
+class WorkbenchData : public ReferenceCountedObject,
 	public DebugHandler,
 	public ApiProviderBase::Holder
 {
+public:
+
 	static String getDefaultNodeTemplate(const Identifier& mainClass);
 
 	static String getDefaultCode(bool getTestCode);
@@ -1274,9 +1276,11 @@ private:
 
 
 
-struct WorkbenchComponent : public Component,
+class WorkbenchComponent : public Component,
 	public WorkbenchData::Listener
 {
+public:
+
 	WorkbenchComponent(WorkbenchData* d, bool isOwner = false) :
 		workbench(d)
 	{
@@ -1363,8 +1367,10 @@ struct ValueTreeCodeProvider : public snex::ui::WorkbenchData::CodeProvider,
     int numChannelsToCompile;
 };
 
-struct WorkbenchManager final: public AsyncUpdater
+class WorkbenchManager final: public AsyncUpdater
 {
+public:
+
 	using LogFunction = std::function<void(int, const String&)>;
 
 	~WorkbenchManager() {};

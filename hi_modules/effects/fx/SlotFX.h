@@ -14,8 +14,10 @@
 namespace hise { using namespace juce;
 using namespace scriptnode;
 
-struct HotswappableProcessor
+class HotswappableProcessor
 {
+public:
+
 	virtual ~HotswappableProcessor() {};
 
 	virtual bool setEffect(const String& name, bool synchronously) = 0;

@@ -683,8 +683,6 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 	{
 		return new DebugInformation(DebugInformation::Type::Constant);
 	}
-
-	return nullptr;
 }
 
 void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId)

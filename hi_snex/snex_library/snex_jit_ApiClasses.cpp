@@ -102,7 +102,12 @@ struct VectorMathFunction
 #define INT_TARGET INT_REG_W(d->target)
 #define FP_TARGET FP_REG_W(d->target)
 #define ARGS(i) d->args[i]
-#define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); auto& cc = d->gen.cc; auto type = d->target->getType(); d->target->createRegister(cc); cc.setInlineComment(name);
+#define SETUP_MATH_INLINE(name) auto d = d_->toAsmInlineData(); \
+								auto& cc = d->gen.cc; \
+								auto type = d->target->getType(); \
+								d->target->createRegister(cc); \
+								cc.setInlineComment(name); \
+								ignoreUnused(d, cc, type);
 
 
 MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType) :

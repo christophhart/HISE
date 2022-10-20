@@ -445,8 +445,6 @@ float ahdsr_base::state_base::getUIPosition(double deltaMs)
 	case EnvelopeState::RELEASE: return (double)current_state + ratioOrZero(deltaMs, releaseTime);
     default: return -1.0f;
 	}
-
-	return -1.0f;
 }
 
 bool ahdsr_base::AhdsrRingBufferProperties::validateInt(const Identifier& id, int& v) const
@@ -694,13 +692,13 @@ float simple_ar_base::State::tick()
 
 	if (curve == 0.5f)
 		returnValue = (float)linearRampValue;
-	if (curve < 0.5f)
+	else if (curve < 0.5f)
 	{
 		auto alpha = 2.0f * (curve);
 		returnValue = Interpolator::interpolateLinear(lastValue, (float)linearRampValue, alpha);
 	}
 
-	if (curve > 0.5f)
+	else  //curve > 0.5f
 	{
 		auto oneValue = hmath::pow((float)linearRampValue, float_Pi);
 

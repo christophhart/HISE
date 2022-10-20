@@ -103,10 +103,7 @@ IIRCoefficients FilterNodeBase<FilterType, NV>::getApproximateCoefficients() con
 	if (!enabled)
 		return {};
 
-	for (const auto& f : filter)
-		return f.getApproximateCoefficients();
-
-	return {};
+	return filter.getFirst().getApproximateCoefficients();
 }
 
 template <class FilterType, int NV>
@@ -174,12 +171,9 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Mode);
 
-		for (auto& f : filter)
-		{
-			p.setParameterValueNames(f.getModes());
-			break;
-		}
-		
+		auto& f = filter.getFirst();
+		p.setParameterValueNames(f.getModes());
+
 		parameters.add(std::move(p));
 	}
 	{

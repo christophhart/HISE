@@ -394,11 +394,8 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 	case FolderSubType::Binaries:				return createIfNotDirectory(f.getChildFile("Binaries"));
 	case FolderSubType::Layouts:				return createIfNotDirectory(f.getChildFile("Layouts"));
 	case FolderSubType::ProjucerSourceFolder:	return createIfNotDirectory(f.getChildFile("Binaries").getChildFile("Source"));
-    default: return {};
+	default: jassertfalse; return {};
 	}
-
-	jassertfalse;
-	return {};
 }
 
 }

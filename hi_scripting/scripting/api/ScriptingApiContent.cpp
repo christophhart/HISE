@@ -4467,7 +4467,7 @@ void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
 	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
 	{
 		reportScriptError("Table Metadata must be set in the onInit callback");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	tableModel = new ScriptTableListModel(getScriptProcessor(), tableMetadata);
@@ -4495,13 +4495,13 @@ void ScriptingApi::Content::ScriptedViewport::setTableColumns(var columnMetadata
 	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
 	{
 		reportScriptError("Table Metadata must be set in the onInit callback");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	if (tableModel == nullptr)
 	{
 		reportScriptError("You need to call setTableMode first");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	tableModel->setTableColumnData(columnMetadata);
@@ -4512,7 +4512,7 @@ void ScriptingApi::Content::ScriptedViewport::setTableRowData(var tableData)
 	if (tableModel == nullptr)
 	{
 		reportScriptError("You need to call setTableMode first");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	
@@ -4525,13 +4525,13 @@ void ScriptingApi::Content::ScriptedViewport::setTableCallback(var callbackFunct
 	if (tableModel == nullptr)
 	{
 		reportScriptError("You need to call setTableMode first");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
 	{
 		reportScriptError("Table callback must be set in the onInit callback");
-		RETURN_IF_NO_THROW();
+		RETURN_VOID_IF_NO_THROW();
 	}
 
 	tableModel->setCallback(callbackFunction);

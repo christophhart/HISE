@@ -255,6 +255,8 @@ TemplateParameter::List TemplateParameter::ListOps::merge(const TemplateParamete
 	auto lastArgIsVariadic = arguments.getLast().isVariadic();
 	auto lastParamIsVariadic = parameters.getLast().isVariadic();
 
+	ignoreUnused(lastParamIsVariadic);
+
 	if (numDefinedParameters > numArgs && !lastArgIsVariadic)
 	{
 		r = Result::fail("Too many template parameters");

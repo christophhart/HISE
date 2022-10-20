@@ -387,22 +387,6 @@ void DspNetworkGraph::finishDrag()
 void DspNetworkGraph::paint(Graphics& g)
 {
 	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff1d1d1d)));
-	return;
-	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF444444)));
-
-	Colour lineColour = Colours::white;
-
-	for (int x = 15; x < getWidth(); x += 10)
-	{
-		g.setColour(lineColour.withAlpha(((x - 5) % 100 == 0) ? 0.12f : 0.05f));
-		g.drawVerticalLine(x, 0.0f, (float)getHeight());
-	}
-
-	for (int y = 15; y < getHeight(); y += 10)
-	{
-		g.setColour(lineColour.withAlpha(((y - 5) % 100 == 0) ? 0.12f : 0.05f));
-		g.drawHorizontalLine(y, 0.0f, (float)getWidth());
-	}
 }
 
 void DspNetworkGraph::resized()
@@ -1589,7 +1573,7 @@ bool DspNetworkGraph::Actions::foldUnselectedNodes(DspNetworkGraph& g)
     
 	auto parent = g.findParentComponentOfClass<ZoomableViewport>();
 
-	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005));
+	parent->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(1.005f));
 
 	auto l = g.network->getListOfNodesWithType<NodeBase>(false);
 
@@ -2282,7 +2266,7 @@ bool DspNetworkGraph::Actions::zoomOut(DspNetworkGraph& g)
 
 bool DspNetworkGraph::Actions::zoomFit(DspNetworkGraph& g)
 {
-	g.findParentComponentOfClass<ZoomableViewport>()->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(0.998));
+	g.findParentComponentOfClass<ZoomableViewport>()->makeSwapSnapshot(JUCE_LIVE_CONSTANT_OFF(0.998f));
 
 	for (auto& n : g.network->getListOfNodesWithType<NodeBase>(false))
 		n->setValueTreeProperty(PropertyIds::Folded, false);

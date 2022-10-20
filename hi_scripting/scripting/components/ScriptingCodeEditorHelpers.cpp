@@ -1504,7 +1504,6 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(c));
 		replacer->getTextEditor("search")->grabKeyboardFocus();
 		return true;
-		return true;
 	}
 	default:
 		return false;

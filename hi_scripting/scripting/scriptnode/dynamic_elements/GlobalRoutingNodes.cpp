@@ -393,7 +393,7 @@ struct HiseOSCReceiver : public GlobalRoutingManager::OSCBase,
 				return;
 			}
 
-			double valueToSend;
+			double valueToSend = 0.0;
 
 			switch (type)
 			{
@@ -474,7 +474,9 @@ struct HiseOSCReceiver : public GlobalRoutingManager::OSCBase,
 
 		juce::OSCReceiver::registerFormatErrorHandler(errorHandler);
 
-		if(ok = connect(port))
+		ok = connect(port);
+
+		if(ok)
 			listener = new InternalListener(*this);
 	}
 
@@ -1785,8 +1787,6 @@ Result GlobalRoutingManager::Signal::addTarget(NodeBase* targetNode, PrepareSpec
 	}
 	else
 		return Result::fail("Unconnected");
-
-	return Result::ok();
 }
 
 bool GlobalRoutingManager::Signal::cleanup()

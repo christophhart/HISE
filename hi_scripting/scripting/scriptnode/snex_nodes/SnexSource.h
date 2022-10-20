@@ -39,9 +39,11 @@ using namespace hise;
 using namespace snex;
 using namespace snex::ui;
 
-struct SnexSource : public WorkbenchData::Listener,
+class SnexSource : public WorkbenchData::Listener,
 					public SimpleRingBuffer::WriterBase
 {
+public:
+
 	using SnexTestBase = snex::ui::WorkbenchData::TestRunnerBase;
 
 	struct SnexTestBaseHelper
@@ -390,7 +392,7 @@ struct SnexSource : public WorkbenchData::Listener,
 	protected:
 
 		
-		friend class ScopedDeactivator;
+		friend struct ScopedDeactivator;
 
 		/** Use this in every callback and it will check that the read lock was
 			acquired and the compilation was ok. */

@@ -70,7 +70,7 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
 
                 it.nextChar();
 
-                while ((c = it.nextChar()))
+                while ((c = it.nextChar()) != 0)
                 {
                     if (c == '*')
                     {
@@ -341,7 +341,7 @@ FoldableLineRange::List XmlLanguageManager::createLineRange(const CodeDocument& 
         {
             auto quoteChar = c;
             
-            while((c = it.nextChar()))
+            while((c = it.nextChar()) != 0)
             {
                 if(c == quoteChar)
                     break;
@@ -465,8 +465,6 @@ struct FaustLibraryTokenProvider: public TokenCollection::Provider
         {
             String s;
             s << tokenContent << "(";
-            
-            bool first = true;
             
             int idx = 0;
             for(const auto& a: args)

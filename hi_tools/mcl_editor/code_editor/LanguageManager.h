@@ -25,8 +25,10 @@ using namespace juce;
     - autocomplete tokens
     - bookmark title processing
 */
-struct LanguageManager
+class LanguageManager
 {
+public:
+
     virtual ~LanguageManager() {};
     
     virtual CodeTokeniser* createCodeTokeniser() = 0;

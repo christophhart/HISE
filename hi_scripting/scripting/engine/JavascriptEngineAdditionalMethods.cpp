@@ -1237,8 +1237,6 @@ String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, i
 		Logger::getCurrentLogger()->writeToLog(e);
 		return code;
 	}
-
-	return {};
 }
 
 String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
@@ -1257,7 +1255,6 @@ String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
 		Logger::getCurrentLogger()->writeToLog(e);
 		return prettyCode;
 	}
-	return {};
 }
 
 

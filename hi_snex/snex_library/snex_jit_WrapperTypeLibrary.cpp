@@ -172,12 +172,13 @@ void WrapBuilder::init(Compiler& c, int numChannels)
 	addFunction(createGetObjectFunction);
 	addFunction(createGetWrappedObjectFunction);
 
+#if 0
 	addInitFunction([objIndex](const TemplateObject::ConstructData& cd, StructType* st)
 	{
 		auto obj = dynamic_cast<StructType*>(TemplateClassBuilder::Helpers::getSubTypeFromTemplate(st, objIndex).get());
-
-		//Helpers::checkPropertyExists(obj, WrapIds::IsNode, *cd.r);
+		Helpers::checkPropertyExists(obj, WrapIds::IsNode, *cd.r);
 	});
+#endif
 
 	addInitFunction(Helpers::setNumChannelsFromObjectType);
 
@@ -291,17 +292,16 @@ snex::jit::FunctionData WrapBuilder::createGetWrappedObjectFunction(StructType* 
 
 	if (id.resolve())
 	{
-		int objIndex = st->getInternalProperty(WrapIds::ObjectIndex, -1);
 		auto pType = id.getRefType();
 		auto offset = id.offset;
 
 		getObjectFunction.returnType = pType;
 		getObjectFunction.inliner = Inliner::createHighLevelInliner(getObjectFunction.id, [pType, offset](InlineData* b)
-			{
-				auto d = b->toSyntaxTreeData();
-				d->target = new Operations::MemoryReference(d->location, d->object, pType, offset);
-				return Result::ok();
-			});
+		{
+			auto d = b->toSyntaxTreeData();
+			d->target = new Operations::MemoryReference(d->location, d->object, pType, offset);
+			return Result::ok();
+		});
 
 	}
 	return getObjectFunction;
@@ -454,7 +454,7 @@ juce::Result WrapBuilder::Helpers::constructorInliner(InlineData* b)
 
 		if (auto fc = as<FunctionCall>(newCall))
 		{
-			auto obj = new MemoryReference(d->location, d->object, TypeInfo(childType, false, true), offset);
+			auto obj = new MemoryReference(d->location, d->object, TypeInfo(childType, false, true), (int)offset);
 			fc->setObjectExpression(obj);
 			d->target = newCall;
 			return Result::ok();
@@ -477,7 +477,7 @@ juce::Result WrapBuilder::Helpers::addObjReference(SyntaxTreeInlineParser& p)
 	{
 		auto offset = st->getMemberOffset("obj");
 		auto t = st->getMemberTypeInfo("obj");
-		p.addExternalExpression("obj", new Operations::MemoryReference(p.originalLocation, object->clone(p.originalLocation), t, offset));
+		p.addExternalExpression("obj", new Operations::MemoryReference(p.originalLocation, object->clone(p.originalLocation), t, (int)offset));
 
 		return Result::ok();
 	}
@@ -514,7 +514,7 @@ bool WrapBuilder::Helpers::getInnerType(InnerData& d)
 		auto objIndex = (int)d.st->getInternalProperty(WrapIds::ObjectIndex, -1);
 		jassert(objIndex != -1);
 		auto objId = d.st->getMemberName(objIndex);
-		d.offset += d.st->getMemberOffset(objIndex);
+		d.offset += (int)d.st->getMemberOffset(objIndex);
 		d.st = d.st->getMemberTypeInfo(objId).getTypedComplexType<StructType>();
 
 		if (d.typeToLookFor == GetObj)
@@ -775,7 +775,7 @@ snex::jit::FunctionData WrapLibraryBuilder::createInitConstructor(StructType* st
 
 			auto nc = new Operations::FunctionCall(d->location, nullptr, Symbol(icf.id, TypeInfo(Types::ID::Void)), icf.templateParameters);
 
-			auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), st->getMemberOffset(1));
+			auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), (int)st->getMemberOffset(1));
 
 			WrapBuilder::InnerData id(st, WrapBuilder::OpaqueType::GetObj);
 
@@ -905,15 +905,13 @@ Result WrapLibraryBuilder::registerTypes()
 
 				auto ioffset = st->getMemberOffset("initialiser");
 
-				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), ioffset);
+				auto initRef = new Operations::MemoryReference(d->location, d->object, TypeInfo(ic, false), (int)ioffset);
 
 
 				WrapBuilder::InnerData id(st->getMemberComplexType("obj").get(), WrapBuilder::GetSelfAsObject);
 
 				if (id.resolve())
 				{
-					auto s = id.st->getRequiredByteSize();
-
 					auto objRef = new Operations::MemoryReference(d->location, d->object, id.getRefType(), id.offset);
 
 					nc->setObjectExpression(initRef);
@@ -1271,7 +1269,7 @@ snex::jit::FunctionData WrapLibraryBuilder::Callbacks::mod::getParameter(StructT
 		auto d = b->toSyntaxTreeData();
 		auto wClass = d->object->getTypeInfo().getTypedComplexType<StructType>();
 		auto offset = wClass->getMemberOffset("p");
-		d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), t, offset);
+		d->target = new Operations::MemoryReference(d->location, d->object->clone(d->location), t, (int)offset);
 		return Result::ok();
 	});
 

@@ -238,6 +238,9 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 
 		int minValue, maxValue;
 
+		minValue = 0;
+		maxValue = 0;
+
 		if (id == SampleIds::SampleStart)
 		{
 			minValue = 0;

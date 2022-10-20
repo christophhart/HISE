@@ -236,8 +236,8 @@ template <typename LT, bool CheckOnAssign> struct integer_index
 
 		if constexpr (checkBoundsOnAssign())
 			return value;
-
-		return t.getWithDynamicLimit(value, LogicType::getUpperLimit());
+		else
+			return t.getWithDynamicLimit(value, LogicType::getUpperLimit());
 	}
 
 	template <typename ContainerType> auto& getFrom(const ContainerType& c) const

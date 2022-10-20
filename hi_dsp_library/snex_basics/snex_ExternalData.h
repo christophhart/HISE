@@ -915,6 +915,7 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 		{
 			auto numSamples = rb->getReadBuffer().getNumSamples();
 
+			ignoreUnused(numSamples);
 			
 #if !HI_EXPORT_AS_PROJECT_DLL
 			// We can only reallocate here if we're not in the dll memory space
