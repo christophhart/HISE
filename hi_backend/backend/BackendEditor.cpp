@@ -458,6 +458,30 @@ void MainTopBar::paint(Graphics& g)
 
 	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false));
 	g.fillAll();
+
+	auto l = getWidth() - keyboardPopupButton->getBounds().getX();
+
+	auto b = getLocalBounds().removeFromRight(l + 500);
+	b = b.removeFromLeft(480);
+
+	String infoText;
+
+#if JUCE_DEBUG
+	infoText << "DEBUG Build";
+#endif
+
+#if HISE_INCLUDE_FAUST
+
+#if JUCE_DEBUG
+	infoText << " with ";
+#endif
+
+	infoText << "Faust enabled";
+#endif
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.2f));
+	g.drawText(infoText, b.toFloat(), Justification::right);
 }
 
 void MainTopBar::paintOverChildren(Graphics& g)
