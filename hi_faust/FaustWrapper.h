@@ -9,26 +9,53 @@ using namespace std::chrono_literals;
 namespace scriptnode {
 namespace faust {
 
-// wrapper struct for faust types to avoid name-clash
-struct faust_base_wrapper {
+/** wrapper struct for faust types to avoid name-clash.
 
-	faust_base_wrapper(::faust::dsp* faustDsp):
-		faustDsp(faustDsp),  // Unless faustDsp is set to a non-nullptr value in a subclass, several methods will cause a segfault
+	This is the base class for every faust node - statically compiled C++ faust nodes
+	as well as JIT compiled faust nodes.
+
+	It is templated with the voice amount to allow polyphonic versions of faust nodes.
+	
+	The concept of polyphony is just duplicating the instances of the internal faust classes
+	and let the scriptnode polyphonic system work out which instance should be used for the
+	currently active voice.
+
+	In order to achieve this, almost every class needed to be converted to a template class
+	with the NV integer argument indicating the number of voices.
+
+	Note: By default, HISE uses a NUM_POLYPHONIC_VOICES value of 256, which might be a bit high
+	if you're running complex faust patches. So if memory consumption / loading times get too high
+	consider lowering this preprocessor (it's used consistently across the entire codebase so you 
+	should be able to control the number of voices you need).
+*/
+template <int NV> struct faust_base_wrapper 
+{
+	static constexpr int NumVoices = NV;
+
+	faust_base_wrapper():
 		sampleRate(0),
 		_nChannels(0),
 		_nFramesMax(0)
 	{
-		// faustDsp will be instantiated in templated class here
+		for (auto& fdsp : faustDsp)
+			fdsp = nullptr;
 	}
 
 	virtual ~faust_base_wrapper()
 	{
+		for (auto& fdsp : faustDsp)
+			fdsp = nullptr;
 	}
 
 	// std::string code;
 	int sampleRate;
-	::faust::dsp *faustDsp;
-	faust_ui ui;
+
+	// This contains a faust instance for each voice
+	PolyData<::faust::dsp*, NumVoices> faustDsp;
+
+	// The UI class is templated because it needs to update either a single zone pointer
+	// or all zone pointers of a voice
+	faust_ui<NV> ui;
 
 	// audio buffer
 	int _nChannels;
@@ -37,9 +64,16 @@ struct faust_base_wrapper {
 	std::vector<float*> inputChannelPointers;
 	std::vector<float*> outputChannelPointers;
 
+	bool initialisedOk() const
+	{
+		return faustDsp.getFirst() != nullptr;
+	}
+
 	// This method assumes faustDsp to be initialized correctly
-	virtual bool setup() {
-		faustDsp->buildUserInterface(&ui);
+	virtual bool setup() 
+	{
+		for(auto f: faustDsp)
+			f->buildUserInterface(&ui);
 
 		DBG("Faust parameters:");
 		for (auto p : ui.getParameterLabels()) {
@@ -51,8 +85,12 @@ struct faust_base_wrapper {
 		return true;
 	}
 
-	void prepare(PrepareSpecs specs)
+	virtual void prepare(PrepareSpecs specs)
 	{
+		ui.prepare(specs);
+
+		faustDsp.prepare(specs);
+
         // Skip the prepare call when the processing context
         // isn't valid yet
         if(!specs)
@@ -78,10 +116,10 @@ struct faust_base_wrapper {
 
 	void throwErrorIfChannelMismatch()
 	{
-		if (faustDsp)
+		if (auto first = faustDsp.getFirst())
 		{
-			auto numInputs = faustDsp->getNumInputs();
-			auto numOutputs = faustDsp->getNumOutputs();
+			auto numInputs = first->getNumInputs();
+			auto numOutputs = first->getNumOutputs();
 			auto numHiseChannels = _nChannels;
 
 			if (numInputs > numHiseChannels ||
@@ -96,21 +134,26 @@ struct faust_base_wrapper {
 		}
 	}
 
-	void init() {
-		if (faustDsp && sampleRate > 0)
+	void init() 
+	{
+		if (initialisedOk() && sampleRate > 0)
 		{
 			throwErrorIfChannelMismatch();
             
-            faust_ui::ScopedZoneSetter szs(ui);
+            faust_ui<NumVoices>::ScopedZoneSetter szs(ui);
             
-			faustDsp->init(sampleRate);
+			for(auto f: faustDsp)
+				f->init(sampleRate);
 		}
 	}
 
 	void reset()
 	{
-		if (faustDsp)
-			faustDsp->instanceClear();
+		if (initialisedOk())
+		{
+			for(auto f: faustDsp)
+				f->instanceClear();
+		}
 	}
 
 
@@ -133,8 +176,10 @@ struct faust_base_wrapper {
 	{
 		// we have either a static ::faust::dsp object here, or we hold the jit lock
 		
-		int n_faust_inputs = faustDsp->getNumInputs();
-		int n_faust_outputs = faustDsp->getNumOutputs();
+		auto fdsp = faustDsp.get();
+
+		int n_faust_inputs = fdsp->getNumInputs();
+		int n_faust_outputs = fdsp->getNumOutputs();
 		int n_hise_channels = data.getNumChannels();
 
 		// We allow the input channel amount to be less than the HISE channel count
@@ -146,7 +191,7 @@ struct faust_base_wrapper {
 			// copy input data, because even with -inpl not all faust generated code can handle
 			// in-place processing
 			bufferChannelsData(channel_data, n_hise_channels, nFrames);
-			faustDsp->compute(nFrames, getRawInputChannelPointers(), channel_data);
+			fdsp->compute(nFrames, getRawInputChannelPointers(), channel_data);
 		} else {
 			// should be catched by the init check
 			jassertfalse;
@@ -156,8 +201,10 @@ struct faust_base_wrapper {
 	// This method assumes faustDsp to be initialized correctly
 	template <class FrameDataType> void processFrame(FrameDataType& data)
 	{
-		int n_faust_inputs = faustDsp->getNumInputs();
-		int n_faust_outputs = faustDsp->getNumOutputs();
+		auto fdsp = faustDsp.get();
+
+		int n_faust_inputs = fdsp->getNumInputs();
+		int n_faust_outputs = fdsp->getNumOutputs();
 		// TODO check validity
 		int n_hise_channels = data.size();
 
@@ -165,7 +212,7 @@ struct faust_base_wrapper {
 			// copy input data, because even with -inpl not all faust generated code can handle
 			// in-place processing
 			bufferChannelsData(&data[0], n_hise_channels);
-			faustDsp->compute(1, getRawInputChannelPointers(), getRawOutputChannelPointers());
+			fdsp->compute(1, getRawInputChannelPointers(), getRawOutputChannelPointers());
 		} else {
 			// TODO error indication
 		}

@@ -1133,7 +1133,7 @@ void DspNetworkCompileExporter::run()
 		DBG("Found Faust classId: " + classId);
 		auto faustSourcePath = codeLibDir.getChildFile(classId + ".dsp").getFullPathName().toStdString();
 
-		auto boilerplate_path = scriptnode::faust::faust_jit_wrapper::genStaticInstanceBoilerplate(boilerplateDestDirPath, _classId);
+		auto boilerplate_path = scriptnode::faust::faust_jit_helpers::genStaticInstanceBoilerplate(boilerplateDestDirPath, _classId);
 		if (boilerplate_path.size() > 0)
 			DBG("Wrote boilerplate file to " + boilerplate_path);
 		else
@@ -1150,7 +1150,7 @@ void DspNetworkCompileExporter::run()
 			}
 		}
 
-		auto code_path = scriptnode::faust::faust_jit_wrapper::genStaticInstanceCode(_classId, faustSourcePath, faustLibraryPaths, codeDestDirPath);
+		auto code_path = scriptnode::faust::faust_jit_helpers::genStaticInstanceCode(_classId, faustSourcePath, faustLibraryPaths, codeDestDirPath);
 		if (code_path.size() > 0)
 			DBG("Wrote code file to " + code_path);
 		else

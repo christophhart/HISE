@@ -14,7 +14,7 @@ struct FaustMenuBar : public Component,
 
 {
 
-	FaustMenuBar(faust_jit_node *n);
+	FaustMenuBar(faust_jit_node_base *n);
 
     ~FaustMenuBar();
     
@@ -34,7 +34,7 @@ struct FaustMenuBar : public Component,
 
     scriptnode::ModulationSourceBaseComponent dragger;
     
-	WeakReference<faust_jit_node> node;
+	WeakReference<faust_jit_node_base> node;
 	hise::ScriptnodeComboBoxLookAndFeel claf;
 
 	// Define menu options for addButton

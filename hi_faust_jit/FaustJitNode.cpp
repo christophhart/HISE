@@ -8,20 +8,19 @@ namespace faust {
 
 // faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 //      NodeBase(n, v, 0) { }
-faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
+faust_jit_node_base::faust_jit_node_base(DspNetwork* n, ValueTree v) :
 	ModulationSourceNode(n, v),
 	classId(PropertyIds::ClassId, ""),
-	faust(new faust_jit_wrapper()),
     compileResult(Result::ok())
 {
 	extraComponentFunction = [](void* o, PooledUIUpdater* u)
 	{
-		return new FaustMenuBar(static_cast<faust_jit_node*>(o));
+		return new FaustMenuBar(static_cast<faust_jit_node_base*>(o));
 	};
 
 	parameterListener.setCallback(getParameterTree(),
 								  valuetree::AsyncMode::Synchronously,
-								  BIND_MEMBER_FUNCTION_2(faust_jit_node::parameterUpdated));
+								  BIND_MEMBER_FUNCTION_2(faust_jit_node_base::parameterUpdated));
 
     n->faustManager.addFaustListener(this);
     
@@ -30,18 +29,15 @@ faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 	if (!f.isDirectory()) {
 		auto res = f.createDirectory();
 	}
-	// we can't init yet, because we don't know the sample rate
-	initialise(this);
-
-	setClass(classId.getValue());
+	
 }
 
-faust_jit_node::~faust_jit_node()
+faust_jit_node_base::~faust_jit_node_base()
 {
     getRootNetwork()->faustManager.removeFaustListener(this);
 }
 
-void faust_jit_node::setupParameters()
+void faust_jit_node_base::setupParameters()
 {
 	auto pTree = getParameterTree();
 
@@ -49,18 +45,8 @@ void faust_jit_node::setupParameters()
 	{
 		auto c = pTree.getChild(i);
 		auto id = c[PropertyIds::ID].toString();
-		bool found = false;
-
-		for (auto p : faust->ui.parameters)
-		{
-			if (p->label == id)
-			{
-				found = true;
-				break;
-			}
-		}
-
-		if (!found)
+		
+		if (!hasFaustParameter(id))
 		{
 			pTree.removeChild(c, getUndoManager());
 			i--;
@@ -68,7 +54,7 @@ void faust_jit_node::setupParameters()
 	}
 
     auto numHolders = parameterHolders.size();
-    auto numParameters = faust->ui.parameters.size();
+	auto numParameters = getNumFaustParameters();
     
     // make sure there are enough parameter holders
     while(numHolders < numParameters)
@@ -79,39 +65,15 @@ void faust_jit_node::setupParameters()
         numHolders = parameterHolders.size();
     }
     
-    int pIndex = 0;
-    
 	// setup parameters from faust code
-	for (auto p : faust->ui.parameters)
-	{
-		DBG("adding parameter " << p->label << ", step: " << p->step);
-		auto pd = p->toParameterData();
-        
-        auto newDynamicParameter = new parameter::dynamic_base(pd.callback);
-        
-        // Try to use the existing value tree so that it can take the
-        // customized parameter ranges
-        auto parameterValueTree = pTree.getChildWithProperty(PropertyIds::ID, p->label);
-        
-        if(!parameterValueTree.isValid())
-            parameterValueTree = pd.createValueTree();
-        
-        newDynamicParameter->updateRange(parameterValueTree);
-        
-        auto h = dynamic_cast<parameter::dynamic_base_holder*>(parameterHolders[pIndex++].get());
-        
-        jassert(h != nullptr);
-        
-        h->setParameter(this, newDynamicParameter);
-        
-		addNewParameter(pd);
-	}
-    
+
+	setupFaustParameters();
+
 	DBG("Num parameters in NodeBase: " << getNumParameters());
 }
 
 // ParameterTree listener callback: This function is called when the ParameterTree changes
-void faust_jit_node::parameterUpdated(ValueTree child, bool wasAdded)
+void faust_jit_node_base::parameterUpdated(ValueTree child, bool wasAdded)
 {
 	if (wasAdded)
 	{
@@ -179,73 +141,13 @@ void faust_jit_node::parameterUpdated(ValueTree child, bool wasAdded)
 	}
 }
 
-void faust_jit_node::initialise(NodeBase* n)
+void faust_jit_node_base::initialise(NodeBase* n)
 {
 	classId.initialise(n);
-	classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(faust_jit_node::updateClassId), true);
+	classId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(faust_jit_node_base::updateClassId), true);
 }
 
-bool faust_jit_node::isUsingNormalisation() const
-{
-    return faust->ui.modZone != nullptr;
-}
-
-void faust_jit_node::prepare(PrepareSpecs specs)
-{
-    ModulationSourceNode::prepare(specs);
-    
-	try
-	{
-		getRootNetwork()->getExceptionHandler().removeError(this, Error::ErrorCode::IllegalFaustChannelCount);
-
-		lastSpecs = specs;
-		faust->prepare(specs);
-	}
-	catch (scriptnode::Error& e)
-	{
-		getRootNetwork()->getExceptionHandler().addError(this, e);
-	}
-}
-
-void faust_jit_node::reset()
-{
-	faust->reset();
-}
-
-void faust_jit_node::process(ProcessDataDyn& data)
-{
-	if (isBypassed()) return;
-	faust->process(data);
-    
-    double v = 0.0;
-    
-    if(faust->handleModulation(v))
-        parameterHolder.call(v);
-}
-
-void faust_jit_node::processFrame(FrameType& data)
-{
-	if (isBypassed()) return;
-	faust->faust_jit_wrapper::processFrame<FrameType>(data);
-}
-
-void faust_jit_node::handleHiseEvent(HiseEvent& e)
-{
-	if (isBypassed()) return;
-	faust->handleHiseEvent(e);
-    
-    double v = 0.0;
-    
-    if(faust->handleModulation(v))
-        parameterHolder.call(v);
-}
-
-bool faust_jit_node::isProcessingHiseEvent() const
-{
-	return faust->ui.anyMidiZonesActive;
-}
-
-File faust_jit_node::getFaustRootFile()
+File faust_jit_node_base::getFaustRootFile()
 {
 	auto mc = this->getScriptProcessor()->getMainController_();
 	auto dspRoot = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
@@ -256,13 +158,13 @@ File faust_jit_node::getFaustRootFile()
  * Lookup a Faust source code file for this node.
  * The `basename` is the name without any extension.
  */
-File faust_jit_node::getFaustFile(String basename)
+File faust_jit_node_base::getFaustFile(String basename)
 {
 	auto nodeRoot = getFaustRootFile();
 	return nodeRoot.getChildFile(basename + ".dsp");
 }
 
-std::vector<std::string> faust_jit_node::getFaustLibraryPaths()
+std::vector<std::string> faust_jit_node_base::getFaustLibraryPaths()
 {
 	std::vector<std::string> paths;
 	paths.push_back(getFaustRootFile().getFullPathName().toStdString());
@@ -281,7 +183,7 @@ std::vector<std::string> faust_jit_node::getFaustLibraryPaths()
 }
 
 
-void faust_jit_node::addNewParameter(parameter::data p)
+void faust_jit_node_base::addNewParameter(parameter::data p)
 {
 	if (auto existing = getParameterFromName(p.info.getId()))
     {
@@ -292,7 +194,7 @@ void faust_jit_node::addNewParameter(parameter::data p)
 	getParameterTree().addChild(newTree, -1, getUndoManager());
 }
 
-void faust_jit_node::resetParameters()
+void faust_jit_node_base::resetParameters()
 {
     // clear all parameter holders (most of them will be updated with the new zone
     // but there might be some remaining parameters that could point to a dangling
@@ -305,12 +207,12 @@ void faust_jit_node::resetParameters()
     }
 }
 
-String faust_jit_node::getClassId()
+String faust_jit_node_base::getClassId()
 {
 	return classId.getValue();
 }
 
-bool faust_jit_node::removeClassId(String classIdToRemove)
+bool faust_jit_node_base::removeClassId(String classIdToRemove)
 {
 	// TODO remove from ValueTree
 	if (getClassId() == classIdToRemove)
@@ -318,17 +220,17 @@ bool faust_jit_node::removeClassId(String classIdToRemove)
 	return true;
 }
 
-void faust_jit_node::loadSource()
+void faust_jit_node_base::loadSource()
 {
 	auto newClassId = getClassId();
-	if (faust->getClassId() != newClassId)
+	if (getFaustClassId() != newClassId)
     {
         auto sourceFile = getFaustFile(newClassId);
         getRootNetwork()->faustManager.sendCompileMessage(sourceFile, sendNotificationSync);
     }
 }
 
-void faust_jit_node::createSourceAndSetClass(const String newClassId)
+void faust_jit_node_base::createSourceAndSetClass(const String newClassId)
 {
 	File sourceFile = getFaustFile(newClassId);
 	// Create new file if necessary
@@ -345,13 +247,13 @@ void faust_jit_node::createSourceAndSetClass(const String newClassId)
 	}
 	setClass(newClassId);
 }
-void faust_jit_node::logError(String errorMessage)
+void faust_jit_node_base::logError(String errorMessage)
 {
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 	debugError(p, errorMessage);
 }
 
-void faust_jit_node::reinitFaustWrapper()
+void faust_jit_node_base::reinitFaustWrapper()
 {
 	String newClassId = getClassId();
 	//resetParameters();
@@ -367,7 +269,9 @@ void faust_jit_node::reinitFaustWrapper()
 
 	// Load file and recompile
 	String code = sourceFile.loadFileAsString();
-	bool classIdValid = faust->setCode(newClassId, code.toStdString());
+
+	bool classIdValid = setFaustCode(newClassId, code.toStdString());
+
 	if (!classIdValid)
 	{
 		logError("Invalid name for exported C++ class: " + newClassId.toStdString());
@@ -381,7 +285,7 @@ void faust_jit_node::reinitFaustWrapper()
 		getRootNetwork()->getExceptionHandler().removeError(this);
 
 		std::string error_msg;
-		bool success = faust->setup(getFaustLibraryPaths(), error_msg);
+		bool success = setupFaust(getFaustLibraryPaths(), error_msg);
 		DBG("Faust initialization: " + std::string(success ? "success" : "failed"));
 
 		if (success)
@@ -412,7 +316,7 @@ void faust_jit_node::reinitFaustWrapper()
 	
 }
 
-Result faust_jit_node::compileFaustCode(const File& f)
+Result faust_jit_node_base::compileFaustCode(const File& f)
 {
     String newClassId = getClassId();
     File sourceFile = getFaustFile(newClassId);
@@ -427,7 +331,7 @@ Result faust_jit_node::compileFaustCode(const File& f)
     return Result::ok();
 }
 
-void faust_jit_node::setClass(const String& newClassId)
+void faust_jit_node_base::setClass(const String& newClassId)
 {
 	// If the faust file is changed, remove all parameters from the previous patch
 	if (getClassId() != newClassId)
@@ -436,7 +340,7 @@ void faust_jit_node::setClass(const String& newClassId)
 	setNodeProperty(PropertyIds::ClassId, newClassId);
 }
 
-void faust_jit_node::updateClassId(Identifier, var newValue)
+void faust_jit_node_base::updateClassId(Identifier, var newValue)
 {
 	auto newId = newValue.toString();
 
@@ -446,7 +350,7 @@ void faust_jit_node::updateClassId(Identifier, var newValue)
 	}
 }
 
-StringArray faust_jit_node::getAvailableClassIds()
+StringArray faust_jit_node_base::getAvailableClassIds()
 {
 	return getRootNetwork()->codeManager.getClassList(getTypeId(), "*.dsp");
 }

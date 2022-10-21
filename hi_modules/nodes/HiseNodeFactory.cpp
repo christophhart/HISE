@@ -1804,7 +1804,7 @@ Factory::Factory(DspNetwork* network) :
 #endif
 
 #if HISE_INCLUDE_FAUST_JIT
-	registerNodeRaw<faust::faust_jit_node>();
+	registerPolyNodeRaw<faust::faust_jit_node<1>, faust::faust_jit_node<NUM_POLYPHONIC_VOICES>>();
 #else
 	registerNode<faust>();
 #endif // HISE_INCLUDE_FAUST_JIT

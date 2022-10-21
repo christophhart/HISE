@@ -566,7 +566,7 @@ struct FaustGraphViewer : public Component,
 	OwnedArray<Breadcrumb> breadcrumbs;
 };
 
-FaustMenuBar::FaustMenuBar(faust_jit_node *n) :
+FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
 	addButton("add", this, factory),
 	editButton("edit", this, factory),
 	reloadButton("reset", this, factory),
@@ -624,7 +624,7 @@ void FaustMenuBar::createNewFile()
 
 	if (name.isNotEmpty())
 	{
-		if (!faust_jit_wrapper::isValidClassId(name))
+		if (!faust_jit_helpers::isValidClassId(name))
 		{
 			// We want a clear and modal feedback that that wasn't a good idea...
 			PresetHandler::showMessageWindow("Illegal file name", "Can't add file, because its name is not a valid class identifier: " + name, PresetHandler::IconType::Error);
@@ -667,7 +667,7 @@ void FaustMenuBar::importFile(String extension)
 	}
 
 	auto classId = destFile.getFileNameWithoutExtension();
-	if (extension == "dsp" && !faust_jit_wrapper::isValidClassId(classId)) {
+	if (extension == "dsp" && !faust_jit_helpers::isValidClassId(classId)) {
 		DBG("Can't import file, because its name is not a valid class identifier: " + classId);
 		return;
 	}
