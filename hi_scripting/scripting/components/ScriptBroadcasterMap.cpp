@@ -451,6 +451,8 @@ void ScriptBroadcasterMap::paintCablesForOutputs(Graphics& g, EntryBase* b)
 
 		auto midPoint = GlobalHiseLookAndFeel::paintCable(g, start.reduced(7), end.reduced(7), Colours::white.withAlpha(thisAlpha), thisAlpha, Colours::grey.withAlpha(thisAlpha), true, false);
 
+        ignoreUnused(midPoint);
+        
 		outputIndex++;
 	}
 }

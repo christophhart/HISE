@@ -63,18 +63,13 @@ public:
     virtual Result compileFaustCode(const File& f) override;
     virtual void faustCodeCompiled(const File& f, const Result& compileResult) override {};
     
-	
+    // Faust Mono / Poly Interface functions ===========================================================
+    
+    /** Checks if a mod zone is defined. Super poorly named, rename to isUsingModulation() ASAP!!! */
+    virtual bool isUsingNormalisation() const = 0;
 
 protected:
 	
-	void setupParameters();
-	void resetParameters();
-
-	// Faust Mono / Poly Interface functions ===========================================================
-
-	/** Checks if a mod zone is defined. Super poorly named, rename to isUsingModulation() ASAP!!! */
-	virtual bool isUsingNormalisation() const = 0;
-
 	// Checks if the faust_ui object has a given parameter. */
 	virtual bool hasFaustParameter(const String& id) const = 0;
 
@@ -95,6 +90,9 @@ protected:
 
 	// ===================================================================================================
 
+    void setupParameters();
+    void resetParameters();
+    
     // the faust parameters need to be wrapped into dynamic_base_holders
     // and they need to be assigned with NodeBase::Parameter::setDynamicParameter()
     // (if a macro or modulation source grabs the dynamic parameter, it might
@@ -227,7 +225,7 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 	void processFrame(FrameType& data)
 	{
 		if (isBypassed()) return;
-		faust->faust_jit_wrapper::processFrame<FrameType>(data);
+		faust->faust_jit_wrapper<NV>::template processFrame<FrameType>(data);
 	}
 
 	void process(ProcessDataDyn& data)

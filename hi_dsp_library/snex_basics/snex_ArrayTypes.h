@@ -237,7 +237,11 @@ template <class T, int Size, int Alignment=16> struct span
 			static_assert(std::is_same<typename OperandType::DataType, T>(), "type mismatch");
 
 			memset(begin(), 0, sizeof(void*) * (size_t)size());
-			memcpy(begin(), op.begin(), sizeof(void*) * jmin<size_t>((size_t)op.size(), (size_t)size()));
+            
+            int numElements = jmin((int)op.size(), (int)size());
+            
+            
+			memcpy(begin(), op.begin(), sizeof(void*) * numElements);
 		}
 		else
 		{

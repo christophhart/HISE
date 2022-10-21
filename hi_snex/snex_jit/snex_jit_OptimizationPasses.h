@@ -450,6 +450,8 @@ private:
 		SubPassBase(FuncPass* p)
 		{};
 
+        virtual ~SubPassBase() {};
+        
 		/** Override this method and return true if the optimisation was successful.
 		
 			In this case it will repeat the optimisation until it returns false. */

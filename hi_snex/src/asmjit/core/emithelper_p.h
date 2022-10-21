@@ -19,6 +19,9 @@ ASMJIT_BEGIN_NAMESPACE
 //! Helper class that provides utilities for each supported architecture.
 class BaseEmitHelper {
 public:
+    
+    virtual ~BaseEmitHelper() {};
+    
   BaseEmitter* _emitter;
 
   inline explicit BaseEmitHelper(BaseEmitter* emitter = nullptr) noexcept

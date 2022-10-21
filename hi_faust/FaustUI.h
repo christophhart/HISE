@@ -9,6 +9,46 @@
 namespace scriptnode {
 namespace faust {
 
+/** This struct will take a snapshot of the current values and reset the zone pointers
+    to this value when it goes out of scope.
+ 
+    It is used by the `faust->init()` call to prevent resetting the internal values everytime
+    it is called which happens when changing the processing context.
+*/
+struct ScopedZoneSetter
+{
+    struct Item
+    {
+        Item(float* zone_): zone(zone_), value(*zone) {};
+        
+        void reset()
+        {
+            jassert(zone != nullptr);
+            *zone = value;
+        }
+        
+        float* zone;
+        float value;
+    };
+    
+    Array<Item> items;
+    
+    template <typename UIClass> ScopedZoneSetter(UIClass& ui)
+    {
+        for (auto p : ui.parameters)
+        {
+            for(const auto& z: p->zone)
+                items.add({ z });
+        }
+    }
+    
+    ~ScopedZoneSetter()
+    {
+        for(auto& i: items)
+            i.reset();
+    }
+};
+
 /** This UI subclass is templated to handle monophonic / polyphonic faust nodes.
 
 	Depending on the voice amount, the internal Parameter object will either hold a 
@@ -45,45 +85,7 @@ template <int NV> struct faust_ui : public ::faust::UI
 		numHardcodedMidiZones
 	};
 
-    /** This struct will take a snapshot of the current values and reset the zone pointers
-        to this value when it goes out of scope.
-     
-        It is used by the `faust->init()` call to prevent resetting the internal values everytime
-        it is called which happens when changing the processing context.
-    */
-    struct ScopedZoneSetter
-    {
-        struct Item
-        {
-            Item(float* zone_): zone(zone_), value(*zone) {};
-            
-            void reset()
-            {
-                jassert(zone != nullptr);
-                *zone = value;
-            }
-            
-            float* zone;
-            float value;
-        };
-        
-        Array<Item> items;
-        
-        ScopedZoneSetter(faust_ui& ui)
-        {
-			for (auto p : ui.parameters)
-			{
-				for(const auto& z: p->zone)
-					items.add({ z });
-			}
-        }
-        
-        ~ScopedZoneSetter()
-        {
-            for(auto& i: items)
-                i.reset();
-        }
-    };
+    
     
 	struct Parameter 
 	{
@@ -340,7 +342,7 @@ template <int NV> struct faust_ui : public ::faust::UI
 
 		if (existing.has_value())
 		{
-			for (auto& z : existing.value()->zone)
+			for (auto& z : (*existing)->zone)
 			{
 				if (z == nullptr)
 				{

@@ -763,7 +763,7 @@ void FaustMenuBar::executeMenuAction(int option)
 
 		// add code for more functions here
 	default:
-		std::cerr << "FaustMenuBar: Unknown MenuOption: " + option << std::endl;
+		std::cerr << "FaustMenuBar: Unknown MenuOption: " << String(option) << std::endl;
 	}
 }
 

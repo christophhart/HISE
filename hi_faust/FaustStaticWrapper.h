@@ -28,15 +28,15 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 	PolyData<FaustClass, NV> faust_obj;
 
 	faust_static_wrapper():
-		faust_base_wrapper()
+		faust_base_wrapper<NV>()
 	{
-		auto basePointer = faustDsp.begin();
+		auto basePointer = this->faustDsp.begin();
 		auto objPointer = faust_obj.begin();
 
 		for (int i = 0; i < NV; i++)
 		{
 			basePointer[i] = &objPointer[i];
-			objPointer[i].buildUserInterface(&ui);
+			objPointer[i].buildUserInterface(&this->ui);
 		}
 	}
 
@@ -46,12 +46,13 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 	{
 		faust_obj.prepare(ps);
 
-		faust_base_wrapper::prepare(ps);
+		faust_base_wrapper<NV>::prepare(ps);
 	}
 
 	template <typename T> void process(T& data)
 	{
-		faust_base_wrapper::process(data.template as<ProcessDataDyn>());
+        
+		faust_base_wrapper<NV>::process(data.template as<ProcessDataDyn>());
 	}
 
 	template <typename T> void processFrame(T& data)
@@ -67,16 +68,16 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 
 	template <int P> void setParameter(double v)
 	{
-		jassert(P < ui.parameters.size());
+		jassert(P < this->ui.parameters.size());
 
-		for (auto z : ui.parameters[P]->zone)
+		for (auto z : this->ui.parameters[P]->zone)
 			*z = (float)v;
 	}
 
 	void createParameters(ParameterDataList& data)
 	{
 		int i = 0;
-		for (const auto& p : ui.parameters)
+		for (const auto& p : this->ui.parameters)
 		{
 			auto pd = p->toParameterData();
 

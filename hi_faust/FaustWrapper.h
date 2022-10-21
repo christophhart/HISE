@@ -140,9 +140,9 @@ template <int NV> struct faust_base_wrapper
 		{
 			throwErrorIfChannelMismatch();
             
-            faust_ui<NumVoices>::ScopedZoneSetter szs(ui);
+            ScopedZoneSetter szs(this->ui);
             
-			for(auto f: faustDsp)
+			for(auto f: this->faustDsp)
 				f->init(sampleRate);
 		}
 	}

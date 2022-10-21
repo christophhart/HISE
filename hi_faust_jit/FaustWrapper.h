@@ -37,9 +37,9 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 
 	void deleteFaustObjects()
 	{
-		if (initialisedOk())
+		if (this->initialisedOk())
 		{
-			for (auto& fdsp : faustDsp)
+			for (auto& fdsp : this->faustDsp)
 			{
 				if (fdsp != nullptr)
 					delete fdsp;
@@ -94,7 +94,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		}
 #endif // !HISE_FAUST_USE_LLVM_JIT
 
-		ui.reset();
+		this->ui.reset();
 
 		const char* incl = "-I";
 		std::vector<const char*> llvm_argv = {"-rui"};
@@ -105,7 +105,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		llvm_argv.push_back(nullptr);
 
 #if !HISE_FAUST_USE_LLVM_JIT
-		interpreterFactory = ::faust::createInterpreterDSPFactoryFromString("faust", code, llvm_argv.size() - 1,
+		interpreterFactory = ::faust::createInterpreterDSPFactoryFromString("faust", code, (int)llvm_argv.size() - 1,
 		  &(llvm_argv[0]), errorMessage);
 		if (interpreterFactory == nullptr) {
 			// error indication
@@ -114,7 +114,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		}
 		DBG("Faust interpreter instantiation successful");
 
-		for(auto& fdsp: faustDsp)
+		for(auto& fdsp: this->faustDsp)
 			fdsp = interpreterFactory->createDSPInstance();
 
 #else // HISE_FAUST_USE_LLVM_JIT
@@ -127,18 +127,18 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		}
 		DBG("Faust jit compilation successful");
 
-		for (auto& fdsp : faustDsp)
+		for (auto& fdsp : this->faustDsp)
 			fdsp = jitFactory->createDSPInstance();
 
 #endif // !HISE_FAUST_USE_LLVM_JIT
-		if (!initialisedOk()) {
+		if (!this->initialisedOk()) {
 			error_msg = "Faust DSP instantiation failed";
 			return false;
 		}
 
 		DBG("Faust DSP instantiation successful");
 
-		faust_base_wrapper::setup();
+		faust_base_wrapper<NV>::setup();
 		return true;
 	}
 
@@ -158,8 +158,8 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 	{
 		// run jitted code only while holding the corresponding lock:
 		juce::ScopedTryLock stl(jitLock);
-		if (stl.isLocked() && initialisedOk()) {
-			faust_base_wrapper::process(data);
+		if (stl.isLocked() && this->initialisedOk()) {
+			faust_base_wrapper<NV>::process(data);
 		} else {
 			// std::cout << "Faust: dsp was not initialized" << std::endl;
 		}
@@ -169,8 +169,8 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 	{
 		// run jitted code only while holding the corresponding lock:
 		juce::ScopedTryLock stl(jitLock);
-		if (stl.isLocked() && initialisedOk()) {
-			faust_base_wrapper::processFrame<FrameDataType>(data);
+		if (stl.isLocked() && this->initialisedOk()) {
+			faust_base_wrapper<NV>::template processFrame<FrameDataType>(data);
 		} else {
 			// std::cout << "Faust: dsp was not initialized" << std::endl;
 		}

@@ -2693,9 +2693,7 @@ void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleI
         reportScriptError("If you want to attach a broadcaster to complex data events, it needs three parameters (processorId, index, value)");
     }
 
-    dataTypeAndEvent;
-    
-    auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+    getScriptProcessor()->getMainController_()->getMainSynthChain();
 
     Array<WeakReference<ExternalDataHolder>> processors;
     
