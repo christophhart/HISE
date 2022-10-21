@@ -144,6 +144,17 @@ struct BroadcasterHelpers
 		return idList;
 	}
 
+	static bool isValidArg(var valueOrList, int index = -1)
+	{
+		if (valueOrList.isArray() && index != -1)
+			valueOrList = valueOrList[index];
+
+		auto v = valueOrList.isVoid();
+		auto u = valueOrList.isUndefined();
+			
+		return !v && !u;
+	}
+
 	static Identifier getIllegalProperty(Array<ScriptingApi::Content::ScriptComponent*>& componentList, const Array<Identifier>& propertyIds)
 	{
 		for (auto sc : componentList)
@@ -1403,7 +1414,7 @@ ScriptBroadcaster::RadioGroupListener::RadioGroupListener(ScriptBroadcaster* b, 
 		b->reportScriptError(e);
 	}
 
-	if (currentIndex == -1)
+	if (currentIndex == -1 && BroadcasterHelpers::isValidArg(b->defaultValues[0]))
 		currentIndex = b->defaultValues[0];
 
 #if 0
