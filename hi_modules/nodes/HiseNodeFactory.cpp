@@ -1456,6 +1456,16 @@ namespace control
 
         registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
         
+        ;
+        
+        registerNoProcessNode<wrap::data<pack2_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack3_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack4_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack5_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack6_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack7_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        registerNoProcessNode<wrap::data<pack8_writer, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+        
 		registerNoProcessNode<control::sliderbank_editor::NodeType, control::sliderbank_editor, false>();
 		registerNoProcessNode<dynamic_cable_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();

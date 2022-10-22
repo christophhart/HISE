@@ -379,6 +379,8 @@ struct InterpretedCableNode : public ModulationSourceNode,
 
 		constexpr bool isBaseOfDynamicDupliHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::clone_holder>, typename T::WrappedObjectType>();
 
+        constexpr bool isBaseOfNoParameterHolder = std::is_base_of<control::pimpl::no_parameter, typename T::WrappedObjectType>();
+        
 		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
 		auto mn = new InterpretedCableNode(n, d);
@@ -389,10 +391,8 @@ struct InterpretedCableNode : public ModulationSourceNode,
 			mn->getParameterFunction = parameter::clone_holder::getParameterFunctionStatic;
 		else if constexpr (isBaseOfDynamicParameterHolder)
 			mn->getParameterFunction = InterpretedCableNode::getParameterFunctionStatic<T>;
-        else if constexpr (std::is_same<T, wrap::data<control::pack_resizer, data::dynamic::sliderpack>>())
-        {
+        else if constexpr (isBaseOfNoParameterHolder)
             mn->getParameterFunction = nullptr;
-        }
 		else
 		{
 			constexpr bool isBaseOfDynamicList = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_list>, typename T::WrappedObjectType>();

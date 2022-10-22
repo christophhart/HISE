@@ -98,6 +98,12 @@ struct no_mod_normalisation
 	}
 };
 
+/** use this base class if you don't have a output parameter slot. */
+struct no_parameter
+{
+    virtual ~no_parameter() {};
+};
+
 /** Use this baseclass for nodes that do not process the signal. */
 struct no_processing
 {

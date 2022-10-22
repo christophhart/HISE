@@ -672,9 +672,68 @@ namespace control
 		
 	};
 
-	
+    
+
+	template <int NumValues> struct pack_writer: public data::base,
+                                                 public pimpl::no_parameter,
+                                                 public pimpl::no_processing
+    {
+        static Identifier getStaticId() { return Identifier("pack" + String(NumValues) + "_writer"); };
+        
+        SN_GET_SELF_AS_OBJECT(pack_writer);
+        
+        SN_DESCRIPTION("Writes the values from the parameter sliders into a slider pack");
+        
+        void setExternalData(const ExternalData& ed, int index) override
+        {
+            data::base::setExternalData(ed, index);
+            
+            if(auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+            {
+                sp->setNumSliders(NumValues);
+            }
+        }
+        
+        template <int P> void setParameter(double v)
+        {
+            if(auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+            {
+                DataReadLock sl(this);
+                sp->setValue(P, v, sendNotificationAsync, false);
+            }
+        }
+        
+        template <int P> parameter::data createParameter()
+        {
+            parameter::data p("Value" + String(P+1), { 0.0, 1.0 });
+            registerCallback<P>(p);
+            return p;
+        }
+        
+        void createParameters(ParameterDataList& data)
+        {
+#define ADD_PARAMETER(X) if (NumValues > X) data.add(createParameter<X>());
+            ADD_PARAMETER(0); ADD_PARAMETER(1); ADD_PARAMETER(2); ADD_PARAMETER(3);
+            ADD_PARAMETER(4); ADD_PARAMETER(5); ADD_PARAMETER(6); ADD_PARAMETER(7);
+            ADD_PARAMETER(0+8); ADD_PARAMETER(1+8); ADD_PARAMETER(2+8); ADD_PARAMETER(3+8);
+            ADD_PARAMETER(4+8); ADD_PARAMETER(5+8); ADD_PARAMETER(6+8); ADD_PARAMETER(7+8);
+#undef ADD_PARAMETER
+        }
+        
+        SN_FORWARD_PARAMETER_TO_MEMBER(pack_writer<NumValues>);
+    };
+
+    using pack2_writer = pack_writer<2>;
+    using pack3_writer = pack_writer<3>;
+    using pack4_writer = pack_writer<4>;
+    using pack5_writer = pack_writer<5>;
+    using pack6_writer = pack_writer<6>;
+    using pack7_writer = pack_writer<7>;
+    using pack8_writer = pack_writer<8>;
+
 
     struct pack_resizer: public data::base,
+                         public pimpl::no_parameter,
                          public pimpl::no_processing
                          
     {
