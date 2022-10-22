@@ -995,6 +995,8 @@ struct ScriptingObjects::ScriptDownloadObject::Wrapper
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getStatusText);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadedTarget);
 	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSpeed);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getNumBytesDownloaded);
+	API_METHOD_WRAPPER_0(ScriptDownloadObject, getDownloadSize);
 };
 
 ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScriptingContent* pwsc, const URL& url, const String& extraHeader_, const File& targetFile_, var callback_) :
@@ -1020,6 +1022,8 @@ ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScript
 	ADD_API_METHOD_0(getStatusText);
 	ADD_API_METHOD_0(getDownloadedTarget);
 	ADD_API_METHOD_0(getDownloadSpeed);
+	ADD_API_METHOD_0(getNumBytesDownloaded);
+	ADD_API_METHOD_0(getDownloadSize);
 }
 
 ScriptingObjects::ScriptDownloadObject::~ScriptDownloadObject()
