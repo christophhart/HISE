@@ -6,6 +6,14 @@
 #include <iostream>
 #include <optional>
 
+#ifndef HISE_NUM_MAX_FAUST_MOD_SOURCES
+#define HISE_NUM_MAX_FAUST_MOD_SOURCES 4
+#endif
+
+#if HISE_NUM_MAX_FAUST_MOD_SOURCES > 16
+#error "There is a hard limit of 16 modulation source outputs for Faust nodes"
+#endif
+
 namespace scriptnode {
 namespace faust {
 
@@ -55,7 +63,7 @@ struct ScopedZoneSetter
 	single pointer to the faust zone (float*) or a PolyData object that contains the 
 	zone pointers for every faust object of each voice.
 */
-template <int NV> struct faust_ui : public ::faust::UI 
+template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
 {
 	static constexpr int NumVoices = NV;
 
@@ -97,6 +105,8 @@ template <int NV> struct faust_ui : public ::faust::UI
 		std::optional<std::string> styleType;
 		std::optional<std::unique_ptr<std::map<float,std::string>>> styleMap;
 
+        ModValue modValue;
+        
 		Parameter(ControlType type,
 				  String label,
 				  float* zone_,
@@ -123,6 +133,19 @@ template <int NV> struct faust_ui : public ::faust::UI
 
             for(auto z: typed->zone)
 				*z = (float)newValue;
+        }
+        
+        bool handleModulation(double& value)
+        {
+            auto newValue = (double)*(zone.get());
+            
+            if(modValue.setModValueIfChanged(newValue))
+            {
+                value = newValue;
+                return true;
+            }
+            
+            return false;
         }
         
         /** Skip parameter creation for those, as they are used as draggable modulation source. */
@@ -152,6 +175,7 @@ template <int NV> struct faust_ui : public ::faust::UI
                 pd.callback.referTo((void*)this, setParameter);
 				return pd;
 			}
+            default:
 			break;
 			}
 			parameter::data pd("invalid", {0., 0.});
@@ -176,32 +200,19 @@ template <int NV> struct faust_ui : public ::faust::UI
 		
 	};
 
-	struct ModZone
-	{
-		ModZone()
-		{
-			reset();
-		}
-
-		void reset()
-		{
-			zone = nullptr;
-			modValue.reset();
-		}
-
-		float* zone;
-		ModValue modValue;
-	};
-
 	faust_ui() 
 	{
 		reset();
 	}
 
+    ModParameterClass modParameters;
+    
+    /** This holds the zones for all modulation outputs. */
+    std::vector<std::shared_ptr<Parameter>> modoutputs;
+    
 	std::vector<std::shared_ptr<Parameter>> parameters;
 
 	PolyData<MidiZones, NumVoices> midiZones;
-	PolyData<ModZone, NumVoices> modZones;
     
 	bool anyMidiZonesActive = false;
 
@@ -233,24 +244,63 @@ template <int NV> struct faust_ui : public ::faust::UI
 		for (auto p : parameters)
 			p->zone.prepare(ps);
 
-		modZones.prepare(ps);
 		midiZones.prepare(ps);
 	}
 
-    bool handleModulation(double& v)
+    template <int P> void callOutputValue()
     {
-		auto& mz = modZones.get();
-
-        if(mz.zone != nullptr)
+        if constexpr (P < HISE_NUM_MAX_FAUST_MOD_SOURCES)
         {
-            if(mz.modValue.setModValueIfChanged((double)*mz.zone))
+            // In a static compilation context this will evaluate to a
+            // compile-time expression to remove the overhead of unnecessary
+            // branching
+            if constexpr (ModParameterClass::isStaticList())
             {
-                v = mz.modValue.getModValue();
-                return true;
+                double v;
+                
+                if constexpr ((P < ModParameterClass::getNumParameters()))
+                {
+                    if(modoutputs[P]->handleModulation(v))
+                        this->modParameters.template call<P>(v);
+                }
+            }
+            else
+            {
+                // In a dynamic (scriptnode JIT) context this must be resolved by
+                // the parameter::dynamic_list
+                jassert(modoutputs.size() == this->modParameters.getNumParameters());
+                
+                double v;
+                
+                if(isPositiveAndBelow(P, modoutputs.size()))
+                {
+                    if(modoutputs[P]->handleModulation(v))
+                        this->modParameters.template call<P>(v);
+                }
             }
         }
-        
-        return false;
+    }
+    
+    void handleModulationOutputs()
+    {
+        // We need to type this out but it will be checked
+        // against HISE_NUM_MAX_FAUST_MOD_SOURCES on compile time
+        callOutputValue<0>();
+        callOutputValue<1>();
+        callOutputValue<2>();
+        callOutputValue<3>();
+        callOutputValue<4>();
+        callOutputValue<5>();
+        callOutputValue<6>();
+        callOutputValue<7>();
+        callOutputValue<8>();
+        callOutputValue<9>();
+        callOutputValue<10>();
+        callOutputValue<11>();
+        callOutputValue<12>();
+        callOutputValue<13>();
+        callOutputValue<14>();
+        callOutputValue<15>();
     }
     
 	void handleHiseEvent(HiseEvent& e)
@@ -281,20 +331,20 @@ template <int NV> struct faust_ui : public ::faust::UI
 
 	void reset()
 	{
+        modoutputs.clear();
 		parameters.clear();
 
 		for (auto& mz : midiZones)
 			mz.reset();
 
-		for (auto& mz : modZones)
-			mz.reset();
-
 		anyMidiZonesActive = false;
 	}
 
-	std::optional<std::shared_ptr<Parameter>> getParameterByLabel(String label)
+	std::optional<std::shared_ptr<Parameter>> getParameterByLabel(String label, bool getInputParameter=true)
 	{
-		for (auto p : parameters)
+        auto& listToUse = getInputParameter ? parameters : modoutputs;
+        
+		for (auto p : listToUse)
 		{
 			if (p->label == label)
 				return p;
@@ -312,10 +362,9 @@ template <int NV> struct faust_ui : public ::faust::UI
 		return {};
 	}
 
-
-	bool attachZoneVoiceToExistingParameter(const char* label, float* zone)
+	bool attachZoneVoiceToExistingParameter(const char* label, float* zone, bool getInputParameter=true)
 	{
-		auto existing = getParameterByLabel(label);
+		auto existing = getParameterByLabel(label, getInputParameter);
 
 		if (existing.has_value())
 		{
@@ -330,18 +379,6 @@ template <int NV> struct faust_ui : public ::faust::UI
 		}
 
 		return false;
-	}
-
-	void attachZoneVoiceToModZones(float* zone)
-	{
-		for (auto& mz : modZones)
-		{
-			if (mz.zone == nullptr)
-			{
-				mz.zone = zone;
-				return;
-			}
-		}
 	}
 
 	std::pair<std::string, std::map<float,std::string>> parseMetaData(std::string style)
@@ -509,12 +546,30 @@ template <int NV> struct faust_ui : public ::faust::UI
 
 	virtual void addHorizontalBargraph(const char* label, float* zone, float min, float max) override
 	{
-		attachZoneVoiceToModZones(zone);
+		if (attachZoneVoiceToExistingParameter(label, zone, false))
+            return;
+        
+        modoutputs.push_back(std::make_shared<Parameter>(ControlType::HORIZONTAL_BARGRAPH,
+                                                         String(label),
+                                                         zone,
+                                                         0.0,
+                                                         min,
+                                                         max,
+                                                         0.0));
 	}
 
 	virtual void addVerticalBargraph(const char* label, float* zone, float min, float max) override
 	{
-		attachZoneVoiceToModZones(zone);
+		if (attachZoneVoiceToExistingParameter(label, zone, false))
+            return;
+        
+        modoutputs.push_back(std::make_shared<Parameter>(ControlType::VERTICAL_BARGRAPH,
+                                                         String(label),
+                                                         zone,
+                                                         0.0,
+                                                         min,
+                                                         max,
+                                                         0.0));
 	}
 
 	// -- soundfiles -- TODO

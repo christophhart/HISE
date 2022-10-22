@@ -10,7 +10,7 @@ namespace faust {
 	The Faust menubar (and all other UI components) will use this class and all the processing code which relies on the internal `faust_jit_wrapper`
 	is moved to the subclasses.
 */
-class faust_jit_node_base: public scriptnode::ModulationSourceNode,
+class faust_jit_node_base: public scriptnode::WrapperNode,
 						   public DspNetwork::FaustManager::FaustListener
 {
 public:
@@ -23,20 +23,9 @@ public:
     
     ~faust_jit_node_base();
     
-	
-    virtual bool isUsingNormalisedRange() const override { return false; };
-    
-    virtual parameter::dynamic_base_holder* getParameterHolder() override
-    {
-        return &parameterHolder;
-    }
-    
     Result getLastResult() const { return compileResult; }
     
-    parameter::dynamic_base_holder parameterHolder;
-    
-	
-	File getFaustRootFile();
+    File getFaustRootFile();
 	File getFaustFile(String basename);
 	std::vector<std::string> getFaustLibraryPaths();
 
@@ -68,6 +57,14 @@ public:
     /** Checks if a mod zone is defined. Super poorly named, rename to isUsingModulation() ASAP!!! */
     virtual bool isUsingNormalisation() const = 0;
 
+    /** Returns the internal parameter::dynamic_list object that is using the multiple faust outputs. */
+    virtual parameter::dynamic_list* getFaustModulationOutputs() = 0;
+    
+    virtual String getFaustModulationOutputName(int index) const = 0;
+    
+    /** Returns the amount of modulation outputs of the faust_ui object. */
+    virtual int getNumFaustModulationOutputs() const = 0;
+    
 protected:
 	
 	// Checks if the faust_ui object has a given parameter. */
@@ -75,7 +72,7 @@ protected:
 
 	/** Returns the amount of parameters of the faust_ui object. */
 	virtual int getNumFaustParameters() const = 0;
-
+    
 	/** Connects the parameters to the zone pointers of the faust_ui object. */
 	virtual void setupFaustParameters() = 0;
 
@@ -88,6 +85,8 @@ protected:
 	/** This returns the class ID from the faust object (!= the node property). */
 	virtual String getFaustClassId() const = 0;
 
+    
+    
 	// ===================================================================================================
 
     void setupParameters();
@@ -125,6 +124,10 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 		// we can't init yet, because we don't know the sample rate
 		initialise(this);
 
+        // connect the internal parameter::dynamic_list to the value tree to
+        // dynamically update the number of parameters
+        faust->ui.modParameters.initialise(this);
+        
 		// This needs to called here because it might trigger an asynchronous recompilation which would
 		// cause pure virtual function calls if it's called from the base class constructor...
 		setClass(classId.getValue());
@@ -160,6 +163,25 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 		return (int)faust->ui.parameters.size();
 	}
 
+    int getNumFaustModulationOutputs() const override
+    {
+        return (int)faust->ui.modoutputs.size();
+    }
+    
+    parameter::dynamic_list* getFaustModulationOutputs() override
+    {
+        return &faust->ui.modParameters;
+    }
+    
+    String getFaustModulationOutputName(int index) const override
+    {
+        if(isPositiveAndBelow(index, getNumFaustModulationOutputs()))
+            return faust->ui.modoutputs[index]->label;
+        
+        // shouldn't happen...
+        return String(index);
+    }
+    
 	bool hasFaustParameter(const String& id) const override
 	{
 		for (auto p : faust->ui.parameters)
@@ -215,11 +237,6 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 	{
 		if (isBypassed()) return;
 		faust->handleHiseEvent(e);
-
-		double v = 0.0;
-
-		if (faust->handleModulation(v))
-			parameterHolder.call(v);
 	}
 
 	void processFrame(FrameType& data)
@@ -231,12 +248,11 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 	void process(ProcessDataDyn& data)
 	{
 		if (isBypassed()) return;
+        
+        NodeProfiler np(this, data.getNumSamples());
+        ProcessDataPeakChecker fd(this, data);
+        
 		faust->process(data);
-
-		double v = 0.0;
-
-		if (faust->handleModulation(v))
-			parameterHolder.call(v);
 	}
 
 	void reset()
@@ -246,7 +262,7 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 
 	void prepare(PrepareSpecs specs)
 	{
-		ModulationSourceNode::prepare(specs);
+		WrapperNode::prepare(specs);
 
 		try
 		{
@@ -263,7 +279,7 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 
 	bool isUsingNormalisation() const override
 	{
-		return faust->ui.modZones.getFirst().zone != nullptr;
+        return getNumFaustModulationOutputs() > 0;
 	}
 };
 

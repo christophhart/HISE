@@ -561,8 +561,28 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 };
 
 
+/** This class is just a placeholder for a node that expects multiple outputs without connections.
+*/
+struct empty_list
+{
+    PARAMETER_SPECS(ParameterType::List, 0);
+    
+    template <int P> auto& getParameter()
+    {
+        return *this;
+    }
+    
+    static constexpr int getNumParameters() { return 0; }
 
+    template <int Index, class Target> void connect(Target& t)
+    {
+        jassertfalse;
+    }
+    
+    template <int P> void call(double) {};
 
+    static constexpr bool isStaticList() { return true; }
+};
 
 /** The parameter list is a collection of multiple parameters that can be called individually.
 
@@ -603,7 +623,7 @@ template <class... Parameters> struct list: public advanced_tuple<Parameters...>
 
 	template <int P> void call(double v)
 	{
-		if constexpr (P <= size)
+		if constexpr (P <= getNumParameters())
 		{
 			getParameter<P>().call(v);
 		}

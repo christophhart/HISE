@@ -572,7 +572,7 @@ FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
 	reloadButton("reset", this, factory),
 	svgButton("preview", this, factory),
 	node(n),
-    dragger(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
+    dragger(n->getFaustModulationOutputs(), n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater())
 {
 	// we must provide a valid faust_jit_node pointer
 	jassert(n);
@@ -580,12 +580,9 @@ FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
     
     auto h = 24;
     
-    if(n->isUsingNormalisation())
-    {
-        addAndMakeVisible(dragger);
-        h += 28 + UIValues::NodeMargin;
-    }
-    
+    dragger.showEditButtons(false);
+    addChildComponent(dragger);
+        
 	setSize(256, h);
     
 	addAndMakeVisible(classSelector);
@@ -786,7 +783,7 @@ void FaustMenuBar::resized()
 
     if(dragger.isVisible())
     {
-        dragger.setBounds(b.removeFromBottom(28));
+        dragger.setBounds(b.removeFromBottom(parameter::ui::UIConstants::DragHeight));
         b.removeFromBottom(UIValues::NodeMargin);
     }
     
@@ -887,6 +884,34 @@ void FaustMenuBar::faustCodeCompiled(const File& f, const Result& compileResult)
 	if (matchesFile(f))
 	{
 		compilePending = false;
+        
+        if(compileResult.wasOk())
+        {
+            auto numOutputs = node->getNumFaustModulationOutputs();
+            
+            for(int i = 0; i < numOutputs; i++)
+            {
+                dragger.setTextFunction(i, BIND_MEMBER_FUNCTION_1(FaustMenuBar::getModulationOutputName));
+            }
+            
+            dragger.rebuildDraggers();
+            
+            auto h = 24;
+            
+            if(numOutputs > 0)
+            {
+                dragger.setVisible(true);
+                h += parameter::ui::UIConstants::DragHeight + UIValues::NodeMargin;
+            }
+            else
+                dragger.setVisible(false);
+            
+            if(h != getHeight())
+                node->sendResizeMessage(this, true);
+            
+            setSize(256, h);
+        }
+        
 		repaint();
 	}
 	

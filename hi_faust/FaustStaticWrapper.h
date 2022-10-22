@@ -3,7 +3,7 @@
 namespace scriptnode {
 namespace faust{
 
-template <int NV, class FaustClass, class MC, int nChannels> struct faust_static_wrapper: public data::base, public faust_base_wrapper<NV>
+template <int NV, class ModParameterClass, class FaustClass, class MC, int nChannels> struct faust_static_wrapper: public data::base, public faust_base_wrapper<NV, ModParameterClass>
 {
 	// Metadata Definitions ------------------------------------------------------
 
@@ -26,8 +26,13 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 
 	PolyData<FaustClass, NV> faust_obj;
 
+    auto& getParameter()
+    {
+        return this->ui.modParameters;
+    }
+    
 	faust_static_wrapper():
-		faust_base_wrapper<NV>()
+		faust_base_wrapper<NV, ModParameterClass>()
 	{
 		auto basePointer = this->faustDsp.begin();
 		auto objPointer = faust_obj.begin();
@@ -45,13 +50,12 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 	{
 		faust_obj.prepare(ps);
 
-		faust_base_wrapper<NV>::prepare(ps);
+		faust_base_wrapper<NV, ModParameterClass>::prepare(ps);
 	}
 
 	template <typename T> void process(T& data)
 	{
-        
-		faust_base_wrapper<NV>::process(data.template as<ProcessDataDyn>());
+		faust_base_wrapper<NV, ModParameterClass>::process(data.template as<ProcessDataDyn>());
 	}
 
 	template <typename T> void processFrame(T& data)
@@ -80,7 +84,7 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 		{
 			auto pd = p->toParameterData();
 
-			pd.callback.referTo(p.get(), faust_ui<NV>::Parameter::setParameter);
+			pd.callback.referTo(p.get(), faust_ui<NV, ModParameterClass>::Parameter::setParameter);
 
 			pd.info.index = i++;
 			data.add(std::move(pd));

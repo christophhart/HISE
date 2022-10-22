@@ -625,24 +625,39 @@ namespace ui
 		addAndMakeVisible(editButton);
 	}
 
+    bool dynamic_list_editor::rebuildDraggers()
+    {
+        if (getObject() == nullptr)
+            return 0;
+
+        bool changedSomething = false;
+        
+        if (dragSources.size() != getObject()->getNumParameters())
+        {
+            dragSources.clear();
+
+            for (int i = 0; i < getObject()->getNumParameters(); i++)
+            {
+                dragSources.add(new DragComponent(getObject(), i));
+                addAndMakeVisible(dragSources.getLast());
+            }
+
+            resized();
+            changedSomething = true;
+        }
+        
+        for(int i = 0; i < dragSources.size(); i++)
+        {
+            if(externalTextFunctions[i])
+                dragSources[i]->textFunction = externalTextFunctions[i];
+        }
+        
+        return changedSomething;
+    }
+
 	void dynamic_list_editor::timerCallback()
 	{
-		if (getObject() == nullptr)
-			return;
-
-		if (dragSources.size() != getObject()->getNumParameters())
-		{
-			dragSources.clear();
-
-			for (int i = 0; i < getObject()->getNumParameters(); i++)
-			{
-				auto n = new DragComponent(getObject(), i);
-				dragSources.add(n);
-				addAndMakeVisible(n);
-			}
-
-			resized();
-		}
+        rebuildDraggers();
 	}
 
 	void dynamic_list_editor::buttonClicked(Button* b)
@@ -674,15 +689,19 @@ namespace ui
 		auto b = getLocalBounds();
 
 		b.removeFromTop(5);
-		auto top = b.removeFromTop(UIConstants::ButtonHeight);
+        
+        if(addButton.isVisible())
+        {
+            auto top = b.removeFromTop(UIConstants::ButtonHeight);
 
-		b.removeFromTop(5);
-		b.removeFromBottom(10);
+            b.removeFromTop(5);
+            b.removeFromBottom(10);
 
-		addButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
-		removeButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
-		editButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
-
+            addButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+            removeButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+            editButton.setBounds(top.removeFromLeft(UIConstants::ButtonHeight).reduced(2));
+        }
+        
 		if (dragSources.size() > 0)
 		{
 			auto wPerDrag = b.getWidth() / dragSources.size();
@@ -766,11 +785,31 @@ namespace ui
 
 	void dynamic_list_editor::DragComponent::resized()
 	{
+#if 0
 		auto b = getLocalBounds().withSizeKeepingCentre(24, 24);
 
-		auto isHigher = getWidth() > getHeight();
+		
 		auto pathBounds = b.toFloat().reduced(2.0f).translated(isHigher ? -12.0f : 0, isHigher ? 0.0f : -12.0f);
-
+#endif
+      
+        auto isHigher = getWidth() < getHeight();
+        
+        auto b = getLocalBounds().withSizeKeepingCentre(jmax(20, getWidth() - UIValues::NodeMargin * 2), 20);
+        
+        auto pathBounds = b.removeFromLeft(20).toFloat();
+        
+        if(isHigher)
+        {
+            b.removeFromTop(UIValues::NodeMargin);
+            textArea = pathBounds.translated(0.0, 26.0);
+        }
+        else
+        {
+            b.removeFromLeft(UIValues::NodeMargin);
+            
+            textArea = b.toFloat();
+        }
+        
 		Factory::scalePath(p, pathBounds);
 
 		auto xOffset = pathBounds.getCentreX() - (float)getWidth() / 2.0f;
@@ -804,9 +843,9 @@ namespace ui
 		g.fillPath(p);
 		g.setFont(GLOBAL_BOLD_FONT());
 
-		auto isHigher = getWidth() > getHeight();
+		auto isHigher = getWidth() < getHeight();
 
-		g.drawText(textFunction(index), p.getBounds().translated(isHigher ? 24.0f : 0.0f, isHigher ? 0.0f : 24.0f), Justification::centred);
+        g.drawText(textFunction(index), textArea, isHigher ? Justification::centredTop : Justification::left);//p.getBounds().translated(isHigher ? 24.0f : 0.0f, isHigher ? 0.0f : 24.0f), Justification::centred);
 	}
 }
 

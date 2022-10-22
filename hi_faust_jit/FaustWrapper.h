@@ -23,10 +23,12 @@ struct faust_jit_helpers
 
 
 // wrapper struct for faust types to avoid name-clash
-template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV> 
+template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, parameter::dynamic_list> 
 {
+    using BaseClass = faust_base_wrapper<NV, parameter::dynamic_list>;
+    
 	faust_jit_wrapper():
-		faust_base_wrapper<NV>(),
+        BaseClass(),
 #if !HISE_FAUST_USE_LLVM_JIT
 		interpreterFactory(nullptr),
 #else // HISE_FAUST_USE_LLVM_JIT
@@ -138,7 +140,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 
 		DBG("Faust DSP instantiation successful");
 
-		faust_base_wrapper<NV>::setup();
+        BaseClass::setup();
 		return true;
 	}
 
@@ -159,7 +161,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		// run jitted code only while holding the corresponding lock:
 		juce::ScopedTryLock stl(jitLock);
 		if (stl.isLocked() && this->initialisedOk()) {
-			faust_base_wrapper<NV>::process(data);
+            BaseClass::process(data);
 		} else {
 			// std::cout << "Faust: dsp was not initialized" << std::endl;
 		}
@@ -170,7 +172,7 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV>
 		// run jitted code only while holding the corresponding lock:
 		juce::ScopedTryLock stl(jitLock);
 		if (stl.isLocked() && this->initialisedOk()) {
-			faust_base_wrapper<NV>::template processFrame<FrameDataType>(data);
+            BaseClass::template processFrame<FrameDataType>(data);
 		} else {
 			// std::cout << "Faust: dsp was not initialized" << std::endl;
 		}

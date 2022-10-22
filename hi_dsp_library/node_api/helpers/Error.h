@@ -48,42 +48,51 @@ using namespace juce;
 #endif
 #endif
 
-struct Error
+extern "C" {
+
+
+struct ErrorC
 {
-	enum ErrorCode
-	{
-		OK,
-		NoMatchingParent,
-		RootIdMismatch,
-		ChannelMismatch,
-		BlockSizeMismatch,
-		IllegalFrameCall,
-		IllegalBlockSize,
-		SampleRateMismatch,
-		InitialisationError,
-		TooManyChildNodes,
-		CompileFail,
-		NodeDebuggerEnabled,
-		RingBufferMultipleWriters,
-		DeprecatedNode,
-		IllegalPolyphony,
-		IllegalBypassConnection,
-		IllegalCompilation,
-		IllegalFaustNode,
-		IllegalFaustChannelCount,
-		CloneMismatch,
-		IllegalMod,
-		UnscaledModRangeMismatch,
-		numErrorCodes
-	};
-
-	static void throwError(ErrorCode code, int expected_ = 0, int actual_ = 0);
-
-	bool isOk() const { return error == ErrorCode::OK; }
-
-	ErrorCode error = ErrorCode::OK;
+    int error = 0;
 	int expected = 0;
 	int actual = 0;
+};
+
+}
+
+struct Error: public ErrorC
+{
+    enum ErrorCode
+    {
+        OK,
+        NoMatchingParent,
+        RootIdMismatch,
+        ChannelMismatch,
+        BlockSizeMismatch,
+        IllegalFrameCall,
+        IllegalBlockSize,
+        SampleRateMismatch,
+        InitialisationError,
+        TooManyChildNodes,
+        TooManyParameters,
+        CompileFail,
+        NodeDebuggerEnabled,
+        RingBufferMultipleWriters,
+        DeprecatedNode,
+        IllegalPolyphony,
+        IllegalBypassConnection,
+        IllegalCompilation,
+        IllegalFaustNode,
+        IllegalFaustChannelCount,
+        CloneMismatch,
+        IllegalMod,
+        UnscaledModRangeMismatch,
+        numErrorCodes
+    };
+    
+    bool isOk() const { return error == ErrorCode::OK; }
+    
+    static void throwError(ErrorCode code, int expected_ = 0, int actual_ = 0);
 };
 
 #if !THROW_SCRIPTNODE_ERRORS

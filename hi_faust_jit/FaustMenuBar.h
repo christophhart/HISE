@@ -32,7 +32,7 @@ struct FaustMenuBar : public Component,
 
 	bool compilePending = false;
 
-    scriptnode::ModulationSourceBaseComponent dragger;
+    scriptnode::parameter::ui::dynamic_list_editor dragger;
     
 	WeakReference<faust_jit_node_base> node;
 	hise::ScriptnodeComboBoxLookAndFeel claf;
@@ -81,6 +81,11 @@ struct FaustMenuBar : public Component,
 
 	}
 
+    String getModulationOutputName(int index) const
+    {
+        return node->getFaustModulationOutputName(index);
+    }
+    
 	void paintOverChildren(Graphics& g) override;
 
 	void executeMenuAction(int option);

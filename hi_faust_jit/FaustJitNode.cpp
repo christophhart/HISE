@@ -9,7 +9,7 @@ namespace faust {
 // faust_jit_node::faust_jit_node(DspNetwork* n, ValueTree v) :
 //      NodeBase(n, v, 0) { }
 faust_jit_node_base::faust_jit_node_base(DspNetwork* n, ValueTree v) :
-	ModulationSourceNode(n, v),
+	WrapperNode(n, v),
 	classId(PropertyIds::ClassId, ""),
     compileResult(Result::ok())
 {
@@ -39,6 +39,10 @@ faust_jit_node_base::~faust_jit_node_base()
 
 void faust_jit_node_base::setupParameters()
 {
+    // resize the parameter::dynamic_list amount
+    if(getLastResult().wasOk())
+        setNodeProperty(PropertyIds::NumParameters, getNumFaustModulationOutputs());
+    
 	auto pTree = getParameterTree();
 
 	for (int i = 0; i < pTree.getNumChildren(); i++)
@@ -300,6 +304,17 @@ void faust_jit_node_base::reinitFaustWrapper()
 			getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::CompileFail, String(error_msg));
 			logError(error_msg);
 		}
+        
+        if(getNumFaustModulationOutputs() > HISE_NUM_MAX_FAUST_MOD_SOURCES)
+        {
+            Error e;
+            e.error = Error::ErrorCode::TooManyParameters;
+            e.actual = getNumFaustModulationOutputs();
+            e.expected = HISE_NUM_MAX_FAUST_MOD_SOURCES;
+            
+            throw e;
+        }
+        
 		setupParameters();
 	}
 	catch (scriptnode::Error& e)

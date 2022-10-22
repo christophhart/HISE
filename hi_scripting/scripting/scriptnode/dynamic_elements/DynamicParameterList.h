@@ -331,6 +331,7 @@ struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_
 		std::function<String(int)> textFunction = DragComponent::getDefaultText;
 		const int index;
 		Path p;
+        Rectangle<float> textArea;
 		WeakReference<parameter::dynamic_list> pdl;
 	};
 
@@ -340,6 +341,23 @@ struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_
 	void buttonClicked(Button* b) override;
 	void resized() override;
 
+    bool rebuildDraggers();
+    
+    void showEditButtons(bool shouldShowButtons)
+    {
+        addButton.setVisible(shouldShowButtons);
+        removeButton.setVisible(shouldShowButtons);
+        editButton.setVisible(shouldShowButtons);
+        resized();
+    }
+    
+    void setTextFunction(int index, const std::function<String(int)>& f)
+    {
+        externalTextFunctions.set(index, f);
+    }
+    
+    Array<std::function<String(int)>> externalTextFunctions;
+    
 	Factory f;
 	HiseShapeButton addButton;
 	HiseShapeButton removeButton;

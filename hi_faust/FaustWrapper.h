@@ -27,8 +27,11 @@ namespace faust {
 	if you're running complex faust patches. So if memory consumption / loading times get too high
 	consider lowering this preprocessor (it's used consistently across the entire codebase so you 
 	should be able to control the number of voices you need).
+ 
+    The ParameterClass template argument is used for multi-output modulation sources and will be
+    populated with zones of hbargraph / vbargraph elements.
 */
-template <int NV> struct faust_base_wrapper 
+template <int NV, class ParameterClass> struct faust_base_wrapper 
 {
 	static constexpr int NumVoices = NV;
 
@@ -55,7 +58,7 @@ template <int NV> struct faust_base_wrapper
 
 	// The UI class is templated because it needs to update either a single zone pointer
 	// or all zone pointers of a voice
-	faust_ui<NV> ui;
+	faust_ui<NV, ParameterClass> ui;
 
 	// audio buffer
 	int _nChannels;
@@ -161,11 +164,7 @@ template <int NV> struct faust_base_wrapper
 		ui.handleHiseEvent(e);
 	}
 
-    bool handleModulation(double& v)
-    {
-        return ui.handleModulation(v);
-    }
-    
+       
 	// This method assumes faustDsp to be initialized correctly
 	void process(ProcessDataDyn& data)
 	{
@@ -191,6 +190,8 @@ template <int NV> struct faust_base_wrapper
 			// should be catched by the init check
 			jassertfalse;
 		}
+        
+        ui.handleModulationOutputs();
 	}
 
 	// This method assumes faustDsp to be initialized correctly
@@ -211,6 +212,8 @@ template <int NV> struct faust_base_wrapper
 		} else {
 			// TODO error indication
 		}
+        
+        ui.handleModulationOutputs();
 	}
 
 	float** getRawInputChannelPointers() {
