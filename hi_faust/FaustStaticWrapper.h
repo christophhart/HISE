@@ -1,5 +1,4 @@
-#ifndef __FAUST_STATIC_WRAPPER_H
-#define __FAUST_STATIC_WRAPPER_H
+#pragma once
 
 namespace scriptnode {
 namespace faust{
@@ -96,20 +95,4 @@ template <int NV, class FaustClass, class MC, int nChannels> struct faust_static
 }
 }
 
-#endif // __FAUST_STATIC_WRAPPER_H
 
-#if 0
-// generated code
-using Meta = faust::Meta;
-using UI = faust::UI;
-#include "src/stereo-delay.cpp"
-namespace project {
-struct StereoDelayMetaData {
-		SN_NODE_ID("faust_mockup");
-};
-template <int NV>
-using faust_mockup = scriptnode::faust::faust_static_wrapper<1, _stereo_delay, StereoDelayMetaData>;
-} // namespace project
-
-
-#endif // 0

@@ -85,8 +85,6 @@ template <int NV> struct faust_ui : public ::faust::UI
 		numHardcodedMidiZones
 	};
 
-    
-    
 	struct Parameter 
 	{
 		ControlType type;
@@ -314,27 +312,6 @@ template <int NV> struct faust_ui : public ::faust::UI
 		return {};
 	}
 
-	std::vector<String> getParameterLabels()
-	{
-		std::vector<String> res;
-		res.reserve(parameters.size());
-
-		for (auto p : parameters)
-		{
-			res.push_back(p->label);
-		}
-
-		return res;
-	}
-
-	float* getZone(String label) {
-		for (auto p : parameters)
-		{
-			if (p->label == label)
-				return p->zone.getFirst();
-		}
-		return nullptr;
-	}
 
 	bool attachZoneVoiceToExistingParameter(const char* label, float* zone)
 	{

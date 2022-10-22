@@ -75,11 +75,6 @@ template <int NV> struct faust_base_wrapper
 		for(auto f: faustDsp)
 			f->buildUserInterface(&ui);
 
-		DBG("Faust parameters:");
-		for (auto p : ui.getParameterLabels()) {
-			DBG(p);
-		}
-
 		init();
 		
 		return true;
