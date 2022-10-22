@@ -421,7 +421,7 @@ private:
 	public:
 
 		LoadingThread(DialogWindowWithBackgroundThread *parent_) :
-			Thread(parent_->getName()),
+			Thread(parent_->getName(), HISE_DEFAULT_STACK_SIZE),
 			parent(parent_)
 		{};
 

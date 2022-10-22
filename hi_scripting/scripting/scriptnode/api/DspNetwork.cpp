@@ -1486,7 +1486,7 @@ juce::File DspNetwork::CodeManager::getCodeFolder() const
 }
 
 DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_) :
-	Thread("SNEX Compile Thread"),
+	Thread("SNEX Compile Thread", HISE_DEFAULT_STACK_SIZE),
 	CompileHandler(d),
 	ControlledObject(sp_->getMainController_()),
 	sp(sp_)

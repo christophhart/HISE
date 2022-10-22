@@ -257,7 +257,7 @@ public:
 	}
 
 	TokenCollection():
-		Thread("TokenRebuildThread")
+		Thread("TokenRebuildThread", HISE_DEFAULT_STACK_SIZE)
 	{
 
 	}

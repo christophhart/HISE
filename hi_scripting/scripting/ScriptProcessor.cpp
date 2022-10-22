@@ -1735,7 +1735,7 @@ float ScriptBaseMidiProcessor::getDefaultValue(int index) const
 }
 
 JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
-	Thread("Javascript Thread"),
+	Thread("Javascript Thread", HISE_DEFAULT_STACK_SIZE),
 	ControlledObject(mc),
 	lowPriorityQueue(8192),
 	highPriorityQueue(2048),

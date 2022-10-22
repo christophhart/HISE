@@ -391,7 +391,7 @@ struct FaustGraphViewer : public Component,
 	FaustGraphViewer(DspNetwork* n, const File& faustFile_):
 		ControlledObject(n->getScriptProcessor()->getMainController_()),
 		SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
-		Thread("SVG Creator"),
+		Thread("SVG Creator", HISE_DEFAULT_STACK_SIZE),
         network(n),
 		faustFile(faustFile_)
 	{
