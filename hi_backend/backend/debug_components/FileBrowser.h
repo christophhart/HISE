@@ -357,7 +357,8 @@ private:
 	ScopedPointer<DirectoryContentsList> directoryList;
 
 	
-
+    ScrollbarFader sf;
+    
 	ScopedPointer<FileTreeComponent> fileTreeComponent;
 
 	ScopedPointer<ShapeButton> favoriteButton;

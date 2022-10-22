@@ -147,6 +147,8 @@ public:
 
 private:
 
+    ScrollbarFader sf;
+    
 	ScopedPointer<ShapeButton> copyButton;
 	ScopedPointer<ShapeButton> pasteButton;
 	ScopedPointer<MarkdownHelpButton> helpButton;

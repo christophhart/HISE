@@ -518,6 +518,9 @@ public:
 		return {};
 	}
 
+    static bool sendResizeMessage(Component* c, bool async);
+    
+    
 	double& getCpuFlag() { return cpuUsage; }
 
 	String getCpuUsageInPercent() const;

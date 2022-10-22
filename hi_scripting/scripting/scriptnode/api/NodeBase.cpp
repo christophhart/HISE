@@ -211,6 +211,25 @@ juce::Rectangle<int> NodeBase::getPositionInCanvas(Point<int> topLeft) const
 	return body;
 }
 
+bool NodeBase::sendResizeMessage(Component* childComponent, bool async)
+{
+    if(auto p = childComponent->findParentComponentOfClass<DspNetworkGraph>())
+    {
+        auto f = [](DspNetworkGraph& g)
+        {
+            g.resizeNodes();
+        };
+        
+        if(async)
+            SafeAsyncCall::call<DspNetworkGraph>(*p, f);
+        else
+            f(*p);
+        
+        return true;
+    }
+    
+    return false;
+}
 juce::var NodeBase::addModulationConnection(var source, Parameter* targetParameter)
 {
 	jassertfalse;

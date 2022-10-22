@@ -340,6 +340,16 @@ void DspNetworkGraph::rebuildNodes()
 
 void DspNetworkGraph::resizeNodes()
 {
+    Component::callRecursive<NodeComponent>(this, [](NodeComponent* nc)
+    {
+        if(auto mc = dynamic_cast<WrapperNode*>(nc->node.get()))
+        {
+            mc->setCachedSize(-1, -1);
+        }
+        
+        return false;
+    });
+    
 	auto b = network->getRootNode()->getPositionInCanvas({ UIValues::NodeMargin, UIValues::NodeMargin });
 	setSize(b.getWidth() + 2 * UIValues::NodeMargin, b.getHeight() + 2 * UIValues::NodeMargin);
 	resized();

@@ -110,6 +110,12 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processo
 
 	addAndMakeVisible(panel = new PropertyPanel());
 
+    auto& sb = panel->getViewport().getVerticalScrollBar();
+    
+    panel->getViewport().setScrollBarThickness(14);
+    
+    sf.addScrollBarToAnimate(sb);
+    
 	panel->setLookAndFeel(&pplaf);
 
 	updateIdEditor();

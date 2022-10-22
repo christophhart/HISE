@@ -242,7 +242,11 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	fileTreeComponent->addMouseListener(this, true);
 
-	
+    auto vp = fileTreeComponent->getViewport();
+    
+    vp->setScrollBarThickness(14);
+    
+    sf.addScrollBarToAnimate(vp->getVerticalScrollBar());
 
 #if HISE_IOS
 #else

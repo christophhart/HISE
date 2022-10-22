@@ -884,7 +884,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 #elif JUCE_MAC
     debugExecutable = debugExecutable.getChildFile("MacOSX/build/Debug/HISE Debug.app");
     
-    jassert(debugExecutable.existsAsFile());
+    jassert(debugExecutable.isDirectory());
     solutionFolder = solutionFolder.getChildFile("MacOSX");
     auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("xcodeproj");
     
