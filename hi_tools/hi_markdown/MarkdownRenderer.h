@@ -481,6 +481,9 @@ public:
 		vp.setViewedComponent(&canvas, false);
 		addAndMakeVisible(vp);
 		vp.setScrollOnDragEnabled(true);
+        
+        sf.addScrollBarToAnimate(vp.getVerticalScrollBar());
+        vp.setScrollBarThickness(14);
 	}
 
 	void setText(const String& text)
@@ -510,6 +513,8 @@ public:
 	float totalHeight = 0.0;
 	Viewport vp;
 	InternalComp canvas;
+    
+    ScrollbarFader sf;
 };
 
 class MarkdownPreview : public Component,

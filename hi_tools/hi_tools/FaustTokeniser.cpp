@@ -15,26 +15,46 @@ using namespace juce;
 
 struct FaustTokeniserFunctions
 {
-  static bool isPrimitive (String::CharPointerType token, const int tokenLength) noexcept
-  {
-    static const char* const primitives3Char[] =
+    static constexpr char* const primitives3Char[] =
     { "mem", "int", "cos", "sin", "tan", "exp", "log", "pow", "abs", "min", "max", "seq", "par", "sum", nullptr };
     
-    static const char* const primitives4Char[] =
+    static constexpr char* const primitives4Char[] =
     { "acos", "asin", "atan", "fmod", "ceil", "rint", "sqrt", "with", "case", "prod", nullptr };
     
-    static const char* const primitives5Char[] =
+    static constexpr char* const primitives5Char[] =
     {  "float", "log10", "floor", "atan2", nullptr };
     
-    static const char* const primitives6Char[] =
+    static constexpr char* const primitives6Char[] =
     { "prefix", "button", "nentry", "vgroup", "hgroup", "tgroup", "attach", "import", nullptr};
     
-    static const char* const primitives7Char[] =
+    static constexpr char* const primitives7Char[] =
     { "rdtable", "rwtable", "select2", "select3", "vslider", "hslider", "process", "library", "declare", nullptr};
     
-    static const char* const primitivesOther[] =
+    static constexpr char* const primitivesOther[] =
     { "remainder", "checkbox", "vbargraph", "hbargraph", "ffunction", "fconstant", "fvariable", "component", "environment", nullptr };
     
+  static juce::StringArray getAllKeywords()
+    {
+        StringArray keywords;
+        
+        auto addFromStatic = [&](const char** d)
+        {
+            while(*d != nullptr)
+                keywords.add(*d++);
+        };
+        
+        addFromStatic((const char**)primitives3Char);
+        addFromStatic((const char**)primitives4Char);
+        addFromStatic((const char**)primitives5Char);
+        addFromStatic((const char**)primitives6Char);
+        addFromStatic((const char**)primitives7Char);
+        addFromStatic((const char**)primitivesOther);
+        
+        return keywords;
+    }
+    
+  static bool isPrimitive (String::CharPointerType token, const int tokenLength) noexcept
+  {
     const char* const* k;
     
     switch (tokenLength)
@@ -250,6 +270,11 @@ struct FaustTokeniserFunctions
 //==============================================================================
 FaustTokeniser::FaustTokeniser() {}
 FaustTokeniser::~FaustTokeniser() {}
+
+juce::StringArray FaustTokeniser::getAllFaustKeywords()
+{
+    return FaustTokeniserFunctions::getAllKeywords();
+}
 
 int FaustTokeniser::readNextToken (CodeDocument::Iterator& source)
 {

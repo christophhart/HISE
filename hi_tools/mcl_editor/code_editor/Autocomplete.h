@@ -557,7 +557,7 @@ public:
 		void componentMovedOrResized(Component& component, bool , bool )
 		{
 			setTopLeftPosition(component.getBounds().getBottomLeft());
-			setSize(jmax(300, component.getWidth()), jmin<int>((int)display.totalHeight + 20, 200));
+			setSize(jmax(300, component.getWidth()), jmin<int>((int)display.totalHeight + 20, 250));
 		}
 
 		void refreshText()

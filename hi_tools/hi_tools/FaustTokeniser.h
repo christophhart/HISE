@@ -23,6 +23,8 @@ public:
   FaustTokeniser();
   ~FaustTokeniser();
   
+  static juce::StringArray getAllFaustKeywords();
+    
   //==============================================================================
   int readNextToken (juce::CodeDocument::Iterator&) override;
   juce::CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
