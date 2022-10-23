@@ -92,6 +92,8 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 	addAndMakeVisible(fftEnableButton = new ToggleButton("Spectrum Analyser"));
 	fftEnableButton->addListener(this);
 	fftEnableButton->setTooltip("Enable FFT plotting");
+    
+    fftEnableButton->setToggleState(eq->getDisplayBuffer(0)->isActive(), dontSendNotification);
 	getProcessor()->getMainController()->skin(*fftEnableButton);
 
     setSize (800, 320);
