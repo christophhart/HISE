@@ -167,6 +167,7 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
 				return pd;
 			}
 			break;
+            case faust_ui::ControlType::BUTTON:
 			case faust_ui::ControlType::CHECK_BUTTON:
 			{
 				parameter::data pd(label, {0.0, 1.0});
@@ -178,7 +179,7 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
             default:
 			break;
 			}
-			parameter::data pd("invalid", {0., 0.});
+			parameter::data pd("invalid", {0., 1.0});
 			return pd;
 		}
 

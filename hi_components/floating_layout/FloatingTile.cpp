@@ -1389,13 +1389,20 @@ struct ResizableViewport: public Component,
     {
 		auto contentHeight = vp.getViewedComponent()->getHeight() + EdgeHeight;
 
+        auto rootBounds = getTopLevelComponent()->getLocalBounds().reduced(100);
+        
 		if (fixComponent != nullptr)
 			contentHeight += fixComponent->getHeight();
 
+        
+        
         auto maxHeightToUse = jmin(maxHeight - 80, contentHeight + EdgeHeight);
 		auto contentWidth = vp.getViewedComponent()->getWidth() + EdgeHeight;
 		auto maxWidthToUse = jmin(1800 - 80, contentWidth + EdgeHeight);
 
+        maxWidthToUse = jmin(rootBounds.getWidth(), maxWidthToUse);
+        maxHeightToUse = jmin(rootBounds.getHeight(), maxHeightToUse);
+        
         setSize(maxWidthToUse, maxHeightToUse);
 		setName(vp.getViewedComponent()->getName());
 		
@@ -1403,6 +1410,7 @@ struct ResizableViewport: public Component,
 		{
 			pc->rebuildBoxPath();
 			pc->repaint();
+            pc->resized();
 		}
 		
         edge.setVisible(false);

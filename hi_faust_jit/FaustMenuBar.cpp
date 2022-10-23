@@ -9,8 +9,34 @@ struct FaustGraphViewer : public Component,
 						  public PooledUIUpdater::SimpleTimer,
 						  public Thread
 {
-	/** Apply this scale factor to the SVG */
-	static constexpr float ScaleFactor = 1.8f;
+    
+    
+	float getSVGScaleFactor() const
+    {
+        static constexpr float DefaultScaleFactor = 1.8f;
+        
+        if(currentlyViewedContent != nullptr)
+        {
+            auto unscaledBounds = currentlyViewedContent->getBounds(false);
+            
+            auto thisBounds = getLocalBounds();
+            thisBounds.removeFromTop(HeaderHeight);
+            
+            if(unscaledBounds.isEmpty() || thisBounds.isEmpty())
+                return DefaultScaleFactor;
+            
+            auto widthRatio = (float)thisBounds.getWidth() / (float)unscaledBounds.getWidth();
+            auto heightRatio = (float)thisBounds.getHeight() / (float)unscaledBounds.getHeight();
+            
+            auto ratio = jmin(widthRatio, heightRatio);
+            
+            return jlimit(0.8f, 3.0f, ratio);
+            
+        }
+        return DefaultScaleFactor;
+        
+    };
+    
 	static constexpr int HeaderHeight = 28;
 
 	static bool callRecursive(XmlElement& xml, const std::function<bool(XmlElement&)>& f)
@@ -37,6 +63,8 @@ struct FaustGraphViewer : public Component,
 
 		File getLink(const MouseEvent& e) const
 		{
+            auto ScaleFactor = parent.getSVGScaleFactor();
+            
 			auto scaledPos = e.getPosition().transformedBy(AffineTransform::scale(ScaleFactor).followedBy(
 														   AffineTransform::translation(0.0f, (float)HeaderHeight)).inverted());
 
@@ -167,8 +195,9 @@ struct FaustGraphViewer : public Component,
 			}
 		}
 
-		Map(const File& f_):
-			f(f_)
+        Map(FaustGraphViewer& parent_, const File& f_):
+          f(f_),
+          parent(parent_)
 		{
 			root = XmlDocument::parse(f);
 		}
@@ -183,17 +212,18 @@ struct FaustGraphViewer : public Component,
 			}
 		}
 
-		Rectangle<int> getBounds()
+		Rectangle<int> getBounds(bool scale=true)
 		{
 			lazyCreate();
 
-			auto tb = content->getDrawableBounds().toNearestInt();
-			return tb.transformed(AffineTransform::scale(ScaleFactor));
+            auto tb = content->getDrawableBounds().toNearestInt();
+			return scale ? tb.transformed(AffineTransform::scale(parent.getSVGScaleFactor())) : tb;
 		}
 
 		File f;
 		Array<Link> links;
 
+        FaustGraphViewer& parent;
 		std::unique_ptr<XmlElement> root;
 		std::unique_ptr<Drawable> content;
 
@@ -359,12 +389,14 @@ struct FaustGraphViewer : public Component,
 
 			setStatus(message);
 
-			directoryContent.add(new Map(f));
+			directoryContent.add(new Map(*this, f));
 
 			if (f.getFileNameWithoutExtension() == "process")
 				firstMap = directoryContent.getLast();
 		}
 
+        wait(500);
+        
 		MessageManager::callAsync([this, firstMap]()
 		{
 			setCurrentlyViewedContent(firstMap);
@@ -393,10 +425,14 @@ struct FaustGraphViewer : public Component,
 		SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 		Thread("SVG Creator", HISE_DEFAULT_STACK_SIZE),
         network(n),
-		faustFile(faustFile_)
+		faustFile(faustFile_),
+        resizer(this, nullptr)
 	{
+        addAndMakeVisible(resizer);
+        resizer.setAlwaysOnTop(true);
         network->faustManager.addFaustListener(this);
         
+        setOpaque(true);
 		setSize(600, 300);
 		startThread(5);
 	}
@@ -453,6 +489,8 @@ struct FaustGraphViewer : public Component,
 			currentHoverLink = currentlyViewedContent->getLink(e);
 			validHoverLink = currentHoverLink.existsAsFile();
 
+            auto ScaleFactor = getSVGScaleFactor();
+            
 			for (auto l : currentlyViewedContent->links)
 			{
 				if (l.url == currentHoverLink)
@@ -473,7 +511,11 @@ struct FaustGraphViewer : public Component,
 
 	void setCurrentlyViewedContent(Map* m)
 	{
-		if ((currentlyViewedContent = m) != nullptr)
+        currentlyViewedContent = nullptr;
+        currentHoverLink = File();
+        validHoverLink = false;
+        
+		if (m != nullptr)
 		{
             for (auto br : breadcrumbs)
 			{
@@ -489,11 +531,12 @@ struct FaustGraphViewer : public Component,
 
 			auto b = m->getBounds();
 
+            currentlyViewedContent = m;
+            
 			setName("Graph preview for " + m->f.getFileNameWithoutExtension().upToFirstOccurrenceOf("-", false, false));
 			setSize(b.getWidth(), b.getHeight() + HeaderHeight);
 			
-			currentHoverLink = File();
-			validHoverLink = false;
+			
 
 			repaint();
 			resized();
@@ -508,6 +551,8 @@ struct FaustGraphViewer : public Component,
 	{
 		auto b = getLocalBounds().removeFromTop(HeaderHeight);
 
+        resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+        
 		for (auto br : breadcrumbs)
 		{
 			br->setBounds(b.removeFromLeft(br->getWidth()));
@@ -516,8 +561,12 @@ struct FaustGraphViewer : public Component,
 
 	void paint(Graphics& g) override
 	{
+        g.fillAll(Colour(0xFF262626));
+        
 		if (currentlyViewedContent != nullptr)
 		{
+            auto ScaleFactor = getSVGScaleFactor();
+            
 			currentlyViewedContent->content->draw(g, 1.0f, AffineTransform::scale(ScaleFactor).followedBy(
 														   AffineTransform::translation(0.0f, (float)HeaderHeight)));
 		}
@@ -564,6 +613,8 @@ struct FaustGraphViewer : public Component,
 	bool isZoomOutLink = false;
 
 	OwnedArray<Breadcrumb> breadcrumbs;
+    
+    juce::ResizableCornerComponent resizer;
 };
 
 FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
@@ -577,6 +628,8 @@ FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
 	// we must provide a valid faust_jit_node pointer
 	jassert(n);
 	setLookAndFeel(&claf);
+    
+    
     
     auto h = 24;
     

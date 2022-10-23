@@ -16,22 +16,22 @@ using namespace juce;
 struct FaustTokeniserFunctions
 {
     static constexpr char* const primitives3Char[] =
-    { "mem", "int", "cos", "sin", "tan", "exp", "log", "pow", "abs", "min", "max", "seq", "par", "sum", nullptr };
-    
+    { (char*)"mem", (char*)"int", (char*)"cos", (char*)"sin", (char*)"tan", (char*)"exp", (char*)"log", (char*)"pow", (char*)"abs", (char*)"min", (char*)"max", (char*)"seq", (char*)"par", (char*)"sum", nullptr };
+        
     static constexpr char* const primitives4Char[] =
-    { "acos", "asin", "atan", "fmod", "ceil", "rint", "sqrt", "with", "case", "prod", nullptr };
-    
+    { (char*)"acos", (char*)"asin", (char*)"atan", (char*)"fmod", (char*)"ceil", (char*)"rint", (char*)"sqrt", (char*)"with", (char*)"case", (char*)"prod", nullptr };
+        
     static constexpr char* const primitives5Char[] =
-    {  "float", "log10", "floor", "atan2", nullptr };
-    
+    {  (char*)"float", (char*)"log10", (char*)"floor", (char*)"atan2", nullptr };
+        
     static constexpr char* const primitives6Char[] =
-    { "prefix", "button", "nentry", "vgroup", "hgroup", "tgroup", "attach", "import", nullptr};
-    
+    { (char*)"prefix", (char*)"button", (char*)"nentry", (char*)"vgroup", (char*)"hgroup", (char*)"tgroup", (char*)"attach", (char*)"import",nullptr};
+        
     static constexpr char* const primitives7Char[] =
-    { "rdtable", "rwtable", "select2", "select3", "vslider", "hslider", "process", "library", "declare", nullptr};
+    { (char*)"rdtable", (char*)"rwtable", (char*)"select2", (char*)"select3", (char*)"vslider", (char*)"hslider", (char*)"process", (char*)"library", (char*)"declare", nullptr};
     
     static constexpr char* const primitivesOther[] =
-    { "remainder", "checkbox", "vbargraph", "hbargraph", "ffunction", "fconstant", "fvariable", "component", "environment", nullptr };
+    { (char*)"remainder", (char*)"checkbox", (char*)"vbargraph", (char*)"hbargraph", (char*)"ffunction", (char*)"fconstant", (char*)"fvariable", (char*)"component", (char*)"environment", nullptr };
     
   static juce::StringArray getAllKeywords()
     {

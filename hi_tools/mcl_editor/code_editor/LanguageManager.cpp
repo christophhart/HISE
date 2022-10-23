@@ -669,6 +669,7 @@ struct FaustLibraryTokenProvider: public TokenCollection::Provider
                                         "The **prod** iteration can be used to duplicate an expression as a product:  \n`A1 * A2 * ... An`",
                                         {"iterator", "numIterations", "expression"}));
         
+#if USE_BACKEND
         for(const auto& kw: FaustTokeniser::getAllFaustKeywords())
         {
             bool found = false;
@@ -687,6 +688,7 @@ struct FaustLibraryTokenProvider: public TokenCollection::Provider
                    
             tokens.add(new KeywordToken(kw));
         }
+#endif
     }
     
 };
