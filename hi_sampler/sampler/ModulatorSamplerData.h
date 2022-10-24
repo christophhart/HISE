@@ -528,6 +528,11 @@ public:
 		return false;
 	}
     
+	void setSilentMode(bool shouldShowMessage)
+	{
+		silentMode = shouldShowMessage;
+	}
+
 protected:
     
 	void setError(const String& errorMessage)
@@ -540,6 +545,8 @@ protected:
 	File monolithDirectory;
 
 private:
+
+	bool silentMode = false;
 
 	Array<int> splitIndexes;
 

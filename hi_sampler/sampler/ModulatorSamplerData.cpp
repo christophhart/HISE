@@ -1187,11 +1187,20 @@ void MonolithExporter::threadFinished()
 {
 	if (error.isNotEmpty())
 	{
-		PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
+		if (silentMode)
+		{
+			DBG(error);
+			jassertfalse;
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
+		}
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
+		if(!silentMode)
+			PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
 
 		if (sampleMapFile.existsAsFile())
 		{
