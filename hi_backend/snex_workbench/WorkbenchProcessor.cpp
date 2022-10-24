@@ -784,13 +784,10 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 		if (PresetHandler::showYesNoWindow("No DSP Network detected", "You need an active DspNetwork for the compilation process.  \n> Press OK to create a Script FX with an empty embedded Network"))
 		{
 			raw::Builder builder(bp);
-
-			bp->setAllowFlakyThreading(true);
+			MainController::ScopedBadBabysitter sb(bp);
 
 			auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
 			jmp->getOrCreate("internal_dsp");
-
-			bp->setAllowFlakyThreading(false);
 		}
 	}
 

@@ -468,19 +468,12 @@ juce::String UIComponentDatabase::FloatingTileResolver::getFloatingTileContent(c
 	return {};
 #endif
 
-    
-    
     ScopedPointer<FloatingTileContent> ft;
     
-    
     {
-        d->root->getBackendProcessor()->setAllowFlakyThreading(true);
+		MainController::ScopedBadBabysitter sb(d->root->getBackendProcessor());
         ft = f.createFromId(id, d->root->getRootFloatingTile());
-        d->root->getBackendProcessor()->setAllowFlakyThreading(false);
     }
-    
-
-    
     
 	String s;
 	String nl = "\n";

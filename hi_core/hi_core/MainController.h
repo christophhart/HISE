@@ -1563,24 +1563,53 @@ public:
 	
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
+	/** Use this and the main controller will ignore all threading issues and just does what it wants until the
+		bad babysitter leaves the scope.
 	
-
-#endif
-
-	void setAllowFlakyThreading(bool shouldAllowWeirdThreadingStuff)
+		This is mostly used for creating objects during documentation generation or other non-critical tasks
+		which couldn't care less about race conditions...
+	*/
+	struct ScopedBadBabysitter
 	{
-		flakyThreadingAllowed = shouldAllowWeirdThreadingStuff;
-	}
+		ScopedBadBabysitter(MainController* mc_):
+			mc(mc_),
+			prevValue(mc->flakyThreadingAllowed)
+		{
+			mc->flakyThreadingAllowed = true;
+		}
+		
+		~ScopedBadBabysitter()
+		{
+			mc->flakyThreadingAllowed = prevValue;
+		}
+
+		MainController* mc;
+		bool prevValue;
+	};
 
 	bool isFlakyThreadingAllowed() const noexcept 
 	{ 
 		return flakyThreadingAllowed; 
 	}
 
+#else
+
+	/** There is no use for a bad babysitter in exported projects so this is just a dummy class. */
+	struct ScopedBadBabysitter
+	{
+		ScopedBadBabysitter(MainController*) {};
+	};
+
+	bool isFlakyThreadingAllowed() const noexcept
+	{
+		return false;
+	}
+
+#endif
+
+
 	void setPlotter(Plotter *p);
 
-	
-	
 	DynamicObject *getGlobalVariableObject() { return globalVariableObject.get(); };
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }

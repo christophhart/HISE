@@ -2018,33 +2018,38 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 
 	ScopedPointer<FactoryType> t = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, root);
 
-	root->getMainController()->setAllowFlakyThreading(true);
+	
 
-	xml->addChildElement(buildFactory(t, "ModulatorSynths"));
+	{
+		MainController::ScopedBadBabysitter sb(root->getMainController());
 
-	t = new MidiProcessorFactoryType(root);
-	xml->addChildElement(buildFactory(t, "MidiProcessors"));
+		xml->addChildElement(buildFactory(t, "ModulatorSynths"));
 
-
-	t = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
-	xml->addChildElement(buildFactory(t, "VoiceStartModulators"));
-
-	t = new TimeVariantModulatorFactoryType(Modulation::GainMode, root);
-
-	xml->addChildElement(buildFactory(t, "TimeVariantModulators"));
-
-	t = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
-
-	xml->addChildElement(buildFactory(t, "EnvelopeModulators"));
-
-	t = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, root);
-
-	xml->addChildElement(buildFactory(t, "Effects"));
+		t = new MidiProcessorFactoryType(root);
+		xml->addChildElement(buildFactory(t, "MidiProcessors"));
 
 
-	t = nullptr;
+		t = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+		xml->addChildElement(buildFactory(t, "VoiceStartModulators"));
 
-	root->getMainController()->setAllowFlakyThreading(false);
+		t = new TimeVariantModulatorFactoryType(Modulation::GainMode, root);
+
+		xml->addChildElement(buildFactory(t, "TimeVariantModulators"));
+
+		t = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+
+		xml->addChildElement(buildFactory(t, "EnvelopeModulators"));
+
+		t = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, root);
+
+		xml->addChildElement(buildFactory(t, "Effects"));
+
+		t = nullptr;
+	}
+
+	
+
+	
 
 	xml->writeToFile(f, "");
 #endif

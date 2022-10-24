@@ -351,10 +351,17 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 
 	initMacroControl(dontSendNotification);
 
-	slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(p->getMainController());
-	numberTag->setLookAndFeel(slaf.get());
-	
-	
+	auto newLaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(p->getMainController());
+
+	slaf = newLaf;
+
+	WeakReference<ScriptingObjects::ScriptedLookAndFeel::Laf> safeLaf = newLaf;
+
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<Component>(*numberTag, [safeLaf](Component& c)
+	{
+		if (safeLaf != nullptr)
+			c.setLookAndFeel(safeLaf.get());
+	});
 
 	p->getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
 

@@ -49,6 +49,13 @@ bool LockHelpers::freeToGo(MainController* mc)
 		return true;
 	}
 
+#if USE_BACKEND
+	if (mc->isFlakyThreadingAllowed())
+	{
+		return true;
+	}
+#endif
+
 	if (!mc->getKillStateHandler().initialised())
 	{
 		// As long as it's not initialised, we're not that restrictive..
@@ -84,7 +91,8 @@ bool LockHelpers::freeToGo(MainController* mc)
 
 		// The audio engine is not suspended. Wrap this call
 		// into a killVoicesAndCall lambda.
-		jassertfalse; 
+		jassertfalse;
+
 		return false;
 	}
 

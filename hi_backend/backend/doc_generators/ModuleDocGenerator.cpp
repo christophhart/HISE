@@ -36,6 +36,8 @@ using namespace juce;
 
 void HiseModuleDatabase::CommonData::Data::createAllProcessors()
 {
+	MainController::ScopedBadBabysitter sb(bp);
+
 	jassert(bp != nullptr);
 
 	if (!allProcessors.isEmpty())
@@ -58,6 +60,7 @@ void HiseModuleDatabase::CommonData::Data::addFromFactory(FactoryType* f)
 {
 	for (int i = 0; i < f->getNumProcessors(); i++)
 	{
+		MessageManagerLock mm;
         allProcessors.add(f->createProcessor(i, "id"));
 	}
 }
@@ -135,11 +138,9 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 	list.tocString = "List of " + factoryName;
 	list.keywords.add(factoryName);
 
-    auto mc = f->getOwnerProcessor()->getMainController();
-    
-    mc->setAllowFlakyThreading(true);
+    MainController::ScopedBadBabysitter sb(f->getOwnerProcessor()->getMainController());
 
-	for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++)
 	{
         MessageManagerLock mm;
 		ScopedPointer<Processor> p = f->createProcessor(i, "funky");
@@ -156,9 +157,7 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
         
 	}
     
-    mc->setAllowFlakyThreading(false);
-    
-	list.isAlwaysOpen = true;
+    list.isAlwaysOpen = true;
 	list.sortChildren();
 	
 	return list;
@@ -190,19 +189,19 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp->getMainSynthChain());
 
-    bp->setAllowFlakyThreading(true);
+	{
+		MainController::ScopedBadBabysitter sb(bp);
+
+		auto sg = createItemForCategory("Sound Generators", rItem);
+
+		auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
+			"Sound Generators", sg);
+
+		sg.addChild(std::move(sg2));
+
+		rItem.addChild(std::move(sg));
+	}
     
-	auto sg = createItemForCategory("Sound Generators", rItem);
-
-	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
-		"Sound Generators", sg);
-
-    bp->setAllowFlakyThreading(false);
-    
-	sg.addChild(std::move(sg2));
-
-	rItem.addChild(std::move(sg));
-
 	auto mp = createItemForCategory("MIDI Processors", rItem);
 
 	auto mp2 = createItemForFactory(new MidiProcessorFactoryType(bp->getMainSynthChain()), "MIDI Processors", mp);
@@ -454,16 +453,10 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 
 			p->setId(p->getName());
 
-            p->getMainController()->setAllowFlakyThreading(true);
-            
+			MainController::ScopedBadBabysitter sb(p->getMainController());
 			ScopedPointer<ProcessorEditor> editor = new ProcessorEditor(c, 1, p, nullptr);
-
-            p->getMainController()->setAllowFlakyThreading(false);
-            
 			w->addAndMakeVisible(editor);
-
 			editor->setSize(800, editor->getHeight());
-
 			auto img = editor->createComponentSnapshot(editor->getLocalBounds());
 
 			data->cachedImage.add({ url, img });
@@ -491,18 +484,14 @@ using namespace hise;
 ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 	MarkdownDataBase::ItemGeneratorBase(r)
 {
-    auto wasAllowed = bp.isFlakyThreadingAllowed();
-    
-    bp.setAllowFlakyThreading(true);
-    
+    MainController::ScopedBadBabysitter sb(&bp);
+
 	data->sine = new SineSynth(&bp, "Sine", NUM_POLYPHONIC_VOICES);
 	data->sine->prepareToPlay(44100.0, 512);
 	auto fxChain = dynamic_cast<EffectProcessorChain*>(data->sine->getChildProcessor(ModulatorSynth::EffectChain));
 	data->effect = new JavascriptMasterEffect(&bp, "dsp");
 	data->network = data->effect->getOrCreate("dsp");
 	fxChain->getHandler()->add(data->effect, nullptr);
-    
-    bp.setAllowFlakyThreading(wasAllowed);
 }
 
 
@@ -542,8 +531,8 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
         root.addChild(std::move(manual));
     }
 
-    data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(true);
-    
+	MainController::ScopedBadBabysitter sb(data->network->getScriptProcessor()->getMainController_());
+
 	auto list = data->network->getListOfAvailableModulesAsTree();
 
 	MarkdownDataBase::Item lItem;
@@ -558,8 +547,6 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 	}
 
 	root.addChild(std::move(lItem));
-
-    data->network->getScriptProcessor()->getMainController_()->setAllowFlakyThreading(false);
     
 	return root;
 }

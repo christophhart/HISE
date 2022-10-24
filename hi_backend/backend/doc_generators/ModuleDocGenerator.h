@@ -53,9 +53,8 @@ namespace HiseModuleDatabase
 
 			~Data()
 			{
-                bp->setAllowFlakyThreading(true);
+				MainController::ScopedBadBabysitter sb(bp);
 				allProcessors.clear();
-                bp->setAllowFlakyThreading(false);
 			}
 
 			void createAllProcessors();
