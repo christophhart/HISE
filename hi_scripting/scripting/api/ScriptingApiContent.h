@@ -301,8 +301,13 @@ public:
 
 		struct MouseListenerData
 		{
+			using StateFunction = std::function<var(int)>;
+
 			WeakReference<WeakCallbackHolder::CallableObject> listener;
 			MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
+			StateFunction tickedFunction, enabledFunction, textFunction;
+			StringArray popupMenuItems;
+
 		};
 
 		// ============================================================================================================
@@ -629,10 +634,18 @@ public:
 			sendValueListenerMessage();
 		}
 
-		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl)
+		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const StringArray& popupItems = {})
 		{
-			mouseListeners.add({ obj, cl });
+			for (int i = 0; i < mouseListeners.size(); i++)
+			{
+				if (mouseListeners[i].listener == nullptr)
+					mouseListeners.remove(i--);
+			}
+
+			mouseListeners.add({ obj, cl, sf, ef, tf, popupItems });
 		}
+
+		
 
 		const Array<MouseListenerData>& getMouseListeners() const { return mouseListeners; }
 

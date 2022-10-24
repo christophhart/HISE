@@ -821,8 +821,13 @@ public:
 			if (!isFolder && soloTest.isNotEmpty() && f.getFileName() != soloTest)
 				continue;
 
+#if JUCE_DEBUG
 			if (printDebugInfoForSingleTest)
+			{
 				DBG(f.getFileName());
+			}
+#endif
+				
 
 			int numInstances = ComplexType::numInstances;
 

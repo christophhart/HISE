@@ -558,6 +558,7 @@ juce::SparseSet<int> Preprocessor::getDeactivatedLines()
 	catch (ParserHelpers::Error& e)
 	{
 		DBG(e.toString());
+		ignoreUnused(e);
 	}
 
 	return deactivatedLines;

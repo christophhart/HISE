@@ -827,11 +827,13 @@ Result ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
 		return Result::ok();
 #endif
 
+#if JUCE_DEBUG
 	for (const auto& v : args)
 	{
 		// This should never happen...
 		jassert(!v.isUndefined() && !v.isVoid());
 	}
+#endif
 
 	auto a = var::NativeFunctionArgs(obj, args.getRawDataPointer(), args.size());
 	return callback.callSync(a, nullptr);
@@ -1308,6 +1310,70 @@ Array<juce::var> ScriptBroadcaster::MouseEventListener::createChildArray() const
 	
 	return list;
 }
+
+struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
+{
+	InternalMenuListener(ScriptBroadcaster* parent, ScriptComponent* l, var stateFunction, const StringArray& itemList):
+		stateCallback(parent->getScriptProcessor(), parent, stateFunction, 2)
+	{
+		stateCallback.incRefCount();
+		stateCallback.setThisObject(l);
+
+		l->attachMouseListener(parent, 
+			MouseCallbackComponent::CallbackLevel::PopupMenuOnly, 
+			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsTicked),
+			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsEnabled),
+			BIND_MEMBER_FUNCTION_1(InternalMenuListener::getDynamicItemText),
+			itemList);
+	};
+
+	var itemIsEnabled(int index)
+	{
+		var args[2] = { var("enabled"), var(index) };
+		var rv(false);
+
+		if (stateCallback)
+			auto ok = stateCallback.callSync(args, 2, &rv);
+
+		return rv;
+	}
+
+	var itemIsTicked(int index)
+	{
+		var args[2] = { var("active"), var(index) };
+		var rv(false);
+
+		if(stateCallback)
+			auto ok = stateCallback.callSync(args, 2, &rv);
+
+		return rv;
+	}
+
+	var getDynamicItemText(int index)
+	{
+		var args[2] = { var("text"), var(index) };
+		var rv("");
+
+		if (stateCallback)
+			auto ok = stateCallback.callSync(args, 2, &rv);
+
+		return rv;
+	}
+
+	WeakCallbackHolder stateCallback;
+};
+
+ScriptBroadcaster::ContextMenuListener::ContextMenuListener(ScriptBroadcaster* parent, 
+															var componentIds, 
+															var stateFunction, 
+															const StringArray& itemList, 
+															const var& metadata):
+	ListenerBase(metadata)
+{
+	for (auto l : BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds))
+		items.add(new InternalMenuListener(parent, l, stateFunction, itemList));
+}
+
 
 struct ScriptBroadcaster::ComponentValueListener::InternalListener
 {
@@ -2028,6 +2094,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentProperties);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentVisibility);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentMouseEvents);
+	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToContextMenu);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
@@ -2066,6 +2133,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
+	ADD_API_METHOD_4(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
@@ -2575,6 +2643,29 @@ void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callb
 	auto cLevel = (MouseCallbackComponent::CallbackLevel)clValue;
 
 	attachedListeners.add(new MouseEventListener(this, componentIds, cLevel, optionalMetadata));
+	checkMetadata(attachedListeners.getLast());
+}
+
+void ScriptBroadcaster::attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 2)
+		reportScriptError("If you want to attach a broadcaster to context menu events, it needs to parameters (component, menuItemIndex)");
+
+	StringArray sa;
+
+	if (itemList.isString())
+		sa.add(itemList.toString());
+	else if (itemList.isArray())
+	{
+		for (const auto& v : *itemList.getArray())
+			sa.add(v.toString());
+	}
+
+	enableQueue = true;
+
+	attachedListeners.add(new ContextMenuListener(this, componentIds, stateFunction, sa, optionalMetadata));
 	checkMetadata(attachedListeners.getLast());
 }
 

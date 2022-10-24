@@ -96,8 +96,8 @@ private:
 			auto sourceOffset = prepareType->getMemberOffset("voiceIndex");
 			auto targetOffset = polyDataType->getMemberOffset("voiceIndex");
 
-			jassert(targetOffset == 0);
-
+			jassertEqual(targetOffset, 0);
+			
 			auto r = cc.newGpq();
 
 			d->object->loadMemoryIntoRegister(cc);

@@ -437,6 +437,9 @@ public:
     
     void mouseDown(const MouseEvent& e) override
     {
+		if (e.mods.isRightButtonDown())
+			return;
+
         if (isMomentary)
         {
             setToggleState(true, sendNotification);
@@ -449,6 +452,9 @@ public:
     
     void mouseUp(const MouseEvent& e) override
     {
+		if (e.mods.isRightButtonDown())
+			return;
+
         if (isMomentary)
         {
             setToggleState(false, sendNotification);

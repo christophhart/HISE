@@ -1085,11 +1085,13 @@ StructType::StructType(const NamespacedIdentifier& s, const Array<TemplateParame
 	id(s),
 	templateParameters(tp)
 {
+#if JUCE_DEBUG
 	for (auto& p : templateParameters)
 	{
 		jassert(!p.isTemplateArgument());
 		jassert(p.argumentId.isValid());
 	}
+#endif
 }
 
 StructType::~StructType()

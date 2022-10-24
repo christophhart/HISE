@@ -339,7 +339,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 								{
 									auto ot = pf->objectPtr->getType();
 									auto dt = compiler->getRegisterType(TypeInfo(cs->typePtr.get()));
-									jassert(ot == dt);
+									jassertEqual(ot, dt);
 									reg = pf->objectPtr;
 									return;
 								}
@@ -375,7 +375,7 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 					auto t = compiler->getRegisterType(getTypeInfo());
 					auto ot = compiler->getRegisterType(objectExpression->getTypeInfo());
 
-					jassert(ot == t);
+					jassertEqual(ot, t);
 
 					return;
 				}
@@ -666,7 +666,8 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 
 		auto objType = compiler->getRegisterType(reg->getTypeInfo());
 		auto thisType = compiler->getRegisterType(getTypeInfo());
-		jassert(objType == thisType);
+		jassertEqual(objType, thisType);
+	
 
 		// Fix inlining:
 		// the scope will fuck up the object pointer of the function

@@ -245,10 +245,10 @@ snex::jit::ComplexType::Ptr SampleDataJIT::createComplexType(Compiler& c, const 
 	st->finaliseExternalDefinition();
 
 	auto originalSize = isMono ? sizeof(MonoSample) : sizeof(StereoSample);
-
 	auto objSize = st->getRequiredByteSize();
 
-	jassert(objSize == originalSize);
+	jassertEqual(objSize, originalSize);
+
 	return st;
 }
 
@@ -354,9 +354,10 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 
 
 	auto originalSize = sizeof(ExternalData);
+	auto rSize = st->getRequiredByteSize();
 
-	jassert(st->getRequiredByteSize() == originalSize);
-
+	jassertEqual(rSize, originalSize);
+	
 	return st;
 }
 

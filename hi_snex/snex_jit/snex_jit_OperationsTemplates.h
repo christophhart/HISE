@@ -51,8 +51,10 @@ struct Operations::TemplateDefinition : public Statement,
 		statements(statements_),
 		handler(handler_)
 	{
+#if JUCE_DEBUG
 		for (const auto& p : getTemplateArguments())
 			jassert(p.isTemplateArgument());
+#endif
 	}
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;

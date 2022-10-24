@@ -1035,7 +1035,8 @@ void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope
 
 		int l = 0;
 		DBG(root->toString(l));
-
+		ignoreUnused(l);
+			
 		auto sizeReg = cc.newGpd();
 
 		auto simdLoop = cc.newLabel();

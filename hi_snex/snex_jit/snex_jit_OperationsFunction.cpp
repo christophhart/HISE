@@ -471,7 +471,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 		if (scope->getRootClassScope() == scope)
 		{
 			auto ok = scope->getRootData()->injectFunctionPointer(data);
-			jassert(ok);
+			jassertEqual(ok, true);
 		}
 		else
 		{
@@ -1317,10 +1317,12 @@ bool Operations::FunctionCall::tryToResolveType(BaseCompiler* compiler)
 Operations::FunctionCall::FunctionCall(Location l, Ptr f, const Symbol& id, const Array<TemplateParameter>& tp) :
 	Expression(l)
 {
+#if JUCE_DEBUG
 	for (auto& p : tp)
 	{
 		jassert(!p.isTemplateArgument());
 	}
+#endif
 
 	function.id = id.id;
 	function.returnType = id.typeInfo;

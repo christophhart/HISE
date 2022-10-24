@@ -345,6 +345,7 @@ bool XYZSampleMapProvider::parse(const String& v, MultiChannelAudioBuffer::XYZIt
         catch(Result& r)
         {
             DBG(r.getErrorMessage());
+			ignoreUnused(r);
         }
 	}
 

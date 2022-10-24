@@ -483,4 +483,14 @@ private:
 #define BIND_MEMBER_FUNCTION_2(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2)
 #define BIND_MEMBER_FUNCTION_3(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
 
+#ifndef jassertEqual
+#if JUCE_DEBUG
+#define jassertEqual(expr1, expr2) jassert(expr1 == expr2)
+#else
+#define jassertEqual(expr1, expr2) ignoreUnused(expr1, expr2)
+#endif
+#endif
+
+
+
 } // namespace hise

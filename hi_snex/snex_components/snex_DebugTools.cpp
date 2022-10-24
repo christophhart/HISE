@@ -128,6 +128,7 @@ void debug::PreprocessorMacroProvider::addTokens(mcl::TokenCollection::List& tok
 	catch (ParserHelpers::Error& e)
 	{
 		DBG(e.toString());
+		ignoreUnused(e);
 	}
 
 	for (auto ad : p.getAutocompleteData())

@@ -147,6 +147,8 @@ public:
 
 	void setPopupMenuItems(const StringArray &newItemList);
 
+	static PopupMenu parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes, LookAndFeel* laf);
+
 	void setActivePopupItem(int menuId)
 	{
 		activePopupId = menuId;

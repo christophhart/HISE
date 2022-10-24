@@ -442,6 +442,7 @@ struct Operations::Assignment : public Expression,
 	{
 		auto targetType = getTargetType();
 		jassert(targetType == TargetType::Variable || targetType == TargetType::Reference);
+		ignoreUnused(targetType);
 		auto s = getSubExpr(1);
 
 		if (as<Cast>(s) != nullptr)

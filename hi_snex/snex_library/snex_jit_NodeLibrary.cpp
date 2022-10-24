@@ -75,6 +75,7 @@ template <class Node> struct LibraryNode
 		{
 			volatile T* dst = new (target)T();
 			jassert(dst != nullptr);
+			ignoreUnused(dst);
 		}
 
 		static void destruct(void* target)
@@ -130,7 +131,7 @@ template <class Node> struct LibraryNode
 			l.add(TemplateParameter(index));
 			auto numInjected = st->injectInliner("setParameter", type, func, l);
 
-			jassert(numInjected == 1);
+			jassertEqual(numInjected, 1);
 		}
 	}
 
@@ -145,8 +146,9 @@ template <class Node> struct LibraryNode
 		st->finaliseAlignment();
 
 		auto actualSize = sizeof(T);
+		auto expectedSize = st->getRequiredByteSize();
 
-		jassert(st->getRequiredByteSize() == actualSize);
+		jassertEqual(expectedSize, actualSize);
 	}
 
 	void addSetExternalFunction()

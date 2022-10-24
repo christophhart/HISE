@@ -159,6 +159,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Registers this broadcaster to be notified for mouse events for the given components. */
 	void attachToComponentMouseEvents(var componentIds, var callbackLevel, var optionalMetadata);
 
+	/** Registers this broadcaster to be notified when a context menu item from the given components was selected. */
+	void attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata);
+
     /** Registers this broadcaster to be notified when a complex data object changes. */
     void attachToComplexData(String dataTypeAndEvent, var moduleIds, var dataIndexes, var optionalMetadata);
         
@@ -581,6 +584,21 @@ private:
 
 		OwnedArray<InternalMouseListener> items;
 		MouseCallbackComponent::CallbackLevel level;
+	};
+
+	struct ContextMenuListener : public ListenerBase
+	{
+		struct InternalMenuListener;
+
+		ContextMenuListener(ScriptBroadcaster* parent, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata);
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ContextMenu"); }
+
+		Result callItem(TargetBase*) override { return Result::ok(); }
+
+		Array<var> createChildArray() const override { return {}; }
+
+		OwnedArray<InternalMenuListener> items;
 	};
 
 	struct ComponentValueListener : public ListenerBase
