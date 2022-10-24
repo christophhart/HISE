@@ -228,6 +228,7 @@ struct FaustGraphViewer : public Component,
 		std::unique_ptr<Drawable> content;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Map);
+        JUCE_DECLARE_WEAK_REFERENCEABLE(Map);
 	};
 
     virtual void faustFileSelected(const File& f) override {};
@@ -238,9 +239,12 @@ struct FaustGraphViewer : public Component,
         if(faustFile == f)
         {
             setCurrentlyViewedContent(nullptr);
+            
+            directoryContent.clear();
+            
             setSize(600, 300);
             stopThread(1000);
-            startThread(5);
+            startThread(7);
             repaint();
         }
     }
@@ -338,14 +342,36 @@ struct FaustGraphViewer : public Component,
 		}
 
 		for (auto& a : stringArgs)
-		{
-			DBG(a);
 			args.add(a.getCharPointer().getAddress());
-		}
 		
 		std::string error_msg;
 
-		::faust::generateAuxFilesFromFile(fileAsString, args.size(), (const char**)args.begin(), error_msg);
+        
+        
+        int counter = 0;
+        
+        if(jitNode == nullptr)
+            return;
+        
+        while(counter++ < 50)
+        {
+            if(auto sl = hise::SimpleReadWriteLock::ScopedTryReadLock(jitNode->getFaustCompileLock()))
+                break;
+            
+            wait(50);
+        }
+        
+        
+        
+        if(counter < 50)
+        {
+            hise::SimpleReadWriteLock::ScopedReadLock(jitNode->getFaustCompileLock());
+            ::faust::generateAuxFilesFromFile(fileAsString, args.size(), (const char**)args.begin(), error_msg);
+        }
+        else
+        {
+            jassertfalse;
+        }
 	}
 
 	void run()
@@ -362,7 +388,11 @@ struct FaustGraphViewer : public Component,
         
 		setStatus("Creating SVG files...");
 
-        directoryContent.clear();
+        {
+            MessageManagerLock mm;
+            directoryContent.clear();
+        }
+        
         
 		createSvgFiles(faustFile);
 
@@ -395,11 +425,19 @@ struct FaustGraphViewer : public Component,
 				firstMap = directoryContent.getLast();
 		}
 
+        {
+            MessageManagerLock mm;
+            firstMap->lazyCreate();
+        }
+        
         wait(500);
         
-		MessageManager::callAsync([this, firstMap]()
+        WeakReference<Map> safeFirst(firstMap);
+        
+		MessageManager::callAsync([this, safeFirst]()
 		{
-			setCurrentlyViewedContent(firstMap);
+            if(safeFirst != nullptr)
+                setCurrentlyViewedContent(safeFirst);
 		});
 	}
 
@@ -420,11 +458,12 @@ struct FaustGraphViewer : public Component,
 	String lastMessage;
 	String statusMessage;
 
-	FaustGraphViewer(DspNetwork* n, const File& faustFile_):
-		ControlledObject(n->getScriptProcessor()->getMainController_()),
-		SimpleTimer(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	FaustGraphViewer(faust_jit_node_base* node, const File& faustFile_):
+		ControlledObject(node->getScriptProcessor()->getMainController_()),
+		SimpleTimer(node->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 		Thread("SVG Creator", HISE_DEFAULT_STACK_SIZE),
-        network(n),
+        network(node->getRootNetwork()),
+        jitNode(node),
 		faustFile(faustFile_),
         resizer(this, nullptr)
 	{
@@ -615,6 +654,8 @@ struct FaustGraphViewer : public Component,
 	OwnedArray<Breadcrumb> breadcrumbs;
     
     juce::ResizableCornerComponent resizer;
+    
+    WeakReference<faust_jit_node_base> jitNode;
 };
 
 FaustMenuBar::FaustMenuBar(faust_jit_node_base *n) :
@@ -872,7 +913,7 @@ void FaustMenuBar::buttonClicked(Button* b)
 
 		auto sourceFile = node->getFaustFile(node->getClassId());
 
-		fc->showComponentInRootPopup(new FaustGraphViewer(node->getRootNetwork(), sourceFile), b, { 7, 20 }, true, true);
+		fc->showComponentInRootPopup(new FaustGraphViewer(node, sourceFile), b, { 7, 20 }, true, true);
 	}
 	else if (b == &editButton) {
 		DBG("Edit button pressed");

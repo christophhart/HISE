@@ -65,6 +65,8 @@ public:
     /** Returns the amount of modulation outputs of the faust_ui object. */
     virtual int getNumFaustModulationOutputs() const = 0;
     
+    virtual SimpleReadWriteLock& getFaustCompileLock() = 0;
+    
 protected:
 	
 	// Checks if the faust_ui object has a given parameter. */
@@ -153,6 +155,11 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 		return faust->getClassId();
 	}
 
+    SimpleReadWriteLock& getFaustCompileLock() override
+    {
+        return faust->jitLock;
+    };
+    
 	bool setFaustCode(const String& classId, const std::string& code) override
 	{
 		return faust->setCode(classId, code);

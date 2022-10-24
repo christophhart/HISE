@@ -39,8 +39,10 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, param
 
 	void deleteFaustObjects()
 	{
-		if (this->initialisedOk())
+        if (this->initialisedOk())
 		{
+            hise::SimpleReadWriteLock::ScopedWriteLock sl(jitLock);
+            
 			for (auto& fdsp : this->faustDsp)
 			{
 				if (fdsp != nullptr)
@@ -74,16 +76,18 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, param
 #endif // !HISE_FAUST_USE_LLVM_JIT
 
 	// Mutex for synchronization of compilation and processing
-	juce::CriticalSection jitLock;
+	hise::SimpleReadWriteLock jitLock;
 
-	bool setup(std::vector<std::string> faustLibraryPaths, std::string& error_msg) {
-		juce::ScopedLock sl(jitLock);
-		// cleanup old code and factories
-		// make sure faustDsp is nullptr in case we fail to recompile
-		// so we don't use an old deallocated faustDsp in process (checks
-		// for faustDsp == nullptr)
-		deleteFaustObjects();
-
+	bool setup(std::vector<std::string> faustLibraryPaths, std::string& error_msg)
+    {
+        // cleanup old code and factories
+        // make sure faustDsp is nullptr in case we fail to recompile
+        // so we don't use an old deallocated faustDsp in process (checks
+        // for faustDsp == nullptr)
+        deleteFaustObjects();
+        
+        hise::SimpleReadWriteLock::ScopedWriteLock sl(jitLock);
+        
 #if !HISE_FAUST_USE_LLVM_JIT
 		if (interpreterFactory != nullptr) {
 			::faust::deleteInterpreterDSPFactory(interpreterFactory);
@@ -158,23 +162,19 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, param
 
 	void process(ProcessDataDyn& data)
 	{
-		// run jitted code only while holding the corresponding lock:
-		juce::ScopedTryLock stl(jitLock);
-		if (stl.isLocked() && this->initialisedOk()) {
-            BaseClass::process(data);
-		} else {
-			// std::cout << "Faust: dsp was not initialized" << std::endl;
+		if (this->initialisedOk())
+        {
+            if(auto sl = hise::SimpleReadWriteLock::ScopedTryReadLock(jitLock))
+                BaseClass::process(data);
 		}
 	}
 
 	template <class FrameDataType> void processFrame(FrameDataType& data)
 	{
-		// run jitted code only while holding the corresponding lock:
-		juce::ScopedTryLock stl(jitLock);
-		if (stl.isLocked() && this->initialisedOk()) {
-            BaseClass::template processFrame<FrameDataType>(data);
-		} else {
-			// std::cout << "Faust: dsp was not initialized" << std::endl;
+		if (this->initialisedOk())
+        {
+            if(auto sl = hise::SimpleReadWriteLock::ScopedTryReadLock(jitLock))
+                BaseClass::template processFrame<FrameDataType>(data);
 		}
 	}
 
