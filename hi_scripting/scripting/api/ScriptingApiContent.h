@@ -478,7 +478,7 @@ public:
 
 		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
-        void updateValueFromProcessorConnection();
+        
         
 		virtual void cancelPendingFunctions() {};
 
@@ -623,6 +623,10 @@ public:
 
 		/** Toggles the visibility and fades a component using the global animator. */
 		void fadeComponent(bool shouldBeVisible, int milliseconds);
+
+		/** Updates the value from the processor connection. Call this method whenever the module state has changed and you want
+			to refresh the knob value to show the current state. */
+		void updateValueFromProcessorConnection();
 
 		// End of API Methods ============================================================================================
 

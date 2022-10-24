@@ -5188,7 +5188,7 @@ var ScriptingApi::Synth::getAllEffects(String regex)
         return var(list);
     }
 
-	RETURN_IF_NO_THROW(var());
+	RETURN_IF_NO_THROW({});
 }
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
