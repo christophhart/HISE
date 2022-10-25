@@ -145,7 +145,10 @@ DECLARE_ID(height);
 *	you simply call changed() with whatever new value comes in.
 */
 class ScriptCreatedComponentWrapper: public AsyncValueTreePropertyListener,
-									 public ScriptingApi::Content::ScriptComponent::ZLevelListener
+									 public ScriptingApi::Content::ScriptComponent::ZLevelListener,
+									 public ComplexDataUIBase::SourceListener,
+									 public KeyListener,
+									 public juce::FocusChangeListener
 {
 public:
 
@@ -240,7 +243,7 @@ public:
 
 		ValuePopup(ScriptCreatedComponentWrapper& p):
 			parent(p),
-			shadow({ Colours::black, 10,{ 0, 0 } })
+			shadow({ Colours::black.withAlpha(0.4f), 5,{ 0, 0 } })
 		{
 			f = GLOBAL_BOLD_FONT();
 
@@ -264,6 +267,7 @@ public:
 
 		void paint(Graphics& g) override;
 
+		Colour shadowColour;
 		Colour bgColour;
 		Colour itemColour;
 		Colour itemColour2;
@@ -278,6 +282,8 @@ public:
 		DropShadower shadow;
 	};
 
+	struct AdditionalMouseCallback;
+
 	/** Don't forget to deregister the listener here. */
 	virtual ~ScriptCreatedComponentWrapper();;
 
@@ -290,8 +296,9 @@ public:
 	/** Overwrite this method and update the value of the component. */
 	virtual void updateValue(var newValue) {};
 
-	/** Call this in your listener callback with the new value. */
-	void changed(var newValue);
+	static void updateFadeState(ScriptCreatedComponentWrapper& wrapper, bool shouldBeVisible, int fadeTime);
+
+	void sourceHasChanged(ComplexDataUIBase*, ComplexDataUIBase*) override;
 
 	bool setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c);
 
@@ -307,15 +314,21 @@ public:
 
 	ScriptingApi::Content::ScriptComponent *getScriptComponent()
 	{
-		return scriptComponent;
+		return scriptComponent.get();
 	};
 
 	const ScriptingApi::Content::ScriptComponent *getScriptComponent() const
 	{
-		return scriptComponent;
+		return scriptComponent.get();
 	};
 
 	ScopedPointer<ValuePopup> currentPopup;
+
+	static void repaintComponent(ScriptCreatedComponentWrapper& w, bool unused)
+	{
+		if (auto c = w.getComponent())
+			c->repaint();
+	}
 
 protected:
 
@@ -347,6 +360,10 @@ protected:
 		return ""; 
 	};
 
+	virtual void updateComplexDataConnection();
+
+	bool updateIfComplexDataProperty(int propertyIndex);
+
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
 
@@ -357,7 +374,20 @@ protected:
 
 	void zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel) override;
 
+	void wantsToLoseFocus() override;
+
+	bool keyPressed(const KeyPress& key,
+		Component* originatingComponent) override;
+
+	void globalFocusChanged(Component* focusedComponent) override;
+
+    ScopedPointer<LookAndFeel> localLookAndFeel;
+    
+	OwnedArray<AdditionalMouseCallback> mouseCallbacks;
+
 private:
+
+	bool wasFocused = false;
 
 	struct ValuePopupHandler : public Timer
 	{
@@ -398,107 +428,13 @@ private:
 
 	const int index;
 
+	
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptCreatedComponentWrapper)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptCreatedComponentWrapper);
 };
 
 
-class ScriptComponentPropertyTypeSelector
-{
-public:
-
-	struct SliderRange
-	{
-		double min, max, interval;
-	};
-
-
-	enum SelectorTypes
-	{
-		ToggleSelector = 0,
-		ColourPickerSelector,
-		SliderSelector,
-		ChoiceSelector,
-		MultilineSelector,
-		TextSelector,
-		FileSelector,
-		CodeSelector,
-		numSelectorTypes
-	};
-
-	static SelectorTypes getTypeForId(const Identifier &id)
-	{
-		if (toggleProperties.contains(id)) return ToggleSelector;
-		else if (sliderProperties.contains(id)) return SliderSelector;
-		else if (colourProperties.contains(id)) return ColourPickerSelector;
-		else if (choiceProperties.contains(id)) return ChoiceSelector;
-		else if (multilineProperties.contains(id)) return MultilineSelector;
-		else if (fileProperties.contains(id)) return FileSelector;
-		else if (codeProperties.contains(id)) return CodeSelector;
-		else return TextSelector;
-	}
-
-	static void addToTypeSelector(SelectorTypes type, Identifier id, double min=0.0, double max=1.0, double interval=0.01)
-	{
-		switch (type)
-		{
-		case ScriptComponentPropertyTypeSelector::ToggleSelector:
-			toggleProperties.addIfNotAlreadyThere(id);
-			break;
-		case ScriptComponentPropertyTypeSelector::ColourPickerSelector:
-			colourProperties.addIfNotAlreadyThere(id);
-			break;
-		case ScriptComponentPropertyTypeSelector::SliderSelector:
-			{
-			sliderProperties.addIfNotAlreadyThere(id);
-			int index = sliderProperties.indexOf(id);
-			SliderRange range;
-
-			range.min = min;
-			range.max = max;
-			range.interval = interval;
-
-			sliderRanges.set(index, range);
-			break;
-			}
-		case ScriptComponentPropertyTypeSelector::ChoiceSelector:
-			choiceProperties.addIfNotAlreadyThere(id);
-			break;
-		case ScriptComponentPropertyTypeSelector::MultilineSelector:
-			multilineProperties.addIfNotAlreadyThere(id);
-			break;
-		case ScriptComponentPropertyTypeSelector::FileSelector:
-			fileProperties.addIfNotAlreadyThere(id);
-			break;
-		case ScriptComponentPropertyTypeSelector::TextSelector:
-			break;
-		case ScriptComponentPropertyTypeSelector::CodeSelector:
-			codeProperties.addIfNotAlreadyThere(id);
-		case ScriptComponentPropertyTypeSelector::numSelectorTypes:
-			break;
-		default:
-			break;
-		}
-	}
-
-
-	static SliderRange getRangeForId(const Identifier &id)
-	{
-		return sliderRanges[sliderProperties.indexOf(id)];
-	}
-
-private:
-
-	static Array<Identifier> toggleProperties;
-	static Array<Identifier> sliderProperties;
-	static Array<Identifier> colourProperties;
-	static Array<Identifier> choiceProperties;
-	static Array<Identifier> multilineProperties;
-	static Array<Identifier> fileProperties;
-	static Array<Identifier> codeProperties;
-
-	static Array<SliderRange> sliderRanges;
-
-};
 
 
 class ScriptCreatedComponentWrappers
@@ -583,6 +519,9 @@ public:
 
 		void updateValue(var newValue) override;
 
+		void editorShown(Label*, TextEditor&) override;
+		void editorHidden(Label*, TextEditor&) override;
+
 	private:
 
 		void updateEditability(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l);
@@ -621,8 +560,7 @@ public:
 	};
 
 	class TableWrapper : public ScriptCreatedComponentWrapper,
-						 public TableEditor::Listener
-		
+						 public TableEditor::EditListener
 	{
 	public:
 
@@ -634,14 +572,16 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
-		void updateConnectedTable(TableEditor * t);
 		
+
 		String getTextForTablePopup(float x, float y);
 
 		void pointDragStarted(Point<int> position, float index, float value) override;
 		void pointDragEnded() override;
 		void pointDragged(Point<int> position, float index, float value) override;
 		void curveChanged(Point<int> position, float curveValue) override;
+
+		
 
 		Point<int> getValuePopupPosition(Rectangle<int> componentBounds) const override;
 
@@ -652,7 +592,8 @@ public:
 		String popupText;
 		Point<int> localPopupPosition;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper)
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TableWrapper);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(TableWrapper);
 	};
 
 
@@ -670,6 +611,8 @@ public:
 		void updateImage(ImageComponentWithMouseCallback * ic, ScriptingApi::Content::ScriptImage * si);
 
 		void updatePopupMenu(ScriptingApi::Content::ScriptImage * si, ImageComponentWithMouseCallback * ic);
+
+		void fileDropCallback(const var& dropInformation) override {};
 
         void mouseCallback(const var &mouseInformation) override;
         
@@ -695,6 +638,7 @@ public:
 		void subComponentAdded(ScriptComponent* newComponent) override;
 		void subComponentRemoved(ScriptComponent* componentAboutToBeRemoved) override;
 
+		static void cursorChanged(PanelWrapper& p, ScriptingApi::Content::ScriptPanel::MouseCursorInfo newInfo);
 
 		void animationChanged() override;
 
@@ -715,15 +659,26 @@ public:
 
 		void mouseCallback(const var &mouseInformation) override;
 
+		void fileDropCallback(const var& dropInformation) override;
+
 		void boundsChanged(const Rectangle<int> &newBounds) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PanelWrapper)
+		JUCE_DECLARE_WEAK_REFERENCEABLE(PanelWrapper);
 	};
 
 
-	class ViewportWrapper : public ScriptCreatedComponentWrapper
+	class ViewportWrapper : public ScriptCreatedComponentWrapper,
+							public juce::ScrollBar::Listener
 	{
 	public:
+
+		enum class Mode
+		{
+			List,
+			Table,
+			Viewport
+		};
 
 		ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index);
 		~ViewportWrapper();
@@ -732,7 +687,13 @@ public:
 		void updateComponent(int index, var newValue) override;
 		void updateValue(var newValue) override;
 
+		static void tableUpdated(ViewportWrapper& w, int index);
+
 	private:
+
+		void scrollBarMoved(ScrollBar* scrollBarThatHasMoved,
+			double newRangeStart) override;
+
 
 		void updateItems(ScriptingApi::Content::ScriptedViewport * vpc);
 		void updateColours();
@@ -774,19 +735,26 @@ public:
 			StringArray list;
 		};
 
-		bool shouldUseList = false;
+		Mode mode;
+
+		ScriptTableListModel::Ptr tableModel;
+
+		Component::SafePointer<juce::Viewport> vp;
 
 		ScopedPointer<ColumnListBoxModel> model;
 		ScopedPointer<LookAndFeel> slaf;
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ViewportWrapper);
 	};
 
 	class SliderPackWrapper : public ScriptCreatedComponentWrapper,
-							  public SliderPack::Listener
+							  public SliderPackData::Listener
 	{
 	public:
 
 		SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index);
+
+		~SliderPackWrapper();
 
 		void updateComponent() override;
 
@@ -795,25 +763,20 @@ public:
 		
 		void updateValue(var newValue) override;
 
-		void sliderPackChanged(SliderPack *, int newIndex) override { changed(newIndex); };
+		void sliderPackChanged(SliderPackData *, int newIndex) override { /*changed(newIndex);*/ };
 
 	private:
 
 		void updateColours(SliderPack * sp);
 		void updateRange(SliderPackData* data);
 
-
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackWrapper)
 	};
 	
 
-	class AudioWaveformWrapper : public ScriptCreatedComponentWrapper,
-								 public AudioDisplayComponent::Listener,
-								 public Timer
+	class AudioWaveformWrapper : public ScriptCreatedComponentWrapper
 	{
 	public:
-
-		
 
 		AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *waveform, int index);
 
@@ -823,14 +786,9 @@ public:
 
 		void updateComponent(int index, var newValue) override;
 
-		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);
-
-		void timerCallback() override;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	private:
 
-        void updateSampleIndex(ScriptingApi::Content::ScriptAudioWaveform *waveform, AudioDisplayComponent* asb, int newValue);
+		void updateComplexDataConnection() override;
         
 		class SamplerListener;
 
@@ -839,7 +797,6 @@ public:
 		void updateColours(AudioDisplayComponent* asb);
         
         int lastIndex = -1;
-		ScriptingObjects::ScriptAudioFile::Ptr saf;
 	};
 
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper
@@ -852,6 +809,8 @@ public:
 		void updateComponent(int index, var newValue) override;
 		void updateValue(var newValue) override;
 
+        void updateLookAndFeel();
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
 	};
 

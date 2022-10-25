@@ -34,11 +34,17 @@ namespace hise { using namespace juce;
 
 PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
 	FloatingTileContent(parent),
-	showConnectionBar("showConnectionBar")
+	showConnectionBar("showConnectionBar"),
+	followWorkspaceButton("workspace", nullptr, factory)
 {
+	addAndMakeVisible(followWorkspaceButton);
 	addAndMakeVisible(connectionSelector = new ComboBox());
 	connectionSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*connectionSelector);
+
+	followWorkspaceButton.setToggleModeWithColourChange(true);
+	followWorkspaceButton.setTooltip("Enables updating the content when a workspace button is clicked in the patch browser");
+	followWorkspaceButton.setWantsKeyboardFocus(false);
 
 	connectionSelector->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::transparentBlack);
 	connectionSelector->setColour(HiseColourScheme::ComponentFillBottomColourId, Colours::transparentBlack);
@@ -57,7 +63,25 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->setLookAndFeel(&hlaf);
 	indexSelector->setLookAndFeel(&hlaf);
 
-	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)
+	connectionSelector->setWantsKeyboardFocus(false);
+	indexSelector->setWantsKeyboardFocus(false);
+
+#if USE_BACKEND
+
+    if(parent->isOnInterface())
+        return;
+    
+    if (CompileExporter::isExportingFromCommandLine())
+        return;
+    
+	getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);
+
+	dynamic_cast<BackendProcessor*>(getMainController())->workspaceBroadcaster.addListener(*this, [](PanelWithProcessorConnection& pc, const Identifier& id, Processor* p)
+	{
+		if (pc.shouldFollowNewWorkspace(p, id))
+			pc.setContentWithUndo(p, pc.getCurrentIndex());
+	});
+#endif
 }
 
 PanelWithProcessorConnection::~PanelWithProcessorConnection()
@@ -99,7 +123,8 @@ var PanelWithProcessorConnection::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ProcessorId, getConnectedProcessor() != nullptr ? getConnectedProcessor()->getId() : "");
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
 	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
-	
+	storePropertyInObject(obj, SpecialPanelIds::FollowWorkspace, followWorkspaceButton.getToggleState());
+
 	return obj;
 }
 
@@ -120,6 +145,8 @@ void PanelWithProcessorConnection::fromDynamicObject(const var& object)
 			setContentWithUndo(p, index);
 		}
 	}
+
+	followWorkspaceButton.setToggleStateAndUpdateIcon(getPropertyWithDefault(object, SpecialPanelIds::FollowWorkspace));
 }
 
 int PanelWithProcessorConnection::getNumDefaultableProperties() const
@@ -134,6 +161,7 @@ Identifier PanelWithProcessorConnection::getDefaultablePropertyId(int index) con
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ProcessorId, "ProcessorId");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Index, "Index");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FollowWorkspace, "FollowWorkspace");
 
 	jassertfalse;
 	return{};
@@ -146,6 +174,7 @@ var PanelWithProcessorConnection::getDefaultProperty(int index) const
 
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ProcessorId, var(""));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Index, var(-1));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FollowWorkspace, false);
 
 	jassertfalse;
 	return{};
@@ -233,6 +262,7 @@ void PanelWithProcessorConnection::resized()
 	{
 		connectionSelector->setVisible(false);
 		indexSelector->setVisible(false);
+		followWorkspaceButton.setVisible(false);
 
 		if (content != nullptr)
 		{
@@ -259,15 +289,20 @@ void PanelWithProcessorConnection::resized()
 
 		Rectangle<int> contentArea = getParentShell()->getContentBounds();
 
+		
+
 		if (scb)
 		{
+			auto topArea = contentArea.removeFromTop(18);
+
+			topArea.removeFromLeft(topArea.getHeight());
+			followWorkspaceButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+
 			connectionSelector->setVisible(!getParentShell()->isFolded());
-			connectionSelector->setBounds(18, bounds.getY(), 128, 18);
-
+			connectionSelector->setBounds(topArea.removeFromLeft(128));;
+			topArea.removeFromLeft(5);
 			indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
-			indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
-
-			contentArea = contentArea.withTrimmedTop(18);
+			indexSelector->setBounds(topArea.removeFromLeft(128));
 		}
 		else
 		{
@@ -345,6 +380,9 @@ void PanelWithProcessorConnection::processorDeleted(Processor* /*deletedProcesso
 
 bool PanelWithProcessorConnection::shouldHideSelector() const
 {
+	if (forceHideSelector)
+		return true;
+
 #if USE_BACKEND
 	return findParentComponentOfClass<ScriptContentComponent>() != nullptr ||
 		findParentComponentOfClass<MarkdownPreview>() != nullptr;
@@ -419,33 +457,26 @@ const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() con
 	return getMainController()->getMainSynthChain();
 }
 
+void PanelWithProcessorConnection::changeContentWithUndo(int newIndex)
+{
+	if (currentIndex != newIndex)
+	{
+		setContentWithUndo(currentProcessor, newIndex);
+	}
+}
+
 void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
 {
 	StringArray indexes;
 	fillIndexList(indexes);
 
 	refreshIndexList();
-
-#if USE_BACKEND
-	auto undoManager = dynamic_cast<BackendProcessor*>(getMainController())->getViewUndoManager();
-
-	String undoText;
-
-	
-	undoText << (currentProcessor.get() != nullptr ? currentProcessor->getId() : "Disconnected") << ": " << indexes[currentIndex] << " -> ";
-	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
-
-	undoManager->beginNewTransaction(undoText);
-	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation()));
-#else
-
+    
 	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation());
 
 	connection->perform();
 
 	connection = nullptr;
-
-#endif
 
 	if (newIndex != -1)
 	{
@@ -468,8 +499,12 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 {
 	if (panel.getComponent() != nullptr)
 	{
-		panel->currentIndex = newIndex;
 		panel->setCurrentProcessor(newProcessor.get());
+		panel->refreshIndexList();
+
+		if(newIndex != -1)
+			panel->currentIndex = newIndex;
+		
 		panel->refreshContent();
 		
 		return true;
@@ -508,7 +543,9 @@ void PanelWithProcessorConnection::setContentForIdentifier(Identifier idToSearch
                 if (p->getProcessorTypeId() != idToSearch)
                     continue;
                 
-                p->setContentWithUndo(getProcessor(), 0);
+				auto currentIndex = jmax(0, p->getCurrentIndex());
+
+                p->setContentWithUndo(getProcessor(), currentIndex);
             }
         }
     }

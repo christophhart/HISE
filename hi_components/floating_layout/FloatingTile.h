@@ -35,11 +35,29 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
+
 class FloatingTilePopup: public Component,
 							public ButtonListener,
 							public ComponentListener
 {
 public:
+
+	enum class RectangleType
+	{
+		FullBounds,
+		BoxPath,
+		Title,
+		CloseButton,
+		ContentBounds
+	};
+
+	
+
+	Rectangle<int> getRectangle(RectangleType t) const;
 
 	enum class ColourIds
 	{
@@ -59,6 +77,17 @@ public:
 		return content != nullptr && content->getName().containsNonWhitespaceChars();
 	}
 
+    bool keyPressed(const KeyPress& k) override
+    {
+        if(k == KeyPress::escapeKey)
+        {
+            deleteAndClose();
+            return true;
+        }
+        
+        return false;
+    }
+    
 	void resized();
 
 	void deleteAndClose();
@@ -83,13 +112,76 @@ public:
 
 	Component* getAttachedComponent() const { return attachedComponent.getComponent(); }
 
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		dragging = false;
+	}
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void rebuildBoxPath();
+
+	void addFixComponent(Component* c);
+
+    std::function<void(bool)> onDetach;
+    
+	bool skipToggle = false;
+
+	Component* getTrueContent();
+
+	template <typename ComponentType> ComponentType* getContent()
+	{
+		if(auto c = dynamic_cast<ComponentType*>(getTrueContent()))
+			return c;
+
+		return nullptr;
+	}
+
 private:
 
+	
+
+	bool dragging = false;
+	ComponentDragger dragger;
+
+	juce::ComponentBoundsConstrainer constrainer;
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	struct CloseButton : public Button
+	{
+		CloseButton() :
+			Button("closeButton")
+		{};
+
+		void paintButton(Graphics& g, bool over, bool down) override;
+
+		void resized() override;
+
+		Path p;
+	};
+
+    
+    
+    PostGraphicsRenderer::DataStack stack;
+    
+    Path boxPath;
+	Image shadowImage;
+    
 	Component::SafePointer<Component> attachedComponent;
 	Point<int> localPointInComponent;
 
 	ScopedPointer<Component> content;
-	ScopedPointer<ImageButton> closeButton;
+	ScopedPointer<CloseButton> closeButton;
+    
+public:
+
+	HiseShapeButton moveButton;
 };
 
 
@@ -146,7 +238,10 @@ public:
 			Folded,
 			Visible,
 			ForceFoldButton,
+            ForceShowTitle,
 			MinSize,
+			FocusKeyPress,
+			FoldKeyPress,
 			numProperties
 		};
 
@@ -168,6 +263,9 @@ public:
 			case FloatingTile::LayoutData::LayoutDataIds::ForceFoldButton: return var(0);
 			case FloatingTile::LayoutData::LayoutDataIds::Visible: return var(true);
 			case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
+            case FloatingTile::LayoutData::LayoutDataIds::ForceShowTitle: return var(0);
+			case FloatingTile::LayoutData::LayoutDataIds::FocusKeyPress: return var("");
+			case FloatingTile::LayoutData::LayoutDataIds::FoldKeyPress: return var("");
 			default:
 				break;
 			}
@@ -205,10 +303,35 @@ public:
 			return foldState >= 0; 
 		}
 
+        int getForceTitleState() const
+        {
+            return getPropertyWithDefault(layoutDataObject, LayoutDataIds::ForceShowTitle);
+        }
+        
 		void setFoldState(int newFoldState)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
 			cachedValues.folded = newFoldState;
+		}
+
+		void setKeyPress(bool isFocus, const Identifier& shortcutId)
+		{
+			String s;
+			s << "$" << shortcutId.toString();
+			
+			storePropertyInObject(layoutDataObject, isFocus ? LayoutDataIds::FocusKeyPress : LayoutDataIds::FoldKeyPress, s);
+		}
+
+		KeyPress getFoldKeyPress(Component* c) const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
+			return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
+		}
+
+		KeyPress getFocusKeyPress(Component* c) const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FocusKeyPress).toString();
+			return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
 		}
 
 		double getCurrentSize() const
@@ -218,6 +341,12 @@ public:
 			return currentSize;
 		}
 
+        void setForceShowTitle(int shouldForceTitle)
+        {
+            storePropertyInObject(layoutDataObject, LayoutDataIds::ForceShowTitle, shouldForceTitle);
+            cachedValues.forceShowTitle = shouldForceTitle;
+        }
+        
 		void setCurrentSize(double newSize)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Size, newSize);
@@ -290,6 +419,7 @@ public:
 			int minSize = -1;
 			bool visible = true;
 			bool forceFoldButton = false;
+            int forceShowTitle = 0;
 
 			String id = "anonymous";
 		};
@@ -298,6 +428,8 @@ public:
 		CachedValues cachedValues; 
 
 		var layoutDataObject;
+
+		KeyPress focusShortcut;
 
 	};
 
@@ -415,7 +547,7 @@ public:
 
 	FloatingTile(MainController* mc, FloatingTileContainer* parent, var data=var());
 
-	
+	void forEachDetachedPopup(const std::function<void(FloatingTilePopup* p)>& f);
 
 	~FloatingTile()
 	{
@@ -432,6 +564,7 @@ public:
 
 	void setContent(const var& data);
 	void setNewContent(const Identifier& newId);
+	void setNewContent(Component* newContent);
 
 	bool isEmpty() const;
 	bool showTitle() const;
@@ -461,6 +594,8 @@ public:
 	bool isLayoutModeEnabled() const;;
 	bool canDoLayoutMode() const;
 
+    void ensureVisibility();
+    
 	ParentType getParentType() const;
 
 	const FloatingTileContainer* getParentContainer() const { return parentContainer; }
@@ -487,11 +622,15 @@ public:
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
 
+	void setOverlayComponent(Component* newOverlayComponent, int fadeTime);
+
 	void resized();
 
 	/** Returns the current size in the container. */
 	double getCurrentSizeInContainer();
 	
+	bool keyPressed(const KeyPress& k) override;
+
 	const FloatingTileContent* getCurrentFloatingPanel() const;
 	FloatingTileContent* getCurrentFloatingPanel();
 	
@@ -518,7 +657,13 @@ public:
 
 	void editJSON();
 
-	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
+	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport=false, bool maximiseViewport=false);
+
+	FloatingTilePopup* showComponentAsDetachedPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport = false);
+
+	Component* wrapInViewport(Component* c, bool shouldBeMaximised);
+
+	bool isRootPopupShown() const;
 
 	struct LayoutHelpers
 	{
@@ -536,11 +681,16 @@ public:
 	bool canBeDeleted() const;
 	bool isSwappable() const;
 
-	
+	FloatingTile* toggleFold();
 
 	void setCloseTogglesVisibility(bool shouldToggleVisibility)
 	{
 		closeTogglesVisibility = shouldToggleVisibility;
+	}
+
+	void setForceShowTitle(bool shouldShowTitle)
+	{
+        getLayoutData().setForceShowTitle(shouldShowTitle ? 2 : 1);
 	}
 
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
@@ -565,12 +715,86 @@ public:
 
 	const MainController* getMainController() const { return mc; }
 
+	/** Pass in a lambda and it will call it on every child that matches. If you return true, it will abort the execution. */
+	template <typename ContentType> bool forEach(const std::function<bool(ContentType*)>& f)
+	{
+		if (auto typed = dynamic_cast<ContentType*>(getCurrentFloatingPanel()))
+		{
+			if (f(typed))
+				return true;
+		}
+
+		if (auto c = dynamic_cast<FloatingTileContainer*>(getCurrentFloatingPanel()))
+		{
+			for (int i = 0; i < c->getNumComponents(); i++)
+			{
+				if (c->getComponent(i)->forEach(f))
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	template <typename ContentType> ContentType* findFirstChildWithType()
+	{
+		ContentType* result = nullptr;
+		ContentType** resultPointer = &result;
+
+		forEach<ContentType>([resultPointer](ContentType* t)
+		{
+			*resultPointer = t;
+			return true;
+		});
+
+		return result;
+	}
+
 	void setIsFloatingTileOnInterface()
 	{
 		interfaceFloatingTile = true;
 	}
 
 	bool isOnInterface() const { return interfaceFloatingTile; }
+
+	void removePopup(FloatingTilePopup* p)
+	{
+		if (currentPopup == p)
+		{
+			showComponentInRootPopup(nullptr, nullptr, {});
+		}
+		else
+		{
+			detachedPopups.removeObject(p);
+		}
+	}
+
+	void detachCurrentPopupAsync()
+	{
+		Component::SafePointer<FloatingTile> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+			if (safeThis != nullptr)
+				safeThis->toggleDetachPopup(safeThis.getComponent()->currentPopup);
+		});
+	}
+
+	void toggleDetachPopup(FloatingTilePopup* p)
+	{
+		if (p == nullptr)
+			return;
+
+		if (currentPopup == p)
+		{
+			detachedPopups.add(currentPopup.release());
+		}
+		else
+		{
+			auto index = detachedPopups.indexOf(p);
+			currentPopup = detachedPopups.removeAndReturn(index);
+		}
+	}
 
 private:
 
@@ -618,6 +842,8 @@ private:
 
 	ScopedPointer<Component> content;
 
+	OwnedArray<FloatingTilePopup> detachedPopups;
+
 	ScopedPointer<FloatingTilePopup> currentPopup;
 
 
@@ -625,17 +851,25 @@ private:
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;
+
+	ScopedPointer<Component> overlayComponent;
+    
+    ZoomableViewport::Laf slaf;
 };
 
 #if USE_BACKEND
 
 class FloatingTileDocumentWindow : public DocumentWindow,
 								   public ComponentWithBackendConnection,
+								   public TopLevelWindowWithOptionalOpenGL,
+                                   public TopLevelWindowWithKeyMappings,
 							       public ModalBaseWindow
 {
 public:
 
 	FloatingTileDocumentWindow(BackendRootWindow* parentRoot);
+
+	~FloatingTileDocumentWindow();
 
 	void resized() override
 	{
@@ -655,6 +889,14 @@ public:
 	virtual const MainController* getMainControllerToUse() const;
 	virtual MainController* getMainControllerToUse();
 
+    void initialiseAllKeyPresses() override;
+    
+    
+    File getKeyPressSettingFile() const override
+    {
+        return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+    }
+    
 private:
 
 	BackendRootWindow* parent;
@@ -665,13 +907,15 @@ private:
 
 struct FloatingTileHelpers
 {
+	static const Identifier getTileID(FloatingTile* parent);
 	template <class ContentType> static ContentType* findTileWithId(FloatingTile* root, const Identifier& id)
 	{
 		FloatingTile::Iterator<ContentType> iter(root);
 
 		while (auto t = iter.getNextPanel())
 		{
-			if (t->getParentShell()->getLayoutData().getID() == id)
+			auto tid = getTileID(t->getParentShell());
+			if (tid == id || id.isNull())
 				return t;
 		}
 

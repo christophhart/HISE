@@ -39,6 +39,8 @@ void MarkdownParser::parse()
 {
 	try
 	{
+		containsLinks = false;
+
 		if (it.getRestString().startsWith("---"))
 		{
 			parseMarkdownHeader();
@@ -48,7 +50,7 @@ void MarkdownParser::parse()
 			parseBlock();
 
 		if(createFooter && dynamic_cast<ContentFooter*>(elements.getLast()) == nullptr)
-			elements.add(new ContentFooter(this, header));
+			elements.add(new ContentFooter(this, it.getLineNumber(), header));
 
 		currentParseResult = Result::ok();
 	}
@@ -64,6 +66,8 @@ void MarkdownParser::parseLine()
 	resetForNewLine();
 	currentColour = styleData.textColour.withAlpha(0.8f);
 
+	auto line = it.getLineNumber();
+
 	parseText();
 
 	while (!Helpers::isNewElement(it.peek()))
@@ -71,7 +75,7 @@ void MarkdownParser::parseLine()
 		parseText();
 	}
 
-	elements.add(new TextBlock(this, currentlyParsedBlock));
+	elements.add(new TextBlock(this, line, currentlyParsedBlock));
 }
 
 void MarkdownParser::resetForNewLine()
@@ -85,6 +89,7 @@ void MarkdownParser::parseHeadline()
 {
 	resetCurrentBlock();
 
+	auto line = it.getLineNumber();
 	currentColour = Colour(SIGNAL_COLOUR);
 
 	
@@ -138,12 +143,14 @@ void MarkdownParser::parseHeadline()
 
 	isBold = false;
 
-	elements.add(new Headline(this, headlineLevel, imageURL, currentlyParsedBlock, elements.size() == 0));
+	elements.add(new Headline(this, line, headlineLevel, imageURL, currentlyParsedBlock, elements.size() == 0));
 
 }
 
 void MarkdownParser::parseBulletList()
 {
+	auto line = it.getLineNumber();
+
 	Array<AttributedString> bulletpoints;
 	Array<Array<HyperLink>> links;
 
@@ -160,7 +167,7 @@ void MarkdownParser::parseBulletList()
 		bulletpoints.add(currentlyParsedBlock);
 	}
 
-	elements.add(new BulletPointList(this, bulletpoints, links));
+	elements.add(new BulletPointList(this, line, bulletpoints, links));
 
 
 	currentFont = styleData.getFont();
@@ -169,6 +176,8 @@ void MarkdownParser::parseBulletList()
 
 void MarkdownParser::parseEnumeration()
 {
+	auto line = it.getLineNumber();
+
 	Array<AttributedString> listItems;
 
 	Array<Array<HyperLink>> links;
@@ -200,7 +209,7 @@ void MarkdownParser::parseEnumeration()
 		}
 	}
 
-	elements.add(new EnumerationList(this, listItems, links));
+	elements.add(new EnumerationList(this, line, listItems, links));
 
 	currentFont = styleData.getFont();
 }
@@ -214,7 +223,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 
 	it.next(c);
 
-
+	
 
 	//while (!Helpers::isEndOfLine(c))
 
@@ -377,6 +386,7 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 					hyperLink.valid = true;
 
 					currentLinks.add(std::move(hyperLink));
+					containsLinks = true;
 				}
 				else
 				{
@@ -507,12 +517,14 @@ void MarkdownParser::parseButton()
 		jassertfalse;
 	}
 
-	elements.add(new ActionButton(this, urlId, link));
+	elements.add(new ActionButton(this, it.getLineNumber(), urlId, link));
 }
 
 
 void MarkdownParser::parseJavascriptBlock()
 {
+	auto line = it.getLineNumber();
+
 	it.match('`');
 	it.match('`');
 	it.match('`');
@@ -593,7 +605,7 @@ void MarkdownParser::parseJavascriptBlock()
 	}
 
 	code = code.substring(numToSkip);
-	elements.add(new CodeBlock(this, code, type));
+	elements.add(new CodeBlock(this, line, code, type));
 }
 
 
@@ -602,12 +614,25 @@ void MarkdownParser::parseTable()
 {
 	RowContent headerItems;
 
+	auto line = it.getLineNumber();
 
 	it.peek();
 
+	bool first = true;
+	
 	while (!Helpers::isEndOfLine(it.peek()))
 	{
 		skipTagAndTrailingSpace();
+
+		if (first)
+		{
+			auto isHeadless = (it.peek() == '-' || it.peek() == '=');
+
+			if (isHeadless)
+				break;
+
+			first = false;
+		}
 
 		resetForNewLine();
 		resetCurrentBlock();
@@ -673,7 +698,7 @@ void MarkdownParser::parseTable()
 		rows.add(parseTableRow());
 	}
 
-	elements.add(new MarkdownTable(this, headerItems, lengths, rows));
+	elements.add(new MarkdownTable(this, line, headerItems, lengths, rows));
 
 }
 
@@ -695,7 +720,7 @@ MarkdownParser::ImageElement* MarkdownParser::parseImage()
 
 	it.match(')');
 
-	return new ImageElement(this, imageName, imageLink);
+	return new ImageElement(this, it.getLineNumber(), imageName, imageLink);
 
 
 }
@@ -776,9 +801,11 @@ void MarkdownParser::parseComment()
 
 	skipTagAndTrailingSpace();
 
+	auto line = it.getLineNumber();
+
 	parseText();
 
-	elements.add(new Comment(this, currentlyParsedBlock));
+	elements.add(new Comment(this, line, currentlyParsedBlock));
 
 
 }
@@ -850,7 +877,7 @@ void MarkdownParser::parseMarkdownHeader()
 
 		s.append(headline, f, styleData.headlineColour);
 
-		elements.add(new Headline(this, 1, header.getKeyValue("icon"), s, true));
+		elements.add(new Headline(this, it.getLineNumber(), 1, header.getKeyValue("icon"), s, true));
 	}
 
 }

@@ -42,14 +42,15 @@ CodeEditorComponent(doc, tok)
 	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF282828));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
-#if JUCE_MAC
-    setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f)); // other font sizes disappear on OSX Sierra, yeah!
-#else
-    setFont(GLOBAL_MONOSPACE_FONT());
-#endif
     
 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
+    setColour(CodeEditorComponent::ColourIds::highlightColourId, Colours::white.withAlpha(0.15f));
+    
 	setLineNumbersShown(false);
+    setScrollbarThickness(14);
+    
+    fader.addScrollBarToAnimate(getScrollbar(true));
+    fader.addScrollBarToAnimate(getScrollbar(false));
 }
 
 
@@ -62,10 +63,9 @@ Console::Console(MainController* mc_):
 
 	consoleDoc->addListener(this);
 
-	tokeniser = new ConsoleTokeniser();
+	setTokeniser(new ConsoleTokeniser());
 
-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
-	newTextConsole->addMouseListener(this, true);
+	mc->getFontSizeChangeBroadcaster().addListener(*this, updateFontSize);
 }
 
 Console::~Console()
@@ -74,8 +74,6 @@ Console::~Console()
 
 	newTextConsole = nullptr;
 	tokeniser = nullptr;
-
-	masterReference.clear();
 };
 
 
@@ -108,80 +106,87 @@ void Console::mouseDown(const MouseEvent &e)
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
+        const int SNIPPET_OFFSET = 1000;
+        const int FILE_OFFSET = 2000;
 
-
-		const int SNIPPET_OFFSET = 1000;
-		const int FILE_OFFSET = 2000;
-
-		if (jsp != nullptr)
-		{
-			const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
-
-			int snippet = -1;
-
-			for (int i = 0; i < jsp->getNumSnippets(); i++)
-			{
-				if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
-				{
-					snippet = i;
-					break;
-				}
-			}
-
-			if (snippet != -1)
-			{
-				m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
-			}
-
-			int fileIndex = -1;
-
-			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
-			{
-				if (jsp->getWatchedFile(i).getFileName() == selectedText)
-				{
-					fileIndex = i;
-					break;
-				}
-			}
-
-			if (fileIndex != -1)
-			{
-				m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
-			}
-		}
-
-        const int result = m.show();
+        JavascriptProcessor *jsp = nullptr;
         
-		if (result == 1)
+		if (id.isNotEmpty() && findParentComponentOfClass<ComponentWithBackendConnection>() != nullptr)
 		{
-			newTextConsole->getDocument().replaceAllContent("");
-			newTextConsole->scrollToLine(0);
-			
+            auto rootChain = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain();
+            
+            jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(rootChain, id));
+
+			if (jsp != nullptr)
+			{
+				const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
+
+				int snippet = -1;
+
+				for (int i = 0; i < jsp->getNumSnippets(); i++)
+				{
+					if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
+					{
+						snippet = i;
+						break;
+					}
+				}
+
+				if (snippet != -1)
+				{
+					m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
+				}
+
+				int fileIndex = -1;
+
+				for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
+				{
+					if (jsp->getWatchedFile(i).getFileName() == selectedText)
+					{
+						fileIndex = i;
+						break;
+					}
+				}
+
+				if (fileIndex != -1)
+				{
+					m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
+				}
+			}
 		}
+        
+        const int result = m.show();
+
+        if (result == 1)
+        {
+            newTextConsole->getDocument().replaceAllContent("");
+            newTextConsole->scrollToLine(0);
+
+        }
         else if (result == 2)
         {
-			newTextConsole->moveCaretToEnd(false);
+            newTextConsole->moveCaretToEnd(false);
         }
-		else if (result >= FILE_OFFSET)
-		{
-			jsp->showPopupForFile(result - FILE_OFFSET);
-		}
-		else if (result >= SNIPPET_OFFSET)
-		{
-			Processor *js = dynamic_cast<Processor*>(jsp);
+        else if (result >= FILE_OFFSET)
+        {
+            if(jsp != nullptr)
+                jsp->showPopupForFile(result - FILE_OFFSET);
+        }
+        else if (result >= SNIPPET_OFFSET)
+        {
+            if(auto js = dynamic_cast<Processor*>(jsp))
+            {
+                const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
+                const int editorStateIndex = (result - SNIPPET_OFFSET);
 
-			const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
+                for (int i = 0; i < jsp->getNumSnippets(); i++)
+                {
+                    js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
+                }
 
-			const int editorStateIndex = (result - SNIPPET_OFFSET);
-
-			for (int i = 0; i < jsp->getNumSnippets(); i++)
-			{
-				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
-			}
-
-			GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
-		}
+                GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessor(js);
+            }
+        }
     }
     else if (e.mods.isAltDown())
     {
@@ -195,11 +200,9 @@ void Console::mouseDown(const MouseEvent &e)
         {
 			auto editor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel();
 
-            Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
-            
-            if(p != nullptr)
+            if(auto p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name))
             {
-                editor->setRootProcessorWithUndo(p);
+                editor->setRootProcessor(p);
             }
         }
 #endif
@@ -227,49 +230,53 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 	
 };;
 
+void Console::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& wheel)
+{
+	if (e.mods.isCommandDown())
+	{
+		auto f = newTextConsole->getFont();
+		auto oldHeight = f.getHeight();
+		oldHeight += wheel.deltaY;
+		oldHeight = jlimit(12.0f, 30.0f, oldHeight);
+		newTextConsole->setFont(f.withHeight(oldHeight));
+	}
+}
+
 Console::ConsoleTokeniser::ConsoleTokeniser()
 {
 	s.set("id", Colours::white);
 	s.set("default", Colours::white.withBrightness(0.75f));
-	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
-	s.set("url", Colour(0xFF555555));
-	s.set("callstack", JUCE_LIVE_CONSTANT_OFF(Colour(0xffAA3939)));
+	s.set("error", Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.5f));
+	s.set("url", Colour(0xFF444444));
+	s.set("callstack", Colour(HISE_WARNING_COLOUR));
+    s.set("repl", Colour(0xFF67A2BF));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	while (state == 0 && source.nextChar() != ':')
-	{
-		return state;
-	}
-
-	auto c = source.nextChar();
-
-	switch (c)
-	{
-	case '!':
-	{
-		state = 2;
-		break;
-	}
-	case '{':
-	{
-		state = 3;
-		break;
-	}
-	case '\t':
-	{
-		state = 4;
-		break;
-	}
-	case '\n':
-	{
-		state = 0;
-		break;
-	}
-	}
-	
-	return state;
+    auto c = source.peekNextChar();
+    
+    static const String tokenChars = ":\n!{\t>";
+    
+    auto tokenIndex = tokenChars.indexOfChar(c);
+    
+    if(tokenIndex == -1)
+        tokenIndex = 1;
+    else
+        c = source.nextChar();
+    
+    while(!source.isEOF())
+    {
+        auto nextToken = tokenChars.indexOfChar(source.peekNextChar());
+        auto newToken = nextToken != -1;
+        
+        if(newToken)
+            break;
+        else
+            source.skip();
+    }
+    
+    return tokenIndex;
 }
 
 

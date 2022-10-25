@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -32,14 +31,14 @@ class TextEditorHandler  : public ComponentTypeHandler
 {
 public:
     TextEditorHandler()
-        : ComponentTypeHandler ("Text Editor", "TextEditor", typeid (TextEditor), 150, 24)
+        : ComponentTypeHandler ("Text Editor", "juce::TextEditor", typeid (TextEditor), 150, 24)
     {
-        registerColour (TextEditor::textColourId, "text", "textcol");
-        registerColour (TextEditor::backgroundColourId, "background", "bkgcol");
-        registerColour (TextEditor::highlightColourId, "highlight", "hilitecol");
-        registerColour (TextEditor::outlineColourId, "outline", "outlinecol");
-        registerColour (TextEditor::shadowColourId, "shadow", "shadowcol");
-        registerColour (CaretComponent::caretColourId, "caret", "caretcol");
+        registerColour (juce::TextEditor::textColourId, "text", "textcol");
+        registerColour (juce::TextEditor::backgroundColourId, "background", "bkgcol");
+        registerColour (juce::TextEditor::highlightColourId, "highlight", "hilitecol");
+        registerColour (juce::TextEditor::outlineColourId, "outline", "outlinecol");
+        registerColour (juce::TextEditor::shadowColourId, "shadow", "shadowcol");
+        registerColour (juce::CaretComponent::caretColourId, "caret", "caretcol");
     }
 
     Component* createNewComponent (JucerDocument*) override
@@ -115,20 +114,20 @@ public:
     {
         ComponentTypeHandler::fillInCreationCode (code, component, memberVariableName);
 
-        auto te = dynamic_cast<TextEditor*> (component);
-        jassert (te != nullptr);
+        if (auto* te = dynamic_cast<TextEditor*> (component))
+        {
+            String s;
+            s << memberVariableName << "->setMultiLine (" << CodeHelpers::boolLiteral (te->isMultiLine()) << ");\n"
+              << memberVariableName << "->setReturnKeyStartsNewLine (" << CodeHelpers::boolLiteral (te->getReturnKeyStartsNewLine()) << ");\n"
+              << memberVariableName << "->setReadOnly (" << CodeHelpers::boolLiteral (te->isReadOnly()) << ");\n"
+              << memberVariableName << "->setScrollbarsShown (" << CodeHelpers::boolLiteral (te->areScrollbarsShown()) << ");\n"
+              << memberVariableName << "->setCaretVisible (" << CodeHelpers::boolLiteral (te->isCaretVisible()) << ");\n"
+              << memberVariableName << "->setPopupMenuEnabled (" << CodeHelpers::boolLiteral (te->isPopupMenuEnabled()) << ");\n"
+              << getColourIntialisationCode (component, memberVariableName)
+              << memberVariableName << "->setText (" << quotedString (te->getProperties() ["initialText"].toString(), code.shouldUseTransMacro()) << ");\n\n";
 
-        String s;
-        s << memberVariableName << "->setMultiLine (" << CodeHelpers::boolLiteral (te->isMultiLine()) << ");\n"
-          << memberVariableName << "->setReturnKeyStartsNewLine (" << CodeHelpers::boolLiteral (te->getReturnKeyStartsNewLine()) << ");\n"
-          << memberVariableName << "->setReadOnly (" << CodeHelpers::boolLiteral (te->isReadOnly()) << ");\n"
-          << memberVariableName << "->setScrollbarsShown (" << CodeHelpers::boolLiteral (te->areScrollbarsShown()) << ");\n"
-          << memberVariableName << "->setCaretVisible (" << CodeHelpers::boolLiteral (te->isCaretVisible()) << ");\n"
-          << memberVariableName << "->setPopupMenuEnabled (" << CodeHelpers::boolLiteral (te->isPopupMenuEnabled()) << ");\n"
-          << getColourIntialisationCode (component, memberVariableName)
-          << memberVariableName << "->setText (" << quotedString (te->getProperties() ["initialText"].toString(), code.shouldUseTransMacro()) << ");\n\n";
-
-        code.constructorCode += s;
+            code.constructorCode += s;
+        }
     }
 
 private:

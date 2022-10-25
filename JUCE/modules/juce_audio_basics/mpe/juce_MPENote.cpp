@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -84,6 +84,7 @@ bool MPENote::operator!= (const MPENote& other) const noexcept
     return noteID != other.noteID;
 }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -91,7 +92,9 @@ bool MPENote::operator!= (const MPENote& other) const noexcept
 class MPENoteTests : public UnitTest
 {
 public:
-    MPENoteTests() : UnitTest ("MPENote class", "MIDI/MPE") {}
+    MPENoteTests()
+        : UnitTest ("MPENote class", UnitTestCategories::midi)
+    {}
 
     //==============================================================================
     void runTest() override
@@ -119,6 +122,6 @@ private:
 
 static MPENoteTests MPENoteUnitTests;
 
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

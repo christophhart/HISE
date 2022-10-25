@@ -1,0 +1,12 @@
+{
+  "NodeId": "TableTest1",
+  "SignalType": "Ramp",
+  "SignalLength": 8192,
+  "InputFile": "",
+  "OutputFile": "",
+  "Tables": [],
+  "SliderPacks": [],
+  "AudioFiles": [],
+  "HiseEvents": [],
+  "ParameterEvents": []
+}

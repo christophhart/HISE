@@ -1,31 +1,31 @@
 /*
   ==============================================================================
 
-
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
-   ------------------------------------------------------------------------------
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
 namespace VideoRenderers
 {
-    //======================================================================
+    //==============================================================================
     struct Base
     {
         virtual ~Base() {}
@@ -38,7 +38,7 @@ namespace VideoRenderers
         virtual HRESULT getVideoSize (long& videoWidth, long& videoHeight) = 0;
     };
 
-    //======================================================================
+    //==============================================================================
     struct VMR7  : public Base
     {
         VMR7() {}
@@ -98,7 +98,7 @@ namespace VideoRenderers
     };
 
 
-    //======================================================================
+    //==============================================================================
     struct EVR  : public Base
     {
         EVR() {}
@@ -155,34 +155,28 @@ namespace VideoRenderers
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EVR)
     };
-};
+}
 
 //==============================================================================
-struct VideoComponent::Pimpl  : public Component
-                             #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-                              , public ComponentPeer::ScaleFactorListener
-                             #endif
+struct VideoComponent::Pimpl  : public Component,
+                                private ComponentPeer::ScaleFactorListener
 {
     Pimpl (VideoComponent& ownerToUse, bool)
-        : owner (ownerToUse),
-          videoLoaded (false)
+        : owner (ownerToUse)
     {
         setOpaque (true);
         context.reset (new DirectShowContext (*this));
         componentWatcher.reset (new ComponentWatcher (*this));
     }
 
-    ~Pimpl()
+    ~Pimpl() override
     {
         close();
         context = nullptr;
         componentWatcher = nullptr;
 
-       #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-        for (int i = 0; i < ComponentPeer::getNumPeers(); ++i)
-            if (auto* peer = ComponentPeer::getPeer (i))
-                peer->removeScaleFactorListener (this);
-       #endif
+        if (currentPeer != nullptr)
+            currentPeer->removeScaleFactorListener (this);
     }
 
     Result loadFromString (const String& fileOrURLPath)
@@ -309,7 +303,8 @@ struct VideoComponent::Pimpl  : public Component
 
         if (getWidth() > 0 && getHeight() > 0)
             if (auto* peer = getTopLevelComponent()->getPeer())
-                context->updateWindowPosition ((peer->getAreaCoveredBy (*this).toDouble() * peer->getPlatformScaleFactor()).toNearestInt());
+                context->updateWindowPosition ((peer->getAreaCoveredBy (*this).toDouble()
+                                                * peer->getPlatformScaleFactor()).toNearestInt());
     }
 
     void updateContextVisibility()
@@ -341,21 +336,20 @@ struct VideoComponent::Pimpl  : public Component
             owner.onErrorOccurred (errorMessage);
     }
 
-   #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-    void nativeScaleFactorChanged (double /*newScaleFactor*/) override
-    {
-        if (videoLoaded)
-            updateContextPosition();
-    }
-   #endif
-
     File currentFile;
     URL currentURL;
 
 private:
     VideoComponent& owner;
+    ComponentPeer* currentPeer = nullptr;
+    bool videoLoaded = false;
 
-    bool videoLoaded;
+    //==============================================================================
+    void nativeScaleFactorChanged (double /*newScaleFactor*/) override
+    {
+        if (videoLoaded)
+            updateContextPosition();
+    }
 
     //==============================================================================
     struct ComponentWatcher   : public ComponentMovementWatcher
@@ -372,6 +366,9 @@ private:
 
         void componentPeerChanged() override
         {
+            if (owner.currentPeer != nullptr)
+                owner.currentPeer->removeScaleFactorListener (&owner);
+
             if (owner.videoLoaded)
                 owner.recreateNativeWindowAsync();
         }
@@ -389,21 +386,21 @@ private:
 
     std::unique_ptr<ComponentWatcher> componentWatcher;
 
-    //======================================================================
+    //==============================================================================
     struct DirectShowContext    : public AsyncUpdater
     {
         DirectShowContext (Pimpl& c)  : component (c)
         {
-            CoInitialize (0);
+            ignoreUnused (CoInitialize (nullptr));
         }
 
-        ~DirectShowContext()
+        ~DirectShowContext() override
         {
             release();
             CoUninitialize();
         }
 
-        //======================================================================
+        //==============================================================================
         void updateWindowPosition (const Rectangle<int>& newBounds)
         {
             nativeWindow->setWindowPosition (newBounds);
@@ -414,7 +411,7 @@ private:
             nativeWindow->showWindow (shouldBeVisible);
         }
 
-        //======================================================================
+        //==============================================================================
         void repaint()
         {
             if (hasVideo)
@@ -433,7 +430,7 @@ private:
                 videoRenderer->displayModeChanged();
         }
 
-        //======================================================================
+        //==============================================================================
         void peerChanged()
         {
             deleteNativeWindow();
@@ -454,7 +451,7 @@ private:
 
         void handleAsyncUpdate() override
         {
-            if (hwnd != 0)
+            if (hwnd != nullptr)
             {
                 if (needToRecreateNativeWindow)
                 {
@@ -488,7 +485,7 @@ private:
             triggerAsyncUpdate();
         }
 
-        //======================================================================
+        //==============================================================================
         Result loadFile (const String& fileOrURLPath)
         {
             jassert (state == uninitializedState);
@@ -606,7 +603,7 @@ private:
                 mediaEvent->SetNotifyWindow (0, 0, 0);
 
             if (videoRenderer != nullptr)
-                videoRenderer->setVideoWindow (0);
+                videoRenderer->setVideoWindow (nullptr);
 
             hasVideo = false;
             videoRenderer = nullptr;
@@ -667,7 +664,7 @@ private:
             }
         }
 
-        //======================================================================
+        //==============================================================================
         void play()
         {
             mediaControl->Run();
@@ -686,7 +683,7 @@ private:
             state = pausedState;
         }
 
-        //======================================================================
+        //==============================================================================
         Rectangle<int> getVideoSize() const noexcept
         {
             long width = 0, height = 0;
@@ -697,7 +694,7 @@ private:
             return { (int) width, (int) height };
         }
 
-        //======================================================================
+        //==============================================================================
         double getDuration() const
         {
             REFTIME duration;
@@ -736,14 +733,14 @@ private:
         {
             long volume;
             basicAudio->get_Volume (&volume);
-            return (volume + 10000) / 10000.0f;
+            return (float) (volume + 10000) / 10000.0f;
         }
 
         enum State { uninitializedState, runningState, pausedState, stoppedState };
         State state = uninitializedState;
 
     private:
-        //======================================================================
+        //==============================================================================
         enum { graphEventID = WM_APP + 0x43f0 };
 
         Pimpl& component;
@@ -761,7 +758,7 @@ private:
 
         bool hasVideo = false, needToUpdateViewport = true, needToRecreateNativeWindow = false;
 
-        //======================================================================
+        //==============================================================================
         bool createNativeWindow()
         {
             jassert (nativeWindow == nullptr);
@@ -771,12 +768,10 @@ private:
                 nativeWindow.reset (new NativeWindow ((HWND) topLevelPeer->getNativeHandle(), this));
 
                 hwnd = nativeWindow->hwnd;
+                component.currentPeer = topLevelPeer;
+                component.currentPeer->addScaleFactorListener (&component);
 
-               #if JUCE_WIN_PER_MONITOR_DPI_AWARE
-                topLevelPeer->addScaleFactorListener (&component);
-               #endif
-
-                if (hwnd != 0)
+                if (hwnd != nullptr)
                 {
                     hdc = GetDC (hwnd);
                     component.updateContextPosition();
@@ -838,7 +833,7 @@ private:
             return false;
         }
 
-        //======================================================================
+        //==============================================================================
         struct NativeWindowClass   : private DeletedAtShutdown
         {
             bool isRegistered() const noexcept              { return atom != 0; }
@@ -854,10 +849,10 @@ private:
 
                 HINSTANCE moduleHandle = (HINSTANCE) Process::getCurrentModuleInstanceHandle();
 
-                TCHAR moduleFile [1024] = { 0 };
+                TCHAR moduleFile [1024] = {};
                 GetModuleFileName (moduleHandle, moduleFile, 1024);
 
-                WNDCLASSEX wcex = { 0 };
+                WNDCLASSEX wcex = {};
                 wcex.cbSize         = sizeof (wcex);
                 wcex.style          = CS_OWNDC;
                 wcex.lpfnWndProc    = (WNDPROC) wndProc;
@@ -898,7 +893,7 @@ private:
             JUCE_DECLARE_NON_COPYABLE (NativeWindowClass)
         };
 
-        //======================================================================
+        //==============================================================================
         struct NativeWindow
         {
             NativeWindow (HWND parentToAddTo, void* userData)
@@ -911,22 +906,22 @@ private:
                     DWORD type = WS_CHILD;
 
                     hwnd = CreateWindowEx (exstyle, wc->getWindowClassName(),
-                                           L"", type, 0, 0, 0, 0, parentToAddTo, 0,
-                                           (HINSTANCE) Process::getCurrentModuleInstanceHandle(), 0);
+                                           L"", type, 0, 0, 0, 0, parentToAddTo, nullptr,
+                                           (HINSTANCE) Process::getCurrentModuleInstanceHandle(), nullptr);
 
-                    if (hwnd != 0)
+                    if (hwnd != nullptr)
                     {
                         hdc = GetDC (hwnd);
                         SetWindowLongPtr (hwnd, GWLP_USERDATA, (LONG_PTR) userData);
                     }
                 }
 
-                jassert (hwnd != 0);
+                jassert (hwnd != nullptr);
             }
 
             ~NativeWindow()
             {
-                if (hwnd != 0)
+                if (hwnd != nullptr)
                 {
                     SetWindowLongPtr (hwnd, GWLP_USERDATA, (LONG_PTR) 0);
                     DestroyWindow (hwnd);
@@ -935,7 +930,7 @@ private:
 
             void setWindowPosition (Rectangle<int> newBounds)
             {
-                SetWindowPos (hwnd, 0, newBounds.getX(), newBounds.getY(),
+                SetWindowPos (hwnd, nullptr, newBounds.getX(), newBounds.getY(),
                               newBounds.getWidth(), newBounds.getHeight(),
                               SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
             }

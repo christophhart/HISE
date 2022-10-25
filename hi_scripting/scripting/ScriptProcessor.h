@@ -249,11 +249,15 @@ public:
 
 	virtual void fileChanged() = 0;
 
-	void addFileWatcher(const File &file);
+	ExternalScriptFile::Ptr addFileWatcher(const File &file);
 
 	void setFileResult(const File &file, Result r);
 
 	Result getWatchedResult(int index);
+
+	CodeDocument::Position getLastPosition(CodeDocument& docToLookFor) const;
+
+	void setWatchedFilePosition(CodeDocument::Position& newPos);
 
 	void clearFileWatchers()
 	{
@@ -309,131 +313,19 @@ private:
 
 	ReferenceCountedArray<ExternalScriptFile> watchers;
 
+	Array<CodeDocument::Position> lastPositions;
+
 	Array<Component::SafePointer<DocumentWindow>> currentPopups;
 
 	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
+using namespace snex;
 
-class ComplexDataHolder: public SliderPackProcessor,
-						 public LookupTableProcessor
-{
-public:
 
-	virtual ~ComplexDataHolder() {};
 
-	SliderPackData* getSliderPackData(int index) override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
 
-		return nullptr;
-	}
 
-	const SliderPackData* getSliderPackData(int index) const override
-	{
-		if (auto d = sliderPacks[index])
-			return d->getSliderPackData();
-
-		return nullptr;
-	}
-
-	Table* getTable(int index) const override
-	{
-		if (auto d = tables[index])
-			return d->getTable();
-
-		return nullptr;
-	}
-
-	int getNumTables() const override { return tables.size(); };
-
-	int getNumSliderPacks() const override { return sliderPacks.size(); }
-
-	int getNumAudioFiles() const { return audioFiles.size(); };
-
-	void saveComplexDataTypeAmounts(ValueTree& v) const
-	{
-		if (!sliderPacks.isEmpty())
-			v.setProperty("NumSliderPacks", sliderPacks.size(), nullptr);
-
-		if (!tables.isEmpty())
-			v.setProperty("NumTables", sliderPacks.size(), nullptr);
-
-		if (!audioFiles.isEmpty())
-			v.setProperty("NumAudioFiles", audioFiles.size(), nullptr);
-	}
-
-	void restoreComplexDataTypes(const ValueTree& v)
-	{
-		auto pc = dynamic_cast<ProcessorWithScriptingContent*>(this);
-
-		int numSliderPacks = v.getProperty("NumSliderPacks", 0);
-
-		if (numSliderPacks > 0)
-		{
-			sliderPacks.ensureStorageAllocated(numSliderPacks);
-
-			for (int i = 0; i < numSliderPacks; i++)
-				sliderPacks.add(new ScriptingObjects::ScriptSliderPackData(pc));
-		}
-
-		int numTables = v.getProperty("NumTables", 0);
-
-		if (numTables > 0)
-		{
-			tables.ensureStorageAllocated(numTables);
-
-			for (int i = 0; i < numTables; i++)
-				tables.add(new ScriptingObjects::ScriptTableData(pc));
-		}
-
-		int numAudioFiles = v.getProperty("NumAudioFiles", 0);
-
-		if (numAudioFiles > 0)
-		{
-			audioFiles.ensureStorageAllocated(numAudioFiles);
-
-			for (int i = 0; i < numAudioFiles; i++)
-				audioFiles.add(new ScriptingObjects::ScriptAudioFile(pc));
-		}
-	}
-
-	ScriptingObjects::ScriptSliderPackData* addOrReturnSliderPackObject(int index)
-	{
-		if (auto d = sliderPacks[index])
-			return d;
-
-		sliderPacks.set(index, new ScriptingObjects::ScriptSliderPackData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return sliderPacks[index];
-	}
-
-	ScriptingObjects::ScriptAudioFile* addOrReturnAudioFile(int index)
-	{
-		if (auto d = audioFiles[index])
-			return d;
-
-		audioFiles.set(index, new ScriptingObjects::ScriptAudioFile(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return audioFiles[index];
-	}
-
-	ScriptingObjects::ScriptTableData* addOrReturnTableObject(int index)
-	{
-		if (auto d = tables[index])
-			return d;
-
-		tables.set(index, new ScriptingObjects::ScriptTableData(dynamic_cast<ProcessorWithScriptingContent*>(this)));
-		return tables[index];
-	}
-
-protected:
-
-	
-
-	ReferenceCountedArray<ScriptingObjects::ScriptSliderPackData> sliderPacks;
-	ReferenceCountedArray<ScriptingObjects::ScriptTableData> tables;
-	ReferenceCountedArray<ScriptingObjects::ScriptAudioFile> audioFiles;
-};
 
 
 /** The base class for modules that can be scripted. 
@@ -443,16 +335,16 @@ protected:
 class JavascriptProcessor :	public FileChangeListener,
 							public HiseJavascriptEngine::Breakpoint::Listener,
 							public Dispatchable,
-							public ComplexDataHolder,
+							public ProcessorWithDynamicExternalData,
 							public ApiProviderBase::Holder,
+							public WeakCallbackHolder::CallableObjectManager,
 							public scriptnode::DspNetwork::Holder
 {
 public:
 
 	// ================================================================================================================
 
-
-	
+	using PreprocessorFunction = std::function<bool(const Identifier&, String& m)>;
 
 	/** A named document that contains a callback function. */
 	class SnippetDocument : public CodeDocument
@@ -489,7 +381,7 @@ public:
 		/** Returns the number of arguments specified in the constructor. */
 		int getNumArgs() const { return numArgs; }
 
-		void replaceContentAsync(String s)
+		void replaceContentAsync(String s, bool shouldBeAsync=true)
 		{
             
 #if USE_FRONTEND
@@ -497,11 +389,20 @@ public:
             // being resized...
             replaceAllContent(s);
 #else
-			// Makes sure that this won't be accessed during replacement...
-			
-			SpinLock::ScopedLockType sl(pendingLock);
-			pendingNewContent.swapWith(s);
-			notifier.notify();
+            {
+                // Makes sure that this won't be accessed during replacement...
+                SpinLock::ScopedLockType sl(pendingLock);
+                pendingNewContent.swapWith(s);
+            }
+            
+            if(shouldBeAsync)
+            {
+                notifier.notify();
+            }
+            else
+            {   
+                notifier.handleAsyncUpdate();
+            }
 #endif
 		}
 
@@ -526,8 +427,6 @@ public:
 				triggerAsyncUpdate();
 			}
 
-		private:
-
 			void handleAsyncUpdate() override
 			{
 				String text;
@@ -538,11 +437,8 @@ public:
 				}
 
                 parent.setDisableUndo(true);
-                
 				parent.replaceAllContent(text);
-                
                 parent.setDisableUndo(false);
-                
                 
 				parent.pendingNewContent = String();
 			}
@@ -588,16 +484,16 @@ public:
 		LoadScriptClipboard,
 
 		ClearAllBreakpoints,
-
-
 		CreateUiFactoryMethod,
-		ReplaceConstructorWithReference,
-		OpenExternalFile,
-		OpenInPopup,
 		MoveToExternalFile,
-		InsertExternalFile,
 		ExportAsCompressedScript,
-		ImportCompressedScript
+		ImportCompressedScript,
+		JumpToDefinition,
+		SearchAndReplace,
+		AddCodeBookmark,
+		FindAllOccurences,
+		AddAutocompleteTemplate,
+		ClearAutocompleteTemplates,
 	};
 
 	// ================================================================================================================
@@ -626,7 +522,10 @@ public:
 	}
 
 	void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent &e) override;
-	void performPopupMenuAction(int menuId, Component* c) override;
+
+#if USE_BACKEND
+	bool performPopupMenuAction(int menuId, Component* c) override;
+#endif
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("ScriptProcessor");
 
@@ -648,26 +547,13 @@ public:
 
 	JavascriptCodeEditor* getActiveEditor() override;
 
-	void breakpointWasHit(int index) override
-	{
-		for (int i = 0; i < breakpoints.size(); i++)
-		{
-			breakpoints.getReference(i).hit = (i == index);
-		}
+	void breakpointWasHit(int index) override;
 
-		for (int i = 0; i < breakpointListeners.size(); i++)
-		{
-			if (breakpointListeners[i].get() != nullptr)
-			{
-				breakpointListeners[i]->breakpointWasHit(index);
-			}
-		}
-
-		repaintUpdater.update(index);
-	}
-
-	
-
+	void addInplaceDebugValue(const Identifier& callback, int lineNumber, const String& value);
+    
+    Array<mcl::LanguageManager::InplaceDebugValue> inplaceValues;
+    LambdaBroadcaster<Identifier, int> inplaceBroadcaster;
+    
 	virtual void fileChanged() override;
 
 	void compileScript(const ResultFunction& f = ResultFunction());
@@ -791,6 +677,16 @@ public:
 		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	void clearPreprocessorFunctions()
+	{
+		preprocessorFunctions.clear();
+	}
+
+	void addPreprocessorFunction(const PreprocessorFunction& pf)
+	{
+		preprocessorFunctions.add(pf);
+	}
+
 	ScriptingApi::Content* getContent()
 	{
 		return dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent();
@@ -816,7 +712,24 @@ public:
 
 	bool hasUIDataForDeviceType(int type=-1) const;
 
+	struct AutocompleteTemplate
+	{
+		String expression;
+		Identifier classId;
+	};
+
+	Array<AutocompleteTemplate> autoCompleteTemplates;
+
+	MainController* mainController;
+
+	void setOptimisationReport(const String& report)
+	{
+		lastOptimisationReport = report;
+	}
+
 protected:
+
+	String lastOptimisationReport;
 
 	void clearExternalWindows();
 
@@ -857,14 +770,14 @@ protected:
 
 	ScopedPointer<HiseJavascriptEngine> scriptEngine;
 
-	MainController* mainController;
+	
 
 	bool lastCompileWasOK;
 	bool useStoredContentData = false;
 
 private:
 
-	
+	Array<PreprocessorFunction> preprocessorFunctions;
 
 	struct Helpers
 	{
@@ -902,11 +815,20 @@ public:
 	
 };
 
+struct JavascriptSleepListener
+{
+	virtual ~JavascriptSleepListener() {};
+	virtual void sleepStateChanged(const Identifier& callback, int lineNumber, bool isSleeping) = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptSleepListener);
+};
 
 class JavascriptThreadPool : public Thread,
 							 public ControlledObject
 {
 public:
+
+	using SleepListener = JavascriptSleepListener;
 
 	JavascriptThreadPool(MainController* mc);
 
@@ -934,6 +856,7 @@ public:
 		enum Type
 		{
 			Compilation,
+            ReplEvaluation,
 			HiPriorityCallbackExecution,
 			LowPriorityCallbackExecution,
 			DeferredPanelRepaintJob,
@@ -986,9 +909,124 @@ public:
 
 	void killVoicesAndExtendTimeOut(JavascriptProcessor* jp, int milliseconds=1000);
 
+	SimpleReadWriteLock& getLookAndFeelRenderLock()
+	{
+		return lookAndFeelRenderLock;
+	}
+
 	GlobalServer* getGlobalServer() { return globalServer.get(); }
 
+	void resume()
+	{
+		shouldWakeUp = true;
+	}
+
+	void deactivateSleepUntilCompilation()
+	{
+		allowSleep = false;
+	}
+
+	struct ScopedSleeper
+	{
+		ScopedSleeper(JavascriptThreadPool& p_, const Identifier& id, int lineNumber_) :
+			p(p_),
+			wasSleeping(p.isSleeping),
+			cid(id),
+			lineNumber(lineNumber_)
+		{
+			if (!p.allowSleep)
+				return;
+
+			sendMessage(true);
+
+			p.isSleeping = true;
+			p.shouldWakeUp = false;
+
+			auto cThread = Thread::getCurrentThread();
+			std::function<bool()> shouldExit;
+
+			if (cThread != nullptr)
+				shouldExit = [cThread](){ return cThread->threadShouldExit(); };
+			else
+			{
+				auto currentThread = p.getMainController()->getKillStateHandler().getCurrentThread();
+
+				if (currentThread == MainController::KillStateHandler::TargetThread::AudioThread)
+				{
+					auto mc = p.getMainController();
+					shouldExit = [mc]() { return mc->getKillStateHandler().hasRequestedQuit(); };
+				}
+			}
+
+			jassert(shouldExit);
+
+			if (!shouldExit)
+				shouldExit = []() { return true; };
+
+			while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
+			{
+                PendingCompilationList l;
+                auto r = p.executeQueue(Task::ReplEvaluation, l);
+                
+				Thread::sleep(200);
+			}
+
+			sendMessage(false);
+		}
+
+		void sendMessage(bool on)
+		{
+			JavascriptThreadPool* p_ = &p;
+			auto cid_ = cid;
+			auto ln = lineNumber;
+
+			auto f = [p_, cid_, ln, on]()
+			{
+				for (const auto& s : p_->sleepListeners)
+				{
+					if (s != nullptr)
+						s.get()->sleepStateChanged(cid_, ln, on);
+				}
+			};
+
+			MessageManager::callAsync(f);
+		}
+
+		~ScopedSleeper()
+		{
+			p.isSleeping = wasSleeping;
+
+			p.lowPriorityQueue.clear();
+			p.highPriorityQueue.clear();
+			
+			sendMessage(false);
+		}
+
+		const Identifier cid;
+		const int lineNumber;
+		JavascriptThreadPool& p;
+		const bool wasSleeping;
+	};
+
+	void addSleepListener(SleepListener* s)
+	{
+		sleepListeners.addIfNotAlreadyThere(s);
+	};
+
+	void removeSleepListener(SleepListener* s)
+	{
+		sleepListeners.removeAllInstancesOf(s);
+	}
+
+	bool  isCurrentlySleeping() const { return isSleeping; };
+
 private:
+
+	Array<WeakReference<SleepListener>> sleepListeners;
+
+	bool isSleeping = false;
+	bool shouldWakeUp = false;
+	bool allowSleep = true;
 
 	ScopedPointer<GlobalServer> globalServer;
 
@@ -1007,6 +1045,8 @@ private:
 
 	CriticalSection scriptLock;
 
+	SimpleReadWriteLock lookAndFeelRenderLock;
+
 	using CompilationTask = SuspendHelpers::Suspended<Task, SuspendHelpers::ScopedTicket>;
 	using CallbackTask = SuspendHelpers::Suspended<Task, SuspendHelpers::FreeTicket>;
 
@@ -1016,10 +1056,110 @@ private:
 	MultithreadedLockfreeQueue<CompilationTask, queueConfig> compilationQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> lowPriorityQueue;
 	MultithreadedLockfreeQueue<CallbackTask, queueConfig> highPriorityQueue;
+    
+#if USE_BACKEND
+    MultithreadedLockfreeQueue<CallbackTask, queueConfig> replQueue;
+#endif
 
 	MultithreadedLockfreeQueue<WeakReference<ScriptingApi::Content::ScriptPanel>, queueConfig> deferredPanels;
 };
 
 
 } // namespace hise
+
+
+namespace scriptnode
+{
+using namespace juce;
+using namespace hise;
+
+namespace properties
+{
+
+template <class PropertyClass> struct table : public NodePropertyT<int>
+{
+	table() :
+		NodePropertyT<int>(PropertyClass::getId(), -1)
+	{};
+
+	template <class RootObject> void initWithRoot(NodeBase* n, RootObject& r)
+	{
+		if (n != nullptr)
+		{
+			holder = dynamic_cast<ProcessorWithDynamicExternalData*>(n->getScriptProcessor());
+
+			setAdditionalCallback([&r, this](Identifier id, var newValue)
+			{
+				if (id == PropertyIds::Value)
+				{
+					auto index = (int)newValue;
+					changed(r, index);
+				}
+			});
+
+			initialise(n);
+		}
+	}
+	
+private:
+
+	template <class RootObject> void changed(RootObject& r, int index)
+	{
+		if (index == -1)
+			usedTable = &ownedTable;
+		else
+			usedTable = holder->getTable(index);
+
+		if (usedTable == nullptr)
+			usedTable = &ownedTable;
+
+		snex::Types::dyn<float> tableData(usedTable->getWritePointer(), usedTable->getTableSize());
+		PropertyClass p;
+		p.setTableData(r, tableData);
+	}
+
+	WeakReference<hise::ProcessorWithDynamicExternalData> holder;
+	hise::SampleLookupTable ownedTable;
+	WeakReference<hise::Table> usedTable = nullptr;
+};
+
+
+
+#if 0
+template <class PropertyClass> struct slider_pack : public complex_base<PropertyClass>,
+													public SliderPack::Listener
+{
+	// TODO: REWRITE THE FUCKING SLIDER PACK LISTENER CLASS...
+	void sliderPackChanged(SliderPack *s, int index) override
+	{
+
+	}
+
+	void changed(int index) override
+	{
+		if (index >= 0)
+		{
+			if (data = holder->getSliderPackData(index))
+			{
+				data->addPooledChangeListener(this)
+			}
+		}
+			
+		snex::Types::dyn<float> tableData(usedPack->getCachedData());
+		PropertyClass p;
+
+		p.setSliderPackData(r, tableData);
+	}
+
+	WeakReference<SliderPackData> data;
+	HeapBlock<float> dataCopy;
+};
+#endif
+
+
+
+}
+}
+
+
 #endif  // SCRIPTPROCESSOR_H_INCLUDED

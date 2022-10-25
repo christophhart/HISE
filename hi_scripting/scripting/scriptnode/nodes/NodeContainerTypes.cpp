@@ -41,50 +41,60 @@ ChainNode::ChainNode(DspNetwork* n, ValueTree t) :
 {
 	initListeners();
 
+	
 	wrapper.getObject().initialise(this);
-
-	setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0);
-
-	bypassListener.setCallback(t, { PropertyIds::Bypassed, PropertyIds::BypassRampTimeMs },
-		valuetree::AsyncMode::Asynchronously,
-		std::bind(&InternalWrapper::setBypassedFromValueTreeCallback, &wrapper, std::placeholders::_1, std::placeholders::_2));
 }
 
-void ChainNode::process(ProcessData& data)
+
+
+void ChainNode::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this, data.getNumSamples());
+	ProcessDataPeakChecker pd(this, data);
+	
+	if (isBypassed())
+		return;
+
 	wrapper.process(data);
 }
 
 
-void ChainNode::processSingle(float* frameData, int numChannels)
+void ChainNode::processFrame(NodeBase::FrameType& data)
 {
-	wrapper.processSingle(frameData, numChannels);
+	if (isBypassed())
+		return;
+
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if(data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
+}
+
+void ChainNode::processMonoFrame(MonoFrameType& data)
+{
+	wrapper.processFrame(data);
+}
+
+void ChainNode::processStereoFrame(StereoFrameType& data)
+{
+	wrapper.processFrame(data);
 }
 
 void ChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	wrapper.prepare(ps);
 }
 
 void ChainNode::handleHiseEvent(HiseEvent& e)
 {
+	if (isBypassed())
+		return;
+
 	wrapper.handleHiseEvent(e);
-}
-
-String ChainNode::getCppCode(CppGen::CodeLocation location)
-{
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s = NodeContainer::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-
-		return s;
-	}
-	else
-		return SerialNode::getCppCode(location);
 }
 
 SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
@@ -95,22 +105,21 @@ SplitNode::SplitNode(DspNetwork* root, ValueTree data) :
 
 void SplitNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
-
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 
-	ps.numChannels *= 2;
-	DspHelpers::increaseBuffer(splitBuffer, ps);
+	if (ps.blockSize > 1)
+	{
+		DspHelpers::increaseBuffer(original, ps);
+		DspHelpers::increaseBuffer(workBuffer, ps);
+	}
 }
-
-juce::String SplitNode::getCppCode(CppGen::CodeLocation location)
-{
-	return ParallelNode::getCppCode(location);
-}
-
 
 void SplitNode::handleHiseEvent(HiseEvent& e)
 {
+	if (isBypassed())
+		return;
+
 	for (auto n : nodes)
 	{
 		HiseEvent copy(e);
@@ -118,60 +127,70 @@ void SplitNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void SplitNode::process(ProcessData& data)
+void SplitNode::process(ProcessDataDyn& data)
 {
-	if (isBypassed())
+	if (isBypassed() || original.begin() == nullptr)
 		return;
 
-	auto original = data.copyTo(splitBuffer, 0);
+	NodeProfiler np(this, data.getNumSamples());
+    ProcessDataPeakChecker pd(this, data);
+    
+	float* ptrs[NUM_MAX_CHANNELS];
+	int numSamples = data.getNumSamples();
+
+	{
+		float* optr = original.begin();
+		float* wptr = workBuffer.begin();
+
+		int index = 0;
+		for (auto& c : data)
+		{
+			FloatVectorOperations::copy(optr, c.getRawReadPointer(), numSamples);
+			ptrs[index++] = wptr;
+			optr += numSamples;
+			wptr += numSamples;
+		}
+	}
+	
 	int channelCounter = 0;
 
 	for (auto n : nodes)
 	{
+		if (n->isBypassed())
+			continue;
+
 		if (channelCounter++ == 0)
 		{
-			if (n->isBypassed())
-				continue;
-
 			n->process(data);
 		}
 		else
 		{
-			if (n->isBypassed())
-				continue;
+			int numToCopy = data.getNumSamples() * data.getNumChannels();
 
-			auto wd = original.copyTo(splitBuffer, 1);
-			n->process(wd);
-			data += wd;
+			FloatVectorOperations::copy(workBuffer.begin(), original.begin(), numToCopy);
+			ProcessDataDyn cp(ptrs, numSamples, data.getNumChannels());
+
+			cp.copyNonAudioDataFrom(data);
+
+			n->process(cp);
+
+			int index = 0;
+			for (auto& c : data)
+				FloatVectorOperations::add(c.getRawWritePointer(), ptrs[index++], numSamples);
 		}
 	}
 }
 
-
-void SplitNode::processSingle(float* frameData, int numChannels)
+void SplitNode::processMonoFrame(MonoFrameType& data)
 {
-	if (isBypassed())
-		return;
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	processFrameInternal<1>(data);
+}
 
-	float original[NUM_MAX_CHANNELS];
-	memcpy(original, frameData, sizeof(float)*numChannels);
-	bool isFirst = true;
-
-	for (auto n : nodes)
-	{
-		if (isFirst)
-		{
-			n->processSingle(frameData, numChannels);
-			isFirst = false;
-		}
-		else
-		{
-			float wb[NUM_MAX_CHANNELS];
-			memcpy(wb, original, sizeof(float)*numChannels);
-			n->processSingle(wb, numChannels);
-			FloatVectorOperations::add(frameData, wb, numChannels);
-		}
-	}
+void SplitNode::processStereoFrame(StereoFrameType& data)
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	processFrameInternal<2>(data);
 }
 
 void SplitNode::reset()
@@ -186,31 +205,32 @@ ModulationChainNode::ModulationChainNode(DspNetwork* n, ValueTree t) :
 	obj.initialise(this);
 }
 
-void ModulationChainNode::processSingle(float* frameData, int ) noexcept
+void ModulationChainNode::processFrame(NodeBase::FrameType& data) noexcept
 {
-	if (isBypassed())
-		return;
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
 
-	obj.processSingle(frameData, 1);
+	if (!isBypassed())
+		obj.processFrame(data);
 }
 
-void ModulationChainNode::process(ProcessData& data) noexcept
+void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
 		return;
 
-	ProcessData copy(data);
-	copy.numChannels = 1;
-
-	obj.process(copy);
-	double thisValue = 0.0;
-	obj.handleModulation(thisValue);
+	NodeProfiler np(this, data.getNumSamples());
+	obj.process(data);
 }
 
 void ModulationChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	isProcessingFrame = ps.blockSize == 1;
 
+	ps.numChannels = 1;
+
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
+
+	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
@@ -226,112 +246,80 @@ void ModulationChainNode::reset()
 	obj.reset();
 }
 
-scriptnode::NodeComponent* ModulationChainNode::createComponent()
-{
-	return new ModChainNodeComponent(this);
-}
 
-juce::String ModulationChainNode::createCppClass(bool isOuterClass)
-{
-	return createCppClassForNodes(isOuterClass);
-}
 
 int ModulationChainNode::getBlockSizeForChildNodes() const
 {
-	return jmax(1, originalBlockSize / HISE_EVENT_RASTER);
+	return isProcessingFrame ? originalBlockSize : jmax(1, originalBlockSize / HISE_EVENT_RASTER);
 }
 
 double ModulationChainNode::getSampleRateForChildNodes() const
 {
-	return originalSampleRate / (double)HISE_EVENT_RASTER;
+	return isProcessingFrame ? originalSampleRate : originalSampleRate / (double)HISE_EVENT_RASTER;
 }
-
-juce::Rectangle<int> ModulationChainNode::getPositionInCanvas(Point<int> topLeft) const
-{
-	using namespace UIValues;
-
-	const int minWidth = NodeWidth;
-	
-	int maxW = minWidth;
-	int h = 0;
-
-	h += UIValues::NodeMargin;
-	h += UIValues::HeaderHeight; // the input
-
-	if (v_data[PropertyIds::ShowParameters])
-		h += UIValues::ParameterHeight;
-
-	h += PinHeight; // the "hole" for the cable
-
-	Point<int> childPos(NodeMargin, NodeMargin);
-
-	for (auto n : nodes)
-	{
-		auto bounds = n->getPositionInCanvas(childPos);
-
-		bounds = n->getBoundsToDisplay(bounds);
-
-		maxW = jmax<int>(maxW, bounds.getWidth());
-		h += bounds.getHeight() + NodeMargin;
-		childPos = childPos.translated(0, bounds.getHeight());
-	}
-
-	h += PinHeight; // the "hole" for the cable
-
-	return { topLeft.getX(), topLeft.getY(), maxW + 2 * NodeMargin, h };
-}
-
 
 template <int OversampleFactor>
 OversampleNode<OversampleFactor>::OversampleNode(DspNetwork* network, ValueTree d) :
 	SerialNode(network, d)
 {
-	initListeners();
+	initListeners(false);
+
+	addFixedParameters();
+
+	
+
+	
 
 	obj.initialise(this);
-
-	bypassListener.setCallback(d, { PropertyIds::Bypassed },
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(OversampleNode<OversampleFactor>::updateBypassState));
 }
 
 template <int OversampleFactor>
-void OversampleNode<OversampleFactor>::updateBypassState(Identifier, var)
+void OversampleNode<OversampleFactor>::prepare(PrepareSpecs ps)
 {
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
+
+	NodeBase::prepare(ps);
+	lastVoiceIndex = ps.voiceIndex;
+	prepareNodes(ps);
+
+	if (isBypassed())
+		obj.getWrappedObject().prepare(ps);
+	else
+		obj.prepare(ps);
+}
+
+template <int OversampleFactor>
+void OversampleNode<OversampleFactor>::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+
 	if (originalBlockSize == 0 || originalSampleRate == 0.0)
 		return;
 
 	PrepareSpecs ps;
 	ps.blockSize = originalBlockSize;
 	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
+	ps.numChannels = getCurrentChannelAmount();
 	ps.voiceIndex = lastVoiceIndex;
 
 	prepare(ps);
-}
 
-template <int OversampleFactor>
-void OversampleNode<OversampleFactor>::prepare(PrepareSpecs ps)
-{
-	lastVoiceIndex = ps.voiceIndex;
-	prepareNodes(ps);
-
-	if (isBypassed())
-		obj.getObject().prepare(ps);
-	else
-		obj.prepare(ps);
+	getRootNetwork()->runPostInitFunctions();
 }
 
 template <int OversampleFactor>
 double OversampleNode<OversampleFactor>::getSampleRateForChildNodes() const
 {
-	return isBypassed() ? originalSampleRate : originalSampleRate * OversampleFactor;
+	auto os = isBypassed() ? 1 : obj.getOverSamplingFactor();
+	return originalSampleRate * os;
 }
 
 template <int OversampleFactor>
 int OversampleNode<OversampleFactor>::getBlockSizeForChildNodes() const
 {
-	return isBypassed() ? originalBlockSize : originalBlockSize * OversampleFactor;
+	auto os = isBypassed() ? 1 : obj.getOverSamplingFactor();
+	return originalBlockSize * os;
 }
 
 template <int OversampleFactor>
@@ -347,15 +335,30 @@ void OversampleNode<OversampleFactor>::handleHiseEvent(HiseEvent& e)
 }
 
 template <int OversampleFactor>
-void OversampleNode<OversampleFactor>::process(ProcessData& d) noexcept
+void OversampleNode<OversampleFactor>::process(ProcessDataDyn& d) noexcept
 {
+	ProcessDataPeakChecker pd(this, d);
+	
 	if (isBypassed())
 	{
-		obj.getObject().process(d);
+		NodeProfiler np(this, d.getNumSamples());
+		obj.getWrappedObject().process(d);
 	}
 	else
 	{
-		obj.process(d);
+		if (hasFixedParameters())
+		{
+#if USE_BACKEND
+			auto os = jlimit(1, 16, (int)std::pow(2.0, asNode()->getParameterFromIndex(0)->getValue()));
+			NodeProfiler np(this, d.getNumSamples() * os);
+#endif
+			obj.process(d);
+		}
+		else
+		{
+			NodeProfiler np(this, d.getNumSamples() * OversampleFactor);
+			obj.process(d);
+		}
 	}
 }
 
@@ -372,44 +375,78 @@ SerialNode(network, d)
 	initListeners();
 
 	obj.initialise(this);
+}
 
-	bypassListener.setCallback(d, { PropertyIds::Bypassed },
-		valuetree::AsyncMode::Synchronously,
-		BIND_MEMBER_FUNCTION_2(FixedBlockNode<B>::updateBypassState));
+
+
+template <int B>
+void FixedBlockNode<B>::process(ProcessDataDyn& d)
+{
+	if (isBypassed())
+	{
+		NodeProfiler np(this, d.getNumSamples());
+		ProcessDataPeakChecker pd(this, d);
+		
+		obj.getObject().process(d);
+	}
+	else
+	{
+		NodeProfiler np(this, B);
+		ProcessDataPeakChecker pd(this, d);
+		
+		obj.process(d);
+	}
+}
+
+
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+
+	if (data.size() == 1)
+		processMonoFrame(MonoFrameType::as(data.begin()));
+	if (data.size() == 2)
+		processStereoFrame(StereoFrameType::as(data.begin()));
 }
 
 
 template <int B>
-void FixedBlockNode<B>::updateBypassState(Identifier, var)
+void scriptnode::FixedBlockNode<B>::processStereoFrame(StereoFrameType& data)
 {
+	obj.processFrame(data);
+}
+
+template <int B>
+void scriptnode::FixedBlockNode<B>::processMonoFrame(MonoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+
+template <int B>
+void FixedBlockNode<B>::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+
 	if (originalBlockSize == 0)
 		return;
 
 	PrepareSpecs ps;
 	ps.blockSize = originalBlockSize;
 	ps.sampleRate = originalSampleRate;
-	ps.numChannels = getNumChannelsToProcess();
+	ps.numChannels = getCurrentChannelAmount();
 	ps.voiceIndex = lastVoiceIndex;
 
 	prepare(ps);
-}
-
-template <int B>
-void FixedBlockNode<B>::process(ProcessData& d)
-{
-	if (isBypassed())
-	{
-		obj.getObject().process(d);
-	}
-	else
-	{
-		obj.process(d);
-	}
+	getRootNetwork()->runPostInitFunctions();
 }
 
 template <int B>
 void FixedBlockNode<B>::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
 	lastVoiceIndex = ps.voiceIndex;
 	prepareNodes(ps);
 
@@ -447,45 +484,25 @@ MultiChannelNode::MultiChannelNode(DspNetwork* root, ValueTree data) :
 
 void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange)
 {
-	int numChannelsAvailable = getNumChannelsToProcess();
 	int numNodes = nodes.size();
 
 	if (numNodes == 0)
 		return;
-
-	// Use the ones with locked channel amounts first
-	for (auto n : nodes)
-	{
-		if (n->hasFixChannelAmount())
-		{
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-			numNodes--;
-		}
-	}
-
-	if (numNodes > 0)
-	{
-		int numPerNode = numChannelsAvailable / numNodes;
-
-		for (auto n : nodes)
-		{
-			if (n->hasFixChannelAmount())
-				continue;
-
-			int thisNum = jmax(0, jmin(numChannelsAvailable, numPerNode));
-
-			if (n != nodeThatCausedLayoutChange)
-				n->setNumChannels(thisNum);
-
-			numChannelsAvailable -= n->getNumChannelsToProcess();
-		}
-	}
 }
 
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	auto numNodes = this->nodes.size();
+	auto numChannels = ps.numChannels;
 
+	getRootNetwork()->getExceptionHandler().removeError(this);
+
+	if (numNodes > numChannels)
+		Error::throwError(Error::TooManyChildNodes, numChannels, numNodes);
+
+	int numPerChildren = jmax(1,  numNodes > 0 ? numChannels / numNodes : 0);
+	
+	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
 	int channelIndex = 0;
 
@@ -496,7 +513,7 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 
 	for (int i = 0; i < jmin(NUM_MAX_CHANNELS, nodes.size()); i++)
 	{
-		int numChannelsThisTime = nodes[i]->getNumChannelsToProcess();
+		int numChannelsThisTime = numPerChildren;
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
@@ -523,8 +540,10 @@ void MultiChannelNode::handleHiseEvent(HiseEvent& e)
 	}
 }
 
-void MultiChannelNode::processSingle(float* frameData, int )
+void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 {
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+
 	for (int i = 0; i < nodes.size(); i++)
 	{
 		auto& r = channelRanges[i];
@@ -532,33 +551,34 @@ void MultiChannelNode::processSingle(float* frameData, int )
 		if (r.getLength() == 0)
 			continue;
 
-		float* d = frameData + r.getStart();
+		float* d = data.data + r.getStart();
 		int numThisThime = r.getLength();
-		nodes[i]->processSingle(d, numThisThime);
+		FrameType md(d, numThisThime);
+		nodes[i]->processFrame(md);
 	}
 }
 
-void MultiChannelNode::process(ProcessData& d)
+void MultiChannelNode::process(ProcessDataDyn& d)
 {
+	NodeProfiler np(this, d.getNumSamples());
+    ProcessDataPeakChecker pd(this, d);
+    
 	int channelIndex = 0;
 
 	for (auto n : nodes)
 	{
-		int numChannelsThisTime = n->getNumChannelsToProcess();
+		int numChannelsThisTime = n->getCurrentChannelAmount();
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
-		if (endChannel <= d.numChannels)
+		if (endChannel <= d.getNumChannels())
 		{
 			for (int i = 0; i < numChannelsThisTime; i++)
-				currentChannelData[i] = d.data[startChannel + i];
+				currentChannelData[i] = d[startChannel + i].data;
 
-			ProcessData thisData;
-			thisData.data = currentChannelData;
-			thisData.numChannels = numChannelsThisTime;
-			thisData.size = d.size;
-
-			n->process(thisData);
+			ProcessDataDyn td(currentChannelData, d.getNumSamples(), numChannelsThisTime);
+			td.copyNonAudioDataFrom(d);
+			n->process(td);
 		}
 
 		channelIndex += numChannelsThisTime;
@@ -572,9 +592,27 @@ SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
 	obj.getObject().initialise(this);
 }
 
+void SingleSampleBlockX::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+
+	if (originalBlockSize == 0 || originalSampleRate == 0.0)
+		return;
+
+	PrepareSpecs ps;
+	ps.blockSize = originalBlockSize;
+	ps.sampleRate = originalSampleRate;
+	ps.numChannels = getCurrentChannelAmount();
+	ps.voiceIndex = lastVoiceIndex;
+
+	prepare(ps);
+
+	getRootNetwork()->runPostInitFunctions();
+}
+
 void SingleSampleBlockX::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -583,17 +621,22 @@ void SingleSampleBlockX::reset()
 	obj.reset();
 }
 
-void SingleSampleBlockX::process(ProcessData& data)
+void SingleSampleBlockX::process(ProcessDataDyn& data)
 {
+	NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
+	ProcessDataPeakChecker pd(this, data);
+
+
 	if (isBypassed())
 		obj.getObject().process(data);
 	else
 		obj.process(data);
 }
 
-void SingleSampleBlockX::processSingle(float* frameData, int numChannels)
+void SingleSampleBlockX::processFrame(NodeBase::FrameType& data)
 {
-	obj.processSingle(frameData, numChannels);
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
 }
 
 int SingleSampleBlockX::getBlockSizeForChildNodes() const
@@ -606,17 +649,47 @@ void SingleSampleBlockX::handleHiseEvent(HiseEvent& e)
 	obj.handleHiseEvent(e);
 }
 
-juce::String SingleSampleBlockX::getCppCode(CppGen::CodeLocation location)
+SidechainNode::SidechainNode(DspNetwork* n, ValueTree d) :
+    SerialNode(n, d)
 {
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
+    initListeners();
+    obj.getObject().initialise(this);
+}
 
-	return SerialNode::getCppCode(location);
+void SidechainNode::prepare(PrepareSpecs ps)
+{
+    obj.prepare(ps);
+    NodeBase::prepare(ps);
+    ps.numChannels *= 2;
+    prepareNodes(ps);
+}
+
+void SidechainNode::reset()
+{
+    obj.reset();
+}
+
+void SidechainNode::process(ProcessDataDyn& data)
+{
+    NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
+    ProcessDataPeakChecker pd(this, data);
+    obj.process(data);
+}
+
+void SidechainNode::processFrame(NodeBase::FrameType& data)
+{
+    FrameDataPeakChecker fd(this, data.begin(), data.size());
+    obj.processFrame(data);
+}
+
+int SidechainNode::getBlockSizeForChildNodes() const
+{
+    return originalBlockSize;
+}
+
+void SidechainNode::handleHiseEvent(HiseEvent& e)
+{
+    obj.handleHiseEvent(e);
 }
 
 MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
@@ -626,13 +699,16 @@ MidiChainNode::MidiChainNode(DspNetwork* n, ValueTree t):
 	obj.getObject().initialise(this);
 }
 
-void MidiChainNode::processSingle(float* frameData, int numChannels) noexcept
+void MidiChainNode::processFrame(NodeBase::FrameType& data) noexcept
 {
-	obj.processSingle(frameData, numChannels);
+	obj.processFrame(data);
 }
 
-void MidiChainNode::process(ProcessData& data) noexcept
+void MidiChainNode::process(ProcessDataDyn& data) noexcept
 {
+	NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
+	ProcessDataPeakChecker pd(this, data);
+
 	if (isBypassed())
 	{
 		obj.getObject().process(data);
@@ -645,8 +721,10 @@ void MidiChainNode::process(ProcessData& data) noexcept
 
 void MidiChainNode::prepare(PrepareSpecs ps)
 {
-	ScopedLock sl(getRootNetwork()->getConnectionLock());
+	DspHelpers::setErrorIfFrameProcessing(ps);
+	DspHelpers::setErrorIfNotOriginalSamplerate(ps, this);
 
+	NodeBase::prepare(ps);
 	prepareNodes(ps);
 }
 
@@ -660,17 +738,702 @@ void MidiChainNode::reset()
 	obj.reset();
 }
 
-juce::String MidiChainNode::getCppCode(CppGen::CodeLocation location)
+OfflineChainNode::OfflineChainNode(DspNetwork* n, ValueTree t) :
+	SerialNode(n, t)
 {
-	if (location == CppGen::CodeLocation::Definitions)
-	{
-		String s;
-		s << SerialNode::getCppCode(location);
-		CppGen::Emitter::emitDefinition(s, "SET_HISE_NODE_IS_MODULATION_SOURCE", "false", false);
-		return s;
-	}
-    else
-        return SerialNode::getCppCode(location);
+	initListeners();
+	obj.initialise(this);
 }
+
+void OfflineChainNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker pd(this, data.begin(), data.size());
+}
+
+void OfflineChainNode::process(ProcessDataDyn& data) noexcept
+{
+	NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
+	ProcessDataPeakChecker pd(this, data);
+}
+
+void OfflineChainNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+}
+
+void OfflineChainNode::handleHiseEvent(HiseEvent& e)
+{
+}
+
+void OfflineChainNode::reset()
+{
+	obj.reset();
+}
+
+struct CloneOptionComponent : public Component,
+	public PathFactory,
+	public ButtonListener
+{
+	CloneOptionComponent(CloneNode* n) :
+		parent(n),
+		hideButton("hide", this, *this),
+		duplicateButton("duplicate", this, *this),
+		deleteButton("delete", this, *this)
+	{
+		hideButton.setToggleModeWithColourChange(true);
+
+		hideButton.setToggleStateAndUpdateIcon(parent->getValueTree()[PropertyIds::ShowClones]);
+
+		addAndMakeVisible(hideButton);
+		addAndMakeVisible(duplicateButton);
+		addAndMakeVisible(deleteButton);
+
+		setSize(24, 90);
+	}
+
+	void buttonClicked(Button* b) override
+	{
+		if (b == &hideButton)
+		{
+			parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
+		}
+		if (b == &deleteButton)
+		{
+			
+			auto network = parent->getRootNetwork();
+			parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
+
+			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
+
+			auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
+			StringArray nodesToRemove;
+
+			while (nt.getNumChildren() > 1)
+			{
+				nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
+				nt.removeChild(1, nullptr);
+			}
+
+			MessageManager::callAsync([nodesToRemove, network]()
+			{
+				for (auto nid : nodesToRemove)
+					network->deleteIfUnused(nid);
+			});
+
+		}
+		if (b == &duplicateButton)
+		{
+			auto parentNode = parent.get();
+
+			deleteButton.triggerClick(sendNotificationSync);
+
+			auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
+
+			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
+
+            Array<DspNetwork::IdChange> changes;
+            
+			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
+
+			while (numToAdd > 1)
+			{
+				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
+
+				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0), changes, true);
+				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
+				nt.addChild(copy, -1, parentNode->getUndoManager());
+				numToAdd--;
+			}
+		}
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+#if USE_BACKEND
+		LOAD_PATH_IF_URL("hide", BackendBinaryData::ToolbarIcons::viewPanel);
+		LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
+		LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+#endif
+
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		duplicateButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+		hideButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+		deleteButton.setBounds(b.removeFromTop(getWidth()).reduced(2));
+	}
+
+	void paint(Graphics& g) override
+	{
+
+	}
+
+	NodeBase::Ptr parent;
+
+	HiseShapeButton hideButton, duplicateButton, deleteButton;
+};
+
+
+CloneNode::CloneIterator::CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal) :
+	cn(n),
+	original(v),
+	path(cn.getPathForValueTree(original))
+{
+	auto root = n.getNodeTree();
+
+	for (int i = 0; i < root.getNumChildren(); i++)
+	{
+		Array<int> tp;
+		tp.addArray(path, 1, path.size() - 1);
+		auto ch = cn.getValueTreeForPath(root.getChild(i), tp);
+
+		if (!skipOriginal || ch != original)
+			cloneSiblings.add(ch);
+	}
+
+	for (const auto& c : cloneSiblings)
+	{
+		jassert(c.getType() == original.getType());
+        ignoreUnused(c);
+	}
+}
+
+scriptnode::Parameter* CloneNode::CloneIterator::getParameterForValueTree(const ValueTree& pTree, NodeBase::Ptr root) const
+{
+	if (root == nullptr)
+		root = &cn;
+
+	for (auto p: NodeBase::ParameterIterator(*root))
+	{
+		if (p->data == pTree)
+			return p;
+	}
+
+	if (auto cont = dynamic_cast<NodeContainer*>(root.get()))
+	{
+		for (auto& cn : cont->getNodeList())
+		{
+			if (auto p = getParameterForValueTree(pTree, cn))
+				return p;
+		}
+	}
+
+	return nullptr;
+}
+
+void CloneNode::CloneIterator::throwError(const String& e)
+{
+	cn.getRootNetwork()->getExceptionHandler().addCustomError(&cn, Error::CloneMismatch, e);
+}
+
+void CloneNode::CloneIterator::resetError()
+{
+	cn.getRootNetwork()->getExceptionHandler().removeError(&cn, Error::CloneMismatch);
+}
+
+CloneNode::CloneNode(DspNetwork* n, ValueTree d) :
+	SerialNode(n, d)
+{
+    obj.cloneData.setCloneNode(this);
+    
+	if (!d.hasProperty(PropertyIds::ShowClones))
+		d.setProperty(PropertyIds::ShowClones, true, getUndoManager());
+
+	showClones.referTo(d, PropertyIds::ShowClones, getUndoManager(), true);
+
+	
+
+	initListeners(false);
+	
+	NodeContainer::addFixedParameters();
+
+	numVoicesListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, [this](const ValueTree&, bool wasAdded)
+	{
+		auto numMax = jmax(1, getNodeTree().getNumChildren());
+		auto numTree = getParameterTree().getChildWithProperty(PropertyIds::ID, PropertyIds::NumClones.toString());
+		numTree.setProperty(PropertyIds::MaxValue, numMax, getUndoManager());
+	});
+
+	auto syncedParameterIds = RangeHelpers::getRangeIds(true);
+	syncedParameterIds.add(PropertyIds::Automated);
+    syncedParameterIds.add(PropertyIds::Bypassed);
+
+	valueSyncer.setCallback(getNodeTree(), syncedParameterIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
+
+	cloneWatcher.setTypeToWatch(PropertyIds::Nodes);
+	cloneWatcher.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::checkValidClones));
+
+	Array<Identifier> uiIds = { PropertyIds::NodeColour, PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::IsVertical, PropertyIds::Comment, PropertyIds::Frozen };
+
+	uiSyncer.setCallback(getNodeTree(), uiIds, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
+
+	connectionListener.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateConnections));
+
+	// prevent the initial execution
+	connectionListener.setTypesToWatch({ PropertyIds::Connections, PropertyIds::ModulationTargets });
+
+	displayCloneRangeListener.setCallback(d, { PropertyIds::DisplayedClones }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::updateDisplayedClones));
+    
+    complexDataSyncer.setCallback(getNodeTree(), { PropertyIds::Index, PropertyIds::EmbeddedData }, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(CloneNode::syncCloneProperty));
+    
+    if(getNodeTree().getNumChildren() == 0)
+    {
+        var s = getRootNetwork()->create("container.chain", getId() + "_child");
+        auto ct = dynamic_cast<NodeBase*>(s.getObject())->getValueTree();
+        
+        ct.setProperty(PropertyIds::NodeColour, 0xFF949494, getUndoManager());
+        
+        auto cp = ct.getParent();
+        getNodeTree().addChild(ct, -1, getUndoManager());
+    }
+}
+
+scriptnode::ParameterDataList CloneNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		DEFINE_PARAMETERDATA(CloneNode, NumClones);
+		p.setRange({ 1.0, 16.0, 1.0 });
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
+	{
+		DEFINE_PARAMETERDATA(CloneNode, SplitSignal);
+		p.setRange({ 0.0, 2.0, 1.0 });
+        p.setParameterValueNames({"Serial", "Parallel", "Copy"});
+		p.setDefaultValue(2.0);
+		data.add(std::move(p));
+	}
+
+	return data;
+}
+
+void CloneNode::processFrame(FrameType& data) noexcept
+{
+    // implement compile time channel count
+    jassertfalse;
+}
+
+void CloneNode::process(ProcessDataDyn& data) noexcept
+{
+	NodeProfiler np(this, data.getNumSamples());
+	ProcessDataPeakChecker pd(this, data);
+
+	if (isBypassed() && !nodes.isEmpty())
+		nodes.getFirst()->process(data);
+	else
+        obj.process(data);
+}
+
+void CloneNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	prepareNodes(ps);
+
+    obj.prepare(ps);
+}
+
+void CloneNode::handleHiseEvent(HiseEvent& e)
+{
+    obj.handleHiseEvent(e);
+}
+
+void CloneNode::reset()
+{
+    obj.reset();
+}
+
+
+void CloneNode::setNumClones(double newSize)
+{
+	for (int i = 0; i < nodes.size(); i++)
+	{
+		DynamicBypassParameter::ScopedUndoDeactivator sds(nodes[i]);
+		nodes[i]->setBypassed(i >= newSize);
+	}
+
+	obj.setNumClones(newSize);
+}
+
+void CloneNode::setSplitSignal(double shouldSplit)
+{
+    isVertical.storeValue(shouldSplit < 1.0, getUndoManager());
+    obj.setCloneProcessType(shouldSplit);
+}
+
+int CloneNode::getCloneIndex(NodeBase* n)
+{
+	auto cn = n->findParentNodeOfType<CloneNode>();
+
+	if (cn == nullptr)
+		return -1;
+
+	return cn->getPathForValueTree(n->getValueTree()).getFirst();
+}
+
+void CloneNode::syncCloneProperty(const ValueTree& v, const Identifier& id)
+{
+    // do not sync the top level bypass state
+    if(id == PropertyIds::Bypassed && v.getParent() == getNodeTree())
+        return;
+    
+    if(currentlySyncedIds.contains(id))
+        return;
+    
+    currentlySyncedIds.addIfNotAlreadyThere(id);
+    
+    auto value = v[id];
+	
+	for(auto& cv: CloneIterator(*this, v, true))
+		cv.setProperty(id, value, getUndoManager());
+    
+    currentlySyncedIds.removeAllInstancesOf(id);
+}
+
+Component* CloneNode::createLeftTabComponent() const
+{
+	return new CloneOptionComponent(const_cast<CloneNode*>(this));
+}
+
+void CloneNode::updateConnections(const ValueTree& v, bool wasAdded)
+{
+	if (connectionRecursion)
+		return;
+
+	ScopedValueSetter<bool> svs(connectionRecursion, true);
+
+	if (!wasAdded)
+	{
+		CloneIterator cit(*this, connectionListener.getCurrentParent(), true);
+
+		for (auto& cv : cit)
+			cv.removeChild(connectionListener.getRemoveIndex(), getUndoManager());
+	}
+	else
+	{
+		CloneIterator cit(*this, connectionListener.getCurrentParent(), true);
+
+		for (auto& cv : cit)
+		{
+			auto copy = v.createCopy();
+
+
+			auto originalId = v[PropertyIds::NodeId];
+			auto originalTree = getRootNetwork()->getNodeWithId(originalId)->getValueTree();
+			auto originalPath = getPathForValueTree(originalTree);
+
+			auto thisCloneIndex = getPathForValueTree(cv).getFirst();
+
+			originalPath.set(0, thisCloneIndex);
+			auto newPath = getValueTreeForPath(getNodeTree(), originalPath);
+			auto newId = newPath[PropertyIds::ID].toString();
+			copy.setProperty(PropertyIds::NodeId, newId, nullptr);
+
+			cv.addChild(copy, -1, getUndoManager());
+		}
+	}
+}
+
+void CloneNode::checkValidClones(const ValueTree& v, bool wasAdded)
+{
+	getRootNetwork()->getExceptionHandler().removeError(this, Error::CloneMismatch);
+
+	auto firstTree = getNodeTree().getChild(0);
+
+    if(firstTree.isValid() && !firstTree[PropertyIds::FactoryPath].toString().startsWith("container."))
+        getRootNetwork()->getExceptionHandler().addCustomError(this, Error::CloneMismatch, "clone root element must be a container");
+    
+	for (int i = 1; i < getNodeTree().getNumChildren(); i++)
+	{
+		if (!sameNodes(firstTree, getNodeTree().getChild(i)))
+			getRootNetwork()->getExceptionHandler().addCustomError(this, Error::CloneMismatch, "clone doesn't match");
+	}
+
+	cloneChangeBroadcaster.sendMessage(sendNotificationSync, this);
+
+	auto firstParameter = getParameterFromIndex(0);
+
+	if (wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() - 1)
+		firstParameter->setValueSync(getNodeTree().getNumChildren());
+	if (!wasAdded && firstParameter->getValue() == getNodeTree().getNumChildren() + 1)
+		firstParameter->setValueSync(getNodeTree().getNumChildren());
+
+	updateDisplayedClones({}, getValueTree()[PropertyIds::DisplayedClones]);
+}
+
+void CloneNode::updateDisplayedClones(const Identifier&, const var& v)
+{
+	auto s = v.toString();
+	s = s.replace(";", ",");
+
+	auto tokens = StringArray::fromTokens(s, ",", "");
+	tokens.removeEmptyStrings();
+
+	displayedCloneState.clear();
+
+	if (tokens.isEmpty())
+		displayedCloneState.setBit(0, true);
+		
+	for (auto t : tokens)
+	{
+		if (t.contains("-"))
+		{
+			auto range = StringArray::fromTokens(t, "-", "");
+			range.removeEmptyStrings();
+			int start = range[0].getIntValue()-1;
+			auto end = range[1].getIntValue();
+			displayedCloneState.setRange(start, end - start, true);
+		}
+		else
+		{
+			if (auto value = t.getIntValue())
+				displayedCloneState.setBit(value-1);
+		}
+	}
+
+	if (displayedCloneState.findNextClearBit(0) > nodes.size())
+		displayedCloneState.setBit(nodes.size() - 1, false);
+}
+
+bool CloneNode::sameNodes(const ValueTree& n1, const ValueTree& n2)
+{
+	if (n1[PropertyIds::FactoryPath] != n2[PropertyIds::FactoryPath])
+		return false;
+
+	auto c1 = n1.getChildWithName(PropertyIds::Nodes);
+	auto c2 = n2.getChildWithName(PropertyIds::Nodes);
+
+	if (c1.getNumChildren() != c2.getNumChildren())
+		return false;
+
+	for (int i = 0; i < c1.getNumChildren(); i++)
+	{
+		if (!sameNodes(c1.getChild(i), c2.getChild(i)))
+			return false;
+	}
+
+	return true;
+}
+
+juce::ValueTree CloneNode::getValueTreeForPath(const ValueTree& v, Array<int>& path)
+{
+	if (path.isEmpty())
+		return v;
+
+	auto firstIndex = path.removeAndReturn(0);
+	return getValueTreeForPath(v.getChild(firstIndex), path);
+}
+
+juce::Array<int> CloneNode::getPathForValueTree(const ValueTree& v)
+{
+	auto p = v;
+
+	Array<int> path;
+
+	while (p != getNodeTree() && p.isValid())
+	{
+		path.insert(0, p.getParent().indexOf(p));
+		p = p.getParent();
+	}
+
+	return path;
+}
+
+bool CloneNode::shouldCloneBeDisplayed(int index) const
+{
+	if (getValueTree()[PropertyIds::ShowClones])
+		return true;
+
+	if (displayedCloneState.isZero())
+		return index == 0;
+
+	return displayedCloneState[index];
+}
+
+FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
+	SerialNode(network, d)
+{
+	initListeners();
+	obj.initialise(this);
+}
+
+void FixedBlockXNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this, getBlockSizeForChildNodes());
+	ProcessDataPeakChecker pd(this, data);
+	obj.process(data);
+}
+
+void FixedBlockXNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void FixedBlockXNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void FixedBlockXNode::reset()
+{
+	obj.reset();
+}
+
+void FixedBlockXNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+struct FixBlockXComponent : public Component
+{
+	FixBlockXComponent(NodeBase* n) :
+		mode("64", PropertyIds::BlockSize)
+	{
+		addAndMakeVisible(mode);
+
+		mode.initModes({ "8", "16", "32", "64", "128", "256" }, n);
+		setSize(128 + 2 * UIValues::NodeMargin, 32);
+	};
+
+	void resized() override
+	{
+		auto b = getLocalBounds().withSizeKeepingCentre(128, 32);
+		mode.setBounds(b);
+	}
+
+	ComboBoxWithModeProperty mode;
+};
+
+Component* FixedBlockXNode::createLeftTabComponent() const
+{
+	return new FixBlockXComponent(const_cast<FixedBlockXNode*>(this));
+}
+
+void FixedBlockXNode::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+
+	if (originalBlockSize == 0)
+		return;
+
+	PrepareSpecs ps;
+	ps.blockSize = originalBlockSize;
+	ps.sampleRate = originalSampleRate;
+	ps.numChannels = getCurrentChannelAmount();
+	ps.voiceIndex = lastVoiceIndex;
+
+	prepare(ps);
+
+	getRootNetwork()->runPostInitFunctions();
+}
+
+NoMidiChainNode::NoMidiChainNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t)
+{
+	initListeners();
+	obj.getObject().initialise(this);
+}
+
+void NoMidiChainNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void NoMidiChainNode::process(ProcessDataDyn& data) noexcept
+{
+	obj.process(data);
+}
+
+void NoMidiChainNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void NoMidiChainNode::handleHiseEvent(HiseEvent& e)
+{
+	// let the wrapper send it to nirvana
+	obj.handleHiseEvent(e);
+}
+
+void NoMidiChainNode::reset()
+{
+	obj.reset();
+}
+
+SoftBypassNode::SoftBypassNode(DspNetwork* n, ValueTree t):
+	SerialNode(n, t),
+	smoothingTime(PropertyIds::SmoothingTime, 20)
+{
+	initListeners();
+	obj.initialise(this);
+
+	smoothingTime.initialise(this);
+	smoothingTime.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(SoftBypassNode::updateSmoothingTime), true);
+}
+
+void SoftBypassNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void SoftBypassNode::process(ProcessDataDyn& data) noexcept
+{
+	NodeProfiler np(this, getBlockSizeForChildNodes());
+	ProcessDataPeakChecker pd(this, data);
+	obj.process(data);
+}
+
+void SoftBypassNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void SoftBypassNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+void SoftBypassNode::reset()
+{
+	obj.reset();
+}
+
+void SoftBypassNode::updateSmoothingTime(Identifier id, var newValue)
+{
+	if (id == PropertyIds::Value)
+	{
+		auto newTime = (int)newValue;
+		obj.setSmoothingTime(newTime);
+	}
+}
+
+void SoftBypassNode::setBypassed(bool shouldBeBypassed)
+{
+	SerialNode::setBypassed(shouldBeBypassed);
+	WrapperType::setParameter<bypass::ParameterId>(&this->obj, (double)shouldBeBypassed);
+}
+
+
+
+
+
+
+
 
 }

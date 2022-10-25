@@ -72,7 +72,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::getSubDirectoryType(const Addi
 
 void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, int64 /*hashCode*/, AudioSampleBuffer& data, var* additionalData)
 {
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::unique_ptr<InputStream>(ownedStream));
 
 	if (reader != nullptr)
 	{
@@ -144,7 +144,7 @@ void PoolHelpers::loadData(AudioFormatManager& afm, InputStream* ownedStream, in
 			meta->setProperty(MetadataIDs::LoopEnabled, loopEnabled);
 		}
 
-		*additionalData = var(meta);
+		*additionalData = var(meta.get());
 	}
 }
 
@@ -164,7 +164,7 @@ void PoolHelpers::loadData(AudioFormatManager& /*afm*/, InputStream* ownedStream
 
 	if (auto fis = dynamic_cast<FileInputStream*>(inputStream.get()))
 	{
-		if (ScopedPointer<XmlElement> xml = XmlDocument::parse(fis->getFile()))
+		if (auto xml = XmlDocument::parse(fis->getFile()))
 		{
 			data = ValueTree::fromXml(*xml);
 		}
@@ -210,7 +210,7 @@ void PoolHelpers::fillMetadata(Image& data, var* additionalData)
 		meta->setProperty("Non-retina size: ", String(data.getWidth() / 2) + " px x " + String(data.getHeight() / 2) + " px");
 	}
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
@@ -226,7 +226,7 @@ void PoolHelpers::fillMetadata(ValueTree& data, var* additionalData)
 	meta->setProperty("Mic Positions", data.getProperty("MicPositions"));
 	meta->setProperty("Samples", data.getNumChildren());
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
@@ -238,14 +238,14 @@ void PoolHelpers::fillMetadata(MidiFileReference& data, var* additionalData)
 
 	meta->setProperty("ID", data.getId().toString());
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 void PoolHelpers::fillMetadata(AdditionalDataReference& /*data*/, var* additionalData)
 {
 	DynamicObject::Ptr meta = new DynamicObject();
 
-	*additionalData = var(meta);
+	*additionalData = var(meta.get());
 }
 
 size_t PoolHelpers::getDataSize(const Image* img)
@@ -465,7 +465,7 @@ hise::ProjectHandler::SubDirectories PoolHelpers::Reference::getFileType() const
 
 var PoolHelpers::Reference::createDragDescription() const
 {
-	DynamicObject::Ptr obj = new DynamicObject();
+	auto obj = new DynamicObject();
 	obj->setProperty("HashCode", hashCode);
 	obj->setProperty("Mode", (int)m);
 	obj->setProperty("Reference", reference);
@@ -510,12 +510,23 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 	
 
 	static const String projectFolderWildcard("{PROJECT_FOLDER}");
+	static const String sampleFolderWildcard("{SAMPLE_FOLDER}");
 
-	if (FullInstrumentExpansion::isEnabled(mc) && input.startsWith(projectFolderWildcard))
+	if (FullInstrumentExpansion::isEnabled(mc))
 	{
-		if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+		if (directoryType == FileHandlerBase::SampleMaps)
 		{
-			input = input.replace(projectFolderWildcard, e->getWildcard());
+			m = EmbeddedResource;
+			reference = input;
+			f = File();
+			return;
+		}
+		else if (input.startsWith(projectFolderWildcard))
+		{
+			if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+			{
+				input = input.replace(projectFolderWildcard, e->getWildcard());
+			}
 		}
 	}
 
@@ -555,7 +566,7 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 			{
 				auto eInfoFile = Expansion::Helpers::getExpansionInfoFile(eFolder, Expansion::FileBased);
 				jassert(eInfoFile.existsAsFile());
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(eInfoFile);
+				auto xml = XmlDocument::parse(eInfoFile);
 				jassert(xml != nullptr);
 				expansionName = xml->getStringAttribute(ExpansionIds::Name.toString());
 			}
@@ -588,7 +599,32 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 
 			return;
 		}
+		else
+		{
+			auto globalScriptPath = dynamic_cast<const GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Scripting::GlobalScriptPath);
+			File globalScriptFolder = File(globalScriptPath.toString());
+			
+			if (f.isAChildOf(globalScriptFolder))
+			{
+				auto filePath = f.getFullPathName().replace(globalScriptPath.toString() + "/", "").replace("\\", "/");
+				reference = "{GLOBAL_SCRIPT_FOLDER}" + filePath;
+				return;
+			}
+		}
 #endif
+
+		if (directoryType == FileHandlerBase::AudioFiles)
+		{
+			auto sampleDirectory = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+			if (f.isAChildOf(sampleDirectory))
+			{
+				m = ProjectPath;
+				auto relativePath = f.getRelativePathFrom(sampleDirectory).replace("\\", "/");
+				reference = sampleFolderWildcard + relativePath;
+				return;
+			}
+		}
 
 		m = AbsolutePath;
 
@@ -616,6 +652,17 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 		}
 	}
 	
+	if (input.startsWith(sampleFolderWildcard) && directoryType == FileHandlerBase::AudioFiles)
+	{
+		reference = input;
+		m = ProjectPath;
+
+		auto relativePath = input.replace("\\", "/").replace(sampleFolderWildcard, "");
+		auto& projectHandler = mc->getSampleManager().getProjectHandler();
+		f = projectHandler.getSubDirectory(FileHandlerBase::Samples).getChildFile(relativePath);
+		return;
+	}
+
 
 	if (input.startsWith(projectFolderWildcard) || directoryType == FileHandlerBase::SampleMaps)
 	{
@@ -1222,6 +1269,62 @@ const ModulatorSamplerSoundPool* PoolCollection::getSamplePool() const
 ModulatorSamplerSoundPool* PoolCollection::getSamplePool()
 {
 	return static_cast<ModulatorSamplerSoundPool*>(dataPools[FileHandlerBase::Samples]);
+}
+
+hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider::loadFile(const String& reference)
+{
+	MultiChannelAudioBuffer::SampleReference::Ptr lr;
+
+	if (reference.isEmpty())
+		return lr;
+
+	PoolReference ref(getMainController(), reference, FileHandlerBase::AudioFiles);
+
+	lastHandler = getFileHandlerBase(reference);
+
+	if (auto dataPtr = lastHandler->pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
+	{
+		lr = new MultiChannelAudioBuffer::SampleReference();
+
+		auto metadata = dataPtr->additionalData;
+		
+		lr->sampleRate = metadata.getProperty(MetadataIDs::SampleRate, 0.0);
+
+		if (metadata.getProperty(MetadataIDs::LoopEnabled, false))
+		{
+			// add 1 because of the offset
+			lr->loopRange = { (int)metadata.getProperty(MetadataIDs::LoopStart, 0), (int)metadata.getProperty(MetadataIDs::LoopEnd, 0) + 1 };
+		}
+
+		lr->buffer = dataPtr->data;
+		lr->reference = ref.getReferenceString();
+	}
+	
+	return lr;
+}
+
+juce::File PooledAudioFileDataProvider::getRootDirectory()
+{
+	if (customDefaultFolder.isDirectory())
+		return customDefaultFolder;
+
+	if (lastHandler == nullptr)
+		lastHandler = getMainController()->getActiveFileHandler();
+
+	if(lastHandler != nullptr)
+	{
+		return lastHandler->getSubDirectory(FileHandlerBase::AudioFiles);
+	}
+
+	return {};
+}
+
+hise::FileHandlerBase* PooledAudioFileDataProvider::getFileHandlerBase(const String& refString)
+{
+	if (auto e = getMainController()->getExpansionHandler().getExpansionForWildcardReference(refString))
+		return e;
+
+	return &getMainController()->getSampleManager().getProjectHandler();
 }
 
 } // namespace hise

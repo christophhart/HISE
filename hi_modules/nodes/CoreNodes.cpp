@@ -29,7 +29,7 @@
  *
  *   ===========================================================================
  */
-
+#if 0
 #pragma once
 
 namespace scriptnode {
@@ -51,6 +51,7 @@ void tempo_sync::initialise(NodeBase* n)
 }
 
 tempo_sync::tempo_sync():
+	no_mod_normalisation(getStaticId()),
 	useFreqDomain(PropertyIds::UseFreqDomain, false)
 {
 
@@ -1279,3 +1280,4 @@ void fm::setFrequency(double newFrequency)
 } // namespace core
 
 } // namespace scriptnode
+#endif

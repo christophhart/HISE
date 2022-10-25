@@ -213,6 +213,17 @@ void MainController::CodeHandler::initialise()
 
 void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour /*c*/)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+#if !JUCE_MAC
+        DBG(t);
+#endif
+        std::cout << t << "\n";
+		return;
+	}
+#endif
+
 	pendingMessages.push({ (WarningLevel)warningLevel, const_cast<Processor*>(p), t });
 	triggerAsyncUpdate();
 }
@@ -239,11 +250,12 @@ void MainController::CodeHandler::printPendingMessagesFromQueue()
 	{
 		auto processor = cm.p.get();
 
-		if (processor == nullptr)
-			return MultithreadedQueueHelpers::SkipFurtherExecutions;
-
-		message << processor->getId() << ":";
-		message << (cm.warningLevel == WarningLevel::Error ? "! " : " ");
+		if (processor != nullptr)
+		{
+			message << processor->getId() << ":";
+			message << (cm.warningLevel == WarningLevel::Error ? "! " : " ");
+		}
+		
 		message << cm.message << "\n";
 
 		return MultithreadedQueueHelpers::OK;
@@ -256,25 +268,7 @@ void MainController::CodeHandler::printPendingMessagesFromQueue()
 	overflowProtection = false;
 
 	WeakReference<Processor> p = mc->getMainSynthChain();
-
-	auto c = mainConsole.getComponent();
-
-	auto toggle = [c](Dispatchable* obj)
-	{
-		auto p = static_cast<Processor*>(obj);
-
-		if (p->getMainController()->getConsoleHandler().getMainConsole() != nullptr)
-		{
-			auto rootWindow = GET_BACKEND_ROOT_WINDOW(c);
-
-			if (rootWindow != nullptr)
-				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
-		}
-		
-		return Status::OK;
-	};
-
-	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(p.get(), toggle);
+	
 #endif
 }
 

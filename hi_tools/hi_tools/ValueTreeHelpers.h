@@ -77,8 +77,14 @@ public:
 
 	virtual ~Base() {};
 
+	void setHighPriorityListener(Base* listenerToPriorise)
+	{
+		priorisedListener = listenerToPriorise;
+	}
 
 protected:
+
+	WeakReference<Base> priorisedListener;
 
 	// Grab this lock whenever you push or process an async queue
 	CriticalSection asyncLock;
@@ -90,6 +96,94 @@ protected:
 	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override { }
 	void valueTreePropertyChanged(ValueTree&, const Identifier&) override {};
 	void valueTreeParentChanged(ValueTree&) override {}
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Base);
+};
+
+/** A simple listener that redirects *anything* to a single method. */
+struct AnyListener : private Base,
+					 private Timer
+{
+	using PropertyConditionFunc = std::function<bool(const ValueTree&, const Identifier&)>;
+
+	enum CallbackType
+	{
+		Nothing,
+		ChildOrderChanged,
+		PropertyChange,
+		ChildAdded,
+		ChildDeleted,
+		ValueTreeRedirected,
+		numCallbackTypes
+	};
+
+	AnyListener(AsyncMode mode_ = AsyncMode::Asynchronously);
+
+	void setMillisecondsBetweenUpdate(int milliSeconds)
+	{
+		if (milliSeconds == 0)
+			mode = AsyncMode::Asynchronously;
+		else
+		{
+			mode = AsyncMode::Coallescated;
+			milliSecondsBetweenUpdate = milliSeconds;
+		}
+	}
+
+	void setEnableLogging(bool shouldLog)
+	{
+		loggingEnabled = shouldLog;
+	}
+
+	void setRootValueTree(const ValueTree& d)
+	{
+		data = d;
+		data.addListener(this);
+
+		anythingChanged(lastCallbackType);
+	}
+
+	void setForwardCallback(CallbackType c, bool shouldForward)
+	{
+		forwardCallbacks[c] = shouldForward;
+	}
+
+protected:	
+
+	void setPropertyCondition(const PropertyConditionFunc& f)
+	{
+		pcf = f;
+	}
+
+	virtual void anythingChanged(CallbackType cb) = 0;
+
+private:
+
+	void logIfEnabled(CallbackType b, ValueTree& v, const Identifier& id);
+
+	bool loggingEnabled = false;
+
+	PropertyConditionFunc pcf;
+
+	CallbackType lastCallbackType = CallbackType::Nothing;
+
+	bool forwardCallbacks[CallbackType::numCallbackTypes];
+
+	ValueTree data;
+
+	void triggerUpdate(CallbackType t);
+
+	void timerCallback() override;
+
+	void handleAsyncUpdate() override;
+
+	int milliSecondsBetweenUpdate = 500;
+
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override;
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override;
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override;
+	void valueTreePropertyChanged(ValueTree&, const Identifier&) override;;
+	void valueTreeParentChanged(ValueTree&) override;
 };
 
 /** A small helper function that will catch illegal operations during a child
@@ -278,6 +372,41 @@ private:
 	ValueTree second;
 };
 
+struct ParentListener : public Base
+{
+	using ParentChangeCallback = std::function<void()>;
+
+	void setCallback(ValueTree v, AsyncMode m, const ParentChangeCallback& pc)
+	{
+		mode = m;
+		t = v;
+		c = pc;
+		t.addListener(this);
+	}
+
+private:
+	
+	void handleAsyncUpdate()
+	{
+		c();
+	}
+
+	ParentChangeCallback c;
+	ValueTree t;
+
+	void valueTreeChildAdded(ValueTree&, ValueTree&) override { }
+	void valueTreeChildRemoved(ValueTree&, ValueTree&, int) override {}
+	void valueTreeChildOrderChanged(ValueTree&, int, int) override { }
+	void valueTreePropertyChanged(ValueTree& , const Identifier& ) override {}
+
+	void valueTreeParentChanged(ValueTree& newParent) override 
+	{
+		if (mode == AsyncMode::Synchronously)
+			c();
+		else
+			triggerAsyncUpdate();
+	}
+};
 
 
 
@@ -293,12 +422,24 @@ struct ChildListener : public Base
 	void setCallback(ValueTree treeToListenTo, AsyncMode asyncMode, const ChildChangeCallback& newCallback);
 
 	/** Sends a message for all children of the parent. */
-	void sendAddMessageForAllChildren();
+	virtual void sendAddMessageForAllChildren();
 
 	void forwardCallbacksForChildEvents(bool shouldFireCallbacksForChildEvents)
 	{
 		allowCallbacksForChildEvents = shouldFireCallbacksForChildEvents;
 	}
+
+	/** Returns the tree that this class is listening to. */
+	ValueTree getParentTree() { return v; }
+
+	/** Use this function to get the current parent.
+
+		The value tree might be already removed from it and getParent() would return a invalid parent.
+	*/
+	ValueTree getCurrentParent() const;
+
+	/** Get the index of the valuetree before it was removed from its parent. */
+	int getRemoveIndex() const;
 
 protected:
 
@@ -322,8 +463,13 @@ protected:
 	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override;
 	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override;
 
+	
+	
 	ValueTree v;
 	ChildChangeCallback cb;
+
+	ValueTree currentParent;
+	int removeIndex = 0;
 };
 
 /** A listener that watches all children of the root tree with the given ID for child changes. */
@@ -336,12 +482,19 @@ struct RecursiveTypedChildListener : public ChildListener
 
 	void setTypeToWatch(Identifier newParentType)
 	{
-		parentType = newParentType;
+		parentTypes = { newParentType };
 	}
+
+	void setTypesToWatch(const Array<Identifier>& newParentTypes)
+	{
+		parentTypes = newParentTypes;
+	}
+
+	void sendAddMessageForAllChildren() override;
 
 private:
 
-	Identifier parentType;
+	Array<Identifier> parentTypes;
 
 	void valueTreeChildAdded(ValueTree& p, ValueTree& c) override;
 	void valueTreeChildRemoved(ValueTree& p, ValueTree& c, int) override;

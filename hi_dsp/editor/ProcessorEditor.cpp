@@ -44,7 +44,7 @@ isPopupMode(false)
 	processor->addChangeListener(this);
 
 	addAndMakeVisible(header = new ProcessorEditorHeader(this));
-	addAndMakeVisible(body = p->createEditor(this));
+ 	addAndMakeVisible(body = p->createEditor(this));
 	
 	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
@@ -52,7 +52,7 @@ isPopupMode(false)
 	header->addMouseListener(this, false);
 	body->addMouseListener(this, false);
 
-    setOpaque(true);
+    //setOpaque(true);
 	
 
 	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
@@ -264,7 +264,6 @@ void ProcessorEditor::resized()
 	header->setBounds(0, 0, getWidth(), header->getHeight());
 	chainBar->setBounds(0, header->getBottom() + 6, getWidth(), chainBar->getActualHeight());
 	
-
 #if HISE_IOS
 	const int marginBeforePanel = 6;
 #else
@@ -281,7 +280,64 @@ void ProcessorEditor::resized()
 		body->setBounds(0, chainBar->getBottom(), getWidth(), getProcessor()->getEditorState(Processor::BodyShown) ? body->getBodyHeight() : 0);
 		panel->setBounds(INTENDATION_WIDTH, body->getBottom() + marginBeforePanel, panel->getWidth(), panel->getHeightOfAllEditors());
 	}
-	
+
+	connectPositions.clear();
+
+	if (auto ped = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
+	{
+		Component::callRecursive<ComplexDataUIBase::EditorBase>(getBody(), [this, ped](ComplexDataUIBase::EditorBase* t)
+			{
+				if (auto te = dynamic_cast<TableEditor*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::Table); i++)
+					{
+						if (ped->getTable(i) == te->getEditedTable())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::Table, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(te, te->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+				if (auto sp = dynamic_cast<SliderPack*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::SliderPack); i++)
+					{
+						if (ped->getSliderPack(i) == sp->getData())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::SliderPack, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(sp, sp->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+
+				if (auto af = dynamic_cast<MultiChannelAudioBufferDisplay*>(t))
+				{
+					for (int i = 0; i < ped->getNumDataObjects(ExternalData::DataType::AudioFile); i++)
+					{
+						if (ped->getAudioFile(i) == af->getBuffer())
+						{
+							auto c = ped->getSharedReferenceColour(ExternalData::DataType::AudioFile, i);
+							if (!c.isTransparent())
+							{
+								this->connectPositions.add({ getLocalArea(af, af->getLocalBounds()).toFloat(), c });
+								return false;
+							}
+						}
+					}
+				}
+
+				return false;
+			});
+	}
+
 }
 
 
@@ -294,7 +350,7 @@ void ProcessorEditor::pasteAction()
 {
 	if (getProcessorAsChain() != nullptr)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+		auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
 
 		if (xml != nullptr)
 		{
@@ -341,45 +397,422 @@ void ProcessorEditor::pasteAction()
 
 void ProcessorEditor::paint(Graphics &g)
 {
-	const float yOffset = (float)header->getBottom();
+	if (getProcessor() == nullptr)
+		return;
 
 	Colour c = getProcessor()->getColour();
-    
     const float z = (float)getIndentationLevel() * 0.04f;
-    
     c = c.withMultipliedBrightness(1.0f + z);
 
 	if (isSelectedForCopyAndPaste()) c = getProcessorAsChain() ? c.withMultipliedBrightness(1.05f) : c.withMultipliedBrightness(1.05f);
 
-    if(dynamic_cast<ModulatorSynth*>(getProcessor()))
+    
+    
+    if(dynamic_cast<ModulatorSynth*>(getProcessor()) ||
+       dynamic_cast<Chain*>(getProcessor()) )
     {
         g.setColour(c);
     }
     else
     {
+		float alpha = 0.1f;
+
+		if (!dynamic_cast<ProcessorEditorPanel*>(getParentComponent()))
+			alpha += 0.15f;
+
+        c = c.withAlpha(alpha);
+        
+		g.setColour(c);
+
+		/*
         g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.02f),
                                          0.0f, yOffset,
-                                         c.withMultipliedBrightness(0.98f),
+                                         c.withMultipliedBrightness(0.98f).withAlpha(0.1f),
                                          0.0f, jmax(30.0f, (float)getHeight()),
                                          false));
+										 */
 
+        g.fillAll();
+
+		auto b = getLocalBounds().removeFromTop(header->getHeight() + JUCE_LIVE_CONSTANT_OFF(5)).removeFromBottom(10).toFloat();
+
+		g.setGradientFill(ColourGradient(c.withAlpha(0.4f),
+			0.0f, b.getY(),
+			Colours::transparentBlack,
+				0.0f, b.getBottom(),
+			false));
+		
+		g.fillRect(b.reduced(1.0f, 0.0f));
     }
 
-	g.fillAll(); 
+    //g.setColour(Colours::red);
+	//g.fillAll();
         
-    Colour lineColour = isSelectedForCopyAndPaste() ? Colours::white : Colours::black;
+    
+    //Colour lineColour = isSelectedForCopyAndPaste() ? Colours::white : Colours::black;
         
-    g.setColour(lineColour.withAlpha(0.25f));
+    Colour lineColour = Colour(0xFF111111);
+    
+    if(dynamic_cast<Chain*>(getProcessor()))
+    {
+        lineColour = getProcessor()->getColour().withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(0.85f));
+    }
+    
+    if(dynamic_cast<ModulatorSynth*>(getProcessor()))
+    {
+        lineColour = Colour(0xff5a5959);
+    }
+    
+    
+    
+    g.setColour(lineColour);
+    
+    if(dynamic_cast<Chain*>(getProcessor()) && !dynamic_cast<ModulatorSynth*>(getProcessor()))
+    {
+        g.fillRoundedRectangle(0.0f, 0.0f, 3.0f, (float)getHeight(), 1.5f);
+
+		g.setColour(lineColour.withAlpha(0.1f));
+		g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
+
+    }
+    else
+    {
+        g.drawLine(0.0f, 0.f, 0.f, (float)getHeight());
+        g.drawLine((float)getWidth(), 0.0f, (float)getWidth(), (float)getHeight());
+           
+        g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+    }
         
-	g.drawLine(0.0f, 0.f, 0.f, (float)getHeight());
-	g.drawLine((float)getWidth(), 0.0f, (float)getWidth(), (float)getHeight());
-       
-    g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+	
 }
 
 
+void ProcessorEditor::paintOverChildren(Graphics& g)
+{
+	CopyPasteTarget::paintOutlineIfSelected(g);
+
+	Random r;
+	
+	if (!connectPositions.isEmpty())
+	{
+		static const unsigned char pathData[] = { 110,109,76,183,106,66,20,174,165,65,108,244,253,60,66,20,174,165,65,98,51,179,47,66,4,86,106,65,145,237,21,66,225,122,40,65,20,174,240,65,225,122,40,65,98,4,86,154,65,225,122,40,65,225,122,40,65,4,86,154,65,225,122,40,65,20,174,240,65,98,225,122,40,65,
+18,131,35,66,4,86,154,65,98,144,70,66,20,174,240,65,98,144,70,66,98,145,237,21,66,98,144,70,66,51,179,47,66,154,25,54,66,244,253,60,66,16,216,29,66,108,76,183,106,66,16,216,29,66,98,164,240,90,66,133,235,77,66,2,171,45,66,27,175,112,66,20,174,240,65,
+27,175,112,66,98,45,178,87,65,27,175,112,66,0,0,0,0,143,194,58,66,0,0,0,0,20,174,240,65,98,0,0,0,0,45,178,87,65,45,178,87,65,0,0,0,0,20,174,240,65,0,0,0,0,98,2,171,45,66,0,0,0,0,164,240,90,66,61,10,11,65,76,183,106,66,20,174,165,65,99,109,90,36,155,66,
+20,174,165,65,108,174,71,132,66,20,174,165,65,98,2,43,140,66,61,10,11,65,211,205,162,66,0,0,0,0,207,119,189,66,0,0,0,0,98,14,173,222,66,0,0,0,0,84,163,249,66,45,178,87,65,84,163,249,66,20,174,240,65,98,84,163,249,66,143,194,58,66,14,173,222,66,27,175,
+112,66,207,119,189,66,27,175,112,66,98,211,205,162,66,27,175,112,66,2,43,140,66,133,235,77,66,174,71,132,66,16,216,29,66,108,90,36,155,66,16,216,29,66,98,186,201,161,66,154,25,54,66,139,172,174,66,98,144,70,66,207,119,189,66,98,144,70,66,98,211,13,211,
+66,98,144,70,66,248,147,228,66,18,131,35,66,248,147,228,66,20,174,240,65,98,248,147,228,66,4,86,154,65,211,13,211,66,225,122,40,65,207,119,189,66,225,122,40,65,98,139,172,174,66,225,122,40,65,186,201,161,66,236,81,106,65,90,36,155,66,20,174,165,65,99,
+109,133,171,190,66,63,53,205,65,98,12,2,196,66,63,53,205,65,141,87,200,66,68,139,222,65,141,87,200,66,96,229,243,65,98,141,87,200,66,190,159,4,66,12,2,196,66,193,74,13,66,133,171,190,66,193,74,13,66,108,135,22,237,65,193,74,13,66,98,106,188,215,65,193,
+74,13,66,102,102,198,65,190,159,4,66,102,102,198,65,96,229,243,65,98,102,102,198,65,68,139,222,65,106,188,215,65,63,53,205,65,135,22,237,65,63,53,205,65,108,133,171,190,66,63,53,205,65,99,101,0,0 };
+
+		Path p;
+		p.loadPathFromData(pathData, sizeof(pathData));
+
+		for (auto r : connectPositions)
+		{
+			PathFactory::scalePath(p, r.area.withWidth(24.0f).withHeight(24.0f).reduced(5.0f));
+
+			g.setColour(Colours::black.withAlpha(0.9f));
+			g.strokePath(p, PathStrokeType(2.0f));
+			g.setColour(r.c.withAlpha(1.0f).withSaturation(0.7f).withBrightness(0.8f));
+			g.fillPath(p);
+		}
+	}
+}
+
 const Chain * ProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
 Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }
+
+void ProcessorEditor::deleteProcessorFromUI(Component* c, Processor* pToDelete)
+{
+	if (dynamic_cast<ModulatorSynth*>(pToDelete) == nullptr || PresetHandler::showYesNoWindow("Delete " + pToDelete->getId() + "?", "Do you want to delete the Synth module?"))
+	{
+		auto brw = GET_BACKEND_ROOT_WINDOW(c);
+
+		auto f = [brw](Processor* p)
+		{
+			if (auto c = dynamic_cast<Chain*>(p->getParentProcessor(false)))
+			{
+				c->getHandler()->remove(p, false);
+				jassert(!p->isOnAir());
+			}
+
+			brw->sendRootContainerRebuildMessage(false);
+
+			return SafeFunctionCall::OK;
+		};
+
+		
+
+		pToDelete->getMainController()->getGlobalAsyncModuleHandler().removeAsync(pToDelete, f);
+	}
+}
+
+void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling)
+{
+    Processor *processorToBeAdded = nullptr;
+    
+    auto c = dynamic_cast<Chain*>(parentChainProcessor);
+    
+    jassert(c != nullptr);
+    FactoryType *t = c->getFactoryType();
+    StringArray types;
+    bool clipBoard = false;
+    int result;
+
+    // =================================================================================================================
+    // Create the Popup
+
+    {
+        PeriodicScreenshotter::PopupGlassLookAndFeel plaf(*editorIfPossible);
+        PopupMenu m;
+        
+        m.setLookAndFeel(&plaf);
+
+        m.addSectionHeader("Create new Processor ");
+        
+        t->fillPopupMenu(m);
+
+        m.addSeparator();
+        m.addSectionHeader("Add from Clipboard");
+
+        String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
+
+        if(clipBoardName != String())  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
+        else                                m.addItem(-1, "No compatible Processor in clipboard.", false);
+
+        clipBoard = clipBoardName != String();
+
+        result = m.show();
+    }
+
+    // =================================================================================================================
+    // Create the processor
+
+    if(result == 0)                                    return;
+
+    else if(result == CLIPBOARD_ITEM_MENU_INDEX && clipBoard)
+        processorToBeAdded = PresetHandler::createProcessorFromClipBoard(parentChainProcessor);
+
+    else
+    {
+        Identifier type = t->getTypeNameFromPopupMenuResult(result);
+        String typeName = t->getNameFromPopupMenuResult(result);
+
+        String name = typeName;
+        
+        if (name.isNotEmpty())
+            processorToBeAdded = MainController::createProcessor(t, type, name);
+        else return;
+    }
+
+    auto brw = GET_BACKEND_ROOT_WINDOW(editorIfPossible);
+    auto editor = dynamic_cast<ProcessorEditor*>(editorIfPossible);
+    
+    auto f = [c, brw, editor, processorToBeAdded, insertBeforeSibling](Processor* p)
+    {
+        if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded) && dynamic_cast<ModulatorSynthGroup*>(c) == nullptr)
+            dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
+
+        c->getHandler()->add(processorToBeAdded, insertBeforeSibling);
+        
+        PresetHandler::setUniqueIdsForProcessor(processorToBeAdded);
+
+        MessageManager::callAsync([brw, c, editor, processorToBeAdded]()
+        {
+            brw->sendRootContainerRebuildMessage(false);
+            
+            if(editor != nullptr)
+            {
+                editor->changeListenerCallback(editor->getProcessor());
+                editor->childEditorAmountChanged();
+            }
+           
+            brw->gotoIfWorkspace(processorToBeAdded);
+            
+            PresetHandler::setChanged(dynamic_cast<Processor*>(c));
+        });
+
+        return SafeFunctionCall::OK;
+    };
+
+    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
+    
+    return;
+}
+
+void ProcessorEditor::showContextMenu(Component* c, Processor* p)
+{
+	enum
+	{
+		Copy = 2,
+		InsertBefore,
+		CloseAllChains,
+		ViewXml,
+		CheckForDuplicate,
+		CreateGenericScriptReference,
+		CreateTableProcessorScriptReference,
+		CreateAudioSampleProcessorScriptReference,
+		CreateSamplerScriptReference,
+		CreateMidiPlayerScriptReference,
+		CreateSliderPackProcessorReference,
+		CreateSlotFXReference,
+		CreateRoutingMatrixReference,
+		ReplaceWithClipboardContent,
+		SaveAllSamplesToGlobalFolder,
+		OpenAllScriptsInPopup,
+		OpenInterfaceInPopup,
+		ConnectToScriptFile,
+		ReloadFromExternalScript,
+		DisconnectFromScriptFile,
+		SaveCurrentInterfaceState,
+		numMenuItems
+	};
+
+	PopupLookAndFeel plaf;
+	PopupMenu m;
+	m.setLookAndFeel(&plaf);
+
+	const bool isMainSynthChain = p->getMainController()->getMainSynthChain() == p;
+
+	m.addSectionHeader("Copy Tools");
+
+	m.addItem(Copy, "Copy " + p->getId() + " to Clipboard");
+	m.addItem(ViewXml, "Show XML data");
+
+	if ((dynamic_cast<Chain*>(p) == nullptr || dynamic_cast<ModulatorSynth*>(p)) && !isMainSynthChain)
+	{
+		m.addItem(InsertBefore, "Add Processor before this module", true);
+	}
+
+	m.addSeparator();
+
+	m.addItem(CreateGenericScriptReference, "Create generic script reference");
+
+	if (dynamic_cast<ModulatorSampler*>(p) != nullptr)
+		m.addItem(CreateSamplerScriptReference, "Create typed Sampler script reference");
+	else if (dynamic_cast<MidiPlayer*>(p) != nullptr)
+		m.addItem(CreateMidiPlayerScriptReference, "Create typed MIDI Player script reference");
+	else if (dynamic_cast<HotswappableProcessor*>(p) != nullptr)
+		m.addItem(CreateSlotFXReference, "Create typed SlotFX script reference");
+
+    if(auto ed = dynamic_cast<ExternalDataHolder*>(p))
+    {
+        m.addItem(CreateTableProcessorScriptReference,
+                  "Create typed Table script reference",
+                  ed->getNumDataObjects(ExternalData::DataType::Table));
+        m.addItem(CreateAudioSampleProcessorScriptReference,
+                  "Create typed Audio sample script reference",
+                  ed->getNumDataObjects(ExternalData::DataType::AudioFile));
+        m.addItem(CreateSliderPackProcessorReference,
+                  "Create typed Slider Pack script reference",
+                  ed->getNumDataObjects(ExternalData::DataType::SliderPack));
+    }
+    
+	m.addItem(CreateRoutingMatrixReference, "Create typed Routing matrix script reference", dynamic_cast<RoutableProcessor*>(p) != nullptr);
+
+	m.addSeparator();
+
+	if (isMainSynthChain)
+	{
+		m.addSeparator();
+		m.addSectionHeader("Root Container Tools");
+		m.addItem(CheckForDuplicate, "Check children for duplicate IDs");
+	}
+
+	else if (auto sp = dynamic_cast<JavascriptProcessor*>(p))
+	{
+		m.addSeparator();
+		m.addSectionHeader("Script Processor Tools");
+		
+		m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
+		m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
+		m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
+	}
+
+	int result = m.show();
+
+	if (result == 0) return;
+
+	if (result == Copy) PresetHandler::copyProcessorToClipboard(p);
+
+	else if (result == InsertBefore)
+	{
+		createProcessorFromPopup(c, p->getParentProcessor(false), p);
+	}
+	else if (result == CheckForDuplicate)
+	{
+		PresetHandler::checkProcessorIdsForDuplicates(p, false);
+	}
+	else if (result == CreateGenericScriptReference)
+		ProcessorHelpers::getScriptVariableDeclaration(p);
+	else if (result == CreateAudioSampleProcessorScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "AudioSampleProcessor");
+	else if (result == CreateMidiPlayerScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "MidiPlayer");
+	else if (result == CreateRoutingMatrixReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "RoutingMatrix");
+	else if (result == CreateSamplerScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "Sampler");
+	else if (result == CreateSlotFXReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "SlotFX");
+	else if (result == CreateTableProcessorScriptReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "TableProcessor");
+	else if (result == CreateSliderPackProcessorReference)
+		ProcessorHelpers::getTypedScriptVariableDeclaration(p, "SliderPackProcessor");
+	else if (result == ConnectToScriptFile)
+	{
+		FileChooser fc("Select external script", GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+		if (fc.browseForFileToOpen())
+		{
+			File scriptFile = fc.getResult();
+
+			const String scriptReference = GET_PROJECT_HANDLER(p).getFileReference(scriptFile.getFullPathName(), ProjectHandler::SubDirectories::Scripts);
+
+			dynamic_cast<JavascriptProcessor*>(p)->setConnectedFile(scriptReference);
+		}
+	}
+	else if (result == ReloadFromExternalScript)
+	{
+		dynamic_cast<JavascriptProcessor*>(p)->reloadFromFile();
+	}
+	if (result == ViewXml)
+	{
+		auto root = GET_BACKEND_ROOT_WINDOW(c)->getRootFloatingTile();
+
+		auto xml = p->exportAsValueTree().createXml();
+
+		auto nc = new mcl::XmlEditor(File(), xml->createDocument(""));
+		nc->setName(p->getId() + " XML Data");
+		root->showComponentInRootPopup(nc, c, {0, 0});
+	}
+	else if (result == DisconnectFromScriptFile)
+	{
+		if (PresetHandler::showYesNoWindow("Disconnect from script file", "Do you want to disconnect the script from the connected file?\nAny changes you make here won't be saved in the file"))
+		{
+			dynamic_cast<JavascriptProcessor*>(p)->disconnectFromFile();
+		}
+	}
+	else
+	{
+		File f = PresetHandler::getPresetFileFromMenu(result - PRESET_MENU_ITEM_DELTA, p);
+
+		if (!f.existsAsFile()) return;
+
+		FileInputStream fis(f);
+
+		ValueTree testTree = ValueTree::readFromStream(fis);
+
+		if (testTree.isValid() && testTree.getProperty("Type") == "SynthChain")
+		{
+			c->findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(testTree);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container", PresetHandler::IconType::Error);
+		}
+	}
+}
 
 void ProcessorEditor::setFolded(bool shouldBeFolded, bool notifyEditor)
 {
@@ -391,18 +824,19 @@ void ProcessorEditor::childEditorAmountChanged() const
 	panel->updateChildEditorList();
 }
 
+ProcessorEditorContainer::~ProcessorEditorContainer()
+{
+	Processor* oldRoot = nullptr;
+	if (rootProcessorEditor != nullptr)
+		oldRoot = rootProcessorEditor->getProcessor();
+
+	rootBroadcaster.sendMessage(sendNotificationSync, oldRoot, nullptr);
+}
+
 void ProcessorEditorContainer::updateChildEditorList(bool forceUpdate)
 {
 	rootProcessorEditor->getPanel()->updateChildEditorList(forceUpdate);
 	refreshSize();
-}
-
-void callRecursive(Component* c, const std::function<void(Component*)>& f)
-{
-	f(c);
-
-	for (int i = 0; i < c->getNumChildComponents(); i++)
-		callRecursive(c->getChildComponent(i), f);
 }
 
 void ProcessorEditorContainer::refreshSize(bool )
@@ -419,13 +853,15 @@ void ProcessorEditorContainer::refreshSize(bool )
 		y += soloedProcessors[i]->getActualHeight();
 	}
 
-	callRecursive(this, [](Component* c)
+	Component::callRecursive<Component>(this, [](Component* c)
 	{
 		if (auto te = dynamic_cast<TableEditor*>(c))
 			te->setScrollWheelEnabled(false);
 
 		if (auto s = dynamic_cast<HiSlider*>(c))
 			s->setScrollWheelEnabled(false);
+
+		return false;
 	});
 
 	setSize(getWidthForIntendationLevel(0), y);
@@ -459,11 +895,18 @@ void ProcessorEditorContainer::resized()
 
 void ProcessorEditorContainer::setRootProcessorEditor(Processor *p)
 {
+	Processor* oldRoot = nullptr;
+
+	if (rootProcessorEditor != nullptr)
+		oldRoot = rootProcessorEditor->getProcessor();
+
 	addAndMakeVisible(rootProcessorEditor = new ProcessorEditor(this, 0, p, nullptr));
 
 	p->addDeleteListener(this);
 
 	refreshSize(false);
+
+	rootBroadcaster.sendMessage(sendNotificationAsync, oldRoot, p);
 }
 
 void ProcessorEditorContainer::addSoloProcessor(Processor *p)

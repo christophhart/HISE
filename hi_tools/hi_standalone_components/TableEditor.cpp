@@ -34,17 +34,18 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
-	editedTable(tableToBeEdited),
 	domainRange(Range<int>()),
 	currentType(DomainType::originalSize),
-	displayIndex(0.0f),
-	undoManager(undoManager_)
+	displayIndex(0.0f)
 {
 	setUseFlatDesign(false);
-	setEnablePaintProfiling("TableEditor");
 
-	if (editedTable == nullptr)
-		editedTable = &dummyTable;
+	if (tableToBeEdited != nullptr)
+		setEditedTable(tableToBeEdited);
+	else
+		setEditedTable(&dummyTable);
+
+	setSpecialLookAndFeel(&defaultLaf, false);
 
     // MUST BE SET!
 	jassert(editedTable != nullptr);
@@ -53,6 +54,8 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 
 	fontToUse = GLOBAL_BOLD_FONT();
 	
+	ruler->setAlwaysOnTop(true);
+
 	setColour(ColourIds::bgColour, Colours::transparentBlack);
 	setColour(ColourIds::fillColour, Colours::white.withAlpha(0.2f));
 	setColour(ColourIds::lineColour, Colours::white);
@@ -60,45 +63,41 @@ TableEditor::TableEditor(UndoManager* undoManager_, Table *tableToBeEdited):
 	setColour(ColourIds::overlayTextId, Colour(0xDD000000));
 	setColour(ColourIds::overlayBgColour, Colour(0xBBffffff));
 
-	if(editedTable.get() != nullptr)
-        editedTable->addChangeListener(this);
-
 	popupFunction = BIND_MEMBER_FUNCTION_2(TableEditor::getPopupString);
+
+	if (undoManager_ != nullptr)
+	{
+		getEditedTable()->setUndoManager(undoManager_);
+	}
 }
 
 TableEditor::~TableEditor()
 {
-	if(editedTable.get() != nullptr)
-	{
-		editedTable->removeChangeListener(this);
-	}
-	
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	removeProcessorConnection();
-#endif
-	
+	setEditedTable(nullptr);
 
 	closeTouchOverlay();
 }
 
 void TableEditor::refreshGraph()
 {	
-	if(editedTable.get() != nullptr) editedTable->createPath(dragPath);
+	if(editedTable.get() != nullptr) editedTable->createPath(dragPath, getTableLookAndFeel()->shouldClosePath());
 
-	dragPath.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), false);
-
+	auto a = getTableArea();
+	dragPath.scaleToFit(a.getX(), a.getY(), a.getWidth(), a.getHeight(), false);
 	needsRepaint = true;
 	repaint();
 }
 
 int TableEditor::snapXValueToGrid(int x) const
 {
+	auto a = getTableArea();
+
 	if (snapValues.size() == 0)
 		return x;
 
-	auto normalizedX = (float)x / (float)getWidth();
+	auto normalizedX = (x - a.getX()) / a.getWidth();
 
-	auto snapRangeHalfWidth = 10.0f / (float)getWidth();
+	auto snapRangeHalfWidth = 10.0f / a.getWidth();
 
 	for (int i = 0; i < snapValues.size(); i++)
 	{
@@ -106,7 +105,7 @@ int TableEditor::snapXValueToGrid(int x) const
 		auto snapRange = Range<float>(snapValue - snapRangeHalfWidth, snapValue + snapRangeHalfWidth);
 
 		if (snapRange.contains(normalizedX))
-			return (int)(snapValue * (float)getWidth());
+			return a.getX() + (int)(snapValue * a.getWidth());
 	}
 
 	return x;
@@ -114,6 +113,8 @@ int TableEditor::snapXValueToGrid(int x) const
 
 void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)
 {
+#if HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE
+
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
@@ -128,11 +129,11 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 
 	bool useEvent = dp != nullptr;
 
-	useEvent &= (allowScrollWheel || e.mods.isCommandDown());
+	useEvent &= e.mods == scrollModifiers;
 
 	if(useEvent)
 	{
-		if (undoManager != nullptr && thisIndex != lastEditedPointIndex)
+		if (getUndoManager(thisIndex != lastEditedPointIndex))
 		{
 			lastEditedPointIndex = thisIndex;
 		}
@@ -146,24 +147,18 @@ void TableEditor::mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &w
 			auto ar = Rectangle<int>(pp->getPos(), dp->getPos());
 			auto middle = ar.getCentre();
 
-			ScopedLock sl(listeners.getLock());
+			ScopedLock sl(editListeners.getLock());
 
-			for (auto l : listeners)
+			for (auto l : editListeners)
 			{
 				if (l.get() != nullptr)
-				{
 					l->curveChanged(middle, curveValue);
-				}
 			}
-			
 		}
-        
-        if (editedTable.get() != nullptr)
-            editedTable->sendSynchronousChangeMessage();
-
 	}
 
 	else getParentComponent()->mouseWheelMove(e, wheel);
+#endif
 };
 
 
@@ -171,15 +166,20 @@ void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoMan
 {
 	auto dp = getNextPointFor(x);
 
+	auto pp = getPrevPointFor(x);
+
 	if (dp == nullptr)
 		return;
 
-	if (undoManager != nullptr && useUndoManager)
+	if (auto um = getUndoManager(useUndoManager))
 	{
-		undoManager->perform(new TableAction(this, TableAction::Curve, -1, x, y, newCurveValue, x, y, -1.0f * newCurveValue));
+		um->perform(new TableAction(this, TableAction::Curve, -1, x, y, newCurveValue, x, y, -1.0f * newCurveValue));
 	}
 	else
 	{
+		if (pp != nullptr && pp->getGraphPoint().y > dp->getGraphPoint().y)
+			newCurveValue *= -1.0f;
+
 		dp->updateCurve(newCurveValue);
 		updateTable(true);
 		refreshGraph();
@@ -190,15 +190,6 @@ void TableEditor::updateCurve(int x, int y, float newCurveValue, bool useUndoMan
 
 
 
-bool TableEditor::isInMainPanel() const
-{
-#if HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	return false;
-#else
-	return isInMainPanelInternal();
-#endif
-}
-
 
 juce::String TableEditor::getPopupString(float x, float y)
 {
@@ -208,11 +199,18 @@ juce::String TableEditor::getPopupString(float x, float y)
 	return xName + " | " + yName;
 }
 
+juce::Rectangle<int> TableEditor::getPointAreaBetweenMouse() const
+{
+	return pointAreaBetweenMouse;
+}
+
+
+
 void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/, bool isEnd/*=false*/, bool useUndoManager/*=false*/)
 {
-	if (useUndoManager && undoManager != nullptr)
+	if (auto um = getUndoManager(useUndoManager))
 	{
-		undoManager->perform(new TableAction(this, TableAction::Add, -1, x, y, curve, -1, -1, -1.0f));
+		um->perform(new TableAction(this, TableAction::Add, -1, x, y, curve, -1, -1, -1.0f));
 	}
 	else
 	{
@@ -249,14 +247,26 @@ void TableEditor::createDragPoints()
 	}
 };
 
+void TableEditor::setDisplayedIndex(float newIndex)
+{
+	lastIndex = newIndex;
+
+	if (ruler != nullptr)
+		ruler->setIndex(newIndex);
+}
+
 void TableEditor::setEdge(float f, bool setLeftEdge)
 {
-	if(setLeftEdge)	drag_points.getFirst()->changePos(Point<int>(0, (int)((1.0 - f) * getHeight())));
-	else drag_points.getLast()->changePos(Point<int>(getWidth(), (int)((1.0 - f) * getHeight())));
+	auto a = getTableArea();
+
+	if(setLeftEdge)	drag_points.getFirst()->changePos(Point<int>(0, (int)(a.getY() + (1.0 - f) * a.getHeight())));
+	else drag_points.getLast()->changePos(Point<int>(getWidth(), (int)(a.getY() + (1.0 - f) * a.getHeight())));
 
 	updateTable(true);
 	refreshGraph();
 }
+
+
 
 void TableEditor::paint (Graphics& g)
 {
@@ -268,35 +278,31 @@ void TableEditor::paint (Graphics& g)
 		return;
 	}
 
-	if (lafToUse != nullptr)
-		lafToUse->drawTablePath(g, *this, dragPath, getLocalBounds().toFloat(), lineThickness);
+	if (auto l = getTableLookAndFeel())
+	{
+		l->drawTableBackground(g, *this, getTableArea(), this->ruler->getValue());
+		l->drawTablePath(g, *this, dragPath, getTableArea(), lineThickness);
+	}
+		
 
-#if !HISE_IOS
-    if (currently_dragged_point != nullptr && isInMainPanel())
+    if (currently_dragged_point != nullptr)
     {
+		auto a = getTableArea();
+
         DragPoint *dp = currently_dragged_point;
-        
-        g.setFont(fontToUse);
         
 		auto text = popupFunction(dp->getGraphPoint().x, dp->getGraphPoint().y);
 		int boxWidth = (int)fontToUse.getStringWidth(text) + 10;
 		int boxHeight = (int)fontToUse.getHeight() + 10;
-        
-		int x_ = jlimit<int>(0, getWidth() - boxWidth, dp->getPos().x - boxWidth / 2);
-		int y_ = jlimit<int>(0, getHeight() - boxHeight, dp->getPos().y - 20);
 
-        g.setColour(findColour(ColourIds::overlayBgColour));
+		int x_ = jlimit<int>(a.getX(), a.getRight() - boxWidth, dp->getPos().x - boxWidth / 2);
+		int y_ = jlimit<int>(a.getY(), a.getBottom() - boxHeight, dp->getPos().y - 20);
 
-        juce::Rectangle<int> textBox(x_, y_, boxWidth, boxHeight);
-        
-        g.fillRect(textBox);
-        g.setColour(findColour(ColourIds::overlayTextId));
-        g.drawRect(textBox, 1);
-        g.drawText(text, textBox, Justification::centred, false);
-        g.setColour(Colours::darkgrey.withAlpha(0.4f));
-        g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+		Rectangle<int> area(x_, y_, boxWidth, boxHeight);
+
+		if (auto l = getTableLookAndFeel())
+			l->drawTableValueLabel(g, *this, fontToUse, text, area);
     }
-#endif
     
     g.setOpacity(isEnabled() ? 1.0f : 0.2f);
  
@@ -309,8 +315,8 @@ void TableEditor::Ruler::paint(Graphics &g)
 	if (te == nullptr)
 		return;
 
-	if (te->lafToUse != nullptr)
-		te->lafToUse->drawTableRuler(g, *te, getLocalBounds().toFloat(), value, te->lineThickness);
+	if (auto l = te->getTableLookAndFeel())
+		l->drawTableRuler(g, *te, te->getTableArea(), te->lineThickness, value);
 }
 
 void TableEditor::resized()
@@ -332,25 +338,19 @@ void TableEditor::resized()
 	}
 }
 
-void TableEditor::changeListenerCallback(SafeChangeBroadcaster *b)
+
+
+void TableEditor::graphHasChanged(int point)
 {
-	if (dynamic_cast<Table*>(b) != nullptr)
-	{
-		createDragPoints();
-
-		refreshGraph();
-
-		return;
-	}
-
-#if !HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES
-	updateFromProcessor(b);
-#endif
-
-	
+	SafeAsyncCall::call<TableEditor>(*this, [](TableEditor& t) 
+	{	
+		if (t.currently_dragged_point == nullptr)
+		{
+			t.createDragPoints();
+			t.refreshGraph();
+		}
+	});
 }
-
-
 
 void TableEditor::setDomain(DomainType newDomainType, Range<int> newRange)
 {
@@ -359,9 +359,26 @@ void TableEditor::setDomain(DomainType newDomainType, Range<int> newRange)
 	else jassert ( newRange.isEmpty() );
 };
 
+void TableEditor::setSnapValues(var snapArray)
+{
+	if (auto ar = snapArray.getArray())
+	{
+		snapValues.clear();
+
+		for (const auto& v : *ar)
+		{
+			DBG((float)v);
+			snapValues.add((float)v);
+		}
+	}
+}
+
 void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
+
+	if (e.mods.isAltDown())
+		return;
 
 	grabCopyAndPasteFocus();
 
@@ -380,8 +397,10 @@ void TableEditor::mouseDown(const MouseEvent &e)
 			removeDragPoint(dp);
 
 			if (editedTable.get() != nullptr)
-				editedTable->sendSynchronousChangeMessage();
+				editedTable->sendGraphUpdateMessage();
 		}
+
+		lastRightDragValue = (float)e.getPosition().getY();
 	}
 	else
 	{
@@ -391,9 +410,9 @@ void TableEditor::mouseDown(const MouseEvent &e)
 
 			showTouchOverlay();
 
-			ScopedLock sl(listeners.getLock());
+			ScopedLock sl(editListeners.getLock());
 
-			for (auto l : listeners)
+			for (auto l : editListeners)
 			{
 				if (l.get() != nullptr)
 				{
@@ -403,23 +422,18 @@ void TableEditor::mouseDown(const MouseEvent &e)
 		}
 		else
 		{
+			pointAreaBetweenMouse = {};
 			x = snapXValueToGrid(x);
 
 			addDragPoint(x, y, 0.5f, false, false, true);
-
-
 		}
 	}
-
-	
 
 	updateTable(false);
 	refreshGraph();
 
 	needsRepaint = true;
 	repaint();
-
-
 }
 
 
@@ -427,13 +441,12 @@ void TableEditor::removeDragPoint(DragPoint * dp, bool useUndoManager)
 {
 	if (!dp->isStartOrEnd())
 	{
-
-		if (undoManager != nullptr && useUndoManager)
+		if (auto um = getUndoManager(useUndoManager))
 		{
 			int x = dp->getBoundsInParent().getCentreX();
 			int y = dp->getBoundsInParent().getCentreY();
 
-			undoManager->perform(new TableAction(this, TableAction::Delete, -1, -1, -1, -1, x, y, dp->getCurve()));
+			um->perform(new TableAction(this, TableAction::Delete, -1, -1, -1, -1, x, y, dp->getCurve()));
 		}
 		else
 		{
@@ -479,30 +492,27 @@ void TableEditor::mouseDoubleClick(const MouseEvent& e)
 	repaint();
 }
 
-void TableEditor::mouseUp(const MouseEvent &)
+void TableEditor::mouseUp(const MouseEvent& e)
 {	
 	if (!isEnabled()) return;
+
+	if (e.mods.isAltDown())
+		return;
 
 	closeTouchOverlay();
 
 	currently_dragged_point = nullptr;
 	updateTable(true);
 
-	if(editedTable.get() != nullptr) editedTable->sendSynchronousChangeMessage();
-	
-	
-
 	needsRepaint = true;
 	repaint();
 
-	ScopedLock sl(listeners.getLock());
+	ScopedLock sl(editListeners.getLock());
 
-	for (auto l : listeners)
+	for (auto l : editListeners)
 	{
 		if (l.get() != nullptr)
-		{
 			l->pointDragEnded();
-		}
 	}
 }
 
@@ -510,7 +520,7 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
-	if (currently_dragged_point == nullptr)
+	if (e.mods.isAltDown())
 		return;
 
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
@@ -518,10 +528,33 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	int x = parentEvent.getDistanceFromDragStartX() + parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getDistanceFromDragStartY() + parentEvent.getMouseDownPosition().getY();
 
-	if (parentEvent.mods.isShiftDown()) x = parentEvent.getMouseDownPosition().getX();
+	auto a = getTableArea();
 
-	x = jmin(x, getWidth() - 1);
-	y = jmin(y, getHeight());
+	if (currently_dragged_point == nullptr)
+	{
+		if (e.mods.isRightButtonDown())
+		{
+			auto thisPos = (float)parentEvent.getPosition().getY();
+
+			auto delta = thisPos - lastRightDragValue;
+
+			lastRightDragValue = thisPos;
+
+			delta /= (float)getHeight();
+
+			delta *= -4.0f;
+
+			updateCurve(x, y, delta, true);
+		}
+
+		return;
+	}
+
+	if (parentEvent.mods.isShiftDown()) 
+		x = parentEvent.getMouseDownPosition().getX();
+
+	x = jmin(x, (int)a.getWidth() - 1);
+	y = jmin(y, (int)a.getHeight());
 
 	x = jmax(x, 1);
 	y = jmax(y, 0);
@@ -532,9 +565,9 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	changePointPosition(index, x, y, true);
 
-	ScopedLock sl(listeners.getLock());
+	ScopedLock sl(editListeners.getLock());
 
-	for (auto l : listeners)
+	for (auto l : editListeners)
 	{
 		if (l.get() != nullptr)
 		{
@@ -542,6 +575,37 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 		}
 	}
 };
+
+void TableEditor::mouseMove(const MouseEvent& e)
+{
+	if (e.eventComponent != this)
+	{
+		pointAreaBetweenMouse = {};
+	}
+	else
+	{
+		auto pp = getPrevPointFor(e.getPosition().getX());
+		auto dp = getNextPointFor(e.getPosition().getX());
+
+		if (pp != nullptr && dp != nullptr)
+		{
+			pointAreaBetweenMouse = Rectangle<int>(pp->getPos(), dp->getPos());
+			pointAreaBetweenMouse = pointAreaBetweenMouse.withY(0).withHeight(getHeight());
+		}
+		else
+		{
+			pointAreaBetweenMouse = {};
+		}
+	}
+
+	repaint();
+}
+
+void TableEditor::mouseExit(const MouseEvent& e)
+{
+	pointAreaBetweenMouse = {};
+	repaint();
+}
 
 void TableEditor::showTouchOverlay()
 {
@@ -614,8 +678,11 @@ void TableEditor::DragPoint::paint (Graphics& g)
 {
 	auto te = findParentComponentOfClass<TableEditor>();
 
-	if (te != nullptr && te->lafToUse != nullptr)
-		te->lafToUse->drawTablePoint(g, *te, getLocalBounds().toFloat(), isStartOrEnd(), over, false);
+	if (te == nullptr)
+		return;
+	
+	if(auto l = te->getTableLookAndFeel())
+		l->drawTablePoint(g, *te, getLocalBounds().toFloat(), isStartOrEnd(), over, false);
 }
 
 void TableEditor::DragPoint::resized()
@@ -797,69 +864,81 @@ bool TableEditor::TableAction::undo()
 	return true;
 }
 
-void TableEditor::HiseTableLookAndFeel::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float )
+void TableEditor::LookAndFeelMethods::drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition)
 {
-	g.setColour(Colours::lightgrey.withAlpha(0.1f));
-	g.drawRect(area, 1);
-
-	GlobalHiseLookAndFeel::fillPathHiStyle(g, p, area.getWidth(), area.getHeight());
-}
-
-void TableEditor::HiseTableLookAndFeel::drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
-{
-	const float width = (float)tablePoint.getWidth() - 6.0f;
-	const float round = width * 0.2f;
-
-	if (isEdge)
+	if(te.useFlatDesign)
 	{
-		g.setColour(Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, isHover ? 2.0f : 1.0f);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+		g.setColour(te.findColour(ColourIds::bgColour));
+		g.fillAll();
 	}
 	else
 	{
-		g.setColour(Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, isHover ? 2.0f : 1.0f);
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+		g.setColour(Colours::lightgrey.withAlpha(0.1f));
+		g.drawRect(area, 1);	
 	}
 }
 
-void TableEditor::HiseTableLookAndFeel::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
+void TableEditor::LookAndFeelMethods::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float )
 {
-	g.setColour(Colours::lightgrey.withAlpha(0.05f));
-	g.fillRect(jmax(0.0f, (float)rulerPosition * area.getWidth() - 5.0f), 0.0f, rulerPosition == 0.0f ? 5.0f : 10.0f, area.getHeight());
-	g.setColour(Colours::white.withAlpha(0.6f));
-	g.drawLine(Line<float>(rulerPosition * area.getWidth(), 0.0f, rulerPosition * area.getWidth(), area.getHeight()), 0.5f);
+    if(te.useFlatDesign)
+    {
+        g.setColour(te.findColour(ColourIds::fillColour));
+        g.fillPath(p);
+        g.setColour(te.findColour(ColourIds::lineColour));
+        g.strokePath(p, PathStrokeType(te.lineThickness));
+    }
+    else
+    {
+        GlobalHiseLookAndFeel::fillPathHiStyle(g, p, area.getWidth(), area.getHeight());
+    }
 }
 
-void TableEditor::FlatTableLookAndFeel::drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness)
+void TableEditor::LookAndFeelMethods::drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
 {
-	g.setColour(te.findColour(ColourIds::bgColour));
-	g.fillAll();
-
-	g.setColour(te.findColour(ColourIds::fillColour));
-	g.fillPath(p);
-	g.setColour(te.findColour(ColourIds::lineColour));
-	g.strokePath(p, PathStrokeType(lineThickness));
+    const float width = (float)tablePoint.getWidth() - 6.0f;
+    const float round = width * 0.2f;
+    
+    if(te.useFlatDesign)
+    {
+        g.setColour(te.findColour(TableEditor::ColourIds::lineColour));
+        g.fillRoundedRectangle(tablePoint.reduced(3.0f), round);
+    }
+    else
+    {
+        if (isEdge)
+        {
+            g.setColour(Colours::white.withAlpha(0.3f));
+            g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, isHover ? 2.0f : 1.0f);
+            g.setColour(Colours::white.withAlpha(0.2f));
+            g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+        }
+        else
+        {
+            g.setColour(Colours::white.withAlpha(0.3f));
+            g.drawRoundedRectangle(3.0f, 3.0f, width, width, round, isHover ? 2.0f : 1.0f);
+            g.setColour(Colours::white.withAlpha(0.2f));
+            g.fillRoundedRectangle(3.0f, 3.0f, width, width, round);
+        }
+    }
+	
 }
 
-void TableEditor::FlatTableLookAndFeel::drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
+void TableEditor::LookAndFeelMethods::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
 {
-	const float width = (float)tablePoint.getWidth() - 6.0f;
-	const float round = width * 0.2f;
+    if(te.useFlatDesign)
+    {
+        auto c = te.findColour(TableEditor::ColourIds::rulerColour);
 
-	g.setColour(te.findColour(TableEditor::ColourIds::lineColour));
-	g.fillRoundedRectangle(tablePoint.reduced(3.0f), round);
-}
-
-void TableEditor::FlatTableLookAndFeel::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition)
-{
-	auto c = te.findColour(TableEditor::ColourIds::rulerColour);
-
-	g.setColour(c);
-	g.drawLine(Line<float>((float)rulerPosition * area.getWidth(), 0.0f, (float)rulerPosition * area.getWidth(), area.getHeight()), lineThickness);
+        g.setColour(c);
+        g.drawLine(Line<float>((float)rulerPosition * area.getWidth(), 0.0f, (float)rulerPosition * area.getWidth(), area.getHeight()), lineThickness);
+    }
+    else
+    {
+        g.setColour(Colours::lightgrey.withAlpha(0.05f));
+        g.fillRect(jmax(0.0f, (float)rulerPosition * area.getWidth() - 5.0f), 0.0f, rulerPosition == 0.0f ? 5.0f : 10.0f, area.getHeight());
+        g.setColour(Colours::white.withAlpha(0.6f));
+        g.drawLine(Line<float>(rulerPosition * area.getWidth(), 0.0f, rulerPosition * area.getWidth(), area.getHeight()), 0.5f);
+    }
 }
 
 void FileNameValuePropertyComponent::MyFunkyFilenameComponent::updateFromTextEditor()
@@ -870,6 +949,19 @@ void FileNameValuePropertyComponent::MyFunkyFilenameComponent::updateFromTextEdi
 	{
 		parent.v = editor.getText();
 	}
+}
+
+void TableEditor::LookAndFeelMethods::drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox)
+{
+    if(!te.shouldDrawTableValueLabel())
+        return;
+    
+	g.setFont(f);
+	g.setColour(te.findColour(TableEditor::ColourIds::overlayBgColour));
+	g.fillRect(textBox);
+	g.setColour(te.findColour(TableEditor::ColourIds::overlayTextId));
+	g.drawRect(textBox, 1);
+	g.drawText(text, textBox, Justification::centred, false);
 }
 
 } // namespace hise

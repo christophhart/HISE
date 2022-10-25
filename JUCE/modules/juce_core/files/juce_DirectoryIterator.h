@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -23,8 +23,12 @@
 namespace juce
 {
 
+#ifndef DOXYGEN
+
 //==============================================================================
 /**
+    This class is now deprecated in favour of RangedDirectoryIterator.
+
     Searches through the files in a directory, returning each file that is found.
 
     A DirectoryIterator will search through a directory and its subdirectories using
@@ -42,6 +46,7 @@ namespace juce
     It also provides an estimate of its progress, using a (highly inaccurate!) algorithm.
 
     @tags{Core}
+    @see RangedDirectoryIterator
 */
 class JUCE_API  DirectoryIterator  final
 {
@@ -62,20 +67,24 @@ public:
         }
         @endcode
 
-        @param directory    the directory to search in
-        @param isRecursive  whether all the subdirectories should also be searched
-        @param wildCard     the file pattern to match. This may contain multiple patterns
-                            separated by a semi-colon or comma, e.g. "*.jpg;*.png"
-        @param whatToLookFor    a value from the File::TypesOfFileToFind enum, specifying
-                                whether to look for files, directories, or both.
+        @see RangedDirectoryIterator
     */
+    [[deprecated ("This class is now deprecated in favour of RangedDirectoryIterator.")]]
     DirectoryIterator (const File& directory,
-                       bool isRecursive,
-                       const String& wildCard = "*",
-                       int whatToLookFor = File::findFiles);
-
-    /** Destructor. */
-    ~DirectoryIterator();
+                       bool recursive,
+                       const String& pattern = "*",
+                       int type = File::findFiles)
+        : wildCards (parseWildcards (pattern)),
+          fileFinder (directory, (recursive || wildCards.size() > 1) ? "*" : pattern),
+          wildCard (pattern),
+          path (File::addTrailingSeparator (directory.getFullPathName())),
+          whatToLookFor (type),
+          isRecursive (recursive)
+    {
+        // you have to specify the type of files you're looking for!
+        jassert ((whatToLookFor & (File::findFiles | File::findDirectories)) != 0);
+        jassert (whatToLookFor > 0 && whatToLookFor <= 7);
+    }
 
     /** Moves the iterator along to the next file.
 
@@ -149,5 +158,7 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectoryIterator)
 };
+
+#endif
 
 } // namespace juce

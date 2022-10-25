@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -121,7 +120,7 @@ class FIRFilterTest : public UnitTest
         template <typename FloatType>
         static void run (FIR::Filter<FloatType>& filter, FloatType* src, FloatType* dst, size_t n)
         {
-            AudioBlock<FloatType> input  (&src, 1, n);
+            AudioBlock<const FloatType> input (&src, 1, n);
             AudioBlock<FloatType> output (&dst, 1, n);
             ProcessContextNonReplacing<FloatType> context (input, output);
 
@@ -151,7 +150,7 @@ class FIRFilterTest : public UnitTest
                 auto* src = input + i;
                 auto* dst = output + i;
 
-                AudioBlock<FloatType> inBlock  (&src, 1, len);
+                AudioBlock<const FloatType> inBlock (&src, 1, len);
                 AudioBlock<FloatType> outBlock (&dst, 1, len);
                 ProcessContextNonReplacing<FloatType> context (inBlock, outBlock);
 
@@ -205,7 +204,9 @@ class FIRFilterTest : public UnitTest
 
 
 public:
-    FIRFilterTest() : UnitTest ("FIR Filter", "DSP") {}
+    FIRFilterTest()
+        : UnitTest ("FIR Filter", UnitTestCategories::dsp)
+    {}
 
     void runTest() override
     {

@@ -1,73 +1,180 @@
-/*
-  ==============================================================================
-
-  This is an automatically generated GUI class created by the Introjucer!
-
-  Be careful when adding custom code to these files, as only the code within
-  the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
-  and re-saved.
-
-  Created with Introjucer version: 4.1.0
-
-  ------------------------------------------------------------------------------
-
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
-  Copyright (c) 2015 - ROLI Ltd.
-
-  ==============================================================================
-*/
 
 #ifndef __JUCE_HEADER_A3E3B1B2DF55A952__
 #define __JUCE_HEADER_A3E3B1B2DF55A952__
 
-//[Headers]     -- You can add your own extra header files here --
 namespace hise {
 using namespace juce;
 
+struct ExternalFileChangeWatcher;
 class SamplerBody;
 class SampleEditHandler;
 
-//[/Headers]
+struct DraggableThumbnail : public HiseAudioThumbnail
+{
+	struct Laf : public HiseAudioThumbnail::LookAndFeelMethods,
+				 public LookAndFeel_V3
+	{
+		void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
 
-#include "ValueSettingComponent.h"
+		void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+	} laf;
+
+	DraggableThumbnail();
+
+    ~DraggableThumbnail()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
+	void setPosition(const MouseEvent& e);
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseDoubleClick(const MouseEvent& e) override;
+
+	void paint(Graphics& g) override;
+
+	static void mainSoundSelected(DraggableThumbnail& d, ModulatorSamplerSound::Ptr, int);
+
+	ModulatorSamplerSound::Ptr currentSound;
+	float downZoomFactor = 1.0f;
+	int downX = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DraggableThumbnail);
+};
+
+struct ExternalFileChangeWatcher : public Timer,
+                                   public SampleMap::Listener
+{
+    ExternalFileChangeWatcher(ModulatorSampler* s, Array<File> fileList_):
+        fileList(fileList_),
+        sampler(s)
+    {
+        startTimer(1000);
+
+        sampler->getSampleMap()->addListener(this);
+
+        for (const File& f : fileList)
+            modificationTimes.add(f.getLastModificationTime());
+    }
+
+    virtual void sampleMapWasChanged(PoolReference newSampleMap)
+    {
+        stopTimer();
+        sampler->getSampleMap()->removeListener(this);
+    }
+
+    virtual void sampleMapCleared()
+    {
+        stopTimer();
+        sampler->getSampleMap()->removeListener(this);
+    };
+
+    void timerCallback() override
+    {
+        for (int i = 0; i < fileList.size(); i++)
+        {
+            auto t = fileList[i].getLastModificationTime();
+
+            if (t != modificationTimes[i])
+            {
+                stopTimer();
+
+                if (PresetHandler::showYesNoWindow("Detected File change", "Press OK to reload the samplemap"))
+                {
+                    sampler->getSampleMap()->saveAndReloadMap();
+                }
+                
+                modificationTimes.clear();
+
+                for (const auto& l : fileList)
+                    modificationTimes.add(l.getLastModificationTime());
+                
+                startTimer(1000);
+            }
+        }
+    }
+
+    WeakReference<ModulatorSampler> sampler;
+    const Array<File> fileList;
+    Array<Time> modificationTimes;
+};
 
 
-//==============================================================================
-/**
-																	//[Comments]
-	\cond HIDDEN_SYMBOLS
-	An auto-generated component, created by the Introjucer.
-
-	Describe your class and how it works here!
-																	//[/Comments]
-*/
 class SampleEditor : public Component,
 	public SamplerSubEditor,
-	public ApplicationCommandTarget,
 	public AudioDisplayComponent::Listener,
+    public ComboBox::Listener,
 	public SafeChangeListener,
-	public SampleMap::Listener
+	public SampleMap::Listener,
+	public ScrollBar::Listener,
+    public Timer
 {
 public:
+    
+    /** All application commands are collected here. */
+    enum class SampleMapCommands
+    {
+        // Undo / Redo
+        ZoomIn = 0x3000,
+        ZoomOut,
+        EnableSampleStartArea,
+        EnableLoopArea,
+        EnablePlayArea,
+        SelectWithMidi,
+		ApplyToMainOnly,
+        NormalizeVolume,
+        LoopEnabled,
+		PreviewCurrentSound,
+        Analyser,
+        ExternalEditor,
+        ZeroCrossing,
+		ShowEnvelopePopup,
+		ImproveLoopPoints,
+		ShowScriptPopup,
+		ToggleFirstScriptButton,
+        numCommands
+    };
+    
 	//==============================================================================
 	SampleEditor(ModulatorSampler *s, SamplerBody *b);
 	~SampleEditor();
 
-	//==============================================================================
-	//[UserMethods]     -- You can add your own custom methods in this section.
+    void timerCallback() override
+    {
+		if (!isShowing())
+			return;
 
-
-
-
+        for(auto b: menuButtons)
+        {
+            auto state = getCommandIdForName(b->getName());
+            b->setToggleStateAndUpdateIcon(getState(state));
+        }
+    }
+    
+    static String getNameForCommand(SampleMapCommands c, bool on=true);
+    static SampleMapCommands getCommandIdForName(const String& n);
+    static String getTooltipForCommand(SampleMapCommands c);
+    bool getState(SampleMapCommands c) const;
+    void perform(SampleMapCommands c);
+    
 	void changeListenerCallback(SafeChangeBroadcaster *)
 	{
 		updateWaveform();
 	}
 
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override;
+
 	void updateInterface() override
 	{
 		updateWaveform();
 	}
+
+	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
+
+	bool isInWorkspace() const;
 
 	void sampleMapWasChanged(PoolReference r) override
 	{
@@ -95,7 +202,7 @@ public:
 
 		if(currentSound != nullptr && selection.getLast() == currentSound)
 		{
-			ModulatorSamplerSound *soundToChange = selection.getLast();
+			auto soundToChange = selection.getLast();
 
 			AudioDisplayComponent::SampleArea *area = c->getSampleArea(areaThatWasChanged);
 
@@ -146,220 +253,93 @@ public:
 		}
 	};
 
-	/** All application commands are collected here. */
-	enum SampleMapCommands
+	static File getPropertyFile()
 	{
-		// Undo / Redo
-		ZoomIn = 0x3000,
-		ZoomOut,
-		EnableSampleStartArea,
-		EnableLoopArea,
-		EnablePlayArea,
-
-		SelectWithMidi,
-		NormalizeVolume,
-		LoopEnabled,
-
-		numCommands
-	};
-
-
-	ApplicationCommandTarget* getNextCommandTarget() override
-	{
-		return findFirstTargetParentComponent();
-	};
-
-	void getAllCommands (Array<CommandID>& commands) override
-	{
-		const CommandID id[] = {ZoomIn,
-								ZoomOut,
-								
-								EnableSampleStartArea,
-								EnableLoopArea,
-								EnablePlayArea,
-								SelectWithMidi,
-								NormalizeVolume,
-								LoopEnabled,
-								};
-
-		commands.addArray(id, numElementsInArray(id));
-	};
-
-	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override
-	{
-		const bool isSelected = selection.size() > 0 && selection.getLast() != nullptr;
-
-		switch (commandID)
-		{
-		case ZoomIn:			result.setInfo("Zoom In", "Zoom in the sample map", "Zooming", 0);
-								result.addDefaultKeypress('+', ModifierKeys::commandModifier);
-								result.setActive(isSelected && zoomFactor != 16.0f);
-								break;
-		case ZoomOut:			result.setInfo("Zoom Out", "Zoom out the sample map", "Zooming", 0);
-								result.addDefaultKeypress('-', ModifierKeys::commandModifier);
-								result.setActive(isSelected && zoomFactor != 1.0f);
-								break;
-		case EnableSampleStartArea:	result.setInfo("Enable SampleStart Dragging", "Enable Sample Start Modulation Area Dragging", "Areas", 0);
-									result.setActive(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::SampleStartMod) != 0);
-									break;
-		case EnableLoopArea:	result.setInfo("Enable SampleStart Dragging", "Enable Loop Area Dragging", "Areas", 0);
-								result.setActive(isSelected && selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
-								break;
-		case EnablePlayArea:	result.setInfo("Enable Play Area Dragging", "Enable Playback Area Dragging", "Areas", 0);
-								result.setActive(isSelected);
-								break;
-		case SelectWithMidi:	result.setInfo("Midi Select", "Autoselect the most recently triggered sound", "Tools", 0);
-								result.setActive(true);
-								result.setTicked(sampler->getEditorState(ModulatorSampler::MidiSelectActive));
-								break;
-		case NormalizeVolume:	result.setInfo("Normalize Volume", "Normalize the sample volume to 0dB", "Properties", 0);
-								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized));
-								break;
-		case LoopEnabled:		result.setInfo("Loop Enabled", "Enable Loop Playback", "Properties", 0);
-								result.setActive(isSelected);
-								result.setTicked(isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled));
-								break;
-		}
-	};
-
-	bool perform (const InvocationInfo &info) override;
-
-
-
-	void soundsSelected(const SampleSelection  &selectedSoundList) override
-	{
-		selection.clear();
-
-		for (int i = 0; i < selectedSoundList.size(); i++)
-			selection.add(selectedSoundList[i]);
-
-		panSetter->setCurrentSelection(selectedSoundList);
-		volumeSetter->setCurrentSelection(selectedSoundList);
-		pitchSetter->setCurrentSelection(selectedSoundList);
-		sampleStartSetter->setCurrentSelection(selectedSoundList);
-		sampleEndSetter->setCurrentSelection(selectedSoundList);
-		startModulationSetter->setCurrentSelection(selectedSoundList);
-		loopStartSetter->setCurrentSelection(selectedSoundList);
-		loopEndSetter->setCurrentSelection(selectedSoundList);
-		loopCrossfadeSetter->setCurrentSelection(selectedSoundList);
-
-		samplerEditorCommandManager->commandStatusChanged();
-
-		if(selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr) currentWaveForm->setSoundToDisplay(selectedSoundList.getLast());
-		else currentWaveForm->setSoundToDisplay(nullptr);
+		return ProjectHandler::getAppDataDirectory().getChildFile("SampleEditorSettings").withFileExtension("js");
 	}
 
-	void paintOverChildren(Graphics &g)
+	void saveEditorSettings();
+
+	void loadEditorSettings();
+	
+	static void mainSelectionChanged(SampleEditor& editor, ModulatorSamplerSound::Ptr sound, int micIndex);
+
+	void soundsSelected(int numSelected) override;
+
+	void paintOverChildren(Graphics &g);
+
+	void updateWaveform();
+
+	void zoom(bool zoomOut, int mousePos=0);
+
+	void setZoomFactor(float factor, int mousePos = 0);
+
+    void mouseMagnify(const MouseEvent& e, float scaleFactor) override
+    {
+        setZoomFactor(scaleFactor * zoomFactor, e.getPosition().getX());
+    }
+    
+	void mouseWheelMove	(const MouseEvent & e, const MouseWheelDetails & 	wheel )	override
 	{
-		if(selection.size() != 0)
-		{
-			g.setColour(Colours::black.withAlpha(0.4f));
-
-			const bool useGain = selection.getLast()->getNormalizedPeak() != 1.0f;
-
-			String fileName = selection.getLast()->getPropertyAsString(SampleIds::FileName);
-
-			PoolReference ref(sampler->getMainController(), fileName, FileHandlerBase::Samples);
-
-			fileName = ref.getReferenceString();
-
-			const String autogain = useGain ? ("Autogain: " + String(Decibels::gainToDecibels(selection.getLast()->getNormalizedPeak()), 1) + " dB") : String();
-
-			int width = jmax<int>(GLOBAL_BOLD_FONT().getStringWidth(autogain), GLOBAL_BOLD_FONT().getStringWidth(fileName)) + 8;
-
-			Rectangle<int> area(viewport->getRight() - width-1, viewport->getY()+1, width, useGain ? 32 : 16);
-
-			g.fillRect(area);
-
-
-			g.setColour(Colours::white.withAlpha(0.7f));
-			g.setFont(GLOBAL_BOLD_FONT());
-
-			
-			g.drawText(fileName, area, Justification::topRight, false);
-
-			if(useGain)
-				g.drawText(autogain, area, Justification::bottomRight, false);
-
-			if (auto f = selection.getFirst())
-			{
-				if (f->isMissing())
-				{
-					g.setColour(Colours::black.withAlpha(0.4f));
-					
-
-					auto b = viewport->getBounds().toFloat();
-
-					g.fillRect(b);
-
-					g.setColour(Colours::white);
-					g.drawText(f->getReferenceToSound()->getFileName(true) + " is missing", b, Justification::centred);
-				}
-			}
-
-		}
-
-
-	}
-
-	void updateWaveform()
-	{
-		samplerEditorCommandManager->commandStatusChanged();
-
-		currentWaveForm->updateRanges();
-	}
-
-	void zoom(bool zoomOut)
-	{
-		if(!zoomOut)
-		{
-			zoomFactor = jmin(64.0f, zoomFactor * 1.5f); resized();
-		}
+		if(e.mods.isCtrlDown())
+			zoom(wheel.deltaY < 0, e.getEventRelativeTo(viewport).getPosition().getX());
 		else
-		{
-			zoomFactor = jmax(1.0f, zoomFactor / 1.5f); resized();
-		}
-
-		resized();
-	}
-
-	void mouseWheelMove	(	const MouseEvent & 	event, const MouseWheelDetails & 	wheel )	override
-	{
-		if(event.mods.isCtrlDown())
-		{
-			zoom(wheel.deltaY < 0);
-		}
-		else
-		{
-			getParentComponent()->mouseWheelMove(event, wheel);
-		}
-
+			getParentComponent()->mouseWheelMove(e, wheel);
 	};
 
+    void comboBoxChanged(ComboBox* cb) override
+    {
+        refreshDisplayFromComboBox();
+    }
+    
+    void refreshDisplayFromComboBox();
+    
+    
     //[/UserMethods]
 
     void paint (Graphics& g);
     void resized();
 
+	Component* addButton(SampleMapCommands commandId, bool hasState);
 
+	bool keyPressed(const KeyPress& key) override;
+
+	float zoomFactor;
+    
+	Viewport& getViewport() { return *viewport; }
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	friend class SampleEditorToolbarFactory;
 
-	float zoomFactor;
-
+	LookAndFeel_V4 slaf;
+    ScrollbarFader::Laf laf;
+    GlobalHiseLookAndFeel claf;
+	
 	ModulatorSampler *sampler;
 	SamplerBody	*body;
 
+    Slider spectrumSlider;
+    
+	HiseShapeButton* envelopeButton;
+
+	ScrollbarFader fader;
+	
+
+	ScopedPointer<Component> viewContent;
+
 	ScopedPointer<SamplerSoundWaveform> currentWaveForm;
 
-	ReferenceCountedArray<ModulatorSamplerSound> selection;
+	SampleSelection selection;
 
-	ScopedPointer<SampleEditorToolbarFactory> toolbarFactory;
+	OwnedArray<HiseShapeButton> menuButtons;
 
-	ScopedPointer<ApplicationCommandManager> samplerEditorCommandManager;
+	Component* analyseButton;
+	Component* externalButton;
+	Component* improveButton;
+	Component* scriptButton;
+
+	
 
     //[/UserVariables]
 
@@ -373,9 +353,18 @@ private:
     ScopedPointer<ValueSettingComponent> loopEndSetter;
     ScopedPointer<ValueSettingComponent> loopCrossfadeSetter;
     ScopedPointer<ValueSettingComponent> startModulationSetter;
-    ScopedPointer<Toolbar> toolbar;
     ScopedPointer<ValueSettingComponent> panSetter;
+	ScopedPointer<ExternalFileChangeWatcher> externalWatcher;
 
+	ScopedPointer<Component> verticalZoomer;
+    ScopedPointer<ComboBox> sampleSelector;
+    ScopedPointer<ComboBox> multimicSelector;
+    
+	DraggableThumbnail overview;
+
+    
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleEditor);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SampleEditor)

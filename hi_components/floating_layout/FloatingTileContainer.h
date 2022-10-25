@@ -71,6 +71,10 @@ public:
 	/** Returns the number of floating tiles in this container. */
 	int getNumComponents() const;
 
+    int getNumVisibleComponents() const;
+    
+    int getNumVisibleAndResizableComponents() const;
+    
 	/** Deletes all floating tiles in this container. */
 	void clear();
 	
@@ -127,6 +131,8 @@ public:
 
 	void notifySiblingChange();
 
+	void moveContent(int oldIndex, int newIndex);
+
 protected:
 
 	virtual void componentAdded(FloatingTile* newComponent) = 0;
@@ -147,14 +153,14 @@ private:
 
 /** A tab component that sits within a floating tile. */
 class FloatingTabComponent : public FloatingTileContainer,
-	public TabbedComponent,
-	public ButtonListener
+	public TabbedComponent
 {
 public:
 
 	enum TabPropertyIds
 	{
 		CurrentTab = FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds,
+		CycleKeyPress,
 		numTabPropertyIds
 	};
 
@@ -199,6 +205,18 @@ public:
 	var toDynamicObject() const override;
 	void fromDynamicObject(const var& objectData) override;
 
+    void setDisplayedFloatingTile(FloatingTile* t)
+    {
+        for(int i = 0; i < getNumComponents(); i++)
+        {
+            if(getComponent(i) == t)
+            {
+                setCurrentTabIndex(i);
+                return;
+            }
+        }
+    }
+    
 	int getNumDefaultableProperties() const override;
 	Identifier getDefaultablePropertyId(int i) const override;
 	var getDefaultProperty(int id) const override;
@@ -206,10 +224,24 @@ public:
 	void paint(Graphics& g) override;
 
 	void resized();
-	void buttonClicked(Button* b) override;
 
+	void addButtonClicked();
+
+	void setAddButtonCallback(const std::function<void()>& f);
+
+	void currentTabChanged(int newCurrentTabIndex, const String& newCurrentTabName) override;
+
+    Identifier getCycleKeyPress() const { return cycleKeyId; }
+    
+    void setCycleKeyPress(const Identifier& k)
+    {
+        cycleKeyId = k;
+    }
+    
 private:
 
+    Identifier cycleKeyId;
+    
 	ScopedPointer<ShapeButton> addButton;
 
 	PopupLookAndFeel plaf;
@@ -247,6 +279,8 @@ public:
 		void mouseUp(const MouseEvent& event) override;
 		void mouseDown(const MouseEvent& e) override;
 
+        bool isDragEnabled() const;
+        
 	private:
 
 		int downOffset = 0;
@@ -303,7 +337,9 @@ public:
 
 	void enableAnimationForNextLayout()
 	{
+#if HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION
 		animate = true;
+#endif
 	}
 
 	void resized() override;

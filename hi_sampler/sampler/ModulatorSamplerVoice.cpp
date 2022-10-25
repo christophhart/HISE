@@ -47,8 +47,10 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
     
+	auto sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
+
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
-	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
+	const bool samePitch = !sampler->isPitchTrackingEnabled();
 
 	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
 
@@ -73,9 +75,9 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
 	}
 
-	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound, getOwnerSynth()->getMainController()->getGlobalPitchFactor());
+	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound.get(), getOwnerSynth()->getMainController()->getGlobalPitchFactor());
 	wrappedVoice.setSampleStartModValue(sampleStartModulationDelta);
-	wrappedVoice.startNote(midiNoteNumber, velocity, sound, -1);
+	wrappedVoice.startNote(midiNoteNumber, velocity, sound.get(), -1);
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	uptimeDelta = wrappedVoice.uptimeDelta;
@@ -83,6 +85,17 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	jassert(uptimeDelta > 0.0);
 	jassert(sound->isEntireSampleLoaded() || uptimeDelta <= MAX_SAMPLER_PITCH);
+
+	if (auto fEnve = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PanMode))
+	{
+		if (auto fe = sampler->getEnvelopeFilter())
+		{
+			snex::Types::PolyHandler::ScopedVoiceSetter svs(fe->polyManager, getVoiceIndex());
+			fe->reset();
+		}
+		else
+			jassertfalse;
+	}
 }
 
 void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
@@ -108,8 +121,15 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	auto voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
-	const double propertyPitch = currentlyPlayingSamplerSound->getPropertyPitch();
+	double propertyPitch = currentlyPlayingSamplerSound->getPropertyPitch();
 	
+	auto oldUptime = voiceUptime;
+
+	if (auto env = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PitchMode))
+	{
+		propertyPitch *= env->getUptimeValue(voiceUptime);
+	}
+
 	applyConstantPitchFactor(propertyPitch);
 
 	const double pitchCounter = limitPitchDataToMaxSamplerPitch(voicePitchValues, uptimeDelta, startSample, numSamples);
@@ -123,10 +143,29 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	voiceBuffer.clear();
 
+	
+
 	wrappedVoice.renderNextBlock(voiceBuffer, startSample, numSamples);
 
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(0, startSample), true, samplesInBlock);
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(1, startSample), false, samplesInBlock);
+
+	float envGain = 1.0f;
+
+	if (auto gEnv = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::GainMode))
+	{
+		auto v0 = gEnv->getUptimeValue(voiceUptime);
+		auto v1 = gEnv->getUptimeValue(wrappedVoice.voiceUptime);
+
+		if (std::abs(v0 - v1) < 0.001f)
+		{
+			envGain = v0;
+		}
+		else
+		{
+			voiceBuffer.applyGainRamp(startSample, samplesInBlock, v0, v1);
+		}
+	}
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	
@@ -151,7 +190,7 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		jassert(getConstantCrossfadeModulationValue() == 1.0f);
 	}
 	
-	float totalGain = getOwnerSynth()->getConstantGainModValue();
+	float totalGain = getOwnerSynth()->getConstantGainModValue() * envGain;
 	
 	float thisCrossfadeGain = getConstantCrossfadeModulationValue();
 
@@ -167,36 +206,66 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	if (lGain != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), lGain, samplesInBlock);
 	if (rGain != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), rGain, samplesInBlock);
 
-	
+	if (auto fEnv = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PanMode))
+	{
+		if (auto env = static_cast<ModulatorSampler*>(getOwnerSynth())->getEnvelopeFilter())
+		{
+			auto fValue = fEnv->getUptimeValue(oldUptime);
+			snex::Types::PolyHandler::ScopedVoiceSetter svs(env->polyManager, getVoiceIndex());
+			env->process(fValue, voiceBuffer, startIndex, samplesInBlock);
+		}
+		else
+			jassertfalse;
+	}
 
-#if USE_BACKEND
 	if (sampler->isLastStartedVoice(this))
 	{
 		handlePlaybackPosition(sound);
 	}
-#endif
 }
 
 void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound)
 {
     if(sound == nullptr) return;
     
+	double normPos = 0.0;
+
 	if (sound->isLoopEnabled() && sound->getLoopLength() != 0)
 	{
 		int samplePosition = (int)voiceUptime;
 
-		if (samplePosition + sound->getSampleStart() > sound->getLoopEnd())
+		if (sound->isReversed())
 		{
-			samplePosition = (int)(((int64)samplePosition % sound->getLoopLength()) + sound->getLoopStart() - sound->getSampleStart());
+			if (samplePosition > sound->getSampleEnd() - sound->getLoopStart())
+			{
+				auto offset = sound->getSampleEnd() - sound->getLoopEnd();
+				samplePosition = hmath::wrap(samplePosition - offset, sound->getLoopLength()) + offset;
+			}
+		}
+		else
+		{
+			auto sampleStart = sound->getSampleStart();
+
+			if (samplePosition + sampleStart > sound->getLoopEnd())
+			{
+				auto ls = sound->getLoopStart() - sampleStart;
+				samplePosition = hmath::wrap(samplePosition - ls, sound->getLoopLength()) + ls;
+			}
 		}
 
-		sampler->setCurrentPlayingPosition((double)samplePosition / (double)sound->getSampleLength());
+		normPos = (double)samplePosition / (double)sound->getSampleLength();
 	}
 	else
 	{
-		const double normalizedPosition = voiceUptime / (double)sound->getSampleLength();
-		sampler->setCurrentPlayingPosition(normalizedPosition);
+		normPos = voiceUptime / (double)sound->getSampleLength();
+	
 	}
+
+	if (sound->isReversed())
+		normPos = 1.0 - normPos;
+	
+
+	sampler->setCurrentPlayingPosition(normPos);
 }
 
 double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData, double uptimeDelta, int startSample, int numSamples)
@@ -237,8 +306,6 @@ void ModulatorSamplerVoice::prepareToPlay(double sampleRate, int samplesPerBlock
 	ModulatorSynthVoice::prepareToPlay(sampleRate, samplesPerBlock);
 
 	wrappedVoice.prepareToPlay(sampleRate, samplesPerBlock);
-	
-	
 }
 
 void ModulatorSamplerVoice::setLoaderBufferSize(int newBufferSize)
@@ -371,9 +438,9 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 		StreamingSamplerVoice *voiceToUse = wrappedVoices[i];
 
-		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound, globalPitchFactor);
+		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound.get(), globalPitchFactor);
 		voiceToUse->setSampleStartModValue(sampleStartModulationDelta);
-		voiceToUse->startNote(midiNoteNumber, velocity, micSound, -1);
+		voiceToUse->startNote(midiNoteNumber, velocity, micSound.get(), -1);
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 		uptimeDelta = wrappedVoices[i]->uptimeDelta;
@@ -390,10 +457,16 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 
 	auto voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 
-	const double propertyPitch = (float)currentlyPlayingSamplerSound->getPropertyPitch();
+	double propertyPitch = (float)currentlyPlayingSamplerSound->getPropertyPitch();
+
+	if (auto env = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PitchMode))
+	{
+		propertyPitch *= env->getUptimeValue(voiceUptime);
+	}
+
 	const double pitchCounter = limitPitchDataToMaxSamplerPitch(voicePitchValues, uptimeDelta * propertyPitch, startSample, numSamples);
 
-	
+	auto oldUptime = voiceUptime;
 
 	voiceBuffer.clear();
 
@@ -456,6 +529,23 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 	totalGain *= currentlyPlayingSamplerSound->getPropertyVolume();
 	totalGain *= currentlyPlayingSamplerSound->getNormalizedPeak();
 	totalGain *= velocityXFadeValue;
+
+	
+
+	if (auto gEnv = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::GainMode))
+	{
+		auto v0 = gEnv->getUptimeValue(oldUptime);
+		auto v1 = gEnv->getUptimeValue(voiceUptime);
+
+		if (std::abs(v0 - v1) < 0.001f)
+		{
+			totalGain *= v0;
+		}
+		else
+		{
+			voiceBuffer.applyGainRamp(startSample, samplesInBlock, v0, v1);
+		}
+	}
 
 	const float lGain = totalGain * currentlyPlayingSamplerSound->getBalance(false);
 	const float rGain = totalGain * currentlyPlayingSamplerSound->getBalance(true);

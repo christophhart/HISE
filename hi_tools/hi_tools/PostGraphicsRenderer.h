@@ -99,7 +99,7 @@ struct PostGraphicsRenderer
 
 	using DataStack = OwnedArray<Data>;
 
-	PostGraphicsRenderer(DataStack& stackTouse, Image& image);
+	PostGraphicsRenderer(DataStack& stackTouse, Image& image, float scaleFactor=1.0f);
 
 	void reserveStackOperations(int numOperationsToAllocate);
 
@@ -118,13 +118,27 @@ struct PostGraphicsRenderer
 
 	void desaturate();
 
-	void applyMask(Path& path, bool invert = false, bool scale=false);
+	void applyMask(const Path& path, bool invert = false, bool scale=false);
 
 	void addNoise(float noiseAmount);
 
 	void gaussianBlur(int blur);
 
 	void boxBlur(int blur);
+
+	void stackBlur(int blur);
+
+	void applyHSL(float h, float s, float l);
+
+	void applyGamma(float g);
+
+	void applyGradientMap(ColourGradient g);
+
+	void applySharpness(int delta);
+
+	void applySepia();
+
+	void applyVignette(float amount, float radius, float falloff);
 
 private:
 
@@ -133,6 +147,8 @@ private:
 	DataStack& stack;
 	int stackIndex = 0;
 	Image::BitmapData bd;
+	Image img;
+	float scaleFactor = 1.0f;
 };
 
 

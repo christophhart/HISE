@@ -254,6 +254,12 @@ class PresetBrowserColumn : public Component,
 public:
 	// ============================================================================================
 
+	struct HoverInformation
+	{
+		int columnIndex;
+		int rowIndex;
+	};
+
 	class ColumnListModel : public ListBoxModel,
 							public PresetBrowserChildComponentBase
 	{
@@ -283,6 +289,8 @@ public:
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
 		void update() override {};
+
+		bool isMouseHover(int rowNumber) const;
 
 		const Array<CachedTag>& getCachedTags() const;
 
@@ -352,6 +360,8 @@ public:
 		bool allowRecursiveSearch = false;
 		bool deleteOnClick = false;
 
+		int getColumnIndex() const { return index; }
+
 	protected:
 
 		bool empty = false;
@@ -404,6 +414,13 @@ public:
 		listbox->updateContent();
 	}
 
+	int getColumnIndex() const { return listModel->getColumnIndex(); }
+
+	int getIndexForPosition(Point<int> pos)
+	{
+		return listbox->getRowContainingPosition(pos.getX(), pos.getY());
+	}
+
 	void setEditMode(bool on) { listModel->setEditMode(on); listbox->repaint(); };
 
 	void setAllowRecursiveFileSearch(bool shouldAllow)
@@ -412,9 +429,48 @@ public:
 		listbox->updateContent();
 	}
 
-	void setShowButtons(bool shouldBeShown)
+	void setShowButtons(int buttonId, bool shouldBeShown)
 	{
-		showButtonsAtBottom = shouldBeShown;
+		enum ButtonIndexes
+		{
+			All = 0,
+			AddButton,
+			RenameButton,
+			DeleteButton
+		};
+		
+		switch (buttonId)
+		{
+			case All: showButtonsAtBottom = shouldBeShown; break;
+			case AddButton: shouldShowAddButton = shouldBeShown; break;
+			case RenameButton: shouldShowRenameButton = shouldBeShown; break;
+			case DeleteButton: shouldShowDeleteButton = shouldBeShown; break;
+		}
+		
+		
+		resized();
+	}
+	void setEditButtonOffset(int offset)
+	{
+		editButtonOffset = offset;
+		resized();
+	}
+
+	void setButtonsInsideBorder(bool inside)
+	{
+		buttonsInsideBorder = inside;
+		resized();
+	}
+
+	void setListAreaOffset(Array<var> offset)
+	{
+		listAreaOffset = offset;
+		resized();
+	}
+	
+	void setRowPadding(double padding)
+	{
+		rowPadding = padding;
 		resized();
 	}
 
@@ -422,7 +478,7 @@ public:
 	{
 		auto& l = getPresetBrowserLookAndFeel();
 
-		listbox->setRowHeight((int)l.font.getHeight() * 2);
+		listbox->setRowHeight((int)l.font.getHeight() * 2 + rowPadding);
 
 		if (auto v = listbox->getViewport())
 		{
@@ -443,6 +499,11 @@ public:
 		TouchAndHoldComponent::abortTouch();
 	}
 
+	void mouseMove(const MouseEvent& e) override
+	{
+		repaint();
+	}
+
 	void buttonClicked(Button* b);
 
 	void addEntry(const String &newName);
@@ -450,7 +511,7 @@ public:
 	void paint(Graphics& g) override;
 	void resized();
 
-	void updateButtonVisibility();
+	void updateButtonVisibility(bool isReadOnly);
 
 	void tagSelectionChanged(const StringArray& newSelection) override
 	{
@@ -478,7 +539,7 @@ public:
 	void setIsResultBar(bool shouldBeResultBar)
 	{
 		isResultBar = shouldBeResultBar;
-		updateButtonVisibility();
+		updateButtonVisibility(false);
 	}
 
 	void timerCallback() override
@@ -519,6 +580,11 @@ public:
 		listModel = newModel;
 	}
 
+	void showAddButton()
+	{
+		addButton->setVisible(true && shouldShowAddButton);
+	}
+
 private:
 
 	bool deleteByTouch = false;
@@ -526,7 +592,14 @@ private:
 	// ============================================================================================
 
 	bool showButtonsAtBottom = true;
+	bool shouldShowAddButton = true;
+	bool shouldShowRenameButton = true;
+	bool shouldShowDeleteButton = true;
+	bool buttonsInsideBorder = false;
+	int editButtonOffset = 10;
+	double rowPadding = 0;
 	Rectangle<int> listArea;
+	Array<var> listAreaOffset;
 	bool isResultBar = false;
 	int index;
 	File currentRoot;

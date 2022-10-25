@@ -93,7 +93,7 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 		{
 			auto nc = new MarkdownHelp(parser, popupWidth);
 
-			auto window = getTopLevelComponent();
+            auto window = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
 			if (window == nullptr)
 				return;
@@ -108,12 +108,12 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 				viewport->setSize(nc->getWidth() + viewport->getScrollBarThickness(), 700);
 				viewport->setScrollBarsShown(true, false, true, false);
 
-				currentPopup = &CallOutBox::launchAsynchronously(viewport, lb, window);
+				currentPopup = &CallOutBox::launchAsynchronously(std::unique_ptr<Component>(viewport), lb, window);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 			else
 			{
-				currentPopup = &CallOutBox::launchAsynchronously(nc, lb, window);
+				currentPopup = &CallOutBox::launchAsynchronously(std::unique_ptr<Component>(nc), lb, window);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 		}
@@ -133,7 +133,7 @@ juce::Path MarkdownHelpButton::getPath()
 	return path;
 }
 
-
+#if !HISE_USE_NEW_CODE_EDITOR
 void MarkdownEditor::addPopupMenuItems(PopupMenu& menuToAddTo, const MouseEvent* mouseClickEvent)
 {
 
@@ -175,6 +175,7 @@ void MarkdownEditor::performPopupMenuAction(int menuItemID)
 
 	CodeEditorComponent::performPopupMenuAction(menuItemID);
 }
+#endif
 
 struct MarkdownEditorPopupComponents
 {
@@ -211,20 +212,8 @@ struct MarkdownEditorPopupComponents
 		void buttonClicked(Button* ) override
 		{
 			auto t = getTextToInsert();
-			auto pos = parent.editor.getCaretPos();
 
-			if (parent.editor.getSelectionEnd() != parent.editor.getSelectionStart())
-			{
-				parent.editor.getDocument().replaceSection(parent.editor.getSelectionStart().getPosition(),
-					parent.editor.getSelectionEnd().getPosition(), t);
-			}
-			else
-			{
-				
-				parent.editor.getDocument().insertText(pos, t);
-			}
-
-			parent.editor.moveCaretTo(pos.movedBy(t.length()), false);
+			CommonEditorFunctions::insertTextAtCaret(&parent.editor, t);
 
 			auto tmp = &parent.editor;
 
@@ -524,7 +513,7 @@ struct MarkdownEditorPopupComponents
 				if (clipboard.isNotEmpty())
 					linkURL = clipboard;
 
-				auto text = parent.editor.getDocument().getTextBetween(parent.editor.getSelectionStart(), parent.editor.getSelectionEnd());
+				auto text = CommonEditorFunctions::getCurrentSelection(&parent.editor);
 
 				if (text.isNotEmpty())
 					linkName = text;
@@ -652,6 +641,54 @@ struct MarkdownEditorPopupComponents
 	};
 };
 
+MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
+	FloatingTileContent(root),
+	tdoc(doc),
+
+#if HISE_USE_NEW_CODE_EDITOR
+	editor(tdoc),
+#else
+	editor(doc, &tokeniser),
+#endif
+	livePreview("Live Preview", this, f),
+	newButton("New File", this, f),
+	openButton("Open File", this, f),
+	saveButton("Save File", this, f),
+	urlButton("Create Link", this, f),
+	imageButton("Create image", this, f),
+	tableButton("Create Table", this, f),
+	settingsButton("Show Settings", this, f)
+{
+	setLookAndFeel(&laf);
+
+	livePreview.setToggleModeWithColourChange(true);
+	livePreview.setToggleState(false, sendNotification);
+
+	addAndMakeVisible(editor);
+	addAndMakeVisible(livePreview);
+	addAndMakeVisible(newButton);
+	addAndMakeVisible(openButton);
+	addAndMakeVisible(saveButton);
+	addAndMakeVisible(urlButton);
+	addAndMakeVisible(imageButton);
+	addAndMakeVisible(tableButton);
+	addAndMakeVisible(settingsButton);
+
+	livePreview.setTooltip("Enable live preview of the editor's content");
+	newButton.setTooltip("Create new file");
+	openButton.setTooltip("Open a file");
+	saveButton.setTooltip("Save a file");
+	urlButton.setTooltip("Create a link");
+	imageButton.setTooltip("Create a image link");
+	tableButton.setTooltip("Create a table");
+	settingsButton.setTooltip("Show settings");
+
+#if HISE_USE_NEW_CODE_EDITOR
+    editor.editor.setLanguageManager(new mcl::MarkdownLanguageManager());
+#endif
+
+}
+
 void MarkdownEditorPanel::buttonClicked(Button* b)
 {
 	if (b == &newButton)
@@ -768,6 +805,35 @@ void MarkdownEditorPanel::loadFile(File file)
 juce::File MarkdownEditorPanel::getRootFile()
 {
 	return getMainController()->getProjectDocHolder()->getDatabaseRootDirectory();
+}
+
+void MarkdownEditorPanel::resized()
+{
+	auto area = getParentShell()->getContentBounds();
+
+	auto top = area.removeFromTop(46);
+
+	int button_margin = 10;
+
+	livePreview.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	top.removeFromLeft(20);
+
+	newButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	openButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	saveButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	top.removeFromLeft(20);
+
+	urlButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	imageButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+	tableButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
+
+	settingsButton.setBounds(top.removeFromRight(top.getHeight()).reduced(button_margin));
+
+	int w = jmin(area.getWidth(), 2000);
+
+	editor.setBounds(area.withSizeKeepingCentre(w, area.getHeight()));
 }
 
 }

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -37,31 +36,12 @@ PositionedGlyph::PositionedGlyph (const Font& font_, juce_wchar character_, int 
     : font (font_), character (character_), glyph (glyphNumber),
       x (anchorX), y (baselineY), w (width), whitespace (whitespace_)
 {
-}
-
-PositionedGlyph::PositionedGlyph (PositionedGlyph&& other) noexcept
-    : font (std::move (other.font)),
-      character (other.character), glyph (other.glyph),
-      x (other.x), y (other.y), w (other.w), whitespace (other.whitespace)
-{
-}
-
-PositionedGlyph& PositionedGlyph::operator= (PositionedGlyph&& other) noexcept
-{
-    font = std::move (other.font);
-    character = other.character;
-    glyph = other.glyph;
-    x = other.x;
-    y = other.y;
-    w = other.w;
-    whitespace = other.whitespace;
-
-    return *this;
+    jassert(width >= 0.0f);
 }
 
 PositionedGlyph::~PositionedGlyph() {}
 
-static inline void drawGlyphWithFont (Graphics& g, int glyph, const Font& font, AffineTransform t)
+static void drawGlyphWithFont (Graphics& g, int glyph, const Font& font, AffineTransform t)
 {
     auto& context = g.getInternalContext();
     context.setFont (font);
@@ -84,7 +64,7 @@ void PositionedGlyph::createPath (Path& path) const
 {
     if (! isWhitespace())
     {
-        if (auto* t = font.getTypeface())
+        if (auto t = font.getTypefacePtr())
         {
             Path p;
             t->getOutlineForGlyph (glyph, p);
@@ -99,7 +79,7 @@ bool PositionedGlyph::hitTest (float px, float py) const
 {
     if (getBounds().contains (px, py) && ! isWhitespace())
     {
-        if (auto* t = font.getTypeface())
+        if (auto t = font.getTypefacePtr())
         {
             Path p;
             t->getOutlineForGlyph (glyph, p);
@@ -127,20 +107,6 @@ GlyphArrangement::GlyphArrangement()
 {
     glyphs.ensureStorageAllocated (128);
 }
-
-GlyphArrangement::GlyphArrangement (GlyphArrangement&& other)
-    : glyphs (std::move (other.glyphs))
-{
-}
-
-GlyphArrangement& GlyphArrangement::operator= (GlyphArrangement&& other)
-{
-    glyphs = std::move (other.glyphs);
-
-    return *this;
-}
-
-GlyphArrangement::~GlyphArrangement() {}
 
 //==============================================================================
 void GlyphArrangement::clear()
@@ -175,42 +141,92 @@ void GlyphArrangement::addLineOfText (const Font& font, const String& text, floa
     addCurtailedLineOfText (font, text, xOffset, yOffset, 1.0e10f, false);
 }
 
-void GlyphArrangement::addCurtailedLineOfText (const Font& font, const String& text,
-                                               float xOffset, float yOffset,
-                                               float maxWidthPixels, bool useEllipsis)
+void GlyphArrangement::addCurtailedLineOfText(const Font& font, const String& text,
+	float xOffset, float yOffset,
+	float maxWidthPixels, bool useEllipsis)
 {
-    if (text.isNotEmpty())
-    {
-        Array<int> newGlyphs;
-        Array<float> xOffsets;
-        font.getGlyphPositions (text, newGlyphs, xOffsets);
-        auto textLen = newGlyphs.size();
-        glyphs.ensureStorageAllocated (glyphs.size() + textLen);
+	if (text.isNotEmpty())
+	{
+		if (text.containsChar('\t'))
+		{
+			auto parts = StringArray::fromTokens(text, "\t", "");
+			auto spaceWidth = font.getStringWidthFloat(" ");
+			auto startOffset = xOffset;
 
-        auto t = text.getCharPointer();
+			int partIndex = 0;
 
-        for (int i = 0; i < textLen; ++i)
-        {
-            auto nextX = xOffsets.getUnchecked (i + 1);
+			for (const auto& p : parts)
+			{
+				auto tabWidth = spaceWidth * 4.0f;
 
-            if (nextX > maxWidthPixels + 1.0f)
-            {
-                // curtail the string if it's too wide..
-                if (useEllipsis && textLen > 3 && glyphs.size() >= 3)
-                    insertEllipsis (font, xOffset + maxWidthPixels, 0, glyphs.size());
+				float widthToAdd = 0.0f;
 
-                break;
-            }
+				if (p.isEmpty())
+				{
+					widthToAdd = tabWidth;
 
-            auto thisX = xOffsets.getUnchecked (i);
-            bool isWhitespace = t.isWhitespace();
+					glyphs.add(PositionedGlyph(font, ' ', 0,
+						xOffset, yOffset, widthToAdd, true));
 
-            glyphs.add (PositionedGlyph (font, t.getAndAdvance(),
-                                         newGlyphs.getUnchecked(i),
-                                         xOffset + thisX, yOffset,
-                                         nextX - thisX, isWhitespace));
-        }
-    }
+					xOffset += widthToAdd;
+				}
+				else
+				{
+					addCurtailedLineOfText(font, p, xOffset, yOffset, maxWidthPixels, useEllipsis);
+
+					xOffset = glyphs.getLast().getRight();
+
+					auto x2 = xOffset - startOffset;
+					x2 = (std::floor((x2 + 0.5f) / tabWidth) + 1.0f) * tabWidth;
+					x2 += startOffset;
+					widthToAdd = x2 - xOffset;
+
+					if (partIndex != parts.size() - 1)
+					{
+						glyphs.add(PositionedGlyph(font, ' ', 0,
+							xOffset, yOffset, widthToAdd, true));
+
+						xOffset += widthToAdd;
+					}
+				}
+
+				partIndex++;
+			}
+		}
+		else
+		{
+
+			Array<int> newGlyphs;
+			Array<float> xOffsets;
+			font.getGlyphPositions(text, newGlyphs, xOffsets);
+			auto textLen = newGlyphs.size();
+			glyphs.ensureStorageAllocated(glyphs.size() + textLen);
+
+			auto t = text.getCharPointer();
+
+			for (int i = 0; i < textLen; ++i)
+			{
+				auto nextX = xOffsets.getUnchecked(i + 1);
+
+				if (nextX > maxWidthPixels + 1.0f)
+				{
+					// curtail the string if it's too wide..
+					if (useEllipsis && textLen > 3 && glyphs.size() >= 3)
+						insertEllipsis(font, xOffset + maxWidthPixels, 0, glyphs.size());
+
+					break;
+				}
+
+				auto thisX = xOffsets.getUnchecked(i);
+				bool isWhitespace = t.isWhitespace();
+
+				glyphs.add(PositionedGlyph(font, t.getAndAdvance(),
+					newGlyphs.getUnchecked(i),
+					xOffset + thisX, yOffset,
+					nextX - thisX, isWhitespace));
+			}
+		}
+	}
 }
 
 int GlyphArrangement::insertEllipsis (const Font& font, float maxXPos, int startIndex, int endIndex)
@@ -256,7 +272,8 @@ int GlyphArrangement::insertEllipsis (const Font& font, float maxXPos, int start
 
 void GlyphArrangement::addJustifiedText (const Font& font, const String& text,
                                          float x, float y, float maxLineWidth,
-                                         Justification horizontalLayout)
+                                         Justification horizontalLayout,
+                                         float leading)
 {
     auto lineStartIndex = glyphs.size();
     addLineOfText (font, text, x, y);
@@ -331,7 +348,7 @@ void GlyphArrangement::addJustifiedText (const Font& font, const String& text,
 
         lineStartIndex = i;
 
-        y += font.getHeight();
+        y += font.getHeight() + leading;
     }
 }
 
@@ -480,7 +497,15 @@ Rectangle<float> GlyphArrangement::getBoundingBox (int startIndex, int num, bool
         auto& pg = glyphs.getReference (startIndex++);
 
         if (includeWhitespace || ! pg.isWhitespace())
-            result = result.getUnion (pg.getBounds());
+        {
+            auto gb = pg.getBounds();
+            
+            if(gb.getWidth() < 0)
+                gb.setWidth(-1.0f * gb.getWidth());
+            
+            result = result.getUnion(gb);
+        }
+            
     }
 
     return result;
@@ -577,7 +602,7 @@ void GlyphArrangement::spreadOutLine (int start, int num, float targetWidth)
     }
 }
 
-static inline bool isBreakableGlyph (const PositionedGlyph& g) noexcept
+static bool isBreakableGlyph (const PositionedGlyph& g) noexcept
 {
     return g.isWhitespace() || g.getCharacter() == '-';
 }
@@ -615,7 +640,7 @@ void GlyphArrangement::splitLines (const String& text, Font font, int startIndex
         // allowing for unevenness in the lengths due to differently sized words.
         const float lineLengthUnevennessAllowance = 80.0f;
 
-        if (numLines > (lineWidth + lineLengthUnevennessAllowance) / width || newFontHeight < 8.0f)
+        if ((float) numLines > (lineWidth + lineLengthUnevennessAllowance) / width || newFontHeight < 8.0f)
             break;
     }
 
@@ -625,7 +650,7 @@ void GlyphArrangement::splitLines (const String& text, Font font, int startIndex
     int lineIndex = 0;
     auto lineY = y;
     auto widthPerLine = jmin (width / minimumHorizontalScale,
-                              lineWidth / numLines);
+                              lineWidth / (float) numLines);
 
     while (lineY < y + height)
     {
@@ -744,7 +769,7 @@ void GlyphArrangement::draw (const Graphics& g, AffineTransform transform) const
 
     for (int i = 0; i < glyphs.size(); ++i)
     {
-        auto& pg = glyphs.getReference(i);
+        auto& pg = glyphs.getReference (i);
 
         if (pg.font.isUnderlined())
             drawGlyphUnderline (g, pg, i, transform);

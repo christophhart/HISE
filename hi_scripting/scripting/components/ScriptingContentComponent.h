@@ -86,7 +86,8 @@ class ScriptContentComponent: public Component,
 							  public GlobalScriptCompileListener,
 							  public ScriptingApi::Content::RebuildListener,
 							  public AsyncValueTreePropertyListener,
-							  public Processor::DeleteListener							
+							  public Processor::DeleteListener,
+							  public ScriptingApi::Content::ScreenshotListener
 {
 public:
 
@@ -134,17 +135,14 @@ public:
 
 	void paint(Graphics &g) override;
 
-    void paintOverChildren(Graphics& g) override
-    {
-        if(isRebuilding)
-        {
-            g.fillAll(Colours::black.withAlpha(0.8f));
-            g.setColour(Colours::white);
-            g.setFont(GLOBAL_BOLD_FONT());
-            g.drawText("Rebuilding...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
-        }
-    }
+    void paintOverChildren(Graphics& g) override;
     
+	void makeScreenshot(const File& target, Rectangle<float> area) override;
+
+	void visualGuidesChanged() override;
+
+	void prepareScreenshot() override;
+
 	void contentWasRebuilt() override;
 
     void contentRebuildStateChanged(bool rebuildState)
@@ -200,6 +198,24 @@ public:
 	void updateValue(int i);
 
 	void updateValues();
+
+	struct SimpleTraverser : public ComponentTraverser
+	{
+		SimpleTraverser() = default;
+		
+		Component* getDefaultComponent(Component* parentComponent) override;
+		Component* getNextComponent(Component* current) override;
+		Component* getPreviousComponent(Component* current) override;
+		std::vector<Component*> getAllComponents(Component* parentComponent) override;
+
+	};
+
+	std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override
+	{
+		std::unique_ptr<ComponentTraverser> s;
+		s.reset(new SimpleTraverser());
+		return s;
+	}
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 
@@ -369,6 +385,7 @@ public:
 		FixTocWidth,
 		StartURL,
 		ServerUpdateURL,
+		CustomContent,
 		numSpecialPanelIds
 	};
 
@@ -412,6 +429,7 @@ public:
 		showBack = getPropertyWithDefault(obj, SpecialPanelIds::ShowBack);
 		showToc = getPropertyWithDefault(obj, SpecialPanelIds::ShowToc);
 		startURL = getPropertyWithDefault(obj, SpecialPanelIds::StartURL);
+		customContent = getPropertyWithDefault(obj, SpecialPanelIds::CustomContent);
 
 		boldFontName = getPropertyWithDefault(obj, SpecialPanelIds::BoldFontName).toString();
 
@@ -447,6 +465,8 @@ public:
 		storePropertyInObject(obj, SpecialPanelIds::FixTocWidth, fixWidth);
 		storePropertyInObject(obj, SpecialPanelIds::StartURL, startURL);
 		storePropertyInObject(obj, SpecialPanelIds::ServerUpdateURL, serverURL);
+		storePropertyInObject(obj, SpecialPanelIds::CustomContent, customContent);
+
 
 		return obj;
 	}
@@ -468,6 +488,7 @@ public:
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FixTocWidth, "FixTocWidth");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::StartURL, "StartURL");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ServerUpdateURL, "ServerUpdateURL");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::CustomContent, "CustomContent");
 
 		jassertfalse;
 		return{};
@@ -485,6 +506,7 @@ public:
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FixTocWidth, -1);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::StartURL, "/");
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ServerUpdateURL, "");
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::CustomContent, "");
 
 		jassertfalse;
 		return{};
@@ -507,9 +529,10 @@ public:
 	String contentFile;
 	String startURL;
 	String serverURL;
+	String customContent;
 	int options;
 
-	ScopedPointer<MarkdownPreview> preview;
+	ScopedPointer<HiseMarkdownPreview> preview;
 };
 
 

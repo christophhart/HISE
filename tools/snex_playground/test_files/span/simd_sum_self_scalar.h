@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0.0f
   output: 116.0f
   error: ""
+  compile_flags: AutoVectorisation
   filename: "span/simd_sum_self_scalar"
 END_TEST_DATA
 */

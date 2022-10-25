@@ -255,19 +255,14 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
 
 void FileNameImporterDialog::restoreFromXml(const String& xmlData)
 {
-	ScopedPointer<XmlElement> settings = XmlDocument::parse(xmlData);
-
-	if (settings != nullptr)
+	if (auto settings = XmlDocument::parse(xmlData))
 	{
 		separatorEditor->setText(settings->getStringAttribute("Separator", "_"), sendNotification);
 
 		if (tokenPanels.size() == settings->getNumChildElements())
 		{
 			for (int i = 0; i < settings->getNumChildElements(); i++)
-			{
 				tokenPanels[i]->importSettings(*settings->getChildElement(i));
-
-			}
 		}
 		else
 		{

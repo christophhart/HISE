@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0.0f
   output: 9.0f
   error: ""
+  compile_flags: AutoVectorisation
   filename: "struct/simd_on_local_member_span"
 END_TEST_DATA
 */

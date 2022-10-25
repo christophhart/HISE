@@ -32,6 +32,373 @@
 
 namespace hise { using namespace juce;
 
+void MainController::UserPresetHandler::TagDataBase::buildDataBase(bool force /*= false*/)
+{
+	if (force || dirty)
+	{
+		buildInternal();
+	}
+}
+
+void MainController::UserPresetHandler::TagDataBase::buildInternal()
+{
+	cachedTags.clear();
+
+	Array<File> allPresets;
+
+	root.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+
+	PresetBrowser::DataBaseHelpers::cleanFileList(nullptr, allPresets);
+
+	for (auto f : allPresets)
+	{
+		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
+
+		CachedTag newTag;
+		newTag.hashCode = f.hashCode64();
+		for (auto t : sa)
+			newTag.tags.add(Identifier(t));
+
+		cachedTags.add(std::move(newTag));
+	}
+
+	dirty = false;
+}
+
+void MainController::UserPresetHandler::TagDataBase::setRootDirectory(const File& newRoot)
+{
+
+	if (root != newRoot)
+	{
+		root = newRoot;
+		dirty = true;
+	}
+}
+
+struct MainController::UserPresetHandler::CustomAutomationData::CableConnection: 
+	public MainController::UserPresetHandler::CustomAutomationData::ConnectionBase,
+	public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+																	
+{
+	CableConnection(scriptnode::routing::GlobalRoutingManager::SlotBase::Ptr c) :
+		cable(c)
+	{
+		if (auto typed = dynamic_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(cable.get()))
+		{
+			typed->addTarget(this);
+		}
+	}
+
+	~CableConnection()
+	{
+		if (auto typed = dynamic_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(cable.get()))
+		{
+			typed->removeTarget(this);
+		}
+	}
+
+	bool isValid() const final override
+	{
+		return cable != nullptr;
+	}
+
+	void sendValue(double v) override
+	{
+		if (parent != nullptr)
+		{
+			v = parent->range.convertFrom0to1((float)v);
+
+			ScopedValueSetter<bool> svs(recursive, true);
+			parent->call(v, true);
+		}
+	}
+
+	Path getTargetIcon() const override
+	{
+		return {};
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+
+	}
+
+	String getTargetId() const override
+	{
+		return "Automation";
+	}
+
+	void call(float v) const final override
+	{
+		if (isValid() && !recursive)
+		{
+			auto unconst = const_cast<CableConnection*>(this);
+			v = r.convertTo0to1(v);
+			static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(cable.get())->sendValue(unconst, (double)v);
+		}
+	}
+
+	String getDisplayString() const final override
+	{
+		if (isValid())
+			return "Cable: " + static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(cable.get())->id;
+
+		return "Unknown cable";
+	}
+
+	float getLastValue() const final override
+	{
+		if (cable != nullptr)
+			return (float)static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(cable.get())->lastValue;
+
+		return 0.0f;
+	}
+
+	NormalisableRange<float> r;
+	scriptnode::routing::GlobalRoutingManager::SlotBase::Ptr cable;
+
+	CustomAutomationData::WeakPtr parent;
+	bool recursive = false;
+};
+
+MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(CustomAutomationData::List newList, MainController* mc, int index_, const var& d) :
+	ControlledObject(mc),
+	index(index_),
+	r(Result::ok())
+{
+	static const Identifier id_("ID");
+	static const Identifier min("min");
+	static const Identifier max("max");
+	static const Identifier midPos("middlePosition");
+	static const Identifier step("stepSize");
+	static const Identifier isMidi("allowMidiAutomation");
+	static const Identifier isHost("allowHostAutomation");
+	static const Identifier connections("connections");
+	
+
+	id = d[id_].toString();
+
+	allowMidi = (bool)d.getProperty(isMidi, true);
+	allowHost = (bool)d.getProperty(isHost, true);
+
+	range.start = (float)d.getProperty(min, 0.0f);
+	range.end = (float)d.getProperty(max, 1.0f);
+
+	if (d.hasProperty(midPos))
+		range.setSkewForCentre((float)d[midPos]);
+
+	range.interval = (float)d.getProperty(step, 0.0f);
+
+	auto cArray = d[connections];
+
+	if (cArray.isArray())
+	{
+		try
+		{
+			for (const auto& c : *cArray.getArray())
+				connectionList.add(parse(newList, mc, c));
+
+			for (auto c : connectionList)
+			{
+				if (auto cc = dynamic_cast<CableConnection*>(c))
+					cc->parent = this;
+			}
+		}
+		catch (String& error)
+		{
+			r = Result::fail(error);
+		}
+	}
+	else
+	{
+		r = Result::fail("No connections");
+	}
+
+	args[0] = index;
+	args[1] = var(lastValue);
+
+	if (id.toString().isEmpty())
+		r = Result::fail("No ID");
+
+	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
+
+	asyncListeners.sendMessage(dontSendNotification, index, lastValue);
+	syncListeners.sendMessage(dontSendNotification, args);
+}
+
+hise::MainController::UserPresetHandler::CustomAutomationData::ConnectionBase::Ptr MainController::UserPresetHandler::CustomAutomationData::parse(CustomAutomationData::List newList, MainController* mc, const var& c)
+{
+	static const Identifier processorId("processorId");
+	static const Identifier parameterId("parameterId");
+	static const Identifier automationId("automationId");
+	static const Identifier cableId("cableId");
+
+	auto pId = c[processorId].toString();
+	auto paramId = c[parameterId].toString();
+	auto automId = c[automationId].toString();
+	auto cId = c[cableId].toString();
+
+	if (pId.isNotEmpty() && paramId.isNotEmpty())
+	{
+		auto pc = new ProcessorConnection();
+
+		if ((pc->connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), pId)))
+			pc->connectedParameterIndex = pc->connectedProcessor->getParameterIndexForIdentifier(paramId);
+
+		if (pc->isValid())
+		{
+			lastValue = pc->connectedProcessor->getAttribute(pc->connectedParameterIndex);
+			return pc;
+		}
+		else
+		{
+			throw String("Can't find processor / parameter with ID " + pId + "." + paramId);
+		}
+	}
+	else if (automId.isNotEmpty())
+	{
+		for (auto l : newList)
+		{
+			if (l->id == Identifier(automId))
+			{
+				auto p = new MetaConnection();
+				p->target = l;
+				return p;
+			}
+		}
+		
+		throw String("Can't find automation ID for meta automation: " + automId);
+	}
+	else if (cId.isNotEmpty())
+	{
+		if (auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(mc))
+		{
+			for (auto c : m->cables)
+			{
+				if (c->id == cId)
+				{
+					auto cc = new CableConnection(c);
+					cc->cable = c;
+					
+					return cc;
+				}
+			}
+
+			auto c = m->getSlotBase(cId, scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+
+			auto cc = new CableConnection(c);
+			cc->cable = c;
+			return cc;
+		}
+	}
+
+	throw String("unknown target type: " + JSON::toString(c, true));
+}
+
+void MainController::UserPresetHandler::CustomAutomationData::updateFromConnectionValue(int preferredIndex)
+{
+	preferredIndex = jlimit(0, connectionList.size() - 1, preferredIndex);
+
+	if (auto c = connectionList[preferredIndex])
+	{
+		auto newValue = c->getLastValue();
+
+		FloatSanitizers::sanitizeFloatNumber(newValue);
+
+		lastValue = newValue;
+		args[0] = index;
+		args[1] = newValue;
+
+		syncListeners.sendMessage(sendNotificationSync, args);
+		asyncListeners.sendMessage(sendNotificationAsync, index, newValue);
+	}
+}
+
+bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToMidi() const
+{
+	if (!allowMidi)
+		return false;
+
+	auto handler = getMainController()->getMacroManager().getMidiControlAutomationHandler();
+
+	for (int i = 0; i < handler->getNumActiveConnections(); i++)
+	{
+		auto d = handler->getDataFromIndex(i);
+
+		if (d.used && d.attribute == index)
+			return true;
+	}
+
+	return false;
+}
+
+bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToComponent() const
+{
+	return asyncListeners.template getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
+}
+
+void MainController::UserPresetHandler::CustomAutomationData::call(float newValue, bool sendToListeners, const std::function<bool(ConnectionBase*)>& connectionFilter)
+{
+	FloatSanitizers::sanitizeFloatNumber(newValue);
+
+	newValue = range.getRange().clipValue(newValue);
+	newValue = range.snapToLegalValue(newValue);
+	lastValue = newValue;
+	args[0] = index;
+	args[1] = lastValue;
+
+	if (sendToListeners)
+	{
+		for (auto pc : connectionList)
+		{
+			if(!connectionFilter || connectionFilter(pc))
+				pc->call(newValue);
+		}
+			
+		syncListeners.sendMessage(sendNotificationSync, args);
+		asyncListeners.sendMessage(sendNotificationAsync, index, lastValue);
+	}
+	else
+	{
+		syncListeners.sendMessage(dontSendNotification, args);
+		asyncListeners.sendMessage(dontSendNotification, index, lastValue);
+	}
+}
+
+
+void MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::call(float v) const
+{
+	jassert(connectedProcessor != nullptr);
+
+	if (*this)
+		connectedProcessor.get()->setAttribute(connectedParameterIndex, v, sendNotification);
+}
+
+String MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::getDisplayString() const
+{
+	String id;
+
+	if (connectedProcessor != nullptr)
+	{
+		id << connectedProcessor->getId() << "::" << connectedProcessor->getIdentifierForParameterIndex(connectedParameterIndex).toString();
+	}
+	else
+		id << "Dangling connection";
+
+	return id;
+}
+
+float MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::getLastValue() const
+{
+	if (isValid())
+	{
+		return connectedProcessor->getAttribute(connectedParameterIndex);
+	}
+
+	return 0.0f;
+}
+
+
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_)
 {
@@ -54,6 +421,8 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 			return SafeFunctionCall::OK;
 		};
 
+		preprocess(pendingPreset);
+
 		// Send a note off to stop the arpeggiator etc...
 		mc->allNotesOff(false);
 
@@ -61,9 +430,18 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 	}
 }
 
+void MainController::UserPresetHandler::preprocess(ValueTree& presetToLoad)
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			presetToLoad = l.get()->prePresetLoad(presetToLoad, currentlyLoadedFile);
+	}
+}
+
 void MainController::UserPresetHandler::loadUserPreset(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{
@@ -168,22 +546,27 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 			{
 				if (!sp->isFront()) continue;
 
-				ValueTree v;
-
-				for (auto c: userPresetToLoad)
-				{
-					if (c.getProperty("Processor") == sp->getId())
-					{
-						v = c;
-						break;
-					}
-				}
-
 				UserPresetHelpers::restoreModuleStates(mc->getMainSynthChain(), userPresetToLoad);
 
-				if (v.isValid())
+				if (mc->getUserPresetHandler().isUsingCustomDataModel())
 				{
-					sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+					mc->getUserPresetHandler().loadCustomValueTree(userPresetToLoad);
+				}
+				else
+				{
+					ValueTree v;
+
+					for (auto c : userPresetToLoad)
+					{
+						if (c.getProperty("Processor") == sp->getId())
+						{
+							v = c;
+							break;
+						}
+					}
+
+					if (v.isValid())
+						sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 				}
 			}
 		}
@@ -216,33 +599,37 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		if (mc->getMacroManager().isMacroEnabledOnFrontend())
 			mc->getMacroManager().getMacroChain()->loadMacroValuesFromValueTree(userPresetToLoad);
 
-		auto f = [](Dispatchable* obj)
-		{
-			auto uph = static_cast<UserPresetHandler*>(obj);
-			auto mc_ = uph->mc;
-			ignoreUnused(mc_);
-			jassert_dispatched_message_thread(mc_);
-
-			ScopedLock sl(uph->listeners.getLock());
-
-			for (auto l : uph->listeners)
-			{
-				uph->mc->checkAndAbortMessageThreadOperation();
-
-				if (l != nullptr)
-					l->presetChanged(uph->currentlyLoadedFile);
-			}
-
-			return Status::OK;
-		};
-
-		mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+		postPresetLoad();
 	}
-
-	
 
 	mc->getSampleManager().preloadEverything();
 }
+
+void MainController::UserPresetHandler::postPresetLoad()
+{
+	auto f = [](Dispatchable* obj)
+	{
+		auto uph = static_cast<UserPresetHandler*>(obj);
+		auto mc_ = uph->mc;
+		ignoreUnused(mc_);
+		jassert_dispatched_message_thread(mc_);
+
+		ScopedLock sl(uph->listeners.getLock());
+
+		for (auto l : uph->listeners)
+		{
+			uph->mc->checkAndAbortMessageThreadOperation();
+
+			if (l != nullptr)
+				l->presetChanged(uph->currentlyLoadedFile);
+		}
+
+		return Status::OK;
+	};
+
+	mc->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(this, f);
+}
+
 
 
 void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDirectory)
@@ -309,48 +696,192 @@ void MainController::UserPresetHandler::removeListener(Listener* listener)
 	listeners.removeAllInstancesOf(listener);
 }
 
-void MainController::UserPresetHandler::TagDataBase::buildDataBase(bool force /*= false*/)
+
+
+
+bool MainController::UserPresetHandler::isReadOnly(const File& f)
 {
-	if (force || dirty)
+#if READ_ONLY_FACTORY_PRESETS
+	return factoryPaths->contains(mc, f);
+#else
+	return false;
+#endif
+}
+
+void MainController::UserPresetHandler::loadCustomValueTree(const ValueTree& presetData)
+{
+	auto v = presetData.getChildWithName("CustomJSON");
+	if (v.isValid())
 	{
-		buildInternal();
+		auto obj = ValueTreeConverters::convertValueTreeToDynamicObject(v);
+
+		//auto obj = JSON::parse(v["Data"].toString());
+
+		
+
+		if (obj.isObject() || obj.isArray())
+		{
+			for (auto l : listeners)
+			{
+				l->loadCustomUserPreset(obj);
+			}
+		}
 	}
 }
 
-void MainController::UserPresetHandler::TagDataBase::buildInternal()
+juce::StringArray MainController::UserPresetHandler::getCustomAutomationIds() const
 {
-	cachedTags.clear();
-
-	Array<File> allPresets;
-
-	root.findChildFiles(allPresets, File::findFiles, true, "*.preset");
-
-	PresetBrowser::DataBaseHelpers::cleanFileList(nullptr, allPresets);
-
-	for (auto f : allPresets)
+	StringArray sa;
+	for (auto l : customAutomationData)
 	{
-		auto sa = PresetBrowser::DataBaseHelpers::getTagsFromXml(f);
-
-		CachedTag newTag;
-		newTag.hashCode = f.hashCode64();
-		for (auto t : sa)
-			newTag.tags.add(Identifier(t));
-
-		cachedTags.add(std::move(newTag));
+		sa.add(l->id.toString());
 	}
 
-	dirty = false;
+	return sa;
 }
 
-void MainController::UserPresetHandler::TagDataBase::setRootDirectory(const File& newRoot)
+int MainController::UserPresetHandler::getCustomAutomationIndex(const Identifier& id) const
 {
+	int index = 0;
 
-	if (root != newRoot)
+	for (auto l : customAutomationData)
 	{
-		root = newRoot;
-		dirty = true;
+		if (l->id == id)
+			return index;
+
+		index++;
+	}
+    
+    return -1;
+}
+
+juce::ValueTree MainController::UserPresetHandler::createCustomValueTree(const String& presetName)
+{
+	jassert(isUsingCustomData);
+
+	for (auto l : listeners)
+	{
+		auto obj = l->saveCustomUserPreset(presetName);
+
+		if (obj.isObject())
+			return ValueTreeConverters::convertDynamicObjectToValueTree(obj, "CustomJSON");
+	}
+
+	return {};
+}
+
+bool MainController::UserPresetHandler::setCustomAutomationData(CustomAutomationData::List newList)
+{
+	if (isUsingCustomData)
+	{
+		customAutomationData.swapWith(newList);
+
+		deferredAutomationListener.sendMessage(sendNotificationSync, true);
+		deferredAutomationListener.removeAllListeners();
+
+		return true;
+	}
+	
+	return false;
+}
+
+MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(const Identifier& id) const
+{
+	for (auto l : customAutomationData)
+	{
+		if (l->id == id)
+			return l;
+	}
+
+	return nullptr;
+}
+
+void MainController::UserPresetHandler::setUseCustomDataModel(bool shouldUseCustomModel, bool shouldUsePersistentObject)
+{
+	isUsingCustomData = shouldUseCustomModel;
+	usePersistentObject = shouldUsePersistentObject;
+}
+
+#if READ_ONLY_FACTORY_PRESETS
+bool MainController::UserPresetHandler::FactoryPaths::contains(MainController* mc, const File& f)
+{
+	if (!initialised)
+		initialise(mc);
+
+	auto path = getPath(mc, f);
+
+	if (path.isNotEmpty())
+	{
+		auto ok = factoryPaths.contains(path);
+		return ok;
+	}
+
+
+	return false;
+}
+
+void MainController::UserPresetHandler::FactoryPaths::initialise(MainController* mc)
+{
+#if USE_FRONTEND
+	ScopedPointer<MemoryInputStream> mis = FrontendFactory::getEmbeddedData(FileHandlerBase::UserPresets);
+	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
+	MemoryBlock mb(mis->getData(), mis->getDataSize());
+	ValueTree presetTree;
+	decompressor.expand(mb, presetTree);
+
+	for (auto c : presetTree)
+		addRecursive(c, "{PROJECT_FOLDER}");
+#endif
+
+	initialised = true;
+
+}
+
+String MainController::UserPresetHandler::FactoryPaths::getPath(MainController* mc, const File& f)
+{
+	auto factoryFolder = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+
+	if (f.isAChildOf(factoryFolder))
+		return "{PROJECT_FOLDER}" + f.withFileExtension("").getRelativePathFrom(factoryFolder).replace("\\", "/");
+
+	for (int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+	{
+		auto e = mc->getExpansionHandler().getExpansion(i);
+		auto expFolder = e->getSubDirectory(FileHandlerBase::UserPresets);
+
+		if (f.isAChildOf(expFolder))
+			return e->getWildcard() + f.withFileExtension("").getRelativePathFrom(expFolder).replace("\\", "/");
+	}
+
+	return {};
+}
+
+void MainController::UserPresetHandler::FactoryPaths::addRecursive(const ValueTree& v, const String& path)
+{
+	if (v["isDirectory"])
+	{
+		String thisPath;
+
+		thisPath << path << v["FileName"].toString();
+
+		for (auto c : v)
+		{
+			addRecursive(c, thisPath + "/");
+		}
+
+		this->factoryPaths.addIfNotAlreadyThere(thisPath);
+	}
+	if (v.getType() == Identifier("PresetFile"))
+	{
+		String thisFile;
+
+		thisFile << path << v["FileName"].toString();
+
+		this->factoryPaths.addIfNotAlreadyThere(thisFile);
+		return;
 	}
 }
+#endif
 
 
 

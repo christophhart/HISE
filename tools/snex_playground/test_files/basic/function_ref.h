@@ -10,8 +10,12 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
+// The & means reference, so the function
+// will operate on the argument that was passed in
 void setToFour(int& r)
 {
+	// the function was called with x,
+	// so this will change x
     r = 4;
 }
 

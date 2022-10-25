@@ -85,7 +85,7 @@ public:
 	StreamingSamplerSound(const String &fileNameToLoad, StreamingSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
-	StreamingSamplerSound(MonolithInfoToUse *info, int channelIndex, int sampleIndex);
+	StreamingSamplerSound(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex);
 
 	~StreamingSamplerSound();
 
@@ -151,10 +151,10 @@ public:
 	void setLoopEnd(int newLoopEnd);;
 
 	/** Returns the loop start. */
-	int getLoopStart() const noexcept { return loopStart; };
+	int getLoopStart(bool getReverseLoopPoint=false) const noexcept;;
 
 	/** Returns the loop end. */
-	int getLoopEnd() const noexcept { return loopEnd; };
+	int getLoopEnd(bool getReverseLoopPoint=false) const noexcept;;
 
 	/** Returns the loop length. */
 	int getLoopLength() const noexcept { return loopEnd - loopStart; };
@@ -162,11 +162,14 @@ public:
 	/** This sets the crossfade length. */
 	void setLoopCrossfade(int newCrossfadeLength);;
 
-	/** Returns the length of the crossfade. */
+	/** Returns the length of the crossfade (might not be the actual crossfade length if the sample is reversed). */
 	int getLoopCrossfade() const noexcept { return crossfadeLength; };
 
 	/** Loads the entire sample into the preload buffer and reverses it. */
 	void setReversed(bool shouldBeReversed);
+
+	/** Checks if the sound is reversed. */
+	bool isReversed() const { return fileReader.isReversed(); }
 
 	/** Sets the basic MIDI mapping data (key-range, velocity-range and root note) from the given data object. */
 	void setBasicMappingData(const StreamingHelpers::BasicMappingData& data);
@@ -287,7 +290,11 @@ public:
     /** Use this in order to skip the preloading before all properties have been set. */
     void setDelayPreloadInitialisation(bool shouldDelay);
     
+	void setCrossfadeGammaValue(float newGammaValue);
+
 private:
+
+	
 
 	// ==============================================================================================================================================
 
@@ -304,7 +311,7 @@ private:
 		// ==============================================================================================================================================
 
 		void setFile(const String &fileName);
-		void setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex);
+		void setMonolithicInfo(HlacMonolithInfo::Ptr info, int channelIndex, int sampleIndex);
 
 		String getFileName(bool getFullPath);
 		void checkFileReference();
@@ -384,18 +391,25 @@ private:
 
 		AudioFormatWriter* createWriterWithSameFormat(OutputStream* out);
 
+		void setReversed(bool shouldBeReversed)
+		{
+			reversed = shouldBeReversed;
+		}
+
+		bool isReversed() const { return reversed; }
+
 		// ==============================================================================================================================================
 
 	private:
 
+		bool reversed = false;
+
 		StreamingSamplerSoundPool *pool;
 
-		ReferenceCountedObjectPtr<MonolithInfoToUse> monolithicInfo = nullptr;
+		HlacMonolithInfo::Ptr monolithicInfo;
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
 		String monolithicName;
-
-		CriticalSection readLock2;
 
 		ReadWriteLock fileAccessLock;
 
@@ -421,7 +435,7 @@ private:
 
         bool fileFormatSupportsMemoryReading = true;
 
-		bool missing;
+		bool missing = false;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FileReader)
 
@@ -450,8 +464,9 @@ private:
 	void loopChanged();
 	void lengthChanged();
 
-    void rebuildCrossfadeBuffer(bool preloadContainsLoop);
-	void applyCrossfadeToPreloadBuffer();
+	void calculateCrossfadeArea();
+    void rebuildCrossfadeBuffer();
+	void applyCrossfadeToInternalBuffers();
 
 	/** This fills the supplied AudioSampleBuffer with samples.
 	*
@@ -463,9 +478,7 @@ private:
 	// used to wrap the read process for looping
 	void fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer = 0) const;
 
-
 	// ==============================================================================================================================================
-
 
 	CriticalSection lock;
 
@@ -480,13 +493,6 @@ private:
 	hlac::HiseSampleBuffer preloadBuffer;
 	double sampleRate;
 
-	int monolithOffset;
-	int monolithLength;
-
-	bool reversed = false;
-
-	bool useSmallLoopBuffer = false;
-
 	int preloadSize;
 	int internalPreloadSize;
 
@@ -500,8 +506,9 @@ private:
 	bool loopEnabled;
 	int loopStart;
 	int loopEnd;
-	int loopLength;
 	int crossfadeLength;
+
+	float crossfadeGamma = 1.0f;
 
 	Range<int> crossfadeArea;
 
@@ -511,9 +518,8 @@ private:
 	BigInteger velocityRange = 0;
 	
 	// contains the precalculated crossfade
-	hlac::HiseSampleBuffer loopBuffer;
-
-	hlac::HiseSampleBuffer smallLoopBuffer;
+	ScopedPointer<hlac::HiseSampleBuffer> loopBuffer;
+	ScopedPointer<hlac::HiseSampleBuffer> smallLoopBuffer;
 
 	// ==============================================================================================================================================
 

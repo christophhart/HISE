@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -19,6 +19,14 @@
 
   ==============================================================================
 */
+
+#if ! defined (DOXYGEN) && (JUCE_MAC || JUCE_IOS)
+ #if __LP64__
+  using OSType = unsigned int;
+ #else
+  using OSType = unsigned long;
+ #endif
+#endif
 
 namespace juce
 {
@@ -566,7 +574,7 @@ public:
         @param wildCardPattern          the filename pattern to search for, e.g. "*.txt"
         @returns                        the set of files that were found
 
-        @see getNumberOfChildFiles, DirectoryIterator
+        @see getNumberOfChildFiles, RangedDirectoryIterator
     */
     Array<File> findChildFiles (int whatToLookFor,
                                 bool searchRecursively,
@@ -594,7 +602,8 @@ public:
                                 is also added to this value, hidden files won't be counted
         @param wildCardPattern  the filename pattern to search for, e.g. "*.txt"
         @returns                the number of matches found
-        @see findChildFiles, DirectoryIterator
+
+        @see findChildFiles, RangedDirectoryIterator
     */
     int getNumberOfChildFiles (int whatToLookFor,
                                const String& wildCardPattern = "*") const;
@@ -622,7 +631,7 @@ public:
                     start of the file), or nullptr if the file can't be opened for some reason
         @see createOutputStream, loadFileAsData
     */
-    FileInputStream* createInputStream() const;
+    std::unique_ptr<FileInputStream> createInputStream() const;
 
     /** Creates a stream to write to this file.
 
@@ -655,7 +664,7 @@ public:
                     end of the file), or nullptr if the file can't be opened for some reason
         @see createInputStream, appendData, appendText
     */
-    FileOutputStream* createOutputStream (size_t bufferSize = 0x8000) const;
+    std::unique_ptr<FileOutputStream> createOutputStream (size_t bufferSize = 0x8000) const;
 
     //==============================================================================
     /** Loads a file's contents into memory as a block of binary data.
@@ -727,7 +736,7 @@ public:
     bool appendText (const String& textToAppend,
                      bool asUnicode = false,
                      bool writeUnicodeHeaderBytes = false,
-                     const char* lineEndings = "\r\n") const;
+                     const char* lineEndings = "\n") const;
 
     /** Replaces this file's contents with a given text string.
 
@@ -748,7 +757,7 @@ public:
     bool replaceWithText (const String& textToWrite,
                           bool asUnicode = false,
                           bool writeUnicodeHeaderBytes = false,
-                          const char* lineEndings = "\r\n") const;
+                          const char* lineEndings = "\n") const;
 
     /** Attempts to scan the contents of this file and compare it to another file, returning
         true if this is possible and they match byte-for-byte.
@@ -1065,6 +1074,17 @@ public:
     void addToDock() const;
    #endif
 
+   #if JUCE_MAC || JUCE_IOS
+    /** Returns the path to the container shared by all apps with the provided app group ID.
+
+        You *must* pass one of the app group IDs listed in your app's entitlements file.
+
+        On failure, this function may return a non-existent file, so you should check
+        that the path exists and is writable before trying to use it.
+    */
+    static File getContainerForSecurityApplicationGroupIdentifier (const String& appGroup);
+   #endif
+
     //==============================================================================
     /** Comparator for files */
     struct NaturalFileComparator
@@ -1086,14 +1106,16 @@ public:
         bool foldersFirst;
     };
 
+   #if JUCE_ALLOW_STATIC_NULL_VARIABLES && ! defined (DOXYGEN)
     /* These static objects are deprecated because it's too easy to accidentally use them indirectly
        during a static constructor, which leads to very obscure order-of-initialisation bugs.
        Use File::getSeparatorChar() and File::getSeparatorString(), and instead of File::nonexistent,
        just use File() or {}.
     */
-    JUCE_DEPRECATED_STATIC (static const juce_wchar separator;)
-    JUCE_DEPRECATED_STATIC (static const StringRef separatorString;)
-    JUCE_DEPRECATED_STATIC (static const File nonexistent;)
+    [[deprecated]] static const juce_wchar separator;
+    [[deprecated]] static const StringRef separatorString;
+    [[deprecated]] static const File nonexistent;
+   #endif
 
 private:
     //==============================================================================

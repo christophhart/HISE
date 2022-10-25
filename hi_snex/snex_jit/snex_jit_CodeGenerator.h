@@ -37,12 +37,13 @@ namespace jit {
 using namespace juce;
 using namespace asmjit;
 
-#define IF_(typeName) if(type == Types::Helpers::getTypeFromTypeId<typeName>())
+
 #define FP_REG_W(x) x->getRegisterForWriteOp().as<X86Xmm>()
 #define FP_REG_R(x) x->getRegisterForReadOp().as<X86Xmm>()
 #define FP_MEM(x) x->getAsMemoryLocation()
 #define IS_MEM(x) x->isMemoryLocation()
-#define IS_CMEM(x) x->hasCustomMemoryLocation()
+#define IS_IMM(x) x->isImmediate()
+#define IS_CMEM(x) x->hasCustomMemoryLocation() && !x->isActive()
 #define IS_REG(x)  x->isActive()
 
 
@@ -54,7 +55,7 @@ using namespace asmjit;
 #define PTR_REG_W(x) x->getRegisterForWriteOp().as<X86Gpq>()
 #define PTR_REG_R(x) x->getRegisterForReadOp().as<X86Gpq>()
 
-#define MEMBER_PTR(x) base.cloneAdjustedAndResized(obj->getMemberOffset(#x), obj->getMemberTypeInfo(#x).getRequiredByteSize())
+#define MEMBER_PTR(x) base.cloneAdjustedAndResized((uint32_t)obj->getMemberOffset(#x), (uint32_t)obj->getMemberTypeInfo(#x).getRequiredByteSize())
 
 #define INT_OP_WITH_MEM(op, l, r) { if(IS_MEM(r)) op(INT_REG_W(l), INT_MEM(r)); else op(INT_REG_W(l), INT_REG_R(r)); }
 
@@ -67,7 +68,8 @@ using namespace asmjit;
 
 #define INT_OP(op, l, r) { if(IS_REG(r))    op(INT_REG_W(l), INT_REG_R(r)); \
 					  else if(IS_CMEM(r))   op(INT_REG_W(l), INT_MEM(r)); \
-					  else if(IS_MEM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
+					  else if(IS_IMM(r))    op(INT_REG_W(l), static_cast<int>(INT_IMM(r))); \
+					  else if(IS_MEM(r))    op(INT_REG_W(l), INT_MEM(r)); \
 					  else op(INT_REG_W(l), INT_REG_R(r)); }
 
 struct AsmCodeGenerator
@@ -91,12 +93,12 @@ struct AsmCodeGenerator
 
 	struct LoopEmitterBase
 	{
-		LoopEmitterBase(const Symbol& iterator_, RegPtr loopTarget_, Operations::StatementBlock* loopBody_, bool loadIterator_) :
+		LoopEmitterBase(BaseCompiler* c, const Symbol& iterator_, RegPtr loopTarget_, Operations::StatementBlock* loopBody_, bool loadIterator_) :
 			iterator(iterator_),
 			loopTarget(loopTarget_),
 			loadIterator(loadIterator_),
 			loopBody(loopBody_),
-			type(iterator.typeInfo.getType())
+			type(c->getRegisterType(iterator.typeInfo))
 		{};
 
 		virtual ~LoopEmitterBase() {};
@@ -156,16 +158,19 @@ struct AsmCodeGenerator
 				case Types::ID::Float:	 uncountedReg = acg.cc.newXmmSs(); break;
 				case Types::ID::Double:	 uncountedReg = acg.cc.newXmmSd(); break;
 				case Types::ID::Integer: uncountedReg = acg.cc.newGpd(); break;
-				case Types::ID::Block:	 uncountedReg = acg.cc.newIntPtr(); break;
-                default:                 break;
+				case Types::ID::Block:	 
+				case Types::ID::Pointer: uncountedReg = acg.cc.newIntPtr(); break;
+				default:                 jassertfalse; break;
 				}
 			}
 		}
 
 		~TemporaryRegister()
 		{
+#if REMOVE_REUSABLE_REG
 			if (tempReg != nullptr)
 				tempReg->flagForReuse(true);
+#endif
 		}
 
 		X86Gp get()
@@ -180,13 +185,17 @@ struct AsmCodeGenerator
 		RegPtr tempReg;
 	};
 
-	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_);;
+	AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l, const StringArray& optimizations);;
 
 	void emitComment(const char* m);
+
+	RegPtr emitLoadIfNativePointer(RegPtr source, Types::ID nativeType);
 
 	void emitStore(RegPtr target, RegPtr value);
 
 	void emitMemoryWrite(RegPtr source, void* ptrToUse=nullptr);
+
+	void writeRegisterToMemory(RegPtr p);
 
 	void emitMemoryLoad(RegPtr reg);
 
@@ -200,19 +209,44 @@ struct AsmCodeGenerator
 	
 	void emitLogicOp(Operations::BinaryOp* op);
 
-	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes);
+	void emitSpanReference(RegPtr target, RegPtr address, RegPtr index, size_t elementSizeInBytes, int additionalOffsetInBytes=0);
 
-	void emitSpanIteration(BaseCompiler* c, BaseScope* s, const Symbol& iterator, SpanType* typePtr, RegPtr spanTarget, Operations::Statement* loopBody, bool loadIterator);
+	void emitParameter(const FunctionData& f, FuncNode* fn, RegPtr parameterRegister, int parameterIndex, bool hasObjectPointer=false)
+	{
+		parameterRegister->createRegister(cc);
 
-	void emitParameter(Operations::Function* f, RegPtr parameterRegister, int parameterIndex);
+		auto useParameterAsAdress = parameterIndex != -1 && ((f.args[parameterIndex].isReference() && parameterRegister->getType() != Types::ID::Pointer));
+
+		if (f.object != nullptr || hasObjectPointer)
+			parameterIndex += 1;
+
+		if (fn == nullptr)
+			fn = cc.func();
+
+		if (useParameterAsAdress)
+		{
+			auto aReg = cc.newGpq();
+
+			fn->setArg(parameterIndex, aReg);
+
+			parameterRegister->setCustomMemoryLocation(x86::ptr(aReg), true);
+		}
+		else
+
+			fn->setArg(parameterIndex, parameterRegister->getRegisterForReadOp());
+	}
+
+	void emitParameter(Operations::Function* f, FuncNode* fn, RegPtr parameterRegister, int parameterIndex);
 
 	RegPtr emitBinaryOp(OpType op, RegPtr l, RegPtr r);
 
-	void emitCompare(OpType op, RegPtr target, RegPtr l, RegPtr r);
+	void emitCompare(bool useAsmFlags, OpType op, RegPtr target, RegPtr l, RegPtr r);
 
 	void emitReturn(BaseCompiler* c, RegPtr target, RegPtr expr);
 
-	void emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list);
+	void writeDirtyGlobals(BaseCompiler* c);
+
+	Result emitStackInitialisation(RegPtr target, ComplexType::Ptr typePtr, RegPtr expr, InitialiserList::Ptr list);
 
 	RegPtr emitBranch(TypeInfo returnType, Operations::Expression* cond, Operations::Statement* trueBranch, Operations::Statement* falseBranch, BaseCompiler* c, BaseScope* s);
 
@@ -230,79 +264,60 @@ struct AsmCodeGenerator
 
 	void emitFunctionParameterReference(RegPtr sourceReg, RegPtr parameterReg);
 
-	void emitInlinedMathAssembly(Identifier id, RegPtr target, const ReferenceCountedArray<AssemblyRegister>& args);
-	
-#if 0
-	void emitWrap(WrapType* wt, RegPtr target, WrapType::OpType op)
-	{
-		switch (op)
-		{
-		case WrapType::OpType::Set:
-		{
-			bool wasMem = target->hasCustomMemoryLocation() && target->isMemoryLocation();;
-
-			target->loadMemoryIntoRegister(cc);
-
-			auto t = INT_REG_W(target);
-
-			if (isPowerOfTwo(wt->size))
-			{
-				cc.and_(t, wt->size - 1);
-			}
-			else
-			{
-				auto d = cc.newGpd();
-
-				auto s = cc.newInt32Const(ConstPool::kScopeLocal, wt->size);
-
-				cc.cdq(d, t);
-				cc.idiv(d, t, s);
-				cc.mov(t, d);
-			}
-
-			if (wasMem)
-			{
-				auto mem = target->getMemoryLocationForReference();
-				cc.mov(mem, INT_REG_R(target));
-				target->setCustomMemoryLocation(mem);
-			}
-
-			break;
-		}
-		case WrapType::OpType::Inc:
-		{
-			auto t = INT_REG_W(target);
-			auto temp = cc.newGpd();
-
-			cc.mov(temp, 0);
-			cc.cmp(t, wt->size);
-			cc.cmovge(t, temp);
-		}
-		}
-	}
-#endif
-
-	static Array<Identifier> getInlineableMathFunctions();
+	Result emitSimpleToComplexTypeCopy(RegPtr target, InitialiserList::Ptr initValues, RegPtr source);
 
 	void dumpVariables(BaseScope* s, uint64_t lineNumber);
 
-	void emitLoopControlFlow(Operations::Loop* parentLoop, bool isBreak);
+	void emitLoopControlFlow(Operations::ConditionalBranch* parentLoop, bool isBreak);
 
 	Compiler& cc;
 
-	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, bool createObjectPointer);
+	static void fillSignature(const FunctionData& data, FuncSignatureX& sig, Types::ID objectType);
 
 	X86Mem createStack(Types::ID type);
 	X86Mem createFpuMem(RegPtr ptr);
 	void writeMemToReg(RegPtr target, X86Mem);
 
+    
+    void writeRegisterToMemory(RegPtr target, RegPtr source);
+    
 	AssemblyRegisterPool* registerPool;
+
+    static X86Mem createValid64BitPointer(X86Compiler& cc, X86Mem source, int offset, int byteSize)
+    {
+        if (source.hasBaseReg())
+        {
+            return source.cloneAdjustedAndResized(offset, byteSize);
+        }
+        else
+        {
+            auto memReg = cc.newGpq();
+            
+            int64_t address = source.offset() + (int64_t)offset;
+            cc.mov(memReg, address);
+            
+            return x86::ptr(memReg).cloneResized(byteSize);
+        }
+    }
+    
+	bool canVectorize() const { return optimizations.contains(OptimizationIds::AutoVectorisation); };
+
+	static bool isRuntimeErrorCheckEnabled(BaseScope* scope)
+	{
+		return scope->getGlobalScope()->isRuntimeErrorCheckEnabled();
+	}
+
+	ParserHelpers::CodeLocation location;
+	
+	void setType(Types::ID newType)
+	{
+		type = newType;
+	}
+
 
 private:
 
-	
-
-	
+	StringArray optimizations;
 
 	static void createRegistersForArguments(X86Compiler& cc, ReferenceCountedArray<AssemblyRegister>& parameters, const FunctionData& f);
 	Types::ID type;
@@ -310,8 +325,8 @@ private:
 
 struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
-	SpanLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
+	SpanLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
 	{};
 
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
@@ -319,10 +334,22 @@ struct SpanLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 	SpanType* typePtr = nullptr;
 };
 
+struct CustomLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
+{
+	CustomLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
+	{};
+
+	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
+
+	FunctionData beginFunction;
+	FunctionData sizeFunction;
+};
+
 struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 {
-	DynLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
+	DynLoopEmitter(BaseCompiler* c, const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
+		LoopEmitterBase(c, s, t, body, l)
 	{};
 
 	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
@@ -330,15 +357,6 @@ struct DynLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
 	DynType* typePtr = nullptr;
 };
 
-struct BlockLoopEmitter : public AsmCodeGenerator::LoopEmitterBase
-{
-	BlockLoopEmitter(const Symbol& s, AssemblyRegister::Ptr t, Operations::StatementBlock* body, bool l) :
-		LoopEmitterBase(s, t, body, l)
-	{};
-
-	void emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, BaseScope* scope) override;
-
-};
 
 }
 }

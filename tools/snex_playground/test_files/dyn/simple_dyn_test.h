@@ -14,7 +14,9 @@ span<int, 8> data = { 2 };
 
 int main(int input)
 {
-    dyn<int> d = data;
+    dyn<int> d;
+
+    d.referTo(data);
 	
     for(auto& s: d)
     {

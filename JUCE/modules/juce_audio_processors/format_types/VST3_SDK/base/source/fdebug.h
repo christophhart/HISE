@@ -11,7 +11,7 @@
 //
 //-----------------------------------------------------------------------------
 // LICENSE
-// (c) 2018, Steinberg Media Technologies GmbH, All Rights Reserved
+// (c) 2021, Steinberg Media Technologies GmbH, All Rights Reserved
 //-----------------------------------------------------------------------------
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -51,11 +51,14 @@
 #pragma once
 
 #include "pluginterfaces/base/ftypes.h"
-#include <string.h>
+#include <cstring>
 
 #if SMTG_OS_MACOS
 #include <new>
 #endif
+
+/** Returns true if a debugger is attached. */
+bool AmIBeingDebugged ();
 
 //-----------------------------------------------------------------------------
 // development / release
@@ -128,12 +131,12 @@
 */
 
 ///@{
-#define DBPRT0(a) FDebugPrint (a);
-#define DBPRT1(a, b) FDebugPrint (a, b);
-#define DBPRT2(a, b, c) FDebugPrint (a, b, c);
-#define DBPRT3(a, b, c, d) FDebugPrint (a, b, c, d);
-#define DBPRT4(a, b, c, d, e) FDebugPrint (a, b, c, d, e);
-#define DBPRT5(a, b, c, d, e, f) FDebugPrint (a, b, c, d, e, f);
+#define SMTG_DBPRT0(a) FDebugPrint (a);
+#define SMTG_DBPRT1(a, b) FDebugPrint (a, b);
+#define SMTG_DBPRT2(a, b, c) FDebugPrint (a, b, c);
+#define SMTG_DBPRT3(a, b, c, d) FDebugPrint (a, b, c, d);
+#define SMTG_DBPRT4(a, b, c, d, e) FDebugPrint (a, b, c, d, e);
+#define SMTG_DBPRT5(a, b, c, d, e, f) FDebugPrint (a, b, c, d, e, f);
 ///@}
 
 /** @name Helper functions for the above defined macros.
@@ -152,10 +155,10 @@ void FPrintLastError (const char* file, int line);
         the debug output to a file or stream.
 */
 ///@{
-typedef bool (*AssertionHandler) (const char* message);
+using AssertionHandler = bool (*) (const char* message);
 extern AssertionHandler gAssertionHandler;
 extern AssertionHandler gPreAssertionHook;
-typedef void (*DebugPrintLogger) (const char* message);
+using DebugPrintLogger = void (*) (const char* message);
 extern DebugPrintLogger gDebugPrintLogger;
 ///@}
 
@@ -198,36 +201,41 @@ void* operator new (size_t, int, const char*, int);
 #define SMTG_VERIFY_IS(f, r) f;
 #define SMTG_VERIFY_NOT(f, r) f;
 
-#define DBPRT0(a)
-#define DBPRT1(a, b)
-#define DBPRT2(a, b, c)
-#define DBPRT3(a, b, c, d)
-#define DBPRT4(a, b, c, d, e)
-#define DBPRT5(a, b, c, d, e, f)
+#define SMTG_DBPRT0(a)
+#define SMTG_DBPRT1(a, b)
+#define SMTG_DBPRT2(a, b, c)
+#define SMTG_DBPRT3(a, b, c, d)
+#define SMTG_DBPRT4(a, b, c, d, e)
+#define SMTG_DBPRT5(a, b, c, d, e, f)
 
 #ifndef NEW
 #define NEW new
 #define NEWVEC new
-	
+
 #endif
 #endif
 
-#if SMTG_CPPUNIT_TESTING
-#define SMTG_IS_TEST true
-#else
-#define SMTG_IS_TEST false
-#endif
+// replace #if SMTG_CPPUNIT_TESTING
+bool isSmtgUnitTesting ();
+void setSmtgUnitTesting ();
 
 #if !SMTG_RENAME_ASSERT
 #if SMTG_OS_WINDOWS
 #undef ASSERT
 #endif
 
-#define ASSERT				SMTG_ASSERT			
-#define WARNING				SMTG_WARNING		
-#define DEBUGSTR			SMTG_DEBUGSTR		
-#define VERIFY				SMTG_VERIFY			
-#define VERIFY_IS			SMTG_VERIFY_IS		
-#define VERIFY_NOT			SMTG_VERIFY_NOT		
-#define PRINTSYSERROR		SMTG_PRINTSYSERROR	
+#define ASSERT				SMTG_ASSERT
+#define WARNING				SMTG_WARNING
+#define DEBUGSTR			SMTG_DEBUGSTR
+#define VERIFY				SMTG_VERIFY
+#define VERIFY_IS			SMTG_VERIFY_IS
+#define VERIFY_NOT			SMTG_VERIFY_NOT
+#define PRINTSYSERROR		SMTG_PRINTSYSERROR
+
+#define DBPRT0				SMTG_DBPRT0
+#define DBPRT1				SMTG_DBPRT1
+#define DBPRT2				SMTG_DBPRT2
+#define DBPRT3				SMTG_DBPRT3
+#define DBPRT4				SMTG_DBPRT4
+#define DBPRT5				SMTG_DBPRT5
 #endif

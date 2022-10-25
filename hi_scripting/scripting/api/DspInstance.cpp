@@ -134,7 +134,7 @@ void DspInstance::initialise()
 
 				if (object->getConstant(i, &externalData, externalDataSize))
 				{
-					VariantBuffer::Ptr b = new VariantBuffer(externalData, externalDataSize);
+					auto b = new VariantBuffer(externalData, externalDataSize);
 					addConstant(thisName, var(b));
 					continue;
 				}
@@ -538,24 +538,6 @@ DspInstance::~DspInstance()
 	}
 
 	unload();
-}
-
-void DspInstance::rightClickCallback(const MouseEvent& e, Component* c)
-{
-#if USE_BACKEND
-
-	DspObjectDebugger* d = new DspObjectDebugger(this);
-
-	d->setSize(600, 600);
-
-	auto editor = GET_BACKEND_ROOT_WINDOW(c);
-
-	MouseEvent ee = e.getEventRelativeTo(editor);
-
-	editor->getRootFloatingTile()->showComponentInRootPopup(d, editor, ee.getMouseDownPosition());
-#else
-	ignoreUnused(e, c);
-#endif
 }
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)

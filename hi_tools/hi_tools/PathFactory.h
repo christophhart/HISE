@@ -79,7 +79,7 @@ using namespace juce;
 
 		};
 
-		virtual String getId() const = 0;
+		virtual String getId() const { return {}; }
 
 		virtual ~PathFactory() {};
 		virtual Path createPath(const String& id) const = 0;
@@ -111,7 +111,7 @@ using namespace juce;
 	{
 	public:
 
-		HiseShapeButton(const String& name, ButtonListener* listener, PathFactory& factory, const String& offName = String()) :
+		HiseShapeButton(const String& name, ButtonListener* listener, const PathFactory& factory, const String& offName = String()) :
 			ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
 		{
 			onShape = factory.createPath(name);
@@ -163,8 +163,10 @@ using namespace juce;
 			}
 			else
 			{
-				setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+				setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
 			}
+
+			repaint();
 		}
 
 		bool operator==(const String& id) const
@@ -201,9 +203,22 @@ using namespace juce;
 			offShape = newOffShape;
 		}
 
+		void clicked(const ModifierKeys& modifiers) override
+		{
+			lastMods = modifiers;
+			ShapeButton::clicked(modifiers);
+		}
+
+		bool wasRightClicked() const { return lastMods.isRightButtonDown(); }
+
 		Colour onColour = Colour(SIGNAL_COLOUR);
+		Colour offColour = Colours::white;
 		Path onShape;
 		Path offShape;
+
+		private:
+
+		ModifierKeys lastMods = ModifierKeys();
 	};
 
 }

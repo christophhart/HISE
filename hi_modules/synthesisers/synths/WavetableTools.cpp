@@ -52,11 +52,9 @@ juce::ValueTree WavetableConverter::convertDirectoryToWavetableData(const String
 	double sampleRate = -1.0;
 	directoryPath = File(directoryPath_);
 	jassert(directoryPath.isDirectory());
-	DirectoryIterator iter(directoryPath, false, "*.wav");
-
-	while (iter.next())
+	for(auto f: RangedDirectoryIterator(directoryPath, false, "*.wav"))
 	{
-		File wavFile = iter.getFile();
+		File wavFile = f.getFile();
 		const String noteName = wavFile.getFileNameWithoutExtension().upToFirstOccurrenceOf("_", false, false);
 		const int noteNumber = getMidiNoteNumber(noteName);
 
@@ -144,40 +142,7 @@ struct ResynthesisHelpers
 	static double getRootFrequencyInBuffer(const AudioSampleBuffer &buffer, double sampleRate, double estimatedFreq)
 	{
 		float pitch = (float)PitchDetection::detectPitch(buffer, 0, buffer.getNumSamples(), sampleRate);
-
 		FloatSanitizers::sanitizeFloatNumber(pitch);
-
-		if (PitchDetection::getNumSamplesNeeded(sampleRate, estimatedFreq) >= buffer.getNumSamples())
-			pitch = 0.0;
-
-		if (pitch != 0.0)
-			return (double)pitch;
-
-		icstdsp::FrequencyAnalysis analysis;
-
-		analysis.prepareFundamentalFrequencyBuffers(buffer.getNumSamples());
-
-		float* data_ = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* temp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* freq = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* amp = (float*)alloca(sizeof(float) * buffer.getNumSamples());
-		float* time = nullptr;
-		float* dw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-		float* rw = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-		float aic[4];
-		float* w = (float*)alloca(sizeof(float) * (buffer.getNumSamples() + 1));
-
-		icstdsp::VectorFunctions::blackman(w, buffer.getNumSamples());
-		FloatVectorOperations::copy(data_, buffer.getReadPointer(0), buffer.getNumSamples());
-		auto freq_ = analysis.getFundamentalFrequency(data_, buffer.getNumSamples(), icstdsp::FrequencyAnalysis::NormalisationScheme::CauchySchwarz);
-		analysis.prepareWindow(w, dw, rw, aic, buffer.getNumSamples());
-		analysis.analyseSpectrum(data_, freq, amp, time, buffer.getNumSamples(), w, dw, rw, temp, aic);
-
-		FloatVectorOperations::multiply(freq, (float)sampleRate, buffer.getNumSamples());
-		int index = analysis.verifyFundamentalFrequency(amp, buffer.getNumSamples(), freq_.re);
-		pitch = jlimit<float>(0.0, (float)sampleRate / 2.0f, freq[index]);
-		pitch = FloatSanitizers::sanitizeFloatNumber(pitch);
-
 		return (double)pitch;
 	}
 
@@ -194,44 +159,43 @@ struct ResynthesisHelpers
 	{
 		ignoreUnused(buffer, sampleRate, pitch, harmonicSpectrum, windowType);
 
-#if USE_IPP
 		if (pitch != 0.0)
 		{
 			int size = buffer.getNumSamples();
 
-			IppFFT fft(IppFFT::DataType::RealFloat, 16);
+            auto order = log2(size);
+            
+            auto fft = juce::dsp::FFT(order);
+            
+            HeapBlock<float> dl_;
+            HeapBlock<float> dr_;
+            
+            dl_.calloc(size * 2);
+            dr_.calloc(size * 2);
+            
+            float* dl = dl_.get();
+            float* dr = dl_.get();
 
-			float* dl = (float*)alloca(sizeof(float)*size);
-			float* dr = (float*)alloca(sizeof(float)*size);
-
-			FloatVectorOperations::copy(dl, buffer.getReadPointer(0), size);
+            FloatVectorOperations::copy(dl, buffer.getReadPointer(0), size);
 			FloatVectorOperations::copy(dr, buffer.getReadPointer(1), size);
 
 			float* w = (float*)alloca(sizeof(float)*size);
 
+            FloatVectorOperations::fill(w, 1.0f, size);
+            FFTHelpers::applyWindow(windowType, w, size);
 			
-			switch (windowType)
-			{
-			case hise::SampleMapToWavetableConverter::FlatTop:		  icstdsp::VectorFunctions::flattop(w, size); break;;
-			case hise::SampleMapToWavetableConverter::BlackmanHarris: icstdsp::VectorFunctions::blackman(w, size); break;
-			case hise::SampleMapToWavetableConverter::Rectangular:    FloatVectorOperations::fill(w, 1.0f, size); break;
-			case hise::SampleMapToWavetableConverter::Gaussian:		  icstdsp::VectorFunctions::gauss(w, size, 0.5f); break;
-			case hise::SampleMapToWavetableConverter::Hann:			  icstdsp::VectorFunctions::hann(w, size); break;
-			case hise::SampleMapToWavetableConverter::Hamming:		  icstdsp::VectorFunctions::hamming(w, size); break;
-			case hise::SampleMapToWavetableConverter::Kaiser:		  icstdsp::VectorFunctions::kaiser(w, size, 8.0f);
-			case hise::SampleMapToWavetableConverter::Triangle:		  icstdsp::VectorFunctions::triangle(w, size); break;
-			default:												  break;
-			}
-
-
 			FloatVectorOperations::multiply(dl, w, size);
 			FloatVectorOperations::multiply(dr, w, size);
 
-			fft.realFFTInplace(dl, size);
-			fft.realFFTInplace(dr, size);
-
-			float* magL = (float*)alloca(sizeof(float)*size / 2);
-			float* magR = (float*)alloca(sizeof(float)*size / 2);
+            fft.performRealOnlyForwardTransform(dl);
+            
+            HeapBlock<float> magL_, magR_;
+            
+            magL_.calloc(size/2);
+            magR_.calloc(size/2);
+            
+            float* magL = magL_.get();
+            float* magR = magR_.get();
 
 			for (int i = 0; i < size / 2; i++)
 			{
@@ -243,8 +207,6 @@ struct ResynthesisHelpers
 			}
 
 			auto halfSize = (double)size / 2.0;
-
-
 			int numHarmonics = harmonicSpectrum.getNumSamples();
 
 			float* ampL = harmonicSpectrum.getWritePointer(0);
@@ -271,10 +233,6 @@ struct ResynthesisHelpers
 					ampL[i] = magL[index];
 					ampR[i] = magR[index];
 				}
-
-				
-
-				
 			}
 
 			auto maxL = FloatVectorOperations::findMaximum(ampL, numHarmonics);
@@ -296,9 +254,6 @@ struct ResynthesisHelpers
 		{
 			return false;
 		}
-#else
-		return false;
-#endif
 	}
 
 	static int getWavetableLength(int noteNumber, double sampleRate)
@@ -747,12 +702,33 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	int partIndex = 0;
 
+    auto totalLength = buffer.getNumSamples() - fftSize;
+    
+    
+    
 	for (const auto& p : parts)
 	{
 		AudioSampleBuffer harmonics(2, numHarmonics);
 
+        auto offsetNormalized = (double)partIndex / (double)numParts;
+        auto offsetSample = roundToInt(offsetNormalized * (double)totalLength);
+        
+        
+        
 		auto estimatedPitch = MidiMessage::getMidiNoteInHertz(m.index.noteNumber);
-		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(p, sampleRate, estimatedPitch);
+        
+        auto numSamplesRequired = PitchDetection::getNumSamplesNeeded(sampleRate, estimatedPitch * 0.9);
+        
+        auto numToUse = jmin(numSamplesRequired, buffer.getNumSamples() - offsetSample);
+        
+        if(numToUse < 0)
+            break;
+        
+        float* d[1] = { buffer.getWritePointer(0, offsetSample) };
+        
+        AudioSampleBuffer pitchBuffer(d, 1, numToUse);
+        
+		auto thisPitch = ResynthesisHelpers::getRootFrequencyInBuffer(pitchBuffer, sampleRate, estimatedPitch);
         auto estimatedRatio = thisPitch / estimatedPitch;
 
 		if(isBetween(estimatedRatio, 0.0, 0.33) || estimatedRatio > 3.0)
@@ -835,7 +811,13 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromSingleWavetables(doub
 				auto thisFreq = MidiMessage::getMidiNoteInHertz(i);
 				auto rootFreq = MidiMessage::getMidiNoteInHertz(root);
 
-				PoolReference r(chain->getMainController(), s.getProperty(SampleIds::FileName).toString(), FileHandlerBase::Samples);
+
+				auto fName = s.getProperty(SampleIds::FileName).toString();
+
+				if (fName.isEmpty())
+					s.getChild(0).getProperty(SampleIds::FileName).toString();
+
+				PoolReference r(chain->getMainController(), fName, FileHandlerBase::Samples);
 
 				Data data;
 				data.sampleFile = r.getFile();
@@ -1176,6 +1158,15 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 	auto range = Range<int>((int)getSampleProperty(sample, SampleIds::SampleStart) + monoOffset,
 		(int)getSampleProperty(sample, SampleIds::SampleEnd) + monoOffset);
 
+	if (range.isEmpty() && isMonolith)
+	{
+		auto mOffset = (int)getSampleProperty(sample, "MonolithOffset");
+		auto mLength = (int)getSampleProperty(sample, "MonolithLength");
+
+		range = { mOffset, mOffset + mLength };
+	}
+		
+
 
 	auto rootNote = (int)getSampleProperty(sample, SampleIds::Root);
 
@@ -1193,6 +1184,8 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 
 		if (reader != nullptr)
 		{
+			if (range.isEmpty())
+				range = { 0, (int)reader->lengthInSamples };
 
 			if (reader->sampleRate == sampleRate && rootNote == noteNumber)
 			{
@@ -1278,9 +1271,7 @@ Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const 
 
 juce::Result SampleMapToWavetableConverter::loadSampleMapFromFile(File sampleMapFile)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFile);
-
-	if (xml != nullptr)
+	if (auto  xml = XmlDocument::parse(sampleMapFile))
 	{
 		sampleMap = ValueTree::fromXml(*xml);
 		return Result::ok();

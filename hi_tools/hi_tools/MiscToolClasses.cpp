@@ -31,8 +31,7 @@
 */
 
 
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 #include "xmmintrin.h"
 #endif
 
@@ -296,7 +295,7 @@ bool FuzzySearcher::fitsSearch(const String &searchTerm, const String &stringToM
 	if (stringToMatch.contains(searchTerm))
 	{
 		return true;
-}
+	}
 
 	// Calculate the Levenshtein-distance:
 	int levenshteinDistance = getLevenshteinDistance(searchTerm, stringToMatch);
@@ -428,8 +427,7 @@ bool RegexFunctions::matchesWildcard(const String &wildcard, const String &strin
 
 ScopedNoDenormals::ScopedNoDenormals()
 {
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 	oldMXCSR = _mm_getcsr();
 	int newMXCSR = oldMXCSR | 0x8040;
 	_mm_setcsr(newMXCSR);
@@ -438,10 +436,16 @@ ScopedNoDenormals::ScopedNoDenormals()
 
 ScopedNoDenormals::~ScopedNoDenormals()
 {
-#if JUCE_IOS
-#else
+#if !JUCE_ARM
 	_mm_setcsr(oldMXCSR);
 #endif
+}
+
+
+#if 0
+bool SimpleReadWriteLock::ScopedReadLock::anotherThreadHasWriteLock() const
+{
+	return lock.writerThread != nullptr && lock.writerThread != Thread::getCurrentThreadId();
 }
 
 
@@ -453,7 +457,7 @@ SimpleReadWriteLock::ScopedReadLock::ScopedReadLock(SimpleReadWriteLock &lock_, 
 		if (lock.writerThread == nullptr)
 			break;
 
-	while (lock.writerThread != nullptr)
+	while (anotherThreadHasWriteLock())
 	{
 		if(!busyWait)
 			Thread::yield();
@@ -520,13 +524,12 @@ SimpleReadWriteLock::ScopedTryReadLock::ScopedTryReadLock(SimpleReadWriteLock &l
 	}
 }
 
-
-
 SimpleReadWriteLock::ScopedTryReadLock::~ScopedTryReadLock()
 {
 	if (is_locked)
 		lock.numReadLocks--;
 }
+#endif
 
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {
@@ -573,7 +576,6 @@ void FloatSanitizers::sanitizeArray(float* data, int size)
 		const int aDen = exponent > 0;
 
 		*dataAsInt++ = sample * (aNaN & aDen);
-
 	}
 }
 
@@ -587,7 +589,9 @@ float FloatSanitizers::sanitizeFloatNumber(float& input)
 
 	const uint32 sanitized = *valueAsInt * (aNaN & aDen);
 
-	return *reinterpret_cast<const float*>(&sanitized);
+	input = *reinterpret_cast<const float*>(&sanitized);
+
+	return input;
 }
 
 void FloatSanitizers::Test::runTest()
@@ -621,12 +625,12 @@ void FloatSanitizers::Test::runTest()
 	float d4 = 24.0f;
 	float d5 = 0.0052f;
 
-	d0 = sanitizeFloatNumber(d0);
-	d1 = sanitizeFloatNumber(d1);
-	d2 = sanitizeFloatNumber(d2);
-	d3 = sanitizeFloatNumber(d3);
-	d4 = sanitizeFloatNumber(d4);
-	d5 = sanitizeFloatNumber(d5);
+	sanitizeFloatNumber(d0);
+	sanitizeFloatNumber(d1);
+	sanitizeFloatNumber(d2);
+	sanitizeFloatNumber(d3);
+	sanitizeFloatNumber(d4);
+	sanitizeFloatNumber(d5);
 
 	expectEquals<float>(d0, 0.0f, "Single Infinity");
 	expectEquals<float>(d1, 0.0f, "Single Denormal");
@@ -721,7 +725,616 @@ void SafeChangeListener::handlePooledMessage(PooledUIUpdater::Broadcaster* b)
 	changeListenerCallback(dynamic_cast<SafeChangeBroadcaster*>(b));
 }
 
+TempoSyncer::TempoString TempoSyncer::tempoNames[numTempos];
+
+float TempoSyncer::tempoFactors[numTempos];
 
 
+int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * tempoFactor;
+	return (int)(seconds * (float)sampleRate);
+}
+
+int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t)
+{
+	return getTempoInSamples(hostTempoBpm, sampleRate, getTempoFactor(t));
+}
+
+juce::StringArray TempoSyncer::getTempoNames()
+{
+	StringArray sa;
+	for (int i = 0; i < numTempos; i++)
+		sa.add(tempoNames[i]);
+	
+	return sa;
+}
+
+float TempoSyncer::getTempoInMilliSeconds(double hostTempoBpm, Tempo t)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * getTempoFactor(t);
+	return seconds * 1000.0f;
+}
+
+float TempoSyncer::getTempoInHertz(double hostTempoBpm, Tempo t)
+{
+	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
+
+	const float seconds = (60.0f / (float)hostTempoBpm) * getTempoFactor(t);
+
+	return 1.0f / seconds;
+}
+
+String TempoSyncer::getTempoName(int t)
+{
+	jassert(t < numTempos);
+	return t < numTempos ? tempoNames[t] : "Invalid";
+}
+
+hise::TempoSyncer::Tempo TempoSyncer::getTempoIndexForTime(double currentBpm, double milliSeconds)
+{
+	float max = 200000.0f;
+	int index = -1;
+
+	for (int i = 0; i < numTempos; i++)
+	{
+		const float thisDelta = fabsf(getTempoInMilliSeconds((float)currentBpm, (Tempo)i) - (float)milliSeconds);
+
+		if (thisDelta < max)
+		{
+			max = thisDelta;
+			index = i;
+		}
+	}
+
+	if (index >= 0)
+		return (Tempo)index;
+
+	// Fallback Dummy
+	return Tempo::Quarter;
+}
+
+hise::TempoSyncer::Tempo TempoSyncer::getTempoIndex(const String &t)
+{
+	for (int i = 0; i < numTempos; i++)
+	{
+		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]))
+			return (Tempo)i;
+	}
+	
+	jassertfalse;
+	return Tempo::Quarter;
+}
+
+void TempoSyncer::initTempoData()
+{
+	auto setTempo = [](Tempo t, const char* name, float value)
+	{
+		strcpy(tempoNames[t], name);
+		tempoFactors[t] = value;
+	};
+
+#if HISE_USE_EXTENDED_TEMPO_VALUES
+	setTempo(EightBar, "8/1", 4.0f * 8.0f);
+	setTempo(SixBar, "6/1", 4.0f * 6.0f);
+	setTempo(FourBar, "4/1", 4.0f * 4.0f);
+	setTempo(ThreeBar, "3/1", 4.0f * 3.0f);
+	setTempo(TwoBars, "2/1", 4.0f * 2.0f);
+#endif
+	setTempo(Whole, "1/1", 4.0f);
+	setTempo(HalfDuet, "1/2D", 2.0f * 1.5f);
+	setTempo(Half, "1/2", 2.0f);
+	setTempo(HalfTriplet, "1/2T", 4.0f / 3.0f);
+	setTempo(QuarterDuet, "1/4D", 1.0f * 1.5f);
+	setTempo(Quarter, "1/4", 1.0f);
+	setTempo(QuarterTriplet, "1/4T", 2.0f / 3.0f);
+	setTempo(EighthDuet, "1/8D", 0.5f * 1.5f);
+	setTempo(Eighth, "1/8", 0.5f);
+	setTempo(EighthTriplet, "1/8T", 1.0f / 3.0f);
+	setTempo(SixteenthDuet, "1/16D", 0.25f * 1.5f);
+	setTempo(Sixteenth, "1/16", 0.25f);
+	setTempo(SixteenthTriplet, "1/16T", 0.5f / 3.0f);
+	setTempo(ThirtyTwoDuet, "1/32D", 0.125f * 1.5f);
+	setTempo(ThirtyTwo, "1/32", 0.125f);
+	setTempo(ThirtyTwoTriplet, "1/32T", 0.25f / 3.0f);
+	setTempo(SixtyForthDuet, "1/64D", 0.125f * 0.5f * 1.5f);
+	setTempo(SixtyForth, "1/64", 0.125f * 0.5f);
+	setTempo(SixtyForthTriplet, "1/64T", 0.125f / 3.0f);
+}
+
+float TempoSyncer::getTempoFactor(Tempo t)
+{
+	jassert(t < numTempos);
+	return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
+}
+
+void ScrollbarFader::Laf::drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
+{
+    g.fillAll(bg);
+
+    float alpha = 0.3f;
+
+    if (isMouseOver || isMouseDown)
+        alpha += 0.1f;
+
+    if (isMouseDown)
+        alpha += 0.1f;
+
+    g.setColour(Colours::white.withAlpha(alpha));
+
+    auto area = Rectangle<int>(x, y, width, height).toFloat();
+
+    if (isScrollbarVertical)
+    {
+        area.removeFromTop((float)thumbStartPosition);
+        area = area.withHeight((float)thumbSize);
+    }
+    else
+    {
+        area.removeFromLeft((float)thumbStartPosition);
+        area = area.withWidth((float)thumbSize);
+    }
+
+    auto cornerSize = jmin(area.getWidth(), area.getHeight());
+
+    area = area.reduced(4.0f);
+    cornerSize = jmin(area.getWidth(), area.getHeight());
+    
+    g.fillRoundedRectangle(area, cornerSize / 2.0f);
+}
+
+void ScrollbarFader::timerCallback()
+{
+    if (!fadeOut)
+    {
+        fadeOut = true;
+        startTimer(30);
+    }
+    
+    {
+        if(auto first = scrollbars.getFirst().getComponent())
+        {
+            auto a = first->getAlpha();
+            a = jmax(0.1f, a - 0.05f);
+
+            for(auto sb: scrollbars)
+            {
+                if(sb != nullptr)
+                    sb->setAlpha(a);
+            }
+            
+            if (a <= 0.1f)
+            {
+                fadeOut = false;
+                stopTimer();
+            }
+        }
+    }
+}
+
+void ScrollbarFader::startFadeOut()
+{
+    for(auto sb: scrollbars)
+    {
+        if(sb != nullptr)
+            sb->setAlpha(1.0f);
+    }
+    
+    fadeOut = false;
+    startTimer(500);
+}
+
+void FFTHelpers::applyWindow(WindowType t, float* data, int s, bool normalise)
+{
+    using DspWindowType = juce::dsp::WindowingFunction<float>;
+    
+    switch (t)
+    {
+    case Rectangle:
+        break;
+    case BlackmanHarris:
+        DspWindowType(s, DspWindowType::blackmanHarris, normalise).multiplyWithWindowingTable(data, s);
+        break;
+    case Hamming:
+        DspWindowType(s, DspWindowType::hamming, normalise).multiplyWithWindowingTable(data, s);
+        break;
+    case Hann:
+        DspWindowType(s, DspWindowType::hann, normalise).multiplyWithWindowingTable(data, s);
+        break;
+    case Kaiser:
+        DspWindowType(s, DspWindowType::kaiser, normalise, 15.0f).multiplyWithWindowingTable(data, s);
+        break;
+    case Triangle:
+        DspWindowType(s, DspWindowType::triangular, normalise).multiplyWithWindowingTable(data, s);
+        break;
+    case FlatTop:
+        DspWindowType(s, DspWindowType::flatTop, normalise).multiplyWithWindowingTable(data, s);
+        break;
+    default:
+        jassertfalse;
+        FloatVectorOperations::clear(data, s);
+        break;
+    }
+}
+
+void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
+{
+    auto s = b.getNumSamples() / 2;
+    auto data = b.getWritePointer(0);
+
+    applyWindow(t, data, s, normalise);
+}
+
+float FFTHelpers::getFreqForLogX(float xPos, float width)
+{
+	auto lowFreq = 20;
+	auto highFreq = 20000.0;
+
+	return lowFreq * pow((highFreq / lowFreq), ((xPos - 2.5f) / (width - 5.0f)));
+}
+
+float FFTHelpers::getPixelValueForLogXAxis(float freq, float width)
+{
+	auto lowFreq = 20;
+	auto highFreq = 20000.0;
+
+	return (width - 5) * (log(freq / lowFreq) / log(highFreq / lowFreq)) + 2.5f;
+}
+
+juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
+{
+	auto lutValue = data[jlimit(0, LookupTableSize - 1, roundToInt(normalisedInput * (float)LookupTableSize))];
+	float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
+	auto v = jlimit(0.0f, 1.0f, a + (1.0f - a) * normalisedInput);
+	auto r = (float)lutValue.getRed() * v;
+	auto g = (float)lutValue.getGreen() * v;
+	auto b = (float)lutValue.getBlue() * v;
+	lutValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
+	return lutValue;
+}
+
+void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
+{
+	ColourGradient grad(Colours::black, 0.0f, 0.0f, Colours::white, 1.0f, 1.0f, false);
+
+	if (cs != colourScheme)
+	{
+		colourScheme = cs;
+
+		switch (colourScheme)
+		{
+		case ColourScheme::violetToOrange:
+		{
+			grad.addColour(0.2f, Colour(0xFF537374).withMultipliedBrightness(0.5f));
+			grad.addColour(0.4f, Colour(0xFF57339D).withMultipliedBrightness(0.8f));
+
+			grad.addColour(0.6f, Colour(0xFFB35259).withMultipliedBrightness(0.9f));
+			grad.addColour(0.8f, Colour(0xFFFF8C00));
+			grad.addColour(0.9f, Colour(0xFFC0A252));
+			break;
+		}
+		case ColourScheme::blackWhite: break;
+		case ColourScheme::rainbow:
+		{
+			grad.addColour(0.2f, Colours::blue);
+			grad.addColour(0.4f, Colours::green);
+			grad.addColour(0.6f, Colours::yellow);
+			grad.addColour(0.8f, Colours::orange);
+			grad.addColour(0.9f, Colours::red);
+			break;
+		}
+		case ColourScheme::hiseColours:
+		{
+			grad.addColour(0.33f, Colour(0xff3a6666));
+			grad.addColour(0.66f, Colour(SIGNAL_COLOUR));
+		}
+        default:
+            break;
+		}
+
+		grad.createLookupTable(data, LookupTableSize);
+	}
+}
+
+Spectrum2D::LookupTable::LookupTable()
+{
+	setColourScheme(ColourScheme::violetToOrange);
+
+	
+}
+
+Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
+{
+    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
+    auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
+
+    auto s2dHalf = parameters->Spectrum2DSize / 2;
+    
+    if (maxLevel == 0.0f)
+        return newImage;
+
+    for (int y = 0; y < s2dHalf; y++)
+    {
+        auto skewedProportionY = holder->getYPosition((float)y / (float)s2dHalf);
+        auto fftDataIndex = jlimit(0, s2dHalf-1, (int)(skewedProportionY * (int)s2dHalf));
+
+        for (int i = 0; i < lastBuffer.getNumSamples(); i++)
+        {
+            auto s = lastBuffer.getSample(fftDataIndex, i);
+
+            s *= (1.0f / maxLevel);
+
+            auto alpha = jlimit(0.0f, 1.0f, s);
+
+            alpha = holder->getXPosition(alpha);
+            alpha = std::pow(alpha, JUCE_LIVE_CONSTANT_OFF(0.6f));
+
+			auto lutValue = parameters->lut->getColouredPixel(alpha);
+            newImage.setPixelAt(i, y, lutValue);
+        }
+    }
+
+    return newImage;
+}
+
+AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
+{
+    auto fft = juce::dsp::FFT(parameters->order);
+
+    auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / parameters->Spectrum2DSize * parameters->oversamplingFactor - 1);
+
+    if (numSamplesToFill == 0)
+        return {};
+
+    auto paddingSize = JUCE_LIVE_CONSTANT_OFF(0);
+    
+    AudioSampleBuffer b(parameters->Spectrum2DSize, numSamplesToFill);
+    b.clear();
+
+    for (int i = 0; i < numSamplesToFill; i++)
+    {
+        auto offset = (i * parameters->Spectrum2DSize) / parameters->oversamplingFactor;
+        AudioSampleBuffer sb(1, parameters->Spectrum2DSize * 2);
+        sb.clear();
+
+        auto numToCopy = jmin(parameters->Spectrum2DSize, originalSource.getNumSamples() - offset);
+
+        FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
+
+        FFTHelpers::applyWindow(parameters->currentWindowType, sb);
+
+        fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
+
+        AudioSampleBuffer out(1, parameters->Spectrum2DSize);
+
+        FFTHelpers::toFreqSpectrum(sb, out);
+        FFTHelpers::scaleFrequencyOutput(out, false);
+
+        for (int c = 0; c < b.getNumChannels(); c++)
+        {
+            b.setSample(c, jmin(numSamplesToFill-1, i+paddingSize), out.getSample(0, c));
+        }
+    }
+    
+    return b;
+}
+
+void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationType n)
+{
+	jassert(getAllIds().contains(id));
+
+	if (id == Identifier("FFTSize"))
+	{
+		order = jlimit(7, 13, value);
+		Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
+	}
+    if(id == Identifier("DynamicRange"))
+        minDb = value;
+	if (id == Identifier("Oversampling"))
+		oversamplingFactor = value;
+	if (id == Identifier("ColourScheme"))
+		lut->setColourScheme((LookupTable::ColourScheme)value);
+	if (id == Identifier("WindowType"))
+		currentWindowType = (FFTHelpers::WindowType)value;
+	if (n != dontSendNotification)
+		notifier.sendMessage(n, id, value);
+}
+
+int Spectrum2D::Parameters::get(const Identifier& id) const
+{
+	jassert(getAllIds().contains(id));
+
+	if (id == Identifier("FFTSize"))
+		return order;
+    if (id == Identifier("DynamicRange"))
+        return minDb;
+	if (id == Identifier("Oversampling"))
+		return oversamplingFactor;
+	if (id == Identifier("ColourScheme"))
+		return (int)lut->colourScheme;
+	if (id == Identifier("WindowType"))
+		return currentWindowType;
+
+	return 0;
+}
+
+void Spectrum2D::Parameters::saveToJSON(var v) const
+{
+	if (auto dyn = v.getDynamicObject())
+	{
+		for (auto id : getAllIds())
+			dyn->setProperty(id, get(id));
+	}
+}
+
+void Spectrum2D::Parameters::loadFromJSON(const var& v)
+{
+	for (auto id : getAllIds())
+	{
+		if (v.hasProperty(id))
+			set(id, v.getProperty(id, ""), dontSendNotification);
+	}
+
+	notifier.sendMessage(sendNotificationAsync, "Allofem", var());
+}
+
+juce::Array<juce::Identifier> Spectrum2D::Parameters::getAllIds()
+{
+	static const Array<Identifier> ids =
+	{
+		Identifier("FFTSize"),
+		Identifier("DynamicRange"),
+		Identifier("Oversampling"),
+		Identifier("ColourScheme"),
+		Identifier("WindowType")
+	};
+	
+	return ids;
+}
+
+Spectrum2D::Parameters::Editor::Editor(Parameters::Ptr p) :
+	param(p)
+{
+	claf = new GlobalHiseLookAndFeel();
+
+	setName("Spectrogram Properties");
+
+	addEditor("FFTSize");
+	addEditor("Oversampling");
+	addEditor("WindowType");
+    addEditor("DynamicRange");
+	addEditor("ColourScheme");
+
+	setSize(450, RowHeight * editors.size() + 60);
+}
+
+void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
+{
+	auto cb = new ComboBox();
+	cb->setName(id.toString());
+
+	cb->setLookAndFeel(claf);
+	GlobalHiseLookAndFeel::setDefaultColours(*cb);
+	
+	if (id == Identifier("FFTSize"))
+	{
+		for (int i = 7; i < 14; i++)
+		{
+			auto id = i + 1;
+			auto pow = std::pow(2, i);
+			cb->addItem(String(pow), id);
+		}
+	}
+    if(id == Identifier("DynamicRange"))
+    {
+        cb->addItem("60dB", 61);
+        cb->addItem("80dB", 81);
+        cb->addItem("100dB", 101);
+        cb->addItem("110dB", 111);
+        cb->addItem("120dB", 121);
+        cb->addItem("130dB", 131);
+    }
+	if (id == Identifier("ColourScheme"))
+	{
+		cb->addItemList(LookupTable::getColourSchemes(), 1);
+	}
+	if (id == Identifier("Oversampling"))
+	{
+		cb->addItem("1x", 2);
+		cb->addItem("2x", 3);
+		cb->addItem("4x", 5);
+		cb->addItem("8x", 9);
+	}
+	if (id == Identifier("WindowType"))
+	{
+		for (auto w : FFTHelpers::getAvailableWindowTypes())
+			cb->addItem(FFTHelpers::getWindowType(w), (int)w + 1);
+	}
+
+	addAndMakeVisible(cb);
+	editors.add(cb);
+	cb->addListener(this);
+
+
+	cb->setSelectedId(param->get(id)+1, dontSendNotification);
+
+	auto l = new Label();
+	l->setEditable(false);
+	l->setFont(GLOBAL_FONT());
+	l->setText(id.toString(), dontSendNotification);
+	l->setColour(Label::ColourIds::textColourId, Colours::white);
+
+	addAndMakeVisible(l);
+	labels.add(l);
+
+}
+
+void Spectrum2D::Parameters::Editor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+{
+	auto id = Identifier(comboBoxThatHasChanged->getName());
+	auto v = comboBoxThatHasChanged->getSelectedId() - 1;
+
+	param->set(id, v, sendNotificationSync);
+	repaint();
+}
+
+void Spectrum2D::Parameters::Editor::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF222222));
+	auto b = getLocalBounds().removeFromBottom(60);
+
+	auto specArea = b.reduced(12);
+	auto textArea = specArea.removeFromTop(13);
+	auto range = param->get("DynamicRange");
+
+	auto parts = (float)specArea.getWidth() / (float)(range / 10);
+	auto tparts = (float)textArea.getWidth() / (float)(range / 10);
+
+	auto meterArea = specArea.removeFromTop(8).toFloat();
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+
+	g.setFont(GLOBAL_FONT().withHeight(12.0f));
+
+	for (int i = 0; i < range; i += 10)
+	{
+		auto mm = meterArea.removeFromLeft(parts);
+		g.drawVerticalLine(mm.getX(), meterArea.getY(), meterArea.getBottom());
+
+		auto tm = textArea.removeFromLeft(tparts).toFloat();
+
+		String s;
+		s << "-" << String(range - i) << "dB";
+		g.drawText(s, tm, Justification::centredLeft);
+	}
+
+	for (int i = 0; i < specArea.getWidth(); i+= 2)
+	{
+		auto ninput = (float)i / (float)specArea.getWidth();
+		auto p = param->lut->getColouredPixel(ninput);
+
+		Colour c(p.getNativeARGB());
+		g.setColour(c);
+		g.fillRect(specArea.getX() + i, specArea.getY(), 3, specArea.getHeight());
+	}
+}
+
+void Spectrum2D::Parameters::Editor::resized()
+{
+	auto b = getLocalBounds();
+	
+	b.removeFromLeft(12);
+
+	for (int i = 0; i < editors.size(); i++)
+	{
+		auto r = b.removeFromTop(RowHeight);
+		labels[i]->setBounds(r.removeFromLeft(128));
+		editors[i]->setBounds(r);
+	}	
+}
 
 }

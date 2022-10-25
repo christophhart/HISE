@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -61,13 +61,9 @@ AsyncUpdater::~AsyncUpdater()
 
 void AsyncUpdater::triggerAsyncUpdate()
 {
-	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::AsyncUpdater);
-
-#if !HISE_HEADLESS
     // If you're calling this before (or after) the MessageManager is
     // running, then you're not going to get any callbacks!
-    jassert (MessageManager::getInstanceWithoutCreating() != nullptr);
-#endif
+    JUCE_ASSERT_MESSAGE_MANAGER_EXISTS
 
     if (activeMessage->shouldDeliver.compareAndSetBool (1, 0))
         if (! activeMessage->post())

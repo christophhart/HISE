@@ -102,7 +102,7 @@ private:
 };
 
 
-#define NUM_API_FUNCTION_SLOTS 48
+#define NUM_API_FUNCTION_SLOTS 60
 
 
 /** A API class is a class with a fixed number of methods and constants that can be called from Javascript.
@@ -173,8 +173,6 @@ public:
 	ApiClass(int numConstants_);;
 	virtual ~ApiClass();
 
-    
-
 	/** You can overwrite this method and return true if you want to allow illegal calls that would otherwise
 	*	fire a warning. This is eg. used in the Console class to prevent firing when debugging. */
 	virtual bool allowIllegalCallsOnAudioThread(int /*functionIndex*/) const { return false; }
@@ -182,6 +180,8 @@ public:
 	String getDebugName() const override { return getObjectName().toString(); }
 
 	String getDebugValue() const override { return ""; }
+
+	bool isWatchable() const override { return false; };
 
 	// ================================================================================================================
 
@@ -249,7 +249,77 @@ public:
 
 	ReadWriteLock apiClassLock;
 
+	int getNumChildElements() const override { return numConstants; }
+	
+	DebugInformationBase* getChildElement(int index) override
+	{
+		auto name = getConstantName(index);
+		auto s = new SettableDebugInfo();
+		s->codeToInsert << "%PARENT%." << name;
+		s->value = getConstantValue(index);
+		s->watchable = false;
+		s->autocompleteable = false;
+		return s;
+	}
+
+
+	bool isAutocompleteable() const override { return true; }
+
+	void setFunctionIsInlineable(const Identifier& id)
+	{
+		inlineableFunctions.add(id);
+	}
+
+	bool isInlineableFunction(const Identifier& id) const
+	{
+		return inlineableFunctions.contains(id);
+	}
+
+	var getListOfOptimizableFunctions() const
+	{
+		Array<var> l;
+
+		for (auto o : optimizableFunctions)
+		{
+			if (o != nullptr)
+				l.add(var(dynamic_cast<ReferenceCountedObject*>(o.get())));
+		}
+
+		return var(l);
+	}
+
+	void addOptimizableFunction(const var& functionObject)
+	{
+		if (auto obj = dynamic_cast<DebugableObjectBase*>(functionObject.getObject()))
+		{
+			optimizableFunctions.addIfNotAlreadyThere(obj);
+		}
+	}
+
+	DebugableObjectBase::Location getCurrentLocationInFunctionCall()
+	{
+		return currentLocation;
+	}
+
+	void setWantsCurrentLocation(bool shouldSaveCurrentLocation)
+	{
+		wantsLocation = shouldSaveCurrentLocation;
+	}
+
+	bool wantsCurrentLocation() const { return wantsLocation; }
+
+	void setCurrentLocation(const String& file, int charNumber)
+	{
+		currentLocation.fileName = file;
+		currentLocation.charNumber = charNumber;
+	}
+
 private:
+
+	bool wantsLocation = false;
+	DebugableObjectBase::Location currentLocation;
+
+	Array<WeakReference<DebugableObjectBase>> optimizableFunctions;
 
 	// ================================================================================================================
 
@@ -286,6 +356,8 @@ private:
 	Constant* constantsToUse;
 
 	Array<Constant> constantBigStorage;
+
+	Array<Identifier> inlineableFunctions;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ApiClass)
 

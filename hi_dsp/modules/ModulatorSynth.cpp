@@ -321,7 +321,10 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
-	
+	if (!eventBuffer.isEmpty())
+		midiInputAlpha = 1.0f;
+	else
+		midiInputAlpha = jmax(0.0f, midiInputAlpha - 0.02f);
 
 	if (checkTimerCallback(0, numSamples)) synthTimerCallback(0, numSamples);
 	if (checkTimerCallback(1, numSamples)) synthTimerCallback(1, numSamples);
@@ -343,9 +346,16 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 	LockHelpers::freeToGo(getMainController());
 
 	jassert(finalised);
+
 	
+
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
+		auto envList = ProcessorHelpers::getListOfAllProcessors<EnvelopeModulator>(gainChain);
+		
+		if (envList.size() > 1) // the chain itself is an envelope...
+			return;
+
 		ScopedPointer<SimpleEnvelope> newEnvelope = new SimpleEnvelope(getMainController(),
 			"DefaultEnvelope",
 			voices.size(),
@@ -378,16 +388,11 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
 
 	
-	midiInputFlag = !eventBuffer.isEmpty();
-
-	
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
 	HiseEvent m;
 	int midiEventPos;
-
-
 
 	while (numSamples > 0)
 	{
@@ -446,24 +451,9 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	if (getMatrix().isEditorShown())
-	{
-		float gainValues[NUM_MAX_CHANNELS];
+	getMatrix().handleDisplayValues(thisInternalBuffer, outputBuffer);
 
-		for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = thisInternalBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, true);
-
-		for (int i = 0; i < outputBuffer.getNumChannels(); i++)
-		{
-			gainValues[i] = outputBuffer.getMagnitude(i, 0, numSamplesFixed);
-		}
-
-		getMatrix().setGainValues(gainValues, false);
-	}
+	
 
 	handlePeakDisplay(numSamplesFixed);
 }
@@ -588,53 +578,55 @@ void ModulatorSynth::setPeakValues(float l, float r)
 
 void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
+	auto c = m;
+
 	if (getMainController()->getKillStateHandler().voiceStartIsDisabled())
 	{
 		// Pass the all notes off messages through
-		if (m.isAllNotesOff())
+		if (c.isAllNotesOff())
 		{
-			preHiseEventCallback(m);
-			allNotesOff(m.getChannel(), true);
+			preHiseEventCallback(c);
+			allNotesOff(c.getChannel(), true);
 		}
 
 		return;
 	}
 	
-	preHiseEventCallback(m);
+	preHiseEventCallback(c);
 	
-	const int channel = m.getChannel();
+	const int channel = c.getChannel();
 
-	if (m.isNoteOn())
+	if (c.isNoteOn())
 	{
-		noteOn(m);
+		noteOn(c);
 	}
-	else if (m.isNoteOff())
+	else if (c.isNoteOff())
 	{
-		noteOff(m);
+		noteOff(c);
 	}
-	else if (m.isAllNotesOff())
+	else if (c.isAllNotesOff())
 	{
 		allNotesOff(channel, true);
 	}
-	else if (m.isController())
+	else if (c.isController())
 	{
-		const int controllerNumber = m.getControllerNumber();
+		const int controllerNumber = c.getControllerNumber();
 
 		switch (controllerNumber)
 		{
-		case 0x40:  handleSustainPedal(channel, m.getControllerValue() >= 64); break;
-		case 0x42:  handleSostenutoPedal(channel, m.getControllerValue() >= 64); break;
-		case 0x43:  handleSoftPedal(channel, m.getControllerValue() >= 64); break;
+		case 0x40:  handleSustainPedal(channel, c.getControllerValue() >= 64); break;
+		case 0x42:  handleSostenutoPedal(channel, c.getControllerValue() >= 64); break;
+		case 0x43:  handleSoftPedal(channel, c.getControllerValue() >= 64); break;
 		default:    break;
 		}
 	}
-	else if (m.isVolumeFade())
+	else if (c.isVolumeFade())
 	{
-		handleVolumeFade(m.getEventId(), m.getFadeTime(), m.getGainFactor());
+		handleVolumeFade(c.getEventId(), c.getFadeTime(), c.getGainFactor());
 	}
-	else if (m.isPitchFade())
+	else if (c.isPitchFade())
 	{
-		handlePitchFade(m.getEventId(), m.getFadeTime(), m.getPitchFactorForEvent());
+		handlePitchFade(c.getEventId(), c.getFadeTime(), c.getPitchFactorForEvent());
 	}
 }
 
@@ -730,7 +722,7 @@ void ModulatorSynth::handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, d
 	}
 }
 
-void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
+void ModulatorSynth::preHiseEventCallback(HiseEvent &e)
 {
 	if (e.isAllNotesOff())
 	{
@@ -764,9 +756,11 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 		return;
 	}
 
+#if JUCE_DEBUG
 	// If this is false, your collectSoundsToBeStarted method is wrong
 	// it uses the event id because it might have another start offset in a detuned synth group
 	jassert(voice->getCurrentHiseEvent().getEventId() == eventForSoundCollection.getEventId());
+#endif
 
 	pendingRemoveVoices.remove(voice);
 
@@ -887,9 +881,12 @@ void ModulatorSynth::numDestinationChannelsChanged()
 
 void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
 {
-	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
+	if (isBypassed() != shouldBeBypassed)
+	{
+		Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
-	setSoftBypass(shouldBeBypassed, true);
+		setSoftBypass(shouldBeBypassed, true);
+	}
 }
 
 void ModulatorSynth::softBypassStateChanged(bool isBypassedNow)
@@ -1152,7 +1149,7 @@ void ModulatorSynth::noteOff(const HiseEvent &m)
 		if (mvoice->getCurrentHiseEvent().getEventId() == eventId
 			&& voice->isPlayingChannel(midiChannel))
 		{
-			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())
+			if (auto sound = voice->getCurrentlyPlayingSound().get())
 			{
 				if (sound->appliesToChannel(midiChannel))
 				{
@@ -1367,15 +1364,9 @@ juce::SynthesiserVoice* ModulatorSynth::findVoiceToSteal(SynthesiserSound* sound
 	return Synthesiser::findVoiceToSteal(soundToPlay, midiChannel, midiNoteNumber);
 }
 
-bool ModulatorSynth::getMidiInputFlag()
+float ModulatorSynth::getMidiInputFlag()
 {
-	if (midiInputFlag)
-	{
-		midiInputFlag = false;
-		return true;
-	}
-
-	return false;
+	return midiInputAlpha;
 }
 
 
@@ -1678,20 +1669,13 @@ void ModulatorSynth::killAllVoices()
 	effectChain->killMasterEffects();
 }
 
-    void ModulatorSynth::updateShouldHaveEnvelope()
-    {
-        {
-            shouldHaveEnvelope = false;
-            
-            if (isInGroup())
-                shouldHaveEnvelope = false;
-            else if (ProcessorHelpers::is<GlobalModulatorContainer>(this) || ProcessorHelpers::is<MacroModulationSource>(this))
-                shouldHaveEnvelope = false;
-            else 
-                shouldHaveEnvelope = true;
-        }
-
-    }
+void ModulatorSynth::updateShouldHaveEnvelope()
+{
+	if (isInGroup())
+		shouldHaveEnvelope = false;
+	else
+		shouldHaveEnvelope = synthNeedsEnvelope();
+}
     
 bool ModulatorSynth::areVoicesActive() const
 {
@@ -1793,6 +1777,8 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 	ADD_NAME_TO_TYPELIST(JavascriptSynthesiser);
 	ADD_NAME_TO_TYPELIST(MacroModulationSource);
+	ADD_NAME_TO_TYPELIST(SendContainer);
+	ADD_NAME_TO_TYPELIST(SilentSynth);
 }
 
 
@@ -1814,6 +1800,8 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case globalModulatorContainer:	return new GlobalModulatorContainer(m, id, numVoices);
 	case scriptSynth:			return new JavascriptSynthesiser(m, id, numVoices);
 	case macroModulationSource: return new MacroModulationSource(m, id, numVoices);
+	case sendContainer:			return new SendContainer(m, id);
+	case silentSynth:			return new SilentSynth(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };

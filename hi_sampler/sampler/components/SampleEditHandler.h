@@ -36,101 +36,56 @@ namespace hise { using namespace juce;
 
 
 
-class SampleEditHandler: public ChangeListener
+
+class SampleEditHandler: public KeyListener
 {
 public:
 
-	struct Listener
+	
+
+	class SubEditorTraverser: public juce::KeyboardFocusTraverser
 	{
-		virtual ~Listener()
+	public:
+		
+		SubEditorTraverser(Component* sub);;
+		
+		Component::SafePointer<Component> component;
+
+		Component* getNextComponent(Component* current) override
 		{
-			masterReference.clear();
+			return component;
 		}
 
-		virtual void soundSelectionChanged(SampleSelection& newSelection) = 0;
+		Component* getPreviousComponent(Component* current) override
+		{
+			return component;
+		}
 
-	private:
-
-		friend class WeakReference<Listener>;
-		WeakReference<Listener>::Master masterReference;
+		Component* getDefaultComponent(Component* parentComponent) override
+		{
+			return component;
+		}
 	};
 
-	SampleEditHandler(ModulatorSampler* sampler_):
-		sampler(sampler_)
-	{
-		MessageManagerLock mml;
-		selectedSamplerSounds.addChangeListener(this);
-	}
+
+
+	SampleEditHandler(ModulatorSampler* sampler_);
 
 	~SampleEditHandler()
 	{
-		MessageManagerLock mml;
-		selectedSamplerSounds.removeChangeListener(this);
-	}
-
-	void changeListenerCallback(ChangeBroadcaster* /*source*/)
-	{
-		sendSelectionChangeMessage();
-	}
-
-	void addSelectionListener(Listener* l)
-	{
-		selectionListeners.addIfNotAlreadyThere(l);
-	}
-
-	void removeSelectionListener(Listener* l)
-	{
-		selectionListeners.removeAllInstancesOf(l);
-	}
-	
-	SelectedItemSet<ModulatorSamplerSound::Ptr> &getSelection()
-	{
-		return selectedSamplerSounds;
 	}
 
 	ModulatorSampler* getSampler() { return sampler; }
 
 	void moveSamples(SamplerSoundMap::Neighbour direction);
 
-	void setDisplayOnlyRRGroup(int newRRIndex) { rrIndex = newRRIndex; }
+	void resizeSamples(SamplerSoundMap::Neighbour direction);
 
-	int getCurrentlyDisplayedRRGroup() const { return rrIndex; }
-
-	void sendSelectionChangeMessage(bool forceUpdate = false)
-	{
-		const uint32 thisTime = Time::getMillisecondCounter();
-
-		if ((thisTime - timeSinceLastSelectionChange) < 1)
-		{
-			timeSinceLastSelectionChange = thisTime;
-			return;
-		}
-
-		timeSinceLastSelectionChange = thisTime;
-
-		auto existingSounds = getSanitizedSelection();
-
-		
-		if (forceUpdate || existingSounds != lastSelection)
-		{
-			ScopedLock sl(selectionListeners.getLock());
-
-			for (int i = 0; i < selectionListeners.size(); i++)
-			{
-                if(selectionListeners[i].get() != nullptr)
-                {
-                    selectionListeners[i]->soundSelectionChanged(existingSounds);
-                }
-			}
-
-			lastSelection.swapWith(existingSounds);
-		}
-	}
-
-	void handleMidiSelection();
+	static void handleMidiSelection(SampleEditHandler& handler, int noteNumber, int velocity);
 
 	struct SampleEditingActions
 	{
+		static void toggleFirstScriptButton(SampleEditHandler* handler);
 		static void deleteSelectedSounds(SampleEditHandler *body);
 		static void duplicateSelectedSounds(SampleEditHandler *body);
 		static void removeDuplicateSounds(SampleEditHandler *body);
@@ -159,31 +114,111 @@ public:
 
 
 		static void writeSamplesWithAiffData(ModulatorSampler* sampler);
+
+
+		static ModulatorSamplerSound* getNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction);
+
+		static void selectNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction, ModifierKeys mods);
 	};
 
+	LambdaBroadcaster<ModulatorSamplerSound::Ptr, int> selectionBroadcaster;
+	LambdaBroadcaster<int, int> noteBroadcaster;
+	LambdaBroadcaster<int, BigInteger*> groupBroadcaster;
+	LambdaBroadcaster<int> allSelectionBroadcaster;
+    SamplerTools toolBroadcaster;
+    
+	const ModulatorSamplerSound::Ptr* begin() const
+	{
+		return selectedSamplerSounds.begin();
+	}
+
+	ModulatorSamplerSound::Ptr* begin()
+	{
+		return selectedSamplerSounds.begin();
+	}
+
+	const ModulatorSamplerSound::Ptr* end() const
+	{
+		return selectedSamplerSounds.end();
+	}
+
+	ModulatorSamplerSound::Ptr* end()
+	{
+		return selectedSamplerSounds.end();
+	}
+
+	ModulatorSamplerSound::Ptr getMainSelection() { return currentMainSound; };
+
+	int getNumSelected() const { return selectedSamplerSounds.getNumSelected(); }
+
+	SelectedItemSet<ModulatorSamplerSound::Ptr>& getSelectionReference()
+	{
+		return selectedSamplerSounds;
+	}
+
+	void cycleMainSelection(int indexToUse=-1, int currentMicIndex=-1, bool back=false);
+
+	bool applyToMainSelection = false;
+
+	SampleSelection getSelectionOrMainOnlyInTabMode();
+
+	bool keyPressed(const KeyPress& key, Component* originatingComponent) override;
+
+	void setMainSelectionToLast();
+
 	
+
+	void setPreviewStart(int start)
+	{
+		previewer.setPreviewStart(start);
+	}
+
+	void togglePreview()
+	{
+		previewer.previewSample(currentMainSound, currentMicIndex);
+	}
+
+	const SamplePreviewer& getPreviewer() const { return previewer; }
 
 private:
 
-	SampleSelection getSanitizedSelection();
+	SamplerSoundMap::Neighbour currentDirection = SamplerSoundMap::Right;
+
+	SamplePreviewer previewer;
+
+	static void updateMainSound(SampleEditHandler& s, ModulatorSamplerSound::Ptr sound, int micIndex);
+
+	ModulatorSamplerSound::Ptr currentMainSound;
+	int currentMicIndex = 0;
+
+	ModulatorSampler* sampler;
+
+	SelectedItemSet<ModulatorSamplerSound::Ptr> selectedSamplerSounds;
+
+	struct PrivateSelectionUpdater: public ChangeListener
+	{
+		PrivateSelectionUpdater(SampleEditHandler& parent_, MainController* mc);
+
+		void changeListenerCallback(ChangeBroadcaster* );
+
+		~PrivateSelectionUpdater()
+		{
+			parent.selectedSamplerSounds.removeChangeListener(this);
+		}
+
+		SampleEditHandler& parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(PrivateSelectionUpdater);
+	} internalSelectionListener;
 
 	bool newKeysPressed(const uint8 *currentNotes);
 
-	void changeProperty(ModulatorSamplerSound *s, const Identifier& p, int delta);;
+	void changeProperty(ModulatorSamplerSound::Ptr s, const Identifier& p, int delta);;
 
-	int rrIndex = -1;
-
-	SelectedItemSet<ModulatorSamplerSound::Ptr> selectedSamplerSounds;
-	
-	int timeSinceLastSelectionChange = 0;
-
-	SampleSelection lastSelection;
-
-	Array<WeakReference<Listener>, CriticalSection> selectionListeners;
-
-	ModulatorSampler* sampler;
 public:
 	File getCurrentSampleMapDirectory() const;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleEditHandler);
 };
 
 

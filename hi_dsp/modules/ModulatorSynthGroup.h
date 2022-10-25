@@ -484,7 +484,7 @@ public:
 	const Processor *getParentProcessor() const { return nullptr; };
 
 	/** Passes the incoming MidiMessage only to the modulation chains of all child synths and NOT to the child synth's voices, as they get rendered by the ModulatorSynthGroupVoices. */
-	void preHiseEventCallback(const HiseEvent &m) override;
+	void preHiseEventCallback(HiseEvent &m) override;
 
 	/** Prepares all ModulatorSynths for playback. */
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;;

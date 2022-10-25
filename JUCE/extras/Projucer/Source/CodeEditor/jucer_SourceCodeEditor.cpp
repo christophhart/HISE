@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -46,11 +45,14 @@ CodeDocument& SourceCodeDocument::getCodeDocument()
     return *codeDoc;
 }
 
-Component* SourceCodeDocument::createEditor()
+std::unique_ptr<Component> SourceCodeDocument::createEditor()
 {
-    auto* e = new SourceCodeEditor (this, getCodeDocument());
+    auto e = std::make_unique<SourceCodeEditor> (this, getCodeDocument());
     applyLastState (*(e->editor));
-    return e;
+
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wredundant-move")
+    return std::move (e);
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 }
 
 void SourceCodeDocument::reloadFromFile()
@@ -69,7 +71,12 @@ void SourceCodeDocument::reloadInternal()
     auto lineFeed = getLineFeedForFile (fileContent);
 
     if (lineFeed.isEmpty())
-        lineFeed = project->getProjectLineFeed();
+    {
+        if (project != nullptr)
+            lineFeed = project->getProjectLineFeed();
+        else
+            lineFeed = "\r\n";
+    }
 
     codeDoc->setNewLineCharacters (lineFeed);
 
@@ -91,7 +98,7 @@ static bool writeCodeDocToFile (const File& file, CodeDocument& doc)
     return temp.overwriteTargetFileWithTemporary();
 }
 
-bool SourceCodeDocument::save()
+bool SourceCodeDocument::saveSyncWithoutAsking()
 {
     if (writeCodeDocToFile (getFile(), getCodeDocument()))
     {
@@ -103,14 +110,28 @@ bool SourceCodeDocument::save()
     return false;
 }
 
-bool SourceCodeDocument::saveAs()
+void SourceCodeDocument::saveAsync (std::function<void (bool)> callback)
 {
-    FileChooser fc (TRANS("Save As..."), getFile(), "*");
+    callback (saveSyncWithoutAsking());
+}
 
-    if (! fc.browseForFileToSave (true))
-        return true;
+void SourceCodeDocument::saveAsAsync (std::function<void (bool)> callback)
+{
+    chooser = std::make_unique<FileChooser> (TRANS("Save As..."), getFile(), "*");
+    auto flags = FileBrowserComponent::saveMode
+               | FileBrowserComponent::canSelectFiles
+               | FileBrowserComponent::warnAboutOverwriting;
 
-    return writeCodeDocToFile (fc.getResult(), getCodeDocument());
+    chooser->launchAsync (flags, [this, callback] (const FileChooser& fc)
+    {
+        if (fc.getResult() == File{})
+        {
+            callback (true);
+            return;
+        }
+
+        callback (writeCodeDocToFile (fc.getResult(), getCodeDocument()));
+    });
 }
 
 void SourceCodeDocument::updateLastState (CodeEditorComponent& editor)
@@ -376,7 +397,7 @@ public:
         addAndMakeVisible (findNext);
 
         setWantsKeyboardFocus (false);
-        setFocusContainer (true);
+        setFocusContainerType (FocusContainerType::keyboardFocusContainer);
         findPrev.setWantsKeyboardFocus (false);
         findNext.setWantsKeyboardFocus (false);
 
@@ -399,7 +420,7 @@ public:
     void paint (Graphics& g) override
     {
         Path outline;
-        outline.addRoundedRectangle (1.0f, 1.0f, getWidth() - 2.0f, getHeight() - 2.0f, 8.0f);
+        outline.addRoundedRectangle (1.0f, 1.0f, (float) getWidth() - 2.0f, (float) getHeight() - 2.0f, 8.0f);
 
         g.setColour (Colours::black.withAlpha (0.6f));
         g.fillPath (outline);
@@ -635,27 +656,42 @@ void CppCodeEditorComponent::performPopupMenuAction (int menuItemID)
 
 void CppCodeEditorComponent::insertComponentClass()
 {
-    AlertWindow aw (TRANS ("Insert a new Component class"),
-                    TRANS ("Please enter a name for the new class"),
-                    AlertWindow::NoIcon, nullptr);
+    asyncAlertWindow = std::make_unique<AlertWindow> (TRANS ("Insert a new Component class"),
+                                                      TRANS ("Please enter a name for the new class"),
+                                                      MessageBoxIconType::NoIcon,
+                                                      nullptr);
 
-    const char* classNameField = "Class Name";
+    const String classNameField { "Class Name" };
 
-    aw.addTextEditor (classNameField, String(), String(), false);
-    aw.addButton (TRANS ("Insert Code"),  1, KeyPress (KeyPress::returnKey));
-    aw.addButton (TRANS ("Cancel"),       0, KeyPress (KeyPress::escapeKey));
+    asyncAlertWindow->addTextEditor (classNameField, String(), String(), false);
+    asyncAlertWindow->addButton (TRANS ("Insert Code"),  1, KeyPress (KeyPress::returnKey));
+    asyncAlertWindow->addButton (TRANS ("Cancel"),       0, KeyPress (KeyPress::escapeKey));
 
-    while (aw.runModalLoop() != 0)
+    asyncAlertWindow->enterModalState (true,
+                                       ModalCallbackFunction::create ([parent = SafePointer<CppCodeEditorComponent> { this }, classNameField] (int result)
     {
+        if (parent == nullptr)
+            return;
+
+        auto& aw = *(parent->asyncAlertWindow);
+
+        aw.exitModalState (result);
+        aw.setVisible (false);
+
+        if (result == 0)
+            return;
+
         auto className = aw.getTextEditorContents (classNameField).trim();
 
-        if (className == CodeHelpers::makeValidIdentifier (className, false, true, false))
+        if (className == build_tools::makeValidIdentifier (className, false, true, false))
         {
             String code (BinaryData::jucer_InlineComponentTemplate_h);
             code = code.replace ("%%component_class%%", className);
 
-            insertTextAtCaret (code);
-            break;
+            parent->insertTextAtCaret (code);
+            return;
         }
-    }
+
+        parent->insertComponentClass();
+    }));
 }

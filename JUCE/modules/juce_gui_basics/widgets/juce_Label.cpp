@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -106,8 +105,13 @@ void Label::setEditable (bool editOnSingleClick,
     editDoubleClick = editOnDoubleClick;
     lossOfFocusDiscardsChanges = lossOfFocusDiscards;
 
-    setWantsKeyboardFocus (editOnSingleClick || editOnDoubleClick);
-    setFocusContainer (editOnSingleClick || editOnDoubleClick);
+    const auto isKeybordFocusable = (editOnSingleClick || editOnDoubleClick);
+
+    setWantsKeyboardFocus (isKeybordFocusable);
+    setFocusContainerType (isKeybordFocusable ? FocusContainerType::keyboardFocusContainer
+                                              : FocusContainerType::none);
+
+    invalidateAccessibilityHandler();
 }
 
 void Label::setJustificationType (Justification newJustification)
@@ -146,7 +150,7 @@ void Label::attachToComponent (Component* owner, bool onLeft)
 
     if (ownerComponent != nullptr)
     {
-        setVisible (owner->isVisible());
+        setVisible (ownerComponent->isVisible());
         ownerComponent->addComponentListener (this);
         componentParentHierarchyChanged (*ownerComponent);
         componentMovedOrResized (*ownerComponent, true, true);
@@ -222,12 +226,12 @@ void Label::showEditor()
     if (editor == nullptr)
     {
         editor.reset (createEditorComponent());
+        editor->setSize (10, 10);
         addAndMakeVisible (editor.get());
         editor->setText (getText(), false);
         editor->setKeyboardType (keyboardType);
         editor->addListener (this);
         editor->grabKeyboardFocus();
-		editor->setJustification(getJustificationType());
 
         if (editor == nullptr) // may be deleted by a callback
             return;
@@ -278,7 +282,9 @@ void Label::hideEditor (bool discardCurrentEditorContents)
         const bool changed = (! discardCurrentEditorContents)
                                && updateFromTextEditorContents (*outgoingEditor);
         outgoingEditor.reset();
-        repaint();
+
+        if (deletionChecker != nullptr)
+            repaint();
 
         if (changed)
             textWasEdited();
@@ -353,7 +359,9 @@ void Label::mouseDoubleClick (const MouseEvent& e)
     if (editDoubleClick
          && isEnabled()
          && ! e.mods.isPopupMenu())
+    {
         showEditor();
+    }
 }
 
 void Label::resized()
@@ -367,7 +375,9 @@ void Label::focusGained (FocusChangeType cause)
     if (editSingleClick
          && isEnabled()
          && cause == focusChangedByTabKey)
+    {
         showEditor();
+    }
 }
 
 void Label::enablementChanged()
@@ -395,21 +405,53 @@ void Label::setMinimumHorizontalScale (const float newScale)
 class LabelKeyboardFocusTraverser   : public KeyboardFocusTraverser
 {
 public:
-    LabelKeyboardFocusTraverser() {}
+    explicit LabelKeyboardFocusTraverser (Label& l)  : owner (l)  {}
 
-    Component* getNextComponent (Component* c) override     { return KeyboardFocusTraverser::getNextComponent (getComp (c)); }
-    Component* getPreviousComponent (Component* c) override { return KeyboardFocusTraverser::getPreviousComponent (getComp (c)); }
-
-    static Component* getComp (Component* current)
+    Component* getDefaultComponent (Component* parent) override
     {
-        return dynamic_cast<TextEditor*> (current) != nullptr
-                 ? current->getParentComponent() : current;
+        if (auto* container = getKeyboardFocusContainer (parent))
+            return KeyboardFocusTraverser::getDefaultComponent (container);
+
+        return nullptr;
     }
+
+    Component* getNextComponent     (Component* c) override  { return KeyboardFocusTraverser::getNextComponent     (getComp (c)); }
+    Component* getPreviousComponent (Component* c) override  { return KeyboardFocusTraverser::getPreviousComponent (getComp (c)); }
+
+    std::vector<Component*> getAllComponents (Component* parent) override
+    {
+        if (auto* container = getKeyboardFocusContainer (parent))
+            return KeyboardFocusTraverser::getAllComponents (container);
+
+        return {};
+    }
+
+private:
+    Component* getComp (Component* current) const
+    {
+        if (auto* ed = owner.getCurrentTextEditor())
+            if (current == ed)
+                return current->getParentComponent();
+
+        return current;
+    }
+
+    Component* getKeyboardFocusContainer (Component* parent) const
+    {
+        if (owner.getCurrentTextEditor() != nullptr && parent == &owner)
+            return owner.findKeyboardFocusContainer();
+
+        return parent;
+    }
+
+    Label& owner;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LabelKeyboardFocusTraverser)
 };
 
-KeyboardFocusTraverser* Label::createFocusTraverser()
+std::unique_ptr<ComponentTraverser> Label::createKeyboardFocusTraverser()
 {
-    return new LabelKeyboardFocusTraverser();
+    return std::make_unique<LabelKeyboardFocusTraverser> (*this);
 }
 
 //==============================================================================
@@ -469,8 +511,7 @@ void Label::textEditorEscapeKeyPressed (TextEditor& ed)
 {
     if (editor != nullptr)
     {
-        jassert (&ed == editor.get());
-        ignoreUnused (ed);
+        jassertquiet (&ed == editor.get());
 
         editor->setText (textValue.toString(), false);
         hideEditor (true);
@@ -480,6 +521,69 @@ void Label::textEditorEscapeKeyPressed (TextEditor& ed)
 void Label::textEditorFocusLost (TextEditor& ed)
 {
     textEditorTextChanged (ed);
+}
+
+//==============================================================================
+class LabelAccessibilityHandler  : public AccessibilityHandler
+{
+public:
+    explicit LabelAccessibilityHandler (Label& labelToWrap)
+        : AccessibilityHandler (labelToWrap,
+                                labelToWrap.isEditable() ? AccessibilityRole::editableText : AccessibilityRole::label,
+                                getAccessibilityActions (labelToWrap),
+                                { std::make_unique<LabelValueInterface> (labelToWrap) }),
+          label (labelToWrap)
+    {
+    }
+
+    String getTitle() const override  { return label.getText(); }
+    String getHelp() const override   { return label.getTooltip(); }
+
+    AccessibleState getCurrentState() const override
+    {
+        if (label.isBeingEdited())
+            return {}; // allow focus to pass through to the TextEditor
+
+        return AccessibilityHandler::getCurrentState();
+    }
+
+private:
+    class LabelValueInterface  : public AccessibilityTextValueInterface
+    {
+    public:
+        explicit LabelValueInterface (Label& labelToWrap)
+            : label (labelToWrap)
+        {
+        }
+
+        bool isReadOnly() const override                 { return true; }
+        String getCurrentValueAsString() const override  { return label.getText(); }
+        void setValueAsString (const String&) override   {}
+
+    private:
+        Label& label;
+
+        //==============================================================================
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LabelValueInterface)
+    };
+
+    static AccessibilityActions getAccessibilityActions (Label& label)
+    {
+        if (label.isEditable())
+            return AccessibilityActions().addAction (AccessibilityActionType::press, [&label] { label.showEditor(); });
+
+        return {};
+    }
+
+    Label& label;
+
+    //==============================================================================
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LabelAccessibilityHandler)
+};
+
+std::unique_ptr<AccessibilityHandler> Label::createAccessibilityHandler()
+{
+    return std::make_unique<LabelAccessibilityHandler> (*this);
 }
 
 } // namespace juce

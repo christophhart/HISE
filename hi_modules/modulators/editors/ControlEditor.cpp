@@ -40,7 +40,7 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ControlModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ControlModulator*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
@@ -104,7 +104,7 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
 
 	tableUsed = cm->getAttribute(ControlModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(cm);
+    ProcessorHelpers::connectTableEditor(*midiTable, cm);
 
     //[/UserPreSize]
 

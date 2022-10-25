@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -64,12 +63,12 @@ void ResizableWindow::initialise (const bool shouldAddToDesktop)
     /*
       ==========================================================================
 
-       In accordance with the terms of the JUCE 5 End-Use License Agreement, the
+       In accordance with the terms of the JUCE 6 End-Use License Agreement, the
        JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
        ineffective unless you have a JUCE Indie or Pro license, or are using
        JUCE under the GPL v3 license.
 
-       End User License Agreement: www.juce.com/juce-5-licence
+       End User License Agreement: www.juce.com/juce-6-licence
 
       ==========================================================================
     */
@@ -528,7 +527,18 @@ void ResizableWindow::parentSizeChanged()
 String ResizableWindow::getWindowStateAsString()
 {
     updateLastPosIfShowing();
-    return (isFullScreen() && ! isKioskMode() ? "fs " : "") + lastNonFullScreenPos.toString();
+    auto stateString = (isFullScreen() && ! isKioskMode() ? "fs " : "") + lastNonFullScreenPos.toString();
+
+   #if JUCE_LINUX
+    if (auto* peer = isOnDesktop() ? getPeer() : nullptr)
+    {
+        const auto frameSize = peer->getFrameSize();
+        stateString << " frame " << frameSize.getTop() << ' ' << frameSize.getLeft()
+                    << ' ' << frameSize.getBottom() << ' ' << frameSize.getRight();
+    }
+   #endif
+
+    return stateString;
 }
 
 bool ResizableWindow::restoreWindowStateFromString (const String& s)
@@ -541,7 +551,7 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
     const bool fs = tokens[0].startsWithIgnoreCase ("fs");
     const int firstCoord = fs ? 1 : 0;
 
-    if (tokens.size() != firstCoord + 4)
+    if (tokens.size() < firstCoord + 4)
         return false;
 
     Rectangle<int> newPos (tokens[firstCoord].getIntValue(),
@@ -555,7 +565,26 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
     auto* peer = isOnDesktop() ? getPeer() : nullptr;
 
     if (peer != nullptr)
+    {
         peer->getFrameSize().addTo (newPos);
+    }
+   #if JUCE_LINUX
+    else
+    {
+        // We need to adjust for the frame size before we create a peer, as X11
+        // doesn't provide this information at construction time.
+        if (tokens[firstCoord + 4] == "frame" && tokens.size() == firstCoord + 9)
+        {
+            BorderSize<int> frame { tokens[firstCoord + 5].getIntValue(),
+                                    tokens[firstCoord + 6].getIntValue(),
+                                    tokens[firstCoord + 7].getIntValue(),
+                                    tokens[firstCoord + 8].getIntValue() };
+
+            frame.addTo (newPos);
+            setBounds (newPos);
+        }
+    }
+   #endif
 
     {
         auto& desktop = Desktop::getInstance();
@@ -565,7 +594,7 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
 
         if (onScreenArea.getWidth() * onScreenArea.getHeight() < 32 * 32)
         {
-            auto screen = desktop.getDisplays().findDisplayForRect (newPos).userArea;
+            auto screen = desktop.getDisplays().getDisplayForRect (newPos)->userArea;
 
             newPos.setSize (jmin (newPos.getWidth(),  screen.getWidth()),
                             jmin (newPos.getHeight(), screen.getHeight()));

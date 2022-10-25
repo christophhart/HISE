@@ -212,6 +212,8 @@ public:
 
 	using F5Callback = std::function<void(const var&)>;
 
+	using CompileCallback = std::function<Result(const String& text, var& data)>;
+
 	JSONEditor(ObjectWithDefaultProperties* editedObject):
 		editedComponent(dynamic_cast<Component*>(editedObject))
 	{
@@ -280,15 +282,17 @@ public:
 
 	}
 
-	JSONEditor(const File& f)
+	
+
+	JSONEditor(const String& f, CodeTokeniser* t)
 	{
 		constructionTime = Time::getApproximateMillisecondCounter();
 
 		setName("External Script Preview");
 
-		tokeniser = new JavascriptTokeniser();
+		tokeniser = t;
 		doc = new CodeDocument();
-		doc->replaceAllContent(f.loadFileAsString());
+		doc->replaceAllContent(f);
 		doc->setSavePoint();
 		doc->clearUndoHistory();
 		doc->addListener(this);
@@ -397,11 +401,22 @@ public:
 		resizer->setBounds(getWidth() - 12, getHeight() - 12, 12, 12);
 	}
 
+	static Result defaultJSONParse(const String& s, var& value)
+	{
+		return JSON::parse(s, value);
+	}
+
+	void setCompileCallback(const CompileCallback& c, bool closeAfterExecution)
+	{
+		compileCallback = c;
+		closeAfterCallbackExecution = closeAfterExecution;
+	}
 
 private:
 
 	uint32 constructionTime;
 
+	CompileCallback compileCallback = defaultJSONParse;
 	F5Callback callback;
 
 	bool closeAfterCallbackExecution = false;
@@ -413,7 +428,7 @@ private:
 	ComponentBoundsConstrainer constrainer;
 
 	ScopedPointer<CodeDocument> doc;
-	ScopedPointer<JavascriptTokeniser> tokeniser;
+	ScopedPointer<CodeTokeniser> tokeniser;
 	ScopedPointer<CodeEditorComponent> editor;
 
 	ScopedPointer<Label> changeLabel;
@@ -525,6 +540,8 @@ public:
 		return parent; 
 	}
 
+	Rectangle<int> getParentContentBounds();
+
 	virtual String getTitle() const { return getIdentifierForBaseClass().toString(); };
 	virtual Identifier getIdentifierForBaseClass() const = 0;
 
@@ -537,10 +554,7 @@ public:
 	static FloatingTileContent* createNewPanel(const Identifier& id, FloatingTile* parent);
 
 	/** Set a custom title to the panel that will be displayed in tabs, etc. */
-	void setCustomTitle(String newCustomTitle)
-	{
-		customTitle = newCustomTitle;
-	}
+	void setCustomTitle(String newCustomTitle);
 
 	/** If you set a custom title, this will return it. */
 	String getCustomTitle() const
@@ -566,16 +580,8 @@ public:
 	}
 
 	/** This returns the title that is supposed to be displayed. */
-	String getBestTitle() const
-	{
-		if (hasDynamicTitle())
-			return getDynamicTitle();
-
-		if (hasCustomTitle())
-			return getCustomTitle();
-
-		return getTitle();
-	}
+    String getBestTitle() const;
+	
 
 	BackendProcessorEditor* getMainPanel();
 
@@ -608,9 +614,11 @@ public:
 			SampleEditor,
 			SampleMapEditor,
 			SamplerTable,
+			ComplexDataManager,
 			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,
+			OSCLogger,
 			ScriptComponentList,
 			InterfaceContent,
 			TablePanel,
@@ -625,9 +633,12 @@ public:
 			DspNetworkGraph,
 			DspNodeList,
 			DspNodeParameterEditor,
+            DspFaustEditorPanel,
+			ScriptBroadcasterMap,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
+			AutomationDataBrowser,
 			FileBrowser,
 			ImageTable,
 			AudioFileTable,
@@ -637,6 +648,7 @@ public:
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
+            MatrixPeakMeterPanel,
 			ActivationPanel,
 			TuningWindow,
 			PluginSettings,
@@ -660,8 +672,16 @@ public:
 			toggleGlobalLayoutMode,
 			exportAsJSON,
 			loadFromJSON,
+			SnexEditor,
+			SnexOptimisations,
+			SnexAssembly,
+			SnexGraph,
+			SnexParameterList,
+			SnexWorkbenchInfo,
+			SnexTestDataInfo,
+			SnexComplexTestData,
+			SnexWorkbenchPlayer,
 			MenuCommandOffset = 10000,
-
 			numOptions
 		};
 
@@ -696,7 +716,7 @@ public:
 		void registerExternalPanelTypes();
 #endif
 
-		Drawable* getIcon(PopupMenuOptions type) const;
+		std::unique_ptr<Drawable> getIcon(PopupMenuOptions type) const;
 
 		static Path getPath(PopupMenuOptions path);
 
@@ -791,8 +811,8 @@ private:
 		{
 			for (int i = 0; i < (int)ColourId::numColourIds; i++)
 			{
-				colours[i] = Colours::pink;
-				defaultColours[i] = Colours::pink;
+				colours[i] = Colours::transparentBlack;
+				defaultColours[i] = Colours::transparentBlack;
 			}	
 		}
 
@@ -859,7 +879,7 @@ private:
 
 		var toDynamicObject() const override
 		{
-			DynamicObject::Ptr o = new DynamicObject();
+			auto o = new DynamicObject();
 
 			var obj(o);
 
@@ -950,8 +970,26 @@ private:
 
 };
 
+#define DECLARE_ID(x) static const Identifier x(#x);
 
+namespace FloatingTileKeyPressIds
+{
+	DECLARE_ID(fold_editor);
+	DECLARE_ID(fold_interface);
+	DECLARE_ID(fold_browser)
+	DECLARE_ID(focus_editor);
+	DECLARE_ID(fold_watch);
+    DECLARE_ID(fold_map);
+	DECLARE_ID(fold_list);
+	DECLARE_ID(fold_console);
+	DECLARE_ID(fold_properties);
+	DECLARE_ID(focus_interface);
+	DECLARE_ID(focus_browser)
+	DECLARE_ID(cycle_editor);
+	DECLARE_ID(cycle_browser)
+}
 
+#undef DECLARE_ID
 
 struct FloatingPanelTemplates
 {
@@ -962,6 +1000,9 @@ struct FloatingPanelTemplates
 	static Component* createScriptingWorkspace(FloatingTile* root);
 
 	static Component* createSamplerWorkspace(FloatingTile* root);
+
+	static Component* createCodeEditorPanel(FloatingTile* root);
+	static Component* createScriptnodeEditorPanel(FloatingTile* root);
 
 	static var createSettingsWindow(MainController* mc);
 

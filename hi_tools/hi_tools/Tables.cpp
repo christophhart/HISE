@@ -36,29 +36,120 @@ Table::Table():
 	xConverter(getDefaultTextValue),
 	yConverter(getDefaultTextValue)
 {
-	
     graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
     graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
 }
 
 Table::~Table()
 {
-	
-
-	masterReference.clear();
 }
 
-void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)
+void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints, bool refreshLookupTable)
 {
 	graphPoints.clear();
 	graphPoints.addArray(newGraphPoints, 0, numPoints);
+
+	if (refreshLookupTable)
+		fillLookUpTable();
+
+	internalUpdater.sendContentChangeMessage(sendNotificationSync, -1);
 };
 
-void Table::createPath(Path &normalizedPath) const
+String Table::exportData() const
+{
+	if (graphPoints.size() == 2)
+	{
+		auto first = graphPoints.getFirst();
+		auto second = graphPoints.getLast();
+
+		if (first.x == 0.0f && first.y == 0.0f)
+		{
+			if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
+				return "";
+		}
+	}
+
+	Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
+
+	MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
+
+	return b.toBase64Encoding();
+}
+
+String Table::dataVarToBase64(const var& data)
+{
+	Array<GraphPoint> gpd;
+
+	if (auto d = data.getArray())
+	{
+		for (const auto& vgp : *d)
+		{
+			if (auto a = vgp.getArray())
+			{
+				gpd.add({ (float)(*a)[0], (float)(*a)[1], (float)(*a)[2] });
+			}
+		}
+	}
+
+	MemoryBlock b(gpd.getRawDataPointer(), sizeof(Table::GraphPoint) * gpd.size());
+	return b.toBase64Encoding();
+}
+
+var Table::base64ToDataVar(const String& b64)
+{
+	MemoryBlock b;
+
+	b.fromBase64Encoding(b64);
+
+	if (b.getSize() == 0)
+		return var();
+
+	Array<GraphPoint> gpd;
+	gpd.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
+
+	Array<var> data;
+
+	for (auto& gp : gpd)
+	{
+		Array<var> vgp;
+		vgp.add(gp.x);
+		vgp.add(gp.y);
+		vgp.add(gp.curve);
+		data.add(var(vgp));
+	}
+
+	return data;
+}
+
+bool Table::fromBase64String(const String& b64)
+{
+	restoreData(b64);
+	return true;
+}
+
+String Table::toBase64String() const
+{
+	return exportData();
+}
+
+void Table::createPath(Path &normalizedPath, bool fillPath, bool addStartEnd) const
 {
 	normalizedPath.clear();
-	normalizedPath.startNewSubPath(-0.00000001f, 1.0000001f);
-	normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+	
+	normalizedPath.startNewSubPath(0.0f, 0.0f);
+	normalizedPath.startNewSubPath(1.0f, 1.0f);
+	normalizedPath.startNewSubPath(0.0f, 1.0f);
+	normalizedPath.startNewSubPath(1.0f, 0.0f);
+
+	if (addStartEnd)
+	{
+		normalizedPath.startNewSubPath(0.0f, 1.0f - jmax(0.0f, startY));
+		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+	}
+	else
+	{
+		normalizedPath.startNewSubPath(0.0f, 1.0f - graphPoints[0].y);
+	}
 
 	for(int i = 1; i < graphPoints.size(); ++i)
 	{
@@ -84,41 +175,71 @@ void Table::createPath(Path &normalizedPath) const
 		
 	}
 
-	normalizedPath.lineTo(1.0000001f, 0.0000001f); // fix wrong scaling if greatest value is < 1
-	normalizedPath.lineTo(1.0000001f, 1.0000001f);
-	normalizedPath.closeSubPath();
+	if(addStartEnd)
+		normalizedPath.lineTo(1.0f, 1.0f - jmax(0.0f, endY));
+
+	if (fillPath)
+		normalizedPath.closeSubPath();
 };
 
 void Table::fillLookUpTable()
 {
+	HeapBlock<float> newValues;
+	newValues.calloc(getTableSize());
+
 	GraphPointComparator gpc;
 	graphPoints.sort(gpc);
 
-	Path renderPath;
-
-	createPath(renderPath);
-
-	renderPath.applyTransform(AffineTransform::scale((float)getTableSize(), 1.0f));
-
-	Line<float> l;
-	Line<float> clipped;
-
-	Array<float> newValues;
-
-	for(int i = 0; i < getTableSize(); i++)
-	{
-		l = Line<float>((float)i, 0.0f, (float)i, 1.0f);
-		clipped = renderPath.getClippedLine(l, false);
-		const float value = 1.0f - (clipped.getStartY());
-		jassert(i < getTableSize());
-		newValues.add(value);
-	};
-
+	fillExternalLookupTable(newValues, getTableSize());
+	
 	ScopedLock sl(getLock());
-	FloatVectorOperations::copy(getWritePointer(), newValues.getRawDataPointer(), getTableSize());
+	FloatVectorOperations::copy(getWritePointer(), newValues, getTableSize());
 };
 
+void Table::fillExternalLookupTable(float* d, int numValues)
+{
+	Path renderPath;
+	createPath(renderPath, false, false);
+	
+	// Allow a error of -60dB for the curve flattening
+	PathFlatteningIterator it(renderPath, AffineTransform(), 0.001f);
+
+	for (int i = 0; i < numValues; i++)
+	{
+		float xIndex = (float)i / (float)(numValues-1);
+
+		Range<float> r(it.x1, it.x2);
+
+		bool isLast = false;
+
+		while (!r.contains(xIndex))
+		{
+			if (!it.next())
+			{
+				isLast = true;
+				break;
+			}
+
+			r = Range<float>(it.x1, it.x2);
+		}
+
+		if (isLast)
+			d[i] = 1.0f - it.y1;
+		else
+		{
+			Line<float> section(it.x1, it.y1, it.x2, it.y2);
+
+			Line<float> scanLine(xIndex, -0.1f, xIndex, 1.1f);
+
+			auto v = section.getIntersection(scanLine).getY();
+			d[i] = 1.0f - v;
+		}
+	};
+}
+
+#if 0
 float *MidiTable::getWritePointer() {return data;};
+#endif
 
 float *SampleLookupTable::getWritePointer() {return data;};
 

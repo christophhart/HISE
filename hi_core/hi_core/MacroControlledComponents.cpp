@@ -38,13 +38,50 @@ int MacroControlledObject::getMacroIndex() const
 {
 	if(getProcessor() != nullptr)
 	{
-		return GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
+		if (customId.isValid())
+			return GET_MACROCHAIN()->getMacroControlIndexForCustomAutomation(customId);
+		else
+			return GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 	}
 	else return -1;
 };
 
 bool MacroControlledObject::checkLearnMode()
 {
+#if USE_BACKEND
+
+	if (getProcessor() == nullptr)
+		return false;
+
+	auto b = getProcessor()->getMainController()->getScriptComponentEditBroadcaster();
+
+	if (auto l = b->getCurrentlyLearnedComponent())
+	{
+		LearnData ld;
+		ld.processorId = getProcessor()->getId();
+		ld.parameterId = getProcessor()->getIdentifierForParameterIndex(parameter).toString();
+		ld.range = getRange();
+		ld.value = getProcessor()->getAttribute(parameter);
+		ld.name = name;
+
+		if (auto s = dynamic_cast<HiSlider*>(this))
+		{
+			ld.mode = s->getModeId();
+		}
+		
+		else if (auto cb = dynamic_cast<HiComboBox*>(this))
+		{
+			for (int i = 0; i < cb->getNumItems(); i++)
+				ld.items.add(cb->getItemText(i));
+		}
+
+		b->setLearnData(ld);
+		return true;
+	}
+
+#endif
+
+
 	const int currentlyActiveLearnIndex = getProcessor()->getMainController()->getMacroManager().getMacroControlLearnMode();
 
 	if(currentlyActiveLearnIndex != -1)
@@ -73,8 +110,10 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	auto mods = ProcessorHelpers::getListOfAllGlobalModulators(getProcessor()->getMainController()->getMainSynthChain());
 
-	const int midiController = handler->getMidiControllerNumber(processor, parameter);
-	const bool learningActive = handler->isLearningActive(processor, parameter);
+	auto parameterToUse = getAutomationIndex();
+
+	const int midiController = handler->getMidiControllerNumber(processor, parameterToUse);
+	const bool learningActive = handler->isLearningActive(processor, parameterToUse);
 
 	enum Commands
 	{
@@ -97,18 +136,22 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	m.setLookAndFeel(&plaf);
 
+	auto ccName = handler->getCCName();
 
 	if (!isOnHiseModuleUI)
 	{
-		m.addItem(Learn, "Learn MIDI CC", true, learningActive);
+		m.addItem(Learn, "Learn " + ccName, true, learningActive);
 		
-		auto value = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMidiControllerNumber(processor, parameter);
+		auto value = handler->getMidiControllerNumber(processor, parameterToUse);
 
 		PopupMenu s;
 		for (int i = 1; i < 127; i++)
-			s.addItem(i + MidiOffset, "CC #" + String(i), true, i == value);
+		{
+			if(handler->shouldAddControllerToPopup(i))
+				s.addItem(i + MidiOffset, handler->getControllerName(i), handler->isMappable(i), i == value);
+		}
 
-		m.addSubMenu("Assign MIDI CC", s, true);
+		m.addSubMenu("Assign " + ccName, s, true);
 	}
 		
 
@@ -132,7 +175,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	if (midiController != -1)
 	{
-		m.addItem(Remove, "Remove CC " + String(midiController));
+		m.addItem(Remove, "Remove " + handler->getControllerName(midiController));
 	}
 
 	if (macroIndex != -1)
@@ -146,7 +189,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 		if (mm.isMacroEnabledOnFrontend())
 		{
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < HISE_NUM_MACROS; i++)
 			{
 				auto name = macroChain->getMacroControlData(i)->getMacroName();
 
@@ -171,7 +214,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		if (!learningActive)
 		{
-			handler->addMidiControlledParameter(processor, parameter, rangeWithSkew, getMacroIndex());
+			handler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getMacroIndex());
 		}
 		else
 		{
@@ -180,7 +223,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	}
 	else if (result == Remove)
 	{
-		handler->removeMidiControlledParameter(processor, parameter, sendNotification);
+		handler->removeMidiControlledParameter(processor, parameterToUse, sendNotification);
 	}
 	else if (result == AddMPE)
 	{
@@ -192,7 +235,13 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	}
 	else if (result == RemoveMacroControl)
 	{
-		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->removeParameter(name, getProcessor());
+		auto nameToUse = name;
+
+		if (customId.isValid())
+			nameToUse = customId.toString();
+
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->removeParameter(nameToUse, getProcessor());
+		
 		initMacroControl(sendNotification);
 	}
 	else if (result >= MidiOffset)
@@ -202,15 +251,21 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		auto mHandler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
 		
 		mHandler->deactivateMidiLearning();
-		mHandler->removeMidiControlledParameter(processor, parameter, sendNotificationAsync);
-		mHandler->addMidiControlledParameter(processor, parameter, rangeWithSkew, -1);
+		mHandler->removeMidiControlledParameter(processor, parameterToUse, sendNotificationAsync);
+		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, -1);
 		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
 	}
 	else if (result >= AddMacroControlOffset)
 	{
 		int macroIndex = result - AddMacroControlOffset;
 
-		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameter, getName(), rangeWithSkew);
+		auto nameToUse = getName();
+
+		if (customId.isValid())
+			nameToUse = customId.toString();
+
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameterToUse, nameToUse, rangeWithSkew, false, customId.isValid());
+
 		initMacroControl(sendNotification);
 	}
 	
@@ -249,8 +304,26 @@ void MacroControlledObject::macroConnectionChanged(int macroIndex, Processor* p,
 	}
 }
 
+bool MacroControlledObject::canBeMidiLearned() const
+{
+#if HISE_ENABLE_MIDI_LEARN
+
+	if (processor->getMainController()->getUserPresetHandler().isUsingCustomDataModel())
+	{
+		return customId.isValid() && midiLearnEnabled;
+	}
+
+	return midiLearnEnabled;
+#else
+	return false;
+#endif
+}
+
 MacroControlledObject::~MacroControlledObject()
 {
+    numberTag = nullptr;
+    slaf = nullptr;
+    
 	if (auto p = getProcessor())
 	{
 		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
@@ -278,14 +351,29 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 
 	initMacroControl(dontSendNotification);
 
-	slaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(p->getMainController());
-	numberTag->setLookAndFeel(slaf.get());
-	
-	
+	auto newLaf = new ScriptingObjects::ScriptedLookAndFeel::Laf(p->getMainController());
+
+	slaf = newLaf;
+
+	WeakReference<ScriptingObjects::ScriptedLookAndFeel::Laf> safeLaf = newLaf;
+
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<Component>(*numberTag, [safeLaf](Component& c)
+	{
+		if (safeLaf != nullptr)
+			c.setLookAndFeel(safeLaf.get());
+	});
 
 	p->getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
 
-	auto mIndex = p->getMainController()->getMainSynthChain()->getMacroControlIndexForProcessorParameter(p, parameter);
+	
+}
+
+void MacroControlledObject::connectToCustomAutomation(const Identifier& newCustomId)
+{
+	customId = newCustomId;
+	updateValue(sendNotificationSync);
+
+	auto mIndex = getMacroIndex();
 
 	if (mIndex != -1)
 		addToMacroController(mIndex);
@@ -293,48 +381,24 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 		removeFromMacroController();
 }
 
+int MacroControlledObject::getAutomationIndex() const
+{
+	if (customId.isNull() || processor == nullptr)
+		return parameter;
+	
+	return processor->getMainController()->getUserPresetHandler().getCustomAutomationIndex(customId);
+}
+
 void MacroControlledObject::initMacroControl(NotificationType notify)
 {
-#if 0
-	if (getProcessor() == nullptr)
-		return;
 
-
-	auto macroChain = getProcessor()->getMainController()->getMacroManager().getMacroChain();
-	
-	auto mIndex = -1;
-
-	for (int i = 0; i < 8; i++)
-	{
-		if (auto p = macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(getProcessor(), parameter))
-		{
-			mIndex = i;
-			break;
-		}
-	}
-	
-	if (mIndex >= 0)
-		addToMacroController(mIndex);
-	else
-
-		removeFromMacroController();
-
-	if (notify == sendNotification)
-	{
-		getProcessor()->getMainController()->getMainSynthChain()->sendChangeMessage();
-
-		
-	}
-#endif
 }
 
 bool  MacroControlledObject::isLocked()
 {
 	if (!macroControlledComponentEnabled) return true;
 
-
-    
-	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
+	const int index = getMacroIndex();
 
 	if(index == -1) return false;
 
@@ -343,7 +407,10 @@ bool  MacroControlledObject::isLocked()
 
 bool  MacroControlledObject::isReadOnly()
 {
-	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
+	const int index = getMacroIndex();
+
+	if (index == -1)
+		return false;
 
 	const MacroControlBroadcaster::MacroControlledParameterData *data = GET_MACROCHAIN()->getMacroControlData(index)->getParameterWithProcessorAndName(getProcessor(), name);
 
@@ -412,9 +479,6 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 	const bool enabled = !isLocked();
 
 	setEnabled(enabled);
-
-	numberTag->setNumber(enabled ? 0 : getMacroIndex()+1);
-	
 
 	const double value = (double)getProcessor()->getAttribute(parameter);
 
@@ -570,6 +634,24 @@ void HiSlider::textEditorEscapeKeyPressed(TextEditor&)
 	updateValueFromLabel(false);
 }
 
+String HiSlider::getModeId() const
+{
+	switch (mode)
+	{
+	case Frequency: return "Frequency";
+	case Decibel: return "Decibel";
+	case Time: return "Time";
+	case TempoSync: return "TempoSync";
+	case Linear: return "Linear";
+	case Discrete: return "Discrete";
+	case Pan: return "Pan";
+	case NormalizedPercentage: return "NormalizedPercentage";
+	case numModes: return "";
+	}
+
+	return "";
+}
+
 void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 {
 	laf = laf_;
@@ -592,14 +674,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
         
         startTouch(e.getMouseDownPosition());
         
-		if (isMomentary)
-		{
-			setToggleState(true, sendNotification);
-		}
-		else
-		{
-			ToggleButton::mouseDown(e);
-		}
+        MomentaryToggleButton::mouseDown(e);
 
 		if (popupData.isObject())
 		{
@@ -639,15 +714,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 void HiToggleButton::mouseUp(const MouseEvent& e)
 {
     abortTouch();
-    
-	if (isMomentary)
-	{
-		setToggleState(false, sendNotification);
-	}
-	else
-	{
-		ToggleButton::mouseUp(e);
-	}
+    MomentaryToggleButton::mouseUp(e);
 }
 
 void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
@@ -684,8 +751,6 @@ void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
 void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)
 {
 	const bool enabled = !isLocked();
-
-	if(enabled) numberTag->setNumber(0);
 
 	setEnabled(enabled);
 
@@ -741,6 +806,9 @@ void HiToggleButton::buttonClicked(Button *b)
 {
 	jassert(b == this);
     
+	if (getProcessor() == nullptr)
+		return;
+
 	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
 
@@ -761,9 +829,7 @@ void HiToggleButton::buttonClicked(Button *b)
 	}
 }
 
-StringArray TempoSyncer::tempoNames = StringArray();
 
-float TempoSyncer::tempoFactors[numTempos];
 
 #undef GET_MACROCHAIN
 
@@ -794,6 +860,41 @@ bool MacroControlledObject::UndoableControlEvent::undo()
 		return true;
 	}
 	else return false;
+}
+
+namespace LearnableIcons
+{
+	static const unsigned char destination[] = { 110,109,164,176,141,67,70,246,138,66,98,82,216,144,67,231,251,113,66,123,116,148,67,18,131,80,66,80,125,152,67,180,72,50,66,98,227,133,167,67,162,69,131,65,135,214,187,67,240,167,70,62,94,154,208,67,0,0,0,0,98,207,199,208,67,0,0,0,0,63,245,208,67,0,0,
+0,0,176,34,209,67,0,0,0,0,98,8,60,239,67,78,98,144,62,4,70,6,68,215,163,14,66,127,58,13,68,45,178,180,66,98,182,243,18,68,160,90,7,67,193,34,19,68,174,199,62,67,244,157,13,68,92,143,108,67,98,113,29,8,68,219,25,141,67,18,67,250,67,94,90,158,67,225,58,
+225,67,195,101,163,67,98,76,71,199,67,131,160,168,67,248,3,171,67,248,131,160,67,129,197,151,67,184,14,142,67,98,78,34,149,67,43,135,139,67,133,171,146,67,203,209,136,67,63,101,144,67,162,245,133,67,108,27,207,160,67,66,192,118,67,98,246,24,175,67,217,
+254,139,67,117,83,198,67,88,169,148,67,20,110,220,67,66,144,144,67,98,121,233,245,67,233,214,139,67,12,194,5,68,162,101,108,67,51,171,7,68,182,19,55,67,98,41,76,9,68,59,159,9,67,162,69,4,68,172,92,178,66,127,58,245,67,0,128,119,66,98,180,216,234,67,199,
+203,60,66,72,65,222,67,84,99,28,66,133,123,209,67,125,63,27,66,98,195,53,209,67,94,58,27,66,0,240,208,67,88,57,27,66,61,170,208,67,94,58,27,66,98,16,24,189,67,188,244,27,66,213,216,169,67,184,158,106,66,244,253,157,67,143,2,181,66,108,164,176,141,67,
+70,246,138,66,99,109,184,30,237,65,119,222,70,67,98,100,59,174,65,119,222,70,67,10,215,99,65,250,190,67,67,96,229,10,65,223,47,62,67,98,59,223,71,64,6,161,56,67,0,0,0,0,10,23,49,67,0,0,0,0,160,58,41,67,98,0,0,0,0,94,58,41,67,0,0,0,0,29,58,41,67,0,0,0,
+0,219,57,41,67,98,0,0,0,0,111,178,24,67,102,102,86,65,199,75,11,67,164,112,239,65,199,75,11,67,98,209,98,192,66,199,75,11,67,76,119,121,67,199,75,11,67,76,119,121,67,199,75,11,67,108,76,119,121,67,63,245,167,66,108,246,184,190,67,254,20,41,67,108,76,
+119,121,67,158,47,126,67,108,76,119,121,67,119,222,70,67,98,76,119,121,67,119,222,70,67,113,125,191,66,119,222,70,67,184,30,237,65,119,222,70,67,99,109,78,18,174,67,231,123,222,66,98,119,30,182,67,109,231,180,66,240,183,194,67,47,29,154,66,152,222,208,
+67,47,29,154,66,98,254,36,233,67,47,29,154,66,94,218,252,67,45,242,232,66,94,218,252,67,37,6,37,67,98,94,218,252,67,242,146,85,67,254,36,233,67,113,253,124,67,152,222,208,67,113,253,124,67,98,250,94,196,67,113,253,124,67,63,21,185,67,127,138,114,67,143,
+18,177,67,168,198,97,67,108,61,250,219,67,170,113,42,67,108,78,18,174,67,231,123,222,66,99,101,0,0 };
+
+	static const unsigned char source[] = { 110,109,238,124,158,67,137,193,202,66,108,20,190,136,67,137,193,202,66,98,223,255,131,67,205,12,170,66,8,236,122,67,117,83,141,66,23,217,106,67,137,193,111,66,98,127,106,86,67,94,58,57,66,244,29,62,67,45,178,27,66,231,91,37,67,94,58,27,66,98,4,22,37,
+67,88,57,27,66,33,208,36,67,88,57,27,66,127,138,36,67,94,58,27,66,98,29,218,214,66,217,78,28,66,39,177,82,66,137,129,162,66,156,68,36,66,244,189,12,67,98,2,43,4,66,190,223,53,67,115,104,59,66,219,153,98,67,100,59,155,66,244,13,128,67,98,84,99,213,66,
+223,255,141,67,129,117,21,67,254,84,148,67,166,59,61,67,248,115,144,67,98,104,49,96,67,68,11,141,67,111,82,127,67,18,163,129,67,88,217,136,67,223,111,100,67,108,49,168,158,67,223,111,100,67,98,76,23,158,67,8,44,103,67,74,124,157,67,137,225,105,67,233,
+214,156,67,92,143,108,67,98,80,189,145,67,14,77,141,67,188,244,118,67,174,151,158,67,121,169,68,67,92,127,163,67,98,240,7,17,67,82,136,168,67,186,9,178,66,180,104,160,67,25,4,75,66,184,14,142,67,98,190,159,194,65,111,98,129,67,70,182,211,64,90,100,96,
+67,188,116,195,63,170,17,60,67,98,23,217,182,192,12,98,8,67,129,149,81,65,100,59,163,66,72,225,77,66,250,254,52,66,98,147,88,163,66,231,251,132,65,156,132,245,66,131,192,74,62,193,106,36,67,0,0,0,0,98,162,197,36,67,0,0,0,0,131,32,37,67,0,0,0,0,100,123,
+37,67,0,0,0,0,98,236,17,88,67,143,194,117,62,254,228,132,67,219,249,198,65,115,72,148,67,143,2,131,66,98,221,116,152,67,74,12,153,66,152,222,155,67,100,59,177,66,238,124,158,67,137,193,202,66,99,109,43,103,37,67,141,55,67,67,98,193,138,29,67,141,55,67,
+67,197,0,22,67,16,24,64,67,236,113,16,67,55,137,58,67,98,209,226,10,67,29,250,52,67,84,195,7,67,33,112,45,67,84,195,7,67,182,147,37,67,98,84,195,7,67,117,147,37,67,84,195,7,67,117,147,37,67,84,195,7,67,51,147,37,67,98,84,195,7,67,133,11,21,67,186,41,
+21,67,31,165,7,67,104,177,37,67,31,165,7,67,98,254,244,103,67,31,165,7,67,113,157,192,67,31,165,7,67,113,157,192,67,31,165,7,67,108,113,157,192,67,240,167,160,66,108,80,77,1,68,86,110,37,67,108,113,157,192,67,180,136,122,67,108,113,157,192,67,141,55,
+67,67,98,113,157,192,67,141,55,67,67,12,130,103,67,141,55,67,67,43,103,37,67,141,55,67,67,99,101,0,0 };
+
+}
+
+juce::Path Learnable::Factory::createPath(const String& url) const
+{
+	Path p;
+	
+	LOAD_PATH_IF_URL("destination", LearnableIcons::destination);
+	LOAD_PATH_IF_URL("source", LearnableIcons::source);
+
+	return p;
 }
 
 } // namespace hise

@@ -37,11 +37,24 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
 bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 {
 	if (auto obj = v.getObject())
+		return dynamic_cast<WeakCallbackHolder::CallableObject*>(obj) != nullptr;
+
+	return false;
+}
+
+
+bool HiseJavascriptEngine::isInlineFunction(const var& v)
+{
+	if (auto obj = v.getObject())
 	{
-		return dynamic_cast<RootObject::FunctionObject*>(obj) || dynamic_cast<RootObject::InlineFunction::Object*>(obj);
+		return dynamic_cast<RootObject::InlineFunction::Object*>(obj);
 	}
 
 	return false;
@@ -59,6 +72,91 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExec
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }
 
+bool HiseJavascriptEngine::RootObject::JavascriptNamespace::optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p)
+{
+	if (auto fo = dynamic_cast<InlineFunction::Object*>(function.getObject()))
+	{
+		if (fo->body != nullptr)
+		{
+			auto tr = p->executePass(fo->body);
+			r.numOptimizedStatements += tr.numOptimizedStatements;
+			return true;
+		}
+	}
+	else if (auto fo = dynamic_cast<FunctionObject*>(function.getObject()))
+	{
+		auto tr = p->executePass(fo->body);
+		r.numOptimizedStatements += tr.numOptimizedStatements;
+		return true;
+	}
+
+	return false;
+}
+
+hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::JavascriptNamespace::runOptimisation(OptimizationPass* p)
+{
+	OptimizationPass::OptimizationResult r;
+	r.passName = p->getPassName();
+
+	for (auto o : inlineFunctions)
+	{
+		optimiseFunction(r, var(o), p);
+	}
+
+	for (auto& co : constObjects)
+	{
+		if (auto cso = dynamic_cast<ApiClass*>(co.value.getObject()))
+		{
+			auto fList = cso->getListOfOptimizableFunctions();
+
+			if (fList.isArray())
+			{
+				for (auto& f : *fList.getArray())
+					optimiseFunction(r, f, p);
+			}
+			else
+				jassertfalse;
+		}
+	}
+
+	return r;
+}
+
+HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::HiseSpecialData::runOptimisation(OptimizationPass* p)
+{
+	auto r = JavascriptNamespace::runOptimisation(p);
+
+	for (auto api : this->apiClasses)
+	{
+		auto list = api->getListOfOptimizableFunctions();
+
+		for (auto f : *list.getArray())
+			optimiseFunction(r, f, p);
+	}
+
+	for (auto& nv : this->root->getProperties())
+	{
+		optimiseFunction(r, nv.value, p);
+	}
+
+	for (auto n : namespaces)
+	{
+		auto tr = n->runOptimisation(p);
+		r.numOptimizedStatements += tr.numOptimizedStatements;
+	}
+
+	for (auto c : callbackNEW)
+	{
+		if (c->statements != nullptr)
+		{
+			auto tr = p->executePass(c->statements);
+			r.numOptimizedStatements += tr.numOptimizedStatements;
+		}
+	}
+
+	return r;
+}
+
 HiseJavascriptEngine::RootObject::RootObject() :
 hiseSpecialData(this)
 {
@@ -71,7 +169,10 @@ hiseSpecialData(this)
 	setMethod("trace", trace);
 	setMethod("charToInt", charToInt);
 	setMethod("parseInt", IntegerClass::parseInt);
+	setMethod("parseFloat", IntegerClass::parseFloat);
 	setMethod("typeof", typeof_internal);
+
+	
 }
 
 
@@ -124,7 +225,8 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 	{
 		if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
 			dynamic_cast<ConstReference*>(index.get()) != nullptr ||
-			dynamic_cast<DotOperator*>(index.get()))
+			dynamic_cast<DotOperator*>(index.get()) ||
+			dynamic_cast<ApiConstant*>(index.get()))
 		{
 			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
 			{
@@ -152,7 +254,6 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
 			}
 		}
-		else location.throwError("[]-access must be used with a literal or constant");
 	}
 }
 
@@ -195,6 +296,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				HiseJavascriptEngine::checkValidParameter(i, parameters[i], location);
 			}
 				
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			if(constObject->wantsCurrentLocation())
+				constObject->setCurrentLocation(object->location.externalFile, object->location.getCharIndex());
+#endif
 
 			return constObject->callFunction(functionIndex, parameters, numArgs);
 		}
@@ -232,10 +337,24 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 					return obj->performDynamically(s, parameters, arguments.size());
 				}
 			}
+			if (thisObject.isArray())
+			{
+				if (auto sf = ArrayClass::getScopedFunction(dot->child))
+				{
+					s.checkTimeOut(location);
+					Array<var> argVars;
+
+					for (auto* a : arguments)
+						argVars.add(a->getResult(s));
+
+					const var::NativeFunctionArgs args(thisObject, argVars.begin(), argVars.size());
+
+					return sf(args, s);
+				}
+			}
 
 			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
 		}
-
 
 		var r = object->getResult(s);
 
@@ -250,7 +369,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		}
 
 		var function(r);
-		return invokeFunction(s, function, var(s.scope));
+		return invokeFunction(s, function, var(s.scope.get()));
 	}
 	catch (String& errorMessage)
 	{
@@ -304,11 +423,15 @@ var HiseJavascriptEngine::callExternalFunctionRaw(var function, const var::Nativ
 
 	if (auto fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject()))
 	{
-		return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
+		return fo->invoke(RootObject::Scope(nullptr, root.get(), root.get()), args);;
 	}
 	else if (auto ifo = dynamic_cast<RootObject::InlineFunction::Object*>(function.getObject()))
 	{
-		return ifo->performDynamically(RootObject::Scope(nullptr, root, root), const_cast<var*>(args.arguments), args.numArguments);
+		RootObject::ScopedLocalThisObject sto(*root, args.thisObject);
+
+		auto rv = ifo->performDynamically(RootObject::Scope(nullptr, root.get(), root.get()), const_cast<var*>(args.arguments), args.numArguments);
+
+		return rv;
 	}
     
     return var();
@@ -347,7 +470,8 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	{
 		static const Identifier func("function");
 
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, func));
+		if (result != nullptr && root != nullptr)
+            *result = Result::fail(root->dumpCallStack(e, func));
 	}
 	catch (Breakpoint& bp)
 	{
@@ -355,7 +479,8 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 		sendBreakpointMessage(bp.index);
 
 		static const Identifier func("function");
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
+		if (result != nullptr && root != nullptr)
+            *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
 	}
 
 	return returnVal;
@@ -376,6 +501,7 @@ root(root_)
 		hiddenProperties.addIfNotAlreadyThere(Identifier("trace"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("charToInt"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("parseInt"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("parseFloat"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("typeof"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Object"));
 		//hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
@@ -398,6 +524,7 @@ root(root_)
 	{
 		callbackTimes[i] = 0.0;
 	}
+
 }
 
 HiseJavascriptEngine::RootObject::HiseSpecialData::~HiseSpecialData()
@@ -421,7 +548,7 @@ HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::Hi
 	{
 		if (callbackNEW[i]->getName() == callbackId)
 		{
-			return callbackNEW[i];
+			return callbackNEW[i].get();
 		}
 	}
 
@@ -460,6 +587,8 @@ struct ManualGraphicsObject: public DebugableObjectBase
 	Identifier getObjectName() const override { return "Graphics"; };
 	Identifier getInstanceName() const override { return "g"; };
 
+	bool isWatchable() const override { return false; };
+
 	void getAllFunctionNames(Array<Identifier>& functions) const override
 	{
 #if USE_BACKEND
@@ -469,8 +598,6 @@ struct ManualGraphicsObject: public DebugableObjectBase
 			functions.add(c.getProperty("name", "unknown").toString());  
 #endif
 	}
-
-	
 };
 
 struct ManualEventObject : public DebugableObjectBase
@@ -481,6 +608,19 @@ struct ManualEventObject : public DebugableObjectBase
 
 	Identifier getInstanceName() const override {
 		return "event";
+	}
+
+	bool isWatchable() const override { return false; };
+
+	int getNumChildElements() const override
+	{
+		return MouseCallbackComponent::getCallbackPropertyNames().size();
+	}
+
+	DebugInformationBase* getChildElement(int index)
+	{
+		auto id = MouseCallbackComponent::getCallbackPropertyNames()[index];
+		return createDebugInformationForChild(id);
 	}
 
 	DebugInformationBase* createDebugInformationForChild(const Identifier& id) override
@@ -544,16 +684,44 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	debugInformation.clear();
 
+	WeakReference<HiseSpecialData> safeThis(this);
+
 	for (int i = 0; i < constObjects.size(); i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant, constLocations[i]));
+		auto vf = [safeThis, i]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			if (auto v = safeThis->constObjects.getVarPointerAt(i))
+				return *v;
+
+			return var();
+		};
+
+		auto cid = constObjects.getName(i);
+
+		debugInformation.add(new LambdaValueInformation(vf, cid, Identifier(), DebugInformation::Type::Constant, constLocations[i], comments[cid].toString()));
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i]));
+		auto vf = [safeThis, i]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			if (auto v = safeThis->varRegister.getVarPointer(i))
+				return *v;
+
+			return var();
+		};
+
+		auto rid = varRegister.getRegisterId(i);
+
+		debugInformation.add(new LambdaValueInformation(vf, rid, Identifier(), DebugInformation::Type::RegisterVariable, registerLocations[i], comments[rid].toString()));
 	}
 	
 	for (int i = 0; i < apiClasses.size(); i++)
@@ -562,22 +730,25 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 		
 	}
 
-	DynamicObject *globalObject = rootObject->getProperty("Globals").getDynamicObject();
-
-	for (int i = 0; i < globalObject->getProperties().size(); i++)
-		debugInformation.add(new DynamicObjectDebugInformation(globalObject, globalObject->getProperties().getName(i), DebugInformation::Type::Globals));
+	if (auto globalObject = rootObject->getProperty("Globals").getDynamicObject())
+	{
+		for (int i = 0; i < globalObject->getProperties().size(); i++)
+			debugInformation.add(new DynamicObjectDebugInformation(globalObject, globalObject->getProperties().getName(i), DebugInformation::Type::Globals));
+	}
 
 	for (int i = 0; i < rootObject->getProperties().size(); i++)
 	{
 		const Identifier propertyId = rootObject->getProperties().getName(i);
 		if (hiddenProperties.contains(propertyId)) continue;
 
-		debugInformation.add(new DynamicObjectDebugInformation(rootObject, propertyId, DebugInformation::Type::Variables));
+		auto t = rootObject->getProperty(propertyId).isMethod() ? DebugInformation::Type::Variables : DebugInformation::Type::ExternalFunction;
+
+		debugInformation.add(new DynamicObjectDebugInformation(rootObject, propertyId, t));
 	}
 
 	for (int i = 0; i < namespaces.size(); i++)
 	{
-		JavascriptNamespace* ns = namespaces[i];
+		auto ns = namespaces[i].get();
 
 		debugInformation.add(new DebugableObjectInformation(ns, ns->id, DebugInformation::Type::Namespace));
 
@@ -602,7 +773,7 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	{
 		if (!callbackNEW[i]->isDefined()) continue;
 
-		debugInformation.add(new DebugableObjectInformation(callbackNEW[i], callbackNEW[i]->getName(), DebugInformation::Type::Callback));
+		debugInformation.add(new DebugableObjectInformation(callbackNEW[i].get(), callbackNEW[i]->getName(), DebugInformation::Type::Callback));
 	}
 
 
@@ -614,14 +785,29 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 }
 
 
-DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createDebugInformation(int index) const
+DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createDebugInformation(int index)
 {
 	int prevLimit = 0;
 	int upperLimit = varRegister.getNumUsedRegisters();
 
+	WeakReference<JavascriptNamespace> safeThis(const_cast<JavascriptNamespace*>(this));
+
 	if (index < upperLimit)
 	{
-		DebugInformation* di = new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable, registerLocations[index]);
+		auto vf = [safeThis, index]()
+		{
+			if (safeThis != nullptr)
+			{
+				if (auto v = safeThis->varRegister.getVarPointer(index))
+					return *v;
+			}
+
+			return var();
+		};
+
+		auto rid = varRegister.getRegisterId(index);
+
+		DebugInformation* di = new LambdaValueInformation(vf, rid, id, DebugInformation::Type::RegisterVariable, registerLocations[index], comments[rid].toString());
 		return di;
 	}
 
@@ -634,7 +820,7 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(inlineIndex).get());
 
-		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction, id);
+		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction, id, o->getComment());
 	}
 
 	prevLimit = upperLimit;
@@ -644,7 +830,24 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	{
 		const int constIndex = index - prevLimit;
 
-		DebugInformation* di = new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant, constLocations[constIndex]);
+		auto vf = [safeThis, constIndex]()
+		{
+			if (safeThis != nullptr)
+			{
+				if (auto v = safeThis->constObjects.getVarPointerAt(constIndex))
+					return *v;
+			}
+
+			return var();
+		};
+
+		auto cid = constObjects.getName(constIndex);
+
+		DebugInformation* di = new LambdaValueInformation(vf, 
+													      cid, 
+														  id, 
+														  DebugInformation::Type::Constant, constLocations[constIndex],
+														  comments[cid].toString());
 	
 		return di;
 	}
@@ -890,7 +1093,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 	LockHelpers::noMessageThreadBeyondInitialisation(mc);
 #endif
 
-	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
+	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex].get();
 	
 
 	// You need to register the callback correctly...
@@ -902,7 +1105,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		{
 			prepareTimeout();
 
-			var returnVal = c->perform(root);
+			var returnVal = c->perform(root.get());
 
 			if (result != nullptr) *result = Result::ok();
 
@@ -940,6 +1143,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 	return var();
 }
 
+
 void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s) noexcept
 {
 	statements = s;
@@ -960,6 +1164,7 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 	root->addToCallStack(callbackName, nullptr);
 
 
+    LocalScopeCreator::ScopedSetter svs(root, this);
 
 	statements->perform(s, &returnValue);
 
@@ -997,7 +1202,11 @@ void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND
-	throw errorMessage;
+
+	if (CompileExporter::isExportingFromCommandLine())
+		throw CommandLineException(errorMessage);
+	else
+		throw errorMessage;
 #else
 	
 #if JUCE_DEBUG
@@ -1008,6 +1217,47 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 
 #endif
 }
+
+
+
+
+String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
+{
+	jassertfalse;
+
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+
+	try
+	{
+		String returnString = it.removeUnneededNamespaces(counter);
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return code;
+	}
+}
+
+String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
+{
+	jassertfalse;
+
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
+
+	try
+	{
+		String returnString = it.uglify();
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return prettyCode;
+	}
+}
+
+
 
 } // namespace hise
 

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -44,10 +43,13 @@ class JUCE_API  PluginDescription
 {
 public:
     //==============================================================================
-    PluginDescription();
-    PluginDescription (const PluginDescription& other);
-    PluginDescription& operator= (const PluginDescription& other);
-    ~PluginDescription();
+    PluginDescription() = default;
+
+    PluginDescription (const PluginDescription&) = default;
+    PluginDescription (PluginDescription&&) = default;
+
+    PluginDescription& operator= (const PluginDescription&) = default;
+    PluginDescription& operator= (PluginDescription&&) = default;
 
     //==============================================================================
     /** The name of the plug-in. */
@@ -89,26 +91,43 @@ public:
     */
     Time lastInfoUpdateTime;
 
-    /** A unique ID for the plug-in.
+    /** Deprecated: New projects should use uniqueId instead.
+
+        A unique ID for the plug-in.
 
         Note that this might not be unique between formats, e.g. a VST and some
         other format might actually have the same id.
 
         @see createIdentifierString
     */
-    int uid;
+    int deprecatedUid = 0;
+
+    /** A unique ID for the plug-in.
+
+        Note that this might not be unique between formats, e.g. a VST and some
+        other format might actually have the same id.
+
+        The uniqueId field replaces the deprecatedUid field, and fixes an issue
+        where VST3 plugins with matching FUIDs would generate different uid
+        values depending on the platform. The deprecatedUid field is kept for
+        backwards compatibility, allowing existing hosts to migrate from the
+        old uid to the new uniqueId.
+
+        @see createIdentifierString
+    */
+    int uniqueId = 0;
 
     /** True if the plug-in identifies itself as a synthesiser. */
-    bool isInstrument;
+    bool isInstrument = false;
 
     /** The number of inputs. */
-    int numInputChannels;
+    int numInputChannels = 0;
 
     /** The number of outputs. */
-    int numOutputChannels;
+    int numOutputChannels = 0;
 
     /** True if the plug-in is part of a multi-type container, e.g. a VST Shell. */
-    bool hasSharedContainer;
+    bool hasSharedContainer = false;
 
     /** Returns true if the two descriptions refer to the same plug-in.
 
@@ -140,7 +159,7 @@ public:
 
         @see loadFromXml
     */
-    XmlElement* createXml() const;
+    std::unique_ptr<XmlElement> createXml() const;
 
     /** Reloads the info in this structure from an XML record that was previously
         saved with createXML().

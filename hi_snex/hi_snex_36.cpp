@@ -1,5 +1,6 @@
+
 #include "src/surpress_warnings_begin.h"
-
-#include "src/asmjit/core/zonehash.cpp"
+#if JUCE_INTEL
+#include "src/asmjit/core/ralocal.cpp"
+#endif
 #include "src/surpress_warnings_end.h"
-

@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#if 0
+
 namespace hise { using namespace juce;
 
 ReferenceSearcher::ReferenceSearcher(const File &presetFile)
@@ -185,3 +187,5 @@ void ExternalResourceCollector::threadFinished()
 }
 
 } // namespace hise
+
+#endif

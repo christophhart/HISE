@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -46,7 +45,7 @@ public:
         ParentCursor = 0,               /**< Indicates that the component's parent's cursor should be used. */
 
         NoCursor,                       /**< An invisible cursor. */
-        NormalCursor,                   /**< The stardard arrow cursor. */
+        NormalCursor,                   /**< The standard arrow cursor. */
 
         WaitCursor,                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
         IBeamCursor,                    /**< A vertical I-beam for positioning within text. */
@@ -103,6 +102,16 @@ public:
                            screen size of the cursor.
     */
     MouseCursor (const Image& image, int hotSpotX, int hotSpotY, float scaleFactor);
+
+    /** Creates a custom cursor from an image.
+
+        @param image    the image to use for the cursor - if this is bigger than the
+                        system can manage, it might get scaled down first, and might
+                        also have to be turned to black-and-white if it can't do colour
+                        cursors.
+        @param hotSpot the position of the cursor's hotspot within the image
+    */
+    MouseCursor (const ScaledImage& image, Point<int> hotSpot);
 
     //==============================================================================
     /** Creates a copy of another cursor object. */
@@ -167,15 +176,13 @@ public:
 private:
     //==============================================================================
     class SharedCursorHandle;
-    friend class SharedCursorHandle;
-    SharedCursorHandle* cursorHandle = nullptr;
+    std::shared_ptr<SharedCursorHandle> cursorHandle;
+
+    class PlatformSpecificHandle;
 
     friend class MouseInputSourceInternal;
     void showInWindow (ComponentPeer*) const;
-    void* getHandle() const noexcept;
-
-    static void* createStandardMouseCursor (MouseCursor::StandardCursorType);
-    static void deleteMouseCursor (void* cursorHandle, bool isStandard);
+    PlatformSpecificHandle* getHandle() const noexcept;
 
     JUCE_LEAK_DETECTOR (MouseCursor)
 };

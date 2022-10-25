@@ -31,6 +31,8 @@
 */
 
 
+
+
 #if USE_VDSP_FFT
 #define Point DummyPoint
 #define Component DummyComponent
@@ -59,14 +61,29 @@
 
 #include "hi_tools/MiscToolClasses.cpp"
 
-#include "hi_tools/PostGraphicsRenderer.cpp"
+
 #include "hi_tools/PathFactory.cpp"
 #include "hi_tools/HI_LookAndFeels.cpp"
 
+#if !HISE_NO_GUI_TOOLS
+
+
+#include "gin_images/gin_imageutilities.h"
+#include "gin_images/gin_imageeffects.cpp"
+#include "gin_images/gin_imageeffects_blending.cpp"
+#include "gin_images/gin_imageeffects_stackblur.cpp"
+
+#include "gin_images/gin_imageutilities.cpp"
+#include "hi_tools/PostGraphicsRenderer.cpp"
 
 #include "hi_standalone_components/CodeEditorApiBase.cpp"
 #include "hi_standalone_components/AdvancedCodeEditor.cpp"
 #include "hi_standalone_components/ScriptWatchTable.cpp"
+#include "hi_standalone_components/ComponentWithPreferredSize.cpp"
+
+#if USE_BACKEND // Only include this file in the GPL build configuration
+#include "hi_tools/FaustTokeniser.cpp"
+#endif
 
 #include "hi_tools/JavascriptTokeniser.cpp"
 #include "hi_markdown/MarkdownLink.cpp"
@@ -81,6 +98,10 @@
 #include "hi_markdown/MarkdownDatabaseCrawler.cpp"
 #include "hi_markdown/MarkdownParser.cpp"
 
+
+#include "mcl_editor/mcl_editor.cpp"
+#endif
+
 #include "hi_tools/VariantBuffer.cpp"
 #include "hi_tools/Tables.cpp"
 #include "hi_tools/ValueTreeHelpers.cpp"
@@ -89,7 +110,17 @@
 
 #include "hi_standalone_components/VuMeter.cpp"
 #include "hi_standalone_components/Plotter.cpp"
+#include "hi_standalone_components/RingBuffer.cpp"
 #include "hi_standalone_components/SliderPack.cpp"
 #include "hi_standalone_components/TableEditor.cpp"
 
-#include "hi_rlottie/hi_rlottie.cpp"
+#if HISE_INCLUDE_RLOTTIE
+#include "hi_standalone_components/RLottieDevComponent.cpp"
+#endif
+
+
+#include "hi_standalone_components/eq_plot/FilterInfo.cpp"
+#include "hi_standalone_components/eq_plot/FilterGraph.cpp"
+
+
+

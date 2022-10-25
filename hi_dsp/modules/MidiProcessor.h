@@ -50,6 +50,8 @@ class MidiProcessor: public Processor
 {
 public:
 
+    struct EventLogger;
+    
 	/** Creates a new MidiProcessor. You can supply a ModulatorSynth which owns the MidiProcessor to allow the processor to change its properties. */
 	MidiProcessor(MainController *m, const String &id);
 	virtual ~MidiProcessor();
@@ -134,6 +136,12 @@ public:
 
 	ModulatorSynth *getOwnerSynth() {return ownerSynth;};
 
+    void setEnableEventLogger(bool shouldBeEnabled);
+    
+    void logIfEnabled(const HiseEvent& e, bool beforeProcessing);
+    
+    Component* createEventLogComponent();
+    
 protected:
 
 	/** the sample position within the processBlock. */
@@ -141,6 +149,11 @@ protected:
 
 private:
 
+#if USE_BACKEND
+    SimpleReadWriteLock eventLock;
+    ScopedPointer<EventLogger> eventLogger;
+#endif
+    
 	int numThisTime;
 	int indexInChain = -1;
 
@@ -207,6 +220,8 @@ public:
 
 	void renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples);
 
+	void logEvents(HiseEventBuffer& buffer, bool isBefore);
+
 	/** Sequentially processes all processors. */
 	void processHiseEvent(HiseEvent &m) override
 	{
@@ -227,10 +242,8 @@ public:
 				continue;
 			}
 
-            if(m.isIgnored())
-                continue;
-            
-			processors[i]->processHiseEvent(m);
+            if(!m.isIgnored())
+				processors[i]->processHiseEvent(m);
 		}
 	};
 

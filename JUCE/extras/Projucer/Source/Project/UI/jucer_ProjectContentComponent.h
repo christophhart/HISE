@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -27,19 +26,18 @@
 #pragma once
 
 #include "../../CodeEditor/jucer_OpenDocumentManager.h"
+#include "jucer_HeaderComponent.h"
+#include "jucer_ProjectMessagesComponent.h"
+#include "jucer_ContentViewComponent.h"
 
-class CompileEngineChildProcess;
-class ProjectTab;
-class LiveBuildTab;
-class HeaderComponent;
+class Sidebar;
+struct WizardHolder;
 
 //==============================================================================
 class ProjectContentComponent  : public Component,
                                  public ApplicationCommandTarget,
                                  private ChangeListener,
-                                 private OpenDocumentManager::DocumentCloseListener,
-                                 private FocusChangeListener,
-                                 private Timer
+                                 private OpenDocumentManager::DocumentCloseListener
 {
 public:
     //==============================================================================
@@ -47,9 +45,8 @@ public:
     ~ProjectContentComponent() override;
 
     Project* getProject() const noexcept    { return project; }
-    virtual void setProject (Project*);
+    void setProject (Project*);
 
-    void saveTreeViewState();
     void saveOpenDocumentList();
     void reloadLastOpenDocuments();
 
@@ -61,28 +58,25 @@ public:
     void hideDocument (OpenDocumentManager::Document*);
     OpenDocumentManager::Document* getCurrentDocument() const    { return currentDocument; }
     void closeDocument();
-    void saveDocument();
-    void saveAs();
+    void saveDocumentAsync();
+    void saveAsAsync();
 
     void hideEditor();
-    bool setEditorComponent (Component* editor, OpenDocumentManager::Document* doc);
-    Component* getEditorComponentContent() const;
-    Component* getEditorComponent() const    { return contentView.get(); }
-    Component& getSidebarComponent()         { return sidebarTabs; }
+    void setScrollableEditorComponent (std::unique_ptr<Component> component);
+    void setEditorDocument (std::unique_ptr<Component> component, OpenDocumentManager::Document* doc);
+    Component* getEditorComponent();
+
+    Component& getSidebarComponent();
 
     bool goToPreviousFile();
     bool goToNextFile();
     bool canGoToCounterpart() const;
     bool goToCounterpart();
 
-    bool saveProject (bool shouldWait = false, bool openInIDE = false);
+    void saveProjectAsync();
     void closeProject();
     void openInSelectedIDE (bool saveFirst);
     void showNewExporterMenu();
-
-    void showProjectTab()       { sidebarTabs.setCurrentTabIndex (0); }
-    void showBuildTab()         { sidebarTabs.setCurrentTabIndex (1); }
-    int getCurrentTabIndex()    { return sidebarTabs.getCurrentTabIndex(); }
 
     void showFilesPanel()        { showProjectPanel (0); }
     void showModulesPanel()      { showProjectPanel (1); }
@@ -92,21 +86,13 @@ public:
     void showCurrentExporterSettings();
     void showExporterSettings (const String& exporterName);
     void showModule (const String& moduleID);
-    void showLiveBuildSettings();
     void showUserSettings();
 
     void deleteSelectedTreeItems();
 
     void refreshProjectTreeFileStatuses();
     void updateMissingFileStatuses();
-    void createProjectTabs();
-    void deleteProjectTabs();
-    void rebuildProjectTabs();
-    void refreshTabsIfBuildStatusChanged();
-    void toggleWarnings();
-    void showNextError();
-    void showPreviousError();
-    void reinstantiateLivePreviewWindows();
+    void addNewGUIFile();
 
     void showBubbleMessage (Rectangle<int>, const String&);
 
@@ -114,15 +100,6 @@ public:
 
     static void getSelectedProjectItemsBeingDragged (const DragAndDropTarget::SourceDetails&,
                                                      OwnedArray<Project::Item>& selectedNodes);
-
-    //==============================================================================
-    void killChildProcess();
-    void cleanAll();
-    void handleMissingSystemHeaders();
-    bool isBuildTabEnabled() const;
-    void setBuildEnabled (bool enabled, bool displayError = false);
-    bool isBuildEnabled() const;
-    bool areWarningsEnabled() const;
 
     //==============================================================================
     ApplicationCommandTarget* getNextCommandTarget() override;
@@ -137,72 +114,40 @@ public:
     void childBoundsChanged (Component*) override;
     void lookAndFeelChanged() override;
 
-    String lastCrashMessage;
+    ProjectMessagesComponent& getProjectMessagesComponent()  { return projectMessagesComponent; }
+
+    static String getProjectTabName()    { return "Project"; }
 
 private:
-    friend HeaderComponent;
-
-    //==============================================================================
-    Project* project = nullptr;
-    OpenDocumentManager::Document* currentDocument = nullptr;
-    RecentDocumentList recentDocumentList;
-    std::unique_ptr<Component> logo, translationTool, contentView, header;
-
-    TabbedComponent sidebarTabs  { TabbedButtonBar::TabsAtTop };
-    std::unique_ptr<ResizableEdgeComponent> resizerBar;
-    ComponentBoundsConstrainer sidebarSizeConstrainer;
-
-    BubbleMessageComponent bubbleMessage;
-    ReferenceCountedObjectPtr<CompileEngineChildProcess> childProcess;
-    bool isForeground = false;
-
-    std::unique_ptr<Label> fileNameLabel;
-
-    int lastViewedTab = 0;
-
     //==============================================================================
     bool documentAboutToClose (OpenDocumentManager::Document*) override;
     void changeListenerCallback (ChangeBroadcaster*) override;
     void showTranslationTool();
 
-    void globalFocusChanged (Component*) override;
-    void timerCallback() override;
-
-    bool isContinuousRebuildEnabled();
-    void setContinuousRebuildEnabled (bool b);
-
-    void rebuildNow();
-    void handleCrash (const String& message);
-    void updateWarningState();
-    void launchApp();
-    void killApp();
-
-    ReferenceCountedObjectPtr<CompileEngineChildProcess> getChildProcess();
-
     //==============================================================================
     void showProjectPanel (const int index);
-    ProjectTab* getProjectTab();
-    LiveBuildTab* getLiveBuildTab();
     bool canSelectedProjectBeLaunch();
 
     //==============================================================================
-    struct ContentViewport  : public Component
-    {
-        ContentViewport (Component* content)
-        {
-            addAndMakeVisible (viewport);
-            viewport.setViewedComponent (content, true);
-        }
+    Project* project = nullptr;
+    OpenDocumentManager::Document* currentDocument = nullptr;
+    RecentDocumentList recentDocumentList;
 
-        void resized() override
-        {
-            viewport.setBounds (getLocalBounds());
-        }
+    HeaderComponent headerComponent { this };
+    std::unique_ptr<Sidebar> sidebar;
+    ProjectMessagesComponent projectMessagesComponent;
+    ContentViewComponent contentViewComponent;
 
-        Viewport viewport;
+    std::unique_ptr<ResizableEdgeComponent> resizerBar;
+    ComponentBoundsConstrainer sidebarSizeConstrainer;
+    std::unique_ptr<Component> translationTool;
+    BubbleMessageComponent bubbleMessage;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ContentViewport)
-    };
+    bool isForeground = false;
+    int lastViewedTab = 0;
 
+    std::unique_ptr<WizardHolder> wizardHolder;
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProjectContentComponent)
 };

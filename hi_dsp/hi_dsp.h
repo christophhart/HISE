@@ -78,7 +78,7 @@ END_JUCE_MODULE_DECLARATION
 #include "editor/ProcessorEditorHeader.h"
 #include "editor/ProcessorEditorChainBar.h"
 #include "editor/ProcessorEditorPanel.h"
-#include "editor/ProcessorViews.h"
+
 
 #else
 
@@ -107,7 +107,6 @@ class ProcessorEditor;
 #include "modules/ModulatorSynth.h"
 #include "modules/ModulatorSynthChain.h"
 #include "modules/ModulatorSynthGroup.h"
-#include "modules/DspCoreModules.h"
 
 // Plugin Parameters
 

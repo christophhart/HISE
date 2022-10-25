@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -31,6 +31,26 @@ int64 InputStream::getNumBytesRemaining()
         len -= getPosition();
 
     return len;
+}
+
+ssize_t InputStream::read (void* destBuffer, size_t size)
+{
+    ssize_t totalRead = 0;
+
+    while (size > 0)
+    {
+        auto numToRead = (int) std::min (size, (size_t) 0x70000000);
+        auto numRead = read (juce::addBytesToPointer (destBuffer, totalRead), numToRead);
+        jassert (numRead <= numToRead);
+
+        if (numRead < 0) return (ssize_t) numRead;
+        if (numRead == 0) break;
+
+        size -= (size_t) numRead;
+        totalRead += numRead;
+    }
+
+    return totalRead;
 }
 
 char InputStream::readByte()

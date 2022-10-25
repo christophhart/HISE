@@ -77,7 +77,9 @@ public:
 
 
 	private:
+
 		WeakReference<ModulatorSampler> sampler;
+		bool prevValue;
 	};
 
 	class GroupedRoundRobinCollector : public ModulatorSynth::SoundCollectorBase,
@@ -140,12 +142,11 @@ public:
 			s(const_cast<ModulatorSampler*>(s_)),
 			lock(s->getIteratorLock())
 		{
-			holdsLock = lock.tryRead();
 		}
 
 		SharedPointer getNextSound()
 		{
-			if (!holdsLock)
+			if (!lock)
 				return nullptr;
 
 			while (auto sound = getSoundInternal())
@@ -156,8 +157,6 @@ public:
 
 		~SoundIterator()
 		{
-			if (holdsLock)
-				lock.exitRead();
 		}
 
 		int size() const
@@ -172,7 +171,7 @@ public:
 
 		bool canIterate() const
 		{
-			return holdsLock;
+			return lock;
 		}
 
 	private:
@@ -184,12 +183,7 @@ public:
 
 			if (s->shouldAbortIteration())
 			{
-				if (holdsLock)
-				{
-					lock.exitRead();
-					holdsLock = false;
-				}
-
+				lock.unlock();
 				return nullptr;
 			}
 
@@ -200,8 +194,7 @@ public:
 
 		int index = 0;
 		WeakReference<ModulatorSampler> s;
-		SimpleReadWriteLock& lock;
-		bool holdsLock;
+		SimpleReadWriteLock::ScopedTryReadLock lock;
 	};
 
 	void suspendStateChanged(bool shouldBeSuspended) override
@@ -225,6 +218,7 @@ public:
 		Purged, 
 		Reversed,
         UseStaticMatrix,
+		LowPassEnvelopeOrder,
 		numModulatorSamplerParameters
 	};
 
@@ -378,13 +372,15 @@ public:
 
 	/** Overwrites the base class method and ignores the note off event if Parameters::OneShot is enabled. */
 	void noteOff(const HiseEvent &m) override;;
-	void preHiseEventCallback(const HiseEvent &m) override;
+	void preHiseEventCallback(HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
-	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }
-
 	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues() const;
+
+	ValueTree parseMetadata(const File& sampleFile);
+
+	static ValueTree getSamplePropertyTreeFromMetadata(const StringPairArray& metadata);
 
 	void setVoiceLimit(int newVoiceLimit) override;
 
@@ -396,7 +392,9 @@ public:
 
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap(NotificationType n);
-	
+
+	void reloadSampleMap();
+
 	void loadSampleMap(PoolReference ref);
 
 	void loadEmbeddedValueTree(const ValueTree& v, bool loadAsynchronous = false);
@@ -423,10 +421,14 @@ public:
 
 	bool saveSampleMapAsMonolith (Component* mainEditor) const;
 
+	bool shouldUseRoundRobinLogic() const { return useRoundRobinCycleLogic; }
+
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };
 	/** Sets the current index to the group. */
 	bool setCurrentGroupIndex(int currentIndex);
+
+	void setRRGroupVolume(int groupIndex, float gainValue);
 
 	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled);
 	
@@ -439,6 +441,9 @@ public:
 	bool isOneShot() const {return oneShotEnabled; };
 
 	bool isNoteNumberMapped(int noteNumber) const;
+
+	int getMidiInputLockValue(const Identifier& id) const;
+	void toggleMidiInputLock(const Identifier& propertyId, int lockValue);
 
 	CriticalSection &getSamplerLock() {	return lock; }
 
@@ -462,7 +467,7 @@ public:
 		double currentSampleStartPos;
 		float crossfadeTableValue;
 		int currentGroup = 1;
-		int currentlyDisplayedGroup = 0;
+		BigInteger visibleGroups;
 
 		uint8 currentNotes[128];
 	};
@@ -644,6 +649,7 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
+	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods);
 	
 	void setSortByGroup(bool shouldSortByGroup);
 
@@ -666,7 +672,14 @@ public:
 
 	bool& getIterationFlag() { return abortIteration; };
 
+	CascadedEnvelopeLowPass* getEnvelopeFilter() { return envelopeFilter.get(); }
+
+	void setEnableEnvelopeFilter();
+
 private:
+
+	int lockVelocity = -1;
+	int lockRRGroup = -1;
 
 	int realVoiceAmount = NUM_POLYPHONIC_VOICES;
 
@@ -729,6 +742,9 @@ private:
 	int rrGroupAmount;
 	int currentRRGroupIndex;
 	
+	Array<float> rrGroupGains;
+	bool useRRGain = false;
+
 	struct MultiGroupState
 	{
 		MultiGroupState()
@@ -785,18 +801,16 @@ private:
 	int preloadSize;
 	int bufferSize;
 
-
 	bool useStaticMatrix = false;
 
 	int64 memoryUsage;
-
-	OwnedArray<SampleLookupTable> crossfadeTables;
 
 	AudioSampleBuffer crossfadeBuffer;
 
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
 
 	bool delayUpdate = false;
+	int lowPassOrder = 0;
 
 	float groupGainValues[8];
 	float currentCrossfadeValue;
@@ -809,6 +823,8 @@ private:
 	ModulatorChain* crossFadeChain = nullptr;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
+	ScopedPointer<CascadedEnvelopeLowPass> envelopeFilter;
+
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif

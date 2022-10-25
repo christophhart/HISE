@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -27,109 +26,65 @@
 namespace juce
 {
 
-struct CustomMouseCursorInfo
-{
-    CustomMouseCursorInfo (const Image& im, Point<int> hs, float scale = 1.0f) noexcept
-        : image (im), hotspot (hs), scaleFactor (scale)
-    {}
-
-    void* create() const;
-
-    Image image;
-    const Point<int> hotspot;
-    const float scaleFactor;
-
-    JUCE_DECLARE_NON_COPYABLE (CustomMouseCursorInfo)
-};
-
 class MouseCursor::SharedCursorHandle
 {
 public:
     explicit SharedCursorHandle (const MouseCursor::StandardCursorType type)
-        : handle (createStandardMouseCursor (type)),
+        : handle (type),
           standardType (type),
-          isStandard (true)
+          standard (true)
     {
     }
 
-    SharedCursorHandle (const Image& image, Point<int> hotSpot, float scaleFactor)
-        : handle (CustomMouseCursorInfo (image, hotSpot, scaleFactor).create()),
+    SharedCursorHandle (const ScaledImage& image, Point<int> hotSpot)
+        : info { image, hotSpot },
+          handle (info),
           standardType (MouseCursor::NormalCursor),
-          isStandard (false)
+          standard (false)
     {
         // your hotspot needs to be within the bounds of the image!
-        jassert (image.getBounds().contains (hotSpot));
+        jassert (image.getImage().getBounds().contains (hotSpot));
     }
 
-    ~SharedCursorHandle()
+    static std::shared_ptr<SharedCursorHandle> createStandard (const MouseCursor::StandardCursorType type)
     {
-        deleteMouseCursor (handle, isStandard);
-    }
+        if (! isPositiveAndBelow (type, MouseCursor::NumStandardCursorTypes))
+            return nullptr;
 
-    static SharedCursorHandle* createStandard (const MouseCursor::StandardCursorType type)
-    {
-        jassert (isPositiveAndBelow (type, MouseCursor::NumStandardCursorTypes));
+        static SpinLock mutex;
+        static std::array<std::weak_ptr<SharedCursorHandle>, MouseCursor::NumStandardCursorTypes> cursors;
 
-        const SpinLock::ScopedLockType sl (lock);
-        auto& c = getSharedCursor (type);
+        const SpinLock::ScopedLockType sl (mutex);
 
-        if (c == nullptr)
-            c = new SharedCursorHandle (type);
-        else
-            c->retain();
+        auto& weak = cursors[type];
 
-        return c;
+        if (auto strong = weak.lock())
+            return strong;
+
+        auto strong = std::make_shared<SharedCursorHandle> (type);
+        weak = strong;
+        return strong;
     }
 
     bool isStandardType (MouseCursor::StandardCursorType type) const noexcept
     {
-        return type == standardType && isStandard;
+        return type == standardType && standard;
     }
 
-    SharedCursorHandle* retain() noexcept
-    {
-        ++refCount;
-        return this;
-    }
-
-    void release()
-    {
-        if (--refCount == 0)
-        {
-            if (isStandard)
-            {
-                const SpinLock::ScopedLockType sl (lock);
-                getSharedCursor (standardType) = nullptr;
-            }
-
-            delete this;
-        }
-    }
-
-    void* getHandle() const noexcept        { return handle; }
+    PlatformSpecificHandle* getHandle() noexcept                { return &handle; }
+    MouseCursor::StandardCursorType getType() const noexcept    { return standardType; }
 
 private:
-    void* const handle;
-    Atomic<int> refCount { 1 };
+    CustomMouseCursorInfo info;
+    PlatformSpecificHandle handle;
     const MouseCursor::StandardCursorType standardType;
-    const bool isStandard;
-    static SpinLock lock;
-
-    static SharedCursorHandle*& getSharedCursor (const MouseCursor::StandardCursorType type)
-    {
-        static SharedCursorHandle* cursors[MouseCursor::NumStandardCursorTypes] = {};
-        return cursors[type];
-    }
+    const bool standard;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SharedCursorHandle)
 };
 
-SpinLock MouseCursor::SharedCursorHandle::lock;
-
 //==============================================================================
-MouseCursor::MouseCursor() noexcept
-{
-}
+MouseCursor::MouseCursor() noexcept = default;
 
 MouseCursor::MouseCursor (const StandardCursorType type)
     : cursorHandle (type != MouseCursor::NormalCursor ? SharedCursorHandle::createStandard (type) : nullptr)
@@ -137,49 +92,29 @@ MouseCursor::MouseCursor (const StandardCursorType type)
 }
 
 MouseCursor::MouseCursor (const Image& image, int hotSpotX, int hotSpotY)
-    : MouseCursor (image, hotSpotX, hotSpotY, 1.0f)
+    : MouseCursor (ScaledImage (image), { hotSpotX, hotSpotY })
 {
 }
 
 MouseCursor::MouseCursor (const Image& image, int hotSpotX, int hotSpotY, float scaleFactor)
-    : cursorHandle (new SharedCursorHandle (image, { hotSpotX, hotSpotY }, scaleFactor))
+    : MouseCursor (ScaledImage (image, scaleFactor), { hotSpotX, hotSpotY })
 {
 }
 
-MouseCursor::MouseCursor (const MouseCursor& other)
-    : cursorHandle (other.cursorHandle == nullptr ? nullptr : other.cursorHandle->retain())
+MouseCursor::MouseCursor (const ScaledImage& image, Point<int> hotSpot)
+        : cursorHandle (std::make_shared<SharedCursorHandle> (image, hotSpot))
 {
 }
 
-MouseCursor::~MouseCursor()
-{
-    if (cursorHandle != nullptr)
-        cursorHandle->release();
-}
+MouseCursor::MouseCursor (const MouseCursor&) = default;
 
-MouseCursor& MouseCursor::operator= (const MouseCursor& other)
-{
-    if (other.cursorHandle != nullptr)
-        other.cursorHandle->retain();
+MouseCursor::~MouseCursor() = default;
 
-    if (cursorHandle != nullptr)
-        cursorHandle->release();
+MouseCursor& MouseCursor::operator= (const MouseCursor&) = default;
 
-    cursorHandle = other.cursorHandle;
-    return *this;
-}
+MouseCursor::MouseCursor (MouseCursor&&) noexcept = default;
 
-MouseCursor::MouseCursor (MouseCursor&& other) noexcept
-    : cursorHandle (other.cursorHandle)
-{
-    other.cursorHandle = nullptr;
-}
-
-MouseCursor& MouseCursor::operator= (MouseCursor&& other) noexcept
-{
-    std::swap (cursorHandle, other.cursorHandle);
-    return *this;
-}
+MouseCursor& MouseCursor::operator= (MouseCursor&&) noexcept = default;
 
 bool MouseCursor::operator== (const MouseCursor& other) const noexcept
 {
@@ -195,11 +130,6 @@ bool MouseCursor::operator== (StandardCursorType type) const noexcept
 bool MouseCursor::operator!= (const MouseCursor& other) const noexcept  { return ! operator== (other); }
 bool MouseCursor::operator!= (StandardCursorType type)  const noexcept  { return ! operator== (type); }
 
-void* MouseCursor::getHandle() const noexcept
-{
-    return cursorHandle != nullptr ? cursorHandle->getHandle() : nullptr;
-}
-
 void MouseCursor::showWaitCursor()
 {
     Desktop::getInstance().getMainMouseSource().showMouseCursor (MouseCursor::WaitCursor);
@@ -208,6 +138,16 @@ void MouseCursor::showWaitCursor()
 void MouseCursor::hideWaitCursor()
 {
     Desktop::getInstance().getMainMouseSource().revealCursor();
+}
+
+MouseCursor::PlatformSpecificHandle* MouseCursor::getHandle() const noexcept
+{
+    return cursorHandle != nullptr ? cursorHandle->getHandle() : nullptr;
+}
+
+void MouseCursor::showInWindow (ComponentPeer* peer) const
+{
+    PlatformSpecificHandle::showInWindow (getHandle(), peer);
 }
 
 } // namespace juce

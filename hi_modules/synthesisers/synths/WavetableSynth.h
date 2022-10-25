@@ -259,21 +259,6 @@ public:
 
 	}
 
-	int getNumSliderPacks() const override
-	{
-		return 1;
-	}
-
-	SliderPackData* getSliderPackData(int /*index*/) override
-	{
-		return pack;
-	}
-
-	const SliderPackData* getSliderPackData(int /*index*/) const override
-	{
-		return pack;
-	}
-
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
 
 	float getGainValueFromTable(float level)
@@ -490,7 +475,7 @@ private:
 
 	int currentBankIndex = 0;
 
-	ScopedPointer<SliderPackData> pack;
+	SliderPackData* pack;
 	
 	bool hqMode;
 

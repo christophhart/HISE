@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -175,6 +174,7 @@ namespace
                             break;
                         }
                         // else = special case: fall through to default and treat '!' as a non-special character.
+                        JUCE_FALLTHROUGH
 
                     default:
                         set.add (c);
@@ -394,6 +394,7 @@ String OSCAddressPattern::toString() const noexcept
     return asString;
 }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -401,7 +402,9 @@ String OSCAddressPattern::toString() const noexcept
 class OSCAddressTests : public UnitTest
 {
 public:
-    OSCAddressTests() : UnitTest ("OSCAddress class", "OSC") {}
+    OSCAddressTests()
+        : UnitTest ("OSCAddress class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -445,7 +448,9 @@ static OSCAddressTests OSCAddressUnitTests;
 class OSCAddressPatternTests  : public UnitTest
 {
 public:
-    OSCAddressPatternTests() : UnitTest ("OSCAddressPattern class", "OSC") {}
+    OSCAddressPatternTests()
+        : UnitTest ("OSCAddressPattern class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -584,7 +589,9 @@ static OSCAddressPatternTests OSCAddressPatternUnitTests;
 class OSCPatternMatcherTests : public UnitTest
 {
 public:
-    OSCPatternMatcherTests() : UnitTest ("OSCAddress class / pattern matching", "OSC") {}
+    OSCPatternMatcherTests()
+        : UnitTest ("OSCAddress class / pattern matching", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -780,6 +787,6 @@ public:
 
 static OSCPatternMatcherTests OSCPatternMatcherUnitTests;
 
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -69,7 +69,7 @@ public:
 
         @see MPESynthesiserBase, MPEInstrument
     */
-    MPESynthesiser (MPEInstrument* instrument);
+    MPESynthesiser (MPEInstrument* instrumentToUse);
 
     /** Destructor. */
     ~MPESynthesiser() override;
@@ -247,7 +247,7 @@ protected:
                              int numSamples) override;
 
     /** This will simply call renderNextBlock for each currently active
-        voice and fill the buffer with the sum. (souble-precision version)
+        voice and fill the buffer with the sum. (double-precision version)
         Override this method if you need to do more work to render your audio.
     */
     void renderNextSubBlock (AudioBuffer<double>& outputAudio,

@@ -75,7 +75,6 @@ public:
 		Macros,
 		Keyboard,
 		Settings,
-		WorkspaceMain,
 		WorkspaceScript,
 		WorkspaceSampler,
 		WorkspaceCustom,
@@ -109,6 +108,8 @@ public:
 		MenuFileSettingsUser,
 		MenuFileSettingCheckSanity,
 		MenuFileSettingsCleanBuildDirectory,
+		MenuFileCreateThirdPartyNode,
+		MenuFileQuit,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
@@ -118,7 +119,8 @@ public:
         MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
-		MenuFileQuit,
+		MenuExportCompileNetworksAsDll,
+		
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -133,15 +135,14 @@ public:
 		MenuEditCreateScriptVariable,
 		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
-		MenuViewOffset = 0x40000,
+		MenuViewRotate,
         MenuViewFullscreen,
 		MenuViewReset,
-		MenuViewBack,
-		MenuViewForward,
-		MenuViewSetMainContainerAsRoot,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
 		MenuViewAddInterfacePreview,
+        MenuViewGotoUndo,
+        MenuViewGotoRedo,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -150,21 +151,15 @@ public:
 		MenuViewShowPluginPopupPreview,
         MenuViewIncreaseCodeFontSize,
         MenuViewDecreaseCodeFontSize,
-		MenuAddView,
-		MenuDeleteView,
-		MenuRenameView,
 		MenuViewResetLookAndFeel,
-        MenuViewSaveCurrentView,
-        MenuViewRemoveAllSoloProcessors,
         MenuViewShowAllHiddenProcessors,
-        MenuViewListOffset = 0x70000,
-		MenuViewProcessorListOffset = 0x80000,
 		
 		MenuToolsRecompile = 0x50000,
 		
 		MenuToolsCreateInterface,
         MenuToolsSanityCheck,
         MenuToolsClearConsole,
+		MenuToolsEditShortcuts,
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
@@ -172,14 +167,15 @@ public:
 		MenuToolsCheckCyclicReferences,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
+		MenuToolsConvertSVGToPathData,
 		MenuToolsValidateUserPresets,
 		MenuToolsExternalScriptFileOffset,
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsGetMissingSampleList,
 		MenuToolsCheckAllSampleMaps,
+		MenuToolsApplySampleMapProperties,
 		MenuToolsImportArchivedSamples,
-		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
 		MenuToolsRedirectScriptFolder,
 		MenuToolsCreateUIDataFromDesktop,
@@ -196,7 +192,8 @@ public:
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsRecordOneSecond,
-		
+		MenuToolsSimulateChangingBufferSize,
+		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
@@ -205,10 +202,43 @@ public:
 		numCommands
 	};
 
+    struct Updater: public juce::ApplicationCommandManagerListener
+    {
+        Updater(BackendCommandTarget& parent_):
+          parent(parent_)
+        {
+            parent.mainCommandManager->addListener(this);
+        }
+        
+        ~Updater()
+        {
+            if(parent.mainCommandManager)
+                parent.mainCommandManager->removeListener(this);
+        }
+        
+        void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo&) override
+        {
+            
+        }
+        
+        void applicationCommandListChanged() override
+        {
+            parent.menuItemsChanged();
+        }
+        
+        BackendCommandTarget& parent;
+    };
+    
+    ScopedPointer<Updater> updater;
+    
 	virtual ~BackendCommandTarget()
 	{
+        updater = nullptr;
+        
 		if(mainCommandManager != nullptr)
+        {
 			mainCommandManager->setFirstCommandTarget(nullptr);
+        }
 
 		CopyPasteTarget::setHandlerFunction(nullptr);
 	};
@@ -218,6 +248,8 @@ public:
 		return findFirstTargetParentComponent();
 	};
 
+   
+    
 	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
 		result.setInfo(name, name, "Unused", 0);
 		result.setActive(active); 
@@ -228,12 +260,6 @@ public:
 
 	bool clipBoardNotEmpty() const { return SystemClipboard::getTextFromClipboard().isNotEmpty(); }
     
-    bool viewActive() const
-    {
-        return owner->synthChain->getCurrentViewInfo() != nullptr;
-    }
-
-	
 	void setEditor(BackendRootWindow *editor);
 
 	void getAllCommands(Array<CommandID>& commands) override;;
@@ -284,6 +310,7 @@ public:
 	{
 	public:
 
+		static void editShortcuts(BackendRootWindow* bpe);
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
 		static void openFile(BackendRootWindow *bpe);
@@ -293,10 +320,6 @@ public:
 		static void recompileAllScripts(BackendRootWindow * bpe);
 		static void toggleFullscreen(BackendRootWindow * bpe);
 		static void resetLookAndFeel(BackendRootWindow* bpe);
-		static void addView(BackendRootWindow *bpe);
-		static void deleteView(BackendRootWindow *bpe);
-		static void saveView(BackendRootWindow *bpe);
-		static void renameView(BackendRootWindow *bpe);
 		static void closeAllChains(BackendRootWindow *bpe);
 		static void validatePluginParameters(BackendRootWindow *bpe);
 		static void showAboutPage(BackendRootWindow * bpe);
@@ -310,13 +333,16 @@ public:
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
 
+		static void convertSVGToPathData(BackendRootWindow* bpe);
+
+		static void applySampleMapProperties(BackendRootWindow* bpe);
+
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
 
 		static void closeProject(BackendRootWindow *bpe);
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		static void saveUserPreset(BackendRootWindow *bpe);
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
-		static void collectExternalFiles(BackendRootWindow * bpe);
 		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
@@ -337,6 +363,7 @@ public:
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendRootWindow * bpe);
 		static void exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe);
+		static void compileNetworksToDll(BackendRootWindow* bpe);
 		static void cleanBuildDirectory(BackendRootWindow * bpe);
 		static void convertAllSamplesToMonolith(BackendRootWindow * bpe);
 		static void convertSfzFilesToSampleMaps(BackendRootWindow * bpe);
@@ -350,6 +377,8 @@ public:
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
 		static void testPlugin(const String& pluginToLoad);
 
+		static void newFile(BackendRootWindow* bpe);
+
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
@@ -358,13 +387,16 @@ public:
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);
 		static void createUIDataFromDesktop(BackendRootWindow * bpe);
 
-		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64, bool includeRLottie);
+		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64, bool includeVST2, bool includeVST3);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
 		static void checkDeviceSanity(BackendRootWindow * bpe);
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 		static void createRecoveryXml(BackendRootWindow * bpe);
 		static void showDocWindow(BackendRootWindow * bpe);
+		static void showNetworkDllInfo(BackendRootWindow * bpe);
+
+		static void createThirdPartyNode(BackendRootWindow* bpe);
 	};
 
 private:
@@ -389,6 +421,29 @@ private:
 
 	Array<File> recentFileList;
 
+};
+
+struct XmlBackupFunctions
+{
+	static void removeEditorStatesFromXml(XmlElement &xml);
+
+	static XmlElement* getFirstChildElementWithAttribute(XmlElement* parent, const String& attributeName, const String& value);
+
+	static void addContentFromSubdirectory(XmlElement& xml, const File& fileToLoad);
+
+	static void extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile);
+
+	static void removeAllScripts(XmlElement &xml);
+
+	static void restoreAllScripts(ValueTree &v, ModulatorSynthChain *masterChain, const String &newId);
+
+	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId = String());
+
+	static File getScriptFileFor(ModulatorSynthChain *, File& directory, const String &id);
+
+private:
+
+	static String getSanitiziedName(const String &id);
 };
 
 } // namespace hise

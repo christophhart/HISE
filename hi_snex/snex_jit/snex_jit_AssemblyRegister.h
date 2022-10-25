@@ -42,6 +42,23 @@ class SyntaxTree;
 class BlockScope;
 class BaseScope;
 
+struct AssemblyMemory
+{
+	AssemblyMemory cloneWithOffset(int offset)
+	{
+		AssemblyMemory c;
+		c.cc = cc;
+		c.memory = memory.cloneAdjusted(offset);
+		return c;
+	}
+
+	X86Mem memory;
+	void* cc = nullptr;
+};
+
+#define GET_COMPILER_FROM_INIT_DATA(initData) *static_cast<asmjit::X86Compiler*>(initData.asmPtr->cc);
+
+
 /** A high level, reference counted assembly register. */
 class AssemblyRegister : public ReferenceCountedObject
 {
@@ -62,22 +79,15 @@ public:
 		InactiveRegister,
 		ActiveRegister,
 		DirtyGlobalRegister,
-		ReusableRegister,
+		RedirectedRegister,
 		numStates
 	};
 
 private:
 
-	AssemblyRegister(TypeInfo type_);
-
+	AssemblyRegister(BaseCompiler* compiler, TypeInfo type_);
 	
 public:
-
-	~AssemblyRegister()
-	{
-		int x = 5;
-	}
-
 
 	bool matchesMemoryLocation(Ptr other) const;
 
@@ -93,19 +103,26 @@ public:
 
 	bool isDirtyGlobalMemory() const;
 
-	void flagForReuseIfAnonymous();
+	void reinterpretCast(const TypeInfo& newType);
 
-	void flagForReuse(bool forceReuse=false);
-
-	void removeReuseFlag();
-
-	bool canBeReused() const;
-
-	Types::ID getType() const { return type.getType(); }
+	Types::ID getType() const;
 
 	TypeInfo getTypeInfo() const { return type; }
 
 	void* getGlobalDataPointer();
+
+	template <typename T> bool getImmediateValue(T& v)
+	{
+		if (memoryLocation != nullptr)
+		{
+			jassert(Types::Helpers::getTypeFromTypeId<T>() == getType());
+
+			v = *reinterpret_cast<T*>(memoryLocation);
+			return true;
+		}
+
+		return false;
+	}
 
 	X86Reg getRegisterForReadOp();
 
@@ -138,9 +155,19 @@ public:
 
 	bool isActive() const;
 
+	bool isSameRegisterSource(Ptr other) const;
+
 	bool matchesScopeAndSymbol(BaseScope* scopeToCheck, const Symbol& symbol) const;
 
-	bool isActiveOrDirtyGlobalRegister() const;
+#if 0
+	bool isActiveOrDirtyGlobalRegister() const
+	{
+		if (isReferencingOtherRegister())
+			return getReferenceTargetRegister()->isActiveOrDirtyGlobalRegister();
+
+		return state == ActiveRegister || state == DirtyGlobalRegister;
+	}
+#endif
 
 	/** Creates a memory location for the given constant. */
 	void createMemoryLocation(asmjit::X86Compiler& cc);
@@ -151,44 +178,73 @@ public:
 
 	void setCustomMemoryLocation(X86Mem newLocation, bool isGlobalMemory);
 
-	void setDataPointer(void* memLoc);
+	void setDataPointer(void* memLoc, bool globalMemory_);
+
+	void setImmediateValue(int64 value);
+
+	bool isImmediate() const;
+
+	bool isUnloadedImmediate() const 
+	{ 
+		return hasImmediateValue && state == UnloadedMemoryLocation; 
+	}
 
 	void setIsIteratorRegister(bool isIterator)
 	{
 		isIter = isIterator;
 	}
 
-	bool isIteratorRegister() const
-	{
-		if (isIter)
-		{
-			jassert(state == ActiveRegister);
-			return true;
-		}
+	void invalidateRegisterForCustomMemory();
 
-		return false;
-	}
+	void clearAfterReturn();
 
-	bool isSimd4Float() const
-	{
-		return type.isComplexType() && type.toString() == "float4";
-	}
+	bool isIteratorRegister() const;
 
-	void clearForReuse();
+	bool isSimd4Float() const;
+
+	void setDirtyFloat4(Ptr source, int byteOffset);
 
 	void setUndirty();
 
-	bool hasCustomMemoryLocation() const noexcept 
+	bool hasCustomMemoryLocation() const noexcept;
+
+	bool isZero() const;
+
+	void setReferToReg(Ptr otherPtr)
 	{
-		return hasCustomMem;
+		if (otherPtr->getTypeInfo().isNativePointer())
+		{
+			auto ptr = x86::ptr(otherPtr->getRegisterForReadOp().as<X86Gpq>());
+			setCustomMemoryLocation(ptr, otherPtr->isGlobalMemory());
+		}
+		else
+		{
+			referenceTarget = otherPtr->getReferenceTargetRegister();
+			state = RedirectedRegister;
+			memory = {};
+			reg = {};
+		}
 	}
 
-	bool isZero() const
+	bool isReferencingOtherRegister() const { return getReferenceTargetRegister() != this; }
+
+	Ptr getReferenceTargetRegister() const
 	{
-		return isZeroValue;
+		if (referenceTarget != nullptr)
+			return referenceTarget->getReferenceTargetRegister();
+
+		return const_cast<AssemblyRegister*>(this);
 	}
+
+	void setWriteBackToMemory(bool shouldWriteBackToMemory);
+
+	bool shouldWriteToMemoryAfterStore() const;
 
 private:
+
+	void setMemoryState();
+
+	Ptr referenceTarget;
 
 	int numMemoryReferences = 0;
 
@@ -206,13 +262,22 @@ private:
 	State state = State::InactiveRegister;
 	bool initialised = false;
 	bool dirty = false;
+
+#if REMOVE_REUSABLE_REG
 	bool reusable = false;
+#endif
+
+	bool hasImmediateValue = false;
 	int immediateIntValue = 0;
+
+	bool writeBackToMemory = false;
+
 	TypeInfo type;
 	asmjit::X86Mem memory;
 	asmjit::X86Reg reg;
 	void* memoryLocation = nullptr;
 	WeakReference<BaseScope> scope;
+	WeakReference<BaseCompiler> compiler;
 	Symbol id;
 };
 
@@ -223,7 +288,7 @@ public:
 	using RegPtr = AssemblyRegister::Ptr;
 	using RegList = ReferenceCountedArray<AssemblyRegister>;
 
-	AssemblyRegisterPool();
+	AssemblyRegisterPool(BaseCompiler* c);
 
 	void clear();
 	RegList getListOfAllDirtyGlobals();
@@ -238,9 +303,12 @@ public:
 
 	RegList getListOfAllNamedRegisters();
 
+	Types::ID getRegisterType(const TypeInfo& t) const;
+
 private:
 
 	ReferenceCountedArray<AssemblyRegister> currentRegisterPool;
+	BaseCompiler* compiler;
 };
 
 }

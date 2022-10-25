@@ -54,11 +54,14 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	p(dynamic_cast<Processor*>(p_))
 {
 	processor->getScriptingContent()->addRebuildListener(this);
+	processor->getScriptingContent()->addScreenshotListener(this);
 
     setNewContent(processor->getScriptingContent());
 
 	setInterceptsMouseClicks(false, true);
 
+    setWantsKeyboardFocus(true);
+    
 	p->addDeleteListener(this);
 
 	p->addChangeListener(this);
@@ -77,6 +80,7 @@ ScriptContentComponent::~ScriptContentComponent()
 		}
 
 		contentData->removeRebuildListener(this);
+		contentData->addScreenshotListener(this);
 	}
 
 	if (p.get() != nullptr)
@@ -151,11 +155,6 @@ void ScriptContentComponent::updateValue(int i)
 	if (o != nullptr)
 	{
 		o->updateValue(dontSendNotification);
-	}
-
-	if (TableEditor *t = dynamic_cast<TableEditor*>(componentWrappers[i]->getComponent()))
-	{
-		t->setDisplayedIndex((float)contentData->components[i]->value / 127.0f);
 	}
 
 	if (Slider *s = dynamic_cast<Slider*>(componentWrappers[i]->getComponent()))
@@ -305,6 +304,10 @@ void ScriptContentComponent::updateComponentVisibility(ScriptCreatedComponentWra
 	}
 
 	const bool e = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
+    
+    if(wrapper->getComponent()->isEnabled() != e)
+        wrapper->getComponent()->repaint();
+    
 	wrapper->getComponent()->setEnabled(e);
 	wrapper->getComponent()->setInterceptsMouseClicks(sc->isClickable(), true);
 
@@ -396,6 +399,59 @@ void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 	}
 }
 
+void ScriptContentComponent::makeScreenshot(const File& target, Rectangle<float> area)
+{
+	WeakReference<ScriptContentComponent> safeThis(this);
+
+	auto f = [safeThis, target, area]()
+	{
+		if (safeThis != nullptr)
+		{
+			ScriptingObjects::ScriptShader::ScopedScreenshotRenderer ssr;
+
+			auto sf = UnblurryGraphics::getScaleFactorForComponent(safeThis.get());
+
+			safeThis->repaint();
+
+			auto img = safeThis->createComponentSnapshot(area.toNearestInt(), true, sf);
+
+			juce::PNGImageFormat png;
+
+			target.deleteFile();
+
+			FileOutputStream fos(target);
+
+			auto ok = png.writeImageToStream(img, fos);
+
+			if (ok)
+			{
+				debugToConsole(dynamic_cast<Processor*>(safeThis->processor), "Screenshot exported as " + target.getFullPathName());
+			}
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
+
+void ScriptContentComponent::visualGuidesChanged()
+{
+	Component::SafePointer<Component> safeThis(this);
+
+	auto f = [safeThis]()
+	{
+		if(safeThis != nullptr)
+			safeThis->repaint();
+	};
+
+	MessageManager::callAsync(f);
+}
+
+void ScriptContentComponent::prepareScreenshot()
+{
+	MessageManagerLock mm;
+	repaint();
+}
+
 void ScriptContentComponent::contentWasRebuilt()
 {
 	contentRebuildNotifier.notify(processor->getScriptingContent());
@@ -452,6 +508,7 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 	updateContent();
     
     addMouseListenersForComponentWrappers();
+	repaint();
 }
 
 void ScriptContentComponent::addMouseListenersForComponentWrappers()
@@ -501,17 +558,44 @@ void ScriptContentComponent::processorDeleted(Processor* /*deletedProcessor*/)
 
 void ScriptContentComponent::paint(Graphics &g)
 {
+	if(findParentComponentOfClass<FloatingTilePopup>() == nullptr)
+		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff252525)));
+}
+
+void ScriptContentComponent::paintOverChildren(Graphics& g)
+{
 #if USE_BACKEND
-	if (dynamic_cast<ScriptingEditor*>(getParentComponent()) != nullptr)
+
+	if (p.get() == nullptr)
+		return;
+	
+	const auto& guides = processor->getScriptingContent()->guides;
+
+	if (!guides.isEmpty() && !ScriptingObjects::ScriptShader::isRenderingScreenshot())
 	{
-		g.fillAll(Colours::white.withAlpha(0.05f));
-		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
-			Colours::transparentBlack, 0.0f, 6.0f, false));
-		g.fillRect(0.0f, 0.0f, (float)getWidth(), 6.0f);
+		UnblurryGraphics ug(g, *this, true);
+
+		for (const auto& vg : guides)
+		{
+			g.setColour(vg.c);
+
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::HorizontalLine)
+				ug.draw1PxHorizontalLine(vg.area.getY(), vg.area.getX(), vg.area.getRight());
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::VerticalLine)
+				ug.draw1PxVerticalLine(vg.area.getX(), vg.area.getY(), vg.area.getBottom());
+			if (vg.t == ScriptingApi::Content::VisualGuide::Type::Rectangle)
+				ug.draw1PxRect(vg.area);
+		}
 	}
-#else
-	ignoreUnused(g);
 #endif
+
+	if (isRebuilding)
+	{
+		g.fillAll(Colours::black.withAlpha(0.8f));
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Rebuilding...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
+	}
 }
 
 ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptComponentFor(Point<int> pos)
@@ -574,6 +658,9 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 	{
 		Component* c = componentWrappers[i]->getComponent();
 
+		if (componentWrappers[i]->getScriptComponent()->isLocked())
+			continue;
+
 		Component* parentOfC = c->getParentComponent();
 
 		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))
@@ -600,8 +687,15 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 
 		auto cBounds = getLocalArea(parentOfC, c->getBounds());
 
+		if (sc->isLocked())
+			continue;
 
-		if (area.contains(cBounds))
+		if (cBounds.contains(area))
+			continue;
+
+		auto pBounds = parentOfC->getBounds();
+
+		if (area.intersects(cBounds) && area.intersects(pBounds))
 		{
 			arrayToFill.addIfNotAlreadyThere(sc);
 		}
@@ -644,7 +738,7 @@ void MarkdownPreviewPanel::initPanel()
 
 #endif
 
-	addAndMakeVisible(preview = new MarkdownPreview(*holder));
+	addAndMakeVisible(preview = new HiseMarkdownPreview(*holder));
 
     options = (int)MarkdownPreview::ViewOptions::Edit;
     
@@ -670,7 +764,9 @@ void MarkdownPreviewPanel::initPanel()
 
 	getMainController()->setCurrentMarkdownPreview(preview);
 
-	if (isProjectDoc)
+	if (customContent.isNotEmpty())
+		preview->setNewText(customContent, File(), true);
+	else if (isProjectDoc)
 	{
 		holder->rebuildDatabase();
 		preview->renderer.gotoLink(MarkdownLink(holder->getDatabaseRootDirectory(), startURL));
@@ -680,6 +776,29 @@ void MarkdownPreviewPanel::initPanel()
 
 	visibilityChanged();
 	resized();
+}
+
+Component* ScriptContentComponent::SimpleTraverser::getDefaultComponent(Component* parentComponent)
+{
+	if(parentComponent->getWantsKeyboardFocus())
+		return parentComponent;
+
+	return nullptr;
+}
+
+Component* ScriptContentComponent::SimpleTraverser::getNextComponent(Component* current)
+{
+	return nullptr;
+}
+
+Component* ScriptContentComponent::SimpleTraverser::getPreviousComponent(Component* current)
+{
+	return nullptr;
+}
+
+std::vector<Component*> ScriptContentComponent::SimpleTraverser::getAllComponents(Component* parentComponent)
+{
+	return {};
 }
 
 } // namespace hise

@@ -35,6 +35,7 @@ namespace hise { using namespace juce;
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
 	Modulation(m),
+	ProcessorWithStaticExternalData(mc, 1, 1, 0, 1),
 	frequency(getDefaultValue(Frequency)),
 	run(false),
 	currentValue(1.0f),
@@ -47,8 +48,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	keysPressed(0),
 	intensityModulationValue(1.0f),
 	frequencyModulationValue(1.0f),
-	customTable(new SampleLookupTable()),
-	data(new SliderPackData(mc->getControlUndoManager(), mc->getGlobalUIUpdater())),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
 	currentTable(nullptr),
 	currentRandomValue(1.0f),
@@ -56,9 +55,16 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	legato(getDefaultValue(Legato) >= 0.5f),
 	loopEnabled(getDefaultValue(LoopEnabled) >= 0.5f),
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
-	smoothingTime(getDefaultValue(SmoothingTime)),
-	updater(*this)
+	smoothingTime(getDefaultValue(SmoothingTime))
 {
+	
+    referenceShared(ExternalData::DataType::Table, 0);
+
+	connectWaveformUpdaterToComplexUI(data, true);
+	connectWaveformUpdaterToComplexUI(customTable, true);
+
+	connectWaveformUpdaterToComplexUI(getDisplayBuffer(0), true);
+
 	modChains.reserve(2);
 	
 	modChains += {this, "LFO Intensity Mod"};
@@ -87,14 +93,13 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("NumSteps"));
 	parameterNames.add(Identifier("LoopEnabled"));
 	parameterNames.add(Identifier("PhaseOffset"));
+	parameterNames.add(Identifier("SyncToMasterClock"));
 
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
 	randomGenerator.setSeedRandomly();
 
 	getMainController()->addTempoListener(this);
-
-	data->setNumSliders(16);
 
 	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
@@ -104,9 +109,6 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	setCurrentWaveform();
 
 	CHECK_COPY_AND_RETURN_10(this);
-
-	customTable->addChangeListener(&updater);
-	data->addChangeListener(&updater);
 
 	setTargetRatioA(0.3f);
 
@@ -136,7 +138,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 		return String();
 	};
 
-	customTable->setXTextConverter(f);
+	getTableUnchecked(0)->setXTextConverter(f);
 };
 
 LfoModulator::~LfoModulator()
@@ -144,11 +146,10 @@ LfoModulator::~LfoModulator()
 	intensityChain = nullptr;
 	frequencyChain = nullptr;
 
-	modChains.clear();
+	connectWaveformUpdaterToComplexUI(data, false);
+	connectWaveformUpdaterToComplexUI(customTable, false);
 
-	customTable->removeAllChangeListeners();
-	data->removeAllChangeListeners();
-	customTable = nullptr;
+	modChains.clear();
 
 	getMainController()->removeTempoListener(this);
 };
@@ -165,15 +166,16 @@ void LfoModulator::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(WaveFormType, "WaveformType");
 	loadAttribute(Legato, "Legato");
 	loadAttributeWithDefault(PhaseOffset);
+	loadAttributeWithDefault(SyncToMasterClock);
 
 	loadAttribute(SmoothingTime, "SmoothingTime");
 
 	if (v.hasProperty("LoopEnabled"))
 		loadAttribute(LoopEnabled, "LoopEnabled");
 
-	loadTable(customTable, "CustomWaveform");
+	loadTable(getTableUnchecked(0), "CustomWaveform");
 
-	data->fromBase64(v.getProperty("StepData"));
+	getSliderPackDataUnchecked(0)->fromBase64(v.getProperty("StepData"));
 }
 
 juce::ValueTree LfoModulator::exportAsValueTree() const
@@ -188,10 +190,11 @@ juce::ValueTree LfoModulator::exportAsValueTree() const
 	saveAttribute(SmoothingTime, "SmoothingTime");
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(PhaseOffset, "PhaseOffset");
+	saveAttribute(SyncToMasterClock, "SyncToMasterClock");
 
-	saveTable(customTable, "CustomWaveform");
+	saveTable(getTableUnchecked(0), "CustomWaveform");
 
-	v.setProperty("StepData", data->toBase64(), nullptr);
+	v.setProperty("StepData", getSliderPackDataUnchecked(0)->toBase64(), nullptr);
 
 	return v;
 }
@@ -236,6 +239,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return true;
 	case Parameters::PhaseOffset:
 		return 0.0;
+	case Parameters::SyncToMasterClock:
+		return false;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -259,14 +264,16 @@ float LfoModulator::getAttribute(int parameter_index) const
 	case Parameters::SmoothingTime:
 		return smoother.getSmoothingTime();
 	case Parameters::NumSteps:
-		return (float)data->getNumSliders();
+		return (float)getSliderPackDataUnchecked(0)->getNumSliders();
 	case Parameters::LoopEnabled:
 		return loopEnabled ? 1.0f : 0.0f;
 	case Parameters::PhaseOffset:
 		return (float)phaseOffset; 
+	case Parameters::SyncToMasterClock:
+		return syncToMasterClock ? 1.0f : 0.0f;
 	default: 
 		jassertfalse;
-		return -1.0f;
+		return 0.0f;
 	}
 
 };;
@@ -306,13 +313,24 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		smoother.setSmoothingTime(smoothingTime);
 		break;
 	case Parameters::NumSteps:
-		data->setNumSliders(jmax<int>(1, (int)newValue));
+		getSliderPackDataUnchecked(0)->setNumSliders(jmax<int>(1, (int)newValue));
 		break;
 	case Parameters::LoopEnabled:
 		loopEnabled = newValue > 0.5f;
 		break;
 	case Parameters::PhaseOffset:
 		phaseOffset = (double)newValue; break;
+	case Parameters::SyncToMasterClock:
+	{
+		auto shouldSync = newValue > 0.5f;
+
+		if (syncToMasterClock != shouldSync)
+		{
+			syncToMasterClock = shouldSync;
+		}
+
+		break;
+	}
 	default: 
 		jassertfalse;
 	}
@@ -330,10 +348,22 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 	}
 	else if (currentWaveform == Steps)
 	{
-		*tableValues = data->getCachedData();
-		numValues = data->getNumSliders();
-		normalizeValue = 1.0f;
+		if (stepData.isEmpty())
+			stepData.setSize(SAMPLE_LOOKUP_TABLE_SIZE);
 
+		auto tv = data->getCachedData();
+		auto numSteps = (float)data->getNumSliders();
+		
+		for (int i = 0; i < SAMPLE_LOOKUP_TABLE_SIZE; i++)
+		{
+			auto normI = (float)i / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+			auto ti = jlimit<int>(0, (int)numSteps - 1, (int)hmath::floor(normI * numSteps));
+			stepData[i] = tv[ti];
+		}
+		
+		*tableValues = stepData.begin();
+		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
+		normalizeValue = 1.0f;
 		interpolationMode = WaveformComponent::Truncate;
 	}
 	else 
@@ -341,7 +371,6 @@ void LfoModulator::getWaveformTableValues(int /*displayIndex*/, float const** ta
 		*tableValues = currentTable;
 		numValues = SAMPLE_LOOKUP_TABLE_SIZE;
 		normalizeValue = 1.0f;
-
 		interpolationMode = WaveformComponent::LinearInterpolation;
 	}
 }
@@ -451,8 +480,28 @@ float LfoModulator::calculateNewValue ()
 
 	jassert(attackValue >= 0.0f);
 
-	// Apply a little smoothing to filter hard edges
-	currentValue = smoother.smooth(1.0f - newValue * attackValue);
+	switch (getMode())
+	{
+	case Modulation::GainMode:
+		newValue = 1.0f - newValue * attackValue;
+		break;
+	case Modulation::GlobalMode:
+		if(isBipolar())
+			newValue = (1.0f - attackValue) * 0.5f + attackValue * newValue;
+		else
+			newValue = 1.0f - newValue * attackValue;
+		break;
+	case Modulation::PanMode:
+	case Modulation::PitchMode:
+		if (isBipolar())
+			newValue = (1.0f - attackValue) * 0.5f + attackValue * newValue;
+		else
+			newValue *= attackValue;
+		break;
+    default: jassertfalse; break;
+	}
+	
+	currentValue = smoother.smooth(newValue);
 
 	uptime += (angleDelta);
 	
@@ -492,11 +541,20 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void LfoModulator::calculateBlock(int startSample, int numSamples)
 {
-	
 	const int startIndex = startSample;
 	const int numValues = numSamples;
 
 	auto* modData = internalBuffer.getWritePointer(0, startSample);
+
+	if (syncToMasterClock && tempoSync)
+	{
+		auto startPPQ = getMainController()->getMasterClock().getPPQPos(numSamples - startSample);
+		auto cycleLength = (double)TempoSyncer::getTempoFactor(currentTempo);
+
+		auto uptimeNorm = startPPQ / cycleLength;
+
+		uptime = (int)(uptimeNorm * SAMPLE_LOOKUP_TABLE_SIZE);
+	}
 
 	while (--numSamples >= 0)
 	{
@@ -509,12 +567,7 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 	{
 		const bool isLooped = (loopEnabled || uptime < (double)SAMPLE_LOOKUP_TABLE_SIZE);
 
-		if (isLooped)
-		{
-			sendTableIndexChangeMessage(false, customTable, newInputValue);
-		}
-		else
-			sendTableIndexChangeMessage(false, customTable, 1.0f);
+		getTableUnchecked(0)->setNormalisedIndexSync(isLooped ? newInputValue : 1.0f);
 	}
 
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
@@ -534,19 +587,69 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 		calcAngleDelta();
 	}
 
-	
+	auto m = getMode();
+
 	
 
-	if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+	if (m == Modulation::PitchMode || m == Modulation::PanMode || m == Modulation::GlobalMode)
 	{
-		applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+		if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+		{
+			// and the nomination for the worst LFO code
+			// goes to:
+
+			if (!isBipolar())
+			{
+				if (m == Modulation::GlobalMode)
+					applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+				else
+					applyIntensityForPitchValues(mod, 1.0f, intensityModValues, numValues);
+			}
+			else
+			{
+				for (int i = 0; i < numValues; i++)
+				{
+					auto base = (1.0f - intensityModValues[i]) * 0.5f;
+					mod[i] = base + intensityModValues[i] * mod[i];
+				}
+			}
+		}
+		else
+		{
+			const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+			if (!isBipolar())
+			{
+				if (m == Mode::GlobalMode)
+					applyIntensityForGainValues(mod, intensityToUse, numValues);
+				else
+					applyIntensityForPitchValues(mod, intensityToUse, numValues);
+			}
+			else
+			{
+				// at this point I'm not even mad anymore
+
+				auto base = (1.0f - intensityToUse) * 0.5f;
+
+				for (int i = 0; i < numValues; i++)
+					mod[i] = base + intensityToUse * mod[i];
+			}
+
+		}
 	}
 	else
 	{
-		const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
-
-		applyIntensityForGainValues(mod, intensityToUse, numValues);
+		if (auto intensityModValues = modChains[IntensityChain].getWritePointerForManualExpansion(pseudoOffset))
+		{
+			applyIntensityForGainValues(mod, 1.0f, intensityModValues, numValues);
+		}
+		else
+		{
+			const float intensityToUse = modChains[IntensityChain].getConstantModulationValue();
+			applyIntensityForGainValues(mod, intensityToUse, numValues);
+		}
 	}
+	
+	
 }
 
 void LfoModulator::handleHiseEvent(const HiseEvent &m)
@@ -571,7 +674,7 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 			{
 				currentSliderIndex = 0;
 				currentSliderValue = 1.0f - data->getValue(0);
-				data->setDisplayedIndex(0);
+				getSliderPackDataUnchecked(0)->setDisplayedIndex(0);
 				lastSwapIndex = -1;
 			}
 

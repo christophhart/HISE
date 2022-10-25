@@ -4,6 +4,11 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 {
 	LiteralValue(const CodeLocation& l, const var& v) noexcept : Expression(l), value(v) {}
 	var getResult(const Scope&) const override   { return value; }
+
+	bool isConstant() const override { return true; }
+
+	Statement* getChildStatement(int) override { return nullptr; };
+
 	var value;
 };
 
@@ -11,21 +16,35 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 {
 	UnqualifiedName(const CodeLocation& l, const Identifier& n, bool isFunction) noexcept : Expression(l), name(n), allowUnqualifiedDefinition(isFunction) {}
 
-	var getResult(const Scope& s) const override  { return s.findSymbolInParentScopes(name); }
+	var getResult(const Scope& s) const override  
+	{ 
+		static const Identifier this_("this");
+
+		auto v = s.findSymbolInParentScopes(name); 
+
+		if (v.isUndefined() && name == this_)
+			return s.root->getLocalThisObject();
+
+		return v;
+	}
+
+	Identifier getVariableName() const override { return name; }
+
+	Statement* getChildStatement(int) override { return nullptr; };
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
 		const Scope* currentScope = &s;
-		var* v = getPropertyPointer(currentScope->scope, name);
+		var* v = getPropertyPointer(currentScope->scope.get(), name);
 
 		while (v == nullptr && currentScope->parent != nullptr)
 		{
 			currentScope = currentScope->parent;
-			v = getPropertyPointer(currentScope->scope, name);
+			v = getPropertyPointer(currentScope->scope.get(), name);
 		}
 
 		if (v == nullptr)
-			v = getPropertyPointer(currentScope->root, name);
+			v = getPropertyPointer(currentScope->root.get(), name);
 
 		if (v != nullptr)
 			*v = newValue;
@@ -58,7 +77,19 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 
 	var getResult(const Scope& /*s*/) const override
 	{
-		return ns->constObjects.getValueAt(index);
+		if(ns != nullptr)
+			return ns->constObjects.getValueAt(index);
+
+		return var();
+	}
+
+	bool isConstant() const override
+	{
+		jassert(ns != nullptr);
+		auto v = ns->constObjects.getValueAt(index);
+
+		// objects and arrays are not constant...
+		return !v.isArray() && !v.isObject();
 	}
 
 	void assign(const Scope& /*s*/, const var& /*newValue*/) const override
@@ -66,9 +97,10 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		location.throwError("Can't assign to this expression!");
 	}
 
-	JavascriptNamespace* ns;
-	int index;
+	Statement* getChildStatement(int) override { return nullptr; };
 
+	WeakReference<JavascriptNamespace> ns;
+	int index;
 };
 
 
@@ -90,7 +122,13 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		{
 			cacheIndex(instance, s);
 
-			return instance->getAssignedValue(cachedIndex);
+			if(cachedIndex != -1)
+				return instance->getAssignedValue(cachedIndex);
+			else
+			{
+				auto idx = index->getResult(s);
+				return instance->getAssignedValue(idx);
+			}
 		}
 		else if (const Array<var>* array = result.getArray())
 			return (*array)[static_cast<int> (index->getResult(s))];
@@ -123,16 +161,18 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 			(*b)[i] = FloatSanitizers::sanitizeFloatNumber(v);
 			return;
 		}
-		else if (Array<var>* array = result.getArray())
+		else if (Array<var>* ar = result.getArray())
 		{
 			const int i = index->getResult(s);
 
-			WARN_IF_AUDIO_THREAD(i >= array->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
+			
+			
+			WARN_IF_AUDIO_THREAD(i >= ar->getNumAllocated(), ScriptAudioThreadGuard::ArrayResizing);
 
-			while (array->size() < i)
-				array->add(var::undefined());
+			while (ar->size() < i)
+				ar->add(var::undefined());
 
-			array->set(i, newValue);
+			ar->set(i, newValue);
 			return;
 		}
 		else if (AssignableObject * instance = dynamic_cast<AssignableObject*>(result.getObject()))
@@ -152,6 +192,18 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
         }
 
 		Expression::assign(s, newValue);
+	}
+
+	Statement* getChildStatement(int idx) override 
+	{
+		if (idx == 0) return object.get();
+		if (idx == 1) return index.get();
+		return nullptr;
+	};
+	
+	bool replaceChildStatement(Ptr& n, Statement* r) override
+	{
+		return swapIf(n, r, object) || swapIf(n, r, index);
 	}
 
 	void cacheIndex(AssignableObject *instance, const Scope &s) const;
@@ -187,9 +239,13 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 		}
 
 		if (DynamicObject* o = p.getDynamicObject())
+		{
 			if (const var* v = getPropertyPointer(o, child))
 				return *v;
 
+			return o->getProperty(child);
+		}
+			
 		if (ConstScriptingObject* o = dynamic_cast<ConstScriptingObject*>(p.getObject()))
 		{
 			const int constantIndex = o->getConstantIndex(child);
@@ -198,22 +254,83 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 				return o->getConstantValue(constantIndex);
 			}
 		}
+        
+        if(auto lb = dynamic_cast<fixobj::ObjectReference*>(p.getObject()))
+        {
+            if(auto member = (*lb)[child])
+                return (var)*member;
+            else
+                location.throwError("can't find property " + child.toString());
+        }
+
+		if (auto ad = dynamic_cast<AssignableDotObject*>(p.getObject()))
+		{
+			return ad->getDotProperty(child);
+		}
 
 		return var::undefined();
 	}
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		if (DynamicObject* o = parent->getResult(s).getDynamicObject())
+        auto v = parent->getResult(s);
+        
+		if (DynamicObject* o = v.getDynamicObject())
 		{
 			WARN_IF_AUDIO_THREAD(!o->hasProperty(child), ScriptAudioThreadGuard::ObjectResizing);
 
 			o->setProperty(child, newValue);
 		}
-		else
+		else if (auto mo = dynamic_cast<fixobj::ObjectReference::MemberReference*>(v.getObject()))
+        {
+            *mo = newValue;
+        }
+        else if(auto lb = dynamic_cast<fixobj::ObjectReference*>(v.getObject()))
+        {
+            if(auto member = (*lb)[child])
+                *member = newValue;
+            else
+                location.throwError("Can't find property " + child.toString());
+        }
+		else if (auto aObj = dynamic_cast<AssignableDotObject*>(v.getObject()))
+		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+            if(auto o = dynamic_cast<ApiClass*>(aObj))
+            {
+                if(o->wantsCurrentLocation())
+                    o->setCurrentLocation(location.externalFile, location.getCharIndex());
+            }
+#endif
+            
+			if (!aObj->assign(child, newValue))
+				location.throwError("Cannot assign to " + child + " property");
+		}
+        else
 			Expression::assign(s, newValue);
 	}
 
+	bool isConstant() const override
+	{
+		if (parent->isConstant())
+		{
+			Scope s(nullptr, nullptr, nullptr);
+			auto v = getResult(s);
+
+			if(auto o = dynamic_cast<ConstScriptingObject*>(v.getObject()))
+			{
+				const int constantIndex = o->getConstantIndex(child);
+				if (constantIndex != -1)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? parent.get() : nullptr; };
+	
 	ExpPtr parent;
 	Identifier child;
 };
@@ -232,6 +349,21 @@ struct HiseJavascriptEngine::RootObject::Assignment : public Expression
 		return value;
 	}
 
+	Statement* getChildStatement(int index) override 
+	{
+		if (index == 0) return target.get();
+		if (index == 1) return newValue.get();
+		return nullptr;
+	};
+	
+	bool replaceChildStatement(Ptr& newS, Statement* sToReplace) override
+	{
+		// the target should never be optimized away
+		jassert(sToReplace != target.get());
+
+		return swapIf(newS, sToReplace, newValue);
+	}
+
 	ExpPtr target, newValue;
 };
 
@@ -247,6 +379,8 @@ struct HiseJavascriptEngine::RootObject::SelfAssignment : public Expression
 		target->assign(s, value);
 		return value;
 	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? newValue.get() : nullptr; };
 
 	Expression* target; // Careful! this pointer aliases a sub-term of newValue!
 	ExpPtr newValue;
@@ -273,6 +407,25 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 	var getResult(const Scope& s) const override;
 
 	var invokeFunction(const Scope& s, const var& function, const var& thisObject) const;
+
+	Statement* getChildStatement(int index) override 
+	{ 
+		if (index == 0) return object.get();
+
+		index--;
+
+		if (isPositiveAndBelow(index, arguments.size()))
+			return arguments[index];
+
+		return nullptr;
+	};
+	
+	bool replaceChildStatement(Ptr& newChild, Statement* childToReplace) override
+	{
+		return swapIf(newChild, childToReplace, object) ||
+			   swapIfArrayElement(newChild, childToReplace, arguments);
+	}
+
 
 	ExpPtr object;
 	OwnedArray<Expression> arguments;
@@ -326,6 +479,19 @@ struct HiseJavascriptEngine::RootObject::ObjectDeclaration : public Expression
 		return newObject.get();
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		if (isPositiveAndBelow(index, initialisers.size()))
+			return initialisers[index];
+
+		return nullptr;
+	};
+
+	bool replaceChildStatement(Ptr& s, Statement* newData) override
+	{
+		return swapIfArrayElement(s, newData, initialisers);
+	}
+
 	Array<Identifier> names;
 	OwnedArray<Expression> initialisers;
 };
@@ -346,13 +512,28 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 		return a;
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		if (isPositiveAndBelow(index, values.size()))
+			return values[index];
+
+		return nullptr;
+	};
+
+	bool replaceChildStatement(Ptr& s, Statement* newData) override
+	{
+		return swapIfArrayElement(s, newData, values);
+	}
+
 	OwnedArray<Expression> values;
 };
 
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 														  public DebugableObject,
-														  public CyclicReferenceCheckBase
+														  public WeakCallbackHolder::CallableObject,
+														  public CyclicReferenceCheckBase,
+                                                          public LocalScopeCreator
 {
 	FunctionObject() noexcept{}
 
@@ -369,7 +550,38 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
+    bool isRealtimeSafe() const { return false; }
+    
 	void prepareCycleReferenceCheck() override;
+
+    DynamicObject::Ptr createScope(RootObject* r) override
+    {
+        DynamicObject::Ptr copy = new DynamicObject();
+        
+        for(auto& x: lastScope->getProperties())
+            copy->setProperty(x.name, x.value);
+        
+        return copy;
+    };
+    
+	String getComment() const override
+	{
+		return commentDoc;
+	}
+
+	void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) override
+	{
+		if (capturedLocals.isEmpty())
+			return;
+
+		if (swap)
+			std::swap(setFromHolder, capturedLocalValues);
+		else
+		{
+			for (const auto& nv : setFromHolder)
+				capturedLocalValues.set(nv.name, nv.value);
+		}
+	}
 
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{
@@ -384,13 +596,34 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 			functionRoot->setProperty(parameters.getReference(i),
 			i < args.numArguments ? args.arguments[i] : var::undefined());
 
+		if (!capturedLocals.isEmpty())
+		{
+			for (const auto& c : capturedLocalValues)
+				functionRoot->setProperty(c.name, c.value);
+		}
+
 		var result;
-		body->perform(Scope(&s, s.root, functionRoot), &result);
+        
+#if ENABLE_SCRIPTING_BREAKPOINTS
+        
+        LocalScopeCreator::ScopedSetter sls(s.root, const_cast<FunctionObject*>(this));
+        
+        {
+            SimpleReadWriteLock::ScopedWriteLock sl(debugScopeLock);
+            lastScope = functionRoot;
+        }
+#endif
+        
+		body->perform(Scope(&s, s.root.get(), functionRoot.get()), &result);
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 		if(enableCycleCheck)
-			lastScopeForCycleCheck = var(functionRoot);
+			lastScopeForCycleCheck = var(functionRoot.get());
 #endif
+
+		functionRoot->removeProperty("this");
+
+
 
 		return result;
 	}
@@ -405,7 +638,13 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 				i < args.numArguments ? args.arguments[i] : var::undefined());
 		}
 
-		body->perform(Scope(&s, s.root, scope), &result);
+		if (!capturedLocals.isEmpty())
+		{
+			for (const auto& c : capturedLocalValues)
+				scope->setProperty(c.name, c.value);
+		}
+		
+		body->perform(Scope(&s, s.root.get(), scope), &result);
 
 		return result;
 	}
@@ -434,17 +673,97 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return functionDef;
 	}
 
+	int getNumChildElements() const override
+	{
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(debugScopeLock))
+		{
+			if (lastScope != nullptr)
+				return lastScope->getProperties().size();
+		}
+
+		return 0;
+	}
+
+	DebugInformationBase* getChildElement(int index) override
+	{
+		DynamicObject::Ptr l;
+
+		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(debugScopeLock))
+			l = lastScope;
+			
+		if (l != nullptr)
+		{
+			WeakReference<FunctionObject> safeThis(this);
+
+			auto vf = [safeThis, index]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				DynamicObject::Ptr l;
+
+				if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(safeThis->debugScopeLock))
+					l = safeThis->lastScope;
+
+				if (l != nullptr)
+				{
+					if (l->getProperties().getName(index) == Identifier("this"))
+					{
+						// do not return *this* to avoid endless loops...
+						return var();
+					}
+						
+
+					if (auto v = l->getProperties().getVarPointerAt(index))
+						return *v;
+				}
+				
+				return var();
+			};
+
+			auto& prop = l->getProperties();
+
+			if (isPositiveAndBelow(index, prop.size()))
+			{
+				String mid;
+				mid << "%PARENT%" << "." << prop.getName(index);
+				return new LambdaValueInformation(vf, mid, {}, DebugInformation::Type::ExternalFunction, getLocation());
+			}
+		}
+
+		return nullptr;
+	}
+
+	int getCaptureIndex(const Identifier& id) const
+	{
+		for (int i = 0; i < capturedLocals.size(); i++)
+		{
+			if (capturedLocals[i]->getVariableName() == id)
+				return i;
+		}
+
+		return -1;
+	}
+
 	AttributedString getDescription() const override
 	{
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
 	}
 
+	Location getLocation() const override { return location; }
+
 	bool enableCycleCheck = false;
 
 	Identifier name;
 
+	Location location;
+
 	String functionCode;
 	Array<Identifier> parameters;
+
+	OwnedArray<Expression> capturedLocals;
+	mutable NamedValueSet capturedLocalValues;
+	
 	ScopedPointer<Statement> body;
 
 	String commentDoc;
@@ -453,8 +772,51 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	mutable var lastScopeForCycleCheck;
 
 	DynamicObject::Ptr unneededScope;
+    
+    
+
+	mutable SimpleReadWriteLock debugScopeLock;
+	mutable DynamicObject::Ptr lastScope;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(FunctionObject);
 };
 
+struct HiseJavascriptEngine::RootObject::AnonymousFunctionWithCapture : public Expression
+{
+	AnonymousFunctionWithCapture(const CodeLocation& l, const var& f) : Expression(l), function(f)
+	{
+		if (auto fo = dynamic_cast<FunctionObject*>(function.getDynamicObject()))
+		{
+
+		}
+	};
+
+	var getResult(const Scope& s) const override
+	{
+		// time to capture
+		
+		if (auto fo = dynamic_cast<FunctionObject*>(function.getObject()))
+		{
+
+			for (auto e: fo->capturedLocals)
+			{
+				auto id = e->getVariableName();
+				auto value = e->getResult(s);
+				fo->capturedLocalValues.set(id, value);
+			}
+		}
+
+		return function;
+	}
+
+	bool isConstant() const override { return true; }
+
+	Statement* getChildStatement(int) override { return nullptr; };
+
+	var function;
+
+	OwnedArray<Expression> expressions;
+};
 
 var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& s, const var& function, const var& thisObject) const
 {
@@ -476,7 +838,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 		return nativeFunction(args);
 
 	if (FunctionObject* fo = dynamic_cast<FunctionObject*> (function.getObject()))
+    {
+        LocalScopeCreator::ScopedSetter sls(s.root, fo);
 		return fo->invoke(s, args);
+    }
 
 	if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		if (DynamicObject* o = thisObject.getDynamicObject())
@@ -504,7 +869,7 @@ bool HiseJavascriptEngine::RootObject::isNumeric(const var& v) noexcept
 
 bool HiseJavascriptEngine::RootObject::isNumericOrUndefined(const var& v) noexcept
 {
-	return isNumeric(v) || v.isUndefined();
+	return isNumeric(v) || v.isUndefined() || v.isVoid();
 }
 
 int64 HiseJavascriptEngine::RootObject::getOctalValue(const String& s)
@@ -528,7 +893,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 	if (target == nullptr || target == scope.get())
 	{
-		if (const var* m = getPropertyPointer(scope, function))
+		if (const var* m = getPropertyPointer(scope.get(), function))
 		{
 			if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
 			{
@@ -542,7 +907,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 	for (int i = 0; i < props.size(); ++i)
 		if (DynamicObject* o = props.getValueAt(i).getDynamicObject())
-			if (Scope(this, root, o).findAndInvokeMethod(function, args, result))
+			if (Scope(this, root.get(), o).findAndInvokeMethod(function, args, result))
 				return true;
 
 	return false;
@@ -550,7 +915,7 @@ bool HiseJavascriptEngine::RootObject::Scope::findAndInvokeMethod(const Identifi
 
 bool HiseJavascriptEngine::RootObject::Scope::invokeMidiCallback(const Identifier &callbackName, const var::NativeFunctionArgs &args, var &result, DynamicObject*functionScope) const
 {
-	if (const var* m = getPropertyPointer(scope, callbackName))
+	if (const var* m = getPropertyPointer(scope.get(), callbackName))
 	{
 		if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
 		{

@@ -51,6 +51,8 @@ class IppFFT
 {
 public:
 
+    using Helpers = FFTHelpers;
+
 	enum class DataType
 	{
 		ComplexFloat = 0,
@@ -87,6 +89,8 @@ public:
 	*
 	*	Input: d[] = re[0],re[1],..,re[size-1].
 	*	Output: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
+	*
+	*	Use Helpers::toFreqSpectrum() afterwards
 	*/
 	void realFFT(const float *in, float* out, int size) const;
 
@@ -98,6 +102,8 @@ public:
 
 	/** Complex inverse inplace FFT (input is aligned float array, size is power of two.) */
 	void complexFFTInverse(const float* in, float *out, int size) const;
+
+	
 
 
 	// ==================================================================================================================================== double FFTs

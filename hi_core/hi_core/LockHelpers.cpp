@@ -49,6 +49,13 @@ bool LockHelpers::freeToGo(MainController* mc)
 		return true;
 	}
 
+#if USE_BACKEND
+	if (mc->isFlakyThreadingAllowed())
+	{
+		return true;
+	}
+#endif
+
 	if (!mc->getKillStateHandler().initialised())
 	{
 		// As long as it's not initialised, we're not that restrictive..
@@ -79,9 +86,13 @@ bool LockHelpers::freeToGo(MainController* mc)
 
 	if (mc->getKillStateHandler().isAudioRunning())
 	{
+		if (mc->getJavascriptThreadPool().isCurrentlySleeping())
+			return true;
+
 		// The audio engine is not suspended. Wrap this call
 		// into a killVoicesAndCall lambda.
 		jassertfalse;
+
 		return false;
 	}
 
@@ -102,6 +113,11 @@ bool LockHelpers::noMessageThreadBeyondInitialisation(const MainController* mc)
 
 bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+		return false;
+#endif
+
 	if (!mc->isInitialised())
 	{
 		return false;

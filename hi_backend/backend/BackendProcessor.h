@@ -87,7 +87,7 @@ public:
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() 
 	{
-		writeToConsole("RELEASE_RESOURCES_CALLED", CodeHandler::Error, getMainSynthChain());
+		
 	};
 
 	void getStateInformation	(MemoryBlock &destData) override;;
@@ -110,8 +110,6 @@ public:
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
 
-	UndoManager* getViewUndoManager() { return viewUndoManager; }
-
 	AudioProcessorEditor* createEditor();
 	bool hasEditor() const {return true;};
 
@@ -128,6 +126,11 @@ public:
 	void registerContentProcessor(MarkdownContentProcessor* processor) override;
 	File getCachedDocFolder() const override;
 	File getDatabaseRootDirectory() const override;
+
+	void toggleDynamicBufferSize() 
+	{
+		simulateDynamicBufferSize = !isUsingDynamicBufferSize();
+	}
 
 	void setDatabaseRootDirectory(File newDatabaseDirectory)
 	{
@@ -185,10 +188,30 @@ public:
 		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
 	}
 
+	JavascriptProcessor* createInterface(int width, int height);;
+
 	void setEditorData(var editorState);
-private:
+
+	juce::OnlineUnlockStatus* getLicenseUnlocker() 
+	{
+		return &scriptUnlocker;
+	}
+
+	ScriptUnlocker scriptUnlocker;
+
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+	snex::ui::WorkbenchManager workbenches;
+	virtual void* getWorkbenchManager() override { return reinterpret_cast<void*>(&workbenches); }
+#endif
+
+	BackendDllManager::Ptr dllManager;
 
 	
+    LambdaBroadcaster<Processor*> processorAddBroadcaster;
+	
+	LambdaBroadcaster<Identifier, Processor*> workspaceBroadcaster;
+
+private:
 
 	File databaseRoot;
 
@@ -200,12 +223,10 @@ private:
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
 	
-	ScopedPointer<UndoManager> viewUndoManager;
-
 	var editorInformation;
 
 	ScopedPointer<BackendProcessor> docProcessor;
-	ScopedPointer<BackendRootWindow> docWindow;
+	BackendRootWindow* docWindow;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };

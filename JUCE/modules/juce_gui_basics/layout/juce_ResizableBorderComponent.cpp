@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -88,18 +87,15 @@ MouseCursor ResizableBorderComponent::Zone::getMouseCursor() const noexcept
 }
 
 //==============================================================================
-ResizableBorderComponent::ResizableBorderComponent (Component* const componentToResize,
-                                                    ComponentBoundsConstrainer* const constrainer_)
+ResizableBorderComponent::ResizableBorderComponent (Component* componentToResize,
+                                                    ComponentBoundsConstrainer* boundsConstrainer)
    : component (componentToResize),
-     constrainer (constrainer_),
-     borderSize (5),
-     mouseZone (0)
+     constrainer (boundsConstrainer),
+     borderSize (5)
 {
 }
 
-ResizableBorderComponent::~ResizableBorderComponent()
-{
-}
+ResizableBorderComponent::~ResizableBorderComponent() = default;
 
 //==============================================================================
 void ResizableBorderComponent::paint (Graphics& g)
@@ -168,13 +164,10 @@ void ResizableBorderComponent::mouseUp (const MouseEvent&)
 
 bool ResizableBorderComponent::hitTest (int x, int y)
 {
-    return x < borderSize.getLeft()
-            || x >= getWidth() - borderSize.getRight()
-            || y < borderSize.getTop()
-            || y >= getHeight() - borderSize.getBottom();
+    return ! borderSize.subtractedFrom (getLocalBounds()).contains (x, y);
 }
 
-void ResizableBorderComponent::setBorderThickness (const BorderSize<int>& newBorderSize)
+void ResizableBorderComponent::setBorderThickness (BorderSize<int> newBorderSize)
 {
     if (borderSize != newBorderSize)
     {

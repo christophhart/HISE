@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -91,7 +91,7 @@ namespace TimeHelpers
                                  : (value - ((value / modulo) + 1) * modulo));
     }
 
-    static inline String formatString (const String& format, const std::tm* const tm)
+    static String formatString (const String& format, const std::tm* const tm)
     {
        #if JUCE_ANDROID
         using StringType = CharPointer_UTF8;
@@ -126,12 +126,12 @@ namespace TimeHelpers
     }
 
     //==============================================================================
-    static inline bool isLeapYear (int year) noexcept
+    static bool isLeapYear (int year) noexcept
     {
         return (year % 400 == 0) || ((year % 100 != 0) && (year % 4 == 0));
     }
 
-    static inline int daysFromJan1 (int year, int month) noexcept
+    static int daysFromJan1 (int year, int month) noexcept
     {
         const short dayOfYear[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
                                     0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 };
@@ -139,18 +139,18 @@ namespace TimeHelpers
         return dayOfYear [(isLeapYear (year) ? 12 : 0) + month];
     }
 
-    static inline int64 daysFromYear0 (int year) noexcept
+    static int64 daysFromYear0 (int year) noexcept
     {
         --year;
         return 365 * year + (year / 400) - (year / 100) + (year / 4);
     }
 
-    static inline int64 daysFrom1970 (int year) noexcept
+    static int64 daysFrom1970 (int year) noexcept
     {
         return daysFromYear0 (year) - daysFromYear0 (1970);
     }
 
-    static inline int64 daysFrom1970 (int year, int month) noexcept
+    static int64 daysFrom1970 (int year, int month) noexcept
     {
         if (month > 11)
         {
@@ -169,7 +169,7 @@ namespace TimeHelpers
 
     // There's no posix function that does a UTC version of mktime,
     // so annoyingly we need to implement this manually..
-    static inline int64 mktime_utc (const std::tm& t) noexcept
+    static int64 mktime_utc (const std::tm& t) noexcept
     {
         return 24 * 3600 * (daysFrom1970 (t.tm_year + 1900, t.tm_mon) + (t.tm_mday - 1))
                 + 3600 * t.tm_hour
@@ -178,6 +178,21 @@ namespace TimeHelpers
     }
 
     static Atomic<uint32> lastMSCounterValue { (uint32) 0 };
+
+    static String getUTCOffsetString (int utcOffsetSeconds, bool includeSemiColon)
+    {
+        if (const auto seconds = utcOffsetSeconds)
+        {
+            auto minutes = seconds / 60;
+
+            return String::formatted (includeSemiColon ? "%+03d:%02d"
+                                                       : "%+03d%02d",
+                                      minutes / 60,
+                                      abs (minutes) % 60);
+        }
+
+        return "Z";
+    }
 }
 
 //==============================================================================
@@ -277,7 +292,7 @@ void Time::waitForMillisecondCounter (uint32 targetTime) noexcept
 //==============================================================================
 double Time::highResolutionTicksToSeconds (const int64 ticks) noexcept
 {
-    return ticks / (double) getHighResolutionTicksPerSecond();
+    return (double) ticks / (double) getHighResolutionTicksPerSecond();
 }
 
 int64 Time::secondsToHighResolutionTicks (const double seconds) noexcept
@@ -406,17 +421,7 @@ int Time::getUTCOffsetSeconds() const noexcept
 
 String Time::getUTCOffsetString (bool includeSemiColon) const
 {
-    if (auto seconds = getUTCOffsetSeconds())
-    {
-        auto minutes = seconds / 60;
-
-        return String::formatted (includeSemiColon ? "%+03d:%02d"
-                                                   : "%+03d%02d",
-                                  minutes / 60,
-                                  minutes % 60);
-    }
-
-    return "Z";
+    return TimeHelpers::getUTCOffsetString (getUTCOffsetSeconds(), includeSemiColon);
 }
 
 String Time::toISO8601 (bool includeDividerCharacters) const
@@ -491,7 +496,7 @@ Time Time::fromISO8601 (StringRef iso)
         if (seconds < 0)
              return {};
 
-        if (*t == '.')
+        if (*t == '.' || *t == ',')
         {
             ++t;
             milliseconds = parseFixedSizeIntAndSkip (t, 3, 0);
@@ -612,7 +617,9 @@ Time Time::getCompilationDate()
 class TimeTests  : public UnitTest
 {
 public:
-    TimeTests() : UnitTest ("Time", "Time") {}
+    TimeTests()
+        : UnitTest ("Time", UnitTestCategories::time)
+    {}
 
     void runTest() override
     {
@@ -628,19 +635,32 @@ public:
         expect (t.getUTCOffsetString (true)  == "Z" || t.getUTCOffsetString (true).length() == 6);
         expect (t.getUTCOffsetString (false) == "Z" || t.getUTCOffsetString (false).length() == 5);
 
+        expect (TimeHelpers::getUTCOffsetString (-(3 * 60 + 15) * 60, true) == "-03:15");
+        expect (TimeHelpers::getUTCOffsetString (-(3 * 60 + 30) * 60, true) == "-03:30");
+        expect (TimeHelpers::getUTCOffsetString (-(3 * 60 + 45) * 60, true) == "-03:45");
+
+        expect (TimeHelpers::getUTCOffsetString ((3 * 60 + 15) * 60, true) == "+03:15");
+
         expect (Time::fromISO8601 (t.toISO8601 (true)) == t);
         expect (Time::fromISO8601 (t.toISO8601 (false)) == t);
 
         expect (Time::fromISO8601 ("2016-02-16") == Time (2016, 1, 16, 0, 0, 0, 0, false));
-        expect (Time::fromISO8601 ("20160216Z") == Time (2016, 1, 16, 0, 0, 0, 0, false));
+        expect (Time::fromISO8601 ("20160216Z")  == Time (2016, 1, 16, 0, 0, 0, 0, false));
+
         expect (Time::fromISO8601 ("2016-02-16T15:03:57+00:00") == Time (2016, 1, 16, 15, 3, 57, 0, false));
-        expect (Time::fromISO8601 ("20160216T150357+0000") == Time (2016, 1, 16, 15, 3, 57, 0, false));
+        expect (Time::fromISO8601 ("20160216T150357+0000")      == Time (2016, 1, 16, 15, 3, 57, 0, false));
+
         expect (Time::fromISO8601 ("2016-02-16T15:03:57.999+00:00") == Time (2016, 1, 16, 15, 3, 57, 999, false));
-        expect (Time::fromISO8601 ("20160216T150357.999+0000") == Time (2016, 1, 16, 15, 3, 57, 999, false));
-        expect (Time::fromISO8601 ("2016-02-16T15:03:57.999Z") == Time (2016, 1, 16, 15, 3, 57, 999, false));
-        expect (Time::fromISO8601 ("20160216T150357.999Z") == Time (2016, 1, 16, 15, 3, 57, 999, false));
+        expect (Time::fromISO8601 ("20160216T150357.999+0000")      == Time (2016, 1, 16, 15, 3, 57, 999, false));
+        expect (Time::fromISO8601 ("2016-02-16T15:03:57.999Z")      == Time (2016, 1, 16, 15, 3, 57, 999, false));
+        expect (Time::fromISO8601 ("2016-02-16T15:03:57,999Z")      == Time (2016, 1, 16, 15, 3, 57, 999, false));
+        expect (Time::fromISO8601 ("20160216T150357.999Z")          == Time (2016, 1, 16, 15, 3, 57, 999, false));
+        expect (Time::fromISO8601 ("20160216T150357,999Z")          == Time (2016, 1, 16, 15, 3, 57, 999, false));
+
         expect (Time::fromISO8601 ("2016-02-16T15:03:57.999-02:30") == Time (2016, 1, 16, 17, 33, 57, 999, false));
-        expect (Time::fromISO8601 ("20160216T150357.999-0230") == Time (2016, 1, 16, 17, 33, 57, 999, false));
+        expect (Time::fromISO8601 ("2016-02-16T15:03:57,999-02:30") == Time (2016, 1, 16, 17, 33, 57, 999, false));
+        expect (Time::fromISO8601 ("20160216T150357.999-0230")      == Time (2016, 1, 16, 17, 33, 57, 999, false));
+        expect (Time::fromISO8601 ("20160216T150357,999-0230")      == Time (2016, 1, 16, 17, 33, 57, 999, false));
 
         expect (Time (1970,  0,  1,  0,  0,  0, 0, false) == Time (0));
         expect (Time (2106,  1,  7,  6, 28, 15, 0, false) == Time (4294967295000));

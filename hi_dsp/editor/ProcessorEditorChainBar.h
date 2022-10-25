@@ -92,6 +92,8 @@ public:
 
 	void closeAll();
 	
+	void paint(Graphics& g) override;
+
 	void paintOverChildren(Graphics &g) override;
 
 	void timerCallback() override;

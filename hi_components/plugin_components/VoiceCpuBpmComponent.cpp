@@ -32,9 +32,43 @@
 
 namespace hise { using namespace juce;
 
-VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_):
+struct VoiceCpuBpmComponent::InternalSleepListener : public ControlledObject,
+													 public JavascriptThreadPool::SleepListener	
+{
+	InternalSleepListener(VoiceCpuBpmComponent& parent_):
+	ControlledObject(parent_.getMainController()),
+		parent(parent_)
+	{
+		getMainController()->getJavascriptThreadPool().addSleepListener(this);
+	}
+
+	~InternalSleepListener()
+	{
+		getMainController()->getJavascriptThreadPool().removeSleepListener(this);
+	}
+
+	void sleepStateChanged(const Identifier& callback, int lineNumber, bool isSleeping) override
+	{
+		if (isSleeping)
+		{
+			sleepText = callback + "(" + String(lineNumber) + ")";
+		}
+		else
+			sleepText = "";
+
+		for (int i = 0; i < parent.getNumChildComponents(); i++)
+			parent.getChildComponent(i)->setVisible(!isSleeping);
+	}
+
+	VoiceCpuBpmComponent& parent;
+	String sleepText;
+};
+
+
+VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_) :
 	PreloadListener(mc_->getSampleManager()),
-	ControlledObject(mc_)
+	ControlledObject(mc_),
+	il(new InternalSleepListener(*this))
 {
 	if (mc_ != nullptr)
 	{
@@ -45,7 +79,7 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_):
 		getMainController()->getDebugLogger().addListener(this);
 
 	}
-		
+
 
 	addAndMakeVisible(cpuSlider = new VuMeter());
 
@@ -197,9 +231,11 @@ void VoiceCpuBpmComponent::resized()
 	cpuSlider->setBounds(79, 13, 30, 14);
 }
 
+
+
 void VoiceCpuBpmComponent::paint(Graphics& g)
 {
-	if (!preloadActive)
+	if (!preloadActive && il->sleepText.isEmpty())
 	{
 		if (isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
 
@@ -240,7 +276,7 @@ void VoiceCpuBpmComponent::paint(Graphics& g)
 
 void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 {
-	if (preloadActive)
+	if (preloadActive || il->sleepText.isNotEmpty())
 	{
 		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
 
@@ -252,6 +288,9 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 		g.setFont(GLOBAL_FONT());
 
 		auto message = getCurrentErrorMessage();
+
+		if (il->sleepText.isNotEmpty())
+			message = il->sleepText;
 
 		if (message.isNotEmpty())
 		{
@@ -305,6 +344,14 @@ void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
 		startTimer(300);
 
 	repaint();
+}
+
+void VoiceCpuBpmComponent::mouseDown(const MouseEvent& e)
+{
+	if (il->sleepText.isNotEmpty())
+	{
+		getMainController()->getJavascriptThreadPool().resume();
+	}
 }
 
 } // namespace hise

@@ -71,9 +71,9 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
 	attackSlider->setIsUsingModulatedRing(true);
 	releaseSlider->setIsUsingModulatedRing(true);
 
-	attackTable->connectToLookupTableProcessor(getProcessor());
-	releaseTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*attackTable, getProcessor(), 0);
+    ProcessorHelpers::connectTableEditor(*releaseTable, getProcessor(), 1);
+    
     //[/UserPreSize]
 
     setSize (800, 200);

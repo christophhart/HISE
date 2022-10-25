@@ -44,11 +44,6 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 	if (getScriptEditHandlerContent() == nullptr)
 		return;
 
-	if (getScriptEditHandlerEditor() == nullptr)
-	{
-		return;
-	}
-
 	String componentName;
 
 	switch (componentType)
@@ -177,7 +172,8 @@ String ScriptEditHandler::isValidComponentName(const String &id)
 
 ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 	ScriptComponentEditListener(dynamic_cast<Processor*>(handler_->getScriptEditHandlerProcessor())),
-	handler(handler_)
+	handler(handler_),
+	smw(*this)
 {
 	addAsScriptEditListener();
 
@@ -185,6 +181,8 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 
 	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
 	lasso.setColour(LassoComponent<ScriptComponent*>::ColourIds::lassoOutlineColourId, Colours::white.withAlpha(0.4f));
+
+	lasso.setLookAndFeel(&llaf);
 
 	Path path;
 	path.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
@@ -198,6 +196,8 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 	setEditMode(handler->editModeEnabled());
 
 	setWantsKeyboardFocus(true);
+
+	
 }
 
 
@@ -208,6 +208,12 @@ ScriptingContentOverlay::~ScriptingContentOverlay()
 
 void ScriptingContentOverlay::resized()
 {
+	if (auto fc = findParentComponentOfClass<ZoomableViewport>())
+	{
+		fc->addMouseListener(this, false);
+		
+	}
+
 	dragModeButton->setBounds(getWidth() - 28, 12, 16, 16);
 }
 
@@ -222,7 +228,15 @@ void ScriptingContentOverlay::toggleEditMode()
 {
 	setEditMode(!dragMode);
 
+	if (!dragMode)
+		getScriptComponentEditBroadcaster()->setLearnMode(false);
+
 	handler->toggleComponentSelectMode(dragMode);
+}
+
+bool ScriptingContentOverlay::isEditModeEnabled() const
+{
+	return dragMode;
 }
 
 void ScriptingContentOverlay::setEditMode(bool editModeEnabled)
@@ -259,24 +273,11 @@ void ScriptingContentOverlay::paint(Graphics& g)
 {
 	if (dragMode)
 	{
-        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x47a7a7a)));
-		g.fillAll();
-
-		const bool isInPopup = findParentComponentOfClass<ScriptingEditor>() == nullptr;
+        const bool isInPopup = findParentComponentOfClass<ScriptingEditor>() == nullptr;
 
 		Colour lineColour = isInPopup ? Colours::white : Colours::black;
 
-		for (int x = 10; x < getWidth(); x += 10)
-		{
-			g.setColour(lineColour.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
-            g.drawVerticalLine(x, 0.0f, (float)getHeight());
-		}
-
-		for (int y = 10; y < getHeight(); y += 10)
-		{
-			g.setColour(lineColour.withAlpha(((y) % 100 == 0) ? 0.1f : 0.05f));
-			g.drawHorizontalLine(y, 0.0f, (float)getWidth());
-		}
+        GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), lineColour);
 	}
 
 	if (dragModeButton->isVisible())
@@ -308,6 +309,9 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 	ScriptComponentEditBroadcaster::Iterator iter(getScriptComponentEditBroadcaster());
 
 	auto content = handler->getScriptEditHandlerContent();
+	auto singleSelection = getScriptComponentEditBroadcaster()->getNumSelected() == 1;
+
+	getScriptComponentEditBroadcaster()->setCurrentlyLearnedComponent(nullptr);
 
 	while (auto c = iter.getNextScriptComponent())
 	{
@@ -320,7 +324,14 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 			return;
 		}
 
+		
+
 		auto d = new Dragger(c, draggedComponent);
+
+		getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*d, Dragger::learnComponentChanged);
+
+		if (singleSelection && getScriptComponentEditBroadcaster()->learnModeEnabled())
+			getScriptComponentEditBroadcaster()->setCurrentlyLearnedComponent(c);
 
 		addAndMakeVisible(d);
 
@@ -385,7 +396,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 		b->getUndoManager().undo();
 		return true;
 	}
-	else if ((keyCode == 'D' || keyCode == 'd') && key.getModifiers().isCommandDown())
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_duplicate))
 	{
 		if (draggers.size() > 0)
 		{
@@ -409,7 +420,7 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 		return true;
 	}
-	else if ((key.isKeyCode('j') || key.isKeyCode('J')))
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_show_json))
 	{
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;
@@ -432,18 +443,85 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 	return false;
 }
 
+bool isParent(ScriptComponent* cp, ScriptComponent* possibleParent)
+{
+	if (cp == nullptr)
+		return false;
+
+	auto thisParent = cp->getParentScriptComponent();
+
+	if (thisParent == possibleParent)
+		return true;
+
+	return isParent(thisParent, possibleParent);
+}
 
 void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &itemsFound, const Rectangle< int > &area)
 {
-	auto content = handler->getScriptEditHandlerContent();
-	content->getScriptComponentsFor(itemsFound, area);
+	auto a = getLocalArea(lasso.getParentComponent(), area);
 
+	itemsFound.clearQuick();
+
+	auto content = handler->getScriptEditHandlerContent();
+	content->getScriptComponentsFor(itemsFound, a);
+
+	auto b = getScriptComponentEditBroadcaster();
+
+	
+
+	ScriptComponentSelection newSelection;
+	
+	for (int i = 0; i < itemsFound.size(); i++)
+	{
+		auto sc = itemsFound[i];
+
+		for (int j = 0; j < itemsFound.size(); j++)
+		{
+			if (isParent(sc, itemsFound[j]))
+			{
+				itemsFound.remove(i--);
+				break;
+			}
+		}
+	}
+
+	for (auto i : itemsFound)
+	{
+		newSelection.addIfNotAlreadyThere(i);
+	}
+		
+
+	b->setSelection(newSelection, sendNotificationAsync);
 }
 
-
+void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isMiddleButtonDown())
+	{
+		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto ze = e.getEventRelativeTo(zp);
+			setMouseCursor(MouseCursor::DraggingHandCursor);
+			zp->mouseDown(ze);
+			return;
+		}
+	}
+}
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
+	if (e.mods.isMiddleButtonDown())
+	{
+		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto ze = e.getEventRelativeTo(zp);
+			setMouseCursor(MouseCursor::NormalCursor);
+			zp->mouseUp(ze);
+			return;
+		}
+	}
+		
+
 	if (isDisabledUntilUpdate)
 		return;
 
@@ -451,17 +529,6 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 	{
 		lasso.setVisible(false);
 		lasso.endLasso();
-
-		auto itemsFound = lassoSet.getItemArray();
-
-		auto b = getScriptComponentEditBroadcaster();
-
-		b->clearSelection(dontSendNotification);
-
-		for (int i = 0; i < itemsFound.size(); i++)
-		{
-			b->addToSelection(itemsFound[i], (i == itemsFound.size() - 1 ? sendNotification : dontSendNotification));
-		}
 	}
 	else
 	{
@@ -477,8 +544,11 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				addDefinition,
 				DeleteSelection,
 				showCallback,
+				showDefinition,
+				showLookAndFeel,
 				restoreToData,
 				copySnapshot,
+				toggleLearnMode,
 				editComponentOffset = 20000,
 
 			};
@@ -516,8 +586,27 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				auto first = components.getFirst();
 
-				m.addItem(showCallback, "Show callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
+				
+
+				bool learnable = b->getNumSelected() == 1;
+
+				Identifier id = learnable ? b->getFirstFromSelection()->getObjectName() : Identifier();
+
+				learnable |= (id == ScriptingApi::Content::ScriptSlider::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptButton::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptComboBox::getStaticObjectName());
+				learnable |= (id == ScriptingApi::Content::ScriptPanel::getStaticObjectName());
+				
+				m.addItem(toggleLearnMode, "Enable Connection Learn", learnable, b->getCurrentlyLearnedComponent() == b->getFirstFromSelection());
+
+				m.addSeparator();
+
+				m.addItem(showDefinition, "Goto first Definition of " + first->getName().toString(), true);
+				m.addItem(showLookAndFeel, "Goto LookAndFeel for " + first->getName().toString(), first->getLookAndFeelObject().isObject());
+				m.addItem(showCallback, "Goto Callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
 			}
+
+			auto first = components.getFirst();
 
 			int result = m.show();
 
@@ -537,6 +626,10 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				SystemClipboard::copyTextToClipboard(code);
 			}
+			else if (result == toggleLearnMode)
+			{
+				b->setCurrentlyLearnedComponent(b->getFirstFromSelection());
+			}
 			else if (result >= (int)ScriptEditHandler::ComponentType::Knob && result < (int)ScriptEditHandler::ComponentType::numComponentTypes)
 			{
 				int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
@@ -546,7 +639,11 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				if (parent != nullptr)
 				{
-					if (auto d = draggers.getFirst())
+					auto parentBounds = ApiHelpers::getRectangleFromVar(parent->getLocalBounds(0)).toNearestInt();
+
+					if (!parentBounds.contains(insertX, insertY ))
+						parent = nullptr;
+					else if (auto d = draggers.getFirst())
 					{
 						auto bounds = d->getLocalArea(this, d->getLocalBounds());
 
@@ -563,26 +660,33 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				ScriptingApi::Content::Helpers::deleteSelection(pwsc->getScriptingContent(), b);
 			}
+			else if (result == showDefinition)
+			{
+				auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(handler->getScriptEditHandlerProcessor());
+
+				pwsc->getScriptingContent()->recompileAndThrowAtDefinition(first.get());
+			}
+			else if (result == showLookAndFeel)
+			{
+				if (auto obj = dynamic_cast<DebugableObjectBase*>(first->getLookAndFeelObject().getObject()))
+				{
+					DebugInformation::Ptr d = new DebugableObjectInformation(obj, "unused", DebugInformation::Type::Constant);
+					d->doubleClickCallback(e, this);
+				}
+			}
 			else if (result == showCallback)
 			{
-				auto componentToUse = components.getFirst();
-
-				if (componentToUse != nullptr)
+				if (auto obj = dynamic_cast<DebugableObjectBase*>(first->getCustomControlCallback()))
 				{
-                    jassertfalse;
-                    #if 0
-					auto func = dynamic_cast<DebugableObjectBase*>(componentToUse->getCustomControlCallback());
-                    
-					if (func != nullptr)
-						func->doubleClickCallback(e, dynamic_cast<Component*>(handler));
-#endif
+					DebugInformation::Ptr d = new DebugableObjectInformation(obj, "unused", DebugInformation::Type::Constant);
+					d->doubleClickCallback(e, this);
 				}
 			}
 			else if (result >= editComponentOffset) // EDIT IN PANEL
 			{
 				auto sc = components[result - editComponentOffset];
 
-				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
+				getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc.get(), e.mods, sendNotification);
 			}
 		}
 		else
@@ -615,6 +719,16 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 {
+	if (e.mods.isMiddleButtonDown())
+	{
+		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto ze = e.getEventRelativeTo(zp);
+			zp->mouseDrag(ze);
+			return;
+		}
+	}
+		
 	if (isDisabledUntilUpdate)
 		return;
 
@@ -624,10 +738,11 @@ void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 	}
 	else
 	{
-		if (e.mouseWasDraggedSinceMouseDown())
+		if (e.mouseWasDraggedSinceMouseDown() && isEditModeEnabled())
 		{
 			lassoSet.deselectAll();
-			addAndMakeVisible(lasso);
+
+			e.eventComponent->addAndMakeVisible(lasso);
 			lasso.beginLasso(e, this);
 		}
 	}
@@ -639,6 +754,7 @@ ScriptingContentOverlay::Dragger::Dragger(ScriptComponent* sc_, Component* compo
 {
 	currentMovementWatcher = new MovementWatcher(componentToDrag, this);
 
+
 	
 	constrainer.setMinimumOnscreenAmounts(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF);
 
@@ -646,15 +762,22 @@ ScriptingContentOverlay::Dragger::Dragger(ScriptComponent* sc_, Component* compo
 
 	resizer->addMouseListener(this, true);
 
+	addAndMakeVisible(rEdge = new ResizableEdgeComponent(this, &constrainer, ResizableEdgeComponent::rightEdge));
+	addAndMakeVisible(bEdge = new ResizableEdgeComponent(this, &constrainer, ResizableEdgeComponent::bottomEdge));
+	
+	rEdge->addMouseListener(this, true);
+	bEdge->addMouseListener(this, true);
+
+	resizer->setAlpha(0.0f);
+	rEdge->setAlpha(0.0f);
+	bEdge->setAlpha(0.0f);
+
+	
+
 	setVisible(true);
 	setWantsKeyboardFocus(true);
 
 	setAlwaysOnTop(true);
-
-	
-	
-
-	
 }
 
 ScriptingContentOverlay::Dragger::~Dragger()
@@ -667,15 +790,29 @@ void ScriptingContentOverlay::Dragger::paint(Graphics &g)
 	g.fillAll(Colours::black.withAlpha(0.2f));
 	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 
-	if (!snapShot.isNull()) g.drawImageAt(snapShot, 0, 0);
+	if (!snapShot.isNull())
+		g.drawImage(snapShot, getLocalBounds().toFloat());
 
-	g.drawRect(getLocalBounds(), 1);
+	UnblurryGraphics ug(g, *this, true);
+
+	ug.draw1PxRect(getLocalBounds().toFloat());
 
 	if (copyMode)
 	{
 		g.setColour(Colour(SIGNAL_COLOUR));
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
 		g.drawText("+", getLocalBounds().withTrimmedLeft(2).expanded(0, 4), Justification::topLeft);
+	}
+
+	if (learnModeEnabled)
+	{
+		g.setColour(Colours::black.withAlpha(0.2f));
+		g.fillRect(getLocalBounds().reduced(1));
+		Learnable::Factory f;
+		auto p = f.createPath("source");
+		f.scalePath(p, getLocalBounds().reduced(3).removeFromRight(28).removeFromTop(18).reduced(2).toFloat());
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.fillPath(p);
 	}
 }
 
@@ -685,27 +822,18 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 	{
 		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
 
-		if (e.mods.isShiftDown())
-		{
-			parent->getScriptComponentEditBroadcaster()->clearSelection();
-			return;
-		}
-
-		if (e.mods.isCommandDown())
-		{
-
-			parent->getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
-			return;
-		}
+		
 
 		constrainer.setStartPosition(getBounds());
 		startBounds = getBounds();
 
 		if (e.eventComponent == this && draggedComponent.getComponent() != nullptr)
 		{
-			snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds());
+			setUseSnapShot(true);
+			
 
 			dragger.startDraggingComponent(this, e);
+			parent->smw.startDragging(this);
 		}
 		
 	}
@@ -713,16 +841,29 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 
 void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
 		return;
 
-	constrainer.setRasteredMovement(e.mods.isCommandDown());
+	constrainer.setRasteredMovement(!e.mods.isCommandDown());
 	constrainer.setLockedMovement(e.mods.isShiftDown());
+
+	
 
 	copyMode = e.mods.isAltDown();
 
+	setMouseCursor(copyMode ? MouseCursor::CopyingCursor : MouseCursor::DraggingHandCursor);
+
 	if (e.eventComponent == this)
 		dragger.dragComponent(this, e, &constrainer);
+
+	dragDistance = constrainer.getPosition().getTopLeft() - startBounds.getTopLeft();
+
+	if (e.eventComponent != this)
+	{
+		auto newBounds = getLocalBounds();
+		resizeOverlayedComponent(newBounds.getWidth(), newBounds.getHeight());
+	}
+
 }
 
 hise::MarkdownLink ScriptingContentOverlay::Dragger::getLink() const
@@ -750,13 +891,49 @@ hise::MarkdownLink ScriptingContentOverlay::Dragger::getLink() const
 	return {};
 }
 
+void ScriptingContentOverlay::Dragger::setUseSnapShot(bool shouldUseSnapShot)
+{
+	if (shouldUseSnapShot)
+	{
+		auto sf = UnblurryGraphics::getScaleFactorForComponent(this);
+		snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds(), true, sf);
+	}
+	else
+	{
+		snapShot = {};
+	}
+
+	repaint();
+}
+
 void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
+	setMouseCursor(MouseCursor::NormalCursor);
+
+	if (!e.mouseWasDraggedSinceMouseDown())
+	{
+		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
+
+		if (e.mods.isShiftDown())
+		{
+			parent->getScriptComponentEditBroadcaster()->clearSelection();
+			return;
+		}
+
+		if (e.mods.isCommandDown())
+		{
+			parent->getScriptComponentEditBroadcaster()->updateSelectionBasedOnModifier(sc, e.mods, sendNotification);
+			return;
+		}
+	}
+
 	if (e.mods.isRightButtonDown())
 	{
 		getParentComponent()->mouseUp(e);
 		return;
 	}
+
+	findParentComponentOfClass<ScriptingContentOverlay>()->smw.endDragging();
 
 	snapShot = Image();
 
@@ -809,9 +986,6 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 
 	static const Identifier width("width");
 	static const Identifier height("height");
-	static const Identifier size("size");
-
-	String sizeString = "[" + String(newWidth) + ", " + String(newHeight) + "]";
 
 	b->setScriptComponentProperty(sc, width, newWidth, sendNotification, false);
 	b->setScriptComponentProperty(sc, height, newHeight, sendNotification, false);
@@ -822,10 +996,17 @@ void ScriptingContentOverlay::Dragger::duplicateSelection(int deltaX, int deltaY
 {
 	auto b = dynamic_cast<ScriptComponentEditListener*>(getParentComponent())->getScriptComponentEditBroadcaster();
 
-	auto content = b->getFirstFromSelection()->parent;
+	if (auto first = b->getFirstFromSelection())
+	{
+		if (auto content = first->parent)
+			ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY, &b->getUndoManager());
+	}
+}
 
-	ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY, &b->getUndoManager());
-	
+void ScriptingContentOverlay::Dragger::learnComponentChanged(Dragger& d, ScriptComponent* newComponent)
+{
+	d.learnModeEnabled = newComponent != nullptr && d.sc == newComponent;
+	d.repaint();
 }
 
 void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/)
@@ -839,5 +1020,18 @@ void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(
 	}
 }
 
+
+void ScriptingContentOverlay::LassoLaf::drawLasso(Graphics& g, Component& c)
+{
+	UnblurryGraphics ug(g, c, true);
+
+	g.setColour(Colours::white.withAlpha(0.05f));
+
+	ug.fillUnblurryRect(c.getLocalBounds().toFloat());
+
+	g.setColour(Colours::white.withAlpha(0.2f));
+
+	ug.draw1PxRect(c.getLocalBounds().toFloat());
+}
 
 } // namespace hise

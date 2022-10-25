@@ -46,14 +46,7 @@ public:
 
 	static constexpr int margin = 10;
 
-	class TransportPaths : public PathFactory
-	{
-	public:
-
-		String getId() const override { return "MIDI Tranport"; }
-
-		Path createPath(const String& name) const override;
-	};
+	
 
 	MidiPlayerEditor(ProcessorEditor* p);;
 	~MidiPlayerEditor();
@@ -127,7 +120,7 @@ private:
 		}
 	}
 
-	TransportPaths factory;
+	MidiPlayerBaseType::TransportPaths factory;
 
 	ComboBox typeSelector;
 

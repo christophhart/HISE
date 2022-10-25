@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -28,7 +28,7 @@ namespace juce
   #undef __uuidof
  #endif
 
- template<typename Type> struct UUIDGetter { static CLSID get() { jassertfalse; return {}; } };
+ template <typename Type> struct UUIDGetter { static CLSID get() { jassertfalse; return {}; } };
  #define __uuidof(x)  UUIDGetter<x>::get()
 
  template <>
@@ -38,7 +38,7 @@ namespace juce
  };
 
  #define JUCE_DECLARE_UUID_GETTER(name, uuid) \
-    template<> struct UUIDGetter<name> { static CLSID get()  { return uuidFromString (uuid); } };
+    template <> struct UUIDGetter<name> { static CLSID get()  { return uuidFromString (uuid); } };
 
  #define JUCE_COMCLASS(name, guid) \
     struct name; \
@@ -50,13 +50,19 @@ namespace juce
  #define JUCE_COMCLASS(name, guid)       struct __declspec (uuid (guid)) name
 #endif
 
+#define JUCE_IUNKNOWNCLASS(name, guid)   JUCE_COMCLASS(name, guid) : public IUnknown
+#define JUCE_COMRESULT                   HRESULT STDMETHODCALLTYPE
+#define JUCE_COMCALL                     virtual HRESULT STDMETHODCALLTYPE
+
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wlanguage-extension-token")
+
 inline GUID uuidFromString (const char* s) noexcept
 {
     uint32 ints[4] = {};
 
     for (uint32 digitIndex = 0; digitIndex < 32;)
     {
-        auto c = *s++;
+        auto c = (uint32) *s++;
         uint32 digit;
 
         if (c >= '0' && c <= '9')       digit = c - '0';
@@ -114,7 +120,7 @@ public:
 
     HRESULT CoCreateInstance (REFCLSID classUUID, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
-        auto hr = ::CoCreateInstance (classUUID, 0, dwClsContext, __uuidof (ComClass), (void**) resetAndGetPointerAddress());
+        auto hr = ::CoCreateInstance (classUUID, nullptr, dwClsContext, __uuidof (ComClass), (void**) resetAndGetPointerAddress());
         jassert (hr != CO_E_NOTINITIALIZED); // You haven't called CoInitialize for the current thread!
         return hr;
     }
@@ -134,6 +140,17 @@ public:
         return this->QueryInterface (__uuidof (OtherComClass), destObject);
     }
 
+    template <class OtherComClass>
+    ComSmartPtr<OtherComClass> getInterface() const
+    {
+        ComSmartPtr<OtherComClass> destObject;
+
+        if (QueryInterface (destObject) == S_OK)
+            return destObject;
+
+        return nullptr;
+    }
+
 private:
     ComClass* p = nullptr;
 
@@ -143,18 +160,15 @@ private:
 };
 
 //==============================================================================
-#define JUCE_COMRESULT  HRESULT __stdcall
-
-//==============================================================================
-template <class ComClass>
-class ComBaseClassHelperBase   : public ComClass
+template <class First, class... ComClasses>
+class ComBaseClassHelperBase   : public First, public ComClasses...
 {
 public:
     ComBaseClassHelperBase (unsigned int initialRefCount)  : refCount (initialRefCount) {}
-    virtual ~ComBaseClassHelperBase() {}
+    virtual ~ComBaseClassHelperBase() = default;
 
-    ULONG __stdcall AddRef()    { return ++refCount; }
-    ULONG __stdcall Release()   { auto r = --refCount; if (r == 0) delete this; return r; }
+    ULONG STDMETHODCALLTYPE AddRef()    { return ++refCount; }
+    ULONG STDMETHODCALLTYPE Release()   { auto r = --refCount; if (r == 0) delete this; return r; }
 
 protected:
     ULONG refCount;
@@ -162,7 +176,7 @@ protected:
     JUCE_COMRESULT QueryInterface (REFIID refId, void** result)
     {
         if (refId == __uuidof (IUnknown))
-            return castToType<IUnknown> (result);
+            return castToType<First> (result);
 
         *result = nullptr;
         return E_NOINTERFACE;
@@ -171,7 +185,10 @@ protected:
     template <class Type>
     JUCE_COMRESULT castToType (void** result)
     {
-        this->AddRef(); *result = dynamic_cast<Type*> (this); return S_OK;
+        this->AddRef();
+        *result = dynamic_cast<Type*> (this);
+
+        return S_OK;
     }
 };
 
@@ -179,20 +196,35 @@ protected:
 
     @tags{Core}
 */
-template <class ComClass>
-class ComBaseClassHelper   : public ComBaseClassHelperBase<ComClass>
+template <class... ComClasses>
+class ComBaseClassHelper   : public ComBaseClassHelperBase<ComClasses...>
 {
 public:
-    ComBaseClassHelper (unsigned int initialRefCount = 1) : ComBaseClassHelperBase<ComClass> (initialRefCount) {}
-    ~ComBaseClassHelper() {}
+    explicit ComBaseClassHelper (unsigned int initialRefCount = 1)
+        : ComBaseClassHelperBase<ComClasses...> (initialRefCount) {}
 
     JUCE_COMRESULT QueryInterface (REFIID refId, void** result)
     {
-        if (refId == __uuidof (ComClass))
-            return this->template castToType<ComClass> (result);
+        const std::tuple<IID, void*> bases[]
+        {
+            std::make_tuple (__uuidof (ComClasses),
+                             static_cast<void*> (static_cast<ComClasses*> (this)))...
+        };
 
-        return ComBaseClassHelperBase<ComClass>::QueryInterface (refId, result);
+        for (const auto& base : bases)
+        {
+            if (refId == std::get<0> (base))
+            {
+                this->AddRef();
+                *result = std::get<1> (base);
+                return S_OK;
+            }
+        }
+
+        return ComBaseClassHelperBase<ComClasses...>::QueryInterface (refId, result);
     }
 };
+
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
 } // namespace juce

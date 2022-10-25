@@ -75,6 +75,23 @@ END_JUCE_MODULE_DECLARATION
 */
 
 
+/** Config: HISE_INCLUDE_SNEX_FLOATING_TILES
+
+Set to 1 to enable all workbench tools. (This is disabled in the lightweight snex_playground project).
+*/
+#ifndef HISE_INCLUDE_SNEX_FLOATING_TILES
+#ifndef HISE_INCLUDE_SNEX
+#define HISE_INCLUDE_SNEX_FLOATING_TILES USE_BACKEND
+#else
+#define HISE_INCLUDE_SNEX_FLOATING_TILES HISE_INCLUDE_SNEX
+#endif
+#endif
+
+
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+#include "../hi_snex/hi_snex.h"
+#endif
+
 #include "resizable_height_component/ResizableHeightComponent.h"
 
 
@@ -91,15 +108,17 @@ END_JUCE_MODULE_DECLARATION
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
 
-#include "wave_components/SampleComponents.h"
 
 
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
+
+
+#include "floating_layout/ZoomableViewport.h"
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"
+
+#include "audio_components/SampleComponents.h"
+#include "audio_components/EqComponent.h"
 
 #include "markdown_components/MarkdownPreview.h"
 #include "markdown_components/MarkdownComponents.h"

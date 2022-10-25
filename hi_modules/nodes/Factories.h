@@ -38,6 +38,16 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
+namespace jdsp
+{
+class Factory : public NodeFactory
+{
+public:
+	Factory(DspNetwork* network);
+	Identifier getId() const override { return "jdsp"; };
+};
+}
+
 namespace analyse
 {
 
@@ -48,8 +58,54 @@ public:
 	Factory(DspNetwork* network);;
 	Identifier getId() const override { return "analyse"; }
 };
+}
+
+namespace examples
+{
+
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "examples"; }
+};
 
 }
+
+namespace control
+{
+	class Factory : public NodeFactory
+	{
+	public:
+		Factory(DspNetwork* network);
+		Identifier getId() const override { return "control"; };
+	};
+}
+
+
+namespace envelope
+{
+class Factory : public NodeFactory
+{
+public:
+
+	Factory(DspNetwork* network);;
+	Identifier getId() const override { return "envelope"; }
+};
+}
+
+namespace generator
+{
+	class Factory : public NodeFactory
+	{
+	public:
+
+		Factory(DspNetwork* network);;
+		Identifier getId() const override { return "generator"; }
+	};
+}
+
 
 namespace core
 {
@@ -113,32 +169,12 @@ public:
 };
 }
 
-namespace meta
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(meta);
-}
-
-#if HI_ENABLE_CUSTOM_NODE_LOCATION
-namespace custom
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(custom);
-}
-
-namespace project
-{
-DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(project);
-}
-
-#endif
-
 namespace routing
 {
 class Factory : public NodeFactory
 {
 public:
 	Factory(DspNetwork* n);
-
-	static StringArray getSourceNodeList(NodeBase* n);
 
 	Identifier getId() const override { return "routing"; }
 };

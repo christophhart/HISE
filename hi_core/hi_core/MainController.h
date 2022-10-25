@@ -79,6 +79,30 @@ public:
 
 #endif
 
+	/** This class will set a flag in the MainController to embed all
+	    external resources (that are usually saved in dedicated files) into the preset.
+		This is being used when exporting a HiseSnippet to ensure that it contains all
+		relevant external data (DspNetwork, SNEX code files, external scripts. 
+
+		You can query this flag with MainController::shouldEmbedAllResources.
+	*/
+	struct ScopedEmbedAllResources: public ControlledObject
+	{
+		ScopedEmbedAllResources(MainController* mc):
+			ControlledObject(mc)
+		{
+			prevState = mc->embedAllResources;
+			mc->embedAllResources = true;
+		}
+
+		~ScopedEmbedAllResources()
+		{
+			getMainController()->embedAllResources = prevState;
+		}
+
+		bool prevState = false;
+	};
+
 	/** Contains all methods related to sample management. */
 	class SampleManager
 	{
@@ -224,6 +248,8 @@ public:
 		void removePreloadListener(PreloadListener* p);
 
 		double& getPreloadProgress();
+
+		double getPreloadProgressConst() const;
 
 		const CriticalSection& getSampleLock() const noexcept { return sampleLock; }
 
@@ -554,6 +580,129 @@ public:
 	{
 	public:
 
+		struct StoredModuleData : public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
+			using List = ReferenceCountedArray<StoredModuleData>;
+
+			StoredModuleData(var moduleId, Processor* pToRestore);
+
+			void stripValueTree(ValueTree& v);
+
+			void restoreValueTree(ValueTree& v);
+
+			String id;
+
+			WeakReference<Processor> p;
+			NamedValueSet removedProperties;
+			Array<ValueTree> removedChildElements;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(StoredModuleData);
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StoredModuleData);
+		};
+
+		struct CustomAutomationData : public ReferenceCountedObject,
+									  public ControlledObject
+		{
+			using WeakPtr = WeakReference<CustomAutomationData>;
+			using Ptr = ReferenceCountedObjectPtr<CustomAutomationData>;
+			using List = ReferenceCountedArray<CustomAutomationData>;
+
+			CustomAutomationData(CustomAutomationData::List newList, MainController* mc, int index_, const var& d);
+
+			
+
+			void updateFromConnectionValue(int preferredIndex);
+
+			bool isConnectedToMidi() const;
+			bool isConnectedToComponent() const;
+
+			const int index;
+			Identifier id;
+			float lastValue = 0.0f;
+			bool allowMidi = true;
+			bool allowHost = true;
+			NormalisableRange<float> range;
+			Result r;
+			var args[2];
+
+			LambdaBroadcaster<var*> syncListeners;
+			LambdaBroadcaster<int, float> asyncListeners;
+
+			struct ConnectionBase: public ReferenceCountedObject
+			{
+				using Ptr = ReferenceCountedObjectPtr<ConnectionBase>;
+				using List = ReferenceCountedArray<ConnectionBase>;
+				
+				virtual ~ConnectionBase() {};
+				
+				virtual bool isValid() const = 0;
+				virtual void call(float v) const = 0;
+
+				virtual String getDisplayString() const = 0;
+
+				virtual float getLastValue() const = 0;
+
+				operator bool() const { return isValid(); }
+			};
+
+			void call(float newValue, bool sendToListeners = true, const std::function<bool(ConnectionBase*)>& connectionFilter = {});
+
+			ConnectionBase::Ptr parse(CustomAutomationData::List newList, MainController* mc, const var& jsonData);
+
+			struct MetaConnection : public ConnectionBase
+			{
+				void call(float v) const final override
+				{
+					target->call(v, true);
+				}
+
+				bool isValid() const final override
+				{
+					return target != nullptr;
+				}
+
+				String getDisplayString() const override
+				{
+					return "Automation: " + target->id;
+				}
+
+				float getLastValue() const final override
+				{
+					if (target != nullptr)
+						return target->lastValue;
+                    
+                    return 0.0;
+				}
+
+				CustomAutomationData::Ptr target;
+			};
+
+			struct CableConnection;
+
+			struct ProcessorConnection : public ConnectionBase
+			{
+				WeakReference<Processor> connectedProcessor;
+				int connectedParameterIndex = -1;
+
+				bool isValid() const final override
+				{
+					return connectedProcessor != nullptr && connectedParameterIndex != -1;
+				}
+
+				String getDisplayString() const final override;
+
+				float getLastValue() const final override;
+
+				void call(float v) const final override;
+			};
+
+			ConnectionBase::List connectionList;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CustomAutomationData);
+			JUCE_DECLARE_WEAK_REFERENCEABLE(CustomAutomationData);
+		};
+
 		struct UndoableUserPresetLoad : public ControlledObject,
 										public UndoableAction
 		{
@@ -616,6 +765,7 @@ public:
 			const StringArray& getTagList() const { return tagList; }
 
 			const Array<CachedTag>& getCachedTags() const { return cachedTags; }
+			Array<CachedTag>& getCachedTags() { return cachedTags; }
 
 		private:
 
@@ -635,7 +785,7 @@ public:
 		{
 		public:
 
-			virtual ~Listener() { masterReference.clear(); };
+			virtual ~Listener() {};
 
 			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
@@ -643,10 +793,21 @@ public:
 			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
+			/** This will be called synchronously just before the new preset is about to be loaded. 
+
+				You can use this method to actually modify the value tree that is being loaded
+				so you can implement eg. backward-compatibility migration routines. If you do so,
+				make sure to create a deep copy of the valuetree, then return the modified one.
+			*/
+			virtual ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) { return dataToLoad; };
+
+			virtual void loadCustomUserPreset(const var& dataObject) {};
+
+			virtual var saveCustomUserPreset(const String& presetName) { return {}; }
+
 		private:
 
-			friend class WeakReference<Listener>;
-			WeakReference<Listener>::Master masterReference;
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
 
 		UserPresetHandler(MainController* mc_);;
@@ -670,12 +831,38 @@ public:
 		/** @internal */
 		void sendRebuildMessage();
 
+		bool isUsingCustomDataModel() const { return isUsingCustomData; };
+		
+		bool isUsingPersistentObject() const { return usePersistentObject; }
+
+		/** Checks if the current preset file (or directory) is marked as read-only.
+		
+			If READ_ONLY_FACTORY_PRESETS is true, this function will check the file path
+			against the ones embedded as factory presets and return true for matches. */
+		bool isReadOnly(const File& f);
+
 		/** Saves a preset. 
 		*
 		*	If you use the MultiColumnPresetBrowser, you won't need to bother about this method,
 		*	but for custom implementations, this will save the current UI state to the given file.
 		*/
 		void savePreset(String presetName = String());
+
+		void loadCustomValueTree(const ValueTree& presetData);
+
+		StringArray getCustomAutomationIds() const;
+
+		int getNumCustomAutomationData() const { return customAutomationData.size(); }
+
+		CustomAutomationData::Ptr getCustomAutomationData(const Identifier& id) const;
+
+		CustomAutomationData::Ptr getCustomAutomationData(int index) const;
+
+		StoredModuleData::List& getStoredModuleData() { return storedModuleData; }
+
+		int getCustomAutomationIndex(const Identifier& id) const;
+
+		ValueTree createCustomValueTree(const String& presetName);
 
 		/** Registers a listener that will be notified about preset changes. */
 		void addListener(Listener* listener);
@@ -690,9 +877,42 @@ public:
 			useUndoForPresetLoads = shouldAllowUndo;
 		}
 
+		void preprocess(ValueTree& presetToLoad);
+
+		void postPresetLoad();
+
+		bool setCustomAutomationData(CustomAutomationData::List newList);
+
+		void setUseCustomDataModel(bool shouldUseCustomModel, bool usePersistentObject);
+
+		LambdaBroadcaster<bool> deferredAutomationListener;
+
+#if READ_ONLY_FACTORY_PRESETS
 	private:
 
 
+		struct FactoryPaths
+		{
+			bool contains(MainController* mc, const File& f);
+			void addRecursive(const ValueTree& v, const String& path);
+
+		private:
+
+			void initialise(MainController* mc);
+			String getPath(MainController* mc, const File& f);
+
+			StringArray factoryPaths;
+			bool initialised = false;
+		};
+
+		SharedResourcePointer<FactoryPaths> factoryPaths;
+
+		public:
+
+		FactoryPaths& getFactoryPaths() { return *factoryPaths; }
+#endif
+
+		private:
 
 		SharedResourcePointer<TagDataBase> tagDataBase;
 
@@ -701,12 +921,21 @@ public:
 
 		Array<WeakReference<Listener>, CriticalSection> listeners;
 
+
+
 		File currentlyLoadedFile;
 		ValueTree pendingPreset;
 		StringArray storedModuleIds;
 
 		MainController* mc;
 		bool useUndoForPresetLoads = false;
+
+		bool isUsingCustomData = false;
+		bool usePersistentObject = false;
+
+		CustomAutomationData::List customAutomationData;
+
+		StoredModuleData::List storedModuleData;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
@@ -874,11 +1103,7 @@ public:
 
 		void initialise();
 
-
-
 	private:
-
-		
 
 		struct ConsoleMessage
 		{
@@ -932,6 +1157,7 @@ public:
 			MessageThread = 0,
 			SampleLoadingThread,
 			AudioThread,
+			AudioExportThread,
 			ScriptingThread,
 			numTargetThreads,
 			UnknownThread,
@@ -978,15 +1204,24 @@ public:
 		/** This can be set by the Internal Preloader. */
 		void setSampleLoadingThreadId(void* newId);
 
+		void setAudioExportThread(void* threadId)
+		{
+			threadIds[TargetThread::AudioExportThread] = threadId;
+		}
+
 		TargetThread getCurrentThread() const;
 
 		void addThreadIdToAudioThreadList();
+
+		void removeThreadIdFromAudioThreadList();
 
 		bool test() const noexcept override;
 
 		void warn(int operationType) override;
 
 		void requestQuit();
+
+		bool hasRequestedQuit() const;
 
 		String getOperationName(int operationType) override;
 
@@ -1015,6 +1250,7 @@ public:
 
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
+		
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -1073,7 +1309,8 @@ public:
 
 		UnorderedStack<uint16, 4096> pendingTickets;
 		uint16 ticketCounter = 0;
-		CriticalSection ticketLock;
+
+		mutable hise::SimpleReadWriteLock ticketLock;
 
 		std::atomic<State> currentState;
 
@@ -1199,6 +1436,8 @@ public:
 		return &getSampleManager().getProjectHandler().pool->getMidiFilePool();
 	}
 
+	virtual void* getWorkbenchManager() { return nullptr; }
+
 	KillStateHandler& getKillStateHandler() { return killStateHandler; };
 	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND
@@ -1210,8 +1449,11 @@ public:
 	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
     void clearPreset();
     
+
 	/** Compiles all scripts in the main synth chain */
 	void compileAllScripts();
+
+	void sendToMidiOut(const HiseEvent& e);
 
 	/** Call this if you want all voices to stop. */
 	void allNotesOff(bool resetSoftBypassState=false);;
@@ -1254,7 +1496,7 @@ public:
 
 	bool isSyncedToHost() const;
 
-	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo);
+	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi);
 
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
@@ -1268,6 +1510,9 @@ public:
 	void addMusicalUpdateListener(TempoListener* t);
 
 	void removeMusicalUpdateListener(TempoListener* t);
+
+	MasterClock& getMasterClock() { return masterClock; }
+	const MasterClock& getMasterClock() const { return masterClock; }
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
@@ -1294,11 +1539,15 @@ public:
 
 	void stopBufferToPlay();
 
-	void setBufferToPlay(const AudioSampleBuffer& buffer);
+	void setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& previewFunction = {});
+
+	int getPreviewBufferPosition() const;
 
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();
+
+	bool shouldEmbedAllResources() const { return embedAllResources; }
 
 	void setLowestKeyToDisplay(int lowestKeyToDisplay);
 
@@ -1314,24 +1563,53 @@ public:
 	
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
+	/** Use this and the main controller will ignore all threading issues and just does what it wants until the
+		bad babysitter leaves the scope.
 	
-
-#endif
-
-	void setAllowFlakyThreading(bool shouldAllowWeirdThreadingStuff)
+		This is mostly used for creating objects during documentation generation or other non-critical tasks
+		which couldn't care less about race conditions...
+	*/
+	struct ScopedBadBabysitter
 	{
-		flakyThreadingAllowed = shouldAllowWeirdThreadingStuff;
-	}
+		ScopedBadBabysitter(MainController* mc_):
+			mc(mc_),
+			prevValue(mc->flakyThreadingAllowed)
+		{
+			mc->flakyThreadingAllowed = true;
+		}
+		
+		~ScopedBadBabysitter()
+		{
+			mc->flakyThreadingAllowed = prevValue;
+		}
+
+		MainController* mc;
+		bool prevValue;
+	};
 
 	bool isFlakyThreadingAllowed() const noexcept 
 	{ 
 		return flakyThreadingAllowed; 
 	}
 
+#else
+
+	/** There is no use for a bad babysitter in exported projects so this is just a dummy class. */
+	struct ScopedBadBabysitter
+	{
+		ScopedBadBabysitter(MainController*) {};
+	};
+
+	bool isFlakyThreadingAllowed() const noexcept
+	{
+		return false;
+	}
+
+#endif
+
+
 	void setPlotter(Plotter *p);
 
-	void setCurrentViewChanged();
-	
 	DynamicObject *getGlobalVariableObject() { return globalVariableObject.get(); };
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }
@@ -1357,7 +1635,7 @@ public:
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
 
-	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
+	void setLastActiveEditor(Component *editor, CodeDocument::Position position)
 	{
 		auto old = lastActiveEditor;
 
@@ -1371,7 +1649,9 @@ public:
 			lastActiveEditor->repaint();
 	}
 
-	CodeEditorComponent* getLastActiveEditor()
+    UndoManager* getLocationUndoManager() { return &locationUndoManager; }
+    
+	Component* getLastActiveEditor()
 	{
 		return lastActiveEditor.getComponent();
 	}
@@ -1409,19 +1689,36 @@ public:
     
     float getGlobalCodeFontSize() const;;
     
+	
+
+	bool isUsingDynamicBufferSize() const
+	{
+#if USE_BACKEND
+		return simulateDynamicBufferSize;
+#else
+		return false;
+#endif
+	}
 
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
 		return false;
 	}
     
-    SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
+	LambdaBroadcaster<float> &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
+	
+
     /** This sets the global pitch factor. */
     void setGlobalPitchFactor(double pitchFactorInSemiTones)
     {
         globalPitchFactor = pow(2, pitchFactorInSemiTones / 12.0);
     }
+
+	void setGlobalMidiPlaybackSpeed(double newGlobalPlaybackSpeed)
+	{
+		globalPlaybackSpeed = newGlobalPlaybackSpeed;
+	}
     
     /** This returns the global pitch factor. 
     *
@@ -1441,6 +1738,11 @@ public:
         return log2(globalPitchFactor) * 12.0;
     }
     
+	double getGlobalPlaybackSpeed() const
+	{
+		return globalPlaybackSpeed;
+	}
+
 	bool &getPluginParameterUpdateState() { return enablePluginParameterUpdate; }
 
 	const CriticalSection& getIteratorLock() const { return iteratorLock; }
@@ -1494,6 +1796,15 @@ public:
 		return currentPreview;
 	}
 
+	MultiChannelAudioBuffer::XYZPool* getXYZPool()
+	{
+		return xyzPool.get();
+	}
+
+#if USE_COPY_PROTECTION || USE_BACKEND
+	virtual juce::OnlineUnlockStatus* getLicenseUnlocker() = 0;
+#endif
+
 #if HISE_INCLUDE_RLOTTIE
 	RLottieManager::Ptr getRLottieManager();
 #endif
@@ -1503,11 +1814,13 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 
-	/** Sets the sample rate for the cpu meter. */
-	void prepareToPlay(double sampleRate_, int samplesPerBlock);
+	
 
 protected:
 
+    /** Sets the sample rate for the cpu meter. */
+    void prepareToPlay(double sampleRate_, int samplesPerBlock);
+    
 	bool deletePendingFlag = false;
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
@@ -1528,6 +1841,7 @@ protected:
 			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 
 			keyboardState.allNotesOff(0);
+			keyboardState.reset();
 
 			allNotesOffFlag = false;
 		}
@@ -1555,13 +1869,22 @@ protected:
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
+	
 
 	void setMaxEventTimestamp(int newMaxTimestamp)
 	{
 		maxEventTimestamp = newMaxTimestamp;
 	}
 
+#if USE_BACKEND
+	bool simulateDynamicBufferSize = false;
+#endif
+
 private:
+
+	MasterClock masterClock;
+
+	ReferenceCountedObjectPtr<MultiChannelAudioBuffer::XYZPool> xyzPool;
 
 	bool refreshOversampling();
 
@@ -1571,6 +1894,8 @@ private:
 
 	int getOversampleFactor() const { return currentOversampleFactor; }
 	
+	void processMidiOutBuffer(MidiBuffer& mb, int numSamples);
+
 
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
@@ -1579,6 +1904,7 @@ private:
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
 	int maxEventTimestamp = 0;
+	bool embedAllResources = false;
 
 	PooledUIUpdater globalUIUpdater;
 
@@ -1617,6 +1943,8 @@ private:
 	UnorderedStack<HiseEvent> suspendedNoteOns;
 
 	HiseEventBuffer masterEventBuffer;
+	SimpleReadWriteLock midiOutputLock;
+	HiseEventBuffer outputMidiBuffer;
 	EventIdHandler eventIdHandler;
 	LockFreeDispatcher lockfreeDispatcher;
 	UserPresetHandler userPresetHandler;
@@ -1634,7 +1962,7 @@ private:
 
 	struct CustomTypeFace
 	{
-		CustomTypeFace(Typeface* tf, Identifier id_) :
+		CustomTypeFace(ReferenceCountedObjectPtr<juce::Typeface> tf, Identifier id_) :
 			typeface(tf),
 			id(id_)
 		{};
@@ -1662,7 +1990,7 @@ private:
 	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;
 	
-
+	std::function<void(int)> previewFunction;
 	MacroManager macroManager;
 
 	KillStateHandler killStateHandler;
@@ -1679,6 +2007,8 @@ private:
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
+	double globalPlaybackSpeed = 1.0;
+
 	double fallbackBpm = -1.0;
 	double* hostBpmPointer = &fallbackBpm;
 
@@ -1688,10 +2018,11 @@ private:
 
 	Font globalFont;
 
-	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
+    UndoManager locationUndoManager;
+	Component::SafePointer<Component> lastActiveEditor;
 	int lastCharacterPositionOfSelectedEditor;
 
-    SafeChangeBroadcaster codeFontChangeNotificator;
+    LambdaBroadcaster<float> codeFontChangeNotificator;
         
 	WeakReference<Console> console;
 
@@ -1742,6 +2073,11 @@ private:
 	int scrollY;
 	BigInteger shownComponents;
 
+
+
+    // Make sure that this is alive all the time...
+    snex::cppgen::CustomNodeProperties data;
+    
 	ScopedPointer<ControlledObject> defaultPresetHandler;
 
 	void handleSuspendedNoteOffs();

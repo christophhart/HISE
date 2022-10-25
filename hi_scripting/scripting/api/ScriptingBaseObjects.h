@@ -51,6 +51,17 @@ public:
 	virtual float getParameter(int index) const = 0;
 };
 
+#if USE_BACKEND
+struct CommandLineException: public std::exception
+{
+	CommandLineException(const String& r) :
+		r(Result::fail(r))
+	{};
+
+	Result r;
+};
+#endif
+
 /** The base class for all scripting API classes. 
 *	@ingroup scripting
 *
@@ -124,6 +135,18 @@ public:
 	/** \internal Overwrite this method and check if the object exists. Best thing is to initialize the pointer to nullptr and check that. */
 	virtual bool objectExists() const { return false; }
 
+	
+	/** Return all attached functions and callbacks of this object so that the compiler can run its optimisations. */
+	//virtual var getOptimizableFunctions() const { return {}; }
+
+	/** The parser will call this function with every function call and its location so you can use it to track down calls. 
+		Note: this will only work with objects that are defined as const variables. */
+	virtual bool addLocationForFunctionCall(const Identifier& id, const DebugableObjectBase::Location& location) 
+	{
+		ignoreUnused(id, location);
+		return false;
+	};
+
 	/** \internal This method combines the calls to objectDeleted() and objectExists() and creates a nice error message. */
 	bool checkValidObject() const
 	{
@@ -144,9 +167,14 @@ public:
 
 	void setName(const Identifier &name_) noexcept{ name = name_; };
 
+	void gotoLocationWithDatabaseLookup();
+
+	
+
 private:
 
 	Identifier name;
+
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ConstScriptingObject);
 };
@@ -232,7 +260,80 @@ class HiseJavascriptEngine;
 	*/
 struct WeakCallbackHolder : private ScriptingObject
 {
-	WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs);
+	struct CallableObject
+	{
+		CallableObject() :
+			lastResult(Result::ok())
+		{};
+
+		virtual ~CallableObject() {};
+		virtual Result call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue);
+
+        virtual bool isRealtimeSafe() const = 0;
+        
+		/** Override this and either clone or swap the captured values. */
+		virtual void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) {};
+
+		virtual void addAsSource(DebugableObjectBase* b, const Identifier& callbackId) { ignoreUnused(b, callbackId); };
+
+		virtual String getComment() const { return {}; }
+
+	protected:
+
+		Result lastResult;
+		ReferenceCountedObject* thisAsRef = nullptr;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(CallableObject);
+	};
+
+	struct CallableObjectManager
+	{
+		virtual ~CallableObjectManager() {};
+
+		template <typename T> T* getRegisteredCallableObject(int index)
+		{
+			static_assert(std::is_base_of<CallableObject, T>(), "not a base class");
+
+			if (isPositiveAndBelow(index, registeredObjects.size()))
+			{
+				return dynamic_cast<T*>(registeredObjects[index].get());
+			}
+
+			return nullptr;
+		}
+
+		int getNumRegisteredCallableObjects() const { return registeredObjects.size(); }
+
+		void registerCallableObject(CallableObject* obj)
+		{
+			registeredObjects.addIfNotAlreadyThere(obj);
+		}
+
+		void deregisterCallableObject(CallableObject* obj)
+		{
+			registeredObjects.removeAllInstancesOf(obj);
+		}
+
+		template <typename T> void addCallbackObjectClearListener(T& obj, const std::function<void(T&, bool)>& f)
+		{
+			clearMessageBroadcaster.addListener(obj, f, false);
+		}
+
+	protected:
+
+		void clearCallableObjects()
+		{
+			registeredObjects.clear();
+			clearMessageBroadcaster.sendMessage(sendNotificationAsync, true);
+		}
+
+	private:
+
+		LambdaBroadcaster<bool> clearMessageBroadcaster;
+		Array<WeakReference<CallableObject>> registeredObjects;
+	};
+
+	WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs);
 
 	/** @internal: used by the scripting thread. */
 	WeakCallbackHolder(const WeakCallbackHolder& copy);
@@ -246,8 +347,12 @@ struct WeakCallbackHolder : private ScriptingObject
 	/** Call the function with the given arguments. */
 	void call(var* arguments, int numArgs);
 
+	void call(const var::NativeFunctionArgs& args);
+	
+	Result callSync(const var::NativeFunctionArgs& args, var* returnValue = nullptr);
+
 	/** Call the functions synchronously. */
-	Result callSync(var* arguments, int numArgs);
+	Result callSync(var* arguments, int numArgs, var* returnValue=nullptr);
 
 	/** Call the function with one argument that can be converted to a var. */
 	template <typename T> void call1(const T& arg1)
@@ -284,10 +389,14 @@ struct WeakCallbackHolder : private ScriptingObject
 		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
 	}
 
+	DebugInformationBase* createDebugObject(const String& n) const;
+
 	void decRefCount()
 	{
 		anonymousFunctionRef = var();
 	}
+
+	void addAsSource(DebugableObjectBase* sourceObject, const String& callbackId);
 
 	void clear();
 
@@ -296,24 +405,41 @@ struct WeakCallbackHolder : private ScriptingObject
 		return weakCallback.get() != nullptr && engineToUse.get() != nullptr;
 	}
 
-	void setThisObject(ReferenceCountedObject* thisObj)
-	{
-		thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
-	}
+	void setThisObject(ReferenceCountedObject* thisObj);
+
+	void setThisObjectRefCounted(const var& t);
 
 	bool matches(const var& f) const;
 
 private:
+
+	var getThisObject();
 
 	bool highPriority = false;
 	int numExpectedArgs;
 	Result r;
 	Array<var> args;
 	var anonymousFunctionRef;
-	WeakReference<DebugableObjectBase> weakCallback;
+	NamedValueSet capturedLocals;
+	WeakReference<CallableObject> weakCallback;
 	WeakReference<DebugableObjectBase> thisObject;
-	ReferenceCountedObject* castedObj = nullptr;
+
+	var refCountedThisObject;
+
 	WeakReference<HiseJavascriptEngine> engineToUse;
+};
+
+class AssignableDotObject
+{
+public:
+
+	virtual ~AssignableDotObject() {};
+
+	/** Override this method and assign the new value to the given id. */
+	virtual bool assign(const Identifier& id, const var& newValue) = 0;
+
+	/** Override this method and return the given id. */
+	virtual var getDotProperty(const Identifier& id) const = 0;
 };
 
 
@@ -326,6 +452,32 @@ class AssignableObject
 {
 public:
 
+	/** Use this to create a child data in the watch table. */
+	struct IndexedValue
+	{
+		IndexedValue(AssignableObject* obj_, int idx): index(idx), obj(obj_) {}
+
+		var operator()()
+		{
+			if (obj.get() != nullptr)
+				return obj->getAssignedValue(index);
+
+			return var();
+		}
+
+		Identifier getId() const
+		{
+			String s = "%PARENT%";
+			s << "[" << String(index) << "]";
+			return Identifier(s);
+		}
+
+	private:
+
+		const int index;
+		WeakReference<AssignableObject> obj;
+	};
+
 	virtual ~AssignableObject() {};
 
 	/** Assign the value to the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
@@ -336,6 +488,22 @@ public:
 
 	/** Overwrite this and return an index that can be used to look up the value when the script is executed. */
 	virtual int getCachedIndex(const var &indexExpression) const = 0;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AssignableObject);
+};
+
+
+struct JSONConversionHelpers
+{
+	static bool isPluginState(const ValueTree& v) { return v.getType() == Identifier("ControlData"); };
+
+	static var valueTreeToJSON(const ValueTree& v);
+
+	static ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData = true);
+
+	static var convertBase64Data(const String& d, const ValueTree& cTree);
+
+	static String convertDataToBase64(const var& d, const ValueTree& cTree);
 };
 
 
@@ -344,6 +512,26 @@ struct ValueTreeConverters
 {
 	static String convertDynamicObjectToBase64(const var& object, const Identifier& id, bool compress);;
 
+	/** This converts a dynamic object to a value tree.
+	
+		If the JSON object contains arrays, the value tree will create child trees with the
+		same name (minus a optional `s` at the end to indicate plural vs. singular). 
+		If the array is only a simple number / string, it will be stored as `value` property.
+
+		Example:
+
+		{
+		  "Object":
+		  {
+			"Property1": "SomeValue  
+		  },
+		  "ListElements": [
+		  12,
+		  14,
+		  []
+		  ]
+		}
+	*/
 	static ValueTree convertDynamicObjectToValueTree(const var& object, const Identifier& id);
 
 	static String convertValueTreeToBase64(const ValueTree& v, bool compress);
@@ -370,14 +558,24 @@ struct ValueTreeConverters
 
 	static ValueTree convertDynamicObjectToScriptNodeTree(var obj);
 
+	static var convertStringIfNumeric(const var& value);
+
 private:
+
+	
 
 	static void v2d_internal(var& object, const ValueTree& v);
 
 	static void d2v_internal(ValueTree& v, const Identifier& id, const var& object);;
 
+	static void a2v_internal(ValueTree& v, const Identifier& id, const Array<var>& list);
+
+	static void v2a_internal(var& object, ValueTree& v, const Identifier& id);
+
+	static bool isLikelyVarArray(const ValueTree& v);
 
 };
+
 
 
 

@@ -159,6 +159,12 @@ public:
 		/** Checks if the event was created by a script earlier. */
 		bool isArtificial() const;
 
+		/** Sets a callback that will be performed when an all notes off message is received. */
+		void setAllNotesOffCallback(var onAllNotesOffCallback);
+
+		/** This will forward the message to the MIDI out of the plugin. */
+		void sendToMidiOut();
+
 		// ============================================================================================================
 
 		void setHiseEvent(HiseEvent &m);
@@ -168,7 +174,19 @@ public:
 
 		struct Wrapper;
 
+		void pushArtificialNoteOn(const HiseEvent& e)
+		{
+			jassert(e.isArtificial());
+			artificialNoteOnIds[e.getNoteNumber()] = e.getEventId();
+		}
+
+		void onAllNotesOff();
+
 	private:
+
+		WeakCallbackHolder allNotesOffCallback;
+
+		friend class Synth;
 
 		friend class JavascriptMidiProcessor;
 		friend class HardcodedScriptProcessor;
@@ -179,6 +197,7 @@ public:
 		uint16 artificialNoteOnIds[128];
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Message);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Message);
 	};
 
 	/** All scripting methods related to the main engine can be accessed here.
@@ -192,7 +211,7 @@ public:
 		// ============================================================================================================
 
 		Engine(ProcessorWithScriptingContent *p);
-		~Engine() {};
+		~Engine();
 
 		Identifier getObjectName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 
@@ -215,6 +234,9 @@ public:
 
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
+
+		/** Returns the tempo name for the given index */
+		String getTempoName(int tempoIndex);
 
 		/** Converts samples to quarter beats using the current tempo. */
 		double getQuarterBeatsForSamples(double samples);
@@ -267,8 +289,13 @@ public:
 		/** Shows a message with a question and executes the function after the user has selected his choice. */
 		void showYesNoWindow(String title, String markdownMessage, var callback);
 
+		/** Decodes an Base64 encrypted valuetree (eg. HiseSnippets). */
+		String decodeBase64ValueTree(const String& b64Data);
+
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
+
+		var createFFT();
 
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
 		int getLatencySamples() const;
@@ -288,8 +315,35 @@ public:
 		/** Creates (and activates) the expansion handler. */
 		var createExpansionHandler();
 
+		/** Creates a MIDI Automation handler. */
+		var createMidiAutomationHandler();
+
+		/** Creates an user preset handler. */
+		var createUserPresetHandler();
+
+		/** Creates a broadcaster that can send messages to attached listeners. */
+		var createBroadcaster(var defaultValues);
+
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
+
+		/** Returns a reference to the global routing manager. */
+		var getGlobalRoutingManager();
+
+		/** Creates a background task that can execute heavyweight functions. */
+		var createBackgroundTask(String name);
+
+        /** Creates a fix object factory using the data layout. */
+        var createFixObjectFactory(var layoutDescription);
+        
+		/** Creates a reference to the script license manager. */
+		var createLicenseUnlocker();
+
+		/** Renders a MIDI event list as audio data on a background thread and calls a function when it's ready. */
+		void renderAudio(var eventList, var finishCallback);
+
+		/** Previews a audio buffer with a callback indicating the state. */
+		void playBuffer(var bufferData, var callback);
 
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
@@ -306,6 +360,12 @@ public:
 		/** Extends the compilation timeout. Use this if you have a long task that would get cancelled otherwise. This is doing nothing in compiled plugins. */
 		void extendTimeOut(int additionalMilliseconds);
 
+		/** Sets the global pitch factor (in semitones). */
+		void setGlobalPitchFactor(double pitchFactorInSemitones);
+
+		/** Returns the global pitch factor (in semitones). */
+		double getGlobalPitchFactor() const;
+
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 
@@ -315,11 +375,20 @@ public:
 		/** Shows a message with an overlay on the compiled plugin with an "OK" button in order to notify the user about important events. */
 		void showMessage(String message);
 
+		/** Shows a message box with an OK button and a icon defined by the type variable. */
+		void showMessageBox(String title, String markdownMessage, int type);
+
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
-        /** launches the given URL in the system's web browser. */
-        void openWebsite(String url);
+		/** launches the given URL in the system's web browser. */
+		void openWebsite(String url);
+
+		/** Copies the given text to the clipboard. */
+		void copyToClipboard(String textToCopy);
+
+		/** Returns the clipboard content. */
+		String getClipboardContent();
 
 		/** Creates a list of all available expansions. */
 		var getExpansionList();
@@ -353,6 +422,9 @@ public:
 
 		/** Returns a list of all available user presets as relative path. */
 		var getUserPresetList() const;
+
+		/** Checks if the user preset is read only. */
+		bool isUserPresetReadOnly(var optionalFile);
 
 		/** Sets whether the samples are allowed to be duplicated. Set this to false if you operate on the same samples differently. */
 		void setAllowDuplicateSamples(bool shouldAllow);
@@ -398,6 +470,9 @@ public:
 
 		/** Returns the current operating system ("OSX", "LINUX", or ("WIN"). */
 		String getOS();
+		
+		/** Returns info about the current hardware and OS configuration. */
+		var getSystemStats();
 				
 		/** Returns the mobile device that this software is running on. */
 		String getDeviceType();
@@ -407,6 +482,12 @@ public:
 
 		/** Returns true if running as VST / AU / AAX plugin. */
 		bool isPlugin() const;
+
+		/** Returns true if the project is running inside HISE. You can use this during development to simulate different environments. */
+		bool isHISE();
+
+		/** Forces a full (asynchronous) reload of all samples (eg. after the sample directory has changed). */
+		void reloadAllSamples();
 
 		/** Returns the preload progress from 0.0 to 1.0. Use this to display some kind of loading icon. */
 		double getPreloadProgress();
@@ -432,6 +513,9 @@ public:
     /** Returns the product name (not the HISE name!). */
     String getName();
 
+		/** Returns project and company info from the Project's preferences. */
+		var getProjectInfo();
+
 		/** Returns the current peak volume (0...1) for the given channel. */
 		double getMasterPeakLevel(int channel);
 
@@ -447,8 +531,8 @@ public:
 		/** Creates a MIDI List object. */
     ScriptingObjects::MidiList *createMidiList();
 
-		/** Creates a SliderPack Data object. */
-		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
+		/** Creates a unordered stack that can hold up to 128 float numbers. */
+		ScriptingObjects::ScriptUnorderedStack* createUnorderedStack();
 
 		/** Creates a SliderPack Data object and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptSliderPackData* createAndRegisterSliderPackData(int index);
@@ -458,6 +542,9 @@ public:
 
 		/** Creates a audio file holder and registers it so you can access it from other modules. */
 		ScriptingObjects::ScriptAudioFile* createAndRegisterAudioFile(int index);
+
+		/** Creates a ring buffer and registers it so you can access it from other modules. */
+		ScriptingObjects::ScriptRingBuffer* createAndRegisterRingBuffer(int index);
 
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
@@ -480,11 +567,22 @@ public:
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
-    /** Returns an array with all matches. */
-    var getRegexMatches(String stringToMatch, String regex);
+		/** Creates an error handler that reacts on initialisation errors. */
+		var createErrorHandler();
 
-    /** Returns a string of the value with the supplied number of digits. */
-    String doubleToString(double value, int digits);
+		/** Returns an array with all matches. */
+		var getRegexMatches(String stringToMatch, String regex);
+
+		/** Returns a string of the value with the supplied number of digits. */
+		String doubleToString(double value, int digits);
+		
+		/** Returns the width of the string for the given font properties. */
+		float getStringWidth(String text, String fontName, float fontSize, float fontSpacing);
+
+		String intToHexString(int value);
+
+		/** Signals that the application should terminate. */
+		void quit();
 
 		/** Reverts the last controller change. */
 		void undo();
@@ -497,12 +595,21 @@ public:
 		
 		// ============================================================================================================
 
+
 		/** This warning will show up in the console so people can migrate in the next years... */
 		void logSettingWarning(const String& methodName) const;
 
 		struct Wrapper;
 
+		double unused = 0.0;
+
 		ScriptBaseMidiProcessor* parentMidiProcessor;
+
+		ScopedPointer<Thread> currentExportThread;
+
+		struct PreviewHandler;
+
+		ScopedPointer<PreviewHandler> previewHandler;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Engine);
 	};
@@ -600,9 +707,23 @@ public:
 		/** Returns enabled state of midi channel (0 = All channels). */
 		bool isMidiChannelEnabled(int index);
 
+		/** Returns an array of the form [width, height]. */
+		var getUserDesktopSize();
+
+		/** Returns whether OpenGL is enabled or not. The return value might be out of sync with the actual state (after you changed this setting until the next reload). */
+		bool isOpenGLEnabled() const;
+
+		/** Enable OpenGL. This setting will be applied the next time the interface is rebuild. */
+		void setEnableOpenGL(bool shouldBeEnabled);
+		
+		/** Enables or disables debug logging */
+		void setEnableDebugMode(bool shouldBeEnabled);
+
 		// ============================================================================================================
 
 	private:
+
+		
 
 		GlobalSettingManager* gm;
 		AudioProcessorDriver* driver;
@@ -621,7 +742,9 @@ public:
 		Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler);
 		~Sampler() {};
 
-		Identifier getObjectName() const override { return "Sampler"; }
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Sampler"); }
+
+		Identifier getObjectName() const override { return getClassName(); }
 		bool objectDeleted() const override { return sampler.get() == nullptr; }
 		bool objectExists() const override { return sampler.get() != nullptr; }
 
@@ -635,6 +758,9 @@ public:
 
 		/** Enables the group with the given index (one-based). Allows multiple groups to be active. */
 		void setMultiGroupIndex(var groupIndex, bool enabled);
+
+		/** Sets the volume of a particular group (use -1 for active group). Only works with disabled crossfade tables. */
+		void setRRGroupVolume(int groupIndex, int gainInDecibels);
 
 		/** Returns the currently (single) active RR group. */
 		int getActiveRRGroup();
@@ -678,11 +804,17 @@ public:
 		/** Returns an array with all samples from the index data (can be either int or array of int, -1 selects all.). */
 		var createSelectionFromIndexes(var indexData);
 
+		/** Returns an array with all samples that match the filter function. */
+		var createSelectionWithFilter(var filterFunction);
+
 		/** Returns a list of the sounds selected by the selectSounds() method. */
 		var createListFromScriptSelection();
 
 		/** Returns a list of the sounds selected in the samplemap. */
 		var createListFromGUISelection();
+
+		/** Sets the currently selected samples on the interface to the given list. */
+		void setGUISelection(var sampleList, bool addToSelection);
 
         /** Loads the content of the given sample into an array of VariantBuffers that can be used
             for analysis.
@@ -704,6 +836,24 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+		/** Loads a samplemap from a list of JSON objects. */
+		void loadSampleMapFromJSON(var jsonSampleMap);
+
+		/** Loads a base64 compressed string with the samplemap. */
+		void loadSampleMapFromBase64(const String& b64);
+
+		/** Returns a base64 compressed string containing the entire samplemap. */
+		String getSampleMapAsBase64();
+
+		/** Creates a JSON object from the sample file that can be used with loadSampleMapFromJSON. */
+		var parseSampleFile(var sampleFile);
+
+		/** Converts the user preset data of a audio waveform to a base 64 samplemap. */
+		String getAudioWaveformContentAsBase64(var presetObj);
+
+		/** Loads an SFZ file into the sampler. */
+		var loadSfzFile(var sfzFile);
+
 		/** Loads a few samples in the current samplemap and returns a list of references to these samples. */
 		var importSamples(var fileNameList, bool skipExistingSamples);
 
@@ -721,6 +871,9 @@ public:
         
         /** Returns the ID of the attribute with the given index. */
 		String getAttributeId(int index);
+
+		/** Returns the index of the attribute with the given ID. */
+		int getAttributeIndex(String id);
 
         /** Sets a attribute to the given value. */
         void setAttribute(int index, var newValue);
@@ -743,6 +896,8 @@ public:
 
 	private:
 
+		ValueTree convertJSONListToValueTree(var jsonSampleList);
+
 		WeakReference<Processor> sampler;
 		SelectedItemSet<ModulatorSamplerSound::Ptr> soundSelection;
 
@@ -762,8 +917,8 @@ public:
 
 		// ============================================================================================================
 
-		Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth);
-		~Synth() { artificialNoteOns.clear(); }
+		Synth(ProcessorWithScriptingContent *p, Message* messageObject, ModulatorSynth *ownerSynth);
+		~Synth() {}
 
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
 
@@ -773,6 +928,7 @@ public:
 		typedef ScriptingObjects::ScriptingSynth ScriptSynth;
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
+		typedef ScriptingObjects::ScriptSliderPackProcessor ScriptSliderPackProcessor;
 		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
 		typedef ScriptingObjects::ScriptedMidiPlayer ScriptMidiPlayer;
 		typedef ScriptingObjects::ScriptRoutingMatrix ScriptRoutingMatrix;
@@ -823,6 +979,9 @@ public:
 
 		/** Returns the attribute of the parent synth. */
 		float getAttribute(int attributeIndex) const;
+
+		/** Creates a Builder object that can be used to create the module tree. */
+		var createBuilder();
 
 		/** Adds a note on to the buffer. */
 		int addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples);
@@ -878,6 +1037,9 @@ public:
 		*/
 		void setModulatorAttribute(int chainId, int modulatorIndex, int attributeIndex, float newValue);
 
+		/** Checks if the artificial event is active */
+		bool isArtificialEventActive(int eventId);
+
 		/** Returns the number of pressed keys (!= the number of playing voices!). */
 		int getNumPressedKeys() const {return numPressedKeys.get(); };
 
@@ -926,6 +1088,12 @@ public:
 		/** Returns the table processor with the given name. */
 		ScriptTableProcessor *getTableProcessor(const String &name);
 
+		/** Returns the sliderpack processor with the given name. */
+		ScriptSliderPackProcessor* getSliderPackProcessor(const String& name);
+
+		/** Returns a reference to a processor that holds a display buffer. */
+		ScriptingObjects::ScriptDisplayBufferSource* getDisplayBufferSource(const String& name);
+
 		/** Returns the first sampler with the name name. */
 		Sampler *getSampler(const String &name);
 
@@ -946,29 +1114,28 @@ public:
 
 		// ============================================================================================================
 
-		void clearNoteCounter()
-		{
-			keyDown.clear();
-			numPressedKeys.set(0);
-		}
-
-		void handleNoteCounter(const HiseEvent& e, bool inc) noexcept
+		void handleNoteCounter(const HiseEvent& e) noexcept
 		{
 			if (e.isArtificial())
 				return;
 
-			if (inc)
+			if (e.isNoteOn())
 			{
 				++numPressedKeys;
 				keyDown.setBit(e.getNoteNumber(), true);
 			}
-			else
+			else if (e.isNoteOff())
 			{
 				--numPressedKeys; 
 				if (numPressedKeys.get() < 0) 
 					numPressedKeys.set(0);
 
 				keyDown.setBit(e.getNoteNumber(), false);
+			}
+			else if (e.isAllNotesOff())
+			{
+				numPressedKeys = 0;
+				keyDown.clear();
 			}
 		}
 
@@ -982,7 +1149,8 @@ public:
 
 		friend class ModuleHandler;
 
-		OwnedArray<Message> artificialNoteOns;
+		WeakReference<Message> messageObject;
+
 		ModulatorSynth * const owner;
 		Atomic<int> numPressedKeys;
 		BigInteger keyDown;
@@ -1024,10 +1192,16 @@ public:
 		void print(var debug);
 
 		/** Starts the benchmark. You can give it a name that will be displayed with the result if desired. */
-		void start() { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
+		void startBenchmark() { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
 
 		/** Stops the benchmark and prints the result. */
-		void stop();
+		void stopBenchmark();
+
+		/** Causes the execution to stop(). */
+		void stop(bool condition);
+
+		/** Sends a blink message to the current editor. */
+		void blink();
 
 		/** Clears the console. */
 		void clear();
@@ -1044,6 +1218,9 @@ public:
 		/** Throws an error message if the value is not an object or array. */
 		void assertIsObjectOrArray(var value);
 
+		/** Throws an error message if the value is a string. */
+		void assertNoString(var value);
+
 		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
 		void assertLegalNumber(var value);
 
@@ -1052,9 +1229,20 @@ public:
 
 		struct Wrapper;
 
+		void setDebugLocation(const Identifier& id_, int lineNumber_)
+		{
+			id = id_;
+			lineNumber = lineNumber_;
+		}
+
 	private:
 
+		Identifier id;
+		int lineNumber;
+
 		double startTime;
+
+
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Console)
 	};
@@ -1085,6 +1273,8 @@ public:
 	{
 	public:
 
+		
+
 		TransportHandler(ProcessorWithScriptingContent* sp);;
 		~TransportHandler();
 
@@ -1093,9 +1283,10 @@ public:
 
 		struct Callback: public PooledUIUpdater::Broadcaster
 		{
-			Callback(TransportHandler* p, const var& f, bool sync, int numArgs);
+			Callback(TransportHandler* p, const String& name, const var& f, bool sync, int numArgs);
 
-			void call(var arg1, var arg2 = {}, bool forceSynchronous=false);
+			void call(var arg1, var arg2 = {}, var arg3 = {}, bool forceSynchronous = false);
+
 
 			void callAsync();
 
@@ -1106,7 +1297,7 @@ public:
 			void callSync();
 
 			const int numArgs;
-			var args[2];
+			var args[3];
 
 			JavascriptProcessor* jp;
 			WeakReference<TransportHandler> th;
@@ -1128,6 +1319,21 @@ public:
 		/** Registers a callback to changes in the musical position (bars / beats). */
 		void setOnBeatChange(bool sync, var f);
 
+		/** Registers a callback to changes in the grid. */
+		void setOnGridChange(bool sync, var f);
+
+		/** Enables a high precision grid timer. */
+		void setEnableGrid(bool shouldBeEnabled, int tempoFactor);
+
+		/** Starts the internal master clock. */
+		void startInternalClock(int timestamp);
+
+		/** Stops the internal master clock. */
+		void stopInternalClock(int timestamp);
+
+		/** Sets the sync mode for the global clock. */
+		void setSyncMode(int syncMode);
+
 	private:
 
 		void clearIf(ScopedPointer<Callback>& cb, const var& f)
@@ -1142,6 +1348,9 @@ public:
 		int denom = 4;
 		int beat = 0;
 		bool newBar = true;
+		int gridIndex = 0;
+		int gridTimestamp = 0;
+		bool firstGridInPlayback = false;
 
 		struct Wrapper;
 
@@ -1149,57 +1358,24 @@ public:
 		ScopedPointer<Callback> transportChangeCallback;
 		ScopedPointer<Callback> timeSignatureCallback;
 		ScopedPointer<Callback> beatCallback;
+		ScopedPointer<Callback> gridCallback;
 
 		ScopedPointer<Callback> tempoChangeCallbackAsync;
 		ScopedPointer<Callback> transportChangeCallbackAsync;
 		ScopedPointer<Callback> timeSignatureCallbackAsync;
 		ScopedPointer<Callback> beatCallbackAsync;
+		ScopedPointer<Callback> gridCallbackAsync;
+		
 
-		void tempoChanged(double newTempo) override
-		{
-			bpm = newTempo;
+		void tempoChanged(double newTempo) override;
 
-			if (tempoChangeCallback != nullptr)
-				tempoChangeCallback->call(newTempo);
+		void onTransportChange(bool isPlaying, double ppqPosition) override;
 
-			if (tempoChangeCallbackAsync != nullptr)
-				tempoChangeCallbackAsync->call(newTempo);
-		}
+		void onBeatChange(int newBeat, bool isNewBar) override;
 
-		void onTransportChange(bool isPlaying) override
-		{
-			play = isPlaying;
+		void onSignatureChange(int newNominator, int numDenominator) override;
 
-			if (transportChangeCallback != nullptr)
-				transportChangeCallback->call(isPlaying);
-
-			if (transportChangeCallbackAsync != nullptr)
-				transportChangeCallbackAsync->call(isPlaying);
-		}
-
-		void onBeatChange(int newBeat, bool isNewBar) override
-		{
-			beat = newBeat;
-			newBar = isNewBar;
-
-			if (beatCallback != nullptr)
-				beatCallback->call(newBeat, newBar);
-
-			if (beatCallbackAsync != nullptr)
-				beatCallbackAsync->call(newBeat, newBar);
-		}
-
-		void onSignatureChange(int newNominator, int numDenominator) override
-		{
-			nom = newNominator;
-			denom = numDenominator;
-
-			if (timeSignatureCallback != nullptr)
-				timeSignatureCallback->call(newNominator, numDenominator);
-
-			if (timeSignatureCallbackAsync != nullptr)
-				timeSignatureCallbackAsync->call(newNominator, numDenominator);
-		}
+		void onGridChange(int gridIndex_, uint16 timestamp, bool firstGridInPlayback_) override;
 
 		void handlePooledMessage(PooledUIUpdater::Broadcaster* b) override
 		{
@@ -1255,6 +1431,9 @@ public:
 		/** Returns a list of all pending Downloads. */
 		var getPendingDownloads();
 
+		/** Returns a list of all pending Calls. */
+		var getPendingCalls();
+
 		/** Sets the maximal number of parallel downloads. */
 		void setNumAllowedDownloads(int maxNumberOfParallelDownloads);
 
@@ -1267,6 +1446,9 @@ public:
 		/** This function will be called whenever there is server activity. */
 		void setServerCallback(var callback);
 
+		/** Checks if given email address is valid - not fool proof. */
+    bool isEmailAddress(String email);
+		
 		void queueChanged(int numItems) override
 		{
 			if (serverCallback)
@@ -1316,6 +1498,8 @@ public:
 			Documents,
 			Desktop,
 			Downloads,
+			Applications,
+			Temp,
 			numSpecialLocations
 		};
 
@@ -1332,6 +1516,9 @@ public:
 		/** Returns the current sample folder as File object. */
 		var getFolder(var locationType);
 
+		/** Returns a file object from an absolute path (eg. C:/Windows/MyProgram.exe). */
+		var fromAbsolutePath(String path);
+
 		/** Returns a list of all child files of a directory that match the wildcard. */
 		var findFiles(var directory, String wildcard, bool recursive);
 
@@ -1343,7 +1530,19 @@ public:
 
 		/** Returns a unique machine ID that can be used to identify the computer. */
 		String getSystemId();
+		
+		/**  Convert a file size in bytes to a neat string description. */
+		String descriptionOfSizeInBytes(int64 bytes);
 
+		/** Returns the number of free bytes on the volume of a given folder. */
+		int64 getBytesFreeOnVolume(var folder);
+
+        /** Encrypts the given string using a RSA private key. */
+        String encryptWithRSA(const String& dataToEncrypt, const String& privateKey);
+        
+        /** Decrypts the given string using a RSA public key. */
+        String decryptWithRSA(const String& dataToDecrypt, const String& publicKey);
+        
 		// ========================================================= End of API calls
 
 		ProcessorWithScriptingContent* p;
@@ -1374,6 +1573,33 @@ public:
 
 		/** Returns a colour value with the specified alpha value. */
 		int withAlpha(int colour, float alpha);
+
+		/** Returns a colour with the specified hue. */
+		int withHue(int colour, float hue);
+
+		/** Returns a colour with the specified saturation. */
+		int withSaturation(int colour, float saturation);
+
+		/** Returns a colour with the specified brightness. */
+		int withBrightness(int colour, float brightness);
+
+		/** Returns a colour with a multiplied alpha value. */
+		int withMultipliedAlpha(int colour, float factor);
+
+		/** Returns a colour with a multiplied saturation value. */
+		int withMultipliedSaturation(int colour, float factor);
+
+		/** Returns a colour with a multiplied brightness value. */
+		int withMultipliedBrightness(int colour, float factor);
+
+		/** Converts a colour to a [r, g, b, a] array that can be passed to GLSL as vec4. */
+		var toVec4(int colour);
+
+		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
+		int fromVec4(var vec4);
+
+		/** Linear interpolation between two colours. */
+		int mix(int colour1, int colour2, float alpha);
 
 		// ============================================================================================================
 

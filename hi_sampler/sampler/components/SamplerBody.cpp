@@ -106,33 +106,11 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 	tableButton->setToggleState(getProcessor()->getEditorState(ModulatorSampler::TableShown), dontSendNotification);
 
 	map->addMouseListener(this, false);
-
-
 	sampleEditor->addMouseListener(this, false);
-
-	getSampleEditHandler()->addSelectionListener(this);
-
-#if SAMPLER_DEPRECATED
-	selectionListener = new SelectionListener(this);
-#endif
-	
-
-	//soundTable->addMouseListener(this, true);
-
-
-
-	//addKeyListener (map->getCommandManager()->getKeyMappings());
 
 	setWantsKeyboardFocus(true);
 
-	
-
-    //[/UserPreSize]
-
     setSize (900, 700);
-
-
-    //[Constructor] You can add your own custom stuff here..
 
 	h = 36;
 
@@ -170,8 +148,6 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 SamplerBody::~SamplerBody()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
-
-	getSampleEditHandler()->removeSelectionListener(this);
 
     //[/Destructor_pre]
 

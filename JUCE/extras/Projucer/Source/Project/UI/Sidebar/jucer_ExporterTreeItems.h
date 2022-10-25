@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -47,7 +46,7 @@ public:
     bool mightContainSubItems() override      { return exporter->getNumConfigurations() > 0; }
     String getUniqueName() const override     { return "exporter_" + String (exporterIndex); }
     String getRenamingName() const override   { return getDisplayName(); }
-    String getDisplayName() const override    { return exporter->getName(); }
+    String getDisplayName() const override    { return exporter->getUniqueName(); }
     void setName (const String&) override     {}
     bool isMissing() const override           { return false; }
     String getTooltip() override              { return getDisplayName(); }
@@ -79,13 +78,25 @@ public:
 
     void deleteItem() override
     {
-        if (AlertWindow::showOkCancelBox (AlertWindow::WarningIcon, "Delete Exporter",
-                                          "Are you sure you want to delete this export target?"))
+        auto resultCallback = [safeThis = WeakReference<ExporterItem> { this }] (int result)
         {
-            closeSettingsPage();
-            ValueTree parent (exporter->settings.getParent());
-            parent.removeChild (exporter->settings, project.getUndoManagerFor (parent));
-        }
+            if (safeThis == nullptr || result == 0)
+                return;
+
+            safeThis->closeSettingsPage();
+
+            auto parent = safeThis->exporter->settings.getParent();
+            parent.removeChild (safeThis->exporter->settings,
+                                safeThis->project.getUndoManagerFor (parent));
+        };
+
+        AlertWindow::showOkCancelBox (MessageBoxIconType::WarningIcon,
+                                      "Delete Exporter",
+                                      "Are you sure you want to delete this export target?",
+                                      "",
+                                      "",
+                                      nullptr,
+                                      ModalCallbackFunction::create (std::move (resultCallback)));
     }
 
     void addSubItems() override
@@ -94,7 +105,7 @@ public:
             addSubItem (new ConfigItem (config.config, *exporter));
     }
 
-    void showPopupMenu() override
+    void showPopupMenu (Point<int> p) override
     {
         PopupMenu menu;
         menu.addItem (1, "Add a new configuration", exporter->supportsUserDefinedConfigurations());
@@ -102,32 +113,25 @@ public:
         menu.addSeparator();
         menu.addItem (3, "Delete this exporter");
 
-        launchPopupMenu (menu);
+        launchPopupMenu (menu, p);
     }
 
-    void showAddMenu() override
+    void showAddMenu (Point<int> p) override
     {
         PopupMenu menu;
         menu.addItem (1, "Add a new configuration", exporter->supportsUserDefinedConfigurations());
 
-        launchPopupMenu (menu);
+        launchPopupMenu (menu, p);
     }
 
     void handlePopupMenuResult (int resultCode) override
     {
         if (resultCode == 1)
-        {
             exporter->addNewConfiguration (false);
-        }
         else if (resultCode == 2)
-        {
-            const ScopedValueSetter<String> valueSetter (project.specifiedExporterToSave, exporter->getName(), {});
-            project.save (true, true);
-        }
+            project.saveProject (Async::yes, exporter.get(), nullptr);
         else if (resultCode == 3)
-        {
             deleteAllSelectedItems();
-        }
     }
 
     var getDragSourceDescription() override
@@ -187,7 +191,7 @@ private:
     struct SettingsComp  : public Component
     {
         SettingsComp (ProjectExporter& exp)
-            : group (exp.getName(),
+            : group (exp.getUniqueName(),
                      ExporterItem::getIconForExporter (&exp),
                      exp.getDescription())
         {
@@ -208,6 +212,7 @@ private:
     };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExporterItem)
+    JUCE_DECLARE_WEAK_REFERENCEABLE (ExporterItem)
 };
 
 
@@ -239,15 +244,26 @@ public:
 
     void deleteItem() override
     {
-        if (AlertWindow::showOkCancelBox (AlertWindow::WarningIcon, "Delete Configuration",
-                                          "Are you sure you want to delete this configuration?"))
+        AlertWindow::showOkCancelBox (MessageBoxIconType::WarningIcon,
+                                      "Delete Configuration",
+                                      "Are you sure you want to delete this configuration?",
+                                      "",
+                                      "",
+                                      nullptr,
+                                      ModalCallbackFunction::create ([parent = WeakReference<ConfigItem> { this }] (int result)
         {
-            closeSettingsPage();
-            config->removeFromExporter();
-        }
+            if (parent == nullptr)
+                return;
+
+            if (result == 0)
+                return;
+
+            parent->closeSettingsPage();
+            parent->config->removeFromExporter();
+        }));
     }
 
-    void showPopupMenu() override
+    void showPopupMenu (Point<int> p) override
     {
         bool enabled = exporter.supportsUserDefinedConfigurations();
 
@@ -256,7 +272,7 @@ public:
         menu.addSeparator();
         menu.addItem (2, "Delete this configuration", enabled);
 
-        launchPopupMenu (menu);
+        launchPopupMenu (menu, p);
     }
 
     void handlePopupMenuResult (int resultCode) override
@@ -284,7 +300,7 @@ private:
     {
     public:
         SettingsComp (ProjectExporter::BuildConfiguration& conf)
-            : group (conf.exporter.getName() + " - " + conf.getName(), Icon (getIcons().config, Colours::transparentBlack))
+            : group (conf.exporter.getUniqueName() + " - " + conf.getName(), Icon (getIcons().config, Colours::transparentBlack))
         {
             addAndMakeVisible (group);
 
@@ -305,6 +321,8 @@ private:
     };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ConfigItem)
+    JUCE_DECLARE_WEAK_REFERENCEABLE (ConfigItem)
+
 };
 
 //==============================================================================
@@ -328,7 +346,7 @@ public:
     void setName (const String&) override            {}
     Icon getIcon() const override                    { return project.getMainGroup().getIcon (isOpen()).withColour (getContentColour (true)); }
 
-    void showPopupMenu() override
+    void showPopupMenu (Point<int>) override
     {
         if (auto* pcc = getProjectContentComponent())
             pcc->showNewExporterMenu();
@@ -368,9 +386,7 @@ private:
     Project& project;
     ValueTree exportersTree;
 
-    //==========================================================================
-    void valueTreePropertyChanged (ValueTree&, const Identifier&) override        {}
-    void valueTreeParentChanged (ValueTree&) override                             {}
+    //==============================================================================
     void valueTreeChildAdded (ValueTree& parentTree, ValueTree&) override         { refreshIfNeeded (parentTree); }
     void valueTreeChildRemoved (ValueTree& parentTree, ValueTree&, int) override  { refreshIfNeeded (parentTree); }
     void valueTreeChildOrderChanged (ValueTree& parentTree, int, int) override    { refreshIfNeeded (parentTree); }

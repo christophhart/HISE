@@ -1,3 +1,6 @@
+
 #include "src/surpress_warnings_begin.h"
-#include "src/asmjit/core/assembler.cpp"
+#if JUCE_INTEL
+#include "src/asmjit/arm/a64assembler.cpp"
+#endif
 #include "src/surpress_warnings_end.h"

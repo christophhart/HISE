@@ -64,16 +64,6 @@ public:
 		rebuildRectangles();
 	};
 
-	void sequenceIndexChanged() override
-	{
-		rebuildRectangles();
-	}
-
-	void trackIndexChanged() override
-	{
-		rebuildRectangles();
-	}
-
 	void paint(Graphics& g) override;
 
 	void rebuildRectangles();
@@ -94,5 +84,66 @@ private:
 	RectangleList<float> currentRectangles;
 };
 
+
+class SimpleCCViewer : public Component,
+					   public MidiPlayerBaseType,
+					   public PooledUIUpdater::SimpleTimer
+{
+public:
+
+	SimpleCCViewer(MidiPlayer* player_);;
+
+	ENABLE_OVERLAY_FACTORY(SimpleCCViewer, "CC Viewer");
+
+	int getPreferredHeight() const override { return 200; }
+
+	void sequenceLoaded(HiseMidiSequence::Ptr) override
+	{
+		rebuildCCValues();
+	};
+
+	void mouseDown(const MouseEvent& e) override;
+
+	void sequencesCleared() override
+	{
+		rebuildCCValues();
+	};
+
+
+	void paint(Graphics& g) override;
+
+	
+
+	int getCC(TableEditor* te);
+
+	void resized() override;
+
+	void timerCallback() override
+	{
+
+	}
+
+	void rebuildCCValues();
+
+	SimpleMidiViewer noteDisplay;
+
+	struct CCTable: public ReferenceCountedObject
+	{
+		using List = ReferenceCountedArray<CCTable>;
+		using Ptr = ReferenceCountedObjectPtr<CCTable>;
+
+		int ccNumber;
+		SampleLookupTable ccTable;
+	};
+
+	bool isShown(CCTable::Ptr t) const;
+
+	CCTable::Ptr getTableForCC(int ccNumber);
+
+	CCTable::List availableTables;
+
+	OwnedArray<TableEditor> activeEditors;
+};
+					  
 
 }

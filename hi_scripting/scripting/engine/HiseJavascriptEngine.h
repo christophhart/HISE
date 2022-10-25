@@ -126,13 +126,42 @@ public:
 		WeakReference<HiseJavascriptEngine> engine;
 	};
 
+	struct TokenProvider : public mcl::TokenCollection::Provider,
+						   public hise::GlobalScriptCompileListener
+	{
+		struct DebugInformationToken;
+		struct ObjectMethodToken;
+		struct KeywordToken;
+		struct ApiToken;
+
+		TokenProvider(JavascriptProcessor* jp_);;
+
+		~TokenProvider();
+
+		void addTokens(mcl::TokenCollection::List& tokens) override;
+
+        static void precompileCallback(TokenProvider& p, bool unused)
+        {
+            p.signalClear(sendNotificationSync);
+        }
+        
+		void scriptWasCompiled(JavascriptProcessor *processor) override
+		{
+			if (jp == processor)
+				signalRebuild();
+		}
+
+		WeakReference<JavascriptProcessor> jp;
+        JUCE_DECLARE_WEAK_REFERENCEABLE(TokenProvider);
+	};
+
 	/** Attempts to parse and run a block of javascript code.
 	If there's a parse or execution error, the error description is returned in
 	the result.
 	You can specify a maximum time for which the program is allowed to run, and
 	it'll return with an error message if this time is exceeded.
 	*/
-	Result execute(const String& javascriptCode, bool allowConstDeclarations=true);
+	Result execute(const String& javascriptCode, bool allowConstDeclarations = true, const Identifier& callbackId = {});
 
 	/** Attempts to parse and run a javascript expression, and returns the result.
 	If there's a syntax error, or the expression can't be evaluated, the return value
@@ -174,6 +203,11 @@ public:
 
 	void abortEverything();
 
+	static RelativeTime getDefaultTimeOut()
+	{
+		return  RelativeTime(5.0);
+	}
+
 	void extendTimeout(int milliSeconds);
 
 	/** Registers a callback to the engine.
@@ -199,13 +233,15 @@ public:
 
 	String getHoverString(const String& token);
 
-	DebugInformationBase* getDebugInformation(int index);
+	DebugInformationBase::Ptr getDebugInformation(int index);
 
 #if 0
 	var getDebugObject(const Identifier &id) const;
 #endif
 
 	var getScriptVariableFromRootNamespace(const Identifier & id) const;
+
+	void addShaderFile(const File& f);
 
 	int getNumIncludedFiles() const;
 	File getIncludedFile(int fileIndex) const;
@@ -245,7 +281,7 @@ public:
     
 	static bool isJavascriptFunction(const var& v);
     
-	
+	static bool isInlineFunction(const var& v);
 
 	struct ExternalFileData
 	{
@@ -404,12 +440,111 @@ public:
 
 		void prepareCycleReferenceCheck() override;
 
+		struct ScopedLocalThisObject
+		{
+			ScopedLocalThisObject(RootObject& r_, const var& newObject):
+				r(r_)
+			{
+				if (!newObject.isUndefined())
+				{
+					prevObject = r.localThreadThisObject.get();
+					r.localThreadThisObject = newObject;
+				}
+			}
+
+			~ScopedLocalThisObject()
+			{
+				if (!prevObject.isUndefined())
+				{
+					r.localThreadThisObject = prevObject;
+				}
+			}
+
+			RootObject& r;
+			var prevObject;
+		};
+
+		var getLocalThisObject() const { return localThreadThisObject.get(); }
+
 		//==============================================================================
 		struct CodeLocation;
 		struct CallStackEntry;
 		struct Scope;
+        
+        struct LocalScopeCreator
+        {
+            using Ptr = WeakReference<LocalScopeCreator>;
+            
+			struct ScopedSetter
+			{
+				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p):
+					r(r_.get())
+				{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+					auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+
+					if (!isMessageThread)
+					{
+						auto& cp = r->currentLocalScopeCreator.get();
+						prevValue = p;
+						std::swap(prevValue, cp);
+						ok = true;
+					}
+#endif
+				}
+
+				~ScopedSetter()
+				{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+					if (ok)
+					{
+						auto& cp = r->currentLocalScopeCreator.get();
+						std::swap(cp, prevValue);
+					}
+#endif
+				};
+
+				RootObject* r;
+				LocalScopeCreator::Ptr prevValue;
+				bool ok = false;
+			};
+
+            virtual ~LocalScopeCreator() {};
+            
+            virtual DynamicObject::Ptr createScope(RootObject* r) = 0;
+            
+            JUCE_DECLARE_WEAK_REFERENCEABLE(LocalScopeCreator);
+        };
+        
+		ThreadLocalValue<LocalScopeCreator::Ptr> currentLocalScopeCreator;
+        
 		struct Statement;
 		struct Expression;
+		
+		struct OptimizationPass
+		{
+			struct OptimizationResult
+			{
+				operator bool() const { return passName.isNotEmpty() && numOptimizedStatements > 0; }
+
+				String passName;
+				int numOptimizedStatements = 0;
+			};
+
+			virtual ~OptimizationPass() {};
+
+			virtual String getPassName() const = 0;
+
+			/** Override this method and return a new optimized statement if this pass can be applied to the statementToOptimize. 
+				
+				You can use the parentStatement to figure out whether this optimisation pass should apply.
+			*/
+			virtual Statement* getOptimizedStatement(Statement* parentStatement, Statement* statementToOptimize) = 0;
+
+			static bool callForEach(Statement* root, const std::function<bool(Statement* child)>& f);
+
+			OptimizationResult executePass(Statement* rootStatementToOptimize);
+		};
 
 		struct ScriptAudioThreadGuard;
 
@@ -520,7 +655,7 @@ public:
 
 		struct VarStatement;			struct LiteralValue; 		struct UnqualifiedName;
 		struct ArraySubscript;			struct Assignment;
-		struct SelfAssignment;			struct PostAssignment;
+		struct SelfAssignment;			struct PostAssignment;		struct AnonymousFunctionWithCapture;
 
 		// Function / Objects
 
@@ -535,7 +670,12 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		struct NativeJIT;				struct IsDefinedTest;
+		struct NativeJIT;				struct IsDefinedTest;		
+
+		// Snex stuff
+
+		struct SnexDefinition;			struct SnexConstructor;		struct SnexBinding;
+		struct SnexConfiguration;
 
 		// Parser classes
 
@@ -564,14 +704,15 @@ public:
 		static var typeof_internal(Args a);
 		static var exec(Args a);
 		static var eval(Args a);
-
+                            
 		void addToCallStack(const Identifier& id, const CodeLocation* location);
 		void removeFromCallStack(const Identifier& id);
 		String dumpCallStack(const Error& lastError, const Identifier& rootFunctionName);
 		void setCallStackEnabled(bool shouldeBeEnabled) { enableCallstack = shouldeBeEnabled; }
 
 		class Callback:  public DynamicObject,
-					     public DebugableObject
+					     public DebugableObject,
+                         public LocalScopeCreator
 		{
 		public:
 
@@ -592,6 +733,26 @@ public:
 			String getDebugDataType() const { return "Callback"; }
 
 			String getDebugName() const override { return callbackName.toString() + "()"; }
+
+            DynamicObject::Ptr createScope(RootObject* r) override
+            {
+                DynamicObject::Ptr obj = new DynamicObject();
+                
+                for (int i = 0; i < numArgs; i++)
+                    obj->setProperty(parameters[i], parameterValues[i]);
+
+                for (int i = 0; i < localProperties.size(); i++)
+                    obj->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+
+                return obj;
+            }
+            
+			int getNumChildElements() const override
+			{
+				return getNumArgs() + localProperties.size();
+			}
+
+			DebugInformation* getChildElement(int index) override;
 
 			String::CharPointerType getProgramPtr() const;
 
@@ -618,13 +779,13 @@ public:
 
 			var createDynamicObjectForBreakpoint()
 			{
-				DynamicObject::Ptr object = new DynamicObject();
-				DynamicObject::Ptr arguments = new DynamicObject();
+				auto object = new DynamicObject();
+				auto arguments = new DynamicObject();
 
 				for (int i = 0; i < numArgs; i++)
 					arguments->setProperty(parameters[i], parameterValues[i]);
 
-				DynamicObject::Ptr locals = new DynamicObject();
+				auto locals = new DynamicObject();
 
 				for (int i = 0; i < localProperties.size(); i++)
 					locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
@@ -642,18 +803,18 @@ public:
 
 			void cleanLocalProperties()
 			{
+// Only clear the local properties when the breakpoints are disabled
+// to allow the inspection of local variables
+#if !ENABLE_SCRIPTING_BREAKPOINTS
 				if (!localProperties.isEmpty())
 				{
 					for (int i = 0; i < localProperties.size(); i++)
-					{
 						*localProperties.getVarPointerAt(i) = var();
-					}
 				}
 
 				for (int i = 0; i < numArgs; i++)
-				{
 					parameterValues[i] = var();
-				}
+#endif
 			}
 
 			Identifier parameters[4];
@@ -661,9 +822,12 @@ public:
 
 			NamedValueSet localProperties;
 
-		private:
+		
 
 			ScopedPointer<BlockStatement> statements;
+
+			private:
+
 			double lastExecutionTime;
 			const Identifier callbackName;
 			int numArgs;
@@ -671,6 +835,8 @@ public:
 			const double bufferTime;
 
 			bool isCallbackDefined = false;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Callback);
 		};
 
 		struct JavascriptNamespace: public ReferenceCountedObject,
@@ -702,28 +868,49 @@ public:
 				DebugableObject::Helpers::gotoLocation(e, nullptr, namespaceLocation);
 			}
 
+			int getNumChildElements() const override
+			{
+				return varRegister.getNumUsedRegisters() +
+					inlineFunctions.size() +
+					constObjects.size();
+			}
+
+			DebugInformationBase* getChildElement(int index) override
+			{
+				return createDebugInformation(index);
+			}
+			
+
 			int getNumDebugObjects() const
 			{
-				return varRegister.getNumUsedRegisters() + 
-					   inlineFunctions.size() + 
-					   constObjects.size();
+				return 0;
+				
 			}
 
 			bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
 			void prepareCycleReferenceCheck() override;
 
-			DebugInformation* createDebugInformation(int index) const;
+			virtual OptimizationPass::OptimizationResult runOptimisation(OptimizationPass* p);
+
+			bool optimiseFunction(OptimizationPass::OptimizationResult& r, var function, OptimizationPass* p);
+
+			DebugInformation* createDebugInformation(int index);
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
+			ReferenceCountedArray<DynamicObject> inlineFunctionSnexBindings;
 			NamedValueSet constObjects;
 			VarRegister	varRegister;
+
+			NamedValueSet comments;
 
 			Array<DebugableObject::Location> registerLocations;
 			Array<DebugableObject::Location> constLocations;
 
 			DebugableObject::Location namespaceLocation;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(JavascriptNamespace);
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace
@@ -754,15 +941,23 @@ public:
 
 			DynamicObject* getInlineFunction(const Identifier &id);
 
-			
+			OptimizationPass::OptimizationResult runOptimisation(OptimizationPass* p) override;
 
 			bool updateCyclicReferenceList(CyclicReferenceCheckBase::ThreadData& data, const Identifier& id) override;
 
 			void prepareCycleReferenceCheck() override;
 
-			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
+			void setProcessor(JavascriptProcessor *p) noexcept 
+			{ 
+				processor = p; 
+				registerOptimisationPasses();
+			}
+
+			void registerOptimisationPasses();
 
 			static bool initHiddenProperties;
+
+			
 
 			ReferenceCountedArray<ApiClass> apiClasses;
 			Array<Identifier> apiIds;
@@ -775,7 +970,7 @@ public:
 			OwnedArray<RootObject::BlockStatement> callbacks;
 			JavascriptProcessor* processor;
 
-
+			OwnedArray<OptimizationPass> optimizations;
 
 			DynamicObject::Ptr globals;
 
@@ -812,7 +1007,7 @@ public:
 			{
 				if (debugIndex < debugInformation.size())
 				{
-					return debugInformation[debugIndex];
+					return debugInformation[debugIndex].get();
 				}
 
 				return nullptr;
@@ -829,7 +1024,9 @@ public:
 
 			CriticalSection debugLock;
 
-			OwnedArray<DebugInformationBase> debugInformation;
+			ReferenceCountedArray<DebugInformationBase> debugInformation;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(HiseSpecialData);
 		};
 
 		void setUseCycleReferenceCheckForNextCompilation()
@@ -839,6 +1036,10 @@ public:
 
 		HiseSpecialData hiseSpecialData;
 
+#if HISE_INCLUDE_SNEX
+		snex::jit::GlobalScope snexGlobalScope;
+#endif
+
 		private:
 
 		Array<CallStackEntry, SpinLock, 1024> callStack;
@@ -847,7 +1048,7 @@ public:
 
 		bool shouldUseCycleCheck = false;
 
-
+		ThreadLocalValue<var> localThreadThisObject;
 	};
 
 	
@@ -971,8 +1172,12 @@ public:
 
 	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location);
 
+    LambdaBroadcaster<bool> preCompileListeners;
+    
 private:
 
+	
+    
     bool initialising = false;
 	bool externalFunctionPending = false;
 

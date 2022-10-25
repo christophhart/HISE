@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -27,6 +26,10 @@
 namespace juce
 {
 
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
+const auto menuItemInvokedSelector = @selector (menuItemInvoked:);
+JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+
 //==============================================================================
 struct JuceMainMenuBarHolder : private DeletedAtShutdown
 {
@@ -39,7 +42,10 @@ struct JuceMainMenuBarHolder : private DeletedAtShutdown
 
         auto appMenu = [[NSMenu alloc] initWithTitle: nsStringLiteral ("Apple")];
 
+        JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
         [NSApp performSelector: @selector (setAppleMenu:) withObject: appMenu];
+        JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+
         [mainMenuBar setSubmenu: appMenu forItem: item];
         [appMenu release];
 
@@ -114,7 +120,6 @@ public:
         NSMenu* sub = createMenu (child, name, menuId, topLevelIndex, true);
 
         [parent setSubmenu: sub forItem: item];
-        [sub setAutoenablesItems: false];
         [sub release];
     }
 
@@ -128,7 +133,6 @@ public:
         for (PopupMenu::MenuItemIterator iter (menuToCopy); iter.next();)
             addMenuItem (iter, menu, menuId, topLevelIndex);
 
-        [menu setAutoenablesItems: false];
         [menu update];
 
         removeItemRecursive ([parentItem submenu]);
@@ -200,6 +204,12 @@ public:
     {
         if (currentModel != nullptr)
         {
+            if (item.action != nullptr)
+            {
+                MessageManager::callAsync (item.action);
+                return;
+            }
+
             if (item.customCallback != nullptr)
                 if (! item.customCallback->menuItemTriggered())
                     return;
@@ -249,10 +259,10 @@ public:
         }
         else if (i.subMenu != nullptr)
         {
-            if (i.text == recentItemsMenuName)
+            if (recentItemsMenuName.isNotEmpty() && i.text == recentItemsMenuName)
             {
                 if (recent == nullptr)
-                    recent.reset (new RecentFilesMenuItem());
+                    recent = std::make_unique<RecentFilesMenuItem>();
 
                 if (recent->recentItem != nil)
                 {
@@ -278,12 +288,16 @@ public:
         else
         {
             auto item = [[NSMenuItem alloc] initWithTitle: text
-                                                   action: @selector (menuItemInvoked:)
+                                                   action: menuItemInvokedSelector
                                             keyEquivalent: nsEmptyString()];
 
             [item setTag: topLevelIndex];
             [item setEnabled: i.isEnabled];
+           #if defined (MAC_OS_X_VERSION_10_13) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_13
+            [item setState: i.isTicked ? NSControlStateValueOn : NSControlStateValueOff];
+           #else
             [item setState: i.isTicked ? NSOnState : NSOffState];
+           #endif
             [item setTarget: (id) callback];
 
             auto* juceItem = new PopupMenu::Item (i);
@@ -324,16 +338,8 @@ public:
     {
         NSMenu* m = [[NSMenu alloc] initWithTitle: juceStringToNS (menuName)];
 
-        [m setAutoenablesItems: false];
-
         if (addDelegate)
-        {
-           #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
             [m setDelegate: (id<NSMenuDelegate>) callback];
-           #else
-            [m setDelegate: callback];
-           #endif
-        }
 
         for (PopupMenu::MenuItemIterator iter (menu); iter.next();)
             addMenuItem (iter, m, topLevelMenuId, topLevelIndex);
@@ -360,11 +366,18 @@ private:
             {
                 NSArray* array = nil;
 
-               #if (! defined (MAC_OS_X_VERSION_10_8)) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_8
-                [menuNib instantiateNibWithOwner: NSApp  topLevelObjects: &array];
-               #else
-                [menuNib instantiateWithOwner: NSApp  topLevelObjects: &array];
-               #endif
+                if (@available (macOS 10.11, *))
+                {
+                    [menuNib instantiateWithOwner: NSApp
+                                  topLevelObjects: &array];
+                }
+                else
+                {
+                    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations")
+                    [menuNib instantiateNibWithOwner: NSApp
+                                     topLevelObjects: &array];
+                    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+                }
 
                 for (id object in array)
                 {
@@ -434,9 +447,35 @@ private:
         NSString* f35String = [NSString stringWithCharacters: &f35Key length: 1];
 
         NSMenuItem* item = [[NSMenuItem alloc] initWithTitle: nsStringLiteral ("x")
-                                                      action: nil
+                                                      action: menuItemInvokedSelector
                                                keyEquivalent: f35String];
-        [item setTarget: nil];
+
+        // When the f35Event is invoked, the item's enablement is checked and a
+        // NSBeep is triggered if the item appears to be disabled.
+        // This ValidatorClass exists solely to return YES from validateMenuItem.
+        struct ValidatorClass   : public ObjCClass<NSObject>
+        {
+            ValidatorClass()  : ObjCClass ("JUCEMenuValidator_")
+            {
+                addMethod (menuItemInvokedSelector,       menuItemInvoked);
+                addMethod (@selector (validateMenuItem:), validateMenuItem);
+
+               #if defined (MAC_OS_X_VERSION_10_14)
+                addProtocol (@protocol (NSMenuItemValidation));
+               #endif
+
+                registerClass();
+            }
+
+        private:
+            static BOOL validateMenuItem (id, SEL, NSMenuItem*)      { return YES; }
+            static void menuItemInvoked  (id, SEL, NSMenuItem*)      {}
+        };
+
+        static ValidatorClass validatorClass;
+        static auto* instance = validatorClass.createInstance();
+
+        [item setTarget: instance];
         [menu insertItem: item atIndex: [menu numberOfItems]];
         [item release];
 
@@ -508,15 +547,18 @@ private:
     //==============================================================================
     struct JuceMenuCallbackClass   : public ObjCClass<NSObject>
     {
-        JuceMenuCallbackClass()  : ObjCClass<NSObject> ("JUCEMainMenu_")
+        JuceMenuCallbackClass()  : ObjCClass ("JUCEMainMenu_")
         {
             addIvar<JuceMainMenuHandler*> ("owner");
 
-            addMethod (@selector (menuItemInvoked:),  menuItemInvoked, "v@:@");
-            addMethod (@selector (menuNeedsUpdate:),  menuNeedsUpdate, "v@:@");
+            addMethod (menuItemInvokedSelector,       menuItemInvoked);
+            addMethod (@selector (menuNeedsUpdate:),  menuNeedsUpdate);
+            addMethod (@selector (validateMenuItem:), validateMenuItem);
 
-           #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
             addProtocol (@protocol (NSMenuDelegate));
+
+           #if defined (MAC_OS_X_VERSION_10_14)
+            addProtocol (@protocol (NSMenuItemValidation));
            #endif
 
             registerClass();
@@ -528,40 +570,33 @@ private:
         }
 
     private:
+        static auto* getPopupMenuItem (NSMenuItem* item)
+        {
+            return getJuceClassFromNSObject<PopupMenu::Item> ([item representedObject]);
+        }
+
+        static auto* getOwner (id self)
+        {
+            return getIvar<JuceMainMenuHandler*> (self, "owner");
+        }
+
         static void menuItemInvoked (id self, SEL, NSMenuItem* item)
         {
-            auto owner = getIvar<JuceMainMenuHandler*> (self, "owner");
-
-            if (auto* juceItem = getJuceClassFromNSObject<PopupMenu::Item> ([item representedObject]))
-            {
-                // If the menu is being triggered by a keypress, the OS will have picked it up before we had a chance to offer it to
-                // our own components, which may have wanted to intercept it. So, rather than dispatching directly, we'll feed it back
-                // into the focused component and let it trigger the menu item indirectly.
-                NSEvent* e = [NSApp currentEvent];
-
-                if ([e type] == NSEventTypeKeyDown || [e type] == NSEventTypeKeyUp)
-                {
-                    if (auto* focused = juce::Component::getCurrentlyFocusedComponent())
-                    {
-                        if (auto peer = dynamic_cast<juce::NSViewComponentPeer*> (focused->getPeer()))
-                        {
-                            if ([e type] == NSEventTypeKeyDown)
-                                peer->redirectKeyDown (e);
-                            else
-                                peer->redirectKeyUp (e);
-
-                            return;
-                        }
-                    }
-                }
-
-                owner->invoke (*juceItem, static_cast<int> ([item tag]));
-            }
+            if (auto* juceItem = getPopupMenuItem (item))
+                getOwner (self)->invoke (*juceItem, static_cast<int> ([item tag]));
         }
 
         static void menuNeedsUpdate (id self, SEL, NSMenu* menu)
         {
-            getIvar<JuceMainMenuHandler*> (self, "owner")->updateTopLevelMenu (menu);
+            getOwner (self)->updateTopLevelMenu (menu);
+        }
+
+        static BOOL validateMenuItem (id, SEL, NSMenuItem* item)
+        {
+            if (auto* juceItem = getPopupMenuItem (item))
+                return juceItem->isEnabled;
+
+            return YES;
         }
     };
 };
@@ -572,11 +607,11 @@ JuceMainMenuHandler* JuceMainMenuHandler::instance = nullptr;
 class TemporaryMainMenuWithStandardCommands
 {
 public:
-    TemporaryMainMenuWithStandardCommands()
-        : oldMenu (MenuBarModel::getMacMainMenu())
+    explicit TemporaryMainMenuWithStandardCommands (FilePreviewComponent* filePreviewComponent)
+        : oldMenu (MenuBarModel::getMacMainMenu()), dummyModalComponent (filePreviewComponent)
     {
         if (auto* appleMenu = MenuBarModel::getMacExtraAppleItemsMenu())
-            oldAppleMenu.reset (new PopupMenu (*appleMenu));
+            oldAppleMenu = std::make_unique<PopupMenu> (*appleMenu);
 
         if (auto* handler = JuceMainMenuHandler::instance)
             oldRecentItems = handler->recentItemsMenuName;
@@ -623,8 +658,17 @@ public:
         MenuBarModel::setMacMainMenu (oldMenu, oldAppleMenu.get(), oldRecentItems);
     }
 
+    static bool checkModalEvent (FilePreviewComponent* preview, const Component* targetComponent)
+    {
+        if (targetComponent == nullptr)
+            return false;
+
+        return (targetComponent == preview
+               || targetComponent->findParentComponentOfClass<FilePreviewComponent>() != nullptr);
+    }
+
 private:
-    MenuBarModel* const oldMenu;
+    MenuBarModel* const oldMenu = nullptr;
     std::unique_ptr<PopupMenu> oldAppleMenu;
     String oldRecentItems;
     NSInteger editMenuIndex;
@@ -637,8 +681,17 @@ private:
     // recursive when file dialogs are involved
     struct SilentDummyModalComp  : public Component
     {
-        SilentDummyModalComp() {}
+        explicit SilentDummyModalComp (FilePreviewComponent* p)
+            : preview (p) {}
+
         void inputAttemptWhenModal() override {}
+
+        bool canModalEventBeSentToComponent (const Component* targetComponent) override
+        {
+            return checkModalEvent (preview, targetComponent);
+        }
+
+        FilePreviewComponent* preview = nullptr;
     };
 
     SilentDummyModalComp dummyModalComponent;

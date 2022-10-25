@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 5
+  output: 16
   error: ""
   filename: "namespace/namespaced_var"
 END_TEST_DATA
@@ -13,11 +13,16 @@ END_TEST_DATA
 
 namespace Space
 {
-    int x = 5;
+    int getFunky()
+    {
+	   return z * 2; 
+    }
+    
+    int z = 8;
 }
 
 int main(int input)
 {
-	return Space::x;
+	return Space::getFunky();
 }
 

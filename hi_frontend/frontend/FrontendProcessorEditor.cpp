@@ -35,12 +35,10 @@ namespace hise { using namespace juce;
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
-#if HISE_USE_OPENGL_FOR_PLUGIN
 	usesOpenGl = dynamic_cast<GlobalSettingManager*>(fp)->useOpenGL;
 	
 	if(usesOpenGl)
-		context.attachTo(*this);
-#endif
+		setEnableOpenGL(this);
 
 	fp->addScaleFactorListener(this);
 	fp->incActiveEditors();
@@ -65,36 +63,47 @@ AudioProcessorEditor(fp)
 #endif
 #endif
 
-	fp->addOverlayListener(this);
-	
-	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
+	if(fp->isUsingDefaultOverlay())
+		container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay(fp));
 
 #if FRONTEND_IS_PLUGIN || HISE_IOS
     const bool searchSamples = false;
 #else
-    const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr;
+    const bool searchSamples = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(fp->getMainSynthChain()) != nullptr || FullInstrumentExpansion::isEnabled(fp);
     
 #endif
 
     if(searchSamples && !fp->deactivatedBecauseOfMemoryLimitation)
     {
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !FrontendHandler::checkSamplesCorrectlyInstalled());
-        
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly());
-    }
-    else
-    {
-        // make sure to call setState at least once or the overlay will be visible...
-        deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
-    }
-    
-#if USE_COPY_PROTECTION
-	if (!fp->unlocker.isUnlocked())
-		deactiveOverlay->checkLicense();
+		auto samplesInstalled = FrontendHandler::checkSamplesCorrectlyInstalled();
+		auto samplesLoaded = GET_PROJECT_HANDLER(fp->getMainSynthChain()).areSamplesLoadedCorrectly();
 
-	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
+		if (!samplesInstalled)
+			fp->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotInstalled);
+
+		if (!samplesLoaded)
+			fp->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotFound);
+	}
+
+
+
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
+	if (!fp->unlocker.isUnlocked())
+	{
+		if (deactiveOverlay != nullptr)
+		{
+			auto s = deactiveOverlay->checkLicense();
+
+			fp->sendOverlayMessage(s);
+		}
+	}
 #endif
-    
+
+	if (deactiveOverlay != nullptr)
+	{
+		deactiveOverlay->checkVisibility();
+	}
+
 	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
     
 	loaderOverlay->setDialog(nullptr);
@@ -110,8 +119,12 @@ AudioProcessorEditor(fp)
         
         getContentComponent()->setVisible(false);
         
-        deactiveOverlay->clearAllFlags();
-        deactiveOverlay->setVisible(false);
+		if (deactiveOverlay != nullptr)
+		{
+			deactiveOverlay->clearAllFlags();
+			deactiveOverlay->setVisible(false);
+		}
+
         container->setVisible(false);
         
         setSize(b.getWidth(), b.getHeight());
@@ -171,20 +184,20 @@ AudioProcessorEditor(fp)
 	}
 #endif
         
-    
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
 }
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
-#if HISE_USE_OPENGL_FOR_PLUGIN
-	if(usesOpenGl)
-		context.detach();
-#endif
+	detachOpenGl();
+
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
 
 	dynamic_cast<FrontendProcessor*>(getAudioProcessor())->decActiveEditors();
 	dynamic_cast<GlobalSettingManager*>(getAudioProcessor())->removeScaleFactorListener(this);
-	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
-
+	
 #if USE_RAW_FRONTEND
 	container->removeChildComponent(rawEditor);
 	rawEditor = nullptr;
@@ -193,6 +206,7 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 	rootTile = nullptr;
 #endif
 
+	deactiveOverlay = nullptr;
 	container = nullptr;
 	loaderOverlay = nullptr;
 	debugLoggerComponent = nullptr;
@@ -207,16 +221,30 @@ Component* FrontendProcessorEditor::getContentComponent()
 #endif
 }
 
+void FrontendProcessorEditor::newHisePresetLoaded()
+{
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+	{
+		if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
+		{
+			originalSizeX = jsp->getScriptingContent()->getContentWidth();
+			originalSizeY = jsp->getScriptingContent()->getContentHeight();
+		}
+
+		setGlobalScaleFactor(scaleFactor, true);
+	}
+}
+
 void FrontendProcessorEditor::scaleFactorChanged(float newScaleFactor)
 {
 	setGlobalScaleFactor(newScaleFactor);
 }
 
-void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
+void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor, bool forceUpdate)
 {
 	LOG_START("Change scale factor");
 
-    if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
+    if (newScaleFactor > 0.2 && ((scaleFactor != newScaleFactor) || forceUpdate))
     {
         scaleFactor = newScaleFactor;
         
@@ -252,7 +280,10 @@ void FrontendProcessorEditor::resized()
 
     container->setBounds(0, 0, width, height);
 	getContentComponent()->setBounds(0, 0, width, height);
-    deactiveOverlay->setBounds(0, 0, width, height);
+
+	if(deactiveOverlay != nullptr)
+		deactiveOverlay->setBounds(0, 0, width, height);
+
 	loaderOverlay->setBounds(0, 0, width, height);
 	debugLoggerComponent->setBounds(0, height -90, width, 90);
 }

@@ -1,20 +1,17 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 #include "../core/zone.h"
 #include "../core/zonehash.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::ZoneHashBase - Helpers]
-// ============================================================================
+// ZoneHashBase - Prime Numbers
+// ============================
 
 #define ASMJIT_POPULATE_PRIMES(ENTRY) \
   ENTRY(2         , 0x80000000, 32), /* [N * 0x80000000 >> 32] (rcp=2147483648) */ \
@@ -167,9 +164,8 @@ static const uint8_t ZoneHash_primeShift[] = {
   #undef E
 };
 
-// ============================================================================
-// [asmjit::ZoneHashBase - Rehash]
-// ============================================================================
+// ZoneHashBase - Rehash
+// =====================
 
 void ZoneHashBase::_rehash(ZoneAllocator* allocator, uint32_t primeIndex) noexcept {
   ASMJIT_ASSERT(primeIndex < ASMJIT_ARRAY_SIZE(ZoneHash_primeArray));
@@ -209,9 +205,8 @@ void ZoneHashBase::_rehash(ZoneAllocator* allocator, uint32_t primeIndex) noexce
     allocator->release(oldData, oldCount * sizeof(ZoneHashNode*));
 }
 
-// ============================================================================
-// [asmjit::ZoneHashBase - Ops]
-// ============================================================================
+// ZoneHashBase - Operations
+// =========================
 
 ZoneHashNode* ZoneHashBase::_insert(ZoneAllocator* allocator, ZoneHashNode* node) noexcept {
   uint32_t hashMod = _calcMod(node->_hashCode);
@@ -230,7 +225,7 @@ ZoneHashNode* ZoneHashBase::_insert(ZoneAllocator* allocator, ZoneHashNode* node
 }
 
 ZoneHashNode* ZoneHashBase::_remove(ZoneAllocator* allocator, ZoneHashNode* node) noexcept {
-  ASMJIT_UNUSED(allocator);
+  DebugUtils::unused(allocator);
   uint32_t hashMod = _calcMod(node->_hashCode);
 
   ZoneHashNode** pPrev = &_data[hashMod];
@@ -250,9 +245,8 @@ ZoneHashNode* ZoneHashBase::_remove(ZoneAllocator* allocator, ZoneHashNode* node
   return nullptr;
 }
 
-// ============================================================================
-// [asmjit::ZoneHash - Unit]
-// ============================================================================
+// ZoneHashBase - Tests
+// ====================
 
 #if defined(ASMJIT_TEST)
 struct MyHashNode : public ZoneHashNode {

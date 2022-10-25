@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -44,32 +44,8 @@ public:
 
     NormalisableRange (const NormalisableRange&) = default;
     NormalisableRange& operator= (const NormalisableRange&) = default;
-
-    // VS2013 can't default move constructors
-    NormalisableRange (NormalisableRange&& other)
-        : start (other.start), end (other.end),
-          interval (other.interval), skew (other.skew),
-          symmetricSkew (other.symmetricSkew),
-          convertFrom0To1Function  (std::move (other.convertFrom0To1Function)),
-          convertTo0To1Function    (std::move (other.convertTo0To1Function)),
-          snapToLegalValueFunction (std::move (other.snapToLegalValueFunction))
-    {
-    }
-
-    // VS2013 can't default move assignments
-    NormalisableRange& operator= (NormalisableRange&& other)
-    {
-        start = other.start;
-        end = other.end;
-        interval = other.interval;
-        skew = other.skew;
-        symmetricSkew = other.symmetricSkew;
-        convertFrom0To1Function  = std::move (other.convertFrom0To1Function);
-        convertTo0To1Function    = std::move (other.convertTo0To1Function);
-        snapToLegalValueFunction = std::move (other.snapToLegalValueFunction);
-
-        return *this;
-    }
+    NormalisableRange (NormalisableRange&&) = default;
+    NormalisableRange& operator= (NormalisableRange&&) = default;
 
     /** Creates a NormalisableRange with a given range, interval and skew factor. */
     NormalisableRange (ValueType rangeStart,
@@ -112,6 +88,11 @@ public:
     {
     }
 
+    /** A function object which can remap a value in some way based on the start and end of a range. */
+    using ValueRemapFunction = std::function<ValueType(ValueType rangeStart,
+                                                       ValueType rangeEnd,
+                                                       ValueType valueToRemap)>;
+
     /** Creates a NormalisableRange with a given range and an injective mapping function.
 
         @param rangeStart           The minimum value in the range.
@@ -125,14 +106,14 @@ public:
     */
     NormalisableRange (ValueType rangeStart,
                        ValueType rangeEnd,
-                       std::function<ValueType (ValueType currentRangeStart, ValueType currentRangeEnd, ValueType normalisedValue)> convertFrom0To1Func,
-                       std::function<ValueType (ValueType currentRangeStart, ValueType currentRangeEnd, ValueType mappedValue)> convertTo0To1Func,
-                       std::function<ValueType (ValueType currentRangeStart, ValueType currentRangeEnd, ValueType valueToSnap)> snapToLegalValueFunc = nullptr) noexcept
+                       ValueRemapFunction convertFrom0To1Func,
+                       ValueRemapFunction convertTo0To1Func,
+                       ValueRemapFunction snapToLegalValueFunc = {}) noexcept
         : start (rangeStart),
           end   (rangeEnd),
-          convertFrom0To1Function  (convertFrom0To1Func),
-          convertTo0To1Function    (convertTo0To1Func),
-          snapToLegalValueFunction (snapToLegalValueFunc)
+          convertFrom0To1Function  (std::move (convertFrom0To1Func)),
+          convertTo0To1Function    (std::move (convertTo0To1Func)),
+          snapToLegalValueFunction (std::move (snapToLegalValueFunc))
     {
         checkInvariants();
     }
@@ -190,7 +171,7 @@ public:
     }
 
     /** Takes a non-normalised value and snaps it based on either the interval property of
-        this NormalisedRange or the lambda function supplied to the constructor.
+        this NormalisableRange or the lambda function supplied to the constructor.
     */
     ValueType snapToLegalValue (ValueType v) const noexcept
     {
@@ -267,18 +248,10 @@ private:
     {
         auto clampedValue = jlimit (static_cast<ValueType> (0), static_cast<ValueType> (1), value);
 
-        // If you hit this assertion then either your normalisation function is not working
-        // correctly or your input is out of the expected bounds.
-        //jassert (clampedValue == value);
-
         return clampedValue;
     }
 
-    using ConversionFunction = std::function<ValueType(ValueType, ValueType, ValueType)>;
-
-    ConversionFunction convertFrom0To1Function  = {},
-                       convertTo0To1Function    = {},
-                       snapToLegalValueFunction = {};
+    ValueRemapFunction convertFrom0To1Function, convertTo0To1Function, snapToLegalValueFunction;
 };
 
 } // namespace juce

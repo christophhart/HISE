@@ -39,15 +39,16 @@ using namespace juce;
 MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
 	Modulation(m),
-	table(new SampleLookupTable()),
+	LookupTableProcessor(mc, 1),
 	monoState(-1),
 	g((Gesture)(int)getDefaultValue(GestureCC)),
 	smoothedIntensity(getIntensity())
 {
-	setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+    referenceShared(ExternalData::DataType::Table, 0);
+	
 
-	table->setXTextConverter(Modulation::getDomainAsMidiRange);
-
+    setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
+    
 	parameterNames.add("GestureCC");
 	parameterNames.add("SmoothingTime");
 	parameterNames.add("DefaultValue");
@@ -150,6 +151,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 		case Modulation::GainMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue); break;
 		case Modulation::PitchMode: defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f); break;
 		case Modulation::PanMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 200.0f + 0.5f); break;
+        default: jassertfalse; break;
 		}
 	}
 	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
@@ -159,6 +161,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 			case Modulation::GainMode:	smoothedIntensity = newValue; break;
 			case Modulation::PitchMode:	smoothedIntensity = newValue / 12.0f; break;
 			case Modulation::PanMode:	smoothedIntensity = newValue / 100.0f; break;
+            default:                    smoothedIntensity = newValue; break;
 		}
 
 		setIntensity(smoothedIntensity);
@@ -215,8 +218,6 @@ void MPEModulator::resetToDefault()
 	smoothedIntensity = getDefaultValue(SpecialParameters::SmoothedIntensity);
 	setIntensity(smoothedIntensity);
 	table->reset();
-	table->sendChangeMessage();
-	sendTableIndexChangeMessage(false, table, 0);
 	sendChangeMessage();
 }
 
@@ -240,6 +241,7 @@ float MPEModulator::getAttribute(int parameterIndex) const
 		case Modulation::GainMode:	return defaultValue;
 		case Modulation::PitchMode:	return (defaultValue - 0.5f) * 24.0f;
 		case Modulation::PanMode:	return (defaultValue - 0.5f) * 200.0f;
+        default:                    return defaultValue;
 		}
 
 	}
@@ -250,6 +252,7 @@ float MPEModulator::getAttribute(int parameterIndex) const
 		case Modulation::GainMode:	return smoothedIntensity;
 		case Modulation::PitchMode:	return smoothedIntensity * 12.0f;
 		case Modulation::PanMode:	return smoothedIntensity * 100.0f;
+        default:                    return smoothedIntensity;
 		}
 	}
 
@@ -479,8 +482,7 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 
 		if (g == Stroke)
 		{
-			const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-			sendTableIndexChangeMessage(false, table, midiValue);
+			const float targetValue = table->getInterpolatedValue(midiValue, sendNotificationAsync);
 			unsavedStrokeValue = targetValue;
 		}
 		else
@@ -521,31 +523,15 @@ void MPEModulator::handleHiseEvent(const HiseEvent& m)
 		midiValue = mpeValues.storeAndGetMaxValue(g, c, midiValue);
 	}
 
-	const float targetValue = table->getInterpolatedValue(midiValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-
-	bool found = false;
+	const float targetValue = table->getInterpolatedValue(midiValue, sendNotificationAsync);
 
 	for (auto s : activeStates)
 	{
 		const bool midiChannelMatches = isMonophonic || s->midiChannel == c;
 
 		if (s->isPressed && midiChannelMatches)
-		{
 			s->setTargetValue(targetValue);
-
-			
-
-			const bool voiceIndexMatches = isMonophonic || s->index == polyManager.getLastStartedVoice();
-
-			if (!found && voiceIndexMatches)
-			{
-				sendTableIndexChangeMessage(false, table, midiValue);
-				found = true;
-			}
-		}
-			
 	}
-
 }
 
 hise::ProcessorEditorBody * MPEModulator::createEditor(ProcessorEditor *parentEditor)

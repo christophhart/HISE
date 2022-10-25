@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: float
   args: float
   input: 0.0f
-  output: 0.125f
+  output: 1.25f
   error: ""
   filename: "variadic/process_single_test"
 END_TEST_DATA
@@ -12,19 +12,41 @@ END_TEST_DATA
 
 struct X
 {
-    void processSingle(span<float, 2>& data)
+    DECLARE_NODE(X);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
+    void processFrame(span<float, 1>& data)
     {
         data[0] *= 0.5f;
     }
 };
 
-container::chain<X, X, X> c;
+struct Y
+{
+    DECLARE_NODE(Y);
 
-span<float, 2> d = { 1.0f, 1.0f };
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
+    void processFrame(span<float, 1>& data)
+    {
+        data[0] += 2.0f;
+    }
+};
+
+container::chain<parameter::empty, wrap::fix<1, X>, Y, X> c;
+
+span<float, 1> d = { 1.0f };
 
 float main(float input)
 {
-	 c.processSingle(d);
+	 c.processFrame(d);
     
     return d[0];
 }

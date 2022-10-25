@@ -71,7 +71,8 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_product_unlocking/juce_product_unlocking.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_zstd/hi_zstd.h"
-#include "../hi_tools/hi_tools.h"
+#include "../hi_dsp_library/hi_dsp_library.h"
+#include "../hi_rlottie/hi_rlottie.h"
 
 #include <complex>
 
@@ -114,12 +115,42 @@ If true, then this will use some additional features for the standalone app (pop
 #define IS_STANDALONE_APP 0
 #endif
 
+/** Config: DONT_CREATE_USER_PRESET_FOLDER
+
+Set this to 1 to disable the creation of the User Presets folder at init (i.e. for non-audio related app)
+*/
+#ifndef DONT_CREATE_USER_PRESET_FOLDER
+#define DONT_CREATE_USER_PRESET_FOLDER 0
+#endif
+
+/** Config: DONT_CREATE_EXPANSIONS_FOLDER
+
+Set this to 1 to disable the creation of the Expansions folder at init (i.e. for non-audio related app)
+*/
+#ifndef DONT_CREATE_EXPANSIONS_FOLDER
+#define DONT_CREATE_EXPANSIONS_FOLDER 0
+#endif
+
 /** Config: USE_COPY_PROTECTION
 
 If true, then the copy protection will be used
 */
 #ifndef USE_COPY_PROTECTION
 #define USE_COPY_PROTECTION 0
+#endif
+
+/** Config: USE_SCRIPT_COPY_PROTECTION
+
+	Uses the scripted layer to the JUCE unlock class for copy protection
+*/
+#ifndef USE_SCRIPT_COPY_PROTECTION
+#define USE_SCRIPT_COPY_PROTECTION 0
+#endif
+
+// Ensure that USE_COPY_PROTECTION is true when the USE_SCRIPT_COPY_PROTECTION macro is being used
+#if USE_SCRIPT_COPY_PROTECTION && !USE_COPY_PROTECTION
+#undef USE_COPY_PROTECTION
+#define USE_COPY_PROTECTION 1
 #endif
 
 /** Config: USE_IPP
@@ -135,19 +166,47 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 * Use the vDsp FFT on Apple devices.
 */
 #ifndef USE_VDSP_FFT
-#define USE_VDSP_FFT 0
+#define USE_VDSP_FFT !USE_IPP && JUCE_MAC
 #endif
 
 /** Config: FRONTEND_IS_PLUGIN
 
-If set to 1, the compiled plugin will be a effect (stereo in / out). */
+If set to 1, the compiled plugin will be a effect (stereo in / out).
+*/
 #ifndef FRONTEND_IS_PLUGIN
 #define FRONTEND_IS_PLUGIN 0
 #endif
 
+
+/** Config: PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+
+If set to 1, then the FX plugin will also process child sound generators (eg. global modulators or macro modulation sources). 
+*/
+#ifndef PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+#define PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN 1
+#endif
+
+/** Config: FORCE_INPUT_CHANNELS
+
+If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.
+This can be used to simulate an audio effect routing setup (when the appropriate plugin type is selected in the projucer settings).
+*/
+#ifndef FORCE_INPUT_CHANNELS
+#define FORCE_INPUT_CHANNELS 0
+#endif
+
+/** Config: HISE_DEACTIVATE_OVERLAY
+	If enabled, this will deactivate the dark overlay that shows error messages so you
+	can define your own thing.
+*/
+#ifndef HISE_DEACTIVATE_OVERLAY
+#define HISE_DEACTIVATE_OVERLAY 0
+#endif
+
 /** Config: HISE_MIDIFX_PLUGIN
 
-If set to 1, then the plugin will be a MIDI effect plugin. */
+If set to 1, then the plugin will be a MIDI effect plugin.
+*/
 #ifndef HISE_MIDIFX_PLUGIN
 #define HISE_MIDIFX_PLUGIN 0
 #endif
@@ -208,9 +267,11 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
+/** Config: HISE_NUM_MACROS
 
-#ifndef IS_MARKDOWN_EDITOR
-#define IS_MARKDOWN_EDITOR 0
+Set this to the number of macros you want in your project. */
+#ifndef HISE_NUM_MACROS
+#define HISE_NUM_MACROS 8
 #endif
 
 /** Config: ENABLE_SCRIPTING_SAFE_CHECKS
@@ -239,9 +300,18 @@ If this is set to 1, the application will crash instantly if there is a drop out
 
 
 /** Config: HISE_ENABLE_MIDI_INPUT_FOR_FX
-If true, then the FX plugin will have a MIDI input and the MIDI processor chain is being processed. */
+If true, then the FX plugin will have a MIDI input and the MIDI processor chain is being processed.
+*/
 #ifndef HISE_ENABLE_MIDI_INPUT_FOR_FX
 #define HISE_ENABLE_MIDI_INPUT_FOR_FX 0
+#endif
+
+/** Config: HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
+
+If true then the plugin will complain about the buffer size not being a multiple of HISE_EVENT_RASTER. 
+*/
+#ifndef HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
+#define HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE 1
 #endif
 
 /** Config: ENABLE_ALL_PEAK_METERS
@@ -250,6 +320,22 @@ Set this to 0 to deactivate peak collection for any other processor than the mai
 */
 #ifndef ENABLE_ALL_PEAK_METERS
 #define ENABLE_ALL_PEAK_METERS 1
+#endif
+
+/** Config: READ_ONLY_FACTORY_PRESETS 
+
+Set this to 1 to enable read only presets that are shipped with the plugin / expansion.
+*/
+#ifndef READ_ONLY_FACTORY_PRESETS
+#define READ_ONLY_FACTORY_PRESETS 0
+#endif
+
+/** Config: CONFIRM_PRESET_OVERWRITE
+
+Set this to 0 to disable preset overwriting confirmation popup. The preset will be overwritten automatically.
+*/
+#ifndef CONFIRM_PRESET_OVERWRITE
+#define CONFIRM_PRESET_OVERWRITE 1
 #endif
 
 /** Config: ENABLE_CONSOLE_OUTPUT
@@ -268,9 +354,22 @@ Set this to 0 to disable host information like tempo, playing position etc...
 #define ENABLE_HOST_INFO 1
 #endif
 
-
+/** Config: HISE_USE_OPENGL_FOR_PLUGIN
+ 
+ Enables OpenGL support for your project.
+ */
 #ifndef HISE_USE_OPENGL_FOR_PLUGIN
 #define HISE_USE_OPENGL_FOR_PLUGIN 0
+#endif
+
+/** Config: HISE_DEFAULT_OPENGL_VALUE
+ 
+ If HISE_USE_OPENGL_FOR_PLUGIN is enabled, this can be used to specify whether
+OpenGL should be enabled by default or not.
+  
+*/
+#ifndef HISE_DEFAULT_OPENGL_VALUE
+#define HISE_DEFAULT_OPENGL_VALUE 1
 #endif
 
 /** Config: ENABLE_STARTUP_LOGGER
@@ -363,7 +462,10 @@ Set this to false to not give the user the ability to set the sample location on
 #endif
 #endif
 
-
+/** This flag is set when the build configuration is CI (mild optimisation, no debug symbols). */
+#ifndef HISE_CI
+#define HISE_CI 0
+#endif
 
 /**Appconfig file
 

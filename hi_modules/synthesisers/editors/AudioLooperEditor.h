@@ -37,7 +37,6 @@ namespace hise { using namespace juce;
 */
 class AudioLooperEditor  : public ProcessorEditorBody,
                            public Timer,
-                           public AudioDisplayComponent::Listener,
                            public ComboBox::Listener,
                            public Button::Listener,
                            public Slider::Listener
@@ -52,7 +51,6 @@ public:
 
 	int getBodyHeight() const override
 	{
-
 		return h;
 	}
 
@@ -71,37 +69,11 @@ public:
 
 		AudioSampleProcessor *asb = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-		sampleBufferContent->setShowLoop(asb->getTotalLength() > 0 && loopButton->getToggleState());
-
-		if (sampleBufferContent->getSampleArea(0)->getSampleRange() != asb->getRange())
-		{
-			sampleBufferContent->setRange(asb->getRange());
-
-
-		}
-
+		sampleBufferContent->setShowLoop(!asb->getBuffer().getLoopRange().isEmpty() && loopButton->getToggleState());
 	}
-
-#pragma warning( push )
-#pragma warning( disable: 4100 )
-
-	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
-	{
-		jassert(broadcaster == sampleBufferContent);
-
-		Range<int> newRange = sampleBufferContent->getSampleArea(changedArea)->getSampleRange();
-
-		AudioSampleProcessor *envelope = dynamic_cast<AudioSampleProcessor*>(getProcessor());
-
-		envelope->setLoadedFile(sampleBufferContent->getCurrentlyLoadedFileName());
-		envelope->setRange(newRange);
-	};
-
-#pragma warning( pop )
 
 	void timerCallback() override
 	{
-		sampleBufferContent->setPlaybackPosition(getProcessor()->getInputValue());
 	};
 
     //[/UserMethods]
@@ -122,7 +94,7 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<AudioSampleProcessorBufferComponent> sampleBufferContent;
+    ScopedPointer<MultiChannelAudioBufferDisplay> sampleBufferContent;
     ScopedPointer<Label> label;
     ScopedPointer<HiComboBox> syncToHost;
     ScopedPointer<HiToggleButton> pitchButton;

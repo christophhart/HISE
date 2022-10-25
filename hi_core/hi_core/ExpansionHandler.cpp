@@ -179,18 +179,14 @@ void ExpansionHandler::createNewExpansion(const File& expansionFolder)
 
 juce::File ExpansionHandler::getExpansionFolder() const
 {
-#if USE_FRONTEND
-	// We'll automatically use the sample folder to store the expansions
-	if (FullInstrumentExpansion::isEnabled(getMainController()))
-		return FrontendHandler::getSampleLocationForCompiledPlugin();
-#endif
-
 	if (!expansionFolder.isDirectory())
 	{
 		auto f = getMainController()->getSampleManager().getProjectHandler().getRootFolder().getChildFile("Expansions");
 
+#if !DONT_CREATE_EXPANSIONS_FOLDER
 		if (!f.isDirectory())
 			f.createDirectory();
+#endif
 
 #if JUCE_WINDOWS
 		auto linkFile = f.getChildFile("LinkWindows");
@@ -202,9 +198,6 @@ juce::File ExpansionHandler::getExpansionFolder() const
 
 		if (linkFile.existsAsFile())
 			f = File(linkFile.loadFileAsString());
-		
-		if (!f.isDirectory())
-			f.createDirectory();
 
 		expansionFolder = f;
 	}
@@ -371,16 +364,27 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 {
 	if (currentExpansion != e)
 	{
-#if USE_BACKEND
-		if (FullInstrumentExpansion::isEnabled(getMainController()))
-		{
-			debugToConsole(getMainController()->getMainSynthChain(), "Skipping loading of expansion " + (e != nullptr ? e->getProperty(ExpansionIds::Name) : "Default"));
-			return;
-		}
-#endif
+		if (currentExpansion == nullptr)
+			FullInstrumentExpansion::setNewDefault(getMainController(), getMainController()->getMainSynthChain()->exportAsValueTree());
 
 		currentExpansion = e;
 		notifier.sendNotification(Notifier::EventType::ExpansionLoaded, notifyListeners);
+	}
+}
+
+void ExpansionHandler::unloadExpansion(Expansion* e)
+{
+	auto eIndex = expansionList.indexOf(e);
+
+	if (eIndex != -1)
+	{
+		auto unloaded = expansionList.removeAndReturn(eIndex);
+		unloadedExpansions.add(unloaded);
+		
+		auto notification = MessageManager::getInstance()->isThisTheMessageThread() ? sendNotificationSync : sendNotificationAsync;
+
+		if (getCurrentExpansion() == e)
+			setCurrentExpansion(nullptr, notification);
 	}
 }
 
@@ -417,9 +421,10 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			double unused = 0.0;
 
 			data.option = hlac::HlacArchiver::OverwriteOption::ForceOverwrite;
+			data.supportFullDynamics = getInstallFullDynamics();
 			data.targetDirectory = samplesDir;
 			data.progress = &getMainController()->getSampleManager().getPreloadProgress();
-			data.totalProgress = &unused;
+			data.totalProgress = &totalProgress;
 			data.partProgress = &unused;
 			data.sourceFile = resourceFile;
 
@@ -438,8 +443,6 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 
 			auto headerFile = samplesDir.getChildFile("header.dat");
 			jassert(headerFile.existsAsFile());
-
-			bool shouldSendCompleteMessage = true;
 
 			if (getCredentials().isObject())
 				ScriptEncryptedExpansion::encryptIntermediateFile(getMainController(), headerFile, expRoot);
@@ -523,6 +526,12 @@ hise::Expansion* ExpansionHandler::getExpansionForWildcardReference(const String
 {
 	if (!isEnabled())
 		return nullptr;
+
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+	{
+		if (getCurrentExpansion() != nullptr && poolReferenceString.startsWith("{PROJECT_FOLDER}"))
+			return getCurrentExpansion();
+	}
 
 	auto id = Expansion::Helpers::getExpansionIdFromReference(poolReferenceString);
 
@@ -731,6 +740,12 @@ PooledAdditionalData Expansion::loadAdditionalData(const String& relativePath)
 }
 
 
+juce::ValueTree Expansion::getEmbeddedNetwork(const String& id)
+{
+	// Return the embedded networks of the project (use full expansions to include networks into an expansion).
+	return getMainController()->getSampleManager().getProjectHandler().getEmbeddedNetwork(id);
+}
+
 void Expansion::saveExpansionInfoFile()
 {
 	if (Helpers::getExpansionInfoFile(root, Intermediate).existsAsFile() ||
@@ -757,7 +772,7 @@ juce::ValueTree Expansion::Helpers::loadValueTreeForFileBasedExpansion(const Fil
 
 	if (infoFile.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(infoFile);
+		auto xml = XmlDocument::parse(infoFile);
 
 		if (xml != nullptr)
 		{

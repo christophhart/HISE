@@ -74,7 +74,7 @@ public:
 	*	@param closeNoteGaps if true, then it closes gaps that occur between notes. If false, it searches for gaps in the velocity mapping.
 	*	@param increaseUpperLimit if true, then the upper limit of the lower sound is increased until the gap is filled.
 	*/
-	static void closeGaps(Array<ModulatorSamplerSound*> &selection, bool closeNoteGaps, bool increaseUpperLimit=true);
+	static void closeGaps(const SampleSelection &selection, bool closeNoteGaps, bool increaseUpperLimit=true);
 
 	/** Loads audio files into the sampler by searching the file name for root note information. */
 	static void loadAudioFilesUsingFileName(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool useVelocityAutomap);

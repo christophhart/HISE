@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="PeakClearAdd">
+  <Node FactoryPath="container.chain" ID="PeakClearAdd1" NumChannels="2"
+        LockNumChannels="0" NodeColour="0" Comment="" CommentWidth="300"
+        BypassRampTimeMs="20">
+    <Properties/>
+    <Nodes>
+      <Node ID="peak" FactoryPath="core.peak" NumChannels="2" LockNumChannels="0"
+            NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+        <Properties/>
+        <ModulationTargets>
+          <ModulationTarget NodeId="add" ParameterId="Value" OpType="SetValue" Enabled="1"
+                            Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                            StepSize="0.01" SkewFactor="1" Expression=""/>
+        </ModulationTargets>
+        <Parameters/>
+      </Node>
+      <Node ID="clear" FactoryPath="math.clear" NumChannels="2" LockNumChannels="0"
+            NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+        <Properties/>
+        <Parameters>
+          <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                     StepSize="0.01" SkewFactor="1" ID="Value" Value="0"/>
+        </Parameters>
+      </Node>
+      <Node ID="add" FactoryPath="math.add" NumChannels="2" LockNumChannels="0"
+            NodeColour="0" Comment="" CommentWidth="300" BypassRampTimeMs="20">
+        <Properties/>
+        <Parameters>
+          <Parameter Inverted="0" MinValue="0" MaxValue="1" LowerLimit="0" UpperLimit="1"
+                     StepSize="0.01" SkewFactor="1" ID="Value" Value="0" ModulationTarget="1"/>
+        </Parameters>
+      </Node>
+    </Nodes>
+    <Parameters/>
+  </Node>
+</Network>

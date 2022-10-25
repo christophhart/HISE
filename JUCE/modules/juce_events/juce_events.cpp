@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -49,7 +49,7 @@
  #import <IOKit/hid/IOHIDKeys.h>
  #import <IOKit/pwr_mgt/IOPMLib.h>
 
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  #include <unistd.h>
 #endif
 
@@ -67,25 +67,17 @@
 #include "interprocess/juce_InterprocessConnectionServer.cpp"
 #include "interprocess/juce_ConnectedChildProcess.cpp"
 #include "interprocess/juce_NetworkServiceDiscovery.cpp"
+#include "native/juce_ScopedLowPowerModeDisabler.cpp"
 
 //==============================================================================
 #if JUCE_MAC || JUCE_IOS
 
  #include "native/juce_osx_MessageQueue.h"
 
- #if JUCE_CLANG
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wundeclared-selector"
- #endif
-
  #if JUCE_MAC
   #include "native/juce_mac_MessageManager.mm"
  #else
   #include "native/juce_ios_MessageManager.mm"
- #endif
-
- #if JUCE_CLANG
-  #pragma clang diagnostic pop
  #endif
 
 #elif JUCE_WINDOWS
@@ -94,7 +86,7 @@
   #include "native/juce_win32_WinRTWrapper.cpp"
  #endif
 
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  #include "native/juce_linux_Messaging.cpp"
 
 #elif JUCE_ANDROID

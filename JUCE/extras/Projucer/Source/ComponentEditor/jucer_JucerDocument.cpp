@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,7 +25,7 @@
 
 #include "../Application/jucer_Headers.h"
 #include "../Application/jucer_Application.h"
-#include "../Wizards/jucer_NewFileWizard.h"
+#include "../Utility/Helpers/jucer_NewFileWizard.h"
 #include "jucer_JucerDocument.h"
 #include "jucer_ObjectTypes.h"
 #include "UI/jucer_JucerDocumentEditor.h"
@@ -36,7 +35,7 @@
 #include "Documents/jucer_ButtonDocument.h"
 
 const char* const defaultClassName = "NewComponent";
-const char* const defaultParentClasses = "public Component";
+const char* const defaultParentClasses = "public juce::Component";
 
 //==============================================================================
 JucerDocument::JucerDocument (SourceCodeDocument* c)
@@ -67,7 +66,7 @@ void JucerDocument::changed()
 
 struct UserDocChangeTimer  : public Timer
 {
-    UserDocChangeTimer (JucerDocument& d) : doc (d) {}
+    explicit UserDocChangeTimer (JucerDocument& d) : doc (d) {}
     void timerCallback() override       { doc.reloadFromDocument(); }
 
     JucerDocument& doc;
@@ -126,9 +125,9 @@ void JucerDocument::refreshAllPropertyComps()
 void JucerDocument::setClassName (const String& newName)
 {
     if (newName != className
-         && CodeHelpers::makeValidIdentifier (newName, false, false, true).isNotEmpty())
+        && build_tools::makeValidIdentifier (newName, false, false, true).isNotEmpty())
     {
-        className = CodeHelpers::makeValidIdentifier (newName, false, false, true);
+        className = build_tools::makeValidIdentifier (newName, false, false, true);
         changed();
     }
 }
@@ -164,7 +163,7 @@ void JucerDocument::setParentClasses (const String& classes)
                     type = s = String();
             }
 
-            s = type + CodeHelpers::makeValidIdentifier (s.trim(), false, false, true, true);
+            s = type + build_tools::makeValidIdentifier (s.trim(), false, false, true, true);
 
             parentClassLines.set (i, s);
         }
@@ -268,36 +267,36 @@ void JucerDocument::getOptionalMethods (StringArray& baseClasses,
                                         StringArray& methods,
                                         StringArray& initialContents) const
 {
-    addMethod ("Component", "void", "visibilityChanged()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "moved()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "parentHierarchyChanged()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "parentSizeChanged()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "lookAndFeelChanged()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "bool", "hitTest (int x, int y)", "return true;", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "broughtToFront()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "filesDropped (const StringArray& filenames, int mouseX, int mouseY)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "handleCommandMessage (int commandId)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "childrenChanged()", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "enablementChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "visibilityChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "moved()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "parentHierarchyChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "parentSizeChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "lookAndFeelChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "bool", "hitTest (int x, int y)", "return true;", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "broughtToFront()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "filesDropped (const juce::StringArray& filenames, int mouseX, int mouseY)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "handleCommandMessage (int commandId)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "childrenChanged()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "enablementChanged()", "", baseClasses, returnValues, methods, initialContents);
 
-    addMethod ("Component", "void", "mouseMove (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseEnter (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseExit (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseDown (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseDrag (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseUp (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseDoubleClick (const MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& wheel)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseMove (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseEnter (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseExit (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseDown (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseDrag (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseUp (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseDoubleClick (const juce::MouseEvent& e)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)", "", baseClasses, returnValues, methods, initialContents);
 
-    addMethod ("Component", "bool", "keyPressed (const KeyPress& key)", "return false;  // Return true if your handler uses this key event, or false to allow it to be passed-on.", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "bool", "keyStateChanged (bool isKeyDown)", "return false;  // Return true if your handler uses this key event, or false to allow it to be passed-on.", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "modifierKeysChanged (const ModifierKeys& modifiers)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "bool", "keyPressed (const juce::KeyPress& key)", "return false;  // Return true if your handler uses this key event, or false to allow it to be passed-on.", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "bool", "keyStateChanged (bool isKeyDown)", "return false;  // Return true if your handler uses this key event, or false to allow it to be passed-on.", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "modifierKeysChanged (const juce::ModifierKeys& modifiers)", "", baseClasses, returnValues, methods, initialContents);
 
-    addMethod ("Component", "void", "focusGained (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "focusLost (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "focusOfChildComponentChanged (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "modifierKeysChanged (const ModifierKeys& modifiers)", "", baseClasses, returnValues, methods, initialContents);
-    addMethod ("Component", "void", "inputAttemptWhenModal()", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "focusGained (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "focusLost (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "focusOfChildComponentChanged (FocusChangeType cause)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "modifierKeysChanged (const juce::ModifierKeys& modifiers)", "", baseClasses, returnValues, methods, initialContents);
+    addMethod ("juce::Component", "void", "inputAttemptWhenModal()", "", baseClasses, returnValues, methods, initialContents);
 }
 
 void JucerDocument::setOptionalMethodEnabled (const String& methodSignature, const bool enable)
@@ -312,7 +311,8 @@ void JucerDocument::setOptionalMethodEnabled (const String& methodSignature, con
 
 bool JucerDocument::isOptionalMethodEnabled (const String& sig) const noexcept
 {
-    return activeExtraMethods.contains (sig);
+    return activeExtraMethods.contains (sig)
+          || activeExtraMethods.contains (sig.replace ("juce::", {}));
 }
 
 void JucerDocument::addExtraClassProperties (PropertyPanel&)
@@ -322,9 +322,9 @@ void JucerDocument::addExtraClassProperties (PropertyPanel&)
 //==============================================================================
 const char* const JucerDocument::jucerCompXmlTag = "JUCER_COMPONENT";
 
-XmlElement* JucerDocument::createXml() const
+std::unique_ptr<XmlElement> JucerDocument::createXml() const
 {
-    XmlElement* doc = new XmlElement (jucerCompXmlTag);
+    auto doc = std::make_unique<XmlElement> (jucerCompXmlTag);
 
     doc->setAttribute ("documentType", getTypeName());
     doc->setAttribute ("className", className);
@@ -385,7 +385,7 @@ bool JucerDocument::loadFromXml (const XmlElement& xml)
         activeExtraMethods.clear();
 
         if (XmlElement* const methods = xml.getChildByName ("METHODS"))
-            forEachXmlChildElementWithTagName (*methods, e, "METHOD")
+            for (auto* e : methods->getChildWithTagNameIterator ("METHOD"))
                 activeExtraMethods.addIfNotAlreadyThere (e->getStringAttribute ("name"));
 
         activeExtraMethods.trim();
@@ -413,7 +413,7 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
         code.constructorCode << "setName (" + quotedString (componentName, false) + ");\n";
 
     // call these now, just to make sure they're the first two methods in the list.
-    code.getCallbackCode (String(), "void", "paint (Graphics& g)", false)
+    code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false)
         << "//[UserPrePaint] Add your own custom painting code here..\n//[/UserPrePaint]\n\n";
 
     code.getCallbackCode (String(), "void", "resized()", false)
@@ -426,7 +426,7 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
 
     std::unique_ptr<XmlElement> e (createXml());
     jassert (e != nullptr);
-    code.jucerMetadata = e->createDocument ("", false, false);
+    code.jucerMetadata = e->toString (XmlElement::TextFormat().withoutHeader());
 
     resources.fillInGeneratedCode (code);
 
@@ -437,7 +437,7 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
     if (initialWidth > 0 || initialHeight > 0)
         code.constructorCode << "\nsetSize (" << initialWidth << ", " << initialHeight << ");\n";
 
-    code.getCallbackCode (String(), "void", "paint (Graphics& g)", false)
+    code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false)
         << "//[UserPaint] Add your own custom painting code here..\n//[/UserPaint]";
 
     code.getCallbackCode (String(), "void", "resized()", false)
@@ -453,7 +453,7 @@ void JucerDocument::fillInGeneratedCode (GeneratedCode& code) const
         {
             String baseClassToAdd (baseClasses[i]);
 
-            if (baseClassToAdd == "Component" || baseClassToAdd == "Button")
+            if (baseClassToAdd == "juce::Component" || baseClassToAdd == "juce::Button")
                 baseClassToAdd.clear();
 
             String& s = code.getCallbackCode (baseClassToAdd, returnValues[i], methods[i], false);
@@ -479,7 +479,7 @@ void JucerDocument::fillInPaintCode (GeneratedCode& code) const
 {
     for (int i = 0; i < getNumPaintRoutines(); ++i)
         getPaintRoutine (i)
-            ->fillInGeneratedCode (code, code.getCallbackCode (String(), "void", "paint (Graphics& g)", false));
+            ->fillInGeneratedCode (code, code.getCallbackCode (String(), "void", "paint (juce::Graphics& g)", false));
 }
 
 void JucerDocument::setTemplateFile (const String& newFile)
@@ -532,11 +532,8 @@ bool JucerDocument::flushChangesToDocuments (Project* project, bool isInitial)
         String existingHeader (header->getCodeDocument().getAllContent());
         String existingCpp (cpp->getCodeDocument().getAllContent());
 
-        generated.applyToCode (headerTemplate, headerFile,
-                               existingHeader, project);
-
-        generated.applyToCode (cppTemplate, headerFile.withFileExtension (".cpp"),
-                               existingCpp, project);
+        generated.applyToCode (headerTemplate, headerFile, existingHeader);
+        generated.applyToCode (cppTemplate, headerFile.withFileExtension (".cpp"), existingCpp);
 
         if (isInitial)
         {
@@ -621,19 +618,17 @@ void JucerDocument::extractCustomPaintSnippetsFromCppFile (const String& cppCont
     applyCustomPaintSnippets (customPaintSnippets);
 }
 
-XmlElement* JucerDocument::pullMetaDataFromCppFile (const String& cpp)
+std::unique_ptr<XmlElement> JucerDocument::pullMetaDataFromCppFile (const String& cpp)
 {
     auto lines = StringArray::fromLines (cpp);
-
-    const int startLine = indexOfLineStartingWith (lines, "BEGIN_JUCER_METADATA", 0);
+    auto startLine = indexOfLineStartingWith (lines, "BEGIN_JUCER_METADATA", 0);
 
     if (startLine > 0)
     {
-        const int endLine = indexOfLineStartingWith (lines, "END_JUCER_METADATA", startLine);
+        auto endLine = indexOfLineStartingWith (lines, "END_JUCER_METADATA", startLine);
 
         if (endLine > startLine)
-            return XmlDocument::parse (lines.joinIntoString ("\n", startLine + 1,
-                                                             endLine - startLine - 1));
+            return parseXML (lines.joinIntoString ("\n", startLine + 1, endLine - startLine - 1));
     }
 
     return nullptr;
@@ -697,33 +692,61 @@ public:
     {
     }
 
-    bool save() override
+    void saveAsync (std::function<void (bool)> callback) override
     {
-        return SourceCodeDocument::save() && saveHeader();
+        SourceCodeDocument::saveAsync ([parent = WeakReference<JucerComponentDocument> { this }, callback] (bool saveResult)
+        {
+            if (parent == nullptr)
+                return;
+
+            if (! saveResult)
+            {
+                callback (false);
+                return;
+            }
+
+            parent->saveHeaderAsync ([parent, callback] (bool headerSaveResult)
+            {
+                if (parent != nullptr)
+                    callback (headerSaveResult);
+            });
+        });
     }
 
-    bool saveHeader()
+    void saveHeaderAsync (std::function<void (bool)> callback)
     {
         auto& odm = ProjucerApplication::getApp().openDocumentManager;
 
         if (auto* header = odm.openFile (nullptr, getFile().withFileExtension (".h")))
         {
-            if (header->save())
+            header->saveAsync ([parent = WeakReference<JucerComponentDocument> { this }, callback] (bool saveResult)
             {
-                odm.closeFile (getFile().withFileExtension(".h"), false);
-                return true;
-            }
+                if (parent == nullptr)
+                    return;
+
+                if (saveResult)
+                    ProjucerApplication::getApp()
+                        .openDocumentManager
+                        .closeFileWithoutSaving (parent->getFile().withFileExtension (".h"));
+
+                callback (saveResult);
+            });
+
+            return;
         }
 
-        return false;
+        callback (false);
     }
 
-    Component* createEditor() override
+    std::unique_ptr<Component> createEditor() override
     {
-        std::unique_ptr<JucerDocument> jucerDoc (JucerDocument::createForCppFile (getProject(), getFile()));
+        if (ProjucerApplication::getApp().isGUIEditorEnabled())
+        {
+            std::unique_ptr<JucerDocument> jucerDoc (JucerDocument::createForCppFile (getProject(), getFile()));
 
-        if (jucerDoc != nullptr)
-            return new JucerDocumentEditor (jucerDoc.release());
+            if (jucerDoc != nullptr)
+                return std::make_unique<JucerDocumentEditor> (jucerDoc.release());
+        }
 
         return SourceCodeDocument::createEditor();
     }
@@ -735,6 +758,8 @@ public:
         bool canOpenFile (const File& f) override                { return JucerDocument::isValidJucerCppFile (f); }
         Document* openFile (Project* p, const File& f) override  { return new JucerComponentDocument (p, f); }
     };
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE (JucerComponentDocument)
 };
 
 OpenDocumentManager::DocumentType* createGUIDocumentType();
@@ -746,53 +771,65 @@ OpenDocumentManager::DocumentType* createGUIDocumentType()
 //==============================================================================
 struct NewGUIComponentWizard  : public NewFileWizard::Type
 {
-    NewGUIComponentWizard() {}
+    NewGUIComponentWizard (Project& proj)
+        : project (proj)
+    {}
 
     String getName() override  { return "GUI Component"; }
 
-    void createNewFile (Project& project, Project::Item parent) override
+    void createNewFile (Project& p, Project::Item parent) override
     {
-        auto newFile = askUserToChooseNewFile (String (defaultClassName) + ".h", "*.h;*.cpp", parent);
+        jassert (&p == &project);
 
-        if (newFile != File())
+        askUserToChooseNewFile (String (defaultClassName) + ".h", "*.h;*.cpp", parent, [this, parent] (File newFile) mutable
         {
-            auto headerFile = newFile.withFileExtension (".h");
-            auto cppFile = newFile.withFileExtension (".cpp");
-
-            headerFile.replaceWithText (String());
-            cppFile.replaceWithText (String());
-
-            auto& odm = ProjucerApplication::getApp().openDocumentManager;
-
-            if (auto* cpp = dynamic_cast<SourceCodeDocument*> (odm.openFile (&project, cppFile)))
+            if (newFile != File())
             {
-                if (auto* header = dynamic_cast<SourceCodeDocument*> (odm.openFile (&project, headerFile)))
+                auto headerFile = newFile.withFileExtension (".h");
+                auto cppFile = newFile.withFileExtension (".cpp");
+
+                headerFile.replaceWithText (String());
+                cppFile.replaceWithText (String());
+
+                auto& odm = ProjucerApplication::getApp().openDocumentManager;
+
+                if (auto* cpp = dynamic_cast<SourceCodeDocument*> (odm.openFile (&project, cppFile)))
                 {
-                    std::unique_ptr<JucerDocument> jucerDoc (new ComponentDocument (cpp));
-
-                    if (jucerDoc != nullptr)
+                    if (auto* header = dynamic_cast<SourceCodeDocument*> (odm.openFile (&project, headerFile)))
                     {
-                        jucerDoc->setClassName (newFile.getFileNameWithoutExtension());
+                        std::unique_ptr<JucerDocument> jucerDoc (new ComponentDocument (cpp));
 
-                        jucerDoc->flushChangesToDocuments (&project, true);
-                        jucerDoc.reset();
+                        if (jucerDoc != nullptr)
+                        {
+                            jucerDoc->setClassName (newFile.getFileNameWithoutExtension());
 
-                        cpp->save();
-                        header->save();
-                        odm.closeDocument (cpp, true);
-                        odm.closeDocument (header, true);
+                            jucerDoc->flushChangesToDocuments (&project, true);
+                            jucerDoc.reset();
 
-                        parent.addFileRetainingSortOrder (headerFile, true);
-                        parent.addFileRetainingSortOrder (cppFile, true);
+                            for (auto* doc : { cpp, header })
+                            {
+                                doc->saveAsync ([doc] (bool)
+                                {
+                                    ProjucerApplication::getApp()
+                                        .openDocumentManager
+                                        .closeDocumentAsync (doc, OpenDocumentManager::SaveIfNeeded::yes, nullptr);
+                                });
+                            }
+
+                            parent.addFileRetainingSortOrder (headerFile, true);
+                            parent.addFileRetainingSortOrder (cppFile, true);
+                        }
                     }
                 }
             }
-        }
+        });
     }
+
+    Project& project;
 };
 
-NewFileWizard::Type* createGUIComponentWizard();
-NewFileWizard::Type* createGUIComponentWizard()
+NewFileWizard::Type* createGUIComponentWizard (Project&);
+NewFileWizard::Type* createGUIComponentWizard (Project& p)
 {
-    return new NewGUIComponentWizard();
+    return new NewGUIComponentWizard (p);
 }

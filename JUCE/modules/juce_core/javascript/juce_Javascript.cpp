@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -54,10 +54,7 @@ namespace TokenTypes
     JUCE_DECLARE_JS_TOKEN (identifier, "$identifier")
 }
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4702)
-#endif
+JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4702)
 
 //==============================================================================
 struct JavascriptEngine::RootObject   : public DynamicObject
@@ -597,7 +594,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
     {
         DivideOp (const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator (l, a, b, TokenTypes::divide) {}
         var getWithDoubles (double a, double b) const override  { return b != 0 ? a / b : std::numeric_limits<double>::infinity(); }
-        var getWithInts (int64 a, int64 b) const override       { return b != 0 ? var (a / (double) b) : var (std::numeric_limits<double>::infinity()); }
+        var getWithInts (int64 a, int64 b) const override       { return b != 0 ? var ((double) a / (double) b) : var (std::numeric_limits<double>::infinity()); }
     };
 
     struct ModuloOp  : public BinaryOperator
@@ -816,7 +813,10 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             for (int i = 0; i < values.size(); ++i)
                 a.add (values.getUnchecked(i)->getResult (s));
 
-            return a;
+            // std::move() needed here for older compilers
+            JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wredundant-move")
+            return std::move (a);
+            JUCE_END_IGNORE_WARNINGS_GCC_LIKE
         }
 
         OwnedArray<Expression> values;
@@ -940,7 +940,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         {
             for (;;)
             {
-                p = p.findEndOfWhitespace();
+                p.incrementToEndOfWhitespace();
 
                 if (*p == '/')
                 {
@@ -1183,7 +1183,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             if (matchIf (TokenTypes::comma))
             {
                 std::unique_ptr<BlockStatement> block (new BlockStatement (location));
-                block->statements.add (s.release());
+                block->statements.add (std::move (s));
                 block->statements.add (parseVar());
                 return block.release();
             }
@@ -1625,7 +1625,10 @@ struct JavascriptEngine::RootObject   : public DynamicObject
                 for (int i = 2; i < a.numArguments; ++i)
                     array->insert (start++, get (a, i));
 
-                return itemsRemoved;
+                // std::move() needed here for older compilers
+                JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wredundant-move")
+                return std::move (itemsRemoved);
+                JUCE_END_IGNORE_WARNINGS_GCC_LIKE
             }
 
             return var::undefined();
@@ -1911,8 +1914,6 @@ const NamedValueSet& JavascriptEngine::getRootObjectProperties() const noexcept
     return root->getProperties();
 }
 
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+JUCE_END_IGNORE_WARNINGS_MSVC
 
 } // namespace juce

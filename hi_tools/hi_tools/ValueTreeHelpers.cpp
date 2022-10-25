@@ -103,8 +103,25 @@ void PropertyListener::handleAsyncUpdate()
 
 void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier& id)
 {
-	if (v == v_ && ids.contains(id))
+	Identifier id2(id.toString());
+
+	if (v == v_ && ids.contains(id2))
 	{
+		auto thisValue = v[id];
+
+		if (v.hasProperty(id) && lastValue == thisValue)
+		{
+			//probably priorised
+			return;
+		}
+
+		lastValue = thisValue;
+
+		if (auto pb = dynamic_cast<PropertyListener*>(priorisedListener.get()))
+		{
+			pb->valueTreePropertyChanged(v_, id);
+		}
+
 		switch (mode)
 		{
 		case AsyncMode::Unregistered:
@@ -255,7 +272,7 @@ void RemoveListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 
 	if (fireRecursively)
 	{
-		shouldFire = child.isAChildOf(c) && p.isAChildOf(parent);
+		shouldFire = (c == child || child.isAChildOf(c)) && p.isAChildOf(parent);
 	}
 	else
 		shouldFire = p == parent && c == child;
@@ -402,6 +419,7 @@ void ChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 	case AsyncMode::Unregistered:
 		break;
 	case AsyncMode::Synchronously:
+		currentParent = p;
 		cb(c, true);
 		break;
 	case AsyncMode::Asynchronously:
@@ -427,15 +445,19 @@ void ChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 }
 
 
-void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
+void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int r)
 {
 	if (!cb || ((p != v) && !allowCallbacksForChildEvents))
 		return;
+
+	
 
 	switch (mode)
 	{
 	case AsyncMode::Unregistered: break;
 	case AsyncMode::Synchronously:
+		removeIndex = r;
+		currentParent = p;
 		cb(c, false);
 		break;
 	case valuetree::AsyncMode::Coallescated: // don't coallescate removals
@@ -452,11 +474,46 @@ void ChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 	}
 }
 
+juce::ValueTree ChildListener::getCurrentParent() const
+{
+	jassert(mode == AsyncMode::Synchronously); 
+	return currentParent;
+}
 
+int ChildListener::getRemoveIndex() const
+{
+	jassert(mode == AsyncMode::Synchronously);
+	return removeIndex;
+}
+
+void forEach(ValueTree& v, const std::function<void(ValueTree&)>& f)
+{
+	f(v);
+
+	for (auto c : v)
+		forEach(c, f);
+}
+
+void RecursiveTypedChildListener::sendAddMessageForAllChildren()
+{
+	if (mode == AsyncMode::Synchronously)
+	{
+		forEach(v, [this](ValueTree& vt)
+		{
+			this->currentParent = vt.getParent();
+			this->removeIndex = -1;
+
+			if (parentTypes.contains(vt.getType()))
+				this->cb(vt, true);
+		});
+	}
+	else
+		ChildListener::sendAddMessageForAllChildren();
+}
 
 void RecursiveTypedChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c)
 {
-	if (p.getType() != parentType)
+	if (!parentTypes.contains(p.getType()))
 		return;
 
 	ChildListener::valueTreeChildAdded(p, c);
@@ -465,10 +522,128 @@ void RecursiveTypedChildListener::valueTreeChildAdded(ValueTree& p, ValueTree& c
 
 void RecursiveTypedChildListener::valueTreeChildRemoved(ValueTree& p, ValueTree& c, int)
 {
-	if (p.getType() != parentType)
+	if (!parentTypes.contains(p.getType()))
 		return;
 
 	ChildListener::valueTreeChildRemoved(p, c, 0);
+}
+
+AnyListener::AnyListener(AsyncMode mode_) :
+	Base()
+{
+	mode = mode_;
+
+	for (int i = 0; i < numCallbackTypes; i++)
+		setForwardCallback((CallbackType)i, true);
+}
+
+void AnyListener::handleAsyncUpdate()
+{
+	anythingChanged(lastCallbackType);
+
+	lastCallbackType = Nothing;
+}
+
+void AnyListener::valueTreeChildAdded(ValueTree&, ValueTree& c)
+{
+	if (forwardCallbacks[ChildAdded])
+	{
+		logIfEnabled(ChildAdded, c, {});
+		triggerUpdate(ChildAdded);
+	}
+}
+
+void AnyListener::valueTreeChildOrderChanged(ValueTree& c, int, int)
+{
+	if (forwardCallbacks[ChildOrderChanged])
+	{
+		logIfEnabled(ChildAdded, c, {});
+		triggerUpdate(ChildOrderChanged);
+	}
+}
+
+void AnyListener::valueTreeChildRemoved(ValueTree&, ValueTree& c, int)
+{
+	if (forwardCallbacks[ChildDeleted])
+	{
+		logIfEnabled(ChildDeleted, c, {});
+		triggerUpdate(ChildDeleted);
+	}
+}
+
+void AnyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	if (!forwardCallbacks[PropertyChange])
+		return;
+	
+	if (pcf && !pcf(v, id))
+		return;
+	
+	logIfEnabled(PropertyChange, v, id);
+	triggerUpdate(PropertyChange);
+}
+
+void AnyListener::valueTreeParentChanged(ValueTree&)
+{
+	if (forwardCallbacks[ValueTreeRedirected]) triggerUpdate(ValueTreeRedirected);
+}
+
+void AnyListener::logIfEnabled(CallbackType b, ValueTree& v, const Identifier& id)
+{
+	if (!loggingEnabled)
+		return;
+
+	String s;
+
+	switch (b)
+	{
+	case CallbackType::ChildAdded:
+		s << "Add child " << v.getType(); break;
+	case CallbackType::ChildDeleted:
+		s << "Remove child " << v.getType(); break;
+	case CallbackType::PropertyChange:
+		s << "Set property " << id << " for " << v.getType(); break;
+	case CallbackType::ValueTreeRedirected:
+		s << "redirected " << v.getType(); break;
+	default:
+		break;
+	}
+
+	s << "\n";
+	ValueTree copy = v.createCopy();
+	copy.removeAllChildren(nullptr);
+	auto xml = copy.createXml();
+	s << xml->createDocument("", true);
+	s << "\n--------------------------------------------------------------------";
+
+	DBG(s);
+
+	
+}
+
+void AnyListener::triggerUpdate(CallbackType t)
+{
+	auto thisCallbackType = jmax(lastCallbackType, t);
+
+	if (lastCallbackType != thisCallbackType)
+	{
+		lastCallbackType = thisCallbackType;
+
+		if (mode == AsyncMode::Synchronously)
+			handleAsyncUpdate();
+		else if (mode == AsyncMode::Coallescated)
+		{
+			startTimer(milliSecondsBetweenUpdate);
+		}
+		else
+			triggerAsyncUpdate();
+	}
+}
+
+void AnyListener::timerCallback()
+{
+	handleAsyncUpdate();
+	stopTimer();
 }
 
 }

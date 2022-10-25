@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -63,12 +62,22 @@ const OSCArgument& OSCMessage::operator[] (const int i) const noexcept
     return arguments.getReference (i);
 }
 
-OSCArgument* OSCMessage::begin() const noexcept
+OSCArgument* OSCMessage::begin() noexcept
 {
     return arguments.begin();
 }
 
-OSCArgument* OSCMessage::end() const noexcept
+const OSCArgument* OSCMessage::begin() const noexcept
+{
+    return arguments.begin();
+}
+
+OSCArgument* OSCMessage::end() noexcept
+{
+    return arguments.end();
+}
+
+const OSCArgument* OSCMessage::end() const noexcept
 {
     return arguments.end();
 }
@@ -86,6 +95,7 @@ void OSCMessage::addBlob (MemoryBlock blob)         { arguments.add (OSCArgument
 void OSCMessage::addColour (OSCColour colour)       { arguments.add (OSCArgument (colour)); }
 void OSCMessage::addArgument (OSCArgument arg)      { arguments.add (arg); }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -93,7 +103,9 @@ void OSCMessage::addArgument (OSCArgument arg)      { arguments.add (arg); }
 class OSCMessageTests  : public UnitTest
 {
 public:
-    OSCMessageTests() : UnitTest ("OSCMessage class", "OSC") {}
+    OSCMessageTests()
+        : UnitTest ("OSCMessage class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -210,6 +222,6 @@ public:
 
 static OSCMessageTests OSCMessageUnitTests;
 
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

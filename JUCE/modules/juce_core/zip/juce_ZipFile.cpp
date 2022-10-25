@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -46,21 +46,21 @@ struct ZipFile::ZipEntryHolder
         entry.uncompressedSize = (int64) readUnalignedLittleEndianInt (buffer + 24);
         streamOffset           = (int64) readUnalignedLittleEndianInt (buffer + 42);
 
-        auto externalFileAttributes = (int32) readUnalignedLittleEndianInt (buffer + 38);
-        auto fileType   = (externalFileAttributes >> 28) & 0xf;
-
+        entry.externalFileAttributes = readUnalignedLittleEndianInt (buffer + 38);
+        auto fileType = (entry.externalFileAttributes >> 28) & 0xf;
         entry.isSymbolicLink = (fileType == 0xA);
+
         entry.filename = String::fromUTF8 (buffer + 46, fileNameLen);
     }
 
     static Time parseFileTime (uint32 time, uint32 date) noexcept
     {
-        int year      = 1980 + (date >> 9);
-        int month     = ((date >> 5) & 15) - 1;
-        int day       = date & 31;
-        int hours     = time >> 11;
-        int minutes   = (time >> 5) & 63;
-        int seconds   = (int) ((time & 31) << 1);
+        auto year      = (int) (1980 + (date >> 9));
+        auto month     = (int) (((date >> 5) & 15) - 1);
+        auto day       = (int) (date & 31);
+        auto hours     = (int) time >> 11;
+        auto minutes   = (int) ((time >> 5) & 63);
+        auto seconds   = (int) ((time & 31) << 1);
 
         return { year, month, day, hours, minutes, seconds };
     }
@@ -369,16 +369,16 @@ void ZipFile::init()
                         break;
 
                     auto* buffer = static_cast<const char*> (headerData.getData()) + pos;
-                    auto fileNameLen = readUnalignedLittleEndianShort (buffer + 28);
+                    auto fileNameLen = readUnalignedLittleEndianShort (buffer + 28u);
 
                     if (pos + 46 + fileNameLen > size)
                         break;
 
                     entries.add (new ZipEntryHolder (buffer, fileNameLen));
 
-                    pos += 46 + fileNameLen
-                            + readUnalignedLittleEndianShort (buffer + 30)
-                            + readUnalignedLittleEndianShort (buffer + 32);
+                    pos += 46u + fileNameLen
+                            + readUnalignedLittleEndianShort (buffer + 30u)
+                            + readUnalignedLittleEndianShort (buffer + 32u);
                 }
             }
         }
@@ -399,7 +399,7 @@ Result ZipFile::uncompressTo (const File& targetDirectory,
     return Result::ok();
 }
 
-Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool shouldOverwriteFiles)
+Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool shouldOverwriteFiles, double* progress)
 {
     auto* zei = entries.getUnchecked (index);
 
@@ -449,7 +449,28 @@ Result ZipFile::uncompressEntry (int index, const File& targetDirectory, bool sh
         if (out.failedToOpen())
             return Result::fail ("Failed to write to target file: " + targetFile.getFullPathName());
 
-        out << *in;
+		// Don't track the progress for files < 200MB
+		static constexpr int BigFileThreshhold = 200 * 1024 * 1024;
+
+		if (progress == nullptr || in->getTotalLength() < BigFileThreshhold)
+		{
+			out << *in;
+		}
+		else
+		{
+			static constexpr int BufferSize = 32768;
+
+			int numWritten = 0;
+			auto numTotal = jmax<int64>(1, in->getTotalLength());
+
+			while (!in->isExhausted())
+			{
+				out.writeFromInputStream(*in, BufferSize);
+				*progress = jmin(1.0, (double)numWritten / (double)numTotal);
+				numWritten += BufferSize;
+			}
+		}
+
     }
 
     targetFile.setCreationTime (zei->entry.fileTime);
@@ -541,7 +562,7 @@ private:
     {
         if (stream == nullptr)
         {
-            stream.reset (file.createInputStream());
+            stream = file.createInputStream();
 
             if (stream == nullptr)
                 return false;
@@ -577,7 +598,7 @@ private:
         target.writeInt ((int) checksum);
         target.writeInt ((int) (uint32) compressedSize);
         target.writeInt ((int) (uint32) uncompressedSize);
-        target.writeShort ((short) storedPathname.toUTF8().sizeInBytes() - 1);
+        target.writeShort (static_cast<short> (storedPathname.toUTF8().sizeInBytes() - 1));
         target.writeShort (0); // extra field length
     }
 
@@ -638,12 +659,16 @@ bool ZipFile::Builder::writeToStream (OutputStream& target, double* const progre
     return true;
 }
 
+
+//==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
 struct ZIPTests   : public UnitTest
 {
-    ZIPTests()   : UnitTest ("ZIP") {}
+    ZIPTests()
+        : UnitTest ("ZIP", UnitTestCategories::compression)
+    {}
 
     void runTest() override
     {

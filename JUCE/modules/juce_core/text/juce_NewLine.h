@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -42,7 +42,7 @@ public:
     /** Returns the default new-line sequence that the library uses.
         @see OutputStream::setNewLineString()
     */
-    static const char* getDefault() noexcept        { return "\r\n"; }
+    static const char* getDefault() noexcept        { return "\n"; }
 
     /** Returns the default new-line sequence that the library uses.
         @see getDefault()

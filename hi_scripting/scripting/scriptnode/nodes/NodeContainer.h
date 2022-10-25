@@ -37,106 +37,68 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+
 struct NodeContainer : public AssignableObject
 {
 	struct MacroParameter : public NodeBase::Parameter,
-							public SnexDebugHandler
+							public ConnectionSourceManager
 	{
-		struct Connection: public ConnectionBase
-		{
-			Connection(NodeBase* parent, MacroParameter* pp, ValueTree d);
-
-			DspHelpers::ParameterCallback createCallbackForNormalisedInput();
-			bool isValid() const { return targetParameter.get() != nullptr || nodeToBeBypassed.get() != nullptr; };
-
-			bool matchesTarget(const Parameter* target) const
-			{
-				return target == targetParameter.get();
-			}
-
-		private:
-
-			void updateConnectionInTargetParameter(Identifier id, var newValue);
-
-			ValueTree targetNodeData;
-
-			UndoManager* um = nullptr;
-			NodeBase::Ptr nodeToBeBypassed;
-			double rangeMultiplerForBypass = 1.0;
-
-			MacroParameter* parentParameter = nullptr;
-
-			valuetree::PropertyListener exprSyncer;
-			valuetree::PropertyListener opSyncer;
-
-			String expressionCode;
-			Identifier conversion = ConverterIds::Identity;
-		};
-
 		ValueTree getConnectionTree();
 
 		MacroParameter(NodeBase* parentNode, ValueTree data_);;
 
-		void rebuildCallback();
-		void updateRangeForConnection(ValueTree v, Identifier);
+		void rebuildCallback() override;
 
-		void updateConnectionForExpression(ValueTree v, Identifier)
-		{
-			rebuildCallback();
-		}
+		void setDynamicParameter(parameter::dynamic_base::Ptr ownedNew) override;
 
-		var addParameterTarget(NodeBase::Parameter* p)
-		{
-			for (auto c : connections)
-			{
-				if (c->matchesTarget(p))
-					return var(c);
-			}
+		void updateInputRange(Identifier, var);
+		
+		valuetree::PropertyListener inputRangeListener;
+		ReferenceCountedObjectPtr<parameter::dynamic_base_holder> pholder;
 
-			ValueTree newC(PropertyIds::Connection);
-			newC.setProperty(PropertyIds::NodeId, p->parent->getId(), nullptr);
-			newC.setProperty(PropertyIds::ParameterId, p->getId(), nullptr);
-			newC.setProperty(PropertyIds::Converter, ConverterIds::Identity.toString(), nullptr);
-			newC.setProperty(PropertyIds::OpType, OperatorIds::SetValue.toString(), nullptr);
-			RangeHelpers::storeDoubleRange(newC, false, RangeHelpers::getDoubleRange(p->data), nullptr);
-			newC.setProperty(PropertyIds::Expression, "", nullptr);
+		bool editEnabled = false;
 
-			getConnectionTree().addChild(newC, -1, p->parent->getUndoManager());
-
-			return var(connections.getLast());
-		}
-
-		void logMessage(const String& s) override
-		{
-			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), s);
-		}
-
-		Identifier getOpTypeForParameter(Parameter* target) const;
-
-		bool matchesTarget(const Parameter* target) const;
-
-		NormalisableRange<double> inputRange;
-
-		valuetree::ChildListener connectionListener;
-		valuetree::RecursivePropertyListener rangeListener;
-		valuetree::RecursivePropertyListener expressionListener;
-
-		ReferenceCountedArray<Connection> connections;
-		bool initialised = false;
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroParameter);
 	};
 
 	NodeContainer();
 
+	template <int P> static void setParameterStatic(void* obj, double v)
+	{
+		auto typed = static_cast<NodeContainer*>(obj);
+
+		if(auto p = typed->asNode()->getParameterFromIndex(P))
+			p->setValueAsync(v);
+	}
+
 	void resetNodes();
+
+	ParameterDataList createInternalParametersForMacros();
 
 	NodeBase* asNode();
 	const NodeBase* asNode() const;
+
+	var addMacroConnection(var source, Parameter* n)
+	{
+		if (auto sp = dynamic_cast<NodeContainer::MacroParameter*>(asNode()->getParameterFromName(source.toString())))
+			return sp->addTarget(n);
+		
+		return var();
+	}
+
+	virtual bool hasFixedParameters() const { return false; }
+
+	void addFixedParameters();
+
+	virtual Component* createLeftTabComponent() const;
 
 	void prepareContainer(PrepareSpecs& ps);
 
 	void prepareNodes(PrepareSpecs ps);
 
 	bool shouldCreatePolyphonicClass() const;
+
+	virtual Colour getContainerColour() const { return Colours::transparentBlack; }
 
 	virtual bool isPolyphonic() const;
 
@@ -153,27 +115,27 @@ struct NodeContainer : public AssignableObject
 
 	virtual int getCachedIndex(const var &indexExpression) const override;
 
+	bool forEachNode(const std::function<bool(NodeBase::Ptr)> & f);
+
 	// ===================================================================================
 
 	void clear();
 
-	String createCppClassForNodes(bool isOuterClass);
-	String createTemplateAlias();
-	String createJitClasses();
 	NodeBase::List getChildNodesRecursive();
-	void fillAccessors(Array<CppGen::Accessor>& accessors, Array<int> currentPath);
-	virtual String getCppCode(CppGen::CodeLocation location);
 	ValueTree getNodeTree() { return asNode()->getValueTree().getOrCreateChildWithName(PropertyIds::Nodes, asNode()->getUndoManager()); }
 
 	NodeBase::List& getNodeList() { return nodes; }
 	const NodeBase::List& getNodeList() const { return nodes; }
 
+	Rectangle<int> getContainerPosition(bool isVerticalContainer, Point<int> topLeft) const;
+
 protected:
 
-	void initListeners();
+	void initListeners(bool initParameterListener=true);
 
 	friend class ContainerComponent;
 
+	ReferenceCountedArray<NodeBase> ownedReference;
 	NodeBase::List nodes;
 
 	double originalSampleRate = 0.0;
@@ -181,17 +143,19 @@ protected:
 
 	virtual void channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange) { ignoreUnused(nodeThatCausedLayoutChange); };
 
-private:
-
-	void nodeAddedOrRemoved(ValueTree v, bool wasAdded);
-	void parameterAddedOrRemoved(ValueTree v, bool wasAdded);
-	void updateChannels(ValueTree v, Identifier id);
-
 	valuetree::ChildListener nodeListener;
 	valuetree::ChildListener parameterListener;
 	valuetree::RecursivePropertyListener channelListener;
 
-	int* lastVoiceIndex = nullptr;
+	PolyHandler* lastVoiceIndex = nullptr;
+
+private:
+
+	void nodeAddedOrRemoved(ValueTree v, bool wasAdded);
+	void parameterAddedOrRemoved(ValueTree v, bool wasAdded);
+	void updateChannels(ValueTree v, Identifier unused);
+
+	
 	bool channelRecursionProtection = false;
 };
 
@@ -204,31 +168,67 @@ public:
 	{
 	public:
 
-		SET_HISE_NODE_EXTRA_HEIGHT(0);
-		SET_HISE_NODE_IS_MODULATION_SOURCE(false);
+		SN_GET_SELF_AS_OBJECT(DynamicSerialProcessor);
+
+		DynamicSerialProcessor() = default;
+
+		DynamicSerialProcessor(const DynamicSerialProcessor& other);
 
 		bool handleModulation(double&);
-		void handleHiseEvent(HiseEvent& e) final override;
+		void handleHiseEvent(HiseEvent& e);
 		void initialise(NodeBase* p);
 		void reset();
 		void prepare(PrepareSpecs);
-		void process(ProcessData& d);
-		void processSingle(float* frameData, int numChannels);
-		void createParameters(Array<ParameterData>& ) override {};
 
-		DynamicSerialProcessor& getObject() { return *this; }
-		const DynamicSerialProcessor& getObject() const { return *this; }
+		template <typename ProcessDataType> void process(ProcessDataType& data) noexcept
+		{
+			for (auto n : parent->getNodeList())
+			{
+				auto& dd = data.template as<ProcessDataDyn>();
+				n->process(dd);
+			}
+		}
+
+		template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+		{
+			jassert(parent != nullptr);
+
+			NodeBase::FrameType dd(data.begin(), data.size());
+
+			for (auto n : parent->getNodeList())
+				n->processFrame(dd);
+		}
+
+		void createParameters(ParameterDataList& ) override {};
 
 		NodeContainer* parent;
 	};
 
+	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override
+	{
+		return forEachNode(f);
+	}
+
 	SerialNode(DspNetwork* root, ValueTree data);
 
 	NodeComponent* createComponent() override;
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 
-	String createCppClass(bool isOuterClass) override;
-	String getCppCode(CppGen::CodeLocation location) override;
+	ParameterDataList createInternalParameterList() override
+	{
+		return NodeContainer::createInternalParametersForMacros();
+	}
+
+	var addModulationConnection(var source, Parameter* targetParameter) override
+	{
+		return NodeContainer::addMacroConnection(source, targetParameter);
+	}
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
+	}
+
+	NodePropertyT<bool> isVertical;
 };
 
 class ParallelNode : public NodeBase,
@@ -237,10 +237,18 @@ class ParallelNode : public NodeBase,
 public:
 
 	ParallelNode(DspNetwork* root, ValueTree data);
-	String createCppClass(bool isOuterClass) override;
-	String getCppCode(CppGen::CodeLocation location) override;
 	NodeComponent* createComponent() override;
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+
+	var addModulationConnection(var source, Parameter* targetParameter) override
+	{
+		return NodeContainer::addMacroConnection(source, targetParameter);
+	}
+
+	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override
+	{
+		return forEachNode(f);
+	}
 };
 
 class NodeContainerFactory : public NodeFactory

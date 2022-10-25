@@ -36,6 +36,8 @@ using namespace juce;
 
 void HiseModuleDatabase::CommonData::Data::createAllProcessors()
 {
+	MainController::ScopedBadBabysitter sb(bp);
+
 	jassert(bp != nullptr);
 
 	if (!allProcessors.isEmpty())
@@ -58,7 +60,8 @@ void HiseModuleDatabase::CommonData::Data::addFromFactory(FactoryType* f)
 {
 	for (int i = 0; i < f->getNumProcessors(); i++)
 	{
-		allProcessors.add(f->createProcessor(i, "id"));
+		MessageManagerLock mm;
+        allProcessors.add(f->createProcessor(i, "id"));
 	}
 }
 
@@ -134,19 +137,27 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createItemForFac
 	list.url.setType(MarkdownLink::Folder);
 	list.tocString = "List of " + factoryName;
 	list.keywords.add(factoryName);
-	
 
-	for (int i = 0; i < n; i++)
+    MainController::ScopedBadBabysitter sb(f->getOwnerProcessor()->getMainController());
+
+    for (int i = 0; i < n; i++)
 	{
+        MessageManagerLock mm;
 		ScopedPointer<Processor> p = f->createProcessor(i, "funky");
 
 		if (p->getDescription() == "deprecated")
 			continue;
 
 		parent.c = p->getColour();
+        
+        
+        
 		list.addChild(createItemForProcessor(p, list));
+        
+        
 	}
-	list.isAlwaysOpen = true;
+    
+    list.isAlwaysOpen = true;
 	list.sortChildren();
 	
 	return list;
@@ -178,15 +189,19 @@ hise::MarkdownDataBase::Item HiseModuleDatabase::ItemGenerator::createRootItem(M
 
 	ScopedPointer<FactoryType> f = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, bp->getMainSynthChain());
 
-	auto sg = createItemForCategory("Sound Generators", rItem);
+	{
+		MainController::ScopedBadBabysitter sb(bp);
 
-	auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
-		"Sound Generators", sg);
+		auto sg = createItemForCategory("Sound Generators", rItem);
 
-	sg.addChild(std::move(sg2));
+		auto sg2 = createItemForFactory(new ModulatorSynthChainFactoryType(1, bp->getMainSynthChain()),
+			"Sound Generators", sg);
 
-	rItem.addChild(std::move(sg));
+		sg.addChild(std::move(sg2));
 
+		rItem.addChild(std::move(sg));
+	}
+    
 	auto mp = createItemForCategory("MIDI Processors", rItem);
 
 	auto mp2 = createItemForFactory(new MidiProcessorFactoryType(bp->getMainSynthChain()), "MIDI Processors", mp);
@@ -267,7 +282,8 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 		auto f = url.getMarkdownFile(root);
 
 
-		if (!f.existsAsFile() && MessageManager::getInstance()->isThisTheMessageThread())
+		if (!f.existsAsFile() && MessageManager::getInstance()->isThisTheMessageThread() &&
+            !CompileExporter::isExportingFromCommandLine())
 		{
 			if (PresetHandler::showYesNoWindow("Create file", "Do you want to create a file for this module"))
 			{
@@ -437,12 +453,10 @@ juce::Image HiseModuleDatabase::ScreenshotProvider::getImage(const MarkdownLink&
 
 			p->setId(p->getName());
 
+			MainController::ScopedBadBabysitter sb(p->getMainController());
 			ScopedPointer<ProcessorEditor> editor = new ProcessorEditor(c, 1, p, nullptr);
-
 			w->addAndMakeVisible(editor);
-
 			editor->setSize(800, editor->getHeight());
-
 			auto img = editor->createComponentSnapshot(editor->getLocalBounds());
 
 			data->cachedImage.add({ url, img });
@@ -470,6 +484,8 @@ using namespace hise;
 ItemGenerator::ItemGenerator(File r, BackendProcessor& bp):
 	MarkdownDataBase::ItemGeneratorBase(r)
 {
+    MainController::ScopedBadBabysitter sb(&bp);
+
 	data->sine = new SineSynth(&bp, "Sine", NUM_POLYPHONIC_VOICES);
 	data->sine->prepareToPlay(44100.0, 512);
 	auto fxChain = dynamic_cast<EffectProcessorChain*>(data->sine->getChildProcessor(ModulatorSynth::EffectChain));
@@ -488,12 +504,34 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 	root.tocString = "ScriptNode";
 	root.c = Colour(CommonData::colour);
 
-	MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/manual"), root.c);
+	{
+		MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/manual"), root.c);
 
-	auto manual = mgen.createRootItem(parent);
-	manual.fillMetadataFromURL();
+		auto manual = mgen.createRootItem(parent);
+		manual.fillMetadataFromURL();
 
-	root.addChild(std::move(manual));
+		root.addChild(std::move(manual));
+	}
+
+	{
+		MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/101"), root.c);
+
+		auto manual = mgen.createRootItem(parent);
+		manual.fillMetadataFromURL();
+
+		root.addChild(std::move(manual));
+	}
+	
+    {
+        MarkdownDataBase::DirectoryItemGenerator mgen(rootDirectory.getChildFile("scriptnode/snex_api"), root.c);
+
+        auto manual = mgen.createRootItem(parent);
+        manual.fillMetadataFromURL();
+
+        root.addChild(std::move(manual));
+    }
+
+	MainController::ScopedBadBabysitter sb(data->network->getScriptProcessor()->getMainController_());
 
 	auto list = data->network->getListOfAvailableModulesAsTree();
 
@@ -509,7 +547,7 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 	}
 
 	root.addChild(std::move(lItem));
-
+    
 	return root;
 }
 
@@ -604,18 +642,15 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 					content << "| ID | Range | Default | Description |" << nl;
 					content << "| --- | --- | --- | ------ |" << nl;
 
-					for (int i = 0; i < node->getNumParameters(); i++)
+					for (auto param: NodeBase::ParameterIterator(*node))
 					{
-						auto param = node->getParameter(i);
-
 						auto pId = param->getId();
-
 						auto pTree = param->data;
 
 						content << "| " << pId;
 
 						auto range = RangeHelpers::getDoubleRange(pTree);
-						content << " | " << String(range.start, 2) << " - " << String(range.end, 2);
+						content << " | " << String(range.rng.start, 2) << " - " << String(range.rng.end, 2);
 						content << " | " << String((double)pTree[PropertyIds::Value], 2);
 
 						bool found = false;
@@ -666,7 +701,7 @@ hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 		if (auto node = dynamic_cast<NodeBase*>(data->network->get(id).getObject()))
 		{
 			MessageManagerLock mmlock;
-			auto c = dynamic_cast<juce::Component*>(node->createComponent());
+			ScopedPointer<Component> c = dynamic_cast<juce::Component*>(node->createComponent());
 			c->setBounds(node->getPositionInCanvas({ 0, 0 }));
 			return c->createComponentSnapshot(c->getLocalBounds());
 		}

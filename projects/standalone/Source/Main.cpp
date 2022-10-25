@@ -65,12 +65,22 @@ private:
 		return f;
 	}
 
-	static File getFilePathArgument(const StringArray& args)
+	
+
+	static File getFilePathArgument(const StringArray& args, const File& root = File())
 	{
 		auto s = getArgument(args, "-p:");
 
 		if (s.isNotEmpty() && File::isAbsolutePath(s))
 			return File(s);
+
+		if (root.isDirectory())
+		{
+			auto rel = root.getChildFile(s);
+
+			if (rel.existsAsFile())
+				return rel;
+		}
 
 		throwErrorAndQuit("`" + s + "` is not a valid path");
 
@@ -104,10 +114,11 @@ public:
 		print("-ipp      enables Intel Performance Primitives for fast convolution." );
 		print("-l        This can be used to compile a version that runs on legacy CPU models.");
 		print("-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect' | 'midi')" );
-		print("-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" );
-		print("          (Leave empty for standalone export)" );
-		print("-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." );
-		print("          (Leave empty on OSX for Universal binary.)" );
+		print("-p:{TEXT} sets the plugin type ('VST'  | 'AU'   | 'VST_AU' | 'AAX' |)" );
+		print("                                'ALL'  | 'VST2' | 'VST3'   | 'VST23AU' )");
+		print("          (Leave empty for standalone export). Note that if you use the VST2, VST3,");
+		print("           VST23AU it will override the project settings so you can export both versions).");
+		print("           Note: The VST23AU flag will skip AU on Windows and build only VST2 and VST3.");
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
@@ -126,12 +137,22 @@ public:
 		print("Cleans the Binaries folder of the given project.");
 		print("-p:PATH - the path to the project folder.");
 		print("");
-        print("create-win-installer [-a:x64|x86] [-noaax] [-rlottie]" );
+        print("create-win-installer [-a:x64|x86] [-noaax] [-vst2] [-vst3]" );
 		print("Creates a template install script for Inno Setup for the project" );
 		print("Add the -noaax flag to not include the AAX build");
-        print("Add the -rlottie flag to include the .dlls for RLottie.");
-        print("(You'll need to put them into the AdditionalSourceCode directory");
-        print("Add the -a:x64 or -a:x86 flag to just create an installer for the specified platform");
+		print("If you want to include VST2 and or VST3 plugins, specify the version.");
+		print("If no VST flag is set, then the VST2 plugin is included as default");
+        print("");
+        print("create-docs -p:PATH");
+        print("Creates the HISE documentation files from the markdown files in the given directory.");
+		print("load -p:PATH");
+		print("");
+		print("Loads the given file (either .xml file or .hip file) and returns the status code");
+		print("You can call Engine.setCommandLineStatus(1) in the onInit callback to report an error");
+		print("");
+		print("compile_networks -c:CONFIG");
+		print("Compiles the DSP networks in the given project folder. Use the -c flag to specify the build");
+		print("configuration ('Debug' or 'Release')");
 
 		exit(0);
 	}
@@ -145,11 +166,14 @@ public:
 
 		const bool includeAAX = !args.contains("-noaax");
         
-        const bool includeRlottie = args.contains("-rlottie");
-        const bool include32 = !args.contains("-a:x64");
+		const bool include32 = false;
         const bool include64 = !args.contains("-a:x86");
 
-		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeRlottie);
+		const bool includeVST3 = args.contains("-vst3");
+
+		const bool includeVST2 = !includeVST3 || args.contains("-vst2");
+
+		auto content = BackendCommandTarget::Actions::createWindowsInstallerTemplate(mc, includeAAX, include32, include64, includeVST2, includeVST3);
 
 		auto root = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getWorkDirectory();
 
@@ -213,6 +237,90 @@ public:
 		else throwErrorAndQuit(pd.getFullPathName() + " is not a valid folder");
 	}
 	
+	static int loadPresetFile(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+
+		CompileExporter::setExportingFromCommandLine();
+		
+		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
+
+		auto bp = dynamic_cast<BackendProcessor*>(processor->getCurrentProcessor());
+
+		ModulatorSynthChain* mainSynthChain = bp->getMainSynthChain();
+		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
+
+		File presetFile = getFilePathArgument(args, bp->getActiveFileHandler()->getRootFolder());
+
+		CompileExporter::setExportUsingCI(false);
+
+		File projectDirectory = presetFile.getParentDirectory().getParentDirectory();
+
+		std::cout << "Loading the preset...";
+
+		try
+		{
+			if (presetFile.getFileExtension() == ".hip")
+			{
+				bp->loadPresetFromFile(presetFile, nullptr);
+			}
+			else if (presetFile.getFileExtension() == ".xml")
+			{
+				auto xml = XmlDocument::parse(presetFile);
+
+				if (xml != nullptr)
+				{
+					XmlBackupFunctions::addContentFromSubdirectory(*xml, presetFile);
+					String newId = xml->getStringAttribute("ID");
+
+					auto v = ValueTree::fromXml(*xml);
+					XmlBackupFunctions::restoreAllScripts(v, mainSynthChain, newId);
+
+					bp->loadPresetFromValueTree(v);
+				}
+			}
+		}
+		catch (hise::CommandLineException& c)
+		{
+			throwErrorAndQuit(c.r.getErrorMessage());
+			return 1;
+		}
+		
+		std::cout << "DONE" << std::endl << std::endl;
+		processor = nullptr;
+		
+		return 0;
+	}
+
+	static void compileNetworks(const String& commandLine)
+	{
+		auto args = getCommandLineArgs(commandLine);
+		auto config = getArgument(args, "-c:");
+
+		if (config != "Debug" && config != "Release" && config != "CI")
+		{
+			throwErrorAndQuit("Invalid build configuration: " + config);
+		}
+
+		ScopedPointer<StandaloneProcessor> sp = new StandaloneProcessor();
+
+		auto mc = dynamic_cast<MainController*>(sp->getCurrentProcessor());
+
+		raw::Builder builder(mc);
+
+		auto jsfx = builder.create<JavascriptMasterEffect>(mc->getMainSynthChain(), raw::IDs::Chains::FX);
+
+		jsfx->getOrCreate("dsp");
+
+		CompileExporter::setExportingFromCommandLine();
+
+		hise::DspNetworkCompileExporter exporter(nullptr, dynamic_cast<BackendProcessor*>(mc));
+
+		exporter.getComboBoxComponent("build")->setText(config, dontSendNotification);
+
+		exporter.run();
+	}
+
 	static void setProjectFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
@@ -274,6 +382,47 @@ public:
 		}
 	}
 	
+    static void createDocumentation(const String& commandLine)
+    {
+        auto args = getCommandLineArgs(commandLine);
+        auto docRoot = getFilePathArgument(args);
+        
+        if(!docRoot.isDirectory())
+            throwErrorAndQuit("Not a valid directory");
+        
+        print("Create HISE instance");
+        
+        CompileExporter::setExportingFromCommandLine();
+        
+        StandaloneProcessor sp;
+        
+        ScopedPointer<Component> ed = sp.createEditor();
+        
+        auto bp = dynamic_cast<BackendProcessor*>(sp.getCurrentProcessor());
+        
+        hise::DatabaseCrawler crawler(*bp);
+        
+        print("Rebuild database");
+        
+        bp->setDatabaseRootDirectory(docRoot);
+        
+        bp->setForceCachedDataUse(false);
+        crawler.clearResolvers();
+        bp->addContentProcessor(&crawler);
+
+        print("Creating Content data");
+        
+        crawler.createContentTree();
+
+        print("Creating Image data");
+        
+        crawler.createImageTree();
+        
+        print("Writing data files");
+        
+        crawler.createDataFiles(docRoot.getChildFile("cached"), true);
+    }
+    
 	static void setHiseFolder(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
@@ -293,7 +442,7 @@ public:
 
 		if (compilerSettings.existsAsFile())
 		{
-			xml = XmlDocument::parse(compilerSettings);
+			xml = XmlDocument::parse(compilerSettings).release();
 		}
 		else
 		{
@@ -384,7 +533,7 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
-        if (commandLine.startsWith("export"))
+		if (commandLine.startsWith("export"))
 		{
 			String pluginFile;
 
@@ -438,6 +587,12 @@ public:
 			quit();
 			return;
 		}
+        else if (commandLine.startsWith("create-docs"))
+        {
+            CommandLineActions::createDocumentation(commandLine);
+            quit();
+            return;
+        }
 		else if (commandLine.startsWith("--help"))
 		{
 			CommandLineActions::printHelp();
@@ -454,6 +609,27 @@ public:
 
 			Logger::setCurrentLogger(nullptr);
 			stdLogger = nullptr;
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("load "))
+		{
+			auto ok = CommandLineActions::loadPresetFile(commandLine);
+
+			if (ok != 0)
+			{
+				exit(ok);
+				return;
+			}
+				
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("compile_networks"))
+		{
+			CommandLineActions::compileNetworks(commandLine);
 
 			quit();
 			return;
@@ -497,7 +673,7 @@ public:
     class MainWindow    : public DocumentWindow
     {
     public:
-        MainWindow(const String &commandLine)  : DocumentWindow ("HISE Backend Standalone",
+        MainWindow(const String &commandLine)  : DocumentWindow ("HISE",
                                         Colours::lightgrey,
 										DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
         {

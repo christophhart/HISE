@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -31,6 +30,7 @@ Drawable::Drawable()
 {
     setInterceptsMouseClicks (false, false);
     setPaintingIsUnclipped (true);
+    setAccessible (false);
 }
 
 Drawable::Drawable (const Drawable& other)
@@ -38,6 +38,7 @@ Drawable::Drawable (const Drawable& other)
 {
     setInterceptsMouseClicks (false, false);
     setPaintingIsUnclipped (true);
+    setAccessible (false);
 
     setComponentID (other.getComponentID());
     setTransform (other.getTransform());
@@ -110,11 +111,11 @@ DrawableComposite* Drawable::getParent() const
     return dynamic_cast<DrawableComposite*> (getParentComponent());
 }
 
-void Drawable::setClipPath (Drawable* clipPath)
+void Drawable::setClipPath (std::unique_ptr<Drawable> clipPath)
 {
-    if (drawableClipPath.get() != clipPath)
+    if (drawableClipPath != clipPath)
     {
-        drawableClipPath.reset (clipPath);
+        drawableClipPath = std::move (clipPath);
         repaint();
     }
 }
@@ -166,38 +167,20 @@ void Drawable::setTransformToFit (const Rectangle<float>& area, RectanglePlaceme
 }
 
 //==============================================================================
-Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes)
+std::unique_ptr<Drawable> Drawable::createFromImageData (const void* data, const size_t numBytes)
 {
-    Drawable* result = nullptr;
-
     auto image = ImageFileFormat::loadFrom (data, numBytes);
 
     if (image.isValid())
-    {
-        auto* di = new DrawableImage();
-        di->setImage (image);
-        result = di;
-    }
-    else
-    {
-        auto asString = String::createStringFromData (data, (int) numBytes);
+        return std::make_unique<DrawableImage> (image);
 
-        XmlDocument doc (asString);
-        std::unique_ptr<XmlElement> outer (doc.getDocumentElement (true));
+    if (auto svg = parseXMLIfTagMatches (String::createStringFromData (data, (int) numBytes), "svg"))
+        return Drawable::createFromSVG (*svg);
 
-        if (outer != nullptr && outer->hasTagName ("svg"))
-        {
-            std::unique_ptr<XmlElement> svg (doc.getDocumentElement());
-
-            if (svg != nullptr)
-                result = Drawable::createFromSVG (*svg);
-        }
-    }
-
-    return result;
+    return {};
 }
 
-Drawable* Drawable::createFromImageDataStream (InputStream& dataSource)
+std::unique_ptr<Drawable> Drawable::createFromImageDataStream (InputStream& dataSource)
 {
     MemoryOutputStream mo;
     mo << dataSource;
@@ -205,11 +188,14 @@ Drawable* Drawable::createFromImageDataStream (InputStream& dataSource)
     return createFromImageData (mo.getData(), mo.getDataSize());
 }
 
-Drawable* Drawable::createFromImageFile (const File& file)
+std::unique_ptr<Drawable> Drawable::createFromImageFile (const File& file)
 {
     FileInputStream fin (file);
 
-    return fin.openedOk() ? createFromImageDataStream (fin) : nullptr;
+    if (fin.openedOk())
+        return createFromImageDataStream (fin);
+
+    return {};
 }
 
 } // namespace juce

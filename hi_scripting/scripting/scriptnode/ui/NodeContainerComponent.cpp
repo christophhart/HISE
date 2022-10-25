@@ -53,7 +53,12 @@ ContainerComponent::Updater::~Updater()
 
 void ContainerComponent::Updater::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	parent.rebuildNodes();
+	if(messageLevel == Level::Rebuild)
+		parent.rebuildNodes();
+	if (messageLevel == Level::Repaint)
+		parent.repaint();
+
+	messageLevel = Level::Nothing;
 }
 
 
@@ -81,13 +86,22 @@ void ContainerComponent::Updater::valueTreeChildRemoved(ValueTree& parentTree, V
 void ContainerComponent::Updater::valueTreePropertyChanged(ValueTree&, const Identifier& id)
 {
 	if (id == PropertyIds::Bypassed)
-		parent.repaint();
+	{
+		messageLevel = jmax(Level::Repaint, messageLevel);
+		sendPooledChangeMessage();
+	}
 
 	if (id == PropertyIds::Folded)
+	{
+		messageLevel = Level::Rebuild;
 		sendPooledChangeMessage();
+	}
 
 	if (id == PropertyIds::ShowParameters)
+	{
+		messageLevel = Level::Rebuild;
 		sendPooledChangeMessage();
+	}
 }
 
 
@@ -98,9 +112,16 @@ void ContainerComponent::Updater::valueTreeParentChanged(ValueTree&)
 
 ContainerComponent::ContainerComponent(NodeContainer* b) :
 	NodeComponent(b->asNode()),
+    SimpleTimer(b->asNode()->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	updater(*this),
-	parameters(*this)
+	parameters(new ParameterComponent(*this))
 {
+	if (auto sn = dynamic_cast<SerialNode*>(b))
+	{
+		verticalValue.referTo(sn->getNodePropertyAsValue(PropertyIds::IsVertical));
+		verticalValue.addListener(this);
+	}
+
 	addAndMakeVisible(parameters);
 	setOpaque(true);
 	rebuildNodes();
@@ -120,9 +141,11 @@ void ContainerComponent::mouseEnter(const MouseEvent& event)
 }
 
 
-void ContainerComponent::mouseMove(const MouseEvent& event)
+void ContainerComponent::mouseMove(const MouseEvent& e)
 {
-	addPosition = getInsertPosition(event.getPosition());
+	setMouseCursor(e.mods.isShiftDown() ? MouseCursor::CrosshairCursor : MouseCursor::NormalCursor);
+
+	addPosition = getInsertPosition(e.getPosition());
 	repaint();
 }
 
@@ -134,103 +157,55 @@ void ContainerComponent::mouseExit(const MouseEvent& )
 }
 
 
-void ContainerComponent::mouseDown(const MouseEvent& event)
+void ContainerComponent::mouseDown(const MouseEvent& e)
 {
 	if (auto n = findParentComponentOfClass<DspNetworkGraph>())
 	{
+		if (e.mods.isShiftDown())
+		{
+			if (!e.mods.isCommandDown())
+				node->getRootNetwork()->deselectAll();
+
+			n->addAndMakeVisible(lasso);
+			lasso.beginLasso(e.getEventRelativeTo(n), this);
+			return;
+		}
+
 		DspNetworkGraph::Actions::showKeyboardPopup(*n, KeyboardPopup::Mode::New);
-	}
-
-	if (event.mods.isRightButtonDown())
-	{
-		
-
-#if 0
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		String clipboard = SystemClipboard::getTextFromClipboard();
-
-		if (clipboard.startsWith("ScriptNode"))
-		{
-			m.addItem(120000, "Add node from clipboard", true);
-		}
-
-		m.addSectionHeader("Add existing node");
-
-		auto network = node->getRootNetwork();
-
-		auto nodeList = network->getListOfUnconnectedNodes();
-
-		for (int i = 0; i < nodeList.size(); i++)
-		{
-			m.addItem(i + 1, "Add " + nodeList[i]->getId());
-		}
-
-		m.addSeparator();
-		m.addSectionHeader("Create new node");
-
-		auto sa = network->getListOfAllAvailableModuleIds();
-
-		//sa.sort(true);
-
-		
-
-		String currentFactory;
-		PopupMenu sub;
-		int newId = 11000;
-
-		for (const auto& s : sa)
-		{
-			auto thisFactory = s.upToFirstOccurrenceOf(".", false, false);
-
-			if (thisFactory != currentFactory)
-			{
-				if (sub.getNumItems() != 0)
-					m.addSubMenu(currentFactory, sub);
-
-				sub = PopupMenu();
-
-				currentFactory = thisFactory;
-			}
-
-			sub.addItem(newId++, s.fromFirstOccurrenceOf(".", false, false));
-		}
-
-		if (sub.getNumItems() != 0)
-			m.addSubMenu(currentFactory, sub);
-
-		int result = m.show();
-
-		if (result != 0)
-		{
-			var newNode;
-
-			auto container = dynamic_cast<NodeContainer*>(node.get());
-
-			if (result == 120000)
-			{
-				auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
-				auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
-
-				if (newTree.isValid())
-				{
-					newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
-				}
-			}
-			else if (result >= 11000)
-			{
-				auto moduleId = sa[result - 11000];
-				newNode = network->create(moduleId, {}, container->isPolyphonic());
-			}
-
-			container->assign(addPosition, newNode);
-		}
-#endif
 	}
 }
 
+bool ContainerComponent::shouldPaintCable(CableLocation location) const
+{
+    /* Implement the logic here:
+       - offline nodes have no cables
+       - clone nodes have a proper representation of their flow
+     */
+    
+    
+    switch(location)
+    {
+        case CableLocation::Input: return true;
+        case CableLocation::BetweenNodes: return true;
+        case CableLocation::Output: return dynamic_cast<ModulationChainNode*>(node.get()) == nullptr;
+        default: return false;
+    }
+}
+
+void ContainerComponent::mouseDrag(const MouseEvent& e)
+{
+	if (lasso.isVisible())
+		lasso.dragLasso(e.getEventRelativeTo(findParentComponentOfClass<DspNetworkGraph>()));
+}
+
+void ContainerComponent::mouseUp(const MouseEvent& e)
+{
+	if (lasso.isVisible())
+	{
+		lasso.endLasso();
+		findParentComponentOfClass<DspNetworkGraph>()->removeChildComponent(&lasso);
+	}
+}
 
 void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
 {
@@ -238,7 +213,7 @@ void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
 
 	removeChildComponent(draggedNode);
 
-	auto dea = new DeactivatedComponent(draggedNode->node);
+	auto dea = new DeactivatedComponent(draggedNode->node.get());
 
 	addAndMakeVisible(dea);
 
@@ -270,20 +245,18 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 		auto newTree = newNode->node->getValueTree();
 		auto container = dynamic_cast<NodeContainer*>(node.get());
 
+        
+        
 		if (copyNode)
 		{
-			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
+            Array<DspNetwork::IdChange> changes;
+			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
 			node->getRootNetwork()->createFromValueTree(container->isPolyphonic(), copy, true);
 			container->getNodeTree().addChild(copy, insertPosition, node->getUndoManager());
 		}
 		else
 		{
-			newNode->node->setParent(var(node), insertPosition);
-
-#if 0
-			newTree.getParent().removeChild(newTree, node->getUndoManager());
-			container->getNodeTree().addChild(newTree, insertPosition, node->getUndoManager());
-#endif
+			newNode->node->setParent(var(node.get()), insertPosition);
 		}
 	}
 }
@@ -331,6 +304,58 @@ void ContainerComponent::clearDropTarget()
 	}
 }
 
+void ContainerComponent::valueChanged(Value& v)
+{
+	if (auto dnp = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		Component::SafePointer<DspNetworkGraph> safeDnp(dnp);
+
+		MessageManager::callAsync([safeDnp]()
+		{
+			if(safeDnp.getComponent() != nullptr)
+				safeDnp.getComponent()->rebuildNodes();
+		});
+	}
+}
+
+void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, const Rectangle<int>& area)
+{
+	Array<NodeComponent*> nodeComponents;
+
+	auto dng = findParentComponentOfClass<DspNetworkGraph>();
+	dng->fillChildComponentList<NodeComponent>(nodeComponents, this);
+
+	for (auto n : nodeComponents)
+	{
+		if (n->node.get() == node->getRootNetwork()->getRootNode())
+			continue;
+
+		if (n == this)
+			continue;
+
+		auto la = dng->getLocalArea(n, n->getLocalBounds());
+
+		if (area.intersectRectangle(la))
+		{
+			bool parentFound = false;
+
+			for (auto i : itemsFound)
+			{
+				auto p = n->node.get();
+
+				while (!parentFound && p != nullptr)
+				{
+					parentFound |= itemsFound.contains(p);
+					p = p->getParentNode();
+				}
+			}
+
+			if(!parentFound)
+				itemsFound.addIfNotAlreadyThere(n->node.get());
+		}
+	}
+}
+
 juce::Point<int> ContainerComponent::getStartPosition() const
 {
 	int y = UIValues::NodeMargin;
@@ -345,7 +370,7 @@ juce::Point<int> ContainerComponent::getStartPosition() const
 
 float ContainerComponent::getCableXOffset(int cableIndex, int factor /*= 1*/) const
 {
-	int numCables = node->getNumChannelsToProcess() - 1;
+	int numCables = node->getNumChannelsToDisplay() - 1;
 	int cableWidth = numCables * (UIValues::PinHeight * factor);
 	int cableStart = getWidth() / 2 - cableWidth / 2;
 	int cableX = cableStart + cableIndex * (UIValues::PinHeight * factor);
@@ -353,6 +378,124 @@ float ContainerComponent::getCableXOffset(int cableIndex, int factor /*= 1*/) co
 	return (float)cableX - (float)getWidth() / 2.0f;
 }
 
+struct DuplicateComponent : public Component,
+							public SettableTooltipClient
+{
+	DuplicateComponent(NodeBase* parent_, int numClones):
+		parent(parent_),
+		numExtra(numClones)
+	{
+		setRepaintsOnMouseActivity(true);
+		setTooltip("Click to edit range of displayed clones");
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		String message;
+		message << "Enter the range of clones you want to display.  \n> Number of clones: **";
+		message << String(dynamic_cast<NodeContainer*>(parent.get())->getNodeList().size());
+		message << "**";
+
+		auto s = PresetHandler::getCustomName("1-3,5,8", message);
+
+		parent->setValueTreeProperty(PropertyIds::DisplayedClones, s);
+	}
+
+	void paintNodeBody(Graphics& g, Rectangle<float> b, float alpha)
+	{
+		g.setColour(Colour(0xff353535).withAlpha(alpha));
+
+		
+		g.fillRect(b);
+
+		g.setColour(Colour(0xFF555555).withAlpha(alpha));
+		g.drawRect(b, 1.0f);
+		auto h = b.removeFromTop(UIValues::HeaderHeight);
+		g.fillRect(h);
+
+		h.removeFromLeft(1);
+		h.removeFromRight(1);
+		h.removeFromTop(1);
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x2b000000)));
+		g.fillRect(h);
+
+		NodeComponent::drawTopBodyGradient(g, b, JUCE_LIVE_CONSTANT_OFF(0.15f * alpha));
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().reduced(UIValues::NodeMargin).toFloat();
+
+		auto isVertical = getWidth() > getHeight();
+
+		float opacity = 1.0f;
+		
+		if (!isVertical)
+		{
+			auto w = jmax(6.0f, b.getWidth() / jmax(1.0f, (float)(numExtra)) - 1.0f);
+
+			while (b.getWidth() > 0)
+			{
+				opacity = jmax(0.2f, opacity - 0.1f);
+				paintNodeBody(g, b.removeFromLeft(w), opacity);
+				b.removeFromLeft(1.0f);
+				b.removeFromBottom(1.0f);
+			}
+		}
+		else
+		{
+			auto h = jmax(6.0f, b.getHeight() / jmax(1.0f, (float)(numExtra)) - 1.0f);
+
+			while (b.getHeight() > 0.0f)
+			{
+				opacity = jmax(0.2f, opacity - 0.1f);
+				paintNodeBody(g, b.removeFromTop(h), opacity);
+				b.removeFromTop(1.0f);
+				b.removeFromLeft(1.0f);
+				b.removeFromRight(1.0f);
+			}
+		}
+
+		float alpha = 0.2f;
+
+		if (isMouseOver(true))
+			alpha += 0.07f;
+
+		if (isMouseButtonDown(true))
+			alpha += 0.07f;
+
+		Path p;
+#if USE_BACKEND
+		p.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel));
+#endif
+		PathFactory::scalePath(p, getLocalBounds().toFloat().withSizeKeepingCentre(32.0f, 32.0f));
+
+		g.setColour(Colours::white.withAlpha(alpha));
+		g.fillPath(p);
+
+		String s;
+		s << "+" << String(numExtra);
+
+		String r;
+		
+		r << "[" << parent->getValueTree()[PropertyIds::DisplayedClones].toString() << "]";
+
+		if (r.isNotEmpty())
+		{
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.drawText(r, p.getBounds().translated(0.0f, 24.0f).expanded(30.0f, 0.0f), Justification::centredBottom);
+		}
+
+		g.setColour(Colours::white.withAlpha(0.8f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText(s, getLocalBounds().reduced(UIValues::NodeMargin).toFloat().removeFromTop(UIValues::HeaderHeight), Justification::centred);
+	}
+
+	NodeBase::Ptr parent;
+	const int numExtra;
+};
 
 void ContainerComponent::rebuildNodes()
 {
@@ -362,17 +505,35 @@ void ContainerComponent::rebuildNodes()
 			nc->node->getHelpManager().removeHelpListener(this);
 	}
 
+	duplicateDisplay = nullptr;
 	childNodeComponents.clear();
 
 	if (auto container = dynamic_cast<NodeContainer*>(node.get()))
 	{
+		int index = 0;
+		int numHidden = 0;
+
 		for (auto n : container->nodes)
 		{
+			if (auto cn = dynamic_cast<CloneNode*>(container))
+			{
+				if (!cn->shouldCloneBeDisplayed(index++))
+				{
+					numHidden++;
+					continue;
+				}
+			}
+
 			auto newNode = n->createComponent();
 
 			n->getHelpManager().addHelpListener(this);
 			addAndMakeVisible(newNode);
 			childNodeComponents.add(newNode);
+		}
+
+		if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
+		{
+			addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
 		}
 	}
 
@@ -381,7 +542,7 @@ void ContainerComponent::rebuildNodes()
 }
 
 
-SerialNodeComponent::SerialNodeComponent(SerialNode* node) :
+SerialNodeComponent::SerialNodeComponent(NodeContainer* node) :
 	ContainerComponent(node)
 {
 
@@ -417,6 +578,19 @@ juce::Rectangle<float> SerialNodeComponent::getInsertRuler(int position) const
 	return Rectangle<int>(UIValues::NodeMargin, targetY, getWidth() - 2 * UIValues::NodeMargin, UIValues::NodeMargin / 2).toFloat();
 }
 
+juce::Colour SerialNodeComponent::getOutlineColour() const
+{
+	if (auto c = dynamic_cast<NodeContainer*>(node.get()))
+	{
+		auto c2 = c->getContainerColour();
+
+		if (!c2.isTransparent())
+			return c2;
+	}
+	
+	return NodeComponent::getOutlineColour();
+}
+
 void SerialNodeComponent::resized()
 {
 	ContainerComponent::resized();
@@ -425,6 +599,9 @@ void SerialNodeComponent::resized()
 
 	for (auto nc : childNodeComponents)
 	{
+		if (nc->node == nullptr)
+			continue;
+
 		auto bounds = nc->node->getPositionInCanvas(startPos);
 		bounds = nc->node->getBoundsWithoutHelp(bounds);
 
@@ -440,6 +617,40 @@ void SerialNodeComponent::resized()
 
 		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
 	}
+
+	if (duplicateDisplay != nullptr)
+	{
+		auto b = getLocalBounds();
+		b.removeFromBottom(UIValues::PinHeight);
+		duplicateDisplay->setBounds(b.removeFromBottom(UIValues::DuplicateSize));
+	}
+}
+
+void addCircleAtMidpoint(Path& p, Line<float> l, float offset, bool useTwo, float radius)
+{
+    if(radius == 0.0f)
+        return;
+    
+    auto lv = JUCE_LIVE_CONSTANT_OFF(12.0f);
+    
+    auto numDots = jmax(1, roundToInt(l.getLength() / jmax<float>(1.0f, lv)));
+    
+    float delta = l.getLength() / (float)numDots;
+    
+    radius *= JUCE_LIVE_CONSTANT_OFF(0.75f);
+    
+    offset *= JUCE_LIVE_CONSTANT_OFF(20.0f);
+    
+    for(int i = 0; i < numDots; i++)
+    {
+        auto pos = std::fmod(offset + (float)i * delta, l.getLength());
+        
+        auto p1 = l.getPointAlongLine(pos - radius, radius);
+        auto p2 = l.getPointAlongLine(pos - radius, -radius);
+        auto p3 = l.getPointAlongLine(jmin(l.getLength(), pos + radius), 0.0f);
+        
+        p.addTriangle(p1, p2, p3);
+    }
 }
 
 void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
@@ -477,86 +688,123 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	auto pin1 = Rectangle<float>(start, start).withSizeKeepingCentre(10.0f, 10.0f);
 	auto pin2 = Rectangle<float>(end, end).withSizeKeepingCentre(10.0f, 10.0f);
 
+	static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
+
+	Path plug;
+
+	plug.loadPathFromData(pathData, sizeof(pathData));
+	
+
 	Path p;
 
-	p.addPieSegment(pin1, 0.0, float_Pi*2.0f, 0.5f);
-	p.addPieSegment(pin2, 0.0, float_Pi*2.0f, 0.5f);
-	p.addLineSegment({ start, start1 }, 2.0f);
-	p.addLineSegment({ end, end1 }, 2.0f);
+	g.setColour(Colour(0xFF888888));
+
+	if(shouldPaintCable(CableLocation::Input))
+    {
+        PathFactory::scalePath(plug, pin1);
+        g.fillPath(plug);
+        
+        p.startNewSubPath(start);
+        p.lineTo(start1);//  addLineSegment({ start, start1 }, 2.0f);
+        
+        addCircleAtMidpoint(p, {start, start1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
+        
+    }
+    
+    if(shouldPaintCable(CableLocation::Output))
+    {
+        PathFactory::scalePath(plug, pin2);
+        g.fillPath(plug);
+        
+        p.startNewSubPath(end);
+        p.lineTo(end1);
+        
+        addCircleAtMidpoint(p, {end1, end}, signalDotOffset, true, getCircleAmp(childNodeComponents.size() - 1, cableIndex, true));
+    }
 
     DropShadow sh;
 	sh.colour = Colours::black.withAlpha(0.5f);
 	sh.offset = { 0, 2 };
 	sh.radius = 3;
 
-	for (int i = 0; i < childNodeComponents.size() - 1; i++)
-	{
-		auto tc = childNodeComponents[i];
-		auto nc = childNodeComponents[i + 1];
+    if(shouldPaintCable(CableLocation::BetweenNodes))
+    {
+        for (int i = 0; i < childNodeComponents.size() - 1; i++)
+        {
+            auto tc = childNodeComponents[i];
+            auto nc = childNodeComponents[i + 1];
 
-		Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
-		Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
+            Point<int> start_({ tc->getBounds().getCentreX(), tc->getBounds().getBottom() });
+            Point<int> end_({ nc->getBounds().getCentreX(), nc->getBounds().getY() });
 
-		Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
+            Line<float> l(start_.toFloat().translated(xOffset, 0.0f), end_.toFloat().translated(xOffset, 0.0f));
 
-		p.addLineSegment(l, 2.0f);
-	}
+            p.startNewSubPath(l.getStart());
+            p.lineTo(l.getEnd());
+            
+            addCircleAtMidpoint(p, l, signalDotOffset, false, getCircleAmp(i, cableIndex, true));
 
-	//sh.drawForPath(g, p);
-	g.setColour(Colour(0xFFAAAAAA));
+            //p.addLineSegment(l, 2.0f);
+        }
+    }
 
-	g.fillPath(p);
+	g.setColour(Colour(0xFF262626));
+	g.strokePath(p, PathStrokeType(4.0f, PathStrokeType::mitered, PathStrokeType::rounded));
+
+	auto c = header.colour.withMultipliedBrightness(0.7f);
+
+	if (c == Colours::transparentBlack)
+		c = Colour(0xFFAAAAAA);
+
+	g.setColour(c);
+	g.strokePath(p, PathStrokeType(2.0f, PathStrokeType::mitered, PathStrokeType::rounded));
 }
 
 void SerialNodeComponent::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF3f363a)));
 
+    auto t = JUCE_LIVE_CONSTANT_OFF(1000.0f);
+    signalDotOffset = (double)Time::getMillisecondCounter() / jmax(1.0f, t);
+
+
+	Colour fc = getOutlineColour();
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff232323)));
+
+	g.fillRect(b);
+
+	g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)), 0.0f, (float)UIValues::HeaderHeight, Colours::transparentBlack, 0.0f, 50.0f, false));
 	
+	auto copy = b;
+	g.fillRect(copy.removeFromTop(50.0f));
 
-	if (dynamic_cast<DspNetworkGraph*>(getParentComponent()) != nullptr)
-	{
-		g.setColour(dynamic_cast<Processor*>(node->getScriptProcessor())->getColour().withMultipliedSaturation(0.6f).withMultipliedBrightness(0.8f));
-	}
-
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 0.0f, 3.0f);
-
-	g.setColour(Colours::white.withAlpha(0.03f));
+	g.setColour(fc);
+	g.drawRect(b, 1.0f);
 
 	int yStart = 0;
 	
 	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
 	{
-		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
+		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15 + UIValues::HeaderHeight) % 10;
 	}
 
-	for (int i = yStart; i < getHeight(); i += 10)
+	for (int i = yStart; i < getHeight() + 10; i += 10)
 	{
-		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
+		float multiplier = (float)i / float(getHeight());
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.5f);
+		g.setColour(fc.withMultipliedAlpha( multiplier * JUCE_LIVE_CONSTANT_OFF(0.08f)));
+        g.fillRect(2, i, getWidth() - 2, 9 );
 	}
 
-	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
+	for (int i = 0; i < node->getNumChannelsToDisplay(); i++)
 	{
 		paintSerialCable(g, i);
 	}
 
 	drawHelp(g);
-
-
-	DropShadow sh;
-	sh.colour = Colours::black.withAlpha(0.5f);
-	sh.offset = { 0, 2 };
-	sh.radius = 3;
-
-	for (auto nc : childNodeComponents)
-	{
-		Path rr;
-		rr.addRoundedRectangle(nc->getBounds().toFloat(), 5.0f);
-		//sh.drawForPath(g, rr);
-	}
 
 	if (addPosition != -1)
 	{
@@ -576,7 +824,7 @@ void SerialNodeComponent::paint(Graphics& g)
 	}
 }
 
-ParallelNodeComponent::ParallelNodeComponent(ParallelNode* node) :
+ParallelNodeComponent::ParallelNodeComponent(NodeContainer* node) :
 	ContainerComponent(node)
 {
 
@@ -622,6 +870,19 @@ juce::Rectangle<float> ParallelNodeComponent::getInsertRuler(int position) const
 	return Rectangle<int>(targetX, UIValues::HeaderHeight, UIValues::NodeMargin / 2, getHeight() - UIValues::HeaderHeight).toFloat();
 }
 
+juce::Colour ParallelNodeComponent::getOutlineColour() const
+{
+	if (auto c = dynamic_cast<NodeContainer*>(node.get()))
+	{
+		auto c2 = c->getContainerColour();
+
+		if (!c2.isTransparent())
+			return c2;
+	}
+
+	return NodeComponent::getOutlineColour();
+}
+
 void ParallelNodeComponent::resized()
 {
 	ContainerComponent::resized();
@@ -639,33 +900,64 @@ void ParallelNodeComponent::resized()
 
 		startPos = startPos.withX(bounds.getRight() + helpBounds.getWidth() + UIValues::NodeMargin);
 	}
+
+	if (duplicateDisplay != nullptr)
+	{
+		auto b = getLocalBounds();
+		b.removeFromTop(startPos.getY() - UIValues::NodeMargin);
+
+		b.removeFromBottom(UIValues::PinHeight);
+
+		duplicateDisplay->setBounds(b.removeFromRight(UIValues::DuplicateSize));
+	}
+		
 }
 
 void ParallelNodeComponent::paint(Graphics& g)
 {
-	if (header.isDragging)
+    auto t = JUCE_LIVE_CONSTANT_OFF(1000.0f);
+    signalDotOffset = (double)Time::getMillisecondCounter() / jmax(1.0f, t);
+    
+    if (header.isDragging)
 		g.setOpacity(0.3f);
 
 	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF39363f)));
+	
 
-	if (isMultiChannelNode())
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF393f36)));
+	Colour fc = getOutlineColour();
+	
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff232323)));
+	g.fillRect(b);
+	
+	drawTopBodyGradient(g, b);
+
+	g.setColour(fc);
+
+	g.drawRect(b, 1.0f);
 
 	
 
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
-
-	g.setColour(Colours::white.withAlpha(0.03f));
-
-	for (int i = 0; i < getWidth(); i += 10)
+	for (int i = 2; i < getWidth() + 10; i += 10)
 	{
-		g.drawVerticalLine(i, 0.0f, (float)getHeight());
+		auto halfWidth = (float)getWidth() / 2.0f;
+		float multiplier = std::abs((float)i - halfWidth) / halfWidth;
+
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.5f);
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT_OFF(0.07f)));
+
+		g.fillRect(i, 2, 9, getHeight() - 2);
+
+#if 0
+
+		multiplier += JUCE_LIVE_CONSTANT_OFF(0.1f);
+
+		g.setColour(fc.withMultipliedAlpha(multiplier * JUCE_LIVE_CONSTANT_OFF(0.2f)));
+
+		g.drawVerticalLine(i, 2.0f, (float)getHeight() - 2.0f);
+#endif
 	}
 
-	for (int i = 0; i < node->getNumChannelsToProcess(); i++)
+	for (int i = 0; i < node->getNumChannelsToDisplay(); i++)
 	{
 		paintCable(g, i);
 	}
@@ -692,6 +984,8 @@ void ParallelNodeComponent::paint(Graphics& g)
 
 void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 {
+	Path p;
+
 	auto xOffset = getCableXOffset(cableIndex, 1);
 
 	auto b2 = getLocalBounds();
@@ -706,16 +1000,133 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	auto start = b2.removeFromTop(UIValues::PinHeight).getCentre().toFloat().translated(xOffset, 0.0f);
 	auto end = b2.removeFromBottom(UIValues::PinHeight).getCentre().toFloat().translated(xOffset, 0.0f);
-
-	Path p;
-
 	auto pin1 = Rectangle<float>(start, start).withSizeKeepingCentre(10.0f, 10.0f);
 	auto pin2 = Rectangle<float>(end, end).withSizeKeepingCentre(10.0f, 10.0f);
 
-	p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
-	p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
+	static const unsigned char pathData[] = { 110,109,233,38,145,63,119,190,39,64,108,0,0,0,0,227,165,251,63,108,0,0,0,0,20,174,39,63,108,174,71,145,63,0,0,0,0,108,174,71,17,64,20,174,39,63,108,174,71,17,64,227,165,251,63,108,115,104,145,63,119,190,39,64,108,115,104,145,63,143,194,245,63,98,55,137,
+145,63,143,194,245,63,193,202,145,63,143,194,245,63,133,235,145,63,143,194,245,63,98,164,112,189,63,143,194,245,63,96,229,224,63,152,110,210,63,96,229,224,63,180,200,166,63,98,96,229,224,63,43,135,118,63,164,112,189,63,178,157,47,63,133,235,145,63,178,
+157,47,63,98,68,139,76,63,178,157,47,63,84,227,5,63,43,135,118,63,84,227,5,63,180,200,166,63,98,84,227,5,63,14,45,210,63,168,198,75,63,66,96,245,63,233,38,145,63,143,194,245,63,108,233,38,145,63,119,190,39,64,99,101,0,0 };
 
-	if (isMultiChannelNode())
+	Path plug;
+
+	plug.loadPathFromData(pathData, sizeof(pathData));
+
+	g.setColour(Colour(0xFF888888));
+
+	PathFactory::scalePath(plug, pin1);
+	g.fillPath(plug);
+	PathFactory::scalePath(plug, pin2);
+	g.fillPath(plug);
+
+	//p.addPieSegment(pin1, 0.0f, float_Pi * 2.0f, 0.5f);
+	//p.addPieSegment(pin2, 0.0f, float_Pi * 2.0f, 0.5f);
+
+	if (dynamic_cast<SplitNode*>(node.get()) || (dynamic_cast<CloneNode*>(node.get()) != nullptr && node->getParameterFromIndex(1)->getValue()))
+	{
+		if (childNodeComponents.size() < 8)
+		{
+            int idx = 0;
+            
+            for (auto n : childNodeComponents)
+            {
+                auto b = n->getBounds().toFloat();
+
+                Point<float> p1(b.getCentreX() + xOffset, b.getY());
+                Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+
+                if(shouldPaintCable(CableLocation::Input))
+                {
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                    addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
+                }
+                
+                if(shouldPaintCable(CableLocation::Output))
+                {
+                    p.addLineSegment({ p2, end }, 2.0f);
+                    addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(idx, cableIndex, true));
+                }
+                
+                idx++;
+            }
+		}
+		else
+		{
+			auto fn = childNodeComponents.getFirst();
+			auto ln = childNodeComponents.getLast();
+
+			{
+				auto b = fn->getBounds().toFloat();
+
+				Point<float> p1(b.getCentreX() + xOffset, b.getY());
+				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+
+                if(shouldPaintCable(CableLocation::Input))
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                
+                if(shouldPaintCable(CableLocation::Output))
+                    p.addLineSegment({ p2, end }, 2.0f);
+			}
+			{
+				auto b = ln->getBounds().toFloat();
+
+				Point<float> p1(b.getCentreX() + xOffset, b.getY());
+				Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+
+                if(shouldPaintCable(CableLocation::Input))
+                    p.addLineSegment({ start, p1 }, 2.0f);
+                
+                if(shouldPaintCable(CableLocation::Output))
+                    p.addLineSegment({ p2, end }, 2.0f);
+			}
+
+			p.addLineSegment({ start, end }, 2.0f);
+		}
+	}
+	else if (auto sn = dynamic_cast<SerialNode*>(node.get()))
+	{
+		DspNetworkPathFactory df;
+
+		auto icon = df.createPath("swap-orientation");
+
+		auto iconBounds = getLocalBounds().toFloat().removeFromLeft(UIValues::PinHeight).removeFromTop(UIValues::PinHeight).reduced(2.0f);
+
+		df.scalePath(icon, iconBounds);
+
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillPath(icon);
+
+		if (auto f = childNodeComponents.getFirst())
+		{
+			auto b = f->getBounds().toFloat();
+			Point<float> p1(b.getCentreX() + xOffset, b.getY());
+			p.addLineSegment({ start, p1 }, 2.0f);
+		}
+
+		if (auto l = childNodeComponents.getLast())
+		{
+			auto b = l->getBounds().toFloat();
+			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+			p.addLineSegment({ p2, end }, 2.0f);
+		}
+
+		for (int i = 0; i < childNodeComponents.size()-1; i++)
+		{
+			auto t = childNodeComponents[i];
+			auto n = childNodeComponents[i + 1];
+
+			auto tr = t->getBounds().getRight();
+			auto tyc = t->getBounds().getCentreY();
+
+			auto nx = n->getBounds().getCentreX();
+			auto nyc = n->getBounds().getCentreY(); // if you can make it here
+
+			Point<float> t1(tr, tyc);
+			Point<float> n1(nx, nyc);
+
+			p.addLineSegment({ t1, n1 }, 2.0f);
+		}
+	}
+	else if (isMultiChannelNode())
 	{
 		int currentChannelIndex = 0;
 		int channelInTarget = -1;
@@ -723,7 +1134,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 		for (auto c : childNodeComponents)
 		{
-			int numChannelsForThisNode = c->node->getNumChannelsToProcess();
+			int numChannelsForThisNode = c->node->getNumChannelsToDisplay();
 
 			if (currentChannelIndex + numChannelsForThisNode > cableIndex)
 			{
@@ -746,127 +1157,26 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 			p.addLineSegment({ start, p1 }, 2.0f);
 			p.addLineSegment({ p2, end }, 2.0f);
+            
+            addCircleAtMidpoint(p, {start, p1}, signalDotOffset, true, getCircleAmp(-1, cableIndex, false));
+            addCircleAtMidpoint(p, {p2, end}, signalDotOffset, true, getCircleAmp(-1, cableIndex, true));
+            
 		}
 	}
-	else
-	{
-		for (auto n : childNodeComponents)
-		{
-			auto b = n->getBounds().toFloat();
-
-			Point<float> p1(b.getCentreX() + xOffset, b.getY());
-			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
-
-			p.addLineSegment({ start, p1 }, 2.0f);
-			p.addLineSegment({ p2, end }, 2.0f);
-		}
-	}
-
+	
+	
 	if (!node->isBypassed())
 	{
-		g.setColour(Colour(0xFFAAAAAA));
+		auto c = header.colour.withMultipliedBrightness(0.7f);
+
+		if (c == Colours::transparentBlack)
+			c = Colour(Colour(0xFFAAAAAA));
+
+		g.setColour(c);
 		g.fillPath(p);
 	}
 }
 
-
-
-ModChainNodeComponent::ModChainNodeComponent(ModulationChainNode* node):
-	ContainerComponent(node)
-{
-}
-
-int ModChainNodeComponent::getInsertPosition(Point<int> position) const
-{
-	auto targetY = position.getY();
-	auto p = childNodeComponents.size();
-
-	for (auto nc : childNodeComponents)
-	{
-		if (targetY < nc->getY() + nc->getHeight() / 2)
-		{
-			p = childNodeComponents.indexOf(nc);
-			break;
-		}
-	}
-
-	return p;
-}
-
-juce::Rectangle<float> ModChainNodeComponent::getInsertRuler(int position) const
-{
-	int targetY = getHeight() - UIValues::PinHeight;
-
-	if (auto childBeforeInsert = childNodeComponents[position])
-		targetY = childBeforeInsert->getY();
-
-	targetY -= (3 * UIValues::NodeMargin / 4);
-	return Rectangle<int>(UIValues::NodeMargin, targetY, getWidth() - 2 * UIValues::NodeMargin, UIValues::NodeMargin / 2).toFloat();
-}
-
-void ModChainNodeComponent::resized()
-{
-	ContainerComponent::resized();
-
-	Point<int> startPos = getStartPosition();
-
-	for (auto nc : childNodeComponents)
-	{
-		auto bounds = nc->node->getPositionInCanvas(startPos);
-		bounds = nc->node->getBoundsToDisplay(bounds);
-
-		nc->setBounds(bounds);
-
-		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
-		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
-		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
-		auto x = (getWidth() - widthWithHelp) / 2;
-		nc->setTopLeftPosition(x, bounds.getY());
-		startPos = startPos.withY(bounds.getY() + heightWithHelp + UIValues::NodeMargin);
-	}
-}
-
-void ModChainNodeComponent::paint(Graphics& g)
-{
-	auto b = getLocalBounds().toFloat();
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xcd403c32)));
-
-	g.fillRoundedRectangle(b, 5.0f);
-	g.setColour(getOutlineColour());
-	g.drawRoundedRectangle(b.reduced(1.5f), 5.0f, 3.0f);
-
-	int yStart = 0;
-	g.setColour(Colours::white.withAlpha(0.03f));
-
-	if (auto ng = findParentComponentOfClass<DspNetworkGraph>())
-	{
-		yStart = (ng->getLocalArea(this, getLocalBounds()).getY() + 15) % 10;
-	}
-
-	for (int i = yStart; i < getHeight(); i += 10)
-	{
-		g.drawHorizontalLine(i, 3.0f, (float)getWidth() - 3.0f);
-	}
-
-	drawHelp(g);
-
-	if (addPosition != -1)
-	{
-		g.fillAll(Colours::white.withAlpha(0.01f));
-
-		g.setColour(Colours::white.withAlpha(0.08f));
-		g.fillRoundedRectangle(getInsertRuler(addPosition), 2.5f);
-	}
-
-	if (insertPosition != -1)
-	{
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
-		g.fillRoundedRectangle(getLocalBounds().toFloat(), 5.0f);
-
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.8f));
-		g.fillRoundedRectangle(getInsertRuler(insertPosition), 2.5f);
-	}
-}
 
 void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 {
@@ -886,13 +1196,13 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 	{
 		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
 		{
-			auto sp = findParentComponentOfClass<DspNetworkGraph::ScrollableParent>();
+			auto sp = findParentComponentOfClass<ZoomableViewport>();
 
 			auto gotoNode = [sp, targetNode]()
 			{
 				sp->setCurrentModalWindow(nullptr, {});
 
-				if (auto nc = sp->getGraph()->getComponent(targetNode))
+				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(targetNode))
 				{
 					nc->grabKeyboardFocus();
 				}
@@ -938,14 +1248,13 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 					{
 						if (auto mod = dynamic_cast<ModulationSourceNode*>(n.get()))
 						{
-							if(mod->isUsingModulation())
-								mEntries.add({ parent->getId(), mod->getId(), true });
+							mEntries.add({ parent->getId(), mod->getId(), true });	
 						}
 					}
 				}
 
-				for (int i = 0; i < parent->getNumParameters(); i++)
-					pEntries.add({ parent->getId(), parent->getParameter(i)->getId(), false });
+				for (auto p : NodeBase::ParameterIterator(*parent))
+					pEntries.add({ parent->getId(), p->getId(), false });
 
 				parent = parent->getParentNode();
 			}
@@ -991,6 +1300,21 @@ void MacroPropertyEditor::buttonClicked(Button* b)
 			}
 		}
 	}
+}
+
+void ContainerComponent::ParameterComponent::resized()
+{
+	auto b = getLocalBounds();
+	if (b.isEmpty())
+		return;
+
+	b.removeFromTop(15);
+
+	if (leftTabComponent != nullptr)
+		leftTabComponent->setBounds(b.removeFromLeft(leftTabComponent->getWidth()));
+
+	for (auto s : sliders)
+		s->setBounds(b.removeFromLeft(100));
 }
 
 }

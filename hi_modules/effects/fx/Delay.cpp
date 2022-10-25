@@ -44,9 +44,7 @@ DelayEffect::DelayEffect(MainController *mc, const String &id) :
 	tempoSync(true),
 	syncTimeLeft(TempoSyncer::QuarterTriplet),
 	syncTimeRight(TempoSyncer::Quarter),
-	skipFirstBuffer(true),
-	leftDelayFrames(1, 0),
-	rightDelayFrames(1, 0)
+	skipFirstBuffer(true)
 {
 	finaliseModChains();
 
@@ -126,6 +124,24 @@ float DelayEffect::getDefaultValue(int parameterIndex) const
 	case TempoSync:			return true;
 	default:				jassertfalse; return 0.0f;
 	}
+}
+
+void DelayEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
+{
+	if (skipFirstBuffer)
+	{
+		skipFirstBuffer = false;
+		return;
+	}
+
+	const auto dryMix = scriptnode::faders::overlap().getFadeValue<0>(2, mix);
+	const auto wetMix = scriptnode::faders::overlap().getFadeValue<1>(2, mix);
+
+	for(auto& s: snex::block(buffer.getWritePointer(0, startSample), numSamples))
+		s = dryMix * s + wetMix * leftDelay.getDelayedValue(s + leftDelay.getLastValue() * feedbackLeft);
+
+	for(auto& s: snex::block(buffer.getWritePointer(1, startSample), numSamples))
+		s = dryMix * s + wetMix * rightDelay.getDelayedValue(s + rightDelay.getLastValue() * feedbackRight);
 }
 
 ProcessorEditorBody *DelayEffect::createEditor(ProcessorEditor *parentEditor)

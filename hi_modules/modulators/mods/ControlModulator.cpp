@@ -34,23 +34,19 @@ namespace hise { using namespace juce;
 
 ControlModulator::ControlModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
+	LookupTableProcessor(mc, 1),
     targetValue(1.0f),
 	Modulation(m),
 	intensity(1.0f),
 	inverted(false),
 	useTable(false),
-	table(new SampleLookupTable()),
 	smoothTime(200.0f),
 	currentValue(1.0f),
 	learnMode(false),
 	controllerNumber(1),
 	defaultValue(0.0f)
 {
-	this->enableConsoleOutput(false);
-	
-	table->setLengthInSamples(512);
-	
-	table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    referenceShared(ExternalData::DataType::Table, 0);
 
 	for (int i = 0; i < 128; i++)
 	{
@@ -209,7 +205,6 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
 	if (useTable && lastInputValue != inputValue)
     {
         lastInputValue = inputValue;
-        sendTableIndexChangeMessage(false, table, inputValue);
     }
 }
 
@@ -293,8 +288,10 @@ void ControlModulator::handleHiseEvent(const HiseEvent &m)
 		
 		float value;
 
-		if(useTable) value = table->getInterpolatedValue(inputValue * (float)SAMPLE_LOOKUP_TABLE_SIZE);
-		else value = inputValue;
+		if(useTable)
+            value = table->getInterpolatedValue((double)inputValue, sendNotificationAsync);
+		else
+            value = inputValue;
 
 		if(inverted) value = 1.0f - value;
 

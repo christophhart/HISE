@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -29,28 +28,26 @@ namespace juce
 
 const int kilobytesPerSecond1x = 176;
 
-struct AudioTrackProducerClass  : public ObjCClass <NSObject>
+struct AudioTrackProducerClass  : public ObjCClass<NSObject>
 {
-    AudioTrackProducerClass()  : ObjCClass <NSObject> ("JUCEAudioTrackProducer_")
+    AudioTrackProducerClass()  : ObjCClass<NSObject> ("JUCEAudioTrackProducer_")
     {
         addIvar<AudioSourceHolder*> ("source");
 
-       #pragma clang diagnostic push
-       #pragma clang diagnostic ignored "-Wundeclared-selector"
-        addMethod (@selector (initWithAudioSourceHolder:),     initWithAudioSourceHolder,     "@@:^v");
-        addMethod (@selector (verifyDataForTrack:intoBuffer:length:atAddress:blockSize:ioFlags:),
-                   produceDataForTrack,           "I@:@^cIQI^I");
-       #pragma clang diagnostic pop
+        JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
+        addMethod (@selector (initWithAudioSourceHolder:),     initWithAudioSourceHolder);
+        addMethod (@selector (verifyDataForTrack:intoBuffer:length:atAddress:blockSize:ioFlags:), produceDataForTrack);
+        JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
-        addMethod (@selector (cleanupTrackAfterBurn:),         cleanupTrackAfterBurn,         "v@:@");
-        addMethod (@selector (cleanupTrackAfterVerification:), cleanupTrackAfterVerification, "c@:@");
-        addMethod (@selector (estimateLengthOfTrack:),         estimateLengthOfTrack,         "Q@:@");
-        addMethod (@selector (prepareTrack:forBurn:toMedia:),  prepareTrack,                  "c@:@@@");
-        addMethod (@selector (prepareTrackForVerification:),   prepareTrackForVerification,   "c@:@");
+        addMethod (@selector (cleanupTrackAfterBurn:),         cleanupTrackAfterBurn);
+        addMethod (@selector (cleanupTrackAfterVerification:), cleanupTrackAfterVerification);
+        addMethod (@selector (estimateLengthOfTrack:),         estimateLengthOfTrack);
+        addMethod (@selector (prepareTrack:forBurn:toMedia:),  prepareTrack);
+        addMethod (@selector (prepareTrackForVerification:),   prepareTrackForVerification);
         addMethod (@selector (produceDataForTrack:intoBuffer:length:atAddress:blockSize:ioFlags:),
-                                                               produceDataForTrack,           "I@:@^cIQI^I");
+                                                               produceDataForTrack);
         addMethod (@selector (producePreGapForTrack:intoBuffer:length:atAddress:blockSize:ioFlags:),
-                                                               produceDataForTrack,           "I@:@^cIQI^I");
+                                                               produceDataForTrack);
 
         registerClass();
     }
@@ -75,7 +72,7 @@ struct AudioTrackProducerClass  : public ObjCClass <NSObject>
 private:
     static id initWithAudioSourceHolder (id self, SEL, AudioSourceHolder* source)
     {
-        self = sendSuperclassMessage (self, @selector (init));
+        self = sendSuperclassMessage<id> (self, @selector (init));
         object_setInstanceVariable (self, "source", source);
         return self;
     }
@@ -88,7 +85,7 @@ private:
     static void dealloc (id self, SEL)
     {
         delete getSource (self);
-        sendSuperclassMessage (self, @selector (dealloc));
+        sendSuperclassMessage<void> (self, @selector (dealloc));
     }
 
     static void cleanupTrackAfterBurn (id, SEL, DRTrack*) {}
@@ -134,13 +131,9 @@ private:
 
                 source->source->getNextAudioBlock (info);
 
-                typedef AudioData::Pointer <AudioData::Int16,   AudioData::LittleEndian, AudioData::Interleaved,    AudioData::NonConst> CDSampleFormat;
-                typedef AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::Const> SourceSampleFormat;
-
-                CDSampleFormat left (buffer, 2);
-                left.convertSamples (SourceSampleFormat (tempBuffer.getReadPointer (0)), numSamples);
-                CDSampleFormat right (buffer + 2, 2);
-                right.convertSamples (SourceSampleFormat (tempBuffer.getReadPointer (1)), numSamples);
+                AudioData::interleaveSamples (AudioData::NonInterleavedSource<AudioData::Float32, AudioData::NativeEndian> { tempBuffer.getArrayOfReadPointers(), 2 },
+                                              AudioData::InterleavedDest<AudioData::Int16, AudioData::LittleEndian>        { reinterpret_cast<uint16*> (buffer),  2 },
+                                              numSamples);
 
                 source->readPosition += numSamples;
             }
@@ -189,11 +182,10 @@ struct OpenDiskDevice
 
             static AudioTrackProducerClass cls;
 
-           #pragma clang diagnostic push
-           #pragma clang diagnostic ignored "-Wundeclared-selector"
+            JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wundeclared-selector")
             NSObject* producer = [cls.createInstance()  performSelector: @selector (initWithAudioSourceHolder:)
                                                              withObject: (id) new AudioTrackProducerClass::AudioSourceHolder (source, numFrames)];
-           #pragma clang diagnostic pop
+            JUCE_END_IGNORE_WARNINGS_GCC_LIKE
             DRTrack* track = [[DRTrack alloc] initWithProducer: producer];
 
             {
@@ -275,7 +267,7 @@ struct OpenDiskDevice
 };
 
 //==============================================================================
-class AudioCDBurner::Pimpl  : public Timer
+class AudioCDBurner::Pimpl  : private Timer
 {
 public:
     Pimpl (AudioCDBurner& b, int deviceIndex)  : owner (b)
@@ -288,20 +280,9 @@ public:
         }
     }
 
-    ~Pimpl()
+    ~Pimpl() override
     {
         stopTimer();
-    }
-
-    void timerCallback() override
-    {
-        const DiskState state = getDiskState();
-
-        if (state != lastState)
-        {
-            lastState = state;
-            owner.sendChangeMessage();
-        }
     }
 
     DiskState getDiskState() const
@@ -364,6 +345,17 @@ public:
     std::unique_ptr<OpenDiskDevice> device;
 
 private:
+    void timerCallback() override
+    {
+        const DiskState state = getDiskState();
+
+        if (state != lastState)
+        {
+            lastState = state;
+            owner.sendChangeMessage();
+        }
+    }
+
     DiskState lastState;
     AudioCDBurner& owner;
 };

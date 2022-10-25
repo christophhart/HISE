@@ -11,7 +11,7 @@ END_TEST_DATA
 */
 
 span<int, 2> d = { 1, 5 };
-
+int x = 9;
 
 int main(int input)
 {

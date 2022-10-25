@@ -17,9 +17,6 @@
 
 
 
-
-
-
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
@@ -30,7 +27,6 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 	setSize(editor->getWidth(), editor->getHeight());
 
 	handleCommandLineArguments(commandLine);
-
 }
 
 void MainContentComponent::handleCommandLineArguments(const String& args)

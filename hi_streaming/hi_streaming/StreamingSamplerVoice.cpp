@@ -97,8 +97,6 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	sound = s;
 
-	s->wakeSound();
-
 	sampleStartModValue = (int)startTime;
 
 	auto localReadBuffer = &s->getPreloadBuffer();
@@ -320,7 +318,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 bool SampleLoader::advanceReadIndex(double uptime)
 {
-	const int numSamplesInBuffer = readBuffer.get()->getNumSamples();
+	int numSamplesInBuffer = readBuffer.get()->getNumSamples();
 	readIndexDouble = uptime - lastSwapPosition;
 
 	if (readIndexDouble >= numSamplesInBuffer)
@@ -546,8 +544,7 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 		loader.startNote(sound, sampleStartModValue);
 
 		jassert(sound != nullptr);
-		sound->wakeSound();
-
+		
 		voiceUptime = (double)sampleStartModValue;
 
 		// You have to call setPitchFactor() before startNote().

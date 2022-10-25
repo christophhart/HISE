@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -83,7 +83,7 @@ public:
 
         The filename used is based on the root and suffix strings provided, along with a
         time and date string, meaning that a new, empty log file will be always be created
-        rather than appending to an exising one.
+        rather than appending to an existing one.
 
         The method might return nullptr if the file can't be created for some reason.
 

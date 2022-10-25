@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,7 +23,7 @@
   ==============================================================================
 */
 
-#if JUCE_PLUGINHOST_LADSPA && JUCE_LINUX
+#if JUCE_PLUGINHOST_LADSPA && (JUCE_LINUX || JUCE_BSD)
 
 #include <ladspa.h>
 
@@ -114,7 +113,7 @@ private:
 };
 
 //==============================================================================
-class LADSPAPluginInstance     : public AudioPluginInstance
+class LADSPAPluginInstance final    : public AudioPluginInstance
 {
 public:
     LADSPAPluginInstance (const LADSPAModuleHandle::Ptr& m)
@@ -152,7 +151,7 @@ public:
         --insideLADSPACallback;
     }
 
-    ~LADSPAPluginInstance()
+    ~LADSPAPluginInstance() override
     {
         const ScopedLock sl (lock);
 
@@ -180,16 +179,16 @@ public:
 
         inputs.clear();
         outputs.clear();
-        managedParameters.clear (false);
-        AudioProcessorParameterGroup group ({}, {}, {});
-        parameterTree.swapWith (group);
+        AudioProcessorParameterGroup newTree;
 
         for (unsigned int i = 0; i < plugin->PortCount; ++i)
         {
             const auto portDesc = plugin->PortDescriptors[i];
 
             if ((portDesc & LADSPA_PORT_CONTROL) != 0)
-                addParameter (new LADSPAParameter (*this, (int) i, String (plugin->PortNames[i]).trim(), (portDesc & LADSPA_PORT_INPUT) != 0));
+                newTree.addChild (std::make_unique<LADSPAParameter> (*this, (int) i,
+                                                                     String (plugin->PortNames[i]).trim(),
+                                                                     (portDesc & LADSPA_PORT_INPUT) != 0));
 
             if ((portDesc & LADSPA_PORT_AUDIO) != 0)
             {
@@ -197,6 +196,8 @@ public:
                 if ((portDesc & LADSPA_PORT_OUTPUT) != 0)   outputs.add ((int) i);
             }
         }
+
+        setHostedParameterTree (std::move (newTree));
 
         for (auto* param : getParameters())
             if (auto* ladspaParam = dynamic_cast<LADSPAParameter*> (param))
@@ -215,11 +216,11 @@ public:
     //==============================================================================
     // AudioPluginInstance methods:
 
-    void fillInPluginDescription (PluginDescription& desc) const
+    void fillInPluginDescription (PluginDescription& desc) const override
     {
         desc.name = getName();
         desc.fileOrIdentifier = module->file.getFullPathName();
-        desc.uid = getUID();
+        desc.uniqueId = desc.deprecatedUid = getUID();
         desc.lastFileModTime = module->file.getLastModificationTime();
         desc.lastInfoUpdateTime = Time::getCurrentTime();
         desc.pluginFormatName = "LADSPA";
@@ -231,7 +232,7 @@ public:
         desc.isInstrument = false;
     }
 
-    const String getName() const
+    const String getName() const override
     {
         if (plugin != nullptr && plugin->Label != nullptr)
             return plugin->Label;
@@ -247,16 +248,16 @@ public:
         return module->file.hashCode();
     }
 
-    String getVersion() const                 { return LADSPA_VERSION; }
-    String getCategory() const                { return "Effect"; }
+    String getVersion() const                         { return LADSPA_VERSION; }
+    String getCategory() const                        { return "Effect"; }
 
-    bool acceptsMidi() const                  { return false; }
-    bool producesMidi() const                 { return false; }
+    bool acceptsMidi()  const override                { return false; }
+    bool producesMidi() const override                { return false; }
 
-    double getTailLengthSeconds() const       { return 0.0; }
+    double getTailLengthSeconds() const override      { return 0.0; }
 
     //==============================================================================
-    void prepareToPlay (double newSampleRate, int samplesPerBlockExpected)
+    void prepareToPlay (double newSampleRate, int samplesPerBlockExpected) override
     {
         setLatencySamples (0);
 
@@ -279,7 +280,7 @@ public:
         }
     }
 
-    void releaseResources()
+    void releaseResources() override
     {
         if (handle != nullptr && plugin->deactivate != nullptr)
             plugin->deactivate (handle);
@@ -287,7 +288,7 @@ public:
         tempBuffer.setSize (1, 1);
     }
 
-    void processBlock (AudioBuffer<float>& buffer, MidiBuffer&)
+    void processBlock (AudioBuffer<float>& buffer, MidiBuffer&) override
     {
         auto numSamples = buffer.getNumSamples();
 
@@ -331,10 +332,12 @@ public:
             buffer.clear (i, 0, numSamples);
     }
 
-    bool isInputChannelStereoPair (int index) const    { return isPositiveAndBelow (index, getTotalNumInputChannels()); }
-    bool isOutputChannelStereoPair (int index) const   { return isPositiveAndBelow (index, getTotalNumOutputChannels()); }
+    using AudioPluginInstance::processBlock;
 
-    const String getInputChannelName (const int index) const
+    bool isInputChannelStereoPair  (int index) const override    { return isPositiveAndBelow (index, getTotalNumInputChannels()); }
+    bool isOutputChannelStereoPair (int index) const override    { return isPositiveAndBelow (index, getTotalNumOutputChannels()); }
+
+    const String getInputChannelName (const int index) const override
     {
         if (isPositiveAndBelow (index, getTotalNumInputChannels()))
             return String (plugin->PortNames [inputs [index]]).trim();
@@ -342,7 +345,7 @@ public:
         return {};
     }
 
-    const String getOutputChannelName (const int index) const
+    const String getOutputChannelName (const int index) const override
     {
         if (isPositiveAndBelow (index, getTotalNumInputChannels()))
             return String (plugin->PortNames [outputs [index]]).trim();
@@ -351,37 +354,37 @@ public:
     }
 
     //==============================================================================
-    int getNumPrograms()       { return 0; }
-    int getCurrentProgram()    { return 0; }
+    int getNumPrograms() override                            { return 0; }
+    int getCurrentProgram() override                         { return 0; }
 
-    void setCurrentProgram (int)
+    void setCurrentProgram (int) override
     {
         for (auto* param : getParameters())
             if (auto* ladspaParam = dynamic_cast<LADSPAParameter*> (param))
                 ladspaParam->reset();
     }
 
-    const String getProgramName (int)              { return {}; }
-    void changeProgramName (int, const String&)    {}
+    const String getProgramName (int) override             { return {}; }
+    void changeProgramName (int, const String&) override   {}
 
     //==============================================================================
-    void getStateInformation (MemoryBlock& destData)
+    void getStateInformation (MemoryBlock& destData) override
     {
         auto numParameters = getParameters().size();
-        destData.setSize (sizeof (float) * (size_t) numParameters);
+        destData.setSize ((size_t) numParameters * sizeof (float));
         destData.fillWith (0);
 
-        auto* p = (float*) ((char*) destData.getData());
+        auto* p = unalignedPointerCast<float*> (destData.getData());
 
         for (int i = 0; i < numParameters; ++i)
             if (auto* param = getParameters()[i])
                 p[i] = param->getValue();
     }
 
-    void getCurrentProgramStateInformation (MemoryBlock& destData)                { getStateInformation (destData); }
-    void setCurrentProgramStateInformation (const void* data, int sizeInBytes)    { setStateInformation (data, sizeInBytes); }
+    void getCurrentProgramStateInformation (MemoryBlock& destData) override               { getStateInformation (destData); }
+    void setCurrentProgramStateInformation (const void* data, int sizeInBytes) override   { setStateInformation (data, sizeInBytes); }
 
-    void setStateInformation (const void* data, int sizeInBytes)
+    void setStateInformation (const void* data, int sizeInBytes) override
     {
         ignoreUnused (sizeInBytes);
 
@@ -392,10 +395,10 @@ public:
                 param->setValue (p[i]);
     }
 
-    bool hasEditor() const                  { return false; }
-    AudioProcessorEditor* createEditor()    { return nullptr; }
+    bool hasEditor() const override                 { return false; }
+    AudioProcessorEditor* createEditor() override   { return nullptr; }
 
-    bool isValid() const                    { return handle != nullptr; }
+    bool isValid() const                            { return handle != nullptr; }
 
     //==============================================================================
     LADSPAModuleHandle::Ptr module;
@@ -513,6 +516,11 @@ private:
 
         bool isAutomatable() const override                            { return automatable; }
 
+        String getParameterID() const override
+        {
+            return String (paramID);
+        }
+
         static float scaledValue (float low, float high, float alpha, bool useLog) noexcept
         {
             if (useLog && low > 0 && high > 0)
@@ -580,9 +588,10 @@ void LADSPAPluginFormat::findAllTypesForFile (OwnedArray<PluginDescription>& res
 
     PluginDescription desc;
     desc.fileOrIdentifier = fileOrIdentifier;
-    desc.uid = 0;
+    desc.uniqueId = desc.deprecatedUid = 0;
 
-    std::unique_ptr<LADSPAPluginInstance> instance (dynamic_cast<LADSPAPluginInstance*> (createInstanceFromDescription (desc, 44100.0, 512)));
+    auto createdInstance = createInstanceFromDescription (desc, 44100.0, 512);
+    auto instance = dynamic_cast<LADSPAPluginInstance*> (createdInstance.get());
 
     if (instance == nullptr || ! instance->isValid())
         return;
@@ -596,7 +605,7 @@ void LADSPAPluginFormat::findAllTypesForFile (OwnedArray<PluginDescription>& res
         {
             if (auto* plugin = instance->module->moduleMain ((size_t) uid))
             {
-                desc.uid = uid;
+                desc.uniqueId = desc.deprecatedUid = uid;
                 desc.name = plugin->Name != nullptr ? plugin->Name : "Unknown";
 
                 if (! arrayContainsPlugin (results, desc))
@@ -612,7 +621,7 @@ void LADSPAPluginFormat::findAllTypesForFile (OwnedArray<PluginDescription>& res
 
 void LADSPAPluginFormat::createPluginInstance (const PluginDescription& desc,
                                                double sampleRate, int blockSize,
-                                               void* userData, PluginCreationCallback callback)
+                                               PluginCreationCallback callback)
 {
     std::unique_ptr<LADSPAPluginInstance> result;
 
@@ -627,7 +636,7 @@ void LADSPAPluginFormat::createPluginInstance (const PluginDescription& desc,
 
         if (module != nullptr)
         {
-            shellLADSPAUIDToCreate = desc.uid;
+            shellLADSPAUIDToCreate = desc.uniqueId != 0 ? desc.uniqueId : desc.deprecatedUid;
 
             result.reset (new LADSPAPluginInstance (module));
 
@@ -643,12 +652,12 @@ void LADSPAPluginFormat::createPluginInstance (const PluginDescription& desc,
     String errorMsg;
 
     if (result == nullptr)
-        errorMsg = String (NEEDS_TRANS ("Unable to load XXX plug-in file")).replace ("XXX", "LADSPA");
+        errorMsg = TRANS ("Unable to load XXX plug-in file").replace ("XXX", "LADSPA");
 
-    callback (userData, result.release(), errorMsg);
+    callback (std::move (result), errorMsg);
 }
 
-bool LADSPAPluginFormat::requiresUnblockedMessageThreadDuringCreation (const PluginDescription&) const noexcept
+bool LADSPAPluginFormat::requiresUnblockedMessageThreadDuringCreation (const PluginDescription&) const
 {
     return false;
 }
@@ -686,9 +695,8 @@ StringArray LADSPAPluginFormat::searchPathsForPlugins (const FileSearchPath& dir
 
 void LADSPAPluginFormat::recursiveFileSearch (StringArray& results, const File& dir, const bool recursive)
 {
-    DirectoryIterator iter (dir, false, "*", File::findFilesAndDirectories);
 
-    while (iter.next())
+    for (const auto& iter : RangedDirectoryIterator (dir, false, "*", File::findFilesAndDirectories))
     {
         auto f = iter.getFile();
         bool isPlugin = false;

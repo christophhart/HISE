@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2018 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -87,14 +87,14 @@ namespace ArrayBaseTestsHelpers
     };
 }
 
-bool operator== (const ArrayBaseTestsHelpers::TriviallyCopyableType& tct,
-                 const ArrayBaseTestsHelpers::NonTriviallyCopyableType& ntct)
+static bool operator== (const ArrayBaseTestsHelpers::TriviallyCopyableType& tct,
+                        const ArrayBaseTestsHelpers::NonTriviallyCopyableType& ntct)
 {
     return tct.getValue() == ntct.getValue();
 }
 
-bool operator== (const ArrayBaseTestsHelpers::NonTriviallyCopyableType& ntct,
-                 const ArrayBaseTestsHelpers::TriviallyCopyableType& tct)
+static bool operator== (const ArrayBaseTestsHelpers::NonTriviallyCopyableType& ntct,
+                        const ArrayBaseTestsHelpers::TriviallyCopyableType& tct)
 {
     return tct == ntct;
 }
@@ -113,7 +113,7 @@ class ArrayBaseTests  : public UnitTest
 
 public:
     ArrayBaseTests()
-        : UnitTest ("ArrayBase", "Containers")
+        : UnitTest ("ArrayBase", UnitTestCategories::containers)
     {}
 
     void runTest() override
@@ -304,7 +304,7 @@ public:
             checkEqual (copyableContainer, noncopyableContainer, referenceContainer);
         }
 
-        beginTest ("add array from initilizer list");
+        beginTest ("add array from initializer_list");
         {
             std::vector<CopyableType> referenceContainer;
             ArrayBase<CopyableType,    DummyCriticalSection> copyableContainer;
@@ -562,7 +562,7 @@ private:
         }
     }
 
-    template<typename A, typename B>
+    template <typename A, typename B>
     void checkEqual (const ArrayBase<A, DummyCriticalSection>& a,
                      const ArrayBase<B, DummyCriticalSection>& b)
     {
@@ -572,7 +572,7 @@ private:
             expect (a[i] == b[i]);
     }
 
-    template<typename A, typename B>
+    template <typename A, typename B>
     void checkEqual (ArrayBase<A, DummyCriticalSection>& a,
                      std::vector<B>& b)
     {
@@ -582,7 +582,7 @@ private:
             expect (a[i] == b[(size_t) i]);
     }
 
-    template<typename A, typename B, typename C>
+    template <typename A, typename B, typename C>
     void checkEqual (ArrayBase<A, DummyCriticalSection>& a,
                      ArrayBase<B, DummyCriticalSection>& b,
                      std::vector<C>& c)

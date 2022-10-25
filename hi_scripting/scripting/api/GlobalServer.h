@@ -121,7 +121,7 @@ struct GlobalServer: public ControlledObject
 		using WeakPtr = WeakReference<PendingCallback>;
 
 		PendingCallback(ProcessorWithScriptingContent* p, const var& function) :
-			f(p, function, 2),
+			f(p, nullptr, function, 2),
 			creationTimeMs(Time::getMillisecondCounter())
 		{
 			f.setHighPriority();
@@ -162,7 +162,11 @@ struct GlobalServer: public ControlledObject
 
 	var getPendingDownloads();
 
+	var getPendingCallbacks();
+
 	int getNumPendingRequests() const { return internalThread.pendingCallbacks.size(); }
+
+	String getExtraHeader() const { return extraHeader; }
 
 	PendingCallback::WeakPtr getPendingCallback(int i) const
 	{
@@ -180,6 +184,11 @@ struct GlobalServer: public ControlledObject
 	void stop()
 	{
 		internalThread.running.store(false);
+	}
+
+	void cleanup()
+	{
+		internalThread.stopThread(HISE_SCRIPT_SERVER_TIMEOUT);
 	}
 
 	/** Resumes the execution of the request queue (if it was stopped with stop()). */
@@ -207,7 +216,11 @@ struct GlobalServer: public ControlledObject
     
 private:
 
-    bool initialised = false;
+#if USE_BACKEND
+	bool initialised = true;
+#else
+	bool initialised = false;
+#endif
     
 	struct WebThread : public Thread
 	{

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -34,9 +33,9 @@ class TranslationToolComponent  : public Component
 public:
     TranslationToolComponent()
         : editorOriginal (documentOriginal, nullptr),
-          editorPre (documentPre, nullptr),
-          editorPost (documentPost, nullptr),
-          editorResult (documentResult, nullptr)
+          editorPre      (documentPre,      nullptr),
+          editorPost     (documentPost,     nullptr),
+          editorResult   (documentResult,   nullptr)
     {
         instructionsLabel.setText (
             "This utility converts translation files to/from a format that can be passed to automatic translation tools."
@@ -115,17 +114,7 @@ public:
     }
 
 private:
-    CodeDocument documentOriginal, documentPre, documentPost, documentResult;
-    CodeEditorComponent editorOriginal, editorPre, editorPost, editorResult;
-
-    Label label1, label2, label3, label4;
-    Label instructionsLabel;
-
-    TextButton generateButton         { TRANS("Generate") };
-    TextButton scanProjectButton      { "Scan project for TRANS macros" };
-    TextButton scanFolderButton       { "Scan folder for TRANS macros" };
-    TextButton loadTranslationButton  { "Load existing translation file..."};
-
+    //==============================================================================
     void generate()
     {
         StringArray preStrings  (TranslationHelpers::breakApart (documentPre.getAllContent()));
@@ -133,7 +122,7 @@ private:
 
         if (postStrings.size() != preStrings.size())
         {
-            AlertWindow::showMessageBoxAsync (AlertWindow::WarningIcon,
+            AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon,
                                               TRANS("Error"),
                                               TRANS("The pre- and post-translation text doesn't match!\n\n"
                                                     "Perhaps it got mangled by the translator?"));
@@ -149,34 +138,41 @@ private:
         if (Project* project = ProjucerApplication::getApp().mainWindowList.getFrontmostProject())
             setPreTranslationText (TranslationHelpers::getPreTranslationText (*project));
         else
-            AlertWindow::showMessageBoxAsync (AlertWindow::WarningIcon, "Translation Tool",
+            AlertWindow::showMessageBoxAsync (MessageBoxIconType::WarningIcon, "Translation Tool",
                                               "This will only work when you have a project open!");
     }
 
     void scanFolder()
     {
-        FileChooser fc ("Choose the root folder to search for the TRANS macros",
-                        File(), "*");
+        chooser = std::make_unique<FileChooser> ("Choose the root folder to search for the TRANS macros",
+                                                 File(), "*");
+        auto chooserFlags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectDirectories;
 
-        if (fc.browseForDirectory())
+        chooser->launchAsync (chooserFlags, [this] (const FileChooser& fc)
         {
+            if (fc.getResult() == File{})
+                return;
+
             StringArray strings;
             TranslationHelpers::scanFolderForTranslations (strings, fc.getResult());
             setPreTranslationText (TranslationHelpers::mungeStrings(strings));
-        }
+        });
     }
 
     void loadFile()
     {
-        FileChooser fc ("Choose a translation file to load",
-                        File(), "*");
+        chooser = std::make_unique<FileChooser> ("Choose a translation file to load", File(), "*");
+        auto chooserFlags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles;
 
-        if (fc.browseForFileToOpen())
+        chooser->launchAsync (chooserFlags, [this] (const FileChooser& fc)
         {
+            if (fc.getResult() == File{})
+                return;
+
             const LocalisedStrings loadedStrings (fc.getResult(), false);
             documentOriginal.replaceAllContent (fc.getResult().loadFileAsString().trim());
             setPreTranslationText (TranslationHelpers::getPreTranslationText (loadedStrings));
-        }
+        });
     }
 
     void setPreTranslationText (const String& text)
@@ -185,4 +181,18 @@ private:
         editorPre.grabKeyboardFocus();
         editorPre.selectAll();
     }
+
+    //==============================================================================
+    CodeDocument documentOriginal, documentPre, documentPost, documentResult;
+    CodeEditorComponent editorOriginal, editorPre, editorPost, editorResult;
+
+    Label label1, label2, label3, label4;
+    Label instructionsLabel;
+
+    TextButton generateButton        { TRANS("Generate") },
+               scanProjectButton     { "Scan project for TRANS macros" },
+               scanFolderButton      { "Scan folder for TRANS macros" },
+               loadTranslationButton { "Load existing translation file..."};
+
+    std::unique_ptr<FileChooser> chooser;
 };

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -24,61 +24,6 @@ namespace juce
 {
 
 //==============================================================================
-/** A handy macro to make it easy to iterate all the child elements in an XmlElement.
-
-    The parentXmlElement should be a reference to the parent XML, and the childElementVariableName
-    will be the name of a pointer to each child element.
-
-    E.g. @code
-    XmlElement* myParentXml = createSomeKindOfXmlDocument();
-
-    forEachXmlChildElement (*myParentXml, child)
-    {
-        if (child->hasTagName ("FOO"))
-            doSomethingWithXmlElement (child);
-    }
-
-    @endcode
-
-    @see forEachXmlChildElementWithTagName
-*/
-#define forEachXmlChildElement(parentXmlElement, childElementVariableName) \
-\
-    for (auto* childElementVariableName = (parentXmlElement).getFirstChildElement(); \
-         childElementVariableName != nullptr; \
-         childElementVariableName = childElementVariableName->getNextElement())
-
-/** A macro that makes it easy to iterate all the child elements of an XmlElement
-    which have a specified tag.
-
-    This does the same job as the forEachXmlChildElement macro, but only for those
-    elements that have a particular tag name.
-
-    The parentXmlElement should be a reference to the parent XML, and the childElementVariableName
-    will be the name of a pointer to each child element. The requiredTagName is the
-    tag name to match.
-
-    E.g. @code
-    XmlElement* myParentXml = createSomeKindOfXmlDocument();
-
-    forEachXmlChildElementWithTagName (*myParentXml, child, "MYTAG")
-    {
-        // the child object is now guaranteed to be a <MYTAG> element..
-        doSomethingWithMYTAGElement (child);
-    }
-
-    @endcode
-
-    @see forEachXmlChildElement
-*/
-#define forEachXmlChildElementWithTagName(parentXmlElement, childElementVariableName, requiredTagName) \
-\
-    for (auto* childElementVariableName = (parentXmlElement).getChildByName (requiredTagName); \
-         childElementVariableName != nullptr; \
-         childElementVariableName = childElementVariableName->getNextElementWithTagName (requiredTagName))
-
-
-//==============================================================================
 /** Used to build a tree of elements representing an XML document.
 
     An XML document can be parsed into a tree of XmlElements, each of which
@@ -95,7 +40,7 @@ namespace juce
     if (myElement->hasTagName ("ANIMALS"))
     {
         // now we'll iterate its sub-elements looking for 'giraffe' elements..
-        forEachXmlChildElement (*myElement, e)
+        for (auto* e : myElement->getChildIterator())
         {
             if (e->hasTagName ("GIRAFFE"))
             {
@@ -126,11 +71,11 @@ namespace juce
         animalsList.addChildElement (giraffe);
     }
 
-    // now we can turn the whole thing into a text document..
-    String myXmlDoc = animalsList.createDocument (String());
+    // now we can turn the whole thing into textual XML
+    auto xmlString = animalsList.toString();
     @endcode
 
-    @see XmlDocument
+    @see parseXML, parseXMLIfTagMatches, XmlDocument
 
     @tags{Core}
 */
@@ -184,74 +129,41 @@ public:
                          bool ignoreOrderOfAttributes) const noexcept;
 
     //==============================================================================
-    /** Returns an XML text document that represents this element.
-
-        The string returned can be parsed to recreate the same XmlElement that
-        was used to create it.
-
-        @param dtdToUse         the DTD to add to the document
-        @param allOnOneLine     if true, this means that the document will not contain any
-                                linefeeds, so it'll be smaller but not very easy to read.
-        @param includeXmlHeader whether to add the "<?xml version..etc" line at the start of the
-                                document
-        @param encodingType     the character encoding format string to put into the xml
-                                header
-        @param lineWrapLength   the line length that will be used before items get placed on
-                                a new line. This isn't an absolute maximum length, it just
-                                determines how lists of attributes get broken up
-        @see writeToStream, writeToFile
+    /** A struct containing options for formatting the text when representing an
+        XML element as a string.
     */
-    String createDocument (StringRef dtdToUse,
-                           bool allOnOneLine = false,
-                           bool includeXmlHeader = true,
-                           StringRef encodingType = "UTF-8",
-                           int lineWrapLength = 60) const;
+    struct TextFormat
+    {
+        /** Default constructor. */
+        TextFormat();
+
+        String dtd;                        /**< If supplied, this DTD will be added to the document. */
+        String customHeader;               /**< If supplied, this header will be used (and customEncoding & addDefaultHeader will be ignored). */
+        String customEncoding;             /**< If not empty and addDefaultHeader is true, this will be set as the encoding. Otherwise, a default of "UTF-8" will be used */
+        bool addDefaultHeader = true;      /**< If true, a default header will be generated; otherwise just bare XML will be emitted. */
+        int lineWrapLength = 60;           /**< A maximum line length before wrapping is done. (If newLineChars is nullptr, this is ignored) */
+        const char* newLineChars = "\n"; /**< Allows the newline characters to be set. If you set this to nullptr, then the whole XML document will be placed on a single line. */
+
+        TextFormat singleLine() const;     /**< returns a copy of this format with newLineChars set to nullptr. */
+        TextFormat withoutHeader() const;  /**< returns a copy of this format with the addDefaultHeader flag set to false. */
+    };
+
+    /** Returns a text version of this XML element.
+        If your intention is to write the XML to a file or stream, it's probably more efficient to
+        use writeTo() instead of creating an intermediate string.
+        @see writeTo
+    */
+    String toString (const TextFormat& format = {}) const;
 
     /** Writes the document to a stream as UTF-8.
-
-        @param output           the stream to write to
-        @param dtdToUse         the DTD to add to the document
-        @param allOnOneLine     if true, this means that the document will not contain any
-                                linefeeds, so it'll be smaller but not very easy to read.
-        @param includeXmlHeader whether to add the "<?xml version..etc" line at the start of the
-                                document
-        @param encodingType     the character encoding format string to put into the xml
-                                header
-        @param lineWrapLength   the line length that will be used before items get placed on
-                                a new line. This isn't an absolute maximum length, it just
-                                determines how lists of attributes get broken up
-        @see writeToFile, createDocument
+        @see writeTo, toString
     */
-    void writeToStream (OutputStream& output,
-                        StringRef dtdToUse,
-                        bool allOnOneLine = false,
-                        bool includeXmlHeader = true,
-                        StringRef encodingType = "UTF-8",
-                        int lineWrapLength = 60) const;
+    void writeTo (OutputStream& output, const TextFormat& format = {}) const;
 
-    /** Writes the element to a file as an XML document.
-
-        To improve safety in case something goes wrong while writing the file, this
-        will actually write the document to a new temporary file in the same
-        directory as the destination file, and if this succeeds, it will rename this
-        new file as the destination file (overwriting any existing file that was there).
-
-        @param destinationFile  the file to write to. If this already exists, it will be
-                                overwritten.
-        @param dtdToUse         the DTD to add to the document
-        @param encodingType     the character encoding format string to put into the xml
-                                header
-        @param lineWrapLength   the line length that will be used before items get placed on
-                                a new line. This isn't an absolute maximum length, it just
-                                determines how lists of attributes get broken up
-        @returns    true if the file is written successfully; false if something goes wrong
-                    in the process
-        @see createDocument
+    /** Writes the document to a file as UTF-8.
+        @see writeTo, toString
     */
-    bool writeToFile (const File& destinationFile,
-                      StringRef dtdToUse,
-                      StringRef encodingType = "UTF-8",
-                      int lineWrapLength = 60) const;
+    bool writeTo (const File& destinationFile, const TextFormat& format = {}) const;
 
     //==============================================================================
     /** Returns this element's tag type name.
@@ -433,7 +345,8 @@ public:
 
     /** Returns the first of this element's sub-elements.
         see getNextElement() for an example of how to iterate the sub-elements.
-        @see forEachXmlChildElement
+
+        @see getChildIterator
     */
     XmlElement* getFirstChildElement() const noexcept       { return firstChildElement; }
 
@@ -456,12 +369,12 @@ public:
         out.
 
         Also, it's much easier and neater to use this method indirectly via the
-        forEachXmlChildElement macro.
+        getChildIterator() method.
 
         @returns    the sibling element that follows this one, or a nullptr if
                     this is the last element in its parent
 
-        @see getNextElement, isTextElement, forEachXmlChildElement
+        @see getNextElement, isTextElement, getChildIterator
     */
     inline XmlElement* getNextElement() const noexcept          { return nextListItem; }
 
@@ -471,7 +384,7 @@ public:
         This is like getNextElement(), but will scan through the list until it
         finds an element with the given tag name.
 
-        @see getNextElement, forEachXmlChildElementWithTagName
+        @see getNextElement, getChildIterator
     */
     XmlElement* getNextElementWithTagName (StringRef requiredTagName) const;
 
@@ -728,8 +641,124 @@ public:
     /** Checks if a given string is a valid XML name */
     static bool isValidXmlName (StringRef possibleName) noexcept;
 
-    //==============================================================================
 private:
+    //==============================================================================
+    struct GetNextElement
+    {
+        XmlElement* getNext (const XmlElement& e) const { return e.getNextElement(); }
+    };
+
+    struct GetNextElementWithTagName
+    {
+        GetNextElementWithTagName() = default;
+        explicit GetNextElementWithTagName (String n) : name (std::move (n)) {}
+        XmlElement* getNext (const XmlElement& e) const { return e.getNextElementWithTagName (name); }
+
+        String name;
+    };
+
+    //==============================================================================
+    template <typename Traits>
+    class Iterator : private Traits
+    {
+    public:
+        using difference_type   = ptrdiff_t;
+        using value_type        = XmlElement*;
+        using pointer           = const value_type*;
+        using reference         = value_type;
+        using iterator_category = std::input_iterator_tag;
+
+        Iterator() = default;
+
+        template <typename... Args>
+        Iterator (XmlElement* e, Args&&... args)
+            : Traits (std::forward<Args> (args)...), element (e) {}
+
+        Iterator begin()    const { return *this; }
+        Iterator end()      const { return Iterator{}; }
+
+        bool operator== (const Iterator& other) const { return element == other.element; }
+        bool operator!= (const Iterator& other) const { return ! operator== (other); }
+
+        reference operator*()  const { return  element; }
+        pointer   operator->() const { return &element; }
+
+        Iterator& operator++()
+        {
+            element = Traits::getNext (*element);
+            return *this;
+        }
+
+        Iterator operator++(int)
+        {
+            auto copy = *this;
+            ++(*this);
+            return copy;
+        }
+
+    private:
+        value_type element = nullptr;
+    };
+
+public:
+    //==============================================================================
+    /** Allows iterating the children of an XmlElement using range-for syntax.
+
+        @code
+        void doSomethingWithXmlChildren (const XmlElement& myParentXml)
+        {
+            for (auto* element : myParentXml.getChildIterator())
+                doSomethingWithXmlElement (element);
+        }
+        @endcode
+    */
+    Iterator<GetNextElement> getChildIterator() const
+    {
+        return Iterator<GetNextElement> { getFirstChildElement() };
+    }
+
+    /** Allows iterating children of an XmlElement with a specific tag using range-for syntax.
+
+        @code
+        void doSomethingWithXmlChildren (const XmlElement& myParentXml)
+        {
+            for (auto* element : myParentXml.getChildWithTagNameIterator ("MYTAG"))
+                doSomethingWithXmlElement (element);
+        }
+        @endcode
+    */
+    Iterator<GetNextElementWithTagName> getChildWithTagNameIterator (StringRef name) const
+    {
+        return Iterator<GetNextElementWithTagName> { getChildByName (name), name };
+    }
+
+   #ifndef DOXYGEN
+    [[deprecated]] void macroBasedForLoop() const noexcept {}
+
+    
+    String createDocument (StringRef dtdToUse,
+                           bool allOnOneLine = false,
+                           bool includeXmlHeader = true,
+                           StringRef encodingType = "UTF-8",
+                           int lineWrapLength = 60) const;
+
+    
+    void writeToStream (OutputStream& output,
+                        StringRef dtdToUse,
+                        bool allOnOneLine = false,
+                        bool includeXmlHeader = true,
+                        StringRef encodingType = "UTF-8",
+                        int lineWrapLength = 60) const;
+
+    
+    bool writeToFile (const File& destinationFile,
+                      StringRef dtdToUse,
+                      StringRef encodingType = "UTF-8",
+                      int lineWrapLength = 60) const;
+   #endif
+
+private:
+    //==============================================================================
     struct XmlAttributeNode
     {
         XmlAttributeNode (const XmlAttributeNode&) noexcept;
@@ -750,14 +779,13 @@ private:
     friend class LinkedListPointer<XmlElement>::Appender;
     friend class NamedValueSet;
 
-    LinkedListPointer<XmlElement> nextListItem;
-    LinkedListPointer<XmlElement> firstChildElement;
+    LinkedListPointer<XmlElement> nextListItem, firstChildElement;
     LinkedListPointer<XmlAttributeNode> attributes;
     String tagName;
 
     XmlElement (int) noexcept;
     void copyChildrenAndAttributesFrom (const XmlElement&);
-    void writeElementAsText (OutputStream&, int indentationLevel, int lineWrapLength) const;
+    void writeElementAsText (OutputStream&, int, int, const char*) const;
     void getChildElementsAsArray (XmlElement**) const noexcept;
     void reorderChildElements (XmlElement**, int) noexcept;
     XmlAttributeNode* getAttribute (StringRef) const noexcept;
@@ -769,5 +797,61 @@ private:
 
     JUCE_LEAK_DETECTOR (XmlElement)
 };
+
+//==============================================================================
+#ifndef DOXYGEN
+
+/** DEPRECATED: A handy macro to make it easy to iterate all the child elements in an XmlElement.
+
+    New code should avoid this macro, and instead use getChildIterator directly.
+
+    The parentXmlElement should be a reference to the parent XML, and the childElementVariableName
+    will be the name of a pointer to each child element.
+
+    E.g. @code
+    XmlElement* myParentXml = createSomeKindOfXmlDocument();
+
+    forEachXmlChildElement (*myParentXml, child)
+    {
+        if (child->hasTagName ("FOO"))
+            doSomethingWithXmlElement (child);
+    }
+
+    @endcode
+
+    @see forEachXmlChildElementWithTagName
+*/
+#define forEachXmlChildElement(parentXmlElement, childElementVariableName) \
+    for (auto* (childElementVariableName) : ((parentXmlElement).macroBasedForLoop(), (parentXmlElement).getChildIterator()))
+
+/** DEPRECATED: A macro that makes it easy to iterate all the child elements of an XmlElement
+    which have a specified tag.
+
+    New code should avoid this macro, and instead use getChildWithTagNameIterator directly.
+
+    This does the same job as the forEachXmlChildElement macro, but only for those
+    elements that have a particular tag name.
+
+    The parentXmlElement should be a reference to the parent XML, and the childElementVariableName
+    will be the name of a pointer to each child element. The requiredTagName is the
+    tag name to match.
+
+    E.g. @code
+    XmlElement* myParentXml = createSomeKindOfXmlDocument();
+
+    forEachXmlChildElementWithTagName (*myParentXml, child, "MYTAG")
+    {
+        // the child object is now guaranteed to be a <MYTAG> element..
+        doSomethingWithMYTAGElement (child);
+    }
+
+    @endcode
+
+    @see forEachXmlChildElement
+*/
+#define forEachXmlChildElementWithTagName(parentXmlElement, childElementVariableName, requiredTagName) \
+    for (auto* (childElementVariableName) : ((parentXmlElement).macroBasedForLoop(), (parentXmlElement).getChildWithTagNameIterator ((requiredTagName))))
+
+#endif
 
 } // namespace juce

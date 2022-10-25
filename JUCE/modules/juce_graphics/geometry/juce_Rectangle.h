@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,6 +25,34 @@
 
 namespace juce
 {
+
+#ifndef DOXYGEN
+namespace detail
+{
+
+template <typename> struct Tag {};
+
+inline auto getNumericValue (StringRef s, Tag<int>)    { return s.text.getIntValue32(); }
+inline auto getNumericValue (StringRef s, Tag<double>) { return s.text.getDoubleValue(); }
+inline auto getNumericValue (StringRef s, Tag<float>)  { return static_cast<float> (s.text.getDoubleValue()); }
+
+template <typename ValueType>
+ValueType parseAfterSpace (StringRef s) noexcept
+{
+    return static_cast<ValueType> (getNumericValue (s.text.findEndOfWhitespace(),
+                                                    Tag<ValueType>{}));
+}
+
+inline int floorAsInt (int n) noexcept     { return n; }
+inline int floorAsInt (float n) noexcept   { return n > (float)  std::numeric_limits<int>::min() ? (int) std::floor (n) : std::numeric_limits<int>::min(); }
+inline int floorAsInt (double n) noexcept  { return n > (double) std::numeric_limits<int>::min() ? (int) std::floor (n) : std::numeric_limits<int>::min(); }
+
+inline int ceilAsInt (int n) noexcept      { return n; }
+inline int ceilAsInt (float n) noexcept    { return n < (float)  std::numeric_limits<int>::max() ? (int) std::ceil (n) : std::numeric_limits<int>::max(); }
+inline int ceilAsInt (double n) noexcept   { return n < (double) std::numeric_limits<int>::max() ? (int) std::ceil (n) : std::numeric_limits<int>::max(); }
+
+} // namespace detail
+#endif
 
 //==============================================================================
 /**
@@ -215,13 +242,13 @@ public:
                                                                                                                newCentre.y - h / (ValueType) 2, w, h }; }
 
     /** Returns a rectangle which has the same position and height as this one, but with a different width. */
-    Rectangle withWidth (ValueType newWidth) const noexcept                                         { return { pos.x, pos.y, newWidth, h }; }
+    Rectangle withWidth (ValueType newWidth) const noexcept                                         { return { pos.x, pos.y, jmax (ValueType(), newWidth), h }; }
 
     /** Returns a rectangle which has the same position and width as this one, but with a different height. */
-    Rectangle withHeight (ValueType newHeight) const noexcept                                       { return { pos.x, pos.y, w, newHeight }; }
+    Rectangle withHeight (ValueType newHeight) const noexcept                                       { return { pos.x, pos.y, w, jmax (ValueType(), newHeight) }; }
 
     /** Returns a rectangle with the same top-left position as this one, but a new size. */
-    Rectangle withSize (ValueType newWidth, ValueType newHeight) const noexcept                     { return { pos.x, pos.y, newWidth, newHeight }; }
+    Rectangle withSize (ValueType newWidth, ValueType newHeight) const noexcept                     { return { pos.x, pos.y, jmax (ValueType(), newWidth), jmax (ValueType(), newHeight) }; }
 
     /** Returns a rectangle with the same centre position as this one, but a new size. */
     Rectangle withSizeKeepingCentre (ValueType newWidth, ValueType newHeight) const noexcept        { return { pos.x + (w - newWidth)  / (ValueType) 2,
@@ -350,10 +377,10 @@ public:
     template <typename FloatType>
     Rectangle operator*= (FloatType scaleFactor) noexcept
     {
-        Rectangle<FloatType> (pos.x * scaleFactor,
-                              pos.y * scaleFactor,
-                              w * scaleFactor,
-                              h * scaleFactor).copyWithRounding (*this);
+        Rectangle<FloatType> ((FloatType) pos.x * scaleFactor,
+                              (FloatType) pos.y * scaleFactor,
+                              (FloatType) w * scaleFactor,
+                              (FloatType) h * scaleFactor).copyWithRounding (*this);
         return *this;
     }
 
@@ -365,10 +392,10 @@ public:
     template <typename FloatType>
     Rectangle operator*= (Point<FloatType> scaleFactor) noexcept
     {
-        Rectangle<FloatType> (pos.x * scaleFactor.x,
-                              pos.y * scaleFactor.y,
-                              w * scaleFactor.x,
-                              h * scaleFactor.y).copyWithRounding (*this);
+        Rectangle<FloatType> ((FloatType) pos.x * scaleFactor.x,
+                              (FloatType) pos.y * scaleFactor.y,
+                              (FloatType) w * scaleFactor.x,
+                              (FloatType) h * scaleFactor.y).copyWithRounding (*this);
         return *this;
     }
 
@@ -385,10 +412,10 @@ public:
     template <typename FloatType>
     Rectangle operator/= (FloatType scaleFactor) noexcept
     {
-        Rectangle<FloatType> (pos.x / scaleFactor,
-                              pos.y / scaleFactor,
-                              w / scaleFactor,
-                              h / scaleFactor).copyWithRounding (*this);
+        Rectangle<FloatType> ((FloatType) pos.x / scaleFactor,
+                              (FloatType) pos.y / scaleFactor,
+                              (FloatType) w / scaleFactor,
+                              (FloatType) h / scaleFactor).copyWithRounding (*this);
         return *this;
     }
 
@@ -396,10 +423,10 @@ public:
     template <typename FloatType>
     Rectangle operator/= (Point<FloatType> scaleFactor) noexcept
     {
-        Rectangle<FloatType> (pos.x / scaleFactor.x,
-                              pos.y / scaleFactor.y,
-                              w / scaleFactor.x,
-                              h / scaleFactor.y).copyWithRounding (*this);
+        Rectangle<FloatType> ((FloatType) pos.x / scaleFactor.x,
+                              (FloatType) pos.y / scaleFactor.y,
+                              (FloatType) w / scaleFactor.x,
+                              (FloatType) h / scaleFactor.y).copyWithRounding (*this);
         return *this;
     }
 
@@ -507,7 +534,7 @@ public:
         by the specified amount and returning the section that was removed.
 
         E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
-        return (250, 100, 50, 300) and leave this rectangle as (100, 100, 250, 300).
+        return (350, 100, 50, 300) and leave this rectangle as (100, 100, 250, 300).
 
         If amountToRemove is greater than the width of this rectangle, it'll be clipped to
         that value.
@@ -524,7 +551,7 @@ public:
         by the specified amount and returning the section that was removed.
 
         E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
-        return (100, 250, 300, 50) and leave this rectangle as (100, 100, 300, 250).
+        return (100, 350, 300, 50) and leave this rectangle as (100, 100, 300, 250).
 
         If amountToRemove is greater than the height of this rectangle, it'll be clipped to
         that value.
@@ -553,22 +580,22 @@ public:
     template <typename FloatType>
     Point<ValueType> getRelativePoint (FloatType relativeX, FloatType relativeY) const noexcept
     {
-        return { pos.x + static_cast<ValueType> (w * relativeX),
-                 pos.y + static_cast<ValueType> (h * relativeY) };
+        return { pos.x + static_cast<ValueType> ((FloatType) w * relativeX),
+                 pos.y + static_cast<ValueType> ((FloatType) h * relativeY) };
     }
 
     /** Returns a proportion of the width of this rectangle. */
     template <typename FloatType>
     ValueType proportionOfWidth (FloatType proportion) const noexcept
     {
-        return static_cast<ValueType> (w * proportion);
+        return static_cast<ValueType> ((FloatType) w * proportion);
     }
 
     /** Returns a proportion of the height of this rectangle. */
     template <typename FloatType>
     ValueType proportionOfHeight (FloatType proportion) const noexcept
     {
-        return static_cast<ValueType> (h * proportion);
+        return static_cast<ValueType> ((FloatType) h * proportion);
     }
 
     /** Returns a rectangle based on some proportional coordinates relative to this one.
@@ -751,10 +778,11 @@ public:
 
         switch (inside)
         {
-            case 1 + 2 + 8:     w = r - otherR; pos.x = otherR; return true;
-            case 1 + 2 + 4:     h = b - otherB; pos.y = otherB; return true;
-            case 2 + 4 + 8:     w = other.pos.x - pos.x; return true;
-            case 1 + 4 + 8:     h = other.pos.y - pos.y; return true;
+            case 1 + 2 + 8:  w = r - otherR; pos.x = otherR; return true;
+            case 1 + 2 + 4:  h = b - otherB; pos.y = otherB; return true;
+            case 2 + 4 + 8:  w = other.pos.x - pos.x;        return true;
+            case 1 + 4 + 8:  h = other.pos.y - pos.y;        return true;
+            default:         break;
         }
 
         return false;
@@ -769,12 +797,13 @@ public:
     */
     Rectangle constrainedWithin (Rectangle areaToFitWithin) const noexcept
     {
-        auto newW = jmin (w, areaToFitWithin.getWidth());
-        auto newH = jmin (h, areaToFitWithin.getHeight());
+        auto newPos = areaToFitWithin.withSize (areaToFitWithin.getWidth() - w,
+                                                areaToFitWithin.getHeight() - h)
+                        .getConstrainedPoint (pos);
 
-        return { jlimit (areaToFitWithin.getX(), areaToFitWithin.getRight()  - newW, pos.x),
-                 jlimit (areaToFitWithin.getY(), areaToFitWithin.getBottom() - newH, pos.y),
-                 newW, newH };
+        return { newPos.x, newPos.y,
+                 jmin (w, areaToFitWithin.getWidth()),
+                 jmin (h, areaToFitWithin.getHeight()) };
     }
 
     /** Returns the smallest rectangle that can contain the shape created by applying
@@ -810,10 +839,10 @@ public:
     */
     Rectangle<int> getSmallestIntegerContainer() const noexcept
     {
-        return Rectangle<int>::leftTopRightBottom (floorAsInt (pos.x),
-                                                   floorAsInt (pos.y),
-                                                   ceilAsInt  (pos.x + w),
-                                                   ceilAsInt  (pos.y + h));
+        return Rectangle<int>::leftTopRightBottom (detail::floorAsInt (pos.x),
+                                                   detail::floorAsInt (pos.y),
+                                                   detail::ceilAsInt  (pos.x + w),
+                                                   detail::ceilAsInt  (pos.y + h));
     }
 
     /** Casts this rectangle to a Rectangle<int>.
@@ -936,7 +965,7 @@ public:
 
     /** Parses a string containing a rectangle's details.
 
-        The string should contain 4 integer tokens, in the form "x y width height". They
+        The string should contain 4 numeric tokens, in the form "x y width height". They
         can be comma or whitespace separated.
 
         This method is intended to go with the toString() method, to form an easy way
@@ -949,36 +978,25 @@ public:
         StringArray toks;
         toks.addTokens (stringVersion.text.findEndOfWhitespace(), ",; \t\r\n", "");
 
-        return { parseIntAfterSpace (toks[0]),
-                 parseIntAfterSpace (toks[1]),
-                 parseIntAfterSpace (toks[2]),
-                 parseIntAfterSpace (toks[3]) };
+        return { detail::parseAfterSpace<ValueType> (toks[0]),
+                 detail::parseAfterSpace<ValueType> (toks[1]),
+                 detail::parseAfterSpace<ValueType> (toks[2]),
+                 detail::parseAfterSpace<ValueType> (toks[3]) };
     }
 
    #ifndef DOXYGEN
-    // This has been renamed by transformedBy, in order to match the method names used in the Point class.
-    JUCE_DEPRECATED_WITH_BODY (Rectangle transformed (const AffineTransform& t) const noexcept, { return transformedBy (t); })
+    Rectangle transformed (const AffineTransform& t) const noexcept { return transformedBy (t); }
    #endif
 
 private:
     template <typename OtherType> friend class Rectangle;
 
     Point<ValueType> pos;
-    ValueType w{}, h{};
+    ValueType w {}, h {};
 
-    static ValueType parseIntAfterSpace (StringRef s) noexcept
-        { return static_cast<ValueType> (s.text.findEndOfWhitespace().getIntValue32()); }
-
-    void copyWithRounding (Rectangle<int>& result) const noexcept    { result = getSmallestIntegerContainer(); }
-    void copyWithRounding (Rectangle<float>& result) const noexcept  { result = toFloat(); }
+    void copyWithRounding (Rectangle<int>&    result) const noexcept { result = getSmallestIntegerContainer(); }
+    void copyWithRounding (Rectangle<float>&  result) const noexcept { result = toFloat(); }
     void copyWithRounding (Rectangle<double>& result) const noexcept { result = toDouble(); }
-
-    static int floorAsInt (int n) noexcept     { return n; }
-    static int floorAsInt (float n) noexcept   { return n > (float)  std::numeric_limits<int>::min() ? (int) std::floor (n) : std::numeric_limits<int>::min(); }
-    static int floorAsInt (double n) noexcept  { return n > (double) std::numeric_limits<int>::min() ? (int) std::floor (n) : std::numeric_limits<int>::min(); }
-    static int ceilAsInt (int n) noexcept      { return n; }
-    static int ceilAsInt (float n) noexcept    { return n < (float)  std::numeric_limits<int>::max() ? (int) std::ceil (n) : std::numeric_limits<int>::max(); }
-    static int ceilAsInt (double n) noexcept   { return n < (double) std::numeric_limits<int>::max() ? (int) std::ceil (n) : std::numeric_limits<int>::max(); }
 };
 
 } // namespace juce

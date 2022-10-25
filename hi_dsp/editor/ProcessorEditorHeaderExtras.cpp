@@ -51,6 +51,26 @@ parentHeader(parentHeader_)
 }
 
 
+void HeaderButton::buttonClicked(Button *)
+{
+	auto p = findParentComponentOfClass<ProcessorEditorHeader>()->getProcessor();
+
+	if (p->getMainController()->getScriptComponentEditBroadcaster()->getCurrentlyLearnedComponent() != nullptr)
+	{
+		Learnable::LearnData d;
+		d.processorId = p->getId();
+
+		d.parameterId = PresetHandler::showYesNoWindow("Create a inverted connection", "Do you want to create a inverted connection (so that pressing the button on the interface will enable this module?  \nPress no in order to create a normal bypass connection") ? "Enabled" : "Bypass";
+		d.range = { 0.0, 1.0 };
+		d.value = p->isBypassed();
+		d.name = d.parameterId;
+
+		p->getMainController()->getScriptComponentEditBroadcaster()->setLearnData(d);
+	}
+
+	refresh();
+}
+
 void HeaderButton::refresh()
 {
 	button->setTooltip(getTooltip());
@@ -100,6 +120,26 @@ void HeaderButton::paint(Graphics &g)
 	g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), 5.0f);
 }
 
+
+void IntensitySlider::mouseDrag(const MouseEvent& e)
+{
+	auto p = findParentComponentOfClass<ProcessorEditorHeader>()->getProcessor();
+
+	if (p->getMainController()->getScriptComponentEditBroadcaster()->getCurrentlyLearnedComponent() != nullptr)
+	{
+		Learnable::LearnData d;
+		d.processorId = p->getId();
+
+		d.parameterId = "Intensity";
+		d.range = { 0.0, 1.0 };
+		d.value = getValue();
+		d.name = d.parameterId;
+
+		p->getMainController()->getScriptComponentEditBroadcaster()->setLearnData(d);
+	}
+
+	Slider::mouseDrag(e);
+}
 
 ChainIcon::ChainIcon(Processor *p_)
 {
@@ -232,7 +272,7 @@ void ChainIcon::mouseDown(const MouseEvent &)
 
 		colourSelector->addChangeListener(this);
 
-		CallOutBox::launchAsynchronously(colourSelector, getScreenBounds(), nullptr);
+		CallOutBox::launchAsynchronously(std::unique_ptr<Component>(colourSelector), getScreenBounds(), nullptr);
 	}
 }
 
@@ -262,6 +302,12 @@ void ChainIcon::paint(Graphics &g)
 	float h = (float)getHeight();
 
 	Path path;
+
+	Colour c = Colours::white;
+
+	if (dynamic_cast<Chain*>(p) != nullptr ||
+		dynamic_cast<ModulatorSynth*>(p) != nullptr)
+		c = Colours::black;
 
 	if (chainType == ChainIcon::ModulatorSynthIcon)
 	{
@@ -316,11 +362,7 @@ void ChainIcon::paint(Graphics &g)
 
 	path.scaleToFit(.0f, .0f, (float)getWidth(), (float)getHeight(), true);
 
-	g.setGradientFill(ColourGradient(Colour(0xaaffffff),
-		0.0f, 0.0f,
-		Colour(0x55ffffff),
-		0.0f, (float)getHeight(),
-		false));
+	g.setColour(c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.4f)));
 
 	g.fillPath(path);
 
@@ -531,5 +573,6 @@ Drawable * ButtonShapes::routingShape(bool, bool enabled)
 
 	return di;
 }
+
 
 } // namespace hise

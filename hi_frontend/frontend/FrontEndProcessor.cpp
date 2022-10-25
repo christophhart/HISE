@@ -92,10 +92,12 @@ FrontendProcessor* FrontendFactory::createPlugin(AudioDeviceManager* deviceManag
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 #if USE_COPY_PROTECTION
-	if (!keyFileCorrectlyLoaded)
-		return;
-
-	if (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()) return;
+	if (!keyFileCorrectlyLoaded || (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()))
+    {
+        buffer.clear();
+        midiMessages.clear();
+        return;
+    }
 #endif
 
 #if FRONTEND_IS_PLUGIN && HI_SUPPORT_MONO_CHANNEL_LAYOUT
@@ -207,7 +209,7 @@ void FrontendProcessor::restorePool(InputStream* inputStream, FileHandlerBase::S
 
 		if (!resourceFile.existsAsFile())
 		{
-			sendOverlayMessage(DeactiveOverlay::CriticalCustomErrorMessage,
+			sendOverlayMessage(OverlayMessageBroadcaster::CriticalCustomErrorMessage,
 				"The file " + resourceFile.getFullPathName() + " can't be found.");
 			return;
 		}
@@ -238,6 +240,9 @@ synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES))
 keyFileCorrectlyLoaded(true),
 currentlyLoadedProgram(0),
 unlockCounter(0),
+#if USE_SCRIPT_COPY_PROTECTION
+unlocker(this),
+#endif
 updater(*this)
 {
 	ignoreUnused(synthData);
@@ -316,10 +321,10 @@ updater(*this)
 
 	if (externalFiles != nullptr)
 	{
+		getSampleManager().getProjectHandler().setNetworkData(externalFiles->getChildWithName("Networks"));
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 		restoreEmbeddedMarkdownDocs(externalFiles->getChildWithName("MarkdownDocs"));
-
 	}
     
 	numParameters = 0;
@@ -337,6 +342,14 @@ updater(*this)
 	stereoCopy.setSize(2, 0);
 #endif
     
+#if USE_SCRIPT_COPY_PROTECTION
+
+	unlocker.loadKeyFile();
+
+	if (!unlocker.isUnlocked())
+		sendOverlayMessage(OverlayMessageBroadcaster::LicenseNotFound);
+#endif
+
     updater.suspendState = true;
     updater.updateDelayed();
 }
@@ -380,6 +393,11 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	synthChain->restoreFromValueTree(synthData);
 
+    Processor::Iterator<GlobalModulator> gi(synthChain, false);
+    
+    while(auto m = gi.getNextProcessor())
+        m->connectIfPending();
+    
 	setSkipCompileAtPresetLoad(false);
 
 	{
@@ -478,6 +496,9 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
 
+	// Make sure to save the version string into the plugin state
+	v.setProperty("Version", FrontendHandler::getVersionString(), nullptr);
+
 	auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
 
 	// Reload the macro connections before restoring the preset values
@@ -489,8 +510,7 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	v.writeToStream(output);
 
-
-
+	
 
 #endif
 }
@@ -523,6 +543,8 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 #else
 
 	ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+	getUserPresetHandler().preprocess(v);
 
 	auto expansionToLoad = v.getProperty("CurrentExpansion", "").toString();
 
@@ -562,6 +584,9 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 		getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
 	else
 		getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
+
+	getUserPresetHandler().postPresetLoad();
+
 #endif
 
 	if (suspendAfterLoad)

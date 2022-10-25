@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -321,7 +320,7 @@ struct OSCReceiver::Pimpl   : private Thread,
     {
     }
 
-    ~Pimpl()
+    ~Pimpl() override
     {
         disconnect();
     }
@@ -526,33 +525,33 @@ private:
     //==============================================================================
     void callListeners (const OSCBundle::Element& content)
     {
-        using Listener = OSCReceiver::Listener<OSCReceiver::MessageLoopCallback>;
+        using OSCListener = OSCReceiver::Listener<OSCReceiver::MessageLoopCallback>;
 
         if (content.isMessage())
         {
             auto&& message = content.getMessage();
-            listeners.call ([&] (Listener& l) { l.oscMessageReceived (message); });
+            listeners.call ([&] (OSCListener& l) { l.oscMessageReceived (message); });
         }
         else if (content.isBundle())
         {
             auto&& bundle = content.getBundle();
-            listeners.call ([&] (Listener& l) { l.oscBundleReceived (bundle); });
+            listeners.call ([&] (OSCListener& l) { l.oscBundleReceived (bundle); });
         }
     }
 
     void callRealtimeListeners (const OSCBundle::Element& content)
     {
-        using Listener = OSCReceiver::Listener<OSCReceiver::RealtimeCallback>;
+        using OSCListener = OSCReceiver::Listener<OSCReceiver::RealtimeCallback>;
 
         if (content.isMessage())
         {
             auto&& message = content.getMessage();
-            realtimeListeners.call ([&] (Listener& l) { l.oscMessageReceived (message); });
+            realtimeListeners.call ([&] (OSCListener& l) { l.oscMessageReceived (message); });
         }
         else if (content.isBundle())
         {
             auto&& bundle = content.getBundle();
-            realtimeListeners.call ([&] (Listener& l) { l.oscBundleReceived (bundle); });
+            realtimeListeners.call ([&] (OSCListener& l) { l.oscBundleReceived (bundle); });
         }
     }
 
@@ -668,7 +667,9 @@ void OSCReceiver::registerFormatErrorHandler (FormatErrorHandler handler)
 class OSCInputStreamTests  : public UnitTest
 {
 public:
-    OSCInputStreamTests() : UnitTest ("OSCInputStream class", "OSC") {}
+    OSCInputStreamTests()
+        : UnitTest ("OSCInputStream class", UnitTestCategories::osc)
+    {}
 
     void runTest()
     {
@@ -1188,6 +1189,6 @@ public:
 
 static OSCInputStreamTests OSCInputStreamUnitTests;
 
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

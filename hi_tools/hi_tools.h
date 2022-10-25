@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_zstd
+  dependencies:      juce_audio_basics, juce_audio_formats, juce_core, juce_graphics,  juce_data_structures, juce_events
   OSXFrameworks:    Accelerate
   iOSFrameworks:    Accelerate
 
@@ -53,16 +53,88 @@ END_JUCE_MODULE_DECLARATION
 #pragma once
 
 #include "AppConfig.h"
+
+
+
+
+/** Config: HISE_NO_GUI_TOOLS
+
+	Set this to true to remove some UI code from this module
+	This will reduce the build times and compilation size for headless projects.
+*/
+#ifndef HISE_NO_GUI_TOOLS
+#define HISE_NO_GUI_TOOLS 0
+#endif
+
+
+/** Config: HISE_USE_NEW_CODE_EDITOR
+
+	Set this to false in order to use the old code editor for HiseScript files.
+	The new editor might be a bit quirky until it's been tested more, so if you are
+	on a tight schedule you might want to revert to the old one until the kinks are
+	sorted out.
+*/
+#ifndef HISE_USE_NEW_CODE_EDITOR
+#define HISE_USE_NEW_CODE_EDITOR 1
+#endif
+
+/** Config: IS_MARKDOWN_EDITOR
+
+	Set this to true if you want to build the markdown editor (it will deactivate
+	some code that would require the entire HISE codebase).
+*/
+#ifndef IS_MARKDOWN_EDITOR
+#define IS_MARKDOWN_EDITOR 0
+#endif
+
+/** Config: HISE_INCLUDE_PITCH_DETECTION
+ 
+ Includes the pitch detection code. Disable this if you don't have the dsp_library module.
+ 
+*/
+#ifndef HISE_INCLUDE_PITCH_DETECTION
+#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+
+/** Config: HISE_USE_EXTENDED_TEMPO_VALUES
+
+If this is true, the tempo mode will contain lower values than 1/1. This allows eg. the LFO to run slower, however it 
+will break compatibility with older projects / presets because the tempo indexes will change.
+
+*/
+#ifndef HISE_USE_EXTENDED_TEMPO_VALUES
+#define HISE_USE_EXTENDED_TEMPO_VALUES 0
+#endif
+
+/** Reenables using the mouse wheel to control the table curve if set to 1. */
+#ifndef HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE
+#define HISE_USE_MOUSE_WHEEL_FOR_TABLE_CURVE 0
+#endif
+
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
-#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#include "../JUCE/modules/juce_graphics/juce_graphics.h"
+
 #include "../JUCE/modules/juce_audio_devices/juce_audio_devices.h"
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
+
+#include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
+
+#if !HISE_NO_GUI_TOOLS
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
-#include "../hi_zstd/hi_zstd.h"
+#include "../hi_rlottie/hi_rlottie.h"
+#endif
+
+
 #include "../hi_streaming/hi_streaming.h"
 
+
+#if JUCE_ARM
+#include "hi_tools/sse2neon.h"
+#endif
 
 #if USE_BACKEND || USE_FRONTEND
 #define HI_REMOVE_HISE_DEPENDENCY_FOR_TOOL_CLASSES 0
@@ -73,7 +145,6 @@ END_JUCE_MODULE_DECLARATION
 #ifndef DOUBLE_TO_STRING_DIGITS
 #define DOUBLE_TO_STRING_DIGITS 8
 #endif
-
 
 #ifndef HISE_HEADLESS
 #define HISE_HEADLESS 0
@@ -95,27 +166,37 @@ END_JUCE_MODULE_DECLARATION
 
 #ifndef HI_MARKDOWN_ENABLE_INTERACTIVE_CODE
 #if USE_BACKEND
-#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 1
+#define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 0
 #else
 #define HI_MARKDOWN_ENABLE_INTERACTIVE_CODE 0
 #endif
 #endif
 
 
+#ifndef HISE_USE_ONLINE_DOC_UPDATER
+#define HISE_USE_ONLINE_DOC_UPDATER 0
+#endif
+
+#if !HISE_NO_GUI_TOOLS
 #include "hi_binary_data/hi_binary_data.h"
+#endif
 
 #include "Macros.h"
 
 #include "hi_tools/CustomDataContainers.h"
 #include "hi_tools/HiseEventBuffer.h"
 
-#include "hi_tools/PostGraphicsRenderer.h"
 #include "hi_tools/UpdateMerger.h"
+
 #include "hi_tools/MiscToolClasses.h"
 
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
+
+
+
+#include "hi_tools/PitchDetection.h"
 #include "hi_tools/VariantBuffer.h"
 #include "hi_tools/Tables.h"
 
@@ -127,8 +208,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_tools/IppFFT.h"
 #endif
 
+#if !HISE_NO_GUI_TOOLS
 
-
+#include "gin_images/gin_imageeffects.h"
+#include "hi_tools/PostGraphicsRenderer.h"
 
 #include "hi_markdown/MarkdownHeader.h"
 #include "hi_markdown/MarkdownLink.h"
@@ -136,9 +219,17 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_markdown/MarkdownLayout.h"
 #include "hi_markdown/Markdown.h"
 #include "hi_markdown/MarkdownDefaultProviders.h"
-#include "hi_markdown/MarkdownRenderer.h"
+
 #include "hi_markdown/MarkdownHtmlExporter.h"
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
+#include "hi_markdown/MarkdownRenderer.h"
+
+#if USE_BACKEND // Only include this file in the GPL build configuration
+#include "hi_tools/FaustTokeniser.h"
+#endif
+
+#include "mcl_editor/mcl_editor.h"
+
 
 
 #include "hi_tools/JavascriptTokeniser.h"
@@ -147,9 +238,16 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"
 #include "hi_standalone_components/ScriptWatchTable.h"
+#include "hi_standalone_components/ComponentWithPreferredSize.h"
+#endif
 
+#if HISE_INCLUDE_RLOTTIE
+#include "hi_standalone_components/RLottieDevComponent.h"
+#endif
 
 #include "hi_standalone_components/Plotter.h"
+
+#include "hi_standalone_components/RingBuffer.h"
 
 #include "hi_standalone_components/SliderPack.h"
 #include "hi_standalone_components/TableEditor.h"
@@ -157,4 +255,10 @@ END_JUCE_MODULE_DECLARATION
 #include "hi_standalone_components/VuMeter.h"
 #include "hi_standalone_components/SampleDisplayComponent.h"
 
-#include "hi_rlottie/hi_rlottie.h"
+
+#include "hi_standalone_components/eq_plot/FilterInfo.h"
+#include "hi_standalone_components/eq_plot/FilterGraph.h"
+
+
+
+

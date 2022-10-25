@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,7 +25,8 @@
 
 #if JUCE_MAC || JUCE_IOS
 
-#include "../../juce_audio_basics/native/juce_mac_CoreAudioLayouts.h"
+#include <juce_audio_basics/native/juce_mac_CoreAudioLayouts.h>
+#include <juce_core/native/juce_mac_CFHelpers.h>
 
 namespace juce
 {
@@ -36,23 +36,68 @@ namespace
 {
     const char* const coreAudioFormatName = "CoreAudio supported file";
 
-    StringArray findFileExtensionsForCoreAudioCodecs()
+    StringArray getStringInfo (AudioFilePropertyID property, UInt32 size, void* data)
     {
+        CFObjectHolder<CFArrayRef> extensions;
+        UInt32 sizeOfArray = sizeof (extensions.object);
+
+        const auto err = AudioFileGetGlobalInfo (property,
+                                                 size,
+                                                 data,
+                                                 &sizeOfArray,
+                                                 &extensions.object);
+
+        if (err != noErr)
+            return {};
+
+        const auto numValues = CFArrayGetCount (extensions.object);
+
         StringArray extensionsArray;
-        CFArrayRef extensions = nullptr;
-        UInt32 sizeOfArray = sizeof (extensions);
 
-        if (AudioFileGetGlobalInfo (kAudioFileGlobalInfo_AllExtensions, 0, nullptr, &sizeOfArray, &extensions) == noErr)
-        {
-            auto numValues = CFArrayGetCount (extensions);
-
-            for (CFIndex i = 0; i < numValues; ++i)
-                extensionsArray.add ("." + String::fromCFString ((CFStringRef) CFArrayGetValueAtIndex (extensions, i)));
-
-            CFRelease (extensions);
-        }
+        for (CFIndex i = 0; i < numValues; ++i)
+            extensionsArray.add ("." + String::fromCFString ((CFStringRef) CFArrayGetValueAtIndex (extensions.object, i)));
 
         return extensionsArray;
+    }
+
+    StringArray findFileExtensionsForCoreAudioCodec (AudioFileTypeID type)
+    {
+        return getStringInfo (kAudioFileGlobalInfo_ExtensionsForType, sizeof (AudioFileTypeID), &type);
+    }
+
+    StringArray findFileExtensionsForCoreAudioCodecs()
+    {
+        return getStringInfo (kAudioFileGlobalInfo_AllExtensions, 0, nullptr);
+    }
+
+    static AudioFileTypeID toAudioFileTypeID (CoreAudioFormat::StreamKind kind)
+    {
+        using StreamKind = CoreAudioFormat::StreamKind;
+
+        switch (kind)
+        {
+            case StreamKind::kAiff:                 return kAudioFileAIFFType;
+            case StreamKind::kAifc:                 return kAudioFileAIFCType;
+            case StreamKind::kWave:                 return kAudioFileWAVEType;
+            case StreamKind::kSoundDesigner2:       return kAudioFileSoundDesigner2Type;
+            case StreamKind::kNext:                 return kAudioFileNextType;
+            case StreamKind::kMp3:                  return kAudioFileMP3Type;
+            case StreamKind::kMp2:                  return kAudioFileMP2Type;
+            case StreamKind::kMp1:                  return kAudioFileMP1Type;
+            case StreamKind::kAc3:                  return kAudioFileAC3Type;
+            case StreamKind::kAacAdts:              return kAudioFileAAC_ADTSType;
+            case StreamKind::kMpeg4:                return kAudioFileMPEG4Type;
+            case StreamKind::kM4a:                  return kAudioFileM4AType;
+            case StreamKind::kM4b:                  return kAudioFileM4BType;
+            case StreamKind::kCaf:                  return kAudioFileCAFType;
+            case StreamKind::k3gp:                  return kAudioFile3GPType;
+            case StreamKind::k3gp2:                 return kAudioFile3GP2Type;
+            case StreamKind::kAmr:                  return kAudioFileAMRType;
+
+            case StreamKind::kNone:                 break;
+        }
+
+        return {};
     }
 }
 
@@ -342,7 +387,10 @@ struct CoreAudioFormatMetatdata
 class CoreAudioReader : public AudioFormatReader
 {
 public:
-    CoreAudioReader (InputStream* inp)  : AudioFormatReader (inp, coreAudioFormatName)
+    using StreamKind = CoreAudioFormat::StreamKind;
+
+    CoreAudioReader (InputStream* inp, StreamKind streamKind)
+        : AudioFormatReader (inp, coreAudioFormatName)
     {
         usesFloatingPointData = true;
         bitsPerSample = 32;
@@ -352,10 +400,10 @@ public:
 
         auto status = AudioFileOpenWithCallbacks (this,
                                                   &readCallback,
-                                                  nullptr,  // write needs to be null to avoid permisisions errors
+                                                  nullptr,  // write needs to be null to avoid permissions errors
                                                   &getSizeCallback,
-                                                  nullptr,  // setSize needs to be null to avoid permisisions errors
-                                                  0,        // AudioFileTypeID inFileTypeHint
+                                                  nullptr,  // setSize needs to be null to avoid permissions errors
+                                                  toAudioFileTypeID (streamKind),
                                                   &audioFileID);
         if (status == noErr)
         {
@@ -475,7 +523,7 @@ public:
         while (numSamples > 0)
         {
             auto numThisTime = jmin (8192, numSamples);
-            auto numBytes = sizeof (float) * (size_t) numThisTime;
+            auto numBytes = (size_t) numThisTime * sizeof (float);
 
             audioDataBlock.ensureSize (numBytes * numChannels, false);
             auto* data = static_cast<float*> (audioDataBlock.getData());
@@ -493,6 +541,15 @@ public:
 
             if (status != noErr)
                 return false;
+
+            if (numFramesToRead == 0)
+                break;
+
+            if ((int) numFramesToRead < numThisTime)
+            {
+                numThisTime = (int) numFramesToRead;
+                numBytes    = (size_t) numThisTime * sizeof (float);
+            }
 
             for (int i = numDestChannels; --i >= 0;)
             {
@@ -554,11 +611,18 @@ private:
 
 //==============================================================================
 CoreAudioFormat::CoreAudioFormat()
-    : AudioFormat (coreAudioFormatName, findFileExtensionsForCoreAudioCodecs())
+    : AudioFormat (coreAudioFormatName, findFileExtensionsForCoreAudioCodecs()),
+      streamKind (StreamKind::kNone)
 {
 }
 
-CoreAudioFormat::~CoreAudioFormat() {}
+CoreAudioFormat::CoreAudioFormat (StreamKind kind)
+    : AudioFormat (coreAudioFormatName, findFileExtensionsForCoreAudioCodec (toAudioFileTypeID (kind))),
+      streamKind (kind)
+{
+}
+
+CoreAudioFormat::~CoreAudioFormat() = default;
 
 Array<int> CoreAudioFormat::getPossibleSampleRates()    { return {}; }
 Array<int> CoreAudioFormat::getPossibleBitDepths()      { return {}; }
@@ -570,7 +634,7 @@ bool CoreAudioFormat::canDoMono()       { return true; }
 AudioFormatReader* CoreAudioFormat::createReaderFor (InputStream* sourceStream,
                                                      bool deleteStreamIfOpeningFails)
 {
-    std::unique_ptr<CoreAudioReader> r (new CoreAudioReader (sourceStream));
+    std::unique_ptr<CoreAudioReader> r (new CoreAudioReader (sourceStream, streamKind));
 
     if (r->ok)
         return r.release();
@@ -592,8 +656,8 @@ AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream*,
     return nullptr;
 }
 
+
 //==============================================================================
-// Unit tests for Core Audio layout conversions
 //==============================================================================
 #if JUCE_UNIT_TESTS
 
@@ -603,9 +667,11 @@ AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream*,
 class CoreAudioLayoutsUnitTest  : public UnitTest
 {
 public:
-    CoreAudioLayoutsUnitTest() : UnitTest ("Core Audio Layout <-> JUCE channel layout conversion", "Audio") {}
+    CoreAudioLayoutsUnitTest()
+        : UnitTest ("Core Audio Layout <-> JUCE channel layout conversion", UnitTestCategories::audio)
+    {}
 
-    // some ambisonic tags which are not explicitely defined
+    // some ambisonic tags which are not explicitly defined
     enum
     {
         kAudioChannelLayoutTag_HOA_ACN_SN3D_0Order = (190U<<16) | 1,

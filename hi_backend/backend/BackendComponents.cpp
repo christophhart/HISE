@@ -41,7 +41,7 @@ void MacroComponent::addSynthChainToPopup(ModulatorSynthChain *parent, PopupMenu
 		{
 			PopupMenu sub;
 
-			for(int j = 0; j < 8; j++)
+			for(int j = 0; j < HISE_NUM_MACROS; j++)
 			{
 				if(msc->hasActiveParameters(j))
 				{
@@ -75,7 +75,7 @@ MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
 
 	mlaf = new MacroKnobLookAndFeel();
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		Slider *s = new Slider();
 		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -282,40 +282,17 @@ void MacroComponent::buttonClicked(Button *b)
 
 		processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
 	}
-
-	auto root = GET_ROOT_FLOATING_TILE(this);
-
-	auto table = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<MacroParameterTable>>(root, b->getToggleState());
-	
-	if (b->getToggleState())
-	{
-		const int index = editButtons.indexOf(dynamic_cast<ShapeButton*>(b));
-
-		table->getContentFromGenericPanel()->setMacroController(processor->getMainSynthChain()->getMacroControlData(index));
-	}
-	else
-	{
-		table->getContentFromGenericPanel()->setMacroController(nullptr);
-	}
-
-	
-
 };
 
 
 void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 {
-	
-
-	if(auto table = getMainTable())
-	{
-		table->updateContent();
-	}
-
 	for(int i = 0; i < macroKnobs.size(); i++)
 	{
 		macroKnobs[i]->setValue(synthChain->getMacroControlData(i)->getCurrentValue(), dontSendNotification);
 	}
+
+	
 
 	checkActiveButtons();
 }
@@ -475,24 +452,42 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	}
 }
 
-BreadcrumbComponent::BreadcrumbComponent(MainController* mc_) :
-	mc(mc_)
+BreadcrumbComponent::BreadcrumbComponent(ProcessorEditorContainer* container_) :
+	ControlledObject(container_->getRootEditor()->getProcessor()->getMainController()),
+	container(container_)
 {
-	mc->getProcessorChangeHandler().addProcessorChangeListener(this);
+	getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);
+	refreshBreadcrumbs();
+	container->rootBroadcaster.addListener(*this, newRoot);
 }
 
 BreadcrumbComponent::~BreadcrumbComponent()
 {
-	mc->getProcessorChangeHandler().removeProcessorChangeListener(this);
+	getMainController()->getProcessorChangeHandler().removeProcessorChangeListener(this);
+}
+
+void BreadcrumbComponent::moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type)
+{
+	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
+		refreshBreadcrumbs();
+}
+
+void BreadcrumbComponent::paint(Graphics &g)
+{
+	for (int i = 1; i < breadcrumbs.size(); i++)
+	{
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText(">", breadcrumbs[i]->getRight(), breadcrumbs[i]->getY(), 20, breadcrumbs[i]->getHeight(), Justification::centred, true);
+	}
 }
 
 void BreadcrumbComponent::refreshBreadcrumbs()
 {
 	breadcrumbs.clear();
 
-	const Processor *mainSynthChain = mc->getMainSynthChain();
-
-	const Processor *currentRoot = mc->getMainSynthChain()->getRootProcessor();
+	const Processor *mainSynthChain = getMainController()->getMainSynthChain();
+	const Processor *currentRoot = container->getRootEditor()->getProcessor();
 
 	while (currentRoot != mainSynthChain)
 	{
@@ -512,19 +507,25 @@ void BreadcrumbComponent::refreshBreadcrumbs()
 
 void BreadcrumbComponent::resized()
 {
-    int x = 5;
-    for(int i = breadcrumbs.size()-1; i  >= 0; i--)
-    {
-        breadcrumbs[i]->setBounds(x, 0, breadcrumbs[i]->getPreferredWidth(), getHeight()-8);
-        x = breadcrumbs[i]->getRight() + 20;
-    }
+	auto b = getLocalBounds().reduced(0, 4);
+
+	b.removeFromLeft(5);
+
+	for (int i = breadcrumbs.size() - 1; i >= 0; i--)
+	{
+		auto br = breadcrumbs[i];
+		br->setBounds(b.removeFromLeft(br->getPreferredWidth()));
+		b.removeFromLeft(20);
+	}
+		
 
 	repaint();
 }
 
 void BreadcrumbComponent::Breadcrumb::mouseDown(const MouseEvent& )
 {
-	findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(processor);
+	auto p = findParentComponentOfClass<BreadcrumbComponent>();
+	p->container->setRootProcessorEditor(processor);
 }
 
 } // namespace hise

@@ -25,7 +25,7 @@ struct X
 T main(T input)
 {
     X x1 = { 2.0f, 3.0f, 4.0f};
-    X x2 = { 1.0f };
+    X x2 = { 1.0f, 0.0f, 0.0f };
     
     return x1.v2 + x2.v1;
 }

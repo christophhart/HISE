@@ -101,7 +101,7 @@
 /* disable warnings */
 #ifdef _MSC_VER    /* Visual Studio */
 #  include <intrin.h>                    /* For Visual 2005 */
-#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
+#  pragma warning(disable : 4101)        /* disable: C4100: unreferenced formal parameter */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
 #  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
 #  pragma warning(disable : 4214)        /* disable: C4214: non-int bitfields */

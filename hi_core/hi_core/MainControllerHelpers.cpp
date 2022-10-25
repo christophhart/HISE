@@ -37,7 +37,8 @@ namespace hise { using namespace juce;
 MidiControllerAutomationHandler::MidiControllerAutomationHandler(MainController *mc_) :
 anyUsed(false),
 mpeData(mc_),
-mc(mc_)
+mc(mc_),
+ccName("MIDI CC")
 {
 	tempBuffer.ensureSize(2048);
 
@@ -82,7 +83,14 @@ void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumbe
 
 	unlearnedData.ccNumber = ccNumber;
 
-	automationData[ccNumber].addIfNotAlreadyThere(unlearnedData);
+	if (exclusiveMode)
+	{
+		automationData[ccNumber].clearQuick();
+		automationData[ccNumber].add(unlearnedData);
+	}
+	else
+		automationData[ccNumber].addIfNotAlreadyThere(unlearnedData);
+
 	unlearnedData = AutomationData();
 
 	anyUsed = true;
@@ -149,12 +157,13 @@ void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *i
 
 		for (int i = 0; i < 128; i++)
 		{
-			for (auto& a : automationData[i])
+			for (int j = 0; j < automationData[i].size(); j++)
 			{
+				auto a = automationData[i][j];
+
 				if (a.processor == interfaceProcessor && a.attribute == attributeIndex)
 				{
-					automationData[i].removeAllInstancesOf(a);
-					break;
+					automationData[i].remove(j--);
 				}
 			}
 		}
@@ -212,14 +221,33 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 	// The parameter was stored correctly as ID
 	if (isParameterId && processor.get() != nullptr)
 	{
-		const Identifier pId(attributeString);
+		auto numCustomAutomationSlots = processor->getMainController()->getUserPresetHandler().getNumCustomAutomationData();
 
-		for (int j = 0; j < processor->getNumParameters(); j++)
+		if (numCustomAutomationSlots != 0)
 		{
-			if (processor->getIdentifierForParameterIndex(j) == pId)
+			for (int j = 0; j < numCustomAutomationSlots; j++)
 			{
-				attribute = j;
-				break;
+				if (auto ah = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(j))
+				{
+					if (ah->id.toString() == attributeString)
+					{
+						attribute = j;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			const Identifier pId(attributeString);
+
+			for (int j = 0; j < processor->getNumParameters(); j++)
+			{
+				if (processor->getIdentifierForParameterIndex(j) == pId)
+				{
+					attribute = j;
+					break;
+				}
 			}
 		}
 	}
@@ -275,7 +303,16 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 	cc.setProperty("FullEnd", fullRange.end, nullptr);
 	cc.setProperty("Skew", parameterRange.skew, nullptr);
 	cc.setProperty("Interval", parameterRange.interval, nullptr);
-	cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+
+	if (auto ap = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(attribute))
+	{
+		cc.setProperty("Attribute", ap->id.toString(), nullptr);
+	}
+	else
+	{
+		cc.setProperty("Attribute", processor->getIdentifierForParameterIndex(attribute).toString(), nullptr);
+	}
+
 	cc.setProperty("Inverted", inverted, nullptr);
 
 	return cc;
@@ -591,23 +628,22 @@ int MidiControllerAutomationHandler::MPEData::size() const
 
 void MidiControllerAutomationHandler::MPEData::setMpeMode(bool shouldBeOn)
 {
-	
-
-	
-
 	getMainController()->getKeyboardState().injectMessage(MidiMessage::controllerEvent(1, 74, 64));
 	getMainController()->getKeyboardState().injectMessage(MidiMessage::pitchWheel(1, 8192));
 	getMainController()->allNotesOff();
 
-	mpeEnabled = shouldBeOn;
-
-    // Do this synchronously
-    ScopedLock sl(listeners.getLock());
-    
-	for (auto l : listeners)
+	if (mpeEnabled != shouldBeOn)
 	{
-        if(l != nullptr)
-            l->mpeModeChanged(mpeEnabled);
+		mpeEnabled = shouldBeOn;
+
+		// Do this synchronously
+		ScopedLock sl(listeners.getLock());
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->mpeModeChanged(mpeEnabled);
+		}
 	}
 }
 
@@ -620,6 +656,9 @@ bool MidiControllerAutomationHandler::MPEData::contains(MPEModulator* mod) const
 
 ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 {
+	if (unloadedData.isValid())
+		return unloadedData;
+
 	ValueTree v("MidiAutomation");
 
 	for (int i = 0; i < 128; i++)
@@ -691,36 +730,9 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 				setUnlearndedMidiControlNumber(number, sendNotification);
 			}
 
-			for (auto& a : automationData[number])
-			{
-				if (a.used && a.processor.get() != nullptr)
-				{
-					jassert(a.processor.get() != nullptr);
+			HiseEvent he(m);
 
-					auto normalizedValue = (double)m.getControllerValue() / 127.0;
-
-					if (a.inverted) normalizedValue = 1.0 - normalizedValue;
-
-					const double value = a.parameterRange.convertFrom0to1(normalizedValue);
-
-					const float snappedValue = (float)a.parameterRange.snapToLegalValue(value);
-
-					if (a.macroIndex != -1)
-					{
-						a.processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a.macroIndex, (float)m.getControllerValue(), sendNotification);
-					}
-					else
-					{
-						if (a.lastValue != snappedValue)
-						{
-							a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
-							a.lastValue = snappedValue;
-						}
-					}
-
-					consumed = true;
-				}
-			}
+			consumed = handleControllerMessage(he);
 		}
 
 		if (!consumed) tempBuffer.addEvent(m, samplePos);
@@ -730,6 +742,55 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 	b.addEvents(tempBuffer, 0, -1, 0);
 }
 
+
+bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e)
+{
+	auto number = e.getControllerNumber();
+
+	for (auto& a : automationData[number])
+	{
+		if (a.used && a.processor.get() != nullptr)
+		{
+			jassert(a.processor.get() != nullptr);
+
+			auto normalizedValue = (double)e.getControllerValue() / 127.0;
+
+			if (a.inverted) normalizedValue = 1.0 - normalizedValue;
+
+			const double value = a.parameterRange.convertFrom0to1(normalizedValue);
+
+			const float snappedValue = (float)a.parameterRange.snapToLegalValue(value);
+
+			if (a.macroIndex != -1)
+			{
+				a.processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a.macroIndex, (float)e.getControllerValue(), sendNotification);
+			}
+			else
+			{
+				if (a.lastValue != snappedValue)
+				{
+					auto& uph = a.processor->getMainController()->getUserPresetHandler();
+
+					if (uph.isUsingCustomDataModel())
+					{
+						if (auto ad = uph.getCustomAutomationData(a.attribute))
+							ad->call(snappedValue);
+					}
+					else
+					{
+						a.processor->setAttribute(a.attribute, snappedValue, sendNotification);
+					}
+
+					a.lastValue = snappedValue;
+				}
+			}
+
+			return consumeEvents;
+		}
+	}
+
+	return false;
+}
 
 hise::MidiControllerAutomationHandler::AutomationData MidiControllerAutomationHandler::getDataFromIndex(int index) const
 {
@@ -1091,6 +1152,13 @@ bool CircularAudioSampleBuffer::readMidiEvents(MidiBuffer& destination, int offs
 
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+	if (illegalBufferSize)
+	{
+		mc->getKillStateHandler().handleKillState();
+		return;
+	}
+		
+
 	if (shouldDelayRendering())
 	{
 	
@@ -1153,8 +1221,6 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 		buffer.clear();
 #else
 
-		DBG(buffer.getNumSamples());
-
 		int numSamplesToCalculate = buffer.getNumSamples() - numLeftOvers;
 
 		// use a temp buffer and pad to the event raster size...
@@ -1183,7 +1249,35 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		if (paddedBufferSize > 0)
 		{
+			auto lastTimestamp = (int)midiMessages.getLastEventTime();
+
+            ignoreUnused(lastTimestamp);
+			jassert(lastTimestamp < buffer.getNumSamples());
+
 			AudioSampleBuffer tempBuffer(ptrs, buffer.getNumChannels(), paddedBufferSize);
+
+			const int lastEventTime = midiMessages.getLastEventTime();
+
+
+
+			if (lastEventTime > numSamplesToCalculate)
+			{
+				MidiBuffer other;
+
+				MidiBuffer::Iterator it(midiMessages);
+
+				MidiMessage m;
+				int pos;
+
+				while (it.getNextEvent(m, pos))
+				{
+					other.addEvent(m, jmin(pos, numSamplesToCalculate));
+				}
+
+				other.swapWith(midiMessages);
+
+				//jassertfalse;
+			}
 
 			mc->setMaxEventTimestamp(numSamplesToCalculate);
 			mc->processBlockCommon(tempBuffer, midiMessages);
@@ -1247,6 +1341,15 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 	}
 	else
 	{
+		illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
+
+#if HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
+		if (illegalBufferSize)
+			mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
+#endif
+
+		samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
+
 		mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, HISE_MAX_PROCESSING_BLOCKSIZE));
 	}
 }
@@ -1259,17 +1362,99 @@ void OverlayMessageBroadcaster::sendOverlayMessage(int newState, const String& n
 
 #if USE_BACKEND
 
-	ignoreUnused(newState);
+	
 
 	// Just print it on the console
 	Logger::getCurrentLogger()->writeToLog("!" + newCustomMessage);
-#else
+#endif
 
 	currentState = newState;
 	customMessage = newCustomMessage;
 
 	internalUpdater.triggerAsyncUpdate();
+}
+
+String OverlayMessageBroadcaster::getOverlayTextMessage(State s) const
+{
+	switch (s)
+	{
+	case AppDataDirectoryNotFound:
+		return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
+		break;
+	case IllegalBufferSize:
+	{
+		String s;
+		s << "The audio buffer size should be a multiple of " << String(HISE_EVENT_RASTER) << ". Please adjust your audio settings";
+		return s;
+	}
+	case SamplesNotFound:
+		return "The sample directory could not be located. \nClick below to choose the sample folder.";
+		break;
+	case SamplesNotInstalled:
+#if HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON && HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		return "Please click below to install the samples from the downloaded archive or point to the location where you've already installed the samples.";
+#elif HISE_SAMPLE_DIALOG_SHOW_INSTALL_BUTTON
+		return "Please click below to install the samples from the downloaded archive.";
+#elif HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
+		return "Please click below to point to the location where you've already installed the samples.";
+#else
+		return "This should never show :)";
+		jassertfalse;
 #endif
+
+		break;
+	case LicenseNotFound:
+	{
+#if USE_COPY_PROTECTION
+#if HISE_ALLOW_OFFLINE_ACTIVATION
+		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
+#else
+		return "This computer is not registered.";
+#endif
+#else
+		return "";
+#endif
+	}
+	case ProductNotMatching:
+		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
+		break;
+	case MachineNumbersNotMatching:
+		return "The machine ID is invalid / not matching.\nThis might be caused by a major OS / or system hardware update which change the identification of this computer.\nIn order to solve the issue, just repeat the activation process again to register this system with the new specifications.";
+		break;
+	case UserNameNotMatching:
+		return "The user name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case EmailNotMatching:
+		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case LicenseInvalid:
+	{
+#if USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION
+		auto ul = &dynamic_cast<const FrontendProcessor*>(this)->unlocker;
+		return ul->getProductErrorMessage();
+#else
+		return "";
+#endif
+	}
+	case LicenseExpired:
+	{
+#if USE_COPY_PROTECTION
+		return "The license key is expired. Press OK to reauthenticate (you'll need to be online for this)";
+#else
+		return "";
+#endif
+	}
+	case State::CustomErrorMessage:
+	case State::CriticalCustomErrorMessage:
+	case State::CustomInformation:
+	case State::numReasons:
+		jassertfalse;
+		break;
+	default:
+		break;
+	}
+
+	return String();
 }
 
 ScopedSoftBypassDisabler::ScopedSoftBypassDisabler(MainController* mc) :

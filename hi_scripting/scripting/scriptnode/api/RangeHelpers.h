@@ -37,24 +37,40 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-struct RangeHelpers
+struct RangePresets
 {
-	static bool isRangeId(const Identifier& id);
+	RangePresets();
 
-	static bool isIdentity(NormalisableRange<double> d);
+	static File getRangePresetFile();
 
-	static Array<Identifier> getRangeIds();
+	void createDefaultRange(const String& id, InvertableParameterRange d, double midPoint = -10000000.0);
 
-	/** Checks if the MinValue and MaxValue are inverted, sets the property Inverted and returns the result. */
-	static bool checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um);
+	int getPresetIndex(const InvertableParameterRange& r)
+	{
+		for (int i = 0; i < presets.size(); i++)
+		{
+			if (presets[i].nr == r)
+				return i;
+		}
 
-	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
-	static NormalisableRange<double> getDoubleRange(const ValueTree& t);
+		return -1;
+	}
 
-	static void storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um);
+	~RangePresets();
+
+	struct Preset : public RestorableObject
+	{
+		void restoreFromValueTree(const ValueTree& v);
+
+		ValueTree exportAsValueTree() const override;
+
+		InvertableParameterRange nr;
+		String id;
+		int index;
+	};
+
+	File fileToLoad;
+	Array<Preset> presets;
 };
-
-
-
 
 }

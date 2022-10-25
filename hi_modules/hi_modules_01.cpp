@@ -4,34 +4,22 @@
 
 #if JUCE_MSVC
 #pragma warning (push)
-#pragma warning (disable: 4127 4706 4100)
+#pragma warning (disable: 4127 4706)
 #endif
 
 #include "synthesisers/synths/PolyBlep.cpp"
-
-namespace wdl
-{
-
-#include "effects/convolution/wdl/convoengine.cpp"
-#include "effects/convolution/wdl/fft.c"
-
-}
 
 #if JUCE_MSVC
 #pragma warning (pop)
 #endif
 
-#include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.cpp"
-
-
+#include "nodes/HardcodedNetworkModuleBase.cpp"
 
 
 #include "modulators/mods/ConstantModulator.cpp"
 #include "modulators/mods/ControlModulator.cpp"
 #include "modulators/mods/LFOModulator.cpp"
-#include "modulators/mods/AudioFileEnvelope.cpp"
 #include "modulators/mods/MacroControlModulator.cpp"
-#include "modulators/mods/PluginParameterModulator.cpp"
 #include "modulators/mods/RandomModulator.cpp"
 #include "modulators/mods/SimpleEnvelope.cpp"
 #include "modulators/mods/KeyModulator.cpp"
@@ -41,40 +29,30 @@ namespace wdl
 #include "modulators/mods/VelocityModulator.cpp"
 #include "modulators/mods/ArrayModulator.cpp"
 #include "modulators/mods/GlobalModulators.cpp"
-#include "modulators/mods/CCEnvelope.cpp"
-#include "modulators/mods/CCDucker.cpp"
-#include "modulators/mods/GainMatcher.cpp"
 #include "modulators/mods/MPEModulators.cpp"
 #include "modulators/mods/MPEComponents.cpp"
+#include "modulators/mods/HardcodedNetworkModulators.cpp"
 
 #if USE_BACKEND
 
 #include "modulators/editors/AhdsrEnvelopeEditor.cpp"
 #include "modulators/editors/ConstantEditor.cpp"
 #include "modulators/editors/ControlEditor.cpp"
-#include "modulators/editors/CCDuckerEditor.cpp"
-#include "modulators/editors/CCEnvelopeEditor.cpp"
 #include "modulators/editors/LfoEditor.cpp"
-#include "modulators/editors/AudioFileEnvelopeEditor.cpp"
 #include "modulators/editors/KeyEditor.cpp"
 #include "modulators/editors/MacroControlModulatorEditor.cpp"
 #include "modulators/editors/PitchWheelEditor.cpp"
-#include "modulators/editors/PluginParameterEditor.cpp"
 #include "modulators/editors/RandomEditor.cpp"
 #include "modulators/editors/SimpleEnvelopeEditor.cpp"
 #include "modulators/editors/TableEnvelopeEditor.cpp"
 #include "modulators/editors/VelocityEditor.cpp"
 #include "modulators/editors/ArrayModulatorEditor.cpp"
 #include "modulators/editors/GlobalModulatorEditor.cpp"
-#include "modulators/editors/GainMatcherEditor.cpp"
 #include "modulators/editors/MPEModulatorEditors.cpp"
 
 #endif
 
-#include "midi_processor/mps/MidiDelay.cpp"
 #include "midi_processor/mps/Transposer.cpp"
-#include "midi_processor/mps/SampleRaster.cpp"
-#include "midi_processor/mps/RoundRobin.cpp"
 
 
 #if USE_BACKEND
@@ -104,18 +82,16 @@ namespace wdl
 #include "effects/fx/GainEffect.cpp"
 #include "effects/fx/Chorus.cpp"
 #include "effects/fx/Phaser.cpp"
-#include "effects/fx/GainCollector.cpp"
-#include "effects/convolution/AtkConvolution.cpp"
-#include "effects/convolution/Convolution.cpp"
+#include "effects/fx/Convolution.cpp"
 #include "effects/mda/mdaLimiter.cpp"
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Dynamics.cpp"
 #include "effects/fx/Saturator.cpp"
-#include "effects/fx/AudioProcessorWrapper.cpp"
 #include "effects/fx/SlotFX.cpp"
 #include "effects/fx/Analyser.cpp"
 #include "effects/fx/WaveShapers.cpp"
 #include "effects/fx/ShapeFX.cpp"
+#include "effects/fx/HardcodedNetworkEffect.cpp"
 
 #if USE_BACKEND
 
@@ -131,7 +107,6 @@ namespace wdl
 #include "effects/editors/ConvolutionEditor.cpp"
 #include "effects/editors/MdaLimiterEditor.cpp"
 #include "effects/editors/MdaDegradeEditor.cpp"
-#include "effects/editors/GainCollectorEditor.cpp"
 #include "effects/editors/RouteFXEditor.cpp"
 #include "effects/editors/SaturationEditor.cpp"
 #include "effects/editors/DynamicsEditor.cpp"
@@ -143,12 +118,6 @@ namespace wdl
 
 #endif
 
-#include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.cpp"
-
-#include "effects/editors/AudioProcessorEditorWrapper.cpp"
-
-
-
 #include "synthesisers/synths/GlobalModulatorContainer.cpp"
 #include "synthesisers/synths/MacroModulationSource.cpp"
 #include "synthesisers/synths/SineSynth.cpp"
@@ -158,6 +127,7 @@ namespace wdl
 #include "synthesisers/editors/WavetableComponents.cpp"
 #include "synthesisers/synths/WavetableSynth.cpp"
 #include "synthesisers/synths/AudioLooper.cpp"
+#include "synthesisers/synths/HardcodedNetworkSynth.cpp"
 
 #if USE_BACKEND
 

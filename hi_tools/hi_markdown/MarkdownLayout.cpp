@@ -250,9 +250,66 @@ MarkdownLayout::StyleData::StyleData()
 	linkBackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x008888FF));
 	codebackgroundColour = JUCE_LIVE_CONSTANT_OFF(Colour(0x33888888));
 	codeColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffffffff));
+	tableHeaderBackgroundColour = Colours::grey.withAlpha(0.2f);
+	tableBgColour = Colours::grey.withAlpha(0.2f);
+	tableLineColour = Colours::grey.withAlpha(0.2f);
 
 	f = GLOBAL_FONT();
 	fontSize = 18.0f;
+}
+
+bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader)
+{
+	auto fName = obj.getProperty(MarkdownStyleIds::Font, f.getTypefaceName());
+	auto bName = obj.getProperty(MarkdownStyleIds::BoldFont, getBoldFont().getTypefaceName());
+	useSpecialBoldFont = obj.getProperty(MarkdownStyleIds::UseSpecialBoldFont, useSpecialBoldFont);
+	fontSize = obj.getProperty(MarkdownStyleIds::FontSize, fontSize);
+
+	f = fontLoader(fName);
+	boldFont = fontLoader(bName);
+
+	auto getColourFromVar = [&](const Identifier& id, Colour defaultColour)
+	{
+		auto v = (int64)obj.getProperty(id, (int64)defaultColour.getARGB());
+		return Colour((uint32)v);
+	};
+
+#define GET_COLOUR(x, id) x = getColourFromVar(id, x);
+	GET_COLOUR(codebackgroundColour, MarkdownStyleIds::codeBgColour);
+	GET_COLOUR(linkBackgroundColour, MarkdownStyleIds::linkBgColour);
+	GET_COLOUR(textColour, MarkdownStyleIds::textColour);
+	GET_COLOUR(codeColour, MarkdownStyleIds::codeColour);
+	GET_COLOUR(linkColour, MarkdownStyleIds::linkColour);
+	GET_COLOUR(headlineColour, MarkdownStyleIds::headlineColour);
+	GET_COLOUR(backgroundColour, MarkdownStyleIds::bgColour);
+	GET_COLOUR(tableBgColour, MarkdownStyleIds::tableBgColour);
+	GET_COLOUR(tableHeaderBackgroundColour, MarkdownStyleIds::tableHeaderBgColour);
+	GET_COLOUR(tableLineColour, MarkdownStyleIds::tableLineColour);
+#undef GET_COLOUR
+
+	return true;
+}
+
+juce::var MarkdownLayout::StyleData::toDynamicObject() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty(MarkdownStyleIds::Font, f.getTypefaceName());
+	obj->setProperty(MarkdownStyleIds::BoldFont, boldFont.getTypefaceName());
+	obj->setProperty(MarkdownStyleIds::FontSize, fontSize);
+	obj->setProperty(MarkdownStyleIds::bgColour, backgroundColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::codeBgColour, codebackgroundColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::linkBgColour, linkBackgroundColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::textColour, textColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::codeColour, codeColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::linkColour, linkColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::tableHeaderBgColour, tableHeaderBackgroundColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::tableLineColour, tableLineColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::tableBgColour, tableBgColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::headlineColour, headlineColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::UseSpecialBoldFont, useSpecialBoldFont);
+
+	return var(obj.get());
 }
 
 }

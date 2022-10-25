@@ -328,21 +328,22 @@ public:
 	}
 
 	/** Inserts an element at the end of the unordered stack. */
-	void insert(const ElementType& elementTypeToInsert)
+	bool insert(const ElementType& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
 		if (contains(elementTypeToInsert))
 		{
-			return;
+			return false;
 		}
 
 		data[position] = elementTypeToInsert;
 
 		position = jmin<int>(position + 1, SIZE - 1);
+		return true;
 	}
 
-	void insertWithoutSearch(ElementType&& elementTypeToInsert)
+	bool insertWithoutSearch(ElementType&& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
@@ -351,6 +352,7 @@ public:
 		data[position] = std::move(elementTypeToInsert);
 
 		position = jmin<int>(position + 1, SIZE - 1);
+		return true;
 	}
 
 	void insertWithoutSearch(const ElementType& elementTypeToInsert)
@@ -366,13 +368,13 @@ public:
 
 	/** Removes the given element and puts the last element into its slot. */
 
-	void remove(const ElementType& elementTypeToRemove)
+	bool remove(const ElementType& elementTypeToRemove)
 	{
 		Lock sl(lock);
 
 		if (!contains(elementTypeToRemove))
 		{
-			return;
+			return false;
 		}
 
 		for (int i = 0; i < position; i++)
@@ -380,22 +382,26 @@ public:
 			if (data[i] == elementTypeToRemove)
 			{
 				jassert(position > 0);
-
 				removeElement(i);
 			}
 		}
+
+		return true;
 	}
 
-	void removeElement(int index)
+	bool removeElement(int index)
 	{
 		Lock sl(lock);
 
-		if (index < position)
+		if (isPositiveAndBelow(index, position))
 		{
 			position = jmax<int>(0, position-1);
 			data[index] = std::move(data[position]);
 			data[position] = ElementType();
+			return true;
 		}
+
+		return false;
 	}
 
 	bool contains(const ElementType& elementToLookFor) const noexcept
@@ -500,9 +506,97 @@ private:
 #endif
 
 
+/** A simple data block that either uses a preallocated memory to avoid relocating or a heap block. */
+template <int BSize, int Alignment> struct ObjectStorage
+{
+	static constexpr int SmallBufferSize = BSize;
 
+	ObjectStorage()
+	{
+		free();
+	}
 
+	~ObjectStorage()
+	{
+		free();
+		bigBuffer.free();
+	}
 
+    ObjectStorage& operator=(ObjectStorage&& other)
+    {
+        objPtr = other.objPtr;
+        other.objPtr = nullptr;
+        
+        allocatedSize = other.allocatedSize;
+        other.allocatedSize = 0;
+        
+        memcpy(smallBuffer, other.smallBuffer, BSize + Alignment);
+        bigBuffer = std::move(other.bigBuffer);
+        
+        return *this;
+    }
+    
+	ObjectStorage(const ObjectStorage& other)
+	{
+		setSize(other.allocatedSize);
+		memcpy(getObjectPtr(), other.getObjectPtr(), allocatedSize);
+	}
+
+	void free()
+	{
+		if (allocatedSize > SmallBufferSize)
+		{
+			bigBuffer.free();
+		}
+		
+		memset(smallBuffer, 0, BSize + Alignment);
+		objPtr = nullptr;
+		allocatedSize = 0;
+	}
+	
+	void setExternalPtr(void* ptr)
+	{
+		free();
+		objPtr = ptr;
+	}
+
+	void* getObjectPtr() const
+	{
+		return objPtr;
+	}
+
+	void setSize(size_t newSize)
+	{
+		if (newSize != allocatedSize)
+		{
+			allocatedSize = newSize;
+
+			if (allocatedSize >= (SmallBufferSize))
+			{
+				bigBuffer.allocate(newSize + Alignment, true);
+				objPtr = bigBuffer.get();
+			}
+			else
+			{
+				bigBuffer.free();
+				objPtr = &smallBuffer;
+			}
+
+			if constexpr (Alignment != 0)
+			{
+				if (auto o = reinterpret_cast<uint64_t>(objPtr) % Alignment)
+					objPtr = (static_cast<uint8*>(objPtr) + (Alignment - o));
+			}
+		}
+	}
+
+private:
+
+	void* objPtr = nullptr;
+	size_t allocatedSize = 0;
+	uint8 smallBuffer[BSize + Alignment];
+	HeapBlock<uint8> bigBuffer;
+};
 
 
 /** A simple container holding NUM_POLYPHONIC_VOICES elements of the given ObjectType
@@ -608,8 +702,6 @@ namespace MultithreadedQueueHelpers
 		bool canBeProducer;
 	};
 }
-
-
 
 /** A wrapper around moodycamels ConcurrentQueue with more JUCE like interface and some assertions. */
 template <typename ElementType, 

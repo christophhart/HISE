@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -50,10 +49,8 @@ public:
 
     PositionedGlyph (const PositionedGlyph&) = default;
     PositionedGlyph& operator= (const PositionedGlyph&) = default;
-
-    // VS2013 can't default move constructors and assignments
-    PositionedGlyph (PositionedGlyph&&) noexcept;
-    PositionedGlyph& operator= (PositionedGlyph&&) noexcept;
+    PositionedGlyph (PositionedGlyph&&) noexcept = default;
+    PositionedGlyph& operator= (PositionedGlyph&&) noexcept = default;
 
     ~PositionedGlyph();
 
@@ -132,13 +129,11 @@ public:
 
     GlyphArrangement (const GlyphArrangement&) = default;
     GlyphArrangement& operator= (const GlyphArrangement&) = default;
-
-    // VS2013 can't default move constructors and assignmants
-    GlyphArrangement (GlyphArrangement&&);
-    GlyphArrangement& operator= (GlyphArrangement&&);
+    GlyphArrangement (GlyphArrangement&&) = default;
+    GlyphArrangement& operator= (GlyphArrangement&&) = default;
 
     /** Destructor. */
-    ~GlyphArrangement();
+    ~GlyphArrangement() = default;
 
     //==============================================================================
     /** Returns the total number of glyphs in the arrangement. */
@@ -194,18 +189,19 @@ public:
         between x and (x + maxLineWidth).
 
         The y coordinate is the position of the baseline of the first line of text - subsequent
-        lines will be placed below it, separated by a distance of font.getHeight().
+        lines will be placed below it, separated by a distance of font.getHeight() + leading.
     */
     void addJustifiedText (const Font& font,
                            const String& text,
                            float x, float y,
                            float maxLineWidth,
-                           Justification horizontalLayout);
+                           Justification horizontalLayout,
+                           float leading = 0.0f);
 
     /** Tries to fit some text within a given space.
 
         This does its best to make the given text readable within the specified rectangle,
-        so it useful for labelling things.
+        so it's useful for labelling things.
 
         If the text is too big, it'll be squashed horizontally or broken over multiple lines
         if the maximumLinesToUse value allows this. If the text just won't fit into the space,

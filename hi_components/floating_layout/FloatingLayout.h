@@ -39,6 +39,9 @@ namespace hise
 class FloatingTile;
 }
 
+#ifndef HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION
+#define HISE_FLOATING_TILE_ALLOW_RESIZE_ANIMATION 1
+#endif
 
 
 
@@ -59,6 +62,9 @@ class FloatingTile;
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"
 
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+#include "SnexFloatingTiles.h"
+#endif
 
 #include "FloatingInterfaceBuilder.h"
 

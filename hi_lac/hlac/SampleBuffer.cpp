@@ -55,26 +55,21 @@ HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 
 void HiseSampleBuffer::reverse(int startSample, int numSamples)
 {
+	if(useNormalisationMap)
+		burnNormalisation();
+
 	if (isFloatingPoint())
 	{
 		floatBuffer.reverse(startSample, numSamples);
-
-		int fadeLength = jmin<int>(500, numSamples);
-
-		floatBuffer.applyGainRamp(numSamples - fadeLength, fadeLength, 1.0f, 0.0f);
-
 	}
 		
 	else
 	{
-
 		leftIntBuffer.reverse(startSample, numSamples);
 
 		if (numChannels > 1)
 			rightIntBuffer.reverse(startSample, numSamples);
-
 	}
-		
 }
 
 
@@ -151,6 +146,7 @@ void HiseSampleBuffer::allocateNormalisationTables(int offsetToUse)
 
 void HiseSampleBuffer::flushNormalisationInfo(Range<int> rangeToFlush)
 {
+	useNormalisationMap = true;
 	//DBG("-- FLUSHING {" + String(rangeToFlush.getStart()) + ", " + String(rangeToFlush.getEnd()) + "}");
 
 	auto& lMap = getNormaliseMap(0);

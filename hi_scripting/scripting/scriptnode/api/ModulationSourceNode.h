@@ -39,106 +39,119 @@ using namespace hise;
 
 
 
+class WrapperNode : public NodeBase
+{
+public:
+
+	void initParameterData(ParameterDataList& pData);
+
+	/** This is called during the initialisation of the wrapper node
+	    if:
+
+		1. The node is wrapped in a wrap::data wrapper and
+		2. The register function was created with the AddDataOffsetToUIPtr template argument set to true.
+
+		It will then use the byte offset for the opaque void* pointer that is supplied as first parameter
+		of the static createExtraComponent function, so you can safely static cast it to the expected data
+		type (the one that you registered the node with).
+	*/
+	void setUIOffset(size_t o)
+	{
+		uiOffset = o;
+	}
+
+	std::function<Component*(void*, PooledUIUpdater* updater)> extraComponentFunction;
+
     
-class ModulationSourceNode: public NodeBase,
-							public SnexDebugHandler
+    
+	virtual var addModulationConnection(var source, Parameter* targetParameter);
+
+	void setCachedSize(int extraWidth, int extraHeight)
+	{ 
+		cachedExtraWidth = extraWidth;
+		cachedExtraHeight = extraHeight;
+	}
+
+protected:
+
+	WrapperNode(DspNetwork* parent, ValueTree d);;
+
+	NodeComponent* createComponent() override;
+
+	Component* createExtraComponent();
+
+	Rectangle<int> getExtraComponentBounds() const;
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
+	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
+
+	virtual void* getObjectPtr() = 0;
+	
+private:
+
+	size_t uiOffset = 0;
+
+	mutable int cachedExtraWidth = -1;
+	mutable int cachedExtraHeight = -1;
+};
+    
+class ModulationSourceNode : public WrapperNode,
+							 public ConnectionSourceManager
 {
 public:
 
 	static constexpr int ModulationBarHeight = 60;
-	static constexpr int RingBufferSize = 65536;
 
-	struct ModulationTarget: public ConnectionBase
-	{
-		static void nothing(double) {}
-
-		ModulationTarget(ModulationSourceNode* parent_, ValueTree data_);
-
-		~ModulationTarget();
-
-		bool findTarget();
-
-		void setExpression(const String& exprCode);
-
-		void applyValue(double value);
-
-		bool isModulationConnection() const override { return true; }
-
-		valuetree::PropertyListener expressionUpdater;
-		valuetree::PropertyListener rangeUpdater;
-		valuetree::RemoveListener removeWatcher;
-		
-
-		WeakReference<ModulationSourceNode> parent;
-		
-		
-		DspHelpers::ParameterCallback callback;
-
-		CachedValue<bool> active;
-		
-		SnexExpressionPtr expr;
-		SpinLock expressionLock;
-	};
-
-	ValueTree getModulationTargetTree();;
+	ValueTree getModulationTargetTree();
 
 	ModulationSourceNode(DspNetwork* n, ValueTree d);;
 
-	var addModulationTarget(NodeBase::Parameter* n);
+	var addModulationConnection(var source, Parameter* targetParameter) override;
 
-	String createCppClass(bool isOuterClass) override;
-	
+	virtual bool isUsingNormalisedRange() const = 0;
+	virtual parameter::dynamic_base_holder* getParameterHolder() { return nullptr; }
+
+	void rebuildCallback() override;
+
 	void prepare(PrepareSpecs ps) override;
-	void sendValueToTargets(double value, int numSamplesForAnalysis);;
-
-	void logMessage(const String& s) override;
-
-
-	int fillAnalysisBuffer(AudioSampleBuffer& b);
-	void setScaleModulationValue(bool shouldScaleValue);
-
-	bool shouldScaleModulationValue() const noexcept { return scaleModulationValue; }
-
-	virtual bool isUsingModulation() const { return false; }
 
 private:
 
-	void checkTargets();
-
-	double sampleRateFactor = 1.0;
 	bool prepareWasCalled = false;
 
-	double lastModValue = 0.0;
-
-	bool scaleModulationValue = true;
-
-	int ringBufferSize = 0;
-
-	struct SimpleRingBuffer
-	{
-		SimpleRingBuffer();
-
-		void clear();
-		int read(AudioSampleBuffer& b);
-		void write(double value, int numSamples);
-
-		bool isBeingWritten = false;
-
-		int numAvailable = 0;
-		int writeIndex = 0;
-		float buffer[RingBufferSize];
-	};
-
-	ScopedPointer<SimpleRingBuffer> ringBuffer;
-
-	valuetree::ChildListener targetListener;
-
-	bool ok = false;
-
-	ReferenceCountedArray<ModulationTarget> targets;
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ModulationSourceNode);
 };
 
+struct MultiOutputDragSource
+{
+	static Colour getFadeColour(int index, int numPaths)
+	{
+		if (numPaths == 0)
+			return Colours::transparentBlack;
+
+		auto hue = (float)index / (float)numPaths;
+
+		auto saturation = JUCE_LIVE_CONSTANT_OFF(0.3f);
+		auto brightness = JUCE_LIVE_CONSTANT_OFF(1.0f);
+		auto minHue =	  JUCE_LIVE_CONSTANT_OFF(0.2f);
+		auto maxHue =	  JUCE_LIVE_CONSTANT_OFF(0.8f);
+		auto alpha =	  JUCE_LIVE_CONSTANT_OFF(0.4f);
+
+		hue = jmap(hue, minHue, maxHue);
+
+		return Colour::fromHSV(hue, saturation, brightness, alpha);
+	}
+
+    virtual ~MultiOutputDragSource() {};
+    
+	virtual NodeBase* getNode() const = 0;
+	virtual int getOutputIndex() const = 0;
+	virtual int getNumOutputs() const = 0;
+
+	virtual bool matchesParameter(NodeBase::Parameter* p) const = 0;
+
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+};
 
 struct ModulationSourceBaseComponent : public Component,
 	public PooledUIUpdater::SimpleTimer
@@ -146,34 +159,66 @@ struct ModulationSourceBaseComponent : public Component,
 	ModulationSourceBaseComponent(PooledUIUpdater* updater);;
 	ModulationSourceNode* getSourceNodeFromParent() const;
 
+	using ObjectType = HiseDspBase;
+
+	static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+	{
+		return new ModulationSourceBaseComponent(updater);
+	}
+
 	void timerCallback() override {};
 	void paint(Graphics& g) override;
 	Image createDragImage();
 
+	static Image createDragImageStatic(bool fill=true);
+
+	void drawDragArea(Graphics& g, Rectangle<float> area, Colour c, String text=String());
+
+	static MouseCursor createMouseCursor();
+
 	void mouseDown(const MouseEvent& e) override;
 	void mouseDrag(const MouseEvent&) override;
+	void mouseUp(const MouseEvent& e) override;
+	void resized() override;
 
 protected:
+
+	Path dragPath;
+	Path unscaledPath;
 
 	mutable WeakReference<ModulationSourceNode> sourceNode;
 };
 
 
+
+
+
 struct ModulationSourcePlotter : ModulationSourceBaseComponent
 {
+	using ObjectType = void;
+
+	static Component* createExtraComponent(void* , PooledUIUpdater* updater)
+	{
+		return new ModulationSourcePlotter(updater);
+	}
+
 	ModulationSourcePlotter(PooledUIUpdater* updater);
 
 	void timerCallback() override;
-	void rebuildPath();
-	void paint(Graphics& g) override;
 
-	int getSamplesPerPixel() const;
+	void resized() override
+	{
+		p.setBounds(getLocalBounds());
+	}
 
-	float pixelCounter = 0.0f;
 	bool skip = false;
 
-	RectangleList<float> rectangles;
-	AudioSampleBuffer buffer;
+	ModPlotter p;
+};
+
+template <typename T> struct TypedModulationSourcePlotter: public ModulationSourcePlotter
+{
+	using ObjectType = T;
 };
 
 }

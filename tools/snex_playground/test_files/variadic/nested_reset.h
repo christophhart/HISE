@@ -12,6 +12,13 @@ END_TEST_DATA
 
 struct X
 {
+    DECLARE_NODE(X);
+
+    template <int P> void setParameter(double v)
+    {
+        
+    }
+
     int v = 90;
     
     void reset()
@@ -20,12 +27,12 @@ struct X
     }
 };
 
-container::chain<container::chain<X, X>, X, X> c;
+container::chain<parameter::empty, container::chain<parameter::empty, wrap::fix<1, X>, X>, X, X> c;
 
 int main(int input)
 {
 	c.reset();
 	
-	return c.get<1>().v + c.get<2>().v;
+  return c.get<1>().v + c.get<2>().v;
 }
 

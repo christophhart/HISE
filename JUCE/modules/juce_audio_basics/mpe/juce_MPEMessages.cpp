@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -106,6 +106,7 @@ MidiBuffer MPEMessages::setZoneLayout (MPEZoneLayout layout)
     return buffer;
 }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -113,7 +114,9 @@ MidiBuffer MPEMessages::setZoneLayout (MPEZoneLayout layout)
 class MPEMessagesTests  : public UnitTest
 {
 public:
-    MPEMessagesTests() : UnitTest ("MPEMessages class", "MIDI/MPE") {}
+    MPEMessagesTests()
+        : UnitTest ("MPEMessages class", UnitTestCategories::midi)
+    {}
 
     void runTest() override
     {
@@ -213,14 +216,11 @@ private:
     void extractRawBinaryData (const MidiBuffer& midiBuffer, const uint8* bufferToCopyTo, std::size_t maxBytes)
     {
         std::size_t pos = 0;
-        MidiBuffer::Iterator iter (midiBuffer);
-        MidiMessage midiMessage;
-        int samplePosition; // Note: Not actually used, so no need to initialise.
 
-        while (iter.getNextEvent (midiMessage, samplePosition))
+        for (const auto metadata : midiBuffer)
         {
-            const uint8* data = midiMessage.getRawData();
-            std::size_t dataSize = (std::size_t) midiMessage.getRawDataSize();
+            const uint8* data = metadata.data;
+            std::size_t dataSize = (std::size_t) metadata.numBytes;
 
             if (pos + dataSize > maxBytes)
                 return;
@@ -233,6 +233,6 @@ private:
 
 static MPEMessagesTests MPEMessagesUnitTests;
 
-#endif // JUCE_UNIT_TESTS
+#endif
 
 } // namespace juce

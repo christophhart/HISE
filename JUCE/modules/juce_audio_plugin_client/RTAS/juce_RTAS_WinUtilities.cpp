@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,10 +23,10 @@
   ==============================================================================
 */
 
-#if JucePlugin_Build_RTAS
-
-#include "../../juce_core/system/juce_TargetPlatform.h"
+#include <juce_core/system/juce_TargetPlatform.h>
 #include "../utility/juce_CheckSettingMacros.h"
+
+#if JucePlugin_Build_RTAS
 
 // (these functions are in their own file because of problems including windows.h
 // at the same time as the Digi headers)
@@ -45,14 +44,13 @@
 #include "../utility/juce_IncludeModuleHeaders.h"
 #pragma pack (pop)
 
-namespace juce
-{
-
 //==============================================================================
 void JUCE_CALLTYPE attachSubWindow (void* hostWindow,
                                     int& titleW, int& titleH,
                                     Component* comp)
 {
+    using namespace juce;
+
     RECT clientRect;
     GetClientRect ((HWND) hostWindow, &clientRect);
 
@@ -77,6 +75,8 @@ void JUCE_CALLTYPE resizeHostWindow (void* hostWindow,
                                      int& titleW, int& titleH,
                                      Component* comp)
 {
+    using namespace juce;
+
     RECT clientRect, windowRect;
     GetClientRect ((HWND) hostWindow, &clientRect);
     GetWindowRect ((HWND) hostWindow, &windowRect);
@@ -94,12 +94,12 @@ extern "C" BOOL WINAPI DllMainRTAS (HINSTANCE, DWORD, LPVOID);
 extern "C" BOOL WINAPI DllMain (HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
-        Process::setCurrentModuleInstanceHandle (instance);
+        juce::Process::setCurrentModuleInstanceHandle (instance);
 
     if (GetModuleHandleA ("DAE.DLL") != 0)
         return DllMainRTAS (instance, reason, reserved);
 
-    ignoreUnused (reserved);
+    juce::ignoreUnused (reserved);
     return TRUE;
 }
 
@@ -121,7 +121,7 @@ namespace
             TCHAR windowType [32] = { 0 };
             GetClassName (parent, windowType, 31);
 
-            if (String (windowType).equalsIgnoreCase ("MDIClient"))
+            if (juce::String (windowType).equalsIgnoreCase ("MDIClient"))
             {
                 w = parent;
                 break;
@@ -153,7 +153,5 @@ void JUCE_CALLTYPE passFocusToHostWindow (void* hostWindow)
 }
 
 #endif
-
-} // namespace juce
 
 #endif

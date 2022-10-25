@@ -77,8 +77,17 @@ void VuMeter::setPeak(float left, float right/*=0.0f*/)
 		l -= 3.0f;
 		r -= 3.0f;
 
-		l = jmax(l, Decibels::gainToDecibels(left));
-		r = jmax(r, Decibels::gainToDecibels(right));
+		if (forceLinear)
+		{
+			l = jmax(l, left * 100.0f - 100.0f);
+			r = jmax(r, right * 100.0f - 100.0f);
+		}
+		else
+		{
+			l = jmax(l, Decibels::gainToDecibels(left));
+			r = jmax(r, Decibels::gainToDecibels(right));
+		}
+
 		repaint();
 	}
 	else
@@ -94,93 +103,100 @@ void VuMeter::setPeak(float left, float right/*=0.0f*/)
 	}
 }
 
+
+
 void VuMeter::drawMonoMeter(Graphics &g)
 {
-	const float w = (float)getWidth();
-	const float h = (float)getHeight();
-
 	float v = jlimit<float>(0.0f, 1.0f, l);
 
+	if (type == MonoHorizontal)
+		previousValue = v;
+	
+	getLaf()->drawMonoMeter2(g, *this, type, v);
+}
 
 
-	g.setColour(colours[backgroundColour]);
+
+void VuMeter::drawStereoMeter(Graphics &g)
+{
+	const float vL = jmin(1.0f, (l + 100.0f) / 100.0f);
+	const float vR = jmin(1.0f, (r + 100.0f) / 100.0f);
+
+	getLaf()->drawStereoMeter2(g, *this, type, vL, vR);
+}
+
+
+void VuMeter::LookAndFeelMethods::drawMonoMeter2(Graphics& g, VuMeter& v, VuMeter::Type type, float value)
+{
+	const float w = (float)v.getWidth();
+	const float h = (float)v.getHeight();
+
+	g.setColour(v.colours[VuMeter::ColourId::backgroundColour]);
 	g.fillAll();
 
-	g.setColour(colours[outlineColour]);
-	g.drawRect(getLocalBounds());
+	g.setColour(v.colours[VuMeter::ColourId::outlineColour]);
+	g.drawRect(v.getLocalBounds());
 
-	if (type == MonoHorizontal)
+	if (type == VuMeter::Type::MonoHorizontal)
 	{
-		const float value = (w - 4.0f) * v;
+		value = (w - 4.0f) * value;
 
-
-
-
-		g.setGradientFill(ColourGradient(colours[ledColour].withMultipliedAlpha(.5f),
+		g.setGradientFill(ColourGradient(v.colours[ledColour].withMultipliedAlpha(.5f),
 			0.0f, 0.0f,
-			colours[ledColour].withMultipliedAlpha(0.2f),
+			v.colours[ledColour].withMultipliedAlpha(0.2f),
 			0.0f, h, false));
 
-		if(invertMode)
+		if (v.invertMode)
 			g.fillRect(w - value - 2.0f, 2.0f, value, h - 4.0f);
 		else
 			g.fillRect(2.0f, 2.0f, value, h - 4.0f);
-
-		previousValue = value;
-
 	}
 
-	if (type == MonoVertical)
+	if (type == VuMeter::Type::MonoVertical)
 	{
-		g.setGradientFill(ColourGradient(colours[ledColour].withAlpha(0.2f),
+		g.setGradientFill(ColourGradient(v.colours[VuMeter::ColourId::ledColour].withAlpha(0.2f),
 			0.0f, 0.0f,
-			colours[ledColour].withAlpha(0.05f),
+			v.colours[ledColour].withAlpha(0.05f),
 			w, 0.0f, false));
 
 		//g.fillRect(2.0f, 2.0f,		  w -4.0f, h - 4.0f);
 
-		const float value = h * v;
-		const float offset = h * (1.0f - v);
+		value = h * value;
+		const float offset = h * (1.0f - value);
 
-		g.setGradientFill(ColourGradient(colours[ledColour],
+		g.setGradientFill(ColourGradient(v.colours[ledColour],
 			0.0f, 0.0f,
-			colours[ledColour].withMultipliedAlpha(0.5f),
+			v.colours[ledColour].withMultipliedAlpha(0.5f),
 			0.0f, h, false));
-
 
 		Rectangle<int> a((int)2.0f, (int)offset, (int)w - 4, (int)value);
 
 		if (w >= 16.0)
 		{
 			DropShadow d(Colours::white.withAlpha(0.2f), 5, Point<int>());
-
 			d.drawForRectangle(g, a);
 		}
 
 		g.fillRect(a);
-
 	}
 }
 
-void VuMeter::drawStereoMeter(Graphics &g)
+void VuMeter::LookAndFeelMethods::drawStereoMeter2(Graphics& g, VuMeter& v, VuMeter::Type type, float vL, float vR)
 {
-	const float w = (float)getWidth();
-	const float h = (float)getHeight();
+	const float w = (float)v.getWidth();
+	const float h = (float)v.getHeight();
 
-	const float vL = jmin(1.0f, (l + 100.0f) / 100.0f);
-	const float vR = jmin(1.0f, (r + 100.0f) / 100.0f);
-
-	g.setColour(colours[backgroundColour]);
+	g.setColour(v.colours[VuMeter::ColourId::backgroundColour]);
 	g.fillAll();
 
-	g.setColour(colours[outlineColour]);
-	g.drawRect(getLocalBounds());
+	g.setColour(v.colours[VuMeter::ColourId::outlineColour]);
+	g.drawRect(v.getLocalBounds());
 
-	if (type == StereoHorizontal)
+	if (type == VuMeter::Type::StereoHorizontal)
 	{
-		g.setGradientFill(ColourGradient(colours[ledColour].withAlpha(0.2f),
+		g.setGradientFill(ColourGradient(v.colours[VuMeter::ColourId::ledColour].withAlpha(0.2f),
 			0, 0.0f,
-			colours[ledColour].withAlpha(0.05f),
+			v.colours[ledColour].withAlpha(0.05f),
 			0.0f, h, false));
 
 		g.fillRect(2.0f, 2.0f, w - 4.0f, h / 2.0f - 3.0f);
@@ -192,9 +208,9 @@ void VuMeter::drawStereoMeter(Graphics &g)
 		const float offsetL = jmin(w, valueL);
 		const float offsetR = jmin(w, valueR);
 
-		g.setGradientFill(ColourGradient(colours[ledColour].withAlpha(1.0f).withMultipliedBrightness(1.4f),
+		g.setGradientFill(ColourGradient(v.colours[ledColour].withAlpha(1.0f).withMultipliedBrightness(1.4f),
 			0.0f, 0.0f,
-			colours[ledColour].withMultipliedBrightness(0.7f),
+			v.colours[ledColour].withMultipliedBrightness(0.7f),
 			0.0f, h, false));
 
 		for (float i = 3.0f; i < offsetL; i += 3.0f)
@@ -209,9 +225,9 @@ void VuMeter::drawStereoMeter(Graphics &g)
 	}
 	else
 	{
-		g.setGradientFill(ColourGradient(colours[ledColour].withAlpha(0.2f),
+		g.setGradientFill(ColourGradient(v.colours[VuMeter::ColourId::ledColour].withAlpha(0.2f),
 			0.0f, 0.0f,
-			colours[ledColour].withAlpha(0.05f),
+			v.colours[ledColour].withAlpha(0.05f),
 			0.0f, h, false));
 
 		g.fillRect(2.0f, 2.0f, w / 2.0f - 3.0f, h - 4.0f);
@@ -223,24 +239,17 @@ void VuMeter::drawStereoMeter(Graphics &g)
 		const float offsetL = jmin(h, h - valueL);
 		const float offsetR = jmin(h, h - valueR);
 
-		g.setGradientFill(ColourGradient(colours[ledColour].withAlpha(1.0f).withMultipliedBrightness(1.4f),
+		g.setGradientFill(ColourGradient(v.colours[ledColour].withAlpha(1.0f).withMultipliedBrightness(1.4f),
 			0.0f, 0.0f,
-			colours[ledColour].withMultipliedBrightness(0.7f),
+			v.colours[ledColour].withMultipliedBrightness(0.7f),
 			0.0f, h, false));
 
 		for (float i = h - 4; i > offsetL; i -= 3.0f)
-		{
-
 			g.drawLine(2.0, i, w / 2.0f - 1.0f, i, 1.0f);
 
-		}
-
 		for (float i = h - 4; i > offsetR; i -= 3.0f)
-		{
 			g.drawLine(w / 2.0f + 1.0f, i, w - 2.0f, i, 1.0f);
-		}
 	}
 }
-
 
 } // namespace hise

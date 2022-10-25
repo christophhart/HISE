@@ -139,11 +139,11 @@ public:
 		{
 			case Attack:
 				attack = newValue;
-				attackTable->setLengthInSamples(calculateTableLength(newValue));
+				attackUptimeDelta = calculateTableDelta(newValue);
 				break;
 			case Release:
 				release = newValue;
-				releaseTable->setLengthInSamples(calculateTableLength(newValue));
+				releaseUptimeDelta = calculateTableDelta(newValue);
 				break;
 			default:
 				jassertfalse;
@@ -169,12 +169,14 @@ public:
 		}
 	}
 
-	int calculateTableLength(float ms)
+	double calculateTableDelta(float ms)
 	{
-		const int x = (int)(ms * getControlRate() / 1000.0f);
+		const auto numSamplesForMs  = (double)ms * getControlRate() / 1000.0;
 
-		return x;
+		if (numSamplesForMs == 0.0)
+			return (double)SAMPLE_LOOKUP_TABLE_SIZE;
 
+		return (double)SAMPLE_LOOKUP_TABLE_SIZE / numSamplesForMs;
 	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -224,32 +226,24 @@ public:
 
 	};
 
-	Table *getTable(int t) const override
-	{
-		switch(t)
-		{
-		case 0:	return attackTable;
-		case 1:	return releaseTable;
-		default:		jassertfalse; return nullptr;
-		}
-	}
-
-	int getNumTables() const override { return 2; }
-
 	ModulatorState *createSubclassedState(int voiceIndex) const override {return new TableEnvelopeState(voiceIndex); };
 
 private:
 
-	float calculateNewValue(int voiceIndex);
+	hise::ExecutionLimiter<DummyCriticalSection> uiUpdater;
 
-	ScopedPointer<SampleLookupTable> attackTable;
-	ScopedPointer<SampleLookupTable> releaseTable;
+	double attackUptimeDelta = 1.0;
+	double releaseUptimeDelta = 1.0;
+
+	float calculateNewValue(int voiceIndex);
 
 	ScopedPointer<ModulatorChain> attackChain;
 	ScopedPointer<ModulatorChain> releaseChain;
 
-	float attack, release;
+	SampleLookupTable* attackTable;
+	SampleLookupTable* releaseTable;
 
+	float attack, release;
 };
 
 

@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef SAMPLEEXPORTER_H_INCLUDED
-#define SAMPLEEXPORTER_H_INCLUDED
+#if 0
 
 namespace hise { using namespace juce;
 

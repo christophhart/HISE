@@ -64,7 +64,7 @@ END_MARKDOWN_CHAPTER()
 
 static bool canConnectToWebsite(const URL& url)
 {
-	ScopedPointer<InputStream> in(url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr));
+	auto in = url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr);
 	return in != nullptr;
 }
 
@@ -171,7 +171,7 @@ public:
 
 		URL url(webFolder + downloadFileName);
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false, &downloadProgress, this);
+		auto stream = url.createInputStream(false, &downloadProgress, this);
 
 		target = File(filePicker->getCurrentFile().getChildFile(downloadFileName));
 
@@ -271,7 +271,7 @@ private:
 
 		String content;
 
-		ScopedPointer<InputStream> stream = url.createInputStream(false);
+		auto stream = url.createInputStream(false);
 
 		if (stream != nullptr)
 		{
@@ -309,159 +309,54 @@ private:
 };
 
 
-struct XmlBackupFunctions
+
+
+void XmlBackupFunctions::restoreAllScripts(ValueTree& v, ModulatorSynthChain *masterChain, const String &newId)
 {
-	static void removeEditorStatesFromXml(XmlElement &xml)
+	static const Identifier pr("Processor");
+	static const Identifier scr("Script");
+	static const Identifier id("ID");
+	static const Identifier typ("Type");
+
+	if (v.getType() == Identifier(pr) && v[typ].toString().contains("Script"))
 	{
-		xml.deleteAllChildElementsWithTagName("EditorStates");
-
-		for (int i = 0; i < xml.getNumChildElements(); i++)
-		{
-			removeEditorStatesFromXml(*xml.getChildElement(i));
-		}
-	}
-
-	static XmlElement* getFirstChildElementWithAttribute(XmlElement* parent, const String& attributeName, const String& value)
-	{
-		if (parent->getStringAttribute(attributeName) == value)
-			return parent;
-
-		for (int i = 0; i < parent->getNumChildElements(); i++)
-		{
-			
-
-			auto* e = parent->getChildElement(i);
-
-			if (e->getStringAttribute(attributeName) == value)
-				return e;
-			
-			auto c = getFirstChildElementWithAttribute(e, attributeName, value);
-
-			if (c != nullptr)
-				return c;
-		}
-
-		return nullptr;
-	}
-
-	static void addContentFromSubdirectory(XmlElement& xml, const File& fileToLoad)
-	{
-		String subDirectoryId = fileToLoad.getFileNameWithoutExtension() + "UIData";
-
-		auto folder = fileToLoad.getParentDirectory().getChildFile(subDirectoryId);
-
-		Array<File> contentFiles;
-
-		folder.findChildFiles(contentFiles, File::findFiles, false, "*.xml");
-
-		if (auto uiData = getFirstChildElementWithAttribute(&xml, "Source", subDirectoryId))
-		{
-			for (const auto& f : contentFiles)
-			{
-				if (auto child = XmlDocument::parse(f))
-				{
-					uiData->addChildElement(child);
-				}
-			}
-
-			uiData->removeAttribute("Source");
-		}
-	}
-
-	static void extractContentData(XmlElement& xml, const String& interfaceId, const File& xmlFile)
-	{
-		auto folder = xmlFile.getParentDirectory().getChildFile(xmlFile.getFileNameWithoutExtension() + "UIData");
+		auto fileName = getSanitiziedName(v[id]);
+		const String t = v[scr];
 		
-		if (folder.isDirectory())
-			folder.createDirectory();
-
-		if (auto pXml = getFirstChildElementWithAttribute(&xml, "ID", interfaceId))
+		if (t.startsWith("{EXTERNAL_SCRIPT}"))
 		{
-			if (auto uiData = pXml->getChildByName("UIData"))
+			return;
+		}
+
+		File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
+
+		auto sf = scriptDirectory.getChildFile(fileName).withFileExtension("js");
+
+		if (!sf.existsAsFile())
+		{
+			auto isExternal = v.getProperty(scr).toString().startsWith("{EXTERNAL_SCRIPT}");
+
+			if (!isExternal)
 			{
-				for (int i = 0; i < uiData->getNumChildElements(); i++)
-				{
-					auto e = uiData->getChildElement(i);
-					auto name = e->getStringAttribute("DeviceType");
+				PresetHandler::showMessageWindow("Script not found", "Error loading script " + fileName, PresetHandler::IconType::Error);
+			}
+		}
 
-					auto file = folder.getChildFile(xmlFile.getFileNameWithoutExtension() + name + ".xml");
+        for(auto f: RangedDirectoryIterator(scriptDirectory, false, "*.js", File::findFiles))
+		{
+			File script = f.getFile();
 
-					file.create();
-					file.replaceWithText(e->createDocument(""));
-				}
-
-				uiData->deleteAllChildElements();
-				uiData->setAttribute("Source", folder.getRelativePathFrom(xmlFile.getParentDirectory()));
+			if (script.getFileNameWithoutExtension() == fileName)
+			{
+				v.setProperty(scr, script.loadFileAsString(), nullptr);
+				break;
 			}
 		}
 	}
 
-	static void removeAllScripts(XmlElement &xml)
-	{
-		const String t = xml.getStringAttribute("Script");
-
-		if (!t.startsWith("{EXTERNAL_SCRIPT}"))
-		{
-			xml.removeAttribute("Script");
-		}
-
-		for (int i = 0; i < xml.getNumChildElements(); i++)
-		{
-			removeAllScripts(*xml.getChildElement(i));
-		}
-	}
-
-	static void restoreAllScripts(XmlElement &xml, ModulatorSynthChain *masterChain, const String &newId)
-	{
-		if (xml.hasTagName("Processor") && xml.getStringAttribute("Type").contains("Script"))
-		{
-			File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
-
-			DirectoryIterator iter(scriptDirectory, false, "*.js", File::findFiles);
-
-			while (iter.next())
-			{
-				File script = iter.getFile();
-
-				if (script.getFileNameWithoutExtension() == getSanitiziedName(xml.getStringAttribute("ID")))
-				{
-					xml.setAttribute("Script", script.loadFileAsString());
-					break;
-				}
-			}
-		}
-
-		for (int i = 0; i < xml.getNumChildElements(); i++)
-		{
-			restoreAllScripts(*xml.getChildElement(i), masterChain, newId);
-		}
-	}
-
-	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId = String())
-	{
-		if (chainId.isEmpty())
-		{
-			return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(masterChain->getId()));
-		}
-		else
-		{
-			return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(chainId));
-		}
-	}
-
-	static File getScriptFileFor(ModulatorSynthChain *, File& directory, const String &id)
-	{
-		return directory.getChildFile(getSanitiziedName(id) + ".js");
-	}
-
-private:
-
-	static String getSanitiziedName(const String &id)
-	{
-		return id.removeCharacters(" .()");
-	}
-};
-
+	for (auto c: v)
+		restoreAllScripts(c, masterChain, newId);
+}
 
 class DummyUnlocker : public OnlineUnlockStatus
 {
@@ -515,11 +410,9 @@ public:
 		ignoredDirectories.add("Binaries");
 		ignoredDirectories.add("git");
 
-		DirectoryIterator walker(projectDirectory, true, "*", File::findFilesAndDirectories);
-
-		while (walker.next())
+		for(auto f: RangedDirectoryIterator(projectDirectory, true, "*", File::findFilesAndDirectories))
 		{
-			File currentFile = walker.getFile();
+			File currentFile = f.getFile();
 
 			if (currentFile.isDirectory() ||
 				currentFile.getFullPathName().contains("git") ||
@@ -1240,6 +1133,1273 @@ private:
 };
 
 
+
+struct ShortcutEditor : public QuasiModalComponent,
+						public Component,
+					    public PathFactory
+{
+	ShortcutEditor(BackendRootWindow* t) :
+		QuasiModalComponent(),
+		editor(t->getKeyPressMappingSet(), true),
+		closeButton("close", nullptr, *this)
+	{
+		addAndMakeVisible(editor);
+		setName("Edit Shortcuts");
+		setSize(600, 700);
+
+		editor.setLookAndFeel(&alaf);
+		editor.setColours(Colours::transparentBlack, alaf.bright);
+		setLookAndFeel(&alaf);
+		addAndMakeVisible(closeButton);
+
+		closeButton.onClick = [&]()
+		{
+			destroy();
+		};
+	};
+
+	Path createPath(const String&) const override
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		b.removeFromTop(32);
+
+		closeButton.setBounds(getLocalBounds().removeFromTop(37).removeFromRight(37).reduced(6));
+		editor.setBounds(b.reduced(10));
+	}
+
+	void mouseDown(const MouseEvent& e)
+	{
+		dragger.startDraggingComponent(this, e);
+	}
+
+	void mouseDrag(const MouseEvent& e)
+	{
+		dragger.dragComponent(this, e, nullptr);
+	}
+
+	juce::ComponentDragger dragger;
+
+	void paint(Graphics& g) override
+	{
+		ColourGradient grad(alaf.dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+			alaf.dark, 0.0f, (float)getHeight(), false);
+
+		auto a = getLocalBounds().removeFromTop(37).toFloat();
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRect(a);
+		g.setColour(alaf.bright);
+
+		g.drawRect(getLocalBounds().toFloat());
+
+		g.drawText("Edit Shortcuts", a, Justification::centred);
+		
+		
+	}
+
+	HiseShapeButton closeButton;
+	AlertWindowLookAndFeel alaf;
+	juce::KeyMappingEditorComponent editor;
+};
+
+class SampleMapPropertySaverWithBackup : public DialogWindowWithBackgroundThread,
+										 public ControlledObject
+{
+public:
+
+	enum class Preset
+	{
+		None,
+		All,
+		Positions,
+		Volume,
+		Tables,
+		numPresets
+	};
+
+	static Array<Identifier> getPropertyIds(Preset p)
+	{
+		switch (p)
+		{
+		case Preset::None:			return {};
+		case Preset::All:			return { SampleIds::GainTable, SampleIds::PitchTable, SampleIds::LowPassTable,
+											 SampleIds::SampleStart, SampleIds::SampleEnd, SampleIds::LoopXFade,
+											 SampleIds::Volume, SampleIds::Pitch, SampleIds::Normalized };
+		case Preset::Positions:		return { SampleIds::SampleStart, SampleIds::SampleEnd, SampleIds::LoopXFade };
+		case Preset::Volume:		return { SampleIds::Volume, SampleIds::Pitch, SampleIds::Normalized };
+		case Preset::Tables:		return { SampleIds::GainTable, SampleIds::PitchTable, SampleIds::LowPassTable };
+		default:					return {};
+		}
+	}
+
+	struct PropertySelector: public Component,
+							 public ComboBoxListener
+	{
+		struct Item : public Component
+		{
+			Item(Identifier& id_):
+				id(id_.toString())
+			{
+				setRepaintsOnMouseActivity(true);
+			}
+
+			void mouseDown(const MouseEvent& e) override
+			{
+				active = !active;
+				repaint();
+			}
+
+			void paint(Graphics& g) override
+			{
+				auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+				g.setColour(Colours::white.withAlpha(isMouseOver(true) ? 0.3f : 0.2f));
+				g.fillRect(b);
+				g.drawRect(b, 1.0f);
+				g.setColour(Colours::white.withAlpha(active ? 0.9f : 0.2f));
+				g.setFont(GLOBAL_MONOSPACE_FONT());
+				g.drawText(id, b, Justification::centred);
+			}
+
+			String id;
+			bool active = false;
+		};
+
+		PropertySelector()
+		{
+			for (auto id : getPropertyIds(Preset::All))
+			{
+				auto item = new Item(id);
+				addAndMakeVisible(item);
+				items.add(item);
+			}
+
+			addAndMakeVisible(presets);
+			presets.addItemList({ "None", "All", "Positions", "Volume", "Tables" }, 1);
+			presets.addListener(this);
+			presets.setTextWhenNothingSelected("Presets");
+			
+
+			setSize(350, 100);
+		}
+
+		void comboBoxChanged(ComboBox*) override
+		{
+			Preset p = (Preset)presets.getSelectedItemIndex();
+
+			auto selectedIds = getPropertyIds(p);
+
+			for (auto i : items)
+			{
+				i->active = selectedIds.contains(Identifier(i->id));
+				i->repaint();
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().removeFromTop(24).toFloat();
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
+			g.drawText("Properties to apply", b, Justification::centredLeft);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			auto top = b.removeFromTop(24);
+
+			
+
+			static constexpr int NumRows = 3;
+			static constexpr int NumCols = 3;
+
+			auto rowHeight = b.getHeight() / 3;
+			auto colWidth = b.getWidth() / 3;
+
+			int cellIndex = 0;
+
+			presets.setBounds(top.removeFromRight(colWidth));
+
+			for (int row = 0; row < NumRows; row++)
+			{
+				auto r = b.removeFromTop(rowHeight);
+
+				for (int col = 0; col < NumCols; col++)
+				{
+					auto cell = r.removeFromLeft(colWidth);
+					items[cellIndex++]->setBounds(cell);
+				}
+			}
+		}
+
+		OwnedArray<Item> items;
+		ComboBox presets;
+	};
+
+	SampleMapPropertySaverWithBackup(BackendRootWindow* bpe) :
+		DialogWindowWithBackgroundThread("Apply Samplemap Properties"),
+		ControlledObject(bpe->getMainController()),
+		result(Result::ok())
+	{
+		auto samplemapList = getMainController()->getCurrentFileHandler().pool->getSampleMapPool().getIdList();
+		addComboBox("samplemapId", samplemapList, "SampleMap");
+		addTextEditor("backup_postfix", "_backup", "Backup folder suffix");
+
+		sampleMapId = getComboBoxComponent("samplemapId");
+		sampleMapId->onChange = BIND_MEMBER_FUNCTION_0(SampleMapPropertySaverWithBackup::refresh);
+		suffix = getTextEditor("backup_postfix");
+		suffix->onTextChange = BIND_MEMBER_FUNCTION_0(SampleMapPropertySaverWithBackup::refresh);
+
+		addCustomComponent(propertySelector = new PropertySelector());
+
+		addBasicComponents(true);
+
+		refresh();
+	}
+
+	void refresh()
+	{
+		if (sampleMapId->getSelectedId() == 0)
+		{
+			showStatusMessage("Select a samplemap you want to apply");
+			return;
+		}
+
+		auto bf = getBackupFolder();
+		auto exists = bf.isDirectory();
+
+		if (exists)
+			showStatusMessage("Press OK to restore the backup from /" + bf.getFileName());
+		else
+			showStatusMessage("Press OK to move the original files to /" + bf.getFileName() + " and apply the properties");
+	}
+
+	File getBackupFolder()
+	{
+		auto sampleFolder = getMainController()->getCurrentFileHandler().getRootFolder().getChildFile("SampleBackups");
+		sampleFolder.createDirectory();
+		auto t = getComboBoxComponent("samplemapId")->getText().fromLastOccurrenceOf("}", false, false);
+		t << getTextEditor("backup_postfix")->getText();
+		return sampleFolder.getChildFile(t);
+	}
+
+	File getSampleFolder() const
+	{
+		return getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+	}
+
+	void threadFinished() override
+	{
+		getMainController()->getCurrentFileHandler().pool->getSampleMapPool().refreshPoolAfterUpdate();
+
+		if (!result.wasOk())
+		{
+			PresetHandler::showMessageWindow("Error at applying properties", result.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+		else
+		{
+			if (doBackup)
+			{
+				if (PresetHandler::showYesNoWindow("OK", "The backup was successfully restored. Do you want to delete the backup folder?"))
+				{
+					getBackupFolder().deleteRecursively();
+				}
+			}
+			else
+			{
+				String m;
+
+				m << "The samplemap was applied and saved as backup";
+
+				if (wasMonolith)
+					m << "  \n> The monolith files were also removed, so you can reencode the samplemap";
+
+				PresetHandler::showMessageWindow("OK", m);
+			}
+		}
+	}
+
+	struct SampleWithPropertyData: public ReferenceCountedObject
+	{
+		using List = ReferenceCountedArray<SampleWithPropertyData>;
+
+		SampleWithPropertyData() = default;
+
+		void addFileFromValueTree(MainController* mc, const ValueTree& v)
+		{
+			if (v.hasProperty(SampleIds::FileName))
+			{
+				PoolReference sRef(mc, v[SampleIds::FileName].toString(), FileHandlerBase::SubDirectories::Samples);
+
+				if (sRef.isAbsoluteFile())
+				{
+					String s;
+					s << "Absolute file reference detected  \n";
+					s << "> " << sRef.getFile().getFullPathName() << "\n";
+					throw Result::fail(s);
+				}
+
+				sampleFiles.add(sRef.getFile());
+			}
+
+			for (auto c : v)
+				addFileFromValueTree(mc, c);
+		}
+
+		bool operator==(const SampleWithPropertyData& other) const
+		{
+			for (auto& tf : sampleFiles)
+			{
+				for (auto& otf : other.sampleFiles)
+				{
+					if (tf == otf)
+						return true;
+				}
+			}
+
+			return false;
+		}
+
+		void addDelta(int delta, const Array<Identifier>& otherIds)
+		{
+			for (auto i : otherIds)
+			{
+				if (propertyData.hasProperty(i))
+				{
+					auto newValue = (int)propertyData[i] + delta;
+					propertyData.setProperty(i, newValue, nullptr);
+				}
+			}
+		}
+
+		void addFactor(double factor, const Array<Identifier>& otherIds)
+		{
+			for (auto i : otherIds)
+			{
+				if (propertyData.hasProperty(i))
+				{
+					auto newValue = (double)propertyData[i] * factor;
+					propertyData.setProperty(i, (int)(newValue), nullptr);
+				}
+			}
+		}
+
+		void apply(const Identifier& id)
+		{
+			for (auto f : sampleFiles)
+			{
+				apply(id, f);
+			}
+		}
+
+		void apply(const Identifier& id, File& fileToUse)
+		{
+			if (!propertyData.hasProperty(id) || propertyData[id].toString().getIntValue() == 0)
+				return;
+
+			auto value = propertyData[id];
+
+			double unused = 0;
+			auto ob = hlac::CompressionHelpers::loadFile(fileToUse, unused);
+
+			int numChannels = ob.getNumChannels();
+			int numSamples = ob.getNumSamples();
+
+			fileToUse.deleteFile();
+
+			AudioSampleBuffer lut;
+			bool isTable = getPropertyIds(Preset::Tables).contains(id);
+
+			if (isTable)
+			{
+				SampleLookupTable t;
+				t.fromBase64String(propertyData[id].toString());
+				lut = AudioSampleBuffer(1, numSamples);
+				t.fillExternalLookupTable(lut.getWritePointer(0), numSamples);
+			}
+
+			if (id == SampleIds::Volume)
+			{
+				float gainFactor = Decibels::decibelsToGain((float)value);
+				ob.applyGain(gainFactor);
+			}
+			else if (id == SampleIds::Normalized)
+			{
+				auto gainFactor = (float)propertyData[SampleIds::NormalizedPeak];
+				ob.applyGain(gainFactor);
+				propertyData.removeProperty(SampleIds::NormalizedPeak, nullptr);
+			}
+			else if (id == SampleIds::SampleStart)
+			{
+				int offset = (int)value;
+				AudioSampleBuffer nb(numChannels, numSamples - offset);
+
+				for (int i = 0; i < numChannels; i++)
+					FloatVectorOperations::copy(nb.getWritePointer(i), ob.getReadPointer(i, offset), nb.getNumSamples());
+
+				addDelta(-offset, { SampleIds::SampleEnd, SampleIds::LoopStart, SampleIds::LoopEnd });
+
+				std::swap(nb, ob);
+			}
+			else if (id == SampleIds::LoopXFade)
+			{
+				int xfadeSize = (int)value;
+				AudioSampleBuffer loopBuffer(numChannels, xfadeSize);
+
+				loopBuffer.clear();
+			
+				float fadeOutStart = (int)propertyData[SampleIds::LoopEnd] - xfadeSize;
+				auto  fadeInStart = (int)propertyData[SampleIds::LoopStart] - xfadeSize;
+
+				ob.applyGainRamp(fadeOutStart, xfadeSize, 1.0f, 0.0f);
+
+				for (int i = 0; i < numChannels; i++)
+					ob.addFromWithRamp(i, fadeOutStart, ob.getReadPointer(i, fadeInStart), xfadeSize, 0.0f, 1.0f);
+
+			}
+			else if (id == SampleIds::SampleEnd)
+			{
+				int length = (int)value;
+				AudioSampleBuffer nb(numChannels, length);
+
+				for (int i = 0; i < numChannels; i++)
+					FloatVectorOperations::copy(nb.getWritePointer(i), ob.getReadPointer(i, 0), length);
+
+				std::swap(nb, ob);
+			}
+			else if (id == SampleIds::Pitch || id == SampleIds::PitchTable)
+			{
+				int newNumSamples = 0;
+
+				auto getPitchFactor = [&](int index)
+				{
+					if (isTable)
+						return (double)ModulatorSamplerSound::EnvelopeTable::getPitchValue(lut.getSample(0, index));
+					else
+						return scriptnode::conversion_logic::st2pitch().getValue((double)propertyData[id] / 100.0);
+				};
+
+				if (isTable)
+				{
+					double samplesToCalculate = 0.0;
+
+					for (int i = 0; i < numSamples; i++)
+						samplesToCalculate += 1.0 / getPitchFactor(i);
+
+					newNumSamples = (int)samplesToCalculate;
+				}
+				else
+					newNumSamples = (int)((double)numSamples / getPitchFactor(0));
+
+				AudioSampleBuffer nb(numChannels, newNumSamples);
+				
+				ValueTree tableIndexes;
+
+				Array<Identifier> sampleRangeIds = { SampleIds::SampleStart, SampleIds::SampleEnd,
+						SampleIds::LoopStart, SampleIds::LoopEnd,
+						SampleIds::LoopXFade, SampleIds::SampleStartMod };
+
+				if (isTable)
+				{
+					tableIndexes = ValueTree("Ranges");
+
+					for (auto id : sampleRangeIds)
+					{
+						if (propertyData.hasProperty(id))
+							tableIndexes.setProperty(id, propertyData[id], nullptr);
+					}
+				}
+				
+				double uptime = 0.0;
+
+				for (int i = 0; i < newNumSamples; i++)
+				{
+					auto i0 = jmin(numSamples-1, (int)uptime);
+					auto i1 = jmin(numSamples-1, i0 + 1);
+					auto alpha = uptime - (double)i0;
+					
+					for (int c = 0; c < numChannels; c++)
+					{
+						auto v0 = ob.getSample(c, i0);
+						auto v1 = ob.getSample(c, i1);
+						auto v = Interpolator::interpolateLinear(v0, v1, (float)alpha);
+						nb.setSample(c, i, v);
+					}
+
+					auto uptimeDelta = getPitchFactor(0);
+
+					if (isTable)
+					{
+						for (int i = 0; i < tableIndexes.getNumProperties(); i++)
+						{
+							auto id = tableIndexes.getPropertyName(i);
+
+							if ((int)tableIndexes[id] == i)
+								tableIndexes.setProperty(id, (int)uptime, nullptr);
+						}
+
+						auto pf0 = getPitchFactor(i0);
+						auto pf1 = getPitchFactor(i1);
+						uptimeDelta = Interpolator::interpolateLinear(pf0, pf1, alpha);
+					}
+
+					uptime += uptimeDelta;
+				}
+
+				if (isTable)
+				{
+					for (int i = 0; i < tableIndexes.getNumProperties(); i++)
+					{
+						auto id = tableIndexes.getPropertyName(i);
+						propertyData.setProperty(id, tableIndexes[id], nullptr);
+					}
+				}
+				else
+				{
+					// Calculate the static offset
+					addFactor(1.0 / getPitchFactor(0), sampleRangeIds);
+				}
+
+				std::swap(ob, nb);
+			}
+			else if(id == SampleIds::GainTable)
+			{
+				for (int c = 0; c < numChannels; c++)
+				{
+					for (int i = 0; i < numSamples; i++)
+					{
+						auto gainFactor = ModulatorSamplerSound::EnvelopeTable::getGainValue(lut.getSample(0, i));
+						auto value = ob.getSample(c, i);
+						ob.setSample(c, i, value * gainFactor);
+					}
+				}
+			}
+			else if (id == SampleIds::LowPassTable)
+			{
+				CascadedEnvelopeLowPass lp(true);
+
+				PrepareSpecs ps;
+				ps.blockSize = 16;
+				ps.sampleRate = 44100.0;
+				ps.numChannels = numChannels;
+
+				lp.prepare(ps);
+
+				snex::PolyHandler::ScopedVoiceSetter svs(lp.polyManager, 0);
+
+				for (int i = 0; i < numSamples; i+= ps.blockSize)
+				{
+					int numToDo = jmin(ps.blockSize, numSamples - i);
+					auto v = lut.getSample(0, i);
+					auto freq = ModulatorSamplerSound::EnvelopeTable::getFreqValue(v);
+					lp.process(freq, ob, i, numToDo);
+				}
+			}
+
+			propertyData.removeProperty(id, nullptr);
+			hlac::CompressionHelpers::dump(ob, fileToUse.getFullPathName());
+		}
+
+		ValueTree propertyData;
+		Array<File> sampleFiles;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleWithPropertyData);
+	};
+
+	File getSampleMapFile(bool fromBackup)
+	{
+		if (fromBackup)
+			return getBackupFolder().getChildFile(sampleMapId->getText()).withFileExtension("xml");
+		else
+		{
+			PoolReference ref(getMainController(), sampleMapId->getText(), FileHandlerBase::SampleMaps);
+			return ref.getFile();
+		}
+	}
+
+	Array<Identifier> getPropertiesToProcess()
+	{
+		Array<Identifier> ids;
+		for (auto i : propertySelector->items)
+		{
+			if (!i->active)
+				continue;
+
+			ids.add(Identifier(i->id));
+		}
+
+		return ids;
+	}
+
+	SampleWithPropertyData::List saveToBackup()
+	{
+		SampleWithPropertyData::List fileList;
+
+		showStatusMessage("Saving backup");
+
+		auto smf = getSampleMapFile(false);
+
+		auto v = ValueTree::fromXml(smf.loadFileAsString());
+
+		if (!v.isValid())
+			throw Result::fail("Can't load samplemap");
+
+		wasMonolith = (int)v[Identifier("SaveMode")] != 0;
+
+		if (wasMonolith)
+		{
+			getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->clearUnreferencedMonoliths();
+
+			auto monolist = getSampleFolder().findChildFiles(File::findFiles, false);
+
+			for (auto m : monolist)
+			{
+				if (m.getFileExtension().startsWith(".ch") && m.getFileNameWithoutExtension() == sampleMapId->getText())
+				{
+					auto ok = m.deleteFile();
+
+					if (!ok)
+						throw Result::fail("Can't delete monolith");
+				}
+			}
+		}
+
+		auto bf = getBackupFolder();
+		auto r = bf.createDirectory();
+
+		auto ok = smf.copyFileTo(getSampleMapFile(true));
+		
+		if (!ok)
+			throw Result::fail("Can't copy samplemap file");
+
+		if (!r.wasOk())
+			throw r;
+
+		for (auto c : v)
+		{
+			ReferenceCountedObjectPtr<SampleWithPropertyData> newData = new SampleWithPropertyData();
+
+			newData->propertyData = c;
+			newData->addFileFromValueTree(getMainController(), c);
+			
+			fileList.add(newData);
+		}
+
+		showStatusMessage("Copying sample files to backup location");
+
+		double numTodo = (double)fileList.size();
+		double numDone = 0.0;
+
+		for (auto sf : fileList)
+		{
+			setProgress(numDone / numTodo);
+
+			for (auto sourceFile : sf->sampleFiles)
+			{
+				auto targetFilePath = sourceFile.getRelativePathFrom(getSampleFolder());
+				auto targetFile = bf.getChildFile(targetFilePath);
+
+				if (!targetFile.getParentDirectory().isDirectory())
+				{
+					r = targetFile.getParentDirectory().createDirectory();
+
+					if (!r.wasOk())
+						throw r;
+				}
+
+				auto ok = sourceFile.copyFileTo(targetFile);
+
+				if (!ok)
+					throw Result::fail("Can't copy sample file");
+			}
+		}
+
+		return fileList;
+	}
+
+	void restoreFromBackup()
+	{
+		auto smf = getSampleMapFile(true);
+
+		if (!smf.existsAsFile())
+		{
+			throw Result::fail("Can't find samplemap backup file");
+		}
+
+		auto ok = smf.copyFileTo(getSampleMapFile(false));
+
+		if (!ok)
+			throw Result::fail("Can't copy samplemap backup");
+		
+		auto fileList = getBackupFolder().findChildFiles(File::findFiles, true, "*");
+
+		for (auto f : fileList)
+		{
+			if (f == smf)
+				continue;
+
+			if (f.isHidden())
+				continue;
+
+			auto targetPath = f.getRelativePathFrom(getBackupFolder());
+			auto targetFile = getSampleFolder().getChildFile(targetPath);
+
+			if (targetFile.existsAsFile())
+			{
+				auto ok = targetFile.deleteFile();
+
+				if (!ok)
+					throw Result::fail("Can't delete file  \n> " + targetFile.getFullPathName());
+			}
+
+			auto ok = f.copyFileTo(targetFile);
+
+			if (!ok)
+				throw Result::fail("Can't copy file  \n>" + f.getFullPathName());
+		}
+	}
+
+	static void removeProperties(ValueTree v, const Array<Identifier>& properties)
+	{
+		for (auto p : properties)
+			v.removeProperty(p, nullptr);
+
+		for (auto c : v)
+			removeProperties(c, properties);
+	}
+
+	void applyChanges(SampleWithPropertyData::List& sampleList)
+	{
+		auto propertiesToProcess = getPropertiesToProcess();
+
+		double numTodo = sampleList.size();
+		double numDone = 0.0;
+
+		for (auto s : sampleList)
+		{
+			setProgress(numDone / numTodo);
+			numDone += 1.0;
+
+			for (const auto& p : propertiesToProcess)
+			{
+				s->apply(p);
+			}
+		}
+
+		auto v = ValueTree::fromXml(getSampleMapFile(true).loadFileAsString());
+
+		
+		v.removeAllChildren(nullptr);
+
+		for (auto s : sampleList)
+		{
+			v.addChild(s->propertyData.createCopy(), -1, nullptr);
+		}
+
+		if (wasMonolith)
+		{
+			// set it to use the files
+			v.setProperty("SaveMode", 0, nullptr);
+
+			// remove the monolith info
+			removeProperties(v, { Identifier("MonolithLength"), Identifier("MonolithOffset") });
+		}
+
+		auto xml = v.createXml();
+		
+		getSampleMapFile(false).replaceWithText(xml->createDocument(""));
+	}
+
+	void run() override
+	{
+		auto bf = getBackupFolder();
+
+		try
+		{
+			doBackup = bf.isDirectory();
+
+			if (doBackup)
+			{
+				restoreFromBackup();
+			}
+			else
+			{
+				auto propertiesToProcess = getPropertiesToProcess();
+
+				if (propertiesToProcess.isEmpty())
+				{
+					throw Result::fail("No properties selected");
+				}
+
+				auto sampleList = saveToBackup();
+				applyChanges(sampleList);
+			}
+		}
+		catch (Result& r)
+		{
+			result = r;
+		}
+	}
+
+	Result result;
+
+	bool doBackup = false;
+	bool wasMonolith = false;
+
+	ComboBox* sampleMapId;
+	TextEditor* suffix;
+	ScopedPointer<PropertySelector> propertySelector;
+};
+
+class SVGToPathDataConverter : public Component,
+							   public Value::Listener,
+							   public QuasiModalComponent,
+							   public PathFactory,
+							   public juce::FileDragAndDropTarget
+{
+public:
+
+	enum class OutputFormat
+	{
+		Base64,
+		CppString,
+		HiseScriptNumbers,
+		numOutputFormats
+	};
+
+	SVGToPathDataConverter(BackendRootWindow* bpe):
+		QuasiModalComponent(),
+		loadClipboard("Load from clipboard"),
+		copyClipboard("Copy to clipboard"),
+		resizer(this, nullptr),
+		closeButton("close", nullptr, *this)
+	{
+		outputFormatSelector.addItemList({ "Base64 String", "C++ String", "HiseScript number array" }, 1);
+		
+		addAndMakeVisible(outputFormatSelector);
+		addAndMakeVisible(inputEditor);
+		addAndMakeVisible(outputEditor);
+		addAndMakeVisible(variableName);
+		addAndMakeVisible(loadClipboard);
+		addAndMakeVisible(copyClipboard);
+		addAndMakeVisible(resizer);
+		addAndMakeVisible(closeButton);
+
+		GlobalHiseLookAndFeel::setTextEditorColours(inputEditor);
+		GlobalHiseLookAndFeel::setTextEditorColours(outputEditor);
+		inputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		outputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		GlobalHiseLookAndFeel::setTextEditorColours(variableName);
+		
+		inputEditor.setFont(GLOBAL_MONOSPACE_FONT());
+		variableName.setFont(GLOBAL_MONOSPACE_FONT());
+
+		inputEditor.setMultiLine(true);
+		outputEditor.setMultiLine(true);
+
+		inputEditor.getTextValue().referTo(inputDoc);
+		outputEditor.getTextValue().referTo(outputDoc);
+		variableName.getTextValue().referTo(variableDoc);
+		variableDoc.addListener(this);
+
+		variableDoc.setValue("pathData");
+
+		outputFormatSelector.setSelectedItemIndex(0);
+
+		copyClipboard.setLookAndFeel(&alaf);
+		loadClipboard.setLookAndFeel(&alaf);
+		outputFormatSelector.setLookAndFeel(&alaf);
+
+		outputFormatSelector.onChange = [&]()
+		{
+			currentOutputFormat = (OutputFormat)outputFormatSelector.getSelectedItemIndex();
+			update();
+		};
+
+		loadClipboard.onClick = [&]()
+		{
+			inputDoc.setValue(SystemClipboard::getTextFromClipboard());
+		};
+
+		copyClipboard.onClick = [&]()
+		{
+			SystemClipboard::copyTextToClipboard(outputDoc.getValue().toString());
+		};
+
+		GlobalHiseLookAndFeel::setDefaultColours(outputFormatSelector);
+
+        inputDoc.setValue("Paste the SVG data here, drop a SVG file or use the Load from Clipboard button.\nThen select the output format xand variable name above, and click Copy to Clipboard to paste the path data.\nYou can also paste an array that you've previously exported to convert it to Base64");
+        
+		inputDoc.addListener(this);
+
+		closeButton.onClick = [this]()
+		{
+			this->destroy();
+		};
+
+		setSize(800, 600);
+	}
+
+	~SVGToPathDataConverter()
+	{
+		inputDoc.removeListener(this);
+		variableDoc.removeListener(this);
+	}
+
+	void valueChanged(Value& v) override
+	{
+		update();
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		dragger.startDraggingComponent(this, e);
+	}
+
+	void mouseDrag(const MouseEvent& e) override
+	{
+		dragger.dragComponent(this, e, nullptr);
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		
+	}
+
+	static bool isHiseScriptArray(const String& input)
+	{
+		return input.startsWith("const var") || input.startsWith("[");
+	}
+
+	static String parse(const String& input)
+	{
+		String rt = input.trim();
+
+		if (isHiseScriptArray(rt))
+		{
+			return rt;
+		}
+
+		if (auto xml = XmlDocument::parse(input))
+		{
+			auto v = ValueTree::fromXml(*xml);
+
+			cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& c)
+			{
+				if (c.hasType("path"))
+				{
+					rt = c["d"].toString();
+					return true;
+				}
+
+				return false;
+			});
+		}
+
+		return rt;
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+		return p;
+	}
+
+	
+
+	Path pathFromPoints(String pointsText)
+	{
+		auto points = StringArray::fromTokens(pointsText, " ,", "");
+		points.removeEmptyStrings();
+
+		jassert(points.size() % 2 == 0);
+
+		Path p;
+
+		for (int i = 0; i < points.size() / 2; i++)
+		{
+			auto x = points[i * 2].getFloatValue();
+			auto y = points[i * 2 + 1].getFloatValue();
+
+			if (i == 0)
+				p.startNewSubPath({ x, y });
+			else
+				p.lineTo({ x, y });
+		}
+
+		p.closeSubPath();
+
+		return p;
+	}
+
+	bool isInterestedInFileDrag(const StringArray& files) override
+	{
+		return File(files[0]).getFileExtension() == ".svg";
+	}
+
+	void filesDropped(const StringArray& files, int x, int y) override
+	{
+		File f(files[0]);
+		auto filename = f.getFileNameWithoutExtension();
+		variableDoc.setValue(filename);
+		inputDoc.setValue(f.loadFileAsString());
+	}
+
+	void writeDataAsCppLiteral(const MemoryBlock& mb, OutputStream& out,
+		bool breakAtNewLines, bool allowStringBreaks, String bracketSet = "{}")
+	{
+		const int maxCharsOnLine = 250;
+
+		auto data = (const unsigned char*)mb.getData();
+		int charsOnLine = 0;
+
+		bool canUseStringLiteral = mb.getSize() < 32768; // MS compilers can't handle big string literals..
+
+		if (canUseStringLiteral)
+		{
+			unsigned int numEscaped = 0;
+
+			for (size_t i = 0; i < mb.getSize(); ++i)
+			{
+				auto num = (unsigned int)data[i];
+
+				if (!((num >= 32 && num < 127) || num == '\t' || num == '\r' || num == '\n'))
+				{
+					if (++numEscaped > mb.getSize() / 4)
+					{
+						canUseStringLiteral = false;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!canUseStringLiteral)
+		{
+			out << bracketSet.substring(0, 1) << " ";
+
+			for (size_t i = 0; i < mb.getSize(); ++i)
+			{
+				auto num = (int)(unsigned int)data[i];
+				out << num << ',';
+
+				charsOnLine += 2;
+
+				if (num >= 10)
+				{
+					++charsOnLine;
+
+					if (num >= 100)
+						++charsOnLine;
+				}
+
+				if (charsOnLine >= maxCharsOnLine)
+				{
+					charsOnLine = 0;
+					out << newLine;
+				}
+			}
+
+			out << "0,0 " << bracketSet.substring(1) << ";";
+		}
+		
+	}
+
+	void update()
+	{
+		auto inputText = parse(inputDoc.toString());
+
+		String result = "No path generated.. Not a valid SVG path string?";
+
+		if (isHiseScriptArray(inputText))
+		{
+			auto ar = JSON::parse(inputText.fromFirstOccurrenceOf("[", true, true));
+
+			if (ar.isArray())
+			{
+				MemoryOutputStream mos;
+
+				for (auto v : *ar.getArray())
+				{
+					auto byte = (uint8)(int)v;
+					mos.write(&byte, 1);
+				}
+				
+				mos.flush();
+
+				path.clear();
+				path.loadPathFromData(mos.getData(), mos.getDataSize());
+
+				auto b64 = mos.getMemoryBlock().toBase64Encoding();
+
+				result = {};
+
+				if (!inputText.startsWith("["))
+					result << inputText.upToFirstOccurrenceOf("[", false, false);
+
+				result << b64.quoted();
+
+				if (inputText.endsWith(";"))
+					result << ";";
+			}
+		}
+		else
+		{
+			auto text = inputText.trim().unquoted().trim();
+
+			path = Drawable::parseSVGPath(text);
+
+			if (path.isEmpty())
+				path = pathFromPoints(text);
+
+			auto filename = variableDoc.toString();
+
+			if (!path.isEmpty())
+			{
+				MemoryOutputStream data;
+				path.writePathToStream(data);
+
+				MemoryOutputStream out;
+
+				if (currentOutputFormat == OutputFormat::CppString)
+				{
+					out << "static const unsigned char " << filename << "[] = ";
+
+					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "{}");
+
+					out << newLine
+						<< newLine
+						<< "Path path;" << newLine
+						<< "path.loadPathFromData (" << filename << ", sizeof (" << filename << "));" << newLine;
+
+				}
+				else if (currentOutputFormat == OutputFormat::Base64)
+				{
+					out << "const var " << filename << " = ";
+					out << "\"" << data.getMemoryBlock().toBase64Encoding() << "\"";
+				}
+				else if (currentOutputFormat == OutputFormat::HiseScriptNumbers)
+				{
+					out << "const var " << filename << " = ";
+					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
+
+					out << ";";
+				}
+
+				result = out.toString();
+			}
+		}
+		
+		outputDoc.setValue(result);
+
+		PathFactory::scalePath(path, pathArea);
+
+		repaint();
+	}
+
+	void paint(Graphics& g)
+	{
+		ColourGradient grad(alaf.dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+			alaf.dark, 0.0f, (float)getHeight(), false);
+
+		g.setGradientFill(grad);
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRect(getLocalBounds().removeFromTop(37).toFloat());
+		g.setColour(alaf.bright);
+
+		g.drawRect(getLocalBounds().toFloat());
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
+		g.drawText("SVG to Path converter", titleArea, Justification::centred);
+
+        if(path.isEmpty())
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.drawText("No valid path", pathArea, Justification::centred);
+        }
+        else
+        {
+            g.fillPath(path);
+            g.strokePath(path, PathStrokeType(1.0f));
+        }
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+		
+		titleArea = b.removeFromTop(37).toFloat();
+
+		b = b.reduced(10);
+
+		auto top = b.removeFromTop(32);
+
+
+		
+		outputFormatSelector.setBounds(top.removeFromLeft(300));
+
+		top.removeFromLeft(5);
+
+		variableName.setBounds(top.removeFromLeft(200));
+
+		auto bottom = b.removeFromBottom(32);
+
+		b.removeFromBottom(5);
+
+		bottom.removeFromRight(15);
+
+		auto w = getWidth() / 3;
+
+		inputEditor.setBounds(b.removeFromLeft(w-5));
+		b.removeFromLeft(5);
+		outputEditor.setBounds(b.removeFromLeft(w-5));
+		b.removeFromLeft(5);
+		pathArea = b.toFloat();
+
+		loadClipboard.setBounds(bottom.removeFromLeft(150));
+		bottom.removeFromLeft(10);
+		copyClipboard.setBounds(bottom.removeFromLeft(150));
+
+		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+		closeButton.setBounds(getLocalBounds().removeFromRight(titleArea.getHeight()).removeFromTop(titleArea.getHeight()).reduced(6));
+
+		scalePath(path, pathArea);
+		repaint();
+	}
+
+	Path path;
+	Rectangle<float> pathArea;
+	Rectangle<float> titleArea;
+
+	Value inputDoc, outputDoc, variableDoc;
+
+	TextEditor inputEditor, outputEditor;
+	TextEditor variableName;
+
+	ComboBox outputFormatSelector;
+
+	OutputFormat currentOutputFormat = OutputFormat::Base64;
+	TextButton loadClipboard, copyClipboard;
+
+	ResizableCornerComponent resizer;
+	HiseShapeButton closeButton;
+	AlertWindowLookAndFeel alaf;
+	juce::ComponentDragger dragger;
+};
+
 class ProjectDownloader : public DialogWindowWithBackgroundThread,
 	public TextEditor::Listener
 {
@@ -1326,7 +2486,7 @@ public:
 
 		showStatusMessage("Downloading the project");
 
-		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
+		auto stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
 
 		if (stream == nullptr || stream->getTotalLength() <= 0)
 		{
@@ -1340,7 +2500,7 @@ public:
 		tempFile.deleteFile();
 		tempFile.create();
 
-		ScopedPointer<OutputStream> fos = tempFile.createOutputStream();
+		auto fos = tempFile.createOutputStream();
 
 		MemoryBlock mb;
 		mb.setSize(8192);

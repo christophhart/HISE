@@ -43,8 +43,7 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	addAndMakeVisible(smoothingTime = new HiSlider("SmoothingTime"));
 	addAndMakeVisible(defaultValue = new HiSlider("DefaultValue"));
 
-
-	tableEditor->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*tableEditor, getProcessor());
 
 	typeSelector->setup(getProcessor(), MPEModulator::SpecialParameters::GestureCC, "Gesture Type");
 	typeSelector->addItem("Press", MPEModulator::Gesture::Press);

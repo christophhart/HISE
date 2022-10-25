@@ -42,14 +42,16 @@ SearchableListComponent::SearchableListComponent(BackendRootWindow* window):
 {
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
-	fuzzySearchBox->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-	fuzzySearchBox->setFont(GLOBAL_FONT());
-	fuzzySearchBox->setSelectAllWhenFocused(true);
-    fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+    
+    
+    GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
+    
 	internalContainer = new InternalContainer();
 
 	addAndMakeVisible(viewport = new Viewport());
 
+    sf.addScrollBarToAnimate(viewport->getVerticalScrollBar());
+    viewport->setScrollBarThickness(13.0f);
 	viewport->setViewedComponent(internalContainer, false);
 
 	internalContainer->setSize(300, 20);
@@ -60,19 +62,17 @@ void SearchableListComponent::resized()
 {
 	internalContainer->setSize(getWidth(), internalContainer->getHeight());
 	
-	const int numButtons = customButtons.size();
-	const int buttonSize = 24;
-
-	for (int i = 0; i < numButtons; i++)
-	{
-		if (customButtons[i].getComponent() != nullptr)
-		{
-			customButtons[i]->setBounds(i*buttonSize + 4, 4, 16, 16);
-		}
-	}
+    auto b = getLocalBounds().removeFromTop(24);
+    
+	for(auto cb: customButtons)
+    {
+        auto margin = dynamic_cast<HiseShapeButton*>(cb.getComponent()) ? 2 : 4;
+        cb->setBounds(b.removeFromLeft(b.getHeight()).reduced(margin));
+    }
+    
+    b.removeFromLeft(b.getHeight());
 	
-	fuzzySearchBox->setBounds(numButtons * buttonSize + 24, 1, getWidth() - 25 - numButtons * buttonSize, 23);
-
+    fuzzySearchBox->setBounds(b.reduced(1));
 	viewport->setBounds(0, 26, getWidth(), getHeight() - 26);
 
 	rebuildModuleList(false);
@@ -84,14 +84,16 @@ void SearchableListComponent::paint(Graphics& g)
     g.setColour(Colour(0xff353535));
     g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
     
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
-									 Colours::transparentBlack, 0.0f, 30.0f, false));
-	g.fillRect(0.0f, 25.0f, (float)getWidth(), 25.0f);
 	
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+	
+	g.setColour(Colour(0xFF262626));
 	g.fillRect(0, 25, getWidth(), getHeight());
 
-	g.setColour(Colours::white.withAlpha(0.6f));
+    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f), 0.0f, 25.0f,
+                                     Colours::transparentBlack, 0.0f, 35.0f, false));
+    g.fillRect(0.0f, 25.0f, (float)getWidth(), 10.0f);
+    
+	g.setColour(Colours::white.withAlpha(0.3f));
 
 	static const unsigned char searchIcon[] = { 110, 109, 0, 0, 144, 68, 0, 0, 48, 68, 98, 7, 31, 145, 68, 198, 170, 109, 68, 78, 223, 103, 68, 148, 132, 146, 68, 85, 107, 42, 68, 146, 2, 144, 68, 98, 54, 145, 219, 67, 43, 90, 143, 68, 66, 59, 103, 67, 117, 24, 100, 68, 78, 46, 128, 67, 210, 164, 39, 68, 98, 93, 50, 134, 67, 113, 58, 216, 67, 120, 192, 249, 67, 83, 151,
 		103, 67, 206, 99, 56, 68, 244, 59, 128, 67, 98, 72, 209, 112, 68, 66, 60, 134, 67, 254, 238, 144, 68, 83, 128, 238, 67, 0, 0, 144, 68, 0, 0, 48, 68, 99, 109, 0, 0, 208, 68, 0, 0, 0, 195, 98, 14, 229, 208, 68, 70, 27, 117, 195, 211, 63, 187, 68, 146, 218, 151, 195, 167, 38, 179, 68, 23, 8, 77, 195, 98, 36, 92, 165, 68, 187, 58,
@@ -171,6 +173,8 @@ void SearchableListComponent::rebuildModuleList(bool forceRebuild)
 	}
 
 	internalRebuildFlag = false;
+    
+    rebuilt();
 }
 
 void SearchableListComponent::textEditorTextChanged(TextEditor& )
@@ -294,11 +298,9 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 		{
 			if (getPopupHeight() != 0)
 			{
-                auto *parent = getTopLevelComponent();
+				auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
-				PopupComponent *table = new PopupComponent(this);
-
-				CallOutBox::launchAsynchronously(table, parent->getLocalArea(this, getLocalBounds()), parent);
+				CallOutBox::launchAsynchronously(std::unique_ptr<PopupComponent>(new PopupComponent(this)), parent->getLocalArea(this, getLocalBounds()), parent);
 			}
 		}
 		else

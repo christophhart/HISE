@@ -46,6 +46,8 @@ public:
 
 	HiseSettings::Data& dataObject;
 
+	virtual File getBuildFolder() const = 0;
+
 protected:
 
 	ValueTree exportEmbeddedFiles();
@@ -125,13 +127,13 @@ public:
         static bool isVST(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0010) != 0 || (option & 0x0040) != 0; };
 		static bool isAU(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0020) != 0 || (option & 0x0040) != 0; };
 		static bool isAAX(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0080) != 0; };
-		static bool is32Bit(BuildOption option) { return (option & 0x0001) != 0 || (option & 0x0004) != 0; };
+		static bool is32Bit(BuildOption option) { return false; };
 		static bool is64Bit(BuildOption option) { return (option & 0x0002) != 0 || (option & 0x0004) != 0; };
 		static bool isIOS(BuildOption option) { return (option & 0xC000) != 0; };
 		static bool isIPhone(BuildOption option) { return (option & 0x8000) != 0; };
 		static bool isIPad(BuildOption option) { return (option & 0x4000) != 0; };
 		static bool isWindows(BuildOption option) { return (option & 0x1000) != 0; };
-		static bool isLinux(BuildOption option) { return (option & 0x0000) == 0; };
+		static bool isLinux(BuildOption option) { return (option & 0x3000) == 0; };
 		static bool isOSX(BuildOption option) { return (option & 0x2000) != 0; }
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
@@ -197,6 +199,8 @@ public:
 
 	static String getCompileResult(ErrorCodes result);
 
+	File getBuildFolder() const override;
+	
 	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
 
 	template <class ProviderType> Result compressValueTree(const ValueTree& v, const String& tempFolder, const String& childFile)
@@ -224,17 +228,31 @@ public:
 
 	static bool isExportingFromCommandLine() { return globalCommandLineExport; }
 
-private:
+    bool shouldBeSilent() const { return isExportingFromCommandLine() || silentMode; }
+    
+	struct BatchFileCreator
+	{
+		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
+		static File getBatchFile(CompileExporter* exporter);
+	};
+
+protected:
+
+    bool silentMode = false;
+    
+	String configurationName = "Release";
 
 	static bool globalCommandLineExport;
 	
 	static bool useCIMode;
 
+	static int forcedVSTVersion;
+
 	struct HelperClasses
 	{
 		static String getFileNameForCompiledPlugin(const HiseSettings::Data& dataObject, ModulatorSynthChain* chain, BuildOption option);
 
-		static bool isUsingVisualStudio2015(const HiseSettings::Data& dataObject);
+		static bool isUsingVisualStudio2017(const HiseSettings::Data& dataObject);
 
 		static ErrorCodes saveProjucerFile(String templateProject, CompileExporter* exporter);
 	};
@@ -261,6 +279,8 @@ private:
 
 	struct ProjectTemplateHelpers
 	{
+		static void handleCompilerWarnings(String& templateProject);
+
 		static void handleCompilerInfo(CompileExporter* exporter, String& templateProject);
 		static void handleCompanyInfo(CompileExporter* exporter, String& templateProject);
 		static void handleVisualStudioVersion(const HiseSettings::Data& dataObject, String& templateProject);
@@ -289,11 +309,7 @@ private:
 	ErrorCodes createStandaloneAppHeaderFile(const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
 	CompileExporter::ErrorCodes createStandaloneAppProjucerFile(BuildOption option);
 
-	struct BatchFileCreator
-	{
-		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
-		static File getBatchFile(CompileExporter* exporter);
-	};
+	
 };
 
 /** A cheap rip-off of Juce's Binary Builder to convert the exported valuetrees into a cpp file. */

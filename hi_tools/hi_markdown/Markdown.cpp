@@ -136,7 +136,7 @@ void MarkdownParser::setNewText(const String& newText)
 	resetCurrentBlock();
 	elements.clear();
 
-	markdownCode = newText;
+	markdownCode = newText.withCleanedLineEndings();
 	it = Iterator(markdownCode);
 	parse();
 }
@@ -180,6 +180,73 @@ MarkdownLink MarkdownParser::getLinkForMouseEvent(const MouseEvent& event, Recta
 	return link.url;
 }
 
+int MarkdownParser::getLineNumberForY(float y) const
+{
+	float thisY = 0.0f;
+
+	for (auto e : elements)
+	{
+		auto thisHeight = e->getTopMargin();
+		thisHeight += e->getLastHeight();
+
+		thisY += thisHeight;
+		
+
+		if (thisY > y)
+		{
+			auto thisNumber = e->getLineNumber();
+			auto idx = elements.indexOf(e);
+
+			int thisNumLines = 0;
+
+			if (auto nextElement = elements[idx + 1])
+				thisNumLines = nextElement->getLineNumber() - thisNumber;
+
+			auto deltaY =  thisY - y;
+			auto deltaYNormalised = 1.0f - deltaY / thisHeight;
+
+			return thisNumber + roundToInt((float)thisNumLines * deltaYNormalised);
+		}
+	}
+
+	return 0;
+}
+
+float MarkdownParser::getYForLineNumber(int lineNumber) const
+{
+	float yPos = 0.0f;
+
+	int index = 0;
+
+	for (auto e : elements)
+	{
+		auto thisHeight = e->getTopMargin();
+		thisHeight += e->getLastHeight();
+
+		int nextLine = 0;
+
+		if (auto nextElement = elements[++index])
+			nextLine = nextElement->getLineNumber();
+		else
+			nextLine = e->getLineNumber();
+
+		Range<int> lineRange(e->getLineNumber(), nextLine);
+
+		if (lineRange.contains(lineNumber))
+		{
+			auto lineDelta = (float)(lineNumber - lineRange.getStart());
+			auto lineDeltaNormalised = lineDelta / (float)lineRange.getLength();
+
+			return yPos + lineDeltaNormalised * thisHeight;
+		}
+			
+		yPos += thisHeight;
+		
+	}
+
+	return 0.0f;
+}
+
 Array<MarkdownLink> MarkdownParser::getImageLinks() const
 {
 	Array<MarkdownLink> sa;
@@ -194,6 +261,11 @@ Array<MarkdownLink> MarkdownParser::getImageLinks() const
 
 hise::MarkdownParser::HyperLink MarkdownParser::getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area)
 {
+	if (!containsLinks)
+	{
+		return {};
+	}
+
 	float y = 0.0f;
 
 	for (auto* e : elements)
@@ -550,13 +622,21 @@ bool MarkdownParser::Iterator::advanceIfNotEOF(int numCharsToSkip /*= 1*/)
 	if (it.isEmpty())
 		return false;
 
-	it += numCharsToSkip;
+	juce_wchar c;
+
+	while (--numCharsToSkip >= 0 && next(c))
+		;
+
 	return !it.isEmpty();
 }
 
 bool MarkdownParser::Iterator::advance(int numCharsToSkip /*= 1*/)
 {
-	it += numCharsToSkip;
+	juce_wchar c;
+
+	while (--numCharsToSkip >= 0 && next(c))
+		;
+	
 	return !it.isEmpty();
 }
 
@@ -571,6 +651,10 @@ bool MarkdownParser::Iterator::next(juce::juce_wchar& c)
 		return false;
 
 	c = *it++;
+
+	if (c == '\n')
+		currentLine++;
+
 	return c != 0;
 }
 
@@ -673,100 +757,11 @@ juce::String MarkdownParser::Iterator::advanceLine()
 	return s;
 }
 
+
+
 int MarkdownParser::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	source.skipWhitespace();
-
-	const juce_wchar firstChar = source.peekNextChar();
-
-	switch (firstChar)
-	{
-	case '#':
-	{
-		source.skipToEndOfLine();
-		return 1;
-	}
-	case '*':
-	{
-		while (source.peekNextChar() == '*')
-			source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != '*')
-			source.skip();
-
-		while (source.peekNextChar() == '*')
-			source.skip();
-
-		return 2;
-	}
-	case '`':
-	{
-		source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != '`')
-		{
-			source.skip();
-		}
-
-		source.skip();
-
-		return 3;
-	}
-	
-	case '>':
-	{
-		source.skipToEndOfLine();
-		return 4;
-	}
-	case '-':
-	{
-		source.skip();
-
-		if (source.nextChar() == '-')
-		{
-			if (source.nextChar() == '-')
-			{
-				source.skipToEndOfLine();
-
-				while (!source.isEOF())
-				{
-					if (source.nextChar() == '-')
-					{
-						if (source.nextChar() == '-')
-						{
-							if (source.nextChar() == '-')
-							{
-								break;
-							}
-						}
-					}
-
-					source.skipToEndOfLine();
-				}
-
-				return 5;
-			}
-			else
-				return 0;
-		}
-		else
-			return 0;
-	}
-	case '!':
-	case '[':
-	{
-		source.skip();
-
-		while (!source.isEOF() && source.peekNextChar() != ')')
-			source.skip();
-
-		source.skip();
-
-		return 6;
-	}
-	case '|': source.skipToEndOfLine(); return 7;
-	default: source.skip(); return 0;
-	}
+	return TokeniserT::readNextToken(source);
 }
 
 juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultColourScheme()

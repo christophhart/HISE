@@ -16,7 +16,7 @@ dyn<float> data;
 
 int main(int input)
 {
-	data = d;
+	data.referTo(d);
 	
 	return data.size();
 }

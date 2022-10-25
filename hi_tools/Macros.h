@@ -82,6 +82,11 @@ namespace hise { using namespace juce;
 #define HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR HISE_EVENT_RASTER
 #endif
 
+/** If enabled, this will try to retain as much pitch modulation resolution as possible (it will still get downsampled to the control rate).
+*/
+#ifndef HISE_ENABLE_FULL_CONTROL_RATE_PITCH_MOD
+#define HISE_ENABLE_FULL_CONTROL_RATE_PITCH_MOD 0
+#endif
 
 #if (HISE_EVENT_RASTER != 1)
 #define HISE_USE_CONTROLRATE_DOWNSAMPLING 1
@@ -113,6 +118,14 @@ namespace hise { using namespace juce;
 
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 
+#if HISE_NO_GUI_TOOLS
+
+#define GLOBAL_FONT() (Font().withHeight(15.0f))
+#define GLOBAL_BOLD_FONT() (Font().withHeight(15.0f))
+#define GLOBAL_MONOSPACE_FONT() (Font().withHeight(15.0f))
+
+#else
+
 static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
 static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
 static Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
@@ -124,12 +137,17 @@ static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceF
 #if JUCE_IOS
 #define GLOBAL_MONOSPACE_FONT() Font(Font::getDefaultMonospacedFontName(), 14.0f, Font::plain)
 #else
+#if JUCE_WINDOWS
+#define GLOBAL_MONOSPACE_FONT() (Font("Consolas", 14.0f, Font::plain))
+#elif JUCE_MAC
+#define GLOBAL_MONOSPACE_FONT() (Font("Menlo", 14.0f, Font::plain))
+#else
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
 #endif
+#endif
+#endif
 
-#else
-
-
+#elif JUCE_LINUX && !HISE_NO_GUI_TOOLS
 
 class LinuxFontHandler
 {
@@ -145,13 +163,13 @@ class LinuxFontHandler
         globalFont = Font(oxygenTypeFace).withHeight(13.0f);
         globalBoldFont = Font(oxygenBoldTypeFace).withHeight(14.0f);
         monospaceFont = Font(sourceCodeProTypeFace).withHeight(14.0f);
+        monospaceBoldFont = Font(sourceCodeProBoldTypeFace).withHeight(14.0f);
     }
-
-    
 
     Font globalFont;
     Font globalBoldFont;
     Font monospaceFont;
+    Font monospaceBoldFont;
 
     class Instance
     {
@@ -162,6 +180,7 @@ class LinuxFontHandler
         Font getGlobalFont() {return data->globalFont;};
         Font getGlobalBoldFont() {return data->globalBoldFont;};
         Font getGlobalMonospaceFont() {return data->monospaceFont; }
+        Font getGlobalMonospaceBoldFont() { return data->monospaceBoldFont; }
 
     private:
 
@@ -169,11 +188,35 @@ class LinuxFontHandler
     };
 };
 
+
 #define GLOBAL_FONT() (LinuxFontHandler::Instance().getGlobalFont())
 #define GLOBAL_BOLD_FONT() (LinuxFontHandler::Instance().getGlobalBoldFont())
 #define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
+#define GLOBAL_BOLD_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceBoldFont())
+
+#else
+
+#define GLOBAL_FONT() (Font())
+#define GLOBAL_BOLD_FONT() (Font())
+#define GLOBAL_MONOSPACE_FONT() (Font())
+#define GLOBAL_BOLD_MONOSPACE_FONT() (Font())
 
 #endif
+
+struct StringSanitizer
+{
+	static String get(const String& s)
+	{
+		auto p = s.removeCharacters("():,;?");
+
+		if (!p.isEmpty() && p.endsWith("/"))
+			p = p.upToLastOccurrenceOf("/", false, false);
+
+		p = p.replace(".md", "");
+
+		return p.replaceCharacter(' ', '-').toLowerCase();
+	}
+};
 
 struct FontHelpers
 {
@@ -226,13 +269,13 @@ struct FontHelpers
 
 
 #if ENABLE_MARKDOWN
-#define MARKDOWN_CHAPTER(chapter) namespace chapter {
+#define MARKDOWN_CHAPTER(chapter) struct chapter {
 #define START_MARKDOWN(name) static const String name() { String content; static const String nl = "\n";
 #define ML(text) content << text << nl;
 #define ML_START_CODE() ML("```javascript")
 #define ML_END_CODE() ML("```")
 #define END_MARKDOWN() return content; };
-#define END_MARKDOWN_CHAPTER() }
+#define END_MARKDOWN_CHAPTER() };
 #else
 #define MARKDOWN_CHAPTER(chapter)
 #define START_MARKDOWN(name) 
@@ -403,6 +446,18 @@ private:
 #define SIGNAL_COLOUR 0xFF90FFB1
 #endif
 
+#ifndef HISE_OK_COLOUR
+#define HISE_OK_COLOUR 0xFF4E8E35
+#endif
+
+#ifndef HISE_WARNING_COLOUR
+#define HISE_WARNING_COLOUR 0xFFFFBA00
+#endif
+
+#ifndef HISE_ERROR_COLOUR
+#define HISE_ERROR_COLOUR 0xFFBB3434
+#endif
+
 #define FLOAT_RECTANGLE(r) r.toFloat();
 #define INT_RECTANGLE(r) r.toInt();
 
@@ -426,5 +481,20 @@ private:
 #define BIND_MEMBER_FUNCTION_0(x) std::bind(&x, this)
 #define BIND_MEMBER_FUNCTION_1(x) std::bind(&x, this, std::placeholders::_1)
 #define BIND_MEMBER_FUNCTION_2(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2)
+#define BIND_MEMBER_FUNCTION_3(x) std::bind(&x, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+
+#ifndef jassertEqual
+#if JUCE_DEBUG
+#define jassertEqual(expr1, expr2) jassert(expr1 == expr2)
+#else
+#define jassertEqual(expr1, expr2) ignoreUnused(expr1, expr2)
+#endif
+#endif
+
+/** This is set by the HISE projects to figure out the default VS version for the export. */
+#ifndef HISE_USE_VS2022
+#define HISE_USE_VS2022 0
+#endif
+
 
 } // namespace hise

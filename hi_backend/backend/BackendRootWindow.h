@@ -36,25 +36,34 @@
 
 
 
-#define GET_BACKEND_ROOT_WINDOW(child) child->findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow()
+#define GET_BACKEND_ROOT_WINDOW(child) child->template findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow()
 
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 7
+#define BACKEND_UI_VERSION 10
 
 namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
 
-class BackendRootWindow : public AudioProcessorEditor,
+
+
+
+
+class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
+						  public TopLevelWindowWithKeyMappings,
+						  public AudioProcessorEditor,
 						  public BackendCommandTarget,
+                          public snex::ui::WorkbenchManager::WorkbenchChangeListener,
 						  public Timer,
 						  public ComponentWithKeyboard,
 						  public ModalBaseWindow,
 						  public ComponentWithBackendConnection,
 						  public DragAndDropContainer,
-						  public ComponentWithHelp::GlobalHandler
+						  public ComponentWithHelp::GlobalHandler,
+						  public PeriodicScreenshotter::Holder,
+						  public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
 
@@ -64,12 +73,38 @@ public:
 
 	bool isFullScreenMode() const;
 
+	File getKeyPressSettingFile() const override
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+	}
+
+	void initialiseAllKeyPresses() override;
+
 	void paint(Graphics& g) override
 	{
 		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 		//g.fillAll(Colour(0xFF333333));
 	}
+
+    void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+    {
+        if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
+        {
+            if(auto firstEditor = FloatingTileHelpers::findTileWithId<SnexEditorPanel>(getRootFloatingTile(), {}))
+                firstEditor->getParentShell()->ensureVisibility();
+        }
+    }
+
+	static void learnModeChanged(BackendRootWindow& brw, ScriptComponent* c);
+    
+
+
+    bool isRotated() const;
+    
+    bool toggleRotate();
+    
+	void setScriptProcessorForWorkspace(JavascriptProcessor* jsp);
 
 	void saveInterfaceData();
 
@@ -129,6 +164,8 @@ public:
 
 	void loadNewContainer(const File &f);
 	
+	void newHisePresetLoaded() override;
+
 	FloatingTile* getRootFloatingTile() override { return floatingRoot; }
 
 	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }
@@ -140,6 +177,8 @@ public:
 
 	int getCurrentWorkspace() const { return currentWorkspace; }
 
+    void gotoIfWorkspace(Processor* p);
+    
 	void showWorkspace(int workspace);
 
 	MainTopBar* getMainTopBar()
@@ -176,19 +215,29 @@ public:
 
 	MarkdownPreview* createOrShowDocWindow(const MarkdownLink& l);
 
+	PeriodicScreenshotter* getScreenshotter() override { return screenshotter; };
+
+	void paintOverChildren(Graphics& g) override;
+
+	
+
 private:
 
-	LookAndFeel_V3 globalLookAndFeel;
+	
+
+	bool learnMode = false;
+
+	GlobalHiseLookAndFeel globalLookAndFeel;
 
 	OwnedArray<FloatingTileDocumentWindow> popoutWindows;
 
-	int currentWorkspace = BackendCommandTarget::WorkspaceMain;
+	int currentWorkspace = BackendCommandTarget::WorkspaceScript;
 	
 	Array<Component::SafePointer<FloatingTile>> workspaces;
 
 	friend class BackendCommandTarget;
 
-	PopupLookAndFeel plaf;
+	ScopedPointer<PeriodicScreenshotter::PopupGlassLookAndFeel> plaf;
 
 	BackendProcessor *owner;
 
@@ -214,14 +263,16 @@ private:
 
 	bool resetOnClose = false;
 
+	ScopedPointer<PeriodicScreenshotter> screenshotter;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 };
 
 struct BackendPanelHelpers
 {
 	enum class Workspace
 	{
-		MainPanel = 0,
-		ScriptingWorkspace,
+		ScriptingWorkspace = 0,
 		SamplerWorkspace,
 		CustomWorkspace,
 		numWorkspaces
@@ -229,26 +280,6 @@ struct BackendPanelHelpers
 
 	template <class ContentType> static ContentType* toggleVisibilityForRightColumnPanel(FloatingTile* root, bool show)
 	{
-		auto rightColumn = getMainRightColumn(root);
-
-		FloatingTile::Iterator<ContentType> iter(rightColumn->getParentShell());
-
-		auto existingContent = iter.getNextPanel();
-
-		if (existingContent != nullptr)
-		{
-			bool visible = existingContent->getParentShell()->getLayoutData().isVisible();
-
-			if (visible != show)
-			{
-				existingContent->getParentShell()->getLayoutData().setVisible(show);
-				rightColumn->refreshLayout();
-				rightColumn->notifySiblingChange();
-			}
-
-			return existingContent;
-		}
-
 		return nullptr;
 	}
 
@@ -278,6 +309,8 @@ struct BackendPanelHelpers
 	};
 
 	static bool isMainWorkspaceActive(FloatingTile* root);
+
+	
 
 };
 

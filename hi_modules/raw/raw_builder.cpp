@@ -5,9 +5,34 @@ using namespace juce;
 
 namespace raw
 {
+	Processor* Builder::create(Processor* parent, const Identifier& processorType, int chainIndex)
+	{
+		Chain* c = nullptr;
 
+		if (chainIndex == -1)
+			c = dynamic_cast<Chain*>(parent);
+		else
+			c = dynamic_cast<Chain*>(parent->getChildProcessor(chainIndex));
 
-Processor* Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex)
+		if (c == nullptr)
+		{
+			jassertfalse;
+			return nullptr;
+		}
+
+		auto f = c->getFactoryType();
+		int index = f->getProcessorTypeIndex(processorType);
+
+		if (index != -1)
+		{
+			auto p = f->createProcessor(index, processorType.toString());
+			return addInternal<Processor>(p, c);
+		}
+
+		return nullptr;
+	}
+
+	Processor* Builder::createFromBase64State(const String& base64EncodedString, Processor* parent, int chainIndex)
 {
 	ignoreUnused(parent, chainIndex);
 

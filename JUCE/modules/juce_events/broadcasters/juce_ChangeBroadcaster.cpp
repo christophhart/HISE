@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -39,6 +39,7 @@ void ChangeBroadcaster::addChangeListener (ChangeListener* const listener)
     JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED
 
     changeListeners.add (listener);
+    anyListeners = true;
 }
 
 void ChangeBroadcaster::removeChangeListener (ChangeListener* const listener)
@@ -48,6 +49,7 @@ void ChangeBroadcaster::removeChangeListener (ChangeListener* const listener)
     JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED
 
     changeListeners.remove (listener);
+    anyListeners = changeListeners.size() > 0;
 }
 
 void ChangeBroadcaster::removeAllChangeListeners()
@@ -57,11 +59,12 @@ void ChangeBroadcaster::removeAllChangeListeners()
     JUCE_ASSERT_MESSAGE_MANAGER_IS_LOCKED
 
     changeListeners.clear();
+    anyListeners = false;
 }
 
 void ChangeBroadcaster::sendChangeMessage()
 {
-    if (changeListeners.size() > 0)
+    if (anyListeners)
         broadcastCallback.triggerAsyncUpdate();
 }
 

@@ -60,8 +60,8 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION 1
 #endif
 
-
-#define INCLUDE_TCC 0
+// Periodically dumps the value tree of a dsp network
+#define DUMP_SCRIPTNODE_VALUETREE 1
 
 /** This will determine the timeout duration (in milliseconds) after which a server call will be aborted. */
 #ifndef HISE_SCRIPT_SERVER_TIMEOUT
@@ -70,27 +70,19 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #define MAX_SCRIPT_HEIGHT 700
 
-#define INCLUDE_NATIVE_JIT 0
-
 #include "AppConfig.h"
+#include "../JUCE/modules/juce_osc/juce_osc.h"
 #include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../hi_snex/hi_snex.h"
-
-#if INCLUDE_NATIVE_JIT
-#include "../hi_native_jit/hi_native_jit_public.h"
-#endif
+#include "../hi_rlottie/hi_rlottie.h"
 
 
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/api/ScriptingBaseObjects.h"
-
-#if JUCE_IOS
-#elif INCLUDE_TCC
-#include "scripting/api/TccContext.h"
-#endif
+#include "scripting/api/FixLayoutObjects.h"
 
 //#include "scripting/api/DspFactory.h"
 #include "scripting/engine/DebugHelpers.h"
@@ -99,55 +91,42 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
-#include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/RangeHelpers.h"
+#include "scripting/scriptnode/api/DynamicProperty.h"
 #include "scripting/scriptnode/api/DspHelpers.h"
+#include "scripting/scriptnode/api/Properties.h"
 #include "scripting/scriptnode/api/NodeBase.h"
-
-
-
-
 #include "scripting/scriptnode/api/DspNetwork.h"
 
-
-#include "scripting/scriptnode/ui/NodeComponent.h"
-#include "scripting/scriptnode/api/Base.h"
-#include "scripting/scriptnode/api/Bypass.h"
-
-#if INCLUDE_BIG_SCRIPTNODE_OBJECT_COMPILATION
-#include "scripting/scriptnode/api/Containers.h"
-#include "scripting/scriptnode/api/Container_Chain.h"
-#include "scripting/scriptnode/api/Container_Split.h"
-#include "scripting/scriptnode/api/Container_Multi.h"
+#if USE_BACKEND
+#include "scripting/scriptnode/api/TestClasses.h"
 #endif
 
-#include "scripting/scriptnode/api/Processors.h"
-
+#include "scripting/scriptnode/ui/NodeComponent.h"
+#include "scripting/scriptnode/ui/PropertyEditor.h"
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
-#include "scripting/scriptnode/api/StaticNodeWrappers.h"
-
-
-
 #include "scripting/scriptnode/api/NodeProperty.h"
 
-#include "scripting/scriptnode/soul/soul_includes.h"
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexSource.h"
+#endif
+
 #include "scripting/scriptnode/nodes/JitNode.h"
-
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
-
-
+#include "scripting/scriptnode/ui/FeedbackNodeComponents.h"
 
 #include "scripting/engine/HiseJavascriptEngine.h"
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingApiObjects.h"
+#include "scripting/api/ScriptBroadcaster.h"
+#include "scripting/api/ScriptTableListModel.h"
+#include "scripting/api/ScriptingGraphics.h"
 #include "scripting/api/ScriptExpansion.h"
 #include "scripting/api/GlobalServer.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
 #include "scripting/api/ScriptComponentEditBroadcaster.h"
-
-
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
@@ -157,20 +136,37 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
 
+#include "scripting/scriptnode/dynamic_elements/DynamicParameterList.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicComplexData.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
+#include "scripting/scriptnode/api/StaticNodeWrappers.h"
+
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexShaper.h"
+#include "scripting/scriptnode/snex_nodes/SnexOscillator.h"
+
+#include "scripting/scriptnode/snex_nodes/SnexNode.h"
+#include "scripting/scriptnode/snex_nodes/SnexEnvelope.h"
+#include "scripting/scriptnode/snex_nodes/SnexDynamicExpression.h"
+#endif
+
+
+#include "scripting/scriptnode/snex_nodes/SnexTimer.h"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.h"
+
+#include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.h"
+#include "scripting/scriptnode/dynamic_elements/GlobalRoutingNodes.h"
+
 #include "scripting/scriptnode/nodes/AudioFileNodeBase.h"
 
 #if USE_BACKEND
-
 #include "scripting/components/ScriptingPanelTypes.h"
+
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"
 #include "scripting/components/ScriptingContentOverlay.h"
 #include "scripting/components/ScriptingEditor.h"
-
 #endif 
-
-
-
-
-

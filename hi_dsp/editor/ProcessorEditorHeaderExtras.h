@@ -45,13 +45,14 @@ class ProcessorEditorHeader;
 
 class HeaderButton : public Component,
 	public ButtonListener,
-	public SettableTooltipClient
+	public SettableTooltipClient,
+	public Learnable
 {
 public:
 
 	HeaderButton(const String &name, const unsigned char *path, size_t pathSize, ProcessorEditorHeader *parentHeader_);
 
-	void buttonClicked(Button *) override { refresh(); }
+	void buttonClicked(Button *) override;
 	bool getToggleState() const { return button->getToggleState(); };
 	void setToggleState(bool on, NotificationType notify = dontSendNotification) { button->setToggleState(on, notify); };
 
@@ -62,6 +63,16 @@ public:
 	ScopedPointer<ShapeButton> button;
 
 	ProcessorEditorHeader *parentHeader;
+};
+
+struct IntensitySlider : public Slider,
+	public Learnable
+{
+	IntensitySlider(const String& name) :
+		Slider(name)
+	{};
+
+	void mouseDrag(const MouseEvent& e);
 };
 
 class ChainIcon : public Component,

@@ -80,7 +80,8 @@ MainController::MainController() :
 	debugLogger(this),
 	globalAsyncModuleHandler(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
-	controlUndoManager(new UndoManager())
+	controlUndoManager(new UndoManager()),
+	xyzPool(new MultiChannelAudioBuffer::XYZPool())
 {
 	PresetHandler::setCurrentMainController(this);
 
@@ -155,28 +156,25 @@ void MainController::initProjectDocsWithURL(const String& projectDocURL)
 	getProjectDocHolder()->setProjectURL(URL(projectDocURL));
 }
 
+
 hise::SampleMapPool* MainController::getCurrentSampleMapPool()
 {
-#if ADD_LATER
 	if (FullInstrumentExpansion::isEnabled(this))
 	{
 		if (auto ce = getExpansionHandler().getCurrentExpansion())
 			return &ce->pool->getSampleMapPool();
 	}
-#endif
 
 	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 }
 
 const hise::SampleMapPool* MainController::getCurrentSampleMapPool() const
 {
-#if ADD_LATER
 	if (FullInstrumentExpansion::isEnabled(this))
 	{
 		if (auto ce = getExpansionHandler().getCurrentExpansion())
 			return &ce->pool->getSampleMapPool();
 	}
-#endif
 
 	return &getSampleManager().getProjectHandler().pool->getSampleMapPool();
 }
@@ -223,6 +221,7 @@ void MainController::clearPreset()
 {
 	Processor::Iterator<Processor> iter(getMainSynthChain(), false);
 
+    
 	while (auto p = iter.getNextProcessor())
 		p->cleanRebuildFlagForThisAndParents();
 
@@ -234,6 +233,11 @@ void MainController::clearPreset()
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
 		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
 		mc->getControlUndoManager()->clearUndoHistory();
+        mc->getLocationUndoManager()->clearUndoHistory();
+        
+		mc->setGlobalRoutingManager(nullptr);
+
+		BACKEND_ONLY(mc->getJavascriptThreadPool().getGlobalServer()->setInitialised());
 		mc->getMainSynthChain()->reset();
 		mc->globalVariableObject->clear();
 
@@ -245,7 +249,9 @@ void MainController::clearPreset()
 		mc->setCurrentScriptLookAndFeel(nullptr);
 		mc->clearIncludedFiles();
 		mc->changed = false;
-
+        
+        mc->prepareToPlay(mc->sampleRate, mc->numSamplesThisBlock);
+        
 		return SafeFunctionCall::OK;
 	};
 
@@ -318,9 +324,18 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			skipCompilingAtPresetLoad = true;
 			getSampleManager().setCurrentPreloadMessage("Building modules...");
 			synthChain->restoreFromValueTree(v);
+            
+            Processor::Iterator<GlobalModulator> gi(synthChain, false);
+            
+            while(auto m = gi.getNextProcessor())
+                m->connectIfPending();
+            
+            
 			skipCompilingAtPresetLoad = false;
 
 			getSampleManager().setCurrentPreloadMessage("Compiling scripts...");
+
+			getMacroManager().getMidiControlAutomationHandler()->setUnloadedData(v.getChildWithName("MidiAutomation"));
 
 			synthChain->compileAllScripts();
 
@@ -332,12 +347,9 @@ void MainController::loadPresetInternal(const ValueTree& v)
 				prepareToPlay(sampleRate, maxBufferSize.get());
 			}
 
-			ValueTree autoData = v.getChildWithName("MidiAutomation");
-
 			// We need to postpone this until after compilation in order to resolve the 
 			// attribute indexes for the CC mappings
-			if (autoData.isValid())
-				getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+			getMacroManager().getMidiControlAutomationHandler()->loadUnloadedData();
 
 			synthChain->loadMacrosFromValueTree(v);
 
@@ -484,6 +496,16 @@ void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
 }
 
+void MainController::sendToMidiOut(const HiseEvent& e)
+{
+	// Only send out artificial notes
+	jassert(e.isArtificial());
+
+	SimpleReadWriteLock::ScopedWriteLock sl(midiOutputLock);
+
+	outputMidiBuffer.addEvent(e);
+}
+
 bool MainController::refreshOversampling()
 {
 	auto requiredOversamplingFactor = (double)jlimit(1, 8, nextPowerOfTwo((int)(minimumSamplerate / getOriginalSamplerate())));
@@ -525,6 +547,29 @@ bool MainController::refreshOversampling()
 	}
 
 	return false;
+}
+
+
+
+void MainController::processMidiOutBuffer(MidiBuffer& mb, int numSamples)
+{
+	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(midiOutputLock))
+	{
+		if (!outputMidiBuffer.isEmpty())
+		{
+			HiseEventBuffer thisTime;
+			outputMidiBuffer.moveEventsBelow(thisTime, numSamples);
+
+			HiseEventBuffer::Iterator it(thisTime);
+
+			while (auto e = it.getNextEventPointer(true, false))
+			{
+				mb.addEvent(e->toMidiMesage(), e->getTimeStamp());
+			}
+
+			outputMidiBuffer.subtractFromTimeStamps(numSamples);
+		}
+	}
 }
 
 bool MainController::shouldUseSoftBypassRamps() const noexcept
@@ -604,32 +649,53 @@ void MainController::stopBufferToPlay()
 {
 	if (previewBufferIndex != -1)
 	{
+		bool sendToListeners = true;
 
 		{
 			LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+
+			previewFunction = {};
 
 			if (previewBufferIndex != -1 && !fadeOutPreviewBuffer)
 			{
 				fadeOutPreviewBufferGain = 1.0f;
 				fadeOutPreviewBuffer = true;
+				sendToListeners = false;
 			}
 		}
 
-		for (auto pl : previewListeners)
+		if (sendToListeners)
 		{
-			pl->previewStateChanged(false, previewBuffer);
+			for (auto pl : previewListeners)
+			{
+				pl->previewStateChanged(false, previewBuffer);
+			}
 		}
 	}
 }
 
-void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
+void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& pf)
 {
+	if (buffer.getNumSamples() > 400000 && getKillStateHandler().getCurrentThread() != KillStateHandler::SampleLoadingThread)
 	{
+		AudioSampleBuffer copy;
+		copy.makeCopyOf(buffer);
 
+		killAndCallOnLoadingThread([copy, pf](Processor* p)
+		{
+			p->getMainController()->setBufferToPlay(copy, pf);
+			return SafeFunctionCall::OK;
+		});
+
+		return;
+	}
+
+	{
 		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 		previewBufferIndex = 0;
 		previewBuffer = buffer;
+		previewFunction = pf;
 		fadeOutPreviewBuffer = false;
 		fadeOutPreviewBufferGain = 1.0f;
 	}
@@ -638,6 +704,11 @@ void MainController::setBufferToPlay(const AudioSampleBuffer& buffer)
 	{
 		pl->previewStateChanged(true, previewBuffer);
 	}
+}
+
+int MainController::getPreviewBufferPosition() const
+{
+	return previewBufferIndex;
 }
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
@@ -686,11 +757,7 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 		if (!r.wasOk())
 		{
-#if USE_BACKEND
-			debugToConsole(getMainSynthChain(), r.getErrorMessage());
-#else
-			sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, r.getErrorMessage());
-#endif
+			sendOverlayMessage(OverlayMessageBroadcaster::CustomErrorMessage, r.getErrorMessage());
 		}
 	}
 
@@ -776,19 +843,24 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
-
+	masterEventBuffer.alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesThisBlock);
+	
 	if (maxEventTimestamp != 0)
 	{
 		int maxAligned = maxEventTimestamp - maxEventTimestamp % HISE_EVENT_RASTER;
 
 		for (auto& e : masterEventBuffer)
-			e.setTimeStamp(jmin(maxAligned, e.getTimeStamp()));
+		{
+			if (e.getTimeStamp() > maxAligned)
+				e.setTimeStamp(maxAligned);
+		}
 	}
 
 	handleSuspendedNoteOffs();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
+	checkAllNotesOff();
 	eventIdHandler.handleEventIds();
 
 	getDebugLogger().logEvents(masterEventBuffer);
@@ -801,11 +873,29 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
+	MasterClock::GridInfo gridInfo;
 
-	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
+	bool useTime = false;
+
+	if (getMasterClock().allowExternalSync() && thisAsProcessor->getPlayHead() != nullptr)
 	{
-		handleTransportCallbacks(newTime);
+		useTime = thisAsProcessor->getPlayHead()->getCurrentPosition(newTime);
+	}
 
+	if (getMasterClock().shouldCreateInternalInfo(newTime))
+	{
+		gridInfo = getMasterClock().processAndCheckGrid(buffer.getNumSamples(), newTime);
+		newTime = getMasterClock().createInternalPlayHead();
+		useTime = true;
+	}
+	else 
+	{
+		gridInfo = getMasterClock().updateFromExternalPlayHead(newTime, buffer.getNumSamples());
+	}
+
+	if (useTime)
+	{
+		handleTransportCallbacks(newTime, gridInfo);
 		lastPosInfo = newTime;
 	}
 	else
@@ -839,15 +929,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	
 #endif
 
+	
+
 #if ENABLE_CPU_MEASUREMENT
 	startCpuBenchmark(numSamplesThisBlock);
 #endif
 
 #if !FRONTEND_IS_PLUGIN
 
+#if !FORCE_INPUT_CHANNELS
 	buffer.clear();
+#endif
 
-	checkAllNotesOff();
+	
 
 #endif
 
@@ -932,6 +1026,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		midiMessages.addEvent(m, e->getTimeStamp());
 	}
 
+	processMidiOutBuffer(midiMessages, numSamplesThisBlock);
+
 #else
 
 
@@ -943,7 +1039,15 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	jassert(thisMultiChannelBuffer.getNumSamples() <= multiChannelBuffer.getNumSamples());
 
+#if FORCE_INPUT_CHANNELS
+	jassert(thisMultiChannelBuffer.getNumSamples() >= buffer.getNumSamples());
+	jassert(thisMultiChannelBuffer.getNumChannels() >= buffer.getNumChannels());
+	thisMultiChannelBuffer.makeCopyOf(buffer, true);
+#else
 	thisMultiChannelBuffer.clear();
+#endif
+
+	
 
 	if (previewBufferIndex != -1)
 	{
@@ -951,8 +1055,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		if (numToPlay > 0)
 		{
-			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(0, 0), previewBuffer.getReadPointer(0, previewBufferIndex), numToPlay);
-			FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(1, 0), previewBuffer.getReadPointer(1, previewBufferIndex), numToPlay);
+            for(int i = 0; i < multiChannelBuffer.getNumChannels(); i++)
+            {
+                if(isPositiveAndBelow(i, previewBuffer.getNumChannels()))
+                {
+                    FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(i, 0), previewBuffer.getReadPointer(i, previewBufferIndex), numToPlay);
+                }
+            }
+            
+			if (previewFunction)
+				previewFunction(previewBufferIndex);
 
 			previewBufferIndex += numToPlay;
 		}
@@ -960,7 +1072,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		if (fadeOutPreviewBuffer)
 		{
 			float thisGain = fadeOutPreviewBufferGain;
-			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.93f, 0.0f);
+			fadeOutPreviewBufferGain = jmax<float>(thisGain * 0.75f, 0.0f);
 
 			multiChannelBuffer.applyGainRamp(0, numSamplesThisBlock, thisGain, fadeOutPreviewBufferGain);
 
@@ -968,6 +1080,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			{
 				previewBuffer = AudioSampleBuffer();
 				previewBufferIndex = -1;
+                
+                for(auto pl: previewListeners)
+                {
+                    if(pl != nullptr)
+                        pl->previewStateChanged(false, previewBuffer);
+                }
 			}
 		}
 		
@@ -975,6 +1093,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		{
 			previewBuffer = AudioSampleBuffer();
 			previewBufferIndex = -1;
+            
+            for(auto pl: previewListeners)
+            {
+                if(pl != nullptr)
+                    pl->previewStateChanged(false, previewBuffer);
+            }
 		}
 	}
 
@@ -990,6 +1114,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		
 		thisMultiChannelBuffer.setDataToReferTo(d, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 	}
+
+
 
 
 	synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
@@ -1059,6 +1185,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !HISE_MIDIFX_PLUGIN
 	midiMessages.clear();
+
+	processMidiOutBuffer(midiMessages, numSamplesThisBlock);
 #endif
 
 }
@@ -1072,11 +1200,7 @@ void MainController::skin(Component &c)
 {
 	c.setLookAndFeel(mainLookAndFeel);
     
-	c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
-    c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
-    c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
-    c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
-	c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	GlobalHiseLookAndFeel::setDefaultColours(c);
 	
 
 #if 0
@@ -1084,18 +1208,6 @@ void MainController::skin(Component &c)
 		dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
 #endif
 };
-
-
-
-void MainController::setCurrentViewChanged()
-{
-#if USE_BACKEND
-	if(getMainSynthChain() != nullptr)
-	{
-		getMainSynthChain()->setCurrentViewChanged();
-	}
-#endif
-}
 
 
 void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
@@ -1135,6 +1247,9 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
+	auto srBefore = sampleRate;
+	auto bufferBefore = maxBufferSize.get();
+
     LOG_START("Preparing playback");
     
 	maxBufferSize = samplesPerBlock * currentOversampleFactor;
@@ -1150,7 +1265,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 	if (maxBufferSize.get() % HISE_EVENT_RASTER != 0)
 	{
-		sendOverlayMessage(DeactiveOverlay::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
+		sendOverlayMessage(State::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
 	}
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
@@ -1194,6 +1309,18 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 	if (oversampler != nullptr)
 		oversampler->initProcessing(getOriginalBufferSize());
+
+	if (sampleRate != srBefore || maxBufferSize.get() != bufferBefore)
+	{
+		String s;
+		s << "New Buffer Specifications: ";
+		s << "Samplerate: " << sampleRate;
+		s << ", Buffersize: " << String(maxBufferSize.get());
+		getConsoleHandler().writeToConsole(s, 0, getMainSynthChain(), Colours::white.withAlpha(0.4f));
+	}
+
+	getMasterClock().setSamplerate(sampleRate);
+
 }
 
 void MainController::setBpm(double newTempo)
@@ -1202,6 +1329,8 @@ void MainController::setBpm(double newTempo)
     
 	if(bpm != newTempo)
 	{
+		getMasterClock().setBpm(newTempo);
+
 		bpm = newTempo;
 
 		for (auto& t : tempoListeners)
@@ -1244,19 +1373,21 @@ bool MainController::isSyncedToHost() const
 #endif
 }
 
-void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo)
+void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi)
 {
-	if (lastPosInfo.isPlaying != newInfo.isPlaying)
+	if (lastPosInfo.isPlaying != newInfo.isPlaying || (gi.change && gi.firstGridInPlayback))
 	{
 		for (auto tl : tempoListeners)
-			tl->onTransportChange(newInfo.isPlaying);
+			if(tl != nullptr)
+				tl->onTransportChange(newInfo.isPlaying, newInfo.ppqPosition);
 	}
 
 	if (lastPosInfo.timeSigNumerator != newInfo.timeSigNumerator ||
 		lastPosInfo.timeSigDenominator != newInfo.timeSigDenominator)
 	{
 		for (auto tl : tempoListeners)
-			tl->onSignatureChange(newInfo.timeSigNumerator, newInfo.timeSigDenominator);
+			if(tl != nullptr)
+				tl->onSignatureChange(newInfo.timeSigNumerator, newInfo.timeSigDenominator);
 	}
 
 	if (!pulseListener.isEmpty())
@@ -1280,7 +1411,15 @@ void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositi
 			}
 
 			for (auto tl : pulseListener)
-				tl->onBeatChange(beats, isBar);
+				if(tl != nullptr)
+					tl->onBeatChange(beats, isBar);
+		}
+
+		if (gi.change)
+		{
+			for (auto tl : pulseListener)
+				if(tl != nullptr)
+					tl->onGridChange(gi.gridIndex, gi.timestamp, gi.firstGridInPlayback);
 		}
 	}
 }
@@ -1294,7 +1433,7 @@ void MainController::addTempoListener(TempoListener *t)
 	
 	t->tempoChanged(getBpm());
 	t->onSignatureChange(lastPosInfo.timeSigNumerator, lastPosInfo.timeSigDenominator);
-	t->onTransportChange(lastPosInfo.isPlaying);
+	t->onTransportChange(lastPosInfo.isPlaying, lastPosInfo.ppqPosition);
 }
 
 void MainController::removeTempoListener(TempoListener *t)
@@ -1538,29 +1677,31 @@ bool MainController::isInitialised() const noexcept
 
 void MainController::insertStringAtLastActiveEditor(const String &string, bool selectArguments)
 {
+#if USE_BACKEND
 	if (lastActiveEditor.getComponent() != nullptr)
 	{
-		lastActiveEditor->getDocument().deleteSection(lastActiveEditor->getSelectionStart(), lastActiveEditor->getSelectionEnd());
-        lastActiveEditor->moveCaretTo(CodeDocument::Position(lastActiveEditor->getDocument(), lastCharacterPositionOfSelectedEditor), false);
+		auto ed = dynamic_cast<PopupIncludeEditor::EditorType*>(lastActiveEditor.getComponent());
 
-		lastActiveEditor->insertTextAtCaret(string);
+#if !HISE_USE_NEW_CODE_EDITOR
 
-
+		ed->getDocument().deleteSection(ed->getSelectionStart(), ed->getSelectionEnd());
+        ed->moveCaretTo(CodeDocument::Position(ed->getDocument(), lastCharacterPositionOfSelectedEditor), false);
+		ed->insertTextAtCaret(string);
 
 		if (selectArguments)
 		{
-			lastActiveEditor->moveCaretLeft(false, false);
+			ed->moveCaretLeft(false, false);
 
-			while (!lastActiveEditor->getTextInRange(lastActiveEditor->getHighlightedRegion()).contains("("))
-			{
-				lastActiveEditor->moveCaretLeft(false, true);
-			}
+			while (!ed->getTextInRange(ed->getHighlightedRegion()).contains("("))
+				ed->moveCaretLeft(false, true);
 
-			lastActiveEditor->moveCaretRight(false, true);
+			ed->moveCaretRight(false, true);
 		}
 
-		lastActiveEditor->grabKeyboardFocus();
+#endif
+		ed->grabKeyboardFocus();
 	}
+#endif
 }
 
 bool MainController::checkAndResetMidiInputFlag()
@@ -1653,6 +1794,11 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
 }
 
+double MainController::SampleManager::getPreloadProgressConst() const
+{
+	return internalPreloadJob.progress;
+}
+
 void MainController::SampleManager::handleNonRealtimeState()
 {
 	if (isNonRealtime() != internalsSetToNonRealtime)
@@ -1669,5 +1815,147 @@ void MainController::SampleManager::handleNonRealtimeState()
 		internalsSetToNonRealtime = isNonRealtime();
 	}
 }
+
+
+
+
+hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(int index) const
+{
+	if (auto p = customAutomationData[index])
+	{
+		jassert(p->index == index);
+		return p;
+	}
+
+	return nullptr;
+}
+
+void removePropertyRecursive(NamedValueSet& removedProperties, String currentPath, ValueTree v, const Identifier& id)
+{
+	if (!currentPath.isEmpty())
+		currentPath << ":";
+
+	currentPath << v.getType();
+
+	if (v.hasProperty(id))
+	{
+		auto value = v.getProperty(id);
+		v.removeProperty(id, nullptr);
+		removedProperties.set(Identifier(currentPath + ":" + id.toString()), value);
+	}
+	
+	for (auto c : v)
+		removePropertyRecursive(removedProperties, currentPath, c, id);
+}
+
+MainController::UserPresetHandler::StoredModuleData::StoredModuleData(var moduleId, Processor* pToRestore) :
+	p(pToRestore)
+{
+	if (moduleId.isString())
+		id = moduleId.toString();
+	else
+	{
+		id = moduleId["ID"].toString();
+
+		auto rp = moduleId["RemovedProperties"];
+		auto rc = moduleId["RemovedChildElements"];
+
+		if (rp.isArray() || rc.isArray())
+		{
+			auto v = p->exportAsValueTree();
+
+			if (rp.isArray())
+			{
+				for (auto propertyToRemove : *rp.getArray())
+				{
+					auto pid_ = propertyToRemove.toString();
+					if (pid_.isNotEmpty())
+					{
+						Identifier pid(pid_);
+						removePropertyRecursive(removedProperties, {}, v, pid);
+					}
+				}
+			}
+			
+			if (rc.isArray())
+			{
+				for (auto childToRemove : *rc.getArray())
+				{
+					auto pid_ = childToRemove.toString();
+
+					if (pid_.isNotEmpty())
+					{
+						Identifier pid(pid_);
+						removedChildElements.add(v.getChildWithName(pid).createCopy());
+					}
+				}
+			}
+
+			removedProperties.remove(Identifier("Processor:ID"));
+		}
+	}
+}
+
+void restorePropertiesRecursive(ValueTree v, StringArray path, const var& value, bool restore)
+{
+	if (path.size() == 2)
+	{
+		if (Identifier(path[0]) == v.getType())
+		{
+			auto id = Identifier(path[1]);
+
+			if (restore)
+				v.setProperty(id, value, nullptr);
+			else
+				v.removeProperty(id, nullptr);
+		}
+	}
+	else
+	{
+		path.remove(0);
+
+		for (auto c : v)
+			restorePropertiesRecursive(c, path, value, restore);
+	}
+}
+
+void MainController::UserPresetHandler::StoredModuleData::stripValueTree(ValueTree& v)
+{
+	for (const auto& rp : removedProperties)
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+		
+		restorePropertiesRecursive(v, path, {}, false);
+	}
+		
+
+	for (const auto& rc : removedChildElements)
+	{
+		auto cToRemove = v.getChildWithName(rc.getType());
+
+		if (cToRemove.isValid())
+			v.removeChild(cToRemove, nullptr);
+	}
+}
+
+
+
+void MainController::UserPresetHandler::StoredModuleData::restoreValueTree(ValueTree& v)
+{
+	stripValueTree(v);
+
+	for (const auto& rp : removedProperties)
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+		auto value = rp.value;
+		restorePropertiesRecursive(v, path, value, true);
+	}
+		
+
+	for (const auto& rc : removedChildElements)
+		v.addChild(rc.createCopy(), -1, nullptr);
+}
+
+
 
 } // namespace hise

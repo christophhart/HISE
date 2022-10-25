@@ -71,7 +71,7 @@ public:
 			isSelected(false),
 			includedInSearch(true),
 			usePopupMenu(false),
-			searchKeywords(searchString)
+			searchKeywords(searchString.toLowerCase())
 		{}
 
 		~Item()
@@ -106,6 +106,17 @@ public:
 
 		virtual void popupCallback(int /*menuIndex*/) {};
 
+        void paintItemBackground(Graphics& g, Rectangle<float> area)
+        {
+            g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
+                JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)area.getHeight(), false));
+
+            g.fillRoundedRectangle(area, 2.0f);
+
+            g.setColour(Colours::white.withAlpha(0.1f));
+            g.drawRoundedRectangle(area.reduced(1.0f), 2.0f, 1.0f);
+        }
+        
 		void setUsePopupMenu(bool shouldUsePopupMenu) noexcept{ usePopupMenu = shouldUsePopupMenu; }
 
 		/** Overwrite this and return the height of the popup component. If you return 0 (default behaviour), the functionality is deactivated. */
@@ -202,6 +213,11 @@ public:
 			return items.size();
 		}
 
+        SearchableListComponent::Item* getItem(int index)
+        {
+            return items[index];
+        }
+        
 	protected:
 
 		OwnedArray<SearchableListComponent::Item> items;
@@ -265,6 +281,8 @@ public:
 	/** Call this whenever an item is added / deleted. */
 	void rebuildModuleList(bool forceRebuild=false);
 
+    virtual void rebuilt() {};
+    
 	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
 
 	BackendRootWindow* getRootWindow() { return rootWindow; }
@@ -309,6 +327,8 @@ private:
 	ScopedPointer<Viewport> viewport;
 	ScopedPointer<TextEditor> fuzzySearchBox;
 
+    ScrollbarFader sf;
+    
 	StringArray moduleNameList;
 	
 	Array<int> displayedIndexes;

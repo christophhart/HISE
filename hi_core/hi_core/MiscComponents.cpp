@@ -42,15 +42,26 @@ constrainer(new RectangleConstrainer())
 
 
 
-StringArray MouseCallbackComponent::getCallbackLevels()
+StringArray MouseCallbackComponent::getCallbackLevels(bool getFileCallbacks)
 {
 	StringArray sa;
-	sa.add("No Callbacks");
-	sa.add("Context Menu");
-	sa.add("Clicks Only");
-	sa.add("Clicks & Hover");
-	sa.add("Clicks, Hover & Dragging");
-	sa.add("All Callbacks");
+
+	if (getFileCallbacks)
+	{
+		sa.add("No Callbacks");
+		sa.add("Drop Only");
+		sa.add("Drop & Hover");
+		sa.add("All Callbacks");
+	}
+	else
+	{
+		sa.add("No Callbacks");
+		sa.add("Context Menu");
+		sa.add("Clicks Only");
+		sa.add("Clicks & Hover");
+		sa.add("Clicks, Hover & Dragging");
+		sa.add("All Callbacks");
+	}
 
 	return sa;
 }
@@ -87,6 +98,127 @@ void MouseCallbackComponent::setPopupMenuItems(const StringArray &newItemList)
 {
 	itemList.clear();
 	itemList.addArray(newItemList);
+}
+
+juce::PopupMenu MouseCallbackComponent::parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes, LookAndFeel* laf)
+{
+	PopupMenu m;
+
+	
+	m.setLookAndFeel(laf);
+
+	std::vector<MouseCallbackComponent::SubMenuList> subMenus;
+
+	for (int i = 0; i < itemList.size(); i++)
+	{
+		if (itemList[i].contains("::"))
+		{
+			String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
+			String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
+
+			if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
+
+			bool subMenuExists = false;
+
+			for (size_t j = 0; j < subMenus.size(); j++)
+			{
+				if (std::get<0>(subMenus[j]) == subMenuName)
+				{
+					std::get<1>(subMenus[j]).add(subMenuItem);
+					subMenuExists = true;
+					break;
+				}
+			}
+
+			if (!subMenuExists)
+			{
+				StringArray sa;
+				sa.add(subMenuItem);
+				MouseCallbackComponent::SubMenuList item(subMenuName, sa);
+				subMenus.push_back(item);
+			}
+		}
+	}
+	if (subMenus.size() != 0)
+	{
+		int menuIndex = 1;
+
+		for (size_t i = 0; i < subMenus.size(); i++)
+		{
+			PopupMenu sub;
+
+			StringArray sa = std::get<1>(subMenus[i]);
+
+			bool subIsTicked = false;
+
+			for (int j = 0; j < sa.size(); j++)
+			{
+				if (sa[j].startsWith("**") && sa[j].endsWith("**"))
+				{
+					sub.addSectionHeader(sa[j].replace("**", ""));
+					continue;
+				}
+
+				if (sa[j] == "___")
+				{
+					sub.addSeparator();
+					continue;
+				}
+
+				if (sa[j] == "%SKIP%")
+				{
+					menuIndex++;
+					continue;
+				}
+
+				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
+				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
+
+				const bool isTicked = activeIndexes.contains((menuIndex - 1));
+
+				if (isTicked) subIsTicked = true;
+
+				sub.addItem(menuIndex, itemText, !isDeactivated, isTicked);
+
+
+				menuIndex++;
+			}
+
+			m.addSubMenu(std::get<0>(subMenus[i]), sub, true, nullptr, subIsTicked);
+		}
+	}
+	else
+	{
+		int menuIndex = 0;
+
+		for (int i = 0; i < itemList.size(); i++)
+		{
+			if (itemList[i] == "%SKIP%")
+			{
+				menuIndex++;
+				continue;
+			}
+
+			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
+			{
+				m.addSectionHeader(itemList[i].replace("**", ""));
+				continue;
+			}
+
+			if (itemList[i] == "___")
+			{
+				m.addSeparator();
+				continue;
+			}
+
+			const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
+			const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
+			m.addItem(menuIndex + 1, itemText, !isDeactivated, activeIndexes.contains(menuIndex));
+			menuIndex++;
+		}
+	}
+
+	return m;
 }
 
 void MouseCallbackComponent::setUseRightClickForPopup(bool shouldUseRightClickForPopup)
@@ -130,6 +262,26 @@ void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
     if (callbackLevel < CallbackLevel::ClicksOnly) return;
     
     sendMessage(event, Action::DoubleClicked);
+}
+
+void MouseCallbackComponent::setEnableFileDrop(const String& newCallbackLevel, const String& allowedWildcards)
+{
+	if (newCallbackLevel.isEmpty() || allowedWildcards.isEmpty())
+	{
+		fileCallbackLevel = FileCallbackLevel::NoCallbacks;
+		fileDropExtensions.clear();
+		return;
+	}
+
+	fileCallbackLevel = (FileCallbackLevel)getCallbackLevels(true).indexOf(newCallbackLevel);
+
+	if (fileCallbackLevel > FileCallbackLevel::NoCallbacks)
+	{
+		fileDropExtensions.clear();
+		fileDropExtensions.addTokens(allowedWildcards, ";,", "\"'");
+		fileDropExtensions.trim();
+		fileDropExtensions.removeEmptyStrings();
+	}
 }
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
@@ -242,132 +394,22 @@ void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
 	}
 }
 
+
+
 void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 {
-	PopupMenu m;
-
 	auto& plaf = getProcessor()->getMainController()->getGlobalLookAndFeel();
-	m.setLookAndFeel(&plaf);
 
-	std::vector<SubMenuList> subMenus;
-
+	auto m = parseFromStringArray(itemList, { activePopupId }, &plaf);
+	
 	ScopedValueSetter<bool>(currentlyShowingPopup, true, false);
-
-	for (int i = 0; i < itemList.size(); i++)
-	{
-		if (itemList[i].contains("::"))
-		{
-			String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
-			String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
-
-			if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
-
-			bool subMenuExists = false;
-
-			for (size_t j = 0; j < subMenus.size(); j++)
-			{
-				if (std::get<0>(subMenus[j]) == subMenuName)
-				{
-					std::get<1>(subMenus[j]).add(subMenuItem);
-					subMenuExists = true;
-					break;
-				}
-			}
-
-			if (!subMenuExists)
-			{
-				StringArray sa;
-				sa.add(subMenuItem);
-				SubMenuList item(subMenuName, sa);
-				subMenus.push_back(item);
-			}
-		}
-	}
-	if (subMenus.size() != 0)
-	{
-		int menuIndex = 1;
-
-		for (size_t i = 0; i < subMenus.size(); i++)
-		{
-			PopupMenu sub;
-
-			StringArray sa = std::get<1>(subMenus[i]);
-
-			bool subIsTicked = false;
-
-			for (int j = 0; j < sa.size(); j++)
-			{
-				if (sa[j].startsWith("**") && sa[j].endsWith("**"))
-				{
-					sub.addSectionHeader(sa[j].replace("**", ""));
-					continue;
-				}
-
-				if (sa[j] == "___")
-				{
-					sub.addSeparator();
-					continue;
-				}
-
-				if (sa[j] == "%SKIP%")
-				{
-					menuIndex++;
-					continue;
-				}
-
-				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
-				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
-
-				const bool isTicked = (menuIndex - 1) == activePopupId;
-
-				if (isTicked) subIsTicked = true;
-
-				sub.addItem(menuIndex, itemText, !isDeactivated, isTicked);
-
-
-				menuIndex++;
-			}
-
-			m.addSubMenu(std::get<0>(subMenus[i]), sub, true, nullptr, subIsTicked);
-		}
-	}
-	else
-	{
-		int menuIndex = 0;
-
-		for (int i = 0; i < itemList.size(); i++)
-		{
-			if (itemList[i] == "%SKIP%")
-			{
-				menuIndex++;
-				continue;
-			}
-
-			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
-			{
-				m.addSectionHeader(itemList[i].replace("**", ""));
-				continue;
-			}
-
-			if (itemList[i] == "___")
-			{
-				m.addSeparator();
-				continue;
-			}
-
-			const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
-			const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
-			m.addItem(menuIndex + 1, itemText, !isDeactivated, (menuIndex) == activePopupId);
-			menuIndex++;
-		}
-	}
-
 
 	int result = 0;
 
 	if (popupShouldBeAligned)
 	{
-		result = m.showAt(this, 0, getWidth());
+		auto gm = dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController());
+		result = m.showAt(this, 0, getWidth() * gm->getGlobalScaleFactor());
 	}
 	else
 	{
@@ -376,7 +418,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 	String itemName = result != 0 ? itemList[result - 1] : "";
 
-	DynamicObject::Ptr obj = new DynamicObject();
+	auto obj = new DynamicObject();
 
 	static const Identifier r("result");
 	static const Identifier itemText("itemText");
@@ -387,6 +429,48 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 	obj->setProperty(itemText, itemName);
 
 	sendToListeners(var(obj));
+}
+
+bool MouseCallbackComponent::isInterestedInFileDrag(const StringArray& files)
+{
+	if (fileCallbackLevel == FileCallbackLevel::NoCallbacks)
+		return false;
+	
+	if (fileDropExtensions.isEmpty())
+		return false;
+
+	if (files.size() > 1)
+		return false;
+
+	File f(files[0]);
+
+	for (auto& ex : fileDropExtensions)
+	{
+		if (files[0].matchesWildcard(ex, true))
+			return true;
+	}
+
+	return false;
+}
+
+void MouseCallbackComponent::fileDragEnter(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileEnter, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragMove(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileMove, files[0], Point<int>(x, y));
+}
+
+void MouseCallbackComponent::fileDragExit(const StringArray& files)
+{
+	sendFileMessage(Action::FileExit, files[0], Point<int>());
+}
+
+void MouseCallbackComponent::filesDropped(const StringArray& files, int x, int y)
+{
+	sendFileMessage(Action::FileDrop, files[0], Point<int>(x, y));
 }
 
 void MouseCallbackComponent::setAllowCallback(const String &newCallbackLevel) noexcept
@@ -452,16 +536,56 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 	sendMessage(event, Action::MouseUp);
 }
 
-void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
+void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<int> pos)
 {
-	if (callbackLevel == CallbackLevel::NoCallbacks) return;
+	FileCallbackLevel requiredLevel = FileCallbackLevel::NoCallbacks;
 
-	DynamicObject::Ptr e = new DynamicObject();
+	switch (a)
+	{
+	case Action::FileDrop: requiredLevel = FileCallbackLevel::DropOnly; break;
+	case Action::FileEnter:
+	case Action::FileExit: requiredLevel = FileCallbackLevel::DropHover; break;
+	case Action::FileMove: requiredLevel = FileCallbackLevel::AllCallbacks; break;
+    default: break;
+	}
+
+	if (fileCallbackLevel < requiredLevel)
+		return;
+
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier hover("hover");
+	static const Identifier drop("drop");
+	static const Identifier file("fileName");
+
+	auto e = new DynamicObject();
+	var fileInformation(e);
+
+	e->setProperty(x, pos.getX());
+	e->setProperty(y, pos.getY());
+	e->setProperty(hover, a != Action::FileExit);
+	e->setProperty(drop, a == Action::FileDrop);
+	e->setProperty(file, f);
+
+	
+
+	for(auto l: listenerList)
+	{
+		l->fileDropCallback(fileInformation);
+	}
+}
+
+
+
+juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
+{
+	auto e = new DynamicObject();
+	var clickInformation(e);
 
 	static const Identifier x("x");
 	static const Identifier y("y");
 	static const Identifier clicked("clicked");
-    static const Identifier doubleClick("doubleClick");
+	static const Identifier doubleClick("doubleClick");
 	static const Identifier rightClick("rightClick");
 	static const Identifier drag("drag");
 	static const Identifier dragX("dragX");
@@ -471,26 +595,26 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
 	static const Identifier mouseUp("mouseUp");
-    static const Identifier shiftDown("shiftDown");
-    static const Identifier cmdDown("cmdDown");
-    static const Identifier altDown("altDown");
-    static const Identifier ctrlDown("ctrlDown");
-    
+	static const Identifier shiftDown("shiftDown");
+	static const Identifier cmdDown("cmdDown");
+	static const Identifier altDown("altDown");
+	static const Identifier ctrlDown("ctrlDown");
+
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
 		e->setProperty(clicked, action == Action::Clicked);
-        e->setProperty(doubleClick, action == Action::DoubleClicked);
+		e->setProperty(doubleClick, action == Action::DoubleClicked);
 		e->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
-											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
+			(action == Action::MouseUp && event.mods.isRightButtonDown()));
 		e->setProperty(mouseUp, action == Action::MouseUp);
 		e->setProperty(mouseDownX, event.getMouseDownX());
 		e->setProperty(mouseDownY, event.getMouseDownY());
 		e->setProperty(x, event.getPosition().getX());
 		e->setProperty(y, event.getPosition().getY());
-        e->setProperty(shiftDown, event.mods.isShiftDown());
-        e->setProperty(cmdDown, event.mods.isCommandDown());
-        e->setProperty(altDown, event.mods.isAltDown());
-        e->setProperty(ctrlDown, event.mods.isCtrlDown());
+		e->setProperty(shiftDown, event.mods.isShiftDown());
+		e->setProperty(cmdDown, event.mods.isCommandDown());
+		e->setProperty(altDown, event.mods.isAltDown());
+		e->setProperty(ctrlDown, event.mods.isCtrlDown());
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
@@ -500,20 +624,24 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 
 	if (callbackLevel >= CallbackLevel::Drag)
 	{
-		const bool isIn = getLocalBounds().contains(event.position.toInt());
+		const bool isIn = c->getLocalBounds().contains(event.position.toInt());
 
-		e->setProperty(insideDrag, isIn ? 1: 0);
+		e->setProperty(insideDrag, isIn ? 1 : 0);
 		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
 
-	var clickInformation(e);
-
-	sendToListeners(clickInformation);
+	return clickInformation;
 }
 
+void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, EnterState state)
+{
+	if (callbackLevel == CallbackLevel::NoCallbacks) 
+		return;
 
+	sendToListeners(getMouseCallbackObject(this, e, callbackLevel, action, state));
+}
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
 {
@@ -536,6 +664,8 @@ c2(Colours::white),
 borderRadius(0.0f),
 borderSize(1.0f)
 {
+    PeriodicScreenshotter::disableForScreenshot(this);
+    
 	addAndMakeVisible(closeButton);
 	
 	drawHandler->addDrawActionListener(this);
@@ -589,6 +719,14 @@ borderSize(1.0f)
 	closeButton.setImages(false, true, true, img, 1.0f, Colour(0),
 		img, 1.0f, Colours::white.withAlpha(0.05f),
 		img, 1.0f, Colours::white.withAlpha(0.1f));
+
+	WeakReference<BorderPanel> safeThis(this);
+
+	MessageManager::callAsync([safeThis]()
+	{
+		if (safeThis != nullptr)
+			safeThis.get()->registerToTopLevelComponent();
+	});
 }
 
 BorderPanel::~BorderPanel()
@@ -616,10 +754,37 @@ void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* )
 {
 }
 
+struct GraphicHelpers
+{
+	static void quickDraw(Image& dst, const Image& src)
+	{
+		jassert(dst.getFormat() == src.getFormat());
+		jassert(dst.getBounds() == src.getBounds());
+
+		juce::Image::BitmapData srcData(src, juce::Image::BitmapData::readOnly);
+		juce::Image::BitmapData dstData(dst, juce::Image::BitmapData::writeOnly);
+
+		for (int y = 0; y < src.getHeight(); y++)
+		{
+			auto s = srcData.getLinePointer(y);
+			auto d = dstData.getLinePointer(y);
+
+			auto w = src.getWidth() * 4;
+
+			for (int x = 0; x < w; x++)
+				d[x] = jmin(255, s[x] + d[x]);
+		}
+	}
+};
+
 void BorderPanel::paint(Graphics &g)
 {
-	if (recursion)
-		return;
+	
+
+
+	registerToTopLevelComponent();
+
+	
 
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
@@ -638,45 +803,13 @@ void BorderPanel::paint(Graphics &g)
 
 		DrawActions::Handler::Iterator it(drawHandler.get());
 
-		if (it.wantsCachedImage())
-		{
-			while (auto action = it.getNextAction())
-			{
-				if (action->wantsCachedImage())
-				{
-					Image cachedImg;
-
-					if (getParentComponent() != nullptr && action->wantsToDrawOnParent())
-					{
-						ScopedValueSetter<bool> sv(recursion, true);
-						cachedImg = getParentComponent()->createComponentSnapshot(getBoundsInParent());
-					}
-					else
-					{
-						cachedImg = Image(Image::ARGB, getWidth(), getHeight(), true);
-					}
-
-					Graphics g2(cachedImg);
-					action->setCachedImage(cachedImg);
-					action->perform(g2);
-
-					g.drawImageAt(cachedImg, 0, 0);
-				}
-				else
-					action->perform(g);
-			}
-		}
-		else
-		{
-			while (auto action = it.getNextAction())
-				action->perform(g);
-		}
-
+		it.render(g, this);
 		
 	}
 	else
 	{
-		ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+        
+		
 		Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
 
 		fillR.expand(borderSize * 0.5f, borderSize * 0.5f);
@@ -687,11 +820,34 @@ void BorderPanel::paint(Graphics &g)
 
 		if (fillR.isEmpty() || fillR.getX() < 0 || fillR.getY() < 0) return;
 
-		g.setGradientFill(grad);
-		g.fillRoundedRectangle(fillR, borderRadius);
+        if(c1 != c2)
+        {
+            ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+            g.setGradientFill(grad);
+        }
+        else
+            g.setColour(c1);
 
-		g.setColour(borderColour);
-		g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+        
+
+        
+        if(borderSize > 0)
+        {
+            if(borderRadius != 0)
+                g.fillRoundedRectangle(fillR, borderRadius);
+            else
+                g.fillRect(fillR);
+            
+            g.setColour(borderColour);
+            g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+        }
+        else
+        {
+            if(borderRadius != 0)
+                g.fillRoundedRectangle(fillR, borderRadius);
+            else
+                g.fillAll();
+        }
 	}
 }
 
@@ -847,6 +1003,183 @@ void MouseCallbackComponent::RectangleConstrainer::addListener(Listener *l)
 void MouseCallbackComponent::RectangleConstrainer::removeListener(Listener *l)
 {
 	listeners.removeAllInstancesOf(l);
+}
+
+bool DrawActions::Handler::beginBlendLayer(const Identifier& blendMode, float alpha)
+{
+	static const Array<Identifier> blendIds = {
+		"Normal",
+		"Lighten",
+		"Darken",
+		"Multiply",
+		"Average",
+		"Add",
+		"Subtract",
+		"Difference",
+		"Negation",
+		"Screen",
+		"Exclusion",
+		"Overlay",
+		"SoftLight",
+		"HardLight",
+		"ColorDodge",
+		"ColorBurn",
+		"LinearDodge",
+		"LinearBurn",
+		"LinearLight",
+		"VividLight",
+		"PinLight",
+		"HardMix",
+		"Reflect",
+		"Glow",
+		"Phoenix"
+	};
+
+	auto idx = blendIds.indexOf(blendMode);
+
+	if (idx == -1)
+		return false;
+
+	auto bm = (gin::BlendMode)idx;
+	ActionLayer* newLayer = new BlendingLayer(bm, alpha);
+	addDrawAction(newLayer);
+	layerStack.insert(-1, newLayer);
+	return true;
+}
+
+juce::Rectangle<int> DrawActions::Handler::getScreenshotBounds(Rectangle<int> shaderBounds) const
+{
+	shaderBounds = shaderBounds.transformedBy(AffineTransform::scale(scaleFactor));
+
+	auto x = shaderBounds.getX() -1 * globalBounds.getX();
+	
+	auto y = topLevelBounds.getHeight() + globalBounds.getY() - shaderBounds.getHeight() - shaderBounds.getY();
+
+	shaderBounds.setX(x);
+	shaderBounds.setY(y);
+
+	return shaderBounds;
+
+}
+
+void DrawActions::BlendingLayer::perform(Graphics& g)
+{
+	auto imageToBlendOn = actionImage;
+
+	blendSource = Image(Image::ARGB, actionImage.getWidth(), actionImage.getHeight(), true);
+
+	for (auto a : actions)
+	{
+		if (a->wantsCachedImage())
+			a->setCachedImage(blendSource, actionImage);
+	}
+
+	setCachedImage(blendSource, actionImage);
+	Graphics g2(blendSource);
+
+	ActionLayer::perform(g2);
+	gin::applyBlend(imageToBlendOn, blendSource, blendMode, alpha);
+}
+
+void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
+{
+	if (handler->recursion)
+		return;
+
+	UnblurryGraphics ug(g, *c);
+
+	auto sf = ug.getTotalScaleFactor();
+	auto st = AffineTransform::scale(jmin<double>(4.0, sf));
+	auto st2 = AffineTransform::scale(sf);
+
+	auto tc = c->getTopLevelComponent();
+
+	auto gb = c->getLocalArea(tc, c->getLocalBounds()).transformed(st2);
+
+	handler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
+
+	if (wantsCachedImage())
+	{
+		// We are creating one master image before the loop
+		Image cachedImg;
+
+		if (!c->isOpaque() && (c->getParentComponent() != nullptr && wantsToDrawOnParent()))
+		{
+			// fetch the parent component content here...
+			ScopedValueSetter<bool> sv(handler->recursion, true);
+			cachedImg = c->getParentComponent()->createComponentSnapshot(c->getBoundsInParent(), true, sf);
+		}
+		else
+		{
+			// just use an empty image
+			cachedImg = Image(Image::ARGB, c->getWidth() * sf, c->getHeight() * sf, true);
+		}
+
+		Graphics g2(cachedImg);
+		g2.addTransform(st);
+
+		while (auto action = getNextAction())
+		{
+			if (action->wantsCachedImage())
+			{
+				Image actionImage;
+
+				if (action->wantsToDrawOnParent())
+					actionImage = cachedImg; // just use the cached image
+				else
+				{
+					actionImage = Image(cachedImg.getFormat(), cachedImg.getWidth(), cachedImg.getHeight(), true);
+				}
+
+				Graphics g3(actionImage);
+				g3.addTransform(st);
+				action->setScaleFactor(sf);
+				action->setCachedImage(actionImage, cachedImg);
+				action->perform(g3);
+
+				if (!action->wantsToDrawOnParent())
+					GraphicHelpers::quickDraw(cachedImg, actionImage);
+			}
+			else
+				action->perform(g2);
+		}
+
+		g.drawImageTransformed(cachedImg, st.inverted());
+	}
+	else
+	{
+		while (auto action = getNextAction())
+			action->perform(g);
+	}
+}
+
+DrawActions::NoiseMapManager::NoiseMap::NoiseMap(Rectangle<int> a, bool monochrom_) :
+	width(a.getWidth()),
+	height(a.getHeight()),
+	img(Image::ARGB, width, height, false),
+	monochrom(monochrom_)
+{
+	Image::BitmapData bd(img, Image::BitmapData::readWrite);
+	Random r;
+
+	if (monochrom)
+	{
+		for (int y = 0; y < bd.height; y++)
+		{
+			for (int x = 0; x < bd.width; x++)
+				bd.setPixelColour(x, y, Colours::white.withBrightness(r.nextFloat()));
+		}
+	}
+	else
+	{
+		for (int y = 0; y < bd.height; y++)
+		{
+			for (int x = 0; x < bd.width; x++)
+				bd.setPixelColour(x, y, Colour((uint32)r.nextInt()));
+		}
+	}
+
+	
 }
 
 } // namespace hise

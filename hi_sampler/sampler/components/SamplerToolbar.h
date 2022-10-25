@@ -51,11 +51,8 @@ public:
 	
 	struct ToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
-		
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
-
-	
 
 private:
 
@@ -71,6 +68,11 @@ class SampleEditorToolbarFactory: public ToolbarItemFactory
 {
 public:
 
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	};
+
 	SampleEditorToolbarFactory(SampleEditor *editor_);
 
 	void getAllToolbarItemIds(Array<int> &ids) override;
@@ -81,11 +83,8 @@ public:
 	
 	struct ToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
-		
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
-
-	
 
 private:
 

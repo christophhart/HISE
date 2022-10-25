@@ -35,11 +35,11 @@ namespace hise { using namespace juce;
 BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
-viewUndoManager(new UndoManager())
+scriptUnlocker(this)
 {
 	ExtendedApiDocumentation::init();
 
-    synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
+    synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES);
     
 	synthChain->addProcessorsWhenEmpty();
 
@@ -58,9 +58,14 @@ viewUndoManager(new UndoManager())
 
 	initData(this);
 
+	getFontSizeChangeBroadcaster().sendMessage(sendNotification, getGlobalCodeFontSize());
+
 	GET_PROJECT_HANDLER(synthChain).checkSubDirectories();
 
-	refreshExpansionType();
+	dllManager = new BackendDllManager(this);
+
+	if(getCurrentFileHandler().getRootFolder().isDirectory())
+		refreshExpansionType();
 
 	//getExpansionHandler().createAvailableExpansions();
 
@@ -72,6 +77,8 @@ viewUndoManager(new UndoManager())
 	
 	clearPreset();
 	getSampleManager().getProjectHandler().addListener(this);
+
+	createInterface(600, 500);
 
 	if (!inUnitTestMode())
 	{
@@ -87,8 +94,6 @@ viewUndoManager(new UndoManager())
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
-
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
 }
 
 
@@ -134,10 +139,9 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 
 	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 
-	scriptnode::CodeHelpers::initCustomCodeFolder(synthChain);
-
 	refreshExpansionType();
 	
+    dllManager->loadDll(true);
 }
 
 void BackendProcessor::refreshExpansionType()
@@ -184,7 +188,48 @@ void BackendProcessor::refreshExpansionType()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-	getDelayedRenderer().processWrapped(buffer, midiMessages);
+	if (isUsingDynamicBufferSize())
+	{
+		int numTodo = buffer.getNumSamples();
+		int pos = 0;
+
+		while (numTodo > 0)
+		{
+			// I'm sure that's how it looks inside there...
+			int fruityLoopsBufferSize = Random::getSystemRandom().nextInt({ numTodo / 3, numTodo + 1 });
+			
+			if (fruityLoopsBufferSize == 0)
+				continue;
+
+			if (numTodo < 8)
+				fruityLoopsBufferSize = numTodo;
+
+			fruityLoopsBufferSize = jlimit(0, numTodo, fruityLoopsBufferSize);
+
+			
+
+			float* channels[HISE_NUM_PLUGIN_CHANNELS];
+
+			for (int i = 0; i < buffer.getNumChannels(); i++)
+				channels[i] = buffer.getWritePointer(i, pos);
+
+			MidiBuffer chunkMidiBuffer;
+			chunkMidiBuffer.addEvents(midiMessages, pos, fruityLoopsBufferSize, -pos);
+
+			AudioSampleBuffer chunk(channels, buffer.getNumChannels(), fruityLoopsBufferSize);
+
+			getDelayedRenderer().processWrapped(chunk, chunkMidiBuffer);
+
+			numTodo -= fruityLoopsBufferSize;
+			pos += fruityLoopsBufferSize;
+		}
+	}
+	else
+	{
+		getDelayedRenderer().processWrapped(buffer, midiMessages);
+	}
+
+	
 };
 
 void BackendProcessor::processBlockBypassed(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
@@ -273,7 +318,13 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 AudioProcessorEditor* BackendProcessor::createEditor()
 {
-	return new BackendRootWindow(this, editorInformation);
+#if USE_WORKBENCH_EDITOR
+	return new SnexWorkbenchEditor(this);
+#else
+	auto d = new BackendRootWindow(this, editorInformation);
+    docWindow = d;
+    return d;
+#endif
 }
 
 void BackendProcessor::registerItemGenerators()
@@ -313,33 +364,13 @@ juce::File BackendProcessor::getDatabaseRootDirectory() const
 
 hise::BackendProcessor* BackendProcessor::getDocProcessor()
 {
-	if (isFlakyThreadingAllowed())
-		return this;
-
-	if (docProcessor == nullptr)
-	{
-		docProcessor = new BackendProcessor(deviceManager, callback);
-		docProcessor->setAllowFlakyThreading(true);
-		docProcessor->prepareToPlay(44100.0, 512);
-		
-	}
-
-	return docProcessor;
+    return this;
 }
 
 hise::BackendRootWindow* BackendProcessor::getDocWindow()
 {
-	if (getDocProcessor() != this)
-		return getDocProcessor()->getDocWindow();
-
-	if (docWindow == nullptr)
-	{
-		MessageManagerLock mmLock;
-		docWindow = new BackendRootWindow(getDocProcessor(), {});
-	}
-		
-
-	return docWindow;
+    return docWindow;
+    
 }
 
 juce::Component* BackendProcessor::getRootComponent()
@@ -347,10 +378,31 @@ juce::Component* BackendProcessor::getRootComponent()
 	return dynamic_cast<Component*>(getDocWindow());
 }
 
+hise::JavascriptProcessor* BackendProcessor::createInterface(int width, int height)
+{
+	auto midiChain = dynamic_cast<MidiProcessorChain*>(getMainSynthChain()->getChildProcessor(ModulatorSynthChain::MidiProcessor));
+	auto s = getMainSynthChain()->getMainController()->createProcessor(midiChain->getFactoryType(), "ScriptProcessor", "Interface");
+	auto jsp = dynamic_cast<JavascriptProcessor*>(s);
+
+	String code = "Content.makeFrontInterface(" + String(width) + ", " + String(width) + ");";
+
+	jsp->getSnippet(0)->replaceContentAsync(code);
+	jsp->compileScript();
+
+	midiChain->getHandler()->add(s, nullptr);
+
+	midiChain->setEditorState(Processor::EditorState::Visible, true);
+	s->setEditorState(Processor::EditorState::Folded, true);
+
+	return jsp;
+}
+
 void BackendProcessor::setEditorData(var editorState)
 {
 	editorInformation = editorState;
 }
+
+
 
 } // namespace hise
 

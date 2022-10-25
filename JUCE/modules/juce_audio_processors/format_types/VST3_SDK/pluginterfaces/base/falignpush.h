@@ -16,8 +16,10 @@
 
 //----------------------------------------------------------------------------------------------
 #if SMTG_OS_MACOS
+	#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+	#pragma GCC diagnostic ignored "-Wpragma-pack"
 	#if SMTG_PLATFORM_64
-		// no need in packing here
+		#pragma pack(push, 16)
 	#else
 		#pragma pack(push, 1)
 	#endif

@@ -54,20 +54,60 @@ void DefaultParameterNodeComponent::resized()
 	b = b.reduced(UIValues::NodeMargin);
 	b.removeFromTop(UIValues::HeaderHeight);
 
+	if (embeddedNetworkBar != nullptr)
+		b.removeFromTop(24);
+
 	if (extraComponent != nullptr)
-		extraComponent->setBounds(b.removeFromTop(extraComponent->getHeight()));
-
-	int numPerRow = jmax(1, getWidth() / 100);
-
-	for (int i = 0; i < sliders.size(); i += numPerRow)
 	{
-		auto row = b.removeFromTop(48 + 18);
-
-		for (int j = 0; j < numPerRow && (i+j) < sliders.size(); j++)
-		{
-			sliders[i+j]->setBounds(row.removeFromLeft(100));
-		}
+		extraComponent->setBounds(b.removeFromTop(extraComponent->getHeight()));
+		b.removeFromTop(UIValues::NodeMargin);
 	}
+	
+	
+
+	int numPerRow = jlimit(1, jmax(sliders.size(), 1), b.getWidth() / 100);
+	int numColumns = jmax(1, b.getHeight() / 50);
+
+	auto staticIntend = 0;
+
+	if (numColumns == 2)
+	{
+		numPerRow = (int)hmath::ceil((float)sliders.size() / 2.0f);
+	}
+
+	staticIntend = (b.getWidth() - numPerRow * 100) / 2;
+		
+
+	auto intendOddRows = (sliders.size() % jmax(1, numPerRow)) != 0;
+
+	auto rowIndex = 0;
+
+    auto row = b.removeFromTop(48 + 18);
+    row.removeFromLeft(staticIntend);
+    row.removeFromRight(staticIntend);
+    
+    for(auto s: sliders)
+    {
+        auto sliderBounds = row.removeFromLeft(100);
+        
+        if(sliderBounds.getWidth() < 100)
+        {
+            rowIndex++;
+            row = b.removeFromTop(48 + 18);
+        
+            auto intend = staticIntend;
+            
+            if (intendOddRows && (rowIndex % 2 != 0))
+                intend += 50;
+            
+            row.removeFromLeft(intend);
+            row.removeFromRight(staticIntend);
+            
+            sliderBounds = row.removeFromLeft(100);
+        }
+        
+        s->setBounds(sliderBounds);
+    }
 }
 
 

@@ -53,7 +53,7 @@ struct StreamingHelpers
 
 	static void increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded);
 
-	static bool preloadSample(StreamingSamplerSound * s, const int preloadSize, String& errorMessage);
+	static bool preloadSample(StreamingSamplerSound* s, const int preloadSize, String& errorMessage);
 
 	/** Creates a BasicMappingData object from the given samplemap entry. */
 	static BasicMappingData getBasicMappingDataFromSample(const ValueTree& sampleData);
@@ -138,9 +138,7 @@ struct StereoChannelData
     adding pitch modulators or changing the `Pitch` property might lead to a pitch ratio that is above the limit, so be careful when you use these
     in combination with a high-pitched sample!
 */
-#if HISE_IOS
-#define MAX_SAMPLER_PITCH 8
-#else
+#ifndef MAX_SAMPLER_PITCH
 #define MAX_SAMPLER_PITCH 8
 #endif
 

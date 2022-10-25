@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -48,7 +47,7 @@ namespace juce
     @tags{Audio}
 */
 class JUCE_API  MidiKeyboardComponent  : public Component,
-                                         public MidiKeyboardStateListener,
+                                         public MidiKeyboardState::Listener,
                                          public ChangeBroadcaster,
                                          private Timer
 {
@@ -67,7 +66,7 @@ public:
     /** Creates a MidiKeyboardComponent.
 
         @param state        the midi keyboard model that this component will represent
-        @param orientation  whether the keyboard is horizonal or vertical
+        @param orientation  whether the keyboard is horizontal or vertical
     */
     MidiKeyboardComponent (MidiKeyboardState& state,
                            Orientation orientation);
@@ -370,9 +369,13 @@ protected:
     virtual bool mouseDownOnKey (int midiNoteNumber, const MouseEvent& e);
 
     /** Callback when the mouse is dragged from one key onto another.
+
+        Return true if you want the drag to trigger the new note, or false if you
+        want to handle it yourself and not have the note played.
+
         @see mouseDownOnKey
     */
-    virtual void mouseDraggedToKey (int midiNoteNumber, const MouseEvent& e);
+    virtual bool mouseDraggedToKey (int midiNoteNumber, const MouseEvent& e);
 
     /** Callback when the mouse is released from a key.
         @see mouseDownOnKey
@@ -396,6 +399,7 @@ protected:
 private:
     //==============================================================================
     struct UpDownButton;
+    struct NoteAndVelocity { int note; float velocity; };
 
     MidiKeyboardState& state;
     float blackNoteLengthRatio = 0.7f;
@@ -410,11 +414,11 @@ private:
 
     Array<int> mouseOverNotes, mouseDownNotes;
     BigInteger keysPressed, keysCurrentlyDrawnDown;
-    bool shouldCheckState = false;
+    std::atomic<bool> noPendingUpdates { true };
 
     int rangeStart = 0, rangeEnd = 127;
     float firstKey = 12 * 4.0f;
-    bool canScroll = true, useMousePositionForVelocity = true, shouldCheckMousePos = false;
+    bool canScroll = true, useMousePositionForVelocity = true;
     std::unique_ptr<Button> scrollDown, scrollUp;
 
     Array<KeyPress> keyPresses;
@@ -422,20 +426,13 @@ private:
     int keyMappingOctave = 6, octaveNumForMiddleC = 3;
 
     Range<float> getKeyPos (int midiNoteNumber) const;
-    int xyToNote (Point<float>, float& mousePositionVelocity);
-    int remappedXYToNote (Point<float>, float& mousePositionVelocity) const;
+    NoteAndVelocity xyToNote (Point<float>);
+    NoteAndVelocity remappedXYToNote (Point<float>) const;
     void resetAnyKeysInUse();
     void updateNoteUnderMouse (Point<float>, bool isDown, int fingerNum);
     void updateNoteUnderMouse (const MouseEvent&, bool isDown);
     void repaintNote (int midiNoteNumber);
     void setLowestVisibleKeyFloat (float noteNumber);
-
-   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
-    // Note that the parameters for these method have changed
-    virtual int getKeyPosition (int, float, int&, int&) const { return 0; }
-    virtual int drawWhiteNote (int, Graphics&, int, int, int, int, bool, bool, const Colour&, const Colour&) { return 0; }
-    virtual int drawBlackNote (int, Graphics&, int, int, int, int, bool, bool, const Colour&) { return 0; }
-   #endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardComponent)
 };

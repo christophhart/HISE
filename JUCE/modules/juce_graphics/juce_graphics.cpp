@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -47,10 +46,7 @@
 
 #elif JUCE_WINDOWS
   // get rid of some warnings in Window's own headers
- #ifdef JUCE_MSVC
-  #pragma warning (push)
-  #pragma warning (disable : 4458)
- #endif
+ JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4458)
 
  #if JUCE_MINGW && JUCE_USE_DIRECTWRITE
   #warning "DirectWrite not currently implemented with mingw..."
@@ -71,21 +67,13 @@
   #include <cstdio>
  #endif
 
- #include <unordered_map>
-
- #ifdef JUCE_MSVC
-  #pragma warning (pop)
- #endif
+ JUCE_END_IGNORE_WARNINGS_MSVC
 
 #elif JUCE_IOS
  #import <QuartzCore/QuartzCore.h>
  #import <CoreText/CoreText.h>
 
- #if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2
-  #error "JUCE no longer supports targets earlier than iOS 3.2"
- #endif
-
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  #ifndef JUCE_USE_FREETYPE
   #define JUCE_USE_FREETYPE 1
  #endif
@@ -138,6 +126,10 @@
 #include "effects/juce_DropShadowEffect.cpp"
 #include "effects/juce_GlowEffect.cpp"
 
+#if JUCE_UNIT_TESTS
+ #include "geometry/juce_Rectangle_test.cpp"
+#endif
+
 #if JUCE_USE_FREETYPE
  #include "native/juce_freetype_Fonts.cpp"
 #endif
@@ -157,7 +149,7 @@
   #include "native/juce_win32_Direct2DGraphicsContext.cpp"
  #endif
 
-#elif JUCE_LINUX
+#elif JUCE_LINUX || JUCE_BSD
  #include "native/juce_linux_Fonts.cpp"
  #include "native/juce_linux_IconHelpers.cpp"
 

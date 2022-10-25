@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -40,9 +39,11 @@ public:
     PathPoint& operator= (const PathPoint& other);
     ~PathPoint();
 
+    static constexpr auto maxRects = 3;
+
     PaintElementPath* owner;
     Path::Iterator::PathElementType type;
-    RelativePositionedRectangle pos [3];
+    RelativePositionedRectangle pos [maxRects];
 
     int getNumPoints() const;
 
@@ -126,7 +127,7 @@ public:
 private:
     friend class PathPoint;
     friend class PathPointComponent;
-    OwnedArray <PathPoint> points;
+    OwnedArray<PathPoint> points;
     bool nonZeroWinding;
     mutable Path path;
     mutable Rectangle<int> lastPathBounds;

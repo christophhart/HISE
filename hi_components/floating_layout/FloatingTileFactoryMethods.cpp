@@ -47,6 +47,22 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 {
 	registerLayoutPanelTypes();
 	
+#if HISE_INCLUDE_SNEX_FLOATING_TILES
+
+	registerType<SnexEditorPanel>(PopupMenuOptions::SnexEditor);
+	registerType<SnexWorkbenchPanel<snex::ui::OptimizationProperties>>(PopupMenuOptions::SnexOptimisations);
+	registerType<SnexWorkbenchPanel<snex::ui::TestGraph>>(PopupMenuOptions::SnexGraph);
+	registerType<SnexWorkbenchPanel<snex::ui::ParameterList>>(PopupMenuOptions::SnexParameterList);
+	registerType<SnexWorkbenchPanel<snex::ui::TestDataComponent>>(PopupMenuOptions::SnexTestDataInfo);
+	registerType<SnexWorkbenchPanel<snex::ui::TestComplexDataManager>>(PopupMenuOptions::SnexComplexTestData);
+	registerType<scriptnode::WorkbenchTestPlayer>(PopupMenuOptions::SnexWorkbenchPlayer);
+
+	//registerType<snex::ui::Console>();
+	//registerType<snex::ui::AssemblyViewer>();
+
+#endif
+
+
 	registerType<Note>(PopupMenuOptions::Note);
 #if HISE_INCLUDE_RLOTTIE
 	registerType<RLottieFloatingTile>(PopupMenuOptions::RLottieDevPanel);
@@ -67,6 +83,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<scriptnode::DspNodeList::Panel>(PopupMenuOptions::DspNodeList);
 	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
 	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
+	registerType<GenericPanel<AutomationDataBrowser>>(PopupMenuOptions::AutomationDataBrowser);
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
 	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
 	
@@ -77,10 +94,14 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
 
+	registerType<ComplexDataManager>(PopupMenuOptions::ComplexDataManager);
 	registerType<ServerControllerPanel>(PopupMenuOptions::ServerController);
-
 	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
 	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
+    registerType<scriptnode::FaustEditorPanel>(PopupMenuOptions::DspFaustEditorPanel);
+
+	registerType<ScriptingObjects::ScriptBroadcaster::Panel>(PopupMenuOptions::ScriptBroadcasterMap);
+
 #endif
 
 	registerFrontendPanelTypes();
@@ -107,6 +128,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
 	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
+	registerType<OSCLogger>(PopupMenuOptions::OSCLogger);
 #endif
 
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
@@ -143,9 +165,10 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<FilterDragOverlay::Panel>(PopupMenuOptions::DraggableFilterPanel);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	
-	registerType<AhdsrGraph::Panel>(PopupMenuOptions::AHDSRGraph);
+	registerType<AhdsrEnvelope::Panel>(PopupMenuOptions::AHDSRGraph);
 	registerType<MarkdownPreviewPanel>(PopupMenuOptions::MarkdownPreviewPanel);
-
+    registerType<MatrixPeakMeter>(PopupMenuOptions::MatrixPeakMeterPanel);
+    
 #if HI_ENABLE_EXTERNAL_CUSTOM_TILES
 	registerExternalPanelTypes();
 #endif
@@ -154,7 +177,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 
 
 
-Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
+std::unique_ptr<Drawable> FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 {
 	Path path = getPath(type);
 
@@ -163,10 +186,10 @@ Drawable* FloatingTileContent::Factory::getIcon(PopupMenuOptions type) const
 		auto d = new DrawablePath();
 		d->setPath(path);
 
-		return d;
+		return std::unique_ptr<Drawable>(d);
 	}
 	else
-		return nullptr;
+		return {};
 }
 
 namespace FloatingTileIcons
@@ -252,6 +275,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
 		break;
 	}
+	case PopupMenuOptions::SnexParameterList:
 	case PopupMenuOptions::MacroTable:
 	{
 		path.loadPathFromData(MainToolbarIcons::macroControlTable, sizeof(MainToolbarIcons::macroControlTable));
@@ -262,7 +286,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case PopupMenuOptions::DspNodeList:
 	case PopupMenuOptions::DspNodeParameterEditor:
 	{
-		path.loadPathFromData(ScriptnodeIcons::splitIcon, sizeof(ScriptnodeIcons::splitIcon));
+		path.loadPathFromData(ScriptnodeIcons::pinIcon, sizeof(ScriptnodeIcons::pinIcon));
 		break;
 	}
 	case PopupMenuOptions::PresetBrowser:
@@ -278,55 +302,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case PopupMenuOptions::SampleConnector:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptConnectorPanel:
 	{
-		static const unsigned char pathData[] = { 110,109,0,0,52,67,0,57,195,66,108,0,0,52,67,0,57,195,66,108,7,192,51,67,51,60,195,66,108,55,128,51,67,202,69,195,66,108,184,64,51,67,191,85,195,66,108,180,1,51,67,8,108,195,66,108,83,195,50,67,150,136,195,66,108,188,133,50,67,87,171,195,66,108,23,73,
-			50,67,53,212,195,66,108,139,13,50,67,22,3,196,66,108,62,211,49,67,219,55,196,66,108,86,154,49,67,100,114,196,66,108,246,98,49,67,138,178,196,66,108,66,45,49,67,36,248,196,66,108,92,249,48,67,7,67,197,66,108,103,199,48,67,1,147,197,66,108,129,151,48,67,
-			224,231,197,66,108,201,105,48,67,110,65,198,66,108,92,62,48,67,114,159,198,66,108,87,21,48,67,174,1,199,66,108,212,238,47,67,228,103,199,66,108,235,202,47,67,212,209,199,66,108,179,169,47,67,56,63,200,66,108,65,139,47,67,203,175,200,66,108,170,111,47,
-			67,70,35,201,66,108,253,86,47,67,93,153,201,66,108,77,65,47,67,198,17,202,66,108,165,46,47,67,52,140,202,66,108,19,31,47,67,88,8,203,66,108,160,18,47,67,226,133,203,66,108,84,9,47,67,131,4,204,66,108,53,3,47,67,233,131,204,66,108,71,0,47,67,196,3,205,
-			66,108,0,0,47,67,0,57,205,66,108,0,0,47,67,0,57,205,66,108,0,0,47,67,0,57,205,66,108,74,2,47,67,232,184,205,66,108,197,7,47,67,108,56,206,66,108,128,9,47,67,0,86,206,66,108,128,9,47,67,0,86,206,66,108,128,152,35,67,0,199,217,66,108,128,152,35,67,0,199,
-			217,66,108,234,106,35,67,43,109,217,66,108,37,59,35,67,2,24,217,66,108,78,9,35,67,186,199,216,66,108,134,213,34,67,135,124,216,66,108,237,159,34,67,153,54,216,66,108,166,104,34,67,30,246,215,66,108,212,47,34,67,61,187,215,66,108,156,245,33,67,29,134,
-			215,66,108,34,186,33,67,224,86,215,66,108,142,125,33,67,164,45,215,66,108,4,64,33,67,131,10,215,66,108,174,1,33,67,149,237,214,66,108,179,194,32,67,234,214,214,66,108,59,131,32,67,147,198,214,66,108,110,67,32,67,153,188,214,66,108,118,3,32,67,3,185,214,
-			66,108,0,0,32,67,0,185,214,66,108,0,0,32,67,0,185,214,66,108,0,0,32,67,0,185,214,66,108,7,192,31,67,51,188,214,66,108,55,128,31,67,202,197,214,66,108,184,64,31,67,191,213,214,66,108,180,1,31,67,8,236,214,66,108,83,195,30,67,150,8,215,66,108,188,133,30,
-			67,87,43,215,66,108,23,73,30,67,53,84,215,66,108,139,13,30,67,22,131,215,66,108,62,211,29,67,219,183,215,66,108,86,154,29,67,100,242,215,66,108,246,98,29,67,138,50,216,66,108,66,45,29,67,36,120,216,66,108,92,249,28,67,7,195,216,66,108,103,199,28,67,1,
-			19,217,66,108,129,151,28,67,224,103,217,66,108,201,105,28,67,110,193,217,66,108,92,62,28,67,114,31,218,66,108,87,21,28,67,174,129,218,66,108,212,238,27,67,228,231,218,66,108,235,202,27,67,212,81,219,66,108,179,169,27,67,56,191,219,66,108,65,139,27,67,
-			203,47,220,66,108,170,111,27,67,70,163,220,66,108,253,86,27,67,93,25,221,66,108,77,65,27,67,198,145,221,66,108,165,46,27,67,52,12,222,66,108,19,31,27,67,88,136,222,66,108,160,18,27,67,226,5,223,66,108,84,9,27,67,131,132,223,66,108,53,3,27,67,233,3,224,
-			66,108,71,0,27,67,196,131,224,66,108,0,0,27,67,0,185,224,66,108,0,0,27,67,0,185,224,66,108,0,0,27,67,0,185,224,66,108,154,1,27,67,242,56,225,66,108,101,6,27,67,147,184,225,66,108,96,14,27,67,144,55,226,66,108,132,25,27,67,152,181,226,66,108,203,39,27,
-			67,91,50,227,66,108,43,57,27,67,137,173,227,66,108,154,77,27,67,210,38,228,66,108,11,101,27,67,234,157,228,66,108,110,127,27,67,132,18,229,66,108,178,156,27,67,85,132,229,66,108,197,188,27,67,21,243,229,66,108,146,223,27,67,125,94,230,66,108,4,5,28,67,
-			72,198,230,66,108,1,45,28,67,52,42,231,66,108,113,87,28,67,0,138,231,66,108,56,132,28,67,112,229,231,66,108,57,179,28,67,72,60,232,66,108,87,228,28,67,82,142,232,66,108,115,23,29,67,89,219,232,66,108,106,76,29,67,43,35,233,66,108,29,131,29,67,155,101,
-			233,66,108,102,187,29,67,126,162,233,66,108,36,245,29,67,174,217,233,66,108,47,48,30,67,6,11,234,66,108,100,108,30,67,103,54,234,66,108,155,169,30,67,182,91,234,66,108,173,231,30,67,218,122,234,66,108,114,38,31,67,193,147,234,66,108,194,101,31,67,88,
-			166,234,66,108,117,165,31,67,150,178,234,66,108,99,229,31,67,114,184,234,66,108,0,0,32,67,0,185,234,66,108,0,0,32,67,0,185,234,66,108,0,0,32,67,0,185,234,66,108,249,63,32,67,168,181,234,66,108,200,127,32,67,237,171,234,66,108,68,191,32,67,212,155,234,
-			66,108,69,254,32,67,104,133,234,66,108,162,60,33,67,183,104,234,66,108,52,122,33,67,211,69,234,66,108,211,182,33,67,211,28,234,66,108,88,242,33,67,208,237,233,66,108,157,44,34,67,234,184,233,66,108,126,101,34,67,65,126,233,66,108,213,156,34,67,252,61,
-			233,66,108,127,210,34,67,67,248,232,66,108,90,6,35,67,67,173,232,66,108,68,56,35,67,44,93,232,66,108,30,104,35,67,50,8,232,66,108,201,149,35,67,138,174,231,66,108,128,151,35,67,255,170,231,66,108,128,151,35,67,255,170,231,66,108,0,37,47,67,0,57,243,66,
-			108,0,37,47,67,0,57,243,66,108,7,27,47,67,108,183,243,66,108,58,20,47,67,175,54,244,66,108,157,16,47,67,120,182,244,66,108,0,16,47,67,0,249,244,66,108,0,16,47,67,0,249,244,66,108,0,16,47,67,0,249,244,66,108,154,17,47,67,242,120,245,66,108,101,22,47,67,
-			147,248,245,66,108,96,30,47,67,144,119,246,66,108,132,41,47,67,152,245,246,66,108,203,55,47,67,91,114,247,66,108,43,73,47,67,137,237,247,66,108,154,93,47,67,210,102,248,66,108,11,117,47,67,234,221,248,66,108,110,143,47,67,132,82,249,66,108,178,172,47,
-			67,85,196,249,66,108,197,204,47,67,21,51,250,66,108,146,239,47,67,125,158,250,66,108,4,21,48,67,72,6,251,66,108,1,61,48,67,52,106,251,66,108,113,103,48,67,0,202,251,66,108,56,148,48,67,112,37,252,66,108,57,195,48,67,72,124,252,66,108,87,244,48,67,82,
-			206,252,66,108,115,39,49,67,89,27,253,66,108,106,92,49,67,43,99,253,66,108,29,147,49,67,155,165,253,66,108,102,203,49,67,126,226,253,66,108,36,5,50,67,174,25,254,66,108,47,64,50,67,6,75,254,66,108,100,124,50,67,103,118,254,66,108,155,185,50,67,182,155,
-			254,66,108,173,247,50,67,218,186,254,66,108,114,54,51,67,193,211,254,66,108,194,117,51,67,88,230,254,66,108,117,181,51,67,150,242,254,66,108,99,245,51,67,114,248,254,66,108,0,16,52,67,0,249,254,66,108,0,16,52,67,0,249,254,66,108,0,16,52,67,0,249,254,
-			66,108,249,79,52,67,205,245,254,66,108,201,143,52,67,54,236,254,66,108,72,207,52,67,65,220,254,66,108,76,14,53,67,248,197,254,66,108,173,76,53,67,106,169,254,66,108,68,138,53,67,169,134,254,66,108,233,198,53,67,203,93,254,66,108,116,2,54,67,235,46,254,
-			66,108,193,60,54,67,37,250,253,66,108,170,117,54,67,157,191,253,66,108,10,173,54,67,119,127,253,66,108,190,226,54,67,220,57,253,66,108,163,22,55,67,250,238,252,66,108,153,72,55,67,255,158,252,66,108,127,120,55,67,32,74,252,66,108,55,166,55,67,146,240,
-			251,66,108,163,209,55,67,143,146,251,66,108,168,250,55,67,83,48,251,66,108,44,33,56,67,28,202,250,66,108,21,69,56,67,45,96,250,66,108,77,102,56,67,201,242,249,66,108,191,132,56,67,53,130,249,66,108,86,160,56,67,187,14,249,66,108,2,185,56,67,164,152,248,
-			66,108,179,206,56,67,58,32,248,66,108,91,225,56,67,205,165,247,66,108,237,240,56,67,169,41,247,66,108,96,253,56,67,31,172,246,66,108,172,6,57,67,126,45,246,66,108,203,12,57,67,23,174,245,66,108,185,15,57,67,61,46,245,66,108,0,16,57,67,0,249,244,66,108,
-			0,16,57,67,0,249,244,66,108,0,16,57,67,0,249,244,66,108,102,14,57,67,14,121,244,66,108,155,9,57,67,109,249,243,66,108,160,1,57,67,112,122,243,66,108,124,246,56,67,104,252,242,66,108,53,232,56,67,166,127,242,66,108,213,214,56,67,120,4,242,66,108,102,194,
-			56,67,47,139,241,66,108,245,170,56,67,23,20,241,66,108,147,144,56,67,125,159,240,66,108,78,115,56,67,172,45,240,66,108,59,83,56,67,236,190,239,66,108,110,48,56,67,132,83,239,66,108,253,10,56,67,185,235,238,66,108,0,227,55,67,206,135,238,66,108,144,184,
-			55,67,2,40,238,66,108,201,139,55,67,146,204,237,66,108,199,92,55,67,185,117,237,66,108,169,43,55,67,175,35,237,66,108,142,248,54,67,168,214,236,66,108,150,195,54,67,214,142,236,66,108,228,140,54,67,102,76,236,66,108,154,84,54,67,130,15,236,66,108,221,
-			26,54,67,83,216,235,66,108,210,223,53,67,251,166,235,66,108,157,163,53,67,154,123,235,66,108,102,102,53,67,75,86,235,66,108,84,40,53,67,38,55,235,66,108,143,233,52,67,64,30,235,66,108,62,170,52,67,168,11,235,66,108,139,106,52,67,106,255,234,66,108,158,
-			42,52,67,142,249,234,66,108,0,16,52,67,0,249,234,66,108,0,16,52,67,0,249,234,66,108,0,16,52,67,0,249,234,66,108,8,208,51,67,69,252,234,66,108,56,144,51,67,238,5,235,66,108,187,80,51,67,244,21,235,66,108,184,17,51,67,78,44,235,66,108,89,211,50,67,238,
-			72,235,66,108,196,149,50,67,192,107,235,66,108,34,89,50,67,175,148,235,66,108,154,29,50,67,160,195,235,66,108,81,227,49,67,118,248,235,66,108,108,170,49,67,14,51,236,66,108,16,115,49,67,67,115,236,66,108,97,61,49,67,237,184,236,66,108,129,9,49,67,222,
-			3,237,66,108,145,215,48,67,230,83,237,66,108,177,167,48,67,211,168,237,66,108,128,135,48,67,0,231,237,66,108,128,135,48,67,0,231,237,66,108,128,238,36,67,0,78,226,66,108,128,238,36,67,0,78,226,66,108,121,247,36,67,71,207,225,66,108,68,253,36,67,209,79,
-			225,66,108,223,255,36,67,239,207,224,66,108,0,0,37,67,0,185,224,66,108,0,0,37,67,0,185,224,66,108,0,0,37,67,0,185,224,66,108,66,254,36,67,16,57,224,66,108,81,249,36,67,117,185,223,66,108,50,241,36,67,129,58,223,66,108,128,239,36,67,1,37,223,66,108,128,
-			239,36,67,1,37,223,66,108,128,64,48,67,0,211,211,66,108,128,64,48,67,0,211,211,66,108,239,107,48,67,254,48,212,66,108,169,153,48,67,135,138,212,66,108,146,201,48,67,97,223,212,66,108,138,251,48,67,85,47,213,66,108,114,47,49,67,50,122,213,66,108,40,101,
-			49,67,198,191,213,66,108,138,156,49,67,229,255,213,66,108,116,213,49,67,103,58,214,66,108,194,15,50,67,38,111,214,66,108,80,75,50,67,0,158,214,66,108,245,135,50,67,214,198,214,66,108,141,197,50,67,144,233,214,66,108,239,3,51,67,23,6,215,66,108,244,66,
-			51,67,88,28,215,66,108,115,130,51,67,70,44,215,66,108,67,194,51,67,213,53,215,66,108,0,0,52,67,0,57,215,66,108,0,0,52,67,0,57,215,66,108,0,0,52,67,0,57,215,66,108,249,63,52,67,205,53,215,66,108,201,127,52,67,54,44,215,66,108,72,191,52,67,65,28,215,66,
-			108,76,254,52,67,248,5,215,66,108,173,60,53,67,106,233,214,66,108,68,122,53,67,169,198,214,66,108,233,182,53,67,203,157,214,66,108,116,242,53,67,235,110,214,66,108,193,44,54,67,37,58,214,66,108,170,101,54,67,157,255,213,66,108,10,157,54,67,119,191,213,
-			66,108,190,210,54,67,220,121,213,66,108,163,6,55,67,250,46,213,66,108,153,56,55,67,255,222,212,66,108,127,104,55,67,32,138,212,66,108,55,150,55,67,146,48,212,66,108,163,193,55,67,143,210,211,66,108,168,234,55,67,83,112,211,66,108,44,17,56,67,28,10,211,
-			66,108,21,53,56,67,45,160,210,66,108,77,86,56,67,201,50,210,66,108,191,116,56,67,53,194,209,66,108,86,144,56,67,187,78,209,66,108,2,169,56,67,164,216,208,66,108,179,190,56,67,58,96,208,66,108,91,209,56,67,205,229,207,66,108,237,224,56,67,169,105,207,
-			66,108,96,237,56,67,31,236,206,66,108,172,246,56,67,126,109,206,66,108,203,252,56,67,23,238,205,66,108,185,255,56,67,61,110,205,66,108,0,0,57,67,0,57,205,66,108,0,0,57,67,0,57,205,66,108,0,0,57,67,0,57,205,66,108,102,254,56,67,14,185,204,66,108,155,249,
-			56,67,109,57,204,66,108,160,241,56,67,112,186,203,66,108,124,230,56,67,104,60,203,66,108,53,216,56,67,166,191,202,66,108,213,198,56,67,120,68,202,66,108,102,178,56,67,47,203,201,66,108,245,154,56,67,23,84,201,66,108,147,128,56,67,125,223,200,66,108,78,
-			99,56,67,172,109,200,66,108,59,67,56,67,236,254,199,66,108,110,32,56,67,132,147,199,66,108,253,250,55,67,185,43,199,66,108,0,211,55,67,206,199,198,66,108,144,168,55,67,2,104,198,66,108,201,123,55,67,146,12,198,66,108,199,76,55,67,185,181,197,66,108,169,
-			27,55,67,175,99,197,66,108,142,232,54,67,168,22,197,66,108,150,179,54,67,214,206,196,66,108,228,124,54,67,102,140,196,66,108,154,68,54,67,130,79,196,66,108,221,10,54,67,83,24,196,66,108,210,207,53,67,251,230,195,66,108,157,147,53,67,154,187,195,66,108,
-			102,86,53,67,75,150,195,66,108,84,24,53,67,38,119,195,66,108,143,217,52,67,64,94,195,66,108,62,154,52,67,168,75,195,66,108,139,90,52,67,106,63,195,66,108,158,26,52,67,142,57,195,66,108,0,0,52,67,0,57,195,66,108,0,0,52,67,0,57,195,66,99,101,0,0 };
-
-		path.loadPathFromData(pathData, sizeof(pathData));
-
+		path.loadPathFromData(EditorIcons::connectIcon, sizeof(EditorIcons::connectIcon));
 		break;
 	}
     case PopupMenuOptions::MarkdownPreviewPanel:
@@ -340,6 +316,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		break;
 	}
 	case PopupMenuOptions::MarkdownEditor:
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexEditor:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
 	{
 		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
@@ -381,6 +358,11 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		return path;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexTestDataInfo:
+	{
+		path.loadPathFromData(HnodeIcons::testIcon, sizeof(HnodeIcons::testIcon));
+		return path;
+	}
 
 	case FloatingTileContent::Factory::PopupMenuOptions::SliderPackPanel:
 	{
@@ -402,6 +384,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 #endif
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::SnexGraph:
 	case FloatingTileContent::Factory::PopupMenuOptions::Plotter:
 	{
 		static const unsigned char pathData[] = { 110,109,128,252,89,67,64,173,211,67,98,163,65,87,67,250,238,211,67,11,182,84,67,198,176,212,67,0,89,82,67,64,212,213,67,98,235,158,77,67,51,27,216,67,247,55,73,67,167,244,219,67,127,85,68,67,64,17,226,67,108,255,12,75,67,192,104,227,67,98,225,192,79,
@@ -493,7 +476,8 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
 	{
-
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList)));
+		break;
 	}
 	break;
 	case FloatingTileContent::Factory::PopupMenuOptions::ExpansionEditBar:
@@ -543,7 +527,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled, bool isTicked)
 {
-	m.addItem((int)type, name, isEnabled, isTicked, getIcon(type));
+	m.addItem((int)type, name, isEnabled, isTicked, std::unique_ptr<Drawable>(getIcon(type)));
 }
 
 void addCommandIcon(FloatingTile* /*parent*/, PopupMenu& , int /*commandID*/)
@@ -600,12 +584,17 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentList, "Script Component List");
 			addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
 			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
+			addToPopupMenu(m, PopupMenuOptions::ComplexDataManager, "Complex Data Manager");
 			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
+			addToPopupMenu(m, PopupMenuOptions::OSCLogger, "OSC Logger");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeList, "DSP Node list");
 			addToPopupMenu(m, PopupMenuOptions::DspNetworkGraph, "DSP Network Graph");
 			addToPopupMenu(m, PopupMenuOptions::DspNodeParameterEditor, "DSP Network Node Editor");
+            addToPopupMenu(m, PopupMenuOptions::DspFaustEditorPanel, "Faust Editor");
 			addToPopupMenu(m, PopupMenuOptions::RLottieDevPanel, "Lottie Dev Panel");
 			addToPopupMenu(m, PopupMenuOptions::ServerController, "Server Controller");
+			addToPopupMenu(m, PopupMenuOptions::ScriptBroadcasterMap, "ScriptBroadcaster Map");
+			addToPopupMenu(m, PopupMenuOptions::SnexEditor, "SNEX Editor");
 
 			m.addSectionHeader("Sampler Tools");
 
@@ -629,6 +618,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 			addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
 			addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
+			addToPopupMenu(m, PopupMenuOptions::AutomationDataBrowser, "Automation Data Browser");
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
@@ -653,6 +643,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiPlayerOverlay, "MIDI Player Overlay");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
+            addToPopupMenu(fm, PopupMenuOptions::MatrixPeakMeterPanel, "MatrixPeakMeter");
 			addToPopupMenu(fm, PopupMenuOptions::MPEPanel, "MPE Panel");
 			addToPopupMenu(fm, PopupMenuOptions::MarkdownPreviewPanel, "Markdown Panel");
 
@@ -674,9 +665,36 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	m.addItem((int)PopupMenuOptions::exportAsJSON, "Export as JSON", true, false);
 	m.addItem((int)PopupMenuOptions::loadFromJSON, "Load JSON from clipboard", parent->canBeDeleted(), false);
 
+	auto popupDir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
 
+	auto fileList = popupDir.findChildFiles(File::findFiles, false, "*.json");
+	fileList.sort();
+
+	PopupMenu customPopups;
+
+	static constexpr int CustomOffset = 90000;
+	int cIndex = CustomOffset;
+
+	for (auto f : fileList)
+		customPopups.addItem(cIndex++, f.getFileNameWithoutExtension());
+
+	m.addSubMenu("Custom Popups", customPopups);
 
 	const int result = m.show();
+
+	if (result >= CustomOffset)
+	{
+		auto f = fileList[result - CustomOffset];
+		auto obj = JSON::parse(f);
+
+		if (obj.isObject())
+		{
+			parent->loadFromJSON(f.loadFileAsString());
+			
+		}
+
+		return;
+	}
 
 	if (result > (int)PopupMenuOptions::MenuCommandOffset)
 	{
@@ -711,7 +729,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
-	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrGraph::Panel)); break;
+	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrEnvelope::Panel)); break;
 	case PopupMenuOptions::MarkdownPreviewPanel:parent->setNewContent(GET_PANEL_NAME(MarkdownPreviewPanel)); break;
 	case PopupMenuOptions::MarkdownEditor:		parent->setNewContent(GET_PANEL_NAME(MarkdownEditorPanel)); break;
 	case PopupMenuOptions::FilterGraphPanel:	parent->setNewContent(GET_PANEL_NAME(FilterGraph::Panel)); break;
@@ -719,11 +737,15 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MPEPanel:			parent->setNewContent(GET_PANEL_NAME(MPEPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::OSCLogger:			parent->setNewContent(GET_PANEL_NAME(OSCLogger)); break;
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
+        
+    case PopupMenuOptions::MatrixPeakMeterPanel: parent->setNewContent(GET_PANEL_NAME(MatrixPeakMeter)); break;
+	case PopupMenuOptions::ComplexDataManager:  parent->setNewContent(GET_PANEL_NAME(ComplexDataManager)); break;
 	case PopupMenuOptions::DspNetworkGraph:		parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNetworkGraphPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
@@ -740,14 +762,18 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::TooltipPanel:		parent->setNewContent(GET_PANEL_NAME(TooltipPanel)); break;
 	case PopupMenuOptions::DspNodeList:			parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNodeList::Panel)); break;
 	case PopupMenuOptions::DspNodeParameterEditor: parent->setNewContent(GET_PANEL_NAME(scriptnode::NodePropertyPanel)); break;
+    case PopupMenuOptions::DspFaustEditorPanel: parent->setNewContent(GET_PANEL_NAME(scriptnode::FaustEditorPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
+	case PopupMenuOptions::AutomationDataBrowser: parent->setNewContent(GET_PANEL_NAME(GenericPanel<AutomationDataBrowser>)); break;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::ServerController:	parent->setNewContent(GET_PANEL_NAME(ServerControllerPanel)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
+	case PopupMenuOptions::SnexEditor:			parent->setNewContent(GET_PANEL_NAME(SnexEditorPanel)); break;
+	case PopupMenuOptions::ScriptBroadcasterMap:			parent->setNewContent(GET_PANEL_NAME(ScriptingObjects::ScriptBroadcaster::Panel)); break;
 #if HISE_INCLUDE_RLOTTIE
 	case PopupMenuOptions::RLottieDevPanel:		parent->setNewContent(GET_PANEL_NAME(RLottieFloatingTile));
 		break;

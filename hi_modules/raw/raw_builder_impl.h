@@ -99,34 +99,14 @@ bool hise::raw::Builder::remove(Processor* p)
 	return true;
 }
 
+
+
 template <class T>
 T* hise::raw::Builder::create(Processor* parent, int chainIndex /*= -1*/)
 {
 	const Identifier id = T::getClassType();
 
-	Chain* c = nullptr;
-
-	if (chainIndex == -1)
-		c = dynamic_cast<Chain*>(parent);
-	else
-		c = dynamic_cast<Chain*>(parent->getChildProcessor(chainIndex));
-
-	if (c == nullptr)
-	{
-		jassertfalse;
-		return nullptr;
-	}
-
-	auto f = c->getFactoryType();
-	int index = f->getProcessorTypeIndex(id);
-
-	if (index != -1)
-	{
-		auto p = f->createProcessor(index, id.toString());
-		return addInternal<T>(p, c);
-	}
-
-	return nullptr;
+	return dynamic_cast<T*>(create(parent, id, chainIndex));
 }
 
 }

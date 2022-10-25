@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -78,31 +78,10 @@ bool MessageManager::MessageBase::post()
 }
 
 //==============================================================================
-#if JUCE_MODAL_LOOPS_PERMITTED && ! (JUCE_MAC || JUCE_IOS)
-bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
-{
-    jassert (isThisTheMessageThread()); // must only be called by the message thread
-
-    auto endTime = Time::currentTimeMillis() + millisecondsToRunFor;
-
-    while (quitMessageReceived.get() == 0)
-    {
-        JUCE_TRY
-        {
-            if (! dispatchNextMessageOnSystemQueue (millisecondsToRunFor >= 0))
-                Thread::sleep (1);
-        }
-        JUCE_CATCH_EXCEPTION
-
-        if (millisecondsToRunFor >= 0 && Time::currentTimeMillis() >= endTime)
-            break;
-    }
-
-    return quitMessageReceived.get() == 0;
-}
-#endif
-
 #if ! (JUCE_MAC || JUCE_IOS || JUCE_ANDROID)
+// implemented in platform-specific code (juce_linux_Messaging.cpp and juce_win32_Messaging.cpp)
+bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages);
+
 class MessageManager::QuitMessage   : public MessageManager::MessageBase
 {
 public:
@@ -138,6 +117,30 @@ void MessageManager::stopDispatchLoop()
     quitMessagePosted = true;
 }
 
+#if JUCE_MODAL_LOOPS_PERMITTED
+bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
+{
+    jassert (isThisTheMessageThread()); // must only be called by the message thread
+
+    auto endTime = Time::currentTimeMillis() + millisecondsToRunFor;
+
+    while (quitMessageReceived.get() == 0)
+    {
+        JUCE_TRY
+        {
+            if (! dispatchNextMessageOnSystemQueue (millisecondsToRunFor >= 0))
+                Thread::sleep (1);
+        }
+        JUCE_CATCH_EXCEPTION
+
+        if (millisecondsToRunFor >= 0 && Time::currentTimeMillis() >= endTime)
+            break;
+    }
+
+    return quitMessageReceived.get() == 0;
+}
+#endif
+
 #endif
 
 //==============================================================================
@@ -164,7 +167,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE (AsyncFunctionCallback)
 };
 
-void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* const func, void* const parameter)
+void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* func, void* parameter)
 {
     if (isThisTheMessageThread())
         return func (parameter);
@@ -182,6 +185,18 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* cons
 
     jassertfalse; // the OS message queue failed to send the message!
     return nullptr;
+}
+
+bool MessageManager::callAsync (std::function<void()> fn)
+{
+    struct AsyncCallInvoker  : public MessageBase
+    {
+        AsyncCallInvoker (std::function<void()> f) : callback (std::move (f)) {}
+        void messageCallback() override  { callback(); }
+        std::function<void()> callback;
+    };
+
+    return (new AsyncCallInvoker (std::move (fn)))->post();
 }
 
 //==============================================================================
@@ -219,9 +234,11 @@ void MessageManager::setCurrentThreadAsMessageThread()
     {
         messageThreadId = thisThread;
 
+       #if JUCE_WINDOWS
         // This is needed on windows to make sure the message window is created by this thread
         doPlatformSpecificShutdown();
         doPlatformSpecificInitialisation();
+       #endif
     }
 }
 
@@ -261,8 +278,8 @@ bool MessageManager::existsAndIsCurrentThread() noexcept
 struct MessageManager::Lock::BlockingMessage   : public MessageManager::MessageBase
 {
     BlockingMessage (const MessageManager::Lock* parent) noexcept
-    // need a const_cast here as VS2013 doesn't like a const pointer to be in an atomic
-        : owner (const_cast<MessageManager::Lock*> (parent)) {}
+        : owner (parent)
+    {}
 
     void messageCallback() override
     {
@@ -277,7 +294,7 @@ struct MessageManager::Lock::BlockingMessage   : public MessageManager::MessageB
     }
 
     CriticalSection ownerCriticalSection;
-    Atomic<MessageManager::Lock*> owner;
+    Atomic<const MessageManager::Lock*> owner;
     WaitableEvent releaseEvent;
 
     JUCE_DECLARE_NON_COPYABLE (BlockingMessage)
@@ -398,8 +415,6 @@ MessageManagerLock::MessageManagerLock (ThreadPoolJob* jobToCheck)
 
 bool MessageManagerLock::attemptLock (Thread* threadToCheck, ThreadPoolJob* jobToCheck)
 {
-	WARN_IF_AUDIO_THREAD(true, IllegalAudioThreadOps::MessageManagerLock);
-
     jassert (threadToCheck == nullptr || jobToCheck == nullptr);
 
     if (threadToCheck != nullptr)
@@ -443,7 +458,6 @@ void MessageManagerLock::exitSignalSent()
 }
 
 //==============================================================================
-JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI();
 JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL
@@ -452,14 +466,12 @@ JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
     }
 }
 
-JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
 JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL
     {
         DeletedAtShutdown::deleteAll();
         MessageManager::deleteInstance();
-		AudioThreadGuard::deleteInstance();
     }
 }
 

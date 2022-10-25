@@ -54,7 +54,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     addAndMakeVisible (wetMeter = new VuMeter());
     wetMeter->setName ("new component");
 
-    addAndMakeVisible (impulseDisplay = new AudioSampleProcessorBufferComponent (getProcessor()));
+    addAndMakeVisible (impulseDisplay = new MultiChannelAudioBufferDisplay ());
     impulseDisplay->setName ("new component");
 
     addAndMakeVisible (resetButton = new HiToggleButton ("new toggle button"));
@@ -137,10 +137,12 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 	startTimer(30);
 #endif
 
+	impulseDisplay->setAudioFile(&dynamic_cast<AudioSampleProcessor*>(getProcessor())->getBuffer());
+
 	impulseDisplay->addAreaListener(this);
 
 	impulseDisplay->setOpaque(false);
-	impulseDisplay->setColour(AudioSampleProcessorBufferComponent::ColourIds::bgColour, Colour(0x11000000));
+	impulseDisplay->setColour(MultiChannelAudioBufferDisplay::ColourIds::bgColour, Colour(0x11000000));
 
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
 

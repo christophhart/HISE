@@ -36,52 +36,5 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-#if 0
-struct ConvolutionNode : public HiseDspBase
-{
-	void setProperty(NodeBase* parent, Identifier id, const var newValue)
-	{
-		auto mc = parent->getScriptProcessor()->getMainController_();
-
-		if (newValue.isString())
-		{
-			PoolReference ref(mc, newValue, FileHandlerBase::SubDirectories::AudioFiles);
-			reference = mc->getCurrentAudioSampleBufferPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
-		}
-
-	}
-
-	void prepare(int numChannels, double sampleRate, int blockSize)
-	{
-		MultithreadedConvolver c2;
-
-		for (auto c : convolvers)
-		{
-			c2.
-		}
-	}
-
-	void process(ProcessData& d)
-	{
-		int channelIndex = 0;
-
-		for (auto c : convolvers)
-		{
-			auto input = d.data[channelIndex];
-			auto output = (float*)alloca(d.size * sizeof(float));
-
-			c->process(input, output, d.size);
-			FloatVectorOperations::copy(input, output, d.size);
-			channelIndex++;
-		}
-	}
-
-	AudioSampleBuffer impulse;
-
-	OwnedArray<hise::MultithreadedConvolver> convolvers;
-
-	AudioSampleBufferPool::ManagedPtr reference;
-};
-#endif
 
 }

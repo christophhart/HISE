@@ -106,22 +106,13 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-#pragma warning( push )
-#pragma warning( disable: 4100 )
 
 	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea)
 	{
-		jassert(broadcaster == impulseDisplay);
-
-		Range<int> newRange = impulseDisplay->getSampleArea(changedArea)->getSampleRange();
-
-		AudioSampleProcessor *sampleProcessor = dynamic_cast<AudioSampleProcessor*>(getProcessor());
-
-		sampleProcessor->setLoadedFile(impulseDisplay->getCurrentlyLoadedFileName());
-		sampleProcessor->setRange(newRange);
+		
 	};
 
-#pragma warning( pop )
+
 
 	void updateGui() override
 	{
@@ -137,19 +128,16 @@ public:
 
 		AudioSampleProcessor *sampleProcessor = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
-		const float numSamples = (float)sampleProcessor->getBuffer()->getNumSamples();
+		const float numSamples = (float)sampleProcessor->getAudioSampleBuffer().getNumSamples();
 		const float dampingValue = Decibels::decibelsToGain(getProcessor()->getAttribute(ConvolutionEffect::Damping));
 
 		auto numSamplesToUse = jmax(numSamples, 1.0f);
 
-		const auto range = Range<float>(sampleProcessor->getRange().getStart() / numSamplesToUse, sampleProcessor->getRange().getEnd() / numSamplesToUse);
+		auto sRange = sampleProcessor->getBuffer().getCurrentRange();
+
+		const auto range = Range<float>((float)sRange.getStart() / numSamplesToUse, (float)sRange.getEnd() / numSamplesToUse);
 
 		fadeoutDisplay->setFadeoutValue(dampingValue, range);
-
-		if(impulseDisplay->getSampleArea(0)->getSampleRange() != sampleProcessor->getRange())
-		{
-			impulseDisplay->setRange(sampleProcessor->getRange());
-		}
 	};
 
 	void timerCallback()
@@ -188,7 +176,7 @@ private:
     ScopedPointer<HiSlider> wetSlider;
     ScopedPointer<VuMeter> dryMeter;
     ScopedPointer<VuMeter> wetMeter;
-    ScopedPointer<AudioSampleProcessorBufferComponent> impulseDisplay;
+    ScopedPointer<MultiChannelAudioBufferDisplay> impulseDisplay;
     ScopedPointer<HiToggleButton> resetButton;
     ScopedPointer<Label> label;
     ScopedPointer<HiToggleButton> backgroundButton;

@@ -1,0 +1,12 @@
+{
+  "NodeId": "PeakClearAdd1",
+  "SignalType": "Ramp",
+  "SignalLength": 4096,
+  "InputFile": "",
+  "OutputFile": "",
+  "Tables": [],
+  "SliderPacks": [],
+  "AudioFiles": [],
+  "HiseEvents": [],
+  "ParameterEvents": []
+}

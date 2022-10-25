@@ -45,7 +45,7 @@ var GlobalServer::addDownload(ScriptingObjects::ScriptDownloadObject::Ptr newDow
 	{
 		if (*newDownload == *ep)
 		{
-			ep->copyCallBackFrom(newDownload);
+			ep->copyCallBackFrom(newDownload.get());
 			return var(ep);
 		}
 	}
@@ -55,7 +55,7 @@ var GlobalServer::addDownload(ScriptingObjects::ScriptDownloadObject::Ptr newDow
 	internalThread.pendingDownloads.add(newDownload);
 	internalThread.notify();
 	sendMessage(true);
-	return var(newDownload);
+	return var(newDownload.get());
 }
 
 var GlobalServer::getPendingDownloads()
@@ -63,6 +63,16 @@ var GlobalServer::getPendingDownloads()
 	Array<var> list;
 
 	for (auto p : internalThread.pendingDownloads)
+		list.add(var(p));
+
+	return list;
+}
+
+var GlobalServer::getPendingCallbacks()
+{
+	Array<var> list;
+
+	for (auto p : internalThread.pendingCallbacks)
 		list.add(var(p));
 
 	return list;
@@ -98,6 +108,10 @@ juce::URL GlobalServer::getWithParameters(String subURL, var parameters)
 		for (auto& p : d->getProperties())
 			url = url.withParameter(p.name.toString(), p.value.toString());
 	}
+    else if (parameters.isString())
+    {
+        url = url.withPOSTData(parameters.toString());
+    }
 
 	return url;
 }
@@ -188,7 +202,7 @@ void GlobalServer::WebThread::run()
 
 					job->requestTimeMs = Time::getMillisecondCounter();
 
-					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status));
+					wis = dynamic_cast<WebInputStream*>(job->url.createInputStream(job->isPost, nullptr, nullptr, job->extraHeader, HISE_SCRIPT_SERVER_TIMEOUT, nullptr, &job->status).release());
 
 					if (threadShouldExit())
 						return;
@@ -209,14 +223,13 @@ void GlobalServer::WebThread::run()
 
 					auto r = JSON::parse(response, args[1]);
 
-					if (!r.wasOk())
+					if (!r.wasOk() || response.isEmpty())
 					{
-						args[0] = 500;
-						args[1] = var(new DynamicObject());
-						args[1].getDynamicObject()->setProperty("error", r.getErrorMessage());
+						args[1] = response;
+						
 					}
-
-					job->responseObj = args[1];
+                    
+                    job->responseObj = args[1];
 
 					job->f.call(args);
 

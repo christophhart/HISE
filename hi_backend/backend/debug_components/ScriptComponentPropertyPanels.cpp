@@ -275,6 +275,17 @@ void HiSliderPropertyComponent::updateRange()
 	static const Identifier w("width");
 	static const Identifier h("height");
 
+	static const Array<Identifier> posIds = { x, y, w, h };
+
+
+	if (!posIds.contains(getId()))
+	{
+		SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> ptr;
+		auto r = ptr->getRangeForId(getId());
+		comp.slider.setRange(r.min, r.max, r.interval);
+		return;
+	}
+
 	if (auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection())
 	{
 		int maxWidth = sc->parent->getContentWidth();
@@ -665,7 +676,7 @@ void HiColourPropertyComponent::ColourComp::mouseDown(const MouseEvent& /*event*
 
 	auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
 
-	CallOutBox::launchAsynchronously(p, root->getLocalArea(this, getLocalBounds()), root);
+	CallOutBox::launchAsynchronously(std::unique_ptr<Component>(p), root->getLocalArea(this, getLocalBounds()), root);
 }
 
 void HiColourPropertyComponent::ColourComp::changeListenerCallback(ChangeBroadcaster* b)
@@ -717,10 +728,23 @@ HiColourPropertyComponent::ColourComp::Popup::Popup(ColourComp* parent) :
 		ColourSelector::ColourSelectorOptions::showColourspace |
 		ColourSelector::ColourSelectorOptions::showSliders)
 {
+	setLookAndFeel(&laf);
+
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+
+	juce::Component::callRecursive<Component>(&selector, [](Component* s)
+	{
+		s->setColour(Slider::ColourIds::textBoxTextColourId, Colours::white.withAlpha(0.8f));
+		s->setColour(Slider::ColourIds::backgroundColourId, Colours::black.withAlpha(0.3f));
+		s->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.8f));
+		s->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.5f));
+		return false;
+	});
 
 	selector.setCurrentColour(parent->colour);
+	
 
 	addAndMakeVisible(selector);
 

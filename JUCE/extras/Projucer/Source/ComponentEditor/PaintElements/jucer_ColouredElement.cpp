@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -213,7 +212,7 @@ private:
 class EnableStrokeProperty : public BooleanPropertyComponent
 {
 public:
-    EnableStrokeProperty (ColouredElement* const owner_)
+    explicit EnableStrokeProperty (ColouredElement* const owner_)
         : BooleanPropertyComponent ("outline", "Outline enabled", "No outline"),
           listener (owner_)
     {
@@ -231,7 +230,7 @@ public:
 class StrokeThicknessProperty   : public SliderPropertyComponent
 {
 public:
-    StrokeThicknessProperty (ColouredElement* const owner_)
+    explicit StrokeThicknessProperty (ColouredElement* const owner_)
         : SliderPropertyComponent ("outline thickness", 0.1, 200.0, 0.1, 0.3),
           listener (owner_)
     {
@@ -257,7 +256,7 @@ public:
 class StrokeJointProperty : public ChoicePropertyComponent
 {
 public:
-    StrokeJointProperty (ColouredElement* const owner_)
+    explicit StrokeJointProperty (ColouredElement* const owner_)
         : ChoicePropertyComponent ("joint style"),
           listener (owner_)
     {
@@ -274,7 +273,11 @@ public:
                                                       PathStrokeType::curved,
                                                       PathStrokeType::beveled };
 
-        jassert (newIndex >= 0 && newIndex < 3);
+        if (! isPositiveAndBelow (newIndex, numElementsInArray (joints)))
+        {
+            jassertfalse;
+            return;
+        }
 
         listener.owner->setStrokeType (PathStrokeType (listener.owner->getStrokeType().stroke.getStrokeThickness(),
                                                        joints [newIndex],
@@ -302,7 +305,7 @@ public:
 class StrokeEndCapProperty   : public ChoicePropertyComponent
 {
 public:
-    StrokeEndCapProperty (ColouredElement* const owner_)
+    explicit StrokeEndCapProperty (ColouredElement* const owner_)
         : ChoicePropertyComponent ("end-cap style"),
           listener (owner_)
     {
@@ -319,7 +322,11 @@ public:
                                                      PathStrokeType::square,
                                                      PathStrokeType::rounded };
 
-        jassert (newIndex >= 0 && newIndex < 3);
+        if (! isPositiveAndBelow (newIndex, numElementsInArray (ends)))
+        {
+            jassertfalse;
+            return;
+        }
 
         listener.owner->setStrokeType (PathStrokeType (listener.owner->getStrokeType().stroke.getStrokeThickness(),
                                                        listener.owner->getStrokeType().stroke.getJointStyle(),

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -165,7 +164,7 @@ PaintElement* PaintRoutine::addNewElement (PaintElement* e, const int index, con
 class DeleteElementAction   : public PaintElementUndoableAction <PaintElement>
 {
 public:
-    DeleteElementAction (PaintElement* const element)
+    explicit DeleteElementAction (PaintElement* const element)
         : PaintElementUndoableAction <PaintElement> (element),
           oldIndex (-1)
     {
@@ -297,20 +296,17 @@ void PaintRoutine::copySelectedToClipboard()
         if (selectedElements.isSelected (pe))
             clip.addChildElement (pe->createXml());
 
-    SystemClipboard::copyTextToClipboard (clip.createDocument ("", false, false));
+    SystemClipboard::copyTextToClipboard (clip.toString());
 }
 
 void PaintRoutine::paste()
 {
-    XmlDocument clip (SystemClipboard::getTextFromClipboard());
-    std::unique_ptr<XmlElement> doc (clip.getDocumentElement());
-
-    if (doc != nullptr && doc->hasTagName (clipboardXmlTag))
+    if (auto doc = parseXMLIfTagMatches (SystemClipboard::getTextFromClipboard(), clipboardXmlTag))
     {
         selectedElements.deselectAll();
         selectedPoints.deselectAll();
 
-        forEachXmlChildElement (*doc, e)
+        for (auto* e : doc->getChildIterator())
             if (PaintElement* newElement = addElementFromXml (*e, -1, true))
                 selectedElements.addToSelection (newElement);
     }
@@ -614,7 +610,7 @@ bool PaintRoutine::loadFromXml (const XmlElement& xml)
 
         clear();
 
-        forEachXmlChildElement (xml, e)
+        for (auto* e : xml.getChildIterator())
             if (auto* newElement = ObjectTypes::createElementForXml (e, this))
                 elements.add (newElement);
 

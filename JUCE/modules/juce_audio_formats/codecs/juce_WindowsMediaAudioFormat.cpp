@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -30,11 +29,11 @@ namespace juce
 namespace WindowsMediaCodec
 {
 
-class JuceIStream   : public ComBaseClassHelper <IStream>
+class JuceIStream   : public ComBaseClassHelper<IStream>
 {
 public:
     JuceIStream (InputStream& in) noexcept
-        : ComBaseClassHelper <IStream> (0), source (in)
+        : ComBaseClassHelper (0), source (in)
     {
     }
 
@@ -48,10 +47,10 @@ public:
 
     JUCE_COMRESULT Read (void* dest, ULONG numBytes, ULONG* bytesRead)
     {
-        auto numRead = source.read (dest, numBytes);
+        auto numRead = source.read (dest, (size_t) numBytes);
 
         if (bytesRead != nullptr)
-            *bytesRead = numRead;
+            *bytesRead = (ULONG) numRead;
 
         return (numRead == (int) numBytes) ? S_OK : S_FALSE;
     }
@@ -75,7 +74,7 @@ public:
         }
 
         if (resultPosition != nullptr)
-            resultPosition->QuadPart = newPos;
+            resultPosition->QuadPart = (ULONGLONG) newPos;
 
         return source.setPosition (newPos) ? S_OK : E_NOTIMPL;
     }
@@ -84,7 +83,7 @@ public:
                            ULARGE_INTEGER* bytesRead, ULARGE_INTEGER* bytesWritten)
     {
         uint64 totalCopied = 0;
-        int64 numBytes = numBytesToDo.QuadPart;
+        auto numBytes = (int64) numBytesToDo.QuadPart;
 
         while (numBytes > 0 && ! source.isExhausted())
         {
@@ -96,8 +95,8 @@ public:
             if (numRead <= 0)
                 break;
 
-            destStream->Write (buffer, numRead, nullptr);
-            totalCopied += numRead;
+            destStream->Write (buffer, (ULONG) numRead, nullptr);
+            totalCopied += (ULONG) numRead;
         }
 
         if (bytesRead != nullptr)      bytesRead->QuadPart = totalCopied;
@@ -113,7 +112,7 @@ public:
 
         zerostruct (*stat);
         stat->type = STGTY_STREAM;
-        stat->cbSize.QuadPart = jmax ((int64) 0, source.getTotalLength());
+        stat->cbSize.QuadPart = (ULONGLONG) jmax ((int64) 0, source.getTotalLength());
         return S_OK;
     }
 
@@ -125,7 +124,7 @@ private:
 
 //==============================================================================
 static const char* wmFormatName = "Windows Media";
-static const char* const extensions[] = { ".mp3", ".wmv", ".asf", ".wm", ".wma", 0 };
+static const char* const extensions[] = { ".mp3", ".wmv", ".asf", ".wm", ".wma", nullptr };
 
 //==============================================================================
 class WMAudioReader   : public AudioFormatReader
@@ -158,7 +157,7 @@ public:
         }
     }
 
-    ~WMAudioReader()
+    ~WMAudioReader() override
     {
         if (wmSyncReader != nullptr)
             wmSyncReader->Close();
@@ -175,7 +174,7 @@ public:
         clearSamplesBeyondAvailableLength (destSamples, numDestChannels, startOffsetInDestBuffer,
                                            startSampleInFile, numSamples, lengthInSamples);
 
-        const int stride = numChannels * sizeof (int16);
+        const auto stride = (int) (numChannels * sizeof (int16));
 
         while (numSamples > 0)
         {
@@ -204,20 +203,20 @@ public:
                         return false;
 
                     if (hasJumped)
-                        bufferedRange.setStart ((int64) ((sampleTime * (int64) sampleRate) / 10000000));
+                        bufferedRange.setStart ((int64) ((sampleTime * (QWORD) sampleRate) / 10000000));
                     else
-                        bufferedRange.setStart (bufferedRange.getEnd()); // (because the positions returned often aren't continguous)
+                        bufferedRange.setStart (bufferedRange.getEnd()); // (because the positions returned often aren't contiguous)
 
-                    bufferedRange.setLength ((int64) (dataLength / stride));
+                    bufferedRange.setLength ((int64) dataLength / (int64) stride);
 
-                    buffer.ensureSize ((int) dataLength);
+                    buffer.ensureSize ((size_t) dataLength);
                     memcpy (buffer.getData(), rawData, (size_t) dataLength);
                 }
                 else if (hr == NS_E_NO_MORE_SAMPLES)
                 {
                     bufferedRange.setStart (startSampleInFile);
                     bufferedRange.setLength (256);
-                    buffer.ensureSize (256 * stride);
+                    buffer.ensureSize (256 * (size_t) stride);
                     buffer.fillWith (0);
                 }
                 else
@@ -232,6 +231,7 @@ public:
 
             for (int i = 0; i < numDestChannels; ++i)
             {
+                JUCE_BEGIN_IGNORE_WARNINGS_MSVC (28182)
                 jassert (destSamples[i] != nullptr);
 
                 auto srcChan = jmin (i, (int) numChannels - 1);
@@ -240,9 +240,10 @@ public:
 
                 for (int j = 0; j < numToDo; ++j)
                 {
-                    dst[j] = ((uint32) *src) << 16;
+                    dst[j] = (int) (((uint32) *src) << 16);
                     src += numChannels;
                 }
+                JUCE_END_IGNORE_WARNINGS_MSVC
             }
 
             startSampleInFile += numToDo;
@@ -261,40 +262,31 @@ private:
 
     void checkCoInitialiseCalled()
     {
-        CoInitialize (0);
+        ignoreUnused (CoInitialize (nullptr));
     }
 
     void scanFileForDetails()
     {
-        ComSmartPtr<IWMHeaderInfo> wmHeaderInfo;
-        HRESULT hr = wmSyncReader.QueryInterface (wmHeaderInfo);
-
-        if (SUCCEEDED (hr))
+        if (auto wmHeaderInfo = wmSyncReader.getInterface<IWMHeaderInfo>())
         {
             QWORD lengthInNanoseconds = 0;
             WORD lengthOfLength = sizeof (lengthInNanoseconds);
             WORD streamNum = 0;
             WMT_ATTR_DATATYPE wmAttrDataType;
-            hr = wmHeaderInfo->GetAttributeByName (&streamNum, L"Duration", &wmAttrDataType,
-                                                   (BYTE*) &lengthInNanoseconds, &lengthOfLength);
+            wmHeaderInfo->GetAttributeByName (&streamNum, L"Duration", &wmAttrDataType,
+                                              (BYTE*) &lengthInNanoseconds, &lengthOfLength);
 
-            ComSmartPtr<IWMProfile> wmProfile;
-            hr = wmSyncReader.QueryInterface (wmProfile);
-
-            if (SUCCEEDED (hr))
+            if (auto wmProfile = wmSyncReader.getInterface<IWMProfile>())
             {
                 ComSmartPtr<IWMStreamConfig> wmStreamConfig;
-                hr = wmProfile->GetStream (0, wmStreamConfig.resetAndGetPointerAddress());
+                auto hr = wmProfile->GetStream (0, wmStreamConfig.resetAndGetPointerAddress());
 
                 if (SUCCEEDED (hr))
                 {
-                    ComSmartPtr<IWMMediaProps> wmMediaProperties;
-                    hr = wmStreamConfig.QueryInterface (wmMediaProperties);
-
-                    if (SUCCEEDED (hr))
+                    if (auto wmMediaProperties = wmStreamConfig.getInterface<IWMMediaProps>())
                     {
                         DWORD sizeMediaType;
-                        hr = wmMediaProperties->GetMediaType (0, &sizeMediaType);
+                        hr = wmMediaProperties->GetMediaType (nullptr, &sizeMediaType);
 
                         HeapBlock<WM_MEDIA_TYPE> mediaType;
                         mediaType.malloc (sizeMediaType, 1);
@@ -307,7 +299,7 @@ private:
                             sampleRate = inputFormat->nSamplesPerSec;
                             numChannels = inputFormat->nChannels;
                             bitsPerSample = inputFormat->wBitsPerSample != 0 ? inputFormat->wBitsPerSample : 16;
-                            lengthInSamples = (lengthInNanoseconds * (int) sampleRate) / 10000000;
+                            lengthInSamples = (lengthInNanoseconds * (QWORD) sampleRate) / 10000000;
                         }
                     }
                 }

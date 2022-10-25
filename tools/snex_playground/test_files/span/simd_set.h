@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0.0f
   output: 20.0f
   error: ""
+  compile_flags: AutoVectorisation
   filename: "span/simd_set"
 END_TEST_DATA
 */

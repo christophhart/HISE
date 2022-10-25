@@ -44,11 +44,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	setOpaque(true);
 
+	auto drawColour = Colours::white;
+
+	if (isHeaderOfChain() || isHeaderOfModulatorSynth())
+		drawColour = Colours::black;
+
     addAndMakeVisible (valueMeter = new VuMeter());
 	valueMeter->setType(VuMeter::StereoHorizontal);
 	valueMeter->setColour (VuMeter::backgroundColour, Colour (0xFF333333));
 	valueMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
-	valueMeter->setColour (VuMeter::outlineColour, isHeaderOfModulatorSynth() ? Colour (0x45000000) : Colour (0x45ffffff));
+	valueMeter->setColour (VuMeter::outlineColour, drawColour.withAlpha(0.5f));
 	
 	#if JUCE_DEBUG
 	startTimer(150);
@@ -64,16 +69,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     idLabel->setJustificationType (Justification::centredLeft);
     idLabel->setEditable(false, true, true);
     idLabel->setColour (Label::backgroundColourId, Colour (0x00000000));
-    idLabel->setColour (Label::textColourId, Colours::black.withAlpha(0.7f));
+    idLabel->setColour (Label::textColourId, drawColour.withAlpha(0.7f));
     idLabel->setColour (Label::outlineColourId, Colour (0x00ffffff));
-    idLabel->setColour (Label::textWhenEditingColourId, Colours::black);
+    idLabel->setColour (Label::textWhenEditingColourId, drawColour);
     idLabel->setColour (Label::ColourIds::backgroundWhenEditingColourId, Colours::transparentBlack);
-	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, idLabel->findColour(Label::textWhenEditingColourId));
+	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, drawColour.contrasting(1.0f));
 	idLabel->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
-    idLabel->setColour (TextEditor::textColourId, Colours::black);
+    idLabel->setColour (TextEditor::textColourId, drawColour);
     idLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     idLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
-    idLabel->setColour(CaretComponent::ColourIds::caretColourId, isHeaderOfModulatorSynth() ? Colours::black : Colours::white);
+    idLabel->setColour(CaretComponent::ColourIds::caretColourId, drawColour);
     
 	idLabel->addListener(this);
 	
@@ -90,46 +95,22 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     typeLabel->setJustificationType (Justification::centredLeft);
     typeLabel->setEditable (false, false, false);
     typeLabel->setColour (Label::backgroundColourId, Colour (0x00000000));
-    typeLabel->setColour (Label::textColourId, Colour (0xff220000));
+    typeLabel->setColour (Label::textColourId, drawColour);
     typeLabel->setColour (Label::outlineColourId, Colour (0x00000000));
     
     typeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    typeLabel->setBufferedToImage(true);
-    
-    addAndMakeVisible (debugButton = new TextButton ("Debug Button"));
-
-	debugButton->setButtonText("DBG");
-
-    debugButton->setTooltip (TRANS("Enable debug output to console"));
-	
-	debugButton->setColour (TextButton::buttonColourId, Colour (0xaa222222));
-	debugButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-	debugButton->setColour (TextButton::buttonOnColourId, Colour (0xff555555));
-	debugButton->setColour (TextButton::textColourOnId, Colour (0xffffffff));
-	debugButton->setColour (TextButton::textColourOffId, Colour (0x77ffffff));
-
-	
-    debugButton->addListener (this);
-
-	addAndMakeVisible (plotButton = new DrawableButton ("Plotter Button", DrawableButton::ImageOnButtonBackground));
-	setupButton(plotButton, ButtonShapes::Plot);
-	plotButton->addListener(this);
-	plotButton->setTooltip("Open a plot window to display the modulator value.");
     
 	addAndMakeVisible(bypassButton = new HeaderButton("Bypass Button", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape), this));
 
-	
-	addAndMakeVisible (foldButton = new ShapeButton ("Fold", Colours::white, Colours::white, Colours::white));
-	
+	addAndMakeVisible (foldButton = new ShapeButton ("Fold", drawColour, drawColour, drawColour));
 	
 	checkFoldButton();
 
     foldButton->setTooltip (TRANS("Expand this Processor"));
-    
     foldButton->addListener (this);
 
-	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", drawColour, drawColour, drawColour));
     Path workspacePath;
     workspacePath.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
 	workspaceButton->setShape(workspacePath, true, true, true);
@@ -139,7 +120,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	refreshShapeButton(workspaceButton);
 
     
-    addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", Colours::white, Colours::white, Colours::white));
+    addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", drawColour, drawColour, drawColour));
 	Path deletePath;
 	deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	deleteButton->setShape(deletePath, true, true, true);
@@ -148,27 +129,16 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	deleteButton->addListener(this);
 
-	addAndMakeVisible(retriggerButton = new ShapeButton("Retrigger Envelope", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(retriggerButton = new ShapeButton("Retrigger Envelope", drawColour, drawColour, drawColour));
 	retriggerButton->setTooltip("Retrigger envelope in Legato Mode");
 	retriggerButton->addListener(this);
 
-	addAndMakeVisible(monophonicButton = new ShapeButton("Monophonic", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(monophonicButton = new ShapeButton("Monophonic", drawColour, drawColour, drawColour));
 
 	monophonicButton->setTooltip("Toggle between monophonic and polyphonic mode");
 	monophonicButton->addListener(this);
 
-	addAndMakeVisible(routeButton = new ShapeButton("Edit Routing Matrix", Colours::white, Colours::white, Colours::white));
-	Path routePath;
-	routePath.loadPathFromData(HiBinaryData::SpecialSymbols::routingIcon, sizeof(HiBinaryData::SpecialSymbols::routingIcon));
-	routeButton->setShape(routePath, true, true, true);
-	routeButton->setToggleState(true, dontSendNotification);
-	refreshShapeButton(routeButton);
-
-	routeButton->addListener(this);
-	routeButton->setVisible(dynamic_cast<RoutableProcessor*>(getProcessor()) != nullptr);
-
-
-	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", Colours::white, Colours::white, Colours::white));
+	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", drawColour, drawColour, drawColour));
 	
 	Path bipolarPath;
 	bipolarPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
@@ -184,7 +154,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
     addButton->addListener (this);
 
-    addAndMakeVisible (intensitySlider = new Slider ("Intensity Slider"));
+    addAndMakeVisible (intensitySlider = new IntensitySlider ("Intensity Slider"));
     intensitySlider->setRange (0, 1, 0.01);
     intensitySlider->setSliderStyle (Slider::LinearBar);
 	intensitySlider->setTextBoxStyle (Slider::TextEntryBoxPosition::TextBoxLeft, true, 80, 20);
@@ -238,8 +208,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		intensitySlider->setTextValueSuffix(" dB");
 		intensitySlider->setTooltip("Change the volume of the synth.");
 
-		debugButton->setVisible(false);
-		plotButton->setVisible(false);
 		bipolarModButton->setVisible(false);
 
 		addButton->setVisible(isHeaderOfChain());
@@ -262,23 +230,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 		bipolarModButton->setVisible(false);
 
-		if(getModulatorMode() == Modulation::PitchMode)
-		{
-			intensitySlider->setRange(-12.0, 12.0, 0.01);
-			intensitySlider->setTextValueSuffix(" st");
-			intensitySlider->setTextBoxIsEditable(true);
-			bipolarModButton->setVisible(!isHeaderOfChain());
-			bipolarModButton->addListener(this);
-		}
-		else if (getModulatorMode() == Modulation::PanMode)
-		{
-			intensitySlider->setRange(-100.0, 100.0, 1);
-			intensitySlider->setTextValueSuffix("%");
-			intensitySlider->setTextBoxIsEditable(true);
-			bipolarModButton->setVisible(!isHeaderOfChain());
-			bipolarModButton->addListener(this);
-		}
-
+        dynamic_cast<Modulation*>(getProcessor())->modeBroadcaster.addListener(*this, updateModulationMode, true);
+        
 		intensitySlider->setTooltip("Set the intensity of the modulation. 0 = no effect, 1 = full range modulation.");
 
 		valueMeter->setType(VuMeter::MonoHorizontal);
@@ -297,16 +250,11 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		deleteButton->setTooltip("Delete the Midi Processor.");
 		bypassButton->setTooltip("Bypass the Midi Processor.");
 
-		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
-
-		plotButton->setVisible(false);
 		bipolarModButton->setVisible(false);
 
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
 		intensitySlider->setVisible(false);
-
-
 	}
 
 	else if(isHeaderOfEffectProcessor())
@@ -316,15 +264,21 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		deleteButton->setTooltip("Delete the Effect.");
 		bypassButton->setTooltip("Bypass the Effect.");
 
-		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
 		bipolarModButton->setVisible(false);
 
-		plotButton->setVisible(false);
-		debugButton->setVisible(ProcessorHelpers::is<JavascriptProcessor>(getProcessor()));
 
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
 		intensitySlider->setVisible(false);
+
+	}
+
+	if (isHeaderOfChain() && !isHeaderOfModulatorSynth())
+	{
+		valueMeter->setOpaque(false);
+		valueMeter->setColour(VuMeter::ColourId::backgroundColour, Colours::black.withAlpha(0.2f));
+		valueMeter->setColour(VuMeter::ColourId::outlineColour, JUCE_LIVE_CONSTANT_OFF(Colour(0x50000000)));
+		valueMeter->setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT_OFF(Colour(0xb6ffffff)));
 	}
 
 	checkSoloLabel();
@@ -339,24 +293,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	update();
 
-	debugButton->setMouseClickGrabsKeyboardFocus(false);
 	foldButton->setMouseClickGrabsKeyboardFocus(false);
 	deleteButton->setMouseClickGrabsKeyboardFocus(false);
 	addButton->setMouseClickGrabsKeyboardFocus(false);
 	bypassButton->setMouseClickGrabsKeyboardFocus(false);
-	routeButton->setMouseClickGrabsKeyboardFocus(false);
 
-	debugButton->setWantsKeyboardFocus(false);
 	foldButton->setWantsKeyboardFocus(false);
 	deleteButton->setWantsKeyboardFocus(false);
 	addButton->setWantsKeyboardFocus(false);
 	bypassButton->setWantsKeyboardFocus(false);
-	routeButton->setWantsKeyboardFocus(false);
-	plotButton->setWantsKeyboardFocus(false);
-
-
-
-
 }
 
 ProcessorEditorHeader::~ProcessorEditorHeader()
@@ -366,8 +311,6 @@ ProcessorEditorHeader::~ProcessorEditorHeader()
     valueMeter = nullptr;
     idLabel = nullptr;
     typeLabel = nullptr;
-    debugButton = nullptr;
-    plotButton = nullptr;
     bypassButton = nullptr;
     foldButton = nullptr;
     deleteButton = nullptr;
@@ -381,12 +324,52 @@ void ProcessorEditorHeader::setLookAndFeel()
 	if(dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr) luf = new ModulatorSynthEditorHeaderLookAndFeel();
 	else
 	{
-		luf = new ModulatorEditorHeaderLookAndFeel();
+		auto l = new ModulatorEditorHeaderLookAndFeel();
+        luf = l;
 		luf->isChain = isHeaderOfChain();
+        l->c = getProcessor()->getColour();
 	}
 	
 	repaint();
 };
+
+void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m_)
+{
+    auto m = (Modulation::Mode)m_;
+    
+    if(m == Modulation::GainMode)
+    {
+        h.bipolarModButton->setVisible(false);
+        h.intensitySlider->setTextValueSuffix("");
+        h.intensitySlider->setRange (0, 1, 0.01);
+    }
+    else if(m == Modulation::PitchMode)
+    {
+        h.intensitySlider->setRange(-12.0, 12.0, 0.01);
+        h.intensitySlider->setTextValueSuffix(" st");
+        h.intensitySlider->setTextBoxIsEditable(true);
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    else if (m == Modulation::PanMode)
+    {
+        h.intensitySlider->setRange(-100.0, 100.0, 1);
+        h.intensitySlider->setTextValueSuffix("%");
+        h.intensitySlider->setTextBoxIsEditable(true);
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    else if (m == Modulation::GlobalMode)
+    {
+        h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+    }
+    
+    const double intensity = dynamic_cast<Modulation*>(h.getProcessor())->getDisplayIntensity();
+    h.intensitySlider->setValue(intensity, dontSendNotification);
+    
+    h.resized();
+}
 
 bool ProcessorEditorHeader::isHeaderOfModulator() const		{ return dynamic_cast<const Modulator*>(getProcessor()) != nullptr;	};
 
@@ -632,16 +615,11 @@ void ProcessorEditorHeader::resized()
 	if (shouldShowRoutingButton)
 	{
 		x = valueMeter->getRight() + 3;
-
-		routeButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
-		
-		x = routeButton->getRight() + 5;
-        
+		x += addCloseWidth + 5;
 	}
 	else
 	{
-        routeButton->setVisible(false);
-		x += 3;
+        x += 3;
 	}
 	
 	if (bipolarModButton->isVisible())
@@ -656,16 +634,11 @@ void ProcessorEditorHeader::resized()
 
 	if (IS(JavascriptProcessor))
 	{
-		debugButton->setBounds(x, yOffset2, 30, 20);
-		debugButton->setVisible(true);
 		x += 40;
 	}
 
 	if (IS(TimeModulation))
 	{
-		plotButton->setBounds(x, yOffset2, 30, 20);
-		plotButton->setVisible(true);
-
 		x += 40;
 	}
 
@@ -700,18 +673,7 @@ void ProcessorEditorHeader::resized()
 		}
 		
 	}
-	else
-	{
-		//addButton->setBounds (getWidth() - 8 - addCloseWidth, 8, addCloseWidth, addCloseWidth);
-	}
 
-	if(isHeaderOfModulator())
-	{
-		plotButton->setEnabled(( dynamic_cast<TimeVariantModulator*>(getProcessor()) != nullptr ||
-									dynamic_cast<EnvelopeModulator*>(getProcessor()) != nullptr )  &&
-								!isHeaderOfEmptyChain());
-	}
-	
 	repaint();
 }
 
@@ -764,31 +726,7 @@ void ProcessorEditorHeader::sliderDragEnded(Slider* s)
 
 void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 {
-    if (buttonThatWasClicked == debugButton)
-    {
-        const bool value = buttonThatWasClicked->getToggleState();
-		
-
-		if(dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
-		{
-			JavascriptProcessor *sp = value ? nullptr : dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
-
-			auto root = GET_ROOT_FLOATING_TILE(this);
-
-			auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptWatchTablePanel>(root, !buttonThatWasClicked->getToggleState());
-
-			if (p != nullptr)
-			{
-				p->setContentWithUndo(getProcessor(), 0);
-			}
-		}
-
-
-		buttonThatWasClicked->setToggleState(!value, dontSendNotification);
-    }
-	else if (buttonThatWasClicked == workspaceButton)
+	if (buttonThatWasClicked == workspaceButton)
 	{
 		auto rootWindow = GET_BACKEND_ROOT_WINDOW(this);
 
@@ -807,22 +745,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	}
 
 
-    else if (buttonThatWasClicked == plotButton)
-    {
-        const bool value = buttonThatWasClicked->getToggleState();
-		setPlotButton(!value);
-
-		auto root = GET_ROOT_FLOATING_TILE(this);
-
-		auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<PlotterPanel>(root,  buttonThatWasClicked->getToggleState());
-
-		if (p != nullptr)
-		{
-			p->setContentWithUndo(getProcessor(), 0);
-		}
-
-    }
-	else if (buttonThatWasClicked == bypassButton->button)
+    else if (buttonThatWasClicked == bypassButton->button)
     {
         
 		bool shouldBeBypassed = bypassButton->getToggleState();
@@ -839,10 +762,6 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
         PresetHandler::setChanged(getProcessor());
         
     }
-	else if (buttonThatWasClicked == routeButton)
-	{
-		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(routeButton);
-	}
 	else if (buttonThatWasClicked == retriggerButton)
 	{
 		const bool newValue = !retriggerButton->getToggleState();
@@ -858,12 +777,9 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	}
     else if (buttonThatWasClicked == foldButton)
     {
-
-
 		bool shouldBeFolded = toggleButton(buttonThatWasClicked);
 
 		getEditor()->setFolded(shouldBeFolded, true);
-
 		getEditor()->sendResizedMessage();
 
 		checkFoldButton();
@@ -874,34 +790,10 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		dynamic_cast<Modulation*>(getProcessor())->setIsBipolar(shouldBeBipolar);
 		updateBipolarIcon(shouldBeBipolar);
-
-
 	}
     else if (buttonThatWasClicked == deleteButton)
 	{
-        if(dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent()) != nullptr)
-		{
-			dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent())->clearPopup();
-			return;
-		}
-
-		if(dynamic_cast<ModulatorSynth*>(getProcessor()) == nullptr || PresetHandler::showYesNoWindow("Delete " + getProcessor()->getId() + "?", "Do you want to delete the Synth module?"))
-		{
-			auto p = getProcessor();
-
-			auto f = [](Processor* p)
-			{
-				if (auto c = dynamic_cast<Chain*>(p->getParentProcessor(false)))
-				{
-					c->getHandler()->remove(p, false);
-					jassert(!p->isOnAir());
-				}
-				
-				return SafeFunctionCall::OK;
-			};
-
-			p->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, f);
-		}
+        ProcessorEditor::deleteProcessorFromUI(this, getProcessor());
 	}
   
 	else if (buttonThatWasClicked == addButton)
@@ -976,8 +868,6 @@ void ProcessorEditorHeader::update()
 
 		auto mod = dynamic_cast<Modulation*>(p);
 
-		plotButton->setToggleState(mod->isPlotted(), dontSendNotification);
-
 		updateBipolarIcon(m->isBipolar());
 
 		if (isHeaderOfChain())
@@ -1006,7 +896,7 @@ void ProcessorEditorHeader::update()
 
 void ProcessorEditorHeader::setPlotButton(bool on)
 {
-	plotButton->setToggleState(on, dontSendNotification);
+	
 };
 
 void ProcessorEditorHeader::displayBypassedChain(bool isBypassed)
@@ -1036,15 +926,7 @@ void ProcessorEditorHeader::enableChainHeader()
 		}
 	}
 
-	
-
-	idLabel->setColour (Label::textColourId, Colour (0x66ffffff).withAlpha(shouldBeEnabled ? 0.7f : 0.4f));
-	idLabel->setColour (Label::ColourIds::textWhenEditingColourId, Colours::white);
-	typeLabel->setColour (Label::textColourId, Colour (0x66ffffff).withAlpha(shouldBeEnabled ? 0.7f : 0.4f));
-
 	foldButton->setEnabled(shouldBeEnabled);
-	debugButton->setEnabled(shouldBeEnabled);
-	plotButton->setEnabled(shouldBeEnabled);
 	bypassButton->setEnabled(shouldBeEnabled);
 
 	checkFoldButton();
@@ -1053,130 +935,20 @@ void ProcessorEditorHeader::enableChainHeader()
 
 void ProcessorEditorHeader::checkSoloLabel()
 {
-	const bool isInMasterPanel = getEditor()->getIndentationLevel() == 0;
-	const bool isRootProcessor = getProcessor()->getMainController()->getMainSynthChain()->getRootProcessor() == getProcessor();
-
-	if(isInMasterPanel && !isRootProcessor)
-	{
-		isSoloHeader = true;
-		parentName = ProcessorHelpers::findParentProcessor(getProcessor(), true)->getId();
-		deleteButton->setVisible(false);
-			
-		repaint();
-	}
+	
 };
+
+
 
 void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibling)
 {
-	Processor *processorToBeAdded = nullptr;
-	
-	Chain *c = getEditor()->getProcessorAsChain();
-	
-	jassert(c != nullptr);
-	FactoryType *t = c->getFactoryType();
-	StringArray types;
-	bool clipBoard = false;
-	int result;
-
-	// =================================================================================================================
-	// Create the Popup
-
-	{
-		ScopedPointer<PopupLookAndFeel> l = new PopupLookAndFeel();
-		PopupMenu m;
-		
-		m.setLookAndFeel(l);
-
-		m.addSectionHeader("Create new Processor ");
-		
-		t->fillPopupMenu(m);
-
-		m.addSeparator();
-		m.addSectionHeader("Add from Clipboard");
-
-		String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
-
-		if(clipBoardName != String())  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
-		else								m.addItem(-1, "No compatible Processor in clipboard.", false);
-
-		clipBoard = clipBoardName != String();
-
-		result = m.show();
-	}
-
-	// =================================================================================================================
-	// Create the processor
-
-	if(result == 0)									return;
-
-	else if(result == CLIPBOARD_ITEM_MENU_INDEX && clipBoard) processorToBeAdded = PresetHandler::createProcessorFromClipBoard(getProcessor());
-
-	else
-	{
-		Identifier type = t->getTypeNameFromPopupMenuResult(result);
-		String typeName = t->getNameFromPopupMenuResult(result);
-
-		String name;
-
-		if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
-		else						  name = typeName;
-
-
-		if (name.isNotEmpty())
-		{
-			processorToBeAdded = MainController::createProcessor(t, type, name);
-
-			
-		}
-			else return;
-	}
-
-	// =================================================================================================================
-	// Add the Editor
-
-	addProcessor(processorToBeAdded, insertBeforeSibling);
+    ProcessorEditor::createProcessorFromPopup(getEditor(), getProcessor(), insertBeforeSibling);
 };
 
 
 void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processor *insertBeforeSibling)
 {
-	if (processorToBeAdded == nullptr)	{ jassertfalse;	return; }
-
-	auto editor = getEditor();
-
-	auto f = [editor, insertBeforeSibling](Processor* p)
-	{
-		if (ProcessorHelpers::is<ModulatorSynth>(p) && dynamic_cast<ModulatorSynthGroup*>(editor->getProcessor()) == nullptr)
-			dynamic_cast<ModulatorSynth*>(p)->addProcessorsWhenEmpty();
-
-		editor->getProcessorAsChain()->getHandler()->add(p, insertBeforeSibling);
-
-		PresetHandler::setUniqueIdsForProcessor(p);
-
-		if (ProcessorHelpers::is<ModulatorSynth>(editor->getProcessor()))
-			p->getMainController()->getMainSynthChain()->compileAllScripts();
-
-		auto update = [](Dispatchable* obj)
-		{
-			auto editor = static_cast<ProcessorEditor*>(obj);
-
-			editor->changeListenerCallback(editor->getProcessor());
-			editor->childEditorAmountChanged();
-
-			BACKEND_ONLY(GET_BACKEND_ROOT_WINDOW(editor)->sendRootContainerRebuildMessage(false));
-			PresetHandler::setChanged(editor->getProcessor());
-
-			return Dispatchable::Status::OK;
-		};
-
-		p->getMainController()->getLockFreeDispatcher().callOnMessageThreadAfterSuspension(editor, update);
-
-		return SafeFunctionCall::OK;
-	};
-
-	editor->getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
 	
-	return;
 
 }
 
@@ -1256,188 +1028,23 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 	if(e.mods.isRightButtonDown())
 	{
-
-		enum
-		{
-			Copy=2,
-			InsertBefore,
-			CloseAllChains,
-			CheckForDuplicate,
-			CreateGenericScriptReference,
-			CreateTableProcessorScriptReference,
-			CreateAudioSampleProcessorScriptReference,
-			CreateSamplerScriptReference,
-			CreateMidiPlayerScriptReference,
-			CreateSliderPackProcessorReference,
-			CreateSlotFXReference,
-			CreateRoutingMatrixReference,
-			ReplaceWithClipboardContent,
-			SaveAllSamplesToGlobalFolder,
-			OpenAllScriptsInPopup,
-			OpenInterfaceInPopup,
-			ConnectToScriptFile,
-			ReloadFromExternalScript,
-			DisconnectFromScriptFile,
-			SaveCurrentInterfaceState,
-			numMenuItems
-		};
-
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		const bool isMainSynthChain = getProcessor()->getMainController()->getMainSynthChain() == getProcessor();
-
-		m.addSectionHeader("Copy Tools");
-
-		m.addItem(Copy, "Copy " + getProcessor()->getId() + " to Clipboard");
-
-		if ((!isHeaderOfChain() || isHeaderOfModulatorSynth()) && !isMainSynthChain)
-		{
-			m.addItem(InsertBefore, "Add Processor before this module", true);
-		}
-
-		
-		
-		
-		m.addSeparator();
-		m.addSectionHeader("Misc Tools");
-
-
-		if(isHeaderOfModulatorSynth())
-		{
-			m.addItem(CloseAllChains, "Close All Chains");
-		}
-
-		m.addSeparator();
-
-		m.addItem(CreateGenericScriptReference, "Create generic script reference");
-		
-		if (dynamic_cast<ModulatorSampler*>(getProcessor()) != nullptr)
-			m.addItem(CreateSamplerScriptReference, "Create typed Sampler script reference");
-		else if (dynamic_cast<MidiPlayer*>(getProcessor()) != nullptr)
-			m.addItem(CreateMidiPlayerScriptReference, "Create typed MIDI Player script reference");
-		else if (dynamic_cast<SlotFX*>(getProcessor()) != nullptr)
-			m.addItem(CreateSlotFXReference, "Create typed SlotFX script reference");
-
-		m.addItem(CreateTableProcessorScriptReference, "Create typed Table script reference", dynamic_cast<LookupTableProcessor*>(getProcessor()) != nullptr);
-		m.addItem(CreateAudioSampleProcessorScriptReference, "Create typed Audio sample script reference", dynamic_cast<AudioSampleProcessor*>(getProcessor()) != nullptr);
-		//m.addItem(CreateSliderPackProcessorReference, "Create typed Slider Pack script reference", dynamic_cast<SliderPackProcessor*>(getProcessor()) != nullptr);
-		m.addItem(CreateRoutingMatrixReference, "Create typed Routing matrix script reference", dynamic_cast<RoutableProcessor*>(getProcessor()) != nullptr);
-
-		m.addSeparator();
-
-		if (isMainSynthChain)
-		{
-			m.addSeparator();
-			m.addSectionHeader("Root Container Tools");
-			m.addItem(CheckForDuplicate, "Check children for duplicate IDs");
-		}
-
-		else if (JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
-		{
-			m.addSeparator();
-			m.addSectionHeader("Script Processor Tools");
-			m.addItem(OpenInterfaceInPopup, "Open Interface in Popup Window", true, false);
-			m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
-			m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
-			m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
-		}
-
-		int result = m.show();
-
-		if(result == 0) return;
-
-		if (result == Copy) PresetHandler::copyProcessorToClipboard(getProcessor());
-
-		else if (result == InsertBefore)
-		{
-			ProcessorEditor *pEditor = getEditor()->getParentEditor();
-
-			ProcessorEditorHeader *parentHeader = pEditor->getHeader();
-
-			parentHeader->createProcessorFromPopup(getProcessor());
-		}
-
-		else if (result == CloseAllChains)
-		{
-			getEditor()->getChainBar()->closeAll();
-		}
-		else if (result == CheckForDuplicate)
-		{
-			PresetHandler::checkProcessorIdsForDuplicates(getEditor()->getProcessor(), false);
-
-		}
-		else if (result == CreateGenericScriptReference)
-			ProcessorHelpers::getScriptVariableDeclaration(getEditor()->getProcessor());
-		else if (result == CreateAudioSampleProcessorScriptReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "AudioSampleProcessor");
-		else if (result == CreateMidiPlayerScriptReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "MidiPlayer");
-		else if (result == CreateRoutingMatrixReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "RoutingMatrix");
-		else if (result == CreateSamplerScriptReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "Sampler");
-		else if (result == CreateSlotFXReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "SlotFX");
-		else if (result == CreateTableProcessorScriptReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "TableProcessor");
-		else if (result == CreateSliderPackProcessorReference)
-			ProcessorHelpers::getTypedScriptVariableDeclaration(getEditor()->getProcessor(), "SliderPackProcessor");
-		else if (result == OpenInterfaceInPopup)
-		{
-			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->openContentInPopup();
-		}
-		else if (result == ConnectToScriptFile)
-		{
-			FileChooser fc("Select external script", GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
-
-			if (fc.browseForFileToOpen())
-			{
-				File scriptFile = fc.getResult();
-
-				const String scriptReference = GET_PROJECT_HANDLER(getProcessor()).getFileReference(scriptFile.getFullPathName(), ProjectHandler::SubDirectories::Scripts);
-
-				dynamic_cast<JavascriptProcessor*>(getProcessor())->setConnectedFile(scriptReference);
-			}
-		}
-		else if (result == ReloadFromExternalScript)
-		{
-			dynamic_cast<JavascriptProcessor*>(getProcessor())->reloadFromFile();
-		}
-		else if (result == DisconnectFromScriptFile)
-		{
-			if (PresetHandler::showYesNoWindow("Disconnect from script file", "Do you want to disconnect the script from the connected file?\nAny changes you make here won't be saved in the file"))
-			{
-				dynamic_cast<JavascriptProcessor*>(getProcessor())->disconnectFromFile();
-			}
-		}
-		else
-		{
-			File f = PresetHandler::getPresetFileFromMenu(result - PRESET_MENU_ITEM_DELTA, getProcessor());
-
-			if (!f.existsAsFile()) return;
-			
-			FileInputStream fis(f);
-
-			ValueTree testTree = ValueTree::readFromStream(fis);
-
-			if (testTree.isValid() && testTree.getProperty("Type") == "SynthChain")
-			{
-				findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(testTree);
-			}
-			else
-			{
-				PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container", PresetHandler::IconType::Error);
-			}
-		}
-
+		ProcessorEditor::showContextMenu(this, getProcessor());
 	}
 };
 
 
-void ProcessorEditorHeader::mouseDoubleClick(const MouseEvent&)
+void ProcessorEditorHeader::mouseDoubleClick(const MouseEvent& e)
 {
-	findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(getProcessor());
+	if (auto pe = findParentComponentOfClass<ProcessorEditorContainer>())
+	{
+		auto p = getProcessor();
+		MessageManager::callAsync([pe, p]()
+		{
+			pe->setRootProcessorEditor(p);
+		});
+		
+		return;
+	}
 }
 
 void ProcessorEditorHeader::setupButton(DrawableButton *b, ButtonShapes::Symbol s)
@@ -1466,11 +1073,12 @@ void ProcessorEditorHeader::setupButton(DrawableButton *b, ButtonShapes::Symbol 
 
 void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 {
-	bool off = !b->getToggleState();
-
-	Colour buttonColour = isHeaderOfModulatorSynth() ? Colours::black.withAlpha(0.8f) : Colours::white;
-
-	Colour shadowColour = isHeaderOfModulatorSynth() ? Colour(SIGNAL_COLOUR).withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
+	Colour buttonColour = Colours::white;
+	
+	if(isHeaderOfChain() || isHeaderOfModulatorSynth())
+		buttonColour = Colours::black.withAlpha(0.8f);
+	
+	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
 	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(b->getComponentEffect());
 
@@ -1478,11 +1086,8 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 	{
 		jassert(shadow != nullptr);
 
-		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+		shadow->setShadowProperties(DropShadow(buttonColour.contrasting(1.0f).withAlpha(0.5f), 3, Point<int>()));
 	}
-		
-	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
-	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
 	b->setColours(buttonColour.withMultipliedAlpha(0.5f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
 	b->repaint();
@@ -1510,7 +1115,18 @@ void ProcessorEditorHeader::scriptWasCompiled(JavascriptProcessor *processor)
 	{
 		if (jmp->isFront())
 		{
-			storedInPreset = jmp->getListOfModuleIds().contains(getProcessor()->getId());
+			storedInPreset = false;
+			auto id = getProcessor()->getId();
+
+			for (auto ms : jmp->getListOfModuleIds())
+			{
+				if (id == ms->id)
+				{
+					storedInPreset = true;
+					break;
+				}
+			}
+			
 			resized();
 		}
 	}

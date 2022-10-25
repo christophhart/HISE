@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0.0f
   output: 28.0f
   error: ""
+  compile_flags: AutoVectorisation
   filename: "span/local_definition"
 END_TEST_DATA
 */
@@ -19,13 +20,16 @@ float main(float input)
     
     float sum = 0.0f;
     
+    
     for(auto& s: d.toSimd())
     {
         s *= v;
     }
     
+    
     for(auto& s: d)
         sum += s;
+        
     
     return sum;
 }

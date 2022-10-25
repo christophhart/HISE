@@ -84,6 +84,9 @@ class event_alignment HiseEvent
 {
 public:
 
+	static constexpr int PitchWheelCCNumber = 128;
+	static constexpr int AfterTouchCCNumber = 129;
+
 	/** The type of the event. The most important MIDI types are there, but there are a few
 	    more interesting types for internal HISE stuff. */
 	enum class Type : uint8
@@ -127,6 +130,9 @@ public:
 		bit-equality. */
 	bool operator==(const HiseEvent &other) const;
 
+	/** Clears the event (so that isEmpty() returns true. */
+	void clear();
+
 	/** Swaps the event with another. */
 	void swapWith(HiseEvent &other);
 
@@ -135,6 +141,9 @@ public:
 
 	/** Returns a String representation of the type. */
 	String getTypeAsString() const noexcept;
+
+	/** Returns a String identifier for the given type. */
+	static String getTypeString(Type t);
 
 	/** Changes the type. Don't use this unless you know why. */
 	void setType(Type t) noexcept { type = t; }
@@ -374,7 +383,7 @@ public:
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
 
 	/** Copied from MidiMessage. */
-	int getControllerNumber() const noexcept{ return number; };
+	int getControllerNumber() const noexcept;;
 
 	/** Copied from MidiMessage. */
 	int getControllerValue() const noexcept{ return value; };
@@ -634,6 +643,8 @@ public:
 	/** Returns the number of events in this buffer. */
 	int getNumUsed() const { return numUsed; }
 
+	int size() const { return getNumUsed(); }
+
 	HiseEvent getEvent(int index) const;
 
 	HiseEvent popEvent(int index);
@@ -767,6 +778,12 @@ public:
 
 	/** Searches all active note on events and returns the one with the given event id. */
 	HiseEvent popNoteOnFromEventId(uint16 eventId);
+
+	/** Checks whether the event ID points to an active artificial event. */
+	bool isArtificialEventId(uint16 eventId) const
+	{
+		return !artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE].isEmpty();
+	}
 
 	// ===========================================================================================================
 

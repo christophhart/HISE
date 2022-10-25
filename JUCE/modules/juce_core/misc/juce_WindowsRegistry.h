@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -90,7 +90,7 @@ public:
     static bool JUCE_CALLTYPE valueExists (const String& regValuePath, WoW64Mode mode = WoW64_Default);
 
     /** Returns true if the given key exists in the registry. */
-    static bool JUCE_CALLTYPE keyExists (const String& regValuePath, WoW64Mode mode = WoW64_Default);
+    static bool JUCE_CALLTYPE keyExists (const String& regKeyPath, WoW64Mode mode = WoW64_Default);
 
     /** Deletes a registry value. */
     static bool JUCE_CALLTYPE deleteValue (const String& regValuePath, WoW64Mode mode = WoW64_Default);
@@ -123,10 +123,12 @@ public:
                                                        bool registerForCurrentUserOnly,
                                                        WoW64Mode mode = WoW64_Default);
 
+   #ifndef DOXYGEN
     // DEPRECATED: use the other methods with a WoW64Mode parameter of WoW64_64bit instead.
-    JUCE_DEPRECATED (static String getValueWow64 (const String&, const String& defaultValue = String()));
-    JUCE_DEPRECATED (static bool valueExistsWow64 (const String&));
-    JUCE_DEPRECATED (static bool keyExistsWow64 (const String&));
+    [[deprecated]] static String getValueWow64 (const String&, const String& defaultValue = String());
+    [[deprecated]] static bool valueExistsWow64 (const String&);
+    [[deprecated]] static bool keyExistsWow64 (const String&);
+   #endif
 
 private:
     WindowsRegistry() = delete;

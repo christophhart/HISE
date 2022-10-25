@@ -332,10 +332,9 @@ public:
 		degrade,
 		chorus,
         phaser,
-		gainCollector,
 		routeFX,
+		sendFX,
 		saturation,
-		audioProcessorWrapper,
 		scriptFxProcessor,
 		polyScriptFxProcessor,
 		slotFX,
@@ -344,6 +343,8 @@ public:
 		analyser,
 		shapeFX,
 		polyshapeFx,
+		hardcodedMasterFx,
+		polyHardcodedFx,
 		midiMetronome
 	};
 

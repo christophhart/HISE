@@ -87,7 +87,12 @@ AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
 isQuasiModal(false),
 synchronous(synchronous_)
 {
+#if USE_BACKEND
+	laf = new GlobalHiseLookAndFeel();
+#else
 	laf = PresetHandler::createAlertWindowLookAndFeel();
+#endif
+
 	setLookAndFeel(laf);
 
 	setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
@@ -128,6 +133,11 @@ DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 
 void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 {
+	for (int i = 0; i < getNumChildComponents(); i++)
+	{
+		GlobalHiseLookAndFeel::setDefaultColours(*getChildComponent(i));
+	}
+
 	addTextEditor("state", "", "Status", false);
 
 	getTextEditor("state")->setReadOnly(true);
@@ -135,9 +145,13 @@ void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 	addProgressBarComponent(logData.progress);
 	
 	if (addOKButton)
+	{
 		addButton("OK", 1, KeyPress(KeyPress::returnKey));
+		getButton("OK")->addListener(this);
+	}
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+	getButton("Cancel")->addListener(this);
 
 	for (int i = 0; i < getNumChildComponents(); i++)
 		HiseColourScheme::setDefaultColours(*getChildComponent(i), true);
@@ -162,18 +176,13 @@ void DialogWindowWithBackgroundThread::handleAsyncUpdate()
 		return;
 	}
 
-
-
-
-
-
-
 	threadFinished();
 
 	if (additionalFinishCallback)
 		additionalFinishCallback();
 
-	destroy();
+	if (destroyWhenFinished)
+		destroy();
 }
 
 void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
@@ -189,28 +198,30 @@ void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
 		}
 		else if (thread == nullptr)
 		{
-			thread = new LoadingThread(this);
-			thread->startThread();
+			runThread();
 		}
-		
 	}
 	else if (b->getName() == "Cancel")
 	{
-		if (thread != nullptr)
-		{
-			thread->signalThreadShouldExit();
-			thread->notify();
-			destroy();
-		}
-		else
-		{
-			destroy();
-		}
+		stopThread();
+		destroy();
 	}
 	else
 	{
 		resultButtonClicked(b->getName());
 	}
+}
+
+void DialogWindowWithBackgroundThread::stopThread()
+{
+	if (thread != nullptr)
+	{
+		thread->signalThreadShouldExit();
+		thread->notify();
+		thread->waitForThreadToExit(timeoutMs);
+	}
+
+	thread = nullptr;
 }
 
 void DialogWindowWithBackgroundThread::runSynchronous()
@@ -260,6 +271,7 @@ void DialogWindowWithBackgroundThread::reset()
 
 void DialogWindowWithBackgroundThread::runThread()
 {
+	stopThread();
 	thread = new LoadingThread(this);
 	thread->startThread();
 }
@@ -272,6 +284,8 @@ void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& 
 	t->setName(name);
 	t->addItemList(items, 1);
 
+    GlobalHiseLookAndFeel::setDefaultColours(*t);
+    
 	if (listener != nullptr)
 		t->addListener(listener);
 
@@ -608,30 +622,38 @@ Array<File> SampleDataExporter::collectMonoliths()
 	Array<File> sampleMonoliths;
 	auto expName = getExpansionName();
 
+	FileHandlerBase* handler = &getMainController()->getCurrentFileHandler();
+
 	if (expName.isNotEmpty())
 	{
-		StringArray validIds;
-
 		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
+			handler = e;
+	}
+
+	auto& smPool = handler->pool->getSampleMapPool();
+	auto sampleDirectory = handler->getSubDirectory(FileHandlerBase::Samples);
+
+	for (int i = 0; i < smPool.getNumLoadedFiles(); i++)
+	{
+		auto entry = smPool.loadFromReference(smPool.getReference(i), PoolHelpers::DontCreateNewEntry);
+
+		MonolithFileReference mref(entry->data);
+		mref.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
+		mref.addSampleDirectory(sampleDirectory);
+
+		try
 		{
-			auto& smPool = e->pool->getSampleMapPool();
-			
-			auto f = e->getSubDirectory(FileHandlerBase::Samples);
-			//f.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
-
-			for (auto& id : smPool.getIdList())
+			for (auto f : mref.getAllFiles())
 			{
-				auto hlacFileName = id.fromLastOccurrenceOf("}", false, false).replaceCharacter('/', '_');
-
-				f.findChildFiles(sampleMonoliths, File::findFiles, false, hlacFileName + ".*");
-
+				if(f.existsAsFile())
+					sampleMonoliths.addIfNotAlreadyThere(f);
 			}
 		}
-	}
-	else
-	{
-		File sampleDirectory = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+		catch (Result& r)
+		{
+			criticalErrorOccured(r.getErrorMessage());
+			return {};
+		}
 	}
 
 	sampleMonoliths.sort();
@@ -653,7 +675,8 @@ juce::String SampleDataExporter::getExpansionName() const
 
 String SampleDataExporter::getMetadataJSON() const
 {
-	DynamicObject::Ptr d = new DynamicObject();
+	auto d = new DynamicObject();
+	var data(d);
 
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
@@ -672,7 +695,7 @@ String SampleDataExporter::getMetadataJSON() const
 
 		if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(hxiFile->getCurrentFile());
+			auto xml = XmlDocument::parse(hxiFile->getCurrentFile());
 
 			if (xml != nullptr)
 			{
@@ -697,7 +720,7 @@ String SampleDataExporter::getMetadataJSON() const
 	int index = getComboBoxComponent("supportFull")->getSelectedItemIndex();
 
 	d->setProperty("BitDepth", index == 0 ? 24 : 16);
-	var data(d);
+	
 
 	return JSON::toString(data, true);
 }
@@ -1105,7 +1128,8 @@ DialogWindowWithBackgroundThread::AdditionalRow::Column::Column(Component* t, co
 		addAndMakeVisible(infoButton = new MarkdownHelpButton());
 	}
 
-	infoButton->setVisible(false);
+	if(infoButton != nullptr)
+		infoButton->setVisible(false);
 }
 
 void DialogWindowWithBackgroundThread::AdditionalRow::Column::resized()

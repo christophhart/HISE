@@ -35,62 +35,6 @@
 namespace hise { using namespace juce;
 
 
-CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId)
-{
-	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p, snippetId));
-
-	restrainer.setMinimumHeight(50);
-	restrainer.setMaximumHeight(600);
-
-	addAndMakeVisible(dragger = new ResizableEdgeComponent(this, &restrainer, ResizableEdgeComponent::Edge::bottomEdge));
-
-	dragger->addMouseListener(this, true);
-
-	setSize(200, 340);
-
-	currentHeight = getHeight();
-}
-
-CodeEditorWrapper::~CodeEditorWrapper()
-{
-	editor = nullptr;
-}
-
-void CodeEditorWrapper::resized()
-{
-	editor->setBounds(getLocalBounds());
-
-	dragger->setBounds(0, getHeight() - 5, getWidth(), 5);
-}
-
-void CodeEditorWrapper::timerCallback()
-{
-#if USE_BACKEND
-	ProcessorEditorBody *body = dynamic_cast<ProcessorEditorBody*>(getParentComponent());
-
-	resized();
-
-	if (body != nullptr)
-	{
-		currentHeight = getHeight();
-
-		body->refreshBodySize();
-	}
-#endif
-}
-
-void CodeEditorWrapper::mouseDown(const MouseEvent &m)
-{
-	if (m.eventComponent == dragger) startTimer(30);
-}
-
-void CodeEditorWrapper::mouseUp(const MouseEvent &)
-{
-	stopTimer();
-}
-
-
-
 DebugConsoleTextEditor::DebugConsoleTextEditor(const String& name, Processor* p) :
 	TextEditor(name),
 	processor(p)
@@ -138,7 +82,11 @@ void DebugConsoleTextEditor::scriptWasCompiled(JavascriptProcessor *jp)
 
 		if (r.wasOk()) setText("Compiled OK", dontSendNotification);
 		else
-			setText(r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false), dontSendNotification);
+        {
+            fullErrorMessage = r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false);
+            
+            setText(fullErrorMessage.upToFirstOccurrenceOf("{", false, false), dontSendNotification);
+        }
 
 		setColour(TextEditor::backgroundColourId, r.wasOk() ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
 	}
@@ -165,15 +113,20 @@ bool DebugConsoleTextEditor::keyPressed(const KeyPress& k)
 
 void DebugConsoleTextEditor::mouseDown(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
-		setText("> ", dontSendNotification);
+	if(!getText().containsChar('>'))
+        setText("> ", dontSendNotification);
 
 	TextEditor::mouseDown(e);
 }
 
 void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& /*e*/)
 {
-	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), getText());
+	gotoText();
+}
+
+void DebugConsoleTextEditor::gotoText()
+{
+	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), fullErrorMessage);
 }
 
 void DebugConsoleTextEditor::addToHistory(const String& s)
@@ -200,23 +153,29 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		codeToEvaluate = codeToEvaluate.substring(2);
 	}
 
-	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
+    auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+    
+    processor->getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::Compilation,
+                                                                     jsp, [codeToEvaluate](JavascriptProcessor* p)
+    {
+        Result r = Result::ok();
+        HiseJavascriptEngine* engine = p->getScriptEngine();
+        
+        var returnValue = engine->evaluate(codeToEvaluate, &r);
 
-	if (engine != nullptr)
-	{
-		Result r = Result::ok();
-
-		var returnValue = engine->evaluate(codeToEvaluate, &r);
-
-		if (r.wasOk())
-		{
-			debugToConsole(processor, "> " + returnValue.toString());
-		}
-		else
-		{
-			debugToConsole(processor, r.getErrorMessage());
-		}
-	}
+        auto pr = dynamic_cast<Processor*>(p);
+        
+        if (r.wasOk())
+        {
+            pr->getMainController()->writeToConsole("> " + returnValue.toString(), 0, nullptr);
+        }
+        else
+        {
+            debugToConsole(pr, r.getErrorMessage());
+        }
+        
+        return r;
+    });
 }
 
 

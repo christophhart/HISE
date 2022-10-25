@@ -79,6 +79,12 @@ public:
 	MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~MPEModulator();
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        table = getTableUnchecked(0);
+        table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	void mpeModeChanged(bool isEnabled) override;
 	void mpeModulatorAssigned(MPEModulator* m, bool wasAssigned) override;
 	void mpeDataReloaded() override;
@@ -87,9 +93,6 @@ public:
 	float getDefaultValue(int parameterIndex) const override;
 	float getAttribute(int parameter_index) const;
 
-	int getNumTables() const override { return 1; }
-	Table* getTable(int /*index*/) const override { return table; }
-	
 	void resetToDefault();
 	
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -229,14 +232,11 @@ private:
 	float unsavedStrokeValue = 0.0f;
 	float defaultValue = 0.0f;
 	float smoothingTime = -1.0f;
-
 	int ccNumber = 0;
 	Gesture g;
 	float smoothedIntensity;
 
-	ScopedPointer<SampleLookupTable> table;
-
-	
+	SampleLookupTable* table;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEModulator);
 

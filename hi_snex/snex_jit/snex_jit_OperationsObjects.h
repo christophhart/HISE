@@ -1,0 +1,230 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+#pragma once
+
+namespace snex {
+namespace jit {
+using namespace juce;
+using namespace asmjit;
+
+
+struct Operations::ClassStatement : public Statement,
+	public Operations::ClassDefinitionBase
+{
+	SET_EXPRESSION_ID(ClassStatement)
+
+	ClassStatement(Location l, ComplexType::Ptr classType_, Statement::Ptr classBlock, const Array<TemplateInstance>& baseClasses);
+
+	~ClassStatement()
+	{
+		classType = nullptr;
+	}
+
+	Result addBaseClasses();
+
+	void createMembersAndFinalise();
+
+	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
+	{
+		return new ClassStatement(l, classType, getChildStatement(0)->clone(l), baseClasses);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Statement::toValueTree();
+		t.setProperty("Type", classType->toString(), nullptr);
+
+		return t;
+	}
+
+	bool isTemplate() const override { return false; }
+
+	TypeInfo getTypeInfo() const override { return {}; }
+
+	size_t getRequiredByteSize(BaseCompiler* compiler, BaseScope* scope) const override
+	{
+		jassert(compiler->getCurrentPass() > BaseCompiler::ComplexTypeParsing);
+		return classType->getRequiredByteSize();
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope);
+
+	StructType* getStructType()
+	{
+		return dynamic_cast<StructType*>(classType.get());
+	}
+
+	Array<TemplateInstance> baseClasses;
+	ComplexType::Ptr classType;
+	ScopedPointer<ClassScope> subClass;
+
+	Array<ComplexType::Ptr> baseClassTypes;
+};
+
+
+struct Operations::InternalProperty : public Expression
+{
+	SET_EXPRESSION_ID(InternalProperty);
+
+	InternalProperty(Location l, const Identifier& id_, const var& v_):
+		Expression(l),
+		id(id_),
+		v(v_)
+	{
+
+	}
+
+	Ptr clone(Location l) const override
+	{
+		return new InternalProperty(l, id, v);
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		t.setProperty("ID", id.toString(), nullptr);
+		t.setProperty("Value", v.toString(), nullptr);
+
+		return t;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return TypeInfo(Types::ID::Void);
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	Identifier id;
+	var v;
+};
+
+struct Operations::ComplexTypeDefinition : public Expression,
+	public TypeDefinitionBase
+{
+	SET_EXPRESSION_ID(ComplexTypeDefinition);
+
+	ComplexTypeDefinition(Location l, const Array<NamespacedIdentifier>& ids_, TypeInfo type_) :
+		Expression(l),
+		ids(ids_),
+		type(type_)
+	{}
+
+	void addInitValues(InitialiserList::Ptr l)
+	{
+		initValues = l;
+
+		initValues->forEach([this](InitialiserList::ChildBase* b)
+		{
+			if (auto ec = dynamic_cast<InitialiserList::ExpressionChild*>(b))
+			{
+				this->addStatement(ec->expression);
+			}
+
+			return false;
+		});
+	}
+
+	Array<NamespacedIdentifier> getInstanceIds() const override { return ids; }
+
+	Ptr clone(ParserHelpers::CodeLocation l) const override
+	{
+		Ptr n = new ComplexTypeDefinition(l, ids, type);
+
+		cloneChildren(n);
+
+		if (initValues != nullptr)
+			as<ComplexTypeDefinition>(n)->initValues = initValues;
+
+		return n;
+	}
+
+	TypeInfo getTypeInfo() const override
+	{
+		return type;
+	}
+
+	ValueTree toValueTree() const override
+	{
+		auto t = Expression::toValueTree();
+
+		juce::String names;
+
+		for (auto id : ids)
+			names << id.toString() << ",";
+
+		t.setProperty("Type", type.toString(), nullptr);
+
+		t.setProperty("Ids", names, nullptr);
+
+		if (initValues != nullptr)
+			t.setProperty("InitValues", initValues->toString(), nullptr);
+
+		return t;
+	}
+
+	Array<Symbol> getSymbols() const
+	{
+		Array<Symbol> symbols;
+
+		for (auto id : ids)
+		{
+			symbols.add({ id, getTypeInfo() });
+		}
+
+		return symbols;
+	}
+
+	void process(BaseCompiler* compiler, BaseScope* scope) override;
+
+	bool isStackDefinition(BaseScope* scope) const
+	{
+		return dynamic_cast<RegisterScope*>(scope) != nullptr;
+	}
+
+
+
+	Array<NamespacedIdentifier> ids;
+	TypeInfo type;
+
+
+
+	InitialiserList::Ptr initValues;
+
+	ReferenceCountedArray<AssemblyRegister> stackLocations;
+};
+
+
+}
+}

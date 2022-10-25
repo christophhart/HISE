@@ -50,6 +50,7 @@ public:
 	{
 		ProcessorId = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		Index,
+		FollowWorkspace,
 		numSpecialPanelIds
 	};
 
@@ -142,6 +143,8 @@ public:
 
 	const ModulatorSynthChain* getMainSynthChain() const;
 
+	void changeContentWithUndo(int newIndex);
+
 	void setContentWithUndo(Processor* newProcessor, int newIndex);
 
 	void refreshContent()
@@ -149,7 +152,7 @@ public:
 		if (getConnectedProcessor())
 			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
 		else
-			connectionSelector->setSelectedId(1);
+			connectionSelector->setSelectedId(1, dontSendNotification);
 
 		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
 
@@ -161,6 +164,7 @@ public:
 		{
 			getProcessor()->addDeleteListener(this);
 
+			content = nullptr;
 			content = createContentComponent(currentIndex);
 			
 			if(content != nullptr)
@@ -169,7 +173,7 @@ public:
 
 		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
 
-		if (getProcessor())
+		if (getProcessor() && !hasCustomTitle())
 		{
 			titleToUse << ": " << getConnectedProcessor()->getId();
 		}
@@ -195,6 +199,11 @@ public:
 
 	virtual bool hasSubIndex() const { return false; }
 
+	bool showTitleInPresentationMode() const override
+	{
+		return !forceHideSelector;
+	}
+
 	void setCurrentProcessor(Processor* p)
 	{
 		if (currentProcessor.get() != nullptr)
@@ -211,6 +220,19 @@ public:
 		currentIndex = newIndex;
 	}
 
+	int getCurrentIndex() const { return currentIndex; }
+
+	void setForceHideSelector(bool shouldHide)
+	{
+		forceHideSelector = shouldHide;
+		
+	}
+
+	virtual bool shouldFollowNewWorkspace(Processor* p, const Identifier& id) const
+	{
+		return followWorkspaceButton.getToggleState() && id == getProcessorTypeId();
+	}
+
 protected:
 
 	template <class ProcessorType> void fillModuleListWithType(StringArray& moduleList)
@@ -225,7 +247,25 @@ protected:
 
 	const Identifier showConnectionBar;
 
+protected:
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+			return p;
+		}
+	} factory;
+
+	HiseShapeButton followWorkspaceButton;
+
 private:
+
+	
+
+	bool forceHideSelector = false;
 
 	bool listInitialised = false;
 
@@ -233,6 +273,7 @@ private:
 
 	ScopedPointer<ComboBox> connectionSelector;
 	ScopedPointer<ComboBox> indexSelector;
+	
 
 	int currentIndex = -1;
 	int previousIndex = -1;
@@ -268,9 +309,19 @@ public:
 	{
 		if (auto p = ProcessorHelpers::getFirstProcessorWithType<ProcessorType>(getMainController()->getMainSynthChain()))
 		{
-			setContentWithUndo(dynamic_cast<Processor*>(p), 0);
+			auto idx = getCurrentIndex();
+			setContentWithUndo(dynamic_cast<Processor*>(p), idx);
 		}
+	}
 
+	bool shouldFollowNewWorkspace(Processor* p, const Identifier& id) const override
+	{
+		return followWorkspaceButton.getToggleState() && dynamic_cast<ProcessorType*>(p) != nullptr;
+	}
+
+	void setFollowWorkspace(bool enabled)
+	{
+		followWorkspaceButton.setToggleStateAndUpdateIcon(enabled);
 	}
 
 	Identifier getIdentifierForBaseClass() const override
@@ -313,8 +364,6 @@ public:
         setContentForIdentifier(idToSearch);
     }
     
-
-
 	void fillModuleList(StringArray& moduleList) override
 	{
 		fillModuleListWithType<ProcessorType>(moduleList);

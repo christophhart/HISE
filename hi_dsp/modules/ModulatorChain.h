@@ -35,6 +35,10 @@
 
 namespace hise { using namespace juce;
 
+#ifndef HISE_NUM_MODULATORS_PER_CHAIN
+#define HISE_NUM_MODULATORS_PER_CHAIN 32
+#endif
+
 /** A chain of Modulators that can be processed serially.
 *
 *	@ingroup modulator
@@ -356,6 +360,8 @@ public:
 	/** Sets the sample rate for all modulators in the chain and initialized the UpdateMerger. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	
+	void setMode(Mode newMode, NotificationType n) override;
+
 	bool hasActivePolyMods() const noexcept;
 	bool hasActiveVoiceStartMods() const noexcept;
 	bool hasActiveTimeVariantMods() const noexcept;
@@ -540,11 +546,11 @@ public:
 		bool hasActiveMonophoicEnvelopes() const noexcept { return activeMonophonicEnvelopes; };
 		bool hasActiveMods() const noexcept { return anyActive; }
 
-		UnorderedStack<VoiceStartModulator*, 16> activeVoiceStartList;
-		UnorderedStack<TimeVariantModulator*, 16> activeTimeVariantsList;
-		UnorderedStack<EnvelopeModulator*, 16> activeEnvelopesList;
-		UnorderedStack<Modulator*, 48> activeAllList;
-		UnorderedStack<MonophonicEnvelope*, 16> activeMonophonicEnvelopesList;
+		UnorderedStack<VoiceStartModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeVoiceStartList;
+		UnorderedStack<TimeVariantModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeTimeVariantsList;
+		UnorderedStack<EnvelopeModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeEnvelopesList;
+		UnorderedStack<Modulator*, HISE_NUM_MODULATORS_PER_CHAIN*3> activeAllList;
+		UnorderedStack<MonophonicEnvelope*, HISE_NUM_MODULATORS_PER_CHAIN> activeMonophonicEnvelopesList;
 
 	private:
 

@@ -34,6 +34,24 @@
 
 namespace scriptnode
 {
+
+namespace control
+{
+	/** Oh boy, this is ugly. The mothernode system does not work with dynamic data types, so the UI
+		offset crashes the component creation. Therefore we need to roll an own class .*/
+	struct dynamic_dupli_pack : public wrap::data<control::clone_pack<parameter::clone_holder>, data::dynamic::sliderpack>
+	{
+		static parameter::dynamic_base_holder* getParameterFunction(void* obj);
+	};
+}
+
+namespace data { 
+namespace ui { namespace pimpl { struct editor_base; } }
+namespace pimpl { struct dynamic_base; }
+}
+
+namespace parameter { struct dynamic_list; }
+
 using namespace juce;
 using namespace hise;
 
@@ -41,844 +59,646 @@ struct ComponentHelpers
 {
     static NodeComponent* createDefaultComponent(NodeBase* n);
     static void addExtraComponentToDefault(NodeComponent* nc, Component* c);
-        
 };
 
-class WrapperNode : public ModulationSourceNode
+struct OpaqueNodeDataHolder: public data::base,
+						     public ExternalDataHolderWithForcedUpdate,
+							 public ExternalDataHolderWithForcedUpdate::ForcedUpdateListener
 {
-protected:
-
-	WrapperNode(DspNetwork* parent, ValueTree d);;
-
-	NodeComponent* createComponent() override;
-
-	virtual Component* createExtraComponent() { return nullptr; }
-
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
-
-	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
-
-	virtual int getExtraWidth() const { return 0; }
-	virtual int getExtraHeight() const { return 0; }
-};
-
-    
-template <class HiseDspBaseType> class HiseDspNodeBase : public WrapperNode
-{
-	using WrapperType = bypass::smoothed<HiseDspBaseType, false>;
-
-public:
-	HiseDspNodeBase(DspNetwork* parent, ValueTree d) :
-		WrapperNode(parent, d)
+	struct Editor : public ScriptnodeExtraComponent<OpaqueNodeDataHolder>
 	{
-		wrapper.getObject().initialise(this);
+		Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger);
 
-		setDefaultValue(PropertyIds::BypassRampTimeMs, 20.0f);
+		void timerCallback() override {}
 
-		d.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager());
+		void addEditor(data::pimpl::dynamic_base* d);
 
-		Array<HiseDspBase::ParameterData> pData;
+		void resized() override;
 
-		wrapper.getObject().createParameters(pData);
-
-		for (auto p : pData)
-		{
-			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.id);
-
-			if (!existingChild.isValid())
-			{
-				existingChild = p.createValueTree();
-				getParameterTree().addChild(existingChild, -1, getUndoManager());
-			}
-
-			auto newP = new Parameter(this, existingChild);
-			newP->setCallback(p.db);
-			newP->valueNames = p.parameterNames;
-
-			addParameter(newP);
-		}
-
-		bypassListener.setCallback(d, { PropertyIds::Bypassed },
-			valuetree::AsyncMode::Synchronously,
-			std::bind(&WrapperType::setBypassedFromValueTreeCallback,
-				&wrapper, std::placeholders::_1, std::placeholders::_2));
+		OwnedArray<data::ui::pimpl::editor_base> editors;
+		PooledUIUpdater* updater;
+		int height = 0;
+		int width = 0;
+		ScopedPointer<ModulationSourceBaseComponent> dragger;
 	};
 
-    static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new HiseDspNodeBase<HiseDspBaseType>(n, d); }; 
-    static Identifier getStaticId() { return HiseDspBaseType::getStaticId(); };
-    
-	Component* createExtraComponent()
+	void setExternalData(const snex::ExternalData& d, int index) override;
+
+	OpaqueNodeDataHolder(OpaqueNode& n, NodeBase* pn);
+
+	~OpaqueNodeDataHolder();
+
+	void forceRebuild(ExternalData::DataType dt, int index) override
 	{
-		return wrapper.getObject().createExtraComponent(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+		sendForceUpdateMessage(this, dt, index);
 	}
 
-	int getExtraHeight() const final override
-	{
-		return wrapper.getObject().getExtraHeight();
-	}
+	data::pimpl::dynamic_base* create(ExternalData::DataType dt, int index);
 
-	int getExtraWidth() const final override
-	{
-		return wrapper.getObject().getExtraWidth();
-	}
+	void createDataType(ExternalData::DataType dt);
 
-	bool isUsingModulation() const override
-	{
-		return HiseDspBaseType::isModulationSource;
-	}
+	OpaqueNode& opaqueNode;
+	WeakReference<NodeBase> parentNode;
+	OwnedArray<data::pimpl::dynamic_base> data;
 
-	void reset()
-	{
-		wrapper.reset();
+	virtual int getNumDataObjects(ExternalData::DataType t) const override;
+	virtual Table* getTable(int index) override;
+	virtual SliderPackData* getSliderPack(int index) override;
+	virtual MultiChannelAudioBuffer* getAudioFile(int index) override;
+	virtual FilterDataObject* getFilterData(int index) override;
+	virtual SimpleRingBuffer* getDisplayBuffer(int index) override;
+	virtual bool removeDataObject(ExternalData::DataType t, int index) override;
 
-		if (HiseDspBaseType::isModulationSource)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(OpaqueNodeDataHolder);
+};
+
+template <class WType> class InterpretedNodeBase
+{
+public:
+
+	using WrapperType = WType;
+
+	virtual ~InterpretedNodeBase() 
+	{
+		if (nodeFactory != nullptr)
 		{
-			double initValue = 0.0;
-			if (getRootNetwork()->isCurrentlyRenderingVoice() && wrapper.getObject().handleModulation(initValue))
-				sendValueToTargets(initValue, 0);
+			nodeFactory->deinitOpaqueNode(&obj.getWrappedObject());
 		}
-	}
+	};
 
-	HiseDspBase* getInternalT()
+	InterpretedNodeBase() = default;
+
+	template <typename T, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI=false> void init()
 	{
-		return wrapper.getInternalT();
+		obj.getWrappedObject().template create<T>();
+
+		if constexpr (AddDataOffsetToUIPtr && std::is_base_of<data::pimpl::provider_base, typename T::ObjectType>())
+		{
+			auto offset = T::ObjectType::getDataOffset();
+			asWrapperNode()->setUIOffset(offset);	
+		}
+		else if constexpr (UseNodeBaseAsUI)
+		{
+			auto asUint8Ptr = reinterpret_cast<uint8*>(this);
+			auto objPtr = reinterpret_cast<uint8*>(getObjectPtrFromWrapper());
+
+			auto offset = asUint8Ptr - objPtr;
+			asWrapperNode()->setUIOffset(offset);
+		}
+
+		this->obj.initialise(asWrapperNode());
+		postInit();
 	}
 
-	bool isPolyphonic() const override { return wrapper.isPolyphonic(); }
+	ExternalDataHolder* setOpaqueDataEditor(bool addDragger)
+	{
+		OpaqueNode& n = obj.getWrappedObject();
+
+		if (n.hasComplexData())
+		{
+			opaqueDataHolder = new OpaqueNodeDataHolder(n, asWrapperNode());
+
+			asWrapperNode()->extraComponentFunction = [this, addDragger](void*, PooledUIUpdater* u)
+			{
+				return new OpaqueNodeDataHolder::Editor(this->opaqueDataHolder.get(), u, addDragger);
+			};
+
+			return opaqueDataHolder.get();
+		}
+		else if (addDragger)
+		{
+			asWrapperNode()->extraComponentFunction = [&](void*, PooledUIUpdater* u)
+			{
+				auto c = new ModulationSourceBaseComponent(u);
+				c->setSize(256, 32);
+				return c;
+			};
+
+		}
+
+		return nullptr;
+	}
+
+	void initFromDll(dll::FactoryBase* f, int index, bool addDragger)
+	{
+		nodeFactory = f;
+
+		f->initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
+		this->obj.initialise(asWrapperNode());
+
+		setOpaqueDataEditor(addDragger);
+		
+		postInit();
+	}
+
+	virtual void postInit()
+	{
+		ParameterDataList pData;
+		obj.getWrappedObject().createParameters(pData);
+
+		asWrapperNode()->initParameterData(pData);
+	}
+
+	WrapperType& getWrapperType() { return obj; }
+
+	
+
+protected:
+
+	WrapperType obj;
+
+	void* getObjectPtrFromWrapper()
+	{
+		if (auto o = obj.getWrappedObject().getObjectAsMotherNode())
+			return o;
+
+		return obj.getWrappedObject().getObjectPtr();
+	}
+
+	ParameterDataList createInternalParameterListFromWrapper()
+	{
+		ParameterDataList pList;
+		obj.getWrappedObject().createParameters(pList);
+		return pList;
+	}
+
+private:
+
+	dll::FactoryBase* nodeFactory = nullptr;
+
+	ScopedPointer<OpaqueNodeDataHolder> opaqueDataHolder;
+
+	WrapperNode* asWrapperNode()
+	{
+		return dynamic_cast<WrapperNode*>(this);
+	}
+};
+
+    
+class InterpretedNode : public WrapperNode,
+						public InterpretedNodeBase<bypass::simple<OpaqueNode>>
+{
+	using Base = InterpretedNodeBase<bypass::simple<OpaqueNode>>;
+
+public:
+
+	InterpretedNode(DspNetwork* parent, ValueTree d):
+		WrapperNode(parent, d),
+		Base()
+	{}
 
 	void postInit() override
-    {
-        if(wrapper.getInternalT()->needsReinitialisation())
-            wrapper.initialise(this);
-    }
-
-	void prepare(PrepareSpecs specs) final override
 	{
-		ModulationSourceNode::prepare(specs);
-		wrapper.prepare(specs);
+		Base::postInit();
 	}
 
-	void processSingle(float* frameData, int numChannels) final override
-	{
-		wrapper.processSingle(frameData, numChannels);
+    template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
+	{ 
+		auto newNode = new InterpretedNode(n, d); 
 
-		if (wrapper.allowsModulation())
-		{
-			double value = 0.0;
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, 1);
-		}
+		newNode->template init<T, AddDataOffsetToUIPtr, UseNodeBaseAsUI>();
+		newNode->extraComponentFunction = ComponentType::createExtraComponent;
+
+		return newNode;
+	}; 
+
+	SN_OPAQUE_WRAPPER(InterpretedModNode, WrapperType);
+
+	void* getObjectPtr() override
+	{
+		return getObjectPtrFromWrapper();
+
 	}
 
-	void process(ProcessData& data) noexcept final override
+	ParameterDataList createInternalParameterList() override
 	{
-		wrapper.process(data);
-
-		if (wrapper.allowsModulation())
-		{
-			double value = 0.0;
-
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, data.size);
-		}
+		return createInternalParameterListFromWrapper();
 	}
 
-	NamedValueSet getDefaultProperties() const
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
+
+	void reset();
+
+	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
+
+	bool isProcessingHiseEvent() const override
 	{
-		return wrapper.getObject().getDefaultProperties();
+		return this->obj.isProcessingHiseEvent();
 	}
 
-	void handleHiseEvent(HiseEvent& e) final override
-	{
-		wrapper.handleHiseEvent(e);
-
-		if (wrapper.allowsModulation())
-		{
-			double value = 0.0;
-			if (wrapper.handleModulation(value))
-				sendValueToTargets(value, 0);
-		}
-	}
-
-	RestorableNode* getAsRestorableNode() override
-	{
-		if (auto hc = getAsHardcodedNode())
-		{
-			return hc;
-		}
-
-		auto rn = dynamic_cast<RestorableNode*>(wrapper.getInternalT());
-
-		return rn;
-	}
-
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return wrapper.getObject().getAsHardcodedNode();
-	}
-
-	WrapperType wrapper;
+	void prepare(PrepareSpecs specs) final override;
+	void processFrame(NodeBase::FrameType& data) final override;
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void setBypassed(bool shouldBeBypassed) final override;
+	void handleHiseEvent(HiseEvent& e) final override;
 
 	valuetree::PropertyListener bypassListener;
 };
 
+using ModWrapType_ = bypass::simple<wrap::mod<parameter::dynamic_base_holder, OpaqueNode>>;
 
-
-
-
-class RestorableNode
+class InterpretedModNode : public ModulationSourceNode,
+						   public InterpretedNodeBase<ModWrapType_>
 {
+	using Base = InterpretedNodeBase<ModWrapType_>;
+
 public:
 
-	virtual ~RestorableNode()
-	{
+	SN_OPAQUE_WRAPPER(InterpretedModNode, WrapperType);
 
+	InterpretedModNode(DspNetwork* parent, ValueTree d);
+
+	void postInit() override;
+
+	bool isProcessingHiseEvent() const override
+	{
+		return obj.isProcessingHiseEvent();
 	}
 
-	virtual String getSnippetText() const { return ""; }
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
+
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
+	{ 
+		auto mn = new InterpretedModNode(n, d); 
+		mn->init<T, AddDataOffsetToUIPtr>();
+		mn->extraComponentFunction = ComponentType::createExtraComponent;
+
+		return mn;
+	};
+
+	static Component* createModPlotter(void* obj, PooledUIUpdater* updater)
+	{
+		auto b = static_cast<data::base*>(obj);
+		auto n = new ModPlotter();
+		n->setComplexDataUIBase(b->getUIPointer());
+		return n;
+	}
+
+	void* getObjectPtr() override;
+
+	ParameterDataList createInternalParameterList() override;
+
+	bool isUsingNormalisedRange() const override;
+
+	parameter::dynamic_base_holder* getParameterHolder() override;
+
+	bool isPolyphonic() const override;
+
+	void reset();
+	void prepare(PrepareSpecs specs) final override;
+	void processFrame(NodeBase::FrameType& data) final override;
+	void processMonoFrame(MonoFrameType& data) final override;
+	void processStereoFrame(StereoFrameType& data) final override;
+	void process(ProcessDataDyn& data) noexcept final override;
+	void handleHiseEvent(HiseEvent& e) final override;
+
+    void setBypassed(bool shouldBeBypassed) final override;
+    
+	WrapperType wrapper;
 };
 
-template<int... Indexes> using NodePath = std::integer_sequence<int, Indexes...>;
 
-template <class T> static auto& findNode(T& t, NodePath<> empty)
+
+struct InterpretedCableNode : public ModulationSourceNode,
+							  public InterpretedNodeBase<OpaqueNode>
 {
-	ignoreUnused(empty);
-	return t.getObject();
-}
+	using Base = InterpretedNodeBase<OpaqueNode>;
 
-template <class T, int Index, int... Indexes> static auto& findNode(T& t, NodePath<Index, Indexes...> )
-{
-	auto& obj = t.template get<Index>().getObject();
-	NodePath<Indexes...> seq;
-	return findNode(obj, seq);
-}
-
-#define FIND_NODE(obj, ...) &findNode(obj.getObject(), NodePath<__VA_ARGS__>())
-
-class HardcodedNode : public RestorableNode
-{
-public:
-
-    virtual ~HardcodedNode() 
+	InterpretedCableNode(DspNetwork* n, ValueTree d) :
+		ModulationSourceNode(n, d),
+		Base()
 	{
-		combinedParameterValues.clear();
-	};
-    
-	struct ParameterInitValue
-	{
-		ParameterInitValue(const char* id_, double v) :
-			id(id_),
-			value(v)
-		{};
-
-		String id;
-		double value;
-	};
-
-	struct CombinedParameterValue
-	{
-		CombinedParameterValue(const HiseDspBase::ParameterData& p):
-			id(p.id),
-			callback(p.db),
-			lastValue(p.defaultValue)
-		{
-
-		}
-
-		bool matches(const HiseDspBase::ParameterData& p) const
-		{
-			return id == p.id;
-		}
-
-		void SetValue(double newValue)
-		{
-			lastValue = newValue;
-			update();
-		}
-
-		void Add(double newValue)
-		{
-			addValue = newValue;
-			update();
-		}
-
-		void Multiply(double newValue)
-		{
-			mulValue = newValue;
-			update();
-		}
 		
-		void updateRangeForOpType(Identifier opType, NormalisableRange<double> newRange)
-		{
-			if (opType == OperatorIds::Add)
-			{
-				addRange = newRange;
-				useAddRange = !RangeHelpers::isIdentity(newRange);
-			}
-			if (opType == OperatorIds::SetValue)
-			{
-				setRange = newRange;
-				useSetRange = !RangeHelpers::isIdentity(newRange);
-			}
-			if (opType == OperatorIds::Multiply)
-			{
-				mulRange = newRange;
-				useMulRange = !RangeHelpers::isIdentity(newRange);
-			}
-		}
-
-		void addConversion(Identifier converterId, Identifier opType)
-		{
-			if (opType == OperatorIds::SetValue)
-				setConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
-			if(opType == OperatorIds::Multiply)
-				mulConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
-			if(opType == OperatorIds::Add)
-				addConverter = DspHelpers::ConverterFunctions::getFunction(converterId);
-		}
-
-	private:
-
-		void update()
-		{
-			auto newValue = getSet() * getMul() + getAdd();
-			callback(newValue);
-		}
-
-		std::function<void(double)> callback;
-
-		double getSet() const
-		{
-			return useSetRange ? setRange.convertFrom0to1(getSetConverted()) : getSetConverted();
-		}
-
-		double getMul() const
-		{
-			return useMulRange ? mulRange.convertFrom0to1(getMullConverted()) : getMullConverted();
-		}
-
-		double getAdd() const
-		{
-			return useAddRange ? addRange.convertFrom0to1(getAddConverted()) : getAddConverted();
-		}
-
-		double getSetConverted() const
-		{
-			return setConverter ? setConverter(lastValue) : lastValue;
-		}
-
-		double getAddConverted() const
-		{
-			return addConverter ? addConverter(addValue) : addValue;
-		}
-
-		double getMullConverted() const
-		{
-			return mulConverter ? mulConverter(mulValue) : mulValue;
-		}
-
-		String id;
-		double lastValue = 0.0;
-		double mulValue = 1.0;
-		double addValue = 0.0;
-
-		NormalisableRange<double> mulRange;
-		NormalisableRange<double> setRange;
-		NormalisableRange<double> addRange;
-
-		std::function<double(double)> setConverter;
-		std::function<double(double)> mulConverter;
-		std::function<double(double)> addConverter;
-
-		bool useSetRange = false;
-		bool useMulRange = false;
-		bool useAddRange = false;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CombinedParameterValue);
 	};
 
-	CombinedParameterValue* getCombinedParameter(const String& id, NormalisableRange<double> range, Identifier opType);
-
-	static constexpr int ExtraHeight = 0;
-
-	static Array<HiseDspBase::ParameterData> createParametersT(ParameterHolder* d, const String& prefix)
+	template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool Unused> static NodeBase* createNode(DspNetwork* n, ValueTree d)
 	{
-		Array<HiseDspBase::ParameterData> data;
-		d->createParameters(data);
+		constexpr bool isBaseOfDynamicParameterHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_base_holder>, typename T::WrappedObjectType>();
 
-		if (prefix.isNotEmpty())
-		{
-			for (auto& c : data)
-				c.id = prefix + "." + c.id;
-		}
+		constexpr bool isBaseOfDynamicDupliHolder = std::is_base_of<control::pimpl::parameter_node_base<parameter::clone_holder>, typename T::WrappedObjectType>();
 
-		return data;
-	}
+        constexpr bool isBaseOfNoParameterHolder = std::is_base_of<control::pimpl::no_parameter, typename T::WrappedObjectType>();
+        
+		static_assert(std::is_base_of<control::pimpl::no_processing, typename T::WrappedObjectType>(), "not a base of no_processing");
 
-	void fillInternalParameterList(ParameterHolder* obj, const String& name)
-	{
-		internalParameterList.addArray(createParametersT(obj, name));
-	}
+		auto mn = new InterpretedCableNode(n, d);
 
-	template <class T> void setInternalModulationParameter(T* modObject, const DspHelpers::ParameterCallback& f)
-	{
-		modObject->setCallback(f);
-	}
-
-	void setNodeProperty(const String& id, const var& newValue, bool isPublic);
-
-	var getNodeProperty(const String& id, const var& defaultReturnValue) const;
-
-	void setParameterDefault(const String& parameterId, double value);
-
-	Array<HiseDspBase::ParameterData> internalParameterList;
-	Array<ParameterInitValue> initValues;
-
-	OwnedArray<CombinedParameterValue> combinedParameterValues;
-
-	HiseDspBase::ParameterData getParameter(const String& id);
-
-	HiseDspBase::ParameterData getParameter(const String& id, NormalisableRange<double> d);
-
-	
-
-	String getNodeId(const HiseDspBase* internalNode) const;
-
-	HiseDspBase* getNode(const String& id) const;
-
-	template <class T> void registerNode(T* obj, const String& id)
-	{
-		if (auto typed = dynamic_cast<HiseDspBase*>(&obj->getObject()))
-		{
-			if (auto hc = typed->getAsHardcodedNode())
-			{
-				hc->fillInternalParameterList(typed, id);
-				internalNodes.addArray(hc->internalNodes);
-			}
-
-			internalNodes.add({ typed, id });
-			fillInternalParameterList(typed, id);
-		}
-	}
-
-	void addPublicComponent(const String& nodeId)
-	{
-		nodesWithPublicComponent.add(nodeId);
-
-
-		
-	}
-    
-protected:
-
-	StringArray getNodeIdsWithPublicComponent()
-	{
-		return nodesWithPublicComponent;
-	}
-
-	ValueTree nodeData;
-	UndoManager* um = nullptr;
-
-private:
-
-	StringArray nodesWithPublicComponent;
-
-	ValueTree getNodePropertyTree(const String& id) const;
-
-	struct InternalNode
-	{
-		HiseDspBase* node = nullptr;
-		String id;
-	};
-
-	Array<InternalNode> internalNodes;
-};
-
-
-struct hc
-{
-	static constexpr int no_modulation = 1;
-	static constexpr int with_modulation = 2;
-};
-
-#define DEF_CONSTRUCTOR instance(); ~instance();
-#define DEF_PIMPL struct Impl; Impl* pimpl;
-#define DEF_PREPARE_PIMPL void prepare(PrepareSpecs ps);
-#define DEF_INIT_PIMPL void initialise(NodeBase* n);
-#define DEF_HANDLE_MOD_PIMPL bool handleModulation(double& value);
-#define DEF_HANDLE_EVENT_PIMPL void handleHiseEvent(HiseEvent& e);
-#define DEF_PROCESS_PIMPL void process(ProcessData& data) noexcept;
-#define DEF_RESET_PIMPL void reset();
-#define DEF_PROCESS_SINGLE_PIMPL void processSingle(float* frameData, int numChannels) noexcept;
-
-#define DEFINE_DSP_METHODS_PIMPL DEF_CONSTRUCTOR; DEF_PIMPL; DEF_PREPARE_PIMPL; DEF_INIT_PIMPL; DEF_HANDLE_MOD_PIMPL; DEF_HANDLE_EVENT_PIMPL; DEF_PROCESS_PIMPL; DEF_RESET_PIMPL; DEF_PROCESS_SINGLE_PIMPL;
-
-#define DEFINE_PIMPL_CLASS(NodeType) struct instance::Impl : public NodeType {  };
-#define DEFINE_CONSTRUCTOR instance::instance() { pimpl = new Impl(); }
-#define DEFINE_DESTRUCTOR instance::~instance() { delete pimpl; }
-#define PREPARE_PIMPL void instance::prepare(PrepareSpecs ps) { pimpl->prepare(ps); }
-#define INIT_PIMPL void instance::initialise(NodeBase* n) { pimpl->initialise(n); nodeData = n->getValueTree(); um = n->getUndoManager(); }
-#define HANDLE_MOD_PIMPL bool instance::handleModulation(double& value) { return pimpl->handleModulation(value); }
-#define HANDLE_EVENT_PIMPL void instance::handleHiseEvent(HiseEvent& e) { pimpl->handleHiseEvent(e); }
-#define PROCESS_PIMPL void instance::process(ProcessData& data) noexcept { pimpl->process(data); }
-#define RESET_PIMPL void instance::reset() { pimpl->reset(); }
-#define PROCESS_SINGLE_PIMPL void instance::processSingle(float* frameData, int numChannels) noexcept { pimpl->processSingle(frameData, numChannels); }
-
-#define DSP_METHODS_PIMPL_IMPL(NodeType) DEFINE_PIMPL_CLASS(NodeType); DEFINE_CONSTRUCTOR; DEFINE_DESTRUCTOR; PREPARE_PIMPL; INIT_PIMPL; HANDLE_MOD_PIMPL; HANDLE_EVENT_PIMPL; PROCESS_PIMPL; RESET_PIMPL; PROCESS_SINGLE_PIMPL;
-
-struct HardcodedNodeComponent : public Component
-{
-public:
-
-	HardcodedNodeComponent(HardcodedNode* hc, const StringArray& nodeIds, PooledUIUpdater* updater)
-	{
-		int w = 256;
-		int h = 0;
-
-		for (auto nId : nodeIds)
-		{
-			if (auto node = hc->getNode(nId))
-			{
-				auto newComponent = node->createExtraComponent(updater);
-				newComponent->setSize(w, newComponent->getHeight());
-				components.add(newComponent);
-				addAndMakeVisible(newComponent);
-
-				h += newComponent->getHeight();
-			}
-		}
-
-		setSize(w, h);
-	}
-
-	void resized() override
-	{
-		int y = 0;
-
-		for (auto c : components)
-		{
-			c->setTopLeftPosition(0, y);
-			y += c->getHeight();
-		}
-	}
-
-	OwnedArray<Component> components;
-};
-
-#if HISE_INCLUDE_SNEX
-    
-#define SET_HISE_BLOCK_CALLBACK(s) static constexpr int BlockCallback = CallbackTypes::s;
-#define SET_HISE_FRAME_CALLBACK(s) static constexpr int FrameCallback = CallbackTypes::s;
-
-struct jit_base : public RestorableNode
-{
-	struct Parameter
-	{
-		String id;
-		std::function<void(double)> f;
-	};
-
-	virtual ~jit_base() {};
-
-	struct ConsoleDummy
-	{
-		template <typename T> void print(const T& value)
-		{
-			DBG(value);
-		}
-	} Console;
-
-	virtual void createParameters()
-	{
-
-	}
-
-	void addParameter(String name, const std::function<void(double)>& f)
-	{
-		parameters.add({ name, f });
-	}
-
-	Array<Parameter> parameters;
-
-	snex::hmath Math;
-};
-    
-#endif
-
-
-struct hardcoded_base : public HiseDspBase,
-	public HardcodedNode
-{
-	virtual ~hardcoded_base() {};
-
-	HardcodedNode* getAsHardcodedNode() override
-	{
-		return this;
-	}
-
-	int getExtraWidth() const override
-	{
-		if (extraWidth != -1)
-			return extraWidth;
-
-		return HiseDspBase::getExtraWidth();
-	}
-
-	int getExtraHeight() const override
-	{
-		if (extraHeight != -1)
-			return extraHeight;
-
-		return HiseDspBase::getExtraHeight();
-	}
-
-	Component* createExtraComponent(PooledUIUpdater* updater) override
-	{
-		extraHeight = -1;
-		extraWidth = -1;
-		StringArray sa = getNodeIdsWithPublicComponent();
-
-		if (sa.isEmpty())
-			return nullptr;
+		if constexpr (std::is_same<T, control::dynamic_dupli_pack>())
+			mn->getParameterFunction = control::dynamic_dupli_pack::getParameterFunction;
+		else if constexpr (isBaseOfDynamicDupliHolder)
+			mn->getParameterFunction = parameter::clone_holder::getParameterFunctionStatic;
+		else if constexpr (isBaseOfDynamicParameterHolder)
+			mn->getParameterFunction = InterpretedCableNode::getParameterFunctionStatic<T>;
+        else if constexpr (isBaseOfNoParameterHolder)
+            mn->getParameterFunction = nullptr;
 		else
 		{
-			auto c = new HardcodedNodeComponent(this, sa, updater);
-			extraHeight = c->getHeight();
-			extraWidth = c->getWidth();
-			return c;
+			constexpr bool isBaseOfDynamicList = std::is_base_of<control::pimpl::parameter_node_base<parameter::dynamic_list>, typename T::WrappedObjectType>();
+			static_assert(isBaseOfDynamicList, "not a base of dynamic holder or list");
+			mn->getParameterFunction = nullptr;
 		}
-			
-	}
 
-	int extraHeight = -1;
-	int extraWidth = -1;
-};
+		mn->init<T, AddDataOffsetToUIPtr>();
+		mn->extraComponentFunction = ComponentType::createExtraComponent;
 
-struct hardcoded_pimpl : public hardcoded_base
-{
-	virtual ~hardcoded_pimpl() {};
+		return mn;
+	};
 
-};
-
-
-template <class DspProcessorType> struct hardcoded : hardcoded_base
-{
-public:
-
-	virtual ~hardcoded() {};
-	
-	void initialise(NodeBase* n) override
+	void* getObjectPtr() override
 	{
-		obj.initialise(n);
-
-		nodeData = n->getValueTree();
-		um = n->getUndoManager();
+		return getObjectPtrFromWrapper();
 	}
 
-	void prepare(PrepareSpecs ps) {
-		obj.prepare(ps);
-	}
+	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }
 
-	bool handleModulation(double& value)
+	ParameterDataList createInternalParameterList() override
 	{
-		return obj.handleModulation(value);
+		return createInternalParameterListFromWrapper();
+	}
+
+	parameter::dynamic_base_holder* getParameterHolder() override;
+
+	bool isProcessingHiseEvent() const override
+	{
+		return this->obj.isProcessingHiseEvent();
+	}
+
+	void process(ProcessDataDyn& data) final override
+	{
+		ProcessDataPeakChecker fd(this, data);
+		this->obj.process(data);
+	}
+
+	void reset() final override
+	{
+
+	}
+
+	bool isUsingNormalisedRange() const override
+	{
+		return this->obj.getWrappedObject().isNormalised;
+	}
+
+	void prepare(PrepareSpecs ps) final override;
+
+	void processFrame(FrameType& data) final override
+	{
+		FrameDataPeakChecker fd(this, data.begin(), data.size());
+		this->obj.processFrame(*reinterpret_cast<span<float, 1>*>(data.begin()));
 	}
 
 	void handleHiseEvent(HiseEvent& e) final override
 	{
-		obj.handleHiseEvent(e);
+		this->obj.handleHiseEvent(e);
 	}
 
-	void process(ProcessData& data) noexcept
+private:
+
+	typedef parameter::dynamic_base_holder*(*getParamFunc)(void*);
+
+	template <class Derived> static parameter::dynamic_base_holder* getParameterFunctionStatic(void* b)
 	{
-		obj.process(data);
-	}
+		using BaseClass = control::pimpl::parameter_node_base<parameter::dynamic_base_holder>;
 
-	void reset()
-	{
-		obj.reset();
-	}
+		static_assert(std::is_base_of<BaseClass, typename Derived::WrappedObjectType>());
 
-	void processSingle(float* frameData, int numChannels) noexcept
-	{
-		obj.processSingle(frameData, numChannels);
-	}
+		auto typed = static_cast<Derived*>(b);
+		return &typed->getWrappedObject().getParameter();
+	};
 
-	DspProcessorType obj;
+	getParamFunc getParameterFunction;
 };
 
-    
 #define SCRIPTNODE_FACTORY(x, id) static NodeBase* createNode(DspNetwork* n, ValueTree d) { return new x(n, d); }; \
 static Identifier getStaticId() { return Identifier(id); };
     
-    class NodeFactory
+struct NodeFactory
+{
+	using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
+
+protected:
+
+	struct Item
+	{
+		CreateCallback cb;
+		Identifier id;
+	};
+
+public:
+        
+    NodeFactory(DspNetwork* n) :
+    network(n)
+    {};
+        
+    virtual ~NodeFactory() {};
+        
+    StringArray getModuleList() const
     {
-    public:
-        
-        NodeFactory(DspNetwork* n) :
-        network(n)
-        {};
-        
-        virtual ~NodeFactory() {};
-        
-        using CreateCallback = std::function<NodeBase*(DspNetwork*, ValueTree)>;
-        using PostCreateCallback = std::function<void(NodeBase* n)>;
-        using IdFunction = std::function<Identifier()>;
-        
-        StringArray getModuleList() const
+        StringArray sa;
+        String prefix = getId().toString() + ".";
+            
+        for (const auto& item : monoNodes)
         {
-            StringArray sa;
-            String prefix = getId().toString() + ".";
-            
-            for (const auto& item : monoNodes)
-            {
-                sa.add(prefix + item.id().toString());
-            }
-            
-            return sa;
+            sa.add(prefix + item.id.toString());
         }
+            
+        return sa;
+    }
         
-		template <class MonoT, class PolyT> void registerPolyNodeRaw()
+	template <class MonoT, class PolyT> void registerPolyNodeRaw()
+	{
 		{
-			{
-				Item newItem;
-				newItem.cb = PolyT::createNode;
-				newItem.id = PolyT::getStaticId;
+			Item newItem;
+			newItem.cb = PolyT::createNode;
+			newItem.id = PolyT::getStaticId();
 
-				polyNodes.add(newItem);
-			}
-
-			{
-				Item newItem;
-				newItem.cb = MonoT::createNode;
-				newItem.id = MonoT::getStaticId;
-
-				monoNodes.add(newItem);
-			}
+			polyNodes.add(newItem);
 		}
 
-        template <class T> void registerNodeRaw(const PostCreateCallback& cb = {})
-        {
-            Item newItem;
-            newItem.cb = T::createNode;
-            newItem.id = T::getStaticId;
-            newItem.pb = cb;
-            
-            monoNodes.add(newItem);
-        }
-        
-        template <class T> void registerNode(const PostCreateCallback& cb = {})
-        {
-            using WrappedT = HiseDspNodeBase<T>;
-            
-            Item newItem;
-            newItem.cb = WrappedT::createNode;
-            newItem.id = WrappedT::getStaticId;
-            newItem.pb = cb;
-            
-            monoNodes.add(newItem);
-        };
-        
-        template <class MonoT, class PolyT> void registerPolyNode(const PostCreateCallback& cb = {})
-        {
-            using WrappedPolyT = HiseDspNodeBase<PolyT>;
-            using WrappedMonoT = HiseDspNodeBase<MonoT>;
-            
-            {
-                Item newItem;
-                newItem.cb = WrappedPolyT::createNode;
-                newItem.id = WrappedPolyT::getStaticId;
-                newItem.pb = cb;
-                
-                polyNodes.add(newItem);
-            }
-            
-            {
-                Item newItem;
-                newItem.cb = WrappedMonoT::createNode;
-                newItem.id = WrappedMonoT::getStaticId;
-                newItem.pb = cb;
-                
-                monoNodes.add(newItem);
-            }
-        };
-        
-        virtual Identifier getId() const = 0;
-        
-        NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;
-        
-        void setNetworkToUse(DspNetwork* n)
-        {
-            network = n;
-        }
-        
-		void sortEntries()
 		{
-			struct Sorter
-			{
-				static int compareElements(Item& first, Item& second)
-				{
-					return first.id().toString().compareNatural(second.id().toString());
-				}
-			} sorter;
+			Item newItem;
+			newItem.cb = MonoT::createNode;
+			newItem.id = MonoT::getStaticId();
 
-			monoNodes.sort(sorter);
-			polyNodes.sort(sorter);
+			monoNodes.add(newItem);
+		}
+	}
+
+    template <class T> void registerNodeRaw()
+    {
+        Item newItem;
+        newItem.cb = T::createNode;
+        newItem.id = T::getStaticId();
+            
+        monoNodes.add(newItem);
+    }
+        
+
+    template <class T, 
+             class ComponentType=HostHelpers::NoExtraComponent,
+				typename WrapperType=InterpretedNode, 
+				bool AddDataOffsetToUIPtr=true,
+				bool UseNodeBaseAsUI=false> 
+		void registerNode()
+    {
+		Item newItem;
+        newItem.cb = WrapperType::template createNode<T, ComponentType, AddDataOffsetToUIPtr, UseNodeBaseAsUI>;
+        newItem.id = T::getStaticId();
+			
+        monoNodes.add(newItem);
+    };
+
+    template <class MonoT, 
+				class PolyT, 
+				class ComponentType=HostHelpers::NoExtraComponent, 
+				typename WrapperType=InterpretedNode,
+				bool AddDataOffsetToUIPtr=true,
+				bool UseFullNodeAsUIPtr=false>
+		void registerPolyNode()
+    {
+		// enable this static_assert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+		// or this jassert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+
+        using WrappedPolyT = InterpretedNode;
+        using WrappedMonoT = InterpretedNode;
+            
+        {
+            Item newItem;
+            newItem.cb = WrapperType::template createNode<PolyT, ComponentType, AddDataOffsetToUIPtr, UseFullNodeAsUIPtr>;
+            newItem.id = PolyT::getStaticId();
+                
+            polyNodes.add(newItem);
+        }
+            
+        {
+            Item newItem;
+            newItem.cb = WrapperType::template createNode<MonoT, ComponentType, AddDataOffsetToUIPtr, UseFullNodeAsUIPtr>;
+            newItem.id = MonoT::getStaticId();
+                
+            monoNodes.add(newItem);
+        }
+    };
+
+	template <class MonoT, class PolyT, class ComponentType=ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerPolyModNode()
+	{
+		registerPolyNode<MonoT, PolyT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr>();
+	}
+
+	template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr=true> void registerModNode()
+	{
+		registerNode<MonoT, ComponentType, InterpretedModNode, AddDataOffsetToUIPtr, false>();
+	}
+
+	template <class MonoT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerNoProcessNode()
+	{
+		registerNode<MonoT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr, false>();
+	}
+
+	template <class MonoT, class PolyT, class ComponentType = ModulationSourcePlotter, bool AddDataOffsetToUIPtr = true> void registerPolyNoProcessNode()
+	{
+		
+		registerPolyNode<MonoT, PolyT, ComponentType, InterpretedCableNode, AddDataOffsetToUIPtr, false>();
+	}
+
+    virtual Identifier getId() const = 0;
+        
+    NodeBase* createNode(ValueTree data, bool createPolyIfAvailable) const;
+        
+    void setNetworkToUse(DspNetwork* n)
+    {
+        network = n;
+    }
+        
+	void sortEntries()
+	{
+		struct Sorter
+		{
+			static int compareElements(Item& first, Item& second)
+			{
+				return first.id.toString().compareNatural(second.id.toString());
+			}
+		} sorter;
+
+		monoNodes.sort(sorter);
+		polyNodes.sort(sorter);
+	}
+
+protected:
+
+
+    Array<Item> monoNodes;
+    Array<Item> polyNodes;
+        
+    WeakReference<DspNetwork> network;
+	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeFactory);
+};
+
+struct TemplateNodeFactory : public NodeFactory
+{
+	struct Builder
+	{
+		static constexpr int BypassIndex = -1;
+
+		Builder(DspNetwork* n, ValueTree v):
+			network(n)
+		{
+			jassert(!v.getParent().isValid());
+			nodes.add(v);
+			existingIds.addArray(n->getListOfUnusedNodeIds());
+			existingIds.addArray(n->getListOfUsedNodeIds());
 		}
 
-    private:
-        
-        struct Item
-        {
-            CreateCallback cb;
-            IdFunction id;
-            PostCreateCallback pb;
-        };
-        
-        Array<Item> monoNodes;
-        Array<Item> polyNodes;
-        
-        WeakReference<DspNetwork> network;
-		JUCE_DECLARE_WEAK_REFERENCEABLE(NodeFactory);
-    };
-    
-    class SingletonFactory : public NodeFactory
-    {
-    public:
-        
-        SingletonFactory() :
-        NodeFactory(nullptr)
-        {};
-    };
-    
-#define DEFINE_FACTORY_FOR_NAMESPACE NodeFactory* Factory::instance = nullptr; \
-NodeFactory* Factory::getInstance(DspNetwork* ) \
-{ if (instance == nullptr) instance = new Factory(); return instance; }
-    
-#define DECLARE_SINGLETON_FACTORY_FOR_NAMESPACE(name) class Factory : private SingletonFactory \
-{ \
-public: \
-Identifier getId() const override { RETURN_STATIC_IDENTIFIER(#name); } \
-static NodeFactory* getInstance(DspNetwork* n); \
-static NodeFactory* instance; \
-}; 
-    
-    
-    template <class FactoryClass, class T> struct RegisterAtFactory
-    {
-        RegisterAtFactory() { FactoryClass::getInstance(nullptr)->template registerNode<T>(); }
-    };
-    
-    template <class FactoryClass, class T, class PolyT> struct PolyRegisterAtFactory
-    {
-        PolyRegisterAtFactory() { FactoryClass::getInstance(nullptr)->template registerPolyNode<T, PolyT>(); }
-    };
-    
-#define REGISTER_POLY PolyRegisterAtFactory<Factory, instance<1>, instance<NUM_POLYPHONIC_VOICES>> reg;
-#define REGISTER_MONO RegisterAtFactory<Factory, instance> reg;
+		WeakReference<DspNetwork> network;
 
-#define REGISTER_POLY_SNEX PolyRegisterAtFactory<Factory, hardcoded_jit<instance, 1>, hardcoded_jit<instance, NUM_POLYPHONIC_VOICES>> reg;
-#define REGISTER_MONO_SNEX RegisterAtFactory<Factory, hardcoded_jit<instance, 1>> reg;
+		StringArray existingIds;
 
+		Array<ValueTree> nodes;
 
+		int addNode(int parent, const String& path, const String& id, int index=-1);
+		void addParameter(int nodeIndex, const String& name, InvertableParameterRange r);
+
+		bool connectSendReceive(int sendIndex, Array<int> receiveIndexes);
+
+		bool connect(int nodeIndex, const Identifier sourceType, int sourceIndex, int targetNodeIndex, int targetParameterIndex);
+
+		void setNodeColour(Array<int> nodeIndexes, Colour c);
+
+		void setProperty(Array<int> nodeIndexes, const Identifier& id, const var& value);
+
+		void setNodeProperty(Array<int> nodeIndexes, const NamedValueSet& properties);
+
+		void setParameterValues(Array<int> nodeIndexes, StringArray parameterNames, Array<double> values);
+
+		void setComplexDataIndex(Array<int> nodeIndexes, ExternalData::DataType type, int index);
+
+		void addComment(Array<int> nodeIndexes, const String& comment);
+
+		Colour getRandomColour() const
+		{
+			return Colour(Random::getSystemRandom().nextFloat(), 0.33f, 0.6f, 1.0f);
+		}
+
+		void setFolded(Array<int> nodeIndexes);
+
+		void fillValueTree(int nodeIndex);
+
+		void setRootType(const String& rootPath)
+		{
+			nodes[0].setProperty(PropertyIds::FactoryPath, rootPath, nullptr);
+		}
+
+		NodeBase* flush()
+		{
+			return network->createFromValueTree(network->isPolyphonic(), nodes[0], true);
+		}
+	};
+
+	TemplateNodeFactory(DspNetwork* n);;
+
+	virtual Identifier getId() const override { RETURN_STATIC_IDENTIFIER("template"); }
+};
+
+    
 }

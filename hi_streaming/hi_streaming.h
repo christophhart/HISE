@@ -61,8 +61,16 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
 #include "../JUCE/modules/juce_data_structures/juce_data_structures.h"
+#include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 #include "../hi_lac/hi_lac.h"
+
+// Note: this is only required by the faust compiler with libfaust version <2.52.6
+#if JUCE_MAC && USE_BACKEND
+#define HISE_DEFAULT_STACK_SIZE 1024 * 1024 * 8
+#else
+#define HISE_DEFAULT_STACK_SIZE 0
+#endif
 
 
 #if USE_IPP

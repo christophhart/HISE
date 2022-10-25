@@ -28,8 +28,8 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 	if (b == applyAndCloseButton)
 	{
 		ownerProcessor->saveDeviceSettingsAsXml();
-		ScopedPointer<XmlElement> deviceData = ownerProcessor->deviceManager->createStateXml();
-		ownerProcessor->initialiseAudioDriver(deviceData);
+		auto deviceData = ownerProcessor->deviceManager->createStateXml();
+		ownerProcessor->initialiseAudioDriver(deviceData.get());
 	}
 
 #if USE_BACKEND
@@ -56,7 +56,7 @@ void AudioProcessorDriver::restoreSettings(MainController* /*mc*/)
 void AudioProcessorDriver::saveDeviceSettingsAsXml()
 {
     
-	ScopedPointer<XmlElement> deviceData = deviceManager != nullptr ?
+	std::unique_ptr<XmlElement> deviceData = deviceManager != nullptr ?
                                            deviceManager->createStateXml():
                                            nullptr;
 
@@ -115,7 +115,7 @@ StandaloneProcessor::StandaloneProcessor()
     {
         const String portName = FrontendHandler::getProjectName() + " Virtual MIDI";
         
-        if(virtualMidiPort = MidiInput::createNewDevice(portName, callback))
+        if(virtualMidiPort = MidiInput::createNewDevice(portName, callback).release())
         {
             virtualMidiPort->start();
         }
@@ -145,11 +145,6 @@ StandaloneProcessor::StandaloneProcessor()
 
 
 	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
-
-	if (xml != nullptr)
-	{
-		dynamic_cast<MainController*>(wrappedProcessor.get())->getDebugLogger().logMessage("Sucessfully loaded XML settings from disk");
-	}
 
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
@@ -181,7 +176,7 @@ XmlElement * AudioProcessorDriver::getSettings()
 {
 	File savedDeviceData = getDeviceSettingsFile();
 
-	return XmlDocument::parse(savedDeviceData);
+	return XmlDocument::parse(savedDeviceData).release();
 }
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
@@ -190,16 +185,9 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
     
 	DebugLogger& logger = dynamic_cast<MainController*>(this)->getDebugLogger();
 
-	if (deviceData != nullptr)
-	{
-		logger.logMessage("Audio Driver Initialisation with Settings:  \n\n```xml\n" + deviceData->createDocument("") + "```\n");
-	}
-
 	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP"))
 	{
 		String errorMessage = deviceManager->initialise(0, 2, deviceData, true);
-
-		
 
 		if (errorMessage.isNotEmpty() || deviceManager->getCurrentAudioDevice() == nullptr)
 		{
@@ -210,17 +198,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 			const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
 
 			if (error.isNotEmpty())
-			{
 				logger.logMessage("Error initialising with default settings: " + error);
-			}
-			else
-			{
-				logger.logMessage("... audio driver successfully initialised with default settings");
-			}
-		}
-		else
-		{
-			logger.logMessage("... audio driver successfully initialised");
 		}
 	}
 	else
@@ -230,13 +208,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 		const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
 
 		if (error.isNotEmpty())
-		{
 			logger.logMessage("Error initialising with default settings: " + error);
-		}
-		else
-		{
-			logger.logMessage("... audio driver successfully initialised with default settings");
-		}
 	}
 
 	callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
@@ -305,7 +277,14 @@ juce::BigInteger AudioProcessorDriver::getMidiInputState() const
 
 	
 
-	StringArray midiInputs = MidiInput::getDevices();
+    StringArray midiInputs;
+    
+    if(auto mc = dynamic_cast<const MainController*>(this))
+    {
+        if(!mc->isFlakyThreadingAllowed())
+            midiInputs = MidiInput::getDevices();
+    }
+        
 
 	for (int i = 0; i < midiInputs.size(); i++)
 	{
@@ -326,7 +305,7 @@ GlobalSettingManager::GlobalSettingManager()
 		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
-		bool dv = true;
+		bool dv = (bool)HISE_DEFAULT_OPENGL_VALUE;
 #else
 		bool dv = false;
 #endif
@@ -341,7 +320,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	File savedDeviceData = getGlobalSettingsFile();
 
-	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
+	auto globalSettings = XmlDocument::parse(savedDeviceData);
 
 	if (globalSettings != nullptr)
 	{
@@ -360,7 +339,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		gm->voiceAmountMultiplier = globalSettings->getIntAttribute("VOICE_AMOUNT_MULTIPLIER", 2);
 
 #if HISE_USE_OPENGL_FOR_PLUGIN
-		bool dv = true;
+		bool dv = (bool)HISE_DEFAULT_OPENGL_VALUE;
 #else
 		bool dv = false;
 #endif

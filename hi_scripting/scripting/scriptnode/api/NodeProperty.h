@@ -56,7 +56,7 @@ struct NodeProperty
 
 		This will automatically initialise the proper value tree ID at the best time.
 	*/
-	bool init(NodeBase* n, HiseDspBase* parent);
+	bool initialise(NodeBase* n);
 
 	/** Callback when the initialisation was successful. This might happen either during the initialise() method or after all parameters
 		are created. Use this callback to setup the listeners / the logic that changes the property.
@@ -66,45 +66,27 @@ struct NodeProperty
 	/** Returns the ID in the ValueTree. */
 	Identifier getValueTreePropertyId() const;
 
-	NodeBase* pendingNode = nullptr;
-	HiseDspBase* pendingParent = nullptr;
-
 	ValueTree getPropertyTree() const { return d; }
+
+	juce::Value asJuceValue()
+	{
+		return d.getPropertyAsValue(PropertyIds::Value, um);
+	}
 
 private:
 
+	UndoManager* um = nullptr;
 	ValueTree d;
-
 	Identifier valueTreePropertyid;
 	Identifier baseId;
 	var defaultValue;
 	bool isPublic;
 };
 
-struct ScriptFunctionManager : public hise::GlobalScriptCompileListener,
-	public NodeProperty
+template <class T, int Value> struct StaticProperty
 {
-	ScriptFunctionManager() :
-		NodeProperty(PropertyIds::Callback, "undefined", true) {};
+	constexpr T getValue() const { return Value; }
 
-	~ScriptFunctionManager();
-
-	void scriptWasCompiled(JavascriptProcessor *processor) override;
-	void updateFunction(Identifier, var newValue);
-	double callWithDouble(double inputValue);
-
-	void postInit(NodeBase* n) override;
-
-	valuetree::PropertyListener functionListener;
-	WeakReference<JavascriptProcessor> jp;
-	Result lastResult = Result::ok();
-
-	var functionName;
-	var function;
-	var input[8];
-	bool ok = false;
-
-	MainController* mc;
 };
 
 template <class T> struct NodePropertyT : public NodeProperty
@@ -124,6 +106,8 @@ template <class T> struct NodePropertyT : public NodeProperty
 	{
 		if(getPropertyTree().isValid())
 			getPropertyTree().setPropertyExcludingListener(&updater, PropertyIds::Value, newValue, um);
+
+		value = newValue;
 	}
 
 	void update(Identifier id, var newValue)
@@ -134,9 +118,12 @@ template <class T> struct NodePropertyT : public NodeProperty
 			additionalCallback(id, newValue);
 	}
 
-	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c)
+	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c, bool callWithValue=false)
 	{
 		additionalCallback = c;
+
+		if (callWithValue && additionalCallback)
+			additionalCallback(PropertyIds::Value, var(value));
 	}
 
 	T getValue() const { return value; }
@@ -148,5 +135,54 @@ private:
 	T value;
 	valuetree::PropertyListener updater;
 };
+
+
+struct ComboBoxWithModeProperty : public ComboBox,
+	public ComboBoxListener
+{
+	ComboBoxWithModeProperty(String defaultValue, const Identifier& id=PropertyIds::Mode) :
+		ComboBox(),
+		mode(id, defaultValue)
+	{
+		addListener(this);
+		setLookAndFeel(&plaf);
+		setColour(ColourIds::textColourId, Colour(0xFFAAAAAA));
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+	{
+		if (initialised)
+			mode.storeValue(getText(), um);
+	}
+
+	void valueTreeCallback(Identifier id, var newValue)
+	{
+        SafeAsyncCall::call<ComboBoxWithModeProperty>(*this, [newValue](ComboBoxWithModeProperty& c)
+        {
+            c.setText(newValue.toString(), dontSendNotification);
+        });
+	}
+
+	void initModes(const StringArray& modes, NodeBase* n)
+	{
+		if (initialised)
+			return;
+
+		clear(dontSendNotification);
+		addItemList(modes, 1);
+
+		um = n->getUndoManager();
+		mode.initialise(n);
+		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(ComboBoxWithModeProperty::valueTreeCallback), true);
+		initialised = true;
+	}
+
+	bool initialised = false;
+	UndoManager* um;
+	NodePropertyT<String> mode;
+	ScriptnodeComboBoxLookAndFeel plaf;
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ComboBoxWithModeProperty);
+};
+
 
 }

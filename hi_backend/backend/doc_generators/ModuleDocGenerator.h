@@ -53,6 +53,7 @@ namespace HiseModuleDatabase
 
 			~Data()
 			{
+				MainController::ScopedBadBabysitter sb(bp);
 				allProcessors.clear();
 			}
 

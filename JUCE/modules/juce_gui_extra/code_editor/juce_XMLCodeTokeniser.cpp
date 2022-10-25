@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -37,18 +36,18 @@ CodeEditorComponent::ColourScheme XmlTokeniser::getDefaultColourScheme()
         const char* name;
         uint32 colour;
     };
-
+    
     const Type types[] =
     {
-        { "Error",              0xffcc0000 },
-        { "Comment",            0xff00aa00 },
-        { "Keyword",            0xff0000cc },
-        { "Operator",           0xff225500 },
-        { "Identifier",         0xff000000 },
-        { "String",             0xff990099 },
-        { "Bracket",            0xff000055 },
-        { "Punctuation",        0xff004400 },
-        { "Preprocessor Text",  0xff660000 }
+        { "Error",              0xffBB3333 },
+        { "Comment",            0xff77CC77 },
+        { "Keyword",            0xffbbbbff },
+        { "Operator",           0xffCCCCCC },
+        { "Identifier",         0xffDDDDFF },
+        { "String",             0xffDDAAAA },
+        { "Bracket",            0xffFFFFFF },
+        { "Punctuation",        0xffCCCCCC },
+        { "Preprocessor Text",  0xffCC7777 }
     };
 
     CodeEditorComponent::ColourScheme cs;

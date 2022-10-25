@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -30,7 +30,7 @@ namespace FloatVectorHelpers
     #define JUCE_INCREMENT_DEST             dest += (16 / sizeof (*dest));
 
    #if JUCE_USE_SSE_INTRINSICS
-    inline static bool isAligned (const void* p) noexcept
+    static bool isAligned (const void* p) noexcept
     {
         return (((pointer_sized_int) p) & 15) == 0;
     }
@@ -353,8 +353,8 @@ namespace FloatVectorHelpers
     union signMask64 { double d; uint64 i; };
 
    #if JUCE_USE_SSE_INTRINSICS || JUCE_USE_ARM_NEON
-    template<int typeSize> struct ModeType    { using Mode = BasicOps32; };
-    template<>             struct ModeType<8> { using Mode = BasicOps64; };
+    template <int typeSize> struct ModeType    { using Mode = BasicOps32; };
+    template <>             struct ModeType<8> { using Mode = BasicOps64; };
 
     template <typename Mode>
     struct MinMax
@@ -873,7 +873,7 @@ void FloatVectorOperations::abs (double* dest, const double* src, int num) noexc
 void JUCE_CALLTYPE FloatVectorOperations::convertFixedToFloat (float* dest, const int* src, float multiplier, int num) noexcept
 {
    #if JUCE_USE_ARM_NEON
-    JUCE_PERFORM_VEC_OP_SRC_DEST (dest[i] = src[i] * multiplier,
+    JUCE_PERFORM_VEC_OP_SRC_DEST (dest[i] = (float) src[i] * multiplier,
                                   vmulq_n_f32 (vcvtq_f32_s32 (vld1q_s32 (src)), multiplier),
                                   JUCE_LOAD_NONE, JUCE_INCREMENT_SRC_DEST, )
    #else
@@ -1051,7 +1051,9 @@ intptr_t JUCE_CALLTYPE FloatVectorOperations::getFpStatusRegister() noexcept
 void JUCE_CALLTYPE FloatVectorOperations::setFpStatusRegister (intptr_t fpsr) noexcept
 {
   #if JUCE_INTEL && JUCE_USE_SSE_INTRINSICS
-    auto fpsr_w = static_cast<uint32_t> (fpsr);
+    // the volatile keyword here is needed to workaround a bug in AppleClang 13.0
+    // which aggressively optimises away the variable otherwise
+    volatile auto fpsr_w = static_cast<uint32_t> (fpsr);
     _mm_setcsr (fpsr_w);
   #elif defined (__arm64__) || defined (__aarch64__) || JUCE_USE_ARM_NEON
    #if defined (__arm64__) || defined (__aarch64__)
@@ -1139,6 +1141,7 @@ ScopedNoDenormals::~ScopedNoDenormals() noexcept
   #endif
 }
 
+
 //==============================================================================
 //==============================================================================
 #if JUCE_UNIT_TESTS
@@ -1146,7 +1149,9 @@ ScopedNoDenormals::~ScopedNoDenormals() noexcept
 class FloatVectorOperationsTests  : public UnitTest
 {
 public:
-    FloatVectorOperationsTests() : UnitTest ("FloatVectorOperations", "Audio") {}
+    FloatVectorOperationsTests()
+        : UnitTest ("FloatVectorOperations", UnitTestCategories::audio)
+    {}
 
     template <typename ValueType>
     struct TestRunner

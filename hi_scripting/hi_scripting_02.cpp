@@ -52,6 +52,10 @@
 #if USE_BACKEND
 
 #include "scripting/components/ScriptingPanelTypes.cpp"
+#include "scripting/components/ScriptBroadcasterMap.h"
+#include "scripting/components/ScriptBroadcasterMapItems.cpp"
+#include "scripting/components/ScriptBroadcasterMap.cpp"
+
 #include "scripting/components/PopupEditors.cpp"
 #include "scripting/components/AutoCompletePopup.cpp"
 #include "scripting/components/ScriptingCodeEditorHelpers.cpp"

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -20,24 +20,26 @@
   ==============================================================================
 */
 
+
 /*******************************************************************************
  The block below describes the properties of this module, and is read by
  the Projucer to automatically generate project code that uses it.
  For details about the syntax and how to create or use a module, see the
- JUCE Module Format.txt file.
+ JUCE Module Format.md file.
 
 
  BEGIN_JUCE_MODULE_DECLARATION
 
-  ID:               juce_events
-  vendor:           juce
-  version:          5.4.3
-  name:             JUCE message and event handling classes
-  description:      Classes for running an application's main event loop and sending/receiving messages, timers, etc.
-  website:          http://www.juce.com/juce
-  license:          ISC
+  ID:                 juce_events
+  vendor:             juce
+  version:            6.1.3
+  name:               JUCE message and event handling classes
+  description:        Classes for running an application's main event loop and sending/receiving messages, timers, etc.
+  website:            http://www.juce.com/juce
+  license:            ISC
+  minimumCppStandard: 14
 
-  dependencies:     juce_core
+  dependencies:       juce_core
 
  END_JUCE_MODULE_DECLARATION
 
@@ -50,7 +52,7 @@
 #include <juce_core/juce_core.h>
 
 //==============================================================================
-/** Config: JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK
+/** Config: JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK
     Will execute your application's suspend method on an iOS background task, giving
     you extra time to save your applications state.
 */
@@ -58,7 +60,7 @@
  #define JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK 0
 #endif
 
-#if JUCE_EVENTS_INCLUDE_WINRT_WRAPPER && JUCE_WINDOWS
+#if JUCE_WINDOWS && JUCE_EVENTS_INCLUDE_WINRT_WRAPPER
  // If this header file is missing then you are probably attempting to use WinRT
  // functionality without the WinRT libraries installed on your system. Try installing
  // the latest Windows Standalone SDK and maybe also adding the path to the WinRT
@@ -88,8 +90,9 @@
 #include "interprocess/juce_InterprocessConnectionServer.h"
 #include "interprocess/juce_ConnectedChildProcess.h"
 #include "interprocess/juce_NetworkServiceDiscovery.h"
+#include "native/juce_ScopedLowPowerModeDisabler.h"
 
-#if JUCE_LINUX
+#if JUCE_LINUX || JUCE_BSD
  #include "native/juce_linux_EventLoop.h"
 #endif
 

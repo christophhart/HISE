@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -50,10 +49,8 @@ public:
 
     AttributedString (const AttributedString&) = default;
     AttributedString& operator= (const AttributedString&) = default;
-
-    // VS2013 can't default move constructors and assignments
-    AttributedString (AttributedString&&) noexcept;
-    AttributedString& operator= (AttributedString&&) noexcept;
+    AttributedString (AttributedString&&) noexcept = default;
+    AttributedString& operator= (AttributedString&&) noexcept = default;
 
     //==============================================================================
     /** Returns the complete text of this attributed string. */
@@ -154,10 +151,8 @@ public:
 
         Attribute (const Attribute&) = default;
         Attribute& operator= (const Attribute&) = default;
-
-        // VS2013 can't default move constructors and assignments
-        Attribute (Attribute&&) noexcept;
-        Attribute& operator= (Attribute&&) noexcept;
+        Attribute (Attribute&&) noexcept = default;
+        Attribute& operator= (Attribute&&) noexcept = default;
 
         /** Creates an attribute that specifies the font and colour for a range of characters. */
         Attribute (Range<int> range, const Font& font, Colour colour) noexcept;

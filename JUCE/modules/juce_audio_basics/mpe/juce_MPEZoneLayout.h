@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -96,6 +96,11 @@ public:
         {
             return lowerZone ? (channel > 1 && channel <= 1 + numMemberChannels)
                              : (channel < 16 && channel >= 16 - numMemberChannels);
+        }
+
+        bool isUsing (int channel) const noexcept
+        {
+            return isUsingChannelAsMemberChannel (channel) || channel == getMasterChannel();
         }
 
         bool operator== (const Zone& other) const noexcept    { return lowerZone == other.lowerZone

@@ -418,7 +418,6 @@ template <typename DataType> struct Data
 				auto table = ltp->getTable(tableIndex);
 
 				table->restoreData(newValue.toString());
-				table->sendChangeMessage();
 			}
 		}
 	};
@@ -430,7 +429,7 @@ template <typename DataType> struct Data
 		{
 			if (auto sp = dynamic_cast<hise::SliderPackProcessor*>(p))
 			{
-				return DataType(sp->getSliderPackData(sliderPackIndex)->toBase64());
+				return DataType(sp->getSliderPack(sliderPackIndex)->toBase64());
 			}
 
 			return {};
@@ -440,7 +439,7 @@ template <typename DataType> struct Data
 		{
 			if (auto sp = dynamic_cast<hise::SliderPackProcessor*>(p))
 			{
-				if (auto spData = sp->getSliderPackData(sliderPackIndex))
+				if (auto spData = sp->getSliderPack(sliderPackIndex))
 				{
 					spData->fromBase64(String(newValue));
 				}

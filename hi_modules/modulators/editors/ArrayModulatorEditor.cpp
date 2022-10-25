@@ -34,7 +34,7 @@ ArrayModulatorEditor::ArrayModulatorEditor (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<ArrayModulator*>(getProcessor())->getSliderPackData(0)));
+    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<ArrayModulator*>(getProcessor())->getSliderPack(0)));
     sliderPackMix->setName ("new component");
 
 

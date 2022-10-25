@@ -34,6 +34,7 @@ ML("| LowVelocity | The lower velocity limit. | A single number. |");
 ML("| HighVelocity | The upper velocity limit. | A single number. |");
 ML("| Single Key | maps the value to all note properties (`RootNote`, `LoKey` and `HiKey`). | A single number or the MIDI note name. |");
 ML("| RR Group | Sets the group index to be used for Round Robin (or custom logic). | A **Custom** list or a **Number** x for (1-x). |");
+ML("| Multimic | Sets the multimic index. | A **Custom** list of mic positions. |");
 ML("| Ignore | Do nothing with this token (default). Use this for every token that does not contain special information. | nothing |");
 END_MARKDOWN()
 START_MARKDOWN(DataType)
@@ -213,6 +214,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
 
 	propertyLabel->addOption("Single Key", "maps the value to RootNote, KeyLow and KeyHigh.");
 	propertyLabel->addOption("RR Group", "Puts the sound into the specified group.");
+	propertyLabel->addOption("Multi Mic", "The Multimic index. Using this property to merge multimics will not perform any sanity checks.");
 	propertyLabel->addOption("Ignore", "Do nothing with this token (default). Use this for every token that does not contain special information");
 
 	dataLabel->addOption("Number", "A simple integer number that can be directly read without further processing.");

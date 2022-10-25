@@ -52,6 +52,7 @@ public:
         HighVelocity, ///< the upper velocity limit
 		SingleKey, ///< Set to single Key: maps the value to RootNote, LoKey and HiKey. SampleImporter::fillGaps might come in handy after this.
 		Group, ///< RRGroup: moves the sound into the specified group.
+		MultiMic, ///< The Multimic index. Using this property to merge multimics will not perform any sanity checks.
 		Ignore, ///< Do nothing with this token. Use this for every token that does not contain special information (it is the default value anyway).
 		numTokenProperties
 	};
@@ -79,6 +80,7 @@ public:
             case LowVelocity:     return Number;
             case HighVelocity:    return Number;
             case Group:			  return Custom;
+			case MultiMic:		  return Custom;
             case SingleKey:		  return NoteName;
             case Ignore:		  return Ignored;
             default:			  jassertfalse; return Ignored;
@@ -96,6 +98,7 @@ public:
         case LowVelocity:     return "Low Velocity";
         case HighVelocity:    return "High Velocity";
 		case Group:			  return "RR Group";
+		case MultiMic:		  return "Multi Mic";
 		case SingleKey:		  return "Single Key";
 		case Ignore:		  return "Ignore Token";
 		default:			  jassertfalse; return "";
@@ -118,6 +121,16 @@ public:
 		}
 	}
 
+	StringArray getSortedCustomList() const
+	{
+		StringArray sorted;
+
+		for (auto v : valueList)
+			sorted.add(customList[v-1]);
+
+		return sorted;
+	}
+
 	/** extracts the data from the token and writes it into the supplied SamplerSoundBasicData object. */
 	void fillDataWithTokenInformation(SampleImporter::SampleCollection &collection, int index, const String &currentToken)
 	{
@@ -133,14 +146,28 @@ public:
 
 		switch (tokenProperty)
 		{
-		case SingleKey:			data.rootNote = value;
-								data.lowKey = value;
-								data.hiKey = value;
-								break;
+		case SingleKey:			
+		{
+			auto valueToUse = value % 128;
 
+			data.rootNote = valueToUse;
+			data.lowKey = valueToUse;
+			data.hiKey = valueToUse;
+			
+			// just bump the RR amount to avoid 
+			// sticking them all at 127
+			if (valueToUse != value)
+				data.group = value / 128 + 1;
+
+			break;
+		}
+								
 		case Group:				data.group = value;
 								break;
-
+		case MultiMic:			data.multiMic = value - 1;
+								collection.numMicPositions = customList.size();
+								collection.multiMicTokens = getSortedCustomList();
+								break;
 		case VelocityLowHigh:	data.lowVelocity = value;
 								data.hiVelocity = jmin(127, value + 1);
 								break;

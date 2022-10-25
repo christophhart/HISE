@@ -8,7 +8,7 @@
 //
 //-----------------------------------------------------------------------------
 // LICENSE
-// (c) 2018, Steinberg Media Technologies GmbH, All Rights Reserved
+// (c) 2021, Steinberg Media Technologies GmbH, All Rights Reserved
 //-----------------------------------------------------------------------------
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -47,11 +47,13 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstmidilearn.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstparameterfunctionname.h"
 #include "pluginterfaces/vst/ivstphysicalui.h"
 #include "pluginterfaces/vst/ivstpluginterfacesupport.h"
 #include "pluginterfaces/vst/ivstplugview.h"
 #include "pluginterfaces/vst/ivstprefetchablesupport.h"
 #include "pluginterfaces/vst/ivstrepresentation.h"
+#include "pluginterfaces/vst/ivsttestplugprovider.h"
 #include "pluginterfaces/vst/ivstunits.h"
 
 //------------------------------------------------------------------------
@@ -126,6 +128,15 @@ DEF_CLASS_IID (INoteExpressionPhysicalUIMapping)
 DEF_CLASS_IID (IMidiLearn)
 DEF_CLASS_IID (IPlugInterfaceSupport)
 DEF_CLASS_IID (IVst3WrapperMPESupport)
+
+//----VST 3.6.13--------------------------------
+DEF_CLASS_IID (ITestPlugProvider)
+
+//----VST 3.7-----------------------------------
+DEF_CLASS_IID (IParameterFunctionName)
+DEF_CLASS_IID (IProcessContextRequirements)
+DEF_CLASS_IID (IProgress)
+DEF_CLASS_IID (ITestPlugProvider2)
 
 //------------------------------------------------------------------------
 } // Vst

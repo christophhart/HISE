@@ -79,7 +79,7 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     fadeTimeEditor->addListener (this);
 
-    addAndMakeVisible (component = new SliderPack (dynamic_cast<WavetableSynth*>(getProcessor())->getSliderPackData(0)));
+    addAndMakeVisible (component = new SliderPack (dynamic_cast<WavetableSynth*>(getProcessor())->getSliderPackUnchecked(0)));
     component->setName ("new component");
 
     addAndMakeVisible (hiqButton = new HiToggleButton ("HQ Mode"));

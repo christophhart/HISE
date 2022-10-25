@@ -47,11 +47,10 @@
 #include "editor/ProcessorEditorChainBar.cpp"
 
 #include "editor/ProcessorEditorPanel.cpp"
-#include "editor/ProcessorViews.cpp"
+
 
 #endif
 
-#include "modules/DspCoreModules.cpp"
 #include "modules/Modulators.cpp"
 #include "modules/ModulatorChain.cpp"
 #include "modules/MidiProcessor.cpp"

@@ -1,3 +1,36 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licenses for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licensing:
+*
+*   http://www.hise.audio/
+*
+*   HISE is based on the JUCE library,
+*   which must be separately licensed for closed source applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
+
+
 namespace juce { using namespace hise;
 
 VariantBuffer::VariantBuffer(float *externalData, int size_) :
@@ -8,11 +41,14 @@ size((externalData != nullptr) ? size_ : 0)
 		float *data[1] = { externalData };
 		buffer.setDataToReferTo(data, 1, size_);
 	}
+
+	addMethods();
 }
 
 VariantBuffer::VariantBuffer(VariantBuffer *otherBuffer, int offset /*= 0*/, int numSamples /*= -1*/)
 {
 	referToOtherBuffer(otherBuffer, offset, numSamples);
+	addMethods();
 }
 
 VariantBuffer::VariantBuffer(int samples) :
@@ -24,6 +60,8 @@ buffer()
 		buffer.setSize(1, jmax<int>(0, samples));
 		buffer.clear();
 	}
+
+	addMethods();
 }
 
 VariantBuffer::~VariantBuffer()
@@ -68,15 +106,16 @@ void VariantBuffer::addMul(const VariantBuffer &a, const VariantBuffer &b)
 	FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0), a.buffer.getReadPointer(0), b.buffer.getReadPointer(0), size);
 }
 
+
 var VariantBuffer::getSample(int sampleIndex)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid get sample index: " + String(sampleIndex));
 	return (*this)[sampleIndex];
 }
 
 void VariantBuffer::setSample(int sampleIndex, float newValue)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid set sample index: " + String(sampleIndex));
 
 	buffer.setSample(0, sampleIndex, FloatSanitizers::sanitizeFloatNumber(newValue));
 }
@@ -87,10 +126,225 @@ String VariantBuffer::toDebugString() const
 
 	description << "Buffer (size: " << size << ")";
 
+	if (buffer.getNumSamples() == 0)
+		return description;
+
 	description << ", Max: " << String(buffer.getMagnitude(0, size), 3);
 	description << ", RMS: " << String(buffer.getRMSLevel(0, 0, size), 3);
 
 	return description;
+}
+
+void VariantBuffer::addMethods()
+{
+	setMethod("normalise", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			auto ptr = bf->buffer.getWritePointer(0, 0);
+
+			auto mag = bf->buffer.getMagnitude(0, bf->size);
+
+			float gain = 1.0f;
+
+			if (n.numArguments > 0)
+				gain = jlimit<float>(0.0f, 1.0f, Decibels::decibelsToGain(gain));
+
+			if (mag > 0.0f)
+				gain /= mag;
+
+			FloatVectorOperations::multiply(ptr, gain, bf->size);
+		}
+
+		return var(0);
+	});
+
+#if HISE_INCLUDE_PITCH_DETECTION
+	setMethod("detectPitch", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			if (n.numArguments == 0)
+			{
+				throw String("samplerate expected as first argument");
+			}
+
+			auto sampleRate = (double)n.arguments[0];
+
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 2)
+				numSamples = jmin(numSamples, (int)n.arguments[2]);
+
+			int offset = 0;
+
+			if (n.numArguments > 1)
+				offset = jmin((int)n.arguments[1], bf->buffer.getNumSamples() - numSamples);
+
+			return var(PitchDetection::detectPitch(bf->buffer, offset, numSamples, sampleRate));
+		}
+
+		return var(0);
+	});
+#endif
+
+	setMethod("indexOfPeak", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			auto ptr = bf->buffer.getReadPointer(0, offset);
+
+			int index = 0;
+			auto maxValue = 0.0f;
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				auto thisValue = std::abs(ptr[i]);
+                
+				if (thisValue > maxValue)
+				{
+					maxValue = thisValue;
+					index = i;
+				}
+			}
+
+			return var(index + offset);
+		}
+
+		return var(0);
+	});
+
+	setMethod("toBase64", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			juce::MemoryBlock mb(bf->buffer.getReadPointer(0), sizeof(float) * bf->size);
+
+			String b = "Buffer";
+			b << mb.toBase64Encoding();
+			return var(b);
+		}
+
+		return var(0);
+	});
+
+	setMethod("fromBase64", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			if (n.numArguments == 0)
+				throw String("expected string");
+
+			auto s = n.arguments[0].toString();
+			MemoryBlock mb;
+
+			if (!s.startsWith("Buffer"))
+				return var(false);
+
+			if (!mb.fromBase64Encoding(s.substring(6)))
+				return var(false);
+
+			auto newSize = mb.getSize() / sizeof(float);
+
+			if (newSize > 44100)
+				throw String("Too big");
+
+			bf->buffer.setSize(1, (int)newSize);
+			bf->size = (int)newSize;
+
+			auto asFloatArray = reinterpret_cast<float*>(mb.getData());
+
+			FloatVectorOperations::copy(bf->buffer.getWritePointer(0), asFloatArray, (int)newSize);
+
+			return var(true);
+		}
+
+		return var(0);
+	});
+
+	setMethod("getMagnitude", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (numSamples == 0)
+				return var(0.0f);
+
+			if (n.numArguments > 1)
+				numSamples = jlimit(0, numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jlimit(0, jmax(0, bf->buffer.getNumSamples() - numSamples), (int)n.arguments[0]);
+
+			return var(bf->buffer.getMagnitude(0, offset, numSamples));
+		}
+			
+
+		return var(0);
+	});
+	
+	setMethod("getRMSLevel", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			return var(bf->buffer.getRMSLevel(0, offset, numSamples));
+		}
+			
+
+		return var(0);
+	});
+
+	setMethod("getPeakRange", [](const var::NativeFunctionArgs& n)
+	{
+		Array<var> range;
+
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			int numSamples = bf->buffer.getNumSamples();
+
+			if (n.numArguments > 1)
+				numSamples = jmin(numSamples, (int)n.arguments[1]);
+
+			int offset = 0;
+
+			if (n.numArguments > 0)
+				offset = jmin((int)n.arguments[0], bf->buffer.getNumSamples() - numSamples);
+
+			auto r = bf->buffer.findMinMax(0, offset, numSamples);
+			range.add(r.getStart());
+			range.add(r.getEnd());
+		}
+		else
+		{
+			range.add(0);
+			range.add(0);
+		}
+			
+		return var(range);
+	});
 }
 
 void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const
@@ -131,7 +385,7 @@ VariantBuffer& VariantBuffer::operator+=(float gain)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator+(float gain)
+VariantBuffer& VariantBuffer::operator+(float gain)
 {
 	FloatVectorOperations::add(buffer.getWritePointer(0), FloatSanitizers::sanitizeFloatNumber(gain), buffer.getNumSamples());
 
@@ -147,7 +401,7 @@ VariantBuffer& VariantBuffer::operator+=(const VariantBuffer &b)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator+(const VariantBuffer &b)
+VariantBuffer& VariantBuffer::operator+(const VariantBuffer &b)
 {
 	CHECK_CONDITION((b.size >= size), "second buffer too small: " + String(size));
 
@@ -158,7 +412,8 @@ VariantBuffer VariantBuffer::operator+(const VariantBuffer &b)
 
 VariantBuffer & VariantBuffer::operator-(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
+	FloatSanitizers::sanitizeFloatNumber(value);
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
 
 	return *this;
 }
@@ -166,7 +421,8 @@ VariantBuffer & VariantBuffer::operator-(float value)
 
 VariantBuffer & VariantBuffer::operator-=(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
+	FloatSanitizers::sanitizeFloatNumber(value);
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
 	
 	return *this;
 }
@@ -197,7 +453,7 @@ VariantBuffer& VariantBuffer::operator*=(float gain)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator*(float gain)
+VariantBuffer& VariantBuffer::operator*(float gain)
 {
 	buffer.applyGain(FloatSanitizers::sanitizeFloatNumber(gain));
 
@@ -213,7 +469,7 @@ VariantBuffer& VariantBuffer::operator*=(const VariantBuffer &b)
 	return *this;
 }
 
-VariantBuffer VariantBuffer::operator*(const VariantBuffer &b)
+VariantBuffer& VariantBuffer::operator*(const VariantBuffer &b)
 {
 	CHECK_CONDITION((b.size >= size), "second buffer too small: " + String(b.size));
 
@@ -224,13 +480,13 @@ VariantBuffer VariantBuffer::operator*(const VariantBuffer &b)
 
 float &VariantBuffer::operator [](int sampleIndex)
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid sample index: " + String(sampleIndex));
 	return buffer.getWritePointer(0)[sampleIndex];
 }
 
 const float & VariantBuffer::operator[](int sampleIndex) const
 {
-	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), toDebugString() + " Error: Invalid sample index: " + String(sampleIndex));
 	return buffer.getReadPointer(0)[sampleIndex];
 }
 

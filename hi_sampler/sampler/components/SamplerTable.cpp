@@ -34,6 +34,7 @@ ML("- Use the regex parser as a normal wildcard search engine until it does not 
 ML("- Select all with `.`");
 ML("- if you want to subtract something from the selection, use the prefix `sub:` (this is not official regex, but I added it for simpler handling)");
 ML("- if you want to add something to the selection but keep the other sounds selected, use the prefix `add:`");
+ML("- you can use logical operators (and: `&`, or: `|`) with multiple keywords");
 ML("- the end of the filename can be checked with `$`, the start of the filename can be checked with `^`.");
 
 ML("## Isolate a token in the file name")
@@ -102,6 +103,8 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
 
 	s->getSampleMap()->addListener(this);
 
+	addKeyListener(s->getSampleEditHandler());
+
 	
 	addAndMakeVisible(helpButton = new MarkdownHelpButton());
 
@@ -123,6 +126,9 @@ SamplerTable::~SamplerTable()
 
 	if(sampler != nullptr)
 		sampler->getSampleMap()->removeListener(this);
+
+	if (sampler != nullptr)
+		removeKeyListener(sampler->getSampleEditHandler());
 
     //[/Destructor_pre]
 
@@ -146,7 +152,7 @@ void SamplerTable::paint (Graphics& g)
     
 	Rectangle<int> a(x, y, width, height);
 
-	ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
 
     //[/UserPrePaint]
 
@@ -170,7 +176,7 @@ void SamplerTable::paint (Graphics& g)
 	{
 		g.setColour(Colours::white);
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(String(numSelected) + " selected samples", searchLabel->getRight() + 20, searchLabel->getY(), 150, searchLabel->getHeight(), Justification::centredLeft);
+		g.drawText(String(numSelected) + " selected samples", helpButton->getRight() + 20, searchLabel->getY(), 150, searchLabel->getHeight(), Justification::centredLeft);
 	}
 	
 
@@ -219,7 +225,7 @@ void SamplerTable::labelTextChanged (Label* labelThatHasChanged)
         //[UserLabelCode_searchLabel] -- add your label text handling code here..
 		String wildcard = searchLabel->getText(false);
 
-		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelection());
+		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelectionReference());
 
         //[/UserLabelCode_searchLabel]
     }

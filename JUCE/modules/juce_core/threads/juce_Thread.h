@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -338,7 +338,7 @@ public:
     */
     static void JUCE_CALLTYPE setCurrentThreadName (const String& newThreadName);
 
-   #if JUCE_ANDROID || defined (DOXYGEN)
+   #if JUCE_ANDROID || DOXYGEN
     //==============================================================================
     /** Initialises the JUCE subsystem for projects not created by the Projucer
 
@@ -352,7 +352,7 @@ public:
         following java method:
 
         @code
-        com.roli.juce.Java.initialiseJUCE (myContext);
+        com.rmsl.juce.Java.initialiseJUCE (myContext);
         @endcode
 
         Note that the above java method is only available in Android Studio projects
@@ -361,7 +361,7 @@ public:
         your project:
 
         @code
-        package com.roli.juce;
+        package com.rmsl.juce;
 
         public class Java
         {
@@ -407,6 +407,7 @@ private:
     void killThread();
     void threadEntryPoint();
     static bool setThreadPriority (void*, int);
+    static int getAdjustedPriority (int);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread)
 };

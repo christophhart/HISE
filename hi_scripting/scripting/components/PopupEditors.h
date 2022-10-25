@@ -39,12 +39,36 @@ namespace hise { using namespace juce;
 class JavascriptCodeEditor;
 class DebugConsoleTextEditor;
 
+
 class PopupIncludeEditor : public Component,
 						   public Timer,
 						   public ButtonListener,
-						   public Dispatchable
+						   public Dispatchable, 
+						   public mcl::GutterComponent::BreakpointListener,
+						   public JavascriptThreadPool::SleepListener
 {
 public:
+
+    static constexpr int BOTTOM_HEIGHT = 24;
+    
+    struct Factory: public PathFactory
+    {
+        Path createPath(const String& url) const override
+        {
+            Path p;
+            
+            LOAD_PATH_IF_URL("error", ColumnIcons::errorIcon);
+            
+            return p;
+        }
+    } factory;
+    
+	static bool matchesId(Component* c, const Identifier& id)
+	{
+		return CommonEditorFunctions::as(c)->findParentComponentOfClass<PopupIncludeEditor>()->callback == id;
+	}
+
+	static float getGlobalCodeFontSize(Component* c);
 
 	// ================================================================================================================
 
@@ -56,7 +80,7 @@ public:
 	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
 
-	
+	static void runTimeErrorsOccured(PopupIncludeEditor& t, Array<ExternalScriptFile::RuntimeError>* errors);
 
 	void resized() override;;
 
@@ -64,16 +88,80 @@ public:
 
 	void buttonClicked(Button* b) override;
 
-	JavascriptCodeEditor* getEditor() { return editor.get(); }
+	void breakpointsChanged(mcl::GutterComponent& g) override;
 
-	const JavascriptCodeEditor* getEditor() const { return editor.get(); }
+	void paintOverChildren(Graphics& g) override;
+
+    void paint(Graphics& g) override
+    {
+        auto b = getLocalBounds().removeFromBottom(BOTTOM_HEIGHT);
+        GlobalHiseLookAndFeel::drawFake3D(g, b);
+    }
+    
+	static void initKeyPresses(Component* root);
 
 	File getFile() const;
 	
+	JavascriptProcessor* getScriptProcessor() { return jp; }
+
+	static File getPropertyFile()
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("code_editor.json");
+	}
+
+	using EditorType = CommonEditorFunctions::EditorType;
+
+	void sleepStateChanged(const Identifier& id, int lineNumber, bool on) override;
+
+	void addEditor(CodeDocument& d, bool isJavascript);
+
+	EditorType* getEditor() { return editor; }
+	const EditorType* getEditor() const { return editor; }
+
+	ScopedPointer<EditorType> editor;
+
+	ScopedPointer<mcl::TextDocument> doc;
+
+	Identifier callback;
+	WeakReference<JavascriptProcessor> jp;
+
+	ExternalScriptFile::Ptr externalFile;
+
+	ScopedPointer<DebugConsoleTextEditor> resultLabel;
+
 private:
 
-	void addButtonAndCompileLabel();
+    struct ButtonLAF: public LookAndFeel_V4
+    {
+        void drawButtonText (Graphics &g, TextButton &button, bool isMouseOverButton, bool isButtonDown) override
+        {
+            float alpha = 0.6f;
+            
+            if(isMouseOverButton)
+                alpha += 0.2f;
+            
+            if(isButtonDown)
+                alpha += 0.2f;
+            
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.setColour(Colours::white.withAlpha(alpha));
+            
+            g.drawText(button.getButtonText(), button.getLocalBounds().toFloat(), Justification::centred);
+        }
+         
+        void drawButtonBackground (Graphics& g, Button& button, const Colour& /*backgroundColour*/,
+                                               bool isMouseOverButton, bool isButtonDown) override
+        {
+            
+            
+            if(isMouseOverButton)
+                g.fillAll(Colours::white.withAlpha(0.04f));
+        }
 
+    } blaf;
+    
+	void addButtonAndCompileLabel();
+	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
 	void compileInternal();
 
 	friend class PopupIncludeEditorWindow;
@@ -82,23 +170,17 @@ private:
 	
 	int fontSize;
 
-	ExternalScriptFile::Ptr externalFile;
-
 	ScopedPointer<JavascriptTokeniser> tokeniser;
-	ScopedPointer < JavascriptCodeEditor > editor;
-	
 	ScopedPointer<TextButton> compileButton;
+	ScopedPointer<TextButton> resumeButton;
+    
+    ScopedPointer<HiseShapeButton> errorButton;
 
-	ScopedPointer<DebugConsoleTextEditor> resultLabel;
-
-	JavascriptProcessor *sp;
-	
-	
-	const Identifier callback;
-
+	bool isHalted = false;
 	bool lastCompileOk;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditor);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PopupIncludeEditor);
 
 	// ================================================================================================================
 };

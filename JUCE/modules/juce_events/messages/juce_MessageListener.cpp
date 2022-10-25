@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -34,7 +34,7 @@ void Message::messageCallback()
 
 MessageListener::MessageListener() noexcept
 {
-    // Are you trying to create a messagelistener before or after juce has been intialised??
+    // Are you trying to create a messagelistener before or after juce has been initialised??
     JUCE_ASSERT_MESSAGE_MANAGER_EXISTS
 }
 

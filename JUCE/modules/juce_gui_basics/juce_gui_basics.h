@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -24,27 +23,28 @@
   ==============================================================================
 */
 
+
 /*******************************************************************************
  The block below describes the properties of this module, and is read by
  the Projucer to automatically generate project code that uses it.
  For details about the syntax and how to create or use a module, see the
- JUCE Module Format.txt file.
+ JUCE Module Format.md file.
 
 
  BEGIN_JUCE_MODULE_DECLARATION
 
-  ID:               juce_gui_basics
-  vendor:           juce
-  version:          5.4.3
-  name:             JUCE GUI core classes
-  description:      Basic user-interface components and related classes.
-  website:          http://www.juce.com/juce
-  license:          GPL/Commercial
+  ID:                 juce_gui_basics
+  vendor:             juce
+  version:            6.1.3
+  name:               JUCE GUI core classes
+  description:        Basic user-interface components and related classes.
+  website:            http://www.juce.com/juce
+  license:            GPL/Commercial
+  minimumCppStandard: 14
 
-  dependencies:     juce_graphics juce_data_structures
-  OSXFrameworks:    Cocoa Carbon QuartzCore
-  iOSFrameworks:    UIKit MobileCoreServices
-  linuxPackages:    x11 xinerama xext
+  dependencies:       juce_graphics juce_data_structures
+  OSXFrameworks:      Cocoa Carbon QuartzCore
+  iOSFrameworks:      UIKit CoreServices
 
  END_JUCE_MODULE_DECLARATION
 
@@ -53,6 +53,8 @@
 
 #pragma once
 #define JUCE_GUI_BASICS_H_INCLUDED
+
+#include <utility>
 
 #include <juce_graphics/juce_graphics.h>
 #include <juce_data_structures/juce_data_structures.h>
@@ -65,14 +67,6 @@
 */
 #ifndef JUCE_ENABLE_REPAINT_DEBUGGING
  #define JUCE_ENABLE_REPAINT_DEBUGGING 0
-#endif
-
-/** Config: JUCE_ENABLE_REPAINT_PROFILING
-	If this option is turned on, each component that is selected for profiling will be
-	measured and a statistic of the time spent inside the paint callback will be created
-	on shutdown. */
-#ifndef JUCE_ENABLE_REPAINT_PROFILING
-#define JUCE_ENABLE_REPAINT_PROFILING 1
 #endif
 
 /** Config: JUCE_USE_XRANDR
@@ -117,13 +111,6 @@
 */
 #ifndef JUCE_USE_XCURSOR
  #define JUCE_USE_XCURSOR 1
-#endif
-
-/** Config: JUCE_HEADLESS_PLUGIN_CLIENT
-    Enables a headless build of a VST plugin for embedded Linux.
-*/
-#ifndef JUCE_HEADLESS_PLUGIN_CLIENT
- #define JUCE_HEADLESS_PLUGIN_CLIENT 0
 #endif
 
 /** Config: JUCE_WIN_PER_MONITOR_DPI_AWARE
@@ -171,11 +158,15 @@ namespace juce
     class ApplicationCommandManagerListener;
     class DrawableButton;
     class Displays;
+    class AccessibilityHandler;
+    class KeyboardFocusTraverser;
 
     class FlexBox;
-    #if JUCE_HAS_CONSTEXPR
-     class Grid;
-    #endif
+    class Grid;
+
+   #if JUCE_MAC || JUCE_WINDOWS || JUCE_LINUX
+    Image createSnapshotOfNativeWindow (void* nativeWindowHandle);
+   #endif
 }
 
 #include "mouse/juce_MouseCursor.h"
@@ -185,7 +176,8 @@ namespace juce
 #include "mouse/juce_MouseEvent.h"
 #include "keyboard/juce_KeyPress.h"
 #include "keyboard/juce_KeyListener.h"
-#include "keyboard/juce_KeyboardFocusTraverser.h"
+#include "components/juce_ComponentTraverser.h"
+#include "components/juce_FocusTraverser.h"
 #include "components/juce_ModalComponentManager.h"
 #include "components/juce_ComponentListener.h"
 #include "components/juce_CachedComponentImage.h"
@@ -203,6 +195,7 @@ namespace juce
 #include "mouse/juce_TextDragAndDropTarget.h"
 #include "mouse/juce_TooltipClient.h"
 #include "keyboard/juce_CaretComponent.h"
+#include "keyboard/juce_KeyboardFocusTraverser.h"
 #include "keyboard/juce_SystemClipboard.h"
 #include "keyboard/juce_TextEditorKeyMapper.h"
 #include "keyboard/juce_TextInputTarget.h"
@@ -271,6 +264,7 @@ namespace juce
 #include "misc/juce_JUCESplashScreen.h"
 #include "widgets/juce_TreeView.h"
 #include "windows/juce_TopLevelWindow.h"
+#include "windows/juce_MessageBoxOptions.h"
 #include "windows/juce_AlertWindow.h"
 #include "windows/juce_CallOutBox.h"
 #include "windows/juce_ComponentPeer.h"
@@ -311,19 +305,71 @@ namespace juce
 #include "lookandfeel/juce_LookAndFeel_V3.h"
 #include "lookandfeel/juce_LookAndFeel_V4.h"
 #include "mouse/juce_LassoComponent.h"
+#include "accessibility/interfaces/juce_AccessibilityCellInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityTableInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityTextInterface.h"
+#include "accessibility/interfaces/juce_AccessibilityValueInterface.h"
+#include "accessibility/enums/juce_AccessibilityActions.h"
+#include "accessibility/enums/juce_AccessibilityEvent.h"
+#include "accessibility/enums/juce_AccessibilityRole.h"
+#include "accessibility/juce_AccessibilityState.h"
+#include "accessibility/juce_AccessibilityHandler.h"
 
-#if JUCE_LINUX
- #if ! JUCE_HEADLESS_PLUGIN_CLIENT
-  #include "native/juce_linux_X11.h"
- #else
-  #include "native/juce_linux_headless_X_keysymdef.h"
+#if JUCE_LINUX || JUCE_BSD
+ #if JUCE_GUI_BASICS_INCLUDE_XHEADERS
+  // If you're missing these headers, you need to install the libx11-dev package
+  #include <X11/Xlib.h>
+  #include <X11/Xatom.h>
+  #include <X11/Xresource.h>
+  #include <X11/Xutil.h>
+  #include <X11/Xmd.h>
+  #include <X11/keysym.h>
+  #include <X11/XKBlib.h>
+  #include <X11/cursorfont.h>
+  #include <unistd.h>
+
+  #if JUCE_USE_XRANDR
+   // If you're missing this header, you need to install the libxrandr-dev package
+   #include <X11/extensions/Xrandr.h>
+  #endif
+
+  #if JUCE_USE_XINERAMA
+   // If you're missing this header, you need to install the libxinerama-dev package
+   #include <X11/extensions/Xinerama.h>
+  #endif
+
+  #if JUCE_USE_XSHM
+   #include <X11/extensions/XShm.h>
+   #include <sys/shm.h>
+   #include <sys/ipc.h>
+  #endif
+
+  #if JUCE_USE_XRENDER
+   // If you're missing these headers, you need to install the libxrender-dev and libxcomposite-dev packages
+   #include <X11/extensions/Xrender.h>
+   #include <X11/extensions/Xcomposite.h>
+  #endif
+
+  #if JUCE_USE_XCURSOR
+   // If you're missing this header, you need to install the libxcursor-dev package
+   #include <X11/Xcursor/Xcursor.h>
+  #endif
+
+  #undef SIZEOF
+  #undef KeyPress
+
+  #include "native/x11/juce_linux_XWindowSystem.h"
+  #include "native/x11/juce_linux_X11_Symbols.h"
  #endif
+#endif
+
+#if JUCE_GUI_BASICS_INCLUDE_SCOPED_THREAD_DPI_AWARENESS_SETTER && JUCE_WINDOWS
+ #include "native/juce_win32_ScopedThreadDPIAwarenessSetter.h"
 #endif
 
 #include "layout/juce_FlexItem.h"
 #include "layout/juce_FlexBox.h"
 
-#if JUCE_HAS_CONSTEXPR
- #include "layout/juce_GridItem.h"
- #include "layout/juce_Grid.h"
-#endif
+#include "layout/juce_GridItem.h"
+#include "layout/juce_Grid.h"
+#include "native/juce_ScopedDPIAwarenessDisabler.h"

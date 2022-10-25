@@ -110,14 +110,14 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
 	ADD(SampleRate);
 	ADD(GlobalBPM);
 	ADD(ScaleFactor);
+	ADD(UseOpenGL);
 	ADD(StreamingMode);
 	ADD(VoiceAmountMultiplier);
 	ADD(ClearMidiCC);
 	ADD(SampleLocation);
 	ADD(DebugMode);
 	ADD(ScaleFactorList);
-	ADD(UseOpenGL);
-    
+	
 	setColour(ColourIds::textColour, Colours::white);
 
     for(int i = 0; i < (int)Properties::numProperties; i++)
@@ -125,7 +125,9 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus)
         properties[i] = true;
     }
     
-#if !HISE_USE_OPENGL_FOR_PLUGIN
+#if HISE_USE_OPENGL_FOR_PLUGIN
+    properties[(int)Properties::UseOpenGL] = true;
+#else
 	properties[(int)Properties::UseOpenGL] = false;
 #endif
 
@@ -693,7 +695,7 @@ void CombinedSettingsWindow::buttonClicked(Button* )
 {
     
     dynamic_cast<AudioProcessorDriver*>(mc)->saveDeviceSettingsAsXml();
-    ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
+    ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml().release();
     dynamic_cast<AudioProcessorDriver*>(mc)->initialiseAudioDriver(deviceData);
 
     

@@ -40,8 +40,7 @@
                                                                     //[/Comments]
 */
 class SamplerBody  : public ProcessorEditorBody,
-                     public ButtonListener,
-					 public SampleEditHandler::Listener
+                     public ButtonListener
 {
 public:
     //==============================================================================
@@ -55,28 +54,11 @@ public:
 	{
 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
 
-		getSampleEditHandler()->handleMidiSelection();
-
 		settingsPanel->updateInterface();
 		sampleEditor->updateInterface();
 		soundTable->updateInterface();
 		map->updateInterface();
 	};
-
-
-	/** This is called whenever the selection changes.
-	*
-	*	Since the SamplerBody itself is a ChangeBroadcaster for updateGui(), it has to use another callback
-	*/
-
-	void soundSelectionChanged(SampleSelection& newSelection) override
-	{
-		sampleEditor->selectSounds(newSelection);
-
-		map->selectSounds(newSelection);
-
-		soundTable->selectSounds(newSelection);
-	}
 
 	SampleEditHandler* getSampleEditHandler()
 	{
@@ -93,9 +75,6 @@ public:
 		return h + (settingsHeight != 0 ? settingsPanel->getPanelHeight() : 0) + waveFormHeight + thisMapHeight + tableHeight;
 	};
 
-
-	
-
 	bool keyPressed(const KeyPress &k) override
 	{
 		if (int commandId = map->getCommandManager()->getKeyMappings()->findCommandForKeyPress(k))
@@ -104,66 +83,7 @@ public:
 			return true;
 		}
 
-		if (k.getModifiers().isShiftDown())
-		{
-			if (k.getKeyCode() == k.upKey)
-			{
-				int index = map->getCurrentRRGroup();
-
-				if (index == -1) index = 0;
-
-				index++;
-
-				map->setCurrentRRGroup(index);
-
-				return true;
-			}
-			else if (k.getKeyCode() == k.downKey)
-			{
-				int index = map->getCurrentRRGroup();
-
-				index--;
-
-				map->setCurrentRRGroup(index);
-
-				return true;
-			}
-		}
-		if (k.getKeyCode() == KeyPress::leftKey)
-		{
-			if (k.getModifiers().isCommandDown())
-				getSampleEditHandler()->moveSamples(SamplerSoundMap::Left);
-			else
-				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
-			return true;
-		}
-		else if (k.getKeyCode() == KeyPress::rightKey)
-		{
-			if (k.getModifiers().isCommandDown())
-				getSampleEditHandler()->moveSamples(SamplerSoundMap::Right);
-			else
-				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
-			return true;
-		}
-		else if (k.getKeyCode() == KeyPress::upKey)
-		{
-			if (k.getModifiers().isCommandDown())
-				getSampleEditHandler()->moveSamples(SamplerSoundMap::Up);
-			else
-				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
-			return true;
-		}
-		else if (k.getKeyCode() == KeyPress::downKey)
-		{
-			if (k.getModifiers().isCommandDown())
-				getSampleEditHandler()->moveSamples(SamplerSoundMap::Down);
-			else
-				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
-			return true;
-		}
-
 		return false;
-
 	};
 
     //[/UserMethods]
@@ -184,10 +104,6 @@ private:
 
 	bool internalChange;
 	uint32 timeSinceLastSelectionChange = 0;
-
-#if SAMPLER_DEPRECATED
-	ScopedPointer<SelectionListener> selectionListener;
-#endif
 
 	ChainBarButtonLookAndFeel cblaf;
 

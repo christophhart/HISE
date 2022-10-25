@@ -128,6 +128,43 @@ private:
 	UpdateTimer updateTimer;
 };
 
+struct Learnable
+{
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	};
+	struct LearnData
+	{
+		String processorId;
+		String parameterId;
+		float value;
+		String name;
+		NormalisableRange<double> range;
+		String mode;
+		StringArray items;
+	};
+
+	Component* asComponent() { return dynamic_cast<Component*>(this); };
+	const Component* asComponent() const { return dynamic_cast<const Component*>(this); };
+
+	virtual ~Learnable() {};
+
+	void setLearnable(bool shouldBeLearnable)
+	{
+		learnable = shouldBeLearnable;
+	}
+
+	bool isLearnable() const
+	{
+		return learnable;
+	}
+
+private:
+
+	bool learnable = true;
+};
+
 
 /** A base class for all control Components that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
@@ -135,7 +172,8 @@ private:
 *	Subclass your component from this class, and set the Processor's Attribute in its specified callback.
 *	
 */
-class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener
+class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener,
+						     public Learnable
 {
 public:
 	
@@ -183,14 +221,7 @@ public:
 
 	void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) override;
 
-	bool canBeMidiLearned() const
-	{
-#if HISE_ENABLE_MIDI_LEARN
-		return midiLearnEnabled;
-#else
-		return false;
-#endif
-	}
+	bool canBeMidiLearned() const;
 
 	bool isConnectedToModulator() const;
 
@@ -204,6 +235,10 @@ public:
 	*	@param name_ the name of the element. This will also be the displayed name in the macro control panel.
 	*/
 	virtual void setup(Processor *p, int parameter_, const String &name_);
+
+	void connectToCustomAutomation(const Identifier& newCustomId);
+
+	int getAutomationIndex() const;
 
 	void initMacroControl(NotificationType notify);
 
@@ -262,13 +297,13 @@ protected:
 
 	int parameter;
 
-protected:
-
 	void enableMidiLearnWithPopup();
 
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	Identifier customId;
 
 	ScopedPointer<LookAndFeel> slaf;
 
@@ -310,6 +345,11 @@ public:
         setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
 	};
 
+    ~HiComboBox()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	void setup(Processor *p, int parameter, const String &name) override;
 
 	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
@@ -382,7 +422,55 @@ public:
 	Font font;
 };
 
-class HiToggleButton: public ToggleButton,
+class MomentaryToggleButton: public ToggleButton
+{
+public:
+    
+    MomentaryToggleButton(const String& name):
+      ToggleButton(name)
+    {};
+    
+    void setIsMomentary(bool shouldBeMomentary)
+    {
+        isMomentary = shouldBeMomentary;
+    }
+    
+    void mouseDown(const MouseEvent& e) override
+    {
+		if (e.mods.isRightButtonDown())
+			return;
+
+        if (isMomentary)
+        {
+            setToggleState(true, sendNotification);
+        }
+        else
+        {
+            ToggleButton::mouseDown(e);
+        }
+    }
+    
+    void mouseUp(const MouseEvent& e) override
+    {
+		if (e.mods.isRightButtonDown())
+			return;
+
+        if (isMomentary)
+        {
+            setToggleState(false, sendNotification);
+        }
+        else
+        {
+            ToggleButton::mouseUp(e);
+        }
+    }
+    
+private:
+    
+    bool isMomentary = false;
+};
+
+class HiToggleButton: public MomentaryToggleButton,
 					  public Button::Listener,
 				      public MacroControlledObject,
                       public TouchAndHoldComponent
@@ -390,7 +478,7 @@ class HiToggleButton: public ToggleButton,
 public:
 
 	HiToggleButton(const String &name):
-		ToggleButton(name),
+		MomentaryToggleButton(name),
         MacroControlledObject(),
 		notifyEditor(dontSendNotification)
 	{
@@ -403,7 +491,10 @@ public:
         setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
 	};
 
-	
+    ~HiToggleButton()
+    {
+        setLookAndFeel(nullptr);
+    }
 
 	void setup(Processor *p, int parameter, const String &name) override;
 
@@ -416,10 +507,7 @@ public:
 		notifyEditor = notify;
 	}
 
-	void setIsMomentary(bool shouldBeMomentary)
-	{
-		isMomentary = shouldBeMomentary;
-	}
+	
 
 	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition)
 	{
@@ -456,7 +544,7 @@ private:
 
 	Component::SafePointer<Component> currentPopup;
 
-	bool isMomentary = false;
+	
 
 	NotificationType notifyEditor;
 	ScopedPointer<LookAndFeel> laf;
@@ -548,6 +636,11 @@ public:
 	*/
 	HiSlider(const String &name);;
 
+    ~HiSlider()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	static String getFrequencyString(float input)
 	{
 		if (input < 30.0f)
@@ -595,6 +688,8 @@ public:
 		numberTag->setBounds(getLocalBounds());
 	}
 
+	String getModeId() const;
+
 	void setMode(Mode m)
 	{
 		if (mode != m)
@@ -636,6 +731,8 @@ public:
 			setModeRange(min, max, mid, stepSize);
 		}
 	};
+
+	Mode getMode() const { return mode; }
 
 	
 

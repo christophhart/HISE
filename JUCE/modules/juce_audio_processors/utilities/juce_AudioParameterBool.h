@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -40,9 +39,9 @@ public:
     /** Creates a AudioParameterBool with the specified parameters.
 
         @param parameterID         The parameter ID to use
-        @param name                The parameter name to use
+        @param parameterName       The parameter name to use
         @param defaultValue        The default value
-        @param label               An optional label for the parameter's value
+        @param parameterLabel      An optional label for the parameter's value
         @param stringFromBool      An optional lambda function that converts a bool
                                    value to a string with a maximum length. This may
                                    be used by hosts to display the parameter's value.
@@ -50,8 +49,8 @@ public:
                                    converts it into a bool value. Some hosts use this
                                    to allow users to type in parameter values.
     */
-    AudioParameterBool (const String& parameterID, const String& name, bool defaultValue,
-                        const String& label = String(),
+    AudioParameterBool (const String& parameterID, const String& parameterName, bool defaultValue,
+                        const String& parameterLabel = String(),
                         std::function<String (bool value, int maximumStringLength)> stringFromBool = nullptr,
                         std::function<bool (const String& text)> boolFromString = nullptr);
 
@@ -88,7 +87,7 @@ private:
     float getValueForText (const String&) const override;
 
     const NormalisableRange<float> range { 0.0f, 1.0f, 1.0f };
-    float value;
+    std::atomic<float> value;
     const float defaultValue;
     std::function<String (bool, int)> stringFromBoolFunction;
     std::function<bool (const String&)> boolFromStringFunction;

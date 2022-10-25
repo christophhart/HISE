@@ -41,16 +41,68 @@ class BackendProcessorEditor;
 class PatchBrowser : public SearchableListComponent,
 					 public DragAndDropTarget,
 					 public ButtonListener,
+					 public Timer,
 					 public MainController::ProcessorChangeHandler::Listener
 {
 
 public:
 
+	struct MiniPeak : public Component,
+					  public PooledUIUpdater::SimpleTimer,
+					  public SettableTooltipClient,
+					  public SafeChangeListener
+	{
+		enum class ProcessorType
+		{
+			Midi,
+			Audio,
+			Mod
+		};
+
+		MiniPeak(Processor* p_);;
+
+		~MiniPeak();
+
+		void changeListenerCallback(SafeChangeBroadcaster*) override
+		{
+			repaint();
+		}
+
+		void mouseDown(const MouseEvent& e) override;
+
+		void paint(Graphics& g) override;
+
+		float getModValue();
+
+		int getPreferredWidth() const;
+
+		void timerCallback() override;
+
+		const bool isMono;
+		
+		float channelValues[NUM_MAX_CHANNELS];
+		int numChannels;
+
+		ProcessorType type;
+
+		WeakReference<Processor> p;
+	};
+
 	// ====================================================================================================================
+
+	void timerCallback() override
+	{
+		repaint();
+	}
 
 	PatchBrowser(BackendRootWindow *window);
 	~PatchBrowser();
 
+    struct Factory: public PathFactory
+    {
+        Path createPath(const String& url) const override;
+    };
+    
 	SET_GENERIC_PANEL_ID("PatchBrowser");
 
 	// ====================================================================================================================
@@ -60,6 +112,18 @@ public:
 	void itemDragExit(const SourceDetails& dragSourceDetails) override;
 	void itemDragMove(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
+
+	void refreshBypassState();
+
+	static void processorChanged(PatchBrowser& pb, Processor* oldProcessor, Processor* newProcessor);
+
+	static void showProcessorInPopup(Component* c, const MouseEvent& e, Processor* p);
+
+	void refreshPopupState();
+
+	void mouseMove(const MouseEvent& e) override;
+
+	void mouseExit(const MouseEvent&) override;
 
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
@@ -80,17 +144,23 @@ public:
 
 	void paint(Graphics &g) override;
 
+	void paintOverChildren(Graphics& g) override;
+
 	void toggleFoldAll();
 
 	void toggleShowChains();
 
 	void buttonClicked(Button *b) override;
 
+    void rebuilt() override;
+    
 private:
 
 	// ====================================================================================================================
 
-	class ModuleDragTarget : public ButtonListener
+	class ModuleDragTarget : public ButtonListener,
+							 public Label::Listener,
+                             public SettableTooltipClient
 	{
 	public:
 
@@ -116,26 +186,63 @@ private:
 			numViewSettings
 		};
 
-		ModuleDragTarget();
+		ModuleDragTarget(Processor* p);
 
 		void buttonClicked(Button *b);
 
-		virtual const Processor *getProcessor() const = 0;
-		virtual Processor *getProcessor() = 0;
+		const Processor *getProcessor() const { return p.get(); }
+		Processor *getProcessor() { return p.get(); }
 
 		DragState getDragState() const { return dragState; };
 		virtual void checkDragState(const SourceDetails& dragSourceDetails);
 		virtual void resetDragState();
 
+		void handleRightClick(bool isInEditMode);
+
 		void setDraggingOver(bool isOver);
 
+		bool bypassed = false;
+
+        virtual void applyLayout() = 0;
+        
+        ScopedPointer<HiseShapeButton> gotoWorkspace;
+        
+        static void setWorkspace(ModuleDragTarget& p, const Identifier& id, Processor* pr)
+        {
+            p.gotoWorkspace->setToggleStateAndUpdateIcon(pr == p.getProcessor());
+        }
+        
+		void labelTextChanged(Label *l) override
+		{
+			if (auto p = getProcessor())
+			{
+				if (p->getId() != l->getText())
+				{
+					p->setId(l->getText(), sendNotification);
+				}
+			}
+		}
+
 	protected:
+
+		Label idLabel;
+
+		MiniPeak peak;
+
+		WeakReference<Processor> p;
 
 		void setDragState(DragState newState) { dragState = newState; };
 		void drawDragStatus(Graphics &g, Rectangle<float> area);
 
 		void refreshAllButtonStates();
 		
+		Factory f;
+
+		HiseShapeButton closeButton;
+
+	public:
+
+		HiseShapeButton createButton;
 
 	private:
 
@@ -144,20 +251,23 @@ private:
 		ScopedPointer<ShapeButton> soloButton;
 		ScopedPointer<ShapeButton> hideButton;
 
-		
-
 		DragState dragState;
         
         Colour colour;
         String id;
         bool itemBypassed;
 		bool isOver;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(ModuleDragTarget);
 	};
+
+	static HiseShapeButton* skinWorkspaceButton(Processor* processor);
 
 	// ====================================================================================================================
 
 	class PatchCollection : public SearchableListComponent::Collection,
-							public ModuleDragTarget
+							public ModuleDragTarget,
+							public Processor::BypassListener
 	{
 	public:
 
@@ -165,8 +275,14 @@ private:
 
 		~PatchCollection();
 
-		void mouseDoubleClick(const MouseEvent& event) override;
-		
+		void bypassStateChanged(Processor* p, bool bypassState) override
+		{
+			if (auto pb = findParentComponentOfClass<PatchBrowser>())
+				pb->refreshBypassState();
+		}
+
+		void mouseDown(const MouseEvent& e) override;
+
 		void refreshFoldButton();
 		void buttonClicked(Button *b) override;
 
@@ -178,41 +294,80 @@ private:
 		void paint(Graphics &g) override;
 		void resized() override;
 
+		void mouseEnter(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
+
+        void applyLayout() override;
+        
 		float getIntendation() const { return (float)hierarchy * 20.0f; }
 
 		Point<int> getPointForTreeGraph(bool getStartPoint) const;
 
-		Processor *getProcessor() override { return root.get(); };
-		const Processor *getProcessor() const override { return root.get(); };
-
 		void checkDragState(const SourceDetails& dragSourceDetails);
 		void resetDragState();
 		void toggleShowChains();
+
+		void setInPopup(bool isInPopup)
+		{
+			if (inPopup != isInPopup)
+			{
+				inPopup = isInPopup;
+				repaint();
+			}
+		}
+
+		
+
 	private:
 
+		Rectangle<int> iconArea;
+
+		bool inPopup = false;
 		ScopedPointer<ShapeButton> foldButton;
-
-		WeakReference<Processor> root;
-
 		int hierarchy;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchCollection)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(PatchCollection);
 	};
 
 	// ====================================================================================================================
 
 	class PatchItem :  public SearchableListComponent::Item,
 					   public ModuleDragTarget,
-                       public Label::Listener
+					   public Processor::BypassListener
 	{
 	public:
 
 		PatchItem(Processor *p, Processor *parent_, int hierarchy_, const String &searchTerm);
 		~PatchItem();
 
+		void bypassStateChanged(Processor* p, bool bypassState) override
+		{
+			if (auto pb = findParentComponentOfClass<PatchBrowser>())
+				pb->refreshBypassState();
+		}
+
         void paint(Graphics& g) override;
 
-		void mouseDoubleClick(const MouseEvent& );
+		void mouseDown(const MouseEvent& e);
+
+		void mouseEnter(const MouseEvent& e) override
+		{
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& e) override
+		{
+			repaint();
+		}
 
 		int getPopupHeight() const override	{ return 0; };
 
@@ -220,38 +375,32 @@ private:
 
 		void popupCallback(int menuIndex);
 
-		virtual Processor *getProcessor() override { return processor.get(); };
-		virtual const Processor *getProcessor() const override { return processor.get(); };
-
-        void mouseDown(const MouseEvent &e) override
-        {
-            
-            const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
-                                    dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
-            
-            if(isEditable && e.mods.isShiftDown())
-            {
-                idLabel->showEditor();
-            }
-
-			Item::mouseDown(e);
-
-        }
+        void applyLayout() override;
         
-        void labelTextChanged(Label *l) override
-        {
-            if(processor.get() != nullptr && processor->getId() != l->getText())
-            {
-                processor->setId(l->getText(), sendNotification);
-            }
-        }
         
+        
+		void resized() override;
+
+		
+        
+		void setInPopup(bool isInPopup)
+		{
+			if (inPopup != isInPopup)
+			{
+				inPopup = isInPopup;
+				repaint();
+			}
+		}
+
 	private:
 
-		WeakReference<Processor> processor;
+		bool inPopup = false;
+        
+		Rectangle<int> bypassArea;
+		
         WeakReference<Processor> parent;
         
-        ScopedPointer<Label> idLabel;
+        
 
 		String lastId;
 
@@ -259,7 +408,8 @@ private:
 
         uint32 lastMouseDown;
         
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchItem)
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchItem);
+        JUCE_DECLARE_WEAK_REFERENCEABLE(PatchItem);
 	};
 
 	Component::SafePointer<BackendProcessorEditor> editor;
@@ -267,16 +417,101 @@ private:
 
 	Component::SafePointer<Component> lastTarget;
 
-	ScopedPointer<ShapeButton> addButton;
+	ScopedPointer<HiseShapeButton> addButton;
 	ScopedPointer<ShapeButton> foldButton;
+
+	Array<WeakReference<Processor>> popupProcessors;
 
 	bool foldAll;
 
 	bool showChains = false;
 
+	WeakReference<Processor> insertHover;
+
 	// ====================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchBrowser)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(PatchBrowser);
+};
+
+
+class AutomationDataBrowser : public SearchableListComponent,
+							  public ControlledObject,
+							  public ButtonListener
+{
+public:
+
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	using AutomationData = MainController::UserPresetHandler::CustomAutomationData;
+
+	SET_GENERIC_PANEL_ID("AutomationDataBrowser");
+
+	AutomationDataBrowser(BackendRootWindow* bw);
+
+	static void updateList(AutomationDataBrowser& c, bool unused)
+	{
+		SafeAsyncCall::callAsyncIfNotOnMessageThread<AutomationDataBrowser>(c, [](AutomationDataBrowser& d)
+		{
+			d.rebuildModuleList(true);
+			d.getMainController()->getUserPresetHandler().deferredAutomationListener.addListener(d, updateList, false);
+		});
+	}
+
+	struct AutomationCollection : public SearchableListComponent::Collection,
+								  public ControlledObject,
+								  public PooledUIUpdater::SimpleTimer
+	{
+		struct ConnectionItem : public SearchableListComponent::Item,
+								public SafeChangeListener
+		{
+			ConnectionItem(AutomationData::Ptr d_, AutomationData::ConnectionBase::Ptr c_);
+
+			~ConnectionItem();
+
+			void changeListenerCallback(SafeChangeBroadcaster* b) override
+			{
+				repaint();
+			}
+
+			void paint(Graphics& g) override;
+
+			AutomationData::Ptr d;
+			AutomationData::ConnectionBase::Ptr c;
+		};
+
+		void paint(Graphics& g) override;
+
+		AutomationCollection(MainController* mc, AutomationData::Ptr data_, int index);
+		
+		void checkIfChanged(bool rebuildIfChanged);
+
+		void timerCallback() override;
+
+		const int index;
+		AutomationData::Ptr data;
+
+		bool hasMidiConnection = false;
+		bool hasComponentConnection = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationCollection);
+	};
+
+	void buttonClicked(Button* b) override;
+
+	int getNumCollectionsToCreate() const override;
+
+	Collection* createCollection(int index) override;
+
+	AutomationData::List filteredList;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationDataBrowser);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationDataBrowser);
+
+	ScopedPointer<HiseShapeButton> midiButton, componentButton;
 };
 
 

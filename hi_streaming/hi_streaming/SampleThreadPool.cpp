@@ -59,7 +59,7 @@ struct SampleThreadPool::Pimpl
 };
 
 SampleThreadPool::SampleThreadPool() :
-	Thread("Sample Loading Thread"),
+	Thread("Sample Loading Thread", HISE_DEFAULT_STACK_SIZE),
 	pimpl(new Pimpl())
 {
 

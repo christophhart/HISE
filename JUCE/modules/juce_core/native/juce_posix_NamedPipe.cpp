@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -22,6 +22,8 @@
 
 namespace juce
 {
+
+#if ! JUCE_WASM
 
 class NamedPipe::Pimpl
 {
@@ -64,7 +66,9 @@ public:
 
             if (numRead <= 0)
             {
-                if (errno != EWOULDBLOCK || stopReadOperation.load() || hasExpired (timeoutEnd))
+                const auto error = errno;
+
+                if (! (error == EWOULDBLOCK || error == EAGAIN) || stopReadOperation.load() || hasExpired (timeoutEnd))
                     return -1;
 
                 const int maxWaitingTime = 30;
@@ -95,8 +99,20 @@ public:
             auto bytesThisTime = numBytesToWrite - bytesWritten;
             auto numWritten = (int) ::write (pipeOut, sourceBuffer, (size_t) bytesThisTime);
 
-            if (numWritten <= 0)
-                return -1;
+            if (numWritten < 0)
+            {
+                const auto error = errno;
+                const int maxWaitingTime = 30;
+
+                if (error == EWOULDBLOCK || error == EAGAIN)
+                    waitToWrite (pipeOut, timeoutEnd == 0 ? maxWaitingTime
+                                                          : jmin (maxWaitingTime,
+                                                                  (int) (timeoutEnd - Time::getMillisecondCounter())));
+                else
+                    return -1;
+
+                numWritten = 0;
+            }
 
             bytesWritten += numWritten;
             sourceBuffer += numWritten;
@@ -154,7 +170,7 @@ private:
     bool openPipe (bool isInput, uint32 timeoutEnd)
     {
         auto& pipe = isInput ? pipeIn : pipeOut;
-        int flags = isInput ? O_RDWR | O_NONBLOCK : O_WRONLY;
+        int flags = (isInput ? O_RDWR : O_WRONLY) | O_NONBLOCK;
 
         const String& pipeName = isInput ? (createdPipe ? pipeInName : pipeOutName)
                                          : (createdPipe ? pipeOutName : pipeInName);
@@ -172,15 +188,14 @@ private:
 
     static void waitForInput (int handle, int timeoutMsecs) noexcept
     {
-        struct timeval timeout;
-        timeout.tv_sec = timeoutMsecs / 1000;
-        timeout.tv_usec = (timeoutMsecs % 1000) * 1000;
+        pollfd pfd { handle, POLLIN, 0 };
+        poll (&pfd, 1, timeoutMsecs);
+    }
 
-        fd_set rset;
-        FD_ZERO (&rset);
-        FD_SET (handle, &rset);
-
-        select (handle + 1, &rset, nullptr, nullptr, &timeout);
+    static void waitToWrite (int handle, int timeoutMsecs) noexcept
+    {
+        pollfd pfd { handle, POLLOUT, 0 };
+        poll (&pfd, 1, timeoutMsecs);
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
@@ -188,14 +203,20 @@ private:
 
 void NamedPipe::close()
 {
-    if (pimpl != nullptr)
     {
-        pimpl->stopReadOperation = true;
+        ScopedReadLock sl (lock);
 
-        char buffer[1] = { 0 };
-        ssize_t done = ::write (pimpl->pipeIn, buffer, 1);
-        ignoreUnused (done);
+        if (pimpl != nullptr)
+        {
+            pimpl->stopReadOperation = true;
 
+            char buffer[1] = { 0 };
+            ssize_t done = ::write (pimpl->pipeIn, buffer, 1);
+            ignoreUnused (done);
+        }
+    }
+
+    {
         ScopedWriteLock sl (lock);
         pimpl.reset();
     }
@@ -241,5 +262,7 @@ int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOut
     ScopedReadLock sl (lock);
     return pimpl != nullptr ? pimpl->write (static_cast<const char*> (sourceBuffer), numBytesToWrite, timeOutMilliseconds) : -1;
 }
+
+#endif
 
 } // namespace juce

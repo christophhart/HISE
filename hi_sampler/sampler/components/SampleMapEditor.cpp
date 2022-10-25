@@ -69,6 +69,528 @@ END_MARKDOWN_CHAPTER()
 
 //[/MiscUserDefs]
 
+
+struct RRDisplayComponent : public Component,
+						    public PathFactory,
+							public SampleMap::Listener
+{
+	struct XFadeEditor : public Component
+	{
+		XFadeEditor(ModulatorSampler* s):
+			dragger(this, nullptr)
+		{
+			auto numGroups = s->getAttribute(ModulatorSampler::RRGroupAmount);
+
+			for (int i = 0; i < numGroups; i++)
+			{
+				auto t = new TableEditor(s->getMainController()->getControlUndoManager(), s->getTable(i));
+				addAndMakeVisible(t);
+				tables.add(t);
+			}
+
+			presetSelector.addItem("Reset to 0-1", 1);
+			presetSelector.addItem("Crossfade for " + String(numGroups) + " tables", 2);
+
+			presetSelector.onChange = [this]()
+			{
+				auto shouldReset = presetSelector.getSelectedId() == 1;
+
+				for (int i = 0; i < tables.size(); i++)
+				{
+					setTablePoints(tables[i]->getEditedTable(), shouldReset, i, tables.size());
+				}
+			};
+
+			addAndMakeVisible(presetSelector);
+			presetSelector.setLookAndFeel(&claf);
+			claf.setDefaultColours(presetSelector);
+
+			setSize(500, numGroups * 100 + 28);
+			setName("Crossfade Table Editor");
+
+			addAndMakeVisible(dragger);
+		}
+
+		static void setTablePoints(Table* t, bool shouldReset, int tableIndex, int numTables)
+		{
+			t->reset();
+
+			if(!shouldReset)
+			{
+				for (int i = 0; i < numTables - 2; i++)
+					t->addTablePoint(0.5f + (float)i * 0.05f, 0.5f);
+
+				for (int i = 0; i < numTables; i++)
+				{
+					auto normX = (float)i / (float)(numTables - 1);
+
+					float y = i == tableIndex ? 1.0f : 0.0f;
+					t->setTablePoint(i, normX, y, 0.5f);
+				}
+			}
+			
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+			presetSelector.setBounds(b.removeFromTop(28));
+
+			auto h = getHeight() / jmax(1, tables.size());
+
+			for (auto t : tables)
+			{
+				t->setBounds(b.removeFromTop(h - 10));
+				b.removeFromTop(10);
+			}
+
+			dragger.setBounds(getLocalBounds().removeFromBottom(15).removeFromRight(15));
+		}
+
+		ComboBox presetSelector;
+		juce::ResizableCornerComponent dragger;
+		OwnedArray<TableEditor> tables;
+		GlobalHiseLookAndFeel claf;
+	};
+
+	struct RRNumberDisplay : public Component,
+						     public SettableTooltipClient,
+							 public PooledUIUpdater::SimpleTimer
+	{
+		RRNumberDisplay(ModulatorSampler* s):
+			SimpleTimer(s->getMainController()->getGlobalUIUpdater()),
+			sampler(s)
+		{
+			sampler->getSampleEditHandler()->groupBroadcaster.addListener(*this, updateNumber);
+			setRepaintsOnMouseActivity(true);
+			setTooltip("Click to change RR amount");
+		}
+
+		void timerCallback() override
+		{
+			auto thisAlpha = jmax(alpha * 0.9f, 0.5f);
+
+			if (thisAlpha != alpha)
+			{
+				alpha = thisAlpha;
+				repaint();
+			}
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if (sampler->isUsingCrossfadeGroups())
+			{
+				auto t = new XFadeEditor(sampler);
+				auto root = findParentComponentOfClass<FloatingTile>()->getRootFloatingTile();
+
+				root->showComponentInRootPopup(t, this, { getLocalBounds().getCentreX(), 15 }, false);
+				return;
+			}
+
+			auto d = PresetHandler::getCustomName(String(numGroups), "Enter the amount of RR groups you need");
+
+			if (d.getIntValue() != 0)
+			{
+				sampler->setAttribute(ModulatorSampler::RRGroupAmount, (float)d.getIntValue(), sendNotification);
+			}
+		}
+
+		static void updateNumber(RRNumberDisplay& d, int group, BigInteger*)
+		{
+			d.numGroups = (int)d.sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+
+			if (group != d.currentGroup)
+			{
+				d.currentGroup = jmax(1, group);
+				d.alpha = 1.0f;
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+
+			auto ha = 0.0f;
+
+			if (isMouseButtonDown())
+				ha += 0.1f;
+
+			if (isMouseOverOrDragging())
+				ha += 0.1f;
+
+			g.setColour(Colours::white.withAlpha(ha));
+			g.fillRoundedRectangle(b.reduced(1.0f), 3.0f);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			auto c = sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1 ? Colour(SIGNAL_COLOUR) : Colours::white;
+
+			g.setColour(c.withAlpha(alpha));
+			
+			String s;
+
+			if (sampler->isUsingCrossfadeGroups())
+				s << "XFade on";
+			else
+				s << "RR " << String(currentGroup) << " / " << String(numGroups);
+
+			g.drawText(s, b, Justification::centred);
+		}
+
+		int currentGroup = 1;
+		int numGroups = 1;
+
+		float alpha = 0.5f;
+
+		WeakReference<ModulatorSampler> sampler;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RRNumberDisplay);
+	};
+
+	RRDisplayComponent(ModulatorSampler* s) :
+		sampler(s),
+		numberDisplay(s),
+		midiButton("midi", nullptr, *this),
+		lockButton("lock", nullptr, *this)
+	{
+
+		addAndMakeVisible(lockButton);
+		addAndMakeVisible(midiButton);
+		lockButton.setToggleModeWithColourChange(true);
+		midiButton.setToggleModeWithColourChange(true);
+
+		lockButton.setTooltip("Lock the current RR group");
+		midiButton.setTooltip("Always show the currently played RR group");
+
+		lockButton.onClick = [this]()
+		{
+			sampler->toggleMidiInputLock(SampleIds::RRGroup, sampler->getCurrentRRGroup());
+			numberDisplay.repaint();
+			repaint();
+		};
+
+		midiButton.onClick = [this]()
+		{
+			auto isOn = midiButton.getToggleState();
+			auto idx = isOn ? sampler->getCurrentRRGroup() : -1;
+			sampler->setDisplayedGroup(idx, true, {});
+		};
+
+		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, setMainSelection);
+		sampler->getSampleMap()->addListener(this);
+
+		sampler->getSampleEditHandler()->groupBroadcaster.addListener(*this, groupChanged);
+
+		addAndMakeVisible(numberDisplay);
+
+	};
+
+	~RRDisplayComponent()
+	{
+		if (sampler != nullptr)
+		{
+			sampler->getSampleMap()->removeListener(this);
+		}
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("lock", ColumnIcons::lockIcon);
+		LOAD_PATH_IF_URL("midi", SampleToolbarIcons::selectMidi);
+
+		return p;
+	}
+
+	static void groupChanged(RRDisplayComponent& d, int rrGroup, BigInteger* visibleGroups)
+	{
+		if(visibleGroups != nullptr)
+			d.currentDisplayGroup = *visibleGroups;
+
+		if (d.midiButton.getToggleState())
+		{
+			d.sampler->setDisplayedGroup(rrGroup, true, {});
+		}
+
+		auto shouldLock = d.sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
+		d.lockButton.setToggleStateAndUpdateIcon(shouldLock);
+
+		d.rebuildStates();
+	}
+
+	void sampleMapWasChanged(PoolReference newSampleMap) override
+	{
+		rebuildStates();
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override
+	{
+		if (id == SampleIds::RRGroup)
+		{
+			sampler->setDisplayedGroup((int)newValue-1, true, {});
+		}
+	};
+
+	void sampleAmountChanged() override
+	{
+		rebuildStates();
+	};
+
+	void sampleMapCleared() override
+	{
+		rebuildStates();
+	};
+
+	struct State
+	{
+		void draw(Graphics& g) const
+		{
+			if (over)
+			{
+				g.setColour(Colours::white.withAlpha(0.05f));
+				g.fillRect(area);
+			}
+
+			auto circleSize = 11.0f;
+
+			auto circle = area.withSizeKeepingCentre(circleSize, circleSize);
+
+			auto whiteColour = Colours::white.withAlpha(over ? 1.0f : 0.8f);
+
+			auto strokeColour = isSelected ? Colour(SIGNAL_COLOUR) : whiteColour;
+		
+			Colour fillColour;
+
+			if (isSelected)
+				fillColour = Colour(SIGNAL_COLOUR).withAlpha(isMainSelection ? 0.6f : 0.1f);
+			else
+				fillColour = Colours::white.withAlpha(isEmpty ? 0.0f : 0.2f);
+
+			g.setColour(fillColour);
+			g.fillEllipse(circle);
+			g.setColour(strokeColour);
+			g.drawEllipse(circle, 1.5f);
+
+			if (isActive)
+			{
+				g.fillEllipse(circle.reduced(3.0f));
+			}
+		};
+
+		bool isSelected = false;
+		bool isMainSelection = false;
+		bool isActive = false;
+		bool isEmpty = false;
+		bool over = false;
+
+		Rectangle<float> area;
+
+		
+	};
+
+	void mouseMove(const MouseEvent& e) override
+	{
+		for (auto& s : states)
+			s.over = s.area.toNearestInt().contains(e.getPosition());
+
+		repaint();
+	}
+
+	void mouseDown(const MouseEvent& e) override
+	{
+		if (e.mods.isRightButtonDown())
+		{
+			PopupLookAndFeel plaf;
+			PopupMenu m;
+			m.setLookAndFeel(&plaf);
+			m.addItem(-1, "Show all groups");
+
+			for (int i = 0; i < states.size(); i++)
+			{
+				m.addItem(i + 1, "RR Group " + String(i + 1));
+			}
+
+			auto r = m.showAt(this);
+
+			if(r != 0)
+				sampler->setDisplayedGroup(r, true, e.mods);
+
+			return;
+		}
+
+		int index = 0;
+		for (auto& s : states)
+		{
+			if (s.area.toNearestInt().contains(e.getPosition()))
+			{
+				auto value = sampler->getSamplerDisplayValues().visibleGroups[index];
+
+				sampler->setDisplayedGroup(index, !value, e.mods);
+				return;
+			}
+
+			index++;
+		}
+		
+		repaint();
+	}
+
+	void mouseExit(const MouseEvent& e) override
+	{
+		for (auto& s : states)
+			s.over = false;
+
+		repaint();
+	}
+
+	static void setMainSelection(RRDisplayComponent& d, ModulatorSamplerSound::Ptr sound, int)
+	{
+		auto groupIndex = sound != nullptr ? (int)sound->getSampleProperty(SampleIds::RRGroup) : -1;
+		int index = 1;
+
+		d.rebuildStates();
+
+		for (auto& s : d.states)
+		{
+			s.isMainSelection = groupIndex == index++;
+		}
+
+		d.repaint();
+	}
+
+	void rebuildStates()
+	{
+		int mainSelection = -1;
+		int mi = 0;
+
+		for (const auto& s : states)
+		{
+			if (s.isMainSelection)
+				mainSelection = mi;
+
+			mi++;
+		}
+
+		states.clear();
+
+		auto numGroups = (int)sampler->getAttribute(ModulatorSampler::RRGroupAmount);
+
+		if (numGroups == 1)
+			return;
+
+		BigInteger selectState;
+		
+		for (auto sound : *sampler->getSampleEditHandler())
+		{
+			selectState.setBit((int)sound->getSampleProperty(SampleIds::RRGroup) - 1, true);
+		}
+
+		ModulatorSampler::SoundIterator it(sampler);
+
+		BigInteger emptyState;
+
+		while (auto s = it.getNextSound())
+		{
+			emptyState.setBit((int)s->getSampleProperty(SampleIds::RRGroup)-1, true);
+		}
+
+
+		for (int i = 0; i < numGroups; i++)
+		{
+			State s;
+			s.isActive = sampler->getCurrentRRGroup() == (i+1) || sampler->isUsingCrossfadeGroups();
+			s.isEmpty = !emptyState[i];
+			s.isSelected = selectState[i];
+			s.isMainSelection = i == mainSelection;
+			states.add(s);
+		}
+
+		resizeStates();
+	}
+
+	void resizeStates()
+	{
+		if (getLocalBounds().isEmpty())
+			return;
+
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		auto firstComponent = &midiButton;
+
+		b.removeFromRight(getWidth() - firstComponent->getX());
+
+		b = b.removeFromRight(states.size() * getHeight());
+
+		for (auto& s : states)
+			s.area = b.removeFromLeft(b.getHeight());
+
+		repaint();
+	}
+
+	void resized()
+	{
+		auto b = getLocalBounds();
+		lockButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+		numberDisplay.setBounds(b.removeFromRight(55));
+		midiButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
+
+
+		resizeStates();
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		b = b.removeFromRight(states.size() * getHeight());
+
+		RectangleList<float> displayArea;
+
+		for (const auto& s : states)
+		{
+			s.draw(g);
+		}
+
+		if (currentDisplayGroup.isZero())
+			displayArea = states.getFirst().area.getUnion(states.getLast().area);
+		else
+		{
+			displayArea.clear();
+
+			auto limit = currentDisplayGroup.getHighestBit() + 1;
+			for (int i = 0; i < limit; i++)
+			{
+				if (currentDisplayGroup[i])
+					displayArea.addWithoutMerging(states[i].area);
+			}
+		}
+
+		g.setColour(Colours::white.withAlpha(0.5f));
+
+		UnblurryGraphics ug(g, *this);
+
+		for(auto& a: displayArea)
+			ug.draw1PxRect(a);
+	};
+
+	Array<State> states;
+
+	WeakReference<ModulatorSampler> sampler;
+
+	RRNumberDisplay numberDisplay;
+	HiseShapeButton lockButton;
+	HiseShapeButton midiButton;
+
+	BigInteger currentDisplayGroup;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(RRDisplayComponent);
+};
+
+
+
 //==============================================================================
 SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	SamplerSubEditor(s->getSampleEditHandler()),
@@ -76,76 +598,45 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 {
     //[Constructor_pre] You can add your own custom stuff here..
 
-	popoutMode = false;
-
     //[/Constructor_pre]
 
 	s->getMainController()->getExpansionHandler().addListener(this);
 
-    addAndMakeVisible (rootNoteSetter = new ValueSettingComponent());
-    addAndMakeVisible (lowKeySetter = new ValueSettingComponent());
-    addAndMakeVisible (highKeySetter = new ValueSettingComponent());
-    addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent());
-    addAndMakeVisible (highVelocitySetter = new ValueSettingComponent());
-    addAndMakeVisible (rrGroupSetter = new ValueSettingComponent());
-    addAndMakeVisible (displayGroupLabel = new Label ("new label",
-                                                      TRANS("Display Group")));
-    displayGroupLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
-    displayGroupLabel->setJustificationType (Justification::centredLeft);
-    displayGroupLabel->setEditable (false, false, false);
-    displayGroupLabel->setColour (Label::textColourId, Colours::white);
-    displayGroupLabel->setColour (TextEditor::textColourId, Colours::black);
-    displayGroupLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+    addAndMakeVisible (rootNoteSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (lowKeySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (highKeySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (highVelocitySetter = new ValueSettingComponent(s));
+    addAndMakeVisible (rrGroupSetter = new ValueSettingComponent(s));
 
-    addAndMakeVisible (groupDisplay = new PopupLabel ("new label",
-                                                      TRANS("All")));
-    groupDisplay->setFont (Font ("Khmer UI", 14.00f, Font::plain));
-    groupDisplay->setJustificationType (Justification::centred);
-    groupDisplay->setEditable (true, true, false);
-    groupDisplay->setColour (Label::backgroundColourId, Colour (0x38ffffff));
-    groupDisplay->setColour (Label::outlineColourId, Colour (0x38ffffff));
-    groupDisplay->setColour (TextEditor::textColourId, Colours::black);
-    groupDisplay->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-    groupDisplay->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
-    groupDisplay->addListener (this);
-
-	addAndMakeVisible(currentRRGroupLabel = new Label("new label",
-		TRANS("All")));
-	currentRRGroupLabel->setFont(GLOBAL_BOLD_FONT());
-	currentRRGroupLabel->setJustificationType(Justification::centred);
-	currentRRGroupLabel->setEditable(false, false, false);
-	currentRRGroupLabel->setColour(Label::backgroundColourId, Colour(0x44ffffff));
-	currentRRGroupLabel->setColour(Label::outlineColourId, Colour(0x38ffffff));
-	currentRRGroupLabel->setColour(TextEditor::textColourId, Colours::black);
-	currentRRGroupLabel->setColour(TextEditor::backgroundColourId, Colour(0x00000000));
-	currentRRGroupLabel->setColour(TextEditor::highlightColourId, Colour(0x407a0000));
-	currentRRGroupLabel->setText("1", dontSendNotification);
-	currentRRGroupLabel->setTooltip("The current RR group. Click to enable auto-follow");
-	currentRRGroupLabel->addMouseListener(this, true);
+	addAndMakeVisible(newRRDisplay = new RRDisplayComponent(sampler));
 
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
     viewport->setScrollBarThickness (12);
     viewport->setViewedComponent (new MapWithKeyboard (sampler));
 
+	viewport->setWantsKeyboardFocus(false);
+
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
+
+	addKeyListener(sampler->getSampleEditHandler());
 
 	
 
     //[UserPreSize]
 
 
-	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent());
-	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent());
-
-	groupDisplay->setFont (GLOBAL_FONT());
-	displayGroupLabel->setFont (GLOBAL_FONT());
+	addAndMakeVisible(lowXFadeSetter = new ValueSettingComponent(s));
+	addAndMakeVisible(highXFadeSetter = new ValueSettingComponent(s));
 
 	selectionIsNotEmpty = false;
 	zoomFactor = 1.0f;
 
 	sampleMapEditorCommandManager = new ApplicationCommandManager();
+
+	addKeyListener(sampler->getSampleEditHandler());
 
 	getCommandManager()->registerAllCommandsForTarget(this);
 	sampleMapEditorCommandManager->getKeyMappings()->resetToDefaultMappings();
@@ -170,8 +661,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	lowXFadeSetter->setVisible(false);
 	highXFadeSetter->setVisible(false);
 
-	groupDisplay->setEditable(false);
-
 	rrGroupSetter->setPropertyType(SampleIds::RRGroup);
 	rootNoteSetter->setPropertyType(SampleIds::Root);
 	lowKeySetter->setPropertyType(SampleIds::LoKey);
@@ -189,6 +678,8 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     
     map->addMouseListener(this, true);
 
+    handler->toolBroadcaster.broadcaster.addListener(*map->map, SamplerSoundMap::updateToolMode);
+    
 	addAndMakeVisible(sampleMaps = new ComboBox());
 
 	sampleMaps->setTextWhenNoChoicesAvailable("No samplemaps found");
@@ -209,12 +700,6 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	warningButton->setFontSize(14.0f);
 	warningButton->setPopupWidth(400);
 
-	addAndMakeVisible(helpButton = new MarkdownHelpButton());
-
-	helpButton->setHelpText<PathProvider<Factory>>(SampleMapEditorHelp::Help());
-	helpButton->setFontSize(14.0f);
-	helpButton->setPopupWidth(600);
-
 	menuButtons.insertMultiple(0, nullptr, SampleMapCommands::numCommands);
 
 	addMenuButton(ZoomIn);
@@ -225,18 +710,20 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	addMenuButton(ImportSfz);
 	addMenuButton(Undo);
 	addMenuButton(Redo);
-	addMenuButton(DuplicateSamples);
-	addMenuButton(CutSamples);
-	addMenuButton(CopySamples);
-	addMenuButton(PasteSamples);
-	addMenuButton(DeleteSamples);
+	//addMenuButton(DuplicateSamples);
+	//addMenuButton(CutSamples);
+	//addMenuButton(CopySamples);
+	//addMenuButton(PasteSamples);
+	autoPreviewButton = addSimpleToggleButton("enable-autopreview");
 	addMenuButton(SelectAllSamples);
 	addMenuButton(DeselectAllSamples);
 	addMenuButton(FillNoteGaps);
 	addMenuButton(FillVelocityGaps);
 	addMenuButton(RefreshVelocityXFade);
 
-	
+	handler->selectionBroadcaster.addListener(*map->map, SamplerSoundMap::setDisplayedSound);
+
+	handler->selectionBroadcaster.addListener(*this, SampleMapEditor::autoPreviewCallback);
 
     //[/UserPreSize]
 
@@ -246,6 +733,15 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     //[Constructor] You can add your own custom stuff here..
 
 	getCommandManager()->commandStatusChanged();
+
+	handler->groupBroadcaster.addListener(*map->map, [](SamplerSoundMap& m, int rrGroup, BigInteger* displayedGroup)
+	{
+		if(displayedGroup != nullptr)
+			m.soloGroup(*displayedGroup);
+	});
+
+	setFocusContainerType(FocusContainerType::keyboardFocusContainer);
+
 
     //[/Constructor]
 }
@@ -275,8 +771,6 @@ SampleMapEditor::~SampleMapEditor()
     lowVelocitySetter = nullptr;
     highVelocitySetter = nullptr;
     rrGroupSetter = nullptr;
-    displayGroupLabel = nullptr;
-    groupDisplay = nullptr;
     viewport = nullptr;
     toolbar = nullptr;
 
@@ -288,38 +782,8 @@ SampleMapEditor::~SampleMapEditor()
 //==============================================================================
 void SampleMapEditor::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
-
-    int x = 0;
-    int y = 2;
-    int width = getWidth();
-    int height = getHeight()-4;
-    
-	Rectangle<int> a(x, y, width, height);
-
-	ProcessorEditorLookAndFeel::drawShadowBox(g, a, JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
-
-	//g.drawRect(x, y, width, height);
-
-    //[/UserPrePaint]
-
-    g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour (0x13ffffff)));
-    g.fillRect (8, 8, getWidth() - 132, 24);
-
-    g.setColour (Colour (0x0fffffff));
-    g.drawRect (8, 8, getWidth() - 132, 24, 1);
-
-    g.setColour (Colour (0xccffffff));
-    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
-    g.drawText (TRANS("MAP EDITOR"),
-                getWidth() - 12 - 244, 5, 244, 30,
-                Justification::centredRight, true);
-
-    //[UserPaint] Add your own custom painting code here..
-
-	
-
-    //[/UserPaint]
+    auto b = getLocalBounds().removeFromTop(24);
+    GlobalHiseLookAndFeel::drawFake3D(g, b);
 }
 
 #define PLACE_BUTTON(x) x->setBounds(topBar.removeFromLeft(24).reduced(2));
@@ -336,17 +800,16 @@ void SampleMapEditor::resized()
     lowVelocitySetter->setBounds ((getWidth() / 2) + 181 - (90 / 2), 206, 90, 32);
     highVelocitySetter->setBounds ((getWidth() / 2) + 277 - (90 / 2), 206, 90, 32);
     rrGroupSetter->setBounds ((getWidth() / 2) + -196 - (76 / 2), 206, 76, 32);
-    displayGroupLabel->setBounds ((getWidth() / 2) + -281 - (82 / 2), 201, 82, 24);
-    groupDisplay->setBounds ((getWidth() / 2) + -281 - (80 / 2), 221, 80, 16);
     viewport->setBounds ((getWidth() / 2) - (640 / 2), 42, 640, 160);
     toolbar->setBounds (12, 10, getWidth() - 140, 20);
     //[UserResized] Add your own custom resize handling here..
 
-
+	auto b = getLocalBounds().removeFromTop(24);
+	newRRDisplay->setBounds(b.removeFromRight(300));
 
 	toolbar->setVisible(false);
 
-	auto topBar = Rectangle<int>(12, 8, getWidth() - 132, 24);
+	auto topBar = Rectangle<int>(0, 0, getWidth(), 24);
 
 	PLACE_BUTTON(getButton(NewSampleMap));
 	PLACE_BUTTON(getButton(ImportSfz));
@@ -386,17 +849,18 @@ void SampleMapEditor::resized()
 
 	PLACE_BUTTON(getButton(SelectAllSamples));
 	PLACE_BUTTON(getButton(DeselectAllSamples));
+	PLACE_BUTTON(autoPreviewButton);
 
 	ADD_SPACER(4);
 
-	PLACE_BUTTON(getButton(CutSamples));
-	PLACE_BUTTON(getButton(CopySamples));
-	PLACE_BUTTON(getButton(PasteSamples));
+	//PLACE_BUTTON(getButton(CutSamples));
+	//PLACE_BUTTON(getButton(CopySamples));
+	//PLACE_BUTTON(getButton(PasteSamples));
 
-	ADD_SPACER(4);
+	//ADD_SPACER(4);
 
-	PLACE_BUTTON(getButton(DuplicateSamples));
-	PLACE_BUTTON(getButton(DeleteSamples));
+	//PLACE_BUTTON(getButton(DuplicateSamples));
+	//PLACE_BUTTON(getButton(DeleteSamples));
 	
 	ADD_SPACER(8);
 
@@ -406,7 +870,6 @@ void SampleMapEditor::resized()
 
 	ADD_SPACER(8);
 
-	PLACE_BUTTON(helpButton);
 
 
 	const bool isInMainPanel = findParentComponentOfClass<PanelWithProcessorConnection>() == nullptr;
@@ -450,20 +913,11 @@ void SampleMapEditor::resized()
 	lowVelocitySetter->setBounds((getWidth() / 2) + 181 - (90 / 2), y, 90, 32);
 	highVelocitySetter->setBounds((getWidth() / 2) + 277 - (90 / 2), y, 90, 32);
 	rrGroupSetter->setBounds((getWidth() / 2) + -196 - (76 / 2), y, 76, 32);
-	displayGroupLabel->setBounds((getWidth() / 2) + -281 - (82 / 2), y-5, 82, 24);
-	groupDisplay->setBounds((getWidth() / 2) + -281 - (80 / 2), y+16, 80, 16);
-
 	
 	lowXFadeSetter->setBounds(lowKeySetter->getBounds());
 	highXFadeSetter->setBounds(highKeySetter->getBounds());
 
 	
-	auto gb = groupDisplay->getBounds();
-
-	currentRRGroupLabel->setBounds(gb.removeFromRight(gb.getHeight()*3/2));
-
-	groupDisplay->setBounds(gb);
-
     //[/UserResized]
 }
 
@@ -472,16 +926,7 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
     //[UserlabelTextChanged_Pre]
     //[/UserlabelTextChanged_Pre]
 
-    if (labelThatHasChanged == groupDisplay)
-    {
-        //[UserLabelCode_groupDisplay] -- add your label text handling code here..
-
-		int index = getCurrentRRGroup();
-
-		map->map->soloGroup(index);
-		sampler->getSamplerDisplayValues().currentlyDisplayedGroup = index;
-        //[/UserLabelCode_groupDisplay]
-    }
+    
 
     //[UserlabelTextChanged_Post]
     //[/UserlabelTextChanged_Post]
@@ -491,21 +936,32 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
 
 
 
+HiseShapeButton* SampleMapEditor::addSimpleToggleButton(const String& title)
+{
+	auto b = new HiseShapeButton(title, nullptr, f);
+	b->setToggleModeWithColourChange(true);
+
+	addAndMakeVisible(b);
+	ownedMenuButtons.add(b);
+	return b;
+}
+
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
 void SampleMapEditor::addMenuButton(SampleMapCommands commandId)
 {
 	ApplicationCommandInfo r(commandId);
-
 	getCommandInfo(commandId, r);
-
 	auto b = new HiseShapeButton(r.shortName, nullptr, f);
-	b->setCommandToTrigger(getCommandManager(), commandId, true);
 
+	
+	b->setCommandToTrigger(getCommandManager(), commandId, true);
+	
 	addAndMakeVisible(b);
 	ownedMenuButtons.add(b);
 	menuButtons.set(commandId, b);
 }
+
 
 
 void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
@@ -619,6 +1075,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setActive(true);
 		result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
 		break;
+	case RedirectSampleMapReference:
+		result.setInfo("Redirect Monolith reference", "Use a monolith ID other than the default", "Sample Editing", 0);
+		result.setActive(sampler->getSampleMap()->getReference().isValid());
+		break;
 	case EncodeAllMonoliths:
 		result.setInfo("(Re)encode all sample maps as HLAC monolith", "(Re)encode all sample maps as HLAC monolith", "Sample Editing", 0);
 		result.setActive(true);
@@ -634,7 +1094,8 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 
 		bool containsVelocityMaterial = false;
 
-		if (selectedSoundList.size() > 1)
+#if 0
+		if (handler->getNumSelected() > 1)
 		{
 			containsVelocityMaterial = true;
 
@@ -651,6 +1112,7 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 				}
 			}
 		}
+#endif 
 		result.setActive(selectionIsNotEmpty && containsVelocityMaterial);
 		break;
 	}
@@ -687,7 +1149,19 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	{
 	case DuplicateSamples:	SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler); return true;
 	case DeleteDuplicateSamples: SampleEditHandler::SampleEditingActions::removeDuplicateSounds(handler); return true;
-	case DeleteSamples:		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); return true;
+	case DeleteSamples:		
+	{
+		if (handler->getNumSelected() == 1)
+		{
+			nextSelection = SampleEditHandler::SampleEditingActions::getNeighbourSample(handler, SamplerSoundMap::numNeighbours);
+		}
+		else
+			nextSelection = nullptr;
+		
+		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); 
+		return true;
+	}
+	
 	case CutSamples:		SampleEditHandler::SampleEditingActions::cutSelectedSounds(handler); return true;
 	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
 	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
@@ -698,7 +1172,28 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case RemoveNormalisationInfo: SampleEditHandler::SampleEditingActions::removeNormalisationInfo(handler); return true;
 	case ReencodeMonolith:	SampleEditHandler::SampleEditingActions::reencodeMonolith(this, handler); return true;
-	
+	case RedirectSampleMapReference:
+	{
+		FileChooser fc("Select the monolith sample you want to reference", GET_PROJECT_HANDLER(sampler).getSubDirectory(FileHandlerBase::Samples), "*.ch1");
+
+		if (fc.browseForFileToOpen())
+		{
+			auto newId = fc.getResult().getFileNameWithoutExtension();
+
+			auto vt = sampler->getSampleMap()->getValueTree();
+			auto vtCopy = const_cast<ValueTree*>(&vt);
+
+			if(newId == sampler->getSampleMap()->getId().toString())
+				vtCopy->removeProperty("MonolithReference", sampler->getUndoManager());
+			else
+				vtCopy->setProperty("MonolithReference", newId, sampler->getUndoManager());
+
+			sampler->saveSampleMap();
+		};
+
+		return true;
+	}
+
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case Undo:				sampler->getUndoManager()->undo(); return true;
@@ -759,12 +1254,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case FillVelocityGaps:
 	case FillNoteGaps:		{
-
-							SampleImporter::closeGaps(selectedSoundList, info.commandID == FillNoteGaps);
-
-
-
-							return true;
+							SampleImporter::closeGaps(handler->getSelectionReference().getItemArray(), info.commandID == FillNoteGaps);
+ 							return true;
 							}
 	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
 							return true;
@@ -799,17 +1290,24 @@ void SampleMapEditor::importSfz()
 
 	if (fc.browseForFileToOpen())
 	{
-		try
-		{
-			sampler->clearSampleMap(dontSendNotification);
+		auto f = fc.getResult();
 
-			SfzImporter sfz(sampler, fc.getResult());
-			sfz.importSfzFile();
-		}
-		catch (SfzImporter::SfzParsingError error)
+		sampler->killAllVoicesAndCall([f](Processor* p)
 		{
-			debugError(sampler, error.getErrorMessage());
-		}
+			auto s = static_cast<ModulatorSampler*>(p);
+
+			try
+			{
+				SfzImporter sfz(s, f);
+				sfz.importSfzFile();
+			}
+			catch (SfzImporter::SfzParsingError error)
+			{
+				debugError(s, error.getErrorMessage());
+			}
+
+			return SafeFunctionCall::OK;
+		});
 	}
 }
 
@@ -826,27 +1324,26 @@ void SampleMapEditor::loadSampleMap()
 	}
 }
 
-void SampleMapEditor::refreshRootNotes()
+void SampleMapEditor::soundsSelected(int numSelected)
 {
-	auto& sounds = handler->getSelection().getItemArray();
+	selectionIsNotEmpty = numSelected != 0;
 
-	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
+	selection = handler->getSelectionReference().getItemArray();
 
-	BigInteger previousState = map->selectedRootNotes;
+	getCommandManager()->commandStatusChanged();
 
-	map->selectedRootNotes.setRange(0, 128, false);
-	for (int i = 0; i < sounds.size(); i++)
-	{
-		if (sounds[i].get() != nullptr)
-		{
-			map->selectedRootNotes.setBit(sounds[i]->getSampleProperty(SampleIds::Root), true);
-		}
-	}
+	refreshRootNotes(*this, numSelected);
 
-	if (map->selectedRootNotes != previousState)
-	{
-		map->repaint();
-	}
+	auto selectionToUse = handler->getSelectionOrMainOnlyInTabMode();
+
+	rrGroupSetter->setCurrentSelection(selectionToUse);
+	rootNoteSetter->setCurrentSelection(selectionToUse);
+	lowKeySetter->setCurrentSelection(selectionToUse);
+	highKeySetter->setCurrentSelection(selectionToUse);
+	lowVelocitySetter->setCurrentSelection(selectionToUse);
+	highVelocitySetter->setCurrentSelection(selectionToUse);
+	lowXFadeSetter->setCurrentSelection(selectionToUse);
+	highXFadeSetter->setCurrentSelection(selectionToUse);
 }
 
 void SampleMapEditor::expansionPackLoaded(Expansion* /*currentExpansion*/)
@@ -863,6 +1360,12 @@ void SampleMapEditor::sampleMapWasChanged(PoolReference newSampleMap)
 void SampleMapEditor::sampleAmountChanged()
 {
 	updateWarningButton();
+
+	if (nextSelection != nullptr)
+	{
+		handler->getSelectionReference().selectOnly(nextSelection.get());
+		handler->setMainSelectionToLast();
+	}
 }
 
 void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, const Identifier& id, const var& newValue)
@@ -870,11 +1373,7 @@ void SampleMapEditor::samplePropertyWasChanged(ModulatorSamplerSound* /*s*/, con
 	updateWarningButton();
 
 	if (id == SampleIds::Root)
-		refreshRootNotes();
-
-	if (id == SampleIds::RRGroup)
-		setCurrentRRGroup((int)newValue);
-
+		refreshRootNotes(*this, selection.size());
 }
 
 void SampleMapEditor::updateWarningButton()
@@ -884,6 +1383,11 @@ void SampleMapEditor::updateWarningButton()
 
 	if (unsavedChanges != warningVisible)
 		resized();
+}
+
+std::unique_ptr<juce::ComponentTraverser> SampleMapEditor::createKeyboardFocusTraverser()
+{
+	return std::make_unique<SampleEditHandler::SubEditorTraverser>(this);
 }
 
 void SampleMapEditor::comboBoxChanged(ComboBox* b)
@@ -921,67 +1425,83 @@ bool SampleMapEditor::keyPressed(const KeyPress& k)
 		getCommandManager()->invokeDirectly(commandId, false);
 		return true;
 	}
-
-	if (k.getModifiers().isShiftDown())
+	
+	if (k == KeyPress::spaceKey)
 	{
-		if (k.getKeyCode() == k.upKey)
-		{
-			int index = getCurrentRRGroup();
-
-			if (index == -1) index = 0;
-
-			index++;
-
-			setCurrentRRGroup(index);
-
-			return true;
-		}
-		else if (k.getKeyCode() == k.downKey)
-		{
-			int index = getCurrentRRGroup();
-
-			index--;
-
-			setCurrentRRGroup(index);
-
-			return true;
-		}
-	}
-	if (k.getKeyCode() == KeyPress::leftKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Left);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::rightKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Right);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::upKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Up);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
-		return true;
-	}
-	else if (k.getKeyCode() == KeyPress::downKey)
-	{
-		if (k.getModifiers().isCommandDown())
-			handler->moveSamples(SamplerSoundMap::Down);
-		else
-			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
-		return true;
+		handler->togglePreview();
 	}
 
 	return false;
 }
+
+void SampleMapEditor::mouseDown(const MouseEvent &e)
+{
+	
+
+	getCommandManager()->setFirstCommandTarget(this);
+	getCommandManager()->commandStatusChanged();
+
+	if (e.mods.isRightButtonDown())
+	{
+		PopupMenu p;
+
+		ScopedPointer<PopupLookAndFeel> laf = new PopupLookAndFeel();
+
+		p.setLookAndFeel(laf);
+
+		getCommandManager()->commandStatusChanged();
+
+		p.addSectionHeader("Lock MIDI input");
+
+		auto velo = (float)e.getEventRelativeTo(map).getPosition().getY() / (float)(map->getHeight() - 32);
+		velo = 127.0f * (1.0f - velo);
+
+		auto vLocked = sampler->getMidiInputLockValue(SampleIds::LoVel) != -1;
+		auto rLocked = sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
+
+		String lv;
+
+		if (!vLocked)
+			lv << "Lock Velocity at " << String(roundToInt(velo));
+		else
+			lv << "Unlock velocity";
+
+		p.addItem(90000, lv, true, vLocked);
+
+		String rv;
+
+		if (!rLocked)
+			rv << "Lock RR Group #" << String(sampler->getCurrentRRGroup());
+		else
+			rv << "unlock RR Group";
+
+		p.addItem(90001, rv, true, rLocked);
+
+		fillPopupMenu(p);
+
+		auto r = p.show();
+
+		if (r == 90000)
+		{
+			sampler->toggleMidiInputLock(SampleIds::LoVel, roundToInt(velo));
+			map->repaint();
+		}
+		if (r == 90001)
+		{
+			sampler->toggleMidiInputLock(SampleIds::RRGroup, sampler->getCurrentRRGroup());
+			map->repaint();
+		}
+	}
+	else
+	{
+		if (e.eventComponent == this)
+		{
+			SampleEditHandler::SampleEditingActions::deselectAllSamples(handler);
+		}
+	}
+}
+
+
 
 void SampleMapEditor::refreshSampleMapPool()
 {
@@ -993,21 +1513,6 @@ void SampleMapEditor::refreshSampleMapPool()
 	{
 		if (auto e = exp.getExpansion(i))
 			e->pool->getSampleMapPool().refreshPoolAfterUpdate();
-	}
-}
-
-void SampleMapEditor::toggleFollowRRGroup()
-{
-	followRRGroup = !followRRGroup;
-
-	if (followRRGroup)
-	{
-		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(SIGNAL_COLOUR));
-	}
-	else
-	{
-		currentRRGroupLabel->setColour(Label::ColourIds::outlineColourId, Colour(0x38FFFFFF));
-		setCurrentRRGroup(0);
 	}
 }
 
@@ -1115,6 +1620,32 @@ void SampleMapEditor::updateSampleMapSelector(bool rebuild)
 	MessageManager::callAsync(f2);
 }
 
+void SampleMapEditor::autoPreviewCallback(SampleMapEditor& m, ModulatorSamplerSound::Ptr s, int micIndex)
+{
+	if (m.autoPreviewButton->getToggleState())
+	{
+		m.handler->togglePreview();
+	}
+}
+
+void SampleMapEditor::refreshRootNotes(SampleMapEditor& sme, int numSelected)
+{
+	if (numSelected == 0 && sme.map->selectedRootNotes == 0)
+		return;
+
+	BigInteger previousState = sme.map->selectedRootNotes;
+
+	sme.map->selectedRootNotes.setRange(0, 128, false);
+
+	for (auto sound : *sme.handler)
+	{
+		if (sound != nullptr)
+			sme.map->selectedRootNotes.setBit(sound->getSampleProperty(SampleIds::Root), true);
+	}
+
+	sme.map->repaint();
+}
+
 //[/MiscUserCode]
 
 
@@ -1201,7 +1732,7 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
-
+	LOAD_PATH_IF_URL("enable-autopreview", SampleMapIcons::autoPreview);
 	LOAD_PATH_IF_URL("select-all-samples", SampleMapIcons::selectAll);
 	LOAD_PATH_IF_URL("deselect-all-samples", EditorIcons::cancelIcon);
 

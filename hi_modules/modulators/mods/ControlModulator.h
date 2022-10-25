@@ -60,6 +60,12 @@ public:
 		numSpecialParameters
 	};
 
+    void referenceShared(ExternalData::DataType, int) override
+    {
+        table = getTableUnchecked(0);
+        table->setXTextConverter(Modulation::getDomainAsMidiRange);
+    }
+    
 	ControlModulator(MainController *mc, const String &id, Modulation::Mode m);
 	~ControlModulator();
 
@@ -76,8 +82,6 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;;
 	void handleHiseEvent(const HiseEvent &m) override;
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
-
-	Table *getTable(int = 0) const override { return table; };
 
 	void enableLearnMode() { learnMode = true; };
 	void disableLearnMode() { learnMode = false; sendChangeMessage(); }
@@ -123,7 +127,8 @@ private:
 	float intensity;
 
 	Smoother smoother;
-	ScopedPointer<SampleLookupTable> table;
+
+	SampleLookupTable* table;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ControlModulator);
 };

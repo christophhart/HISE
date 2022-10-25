@@ -87,7 +87,7 @@ public:
 
 	void timerCallback() override
 	{
-		if (processor.get() == nullptr)
+		if (data.get() == nullptr)
 			return;
 
 		for (int i = 0; i < sourceChannels.size(); i++)
@@ -116,8 +116,7 @@ private:
 	OwnedArray<ChannelConnector> sourceChannels;
 	OwnedArray<ChannelConnector> destinationChannels;
 	Component::SafePointer<ChannelConnector> selectedConnector;
-	WeakReference<Processor> processor;
-	RoutableProcessor::MatrixData *data;
+	WeakReference<RoutableProcessor::MatrixData> data;
 
 };
 

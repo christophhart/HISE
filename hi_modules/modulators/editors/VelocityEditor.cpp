@@ -34,7 +34,7 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<VelocityModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<VelocityModulator*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
@@ -71,8 +71,8 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
 	tableUsed = vm->getAttribute(VelocityModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
+    
     decibelButton->setup(getProcessor(), VelocityModulator::DecibelMode, "Decibel Mode");
     
     //[/UserPreSize]

@@ -91,7 +91,10 @@ public:
 		**/
 		PitchMode,
 		/** Range is -1.0 ... 1.0 */
-		PanMode
+		PanMode,
+		/** Range is -1.0 ... 1.0 and the intensity will be ignored. */
+		GlobalMode,
+		numModes
 	};
 
 	static void applyModulationValue(Mode m, float& target, const float modValue)
@@ -109,7 +112,9 @@ public:
 		intensity(m == PitchMode ? 0.0f : 1.0f), 
 		modulationMode(m), 
 		bipolar(m == PitchMode || m == PanMode)
-	{};
+	{
+        modeBroadcaster.sendMessage(dontSendNotification, m);
+    };
 
     virtual ~Modulation();;
 
@@ -130,6 +135,8 @@ public:
 	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
 
 	inline float calcPanIntensityValue(float calculatedModulationValue) const noexcept;
+
+	inline float calcGlobalIntensityValue(float calculatedModulationValue) const noexcept;
 
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
 	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
@@ -195,35 +202,7 @@ public:
 			FloatVectorOperations::add(octaveValues, 0.5f, numValues);
 		}
 
-		static inline void normalisedRangeToPitchFactor(float* rangeValues, int numValues)
-		{
-			if (numValues > 1)
-			{
-				float startValue = normalisedRangeToPitchFactor(rangeValues[0]);
-				const float endValue = normalisedRangeToPitchFactor(rangeValues[numValues - 1]);
-				float delta = (endValue - startValue);
-
-
-				if (delta < 0.0003f)
-				{
-					FloatVectorOperations::fill(rangeValues, (startValue + endValue) * 0.5f, numValues);	
-				}
-				else
-				{
-					delta /= (float)numValues;
-
-					while (--numValues >= 0)
-					{
-						*rangeValues++ = startValue;
-						startValue += delta;
-					}
-				}
-			}
-			else if (numValues == 1)
-			{
-				rangeValues[0] = normalisedRangeToPitchFactor(rangeValues[0]);
-			}
-		}
+		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
 
 		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues)
 		{
@@ -247,9 +226,18 @@ public:
 		smoothedIntensity.reset(44100.0, 0.0);
 	}
 
+	virtual void setMode(Mode newMode, NotificationType n=dontSendNotification)
+	{
+		modulationMode = newMode;
+        
+        modeBroadcaster.sendMessage(n, (int)newMode);
+	}
+
+    LambdaBroadcaster<int> modeBroadcaster;
+    
 protected:
 
-	const Mode modulationMode;
+	Mode modulationMode;
 
 	LinearSmoothedValue<float> smoothedIntensity;
 
@@ -406,6 +394,9 @@ protected:
 
 	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
 	void applyPanModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
+
+	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
+	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
 
 	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
 
@@ -589,7 +580,15 @@ public:
 		Processor::restoreFromValueTree(v);
 
 		if (getMode() != Modulation::GainMode)
-			setIsBipolar(v.getProperty("Bipolar", true));
+        {
+            auto defaultMode = true;
+            
+            if(getMode() == Modulation::GlobalMode)
+                defaultMode = false;
+            
+            setIsBipolar(v.getProperty("Bipolar", defaultMode));
+        }
+			
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	};
@@ -663,27 +662,7 @@ public:
 		return getSymbolPath();
 	};
 
-	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)
-	{
-		// applyTimeModulation will not work correctly if it's going to be calculated in place...
-		jassert(monoModulationValues != scratchBuffer);
-
-		setScratchBuffer(scratchBuffer, startSample + numSamples);
-		calculateBlock(startSample, numSamples);
-
-		applyTimeModulation(monoModulationValues, startSample, numSamples);
-		lastConstantValue = monoModulationValues[startSample];
-
-#if ENABLE_ALL_PEAK_METERS
-		const float displayValue = lastConstantValue;
-
-		pushPlotterValues(monoModulationValues, startSample, numSamples);
-
-		setOutputValue(displayValue);
-#endif
-		
-
-	}
+	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples);
 
 	float getLastConstantValue() const noexcept { return lastConstantValue; }
 
@@ -716,8 +695,15 @@ protected:
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
 
-		if (getMode() != Modulation::GainMode)
-			setIsBipolar(v.getProperty("Bipolar", true));
+        if (getMode() != Modulation::GainMode)
+        {
+            auto defaultMode = true;
+            
+            if(getMode() == Modulation::GlobalMode)
+                defaultMode = false;
+            
+            setIsBipolar(v.getProperty("Bipolar", defaultMode));
+        }
 	}
 
 	Processor *getProcessor() override { return this; };
@@ -833,8 +819,15 @@ public:
 			loadAttribute(Monophonic, "Monophonic");
 			loadAttribute(Retrigger, "Retrigger");
 
-			if(getMode() != Modulation::GainMode)
-				setIsBipolar(v.getProperty("Bipolar", true));
+            if (getMode() != Modulation::GainMode)
+            {
+                auto defaultMode = true;
+                
+                if(getMode() == Modulation::GlobalMode)
+                    defaultMode = false;
+                
+                setIsBipolar(v.getProperty("Bipolar", defaultMode));
+            }
 		}
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
@@ -1022,6 +1015,8 @@ private:
 		uint64 data[2];
 		int8 numBitsSet = 0;
 	} monophonicKeymap;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopeModulator);
 };
 
 /** This class only exists for the Iterator. */
@@ -1092,9 +1087,9 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		simpleEnvelope = 0,
 		ahdsrEnvelope,
 		tableEnvelope,
-		ccEnvelope,
 		scriptEnvelope,
-		mpeModulator
+		mpeModulator,
+		voiceKillEnvelope
 	};
 
 public:
@@ -1137,9 +1132,7 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		controlModulator,
 		pitchWheel,
 		macroModulator,
-		audioFileEnvelope,
 		globalTimeVariantModulator,
-		ccDucker,
 		scriptTimeVariantModulator
 	};
 

@@ -48,6 +48,13 @@ public:
 
 	ENABLE_OVERLAY_FACTORY(MidiFileDragAndDropper, "Drag 'n Drop");
 
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+
+		virtual void drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d);
+	};
+
 	MidiFileDragAndDropper(MidiPlayer* player);;
 
 	static bool isMidiFile(const String& s);
@@ -75,9 +82,20 @@ public:
 
 	void paint(Graphics& g) override;
 
-private:
+	void setEnableExternalDrag(bool shouldDragToExternalTarget)
+	{
+		externalDrag = shouldDragToExternalTarget;
+	}
+
+	bool isActive() const { return currentSequence != nullptr; }
 
 	bool hover = false;
+	bool externalDrag = false;
+
+private:
+	
+	bool enableExternalDrag = true;
+
 	int lastPlayedIndex = -1;
 	File draggedTempFile;
 	HiseMidiSequence::Ptr currentSequence;

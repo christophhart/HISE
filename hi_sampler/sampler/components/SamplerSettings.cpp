@@ -451,7 +451,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 	showCrossfadeLabel->setEditable(false);
 
 
-	crossfadeEditor->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*crossfadeEditor, getProcessor());
+    
 
 	purgeChannelLabel->setEditable(false);
 
@@ -521,7 +522,7 @@ void SamplerSettings::paint (Graphics& g)
     
 	Rectangle<int> a(x, y, width, height);
 
-	ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+	//ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
 
     //[/UserPrePaint]
 
@@ -758,17 +759,13 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 			int crossfadeShown = sampler->getEditorState(sampler->getEditorStateForIndex(ModulatorSampler::CrossfadeTableShown));
 
 			crossfadeEditor->setEditedTable(sampler->getTable(crossfadeShown));
-			crossfadeEditor->connectToLookupTableProcessor(sampler);
 		}
 		else
 		{
 			crossfadeEditor->setEditedTable(nullptr);
 		}
 
-
 		BACKEND_ONLY(findParentComponentOfClass<ProcessorEditorBody>()->refreshBodySize());
-
-
 
         //[/UserLabelCode_crossfadeGroupEditor]
     }
@@ -780,7 +777,6 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
 
 		crossfadeEditor->setEditedTable(sampler->getTable(showCrossfadeLabel->getCurrentIndex()));
 
-		crossfadeEditor->connectToLookupTableProcessor(sampler);
 
 
         //[/UserLabelCode_showCrossfadeLabel]

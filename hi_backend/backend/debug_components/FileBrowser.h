@@ -55,7 +55,7 @@ public:
 
 	struct FileBrowserToolbarPaths
 	{
-		static Drawable *createPath(int id, bool isOn);
+		static std::unique_ptr<Drawable> createPath(int id, bool isOn);
 	};
 
 private:
@@ -122,6 +122,11 @@ public:
 
 	SET_GENERIC_PANEL_ID("FileBrowser");
 
+    static void updateWorkspace(FileBrowser& f, const Identifier& id, Processor* p)
+    {
+        f.currentWorkspaceProcessor = p;
+    }
+    
 	ApplicationCommandTarget* getNextCommandTarget() override
 	{
 		return findFirstTargetParentComponent();
@@ -205,7 +210,7 @@ private:
 
 		bool isFileSuitable(const File &file) const override
 		{
-			return file.hasFileExtension("hip") || AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
+			return file.hasFileExtension("hip") || MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
 		
 
@@ -227,6 +232,25 @@ private:
         
         bool isFileSuitable(const File &file) const override
         {
+			if (additionalWildcard.isNotEmpty())
+			{
+				if (file.isDirectory())
+				{
+					jassertfalse;
+				}
+
+				if (additionalWildcard.contains("*"))
+				{
+					if (!file.getFullPathName().matchesWildcard(additionalWildcard, !File::areFileNamesCaseSensitive()))
+						return false;
+				}
+				else
+				{
+					if (!file.getFileNameWithoutExtension().contains(additionalWildcard))
+						return false;
+				}
+			}
+
 #if JUCE_WINDOWS
 			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
 #endif
@@ -241,7 +265,8 @@ private:
 #else
 				file.getFileName() == "LinkOSX" ||
 #endif
-				isAudioFile(file) || isImageFile(file) || isXmlFile(file) || isScriptFile(file);
+				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -251,23 +276,37 @@ private:
 
 		bool isAudioFile(const File& file) const
 		{
-			return AudioSampleProcessorBufferComponent::isAudioFile(file.getFullPathName());
+			return MultiChannelAudioBufferDisplay::isAudioFile(file.getFullPathName());
 		}
+        
+        bool isMidiFile(const File& file) const
+        {
+            return file.hasFileExtension("mid");
+        }
         
 		bool isXmlFile(const File& file) const
 		{
 			return file.hasFileExtension("xml");
 		}
 
-        bool isDirectorySuitable(const File &) const override
-        {
-            return true;
-        }
+		bool isUserPresetFile(const File& file) const
+		{
+			return file.hasFileExtension("preset");
+		}
+
+        bool isDirectorySuitable(const File& directory) const override;
 
 		bool isScriptFile(const File &f) const
 		{
 			return f.hasFileExtension("js");
 		}
+
+		void setWildcard(const String& wc)
+		{
+			additionalWildcard = wc;
+		}
+
+		String additionalWildcard;
     };
     
     
@@ -289,7 +328,7 @@ private:
     {
         File favoritesFile = NativeFileHandler::getAppDataDirectory().getChildFile("Favorites.xml");
         
-        ScopedPointer<XmlElement> xml = XmlDocument::parse(favoritesFile);
+        auto xml = XmlDocument::parse(favoritesFile);
         
         if(xml == nullptr) return;
         
@@ -318,7 +357,8 @@ private:
 	ScopedPointer<DirectoryContentsList> directoryList;
 
 	
-
+    ScrollbarFader sf;
+    
 	ScopedPointer<FileTreeComponent> fileTreeComponent;
 
 	ScopedPointer<ShapeButton> favoriteButton;
@@ -342,6 +382,17 @@ private:
 	ScopedPointer<TextEditor> textEditor;
 
 	OwnedArray<Favorite> favorites;
+    
+    WeakReference<Processor> currentWorkspaceProcessor;
+    
+	Rectangle<float> pathArea;
+
+	Rectangle<float> searchIcon;
+
+
+	std::unique_ptr<XmlElement> prevState;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };
 
 } // namespace hise

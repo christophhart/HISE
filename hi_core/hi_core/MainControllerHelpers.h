@@ -122,6 +122,7 @@ public:
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
 
+	bool handleControllerMessage(const HiseEvent& e);
 		
 	class MPEData : public ControlledObject,
 					public RestorableObject,
@@ -266,6 +267,8 @@ public:
 	{
 		AutomationData();
 
+		~AutomationData() { clear(); }
+
 		void clear();
 
 		bool operator==(const AutomationData& other) const;
@@ -296,7 +299,88 @@ public:
 	int getNumActiveConnections() const;
 	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
 	bool setParameterInverted(int index, bool value);
+
+	void setUnloadedData(const ValueTree& v)
+	{
+		unloadedData = v;
+	};
+
+	void loadUnloadedData()
+	{
+		if(unloadedData.isValid())
+			restoreFromValueTree(unloadedData);
+
+		unloadedData = {};
+	}
+
+	void setControllerPopupNumbers(BigInteger controllerNumberToShow)
+	{
+		controllerNumbersInPopup = controllerNumberToShow;
+	}
+
+	bool shouldAddControllerToPopup(int controllerValue) const
+	{
+		if (controllerNumbersInPopup.isZero())
+			return true;
+
+		return controllerNumbersInPopup[controllerValue];
+	}
+
+	bool isMappable(int controllerValue) const
+	{
+		if (!exclusiveMode)
+			return shouldAddControllerToPopup(controllerValue);
+
+		if (isPositiveAndBelow(controllerValue, 128))
+			return automationData[controllerValue].isEmpty();
+
+		return false;
+	}
+
+	void setExclusiveMode(bool shouldBeExclusive)
+	{
+		exclusiveMode = shouldBeExclusive;
+	}
+
+	void setConsumeAutomatedControllers(bool shouldConsume)
+	{
+		consumeEvents = shouldConsume;
+	}
+
+	void setControllerPopupNames(const StringArray& newControllerNames)
+	{
+		controllerNames = newControllerNames;
+	}
+
+	String getControllerName(int controllerIndex)
+	{
+		if (isPositiveAndBelow(controllerIndex, controllerNames.size()))
+		{
+			return controllerNames[controllerIndex];
+		}
+		else
+		{
+			String s;
+			s << "CC#" << controllerIndex;
+			return s;
+		}
+	}
+
+	void setCCName(const String& newCCName) { ccName = newCCName; }
+
+	String getCCName() const { return ccName; }
+
 private:
+
+	bool exclusiveMode = false;
+	bool consumeEvents = true;
+
+	StringArray controllerNames;
+	String ccName;
+
+	BigInteger controllerNumbersInPopup;
+
+	ValueTree unloadedData;
 
 	// ========================================================================================================
 
@@ -339,6 +423,25 @@ class OverlayMessageBroadcaster
 {
 public:
 
+	enum State
+	{
+		AppDataDirectoryNotFound,
+		LicenseNotFound,
+		ProductNotMatching,
+		UserNameNotMatching,
+		EmailNotMatching,
+		MachineNumbersNotMatching,
+		LicenseExpired,
+		LicenseInvalid,
+		CriticalCustomErrorMessage,
+		SamplesNotInstalled,
+		SamplesNotFound,
+		IllegalBufferSize,
+		CustomErrorMessage,
+		CustomInformation,
+		numReasons
+	};
+
 	class Listener
 	{
 	public:
@@ -363,6 +466,8 @@ public:
 
 	}
 
+	virtual ~OverlayMessageBroadcaster() {};
+
 	void addOverlayListener(Listener *listener)
 	{
 		listeners.addIfNotAlreadyThere(listener);
@@ -375,7 +480,18 @@ public:
 
 	void sendOverlayMessage(int newState, const String& newCustomMessage=String());
 
+	String getOverlayTextMessage(State s) const;
+
+	bool isUsingDefaultOverlay() const { return useDefaultOverlay; }
+
+	void setUseDefaultOverlay(bool shouldUseOverlay)
+	{
+		useDefaultOverlay = shouldUseOverlay;
+	}
+
 private:
+
+	bool useDefaultOverlay = !HISE_DEACTIVATE_OVERLAY;
 
 	struct InternalAsyncUpdater: public AsyncUpdater
 	{
@@ -508,6 +624,8 @@ public:
 
 private:
 
+	bool illegalBufferSize = false;
+
 	class Pimpl;
 
 	ScopedPointer<Pimpl> pimpl;
@@ -539,14 +657,7 @@ private:
 };
 
 
-class NonRealtimeProcessor
-{
-public:
 
-	virtual ~NonRealtimeProcessor() {};
-
-	virtual void nonRealtimeModeChanged(bool isNonRealtime) = 0;
-};
 
 } // namespace hise
 

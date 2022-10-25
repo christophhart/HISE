@@ -343,7 +343,7 @@ public:
 					 
 	{
 		setInternalAttribute(parameterIndex, newValue);
-		if(notifyEditor == sendNotification) sendChangeMessage();
+		if(notifyEditor == sendNotification) sendPooledChangeMessage();
 	}
 
 	/** returns the attribute with the specified index (use a enum in the derived class). */
@@ -509,11 +509,6 @@ public:
 		const Identifier stateId = getEditorStateForIndex(state);
 
 		editorStateValueSet.set(stateId, isOn);
-
-        if(notifyView)
-		{
-			getMainController()->setCurrentViewChanged();
-		}
 	};
 
 	const var getEditorState(Identifier editorStateId) const
@@ -526,11 +521,6 @@ public:
 		jassert(state.isValid());
 
 		editorStateValueSet.set(state, stateValue);
-
-		if(notifyView)
-		{
-			getMainController()->setCurrentViewChanged();
-		}
 	}
 
 	Identifier getEditorStateForIndex(int index) const
@@ -773,7 +763,8 @@ public:
 	*
 	*	If you want to use this feature (this lets you access Parameters with the script, you should add the parameter name
 	*	for each parameter in your subtype constructor. */
-	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;;
+	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;
+	int getParameterIndexForIdentifier(String id) const;
 
 	String getDescriptionForParameters(int parameterIndex)
 	{
@@ -784,7 +775,7 @@ public:
 	}
 
 	/** This returns the number of (named) parameters. */
-	int getNumParameters() const;; 
+	virtual int getNumParameters() const;; 
 
 	/** Call this method after inserting the processor in the signal chain.
 	*
@@ -871,6 +862,8 @@ public:
 			getChildProcessor(i)->setParentProcessor(this);
 	}
 
+	Array<Identifier> parameterNames;
+
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 
@@ -917,7 +910,7 @@ protected:
 	
 	bool consoleEnabled;
 
-	Array<Identifier> parameterNames;
+	
 	StringArray parameterDescriptions;
 	Array<Identifier> editorStateIdentifiers;
 
@@ -976,6 +969,13 @@ class ProcessorHelpers
 {
 public:
 
+	struct ObjectWithProcessor
+	{
+		virtual ~ObjectWithProcessor() {};
+
+		virtual Processor* getProcessor() = 0;
+	};
+
 	/** Small helper function that returns the parent processor of the given child processor. 
 	*
 	*	@param childProcessor the processor which parent should be found. It must be within the normal tree structure.
@@ -995,6 +995,8 @@ public:
 	static Array<WeakReference<Processor>> getListOfAllGlobalModulators(const Processor* rootProcessor);
 
 	template <class ProcessorType> static int getAmountOf(const Processor *rootProcessor, const Processor *upTochildProcessor = nullptr);
+
+	static StringArray getAllIdsForDataType(const Processor* rootProcessor, snex::ExternalData::DataType dataType);
 
 	template <class ProcessorType> static StringArray getAllIdsForType(const Processor *rootProcessor)
 	{
@@ -1085,7 +1087,17 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
-
+    static void connectTableEditor(TableEditor& t, Processor* p, int index=0)
+    {
+        if(auto eh = dynamic_cast<snex::ExternalDataHolder*>(p))
+        {
+            t.setEditedTable(eh->getTable(index));
+        }
+        else
+        {
+            jassertfalse;
+        }
+    }
 	
 
 	/** Returns a list of all processors that can be connected to a parameter. */

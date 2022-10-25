@@ -78,6 +78,7 @@
 #include "UtilityClasses.h"
 
 #include "DebugLogger.h"
+#include "MainControllerShell.h" // provides encapsulated access to MainController functions
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
 #include "BackgroundThreads.h"
@@ -96,7 +97,6 @@
 #include "MainControllerHelpers.h"
 #include "LockHelpers.h"
 #include "MainController.h"
-#include "SampleExporter.h"
 #include "Console.h"
 
 #include "MacroControlBroadcaster.h"

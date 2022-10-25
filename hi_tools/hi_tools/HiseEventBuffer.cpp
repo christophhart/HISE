@@ -57,6 +57,9 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	number = data[1];
 	value = data[2];
 
+    if(message.isChannelPressure())
+        value = number;
+    
 	setTimeStamp((int)message.getTimeStamp());
 }
 
@@ -135,7 +138,12 @@ bool HiseEvent::operator==(const HiseEvent &other) const
 
 String HiseEvent::getTypeAsString() const noexcept
 {
-	switch (type)
+	return getTypeString(type);
+}
+
+String HiseEvent::getTypeString(HiseEvent::Type t)
+{
+	switch (t)
 	{
 	case HiseEvent::Type::Empty: return "Empty";
 	case HiseEvent::Type::NoteOn: return "NoteOn";
@@ -157,7 +165,6 @@ String HiseEvent::getTypeAsString() const noexcept
 
 	return "Undefined";
 }
-
 
 bool HiseEvent::isIgnored() const noexcept
 {
@@ -317,10 +324,25 @@ uint16 HiseEvent::getStartOffset() const noexcept
 	return startOffset;
 }
 
+int HiseEvent::getControllerNumber() const noexcept
+{
+	if (type == Type::PitchBend)
+		return PitchWheelCCNumber;
+	if (type == Type::Aftertouch)
+		return AfterTouchCCNumber;
+
+	return  number;
+}
+
 void HiseEvent::setSongPositionValue(int positionInMidiBeats)
 {
 	number = positionInMidiBeats & 127;
 	value = (positionInMidiBeats >> 7) & 127;
+}
+
+void HiseEvent::clear()
+{
+	*this = {};
 }
 
 juce::String HiseEvent::toDebugString() const
@@ -330,6 +352,7 @@ juce::String HiseEvent::toDebugString() const
 	s << getTypeAsString() << ", Number: " << number << ", Value: " << value;
 	s << ", Channel: " << channel;
 	s << ", Timestamp: " << getTimeStamp();
+	s << ", Event ID: " << String(getEventId());
 	s << (isArtificial() ? ", artficial" : "");
 	s << (isIgnored() ? ", ignored" : "");
 
@@ -537,7 +560,7 @@ hise::HiseEvent HiseEventBuffer::popEvent(int index)
 		auto e = getEvent(index);
 
 		for (int i = index; i < numUsed; i++)
-			buffer[index] = buffer[index + 1];
+			buffer[i] = buffer[i + 1];
 
 		buffer[numUsed - 1] = {};
 		numUsed--;
@@ -756,8 +779,23 @@ void EventIdHandler::handleEventIds()
 
 		if (m->isAllNotesOff())
         {
-			memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
-            overlappingNoteOns.clear();
+			//overlappingNoteOns.clear();
+
+			for (int nc = 0; nc < 16; nc++)
+			{
+				for (int noteNumber = 0; noteNumber < 128; noteNumber++)
+				{
+					auto& e = realNoteOnEvents[nc][noteNumber];
+
+					if (!e.isEmpty())
+					{
+						overlappingNoteOns.insert(e);
+						e = {};
+					}
+				}
+			}
+
+			//memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128 * 16);
         }
 
 		if (m->isNoteOn())
@@ -806,6 +844,7 @@ void EventIdHandler::handleEventIds()
 
 				if (!found)
 				{
+					m->setEventId(currentEventId++);
 					// There is something fishy here so deactivate this event
 					m->ignoreEvent(true);
 				}

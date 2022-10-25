@@ -39,36 +39,40 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	MathClass() :
 	ApiClass(2)
 	{
-		ADD_API_METHOD_1(abs);
-		ADD_API_METHOD_1(round);
+		ADD_INLINEABLE_API_METHOD_1(abs);
+		ADD_INLINEABLE_API_METHOD_1(round);
 		ADD_API_METHOD_0(random);
 		ADD_API_METHOD_2(randInt);
-		ADD_API_METHOD_2(min);
-		ADD_API_METHOD_2(max);
-		ADD_API_METHOD_3(range);
-		ADD_API_METHOD_1(sign);
-		ADD_API_METHOD_1(toDegrees);
-		ADD_API_METHOD_1(toRadians);
-		ADD_API_METHOD_1(sin);
-		ADD_API_METHOD_1(asin);
-		ADD_API_METHOD_1(sinh);
-		ADD_API_METHOD_1(asinh);
-		ADD_API_METHOD_1(cos);
-		ADD_API_METHOD_1(acos);
-		ADD_API_METHOD_1(cosh);
-		ADD_API_METHOD_1(acosh);
-		ADD_API_METHOD_1(tan);
-		ADD_API_METHOD_1(atan);
-		ADD_API_METHOD_1(tanh);
-		ADD_API_METHOD_1(atanh);
-		ADD_API_METHOD_1(log);
-		ADD_API_METHOD_1(log10);
-		ADD_API_METHOD_1(exp);
-		ADD_API_METHOD_2(pow);
-		ADD_API_METHOD_1(sqr);
-		ADD_API_METHOD_1(sqrt);
-		ADD_API_METHOD_1(ceil);
-		ADD_API_METHOD_1(floor);
+		ADD_INLINEABLE_API_METHOD_2(min);
+		ADD_INLINEABLE_API_METHOD_2(max);
+		ADD_INLINEABLE_API_METHOD_3(range);
+		ADD_INLINEABLE_API_METHOD_1(sign);
+		ADD_INLINEABLE_API_METHOD_1(toDegrees);
+		ADD_INLINEABLE_API_METHOD_1(toRadians);
+		ADD_INLINEABLE_API_METHOD_1(sin);
+		ADD_INLINEABLE_API_METHOD_1(asin);
+		ADD_INLINEABLE_API_METHOD_1(sinh);
+		ADD_INLINEABLE_API_METHOD_1(asinh);
+		ADD_INLINEABLE_API_METHOD_1(cos);
+		ADD_INLINEABLE_API_METHOD_1(acos);
+		ADD_INLINEABLE_API_METHOD_1(cosh);
+		ADD_INLINEABLE_API_METHOD_1(acosh);
+		ADD_INLINEABLE_API_METHOD_1(tan);
+		ADD_INLINEABLE_API_METHOD_1(atan);
+		ADD_INLINEABLE_API_METHOD_1(tanh);
+		ADD_INLINEABLE_API_METHOD_1(atanh);
+		ADD_INLINEABLE_API_METHOD_1(log);
+		ADD_INLINEABLE_API_METHOD_1(log10);
+		ADD_INLINEABLE_API_METHOD_1(exp);
+		ADD_INLINEABLE_API_METHOD_2(pow);
+		ADD_INLINEABLE_API_METHOD_1(sqr);
+		ADD_INLINEABLE_API_METHOD_1(sqrt);
+		ADD_INLINEABLE_API_METHOD_1(ceil);
+		ADD_INLINEABLE_API_METHOD_1(floor);
+		ADD_INLINEABLE_API_METHOD_2(fmod);
+		ADD_INLINEABLE_API_METHOD_2(wrap);
+		ADD_INLINEABLE_API_METHOD_2(from0To1);
+		ADD_INLINEABLE_API_METHOD_2(to0To1);
 
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
@@ -114,6 +118,10 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_1(MathClass, sqrt);
 		API_METHOD_WRAPPER_1(MathClass, ceil);
 		API_METHOD_WRAPPER_1(MathClass, floor);
+		API_METHOD_WRAPPER_2(MathClass, fmod);
+		API_METHOD_WRAPPER_2(MathClass, wrap);
+		API_METHOD_WRAPPER_2(MathClass, from0To1);
+		API_METHOD_WRAPPER_2(MathClass, to0To1);
 	};
 
 	/** Returns a random number between 0.0 and 1.0. */
@@ -236,7 +244,64 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	/** Rounds down the value. */
 	var floor(var value) { return std::floor((double)value); }
 
+	/** Returns the remainder when dividing value with limit. */
+	var fmod(var value, var limit) { return hmath::fmod((double)value, (double)limit); }
+
+	/** Wraps the value around the limit (always positive). */
+	var wrap(var value, var limit) { return hmath::wrap((double)value, (double)limit); }
+
+	
+	/** Converts a normalised value (between 0 and 1) to a range defined by the JSON data in rangeObj. */
+	var from0To1(var value, var rangeObj)
+	{
+		return getRange(rangeObj).convertFrom0to1((double)value, true);
+	}
+
+	/** Converts a value inside a range defined by the JSON data in range obj to a normalised value. */
+	var to0To1(var value, var rangeObj)
+	{
+		return getRange(rangeObj).convertTo0to1((double)value, true);
+	}
+
 	template <typename Type> static Type sign_(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
+
+	static scriptnode::InvertableParameterRange getRange(var rangeObj)
+	{
+		InvertableParameterRange r;
+
+		if (auto dyn = rangeObj.getDynamicObject())
+		{
+			const auto& set = dyn->getProperties();
+
+			r.inv = set.getWithDefault(PropertyIds::Inverted, false);
+
+			if (set.contains(PropertyIds::MaxValue)) // scriptnode range object
+			{
+				r.rng.start = set.getWithDefault(PropertyIds::MinValue, 0.0);
+				r.rng.end = set.getWithDefault(PropertyIds::MaxValue, 1.0);
+				r.rng.interval = set.getWithDefault(PropertyIds::StepSize, 0.0);
+				r.rng.skew = set.getWithDefault(PropertyIds::SkewFactor, 1.0);
+			}
+			else if (set.contains("max")) // UI Component properties
+			{
+				r.rng.start = set.getWithDefault("min", 0.0);
+				r.rng.end = set.getWithDefault("max", 1.0);
+				r.rng.interval = set.getWithDefault("stepSize", 0.0);
+
+				if (set.contains("middlePosition"))
+					r.rng.setSkewForCentre(set["middlePosition"]);
+			}
+			else if (set.contains("Start")) // MIDI Automation object
+			{
+				r.rng.start = set.getWithDefault("Start", 0.0);
+				r.rng.end = set.getWithDefault("End", 1.0);
+				r.rng.interval = set.getWithDefault(PropertyIds::StepSize, 0.0);
+				r.rng.skew = set.getWithDefault("Skew", 1.0);
+			}
+		}
+
+		return r;
+	}
 };
 
 } // namespace hise

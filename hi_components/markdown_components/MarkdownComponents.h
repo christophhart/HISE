@@ -231,7 +231,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownHelpButton);
 };
 
-
+#if !HISE_USE_NEW_CODE_EDITOR
 class MarkdownEditor : public CodeEditorComponent
 {
 public:
@@ -261,13 +261,13 @@ public:
 
 	File currentFile;
 };
+#else
+using MarkdownEditor = mcl::FullEditor;
+#endif
 
 class MarkdownEditorPanel : public FloatingTileContent,
 	public Component,
-	public CodeDocument::Listener,
-	public Timer,
-	public ButtonListener,
-	public ViewportWithScrollCallback::Listener
+	public ButtonListener
 {
 public:
 
@@ -299,70 +299,10 @@ public:
 
 	SET_PANEL_NAME("Markdown Editor");
 
-	MarkdownEditorPanel(FloatingTile* root) :
-		FloatingTileContent(root),
-		editor(doc, &tokeniser),
-		livePreview("Live Preview", this, f),
-		newButton("New File", this, f),
-		openButton("Open File", this, f),
-		saveButton("Save File", this, f),
-		urlButton("Create Link", this, f),
-		imageButton("Create image", this, f),
-		tableButton("Create Table", this, f),
-		settingsButton("Show Settings", this, f)
-	{
-		setLookAndFeel(&laf);
-
-		livePreview.setToggleModeWithColourChange(true);
-		
-		livePreview.setToggleState(false, sendNotification);
-
-		addAndMakeVisible(editor);
-		addAndMakeVisible(livePreview);
-		addAndMakeVisible(newButton);
-		addAndMakeVisible(openButton);
-		addAndMakeVisible(saveButton);
-		addAndMakeVisible(urlButton);
-		addAndMakeVisible(imageButton);
-		addAndMakeVisible(tableButton);
-		addAndMakeVisible(settingsButton);
-
-		livePreview.setTooltip("Enable live preview of the editor's content");
-		newButton.setTooltip("Create new file");
-		openButton.setTooltip("Open a file");
-		saveButton.setTooltip("Save a file");
-		urlButton.setTooltip("Create a link");
-		imageButton.setTooltip("Create a image link");
-		tableButton.setTooltip("Create a table");
-		settingsButton.setTooltip("Show settings");
-
-		doc.addListener(this);
-	}
+	MarkdownEditorPanel(FloatingTile* root);
 
 	~MarkdownEditorPanel()
 	{
-		doc.removeListener(this);
-
-		if (preview.getComponent() != nullptr)
-		{
-			preview->viewport.removeListener(this);
-		}
-
-	}
-
-	void scrolled(Rectangle<int> /*visibleArea*/)
-	{
-		if (editor.hasKeyboardFocus(true))
-			return;
-
-		if (updatePreview())
-		{
-			auto ratio = (float)preview->viewport.getViewPositionY() / (float)preview->internalComponent.getHeight();
-
-			int l = (int)(ratio * (float)editor.getDocument().getNumLines());
-
-			editor.scrollToKeepLinesOnScreen({ l, l + editor.getNumLinesOnScreen() });
-		}
 	}
 
 	bool updatePreview()
@@ -388,28 +328,19 @@ public:
 		if (p != nullptr)
 		{
 			preview = p;
-			preview->viewport.addListener(this);
+            syncer = new mcl::MarkdownPreviewSyncer(editor, *p);
+            syncer->setEnableScrollbarListening(true);
 		}
 			
-	}
-
-	void codeDocumentTextDeleted(int , int ) override
-	{
-		if(livePreview.getToggleState())
-			startTimer(300);
-	}
-
-	void codeDocumentTextInserted(const String&, int ) override
-	{
-		if (livePreview.getToggleState())
-			startTimer(300);
 	}
 
 	bool keyPressed(const KeyPress& key) override
 	{
 		if (key == KeyPress::F5Key)
 		{
-			startTimer(300);
+			if(syncer != nullptr)
+                syncer->startTimer(500);
+            
 			return true;
 		}
 		if ((key.getKeyCode() == 's' ||
@@ -426,45 +357,9 @@ public:
 
 	void loadFile(File f);
 
-	void timerCallback() override
-	{
-		if (updatePreview())
-		{
-			preview->renderer.clearCurrentLink();
-			preview->setNewText(doc.getAllContent().replace("\r\n", "\n"), editor.currentFile);
-		}
-
-		stopTimer();
-	}
-
 	File getRootFile();
 
-	void resized() override
-	{
-		auto area = getParentShell()->getContentBounds();
-
-		auto top = area.removeFromTop(46);
-
-		int button_margin = 10;
-
-		livePreview.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-
-		top.removeFromLeft(20);
-
-		newButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-		openButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-		saveButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-
-		top.removeFromLeft(20);
-
-		urlButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-		imageButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-		tableButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(button_margin));
-
-		settingsButton.setBounds(top.removeFromRight(top.getHeight()).reduced(button_margin));
-
-		editor.setBounds(area);
-	}
+	void resized() override;
 
 	Factory f;
 
@@ -487,9 +382,13 @@ public:
 	CodeDocument doc;
 	MarkdownParser::Tokeniser tokeniser;
 	Component::SafePointer<MarkdownPreview> preview;
+
+	mcl::TextDocument tdoc;
+
 	MarkdownEditor editor;
 	MarkdownDataBase* database = nullptr;
-	
+    
+    ScopedPointer<mcl::MarkdownPreviewSyncer> syncer;
 };
 
 }

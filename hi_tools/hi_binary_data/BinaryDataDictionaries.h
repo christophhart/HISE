@@ -30,10 +30,10 @@
 *   ===========================================================================
 */
 
-#ifndef BINARYDATA_DICTIONARIES_H_INCLUDED
-#define BINARYDATA_DICTIONARIES_H_INCLUDED
 
+#pragma once
 
+#if !HISE_NO_GUI_TOOLS
 
 namespace hise {
 using namespace juce;
@@ -88,4 +88,3 @@ public:
 }
 
 #endif
-

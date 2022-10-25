@@ -354,6 +354,29 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	void parseFunctionParamsAndBody(FunctionObject& fo)
 	{
+		if (matchIf(TokenTypes::openBracket))
+		{
+			while (currentType != TokenTypes::closeBracket)
+			{
+				auto paramName = currentValue.toString();
+
+				fo.capturedLocals.add(parseExpression());
+
+				if (currentType != TokenTypes::closeBracket)
+					match(TokenTypes::comma);
+			}
+
+			for (auto e : fo.capturedLocals)
+			{
+				if (e->getVariableName().isNull())
+				{
+					location.throwError("Can't capture anonymous expressions");
+				}
+			}
+
+			match(TokenTypes::closeBracket);
+		}
+
 		match(TokenTypes::openParen);
 
 		while (currentType != TokenTypes::closeParen)
@@ -365,144 +388,63 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 				match(TokenTypes::comma);
 		}
 
+		struct ScopedFunctionSetter
+		{
+			ScopedFunctionSetter(ExpressionTreeBuilder& p, FunctionObject* o):
+				parent(p)
+			{
+				lastObject = parent.currentFunctionObject;
+				parent.currentFunctionObject = o;
+			}
+
+			~ScopedFunctionSetter()
+			{
+				parent.currentFunctionObject = lastObject;
+			}
+
+			ExpressionTreeBuilder& parent;
+			DynamicObject* lastObject;
+		};
+
 		match(TokenTypes::closeParen);
+
+		ScopedFunctionSetter svs(*this, &fo);
+
+		// We need to temporarily set the currentInlineFunction to nullptr to avoid
+		// local references inside the nested function body which will fail when
+		// ENABLE_SCRIPTING_BREAKPOINTS is disabled
+		ScopedValueSetter<DynamicObject*> svs1(outerInlineFunction, currentInlineFunction);
+		ScopedValueSetter<DynamicObject*> svs2(currentInlineFunction, nullptr);
+
 		fo.body = parseBlock();
 	}
 
-#if INCLUDE_NATIVE_JIT
-	Expression* parseNativeJITExpression(NativeJITScope* scope)
-	{
-		const Identifier scopeId = parseIdentifier();
-
-		jassert(scopeId == scope->getName());
-
-		match(TokenTypes::dot);
-
-		static const Identifier pb("processBlock");
-
-		const Identifier id = parseIdentifier();
-
-		if (scope->isFunction(id))
-		{
-			ScopedPointer<RootObject::NativeJIT::FunctionCall> f = new RootObject::NativeJIT::FunctionCall(location);
-			
-			f->scope = scope;
-
-			f->numArgs = scope->getNumArgsForFunction(id);
-
-			f->functionName = id;
-
-
-
-			match(TokenTypes::openParen);
-
-			while (currentType != TokenTypes::closeParen && currentType != TokenTypes::eof)
-			{
-				ExpPtr p = parseExpression();
-				matchIf(TokenTypes::comma);
-
-				f->arguments.add(p.release());
-			}
-
-			match(TokenTypes::closeParen);
-
-			if (f->numArgs != f->arguments.size())
-			{
-				location.throwError("Argument amount mismatch. Expected: " + String(f->numArgs) + ". Actual: " + String(f->arguments.size()));
-			}
-
-			return f.release();
-
-		}
-		else if (scope->isGlobal(id))
-		{
-			ScopedPointer<RootObject::NativeJIT::GlobalReference> r = new RootObject::NativeJIT::GlobalReference(location, scope);
-
-			r->index = scope->getIndexForGlobal(id);
-
-			return parseSuffixes(r.release());
-		}
-		else if (id == pb)
-		{
-			ScopedPointer<RootObject::NativeJIT::ProcessBufferCall> c = new RootObject::NativeJIT::ProcessBufferCall(location, scope);
-
-			match(TokenTypes::openParen);
-
-			ExpPtr target = parseExpression();
-
-			match(TokenTypes::closeParen);
-
-			c->target = target.release();
-
-			return c.release();
-		}
-		else
-		{
-			location.throwError(id.toString() + " not found in " + scope->getName());
-		}
-	}
-#endif
 
 	Expression* parseExpression()
 	{
 		Identifier id = Identifier::isValidIdentifier(currentValue.toString()) ? Identifier(currentValue.toString()) : Identifier::null;
 
-
-		
-
 		bool skipConsoleCalls = false;
 
 #if !ENABLE_SCRIPTING_SAFE_CHECKS
 		static const Identifier c("Console");
-		
+
 		if (id == c)
 		{
 			skipConsoleCalls = true;
 		}
 #endif
 
-		ExpPtr lhs;
-
-#if INCLUDE_NATIVE_JIT
-		if (auto s = hiseSpecialData->getNativeJITScope(id))
-		{
-			lhs = parseNativeJITExpression(s);
-		}
-		else if (auto c = hiseSpecialData->getNativeCompiler(id))
-		{
-			parseIdentifier();
-			match(TokenTypes::dot);
-			parseIdentifier();
-			match(TokenTypes::openParen);
-			match(TokenTypes::closeParen);
-
-			ScopedPointer<NativeJITScope> s = c->compileAndReturnScope();
-
-			if (s == nullptr)
-			{
-				location.throwError("NativeJIT compile error: " + c->getErrorMessage());
-			}
-
-			hiseSpecialData->jitScopes.add(s.get());
-
-			return new RootObject::NativeJIT::ScopeReference(location, s.release());
-
-		}
-		else
-		{
-			lhs = parseLogicOperator();
-		}
-#else
-        lhs = parseLogicOperator();
-#endif
-		
-
+		ExpPtr lhs = parseLogicOperator();
 
 		if (matchIf(TokenTypes::in))
 		{
 			ExpPtr rhs(parseExpression());
 
-			currentIterator = id;
+			IteratorData d;
+
+			d.id = id;
+			currentIterators.add(d);
 
 			return rhs.release();
 		}
@@ -539,6 +481,8 @@ private:
 
 	Identifier fileId;
 
+	DynamicObject* currentFunctionObject = nullptr;
+	DynamicObject* outerInlineFunction = nullptr;
 	DynamicObject* currentInlineFunction = nullptr;
 
 	JavascriptNamespace* currentNamespace = nullptr;
@@ -592,7 +536,6 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
-		if (matchIf(TokenTypes::loadJit_))		   return parseJITModule();
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -612,7 +555,7 @@ private:
 		return nullptr;
 	}
 
-	String getFileContent(const String &fileNameInScript, String &refFileName)
+	String getFileContent(const String &fileNameInScript, String &refFileName, bool allowMultipleIncludes = false)
 	{
 		String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
 
@@ -645,46 +588,54 @@ private:
 		if (!f.existsAsFile())
 			throwError("File " + refFileName + " not found");
 
-		for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+		if (!allowMultipleIncludes)
 		{
-			if (hiseSpecialData->includedFiles[i]->f == f)
+			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 			{
-				debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), "File " + shortFileName + " was included multiple times");
-				return String();
+				if (hiseSpecialData->includedFiles[i]->f == f)
+				{
+					debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), "File " + shortFileName + " was included multiple times");
+					return String();
+				}
 			}
-				
 		}
 
 		return f.loadFileAsString();
 
 #else
-		
+
 		refFileName = cleanedFileName;
 
 		if (File::isAbsolutePath(refFileName))
 		{
 			File f(refFileName);
 
-			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			if (!allowMultipleIncludes)
 			{
-				if (hiseSpecialData->includedFiles[i]->f == f)
+				for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 				{
-					DBG("File " + refFileName + " was included multiple times");
-					return String();
-				}
+					if (hiseSpecialData->includedFiles[i]->f == f)
+					{
+						DBG("File " + refFileName + " was included multiple times");
+						return String();
+					}
 
+				}
 			}
 
 			return f.loadFileAsString();
 		}
 		else
 		{
-			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			if (!allowMultipleIncludes)
 			{
-				if (hiseSpecialData->includedFiles[i]->scriptName == refFileName)
+				for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 				{
-					DBG("Script " + refFileName + " was included multiple times");
-					return String();
+					if (hiseSpecialData->includedFiles[i]->scriptName == refFileName)
+					{
+						DBG("Script " + refFileName + " was included multiple times");
+						return String();
+					}
 				}
 			}
 
@@ -693,7 +644,10 @@ private:
 #endif
 	};
 
-	Statement* parseExternalFile()
+	
+
+	/** Call this to include and register the file, then use getFileContent with the reference String to obtain the actual content. */
+	String addExternalFile()
 	{
 		if (getCurrentNamespace() != hiseSpecialData)
 		{
@@ -701,11 +655,33 @@ private:
 		}
 
 		match(TokenTypes::openParen);
-		
+
 		String refFileName;
 		String fileContent = getFileContent(currentValue.toString(), refFileName);
-        
+
 		if (fileContent.isEmpty())
+			return {};
+
+#if USE_BACKEND
+		File f(refFileName);
+		hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, f, String()));
+#else
+
+		if (File::isAbsolutePath(refFileName))
+			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
+		else
+			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
+
+#endif
+
+		return refFileName;
+	}
+
+	Statement* parseExternalFile()
+	{
+		auto refFileName = addExternalFile();
+
+		if (refFileName.isEmpty())
 		{
 			match(TokenTypes::literal);
 			match(TokenTypes::closeParen);
@@ -715,23 +691,10 @@ private:
 		}
 		else
 		{
-#if USE_BACKEND
-            
-            File f(refFileName);
-            
-            
-            hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, f, String()));
-#else
-
-			if (File::isAbsolutePath(refFileName)) 
-                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
-			else
-                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
-
-#endif
-
 			try
 			{
+				String fileContent = getFileContent(currentValue.toString(), refFileName, true);
+
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -808,6 +771,9 @@ private:
 		}
 #endif
 
+		if (currentInlineFunction != nullptr)
+			location.throwError("Can't declare var statement in inline function");
+
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
 
@@ -839,13 +805,6 @@ private:
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
-#if INCLUDE_NATIVE_JIT
-		if (auto sr = dynamic_cast<RootObject::NativeJIT::ScopeReference*>(s->initialiser.get()))
-		{
-			sr->scope->setName(s->name);
-		}
-#endif
-
 		if (matchIf(TokenTypes::comma))
 		{
 			ScopedPointer<BlockStatement> block(new BlockStatement(location));
@@ -860,6 +819,10 @@ private:
 		ns->constObjects.set(s->name, uninitialised); // Will be initialied at runtime
 		s->ns = ns;
 
+		ns->comments.set(s->name, lastComment);
+
+		clearLastComment();
+
 		return s.release();
 	}
 
@@ -871,6 +834,9 @@ private:
 
 			ns->varRegister.addRegister(name, var::undefined());
             ns->registerLocations.add(preparser->createDebugLocation());
+
+			ns->comments.set(name, preparser->lastComment);
+			preparser->clearLastComment();
 
 			if (ns->registerLocations.size() != ns->varRegister.getNumUsedRegisters())
 			{
@@ -951,12 +917,12 @@ private:
 	{
 		if (InlineFunction::Object::Ptr ifo = dynamic_cast<InlineFunction::Object*>(getCurrentInlineFunction()))
 		{
-			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo));
+			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo.get()));
 			s->name = parseIdentifier();
 			
 			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
 
-			ifo->localProperties.set(s->name, var::undefined());
+			ifo->localProperties->set(s->name, {});
 
 			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -1033,13 +999,29 @@ private:
 
 	Statement* parseNamespace()
 	{
+        auto prevLoc = location;
 		Identifier namespaceId = parseIdentifier();
 
+        static const Array<Identifier> illegalIds =
+        {
+            Identifier("Settings"),
+            Identifier("Engine"),
+            Identifier("Message"),
+            Identifier("Server"),
+            Identifier("FileSystem"),
+            Identifier("Synth"),
+            Identifier("Sampler"),
+            Identifier("Console")
+        };
+        
+        if(illegalIds.contains(namespaceId))
+            prevLoc.throwError("Illegal namespace ID");
+        
 		currentNamespace = hiseSpecialData->getNamespace(namespaceId);
 
 		if (currentNamespace == nullptr)
 		{
-			location.throwError("Error at parsing namespace");
+            prevLoc.throwError("Error at parsing namespace");
 		}
 
 		ScopedPointer<BlockStatement> block = parseBlock();
@@ -1075,7 +1057,7 @@ private:
 		{
 			for (int i = 0; i < hiseSpecialData->inlineFunctions.size(); i++)
 			{
-				DynamicObject *o = hiseSpecialData->inlineFunctions.getUnchecked(i);
+				DynamicObject *o = hiseSpecialData->inlineFunctions.getUnchecked(i).get();
 
 				InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
 
@@ -1088,7 +1070,7 @@ private:
 		{
 			for (int i = 0; i < ns->inlineFunctions.size(); i++)
 			{
-				DynamicObject *o = ns->inlineFunctions.getUnchecked(i);
+				DynamicObject *o = ns->inlineFunctions.getUnchecked(i).get();
 
 				InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
 
@@ -1289,7 +1271,7 @@ private:
 				}
 			}
 
-			currentInlineFunction = o;
+			currentInlineFunction = o.get();
 
 			if (o != nullptr)
 			{
@@ -1330,12 +1312,6 @@ private:
 		match(TokenTypes::closeParen);
 		match(TokenTypes::semicolon);
 
-#if INCLUDE_NATIVE_JIT
-		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(fileContent);
-
-		hiseSpecialData->jitModules.add(compiler.release());
-#endif
-        
 		return new Statement(location);
 	}
 
@@ -1431,22 +1407,69 @@ private:
 	{
 		match(TokenTypes::openParen);
 
-		const Identifier previousIteratorName = currentIterator;
-
 		const bool isVarInitialiser = matchIf(TokenTypes::var);
 		
+        if(currentInlineFunction && isVarInitialiser)
+        {
+            location.throwError("Can't use var initialiser inside inline function");
+        }
+        
 		Expression *iter = parseExpression();
 
 		// Allow unqualified names in for loop initialisation for convenience
 		if (auto assignment = dynamic_cast<Assignment*>(iter))
 		{
 			if (auto un = dynamic_cast<UnqualifiedName*>(assignment->target.get()))
+            {
 				un->allowUnqualifiedDefinition = true;
+                
+                ScopedPointer<Expression> newExpression;
+                
+                auto id = un->getVariableName();
+                
+                // replace the anonymous initialiser with a local / var assignment
+                // in order to prevent global leakage
+                
+                if(auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+                {
+                    auto s = new VarStatement(location);
+                    s->name = id;
+
+                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, id, location);
+
+                    s->initialiser.swapWith(assignment->newValue);
+                    
+                    newExpression = assignment;
+                    iter = s;
+                }
+                else if(auto ifo = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
+                {
+                    auto lv = new LocalVarStatement(location, ifo);
+                    lv->name = id;
+                    
+                    hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, id, location);
+                    
+                    ifo->localProperties->set(lv->name, {});
+                    lv->initialiser.swapWith(assignment->newValue);
+                    
+                    newExpression = assignment;
+                    iter = lv;
+                }
+            }
 		}
 
 		if (!isVarInitialiser && currentType == TokenTypes::closeParen)
 		{
 			ScopedPointer<LoopStatement> s(new LoopStatement(location, false, true));
+
+			for (auto& it : currentIterators)
+			{
+				if (it.loop == nullptr)
+				{
+					it.loop = s;
+					break;
+				}
+			}
 
 			s->currentIterator = iter;
 
@@ -1458,7 +1481,14 @@ private:
 
 			s->body = parseStatement();
 
-			currentIterator = previousIteratorName;
+			for (const auto& it: currentIterators)
+			{
+				if (it.loop == s)
+				{
+					currentIterators.remove(currentIterators.indexOf(it));
+					break;
+				}
+			}
 
 			return s.release();
 		}
@@ -1526,19 +1556,25 @@ private:
 
 	var parseFunctionDefinition(Identifier& functionName)
 	{
+		
 		const String::CharPointerType functionStart(location.location);
 
 		if (currentType == TokenTypes::identifier)
 			functionName = parseIdentifier();
 
+		
+
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
-		
+		fo->location.fileName = location.getCallbackName(true);
+		fo->location.charNumber = location.getCharIndex();
+
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
         fo->createFunctionDefinition(functionName);
 		fo->commentDoc = lastComment;
 		clearLastComment();
+
 		return var(fo.release());
 	}
 
@@ -1562,7 +1598,7 @@ private:
 	{
 		const Identifier apiId = parseIdentifier();
 		const int apiIndex = hiseSpecialData->apiIds.indexOf(apiId);
-		ApiClass *apiClass = hiseSpecialData->apiClasses.getUnchecked(apiIndex);
+		ApiClass *apiClass = hiseSpecialData->apiClasses.getUnchecked(apiIndex).get();
 
 		match(TokenTypes::dot);
 
@@ -1712,16 +1748,48 @@ private:
 				}
 			}
 
-			if (id == currentIterator)
+			LoopStatement* iteratorLoop = nullptr;
+
+			for (const auto& it : currentIterators)
 			{
-				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
+				if (it.id == id)
+				{
+					iteratorLoop = it.loop;
+					break;
+				}
 			}
-			else if (currentInlineFunction != nullptr)
+
+			if (iteratorLoop != nullptr)
 			{
-				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction);
+				return parseSuffixes(new LoopStatement::IteratorName(location, iteratorLoop, parseIdentifier()));
+			}
+			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
+			{
+				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+				const int localParameterIndex = ob->localProperties->indexOf(id);
+
+				int captureIndex = -1;
+
+				if (auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+				{
+					captureIndex = fo->getCaptureIndex(id);
+				}
+
+				if (captureIndex == -1)
+				{
+					if (inlineParameterIndex != -1)
+						location.throwError("Can't reference inline function parameters in nested function body");
+
+					if (localParameterIndex != -1)
+						location.throwError("Can't reference local variables in nested function body");
+				}
+			}
+			else if (auto ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
+			{
+				
 
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-				const int localParameterIndex = ob->localProperties.indexOf(id);
+				const int localParameterIndex = ob->localProperties->indexOf(id);
 
 				if (inlineParameterIndex >= 0)
 				{
@@ -1747,6 +1815,18 @@ private:
 			}
 			else
 			{
+                if(auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+                {
+                    for(auto cl : fo->capturedLocals)
+                    {
+                        if(cl->getVariableName() == id)
+                        {
+                            return parseSuffixes(new UnqualifiedName(location, parseIdentifier(), false));
+                        }
+                    }
+                }
+                
+                
 				if (JavascriptNamespace* inlineNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::InlineFunction, ns, id))
 				{
 					InlineFunction::Object *obj = getInlineFunction(id, inlineNamespace);
@@ -1772,21 +1852,9 @@ private:
 				{
 					return parseSuffixes(parseApiExpression());
 				}
-#if INCLUDE_NATIVE_JIT
-				else if (auto compiler = hiseSpecialData->getNativeCompiler(id))
-				{
-					match(TokenTypes::dot);
-					match(TokenTypes::identifier);
-					match(TokenTypes::openParen);
-					match(TokenTypes::closeParen);
-
-					return new RootObject::NativeJIT::ScopeReference(location, compiler->compileAndReturnScope());
-				}
-#endif
-				
 				else if (globalIndex != -1)
 				{
-					return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
+					return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals.get(), parseIdentifier()));
 				}
 				else
 				{
@@ -1823,16 +1891,19 @@ private:
 				}
 			}
 		}
+
+		auto prevLocation = location;
+
 		if (matchIf(TokenTypes::openParen))        return parseSuffixes(matchCloseParen(parseExpression()));
-		if (matchIf(TokenTypes::true_))            return parseSuffixes(new LiteralValue(location, (int)1));
-		if (matchIf(TokenTypes::false_))           return parseSuffixes(new LiteralValue(location, (int)0));
-		if (matchIf(TokenTypes::null_))            return parseSuffixes(new LiteralValue(location, var()));
-		if (matchIf(TokenTypes::undefined))        return parseSuffixes(new Expression(location));
+		if (matchIf(TokenTypes::true_))            return parseSuffixes(new LiteralValue(prevLocation, (int)1));
+		if (matchIf(TokenTypes::false_))           return parseSuffixes(new LiteralValue(prevLocation, (int)0));
+		if (matchIf(TokenTypes::null_))            return parseSuffixes(new LiteralValue(prevLocation, var()));
+		if (matchIf(TokenTypes::undefined))        return parseSuffixes(new Expression(prevLocation));
 
 		if (currentType == TokenTypes::literal)
 		{
 			var v(currentValue); skip();
-			return parseSuffixes(new LiteralValue(location, v));
+			return parseSuffixes(new LiteralValue(prevLocation, v));
 		}
 
 		if (matchIf(TokenTypes::openBrace))
@@ -1878,6 +1949,12 @@ private:
 
 			if (name.isValid())
 				throwError("Inline functions definitions cannot have a name");
+
+			if (auto fo = dynamic_cast<FunctionObject*>(fn.getDynamicObject()))
+			{
+				if (!fo->capturedLocals.isEmpty())
+					return new AnonymousFunctionWithCapture(location, fn);
+			}
 
 			return new LiteralValue(location, fn);
 		}
@@ -2047,7 +2124,18 @@ private:
 
 	Array<Identifier> registerIdentifiers;
 
-	Identifier currentIterator;
+	struct IteratorData
+	{
+		bool operator==(const IteratorData& other) const
+		{
+			return loop == other.loop;
+		}
+
+		LoopStatement* loop = nullptr;
+		Identifier id;
+	};
+
+	Array<IteratorData> currentIterators;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 };
@@ -2297,7 +2385,20 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
 	tb.setupApiData(hiseSpecialData, code);
-	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
+    
+	auto& cp = currentLocalScopeCreator.get();
+
+    DynamicObject::Ptr localScope = cp != nullptr ? cp->createScope(this) : nullptr;
+    
+    if(localScope == nullptr)
+        localScope = this;
+    else
+    {
+        for(const auto& x: getProperties())
+            localScope->setProperty(x.name, x.value);
+    }
+    
+	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
 }
 
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
@@ -2316,6 +2417,32 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 		prepareCycleReferenceCheck();
 
 	sl->perform(Scope(nullptr, this, this), nullptr);
+
+	Array<OptimizationPass::OptimizationResult> results;
+
+	auto before = Time::getMillisecondCounter();
+
+	for (auto o : hiseSpecialData.optimizations)
+	{
+		if(auto or_ = hiseSpecialData.runOptimisation(o))
+			results.add(or_);
+	}
+	
+	auto after = Time::getMillisecondCounter();
+	
+	auto optimisationTimeMs = after - before;
+	
+	if (!results.isEmpty())
+	{
+		String s;
+
+		for (auto r : results)
+			s << r.passName << ": " << String(r.numOptimizedStatements) << "\n";
+
+		s << "Optimization Duration: " << String(optimisationTimeMs) << "ms";
+
+		hiseSpecialData.processor->setOptimisationReport(s);
+	}
 }
 
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)

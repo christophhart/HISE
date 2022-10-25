@@ -86,6 +86,8 @@ public:
 		/** Inverts the range of the parameter. */
 		void setInverted(bool shouldBeInverted) { inverted = shouldBeInverted; };
 
+		void setIsCustomAutomation(bool shouldBeCustomAutomation) { customAutomation = shouldBeCustomAutomation; }
+
 		/** Sets the parameter to be read only. 
 		*
 		*	By default it is activated. if not, it can change the whole macro control. 
@@ -97,6 +99,10 @@ public:
 
 		/** Returns true if the parameter range is inverted. */
 		bool isInverted() const {return inverted; };
+
+		bool matchesCustomAutomation(const Identifier& id) const;
+
+		bool isCustomAutomation() const { return customAutomation; }
 
 		/** Returns the min and max values for the parameter range. This is determined by the Controls that are
 		*	connected to the parameter. */
@@ -170,6 +176,7 @@ public:
 
 
 		bool readOnly;
+		bool customAutomation = false;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroControlledParameterData)
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlledParameterData);
@@ -303,7 +310,7 @@ public:
 		bool hasParameter(Processor *p, int parameterIndex);
 
 		/** adds the parameter to the parameter list and renames the macro if it is the only parameter. */
-		void addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly=true);
+		void addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly=true, bool isUsingCustomData=false);
 
 		/** Removes the parameter. */
 		void removeParameter(int parameterIndex);
@@ -392,29 +399,14 @@ public:
 	/** sets the macro control to the supplied value and sends a notification message if desired. */
 	void setMacroControl(int macroIndex, float newValue, NotificationType notifyEditor=dontSendNotification);
 
+	int getMacroControlIndexForCustomAutomation(const Identifier& customId) const;
+
 	/** searches all macroControls and returns the index of the control if the supplied parameter is mapped or -1 if it is not mapped. */
-	int getMacroControlIndexForProcessorParameter(const Processor *p, int parameter) const
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
-		for(int i = 0; i < macroControls.size(); i++)
-		{
-			for(int j = 0; j < macroControls[i]->getNumParameters(); j++)
-			{
-				if(macroControls[i]->getParameter(j)->getProcessor() == p &&
-				   macroControls[i]->getParameter(j)->getParameter() == parameter)
-				{
-					return i;
-				}
-			}
-		}
-
-		return -1;
-	}
+	int getMacroControlIndexForProcessorParameter(const Processor *p, int parameter) const;
 
 	/** Adds a parameter.
 	*
-	*	@param macroControllerIndex the index from 1 to 8 where the parameter should be added.
+	*	@param macroControllerIndex the index from 1 to HISE_NUM_MACROS where the parameter should be added.
 	*	@param processorId the unique id of the processor. If the ID is not unique, then the first processor is used, which can have undesired effects,
 	*			           so make sure, you rename the processor before mapping a controller!
 	*	@param parameterId the parameter id (use the SpecialParameters enum from the Processor)

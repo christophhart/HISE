@@ -12,6 +12,13 @@ END_TEST_DATA
 
 struct X
 {
+    DECLARE_NODE(X);
+
+    template <int P> void setParameter(double v)
+    {
+      
+    }
+
     int v = 0;
     
     void process(int input)
@@ -20,7 +27,7 @@ struct X
     }
 };
 
-container::chain<X, X> c;
+container::chain<parameter::empty, wrap::fix<1, X>, X> c;
 
 int main(int input)
 {

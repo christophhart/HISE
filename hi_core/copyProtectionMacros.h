@@ -1,5 +1,5 @@
 
-#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+#if USE_COPY_PROTECTION
 
 #define CHECK_COPY_AND_RETURN_1(processor) {if(var(dynamic_cast<FrontendProcessor*>(processor->getMainController())->unlocker.isUnlocked()).isUndefined()) return;}
 #define CHECK_COPY_AND_RETURN_2(processor) {if(var(dynamic_cast<FrontendProcessor*>(processor->getMainController())->unlocker.isUnlocked()).isUndefined()) return;}

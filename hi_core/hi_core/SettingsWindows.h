@@ -59,7 +59,9 @@ public:
 
 	using SettingList = Array<Identifier>;
 
-	SettingWindows(HiseSettings::Data& data);
+	SettingWindows(HiseSettings::Data& data, const Array<Identifier>& menusToShow = {});
+
+	
 
 	~SettingWindows();
 
@@ -126,8 +128,11 @@ private:
 	ToggleButton projectSettings;
 	ToggleButton developmentSettings;
 	ToggleButton docSettings;
+	ToggleButton snexSettings;
 	ToggleButton audioSettings;
 	ToggleButton allSettings;
+
+	Array<Identifier> settingsToShow;
 
 	TextButton applyButton;
 	TextButton cancelButton;

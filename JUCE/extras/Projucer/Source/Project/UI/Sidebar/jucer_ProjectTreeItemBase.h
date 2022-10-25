@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -36,17 +35,16 @@ struct ProjectTreeItemBase  : public JucerTreeViewBase,
     void showSettingsPage (Component* content)
     {
         content->setComponentID (getUniqueName());
-
         std::unique_ptr<Component> comp (content);
 
-        if (ProjectContentComponent* pcc = getProjectContentComponent())
-            pcc->setEditorComponent (comp.release(), nullptr);
+        if (auto* pcc = getProjectContentComponent())
+            pcc->setScrollableEditorComponent (std::move (comp));
     }
 
     void closeSettingsPage()
     {
         if (auto* pcc = getProjectContentComponent())
-            if (auto* content = pcc->getEditorComponentContent())
+            if (auto* content = pcc->getEditorComponent())
                 if (content->getComponentID() == getUniqueName())
                     pcc->hideEditor();
     }
@@ -65,12 +63,6 @@ struct ProjectTreeItemBase  : public JucerTreeViewBase,
         if (isNowOpen)
            refreshSubItems();
     }
-
-    void valueTreePropertyChanged (ValueTree&, const Identifier&) override {}
-    void valueTreeChildAdded (ValueTree&, ValueTree&) override {}
-    void valueTreeChildRemoved (ValueTree&, ValueTree&, int) override {}
-    void valueTreeChildOrderChanged (ValueTree&, int, int) override {}
-    void valueTreeParentChanged (ValueTree&) override {}
 
     virtual bool isProjectSettings() const          { return false; }
     virtual bool isModulesList() const              { return false; }

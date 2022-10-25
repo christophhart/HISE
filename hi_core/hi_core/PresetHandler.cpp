@@ -49,31 +49,15 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 	}
 
 	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
-
-	File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-
-#else
-
-    File userPresetDir;
-    
-    try
-    {
-        userPresetDir = FrontendHandler::getUserPresetDirectory();
-    }
-    catch(String& s)
-    {
-        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return;
-    }
-
 #endif
-
-	
+    
 	File presetFile = File(targetFile);
 	
     String existingNote;
 	StringArray existingTags;
     
+#if CONFIRM_PRESET_OVERWRITE
+
 	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
         existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
@@ -81,6 +65,16 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		presetFile.deleteFile();
 	}
+#else
+
+	if (presetFile.existsAsFile())
+	{
+        existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
+        existingTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
+
+		presetFile.deleteFile();
+	}
+#endif
 	
 	if (!presetFile.existsAsFile())
 	{
@@ -88,7 +82,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		if (preset.isValid())
 		{
-			ScopedPointer<XmlElement> xml = preset.createXml();
+			auto xml = preset.createXml();
 
 			presetFile.replaceWithText(xml->createDocument(""));
 
@@ -117,12 +111,20 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 	{
-		ValueTree v = sp->getScriptingContent()->exportAsValueTree();
-
-		v.setProperty("Processor", sp->getId(), nullptr);
-
 		preset = ValueTree("Preset");
-		preset.addChild(v, -1, nullptr);
+
+		if (chain->getMainController()->getUserPresetHandler().isUsingCustomDataModel())
+		{
+			auto v = chain->getMainController()->getUserPresetHandler().createCustomValueTree("Unused");
+			preset.addChild(v, -1, nullptr);
+		}
+		else
+		{
+			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
+
+			v.setProperty("Processor", sp->getId(), nullptr);
+			preset.addChild(v, -1, nullptr);
+		}
 
 		auto modules = createModuleStateTree(chain);
 
@@ -135,8 +137,6 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 	ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
 	ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
-
-	
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 
@@ -196,15 +196,20 @@ juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* ch
 
 	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
 	{
-		for (auto id : sp->getListOfModuleIds())
+		for (auto ms : sp->getListOfModuleIds())
 		{
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
-			auto mTree = p->exportAsValueTree();
+			auto id = ms->id;
 
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
-			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+			if (auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id))
+			{
+				auto mTree = p->exportAsValueTree();
 
-			modules.addChild(mTree, -1, nullptr);
+				mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+
+				ms->stripValueTree(mTree);
+
+				modules.addChild(mTree, -1, nullptr);
+			}
 		}
 	}
 
@@ -213,7 +218,7 @@ juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* ch
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+	auto xml = XmlDocument::parse(fileToLoad);
     
     if(xml != nullptr)
     {
@@ -242,18 +247,48 @@ void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const Va
 
 	if (modules.isValid())
 	{
+		auto& md = chain->getMainController()->getUserPresetHandler().getStoredModuleData();
+
+		bool didSomething = false;
+
 		for (auto m : modules)
 		{
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, m["ID"]);
+			didSomething = true;
+
+			auto id = m["ID"].toString();
+			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
 
 			if (p != nullptr)
 			{
-				auto copy = p->exportAsValueTree();
+				auto mcopy = m.createCopy();
 
-				if (p->getType().toString() == m["Type"].toString())
+				for (auto ms : md)
 				{
-					p->restoreFromValueTree(m);
+					if (ms->id == id)
+					{
+						ms->restoreValueTree(mcopy);
+						break;
+					}
 				}
+
+				if (p->getType().toString() == mcopy["Type"].toString())
+				{
+					p->restoreFromValueTree(mcopy);
+					p->sendPooledChangeMessage();
+				}
+			}
+		}
+
+		auto& uph = chain->getMainController()->getUserPresetHandler();
+
+		if (didSomething && uph.isUsingCustomDataModel())
+		{
+			auto numDataObjects = uph.getNumCustomAutomationData();
+
+			// We might need to update the custom automation data values.
+			for (int i = 0; i < numDataObjects; i++)
+			{
+				uph.getCustomAutomationData(i)->updateFromConnectionValue(0);
 			}
 		}
 	}
@@ -272,7 +307,7 @@ Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& /*o
 
 bool UserPresetHelpers::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
+	auto xml = XmlDocument::parse(fileToUpdate);
 
 	const String thisVersion = getCurrentVersionNumber(chain);
 
@@ -318,38 +353,14 @@ String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 #endif
 }
 
-File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
-{
-#if USE_BACKEND
-    return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");
-#else
 
-	ignoreUnused(chain);
-
-    
-    File userPresetDir;
-    
-    try
-    {
-        userPresetDir = FrontendHandler::getUserPresetDirectory();
-    }
-    catch(String& s)
-    {
-        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
-        return File();
-    }
-    
-    
-	return userPresetDir.getChildFile(fileNameWithoutExtension + ".preset");
-#endif
-}
 
 ValueTree parseUserPreset(const File& f)
 {
 	if (!f.hasFileExtension(".preset") || f.getFileName().startsWith("."))
 		return {};
 
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml != nullptr)
 	{
@@ -444,7 +455,7 @@ ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain, F
 
 juce::StringArray UserPresetHelpers::getExpansionsForUserPreset(const File& userpresetFile)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(userpresetFile);
+	auto xml = XmlDocument::parse(userpresetFile);
 
 	if (xml != nullptr)
 	{
@@ -457,7 +468,7 @@ juce::StringArray UserPresetHelpers::getExpansionsForUserPreset(const File& user
 
 void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
 {
-#if USE_FRONTEND
+#if USE_FRONTEND && !DONT_CREATE_USER_PRESET_FOLDER
 	auto userPresetDirectory = FrontendHandler::getUserPresetDirectory();
 
 	if (userPresetDirectory.isDirectory())
@@ -549,7 +560,7 @@ String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 	if(SystemClipboard::getTextFromClipboard() == String()) return String();
 
 	String x = SystemClipboard::getTextFromClipboard();
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(x);
+	auto xml = XmlDocument::parse(x);
 
 	if(xml == nullptr) return String();
 	
@@ -575,7 +586,7 @@ String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 
 void PresetHandler::copyProcessorToClipboard(Processor *p)
 {
-	ScopedPointer<XmlElement> xml = p->exportAsValueTree().createXml();
+	auto xml = p->exportAsValueTree().createXml();
 	String x = xml->createDocument(String());
 	SystemClipboard::copyTextToClipboard(x);
 
@@ -629,6 +640,7 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 #endif
     
 	nameWindow->getTextEditor("Name")->setSelectAllWhenFocused(true);
+	nameWindow->getTextEditor("Name")->grabKeyboardFocusAsync();
 
 	if(nameWindow->runModalLoop()) return nameWindow->getTextEditorContents("Name");
 	else return String();
@@ -845,7 +857,7 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, boo
 
 void ProjectHandler::restoreWorkingProjects()
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
+	auto xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
 
 	if (xml != nullptr)
 	{
@@ -908,6 +920,30 @@ File ProjectHandler::getWorkDirectory() const
 	else return currentWorkDirectory;
 }
 
+
+juce::ValueTree ProjectHandler::getEmbeddedNetwork(const String& id)
+{
+#if USE_BACKEND
+	auto f = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::Networks);
+	auto nf = f.getChildFile(id).withFileExtension("xml");
+
+	if (nf.existsAsFile())
+	{
+		if (auto xml = XmlDocument::parse(nf))
+		{
+			if (!CompileExporter::isExportingFromCommandLine())
+			{
+				debugToConsole(getMainController()->getMainSynthChain(), "Load network " + nf.getFileName() + " from project folder");
+			}
+
+			return ValueTree::fromXml(*xml);
+		}
+	}
+#endif
+
+	jassertfalse;
+	return {};
+}
 
 struct FileModificationComparator
 {
@@ -993,7 +1029,7 @@ String ProjectHandler::getPrivateKey() const
 
 juce::String ProjectHandler::getPublicKeyFromFile(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml == nullptr) return "";
 
@@ -1003,7 +1039,7 @@ juce::String ProjectHandler::getPublicKeyFromFile(const File& f)
 
 juce::String ProjectHandler::getPrivateKeyFromFile(const File& f)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+	auto xml = XmlDocument::parse(f);
 
 	if (xml == nullptr) return "";
 
@@ -1018,13 +1054,14 @@ void ProjectHandler::checkActiveProject()
 juce::File ProjectHandler::getAppDataRoot()
 {
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-
+    
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
 #elif JUCE_MAC
 
 
 #if ENABLE_APPLE_SANDBOX
+    ignoreUnused(appDataDirectoryToUse);
 	return File::getSpecialLocation(File::userMusicDirectory);
 #else
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support");
@@ -1294,6 +1331,42 @@ juce::File FrontendHandler::getAppDataDirectory()
 	return f;
 }
 
+juce::ValueTree FrontendHandler::getEmbeddedNetwork(const String& id)
+{
+	for (auto n : networks)
+	{
+		if (n["ID"].toString() == id)
+			return n;
+	}
+
+#if USE_FRONTEND
+	if (ScopedPointer<scriptnode::dll::FactoryBase> f = FrontendHostFactory::createStaticFactory())
+	{
+		// We need to look in the compiled networks and return a dummy ValueTree
+		int numNodes = f->getNumNodes();
+
+		for (int i = 0; i < numNodes; i++)
+		{
+			if (f->getId(i) == id)
+			{
+				ValueTree v(PropertyIds::Network);
+				v.setProperty(PropertyIds::ID, id, nullptr);
+
+				ValueTree r(PropertyIds::Node);
+				r.setProperty(PropertyIds::FactoryPath, "container.chain", nullptr);
+				r.setProperty(PropertyIds::ID, id, nullptr);
+				v.addChild(r, -1, nullptr);
+
+				return v;
+			}
+		}
+	}
+#endif
+
+	jassertfalse;
+	return {};
+}
+
 void FrontendHandler::loadSamplesAfterSetup()
 {
 	if (shouldLoadSamplesAfterSetup())
@@ -1331,9 +1404,7 @@ void FrontendHandler::checkAllSampleReferences()
 File FrontendHandler::getLicenseKey()
 {
 #if USE_FRONTEND
-
 	return getAppDataDirectory().getChildFile(getProjectName() + getLicenseKeyExtension());
-
 #else
 
 	return File();
@@ -1404,7 +1475,7 @@ File FrontendHandler::getSampleLinkFile()
 
 
 
-File FrontendHandler::getUserPresetDirectory()
+File FrontendHandler::getUserPresetDirectory(bool getRedirect)
 {
 #if HISE_IOS
     
@@ -1437,21 +1508,13 @@ File FrontendHandler::getUserPresetDirectory()
         userPresetDirectory.createDirectory();
         
         factoryPresets.copyDirectoryTo(userPresetDirectory);
-        
-        
-        
     }
     
     return userPresetDirectory;
     
 #else
-    
-    
 	File presetDir = getAppDataDirectory().getChildFile("User Presets");
-	
-
-	return presetDir;
-    
+    return FileHandlerBase::getFolderOrRedirect(presetDir);
 #endif
 }
 
@@ -1538,6 +1601,12 @@ juce::String FrontendHandler::getCompanyName()
 }
 
 juce::String FrontendHandler::getCompanyWebsiteName()
+{
+	jassertfalse;
+	return {};
+}
+
+juce::String FrontendHandler::getCompanyCopyright()
 {
 	jassertfalse;
 	return {};
@@ -1662,33 +1731,26 @@ PopupMenu PresetHandler::getAllSavedPresets(int minIndex, Processor *p)
 #else
 	
 	File directoryToScan = PresetHandler::getDirectory(p);
-	DirectoryIterator directoryIterator(directoryToScan, false, "*", File::TypesOfFileToFind::findFilesAndDirectories);
-
-	while(directoryIterator.next())
-	{
-		File directory = directoryIterator.getFile();
-
-		if (directory.isDirectory())
-		{
-			PopupMenu sub;
-			DirectoryIterator presetIterator(directory, false, "*.hip", File::TypesOfFileToFind::findFiles);
-
-			while(presetIterator.next())
-			{
-				File preset = presetIterator.getFile();
-
-				sub.addItem(minIndex++, preset.getFileNameWithoutExtension());
-			}
-
-			m.addSubMenu(directory.getFileName(), sub, true);
-
-		}
-		else if (directory.hasFileExtension(".hip"))
-		{
-			m.addItem(minIndex++, directory.getFileNameWithoutExtension());
-		}
-
-	}
+	
+    for(auto f: RangedDirectoryIterator(directoryToScan, false, "*", File::TypesOfFileToFind::findFilesAndDirectories))
+    {
+        File directory = f.getFile();
+        
+        if (directory.isDirectory())
+        {
+            PopupMenu sub;
+            
+            for(auto pf: RangedDirectoryIterator(directory, false, "*.hip", File::TypesOfFileToFind::findFiles))
+                sub.addItem(minIndex++, pf.getFile().getFileNameWithoutExtension());
+            
+            m.addSubMenu(directory.getFileName(), sub, true);
+            
+        }
+        else if (directory.hasFileExtension(".hip"))
+        {
+            m.addItem(minIndex++, directory.getFileNameWithoutExtension());
+        }
+    }
 
 #endif
     
@@ -1698,33 +1760,29 @@ PopupMenu PresetHandler::getAllSavedPresets(int minIndex, Processor *p)
 File PresetHandler::getPresetFileFromMenu(int menuIndexDelta, Processor *parent)
 {
 	File directory = getDirectory(parent);
-	DirectoryIterator it(directory, true, "*", File::findFilesAndDirectories);
-	DirectoryIterator directoryIterator(directory, false, "*", File::TypesOfFileToFind::findFilesAndDirectories);
-
+	
 	int i = 0;
 
-	while (directoryIterator.next())
-	{
-		File fileToCheck = directoryIterator.getFile();
-
-		if (fileToCheck.isDirectory())
-		{
-			DirectoryIterator presetIterator(fileToCheck, false, "*.hip", File::TypesOfFileToFind::findFiles);
-
-			while (presetIterator.next())
-			{
-				if (i == menuIndexDelta) return presetIterator.getFile();
-				i++;
-			}
-		}
-
-		else if (fileToCheck.hasFileExtension(".hip"))
-		{
-			if (i == menuIndexDelta) return directoryIterator.getFile();
-
-			i++;
-		}
-	}
+    for(auto de: RangedDirectoryIterator(directory, false, "*", File::TypesOfFileToFind::findFilesAndDirectories))
+    {
+        auto fileToCheck = de.getFile();
+        
+        if (fileToCheck.isDirectory())
+        {
+            for(auto pf: RangedDirectoryIterator(fileToCheck, false, "*.hip", File::TypesOfFileToFind::findFiles))
+            {
+                if (i == menuIndexDelta) return pf.getFile();
+                i++;
+            }
+        }
+        
+        else if (fileToCheck.hasFileExtension(".hip"))
+        {
+            if (i == menuIndexDelta) return fileToCheck;
+            i++;
+        }
+    }
+	
 
 	return File();
 }
@@ -1762,7 +1820,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 	try
 	{
 		String x = SystemClipboard::getTextFromClipboard();
-		ScopedPointer<XmlElement> parsedXml = XmlDocument::parse(x);
+		auto parsedXml = XmlDocument::parse(x);
 		ValueTree v = ValueTree::fromXml(*parsedXml);
 
 		if(parsedXml->getStringAttribute("ID") != v.getProperty("ID", String()).toString() )
@@ -1848,7 +1906,7 @@ juce::ValueTree PresetHandler::changeFileStructureToNewFormat(const ValueTree &v
 
 	newTree.setProperty("Type", v.getType().toString(), nullptr);
 
-	ScopedPointer<XmlElement> editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
+	auto editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
 
 	if (newTree.hasProperty("Content"))
 	{
@@ -1867,7 +1925,7 @@ juce::ValueTree PresetHandler::changeFileStructureToNewFormat(const ValueTree &v
 		newTree.addChild(editorStateValueTree, -1, nullptr);
 	}
 
-	ScopedPointer<XmlElement> macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
+	auto macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
 
 	if (macroControlData != nullptr)
 	{
@@ -1960,27 +2018,38 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 
 	ScopedPointer<FactoryType> t = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, root);
 
-	xml->addChildElement(buildFactory(t, "ModulatorSynths"));
+	
 
-	t = new MidiProcessorFactoryType(root);
-	xml->addChildElement(buildFactory(t, "MidiProcessors"));
+	{
+		MainController::ScopedBadBabysitter sb(root->getMainController());
+
+		xml->addChildElement(buildFactory(t, "ModulatorSynths"));
+
+		t = new MidiProcessorFactoryType(root);
+		xml->addChildElement(buildFactory(t, "MidiProcessors"));
 
 
-	t = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
-	xml->addChildElement(buildFactory(t, "VoiceStartModulators"));
+		t = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+		xml->addChildElement(buildFactory(t, "VoiceStartModulators"));
 
-	t = new TimeVariantModulatorFactoryType(Modulation::GainMode, root);
+		t = new TimeVariantModulatorFactoryType(Modulation::GainMode, root);
 
-	xml->addChildElement(buildFactory(t, "TimeVariantModulators"));
+		xml->addChildElement(buildFactory(t, "TimeVariantModulators"));
 
-	t = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+		t = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
 
-	xml->addChildElement(buildFactory(t, "EnvelopeModulators"));
+		xml->addChildElement(buildFactory(t, "EnvelopeModulators"));
 
-	t = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, root);
+		t = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, root);
 
-	xml->addChildElement(buildFactory(t, "Effects"));
+		xml->addChildElement(buildFactory(t, "Effects"));
 
+		t = nullptr;
+	}
+
+	
+
+	
 
 	xml->writeToFile(f, "");
 #endif
@@ -1998,7 +2067,10 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 
 		if (p == nullptr) continue;
 
-		XmlElement *child = new XmlElement(p->getType());
+		// "Hardcoded Master FX", aaarg!
+		auto tagName = p->getType().toString().removeCharacters(" ");
+
+		XmlElement *child = new XmlElement(tagName);
 
 		for (int i = 0; i < p->getNumParameters(); i++)
 		{
@@ -2038,7 +2110,7 @@ AudioFormatReader * PresetHandler::getReaderForInputStream(InputStream *stream)
 	afm.registerBasicFormats();
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
-	return afm.createReaderFor(stream);
+	return afm.createReaderFor(std::unique_ptr<InputStream>(stream));
 }
 
 bool forEachScriptComponent(ScriptingApi::Content* c, DynamicObject* obj, const std::function<bool(DynamicObject* obj, ScriptComponent*)>& f, ScriptComponent* toSkip=nullptr)
@@ -2126,7 +2198,7 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				DynamicObject::Ptr values = new DynamicObject();
 
-				forEachScriptComponent(content, values, writeToObj, c);
+				forEachScriptComponent(content, values.get(), writeToObj, c);
 
 				var newValue;
 
@@ -2155,7 +2227,7 @@ void PresetHandler::checkMetaParameters(Processor* p)
 
 				try
 				{
-					forEachScriptComponent(content, values, checkAsExpected, c);
+					forEachScriptComponent(content, values.get(), checkAsExpected, c);
 				}
 				catch (String& s)
 				{
@@ -2370,6 +2442,7 @@ juce::String FileHandlerBase::getIdentifier(SubDirectories dir)
 	case SubDirectories::SampleMaps:		return "SampleMaps/";
 	case SubDirectories::MidiFiles:			return "MidiFiles/";
 	case SubDirectories::Documentation:		return "Documentation/";
+	case SubDirectories::DspNetworks:		return "DspNetworks";
 	case SubDirectories::numSubDirectories:
 	default:								jassertfalse; return String();
 	}
@@ -2496,6 +2569,21 @@ juce::File FileHandlerBase::getLinkFile(const File &subDirectory)
 #endif
 }
 
+File FileHandlerBase::getFolderOrRedirect(const File& folder)
+{
+    auto lf = getLinkFile(folder);
+    
+    if(lf.existsAsFile())
+    {
+        auto rd = File(lf.loadFileAsString());
+        
+        if(rd.isDirectory())
+            return rd;
+    }
+    
+    return folder;
+}
+
 void FileHandlerBase::createLinkFile(SubDirectories dir, const File &relocation)
 {
 	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
@@ -2509,6 +2597,9 @@ void FileHandlerBase::createLinkFileInFolder(const File& source, const File& tar
 
 	if (linkFile.existsAsFile())
 	{
+        if(linkFile.loadFileAsString() == target.getFullPathName())
+            return;
+        
 		if (!target.isDirectory())
 		{
 			linkFile.deleteFile();
@@ -2567,6 +2658,7 @@ juce::String FileHandlerBase::getWildcardForFiles(SubDirectories directory)
 	case hise::FileHandlerBase::Presets:				return "*.hip";
 	case hise::FileHandlerBase::XMLPresetBackups:		return "*.xml";
 	case hise::FileHandlerBase::MidiFiles:				return "*.mid;*.MID";
+	case hise::FileHandlerBase::DspNetworks:			return "*.xml";
 	case hise::FileHandlerBase::Binaries:				
 	case hise::FileHandlerBase::AdditionalSourceCode:
 	case hise::FileHandlerBase::numSubDirectories:		
@@ -2586,6 +2678,9 @@ FileHandlerBase::FileHandlerBase(MainController* mc_) :
 void FileHandlerBase::checkSubDirectories()
 {
 	subDirectories.clear();
+
+	if (!getRootFolder().isDirectory())
+		return;
 
 	auto subDirList = getSubDirectoryIds();
 
@@ -2615,7 +2710,7 @@ void FileHandlerBase::checkAllSampleMaps()
 
 	for (int i = 0; i < sampleMaps.size(); i++)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMaps[i]);
+		auto xml = XmlDocument::parse(sampleMaps[i]);
 
 		if (xml != nullptr)
 		{
@@ -2656,7 +2751,7 @@ juce::Result FileHandlerBase::updateSampleMapIds(bool silentMode)
 
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+		auto xml = XmlDocument::parse(sampleMapFiles[i]);
 
 		if (xml != nullptr && xml->hasAttribute("ID"))
 		{
@@ -2719,6 +2814,7 @@ juce::Result FileHandlerBase::updateSampleMapIds(bool silentMode)
 
 juce::File FileHandlerBase::checkSubDirectory(SubDirectories dir)
 {
+	
 	File subDirectory = getRootFolder().getChildFile(getIdentifier(dir));
 
 	jassert(subDirectory.exists());

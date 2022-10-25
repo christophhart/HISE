@@ -101,6 +101,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 		*t-- = temp;
 	}
 
+#if 0
 	const int fadeLength = jmin<int>(500, numSamples-1);
 
 	auto s2 = getWritePointer(startSample + numSamples - fadeLength);
@@ -112,7 +113,7 @@ void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSampl
 		s2[i] = (int16)((float)s2[i] * g);
 		g -= 1.0f / (float)(fadeLength-1);
 	}
-
+#endif
 }
 
 void CompressionHelpers::AudioBufferInt16::negate()
@@ -215,9 +216,9 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 	fis.readIntoMemoryBlock(mb);
 
 
-	MemoryInputStream* mis = new MemoryInputStream(mb, false);
+	std::unique_ptr<InputStream> mis(new MemoryInputStream(mb, false));
 
-	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(mis);
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(mis));
 
 	if (reader != nullptr)
 	{
@@ -233,7 +234,7 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 
 		speed = sampleLength / delta;
 
-		Logger::writeToLog("PCM Decoding Performance: " + String(speed, 1) + "x realtime");
+		
 
 		return b;
 	}
@@ -1272,6 +1273,9 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			if (archiveTime > existingTime)
 				targetHlacFile.deleteFile();
+			else
+				overwriteThisFile = false;
+				
 		}
 
 		if (thread->threadShouldExit())

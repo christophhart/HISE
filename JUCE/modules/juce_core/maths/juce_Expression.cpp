@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -571,7 +571,11 @@ struct Expression::Helpers
 
     static Constant* findTermToAdjust (Term* const term, const bool mustBeFlagged)
     {
-        jassert (term != nullptr);
+        if (term == nullptr)
+        {
+            jassertfalse;
+            return nullptr;
+        }
 
         if (term->getType() == constantType)
         {
@@ -681,7 +685,7 @@ struct Expression::Helpers
         }
 
         //==============================================================================
-        static inline bool isDecimalDigit (const juce_wchar c) noexcept
+        static bool isDecimalDigit (const juce_wchar c) noexcept
         {
             return c >= '0' && c <= '9';
         }
@@ -699,7 +703,7 @@ struct Expression::Helpers
 
         bool readOperator (const char* ops, char* const opType = nullptr) noexcept
         {
-            text = text.findEndOfWhitespace();
+            text.incrementToEndOfWhitespace();
 
             while (*ops != 0)
             {
@@ -719,7 +723,7 @@ struct Expression::Helpers
 
         bool readIdentifier (String& identifier) noexcept
         {
-            text = text.findEndOfWhitespace();
+            text.incrementToEndOfWhitespace();
             auto t = text;
             int numChars = 0;
 
@@ -747,21 +751,21 @@ struct Expression::Helpers
 
         Term* readNumber() noexcept
         {
-            text = text.findEndOfWhitespace();
+            text.incrementToEndOfWhitespace();
             auto t = text;
             bool isResolutionTarget = (*t == '@');
 
             if (isResolutionTarget)
             {
                 ++t;
-                t = t.findEndOfWhitespace();
+                t.incrementToEndOfWhitespace();
                 text = t;
             }
 
             if (*t == '-')
             {
                 ++t;
-                t = t.findEndOfWhitespace();
+                t.incrementToEndOfWhitespace();
             }
 
             if (isDecimalDigit (*t) || (*t == '.' && isDecimalDigit (t[1])))

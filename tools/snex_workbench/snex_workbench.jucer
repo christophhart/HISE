@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="APDG74" name="snex_workbench" projectType="guiapp" cppLanguageStandard="17"
+              jucerFormatVersion="1">
+  <MAINGROUP id="ez2yYO" name="snex_workbench">
+    <GROUP id="{4FE4C9F6-32C2-7EB2-0F4C-13063DBE6B7C}" name="Source">
+      <FILE id="r2Vmt2" name="balanceKnob_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/balanceKnob_200.png"/>
+      <FILE id="cMJbp6" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
+      <FILE id="VnZpgI" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
+      <FILE id="gbtYpb" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
+      <FILE id="INwPrO" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
+      <FILE id="y1ov9h" name="infoQuestion.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/infoQuestion.png"/>
+      <FILE id="m7XSEW" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
+      <FILE id="Hl8nSS" name="knobEmpty_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobEmpty_200.png"/>
+      <FILE id="ZsoJCJ" name="knobModulated_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobModulated_200.png"/>
+      <FILE id="US4Gkh" name="knobUnmodulated_200.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
+      <FILE id="Uk8Fdb" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
+      <FILE id="OJDI0f" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
+      <FILE id="FBirAl" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
+      <FILE id="Y36LYa" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="eusvMb" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
+      <FILE id="xwW36w" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+    </GROUP>
+    <FILE id="gOwqXS" name="knob_without_arrow.png" compile="0" resource="1"
+          file="../../hi_core/hi_images/knob_without_arrow.png"/>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX" xcodeValidArchs="x86_64" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -fno-aligned-allocation">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" osxArchitecture="64BitIntel"/>
+        <CONFIGURATION isDebug="0" name="Release" osxArchitecture="64BitIntel"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+    <VS2017 targetFolder="Builds/VisualStudio2017" IPPLibrary="Sequential"
+            windowsTargetPlatformVersion="10.0.16299.0" extraDefs="USE_IPP=1&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1"
+            extraCompilerFlags="/bigobj">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+      </MODULEPATHS>
+    </VS2017>
+    <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1 -Wno-everything">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_product_unlocking"/>
+        <MODULEPATH id="juce_opengl"/>
+        <MODULEPATH id="juce_gui_extra"/>
+        <MODULEPATH id="juce_gui_basics"/>
+        <MODULEPATH id="juce_graphics"/>
+        <MODULEPATH id="juce_events"/>
+        <MODULEPATH id="juce_dsp"/>
+        <MODULEPATH id="juce_data_structures"/>
+        <MODULEPATH id="juce_cryptography"/>
+        <MODULEPATH id="juce_core"/>
+        <MODULEPATH id="juce_audio_utils"/>
+        <MODULEPATH id="juce_audio_processors"/>
+        <MODULEPATH id="juce_audio_formats"/>
+        <MODULEPATH id="juce_audio_devices"/>
+        <MODULEPATH id="juce_audio_basics"/>
+        <MODULEPATH id="hi_zstd"/>
+        <MODULEPATH id="hi_tools"/>
+        <MODULEPATH id="hi_streaming"/>
+        <MODULEPATH id="hi_snex"/>
+        <MODULEPATH id="hi_scripting"/>
+        <MODULEPATH id="hi_sampler"/>
+        <MODULEPATH id="hi_modules"/>
+        <MODULEPATH id="hi_lac"/>
+        <MODULEPATH id="hi_dsp_library"/>
+        <MODULEPATH id="hi_dsp"/>
+        <MODULEPATH id="hi_core"/>
+        <MODULEPATH id="hi_components"/>
+        <MODULEPATH id="hi_backend"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+      </MODULEPATHS>
+    </VS2019>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override&#10;-fpermissive"
+                extraLinkerFlags="-no-pie&#10;" linuxExtraPkgConfig="x11 xinerama xext">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_sampler" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_components" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_components" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+  </MODULES>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+    <OSX/>
+    <LINUX/>
+  </LIVE_SETTINGS>
+  <JUCEOPTIONS HISE_INCLUDE_SNEX="1" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
+               IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" USE_IPP="0" HISE_ENABLE_EXPANSIONS="1"
+               JUCE_ASIO="1" HI_SUPPORT_FULL_DYNAMICS_HLAC="1" HI_EXPORT_DSP_LIBRARY="0"
+               JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" USE_WORKBENCH_EDITOR="1" HISE_INCLUDE_RLOTTIE="0"/>
+</JUCERPROJECT>

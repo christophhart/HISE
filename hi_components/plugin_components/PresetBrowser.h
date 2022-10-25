@@ -75,6 +75,19 @@ public:
 
 		bool showNotesLabel = true;
 		bool showEditButtons = true;
+		bool showAddButton = true;
+		bool showRenameButton = true;
+		bool showDeleteButton = true;
+		bool buttonsInsideBorder = false;
+		int editButtonOffset = 10;
+		Array<var> listAreaOffset;
+		Array<var> columnRowPadding;
+		Array<var> searchBarBounds;
+		Array<var> favoriteButtonBounds;
+
+		Array<var> moreButtonBounds;
+		Array<var> saveButtonBounds;
+
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
@@ -140,6 +153,10 @@ public:
 	PresetBrowser(MainController* mc_, int width=810, int height=500);
 	~PresetBrowser();
 
+	
+
+	bool isReadOnly(const File& f);
+
 	void presetChanged(const File& newPreset) override;
 	void presetListUpdated() override;
 
@@ -162,6 +179,8 @@ public:
 	void labelTextChanged(Label* l) override;
 	void updateFavoriteButton();
 	bool shouldShowFavoritesButton() { return showFavoritesButton; }
+
+	void lookAndFeelChanged() override;
 
 	void loadPresetDatabase(const File& rootDirectory);
 	void savePresetDatabase(const File& rootDirectory);
@@ -205,6 +224,9 @@ public:
 		manageButton->setVisible(false);
 	}
 
+	Point<int> getMouseHoverInformation() const;
+
+
 private:
 
 	DefaultPresetBrowserLookAndFeel laf;
@@ -216,14 +238,22 @@ private:
 	/** SaveButton = 1, ShowFolderButton = 0 */
 	void setShowButton(int buttonId, bool newValue);
 	void setShowNotesLabel(bool shouldBeShown);
-	void setShowEditButtons(bool showEditButtons);
+	void setShowEditButtons(int buttonId, bool showEditButtons);
+	void setButtonsInsideBorder(bool inside);
+	void setEditButtonOffset(int offset);
+	void setListAreaOffset(Array<var> offset);
+	void setColumnRowPadding(Array<var> offset);
 	void setShowCloseButton(bool shouldShowButton);
 
 	// ============================================================================================
 
 	int numColumns = 3;
 	Array<var> columnWidthRatios;
-
+	Array<var> searchBarBounds;
+	Array<var> favoriteButtonBounds;
+	Array<var> saveButtonBounds;
+	Array<var> moreButtonBounds;
+	
 	File defaultRoot;
 	File rootFile;
 	File currentBankFile;

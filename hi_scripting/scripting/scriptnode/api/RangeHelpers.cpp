@@ -36,83 +36,91 @@ using namespace juce;
 using namespace hise;
 
 
-
-
-
-
-
-
-bool RangeHelpers::isRangeId(const Identifier& id)
+RangePresets::RangePresets() :
+	fileToLoad(getRangePresetFile())
 {
-	using namespace PropertyIds;
-	return id == MinValue || id == MaxValue || id == StepSize || id == SkewFactor || id == Converter || id == OpType;
-}
+	auto xml = XmlDocument::parse(fileToLoad);
 
-
-bool RangeHelpers::isIdentity(NormalisableRange<double> d)
-{
-	if (d.start == 0.0 && d.end == 1.0 && d.skew == 1.0)
-		return true;
-
-	return false;
-}
-
-
-juce::Array<juce::Identifier> RangeHelpers::getRangeIds()
-{
-	using namespace PropertyIds;
-
-	return { MinValue, MaxValue, StepSize, SkewFactor, Converter, OpType };
-}
-
-bool RangeHelpers::checkInversion(ValueTree& data, ValueTree::Listener* listenerToExclude, UndoManager* um)
-{
-	using namespace PropertyIds;
-
-	if (data[MinValue] > data[MaxValue])
+	if (xml != nullptr)
 	{
-		data.setPropertyExcludingListener(listenerToExclude, Inverted, true, um);
-		return true;
+		auto v = ValueTree::fromXml(*xml);
+
+		int index = 1;
+
+		for (auto c : v)
+		{
+			Preset p;
+			p.restoreFromValueTree(c);
+
+			p.index = index++;
+
+			presets.add(p);
+		}
 	}
 	else
-		data.setPropertyExcludingListener(listenerToExclude, Inverted, false, um);
-	return false;
+	{
+		createDefaultRange("0-1", { 0.0, 1.0 }, 0.5);
+		createDefaultRange("Inverted 0-1", InvertableParameterRange().inverted(), -1.0);
+        createDefaultRange("Decibel Gain", {-100.0, 0.0, 0.1}, -12.0);
+		createDefaultRange("1-16 steps", { 1.0, 16.0, 1.0 });
+		createDefaultRange("Osc LFO", { 0.0, 10.0, 0.0, 1.0 });
+		createDefaultRange("Osc Freq", { 20.0, 20000.0, 0.0 }, 1000.0);
+		createDefaultRange("Linear 0-20k Hz", { 0.0, 20000.0, 0.0 });
+		createDefaultRange("Freq Ratio Harmonics", { 1.0, 16.0, 1.0 });
+		createDefaultRange("Freq Ratio Detune Coarse", { 0.5, 2.0, 0.0 }, 1.0);
+		createDefaultRange("Freq Ratio Detune Fine", { 1.0 / 1.1, 1.1, 0.0 }, 1.0);
+
+		ValueTree v("Ranges");
+
+		for (const auto& p : presets)
+			v.addChild(p.exportAsValueTree(), -1, nullptr);
+
+		auto xml = v.createXml();
+		fileToLoad.replaceWithText(xml->createDocument(""));
+	}
 }
 
-void RangeHelpers::storeDoubleRange(ValueTree& d, bool isInverted, NormalisableRange<double> r, UndoManager* um)
+juce::File RangePresets::getRangePresetFile()
 {
-	using namespace PropertyIds;
-
-	d.setProperty(Inverted, isInverted, um);
-	d.setProperty(MinValue, r.start, um);
-	d.setProperty(MaxValue, r.end, um);
-	d.setProperty(LowerLimit, r.start, um);
-	d.setProperty(UpperLimit, r.end, um);
-	d.setProperty(StepSize, r.interval, um);
-	d.setProperty(SkewFactor, r.skew, um);
+	return ProjectHandler::getAppDataDirectory().getChildFile("RangePresets").withFileExtension("xml");
 }
 
-juce::NormalisableRange<double> RangeHelpers::getDoubleRange(const ValueTree& t)
+void RangePresets::createDefaultRange(const String& id, InvertableParameterRange d, double midPoint /*= -10000000.0*/)
 {
-	using namespace PropertyIds;
+	Preset p;
+	p.id = id;
+	p.nr = d;
 
-	NormalisableRange<double> r;
+	p.index = presets.size() + 1;
 
-	auto minValue = (double)t.getProperty(MinValue, 0.0);
-	auto maxValue = (double)t.getProperty(MaxValue, 1.0);
+	if (d.getRange().contains(midPoint))
+		p.nr.setSkewForCentre(midPoint);
 
-	if (minValue == maxValue)
-		maxValue += 0.01;
-
-	bool inverted = (double)t.getProperty(Inverted, false) || (minValue > maxValue);
-
-	r.start = inverted ? maxValue : minValue;
-	r.end = inverted ? minValue : maxValue;
-	r.interval = jlimit(0.0001, 1.0, (double)t.getProperty(StepSize, 0.01));
-	r.skew = jlimit(0.001, 100.0, (double)t.getProperty(SkewFactor, 1.0));
-
-	return r;
+	presets.add(p);
 }
+
+RangePresets::~RangePresets()
+{
+
+}
+
+void RangePresets::Preset::restoreFromValueTree(const ValueTree& v)
+{
+	nr = RangeHelpers::getDoubleRange(v);
+	id = v[PropertyIds::ID].toString();
+}
+
+juce::ValueTree RangePresets::Preset::exportAsValueTree() const
+{
+	ValueTree v("Range");
+	v.setProperty(PropertyIds::ID, id, nullptr);
+	RangeHelpers::storeDoubleRange(v, nr, nullptr);
+	return v;
+}
+
+
+
+
 
 }
 

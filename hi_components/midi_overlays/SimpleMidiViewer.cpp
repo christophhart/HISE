@@ -127,4 +127,159 @@ void SimpleMidiViewer::updateSeekPosition(const MouseEvent& e)
 	repaint();
 }
 
+SimpleCCViewer::SimpleCCViewer(MidiPlayer* player_) :
+	MidiPlayerBaseType(player_),
+	SimpleTimer(player_->getMainController()->getGlobalUIUpdater()),
+	noteDisplay(player_)
+{
+	addAndMakeVisible(noteDisplay);
+	rebuildCCValues();
+}
+
+void SimpleCCViewer::mouseDown(const MouseEvent& e)
+{
+	PopupMenu m;
+
+	int i = 1;
+
+	m.addSectionHeader("Add MIDI CC lane");
+	m.addSeparator();
+
+	for (auto e : availableTables)
+	{
+		m.addItem(i++, "CC #" + String(e->ccNumber), true, isShown(e));
+	}
+
+	auto result = m.show() - 1;
+
+	if (result != -1)
+	{
+		auto t = availableTables[result];
+
+		if (isShown(t))
+		{
+			for (int i = 0; i < activeEditors.size(); i++)
+			{
+				if (activeEditors[i]->getEditedTable() == &t->ccTable)
+				{
+					activeEditors.remove(i);
+					break;
+				}
+			}
+		}
+		else
+		{
+			auto newEditor = new TableEditor(getPlayer()->getMainController()->getControlUndoManager(), &t->ccTable);
+			addAndMakeVisible(newEditor);
+			activeEditors.add(newEditor);
+		}
+
+		resized();
+	}
+}
+
+void SimpleCCViewer::paint(Graphics& g)
+{
+	auto b = getLocalBounds().removeFromLeft(30);
+
+	if (activeEditors.isEmpty())
+	{
+		g.setColour(Colours::black.withAlpha(0.4f));
+
+		g.fillRect(b.reduced(2));
+	}
+
+	for (auto e : activeEditors)
+	{
+		auto r = b.removeFromTop(e->getHeight()).reduced(1).toFloat();
+
+		g.setColour(Colours::black.withAlpha(0.4f));
+		g.drawRect(r, 1.0f);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("#" + String(getCC(e)), r, Justification::centred);
+	}
+}
+
+int SimpleCCViewer::getCC(TableEditor* te)
+{
+	auto table = te->getEditedTable();
+
+	for (auto a : availableTables)
+		if (table == &a->ccTable)
+			return a->ccNumber;
+
+	jassertfalse;
+	return -1;
+}
+
+void SimpleCCViewer::resized()
+{
+	auto b = getLocalBounds();
+
+	b.removeFromLeft(30);
+
+	noteDisplay.setBounds(b);
+
+	if (!activeEditors.isEmpty())
+	{
+		auto h = b.getHeight() / activeEditors.size();
+
+		for (auto e : activeEditors)
+			e->setBounds(b.removeFromTop(h));
+	}
+
+	repaint();
+}
+
+void SimpleCCViewer::rebuildCCValues()
+{
+	if (auto seq = getPlayer()->getCurrentSequence())
+	{
+		auto l = seq->getEventList(44100.0, 120, HiseMidiSequence::TimestampEditFormat::Ticks);
+
+		for (auto t : availableTables)
+		{
+			t->ccTable.reset();
+			t->ccTable.setTablePoint(1, 1.0, 0.0, 0.5);
+		}
+
+		for (const auto& e : l)
+		{
+			if (e.isController())
+			{
+				auto t = getTableForCC(e.getControllerNumber());
+				auto tsQuarter = (double)e.getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter;
+				auto lengthNormalised = tsQuarter / seq->getLengthInQuarters();
+
+				t->ccTable.addTablePoint(lengthNormalised, e.getControllerValue() / 127.0);
+			}
+		}
+	}
+}
+
+bool SimpleCCViewer::isShown(CCTable::Ptr t) const
+{
+	for (auto e : activeEditors)
+		if (e->getEditedTable() == &t->ccTable)
+			return true;
+
+	return false;
+}
+
+hise::SimpleCCViewer::CCTable::Ptr SimpleCCViewer::getTableForCC(int ccNumber)
+{
+	for (auto t : availableTables)
+		if (t->ccNumber == ccNumber)
+			return t;
+
+	CCTable::Ptr nt = new CCTable();
+	nt->ccTable.setTablePoint(1, 1.0, 0.0, 0.5);
+	nt->ccNumber = ccNumber;
+
+	
+
+	availableTables.add(nt);
+	return nt;
+}
+
 }

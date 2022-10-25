@@ -152,7 +152,7 @@ private:
 				{
 					auto relativePath = c.getProperty("FilePath").toString();
 
-					ScopedPointer<XmlElement> xml = c.createXml();
+					auto xml = c.createXml();
 
 					xml->removeAttribute("FilePath");
 
@@ -198,7 +198,7 @@ private:
 
 			for (auto f : presetList)
 			{
-				ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+				auto xml = XmlDocument::parse(f);
 
 				if (xml != nullptr)
 				{
@@ -222,133 +222,6 @@ private:
 	};
 
 };
-
-
-
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText)
-{
-	g.setColour(highlightColour.withAlpha(0.1f));
-	g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
-
-	if (emptyText.isNotEmpty())
-	{
-		g.setFont(font);
-		g.setColour(textColour.withAlpha(0.3f));
-		g.drawText(emptyText, 0, 0, listArea.getWidth(), listArea.getHeight(), Justification::centred);
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
-{
-	float alpha = active ? 0.4f : 0.1f;
-	alpha += (blinking ? 0.2f : 0.0f);
-
-	auto ar = position.toFloat().reduced(1.0f);
-
-	g.setColour(highlightColour.withAlpha(alpha));
-	g.fillRoundedRectangle(ar, 2.0f);
-	g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-	g.setFont(font.withHeight(14.0f));
-	g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
-
-	// Wow, so professional, good bug fix.
-	auto nameToUse = (name == "Agressive" ? "Aggressive" : name);
-
-	g.drawText(nameToUse, ar, Justification::centred);
-
-	if (selected)
-		g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, PresetBrowser* p)
-{
-	if (!backgroundColour.isTransparent())
-	{
-		g.setGradientFill(ColourGradient(backgroundColour.withMultipliedBrightness(1.2f), 0.0f, 0.0f,
-			backgroundColour, 0.0f, (float)p->getHeight(), false));
-
-		g.fillAll();
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
-{
-	g.setColour(modalBackgroundColour);
-	g.fillAll();
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xfa212121)));
-	g.fillRoundedRectangle(area.expanded(40).toFloat(), 2.0f);
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x228e8e8e)));
-
-	if (!labelArea.isEmpty())
-		g.fillRect(labelArea);
-
-	g.setColour(Colours::white.withAlpha(0.8f));
-	g.setFont(font.withHeight(18));
-	g.drawText(title, area.getX(), labelArea.getY() - 80, area.getWidth(), 30, Justification::centredTop);
-
-	g.setFont(font);
-
-	g.drawText(command, area, Justification::centredTop);
-}
-
-juce::Font PresetBrowserLookAndFeelMethods::getFont(bool fontForTitle)
-{
-	return fontForTitle ? GLOBAL_BOLD_FONT().withHeight(18.0f) : GLOBAL_BOLD_FONT();
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics& g, Button& button, const Colour&, bool , bool )
-{
-	if (button.getToggleState())
-	{
-		auto r = button.getLocalBounds();
-
-		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
-	}
-}
-
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode)
-{
-	g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f), 0.0f, 0.0f,
-		highlightColour.withAlpha(0.2f), 0.0f, (float)position.getHeight(), false));
-
-	if (rowIsSelected)
-		g.fillRect(position);
-
-	g.setColour(Colours::white.withAlpha(0.9f));
-
-	if (deleteMode)
-	{
-		Path p;
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
-
-		auto r = position.removeFromRight(position.getHeight()).reduced(3).toFloat();
-		p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), true);
-
-		g.fillPath(p);
-	}
-
-	g.setColour(textColour);
-	g.setFont(font.withHeight(16.0f));
-	g.drawText(itemName, columnIndex == 2 ? 10 + 26 : 10, 0, position.getWidth() - 20, position.getHeight(), Justification::centredLeft);
-}
-
-void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)
-{
-	g.setColour(highlightColour.withAlpha(isMouseOverButton || button.getToggleState() ? 1.0f : 0.7f));
-	g.setFont(font);
-	g.drawText(button.getButtonText(), 0, isButtonDown ? 1 : 0, button.getWidth(), button.getHeight(), Justification::centred);
-
-	if (isMouseOverButton)
-	{
-		auto r = button.getLocalBounds();
-
-		g.setColour(highlightColour.withAlpha(0.1f));
-		g.fillRoundedRectangle(r.reduced(3, 1).toFloat(), 2.0f);
-	}
-}
 
 
 
@@ -382,6 +255,8 @@ PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	inputLabel->refreshWithEachKey = false;
 
 	setWantsKeyboardFocus(true);
+
+	setAlwaysOnTop(true);
 }
 
 PresetBrowser::ModalWindow::~ModalWindow()
@@ -674,12 +549,10 @@ expHandler(mc->getExpansionHandler())
 	presetColumn->tagCacheNeedsRebuilding();
 	presetColumn->setAllowRecursiveFileSearch(true);
 
-	bankColumn->setNewRootDirectory(rootFile);
-
 	addAndMakeVisible(saveButton = new TextButton("Save Preset"));
 	saveButton->addListener(this);
 
-    addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
+  addAndMakeVisible(manageButton = new TextButton(HiseDeviceSimulator::isMobileDevice() ? "Sync" : "More"));
 	manageButton->addListener(this);
 
 	setSize(width, height);
@@ -691,6 +564,8 @@ expHandler(mc->getExpansionHandler())
 		rootFile = e->getSubDirectory(FileHandlerBase::UserPresets);
 		currentlySelectedExpansion = e;
 	}
+	
+	bankColumn->setNewRootDirectory(rootFile);
 
 	rebuildAllPresets();
 
@@ -712,7 +587,8 @@ PresetBrowser::~PresetBrowser()
 {
 	getMainController()->getUserPresetHandler().removeListener(this);
 
-	savePresetDatabase(rootFile);
+	if(rootFile.isDirectory())
+		savePresetDatabase(rootFile);
 
 	searchBar->inputLabel->removeListener(this);
 	searchBar->inputLabel->removeListener(presetColumn);
@@ -734,10 +610,20 @@ PresetBrowser::~PresetBrowser()
 	expHandler.removeListener(this);
 }
 
+bool PresetBrowser::isReadOnly(const File& f)
+{
+	if (rootFile == f)
+		return false;
+
+	return getMainController()->getUserPresetHandler().isReadOnly(f);
+}
+
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
 	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
+	else
+		selectionChanged(-1, -1, File(), false);
 }
 
 void PresetBrowser::expansionPackCreated(Expansion* newExpansion)
@@ -752,6 +638,47 @@ hise::PresetBrowserLookAndFeelMethods& PresetBrowser::getPresetBrowserLookAndFee
 		return *o;
 
 	return laf;
+}
+
+Point<int> PresetBrowser::getMouseHoverInformation() const
+{
+	Point<int> p(-9000, -9000);
+
+	auto mp = getMouseXYRelative();
+
+
+
+	auto setIfHover = [&](PresetBrowserColumn* c)
+	{
+		if (c == nullptr)
+			return false;
+
+		if (!c->isVisible())
+			return false;
+
+		if(c->getBoundsInParent().contains(mp))
+		{
+			auto lp = c->getLocalPoint(this, mp);
+			p = { c->getColumnIndex(), c->getIndexForPosition(lp) };
+			return true;
+		};
+
+		return false;
+	};
+
+	if (setIfHover(expansionColumn))
+		return p;
+
+	if (setIfHover(bankColumn))
+		return p;
+
+	if (setIfHover(categoryColumn))
+		return p;
+
+	if (setIfHover(presetColumn))
+		return p;
+	
+	return p;
 }
 
 void PresetBrowser::presetChanged(const File& newPreset)
@@ -785,7 +712,7 @@ void PresetBrowser::presetChanged(const File& newPreset)
 	
 	presetColumn->setSelectedFile(newPreset, dontSendNotification);
 
-	saveButton->setEnabled(true);
+	saveButton->setEnabled(!isReadOnly(newPreset));
 
 	noteLabel->setText(DataBaseHelpers::getNoteFromXml(newPreset), dontSendNotification);
 }
@@ -828,7 +755,7 @@ void PresetBrowser::rebuildAllPresets()
 		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 		bankColumn->setEditMode(false);
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(isReadOnly(f));
 	}
 }
 
@@ -850,6 +777,9 @@ void PresetBrowser::resized()
 
 	const bool showCloseButton = closeButton->isVisible();
 
+	if (searchBarBounds.size() == 4)
+		searchBar->setBounds((int)searchBarBounds[0], (int)searchBarBounds[1], (int)searchBarBounds[2], (int)searchBarBounds[3]);
+		
 	if (showCloseButton)
 	{
 
@@ -864,7 +794,9 @@ void PresetBrowser::resized()
 
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
-		searchBar->setBounds(ar);
+		
+		if (searchBarBounds.size() != 4)
+			searchBar->setBounds(ar);
 
 		y += 40;
 
@@ -874,28 +806,66 @@ void PresetBrowser::resized()
 		Rectangle<int> ar(3, 3 + 3, getWidth() - 6, 30);
 
 
-		saveButton->setBounds(ar.removeFromRight(100));
-		manageButton->setBounds(ar.removeFromLeft(100));
+		bool somethingInTopRow = false;
+
+		auto r = Result::ok();
+
+		auto saveBounds = ApiHelpers::getIntRectangleFromVar(saveButtonBounds, &r);
+		
+		if (r.wasOk())
+			saveButton->setBounds(saveBounds);
+		else
+			saveButton->setBounds(ar.removeFromRight(100));
+
+		r = Result::ok();
+		
+		auto moreBounds = ApiHelpers::getIntRectangleFromVar(moreButtonBounds, &r);
+
+		if (r.wasOk())
+			manageButton->setBounds(moreBounds);
+		else
+			manageButton->setBounds(ar.removeFromLeft(100));
+
+		r = Result::ok();
 
 		favoriteButton->setVisible(showFavoritesButton);
 
-		if(showFavoritesButton)
-			favoriteButton->setBounds(ar.removeFromLeft(30));
+		if (showFavoritesButton)
+		{
+			auto bounds = ApiHelpers::getIntRectangleFromVar(favoriteButtonBounds, &r);
 
+			if (r.wasOk())
+				favoriteButton->setBounds(bounds);
+			else
+				favoriteButton->setBounds(ar.removeFromLeft(30));
+		}
 
 		ar.removeFromLeft(10);
 
-		searchBar->setBounds(ar);
-		y += 40;
+		if (searchBarBounds.size() != 4)
+			searchBar->setBounds(ar);
+
+		somethingInTopRow |= saveButton->isVisible();
+		somethingInTopRow |= manageButton->isVisible();
+		somethingInTopRow |= showFavoritesButton;
+		somethingInTopRow |= searchBar->getHeight() > 0;
+
+		if(somethingInTopRow)
+			y += 40;
 	}
 
 	int x = 3;
+
+	
+	
 
 	bankColumn->setVisible(!showOnlyPresets && numColumns > 1);
 	categoryColumn->setVisible(!showOnlyPresets && numColumns > 2);
 	presetColumn->setIsResultBar(showOnlyPresets);
 
 	auto listArea = Rectangle<int>(x, y, getWidth() - 6, getHeight() - y - 3);
+
+	
 
 	if (noteLabel->isVisible())
 	{
@@ -908,7 +878,10 @@ void PresetBrowser::resized()
 
 	if (showOnlyPresets)
 	{
-		presetColumn->setBounds(listArea);
+		if (expansionColumn != nullptr)
+			listArea.removeFromLeft(expansionColumn->getWidth() + 4);
+
+		presetColumn->setBounds(listArea.reduced(2));
 	}
 	else
 	{
@@ -987,26 +960,23 @@ void PresetBrowser::updateFavoriteButton()
 
 	showOnlyPresets = currentWildcard != "*" || on;
 
-static const unsigned char onShape[] = "nm\xac&=Ca\xee<Cl\x12\x96?C%\xaf""CCl\xde\xc2""FC\xd0\xe9""CClZ\x17""AC\xebPHCl(\x17""CC\xf1""5OCl\xad&=C\xc4-KCl267C\xf1""5OCl\0""69C\xebPHCl}\x8a""3C\xd0\xe9""CClH\xb7:C%\xaf""CCce";
+	auto path = getPresetBrowserLookAndFeel().createPresetBrowserIcons(on ? "favorite_on" : "favorite_off");
 
-	static const unsigned char offShape[] = { 110,109,0,144,89,67,0,103,65,67,108,0,159,88,67,0,3,68,67,108,129,106,86,67,0,32,74,67,108,1,38,77,67,0,108,74,67,108,1,121,84,67,0,28,80,67,108,129,227,81,67,255,3,89,67,108,1,144,89,67,127,206,83,67,108,1,60,97,67,255,3,89,67,108,129,166,94,67,0,28,
-		80,67,108,129,249,101,67,0,108,74,67,108,1,181,92,67,0,32,74,67,108,1,144,89,67,0,103,65,67,99,109,0,144,89,67,1,76,71,67,108,128,73,91,67,1,21,76,67,108,0,94,96,67,129,62,76,67,108,0,90,92,67,129,92,79,67,108,128,196,93,67,129,62,84,67,108,0,144,89,
-		67,129,99,81,67,108,0,91,85,67,1,63,84,67,108,128,197,86,67,129,92,79,67,108,128,193,82,67,129,62,76,67,108,0,214,87,67,1,21,76,67,108,0,144,89,67,1,76,71,67,99,101,0,0 };
-
-	Path path;
-
-	if (on)
-		path.loadPathFromData(onShape, sizeof(onShape));
-	else
-		path.loadPathFromData(offShape, sizeof(offShape));
 
 	favoriteButton->setShape(path, false, true, true);
 
-
+	if (presetColumn == nullptr)
+		return;
 
 	presetColumn->setShowFavoritesOnly(on);
 
 	resized();
+}
+
+void PresetBrowser::lookAndFeelChanged()
+{
+	Component::lookAndFeelChanged();
+	updateFavoriteButton();
 }
 
 void PresetBrowser::loadPresetDatabase(const File& rootDirectory)
@@ -1088,15 +1058,57 @@ void PresetBrowser::setShowNotesLabel(bool shouldBeShown)
 	}
 }
 
-void PresetBrowser::setShowEditButtons(bool showEditButtons)
+void PresetBrowser::setShowEditButtons(int buttonId, bool show)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setShowButtons(buttonId, show);
+
+	bankColumn->setShowButtons(buttonId, show);
+	categoryColumn->setShowButtons(buttonId, show);
+	presetColumn->setShowButtons(buttonId, show);
+	
+	if (buttonId == 0)
+		tagList->setShowEditButton(show);
+}
+
+void PresetBrowser::setButtonsInsideBorder(bool inside)
 {
 	if (expansionColumn != nullptr)
-		expansionColumn->setShowButtons(showEditButtons);
+		expansionColumn->setButtonsInsideBorder(inside);
 
-	bankColumn->setShowButtons(showEditButtons);
-	categoryColumn->setShowButtons(showEditButtons);
-	presetColumn->setShowButtons(showEditButtons);
-	tagList->setShowEditButton(showEditButtons);
+	bankColumn->setButtonsInsideBorder(inside);
+	categoryColumn->setButtonsInsideBorder(inside);
+	presetColumn->setButtonsInsideBorder(inside);
+}
+
+void PresetBrowser::setEditButtonOffset(int offset)
+{
+	if (expansionColumn != nullptr)
+		expansionColumn->setEditButtonOffset(offset);
+
+	bankColumn->setEditButtonOffset(offset);
+	categoryColumn->setEditButtonOffset(offset);
+	presetColumn->setEditButtonOffset(offset);
+}
+
+void PresetBrowser::setListAreaOffset(Array<var> offset)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setListAreaOffset(offset);
+
+	bankColumn->setListAreaOffset(offset);
+	categoryColumn->setListAreaOffset(offset);
+	presetColumn->setListAreaOffset(offset);
+}
+
+void PresetBrowser::setColumnRowPadding(Array<var> padding)
+{	
+	if (expansionColumn != nullptr)
+		expansionColumn->setRowPadding((double)padding[0]);
+
+	bankColumn->setRowPadding((double)padding[1]);
+	categoryColumn->setRowPadding((double)padding[2]);
+	presetColumn->setRowPadding((double)padding[3]);
 }
 
 void PresetBrowser::setShowCloseButton(bool shouldShowButton)
@@ -1146,6 +1158,9 @@ void PresetBrowser::showLoadedPreset()
 		File category = f.getParentDirectory();
 		File bank = category.getParentDirectory();
 
+		if (numColumns == 2)
+			bank = category;
+
 		bankColumn->setSelectedFile(bank, dontSendNotification);
 		categoryColumn->setNewRootDirectory(bank);
 		categoryColumn->setSelectedFile(category, dontSendNotification);
@@ -1185,12 +1200,33 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setNumColumns(newOptions.numColumns);
 	columnWidthRatios.clear();
 	columnWidthRatios.addArray(newOptions.columnWidthRatios);
+	
+	searchBarBounds.clear();
+	searchBarBounds.addArray(newOptions.searchBarBounds);
+
+	favoriteButtonBounds.clear();
+	favoriteButtonBounds.addArray(newOptions.favoriteButtonBounds);
+	
+	saveButtonBounds.clear();
+	saveButtonBounds.addArray(newOptions.saveButtonBounds);
+	moreButtonBounds.clear();
+	moreButtonBounds.addArray(newOptions.moreButtonBounds);
 
 	setShowButton(0, newOptions.showFolderButton);
 	setShowButton(1, newOptions.showSaveButtons);
-	setShowEditButtons(newOptions.showEditButtons);
+	setShowEditButtons(0, newOptions.showEditButtons);
+	setShowEditButtons(1, newOptions.showAddButton);
+	setShowEditButtons(2, newOptions.showRenameButton);
+	setShowEditButtons(3, newOptions.showDeleteButton);
+	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
+	setEditButtonOffset(newOptions.editButtonOffset);
+	setListAreaOffset(newOptions.listAreaOffset);
+	setColumnRowPadding(newOptions.columnRowPadding);
 	setShowNotesLabel(newOptions.showNotesLabel);
 	setShowFavorites(newOptions.showFavoriteIcons);
+
+	if (expansionColumn != nullptr)
+		expansionColumn->update();
 
 	searchBar->update();
 	bankColumn->update();
@@ -1207,6 +1243,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
 {
 	const bool showCategoryColumn = numColumns == 3;
+
+	auto readOnly = isReadOnly(file);
 
 	if (columnIndex == -1) // Expansions
 	{
@@ -1229,12 +1267,15 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			currentlySelectedExpansion = getMainController()->getExpansionHandler().getExpansionFromRootFile(file);
 		}
 
-		expansionColumn->repaint();
+		if(expansionColumn != nullptr)
+			expansionColumn->repaint();
 
 		bankColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 0, this), rootFile);
 		bankColumn->setNewRootDirectory(rootFile);
 		categoryColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 1, this), rootFile);
-
+		categoryColumn->setNewRootDirectory(currentCategoryFile);
+		presetColumn->setNewRootDirectory(File());
+		
 		auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
 		pc->setDisplayDirectories(false);
 		presetColumn->setModel(pc, rootFile);
@@ -1255,7 +1296,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			categoryColumn->setEditMode(false);
 			presetColumn->setEditMode(false);
 
-			bankColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
 
 			noteLabel->setText("", dontSendNotification);
 		}
@@ -1267,8 +1309,10 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			bankColumn->setEditMode(false);
-			bankColumn->updateButtonVisibility();
-			presetColumn->updateButtonVisibility();
+			bankColumn->updateButtonVisibility(readOnly);
+			bankColumn->showAddButton();
+			
+			presetColumn->updateButtonVisibility(readOnly);
 		}
 
 		noteLabel->setText("", dontSendNotification);
@@ -1284,8 +1328,8 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 
         bankColumn->setEditMode(false);
 
-		categoryColumn->updateButtonVisibility();
-		presetColumn->updateButtonVisibility();
+		categoryColumn->updateButtonVisibility(readOnly);
+		presetColumn->updateButtonVisibility(readOnly);
 
 		noteLabel->setText("", dontSendNotification);
 	}
@@ -1298,7 +1342,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		bankColumn->setEditMode(false);
 		categoryColumn->setEditMode(false);
 
-		presetColumn->updateButtonVisibility();
+		presetColumn->updateButtonVisibility(readOnly);
 	}
 }
 
@@ -1365,9 +1409,7 @@ void PresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& new
 				modalInputWindow->confirmReplacement(presetFile, newFile);
 			else
 			{
-				auto ok = presetFile.moveFileTo(newFile);
-
-				
+				presetFile.moveFileTo(newFile);
 				presetColumn->setNewRootDirectory(current);
 				rebuildAllPresets();
 				showLoadedPreset();
@@ -1533,6 +1575,7 @@ void PresetBrowser::loadPreset(const File& f)
         currentlyLoadedPreset = allPresets.indexOf(f);
 
 		noteLabel->setText(DataBaseHelpers::getNoteFromXml(f), dontSendNotification);
+		saveButton->setEnabled(!isReadOnly(f));
     }
 }
 
@@ -1583,7 +1626,7 @@ void PresetBrowser::DataBaseHelpers::writeTagsInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1617,7 +1660,7 @@ void PresetBrowser::DataBaseHelpers::writeNoteInXml(const File& currentPreset, c
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
 		{
@@ -1654,12 +1697,10 @@ juce::String PresetBrowser::DataBaseHelpers::getNoteFromXml(const File& currentP
 {
 	if (currentPreset.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentPreset);
+		auto xml = XmlDocument::parse(currentPreset);
 
 		if (xml != nullptr)
-		{
 			return xml->getStringAttribute("Notes", "");
-		}
 	}
 
 	return String();

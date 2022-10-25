@@ -71,7 +71,7 @@ struct ZstdInputStream::Pimpl
 	{
 		auto compressedSize = compressedData->getTotalLength();
 
-		compressedData->read(inBufferData, compressedSize);
+		compressedData->read(inBufferData, (int)compressedSize);
 
 		inBuffer.pos = 0;
 		inBuffer.size = compressedSize;

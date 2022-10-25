@@ -36,17 +36,16 @@
 
 #include <regex>
 
-#include "sampler/dywapitchtrack/dywapitchtrack.c"
-
 #include "sampler/ModulatorSamplerData.cpp"
 #include "sampler/ModulatorSamplerSound.cpp"
 #include "sampler/ModulatorSamplerVoice.cpp"
 #include "sampler/ModulatorSampler.cpp"
 
+#include "sampler/MultiSampleDataProviders.cpp"
+#include "sampler/SfzImporter.cpp"
+
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 #include "sampler/SampleImporter.cpp"
-#include "sampler/SfzImporter.cpp"
-#include "sampler/MachFiveImporter.cpp"
 
 #include "sampler/components/FileNamePartComponent.cpp"
 #include "sampler/components/FileNameImporterDialog.cpp"

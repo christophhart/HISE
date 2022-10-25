@@ -75,7 +75,7 @@ class MarkdownParser
 {
 public:
 	
-	
+	static constexpr int DefaultLineWidth = 800;
 
 	enum ResolveType
 	{
@@ -291,6 +291,10 @@ public:
 		lastLink = url;
 	}
 
+	int getLineNumberForY(float y) const;
+
+	float getYForLineNumber(int lineNumber) const;
+
 	Array<MarkdownLink> getImageLinks() const;
 
 	HyperLink getHyperLinkForEvent(const MouseEvent& event, Rectangle<float> area);
@@ -305,9 +309,117 @@ public:
 		CodeEditorComponent::ColourScheme getDefaultColourScheme();
 	};
 
+	struct TokeniserT
+	{
+		static int readNextToken(CodeDocument::Iterator& source)
+		{
+			source.skipWhitespace();
+
+			const juce_wchar firstChar = source.peekNextChar();
+
+			switch (firstChar)
+			{
+			case '#':
+			{
+				source.skipToEndOfLine();
+				return 1;
+			}
+			case '*':
+			{
+				while (source.peekNextChar() == '*')
+					source.skip();
+
+				while (!source.isEOF() && source.peekNextChar() != '*')
+					source.skip();
+
+				while (source.peekNextChar() == '*')
+					source.skip();
+
+				return 2;
+			}
+			case '`':
+			{
+				source.skip();
+
+				while (!source.isEOF() && source.peekNextChar() != '`')
+				{
+					source.skip();
+				}
+
+				source.skip();
+
+				return 3;
+			}
+
+			case '>':
+			{
+				source.skipToEndOfLine();
+				return 4;
+			}
+			case '-':
+			{
+				source.skip();
+
+				if (source.nextChar() == '-')
+				{
+					if (source.nextChar() == '-')
+					{
+						source.skipToEndOfLine();
+
+						while (!source.isEOF())
+						{
+							if (source.peekNextChar() == '-')
+							{
+								source.nextChar();
+
+								if (source.nextChar() == '-')
+								{
+									if (source.nextChar() == '-')
+									{
+										source.skipToEndOfLine();
+										break;
+									}
+								}
+							}
+
+							source.skipToEndOfLine();
+						}
+
+						return 5;
+					}
+					else
+						return 0;
+				}
+				else
+					return 0;
+			}
+			case '!':
+			case '[':
+			{
+				source.skip();
+
+                while(!source.isEOF() && source.peekNextChar() != ']')
+                    source.skip();
+                
+				while (!source.isEOF() && source.peekNextChar() != ')')
+					source.skip();
+
+				source.skip();
+
+				return 6;
+			}
+			case '|': source.skipToEndOfLine(); return 7;
+			default: source.skip(); return 0;
+			}
+		}
+	};
+
+	
 	struct Tokeniser: public CodeTokeniser
 	{
 		Tokeniser() {};
+
+
 
 		int readNextToken(CodeDocument::Iterator& source);
 		CodeEditorComponent::ColourScheme getDefaultColourScheme();
@@ -345,12 +457,15 @@ public:
 		lastLink = {};
 	}
 
+	bool hasLinks() const { return containsLinks; }
+
 protected:
 
 	struct Element
 	{
-		Element(MarkdownParser* parent_) :
-			parent(parent_)
+		Element(MarkdownParser* parent_, int lineNumber_) :
+			parent(parent_),
+			lineNumber(lineNumber_)
 		{
 			hyperLinks.insertArray(0, parent->currentLinks.getRawDataPointer(), parent->currentLinks.size());
 		};
@@ -410,6 +525,8 @@ protected:
 
 		virtual void prepareLinksForHtmlExport(const String& baseURL);
 
+		int getLineNumber() const { return lineNumber; }
+
 		String generateHtmlAndResolveLinks(const File& localRoot) const
 		{
 			auto s = generateHtml();
@@ -451,6 +568,7 @@ protected:
 
 		float lastWidth = -1.0f;
 		float cachedHeight = 0.0f;
+		int lineNumber;
 	};
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
@@ -477,6 +595,8 @@ protected:
 	String markdownCode;
 
 private:
+
+	bool containsLinks = false;
 
 	bool createFooter = false;
 
@@ -505,10 +625,13 @@ private:
 		String getRestString() const;
 		String advanceLine();
 
+		int getLineNumber() const { return currentLine; }
+
 	private:
 
 		String text;
 		CharPointer_UTF8 it;
+		int currentLine = 0;
 	};
 
 	struct Helpers

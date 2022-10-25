@@ -39,6 +39,169 @@
 
 namespace hise { using namespace juce;
 
+class ScriptUserPresetHandler : public ConstScriptingObject,
+								public ControlledObject,
+								public MainController::UserPresetHandler::Listener
+{
+public:
+
+	ScriptUserPresetHandler(ProcessorWithScriptingContent* pwsc);
+
+	~ScriptUserPresetHandler();
+
+	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("UserPresetHandler"); }
+
+	int getNumChildElements() const override
+	{
+		return 2;
+	}
+
+	DebugInformationBase* getChildElement(int index) override
+	{
+		if (index == 0)
+			return preCallback.createDebugObject("preCallback");
+		if (index == 1)
+			return postCallback.createDebugObject("postCallback");
+        
+        return nullptr;
+	}
+
+	// =================================================================================== API Methods
+
+	/** Enables Engine.undo() to restore the previous user preset (default is disabled). */
+	void setUseUndoForPresetLoading(bool shouldUseUndoManager);
+
+	/** Sets a callback that will be executed synchronously before the preset was loaded*/
+	void setPreCallback(var presetPreCallback);
+
+	/** Sets a callback that will be executed after the preset has been loaded. */
+	void setPostCallback(var presetPostCallback);
+
+	/** Enables a preprocessing of every user preset that is being loaded. */
+	void setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData);
+
+	/** Checks if the given version string is a older version than the current project version number. */
+	bool isOldVersion(const String& version);
+
+	/** Disables the default user preset data model and allows a manual data handling. */
+	void setUseCustomUserPresetModel(var loadCallback, var saveCallback, bool usePersistentObject);
+
+	/** Enables host / MIDI automation with the custom user preset model. */
+	void setCustomAutomation(var automationData);
+
+	/** Attaches a callback to automation changes. Use empty string to attach to all callbacks. */
+	void attachAutomationCallback(String automationId, var updateCallback, bool isSynchronous);
+
+	/** Clears all attached callbacks. */
+	void clearAttachedCallbacks();
+
+	/** Updates the given automation values and optionally sends out a message. */
+	void updateAutomationValues(var data, bool sendMessage, bool useUndoManager);
+
+	/** Creates an object containing the values for every automation ID. */
+	var createObjectForAutomationValues();
+
+	/** Creates an object containing all values of components with the `saveInPreset` flag. */
+	var createObjectForSaveInPresetComponents();
+
+	/** Restores all values of components with the `saveInPreset` flag. */
+	void updateSaveInPresetComponents(var obj);
+
+	/** Restores the values for all UI elements that are connected to a processor with the `processorID` / `parameterId` properties. */
+	void updateConnectedComponentsFromModuleState();
+	
+	/** Runs a few tests that catches data persistency issues. */
+	void runTest();
+
+	// ===============================================================================================
+
+	var convertToJson(const ValueTree& d);
+
+	ValueTree applyJSON(const ValueTree& original, DynamicObject::Ptr obj);
+
+	ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) override;
+
+	void presetChanged(const File& newPreset) override;
+
+	void presetListUpdated() override
+	{
+
+	}
+
+	
+
+	void loadCustomUserPreset(const var& dataObject) override
+	{
+		if (customLoadCallback)
+		{
+			var args = dataObject;
+			auto ok = customLoadCallback.callSync(&args, 1, nullptr);
+
+			if (!ok.wasOk())
+				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+		}
+	}
+
+	var saveCustomUserPreset(const String& presetName) override
+	{
+		if (customSaveCallback)
+		{
+			var rv;
+			var args = presetName;
+			auto ok = customSaveCallback.callSync(&args, 1, &rv);
+
+			if (!ok.wasOk())
+				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+
+			return rv;
+		}
+
+		return {};
+	}
+	
+	
+
+private:
+
+	struct AttachedCallback: public ReferenceCountedObject
+	{
+		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
+
+		~AttachedCallback();
+
+		String id;
+		WeakCallbackHolder customUpdateCallback;
+		WeakCallbackHolder customAsyncUpdateCallback;
+
+		static void onCallbackSync(AttachedCallback& c, var* args);
+
+		static void onCallbackAsync(AttachedCallback& c, int index, float newValue);
+
+		MainController::UserPresetHandler::CustomAutomationData::Ptr cData;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(AttachedCallback);
+	};
+
+public:
+
+private:
+
+	bool enablePreprocessing = false;
+	bool unpackComplexData = false;
+	WeakCallbackHolder preCallback;
+	WeakCallbackHolder postCallback;
+
+	WeakCallbackHolder customLoadCallback;
+	WeakCallbackHolder customSaveCallback;
+	
+	ReferenceCountedArray<AttachedCallback> attachedCallbacks;
+
+	File currentlyLoadedFile;
+	struct Wrapper;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUserPresetHandler);
+};
+
 
 class ScriptExpansionHandler : public ConstScriptingObject,
 							   public ControlledObject,
@@ -59,6 +222,9 @@ public:
 
 	/** Set a credentials object that can be embedded into each expansion. */
 	void setCredentials(var newCredentials);
+
+	/** Sets whether the installExpansionFromPackage function should install full dynamics. */
+	void setInstallFullDynamics(bool shouldInstallFullDynamics);
 
 	/** Sets a error function that will be executed. */
 	void setErrorFunction(var newErrorFunction);
@@ -142,6 +308,8 @@ private:
 		var getObject();
 
 		double getProgress();
+		
+		double getTotalProgress();
 
 		ScriptExpansionHandler& parent;
 
@@ -299,10 +467,17 @@ public:
 
 	Result encodeExpansion() override;
 
+	ValueTree getEmbeddedNetwork(const String& id) override
+	{
+		return networks.getChildWithProperty("ID", id);
+	}
+
 	bool fullyLoaded = false;
 	ValueTree presetToLoad;
 	bool isProjectExport = false;
 	String currentKey;
+
+	ValueTree networks;
 };
 
 
@@ -342,6 +517,9 @@ public:
 	/** Returns a list of all available data files in the expansion. */
 	var getDataFileList() const;
 
+	/** Returns a list of all available user presets in the expansion. */
+	var getUserPresetList() const;
+
 	/** Returns the folder where this expansion looks for samples. */
 	var getSampleFolder();
 
@@ -365,6 +543,12 @@ public:
 
 	/** Reextracts (and overrides) the user presets from the given expansion. Only works with intermediate / encrypted expansions. */
 	bool rebuildUserPresets();
+
+	/** Sets whether the samples are allowed to be duplicated for this expansion. Set this to false if you operate on the same samples differently. */
+	void setAllowDuplicateSamples(bool shouldAllowDuplicates);
+
+	/** Unloads this expansion so it will not show up in the list of expansions until the next restart. */
+	void unloadExpansion();
 
 private:
 
@@ -400,6 +584,80 @@ public:
 	
 	bool projectExport = false;
 	WeakReference<Expansion> e;
+};
+
+struct UnlockerHandler
+{
+	virtual ~UnlockerHandler() {};
+	virtual juce::OnlineUnlockStatus* getUnlockerObject() = 0;
+};
+
+struct ScriptUnlocker : public juce::OnlineUnlockStatus,
+					    public UnlockerHandler,
+					    public ControlledObject
+{
+	ScriptUnlocker(MainController* mc):
+		ControlledObject(mc)
+	{
+
+	}
+
+	struct RefObject : public ConstScriptingObject
+	{
+		RefObject(ProcessorWithScriptingContent* p);
+
+		~RefObject();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Unlocker"); }
+
+		WeakReference<ScriptUnlocker> unlocker;
+
+		/** Checks if the registration went OK. */
+		var isUnlocked() const;
+
+		/** Sets a function that performs a product name check and expects to return true or false for a match. */
+		void setProductCheckFunction(var f);
+
+		/** This checks if there is a key file and applies it.  */
+		var loadKeyFile();
+
+		/** Writes the key data to the location. */
+		var writeKeyFile(const String& keyData);
+
+		/** Checks if the possibleKeyData might contain a key file. */
+		bool isValidKeyFile(var possibleKeyData);
+
+		/** Returns the user email that was used for the registration. */
+		String getUserEmail() const;
+
+		/** Returns the machine ID that is encoded into the license file. This does not look in the encrypted blob, but just parses the header string. */
+		String getRegisteredMachineId();
+
+		WeakCallbackHolder pcheck;
+
+		struct Wrapper;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(RefObject);
+	};
+
+	juce::OnlineUnlockStatus* getUnlockerObject() override { return this; }
+
+	String getProductID() override;
+	bool doesProductIDMatch(const String& returnedIDFromServer) override;
+	RSAKey getPublicKey() override;
+	void saveState(const String&) override;
+	String getState() override;
+	String getWebsiteName() override;
+	URL getServerAuthenticationURL() override;
+	String readReplyFromWebserver(const String& email, const String& password) override;
+
+	var loadKeyFile();
+	File getLicenseKeyFile();
+	WeakReference<RefObject> currentObject;
+
+	String registeredMachineId;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
 };
 
 } // namespace hise

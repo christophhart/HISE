@@ -40,7 +40,7 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (valueTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<MacroModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (valueTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<MacroModulator*>(getProcessor())->getTable(0)));
     valueTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
@@ -62,14 +62,10 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     macroSelector->setTextWhenNothingSelected (String());
     macroSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     macroSelector->addItem (TRANS("Not connected"), 1);
-    macroSelector->addItem (TRANS("Macro 1"), 2);
-    macroSelector->addItem (TRANS("Macro 2"), 3);
-    macroSelector->addItem (TRANS("Macro 3"), 4);
-    macroSelector->addItem (TRANS("Macro 4"), 5);
-    macroSelector->addItem (TRANS("Macro 5"), 6);
-    macroSelector->addItem (TRANS("Macro 6"), 7);
-    macroSelector->addItem (TRANS("Macro 7"), 8);
-    macroSelector->addItem (TRANS("Macro 8"), 9);
+
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
+		macroSelector->addItem("Macro " + String(i + 1), i + 1);
+
     macroSelector->addListener (this);
 
 
@@ -82,8 +78,8 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
 	smoothingSlider->setup(getProcessor(), MacroModulator::SmoothTime, "Smoothing");
     smoothingSlider->setMode(HiSlider::Time, 0.0, 1000.0, 100.0);
 
-	valueTable->connectToLookupTableProcessor(getProcessor());
-
+    ProcessorHelpers::connectTableEditor(*valueTable, getProcessor());
+    
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     
     //[/UserPreSize]

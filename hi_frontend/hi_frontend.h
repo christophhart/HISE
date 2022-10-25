@@ -57,6 +57,10 @@ END_JUCE_MODULE_DECLARATION
 #define USE_FRONTEND 1
 #endif
 
+
+
+
+#include "frontend/FrontendHostFactory.h"
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
 

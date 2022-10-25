@@ -100,12 +100,19 @@ RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
 
 RouterComponent::~RouterComponent()
 {
-	data->removeChangeListener(this);
-	data->setEditorShown(false);
+	if (data != nullptr)
+	{
+		data->removeChangeListener(this);
+		data->setEditorShown(false);
+	}
+	
 }
 
 void RouterComponent::resized()
 {
+	if (data == nullptr)
+		return;
+
 	const int width = jmin<int>(getWidth()-16, jmax<int>(data->getNumSourceChannels(), data->getNumDestinationChannels()) * 60);
 
 	Rectangle<int> routingBounds(0, 0, width, findParentComponentOfClass<ProcessorEditorBody>() != nullptr ? 128 : 192);
@@ -141,6 +148,13 @@ void RouterComponent::paint(Graphics& g)
 	g.setColour(Colours::white);
 	g.setFont(GLOBAL_BOLD_FONT());
 
+	if (data == nullptr)
+	{
+		g.drawText("Matrix was deleted, reopen this window", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+		
+
 	g.drawText(data->getSourceName(), 0, sourceChannels[0]->getY() - 20, getWidth(), 20, Justification::centred, true);
 
 	g.drawText(data->getTargetName(), 0, destinationChannels[0]->getBottom(), getWidth(), 20, Justification::centred, true);
@@ -151,9 +165,14 @@ void RouterComponent::paint(Graphics& g)
 
 	for (int i = 0; i < sourceChannels.size(); i++)
 	{
+		auto thisComponent = sourceChannels[i];
+		auto nextComponent = sourceChannels[i + 1];
+
+		auto b = thisComponent->getBounds().toFloat();
+
 		if (i % 2 == 0)
 		{
-			g.drawLine((float)sourceChannels[i]->getX(), (float)sourceChannels[i]->getY() - 2.0f, (float)sourceChannels[i + 1]->getRight(), (float)sourceChannels[i]->getY() - 2.0f, 2.0f);
+			g.drawLine(b.getX(), b.getY() - 2.0f, nextComponent != nullptr ? nextComponent->getRight() : b.getRight(), b.getY() - 2.0f, 2.0f);
 		}
 
 
@@ -314,14 +333,14 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		}
 		else if (result == Copy)
 		{
-			ScopedPointer<XmlElement> xml = data->exportAsValueTree().createXml();
+			auto xml = data->exportAsValueTree().createXml();
 
 			SystemClipboard::copyTextToClipboard(xml->createDocument(""));
 
 		}
 		else if (result == Paste)
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+			auto xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
 			if (xml != nullptr)
 			{
 				ValueTree v = ValueTree::fromXml(*xml);

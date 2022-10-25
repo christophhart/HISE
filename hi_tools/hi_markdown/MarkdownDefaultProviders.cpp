@@ -69,8 +69,8 @@ MarkdownParser::FileLinkResolver::FileLinkResolver(const File& root_) :
 
 juce::String MarkdownParser::FileLinkResolver::getContent(const MarkdownLink& url)
 {
-	if (url.fileExists({}))
-		return url.toString(MarkdownLink::ContentFull);
+	if (url.fileExists(root))
+		return url.toString(MarkdownLink::ContentFull, root);
 
 	return {};
 }
@@ -98,9 +98,9 @@ juce::Image MarkdownParser::FileBasedImageProvider::getImage(const MarkdownLink&
 
 		if (imageURL.getType() == MarkdownLink::SVGImage)
 		{
-			ScopedPointer<Drawable> drawable = Drawable::createFromSVGFile(imageFile);
+			auto drawable = Drawable::createFromSVGFile(imageFile);
 
-			return createImageFromSvg(drawable, width);
+			return createImageFromSvg(drawable.get(), width);
 		}
 		else
 			return resizeImageToFit(ImageCache::getFromFile(imageFile), width);
@@ -180,7 +180,7 @@ juce::Image MarkdownParser::URLImageProvider::getImage(const MarkdownLink& urlLi
 
 		imageFile.create();
 
-		ScopedPointer<URL::DownloadTask> task = url.downloadToFile(imageFile);
+		ScopedPointer<URL::DownloadTask> task = url.downloadToFile(imageFile).release();
 
 		if (task == nullptr)
 		{

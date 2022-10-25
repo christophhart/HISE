@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -65,20 +65,10 @@ JUCE_API void JUCE_CALLTYPE Process::hide()
     }
 }
 
-JUCE_API void JUCE_CALLTYPE Process::raisePrivilege()
-{
-    jassertfalse;
-}
+JUCE_API void JUCE_CALLTYPE Process::raisePrivilege() {}
+JUCE_API void JUCE_CALLTYPE Process::lowerPrivilege() {}
 
-JUCE_API void JUCE_CALLTYPE Process::lowerPrivilege()
-{
-    jassertfalse;
-}
-
-JUCE_API void JUCE_CALLTYPE Process::setPriority (ProcessPriority)
-{
-    // xxx
-}
+JUCE_API void JUCE_CALLTYPE Process::setPriority (ProcessPriority) {}
 
 //==============================================================================
 JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger() noexcept

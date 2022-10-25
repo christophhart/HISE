@@ -198,7 +198,7 @@ public:
 
 
 		var sm = coreFactory->createModule("stereo");
-		DspInstance* stereoModule = dynamic_cast<DspInstance*>(sm.get());
+		DspInstance* stereoModule = dynamic_cast<DspInstance*>(sm.getObject());
 		expect(stereoModule != nullptr, "Stereo Module creation");
 
 		VariantBuffer::Ptr lData = new VariantBuffer(256);
@@ -311,7 +311,7 @@ public:
 	Random r;
 };
 
-static DspUnitTests dspUnitTest;
+//static DspUnitTests dspUnitTest;
 
 constexpr int sampleRate = 44100;
 
@@ -1407,7 +1407,7 @@ private:
 };
 
 
-static ModulationTests modulationTests;
+//static ModulationTests modulationTests;
 
 class CustomContainerTest : public UnitTest
 {

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -104,14 +104,14 @@ void AudioSourcePlayer::audioDeviceIOCallback (const float** inputChannelData,
             for (int i = 0; i < numOutputs; ++i)
             {
                 channels[numActiveChans] = outputChans[i];
-                memcpy (channels[numActiveChans], inputChans[i], sizeof (float) * (size_t) numSamples);
+                memcpy (channels[numActiveChans], inputChans[i], (size_t) numSamples * sizeof (float));
                 ++numActiveChans;
             }
 
             for (int i = numOutputs; i < numInputs; ++i)
             {
                 channels[numActiveChans] = tempBuffer.getWritePointer (i - numOutputs);
-                memcpy (channels[numActiveChans], inputChans[i], sizeof (float) * (size_t) numSamples);
+                memcpy (channels[numActiveChans], inputChans[i], (size_t) numSamples * sizeof (float));
                 ++numActiveChans;
             }
         }
@@ -120,14 +120,14 @@ void AudioSourcePlayer::audioDeviceIOCallback (const float** inputChannelData,
             for (int i = 0; i < numInputs; ++i)
             {
                 channels[numActiveChans] = outputChans[i];
-                memcpy (channels[numActiveChans], inputChans[i], sizeof (float) * (size_t) numSamples);
+                memcpy (channels[numActiveChans], inputChans[i], (size_t) numSamples * sizeof (float));
                 ++numActiveChans;
             }
 
             for (int i = numInputs; i < numOutputs; ++i)
             {
                 channels[numActiveChans] = outputChans[i];
-                zeromem (channels[numActiveChans], sizeof (float) * (size_t) numSamples);
+                zeromem (channels[numActiveChans], (size_t) numSamples * sizeof (float));
                 ++numActiveChans;
             }
         }
@@ -146,7 +146,7 @@ void AudioSourcePlayer::audioDeviceIOCallback (const float** inputChannelData,
     {
         for (int i = 0; i < totalNumOutputChannels; ++i)
             if (outputChannelData[i] != nullptr)
-                zeromem (outputChannelData[i], sizeof (float) * (size_t) numSamples);
+                zeromem (outputChannelData[i], (size_t) numSamples * sizeof (float));
     }
 }
 

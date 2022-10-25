@@ -43,6 +43,8 @@ HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, O
 	encoder.setOptions(option);
 
 	usesFloatingPointData = true;
+
+	
 }
 
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -46,6 +46,8 @@ public:
     LeakedObjectDetector() noexcept                                 { ++(getCounter().numObjects); }
     LeakedObjectDetector (const LeakedObjectDetector&) noexcept     { ++(getCounter().numObjects); }
 
+    LeakedObjectDetector& operator= (const LeakedObjectDetector&) noexcept = default;
+
     ~LeakedObjectDetector()
     {
         if (--(getCounter().numObjects) < 0)
@@ -83,12 +85,12 @@ private:
                 /** If you hit this, then you've leaked one or more objects of the type specified by
                     the 'OwnerClass' template parameter - the name should have been printed by the line above.
 
-					If you're leaking, it's probably because you're using old-fashioned, non-RAII techniques for
+                    If you're leaking, it's probably because you're using old-fashioned, non-RAII techniques for
                     your object management. Tut, tut. Always, always use std::unique_ptrs, OwnedArrays,
                     ReferenceCountedObjects, etc, and avoid the 'delete' operator at all costs!
                 */
                 jassertfalse;
-            } 
+            }
         }
 
         Atomic<int> numObjects;

@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -32,6 +31,26 @@ namespace IIR
 {
 
 #ifndef DOXYGEN
+
+template <typename NumericType>
+template <size_t Num>
+Coefficients<NumericType>& Coefficients<NumericType>::assignImpl (const NumericType* values)
+{
+    static_assert (Num % 2 == 0, "Must supply an even number of coefficients");
+    const auto a0Index = Num / 2;
+    const auto a0 = values[a0Index];
+    const auto a0Inv = a0 != NumericType() ? static_cast<NumericType> (1) / values[a0Index]
+                                           : NumericType();
+
+    coefficients.clearQuick();
+    coefficients.ensureStorageAllocated ((int) jmax ((size_t) 8, Num));
+
+    for (size_t i = 0; i < Num; ++i)
+        if (i != a0Index)
+            coefficients.add (values[i] * a0Inv);
+
+    return *this;
+}
 
 //==============================================================================
 template <typename SampleType>
@@ -86,12 +105,6 @@ void Filter<SampleType>::processInternal (const ProcessContext& context) noexcep
     auto* src = inputBlock .getChannelPointer (0);
     auto* dst = outputBlock.getChannelPointer (0);
     auto* coeffs = coefficients->getRawCoefficients();
-
-    // we need to copy this template parameter into a constexpr
-    // otherwise MSVC will moan that the tenary expressions below
-    // are constant conditional expressions
-    constexpr bool isBypassed = bypassed;
-    ignoreUnused(isBypassed);
 
     switch (order)
     {
@@ -199,7 +212,7 @@ SampleType JUCE_VECTOR_CALLTYPE Filter<SampleType>::processSample (SampleType sa
     check();
     auto* c = coefficients->getRawCoefficients();
 
-    auto output= (c[0] * sample) + state[0];
+    auto output = (c[0] * sample) + state[0];
 
     for (size_t j = 0; j < order - 1; ++j)
         state[j] = (c[j + 1] * sample) - (c[order + j + 1] * output) + state[j + 1];

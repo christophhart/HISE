@@ -155,7 +155,25 @@ void SampleMap::clear(NotificationType n)
 
 juce::String SampleMap::getMonolithID() const
 {
-	return data.getProperty("MonolithReference", sampleMapId.toString()).toString();
+	return MonolithFileReference::getIdFromValueTree(data);
+}
+
+void SampleMap::updateCrossfades(Identifier id, var newValue)
+{
+	if (id == Identifier("CrossfadeGamma"))
+	{
+		auto gamma = (float)newValue;
+
+		ModulatorSampler::SoundIterator iter(getSampler(), true);
+
+		while (auto s = iter.getNextSound())
+		{
+			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
+			{
+				s->getReferenceToSound(i)->setCrossfadeGammaValue(gamma);
+			}
+		}
+	}
 }
 
 hise::FileHandlerBase* SampleMap::getCurrentFileHandler() const
@@ -187,14 +205,87 @@ void SampleMap::setCurrentMonolith()
 		}
 		else
 		{
-			File monolithDirectories[2];
+			MonolithFileReference info(data);
+
+			bool added = false;
+
+			if (FullInstrumentExpansion::isEnabled(sampler->getMainController()))
+			{
+				if (auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion())
+				{
+					info.addSampleDirectory(exp->getSubDirectory(FileHandlerBase::Samples));
+					added = true;
+				}
+			}
+
+			if(!added)
+				info.addSampleDirectory(getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples));
+
+			try
+			{
+				auto mainDirectory = sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+				if (!mainDirectory.isDirectory())
+					throw Result::fail("The sample directory does not exist");
+
+				info.addSampleDirectory(mainDirectory);
+
+				auto monolithFiles = info.getAllFiles();
+
+				if (!monolithFiles.isEmpty())
+				{
+					if (info.isMultimic())
+					{
+						StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
+
+						micPositions.removeEmptyStrings(true);
+
+						if (micPositions.size() == info.getNumMicPositions())
+							sampler->setNumMicPositions(micPositions);
+						else
+							sampler->setNumChannels(1);
+					}
+					else
+					{
+						sampler->setNumChannels(1);
+					}
+
+					currentMonolith = pool->loadMonolithicData(data, monolithFiles);
+
+					if (currentMonolith)
+						jassert(*currentMonolith == getMonolithID());
+				}
+			}
+			catch (Result& r)
+			{
+				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
+					r.getErrorMessage());
+
+				FRONTEND_ONLY(sampler->deleteAllSounds());
+
+				return;
+			}
+
+#if 0
+
+			int numSingleChannelSplits = (int)data.getProperty("MonolithSplitAmount", 0);
+			int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
+
+			MonolithFileReference info(numChannels, numSingleChannelSplits);
+
+			info.referenceString = getMonolithID();
 
 			// First check in the expansion folder, then in the global sample folder...
-			monolithDirectories[0] = getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples);
-			monolithDirectories[1] = sampler->getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::Samples);
+			info.sampleRoots.add(getCurrentFileHandler()->getSubDirectory(ProjectHandler::SubDirectories::Samples));
+			info.sampleRoots.add();
 
+			if (FullInstrumentExpansion::isEnabled(sampler->getMainController()))
+			{
+				if (auto exp = sampler->getMainController()->getExpansionHandler().getCurrentExpansion())
+					info.sampleRoots.set(0, exp->getSubDirectory(FileHandlerBase::Samples));
+			}
 
-			if (!monolithDirectories[1].isDirectory())
+			if (!info.sampleRoots[1].isDirectory())
 			{
 				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
 					"The sample directory does not exist");
@@ -206,29 +297,14 @@ void SampleMap::setCurrentMonolith()
 
 			Array<File> monolithFiles;
 
-			int numSingleChannelSplits = (int)data.getProperty("MonolithSplitAmount", 0);
-
-			int numChannels = jmax<int>(1, data.getChild(0).getNumChildren());
-
-			if (numSingleChannelSplits > 0 && numChannels != 1)
+			for (int i = 0; i < info.getNumMonolithsToLoad(); i++)
 			{
-				jassertfalse;
-			}
-
-			int numMonolithsToLoad = jmax(numChannels, numSingleChannelSplits);
-
-			for (int i = 0; i < numMonolithsToLoad; i++)
-			{
-				auto path = getMonolithID().replace("/", "_");
-
-				File f = monolithDirectories[0].getChildFile(path + ".ch" + String(i + 1));
-
-				if(!f.existsAsFile() && monolithDirectories[0] != monolithDirectories[1])
-					f = monolithDirectories[1].getChildFile(path + ".ch" + String(i + 1));
-
+				auto f = info.getFile();
+				
 				if (f.existsAsFile())
 				{
 					monolithFiles.add(f);
+					info = info.getNextMonolith();
 				}
 				else
 				{
@@ -240,30 +316,9 @@ void SampleMap::setCurrentMonolith()
 					return;
 				}
 			}
+#endif
 
-			if (!monolithFiles.isEmpty())
-			{
-				if (numChannels != 1)
-				{
-					StringArray micPositions = StringArray::fromTokens(data.getProperty("MicPositions").toString(), ";", "");
-
-					micPositions.removeEmptyStrings(true);
-
-					if (micPositions.size() == numChannels)
-						sampler->setNumMicPositions(micPositions);
-					else
-						sampler->setNumChannels(1);
-				}
-				else
-				{
-					sampler->setNumChannels(1);
-				}
-
-				currentMonolith = pool->loadMonolithicData(data, monolithFiles);
-
-				if(currentMonolith)
-					jassert(*currentMonolith == getMonolithID());
-			}
+			
 		}
 	}
 }
@@ -327,7 +382,7 @@ void SampleMap::parseValueTree(const ValueTree &v)
 #if USE_BACKEND
 		debugToConsole(sampler, s);
 #else
-		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::SamplesNotFound, {});
+		sampler->getMainController()->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotFound);
 #endif
 
 	}
@@ -342,6 +397,11 @@ void SampleMap::parseValueTree(const ValueTree &v)
 const ValueTree SampleMap::getValueTree() const
 {
 	return data;
+}
+
+float SampleMap::getCrossfadeGammaValue() const
+{
+	return (float)data["CrossfadeGamma"];
 }
 
 void SampleMap::poolEntryReloaded(PoolReference referenceThatWasChanged)
@@ -399,13 +459,15 @@ void SampleMap::saveAndReloadMap()
 {
 	auto f = getReference().getFile();
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	xml->writeToFile(f, "");
 
 	auto pool = sampler->getMainController()->getCurrentSampleMapPool();
 	pool->removeListener(this);
 	pool->loadFromReference(getReference(), PoolHelpers::ForceReloadStrong);
 	pool->addListener(this);
+    sampler->refreshPreloadSizes();
+    
 
 	changeWatcher = new ChangeWatcher(data);
 }
@@ -419,7 +481,8 @@ void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
 
 	if (i != -1)
 	{
-		notifier.addPropertyChange(i, property, treeWhosePropertyHasChanged.getProperty(property));
+		auto v = treeWhosePropertyHasChanged.getProperty(property);
+		notifier.addPropertyChange(i, property, v);
 	}
 }
 
@@ -459,7 +522,7 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 		throw String("Can't find monolith");
 	}
 
-	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith);
+	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith.get());
 
 	{
 		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::SampleLock);
@@ -652,7 +715,7 @@ bool SampleMap::save(const File& fileToUse)
 
 	}
 
-	ScopedPointer<XmlElement> xml = data.createXml();
+	auto xml = data.createXml();
 	f.replaceWithText(xml->createDocument(""));
 
 	PoolReference ref(getSampler()->getMainController(), f.getFullPathName(), FileHandlerBase::SubDirectories::SampleMaps);
@@ -670,7 +733,10 @@ bool SampleMap::save(const File& fileToUse)
 
 	auto func = [tmp](Processor* p)
 	{
-		static_cast<ModulatorSampler*>(p)->loadSampleMap(tmp);
+		auto s = static_cast<ModulatorSampler*>(p);
+		
+		s->clearSampleMap(dontSendNotification);
+		s->loadSampleMap(tmp);
 
 		return SafeFunctionCall::OK;
 	};
@@ -688,7 +754,7 @@ bool SampleMap::save(const File& fileToUse)
 bool SampleMap::saveSampleMapAsReference()
 {
 	sampleMapData = {};
-	data.setProperty("MonolithReference", data.getProperty("ID"), nullptr);
+	data.setProperty(MonolithIds::MonolithReference, data.getProperty("ID"), nullptr);
 	return save();
 }
 
@@ -718,6 +784,11 @@ void SampleMap::setNewValueTree(const ValueTree& v)
 
 	data = v;
 	data.addListener(this);
+
+	if (!data.hasProperty("CrossfadeGamma"))
+		data.setProperty("CrossfadeGamma", 1.0, nullptr);
+
+	crossfadeListener.setCallback(data, Identifier("CrossfadeGamma"), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(SampleMap::updateCrossfades));
 }
 
 void SampleMap::addSound(ValueTree& newSoundData)
@@ -841,12 +912,27 @@ void SampleMap::load(const PoolReference& reference)
 
 	currentPool = getSampler()->getMainController()->getCurrentSampleMapPool();
 
-	if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+	
+
+	if (!FullInstrumentExpansion::isEnabled(getSampler()->getMainController()))
 	{
-		currentPool = &expansion->pool->getSampleMapPool();
+		if (auto expansion = getSampler()->getMainController()->getExpansionHandler().getExpansionForWildcardReference(reference.getReferenceString()))
+		{
+			currentPool = &expansion->pool->getSampleMapPool();
+		}
+
+		sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
+	}
+	else
+	{
+		// Remove the "{PROJECT_FOLDER}" wildcard or it won't find it in the pool...
+		auto ref = PoolReference(getSampler()->getMainController(), 
+							reference.getReferenceString().fromLastOccurrenceOf("{PROJECT_FOLDER}", false, false),
+							FileHandlerBase::SampleMaps);
+
+		sampleMapData = currentPool->loadFromReference(ref, PoolHelpers::LoadAndCacheWeak);
 	}
 
-	sampleMapData = currentPool->loadFromReference(reference, PoolHelpers::LoadAndCacheWeak);
 	currentPool->addListener(this);
 
 	if (sampleMapData)
@@ -869,12 +955,12 @@ void SampleMap::loadUnsavedValueTree(const ValueTree& v)
 
 	clear(dontSendNotification);
 
-	parseValueTree(v);
+	//parseValueTree(v);
 
 	currentPool = nullptr;
 	sampleMapData = PooledSampleMap();
 	
-	parseValueTree(data);
+	parseValueTree(v);
 	changeWatcher = new ChangeWatcher(data);
 
 
@@ -966,6 +1052,10 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	if (GET_HISE_SETTING(sampleMap->getSampler(), HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
+
+	addComboBox("splitsize", { "1500 MB", "1700 MB", "2000 MB" }, "Split size");
+
+	getComboBoxComponent("splitsize")->setSelectedItemIndex(1, dontSendNotification);
 
 	addBasicComponents(true);
 }
@@ -1080,7 +1170,7 @@ void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	showStatusMessage("Saving Samplemap file");
 	
-	ScopedPointer<XmlElement> xml = v.createXml();
+	auto xml = v.createXml();
 
 	sampleMapFile.getParentDirectory().createDirectory();
 
@@ -1097,11 +1187,20 @@ void MonolithExporter::threadFinished()
 {
 	if (error.isNotEmpty())
 	{
-		PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
+		if (silentMode)
+		{
+			DBG(error);
+			jassertfalse;
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
+		}
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
+		if(!silentMode)
+			PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
 
 		if (sampleMapFile.existsAsFile())
 		{
@@ -1144,9 +1243,25 @@ juce::AudioFormatWriter* MonolithExporter::createWriter(hlac::HiseLosslessAudioF
 
 	ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
 
-	dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+	auto hWriter = dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get());
+
+	hWriter->setOptions(options);
+
+	
 
 	return writer.release();
+}
+
+int64 MonolithExporter::getNumBytesForSplitSize() const
+{
+	auto mb = getComboBoxComponent("splitsize")->getText().getIntValue();
+
+	mb *= 1024;
+	mb /= 1000;
+
+	auto sixtyMB = 1024 * 1024 * 60;
+
+	return (int64)(mb * 1024 * 1024 - sixtyMB);
 }
 
 void MonolithExporter::checkSanity()
@@ -1173,17 +1288,41 @@ void MonolithExporter::checkSanity()
 	}
 }
 
-File getNextMonolith(const File& f)
+
+
+juce::File MonolithExporter::getNextMonolith(const File& f) const
 {
+	MonolithFileReference ref(f, numChannels, numMonolithSplitParts);
+
+	ref.bumpToNextMonolith(false);
+	return ref.getFile(false);
+
+#if 0
 	auto p = f.getParentDirectory();
 	auto n = f.getFileName();
 
-	int index = n.getTrailingIntValue();
-	int nextIndex = index + 1;
+	if (numMonolithSplitParts > 1)
+	{
+		MonolithHelpers::FileInfo info;
+		info.sampleRoots.add(f.getParentDirectory());
+		info.referenceString = f.getFileNameWithoutExtension();
+		
+		f.getFileExtension()
 
-	auto newFileName = n.replace(".ch" + String(index), ".ch" + String(nextIndex));
-	return p.getChildFile(newFileName);
+		auto lastCharIsNumber = String("0123456789").containsChar(n.getLastCharacter());
+		
+		if (!lastCharIsNumber)
+			n = n.substring(0, n.length() - 1);
+
+
+		n << MonolithHelpers::getCharForSplitPart(currentSplitIndex);
+	}
+
+	return p.getChildFile(n);
+#endif
 }
+
+
 
 void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 {
@@ -1192,7 +1331,6 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
 
 	Array<File>* channelList = filesToWrite[channelIndex];
-	splitData.clear();
 
 	bool isMono = false;
 
@@ -1204,60 +1342,159 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		sampleRate = reader->sampleRate;
 	}
 
-	String channelFileName = sampleMap->getId().toString().replace("/", "_") + ".ch" + String(channelIndex + 1);
+	if (channelIndex == 0)
+	{
+		monolithFileReference = new MonolithFileReference(numChannels, INT_MAX);
+		monolithFileReference->referenceString = sampleMap->getMonolithID();
+		monolithFileReference->addSampleDirectory(monolithDirectory);
+		monolithFileReference->setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
+	}
 
-	File outputFile = monolithDirectory.getChildFile(channelFileName);
+	monolithFileReference->channelIndex = channelIndex;
+	monolithFileReference->partIndex = 0;
+	
+	Array<File> firstChannelMonolithFiles;
+
+	auto outputFile = monolithFileReference->getFile(false);
 
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
+		outputFile.deleteFile();
+
+		showStatusMessage("Preallocating memory");
+
+		int64 numSamplesToWrite = 0;
+		
+		int numChannelsInSample = 2;
+
+		for (auto s : *channelList)
+		{
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(s);
+			numSamplesToWrite += reader->lengthInSamples;
+			numChannelsInSample = reader->numChannels;
+		}
+		
 		hlac::HiseLosslessAudioFormat hlac;
 		ScopedPointer<AudioFormatWriter> writer = createWriter(hlac, outputFile, isMono);
+		
+		if (channelIndex == 0)
+			firstChannelMonolithFiles.add(outputFile);
 
-		int currentSplitIndex = 0;
+		if (auto hWriter = dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get()))
+		{
+			hWriter->preallocateMemory(numSamplesToWrite, numChannelsInSample);
+		}
+
+		int64 numBytesWritten = 0;
 
 		for (int i = 0; i < channelList->size(); i++)
 		{
+			auto s = channelList->getUnchecked(i);
+
+			showStatusMessage("Encode file " + s.getFileName());
+
 			setProgress((double)i / (double)numSamples);
 
             if(threadShouldExit())
                 return;
             
-			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(s);
 
 			if (reader != nullptr)
 			{
 				writer->writeFromAudioReader(*reader, 0, -1);
 				
+				if (auto hWriter = dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get()))
+				{
+					numBytesWritten = hWriter->getNumBytesWritten();
+				}
 			}
 			else
 			{
-				error = "Could not read the source file " + channelList->getUnchecked(i).getFullPathName();
+				error = "Could not read the source file " + s.getFullPathName();
 				writer->flush();
 				writer = nullptr;
 
 				return;
 			}
 
-			if (dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->getNumBytesWritten() > maxMonolithSize)
+			if (shouldSplit(channelIndex, numBytesWritten, i))
 			{
-				// This only works with non-multimic samples
-				jassert(numChannels == 1);
-
 				writer->flush();
 				writer = nullptr;
 
-				splitData.add({ currentSplitIndex++, channelList->getUnchecked(i) });
+				if (channelIndex == 0)
+				{
+					String message;
+					message << "Last sample for split index " << String(splitIndexes.size());
+					message << ": " << s.getFullPathName();
 
-				outputFile = getNextMonolith(outputFile);
+					DBG(message);
+
+					splitIndexes.add(i);
+				}
+				else
+				{
+					jassert(splitIndexes.contains(i));
+				}
+
+				monolithFileReference->bumpToNextMonolith(false);
+				outputFile = monolithFileReference->getFile(false);
+
+				if (outputFile.existsAsFile())
+					outputFile.deleteFile();
 
 				writer = createWriter(hlac, outputFile, isMono);
+
+				if (channelIndex == 0)
+					firstChannelMonolithFiles.add(outputFile);
+
+				if (auto hWriter = dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get()))
+				{
+					hWriter->preallocateMemory(numSamplesToWrite, numChannelsInSample);
+				}
 			}
 		}
 
 		writer->flush();
 		writer = nullptr;
 
+		if (monolithFileReference != nullptr && channelIndex == 0)
+		{
+			// If we're exporting multimic samples without splitting, we
+			// need to rename the file we just wrote and remove the split character
+			bool renameFirstMonolith = monolithFileReference->partIndex == 0 && numChannels > 1;
+
+			// Set the upper bound, this will make the getFile() method 
+			monolithFileReference->setNumSplitPartsToCurrentIndex();
+			jassert(monolithFileReference->channelIndex == 0);
+
+			if (renameFirstMonolith)
+			{
+				auto actualFile = outputFile;
+				auto expectedFile = monolithFileReference->getFile(false);
+
+				auto ok = expectedFile.deleteFile();
+				ok &= actualFile.moveFileTo(expectedFile);
+				jassert(ok);
+
+				String message;
+				message << "Renamed " << actualFile.getFileName() << " to " << expectedFile.getFileName();
+				DBG(message);
+			}
+		}
+
 		return;
+	}
+}
+
+bool MonolithExporter::shouldSplit(int channelIndex, int64 numBytesWritten, int sampleIndex) const
+{
+	if (channelIndex == 0)
+		return numBytesWritten > getNumBytesForSplitSize();
+	else
+	{
+		return splitIndexes.contains(sampleIndex);
 	}
 }
 
@@ -1274,32 +1511,41 @@ void MonolithExporter::updateSampleMap()
 	largestSample = 0;
 	int64 offset = 0;
 
-	bool usesSingleChannelSplit = !splitData.isEmpty();
-	int currentSplitIndex = 0;
+	bool useSplitData = !splitIndexes.isEmpty();
+	
+	monolithFileReference->partIndex = 0;
 
-	if (usesSingleChannelSplit)
+	if (useSplitData)
 	{
-		v.setProperty("MonolithSplitAmount", splitData.size() + 1, nullptr);
+		jassert(monolithFileReference->getNumSplitParts() == splitIndexes.size() + 1);
+		v.setProperty(MonolithIds::MonolithSplitAmount, splitIndexes.size() + 1, nullptr);
 	}
+	else
+		v.removeProperty(MonolithIds::MonolithSplitAmount, nullptr);
 
 	for (int i = 0; i < numSamples; i++)
 	{
 		ValueTree s = v.getChild(i);
 
+		auto currentSplitIndex = monolithFileReference->partIndex;
+
 		if (numChannels > 0)
 		{
 			File sampleFile = filesToWrite.getUnchecked(0)->getUnchecked(i);
 
-			
-
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(sampleFile);
-
-
 
 			if (reader != nullptr)
 			{
 				const auto length = (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples);
 				auto sampleEnd = (int64)s.getProperty(SampleIds::SampleEnd, 0);
+				
+				if (sampleEnd == 0)
+				{
+					// We need to write the actual sample length in the monolith data when we read
+					// it outside a sampler
+					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
+				}
 
 				if (reader->lengthInSamples < sampleEnd)
 				{
@@ -1308,22 +1554,23 @@ void MonolithExporter::updateSampleMap()
 					s.setProperty(SampleIds::SampleEnd, reader->lengthInSamples, nullptr);
 				}
 				
-				largestSample = jmax<int64>(largestSample, length);
+				largestSample = jmax<int64_t>(largestSample, length);
 
-				s.setProperty("MonolithOffset", offset, nullptr);
-				s.setProperty("MonolithLength", length, nullptr);
-				s.setProperty("SampleRate", reader->sampleRate, nullptr);
+				s.setProperty(MonolithIds::MonolithOffset, offset, nullptr);
+				s.setProperty(MonolithIds::MonolithLength, length, nullptr);
+				s.setProperty(MonolithIds::SampleRate, reader->sampleRate, nullptr);
 
-				if (usesSingleChannelSplit)
-					s.setProperty("MonolithSplitIndex", currentSplitIndex, nullptr);
+				if (useSplitData)
+					s.setProperty(MonolithIds::MonolithSplitIndex, currentSplitIndex, nullptr);
+				else
+					s.removeProperty(MonolithIds::MonolithSplitIndex, nullptr);
 
 				offset += length;
 			}
 
-			if (usesSingleChannelSplit && splitData[currentSplitIndex].lastSample == sampleFile)
+			if (useSplitData && i >= splitIndexes[currentSplitIndex] && monolithFileReference->bumpToNextMonolith(false))
 			{
-				currentSplitIndex++;
-				offset = 0;
+				offset = 0;	
 			}
 		}
 	}
@@ -1359,6 +1606,10 @@ BatchReencoder::BatchReencoder(ModulatorSampler* s) :
 	if (GET_HISE_SETTING(s, HiseSettings::Project::SupportFullDynamicsHLAC))
 		getComboBoxComponent("normalise")->setSelectedItemIndex(2, dontSendNotification);
 
+    addComboBox("splitsize", { "1500 MB", "1700 MB", "2000 MB" }, "Split size");
+
+    getComboBoxComponent("splitsize")->setSelectedItemIndex(1, dontSendNotification);
+    
 	addProgressBarComponent(wholeProgress);
 
 	addBasicComponents(true);
@@ -1505,8 +1756,10 @@ void SampleMap::Notifier::addPropertyChange(int index, const Identifier& id, con
 
 			bool found = false;
 
-			for (auto p : pendingChanges)
+			for (int i = 0; i < pendingChanges.size(); i++)
 			{
+				auto p = pendingChanges[i];
+
 				if (*p == index)
 				{
 					p->set(id, newValue);
@@ -1570,7 +1823,7 @@ void SampleMap::Notifier::sendSampleAmountChangeMessage(NotificationType n)
 		handleLightweightPropertyChanges();
 }
 
-void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& changesThisTime)
+void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(Array<AsyncPropertyChange, CriticalSection> changesThisTime)
 {
 	jassert_sample_loading_thread(parent.getSampler()->getMainController());
 	LockHelpers::freeToGo(parent.getSampler()->getMainController());
@@ -1587,7 +1840,6 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 
 				if (sound->isDeletePending())
 				{
-					jassertfalse;
 					continue;
 				}
 
@@ -1596,6 +1848,27 @@ void SampleMap::Notifier::handleHeavyweightPropertyChangesIdle(const Array<Async
 				
 		}
 	}
+
+	MessageManager::callAsync([changesThisTime, this]()
+	{
+		for (const auto& c : changesThisTime)
+		{
+			for (int i = 0; i < c.values.size(); i++)
+			{
+				if (auto s = c.selection[i])
+				{
+					auto v = c.values[i];
+					auto id = c.id;
+
+					for (auto l : this->parent.listeners)
+					{
+						if (l != nullptr)
+							l->samplePropertyWasChanged(dynamic_cast<ModulatorSamplerSound*>(s.get()), id, v);
+					}
+				}
+			}
+		}
+	});
 }
 
 void SampleMap::Notifier::handleHeavyweightPropertyChanges()

@@ -118,6 +118,8 @@ public:
 		manager.clearUndoHistory();
 	}
 
+	
+
 	class Iterator
 	{
 	public:
@@ -157,7 +159,7 @@ public:
 			while (index < broadcaster->currentSelection.size())
 			{
 				if (auto r = broadcaster->currentSelection[index++])
-					return r;
+					return r.get();
 			}
 
 			return nullptr;
@@ -168,7 +170,7 @@ public:
 			while (index < broadcaster->currentSelection.size())
 			{
 				if (auto r = broadcaster->currentSelection[index++])
-					return r;
+					return r.get();
 			}
 
 			return nullptr;
@@ -289,7 +291,7 @@ public:
 				if (auto sc = selection[i])
 				{
 					var oldValue = oldValues[i];
-					b->setPropertyInternal(sc, id, oldValue, notifyListeners);
+					b->setPropertyInternal(sc.get(), id, oldValue, notifyListeners);
 				}
 				else
 				{
@@ -319,7 +321,30 @@ public:
 
 	static String getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue);
 
+	/* @internal. */
+	void sendSelectionChangeMessage();
+
+	void setCurrentlyLearnedComponent(ScriptComponent* c);
+
+	void setLearnMode(bool shouldBeEnabled);
+
+	bool learnModeEnabled() const { return learnMode; }
+
+	ScriptComponent* getCurrentlyLearnedComponent() { return currentlyLearnedComponent.get(); }
+
+	using LearnBroadcaster = LambdaBroadcaster<ScriptComponent*>;
+
+	LearnBroadcaster& getLearnBroadcaster() { return learnBroadcaster; }
+
+	void setLearnData(const MacroControlledObject::LearnData& d);
+
 private:
+
+	bool learnMode = false;
+
+	WeakReference<ScriptComponent> currentlyLearnedComponent;
+	LearnBroadcaster learnBroadcaster;
+	
 
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
@@ -333,8 +358,7 @@ private:
 	/* @internal. */
 	void sendPropertyChangeMessage(ScriptComponent* sc, const Identifier& id, const var& newValue);
 
-	/* @internal. */
-	void sendSelectionChangeMessage();
+	
 
 
 	Array<WeakReference<ScriptComponentEditListener>> listeners;

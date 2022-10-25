@@ -32,20 +32,13 @@
 
 namespace hise { using namespace juce;
 
-ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager /*= nullptr*/) :
+ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, int numVoices_) :
 	MacroControlBroadcaster(this),
 	ModulatorSynth(mc, id, numVoices_),
-#if USE_BACKEND
-	ViewManager(this, viewUndoManager),
-#endif
 	numVoices(numVoices_),
 	handler(this),
 	vuValue(0.0f)
 {
-#if USE_BACKEND == 0
-	ignoreUnused(viewUndoManager);
-#endif
-
 	finaliseModChains();
 
 	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
@@ -125,7 +118,8 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 {
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-	for (int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(newSampleRate, samplesPerBlock);
+	for (auto s: synths)
+		s->prepareToPlay(newSampleRate, samplesPerBlock);
 }
 
 void ModulatorSynthChain::numSourceChannelsChanged()
@@ -222,6 +216,15 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 #if FRONTEND_IS_PLUGIN
 
+#if PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
+	
+	for (int i = 0; i < synths.size(); i++)
+	{
+		if (!synths[i]->isSoftBypassed())
+			synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+	}
+#endif
+
 	effectChain->renderNextBlock(buffer, 0, numSamples);
 	effectChain->renderMasterEffects(buffer);
 
@@ -242,6 +245,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
+
+#if FORCE_INPUT_CHANNELS
+	internalBuffer.makeCopyOf(buffer);
+#endif
 
 	// Process the Synths and add store their output in the internal buffer
 	for (int i = 0; i < synths.size(); i++)
@@ -282,31 +289,19 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 				FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), numSamples);
 			}
 		}
-
-		if (getMatrix().isEditorShown())
-		{
-			float gainValues[NUM_MAX_CHANNELS];
-
-			for (int i = 0; i < internalBuffer.getNumChannels(); i++)
-			{
-				gainValues[i] = FloatVectorOperations::findMaximum(internalBuffer.getReadPointer(i), numSamples);
-			}
-
-			getMatrix().setGainValues(gainValues, true);
-
-			for (int i = 0; i < buffer.getNumChannels(); i++)
-			{
-				gainValues[i] = FloatVectorOperations::findMaximum(buffer.getReadPointer(i), numSamples);
-			}
-
-			getMatrix().setGainValues(gainValues, false);
-		}
 	}
 	else // save some cycles on non multichannel buffers...
 	{
+#if FORCE_INPUT_CHANNELS
+		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
+		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
+#else
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
+#endif
 	}
+
+	getMatrix().handleDisplayValues(internalBuffer, buffer);
 
 	// Display the output
 	handlePeakDisplay(numSamples);
@@ -378,10 +373,6 @@ void ModulatorSynthChain::reset()
 	{
 		setAttribute(i, getDefaultValue(i), dontSendNotification);
 	}
-
-#if USE_BACKEND
-    clearAllViews();
-#endif
     
     clearAllMacroControls();
     
@@ -540,7 +531,13 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 	ms->getMatrix().setTargetProcessor(synth);
 
-	ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	auto bs = synth->getLargestBlockSize();
+
+	if (bs > 0)
+	{
+		ms->prepareToPlay(synth->getSampleRate(), synth->getLargestBlockSize());
+	}
+
 	ms->setParentProcessor(synth);
 
 	{

@@ -621,7 +621,6 @@ public:
 	SharedCache()
 	{
 		DataType* unused = nullptr;
-		DBG("Create Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
 		ignoreUnused(unused);
 	}
 
@@ -659,7 +658,6 @@ public:
 	~SharedCache()
 	{
 		DataType* unused = nullptr;
-		DBG("Delete Shared Cache Pool for " + PoolHelpers::getPrettyName(unused));
 		ignoreUnused(unused);
 	}
 
@@ -675,7 +673,7 @@ private:
 
 
 /** Implementations of the data pool. */
-template <class DataType> class SharedPoolBase : public PoolBase
+template <class DataType> class SharedPoolBase : public PoolBase, public InternalLogger
 {
 public:
 
@@ -1086,7 +1084,7 @@ public:
 					}
 					else
 					{
-						getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+						logMessage(getMainController(), r.getReferenceString() + " wasn't found.");
 
 						jassertfalse; // This shouldn't happen...
 						return ManagedPtr();
@@ -1121,7 +1119,7 @@ public:
 				{
 					if (useSharedCache)
 					{
-						sharedCache->store(ne);
+						sharedCache->store(ne.get());
 					}
 					else
 					{
@@ -1155,7 +1153,7 @@ public:
 
 				if (useSharedCache && loadingType != PoolHelpers::LoadAndCacheStrong)
 				{
-					sharedCache->store(ne);
+					sharedCache->store(ne.get());
 				}
 				else
 				{
@@ -1171,7 +1169,7 @@ public:
 			}
 			else
 			{
-				getMainController()->getDebugLogger().logMessage(r.getReferenceString() + " wasn't found.");
+				logMessage(getMainController(), r.getReferenceString() + " wasn't found.");
 				return ManagedPtr();
 			}
 		}
@@ -1217,6 +1215,32 @@ using PooledAdditionalData = AdditionalDataPool::ManagedPtr;
 
 class FileHandlerBase;
 class ModulatorSamplerSoundPool;
+
+/** This provider handles the loading of pooled audio files. */
+struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataProvider,
+	public ControlledObject
+{
+	PooledAudioFileDataProvider(MainController* mc) :
+		ControlledObject(mc)
+	{}
+
+	MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& ref) override;
+
+	File getRootDirectory() override;
+
+	void setRootDirectory(const File& rootDirectory) override
+	{
+		customDefaultFolder = rootDirectory;
+	}
+
+private:
+
+	File customDefaultFolder;
+
+	FileHandlerBase* getFileHandlerBase(const String& wildcard);
+
+	FileHandlerBase* lastHandler = nullptr;
+};
 
 class PoolCollection: public ControlledObject
 {

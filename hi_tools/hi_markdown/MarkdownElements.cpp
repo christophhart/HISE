@@ -42,8 +42,8 @@ float getHeightForLayout(const MarkdownLayout& l)
 
 struct MarkdownParser::TextBlock : public MarkdownParser::Element
 {
-	TextBlock(MarkdownParser* parent, const AttributedString& s) :
-		Element(parent),
+	TextBlock(MarkdownParser* parent, int lineNumber, const AttributedString& s) :
+		Element(parent, lineNumber),
 		content(s),
 		l(content, 0.0f)
 	{}
@@ -150,8 +150,8 @@ struct MarkdownParser::ActionButton : public Element,
 		MarkdownParser& parent;
 	};
 
-	ActionButton(MarkdownParser* parent, const String& text_, const String& url_) :
-		Element(parent),
+	ActionButton(MarkdownParser* parent, int lineNumber, const String& text_, const String& url_) :
+		Element(parent, lineNumber),
 		blaf(*parent),
 		text(text_),
 		url(url_)
@@ -229,8 +229,8 @@ struct MarkdownParser::ActionButton : public Element,
 
 struct MarkdownParser::Headline : public MarkdownParser::Element
 {
-	Headline(MarkdownParser* parent, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :
-		Element(parent),
+	Headline(MarkdownParser* parent, int lineNumber, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :
+		Element(parent, lineNumber),
 		content(s),
 		headlineLevel(level_),
 		isFirst(isFirst_),
@@ -372,8 +372,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		Array<HyperLink> links;
 	};
 
-	BulletPointList(MarkdownParser* parser, Array<AttributedString>& ar, Array<Array<HyperLink>>& links) :
-		Element(parser)
+	BulletPointList(MarkdownParser* parser, int lineNumber, Array<AttributedString>& ar, Array<Array<HyperLink>>& links) :
+		Element(parser, lineNumber)
 	{
 		for (int i = 0; i < ar.size(); i++)
 			rows.add({ ar[i],{ ar[i], 0.0f }, links[i] });
@@ -515,8 +515,8 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 {
-	EnumerationList(MarkdownParser* parent, Array<AttributedString>& list, Array<Array<HyperLink>>& links) :
-		BulletPointList(parent, list, links)
+	EnumerationList(MarkdownParser* parent, int lineNumber, Array<AttributedString>& list, Array<Array<HyperLink>>& links) :
+		BulletPointList(parent, lineNumber, list, links)
 	{};
 
 	String getTextToCopy() const override
@@ -564,8 +564,8 @@ struct MarkdownParser::EnumerationList : public MarkdownParser::BulletPointList
 
 struct MarkdownParser::Comment : public MarkdownParser::Element
 {
-	Comment(MarkdownParser* p, const AttributedString& c) :
-		Element(p),
+	Comment(MarkdownParser* p, int lineNumber, const AttributedString& c) :
+		Element(p, lineNumber),
 		l(c, 0.0f),
 		content(c)
 	{};
@@ -656,8 +656,8 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 
 struct MarkdownParser::ImageElement : public MarkdownParser::Element
 {
-	ImageElement(MarkdownParser* parent, const String& imageName_, const String& imageURL_) :
-		Element(parent),
+	ImageElement(MarkdownParser* parent, int lineNumber, const String& imageName_, const String& imageURL_) :
+		Element(parent, lineNumber),
 		imageName(imageName_),
 		imageURL({}, imageURL_)
 	{
@@ -854,8 +854,8 @@ private:
 
 struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 {
-	CodeBlock(MarkdownParser* parent, const String& code_, MarkdownCodeComponentBase::SyntaxType t) :
-		Element(parent),
+	CodeBlock(MarkdownParser* parent, int lineNumber, const String& code_, MarkdownCodeComponentBase::SyntaxType t) :
+		Element(parent, lineNumber),
 		code(code_),
 		syntax(t)
 	{
@@ -927,7 +927,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	
 	
-	bool useSnapshot = true;
+	bool useSnapshot = false;
 
 	Component* createComponent(int maxWidth)
 	{
@@ -946,7 +946,7 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 		MessageManagerLock mm;
 #endif
 
-		createComponent(800);
+		createComponent(MarkdownParser::DefaultLineWidth);
 
 		content->addImageLinks(sa);
 	}
@@ -982,8 +982,9 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 {
 	static constexpr int FixOffset = 100000;
 
-	MarkdownTable(MarkdownParser* p, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
-		Element(p)
+	MarkdownTable(MarkdownParser* p, int lineNumber, const RowContent& headerItems, const Array<int>& lengths, const Array<RowContent>& entries) :
+		Element(p, lineNumber),
+		styleData(p->getStyleData())
 	{
 		int index = 0;
 
@@ -1098,12 +1099,14 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 		area.removeFromTop(10.0f);
 		area.removeFromBottom(10.0f);
 
-		g.setColour(Colours::grey.withAlpha(0.2f));
+		g.setColour(styleData.tableBgColour);
 		g.fillRect(area);
 
 		auto headerArea = area.removeFromTop(headers.rowHeight);
-		g.fillRect(headerArea);
-		g.setColour(Colours::grey.withAlpha(0.2f));
+		g.setColour(styleData.tableHeaderBackgroundColour);
+		g.fillRect(headerArea.reduced(1.0f));
+		g.setColour(styleData.tableLineColour);
+		g.drawRect(headerArea, 1.0f);
 		g.drawVerticalLine((int)area.getX(), area.getY(), area.getBottom());
 
 		for (const auto& c : headers.columns)
@@ -1114,14 +1117,24 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 		g.drawVerticalLine((int)area.getRight()-1, area.getY(), area.getBottom());
 		
-		headers.draw(g, headerArea);
+		auto yOffset = 20.0f - styleData.fontSize;
+
+		headers.draw(g, headerArea, yOffset);
+
+		if (headers.columns.isEmpty())
+		{
+			g.drawHorizontalLine((int)area.getY(), area.getX(), area.getRight());
+		}
+
+		
 
 		for (auto& r : rows)
 		{
 			auto rowArea = area.removeFromTop(r.rowHeight);
-			r.draw(g, rowArea);
 
-			g.setColour(Colours::grey.withAlpha(0.2f));
+			r.draw(g, rowArea, yOffset);
+
+			g.setColour(styleData.tableLineColour);
 			g.drawHorizontalLine((int)rowArea.getBottom(), rowArea.getX(), rowArea.getRight());
 		}
 	}
@@ -1254,7 +1267,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 			y += rowHeight;
 		}
 
-		void draw(Graphics& g, Rectangle<float> area)
+		void draw(Graphics& g, Rectangle<float> area, float textOffset)
 		{
 			for (const auto& c : columns)
 			{
@@ -1264,10 +1277,14 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				Random r;
 
 				if (c.img.isNull())
-					c.l.drawCopyWithOffset(g, area);
+					c.l.drawCopyWithOffset(g, area.translated(0.0f, -textOffset));
 				else
 				{
 					g.setOpacity(1.0f);
+
+					// Align the image vertically..
+					ar.setHeight(area.getHeight());
+
 					ar = ar.withSizeKeepingCentre((float)c.img.getWidth(), (float)c.img.getHeight());
 					g.drawImageAt(c.img, (int)ar.getX(), (int)ar.getY());
 				}
@@ -1310,13 +1327,13 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 	float lastWidth = -1.0f;
 	float lastHeight = -1.0f;
 
-	
+	MarkdownLayout::StyleData styleData;
 };
 
 struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 {
-	ContentFooter(MarkdownParser* parent, const MarkdownHeader& header):
-		Element(parent)
+	ContentFooter(MarkdownParser* parent, int lineNumber, const MarkdownHeader& header):
+		Element(parent, lineNumber)
 	{
 		auto f = parent->styleData.getFont().withHeight(parent->styleData.fontSize * 0.75f);
 

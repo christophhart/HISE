@@ -35,6 +35,19 @@
 namespace hise { 
 using namespace juce;
 
+#define DECLARE_ID(x) static const juce::Identifier x(#x);
+
+namespace InterfaceDesignerShortcuts
+{
+	DECLARE_ID(id_toggle_edit);
+	DECLARE_ID(id_deselect_all);
+	DECLARE_ID(id_rebuild);
+	DECLARE_ID(id_lock_selection);
+	DECLARE_ID(id_show_json);
+	DECLARE_ID(id_duplicate);
+}
+#undef DECLARE_ID
+
 class CodeEditorPanel : public PanelWithProcessorConnection,
 						public GlobalScriptCompileListener
 
@@ -51,10 +64,13 @@ public:
 
 	void fillModuleList(StringArray& moduleList) override;
 
-	void contentChanged() override
-	{
-		refreshIndexList();
-	}
+	void contentChanged() override;
+
+	void fromDynamicObject(const var& object) override;
+
+	var toDynamicObject() const override;
+
+	static CodeEditorPanel* showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index);
 
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
@@ -71,6 +87,8 @@ public:
 	void fillIndexList(StringArray& indexList) override;
 
 	void gotoLocation(Processor* p, const String& fileName, int charNumber);
+
+	float scaleFactor = -1.0f;
 
 private:
 
@@ -105,21 +123,41 @@ public:
 
 	struct Canvas;
 
-	class Editor : public Component,
-				   public ComboBox::Listener,
+	static void initKeyPresses(Component* root);
+
+	class Editor : public WrapperWithMenuBarBase,
 				   public Button::Listener,
-				   public ScriptComponentEditListener,
-				   public Timer
+				   public ScriptComponentEditListener
 	{
 	public:
 
-		Editor(Processor* p);
+		Editor(Canvas* c);
+
+        ~Editor()
+        {
+            zoomSelector->setLookAndFeel(nullptr);
+        }
+        
+		void rebuildAfterContentChange() override;
+
+		ValueTree getBookmarkValueTree() override { return {}; }
+
+		void bookmarkUpdated(const StringArray& idsToShow) override
+		{
+
+		}
+
+		void addButton(const String& b) override;;
 
 		void scriptComponentSelectionChanged() override;
 
 		void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) override;
 
+		virtual void zoomChanged(float newScalingFactor);;
+
+#if 0
 		void resized() override;
+#endif
 
 		void refreshContent();
 
@@ -141,11 +179,6 @@ public:
 
 		void buttonClicked(Button* b) override;
 
-		void timerCallback() override
-		{
-			updateUndoDescription();
-		}
-
 		void updateUndoDescription() override;
 
 		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
@@ -154,144 +187,39 @@ public:
 
 		double getZoomAmount() const;
 
-		void setEditMode(bool editModeEnabled);
-
 		bool isEditModeEnabled() const;
 
 		bool keyPressed(const KeyPress& key) override;
 
 	public:
 
+		bool centerAfterFirstCompile = true;
+
+		Rectangle<int> lastBounds;
+	
+		
+
+		static bool isSelected(Editor& e);
+		static bool isSingleSelection(Editor& e);
+
 		struct Actions
 		{
-			static void deselectAll(Editor* e);
-			
-			static void rebuild(Editor* e);
+			static bool deselectAll(Editor& e);
+			static bool rebuild(Editor& e);
+			static bool rebuildAndRecompile(Editor& e);
+			static bool zoomIn(Editor& e);
+			static bool zoomOut(Editor& e);
+			static bool toggleEditMode(Editor& e);
 
-			static void rebuildAndRecompile(Editor* e);
+			static bool lockSelection(Editor& e);
 
-			static void zoomIn(Editor* e);
-
-			static void zoomOut(Editor* e);
-
-			static void toggleEditMode(Editor* e);
-
-			static void distribute(Editor* editor, bool isVertical);
-			static void align(Editor* editor, bool isVertical);
-			static void undo(Editor * e, bool shouldUndo);
+			static bool distribute(Editor* editor, bool isVertical);
+			static bool align(Editor* editor, bool isVertical);
+			static bool undo(Editor * e, bool shouldUndo);
 		};
-
-#if 0
-		struct UpdateLevelLed: public Component,
-							   public ScriptingApi::Content::RebuildListener,
-							   public GlobalScriptCompileListener
-		{
-		public:
-
-			UpdateLevelLed(ScriptingApi::Content* c_) :
-				c(c_)
-			{
-				c->addRebuildListener(this);
-				c->getProcessor()->getMainController()->addScriptListener(this);
-			}
-
-			~UpdateLevelLed()
-			{
-				c->removeRebuildListener(this);
-				c->getProcessor()->getMainController()->removeScriptListener(this);
-			}
-
-			void paint(Graphics& g) override
-			{
-				if (level == ScriptingApi::Content::UpdateLevel::FullRecompile)
-				{
-					g.setColour(Colours::red.withAlpha(0.7f));
-				}
-				else if (level == ScriptingApi::Content::UpdateLevel::UpdateInterface)
-				{
-					g.setColour(Colours::yellow.withAlpha(0.7f));
-				}
-				else
-				{
-					g.setColour(Colours::green.withAlpha(0.7f));
-				}
-
-				g.fillRect(getLocalBounds().reduced(4));
-
-				g.setColour(Colours::white.withAlpha(0.4f));
-				g.drawRect(getLocalBounds().reduced(4), 1);
-
-			}
-
-			void mouseDown(const MouseEvent& /*e*/)
-			{
-				handleAndClearUpdate();
-			}
-			
-			void scriptWasCompiled(JavascriptProcessor *processor) override
-			{
-				if (dynamic_cast<Processor*>(processor) == c->getProcessor())
-				{
-					refresh();
-				}
-			}
-
-			void contentWasRebuilt() override
-			{
-				refresh();
-			}
-
-			void handleAndClearUpdate()
-			{
-				c->clearRequiredUpdate();
-
-				if (level == ScriptingApi::Content::UpdateLevel::UpdateInterface)
-				{
-					Actions::rebuild(findParentComponentOfClass<Editor>());
-				}
-				if (level == ScriptingApi::Content::UpdateLevel::FullRecompile)
-				{
-					Actions::rebuildAndRecompile(findParentComponentOfClass<Editor>());
-				}
-
-				refresh();
-			}
-
-		private:
-
-			void refresh()
-			{
-				level = c->getRequiredUpdate();
-
-				repaint();
-			}
-
-			ScriptingApi::Content::UpdateLevel level;
-
-			ScriptingApi::Content* c;
-		};
-#endif
-
-		double zoomAmount;
 
 		GlobalHiseLookAndFeel klaf;
-
-		ScopedPointer<ComboBox> zoomSelector;
-		ScopedPointer<HiseShapeButton> editSelector;
-		ScopedPointer<HiseShapeButton> cancelButton;
-
-		ScopedPointer<HiseShapeButton> undoButton;
-		ScopedPointer<HiseShapeButton> redoButton;
-		ScopedPointer<HiseShapeButton> rebuildButton;
-
-		ScopedPointer<HiseShapeButton> verticalAlignButton;
-		ScopedPointer<HiseShapeButton> horizontalAlignButton;
-		ScopedPointer<HiseShapeButton> verticalDistributeButton;
-		ScopedPointer<HiseShapeButton> horizontalDistributeButton;
-
-		ScopedPointer<MarkdownHelpButton> helpButton;
-
-		ScopedPointer<Viewport> viewport;
+		ComboBox* zoomSelector;
 	};
 
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
@@ -376,22 +304,92 @@ public:
 		fillModuleListWithType<JavascriptProcessor>(moduleList);
 	}
 };
+	
 
-class ScriptWatchTablePanel : public PanelWithProcessorConnection
+class ComplexDataManager : public PanelWithProcessorConnection
 {
 public:
 
-	ScriptWatchTablePanel(FloatingTile* parent) :
+	ComplexDataManager(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
-	{
-		
-	};
+	{};
 
+	SET_PANEL_NAME("ComplexDataManager");
+
+	bool hasSubIndex() const override { return true; }
+
+	Identifier getProcessorTypeId() const override;
+
+	void fillIndexList(StringArray& l) override
+	{
+		l.add("Audio Files");
+		l.add("Tables");
+		l.add("Slider Packs");
+	}
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<ExternalDataHolder>(moduleList);
+	}
+
+	Component* createContentComponent(int index) override;
+};
+
+
+
+class ScriptWatchTablePanel : public PanelWithProcessorConnection,
+                              public snex::ui::WorkbenchManager::WorkbenchChangeListener
+{
+public:
+
+    ScriptWatchTablePanel(FloatingTile* parent);
+
+    ~ScriptWatchTablePanel();
+    
+    void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) override
+    {
+        if(auto w = getContent<ScriptWatchTable>())
+        {
+            if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
+            {
+                w->setHolder(newWorkbench.get());
+            }
+            else
+            {
+                w->setHolder(dynamic_cast<JavascriptProcessor*>(getProcessor()));
+            }
+        }
+    }
+    
 	SET_PANEL_NAME("ScriptWatchTable");
 
 	Identifier getProcessorTypeId() const override;
 
 	Component* createContentComponent(int /*index*/) override;
+
+	void fromDynamicObject(const var& object) override
+	{
+		columnData = object.getProperty("VisibleColumns", {});
+		PanelWithProcessorConnection::fromDynamicObject(object);
+	}
+
+	var toDynamicObject() const override
+	{
+		var cToUse = columnData;
+
+		if (auto sw = getContent<ScriptWatchTable>())
+		{
+			cToUse = sw->getColumnVisiblilityData();
+		}
+
+		if (!cToUse.isArray())
+			cToUse = var(Array<var>());
+
+		auto obj = PanelWithProcessorConnection::toDynamicObject();
+		obj.getDynamicObject()->setProperty("VisibleColumns", cToUse);
+
+		return obj;
+	}
 
 	void fillModuleList(StringArray& moduleList) override
 	{
@@ -400,12 +398,122 @@ public:
 
 private:
 
+	var columnData;
 	const Identifier showConnectionBar;
-
 };
 
 
+class OSCLogger : public FloatingTileContent,
+				  public Component,
+				  private ListBoxModel,
+				  public AsyncUpdater,
+				  public PathFactory,
+				  private OSCReceiver::Listener<OSCReceiver::MessageLoopCallback>
+{
+public:
 
+	HiseShapeButton filterButton, clearButton, pauseButton;
+	
+	Path createPath(const String& url) const override;
+
+	scriptnode::OSCConnectionData::Ptr lastData;
+
+	ScopedPointer<OSCAddressPattern> searchPattern;
+
+	struct MessageItem
+	{
+		MessageItem() :
+			address("/")
+		{};
+
+		String message;
+		Colour c;
+		bool matchesDomain;
+		bool isError;
+		bool scaled = false;
+		bool hasScriptCallback = false;
+		bool hasCableConnection = false;
+
+		OSCAddress address;
+	};
+
+	OSCLogger(FloatingTile* parent);
+
+	~OSCLogger();
+
+	SET_PANEL_NAME("OSCLogger");
+
+	//==============================================================================
+	int getNumRows() override
+	{
+		return displayedItems.size();
+	}
+
+	//==============================================================================
+	void paintListBoxItem(int row, Graphics& g, int width, int height, bool rowIsSelected) override;
+
+	//==============================================================================
+	void addOSCMessage(const OSCMessage& message, int level = 0);
+
+	void oscMessageReceived(const OSCMessage& message) override
+	{
+		addOSCMessage(message);
+	}
+
+	void oscBundleReceived(const OSCBundle& bundle) override
+	{
+		addOSCBundle(bundle);
+	}
+
+	//==============================================================================
+	void addOSCBundle(const OSCBundle& bundle, int level = 0);
+
+	//==============================================================================
+	void addOSCMessageArgument(const MessageItem& m, const OSCArgument& arg, int level, const String& cableId);
+
+	//==============================================================================
+	void addInvalidOSCPacket(const char* /* data */, int dataSize);
+
+	//==============================================================================
+	void clear();
+
+	void paint(Graphics& g);
+
+	void resized() override;
+
+	static void updateConnection(OSCLogger& logger, scriptnode::OSCConnectionData::Ptr data);
+
+	//==============================================================================
+	void handleAsyncUpdate() override;
+
+	
+
+private:
+
+	ScrollbarFader fader;
+
+	TextEditor searchBox;
+	
+
+	static String getIndentationString(int level)
+	{
+		return String().paddedRight(' ', 2 * level);
+	}
+
+	//==============================================================================
+	Array<MessageItem> oscLogList;
+
+	Array<MessageItem> displayedItems;
+
+	scriptnode::routing::GlobalRoutingManager::Ptr rm;
+
+	Rectangle<int> topRow;
+
+	ListBox list;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSCLogger);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(OSCLogger);
+};
 
 class ConsolePanel : public FloatingTileContent,
 	public Component

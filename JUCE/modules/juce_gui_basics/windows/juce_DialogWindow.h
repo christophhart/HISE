@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -63,11 +62,17 @@ public:
                                             close button to be triggered
         @param addToDesktop         if true, the window will be automatically added to the
                                     desktop; if false, you can use it as a child component
+        @param desktopScale         specifies the scale to use when drawing the window. In a plugin,
+                                    the host controls the scale used to render the plugin editor.
+                                    You should query the editor scale with
+                                    Component::getApproximateScaleFactorForComponent() and pass the
+                                    result here. You can ignore this parameter in a standalone app
     */
     DialogWindow (const String& name,
                   Colour backgroundColour,
                   bool escapeKeyTriggersCloseButton,
-                  bool addToDesktop = true);
+                  bool addToDesktop = true,
+                  float desktopScale = 1.0f);
 
     /** Destructor.
         If a content component has been set with setContentOwned(), it will be deleted.
@@ -137,7 +142,7 @@ public:
         */
         DialogWindow* create();
 
-       #if JUCE_MODAL_LOOPS_PERMITTED || DOXYGEN
+       #if JUCE_MODAL_LOOPS_PERMITTED
         /** Launches and runs the dialog modally, returning the status code that was
             used to terminate the modal loop.
 
@@ -153,7 +158,7 @@ public:
     //==============================================================================
     /** Easy way of quickly showing a dialog box containing a given component.
 
-        Note: This method has been superceded by the DialogWindow::LaunchOptions structure,
+        Note: This method has been superseded by the DialogWindow::LaunchOptions structure,
         which does the same job with some extra flexibility. The showDialog method is here
         for backwards compatibility, but please use DialogWindow::LaunchOptions in new code.
 
@@ -196,10 +201,10 @@ public:
                             bool shouldBeResizable = false,
                             bool useBottomRightCornerResizer = false);
 
-   #if JUCE_MODAL_LOOPS_PERMITTED || DOXYGEN
+   #if JUCE_MODAL_LOOPS_PERMITTED
     /** Easy way of quickly showing a dialog box containing a given component.
 
-        Note: This method has been superceded by the DialogWindow::LaunchOptions structure,
+        Note: This method has been superseded by the DialogWindow::LaunchOptions structure,
         which does the same job with some extra flexibility. The showDialog method is here
         for backwards compatibility, but please use DialogWindow::LaunchOptions in new code.
 
@@ -256,8 +261,13 @@ protected:
     void resized() override;
     /** @internal */
     bool keyPressed (const KeyPress&) override;
+    /** @internal */
+    float getDesktopScaleFactor() const override { return desktopScale * Desktop::getInstance().getGlobalScaleFactor(); }
 
 private:
+    std::unique_ptr<AccessibilityHandler> createAccessibilityHandler() override;
+
+    float desktopScale = 1.0f;
     bool escapeKeyTriggersCloseButton;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DialogWindow)

@@ -111,18 +111,18 @@ String ValueTreeApiHelpers::createCodeToInsert(const ValueTree &method, const St
 	}
 	else if (name == "setPaintRoutine")
 	{
-		const String argumentName = "g";
-		String functionDef = className;
-		functionDef << "." << name + "(function(" << argumentName << ")\n";
-		functionDef << "{\n\t\n});\n";
+	const String argumentName = "g";
+	String functionDef = className;
+	functionDef << "." << name + "(function(" << argumentName << ")\n";
+	functionDef << "{\n\t\n});\n";
 
-		return functionDef;
+	return functionDef;
 	}
 	else
 	{
-		const String arguments = method.getProperty(Identifier("arguments")).toString();
+	const String arguments = method.getProperty(Identifier("arguments")).toString();
 
-		return String(className + "." + name + arguments);
+	return String(className + "." + name + arguments);
 	}
 }
 
@@ -140,6 +140,7 @@ void ValueTreeApiHelpers::getColourAndCharForType(int type, char &c, Colour &col
 	case (int)4:			c = 'G'; break;
 	case (int)5:			c = 'F'; break;
 	case (int)6:			c = 'A'; break;
+	case (int)7:		c = 'F'; break;
 	case (int)8:		c = 'N'; break;
 	default:											c = 'V'; break;
 	}
@@ -202,6 +203,102 @@ void ApiProviderBase::Holder::rebuild()
 		if (c != nullptr)
 			c->providerWasRebuilt();
 	}
+}
+
+void ApiProviderBase::Holder::sendClearMessage()
+{
+    for (auto c : registeredComponents)
+    {
+        if (c != nullptr)
+            c->providerCleared();
+    }
+}
+
+void DebugableObjectBase::updateLocation(Location& l, var possibleObject)
+{
+	if (auto obj = dynamic_cast<DebugableObjectBase*>(possibleObject.getObject()))
+	{
+		auto newLocation = obj->getLocation();
+		if (newLocation.charNumber != 0)
+			l = newLocation;
+	}
+}
+
+Component* DebugInformationBase::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
+{
+	if (auto obj = getObject())
+	{
+		obj->setCurrentExpression(getCodeToInsert());
+		return getObject()->createPopupComponent(e, componentToNotify);
+	}
+		
+
+	return nullptr;
+}
+
+ComponentForDebugInformation::ComponentForDebugInformation(DebugableObjectBase* obj_, ApiProviderBase::Holder* h) :
+	holder(h),
+	obj(obj_)
+{
+	expression = obj->currentExpression;
+	jassert(expression.isNotEmpty());
+}
+
+void ComponentForDebugInformation::search()
+{
+	if (obj == nullptr)
+	{
+		if (holder == nullptr)
+			return;
+
+		ScopedReadLock sl(holder->getDebugLock());
+
+		auto provider = holder->getProviderBase();
+
+		if (provider == nullptr)
+			return;
+
+		for (int i = 0; i < provider->getNumDebugObjects(); i++)
+		{
+			if (searchRecursive(provider->getDebugInformation(i).get()))
+				break;
+		}
+	}
+}
+
+bool ComponentForDebugInformation::searchRecursive(DebugInformationBase* b)
+{
+	if (b == nullptr)
+		return false;
+
+	if (holder->shouldReleaseDebugLock())
+		return true;
+
+	if (b->getCodeToInsert() == expression)
+	{
+		obj = b->getObject();
+		refresh();
+		return true;
+	}
+
+	for (int i = 0; i < b->getNumChildElements(); i++)
+	{
+		if (searchRecursive(b->getChildElement(i).get()))
+			return true;
+	}
+
+	return false;
+}
+
+String ComponentForDebugInformation::getTitle() const
+{
+	String s;
+
+	if (obj != nullptr)
+		s << obj->getDebugName() << ": ";
+
+	s << expression;
+	return s;
 }
 
 } // namespace hise

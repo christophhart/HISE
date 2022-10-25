@@ -175,19 +175,9 @@ public:
 			if (path.startsWith("http"))
 				return path;
 
-
-
-
 			auto p = removeLeadingNumbers(path);
 
-			p = p.removeCharacters("():,;?");
-
-			if (!p.isEmpty() && p.endsWith("/"))
-				p = p.upToLastOccurrenceOf("/", false, false);
-
-			p = p.replace(".md", "");
-
-			return p.replaceCharacter(' ', '-').toLowerCase();
+			return StringSanitizer::get(p);
 		}
 
 		static String getSanitizedURL(const String& path)
@@ -202,18 +192,8 @@ public:
 
 		static String removeLeadingNumbers(const String& p)
 		{
-
 			auto path = p.replaceCharacter('\\', '/').trimCharactersAtStart("01234567890 ");
-
 			path = path.removeCharacters("()[]");
-
-			auto regex = R"((\/[0-9]{2} ))";
-
-			auto matches = RegexFunctions::search(regex, path);
-
-			for (auto m : matches)
-				path = path.replace(m, "/");
-
 			return path;
 		}
 
@@ -362,7 +342,7 @@ public:
 	MarkdownLink(const File& rootDirectory, const String& url);
 
 	/** Creates a markdown link without a root. In this case, there will be no processing and the link must be formatted correctly. */
-	static MarkdownLink createWithoutRoot(const String& validURL);
+	static MarkdownLink createWithoutRoot(const String& validURL, Type forcedType=Type::numTypes);
 
 	/** Resolves the link to a file in the given root directory. */
 	File toFile(FileType type, File rootToUse = {}) const noexcept;

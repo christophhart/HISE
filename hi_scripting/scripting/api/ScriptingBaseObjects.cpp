@@ -112,8 +112,15 @@ ValueTree ValueTreeConverters::convertDynamicObjectToValueTree(const var& object
 {
 	ValueTree v(id);
 
-	
-	d2v_internal(v, "Data", object);
+	if (object.isArray())
+	{
+		a2v_internal(v, id, *object.getArray());
+		return v.getChild(0);
+	}
+	else
+	{
+		d2v_internal(v, "Data", object);
+	}
 
 	return v;
 }
@@ -171,8 +178,7 @@ var ValueTreeConverters::convertValueTreeToDynamicObject(const ValueTree& v)
 {
 	jassert(v.isValid());
 
-	DynamicObject::Ptr d = new DynamicObject();
-	var dData = var(d);
+	var dData(new DynamicObject());
 
 	v2d_internal(dData, v);
 	return dData;
@@ -186,7 +192,7 @@ var ValueTreeConverters::convertFlatValueTreeToVarArray(const ValueTree& v)
 	{
 		auto child = v.getChild(i);
 
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
 		var d(obj);
 
 		copyValueTreePropertiesToDynamicObject(v.getChild(i), d);
@@ -246,7 +252,7 @@ var ValueTreeConverters::convertContentPropertiesToDynamicObject(const ValueTree
 {
 	static const Identifier ch("childComponents");
 
-	DynamicObject::Ptr vDyn = new DynamicObject();
+	auto vDyn = new DynamicObject();
 	var vDynVar(vDyn);
 
 	copyValueTreePropertiesToDynamicObject(v, vDynVar);
@@ -343,7 +349,7 @@ var ValueTreeConverters::convertScriptNodeToDynamicObject(ValueTree v)
 	if (nodes.size() > 0)
 		root->setProperty(scriptnode::PropertyIds::Nodes, nodes);
 
-	return var(root);
+	return var(root.get());
 }
 
 juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var objVar)
@@ -392,9 +398,85 @@ juce::ValueTree ValueTreeConverters::convertDynamicObjectToScriptNodeTree(var ob
 	return t;
 }
 
+juce::var ValueTreeConverters::convertStringIfNumeric(const var& value)
+{
+	if (value.isString())
+	{
+		auto asString = value.toString();
+
+		auto s = asString.begin();
+		auto e = asString.end();
+
+		int numNonNumeric = 0;
+		int numDigits = 0;
+		int numDots = 0;
+
+		// Unfortunately, this will parse version numbers (1.0.0) as double,
+		// so we need to do a better way of detecting double numbers...
+		//if (asString.containsOnly("1234567890."))
+		//	return var((double)value);
+
+		// This beauty will be used in programming 101 books from now on...
+		while (s != e)
+		{
+			auto isDigit = CharacterFunctions::isDigit(*s) || 
+						   *s == '-'; // because of negative numbers, yo.
+
+			numDigits += (int)isDigit;
+			
+			if (!isDigit)
+			{
+				numDots += (int)(*s == '.'); // because branching is for losers.
+				numNonNumeric++;
+			}
+			
+			// We've seen enough, thanks.
+			if (numNonNumeric > 1)
+				break;
+
+			++s;
+		}
+
+		auto isAnIntForSure = numDigits != 0 && numNonNumeric == 0 && numDots == 0;
+
+		auto isAnInt64ForSure = isAnIntForSure && (std::abs((int64)value) > (int64)(INT_MAX));
+
+		auto isADoubleForSure = numDigits != 0 && numNonNumeric == 1 && numDots == 1;
+
+		if (isAnInt64ForSure)
+			return var((int64)value);
+
+		if (isAnIntForSure)
+			return var((int)value);
+
+		if (isADoubleForSure)
+			return var((double)value);
+	}
+
+	return value;
+}
+
 void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 {
-	if (auto dyn = object.getDynamicObject())
+	if (isLikelyVarArray(v))
+	{
+		Array<var> childList;
+
+		for (auto c : v)
+		{
+			if (c.getNumProperties() == 1 && c.hasProperty("value"))
+				childList.add(convertStringIfNumeric(c["value"]));
+			else
+			{
+				var childObj(new DynamicObject());
+				v2d_internal(childObj, c);
+				childList.add(childObj);
+			}
+		}
+
+		object = var(childList);
+	}
+	else if (auto dyn = object.getDynamicObject())
 	{
 		auto& dynSet = dyn->getProperties();
 
@@ -403,14 +485,15 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 			auto propId = v.getPropertyName(i);
 			auto value = v.getProperty(propId);
 
-			jassert(!value.isObject());
 
-			dynSet.set(propId, value);
+
+			jassert(!value.isObject());
+			dynSet.set(propId, convertStringIfNumeric(value));
 		}
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{
-			DynamicObject::Ptr child = new DynamicObject();
+			auto child = new DynamicObject();
 			var childVar(child);
 
 			auto childTree = v.getChild(i);
@@ -427,7 +510,7 @@ void ValueTreeConverters::v2d_internal(var& object, const ValueTree& v)
 	}
 }
 
-void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, const var& object)
+void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& id, const var& object)
 {
 	if (auto dyn = object.getDynamicObject())
 	{
@@ -438,7 +521,11 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 			auto v1 = dynSet.getValueAt(i);
 			auto id1 = dynSet.getName(i);
 
-			if (v1.isObject())
+			if (v1.isArray())
+			{
+				a2v_internal(v, id1, *v1.getArray());
+			}
+			else if (v1.isObject())
 			{
 				ValueTree child(dynSet.getName(i));
 
@@ -447,7 +534,6 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 			}
 			else
 			{
-				jassert(!v1.isArray());
 				v.setProperty(id1, v1, nullptr);
 			}
 		}
@@ -458,11 +544,62 @@ void ValueTreeConverters::d2v_internal(ValueTree& v, const Identifier& /*id*/, c
 	}
 }
 
-WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const var& callback, int numExpectedArgs_) :
+void ValueTreeConverters::a2v_internal(ValueTree& v, const Identifier& id, const Array<var>& list)
+{
+	auto parentId = id;
+	auto childId = parentId;
+
+	ValueTree listParent(parentId);
+
+	for (const auto& cv : list)
+	{
+		ValueTree child(childId);
+
+		if (cv.isArray())
+			a2v_internal(child, childId, *cv.getArray());
+		else if (cv.isObject())
+			d2v_internal(child, childId, cv);
+		else
+			child.setProperty("value", cv, nullptr);
+
+		listParent.addChild(child, -1, nullptr);
+	}
+
+	v.addChild(listParent, -1, nullptr);
+}
+
+void ValueTreeConverters::v2a_internal(var& object, ValueTree& v, const Identifier& id)
+{
+
+}
+
+bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
+{
+	if (v.getNumChildren() == 0 || v.getNumProperties() != 0)
+		return false;
+
+	if (v.getNumChildren() == 1)
+		return v.getType() == v.getChild(0).getType();
+
+	auto firstId = v.getChild(0).getType();
+
+	for (auto c : v)
+	{
+		if (c.getType() != firstId)
+			return false;
+	}
+
+	return true;
+}
+
+WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs_) :
 	ScriptingObject(p),
 	r(Result::ok()),
 	numExpectedArgs(numExpectedArgs_)
 {
+	if (parentObject != nullptr)
+		parentObject->addOptimizableFunction(callback);
+
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(p))
 	{
 		engineToUse = jp->getScriptEngine();
@@ -470,8 +607,11 @@ WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, const v
 
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
 	{
-		weakCallback = dynamic_cast<DebugableObjectBase*>(callback.getObject());
-		castedObj = callback.getObject();
+		weakCallback = dynamic_cast<CallableObject*>(callback.getObject());
+		
+		weakCallback->storeCapturedLocals(capturedLocals, true);
+
+		jassert(weakCallback != nullptr);
 
 		// Store it ref-counted if the ref count is one to avoid deletion
 		if (callback.getObject()->getReferenceCount() == 1)
@@ -485,12 +625,13 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	ScriptingObject(const_cast<ProcessorWithScriptingContent*>(copy.getScriptProcessor())),
 	r(Result::ok()),
 	weakCallback(copy.weakCallback),
-	castedObj(copy.castedObj),
 	numExpectedArgs(copy.numExpectedArgs),
 	highPriority(copy.highPriority),
 	engineToUse(copy.engineToUse),
 	anonymousFunctionRef(copy.anonymousFunctionRef),
-	thisObject(copy.thisObject)
+	thisObject(copy.thisObject),
+	refCountedThisObject(copy.refCountedThisObject),
+	capturedLocals(copy.capturedLocals)
 {
 	args.addArray(copy.args);
 }
@@ -499,12 +640,13 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	ScriptingObject(other.getScriptProcessor()),
 	r(other.r),
 	weakCallback(other.weakCallback),
-	castedObj(other.castedObj),
 	numExpectedArgs(other.numExpectedArgs),
 	highPriority(other.highPriority),
 	anonymousFunctionRef(other.anonymousFunctionRef),
 	engineToUse(other.engineToUse),
-	thisObject(other.thisObject)
+	refCountedThisObject(other.refCountedThisObject),
+	thisObject(other.thisObject),
+	capturedLocals(other.capturedLocals)
 {
 	args.swapWith(other.args);
 }
@@ -518,50 +660,101 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 {
 	r = other.r;
 	weakCallback = other.weakCallback;
-	castedObj = other.castedObj;
 	numExpectedArgs = other.numExpectedArgs;
 	highPriority = other.highPriority;
 	anonymousFunctionRef = other.anonymousFunctionRef;
 	engineToUse = other.engineToUse;
+	refCountedThisObject = other.refCountedThisObject;
 	thisObject = other.thisObject;
+	capturedLocals = other.capturedLocals;
 	args.swapWith(other.args);
 
+
 	return *this;
+}
+
+hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& n) const
+{
+	if (weakCallback != nullptr)
+	{
+		return new ObjectDebugInformationWithCustomName(dynamic_cast<DebugableObjectBase*>(weakCallback.get()), (int)DebugInformation::Type::Callback, "%PARENT%." + n);
+	}
+	else
+	{
+		return new DebugInformation(DebugInformation::Type::Constant);
+	}
+}
+
+void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId)
+{
+	if (weakCallback != nullptr)
+	{
+		auto id = sourceObject->getDebugName() + "." + callbackId;
+		weakCallback->addAsSource(sourceObject, Identifier(id));
+	}
 }
 
 void WeakCallbackHolder::clear()
 {
 	engineToUse = nullptr;
 	weakCallback = nullptr;
-	castedObj = nullptr;
 	thisObject = nullptr;
 	args.clear();
 
 	decRefCount();
 }
 
+void WeakCallbackHolder::setThisObject(ReferenceCountedObject* thisObj)
+{
+	thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
+
+	// Must call incRefCount before this method
+	jassert(anonymousFunctionRef.isObject());
+}
+
+void WeakCallbackHolder::setThisObjectRefCounted(const var& t)
+{
+	refCountedThisObject = t;
+}
+
 bool WeakCallbackHolder::matches(const var& f) const
 {
-	return castedObj == f.getObject();
+	return weakCallback == dynamic_cast<CallableObject*>(f.getObject());
+}
+
+juce::var WeakCallbackHolder::getThisObject()
+{
+	if (refCountedThisObject.isObject())
+		return refCountedThisObject;
+
+	if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
+	{
+		return var(d);
+	}
+
+	return {};
 }
 
 void WeakCallbackHolder::call(var* arguments, int numArgs)
+{
+	call(var::NativeFunctionArgs(var(), arguments, numArgs));
+}
+
+void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 {
 	try
 	{
 		if (weakCallback != nullptr && getScriptProcessor() != nullptr)
 		{
-			checkArguments("external call", numArgs, numExpectedArgs);
+			checkArguments("external call", args.numArguments, numExpectedArgs);
 			auto copy = *this;
-			copy.args.addArray(arguments, numArgs);
+			copy.args.addArray(args.arguments, args.numArguments);
 
-			var thisObj;
-
-			if (thisObject.get() != nullptr)
-				thisObj = var(dynamic_cast<ReferenceCountedObject*>(thisObject.get()));
-
-			var::NativeFunctionArgs args_(thisObj, arguments, numArgs);
-			checkValidArguments(args_);
+			{
+				var::NativeFunctionArgs args_(var(), args.arguments, args.numArguments);
+				checkValidArguments(args_);
+			}
+			
 			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
 			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
 		}
@@ -576,25 +769,26 @@ void WeakCallbackHolder::call(var* arguments, int numArgs)
 	}
 }
 
-Result WeakCallbackHolder::callSync(var* arguments, int numArgs)
+Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
-	if (engineToUse.get() == nullptr)
+	auto a = var::NativeFunctionArgs(getThisObject(), arguments, numArgs);
+	return callSync(a, returnValue);
+}
+
+Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
+{
+	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();
-		return Result::fail("Engine is dangling");
+        return Result::ok();
 	}
 
 	if (weakCallback.get() != nullptr)
 	{
-		jassert(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()) == castedObj);
+		if(!capturedLocals.isEmpty())
+			weakCallback->storeCapturedLocals(capturedLocals, false);
 
-		var thisObj;
-
-		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
-			thisObj = var(d);
-
-		var::NativeFunctionArgs a(thisObj, arguments, numArgs);
-		engineToUse->callExternalFunction(var(castedObj), a, &r, true);
+		return weakCallback->call(engineToUse, a, returnValue);
 	}
 	else
 		jassertfalse;
@@ -606,31 +800,190 @@ juce::Result WeakCallbackHolder::operator()(JavascriptProcessor* p)
 {
 	jassert_locked_script_thread(getScriptProcessor()->getMainController_());
 
-	if (engineToUse.get() == nullptr)
-	{
-		clear();
-		return Result::fail("Engine is dangling");
-	}
+	var thisObj;
 
-	if (weakCallback.get() != nullptr)
-	{
-		jassert(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()) == castedObj);
+	if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
+		thisObj = var(d);
 
-		var thisObj;
+	auto r = callSync(args.getRawDataPointer(), args.size(), nullptr);
 
-		if (auto d = dynamic_cast<ReferenceCountedObject*>(thisObject.get()))
-			thisObj = var(d);
-
-		var::NativeFunctionArgs a(thisObj, args.getRawDataPointer(), args.size());
-		engineToUse->callExternalFunction(var(castedObj), a, &r);
-
-		if (!r.wasOk())
-			debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
-	}
-	else
-		jassertfalse;
+	if (!r.wasOk())
+		debugError(dynamic_cast<Processor*>(p), r.getErrorMessage());
 
 	return r;
 }
 
+var JSONConversionHelpers::valueTreeToJSON(const ValueTree& v)
+{
+	DynamicObject::Ptr p = new DynamicObject();
+
+	for (int i = 0; i < v.getNumProperties(); i++)
+	{
+		auto id = v.getPropertyName(i);
+		p->setProperty(id, v[id]);
+	}
+
+	bool hasChildrenWithSameName = v.getNumChildren() > 0;
+	auto firstType = v.getChild(0).getType();
+
+	for (auto c : v)
+	{
+		if (c.getType() != firstType)
+		{
+			hasChildrenWithSameName = false;
+			break;
+		}
+	}
+
+	Array<var> childList;
+
+
+
+	for (auto c : v)
+	{
+		if (c.getNumChildren() == 0 && c.getNumProperties() == 0)
+		{
+			p->setProperty(c.getType(), new DynamicObject());
+			continue;
+		}
+
+		auto jsonChild = valueTreeToJSON(c);
+
+		if (hasChildrenWithSameName)
+			childList.add(jsonChild);
+		else
+			p->setProperty(c.getType(), jsonChild);
+	}
+
+	if (hasChildrenWithSameName)
+	{
+		p->setProperty("ChildId", firstType.toString());
+		p->setProperty("Children", var(childList));
+	}
+
+	return var(p.get());
+}
+
+juce::ValueTree JSONConversionHelpers::jsonToValueTree(var data, const Identifier& typeId, bool isParentData /*= true*/)
+{
+	if (isParentData)
+	{
+		data = data.getProperty(typeId, {});
+		jassert(data.isObject());
+	}
+
+	ValueTree v(typeId);
+
+	if (data.hasProperty("ChildId"))
+	{
+		Identifier childId(data.getProperty("ChildId", "").toString());
+
+		for (auto& nv : data.getDynamicObject()->getProperties())
+		{
+			if (nv.name.toString() == "ChildId")
+				continue;
+
+			if (nv.name.toString() == "Children")
+				continue;
+
+			v.setProperty(nv.name, nv.value, nullptr);
+		}
+
+		auto lv = data.getProperty("Children", var());
+		if (auto l = lv.getArray())
+		{
+			for (auto& c : *l)
+			{
+				v.addChild(jsonToValueTree(c, childId, false), -1, nullptr);
+			}
+		}
+	}
+	else
+	{
+		if (auto dyn = data.getDynamicObject())
+		{
+			for (const auto& nv : dyn->getProperties())
+			{
+				if (nv.value.isObject())
+				{
+					v.addChild(jsonToValueTree(nv.value, nv.name, false), -1, nullptr);
+				}
+				else if (nv.value.isArray())
+				{
+					// must not happen
+					jassertfalse;
+				}
+				else
+				{
+					v.setProperty(nv.name, nv.value, nullptr);
+				}
+			}
+		}
+	}
+
+	return v;
+}
+
+var JSONConversionHelpers::convertBase64Data(const String& d, const ValueTree& cTree)
+{
+	if (d.isEmpty())
+		return var();
+
+	auto typeId = Identifier(cTree["type"].toString());
+
+	if (typeId == ScriptingApi::Content::ScriptTable::getStaticObjectName())
+		return Table::base64ToDataVar(d);
+	if (typeId == ScriptingApi::Content::ScriptSliderPack::getStaticObjectName())
+		return SliderPackData::base64ToDataVar(d);
+	if (typeId == ScriptingApi::Content::ScriptAudioWaveform::getStaticObjectName())
+		return var(d);
+
+	return var();
+}
+
+String JSONConversionHelpers::convertDataToBase64(const var& d, const ValueTree& cTree)
+{
+	if (!d.isArray())
+		return "";
+
+	auto typeId = Identifier(cTree["type"].toString());
+
+	if (typeId == ScriptingApi::Content::ScriptTable::getStaticObjectName())
+		return Table::dataVarToBase64(d);
+	if (typeId == ScriptingApi::Content::ScriptSliderPack::getStaticObjectName())
+		return SliderPackData::dataVarToBase64(d);
+	if (typeId == ScriptingApi::Content::ScriptAudioWaveform::getStaticObjectName())
+		return d.toString();
+
+	return "";
+}
+
+
+Result WeakCallbackHolder::CallableObject::call(HiseJavascriptEngine* engine, const var::NativeFunctionArgs& args, var* returnValue)
+{
+	if (thisAsRef == nullptr)
+	{
+		thisAsRef = dynamic_cast<ReferenceCountedObject*>(this);
+		jassert(thisAsRef != nullptr);
+	}
+
+	auto rv = engine->callExternalFunction(var(thisAsRef), args, &lastResult, true);
+
+	if (returnValue != nullptr)
+		*returnValue = rv;
+
+	return lastResult;
+}
+
+void ConstScriptingObject::gotoLocationWithDatabaseLookup()
+{
+	auto p = dynamic_cast<Processor*>(getScriptProcessor());
+	
+	if (auto loc = DebugableObject::Helpers::getLocationFromProvider(p, this))
+	{
+		DebugableObject::Helpers::gotoLocation(nullptr, dynamic_cast<JavascriptProcessor*>(p), loc);
+	}
+}
+
 } // namespace hise
+

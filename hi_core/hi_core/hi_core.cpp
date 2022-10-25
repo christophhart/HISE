@@ -47,16 +47,13 @@
 #include <float.h>
 #include <limits.h>
 
-#if JUCE_IOS
-#else
+#if JUCE_INTEL
 #include "xmmintrin.h"
 #endif
 
-
-#include "DepentUtilityFunctions.cpp"
-
 #include "UtilityClasses.cpp"
 #include "DebugLogger.cpp"
+#include "MainControllerShell.cpp" // provides encapsulated access to MainController functions
 #include "ThreadWithQuasiModalProgressWindow.cpp"
 #include "ExternalFilePool.cpp"
 #include "ExpansionHandler.cpp"
@@ -70,7 +67,6 @@
 #include "UserPresetHandler.cpp"
 #include "KillStateHandler.cpp"
 #include "PresetHandler.cpp"
-#include "SampleExporter.cpp"
 #include "GlobalAsyncModuleHandler.cpp"
 #include "Popup.cpp"
 #include "Console.cpp"

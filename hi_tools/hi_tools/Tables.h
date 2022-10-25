@@ -37,81 +37,69 @@
 
 namespace hise { using namespace juce;
 
+
+
+#define OLD_TABLE_LISTENER 0
+
+
 /** A table is a data structure that allows editing of a look up table with a TableEditor. It uses a list of graph points to create a path which is rendered to a float 
 *	array of the desired size.
 *
 *	@ingroup ui_types
 */
-class Table: public SafeChangeBroadcaster
+class Table: public ComplexDataUIBase
 {
 public:
 
-	struct Updater: private SafeChangeBroadcaster,
-					private SafeChangeListener
+	struct Listener : private ComplexDataUIUpdaterBase::EventListener
 	{
-		struct Listener
-		{
-			virtual ~Listener() {};
+		virtual ~Listener() {};
 
-			/** Called when the index has been changed. */
-			virtual void indexChanged(float newIndex) = 0;
+		virtual void indexChanged(float newIndex) {};
 
-			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
-		};
-
-		Updater(PooledUIUpdater* updater)
-		{
-			setHandler(updater);
-			addChangeListener(this);
-		}
-
-		void addListener(Listener* l)
-		{
-			listeners.addIfNotAlreadyThere(l);
-		}
-
-		void removeListener(Listener* l)
-		{
-			listeners.removeAllInstancesOf(l);
-		}
-
-		void sendIndexChangeMessage(float newIndex)
-		{
-			if (listeners.isEmpty())
-				return;
-
-			if (lastSendValue != newIndex)
-			{
-				jassert(SafeChangeBroadcaster::isHandlerInitialised());
-
-				valueToSend = newIndex;
-				sendPooledChangeMessage();
-			}
-		}
+		virtual void graphHasChanged(int point) {};
 
 	private:
 
-		void changeListenerCallback(SafeChangeBroadcaster *) override
+		friend class Table;
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var n) override
 		{
-			lastSendValue = valueToSend;
-
-			for (int i = 0; i < listeners.size(); i++)
+			switch (t)
 			{
-				if (listeners[i] == nullptr)
-					listeners.remove(i--);
-			}
-
-			for (auto l : listeners)
-			{
-				if (l != nullptr)
-					l->indexChanged(lastSendValue);
+			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+				indexChanged((float)n);
+				break;
+			case ComplexDataUIUpdaterBase::EventType::ContentChange:
+				graphHasChanged((int)n);
+				break;
+			default:
+				jassertfalse;
+				break;
 			}
 		}
+	};
 
-		Array<WeakReference<Listener>> listeners;
+	/** Delays the notification until this object goes out of scope. 
+		Use this if you're creating a lot of calls to the add point method
+		to avoid unnecessary updates between those calls. */
+	struct ScopedUpdateDelayer
+	{
+		ScopedUpdateDelayer(Table& t) :
+			table(t)
+		{
+			prevValue = t.delayUpdates;
+		}
 
-		float valueToSend = -1.0f;
-		float lastSendValue = -1.0f;
+		~ScopedUpdateDelayer()
+		{
+			table.internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+			table.fillLookUpTable();
+			table.delayUpdates = prevValue;
+		}
+
+		Table& table;
+		bool prevValue = false;
 	};
 
 	static String getDefaultTextValue(float input) { return String(roundToInt(input * 100.0f)) + "%"; };
@@ -153,33 +141,23 @@ public:
 	};
 
 	/** Sets the GraphPoints. If you need to refresh the internal table, you also have to call fillLookUpTable(). */
-	void setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints);
+	void setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints, bool refreshLookupTable);
 
 	/** Exports the data as base64 encoded String. This is not a ValueTree (so RestorableObject is no base class from Table),
 	*	because it needs to be embedded in an XML attribute
 	*
 	*	@see restoreData()
 	*/
-	virtual String exportData() const
-	{
-		if (graphPoints.size() == 2)
-		{
-			auto first = graphPoints.getFirst();
-			auto second = graphPoints.getLast();
+	virtual String exportData() const;;
 
-			if (first.x == 0.0f && first.y == 0.0f)
-			{
-				if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
-					return "";
-			}
-		}
+	static String dataVarToBase64(const var& data);
+	static var base64ToDataVar(const String& b64);
 
-		Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
+	bool fromBase64String(const String& b64) override;
 
-		MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
+	String toBase64String() const override;
 
-		return b.toBase64Encoding();
-	};
+	
 
 	/** Restores the data from a base64 encoded String.
 	*
@@ -193,7 +171,6 @@ public:
 			return;
 		}
 			
-
 		MemoryBlock b;
 		
 		b.fromBase64Encoding(savedString);
@@ -203,7 +180,11 @@ public:
 		graphPoints.clear();
 		graphPoints.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
 		
-		fillLookUpTable();
+		if (!delayUpdates)
+		{
+			fillLookUpTable();
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+		}
 	};
 
 	void setTablePoint(int pointIndex, float x, float y, float curve)
@@ -224,7 +205,11 @@ public:
 			graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
 		}
 
-		fillLookUpTable();
+		if (!delayUpdates)
+		{
+			fillLookUpTable();
+			internalUpdater.sendContentChangeMessage(sendNotificationSync, pointIndex);
+		}
 	}
 
 	void reset()
@@ -233,14 +218,22 @@ public:
 		graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
 		graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
 
-		fillLookUpTable();
+		if (!delayUpdates)
+		{
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+			fillLookUpTable();
+		}
 	}
 
-	void addTablePoint(float x, float y)
+	void addTablePoint(float x, float y, float curve=0.5f)
 	{
-		graphPoints.add(GraphPoint(x, y, 0.5f));
+		graphPoints.add(GraphPoint(x, y, curve));
 
-		fillLookUpTable();
+		if (!delayUpdates)
+		{
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, graphPoints.size() - 1);
+			fillLookUpTable();
+		}
 	}
 
 	/** Returns the number of graph points */
@@ -253,13 +246,22 @@ public:
 	*
 	*	This is called by the editor to draw the path under the DragPoints.
 	*/
-	void createPath(Path &normalizedPath) const;
+	void createPath(Path &normalizedPath, bool fillPath, bool addStartEnd=true) const;
+
+	void setStartAndEndY(float newStartY, float newEndY)
+	{
+		startY = newStartY;
+		endY = newEndY;
+		fillLookUpTable();
+	}
 
 	/** Fills the look up table with the graph points generated from calculateGraphPoints()
 	*
 	*	Don't call this too often as it is quite heavy!
 	*/
 	virtual void fillLookUpTable();
+
+	void fillExternalLookupTable(float* d, int numValues);
 
 	CriticalSection &getLock()
 	{
@@ -304,7 +306,32 @@ public:
 		return yConverter;
 	}
 
+	void setNormalisedIndexSync(float value)
+	{
+		internalUpdater.sendDisplayChangeMessage(value, sendNotificationAsync);
+	}
+
+	void sendGraphUpdateMessage()
+	{
+		internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+	}
+
+	void addRulerListener(Listener* l)
+	{
+		internalUpdater.addEventListener(l);
+	}
+
+	void removeRulerListener(Listener* l)
+	{
+		internalUpdater.removeEventListener(l);
+	}
+
 private:
+
+	bool delayUpdates = false;
+
+	float startY = -1.0f;
+	float endY = -1.0f;
 
 	class GraphPointComparator
 	{
@@ -319,18 +346,18 @@ private:
 		};
 	};
 
-	WeakReference<Table>::Master masterReference;
-	friend class WeakReference<Table>;
-
 	CriticalSection lock;
 
 	Array<GraphPoint> graphPoints;
 
 	ValueTextConverter xConverter;
 	ValueTextConverter yConverter;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(Table);
 };
 
 
+#if 0
 /** A Table subclass that can be used for any 7bit data.
 */
 class MidiTable: public Table
@@ -349,9 +376,13 @@ public:
 	int getTableSize() const override {return 128;};
 
 	/** Allows access to the lookup table*/
-	inline float get(int index) const {return data[index]; };
+	float get(int index, NotificationType notifyEditors) const 
+	{ 
+		if (notifyEditors != dontSendNotification)
+			internalUpdater.sendDisplayChangeMessage((float)index / 127.0, notifyEditors);
 
-	
+		return data[index]; 
+	};
 
 protected:
 
@@ -362,6 +393,7 @@ private:
 	float data[128];
 
 };
+#endif
 
 #define SAMPLE_LOOKUP_TABLE_SIZE 512
 
@@ -420,8 +452,14 @@ public:
 	*	@param sampleIndex the sample index from 0 to SAMPLE_LOOKUP_TABLE_SIZE (default 512). Doesn't need to be an integer, of course.
 	*	@returns the value of the table between 0.0 and 1.0
 	*/
-	float getInterpolatedValue(double sampleIndex) const
+	float getInterpolatedValue(double sampleIndex, NotificationType notifyEditor) const
 	{
+        if (notifyEditor != dontSendNotification)
+			internalUpdater.sendDisplayChangeMessage(sampleIndex, notifyEditor);
+
+        
+        sampleIndex *= (double)SAMPLE_LOOKUP_TABLE_SIZE;
+        
 		const double indexInTable = coefficient * sampleIndex;
 
 		if(indexInTable >= (double)(SAMPLE_LOOKUP_TABLE_SIZE - 1)) return getLastValue();
@@ -453,70 +491,6 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SampleLookupTable);
 };
 
-
-
-class DiscreteTable: public Table
-{
-public:
-
-	DiscreteTable():
-		Table()
-	{
-		for(int i = 0; i < 128; i++)
-		{
-
-			data[i] = 1.0f;
-		}
-	};
-	
-	/** Allows the setting of a value directly. */
-	void setValue(int index, float newValue)
-	{
-		data[index] = newValue;
-	}
-
-	String exportData() const override
-	{
-		MemoryBlock b(data, sizeof(float) * 128);
-
-		return b.toBase64Encoding();
-	};
-
-	virtual void restoreData(const String &savedString) override
-	{
-		MemoryBlock b;
-
-		b.fromBase64Encoding(savedString);
-
-		if (b.getSize() == 0) return;
-
-		const float *savedData = static_cast<const float*>(b.getData());
-
-		const int savedValues = (int)(b.getSize() / sizeof(float));
-		jassert(savedValues == 128);
-
-		for(int i = 0; i < savedValues; i++)
-		{
-			data[i] = savedData[i];
-		}
-	};
-
-	const float *getReadPointer() const override {return data;};
-
-	int getTableSize() const override {return 128;};
-
-	/** Allows access to the lookup table*/
-	inline float get(int index) const {return data[index]; };
-
-
-
-	float *getWritePointer() override {return data;};
-
-private:
-
-	float data[128];
-
-};
 
 } // namespace hise
 

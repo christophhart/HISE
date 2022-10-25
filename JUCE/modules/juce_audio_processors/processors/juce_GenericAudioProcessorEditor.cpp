@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -33,9 +32,9 @@ class ParameterListener   : private AudioProcessorParameter::Listener,
 {
 public:
     ParameterListener (AudioProcessor& proc, AudioProcessorParameter& param)
-        : processor (proc), parameter (param)
+        : processor (proc), parameter (param), isLegacyParam (LegacyAudioParameter::isLegacy (&param))
     {
-        if (LegacyAudioParameter::isLegacy (&parameter))
+        if (isLegacyParam)
             processor.addListener (this);
         else
             parameter.addListener (this);
@@ -45,13 +44,13 @@ public:
 
     ~ParameterListener() override
     {
-        if (LegacyAudioParameter::isLegacy (&parameter))
+        if (isLegacyParam)
             processor.removeListener (this);
         else
             parameter.removeListener (this);
     }
 
-    AudioProcessorParameter& getParameter() noexcept
+    AudioProcessorParameter& getParameter() const noexcept
     {
         return parameter;
     }
@@ -74,7 +73,7 @@ private:
             parameterValueHasChanged = 1;
     }
 
-    void audioProcessorChanged (AudioProcessor*) override {}
+    void audioProcessorChanged (AudioProcessor*, const ChangeDetails&) override {}
 
     //==============================================================================
     void timerCallback() override
@@ -93,10 +92,12 @@ private:
     AudioProcessor& processor;
     AudioProcessorParameter& parameter;
     Atomic<int> parameterValueHasChanged { 0 };
+    const bool isLegacyParam;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParameterListener)
 };
 
+//==============================================================================
 class BooleanParameterComponent final   : public Component,
                                           private ParameterListener
 {
@@ -107,7 +108,7 @@ public:
         // Set the initial value.
         handleNewParameterValue();
 
-        button.onClick = [this]() { buttonClicked(); };
+        button.onClick = [this] { buttonClicked(); };
 
         addAndMakeVisible (button);
     }
@@ -124,15 +125,12 @@ public:
 private:
     void handleNewParameterValue() override
     {
-        auto parameterState = getParameterState (getParameter().getValue());
-
-        if (button.getToggleState() != parameterState)
-            button.setToggleState (parameterState, dontSendNotification);
+        button.setToggleState (isParameterOn(), dontSendNotification);
     }
 
     void buttonClicked()
     {
-        if (getParameterState (getParameter().getValue()) != button.getToggleState())
+        if (isParameterOn() != button.getToggleState())
         {
             getParameter().beginChangeGesture();
             getParameter().setValueNotifyingHost (button.getToggleState() ? 1.0f : 0.0f);
@@ -140,16 +138,14 @@ private:
         }
     }
 
-    bool getParameterState (float value) const noexcept
-    {
-        return value >= 0.5f;
-    }
+    bool isParameterOn() const    { return getParameter().getValue() >= 0.5f; }
 
     ToggleButton button;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BooleanParameterComponent)
 };
 
+//==============================================================================
 class SwitchParameterComponent final   : public Component,
                                          private ParameterListener
 {
@@ -157,28 +153,25 @@ public:
     SwitchParameterComponent (AudioProcessor& proc, AudioProcessorParameter& param)
         : ParameterListener (proc, param)
     {
-        auto* leftButton  = buttons.add (new TextButton());
-        auto* rightButton = buttons.add (new TextButton());
-
-        for (auto* button : buttons)
+        for (auto& button : buttons)
         {
-            button->setRadioGroupId (293847);
-            button->setClickingTogglesState (true);
+            button.setRadioGroupId (293847);
+            button.setClickingTogglesState (true);
         }
 
-        leftButton ->setButtonText (getParameter().getText (0.0f, 16));
-        rightButton->setButtonText (getParameter().getText (1.0f, 16));
+        buttons[0].setButtonText (getParameter().getText (0.0f, 16));
+        buttons[1].setButtonText (getParameter().getText (1.0f, 16));
 
-        leftButton ->setConnectedEdges (Button::ConnectedOnRight);
-        rightButton->setConnectedEdges (Button::ConnectedOnLeft);
+        buttons[0].setConnectedEdges (Button::ConnectedOnRight);
+        buttons[1].setConnectedEdges (Button::ConnectedOnLeft);
 
         // Set the initial value.
-        leftButton->setToggleState (true, dontSendNotification);
+        buttons[0].setToggleState (true, dontSendNotification);
         handleNewParameterValue();
 
-        rightButton->onStateChange = [this]() { rightButtonChanged(); };
+        buttons[1].onStateChange = [this] { rightButtonChanged(); };
 
-        for (auto* button : buttons)
+        for (auto& button : buttons)
             addAndMakeVisible (button);
     }
 
@@ -189,27 +182,27 @@ public:
         auto area = getLocalBounds().reduced (0, 8);
         area.removeFromLeft (8);
 
-        for (auto* button : buttons)
-            button->setBounds (area.removeFromLeft (80));
+        for (auto& button : buttons)
+            button.setBounds (area.removeFromLeft (80));
     }
 
 private:
     void handleNewParameterValue() override
     {
-        bool newState = getParameterState();
+        bool newState = isParameterOn();
 
-        if (buttons[1]->getToggleState() != newState)
+        if (buttons[1].getToggleState() != newState)
         {
-            buttons[1]->setToggleState (newState,   dontSendNotification);
-            buttons[0]->setToggleState (! newState, dontSendNotification);
+            buttons[1].setToggleState (newState,   dontSendNotification);
+            buttons[0].setToggleState (! newState, dontSendNotification);
         }
     }
 
     void rightButtonChanged()
     {
-        auto buttonState = buttons[1]->getToggleState();
+        auto buttonState = buttons[1].getToggleState();
 
-        if (getParameterState() != buttonState)
+        if (isParameterOn() != buttonState)
         {
             getParameter().beginChangeGesture();
 
@@ -224,7 +217,7 @@ private:
                 // have uneven spacing between the different allowed values and we
                 // want the snapping behaviour to be consistent with what we do with
                 // a combo box.
-                String selectedText = buttonState ? buttons[1]->getButtonText() : buttons[0]->getButtonText();
+                auto selectedText = buttons[buttonState ? 1 : 0].getButtonText();
                 getParameter().setValueNotifyingHost (getParameter().getValueForText (selectedText));
             }
 
@@ -232,7 +225,7 @@ private:
         }
     }
 
-    bool getParameterState()
+    bool isParameterOn() const
     {
         if (getParameter().getAllValueStrings().isEmpty())
             return getParameter().getValue() > 0.5f;
@@ -250,11 +243,12 @@ private:
         return index == 1;
     }
 
-    OwnedArray<TextButton> buttons;
+    TextButton buttons[2];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SwitchParameterComponent)
 };
 
+//==============================================================================
 class ChoiceParameterComponent final   : public Component,
                                          private ParameterListener
 {
@@ -268,7 +262,7 @@ public:
         // Set the initial value.
         handleNewParameterValue();
 
-        box.onChange = [this]() { boxChanged(); };
+        box.onChange = [this] { boxChanged(); };
         addAndMakeVisible (box);
     }
 
@@ -290,7 +284,7 @@ private:
         {
             // The parameter is producing some unexpected text, so we'll do
             // some linear interpolation.
-            index = roundToInt (getParameter().getValue() * (parameterValues.size() - 1));
+            index = roundToInt (getParameter().getValue() * (float) (parameterValues.size() - 1));
         }
 
         box.setSelectedItemIndex (index);
@@ -317,6 +311,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChoiceParameterComponent)
 };
 
+//==============================================================================
 class SliderParameterComponent final   : public Component,
                                          private ParameterListener
 {
@@ -329,6 +324,8 @@ public:
         else
             slider.setRange (0.0, 1.0);
 
+        slider.setDoubleClickReturnValue (true, param.getDefaultValue());
+
         slider.setScrollWheelEnabled (false);
         addAndMakeVisible (slider);
 
@@ -340,9 +337,9 @@ public:
         // Set the initial value.
         handleNewParameterValue();
 
-        slider.onValueChange = [this]() { sliderValueChanged(); };
-        slider.onDragStart   = [this]() { sliderStartedDragging(); };
-        slider.onDragEnd     = [this]() { sliderStoppedDragging(); };
+        slider.onValueChange = [this] { sliderValueChanged(); };
+        slider.onDragStart   = [this] { sliderStartedDragging(); };
+        slider.onDragEnd     = [this] { sliderStoppedDragging(); };
     }
 
     void paint (Graphics&) override {}
@@ -408,51 +405,36 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SliderParameterComponent)
 };
 
-class ParameterDisplayComponent   : public Component
+//==============================================================================
+class ParameterDisplayComponent   : public Component,
+                                    private AudioProcessorListener,
+                                    private AsyncUpdater
 {
 public:
-    ParameterDisplayComponent (AudioProcessor& processor, AudioProcessorParameter& param)
-        : parameter (param)
+    ParameterDisplayComponent (AudioProcessorEditor& editorIn, AudioProcessorParameter& param)
+        : editor (editorIn), parameter (param)
     {
+        editor.processor.addListener (this);
+
         parameterName.setText (parameter.getName (128), dontSendNotification);
         parameterName.setJustificationType (Justification::centredRight);
+        parameterName.setInterceptsMouseClicks (false, false);
         addAndMakeVisible (parameterName);
 
         parameterLabel.setText (parameter.getLabel(), dontSendNotification);
+        parameterLabel.setInterceptsMouseClicks (false, false);
         addAndMakeVisible (parameterLabel);
 
-        if (param.isBoolean())
-        {
-            // The AU, AUv3 and VST (only via a .vstxml file) SDKs support
-            // marking a parameter as boolean. If you want consistency across
-            // all  formats then it might be best to use a
-            // SwitchParameterComponent instead.
-            parameterComp.reset (new BooleanParameterComponent (processor, param));
-        }
-        else if (param.getNumSteps() == 2)
-        {
-            // Most hosts display any parameter with just two steps as a switch.
-            parameterComp.reset (new SwitchParameterComponent (processor, param));
-        }
-        else if (! param.getAllValueStrings().isEmpty())
-        {
-            // If we have a list of strings to represent the different states a
-            // parameter can be in then we should present a dropdown allowing a
-            // user to pick one of them.
-            parameterComp.reset (new ChoiceParameterComponent (processor, param));
-        }
-        else
-        {
-            // Everything else can be represented as a slider.
-            parameterComp.reset (new SliderParameterComponent (processor, param));
-        }
-
-        addAndMakeVisible (parameterComp.get());
+        addAndMakeVisible (*(parameterComp = createParameterComp (editor.processor)));
 
         setSize (400, 40);
     }
 
-    void paint (Graphics&) override {}
+    ~ParameterDisplayComponent() override
+    {
+        cancelPendingUpdate();
+        editor.processor.removeListener (this);
+    }
 
     void resized() override
     {
@@ -463,86 +445,163 @@ public:
         parameterComp->setBounds (area);
     }
 
+    void mouseDown (const MouseEvent& e) override
+    {
+        if (e.mods.isRightButtonDown())
+            if (auto* context = editor.getHostContext())
+                if (auto menu = context->getContextMenuForParameterIndex (&parameter))
+                    menu->getEquivalentPopupMenu().showMenuAsync (PopupMenu::Options().withTargetComponent (this)
+                                                                                      .withMousePosition());
+    }
+
 private:
+    AudioProcessorEditor& editor;
     AudioProcessorParameter& parameter;
     Label parameterName, parameterLabel;
     std::unique_ptr<Component> parameterComp;
 
+    std::unique_ptr<Component> createParameterComp (AudioProcessor& processor) const
+    {
+        // The AU, AUv3 and VST (only via a .vstxml file) SDKs support
+        // marking a parameter as boolean. If you want consistency across
+        // all  formats then it might be best to use a
+        // SwitchParameterComponent instead.
+        if (parameter.isBoolean())
+            return std::make_unique<BooleanParameterComponent> (processor, parameter);
+
+        // Most hosts display any parameter with just two steps as a switch.
+        if (parameter.getNumSteps() == 2)
+            return std::make_unique<SwitchParameterComponent> (processor, parameter);
+
+        // If we have a list of strings to represent the different states a
+        // parameter can be in then we should present a dropdown allowing a
+        // user to pick one of them.
+        if (! parameter.getAllValueStrings().isEmpty()
+             && std::abs (parameter.getNumSteps() - parameter.getAllValueStrings().size()) <= 1)
+            return std::make_unique<ChoiceParameterComponent> (processor, parameter);
+
+        // Everything else can be represented as a slider.
+        return std::make_unique<SliderParameterComponent> (processor, parameter);
+    }
+
+    void audioProcessorParameterChanged (AudioProcessor*, int, float) override {}
+
+    void audioProcessorChanged (AudioProcessor*, const ChangeDetails& details) override
+    {
+        if (! details.parameterInfoChanged)
+            return;
+
+        if (MessageManager::getInstance()->isThisTheMessageThread())
+            handleAsyncUpdate();
+        else
+            triggerAsyncUpdate();
+    }
+
+    void handleAsyncUpdate() override
+    {
+        parameterName .setText (parameter.getName (128), dontSendNotification);
+        parameterLabel.setText (parameter.getLabel(),    dontSendNotification);
+    }
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParameterDisplayComponent)
 };
 
-class ParametersPanel   : public Component
+//==============================================================================
+struct ParamControlItem : public TreeViewItem
 {
-public:
-    ParametersPanel (AudioProcessor& processor, const Array<AudioProcessorParameter*>& parameters)
-    {
-        for (auto* param : parameters)
-            if (param->isAutomatable())
-                addAndMakeVisible (paramComponents.add (new ParameterDisplayComponent (processor, *param)));
+    ParamControlItem (AudioProcessorEditor& editorIn, AudioProcessorParameter& paramIn)
+        : editor (editorIn), param (paramIn) {}
 
-        if (auto* comp = paramComponents[0])
-            setSize (comp->getWidth(), comp->getHeight() * paramComponents.size());
-        else
-            setSize (400, 100);
+    bool mightContainSubItems() override { return false; }
+
+    std::unique_ptr<Component> createItemComponent() override
+    {
+        return std::make_unique<ParameterDisplayComponent> (editor, param);
     }
 
-    void paint (Graphics& g) override
+    int getItemHeight() const override { return 40; }
+
+    AudioProcessorEditor& editor;
+    AudioProcessorParameter& param;
+};
+
+struct ParameterGroupItem : public TreeViewItem
+{
+    ParameterGroupItem (AudioProcessorEditor& editor, const AudioProcessorParameterGroup& group)
+        : name (group.getName())
     {
-        g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
+        for (auto* node : group)
+        {
+            if (auto* param = node->getParameter())
+                if (param->isAutomatable())
+                    addSubItem (new ParamControlItem (editor, *param));
+
+            if (auto* inner = node->getGroup())
+            {
+                auto groupItem = std::make_unique<ParameterGroupItem> (editor, *inner);
+
+                if (groupItem->getNumSubItems() != 0)
+                    addSubItem (groupItem.release());
+            }
+        }
     }
 
-    void resized() override
-    {
-        auto area = getLocalBounds();
+    bool mightContainSubItems() override { return getNumSubItems() > 0; }
 
-        for (auto* comp : paramComponents)
-            comp->setBounds (area.removeFromTop (comp->getHeight()));
+    std::unique_ptr<Component> createItemComponent() override
+    {
+        return std::make_unique<Label> (name, name);
     }
 
-private:
-    OwnedArray<ParameterDisplayComponent> paramComponents;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParametersPanel)
+    String name;
 };
 
 //==============================================================================
 struct GenericAudioProcessorEditor::Pimpl
 {
-    Pimpl (GenericAudioProcessorEditor& parent)
-        : owner (parent)
+    Pimpl (AudioProcessorEditor& editor)
+        : legacyParameters (editor.processor, false),
+          groupItem (editor, legacyParameters.getGroup())
     {
-        auto* p = parent.getAudioProcessor();
-        jassert (p != nullptr);
+        const auto numIndents = getNumIndents (groupItem);
+        const auto width = 400 + view.getIndentSize() * numIndents;
 
-        juceParameters.update (*p, false);
-
-        owner.setOpaque (true);
-
-        view.setViewedComponent (new ParametersPanel (*p, juceParameters.params));
-        owner.addAndMakeVisible (view);
-
-        view.setScrollBarsShown (true, false);
+        view.setSize (width, 400);
+        view.setDefaultOpenness (true);
+        view.setRootItemVisible (false);
+        view.setRootItem (&groupItem);
     }
 
+    static int getNumIndents (const TreeViewItem& item)
+    {
+        int maxInner = 0;
 
-    //==============================================================================
-    GenericAudioProcessorEditor& owner;
-    LegacyAudioParametersWrapper juceParameters;
-    Viewport view;
+        for (auto i = 0; i < item.getNumSubItems(); ++i)
+            maxInner = jmax (maxInner, 1 + getNumIndents (*item.getSubItem (i)));
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
+        return maxInner;
+    }
+
+    LegacyAudioParametersWrapper legacyParameters;
+    ParameterGroupItem groupItem;
+    TreeView view;
 };
 
-
 //==============================================================================
-GenericAudioProcessorEditor::GenericAudioProcessorEditor (AudioProcessor* const p)
-    : AudioProcessorEditor (p), pimpl (new Pimpl (*this))
+GenericAudioProcessorEditor::GenericAudioProcessorEditor (AudioProcessor& p)
+    : AudioProcessorEditor (p), pimpl (std::make_unique<Pimpl> (*this))
 {
-    setSize (pimpl->view.getViewedComponent()->getWidth() + pimpl->view.getVerticalScrollBar().getWidth(),
-             jmin (pimpl->view.getViewedComponent()->getHeight(), 400));
+    auto* viewport = pimpl->view.getViewport();
+
+    setOpaque (true);
+    addAndMakeVisible (pimpl->view);
+
+    setResizable (true, false);
+    setSize (viewport->getViewedComponent()->getWidth() + viewport->getVerticalScrollBar().getWidth(),
+             jlimit (125, 400, viewport->getViewedComponent()->getHeight()));
 }
 
-GenericAudioProcessorEditor::~GenericAudioProcessorEditor() {}
+GenericAudioProcessorEditor::~GenericAudioProcessorEditor() = default;
 
 void GenericAudioProcessorEditor::paint (Graphics& g)
 {

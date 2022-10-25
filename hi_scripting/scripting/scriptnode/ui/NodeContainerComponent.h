@@ -45,15 +45,10 @@ struct MacroPropertyEditor : public Component,
 	struct ConnectionEditor : public Component,
 							  public ButtonListener
 	{
-		static Array<Identifier> getHiddenIds()
-		{
-			return { PropertyIds::NodeId, PropertyIds::ParameterId,
-					PropertyIds::UpperLimit, PropertyIds::LowerLimit,
-					PropertyIds::Inverted };
-		}
+		
 
 		ConnectionEditor(NodeBase* b, ValueTree connectionData, bool showSourceInTitle) :
-			cEditor(b, true, connectionData, getHiddenIds()),
+			cEditor(b, true, connectionData, RangeHelpers::getHiddenIds()),
 			node(b),
 			deleteButton("delete", this, f),
 			gotoButton("goto", this, f),
@@ -66,9 +61,6 @@ struct MacroPropertyEditor : public Component,
 			addAndMakeVisible(cEditor);
 			addAndMakeVisible(deleteButton);
 			addAndMakeVisible(gotoButton);
-
-			expressionEnabler.setCallback(data, { PropertyIds::Expression }, valuetree::AsyncMode::Asynchronously,
-				BIND_MEMBER_FUNCTION_2(ConnectionEditor::enableProperties));
 
 			updateSize();
 		}
@@ -84,7 +76,6 @@ struct MacroPropertyEditor : public Component,
 			bool shouldBeEnabled = newValue.toString().isEmpty();
 
 			auto rangeIds = RangeHelpers::getRangeIds();
-			rangeIds.add(PropertyIds::Enabled);
 			cEditor.enableProperties(rangeIds, shouldBeEnabled);
 
 			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();
@@ -251,14 +242,10 @@ struct MacroPropertyEditor : public Component,
 		}
 		else
 		{
-			for (int i = 0; i < b->getNumParameters(); i++)
+			for (auto p: NodeBase::ParameterIterator(*b))
 			{
-				
-
 				if (parameter != nullptr)
 					break;
-
-				auto p = b->getParameter(i);
 
 				if (p->data == data)
 				{
@@ -425,17 +412,86 @@ struct MacroPropertyEditor : public Component,
 };
 
 
+struct NodeDropTarget
+{
+	virtual ~NodeDropTarget() {};
 
-class ContainerComponent : public NodeComponent,
+	Component* asComponent() { return dynamic_cast<Component*>(this); }
+
+	virtual void setDropTarget(Point<int> position) = 0;
+	virtual void removeDraggedNode(NodeComponent* draggedNode) = 0;
+	virtual void insertDraggedNode(NodeComponent* newNode, bool copyNode) = 0;
+	virtual void clearDropTarget() = 0;
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeDropTarget);
+};
+
+class ContainerComponent :  public NodeComponent,
+							public NodeDropTarget,
 							public DragAndDropContainer,
-							public NodeBase::HelpManager::Listener
+							public HelpManager::Listener,
+							public Value::Listener,
+                            public PooledUIUpdater::SimpleTimer,
+						    public LassoSource<NodeBase::Ptr>
 {
 public:
 
-	struct ParameterComponent : public Component,
-								public ButtonListener,
-								public ValueTree::Listener
+    enum class CableLocation
+    {
+        Input,
+        BetweenNodes,
+        Output,
+        numCableLocations
+    };
+    
+	struct MacroToolbar : public Component,
+						  public ButtonListener
 	{
+		MacroToolbar() :
+			dragButton("drag", this, f),
+			addButton("add", this, f)
+		{
+			addAndMakeVisible(dragButton);
+			addAndMakeVisible(addButton);
+			dragButton.setToggleModeWithColourChange(true);
+			setSize(32, 40);
+		};
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			auto bRow = b.removeFromLeft(b.getHeight() / 3);
+
+			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
+			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			auto pc = findParentComponentOfClass<ParameterComponent>();
+
+			if (b == &addButton)
+			{
+				auto name = PresetHandler::getCustomName("Parameter", "Enter the parameter name");
+
+				while (name.isNotEmpty() && pc->parent.node->getParameterFromName(name) != nullptr)
+				{
+					PresetHandler::showMessageWindow("Already there", "The parameter " + name + " already exists. You need to be more creative.");
+
+					name = PresetHandler::getCustomName("Parameter", "Enter a new parameter name");
+				}
+
+                pc->parent.node->getParameter(name);
+			}
+			if (b == &dragButton)
+			{
+				for (auto s : pc->sliders)
+					dynamic_cast<MacroParameterSlider*>(s)->setEditEnabled(b->getToggleState());
+			}
+		}
+
 		struct Factory : public PathFactory
 		{
 			Path createPath(const String& id) const override
@@ -452,19 +508,27 @@ public:
 			String getId() const override { return "ParameterEditIcons"; }
 		};
 
+
+		Factory f;
+		HiseShapeButton dragButton;
+		HiseShapeButton addButton;
+	};
+	
+	struct ParameterComponent : public Component,
+								public ValueTree::Listener,
+								public AsyncUpdater
+	{
+		
 		ParameterComponent(ContainerComponent& parent_):
 			parent(parent_),
-			parameterTree(parent.dataReference.getChildWithName(PropertyIds::Parameters)),
-			dragButton("drag", this, f),
-			addButton("add", this, f)
+			parameterTree(parent.dataReference.getChildWithName(PropertyIds::Parameters))
 		{
 			parameterTree.addListener(this);
 
-			addAndMakeVisible(dragButton);
-			addAndMakeVisible(addButton);
+			if ((leftTabComponent = dynamic_cast<NodeContainer*>(parent.node.get())->createLeftTabComponent()))
+				addAndMakeVisible(leftTabComponent);
 
-			dragButton.setToggleModeWithColourChange(true);
-
+			setSize(500, UIValues::ParameterHeight);
 			rebuildParameters();
 		}
 
@@ -473,59 +537,46 @@ public:
 			parameterTree.removeListener(this);
 		}
 
-		void buttonClicked(Button* b) override
+		bool isFixedParameterComponent() const
 		{
-			if (b == &addButton)
-			{
-				auto name = PresetHandler::getCustomName("Parameter", "Enter the parameter name");
+			return dynamic_cast<NodeContainer*>(parent.node.get())->hasFixedParameters();
+		}
 
-				while (name.isNotEmpty() && parent.node->getParameter(name) != nullptr)
-				{
-					PresetHandler::showMessageWindow("Already there", "The parameter " + name + " already exists. You need to be more creative.");
-
-					name = PresetHandler::getCustomName("Parameter", "Enter a new parameter name");
-				}
-
-				if (name.isNotEmpty())
-				{
-					ValueTree p(PropertyIds::Parameter);
-					p.setProperty(PropertyIds::ID, name, nullptr);
-					p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
-					p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
-					p.setProperty(PropertyIds::StepSize, 0.01, nullptr);
-					p.setProperty(PropertyIds::SkewFactor, 1.0, nullptr);
-					p.setProperty(PropertyIds::Value, 1.0, nullptr);
-					parameterTree.addChild(p, -1, parent.node->getUndoManager());
-				}
-			}
-			if (b == &dragButton)
-			{
-				for (auto s : sliders)
-					s->setEditEnabled(b->getToggleState());
-			}
+		void handleAsyncUpdate() override
+		{
+			rebuildParameters();
 		}
 
 		void valueTreeChildAdded(ValueTree& parentTree, ValueTree&) override
 		{
+			if (isFixedParameterComponent())
+				return;
+
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 		void valueTreeChildOrderChanged(ValueTree& parentTree, int, int) override
 		{
+			if (isFixedParameterComponent())
+				return;
+
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 
 		void valueTreeChildRemoved(ValueTree& parentTree, ValueTree&, int) override
 		{
+			if (isFixedParameterComponent())
+				return;
+
 			if (parentTree.getType() == PropertyIds::Connections)
 				return;
 
-			rebuildParameters();
+			triggerAsyncUpdate();
 		}
 		void valueTreePropertyChanged(ValueTree&, const Identifier&) override {}
 		void valueTreeParentChanged(ValueTree&) override {}
@@ -536,7 +587,13 @@ public:
 
 			for (int i = 0; i < parent.node->getNumParameters(); i++)
 			{
-				auto newSlider = new MacroParameterSlider(parent.node, i);
+				Component* newSlider;
+
+				if (isFixedParameterComponent())
+					newSlider = new ParameterSlider(parent.node.get(), i);
+				else
+					newSlider = new MacroParameterSlider(parent.node.get(), i);
+
 				addAndMakeVisible(newSlider);
 				sliders.add(newSlider);
 			}
@@ -544,32 +601,23 @@ public:
 			resized();
 		}
 
-		void resized() override
-		{
-			auto b = getLocalBounds();
-
-			auto bRow = b.removeFromLeft(b.getHeight() / 3);
-
-			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
-			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
-
-			for (auto s : sliders)
-			{
-				s->setBounds(b.removeFromLeft(100));
-			}
-		}
+		void resized() override;
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colours::black.withAlpha(0.1f));
+			auto b = getLocalBounds().toFloat();
+			
+			b.removeFromTop(10.0f);
+
+			g.setColour(Colours::black.withAlpha(0.1f));
+
+			g.fillRoundedRectangle(b, 10.0f);
 		}
 
 		ContainerComponent& parent;
 		ValueTree parameterTree;
-		Factory f;
-		HiseShapeButton dragButton;
-		HiseShapeButton addButton;
-		OwnedArray<MacroParameterSlider> sliders;
+		ScopedPointer<Component> leftTabComponent;
+		OwnedArray<Component> sliders;
 	};
 
 	ContainerComponent(NodeContainer* b);;
@@ -579,7 +627,39 @@ public:
 	void mouseMove(const MouseEvent& event) override;
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
+	void mouseDrag(const MouseEvent& event) override;
+	void mouseUp(const MouseEvent& e) override;
 
+    void timerCallback() override { repaint(); }
+
+    float getCircleAmp(int nodeIndex, int channelIndex, bool post)
+    {
+        if(!node->getRootNetwork()->isSignalDisplayEnabled())
+            return 0.0f;
+        
+        NodeBase* n;
+        
+        if(nodeIndex == -1)
+            n = node.get();
+        else
+        {
+            if(auto nc = childNodeComponents[nodeIndex])
+                n = nc->node.get();
+            else
+                return 0.0f;
+        }
+            
+        
+        auto peak = jlimit(0.0f, 1.0f, n->getSignalPeak(channelIndex, post));
+        
+        if(peak >= 0.001f)
+            peak = 0.25f + 0.75f * peak;
+        
+        return getMaxCircleRadius() * peak;
+    }
+    
+    virtual float getMaxCircleRadius() const = 0;
+    
 	virtual int getInsertPosition(Point<int> x) const = 0;
 	void removeDraggedNode(NodeComponent* draggedNode);
 	void insertDraggedNode(NodeComponent* newNode, bool copyNode);
@@ -602,8 +682,12 @@ public:
 		}
 	}
 
-	void setDropTarget(Point<int> position);
+    bool shouldPaintCable(CableLocation l) const;
+    
+	void setDropTarget(Point<int> position) override;
 	void clearDropTarget();
+
+	void valueChanged(Value& v) override;
 
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
 
@@ -611,22 +695,40 @@ public:
 	{
 		NodeComponent::resized();
 
-		if (dataReference[PropertyIds::ShowParameters])
-		{
-			parameters.setVisible(true);
-		}
-		else
-			parameters.setVisible(false);
+		Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
+
+		jassert(topComponent != nullptr);
+
+		topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
 
 		auto b = getLocalBounds();
 		b.expand(-UIValues::NodeMargin, 0);
 		b.removeFromTop(UIValues::HeaderHeight);
-		parameters.setBounds(b.removeFromTop(UIValues::ParameterHeight));
+		topComponent->setSize(b.getWidth(), topComponent->getHeight());
+		topComponent->setTopLeftPosition(b.getTopLeft());
 	}
 
 	int getCurrentAddPosition() const { return addPosition; }
 
+	void setExtraComponent(Component* newExtraComponent)
+	{
+		extraComponent = newExtraComponent;
+		addAndMakeVisible(extraComponent);
+		parameters = nullptr;
+		resized();
+	}
+
+	void findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound,
+		const Rectangle<int>& area) override;
+
+	SelectedItemSet<NodeBase::Ptr>& getLassoSelection() override
+	{
+		return node->getRootNetwork()->getRawSelection();
+	}
+
 protected:
+
+	Value verticalValue;
 
 	Point<int> getStartPosition() const;
 	float getCableXOffset(int cableIndex, int factor = 1) const;
@@ -635,12 +737,23 @@ protected:
 	int insertPosition = -1;
 	int addPosition = -1;
 
+	ScopedPointer<Component> duplicateDisplay;
+
+    float signalDotOffset = 0.0f;
+    
 private:
 
 	struct Updater : public SafeChangeBroadcaster,
 		public SafeChangeListener,
 		public ValueTree::Listener
 	{
+		enum class Level
+		{
+			Nothing,
+			Repaint,
+			Rebuild
+		};
+
 		Updater(ContainerComponent& parent_);
 
 		~Updater();
@@ -655,19 +768,29 @@ private:
 		ContainerComponent& parent;
 		ValueTree copy;
 
+		Level messageLevel = Level::Nothing;
 	} updater;
 
 	void rebuildNodes();
 
-	ParameterComponent parameters;
+	ScopedPointer<ParameterComponent> parameters;
+	ScopedPointer<Component> extraComponent;
+
+	LassoComponent<NodeBase::Ptr> lasso;
+	
+    
 };
 
 struct SerialNodeComponent : public ContainerComponent
 {
-	SerialNodeComponent(SerialNode* node);
+	SerialNodeComponent(NodeContainer* node);
 
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
+
+    float getMaxCircleRadius() const override { return 4.0f; }
+    
+	Colour getOutlineColour() const override;
 
 	void resized() override;
 	void paintSerialCable(Graphics& g, int cableIndex);
@@ -676,28 +799,20 @@ struct SerialNodeComponent : public ContainerComponent
 
 struct ParallelNodeComponent : public ContainerComponent
 {
-	ParallelNodeComponent(ParallelNode* node);;
+	ParallelNodeComponent(NodeContainer* node);;
 
+    float getMaxCircleRadius() const override { return 6.0f; }
+    
 	bool isMultiChannelNode() const;
 	int getInsertPosition(Point<int> position) const override;
 	Rectangle<float> getInsertRuler(int position) const override;
+
+	juce::Colour getOutlineColour() const override;
 
 	void resized() override;
 	void paint(Graphics& g) override;
 	void paintCable(Graphics& g, int cableIndex);
 };
 
-struct ModChainNodeComponent : public ContainerComponent
-{
-	ModChainNodeComponent(ModulationChainNode* node);
-
-	bool isMultiChannelNode() const { return false; }
-
-	int getInsertPosition(Point<int> position) const override;
-	Rectangle<float> getInsertRuler(int position) const override;
-
-	void resized() override;
-	void paint(Graphics& g) override;
-};
 
 }

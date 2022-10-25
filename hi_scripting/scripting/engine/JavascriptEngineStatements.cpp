@@ -6,6 +6,8 @@ struct HiseJavascriptEngine::RootObject::LockStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override;
 
+	Statement* getChildStatement(int index) override { return index == 0 ? lockedObj.get() : nullptr; };
+
 	ExpPtr lockedObj;
 
 	mutable ReadWriteLock* currentLock;
@@ -38,7 +40,7 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 				loc.fillColumnAndLines(col, line);
 				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, loc.externalFile, line, col, loc.getCharIndex(), st->breakpointReference.index);
 
-				const bool hasRootScope = s.root == s.scope.get();
+				const bool hasRootScope = s.root.get() == s.scope.get();
 
 				if(!hasRootScope)
 					bp.localScope = s.scope.get();
@@ -96,6 +98,34 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		SpinLock accessLock;
 	};
 
+	bool replaceChildStatement(ScopedPointer<Statement>& newStatement, Statement* childToReplace) override
+	{
+		if (newStatement == nullptr)
+		{
+			statements.removeObject(childToReplace);
+			return true;
+		}
+		else
+		{
+			auto idx = statements.indexOf(childToReplace);
+			statements.set(idx, newStatement.release(), true);
+			return true;
+		}
+	}
+
+	Statement* getChildStatement(int index) override 
+	{
+		if (isPositiveAndBelow(index, statements.size()))
+			return statements[index];
+
+		index -= statements.size();
+
+		if (isPositiveAndBelow(index, lockStatements.size()))
+			return lockStatements[index];
+
+		return nullptr;
+	};
+
 	OwnedArray<Statement> statements;
 	OwnedArray<LockStatement> lockStatements;
 };
@@ -107,6 +137,19 @@ struct HiseJavascriptEngine::RootObject::IfStatement : public Statement
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
 		return (condition->getResult(s) ? trueBranch : falseBranch)->perform(s, returnedValue);
+	}
+
+	Statement* getChildStatement(int index) override
+	{
+		if (index == 0) return condition;
+		if (index == 1) return trueBranch.get();
+		if (index == 2) return falseBranch.get();
+		return nullptr;
+	};
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, condition) || swapIf(s, n, trueBranch) || swapIf(s, n, falseBranch);
 	}
 
 	ExpPtr condition;
@@ -133,6 +176,21 @@ struct HiseJavascriptEngine::RootObject::CaseStatement : public Statement
 				values.add(conditions[i]->getResult(s));
 		}
 	}
+
+	Statement* getChildStatement(int index) override
+	{
+		if (isPositiveAndBelow(index, conditions.size()))
+		{
+			return conditions[index];
+		}
+
+		index -= conditions.size();
+
+		if (index == 0)
+			return body.get();
+
+		return nullptr;
+	};
 
 	Array<ExpPtr> conditions;
 	Array<var> values;
@@ -177,6 +235,12 @@ struct HiseJavascriptEngine::RootObject::SwitchStatement : public Statement
 		return Statement::ok;
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		// too lazy LOL
+		return nullptr;
+	};
+
 	OwnedArray<CaseStatement> cases;
 
 	ScopedPointer<CaseStatement> defaultCase;
@@ -184,14 +248,21 @@ struct HiseJavascriptEngine::RootObject::SwitchStatement : public Statement
 };
 
 
-struct HiseJavascriptEngine::RootObject::VarStatement : public Statement
+struct HiseJavascriptEngine::RootObject::VarStatement : public Expression
 {
-	VarStatement(const CodeLocation& l) noexcept : Statement(l) {}
+	VarStatement(const CodeLocation& l) noexcept : Expression(l) {}
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		s.scope->setProperty(name, initialiser->getResult(s));
 		return ok;
+	}
+
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, initialiser);
 	}
 
 	Identifier name;
@@ -212,6 +283,13 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 		
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? initialiser.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return swapIf(s, n, initialiser);
+	}
+
 	JavascriptNamespace* ns = nullptr;
 
 	Identifier name;
@@ -224,27 +302,37 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 {
 	struct IteratorName : public Expression
 	{
-		IteratorName(const CodeLocation& l, Identifier id_) noexcept : Expression(l), id(id_) {}
+		IteratorName(const CodeLocation& l, LoopStatement* loop, Identifier id_) noexcept : Expression(l), loopToUse(loop), id(id_) {}
 
 		var getResult(const Scope& s) const override
 		{
-			LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
-			var *data = &loop->currentObject;
-			CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
+			//LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
 
-			if (data->isArray())
+			if (auto loop = loopToUse)
 			{
-				if (loop->index >= data->size())
-					location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+				var *data = &loop->currentObject;
+				CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
 
-				return data->getArray()->getUnchecked(loop->index);
+				if (data->isArray())
+				{
+					if (loop->index >= data->size())
+						location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+
+					return data->getArray()->getUnchecked(loop->index);
+				}
+				else if (data->isBuffer())
+					return data->getBuffer()->getSample(loop->index);
+				else if (auto obj = data->getDynamicObject())
+					return obj->getProperties().getName(loop->index).toString();
+				else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
+					return fo->getAssignedValue(loop->index);
+				else location.throwError("Illegal iterator target");
 			}
-			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
-			else if (data->isObject())		return data->getDynamicObject()->getProperties().getName(loop->index).toString();
-			else location.throwError("Illegal iterator target");
-
+			
 			return var();
 		}
+
+		Statement* getChildStatement(int) override { return nullptr; }
 
 		void assign(const Scope& s, const var& newValue) const override
 		{
@@ -254,13 +342,22 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 			if (data->isArray())		data->getArray()->set(loop->index, newValue);
 			else if (data->isBuffer())	data->getBuffer()->setSample(loop->index, newValue);
-			else if (data->isObject())	*data->getDynamicObject()->getProperties().getVarPointerAt(loop->index) = newValue;	   
+			else if (auto fo = dynamic_cast<fixobj::Array*>(data->getObject()))
+			{
+				auto v = dynamic_cast<fixobj::ObjectReference*>(fo->getAssignedValue(loop->index).getObject());
+				auto s = dynamic_cast<fixobj::ObjectReference*>(newValue.getObject());
+
+				*v = *s;
+			}
+			else if (auto obj = data->getDynamicObject())	
+				*obj->getProperties().getVarPointerAt(loop->index) = newValue;	   
 		}
 
 		bool isArray;
 		bool isBuffer;
 
 		const Identifier id;
+		LoopStatement* loopToUse = nullptr;
 	};
 
 	LoopStatement(const CodeLocation& l, bool isDo, bool isIterator_ = false) noexcept : Statement(l), isDoLoop(isDo), isIterator(isIterator_) {}
@@ -283,13 +380,15 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 				size = b->size;
 			else if (auto dynObj = currentObject.getDynamicObject())
 				size = dynObj->getProperties().size();
+			else if (auto fixStack = dynamic_cast<fixobj::Stack*>(currentObject.getObject()))
+				size = fixStack->size();
+			else if (auto fixArray = dynamic_cast<fixobj::Array*>(currentObject.getObject()))
+				size = fixArray->getConstantValue(0);
 			else
 			{
 				location.throwError("no iterable type");
 			}
 				
-			
-
 			while (index < size)
 			{
 				ResultCode r = body->perform(s, returnedValue);
@@ -330,6 +429,33 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		}
 	}
 
+	Statement* getChildStatement(int index) override
+	{
+		if (isIterator)
+		{
+			if (index == 0) return currentIterator.get();
+			if (index == 1) return body.get();
+		}
+		else
+		{
+			if (index == 0) return initialiser.get();
+			if (index == 1) return iterator.get();
+			if (index == 2) return condition.get();
+			if (index == 3) return body.get();
+		}
+		
+		return nullptr;
+	}
+
+	bool replaceChildStatement(Ptr& s, Statement* n) override
+	{
+		return	swapIf(s, n, body) ||
+				swapIf(s, n, condition) ||
+				swapIf(s, n, currentIterator) ||
+				swapIf(s, n, initialiser) ||
+				swapIf(s, n, iterator);
+	}
+
 	ScopedPointer<Statement> initialiser, iterator, body;
 
 	ExpPtr condition;
@@ -356,6 +482,13 @@ struct HiseJavascriptEngine::RootObject::ReturnStatement : public Statement
 		return returnWasHit;
 	}
 
+	Statement* getChildStatement(int index) override { return index == 0 ? returnValue.get() : nullptr; }
+
+	bool replaceChildStatement(Ptr& newChild, Statement* oldChild) override
+	{ 
+		return swapIf(newChild, oldChild, returnValue);
+	};
+
 	ExpPtr returnValue;
 };
 
@@ -364,6 +497,8 @@ struct HiseJavascriptEngine::RootObject::BreakStatement : public Statement
 {
 	BreakStatement(const CodeLocation& l) noexcept : Statement(l) {}
 	ResultCode perform(const Scope&, var*) const override  { return breakWasHit; }
+
+	Statement* getChildStatement(int) override { return nullptr; }
 };
 
 
@@ -371,6 +506,8 @@ struct HiseJavascriptEngine::RootObject::ContinueStatement : public Statement
 {
 	ContinueStatement(const CodeLocation& l) noexcept : Statement(l) {}
 	ResultCode perform(const Scope&, var*) const override  { return continueWasHit; }
+
+	Statement* getChildStatement(int) override { return nullptr; }
 };
 
 } // namespace hise

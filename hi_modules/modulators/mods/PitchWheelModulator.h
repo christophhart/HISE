@@ -69,7 +69,7 @@ public:
 		loadAttribute(Inverted, "Inverted");
 		loadAttribute(SmoothTime, "SmoothTime");
 		
-		if(useTable) loadTable(table, "PitchwheelTableData");
+		if(useTable) loadTable(getTableUnchecked(0), "PitchwheelTableData");
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -80,7 +80,7 @@ public:
 		saveAttribute(Inverted, "Inverted");
 		saveAttribute(SmoothTime, "SmoothTime");
 		
-		if(useTable) saveTable(table, "PitchwheelTableData");
+		if(useTable) saveTable(getTableUnchecked(0), "PitchwheelTableData");
 
 		return v;
 
@@ -98,7 +98,6 @@ public:
 		
 	}
 	
-
 	/** Returns a new editor */
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -115,9 +114,6 @@ public:
 
 	/** sets the new target value if the controller number matches. */
 	void handleHiseEvent(const HiseEvent &m) override;
-
-	/** returns a pointer to the look up table. Don't delete it! */
-	Table *getTable(int=0) const override {return table; };
 
 	/** sets up the smoothing filter. */
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -157,9 +153,6 @@ private:
 	bool useTable;
 	
 	Smoother smoother;
-
-	ScopedPointer<MidiTable> table;
-
 };
 
 

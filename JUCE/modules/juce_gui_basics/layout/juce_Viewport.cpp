@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -223,7 +222,7 @@ struct Viewport::DragToScrollListener   : private MouseListener,
                                                                 (int) offsetY.getPosition()));
     }
 
-    void mouseDown (const MouseEvent&) override
+    void mouseDown (const MouseEvent& e) override
     {
         if (! isGlobalMouseListener)
         {
@@ -236,12 +235,15 @@ struct Viewport::DragToScrollListener   : private MouseListener,
             Desktop::getInstance().addGlobalMouseListener (this);
 
             isGlobalMouseListener = true;
+
+            scrollSource = e.source;
         }
     }
 
     void mouseDrag (const MouseEvent& e) override
     {
-        if (Desktop::getInstance().getNumDraggingMouseSources() == 1 && ! doesMouseEventComponentBlockViewportDrag (e.eventComponent))
+        if (e.source == scrollSource
+            && ! doesMouseEventComponentBlockViewportDrag (e.eventComponent))
         {
             auto totalOffset = e.getOffsetFromDragStart().toFloat();
 
@@ -264,9 +266,9 @@ struct Viewport::DragToScrollListener   : private MouseListener,
         }
     }
 
-    void mouseUp (const MouseEvent&) override
+    void mouseUp (const MouseEvent& e) override
     {
-        if (isGlobalMouseListener && Desktop::getInstance().getNumDraggingMouseSources() == 0)
+        if (isGlobalMouseListener && e.source == scrollSource)
             endDragAndClearGlobalMouseListener();
     }
 
@@ -294,6 +296,7 @@ struct Viewport::DragToScrollListener   : private MouseListener,
     Viewport& viewport;
     ViewportDragPosition offsetX, offsetY;
     Point<int> originalViewPos;
+    MouseInputSource scrollSource = Desktop::getInstance().getMainMouseSource();
     bool isDragging = false;
     bool isGlobalMouseListener = false;
 
@@ -389,7 +392,7 @@ void Viewport::updateVisibleArea()
         auto oldContentBounds = contentComp->getBounds();
         contentHolder.setBounds (contentArea);
 
-        // If the content has changed its size, that might affect our scrollbars, so go round again and re-caclulate..
+        // If the content has changed its size, that might affect our scrollbars, so go round again and re-calculate..
         if (oldContentBounds == contentComp->getBounds())
             break;
     }
@@ -408,7 +411,6 @@ void Viewport::updateVisibleArea()
     hbar.setRangeLimits (0.0, contentBounds.getWidth());
     hbar.setCurrentRange (visibleOrigin.x, contentArea.getWidth());
     hbar.setSingleStepSize (singleStepX);
-    hbar.cancelPendingUpdate();
 
     if (canShowHBar && ! hBarVisible)
         visibleOrigin.setX (0);
@@ -417,7 +419,6 @@ void Viewport::updateVisibleArea()
     vbar.setRangeLimits (0.0, contentBounds.getHeight());
     vbar.setCurrentRange (visibleOrigin.y, contentArea.getHeight());
     vbar.setSingleStepSize (singleStepY);
-    vbar.cancelPendingUpdate();
 
     if (canShowVBar && ! vBarVisible)
         visibleOrigin.setY (0);
@@ -534,7 +535,7 @@ static int rescaleMouseWheelDistance (float distance, int singleStepSize) noexce
     if (distance == 0.0f)
         return 0;
 
-    distance *= 14.0f * singleStepSize;
+    distance *= 14.0f * (float) singleStepSize;
 
     return roundToInt (distance < 0 ? jmin (distance, -1.0f)
                                     : jmax (distance,  1.0f));
@@ -599,7 +600,8 @@ bool Viewport::keyPressed (const KeyPress& key)
 {
     const bool isUpDownKey = isUpDownKeyPress (key);
 
-    if (getVerticalScrollBar().isVisible() && isUpDownKey)
+    if (getVerticalScrollBar().isVisible() && isUpDownKey &&
+        getVerticalScrollBar().getWantsKeyboardFocus())
         return getVerticalScrollBar().keyPressed (key);
 
     const bool isLeftRightKey = isLeftRightKeyPress (key);

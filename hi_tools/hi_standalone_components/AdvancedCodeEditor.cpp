@@ -236,13 +236,6 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent* 
 		menu.addSeparator();
 	}
 
-	menu.addItem(ContextActions::AddCodeBookmark, "Add code bookmark");
-	menu.addSeparator();
-
-	menu.addItem(ContextActions::JumpToDefinition, "Jump to definition", true, false);
-	menu.addItem(ContextActions::FindAllOccurences, "Find all occurrences", true, false);
-	menu.addItem(ContextActions::SearchReplace, "Search & replace");
-
 	CodeEditorComponent::addPopupMenuItems(menu, e);
 
 	holder->addPopupMenuItems(menu, this, *e);
@@ -251,68 +244,27 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent* 
 
 void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 {
-	ContextActions action = (ContextActions)menuId;
-
-	switch (action)
-	{
-	
-	case JavascriptCodeEditor::JumpToDefinition:
-	{
-		auto token = getCurrentToken();
-		const String namespaceId = Helpers::findNamespaceForPosition(getCaretPos());
-		holder->jumpToDefinition(token, namespaceId);
-
+	if (holder.get()->performPopupMenuAction(menuId, this))
 		return;
-	}
-	case ContextActions::FindAllOccurences:
-	{
-
-		return;
-	}
-
-	case JavascriptCodeEditor::AddCodeBookmark:
-	{
-		jassertfalse;
-
-#if 0
-		const String bookmarkName = PresetHandler::getCustomName("Bookmark");
-
-		if (bookmarkName.isNotEmpty())
-		{
-			String bookmarkLine = "//! ";
-			const int numChars = bookmarkLine.length() + bookmarkName.length();
-
-			for (int i = numChars; i < 80; i++)
-				bookmarkLine << '=';
-
-			bookmarkLine << " " << bookmarkName << "\r\n";
-			moveCaretToStartOfLine(false);
-			getDocument().insertText(getCaretPos(), bookmarkLine);
-		}
-#endif
-
-		return;
-	}
-
-	default:
-		break;
-	}
-
-	if (menuId >= bookmarkOffset)
-	{
-		const int index = menuId - bookmarkOffset;
-
-		const int lineNumber = bookmarks[index].line;
-
-		scrollToLine(lineNumber);
-
-		return;
-	}
-
-	holder.get()->performPopupMenuAction(menuId, this);
 		
 
 	CodeEditorComponent::performPopupMenuAction(menuId);
+}
+
+String JavascriptCodeEditor::matchesAutocompleteTemplate(const String& token) const
+{
+	if (!token.containsChar('.'))
+		return {};
+
+	auto tt = token.upToLastOccurrenceOf(".", false, false);
+
+	for (const auto& t : autocompleteTemplates)
+	{
+		if (t.token == tt)
+			return t.classId;
+	}
+
+	return {};
 }
 
 juce::String JavascriptCodeEditor::getCurrentToken() const
@@ -343,9 +295,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = getTopLevelComponent();
-
-		if (editor != nullptr)
+		if (auto editor = TopLevelWindowWithOptionalOpenGL::findRoot(this))
 		{
 			editor->addAndMakeVisible(currentPopup);
 
@@ -674,6 +624,18 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 	{
 		increaseMultiSelectionForCurrentToken();
 		return true;
+	}
+	else if (k.isKeyCode(KeyPress::F8Key))
+	{
+		if (k.getModifiers().isCommandDown())
+		{
+			autocompleteTemplates.clear();
+			return true;
+		}
+		else if (!getHighlightedRegion().isEmpty())
+		{
+			return true;
+		}
 	}
 	else if (k.isKeyCode(KeyPress::F4Key))
 	{
@@ -1176,7 +1138,21 @@ void JavascriptCodeEditor::AutoCompletePopup::rebuild(const String& tokenText)
 
 	const ValueTree apiTree = holder->createApiTree();
 
-	if (tokenText.containsChar('.'))
+	auto templatedToken = editor->matchesAutocompleteTemplate(tokenText);
+
+	for (const auto& t : editor->autocompleteTemplates)
+	{
+		auto ri = new RowInfo();
+		ri->codeToInsert = t.token;
+		ri->classId = t.classId;
+		ri->name = t.token;
+		ri->category = "Template";
+		ri->value = t.classId;
+		
+		allInfo.add(ri);
+	}
+
+	if (tokenText.containsChar('.') || templatedToken.isNotEmpty())
 	{
 		createObjectPropertyRows(apiTree, tokenText);
 	}
@@ -1189,6 +1165,30 @@ void JavascriptCodeEditor::AutoCompletePopup::rebuild(const String& tokenText)
 	rebuildVisibleItems(tokenText);
 }
 
+void JavascriptCodeEditor::AutoCompletePopup::createRecursive(DebugInformationBase::Ptr info)
+{
+	
+
+	if (auto obj = info->getObject())
+	{
+		if (obj->isInternalObject())
+			return;
+	}
+
+	allInfo.add(new RowInfo(info));
+
+	if (!info->isAutocompleteable())
+		return;
+
+	int numChildren = info->getNumChildElements();
+
+	for (int i = 0; i < numChildren; i++)
+	{
+		auto childInfo = info->getChildElement(i);
+		createRecursive(childInfo);
+	}
+}
+
 void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 {
 	if (auto p = getProviderBase())
@@ -1196,24 +1196,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 		for (int i = 0; i < p->getNumDebugObjects(); i++)
 		{
 			auto info = p->getDebugInformation(i);
-
-			if (auto obj = info->getObject())
-			{
-				if (obj->isInternalObject())
-					continue;
-			}
-
-			ScopedPointer<RowInfo> row = new RowInfo();
-
-			row->category = info->getCategory();
-			row->type = info->getType();
-			row->description = info->getDescription();
-			row->name = info->getTextForName();
-			row->typeName = info->getTextForDataType();
-			row->value = info->getTextForValue();
-			row->codeToInsert = info->getCodeToInsert();
-
-			allInfo.add(row.release());
+			createRecursive(info);
 		}
 	}
 }
@@ -1243,13 +1226,26 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 	{
 		auto objectId = tokenText.upToLastOccurrenceOf(String("."), false, true);
 
+		auto templatedToken = editor->matchesAutocompleteTemplate(tokenText);
+
 		if (auto obj = p->getDebugObject(objectId))
 			addRowsFromObject(obj, objectId, apiTree);
+		else if (templatedToken.isNotEmpty())
+		{
+			addRowFromApiClass(apiTree.getChildWithName(Identifier(templatedToken)), tokenText, true);
+		}
+		else
+		{
+			auto c = apiTree.getChildWithName(Identifier(objectId));
+
+			if (c.isValid())
+				addRowFromApiClass(c, tokenText.fromFirstOccurrenceOf(objectId + ".", false, false));
+		}
 	}
 }
 
 
-void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree classTree, const String& originalToken)
+void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree classTree, const String& originalToken, bool isTemplate)
 {
 	for (auto methodTree : classTree)
 	{
@@ -1257,12 +1253,32 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree
 
         const String name = methodTree.getProperty(Identifier("name")).toString();
         
-        if(name.contains(originalToken))
+        if(name.contains(originalToken) || isTemplate)
         {
             RowInfo *info = new RowInfo();
             info->classId = classId;
             info->description = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, classId.toString(), false, Colours::black);
             info->codeToInsert = ValueTreeApiHelpers::createCodeToInsert(methodTree, classId.toString());
+
+			if (isTemplate)
+			{
+				String tt;
+
+				for (const auto& t : editor->autocompleteTemplates)
+				{
+					if (originalToken.startsWith(t.token))
+					{
+						tt = t.token;
+						break;
+					}
+				}
+
+				String nc;
+				nc << tt;
+				nc << info->codeToInsert.fromFirstOccurrenceOf(classId.toString(), false, false);
+				info->codeToInsert = nc;
+			}
+
             info->name = info->codeToInsert;
             info->type = (int)RowInfo::Type::ApiMethod;
             allInfo.add(info);
@@ -1270,6 +1286,11 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowFromApiClass(const ValueTree
 	}
 }
 
+
+std::unique_ptr<juce::ComponentTraverser> JavascriptCodeEditor::AutoCompletePopup::createKeyboardFocusTraverser()
+{
+	return std::make_unique<AllToTheEditorTraverser>(editor);
+}
 
 void JavascriptCodeEditor::AutoCompletePopup::addRowsFromObject(DebugableObjectBase* obj, const String& originalToken, const ValueTree& classTree)
 {
@@ -1298,8 +1319,20 @@ void JavascriptCodeEditor::AutoCompletePopup::addRowsFromObject(DebugableObjectB
 			info->type = (int)c.getProperty("typenumber", (int)RowInfo::Type::ApiMethod);
 			info->category = obj->getCategory();
 
+			functionNames.removeAllInstancesOf(thisFuncId);
 			allInfo.add(info);
 		}
+	}
+
+	for (auto af : functionNames)
+	{
+		RowInfo *info = new RowInfo();
+		info->classId = classId;
+		info->codeToInsert << originalToken << "." << af << "()";
+		info->name = info->codeToInsert;
+		info->type = (int)RowInfo::Type::ApiMethod;
+		info->category = obj->getCategory();
+		allInfo.add(info);
 	}
 
 	Array<Identifier> constantNames;
@@ -1382,11 +1415,6 @@ void JavascriptCodeEditor::AutoCompletePopup::addApiMethods(const ValueTree &cla
 	}
 }
 #endif
-
-KeyboardFocusTraverser* JavascriptCodeEditor::AutoCompletePopup::createFocusTraverser()
-{
-	return new AllToTheEditorTraverser(editor);
-}
 
 int JavascriptCodeEditor::AutoCompletePopup::getNumRows()
 {
@@ -1686,5 +1714,138 @@ void JavascriptCodeEditor::AutoCompletePopup::InfoBox::paint(Graphics &g)
 	}
 }
 
+
+JavascriptCodeEditor::AutoCompletePopup::RowInfo::RowInfo(DebugInformationBase::Ptr info)
+{
+	category = info->getCategory();
+	type = info->getType();
+	description = info->getDescription();
+	name = info->getTextForName();
+	typeName = info->getTextForDataType();
+	value = info->getTextForValue();
+	codeToInsert = info->getCodeToInsert();
+}
+
+hise::CommonEditorFunctions::EditorType* CommonEditorFunctions::as(Component* c)
+{
+	if (c == nullptr)
+		return nullptr;
+
+	if (auto e = dynamic_cast<EditorType*>(c))
+		return e;
+
+	auto e = c->findParentComponentOfClass<EditorType>();
+
+	if (e == nullptr)
+	{
+		for (int i = 0; i < c->getNumChildComponents(); i++)
+		{
+			if ((e = dynamic_cast<EditorType*>(c->getChildComponent(i))) != nullptr)
+				return e;
+		}
+	}
+	else
+		return e;
+
+	jassertfalse;
+	return nullptr;
+}
+
+juce::CodeDocument::Position CommonEditorFunctions::getCaretPos(Component* c)
+{
+	auto ed = as(c);
+
+	// this must always be true...
+	jassert(ed != nullptr);
+
+#if HISE_USE_NEW_CODE_EDITOR
+	auto pos = ed->editor.getTextDocument().getSelection(0).head;
+	return CodeDocument::Position(getDoc(c), pos.x, pos.y);
+#else
+	return ed->getCaretPos();
+#endif
+}
+
+juce::CodeDocument& CommonEditorFunctions::getDoc(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		return ed->editor.getDocument();
+#else
+		return ed->getDocument();
+#endif
+	}
+
+	jassertfalse;
+	static CodeDocument d;
+	return d;
+}
+
+String CommonEditorFunctions::getCurrentToken(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+
+		auto& doc = ed->editor.getTextDocument();
+
+		auto cs = doc.getSelection(0);
+
+		doc.navigate(cs.tail, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+		doc.navigate(cs.head, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+		auto d = doc.getSelectionContent(cs);
+
+		return d;
+#else
+		return ed->getCurrentToken();
+#endif
+	}
+
+	return {};
+}
+
+void CommonEditorFunctions::insertTextAtCaret(Component* c, const String& t)
+{
+	if (auto ed = as(c))
+	{
+
+#if HISE_USE_NEW_CODE_EDITOR
+		ed->editor.insert(t);
+#else
+		ed->insertTextAtCaret(t);
+#endif
+	}
+}
+
+String CommonEditorFunctions::getCurrentSelection(Component* c)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		auto& doc = ed->editor.getTextDocument();
+		return doc.getSelectionContent(doc.getSelection(0));
+#else
+		return ed->getTextInRange(ed->getHighlightedRegion());
+#endif
+	}
+
+	return {};
+}
+
+void CommonEditorFunctions::moveCaretTo(Component* c, CodeDocument::Position& pos, bool select)
+{
+	if (auto ed = as(c))
+	{
+#if HISE_USE_NEW_CODE_EDITOR
+		mcl::Selection s(*pos.getOwner(), pos.getPosition(), pos.getPosition());
+		ed->editor.getTextDocument().setSelection(0, s, true);
+#else
+		ed->moveCaretTo(pos, select);
+#endif
+	}
+
+}
 
 } // namespace hise

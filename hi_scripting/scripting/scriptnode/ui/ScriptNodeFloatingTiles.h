@@ -43,9 +43,16 @@ struct NetworkPanel : public PanelWithProcessorConnection
 		PanelWithProcessorConnection(parent)
 	{};
 
+    void paint(Graphics& g) override
+    {
+        g.setColour(Colour(0xFF262626));
+        g.fillRect(getParentShell()->getContentBounds());
+    }
+    
 	Identifier getProcessorTypeId() const override;
 	virtual Component* createComponentForNetwork(DspNetwork* parent) = 0;
 	Component* createContentComponent(int index) override;
+	virtual Component* createEmptyComponent() { return nullptr; };
 	void fillModuleList(StringArray& moduleList) override;
 	virtual bool hasSubIndex() const { return true; }
 	void fillIndexList(StringArray& sa);
@@ -57,7 +64,13 @@ struct DspNetworkGraphPanel : public NetworkPanel
 
 	SET_PANEL_NAME("DspNetworkGraph");
 
+	void paint(Graphics& g) override;
+
 	Component* createComponentForNetwork(DspNetwork* p) override;
+
+	Component* createEmptyComponent() override;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphPanel);
 };
 
 
@@ -72,6 +85,168 @@ public:
 	Component* createComponentForNetwork(DspNetwork* p) override;
 };
 
+class FaustEditorPanel: public NetworkPanel
+{
+public:
+    
+    FaustEditorPanel(FloatingTile* parent);
+    
+    SET_PANEL_NAME("FaustEditorPanel");
+    Component* createComponentForNetwork(DspNetwork* p) override;
+};
+
+#if USE_BACKEND
+struct WorkbenchTestPlayer : public FloatingTileContent,
+	public Component,
+	public WorkbenchManager::WorkbenchChangeListener,
+	public WorkbenchData::Listener,
+	public PooledUIUpdater::SimpleTimer
+{
+	struct Factory : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+	} factory;
+
+	SET_PANEL_NAME("WorkbenchTestPlayer");
+
+	WorkbenchTestPlayer(FloatingTile* parent);;
+
+	void postPostCompile(WorkbenchData::Ptr wb);;
+
+	void play();
+
+	void stop();
+
+	void timerCallback() override;
+
+	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+	{
+		if (wb != nullptr)
+			wb->removeListener(this);
+
+		wb = newWorkbench;
+
+		if(wb != nullptr)
+			wb->addListener(this);
+	}
+
+	void resized() override;
+
+	void paint(Graphics& g) override;
+
+	
+	
+	HiseAudioThumbnail outputPreview;
+	HiseAudioThumbnail inputPreview;
+
+	HiseShapeButton playButton;
+	HiseShapeButton stopButton;
+	HiseShapeButton midiButton;
+
+	WorkbenchData::Ptr wb;
+};
+#endif
+
+#if 0
+struct SnexPopupEditor : public Component,
+	public SnexDebugHandler,
+	public CodeDocument::Listener,
+	public Timer,
+	public ButtonListener,
+	public Value::Listener
+{
+	struct Icons : public PathFactory
+	{
+		Path createPath(const String& url) const override;
+
+		String getId() const override { return ""; }
+	};
+
+
+	struct Parent : public ButtonListener
+	{
+		Parent(SnexSource* s) :
+			source(s)
+		{
+		}
+
+		void buttonClicked(Button* b)
+		{
+			auto e = new SnexPopupEditor("Edit SNEX Callback", source);
+			b->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(e, b, b->getLocalBounds().getCentre().withY(b->getHeight()));
+			e->grabKeyboardFocus();
+		}
+
+		SnexSource* source;
+	};
+
+	SnexPopupEditor(const String& name, SnexSource* src, bool isPopup=true);
+
+	void buttonClicked(Button* b) override;
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if (key == KeyPress::F5Key)
+		{
+			compileButton.triggerClick();
+			return true;
+		}
+	}
+
+	void valueChanged(Value& v);
+
+	void codeDocumentTextInserted(const String& newText, int insertIndex) override
+	{
+	}
+	void codeDocumentTextDeleted(int startIndex, int endIndex) override
+	{
+	}
+
+	void timerCallback() override
+	{
+		recompile();
+		stopTimer();
+	}
+
+	void recompile();
+
+	void logMessage(int level, const juce::String& s)
+	{
+		if (level == 0)
+			editor.setError(s);
+		if (level == 1)
+			editor.addWarning(s);
+	}
+
+	snex::jit::GlobalScope s;
+
+	void paint(Graphics& g) override;
+
+	void resized() override;
+
+	snex::AssemblyTokeniser tokeniser;
+	CodeDocument asmDoc;
+	CodeEditorComponent asmView;
+
+	SnexSource* source;
+
+	bool internalChange = false;
+	CodeDocument doc;
+	mcl::TextDocument d;
+	Value codeValue;
+	mcl::TextEditor editor;
+	juce::ResizableCornerComponent corner;
+	String lastAssembly;
+
+	Icons f;
+	HiseShapeButton compileButton;
+	HiseShapeButton asmButton;
+	HiseShapeButton resetButton;
+	HiseShapeButton optimiseButton;
+	StringArray optimizations;
+	bool popupMode;
+};
+#endif
 
 
 }

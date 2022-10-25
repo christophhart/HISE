@@ -48,13 +48,7 @@ public:
 
 	{
 		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseMidiProcessor*>(getProcessor())));
-        
-        
-        
 		contentComponent->refreshMacroIndexes();
-
-
-
 	};
 
 	void updateGui() override
@@ -67,7 +61,6 @@ public:
 		return contentComponent->getContentHeight() == 0 ? 0 : contentComponent->getContentHeight() + 38;
 	};
 
-	
 	void resized()
 	{
 		contentComponent->setBounds((getWidth() / 2) - ((getWidth() - 90) / 2), 24 ,getWidth() - 90, contentComponent->getContentHeight());
@@ -76,11 +69,7 @@ public:
 private:
 
 	ScopedPointer<ScriptContentComponent> contentComponent;
-
 };
-
-
-
 
 
 class ScriptingEditor  : public ProcessorEditorBody,
@@ -95,53 +84,30 @@ public:
     ~ScriptingEditor();
 
     //==============================================================================
-   
-	
 
 	JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
-
 	ScriptContentComponent* getScriptEditHandlerContent() { return scriptContent.get(); }
-
 	ScriptingContentOverlay* getScriptEditHandlerOverlay() { return dragOverlay; }
-
-	JavascriptCodeEditor* getScriptEditHandlerEditor() { return codeEditor->editor; }
+	CommonEditorFunctions::EditorType* getScriptEditHandlerEditor() { return codeEditor->editor; }
 	
 	void updateGui() override;;
 
 	void showCallback(int callbackIndex, int charToScroll=-1);
-
 	void showOnInitCallback();
-
-	void openContentInPopup();
-	void closeAllPopup();
-
 	void gotoChar(int character);
-
-	bool isRootEditor() const { return getEditor()->isRootEditor(); }
 
 	void editorInitialized()
 	{
-		bool anyOpen = false;
-
 		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
 		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
 
 		for(int i = 0; i < sp->getNumSnippets(); i++)
 		{
 			if(getProcessor()->getEditorState(editorOffset + i + ProcessorWithScriptingContent::EditorStates::onInitShown))
-			{
-				buttonClicked(getSnippetButton(i));
-				anyOpen = true;
-			}
+				showCallback(i);
 		}
 
-		if (! anyOpen)
-		{
-			editorShown = false;
-			setSize(getWidth(), getBodyHeight());
-
-		}
+		setSize(getWidth(), getBodyHeight());
 
 		checkActiveSnippets();
 	}
@@ -152,9 +118,8 @@ public:
 
 	bool isInEditMode() const
 	{
-		return editorShown && scriptContent->isVisible() && (getActiveCallback() == 0);
+		return codeEditor != nullptr && scriptContent->isVisible() && (getActiveCallback() == 0);
 	}
-
 	
 	void checkContent()
 	{
@@ -172,9 +137,7 @@ public:
 		contentButton->setEnabled(!contentEmpty);
 
 		resized();
-
 	}
-
 
 	int getActiveCallback() const;
 
@@ -187,42 +150,29 @@ public:
 
 	int getBodyHeight() const override;;
 
-	void gotoLocation(DebugInformation* info);
-
-    void paint (Graphics& g);
-    void resized();
+	void resized();
     void buttonClicked (Button* buttonThatWasClicked);
-
-	void goToSavedPosition(int newCallback);
-	void saveLastCallback();
 
 	void selectOnInitCallback() override
 	{
 		if (getActiveCallback() != 0)
-		{
 			buttonClicked(callbackButtons[0]); // we need synchronous execution here
-		}
 	}
-
 	
 private:
 
-	bool isFront = false;
+	static constexpr int EditorHeight = 500;
 
+	bool isFront = false;
 	bool isConnectedToExternalScript = false;
 
 	ScopedPointer<ScriptingContentOverlay> dragOverlay;
 	Component::SafePointer<ScriptingContentOverlay> currentDragOverlay;
 
 	ScopedPointer<CodeDocument> doc;
-
 	ScopedPointer<JavascriptTokeniser> tokenizer;
 
-	
-	bool editorShown;
-
 	bool useComponentSelectMode;
-
 	int currentCallbackIndex = -1;
 
 	ScopedPointer<ScriptContentComponent> scriptContent;
@@ -231,18 +181,11 @@ private:
 
 	ChainBarButtonLookAndFeel alaf;
 
-	
-
 	Array<int> lastPositions;
 
     //==============================================================================
-    ScopedPointer<CodeEditorWrapper> codeEditor;
-    ScopedPointer<TextButton> compileButton;
-    ScopedPointer<DebugConsoleTextEditor> messageBox;
-    ScopedPointer<Label> timeLabel;
+    ScopedPointer<PopupIncludeEditor> codeEditor;
     
-    ScopedPointer<Component> buttonRow;
-
 	ScopedPointer<TextButton> contentButton;
 	OwnedArray<TextButton> callbackButtons;
 

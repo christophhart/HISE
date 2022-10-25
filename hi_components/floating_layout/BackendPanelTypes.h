@@ -115,7 +115,7 @@ public:
 			parent(parent_)
 		{}
 
-		Image createSnapshotOfRows(const SparseSet<int>& rows, int& imageX, int& imageY) override
+		ScaledImage createSnapshotOfRows(const SparseSet<int>& rows, int& imageX, int& imageY) override
 		{
 			imageX = 256;
 			imageY = 128;
@@ -123,17 +123,12 @@ public:
 			if (auto ref = parent.pool->getReference(rows.getTotalRange().getStart()))
 			{
 				auto m = parent.pool->getWeakReferenceToItem(ref);
-
-				return PoolTableHelpers::getPreviewImage(m.getData(), 256);
+				return ScaledImage(PoolTableHelpers::getPreviewImage(m.getData(), 256));
 			}
 			else
 			{
-				jassertfalse;
-				return PoolHelpers::getEmptyImage(imageX, imageY);
+				return ScaledImage(PoolHelpers::getEmptyImage(imageX, imageY));
 			}
-
-
-
 		}
 
 		ExternalFileTableBase& parent;
@@ -373,7 +368,7 @@ public:
 
 	void resized() override
 	{
-		auto area = getParentShell()->getContentBounds();
+		auto area = getParentContentBounds();
 
 		auto top = area.removeFromTop(32).reduced(4);
 
@@ -389,7 +384,7 @@ public:
 
 	void paint(Graphics& g)
 	{
-		auto area = getParentShell()->getContentBounds();
+		auto area = getParentContentBounds();
 
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_BOLD_FONT());
@@ -410,7 +405,7 @@ public:
 
 			if (ref.isValid())
 			{
-				editor->insertTextAtCaret(ref.getReferenceString());
+				CommonEditorFunctions::insertTextAtCaret(editor, ref.getReferenceString());
 			}
 		}
 	}
@@ -458,7 +453,7 @@ public:
 				auto b2 = table.getScreenPosition();
 				Rectangle<int> b3({ b.getX() + b2.getX(), b.getY() + b2.getY(), b.getWidth(), b.getHeight() });
 
-				CallOutBox::launchAsynchronously(pc, b3, nullptr);
+				CallOutBox::launchAsynchronously(std::unique_ptr<Component>(pc), b3, nullptr);
 				break;
 			}
 			case MenuItems::LoadAllData:
@@ -558,11 +553,6 @@ struct PoolTableSubTypes
 	using SampleMapPoolTable = ExternalFileTableBase<ValueTree>;
 	using MidiFilePoolTable = ExternalFileTableBase<MidiFileReference>;
 };
-
-
-
-
-
 
 } // namespace hise
 

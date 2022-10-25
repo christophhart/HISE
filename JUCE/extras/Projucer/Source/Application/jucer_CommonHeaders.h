@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -26,8 +25,15 @@
 
 #pragma once
 
+#define JUCER_ENABLE_GPL_MODE 1
+
 
 //==============================================================================
+// The GCC extensions define linux somewhere in the headers, so undef it here...
+#if JUCE_GCC
+ #undef linux
+#endif
+
 struct TargetOS
 {
     enum OS
@@ -44,7 +50,7 @@ struct TargetOS
         return windows;
        #elif JUCE_MAC
         return osx;
-       #elif JUCE_LINUX
+       #elif JUCE_LINUX || JUCE_BSD
         return linux;
        #else
         return unknown;
@@ -60,7 +66,6 @@ typedef TargetOS::OS DependencyPathOS;
 #include "../Utility/Helpers/jucer_MiscUtilities.h"
 #include "../Utility/Helpers/jucer_CodeHelpers.h"
 #include "../Utility/Helpers/jucer_FileHelpers.h"
-#include "../Utility/Helpers/jucer_RelativePath.h"
 #include "../Utility/Helpers/jucer_ValueSourceHelpers.h"
 #include "../Utility/Helpers/jucer_PresetIDs.h"
 #include "jucer_CommandIDs.h"
@@ -91,3 +96,6 @@ enum ColourIds
     widgetBackgroundColourId          = 0x2340010,
     secondaryWidgetBackgroundColourId = 0x2340011,
 };
+
+//==============================================================================
+static constexpr int projucerMajorVersion = ProjectInfo::versionNumber >> 16;

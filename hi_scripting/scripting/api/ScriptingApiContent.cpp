@@ -40,15 +40,20 @@
 
 
 
-
-#define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
-#define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
+#if USE_BACKEND
+#define ADD_TO_TYPE_SELECTOR(x) (selectorTypes->addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
+#define ADD_AS_SLIDER_TYPE(min, max, interval) (selectorTypes->addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
+#else
+#define ADD_TO_TYPE_SELECTOR(x)
+#define ADD_AS_SLIDER_TYPE(min, max, interval)
+#endif
 
 
 
 #include <cmath>
 
 namespace hise { using namespace juce;
+
 
 
 #define ID(id) Identifier(#id)
@@ -105,6 +110,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, set);
 	API_METHOD_WRAPPER_1(ScriptComponent, get);
+	API_METHOD_WRAPPER_0(ScriptComponent, getId);
 	API_METHOD_WRAPPER_0(ScriptComponent, getValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValueNormalized);
@@ -117,21 +123,113 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
+	API_METHOD_WRAPPER_1(ScriptComponent, getLocalBounds);
+	API_METHOD_WRAPPER_0(ScriptComponent, getChildComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, changed);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setKeyPressCallback);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
+	API_VOID_METHOD_WRAPPER_2(ScriptComponent, fadeComponent);
+	API_VOID_METHOD_WRAPPER_0(ScriptComponent, updateValueFromProcessorConnection);
 };
 
 #define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
 #define ADD_NUMBER_PROPERTY(id, name) ADD_SCRIPT_PROPERTY(id, name); jassert(numberPropertyIds.contains(id));
 
+struct ScriptingApi::Content::ScriptComponent::GlobalCableConnection : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+{
+	using Cable = scriptnode::routing::GlobalRoutingManager::Cable;
+	static constexpr auto CableType = scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+	GlobalCableConnection(ScriptComponent& p) :
+		parent(p)
+	{};
+
+	~GlobalCableConnection()
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+	}
+
+	void call(double v)
+	{
+		if (cable != nullptr)
+			cable->sendValue(this, v);
+	}
+
+	virtual void sendValue(double v) override
+	{
+		// do nothing for now - we don't want to change the UI values by global connections (yet)...
+	}
+
+	Path getTargetIcon() const override
+	{
+		Path path;
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		return path;
+	}
+
+	String getTargetId() const override
+	{
+		String s;
+		s << "Control: ";
+		s << dynamic_cast<Processor*>(parent.getScriptProcessor())->getId();
+		s << ".";
+		s << parent.getName().toString();
+
+		return s;
+	}
+
+	void selectCallback(Component* rootEditor) override
+	{
+#if USE_BACKEND
+		auto brw = dynamic_cast<BackendRootWindow*>(rootEditor);
+		brw->gotoIfWorkspace(dynamic_cast<Processor*>(parent.getScriptProcessor()));
+
+		auto sc = &parent;
+
+		auto f = [sc]()
+		{
+			auto b = sc->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
+			b->setSelection(sc, sendNotificationAsync);
+		};
+
+		Timer::callAfterDelay(400, f);
+#endif
+	}
+
+	void connect(const String& id)
+	{
+		if (cable != nullptr)
+		{
+			cable->removeTarget(this);
+		}
+
+		auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(parent.getScriptProcessor()->getMainController_());
+
+		cable = dynamic_cast<Cable*>(m->getSlotBase(id, CableType).get());
+		cable->addTarget(this);
+	}
+
+	ReferenceCountedObjectPtr<Cable> cable;
+
+	ScriptComponent& parent;
+};
+
+
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent* base, Identifier name_, int numConstants /*= 0*/) :
 	ConstScriptingObject(base, numConstants),
 	UpdateDispatcher::Listener(base->getScriptingContent()->getUpdateDispatcher()),
 	name(name_),
+	keyboardCallback(base, nullptr, {}, 1),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
@@ -140,15 +238,13 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	hasChanged(false),
 	customControlCallback(var())
 {
-
-
-
 	jassert(propertyTree.isValid());
 
 	ADD_SCRIPT_PROPERTY(textId, "text");
 
 	ADD_SCRIPT_PROPERTY(vId, "visible");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(eId, "enabled");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(lId, "locked");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_NUMBER_PROPERTY(xId, "x");					ADD_AS_SLIDER_TYPE(0, 900, 1);
 	ADD_NUMBER_PROPERTY(yId, "y");					ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
 	ADD_NUMBER_PROPERTY(wId, "width");				ADD_AS_SLIDER_TYPE(0, 900, 1);
@@ -166,7 +262,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
     ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(pId72, "linkedTo")			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId72, "linkedTo");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId73, "automationID");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId3, "processorId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -174,10 +271,10 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 
 	handleDefaultDeactivatedProperties();
 
-
 	setDefaultValue(Properties::text, name.toString());
 	setDefaultValue(Properties::visible, true);
 	setDefaultValue(Properties::enabled, true);
+	setDefaultValue(Properties::locked, false);
 	
 	setDefaultValue(Properties::min, 0.0);
 	setDefaultValue(Properties::max, 1.0);
@@ -192,6 +289,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
     setDefaultValue(Properties::isMetaParameter, false);
+	setDefaultValue(automationId, "");
 	setDefaultValue(Properties::linkedTo, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
@@ -200,6 +298,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 
 	ADD_API_METHOD_2(set);
 	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(setValue);
 	ADD_API_METHOD_1(setValueNormalized);
@@ -212,12 +311,20 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
+	ADD_API_METHOD_1(getLocalBounds);
+	ADD_API_METHOD_0(getChildComponents);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_API_METHOD_1(setControlCallback);
 	ADD_API_METHOD_0(getAllProperties);
 	ADD_API_METHOD_1(setZLevel);
+	ADD_API_METHOD_1(setKeyPressCallback);
+	ADD_API_METHOD_0(loseFocus);
+	ADD_API_METHOD_1(setLocalLookAndFeel);
+	ADD_API_METHOD_0(sendRepaintMessage);
+	ADD_API_METHOD_2(fadeComponent);
+	ADD_API_METHOD_0(updateValueFromProcessorConnection);
 
 	//setName(name_.toString());
 
@@ -255,13 +362,31 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 
 		return sa;
 	}
+	else if (id == getIdFor(automationId))
+	{
+		StringArray sa;
+		sa.add("");
+		sa.addArray(getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationIds());
+		return sa;
+	}
 	else if (id == getIdFor(processorId))
 	{
-		return ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		auto sa = ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+		sa.add("GlobalCable");
+		return sa;
 	}
-	else if (id == getIdFor(parameterId) && connectedProcessor.get() != nullptr)
+	else if (id == getIdFor(parameterId))
 	{
-		return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		if (connectedProcessor.get() != nullptr)
+		{
+			return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
+		}
+		else if (globalConnection != nullptr)
+		{
+			auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getScriptProcessor()->getMainController_());
+
+			return m->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+		}
 	}
 	else if (id == getIdFor(linkedTo))
 	{
@@ -325,7 +450,12 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 {
 	const var data = v.getProperty("value", var::undefined());
 	bool allowStrings = dynamic_cast<Label*>(this) != nullptr;
-	value = Content::Helpers::getCleanedComponentValue(data, allowStrings);
+
+	
+
+	auto newValue = Content::Helpers::getCleanedComponentValue(data, allowStrings);
+
+	setValue(newValue);
 }
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* /*componentToNotify*/)
@@ -377,6 +507,46 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		const int index = sa.indexOf(newValue.toString()) - 1;
 
 		addToMacroControl(index);
+	}
+	else if (id == getIdFor(automationId))
+	{
+		if (currentAutomationData != nullptr)
+		{
+			currentAutomationData->asyncListeners.removeListener(*this);
+		}
+
+		if (!newValue.toString().isEmpty())
+		{
+			Identifier newCustomId(newValue.toString());
+
+			auto registerAutomationId = [newCustomId](ScriptComponent& sc, bool unused)
+			{
+				if ((sc.currentAutomationData = sc.getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
+				{
+					sc.currentAutomationData->asyncListeners.addListener(sc, [](ScriptComponent& c, int index, float v)
+					{
+						c.setValue(v);
+					}, true);
+				}
+			};
+
+			registerAutomationId(*this, true);
+
+			if(currentAutomationData == nullptr)
+			{
+				if(getScriptProcessor()->getMainController_()->getUserPresetHandler().getNumCustomAutomationData() != 0)
+					logErrorAndContinue("Automation ID " + newValue.toString() + " wasn't found");
+				else
+				{
+					// This usually means that the script that initialises the custom data model hasn't run yet
+					// so we can defer the automation setup to later...
+					
+					getScriptProcessor()->getMainController_()->getUserPresetHandler().deferredAutomationListener.addListener(*this, registerAutomationId, false);
+				}
+			}
+		}
+		else
+			currentAutomationData = nullptr;
 	}
 	else if (id == getIdFor(linkedTo))
 	{
@@ -448,14 +618,34 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		}
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
-		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
+		id == getIdFor(height) || id == getIdFor(enabled))
 	{
 		
+	}
+	else if (id == getIdFor(visible))
+	{
+		const bool wasVisible = (bool)getScriptObjectProperty(visible);
+		const bool isNowVisible = (bool)newValue;
+
+		setScriptObjectProperty(visible, newValue, notifyEditor);
+
+		if (wasVisible != isNowVisible)
+		{
+			repaintThisAndAllChildren();
+		}
 	}
 	else if (id == getIdFor(processorId))
 	{
 		auto pId = newValue.toString();
 
+		auto shouldUseGlobalCable = pId == "GlobalCable";
+		auto usesGlobalCable = globalConnection != nullptr;
+
+		if (shouldUseGlobalCable != usesGlobalCable)
+		{
+			globalConnection = shouldUseGlobalCable ? new GlobalCableConnection(*this) : nullptr;
+		}
+		
 		if (pId == " " || pId == "")
 		{
 			connectedProcessor = nullptr;
@@ -465,20 +655,57 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		{
 			connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId);
 		}
+        
+        updateValueFromProcessorConnection();
 	}
 	else if (id == getIdFor(parameterId))
 	{
 		auto parameterName = newValue.toString();
 
-		if (parameterName.isNotEmpty())
+		if (globalConnection != nullptr)
 		{
-			connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			globalConnection->connect(parameterName);
+
+			connectedProcessor = nullptr;
+			connectedParameterIndex = -1;
 		}
 		else
-			connectedParameterIndex = -1;
+		{
+			if (parameterName.isNotEmpty())
+			{
+				connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+			}
+			else
+				connectedParameterIndex = -1;
+		}
+        
+        updateValueFromProcessorConnection();
 	}
 
 	setScriptObjectProperty(propertyIds.indexOf(id), newValue, notifyEditor);
+}
+
+void ScriptingApi::Content::ScriptComponent::updateValueFromProcessorConnection()
+{
+    if(connectedProcessor != nullptr && connectedParameterIndex != -1)
+    {
+        float value = 0.0f;
+        
+        if (connectedParameterIndex == -2)
+        {
+            if (auto mod = dynamic_cast<Modulation*>(connectedProcessor.get()))
+                value = mod->getIntensity();
+        }
+        else if (connectedParameterIndex == -3)
+            value = connectedProcessor->isBypassed() ? 1.0f : 0.0f;
+        else if (connectedParameterIndex == -4)
+            value = connectedProcessor->isBypassed() ? 0.0f : 1.0f;
+        else
+            value = connectedProcessor->getAttribute(connectedParameterIndex);
+
+        FloatSanitizers::sanitizeFloatNumber(value);
+        setValue(value);
+    }
 }
 
 const Identifier ScriptingApi::Content::ScriptComponent::getIdFor(int p) const
@@ -534,7 +761,7 @@ var ScriptingApi::Content::ScriptComponent::getNonDefaultScriptObjectProperties(
 		clone->setProperty(id, propValue);
 	}
 
-	return var(clone);
+	return var(clone.get());
 }
 
 
@@ -564,16 +791,30 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 {
 	Identifier propertyId = Identifier(propertyName);
 
-	handleScriptPropertyChange(propertyId);
-
-	if (!defaultValues.contains(propertyId))
+	if (!propertyIds.contains(propertyId))
 	{
-		logErrorAndContinue("the property does not exist");
+		reportScriptError("the property doesn't exist");
 		RETURN_VOID_IF_NO_THROW();
 	}
 
+	handleScriptPropertyChange(propertyId);
+
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
+
+
+void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
+{
+	if (valueListener != nullptr)
+	{
+		var a[2];
+		a[0] = var(this);
+		a[1] = getValue();
+		var::NativeFunctionArgs args(var(this), a, 2);
+		valueListener->call(nullptr, args, nullptr);
+	}
+}
+
 
 void ScriptingApi::Content::ScriptComponent::changed()
 {
@@ -581,6 +822,16 @@ void ScriptingApi::Content::ScriptComponent::changed()
 		return;
 
 	controlSender.sendControlCallbackMessage();
+	sendValueListenerMessage();
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		// We need to throw an error again to stop the execution of the script
+		// (a recursive function call to this method will not be terminated because
+		// (the error is already consumed by the control callback handling).
+		if (!jp->getLastErrorMessage().wasOk())
+			reportScriptError("Aborting script execution after error occured during changed() callback");
+	}
 }
 
 
@@ -659,6 +910,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 
 	triggerAsyncUpdate();
+	sendValueListenerMessage();
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)
@@ -787,6 +1039,17 @@ void ScriptingApi::Content::ScriptComponent::setControlCallback(var controlFunct
 {
 	auto obj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(controlFunction.getDynamicObject());
 
+    if(auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(getScriptProcessor()))
+    {
+        if(auto n = h->getActiveNetwork())
+        {
+            if(controlFunction.isObject() && n->isForwardingControlsToParameters())
+            {
+                reportScriptError("This script processor has a network that consumes the parameters");
+            }
+        }
+    }
+    
 	if (obj != nullptr)
 	{
 		int numParameters = obj->parameterNames.size();
@@ -957,10 +1220,24 @@ const ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::ScriptCompo
 	return parent->getComponentWithName(id);
 }
 
+var ScriptingApi::Content::ScriptComponent::getChildComponents()
+{
+		ChildIterator<ScriptComponent> iter(this);
+		Array<var> list;
+		
+		while (auto child = iter.getNextChildComponent())
+			if (child != this) list.add(child);
+			
+		return var(list);
+}
+
 ScriptingApi::Content::ScriptComponent::~ScriptComponent()
 {
 	if (linkedComponent != nullptr)
 		linkedComponent->removeLinkedTarget(this);
+
+	if (currentAutomationData != nullptr)
+		currentAutomationData->asyncListeners.removeListener(*this);
 }
 
 void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties()
@@ -974,7 +1251,8 @@ void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(Notificat
 
 	if (auto lc = getLinkedComponent())
 	{
-		DynamicObject::Ptr obj = new DynamicObject();
+		auto obj = new DynamicObject();
+		var obj_(obj);
 
 		for (const auto& v : idList)
 		{
@@ -983,8 +1261,6 @@ void ScriptingApi::Content::ScriptComponent::updatePropertiesAfterLink(Notificat
 
 			obj->setProperty(id, linkedValue);
 		}
-
-		var obj_(obj);
 
 		setPropertiesFromJSON(obj_);
 
@@ -1066,6 +1342,7 @@ void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(Scrip
 		MessageManager::callAsync(f);
 }
 
+
 void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 {
 	static const StringArray validNames = { "Back", "Default", "Front", "AlwaysOnTop" };
@@ -1087,6 +1364,172 @@ void ScriptingApi::Content::ScriptComponent::setZLevel(String zLevelToUse)
 				l->zLevelChanged(currentZLevel);
 		}
 	}
+}
+
+var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
+{
+	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
+	ar = ar.reduced(reduceAmount);
+
+	Array<var> b;
+	b.add(ar.getX()); b.add(ar.getY()); b.add(ar.getWidth()); b.add(ar.getHeight());
+	return var(b);
+}
+
+void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)
+{
+	keyboardCallback = WeakCallbackHolder(getScriptProcessor(), this, keyboardFunction, 1);
+	keyboardCallback.incRefCount();
+	keyboardCallback.setThisObject(this);
+}
+
+bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
+{
+	if (keyboardCallback)
+	{
+		auto obj = new DynamicObject();
+		var args(obj);
+
+		obj->setProperty("isFocusChange", false);
+
+		auto c = k.getTextCharacter();
+
+		auto printable = CharacterFunctions::isPrintable(c);
+		
+		obj->setProperty("character", printable ? String::charToString(c) : "");
+		obj->setProperty("specialKey", !printable);
+		obj->setProperty("keyCode", k.getKeyCode());
+		obj->setProperty("description", k.getTextDescription());
+		obj->setProperty("shift", k.getModifiers().isShiftDown());
+		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
+		obj->setProperty("alt", k.getModifiers().isAltDown());
+
+		var rv;
+
+		auto ok = keyboardCallback.callSync(&args, 1, &rv);
+
+		if (ok.wasOk())
+			return (bool)rv;
+		else
+			reportScriptError(ok.getErrorMessage());
+	}
+
+	return false;
+}
+
+void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
+{
+	if (keyboardCallback)
+	{
+		auto obj = new DynamicObject();
+		var args(obj);
+
+		obj->setProperty("isFocusChange", true);
+		obj->setProperty("hasFocus", isFocused);
+		
+		try
+		{
+			auto ok = keyboardCallback.callSync(&args, 1);
+
+			if (!ok.wasOk())
+				reportScriptError(ok.getErrorMessage());
+		}
+		catch (String& s)
+		{
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), s);
+		}
+		
+
+		
+	}
+}
+
+void ScriptingApi::Content::ScriptComponent::loseFocus()
+{
+	for (auto l : zLevelListeners)
+	{
+		if (l != nullptr)
+			l->wantsToLoseFocus();
+	}
+}
+
+juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel()
+{
+	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
+	{
+		return new ScriptingObjects::ScriptedLookAndFeel::LocalLaf(l);
+	}
+
+	return nullptr;
+}
+
+void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
+{
+	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(lafObject.getObject()))
+	{
+		localLookAndFeel = lafObject;
+
+		ChildIterator<ScriptComponent> iter(this);
+
+		while (auto sc = iter.getNextChildComponent())
+			sc->localLookAndFeel = lafObject;
+	}
+	else
+		localLookAndFeel = var();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendGlobalCableValue(var v)
+{
+	auto value = (float)v;
+	FloatSanitizers::sanitizeFloatNumber(value);
+
+	jassert(globalConnection != nullptr);
+
+	globalConnection->call((double)value);
+}
+
+bool ScriptingApi::Content::ScriptComponent::isConnectedToGlobalCable() const
+{
+	return globalConnection != nullptr && globalConnection->cable != nullptr;
+}
+
+void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
+{
+	// Call repaint on all children to make sure they are updated...
+	ChildIterator<ScriptPanel> iter(this);
+
+	while (auto childPanel = iter.getNextChildComponent())
+		childPanel->repaint();
+}
+
+void ScriptingApi::Content::ScriptComponent::sendRepaintMessage()
+{
+	repaintBroadcaster.sendMessage(sendNotificationAsync, true);
+}
+
+String ScriptingApi::Content::ScriptComponent::getId() const
+{
+	return getName().toString();
+}
+
+
+
+void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible, int milliseconds)
+{
+	auto isVisible = (bool)getScriptObjectProperty(getIdFor(Properties::visible));
+
+	if (shouldBeVisible != isVisible)
+	{
+        setScriptObjectPropertyWithChangeMessage(getIdFor(Properties::visible), shouldBeVisible);
+
+		fadeListener.enableLockFreeUpdate(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+		fadeListener.sendMessage(sendNotificationAsync, shouldBeVisible, milliseconds);
+	}
+}
+
+juce::var ScriptingApi::Content::ScriptComponent::getLookAndFeelObject()
+{
+	return localLookAndFeel;
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1492,8 +1935,14 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 {
 	const double minValue = getScriptObjectProperty(min);
 	const double maxValue = getScriptObjectProperty(max);
-	const double midPoint = getScriptObjectProperty(middlePosition);
+	double midPoint = getScriptObjectProperty(middlePosition);
 	const double step = getScriptObjectProperty(stepSize);
+
+	Range<double> r(minValue, maxValue);
+
+	if (!r.contains(midPoint))
+		midPoint = r.getStart() + 0.5 * r.getLength();
+		
 
 	if (minValue < maxValue &&
 		midPoint > minValue &&
@@ -1716,8 +2165,6 @@ struct ScriptingApi::Content::ScriptLabel::Wrapper
 ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int) :
 ScriptComponent(base, name)
 {
-	
-
 	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -1803,10 +2250,10 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 
 void ScriptingApi::Content::ScriptLabel::handleDefaultDeactivatedProperties()
 {
-
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 }
 
 struct ScriptingApi::Content::ScriptComboBox::Wrapper
@@ -1881,8 +2328,8 @@ void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMes
 	{
 		jassert(isCorrectlyInitialised(Items));
 
-		setScriptObjectProperty(Items, newValue);
-		setScriptObjectProperty(max, getItemList().size());
+		setScriptObjectProperty(Items, newValue, sendNotification);
+		setScriptObjectProperty(max, getItemList().size(), sendNotification);
 	}
 
 
@@ -1944,23 +2391,138 @@ juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Ide
 	return sa;
 }
 
+
+ScriptingApi::Content::ComplexDataScriptComponent::ComplexDataScriptComponent(ProcessorWithScriptingContent* base, Identifier name, snex::ExternalData::DataType type_) :
+	ScriptComponent(base, name),
+	type(type_)
+{
+	ownedObject = snex::ExternalData::create(type);
+	ownedObject->setGlobalUIUpdater(base->getMainController_()->getGlobalUIUpdater());
+	ownedObject->setUndoManager(base->getMainController_()->getControlUndoManager());
+}
+
+juce::StringArray ScriptingApi::Content::ComplexDataScriptComponent::getOptionsFor(const Identifier &id)
+{
+	if (id != getIdFor(ScriptComponent::Properties::processorId))
+		return ScriptComponent::getOptionsFor(id);
+
+	auto parentSynth = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(getScriptProcessor()), true);
+
+	return ProcessorHelpers::getAllIdsForDataType(parentSynth, type);
+}
+
+hise::ComplexDataUIBase* ScriptingApi::Content::ComplexDataScriptComponent::getUsedData(snex::ExternalData::DataType requiredType)
+{
+	if (type != requiredType)
+		return nullptr;
+
+	if (auto eh = getExternalHolder())
+	{
+		auto externalIndex = (int)getScriptObjectProperty(getIndexPropertyId());
+		cachedObjectReference = eh->getComplexBaseType(type, externalIndex);
+	}
+	else
+		cachedObjectReference = ownedObject.get();
+
+	return cachedObjectReference;
+}
+
+snex::ExternalDataHolder* ScriptingApi::Content::ComplexDataScriptComponent::getExternalHolder()
+{
+	if (otherHolder != nullptr)
+		return otherHolder;
+
+	if (auto eh = dynamic_cast<ExternalDataHolder*>(getConnectedProcessor()))
+		return eh;
+
+	return nullptr;
+}
+
+juce::ValueTree ScriptingApi::Content::ComplexDataScriptComponent::exportAsValueTree() const
+{
+	ValueTree v = ScriptComponent::exportAsValueTree();
+
+	if (cachedObjectReference != nullptr)
+		v.setProperty("data", cachedObjectReference->toBase64String(), nullptr);
+
+	return v;
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::restoreFromValueTree(const ValueTree &v)
+{
+	ScriptComponent::restoreFromValueTree(v);
+
+	if (cachedObjectReference != nullptr)
+		cachedObjectReference->fromBase64String(v.getProperty("data", String()));
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
+}
+
+var ScriptingApi::Content::ComplexDataScriptComponent::registerComplexDataObjectAtParent(int index /*= -1*/)
+{
+	if (auto d = dynamic_cast<ProcessorWithDynamicExternalData*>(getScriptProcessor()))
+	{
+		otherHolder = d;
+		d->registerExternalObject(type, index, ownedObject.get());
+
+		setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
+		updateCachedObjectReference();
+
+		switch (type)
+		{
+		case ExternalData::DataType::Table: return new ScriptingObjects::ScriptTableData(getScriptProcessor(), index);
+		case ExternalData::DataType::SliderPack: return new ScriptingObjects::ScriptSliderPackData(getScriptProcessor(), index);
+		case ExternalData::DataType::AudioFile: return new ScriptingObjects::ScriptAudioFile(getScriptProcessor(), index);
+		default: jassertfalse; return var();
+		}
+	}
+
+	return var();
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
+{
+	ComplexDataScriptComponent::handleDefaultDeactivatedProperties();
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
+}
+
+void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
+{
+	ComplexDataScriptComponent::handleDefaultDeactivatedProperties();
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
+}
+
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setSnapValues);
+	API_METHOD_WRAPPER_1(ScriptTable, registerAtParent);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, referToData);
 };
 
 ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name, int x, int y, int , int ) :
-ScriptComponent(base, name),
-ownedTable(new MidiTable()),
-useOtherTable(false),
-connectedProcessor(nullptr),
-lookupTableIndex(-1)
+ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 {
-	
 	propertyIds.add("tableIndex");
 	propertyIds.add("customColours"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
@@ -1973,26 +2535,22 @@ lookupTableIndex(-1)
 
 	handleDefaultDeactivatedProperties();
 	
-	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	
+	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	initInternalPropertyFromValueTreeOrDefault(Properties::TableIndex);
+
+	updateCachedObjectReference();
 
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
 	ADD_API_METHOD_1(referToData);
 	ADD_API_METHOD_1(setTablePopupFunction);
-
-	broadcaster.enablePooledUpdate(base->getMainController_()->getGlobalUIUpdater());
+	ADD_API_METHOD_1(registerAtParent);
 }
 
 ScriptingApi::Content::ScriptTable::~ScriptTable()
 {
-	broadcaster.removeAllChangeListeners();
-
-	ownedTable = nullptr;
-	referencedTable = nullptr;
-	connectedProcessor = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2000,116 +2558,18 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
 
-float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
+float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
-	value = inputValue;
-
-	
-
-	
-
-	if (useOtherTable)
+	if (auto t = getCachedTable())
 	{
-		if (MidiTable *mt = dynamic_cast<MidiTable*>(referencedTable.get()))
+		if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(t))
 		{
-			return mt->get(inputValue);
-		}
-		else if (SampleLookupTable *st = dynamic_cast<SampleLookupTable*>(referencedTable.get()))
-		{
-			return st->getInterpolatedValue(inputValue);
-		}
-		else
-		{
-			logErrorAndContinue("Connected Table was not found!");
-			
-			return -1.0f;
+			return st->getInterpolatedValue(inputValue, sendNotificationAsync);
 		}
 	}
-	else
-	{
-		// Connected tables will handle the update automatically, but for owned tables
-		// it must be done here explicitely...
-		if (auto t = getTable())
-		{
-			broadcaster.table = t;
-			broadcaster.tableIndex = (float)inputValue / (float)t->getTableSize();
 
-			broadcaster.sendPooledChangeMessage();
-		}
-
-		return ownedTable->get(inputValue);
-	}
-}
-
-StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &id)
-{
-	if (id != getIdFor(ScriptComponent::Properties::processorId)) return ScriptComponent::getOptionsFor(id);
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	return ProcessorHelpers::getAllIdsForType<LookupTableProcessor>(mp->getOwnerSynth());
+	return 0.0f;
 };
-
-void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
-{
-	if (getIdFor(ScriptComponent::Properties::processorId) == id)
-	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
-
-		const int tableIndex = getScriptObjectProperty(TableIndex);
-
-		connectToOtherTable(newValue, tableIndex);
-	}
-	else if (getIdFor(TableIndex) == id)
-	{
-		jassert(isCorrectlyInitialised(TableIndex));
-
-		connectToOtherTable(getScriptObjectProperty(ScriptComponent::Properties::processorId), newValue);
-	}
-	else if (getIdFor(parameterId) == id)
-	{
-		// don't do anything if you try to connect a table to a parameter...
-		return;
-	}
-	
-	
-
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
-}
-
-void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &otherTableId, int index)
-{
-	if (otherTableId.isEmpty() || otherTableId == " ")
-		return;
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return;
-
-	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
-
-	Processor *p;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		if (dynamic_cast<LookupTableProcessor*>(p) != nullptr && p->getId() == otherTableId)
-		{
-			useOtherTable = true;
-
-			referencedTable = dynamic_cast<LookupTableProcessor*>(p)->getTable(index);
-
-			connectedProcessor = p;
-
-			return;
-		}
-
-	}
-
-	useOtherTable = false;
-	referencedTable = nullptr;
-
-    logErrorAndContinue(otherTableId + " was not found.");
-}
 
 
 void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
@@ -2124,81 +2584,14 @@ void ScriptingApi::Content::ScriptTable::setSnapValues(var snapValueArray)
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
-LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
-{
-	if (connectedProcessor == nullptr && useOtherTable)
-		return const_cast<LookupTableProcessor*>(dynamic_cast<const LookupTableProcessor*>(getScriptProcessor()));
 
-	return dynamic_cast<LookupTableProcessor*>(connectedProcessor.get());
-}
 
-ValueTree ScriptingApi::Content::ScriptTable::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	if (getTable() != nullptr) v.setProperty("data", getTable()->exportData(), nullptr);
-	else jassertfalse;
-
-	return v;
-}
-
-void ScriptingApi::Content::ScriptTable::restoreFromValueTree(const ValueTree &v)
-{
-	ScriptComponent::restoreFromValueTree(v);
-
-	if (getTable() == nullptr)
-		return;
-
-	getTable()->restoreData(v.getProperty("data", String()));
-
-	getTable()->sendChangeMessage();
-}
-
-Table * ScriptingApi::Content::ScriptTable::getTable()
-{
-	return useOtherTable ? referencedTable.get() : ownedTable;
-}
-
-const Table * ScriptingApi::Content::ScriptTable::getTable() const
-{
-	return useOtherTable ? referencedTable.get() : ownedTable;
-}
-
-void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
-{
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-}
 
 void ScriptingApi::Content::ScriptTable::resetValueToDefault()
 {
-	if (auto t = getTable())
+	if (auto t = getCachedTable())
 	{
 		t->reset();
-		t->sendChangeMessage();
-	}
-}
-
-void ScriptingApi::Content::ScriptTable::referToData(var tableData)
-{
-	if (auto td = dynamic_cast<ScriptingObjects::ScriptTableData*>(tableData.getObject()))
-	{
-		referencedTable = td->getTable();
-		useOtherTable = true;
-	}
-	else
-	{
-		referencedTable = nullptr;
-		useOtherTable = false;
-		
-		reportScriptError("Invalid table");
 	}
 }
 
@@ -2206,6 +2599,16 @@ void ScriptingApi::Content::ScriptTable::setTablePopupFunction(var newFunction)
 {
 	tableValueFunction = newFunction;
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
+}
+
+void ScriptingApi::Content::ScriptTable::referToData(var tableData)
+{
+	referToDataBase(tableData);
+}
+
+var ScriptingApi::Content::ScriptTable::registerAtParent(int index)
+{
+	return registerComplexDataObjectAtParent(index);
 }
 
 struct ScriptingApi::Content::ScriptSliderPack::Wrapper
@@ -2216,24 +2619,21 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
+	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
+	API_METHOD_WRAPPER_0(ScriptSliderPack, getDataAsBuffer);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValueChangeCausesCallback);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
-ScriptComponent(base, name_),
-packData(new SliderPackData(base->getMainController_()->getControlUndoManager(), base->getMainController_()->getGlobalUIUpdater())),
-existingData(nullptr)
+ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack)
 {
-	
-
 	ADD_NUMBER_PROPERTY(i00, "sliderAmount");		ADD_AS_SLIDER_TYPE(0, 128, 1);
 	ADD_NUMBER_PROPERTY(i01, "stepSize");
-	ADD_SCRIPT_PROPERTY(i02, "flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "flashActive");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i03, "showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");     
+	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");  
+	ADD_SCRIPT_PROPERTY(i06, "mouseUpCallback"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
-	packData->setNumSliders(16);
-
-	
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
@@ -2242,6 +2642,7 @@ existingData(nullptr)
 	setDefaultValue(itemColour, 0x77FFFFFF);
 	setDefaultValue(itemColour2, 0x77FFFFFF);
 	setDefaultValue(textColour, 0x33FFFFFF);
+	setDefaultValue(CallbackOnMouseUpOnly, false);
 
 	setDefaultValue(SliderAmount, 0);
 	setDefaultValue(StepSize, 0);
@@ -2250,10 +2651,11 @@ existingData(nullptr)
 	
 	setDefaultValue(SliderPackIndex, 0);
 
-	setDefaultValue(SliderAmount, 16);
+	setDefaultValue(SliderAmount, hise::SliderPackData::NumDefaultSliders);
 	setDefaultValue(StepSize, 0.01);
 
 	handleDefaultDeactivatedProperties();
+	
 
 	initInternalPropertyFromValueTreeOrDefault(SliderAmount);
 	initInternalPropertyFromValueTreeOrDefault(min);
@@ -2263,6 +2665,9 @@ existingData(nullptr)
 	initInternalPropertyFromValueTreeOrDefault(ShowValueOverlay);
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::Properties::processorId);
 	initInternalPropertyFromValueTreeOrDefault(SliderPackIndex);
+	initInternalPropertyFromValueTreeOrDefault(CallbackOnMouseUpOnly);
+
+	updateCachedObjectReference();
 
 	ADD_API_METHOD_2(setSliderAtIndex);
 	ADD_API_METHOD_1(getSliderValueAt);
@@ -2270,12 +2675,13 @@ existingData(nullptr)
 	ADD_API_METHOD_0(getNumSliders);
 	ADD_API_METHOD_1(referToData);
     ADD_API_METHOD_1(setWidthArray);
+	ADD_API_METHOD_1(registerAtParent);
+	ADD_API_METHOD_0(getDataAsBuffer);
+	ADD_API_METHOD_1(setAllValueChangeCausesCallback);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
 {
-	packData = nullptr;
-	existingData = nullptr;
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2285,81 +2691,68 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createC
 
 void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double newValue)
 {
-	getSliderPackData()->setValue(index, (float)newValue, sendNotification);
+	if (auto d = getCachedSliderPack())
+	{
+		value = index;
+		d->setValue(index, (float)newValue, dontSendNotification);
+
+		if(allValueChangeCausesCallback)
+			d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
+	}
 }
 
 double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
 {
-	SliderPackData *dataToUse = getSliderPackData();
-
-	jassert(dataToUse != nullptr);
-
-	dataToUse->setDisplayedIndex(index);
-
-	return (double)dataToUse->getValue(index);
-}
-
-void ScriptingApi::Content::ScriptSliderPack::setAllValues(double newValue)
-{
-	SliderPackData *dataToUse = getSliderPackData();
-
-	jassert(dataToUse != nullptr);
-
-	for (int i = 0; i < dataToUse->getNumSliders(); i++)
+	if (auto d = getCachedSliderPack())
 	{
-		dataToUse->setValue(i, (float)newValue, dontSendNotification);
+		d->setDisplayedIndex(index);
+		return d->getValue(index);
 	}
 
-	getSliderPackData()->sendChangeMessage();
+	return 0.0;
+}
+
+
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
+{
+	if (auto d = getCachedSliderPack())
+	{
+		auto isMultiValue = value.isBuffer() || value.isArray();
+
+		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : 0);
+
+		for (int i = 0; i < d->getNumSliders(); i++)
+		{
+			if (!isMultiValue || isPositiveAndBelow(i, maxIndex))
+			{
+				auto vToSet = isMultiValue ? (float)value[i] : (float)value;
+				d->setValue(i, (float)vToSet, dontSendNotification);
+			}
+		}
+
+		value = -1;
+
+		if (allValueChangeCausesCallback)
+		{
+			d->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+		}
+		else
+			d->getUpdater().sendDisplayChangeMessage(-1, sendNotificationAsync, true);
+	}
 }
 
 int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 {
-	return getSliderPackData()->getNumSliders();
-}
+	if (auto d = getCachedSliderPack())
+		return d->getNumSliders();
 
-void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
-{
-	if (newPackId.isEmpty() || newPackId == " ")
-		return;
-
-	otherPackId = newPackId;
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return;
-
-	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
-
-	Processor *p;
-
-	while ((p = it.getNextProcessor()) != nullptr)
-	{
-		if ((dynamic_cast<SliderPackProcessor*>(p) != nullptr) && p->getId() == newPackId)
-		{
-			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(otherPackIndex);
-
-			if (existingData == nullptr)
-				logErrorAndContinue("Slider Pack for " + newPackId + " with index " + String(otherPackIndex) + " wasn't found");
-
-			return;
-		}
-	}
-
-	existingData = nullptr;
-
-    logErrorAndContinue(newPackId + " was not found.");
+	return 0;
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
 {
-	if (id == getIdFor(ScriptComponent::Properties::processorId))
-	{
-		MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-		if (mp == nullptr) return StringArray();
-
-		return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(mp->getOwnerSynth());
-	}
-	else if(id == getIdFor(Properties::StepSize))
+	if(id == getIdFor(Properties::StepSize))
 	{
 		StringArray sa;
 
@@ -2370,7 +2763,7 @@ StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identif
 		return sa;
 	}
 	
-	return ScriptComponent::getOptionsFor(id);
+	return ComplexDataScriptComponent::getOptionsFor(id);
 };
 
 void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -2381,128 +2774,88 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 	{
 		jassert(isCorrectlyInitialised(SliderAmount));
 
-		if (existingData.get() != nullptr) return;
-		packData->setNumSliders(newValue);
+		if(auto d = getCachedSliderPack())
+			d->setNumSliders((int)newValue);
 	}
 	else if (id == getIdFor(ScriptComponent::Properties::min))
 	{
 		jassert(isCorrectlyInitialised(ScriptComponent::Properties::min));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(newValue, packData->getRange().getEnd(), newValue);
+		if(auto d = getCachedSliderPack())
+			d->setRange((double)newValue, d->getRange().getEnd(), d->getStepSize());
 	}
 	else if (id == getIdFor(ScriptComponent::Properties::max))
 	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::min));
+		jassert(isCorrectlyInitialised(ScriptComponent::Properties::max));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(packData->getRange().getStart(), newValue, newValue);
+		if (auto d = getCachedSliderPack())
+			d->setRange(d->getRange().getStart(), (double)newValue, d->getStepSize());
 	}
 	else if (id == getIdFor(StepSize))
 	{
 		jassert(isCorrectlyInitialised(StepSize));
 
-		if (existingData.get() != nullptr) return;
-		packData->setRange(packData->getRange().getStart(), packData->getRange().getEnd(), newValue);
+		if (auto d = getCachedSliderPack())
+			d->setRange(d->getRange().getStart(), d->getRange().getEnd(), (double)newValue);
 	}
 	else if (id == getIdFor(FlashActive))
 	{
 		jassert(isCorrectlyInitialised(FlashActive));
 
-		if (existingData.get() != nullptr) return;
-		packData->setFlashActive((bool)newValue);
+		if(auto d = getCachedSliderPack())
+			d->setFlashActive((bool)newValue);
 	}
 	else if (id == getIdFor(ShowValueOverlay))
 	{
 		jassert(isCorrectlyInitialised(ShowValueOverlay));
 
-		if (existingData.get() != nullptr) return;
-		packData->setShowValueOverlay((bool)newValue);
-	}
-	else if (id == getIdFor(ScriptComponent::Properties::processorId) || id == oldProcessorId)
-	{
-		jassert(isCorrectlyInitialised(ScriptComponent::Properties::processorId));
-
-		connectToOtherSliderPack(newValue.toString());
+		if (auto d = getCachedSliderPack())
+			d->setShowValueOverlay((bool)newValue);
 	}
 	else if (getIdFor(parameterId) == id )
 	{
 		// don't do anything if you try to connect a slider pack to a parameter...
 		return;
 	}
-	else if (id == getIdFor(SliderPackIndex))
-	{
-		jassert(isCorrectlyInitialised(SliderPackIndex));
-
-		otherPackIndex = (int)newValue;
-		connectToOtherSliderPack(otherPackId);
-	}
 	
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+	ComplexDataScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
-ValueTree ScriptingApi::Content::ScriptSliderPack::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	v.setProperty("data", getSliderPackData()->toBase64(), nullptr);
-
-	return v;
-}
-
-void ScriptingApi::Content::ScriptSliderPack::restoreFromValueTree(const ValueTree &v)
-{
-	ScriptComponent::restoreFromValueTree(v);
-
-	getSliderPackData()->fromBase64(v.getProperty("data", String()));
-	getSliderPackData()->sendChangeMessage();
-}
-
-SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData()
-{
-	return (existingData != nullptr) ? existingData.get() : packData.get();
-}
-
-const SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData() const
-{
-	return (existingData != nullptr) ? existingData.get() : packData.get();
-}
 
 void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 {
 	ScriptComponent::setValue(newValue);
 
+	value = newValue;
+
 	if (auto array = newValue.getArray())
 	{
-		getSliderPackData()->swapData(*array);
-		
-		triggerAsyncUpdate();
+		if (auto d = getCachedSliderPack())
+			d->swapData(*array, dontSendNotification);
 	}
-	else
+	else if (auto b = newValue.getBuffer())
 	{
-		logErrorAndContinue("You must call setValue() with an array for Slider Packs");
+		if (auto d = getCachedSliderPack())
+			d->swapData(newValue, dontSendNotification);
 	}
 }
 
 var ScriptingApi::Content::ScriptSliderPack::getValue() const
 {
-	return getSliderPackData()->getDataArray();
+	if (auto d = getCachedSliderPack())
+		return d->getDataArray();
+
+	return {};
 }
 
 void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
 {
-	if (auto spd = dynamic_cast<ScriptingObjects::ScriptSliderPackData*>(sliderPackData.getObject()))
-	{
-		existingData = spd->getSliderPackData();
-		existingData->sendChangeMessage();
-	}
-	else
-		logErrorAndContinue("not a valid SliderPackData object");
+	referToDataBase(sliderPackData);
 }
 
 void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths)
 {
-    if(getNumSliders() != normalizedWidths.size() + 1)
+    if((getNumSliders() + 1) != normalizedWidths.size())
     {
         logErrorAndContinue("Width array length must be numSliders + 1");
     }
@@ -2512,20 +2865,186 @@ void ScriptingApi::Content::ScriptSliderPack::setWidthArray(var normalizedWidths
         widthArray = *ar;
         sendChangeMessage();
     }
-    
-    
-    
-    
 }
-    
-void ScriptingApi::Content::ScriptSliderPack::handleDefaultDeactivatedProperties()
+
+var ScriptingApi::Content::ScriptSliderPack::registerAtParent(int pIndex)
 {
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(parameterId));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isPluginParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
+	return registerComplexDataObjectAtParent(pIndex);
+}
+
+void ScriptingApi::Content::ScriptSliderPack::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t == ComplexDataUIUpdaterBase::EventType::ContentChange)
+	{
+		auto sliderIndex = (int)data;
+		value = sliderIndex;;
+		changed();
+	}
+}
+
+void ScriptingApi::Content::ScriptSliderPack::changed()
+{
+	getScriptProcessor()->controlCallback(this, value);
+}
+
+juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
+{
+	return getCachedSliderPack()->getDataArray();
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bool shouldBeEnabled)
+{
+	allValueChangeCausesCallback = shouldBeEnabled;
+}
+
+struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, referToData);
+	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeStart);
+	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeEnd);
+	API_METHOD_WRAPPER_1(ScriptAudioWaveform, registerAtParent);
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setDefaultFolder);
+};
+
+ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
+	ComplexDataScriptComponent(base, waveformName, snex::ExternalData::DataType::AudioFile)
+{
+	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
+	ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
+	ADD_SCRIPT_PROPERTY(i06, "enableRange"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 200);
+	setDefaultValue(ScriptComponent::Properties::height, 100);
+
+	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
+	setDefaultValue(ScriptComponent::Properties::bgColour, (int64)0xFF555555);
+	setDefaultValue(ScriptComponent::Properties::itemColour2, (int64)0xffcccccc);
+	setDefaultValue(ScriptComponent::Properties::itemColour, (int64)0xa2181818);
+
+	setDefaultValue(Properties::opaque, true);
+	setDefaultValue(Properties::showLines, false);
+	setDefaultValue(Properties::showFileName, true);
+	setDefaultValue(Properties::sampleIndex, -1);
+	setDefaultValue(Properties::enableRange, true);
+
+	handleDefaultDeactivatedProperties();
+
+	updateCachedObjectReference();
+
+	ADD_API_METHOD_1(referToData);
+	ADD_API_METHOD_0(getRangeStart);
+	ADD_API_METHOD_0(getRangeEnd);
+	ADD_API_METHOD_1(setDefaultFolder);
+	ADD_API_METHOD_1(registerAtParent);
+}
+
+ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::AudioWaveformWrapper(content, this, index);
+}
+
+
+ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
+{
+	ValueTree v = ComplexDataScriptComponent::exportAsValueTree();
+
+	if (auto af = getCachedAudioFile())
+	{
+		auto sr = af->getCurrentRange();
+		v.setProperty("rangeStart", sr.getStart(), nullptr);
+		v.setProperty("rangeEnd", sr.getEnd(), nullptr);
+	}
+
+	return v;
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
+{
+	ComplexDataScriptComponent::restoreFromValueTree(v);
+
+	if (auto af = getCachedAudioFile())
+	{
+		// Old versions of HISE used fileName instead of the data property for storing the file reference
+		if (v.hasProperty("fileName") && !v.hasProperty("data"))
+		{
+			af->fromBase64String(v.getProperty("fileName", "").toString());
+		}
+
+		Range<int> range(v.getProperty("rangeStart", 0), v.getProperty("rangeEnd", 0));
+		af->setRange(range);
+	}
+}
+
+StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Identifier &id)
+{
+	if (id == getIdFor(processorId))
+	{
+		auto list = ComplexDataScriptComponent::getOptionsFor(id);
+
+		auto os = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(getScriptProcessor()), true);
+
+		auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(os);
+		list.addArray(samplers);
+		return list;
+	}
+	else
+	{
+		return ScriptComponent::getOptionsFor(id);
+	}
+}
+
+ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
+{
+	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::resetValueToDefault()
+{
+	if (auto af = getCachedAudioFile())
+		af->fromBase64String({});
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::referToData(var audioData)
+{
+	referToDataBase(audioData);
+}
+
+int ScriptingApi::Content::ScriptAudioWaveform::getRangeStart()
+{
+	if (auto af = getCachedAudioFile())
+		return af->getCurrentRange().getStart();
+
+	return 0;
+}
+
+int ScriptingApi::Content::ScriptAudioWaveform::getRangeEnd()
+{
+	if (auto af = getCachedAudioFile())
+		return af->getCurrentRange().getEnd();
+
+	return 0;
+}
+
+var ScriptingApi::Content::ScriptAudioWaveform::registerAtParent(int pIndex)
+{
+	return registerComplexDataObjectAtParent(pIndex);
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::setDefaultFolder(var newDefaultFolder)
+{
+	if (auto af = getCachedAudioFile())
+	{
+		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(newDefaultFolder.getObject()))
+			af->getProvider()->setRootDirectory(sf->f);
+		else
+			reportScriptError("newDefaultFolder must be a File object");
+	}
 }
 
 struct ScriptingApi::Content::ScriptImage::Wrapper
@@ -2541,6 +3060,7 @@ ScriptComponent(base, imageName)
 	ADD_SCRIPT_PROPERTY(i01, "fileName");			ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	ADD_NUMBER_PROPERTY(i02, "offset");
 	ADD_NUMBER_PROPERTY(i03, "scale");
+	ADD_SCRIPT_PROPERTY(i07, "blendMode");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "allowCallbacks");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i05, "popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	ADD_SCRIPT_PROPERTY(i06, "popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
@@ -2552,6 +3072,7 @@ ScriptComponent(base, imageName)
 	setDefaultValue(ScriptComponent::Properties::width, 50);
 	setDefaultValue(ScriptComponent::Properties::height, 50);
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+	setDefaultValue(BlendMode, "Normal");
 	setDefaultValue(Alpha, 1.0f);
 	setDefaultValue(FileName, String());
 	setDefaultValue(Offset, 0);
@@ -2590,7 +3111,36 @@ StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &
 	{
 		return MouseCallbackComponent::getCallbackLevels();
 	}
-
+	else if (id == getIdFor(BlendMode))
+	{
+		return {
+			"Normal",
+			"Lighten",
+			"Darken",
+			"Multiply",
+			"Average",
+			"Add",
+			"Subtract",
+			"Difference",
+			"Negation",
+			"Screen",
+			"Exclusion",
+			"Overlay",
+			"SoftLight",
+			"HardLight",
+			"ColorDodge",
+			"ColorBurn",
+			"LinearDodge",
+			"LinearBurn",
+			"LinearLight",
+			"VividLight",
+			"PinLight",
+			"HardMix",
+			"Reflect",
+			"Glow",
+			"Phoenix"
+		};
+	}
 
 	return ScriptComponent::getOptionsFor(id);
 }
@@ -2608,6 +3158,13 @@ void ScriptingApi::Content::ScriptImage::setScriptObjectPropertyWithChangeMessag
 		setImageFile(newValue, true);
 	}
 
+	if (id == getIdFor(BlendMode))
+	{
+		auto idx = getOptionsFor(id).indexOf(newValue.toString());
+		blendMode = (gin::BlendMode)idx;
+		updateBlendMode();
+	}
+	
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
@@ -2628,6 +3185,8 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	image.clear();
 	image = getProcessor()->getMainController()->getExpansionHandler().loadImageReference(ref);
 
+	updateBlendMode();
+
 	setScriptObjectProperty(FileName, absoluteFileName, sendNotification);
 };
 
@@ -2640,10 +3199,14 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 
 const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
-	return image ? *image.getData() :
-		PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+	if (blendMode != gin::Normal)
+	{
+		return blendImage.isValid() ? blendImage : PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
 			getScriptObjectProperty(ScriptComponent::Properties::height));
+	}
 
+	return image ? *image.getData() : PoolHelpers::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+		getScriptObjectProperty(ScriptComponent::Properties::height));
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
@@ -2674,7 +3237,23 @@ void ScriptingApi::Content::ScriptImage::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
+	
+}
+
+void ScriptingApi::Content::ScriptImage::updateBlendMode()
+{
+	if (blendMode == gin::Normal)
+		return;
+
+	if (image)
+	{
+		auto original = image->data;
+		
+		blendImage = Image(Image::ARGB, original.getWidth(), original.getHeight(), true);
+		gin::applyBlend(blendImage, original, blendMode);
+	}
 }
 
 struct ScriptingApi::Content::ScriptPanel::Wrapper
@@ -2686,13 +3265,16 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setLoadingCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
+	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setFileDropCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, unloadAllImages);
+	API_METHOD_WRAPPER_1(ScriptPanel, isImageLoaded);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
-    API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
+  API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
 	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setMouseCursor);
@@ -2700,14 +3282,12 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_0(ScriptPanel, removeFromParent);
 	API_METHOD_WRAPPER_0(ScriptPanel, getChildPanelList);
 	API_METHOD_WRAPPER_0(ScriptPanel, getParentPanel);
-
-#if HISE_INCLUDE_RLOTTIE
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimation);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setAnimationFrame);
 	API_METHOD_WRAPPER_0(ScriptPanel, getAnimationData);
-#endif
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
+	API_METHOD_WRAPPER_3(ScriptPanel, startExternalFileDrag);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
@@ -2715,9 +3295,11 @@ ScriptComponent(base, panelName, 1),
 PreloadListener(base->getMainController_()->getSampleManager()),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 isChildPanel(true),
-loadRoutine(base, var(), 1),
-timerRoutine(base, var(), 0),
-mouseRoutine(base, var(), 1)
+loadRoutine(base, nullptr, var(), 1),
+timerRoutine(base, nullptr, var(), 0),
+mouseRoutine(base, nullptr, var(), 1),
+fileDropRoutine(base, nullptr, var(), 1),
+mouseCursorPath(MouseCursor::NormalCursor)
 {
 	init();
 }
@@ -2727,9 +3309,11 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptPanel* parent) :
 	PreloadListener(parent->getScriptProcessor()->getMainController_()->getSampleManager()),
 	graphics(new ScriptingObjects::GraphicsObject(parent->getScriptProcessor(), this)),
 	parentPanel(parent),
-	loadRoutine(parent->getScriptProcessor(), var(), 1),
-	mouseRoutine(parent->getScriptProcessor(), var(), 1),
-	timerRoutine(parent->getScriptProcessor(), var(), 0)
+	loadRoutine		(parent->getScriptProcessor(), nullptr, var(), 1),
+	mouseRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
+	timerRoutine	(parent->getScriptProcessor(), nullptr, var(), 0),
+	fileDropRoutine	(parent->getScriptProcessor(), nullptr, var(), 1),
+	mouseCursorPath(MouseCursor::NormalCursor)
 {
 	
 	init();
@@ -2751,7 +3335,8 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_SCRIPT_PROPERTY(i10, "enableMidiLearn");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i11, "holdIsRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i12, "isPopupPanel");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
+    ADD_SCRIPT_PROPERTY(i13, "bufferToImage");      ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 100);
@@ -2774,6 +3359,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	setDefaultValue(enableMidiLearn, false);
 	setDefaultValue(holdIsRightClick, true);
 	setDefaultValue(isPopupPanel, false);
+    setDefaultValue(bufferToImage, false);
 
 	handleDefaultDeactivatedProperties();
 
@@ -2789,9 +3375,12 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setLoadingCallback);
 	ADD_API_METHOD_1(setTimerCallback);
+	ADD_API_METHOD_3(setFileDropCallback);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
+	ADD_API_METHOD_0(unloadAllImages);
+	ADD_API_METHOD_1(isImageLoaded);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
 	ADD_API_METHOD_3(setValueWithUndo);
@@ -2804,11 +3393,10 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_0(getChildPanelList);
 	ADD_API_METHOD_0(getParentPanel);
 	ADD_API_METHOD_3(setMouseCursor);
-#if HISE_INCLUDE_RLOTTIE
 	ADD_API_METHOD_0(getAnimationData);
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
-#endif
+	ADD_API_METHOD_3(startExternalFileDrag);
 }
 
 
@@ -2871,7 +3459,7 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 {
 	paintRoutine = paintFunction;
 
-	if (!parent->allowGuiCreation)
+	if (HiseJavascriptEngine::isJavascriptFunction(paintFunction) && !parent->allowGuiCreation)
 	{
 		repaint();
 	}
@@ -2931,7 +3519,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 	}
 
 	var thisObject(this);
-	var arguments = var(graphics);
+	var arguments = var(graphics.get());
 	var::NativeFunctionArgs args(thisObject, &arguments, 1);
 
 
@@ -2939,7 +3527,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 
 	if (!engine->isInitialising())
 	{
-		engine->maximumExecutionTime = RelativeTime(0.2);
+		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 	}
 
 	engine->callExternalFunction(paintRoutine, args, &r);
@@ -2960,15 +3548,15 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 	{
 		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
 
-		loadRoutine = WeakCallbackHolder(getScriptProcessor(), loadingCallback, 1);
-		loadRoutine.setThisObject(this);
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), this, loadingCallback, 1);
 		loadRoutine.incRefCount();
+		loadRoutine.setThisObject(this);
 		loadRoutine.setHighPriority();
 	}
     else
     {
         getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
-		loadRoutine = WeakCallbackHolder(getScriptProcessor(), var(), 1);
+		loadRoutine = WeakCallbackHolder(getScriptProcessor(), this, var(), 1);
     }
 }
 
@@ -2979,14 +3567,34 @@ void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
 		loadRoutine.call1(isPreloading);
 }
 
+void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLevel, String wildcard, var dropFunction)
+{
+	fileDropLevel = callbackLevel;
+	fileDropExtension = wildcard;
+	fileDropRoutine = WeakCallbackHolder(getScriptProcessor(), this, dropFunction, 1);
+	fileDropRoutine.incRefCount();
+	fileDropRoutine.setThisObject(this);
+	fileDropRoutine.setHighPriority();
 
+}
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
-	mouseRoutine = WeakCallbackHolder(getScriptProcessor(), mouseCallbackFunction, 1);
+	mouseRoutine = WeakCallbackHolder(getScriptProcessor(), this, mouseCallbackFunction, 1);
 	mouseRoutine.incRefCount();
 	mouseRoutine.setThisObject(this);
 	mouseRoutine.setHighPriority();
+}
+
+void ScriptingApi::Content::ScriptPanel::fileDropCallback(var fileInformation)
+{
+	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
+
+	if (parentHasMovedOn || !parent->asyncFunctionsAllowed())
+		return;
+
+	if (fileDropRoutine)
+		fileDropRoutine.call1(fileInformation);
 }
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
@@ -3002,9 +3610,9 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 {
-	timerRoutine = WeakCallbackHolder(getScriptProcessor(), timerCallback_, 0);
-	timerRoutine.setThisObject(this);
+	timerRoutine = WeakCallbackHolder(getScriptProcessor(), this, timerCallback_, 0);
 	timerRoutine.incRefCount();
+	timerRoutine.setThisObject(this);
 }
 
 
@@ -3018,22 +3626,6 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 	if (timerRoutine)
 		timerRoutine.call(nullptr, 0);
-
-#if 0
-	WeakReference<ScriptPanel> tmp(this);
-
-	auto f = [tmp, mc](JavascriptProcessor* )
-	{
-		Result r = Result::ok();
-
-		if (auto panel = tmp.get())
-			panel->timerCallbackInternal(mc, r);
-
-		return r;
-	};
-
-	mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), f);
-#endif
 }
 
 
@@ -3064,6 +3656,22 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 	{
 		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Image " + imageName + " not found. ");
 	}
+}
+
+void ScriptingApi::Content::ScriptPanel::unloadAllImages()
+{
+	loadedImages.clear();
+}
+
+bool ScriptingApi::Content::ScriptPanel::isImageLoaded(String prettyName)
+{
+	for (auto& img : loadedImages)
+	{
+		if (img.prettyName == prettyName)
+			return true;
+	}
+	
+	return false;
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
@@ -3110,6 +3718,47 @@ void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position
 	}
 }
 
+struct PanelComplexDataUndoEvent : public UndoableAction
+{
+	PanelComplexDataUndoEvent(ScriptingApi::Content::ScriptComponent* c, int index_, var old_, var new_) :
+		p(c),
+		oldValue(old_),
+		newValue(new_),
+		index(index_)
+	{
+	}
+
+	bool perform() override
+	{
+		if (p != nullptr)
+		{
+			p->setValue(newValue);
+			p->changed();
+			return true;
+		}
+
+		return false;
+	}
+
+	bool undo() override
+	{
+		if (p != nullptr)
+		{
+			p->setValue(oldValue);
+			p->changed();
+			return true;
+		}
+
+		return false;
+	}
+
+	var oldValue;
+	var newValue;
+
+	WeakReference<ScriptComponent> p;
+	int index;
+};
+
 void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newValue, var actionName)
 {
     auto p = dynamic_cast<Processor*>(getScriptProcessor());
@@ -3118,10 +3767,19 @@ void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newV
     
     const int index = sc->getComponentIndex(getName());
     
-    auto newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
+	UndoableAction* newEvent;
+
+	if (newValue.isArray() || newValue.isObject() ||
+		oldValue.isArray() || oldValue.isObject())
+	{
+		newEvent = new PanelComplexDataUndoEvent(this, index, oldValue, newValue);
+	}
+	else
+	{
+		newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
+	}
     
     getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
-    
 }
 
 void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset, int yOffset)
@@ -3169,6 +3827,8 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 
 void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour, var hitPoint)
  {
+	getCursorUpdater().enableLockFreeUpdate(getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+
 	if (auto po = dynamic_cast<ScriptingObjects::PathObject*>(pathIcon.getObject()))
 	{
 		mouseCursorPath.path = po->getPath();
@@ -3190,8 +3850,46 @@ void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour
 		else
 			reportScriptError("hitPoint must be a [x, y] array");
 	}
+	else if (pathIcon.isString())
+	{
+		static const StringArray iconIds =
+		{
+		"ParentCursor",               /**< Indicates that the component's parent's cursor should be used. */
+		"NoCursor",                       /**< An invisible cursor. */
+		"NormalCursor",                   /**< The standard arrow cursor. */
+		"WaitCursor",                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
+		"IBeamCursor",                    /**< A vertical I-beam for positioning within text. */
+		"CrosshairCursor",                /**< A pair of crosshairs. */
+		"CopyingCursor",                  /**< The normal arrow cursor, but with a "+" on it to indicate that you're dragging a copy of something. */
+		"PointingHandCursor",             /**< A hand with a pointing finger, for clicking on web-links. */
+		"DraggingHandCursor",             /**< An open flat hand for dragging heavy objects around. */
+		"LeftRightResizeCursor",          /**< An arrow pointing left and right. */
+		"UpDownResizeCursor",             /**< an arrow pointing up and down. */
+		"UpDownLeftRightResizeCursor",    /**< An arrow pointing up, down, left and right. */
+		"TopEdgeResizeCursor",            /**< A platform-specific cursor for resizing the top-edge of a window. */
+		"BottomEdgeResizeCursor",         /**< A platform-specific cursor for resizing the bottom-edge of a window. */
+		"LeftEdgeResizeCursor",           /**< A platform-specific cursor for resizing the left-edge of a window. */
+		"RightEdgeResizeCursor",          /**< A platform-specific cursor for resizing the right-edge of a window. */
+		"TopLeftCornerResizeCursor",      /**< A platform-specific cursor for resizing the top-left-corner of a window. */
+		"TopRightCornerResizeCursor",     /**< A platform-specific cursor for resizing the top-right-corner of a window. */
+		"BottomLeftCornerResizeCursor",   /**< A platform-specific cursor for resizing the bottom-left-corner of a window. */
+		"BottomRightCornerResizeCursor"  /**< A platform-specific cursor for resizing the bottom-right-corner of a window. */
+		};
+
+		auto index = iconIds.indexOf(pathIcon.toString());
+
+		if (isPositiveAndBelow(index, (MouseCursor::NumStandardCursorTypes)))
+		{
+			auto standardCursor = (MouseCursor::StandardCursorType)index;
+			mouseCursorPath = MouseCursorInfo(standardCursor);
+		}
+		else
+			reportScriptError("Unknown Cursor name. Use the JUCE enum as string");
+	}
 	else
 		reportScriptError("pathIcon is not a path");
+
+	getCursorUpdater().sendMessage(sendNotificationAsync, mouseCursorPath);
 }
 
 Rectangle<int> ScriptingApi::Content::ScriptPanel::getBoundsForImage() const
@@ -3241,15 +3939,6 @@ void ScriptingApi::Content::ScriptPanel::closeAsPopup()
 	triggerAsyncUpdate();
 }
 
-void ScriptingApi::Content::ScriptPanel::repaintThisAndAllChildren()
-{
-	// Call repaint on all children to make sure they are updated...
-	ChildIterator<ScriptPanel> iter(this);
-
-	while (auto childPanel = iter.getNextChildComponent())
-		childPanel->repaint();
-}
-
 void ScriptingApi::Content::ScriptPanel::handleDefaultDeactivatedProperties()
 {
 	ScriptComponent::handleDefaultDeactivatedProperties();
@@ -3288,7 +3977,7 @@ bool ScriptingApi::Content::ScriptPanel::timerCallbackInternal(MainController * 
 		var thisObject(this);
 		var::NativeFunctionArgs args(thisObject, nullptr, 0);
 
-		engine->maximumExecutionTime = RelativeTime(0.5);
+		engine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 		engine->callExternalFunction(timerRoutine, args, &r);
 
 		if (r.failed())
@@ -3334,18 +4023,24 @@ var ScriptingApi::Content::ScriptPanel::addChildPanel()
 	sendSubComponentChangeMessage(s, true);
 
 	childPanels.getLast()->isChildPanel = true;
-	return var(childPanels.getLast());
+	return var(childPanels.getLast().get());
 }
 
-#if HISE_INCLUDE_RLOTTIE
+
 var ScriptingApi::Content::ScriptPanel::getAnimationData()
 {
+#if HISE_INCLUDE_RLOTTIE
 	updateAnimationData();
 	return var(animationData);
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+	return var();
+#endif
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimation)
 {
+#if HISE_INCLUDE_RLOTTIE
 	if (base64LottieAnimation.isEmpty())
 	{
 		animation = nullptr;
@@ -3368,18 +4063,26 @@ void ScriptingApi::Content::ScriptPanel::setAnimation(String base64LottieAnimati
 		if (l.get() != nullptr)
 			l->animationChanged();
 	}
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+#endif
 }
 
 void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
 {
+#if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
 	{
 		animation->setFrame(numFrame);
 		updateAnimationData();
 		graphics->getDrawHandler().flush();
 	}
+#else
+	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
+#endif
 }
 
+#if HISE_INCLUDE_RLOTTIE
 void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 {
 	DynamicObject::Ptr obj = animationData.getDynamicObject();  
@@ -3402,8 +4105,9 @@ void ScriptingApi::Content::ScriptPanel::updateAnimationData()
 		obj->setProperty("frameRate", 0);
 	}
 
-	animationData = var(obj);
+	animationData = var(obj.get());
 }
+#endif
 
 bool ScriptingApi::Content::ScriptPanel::removeFromParent()
 {
@@ -3450,12 +4154,146 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 #endif
 }
 
+hise::DebugInformationBase::Ptr ScriptingApi::Content::ScriptPanel::createChildElement(DebugWatchIndex i) const
+{
+	var v;
+	String id = "%PARENT%.";
+
+	switch (i)
+	{
+	case DebugWatchIndex::Data:					
+		v = getConstantValue(0); 
+
+		if (auto obj = v.getDynamicObject())
+			if (obj->getProperties().isEmpty())
+				return nullptr;
+		
+		id << "data";  break;
+	case DebugWatchIndex::PaintRoutine:			
+		v = paintRoutine; 
+		
+		if (v.isUndefined() || v.isVoid())
+			return nullptr;
+		
+		id << "paintRoutine";  break;
+	case DebugWatchIndex::TimerCallback:		return timerRoutine.createDebugObject("timerCallback");
+	case DebugWatchIndex::MouseCallback:		return mouseRoutine.createDebugObject("mouseCallback");
+	case DebugWatchIndex::PreloadCallback:		return this->loadRoutine.createDebugObject("loadingCallback");
+	case DebugWatchIndex::ChildPanels:
+	{
+		if (childPanels.isEmpty())
+			return nullptr;
+
+		Array<var> s;
+		for (auto p : childPanels)
+			s.add(var(p));
+
+		v = s;
+		id << "childPanels";
+		break;
+	}
+	case DebugWatchIndex::FileCallback:		   return fileDropRoutine.createDebugObject("fileCallback");
+	case DebugWatchIndex::NumDebugWatchIndexes:
+	default:
+		break;
+	}
+
+	auto vf = [v]() {return v; };
+	return new LambdaValueInformation(vf, Identifier(id), {}, DebugInformation::Type::Constant, getLocation());
+}
+
+
+void ScriptingApi::Content::ScriptPanel::buildDebugListIfEmpty() const
+{
+	if (cachedList.isEmpty())
+	{
+		for (int i = 0; i < (int)DebugWatchIndex::NumDebugWatchIndexes; i++)
+		{
+			auto ptr = createChildElement((DebugWatchIndex)i);
+
+			if (ptr != nullptr)
+				cachedList.add(ptr);
+		}
+	}
+}
+
+hise::DebugInformationBase* ScriptingApi::Content::ScriptPanel::getChildElement(int index)
+{
+	return cachedList[index].get();
+}
+
+int ScriptingApi::Content::ScriptPanel::getNumChildElements() const
+{
+	buildDebugListIfEmpty();
+	return cachedList.size();
+}
+
+bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, bool moveOriginal, var finishCallback)
+{
+	StringArray files;
+
+	auto addToArray = [&](var v)
+	{
+		if (v.isString())
+			files.add(v.toString());
+
+		if (auto fObj = dynamic_cast<ScriptingObjects::ScriptFile*>(v.getObject()))
+			files.add(fObj->f.getFullPathName());
+	};
+
+	if (fileToDrag.isArray())
+	{
+		for (const auto& f : *fileToDrag.getArray())
+			addToArray(f);
+	}
+	else
+		addToArray(fileToDrag);
+
+	if (files.isEmpty())
+		return false;
+
+	WeakReference<ProcessorWithScriptingContent> sp = getScriptProcessor();
+
+	std::function<void()> f;
+
+	WeakReference<ScriptPanel> safeThis(this);
+
+	if (HiseJavascriptEngine::isJavascriptFunction(finishCallback))
+	{
+		f = [sp, finishCallback, safeThis]()
+		{
+			WeakCallbackHolder cb(sp, safeThis.get(), finishCallback, 0);
+			cb.callSync(nullptr, 0);
+		};
+	}
+
+    auto f2 = [files, f]()
+    {
+        DragAndDropContainer::performExternalDragDropOfFiles(files, false, nullptr, f);
+    };
+    
+#if JUCE_WINDOWS
+    f2();
+#else
+    MessageManager::callAsync(f2);
 #endif
+    
+    return true;
+}
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
 }
+
+struct ScriptingApi::Content::ScriptedViewport::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableMode);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableColumns);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableRowData);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setEventTypesForValueCallback);
+};
 
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
 	ScriptComponent(base, viewportName)
@@ -3465,6 +4303,8 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	propertyIds.add("scrollBarThickness");		ADD_AS_SLIDER_TYPE(0, 40, 1);
 	propertyIds.add("autoHide");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("useList"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("viewPositionX")); ADD_AS_SLIDER_TYPE(0, 1, 0.01);
+	propertyIds.add(Identifier("viewPositionY")); ADD_AS_SLIDER_TYPE(0, 1, 0.01);
 	propertyIds.add(Identifier("items"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	ADD_SCRIPT_PROPERTY(i01, "fontName");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_NUMBER_PROPERTY(i02, "fontSize");		ADD_AS_SLIDER_TYPE(1, 200, 1);
@@ -3475,6 +4315,8 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
+	setDefaultValue(viewPositionX, 0.0);
+	setDefaultValue(viewPositionY, 0.0);
 	setDefaultValue(scrollbarThickness, 16.0);
 	setDefaultValue(autoHide, true);
 	setDefaultValue(useList, false);
@@ -3488,6 +4330,12 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	handleDefaultDeactivatedProperties();
 
 	initInternalPropertyFromValueTreeOrDefault(Items);
+
+	ADD_API_METHOD_1(setTableMode);
+	ADD_API_METHOD_1(setTableColumns);
+	ADD_API_METHOD_1(setTableRowData);
+	ADD_API_METHOD_1(setTableCallback);
+	ADD_API_METHOD_1(setEventTypesForValueCallback);
 }
 
 void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
@@ -3502,6 +4350,17 @@ void ScriptingApi::Content::ScriptedViewport::setScriptObjectPropertyWithChangeM
 		//}
 	}
 
+	if (id == getIdFor(viewPositionX))
+	{
+		auto y = (double)getScriptObjectProperty(getIdFor(viewPositionY));
+		positionBroadcaster.sendMessage(sendNotificationAsync, (double)newValue, y);
+	}
+
+	if (id == getIdFor(viewPositionY))
+	{
+		auto x = (double)getScriptObjectProperty(getIdFor(viewPositionX));
+		positionBroadcaster.sendMessage(sendNotificationAsync, x, (double)newValue);
+	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -3555,138 +4414,164 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	return vArray;
 }
 
-ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int , int ) :
-ScriptComponent(base, waveformName)
+struct UndoableTableSelection : public UndoableAction
 {
-	ADD_SCRIPT_PROPERTY(i01, "itemColour3"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	ADD_SCRIPT_PROPERTY(i02, "opaque"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i03, "showLines"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	ADD_SCRIPT_PROPERTY(i04, "showFileName"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-    ADD_SCRIPT_PROPERTY(i05, "sampleIndex");
-    
-	setDefaultValue(ScriptComponent::Properties::x, x);
-	setDefaultValue(ScriptComponent::Properties::y, y);
-	setDefaultValue(ScriptComponent::Properties::width, 200);
-	setDefaultValue(ScriptComponent::Properties::height, 100);
+	UndoableTableSelection(ScriptingApi::Content::ScriptedViewport* v, int nc, int nr):
+		UndoableAction(),
+		vp(v),
+		newColumn(nc),
+		newRow(nr)
+	{
+		auto old = v->getValue();
+
+		if (old.isArray())
+		{
+			oldColumn = old[0];
+			oldRow = old[1];
+		}
+		else
+		{
+			oldColumn = -1;
+			oldRow = -1;
+		}
+	}
+
+	bool perform() override
+	{
+		if (vp != nullptr)
+		{
+			vp->getTableModel()->sendCallback(newRow, newColumn + 1, true, ScriptTableListModel::EventType::SetValue);
+		}
+
+		return false;
+	}
+
+	bool undo() override
+	{
+		if (oldColumn == -1 && oldRow == -1)
+			return false;
+
+		if (vp != nullptr)
+		{
+			vp->getTableModel()->sendCallback(oldRow, oldColumn + 1, true, ScriptTableListModel::EventType::Undo);
+		}
+
+		return false;
+	}
+
+	int oldColumn, oldRow, newColumn, newRow;
+
+	WeakReference<ScriptingApi::Content::ScriptedViewport> vp;
+};
+
+void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
+{
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table Metadata must be set in the onInit callback");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	tableModel = new ScriptTableListModel(getScriptProcessor(), tableMetadata);
+
+	if (tableModel->isMultiColumn())
+	{
+		WeakReference<ScriptedViewport> safeThis(this);
+
+		tableModel->addAdditionalCallback([safeThis](int c, int r)
+		{
+			if (safeThis == nullptr)
+				return;
+
+			Array<var> v;
+			v.add(c);
+			v.add(r);
+
+			safeThis->setValue(v);
+		});
+	}
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableColumns(var columnMetadata)
+{
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table Metadata must be set in the onInit callback");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	if (tableModel == nullptr)
+	{
+		reportScriptError("You need to call setTableMode first");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	tableModel->setTableColumnData(columnMetadata);
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableRowData(var tableData)
+{
+	if (tableModel == nullptr)
+	{
+		reportScriptError("You need to call setTableMode first");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
 	
-	setDefaultValue(Properties::itemColour3, 0x22FFFFFF);
-	setDefaultValue(ScriptComponent::Properties::bgColour, (int64)0xFF555555);
-	setDefaultValue(ScriptComponent::Properties::itemColour2, (int64)0xffcccccc);
-	setDefaultValue(ScriptComponent::Properties::itemColour, (int64)0xa2181818);
 
-	setDefaultValue(Properties::opaque, true);
-	setDefaultValue(Properties::showLines, false);
-	setDefaultValue(Properties::showFileName, true);
-    setDefaultValue(Properties::sampleIndex, -1);
-
-	handleDefaultDeactivatedProperties();
+	tableModel->setRowData(tableData);
 }
 
-ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
+void ScriptingApi::Content::ScriptedViewport::setTableCallback(var callbackFunction)
 {
-	return new ScriptCreatedComponentWrappers::AudioWaveformWrapper(content, this, index);
-}
-
-
-ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
-{
-	ValueTree v = ScriptComponent::exportAsValueTree();
-
-	const AudioSampleProcessor *asp = dynamic_cast<const AudioSampleProcessor*>(getConnectedProcessor());
-
-	if (asp != nullptr)
+	if (tableModel == nullptr)
 	{
-		v.setProperty("rangeStart", asp->getRange().getStart(), nullptr);
-		v.setProperty("rangeEnd", asp->getRange().getEnd(), nullptr);
-		v.setProperty("fileName", asp->getFileName(), nullptr);
+		reportScriptError("You need to call setTableMode first");
+		RETURN_VOID_IF_NO_THROW();
 	}
 
-	return v;
+	if (!getScriptProcessor()->getScriptingContent()->interfaceCreationAllowed())
+	{
+		reportScriptError("Table callback must be set in the onInit callback");
+		RETURN_VOID_IF_NO_THROW();
+	}
+
+	tableModel->setCallback(callbackFunction);
 }
 
-void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
+void ScriptingApi::Content::ScriptedViewport::setValue(var newValue)
 {
-	const String id = v.getProperty("id", "");
-
-	if (id.isNotEmpty())
+	if (tableModel != nullptr)
 	{
-		const String fileName = v.getProperty("fileName", "");
-
-		if (getAudioProcessor() != nullptr)
+		if (newValue.isArray() && newValue.size() == 2)
 		{
-			getAudioProcessor()->setLoadedFile(fileName, true, false);
+			auto c = (int)newValue[0];
+			auto r = (int)newValue[1];
+			auto useUndo = (bool)getScriptObjectProperty(getIdFor(ScriptComponent::Properties::useUndoManager));
 
-			Range<int> range(v.getProperty("rangeStart"), v.getProperty("rangeEnd"));
+			ScopedPointer<UndoableAction> u = new UndoableTableSelection(this, c, r);
 
-			getAudioProcessor()->setRange(range);
-
-			//WHYTHEFUCK
-			triggerAsyncUpdate();
-		}
-	}
-}
-
-StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Identifier &id)
-{
-	if (id != getIdFor(processorId)) return ScriptComponent::getOptionsFor(id);
-
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	auto aps = ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
-	auto samplers = ProcessorHelpers::getAllIdsForType<ModulatorSampler>(mp->getOwnerSynth());
-	auto cds = ProcessorHelpers::getAllIdsForType<ComplexDataHolder>(mp->getOwnerSynth());
-
-	aps.addArray(samplers);
-	aps.addArray(cds);
-
-	return aps;
-}
-
-AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProcessor()
-{
-	return dynamic_cast<AudioSampleProcessor*>(getConnectedProcessor());
-}
-
-void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
-{
-	if (id == getIdFor(parameterId))
-	{
-		return;
-	}
-
-	if (id == getIdFor(sampleIndex))
-	{
-		if (auto cdh = dynamic_cast<ComplexDataHolder*>(getConnectedProcessor()))
-		{
-			auto index = (int)newValue;
-
-			if (index < cdh->getNumAudioFiles())
-			{
-				audioFile = cdh->addOrReturnAudioFile(index);
-			}
+			if (useUndo)
+				getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(u.release());
+			else
+				u->perform();
 		}
 	}
 
-	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+	ScriptComponent::setValue(newValue);
 }
 
-ModulatorSampler* ScriptingApi::Content::ScriptAudioWaveform::getSampler()
+void ScriptingApi::Content::ScriptedViewport::setEventTypesForValueCallback(var eventTypeList)
 {
-	return dynamic_cast<ModulatorSampler*>(getConnectedProcessor());
-}
+	if (tableModel != nullptr)
+	{
+		auto r = tableModel->setEventTypesForValueCallback(eventTypeList);
 
-void ScriptingApi::Content::ScriptAudioWaveform::handleDefaultDeactivatedProperties()
-{
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(text));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(min));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(max));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(defaultValue));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(macroControl));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(pluginParameterName));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(isMetaParameter));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(linkedTo));
-	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
 }
 
 // ====================================================================================================== ScriptFloatingTile functions
@@ -3860,6 +4745,7 @@ void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperti
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
 }
 
 bool ScriptingApi::Content::ScriptFloatingTile::fillScriptPropertiesWithFloatingTile(FloatingTile* ft)
@@ -3935,15 +4821,13 @@ colour(Colour(0xff777777))
 		contentPropertyData = ValueTree("ContentProperties");
 	}
 
-	
-
 	setMethod("addButton", Wrapper::addButton);
 	setMethod("addKnob", Wrapper::addKnob);
 	setMethod("addLabel", Wrapper::addLabel);
 	setMethod("addComboBox", Wrapper::addComboBox);
 	setMethod("addTable", Wrapper::addTable);
 	setMethod("addImage", Wrapper::addImage);
-	setMethod("addViewport", Wrapper::addScriptedViewport);
+	setMethod("addViewport", Wrapper::addViewport);
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
@@ -3952,6 +4836,8 @@ colour(Colour(0xff777777))
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
 	setMethod("setWidth", Wrapper::setWidth);
+	setMethod("createScreenshot", Wrapper::createScreenshot);
+	setMethod("addVisualGuide", Wrapper::addVisualGuide);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
@@ -3965,6 +4851,14 @@ colour(Colour(0xff777777))
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
+	setMethod("createShader", Wrapper::createShader);
+	setMethod("createMarkdownRenderer", Wrapper::createMarkdownRenderer);
+	setMethod("getScreenBounds", Wrapper::getScreenBounds);
+	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
+	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
+	setMethod("isMouseDown", Wrapper::isMouseDown);
+	setMethod("getComponentUnderMouse", Wrapper::getComponentUnderMouse);
+	setMethod("callAfterDelay", Wrapper::callAfterDelay);
 }
 
 ScriptingApi::Content::~Content()
@@ -3988,7 +4882,7 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponentWith
 	{
 		if (components[i]->name == componentName)
 		{
-			return components[i];
+			return components[i].get();
 		}
 	}
 
@@ -4001,7 +4895,7 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	{
 		if (components[i]->name == componentName)
 		{
-			return components[i];
+			return components[i].get();
 		}
 	}
 
@@ -4047,7 +4941,7 @@ ScriptingApi::Content::ScriptLabel * ScriptingApi::Content::addLabel(Identifier 
 };
 
 
-ScriptingApi::Content::ScriptedViewport* ScriptingApi::Content::addScriptedViewport(Identifier viewportName, int x, int y)
+ScriptingApi::Content::ScriptedViewport* ScriptingApi::Content::addViewport(Identifier viewportName, int x, int y)
 {
 	return addComponent<ScriptedViewport>(viewportName, x, y);
 }
@@ -4087,9 +4981,31 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 	if (index == -1) return nullptr;
 
 	if(index < components.size())
-		return components[index];
+		return components[index].get();
 
 	return nullptr;
+}
+
+juce::var ScriptingApi::Content::getScreenBounds(bool getTotalArea)
+{
+	Rectangle<int> b;
+
+	{
+		MessageManagerLock mm;
+
+		if (getTotalArea)
+			b = Desktop::getInstance().getDisplays().getMainDisplay().totalArea;
+		else
+			b = Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+	}
+
+	Array<var> vb;
+	vb.add(b.getX());
+	vb.add(b.getY());
+	vb.add(b.getWidth());
+	vb.add(b.getHeight());
+
+	return var(vb);
 }
 
 var ScriptingApi::Content::getComponent(var componentName)
@@ -4099,7 +5015,17 @@ var ScriptingApi::Content::getComponent(var componentName)
 	for (int i = 0; i < components.size(); i++)
 	{
 		if (n == components[i]->getName())
-			return var(components[i]);
+		{
+#if USE_BACKEND
+			if (componentToThrowAtDefinition.get() == components[i].get())
+			{
+				componentToThrowAtDefinition = nullptr;
+				reportScriptError(n.toString() + " is defined here");
+			}
+#endif
+
+			return var(components[i].get());
+		}
 	}
 
 	logErrorAndContinue("Component with name " + componentName.toString() + " wasn't found.");
@@ -4115,7 +5041,7 @@ var ScriptingApi::Content::getAllComponents(String regex)
 	{	    
 		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
 		{
-			list.add(var(components[i]));
+			list.add(var(components[i].get()));
 		}
 	}
 
@@ -4152,6 +5078,7 @@ void ScriptingApi::Content::beginInitialization()
 	allowGuiCreation = true;
 
 	updateWatcher = nullptr;
+	guides.clear();
 }
 
 
@@ -4187,13 +5114,14 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 	}
 
 	width = newWidth;
+	
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
 {
     width = newWidth;
     height = newHeight;
-    
+
     dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
     
 }
@@ -4238,7 +5166,7 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 
 	if (f.existsAsFile())
 	{
-		ScopedPointer<XmlElement> existingData = XmlDocument::parse(f);
+		auto existingData = XmlDocument::parse(f);
 
         if(existingData != nullptr)
         {
@@ -4277,10 +5205,23 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 
 		preset.addChild(automationData, -1, nullptr);
 
-		ScopedPointer<XmlElement> xml = preset.createXml();
+		auto xml = preset.createXml();
 
 		f.replaceWithText(xml->createDocument(""));
 	}
+}
+
+
+juce::StringArray ScriptingApi::Content::getMacroNames()
+{
+	StringArray macroNames;
+
+	if (components.size() != 0)
+	{
+		macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
+	}
+
+	return macroNames;
 }
 
 
@@ -4332,7 +5273,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 	if (f.existsAsFile())
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+		auto xml = XmlDocument::parse(f);
 
 		ValueTree parent = ValueTree::fromXml(*xml);
 
@@ -4368,12 +5309,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 {
 	restoreFromValueTree(preset);
 
-	StringArray macroNames;
-
-	if (components.size() != 0)
-	{
-		macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
-	}
+	auto macroNames = getMacroNames();
 
 	for (int i = 0; i < components.size(); i++)
 	{
@@ -4414,7 +5350,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 
 		if (dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()) != nullptr)
 		{
-			getScriptProcessor()->controlCallback(components[i], v);
+			getScriptProcessor()->controlCallback(components[i].get(), v);
 		}
         else if (auto ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(components[i].get()))
         {
@@ -4426,7 +5362,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
         }
 		else if (v.isObject())
 		{
-			getScriptProcessor()->controlCallback(components[i], v);
+			getScriptProcessor()->controlCallback(components[i].get(), v);
 		}
 		else
 		{
@@ -4512,6 +5448,11 @@ var ScriptingApi::Content::createPath()
 	return var(obj);
 }
 
+juce::var ScriptingApi::Content::createLocalLookAndFeel()
+{
+	return var(new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor(), false));
+}
+
 void ScriptingApi::Content::cleanJavascriptObjects()
 {
 	allowAsyncFunctions = false;
@@ -4521,6 +5462,7 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 		components[i]->cancelChangedControlCallback();
 		components[i]->setControlCallback(var());
 		components[i]->cleanScriptChangedPropertyIds();
+		components[i]->setLocalLookAndFeel(var());
 
 		if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(components[i].get()))
 		{
@@ -4627,7 +5569,7 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 
 			components.add(sc);
 
-			ScriptComponent::ScopedPropertyEnabler spe(sc);
+			ScriptComponent::ScopedPropertyEnabler spe(sc.get());
 			sc->setPropertiesFromJSON(d);
 		}
 
@@ -4722,6 +5664,196 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 		{
 			sp->suspendTimer(shouldBeSuspended);
 		}
+	}
+}
+
+#ifndef HISE_SUPPORT_GLSL_LINE_NUMBERS
+#define HISE_SUPPORT_GLSL_LINE_NUMBERS 0
+#endif
+
+var ScriptingApi::Content::createShader(const String& fileName)
+{
+	auto f = new ScriptingObjects::ScriptShader(getScriptProcessor());
+
+	
+	addScreenshotListener(f);
+
+#if HISE_SUPPORT_GLSL_LINE_NUMBERS
+	f->setEnableLineNumbers(true);
+#endif
+
+	if(!fileName.isEmpty())
+		f->setFragmentShader(fileName);
+
+	return var(f);
+}
+
+
+void ScriptingApi::Content::createScreenshot(var area, var directory, String name)
+{
+	if (!screenshotListeners.isEmpty())
+	{
+		if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(directory.getObject()))
+		{
+			auto dir = sf->f;
+
+			if (!dir.existsAsFile() && !dir.isDirectory())
+				dir.createDirectory();
+
+			if (sf->f.isDirectory())
+			{
+				auto target = sf->f.getChildFile(name).withFileExtension("png");
+				Rectangle<float> a;
+
+				if (auto comp = dynamic_cast<ScriptComponent*>(area.getObject()))
+				{
+					a.setX((int)comp->getGlobalPositionX());
+					a.setY((int)comp->getGlobalPositionY());
+					a.setWidth((int)comp->getWidth());
+					a.setHeight((int)comp->getHeight());
+				}
+				else
+				{
+					auto r = Result::ok();
+					a = ApiHelpers::getRectangleFromVar(area, &r);
+
+					if (!r.wasOk())
+						reportScriptError(r.getErrorMessage());
+				}
+
+				// Send a message to all listeners
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						sc->prepareScreenshot();
+				}
+
+				int timeWaitedMs = 0;
+
+				// Now block until everything is ready
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						timeWaitedMs += sc->blockWhileWaiting();
+				}
+
+				for (auto sc : screenshotListeners)
+				{
+					if (sc != nullptr)
+						sc->makeScreenshot(target, a);
+				}
+			}
+		}
+	}
+}
+
+void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
+{
+	if (auto ga = guideData.getArray())
+	{
+		VisualGuide g;
+		g.c = Helpers::getCleanedObjectColour(colour);
+
+		if (ga->size() == 4)
+		{
+			g.t = VisualGuide::Type::Rectangle;
+			g.area = ApiHelpers::getRectangleFromVar(guideData);
+		}
+		else if (ga->size() == 2)
+		{
+			auto x = (float)ga->getUnchecked(0);
+			auto y = (float)ga->getUnchecked(1);
+
+			if (x == 0)
+			{
+				g.t = VisualGuide::Type::HorizontalLine;
+				g.area = { 0.0f, y, (float)width, 1.0f };
+			}
+			else if (y == 0)
+			{
+				g.t = VisualGuide::Type::VerticalLine;
+				g.area = { x, 0.0, 1.0f, (float)height };
+			}
+		}
+
+		guides.add(std::move(g));
+	}
+	else
+		guides.clear();
+
+	for (auto sc : screenshotListeners)
+	{
+		if(sc != nullptr)
+			sc->visualGuidesChanged();
+	}
+}
+
+String ScriptingApi::Content::getCurrentTooltip()
+{
+	auto& desktop = Desktop::getInstance();
+	auto mouseSource = desktop.getMainMouseSource();
+	auto* newComp = mouseSource.isTouch() ? nullptr : mouseSource.getComponentUnderMouse();
+
+	if (auto ttc = dynamic_cast<TooltipClient*> (newComp))
+		return ttc->getTooltip();
+
+	return {};
+}
+
+juce::var ScriptingApi::Content::createMarkdownRenderer()
+{
+	return var(new ScriptingObjects::MarkdownObject(getScriptProcessor()));
+}
+
+int ScriptingApi::Content::isMouseDown()
+{
+	auto mods = Desktop::getInstance().getMainMouseSource().getCurrentModifiers();
+
+	if (mods.isLeftButtonDown())
+		return 1;
+	if (mods.isRightButtonDown())
+		return 2;
+
+	return 0;
+}
+
+String ScriptingApi::Content::getComponentUnderMouse()
+{
+	if (auto c = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse())
+	{
+		return c->getComponentID();
+	}
+
+	return "";
+}
+
+void ScriptingApi::Content::callAfterDelay(int milliSeconds, var function, var thisObject)
+{
+	WeakCallbackHolder cb(getScriptProcessor(), nullptr, function, 0);
+	cb.incRefCount();
+
+	if (auto obj = thisObject.getObject())
+		cb.setThisObject(obj);
+
+	Timer::callAfterDelay(milliSeconds, [cb]() mutable
+	{
+		cb.call(nullptr, 0);
+	});
+}
+
+void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)
+{
+	componentToThrowAtDefinition = sc;
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		auto rf = [this, jp](const JavascriptProcessor::SnippetResult& r)
+		{
+			componentToThrowAtDefinition = nullptr;
+			jp->compileScript({});
+		};
+
+		jp->compileScript(rf);
 	}
 }
 
@@ -5024,7 +6156,7 @@ void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
 		{
 			auto location = info->getObject()->getLocation();
 
-			DebugableObject::Helpers::gotoLocation(p, info);
+			DebugableObject::Helpers::gotoLocation(p, info.get());
 
 			return;
 		}
@@ -5358,5 +6490,290 @@ var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bo
 		return var(d);
 	}
 }
+
+hise::ScriptComponentPropertyTypeSelector::SelectorTypes ScriptComponentPropertyTypeSelector::getTypeForId(const Identifier &id) const
+{
+	if (toggleProperties.contains(id)) return ToggleSelector;
+	else if (sliderProperties.contains(id)) return SliderSelector;
+	else if (colourProperties.contains(id)) return ColourPickerSelector;
+	else if (choiceProperties.contains(id)) return ChoiceSelector;
+	else if (multilineProperties.contains(id)) return MultilineSelector;
+	else if (fileProperties.contains(id)) return FileSelector;
+	else if (codeProperties.contains(id)) return CodeSelector;
+	else return TextSelector;
+}
+
+void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, Identifier id, double min /*= 0.0*/, double max /*= 1.0*/, double interval /*= 0.01*/)
+{
+	switch (type)
+	{
+	case ScriptComponentPropertyTypeSelector::ToggleSelector:
+		toggleProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::ColourPickerSelector:
+		colourProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::SliderSelector:
+	{
+		sliderProperties.addIfNotAlreadyThere(id);
+		SliderRange range;
+
+		range.min = min;
+		range.max = max;
+		range.interval = interval;
+
+		sliderRanges.set(id.toString(), range);
+		break;
+	}
+	case ScriptComponentPropertyTypeSelector::ChoiceSelector:
+		choiceProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::MultilineSelector:
+		multilineProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::FileSelector:
+		fileProperties.addIfNotAlreadyThere(id);
+		break;
+	case ScriptComponentPropertyTypeSelector::TextSelector:
+		break;
+	case ScriptComponentPropertyTypeSelector::CodeSelector:
+		codeProperties.addIfNotAlreadyThere(id);
+	case ScriptComponentPropertyTypeSelector::numSelectorTypes:
+		break;
+	default:
+		break;
+	}
+}
+
+
+MapItemWithScriptComponentConnection::MapItemWithScriptComponentConnection(ScriptComponent* c, int width, int height) :
+	SimpleTimer(c->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	sc(c),
+	w(width),
+	h(height)
+{
+	
+}
+
+SimpleVarBody::SimpleVarBody(const var& v) :
+	value(v)
+{
+	s = getSensibleStringRepresentation();
+}
+
+void SimpleVarBody::paint(Graphics& g)
+{
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.5f));
+	g.drawText(s, getLocalBounds().toFloat(), Justification::centred);
+}
+
+void SimpleVarBody::mouseDown(const MouseEvent& e)
+{
+	auto isViewable = value.getDynamicObject() != nullptr || value.isArray();
+
+	if (isViewable)
+	{
+		auto ft = findParentComponentOfClass<FloatingTile>();
+
+		auto editor = new JSONEditor(value);
+		editor->setSize(600, 400);
+		editor->setName("JSON Viewer");
+
+		ft->showComponentInRootPopup(editor, this, { getWidth() / 2, getHeight() });
+	}
+}
+
+String SimpleVarBody::getSensibleStringRepresentation() const
+{
+	if (auto dObj = dynamic_cast<DebugableObjectBase*>(value.getObject()))
+	{
+		return dObj->getDebugName();
+	}
+
+	return value.toString();
+}
+
+LiveUpdateVarBody::DisplayType LiveUpdateVarBody::getDisplayType(const Identifier& id)
+{
+	if (id.toString().containsIgnoreCase("colour"))
+		return DisplayType::Colour;
+
+	static const Array<Identifier> boolIds = { "visible", "enabled", "on" };
+
+	if (boolIds.contains(id))
+		return DisplayType::Bool;
+
+	return DisplayType::Text;
+}
+
+
+
+LiveUpdateVarBody::LiveUpdateVarBody(PooledUIUpdater* updater, const Identifier& id_, const std::function<var()>& f) :
+	SimpleVarBody(f()),
+	SimpleTimer(updater),
+	id(id_),
+	valueFunction(f),
+	displayType(getDisplayType(id_))
+{
+
+}
+
+void LiveUpdateVarBody::timerCallback()
+{
+	auto newValue = valueFunction();
+
+	if (value != newValue)
+	{
+		alpha.setModValue(1.0);
+		value = newValue;
+
+		if (displayType == DisplayType::Colour)
+            s = "colour";
+		else if (displayType == DisplayType::Bool)
+			s = (bool)newValue ? "true" : "";
+		else
+			s = getSensibleStringRepresentation();
+
+		if (getPreferredWidth() > getWidth())
+			resetRootSize();
+	}
+
+	if (alpha.setModValueIfChanged(jmax(0.0, alpha.getModValue() - 0.05)))
+		repaint();
+}
+
+String LiveUpdateVarBody::getTextToDisplay() const
+{
+	String text;
+
+	if (id.isValid())
+		text << id.toString() << ": ";
+
+	if(displayType == DisplayType::Text)
+		text << s;
+
+	return text;
+}
+
+void LiveUpdateVarBody::paint(Graphics& g)
+{
+	auto b = getLocalBounds().toFloat().reduced(6.0f, 8.0f);
+
+	auto a = (float)jlimit(0.0f, 1.0f, 0.5f + 0.5f * (float)alpha.getModValue());
+
+	g.setColour(Colours::black.withAlpha(a * 0.7f));
+	g.fillRoundedRectangle(b, b.getHeight() / 2.0f);
+
+	auto text = getTextToDisplay();
+	g.setColour(Colours::white.withAlpha(a));
+	g.setFont(GLOBAL_MONOSPACE_FONT());
+	g.drawText(text, b.reduced(12.0f, 4.0f), Justification::left);
+
+	auto circle = b.removeFromRight(b.getHeight()).reduced(1.0f);
+
+	switch (displayType)
+	{
+	case DisplayType::Colour:
+	{
+		g.drawEllipse(circle, 1.0f);
+		g.setColour(scriptnode::PropertyHelpers::getColourFromVar(value));
+		g.fillEllipse(circle.reduced(1.0f));
+		break;
+	}
+	case DisplayType::Bool:
+	{
+		g.drawEllipse(circle, 1.0f);
+
+		if(s == "true")
+			g.fillEllipse(circle.reduced(2.0f));
+
+		break;
+	}
+	}
+
+	
+}
+
+PrimitiveArrayDisplay::PrimitiveArrayDisplay(Processor* jp, const var& obj) :
+	SimpleTimer(jp->getMainController()->getGlobalUIUpdater()),
+	SimpleVarBody(obj)
+{
+	lastValues.addArray(*obj.getArray());
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+
+	h = roundToInt((float)value.size() * f.getHeight()) + 16;
+
+	id = "data";
+
+#if 0
+	if (auto di = DebugableObject::Helpers::getDebugInformation(dynamic_cast<ApiProviderBase::Holder*>(jp)->getProviderBase(), obj))
+	{
+		id = di->getTextForName();
+	}
+	else
+	{
+	}
+#endif
+
+	w = 0;
+
+	for (auto v : lastValues)
+	{
+		w = jmax(w, f.getStringWidth(v.toString()));
+	}
+
+	w += 80 + f.getStringWidth(id);
+}
+
+void PrimitiveArrayDisplay::timerCallback()
+{
+	bool changed = false;
+
+	for (int i = 0; i < value.size(); i++)
+	{
+		changed |= lastValues[i] != value[i];
+		lastValues.set(i, value[i]);
+	}
+
+	if (changed)
+		repaint();
+}
+
+hise::ComponentWithPreferredSize* hise::PrimitiveArrayDisplay::create(Component* r, const var& obj)
+{
+	auto p = dynamic_cast<ProcessorHelpers::ObjectWithProcessor*>(r)->getProcessor();
+
+	if (ScriptingObjects::ScriptBroadcaster::isPrimitiveArray(obj))
+		return new PrimitiveArrayDisplay(p, obj);
+
+	return nullptr;
+}
+
+void PrimitiveArrayDisplay::paint(Graphics& g)
+{
+	AttributedString c;
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+
+	auto c1 = Colours::white.withAlpha(0.4f);
+	auto c2 = Colours::white.withAlpha(0.8f);
+
+	for (int i = 0; i < lastValues.size(); i++)
+	{
+		String s1, s2;
+
+		s1 << id << "[" << i << "] = ";
+		s2 << lastValues[i].toString() << "\n";
+
+		c.append(s1, f, c1);
+		c.append(s2, f, c2);
+	}
+
+	c.draw(g, getLocalBounds().toFloat().reduced(8));
+}
+
+
 
 } // namespace hise

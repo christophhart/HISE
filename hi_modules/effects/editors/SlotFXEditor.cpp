@@ -17,7 +17,7 @@ SlotFXEditor::SlotFXEditor(ProcessorEditor* parentEditor) :
 {
 	addAndMakeVisible(effectSelector = new ComboBox());
 
-	effectSelector->addItemList(dynamic_cast<SlotFX*>(getProcessor())->getEffectList(), 1);
+	effectSelector->addItemList(dynamic_cast<SlotFX*>(getProcessor())->getModuleList(), 1);
 
 	getProcessor()->getMainController()->skin(*effectSelector);
 

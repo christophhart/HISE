@@ -136,8 +136,7 @@ String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const Str
     
 	for (int i = 0; i < externalScripts.getNumChildren(); i++)
 	{
-        const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
-
+    const String thisName = externalScripts.getChild(i).getProperty("FileName").toString().replace("\\", "/");
         
 		if (thisName == realFileName)
 		{
@@ -161,6 +160,59 @@ ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(co
 	includedFiles.add(new ExternalScriptFile(fileToInclude));
 
 	return includedFiles.getLast();
+}
+
+void ExternalScriptFile::setRuntimeErrors(const Result& r)
+{
+	runtimeErrors.clearQuick();
+
+	if (!r.wasOk())
+	{
+		StringArray sa = StringArray::fromLines(r.getErrorMessage());
+
+		for (const auto& s : sa)
+			runtimeErrors.add(RuntimeError(s));
+	}
+
+	runtimeErrorBroadcaster.sendMessage(sendNotification, &runtimeErrors);
+}
+
+ExternalScriptFile::RuntimeError::RuntimeError(const String& e)
+{
+	file = e.upToFirstOccurrenceOf("(", false, false);
+	lineNumber = e.fromFirstOccurrenceOf("(", false, false).getIntValue();
+
+	auto tokens = StringArray::fromTokens(e.fromFirstOccurrenceOf(")", false, false), ":", "");
+	tokens.removeEmptyStrings();
+	
+	bool isWarning = tokens[0].trim() == "warning";
+
+	errorLevel = isWarning ? ErrorLevel::Warning : ErrorLevel::Error;
+
+	errorMessage = tokens[1].trim();
+
+	if (errorMessage.isEmpty())
+		errorLevel = ErrorLevel::Invalid;
+
+}
+
+bool ExternalScriptFile::RuntimeError::matches(const String& fileNameWithoutExtension) const
+{
+	return file.compareIgnoreCase(fileNameWithoutExtension) == 0;
+}
+
+String ExternalScriptFile::RuntimeError::toString() const
+{
+	/** Invert this: 
+	auto s = e.fromFirstOccurrenceOf("Line ", false, false);
+	auto l = s.getIntValue() - 1;
+	auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
+	errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
+	*/
+
+	String e;
+	e << "Line " << String(lineNumber) << "(-1): " << errorMessage;
+	return e;
 }
 
 } // namespace hise

@@ -47,11 +47,10 @@ class FrontendEditorHolder: public Component
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer,
 							   public ModalBaseWindow,
-							   public OverlayMessageBroadcaster::Listener,
 							   public ComponentWithBackendConnection,
-							   public GlobalSettingManager::ScaleFactorListener
-
-
+							   public GlobalSettingManager::ScaleFactorListener,
+							   public TopLevelWindowWithOptionalOpenGL,
+							   public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
 
@@ -78,28 +77,18 @@ public:
 
 	void setSamplesCorrectlyInstalled(bool wasOK)
 	{
-		if (deactiveOverlay != nullptr)
-		{
-			deactiveOverlay->setState(DeactiveOverlay::SamplesNotInstalled, !wasOK);
-		}
+		auto fp = dynamic_cast<FrontendProcessor*>(getAudioProcessor());
 
+		if (!wasOK)
+			fp->sendOverlayMessage(OverlayMessageBroadcaster::SamplesNotInstalled);
+		
 		if (wasOK)
 		{
-			auto fp = dynamic_cast<FrontendProcessor*>(getAudioProcessor());
+			
 			
 			GET_PROJECT_HANDLER(fp->getMainSynthChain()).setAllSampleReferencesCorrect();
 			fp->loadSamplesAfterRegistration();
-		}
-			
-	}
-
-	void overlayMessageSent(int state, const String& message) override
-	{
-		if (deactiveOverlay != nullptr)
-		{
-			deactiveOverlay->setCustomMessage(message);
-			deactiveOverlay->setState((DeactiveOverlay::State)state, true);
-		}
+		}	
 	}
 
 #if USE_RAW_FRONTEND
@@ -113,6 +102,8 @@ public:
 		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->updateUnlockedSuspendStatus();
 
 	}
+
+	void newHisePresetLoaded() override;
 
 	void scaleFactorChanged(float newScaleFactor) override;
 
@@ -130,7 +121,9 @@ public:
         
 	};
 
-    void setGlobalScaleFactor(float newScaleFactor);
+
+
+    void setGlobalScaleFactor(float newScaleFactor, bool forceUpdate=false);
 
 	void resized() override;
 
@@ -150,8 +143,8 @@ private:
 	friend class BaseFrontendBar;
 
 	ScopedPointer<FloatingTile> rootTile;
-
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
+
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
 	ScopedPointer<DebugLoggerComponent> debugLoggerComponent;
     
@@ -162,10 +155,9 @@ private:
 
     bool overlayToolbar;
 
-#if HISE_USE_OPENGL_FOR_PLUGIN
+
 	bool usesOpenGl;
 	OpenGLContext context;
-#endif
 };
 
 

@@ -92,28 +92,11 @@ Path MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 			path.loadPathFromData (BackendBinaryData::ToolbarIcons::macros, sizeof (BackendBinaryData::ToolbarIcons::macros));
 		break;
 		}
-	case BackendCommandTarget::MenuViewBack:
-	{
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-	}
-	case BackendCommandTarget::MenuViewForward:
-	{
-		path.loadPathFromData(pathData, sizeof(pathData));
-		break;
-	}
-
+	
 	default: jassertfalse;
 	}
 	
 	return path;
-
-#if 0
-	DrawablePath *p = new DrawablePath();
-
-	p->setFill(FillType(!isOn ? Colours::white.withAlpha(0.8f) : Colours::white.withAlpha(0.2f)));
-	p->setPath(path);
-#endif
 };
 #endif
 
@@ -124,6 +107,8 @@ juce::Path MainToolbarFactory::createPath(const String& id) const
 
 	LOAD_PATH_IF_URL("back", MainToolbarIcons::back);
 	LOAD_PATH_IF_URL("forward", MainToolbarIcons::forward);
+    LOAD_PATH_IF_URL("custom-popup", MainToolbarIcons::customPopup);
+    LOAD_PATH_IF_URL("keyboard", BackendBinaryData::ToolbarIcons::keyboard);
 	LOAD_PATH_IF_URL("macro-controls", HiBinaryData::SpecialSymbols::macros);
 	LOAD_PATH_IF_URL("preset-browser", MainToolbarIcons::presetBrowser);
 	LOAD_PATH_IF_URL("plugin-preview", MainToolbarIcons::home);

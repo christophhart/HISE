@@ -48,27 +48,27 @@
 #include "backend/debug_components/ModuleBrowser.cpp"
 #include "backend/debug_components/PatchBrowser.cpp"
 #include "backend/debug_components/FileBrowser.cpp"
-#include "backend/debug_components/DebugArea.cpp"
+
 
 #include "backend/BackendProcessor.cpp"
 #include "backend/BackendComponents.cpp"
 #include "backend/BackendToolbar.cpp"
-#include "backend/ProcessorPopupList.cpp"
-#include "backend/MainMenuComponent.cpp"
 #include "backend/BackendApplicationCommandWindows.cpp"
 #include "backend/BackendApplicationCommands.cpp"
 #include "backend/BackendEditor.cpp"
 #include "backend/BackendRootWindow.cpp"
 
 #include "backend/ProjectTemplate.cpp"
+#include "backend/ProjectDllTemplate.cpp"
 #include "backend/StandaloneProjectTemplate.cpp"
 
-
 #include "backend/CompileExporter.cpp"
-#include "backend/HisePlayerExporter.cpp"
 
 #include "backend/doc_generators/ApiMarkdownGenerator.cpp"
 #include "backend/doc_generators/ModuleDocGenerator.cpp"
 #include "backend/doc_generators/MenuReferenceGenerator.cpp"
 #include "backend/doc_generators/UiComponentDocGenerator.cpp"
 
+#include "snex_workbench/DspNetworkWorkbench.cpp"
+#include "snex_workbench/WorkbenchProcessor.cpp"
+#include "snex_workbench/BackendHostFactory.cpp"

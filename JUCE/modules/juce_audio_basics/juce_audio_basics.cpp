@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -59,7 +59,8 @@
 #include "buffers/juce_AudioProcessLoadMeasurer.cpp"
 #include "utilities/juce_IIRFilter.cpp"
 #include "utilities/juce_LagrangeInterpolator.cpp"
-#include "utilities/juce_CatmullRomInterpolator.cpp"
+#include "utilities/juce_WindowedSincInterpolator.cpp"
+#include "utilities/juce_Interpolators.cpp"
 #include "utilities/juce_SmoothedValue.cpp"
 #include "midi/juce_MidiBuffer.cpp"
 #include "midi/juce_MidiFile.cpp"
@@ -85,3 +86,14 @@
 #include "sources/juce_ReverbAudioSource.cpp"
 #include "sources/juce_ToneGeneratorAudioSource.cpp"
 #include "synthesisers/juce_Synthesiser.cpp"
+
+#include "midi/ump/juce_UMP.h"
+#include "midi/ump/juce_UMPUtils.cpp"
+#include "midi/ump/juce_UMPView.cpp"
+#include "midi/ump/juce_UMPSysEx7.cpp"
+#include "midi/ump/juce_UMPMidi1ToMidi2DefaultTranslator.cpp"
+
+#if JUCE_UNIT_TESTS
+ #include "utilities/juce_ADSR_test.cpp"
+ #include "midi/ump/juce_UMPTests.cpp"
+#endif

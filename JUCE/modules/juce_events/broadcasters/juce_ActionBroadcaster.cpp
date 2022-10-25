@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -51,7 +51,7 @@ private:
 //==============================================================================
 ActionBroadcaster::ActionBroadcaster()
 {
-    // are you trying to create this object before or after juce has been intialised??
+    // are you trying to create this object before or after juce has been initialised??
     JUCE_ASSERT_MESSAGE_MANAGER_EXISTS
 }
 

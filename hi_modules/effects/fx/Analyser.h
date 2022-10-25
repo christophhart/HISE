@@ -42,7 +42,8 @@ using namespace juce;
 /** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
 	@ingroup effectTypes
 */
-class AnalyserEffect : public MasterEffectProcessor
+class AnalyserEffect : public MasterEffectProcessor,
+                       public ProcessorWithStaticExternalData
 {
 public:
 
@@ -53,11 +54,22 @@ public:
 		numParameters
 	};
 
+    enum class AnalyseType
+    {
+        Nothing = 1,
+        Goniometer,
+        Oscilloscope,
+        SpectrumAnalyser
+    };
+    
 	SET_PROCESSOR_NAME("Analyser", "Analyser", "A audio analysis module");
 
 	AnalyserEffect(MainController *mc, const String &uid) :
-		MasterEffectProcessor(mc, uid)
+		MasterEffectProcessor(mc, uid),
+        ProcessorWithStaticExternalData(mc, 0, 0, 0, 1)
 	{
+        ringBuffer = getDisplayBuffer(0);
+		ringBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 		finaliseModChains();
 
 		parameterNames.add("PreviewType"); 
@@ -65,15 +77,39 @@ public:
 		parameterNames.add("BufferSize");
 		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
-		ringBuffer.setAnalyserBufferSize(8192);
+		ringBuffer->setRingBufferSize(2, 8192);
 	};
 
+    void updateType(AnalyseType newType)
+    {
+        if(currentType != newType)
+        {
+            currentType = newType;
+            
+            SimpleRingBuffer::ScopedPropertyCreator spc(ringBuffer.get());
+            
+            switch(currentType)
+            {
+                case AnalyseType::Nothing: break;
+                case AnalyseType::Goniometer:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::GonioMeter>();
+                    break;
+                case AnalyseType::Oscilloscope:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::Oscilloscope>();
+                    break;
+                case AnalyseType::SpectrumAnalyser:
+                    ringBuffer->registerPropertyObject<scriptnode::analyse::Helpers::FFT>();
+                    break;
+            }
+        }
+    }
+    
 	void setInternalAttribute(int index, float newValue)
 	{
 		switch (index)
 		{
-		case Parameters::PreviewType: currentType = (int)newValue; break;
-		case Parameters::BufferSize: ringBuffer.setAnalyserBufferSize((int)newValue); break;
+            case Parameters::PreviewType: updateType((AnalyseType)(int)newValue); break;
+            case Parameters::BufferSize:  ringBuffer->setRingBufferSize(2, (int)newValue); break;
 		}
 	}
 
@@ -82,7 +118,7 @@ public:
 		switch (index)
 		{
 		case Parameters::PreviewType: return (float)currentType;
-		case Parameters::BufferSize: return (float)ringBuffer.analyseBufferSize;
+		case Parameters::BufferSize: return (float)ringBuffer->getReadBuffer().getNumSamples();
 		default: jassertfalse; return -1;
 		}
 	}
@@ -127,32 +163,22 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+    void prepareToPlay(double sr, int blockSize) override
+    {
+        MasterEffectProcessor::prepareToPlay(sr, blockSize);
+        ringBuffer->setSamplerate(sr);
+    }
+    
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 	{
-		ringBuffer.pushSamples(b, startSample, numSamples);
+		if (ringBuffer != nullptr && ringBuffer->isActive())
+			ringBuffer->write(b, startSample, numSamples);
 	}
-
-	const AudioSampleBuffer& getAnalyseBuffer() const
-	{
-		return ringBuffer.internalBuffer;
-	}
-	
-	int getCurrentReadIndex() const
-	{
-		return ringBuffer.indexInBuffer;
-	}
-
-	SingleWriteLockfreeMutex& getBufferLock() { return ringBuffer.lock; }
-
-	const AnalyserRingBuffer& getRingBuffer() const { return ringBuffer; }
 
 private:
 
-	AnalyserRingBuffer ringBuffer;
-
-	int currentType = 1;
-
-	
+	SimpleRingBuffer::Ptr ringBuffer;
+	AnalyseType currentType = AnalyseType::Nothing;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AnalyserEffect);
 };
@@ -163,23 +189,17 @@ class AudioAnalyserComponent : public Component,
 {
 public:
 
-	enum ColourId
-	{
-		bgColour = 12,
-		fillColour,
-		lineColour,
-		numColourIds
-	};
+	
 
 	AudioAnalyserComponent(Processor* p) :
 		processor(p)
 	{
-		setColour(AudioAnalyserComponent::ColourId::bgColour, Colours::transparentBlack);
+		setColour(RingBufferComponentBase::ColourId::bgColour, Colours::transparentBlack);
 
 		startTimer(30);
 	};
 
-	Colour getColourForAnalyser(ColourId id);
+	Colour getColourForAnalyser(RingBufferComponentBase::ColourId id);
 
 	void timerCallback() override { repaint(); }
 
@@ -231,9 +251,11 @@ class FFTDisplay : public FFTDisplayBase,
 public:
 
 	FFTDisplay(Processor* p) :
-	   FFTDisplayBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer()),
+	   FFTDisplayBase(),
        AudioAnalyserComponent(p)
-	{};
+	{
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
+	};
 
 	void paint(Graphics& g) override
 	{
@@ -241,7 +263,7 @@ public:
 	}
 
 	double getSamplerate() const override { return getAnalyser()->getSampleRate(); }
-	Colour getColourForAnalyserBase(int colourId) override { return AudioAnalyserComponent::getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+	Colour getColourForAnalyserBase(int colourId) override { return AudioAnalyserComponent::getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 };
 
 
@@ -252,10 +274,12 @@ public:
 
 	Oscilloscope(Processor* p) :
 		AudioAnalyserComponent(p),
-		OscilloscopeBase(dynamic_cast<AnalyserEffect*>(p)->getRingBuffer())
-	{};
+		OscilloscopeBase()
+	{
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
+	};
 
-	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((AudioAnalyserComponent::ColourId)colourId); }
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 
 	void paint(Graphics& g) override
 	{
@@ -263,35 +287,26 @@ public:
 	}
 };
 
-class Goniometer : public AudioAnalyserComponent
+
+class Goniometer : public AudioAnalyserComponent,
+				   public GoniometerBase
 {
 public:
 
 	Goniometer(Processor* p) :
-		AudioAnalyserComponent(p)
-	{}
-
-	void paint(Graphics& g) override;
-
-private:
-
-	struct Shape
+		AudioAnalyserComponent(p),
+		GoniometerBase()
 	{
-		Shape() {};
+		setComplexDataUIBase(dynamic_cast<AnalyserEffect*>(p)->getDisplayBufferUnchecked(0));
+	}
 
-		Shape(const AudioSampleBuffer& buffer, Rectangle<int> size);
+	Colour getColourForAnalyserBase(int colourId) override { return getColourForAnalyser((RingBufferComponentBase::ColourId)colourId); }
 
-		RectangleList<float> points;
-
-		static Point<float> createPointFromSample(float left, float right, float size);
-
-		void draw(Graphics& g, Colour c);
-	};
-
-	Shape shapes[6];
-	int shapeIndex = 0;
-
-	Path oscilloscopePath;
+	void paint(Graphics& g) override
+	{
+		GoniometerBase::paintSpacialDots(g);
+	}
+	
 };
 
 

@@ -205,7 +205,7 @@ public:
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
 	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
 
-	virtual void preHiseEventCallback(const HiseEvent &e);
+	virtual void preHiseEventCallback(HiseEvent &e);
 	virtual void preStartVoice(int voiceIndex, const HiseEvent& e);
 
 	void preStopVoice(int voiceIndex);
@@ -470,7 +470,7 @@ public:
 
 	BigInteger disabledChains;
 
-	bool getMidiInputFlag();
+	float getMidiInputFlag();
 
 	void setSoftBypass(bool shouldBeBypassed, bool bypassFXToo);
 
@@ -490,6 +490,7 @@ private:
 
 protected:
 
+	virtual bool synthNeedsEnvelope() const { return true; };
 	
 	void finaliseModChains();
 	
@@ -564,7 +565,8 @@ private:
 
 	ModulatorSynthGroup *group;
 
-	bool midiInputFlag;
+	float midiInputAlpha = 0.0f;
+	
 	bool wasPlayingInLastBuffer;
 
 	std::atomic<float> gain;
@@ -883,10 +885,13 @@ protected:
 
     bool isActive = false;
     
+	float killFadeLevel;
+	float killFadeFactor;
+	bool killThisVoice;
+
 private:
 
 	
-
 	HiseEvent currentHiseEvent;
 
 	LinearSmoothedValue<double> pitchFader;
@@ -894,12 +899,11 @@ private:
 
 	friend class ModulatorSynthGroupVoice;
 
-	bool killThisVoice;
+	
 
 	bool isTailing;
 
-	float killFadeLevel;
-	float killFadeFactor;
+	
 	
 	double startUptime;
 
@@ -939,7 +943,9 @@ public:
 		audioLooper,
 		modulatorSynthGroup,
 		scriptSynth,
-		macroModulationSource
+		macroModulationSource,
+		sendContainer,
+		silentSynth
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

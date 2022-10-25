@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -109,8 +109,7 @@ String Base64::toBase64 (const void* sourceData, size_t sourceDataSize)
 {
     MemoryOutputStream m ((sourceDataSize * 4) / 3 + 3);
     bool ok = convertToBase64 (m, sourceData, sourceDataSize);
-    jassert (ok); // should always succeed for this simple case
-    ignoreUnused (ok);
+    jassertquiet (ok); // should always succeed for this simple case
     return m.toString();
 }
 
@@ -127,7 +126,9 @@ String Base64::toBase64 (const String& text)
 class Base64Tests  : public UnitTest
 {
 public:
-    Base64Tests() : UnitTest ("Base64 class", "Text") {}
+    Base64Tests()
+        : UnitTest ("Base64 class", UnitTestCategories::text)
+    {}
 
     static MemoryBlock createRandomData (Random& r)
     {

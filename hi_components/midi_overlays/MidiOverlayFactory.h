@@ -98,6 +98,7 @@ private:
 		registerType<hise::MidiFileDragAndDropper>();
 		registerType<hise::SimpleMidiViewer>();
 		registerType<hise::MidiLooper>();
+		registerType<hise::SimpleCCViewer>();
 	}
 
 	using CreateFunction = std::function<MidiPlayerBaseType*(MidiPlayer*)>;

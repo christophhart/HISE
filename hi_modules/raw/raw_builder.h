@@ -101,7 +101,7 @@ public:
 	{
 		// if you're hitting this assertion, it means that you haven't killed the voices properly.
 		// Use an raw::TaskAfterSuspension object for this.
-		jassert(LockHelpers::freeToGo(mc));
+		//jassert(LockHelpers::freeToGo(mc));
 
 		
 	};
@@ -120,6 +120,9 @@ public:
 	This only works with HISE modules that are registered at one of the factories, so if you want to add a custom module, use the add() function instead.
 	*/
 	template <class T> T* create(Processor* parent, int chainIndex = IDs::Chains::Direct);
+
+	/** Creates a module with the given type name. If you're in C++ world, better use the templated method (this method was just added to add this functionality on the scripting layer). */
+	Processor* create(Processor* parent, const Identifier& processorType, int chainIndex);
 
 	/** Removes a processor and all its child processors from the signal path. */
 	template <class T> bool remove(Processor* p);

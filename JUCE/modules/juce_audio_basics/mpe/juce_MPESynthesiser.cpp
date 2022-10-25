@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -129,7 +129,7 @@ void MPESynthesiser::noteReleased (MPENote finishedNote)
     {
         auto* voice = voices.getUnchecked (i);
 
-        if (voice->isCurrentlyPlayingNote(finishedNote))
+        if (voice->isCurrentlyPlayingNote (finishedNote))
             stopVoice (voice, finishedNote, true);
     }
 }
@@ -299,10 +299,19 @@ void MPESynthesiser::reduceNumVoices (const int newNumVoices)
 
 void MPESynthesiser::turnOffAllVoices (bool allowTailOff)
 {
-    // first turn off all voices (it's more efficient to do this immediately
-    // rather than to go through the MPEInstrument for this).
-    for (auto* voice : voices)
-        voice->noteStopped (allowTailOff);
+    {
+        const ScopedLock sl (voicesLock);
+
+        // first turn off all voices (it's more efficient to do this immediately
+        // rather than to go through the MPEInstrument for this).
+        for (auto* voice : voices)
+        {
+            voice->currentlyPlayingNote.noteOffVelocity = MPEValue::from7BitInt (64); // some reasonable number
+            voice->currentlyPlayingNote.keyState = MPENote::off;
+
+            voice->noteStopped (allowTailOff);
+        }
+    }
 
     // finally make sure the MPE Instrument also doesn't have any notes anymore.
     instrument->releaseAllNotes();
@@ -311,6 +320,8 @@ void MPESynthesiser::turnOffAllVoices (bool allowTailOff)
 //==============================================================================
 void MPESynthesiser::renderNextSubBlock (AudioBuffer<float>& buffer, int startSample, int numSamples)
 {
+    const ScopedLock sl (voicesLock);
+
     for (auto* voice : voices)
     {
         if (voice->isActive())
@@ -320,6 +331,8 @@ void MPESynthesiser::renderNextSubBlock (AudioBuffer<float>& buffer, int startSa
 
 void MPESynthesiser::renderNextSubBlock (AudioBuffer<double>& buffer, int startSample, int numSamples)
 {
+    const ScopedLock sl (voicesLock);
+
     for (auto* voice : voices)
     {
         if (voice->isActive())

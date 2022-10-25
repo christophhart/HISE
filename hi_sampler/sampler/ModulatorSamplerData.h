@@ -148,10 +148,14 @@ public:
 
 	void setId(Identifier newIdentifier)
     {
-        sampleMapId = newIdentifier.toString();
+        sampleMapId = newIdentifier.toString().replaceCharacter('\\', '/');
+
 		data.setProperty("ID", sampleMapId.toString(), nullptr);
     }
     
+	void updateCrossfades(Identifier id, var newValue);
+	
+
 	FileHandlerBase* getCurrentFileHandler() const;
 
 	ModulatorSamplerSoundPool* getCurrentSamplePool() const;
@@ -164,12 +168,12 @@ public:
 
 	void removeSound(ModulatorSamplerSound* s);
 
-	/** Exports the SampleMap as ValueTree.
-	*
-	*	If the relative mode is enabled, it writes the files to the subdirectory '/samples',
-	*	if they don't exist yet.
-	*/
+	
 	const ValueTree getValueTree() const;
+
+	ValueTree getValueTree() { return data; }
+
+	float getCrossfadeGammaValue() const;
 
 	PoolReference getReference() const
 	{
@@ -326,6 +330,8 @@ private:
 	
 	bool syncEditMode = false;
 
+	valuetree::PropertyListener crossfadeListener;
+
 	struct Notifier: public Dispatchable
 	{
 		Notifier(SampleMap& parent_);
@@ -397,7 +403,7 @@ private:
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PropertyChange);
 		};
 
-		void handleHeavyweightPropertyChangesIdle(const Array<AsyncPropertyChange, CriticalSection>& thisTime);
+		void handleHeavyweightPropertyChangesIdle(Array<AsyncPropertyChange, CriticalSection> thisTime);
 
 		void handleHeavyweightPropertyChanges();
 		void handleLightweightPropertyChanges();
@@ -522,6 +528,11 @@ public:
 		return false;
 	}
     
+	void setSilentMode(bool shouldShowMessage)
+	{
+		silentMode = shouldShowMessage;
+	}
+
 protected:
     
 	void setError(const String& errorMessage)
@@ -535,24 +546,26 @@ protected:
 
 private:
 
-	struct SplitMonolithData
-	{
-		int index;
-		File lastSample;
-	};
+	bool silentMode = false;
 
-	Array<SplitMonolithData> splitData;
+	Array<int> splitIndexes;
 
 	AudioFormatWriter* createWriter(hlac::HiseLosslessAudioFormat& hlaf, const File& f, bool isMono);
 
 	/** The max monolith size is 2GB - 60MB (to guarantee to stay below 2GB for FAT32. */
-	constexpr static int maxMonolithSize = 2084569088;
+	//constexpr static int maxMonolithSize = 2084569088;
+
+	int64 getNumBytesForSplitSize() const;
 
 	void checkSanity();
 
+	File getNextMonolith(const File& f) const;
 
 	/** Writes the files and updates the samplemap with the information. */
 	void writeFiles(int channelIndex, bool overwriteExistingData);
+
+	/** Checks whether the monolith needs to be split up. */
+	bool shouldSplit(int channelIndex, int64 numBytesWritten, int sampleIndex) const;
 
 	void updateSampleMap();
 
@@ -567,7 +580,10 @@ private:
 	int numSamples;
 	File sampleMapDirectory;
 	
-	
+	ScopedPointer<MonolithFileReference> monolithFileReference;
+
+
+	int numMonolithSplitParts = -1;
 
 	String error;
 };

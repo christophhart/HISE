@@ -34,7 +34,7 @@ RandomEditorBody::RandomEditorBody (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<RandomModulator*>(getProcessor())->getTable()));
+    addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<RandomModulator*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
     addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
@@ -61,7 +61,7 @@ RandomEditorBody::RandomEditorBody (ProcessorEditor *p)
 
 	tableUsed = rm->getAttribute(RandomModulator::UseTable) == 1.0f;
 
-	midiTable->connectToLookupTableProcessor(getProcessor());
+    ProcessorHelpers::connectTableEditor(*midiTable, rm);
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 

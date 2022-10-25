@@ -81,11 +81,13 @@ public:
 
 	void timerCallback() override
 	{
-		attackLevelSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::AttackLevelChain)->getOutputValue());
-		attackSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::AttackTimeChain)->getOutputValue());
-		decaySlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::DecayTimeChain)->getOutputValue());
-		sustainSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::SustainLevelChain)->getOutputValue());
-		releaseSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::ReleaseTimeChain)->getOutputValue());
+		using namespace scriptnode::envelope::pimpl;
+
+		attackLevelSlider->setDisplayValue(getProcessor()->getChildProcessor(ahdsr_base::InternalChains::AttackLevelChain)->getOutputValue());
+		attackSlider->setDisplayValue(getProcessor()->getChildProcessor		(ahdsr_base::InternalChains::AttackTimeChain)->getOutputValue());
+		decaySlider->setDisplayValue(getProcessor()->getChildProcessor		(ahdsr_base::InternalChains::DecayTimeChain)->getOutputValue());
+		sustainSlider->setDisplayValue(getProcessor()->getChildProcessor	(ahdsr_base::InternalChains::SustainLevelChain)->getOutputValue());
+		releaseSlider->setDisplayValue(getProcessor()->getChildProcessor	(ahdsr_base::InternalChains::ReleaseTimeChain)->getOutputValue());
 
 
 	}

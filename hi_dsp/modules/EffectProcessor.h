@@ -85,15 +85,7 @@ public:
 	}
 
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
-	{
-		jassert(finalised);
-
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
-
-		for (auto& mc : modChains)
-			mc.prepareToPlay(sampleRate, samplesPerBlock);
-	};
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
 	Colour getColour() const override 
 	{
@@ -124,6 +116,7 @@ protected:
 
 	bool isTailing = false;
 
+	bool isInSendContainer() const noexcept { return isInSend; };
 
 	void finaliseModChains();
 
@@ -161,6 +154,8 @@ protected:
 	ModulatorChain::Collection modChains;
 
 private:
+
+	bool isInSend = false;
 
 	bool finalised = false;
 };
@@ -342,20 +337,20 @@ public:
 				float start_inv = 1.0f - start;
 				float end_inv = 1.0f - end;
 
-				for (int i = 0; i < numChannels; i++)
-				{
+				// We don't want to fade to the input signal in a AUX send context
+				// so in this case we'll skip this loop
+				int numChannelsToFadeIn = numChannels * (int)!isInSendContainer();
+
+				for (int i = 0; i < numChannelsToFadeIn; i++)
 					killBuffer->copyFromWithRamp(i, 0, stereoBuffer.getReadPointer(i), numSamples, start_inv, end_inv);
-				}
 
 				applyEffect(stereoBuffer, 0, samplesToUse);
 				isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
 
 				stereoBuffer.applyGainRamp(0, numSamples, start, end);
 
-				for (int i = 0; i < numChannels; i++)
-				{
+				for (int i = 0; i < numChannelsToFadeIn; i++)
 					stereoBuffer.addFrom(i, 0, killBuffer->getReadPointer(i), numSamples);
-				}
 
 				if (!softBypassRamper.isSmoothing())
 				{

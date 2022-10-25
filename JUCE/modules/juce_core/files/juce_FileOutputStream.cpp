@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -22,8 +22,6 @@
 
 namespace juce
 {
-
-int64 juce_fileSetPosition (void* handle, int64 pos);
 
 //==============================================================================
 FileOutputStream::FileOutputStream (const File& f, const size_t bufferSizeToUse)
@@ -78,6 +76,9 @@ void FileOutputStream::flush()
 bool FileOutputStream::write (const void* const src, const size_t numBytes)
 {
     jassert (src != nullptr && ((ssize_t) numBytes) >= 0);
+
+    if (! openedOk())
+        return false;
 
     if (bytesInBuffer + numBytes < bufferSize)
     {

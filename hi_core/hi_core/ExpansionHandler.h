@@ -100,7 +100,8 @@ public:
 
 	~Expansion()
 	{
-		saveExpansionInfoFile();
+		if (root.isDirectory() && root.getChildFile("expansion_info.xml").existsAsFile())
+			saveExpansionInfoFile();
 	}
 
 	/** Override this method and initialise the expansion. You need to do at least those things:
@@ -175,41 +176,7 @@ public:
 
 	PooledAdditionalData loadAdditionalData(const String& relativePath);
 
-
-#if 0
-	ValueTree getSampleMap(const String& sampleMapId)
-	{
-		if (isEncrypted)
-		{
-			jassertfalse;
-			return ValueTree();
-		}
-		else
-		{
-			Array<File> sampleMapFiles;
-			getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
-
-			String expStart = "{EXP::" + name.get() + "}";
-
-			for (auto f : sampleMapFiles)
-			{
-				String thisId = expStart + f.getFileNameWithoutExtension();
-
-				if (thisId == sampleMapId)
-				{
-					ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
-
-					if (xml != nullptr)
-					{
-						return ValueTree::fromXml(*xml);
-					}
-				}
-			}
-
-			throw String("!Sample Map with id " + sampleMapId.fromFirstOccurrenceOf("}", false, false) + " not found");
-		}
-	}
-#endif
+	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	bool isActive() const noexcept { return numActiveReferences != 0; }
 
@@ -437,6 +404,8 @@ public:
 		static int64 getJSONHash(var obj);
 	};
 
+	void unloadExpansion(Expansion* e);
+
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
 	bool createAvailableExpansions();
@@ -495,6 +464,7 @@ public:
 
 		return nullptr;
 	}
+
 
 	Expansion* getExpansionFromName(const String& name) const
 	{
@@ -559,7 +529,16 @@ public:
 		}
 	}
 
+	void setInstallFullDynamics(bool shouldInstallFullDynamics)
+	{
+		installFullDynamics = shouldInstallFullDynamics;
+	}
+
 	var getCredentials() const { return credentials; }
+	
+	bool getInstallFullDynamics() const { return installFullDynamics; }
+
+	double getTotalProgress() const { return totalProgress; }
 
 	String getEncryptionKey() const { return keyCode; }
 
@@ -625,6 +604,8 @@ private:
 
 	String keyCode;
 	var credentials;
+	bool installFullDynamics = false;
+	double totalProgress = 0.0;
 
 	void checkAllowedExpansions(Result& r, Expansion* e);
 
@@ -715,6 +696,7 @@ private:
 
 	OwnedArray<Expansion> expansionList;
 	OwnedArray<Expansion> uninitialisedExpansions;
+	OwnedArray<Expansion> unloadedExpansions;
 
 	WeakReference<Expansion> currentExpansion;
 };

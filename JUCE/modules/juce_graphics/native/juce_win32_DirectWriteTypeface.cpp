@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -76,6 +75,8 @@ class Direct2DFactories
 public:
     Direct2DFactories()
     {
+        JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wlanguage-extension-token")
+
         if (direct2dDll.open ("d2d1.dll"))
         {
             JUCE_LOAD_WINAPI_FUNCTION (direct2dDll, D2D1CreateFactory, d2d1CreateFactory,
@@ -117,6 +118,8 @@ public:
                 d2dFactory->CreateDCRenderTarget (&d2dRTProp, directWriteRenderTarget.resetAndGetPointerAddress());
             }
         }
+
+        JUCE_END_IGNORE_WARNINGS_GCC_LIKE
     }
 
     ~Direct2DFactories()
@@ -147,7 +150,6 @@ public:
     {
         jassert (fontCollection != nullptr);
 
-        BOOL fontFound = false;
         uint32 fontIndex = 0;
         auto hr = fontCollection->FindFamilyName (font.getTypefaceName().toWideCharPointer(), &fontIndex, &fontFound);
 
@@ -165,7 +167,7 @@ public:
 
             for (int i = (int) dwFontFamily->GetFontCount(); --i >= 0;)
             {
-                hr = dwFontFamily->GetFont (i, dwFont.resetAndGetPointerAddress());
+                hr = dwFontFamily->GetFont ((UINT32) i, dwFont.resetAndGetPointerAddress());
 
                 if (i == 0)
                     break;
@@ -193,21 +195,22 @@ public:
             ascent = std::abs ((float) dwFontMetrics.ascent);
             auto totalSize = ascent + std::abs ((float) dwFontMetrics.descent);
             ascent /= totalSize;
-            unitsToHeightScaleFactor = designUnitsPerEm / totalSize;
+            unitsToHeightScaleFactor = (float) designUnitsPerEm / totalSize;
 
-            auto tempDC = GetDC (0);
-            auto dpi = (GetDeviceCaps (tempDC, LOGPIXELSX) + GetDeviceCaps (tempDC, LOGPIXELSY)) / 2.0f;
-            heightToPointsFactor = (dpi / GetDeviceCaps (tempDC, LOGPIXELSY)) * unitsToHeightScaleFactor;
-            ReleaseDC (0, tempDC);
+            auto tempDC = GetDC (nullptr);
+            auto dpi = (float) (GetDeviceCaps (tempDC, LOGPIXELSX) + GetDeviceCaps (tempDC, LOGPIXELSY)) / 2.0f;
+            heightToPointsFactor = (dpi / (float) GetDeviceCaps (tempDC, LOGPIXELSY)) * unitsToHeightScaleFactor;
+            ReleaseDC (nullptr, tempDC);
 
-            auto pathAscent  = (1024.0f * dwFontMetrics.ascent)  / designUnitsPerEm;
-            auto pathDescent = (1024.0f * dwFontMetrics.descent) / designUnitsPerEm;
+            auto pathAscent  = (1024.0f * dwFontMetrics.ascent)  / (float) designUnitsPerEm;
+            auto pathDescent = (1024.0f * dwFontMetrics.descent) / (float) designUnitsPerEm;
             auto pathScale   = 1.0f / (std::abs (pathAscent) + std::abs (pathDescent));
             pathTransform = AffineTransform::scale (pathScale);
         }
     }
 
     bool loadedOk() const noexcept          { return dwFontFace != nullptr; }
+    BOOL isFontFound() const noexcept       { return fontFound; }
 
     float getAscent() const                 { return ascent; }
     float getDescent() const                { return 1.0f - ascent; }
@@ -227,7 +230,7 @@ public:
         float x = 0;
 
         for (size_t i = 0; i < len; ++i)
-            x += (float) dwGlyphMetrics[i].advanceWidth / designUnitsPerEm;
+            x += (float) dwGlyphMetrics[i].advanceWidth / (float) designUnitsPerEm;
 
         return x * unitsToHeightScaleFactor;
     }
@@ -248,7 +251,7 @@ public:
 
         for (size_t i = 0; i < len; ++i)
         {
-            x += (float) dwGlyphMetrics[i].advanceWidth / designUnitsPerEm;
+            x += (float) dwGlyphMetrics[i].advanceWidth / (float) designUnitsPerEm;
             xOffsets.add (x * unitsToHeightScaleFactor);
             resultGlyphs.add (glyphIndices[i]);
         }
@@ -280,12 +283,13 @@ private:
     float unitsToHeightScaleFactor = 1.0f, heightToPointsFactor = 1.0f, ascent = 0;
     int designUnitsPerEm = 0;
     AffineTransform pathTransform;
+    BOOL fontFound = false;
 
     struct PathGeometrySink  : public ComBaseClassHelper<IDWriteGeometrySink>
     {
-        PathGeometrySink() : ComBaseClassHelper<IDWriteGeometrySink> (0) {}
+        PathGeometrySink() : ComBaseClassHelper (0) {}
 
-        void __stdcall AddBeziers (const D2D1_BEZIER_SEGMENT* beziers, UINT beziersCount) override
+        void STDMETHODCALLTYPE AddBeziers (const D2D1_BEZIER_SEGMENT* beziers, UINT beziersCount) noexcept override
         {
             for (UINT i = 0; i < beziersCount; ++i)
                 path.cubicTo (convertPoint (beziers[i].point1),
@@ -293,30 +297,30 @@ private:
                               convertPoint (beziers[i].point3));
         }
 
-        void __stdcall AddLines (const D2D1_POINT_2F* points, UINT pointsCount) override
+        void STDMETHODCALLTYPE AddLines (const D2D1_POINT_2F* points, UINT pointsCount) noexcept override
         {
             for (UINT i = 0; i < pointsCount; ++i)
                 path.lineTo (convertPoint (points[i]));
         }
 
-        void __stdcall BeginFigure (D2D1_POINT_2F startPoint, D2D1_FIGURE_BEGIN) override
+        void STDMETHODCALLTYPE BeginFigure (D2D1_POINT_2F startPoint, D2D1_FIGURE_BEGIN) noexcept override
         {
             path.startNewSubPath (convertPoint (startPoint));
         }
 
-        void __stdcall EndFigure (D2D1_FIGURE_END figureEnd) override
+        void STDMETHODCALLTYPE EndFigure (D2D1_FIGURE_END figureEnd) noexcept override
         {
             if (figureEnd == D2D1_FIGURE_END_CLOSED)
                 path.closeSubPath();
         }
 
-        void __stdcall SetFillMode (D2D1_FILL_MODE fillMode) override
+        void STDMETHODCALLTYPE SetFillMode (D2D1_FILL_MODE fillMode) noexcept override
         {
             path.setUsingNonZeroWinding (fillMode == D2D1_FILL_MODE_WINDING);
         }
 
-        void __stdcall SetSegmentFlags (D2D1_PATH_SEGMENT) override {}
-        JUCE_COMRESULT Close() override  { return S_OK; }
+        void STDMETHODCALLTYPE SetSegmentFlags (D2D1_PATH_SEGMENT) noexcept override {}
+        JUCE_COMRESULT Close() noexcept override  { return S_OK; }
 
         Path path;
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
@@ -26,7 +26,7 @@ namespace juce
 struct ThreadPool::ThreadPoolThread  : public Thread
 {
     ThreadPoolThread (ThreadPool& p, size_t stackSize)
-       : Thread (p.name, stackSize), pool (p)
+       : Thread ("Pool", stackSize), pool (p)
     {
     }
 
@@ -90,24 +90,16 @@ ThreadPoolJob* ThreadPoolJob::getCurrentThreadPoolJob()
 }
 
 //==============================================================================
-ThreadPool::ThreadPool (int numThreads, size_t threadStackSize):
-	name("Pool")
+ThreadPool::ThreadPool (int numThreads, size_t threadStackSize)
 {
     jassert (numThreads > 0); // not much point having a pool without any threads!
 
     createThreads (numThreads, threadStackSize);
 }
 
-ThreadPool::ThreadPool():
-	name("Pool")
+ThreadPool::ThreadPool()
 {
     createThreads (SystemStats::getNumCpus());
-}
-
-ThreadPool::ThreadPool(const String& name_, int numberOfThreads):
-	name(name_)
-{
-	createThreads(numberOfThreads, 0);
 }
 
 ThreadPool::~ThreadPool()
@@ -184,6 +176,7 @@ void ThreadPool::addJob (std::function<void()> jobToRun)
 
 int ThreadPool::getNumJobs() const noexcept
 {
+    const ScopedLock sl (lock);
     return jobs.size();
 }
 

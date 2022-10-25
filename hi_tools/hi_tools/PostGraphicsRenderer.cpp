@@ -30,6 +30,9 @@
 *   ===========================================================================
 */
 
+
+
+
 #if USE_IPP
 #include <ipp.h>
 #include <ippcv.h>
@@ -129,11 +132,13 @@ PostGraphicsRenderer::Data::WithoutAlphaConverter::~WithoutAlphaConverter()
 	}
 }
 
-PostGraphicsRenderer::PostGraphicsRenderer(DataStack& stackTouse, Image& image) :
+PostGraphicsRenderer::PostGraphicsRenderer(DataStack& stackTouse, Image& image, float scaleFactor_) :
+	img(image),
 	bd(image, Image::BitmapData::readWrite),
-	stack(stackTouse)
+	stack(stackTouse),
+	scaleFactor(scaleFactor_)
 {
-
+	
 }
 
 void PostGraphicsRenderer::reserveStackOperations(int numOperationsToAllocate)
@@ -160,21 +165,32 @@ void PostGraphicsRenderer::desaturate()
 	}
 }
 
-void PostGraphicsRenderer::applyMask(Path& path, bool invert /*= false*/, bool scale)
+void PostGraphicsRenderer::applyMask(const Path& path, bool invert /*= false*/, bool scale)
 {
 	auto& bf = getNextData();
 
+	const Path* pathToUse = &path;
+	Path other;
+
 	if (scale)
 	{
+		other = path;
 		Rectangle<float> area(0.0f, 0.0f, bd.width, bd.height);
-		PathFactory::scalePath(path, area);
+		PathFactory::scalePath(other, area);
+		pathToUse = &other;
+	}
+	else if (scaleFactor != 1.0f)
+	{
+		other = path;
+		//other.applyTransform(AffineTransform::scale(scaleFactor));
+		pathToUse = &other;
 	}
 
 	bf.createPathImage(bd.width, bd.height);
 
 	Graphics g(bf.pathImage);
 	g.setColour(Colours::white);
-	g.fillPath(path);
+	g.fillPath(*pathToUse);
 
 	Image::BitmapData pathData(bf.pathImage, Image::BitmapData::readOnly);
 
@@ -220,40 +236,99 @@ void PostGraphicsRenderer::addNoise(float noiseAmount)
 
 void PostGraphicsRenderer::gaussianBlur(int blur)
 {
-#if USE_IPP && JUCE_WINDOWS
-	auto& bf = getNextData();
+	if(blur != 0)
+		stackBlur(blur);
 
-	blur /= 2;
-	int kernelSize = blur * 2 + 1;
-
-	bf.initGaussianBlur(kernelSize, (float)blur, bd.width, bd.height);
-
-	Data::WithoutAlphaConverter wac(bf, bd);
-
-	auto status = ippiFilterGaussianBorder_8u_C3R(wac.getWithoutAlpha(), 3 * bd.width, wac.getWithoutAlpha(), 3 * bd.width, { bd.width, bd.height }, NULL, reinterpret_cast<IppFilterGaussianSpec*>(bf.pSpec), bf.pBuffer);
-#endif
+	return;
 }
 
 void PostGraphicsRenderer::boxBlur(int blur)
 {
-#if USE_IPP
-	auto& bf = getNextData();
+	if(blur != 0)
+		stackBlur(blur);
+}
 
-	IppStatus status = ippStsNoErr;
+void PostGraphicsRenderer::stackBlur(int blur)
+{
+	static constexpr int DownsamplingFactor = 1;
+	static constexpr int NumBytesPerPixel = 4;
 
-	IppiSize maskSize = { blur,blur };
-	IppiSize srcSize = { bd.width, bd.height };
-	Ipp8u* pSrc = bd.data;
-	Ipp8u* pDst = bd.data;
-	int thisBufSize;
+	if (DownsamplingFactor != 1)
+	{
+		auto f = img.rescaled(img.getWidth() / DownsamplingFactor, img.getHeight() / DownsamplingFactor, Graphics::ResamplingQuality::lowResamplingQuality);
 
-	status = ippiFilterBoxBorderGetBufferSize(srcSize, maskSize, ipp8u, 4, &thisBufSize);
+		gin::applyStackBlurARGB(f, blur / DownsamplingFactor);
 
-	bf.increaseIfNecessary(thisBufSize);
+		juce::Image::BitmapData srcData(f, juce::Image::BitmapData::readOnly);
+		juce::Image::BitmapData dstData(img, juce::Image::BitmapData::writeOnly);
 
-	if (status >= ippStsNoErr)
-		status = ippiFilterBoxBorder_8u_C4R(pSrc, bd.pixelStride * bd.width, pDst, bd.pixelStride * bd.width, srcSize, maskSize, ippBorderRepl, NULL, bf.pBuffer);
-#endif
+		for (int y = 0; y < f.getHeight(); y++)
+		{
+			auto yDst = y * DownsamplingFactor;
+			auto s = srcData.getLinePointer(y);
+
+
+			for (int yd = 0; yd < DownsamplingFactor; yd++)
+			{
+				auto d = dstData.getLinePointer(yDst + yd);
+
+				for (int x = 0; x < f.getWidth(); x++)
+				{
+					auto xDst = x * DownsamplingFactor;
+
+					for (int xd = 0; xd < DownsamplingFactor; xd++)
+					{
+						memcpy(d + (xDst + xd)*NumBytesPerPixel, s + x * NumBytesPerPixel, NumBytesPerPixel);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		gin::applyStackBlur(img, blur);
+	}
+
+	
+}
+
+void PostGraphicsRenderer::applyHSL(float h, float s, float l)
+{
+	gin::applyHueSaturationLightness(img, h, s, l);
+}
+
+void PostGraphicsRenderer::applyGamma(float g)
+{
+	gin::applyGamma(img, g);
+}
+
+void PostGraphicsRenderer::applyGradientMap(ColourGradient g)
+{
+	gin::applyGradientMap(img, g.getColour(0), g.getColour(1));
+}
+
+void PostGraphicsRenderer::applySharpness(int delta)
+{
+	if (delta > 0)
+	{
+		for (int i = 0; i < delta; i++)
+			gin::applySharpen(img);
+	}
+	else
+	{
+		for (int i = 0; i < -delta; i++)
+			gin::applySoften(img);
+	}
+}
+
+void PostGraphicsRenderer::applySepia()
+{
+	gin::applySepia(img);
+}
+
+void PostGraphicsRenderer::applyVignette(float amount, float radius, float falloff)
+{
+	gin::applyVignette(img, amount, radius, falloff);
 }
 
 hise::PostGraphicsRenderer::Data& PostGraphicsRenderer::getNextData()

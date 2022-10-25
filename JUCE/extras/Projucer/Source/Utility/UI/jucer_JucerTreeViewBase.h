@@ -2,17 +2,16 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2017 - ROLI Ltd.
+   Copyright (c) 2020 - Raw Material Software Limited
 
    JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By using JUCE, you agree to the terms of both the JUCE 5 End-User License
-   Agreement and JUCE 5 Privacy Policy (both updated and effective as of the
-   27th April 2017).
+   By using JUCE, you agree to the terms of both the JUCE 6 End-User License
+   Agreement and JUCE Privacy Policy (both effective as of the 16th June 2020).
 
-   End User License Agreement: www.juce.com/juce-5-licence
-   Privacy Policy: www.juce.com/juce-5-privacy-policy
+   End User License Agreement: www.juce.com/juce-6-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
    Or: You may also use this code under the terms of the GPL v3 (see
    www.gnu.org/licenses).
@@ -35,7 +34,7 @@ class JucerTreeViewBase   : public TreeViewItem,
 {
 public:
     JucerTreeViewBase();
-    ~JucerTreeViewBase() override;
+    ~JucerTreeViewBase() override = default;
 
     int getItemWidth() const override                   { return -1; }
     int getItemHeight() const override                  { return 25; }
@@ -45,8 +44,9 @@ public:
     void itemClicked (const MouseEvent& e) override;
     void itemSelectionChanged (bool isNowSelected) override;
     void itemDoubleClicked (const MouseEvent&) override;
-    Component* createItemComponent() override;
-    String getTooltip() override    { return {}; }
+    std::unique_ptr<Component> createItemComponent() override;
+    String getTooltip() override            { return {}; }
+    String getAccessibilityName() override  { return getDisplayName(); }
 
     void cancelDelayedSelectionTimer();
 
@@ -68,17 +68,18 @@ public:
     virtual File getDraggableFile() const                         { return {}; }
 
     void refreshSubItems();
-    virtual void deleteItem();
-    virtual void deleteAllSelectedItems();
-    virtual void showDocument();
-    virtual void showMultiSelectionPopupMenu();
-    virtual void showRenameBox();
+    void showRenameBox();
 
-    void launchPopupMenu (PopupMenu&); // runs asynchronously, and produces a callback to handlePopupMenuResult().
-    virtual void showPopupMenu();
-    virtual void showAddMenu();
-    virtual void handlePopupMenuResult (int resultCode);
-    virtual void setSearchFilter (const String&) {}
+    virtual void deleteItem()                              {}
+    virtual void deleteAllSelectedItems()                  {}
+    virtual void showDocument()                            {}
+    virtual void showMultiSelectionPopupMenu (Point<int>)  {}
+    virtual void showPopupMenu (Point<int>)                {}
+    virtual void showAddMenu (Point<int>)                  {}
+    virtual void handlePopupMenuResult (int)               {}
+    virtual void setSearchFilter (const String&)           {}
+
+    void launchPopupMenu (PopupMenu&, Point<int>); // runs asynchronously, and produces a callback to handlePopupMenuResult().
 
     //==============================================================================
     // To handle situations where an item gets deleted before openness is
@@ -99,7 +100,7 @@ public:
         }
     };
 
-    int textX;
+    int textX = 0;
 
 protected:
     ProjectContentComponent* getProjectContentComponent() const;
@@ -138,7 +139,7 @@ public:
         tree.setRootItem (nullptr);
     }
 
-    void setRoot (JucerTreeViewBase*);
+    void setRoot (std::unique_ptr<JucerTreeViewBase>);
     void saveOpenness();
 
     virtual void deleteSelectedItems()
@@ -188,7 +189,7 @@ public:
             tree.clearSelectedItems();
 
             if (e.mods.isRightButtonDown())
-                rootItem->showPopupMenu();
+                rootItem->showPopupMenu (e.getMouseDownScreenPosition());
         }
     }
 
@@ -204,21 +205,25 @@ private:
 class TreeItemComponent   : public Component
 {
 public:
-    TreeItemComponent (JucerTreeViewBase& i)  : item (i)
+    TreeItemComponent (JucerTreeViewBase& i)  : item (&i)
     {
+        setAccessible (false);
         setInterceptsMouseClicks (false, true);
-        item.textX = iconWidth;
+        item->textX = iconWidth;
     }
 
     void paint (Graphics& g) override
     {
+        if (item == nullptr)
+            return;
+
         auto bounds = getLocalBounds().toFloat();
         auto iconBounds = bounds.removeFromLeft ((float) iconWidth).reduced (7, 5);
 
-        bounds.removeFromRight (buttons.size() * bounds.getHeight());
+        bounds.removeFromRight ((float) buttons.size() * bounds.getHeight());
 
-        item.paintIcon    (g, iconBounds);
-        item.paintContent (g, bounds.toNearestInt());
+        item->paintIcon    (g, iconBounds);
+        item->paintContent (g, bounds.toNearestInt());
     }
 
     void resized() override
@@ -226,7 +231,7 @@ public:
         auto r = getLocalBounds();
 
         for (int i = buttons.size(); --i >= 0;)
-            buttons.getUnchecked(i)->setBounds (r.removeFromRight (r.getHeight()));
+            buttons.getUnchecked (i)->setBounds (r.removeFromRight (r.getHeight()));
     }
 
     void addRightHandButton (Component* button)
@@ -235,7 +240,7 @@ public:
         addAndMakeVisible (button);
     }
 
-    JucerTreeViewBase& item;
+    WeakReference<JucerTreeViewBase> item;
     OwnedArray<Component> buttons;
 
     const int iconWidth = 25;

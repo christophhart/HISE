@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 0.0f
   output: 30.0f
   error: ""
+  compile_flags: AutoVectorisation
   filename: "span/local_definition_scalar"
 END_TEST_DATA
 */

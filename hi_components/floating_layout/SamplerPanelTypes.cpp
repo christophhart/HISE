@@ -32,34 +32,22 @@
 
 namespace hise { using namespace juce;
 
-struct SamplerBasePanel::EditListener : public SampleEditHandler::Listener
-{
-	EditListener(SamplerBasePanel* parent_) :
-		parent(parent_)
-	{
-
-	};
-
-	void soundSelectionChanged(SampleSelection& newSelection)
-	{
-		if (parent->getProcessor())
-		{
-			if (auto sampleEditor = parent->getContent<SamplerSubEditor>())
-			{
-				sampleEditor->selectSounds(newSelection);
-			}
-		}
-	}
-
-	SamplerBasePanel* parent;
-};
-
-
 
 SamplerBasePanel::SamplerBasePanel(FloatingTile* parent) :
 	PanelWithProcessorConnection(parent)
 {
-	editListener = new EditListener(this);
+}
+
+void SamplerBasePanel::paint(Graphics& g)
+{
+    PanelWithProcessorConnection::paint(g);
+    auto b = getParentShell()->getContentBounds();
+    g.setColour(Colour(0xFF262626));
+    g.fillRect(b);
+
+    g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f), 0.0f, b.getY(), Colours::transparentBlack, 0.0f, b.getY() + 15, false));
+
+    g.fillRect(b.removeFromTop(15));
 }
 
 SamplerBasePanel::~SamplerBasePanel()
@@ -67,18 +55,17 @@ SamplerBasePanel::~SamplerBasePanel()
 	if (getProcessor())
 	{
 		getProcessor()->removeChangeListener(this);
-		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->removeSelectionListener(editListener);
 	}
-
-	editListener = nullptr;
 }
 
 void SamplerBasePanel::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
 {
-	if (getProcessor())
+	if (auto sampler = dynamic_cast<ModulatorSampler*>(getProcessor()))
 	{
 		auto se = getContent<SamplerSubEditor>();
-		se->updateInterface();
+
+		if(sampler->shouldUpdateUI())
+			se->updateInterface();
 	}
 }
 
@@ -93,7 +80,6 @@ void SamplerBasePanel::contentChanged()
 	if (getProcessor())
 	{
 		getProcessor()->addChangeListener(this);
-		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->addSelectionListener(editListener);
 	}
 }
 
@@ -120,11 +106,7 @@ SampleMapEditorPanel::SampleMapEditorPanel(FloatingTile* parent) :
 Component* SampleMapEditorPanel::createContentComponent(int /*index*/)
 {
 	auto sme = new SampleMapEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
-
-	sme->enablePopoutMode(nullptr);
-
 	return sme;
-
 }
 
 

@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 class ValueTreeUpdateWatcher : ValueTree::Listener
 {
 public:
@@ -186,6 +188,50 @@ private:
     JUCE_DECLARE_WEAK_REFERENCEABLE(ValueTreeUpdateWatcher);
 };
 
+
+class ScriptComponentPropertyTypeSelector
+{
+public:
+
+	struct SliderRange
+	{
+		double min, max, interval;
+	};
+
+	enum SelectorTypes
+	{
+		ToggleSelector = 0,
+		ColourPickerSelector,
+		SliderSelector,
+		ChoiceSelector,
+		MultilineSelector,
+		TextSelector,
+		FileSelector,
+		CodeSelector,
+		numSelectorTypes
+	};
+
+	SelectorTypes getTypeForId(const Identifier &id) const;
+
+	void addToTypeSelector(SelectorTypes type, Identifier id, double min = 0.0, double max = 1.0, double interval = 0.01);
+
+	SliderRange getRangeForId(const Identifier &id) const
+	{
+		return sliderRanges[id.toString()];
+	}
+
+private:
+
+	Array<Identifier> toggleProperties;
+	Array<Identifier> sliderProperties;
+	Array<Identifier> colourProperties;
+	Array<Identifier> choiceProperties;
+	Array<Identifier> multilineProperties;
+	Array<Identifier> fileProperties;
+	Array<Identifier> codeProperties;
+	HashMap<String, SliderRange> sliderRanges;
+};
+
 /** This is the interface area that can be filled with buttons, knobs, etc.
 *	@ingroup scriptingApi
 *
@@ -245,10 +291,23 @@ public:
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
 
+		using CustomAutomationPtr = MainController::UserPresetHandler::CustomAutomationData::Ptr;
+
 		struct PropertyWithValue
 		{
 			int id;
 			var value = var::undefined();
+		};
+
+		struct MouseListenerData
+		{
+			using StateFunction = std::function<var(int)>;
+
+			WeakReference<WeakCallbackHolder::CallableObject> listener;
+			MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
+			StateFunction tickedFunction, enabledFunction, textFunction;
+			StringArray popupMenuItems;
+
 		};
 
 		// ============================================================================================================
@@ -258,6 +317,7 @@ public:
 			text = 0,
 			visible,
 			enabled,
+			locked,
 			x,
 			y,
 			width,
@@ -276,6 +336,7 @@ public:
 			pluginParameterName,
             isMetaParameter,
 			linkedTo,
+			automationId,
 			useUndoManager,
 			parentComponent,
 			processorId,
@@ -308,6 +369,8 @@ public:
 
 			virtual void zLevelChanged(ZLevel newZLevel) = 0;
 
+			virtual void wantsToLoseFocus() {}
+
 			JUCE_DECLARE_WEAK_REFERENCEABLE(ZLevelListener);
 		};
 
@@ -337,6 +400,7 @@ public:
 		virtual void preRecompileCallback() 
 		{
 			controlSender.cancelMessage();
+            localLookAndFeel = var();
 		};
 
 		virtual ValueTree exportAsValueTree() const override;;
@@ -346,6 +410,18 @@ public:
 		String getDebugName() const override { return name.toString(); };
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
+
+		Location getLocation() const override
+		{
+			return location;
+		}
+
+		Location location;
+
+		bool isLocked() const
+		{
+			return getScriptObjectProperty(locked);
+		}
 
 		var getAssignedValue(int index) const override;
 		void assign(const int index, var newValue) override;
@@ -362,6 +438,8 @@ public:
 		virtual bool isAutomatable() const { return false; }
 
 		virtual bool isClickable() const { return getScriptObjectProperty(enabled); };
+
+		
 
 		virtual void handleDefaultDeactivatedProperties();
 
@@ -400,6 +478,8 @@ public:
 
 		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
+        
+        
 		virtual void cancelPendingFunctions() {};
 
 		virtual bool isShowing(bool checkParentComponentVisibility = true) const;
@@ -487,6 +567,12 @@ public:
         /** Returns the absolute y-position relative to the interface. */
         int getGlobalPositionY();
         
+		/** Returns list of component's children */
+		var getChildComponents();
+				
+		/** Returns a [x, y, w, h] array that was reduced by the given amount. */
+		var getLocalBounds(float reduceAmount);
+
 		/** Restores all properties from a JSON object. */
 		void setPropertiesFromJSON(const var &jsonData);
 
@@ -512,7 +598,7 @@ public:
 		void setControlCallback(var controlFunction);
 
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
-		void changed();
+		virtual void changed();
 
 		/** Returns a list of all property IDs as array. */
 		var getAllProperties();
@@ -520,8 +606,58 @@ public:
 		/** Changes the depth hierarchy (z-axis) of sibling components (Back, Default, Front or AlwaysOnTop). */
 		void setZLevel(String zLevel);
 
+		/** Adds a callback to react on key presses (when this component is focused). */
+		void setKeyPressCallback(var keyboardFunction);
+
+		/** Call this method in order to give away the focus for this component. */
+		void loseFocus();
+
+		/** Attaches the local look and feel to this component. */
+		void setLocalLookAndFeel(var lafObject);
+
+		/** Manually sends a repaint message for the component. */
+		virtual void sendRepaintMessage();
+
+		/** Returns the ID of the component. */
+		String getId() const;
+
+		/** Toggles the visibility and fades a component using the global animator. */
+		void fadeComponent(bool shouldBeVisible, int milliseconds);
+
+		/** Updates the value from the processor connection. Call this method whenever the module state has changed and you want
+			to refresh the knob value to show the current state. */
+		void updateValueFromProcessorConnection();
+
 		// End of API Methods ============================================================================================
 
+		var getLookAndFeelObject();
+
+		void attachValueListener(WeakCallbackHolder::CallableObject* obj)
+		{
+			valueListener = obj;
+			sendValueListenerMessage();
+		}
+
+		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const StringArray& popupItems = {})
+		{
+			for (int i = 0; i < mouseListeners.size(); i++)
+			{
+				if (mouseListeners[i].listener == nullptr)
+					mouseListeners.remove(i--);
+			}
+
+			mouseListeners.add({ obj, cl, sf, ef, tf, popupItems });
+		}
+
+		
+
+		const Array<MouseListenerData>& getMouseListeners() const { return mouseListeners; }
+
+		bool handleKeyPress(const KeyPress& k);
+
+		void handleFocusChange(bool isFocused);
+
+		bool wantsKeyboardFocus() const { return (bool)keyboardCallback; }
 
 		void addSubComponentListener(SubComponentListener* l)
 		{
@@ -543,9 +679,19 @@ public:
 		Content *parent;
 		bool skipRestoring;
 
+		
+
+		WeakReference<WeakCallbackHolder::CallableObject> valueListener;
+		
+		Array<MouseListenerData> mouseListeners;
+
 		struct Wrapper;
 
 		bool isConnectedToProcessor() const;;
+
+		bool isConnectedToGlobalCable() const;
+
+		void sendGlobalCableValue(var v);
 
 		Processor* getConnectedProcessor() const { return connectedProcessor.get(); };
 
@@ -593,6 +739,10 @@ public:
 			return scriptChangedProperties.contains(id);
 		}
 
+		void repaintThisAndAllChildren();
+
+
+
 		void setPropertyToLookFor(const Identifier& id)
 		{
 			searchedProperty = id;
@@ -612,6 +762,9 @@ public:
 				}
 			}
 		}
+
+		/** Returns a local look and feel if it was registered before. */
+		LookAndFeel* createLocalLookAndFeel();
 
 		static Array<Identifier> numberPropertyIds;
 		static bool numbersInitialised;
@@ -633,6 +786,12 @@ public:
 		{
 			zLevelListeners.removeAllInstancesOf(l);
 		}
+
+		CustomAutomationPtr getCustomAutomation() { return currentAutomationData; }
+
+		LambdaBroadcaster<bool> repaintBroadcaster;
+
+		LambdaBroadcaster<bool, int> fadeListener;
 
 	protected:
 
@@ -674,7 +833,19 @@ public:
 		
 		bool removePropertyIfDefault = true;
 
+		CustomAutomationPtr currentAutomationData;
+
+#if USE_BACKEND
+		juce::SharedResourcePointer<hise::ScriptComponentPropertyTypeSelector> selectorTypes;
+#endif
+
 	private:
+
+		void sendValueListenerMessage();
+
+		var localLookAndFeel;
+
+		WeakCallbackHolder keyboardCallback;
 
 		struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
         {
@@ -696,6 +867,8 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+		struct GlobalCableConnection;
+
 		AsyncControlCallbackSender controlSender;
 
 		bool isPositionProperty(Identifier id) const;
@@ -727,6 +900,8 @@ public:
 
 		WeakReference<Processor> connectedProcessor;
 		int connectedParameterIndex = -1;
+
+		ScopedPointer<GlobalCableConnection> globalConnection;
 
         int connectedMacroIndex = -1;
         bool macroRecursionProtection = false;
@@ -792,6 +967,7 @@ public:
 		/** Set the value from a 0.0 to 1.0 range */
 		void setValueNormalized(double normalizedValue) override;
 
+		/** Returns the normalized value. */
 		double getValueNormalized() const override;
 
 		/** Sets the range and the step size of the knob. */
@@ -1062,7 +1238,145 @@ public:
 	};
 
 
-	struct ScriptTable : public ScriptComponent
+	struct ComplexDataScriptComponent : public ScriptComponent,
+										public ExternalDataHolder,
+										public ComplexDataUIUpdaterBase::EventListener
+	{
+		ComplexDataScriptComponent(ProcessorWithScriptingContent* base, Identifier name, snex::ExternalData::DataType type_);;
+			
+		Table* getTable(int) override
+		{
+			return static_cast<Table*>(getUsedData(snex::ExternalData::DataType::Table));
+		}
+
+		SliderPackData* getSliderPack(int) override
+		{
+			return static_cast<SliderPackData*>(getUsedData(snex::ExternalData::DataType::SliderPack));
+		}
+
+		MultiChannelAudioBuffer* getAudioFile(int) override
+		{
+			return static_cast<MultiChannelAudioBuffer*>(getUsedData(snex::ExternalData::DataType::AudioFile));
+		}
+
+		FilterDataObject* getFilterData(int index) override
+		{
+			jassertfalse;
+			return nullptr; // soon;
+		}
+
+		SimpleRingBuffer* getDisplayBuffer(int index) override
+		{
+			jassertfalse;
+			return nullptr; // soon
+		}
+
+		int getNumDataObjects(ExternalData::DataType t) const override
+		{
+			return t == type ? 1 : 0;
+		}
+
+		bool removeDataObject(ExternalData::DataType t, int index) override { return true; }
+
+		// override this and return the property id used for the index
+		virtual int getIndexPropertyId() const = 0;
+
+		StringArray getOptionsFor(const Identifier &id) override;
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override
+		{
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+			if (getIdFor(processorId) == id || getIdFor(getIndexPropertyId()) == id)
+			{
+				updateCachedObjectReference();
+			}
+
+			if (getIdFor(parameterId) == id)
+			{
+				// don't do anything if you try to connect a table to a parameter...
+				return;
+			}
+		}
+
+		ValueTree exportAsValueTree() const override;
+
+		void restoreFromValueTree(const ValueTree &v) override;
+
+		void handleDefaultDeactivatedProperties();
+
+		void referToDataBase(var newData)
+		{
+			if (auto td = dynamic_cast<ScriptingObjects::ScriptComplexDataReferenceBase*>(newData.getObject()))
+			{
+				if (td->getDataType() != type)
+					reportScriptError("Data Type mismatch");
+
+				otherHolder = td->getHolder();
+
+				setScriptObjectPropertyWithChangeMessage(getIdFor(getIndexPropertyId()), td->getIndex(), sendNotification);
+				updateCachedObjectReference();
+			}
+			else if (auto cd = dynamic_cast<ComplexDataScriptComponent*>(newData.getObject()))
+			{
+				if (cd->type != type)
+					reportScriptError("Data Type mismatch");
+
+				otherHolder = cd;
+				updateCachedObjectReference();
+			}
+			else if ((newData.isInt() || newData.isInt64()) && (int)newData == -1)
+			{
+				// just go back to its own data object
+				otherHolder = nullptr;
+				updateCachedObjectReference();
+			}
+		}
+
+		ComplexDataUIBase* getCachedDataObject() const { return cachedObjectReference.get(); };
+
+		var registerComplexDataObjectAtParent(int index = -1);
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
+		{
+			
+		}
+
+		ComplexDataUIBase::SourceWatcher& getSourceWatcher() { return sourceWatcher; }
+
+	protected:
+
+		void updateCachedObjectReference()
+		{
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().removeEventListener(this);
+
+			cachedObjectReference = getComplexBaseType(type, 0);
+
+			if (cachedObjectReference != nullptr)
+				cachedObjectReference->getUpdater().addEventListener(this);
+
+			sourceWatcher.setNewSource(cachedObjectReference);
+		}
+
+	private:
+
+		const snex::ExternalData::DataType type;
+
+		ComplexDataUIBase* getUsedData(snex::ExternalData::DataType requiredType);
+
+		ExternalDataHolder* getExternalHolder();
+
+		// Overrides itself and the connected processor
+		WeakReference<ExternalDataHolder> otherHolder;
+
+		WeakReference<ComplexDataUIBase> cachedObjectReference;
+		ReferenceCountedObjectPtr<ComplexDataUIBase> ownedObject;
+
+		ComplexDataUIBase::SourceWatcher sourceWatcher;
+	};
+
+	struct ScriptTable : public ComplexDataScriptComponent
 	{
 		// ========================================================================================================
 
@@ -1078,69 +1392,57 @@ public:
 
 		// ========================================================================================================
 
+		int getIndexPropertyId() const override { return TableIndex; };
+
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptTable"); }
 
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
-		StringArray getOptionsFor(const Identifier &id) override;
 		void handleDefaultDeactivatedProperties() override;
 
-		ValueTree exportAsValueTree() const override;
-		void restoreFromValueTree(const ValueTree &v) override;
-
 		void resetValueToDefault() override;
-
-		Table *getTable();
-		const Table *getTable() const;
-		LookupTableProcessor * getTableProcessor() const;
 
 		// ======================================================================================================== API Method
 
 		/** Pass a function that takes a double and returns a String in order to override the popup display text. */
 		void setTablePopupFunction(var newFunction);
 
-		/** Returns the table value from 0.0 to 1.0 according to the input value from 0 to 127. */
-		float getTableValue(int inputValue);
+		void connectToOtherTable(String processorId, int index)
+		{
+			setScriptObjectProperty(ScriptingApi::Content::ScriptComponent::processorId, processorId, dontSendNotification);
+			setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
+		}
+
+		/** Returns the table value from 0.0 to 1.0 according to the input value from 0.0 to 1.0. */
+		float getTableValue(float inputValue);
 
 		/** Connects the table to an existing Processor. */
-		void connectToOtherTable(const String &id, int index);
-
 		/** Makes the table snap to the given x positions (from 0.0 to 1.0). */
 		void setSnapValues(var snapValueArray);
 
-		/** Connects it to a table data object. */
+		/** Connects it to a table data object (or UI element in the same interface). -1 sets it back to its internal data object. */
 		void referToData(var tableData);
+
+		/** Registers this table (and returns a reference to the data) with the given index so you can use it from the outside. */
+		var registerAtParent(int index);
 
 		// ========================================================================================================
 
 		struct Wrapper;
 
-		LookupTableProcessor::TableChangeBroadcaster broadcaster;
-
 		var snapValues;
-
 		var tableValueFunction;
 
 	private:
 
-		
-
-		ScopedPointer<MidiTable> ownedTable;
-
-		WeakReference<Table> referencedTable;
-		WeakReference<Processor> connectedProcessor;
-
-		
-		bool useOtherTable;
-		int lookupTableIndex;
+		Table* getCachedTable()  { return static_cast<Table*>(getCachedDataObject()); };
+		const Table* getCachedTable() const { return static_cast<const Table*>(getCachedDataObject()); };
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptTable);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptTable);
 	};
 
-
-	struct ScriptSliderPack : public ScriptComponent
+	struct ScriptSliderPack : public ComplexDataScriptComponent
 	{
 		// ========================================================================================================
 
@@ -1151,6 +1453,7 @@ public:
 			FlashActive,
 			ShowValueOverlay,
 			SliderPackIndex,
+			CallbackOnMouseUpOnly,
 			numProperties
 		};
 
@@ -1161,14 +1464,12 @@ public:
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptSliderPack"); }
 
+		int getIndexPropertyId() const override { return SliderPackIndex; };
+
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 		StringArray getOptionsFor(const Identifier &id) override;
-		ValueTree exportAsValueTree() const override;
-		void restoreFromValueTree(const ValueTree &v) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
-		void handleDefaultDeactivatedProperties() override;
-
 		void setValue(var newValue) override;
 
 		void resetValueToDefault() override
@@ -1180,14 +1481,13 @@ public:
 
 		var getValue() const override;
 
-		void setScriptProcessor(ProcessorWithScriptingContent *sb);
-		SliderPackData *getSliderPackData();
-		const SliderPackData *getSliderPackData() const;
-
 		// ======================================================================================================== API Methods
 
-		/** Connects this SliderPack to an existing SliderPackData object. */
+		/** Connects this SliderPack to an existing SliderPackData object. -1 sets it back to its internal data object. */
 		void referToData(var sliderPackData);
+
+		/** Enables or disables the control callback execution when the SliderPack is changed via setAllValues. */
+		void setAllValueChangeCausesCallback(bool shouldBeEnabled);
 
 		/** sets the slider value at the given index.*/
 		void setSliderAtIndex(int index, double value);
@@ -1195,30 +1495,39 @@ public:
 		/** Returns the value at the given index. */
 		double getSliderValueAt(int index);
 
-		/** Sets all slider values to the given value. */
-		void setAllValues(double value);
+		/** Sets all slider values to the given value. If value is a number it will be filled with the number. If it's a buffer (or array) it will set the values accordingly (without resizing the slider packs). */
+		void setAllValues(var value);
 
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 
-    /** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
-    void setWidthArray(var normalizedWidths);
+		/** Sets a non-uniform width per slider using an array in the form [0.0, ... a[i], ... 1.0]. */
+		void setWidthArray(var normalizedWidths);
         
+		/** Registers this sliderpack to the script processor to be acessible from the outside. */
+		var registerAtParent(int pIndex);
+
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+
+		/** Returns a Buffer object containing all slider values (as reference). */
+		var getDataAsBuffer();
+
 		// ========================================================================================================
+
+		void changed() override;
 
 		struct Wrapper;
 
+		SliderPackData* getSliderPackData() { return getCachedSliderPack(); };
+
 		Array<var> widthArray;
-        
+
 	private:
 
-		void connectToOtherSliderPack(const String &otherPackId);
-        
-		String otherPackId;
-		int otherPackIndex = 0;
+		bool allValueChangeCausesCallback = true;
 
-		ScopedPointer<SliderPackData> packData;
-		WeakReference<SliderPackData> existingData;
+		const SliderPackData* getCachedSliderPack() const { return static_cast<const SliderPackData*>(getCachedDataObject()); };
+		SliderPackData* getCachedSliderPack() { return static_cast<SliderPackData*>(getCachedDataObject()); };
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptSliderPack);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptSliderPack);
@@ -1226,6 +1535,76 @@ public:
 		// ========================================================================================================
 	};
 
+	struct ScriptAudioWaveform : public ComplexDataScriptComponent
+	{
+		enum Properties
+		{
+			itemColour3 = ScriptComponent::Properties::numProperties,
+			opaque,
+			showLines,
+			showFileName,
+			sampleIndex,
+			enableRange,
+			numProperties
+		};
+
+		// ========================================================================================================
+
+		ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);
+		~ScriptAudioWaveform() {};
+
+		// ========================================================================================================
+
+		int getIndexPropertyId() const override { return sampleIndex; };
+
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		// ======================================================================================================== API Methods
+
+		/** Connects this AudioFile to an existing ScriptAudioFile object. -1 sets it back to its internal data object. */
+		void referToData(var audioData);
+
+		/** Returns the current range start. */
+		int getRangeStart();
+
+		/** Returns the current range end. */
+		int getRangeEnd();
+
+		/** Registers this waveform to the script processor to be acessible from the outside. */
+		var registerAtParent(int pIndex);
+
+		/** Set the folder to be used when opening the file browser. */
+		void setDefaultFolder(var newDefaultFolder);
+
+		// ========================================================================================================
+
+		void handleDefaultDeactivatedProperties() override;
+
+		void resetValueToDefault() override;
+
+		StringArray getOptionsFor(const Identifier &id) override;
+		ValueTree exportAsValueTree() const override;
+		void restoreFromValueTree(const ValueTree &v) override;
+
+		ModulatorSampler* getSampler();
+
+		// ========================================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		MultiChannelAudioBuffer* getCachedAudioFile() { return static_cast<MultiChannelAudioBuffer*>(getCachedDataObject()); };
+		const MultiChannelAudioBuffer* getCachedAudioFile() const { return static_cast<const MultiChannelAudioBuffer*>(getCachedDataObject()); };
+		
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptAudioWaveform);
+
+		// ========================================================================================================
+	};
 
 	struct ScriptImage : public ScriptComponent
 	{
@@ -1237,6 +1616,7 @@ public:
 			FileName,
 			Offset,
 			Scale,
+			BlendMode,
 			AllowCallbacks,
 			PopupMenuItems,
 			PopupOnRightClick,
@@ -1278,7 +1658,13 @@ public:
 
 	private:
 
+		void updateBlendMode();
+
+		Image blendImage;
+
 		PooledImage image;
+
+		gin::BlendMode blendMode = gin::BlendMode::Normal;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptImage);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptImage);
@@ -1296,6 +1682,19 @@ public:
 
 		struct MouseCursorInfo
 		{
+			MouseCursorInfo() = default;
+
+			MouseCursorInfo(MouseCursor::StandardCursorType t) :
+				defaultCursorType(t)
+			{};
+
+			MouseCursorInfo(const Path& p, Colour c_, Point<float> hp) :
+				path(p),
+				c(c_),
+				hitPoint(hp)
+			{};
+
+			MouseCursor::StandardCursorType defaultCursorType = MouseCursor::NormalCursor;
 			Path path;
 			Colour c = juce::Colours::white;
 			Point<float> hitPoint = { 0.0f, 0.0f };
@@ -1325,7 +1724,20 @@ public:
 			enableMidiLearn,
 			holdIsRightClick,
 			isPopupPanel,
+            bufferToImage,
 			numProperties
+		};
+
+		enum class DebugWatchIndex
+		{
+			Data,
+			ChildPanels,
+			PaintRoutine,
+			TimerCallback,
+			MouseCallback,
+			PreloadCallback,
+			FileCallback,
+			NumDebugWatchIndexes
 		};
 
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
@@ -1352,8 +1764,11 @@ public:
 
 		void preRecompileCallback() override
 		{
+			cachedList.clear();
+
 			ScriptComponent::preRecompileCallback();
 
+            
 			timerRoutine.clear();
 			loadRoutine.clear();
 			mouseRoutine.clear();
@@ -1366,6 +1781,18 @@ public:
 		void prepareCycleReferenceCheck() override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		int getNumChildElements() const override;
+
+		DebugInformationBase* getChildElement(int index) override;
+
+		DebugInformationBase::Ptr createChildElement(DebugWatchIndex index) const;
+
+		void sendRepaintMessage() override
+		{
+			ScriptComponent::sendRepaintMessage();
+			repaint();
+		}
 
 		// ======================================================================================================== API Methods
 
@@ -1393,6 +1820,9 @@ public:
 		/** Sets a mouse callback. */
 		void setMouseCallback(var mouseCallbackFunction);
 
+		/** Sets a file drop callback. */
+		void setFileDropCallback(String callbackLevel, String wildcard, var dropFunction);
+
 		/** Sets a timer callback. */
 		void setTimerCallback(var timerCallback);
 
@@ -1402,8 +1832,17 @@ public:
 		/** Disables the paint routine and just uses the given (clipped) image. */
 		void setImage(String imageName, int xOffset, int yOffset);
 
+		/** Starts dragging an external file (or a number of files). */
+		bool startExternalFileDrag(var fileOrFilesToDrag, bool moveOriginalFiles, var finishCallback);
+
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
+
+		/** Unload all images from the panel. */
+		void unloadAllImages();
+		
+		/** Checks if the image has been loaded into the panel */
+		bool isImageLoaded(String prettyName);
 
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);
@@ -1452,7 +1891,6 @@ public:
 
 #if HISE_INCLUDE_RLOTTIE
 		bool isAnimationActive() const { return animation != nullptr && animation->isValid(); }
-
 		RLottieAnimation::Ptr getAnimation() { return animation.get(); }
 #endif
 
@@ -1467,22 +1905,13 @@ public:
 			return mouseCursorPath;
 		}
 
+		LambdaBroadcaster<MouseCursorInfo>& getCursorUpdater() { return cursorUpdater; }
+
+		LambdaBroadcaster<MouseCursorInfo> cursorUpdater;
+
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
 		{
-			if (id == getIdFor((int)ScriptComponent::Properties::visible))
-			{
-				const bool wasVisible = (bool)getScriptObjectProperty(visible);
-
-				const bool isNowVisible = (bool)newValue;
-
-				setScriptObjectProperty(visible, newValue);
-
-				if (wasVisible != isNowVisible)
-				{
-					repaintThisAndAllChildren();
-
-				}
-			}
+			
 
 			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 
@@ -1499,8 +1928,6 @@ public:
 #endif
 		}
 
-		void repaintThisAndAllChildren();
-
 		struct Wrapper;
 
 		bool isModal() const
@@ -1513,6 +1940,8 @@ public:
 		bool isUsingClippedFixedImage() const { return usesClippedFixedImage; };
 
 		void scaleFactorChanged(float /*newScaleFactor*/) override {} // Do nothing until fixed...
+
+		void fileDropCallback(var fileInformation);
 
 		void mouseCallback(var mouseInformation);
 
@@ -1577,14 +2006,18 @@ public:
 
 		void removeAnimationListener(AnimationListener* l);
 
+		String fileDropExtension;
+		String fileDropLevel;
+
 	private:
 
 #if HISE_INCLUDE_RLOTTIE
 		void updateAnimationData();
 		ScopedPointer<RLottieAnimation> animation;
 		var animationData;
-		Array<WeakReference<AnimationListener>> animationListeners;
 #endif
+
+		Array<WeakReference<AnimationListener>> animationListeners;
 
 		bool shownAsPopup = false;
 		bool isModalPopup = false;
@@ -1607,11 +2040,12 @@ public:
 
 		var paintRoutine;
 
-		
+		void buildDebugListIfEmpty() const;
 
 		WeakCallbackHolder timerRoutine;
 		WeakCallbackHolder loadRoutine;
 		WeakCallbackHolder mouseRoutine;
+		WeakCallbackHolder fileDropRoutine;
 
 		var dragBounds;
 
@@ -1624,7 +2058,7 @@ public:
 		WeakReference<ScriptPanel> parentPanel;
 		ReferenceCountedArray<ScriptPanel> childPanels;
 
-		
+		mutable DebugInformationBase::List cachedList;
 
 		bool isChildPanel = false;
 
@@ -1640,11 +2074,15 @@ public:
 	{
 	public:
 
+		
+
 		enum Properties
 		{
 			scrollbarThickness = ScriptComponent::numProperties,
 			autoHide,
 			useList,
+			viewPositionX,
+			viewPositionY,
 			Items,
 			FontName,
 			FontSize,
@@ -1671,70 +2109,47 @@ public:
 			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
+		void setValue(var newValue) override;
+
+		// ============================================================================ API Methods
+
+
+
+		/** Turns this viewport into a table with the given metadata. This can only be done in the onInit callback. */
+		void setTableMode(var tableMetadata);
+
+		/** Define the columns of the table. This can only be done in the onInit callback. */
+		void setTableColumns(var columnMetadata);
+
+		/** Update the row data for the table. */
+		void setTableRowData(var tableData);
+
+		/** Set a function that is notified for all user interaction with the table. */
+		void setTableCallback(var callbackFunction);
+
+		/** Specify the event types that should trigger a setValue() callback. */
+		void setEventTypesForValueCallback(var eventTypeList);
+
+		// ============================================================================ API Methods
+
 		Array<PropertyWithValue> getLinkProperties() const override;
+
+		LambdaBroadcaster<double, double> positionBroadcaster;
+
+		ScriptTableListModel::Ptr getTableModel() { return tableModel; }
 
 	private:
 
-		StringArray currentItems;
+		ScriptTableListModel::Ptr tableModel;
 
+		struct Wrapper;
+
+		StringArray currentItems;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedViewport);
 	};
 
-	struct ScriptAudioWaveform : public ScriptComponent
-	{
-		enum Properties
-		{
-			itemColour3 = ScriptComponent::Properties::numProperties,
-			opaque,
-			showLines,
-			showFileName,
-            sampleIndex,
-			numProperties
-		};
-
-		// ========================================================================================================
-
-		ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);
-		~ScriptAudioWaveform() {};
-
-		// ========================================================================================================
-
-		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
-		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
-		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-
-		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
-		void handleDefaultDeactivatedProperties() override;
-
-		void resetValueToDefault() override
-		{
-			if (auto a = getAudioProcessor())
-			{
-				a->setLoadedFile("", true, true);
-			}
-		}
-
-		StringArray getOptionsFor(const Identifier &id) override;
-		ValueTree exportAsValueTree() const override;
-		void restoreFromValueTree(const ValueTree &v) override;
-		AudioSampleProcessor * getAudioProcessor();;
-
-		ScriptingObjects::ScriptAudioFile::Ptr getScriptAudioFile() { return audioFile; }
-
-		ModulatorSampler* getSampler();
-
-		// ========================================================================================================
-
-	private:
-
-		ScriptingObjects::ScriptAudioFile::Ptr audioFile;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptAudioWaveform);
-
-		// ========================================================================================================
-	};
+	
 
 	struct ScriptFloatingTile : public ScriptComponent,
 								public Dispatchable
@@ -1833,6 +2248,22 @@ public:
 	};
 
 
+	using ScreenshotListener = hise::ScreenshotListener;
+
+	struct VisualGuide
+	{
+		enum class Type
+		{
+			HorizontalLine,
+			VerticalLine,
+			Rectangle
+		};
+
+		Rectangle<float> area;
+		Colour c;
+		Type t;
+	};
+
 	// ================================================================================================================
 
 	Content(ProcessorWithScriptingContent *p);;
@@ -1880,7 +2311,7 @@ public:
 	ScriptSliderPack *addSliderPack(Identifier sliderPackName, int x, int y);
 
 	/** Adds a viewport. */
-	ScriptedViewport* addScriptedViewport(Identifier viewportName, int x, int y);
+	ScriptedViewport* addViewport(Identifier viewportName, int x, int y);
 
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
@@ -1888,6 +2319,9 @@ public:
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
 	
+	/** Returns the current tooltip. */
+	String getCurrentTooltip();
+
 	/** Returns an array of all components that match the given regex. */
     var getAllComponents(String regex);
 
@@ -1900,6 +2334,12 @@ public:
 	/** Creates a Path that can be drawn to a ScriptPanel. */
 	var createPath();
 
+	/** Creates an OpenGL framgent shader. */
+	var createShader(const String& fileName);
+
+	/** Creates a MarkdownRenderer. */
+	var createMarkdownRenderer();
+
 	/** Sets the colour for the panel. */
 	void setColour(int red, int green, int blue) { colour = Colour((uint8)red, (uint8)green, (uint8)blue); };
 
@@ -1909,11 +2349,20 @@ public:
 	/** Sets the height of the content. */
 	void setWidth(int newWidth) noexcept;
 
+	/** Creates a screenshot of the area relative to the content's origin. */
+	void createScreenshot(var area, var directory, String name);
+
+	/** Creates either a line or rectangle with the given colour. */
+	void addVisualGuide(var guideData, var colour);
+
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
     
 	/** Sets this script as main interface with the given device resolution (only works with mobile devices). */
 	void makeFullScreenInterface();
+
+	/** Returns the total bounds of the main display. */
+	var getScreenBounds(bool getTotalArea);
 
 	/** sets the Tooltip that will be shown if the mouse hovers over the script's tab button. */
 	void setContentTooltip(const String &tooltipToShow) { tooltip = tooltipToShow; }
@@ -1932,6 +2381,18 @@ public:
 
 	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
 	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
+
+	/** Creates a look and feel that you can attach manually to certain components. */
+	var createLocalLookAndFeel();
+
+	/** Returns 1 if the left mouse button is clicked somewhere on the interface and 2 if the right button is clicked. */
+	int isMouseDown();
+
+	/** Returns the name of the component that is currently hovered. */
+	String getComponentUnderMouse();
+
+	/** Calls a function after a delay. This is not accurate and only useful for UI purposes!. */
+	void callAfterDelay(int milliSeconds, var function, var thisObject);
 
 	// ================================================================================================================
 
@@ -1967,15 +2428,19 @@ public:
 	bool isEmpty();
 	int getNumComponents() const noexcept{ return components.size(); };
 	ScriptComponent *getComponent(int index);
-	const ScriptComponent *getComponent(int index) const { return components[index]; };
+	const ScriptComponent *getComponent(int index) const { return components[index].get(); };
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;
+
+	StringArray getMacroNames();
 
 	bool hasComponent(const ScriptComponent* sc) const { return components.indexOf(sc) != -1; };
 
 	int getContentHeight() const { return height; }
 	int getContentWidth() const { return width; }
+
+	void recompileAndThrowAtDefinition(ScriptComponent* sc);
 
 	bool usesDoubleResolution() const
 	{
@@ -1990,6 +2455,16 @@ public:
 	const ValueTree getContentProperties() const
 	{
 		return contentPropertyData;
+	}
+
+	void addScreenshotListener(ScreenshotListener* l)
+	{
+		screenshotListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeScreenshotListener(ScreenshotListener* l)
+	{
+		screenshotListeners.removeAllInstancesOf(l);
 	}
 
 	var getValuePopupProperties() const { return valuePopupData; };
@@ -2106,6 +2581,11 @@ public:
 
 	
 
+	bool interfaceCreationAllowed() const
+	{
+		return allowGuiCreation;
+	}
+
 	bool asyncFunctionsAllowed() const
 	{
 		return allowAsyncFunctions;
@@ -2141,6 +2621,8 @@ public:
     
 	void suspendPanelTimers(bool shouldBeSuspended);
 
+	Array<VisualGuide> guides;
+
 private:
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
@@ -2174,7 +2656,7 @@ private:
 		}
 	};
 
-	
+	Array<WeakReference<ScreenshotListener>> screenshotListeners;
 
 	static void initNumberProperties();
 
@@ -2189,6 +2671,8 @@ private:
 	void sendRebuildMessage();
 
 	Array<WeakReference<RebuildListener>> rebuildListeners;
+
+	WeakReference<ScriptComponent> componentToThrowAtDefinition;
 
 	var templateFunctions;
 	var valuePopupData;
@@ -2342,17 +2826,110 @@ struct ContentValueTreeHelpers
 
 		auto parent = v.getParent();
 
-		if (parent.isValid() && parent.getType() != root)
+		bool ok = parent.isValid() && parent.getType() != root;
+
+		while (parent.isValid() && parent.getType() != root)
 		{
 			offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
-
-			return getAbsolutePosition(parent, offset);
+			parent = parent.getParent();
 		}
 
-		return false;
+		return ok;
 	}
 };
 
+struct MapItemWithScriptComponentConnection : public Component,
+	public ComponentWithPreferredSize,
+	public PooledUIUpdater::SimpleTimer
+{
+	MapItemWithScriptComponentConnection(ScriptComponent* c, int width, int height);;
+
+	int getPreferredWidth() const override { return w; }
+	int getPreferredHeight() const override { return h; }
+
+	int w = 0;
+	int h = 0;
+
+	WeakReference<ScriptComponent> sc;
+};
+
+
+
+struct SimpleVarBody : public ComponentWithPreferredSize,
+	public Component
+{
+	SimpleVarBody(const var& v);
+
+	void paint(Graphics& g) override;
+
+	static ComponentWithPreferredSize* create(Component* root, const var& v)
+	{
+		return new SimpleVarBody(v);
+	};
+
+	void mouseDown(const MouseEvent& e);
+
+
+
+	String getSensibleStringRepresentation() const;
+
+	int getPreferredWidth() const override { return 128; }
+	int getPreferredHeight() const override { return 32; };
+
+	var value;
+	String s;
+};
+
+struct LiveUpdateVarBody : public SimpleVarBody,
+	public PooledUIUpdater::SimpleTimer
+{
+	enum DisplayType
+	{
+		Text,
+		Bool,
+		Colour,
+		numDisplayType
+	};
+
+	static DisplayType getDisplayType(const Identifier& id);
+
+	LiveUpdateVarBody(PooledUIUpdater* updater, const Identifier& id_, const std::function<var()>& f);;
+
+	void timerCallback() override;
+
+	String getTextToDisplay() const;
+
+	int getPreferredWidth() const override { return 35 + GLOBAL_MONOSPACE_FONT().getStringWidth(getTextToDisplay()); }
+
+	void paint(Graphics& g) override;
+
+	ModValue alpha;
+	const Identifier id;
+	std::function<var()> valueFunction;
+	const DisplayType displayType;
+};
+
+struct PrimitiveArrayDisplay : public SimpleVarBody,
+	public PooledUIUpdater::SimpleTimer
+{
+	PrimitiveArrayDisplay(Processor* jp, const var& obj);;
+
+	void timerCallback() override;
+
+	int h;
+	int w;
+
+	String id;
+
+	int getPreferredWidth() const override { return w; };
+	int getPreferredHeight() const override { return h; }
+
+	void paint(Graphics& g) override;
+
+	static ComponentWithPreferredSize* create(Component* r, const var& obj);
+
+	Array<var> lastValues;
+};
 
 
 } // namespace hise

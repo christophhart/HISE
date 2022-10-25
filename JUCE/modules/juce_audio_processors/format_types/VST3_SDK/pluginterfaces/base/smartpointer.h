@@ -34,12 +34,11 @@ namespace Steinberg {
  - handles refCount of the interface
  - Usage example:
  \code
-	IPtr<IPath> path (sharedPath);
-	if (path)
-		path->ascend ();
+IPtr<IPath> path (sharedPath);
+if (path)
+	path->ascend ();
  \endcode
  */
-//------------------------------------------------------------------------
 template <class I>
 class IPtr
 {
@@ -88,6 +87,17 @@ public:
 		ptr = movePtr.take ();
 		return *this;
 	}
+	
+	template <typename T>
+	inline IPtr& operator= (IPtr<T>&& movePtr) 
+	{
+		if (ptr)
+			ptr->release ();
+		
+		ptr = movePtr.take ();
+		return *this;
+	}
+#endif
 
 	inline void reset (I* obj = nullptr) 
 	{
@@ -106,7 +116,6 @@ public:
 	template <typename T>
 	static IPtr<T> adopt (T* obj) SMTG_NOEXCEPT { return IPtr<T> (obj, false); }
 
-#endif
 //------------------------------------------------------------------------
 protected:
 	I* ptr;
@@ -196,7 +205,6 @@ inline IPtr<I>& IPtr<I>::operator= (const IPtr<I>& _ptr)
  \endcode
  This will lead to a leak!
  */
-//------------------------------------------------------------------------
 template <class I>
 class OPtr : public IPtr<I>
 {

@@ -354,18 +354,11 @@ var StaticDspFactory::createModule(const String &name) const
 DspFactory::Handler::Handler()
 {
 	registerStaticFactories(this);
-    
-#if INCLUDE_TCC
-	tccFactory = new TccDspFactory();
-#endif
 }
 
 DspFactory::Handler::~Handler()
 {
 	loadedPlugins.clear();
-#if INCLUDE_TCC
-	tccFactory = nullptr;
-#endif
 }
 
 DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName)
@@ -380,15 +373,11 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 {
 	Identifier id(name);
 
-#if USE_BACKEND && INCLUDE_TCC
-	if (id == tccFactory->getId()) return tccFactory;
-#endif
-
 	for (int i = 0; i < staticFactories.size(); i++)
 	{
 		if (staticFactories[i]->getId() == id)
 		{
-			return staticFactories[i];
+			return staticFactories[i].get();
 		}
 	}
 
@@ -396,7 +385,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		if (loadedPlugins[i]->getId() == id)
 		{
-			return loadedPlugins[i];
+			return loadedPlugins[i].get();
 		}
 	}
 
@@ -404,7 +393,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		ScopedPointer<DynamicDspFactory> newLib = new DynamicDspFactory(name, password);
 		loadedPlugins.add(newLib.release());
-		return loadedPlugins.getLast();
+		return loadedPlugins.getLast().get();
 	}
 	catch (String& errorMessage)
 	{
@@ -420,10 +409,6 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 void DspFactory::Handler::setMainController(MainController* mc_)
 {
 	mc = mc_;
-    
-#if INCLUDE_TCC
-	tccFactory->setMainController(mc);
-#endif
 }
 
 } // namespace hise

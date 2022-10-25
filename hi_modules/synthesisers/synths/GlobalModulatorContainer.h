@@ -248,7 +248,7 @@ public:
 	ParameterConnection* addConnectedParameter(Processor* p, int parameterIndex, NormalisableRange<double> normalisableRange)
 	{
 		auto newConnection = new ParameterConnection(p, parameterIndex, normalisableRange);
-		connectedParameters.addIfNotAlreadyThere(newConnection);
+		connectedParameters.add(newConnection);
 		return connectedParameters.getLast();
 	}
 
@@ -364,6 +364,8 @@ public:
 	ValueTree exportModulatedParameters() const;
 
 	void restoreModulatedParameters(const ValueTree& v);
+
+	bool synthNeedsEnvelope() const override { return false; }
 
 private:
 

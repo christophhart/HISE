@@ -144,6 +144,11 @@ public:
 		setLookAndFeel(&dlaf);
 	};
 
+    ~NumberTag()
+    {
+        setLookAndFeel(nullptr);
+    }
+    
 	void paint(Graphics &g) override
 	{
 		if(number == 0) 
@@ -300,7 +305,7 @@ protected:
 
 	bool shouldPopupMenuScaleWithTargetComponent(const PopupMenu::Options& /*options*/) override
 	{
-		return false;
+		return true;
 	};
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
@@ -481,6 +486,20 @@ protected:
 	void drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label);
 
 	Font comboBoxFont;
+};
+
+
+struct ScriptnodeComboBoxLookAndFeel : public PopupLookAndFeel
+{
+	void drawComboBox(Graphics&, int width, int height, bool isButtonDown,
+		int buttonX, int buttonY, int buttonW, int buttonH,
+		ComboBox&) override;
+
+	Font getComboBoxFont(ComboBox&) override { return GLOBAL_BOLD_FONT(); }
+
+	Label* createComboBoxTextBox(ComboBox&) override;
+
+	static void drawScriptnodeDarkBackground(Graphics& g, Rectangle<float> area, bool roundedCorners);
 };
 
 
@@ -750,9 +769,6 @@ public:
 	Colour propertyBgColour = Colour(0xff3d3d3d);
 };
 
-class PresetBrowser;
-
-
 
 class PresetBrowserLookAndFeelMethods
 {
@@ -774,11 +790,13 @@ public:
 	virtual ~PresetBrowserLookAndFeelMethods()
 	{};
 
-	virtual void drawPresetBrowserBackground(Graphics& g, PresetBrowser* p);
-	virtual void drawColumnBackground(Graphics& g, Rectangle<int> listArea, const String& emptyText);
+	virtual Path createPresetBrowserIcons(const String& id);
+
+	virtual void drawPresetBrowserBackground(Graphics& g, Component* p);
+	virtual void drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText);
 	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
 	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
-	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode);
+	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
 	virtual void drawSearchBar(Graphics& g, Rectangle<int> area);
 
 	Font getFont(bool fontForTitle);
@@ -921,6 +939,8 @@ class BiPolarSliderLookAndFeel: public LookAndFeel_V3
 	{
 		return GLOBAL_FONT();
 	}
+
+	JUCE_LEAK_DETECTOR(BiPolarSliderLookAndFeel);
 };
 
 
@@ -1004,27 +1024,7 @@ public:
 
 	virtual Colour getColour(int ColourId) const = 0;
 
-	void drawBackground(Graphics &g, float width, float height, bool /*isFolded*/)
-	{
-		g.excludeClipRegion(Rectangle<int>(0, 35, (int)width, 10));
-
-#if HISE_IOS
-		height = 45.0f;
-#else
-		height = 30.0f;
-#endif
-
-
-		g.setGradientFill (ColourGradient (getColour(HeaderBackgroundColour),
-										288.0f, 8.0f,
-										getColour(HeaderBackgroundColour).withMultipliedBrightness(0.9f),
-										288.0f, height,
-										false));
-		//g.fillRoundedRectangle (0.0f, 0.0f, width, height, 3.0f);
-
-		g.fillAll();
-
-	}
+	void drawBackground(Graphics &g, float width, float height, bool /*isFolded*/);
 
 	bool isChain;
 
@@ -1039,9 +1039,9 @@ public:
 
     virtual ~ModulatorEditorHeaderLookAndFeel() {};
     
-	Colour getColour(int /*ColourId*/) const override { return isChain ? JUCE_LIVE_CONSTANT_OFF(Colour(0xff1f1f1f)) : Colour(0xFF222222); };
+	Colour getColour(int /*ColourId*/) const override { return isChain ? c : Colour(0xFF222222); };
 
-	
+    Colour c;
 
 };
 
@@ -1175,10 +1175,7 @@ public:
 
 	void drawAlertBox (Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout) override;;
 
-private:
-
 	Colour dark, bright, special;
-
 };
 
 
@@ -1271,34 +1268,18 @@ public:
 		return label;
 	}
 
-	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders = true)
-	{
+	static void fillPathHiStyle(Graphics &g, const Path &p, int , int , bool drawBorders = true);;
 
+    static void draw1PixelGrid(Graphics& g, Component* c, Rectangle<int> bounds, Colour lineColour=Colours::white);
+    
+    
+	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true);;
 
-		if (drawBorders)
-		{
-			g.setColour(Colours::lightgrey.withAlpha(0.8f));
-			g.strokePath(p, PathStrokeType(1.0f));
-
-			g.setColour(Colours::lightgrey.withAlpha(0.1f));
-			g.drawRect(0, 0, width, height, 1);
-		}
-
-		g.setGradientFill(ColourGradient(Colour(0x88ffffff),
-			0.0f, 0.0f,
-			Colour(0x11ffffff),
-			0.0f, (float)height,
-			false));
-
-		g.fillPath(p);
-
-		DropShadow d(Colours::white.withAlpha(drawBorders ? 0.2f : 0.1f), 5, Point<int>());
-
-		d.drawForPath(g, p);
-
-	};
+	static void setTextEditorColours(TextEditor& ed);
 
 	int getSliderThumbRadius(Slider& ) override { return 0; }
+
+	void drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, double value, bool bipolar, bool hover, bool down, bool enabled, float modValue);
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPos*/, float minSliderPos, float maxSliderPos, const Slider::SliderStyle style, Slider &s) override
 	{
@@ -1314,7 +1295,6 @@ public:
 			Rectangle<float> area(leftBoxPos, 0.0f, rightBoxPos - leftBoxPos, (float)height);
 
 			area.reduce(-1.0f, -1.0f);
-
 			
 			g.setColour(s.findColour(Slider::ColourIds::thumbColourId));
 			g.fillRect(area);
@@ -1386,7 +1366,14 @@ public:
 	static const char* slider2_bipolar_png;
     static const int slider2_bipolar_pngSize;
     
-    
+	static void setDefaultColours(Component& c)
+	{
+		c.setColour(HiseColourScheme::ComponentBackgroundColour, Colours::transparentBlack);
+		c.setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+		c.setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+		c.setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+		c.setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+	}
 
 private:
     
@@ -1402,6 +1389,8 @@ private:
 	Image ring_yellow;
 	Image ring_blue;
 	Image ring_modulated;
+
+	Path ring, ring2;
 
 };
 
@@ -1528,27 +1517,7 @@ public:
 
 	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override;
 
-	void drawButtonBackground (Graphics &g, Button &b, const Colour &backgroundColour, bool isMouseOverButton, bool isButtonDown) override
-	{
-
-
-		LookAndFeel_V3::drawButtonBackground(g, b, backgroundColour, isMouseOverButton, isButtonDown);
-
-		g.setColour(Colours::white.withAlpha(b.getToggleState() ? 0.8f : 0.3f));
-
-		ChainBarPathFactory factory;
-
-		Path path = factory.createPath(b.getButtonText());
-
-		path.scaleToFit(4.0f, 4.0f, (float)b.getHeight() - 8.0f, (float)b.getHeight() - 8.0f, true);
-
-		
-		g.setColour(b.findColour(b.getToggleState() ? IconColour : IconColourOff));
-		
-
-		g.fillPath(path);
-
-	};
+	void drawButtonBackground (Graphics &g, Button &b, const Colour &backgroundColour, bool isMouseOverButton, bool isButtonDown) override;;
 };
 
 
@@ -1598,19 +1567,46 @@ public:
 	BlackTextButtonLookAndFeel();
 
 	void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
-		bool /*isMouseOverButton*/, bool isButtonDown)
+		bool isMouseOverButton, bool isButtonDown)
 	{
-		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isButtonDown ? 0.4f : 0.2f), 0.0f, 0.0f,
-			Colours::white.withAlpha(0.1f), 0.0f, (float)button.getHeight(), false));
+		
 
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)button.getWidth(), (float)button.getHeight(), 4.0f);
+		auto area = button.getLocalBounds().toFloat();
+
+		if (button.getToggleState())
+		{
+			g.setColour(textColour);
+			g.drawRoundedRectangle(area.reduced(1.0f), 4.0f, 1.0f);
+		}
+
+		float alpha = 0.2f;
+
+		if (isButtonDown)
+			alpha += 0.1f;
+
+		if (isMouseOverButton)
+			alpha += 0.1f;
+
+		if (!button.isEnabled())
+			alpha = 0.1f;
+		
+
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(alpha + 0.1f), 0.0f, 0.0f,
+			Colours::white.withAlpha(alpha), 0.0f, (float)button.getHeight(), false));
+
+		g.fillRoundedRectangle(area, 4.0f);
 	}
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
 	void drawButtonText(Graphics& g, TextButton& b, bool , bool ) override
 	{
-		g.setColour(Colours::white);
+		float alpha = 1.0f;
+
+		if (!b.isEnabled())
+			alpha = 0.5f;
+
+		g.setColour(textColour.withMultipliedAlpha(alpha));
 		g.setFont(f);
 		g.drawText(b.getButtonText(), b.getLocalBounds().toFloat(), Justification::centred);
 	}
@@ -1623,6 +1619,90 @@ private:
 
 	Image ticked;
 	Image unticked;
+};
+
+struct PeriodicScreenshotter : public Thread
+{
+    struct Holder
+    {
+        virtual ~Holder() {};
+        virtual PeriodicScreenshotter* getScreenshotter() = 0;
+        JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
+    };
+
+    PeriodicScreenshotter(Component* c) :
+        Thread("screenshotter"),
+        comp(c)
+    {
+        startThread(4);
+    };
+    
+    static void disableForScreenshot(Component* c)
+    {
+        c->getProperties().set("SkipScreenshot", true);
+    }
+    
+    struct PopupGlassLookAndFeel: public PopupLookAndFeel
+    {
+        PopupGlassLookAndFeel(Component& c):
+            holder(c.findParentComponentOfClass<Holder>())
+        {
+            jassert(holder != nullptr);
+            setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
+        }
+
+        virtual void drawPopupMenuBackgroundWithOptions (Graphics& g,
+                                                         int width,
+                                                         int height,
+                                                         const PopupMenu::Options& o);
+        
+        
+        WeakReference<Holder> holder;
+    };
+
+    ~PeriodicScreenshotter()
+    {
+        stopThread(500);
+    }
+
+    struct ScopedPopupDisabler
+    {
+        ScopedPopupDisabler(Component* r)
+        {
+            recursive(r);
+        }
+
+        ~ScopedPopupDisabler()
+        {
+            for (const auto& c : skippers)
+                c->setSkipPainting(false);
+        }
+
+        void recursive(Component* c)
+        {
+            if (!c->isVisible())
+                return;
+
+            if (auto t = c->getProperties()["SkipScreenshot"])
+            {
+                skippers.add(c);
+                c->setSkipPainting(true);
+                return;
+            }
+
+            for (int i = 0; i < c->getNumChildComponents(); i++)
+                recursive(c->getChildComponent(i));
+        }
+
+        Array<Component*> skippers;
+    };
+
+    void drawGlassSection(Graphics& g, Component* c, Rectangle<int> b, Point<int> offset={});
+
+    void run() override;
+
+    Image img;
+    Component* comp;
 };
 
 } // namespace hise

@@ -69,19 +69,18 @@ smoothedGainR(1.0f)
 
 	auto tmp = WeakReference<Processor>(this);
 
-	auto balanceConverter = [tmp](float input)
+    auto balanceConverter = [tmp](float input)
 	{
 		if (tmp.get() != nullptr)
 		{
-			auto normalized = (input - 0.5f) * 2.0f;
-			auto v = tmp->getAttribute(GainEffect::Parameters::Balance) * normalized;
+			auto v = tmp->getAttribute(GainEffect::Parameters::Balance) * input;
 
 			return BalanceCalculator::getBalanceAsString(roundToInt(v));
 		}
 
 		return Table::getDefaultTextValue(input);
 	};
-
+    
 	balanceChain->setTableValueConverter(balanceConverter);
 
 	auto widthConverter = [tmp](float input)

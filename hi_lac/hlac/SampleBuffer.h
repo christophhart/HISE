@@ -355,6 +355,8 @@ private:
 	int numChannels = 0;
 	int size = 0;
 
+	bool useNormalisationMap = false;
+
 	bool hasSecondChannel() const { return numChannels == 2; }
 
 	bool isFloat = false;

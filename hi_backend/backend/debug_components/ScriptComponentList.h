@@ -67,7 +67,7 @@ public:
 	{
 		ScopedPointer<XmlElement> xml = new XmlElement("OpenState");
 		xml->setAttribute("id", getUniqueName());
-		xml->setAttribute("open", getOpenness());
+		xml->setAttribute("open", (int)getOpenness());
 		
 		for (int i = 0; i < getNumSubItems(); i++)
 		{
@@ -150,7 +150,13 @@ public:
 			return;
 		}
 
-		fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
+		if (searchTerm_.startsWithIgnoreCase("REGEX"))
+		{
+			auto s = searchTerm_.substring(5).trim();
+			fitsSearch = hise::RegexFunctions::matchesWildcard(s, getItemIdentifierString());
+		}
+		else
+			fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
 	}
 
 private:
@@ -236,7 +242,7 @@ class ScriptComponentList : public Component,
 	public Timer
 {
 public:
-	ScriptComponentList(ScriptingApi::Content* c);
+	ScriptComponentList(ScriptingApi::Content* c, bool openess);
 
 	~ScriptComponentList();
 
@@ -260,12 +266,25 @@ public:
 
 		Component* createContentComponent(int /*index*/) override;
 
-
+        var toDynamicObject() const override
+        {
+            auto obj = PanelWithProcessorConnection::toDynamicObject();
+            obj.getDynamicObject()->setProperty("Openess", defaultOpeness);
+            return obj;
+        }
+        
+        void fromDynamicObject(const var& obj) override
+        {
+            defaultOpeness = obj.getProperty("Openess", true);
+            PanelWithProcessorConnection::fromDynamicObject(obj);
+        }
 
 		void fillModuleList(StringArray& moduleList) override
 		{
 			fillModuleListWithType<JavascriptProcessor>(moduleList);
 		}
+        
+        bool defaultOpeness = true;
 	};
 
 	void paint(Graphics& g) override;
@@ -339,7 +358,7 @@ private:
 	{
 		for (int i = 0; i < rootItem->getNumSubItems(); i++)
 		{
-			rootItem->getSubItem(i)->setOpenness(shouldBeFolded ? TreeViewItem::opennessClosed : TreeViewItem::opennessOpen);
+			rootItem->getSubItem(i)->setOpenness(shouldBeFolded ? TreeViewItem::Openness::opennessClosed : TreeViewItem::Openness::opennessOpen);
 		}
 	}
 
@@ -363,16 +382,18 @@ private:
     
 	ScopedPointer<TreeView> tree;
 	
-	
+    ScrollbarFader sf;
 	
 	int scrollY = 0;
 
+    bool defaultOpeness = true;
+    
 	void timerCallback() override
 	{
 		if (tree != nullptr)
 		{
 			scrollY = tree->getViewport()->getViewPositionY();
-			openState = tree->getOpennessState(false);
+			openState = tree->getOpennessState(false).release();
 		}
 	}
 

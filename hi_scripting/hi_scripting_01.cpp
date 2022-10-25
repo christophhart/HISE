@@ -42,6 +42,7 @@
 
 #include "scripting/engine/JavascriptApiClass.cpp"
 #include "scripting/api/ScriptingBaseObjects.cpp"
+#include "scripting/api/FixLayoutObjects.cpp"
 
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"
@@ -55,19 +56,13 @@
 #include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
 #include "scripting/api/ScriptingApiObjects.cpp"
+#include "scripting/api/ScriptBroadcaster.cpp"
+#include "scripting/api/ScriptDrawActions.cpp"
+#include "scripting/api/ScriptTableListModel.cpp"
+#include "scripting/api/ScriptingGraphics.cpp"
 #include "scripting/api/ScriptExpansion.cpp"
 #include "scripting/api/GlobalServer.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 
-
-
-#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
-
-#include "scripting/ScriptProcessor.cpp"
-#include "scripting/ScriptProcessorModules.cpp"
-#include "scripting/HardcodedScriptProcessor.cpp"
-#include "scripting/hardcoded_modules/Arpeggiator.cpp"
-
 #include "scripting/api/ScriptingApiWrappers.cpp"
 #include "scripting/api/ScriptingApiContent.cpp"
-

@@ -1,11 +1,10 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_ZONEHASH_H
-#define _ASMJIT_CORE_ZONEHASH_H
+#ifndef ASMJIT_CORE_ZONEHASH_H_INCLUDED
+#define ASMJIT_CORE_ZONEHASH_H_INCLUDED
 
 #include "../core/zone.h"
 
@@ -14,14 +13,9 @@ ASMJIT_BEGIN_NAMESPACE
 //! \addtogroup asmjit_zone
 //! \{
 
-// ============================================================================
-// [asmjit::ZoneHashNode]
-// ============================================================================
-
-//! Node used by `ZoneHash<>` template.
+//! Node used by \ref ZoneHash template.
 //!
-//! You must provide function `bool eq(const Key& key)` in order to make
-//! `ZoneHash::get()` working.
+//! You must provide function `bool eq(const Key& key)` in order to make `ZoneHash::get()` working.
 class ZoneHashNode {
 public:
   ASMJIT_NONCOPYABLE(ZoneHashNode)
@@ -39,10 +33,7 @@ public:
   uint32_t _customData;
 };
 
-// ============================================================================
-// [asmjit::ZoneHashBase]
-// ============================================================================
-
+//! Base class used by \ref ZoneHash template
 class ZoneHashBase {
 public:
   ASMJIT_NONCOPYABLE(ZoneHashBase)
@@ -144,20 +135,15 @@ public:
   //! \}
 };
 
-// ============================================================================
-// [asmjit::ZoneHash]
-// ============================================================================
-
 //! Low-level hash table specialized for storing string keys and POD values.
 //!
-//! This hash table allows duplicates to be inserted (the API is so low
-//! level that it's up to you if you allow it or not, as you should first
-//! `get()` the node and then modify it or insert a new node by using `insert()`,
-//! depending on the intention).
+//! This hash table allows duplicates to be inserted (the API is so low level that it's up to you if you allow it or
+//! not, as you should first `get()` the node and then modify it or insert a new node by using `insert()`, depending
+//! on the intention).
 template<typename NodeT>
 class ZoneHash : public ZoneHashBase {
 public:
-  ASMJIT_NONCOPYABLE(ZoneHash<NodeT>)
+  ASMJIT_NONCOPYABLE(ZoneHash)
 
   typedef NodeT Node;
 
@@ -197,4 +183,4 @@ public:
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_ZONEHASH_H
+#endif // ASMJIT_CORE_ZONEHASH_H_INCLUDED

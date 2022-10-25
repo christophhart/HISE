@@ -65,7 +65,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addComboBox(const var::NativeFunctionArgs& args);
 	static var addTable(const var::NativeFunctionArgs& args);
 	static var addImage(const var::NativeFunctionArgs& args);
-	static var addScriptedViewport(const var::NativeFunctionArgs& args);
+	static var addViewport(const var::NativeFunctionArgs& args);
 	static var addPanel(const var::NativeFunctionArgs& args);
 	static var addAudioWaveform(const var::NativeFunctionArgs& args);
 	static var addSliderPack(const var::NativeFunctionArgs& args);
@@ -97,7 +97,15 @@ struct ScriptingApi::Content::Wrapper
 	static var setToolbarProperties(const var::NativeFunctionArgs& args);
 	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
 
-	
+	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
+
+	static var createScreenshot(const var::NativeFunctionArgs& args);
+
+	static var createLocalLookAndFeel(const var::NativeFunctionArgs& args);
+
+	static var addVisualGuide(const var::NativeFunctionArgs& args);
+
+	static var getScreenBounds(const var::NativeFunctionArgs& args);
 
 	static var setImageFile(const var::NativeFunctionArgs& args);
 	static var setImageAlpha(const var::NativeFunctionArgs& args);
@@ -105,7 +113,6 @@ struct ScriptingApi::Content::Wrapper
 	static var getValue(const var::NativeFunctionArgs& args);
 	static var getItemText(const var::NativeFunctionArgs& args);
 	static var getTableValue(const var::NativeFunctionArgs& args);
-	static var connectToOtherTable(const var::NativeFunctionArgs& args);
 	static var setEditable(const var::NativeFunctionArgs& args);
 	static var clear(const var::NativeFunctionArgs& args);
 	static var setValueNormalized(const var::NativeFunctionArgs& args);;
@@ -120,6 +127,12 @@ struct ScriptingApi::Content::Wrapper
 	static var getMaxValue(const var::NativeFunctionArgs& args);
 	static var contains(const var::NativeFunctionArgs& args);
 	static var createPath(const var::NativeFunctionArgs& args);
+	static var createShader(const var::NativeFunctionArgs& args);
+	static var createMarkdownRenderer(const var::NativeFunctionArgs& args);
+	static var isMouseDown(const var::NativeFunctionArgs& args);
+	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
+	static var callAfterDelay(const var::NativeFunctionArgs& args);
+
 };
 
 var ScriptingApi::Content::Wrapper::addButton (const var::NativeFunctionArgs& args)
@@ -225,18 +238,18 @@ var ScriptingApi::Content::Wrapper::addImage (const var::NativeFunctionArgs& arg
 };
 
 
-var ScriptingApi::Content::Wrapper::addScriptedViewport(const var::NativeFunctionArgs& args)
+var ScriptingApi::Content::Wrapper::addViewport(const var::NativeFunctionArgs& args)
 {
 	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
 	{
 		if (args.numArguments == 1)
 		{
-			return thisObject->addScriptedViewport(Identifier(args.arguments[0]), 0, 0);
+			return thisObject->addViewport(Identifier(args.arguments[0]), 0, 0);
 		}
 
-		CHECK_ARGUMENTS("addScriptedViewport()", 3);
+		CHECK_ARGUMENTS("addViewport()", 3);
 
-		return thisObject->addScriptedViewport(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+		return thisObject->addViewport(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
 	return var();
@@ -773,19 +786,7 @@ var ScriptingApi::Content::Wrapper::getTableValue (const var::NativeFunctionArgs
 	}
 
 	return var();
-};
-
-var ScriptingApi::Content::Wrapper::connectToOtherTable (const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content::ScriptTable* thisObject = GET_OBJECT(Content::ScriptTable))
-	{
-		CHECK_ARGUMENTS("connectToOtherTable()", 2);
-
-		thisObject->connectToOtherTable(args.arguments[0].toString(), (int)args.arguments[1]);
-	}
-
-	return var();
-};
+};;
 
 
 var ScriptingApi::Content::Wrapper::clear (const var::NativeFunctionArgs& args)
@@ -914,6 +915,118 @@ var ScriptingApi::Content::Wrapper::createPath(const var::NativeFunctionArgs& ar
 		CHECK_ARGUMENTS("createPath()", 0);
 
 		return thisObject->createPath();
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::createShader(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createShader()", 1);
+
+		return thisObject->createShader(args.arguments[0].toString());
+	}
+
+	return var();
+}
+
+
+juce::var ScriptingApi::Content::Wrapper::createMarkdownRenderer(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createMarkdownRenderer()", 0);
+
+		return thisObject->createMarkdownRenderer();
+	}
+
+	return var();
+}
+
+
+var ScriptingApi::Content::Wrapper::createScreenshot(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createScreenshot()", 3);
+		thisObject->createScreenshot(args.arguments[0], args.arguments[1], args.arguments[2]);
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::addVisualGuide(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("addVisualGuide()", 2);
+		thisObject->addVisualGuide(args.arguments[0], args.arguments[1]);
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::getCurrentTooltip(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getCurrentTooltip()", 0);
+		return thisObject->getCurrentTooltip();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::createLocalLookAndFeel(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createLocalLookAndFeel()", 0);
+		return thisObject->createLocalLookAndFeel();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getScreenBounds(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getScreenBounds()", 1);
+		return thisObject->getScreenBounds(args.arguments[0]);
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getComponentUnderMouse(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getComponentUnderMouse();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::isMouseDown(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->isMouseDown();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::callAfterDelay(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		thisObject->callAfterDelay(args.arguments[0], args.arguments[1], args.numArguments == 3 ? args.arguments[2] : var());
+		return thisObject->isMouseDown();
 	}
 
 	return var();
