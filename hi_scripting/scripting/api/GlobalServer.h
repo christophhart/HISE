@@ -215,7 +215,7 @@ struct GlobalServer: public ControlledObject
     }
     
 private:
-	
+
 #if USE_BACKEND
 	bool initialised = true;
 #else

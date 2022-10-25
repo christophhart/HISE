@@ -153,6 +153,9 @@ public:
 		print("compile_networks -c:CONFIG");
 		print("Compiles the DSP networks in the given project folder. Use the -c flag to specify the build");
 		print("configuration ('Debug' or 'Release')");
+		print("");
+		print("run_unit_tests");
+		print("Runs the unit tests. In order for this to work, HISE must be built with the CI configuration");
 
 		exit(0);
 	}
@@ -572,6 +575,31 @@ public:
 		else if (commandLine.startsWith("get_project_folder"))
 		{
 			CommandLineActions::getProjectFolder(commandLine);
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("run_unit_tests"))
+		{
+#if HI_RUN_UNIT_TESTS
+			UnitTestRunner runner;
+			runner.setAssertOnFailure(false);
+			runner.runAllTests();
+
+			for (int i = 0; i < runner.getNumResults(); i++)
+			{
+				auto result = runner.getResult(i);
+
+				if (result->failures > 0)
+				{
+					std::cout << "Test Fails:\n";
+					std::cout << result->messages.joinIntoString("\n");
+					exit(1);
+				}
+			}
+#else
+			std::cout << "You need to build HISE with the CI configuration in order to run the unit tests";
+			exit(1);
+#endif
 			quit();
 			return;
 		}
