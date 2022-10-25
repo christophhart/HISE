@@ -615,11 +615,9 @@ struct matrix_helpers
 			break;
 		case SpecialType::LeftToRight:
 			FloatVectorOperations::copy(ptrs[1], ptrs[0], d.getNumSamples());
-			FloatVectorOperations::clear(ptrs[0], d.getNumSamples());
 			break;
 		case SpecialType::RightToLeft:
 			FloatVectorOperations::copy(ptrs[0], ptrs[1], d.getNumSamples());
-			FloatVectorOperations::clear(ptrs[1], d.getNumSamples());
 			break;
 		case SpecialType::SwapChannels:
 		{
@@ -641,9 +639,9 @@ struct matrix_helpers
 		constexpr int r = MatrixType::getChannel(1);
 
 		if constexpr (l == 0 && r == 0)
-			return SpecialType::RightToLeft;
-		else if constexpr (l == 1 && r == 1)
 			return SpecialType::LeftToRight;
+		else if constexpr (l == 1 && r == 1)
+			return SpecialType::RightToLeft;
 		else if constexpr (l == 0 && r == -1)
 			return SpecialType::LeftOnly;
 		else if constexpr (l == -1 && r == 1)
