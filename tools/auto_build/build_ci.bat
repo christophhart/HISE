@@ -1,30 +1,6 @@
-echo off
-
-REM Automatic Build script for HISE
-REM
-REM This script executes these steps:
-REM
-REM 1. Tag the latest commit with a build ID
-REM 2. Replace the BuildVersion.h file
-REM 3. Commit and tag with the given build ID
-REM 4. Export a changelog
-REM 5. Compile the plugins and the standalone app
-REM 6. Build the installer and the DMG file in the format "HISE_v_buildXXX_OSX.dmg"
-REM 7. Uploads the installer and the changelog into the nightly build folder 
-
-REM ===============================================================================
+@echo off
 
 call ConfigWindows.bat
-
-git describe --abbrev=0 > tmpFile
-
-SET /p versionPoint= < tmpFile
-
-del tmpFile
-
-echo Building Installer %filename%
-
-echo Resaving projects...
 
 cd..
 cd..
@@ -36,13 +12,8 @@ tar -xf sdk.zip
 cd ..
 cd ..
 
-echo Setting version number %versionPoint%
-
-%projucerPath% --set-version %versionPoint% %standalone_projucer_project%
-%projucerPath% --set-version %versionPoint% %plugin_projucer_project%
 
 %projucerPath% --resave %standalone_projucer_project%
-%projucerPath% --resave %plugin_projucer_project%
 
 REM ===========================================================
 REM Compiling
@@ -77,14 +48,28 @@ echo OK
 
 echo Exporting Demo Project...
 
-%hise_ci% export "%cd%/extras/demo_project/XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64
+%hise_ci% set_project_folder "-p:%cd%/extras/demo_project/"
+
+%hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64
+
+
+
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at exporting test project. Aborting...
+	cd tools\auto_build
+	pause
+	exit 1)
+
+
+"%cd%/extras/demo_project/Binaries/batchCompile.bat"
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling test project. Aborting...
 	cd tools\auto_build
+	pause
 	exit 1)
-
 
 echo OK
 
