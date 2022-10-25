@@ -120,6 +120,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Adds a listener that sets the value of the given components when the broadcaster receives a message. */
 	bool addComponentValueListener(var object, var metadata, var optionalFunction);
 
+	/** Adds a listener that will cause a refresh message (eg. repaint(), changed()) to be send out to the given components. */
+	bool addComponentRefreshListener(var componentIds, String refreshType, var metadata);
+
 	/** Removes the listener that was assigned with the given object. */
 	bool removeListener(var idFromMetadata);
 
@@ -411,6 +414,43 @@ private:
 
 		Array<Identifier> properties;
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
+	};
+
+	struct ComponentRefreshItem : public TargetBase
+	{
+		enum class RefreshType
+		{
+			repaint,
+			changed,
+			updateValueFromProcessorConnection,
+			loseFocus,
+			resetValueToDefault,
+			numRefreshTypes
+		};
+
+		ComponentRefreshItem(ScriptBroadcaster* sb, const var& obj, const String refreshMode, const var& metadata);
+
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ComponentRefreshItem"); }
+
+		Array<var> createChildArray() const override;
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;;
+
+		Result callSync(const Array<var>& args) override;
+
+		struct RefCountedTime : public ReferenceCountedObject
+		{
+			using List = ReferenceCountedArray<RefCountedTime>;
+			using Ptr = ReferenceCountedObjectPtr<RefCountedTime>;
+
+			uint32 lastTime = 0;
+		};
+
+		RefCountedTime::List timeSlots;
+		String refreshModeString;
+
+		RefreshType refreshMode = RefreshType::numRefreshTypes;
 	};
 
 	struct ComponentValueItem : public TargetBase

@@ -707,6 +707,13 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 				if (l != nullptr)
 				{
+					if (l->getProperties().getName(index) == Identifier("this"))
+					{
+						// do not return *this* to avoid endless loops...
+						return var();
+					}
+						
+
 					if (auto v = l->getProperties().getVarPointerAt(index))
 						return *v;
 				}

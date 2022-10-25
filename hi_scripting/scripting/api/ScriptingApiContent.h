@@ -616,7 +616,7 @@ public:
 		void setLocalLookAndFeel(var lafObject);
 
 		/** Manually sends a repaint message for the component. */
-		void sendRepaintMessage();
+		virtual void sendRepaintMessage();
 
 		/** Returns the ID of the component. */
 		String getId() const;
@@ -1788,7 +1788,11 @@ public:
 
 		DebugInformationBase::Ptr createChildElement(DebugWatchIndex index) const;
 
-		
+		void sendRepaintMessage() override
+		{
+			ScriptComponent::sendRepaintMessage();
+			repaint();
+		}
 
 		// ======================================================================================================== API Methods
 
