@@ -893,7 +893,8 @@ public:
 			}
 			else
 			{
-				lastValue = hmath::fmod(start + tfDelta, 1.0);
+				// use the mid point to reduce rounding errors
+				lastValue = hmath::fmod(start + tfDelta / 2.0, 1.0);
 			}
 
 			s.modValue.setModValue(lastValue);	
