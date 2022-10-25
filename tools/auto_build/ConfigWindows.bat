@@ -11,6 +11,8 @@ SET standalone_projucer_project="projects\standalone\HISE Standalone.jucer"
 
 SET plugin_projucer_project="projects\plugin\HISE.jucer"
 
+SET hise_ci="projects\standalone\Builds\VisualStudio2017\x64\CI\App\HISE.exe"
+
 REM This is the project folder of the plugin project
 SET plugin_project="projects\plugin\Builds\VisualStudio2017\HISE.sln"
 

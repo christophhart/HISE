@@ -53,9 +53,6 @@ set Platform=X64
 
 echo Compiling Stereo Version...
 
-REM Skip this for now...
-REM "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
-
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
@@ -67,11 +64,7 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
-
-echo Compiling 64bit VST plugin
-
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe" %standalone_project% /t:Build /p:Configuration="CI";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -80,4 +73,33 @@ if %errorlevel% NEQ 0 (
 	exit 1
 )
 
-echo "OK"
+echo OK
+
+echo Exporting Demo Project...
+
+%hise_ci% export "%cd%/extras/demo_project/XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64
+
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at compiling test project. Aborting...
+	cd tools\auto_build
+	exit 1)
+
+
+echo OK
+
+echo Running Unit Tests...
+
+%hise_ci% run_unit_tests
+
+if %errorlevel% NEQ 0 (
+	echo ...
+	echo ========================================================================
+	echo Error at running unit tests. Aborting...
+	cd tools\auto_build
+	pause
+	exit 1
+)
+
+cd tools\auto_build
+echo OK
