@@ -54,7 +54,6 @@ template <typename IndexType> struct IndexTester
 		optimisations(opt),
 		ArraySize(Limit != 0 ? Limit : dynamicSize)
 	{
-		test.beginTest("Testing " + indexName);
 		runTest();
 	}
 
@@ -257,7 +256,7 @@ private:
 				c << "return data[i];";
 			}
 
-			test.logMessage("Testing " + indexName + " span[]");
+			//test.logMessage("Testing " + indexName + " span[]");
 
 			c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
 			auto obj = compile(c.toString());
@@ -289,10 +288,6 @@ private:
 
 					test.expectEquals(e2, a2, m);
 
-				}
-				else
-				{
-					test.logMessage("skip [] access for unsafe index");
 				}
 			};
 
@@ -351,7 +346,7 @@ private:
 				c << "return d[i];";
 			}
 
-			test.logMessage("Testing " + indexName + " dyn[]");
+			//test.logMessage("Testing " + indexName + " dyn[]");
 
 			c.replaceWildcard("XXX", Types::Helpers::getTypeNameFromTypeId<Type>());
 			auto obj = compile(c.toString());
@@ -461,7 +456,7 @@ private:
 					c.addWithSemicolon("return i.getIndex(limit, delta);");
 				}
 
-				test.logMessage("Testing " + indexName + "::getAlpha");
+				//test.logMessage("Testing " + indexName + "::getAlpha");
 
 				c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
 				auto obj = compile(c.toString());
@@ -523,7 +518,7 @@ private:
 					c.addWithSemicolon("return i.getIndex(0, delta);");
 				}
 
-				test.logMessage("Testing " + indexName + "::getAlpha");
+				//test.logMessage("Testing " + indexName + "::getAlpha");
 
 				c.replaceWildcard("T", Types::Helpers::getTypeNameFromTypeId<Type>());
 				auto obj = compile(c.toString());
@@ -595,7 +590,7 @@ private:
 				c.addWithSemicolon("return (int)" + op);
 			}
 
-			test.logMessage("Testing " + indexName + "::" + FunctionClass::getSpecialSymbol({}, incType).toString());
+			//test.logMessage("Testing " + indexName + "::" + FunctionClass::getSpecialSymbol({}, incType).toString());
 
 			auto obj = compile(c.toString());
 

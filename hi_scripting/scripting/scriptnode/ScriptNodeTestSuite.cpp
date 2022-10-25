@@ -400,6 +400,8 @@ struct ScriptNodeTests : public juce::UnitTest
 			// get a reference to the parameter chain
 			auto& p = c.getParameter<0>();
 
+            ignoreUnused(p);
+            
 			// get the reference to the both nodes
 			auto& first = c.get<0>();
 			auto& second = c.get<1>();
@@ -472,9 +474,9 @@ struct ScriptNodeTests : public juce::UnitTest
 
 		auto* chain = new ChainType();
 
-		auto& receiver = chain->get<0>();
-		auto& adder = chain->get<1>();
-		auto& sender = chain->get<2>();
+		auto& receiver = chain->template get<0>();
+		auto& adder = chain->template get<1>();
+		auto& sender = chain->template get<2>();
 
 		adder.setValue(1.0f);
 		receiver.setFeedback(0.5f);
@@ -512,14 +514,14 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			
 			SpanType original, originalE;
-			CableType::FrameType d(original);
+            typename CableType::FrameType d(original);
 
 			fillWithInc(d);
 
 			for (auto&v : d)
 				v += 1.0f;
 
-			CableType::FrameType e(originalE);
+            typename CableType::FrameType e(originalE);
 
 			receiver.processFrame(e);
 			expectEquals<float>(e[0], 0.0f, "unconnected receiver start value");
@@ -607,8 +609,8 @@ struct ScriptNodeTests : public juce::UnitTest
 
 			ChainType chain;
 
-			auto& sender = chain.get<0>();
-			auto& receiver = chain.get<2>();
+			auto& sender = chain.template get<0>();
+			auto& receiver = chain.template get<2>();
 
 			sender.connect(receiver);
 			receiver.setFeedback(1.0f);
@@ -747,7 +749,7 @@ struct ScriptNodeTests : public juce::UnitTest
 		int numChannels = pd.getNumChannels();
 		int numSamples = pd.getNumSamples();
 
-		using SpanType = FrameDataType::FrameType;
+		using SpanType = typename FrameDataType::FrameType;
 
 		expectEquals(numChannels, ((SpanType)f).size(), "frame type mismatch");
 
@@ -811,9 +813,9 @@ struct ScriptNodeTests : public juce::UnitTest
 		{
 			fillWithInc(data);
 
-			auto& dpd = pd.as<ProcessDataDyn>();
+			auto& dpd = pd.template as<ProcessDataDyn>();
 
-			auto f = dpd.toFrameData<NumChannels>();
+			auto f = dpd.template toFrameData<NumChannels>();
 			auto v = testProcessData(pd, f, "ProcessData -> Dyn");
 
 			expectEquals(dpd.getNumSamples(), numSamples, "sample divider");
@@ -853,7 +855,7 @@ struct ScriptNodeTests : public juce::UnitTest
 
 	template <int NumSamples, typename T, typename RefData> void expectContainerWorks(T& obj, const String& name, RefData& refData)
 	{
-		constexpr int NumChannels = obj.getNumChannels();
+		constexpr int NumChannels = T::getNumChannels();
 		using ProcessType = ProcessData<NumChannels>;
 
 		heap<float> data;
@@ -880,9 +882,6 @@ struct ScriptNodeTests : public juce::UnitTest
 			while (frames.next())
 				obj.processFrame(frames);
 		}
-
-		float sum_ = sum(data);
-		float singleSum_ = sum(singleData);
 
 		int numElements = data.size();
 
@@ -915,9 +914,9 @@ struct ScriptNodeTests : public juce::UnitTest
 	{
 		T c;
 
-		c.get<0>().op2 = firstValue;
-		c.get<1>().op2 = secondValue;
-		c.get<2>().op2 = thirdValue;
+		c.template get<0>().op2 = firstValue;
+		c.template get<1>().op2 = secondValue;
+		c.template get<2>().op2 = thirdValue;
 
 		PrepareSpecs ps;
 		ps.blockSize = NumSamples;

@@ -520,41 +520,25 @@ public:
 
 	void testIndexTypes()
 	{
+        beginTest("Test index types");
+        
 		testIntegerIndex<index::looped<9, false>>();
 		testIntegerIndex<index::looped<64, false>>();
-		testIntegerIndex<index::looped<32, false>>();
-		testIntegerIndex<index::looped<51, false>>();
-
-#if TEST_ALL_INDEXES
 		testIntegerIndex<index::wrapped<32, false>>();
 		testIntegerIndex<index::wrapped<91, false>>();
-		testIntegerIndex<index::wrapped<64, false>>();
-		testIntegerIndex<index::wrapped<51, false>>();
 		testIntegerIndex<index::clamped<32, false>>();
 		testIntegerIndex<index::clamped<91, false>>();
-		testIntegerIndex<index::clamped<64, false>>();
-		testIntegerIndex<index::clamped<51, true>>();
-		testIntegerIndex<index::unsafe<32, false>>();
 		testIntegerIndex<index::unsafe<91, false>>();
 		testIntegerIndex<index::unsafe<64, true>>();
-		testIntegerIndex<index::unsafe<51, true>>();
-#endif
 	}
 
 	void runTest() override
 	{
-		optimizations = OptimizationIds::getAllIds();
-		
-		testIndexTypes();
-
-		return;
-
 		optimizations = {};
 		testOptimizations();
 		testInlining();
 
 		runTestsWithOptimisation({});
-		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
 	}
 

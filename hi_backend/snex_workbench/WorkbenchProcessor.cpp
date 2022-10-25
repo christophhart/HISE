@@ -843,13 +843,15 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     
 	auto isUsingVs2017 = HelperClasses::isUsingVisualStudio2017(settings);
 
-	auto vsString = isUsingVs2017 ? "VisualStudio2017" : "VisualStudio2022";
-	auto vsVersion = isUsingVs2017 ? "15.0" : "17.0";
+	
 	
 	auto currentExecutable = File::getSpecialLocation(File::currentExecutableFile);
 
 
 #if JUCE_WINDOWS
+    auto vsString = isUsingVs2017 ? "VisualStudio2017" : "VisualStudio2022";
+    auto vsVersion = isUsingVs2017 ? "15.0" : "17.0";
+    
     debugExecutable = debugExecutable.getChildFile(vsString).getChildFile("x64/Debug/App/HISE Debug.exe");
 
 	// If this hits, then you have a mismatch between VS2022 and VS2017...

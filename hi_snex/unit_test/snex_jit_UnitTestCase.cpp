@@ -549,10 +549,6 @@ juce::Result JitFileTestCase::test(bool dumpBeforeTest /*= false*/)
 		{
 			if (!activeOptimizations.contains(r))
 			{
-				if (t != nullptr)
-				{
-					t->logMessage("Skipping " + file.getFileNameWithoutExtension() + " due to missing optimization " + r);
-				}
 				return Result::ok();
 			}
 		}
