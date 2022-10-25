@@ -522,17 +522,17 @@ public:
 	{
 		testIntegerIndex<index::looped<9, false>>();
 		testIntegerIndex<index::looped<64, false>>();
-		testIntegerIndex<index::looped<32, true>>();
-		testIntegerIndex<index::looped<51, true>>();
+		testIntegerIndex<index::looped<32, false>>();
+		testIntegerIndex<index::looped<51, false>>();
 
 #if TEST_ALL_INDEXES
 		testIntegerIndex<index::wrapped<32, false>>();
 		testIntegerIndex<index::wrapped<91, false>>();
-		testIntegerIndex<index::wrapped<64, true>>();
-		testIntegerIndex<index::wrapped<51, true>>();
+		testIntegerIndex<index::wrapped<64, false>>();
+		testIntegerIndex<index::wrapped<51, false>>();
 		testIntegerIndex<index::clamped<32, false>>();
 		testIntegerIndex<index::clamped<91, false>>();
-		testIntegerIndex<index::clamped<64, true>>();
+		testIntegerIndex<index::clamped<64, false>>();
 		testIntegerIndex<index::clamped<51, true>>();
 		testIntegerIndex<index::unsafe<32, false>>();
 		testIntegerIndex<index::unsafe<91, false>>();
@@ -543,11 +543,12 @@ public:
 
 	void runTest() override
 	{
-        runTestsWithOptimisation({});
-        
-#if 0
-#if INCLUDE_SNEX_BIG_TESTSUITE
+		optimizations = OptimizationIds::getAllIds();
 		
+		testIndexTypes();
+
+		return;
+
 		optimizations = {};
 		testOptimizations();
 		testInlining();
@@ -555,8 +556,6 @@ public:
 		runTestsWithOptimisation({});
 		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
 		runTestsWithOptimisation(OptimizationIds::getAllIds());
-#endif
-#endif
 	}
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
