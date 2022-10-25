@@ -10,8 +10,6 @@ tar -xf sdk.zip
 cd ..
 cd ..
 
-exit 0
-
 # This is the project folder for the Standalone app
 standalone_folder="projects/standalone"
 
