@@ -11,7 +11,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
-"    <VS2017 targetFolder=\"Builds/VisualStudio2017\" IPPLibrary=\"Sequential\" extraCompilerFlags=\"/bigobj %MSVC_WARNINGS%\" >\r\n"
+"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%\" IPP1ALibrary=\"%IPP_1A%\" extraCompilerFlags=\"/bigobj %MSVC_WARNINGS%\" >\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION isDebug=\"1\" name=\"Debug\" binaryPath=\"dll\" targetName=\"%DEBUG_DLL_NAME%\" headerPath =\"%FAUST_HEADER_PATH%\"/>\r\n"
 "		 <CONFIGURATION isDebug = \"0\" name = \"CI\" targetName=\"%CI_DLL_NAME%\" headerPath =\"%FAUST_HEADER_PATH%\" binaryPath = \"dll\"\r\n"
@@ -35,7 +35,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"juce_graphics\" path=\"%JUCE_PATH%\"/>\r\n"
 "        <MODULEPATH id=\"juce_gui_basics\" path=\"%JUCE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
-"    </VS2017>\r\n"
+"    </%VS_VERSION%>\r\n"
 
 "<XCODE_MAC targetFolder=\"Builds/MacOSX\" extraDefs=\"%USE_IPP_MAC%\" extraLinkerFlags=\"%IPP_COMPILER_FLAGS%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation\" xcodeValidArchs=\"x86_64\">\r\n"
 "      <CONFIGURATIONS>\r\n"

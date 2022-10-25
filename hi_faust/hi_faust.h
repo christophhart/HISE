@@ -89,6 +89,14 @@ Not needed if you just want to build already exported code.
 #include <optional>
 #include "../hi_faust_types/hi_faust_types.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
+
+
+// We'll link the faust library using a #pragma so that we can use different Projucer Export configurations
+// to enable / disable faust
+#if JUCE_WINDOWS && HISE_INCLUDE_FAUST_JIT
+#pragma comment(lib, "faust.lib")
+#endif
+
 #include "FaustUI.h"
 #include "FaustWrapper.h"
 #include "FaustStaticWrapper.h"

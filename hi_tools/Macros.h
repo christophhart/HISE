@@ -491,6 +491,10 @@ private:
 #endif
 #endif
 
+/** This is set by the HISE projects to figure out the default VS version for the export. */
+#ifndef HISE_USE_VS2022
+#define HISE_USE_VS2022 0
+#endif
 
 
 } // namespace hise

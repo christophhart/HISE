@@ -755,7 +755,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
-		return { "Visual Studio 2015", "Visual Studio 2017" };
+		return { "Visual Studio 2017", "Visual Studio 2022" };
 
 	if (id == Project::ExpansionType)
 	{
@@ -949,7 +949,11 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Scripting::EnableOptimizations)	return "No";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Scripting::SaveConnectedFilesOnCompile) return "No";
+#if HISE_USE_VS2022
+	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2022";
+#else
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
+#endif
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";

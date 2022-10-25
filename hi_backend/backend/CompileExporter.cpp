@@ -1431,7 +1431,7 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 	resourcesFile << "  END" << "\n";
 	resourcesFile << "END" << "\n";
 
-    String year = HelperClasses::isUsingVisualStudio2015(dataObject) ? "2015" : "2017";
+    String year = HelperClasses::isUsingVisualStudio2017(dataObject) ? "2017" : "2022";
 
 	File resourcesFileObject(solutionDirectory + "/Builds/VisualStudio" + year + "/resources.rc");
 
@@ -1823,7 +1823,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	}
 
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "1" : "0");
-    REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
+
+    REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", exporter->useIpp ? "Static_Library" : String());
 		REPLACE_WILDCARD_WITH_STRING("%UAC_LEVEL%", exporter->dataObject.getSetting(HiseSettings::Project::AdminPermissions) ? "/MANIFESTUAC:level='requireAdministrator'" : String());
     
     REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "1" : "0");
@@ -1889,17 +1890,33 @@ void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter*
 
 void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const HiseSettings::Data& dataObject, String& templateProject)
 {
-	const bool isUsingVisualStudio2015 = HelperClasses::isUsingVisualStudio2015(dataObject);
+	const bool isUsingVisualStudio2017 = HelperClasses::isUsingVisualStudio2017(dataObject);
 
-	if (isUsingVisualStudio2015)
+	auto shouldUseVS2017 = !(bool)HISE_USE_VS2022;
+
+	if (isUsingVisualStudio2017 != shouldUseVS2017)
 	{
-		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2015");
-		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2015");
+		auto buildVersion = shouldUseVS2017 ? "VS2017" : "VS2022";
+		auto settingsVersion = isUsingVisualStudio2017 ? "VS2017" : "VS2022";
+
+		String message;
+
+		message << "The visual studio version you have build HISE with (" << buildVersion;
+		message << ") is not the one you've selected in the compiler settings (" << settingsVersion;
+		message << ")  \n> If you have installed both versions then the compilation should work, otherwise you need to change the VisualStudioVersion setting in the Development settings of HISE to the version that you have installed.  \nPress OK to resume the export process...";
+
+		PresetHandler::showMessageWindow("VS Version mismatch detected", message, PresetHandler::IconType::Warning);
 	}
-	else
+	
+	if (isUsingVisualStudio2017)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2017");
 		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2017");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2022");
+		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2022");
 	}
 }
 
@@ -2331,14 +2348,15 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 #if JUCE_WINDOWS
     
-	const String msbuildPath = HelperClasses::isUsingVisualStudio2015(exporter->dataObject) ? "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"" :
-																	      "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MsBuild.exe\"";
+	const String msbuildPath = HelperClasses::isUsingVisualStudio2017(exporter->dataObject) ? 
+		"\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MsBuild.exe\"" :
+		"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MsBuild.exe\"";
 
 	const String projucerPath = exporter->hisePath.getChildFile("tools/Projucer/Projucer.exe").getFullPathName();
 	
 	const String vsArgs = "/p:Configuration=\"" + exporter->configurationName + "\" /verbosity:minimal";
 
-	const String vsFolder = HelperClasses::isUsingVisualStudio2015(exporter->dataObject) ? "VisualStudio2015" : "VisualStudio2017";
+	const String vsFolder = HelperClasses::isUsingVisualStudio2017(exporter->dataObject) ? "VisualStudio2017" : "VisualStudio2022";
 
 	ADD_LINE("@echo off");
 
@@ -2354,13 +2372,13 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		ADD_LINE("set PreferredToolArchitecture=x64");
 #endif
 
-		if (HelperClasses::isUsingVisualStudio2015(exporter->dataObject))
+		if (HelperClasses::isUsingVisualStudio2017(exporter->dataObject))
 		{
-			ADD_LINE("set VisualStudioVersion=14.0");
+			ADD_LINE("set VisualStudioVersion=15.0");
 		}
 		else
 		{
-			ADD_LINE("set VisualStudioVersion=15.0");
+			ADD_LINE("set VisualStudioVersion=17.0");
 		}
 	}
 	
@@ -2567,15 +2585,17 @@ juce::String CompileExporter::HelperClasses::getFileNameForCompiledPlugin(const 
 	return String();
 }
 
-bool CompileExporter::HelperClasses::isUsingVisualStudio2015(const HiseSettings::Data& dataObject)
+bool CompileExporter::HelperClasses::isUsingVisualStudio2017(const HiseSettings::Data& dataObject)
 {
-	// Always use VS2017 in CI mode
+	// Always use the version you build HISE with in CI mode
 	if (isUsingCIMode())
-		return false;
+	{
+		return !HISE_USE_VS2022;
+	}
 
 	const String v = GET_SETTING(HiseSettings::Compiler::VisualStudioVersion);
 
-	return v.isEmpty() || (v == "Visual Studio 2015");
+	return v.isEmpty() || (v == "Visual Studio 2017");
 }
 
 CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(String templateProject, CompileExporter* exporter)
