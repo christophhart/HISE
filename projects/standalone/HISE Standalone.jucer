@@ -53,7 +53,7 @@
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
                        macOSDeploymentTarget="10.9" headerPath="/usr/local/include"/>
         <CONFIGURATION name="Release" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
-                       isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
+                       isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
                        macOSDeploymentTarget="10.9" headerPath="/usr/local/include"/>
         <CONFIGURATION name="CI" osxCompatibility="10.9 SDK" osxArchitecture="64BitIntel"
@@ -99,58 +99,6 @@
         <MODULEPATH id="hi_faust_types" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
-                  extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-                  extraLinkerFlags="" smallIcon="BNfj8p" bigIcon="BNfj8p" iosBackgroundAudio="1"
-                  UIStatusBarHidden="1" extraDefs="USE_IPP=0&#10;HISE_IOS=1" customPList="&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;&#10;&lt;dict&gt;&#10;    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&#10;    &lt;true/&gt;&#10;&lt;/dict&gt;"
-                  iPadScreenOrientation="UIInterfaceOrientationLandscapeLeft,UIInterfaceOrientationLandscapeRight"
-                  iosDeviceFamily="1,2">
-      <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
-                       targetName="HISE Standalone" cppLanguageStandard="c++11" cppLibType="libc++"
-                       libraryPath="" headerPath="" enablePluginBinaryCopyStep="1" iosDeploymentTarget="8.0"/>
-        <CONFIGURATION name="Release" iosCompatibility="8.0" isDebug="0" optimisation="3"
-                       targetName="HISE Standalone" headerPath="" libraryPath="" cppLanguageStandard="c++11"
-                       cppLibType="libc++" linkTimeOptimisation="1" enablePluginBinaryCopyStep="1"
-                       iosDeploymentTarget="8.0"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_sampler" path="../../"/>
-        <MODULEPATH id="hi_components" path="../../"/>
-        <MODULEPATH id="hi_dsp" path="../../"/>
-        <MODULEPATH id="hi_streaming" path="../../"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
-        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_faust" path="../../"/>
-        <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_lib" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
-      </MODULEPATHS>
-    </XCODE_IPHONE>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="" windowsTargetPlatformVersion="10.0.16299.0"
             extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=0"

@@ -55,7 +55,7 @@
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
         <CONFIGURATION name="Release" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
-                       isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
+                       isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/" xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
@@ -68,7 +68,7 @@
                        enablePluginBinaryCopyStep="0" vstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        auBinaryLocation="/Library/Audio/Plug-Ins/Components/" macOSDeploymentTarget="10.7"/>
         <CONFIGURATION name="Release MultiChannel" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
-                       isDebug="0" optimisation="3" targetName="HISE 16 Out" linkTimeOptimisation="1"
+                       isDebug="0" optimisation="3" targetName="HISE 16 Out" linkTimeOptimisation="0"
                        cppLanguageStandard="c++11" cppLibType="libc++" headerPath="../../../../tools/SDK/VST3 SDK"
                        defines="HISE_NUM_PLUGIN_CHANNELS=8" xcodeVstBinaryLocation="/Library/Audio/Plug-Ins/VST/"
                        xcodeAudioUnitBinaryLocation="/Library/Audio/Plug-Ins/Components/"

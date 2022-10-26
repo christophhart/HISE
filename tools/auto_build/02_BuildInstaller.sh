@@ -41,7 +41,7 @@ abort_if_not_exist $plugin_vst
 abort_if_not_exist $standalone_app
 
 echo "Codesigning AU plugin..."
-sudo codesign -s "$APPLE_CERTIFICATE_ID" "$plugin_au" --timestamp
+#sudo codesign -s "$APPLE_CERTIFICATE_ID" "$plugin_au" --timestamp
 
 if [ $? != "0" ];
 then
@@ -52,7 +52,7 @@ fi
 echo "OK."
 
 echo "Codesigning VST plugin..."
-sudo codesign -s "$APPLE_CERTIFICATE_ID" "$plugin_vst" --timestamp
+#sudo codesign -s "$APPLE_CERTIFICATE_ID" "$plugin_vst" --timestamp
 
 
 if [ $? != "0" ];
@@ -64,7 +64,7 @@ fi
 echo "OK."
 
 echo "Codesigning Standalone App..."
-sudo codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$standalone_app" --timestamp
+#sudo codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$standalone_app" --timestamp
 
 if [ $? != "0" ];
 then
@@ -83,7 +83,7 @@ echo "Building Installer..."
 echo "Codesigning Installer..."
 
 installer_name=./Output/HISE\ $tag_version.pkg
-productsign --sign "$APPLE_CERTIFICATE_ID_INSTALLER" "./build/HISE.pkg" "$installer_name" --timestamp
+#productsign --sign "$APPLE_CERTIFICATE_ID_INSTALLER" "./build/HISE.pkg" "$installer_name" --timestamp
 
 echo "OK."
 
