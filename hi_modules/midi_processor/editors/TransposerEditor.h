@@ -17,24 +17,10 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_HEADER_B8935CA349EC4DF8__
-#define __JUCE_HEADER_B8935CA349EC4DF8__
+#pragma once
 
-//[Headers]     -- You can add your own extra header files here --
 namespace hise { using namespace juce;
-//[/Headers]
 
-
-
-//==============================================================================
-/**
-                                                                    //[Comments]
-	\cond HIDDEN_SYMBOLS
-    An auto-generated component, created by the Introjucer.
-
-    Describe your class and how it works here!
-                                                                    //[/Comments]
-*/
 class TransposerEditor  : public ProcessorEditorBody,
                           public SliderListener
 {
@@ -77,8 +63,6 @@ public:
 
 
 private:
-    //[UserVariables]   -- You can add your own custom variables in this section.
-
 	MidiProcessor *processor;
 
     //[/UserVariables]
@@ -91,10 +75,35 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TransposerEditor)
 };
 
-//[EndFile] You can add extra defines here...
-/** \endcond */
+class ChokeGroupEditor : public ProcessorEditorBody
+{
+public:
+	ChokeGroupEditor(ProcessorEditor *p);
+	
+	void updateGui() override
+	{
+		groupSlider->updateValue();
+		loSlider->updateValue();
+		hiSlider->updateValue();
+		killButton->updateValue();
+	};
+
+	int getBodyHeight() const override
+	{
+		return 50;
+	};
+
+	
+	void resized();
+
+private:
+	MidiProcessor *processor;
+	ScopedPointer<HiSlider> groupSlider;
+	ScopedPointer<HiSlider> loSlider;
+	ScopedPointer<HiSlider> hiSlider;
+	ScopedPointer<HiToggleButton> killButton;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChokeGroupEditor)
+};
+
 } // namespace hise
-
-//[/EndFile]
-
-#endif   // __JUCE_HEADER_B8935CA349EC4DF8__

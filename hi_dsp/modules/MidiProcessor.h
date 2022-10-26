@@ -371,6 +371,7 @@ public:
 		scriptProcessor = 0,
 		transposer,
 		midiFilePlayer,
+		chokeGroupProcessor,
 		numMidiProcessors
 	};
 

@@ -142,6 +142,50 @@ END_JUCER_METADATA
 
 
 //[EndFile] You can add extra defines here...
+
+ChokeGroupEditor::ChokeGroupEditor(ProcessorEditor *p) : ProcessorEditorBody(p)
+{
+	addAndMakeVisible(groupSlider = new HiSlider("Transpose"));
+	groupSlider->setRange(-24, 24, 1);
+	groupSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	groupSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
+	groupSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
+	groupSlider->setColour(Slider::textBoxTextColourId, Colours::white);
+	groupSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::ChokeGroup, "ChokeGroup");
+	groupSlider->setMode(HiSlider::Discrete, 0, 16.0, DBL_MAX, 1.0);
+
+	addAndMakeVisible(loSlider = new HiSlider("LoKey"));
+	loSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	loSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
+	loSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
+	loSlider->setColour(Slider::textBoxTextColourId, Colours::white);
+	loSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::LoKey, "LoKey");
+	loSlider->setMode(HiSlider::Discrete, 0, 127, DBL_MAX, 1.0);
+
+	addAndMakeVisible(hiSlider = new HiSlider("HiKey"));
+	hiSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	hiSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
+	hiSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
+	hiSlider->setColour(Slider::textBoxTextColourId, Colours::white);
+	hiSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::HiKey, "HiKey");
+	hiSlider->setMode(HiSlider::Discrete, 0, 127, DBL_MAX, 1.0);
+
+	addAndMakeVisible(killButton = new HiToggleButton("KillVoices"));
+	killButton->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::KillVoice, "KillVoice");
+	
+	setSize(800, 40);
+}
+
+void ChokeGroupEditor::resized()
+{
+	auto b = getLocalBounds().withSizeKeepingCentre((128 + 10) * 4, 48);
+
+	groupSlider->setBounds(b.removeFromLeft(128)); b.removeFromLeft(10);
+	loSlider->setBounds(b.removeFromLeft(128)); b.removeFromLeft(10);
+	hiSlider->setBounds(b.removeFromLeft(128)); b.removeFromLeft(10);
+	killButton->setBounds(b.removeFromLeft(128).reduced(0, 8)); b.removeFromLeft(10);
+}
+
 } // namespace hise
 
 //[/EndFile]

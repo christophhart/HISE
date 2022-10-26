@@ -389,6 +389,21 @@ public:
 		return true;
 	}
 
+	bool removeWithLambda(const std::function<bool(const ElementType&)>& f)
+	{
+		for (int i = 0; i < position; i++)
+		{
+			if (f(data[i]))
+			{
+				jassert(position > 0);
+				removeElement(i);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	bool removeElement(int index)
 	{
 		Lock sl(lock);

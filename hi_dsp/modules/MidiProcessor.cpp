@@ -722,6 +722,7 @@ MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :
 	ADD_NAME_TO_TYPELIST(JavascriptMidiProcessor);
 	ADD_NAME_TO_TYPELIST(Transposer);
 	ADD_NAME_TO_TYPELIST(MidiPlayer);
+	ADD_NAME_TO_TYPELIST(ChokeGroupProcessor);
 
 	typeNames.addArray(hardcodedScripts->getAllowedTypes());
 };
@@ -769,6 +770,7 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 			case scriptProcessor:		mp = new JavascriptMidiProcessor(m, id); break;
 			case transposer:			mp = new Transposer(m, id); break;
 			case midiFilePlayer:		mp = new MidiPlayer(m, id, ms); break;
+			case chokeGroupProcessor:	mp = new ChokeGroupProcessor(m, id); break;
 			default:					jassertfalse; return nullptr;
 		}
 
