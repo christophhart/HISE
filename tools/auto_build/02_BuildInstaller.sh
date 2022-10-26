@@ -30,8 +30,10 @@ else
 fi
 }
 
-plugin_au=/Library/Audio/Plug-Ins/Components/HISE.component/
-plugin_vst=/Library/Audio/Plug-Ins/VST/HISE.vst/
+plugin_path=./../../projects/plugin/Builds/MacOSX/build/Release
+
+plugin_au="$plugin_path/HISE.component/"
+plugin_vst="$plugin_path/HISE.vst/"
 standalone_app=./../../projects/standalone/Builds/MacOSX/build/Release/HISE.app
 
 abort_if_not_exist $plugin_au
