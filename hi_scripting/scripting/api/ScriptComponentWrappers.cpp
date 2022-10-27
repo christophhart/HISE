@@ -128,6 +128,10 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 	void mouseDrag(const MouseEvent& event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::Drag) return;
+        
+        // do not forward mouse drags within a 4px threshold
+        if(event.getDistanceFromDragStart() < 4) return;
+        
 		sendMessage(event, MouseCallbackComponent::Action::Dragged, MouseCallbackComponent::EnterState::Nothing);
 	}
 
