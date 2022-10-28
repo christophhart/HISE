@@ -135,8 +135,14 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Removes all sources. */
 	void removeAllSources();
 
-	/** Sends a message to all listeners. the length of args must match the default value list. if isSync is false, then it will be deferred. */
+	/** deprecated function (use sendSyncMessage / sendAsyncMessage instead). */
 	void sendMessage(var args, bool isSync);
+
+	/** Sends a synchronous message to all listeners (same as the dot assignment operator). the length of args must match the default value list. */
+	void sendSyncMessage(var args);
+
+	/** Sends an asynchronous message to all listeners. the length of args must match the default value list. */
+	void sendAsyncMessage(var args);
 
 	/** Sends a message to all listeners with a delay. */
 	void sendMessageWithDelay(var args, int delayInMilliseconds);
@@ -147,8 +153,11 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Resends the current state. */
 	void resendLastMessage(bool isSync);
 
-	/** Sets a unique ID for the broadcaster. */
-	void setMetadata(var metadata);
+	/** Forces every message to be sent synchronously. */
+	void setForceSynchronousExecution(bool shouldExecuteSynchronously);
+
+	/** Forces the broadcaster to also send a message when a parameter is undefined. */
+	void setSendMessageForUndefinedArgs(bool shouldSendWhenUndefined);
 
 	/** Registers this broadcaster to be called when one of the properties of the given components change. */
 	void attachToComponentProperties(var componentIds, var propertyIds, var optionalMetadata);
@@ -212,6 +221,11 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	static bool isPrimitiveArray(const var& obj);
 
 private:
+
+	void sendMessageInternal(var args, bool isSync);
+
+	bool forceSync = false;
+	bool sendWhenUndefined = false;
 
 	Metadata metadata;
 

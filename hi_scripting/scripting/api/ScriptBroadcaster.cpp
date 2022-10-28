@@ -2220,6 +2220,8 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, removeAllSources);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, reset);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessage);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, sendSyncMessage);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, sendAsyncMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, sendMessageWithDelay);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentProperties);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentVisibility);
@@ -2235,12 +2237,13 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
     API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setRealtimeMode);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, setBypassed);
-	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setMetadata);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setForceSynchronousExecution);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setSendMessageForUndefinedArgs);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, resendLastMessage);
 	API_METHOD_WRAPPER_0(ScriptBroadcaster, isBypassed);
 };
 
-ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue):
+ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& md):
 	ConstScriptingObject(p, 0),
 	lastResult(Result::ok())
 {
@@ -2257,6 +2260,8 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_0(removeAllSources);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
+	ADD_API_METHOD_1(sendAsyncMessage);
+	ADD_API_METHOD_1(sendSyncMessage);
 	ADD_API_METHOD_3(attachToComponentProperties);
 	ADD_API_METHOD_3(attachToComponentMouseEvents);
 	ADD_API_METHOD_2(attachToComponentValue);
@@ -2273,15 +2278,16 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_1(resendLastMessage);
 	ADD_API_METHOD_3(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
-	ADD_API_METHOD_1(setMetadata);
-    
-	if (auto obj = defaultValue.getDynamicObject())
+	ADD_API_METHOD_1(setSendMessageForUndefinedArgs);
+	ADD_API_METHOD_1(setForceSynchronousExecution);
+
+	if (auto obj = md.getDynamicObject())
 	{
 		if (obj->hasProperty("id") && obj->hasProperty("args"))
 		{
-			setMetadata(defaultValue);
-            
-            auto args = defaultValue["args"];
+			metadata = Metadata(md, true);
+
+			auto args = md["args"];
             
             obj = args.getDynamicObject();
             
@@ -2304,16 +2310,16 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
             }
         }
 	}
-	else if (defaultValue.isArray())
+	else if (md.isArray())
     {
-        for(const auto& v: *defaultValue.getArray())
+        for(const auto& v: *md.getArray())
         {
             defaultValues.add(var());
             argumentIds.add(Identifier(v.toString()));
         }
     }
 	else
-		defaultValues.add(defaultValue);
+		defaultValues.add(md);
 
 	lastValues.addArray(defaultValues);
 
@@ -2584,6 +2590,15 @@ void ScriptBroadcaster::removeAllSources()
 
 void ScriptBroadcaster::sendMessage(var args, bool isSync)
 {
+	debugError(dynamic_cast<Processor*>(getScriptProcessor()), "sendMessage is deprecated (because it's second parameter is hard to guess). Use either sendAsyncMessage or sendSyncMessage instead");
+	sendMessageInternal(args, isSync);
+}
+
+void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
+{
+	if (forceSync)
+		isSync = true;
+
 #if USE_BACKEND
     if(isSync && getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread() ==
        MainController::KillStateHandler::TargetThread::AudioThread)
@@ -2686,8 +2701,24 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
 	}
 }
 
+void ScriptBroadcaster::sendSyncMessage(var args)
+{
+	sendMessageInternal(args, true);
+}
+
+void ScriptBroadcaster::sendAsyncMessage(var args)
+{
+	sendMessageInternal(args, false);
+}
+
 void ScriptBroadcaster::sendMessageWithDelay(var args, int delayInMilliseconds)
 {
+	if (forceSync)
+	{
+		sendMessage(args, true);
+		return;
+	}
+	
 #if USE_BACKEND
 	if (triggerBreakpoint)
 	{
@@ -2709,18 +2740,22 @@ void ScriptBroadcaster::reset()
 
 void ScriptBroadcaster::resendLastMessage(bool isSync)
 {
+	if (forceSync)
+		isSync = true;
+
 	ScopedValueSetter<bool> svs(forceSend, true);
 
 	sendMessage(var(lastValues), isSync);
 }
 
-
-
-
-
-void ScriptBroadcaster::setMetadata(var newMetadata)
+void ScriptBroadcaster::setForceSynchronousExecution(bool shouldExecuteSynchronously)
 {
-	metadata = Metadata(newMetadata, true);
+	forceSync = shouldExecuteSynchronously;
+}
+
+void ScriptBroadcaster::setSendMessageForUndefinedArgs(bool shouldSendWhenUndefined)
+{
+	sendWhenUndefined = shouldSendWhenUndefined;
 }
 
 void ScriptBroadcaster::attachToComponentProperties(var componentIds, var propertyIds, var optionalMetadata)
@@ -3063,8 +3098,6 @@ bool ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
 {
 	auto idx = argumentIds.indexOf(id);
 
-
-    
 	if (idx == -1)
 	{
 		reportScriptError("This broadcaster doesn't have a " + id.toString() + " property");
@@ -3073,7 +3106,7 @@ bool ScriptBroadcaster::assign(const Identifier& id, const var& newValue)
 	
 	handleDebugStuff();
 
-	if (lastValues[idx] != newValue)
+	if (lastValues[idx] != newValue || enableQueue)
 	{
 		lastValues.set(idx, newValue);
 
@@ -3161,6 +3194,8 @@ bool ScriptBroadcaster::isPrimitiveArray(const var& obj)
 
 	return false;
 }
+
+
 
 void ScriptBroadcaster::handleDebugStuff()
 {
@@ -3270,7 +3305,6 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 {
 	checkMetadata(ni);
 
-	
 	if (!attachedListeners.isEmpty())
 	{
 		for (auto attachedListener : attachedListeners)
@@ -3289,7 +3323,7 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 		for (const auto& v : lastValues)
 			callListener &= (!v.isUndefined() && !v.isVoid());
 
-		if (callListener)
+		if (callListener || sendWhenUndefined)
 		{
 			auto r = ni->callSync(lastValues);
 
