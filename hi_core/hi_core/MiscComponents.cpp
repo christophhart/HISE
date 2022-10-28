@@ -627,7 +627,7 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 		const bool isIn = c->getLocalBounds().contains(event.position.toInt());
 
 		e->setProperty(insideDrag, isIn ? 1 : 0);
-		e->setProperty(drag, event.getDistanceFromDragStart() > 4);
+		e->setProperty(drag, action == Action::Dragged);
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
