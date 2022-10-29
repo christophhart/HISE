@@ -1153,9 +1153,12 @@ void DspNetworkCompileExporter::run()
 		std::vector<std::string> faustLibraryPaths = {codeLibDirPath};
 		// lookup FaustPath from settings
 		auto& settings = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject();
-		juce::String faustPath = settings.getSetting(hise::HiseSettings::Compiler::FaustPath);
-		if (faustPath.length() > 0) {
-			auto globalFaustLibraryPath = juce::File(faustPath).getChildFile("share").getChildFile("faust");
+        
+        auto faustPath = settings.getFaustPath();
+        
+		if (faustPath.isDirectory()) {
+			auto globalFaustLibraryPath = faustPath.getChildFile("share").getChildFile("faust");
+            
 			if (globalFaustLibraryPath.isDirectory()) {
 				faustLibraryPaths.push_back(globalFaustLibraryPath.getFullPathName().toStdString());
 			}
@@ -1619,7 +1622,8 @@ void DspNetworkCompileExporter::createProjucerFile()
 
 	if (includeFaust)
 	{
-		auto headerPath = File(GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::FaustPath).toString()).getChildFile("include");
+        auto faustPath = dynamic_cast<GlobalSettingManager*>(getMainController())->getSettingsObject().getFaustPath();
+		auto headerPath = faustPath.getChildFile("include");
 		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath.getFullPathName());
 	}
 	else

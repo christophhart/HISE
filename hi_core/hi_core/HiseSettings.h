@@ -199,6 +199,8 @@ struct Data: public SafeChangeBroadcaster
 
 	File getFileForSetting(const Identifier& id) const;
 
+    File getFaustPath() const;
+    
 	void loadDataFromFiles();
 	void refreshProjectData();
 	void loadSettingsFromFile(const Identifier& id);

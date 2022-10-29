@@ -1814,7 +1814,7 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
 	if (includeFaust)
 	{
-		auto headerPath = File(exporter->dataObject.getSetting(HiseSettings::Compiler::FaustPath)).getChildFile("include");
+		auto headerPath = exporter->dataObject.getFaustPath().getChildFile("include");
 		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath.getFullPathName());
 	}
 	else

@@ -684,6 +684,16 @@ void HiseSettings::Data::loadSettingsFromFile(const Identifier& id)
 	addMissingSettings(v, id);
 }
 
+File HiseSettings::Data::getFaustPath() const
+{
+#if JUCE_MAC
+    auto hisePath = File(getSetting(HiseSettings::Compiler::HisePath).toString());
+    return hisePath.getChildFile("tools").getChildFile("faust");
+#else
+    return File(getSetting(HiseSettings::Compiler::FaustPath).toString())
+#endif
+}
+
 var HiseSettings::Data::getSetting(const Identifier& id) const
 {
 	for (const auto& c : data)
