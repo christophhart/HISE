@@ -79,7 +79,7 @@
  #include <juce_gui_extra/juce_gui_extra.h>
 #endif
 
-/** Config: use a better algorithm to fetch a machine ID.
+/** Config: JUCE_USE_BETTER_MACHINE_IDS
  
     If enabled, this will use a more robust function to get the system ID to prevent
     OS updates from changing the ID. By default it is deactivated for backwards compatibility,
