@@ -2281,18 +2281,8 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 	const String dummyEmail = "dummy@email.com";
 	const String userName = "Dummy McLovin";
 
-	StringArray ids;
-
-#if JUCE_WINDOWS
-	OnlineUnlockStatus::MachineIDUtilities::addFileIDToList(ids, File::getSpecialLocation(File::windowsSystemDirectory));
-#else
-	OnlineUnlockStatus::MachineIDUtilities::addFileIDToList(ids, File("~"));
-#endif
-
-	// ..if that fails, use the MAC addresses..
-	if (ids.size() == 0)
-		OnlineUnlockStatus::MachineIDUtilities::addMACAddressesToList(ids);
-
+    StringArray ids = OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs();
+    
 	RSAKey privateKey = RSAKey(handler->getPrivateKey());
 
 	if (!privateKey.isValid())
