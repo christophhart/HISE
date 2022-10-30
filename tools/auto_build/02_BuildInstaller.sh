@@ -1,5 +1,6 @@
 cd "$(dirname "$0")"
 
+echo User: $USER
 echo Fetching Apple Code Signing ID
 echo If this fails, you need to add your certificate as $USER keychain password with the ID dev_certificate_id
 APPLE_CERTIFICATE_ID=$(security find-generic-password -a "$USER" -s "dev_certificate_id" -w)
@@ -14,6 +15,8 @@ tag_underscore=$(echo "$tag_version" | tr . _)
 
 echo $tag_version
 echo $tag_underscore
+
+exit 0
 
 installer_project="hise_nightly_build.pkgproj"
 

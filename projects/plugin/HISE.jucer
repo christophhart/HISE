@@ -47,7 +47,7 @@
                postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation"
                customPList="" aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
                smallIcon="" bigIcon="" xcodeValidArchs="x86_64" extraDefs="USE_IPP=0"
-               extraLinkerFlags="-fuse-ld=/opt/homebrew/bin/zld">
+               extraLinkerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" cppLanguageStandard="c++11"
