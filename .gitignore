@@ -109,3 +109,7 @@ hi_snex/xml/
 \#*\#
 .\#*
 *~
+tools/faust/include
+tools/faust/share
+tools/faust/lib
+tools/faust/bin
