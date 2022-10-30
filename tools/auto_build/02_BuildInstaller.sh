@@ -16,8 +16,6 @@ tag_underscore=$(echo "$tag_version" | tr . _)
 echo $tag_version
 echo $tag_underscore
 
-exit 0
-
 installer_project="hise_nightly_build.pkgproj"
 
 sed -i '' "s/TAG_VERSION/$tag_version/" $installer_project
@@ -67,7 +65,7 @@ fi
 echo "OK."
 
 echo "Codesigning Standalone App..."
-#sudo codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$standalone_app" --timestamp
+sudo codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$standalone_app" --timestamp
 
 if [ $? != "0" ];
 then
@@ -76,6 +74,8 @@ then
     exit 1
 fi
 echo "OK."
+
+exit 0;
 
 # Building Installer
 
