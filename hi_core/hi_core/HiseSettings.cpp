@@ -690,7 +690,7 @@ File HiseSettings::Data::getFaustPath() const
     auto hisePath = File(getSetting(HiseSettings::Compiler::HisePath).toString());
     return hisePath.getChildFile("tools").getChildFile("faust");
 #else
-    return File(getSetting(HiseSettings::Compiler::FaustPath).toString())
+	return File(getSetting(HiseSettings::Compiler::FaustPath).toString());
 #endif
 }
 
