@@ -375,7 +375,7 @@ struct ScriptBroadcaster::Display: public Component,
 			{
 				try
 				{
-					obj->sendMessage(values, false);
+					obj->sendAsyncMessage(values);
 				}
 				catch (String& message)
 				{
@@ -628,7 +628,7 @@ struct ScriptBroadcaster::ComponentPropertyListener::InternalListener
 		args.set(1, idSet[id]);
 		args.set(2, newValue);
 
-		parent.sendMessage(var(args), false);
+		parent.sendMessageInternal(var(args), false);
 	}
 
 	NamedValueSet idSet;
@@ -735,7 +735,7 @@ struct ScriptBroadcaster::ComponentVisibilityListener::InternalListener
 	{
 		if (tree == componentTree || componentTree.isAChildOf(tree))
 		{
-			parent.sendMessage(getArgs(), false);
+			parent.sendAsyncMessage(getArgs());
 		}
 	}
 
@@ -882,13 +882,13 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 
 		if (rv.isArray())
 		{
-			target->sendMessage(rv, async);
+			target->sendMessageInternal(rv, async);
 			return target->lastResult;
 		}
 	}
 	else
 	{
-		target->sendMessage(var(args), async);
+		target->sendMessageInternal(var(args), async);
 		return target->lastResult;
 	}
     
@@ -941,7 +941,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 
 				try
 				{
-					sb->sendMessage(args, false);
+					sb->sendAsyncMessage(args);
 				}
 				catch (String& s)
 				{
@@ -1165,7 +1165,7 @@ struct ScriptBroadcaster::ComplexDataListener::Item : public ComplexDataUIUpdate
 		{
 			auto valueToUse = isDisplay ? newData : var(data->toBase64String());
 			args.set(2, valueToUse);
-			parent->sendMessage(args, false);
+			parent->sendAsyncMessage(args);
 		}
 	}
 
@@ -2360,7 +2360,7 @@ Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFu
 				{
 					if (i->radioButton == clickedButton.getObject())
 					{
-						sendMessage(idx, false);
+						sendAsyncMessage(idx);
 						break;
 					}
 
@@ -2383,7 +2383,7 @@ Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFu
 		{
 			bool shouldBeSync = attachedListeners.isEmpty();
 
-			sendMessage(var(argArray), shouldBeSync);
+			sendMessageInternal(var(argArray), shouldBeSync);
 			return lastResult;
 		}
 		catch (String& s)
