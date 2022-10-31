@@ -1152,14 +1152,8 @@ bool CircularAudioSampleBuffer::readMidiEvents(MidiBuffer& destination, int offs
 
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-	if (illegalBufferSize)
-	{
-		mc->getKillStateHandler().handleKillState();
-		return;
-	}
-		
-
-	if (shouldDelayRendering())
+#if 0
+	if (false)
 	{
 	
 		circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
@@ -1182,7 +1176,9 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		circularOutputBuffer.readSamples(buffer, 0, buffer.getNumSamples());
 	}
-	else if (buffer.getNumSamples() > HISE_MAX_PROCESSING_BLOCKSIZE)
+#endif
+
+	if (buffer.getNumSamples() > HISE_MAX_PROCESSING_BLOCKSIZE)
 	{
 		int numChannels = buffer.getNumChannels();
 		int numToDo = buffer.getNumSamples();
