@@ -234,7 +234,7 @@ void dynamic::checkSourceAndTargetProcessSpecs()
 	if (!receiveSpecs)
 		return;
 	
-	if (postPrepareCheckActive)
+	if (postPrepareCheckActive || parentNode == nullptr)
 		return;
 
 	if (!(sendSpecs == receiveSpecs))

@@ -71,7 +71,7 @@ namespace ProjectInfo
 {
     const char* const  projectName    = "HISE Standalone";
     const char* const  companyName    = "Hart Instruments";
-    const char* const  versionString  = "2.1.0";
-    const int          versionNumber  = 0x20100;
+    const char* const  versionString  = "3.0.0";
+    const int          versionNumber  = 0x30000;
 }
 #endif

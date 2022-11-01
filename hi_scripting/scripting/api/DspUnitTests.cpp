@@ -35,7 +35,6 @@
 #if HI_RUN_UNIT_TESTS
 
 #include  "JuceHeader.h"
-#include <ipp.h>
 
 using namespace hise;
 
@@ -206,8 +205,8 @@ public:
 
 		Array<var> channels;
 
-		channels.add(var(lData));
-		channels.add(var(rData));
+		channels.add(var(lData.get()));
+		channels.add(var(rData.get()));
 
 		try
 		{
@@ -390,7 +389,7 @@ private:
 
 		// Setup
 
-		auto effect = Helpers::addVoiceEffectToOptionalGroup<StereoEffect>(bp);
+		Helpers::addVoiceEffectToOptionalGroup<StereoEffect>(bp);
 
 		auto lfo = Helpers::addTimeModulator<StereoEffect, LfoModulator>(bp, 0);
 
@@ -900,8 +899,8 @@ private:
 		squareLFO->setAttribute(LfoModulator::Parameters::FadeIn, 0.0f, dontSendNotification);
 		seqLFO->setAttribute(LfoModulator::Parameters::FadeIn, 0.0f, dontSendNotification);
 
-		seqLFO->getSliderPackData(0)->setNumSliders(2);
-		seqLFO->getSliderPackData(0)->setValue(1, 0.0f, dontSendNotification);
+		seqLFO->getSliderPack(0)->setNumSliders(2);
+		seqLFO->getSliderPack(0)->setValue(1, 0.0f, dontSendNotification);
 
 		// Process
 		squareLFO->setBypassed(true);

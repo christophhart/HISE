@@ -32,14 +32,12 @@ SolidCompression=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Components]
-Name: "x86Plugin"; Description: "32bit VST Plugin Stereo Out"; Types: compact custom full
 Name: "x64Plugin"; Description: "64bit VST Plugin Stereo Out"; Types: compact custom full
 Name: "Standalone64bit"; Description: "64bit Standalone application"; ExtraDiskSpaceRequired: 9000; Types: full compact custom
 
 [Files]
 Source: "..\..\projects\standalone\Builds\VisualStudio2017\x64\Release\App\$PRODUCT.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
 Source: "..\..\projects\plugin\Builds\VisualStudio2017\x64\Release\VST\$PRODUCT x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
-Source: "..\..\projects\plugin\Builds\VisualStudio2017\Win32\Release\VST\$PRODUCT x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
@@ -49,23 +47,11 @@ Name: "{group}\$PRODUCT"; Filename: "{app}\$PRODUCT.exe"; Components: Standalone
 [Dirs]
 
 [Code]
-var x86Page: TInputDirWizardPage;
 var x64Page: TInputDirWizardPage;
 
 procedure InitializeWizard;
 begin
   // Create the page
-
-
-
-  x86Page := CreateInputDirPage(wpSelectComponents,
-    'Select VST 32bit Plugin Folder', 'Where should the 32bit version of the VST Plugin be installed?',
-    'Select your VST 32bit Folder',
-    False, '');
-  x86Page.Add('');
-
-  x86Page.Values[0] := GetPreviousData('x86', '');
-
   x64Page := CreateInputDirPage(wpSelectComponents,
     'Select VST 64bit Plugin Folder', 'Where should the 64bit version of the VST Plugin be installed?',
     'Select your VST 64bit Folder',
@@ -80,7 +66,6 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
 
   if PageFromID(PageID) = x64Page then Result := not isComponentSelected('x64Plugin');
-  if PageFromID(PageID) = x86Page then Result := not isComponentSelected('x86Plugin');
 
 end;
 
@@ -88,22 +73,10 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
 
-
-
   // Set default folder if empty
-  if x86Page.Values[0] = '' then
-     x86Page.Values[0] := ExpandConstant('{pf32}\VSTPlugins');
-  Result := True;
-
   if (IsWin64) and (x64Page.Values[0] = '') then
      x64Page.Values[0] := ExpandConstant('{pf64}\VSTPlugins');
   Result := True;
-end;
-
-function Getx86bitDir(Param: String): String;
-begin
-  { Return the selected DataDir }
-  Result := x86Page.Values[0];
 end;
 
 function Getx64bitDir(Param: String): String;
