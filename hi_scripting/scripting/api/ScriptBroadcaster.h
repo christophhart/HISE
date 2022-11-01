@@ -344,8 +344,6 @@ private:
 
 	struct TargetBase: public ItemBase
 	{
-		
-
 		TargetBase(const var& obj_, const var& f, const var& metadata_) :
 			ItemBase(Metadata(metadata_, true)),
 			obj(obj_)
@@ -501,6 +499,14 @@ private:
 			ItemBase(Metadata(metadata_, false))
 		{};
 
+		/** Overwrite this method and return the number of calls to all listeners that should be made
+			when the connection is established. */
+		virtual int getNumInitialCalls() const { return 0; }// = 0;
+
+		/** Overwrite this method and return the argument array for the initial call when the connection 
+			is established. callIndex is guaranteed to be 0 < callIndex < getNumInitialCalls(). */
+		virtual Array<var> getInitialArgs(int callIndex) const { return {}; };// = 0;
+
         virtual ~ListenerBase() {};
      
 		virtual Result callItem(TargetBase* n) = 0;
@@ -515,6 +521,9 @@ private:
 		Identifier getItemId() const override { return callbackId; }
 
 		Array<var> createChildArray() const override;
+
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
@@ -537,6 +546,9 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Array<var> createChildArray() const override;
 
 		Result callItem(TargetBase* n) override;
@@ -553,6 +565,10 @@ private:
 		Array<var> createChildArray() const override;
 
 		Result callItem(TargetBase* n) override;
+
+		// Don't need to initialise function calls
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ScriptFunctionCalls"); }
 
@@ -579,6 +595,9 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Array<var> createChildArray() const override;
             
         OwnedArray<Item> items;
@@ -595,6 +614,9 @@ private:
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ComponentProperties"); }
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
 
 		Result callItem(TargetBase* n) override;
 
@@ -615,6 +637,10 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		
+		int getNumInitialCalls() const override { return items.size(); }
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Result callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
@@ -634,6 +660,9 @@ private:
 		// We don't need to call this to update it with the current value because the mouse events are non persistent. */
 		Result callItem(TargetBase*) override { return Result::ok(); }
 
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
+
 		Array<var> createChildArray() const override;
 
 		OwnedArray<InternalMouseListener> items;
@@ -647,6 +676,9 @@ private:
 		ContextMenuListener(ScriptBroadcaster* parent, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata);
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ContextMenu"); }
+
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
 		Result callItem(TargetBase*) override { return Result::ok(); }
 
@@ -665,6 +697,9 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override { return items.size(); }
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Result callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
@@ -681,6 +716,9 @@ private:
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("RadioGroup"); }
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override { return 1; }
+		Array<var> getInitialArgs(int callIndex) const override { return { var(currentIndex) }; }
 
 		void setButtonValueFromIndex(int newIndex);
 
@@ -705,6 +743,18 @@ private:
 		
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("BroadcasterSource"); }
 
+		int getNumInitialCalls() const override { return sources.size(); }
+		Array<var> getInitialArgs(int callIndex) const override
+		{
+			if (auto sb = sources[callIndex])
+			{
+				return sb->lastValues;
+			}
+
+			jassertfalse;
+			return {};
+		}
+
 #if USE_BACKEND
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 #endif
@@ -716,7 +766,7 @@ private:
 
 	void initItem(TargetBase* n);
 
-	void checkMetadata(ItemBase* i);
+	void checkMetadataAndCallWithInitValues(ItemBase* i);
 
 	OwnedArray<ListenerBase> attachedListeners;
 
