@@ -1,9 +1,11 @@
-name: build_installer_windows
+name: Build Installer
 on: 
   workflow_dispatch:
   push:
     branches: 
       - master
+    tags:
+      - '*'
 jobs:
   build_installer_windows:
     runs-on: [self-hosted, windows]
