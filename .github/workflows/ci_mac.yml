@@ -15,5 +15,5 @@ jobs:
         with:
           ref: 'develop'
       - name: Build & Run CI script
-        working-directory: ${{ github.workspace }}/HISE/tools/auto_build/
+        working-directory: ${{ github.workspace }}/tools/auto_build/
         run: sh ./build_ci.sh
