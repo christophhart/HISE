@@ -676,7 +676,10 @@ int ScriptBroadcaster::ComponentPropertyListener::getNumInitialCalls() const
 	int i = 0;
 
 	for (auto item : items)
+    {
+        ignoreUnused(item);
 		i += numProperties;
+    }
 
 	return i;
 }

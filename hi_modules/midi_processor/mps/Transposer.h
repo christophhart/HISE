@@ -95,6 +95,7 @@ public:
 		case SpecialParameters::HiKey: return 127.0f;
 		case SpecialParameters::LoKey: return 0.0f;
 		case SpecialParameters::KillVoice: return 1.0f;
+        default: jassertfalse; return 0.0f;
 		}
 	};
 
@@ -106,6 +107,7 @@ public:
 		case SpecialParameters::HiKey: return (float)midiRange.getEnd();
 		case SpecialParameters::LoKey: return (float)midiRange.getStart();
 		case SpecialParameters::KillVoice: return (float)(int)killVoice;
+        default: jassertfalse; return 0.0f;
 		}
 	}
 

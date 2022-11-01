@@ -35,8 +35,6 @@
 
 #include <JuceHeader.h>
 
-#error "This should fail the CI build"
-
 #include "frontend/FrontendHostFactory.cpp"
 #include "frontend/FrontEndProcessor.cpp"
 #include "frontend/FrontendProcessorEditor.cpp"

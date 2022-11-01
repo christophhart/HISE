@@ -6689,6 +6689,7 @@ void LiveUpdateVarBody::paint(Graphics& g)
 			g.fillEllipse(circle.reduced(2.0f));
 
 		break;
+    default: break;
 	}
 	}
 

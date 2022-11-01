@@ -355,6 +355,7 @@ juce::Component* NodePropertyPanel::createComponentForNetwork(DspNetwork* p)
 	return new NodePropertyContent(p);
 }
 
+#if USE_BACKEND
 struct FaustEditorWrapper: public Component,
                            public DspNetwork::FaustManager::FaustListener
 {
@@ -498,7 +499,7 @@ struct FaustEditorWrapper: public Component,
     WeakReference<DspNetwork> network;
     JUCE_DECLARE_WEAK_REFERENCEABLE(FaustEditorWrapper);
 };
-
+#endif
 
 FaustEditorPanel::FaustEditorPanel(FloatingTile* parent):
     NetworkPanel(parent)
@@ -508,7 +509,11 @@ FaustEditorPanel::FaustEditorPanel(FloatingTile* parent):
 
 juce::Component* FaustEditorPanel::createComponentForNetwork(DspNetwork* p)
 {
+#if USE_BACKEND
     return new FaustEditorWrapper(p);
+#else
+    return nullptr;
+#endif
 }
 
 #if 0

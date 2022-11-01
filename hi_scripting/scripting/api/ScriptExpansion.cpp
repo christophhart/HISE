@@ -2711,6 +2711,8 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 			Time(bi.toInt64());
 
 			auto ok = unlocker->unlockWithTime(Time(bi.toInt64()));
+            
+            ignoreUnused(ok);
 		}
 	}
 	else
