@@ -2,11 +2,13 @@
 
 ![](http://hise.audio/images/github.png)
 
-**Build Status macOS:**
-[![build_hise_macos](https://github.com/christophhart/HISE/actions/workflows/build_hise_macos.yml/badge.svg)](https://github.com/christophhart/HISE/actions/workflows/build_hise_macos.yml)
+**Build Status macOS (`develop` branch)**  
 
-**Build Status Windows:**
-[![build_hise](https://github.com/christophhart/HISE/actions/workflows/build_hise.yml/badge.svg)](https://github.com/christophhart/HISE/actions/workflows/build_hise.yml)
+[![CI build macOS](https://github.com/christophhart/HISE/actions/workflows/ci_mac.yml/badge.svg?branch=develop)](https://github.com/christophhart/HISE/actions/workflows/ci_mac.yml)
+
+**Build Status Windows (`develop` branch):**  
+
+[![CI build Windows](https://github.com/christophhart/HISE/actions/workflows/ci_windows.yml/badge.svg?branch=develop)](https://github.com/christophhart/HISE/actions/workflows/ci_windows.yml)
 
 **The open source framework for sample based instruments.**
 
