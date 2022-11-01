@@ -1,4 +1,4 @@
-name: ci_mac
+name: CI build macOS
 on: 
   workflow_dispatch:
   push:
