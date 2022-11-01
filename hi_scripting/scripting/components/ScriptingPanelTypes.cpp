@@ -486,6 +486,21 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 
 	}
 
+	static void centreInViewport(Component* c)
+	{
+		if (auto vp = c->findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto cBounds = c->getLocalBounds();
+
+			cBounds = cBounds.withSizeKeepingCentre(vp->getWidth() / vp->zoomFactor, vp->getHeight() / vp->zoomFactor);
+
+			// do not center a zoomed in viewport...
+			if (cBounds.getX() < 0 || cBounds.getY() < 0)
+				vp->zoomToRectangle(cBounds);
+
+		}
+	}
+
 	void scriptEditHandlerCompileCallback()
 	{
 		if (getScriptEditHandlerProcessor())
@@ -642,11 +657,15 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	rebuildAfterContentChange();
 
 	canvas.setMaxZoomFactor(4.0);
+
+	setPostResizeFunction(Canvas::centreInViewport);
 }
 
 
 void ScriptContentPanel::Editor::rebuildAfterContentChange()
 {
+	addButton("showall");
+
 	addCustomComponent(zoomSelector);
 
 	addButton("edit");
@@ -691,6 +710,16 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->enabledFunction = isSelected;
 		b->actionFunction = Actions::deselectAll;
 		b->setTooltip("Deselect current item (Escape)");
+	}
+	if (name == "showall")
+	{
+		b->actionFunction = [](Editor& e)
+		{
+			e.canvas.zoomToRectangle(e.canvas.getContentComponent()->getLocalBounds().expanded(20));
+			return false;
+		};
+
+		b->setTooltip("Zoom to fit");
 	}
 	if (name == "rebuild")
 	{
@@ -1251,6 +1280,7 @@ struct ServerController: public Component,
 		{
 			Path p;
 
+			LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 			LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
 			LOAD_PATH_IF_URL("web", MainToolbarIcons::web);
@@ -2007,6 +2037,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
+	LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);
