@@ -1,0 +1,22 @@
+name: ci_mac
+on: 
+  workflow_dispatch:
+  push:
+    branches: develop
+jobs:
+  hise_ci_macos:
+    runs-on: [self-hosted, macos]
+    steps:
+      - name: Cleanup working directory
+        run: rm -rf "${{github.workspace}}" 
+      - name: Checkout HISE repository
+        uses: actions/checkout@v1
+        with:
+          ref: 'develop'
+          path: './actions/HISE'
+      - name: Git PULL
+        working-directory: ${{ github.workspace }}/HISE/
+        run: git pull
+      - name: Build & Run CI script
+        working-directory: ${{ github.workspace }}/HISE/tools/auto_build/
+        run: sh ./build_ci.sh
