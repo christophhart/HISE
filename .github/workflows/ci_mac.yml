@@ -14,9 +14,6 @@ jobs:
         uses: actions/checkout@v1
         with:
           ref: 'develop'
-      - name: Git PULL
-        working-directory: ${{ github.workspace }}/HISE/
-        run: git pull
       - name: Build & Run CI script
         working-directory: ${{ github.workspace }}/HISE/tools/auto_build/
         run: sh ./build_ci.sh
