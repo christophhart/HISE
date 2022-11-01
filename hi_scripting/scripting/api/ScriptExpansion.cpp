@@ -2694,7 +2694,7 @@ juce::var ScriptUnlocker::RefObject::isUnlocked() const
 
 juce::var ScriptUnlocker::RefObject::canExpire() const
 {
-	return unlocker != nullptr ? unlocker->getExpiryTime() != juce::Time(0) : var(false);
+	return unlocker != nullptr ? var(unlocker->getExpiryTime() != juce::Time(0)) : var(false);
 }
 
 juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTimeString)
