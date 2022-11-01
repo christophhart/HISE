@@ -3,8 +3,12 @@ cd ..
 cd ..
 
 
+cd tools/SDK
 
+tar -xf sdk.zip
 
+cd ..
+cd ..
 
 # This is the project folder for the Standalone app
 standalone_folder="projects/standalone"
@@ -22,7 +26,7 @@ echo "Compiling VST / AU Plugins..."
 echo "Compiling stereo version..."
 
 # Skip this for now
-# xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
+xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
 
 if [ $? != "0" ];
 then
@@ -38,12 +42,11 @@ then
     exit
 fi
 
-
 echo "OK"
 
 echo "Compiling Standalone App..."
 
-xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "CI" | xcpretty
+xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" | xcpretty
 
 if [ $? != "0" ];
 then

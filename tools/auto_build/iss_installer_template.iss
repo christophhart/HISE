@@ -66,7 +66,6 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
 
   if PageFromID(PageID) = x64Page then Result := not isComponentSelected('x64Plugin');
-  if PageFromID(PageID) = x86Page then Result := not isComponentSelected('x86Plugin');
 
 end;
 
