@@ -769,6 +769,10 @@ public:
 
 	void updateTagFilter();
 
+	void showAll();
+
+	void zoomToWidth();
+
 	StringArray availableTags;
 
 	Array<int64> currentTags;
