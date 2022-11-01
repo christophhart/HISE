@@ -374,7 +374,9 @@ struct FaustEditorWrapper: public Component,
     {
         if(k == KeyPress::F5Key)
         {
-            recompile();
+			if (bottomBar != nullptr)
+				bottomBar->recompile();
+
             return true;
         }
         

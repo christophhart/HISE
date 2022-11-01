@@ -216,41 +216,10 @@ struct GLSLLanguageManager : public mcl::LanguageManager
 
 void PopupIncludeEditor::addButtonAndCompileLabel()
 {
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(jp.get())));
+	addAndMakeVisible(bottomBar = new EditorBottomBar(jp.get()));
+    
+	bottomBar->setCompileFunction(BIND_MEMBER_FUNCTION_0(PopupIncludeEditor::compileInternal));
 
-	addAndMakeVisible(compileButton = new TextButton("new button"));
-	compileButton->setButtonText(TRANS("Compile"));
-	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	compileButton->addListener(this);
-	compileButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
-
-	addAndMakeVisible(resumeButton = new TextButton("new button"));
-	resumeButton->setButtonText(TRANS("Resume"));
-	resumeButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	resumeButton->addListener(this);
-	resumeButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
-	resumeButton->setVisible(false);
-
-    addAndMakeVisible(errorButton = new HiseShapeButton("error", nullptr, factory));
-    
-    errorButton->setVisible(false);
-    
-    auto offColour = Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
-    
-    errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
-    
-    errorButton->setTooltip("Navigate to the code position that causes the compiliation error.");
-    
-    
-    errorButton->onClick = [this]()
-    {
-        resultLabel->gotoText();
-        dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor()->grabKeyboardFocusAsync();
-    };
-    
-    compileButton->setLookAndFeel(&blaf);
-    resumeButton->setLookAndFeel(&blaf);
-    
 	setSize(800, 800);
 }
 
@@ -258,13 +227,11 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 
 void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r)
 {
-	lastCompileOk = r.r.wasOk();
-	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
-	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+	bottomBar->setError(r.r.getErrorMessage());
 
 	if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
 	{
-		if (!lastCompileOk)
+		if (!r.r.wasOk())
 		{
 			auto errorMessage = r.r.getErrorMessage();
 
@@ -289,7 +256,6 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 			if (!isSameFile)
 			{
 				asmcl->editor.clearWarningsAndErrors();
-				startTimer(200);
 				return;
 			}
 
@@ -300,10 +266,6 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 			String mclError = "Line ";
 			mclError << line << "(" << col << "): " << message;
 
-			
-
-			
-
 			asmcl->editor.setError(mclError);
 		}
 		else
@@ -311,8 +273,6 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 			asmcl->editor.clearWarningsAndErrors();
 		}
 	}
-
-	startTimer(200);
 }
 
 PopupIncludeEditor::~PopupIncludeEditor()
@@ -328,10 +288,10 @@ PopupIncludeEditor::~PopupIncludeEditor()
 	}
 
 	editor = nullptr;
-	resultLabel = nullptr;
 
 	tokeniser = nullptr;
-	compileButton = nullptr;
+
+	bottomBar = nullptr;
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
 
@@ -341,23 +301,13 @@ PopupIncludeEditor::~PopupIncludeEditor()
 	externalFile = nullptr;
 }
 
-void PopupIncludeEditor::timerCallback()
-{
-    errorButton->setVisible(!lastCompileOk);
-    resultLabel->setOK(lastCompileOk);
-	repaint();
-    resized();
-	stopTimer();
-    
-}
-
 
 
 bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 {
 	if (key.isKeyCode(KeyPress::F5Key) && !key.getModifiers().isShiftDown())
 	{
-		compileInternal();
+		bottomBar->recompile();
 		return true;
 	}
 
@@ -389,7 +339,6 @@ void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<Exter
 	if (errors == nullptr)
 		return;
 
-#if HISE_USE_NEW_CODE_EDITOR
 	if (auto asmcl = CommonEditorFunctions::as(&t))
 	{
 		for (const auto& e : *errors)
@@ -404,17 +353,12 @@ void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<Exter
 				if (matchesFile)
 					asmcl->editor.addWarning(e.toString(), false);
 
-				t.lastCompileOk = false;
-				t.startTimer(200);
-
-				if (t.resultLabel != nullptr)
-					t.resultLabel->setText("GLSL Compile Error", dontSendNotification);
+				t.bottomBar->setError("GLSL Compile Error");
 			}
 		}
 
 		asmcl->repaint();
 	}
-#endif
 }
 
 void PopupIncludeEditor::resized()
@@ -422,21 +366,13 @@ void PopupIncludeEditor::resized()
 	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
 
 	if(isInPanel)
-		editor->setBounds(0, 0, getWidth(), getHeight() - BOTTOM_HEIGHT);
+		editor->setBounds(0, 0, getWidth(), getHeight() - EditorBottomBar::BOTTOM_HEIGHT);
 	else
 		editor->setBounds(0, 5, getWidth(), getHeight() - 23);
 
-	auto b = getLocalBounds().removeFromBottom(BOTTOM_HEIGHT);
+	auto b = getLocalBounds().removeFromBottom(EditorBottomBar::BOTTOM_HEIGHT);
 
-	compileButton->setBounds(b.removeFromRight(75));
-
-    if(errorButton->isVisible())
-        errorButton->setBounds(b.removeFromLeft(35).reduced(2).translated(0, 1));
-    
-	if (resumeButton->isVisible())
-		resumeButton->setBounds(b.removeFromRight(75));
-
-	resultLabel->setBounds(b);
+	bottomBar->setBounds(b);
 }
 
 void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
@@ -461,19 +397,6 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 	}
 }
 
-void PopupIncludeEditor::buttonClicked(Button* b)
-{
-	if (b == resumeButton)
-	{
-		dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
-	}
-	if (b == compileButton)
-	{
-		dynamic_cast<Processor*>(jp.get())->getMainController()->getJavascriptThreadPool().resume();
-		compileInternal();
-	}
-}
-
 
 
 void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
@@ -492,7 +415,7 @@ void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
 		return false;
 	});
 
-	compileButton->triggerClick();
+	bottomBar->compileButton->triggerClick();
 }
 
 void PopupIncludeEditor::paintOverChildren(Graphics& g)
@@ -557,14 +480,9 @@ void PopupIncludeEditor::sleepStateChanged(const Identifier& id, int lineNumber,
 {
 	if (callback == id)
 	{
-#if HISE_USE_NEW_CODE_EDITOR
 		getEditor()->setCurrentBreakline(on ? lineNumber : -1);
-#endif
-		resumeButton->setVisible(on);
-		if (on)
-			resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
 
-		resized();
+		bottomBar->setShowResume(on, lineNumber);
 	}
 }
 
@@ -639,7 +557,7 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 		}
 		if (k == KeyPress::F9Key)
 		{
-			resultLabel->gotoText();
+			bottomBar->resultLabel->gotoText();
 			return true;
 		}
 		if (TopLevelWindowWithKeyMappings::matches(getEditor(), k, TextEditorShortcuts::breakpoint_resume))
@@ -665,6 +583,118 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 #else
 	asComponent->addAndMakeVisible(editor = new JavascriptCodeEditor(d, tokeniser, sp, callback));
 #endif
+}
+
+EditorBottomBar::EditorBottomBar(JavascriptProcessor* jp):
+	ControlledObject(dynamic_cast<Processor*>(jp)->getMainController())
+{
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(jp)));
+
+	addAndMakeVisible(compileButton = new TextButton("new button"));
+	compileButton->setButtonText(TRANS("Compile"));
+	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	compileButton->addListener(this);
+	compileButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
+
+	addAndMakeVisible(resumeButton = new TextButton("new button"));
+	resumeButton->setButtonText(TRANS("Resume"));
+	resumeButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	resumeButton->addListener(this);
+	resumeButton->setColour(TextButton::buttonColourId, Colours::transparentBlack);
+	resumeButton->setVisible(false);
+
+	addAndMakeVisible(errorButton = new HiseShapeButton("error", this, factory));
+
+	errorButton->setVisible(false);
+
+	auto offColour = Colour(HISE_ERROR_COLOUR).withMultipliedBrightness(1.6f);
+
+	errorButton->setColours(offColour.withMultipliedAlpha(0.75f), offColour, offColour);
+
+	errorButton->setTooltip("Navigate to the code position that causes the compiliation error.");
+	
+	compileButton->setLookAndFeel(&blaf);
+	resumeButton->setLookAndFeel(&blaf);
+
+	setOpaque(true);
+}
+
+void EditorBottomBar::resized()
+{
+	auto b = getLocalBounds();
+	compileButton->setBounds(b.removeFromRight(75));
+
+	if (errorButton->isVisible())
+		errorButton->setBounds(b.removeFromLeft(35).reduced(2).translated(0, 1));
+
+	if (resumeButton->isVisible())
+		resumeButton->setBounds(b.removeFromRight(75));
+
+	resultLabel->setBounds(b);
+}
+
+void EditorBottomBar::buttonClicked(Button* b)
+{
+	if (b == resumeButton)
+	{
+		getMainController()->getJavascriptThreadPool().resume();
+	}
+	if (b == compileButton)
+	{
+		getMainController()->getJavascriptThreadPool().resume();
+		recompile();
+	}
+	if (b == errorButton)
+	{
+		resultLabel->gotoText();
+		getMainController()->getLastActiveEditor()->grabKeyboardFocusAsync();
+	}
+}
+
+void EditorBottomBar::recompile()
+{
+	resultLabel->startCompilation();
+	compileFunction();
+}
+
+void EditorBottomBar::setShowResume(bool on, int lineNumber)
+{
+	resumeButton->setVisible(on);
+
+	if (on)
+		resultLabel->setText("Breakpoint at line " + String(lineNumber), dontSendNotification);
+
+	resized();
+}
+
+void EditorBottomBar::setError(const String& errorMessage)
+{
+	lastCompileOk = errorMessage.isEmpty();
+	startTimer(200);
+
+	auto m = errorMessage.upToFirstOccurrenceOf("{", false, false).upToFirstOccurrenceOf("\n", false, false);
+
+	if (errorMessage.isEmpty())
+		m = "Compiled OK";
+
+	if (resultLabel != nullptr)
+		resultLabel->setText(m, dontSendNotification);
+}
+
+void EditorBottomBar::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF333333));
+	auto b = getLocalBounds();
+	GlobalHiseLookAndFeel::drawFake3D(g, b);
+}
+
+void EditorBottomBar::timerCallback()
+{
+	errorButton->setVisible(!lastCompileOk);
+	resultLabel->setOK(lastCompileOk);
+	repaint();
+	resized();
+	stopTimer();
 }
 
 } // namespace hise
