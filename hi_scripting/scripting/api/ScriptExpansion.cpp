@@ -2692,6 +2692,33 @@ juce::var ScriptUnlocker::RefObject::isUnlocked() const
 	return unlocker != nullptr ? unlocker->isUnlocked() : var(0);
 }
 
+juce::var ScriptUnlocker::RefObject::canExpire() const
+{
+	return unlocker != nullptr ? unlocker->getExpiryTime() != juce::Time(0) : var(false);
+}
+
+juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTimeString)
+{
+	if (unlocker != nullptr)
+	{
+		MemoryBlock mb;
+		if (mb.fromBase64Encoding(encodedTimeString))
+		{
+			BigInteger bi;
+			bi.loadFromMemoryBlock(mb);
+			unlocker->getPublicKey().applyToValue(bi);
+
+			Time(bi.toInt64());
+
+			auto ok = unlocker->unlockWithTime(Time(bi.toInt64()));
+		}
+	}
+	else
+	{
+		return var("No unlocker");
+	}
+}
+
 void ScriptUnlocker::RefObject::setProductCheckFunction(var f)
 {
 	pcheck = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
