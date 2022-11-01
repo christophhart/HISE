@@ -2,7 +2,8 @@ name: ci_mac
 on: 
   workflow_dispatch:
   push:
-    branches: develop
+    branches: 
+      - develop
 jobs:
   hise_ci_macos:
     runs-on: [self-hosted, macos]
