@@ -4447,8 +4447,9 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOn);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isNoteOff);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isController);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, clone);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, dump);
-};
+}; 
 
 ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, (int)HiseEvent::Type::numTypes)
@@ -4480,6 +4481,7 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_0(isNoteOff);
 	ADD_API_METHOD_0(isController);
 	ADD_API_METHOD_1(setStartOffset);
+	ADD_API_METHOD_0(clone);
 	ADD_API_METHOD_0(dump);
 
 	addConstant("Empty", 0);
@@ -4544,6 +4546,14 @@ int ScriptingObjects::ScriptingMessageHolder::getVelocity() const { return e.get
 void ScriptingObjects::ScriptingMessageHolder::ignoreEvent(bool shouldBeIgnored /*= true*/) { e.ignoreEvent(shouldBeIgnored); }
 int ScriptingObjects::ScriptingMessageHolder::getEventId() const { return (int)e.getEventId(); }
 void ScriptingObjects::ScriptingMessageHolder::setTransposeAmount(int tranposeValue) { e.setTransposeAmount(tranposeValue); }
+
+juce::var ScriptingObjects::ScriptingMessageHolder::clone()
+{
+	auto no = new ScriptingMessageHolder(getScriptProcessor());
+	no->setMessage(e);
+	return var(no);
+}
+
 int ScriptingObjects::ScriptingMessageHolder::getTransposeAmount() const { return (int)e.getTransposeAmount(); }
 void ScriptingObjects::ScriptingMessageHolder::setCoarseDetune(int semiToneDetune) { e.setCoarseDetune(semiToneDetune); }
 int ScriptingObjects::ScriptingMessageHolder::getCoarseDetune() const { return (int)e.getCoarseDetune(); }
@@ -4763,6 +4773,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRepaintOnPositionChange);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
+	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, convertEventListToNoteRectangles);
 	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, saveAsMidiFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, undo);
@@ -4808,6 +4819,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_1(play);
+	ADD_API_METHOD_2(convertEventListToNoteRectangles);
 	ADD_API_METHOD_1(stop);
 	ADD_API_METHOD_1(record);
 	ADD_API_METHOD_3(setFile);
@@ -4889,6 +4901,47 @@ var ScriptingObjects::ScriptedMidiPlayer::getNoteRectangleList(var targetBounds)
 		returnArray.add(ApiHelpers::getVarRectangle(re, &r));
 
 	return var(returnArray);
+}
+
+juce::var ScriptingObjects::ScriptedMidiPlayer::convertEventListToNoteRectangles(var eventList, var targetBounds)
+{
+	if (auto holderList = eventList.getArray())
+	{
+		HiseMidiSequence::Ptr dummySequence = new HiseMidiSequence();
+
+		dummySequence->setTimeStampEditFormat(getSequence()->getTimestampEditFormat());
+		dummySequence->createEmptyTrack();
+
+		Array<HiseEvent> eventList;
+
+		for (const auto& h : *holderList)
+		{
+			if (auto mh = dynamic_cast<ScriptingMessageHolder*>(h.getObject()))
+				eventList.add(mh->getMessageCopy());
+		}
+
+		MidiPlayer::EditAction::writeArrayToSequence(dummySequence, eventList, 120, 44100.0, getSequence()->getTimestampEditFormat());
+
+		auto r = Result::ok();
+
+		auto targetArea = ApiHelpers::getRectangleFromVar(targetBounds, &r);
+
+		if (!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+
+		auto list = dummySequence->getRectangleList(targetArea);
+
+		Array<var> returnArray;
+
+		for (auto re : list)
+			returnArray.add(ApiHelpers::getVarRectangle(re, &r));
+
+		dummySequence = nullptr;
+
+		return var(returnArray);
+	}
+
+	return var();
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setPlaybackPosition(var newPosition)

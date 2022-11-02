@@ -1294,6 +1294,9 @@ namespace ScriptingObjects
 		/** Transposes the note on. */
 		void setTransposeAmount(int tranposeValue);
 
+		/** Returns a copy of this message holder object. */
+		var clone();
+
 		/** Gets the tranpose value. */
 		int getTransposeAmount() const;
 
@@ -2497,6 +2500,9 @@ namespace ScriptingObjects
 
 		/** Returns an array containing all notes converted to the space supplied with the target bounds [x, y, w, h]. */
 		var getNoteRectangleList(var targetBounds);
+
+		/** Converts a given array of Message holders to a rectangle list. */
+		var convertEventListToNoteRectangles(var eventList, var targetBounds);
 
 		/** Sets the playback position in the current loop. Input must be between 0.0 and 1.0. */
 		void setPlaybackPosition(var newPosition);
