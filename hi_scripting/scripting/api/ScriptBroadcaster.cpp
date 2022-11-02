@@ -1760,7 +1760,7 @@ juce::Result ScriptBroadcaster::DebugableObjectListener::callItem(TargetBase* n)
 {
 	for (const auto&v : parent->lastValues)
 	{
-		if (v.isUndefined())
+		if (v.isUndefined() || v.isVoid())
 			return Result::ok();
 	}
 
@@ -3468,17 +3468,14 @@ void ScriptBroadcaster::checkMetadataAndCallWithInitValues(ItemBase* i)
 
 	if (auto l = dynamic_cast<ListenerBase*>(i))
 	{
-		if (!items.isEmpty())
+		int numInitArgs = l->getNumInitialCalls();
+
+		for (int j = 0; j < numInitArgs; j++)
 		{
-			int numInitArgs = l->getNumInitialCalls();
+			lastValues = l->getInitialArgs(j);
 
-			for (int j = 0; j < numInitArgs; j++)
-			{
-				auto args = l->getInitialArgs(j);
-
-				for (auto target : items)
-					target->callSync(args);
-			}
+			for (auto target : items)
+				target->callSync(lastValues);
 		}
 	}
 }
@@ -3590,6 +3587,9 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 	if (comment.isNotEmpty())
 		return;
 
+#if !JUCE_DEBUG
+	// This takes ages when not in release mode, so let's just skip it...
+
 	if (auto obj = dynamic_cast<WeakCallbackHolder::CallableObject*>(callableObject.getObject()))
 	{
 		comment = obj->getComment();
@@ -3605,6 +3605,7 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 			}
 		}
 	}
+#endif
 }
 
 juce::var ScriptBroadcaster::Metadata::toJSON() const

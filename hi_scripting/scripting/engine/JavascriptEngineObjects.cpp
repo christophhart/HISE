@@ -112,6 +112,7 @@ public:
         setMethod("removeElement", removeElement);
 		setMethod("join", join);
 		setMethod("push", push);
+		setMethod("pushIfNotAlreadyThere", pushIfNotAlreadyThere);
 		setMethod("pop", pop);
         setMethod("sort", sort);
         setMethod("sortNatural", sortNatural);
@@ -172,10 +173,21 @@ public:
 		return var();
 	}
 
+	static var pushIfNotAlreadyThere(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			WARN_IF_AUDIO_THREAD(a.numArguments + array->size() >= array->getNumAllocated(), ScriptGuard::ArrayResizing);
+
+			for (int i = 0; i < a.numArguments; ++i)
+				array->addIfNotAlreadyThere(a.arguments[i]);
+
+			return array->size();
+		}
+	}
+
 	static var push(Args a)
 	{
-		
-
 		if (Array<var>* array = a.thisObject.getArray())
 		{
 			WARN_IF_AUDIO_THREAD(a.numArguments + array->size() >= array->getNumAllocated(), ScriptGuard::ArrayResizing);
@@ -528,6 +540,9 @@ public:
 
 	/** Adds the given element at the end and returns the size. */
 	int push(var elementToInsert) { return 0; }
+
+	/** Adds the given element at the end and returns the size. */
+	int pushIfNotAlreadyThere(var elementToInsert) { return 0; }
 
 	/** Sorts the array. */
 	void sort() {}
