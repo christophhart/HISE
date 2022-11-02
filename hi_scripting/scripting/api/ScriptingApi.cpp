@@ -6305,6 +6305,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
 	API_METHOD_WRAPPER_1(FileSystem, descriptionOfSizeInBytes);
 	API_METHOD_WRAPPER_1(FileSystem, fromAbsolutePath);
+	API_METHOD_WRAPPER_2(FileSystem, fromReferenceString);
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 	API_METHOD_WRAPPER_1(FileSystem, getBytesFreeOnVolume);
@@ -6337,10 +6338,10 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_4(browse);
 	ADD_API_METHOD_2(browseForDirectory);
 	ADD_API_METHOD_1(fromAbsolutePath);
+	ADD_API_METHOD_2(fromReferenceString);
 	ADD_API_METHOD_1(getBytesFreeOnVolume);
     ADD_API_METHOD_2(encryptWithRSA);
     ADD_API_METHOD_2(decryptWithRSA);
-    
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -6366,6 +6367,21 @@ var ScriptingApi::FileSystem::fromAbsolutePath(String path)
 		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(path)));
 
 	return var();
+}
+
+juce::var ScriptingApi::FileSystem::fromReferenceString(String referenceStringOrFullPath, var locationType)
+{
+	auto sub = getSubdirectory(locationType);
+
+	PoolReference ref(getScriptProcessor()->getMainController_(), referenceStringOrFullPath, sub);
+
+	if (ref.isValid() && !ref.isEmbeddedReference())
+	{
+		auto f = ref.getFile();
+		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(path)));
+	}
+
+	return {};
 }
 
 var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool recursive)
@@ -6573,6 +6589,30 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	}
 
 	return f;
+}
+
+hise::FileHandlerBase::SubDirectories ScriptingApi::FileSystem::getSubdirectory(var locationType)
+{
+	if (locationType.isInt())
+	{
+		auto t = (SpecialLocations)(int)locationType;
+
+		switch (t)
+		{
+		case SpecialLocations::AudioFiles:  return FileHandlerBase::AudioFiles;
+		case SpecialLocations::Samples:		return FileHandlerBase::Samples;
+		case SpecialLocations::UserPresets: return FileHandlerBase::UserPresets;
+		default: 
+			reportScriptError("\"" + getConstantName((int)locationType) "\" is not a valid locationType");
+			RETURN_IF_NO_THROW(FileHandlerBase::numSubDirectories);
+		}
+	}
+	else
+	{
+		reportScriptError("You need to pass in a constant from FileSystem (eg. FileSystem.AudioFiles) as locationType)");
+
+		RETURN_IF_NO_THROW(FileHandlerBase::SubDirectories::numSubDirectories);
+	}
 }
 
 struct ScriptingApi::Server::Wrapper

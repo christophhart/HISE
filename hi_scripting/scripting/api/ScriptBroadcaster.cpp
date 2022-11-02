@@ -2873,7 +2873,7 @@ void ScriptBroadcaster::resendLastMessage(bool isSync)
 
 	ScopedValueSetter<bool> svs(forceSend, true);
 
-	sendMessage(var(lastValues), isSync);
+	sendMessageInternal(var(lastValues), isSync);
 }
 
 void ScriptBroadcaster::setForceSynchronousExecution(bool shouldExecuteSynchronously)

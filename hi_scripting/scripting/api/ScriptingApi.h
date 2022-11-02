@@ -1519,6 +1519,9 @@ public:
 		/** Returns a file object from an absolute path (eg. C:/Windows/MyProgram.exe). */
 		var fromAbsolutePath(String path);
 
+		/** Returns a file object for the given location type and the reference string which can either contain a wildcard like `{PROJECT_FOLDER}` or a full file path. */
+		var fromReferenceString(String referenceStringOrFullPath, var locationType);
+
 		/** Returns a list of all child files of a directory that match the wildcard. */
 		var findFiles(var directory, String wildcard, bool recursive);
 
@@ -1552,6 +1555,8 @@ public:
 		void browseInternally(File startFolder, bool forSaving, bool isDirectory, String wildcard, var callback);
 
 		File getFile(SpecialLocations l);
+
+		FileHandlerBase::SubDirectories getSubdirectory(var locationType);
 
 		struct Wrapper;
 
