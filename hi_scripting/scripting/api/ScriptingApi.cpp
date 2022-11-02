@@ -6378,7 +6378,7 @@ juce::var ScriptingApi::FileSystem::fromReferenceString(String referenceStringOr
 	if (ref.isValid() && !ref.isEmbeddedReference())
 	{
 		auto f = ref.getFile();
-		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(path)));
+		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(f)));
 	}
 
 	return {};
@@ -6603,7 +6603,7 @@ hise::FileHandlerBase::SubDirectories ScriptingApi::FileSystem::getSubdirectory(
 		case SpecialLocations::Samples:		return FileHandlerBase::Samples;
 		case SpecialLocations::UserPresets: return FileHandlerBase::UserPresets;
 		default: 
-			reportScriptError("\"" + getConstantName((int)locationType) "\" is not a valid locationType");
+			reportScriptError(String("\"") + getConstantName((int)locationType) + String("\" is not a valid locationType"));
 			RETURN_IF_NO_THROW(FileHandlerBase::numSubDirectories);
 		}
 	}
