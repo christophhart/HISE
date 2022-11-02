@@ -887,13 +887,13 @@ Result ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
 	return callback.callSync(a, nullptr);
 }
 
-ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f_, int milliseconds, const var& metadata) :
-	TargetBase(obj_, f_, metadata),
+ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& obj_, const var& f_, int milliseconds, const var& metadata_) :
+	TargetBase(obj_, f_, metadata_),
 	ms(milliseconds),
 	f(f_),
 	parent(bc)
 {
-
+	metadata.attachCommentFromCallableObject(f_);
 }
 
 Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
@@ -902,13 +902,14 @@ Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 	return Result::ok();
 }
 
-ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_, const var& metadata):
-	TargetBase(var(target_), transformFunction, metadata),
+ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_, const var& metadata_):
+	TargetBase(var(target_), transformFunction, metadata_),
 	parent(parent_),
 	target(target_),
 	argTransformFunction(parent->getScriptProcessor(), parent_, transformFunction, parent->defaultValues.size()),
 	async(async_)
 {
+	metadata.attachCommentFromCallableObject(transformFunction);
 	argTransformFunction.incRefCount();
 	
 }

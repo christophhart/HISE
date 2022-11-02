@@ -86,10 +86,9 @@ void ComponentWithPreferredSize::resizeChildren(Component* asComponent)
                 cb = cb.removeFromTop(c->getPreferredHeight());
             
 			dynamic_cast<Component*>(c)->setBounds(cb);
-			b.removeFromLeft(padding);
-
+			
 			if (cb.getWidth() != 0)
-				b.removeFromTop(padding);
+				b.removeFromLeft(padding);
 		}
 	}
 	else if (childLayout == Layout::ChildrenAreRows)
