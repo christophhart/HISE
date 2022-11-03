@@ -4802,6 +4802,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptedMidiPlayer, setPlaybackCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRecordEventCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setUseGlobalUndoManager);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, connectToMetronome);
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -4845,6 +4846,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_2(setPlaybackCallback);
 	ADD_API_METHOD_1(setRecordEventCallback);
 	ADD_API_METHOD_1(setUseGlobalUndoManager);
+	ADD_API_METHOD_1(connectToMetronome);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
@@ -5035,6 +5037,19 @@ void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)
 	}
 	else
 		reportScriptError("Invalid panel");
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::connectToMetronome(var metronome)
+{
+	if (metronome.isString())
+	{
+		auto m = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), metronome.toString());
+
+		if (auto typed = dynamic_cast<MidiMetronome*>(m))
+			typed->connectToPlayer(getPlayer());
+		else
+			reportScriptError("Can't find metronome FX with ID " + metronome.toString());
+	}
 }
 
 var ScriptingObjects::ScriptedMidiPlayer::getEventList()

@@ -2530,6 +2530,9 @@ namespace ScriptingObjects
 		/** Connect this to the panel and it will be automatically updated when something changes. */
 		void connectToPanel(var panel);
 
+		/** Connects this MIDI player to the given metronome. */
+		void connectToMetronome(var metronome);
+
 		/** Creates an array containing all MIDI messages wrapped into MessageHolders for processing. */
 		var getEventList();
 
