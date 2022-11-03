@@ -880,6 +880,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	if (getMasterClock().allowExternalSync() && thisAsProcessor->getPlayHead() != nullptr)
 	{
 		useTime = thisAsProcessor->getPlayHead()->getCurrentPosition(newTime);
+
+		// the time creation failed (probably because we're exporting
+		// so we use the time info from the internal clock...
+		if (!useTime)
+			newTime = getMasterClock().createInternalPlayHead();
+
 	}
 
 	if (getMasterClock().shouldCreateInternalInfo(newTime))
