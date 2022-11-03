@@ -308,6 +308,15 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(PlaybackListener);
 	};
 
+	struct EventRecordProcessor
+	{
+		virtual ~EventRecordProcessor() {};
+
+		virtual void processRecordedEvent(HiseEvent& e) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(EventRecordProcessor);
+	};
+
 	/** A Listener that will be notified when a new HiseMidiSequence was loaded. */
 	struct SequenceListener
 	{
@@ -667,7 +676,32 @@ public:
 
 	void setSyncToMasterClock(bool shouldSyncToMasterClock);
 
+	void addEventRecordProcessor(EventRecordProcessor* newProcessor)
+	{
+		eventRecordProcessors.addIfNotAlreadyThere(newProcessor);
+	}
+
+	void removeEventRecordProcessor(EventRecordProcessor* processorToRemove)
+	{
+		eventRecordProcessors.removeAllInstancesOf(processorToRemove);
+	}
+
 private:
+
+	bool processRecordedEvent(HiseEvent& m)
+	{
+		for (auto& p : eventRecordProcessors)
+		{
+			jassert(p != nullptr);
+
+			if (p != nullptr)
+				p->processRecordedEvent(m);
+		}
+
+		return !m.isIgnored();
+	}
+
+	Array<WeakReference<EventRecordProcessor>> eventRecordProcessors;
 
 	struct NotePair
 	{

@@ -2524,6 +2524,9 @@ namespace ScriptingObjects
 		/** If enabled, it uses the global undo manager for all edits (So you can use Engine.undo()). */
 		void setUseGlobalUndoManager(bool shouldUseGlobalUndoManager);
 
+		/** Sets a inline function that will process every note that is about to be recorded. */
+		void setRecordEventCallback(var recordEventCallback);
+
 		/** Connect this to the panel and it will be automatically updated when something changes. */
 		void connectToPanel(var panel);
 
@@ -2609,13 +2612,54 @@ namespace ScriptingObjects
 
 		struct Wrapper;
 
-		
-
 	private:
 
-		void callUpdateCallback();
+		struct ScriptEventRecordProcessor : public MidiPlayer::EventRecordProcessor
+		{
+			ScriptEventRecordProcessor(ScriptedMidiPlayer& parent_, const var& function):
+				parent(parent_),
+				eventCallback(parent.getScriptProcessor(), &parent, function, 1),
+				mp(parent.getPlayer())
+			{
+				eventCallback.incRefCount();
+				
+				
+				mp->addEventRecordProcessor(this);
 
-		
+				holder = new ScriptingMessageHolder(parent.getScriptProcessor());
+				args = var(holder);
+			}
+
+			~ScriptEventRecordProcessor()
+			{
+				if (mp != nullptr)
+					mp->removeEventRecordProcessor(this);
+
+				holder = nullptr;
+				args = var();
+			}
+
+			void processRecordedEvent(HiseEvent& e) override
+			{
+				holder->setMessage(e);
+				
+				var thisObject(&parent);
+
+				eventCallback.callSync(var::NativeFunctionArgs(thisObject, &args, 1));
+				e = holder->getMessageCopy();
+			}
+
+			ScriptedMidiPlayer& parent;
+			WeakCallbackHolder eventCallback;
+			var args;
+			ScriptingMessageHolder* holder;
+			
+			WeakReference<MidiPlayer> mp;
+		};
+
+		ScopedPointer<ScriptEventRecordProcessor> recordEventProcessor;
+
+		void callUpdateCallback();
 
 		struct PlaybackUpdater : public PooledUIUpdater::SimpleTimer,
 								 public MidiPlayer::PlaybackListener

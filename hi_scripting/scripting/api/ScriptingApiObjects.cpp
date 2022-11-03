@@ -4800,6 +4800,7 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, asMidiProcessor);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setGlobalPlaybackRatio);
 	API_VOID_METHOD_WRAPPER_2(ScriptedMidiPlayer, setPlaybackCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRecordEventCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setUseGlobalUndoManager);
 };
 
@@ -4842,6 +4843,7 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(asMidiProcessor);
 	ADD_API_METHOD_1(setGlobalPlaybackRatio);
 	ADD_API_METHOD_2(setPlaybackCallback);
+	ADD_API_METHOD_1(setRecordEventCallback);
 	ADD_API_METHOD_1(setUseGlobalUndoManager);
 }
 
@@ -4849,6 +4851,8 @@ ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()
 {
 	cancelUpdates();
 	connectedPanel = nullptr;
+	recordEventProcessor = nullptr;
+	playbackUpdater = nullptr;
 }
 
 juce::String ScriptingObjects::ScriptedMidiPlayer::getDebugValue() const
@@ -5005,6 +5009,22 @@ void ScriptingObjects::ScriptedMidiPlayer::setUseGlobalUndoManager(bool shouldUs
 		getPlayer()->setExternalUndoManager(getScriptProcessor()->getMainController_()->getControlUndoManager());
 	else
 		getPlayer()->setExternalUndoManager(nullptr);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::setRecordEventCallback(var recordEventCallback)
+{
+	if (auto co = dynamic_cast<WeakCallbackHolder::CallableObject*>(recordEventCallback.getObject()))
+	{
+		if (!co->isRealtimeSafe())
+			reportScriptError("This callable object is not realtime safe!");
+
+		recordEventProcessor = nullptr;
+		recordEventProcessor = new ScriptEventRecordProcessor(*this, recordEventCallback);
+	}
+	else
+	{
+		reportScriptError("You need to pass in an inline function");
+	}
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::connectToPanel(var panel)
