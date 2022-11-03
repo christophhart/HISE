@@ -917,6 +917,9 @@ namespace control
 		{
 			auto thisType = e.getType();
 
+			if (thisType == HiseEvent::Type::Controller && e.getControllerNumber() != midiNumber)
+				return;
+
 			if (thisType == expectedType)
 			{
 				double v = 0.0;

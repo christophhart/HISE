@@ -523,7 +523,7 @@ struct VoiceDataStack
 				}
 			}
 		}
-		else if (m.isPitchWheel() || m.isAftertouch() || m.isControllerOfType(74))
+		else if (m.isPitchWheel() || m.isAftertouch() || m.isController())
 		{
 			if (voiceNoteOns.isEmpty())
 			{
