@@ -103,6 +103,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	bool isAutocompleteable() const override { return true; }
 
     bool isRealtimeSafe() const override { return realtimeSafe; }
+
+	bool allowRefCount() const override { return false; };
         
 	void timerCallback() override;
 
