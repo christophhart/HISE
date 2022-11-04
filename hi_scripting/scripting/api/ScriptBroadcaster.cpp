@@ -3584,6 +3584,8 @@ ScriptBroadcaster::Metadata::Metadata() :
 
 void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& callableObject, bool useDebugInformation)
 {
+    return;
+    
 	if (comment.isNotEmpty())
 		return;
 
