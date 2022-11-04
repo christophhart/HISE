@@ -260,7 +260,9 @@ public:
 
 			auto sl = gotoFunction(s.x, token);
 
-			return document.jumpToLine(sl);
+            document.jumpToLine(sl);
+            
+            return true;
 		}
 
 		return false;

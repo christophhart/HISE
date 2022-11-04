@@ -744,23 +744,36 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 	{
 		const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
 
-		for (int i = 0; i < getNumWatchedFiles(); i++)
-		{
-			if (getWatchedFile(i).getFileNameWithoutExtension() == c)
-			{
-				auto asP = dynamic_cast<Processor*>(this);
-
-				if (auto editor = asP->getMainController()->getLastActiveEditor())
-				{
-					if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-					{
-						editorPanel->gotoLocation(asP, getWatchedFile(i).getFullPathName(), 0);
-						return;
-					}
-				}
-			}
-		}
-
+        auto infos = DebugableObject::Helpers::getDebugInformationFromString(getScriptEngine(), c);
+        
+        if(infos.size() == 1)
+        {
+            if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[0].get()))
+                return;
+        }
+        else if (!infos.isEmpty())
+        {
+            PopupMenu m;
+            
+            m.addSectionHeader("Choose Goto target");
+            
+            int index = 1;
+            
+            for(auto i: infos)
+                m.addItem(index++, i->getTextForName(), true, false);
+            
+            if(auto r = m.show())
+            {
+                if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[r-1].get()))
+                    return;
+            }
+            else
+                return;
+        }
+        
+        PresetHandler::showMessageWindow("Can't locate symbol", "The symbol `" + c + "` cannot be found");
+        
+#if 0
 		auto f = [c](Processor* p)
 		{
 			Result result = Result::ok();
@@ -787,6 +800,7 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 		auto p = dynamic_cast<Processor*>(this);
 
 		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+#endif
 	}
 #endif
 }
