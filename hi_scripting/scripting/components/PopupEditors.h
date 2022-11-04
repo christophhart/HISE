@@ -122,12 +122,22 @@ private:
 
 
 class PopupIncludeEditor : public Component,
-						   public Dispatchable, 
+						   public Dispatchable,
+                           public GlobalScriptCompileListener,
 						   public mcl::GutterComponent::BreakpointListener,
 						   public JavascriptThreadPool::SleepListener
 {
 public:
 
+    void scriptWasCompiled(JavascriptProcessor* p) override
+    {
+        if(p == jp)
+        {
+            checkUnreferencedExternalFile();
+            repaint();
+        }
+    }
+    
 	static bool matchesId(Component* c, const Identifier& id)
 	{
 		return CommonEditorFunctions::as(c)->findParentComponentOfClass<PopupIncludeEditor>()->callback == id;
@@ -158,6 +168,12 @@ public:
 
 	File getFile() const;
 	
+    int jumpToFromShortcut(int lineNumber, const String& token)
+    {
+        jp->jumpToDefinition(token, "");
+        return -1;
+    }
+    
 	JavascriptProcessor* getScriptProcessor() { return jp; }
 
 	static File getPropertyFile()
@@ -184,13 +200,52 @@ public:
 	ExternalScriptFile::Ptr externalFile;
 
 	ScopedPointer<EditorBottomBar> bottomBar;
-
+    
 private:
 
+    void checkUnreferencedExternalFile()
+    {
+        bool before = unreferencedExternalFile;
+        
+        auto f = getFile();
+        
+        if(f.existsAsFile())
+        {
+            unreferencedExternalFile = true;
+            
+            for(int i = 0; i < jp->getNumWatchedFiles(); i++)
+            {
+                if(f == jp->getWatchedFile(i))
+                {
+                    unreferencedExternalFile = false;
+                    break;
+                }
+            }
+        }
+        else
+            unreferencedExternalFile = false;
+        
+        if(auto pc = findParentComponentOfClass<PanelWithProcessorConnection>())
+        {
+            if(before && !unreferencedExternalFile)
+            {
+                pc->refreshSelectorValue(dynamic_cast<Processor*>(jp.get()), getFile().getFileName());
+            }
+            else if (unreferencedExternalFile)
+            {
+                pc->setDynamicTitle(getFile().getFileName() + " (detached)");
+            }
+        }
+        
+        
+    }
+    
 	void addButtonAndCompileLabel();
 	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
 	void compileInternal();
 
+    bool unreferencedExternalFile = false;
+    
 	friend class PopupIncludeEditorWindow;
 
 	bool isCallbackEditor() { return !callback.isNull(); }

@@ -252,21 +252,31 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
 	}
 
+    codeTabs = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptEditorTabs"))->getParentShell();
+    jassert(codeTabs != nullptr && dynamic_cast<FloatingTabComponent*>(codeTabs->getCurrentFloatingPanel()) != nullptr);
+    
     getBackendProcessor()->workbenches.addListener(this);
 
+    GET_PROJECT_HANDLER(getBackendProcessor()->getMainSynthChain()).addListener(this, true);
+            
 	getBackendProcessor()->getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*this, BackendRootWindow::learnModeChanged);
 }
 
 
 BackendRootWindow::~BackendRootWindow()
 {
+    
 	saveKeyPressMap();
 	saveInterfaceData();
 
+    codeTabManager = nullptr;
+    
 	popoutWindows.clear();
 
 	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
 
+    GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).removeListener(this);
+    
 	getBackendProcessor()->getCommandManager()->clearCommands();
 	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
 
@@ -588,6 +598,12 @@ void BackendRootWindow::newHisePresetLoaded()
 	{
 		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
 		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
+        
+        
+        if(codeTabManager != nullptr)
+        {
+            codeTabManager->restoreTabs(jsp);
+        }
 	}
 }
 

@@ -62,8 +62,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	int numSnippets = p->getNumSnippets();
 	int numFiles = p->getNumWatchedFiles();
 
-	const bool isCallback = index < numSnippets;
-	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
+	const bool isCallback = scriptPath.isEmpty() && index < numSnippets;
+	const bool isExternalFile = scriptPath.isNotEmpty() || (index >= numSnippets && (index-numSnippets) < numFiles);
 
 	if (isCallback)
 	{
@@ -81,10 +81,22 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 	else if (isExternalFile)
 	{
-		const int fileIndex = index - p->getNumSnippets();
-
-		auto f = p->getWatchedFile(fileIndex);
-
+        File f;
+        
+        auto scriptFolder = f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(p)).getSubDirectory(FileHandlerBase::Scripts);
+        
+        if(scriptPath.isNotEmpty())
+        {
+            f = scriptFolder.getChildFile(scriptPath);
+            refreshSelectorValue(getProcessor(), f.getFileName());
+        }
+        else
+        {
+            const int fileIndex = index - p->getNumSnippets();
+            f = p->getWatchedFile(fileIndex);
+            scriptPath = f.getRelativePathFrom(scriptFolder);
+        }
+        
 		if (f.getFileExtension() == ".h")
 		{
 			snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
@@ -142,12 +154,17 @@ void CodeEditorPanel::contentChanged()
 
 void CodeEditorPanel::fromDynamicObject(const var& object)
 {
+    scriptPath = object.getProperty("ScriptFile", "").toString();
 	PanelWithProcessorConnection::fromDynamicObject(object);
 }
 
 var CodeEditorPanel::toDynamicObject() const
 {
-	return PanelWithProcessorConnection::toDynamicObject();
+	var obj = PanelWithProcessorConnection::toDynamicObject();
+    
+    obj.getDynamicObject()->setProperty("ScriptFile", scriptPath);
+    
+    return obj;
 }
 
 CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index)

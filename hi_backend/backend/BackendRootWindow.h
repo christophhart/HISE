@@ -48,7 +48,138 @@ namespace hise { using namespace juce;
 class BackendProcessorEditor;
 
 
-
+struct CodeTabManager: public AsyncUpdater
+{
+    CodeTabManager(const File& directory, FloatingTile* codeTabs):
+      currentProjectDirectory(directory),
+      tabs(codeTabs)
+    {
+        
+    };
+    
+    
+    void restoreTabs(Processor* p)
+    {
+        currentWorkspaceProcessor = p;
+        triggerAsyncUpdate();
+    }
+    
+    void handleAsyncUpdate() override
+    {
+        auto scriptFiles = getScriptFiles();
+        
+        tabs->forEach<CodeEditorPanel>([&](CodeEditorPanel* editor)
+        {
+            if(auto pe = editor->getContent<PopupIncludeEditor>())
+            {
+                auto f = pe->getFile();
+                
+                if(!f.existsAsFile())
+                    return false;
+                
+                if(scriptFiles.contains(f))
+                {
+                    scriptFiles.removeAllInstancesOf(f);
+                }
+                else
+                {
+                    DBG("REMOVE PANEL for " + f.getFileName());
+                }
+            }
+            
+            return false;
+        });
+        
+        FloatingInterfaceBuilder builder(tabs);
+        
+        auto scriptFolder = currentProjectDirectory.getChildFile("Scripts");
+        
+        for(auto f: scriptFiles)
+        {
+            auto idx = builder.addChild<CodeEditorPanel>(0);
+            
+            auto editor = builder.getContent<CodeEditorPanel>(idx);
+            
+            editor->setScriptFile(f.getRelativePathFrom(scriptFolder));
+            
+            editor->setContentWithUndo(currentWorkspaceProcessor, 0);
+                                  
+            DBG("ADD PANEL for " + f.getFileName());
+        }
+    }
+    
+    ~CodeTabManager()
+    {
+        auto list = getFilePathsFromTabs();
+        var lv(list);
+        getTabConnectionFile().replaceWithText(JSON::toString(lv));
+        
+        auto scriptFiles = getScriptFiles();
+        
+        auto tabPanel = dynamic_cast<FloatingTabComponent*>(tabs->getCurrentFloatingPanel());
+        
+        for(int i = 0; i < tabPanel->getNumTabs(); i++)
+        {
+            auto c = tabPanel->getComponent(i);
+            
+            if(auto ed = dynamic_cast<CodeEditorPanel*>(c->getCurrentFloatingPanel()))
+            {
+                if(auto pe = ed->getContent<PopupIncludeEditor>())
+                {
+                    if(pe->getFile().existsAsFile())
+                    {
+                        tabPanel->removeFloatingTile(c);
+                        i--;
+                    }
+                }
+            }
+        }
+        
+    }
+    
+    Array<File> getScriptFiles()
+    {
+        var list = JSON::parse(getTabConnectionFile());
+        
+        Array<File> scriptFiles;
+        
+        auto scriptFolder = currentProjectDirectory.getChildFile("Scripts");
+        
+        if(list.isArray())
+        {
+            for(auto v: *list.getArray())
+            {
+                scriptFiles.add(File(scriptFolder.getChildFile(v.toString())));
+            }
+        }
+        
+        return scriptFiles;
+    }
+    
+    Array<var> getFilePathsFromTabs()
+    {
+        Array<var> list;
+        
+        tabs->forEach<CodeEditorPanel>([&](CodeEditorPanel* editor)
+        {
+            var sf = editor->toDynamicObject().getProperty("ScriptFile", "");
+            
+            if(sf.toString().isNotEmpty())
+                list.add(sf);
+            
+            return false;
+        });
+        
+        return list;
+    }
+    
+    
+    WeakReference<Processor> currentWorkspaceProcessor;
+    File getTabConnectionFile() const { return currentProjectDirectory.getChildFile("CodeTabs.js"); }
+    
+    File currentProjectDirectory;
+    FloatingTile* tabs;
+};
 
 
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
@@ -63,6 +194,7 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public DragAndDropContainer,
 						  public ComponentWithHelp::GlobalHandler,
 						  public PeriodicScreenshotter::Holder,
+                          public ProjectHandler::Listener,
 						  public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
@@ -73,6 +205,8 @@ public:
 
 	bool isFullScreenMode() const;
 
+    
+    
 	File getKeyPressSettingFile() const override
 	{
 		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
@@ -170,6 +304,11 @@ public:
 
 	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }
 
+    void projectChanged(const File& newWorkingDirectory) override
+    {
+        codeTabManager = new CodeTabManager(newWorkingDirectory, codeTabs);
+    }
+    
 	void sendRootContainerRebuildMessage(bool synchronous)
 	{
 		getModuleListNofifier().sendProcessorChangeMessage(getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, synchronous);
@@ -265,6 +404,9 @@ private:
 
 	ScopedPointer<PeriodicScreenshotter> screenshotter;
 
+    FloatingTile* codeTabs = nullptr;
+    ScopedPointer<CodeTabManager> codeTabManager;
+    
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 };
 
