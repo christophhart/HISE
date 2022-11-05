@@ -2712,8 +2712,13 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 
 			auto ok = unlocker->unlockWithTime(Time(bi.toInt64()));
             
-            ignoreUnused(ok);
+            if(ok)
+                return var("");
+            else
+                return var("Activation failed");
 		}
+        
+        return var("encodedTimeString data is corrupt");
 	}
 	else
 	{

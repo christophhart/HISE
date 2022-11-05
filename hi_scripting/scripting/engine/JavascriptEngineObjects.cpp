@@ -184,6 +184,8 @@ public:
 
 			return array->size();
 		}
+        
+        return var();
 	}
 
 	static var push(Args a)

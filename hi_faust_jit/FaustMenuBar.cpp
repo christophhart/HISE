@@ -384,6 +384,7 @@ struct FaustGraphViewer : public Component,
             auto ok = svgDirectory.deleteRecursively();
 
             jassert(ok);
+            ignoreUnused(ok);
         }
         
 		setStatus("Creating SVG files...");
@@ -489,6 +490,7 @@ struct FaustGraphViewer : public Component,
 			auto ok = svgDirectory.deleteRecursively();
 
 			jassert(ok);
+            ignoreUnused(ok);
 		}
 	}
 

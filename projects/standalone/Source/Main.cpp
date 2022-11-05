@@ -596,12 +596,13 @@ public:
 					exit(1);
 				}
 			}
+            
+            quit();
+            return;
 #else
 			std::cout << "You need to build HISE with the CI configuration in order to run the unit tests";
 			exit(1);
 #endif
-			quit();
-			return;
 		}
 		else if (commandLine.startsWith("set_version"))
 		{

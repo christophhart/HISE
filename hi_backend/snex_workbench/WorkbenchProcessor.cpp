@@ -841,7 +841,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     auto projectName = settings.getSetting(HiseSettings::Project::Name).toString();
     auto debugExecutable = File(hisePath).getChildFile("projects/standalone/Builds/");
     
-	auto isUsingVs2017 = HelperClasses::isUsingVisualStudio2017(settings);
+	
 
 	
 	
@@ -849,6 +849,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 
 
 #if JUCE_WINDOWS
+    auto isUsingVs2017 = HelperClasses::isUsingVisualStudio2017(settings);
     auto vsString = isUsingVs2017 ? "VisualStudio2017" : "VisualStudio2022";
     auto vsVersion = isUsingVs2017 ? "15.0" : "17.0";
     
