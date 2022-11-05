@@ -108,7 +108,7 @@ public:
                         g.setColour(mc);
                         
                         auto c = isVertical ? maxCopy.removeFromBottom(maxPos).withHeight(2.0f) :
-                                              maxCopy.removeFromLeft(maxPos).withWidth(2.0f);
+                                              maxCopy.removeFromLeft(maxPos).removeFromRight(2.0f);
                         
                         g.fillRect(c);
                     }
