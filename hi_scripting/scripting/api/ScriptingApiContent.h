@@ -2337,6 +2337,9 @@ public:
 	/** Creates an OpenGL framgent shader. */
 	var createShader(const String& fileName);
 
+    /** Creates an SVG object from the converted Base64 String. */
+    var createSVG(const String& base64String);
+    
 	/** Creates a MarkdownRenderer. */
 	var createMarkdownRenderer();
 

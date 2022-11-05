@@ -1975,6 +1975,7 @@ public:
 		Base64,
 		CppString,
 		HiseScriptNumbers,
+        Base64SVG,
 		numOutputFormats
 	};
 
@@ -1985,7 +1986,7 @@ public:
 		resizer(this, nullptr),
 		closeButton("close", nullptr, *this)
 	{
-		outputFormatSelector.addItemList({ "Base64 String", "C++ String", "HiseScript number array" }, 1);
+		outputFormatSelector.addItemList({ "Base64 Path", "C++ Path String", "HiseScript Path number array", "Base64 SVG" }, 1);
 		
 		addAndMakeVisible(outputFormatSelector);
 		addAndMakeVisible(inputEditor);
@@ -2082,11 +2083,11 @@ public:
 		return input.startsWith("const var") || input.startsWith("[");
 	}
 
-	static String parse(const String& input)
+	static String parse(const String& input, OutputFormat format)
 	{
 		String rt = input.trim();
 
-		if (isHiseScriptArray(rt))
+		if (isHiseScriptArray(rt) || format == OutputFormat::Base64SVG)
 		{
 			return rt;
 		}
@@ -2116,8 +2117,6 @@ public:
 		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 		return p;
 	}
-
-	
 
 	Path pathFromPoints(String pointsText)
 	{
@@ -2219,7 +2218,10 @@ public:
 
 	void update()
 	{
-		auto inputText = parse(inputDoc.toString());
+        currentSVG = nullptr;
+        path = Path();
+        
+		auto inputText = parse(inputDoc.toString(), currentOutputFormat);
 
 		String result = "No path generated.. Not a valid SVG path string?";
 
@@ -2259,16 +2261,43 @@ public:
 		{
 			auto text = inputText.trim().unquoted().trim();
 
-			path = Drawable::parseSVGPath(text);
+            if(currentOutputFormat == OutputFormat::Base64SVG)
+            {
+                if(auto xml = XmlDocument::parse(text))
+                {
+                    currentSVG = Drawable::createFromSVG(*xml);
+                    
+                    currentSVG->setTransformToFit(pathArea, RectanglePlacement::centred);
+                }
+            }
+            else
+            {
+                path = Drawable::parseSVGPath(text);
 
-			if (path.isEmpty())
-				path = pathFromPoints(text);
+                if (path.isEmpty())
+                    path = pathFromPoints(text);
+                
+                if(!path.isEmpty())
+                    PathFactory::scalePath(path, pathArea);
+            }
 
-			auto filename = variableDoc.toString();
+            auto filename = snex::cppgen::StringHelpers::makeValidCppName(variableDoc.toString());
 
-			if (!path.isEmpty())
+			if (!path.isEmpty() || currentSVG != nullptr)
 			{
 				MemoryOutputStream data;
+                
+                MemoryBlock mb;
+                
+                if(currentSVG != nullptr)
+                {
+                    zstd::ZDefaultCompressor comp;
+                    
+                    comp.compress(text, mb);
+                }
+                else
+                    mb = data.getMemoryBlock();
+                
 				path.writePathToStream(data);
 
 				MemoryOutputStream out;
@@ -2277,7 +2306,7 @@ public:
 				{
 					out << "static const unsigned char " << filename << "[] = ";
 
-					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "{}");
+					writeDataAsCppLiteral(mb, out, false, true, "{}");
 
 					out << newLine
 						<< newLine
@@ -2285,15 +2314,15 @@ public:
 						<< "path.loadPathFromData (" << filename << ", sizeof (" << filename << "));" << newLine;
 
 				}
-				else if (currentOutputFormat == OutputFormat::Base64)
+				else if (currentOutputFormat == OutputFormat::Base64 || currentOutputFormat == OutputFormat::Base64SVG)
 				{
 					out << "const var " << filename << " = ";
-					out << "\"" << data.getMemoryBlock().toBase64Encoding() << "\"";
+					out << "\"" << mb.toBase64Encoding() << "\"";
 				}
 				else if (currentOutputFormat == OutputFormat::HiseScriptNumbers)
 				{
 					out << "const var " << filename << " = ";
-					writeDataAsCppLiteral(data.getMemoryBlock(), out, false, true, "[]");
+					writeDataAsCppLiteral(mb, out, false, true, "[]");
 
 					out << ";";
 				}
@@ -2304,7 +2333,7 @@ public:
 		
 		outputDoc.setValue(result);
 
-		PathFactory::scalePath(path, pathArea);
+		
 
 		repaint();
 	}
@@ -2325,7 +2354,11 @@ public:
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
 		g.drawText("SVG to Path converter", titleArea, Justification::centred);
 
-        if(path.isEmpty())
+        if(currentSVG != nullptr)
+        {
+            currentSVG->draw(g, 1.0f);
+        }
+        else if(path.isEmpty())
         {
             g.setFont(GLOBAL_BOLD_FONT());
             g.drawText("No valid path", pathArea, Justification::centred);
@@ -2376,10 +2409,15 @@ public:
 		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
 		closeButton.setBounds(getLocalBounds().removeFromRight(titleArea.getHeight()).removeFromTop(titleArea.getHeight()).reduced(6));
 
-		scalePath(path, pathArea);
+        if(!path.isEmpty())
+            scalePath(path, pathArea);
+        else if(currentSVG != nullptr)
+            currentSVG->setTransformToFit(pathArea, RectanglePlacement::centred);
+            
 		repaint();
 	}
 
+    std::unique_ptr<Drawable> currentSVG;
 	Path path;
 	Rectangle<float> pathArea;
 	Rectangle<float> titleArea;

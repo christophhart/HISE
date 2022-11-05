@@ -129,6 +129,7 @@ struct ScriptingApi::Content::Wrapper
 	static var createPath(const var::NativeFunctionArgs& args);
 	static var createShader(const var::NativeFunctionArgs& args);
 	static var createMarkdownRenderer(const var::NativeFunctionArgs& args);
+    static var createSVG(const var::NativeFunctionArgs& args);
 	static var isMouseDown(const var::NativeFunctionArgs& args);
 	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
 	static var callAfterDelay(const var::NativeFunctionArgs& args);
@@ -945,6 +946,17 @@ juce::var ScriptingApi::Content::Wrapper::createMarkdownRenderer(const var::Nati
 	return var();
 }
 
+juce::var ScriptingApi::Content::Wrapper::createSVG(const var::NativeFunctionArgs& args)
+{
+    if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+    {
+        CHECK_ARGUMENTS("createSVG()", 1);
+
+        return thisObject->createSVG(args.arguments[0]);
+    }
+
+    return var();
+}
 
 var ScriptingApi::Content::Wrapper::createScreenshot(const var::NativeFunctionArgs& args)
 {

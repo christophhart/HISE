@@ -4853,6 +4853,7 @@ colour(Colour(0xff777777))
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("createMarkdownRenderer", Wrapper::createMarkdownRenderer);
+    setMethod("createSVG", Wrapper::createSVG);
 	setMethod("getScreenBounds", Wrapper::getScreenBounds);
 	setMethod("getCurrentTooltip", Wrapper::getCurrentTooltip);
 	setMethod("createLocalLookAndFeel", Wrapper::createLocalLookAndFeel);
@@ -5800,6 +5801,11 @@ String ScriptingApi::Content::getCurrentTooltip()
 		return ttc->getTooltip();
 
 	return {};
+}
+
+var ScriptingApi::Content::createSVG(const String& b64)
+{
+    return var(new ScriptingObjects::SVGObject(getScriptProcessor(), b64));
 }
 
 juce::var ScriptingApi::Content::createMarkdownRenderer()

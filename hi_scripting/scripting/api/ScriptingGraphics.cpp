@@ -805,6 +805,26 @@ Result ScriptingObjects::ScriptShader::processErrorMessage(const Result& r)
 	return r;
 }
 
+ScriptingObjects::SVGObject::SVGObject(ProcessorWithScriptingContent* p, const String& b64):
+  ConstScriptingObject(p, 0)
+{
+    zstd::ZDefaultCompressor comp;
+    
+    MemoryBlock mb;
+    mb.fromBase64Encoding(b64);
+    
+    String xmlText;
+    
+    comp.expand(mb, xmlText);
+    
+    if(auto xml = XmlDocument::parse(xmlText))
+    {
+        MessageManagerLock mm;
+        svg = Drawable::createFromSVG(*xml);
+    }
+}
+
+
 class PathPreviewComponent : public Component,
 							 public ComponentForDebugInformation
 {
@@ -1323,7 +1343,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, beginLayer);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, beginBlendLayer);
-
+    API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawSVG);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyHSL);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, applyGamma);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, applyGradientMap);
@@ -1357,6 +1377,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_5(drawFittedText);
 	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(drawMarkdownText);
+    ADD_API_METHOD_3(drawSVG);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1745,6 +1766,17 @@ void ScriptingObjects::GraphicsObject::drawMarkdownText(var markdownRenderer)
 	}
 	else
 		reportScriptError("not a markdown renderer");
+}
+
+void ScriptingObjects::GraphicsObject::drawSVG(var svgObject, var bounds, float opacity)
+{
+    if (auto obj = dynamic_cast<SVGObject*>(svgObject.getObject()))
+    {
+        auto b = ApiHelpers::getRectangleFromVar(bounds);
+        drawActionHandler.addDrawAction(new ScriptedDrawActions::drawSVG(svgObject, b, opacity));
+    }
+    else
+        reportScriptError("not a SVG object");
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
