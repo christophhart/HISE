@@ -5037,9 +5037,11 @@ var ScriptingApi::Content::getAllComponents(String regex)
 {
 	Array<var> list;
 
+    bool getAll = regex == ".*";
+    
 	for (int i = 0; i < getNumComponents(); i++)
 	{	    
-		if (RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
+		if (getAll || RegexFunctions::matchesWildcard(regex, components[i]->getName().toString()))
 		{
 			list.add(var(components[i].get()));
 		}

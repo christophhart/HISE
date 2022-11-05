@@ -1950,7 +1950,9 @@ template <typename...Ps> struct LambdaBroadcaster final
 	void sendMessage(NotificationType n, Ps... parameters)
 	{
 		lastValue = std::make_tuple(parameters...);
-		sendMessageInternal(n, lastValue);
+        
+        if(!listeners.isEmpty())
+            sendMessageInternal(n, lastValue);
 	}
 
 	/** By default, the lambda broadcaster will be called only with the last element whic
