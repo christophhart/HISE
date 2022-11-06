@@ -234,6 +234,7 @@ void MainController::clearPreset()
 		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
 		mc->getControlUndoManager()->clearUndoHistory();
         mc->getLocationUndoManager()->clearUndoHistory();
+        mc->getMasterClock().reset();
         
 		mc->setGlobalRoutingManager(nullptr);
 

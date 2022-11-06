@@ -2866,6 +2866,32 @@ struct MasterClock
 		return uptimeToUse / quarterSamples;
 	}
 
+    void reset()
+    {
+        gridEnabled = false;
+        clockGrid = TempoSyncer::numTempos;
+        currentSyncMode = SyncModes::Inactive;
+        
+        uptime = 0;
+        samplesToNextGrid = 0;
+        
+        currentGridIndex = 0;
+
+        internalClockIsRunning = false;
+
+        // they don't need to be resetted...
+        //sampleRate = 44100.0;
+        //bpm = 120.0;
+
+        nextTimestamp = 0;
+        currentState = State::Idle;
+        nextState = State::Idle;
+
+        waitForFirstGrid = false;
+        
+        updateGridDelta();
+    }
+    
 private:
 
 	void updateGridDelta()
