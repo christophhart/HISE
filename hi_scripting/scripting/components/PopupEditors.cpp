@@ -107,6 +107,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	Processor *p = dynamic_cast<Processor*>(jp.get());
 	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
 
+    p->getMainController()->addScriptListener(this);
+    
+    checkUnreferencedExternalFile();
+    
 	auto isJavascript = !externalFile->getFile().hasFileExtension("glsl");
 
 	addEditor(externalFile->getFileDocument(), isJavascript);
@@ -144,6 +148,8 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	addEditor(d, true);
 	addButtonAndCompileLabel();
 
+    dynamic_cast<Processor*>(jp.get())->getMainController()->addScriptListener(this);
+    
 	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
 }
 
@@ -220,6 +226,8 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
     
 	bottomBar->setCompileFunction(BIND_MEMBER_FUNCTION_0(PopupIncludeEditor::compileInternal));
 
+    
+    
 	setSize(800, 800);
 }
 
@@ -227,6 +235,8 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 
 void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r)
 {
+    checkUnreferencedExternalFile();
+    
 	bottomBar->setError(r.r.getErrorMessage());
 
 	if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
@@ -277,12 +287,16 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
+    Processor *sp = dynamic_cast<Processor*>(jp.get());
+    
 	if (jp != nullptr && editor != nullptr)
 	{
 		auto& doc = editor->editor.getDocument();
 		auto pos = editor->editor.getTextDocument().getSelection(0).head;
 
         CodeDocument::Position p(doc, pos.x, pos.y);
+     
+        sp->getMainController()->removeScriptListener(this);
         
 		jp->setWatchedFilePosition(p);
 	}
@@ -293,11 +307,7 @@ PopupIncludeEditor::~PopupIncludeEditor()
 
 	bottomBar = nullptr;
 
-	Processor *p = dynamic_cast<Processor*>(jp.get());
-
-	
-	p = nullptr;
-
+    doc = nullptr;
 	externalFile = nullptr;
 }
 
@@ -363,6 +373,8 @@ void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<Exter
 
 void PopupIncludeEditor::resized()
 {
+    checkUnreferencedExternalFile();
+    
 	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
 
 	if(isInPanel)
@@ -420,11 +432,10 @@ void PopupIncludeEditor::breakpointsChanged(mcl::GutterComponent& g)
 
 void PopupIncludeEditor::paintOverChildren(Graphics& g)
 {
-	if (getEditor() == dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor())
+    if (getEditor() == dynamic_cast<Processor*>(jp.get())->getMainController()->getLastActiveEditor())
 	{
-		g.setColour(Colour(SIGNAL_COLOUR));
+		g.setColour(unreferencedExternalFile ? Colour(HISE_ERROR_COLOUR) : Colour(SIGNAL_COLOUR));
 		g.fillRect(0, 0, 5, 5);
-		
 	}
 }
 
@@ -456,6 +467,8 @@ File PopupIncludeEditor::getFile() const
 
 void PopupIncludeEditor::compileInternal()
 {
+    
+    
 	if (externalFile != nullptr)
 	{
 		externalFile->getFile().replaceWithText(externalFile->getFileDocument().getAllContent());
@@ -527,6 +540,8 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 			if (isFocused)
 				mc->setLastActiveEditor(CommonEditorFunctions::as(asComponent), CommonEditorFunctions::getCaretPos(asComponent));
 		};
+        
+        getEditor()->editor.setGotoFunction(BIND_MEMBER_FUNCTION_2(::hise::PopupIncludeEditor::jumpToFromShortcut));
 	}
 
 	WeakReference<ApiProviderBase::Holder> safeHolder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());

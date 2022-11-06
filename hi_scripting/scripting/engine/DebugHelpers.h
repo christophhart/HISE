@@ -64,11 +64,11 @@ public:
 			return info;
 		}
 
-		static void gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
+		static bool gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
 
-		static void gotoLocation(Processor* processor, DebugInformationBase* info);
+		static bool gotoLocation(Processor* processor, DebugInformationBase* info);
 		
-		static void gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
+		static bool gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
 
 		/** This will try to resolve the location from the provider if the obj has not a valid location. */
 		static Location getLocationFromProvider(Processor* p, DebugableObjectBase* obj);
@@ -88,6 +88,11 @@ public:
 		static DebugInformationBase::Ptr getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object);
 
 		static DebugInformationBase::Ptr getDebugInformation(ApiProviderBase* engine, const var& v);
+        
+        static DebugInformationBase::List getDebugInformationFromString(ApiProviderBase* engine, const String& token);
+        
+        static DebugInformationBase::List getDebugInformationFromString(DebugInformationBase::Ptr parent, const String& token);
+        
 	};
 
 };

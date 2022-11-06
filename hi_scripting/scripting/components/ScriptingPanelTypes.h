@@ -66,6 +66,16 @@ public:
 
 	void contentChanged() override;
 
+    void setScriptFile(const String& sp)
+    {
+        scriptPath = sp;
+    }
+    
+    void preSelectCallback(ComboBox* cb) override
+    {
+        scriptPath = {};
+    }
+    
 	void fromDynamicObject(const var& object) override;
 
 	var toDynamicObject() const override;
@@ -93,6 +103,8 @@ public:
 private:
 
 	ScopedPointer<JavascriptTokeniser> tokeniser;
+    
+    String scriptPath;
 };
 
 

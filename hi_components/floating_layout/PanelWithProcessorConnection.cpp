@@ -324,6 +324,8 @@ void PanelWithProcessorConnection::resized()
 
 void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 {
+    preSelectCallback(comboBoxThatHasChanged);
+    
 	if (comboBoxThatHasChanged == connectionSelector)
 	{
 		indexSelector->clear(dontSendNotification);
@@ -417,15 +419,31 @@ void PanelWithProcessorConnection::refreshSelector(StringArray &items, String cu
 {
 	fillModuleList(items);
 
-	int index = items.indexOf(currentId);
+	
 
 	connectionSelector->addItem("Disconnect", 1);
 	connectionSelector->addItemList(items, 2);
 
-	if (index != -1)
-	{
-		connectionSelector->setSelectedId(index + 2, dontSendNotification);
-	}
+    int index = items.indexOf(currentId);
+    
+    if (index != -1)
+        connectionSelector->setSelectedId(index + 2, dontSendNotification);
+}
+
+void PanelWithProcessorConnection::refreshSelectorValue(Processor* p, String currentId)
+{
+    StringArray items;
+    fillIndexList(items);
+    int index = items.indexOf(currentId);
+    
+    if (index != -1)
+    {
+        currentIndex = index;
+        indexSelector->setSelectedId(index + 2, dontSendNotification);
+        
+        setCustomTitle(currentId);
+        refreshTitle();
+    }
 }
 
 void PanelWithProcessorConnection::refreshIndexList()

@@ -374,7 +374,7 @@ void HiseJavascriptEngine::RootObject::CodeLocation::throwError(const String& me
 
 
 
-void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
+bool DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
 {
 	ignoreUnused(mainSynthChain, line);
 
@@ -404,8 +404,7 @@ void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 						DebugableObject::Location loc;
 						loc.charNumber = pos.getPosition();
 						loc.fileName = p->getWatchedFile(i).getFullPathName();
-						gotoLocation(nullptr, p, loc);
-						return;
+						return gotoLocation(nullptr, p, loc);
 					}
 				}
 			}
@@ -432,7 +431,7 @@ void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 
 			if (p != nullptr)
 			{
-				gotoLocation(nullptr, p, loc);
+				return gotoLocation(nullptr, p, loc);
 			}
 			else
 			{
@@ -441,6 +440,8 @@ void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain,
 		}
 	}
 #endif
+    
+    return false;
 }
 
 struct HiseJavascriptEngine::RootObject::CallStackEntry
