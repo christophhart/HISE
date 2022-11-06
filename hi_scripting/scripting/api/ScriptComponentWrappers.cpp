@@ -42,6 +42,8 @@ namespace hise { using namespace juce;
 
 #define GET_OBJECT_COLOUR(id) (ScriptingApi::Content::Helpers::getCleanedObjectColour(GET_SCRIPT_PROPERTY(id)))
 
+
+
 struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListener
 {
 	AdditionalMouseCallback(ScriptComponent* sc, Component* c, const ScriptComponent::MouseListenerData& cd) :
@@ -162,7 +164,10 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 			arguments[0] = var(scriptComponent.get());
 
 			if (data.mouseCallbackLevel != MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
+            {
 				arguments[1] = MouseCallbackComponent::getMouseCallbackObject(component.getComponent(), event, data.mouseCallbackLevel, action, state);
+                ComponentWithAdditionalMouseProperties::attachMousePropertyFromParent(event, arguments[1]);
+            }
 			else
 				arguments[1] = var(popupMenuIndex);
 

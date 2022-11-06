@@ -3263,4 +3263,32 @@ struct Spectrum2D
     AudioSampleBuffer createSpectrumBuffer();
 };
 
+/** A interface class that can attach mouse events to the JSON object provided in the mouse event callback of a broadcaster. */
+struct ComponentWithAdditionalMouseProperties
+{
+    virtual ~ComponentWithAdditionalMouseProperties() {};
+    
+    /** Override this method and add more properties to the event callback object. This is used when a Broadcaster is attached to the mouse events of this component. */
+    virtual void attachAdditionalMouseProperties(const MouseEvent& e, var& obj) = 0;
+    
+    /** Call this method with a mouse event and it will go up the parent hierarchy and call attachAdditionalMouseProperties() if possible. */
+    static void attachMousePropertyFromParent(const MouseEvent& e, var& obj)
+    {
+        auto c = e.eventComponent;
+        
+        using LongName = ComponentWithAdditionalMouseProperties;
+        
+        if(auto typed = dynamic_cast<LongName*>(c))
+        {
+            typed->attachAdditionalMouseProperties(e, obj);
+            return;
+        }
+        
+        if(auto typedChild = c->findParentComponentOfClass<LongName>())
+        {
+            typedChild->attachAdditionalMouseProperties(e, obj);
+        }
+    }
+};
+
 }
