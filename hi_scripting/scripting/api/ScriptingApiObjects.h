@@ -67,6 +67,20 @@ public:
 		Component::SafePointer<Component> mainEditor;
 	};
 
+    static constexpr int SyncMagicNumber = 911;
+    static constexpr int AsyncMagicNumber = 912;
+    
+    static bool isSynchronous(var syncValue)
+    {
+        if((int)syncValue == SyncMagicNumber)
+            return true;
+        
+        if((int)syncValue == AsyncMagicNumber)
+            return false;
+        
+        return (bool)syncValue;
+    }
+    
 	static var getVarFromPoint(Point<float> pos);
 
 	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
@@ -2328,7 +2342,7 @@ namespace ScriptingObjects
 		void setRangeWithStep(double min, double max, double stepSize);
 
 		/** Registers a function that will be executed whenever a value is sent through the cable. */
-		void registerCallback(var callbackFunction, bool synchronous);
+		void registerCallback(var callbackFunction, var synchronous);
 
 		/** Connects the cable to a macro control. */
 		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
@@ -2603,7 +2617,7 @@ namespace ScriptingObjects
 		void setSequenceCallback(var updateFunction);
 
 		/** Attaches a callback with two arguments (timestamp, playState) that gets executed when the play state changes. */
-		void setPlaybackCallback(var playbackCallback, bool synchronous);
+		void setPlaybackCallback(var playbackCallback, var synchronous);
 
 		/** Returns a typed MIDI processor reference (for setting attributes etc). */
 		var asMidiProcessor();

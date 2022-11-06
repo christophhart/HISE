@@ -5341,13 +5341,15 @@ void ScriptingObjects::ScriptedMidiPlayer::setSequenceCallback(var updateFunctio
 	}
 }
 
-void ScriptingObjects::ScriptedMidiPlayer::setPlaybackCallback(var newPlaybackCallback, bool synchronous)
+void ScriptingObjects::ScriptedMidiPlayer::setPlaybackCallback(var newPlaybackCallback, var synchronous)
 {
 	playbackUpdater = nullptr;
 
+    bool isSync = ApiHelpers::isSynchronous(synchronous);
+    
 	if (HiseJavascriptEngine::isJavascriptFunction(newPlaybackCallback))
 	{
-		playbackUpdater = new PlaybackUpdater(*this, newPlaybackCallback, synchronous);
+		playbackUpdater = new PlaybackUpdater(*this, newPlaybackCallback, isSync);
 	}
 }
 
@@ -7120,11 +7122,13 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 	DebugableObject::Location funcLocation;
 };
 
-void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFunction, bool synchronous)
+void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFunction, var synchronous)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callbackFunction))
 	{
-		auto nc = new Callback(*this, callbackFunction, synchronous);
+        bool isSync = ApiHelpers::isSynchronous(synchronous);
+        
+		auto nc = new Callback(*this, callbackFunction, isSync);
 		callbacks.add(nc);
 	}
 }

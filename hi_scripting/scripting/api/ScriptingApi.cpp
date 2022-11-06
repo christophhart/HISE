@@ -6904,57 +6904,63 @@ ScriptingApi::TransportHandler::~TransportHandler()
 	getMainController()->removeMusicalUpdateListener(this);
 }
 
-void ScriptingApi::TransportHandler::setOnTempoChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnTempoChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(tempoChangeCallbackAsync, f);
 
-		tempoChangeCallback = new Callback(this, "onTempoChange", f, sync, 1);
+		tempoChangeCallback = new Callback(this, "onTempoChange", f, isSync, 1);
 		tempoChangeCallback->call(bpm, {}, {}, true);
 	}
 	else
 	{
 		clearIf(tempoChangeCallback, f);
 
-		tempoChangeCallbackAsync = new Callback(this, "onTempoChange", f, sync, 1);
+		tempoChangeCallbackAsync = new Callback(this, "onTempoChange", f, isSync, 1);
 		tempoChangeCallbackAsync->call(bpm, {}, {}, true);
 	}
 }
 
-void ScriptingApi::TransportHandler::setOnTransportChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnTransportChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(tempoChangeCallbackAsync, f);
 
-		transportChangeCallback = new Callback(this, "onTransportChange", f, sync, 1);
+		transportChangeCallback = new Callback(this, "onTransportChange", f, isSync, 1);
 		transportChangeCallback->call(play, {}, {}, true);
 	}
 	else
 	{
 		clearIf(transportChangeCallback, f);
 
-		transportChangeCallbackAsync = new Callback(this, "onTransportChange", f, sync, 1);
+		transportChangeCallbackAsync = new Callback(this, "onTransportChange", f, isSync, 1);
 		transportChangeCallbackAsync->call(play, {}, {}, true);
 	}
 	
 }
 
-void ScriptingApi::TransportHandler::setOnSignatureChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnSignatureChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(timeSignatureCallbackAsync, f);
 
-		timeSignatureCallback = new Callback(this, "onTimeSignatureChange", f, sync, 2);
+		timeSignatureCallback = new Callback(this, "onTimeSignatureChange", f, isSync, 2);
 		timeSignatureCallback->call(nom, denom, {}, true);
 	}
 	else
 	{
 		clearIf(timeSignatureCallback, f);
 
-		timeSignatureCallbackAsync = new Callback(this, "onTimeSignatureChange", f, sync, 2);
+		timeSignatureCallbackAsync = new Callback(this, "onTimeSignatureChange", f, isSync, 2);
 		timeSignatureCallbackAsync->call(nom, denom, {}, true);
 	}
 }
@@ -7020,44 +7026,48 @@ void ScriptingApi::TransportHandler::onGridChange(int gridIndex_, uint16 timesta
 		gridCallbackAsync->call(gridIndex, gridTimestamp, firstGridInPlayback);
 }
 
-void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnBeatChange(var sync, var f)
 {
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
 	if (f.isUndefined())
 		getMainController()->removeMusicalUpdateListener(this);
 	else
 	{
 		getMainController()->addMusicalUpdateListener(this);
 
-		if (sync)
+		if (isSync)
 		{
 			clearIf(beatCallbackAsync, f);
-			beatCallback = new Callback(this, "onBeatChange", f, sync, 2);
+			beatCallback = new Callback(this, "onBeatChange", f, isSync, 2);
 		}
 		else
 		{
 			clearIf(beatCallback, f);
-			beatCallbackAsync = new Callback(this, "onBeatChange", f, sync, 2);
+			beatCallbackAsync = new Callback(this, "onBeatChange", f, isSync, 2);
 		}
 	}
 }
 
-void ScriptingApi::TransportHandler::setOnGridChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnGridChange(var sync, var f)
 {
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
 	if (f.isUndefined())
 		getMainController()->removeMusicalUpdateListener(this);
 	else
 	{
 		getMainController()->addMusicalUpdateListener(this);
 
-		if (sync)
+		if (isSync)
 		{
 			clearIf(gridCallbackAsync, f);
-			gridCallback = new Callback(this, "onGridChange", f, sync, 3);
+			gridCallback = new Callback(this, "onGridChange", f, isSync, 3);
 		}
 		else
 		{
 			clearIf(gridCallback, f);
-			gridCallbackAsync = new Callback(this, "onGridChange", f, sync, 3);
+			gridCallbackAsync = new Callback(this, "onGridChange", f, isSync, 3);
 		}
 	}
 }

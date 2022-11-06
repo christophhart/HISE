@@ -153,7 +153,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	void reset();
 
 	/** Resends the current state. */
-	void resendLastMessage(bool isSync);
+	void resendLastMessage(var isSync);
 
 	/** Forces every message to be sent synchronously. */
 	void setForceSynchronousExecution(bool shouldExecuteSynchronously);

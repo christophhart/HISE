@@ -172,7 +172,9 @@ hiseSpecialData(this)
 	setMethod("parseFloat", IntegerClass::parseFloat);
 	setMethod("typeof", typeof_internal);
 
-	
+    // These are not constants so if you're evil you can change them...
+    setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
+    setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 }
 
 

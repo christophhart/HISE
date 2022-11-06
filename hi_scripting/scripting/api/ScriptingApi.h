@@ -1308,19 +1308,19 @@ public:
 		// ======================================================================================
 
 		/** Registers a callback to tempo changes. */
-		void setOnTempoChange(bool sync, var f);
+		void setOnTempoChange(var sync, var f);
 
 		/** Registers a callback to transport state changes (playing / stopping). */
-		void setOnTransportChange(bool sync, var f);
+		void setOnTransportChange(var sync, var f);
 
 		/** Registers a callback to time signature changes. */
-		void setOnSignatureChange(bool sync, var f);
+		void setOnSignatureChange(var sync, var f);
 
 		/** Registers a callback to changes in the musical position (bars / beats). */
-		void setOnBeatChange(bool sync, var f);
+		void setOnBeatChange(var sync, var f);
 
 		/** Registers a callback to changes in the grid. */
-		void setOnGridChange(bool sync, var f);
+		void setOnGridChange(var sync, var f);
 
 		/** Enables a high precision grid timer. */
 		void setEnableGrid(bool shouldBeEnabled, int tempoFactor);
