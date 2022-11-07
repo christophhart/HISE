@@ -41,7 +41,7 @@
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 10
+#define BACKEND_UI_VERSION 11
 
 namespace hise { using namespace juce;
 
