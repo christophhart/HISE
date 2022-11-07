@@ -646,8 +646,6 @@ Point<int> PresetBrowser::getMouseHoverInformation() const
 
 	auto mp = getMouseXYRelative();
 
-
-
 	auto setIfHover = [&](PresetBrowserColumn* c)
 	{
 		if (c == nullptr)
@@ -659,6 +657,10 @@ Point<int> PresetBrowser::getMouseHoverInformation() const
 		if(c->getBoundsInParent().contains(mp))
 		{
 			auto lp = c->getLocalPoint(this, mp);
+			auto offset = c->getListAreaOffset();
+
+			lp.setY(lp.getY() -(int)offset[1]);
+
 			p = { c->getColumnIndex(), c->getIndexForPosition(lp) };
 			return true;
 		};
@@ -1128,6 +1130,11 @@ void PresetBrowser::setListAreaOffset(Array<var> offset)
 	bankColumn->setListAreaOffset(offset);
 	categoryColumn->setListAreaOffset(offset);
 	presetColumn->setListAreaOffset(offset);
+}
+
+Array<var> PresetBrowser::getListAreaOffset()
+{	
+	return presetColumn->getListAreaOffset();
 }
 
 void PresetBrowser::setColumnRowPadding(Array<var> padding)

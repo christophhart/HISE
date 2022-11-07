@@ -247,6 +247,7 @@ private:
 	void setListAreaOffset(Array<var> offset);
 	void setColumnRowPadding(Array<var> offset);
 	void setShowCloseButton(bool shouldShowButton);
+	Array<var> getListAreaOffset();
 
 	// ============================================================================================
 

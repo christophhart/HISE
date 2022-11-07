@@ -468,6 +468,11 @@ public:
 		resized();
 	}
 	
+	Array<var> getListAreaOffset()
+	{
+		return listAreaOffset;
+	}
+	
 	void setRowPadding(double padding)
 	{
 		rowPadding = padding;
