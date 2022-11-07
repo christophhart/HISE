@@ -232,6 +232,9 @@ public:
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
+		/** Returns the current maximum processing block size. */
+		int getBufferSize() const;
+
 		/** Converts milli seconds to samples */
 		double getSamplesForMilliSeconds(double milliSeconds) const;;
 

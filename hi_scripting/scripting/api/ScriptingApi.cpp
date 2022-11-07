@@ -857,6 +857,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getPitchRatioFromSemitones);
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
+	API_METHOD_WRAPPER_0(Engine, getBufferSize);
 	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
@@ -993,6 +994,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_0(getBufferSize);
 	ADD_API_METHOD_1(setMinimumSampleRate);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
@@ -1261,6 +1263,9 @@ bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
 }
 
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
+
+int ScriptingApi::Engine::getBufferSize() const { return getProcessor()->getLargestBlockSize(); }
+
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
 String ScriptingApi::Engine::getTempoName(int tempoIndex)
