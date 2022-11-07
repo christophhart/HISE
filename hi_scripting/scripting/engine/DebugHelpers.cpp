@@ -491,6 +491,7 @@ bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* 
 
 #else
 	ignoreUnused(ed, sp, location);
+	return false;
 #endif
 }
 
