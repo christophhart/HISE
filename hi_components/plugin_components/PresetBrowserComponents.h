@@ -415,6 +415,11 @@ public:
 	}
 
 	int getColumnIndex() const { return listModel->getColumnIndex(); }
+	
+	File getFileForIndex(int fileIndex) const
+	{
+		return listModel->getFileForIndex(fileIndex);
+	};
 
 	int getIndexForPosition(Point<int> pos)
 	{

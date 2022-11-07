@@ -947,10 +947,12 @@ void PresetBrowser::attachAdditionalMouseProperties(const MouseEvent& e, var& ob
         int rowNumber = lb->getRowNumberOfComponent(e.eventComponent);
         auto column = e.eventComponent->findParentComponentOfClass<PresetBrowserColumn>();
         int columnIndex = column->getColumnIndex();
-        
+				String file = column->getFileForIndex(rowNumber).getFullPathName();
+				
         dyn->setProperty("target", "listItem");
         dyn->setProperty("rowIndex", rowNumber);
         dyn->setProperty("columnIndex", columnIndex);
+				dyn->setProperty("file", file);			
         
         return;
     }
