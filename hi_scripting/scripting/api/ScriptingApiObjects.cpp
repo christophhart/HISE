@@ -207,6 +207,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, getNonExistentSibling);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_METHOD_WRAPPER_0(ScriptFile, getRedirectedFolder);
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
@@ -277,8 +278,8 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_2(writeAsXmlFile);
 	ADD_API_METHOD_1(loadAsMidiFile);
 	ADD_API_METHOD_2(writeMidiFile);
+	ADD_API_METHOD_0(getRedirectedFolder);
 }
-
 
 var ScriptingObjects::ScriptFile::getChildFile(String childFileName)
 {
@@ -373,6 +374,22 @@ String ScriptingObjects::ScriptFile::toReferenceString(String folderType)
 
 	reportScriptError("Illegal folder type");
 	RETURN_IF_NO_THROW(var());
+}
+
+juce::var ScriptingObjects::ScriptFile::getRedirectedFolder()
+{
+	if (f.existsAsFile())
+		reportScriptError("getRedirectedFolder() must be used with a directory");
+
+	if (!f.isDirectory())
+		return var(this);
+
+	auto target = FileHandlerBase::getFolderOrRedirect(f);
+
+	if (target == f)
+		return var(this);
+	else
+		return var(new ScriptFile(getScriptProcessor(), target));
 }
 
 bool ScriptingObjects::ScriptFile::isFile() const

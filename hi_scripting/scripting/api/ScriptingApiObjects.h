@@ -327,6 +327,9 @@ namespace ScriptingObjects
 		/** Returns a reference string with a wildcard. */
 		String toReferenceString(String folderType);
 
+		/** If this file is a folder that contains a HISE redirection file (LinkWindows / LinkOSX file), then it will return the redirection target, otherwise it will return itself. */
+		var getRedirectedFolder();
+
 		/** Checks if this file exists and is a file. */
 		bool isFile() const;
 
