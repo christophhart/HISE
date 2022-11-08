@@ -2295,11 +2295,12 @@ public:
                     
                     comp.compress(text, mb);
                 }
-                else
-                    mb = data.getMemoryBlock();
+				else
+				{
+					path.writePathToStream(data);
+					mb = data.getMemoryBlock();
+				}
                 
-				path.writePathToStream(data);
-
 				MemoryOutputStream out;
 
 				if (currentOutputFormat == OutputFormat::CppString)
