@@ -365,11 +365,6 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 
 			data.getArray()->sort(sorter);
 
-			// We need to be careful to not call parameters in the meta parameter if they are
-			// part of the 
-			Array<Identifier> calledIds;
-			calledIds.ensureStorageAllocated(data.size());
-
 			for (auto& v : *data.getArray())
 			{
 				Identifier id(v["id"].toString());
@@ -379,24 +374,7 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 				{
 					float fv = (float)value;
 					FloatSanitizers::sanitizeFloatNumber(fv);
-
-					// Do not call meta parameters here
-					auto metaFilter = [&calledIds](MainController::UserPresetHandler::CustomAutomationData::ConnectionBase* b)
-					{
-						if (auto metaConnection = dynamic_cast<MainController::UserPresetHandler::CustomAutomationData::MetaConnection*>(b))
-						{
-							auto alreadyCalled = !calledIds.contains(metaConnection->target->id);
-
-							if (alreadyCalled)
-								return false;
-						}
-
-						return true;
-					};
-
-					cData->call(fv, sendMessage, metaFilter);
-
-					calledIds.add(id);
+					cData->call(fv, sendMessage);
 				}
 			}
 		}
