@@ -963,6 +963,12 @@ void PresetBrowser::attachAdditionalMouseProperties(const MouseEvent& e, var& ob
         dyn->setProperty("buttonState", favoriteButton->getToggleState());
         return;
     }
+		
+		if(e.eventComponent == saveButton)
+		{
+				dyn->setProperty("target", "saveButton");
+				return;
+		}
 }
 
 void PresetBrowser::labelTextChanged(Label* l)
