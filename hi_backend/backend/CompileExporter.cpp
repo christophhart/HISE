@@ -536,8 +536,13 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
         const bool embedFiles = !BuildOptionHelpers::isIOS(option);
 #endif
 
+		auto embedUserPresets = data.getSetting(HiseSettings::Project::EmbedUserPresets);
+
+		auto userPresetTree = embedUserPresets ? UserPresetHelpers::collectAllUserPresets(chainToExport):
+												 ValueTree("UserPresets");
+
 		// Embed the user presets and extract them on first load
-		compressValueTree<UserPresetDictionaryProvider>(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets");
+		compressValueTree<UserPresetDictionaryProvider>(userPresetTree, directoryPath, "userPresets");
 
 		// Always embed scripts and fonts, but don't embed samplemaps
 		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");

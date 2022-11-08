@@ -97,7 +97,8 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(LinkExpansionsToProject);
 	ids.add(ReadOnlyFactoryPresets);
     ids.add(ForceStereoOutput);
-		ids.add(AdminPermissions);
+	ids.add(AdminPermissions);
+	ids.add(EmbedUserPresets);
 
 	return ids;
 }
@@ -312,6 +313,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("ENABLE_ALL_PEAK_METERS=0");
 		D("NUM_POLYPHONIC_VOICES=100");
 		D("```\n");
+		P_();
+
+		P(HiseSettings::Project::EmbedUserPresets);
+		D("If disabled, the user presets will not be part of the binary and are not extracted automatically on first plugin launch");
+		D("> This is useful if you're running your own preset management or the user preset collection gets too big to be embedded in the plugin");
 		P_();
 
 		P(HiseSettings::Project::AppGroupID);
@@ -733,6 +739,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 {
 	if (id == Project::EmbedAudioFiles ||
 		id == Project::EmbedImageFiles ||
+		id == Project::EmbedUserPresets ||
 		id == Compiler::UseIPP ||
         id == Compiler::LegacyCPUSupport ||
 		id == Scripting::EnableCallstack ||
@@ -931,6 +938,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
 	else if (id == Project::EmbedImageFiles)		return "Yes";
+	else if (id == Project::EmbedUserPresets)		return "Yes";
 	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
