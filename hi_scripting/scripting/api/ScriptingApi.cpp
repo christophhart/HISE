@@ -6876,6 +6876,7 @@ struct ScriptingApi::TransportHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setEnableGrid);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, startInternalClock);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, stopInternalClock);
+	API_VOID_METHOD_WRAPPER_0(TransportHandler, sendGridSyncOnNextCallback);
 };
 
 ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
@@ -6900,7 +6901,7 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(startInternalClock);
 	ADD_API_METHOD_1(stopInternalClock);
 	ADD_API_METHOD_2(setEnableGrid);
-	
+	ADD_API_METHOD_0(sendGridSyncOnNextCallback);
 }
 
 ScriptingApi::TransportHandler::~TransportHandler()
@@ -7103,6 +7104,11 @@ void ScriptingApi::TransportHandler::stopInternalClock(int timestamp)
 void ScriptingApi::TransportHandler::setSyncMode(int syncMode)
 {
 	getMainController()->getMasterClock().setSyncMode((MasterClock::SyncModes)syncMode);
+}
+
+void ScriptingApi::TransportHandler::sendGridSyncOnNextCallback()
+{
+	getMainController()->getMasterClock().setNextGridIsFirst();
 }
 
 } // namespace hise

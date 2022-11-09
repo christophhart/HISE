@@ -180,14 +180,14 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 
 			if (auto afterEvent = seq->getEventPointer(indexAfterWrap))
 			{
-				while (afterEvent != nullptr && !afterEvent->message.isNoteOn())
+				while (afterEvent != nullptr && afterEvent->message.isNoteOff())
 				{
 					indexAfterWrap++;
 
 					afterEvent = seq->getEventPointer(indexAfterWrap);
 				}
 
-				if (afterEvent != nullptr && afterEvent->message.isNoteOn())
+				if (afterEvent != nullptr && !afterEvent->message.isNoteOff())
 				{
 					auto ts = afterEvent->message.getTimeStamp();
 
@@ -765,11 +765,14 @@ void MidiPlayer::onGridChange(int gridIndex, uint16 timestamp, bool firstGridEve
 {
 	if (syncToMasterClock && firstGridEventInPlayback)
 	{
-		if (recordOnNextPlaybackStart)
-			recordInternal(timestamp);
-		else
-			startInternal(timestamp);
-
+		if (playState == PlayState::Stop)
+		{
+			if (recordOnNextPlaybackStart)
+				recordInternal(timestamp);
+			else
+				startInternal(timestamp);
+		}
+		
 		if (gridIndex != 0)
 		{
 			auto t = getMainController()->getMasterClock().getCurrentClockGrid();

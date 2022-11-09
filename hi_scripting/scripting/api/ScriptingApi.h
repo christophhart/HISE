@@ -1337,6 +1337,9 @@ public:
 		/** Sets the sync mode for the global clock. */
 		void setSyncMode(int syncMode);
 
+		/** sends a message on the next grid callback to resync the external clock. */
+		void sendGridSyncOnNextCallback();
+
 	private:
 
 		void clearIf(ScopedPointer<Callback>& cb, const var& f)

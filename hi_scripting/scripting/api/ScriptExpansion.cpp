@@ -707,6 +707,8 @@ juce::ValueTree ScriptUserPresetHandler::prePresetLoad(const ValueTree& dataToLo
 
 		if (enablePreprocessing)
 			args = convertToJson(dataToLoad);
+		else
+			args = var(new ScriptingObjects::ScriptFile(getScriptProcessor(), fileToLoad));
 
 		auto r = preCallback.callSync(&args, 1, nullptr);
 
