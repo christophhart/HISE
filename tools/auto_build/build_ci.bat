@@ -50,7 +50,7 @@ echo Exporting Demo Project...
 
 %hise_ci% set_project_folder "-p:%cd%/extras/demo_project/"
 
-%hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64
+%hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64 -nolto
 
 
 

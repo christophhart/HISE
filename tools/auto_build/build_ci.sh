@@ -45,7 +45,7 @@ echo $project_folder
 
 $hise_path set_project_folder -p:"$project_folder"
 
-$hise_path export_ci "XmlPresetBackups/Demo.xml" -t:standalone -a:x64
+$hise_path export_ci "XmlPresetBackups/Demo.xml" -t:standalone -a:x64 -nolto
 
 "$project_folder/Binaries/batchCompileOSX"
 

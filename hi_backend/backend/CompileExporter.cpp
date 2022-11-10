@@ -291,6 +291,8 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		CompileExporter exporter(mainSynthChain);
 
+        exporter.noLto = args.contains("-nolto");
+        
 		bool switchBack = false;
 
 		if (currentProjectFolder != projectDirectory)
@@ -1812,6 +1814,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());
 	
+    REPLACE_WILDCARD_WITH_STRING("%LINK_TIME_OPTIMISATION%", exporter->noLto ? "0" : "1");
+    
 	auto includeFaust = BackendDllManager::shouldIncludeFaust(exporter->chainToExport->getMainController());
 
 

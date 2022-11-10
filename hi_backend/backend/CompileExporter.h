@@ -238,6 +238,8 @@ public:
 
 protected:
 
+    bool noLto = false;
+    
     bool silentMode = false;
     
 	String configurationName = "Release";
