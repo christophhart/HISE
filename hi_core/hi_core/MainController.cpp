@@ -46,9 +46,9 @@ MainController::MainController() :
 	javascriptThreadPool(new JavascriptThreadPool(this)),
 	expansionHandler(this),
 	allNotesOffFlag(false),
-	maxBufferSize(-1),
+	processingBufferSize(-1),
 	cpuBufferSize(0),
-	sampleRate(-1.0),
+	processingSampleRate(-1.0),
 	temp_usage(0.0f),
 	uptime(0.0),
 	bpm(120.0),
@@ -251,7 +251,7 @@ void MainController::clearPreset()
 		mc->clearIncludedFiles();
 		mc->changed = false;
         
-        mc->prepareToPlay(mc->sampleRate, mc->numSamplesThisBlock);
+        mc->prepareToPlay(mc->processingSampleRate, mc->numSamplesThisBlock);
         
 		return SafeFunctionCall::OK;
 	};
@@ -340,12 +340,12 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 			synthChain->compileAllScripts();
 
-			if (sampleRate > 0.0)
+			if (processingSampleRate > 0.0)
 			{
 				LOG_START("Initialising audio callback");
 
 				getSampleManager().setCurrentPreloadMessage("Initialising audio...");
-				prepareToPlay(sampleRate, maxBufferSize.get());
+				prepareToPlay(processingSampleRate, processingBufferSize.get());
 			}
 
 			// We need to postpone this until after compilation in order to resolve the 
@@ -440,7 +440,7 @@ void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 {
 #if HI_RUN_UNIT_TESTS
 	// Skip the all notes off command for the unit test mode
-	if (sampleRate == -1.0)
+	if (processingSampleRate == -1.0)
 		return;
 #endif
 
@@ -619,6 +619,19 @@ void MainController::setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
 		mainLookAndFeel = new hise::GlobalHiseLookAndFeel();
 	else if(newLaf != nullptr)
 		mainLookAndFeel = new ScriptingObjects::ScriptedLookAndFeel::Laf(this);
+}
+
+void MainController::setMaximumBlockSize(int newBlockSize)
+{
+	newBlockSize -= (newBlockSize % HISE_EVENT_RASTER);
+
+	if (newBlockSize != maximumBlockSize)
+	{
+		maximumBlockSize = jlimit(16, HISE_MAX_PROCESSING_BLOCKSIZE, newBlockSize);
+
+		if(originalBufferSize > 0)
+			prepareToPlay(getOriginalSamplerate(), getOriginalBufferSize());
+	}
 }
 
 int MainController::getNumActiveVoices() const
@@ -802,7 +815,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		midiMessages.clear();
 
-		if (sampleRate > 0.0)
+		if (processingSampleRate > 0.0)
 			uptime += double(numSamplesThisBlock) / getOriginalSamplerate() ;
 
 		return;
@@ -827,7 +840,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		buffer.clear();
 		midiMessages.clear();
 
-		if (sampleRate > 0.0)
+		if (processingSampleRate > 0.0)
 			uptime += double(numSamplesThisBlock) / getOriginalSamplerate();
 
 		return;
@@ -1181,7 +1194,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	stopCpuBenchmark();
 #endif
 
-    if(sampleRate > 0.0)
+    if(processingSampleRate > 0.0)
     {
         uptime += double(numSamplesThisBlock) / getOriginalSamplerate();
     }
@@ -1254,25 +1267,28 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
-	auto srBefore = sampleRate;
-	auto bufferBefore = maxBufferSize.get();
+	auto oldSampleRate = processingSampleRate;
+	auto oldBlockSize = processingBufferSize.get();
 
-    LOG_START("Preparing playback");
+	originalBufferSize = samplesPerBlock;
+	originalSampleRate = sampleRate_;
+
+	LOG_START("Preparing playback");
     
-	maxBufferSize = samplesPerBlock * currentOversampleFactor;
-	sampleRate = sampleRate_ * currentOversampleFactor;
+	processingBufferSize = jmin(maximumBlockSize, originalBufferSize) * currentOversampleFactor;
+	processingSampleRate = originalSampleRate * currentOversampleFactor;
  
 	hostBpmPointer = &dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 
 	// Prevent high buffer sizes from blowing up the 350MB limitation...
 	if (HiseDeviceSimulator::isAUv3())
 	{
-		maxBufferSize = jmin<int>(maxBufferSize.get(), 1024);
+		processingBufferSize = jmin<int>(processingBufferSize.get(), 1024);
 	}
 
-	if (maxBufferSize.get() % HISE_EVENT_RASTER != 0)
+	if ((processingBufferSize.get() % HISE_EVENT_RASTER != 0) && HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE)
 	{
-		sendOverlayMessage(State::CustomErrorMessage, "The buffer size " + String(maxBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
+		sendOverlayMessage(State::CustomErrorMessage, "The buffer size " + String(processingBufferSize.get()) + " is not supported. Use a multiple of " + String(HISE_EVENT_RASTER));
 	}
 
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
@@ -1287,7 +1303,6 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #endif
     
 	updateMultiChannelBuffer(getMainSynthChain()->getMatrix().getNumSourceChannels());
-
 	
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
@@ -1302,7 +1317,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
     
 #endif
 
-	getMainSynthChain()->prepareToPlay(sampleRate, maxBufferSize.get());
+	getMainSynthChain()->prepareToPlay(processingSampleRate, processingBufferSize.get());
 
 	AudioThreadGuard guard(&getKillStateHandler());
 
@@ -1317,23 +1332,23 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	if (oversampler != nullptr)
 		oversampler->initProcessing(getOriginalBufferSize());
 
-	if (sampleRate != srBefore || maxBufferSize.get() != bufferBefore)
+	auto changed = oldBlockSize != processingBufferSize.get() ||
+				   oldSampleRate != processingSampleRate;
+
+	if (changed)
 	{
 		String s;
 		s << "New Buffer Specifications: ";
-		s << "Samplerate: " << sampleRate;
-		s << ", Buffersize: " << String(maxBufferSize.get());
+		s << "Samplerate: " << processingSampleRate;
+		s << ", Buffersize: " << String(processingBufferSize.get());
 		getConsoleHandler().writeToConsole(s, 0, getMainSynthChain(), Colours::white.withAlpha(0.4f));
 	}
 
-	getMasterClock().setSamplerate(sampleRate);
-
+	getMasterClock().setSamplerate(processingSampleRate);
 }
 
 void MainController::setBpm(double newTempo)
 {
-    
-    
 	if(bpm != newTempo)
 	{
 		getMasterClock().setBpm(newTempo);
@@ -1792,13 +1807,9 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 	ScopedLock sl(processLock);
 
 	// Updates the channel amount
-	multiChannelBuffer.setSize(numNewChannels, multiChannelBuffer.getNumSamples());
+	multiChannelBuffer.setSize(numNewChannels, processingBufferSize.get(), true, true, true);
 
-
-	refreshOversampling();
-	
-
-	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, maxBufferSize.get());
+	refreshOversampling();	
 }
 
 double MainController::SampleManager::getPreloadProgressConst() const
