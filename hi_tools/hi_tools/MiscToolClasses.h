@@ -2587,7 +2587,7 @@ struct MasterClock
 
 	void setNextGridIsFirst()
 	{
-		manualNextGridIsFirst = true;
+		waitForFirstGrid = true;
 	}
 
 	void setSyncMode(SyncModes newSyncMode)
@@ -2700,8 +2700,8 @@ struct MasterClock
 					currentGridIndex++;
 
 					gi.change = true;
-					gi.firstGridInPlayback = manualNextGridIsFirst;
-					manualNextGridIsFirst = false;
+					gi.firstGridInPlayback = waitForFirstGrid;
+					waitForFirstGrid = false;
 					gi.gridIndex = currentGridIndex;
 					gi.timestamp = numSamples + samplesToNextGrid;
 
@@ -2922,8 +2922,6 @@ private:
 	int samplesToNextGrid = 0;
 	int gridDelta = 1;
 	int currentGridIndex = 0;
-
-	bool manualNextGridIsFirst = false;
 
 	bool internalClockIsRunning = false;
 
