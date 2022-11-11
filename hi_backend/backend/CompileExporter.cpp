@@ -482,9 +482,26 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	
 	if (!legacyCpuSupport) legacyCpuSupport = data.getSetting(HiseSettings::Compiler::LegacyCPUSupport);
 	    
-	if(!hisePath.isDirectory()) 
-		hisePath = data.getSetting(HiseSettings::Compiler::HisePath);
+	if (!hisePath.isDirectory())
+	{
+		if (isUsingCIMode())
+		{
+			auto appPath = File::getSpecialLocation(File::currentApplicationFile).getParentDirectory();
 
+			while (!appPath.isRoot() && !appPath.getChildFile("hi_core").isDirectory())
+			{
+				appPath = appPath.getParentDirectory();
+			}
+
+			if (!appPath.isRoot())
+				hisePath = appPath;
+		}
+		else
+		{
+			hisePath = data.getSetting(HiseSettings::Compiler::HisePath);
+		}
+	}
+	
 	if (!hisePath.isDirectory()) 
 		return ErrorCodes::HISEPathNotSpecified;
 

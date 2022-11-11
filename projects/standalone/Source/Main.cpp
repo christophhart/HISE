@@ -106,6 +106,8 @@ public:
 		print(" - always use VisualStudio 2017 on Windows" );
 		print(" - don't copy the plugins to the plugin folders" );
 		print(" - use a relative path for the project file" );
+		print(" - ignore the global HISE path and use the HISE repository folder from the");
+		print("   current HISE executable");
 		print("Arguments: " );
 		print("FILE      The path to the project file (either .xml or .hip you want to export)." );
 		print("          In CI mode, this will be the relative path from the current project folder");
