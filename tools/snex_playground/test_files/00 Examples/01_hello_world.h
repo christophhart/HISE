@@ -39,6 +39,6 @@ int main(int input)
 	// We return 12, so it matches the `output` of the metadata
 	// and the test passes. Try changing the value and see
 	// what happens if the test fails.
-	return 16;
+	return 12;
 }
 
