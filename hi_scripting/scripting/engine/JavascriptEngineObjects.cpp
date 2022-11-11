@@ -608,6 +608,14 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("encrypt", encrypt);
 		setMethod("decrypt", decrypt);
 		setMethod("contains", contains);
+
+		setMethod("getTrailingIntValue", getTrailingIntValue);
+		setMethod("getIntValue", getIntValue);
+		setMethod("hash", hash);
+		setMethod("fromFirstOccurrenceOf", fromFirstOccurrenceOf);
+		setMethod("fromLastOccurrenceOf", fromLastOccurrenceOf);
+		setMethod("upToFirstOccurrenceOf", upToFirstOccurrenceOf);
+		setMethod("upToLastOccurrenceOf", upToLastOccurrenceOf);
 	}
 
 	static Identifier getClassName()  { static const Identifier i("String"); return i; }
@@ -625,14 +633,20 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 	static var toLowerCase(Args a) { return a.thisObject.toString().toLowerCase(); };
 	static var trim(Args a) { return a.thisObject.toString().trim(); };
 
+	static var getTrailingIntValue(Args a) { return a.thisObject.toString().getTrailingIntValue(); }
+	static var getIntValue(Args a) { return a.thisObject.toString().getLargeIntValue(); }
+	static var hash(Args a) { return a.thisObject.toString().hashCode64(); }
+	static var fromFirstOccurrenceOf(Args a) { return a.thisObject.toString().fromFirstOccurrenceOf(getString(a, 0), false, false); }
+	static var fromLastOccurrenceOf(Args a) { return a.thisObject.toString().fromLastOccurrenceOf(getString(a, 0), false, false); }
+	static var upToFirstOccurrenceOf(Args a) { return a.thisObject.toString().upToFirstOccurrenceOf(getString(a, 0), false, false); }
+	static var upToLastOccurrenceOf(Args a) { return a.thisObject.toString().upToLastOccurrenceOf(getString(a, 0), false, false); }
+
 	static var concat(Args a)
 	{
 		String r = a.thisObject.toString();
 
 		for (int i = 0; i < a.numArguments; i++)
-		{
 			r << getString(a, i);
-		}
 
 		return var(r);
 	}
@@ -821,6 +835,27 @@ public:
 
 	/** Decrypt a string from Blowfish encryption. */
 	String decrypt(var key) { return String(); }
+
+	/** Attempts to parse a integer number at the end of the string. */
+	int getTrailingIntValue() { return 0; }
+
+	/** Attempts to parse the string as integer number. */
+	int getIntValue() { return 0; };
+
+	/** Creates a unique hash from the string. */
+	int64 hash() { return 0; }
+
+	/* Returns a section of the string starting from a given substring. */
+	String fromFirstOccurrenceOf(String subString) { return {}; }
+
+	/* Returns a section of the string starting from a given substring. */
+	String fromLastOccurrenceOf(String subString) { return {}; }
+
+	/* Returns a section of the string up to a given substring. */
+	String upToFirstOccurrenceOf(String subString) { return {}; }
+
+	/* Returns a section of the string up to a given substring. */
+	String upToLastOccurrenceOf(String subString) { return {}; }
 };
 
 
