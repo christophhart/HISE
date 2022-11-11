@@ -244,7 +244,7 @@ struct FaustGraphViewer : public Component,
             
             setSize(600, 300);
             stopThread(1000);
-            startThread(7);
+            startThread(5);
             repaint();
         }
     }

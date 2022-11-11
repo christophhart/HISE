@@ -119,6 +119,8 @@ public:
 		print("          (Leave empty for standalone export). Note that if you use the VST2, VST3,");
 		print("           VST23AU it will override the project settings so you can export both versions).");
 		print("           Note: The VST23AU flag will skip AU on Windows and build only VST2 and VST3.");
+        print("-nolto    deactivates link time optimisation. The resulting binary is not as optimized");
+        print("          but the build time is much shorter");
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");

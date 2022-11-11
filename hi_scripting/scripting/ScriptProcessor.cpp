@@ -1760,7 +1760,7 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 #endif
 	globalServer(new GlobalServer(mc))
 {
-	startThread(6);
+	startThread(8);
 }
 
 void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f)
