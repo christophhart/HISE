@@ -1704,7 +1704,10 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", aaxIdentifier);
             
             // Only build 64bit Intel binaries for AAX
-            REPLACE_WILDCARD_WITH_STRING("%ARM_ARCH%", "x86_64");
+            // REPLACE_WILDCARD_WITH_STRING("%ARM_ARCH%", "x86_64");
+            
+            // Welcome to the future...
+            REPLACE_WILDCARD_WITH_STRING("%ARM_ARCH%", "arm64,arm64e,x86_64");
 		}
 		else
 		{
