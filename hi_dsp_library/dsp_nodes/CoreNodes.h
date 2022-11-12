@@ -790,6 +790,10 @@ public:
 	{
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
+        
+        valueToUse[(int)InactiveMode::Zero] = 0.0;
+        valueToUse[(int)InactiveMode::One] = 1.0;
+        valueToUse[(int)InactiveMode::LastValue] = 0.0;
 	}
 
 	~clock_ramp()
@@ -800,17 +804,25 @@ public:
 
 	void prepare(PrepareSpecs ps)
 	{
-		ps.voiceIndex->getTempoSyncer()->registerItem(this);
-		sr = ps.sampleRate;
+        sr = ps.sampleRate;
+        
+        // only register it once to get the correct ppqPosition value
+        if(syncer == nullptr)
+        {
+            syncer = ps.voiceIndex->getTempoSyncer();
+            syncer->registerItem(this);
+        }
 	}
 
 	SN_EMPTY_INITIALISE;
 
-	
-
-	SN_EMPTY_RESET;
 	SN_EMPTY_HANDLE_EVENT;
 	
+    void reset()
+    {
+        valueToUse[(int)InactiveMode::LastValue] = 0.0;
+    }
+    
 	void onTransportChange(bool isPlaying_, double ppqPosition) override
 	{
 		isPlaying = isPlaying_;
@@ -850,11 +862,6 @@ public:
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		auto& s = state.get();
-
-		double valueToUse[(int)InactiveMode::numInactiveModes];
-
-		valueToUse[(int)InactiveMode::Zero] = 0.0;
-		valueToUse[(int)InactiveMode::One] = 1.0;
 
 		if (isPlaying)
 		{
@@ -897,28 +904,25 @@ public:
 				lastValue = hmath::fmod(start + tfDelta / 2.0, 1.0);
 			}
 
+            valueToUse[(int)InactiveMode::LastValue] = lastValue;
 			s.modValue.setModValue(lastValue);	
 		}
-		else if (addToSignal)
+		else
 		{
-			valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
-
-			FloatVectorOperations::fill(d.getRawChannelPointers()[0], (float)valueToUse[(int)inactiveMode], d.getNumSamples());
+            auto mv = valueToUse[(int)inactiveMode];
+            
+            s.modValue.setModValue(mv);
+            
+			if(addToSignal)
+                FloatVectorOperations::fill(d.getRawChannelPointers()[0], (float)mv, d.getNumSamples());
 		}
 
-		valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
-
-		this->updateBuffer((float)valueToUse[(int)inactiveMode], d.getNumSamples());
+		this->updateBuffer((float)s.modValue.getModValue(), d.getNumSamples());
 	}
 
 	template <typename FrameType> void processFrame(FrameType& d)
 	{
 		auto& s = state.get();
-
-		double valueToUse[(int)InactiveMode::numInactiveModes];
-
-		valueToUse[(int)InactiveMode::Zero] = 0.0;
-		valueToUse[(int)InactiveMode::One] = 1.0;
 
 		if (isPlaying)
 		{
@@ -932,17 +936,19 @@ public:
 
 			s.ppqPos += ppqDelta;
 			s.modValue.setModValue(modValue);
+            valueToUse[(int)InactiveMode::LastValue] = modValue;
 		}
-		else if(addToSignal)
+		else
 		{
-			valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
-
-			d[0] = (float)valueToUse[(int)inactiveMode];
+            auto mv = valueToUse[(int)inactiveMode];
+            
+            s.modValue.setModValue(mv);
+            
+            if(addToSignal)
+               d[0] = (float)mv;
 		}
 
-		valueToUse[(int)InactiveMode::LastValue] = s.modValue.getModValue();
-
-		this->updateBuffer(valueToUse[(int)inactiveMode], 1);
+		this->updateBuffer(s.modValue.getModValue(), 1);
 	}
 
 	void setTempo(double newTempo)
@@ -975,7 +981,7 @@ public:
 
 	void setInactive(double newInactiveMode)
 	{
-		inactiveMode = (InactiveMode)(int)newInactiveMode;
+		inactiveMode = (InactiveMode)jlimit<int>(0, 2, (int)newInactiveMode);
 	}
 
 	DEFINE_PARAMETERS
@@ -1036,7 +1042,6 @@ public:
 	bool isPlaying = false;
 	double startFactor = 1.0f;
 	double startMultiplier = 1.0f;
-
 	bool isContinuous = false;
 	InactiveMode inactiveMode = InactiveMode::LastValue;
 
@@ -1050,7 +1055,7 @@ public:
 
 	PolyData<State, NV> state;
 	
-
+    double valueToUse[(int)InactiveMode::numInactiveModes];
 
 	DllBoundaryTempoSyncer* syncer = nullptr;
 };
