@@ -1804,6 +1804,9 @@ void MainController::handleSuspendedNoteOffs()
 
 void MainController::updateMultiChannelBuffer(int numNewChannels)
 {
+    if(processingBufferSize.get() == -1)
+        return;
+    
 	ScopedLock sl(processLock);
 
 	// Updates the channel amount
