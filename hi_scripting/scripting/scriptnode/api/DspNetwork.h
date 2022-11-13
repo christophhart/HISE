@@ -520,6 +520,11 @@ public:
 
 			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
 
+            ~SnexSourceCompileHandler()
+            {
+                stopThread(1000);
+            }
+            
 			void processTestParameterEvent(int parameterIndex, double value) final override {};
             Result prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override { return Result::ok(); };
 			void processTest(ProcessDataDyn& data) final override {};

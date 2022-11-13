@@ -1831,6 +1831,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSliderPackData, getCurrentlyDisplayedIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setContentCallback);
+    API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setUsePreallocatedLength);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, linkTo);
 };
 
@@ -1845,6 +1846,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 	ADD_API_METHOD_1(setDisplayCallback);
 	ADD_API_METHOD_1(setContentCallback);
+    ADD_API_METHOD_1(setUsePreallocatedLength);
     ADD_API_METHOD_1(linkTo);
 }
 
@@ -1868,6 +1870,12 @@ int ScriptingObjects::ScriptSliderPackData::getNumSliders() const
 		return data->getNumSliders();
 	
 	return 0;
+}
+
+void ScriptingObjects::ScriptSliderPackData::setUsePreallocatedLength(int numUsed)
+{
+    if(auto data = getSliderPackData())
+        data->setUsePreallocatedLength(32);
 }
 
 void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)

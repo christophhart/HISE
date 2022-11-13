@@ -1149,6 +1149,9 @@ namespace ScriptingObjects
 		/** Sets a callback that is being executed when a point is added / removed / changed. */
 		void setContentCallback(var contentFunction);
 
+        /** Sets a preallocated length that will retain values when the slider pack is resized below that limit. */
+        void setUsePreallocatedLength(int length);
+        
         /** Links the sliderpack to the other slider pack. */
         void linkTo(var other)
         {

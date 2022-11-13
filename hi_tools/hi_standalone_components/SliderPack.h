@@ -153,7 +153,7 @@ public:
 
 	float getValue(int index) const;
 
-	void setFromFloatArray(const Array<float> &valueArray);
+	void setFromFloatArray(const Array<float> &valueArray, NotificationType n = NotificationType::sendNotificationAsync);
 
 	void writeToFloatArray(Array<float> &valueArray) const;
 
@@ -213,6 +213,42 @@ public:
 		internalUpdater.sendContentChangeMessage(notify, index);
 	}
 
+    void setUsePreallocatedLength(int numMaxSliders)
+    {
+        if(numMaxSliders != numPreallocated)
+        {
+            numPreallocated = numMaxSliders;
+            
+            if(numPreallocated > 0)
+            {
+                preallocatedData.calloc(numPreallocated);
+                
+                int numToCopy = jmin(numMaxSliders, getNumSliders());
+                
+                FloatVectorOperations::copy(preallocatedData.get(), dataBuffer->buffer.getReadPointer(0), numToCopy);
+                
+                {
+                    SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+                    dataBuffer->referToData(preallocatedData.get(), numToCopy);
+                }
+                
+                internalUpdater.sendContentRedirectMessage();
+            }
+            else
+            {
+                auto newBuffer = new VariantBuffer(getNumSliders());
+                
+                FloatVectorOperations::copy(newBuffer->buffer.getWritePointer(0), dataBuffer->buffer.getReadPointer(0), getNumSliders());
+                
+                swapBuffer(newBuffer, sendNotification);
+                
+                preallocatedData.free();
+            }
+            
+            
+        }
+    }
+    
 private:
 
 	void swapBuffer(VariantBuffer::Ptr otherBuffer, NotificationType n);
@@ -265,6 +301,9 @@ private:
 	
 	Range<double> sliderRange;
 
+    HeapBlock<float> preallocatedData;
+    int numPreallocated = 0;
+    
 	double stepSize;
 
 	float defaultValue;

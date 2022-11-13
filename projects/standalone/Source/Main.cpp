@@ -587,7 +587,13 @@ public:
 #if HI_RUN_UNIT_TESTS
 			UnitTestRunner runner;
 			runner.setAssertOnFailure(false);
-			runner.runAllTests();
+            
+            // If you're working on a unit test, just add the "Current" category
+            // and then uncomment this line.
+            if(UnitTest::getTestsInCategory("Current").isEmpty())
+                runner.runAllTests();
+            else
+                runner.runTestsInCategory("Current");
 
 			for (int i = 0; i < runner.getNumResults(); i++)
 			{

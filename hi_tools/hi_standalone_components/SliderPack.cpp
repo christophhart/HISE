@@ -37,10 +37,8 @@ stepSize(0.01),
 nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true),
-defaultValue(var(1.0))
+defaultValue(1.0f)
 {
-	
-
 	setNumSliders(NumDefaultSliders);
 	setUndoManager(undoManager_);
 
@@ -99,26 +97,20 @@ float SliderPackData::getValue(int index) const
 	if(isPositiveAndBelow(index, getNumSliders()))
 		return dataBuffer->getSample(index); 
 
-	return 0.0f;
+	return defaultValue;
 }
 
-void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
+void SliderPackData::setFromFloatArray(const Array<float> &valueArray, NotificationType n)
 {
 	{
+        int numToCopy = jmin(valueArray.size(), getNumSliders());
+        FloatSanitizers::sanitizeArray((float*)valueArray.getRawDataPointer(), numToCopy);
+        
 		SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
-
-		for (int i = 0; i < valueArray.size(); i++)
-		{
-			if (i < getNumSliders())
-			{
-				float v = valueArray[i];
-				FloatSanitizers::sanitizeFloatNumber(v);
-				setValue(i, v, dontSendNotification);
-			}
-		}
+        FloatVectorOperations::copy(dataBuffer->buffer.getWritePointer(0), valueArray.begin(), numToCopy);
 	}
 
-	internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+	internalUpdater.sendContentChangeMessage(n, -1);
 }
 
 void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
@@ -179,7 +171,7 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	if (int numElements = (int)(mb.getSize() / sizeof(float)))
 	{
-		VariantBuffer::Ptr newBuffer = new VariantBuffer(numElements);
+        VariantBuffer::Ptr newBuffer = new VariantBuffer(numElements);
 
 		memcpy(newBuffer->buffer.getWritePointer(0), mb.getData(), mb.getSize());
 
@@ -215,20 +207,44 @@ void SliderPackData::setNewUndoAction() const
 
 void SliderPackData::swapBuffer(VariantBuffer::Ptr otherBuffer, NotificationType n)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-	std::swap(otherBuffer, dataBuffer);
-
+    if(numPreallocated != 0)
+    {
+        int numToUse = jmin(numPreallocated, otherBuffer->size);
+        FloatVectorOperations::copy(preallocatedData.get(), otherBuffer->buffer.getReadPointer(0), numToUse);
+        
+        SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+        dataBuffer->referToData(preallocatedData.get(), numToUse);
+    }
+    else
+    {
+        SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+        std::swap(otherBuffer, dataBuffer);
+    }
+    
 	if(n != dontSendNotification)
 		internalUpdater.sendContentRedirectMessage();
 }
 
 void SliderPackData::setNumSliders(int numSliders)
 {
-	if (numSliders == 0)
+	if (numSliders <= 0)
 		return;
 
 	if (getNumSliders() != numSliders)
 	{
+        if(numPreallocated != 0)
+        {
+            int numToUse = jmin(numSliders, numPreallocated);
+            
+            {
+                SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+                dataBuffer->referToData(preallocatedData.get(), numToUse);
+            }
+            
+            internalUpdater.sendContentRedirectMessage();
+            return;
+        }
+        
 		int numToCopy = jmin<int>(numSliders, getNumSliders());
 
 		VariantBuffer::Ptr newBuffer = new VariantBuffer(numSliders);
@@ -1006,5 +1022,268 @@ void SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(Graphics& g, Slider
 
 	g.drawText(textToDraw, r, Justification::centredRight, true);
 }
+
+#if HI_RUN_UNIT_TESTS
+
+struct SliderPackUnitTest: public UnitTest
+{
+    SliderPackUnitTest():
+      UnitTest("Testing Slider Packs")
+    {}
+    
+    void runTest() override
+    {
+        testSetGet();
+        testPreallocatedMode();
+        testUpdater();
+        testUndo();
+    }
+    
+    void testSetGet()
+    {
+        beginTest("Test Slider Pack getters / setters");
+        
+        SliderPackData d;
+        
+        d.setNumSliders(91);
+        d.setValue(31, 0.2f);
+        auto enc = d.toBase64();
+        
+        expectEquals(d.getValue(31), 0.2f, "set value");
+        
+        d.setValue(31, 0.5f);
+        
+        expectEquals(d.getValue(31), 0.5f, "set new value");
+        
+        d.fromBase64(enc);
+        
+        expectEquals(d.getValue(31), 0.2f, "restore value with Base64");
+        
+        SliderPackData d1, d2;
+        
+        Random r;
+        
+        for(int i = 0; i < d1.getNumSliders(); i++)
+            d1.setValue(i, r.nextFloat());
+        
+        enc = d1.toBase64();
+        
+        d2.fromBase64(enc);
+        
+        for(int i = 0; i < d1.getNumSliders(); i++)
+        {
+            expectEquals(d1.getValue(i), d2.getValue(i), "Base64 not equal at index " + String(i));
+        }
+        
+        SliderPackData d3;
+        
+        d3.setNumSliders(91);
+        
+        expectEquals(d3.getNumSliders(), 91, "get/setNumSliders() not working");
+        
+        d3.setNumSliders(0);
+        
+        expectEquals(d3.getNumSliders(), 91, "ignore zero numSliders");
+        
+        d3.setNumSliders(-1);
+        
+        expectEquals(d3.getNumSliders(), 91, "ignore negative numSliders");
+        
+        
+    }
+    
+    void testPreallocatedMode()
+    {
+        beginTest("test SliderPack preallocated mode");
+        SliderPackData d;
+        
+        d.setNumSliders(32);
+        
+        d.setValue(31, 0.75f);
+        d.setNumSliders(16);
+        d.setValue(31, 0.34f);
+        d.setNumSliders(32);
+        
+        constexpr float DEFAULT_VALUE = 0.85f;
+        
+        d.setDefaultValue(DEFAULT_VALUE);
+        
+        expectEquals(d.getValue(31), 1.0f, "don't retain slider value after resizing when no preallocation is used");
+        
+        d.setUsePreallocatedLength(32);
+        
+        d.setValue(31, 0.65f);
+        d.setNumSliders(16);
+        
+        expectEquals(d.getValue(31), DEFAULT_VALUE, "Return zero if index > numSliders");
+        
+        d.setValue(31, 0.34f);
+        d.setNumSliders(32);
+        expectEquals(d.getValue(31), 0.65f, "retain slider value after resizing");
+        
+        d.setNumSliders(16);
+        
+        d.swapData(new VariantBuffer(14), dontSendNotification);
+        d.setNumSliders(32);
+        expectEquals(d.getValue(31), 0.65f, "retain slider value after swapping smaller buffer");
+        
+        d.setNumSliders(12);
+        d.swapData(new VariantBuffer(32), dontSendNotification);
+        
+        expectEquals(d.getValue(31), 0.0f, "overwrite slider value after swapping bigger buffer");
+        
+        Array<float> externalArray;
+        
+        for(int i = 0; i < 64; i++)
+            externalArray.add(0.9f);
+        
+        d.setFromFloatArray(externalArray);
+        
+        expectEquals(d.getValue(31), 0.9f, "overwrite with setFromFloatArray");
+        
+        expectEquals(d.getValue(35), DEFAULT_VALUE, "do not write after numPreallocated");
+        
+        d.setValue(90, 0.2f);
+        expectEquals(d.getValue(90), DEFAULT_VALUE, "do not write after numPreallocated 2");
+        
+        d.setNumSliders(92);
+        
+        expectEquals(d.getNumSliders(), 32, "limit numSliders to preallocated size");
+        
+        d.setValue(5, 0.2f);
+        
+        
+        d.setUsePreallocatedLength(0);
+        
+        expectEquals(d.getValue(5), 0.2f, "value is retained after deactivating preallocated size");
+        
+        d.setNumSliders(91);
+        
+        expectEquals(d.getNumSliders(), 91, "getNumSliders works after deactivating preallocated length");
+        
+        d.setValue(50, 0.4f);
+        
+        expectEquals(d.getValue(50), 0.4f, "value > old preallocated size is retained");
+    }
+    
+    struct TestListener: public ComplexDataUIUpdaterBase::EventListener
+    {
+        TestListener(SliderPackData& d, UnitTest& t):
+          source(d),
+          test(t)
+        {
+            d.getUpdater().addEventListener(this);
+        }
+        
+        ~TestListener()
+        {
+            source.getUpdater().removeEventListener(this);
+        }
+        
+        void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data_) override
+        {
+            if(t == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+                return;
+            
+            eventType = t;
+            data = data_;
+        }
+        
+        void expectEventType(ComplexDataUIUpdaterBase::EventType t, const String& errorMessage)
+        {
+            test.expectEquals((int)eventType, (int)t, errorMessage);
+        }
+        
+        
+        UnitTest& test;
+        var data;
+        ComplexDataUIUpdaterBase::EventType eventType = ComplexDataUIUpdaterBase::EventType::numEventTypes;
+        SliderPackData& source;
+    };
+    
+    void testUpdater()
+    {
+        beginTest("Test SliderPack Updater");
+        
+        SliderPackData d;
+        
+        using EventType = ComplexDataUIUpdaterBase::EventType;
+        
+        {
+            TestListener l(d, *this);
+            
+            d.setNumSliders(12);
+            l.expectEventType(EventType::ContentRedirected, "setNumSliders triggers ContentRedirect");
+        }
+        
+        {
+            TestListener l(d, *this);
+            
+            d.setUsePreallocatedLength(0);
+            l.expectEventType(EventType::numEventTypes, "No change in preallocation doesn't trigger ContentRedirected");
+            
+            d.setUsePreallocatedLength(91);
+            l.expectEventType(EventType::ContentRedirected, "Changing preallocated size triggers ContentRedirected");
+        }
+        
+        {
+            TestListener l(d, *this);
+            
+            d.fromBase64(d.toBase64());
+            l.expectEventType(EventType::ContentRedirected, "Restoring from Base64 triggers ContentRedirected");
+        }
+        
+        {
+            TestListener l(d, *this);
+            
+            d.swapData(var(new VariantBuffer(32)), sendNotificationSync);
+            l.expectEventType(EventType::ContentRedirected, "swapData triggers ContentRedirected");
+        }
+        
+        {
+            TestListener l(d, *this);
+            d.setValue(1, 0.4f, sendNotificationSync);
+            l.expectEventType(EventType::ContentChange, "setValue triggers ContentChange");
+        }
+        
+        {
+            Array<float> list = {1.0f, 2.0f, 3.0f, 4.0f};
+            
+            TestListener l(d, *this);
+            d.setFromFloatArray(list, sendNotificationSync);
+            
+            l.expectEventType(EventType::ContentChange, "setFromFloatArray triggers ContentChange");
+        }
+        
+    }
+    
+    void testUndo()
+    {
+        beginTest("testing undo");
+        
+        SliderPackData d;
+        UndoManager m;
+        d.setUndoManager(&m);
+        
+        d.setValue(1, 0.5f, sendNotificationSync, true);
+        
+        expectEquals(d.getValue(1), 0.5f, "perform works");
+        
+        TestListener l(d, *this);
+        
+        m.undo();
+        
+        expectEquals(d.getValue(1), 1.0f, "undo works");
+        
+        using EventType = ComplexDataUIUpdaterBase::EventType;
+        
+        l.expectEventType(EventType::ContentChange, "undo causes content change");
+    }
+};
+
+static SliderPackUnitTest spTests;
+
+
+#endif
 
 } // namespace hise
