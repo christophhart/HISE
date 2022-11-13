@@ -1053,7 +1053,11 @@ void ProjectHandler::checkActiveProject()
 
 juce::File ProjectHandler::getAppDataRoot()
 {
+#if HISE_USE_SYSTEM_APP_DATA_FOLDER
+    const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
+#else
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+#endif
     
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
@@ -1077,7 +1081,7 @@ juce::File ProjectHandler::getAppDataRoot()
 juce::File ProjectHandler::getAppDataDirectory()
 {
 
-#if USE_COMMON_APP_DATA_FOLDER
+#if HISE_USE_SYSTEM_APP_DATA_FOLDER
 	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
 #else
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
