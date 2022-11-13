@@ -421,7 +421,7 @@ struct DrawActions
 		void perform(Graphics& g) override;
 
 		float alpha;
-		ReferenceCountedArray<ActionBase> actions;
+		
 		Image blendSource;
 		gin::BlendMode blendMode;
 	};
