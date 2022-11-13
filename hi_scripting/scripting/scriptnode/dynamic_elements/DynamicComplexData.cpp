@@ -120,7 +120,7 @@ void dynamic_base::updateExternalData()
 	if (currentlyUsedData != nullptr)
 	{
 		auto updater = parentNode != nullptr ? parentNode->getScriptProcessor()->getMainController_()->getGlobalUIUpdater() : nullptr;
-		auto um = parentNode != nullptr ? parentNode->getUndoManager() : nullptr;
+		auto um = parentNode != nullptr ? parentNode->getScriptProcessor()->getMainController_()->getControlUndoManager() : nullptr;
 
 		currentlyUsedData->setGlobalUIUpdater(updater);
 		currentlyUsedData->setUndoManager(um);
