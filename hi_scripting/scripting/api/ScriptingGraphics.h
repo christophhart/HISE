@@ -779,10 +779,10 @@ namespace ScriptingObjects
 		/** Loads an image that can be used by the look and feel functions. */
 		void loadImage(String imageFile, String prettyName);
 
-		/** Unload all images from the panel. */
+		/** Unload all images from the look and feel object. */
 		void unloadAllImages();
 
-		/** Checks if the image has been loaded into the panel */
+		/** Checks if the image has been loaded into the look and feel obkect */
 		bool isImageLoaded(String prettyName);
 
 		// ========================================================================================
