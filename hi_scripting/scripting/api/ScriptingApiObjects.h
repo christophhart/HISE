@@ -880,9 +880,9 @@ namespace ScriptingObjects
 
 		snex::ExternalData::DataType getDataType() const { return type; }
 
-		String getDebugName() const override { return snex::ExternalData::getDataTypeName(getDataType()); };
+		String getDebugName() const override { return "Script" + snex::ExternalData::getDataTypeName(getDataType()); };
 		String getDebugValue() const override { return getDebugName(); };
-		Identifier getObjectName() const override { return Identifier(getDebugName()); }
+		
 
 		bool objectDeleted() const override { return complexObject == nullptr; }
 		bool objectExists() const override { return complexObject != nullptr; }
@@ -972,6 +972,8 @@ namespace ScriptingObjects
 
 		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* otherHolder = nullptr);
 
+		Identifier getObjectName() const override { return Identifier("AudioFile"); }
+
 		// ============================================================================================================
 
 		void clear();
@@ -1028,6 +1030,8 @@ namespace ScriptingObjects
 
 		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other=nullptr);
 
+		Identifier getObjectName() const override { return Identifier("ScriptRingBuffer"); }
+
 		// ============================================================================================================
 
 		/** Returns a reference to the internal read buffer. */
@@ -1060,6 +1064,8 @@ namespace ScriptingObjects
 	public:
 
 		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* externalHolder=nullptr);
+
+		Identifier getObjectName() const override { return Identifier("Table"); }
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
@@ -1119,6 +1125,8 @@ namespace ScriptingObjects
 		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, ExternalDataHolder* otherHolder=nullptr);
 
 		~ScriptSliderPackData() {};
+
+		Identifier getObjectName() const override { return Identifier("SliderPackData"); }
 
 		// ============================================================================================================
 

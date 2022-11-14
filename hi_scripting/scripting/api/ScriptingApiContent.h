@@ -1512,6 +1512,9 @@ public:
 		/** Returns a Buffer object containing all slider values (as reference). */
 		var getDataAsBuffer();
 
+		/** Sets a preallocated length that will retain values when the slider pack is resized below that limit. */
+		void setUsePreallocatedLength(int numMaxSliders);
+
 		// ========================================================================================================
 
 		void changed() override;
