@@ -1837,9 +1837,13 @@ void ScriptEncryptedExpansion::encodePoolAndUserPresets(ValueTree &hxiData, bool
 			addDataType(poolData, fileType);
 	}
 
-	h.setErrorMessage("Embedding user presets", false);
+	auto embedUserPresets = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EmbedUserPresets);
 
-	addUserPresets(hxiData);
+  if (embedUserPresets)
+	{
+		h.setErrorMessage("Embedding user presets", false);
+		addUserPresets(hxiData);
+	}
 
 	hxiData.addChild(poolData, -1, nullptr);
 }
