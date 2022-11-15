@@ -191,6 +191,8 @@ public:
 	{
 		defaultValue = (float)newDefaultValue;
 	}
+    
+    float getDefaultValue() const { return defaultValue; }
 
 	void setNewUndoAction() const;
 
@@ -496,8 +498,6 @@ private:
     
 	ReferenceCountedObjectPtr<SliderPackData> dummyData;
 	String suffix;
-
-	double defaultValue;
 
 	Array<float> displayAlphas;
 

@@ -267,7 +267,6 @@ data(data_),
 currentlyDragged(false),
 currentlyDraggedSlider(-1),
 currentlyDraggedSliderValue(0.0),
-defaultValue(0.0),
 dummyData(new SliderPackData(nullptr, nullptr))
 {
 	setSpecialLookAndFeel(new SliderLookAndFeel(), true);
@@ -743,7 +742,7 @@ void SliderPack::mouseDoubleClick(const MouseEvent &e)
 	{
 		for (int i = 0; i < data->getNumSliders(); i++)
 		{
-			data->setValue(i, (float)defaultValue, sendNotification);
+			data->setValue(i, data->getDefaultValue(), sendNotification);
 		}
 	}
 	else
@@ -752,7 +751,7 @@ void SliderPack::mouseDoubleClick(const MouseEvent &e)
 
 		int sliderIndex = (int)((float)x / (float)getWidth() * sliders.size());
 
-		data->setValue(sliderIndex, (float)defaultValue, sendNotification);
+		data->setValue(sliderIndex, data->getDefaultValue(), sendNotification);
 	}
 }
 
