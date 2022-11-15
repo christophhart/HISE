@@ -939,6 +939,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
+	API_METHOD_WRAPPER_2(Engine, performUndoAction);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
@@ -1072,6 +1073,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
+	ADD_API_METHOD_2(performUndoAction);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
@@ -1692,6 +1694,54 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 		auto slaf = new ScriptingObjects::ScriptedLookAndFeel(getScriptProcessor(), true);
 		return var(slaf);
 	}
+}
+
+struct ScriptUndoableAction : public UndoableAction
+{
+	ScriptUndoableAction(ProcessorWithScriptingContent* p, var f, var thisObject_):
+		UndoableAction(),
+		callback(p, nullptr, f, 1),
+		thisObject(thisObject_)
+	{
+		// ensure it's called synchronously if possible...
+		callback.setHighPriority();
+		callback.incRefCount();
+	}
+
+	bool undo() override
+	{
+		if (callback)
+		{
+			var a(true);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool perform() override
+	{
+		if (callback)
+		{
+			var a(false);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	var thisObject;
+	WeakCallbackHolder callback;
+};
+
+bool ScriptingApi::Engine::performUndoAction(var thisObject, var undoAction)
+{
+	getScriptProcessor()->getMainController_()->getControlUndoManager()->beginNewTransaction("%SCRIPT_TRANSACTION%");
+	return getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(new ScriptUndoableAction(getScriptProcessor(), undoAction, thisObject));
 }
 
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
@@ -3102,6 +3152,16 @@ String ScriptingApi::Engine::intToHexString(int value)
 
 void ScriptingApi::Engine::undo()
 {
+	Array<const juce::UndoableAction*> actions;
+
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getUndoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->undo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
 
 	auto f = [p]()
@@ -3115,7 +3175,17 @@ void ScriptingApi::Engine::undo()
 
 void ScriptingApi::Engine::redo()
 {
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getRedoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->redo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
+
+
 
 	auto f = [p]()
 	{

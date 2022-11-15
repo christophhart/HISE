@@ -301,6 +301,9 @@ public:
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
 
+		/** Performs an action that can be undone via Engine.undo(). */
+		bool performUndoAction(var thisObject, var undoAction);
+
 		var createFFT();
 
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
