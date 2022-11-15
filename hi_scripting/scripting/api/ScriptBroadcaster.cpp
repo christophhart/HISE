@@ -1281,6 +1281,7 @@ ScriptBroadcaster::RoutingMatrixListener::RoutingMatrixListener(ScriptBroadcaste
 
 void ScriptBroadcaster::RoutingMatrixListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
 {
+#if USE_BACKEND
 	struct MatrixViewer : public Component,
 						  public ComponentWithPreferredSize
 	{
@@ -1312,6 +1313,7 @@ void ScriptBroadcaster::RoutingMatrixListener::registerSpecialBodyItems(Componen
 	};
 
 	factory.registerWithCreate<MatrixViewer>();
+#endif
 }
 
 juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
