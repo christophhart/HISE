@@ -3320,6 +3320,8 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptRoutingMatrix, setNumChannels);
+	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceChannelsForDestination);
+	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getDestinationChannelForSource);
 };
 
 ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptingContent *p, Processor *processor):
@@ -3333,6 +3335,8 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
 	ADD_API_METHOD_1(setNumChannels);
+	ADD_API_METHOD_1(getSourceChannelsForDestination);
+	ADD_API_METHOD_1(getDestinationChannelForSource);
 
 	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 	{
@@ -3457,6 +3461,67 @@ float ScriptingObjects::ScriptRoutingMatrix::getSourceGainValue(int channelIndex
 	}
 
 	return 0.0f;
+}
+
+var ScriptingObjects::ScriptRoutingMatrix::getSourceChannelsForDestination(var destinationIndex) const
+{
+	if (destinationIndex.isArray())
+	{
+		Array<var> returnValues;
+
+		for (auto r : *destinationIndex.getArray())
+			returnValues.add(getSourceChannelsForDestination(r));
+
+		return var(returnValues);
+	}
+
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			Array<var> channels;
+
+			for (int i = 0; i < r->getMatrix().getNumSourceChannels(); i++)
+			{
+				auto thisDest = r->getMatrix().getConnectionForSourceChannel(i);
+
+				if (thisDest == (int)destinationIndex)
+					channels.add(i);
+			}
+
+			if (channels.isEmpty())
+				return -1;
+			else if (channels.size() == 1)
+				return channels.getFirst();
+			else
+				return channels;
+		}
+	}
+
+	return -1;
+}
+
+var ScriptingObjects::ScriptRoutingMatrix::getDestinationChannelForSource(var sourceIndex) const
+{
+	if (sourceIndex.isArray())
+	{
+		Array<var> returnArray;
+
+		for (auto r : *sourceIndex.getArray())
+			returnArray.add(getDestinationChannelForSource(r));
+
+		return var(returnArray);
+	}
+
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().getConnectionForSourceChannel(sourceIndex);
+		}
+	}
+
+	return -1;
 }
 
 // ScriptingSynth ==============================================================================================================

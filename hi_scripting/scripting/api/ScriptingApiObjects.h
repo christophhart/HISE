@@ -1860,7 +1860,15 @@ namespace ScriptingObjects
 		/** Gets the current peak value of the given channelIndex. */
 		float getSourceGainValue(int channelIndex);
 
+		/** Returns one or multiple input channels that is mapped to the given output channel (or -1). */
+		var getSourceChannelsForDestination(var destinationIndex) const;
+
+		/** Returns the output channel that is mapped to the given input channel (or -1). */
+		var getDestinationChannelForSource(var sourceIndex) const;
+
 		// ============================================================================================================ 
+
+		RoutableProcessor* getRoutableProcessor() { return dynamic_cast<RoutableProcessor*>(rp.get()); }
 
 		struct Wrapper;
 

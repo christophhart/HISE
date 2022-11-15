@@ -188,6 +188,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Attaches this broadcaster to another broadcaster(s) to forward the messages. */
 	void attachToOtherBroadcaster(var otherBroadcaster, var argTransformFunction, bool async, var optionalMetadata);
 
+	/** Attaches this broadcaster to a routing matrix and listens for changes. */
+	void attachToRoutingMatrix(var moduleIds, var optionalMetadata);
+
 	/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
 	void callWithDelay(int delayInMilliseconds, var argArray, var function);
 
@@ -538,6 +541,7 @@ private:
 		WeakReference<ScriptBroadcaster> parent;
 	};
 
+
 	struct ModuleParameterListener: public ListenerBase
 	{
 		struct ProcessorListener;
@@ -556,6 +560,26 @@ private:
 		Result callItem(TargetBase* n) override;
 
 		OwnedArray<ProcessorListener> listeners;
+	};
+
+	struct RoutingMatrixListener : public ListenerBase
+	{
+		struct MatrixListener;
+
+		RoutingMatrixListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const var& metadata);
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("RoutingMatrix"); };
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
+		Array<var> createChildArray() const override;
+
+		Result callItem(TargetBase* b) override;
+
+		OwnedArray<MatrixListener> listeners;
 	};
 
 	struct ScriptCallListener : public ListenerBase
