@@ -2158,6 +2158,21 @@ juce::String CompileExporter::ProjectTemplateHelpers::getPluginChannelAmount(Mod
 {
     auto& dataObject = dynamic_cast<BackendProcessor*>(chain->getMainController())->getSettingsObject();
     
+#if JUCE_WINDOWS
+	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString();
+#elif JUCE_MAC
+	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString();
+#elif JUCE_LINUX
+	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString();
+#endif
+
+	// If we've defined this manually, we override the routing matrix value
+	// in order to allow exporting multichannel plugins with a stereo output configuration
+	if (definitions.contains("HISE_NUM_PLUGIN_CHANNELS"))
+	{
+		return "";
+	}
+
     int numChannels = chain->getMatrix().getNumSourceChannels();
     
     if(IS_SETTING_TRUE(HiseSettings::Project::ForceStereoOutput))

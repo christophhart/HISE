@@ -304,6 +304,9 @@ public:
 		/** Performs an action that can be undone via Engine.undo(). */
 		bool performUndoAction(var thisObject, var undoAction);
 
+		/** Returns the amount of output channels. */
+		int getNumPluginChannels() const;
+
 		var createFFT();
 
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */

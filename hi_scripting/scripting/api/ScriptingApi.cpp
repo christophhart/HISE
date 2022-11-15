@@ -858,6 +858,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
 	API_METHOD_WRAPPER_0(Engine, getBufferSize);
+	API_METHOD_WRAPPER_0(Engine, getNumPluginChannels);
 	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
 	API_VOID_METHOD_WRAPPER_1(Engine, setMaximumBlockSize);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
@@ -960,6 +961,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
 	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
+	
 };
 
 
@@ -997,6 +999,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
 	ADD_API_METHOD_0(getBufferSize);
+	ADD_API_METHOD_0(getNumPluginChannels);
 	ADD_API_METHOD_1(setMinimumSampleRate);
 	ADD_API_METHOD_1(setMaximumBlockSize);
 	ADD_API_METHOD_1(getMidiNoteName);
@@ -1742,6 +1745,11 @@ bool ScriptingApi::Engine::performUndoAction(var thisObject, var undoAction)
 {
 	getScriptProcessor()->getMainController_()->getControlUndoManager()->beginNewTransaction("%SCRIPT_TRANSACTION%");
 	return getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(new ScriptUndoableAction(getScriptProcessor(), undoAction, thisObject));
+}
+
+int ScriptingApi::Engine::getNumPluginChannels() const
+{
+	return HISE_NUM_PLUGIN_CHANNELS;
 }
 
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
