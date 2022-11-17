@@ -227,7 +227,7 @@ public:
 
 	template <class EditorType> bool addEditorTabsOfType()
 	{
-		auto tabs = BackendPanelHelpers::ScriptingWorkspace::getCodeTabs(this);
+		auto tabs = getCodeTabs();
 
 		if (tabs->getNumChildPanelsWithType<EditorType>() == 0)
 		{
@@ -245,6 +245,8 @@ public:
 	}
 
 private:
+
+	FloatingTabComponent* getCodeTabs();
 
 	bool learnMode = false;
 

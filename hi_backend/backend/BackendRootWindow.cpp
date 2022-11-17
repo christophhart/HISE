@@ -744,6 +744,11 @@ void BackendRootWindow::paintOverChildren(Graphics& g)
 	}
 }
 
+hise::FloatingTabComponent* BackendRootWindow::getCodeTabs()
+{
+	return BackendPanelHelpers::ScriptingWorkspace::getCodeTabs(this);
+}
+
 VerticalTile* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)
 {
 	static const Identifier id("PersonaContainer");
