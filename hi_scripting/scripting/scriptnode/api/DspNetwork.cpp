@@ -1915,7 +1915,9 @@ void DspNetwork::FaustManager::removeFaustListener(FaustListener* l)
 
 void DspNetwork::FaustManager::setSelectedFaustFile(Component* c, const File& f, NotificationType n)
 {
+#if USE_BACKEND
 	GET_BACKEND_ROOT_WINDOW(c)->addEditorTabsOfType<FaustEditorPanel>();
+#endif
 
 	currentFile = f;
 
