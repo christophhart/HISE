@@ -1637,7 +1637,7 @@ juce::var ScriptingApi::Engine::getExtraDefinitionsInBackend()
 #elif JUCE_MAC
 	auto defName = "ExtraDefinitionsOSX";
 #elif JUCE_LINUX
-	auto defName = "ExtraDefinitionsLinux"
+	auto defName = "ExtraDefinitionsLinux";
 #endif
 
 	auto s = dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getSettingsObject().getSetting(Identifier(defName)).toString();
