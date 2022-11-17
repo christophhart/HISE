@@ -292,6 +292,9 @@ public:
 		/** Iterates the given sub-directory of the Samples folder and returns a list with all references to audio files. */
 		var getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive);
 
+		/** Returns the platform specific extra definitions from the Project settings as JSON object. */
+		var getExtraDefinitionsInBackend();
+		
 		/** Shows a message with a question and executes the function after the user has selected his choice. */
 		void showYesNoWindow(String title, String markdownMessage, var callback);
 

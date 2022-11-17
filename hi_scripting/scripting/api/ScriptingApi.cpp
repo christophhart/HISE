@@ -941,6 +941,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 	API_METHOD_WRAPPER_2(Engine, performUndoAction);
+	API_METHOD_WRAPPER_0(Engine, getExtraDefinitionsInBackend);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
@@ -961,6 +962,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
 	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
+	
 	
 };
 
@@ -1077,6 +1079,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 	ADD_API_METHOD_2(performUndoAction);
+	ADD_API_METHOD_0(getExtraDefinitionsInBackend);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
@@ -1617,6 +1620,45 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 	}
 
 	return returnList;
+
+#else
+	return {};
+#endif
+
+	
+}
+
+juce::var ScriptingApi::Engine::getExtraDefinitionsInBackend()
+{
+#if USE_BACKEND
+
+#if JUCE_WINDOWS
+	auto defName = "ExtraDefinitionsWindows";
+#elif JUCE_MAC
+	auto defName = "ExtraDefinitionsOSX";
+#elif JUCE_LINUX
+	auto defName = "ExtraDefinitionsLinux"
+#endif
+
+	auto s = dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getSettingsObject().getSetting(Identifier(defName)).toString();
+
+	StringArray items;
+
+	if (s.contains(","))
+		items = StringArray::fromTokens(s, ",", "");
+	else if (s.contains(";"))
+		items = StringArray::fromTokens(s, ";", "");
+	else
+		items = StringArray::fromLines(s);
+
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	for (const auto& i : items)
+	{
+		obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
+	}
+
+	return var(obj.get());
 
 #else
 	return {};
