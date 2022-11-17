@@ -742,6 +742,23 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 #if USE_BACKEND
 	if (token.isNotEmpty())
 	{
+		if(token.startsWithChar('"'))
+		{
+			auto scriptRoot = dynamic_cast<Processor*>(this)->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
+
+			auto sf = scriptRoot.getChildFile(token.substring(1)).withFileExtension("js");
+
+			if (sf.existsAsFile())
+			{
+				DebugableObject::Location l;
+				l.fileName = sf.getFullPathName();
+				l.charNumber = 0;
+
+				DebugableObject::Helpers::gotoLocation(nullptr, this, l);
+				return;
+			}
+		}
+
 		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
 
 		const String c = namespaceId.isEmpty() ? trimmedToken : namespaceId + "." + trimmedToken;
