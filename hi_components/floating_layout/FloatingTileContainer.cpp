@@ -507,6 +507,9 @@ void FloatingTabComponent::mouseDown(const MouseEvent& event)
 
 	int newTabIndex = getCurrentTabIndex();
 
+	if (event.eventComponent != this)
+		return;
+
 	if (event.mods.isX2ButtonDown())
 	{
 		if (++newTabIndex == getNumTabs())

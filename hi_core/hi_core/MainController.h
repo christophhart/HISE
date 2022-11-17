@@ -493,6 +493,8 @@ public:
 		void addPresetLoadListener(PresetLoadListener* l)
 		{
 			presetLoadListeners.addIfNotAlreadyThere(l);
+
+			l->newHisePresetLoaded();
 		}
 
 		void removePresetLoadListener(PresetLoadListener* l)

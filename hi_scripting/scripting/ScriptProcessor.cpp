@@ -742,7 +742,9 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 #if USE_BACKEND
 	if (token.isNotEmpty())
 	{
-		const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
+		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
+
+		const String c = namespaceId.isEmpty() ? trimmedToken : namespaceId + "." + trimmedToken;
 
         auto infos = DebugableObject::Helpers::getDebugInformationFromString(getScriptEngine(), c);
         

@@ -932,8 +932,8 @@ void FaustMenuBar::buttonClicked(Button* b)
         }
         else
         {
-            auto& faustManager = node->getRootNetwork()->faustManager;
-            faustManager.setSelectedFaustFile(sourceFile, sendNotificationSync);
+			auto& faustManager = node->getRootNetwork()->faustManager;
+            faustManager.setSelectedFaustFile(b, sourceFile, sendNotificationAsync);
         }
 	}
 	else if (b == &reloadButton) {

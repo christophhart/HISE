@@ -992,6 +992,8 @@ void SnexMenuBar::buttonClicked(Button* b)
 			manager.setCurrentWorkbench(source->getWorkbench(), false);
 		else
 			manager.resetToRoot();
+
+		GET_BACKEND_ROOT_WINDOW(b)->addEditorTabsOfType<SnexEditorPanel>();
 	}
 }
 

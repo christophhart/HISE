@@ -207,22 +207,12 @@ void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
 		refreshIndexList();
 }
 
-void CodeEditorPanel::mouseDown(const MouseEvent& event)
+void CodeEditorPanel::mouseDown(const MouseEvent& e)
 {
-	if (auto tab = findParentComponentOfClass<FloatingTabComponent>())
-	{
-		if (tab->getNumTabs() > 1)
-			return;
-	}
-
-	if (event.mods.isX2ButtonDown())
-	{
-		incIndex(true);
-	}
-	else if (event.mods.isX1ButtonDown())
-	{
-		incIndex(false);
-	}
+	if (e.mods.isX1ButtonDown())
+		getMainController()->getLocationUndoManager()->undo();
+	else if (e.mods.isX2ButtonDown())
+		getMainController()->getLocationUndoManager()->redo();
 }
 
 var CodeEditorPanel::getAdditionalUndoInformation() const

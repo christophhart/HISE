@@ -1935,10 +1935,13 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return nav(mods, Target::character, Direction::backwardRow);
 	}
 
+	if (key.isKeyCode(KeyPress::backspaceKey))
+	{
+		if (key.getModifiers().isAnyModifierKeyDown())
+			return false;
 
-
-	if (key.isKeyCode(KeyPress::backspaceKey) && !key.getModifiers().isAnyModifierKeyDown())
-        return remove(Target::character, Direction::backwardCol);
+		return remove(Target::character, Direction::backwardCol);
+	}        
 	if (key.isKeyCode(KeyPress::deleteKey))
 	{
 		// Deactivate double delete when pressing del key
