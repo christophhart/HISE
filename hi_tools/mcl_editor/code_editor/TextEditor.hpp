@@ -72,7 +72,7 @@ public:
 	{
 		document.getCodeDocument().getUndoManager().beginNewTransaction();
 
-		document.viewUndoManager.beginNewTransaction();
+		document.viewUndoManagerToUse->beginNewTransaction();
 	}
 
 	void setReadOnly(bool shouldBeReadOnly)

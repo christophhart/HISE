@@ -524,7 +524,7 @@ void TextDocument::setSelections(const juce::Array<Selection>& newSelections, bo
 
 	if (useUndo)
 	{
-		viewUndoManager.perform(new SelectionAction(*this, newSelections));
+		viewUndoManagerToUse->perform(new SelectionAction(*this, newSelections));
 	}
 	else
 	{

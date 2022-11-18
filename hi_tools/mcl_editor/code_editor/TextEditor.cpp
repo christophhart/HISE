@@ -1129,8 +1129,8 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addSeparator();
 
 		menu.addSectionHeader("View options");
-		menu.addItem(Back, "Back", document.viewUndoManager.canUndo());
-		menu.addItem(Forward, "Forward", document.viewUndoManager.canRedo());
+		menu.addItem(Back, "Back", document.viewUndoManagerToUse->canUndo());
+		menu.addItem(Forward, "Forward", document.viewUndoManagerToUse->canRedo());
 		menu.addItem(FoldAll, "Fold all", true, false);
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
@@ -1154,8 +1154,8 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			case Cut: cut(); break;
 			case Copy: copy(); break;
 			case Paste: paste(); break;
-			case Forward: document.viewUndoManager.redo(); break;
-			case Back:    document.viewUndoManager.undo(); break;
+			case Forward: document.viewUndoManagerToUse->redo(); break;
+			case Back:    document.viewUndoManagerToUse->undo(); break;
 			case SelectAll: expand(TextDocument::Target::document); break;
 			case Undo: document.getCodeDocument().getUndoManager().undo(); break;
 			case Redo: document.getCodeDocument().getUndoManager().redo(); break;

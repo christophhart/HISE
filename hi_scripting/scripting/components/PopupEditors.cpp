@@ -519,8 +519,12 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	ed.setPopupLookAndFeel(new PopupLookAndFeel());
 
+    
+    
 	auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
 
+    ed.getTextDocument().setExternalViewUndoManager(mc->getLocationUndoManager());
+    
 	mc->getFontSizeChangeBroadcaster().addListener(ed, [mc](mcl::TextEditor& e, float s)
 		{
 			auto fs = mc->getGlobalCodeFontSize();

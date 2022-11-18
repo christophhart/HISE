@@ -333,17 +333,11 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	{
 		PopupIncludeEditor::EditorType* editor = c->getEditor();
 
-#if HISE_USE_NEW_CODE_EDITOR
-
 		CodeDocument::Position pos(editor->editor.getDocument(), charNumber);
 
 		editor->editor.scrollToLine(pos.getLineNumber(), true);
 		mcl::Selection newSelection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine());
-		editor->editor.getTextDocument().setSelection(0, newSelection, true);
-#else
-		CodeDocument::Position pos(editor->getDocument(), charNumber);
-		editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
-#endif
+		editor->editor.getTextDocument().setSelection(0, newSelection, false);
 	}
 }
 
