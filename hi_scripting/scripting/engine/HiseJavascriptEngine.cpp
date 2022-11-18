@@ -1217,6 +1217,27 @@ hise::DebugInformation* HiseJavascriptEngine::RootObject::Callback::getChildElem
 
 }
 
+struct IncludeFileToken : public mcl::TokenCollection::Token
+{
+	IncludeFileToken(const File& root_, const File& f):
+		Token(""),
+		sf(f),
+		root(root_)
+	{
+		markdownDescription << "`" << sf.getFullPathName() << "`";
+		
+		tokenContent << "include(" << sf.getRelativePathFrom(root).replaceCharacter('\\', '/').quoted() << ");";
+
+		priority = 100;
+		c = Colours::magenta;
+	}
+
+	
+
+	File root;
+	File sf;
+};
+
 struct TokenWithDot : public mcl::TokenCollection::Token
 {
 	TokenWithDot(const String& token, const String& classId_) :
@@ -1712,6 +1733,37 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 {
 	if (jp != nullptr)
 	{
+		File scriptFolder = dynamic_cast<Processor*>(jp.get())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
+		auto scriptFiles = scriptFolder.findChildFiles(File::findFiles, true, "*.js");
+
+		for (auto sf: scriptFiles)
+		{
+			if (sf.isHidden())
+				continue;
+
+			auto alreadyIncluded = false;
+
+			for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if (jp->getWatchedFile(i) == sf)
+				{
+					alreadyIncluded = true;
+					break;
+				}
+			}
+
+			if (alreadyIncluded)
+				continue;
+
+			auto pf = sf.getParentDirectory().getFullPathName();
+
+			if (pf.contains("ScriptProcessors") || pf.contains("ConnectedScripts"))
+				continue;
+
+			tokens.add(new IncludeFileToken(scriptFolder, sf));
+		}
+		
+
 		ScopedReadLock sl(jp->getDebugLock());
 
 		auto holder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());
@@ -1805,7 +1857,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 				}
 			}
 		}
-
+		t
 #define X(unused, name) tokens.add(new KeywordToken(name));
 
 		X(var, "var")      X(if_, "if")     X(else_, "else")   X(do_, "do")       X(null_, "null") 
@@ -1817,6 +1869,19 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 		X(isDefined_, "isDefined");
 
 #undef X
+
+		for (int i = 0; i < tokens.size(); i++)
+		{
+			if(tokens[i]->tokenContent.contains("[") ||
+			   tokens[i]->tokenContent.contains("%PARENT%") ||
+			   tokens[i]->tokenContent.endsWith(".args") ||
+			   tokens[i]->tokenContent.endsWith(".locals"))
+			{
+				tokens.remove(i--);
+			}
+		}
+
+
 	}
 }
 
