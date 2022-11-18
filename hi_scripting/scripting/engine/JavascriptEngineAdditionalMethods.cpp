@@ -157,6 +157,8 @@ HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavas
 	return r;
 }
 
+
+
 HiseJavascriptEngine::RootObject::RootObject() :
 hiseSpecialData(this)
 {
@@ -1227,7 +1229,7 @@ String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, i
 {
 	jassertfalse;
 
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "", nullptr);
 
 	try
 	{
@@ -1245,7 +1247,7 @@ String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
 {
 	jassertfalse;
 
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "", nullptr);
 
 	try
 	{

@@ -250,6 +250,8 @@ namespace snex
 #include <set>
 #include "snex_cpp_builder/snex_jit_ValueTreeBuilder.h"
 
+#include "snex_parser/snex_jit_PreProcessor.h"
+
 namespace snex {
 	namespace jit {
 		using namespace juce;

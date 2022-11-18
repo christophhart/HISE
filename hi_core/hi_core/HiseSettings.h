@@ -82,6 +82,7 @@ DECLARE_ID(SupportMonoFX);
 DECLARE_ID(EnableSoundGeneratorsFX);
 DECLARE_ID(EnableMidiInputFX);
 DECLARE_ID(EnableMidiOut);
+DECLARE_ID(EnableGlobalPreprocessor);
 DECLARE_ID(UseRawFrontend);
 DECLARE_ID(VST3Support);
 DECLARE_ID(ExpansionType);

@@ -112,6 +112,8 @@ struct ExternalPreprocessorDefinition
 	String name;
 	String value;
 	String description;
+	int charNumber = -1;
+	String fileName;
 };
 
 /** A interface class for anything that needs to print out the logs from the

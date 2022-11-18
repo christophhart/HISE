@@ -271,7 +271,13 @@ public:
 	void setCallStackEnabled(bool shouldBeEnabled);
 
 	void registerApiClass(ApiClass *apiClass);
-	
+
+	void setEnableGlobalPreprocessor(bool shouldBeEnabled);
+
+	SparseSet<int> getDeactivatedLinesForFile(const String& fileId);
+
+	DebugableObjectBase::Location getLocationForPreprocessor(const String& preprocessorId);
+
     void setIsInitialising(bool shouldBeInitialising)
     {
         initialising = shouldBeInitialising;
@@ -407,6 +413,8 @@ public:
 	struct RootObject : public DynamicObject,
 						public CyclicReferenceCheckBase
 	{
+		
+
 		RootObject();
 
 		Time timeout;
@@ -470,7 +478,17 @@ public:
 		struct CodeLocation;
 		struct CallStackEntry;
 		struct Scope;
-        
+
+		struct PreprocessorDefinitions
+		{
+#if USE_BACKEND
+			snex::jit::ExternalPreprocessorDefinition::List definitions;
+			HashMap<String, SparseSet<int>> deactivatedLines;
+#endif
+			bool enableGlobalPreprocessor = false;
+
+		} preprocessorDefinitions;
+
         struct LocalScopeCreator
         {
             using Ptr = WeakReference<LocalScopeCreator>;

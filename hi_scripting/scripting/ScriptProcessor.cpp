@@ -758,6 +758,11 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 				return;
 			}
 		}
+		if (auto l = getScriptEngine()->getLocationForPreprocessor(token))
+		{
+			DebugableObject::Helpers::gotoLocation(nullptr, this, l);
+			return;
+		}
 
 		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
 
@@ -1001,6 +1006,10 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 			if (codeToCompile.isEmpty())
 				continue;
+
+#if USE_BACKEND
+			scriptEngine->setEnableGlobalPreprocessor(GET_HISE_SETTING(thisAsProcessor, HiseSettings::Project::EnableGlobalPreprocessor));
+#endif
 
 			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 

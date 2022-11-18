@@ -248,6 +248,15 @@ struct PreprocessorMacroProvider : public TokenCollection::Provider
 			c = FourColourScheme::getColour(FourColourScheme::Preprocessor);
 		}
 
+		PreprocessorToken(const ExternalPreprocessorDefinition& def) :
+			Token(def.name)
+		{
+			markdownDescription << "Value: `" << def.value << "`";
+			codeToInsert = def.name;
+			definitionLine = 0;
+			c = FourColourScheme::getColour(FourColourScheme::Preprocessor);
+		}
+
 		String getCodeToInsert(const String& input)
 		{
 			return codeToInsert;

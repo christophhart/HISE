@@ -288,6 +288,8 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 	
 };
 
+
+
 #if JUCE_ENABLE_AUDIO_GUARD
 struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard: public AudioThreadGuard::Handler
 {
@@ -770,6 +772,9 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	try
 	{
 		prepareTimeout();
+
+
+
 		root->execute(javascriptCode, allowConstDeclarations);
 
 		
@@ -1164,7 +1169,41 @@ juce::String HiseJavascriptEngine::getHoverString(const String& token)
 	}
 }
 
+void HiseJavascriptEngine::setEnableGlobalPreprocessor(bool shouldBeEnabled)
+{
+#if USE_BACKEND
+	root->preprocessorDefinitions.enableGlobalPreprocessor = shouldBeEnabled;
+#endif
+}
 
+juce::SparseSet<int> HiseJavascriptEngine::getDeactivatedLinesForFile(const String& fileId)
+{
+	jassert(fileId.isNotEmpty());
+
+#if USE_BACKEND
+	return root->preprocessorDefinitions.deactivatedLines[fileId];
+#else
+	return {};
+#endif
+}
+
+hise::DebugableObjectBase::Location HiseJavascriptEngine::getLocationForPreprocessor(const String& preprocessorId)
+{
+#if USE_BACKEND
+	for (const auto& d : root->preprocessorDefinitions.definitions)
+	{
+		if (d.name == preprocessorId)
+		{
+			DebugableObjectBase::Location l;
+			l.charNumber = d.charNumber;
+			l.fileName = d.fileName;
+			return l;
+		}
+	}
+#endif
+
+	return {};
+}
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
@@ -1858,6 +1897,15 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 			}
 		}
 		
+#if USE_BACKEND
+		for (const auto& def : jp->getScriptEngine()->root->preprocessorDefinitions.definitions)
+		{
+			tokens.add(new snex::debug::PreprocessorMacroProvider::PreprocessorToken(def));
+		}
+#endif
+
+		
+
 #define X(unused, name) tokens.add(new KeywordToken(name));
 
 		X(var, "var")      X(if_, "if")     X(else_, "else")   X(do_, "do")       X(null_, "null") 

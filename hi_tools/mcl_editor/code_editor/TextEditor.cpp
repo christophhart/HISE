@@ -2196,7 +2196,7 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 		for (auto& z : zones)
 		{
-			if (deactivatesLines.contains(z.tail.x + 1))
+			if (deactivatesLines.contains(z.head.x+1))
 				z.token = colourScheme.types.size() - 1;
 		}
 

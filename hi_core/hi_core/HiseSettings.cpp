@@ -99,6 +99,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
     ids.add(ForceStereoOutput);
 	ids.add(AdminPermissions);
 	ids.add(EmbedUserPresets);
+	ids.add(EnableGlobalPreprocessor);
 
 	return ids;
 }
@@ -353,6 +354,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Project::RedirectSampleFolder);
 		D("You can use another location for your sample files. This is useful if you have limited space on your hard drive and need to separate the samples.");
 		D("> HISE will create a file called `LinkWindows` / `LinkOSX` in the samples folder that contains the link to the real folder.");
+		P_();
+
+		P(HiseSettings::Project::EnableGlobalPreprocessor);
+		D("If this flag is enabled, it will use the C-Preprocessor to process all HiseScript files on compilation");
+		D("If you disable this method, you can still enable preprocessing for individual files if they start with the directive `#on`");
+		D("> This setting will not have an effect on compiled plugins as the preprocessor will already be evaluated on export");
 		P_();
 
 		P(HiseSettings::Project::AAXCategoryFX);
@@ -764,7 +771,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Project::ReadOnlyFactoryPresets ||
         id == Project::ForceStereoOutput ||
-				id == Project::AdminPermissions ||
+		id == Project::AdminPermissions ||
+		id == Project::EnableGlobalPreprocessor ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -953,6 +961,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)   return "No";
+	else if (id == Project::EnableGlobalPreprocessor) return "No";
 	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::GlassEffect)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";

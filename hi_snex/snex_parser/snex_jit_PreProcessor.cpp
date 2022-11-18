@@ -38,7 +38,139 @@ using namespace asmjit;
 
 using String = juce::String;
 
+struct Preprocessor::TextBlock
+{
+	TextBlock(String::CharPointerType program_, String::CharPointerType start_);;
 
+	bool isPreprocessorDirective() const;
+
+	void processError(ParserHelpers::Error& e)
+	{
+		if (e.location.program != program)
+		{
+			auto delta = (int)(e.location.location - e.location.program);
+
+			e.location.location = originalLocation + delta;
+			e.location.program = program;
+		}
+	}
+
+	ParserHelpers::TokenIterator createParser();
+
+	bool is(Token t) const
+	{
+		return blockType == t;
+	}
+
+	void setLineRange(int startLine, int endLine)
+	{
+		lineRange = { startLine, jmax(startLine + 1, endLine) };
+	}
+
+	int getCharNumber() const
+	{
+		return originalLocation - program;
+	}
+
+	Range<int> getLineRange() const
+	{
+		return lineRange;
+	}
+
+	DEBUG_ONLY(std::string debugString);
+
+	void flush(String::CharPointerType location);
+	String toString() const;
+
+	void replaceWithEmptyLines()
+	{
+		if (cleaned)
+			return;
+
+		auto thisCode = toString();
+
+		auto start = thisCode.begin();
+		auto end = thisCode.end();
+
+		String s;
+
+		int numPreprocessorChars = isPreprocessorDirective() ? sizeof(blockType) : 0;
+
+		s.preallocateBytes(thisCode.length() + numPreprocessorChars);
+
+		for (int i = 0; i < numPreprocessorChars; i++)
+			s << ' ';
+
+		while (start != end)
+		{
+			if (*start != '\n')
+				s << ' ';
+			else
+				s << '\n';
+
+			start++;
+		}
+
+		setProcessedCode(s);
+		cleaned = true;
+	}
+
+	String subString(String::CharPointerType location) const;
+
+	String::CharPointerType getEnd() const;
+
+	void throwError(const String& e);
+
+	void setProcessedCode(const String& newCode)
+	{
+		processedCode = newCode;
+		start = processedCode.getCharPointer();
+		length = processedCode.length();
+	}
+
+	bool replace(String::CharPointerType startRep, String::CharPointerType endRep, const String& newText)
+	{
+		jassert(startRep - start < (int)length);
+
+		String newCode;
+
+		auto ptr = start;
+		auto end = getEnd();
+
+		while (ptr != startRep)
+			newCode << *ptr++;
+
+		newCode << newText.trim();
+
+		ptr = endRep;
+
+		while (ptr != end)
+		{
+			newCode << *ptr++;
+		}
+
+		setProcessedCode(newCode);
+		return false;
+	}
+
+private:
+
+	void parseBlockStart();
+
+	bool parseIfToken(Token t) const;
+
+	Token blockType = "";
+	String::CharPointerType originalLocation;
+	String::CharPointerType start;
+	String::CharPointerType program;
+	size_t length = 0;
+
+	String processedCode;
+
+	Range<int> lineRange;
+	bool cleaned = false;
+
+};
 
 Preprocessor::TextBlock::TextBlock(String::CharPointerType program_, String::CharPointerType start_) :
 	start(start_),
@@ -141,7 +273,8 @@ void Preprocessor::TextBlock::throwError(const String& error)
 }
 
 Preprocessor::Preprocessor(const juce::String& code_) :
-	code(code_)
+	code(code_),
+	r(Result::ok())
 {
 
 }
@@ -150,13 +283,21 @@ String Preprocessor::process()
 {
 	auto blocks = parseTextBlocks();
 
-	parseTextBlocks();
+	
 
 	Array<bool> conditions;
 	
+	Range<int> linesFromConditionToken;
+
 	for (int i = 0; i < blocks.size(); i++)
 	{
-		auto& b = blocks.getReference(i);
+		auto& b = *blocks[i];
+
+		if (b.is(PreprocessorTokens::if_) || b.is(PreprocessorTokens::elif_) || b.is(PreprocessorTokens::else_))
+		{
+			linesFromConditionToken = b.getLineRange() + 1;
+			linesFromConditionToken.setStart(linesFromConditionToken.getStart() + 1);
+		}
 
 		if (!conditions.isEmpty() && !conditions.getLast())
 		{
@@ -174,10 +315,22 @@ String Preprocessor::process()
 					deactivate = !conditions.isEmpty() && !conditions.getLast();
 				}
 				
-				if(deactivate)
-					deactivatedLines.addRange(b.getLineRange() + 1);
+				if (deactivate)
+				{
+					auto r = b.getLineRange();
+					r.setStart(r.getStart() + 1);
 
-				blocks.getReference(i).replaceWithEmptyLines();
+					if (!linesFromConditionToken.isEmpty())
+					{
+						deactivatedLines.addRange(linesFromConditionToken);
+						linesFromConditionToken = {};
+					}
+						
+					deactivatedLines.addRange(r);
+				}
+					
+
+				b.replaceWithEmptyLines();
 				continue;
 			}
 		}
@@ -258,8 +411,6 @@ void Preprocessor::parseDefinition(TextBlock& b)
 			p.matchIf(JitTokens::comma);
 		}
 
-		
-
 		p.match(JitTokens::closeParen);
 		
 		newItem = new Macro(args);
@@ -271,6 +422,7 @@ void Preprocessor::parseDefinition(TextBlock& b)
 
 	newItem->id = id;
 	newItem->lineNumber = b.getLineRange().getStart();
+	newItem->charNumber = b.getCharNumber();
 
 	if (p.location.location)
 	{
@@ -291,7 +443,7 @@ bool Preprocessor::evaluate(TextBlock& b)
 
 	while (!p.isEOF())
 	{
-		if (!conditionMode && p.currentType == JitTokens::identifier)
+		if (p.currentType == JitTokens::identifier)
 		{
 			auto macroStart = p.location.location;
 
@@ -349,16 +501,24 @@ bool Preprocessor::isConditionToken(const TextBlock& b)
 	return b.is(PreprocessorTokens::else_) || b.is(PreprocessorTokens::elif_);
 }
 
-Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
+Preprocessor::TextBlockList Preprocessor::parseTextBlocks()
 {
-	Array<TextBlock> blocks;
+	TextBlockList blocks;
 
 	auto end = code.getCharPointer() + code.length();
 	auto start = code.getCharPointer();
+
+	static String preprocessorSwitch = "#pragma enable preprocessor";
+
+	if (code.startsWith(PreprocessorTokens::on_))
+		start += 3;
+
 	auto currentLine = start;
 	
 	uint8 firstNewLineChar = '\n';
 	auto lineNumber = 0;
+
+	
 
 	while (start != end)
 	{
@@ -377,7 +537,10 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 
 		auto blockStart = lineNumber;
 
-		TextBlock currentBlock(code.getCharPointer(), start);
+		ScopedPointer<TextBlock> nb = new TextBlock(code.getCharPointer(), start);
+
+		auto& currentBlock = *nb;
+
 		bool isPreprocessor = *start == '#';
 		uint8 breakCharacter = isPreprocessor ? '\n' : '#';
 
@@ -460,7 +623,7 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 		currentBlock.setLineRange(blockStart, lineNumber);
 
 		currentBlock.flush(start);
-		blocks.add(currentBlock);
+		blocks.add(nb.release());
 	}
 
 	
@@ -468,20 +631,50 @@ Array<Preprocessor::TextBlock> Preprocessor::parseTextBlocks()
 	return blocks;
 }
 
-juce::String Preprocessor::toString(Array<TextBlock>& blocks)
+void Preprocessor::addNewDefinitions(ExternalPreprocessorDefinition::List& a)
+{
+	for (auto e : entries)
+	{
+		if (e->externalDef)
+			continue;
+
+		ExternalPreprocessorDefinition newDef;
+
+		newDef.description = e->description;
+
+		if (dynamic_cast<Macro*>(e) != nullptr)
+			newDef.t = ExternalPreprocessorDefinition::Type::Macro;
+		else
+			newDef.t = ExternalPreprocessorDefinition::Type::Definition;
+
+		newDef.value = e->body;
+		newDef.name = e->id.toString();
+		newDef.charNumber = e->charNumber;
+		newDef.fileName = currentFileName;
+		a.add(newDef);
+	}
+}
+
+juce::String Preprocessor::toString(const Preprocessor::TextBlockList& blocks)
 {
 	String s;
 
-	for (auto& b : blocks)
+	if (auto first = blocks.getFirst())
 	{
-		if (!b.isPreprocessorDirective())
-			s << b.toString();
+		auto startLine = first->getLineRange().getStart();
+
+		for (int i = 0; i < startLine; i++)
+			s << '\n';
+	}
+
+	for (auto b : blocks)
+	{
+		if (!b->isPreprocessorDirective())
+			s << b->toString();
 		else
 		{
-			b.replaceWithEmptyLines();
-
-			auto l = b.toString().substring(1);
-
+			b->replaceWithEmptyLines();
+			auto l = b->toString().substring(1);
 			s << l;
 		}
 	}
@@ -496,9 +689,7 @@ juce::Array<Preprocessor::AutocompleteData> Preprocessor::getAutocompleteData() 
 	for (auto i : entries)
 	{
 		if (auto ad = i->getAutocompleteData())
-		{
 			l.add(ad);
-		}
 	}
 
 	return l;
@@ -506,6 +697,10 @@ juce::Array<Preprocessor::AutocompleteData> Preprocessor::getAutocompleteData() 
 
 void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition::List& l)
 {
+	// don't add anything at the evaluation stage
+	if (conditionMode)
+		return;
+
 	for (const auto& e : l)
 	{
 		if (e.t == ExternalPreprocessorDefinition::Type::Macro)
@@ -545,6 +740,9 @@ void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition:
 			entries.add(newItem);
 		}
 	}
+
+	for (auto e : entries)
+		e->externalDef = true;
 }
 
 juce::SparseSet<int> Preprocessor::getDeactivatedLines()
@@ -562,6 +760,34 @@ juce::SparseSet<int> Preprocessor::getDeactivatedLines()
 	}
 
 	return deactivatedLines;
+}
+
+String Preprocessor::processWithResult(ExternalPreprocessorDefinition::List& definitions)
+{
+	for (int i = 0; i < definitions.size(); i++)
+	{
+		if (currentFileName.isNotEmpty() && definitions[i].fileName == currentFileName)
+			definitions.remove(i--);
+	}
+
+	r = Result::ok();
+	addDefinitionsFromScope(definitions);
+
+	
+
+	try
+	{
+		auto c = process();
+		addNewDefinitions(definitions);
+		return c;
+	}
+	catch (ParserHelpers::Error& e)
+	{
+		auto delta = e.location.location - e.location.program;
+
+		r = Result::fail(String(delta) + ":" + e.errorMessage);
+		return {};
+	}
 }
 
 String Preprocessor::Macro::evaluate(StringArray& parameters, Result& r)
