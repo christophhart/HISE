@@ -1857,7 +1857,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 				}
 			}
 		}
-		t
+		
 #define X(unused, name) tokens.add(new KeywordToken(name));
 
 		X(var, "var")      X(if_, "if")     X(else_, "else")   X(do_, "do")       X(null_, "null") 
