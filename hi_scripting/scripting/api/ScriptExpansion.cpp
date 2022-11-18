@@ -2638,6 +2638,7 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_0(RefObject, getUserEmail);
 	API_METHOD_WRAPPER_0(RefObject, getRegisteredMachineId);
 	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
+    API_METHOD_WRAPPER_0(RefObject, keyFileExists);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -2663,6 +2664,7 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(isValidKeyFile);
 	ADD_API_METHOD_0(canExpire);
 	ADD_API_METHOD_1(checkExpirationData);
+    ADD_API_METHOD_0(keyFileExists);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -2720,6 +2722,11 @@ void ScriptUnlocker::RefObject::setProductCheckFunction(var f)
 juce::var ScriptUnlocker::RefObject::loadKeyFile()
 {
 	return unlocker->loadKeyFile();
+}
+
+bool ScriptUnlocker::RefObject::keyFileExists() const
+{
+    return unlocker->getLicenseKeyFile().existsAsFile();
 }
 
 juce::var ScriptUnlocker::RefObject::writeKeyFile(const String& keyData)
