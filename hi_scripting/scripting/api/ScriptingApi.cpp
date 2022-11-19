@@ -1632,34 +1632,10 @@ juce::var ScriptingApi::Engine::getExtraDefinitionsInBackend()
 {
 #if USE_BACKEND
 
-#if JUCE_WINDOWS
-	auto defName = "ExtraDefinitionsWindows";
-#elif JUCE_MAC
-	auto defName = "ExtraDefinitionsOSX";
-#elif JUCE_LINUX
-	auto defName = "ExtraDefinitionsLinux";
-#endif
-
-	auto s = dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getSettingsObject().getSetting(Identifier(defName)).toString();
-
-	StringArray items;
-
-	if (s.contains(","))
-		items = StringArray::fromTokens(s, ",", "");
-	else if (s.contains(";"))
-		items = StringArray::fromTokens(s, ";", "");
-	else
-		items = StringArray::fromLines(s);
-
-	DynamicObject::Ptr obj = new DynamicObject();
-
-	for (const auto& i : items)
-	{
-		obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
-	}
-
-	return var(obj.get());
-
+    auto mc = getScriptProcessor()->getMainController_();
+    
+    return dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getExtraDefinitionsAsObject();
+    
 #else
 	return {};
 #endif

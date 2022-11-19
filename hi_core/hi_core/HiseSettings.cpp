@@ -739,6 +739,54 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
         return value;
 }
 
+var HiseSettings::Data::getExtraDefinitionsAsObject() const
+{
+#if JUCE_WINDOWS
+    
+    auto defName = Project::ExtraDefinitionsWindows;
+#elif JUCE_MAC
+    auto defName = Project::ExtraDefinitionsOSX;
+#elif JUCE_LINUX
+    auto defName = Project::ExtraDefinitionsLinux;
+#endif
+
+    auto s = getSetting(defName).toString();
+
+    StringArray items;
+
+    if (s.contains(","))
+        items = StringArray::fromTokens(s, ",", "");
+    else if (s.contains(";"))
+        items = StringArray::fromTokens(s, ";", "");
+    else
+        items = StringArray::fromLines(s);
+
+    DynamicObject::Ptr obj = new DynamicObject();
+
+    for (const auto& i : items)
+    {
+        obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
+    }
+    
+    for(const auto& sp: temporaryExtraDefinitions)
+        obj->setProperty(sp.name, sp.value);
+    
+    return var(obj.get());
+}
+
+String HiseSettings::Data::getTemporaryDefinitionsAsString() const
+{
+    String s;
+    
+    if(temporaryExtraDefinitions.isEmpty())
+        return s;
+    
+    for(const auto& p: temporaryExtraDefinitions)
+        s << "\n" << p.name.toString() << "=" << p.value.toString();
+    
+    return s;
+}
+
 void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)
 {
 	if (v.getChildWithName(id).isValid())

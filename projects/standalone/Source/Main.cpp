@@ -14,33 +14,35 @@
 class CommandLineActions
 {
 private:
-
-	static void throwErrorAndQuit(const String& errorMessage)
-	{
+    
+    static void throwErrorAndQuit(const String& errorMessage)
+    {
 #if JUCE_DEBUG
-		DBG(errorMessage);
-		jassertfalse;
+        DBG(errorMessage);
+        jassertfalse;
 #else
-		print("ERROR: " + errorMessage);
-		exit(1);
+        print("ERROR: " + errorMessage);
+        exit(1);
 #endif
-	}
-
-	static void print(const String& message)
-	{
+    }
+    
+    static void print(const String& message)
+    {
 #if JUCE_DEBUG
-		DBG(message);
+        DBG(message);
 #else
-		std::cout << message << std::endl;
+        std::cout << message << std::endl;
 #endif
-	}
-
-	static StringArray getCommandLineArgs(const String& commandLine)
-	{
-		auto argsString = commandLine.fromFirstOccurrenceOf(" ", false, false);
-		return StringArray::fromTokens(argsString, true);
-	}
-
+    }
+    
+    static StringArray getCommandLineArgs(const String& commandLine)
+    {
+        auto argsString = commandLine.fromFirstOccurrenceOf(" ", false, false);
+        return StringArray::fromTokens(argsString, true);
+    }
+    
+    
+    
 	static String getArgument(const StringArray& args, const String& prefix)
 	{
 		for (auto arg : args)
@@ -123,6 +125,8 @@ public:
 		print("           Note: The VST23AU flag will skip AU on Windows and build only VST2 and VST3.");
         print("-nolto    deactivates link time optimisation. The resulting binary is not as optimized");
         print("          but the build time is much shorter");
+        print("-D:NAME=VALUE Adds a temporary preprocessor definition to the extra definitions.");
+        print("              You can use multiple definitions by using this flag multiple times.");
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
@@ -197,6 +201,8 @@ public:
 		exit(0);
 	}
 
+    
+    
 	static void setProjectVersion(const String& commandLine)
 	{
 		auto args = getCommandLineArgs(commandLine);
@@ -254,6 +260,8 @@ public:
 
 		auto bp = dynamic_cast<BackendProcessor*>(processor->getCurrentProcessor());
 
+        dynamic_cast<GlobalSettingManager*>(bp)->getSettingsObject().addTemporaryDefinitions(CompileExporter::getTemporaryDefinitions(commandLine));
+        
 		ModulatorSynthChain* mainSynthChain = bp->getMainSynthChain();
 		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
 

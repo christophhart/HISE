@@ -61,6 +61,7 @@ DECLARE_HNODE_JIT_TOKEN(else_, "#else")
 DECLARE_HNODE_JIT_TOKEN(eof, "$eof")
 DECLARE_HNODE_JIT_TOKEN(literal, "$literal")
 DECLARE_HNODE_JIT_TOKEN(identifier, "$identifier")
+DECLARE_HNODE_JIT_TOKEN(error_, "#error")
 DECLARE_HNODE_JIT_TOKEN(code_, "code")
 DECLARE_HNODE_JIT_TOKEN(on_, "#on");
 }

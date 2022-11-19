@@ -612,7 +612,7 @@ void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, Valu
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	ProcessorWithDynamicExternalData(mc),
 	mainController(mc),
-	scriptEngine(new HiseJavascriptEngine(this)),
+	scriptEngine(new HiseJavascriptEngine(this, mc)),
 	lastCompileWasOK(false),
 	currentCompileThread(nullptr),
 	lastResult(Result::ok()),
@@ -1012,9 +1012,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 			if (codeToCompile.isEmpty())
 				continue;
 
-#if USE_BACKEND
-            scriptEngine->preprocessor->setEnableGlobalPreprocessor(GET_HISE_SETTING(thisAsProcessor, HiseSettings::Project::EnableGlobalPreprocessor));
-#endif
+
             
 			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 
@@ -1139,7 +1137,7 @@ void JavascriptProcessor::setupApi()
     
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
 
-	scriptEngine = new HiseJavascriptEngine(this);
+	scriptEngine = new HiseJavascriptEngine(this, dynamic_cast<Processor*>(this)->getMainController());
 
 	scriptEngine->addBreakpointListener(this);
 

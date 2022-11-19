@@ -146,7 +146,7 @@ public:
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
 	*/
-	HiseJavascriptEngine(JavascriptProcessor *p);
+	HiseJavascriptEngine(JavascriptProcessor *p, MainController* mc);
 
 	/** Destructor. */
 	~HiseJavascriptEngine();

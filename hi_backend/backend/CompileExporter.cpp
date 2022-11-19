@@ -248,6 +248,7 @@ CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsMidiFx(BuildO
 CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine, String& pluginFile)
 {
 
+    
 
 
 	//String options = commandLine.fromFirstOccurrenceOf("export ", false, false);
@@ -267,6 +268,9 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
 		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
 		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
+        
+        dynamic_cast<GlobalSettingManager*>(mainSynthChain->getMainController())->getSettingsObject().addTemporaryDefinitions(getTemporaryDefinitions(commandLine));
+        
 		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
 
 		File presetFile;
@@ -1860,11 +1864,15 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     
     REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "1" : "0");
     
-    REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString());
-	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString());
-	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString());
+    auto s = exporter->dataObject.getTemporaryDefinitionsAsString();
+    
+    REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString() + s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString() + s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString() + s);
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
 
+    
+    
 	auto allow32BitMacOS = exporter->dataObject.getSetting(HiseSettings::Compiler::Support32BitMacOS);
 
 	if (allow32BitMacOS)
@@ -2160,17 +2168,11 @@ juce::String CompileExporter::ProjectTemplateHelpers::getPluginChannelAmount(Mod
 {
     auto& dataObject = dynamic_cast<BackendProcessor*>(chain->getMainController())->getSettingsObject();
     
-#if JUCE_WINDOWS
-	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString();
-#elif JUCE_MAC
-	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString();
-#elif JUCE_LINUX
-	auto definitions = dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString();
-#endif
-
+    auto obj = dataObject.getExtraDefinitionsAsObject().getDynamicObject();
+    
 	// If we've defined this manually, we override the routing matrix value
 	// in order to allow exporting multichannel plugins with a stereo output configuration
-	if (definitions.contains("HISE_NUM_PLUGIN_CHANNELS"))
+	if (obj->hasProperty("HISE_NUM_PLUGIN_CHANNELS"))
 	{
 		return "";
 	}

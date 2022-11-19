@@ -780,7 +780,10 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
         
         auto copy = javascriptCode;
 
-        auto ok = preprocessor->process(copy, callbackId.toString());
+        String pid = dynamic_cast<Processor*>(root->hiseSpecialData.processor)->getId();
+        pid << "." << callbackId.toString();
+        
+        auto ok = preprocessor->process(copy, pid);
         
         if (!ok.wasOk())
         {

@@ -237,10 +237,6 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 {
     checkUnreferencedExternalFile();
     
-	auto deactivatedLines = jp->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
-	
-	getEditor()->editor.setDeactivatedLines(deactivatedLines);
-
 	bottomBar->setError(r.r.getErrorMessage());
 
 	if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
@@ -491,7 +487,14 @@ void PopupIncludeEditor::scriptWasCompiled(JavascriptProcessor* p)
 {
 	if (p == jp)
 	{
-		auto deactivatedLines = p->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
+        String pid;
+        
+        if(callback.isValid())
+            pid << dynamic_cast<Processor*>(p)->getId() << "." << callback.toString();
+        else
+            pid << getFile().getFullPathName();
+        
+		auto deactivatedLines = p->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(pid);
 		getEditor()->editor.setDeactivatedLines(deactivatedLines);
 
 		checkUnreferencedExternalFile();

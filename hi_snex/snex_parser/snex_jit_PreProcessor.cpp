@@ -215,6 +215,7 @@ void Preprocessor::TextBlock::parseBlockStart()
 		MATCH_TOKEN(PreprocessorTokens::else_);
 		MATCH_TOKEN(PreprocessorTokens::endif_);
 		MATCH_TOKEN(PreprocessorTokens::undef_);
+        MATCH_TOKEN(PreprocessorTokens::error_);
 #undef MATCH_TOKEN
 
 		auto tokenLength = String(blockType).length();
@@ -407,12 +408,20 @@ void Preprocessor::parseDefinition(TextBlock& b)
 	if (p.location.location)
 	{
 		newItem->body = b.subString(p.location.location);
+        
 		entries.add(newItem);
 	}
 }
 
 bool Preprocessor::evaluate(TextBlock& b)
 {
+    if(!conditionMode && b.is(PreprocessorTokens::error_))
+    {
+        auto p = b.createParser();
+        auto errorMessage = p.currentValue.toString();
+        p.location.throwError(errorMessage);
+    }
+    
 	if (!hasDefinitions())
 		return true;
 
@@ -491,8 +500,6 @@ Preprocessor::TextBlockList Preprocessor::parseTextBlocks()
 
 	auto end = code.getCharPointer() + code.length();
 	auto start = code.getCharPointer();
-
-	static String preprocessorSwitch = "#pragma enable preprocessor";
 
 	if (code.startsWith(PreprocessorTokens::on_))
 		start += 3;

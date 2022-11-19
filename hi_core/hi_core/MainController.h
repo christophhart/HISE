@@ -1710,6 +1710,8 @@ public:
 #endif
 	}
 
+    ReferenceCountedObject* getGlobalPreprocessor();
+    
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
 		return false;
@@ -2001,6 +2003,8 @@ private:
 	ScopedPointer<ProjectDocDatabaseHolder> projectDocHolder;
 	WeakReference<MarkdownContentProcessor> currentPreview;
 
+    ReferenceCountedObjectPtr<ReferenceCountedObject> preprocessor;
+    
 	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;
 	

@@ -41,6 +41,9 @@ namespace hise { using namespace juce;
 Result HiseJavascriptPreprocessor::process(String& code, const String& externalFile)
 {
 #if USE_BACKEND
+    
+    jassert(externalFile.isNotEmpty());
+    
     auto hasLocalSwitch = code.startsWith(snex::jit::PreprocessorTokens::on_);
     
     if (!hasLocalSwitch && !this->globalEnabled)
@@ -56,7 +59,7 @@ Result HiseJavascriptPreprocessor::process(String& code, const String& externalF
     if(p.getResult().wasOk())
         code = processed;
     
-    deactivatedLines.set(externalFile.isEmpty() ? "onInit" : externalFile, p.getDeactivatedLines());
+    deactivatedLines.set(externalFile, p.getDeactivatedLines());
     
     return p.getResult();
 
@@ -85,11 +88,13 @@ bool HiseJavascriptEngine::isInlineFunction(const var& v)
 	return false;
 }
 
-HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
+HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p, MainController* mc) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
+    
 	root->hiseSpecialData.setProcessor(p);
 
-    preprocessor = root->preprocessor;
+    preprocessor = dynamic_cast<HiseJavascriptPreprocessor*>(mc->getGlobalPreprocessor());
+    root->preprocessor = preprocessor;
     
 	registerNativeObject(RootObject::ObjectClass::getClassName(), new RootObject::ObjectClass());
 	registerNativeObject(RootObject::ArrayClass::getClassName(), new RootObject::ArrayClass());
@@ -193,8 +198,6 @@ hiseSpecialData(this)
 	callStack.ensureStorageAllocated(128);
 #endif
 
-    preprocessor = new HiseJavascriptPreprocessor();
-    
 	setMethod("exec", exec);
 	setMethod("eval", eval);
 	setMethod("trace", trace);

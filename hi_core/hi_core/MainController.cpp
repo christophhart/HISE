@@ -1734,6 +1734,43 @@ bool MainController::checkAndResetMidiInputFlag()
 	return returnValue;
 }
 
+ReferenceCountedObject* MainController::getGlobalPreprocessor()
+{
+    if(preprocessor == nullptr)
+    {
+        auto pp = new HiseJavascriptPreprocessor();
+
+#if USE_BACKEND
+        
+        auto& settings = dynamic_cast<GlobalSettingManager*>(this)->getSettingsObject();
+        
+        pp->setEnableGlobalPreprocessor(settings.getSetting(HiseSettings::Project::EnableGlobalPreprocessor));
+        
+        auto obj = settings.getExtraDefinitionsAsObject();
+
+        for(const auto& p: obj.getDynamicObject()->getProperties())
+        {
+            auto key = p.name.toString();
+            auto v = p.value.toString();
+            
+            snex::jit::ExternalPreprocessorDefinition def;
+            
+            def.t = snex::jit::ExternalPreprocessorDefinition::Type::Definition;
+            def.name = key;
+            def.value = v;
+            def.fileName = "EXTERNAL_DEFINITION";
+            
+            pp->definitions.add(def);
+        }
+        
+#endif
+        
+        preprocessor = pp;
+    }
+    
+    return preprocessor.get();
+}
+
 float MainController::getGlobalCodeFontSize() const
 {
 	return jmax<float>(14.0f, (float)dynamic_cast<const GlobalSettingManager*>(this)->getSettingsObject().getSetting(HiseSettings::Scripting::CodeFontSize));

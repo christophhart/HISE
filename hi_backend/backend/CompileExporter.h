@@ -178,6 +178,28 @@ public:
 	ErrorCodes exportMainSynthChainAsStandaloneApp(BuildOption option=BuildOption::Cancelled);
 	ErrorCodes exportMainSynthChainAsMidiFx(BuildOption option=BuildOption::Cancelled);
 
+    static NamedValueSet getTemporaryDefinitions(const String& commandLine)
+    {
+        NamedValueSet list;
+        
+        auto argsString = commandLine.fromFirstOccurrenceOf(" ", false, false);
+        auto sa = StringArray::fromTokens(argsString, true);
+        
+        for(const auto& s: sa)
+        {
+            if(s.startsWith("-D:"))
+            {
+                auto def = s.substring(3).trim();
+                auto key = def.upToFirstOccurrenceOf("=", false, false).trim();
+                auto value = def.fromFirstOccurrenceOf("=", false, false).trim();
+                
+                list.set(Identifier(key), var(value));
+            }
+        }
+        
+        return list;
+    }
+    
 	static ErrorCodes compileFromCommandLine(const String& commandLine, String& pluginFile);
 
 	BuildOption getBuildOptionFromCommandLine(StringArray &args);
