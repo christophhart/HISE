@@ -540,7 +540,6 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 				sp->mergeCallbacksToScript(code);
 
 				ValueTree script("Script");
-
 				script.setProperty("FileName", fileNameReference, nullptr);
 				script.setProperty("Content", code, nullptr);
 
@@ -552,7 +551,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 		{
 			File scriptFile = sp->getWatchedFile(i);
 
-			addFileContentToValueTree(externalScriptFiles, scriptFile, chainToExport);
+			addFileContentToValueTree(sp, externalScriptFiles, scriptFile, chainToExport);
 		}
 
 		Array<File> allScriptFiles;
@@ -565,7 +564,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 		{
 			if (HiseDeviceSimulator::fileNameContainsDeviceWildcard(f))
 			{
-				addFileContentToValueTree(externalScriptFiles, f, chainToExport);
+				addFileContentToValueTree(sp, externalScriptFiles, f, chainToExport);
 			}
 		}
 	}
@@ -573,7 +572,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 	return externalScriptFiles;
 }
 
-void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)
+void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)
 {
 	String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
 
@@ -595,7 +594,13 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 		}
 	}
 
+    
 	String fileContent = scriptFile.loadFileAsString();
+    
+    auto ok = jp->getScriptEngine()->preprocessor->process(fileContent, fileName);
+    
+    jassert(ok.wasOk());
+    
 	ValueTree script("Script");
 
 	script.setProperty("FileName", fileName, nullptr);
@@ -758,7 +763,7 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 				return;
 			}
 		}
-		if (auto l = getScriptEngine()->getLocationForPreprocessor(token))
+		if (auto l = getScriptEngine()->preprocessor->getLocationForPreprocessor(token))
 		{
 			DebugableObject::Helpers::gotoLocation(nullptr, this, l);
 			return;
@@ -1008,9 +1013,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 				continue;
 
 #if USE_BACKEND
-			scriptEngine->setEnableGlobalPreprocessor(GET_HISE_SETTING(thisAsProcessor, HiseSettings::Project::EnableGlobalPreprocessor));
+            scriptEngine->preprocessor->setEnableGlobalPreprocessor(GET_HISE_SETTING(thisAsProcessor, HiseSettings::Project::EnableGlobalPreprocessor));
 #endif
-
+            
 			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 
 			if (!lastResult.wasOk())
@@ -1572,6 +1577,15 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepStr
 		for (const auto& pf : preprocessorFunctions)
 			pf(s->getCallbackName(), code);
 
+        if(usePreprocessorAtMerge)
+        {
+            if(auto e = const_cast<JavascriptProcessor*>(this)->getScriptEngine())
+            {
+                auto ok = e->preprocessor->process(code, s->getCallbackName().toString());
+                jassert(ok.wasOk());
+            }
+        }
+            
 		x << code << sepString;
 	}
 }

@@ -347,6 +347,8 @@ struct HiseJavascriptEngine::RootObject::ScriptAudioThreadGuard
 };
 #endif
 
+
+
 HiseJavascriptEngine::RootObject::Error HiseJavascriptEngine::RootObject::Error::fromLocation(const CodeLocation& location, const String& errorMessage)
 {
 	Error e;
@@ -773,11 +775,24 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	{
 		prepareTimeout();
 
+        
+#if USE_BACKEND
+        
+        auto copy = javascriptCode;
 
+        auto ok = preprocessor->process(copy, callbackId.toString());
+        
+        if (!ok.wasOk())
+        {
+            RootObject::CodeLocation loc(javascriptCode, callbackId.toString() + "()");
+            loc.location = loc.program.getCharPointer() + ok.getErrorMessage().getIntValue();
+            loc.throwError(ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false));
+        }
+#else
+        auto& copy = javascriptCode;
+#endif
 
-		root->execute(javascriptCode, allowConstDeclarations);
-
-		
+		root->execute(copy, allowConstDeclarations);
 	}
 	catch (String &error)
 	{
@@ -1167,42 +1182,6 @@ juce::String HiseJavascriptEngine::getHoverString(const String& token)
 	{
 		return "";
 	}
-}
-
-void HiseJavascriptEngine::setEnableGlobalPreprocessor(bool shouldBeEnabled)
-{
-#if USE_BACKEND
-	root->preprocessorDefinitions.enableGlobalPreprocessor = shouldBeEnabled;
-#endif
-}
-
-juce::SparseSet<int> HiseJavascriptEngine::getDeactivatedLinesForFile(const String& fileId)
-{
-	jassert(fileId.isNotEmpty());
-
-#if USE_BACKEND
-	return root->preprocessorDefinitions.deactivatedLines[fileId];
-#else
-	return {};
-#endif
-}
-
-hise::DebugableObjectBase::Location HiseJavascriptEngine::getLocationForPreprocessor(const String& preprocessorId)
-{
-#if USE_BACKEND
-	for (const auto& d : root->preprocessorDefinitions.definitions)
-	{
-		if (d.name == preprocessorId)
-		{
-			DebugableObjectBase::Location l;
-			l.charNumber = d.charNumber;
-			l.fileName = d.fileName;
-			return l;
-		}
-	}
-#endif
-
-	return {};
 }
 
 HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
@@ -1898,7 +1877,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 		}
 		
 #if USE_BACKEND
-		for (const auto& def : jp->getScriptEngine()->root->preprocessorDefinitions.definitions)
+		for (const auto& def : jp->getScriptEngine()->preprocessor->definitions)
 		{
 			tokens.add(new snex::debug::PreprocessorMacroProvider::PreprocessorToken(def));
 		}

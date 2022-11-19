@@ -86,7 +86,7 @@ mcl::TextEditor::TextEditor(TextDocument& codeDoc)
 		{ "Bracket", 0xffFFFFFF },
 		{ "Punctuation", 0xffCCCCCC },
 		{ "Preprocessor Text", 0xffCC7777 },
-		{ "Deactivated", 0xFF666666 }
+		{ "Deactivated", 0xFF666666 },
 	};
 
 	for (unsigned int i = 0; i < sizeof(types) / sizeof(types[0]); ++i)  // (NB: numElementsInArray doesn't work here in GCC4.2)
@@ -1408,6 +1408,57 @@ void TextEditor::initKeyPresses(Component* root)
 		KeyPress('t', ModifierKeys::ctrlModifier, 0));
 }
 
+struct TextEditor::DeactivatedRange
+{
+    DeactivatedRange(CodeDocument& d, Range<int> lineRange):
+      start(d, lineRange.getStart(), 0),
+      end(d, lineRange.getEnd(), 0)
+    {
+        
+        
+        start.moveBy(-1);
+        end.moveBy(-1);
+        
+        auto c = end.getCharacter();
+        
+        while(c != 0 && CharacterFunctions::isWhitespace(c))
+        {
+            end.moveBy(-1);
+            c = end.getCharacter();
+        }
+               
+        start.setPositionMaintained(true);
+        end.setPositionMaintained(true);
+    }
+    
+    bool contains(int characterPos) const
+    {
+        return characterPos >= start.getPosition() &&
+               characterPos < end.getPosition();
+    }
+    
+    CodeDocument::Position start, end;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeactivatedRange);
+};
+
+void TextEditor::setDeactivatedLines(const SparseSet<int>& lines)
+{
+    if (enablePreprocessorParsing)
+    {
+        deactivatedLines.clear();
+        
+        for(int i = 0; i < lines.getNumRanges(); i++)
+        {
+            deactivatedLines.add(
+                new DeactivatedRange(document.getCodeDocument(),
+                                    lines.getRange(i)));
+        }
+        
+        repaint();
+    }
+}
+
 bool mcl::TextEditor::keyPressed (const KeyPress& key)
 {
     autocompleteTimer.abortAutocomplete();
@@ -2177,12 +2228,27 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 
 		while (it.getLine() < rows.getEnd() && !it.isEOF())
 		{
-			int tokenType;
+            int tokenType = -1;
 
-			if (tokeniser != nullptr)
-				tokenType = tokeniser->readNextToken(it);
-			else
-				tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+            auto cpos = it.getPosition();
+            
+            for(auto dr: deactivatedLines)
+            {
+                if(dr->contains(cpos))
+                {
+                    tokenType = JavascriptTokeniser::tokenType_deactivated;
+                    JavascriptTokeniserFunctions::readNextToken(it);
+                    break;
+                }
+            }
+            
+            if(tokenType == -1)
+            {
+                if (tokeniser != nullptr)
+                    tokenType = tokeniser->readNextToken(it);
+                else
+                    tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+            }
 
 			Point<int> now(it.getLine(), it.getIndexInLine());
 
@@ -2194,12 +2260,7 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 			previous = now;
 		}
 
-		for (auto& z : zones)
-		{
-			if (deactivatesLines.contains(z.head.x+1))
-				z.token = colourScheme.types.size() - 1;
-		}
-
+		
 		document.clearTokens(rows);
 		document.applyTokens(rows, zones);
 

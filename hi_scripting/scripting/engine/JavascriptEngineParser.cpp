@@ -237,9 +237,9 @@ private:
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIterator
 {
-	ExpressionTreeBuilder(const String code, const String externalFile, PreprocessorDefinitions* definitions) :
-		TokenIterator(parsePreprocessor(code, externalFile, definitions), externalFile),
-		preprocessorDefinitions(definitions)
+	ExpressionTreeBuilder(const String code, const String externalFile, HiseJavascriptPreprocessor::Ptr preprocessor_) :
+		TokenIterator(code, externalFile),
+		preprocessor(preprocessor_)
 	{
 #if ENABLE_SCRIPTING_BREAKPOINTS
 		if (externalFile.isNotEmpty())
@@ -247,48 +247,9 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			fileId = Identifier("File_" + File(externalFile).getFileNameWithoutExtension());
 		}
 #endif
-		
 	}
 
-	PreprocessorDefinitions* preprocessorDefinitions;
-
-	static String parsePreprocessor(const String& input, const String& externalFile, PreprocessorDefinitions* definitions)
-	{
-#if USE_BACKEND
-
-		auto hasLocalSwitch = input.startsWith(snex::jit::PreprocessorTokens::on_);
-		auto enableGlobal = definitions != nullptr && definitions->enableGlobalPreprocessor;
-
-		if (!hasLocalSwitch && !enableGlobal)
-			return input;
-
-		snex::jit::ExternalPreprocessorDefinition::List empty;
-		snex::jit::Preprocessor p(input);
-
-		p.setCurrentFileName(externalFile);
-
-		auto code = p.processWithResult(definitions != nullptr ? definitions->definitions : empty);
-
-		if (definitions != nullptr)
-		{
-			definitions->deactivatedLines.set(externalFile.isEmpty() ? "onInit" : externalFile, p.getDeactivatedLines());
-		}
-
-		auto ok = p.getResult();
-
-		if (!ok.wasOk())
-		{
-			CodeLocation loc(input, externalFile);
-			loc.location = loc.program.getCharPointer() + ok.getErrorMessage().getIntValue();
-			loc.throwError(ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false));
-		}
-
-		return code;
-#else
-		// If this hits, the preprocessors weren't resolved on export correctly...
-		return input;
-#endif
-	}
+    HiseJavascriptPreprocessor::Ptr preprocessor;
 
 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
@@ -736,7 +697,16 @@ private:
 			{
 				String fileContent = getFileContent(currentValue.toString(), refFileName, true);
 
-				ExpressionTreeBuilder ftb(fileContent, refFileName, preprocessorDefinitions);
+                auto ok = preprocessor->process(fileContent, refFileName);
+                
+                if (!ok.wasOk())
+                {
+                    CodeLocation loc(fileContent, refFileName);
+                    loc.location = loc.program.getCharPointer() + (ok.getErrorMessage().getIntValue()-1);
+                    loc.throwError(ok.getErrorMessage().fromFirstOccurrenceOf(":", false, false));
+                }
+                
+				ExpressionTreeBuilder ftb(fileContent, refFileName, preprocessor);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 				ftb.breakpoints.addArray(breakpoints);
@@ -747,6 +717,8 @@ private:
 
 				//ftb.setupApiData(*hiseSpecialData, fileContent);
 
+                
+                
 				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
 
 				match(TokenTypes::literal);
@@ -2241,7 +2213,9 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 			String fileName = it.currentValue.toString();
 			String externalCode = getFileContent(it.currentValue.toString(), fileName);
 			
-			preprocessCode(parsePreprocessor(externalCode, fileName, preprocessorDefinitions), fileName);
+            
+            
+			preprocessCode(externalCode, fileName);
 
 			continue;
 		}
@@ -2424,7 +2398,7 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
-	ExpressionTreeBuilder tb(code, String(), &preprocessorDefinitions);
+	ExpressionTreeBuilder tb(code, String(), preprocessor);
 	tb.setupApiData(hiseSpecialData, code);
     
 	auto& cp = currentLocalScopeCreator.get();
@@ -2444,7 +2418,7 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
-	ExpressionTreeBuilder tb(code, String(), &preprocessorDefinitions);
+	ExpressionTreeBuilder tb(code, String(), preprocessor);
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	tb.breakpoints.swapWith(breakpoints);

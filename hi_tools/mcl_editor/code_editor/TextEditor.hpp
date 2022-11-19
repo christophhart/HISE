@@ -127,14 +127,8 @@ public:
 		gotoFunction = f;
 	}
 
-	void setDeactivatedLines(SparseSet<int> deactivatesLines_)
-	{
-		if (enablePreprocessorParsing)
-		{
-			deactivatesLines = deactivatesLines_;
-			repaint();
-		}
-	}
+    void setDeactivatedLines(const SparseSet<int>& lines);
+	
 
 	void clearWarningsAndErrors()
 	{
@@ -860,7 +854,11 @@ private:
 
     Array<Selection> tokenSelection;
     
-	SparseSet<int> deactivatesLines;
+    struct DeactivatedRange;
+    
+    
+    OwnedArray<DeactivatedRange> deactivatedLines;
+    
 	bool linebreakEnabled = true;
     float viewScaleFactor = 1.f;
 	int maxLinesToShow = 0;

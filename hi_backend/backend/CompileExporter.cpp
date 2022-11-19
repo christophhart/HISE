@@ -546,6 +546,8 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		convertTccScriptsToCppClasses();
 
+        JavascriptProcessor::ScopedPreprocessorMerger sm(chainToExport->getMainController());
+        
 		compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
 
 #if DONT_EMBED_FILES_IN_FRONTEND

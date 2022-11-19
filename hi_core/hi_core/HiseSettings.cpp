@@ -729,7 +729,14 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		}
 	}
 
-	return getDefaultSetting(id);
+	auto value = getDefaultSetting(id);
+    
+    if(value == "Yes")
+        return var(true);
+    else if (value == "No")
+        return var(false);
+    else
+        return value;
 }
 
 void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)

@@ -287,17 +287,9 @@ String Preprocessor::process()
 
 	Array<bool> conditions;
 	
-	Range<int> linesFromConditionToken;
-
 	for (int i = 0; i < blocks.size(); i++)
 	{
 		auto& b = *blocks[i];
-
-		if (b.is(PreprocessorTokens::if_) || b.is(PreprocessorTokens::elif_) || b.is(PreprocessorTokens::else_))
-		{
-			linesFromConditionToken = b.getLineRange() + 1;
-			linesFromConditionToken.setStart(linesFromConditionToken.getStart() + 1);
-		}
 
 		if (!conditions.isEmpty() && !conditions.getLast())
 		{
@@ -316,20 +308,8 @@ String Preprocessor::process()
 				}
 				
 				if (deactivate)
-				{
-					auto r = b.getLineRange();
-					r.setStart(r.getStart() + 1);
-
-					if (!linesFromConditionToken.isEmpty())
-					{
-						deactivatedLines.addRange(linesFromConditionToken);
-						linesFromConditionToken = {};
-					}
-						
-					deactivatedLines.addRange(r);
-				}
+					deactivatedLines.addRange(b.getLineRange());
 					
-
 				b.replaceWithEmptyLines();
 				continue;
 			}
@@ -441,6 +421,10 @@ bool Preprocessor::evaluate(TextBlock& b)
 	if (conditionMode && b.is(PreprocessorTokens::code_))
 		return true;
 
+    // Do not replace the definition ID with itself
+    if(b.is(PreprocessorTokens::define_))
+        p.skip();
+    
 	while (!p.isEOF())
 	{
 		if (p.currentType == JitTokens::identifier)

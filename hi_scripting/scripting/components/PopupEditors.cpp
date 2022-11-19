@@ -237,7 +237,7 @@ void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::Snip
 {
     checkUnreferencedExternalFile();
     
-	auto deactivatedLines = jp->getScriptEngine()->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
+	auto deactivatedLines = jp->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
 	
 	getEditor()->editor.setDeactivatedLines(deactivatedLines);
 
@@ -491,7 +491,7 @@ void PopupIncludeEditor::scriptWasCompiled(JavascriptProcessor* p)
 {
 	if (p == jp)
 	{
-		auto deactivatedLines = p->getScriptEngine()->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
+		auto deactivatedLines = p->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(callback.isValid() ? callback.toString() : getFile().getFullPathName());
 		getEditor()->editor.setDeactivatedLines(deactivatedLines);
 
 		checkUnreferencedExternalFile();
