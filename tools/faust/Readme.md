@@ -21,7 +21,11 @@ alongside the existing `fakelib` folder (which contains an empty static library 
 
 ### Building HISE with Faust
 
-Then you need to open the HISE Standalone project in XCode and change the scheme via *XCode Menu -> Product -> Scheme -> Edit Scheme -> Build Configuration* to either **Debug with Faust** or **Release with Faust**. You don't need to change any flags as the two configurations will contain all required build settings.
+Then you need to open the HISE Standalone project in XCode and change the scheme via *XCode Menu -> Product -> Scheme -> Edit Scheme -> Build Configuration* to either **Debug with Faust** or **Release with Faust**. 
+
+> If you can't see the configurations with Faust, you need to resave the Projucer file so that it will rebuild the Xcode project to show the new configurations.
+
+You don't need to change any flags as the two configurations will contain all required build settings.
 
 If the compilation went through, you should see a text label in the HISE top bar indicating that Faust is enabled.
 
