@@ -2168,7 +2168,9 @@ juce::String CompileExporter::ProjectTemplateHelpers::getPluginChannelAmount(Mod
 {
     auto& dataObject = dynamic_cast<BackendProcessor*>(chain->getMainController())->getSettingsObject();
     
-    auto obj = dataObject.getExtraDefinitionsAsObject().getDynamicObject();
+    auto dobj = dataObject.getExtraDefinitionsAsObject();
+    
+    auto obj = dobj.getDynamicObject();
     
 	// If we've defined this manually, we override the routing matrix value
 	// in order to allow exporting multichannel plugins with a stereo output configuration

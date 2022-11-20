@@ -106,49 +106,64 @@ private:
 	Smoother smoother;
 };
 
-class MultithreadedConvolver : public fftconvolver::TwoStageFFTConvolver
+class MultithreadedConvolver : public fftconvolver::TwoStageFFTConvolver,
+                               public ReferenceCountedObject
 {
+public:
+    
+    using Ptr = ReferenceCountedObjectPtr<MultithreadedConvolver>;
+    
 	class BackgroundThread : public Thread
 	{
 	public:
 
-		BackgroundThread(MultithreadedConvolver& parent_) :
-			Thread("Convolution Background Thread"),
-			parent(parent_)
-		{
+		BackgroundThread() :
+          Thread("Convolution Background Thread"),
+          queue(512)
+		{}
 
-		}
-
+        ~BackgroundThread()
+        {
+            jassert(numRegisteredConvolvers == 0);
+            stopThread(1000);
+            queue.callForEveryElementInQueue({});
+        }
+        
 		void run() override
 		{
 			while (!threadShouldExit())
 			{
-
-				if (active)
-				{
-					ScopedValueSetter<bool> svs(currentlyRendering, true);
-					parent.doBackgroundProcessing();
-					active = false;
-
-					if (threadShouldExit())
-						return;
-				}
-
+                {
+                    ScopedValueSetter<bool> svs(currentlyRendering, true);
+                    
+                    queue.callForEveryElementInQueue([this](MultithreadedConvolver::Ptr c)
+                    {
+                        if (threadShouldExit())
+                            return false;
+                        
+                        c->doBackgroundProcessing();
+                        c->pending.store(false);
+                        
+                        return true;
+                    });
+                }
+                
 				wait(500);
 			}
 		};
 
-		void setSomethingTodo(bool shouldBeActive)
-		{
-			active = shouldBeActive;
-		}
-
+        void addConvolverJob(MultithreadedConvolver::Ptr c)
+        {
+            queue.push(c);
+            notify();
+        }
+        
 		bool isBusy() const { return currentlyRendering; }
-
 		bool currentlyRendering = false;
-		bool active = false;
-
-		MultithreadedConvolver& parent;
+		
+        int numRegisteredConvolvers = 0;
+        
+        hise::LockfreeQueue<MultithreadedConvolver::Ptr> queue;
 	};
 
 
@@ -156,36 +171,36 @@ public:
 
 	MultithreadedConvolver(audiofft::ImplementationType fftType) :
 		TwoStageFFTConvolver(fftType),
-		backgroundThread(*this)
+		backgroundThread(nullptr)
 	{};
 
 	virtual ~MultithreadedConvolver()
 	{
-		backgroundThread.stopThread(1000);
+        jassert(!pending);
+        
+        if(backgroundThread != nullptr)
+            backgroundThread->numRegisteredConvolvers--;
 	};
 
 	void startBackgroundProcessing() override
 	{
-		if (useBackgroundThread)
+        pending.store(true);
+        
+		if (backgroundThread != nullptr)
 		{
-			backgroundThread.setSomethingTodo(true);
-			backgroundThread.notify();
+            backgroundThread->addConvolverJob(this);
 		}
 		else
 		{
 			doBackgroundProcessing();
+            pending.store(false);
 		}
 	}
 
-
-
 	void waitForBackgroundProcessing() override
 	{
-		if (useBackgroundThread)
-		{
-			while (backgroundThread.isBusy())
-				jassertfalse;
-		}
+        while (pending.load())
+            jassertfalse;
 	}
 
 	static bool prepareImpulseResponse(const AudioSampleBuffer& originalBuffer, AudioSampleBuffer& buffer, bool* abortFlag, Range<int> range, double resampleRatio);
@@ -194,34 +209,33 @@ public:
 
 
 
-	void setUseBackgroundThread(bool shouldBeUsingBackgroundThread, bool forceUpdate = false)
+	void setUseBackgroundThread(BackgroundThread* newThreadToUse, bool forceUpdate = false)
 	{
-		if (useBackgroundThread != shouldBeUsingBackgroundThread || forceUpdate)
-		{
-			useBackgroundThread = shouldBeUsingBackgroundThread;
-
-			if (useBackgroundThread)
-				backgroundThread.startThread(9);
-			else
-			{
-				if (backgroundThread.isThreadRunning())
-					backgroundThread.stopThread(1000);
-			}
-
-		}
+		if (backgroundThread != newThreadToUse || forceUpdate)
+        {
+            if(backgroundThread != nullptr)
+                backgroundThread->numRegisteredConvolvers--;
+            
+            backgroundThread = newThreadToUse;
+            
+            if(backgroundThread != nullptr)
+                backgroundThread->numRegisteredConvolvers++;
+            
+            if (backgroundThread != nullptr && !backgroundThread->isThreadRunning())
+                backgroundThread->startThread(10);
+        }
 	}
 
 	bool isUsingBackgroundThread() const
 	{
-		return useBackgroundThread;
+		return backgroundThread != nullptr;
 	}
 
 private:
 
-
-	BackgroundThread backgroundThread;
-
-	bool useBackgroundThread = true;
+    std::atomic<bool> pending = { false };
+    
+    BackgroundThread* backgroundThread = nullptr;
 };
 
 struct ConvolutionEffectBase : public AsyncUpdater,
@@ -242,8 +256,11 @@ struct ConvolutionEffectBase : public AsyncUpdater,
 		nonRealtime = isNonRealtime;
 
 		SimpleReadWriteLock::ScopedReadLock sl(swapLock);
-		convolverL->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
-		convolverR->setUseBackgroundThread(!nonRealtime && useBackgroundThread);
+        
+        auto tToUse = !nonRealtime && useBackgroundThread ? &backgroundThread : nullptr;
+        
+        convolverL->setUseBackgroundThread(tToUse);
+		convolverR->setUseBackgroundThread(tToUse);
 	}
 
 	virtual MultiChannelAudioBuffer& getImpulseBufferBase() = 0;
@@ -251,6 +268,8 @@ struct ConvolutionEffectBase : public AsyncUpdater,
 
 protected:
 
+    MultithreadedConvolver::BackgroundThread backgroundThread;
+    
 	void resetBase();
 
 	void prepareBase(double sampleRate, int blockSize);
@@ -267,7 +286,7 @@ protected:
 
 	audiofft::ImplementationType currentType = audiofft::ImplementationType::numImplementationTypes;
 
-	MultithreadedConvolver* createNewEngine(audiofft::ImplementationType fftType);
+	MultithreadedConvolver::Ptr createNewEngine(audiofft::ImplementationType fftType);
 
 	double getResampleFactor() const
 	{
@@ -305,8 +324,8 @@ protected:
 
 	float predelayMs = 0.0f;
 
-	ScopedPointer<MultithreadedConvolver> convolverL;
-	ScopedPointer<MultithreadedConvolver> convolverR;
+	MultithreadedConvolver::Ptr convolverL;
+	MultithreadedConvolver::Ptr convolverR;
 
 	double cutoffFrequency = 20000.0;
 
