@@ -346,7 +346,7 @@ public:
 		{
 			return entries.indexOf(f);
 		}
-
+		
 		String wildcard;
 
 		var database;
@@ -588,6 +588,11 @@ public:
 		listbox->setModel(newModel);
 		newModel->setTotalRoot(totalRoot);
 		listModel = newModel;
+	}
+
+	void setDatabase(var db)
+	{
+		listModel->database = db;
 	}
 
 	void showAddButton()
