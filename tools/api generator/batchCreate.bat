@@ -34,6 +34,7 @@ xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "xml\selection"
 
+
 xcopy "xml\classhise_1_1_script_expansion_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
 
@@ -137,7 +138,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_unordered_stack.xm
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "SliderPackData.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "Table.xml"
-ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "DisplayBuffer.xml"
+
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_audio_file.xml" "AudioFile.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_sampler_sound.xml" "Sample.xml"
@@ -199,6 +200,7 @@ ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_builder.xml" "Bui
 ren "xml\selection\structhise_1_1fixobj_1_1_array.xml" "FixObjectArray.xml"
 ren "xml\selection\structhise_1_1fixobj_1_1_factory.xml" "FixObjectFactory.xml"
 ren "xml\selection\structhise_1_1fixobj_1_1_stack.xml" "FixObjectStack.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "ScriptRingBuffer.xml"
 
 ren "xml\selection\structhise_1_1_script_unlocker_1_1_ref_object.xml" "Unlocker.xml"
 

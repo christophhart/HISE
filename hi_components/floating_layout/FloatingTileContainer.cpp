@@ -441,6 +441,19 @@ void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tab
 	}
 }
 
+int FloatingTabComponent::getNumChildPanelsWithType(const Identifier& panelId) const
+{
+	int numFound = 0;
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		if (getComponent(i)->getCurrentFloatingPanel()->getIdentifierForBaseClass() == panelId)
+			numFound++;
+	}
+	
+	return numFound;
+}
+
 void FloatingTabComponent::refreshLayout()
 {
 	FloatingTileContainer::refreshLayout();
@@ -506,6 +519,9 @@ void FloatingTabComponent::mouseDown(const MouseEvent& event)
 		return;
 
 	int newTabIndex = getCurrentTabIndex();
+
+	if (event.eventComponent != this)
+		return;
 
 	if (event.mods.isX2ButtonDown())
 	{

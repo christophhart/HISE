@@ -1068,7 +1068,7 @@ void DrawActions::BlendingLayer::perform(Graphics& g)
 
 	blendSource = Image(Image::ARGB, actionImage.getWidth(), actionImage.getHeight(), true);
 
-	for (auto a : actions)
+	for (auto a : internalActions)
 	{
 		if (a->wantsCachedImage())
 			a->setCachedImage(blendSource, actionImage);
@@ -1076,6 +1076,7 @@ void DrawActions::BlendingLayer::perform(Graphics& g)
 
 	setCachedImage(blendSource, actionImage);
 	Graphics g2(blendSource);
+    g2.addTransform(AffineTransform::scale(scaleFactor));
 
 	ActionLayer::perform(g2);
 	gin::applyBlend(imageToBlendOn, blendSource, blendMode, alpha);
@@ -1132,13 +1133,16 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 				}
 
 				Graphics g3(actionImage);
-				g3.addTransform(st);
-				action->setScaleFactor(sf);
+                
+                action->setScaleFactor(sf);
 				action->setCachedImage(actionImage, cachedImg);
 				action->perform(g3);
 
 				if (!action->wantsToDrawOnParent())
-					GraphicHelpers::quickDraw(cachedImg, actionImage);
+                {
+                    g2.drawImageAt(actionImage, 0, 0);
+                }
+					//GraphicHelpers::quickDraw(cachedImg, actionImage);
 			}
 			else
 				action->perform(g2);

@@ -275,7 +275,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	effectChain->renderMasterEffects(internalBuffer);
 
-	if (internalBuffer.getNumChannels() != 2)
+	if (internalBuffer.getNumChannels() != 2 || 
+		getMatrix().getConnectionForSourceChannel(0) != 0 ||
+		getMatrix().getConnectionForSourceChannel(1) != 1)
 	{
 		jassert(internalBuffer.getNumChannels() == getMatrix().getNumSourceChannels());
 

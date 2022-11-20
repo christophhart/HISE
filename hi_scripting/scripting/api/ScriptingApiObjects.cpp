@@ -207,6 +207,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, getNonExistentSibling);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
+	API_METHOD_WRAPPER_0(ScriptFile, getRedirectedFolder);
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
@@ -277,8 +278,8 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_2(writeAsXmlFile);
 	ADD_API_METHOD_1(loadAsMidiFile);
 	ADD_API_METHOD_2(writeMidiFile);
+	ADD_API_METHOD_0(getRedirectedFolder);
 }
-
 
 var ScriptingObjects::ScriptFile::getChildFile(String childFileName)
 {
@@ -373,6 +374,22 @@ String ScriptingObjects::ScriptFile::toReferenceString(String folderType)
 
 	reportScriptError("Illegal folder type");
 	RETURN_IF_NO_THROW(var());
+}
+
+juce::var ScriptingObjects::ScriptFile::getRedirectedFolder()
+{
+	if (f.existsAsFile())
+		reportScriptError("getRedirectedFolder() must be used with a directory");
+
+	if (!f.isDirectory())
+		return var(this);
+
+	auto target = FileHandlerBase::getFolderOrRedirect(f);
+
+	if (target == f)
+		return var(this);
+	else
+		return var(new ScriptFile(getScriptProcessor(), target));
 }
 
 bool ScriptingObjects::ScriptFile::isFile() const
@@ -1814,6 +1831,7 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSliderPackData, getCurrentlyDisplayedIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setContentCallback);
+    API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setUsePreallocatedLength);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, linkTo);
 };
 
@@ -1828,6 +1846,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 	ADD_API_METHOD_1(setDisplayCallback);
 	ADD_API_METHOD_1(setContentCallback);
+    ADD_API_METHOD_1(setUsePreallocatedLength);
     ADD_API_METHOD_1(linkTo);
 }
 
@@ -1851,6 +1870,12 @@ int ScriptingObjects::ScriptSliderPackData::getNumSliders() const
 		return data->getNumSliders();
 	
 	return 0;
+}
+
+void ScriptingObjects::ScriptSliderPackData::setUsePreallocatedLength(int numUsed)
+{
+    if(auto data = getSliderPackData())
+        data->setUsePreallocatedLength(32);
 }
 
 void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)
@@ -3295,6 +3320,8 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptRoutingMatrix, setNumChannels);
+	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceChannelsForDestination);
+	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getDestinationChannelForSource);
 };
 
 ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptingContent *p, Processor *processor):
@@ -3308,6 +3335,8 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
 	ADD_API_METHOD_1(setNumChannels);
+	ADD_API_METHOD_1(getSourceChannelsForDestination);
+	ADD_API_METHOD_1(getDestinationChannelForSource);
 
 	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 	{
@@ -3432,6 +3461,67 @@ float ScriptingObjects::ScriptRoutingMatrix::getSourceGainValue(int channelIndex
 	}
 
 	return 0.0f;
+}
+
+var ScriptingObjects::ScriptRoutingMatrix::getSourceChannelsForDestination(var destinationIndex) const
+{
+	if (destinationIndex.isArray())
+	{
+		Array<var> returnValues;
+
+		for (auto r : *destinationIndex.getArray())
+			returnValues.add(getSourceChannelsForDestination(r));
+
+		return var(returnValues);
+	}
+
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			Array<var> channels;
+
+			for (int i = 0; i < r->getMatrix().getNumSourceChannels(); i++)
+			{
+				auto thisDest = r->getMatrix().getConnectionForSourceChannel(i);
+
+				if (thisDest == (int)destinationIndex)
+					channels.add(i);
+			}
+
+			if (channels.isEmpty())
+				return -1;
+			else if (channels.size() == 1)
+				return channels.getFirst();
+			else
+				return channels;
+		}
+	}
+
+	return -1;
+}
+
+var ScriptingObjects::ScriptRoutingMatrix::getDestinationChannelForSource(var sourceIndex) const
+{
+	if (sourceIndex.isArray())
+	{
+		Array<var> returnArray;
+
+		for (auto r : *sourceIndex.getArray())
+			returnArray.add(getDestinationChannelForSource(r));
+
+		return var(returnArray);
+	}
+
+	if (checkValidObject())
+	{
+		if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		{
+			return r->getMatrix().getConnectionForSourceChannel(sourceIndex);
+		}
+	}
+
+	return -1;
 }
 
 // ScriptingSynth ==============================================================================================================
@@ -6139,7 +6229,7 @@ void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgrou
 		currentTask = WeakCallbackHolder(getScriptProcessor(), this, backgroundTaskFunction, 1);
 		currentTask.incRefCount();
 		currentTask.addAsSource(this, "backgroundFunction");
-		startThread(6);
+		startThread(8);
 	}
 }
 

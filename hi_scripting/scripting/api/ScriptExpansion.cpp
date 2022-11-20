@@ -365,11 +365,6 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 
 			data.getArray()->sort(sorter);
 
-			// We need to be careful to not call parameters in the meta parameter if they are
-			// part of the 
-			Array<Identifier> calledIds;
-			calledIds.ensureStorageAllocated(data.size());
-
 			for (auto& v : *data.getArray())
 			{
 				Identifier id(v["id"].toString());
@@ -379,24 +374,7 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 				{
 					float fv = (float)value;
 					FloatSanitizers::sanitizeFloatNumber(fv);
-
-					// Do not call meta parameters here
-					auto metaFilter = [&calledIds](MainController::UserPresetHandler::CustomAutomationData::ConnectionBase* b)
-					{
-						if (auto metaConnection = dynamic_cast<MainController::UserPresetHandler::CustomAutomationData::MetaConnection*>(b))
-						{
-							auto alreadyCalled = !calledIds.contains(metaConnection->target->id);
-
-							if (alreadyCalled)
-								return false;
-						}
-
-						return true;
-					};
-
-					cData->call(fv, sendMessage, metaFilter);
-
-					calledIds.add(id);
+					cData->call(fv, sendMessage);
 				}
 			}
 		}
@@ -729,6 +707,8 @@ juce::ValueTree ScriptUserPresetHandler::prePresetLoad(const ValueTree& dataToLo
 
 		if (enablePreprocessing)
 			args = convertToJson(dataToLoad);
+		else
+			args = var(new ScriptingObjects::ScriptFile(getScriptProcessor(), fileToLoad));
 
 		auto r = preCallback.callSync(&args, 1, nullptr);
 
@@ -2650,12 +2630,15 @@ juce::File ScriptUnlocker::getLicenseKeyFile()
 struct ScriptUnlocker::RefObject::Wrapper
 {
 	API_METHOD_WRAPPER_0(RefObject, isUnlocked);
+	API_METHOD_WRAPPER_0(RefObject, canExpire);
+	API_METHOD_WRAPPER_1(RefObject, checkExpirationData);
 	API_METHOD_WRAPPER_0(RefObject, loadKeyFile);
 	API_VOID_METHOD_WRAPPER_1(RefObject, setProductCheckFunction);
 	API_METHOD_WRAPPER_1(RefObject, writeKeyFile);
 	API_METHOD_WRAPPER_0(RefObject, getUserEmail);
 	API_METHOD_WRAPPER_0(RefObject, getRegisteredMachineId);
 	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
+    API_METHOD_WRAPPER_0(RefObject, keyFileExists);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -2679,6 +2662,9 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_0(getUserEmail);
 	ADD_API_METHOD_0(getRegisteredMachineId);
 	ADD_API_METHOD_1(isValidKeyFile);
+	ADD_API_METHOD_0(canExpire);
+	ADD_API_METHOD_1(checkExpirationData);
+    ADD_API_METHOD_0(keyFileExists);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -2736,6 +2722,11 @@ void ScriptUnlocker::RefObject::setProductCheckFunction(var f)
 juce::var ScriptUnlocker::RefObject::loadKeyFile()
 {
 	return unlocker->loadKeyFile();
+}
+
+bool ScriptUnlocker::RefObject::keyFileExists() const
+{
+    return unlocker->getLicenseKeyFile().existsAsFile();
 }
 
 juce::var ScriptUnlocker::RefObject::writeKeyFile(const String& keyData)

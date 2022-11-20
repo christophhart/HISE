@@ -244,7 +244,7 @@ struct FaustGraphViewer : public Component,
             
             setSize(600, 300);
             stopThread(1000);
-            startThread(7);
+            startThread(5);
             repaint();
         }
     }
@@ -932,8 +932,8 @@ void FaustMenuBar::buttonClicked(Button* b)
         }
         else
         {
-            auto& faustManager = node->getRootNetwork()->faustManager;
-            faustManager.setSelectedFaustFile(sourceFile, sendNotificationSync);
+			auto& faustManager = node->getRootNetwork()->faustManager;
+            faustManager.setSelectedFaustFile(b, sourceFile, sendNotificationAsync);
         }
 	}
 	else if (b == &reloadButton) {

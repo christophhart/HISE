@@ -1387,6 +1387,8 @@ public:
 	void addListener(WorkbenchChangeListener* l)
 	{
 		listeners.addIfNotAlreadyThere(l);
+
+		l->workbenchChanged(currentWb);
 	}
 
 	void removeListener(WorkbenchChangeListener* l)

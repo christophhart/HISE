@@ -2108,7 +2108,9 @@ private:
 		else
 		{
 			auto diff = abs((double)actual - (double)expected);
-			expect(diff < 0.00001, errorMessage);
+			expect(diff < 0.0001, errorMessage);
+            
+            
 		}
 	}
 

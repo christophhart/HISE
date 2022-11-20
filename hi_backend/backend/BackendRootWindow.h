@@ -41,146 +41,11 @@
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 10
+#define BACKEND_UI_VERSION 11
 
 namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
-
-
-struct CodeTabManager: public AsyncUpdater
-{
-    CodeTabManager(const File& directory, FloatingTile* codeTabs):
-      currentProjectDirectory(directory),
-      tabs(codeTabs)
-    {
-        
-    };
-    
-    
-    void restoreTabs(Processor* p)
-    {
-        currentWorkspaceProcessor = p;
-        triggerAsyncUpdate();
-    }
-    
-    void handleAsyncUpdate() override
-    {
-        auto scriptFiles = getScriptFiles();
-        
-        tabs->forEach<CodeEditorPanel>([&](CodeEditorPanel* editor)
-        {
-            if(auto pe = editor->getContent<PopupIncludeEditor>())
-            {
-                auto f = pe->getFile();
-                
-                if(!f.existsAsFile())
-                    return false;
-                
-                if(scriptFiles.contains(f))
-                {
-                    scriptFiles.removeAllInstancesOf(f);
-                }
-                else
-                {
-                    DBG("REMOVE PANEL for " + f.getFileName());
-                }
-            }
-            
-            return false;
-        });
-        
-        FloatingInterfaceBuilder builder(tabs);
-        
-        auto scriptFolder = currentProjectDirectory.getChildFile("Scripts");
-        
-        for(auto f: scriptFiles)
-        {
-            auto idx = builder.addChild<CodeEditorPanel>(0);
-            
-            auto editor = builder.getContent<CodeEditorPanel>(idx);
-            
-            editor->setScriptFile(f.getRelativePathFrom(scriptFolder));
-            
-            editor->setContentWithUndo(currentWorkspaceProcessor, 0);
-                                  
-            DBG("ADD PANEL for " + f.getFileName());
-        }
-    }
-    
-    ~CodeTabManager()
-    {
-        auto list = getFilePathsFromTabs();
-        var lv(list);
-        getTabConnectionFile().replaceWithText(JSON::toString(lv));
-        
-        auto scriptFiles = getScriptFiles();
-        
-        auto tabPanel = dynamic_cast<FloatingTabComponent*>(tabs->getCurrentFloatingPanel());
-        
-        for(int i = 0; i < tabPanel->getNumTabs(); i++)
-        {
-            auto c = tabPanel->getComponent(i);
-            
-            if(auto ed = dynamic_cast<CodeEditorPanel*>(c->getCurrentFloatingPanel()))
-            {
-                if(auto pe = ed->getContent<PopupIncludeEditor>())
-                {
-                    if(pe->getFile().existsAsFile())
-                    {
-                        tabPanel->removeFloatingTile(c);
-                        i--;
-                    }
-                }
-            }
-        }
-        
-    }
-    
-    Array<File> getScriptFiles()
-    {
-        var list = JSON::parse(getTabConnectionFile());
-        
-        Array<File> scriptFiles;
-        
-        auto scriptFolder = currentProjectDirectory.getChildFile("Scripts");
-        
-        if(list.isArray())
-        {
-            for(auto v: *list.getArray())
-            {
-                scriptFiles.add(File(scriptFolder.getChildFile(v.toString())));
-            }
-        }
-        
-        return scriptFiles;
-    }
-    
-    Array<var> getFilePathsFromTabs()
-    {
-        Array<var> list;
-        
-        tabs->forEach<CodeEditorPanel>([&](CodeEditorPanel* editor)
-        {
-            var sf = editor->toDynamicObject().getProperty("ScriptFile", "");
-            
-            if(sf.toString().isNotEmpty())
-                list.add(sf);
-            
-            return false;
-        });
-        
-        return list;
-    }
-    
-    
-    WeakReference<Processor> currentWorkspaceProcessor;
-    File getTabConnectionFile() const { return currentProjectDirectory.getChildFile("CodeTabs.js"); }
-    
-    File currentProjectDirectory;
-    FloatingTile* tabs;
-};
-
 
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public TopLevelWindowWithKeyMappings,
@@ -306,13 +171,15 @@ public:
 
     void projectChanged(const File& newWorkingDirectory) override
     {
-        codeTabManager = new CodeTabManager(newWorkingDirectory, codeTabs);
+        
     }
     
 	void sendRootContainerRebuildMessage(bool synchronous)
 	{
 		getModuleListNofifier().sendProcessorChangeMessage(getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, synchronous);
 	}
+
+	Processor* getCurrentWorkspaceProcessor() { return currentWorkspaceProcessor.get(); }
 
 	int getCurrentWorkspace() const { return currentWorkspace; }
 
@@ -358,11 +225,28 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
-	
+	template <class EditorType> bool addEditorTabsOfType()
+	{
+		auto tabs = getCodeTabs();
+
+		if (tabs->getNumChildPanelsWithType<EditorType>() == 0)
+		{
+			FloatingInterfaceBuilder b(tabs->getParentShell());
+
+			auto newEditor = b.addChild<EditorType>(0);
+
+			if(auto pc = b.getContent<PanelWithProcessorConnection>(newEditor))
+				pc->setContentWithUndo(getCurrentWorkspaceProcessor(), 0);
+
+			return true;
+		}
+
+		return false;
+	}
 
 private:
 
-	
+	FloatingTabComponent* getCodeTabs();
 
 	bool learnMode = false;
 
@@ -373,6 +257,8 @@ private:
 	int currentWorkspace = BackendCommandTarget::WorkspaceScript;
 	
 	Array<Component::SafePointer<FloatingTile>> workspaces;
+
+	WeakReference<Processor> currentWorkspaceProcessor;
 
 	friend class BackendCommandTarget;
 
@@ -404,9 +290,6 @@ private:
 
 	ScopedPointer<PeriodicScreenshotter> screenshotter;
 
-    FloatingTile* codeTabs = nullptr;
-    ScopedPointer<CodeTabManager> codeTabManager;
-    
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 };
 
@@ -441,6 +324,15 @@ struct BackendPanelHelpers
 
 		static void showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible);
 		static void showInterfaceDesigner(BackendRootWindow* rootWindow, bool shouldBeVisible);
+
+		static FloatingTabComponent* getCodeTabs(BackendRootWindow* r)
+		{
+			auto floatingRoot = r->getRootFloatingTile();
+			auto codeTabs = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptEditorTabs"))->getParentShell();
+			jassert(codeTabs != nullptr && dynamic_cast<FloatingTabComponent*>(codeTabs->getCurrentFloatingPanel()) != nullptr);
+			return dynamic_cast<FloatingTabComponent*>(codeTabs->getCurrentFloatingPanel());
+		}
+
 	};
 
 	struct SamplerWorkspace

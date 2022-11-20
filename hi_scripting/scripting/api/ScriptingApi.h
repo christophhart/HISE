@@ -229,6 +229,9 @@ public:
 		/** Sets the minimum sample rate for the global processing (and adds oversampling if the current samplerate is lower). */
 		bool setMinimumSampleRate(double minimumSampleRate);
 
+		/** Sets the maximum buffer size that is processed at once. If the buffer size from the audio driver / host is bigger than this number, it will split up the incoming buffer and call process multiple times. */
+		void setMaximumBlockSize(int numSamplesPerBlock);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
@@ -289,6 +292,9 @@ public:
 		/** Iterates the given sub-directory of the Samples folder and returns a list with all references to audio files. */
 		var getSampleFilesFromDirectory(const String& relativePathFromSampleFolder, bool recursive);
 
+		/** Returns the platform specific extra definitions from the Project settings as JSON object. */
+		var getExtraDefinitionsInBackend();
+		
 		/** Shows a message with a question and executes the function after the user has selected his choice. */
 		void showYesNoWindow(String title, String markdownMessage, var callback);
 
@@ -297,6 +303,12 @@ public:
 
 		/** Creates a (or returns an existing ) script look and feel object. */
 		var createGlobalScriptLookAndFeel();
+
+		/** Performs an action that can be undone via Engine.undo(). */
+		bool performUndoAction(var thisObject, var undoAction);
+
+		/** Returns the amount of output channels. */
+		int getNumPluginChannels() const;
 
 		var createFFT();
 
@@ -1336,6 +1348,9 @@ public:
 
 		/** Sets the sync mode for the global clock. */
 		void setSyncMode(int syncMode);
+
+		/** sends a message on the next grid callback to resync the external clock. */
+		void sendGridSyncOnNextCallback();
 
 	private:
 

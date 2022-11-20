@@ -627,6 +627,9 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** This checks if there is a key file and applies it.  */
 		var loadKeyFile();
 
+        /** Checks whether the key file exists. */
+        bool keyFileExists() const;
+        
 		/** Writes the key data to the location. */
 		var writeKeyFile(const String& keyData);
 

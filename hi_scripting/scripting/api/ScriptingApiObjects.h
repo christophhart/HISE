@@ -327,6 +327,9 @@ namespace ScriptingObjects
 		/** Returns a reference string with a wildcard. */
 		String toReferenceString(String folderType);
 
+		/** If this file is a folder that contains a HISE redirection file (LinkWindows / LinkOSX file), then it will return the redirection target, otherwise it will return itself. */
+		var getRedirectedFolder();
+
 		/** Checks if this file exists and is a file. */
 		bool isFile() const;
 
@@ -877,9 +880,9 @@ namespace ScriptingObjects
 
 		snex::ExternalData::DataType getDataType() const { return type; }
 
-		String getDebugName() const override { return snex::ExternalData::getDataTypeName(getDataType()); };
+		String getDebugName() const override { return "Script" + snex::ExternalData::getDataTypeName(getDataType()); };
 		String getDebugValue() const override { return getDebugName(); };
-		Identifier getObjectName() const override { return Identifier(getDebugName()); }
+		
 
 		bool objectDeleted() const override { return complexObject == nullptr; }
 		bool objectExists() const override { return complexObject != nullptr; }
@@ -969,6 +972,8 @@ namespace ScriptingObjects
 
 		ScriptAudioFile(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* otherHolder = nullptr);
 
+		Identifier getObjectName() const override { return Identifier("AudioFile"); }
+
 		// ============================================================================================================
 
 		void clear();
@@ -1025,6 +1030,8 @@ namespace ScriptingObjects
 
 		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other=nullptr);
 
+		Identifier getObjectName() const override { return Identifier("ScriptRingBuffer"); }
+
 		// ============================================================================================================
 
 		/** Returns a reference to the internal read buffer. */
@@ -1057,6 +1064,8 @@ namespace ScriptingObjects
 	public:
 
 		ScriptTableData(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* externalHolder=nullptr);
+
+		Identifier getObjectName() const override { return Identifier("Table"); }
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
@@ -1117,6 +1126,8 @@ namespace ScriptingObjects
 
 		~ScriptSliderPackData() {};
 
+		Identifier getObjectName() const override { return Identifier("SliderPackData"); }
+
 		// ============================================================================================================
 
 		/** Returns the step size. */
@@ -1146,6 +1157,9 @@ namespace ScriptingObjects
 		/** Sets a callback that is being executed when a point is added / removed / changed. */
 		void setContentCallback(var contentFunction);
 
+        /** Sets a preallocated length that will retain values when the slider pack is resized below that limit. */
+        void setUsePreallocatedLength(int length);
+        
         /** Links the sliderpack to the other slider pack. */
         void linkTo(var other)
         {
@@ -1846,7 +1860,15 @@ namespace ScriptingObjects
 		/** Gets the current peak value of the given channelIndex. */
 		float getSourceGainValue(int channelIndex);
 
+		/** Returns one or multiple input channels that is mapped to the given output channel (or -1). */
+		var getSourceChannelsForDestination(var destinationIndex) const;
+
+		/** Returns the output channel that is mapped to the given input channel (or -1). */
+		var getDestinationChannelForSource(var sourceIndex) const;
+
 		// ============================================================================================================ 
+
+		RoutableProcessor* getRoutableProcessor() { return dynamic_cast<RoutableProcessor*>(rp.get()); }
 
 		struct Wrapper;
 

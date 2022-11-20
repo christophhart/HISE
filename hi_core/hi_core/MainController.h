@@ -493,6 +493,8 @@ public:
 		void addPresetLoadListener(PresetLoadListener* l)
 		{
 			presetLoadListeners.addIfNotAlreadyThere(l);
+
+			l->newHisePresetLoaded();
 		}
 
 		void removePresetLoadListener(PresetLoadListener* l)
@@ -1629,6 +1631,14 @@ public:
 		return refreshOversampling();
 	}
 
+	void setMaximumBlockSize(int newBlockSize);
+
+	/** Returns the maximum block size that HISE will use for its process callback. 
+	
+		It defaults to HISE_MAX_PROCESSING_BLOCKSIZE (which is 512) but it can be set with Engine.setMaximumBlockSize()
+	*/
+	int getMaximumBlockSize() const { return maximumBlockSize; }
+
 	/** Returns the time that the plugin spends in its processBlock method. */
 	float getCpuUsage() const {return usagePercent.load();};
 
@@ -1700,6 +1710,8 @@ public:
 #endif
 	}
 
+    ReferenceCountedObject* getGlobalPreprocessor();
+    
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
 		return false;
@@ -1888,9 +1900,9 @@ private:
 
 	bool refreshOversampling();
 
-	double getOriginalSamplerate() const { return sampleRate / getOversampleFactor(); }
+	double getOriginalSamplerate() const { return originalSampleRate; }
 
-	int getOriginalBufferSize() const { return (int)((double)maxBufferSize.get() / getOversampleFactor()); }
+	int getOriginalBufferSize() const { return originalBufferSize; }
 
 	int getOversampleFactor() const { return currentOversampleFactor; }
 	
@@ -1973,7 +1985,11 @@ private:
 
 	ScopedPointer<juce::dsp::Oversampling<float>> oversampler;
 	double minimumSamplerate = 0.0;
+	int maximumBlockSize = HISE_MAX_PROCESSING_BLOCKSIZE;
 	int currentOversampleFactor = 1;
+
+	int originalBufferSize = 0;
+	double originalSampleRate = 0.0;
 	
 	Array<CustomTypeFace> customTypeFaces;
 	ValueTree customTypeFaceData;
@@ -1987,6 +2003,8 @@ private:
 	ScopedPointer<ProjectDocDatabaseHolder> projectDocHolder;
 	WeakReference<MarkdownContentProcessor> currentPreview;
 
+    ReferenceCountedObjectPtr<ReferenceCountedObject> preprocessor;
+    
 	ScopedPointer<SampleManager> sampleManager;
 	ExpansionHandler expansionHandler;
 	
@@ -1997,7 +2015,7 @@ private:
 
 	Component::SafePointer<Plotter> plotter;
 
-	Atomic<int> maxBufferSize;
+	Atomic<int> processingBufferSize;
 
 	Atomic<int> cpuBufferSize;
 
@@ -2068,7 +2086,7 @@ private:
     
     bool midiInputFlag;
 	
-	double sampleRate;
+	double processingSampleRate = 0.0;
     std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;

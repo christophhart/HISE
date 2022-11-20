@@ -384,8 +384,11 @@ namespace control
 		{
 			jassert(ps.voiceIndex != nullptr);
 
-			tempoSyncer = ps.voiceIndex->getTempoSyncer();
-			tempoSyncer->registerItem(this);
+            if(tempoSyncer == nullptr)
+            {
+                tempoSyncer = ps.voiceIndex->getTempoSyncer();
+                tempoSyncer->registerItem(this);
+            }
 		}
 
 	protected:

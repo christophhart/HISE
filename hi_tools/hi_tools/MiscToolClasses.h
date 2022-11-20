@@ -2585,6 +2585,11 @@ struct MasterClock
 		numSyncModes
 	};
 
+	void setNextGridIsFirst()
+	{
+		waitForFirstGrid = true;
+	}
+
 	void setSyncMode(SyncModes newSyncMode)
 	{
 		currentSyncMode = newSyncMode;
@@ -2695,7 +2700,8 @@ struct MasterClock
 					currentGridIndex++;
 
 					gi.change = true;
-					gi.firstGridInPlayback = false;
+					gi.firstGridInPlayback = waitForFirstGrid;
+					waitForFirstGrid = false;
 					gi.gridIndex = currentGridIndex;
 					gi.timestamp = numSamples + samplesToNextGrid;
 

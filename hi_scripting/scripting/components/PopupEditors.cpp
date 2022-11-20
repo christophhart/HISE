@@ -483,6 +483,25 @@ void PopupIncludeEditor::compileInternal()
 	}
 }
 
+void PopupIncludeEditor::scriptWasCompiled(JavascriptProcessor* p)
+{
+	if (p == jp)
+	{
+        String pid;
+        
+        if(callback.isValid())
+            pid << dynamic_cast<Processor*>(p)->getId() << "." << callback.toString();
+        else
+            pid << getFile().getFullPathName();
+        
+		auto deactivatedLines = p->getScriptEngine()->preprocessor->getDeactivatedLinesForFile(pid);
+		getEditor()->editor.setDeactivatedLines(deactivatedLines);
+
+		checkUnreferencedExternalFile();
+		repaint();
+	}
+}
+
 float PopupIncludeEditor::getGlobalCodeFontSize(Component* c)
 {
 	FloatingTile* ft = c->findParentComponentOfClass<FloatingTile>();
@@ -519,8 +538,12 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 
 	ed.setPopupLookAndFeel(new PopupLookAndFeel());
 
+    
+    
 	auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
 
+    ed.getTextDocument().setExternalViewUndoManager(mc->getLocationUndoManager());
+    
 	mc->getFontSizeChangeBroadcaster().addListener(ed, [mc](mcl::TextEditor& e, float s)
 		{
 			auto fs = mc->getGlobalCodeFontSize();

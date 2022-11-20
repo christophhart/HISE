@@ -858,7 +858,9 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
 	API_METHOD_WRAPPER_0(Engine, getBufferSize);
+	API_METHOD_WRAPPER_0(Engine, getNumPluginChannels);
 	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
+	API_VOID_METHOD_WRAPPER_1(Engine, setMaximumBlockSize);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
@@ -938,6 +940,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
+	API_METHOD_WRAPPER_2(Engine, performUndoAction);
+	API_METHOD_WRAPPER_0(Engine, getExtraDefinitionsInBackend);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
@@ -958,6 +962,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
 	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
+	
+	
 };
 
 
@@ -995,7 +1001,9 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
 	ADD_API_METHOD_0(getBufferSize);
+	ADD_API_METHOD_0(getNumPluginChannels);
 	ADD_API_METHOD_1(setMinimumSampleRate);
+	ADD_API_METHOD_1(setMaximumBlockSize);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
@@ -1070,6 +1078,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
+	ADD_API_METHOD_2(performUndoAction);
+	ADD_API_METHOD_0(getExtraDefinitionsInBackend);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
@@ -1260,6 +1270,11 @@ void ScriptingApi::Engine::setGlobalFont(String fontName)
 bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
 {
 	return getProcessor()->getMainController()->setMinimumSamplerate(minimumSampleRate);
+}
+
+void ScriptingApi::Engine::setMaximumBlockSize(int numSamplesPerBlock)
+{
+	getProcessor()->getMainController()->setMaximumBlockSize(numSamplesPerBlock);
 }
 
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
@@ -1613,6 +1628,21 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 	
 }
 
+juce::var ScriptingApi::Engine::getExtraDefinitionsInBackend()
+{
+#if USE_BACKEND
+
+    auto mc = getScriptProcessor()->getMainController_();
+    
+    return dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getExtraDefinitionsAsObject();
+    
+#else
+	return {};
+#endif
+
+	
+}
+
 void ScriptingApi::Engine::showMessageBox(String title, String markdownMessage, int type)
 {
 	MessageManager::callAsync([title, markdownMessage, type]()
@@ -1687,6 +1717,59 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 	}
 }
 
+struct ScriptUndoableAction : public UndoableAction
+{
+	ScriptUndoableAction(ProcessorWithScriptingContent* p, var f, var thisObject_):
+		UndoableAction(),
+		callback(p, nullptr, f, 1),
+		thisObject(thisObject_)
+	{
+		// ensure it's called synchronously if possible...
+		callback.setHighPriority();
+		callback.incRefCount();
+	}
+
+	bool undo() override
+	{
+		if (callback)
+		{
+			var a(true);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool perform() override
+	{
+		if (callback)
+		{
+			var a(false);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	var thisObject;
+	WeakCallbackHolder callback;
+};
+
+bool ScriptingApi::Engine::performUndoAction(var thisObject, var undoAction)
+{
+	getScriptProcessor()->getMainController_()->getControlUndoManager()->beginNewTransaction("%SCRIPT_TRANSACTION%");
+	return getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(new ScriptUndoableAction(getScriptProcessor(), undoAction, thisObject));
+}
+
+int ScriptingApi::Engine::getNumPluginChannels() const
+{
+	return HISE_NUM_PLUGIN_CHANNELS;
+}
+
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
 {
     return var(new fixobj::Factory(getScriptProcessor(), layoutData));
@@ -1747,7 +1830,7 @@ struct AudioRenderer : public Thread,
 				for (int i = 0; i < numChannelsToRender; i++)
 					channels.add(new VariantBuffer(numSamplesToRender));
 
-				Thread::startThread(Thread::realtimeAudioPriority);
+				Thread::startThread(8);
 			}
 		}
 	}
@@ -3095,6 +3178,16 @@ String ScriptingApi::Engine::intToHexString(int value)
 
 void ScriptingApi::Engine::undo()
 {
+	Array<const juce::UndoableAction*> actions;
+
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getUndoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->undo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
 
 	auto f = [p]()
@@ -3108,7 +3201,17 @@ void ScriptingApi::Engine::undo()
 
 void ScriptingApi::Engine::redo()
 {
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getRedoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->redo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
+
+
 
 	auto f = [p]()
 	{
@@ -6876,6 +6979,7 @@ struct ScriptingApi::TransportHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setEnableGrid);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, startInternalClock);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, stopInternalClock);
+	API_VOID_METHOD_WRAPPER_0(TransportHandler, sendGridSyncOnNextCallback);
 };
 
 ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
@@ -6900,7 +7004,7 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(startInternalClock);
 	ADD_API_METHOD_1(stopInternalClock);
 	ADD_API_METHOD_2(setEnableGrid);
-	
+	ADD_API_METHOD_0(sendGridSyncOnNextCallback);
 }
 
 ScriptingApi::TransportHandler::~TransportHandler()
@@ -7103,6 +7207,11 @@ void ScriptingApi::TransportHandler::stopInternalClock(int timestamp)
 void ScriptingApi::TransportHandler::setSyncMode(int syncMode)
 {
 	getMainController()->getMasterClock().setSyncMode((MasterClock::SyncModes)syncMode);
+}
+
+void ScriptingApi::TransportHandler::sendGridSyncOnNextCallback()
+{
+	getMainController()->getMasterClock().setNextGridIsFirst();
 }
 
 } // namespace hise

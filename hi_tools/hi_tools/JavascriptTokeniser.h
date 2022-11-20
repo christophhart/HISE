@@ -60,7 +60,8 @@ public:
         tokenType_string,
         tokenType_bracket,
         tokenType_punctuation,
-        tokenType_preprocessor
+        tokenType_preprocessor,
+        tokenType_deactivated
     };
 
 private:

@@ -1152,34 +1152,15 @@ bool CircularAudioSampleBuffer::readMidiEvents(MidiBuffer& destination, int offs
 
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-#if 0
-	if (false)
-	{
+	// So FL Studio seems to violate the convention of not exceeding the buffer size set
+	// in the prepareToPlay() callback
+	auto maxBlockSize = jmin(mc->getMaximumBlockSize(), mc->getOriginalBufferSize());
 	
-		circularInputBuffer.writeSamples(buffer, 0, buffer.getNumSamples());
-
-		INSTRUMENT_ONLY(circularInputBuffer.writeMidiEvents(midiMessages, 0, buffer.getNumSamples()));
-		INSTRUMENT_ONLY(buffer.clear());
-
-		while (circularInputBuffer.getNumAvailableSamples() >= fullBlockSize)
-		{
-			delayedMidiBuffer.clear();
-
-			circularInputBuffer.readSamples(processBuffer, 0, fullBlockSize);
-
-			INSTRUMENT_ONLY(circularInputBuffer.readMidiEvents(delayedMidiBuffer, 0, fullBlockSize));
-			
-			mc->processBlockCommon(processBuffer, delayedMidiBuffer);
-
-			circularOutputBuffer.writeSamples(processBuffer, 0, fullBlockSize);
-		}
-
-		circularOutputBuffer.readSamples(buffer, 0, buffer.getNumSamples());
-	}
-#endif
-
-	if (buffer.getNumSamples() > HISE_MAX_PROCESSING_BLOCKSIZE)
+	if (buffer.getNumSamples() > maxBlockSize)
 	{
+		// We'll recursively call this method with a smaller buffer to stay within the
+		// buffer size limits...
+
 		int numChannels = buffer.getNumChannels();
 		int numToDo = buffer.getNumSamples();
 
@@ -1191,9 +1172,7 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		while (numToDo > 0)
 		{
-			auto numThisTime = jmin(numToDo, HISE_MAX_PROCESSING_BLOCKSIZE);
-
-			jassert(numThisTime % HISE_EVENT_RASTER == 0);
+			auto numThisTime = jmin(numToDo, maxBlockSize);
 
 			AudioSampleBuffer chunk(ptrs, numChannels, numThisTime);
 			
@@ -1206,10 +1185,11 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 			for (int i = 0; i < numChannels; i++)
 				ptrs[i] += numThisTime;
 
-			mc->processBlockCommon(chunk, delayedMidiBuffer);
+			processWrapped(chunk, delayedMidiBuffer);
 		}
-	}
 
+		return;
+	}
 	else if (buffer.getNumSamples() % HISE_EVENT_RASTER != 0 || numLeftOvers != 0)
 	{
 #if FRONTEND_IS_PLUGIN
@@ -1219,12 +1199,40 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		int numSamplesToCalculate = buffer.getNumSamples() - numLeftOvers;
 
+		if (numSamplesToCalculate <= 0)
+		{
+			// we need to calculate less samples than we have already available, so we can just return
+			// the samples and skip the process for this buffer
+			int numToCopy = buffer.getNumSamples();
+
+			for (int c = 0; c < buffer.getNumChannels(); c++)
+			{
+				leftOverChannels[c] = leftOverData + c * HISE_EVENT_RASTER;
+
+				for (int i = 0; i < numLeftOvers; i++)
+				{
+					if (i < numToCopy)
+					{
+						// Copy the sample to the buffer
+						buffer.setSample(c, i, leftOverChannels[c][i]);
+					}
+					else
+					{
+						// shift the sample data in the left over buffer to the left by numCopy samples
+						leftOverChannels[c][i - numToCopy] = leftOverChannels[c][i];
+					}
+				}
+			}
+
+			numLeftOvers -= numToCopy;
+			return;
+		}
+		
 		// use a temp buffer and pad to the event raster size...
 		auto oddSampleAmount = numSamplesToCalculate % HISE_EVENT_RASTER;
 		auto thisLeftOver = (HISE_EVENT_RASTER - oddSampleAmount) % HISE_EVENT_RASTER;
 
 		int paddedBufferSize = (numSamplesToCalculate + thisLeftOver);
-
 		int numToCopy = jmin(paddedBufferSize, buffer.getNumSamples());
 
 		auto data = (float*)alloca(sizeof(float) * buffer.getNumChannels() * paddedBufferSize);
@@ -1254,12 +1262,9 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 			const int lastEventTime = midiMessages.getLastEventTime();
 
-
-
 			if (lastEventTime > numSamplesToCalculate)
 			{
 				MidiBuffer other;
-
 				MidiBuffer::Iterator it(midiMessages);
 
 				MidiMessage m;
@@ -1288,6 +1293,8 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 			if(numSamplesToCalculate > 0)
 				FloatVectorOperations::copy(buffer.getWritePointer(i, numLeftOvers), ptrs[i], numSamplesToCalculate);
 
+			
+
 			if(thisLeftOver != 0)
 				FloatVectorOperations::copy(leftOverChannels[i], ptrs[i] + numSamplesToCalculate, thisLeftOver);
 		}
@@ -1303,51 +1310,16 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBlock)
 {
-	if (shouldDelayRendering())
-	{
-		if (samplesPerBlock > lastBlockSize)
-		{
-			lastBlockSize = samplesPerBlock;
-
-#if FRONTEND_IS_PLUGIN
-			fullBlockSize = samplesPerBlock;
-#else
-			fullBlockSize = jmin<int>(256, samplesPerBlock);
-#endif
-
-			circularInputBuffer = CircularAudioSampleBuffer(2, 3 * samplesPerBlock);
-
-
-
-			circularOutputBuffer = CircularAudioSampleBuffer(2, 3 * samplesPerBlock);
-
-			circularOutputBuffer.setReadDelta(fullBlockSize);
-
-			processBuffer.setSize(2, fullBlockSize);
-
-			delayedMidiBuffer.ensureSize(1024);
-
-			dynamic_cast<AudioProcessor*>(mc)->setLatencySamples(fullBlockSize);
-
-
-		}
-        
-        if(!(mc->getMainSynthChain()->getLargestBlockSize() == fullBlockSize && sampleRate == mc->getMainSynthChain()->getSampleRate()))
-            mc->prepareToPlay(sampleRate, fullBlockSize);
-	}
-	else
-	{
-		illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
+	illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
 
 #if HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE
-		if (illegalBufferSize)
-			mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
+	if (illegalBufferSize)
+		mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
 #endif
 
-		samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
+	samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
 
-		mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, HISE_MAX_PROCESSING_BLOCKSIZE));
-	}
+	mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, mc->getMaximumBlockSize()));
 }
 
 

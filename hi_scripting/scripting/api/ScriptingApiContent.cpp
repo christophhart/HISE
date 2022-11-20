@@ -2622,6 +2622,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getDataAsBuffer);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValueChangeCausesCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setUsePreallocatedLength);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int , int ) :
@@ -2638,6 +2639,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
+	setDefaultValue(ScriptComponent::defaultValue, 1.0f);
 	setDefaultValue(bgColour, 0x00000000);
 	setDefaultValue(itemColour, 0x77FFFFFF);
 	setDefaultValue(itemColour2, 0x77FFFFFF);
@@ -2678,6 +2680,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	ADD_API_METHOD_1(registerAtParent);
 	ADD_API_METHOD_0(getDataAsBuffer);
 	ADD_API_METHOD_1(setAllValueChangeCausesCallback);
+	ADD_API_METHOD_1(setUsePreallocatedLength);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -2776,6 +2779,11 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 
 		if(auto d = getCachedSliderPack())
 			d->setNumSliders((int)newValue);
+	}
+	else if (id == getIdFor(defaultValue))
+	{
+		if (auto d = getCachedSliderPack())
+			d->setDefaultValue((float)newValue);
 	}
 	else if (id == getIdFor(ScriptComponent::Properties::min))
 	{
@@ -2895,6 +2903,11 @@ juce::var ScriptingApi::Content::ScriptSliderPack::getDataAsBuffer()
 void ScriptingApi::Content::ScriptSliderPack::setAllValueChangeCausesCallback(bool shouldBeEnabled)
 {
 	allValueChangeCausesCallback = shouldBeEnabled;
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setUsePreallocatedLength(int numMaxSliders)
+{
+	getCachedSliderPack()->setUsePreallocatedLength(numMaxSliders);
 }
 
 struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper

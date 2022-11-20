@@ -1225,6 +1225,146 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 	return Result::ok();
 }
 
+struct ScriptBroadcaster::RoutingMatrixListener::MatrixListener : public SafeChangeListener
+{
+	MatrixListener(ScriptBroadcaster* b, Processor* p):
+		sb(b),
+		target(p)
+	{
+		id = var(p->getId());
+		if (auto rp = dynamic_cast<RoutableProcessor*>(target.get()))
+		{
+			scriptMatrix = var(new ScriptingObjects::ScriptRoutingMatrix(b->getScriptProcessor(), p));
+			rp->getMatrix().addChangeListener(this);
+		}
+	}
+
+	~MatrixListener()
+	{
+		scriptMatrix = var();
+
+		if (auto rp = dynamic_cast<RoutableProcessor*>(target.get()))
+		{
+			rp->getMatrix().removeChangeListener(this);
+		}
+	}
+
+	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	{
+		if (sb != nullptr)
+		{
+			id = target->getId();
+
+			Array<var> args;
+			args.add(id);
+			args.add(scriptMatrix);
+
+			sb->sendAsyncMessage(var(args));
+		}
+	}
+
+
+	WeakReference<ScriptBroadcaster> sb;
+	var id;
+	var scriptMatrix;
+	WeakReference<Processor> target;
+};
+
+ScriptBroadcaster::RoutingMatrixListener::RoutingMatrixListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const var& metadata):
+	ListenerBase(metadata)
+{
+	for (auto p : processors)
+		listeners.add(new MatrixListener(b, p));
+}
+
+
+
+void ScriptBroadcaster::RoutingMatrixListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+#if USE_BACKEND
+	struct MatrixViewer : public Component,
+						  public ComponentWithPreferredSize
+	{
+		MatrixViewer(RoutableProcessor* p)
+		{
+			addAndMakeVisible(editor = new RouterComponent(&p->getMatrix()));
+		}
+		
+		ScopedPointer<hise::RouterComponent> editor;
+
+		void resized() override 
+		{
+			if (editor != nullptr)
+				editor->setBounds(getLocalBounds());
+		};
+
+		int getPreferredWidth() const override { return editor != nullptr ? editor->getWidth() : 40; };
+		int getPreferredHeight() const override { return editor != nullptr ? editor->getHeight() : 20; };
+
+		static ComponentWithPreferredSize* create(Component* r, const var& value)
+		{
+			if (auto sr = dynamic_cast<ScriptingObjects::ScriptRoutingMatrix*>(value.getObject()))
+			{
+				return new MatrixViewer(sr->getRoutableProcessor());
+			}
+
+			return nullptr;
+		}
+	};
+
+	factory.registerWithCreate<MatrixViewer>();
+#endif
+}
+
+juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
+{
+	Array<var> args;
+	args.add("");
+	args.add("");
+	
+	for (auto p : listeners)
+	{
+		args.set(0, p->id);
+		args.set(1, p->scriptMatrix);
+
+		auto r = n->callSync(args);
+
+		if (!r.wasOk())
+			return r;
+	}
+
+	return Result::ok();
+}
+
+int ScriptBroadcaster::RoutingMatrixListener::getNumInitialCalls() const
+{
+	return listeners.size();
+}
+
+Array<juce::var> ScriptBroadcaster::RoutingMatrixListener::getInitialArgs(int callIndex) const
+{
+	Array<var> args;
+
+	if (isPositiveAndBelow(callIndex, listeners.size()))
+	{
+		args.add(listeners[callIndex]->id);
+		args.add(listeners[callIndex]->scriptMatrix);
+	}
+		
+
+	return args;
+}
+
+Array<juce::var> ScriptBroadcaster::RoutingMatrixListener::createChildArray() const
+{
+	Array<var> children;
+
+	for (auto l : listeners)
+		children.add(l->scriptMatrix);
+
+	return children;
+}
+
 struct ScriptBroadcaster::ComplexDataListener::Item : public ComplexDataUIUpdaterBase::EventListener
 {
 	Item(ScriptBroadcaster* sb, ComplexDataUIBase::Ptr data_, bool isDisplay_, String pid, int index_) :
@@ -2356,6 +2496,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentMouseEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToContextMenu);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
+	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRoutingMatrix);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
@@ -2394,6 +2535,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToComponentMouseEvents);
 	ADD_API_METHOD_2(attachToComponentValue);
 	ADD_API_METHOD_2(attachToComponentVisibility);
+	ADD_API_METHOD_2(attachToRoutingMatrix);
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
@@ -3089,6 +3231,47 @@ void ScriptBroadcaster::attachToOtherBroadcaster(var otherBroadcaster, var argTr
 
 	attachedListeners.add(new OtherBroadcasterListener(sources, optionalMetadata));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+}
+
+void ScriptBroadcaster::attachToRoutingMatrix(var moduleIds, var metadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to a routing matrix, it needs two parameters (processorId, matrix)");
+	}
+
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	Array<WeakReference<Processor>> processors;
+
+	if (moduleIds.isArray())
+	{
+		for (const auto& pId : *moduleIds.getArray())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+			if (dynamic_cast<RoutableProcessor*>(p) == nullptr)
+				reportScriptError("the modules must have a routing matrix");
+
+			processors.add(p);
+		}
+	}
+	else
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+		if (dynamic_cast<RoutableProcessor*>(p) == nullptr)
+			reportScriptError("the modules must have a routing matrix");
+
+		processors.add(p);
+	}
+	
+	attachedListeners.add(new RoutingMatrixListener(this, processors, metadata));
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+
+	enableQueue = true;
 }
 
 void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList, var optionalMetadata)

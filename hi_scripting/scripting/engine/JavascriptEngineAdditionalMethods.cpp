@@ -38,7 +38,35 @@
 namespace hise { using namespace juce;
 
 
+Result HiseJavascriptPreprocessor::process(String& code, const String& externalFile)
+{
+#if USE_BACKEND
+    
+    jassert(externalFile.isNotEmpty());
+    
+    auto hasLocalSwitch = code.startsWith(snex::jit::PreprocessorTokens::on_);
+    
+    if (!hasLocalSwitch && !this->globalEnabled)
+        return Result::ok();
 
+    snex::jit::ExternalPreprocessorDefinition::List empty;
+    snex::jit::Preprocessor p(code);
+
+    p.setCurrentFileName(externalFile);
+
+    auto processed = p.processWithResult(definitions);
+
+    if(p.getResult().wasOk())
+        code = processed;
+    
+    deactivatedLines.set(externalFile, p.getDeactivatedLines());
+    
+    return p.getResult();
+
+#else
+    return Result::ok();
+#endif
+}
 
 
 bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
@@ -60,10 +88,14 @@ bool HiseJavascriptEngine::isInlineFunction(const var& v)
 	return false;
 }
 
-HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
+HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p, MainController* mc) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
+    
 	root->hiseSpecialData.setProcessor(p);
 
+    preprocessor = dynamic_cast<HiseJavascriptPreprocessor*>(mc->getGlobalPreprocessor());
+    root->preprocessor = preprocessor;
+    
 	registerNativeObject(RootObject::ObjectClass::getClassName(), new RootObject::ObjectClass());
 	registerNativeObject(RootObject::ArrayClass::getClassName(), new RootObject::ArrayClass());
 	registerNativeObject(RootObject::StringClass::getClassName(), new RootObject::StringClass());
@@ -156,6 +188,8 @@ HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavas
 
 	return r;
 }
+
+
 
 HiseJavascriptEngine::RootObject::RootObject() :
 hiseSpecialData(this)
@@ -1227,7 +1261,7 @@ String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, i
 {
 	jassertfalse;
 
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "", nullptr);
 
 	try
 	{
@@ -1245,7 +1279,7 @@ String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
 {
 	jassertfalse;
 
-	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "", nullptr);
 
 	try
 	{

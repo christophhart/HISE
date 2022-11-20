@@ -591,8 +591,8 @@ struct matrix_helpers
 	enum class SpecialType
 	{
 		NoSpecialType,
-		LeftToRight,
-		RightToLeft,
+		AddRightToLeft,
+		AddLeftToRight,
 		SwapChannels,
 		LeftOnly,
 		RightOnly,
@@ -613,11 +613,13 @@ struct matrix_helpers
 		case SpecialType::RightOnly:
 			FloatVectorOperations::clear(ptrs[0], d.getNumSamples());
 			break;
-		case SpecialType::LeftToRight:
-			FloatVectorOperations::copy(ptrs[1], ptrs[0], d.getNumSamples());
+		case SpecialType::AddRightToLeft:
+			FloatVectorOperations::add(ptrs[0], ptrs[1], d.getNumSamples());
+			FloatVectorOperations::clear(ptrs[1], d.getNumSamples());
 			break;
-		case SpecialType::RightToLeft:
-			FloatVectorOperations::copy(ptrs[0], ptrs[1], d.getNumSamples());
+		case SpecialType::AddLeftToRight:
+			FloatVectorOperations::add(ptrs[1], ptrs[0], d.getNumSamples());
+			FloatVectorOperations::clear(ptrs[0], d.getNumSamples());
 			break;
 		case SpecialType::SwapChannels:
 		{
@@ -639,9 +641,9 @@ struct matrix_helpers
 		constexpr int r = MatrixType::getChannel(1);
 
 		if constexpr (l == 0 && r == 0)
-			return SpecialType::LeftToRight;
+			return SpecialType::AddRightToLeft;
 		else if constexpr (l == 1 && r == 1)
-			return SpecialType::RightToLeft;
+			return SpecialType::AddLeftToRight;
 		else if constexpr (l == 0 && r == -1)
 			return SpecialType::LeftOnly;
 		else if constexpr (l == -1 && r == 1)

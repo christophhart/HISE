@@ -129,14 +129,7 @@ class PopupIncludeEditor : public Component,
 {
 public:
 
-    void scriptWasCompiled(JavascriptProcessor* p) override
-    {
-        if(p == jp)
-        {
-            checkUnreferencedExternalFile();
-            repaint();
-        }
-    }
+    void scriptWasCompiled(JavascriptProcessor* p) override;
     
 	static bool matchesId(Component* c, const Identifier& id)
 	{
