@@ -61,7 +61,8 @@ CodeEditorComponent::ColourScheme JavascriptTokeniser::getDefaultColourScheme()
 		{ "String", 0xffDDAAAA },
 		{ "Bracket", 0xffFFFFFF },
 		{ "Punctuation", 0xffCCCCCC },
-		{ "Preprocessor Text", 0xffCC7777 }
+		{ "Preprocessor Text", 0xffCC7777 },
+		{ "Preprocessor Deactive", 0xFF444444 }
 	};
 
     CodeEditorComponent::ColourScheme cs;

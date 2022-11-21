@@ -540,7 +540,6 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 				sp->mergeCallbacksToScript(code);
 
 				ValueTree script("Script");
-
 				script.setProperty("FileName", fileNameReference, nullptr);
 				script.setProperty("Content", code, nullptr);
 
@@ -552,7 +551,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 		{
 			File scriptFile = sp->getWatchedFile(i);
 
-			addFileContentToValueTree(externalScriptFiles, scriptFile, chainToExport);
+			addFileContentToValueTree(sp, externalScriptFiles, scriptFile, chainToExport);
 		}
 
 		Array<File> allScriptFiles;
@@ -565,7 +564,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 		{
 			if (HiseDeviceSimulator::fileNameContainsDeviceWildcard(f))
 			{
-				addFileContentToValueTree(externalScriptFiles, f, chainToExport);
+				addFileContentToValueTree(sp, externalScriptFiles, f, chainToExport);
 			}
 		}
 	}
@@ -573,7 +572,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 	return externalScriptFiles;
 }
 
-void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)
+void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)
 {
 	String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
 
@@ -595,7 +594,13 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 		}
 	}
 
+    
 	String fileContent = scriptFile.loadFileAsString();
+    
+    auto ok = jp->getScriptEngine()->preprocessor->process(fileContent, fileName);
+    
+    jassert(ok.wasOk());
+    
 	ValueTree script("Script");
 
 	script.setProperty("FileName", fileName, nullptr);
@@ -607,7 +612,7 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	ProcessorWithDynamicExternalData(mc),
 	mainController(mc),
-	scriptEngine(new HiseJavascriptEngine(this)),
+	scriptEngine(new HiseJavascriptEngine(this, mc)),
 	lastCompileWasOK(false),
 	currentCompileThread(nullptr),
 	lastResult(Result::ok()),
@@ -742,25 +747,62 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 #if USE_BACKEND
 	if (token.isNotEmpty())
 	{
-		const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
-
-		for (int i = 0; i < getNumWatchedFiles(); i++)
+		if(token.startsWithChar('"'))
 		{
-			if (getWatchedFile(i).getFileNameWithoutExtension() == c)
-			{
-				auto asP = dynamic_cast<Processor*>(this);
+			auto scriptRoot = dynamic_cast<Processor*>(this)->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 
-				if (auto editor = asP->getMainController()->getLastActiveEditor())
-				{
-					if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-					{
-						editorPanel->gotoLocation(asP, getWatchedFile(i).getFullPathName(), 0);
-						return;
-					}
-				}
+			auto sf = scriptRoot.getChildFile(token.substring(1)).withFileExtension("js");
+
+			if (sf.existsAsFile())
+			{
+				DebugableObject::Location l;
+				l.fileName = sf.getFullPathName();
+				l.charNumber = 0;
+
+				DebugableObject::Helpers::gotoLocation(nullptr, this, l);
+				return;
 			}
 		}
+		if (auto l = getScriptEngine()->preprocessor->getLocationForPreprocessor(token))
+		{
+			DebugableObject::Helpers::gotoLocation(nullptr, this, l);
+			return;
+		}
 
+		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
+
+		const String c = namespaceId.isEmpty() ? trimmedToken : namespaceId + "." + trimmedToken;
+
+        auto infos = DebugableObject::Helpers::getDebugInformationFromString(getScriptEngine(), c);
+        
+        if(infos.size() == 1)
+        {
+            if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[0].get()))
+                return;
+        }
+        else if (!infos.isEmpty())
+        {
+            PopupMenu m;
+            
+            m.addSectionHeader("Choose Goto target");
+            
+            int index = 1;
+            
+            for(auto i: infos)
+                m.addItem(index++, i->getTextForName(), true, false);
+            
+            if(auto r = m.show())
+            {
+                if(DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(this), infos[r-1].get()))
+                    return;
+            }
+            else
+                return;
+        }
+        
+        PresetHandler::showMessageWindow("Can't locate symbol", "The symbol `" + c + "` cannot be found");
+        
+#if 0
 		auto f = [c](Processor* p)
 		{
 			Result result = Result::ok();
@@ -787,6 +829,7 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 		auto p = dynamic_cast<Processor*>(this);
 
 		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+#endif
 	}
 #endif
 }
@@ -969,6 +1012,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 			if (codeToCompile.isEmpty())
 				continue;
 
+
+            
 			lastResult = scriptEngine->execute(codeToCompile, callbackId == onInit, callbackId);
 
 			if (!lastResult.wasOk())
@@ -1092,7 +1137,7 @@ void JavascriptProcessor::setupApi()
     
 	dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->cleanJavascriptObjects();
 
-	scriptEngine = new HiseJavascriptEngine(this);
+	scriptEngine = new HiseJavascriptEngine(this, dynamic_cast<Processor*>(this)->getMainController());
 
 	scriptEngine->addBreakpointListener(this);
 
@@ -1530,6 +1575,15 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepStr
 		for (const auto& pf : preprocessorFunctions)
 			pf(s->getCallbackName(), code);
 
+        if(usePreprocessorAtMerge)
+        {
+            if(auto e = const_cast<JavascriptProcessor*>(this)->getScriptEngine())
+            {
+                auto ok = e->preprocessor->process(code, s->getCallbackName().toString());
+                jassert(ok.wasOk());
+            }
+        }
+            
 		x << code << sepString;
 	}
 }
@@ -1746,7 +1800,7 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 #endif
 	globalServer(new GlobalServer(mc))
 {
-	startThread(6);
+	startThread(8);
 }
 
 void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f)

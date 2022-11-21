@@ -35,6 +35,118 @@
 
 namespace hise { using namespace juce;
 
+class ChokeGroupProcessor : public MidiProcessor,
+							public EventIdHandler::ChokeListener
+{
+public:
+
+	enum SpecialParameters
+	{
+		ChokeGroup = 0,
+		LoKey,
+		HiKey,
+		KillVoice
+	};
+
+	SET_PROCESSOR_NAME("ChokeGroupProcessor", "Choke Group Processor", "Kills notes when another choke group processor receives a note on.");
+
+	ChokeGroupProcessor(MainController *mc, const String &id) :
+		MidiProcessor(mc, id)
+	{
+		mc->getEventHandler().addChokeListener(this);
+
+		parameterNames.add("ChokeGroup");
+	};
+
+	~ChokeGroupProcessor()
+	{
+		getMainController()->getEventHandler().removeChokeListener(this);
+	}
+
+	ValueTree exportAsValueTree() const override
+	{
+		ValueTree v = MidiProcessor::exportAsValueTree();
+
+		saveAttribute(ChokeGroup, "ChokeGroup");
+		saveAttribute(LoKey, "LoKey");
+		saveAttribute(HiKey, "HiKey");
+		saveAttribute(KillVoice, "KillVoice");
+		
+		return v;
+	};
+
+	virtual void restoreFromValueTree(const ValueTree &v) override
+	{
+		MidiProcessor::restoreFromValueTree(v);
+
+		loadAttribute(ChokeGroup, "ChokeGroup");
+		loadAttribute(LoKey, "LoKey");
+		loadAttribute(HiKey, "HiKey");
+		loadAttribute(KillVoice, "KillVoice");
+	}
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	float getDefaultValue(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case SpecialParameters::ChokeGroup: return 0.0f;
+		case SpecialParameters::HiKey: return 127.0f;
+		case SpecialParameters::LoKey: return 0.0f;
+		case SpecialParameters::KillVoice: return 1.0f;
+        default: jassertfalse; return 0.0f;
+		}
+	};
+
+	float getAttribute(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case SpecialParameters::ChokeGroup:  return (float)getChokeGroup();
+		case SpecialParameters::HiKey: return (float)midiRange.getEnd();
+		case SpecialParameters::LoKey: return (float)midiRange.getStart();
+		case SpecialParameters::KillVoice: return (float)(int)killVoice;
+        default: jassertfalse; return 0.0f;
+		}
+	}
+
+	void setInternalAttribute(int parameterIndex, float newAmount) override
+	{
+		switch (parameterIndex)
+		{
+		case SpecialParameters::ChokeGroup: 
+			setChokeGroup(jlimit(0, 16, (int)newAmount));
+			break;
+		case SpecialParameters::HiKey: 
+			midiRange.setEnd((int)newAmount);
+			break;
+		case SpecialParameters::LoKey: 
+			midiRange.setStart((int)newAmount);
+			break;
+		case SpecialParameters::KillVoice: 
+			killVoice = newAmount > 0.5f;
+		}
+	};
+
+	void prepareToPlay(double sampleRate_, int samplesPerBlock_) override
+	{
+		MidiProcessor::prepareToPlay(sampleRate_, samplesPerBlock_);
+	}
+
+	void processHiseEvent(HiseEvent &m) noexcept override;
+
+	void chokeMessageSent() override;
+
+private:
+
+	bool sustainPedalPressed = false;
+	bool killVoice = true;
+	Range<int> midiRange;
+	hise::UnorderedStack<HiseEvent, NUM_POLYPHONIC_VOICES> activeEvents;
+	hise::UnorderedStack<HiseEvent, NUM_POLYPHONIC_VOICES> sustainedEvents;
+};
+
 /** Transposes all midi note messages by the specified amount.
 *	@ingroup midiTypes
 */

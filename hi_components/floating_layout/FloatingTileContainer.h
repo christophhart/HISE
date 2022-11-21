@@ -195,6 +195,14 @@ public:
 
 	void popupMenuClickOnTab(int tabIndex, const String& tabName) override;
 
+	int getNumChildPanelsWithType(const Identifier& panelId) const;
+
+	template <typename ContentType> int getNumChildPanelsWithType() const
+	{
+		static_assert(std::is_base_of<FloatingTileContent, ContentType>(), "ContentType must be derived from FloatingTileContent");
+		return getNumChildPanelsWithType(ContentType::getPanelId());
+	}
+
 	void refreshLayout() override;
 
 	void componentAdded(FloatingTile* newComponent) override;

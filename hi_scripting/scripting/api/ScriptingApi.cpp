@@ -857,7 +857,10 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getPitchRatioFromSemitones);
 	API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 	API_METHOD_WRAPPER_0(Engine, getSampleRate);
+	API_METHOD_WRAPPER_0(Engine, getBufferSize);
+	API_METHOD_WRAPPER_0(Engine, getNumPluginChannels);
 	API_METHOD_WRAPPER_1(Engine, setMinimumSampleRate);
+	API_VOID_METHOD_WRAPPER_1(Engine, setMaximumBlockSize);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
@@ -937,6 +940,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
+	API_METHOD_WRAPPER_2(Engine, performUndoAction);
+	API_METHOD_WRAPPER_0(Engine, getExtraDefinitionsInBackend);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadImageIntoPool);
 	API_VOID_METHOD_WRAPPER_0(Engine, clearMidiFilePool);
@@ -957,6 +962,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
 	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
+	
+	
 };
 
 
@@ -993,7 +1000,10 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_0(getBufferSize);
+	ADD_API_METHOD_0(getNumPluginChannels);
 	ADD_API_METHOD_1(setMinimumSampleRate);
+	ADD_API_METHOD_1(setMaximumBlockSize);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
@@ -1068,6 +1078,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
+	ADD_API_METHOD_2(performUndoAction);
+	ADD_API_METHOD_0(getExtraDefinitionsInBackend);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
 	ADD_API_METHOD_0(clearSampleMapPool);
@@ -1260,7 +1272,15 @@ bool ScriptingApi::Engine::setMinimumSampleRate(double minimumSampleRate)
 	return getProcessor()->getMainController()->setMinimumSamplerate(minimumSampleRate);
 }
 
+void ScriptingApi::Engine::setMaximumBlockSize(int numSamplesPerBlock)
+{
+	getProcessor()->getMainController()->setMaximumBlockSize(numSamplesPerBlock);
+}
+
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
+
+int ScriptingApi::Engine::getBufferSize() const { return getProcessor()->getLargestBlockSize(); }
+
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
 String ScriptingApi::Engine::getTempoName(int tempoIndex)
@@ -1608,6 +1628,21 @@ var ScriptingApi::Engine::getSampleFilesFromDirectory(const String& relativePath
 	
 }
 
+juce::var ScriptingApi::Engine::getExtraDefinitionsInBackend()
+{
+#if USE_BACKEND
+
+    auto mc = getScriptProcessor()->getMainController_();
+    
+    return dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getExtraDefinitionsAsObject();
+    
+#else
+	return {};
+#endif
+
+	
+}
+
 void ScriptingApi::Engine::showMessageBox(String title, String markdownMessage, int type)
 {
 	MessageManager::callAsync([title, markdownMessage, type]()
@@ -1682,6 +1717,59 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 	}
 }
 
+struct ScriptUndoableAction : public UndoableAction
+{
+	ScriptUndoableAction(ProcessorWithScriptingContent* p, var f, var thisObject_):
+		UndoableAction(),
+		callback(p, nullptr, f, 1),
+		thisObject(thisObject_)
+	{
+		// ensure it's called synchronously if possible...
+		callback.setHighPriority();
+		callback.incRefCount();
+	}
+
+	bool undo() override
+	{
+		if (callback)
+		{
+			var a(true);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool perform() override
+	{
+		if (callback)
+		{
+			var a(false);
+			var::NativeFunctionArgs args(thisObject, &a, 1);
+			callback.callSync(args);
+			return true;
+		}
+
+		return false;
+	}
+
+	var thisObject;
+	WeakCallbackHolder callback;
+};
+
+bool ScriptingApi::Engine::performUndoAction(var thisObject, var undoAction)
+{
+	getScriptProcessor()->getMainController_()->getControlUndoManager()->beginNewTransaction("%SCRIPT_TRANSACTION%");
+	return getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(new ScriptUndoableAction(getScriptProcessor(), undoAction, thisObject));
+}
+
+int ScriptingApi::Engine::getNumPluginChannels() const
+{
+	return HISE_NUM_PLUGIN_CHANNELS;
+}
+
 var ScriptingApi::Engine::createFixObjectFactory(var layoutData)
 {
     return var(new fixobj::Factory(getScriptProcessor(), layoutData));
@@ -1742,7 +1830,7 @@ struct AudioRenderer : public Thread,
 				for (int i = 0; i < numChannelsToRender; i++)
 					channels.add(new VariantBuffer(numSamplesToRender));
 
-				Thread::startThread(Thread::realtimeAudioPriority);
+				Thread::startThread(8);
 			}
 		}
 	}
@@ -3090,6 +3178,16 @@ String ScriptingApi::Engine::intToHexString(int value)
 
 void ScriptingApi::Engine::undo()
 {
+	Array<const juce::UndoableAction*> actions;
+
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getUndoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->undo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
 
 	auto f = [p]()
@@ -3103,7 +3201,17 @@ void ScriptingApi::Engine::undo()
 
 void ScriptingApi::Engine::redo()
 {
+	auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+
+	if (um->getRedoDescription() == "%SCRIPT_TRANSACTION%")
+	{
+		um->redo();
+		return;
+	}
+
 	WeakReference<Processor> p = getProcessor();
+
+
 
 	auto f = [p]()
 	{
@@ -6305,6 +6413,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_METHOD_WRAPPER_0(FileSystem, getSystemId);
 	API_METHOD_WRAPPER_1(FileSystem, descriptionOfSizeInBytes);
 	API_METHOD_WRAPPER_1(FileSystem, fromAbsolutePath);
+	API_METHOD_WRAPPER_2(FileSystem, fromReferenceString);
 	API_VOID_METHOD_WRAPPER_4(FileSystem, browse);
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 	API_METHOD_WRAPPER_1(FileSystem, getBytesFreeOnVolume);
@@ -6337,10 +6446,10 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_4(browse);
 	ADD_API_METHOD_2(browseForDirectory);
 	ADD_API_METHOD_1(fromAbsolutePath);
+	ADD_API_METHOD_2(fromReferenceString);
 	ADD_API_METHOD_1(getBytesFreeOnVolume);
     ADD_API_METHOD_2(encryptWithRSA);
     ADD_API_METHOD_2(decryptWithRSA);
-    
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -6366,6 +6475,21 @@ var ScriptingApi::FileSystem::fromAbsolutePath(String path)
 		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(path)));
 
 	return var();
+}
+
+juce::var ScriptingApi::FileSystem::fromReferenceString(String referenceStringOrFullPath, var locationType)
+{
+	auto sub = getSubdirectory(locationType);
+
+	PoolReference ref(getScriptProcessor()->getMainController_(), referenceStringOrFullPath, sub);
+
+	if (ref.isValid() && !ref.isEmbeddedReference())
+	{
+		auto f = ref.getFile();
+		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(f)));
+	}
+
+	return {};
 }
 
 var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool recursive)
@@ -6573,6 +6697,30 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 	}
 
 	return f;
+}
+
+hise::FileHandlerBase::SubDirectories ScriptingApi::FileSystem::getSubdirectory(var locationType)
+{
+	if (locationType.isInt())
+	{
+		auto t = (SpecialLocations)(int)locationType;
+
+		switch (t)
+		{
+		case SpecialLocations::AudioFiles:  return FileHandlerBase::AudioFiles;
+		case SpecialLocations::Samples:		return FileHandlerBase::Samples;
+		case SpecialLocations::UserPresets: return FileHandlerBase::UserPresets;
+		default: 
+			reportScriptError(String("\"") + getConstantName((int)locationType) + String("\" is not a valid locationType"));
+			RETURN_IF_NO_THROW(FileHandlerBase::numSubDirectories);
+		}
+	}
+	else
+	{
+		reportScriptError("You need to pass in a constant from FileSystem (eg. FileSystem.AudioFiles) as locationType)");
+
+		RETURN_IF_NO_THROW(FileHandlerBase::SubDirectories::numSubDirectories);
+	}
 }
 
 struct ScriptingApi::Server::Wrapper
@@ -6831,6 +6979,7 @@ struct ScriptingApi::TransportHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_2(TransportHandler, setEnableGrid);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, startInternalClock);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, stopInternalClock);
+	API_VOID_METHOD_WRAPPER_0(TransportHandler, sendGridSyncOnNextCallback);
 };
 
 ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
@@ -6855,7 +7004,7 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(startInternalClock);
 	ADD_API_METHOD_1(stopInternalClock);
 	ADD_API_METHOD_2(setEnableGrid);
-	
+	ADD_API_METHOD_0(sendGridSyncOnNextCallback);
 }
 
 ScriptingApi::TransportHandler::~TransportHandler()
@@ -6864,57 +7013,63 @@ ScriptingApi::TransportHandler::~TransportHandler()
 	getMainController()->removeMusicalUpdateListener(this);
 }
 
-void ScriptingApi::TransportHandler::setOnTempoChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnTempoChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(tempoChangeCallbackAsync, f);
 
-		tempoChangeCallback = new Callback(this, "onTempoChange", f, sync, 1);
+		tempoChangeCallback = new Callback(this, "onTempoChange", f, isSync, 1);
 		tempoChangeCallback->call(bpm, {}, {}, true);
 	}
 	else
 	{
 		clearIf(tempoChangeCallback, f);
 
-		tempoChangeCallbackAsync = new Callback(this, "onTempoChange", f, sync, 1);
+		tempoChangeCallbackAsync = new Callback(this, "onTempoChange", f, isSync, 1);
 		tempoChangeCallbackAsync->call(bpm, {}, {}, true);
 	}
 }
 
-void ScriptingApi::TransportHandler::setOnTransportChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnTransportChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(tempoChangeCallbackAsync, f);
 
-		transportChangeCallback = new Callback(this, "onTransportChange", f, sync, 1);
+		transportChangeCallback = new Callback(this, "onTransportChange", f, isSync, 1);
 		transportChangeCallback->call(play, {}, {}, true);
 	}
 	else
 	{
 		clearIf(transportChangeCallback, f);
 
-		transportChangeCallbackAsync = new Callback(this, "onTransportChange", f, sync, 1);
+		transportChangeCallbackAsync = new Callback(this, "onTransportChange", f, isSync, 1);
 		transportChangeCallbackAsync->call(play, {}, {}, true);
 	}
 	
 }
 
-void ScriptingApi::TransportHandler::setOnSignatureChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnSignatureChange(var sync, var f)
 {
-	if (sync)
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
+	if (isSync)
 	{
 		clearIf(timeSignatureCallbackAsync, f);
 
-		timeSignatureCallback = new Callback(this, "onTimeSignatureChange", f, sync, 2);
+		timeSignatureCallback = new Callback(this, "onTimeSignatureChange", f, isSync, 2);
 		timeSignatureCallback->call(nom, denom, {}, true);
 	}
 	else
 	{
 		clearIf(timeSignatureCallback, f);
 
-		timeSignatureCallbackAsync = new Callback(this, "onTimeSignatureChange", f, sync, 2);
+		timeSignatureCallbackAsync = new Callback(this, "onTimeSignatureChange", f, isSync, 2);
 		timeSignatureCallbackAsync->call(nom, denom, {}, true);
 	}
 }
@@ -6980,44 +7135,48 @@ void ScriptingApi::TransportHandler::onGridChange(int gridIndex_, uint16 timesta
 		gridCallbackAsync->call(gridIndex, gridTimestamp, firstGridInPlayback);
 }
 
-void ScriptingApi::TransportHandler::setOnBeatChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnBeatChange(var sync, var f)
 {
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
 	if (f.isUndefined())
 		getMainController()->removeMusicalUpdateListener(this);
 	else
 	{
 		getMainController()->addMusicalUpdateListener(this);
 
-		if (sync)
+		if (isSync)
 		{
 			clearIf(beatCallbackAsync, f);
-			beatCallback = new Callback(this, "onBeatChange", f, sync, 2);
+			beatCallback = new Callback(this, "onBeatChange", f, isSync, 2);
 		}
 		else
 		{
 			clearIf(beatCallback, f);
-			beatCallbackAsync = new Callback(this, "onBeatChange", f, sync, 2);
+			beatCallbackAsync = new Callback(this, "onBeatChange", f, isSync, 2);
 		}
 	}
 }
 
-void ScriptingApi::TransportHandler::setOnGridChange(bool sync, var f)
+void ScriptingApi::TransportHandler::setOnGridChange(var sync, var f)
 {
+    auto isSync = ApiHelpers::isSynchronous(sync);
+    
 	if (f.isUndefined())
 		getMainController()->removeMusicalUpdateListener(this);
 	else
 	{
 		getMainController()->addMusicalUpdateListener(this);
 
-		if (sync)
+		if (isSync)
 		{
 			clearIf(gridCallbackAsync, f);
-			gridCallback = new Callback(this, "onGridChange", f, sync, 3);
+			gridCallback = new Callback(this, "onGridChange", f, isSync, 3);
 		}
 		else
 		{
 			clearIf(gridCallback, f);
-			gridCallbackAsync = new Callback(this, "onGridChange", f, sync, 3);
+			gridCallbackAsync = new Callback(this, "onGridChange", f, isSync, 3);
 		}
 	}
 }
@@ -7048,6 +7207,11 @@ void ScriptingApi::TransportHandler::stopInternalClock(int timestamp)
 void ScriptingApi::TransportHandler::setSyncMode(int syncMode)
 {
 	getMainController()->getMasterClock().setSyncMode((MasterClock::SyncModes)syncMode);
+}
+
+void ScriptingApi::TransportHandler::sendGridSyncOnNextCallback()
+{
+	getMainController()->getMasterClock().setNextGridIsFirst();
 }
 
 } // namespace hise

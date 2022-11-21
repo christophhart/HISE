@@ -447,9 +447,13 @@ struct UndoableLocationSwitch: public UndoableAction
 };
 #endif
 
-void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
+bool gotoLocationInternal(Processor* processor, DebugableObject::Location location)
 {
+    if(!location)
+        return false;
+    
 #if USE_BACKEND
+    
     auto um = processor->getMainController()->getLocationUndoManager();
     
     um->beginNewTransaction();
@@ -458,12 +462,15 @@ void gotoLocationInternal(Processor* processor, DebugableObject::Location locati
     
     processor->getMainController()->getCommandManager()->commandStatusChanged();
     
+    return true;
+    
 #else
     ignoreUnused(processor, location);
+    return false;
 #endif
 }
 
-void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
+bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
 {
 #if USE_BACKEND
 	auto handler = dynamic_cast<ScriptEditHandler*>(ed);
@@ -477,20 +484,21 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* 
 	{
 		// You have to somehow manage to pass the processor here...
 		jassertfalse;
-		return;
+		return false;
 	}
 
-	gotoLocationInternal(dynamic_cast<Processor*>(sp), location);
+	return gotoLocationInternal(dynamic_cast<Processor*>(sp), location);
 
 #else
 	ignoreUnused(ed, sp, location);
+	return false;
 #endif
 }
 
 
-void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformationBase* info)
+bool DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformationBase* info)
 {
-	gotoLocationInternal(processor, info->getLocation());
+	return gotoLocationInternal(processor, info->getLocation());
 }
 
 
@@ -600,6 +608,59 @@ var DebugableObject::Helpers::getCleanedObjectForJSONDisplay(const var& object)
 	}
 	else
 		return object;
+}
+
+DebugInformationBase::List DebugableObject::Helpers::getDebugInformationFromString(ApiProviderBase* engine, const String& token)
+{
+    DebugInformationBase::List list;
+    
+    for (int i = 0; i < engine->getNumDebugObjects(); i++)
+    {
+        auto dobj = engine->getDebugInformation(i);
+        auto thisList = getDebugInformationFromString(dobj, token);
+        list.addArray(thisList);
+    }
+
+    StringArray textValues;
+    
+    for(int i = 0; i < list.size(); i++)
+    {
+        auto n = list[i]->getTextForName();
+        
+        if(n.contains(".locals") || n.contains(".args") ||
+           n.contains("[") || textValues.contains(n))
+            list.remove(i--);
+        else
+            textValues.add(n);
+    }
+    
+    return list;
+}
+
+DebugInformationBase::List DebugableObject::Helpers::getDebugInformationFromString(DebugInformationBase::Ptr parent, const String& token)
+{
+    DebugInformationBase::List thisList;
+    
+    auto text = parent->getTextForName();
+    
+    if(text.startsWith(token))
+        thisList.add(parent);
+        
+    
+    if(!token.containsChar('.') && text.containsChar('.'))
+    {
+        // Try to resolve it "inside the namespace"...
+        if(text.fromFirstOccurrenceOf(".", false, false).startsWith(token))
+            thisList.add(parent);
+    }
+    
+    for(int i = 0; i < parent->getNumChildElements(); i++)
+    {
+        auto childList = getDebugInformationFromString(parent->getChildElement(i), token);
+        thisList.addArray(childList);
+    }
+    
+    return thisList;
 }
 
 DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)

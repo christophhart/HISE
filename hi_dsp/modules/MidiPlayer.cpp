@@ -180,14 +180,14 @@ juce::MidiMessage* HiseMidiSequence::getNextEvent(Range<double> rangeToLookForTi
 
 			if (auto afterEvent = seq->getEventPointer(indexAfterWrap))
 			{
-				while (afterEvent != nullptr && !afterEvent->message.isNoteOn())
+				while (afterEvent != nullptr && afterEvent->message.isNoteOff())
 				{
 					indexAfterWrap++;
 
 					afterEvent = seq->getEventPointer(indexAfterWrap);
 				}
 
-				if (afterEvent != nullptr && afterEvent->message.isNoteOn())
+				if (afterEvent != nullptr && !afterEvent->message.isNoteOff())
 				{
 					auto ts = afterEvent->message.getTimeStamp();
 
@@ -765,11 +765,14 @@ void MidiPlayer::onGridChange(int gridIndex, uint16 timestamp, bool firstGridEve
 {
 	if (syncToMasterClock && firstGridEventInPlayback)
 	{
-		if (recordOnNextPlaybackStart)
-			recordInternal(timestamp);
-		else
-			startInternal(timestamp);
-
+		if (playState == PlayState::Stop)
+		{
+			if (recordOnNextPlaybackStart)
+				recordInternal(timestamp);
+			else
+				startInternal(timestamp);
+		}
+		
 		if (gridIndex != 0)
 		{
 			auto t = getMainController()->getMasterClock().getCurrentClockGrid();
@@ -1271,14 +1274,22 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 
 				if (copy.isNoteOn())
 				{
-					NotePair newPair;
-					newPair.on = copy;
+					if (processRecordedEvent(copy))
+					{
+						NotePair newPair;
+						newPair.on = copy;
 
-					SimpleReadWriteLock::ScopedWriteLock sl(overdubLock);
-					overdubNoteOns.insert(newPair);
+						SimpleReadWriteLock::ScopedWriteLock sl(overdubLock);
+						overdubNoteOns.insert(newPair);
+					}
 				}
 				else if (copy.isNoteOff())
 				{
+					// We don't need to ignore note-off events - if they have a matching note-on, they should
+					// be used...
+					processRecordedEvent(copy);
+					copy.ignoreEvent(false);
+
 					{
 						SimpleReadWriteLock::ScopedReadLock sl(overdubLock);
 
@@ -1294,13 +1305,12 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 				}
 				else
 				{
-					controllerEvents.insertWithoutSearch(copy);
+					if (processRecordedEvent(copy))
+						controllerEvents.insertWithoutSearch(copy);
 				}
 
 				return;
 			}
-
-			
 
 			auto timestampSamples = (int)MidiPlayerHelpers::ticksToSamples(ticks, getMainController()->getBpm(), getSampleRate());
 
@@ -1312,7 +1322,8 @@ void MidiPlayer::processHiseEvent(HiseEvent &m) noexcept
 			copy.setChannel(currentTrackIndex + 1);
 			copy.setTimeStamp(timestampSamples);
 
-			currentlyRecordedEvents.add(copy);
+			if(processRecordedEvent(copy))
+				currentlyRecordedEvents.add(copy);
 		}
 	}
 }

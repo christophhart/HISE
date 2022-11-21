@@ -271,6 +271,8 @@ struct WeakCallbackHolder : private ScriptingObject
 
         virtual bool isRealtimeSafe() const = 0;
         
+		virtual bool allowRefCount() const { return true; }
+
 		/** Override this and either clone or swap the captured values. */
 		virtual void storeCapturedLocals(NamedValueSet& setFromHolder, bool swap) {};
 
@@ -386,7 +388,8 @@ struct WeakCallbackHolder : private ScriptingObject
 	*/
 	void incRefCount()
 	{
-		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
+		if(weakCallback != nullptr && weakCallback->allowRefCount())
+			anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
 	}
 
 	DebugInformationBase* createDebugObject(const String& n) const;

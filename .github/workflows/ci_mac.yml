@@ -1,0 +1,34 @@
+name: CI Build
+on: 
+  workflow_dispatch:
+  push:
+    branches: 
+      - develop
+jobs:
+  ci_macos:
+    runs-on: [self-hosted, macos]
+    steps:
+      - name: Cleanup working directory
+        run: rm -rf "${{github.workspace}}" 
+      - name: Checkout HISE repository
+        uses: actions/checkout@v1
+        with:
+          ref: 'develop'
+      - name: Build & Run CI script
+        working-directory: ${{ github.workspace }}/tools/auto_build/
+        run: sh ./build_ci.sh
+  ci_windows:
+    runs-on: [self-hosted, windows]
+    steps:
+      - name: Cleanup working directory
+        working-directory: ${{ github.workspace }}
+        run: del *.* /Q /S
+        shell: cmd
+      - name: Checkout HISE repository
+        uses: actions/checkout@v1
+        with:
+          ref: 'develop'
+      - name: Build HISE CI, run unit tests & export demo project
+        working-directory: ${{ github.workspace }}/tools/auto_build/
+        run: build_ci.bat
+        shell: cmd

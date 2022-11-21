@@ -46,13 +46,25 @@ if %errorlevel% NEQ 0 (
 
 echo OK
 
+
+echo Running Unit Tests...
+
+%hise_ci% run_unit_tests
+
+if %errorlevel% NEQ 0 (
+	echo ...
+	echo ========================================================================
+	echo Error at running unit tests. Aborting...
+	cd tools\auto_build
+	pause
+	exit 1
+)
+
 echo Exporting Demo Project...
 
 %hise_ci% set_project_folder "-p:%cd%/extras/demo_project/"
 
-%hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64
-
-
+%hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64 -nolto
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -72,19 +84,6 @@ if %errorlevel% NEQ 0 (
 	exit 1)
 
 echo OK
-
-echo Running Unit Tests...
-
-%hise_ci% run_unit_tests
-
-if %errorlevel% NEQ 0 (
-	echo ...
-	echo ========================================================================
-	echo Error at running unit tests. Aborting...
-	cd tools\auto_build
-	pause
-	exit 1
-)
 
 cd tools\auto_build
 echo OK

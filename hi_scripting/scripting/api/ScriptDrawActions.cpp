@@ -535,6 +535,29 @@ namespace ScriptedDrawActions
 		int radius;
 	};
 
+    struct drawSVG: public DrawActions::ActionBase
+    {
+        drawSVG(var svgObject, Rectangle<float> bounds_, float opacity_):
+           svg(svgObject),
+           bounds(bounds_),
+          opacity(opacity_)
+        {
+            
+        };
+        
+        void perform(Graphics& g) override
+        {
+            if(auto obj = dynamic_cast<ScriptingObjects::SVGObject*>(svg.getObject()))
+            {
+                obj->draw(g, bounds, opacity);
+            }
+        }
+        
+        const float opacity;
+        const Rectangle<float> bounds;
+        var svg;
+    };
+
 	struct addShader : public DrawActions::ActionBase
 	{
 		addShader(DrawActions::Handler* h, ScriptingObjects::ScriptShader* o, Rectangle<int> b) :

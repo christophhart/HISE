@@ -295,9 +295,12 @@ public:
 
 	void checkActiveProject();
 
-	void addListener(Listener* newProjectListener)
+	void addListener(Listener* newProjectListener, bool sendWithInitialValue=false)
 	{
 		listeners.addIfNotAlreadyThere(newProjectListener);
+        
+        if(sendWithInitialValue && currentWorkDirectory.isDirectory())
+            newProjectListener->projectChanged(currentWorkDirectory);
 	}
 
 	void removeListener(Listener* listenerToRemove)

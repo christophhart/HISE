@@ -116,20 +116,11 @@ AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* stream
 
 MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(FileInputStream* fin)
 {
-#if JUCE_64BIT
 	ScopedPointer<AudioFormatReader> normalReader = new HiseLosslessAudioFormatReader(fin);
 
 	ScopedPointer<HlacMemoryMappedAudioFormatReader> reader = new HlacMemoryMappedAudioFormatReader(fin->getFile(), *normalReader, 0, normalReader->lengthInSamples, 1);
 
 	return reader.release();
-#else
-
-	ignoreUnused(fin);
-
-	// Memory mapped file support on 32bit is pretty useless so we don't bother at all...
-	jassertfalse;
-	return nullptr;
-#endif
 }
 
 MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(const File& file)

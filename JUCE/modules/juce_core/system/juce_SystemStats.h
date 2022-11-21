@@ -146,6 +146,14 @@ public:
     */
     static StringArray getDeviceIdentifiers();
 
+    /** This method returns a machine unique ID unaffected by storage or peripheral
+        changes.
+
+        This ID will be invalidated by changes to the motherboard and CPU on non-mobile
+        platforms, or resetting an Android device.
+    */
+    static String getUniqueDeviceID();
+
     //==============================================================================
     // CPU and memory information..
 

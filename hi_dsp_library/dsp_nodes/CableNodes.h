@@ -384,8 +384,11 @@ namespace control
 		{
 			jassert(ps.voiceIndex != nullptr);
 
-			tempoSyncer = ps.voiceIndex->getTempoSyncer();
-			tempoSyncer->registerItem(this);
+            if(tempoSyncer == nullptr)
+            {
+                tempoSyncer = ps.voiceIndex->getTempoSyncer();
+                tempoSyncer->registerItem(this);
+            }
 		}
 
 	protected:
@@ -916,6 +919,9 @@ namespace control
 		void handleHiseEvent(HiseEvent& e)
 		{
 			auto thisType = e.getType();
+
+			if (thisType == HiseEvent::Type::Controller && e.getControllerNumber() != midiNumber)
+				return;
 
 			if (thisType == expectedType)
 			{

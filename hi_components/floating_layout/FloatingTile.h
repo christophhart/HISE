@@ -749,6 +749,19 @@ public:
 
 		return result;
 	}
+    
+    template <typename ContentType> ContentType* findParentTileWithType()
+    {
+        if(auto e = dynamic_cast<ContentType*>(getCurrentFloatingPanel()))
+            return e;
+        
+        if (getParentType() == ParentType::Root)
+            return nullptr;
+
+        auto parent = getParentContainer()->getParentShell();
+        
+        return parent->findParentTileWithType<ContentType>();
+    }
 
 	void setIsFloatingTileOnInterface()
 	{

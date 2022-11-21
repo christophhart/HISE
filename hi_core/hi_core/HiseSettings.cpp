@@ -97,7 +97,9 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(LinkExpansionsToProject);
 	ids.add(ReadOnlyFactoryPresets);
     ids.add(ForceStereoOutput);
-		ids.add(AdminPermissions);
+	ids.add(AdminPermissions);
+	ids.add(EmbedUserPresets);
+	ids.add(EnableGlobalPreprocessor);
 
 	return ids;
 }
@@ -314,6 +316,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("```\n");
 		P_();
 
+		P(HiseSettings::Project::EmbedUserPresets);
+		D("If disabled, the user presets will not be part of the binary and are not extracted automatically on first plugin launch");
+		D("> This is useful if you're running your own preset management or the user preset collection gets too big to be embedded in the plugin");
+		P_();
+
 		P(HiseSettings::Project::AppGroupID);
 		D("If you're compiling an iOS app, you need to add an App Group to your Apple ID for this project and supply the name here.");
 		D("App Group IDs must have reverse-domain format and start with group, like:");
@@ -347,6 +354,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Project::RedirectSampleFolder);
 		D("You can use another location for your sample files. This is useful if you have limited space on your hard drive and need to separate the samples.");
 		D("> HISE will create a file called `LinkWindows` / `LinkOSX` in the samples folder that contains the link to the real folder.");
+		P_();
+
+		P(HiseSettings::Project::EnableGlobalPreprocessor);
+		D("If this flag is enabled, it will use the C-Preprocessor to process all HiseScript files on compilation");
+		D("If you disable this method, you can still enable preprocessing for individual files if they start with the directive `#on`");
+		D("> This setting will not have an effect on compiled plugins as the preprocessor will already be evaluated on export");
 		P_();
 
 		P(HiseSettings::Project::AAXCategoryFX);
@@ -684,6 +697,16 @@ void HiseSettings::Data::loadSettingsFromFile(const Identifier& id)
 	addMissingSettings(v, id);
 }
 
+File HiseSettings::Data::getFaustPath() const
+{
+#if JUCE_MAC
+    auto hisePath = File(getSetting(HiseSettings::Compiler::HisePath).toString());
+    return hisePath.getChildFile("tools").getChildFile("faust");
+#else
+	return File(getSetting(HiseSettings::Compiler::FaustPath).toString());
+#endif
+}
+
 var HiseSettings::Data::getSetting(const Identifier& id) const
 {
 	for (const auto& c : data)
@@ -706,7 +729,62 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		}
 	}
 
-	return getDefaultSetting(id);
+	auto value = getDefaultSetting(id);
+    
+    if(value == "Yes")
+        return var(true);
+    else if (value == "No")
+        return var(false);
+    else
+        return value;
+}
+
+var HiseSettings::Data::getExtraDefinitionsAsObject() const
+{
+#if JUCE_WINDOWS
+    
+    auto defName = Project::ExtraDefinitionsWindows;
+#elif JUCE_MAC
+    auto defName = Project::ExtraDefinitionsOSX;
+#elif JUCE_LINUX
+    auto defName = Project::ExtraDefinitionsLinux;
+#endif
+
+    auto s = getSetting(defName).toString();
+
+    StringArray items;
+
+    if (s.contains(","))
+        items = StringArray::fromTokens(s, ",", "");
+    else if (s.contains(";"))
+        items = StringArray::fromTokens(s, ";", "");
+    else
+        items = StringArray::fromLines(s);
+
+    DynamicObject::Ptr obj = new DynamicObject();
+
+    for (const auto& i : items)
+    {
+        obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
+    }
+    
+    for(const auto& sp: temporaryExtraDefinitions)
+        obj->setProperty(sp.name, sp.value);
+    
+    return var(obj.get());
+}
+
+String HiseSettings::Data::getTemporaryDefinitionsAsString() const
+{
+    String s;
+    
+    if(temporaryExtraDefinitions.isEmpty())
+        return s;
+    
+    for(const auto& p: temporaryExtraDefinitions)
+        s << "\n" << p.name.toString() << "=" << p.value.toString();
+    
+    return s;
 }
 
 void HiseSettings::Data::addSetting(ValueTree& v, const Identifier& id)
@@ -723,6 +801,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 {
 	if (id == Project::EmbedAudioFiles ||
 		id == Project::EmbedImageFiles ||
+		id == Project::EmbedUserPresets ||
 		id == Compiler::UseIPP ||
         id == Compiler::LegacyCPUSupport ||
 		id == Scripting::EnableCallstack ||
@@ -747,7 +826,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::SupportFullDynamicsHLAC ||
 		id == Project::ReadOnlyFactoryPresets ||
         id == Project::ForceStereoOutput ||
-				id == Project::AdminPermissions ||
+		id == Project::AdminPermissions ||
+		id == Project::EnableGlobalPreprocessor ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -921,6 +1001,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::PluginCode)			    return "Abcd";
 	else if (id == Project::EmbedAudioFiles)		return "Yes";
 	else if (id == Project::EmbedImageFiles)		return "Yes";
+	else if (id == Project::EmbedUserPresets)		return "Yes";
 	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
 	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
@@ -935,6 +1016,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)   return "No";
+	else if (id == Project::EnableGlobalPreprocessor) return "No";
 	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::GlassEffect)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";

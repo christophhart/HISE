@@ -250,6 +250,8 @@ namespace snex
 #include <set>
 #include "snex_cpp_builder/snex_jit_ValueTreeBuilder.h"
 
+#include "snex_parser/snex_jit_PreProcessor.h"
+
 namespace snex {
 	namespace jit {
 		using namespace juce;
@@ -262,15 +264,8 @@ namespace snex {
 
 		using PointerType = uint64_t;
 
-#if JUCE_64BIT
+
 		typedef uint64_t AddressType;
-#else
-		typedef uint32_t AddressType;
-#endif
-
-
-
-
 	} // end namespace jit
 } // end namespace snex
 

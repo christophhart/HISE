@@ -37,13 +37,15 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
+	
+
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
-	getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
+	
 
 	loadKeyPressMap();
 
@@ -252,21 +254,41 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
 	}
 
-    getBackendProcessor()->workbenches.addListener(this);
+	getBackendProcessor()->workbenches.addListener(this);
 
+    GET_PROJECT_HANDLER(getBackendProcessor()->getMainSynthChain()).addListener(this, true);
+            
 	getBackendProcessor()->getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*this, BackendRootWindow::learnModeChanged);
+
+	getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);
+
+	getBackendProcessor()->workspaceBroadcaster.addListener(*this, [](BackendRootWindow& w, const Identifier& id, Processor* p)
+	{
+		w.currentWorkspaceProcessor = p;
+
+		if (id == JavascriptProcessor::getConnectorId())
+		{
+			SafeAsyncCall::call<BackendRootWindow>(w, [](BackendRootWindow& w2)
+			{
+				w2.addEditorTabsOfType<CodeEditorPanel>();
+			});
+		}
+	}, true);
 }
 
 
 BackendRootWindow::~BackendRootWindow()
 {
 	saveKeyPressMap();
-	saveInterfaceData();
 
+	saveInterfaceData();
+    
 	popoutWindows.clear();
 
 	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
 
+    GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).removeListener(this);
+    
 	getBackendProcessor()->getCommandManager()->clearCommands();
 	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
 
@@ -421,6 +443,20 @@ void BackendRootWindow::saveInterfaceData()
 	}
 	else
 	{
+		auto tabs = BackendPanelHelpers::ScriptingWorkspace::getCodeTabs(this);
+
+		for (int i = 0; i < tabs->getNumTabs(); i++)
+		{
+			auto c = tabs->getComponent(i);
+
+			// Delete all panels which are not containers
+			if (dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()) == nullptr)
+			{
+				tabs->removeFloatingTile(c);
+				i--;
+			}
+		}
+
 		DynamicObject::Ptr obj = new DynamicObject();
 
 		var editorData = getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
@@ -708,6 +744,11 @@ void BackendRootWindow::paintOverChildren(Graphics& g)
 	}
 }
 
+hise::FloatingTabComponent* BackendRootWindow::getCodeTabs()
+{
+	return BackendPanelHelpers::ScriptingWorkspace::getCodeTabs(this);
+}
+
 VerticalTile* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)
 {
 	static const Identifier id("PersonaContainer");
@@ -812,7 +853,6 @@ void BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(BackendRootW
         jassertfalse;
     
 }
-
 
 FloatingTile* BackendPanelHelpers::SamplerWorkspace::get(BackendRootWindow* rootWindow)
 {

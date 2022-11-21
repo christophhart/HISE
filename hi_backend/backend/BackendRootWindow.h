@@ -41,15 +41,11 @@
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 10
+#define BACKEND_UI_VERSION 11
 
 namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
-
-
-
-
 
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public TopLevelWindowWithKeyMappings,
@@ -63,6 +59,7 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public DragAndDropContainer,
 						  public ComponentWithHelp::GlobalHandler,
 						  public PeriodicScreenshotter::Holder,
+                          public ProjectHandler::Listener,
 						  public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
@@ -73,6 +70,8 @@ public:
 
 	bool isFullScreenMode() const;
 
+    
+    
 	File getKeyPressSettingFile() const override
 	{
 		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
@@ -170,10 +169,17 @@ public:
 
 	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }
 
+    void projectChanged(const File& newWorkingDirectory) override
+    {
+        
+    }
+    
 	void sendRootContainerRebuildMessage(bool synchronous)
 	{
 		getModuleListNofifier().sendProcessorChangeMessage(getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, synchronous);
 	}
+
+	Processor* getCurrentWorkspaceProcessor() { return currentWorkspaceProcessor.get(); }
 
 	int getCurrentWorkspace() const { return currentWorkspace; }
 
@@ -219,11 +225,28 @@ public:
 
 	void paintOverChildren(Graphics& g) override;
 
-	
+	template <class EditorType> bool addEditorTabsOfType()
+	{
+		auto tabs = getCodeTabs();
+
+		if (tabs->getNumChildPanelsWithType<EditorType>() == 0)
+		{
+			FloatingInterfaceBuilder b(tabs->getParentShell());
+
+			auto newEditor = b.addChild<EditorType>(0);
+
+			if(auto pc = b.getContent<PanelWithProcessorConnection>(newEditor))
+				pc->setContentWithUndo(getCurrentWorkspaceProcessor(), 0);
+
+			return true;
+		}
+
+		return false;
+	}
 
 private:
 
-	
+	FloatingTabComponent* getCodeTabs();
 
 	bool learnMode = false;
 
@@ -234,6 +257,8 @@ private:
 	int currentWorkspace = BackendCommandTarget::WorkspaceScript;
 	
 	Array<Component::SafePointer<FloatingTile>> workspaces;
+
+	WeakReference<Processor> currentWorkspaceProcessor;
 
 	friend class BackendCommandTarget;
 
@@ -299,6 +324,15 @@ struct BackendPanelHelpers
 
 		static void showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible);
 		static void showInterfaceDesigner(BackendRootWindow* rootWindow, bool shouldBeVisible);
+
+		static FloatingTabComponent* getCodeTabs(BackendRootWindow* r)
+		{
+			auto floatingRoot = r->getRootFloatingTile();
+			auto codeTabs = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptEditorTabs"))->getParentShell();
+			jassert(codeTabs != nullptr && dynamic_cast<FloatingTabComponent*>(codeTabs->getCurrentFloatingPanel()) != nullptr);
+			return dynamic_cast<FloatingTabComponent*>(codeTabs->getCurrentFloatingPanel());
+		}
+
 	};
 
 	struct SamplerWorkspace

@@ -29,7 +29,7 @@
 #include <cmath>
 #include <cstring>
 
-#if HISE_IOS || USE_VDSP_FFT
+#if JUCE_MAC
 #define AUDIOFFT_APPLE_ACCELERATE
 #endif
 

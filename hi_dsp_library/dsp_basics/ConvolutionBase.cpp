@@ -161,11 +161,11 @@ double MultithreadedConvolver::getResampleFactor(double sampleRate, double impul
 	}
 }
 
-MultithreadedConvolver* ConvolutionEffectBase::createNewEngine(audiofft::ImplementationType fftType)
+MultithreadedConvolver::Ptr ConvolutionEffectBase::createNewEngine(audiofft::ImplementationType fftType)
 {
-	auto newConvolver = new MultithreadedConvolver(fftType);
+    MultithreadedConvolver::Ptr newConvolver = new MultithreadedConvolver(fftType);
 	newConvolver->reset();
-	newConvolver->setUseBackgroundThread(useBackgroundThread, true);
+	newConvolver->setUseBackgroundThread(useBackgroundThread ? &backgroundThread : nullptr, true);
 
 	return newConvolver;
 }
@@ -501,6 +501,10 @@ bool ConvolutionEffectBase::reloadInternal()
 	if (getImpulseBufferBase().isEmpty())
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
+        
+        while(backgroundThread.isBusy())
+            Thread::getCurrentThread()->wait(10);
+        
 		convolverL->reset();
 		convolverR->reset();
 		return true;
@@ -537,7 +541,7 @@ bool ConvolutionEffectBase::reloadInternal()
 	headSize = nextPowerOfTwo(headSize);
 	const auto fullTailLength = jmax(headSize, nextPowerOfTwo(resampledLength - headSize));
 
-	ScopedPointer<MultithreadedConvolver> s1, s2;
+	MultithreadedConvolver::Ptr s1, s2;
 
 	for (int c = 0; c < scratchBuffer.getNumChannels(); c++)
 	{
@@ -558,7 +562,11 @@ bool ConvolutionEffectBase::reloadInternal()
 
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
-		std::swap(s1, convolverL);
+        
+        while(backgroundThread.isBusy())
+            Thread::getCurrentThread()->wait(10);
+        
+        std::swap(s1, convolverL);
 		std::swap(s2, convolverR);
 	}
 

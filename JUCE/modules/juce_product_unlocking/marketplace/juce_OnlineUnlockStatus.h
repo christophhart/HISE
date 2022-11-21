@@ -153,6 +153,20 @@ public:
     */
     inline Time getExpiryTime() const           { return Time (static_cast<int64> (status[expiryTimeProp])); }
 
+	/** Attempts to unlock a license with an expiration date using a Time object that is verified in some way.
+		The function returns true if the expiration date is later than the supplied time object.
+
+		This modifies the value returned by isUnlocked() so if you don't want to distinguish between those scenarios,
+		you can use this to unlock the license if it's not expired (by default isUnlocked() will return false if the
+		license key file contains a expiration date).
+
+		Note: If you pass in Time::getCurrentTime() here, the user can just change the system clock to bypass
+		the activation check so make sure you are using a more reliable way to get the time.
+		If the license key doesn't contain an expiration data, this function will do nothing and just return the
+	 current unlocked state.
+	*/
+	bool unlockWithTime(Time verifiedTimeObject);
+
     /** Optionally allows the app to provide the user's email address if
         it is known.
         You don't need to call this, but if you do it may save the user
@@ -242,6 +256,7 @@ public:
         /** Utility function that you may want to use in your machine-ID generation code.
             This adds some ID strings to the given array which represent each MAC address of the machine.
         */
+        [[deprecated ("MAC addresses are no longer reliable methods of ID generation. You should use getUniqueMachineID() instead, You can still get a list of this device's MAC addresses with MACAddress::findAllAddresses().")]]
         static void addMACAddressesToList (StringArray& result);
 
         /** This method calculates some machine IDs based on things like network
@@ -260,6 +275,12 @@ public:
             since the product was first registered.
         */
         static StringArray getLocalMachineIDs();
+
+        /** Returns an encoded unique machine ID.
+
+            @see SystemStats::getUniqueDeviceID
+        */
+        static String getUniqueMachineID();
     };
 
 private:

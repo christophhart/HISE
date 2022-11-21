@@ -314,16 +314,15 @@ void OnlineUnlockStatus::MachineIDUtilities::addMACAddressesToList (StringArray&
         ids.add (getEncodedIDString (address.toString()));
 }
 
-#ifndef JUCE_CREATE_DUMMY_MACHINE_IDS
-#define JUCE_CREATE_DUMMY_MACHINE_IDS 0
-#endif
+String OnlineUnlockStatus::MachineIDUtilities::getUniqueMachineID()
+{
+    return getEncodedIDString (SystemStats::getUniqueDeviceID());
+}
 
 StringArray OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()
 {
-#if JUCE_CREATE_DUMMY_MACHINE_IDS
-	StringArray sa;
-	sa.add("DUMMYID1234");
-	return sa;
+#if JUCE_USE_BETTER_MACHINE_IDS
+    return { getUniqueMachineID() };
 #else
     auto identifiers = SystemStats::getDeviceIdentifiers();
 
@@ -341,6 +340,27 @@ StringArray OnlineUnlockStatus::getLocalMachineIDs()
 
 void OnlineUnlockStatus::userCancelled()
 {
+}
+
+bool OnlineUnlockStatus::unlockWithTime(Time safeTimeObject)
+{
+	Time times[2] = { getExpiryTime(), safeTimeObject };
+
+	if (times[0] == Time(0))
+		return isUnlocked();
+
+	var actualResult(0), dummyResult(1.0);
+
+	var v(!(times[0] < times[1]));
+	actualResult.swapWith(v);
+	v = var(times[0] == times[1]);
+	dummyResult.swapWith(v);
+	jassert(!dummyResult);
+
+	if ((!dummyResult) && actualResult)
+		status.setProperty(unlockedProp, actualResult, nullptr);
+
+	return var(actualResult);
 }
 
 void OnlineUnlockStatus::setUserEmail (const String& usernameOrEmail)

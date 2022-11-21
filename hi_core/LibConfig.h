@@ -94,6 +94,10 @@
 #define HISE_AUV3_MAX_INSTANCE_COUNT 2
 #endif
 
+#ifndef HISE_USE_SYSTEM_APP_DATA_FOLDER
+#define HISE_USE_SYSTEM_APP_DATA_FOLDER 0
+#endif
+
 namespace hise { using namespace juce;
 
 

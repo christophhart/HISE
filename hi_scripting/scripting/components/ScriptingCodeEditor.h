@@ -60,14 +60,23 @@ public:
 
     void setOK(bool isOK)
     {
+		pending = false;
         ok = isOK;
         repaint();
     }
     
+	void startCompilation()
+	{
+		pending = true;
+		repaint();
+	}
+
 private:
 
     String fullErrorMessage;
     
+	bool pending = false;
+
     bool ok = true;
     
     struct LAF: public LookAndFeel_V2
@@ -98,14 +107,16 @@ private:
                 
                 auto isError = !d->ok;
                 
-                g.setColour(resultColours[0].withAlpha(isError ? 0.7f : noAlpha));
+				auto isPending = d->pending;
+
+                g.setColour(resultColours[0].withAlpha(isError && !isPending ? 0.7f : noAlpha));
                 g.drawEllipse(c1, 1.0f);
-                g.setColour(resultColours[1].withAlpha(!isError ? 0.7f : noAlpha));
+                g.setColour(resultColours[1].withAlpha(!isError && !isPending ? 0.7f : noAlpha));
                 g.drawEllipse(c2, 1.0f);
                 
-                g.setColour(resultColours[0].withAlpha(isError ? 1.0f : noAlpha));
+                g.setColour(resultColours[0].withAlpha(isError && !isPending ? 1.0f : noAlpha));
                 g.fillEllipse(c1.reduced(padding));
-                g.setColour(resultColours[1].withAlpha(!isError ? 1.0f : noAlpha));
+                g.setColour(resultColours[1].withAlpha(!isError && !isPending ? 1.0f : noAlpha));
                 g.fillEllipse(c2.reduced(padding));
                 
             }

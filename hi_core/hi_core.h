@@ -166,7 +166,7 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 * Use the vDsp FFT on Apple devices.
 */
 #ifndef USE_VDSP_FFT
-#define USE_VDSP_FFT !USE_IPP && JUCE_MAC
+#define USE_VDSP_FFT JUCE_MAC
 #endif
 
 /** Config: FRONTEND_IS_PLUGIN

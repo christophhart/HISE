@@ -932,6 +932,35 @@ void PresetBrowser::tagSelectionChanged(const StringArray& newSelection)
 	resized();
 }
 
+void PresetBrowser::attachAdditionalMouseProperties(const MouseEvent& e, var& obj)
+{
+    auto dyn = obj.getDynamicObject();
+    
+    jassert(dyn != nullptr);
+    
+    // feel free to add more stuff here...
+    
+    if(auto lb = e.eventComponent->findParentComponentOfClass<ListBox>())
+    {
+        int rowNumber = lb->getRowNumberOfComponent(e.eventComponent);
+        auto column = e.eventComponent->findParentComponentOfClass<PresetBrowserColumn>();
+        int columnIndex = column->getColumnIndex();
+        
+        dyn->setProperty("target", "listItem");
+        dyn->setProperty("rowIndex", rowNumber);
+        dyn->setProperty("columnIndex", columnIndex);
+        
+        return;
+    }
+    
+    if(e.eventComponent == favoriteButton)
+    {
+        dyn->setProperty("target", "favoriteButton");
+        dyn->setProperty("buttonState", favoriteButton->getToggleState());
+        return;
+    }
+}
+
 void PresetBrowser::labelTextChanged(Label* l)
 {
 	if (l == noteLabel)

@@ -709,7 +709,7 @@ void WeakCallbackHolder::setThisObject(ReferenceCountedObject* thisObj)
 	thisObject = dynamic_cast<DebugableObjectBase*>(thisObj);
 
 	// Must call incRefCount before this method
-	jassert(anonymousFunctionRef.isObject());
+	jassert(weakCallback == nullptr || (anonymousFunctionRef.isObject() || !weakCallback->allowRefCount()));
 }
 
 void WeakCallbackHolder::setThisObjectRefCounted(const var& t)

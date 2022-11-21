@@ -86,7 +86,9 @@ void ComponentWithPreferredSize::resizeChildren(Component* asComponent)
                 cb = cb.removeFromTop(c->getPreferredHeight());
             
 			dynamic_cast<Component*>(c)->setBounds(cb);
-			b.removeFromLeft(padding);
+			
+			if (cb.getWidth() != 0)
+				b.removeFromLeft(padding);
 		}
 	}
 	else if (childLayout == Layout::ChildrenAreRows)
@@ -102,7 +104,9 @@ void ComponentWithPreferredSize::resizeChildren(Component* asComponent)
                 cb = cb.removeFromLeft(c->getPreferredWidth());
             
 			dynamic_cast<Component*>(c)->setBounds(cb);
-			b.removeFromTop(padding);
+
+			if (cb.getHeight() != 0)
+				b.removeFromTop(padding);
 		}
 	}
 }
@@ -135,46 +139,56 @@ int ComponentWithPreferredSize::getMaxHeightOfChildComponents(const Component* a
 
 		h = jmax(h, cp->getPreferredHeight());
 	}
-		
-
-	h += marginTop + marginBottom;
+	
+	if(h != 0)
+		h += marginTop + marginBottom;
 
 	return h;
 }
 
 int ComponentWithPreferredSize::getSumOfChildComponentWidth(const Component* asComponent) const
 {
-	int w = marginLeft + marginRight;
+	int w = 0;
 
 	for (auto cp : children)
 	{
 		if (!dynamic_cast<Component*>(cp)->isVisible())
 			continue;
 
-		w += cp->getPreferredWidth();
+		auto thisWidth = cp->getPreferredWidth();
+
+		w += thisWidth;
+
+		if (children.getLast() != cp && thisWidth != 0)
+			w += padding;
 	}
 		
-
-	w += (children.size() - 1) * padding;
-
+	if (w != 0)
+		w += marginLeft + marginRight;
+	
 	return w;
 }
 
 int ComponentWithPreferredSize::getSumOfChildComponentHeight(const Component* asComponent) const
 {
-	int h = marginBottom + marginTop;
+	int h = 0;
 
 	for (auto cp : children)
 	{
 		if (!dynamic_cast<Component*>(cp)->isVisible())
 			continue;
 
-		h += cp->getPreferredHeight();
+		auto thisHeight = cp->getPreferredHeight();
 
-		if (children.getLast() != cp)
+		h += thisHeight;
+
+		if (children.getLast() != cp && thisHeight != 0)
 			h += padding;
 	}
 	
+	if (h != 0)
+		h += marginBottom + marginTop;
+
 	return h;
 }
 

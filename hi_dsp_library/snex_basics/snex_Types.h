@@ -410,14 +410,28 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	/** Register an item that has a tempoChangedStatic class. */
 	void registerItem(TempoListener* obj)
 	{
+        if(obj == nullptr)
+            return;
+        
+        for(int i = 0; i < tempoListeners.size(); i++)
+        {
+            if(tempoListeners[i].get() == nullptr)
+            {
+                jassertfalse;
+            }
+        }
+        
 		jassert(tempoListeners.size() < 255);
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
-			tempoListeners.insert(obj);
+            tempoListeners.insert(obj);
 		}
 		
 		obj->tempoChanged(bpm);
+        
+        
+        obj->onTransportChange(isPlaying, ppqPosition);
 	}
 
 	/** deregisters an item with the tempo changed class. */
@@ -427,15 +441,21 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 		tempoListeners.remove(obj);
 	}
 
-	void onTransportChange(bool isPlaying, double ppqPosition) override
+	void onTransportChange(bool isPlaying_, double ppqPosition_) override
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(listenerLock);
 
-		for (auto d : tempoListeners)
-		{
-			if (d != nullptr)
-				d->onTransportChange(isPlaying, ppqPosition);
-		}
+        if(isPlaying != isPlaying_ || ppqPosition != ppqPosition_)
+        {
+            isPlaying = isPlaying_;
+            ppqPosition = ppqPosition_;
+            
+            for (auto d : tempoListeners)
+            {
+                if (d != nullptr)
+                    d->onTransportChange(isPlaying, ppqPosition);
+            }
+        }
 	}
 
 	void tempoChanged(double newTempo)
@@ -455,6 +475,8 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	}
 
 	double bpm = 120.0;
+    bool isPlaying = false;
+    double ppqPosition = 0.0;
 	
 	hise::SimpleReadWriteLock listenerLock;
 

@@ -62,8 +62,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	int numSnippets = p->getNumSnippets();
 	int numFiles = p->getNumWatchedFiles();
 
-	const bool isCallback = index < numSnippets;
-	const bool isExternalFile = index >= numSnippets && (index-numSnippets) < numFiles;
+	const bool isCallback = scriptPath.isEmpty() && index < numSnippets;
+	const bool isExternalFile = scriptPath.isNotEmpty() || (index >= numSnippets && (index-numSnippets) < numFiles);
 
 	if (isCallback)
 	{
@@ -81,10 +81,22 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 	else if (isExternalFile)
 	{
-		const int fileIndex = index - p->getNumSnippets();
-
-		auto f = p->getWatchedFile(fileIndex);
-
+        File f;
+        
+        auto scriptFolder = f = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(p)).getSubDirectory(FileHandlerBase::Scripts);
+        
+        if(scriptPath.isNotEmpty())
+        {
+            f = scriptFolder.getChildFile(scriptPath);
+            refreshSelectorValue(getProcessor(), f.getFileName());
+        }
+        else
+        {
+            const int fileIndex = index - p->getNumSnippets();
+            f = p->getWatchedFile(fileIndex);
+            scriptPath = f.getRelativePathFrom(scriptFolder);
+        }
+        
 		if (f.getFileExtension() == ".h")
 		{
 			snex::ui::WorkbenchData* wb = new snex::ui::WorkbenchData();
@@ -142,12 +154,17 @@ void CodeEditorPanel::contentChanged()
 
 void CodeEditorPanel::fromDynamicObject(const var& object)
 {
+    scriptPath = object.getProperty("ScriptFile", "").toString();
 	PanelWithProcessorConnection::fromDynamicObject(object);
 }
 
 var CodeEditorPanel::toDynamicObject() const
 {
-	return PanelWithProcessorConnection::toDynamicObject();
+	var obj = PanelWithProcessorConnection::toDynamicObject();
+    
+    obj.getDynamicObject()->setProperty("ScriptFile", scriptPath);
+    
+    return obj;
 }
 
 CodeEditorPanel* CodeEditorPanel::showOrCreateTab(FloatingTabComponent* parentTab, JavascriptProcessor* jp, int index)
@@ -190,22 +207,12 @@ void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
 		refreshIndexList();
 }
 
-void CodeEditorPanel::mouseDown(const MouseEvent& event)
+void CodeEditorPanel::mouseDown(const MouseEvent& e)
 {
-	if (auto tab = findParentComponentOfClass<FloatingTabComponent>())
-	{
-		if (tab->getNumTabs() > 1)
-			return;
-	}
-
-	if (event.mods.isX2ButtonDown())
-	{
-		incIndex(true);
-	}
-	else if (event.mods.isX1ButtonDown())
-	{
-		incIndex(false);
-	}
+	if (e.mods.isX1ButtonDown())
+		getMainController()->getLocationUndoManager()->undo();
+	else if (e.mods.isX2ButtonDown())
+		getMainController()->getLocationUndoManager()->redo();
 }
 
 var CodeEditorPanel::getAdditionalUndoInformation() const
@@ -326,17 +333,11 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	{
 		PopupIncludeEditor::EditorType* editor = c->getEditor();
 
-#if HISE_USE_NEW_CODE_EDITOR
-
 		CodeDocument::Position pos(editor->editor.getDocument(), charNumber);
 
 		editor->editor.scrollToLine(pos.getLineNumber(), true);
 		mcl::Selection newSelection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine());
-		editor->editor.getTextDocument().setSelection(0, newSelection, true);
-#else
-		CodeDocument::Position pos(editor->getDocument(), charNumber);
-		editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
-#endif
+		editor->editor.getTextDocument().setSelection(0, newSelection, false);
 	}
 }
 
@@ -484,6 +485,21 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 	void selectOnInitCallback() override
 	{
 
+	}
+
+	static void centreInViewport(Component* c)
+	{
+		if (auto vp = c->findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto cBounds = c->getLocalBounds();
+
+			cBounds = cBounds.withSizeKeepingCentre(vp->getWidth() / vp->zoomFactor, vp->getHeight() / vp->zoomFactor);
+
+			// do not center a zoomed in viewport...
+			if (cBounds.getX() < 0 || cBounds.getY() < 0)
+				vp->zoomToRectangle(cBounds);
+
+		}
 	}
 
 	void scriptEditHandlerCompileCallback()
@@ -642,11 +658,15 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	rebuildAfterContentChange();
 
 	canvas.setMaxZoomFactor(4.0);
+
+	setPostResizeFunction(Canvas::centreInViewport);
 }
 
 
 void ScriptContentPanel::Editor::rebuildAfterContentChange()
 {
+	addButton("showall");
+
 	addCustomComponent(zoomSelector);
 
 	addButton("edit");
@@ -691,6 +711,16 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->enabledFunction = isSelected;
 		b->actionFunction = Actions::deselectAll;
 		b->setTooltip("Deselect current item (Escape)");
+	}
+	if (name == "showall")
+	{
+		b->actionFunction = [](Editor& e)
+		{
+			e.canvas.zoomToRectangle(e.canvas.getContentComponent()->getLocalBounds().expanded(20));
+			return false;
+		};
+
+		b->setTooltip("Zoom to fit");
 	}
 	if (name == "rebuild")
 	{
@@ -1251,6 +1281,7 @@ struct ServerController: public Component,
 		{
 			Path p;
 
+			LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 			LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
 			LOAD_PATH_IF_URL("web", MainToolbarIcons::web);
@@ -2007,6 +2038,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
+	LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);

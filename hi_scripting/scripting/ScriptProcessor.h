@@ -317,7 +317,7 @@ private:
 
 	Array<Component::SafePointer<DocumentWindow>> currentPopups;
 
-	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
+	static void addFileContentToValueTree(JavascriptProcessor* jp, ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
 using namespace snex;
@@ -344,8 +344,32 @@ public:
 
 	// ================================================================================================================
 
+    struct ScopedPreprocessorMerger
+    {
+        ScopedPreprocessorMerger(MainController* mc)
+        {
+            Processor::Iterator<JavascriptProcessor> iter(mc->getMainSynthChain());
+            
+            while(auto jp = iter.getNextProcessor())
+            {
+                jp->usePreprocessorAtMerge = true;
+                list.add(jp);
+            }
+        }
+        
+        ~ScopedPreprocessorMerger()
+        {
+            for(auto jp: list)
+                jp->usePreprocessorAtMerge = false;
+        }
+        
+        Array<WeakReference<JavascriptProcessor>> list;
+    };
+    
 	using PreprocessorFunction = std::function<bool(const Identifier&, String& m)>;
 
+    bool usePreprocessorAtMerge = false;
+    
 	/** A named document that contains a callback function. */
 	class SnippetDocument : public CodeDocument
 	{

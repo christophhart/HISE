@@ -39,6 +39,54 @@ class JavascriptProcessor;
 class DialogWindowWithBackgroundThread;
 
 
+class HiseJavascriptPreprocessor: public ReferenceCountedObject
+{
+public:
+    
+    using Ptr = ReferenceCountedObjectPtr<HiseJavascriptPreprocessor>;
+    
+    HiseJavascriptPreprocessor() {};
+    
+    Result process(String& code, const String& externalFile);
+    
+#if USE_BACKEND
+    void setEnableGlobalPreprocessor(bool shouldBeEnabled)
+    {
+        globalEnabled = shouldBeEnabled;
+    }
+
+    void reset()
+    {
+        deactivatedLines.clear();
+        definitions.clear();
+    }
+    
+    SparseSet<int> getDeactivatedLinesForFile(const String& fileId)
+    {
+        jassert(fileId.isNotEmpty());
+        return deactivatedLines[fileId];
+    }
+
+    DebugableObjectBase::Location getLocationForPreprocessor(const String& id) const
+    {
+        for (const auto& d: definitions)
+        {
+            if (d.name == id)
+            {
+                DebugableObjectBase::Location l;
+                l.charNumber = d.charNumber;
+                l.fileName = d.fileName;
+                return l;
+            }
+        }
+    }
+    
+    snex::jit::ExternalPreprocessorDefinition::List definitions;
+
+    HashMap<String, SparseSet<int>> deactivatedLines;
+    bool globalEnabled = false;
+#endif
+};
 
 /** The HISE Javascript Engine.
  *
@@ -98,7 +146,7 @@ public:
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
 	*/
-	HiseJavascriptEngine(JavascriptProcessor *p);
+	HiseJavascriptEngine(JavascriptProcessor *p, MainController* mc);
 
 	/** Destructor. */
 	~HiseJavascriptEngine();
@@ -263,6 +311,8 @@ public:
 	*/
 	RelativeTime maximumExecutionTime;
 
+    HiseJavascriptPreprocessor::Ptr preprocessor;
+    
 	/** Provides access to the set of properties of the root namespace object. */
 	const NamedValueSet& getRootObjectProperties() const noexcept;
 
@@ -271,7 +321,7 @@ public:
 	void setCallStackEnabled(bool shouldBeEnabled);
 
 	void registerApiClass(ApiClass *apiClass);
-	
+
     void setIsInitialising(bool shouldBeInitialising)
     {
         initialising = shouldBeInitialising;
@@ -407,6 +457,8 @@ public:
 	struct RootObject : public DynamicObject,
 						public CyclicReferenceCheckBase
 	{
+		
+
 		RootObject();
 
 		Time timeout;
@@ -470,7 +522,9 @@ public:
 		struct CodeLocation;
 		struct CallStackEntry;
 		struct Scope;
-        
+
+        HiseJavascriptPreprocessor::Ptr preprocessor;
+
         struct LocalScopeCreator
         {
             using Ptr = WeakReference<LocalScopeCreator>;
@@ -563,6 +617,8 @@ public:
 				return e;
 			}
 
+            static Error fromPreprocessorResult(const Result& r, const String& externalFile);
+            
 			static Error fromLocation(const CodeLocation& location, const String& errorMessage);
 
 			String getLocationString() const

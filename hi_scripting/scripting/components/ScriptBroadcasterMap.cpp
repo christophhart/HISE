@@ -119,6 +119,13 @@ namespace ScriptBroadcasterMapIcons
 21,68,2,131,96,68,108,188,228,18,68,45,58,92,68,99,109,184,46,15,68,45,58,92,68,108,102,214,17,68,45,58,92,68,108,102,214,17,68,8,68,94,68,108,35,83,17,68,123,92,98,68,108,217,174,15,68,123,92,98,68,108,184,46,15,68,8,68,94,68,108,184,46,15,68,45,58,
 92,68,99,101,0,0 };
 
+	static const unsigned char zoomWidthIcon[] = { 110,109,205,156,217,67,51,35,225,68,108,205,156,217,67,0,104,228,68,108,92,127,197,67,164,96,223,68,108,205,156,217,67,72,89,218,68,108,205,156,217,67,20,158,221,68,108,242,138,4,68,20,158,221,68,108,242,138,4,68,72,89,218,68,108,170,153,14,68,164,96,
+223,68,108,242,138,4,68,0,104,228,68,108,242,138,4,68,51,35,225,68,108,205,156,217,67,51,35,225,68,99,109,166,27,211,67,113,197,209,68,98,96,53,210,67,236,9,209,68,154,185,209,67,51,67,208,68,154,185,209,67,205,116,207,68,98,154,185,209,67,143,26,203,
+68,74,220,223,67,236,145,199,68,129,69,241,67,236,145,199,68,98,76,87,1,68,236,145,199,68,164,104,8,68,143,26,203,68,164,104,8,68,205,116,207,68,98,164,104,8,68,82,232,208,68,207,159,7,68,41,68,210,68,72,65,6,68,92,111,211,68,108,129,197,14,68,154,177,
+215,68,108,178,133,10,68,72,209,217,68,108,109,71,2,68,61,178,213,68,98,246,56,255,67,143,186,214,68,16,136,248,67,0,88,215,68,129,69,241,67,0,88,215,68,98,176,50,227,67,0,88,215,68,215,67,215,67,246,8,213,68,254,52,211,67,236,217,209,68,108,2,251,221,
+67,225,106,209,68,98,188,20,225,67,236,81,211,68,211,141,232,67,154,169,212,68,129,69,241,67,154,169,212,68,98,51,195,252,67,154,169,212,68,199,11,3,68,123,84,210,68,199,11,3,68,205,116,207,68,98,199,11,3,68,113,149,204,68,51,195,252,67,82,64,202,68,
+129,69,241,67,82,64,202,68,98,174,199,229,67,82,64,202,68,84,115,220,67,113,149,204,68,84,115,220,67,205,116,207,68,98,84,115,220,67,184,30,208,68,209,242,220,67,72,193,208,68,35,219,221,67,184,86,209,68,108,166,27,211,67,113,197,209,68,99,101,0,0 };
+
 	static const unsigned char neighbourIcon[] = { 110,109,31,69,131,68,41,60,212,68,108,236,161,138,68,205,252,224,68,108,102,62,107,68,123,176,2,69,108,150,51,23,68,123,176,2,69,108,106,92,218,67,205,252,224,68,108,150,51,23,68,164,152,188,68,108,102,62,107,68,164,152,188,68,108,195,53,122,68,102,142,
 201,68,108,139,252,93,68,41,180,209,68,98,170,217,80,68,195,133,203,68,213,168,60,68,133,19,202,68,129,61,44,68,246,208,206,68,98,168,46,24,68,51,155,212,68,172,76,17,68,225,114,225,68,72,225,28,68,143,122,235,68,98,227,117,40,68,236,129,245,68,162,37,
 66,68,225,242,248,68,123,52,86,68,164,40,243,68,98,180,120,102,68,102,118,238,68,176,18,110,68,246,32,229,68,131,48,106,68,133,107,220,68,108,31,69,131,68,41,60,212,68,99,109,0,24,133,68,154,241,196,68,108,123,52,147,68,215,203,188,68,98,225,34,145,68,
@@ -281,7 +288,7 @@ void ScriptBroadcasterMap::rebuild()
 	if (children.isEmpty())
 		addChildWithPreferredSize(new PrefferedSizeWrapper<EmptyDisplay, 400, 400>("No broadcasters available"));
 
-	resetSize();
+	updateTagFilter();
 
 	callRecursive<TagItem::TagButton>(this, [this](TagItem::TagButton* tb)
 	{
@@ -336,8 +343,37 @@ void ScriptBroadcasterMap::updateTagFilter()
 		return false;
 	});
 
-	resetSize();
+	
+	if (!tagFilterOptions.dimOpacity)
+	{
+		resetSize();
+
+		if (currentTags.isEmpty())
+			zoomToWidth();
+		else
+			showAll();
+		
+	}
+
 	repaint();
+}
+
+void ScriptBroadcasterMap::showAll()
+{
+	if (auto vp = findParentComponentOfClass<ZoomableViewport>())
+		vp->zoomToRectangle(getLocalBounds());
+}
+
+void ScriptBroadcasterMap::zoomToWidth()
+{
+	if (auto vp = findParentComponentOfClass<ZoomableViewport>())
+	{
+		auto b = vp->getLocalBounds().reduced(50);
+
+		auto widthToUse = jmax(b.getWidth(), getLocalBounds().getWidth() + 100);
+
+		vp->zoomToRectangle(getLocalBounds().withSizeKeepingCentre( widthToUse, b.getHeight()));
+	}
 }
 
 void ScriptBroadcasterMap::forEachDebugInformation(DebugInformationBase::Ptr di, const std::function<void(DebugInformationBase::Ptr)>& f)
@@ -487,7 +523,8 @@ void ScriptBroadcasterMap::setShowComments(bool shouldShowComments)
 struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 {
 	struct TagEditor : public Component,
-					   public ControlledObject
+					   public ControlledObject,
+					   public TextEditor::Listener
 	{
 		static constexpr int HeaderHeight = 40;
 
@@ -498,6 +535,14 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			ControlledObject(b->getMainController()),
 			map(b)
 		{
+			addAndMakeVisible(searchBar);
+			searchBar.addListener(this);
+			GlobalHiseLookAndFeel::setTextEditorColours(searchBar);
+
+			searchBar.setEscapeAndReturnKeysConsumed(true);
+
+			grabKeyboardFocusAsync();
+
 			struct Item
 			{
 				Identifier id;
@@ -572,17 +617,70 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 
 			g.setColour(Colours::white.withAlpha(0.05f));
 			g.fillRect(b);
+
+			Path p;
+
+			p.loadPathFromData(EditorIcons::searchIcon, sizeof(EditorIcons::searchIcon));
+			p.applyTransform(AffineTransform::rotation(float_Pi));
+
+			PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(10).toFloat());
+
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.fillPath(p);
+		}
+
+		void textEditorTextChanged(TextEditor&) override
+		{
+			resized();
+		}
+
+		void textEditorEscapeKeyPressed(TextEditor&) override
+		{
+			map->grabKeyboardFocusAsync();
+			findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+		}
+
+		void textEditorReturnKeyPressed(TextEditor&) override
+		{
+			// select all tags;
+
+			auto searchTerm = searchBar.getText().toLowerCase();
+
+			for (auto t : tags)
+			{
+				bool isIncluded = !searchTerm.isEmpty() && t->id.toString().toLowerCase().contains(searchTerm);
+
+				if (t->on)
+					isIncluded = false;
+				
+				t->sendMessage(isIncluded);
+			}
 		}
 
 		void resized() override
 		{
 			auto b = getLocalBounds();
-			b.removeFromTop(HeaderHeight);
+			auto topBar = b.removeFromTop(HeaderHeight);
+
+			topBar.removeFromLeft(HeaderHeight);
+
+			searchBar.setBounds(topBar.reduced(8));
 
 			auto currentRow = b.removeFromTop(24);
 
+			auto searchTerm = searchBar.getText().toLowerCase();
+
+			b.removeFromTop(5);
+
 			for (auto t : tags)
 			{
+				bool isIncluded = searchTerm.isEmpty() || t->id.toString().toLowerCase().contains(searchTerm);
+
+				t->setVisible(isIncluded);
+
+				if (!isIncluded)
+					continue;
+
 				if (currentRow.getWidth() < t->getTagWidth())
 					currentRow = b.removeFromTop(24);
 
@@ -590,7 +688,11 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			}
 		}
 
+		
+
 		TagButton::List tags;
+
+		TextEditor searchBar;
 
 	};
 
@@ -611,6 +713,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			LOAD_PATH_IF_URL("not", ScriptBroadcasterMapIcons::notIcon);
 			LOAD_PATH_IF_URL("comment", ScriptBroadcasterMapIcons::commentIcon);
 			LOAD_PATH_IF_URL("neighbour", ScriptBroadcasterMapIcons::neighbourIcon);
+			LOAD_PATH_IF_URL("zoomwidth", ScriptBroadcasterMapIcons::zoomWidthIcon);
 
 			return p;
 		}
@@ -625,6 +728,11 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		canvas.setMouseWheelScrollEnabled(true);
 		canvas.setScrollOnDragEnabled(true);
 		canvas.setMaxZoomFactor(5.0);
+
+		setPostResizeFunction([](Component* c)
+		{
+			dynamic_cast<ScriptBroadcasterMap*>(c)->zoomToWidth();
+		});
 
 		rebuildAfterContentChange();
 	};
@@ -649,6 +757,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		//addButton("filter");
 		addButton("comment");
 		addButton("showall");
+		addButton("zoomwidth");
 		addButton("error");
 	}
 
@@ -698,10 +807,29 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 
 		static bool showAll(ScriptBroadcasterMap& m)
 		{
-			m.findParentComponentOfClass<ZoomableViewport>()->zoomToRectangle(m.getLocalBounds());
+			m.showAll();
+			return false;
+		}
+
+		static bool zoomToWidth(ScriptBroadcasterMap& m)
+		{
+			m.zoomToWidth();
 			return false;
 		}
 	};
+
+	bool keyPressed(const KeyPress& k) override
+	{
+		if (TopLevelWindowWithKeyMappings::matches(this, k, TextEditorShortcuts::show_search))
+		{
+			using ActionButton = WrapperWithMenuBarBase::ActionButtonBase<ScriptBroadcasterMap, Factory>;
+
+			getComponentWithName<ActionButton>("tags")->triggerClick(sendNotificationSync);
+			return true;
+		}
+
+		return false;
+	}
 
 	void addButton(const juce::String& name) override
 	{
@@ -789,6 +917,11 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		{
 			b->actionFunction = Actions::showAll;
 			b->setTooltip("Zoom to fit");
+		}
+		if (name == "zoomwidth")
+		{
+			b->actionFunction = Actions::zoomToWidth;
+			b->setTooltip("Zoom to width");
 		}
 
 		if (name == "error")

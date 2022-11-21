@@ -1013,6 +1013,4 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::registerOptimisationPass
 	
 }
 
-
-
 } // namespace hise

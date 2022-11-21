@@ -760,6 +760,28 @@ class EventIdHandler
 {
 public:
 
+	struct ChokeListener
+	{
+		virtual ~ChokeListener() {};
+
+		virtual void chokeMessageSent() = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ChokeListener);
+
+		int getChokeGroup() const { return chokeGroup; };
+
+	protected:
+
+		void setChokeGroup(int newChokeGroup)
+		{
+			chokeGroup = newChokeGroup;
+		}
+
+	private:
+
+		int chokeGroup = 0;
+	};
+
 	// ===========================================================================================================
 
 	EventIdHandler(HiseEventBuffer& masterBuffer_);
@@ -785,9 +807,24 @@ public:
 		return !artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE].isEmpty();
 	}
 
+	/** Sends a choke message to all registered listeners for the given event. */
+	void sendChokeMessage(ChokeListener* source, const HiseEvent& e);
+
+	void addChokeListener(ChokeListener* l)
+	{
+		chokeListeners.addIfNotAlreadyThere(l);
+	}
+
+	void removeChokeListener(ChokeListener* l)
+	{
+		chokeListeners.removeAllInstancesOf(l);
+	}
+
 	// ===========================================================================================================
 
 private:
+
+	Array<WeakReference<ChokeListener>> chokeListeners;
 
 	const HiseEventBuffer &masterBuffer;
 	HeapBlock<HiseEvent> artificialEvents;

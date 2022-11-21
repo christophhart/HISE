@@ -79,6 +79,16 @@
  #include <juce_gui_extra/juce_gui_extra.h>
 #endif
 
+/** Config: JUCE_USE_BETTER_MACHINE_IDS
+ 
+    If enabled, this will use a more robust function to get the system ID to prevent
+    OS updates from changing the ID. By default it is deactivated for backwards compatibility,
+    but you can enable it if you want to use the new ID.
+*/
+#ifndef JUCE_USE_BETTER_MACHINE_IDS
+#define JUCE_USE_BETTER_MACHINE_IDS 0
+#endif
+
 #if JUCE_IN_APP_PURCHASES
  #include "in_app_purchases/juce_InAppPurchases.h"
 #endif

@@ -178,6 +178,28 @@ public:
 	ErrorCodes exportMainSynthChainAsStandaloneApp(BuildOption option=BuildOption::Cancelled);
 	ErrorCodes exportMainSynthChainAsMidiFx(BuildOption option=BuildOption::Cancelled);
 
+    static NamedValueSet getTemporaryDefinitions(const String& commandLine)
+    {
+        NamedValueSet list;
+        
+        auto argsString = commandLine.fromFirstOccurrenceOf(" ", false, false);
+        auto sa = StringArray::fromTokens(argsString, true);
+        
+        for(const auto& s: sa)
+        {
+            if(s.startsWith("-D:"))
+            {
+                auto def = s.substring(3).trim();
+                auto key = def.upToFirstOccurrenceOf("=", false, false).trim();
+                auto value = def.fromFirstOccurrenceOf("=", false, false).trim();
+                
+                list.set(Identifier(key), var(value));
+            }
+        }
+        
+        return list;
+    }
+    
 	static ErrorCodes compileFromCommandLine(const String& commandLine, String& pluginFile);
 
 	BuildOption getBuildOptionFromCommandLine(StringArray &args);
@@ -238,6 +260,8 @@ public:
 
 protected:
 
+    bool noLto = false;
+    
     bool silentMode = false;
     
 	String configurationName = "Release";
@@ -262,12 +286,6 @@ protected:
 	bool checkSanity(BuildOption option);
 
 	BuildOption showCompilePopup(TargetTypes type);
-
-	void convertTccScriptsToCppClasses();
-
-	void createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList);
-
-	StringArray getTccSection(const StringArray &cLines, const String &sectionName);
 
 	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types);
 

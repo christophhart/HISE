@@ -71,8 +71,11 @@ void convolution::setMultithread(double shouldBeMultithreaded)
 
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
-		convolverL->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
-		convolverR->setUseBackgroundThread(useBackgroundThread && !nonRealtime);
+        
+        auto tToUse = useBackgroundThread && !nonRealtime ? &backgroundThread : nullptr;
+        
+		convolverL->setUseBackgroundThread(tToUse);
+		convolverR->setUseBackgroundThread(tToUse);
 	}
 }
 

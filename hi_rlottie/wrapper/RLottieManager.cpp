@@ -165,15 +165,9 @@ juce::File RLottieManager::getLibFile()
 	auto root = getLibraryFolder();
 
 #if JUCE_WINDOWS
-#if JUCE_64BIT
 	return root.getChildFile("rlottie_x64.dll");
-#else
-	return root.getChildFile("rlottie_x86.dll");
-#endif
-
 #elif JUCE_MAC
     return root.getChildFile("librlottie.dylib");
-		
 #elif JUCE_LINUX
 	return root.getChildFile("librlottie.so");
 #else

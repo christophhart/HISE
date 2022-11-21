@@ -61,7 +61,9 @@ DECLARE_HNODE_JIT_TOKEN(else_, "#else")
 DECLARE_HNODE_JIT_TOKEN(eof, "$eof")
 DECLARE_HNODE_JIT_TOKEN(literal, "$literal")
 DECLARE_HNODE_JIT_TOKEN(identifier, "$identifier")
+DECLARE_HNODE_JIT_TOKEN(error_, "#error")
 DECLARE_HNODE_JIT_TOKEN(code_, "code")
+DECLARE_HNODE_JIT_TOKEN(on_, "#on");
 }
 
 struct Preprocessor
@@ -72,6 +74,8 @@ struct Preprocessor
 
 	juce::String process();
 	juce::String getOriginalCode() const { return code; }
+
+	String processWithResult(ExternalPreprocessorDefinition::List& definitions);
 
 	SparseSet<int> getDeactivatedLines();
 
@@ -92,7 +96,17 @@ struct Preprocessor
 
 	void addDefinitionsFromScope(const ExternalPreprocessorDefinition::List& a);
 
+	Result getResult() const { return r; }
+
+	void setCurrentFileName(String newFileName) { currentFileName = newFileName; }
+
 private:
+
+	String currentFileName;
+
+	Result r;
+	
+	void addNewDefinitions(ExternalPreprocessorDefinition::List& a);
 
 	bool conditionMode = false;
 
@@ -120,6 +134,8 @@ private:
 		}
 
 		int lineNumber;
+		int charNumber;
+		bool externalDef = false;
 	};
 
 	struct Definition : public Item
@@ -181,122 +197,13 @@ private:
 		return dynamic_cast<T*>(p.get());
 	}
 
+	struct TextBlock;
+	
+	using TextBlockList = OwnedArray<TextBlock>;
 
-	struct TextBlock
-	{
-		TextBlock(String::CharPointerType program_, String::CharPointerType start_);;
+	static juce::String toString(const TextBlockList& blocks);
 
-		bool isPreprocessorDirective() const;
-
-		void processError(ParserHelpers::Error& e)
-		{
-			if (e.location.program != program)
-			{
-				auto delta = (int)(e.location.location - e.location.program);
-
-				e.location.location = originalLocation + delta;
-				e.location.program = program;
-			}
-		}
-
-		ParserHelpers::TokenIterator createParser();
-
-		bool is(Token t) const
-		{
-			return blockType == t;
-		}
-
-		void setLineRange(int startLine, int endLine)
-		{
-			lineRange = { startLine, jmax(startLine + 1, endLine) };
-		}
-
-		Range<int> getLineRange() const
-		{
-			return lineRange;
-		}
-
-		DEBUG_ONLY(std::string debugString);
-
-		void flush(String::CharPointerType location);
-		String toString() const;
-
-		void replaceWithEmptyLines()
-		{
-			if (cleaned)
-				return;
-
-			auto l = StringArray::fromLines(toString());
-
-			String s; 
-
-			for (int i = 0; i < l.size(); i++)
-				s << "\n";
-
-			setProcessedCode(s);
-			cleaned = true;
-		}
-
-		String subString(String::CharPointerType location) const;
-
-		String::CharPointerType getEnd() const;
-
-		void throwError(const String& e);
-
-		void setProcessedCode(const String& newCode)
-		{
-			processedCode = newCode;
-			start = processedCode.getCharPointer();
-			length = processedCode.length();
-		}
-
-		bool replace(String::CharPointerType startRep, String::CharPointerType endRep, const String& newText)
-		{
-			jassert(startRep - start < (int)length);
-
-			String newCode;
-
-			auto ptr = start;
-			auto end = getEnd();
-
-			while (ptr != startRep)
-				newCode << *ptr++;
-
-			newCode << newText.trim();
-
-			ptr = endRep;
-
-			while (ptr != end)
-			{
-				newCode << *ptr++;
-			}
-			
-			setProcessedCode(newCode);
-			return false;
-		}
-
-	private:
-
-		void parseBlockStart();
-
-		bool parseIfToken(Token t) const;
-
-		Token blockType = "";
-		String::CharPointerType originalLocation;
-		String::CharPointerType start;
-		String::CharPointerType program;
-		size_t length = 0;
-
-		String processedCode;
-
-		Range<int> lineRange;
-		bool cleaned = false;
-
-	};
-
-	static juce::String toString(Array<TextBlock>& blocks);
-
-	Array<TextBlock> parseTextBlocks();
+	TextBlockList parseTextBlocks();
 
 	void parseDefinition(TextBlock& b);
 

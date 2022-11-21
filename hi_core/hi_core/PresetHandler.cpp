@@ -58,7 +58,7 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
     
 #if CONFIRM_PRESET_OVERWRITE
 
-	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
+	if (presetFile.existsAsFile() && (!MessageManager::getInstance()->isThisTheMessageThread() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?")))
 	{
         existingNote = PresetBrowser::DataBaseHelpers::getNoteFromXml(presetFile);
         existingTags = PresetBrowser::DataBaseHelpers::getTagsFromXml(presetFile);
@@ -1053,7 +1053,11 @@ void ProjectHandler::checkActiveProject()
 
 juce::File ProjectHandler::getAppDataRoot()
 {
+#if HISE_USE_SYSTEM_APP_DATA_FOLDER
+    const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
+#else
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+#endif
     
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
@@ -1077,7 +1081,7 @@ juce::File ProjectHandler::getAppDataRoot()
 juce::File ProjectHandler::getAppDataDirectory()
 {
 
-#if USE_COMMON_APP_DATA_FOLDER
+#if HISE_USE_SYSTEM_APP_DATA_FOLDER
 	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
 #else
 	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
@@ -1416,13 +1420,7 @@ String FrontendHandler::getLicenseKeyExtension()
 {
 
 #if JUCE_WINDOWS
-
-#if JUCE_64BIT
 	return ".license_x64";
-#else
-	return ".license_x86";
-#endif
-
 #else
 	return ".license";
 #endif

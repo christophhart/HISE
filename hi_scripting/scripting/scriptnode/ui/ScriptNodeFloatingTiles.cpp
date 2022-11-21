@@ -355,6 +355,7 @@ juce::Component* NodePropertyPanel::createComponentForNetwork(DspNetwork* p)
 	return new NodePropertyContent(p);
 }
 
+#if USE_BACKEND
 struct FaustEditorWrapper: public Component,
                            public DspNetwork::FaustManager::FaustListener
 {
@@ -374,7 +375,9 @@ struct FaustEditorWrapper: public Component,
     {
         if(k == KeyPress::F5Key)
         {
-            recompile();
+			if (bottomBar != nullptr)
+				bottomBar->recompile();
+
             return true;
         }
         
@@ -410,11 +413,16 @@ struct FaustEditorWrapper: public Component,
             currentDocument = documents.getLast();
         }
         
+		bottomBar = new EditorBottomBar(dynamic_cast<JavascriptProcessor*>(network->getScriptProcessor()));
         editor = new mcl::FullEditor(currentDocument->doc);
        
+
         editor->editor.setLanguageManager(new mcl::FaustLanguageManager());
         
         addAndMakeVisible(editor);
+		addAndMakeVisible(bottomBar);
+		bottomBar->setCompileFunction(BIND_MEMBER_FUNCTION_0(FaustEditorWrapper::recompile));
+		
         resized();
     }
     
@@ -432,21 +440,25 @@ struct FaustEditorWrapper: public Component,
             {
                 editor->editor.clearWarningsAndErrors();
                 
-                if(!compileResult.wasOk())
-                {
-                    auto e = compileResult.getErrorMessage();
-                    
-                    auto sa = StringArray::fromTokens(e, ":", "");
-                    
-                    String errorMessage;
-                    
-                    errorMessage << "Line " << sa[1] << "(0): " << sa[3];
-                    
-                    if(sa.size() > 4)
-                        errorMessage << ": " << sa[4];
-                    
-                    editor->editor.setError(errorMessage);
-                }
+				if (!compileResult.wasOk())
+				{
+					auto e = compileResult.getErrorMessage();
+
+					auto sa = StringArray::fromTokens(e, ":", "");
+
+					String errorMessage;
+
+					errorMessage << "Line " << sa[1] << "(0): " << sa[3];
+
+					if (sa.size() > 4)
+						errorMessage << ": " << sa[4];
+
+					editor->editor.setError(errorMessage);
+
+					bottomBar->setError(errorMessage);
+				}
+				else
+					bottomBar->setError("");
             }
         }
     }
@@ -457,7 +469,10 @@ struct FaustEditorWrapper: public Component,
     {
         if(editor != nullptr)
         {
-            editor->setBounds(getLocalBounds());
+			auto b = getLocalBounds();
+
+			bottomBar->setBounds(b.removeFromBottom(EditorBottomBar::BOTTOM_HEIGHT));
+            editor->setBounds(b);
         }
     }
     
@@ -479,11 +494,12 @@ struct FaustEditorWrapper: public Component,
     FaustDocument* currentDocument = nullptr;
     
     ScopedPointer<mcl::FullEditor> editor;
+	ScopedPointer<EditorBottomBar> bottomBar;
     
     WeakReference<DspNetwork> network;
     JUCE_DECLARE_WEAK_REFERENCEABLE(FaustEditorWrapper);
 };
-
+#endif
 
 FaustEditorPanel::FaustEditorPanel(FloatingTile* parent):
     NetworkPanel(parent)
@@ -493,7 +509,11 @@ FaustEditorPanel::FaustEditorPanel(FloatingTile* parent):
 
 juce::Component* FaustEditorPanel::createComponentForNetwork(DspNetwork* p)
 {
+#if USE_BACKEND
     return new FaustEditorWrapper(p);
+#else
+    return nullptr;
+#endif
 }
 
 #if 0

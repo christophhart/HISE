@@ -181,8 +181,11 @@ void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
 	{
 		asComponent->repaint();
 
-		if (auto c = dynamic_cast<Component*>(asComponent->findParentComponentOfClass<FloatingTileContainer>()))
+		if (auto c = dynamic_cast<Component*>(getParentShell()->findParentTileWithType<FloatingTileContainer>()))
+        {
 			c->resized();
+            c->repaint();
+        }
 	}
 }
 

@@ -103,6 +103,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	bool isAutocompleteable() const override { return true; }
 
     bool isRealtimeSafe() const override { return realtimeSafe; }
+
+	bool allowRefCount() const override { return false; };
         
 	void timerCallback() override;
 
@@ -135,8 +137,14 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Removes all sources. */
 	void removeAllSources();
 
-	/** Sends a message to all listeners. the length of args must match the default value list. if isSync is false, then it will be deferred. */
+	/** deprecated function (use sendSyncMessage / sendAsyncMessage instead). */
 	void sendMessage(var args, bool isSync);
+
+	/** Sends a synchronous message to all listeners (same as the dot assignment operator). the length of args must match the default value list. */
+	void sendSyncMessage(var args);
+
+	/** Sends an asynchronous message to all listeners. the length of args must match the default value list. */
+	void sendAsyncMessage(var args);
 
 	/** Sends a message to all listeners with a delay. */
 	void sendMessageWithDelay(var args, int delayInMilliseconds);
@@ -145,10 +153,13 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	void reset();
 
 	/** Resends the current state. */
-	void resendLastMessage(bool isSync);
+	void resendLastMessage(var isSync);
 
-	/** Sets a unique ID for the broadcaster. */
-	void setMetadata(var metadata);
+	/** Forces every message to be sent synchronously. */
+	void setForceSynchronousExecution(bool shouldExecuteSynchronously);
+
+	/** Forces the broadcaster to also send a message when a parameter is undefined. */
+	void setSendMessageForUndefinedArgs(bool shouldSendWhenUndefined);
 
 	/** Registers this broadcaster to be called when one of the properties of the given components change. */
 	void attachToComponentProperties(var componentIds, var propertyIds, var optionalMetadata);
@@ -176,6 +187,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	/** Attaches this broadcaster to another broadcaster(s) to forward the messages. */
 	void attachToOtherBroadcaster(var otherBroadcaster, var argTransformFunction, bool async, var optionalMetadata);
+
+	/** Attaches this broadcaster to a routing matrix and listens for changes. */
+	void attachToRoutingMatrix(var moduleIds, var optionalMetadata);
 
 	/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
 	void callWithDelay(int delayInMilliseconds, var argArray, var function);
@@ -212,6 +226,11 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	static bool isPrimitiveArray(const var& obj);
 
 private:
+
+	void sendMessageInternal(var args, bool isSync);
+
+	bool forceSync = false;
+	bool sendWhenUndefined = false;
 
 	Metadata metadata;
 
@@ -330,8 +349,6 @@ private:
 
 	struct TargetBase: public ItemBase
 	{
-		
-
 		TargetBase(const var& obj_, const var& f, const var& metadata_) :
 			ItemBase(Metadata(metadata_, true)),
 			obj(obj_)
@@ -487,6 +504,14 @@ private:
 			ItemBase(Metadata(metadata_, false))
 		{};
 
+		/** Overwrite this method and return the number of calls to all listeners that should be made
+			when the connection is established. */
+		virtual int getNumInitialCalls() const { return 0; }// = 0;
+
+		/** Overwrite this method and return the argument array for the initial call when the connection 
+			is established. callIndex is guaranteed to be 0 < callIndex < getNumInitialCalls(). */
+		virtual Array<var> getInitialArgs(int callIndex) const { return {}; };// = 0;
+
         virtual ~ListenerBase() {};
      
 		virtual Result callItem(TargetBase* n) = 0;
@@ -502,6 +527,9 @@ private:
 
 		Array<var> createChildArray() const override;
 
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
+
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
 		WeakReference<DebugableObjectBase> obj;
@@ -513,6 +541,7 @@ private:
 		WeakReference<ScriptBroadcaster> parent;
 	};
 
+
 	struct ModuleParameterListener: public ListenerBase
 	{
 		struct ProcessorListener;
@@ -523,11 +552,34 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Array<var> createChildArray() const override;
 
 		Result callItem(TargetBase* n) override;
 
 		OwnedArray<ProcessorListener> listeners;
+	};
+
+	struct RoutingMatrixListener : public ListenerBase
+	{
+		struct MatrixListener;
+
+		RoutingMatrixListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const var& metadata);
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("RoutingMatrix"); };
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
+		Array<var> createChildArray() const override;
+
+		Result callItem(TargetBase* b) override;
+
+		OwnedArray<MatrixListener> listeners;
 	};
 
 	struct ScriptCallListener : public ListenerBase
@@ -539,6 +591,10 @@ private:
 		Array<var> createChildArray() const override;
 
 		Result callItem(TargetBase* n) override;
+
+		// Don't need to initialise function calls
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ScriptFunctionCalls"); }
 
@@ -565,6 +621,9 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Array<var> createChildArray() const override;
             
         OwnedArray<Item> items;
@@ -581,6 +640,9 @@ private:
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ComponentProperties"); }
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
 
 		Result callItem(TargetBase* n) override;
 
@@ -601,6 +663,10 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		
+		int getNumInitialCalls() const override { return items.size(); }
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Result callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
@@ -620,6 +686,9 @@ private:
 		// We don't need to call this to update it with the current value because the mouse events are non persistent. */
 		Result callItem(TargetBase*) override { return Result::ok(); }
 
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
+
 		Array<var> createChildArray() const override;
 
 		OwnedArray<InternalMouseListener> items;
@@ -633,6 +702,9 @@ private:
 		ContextMenuListener(ScriptBroadcaster* parent, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata);
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ContextMenu"); }
+
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
 
 		Result callItem(TargetBase*) override { return Result::ok(); }
 
@@ -651,6 +723,9 @@ private:
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 
+		int getNumInitialCalls() const override { return items.size(); }
+		Array<var> getInitialArgs(int callIndex) const override;
+
 		Result callItem(TargetBase* n) override;
 
 		Array<var> createChildArray() const override;
@@ -667,6 +742,9 @@ private:
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("RadioGroup"); }
 
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override { return 1; }
+		Array<var> getInitialArgs(int callIndex) const override { return { var(currentIndex) }; }
 
 		void setButtonValueFromIndex(int newIndex);
 
@@ -691,6 +769,18 @@ private:
 		
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("BroadcasterSource"); }
 
+		int getNumInitialCalls() const override { return sources.size(); }
+		Array<var> getInitialArgs(int callIndex) const override
+		{
+			if (auto sb = sources[callIndex])
+			{
+				return sb->lastValues;
+			}
+
+			jassertfalse;
+			return {};
+		}
+
 #if USE_BACKEND
 		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
 #endif
@@ -702,7 +792,7 @@ private:
 
 	void initItem(TargetBase* n);
 
-	void checkMetadata(ItemBase* i);
+	void checkMetadataAndCallWithInitValues(ItemBase* i);
 
 	OwnedArray<ListenerBase> attachedListeners;
 

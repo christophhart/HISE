@@ -48,4 +48,87 @@ ProcessorEditorBody *Transposer::createEditor(ProcessorEditor *parentEditor)
 #endif
 }
 
+hise::ProcessorEditorBody * ChokeGroupProcessor::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+
+	return new ChokeGroupEditor(parentEditor);
+
+#else
+	ignoreUnused(parentEditor);
+	jassertfalse;
+
+	return nullptr;
+#endif
+}
+
+void ChokeGroupProcessor::processHiseEvent(HiseEvent &m) noexcept
+{
+	if (m.isAllNotesOff())
+	{
+		activeEvents.clearQuick();
+		sustainedEvents.clearQuick();
+		return;
+	}
+
+	if (m.isControllerOfType(64))
+	{
+		sustainPedalPressed = m.getControllerValue() > 64;
+
+		if (!sustainPedalPressed)
+			sustainedEvents.clearQuick();
+	}
+
+	if (m.isNoteOn())
+	{
+		auto n = m.getNoteNumberIncludingTransposeAmount();
+
+		if (!midiRange.contains(n))
+			m.ignoreEvent(true);
+	}
+
+	if (!m.isIgnored() && getChokeGroup() != 0)
+	{
+		if (m.isNoteOn())
+			activeEvents.insertWithoutSearch(m);
+		else if (m.isNoteOff())
+		{
+			auto id = m.getEventId();
+			activeEvents.removeWithLambda([id](const HiseEvent& e) { return e.getEventId() == id; });
+			sustainedEvents.insertWithoutSearch(m);
+		}
+	}
+
+	if (!m.isNoteOn() || m.isIgnored())
+		return;
+
+	getMainController()->getEventHandler().sendChokeMessage(this, m);
+}
+
+void ChokeGroupProcessor::chokeMessageSent()
+{
+	for (const auto& e : activeEvents)
+	{
+		if (killVoice)
+			getOwnerSynth()->killAllVoicesWithNoteNumber(e.getNoteNumber());
+		else
+		{
+			auto off = HiseEvent(HiseEvent::Type::NoteOff, e.getNoteNumber(), 0, e.getChannel());
+			off.setEventId(e.getEventId());
+			getOwnerSynth()->noteOff(off);
+		}
+	}
+
+	for (const auto& e : sustainedEvents)
+	{
+		if (killVoice)
+			getOwnerSynth()->killAllVoicesWithNoteNumber(e.getNoteNumber());
+		else
+			getOwnerSynth()->noteOff(e);
+	}
+
+	activeEvents.clearQuick();
+	sustainedEvents.clearQuick();
+}
+
 } // namespace hise

@@ -464,7 +464,7 @@ void ScriptTableListModel::returnKeyPressed(int lastRowSelected)
 
 void ScriptTableListModel::setRowData(var rd)
 {
-	rowData = rd;
+	rowData = rd.clone();
 	tableRefreshBroadcaster.sendMessage(sendNotificationAsync, -1);
 }
 

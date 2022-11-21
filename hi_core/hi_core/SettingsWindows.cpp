@@ -42,6 +42,11 @@ public:
 		addAndMakeVisible(&properties);
 		properties.setLookAndFeel(&pplaf);
 
+        auto& sb = properties.getViewport().getVerticalScrollBar();
+        properties.getViewport().setScrollBarThickness(12);
+        
+        sf.addScrollBarToAnimate(sb);
+        
 		pplaf.setFontForAll(GLOBAL_BOLD_FONT());
 		pplaf.setLabelWidth(190);
 
@@ -52,6 +57,8 @@ public:
 		properties.setBounds(getLocalBounds());
 	}
 
+    ScrollbarFader sf;
+    
 	HiPropertyPanelLookAndFeel pplaf;
 
 	PropertyPanel properties;

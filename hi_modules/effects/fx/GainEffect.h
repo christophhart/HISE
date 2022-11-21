@@ -261,14 +261,15 @@ public:
 		return (int)std::floor(lastPos);
 	}
 
+	void connectToPlayer(MidiPlayer* p)
+	{
+		player = p;
+		sendChangeMessage();
+	}
+
 	void connectToPlayer(const String& playerId)
 	{
-		if (playerId.isNotEmpty())
-			player = dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), playerId));
-		else
-			player = nullptr;
-
-		sendChangeMessage();
+		connectToPlayer(dynamic_cast<MidiPlayer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), playerId)));
 	}
 
 	String getConnectedId() const

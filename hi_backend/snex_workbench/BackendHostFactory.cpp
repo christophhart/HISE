@@ -314,14 +314,8 @@ bool BackendDllManager::shouldIncludeFaust(MainController* mc)
 	return false;
 #else
 	auto hasFaustFiles = getSubFolder(mc, FolderSubType::CodeLibrary).getChildFile("faust").getNumberOfChildFiles(File::findFiles) != 0;
-	auto faustPathDefined = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Compiler::FaustPath).toString().isNotEmpty();
-
-	if (hasFaustFiles && !faustPathDefined)
-	{
-		jassertfalse;
-	}
-
-	return hasFaustFiles && faustPathDefined;
+	
+	return hasFaustFiles;
 #endif
 }
 

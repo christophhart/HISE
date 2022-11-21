@@ -208,6 +208,14 @@ template <int Index, int C> struct one2all
 
 }
 
+struct right_to_left : public routing::static_matrix<2, right_to_left, false>
+{
+	static constexpr int channels[2] =
+	{
+		0, 0
+	};
+};
+
 struct ScriptNodeTests : public juce::UnitTest
 {
 	ScriptNodeTests() :
@@ -700,21 +708,25 @@ struct ScriptNodeTests : public juce::UnitTest
 		clear(buffer);
 
 		for (auto& s : d[0])
-			s = 2.0f;
+			s = 1.5f;
+
+		for (auto& s : d[1])
+			s = 2.5f;
 
 		{
-			routing::matrix<matrixtypes::one2all<0, NumChannels>> matrix;
+			
+
+			routing::matrix<right_to_left> matrix;
 
 			matrix.process(d);
-
+			
 			auto frame = d.toFrameData();
 
 			while (frame.next())
-				expect(frame[0] = 2.0f && frame[1] == 2.0f, "mismatch");
+			{
+				expect(frame[0] = 4.0f && frame[1] == 0.0f, "mismatch");
+			}
 		}
-
-		clear(buffer);
-
 	}
 
 	template <typename T> static void fillWithInc(T& data)

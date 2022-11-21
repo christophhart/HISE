@@ -461,7 +461,7 @@ public:
             There is only a single edited file per faust_manager instance and the listeners
             will receive a message that the edited file changed.
         */
-        void setSelectedFaustFile(const File& f, NotificationType n);
+        void setSelectedFaustFile(Component* c, const File& f, NotificationType n);
         
         /** Send a message that this file is about to be compiled.
             The listeners will be called with `compileFaustCode()` which can be override
@@ -520,6 +520,11 @@ public:
 
 			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
 
+            ~SnexSourceCompileHandler()
+            {
+                stopThread(1000);
+            }
+            
 			void processTestParameterEvent(int parameterIndex, double value) final override {};
             Result prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override { return Result::ok(); };
 			void processTest(ProcessDataDyn& data) final override {};

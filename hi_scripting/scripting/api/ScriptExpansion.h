@@ -615,12 +615,21 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Checks if the registration went OK. */
 		var isUnlocked() const;
 
+		/** Checks if the unlocker's license system has an expiration date. */
+		var canExpire() const;
+
+		/** If the unlocker has an expiration date, it will check it against the RSA encoded time string from the server. */
+		var checkExpirationData(const String& encodedTimeString);
+
 		/** Sets a function that performs a product name check and expects to return true or false for a match. */
 		void setProductCheckFunction(var f);
 
 		/** This checks if there is a key file and applies it.  */
 		var loadKeyFile();
 
+        /** Checks whether the key file exists. */
+        bool keyFileExists() const;
+        
 		/** Writes the key data to the location. */
 		var writeKeyFile(const String& keyData);
 

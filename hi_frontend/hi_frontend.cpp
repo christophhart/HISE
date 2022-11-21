@@ -35,7 +35,6 @@
 
 #include <JuceHeader.h>
 
-
 #include "frontend/FrontendHostFactory.cpp"
 #include "frontend/FrontEndProcessor.cpp"
 #include "frontend/FrontendProcessorEditor.cpp"

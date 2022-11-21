@@ -915,4 +915,18 @@ HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 }
 
 
+void EventIdHandler::sendChokeMessage(ChokeListener* source, const HiseEvent& e)
+{
+	if (auto group = source->getChokeGroup())
+	{
+		for (auto l : chokeListeners)
+		{
+			if (l == source || l == nullptr || l->getChokeGroup() != group)
+				continue;
+
+			l->chokeMessageSent();
+		}
+	}
+}
+
 } // namespace hise

@@ -140,7 +140,15 @@ bool RoutableProcessor::MatrixData::addConnection(int sourceChannel, int destina
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(getLock());
 
-	if (sourceChannel < 0 || sourceChannel >= getNumSourceChannels() || destinationChannel < 0 || destinationChannel >= getNumDestinationChannels())
+	auto sourceChannelValid = isPositiveAndBelow(sourceChannel, getNumSourceChannels());
+	auto destinationChannelValid = isPositiveAndBelow(destinationChannel, getNumDestinationChannels());
+
+	if (!destinationChannelValid && thisAsProcessor == thisAsProcessor->getMainController()->getMainSynthChain())
+	{
+		destinationChannelValid = isPositiveAndBelow(destinationChannel, HISE_NUM_PLUGIN_CHANNELS);
+	}
+
+	if (!sourceChannelValid || !destinationChannelValid)
 	{
 		return false;
 	}

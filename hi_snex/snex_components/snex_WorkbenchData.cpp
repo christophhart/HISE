@@ -212,11 +212,11 @@ bool ui::WorkbenchData::handleCompilation()
 
 		callAsyncWithSafeCheck([](WorkbenchData* d) { d->postCompile(); });
 
-		compileHandler->postCompile(lastCompileResult);
-		
 		// Might get deleted in the meantime...
 		if (compileHandler != nullptr)
 		{
+            compileHandler->postCompile(lastCompileResult);
+            
 			callAsyncWithSafeCheck([](WorkbenchData* d) { d->postPostCompile(); });
 		}
 	}

@@ -1950,7 +1950,9 @@ template <typename...Ps> struct LambdaBroadcaster final
 	void sendMessage(NotificationType n, Ps... parameters)
 	{
 		lastValue = std::make_tuple(parameters...);
-		sendMessageInternal(n, lastValue);
+        
+        if(!listeners.isEmpty())
+            sendMessageInternal(n, lastValue);
 	}
 
 	/** By default, the lambda broadcaster will be called only with the last element whic
@@ -2583,6 +2585,11 @@ struct MasterClock
 		numSyncModes
 	};
 
+	void setNextGridIsFirst()
+	{
+		waitForFirstGrid = true;
+	}
+
 	void setSyncMode(SyncModes newSyncMode)
 	{
 		currentSyncMode = newSyncMode;
@@ -2693,7 +2700,8 @@ struct MasterClock
 					currentGridIndex++;
 
 					gi.change = true;
-					gi.firstGridInPlayback = false;
+					gi.firstGridInPlayback = waitForFirstGrid;
+					waitForFirstGrid = false;
 					gi.gridIndex = currentGridIndex;
 					gi.timestamp = numSamples + samplesToNextGrid;
 
@@ -2864,6 +2872,32 @@ struct MasterClock
 		return uptimeToUse / quarterSamples;
 	}
 
+    void reset()
+    {
+        gridEnabled = false;
+        clockGrid = TempoSyncer::numTempos;
+        currentSyncMode = SyncModes::Inactive;
+        
+        uptime = 0;
+        samplesToNextGrid = 0;
+        
+        currentGridIndex = 0;
+
+        internalClockIsRunning = false;
+
+        // they don't need to be resetted...
+        //sampleRate = 44100.0;
+        //bpm = 120.0;
+
+        nextTimestamp = 0;
+        currentState = State::Idle;
+        nextState = State::Idle;
+
+        waitForFirstGrid = false;
+        
+        updateGridDelta();
+    }
+    
 private:
 
 	void updateGridDelta()
@@ -3259,6 +3293,34 @@ struct Spectrum2D
     Image createSpectrumImage(AudioSampleBuffer& lastBuffer);
     
     AudioSampleBuffer createSpectrumBuffer();
+};
+
+/** A interface class that can attach mouse events to the JSON object provided in the mouse event callback of a broadcaster. */
+struct ComponentWithAdditionalMouseProperties
+{
+    virtual ~ComponentWithAdditionalMouseProperties() {};
+    
+    /** Override this method and add more properties to the event callback object. This is used when a Broadcaster is attached to the mouse events of this component. */
+    virtual void attachAdditionalMouseProperties(const MouseEvent& e, var& obj) = 0;
+    
+    /** Call this method with a mouse event and it will go up the parent hierarchy and call attachAdditionalMouseProperties() if possible. */
+    static void attachMousePropertyFromParent(const MouseEvent& e, var& obj)
+    {
+        auto c = e.eventComponent;
+        
+        using LongName = ComponentWithAdditionalMouseProperties;
+        
+        if(auto typed = dynamic_cast<LongName*>(c))
+        {
+            typed->attachAdditionalMouseProperties(e, obj);
+            return;
+        }
+        
+        if(auto typedChild = c->findParentComponentOfClass<LongName>())
+        {
+            typedChild->attachAdditionalMouseProperties(e, obj);
+        }
+    }
 };
 
 }
