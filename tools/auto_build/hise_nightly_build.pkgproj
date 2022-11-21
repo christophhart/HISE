@@ -2064,7 +2064,7 @@
 					<key>DICTIONARY</key>
 					<dict>
 						<key>IC_REQUIREMENT_CPU_ARCHITECTURE_FAMILY</key>
-						<integer>2</integer>
+						<integer>0</integer>
 						<key>IC_REQUIREMENT_CPU_INTEL_ARCHITECTURE_TYPE</key>
 						<integer>0</integer>
 						<key>IC_REQUIREMENT_CPU_MINIMUM_CPU_CORES_COUNT</key>
