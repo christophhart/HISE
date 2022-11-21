@@ -2295,16 +2295,7 @@ void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * b
 	File key = handler->getWorkDirectory().getChildFile(productName + FrontendHandler::getLicenseKeyExtension());
 
 	key.replaceWithText(keyContent);
-
-#if JUCE_WINDOWS
-#if JUCE_64BIT
-	const String message = "A dummy license file for 64bit plugins was created.\nTo load 32bit plugins, please use the 32bit version of HISE to create the license file";
-#else
-	const String message = "A dummy license file for 32bit plugins was created.\nTo load 64bit plugins, please use the 64bit version of HISE to create the license file";
-#endif
-#else
-	const String message = "A dummy license file for the plugins was created.";
-#endif
+    const String message = "A dummy license file for the plugins was created.";
 
 	PresetHandler::showMessageWindow("License File created", message, PresetHandler::IconType::Info);
 }

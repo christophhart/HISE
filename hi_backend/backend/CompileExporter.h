@@ -287,12 +287,6 @@ protected:
 
 	BuildOption showCompilePopup(TargetTypes type);
 
-	void convertTccScriptsToCppClasses();
-
-	void createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList);
-
-	StringArray getTccSection(const StringArray &cLines, const String &sectionName);
-
 	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types);
 
 	ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &publicKey, bool iOSAUv3);

@@ -1168,11 +1168,7 @@ String DebugLogger::getSystemSpecs() const
 	stats << "Host: **Standalone**  " << nl;
 #endif
 
-#if JUCE_64BIT
 	stats << "Process bit architecture: **64 bit**  " << nl;
-#else
-	stats << "Process bit architecture: **32 bit**  " << nl;
-#endif
 	stats << "Sandboxed: **" << (SystemStats::isRunningInAppExtensionSandbox() ? " Yes" : " No") << "**  " << nl;
 	
 	stats << nl;

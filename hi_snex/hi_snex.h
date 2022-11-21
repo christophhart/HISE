@@ -264,15 +264,8 @@ namespace snex {
 
 		using PointerType = uint64_t;
 
-#if JUCE_64BIT
+
 		typedef uint64_t AddressType;
-#else
-		typedef uint32_t AddressType;
-#endif
-
-
-
-
 	} // end namespace jit
 } // end namespace snex
 

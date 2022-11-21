@@ -1420,13 +1420,7 @@ String FrontendHandler::getLicenseKeyExtension()
 {
 
 #if JUCE_WINDOWS
-
-#if JUCE_64BIT
 	return ".license_x64";
-#else
-	return ".license_x86";
-#endif
-
 #else
 	return ".license";
 #endif
