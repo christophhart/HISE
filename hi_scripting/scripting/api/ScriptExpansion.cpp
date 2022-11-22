@@ -2687,23 +2687,26 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 {
 	if (unlocker != nullptr)
 	{
-		MemoryBlock mb;
-		if (mb.fromBase64Encoding(encodedTimeString))
+		if (encodedTimeString.startsWith("0x"))
 		{
 			BigInteger bi;
-			bi.loadFromMemoryBlock(mb);
+
+			bi.parseString(encodedTimeString.substring(2), 16);
 			unlocker->getPublicKey().applyToValue(bi);
 
-			Time(bi.toInt64());
+			auto timeString = bi.toMemoryBlock().toString();
 
-			auto ok = unlocker->unlockWithTime(Time(bi.toInt64()));
-            
-            if(ok)
-                return var("");
-            else
-                return var("Activation failed");
+			auto time = Time::fromISO8601(timeString);
+
+			auto ok = unlocker->unlockWithTime(time);
+
+			if (ok)
+				return var("");
+			else
+				return var("Activation failed");
+
 		}
-        
+
         return var("encodedTimeString data is corrupt");
 	}
 	else

@@ -966,7 +966,17 @@ void ProjectHandler::createRSAKey() const
 
 	const int seeds[] = { r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt() };
 
-	RSAKey::createKeyPair(publicKey, privateKey, 512, seeds, 6);
+	auto existingFile = getWorkDirectory().getChildFile("RSA.xml");
+
+	if (existingFile.existsAsFile())
+	{
+		publicKey = RSAKey(getPublicKeyFromFile(existingFile));
+		privateKey = RSAKey(getPrivateKeyFromFile(existingFile));
+	}
+	else
+		RSAKey::createKeyPair(publicKey, privateKey, 512, seeds, 6);
+
+	
 
 	AlertWindowLookAndFeel wlaf;
 
@@ -1004,10 +1014,26 @@ void ProjectHandler::createRSAKey() const
 		xml->getChildByName("PublicKey")->setAttribute("value", publicKey.toString());
 		xml->getChildByName("PrivateKey")->setAttribute("value", privateKey.toString());
 
+		auto key = privateKey.toString();
+		auto numbers = StringArray::fromTokens(key, ",", "");
+
+		BigInteger b1, b2;
+		b1.parseString(numbers[0], 16);
+		b2.parseString(numbers[1], 16);
+
+		auto n1 = b1.toString(10);
+		auto n2 = b2.toString(10);
+
+		xml->addChildElement(new XmlElement("ServerKey1"));
+		xml->addChildElement(new XmlElement("ServerKey2"));
+
+		xml->getChildByName("ServerKey1")->setAttribute("value", n1);
+		xml->getChildByName("ServerKey2")->setAttribute("value", n2);
+		
 		File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
 
 		rsaFile.replaceWithText(xml->createDocument(""));
-
+		
 		PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName(), PresetHandler::IconType::Info);
 	}
 }
