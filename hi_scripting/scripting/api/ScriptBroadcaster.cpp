@@ -947,12 +947,14 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 
 
 
-struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener
+struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
+																	   public hise::Processor::BypassListener
 {
-	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_) :
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& bypassId_) :
 		parameterIndexes(parameterIndexes_),
 		p(p_),
-		sb(sb_)
+		sb(sb_),
+		bypassId(bypassId_)
 	{
 		for (auto pi : parameterIndexes)
 		{
@@ -964,13 +966,49 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 		args.add(0);
 		args.add(0.0f);
 
-		p->addChangeListener(this);
+		if(!parameterIndexes.isEmpty())
+			p->addChangeListener(this);
+
+		if (bypassId.isValid())
+		{
+			p->addBypassListener(this);
+			bypassIdAsVar = var(bypassId.toString());
+		}
+	}
+
+	void bypassStateChanged(Processor* p, bool bypassState) override
+	{
+		static const Identifier e("Enabled");
+
+		if (bypassId == e)
+			bypassState = !bypassState;
+
+		auto newValue = (float)(int)bypassState;
+		sendParameterChange(bypassIdAsVar, newValue);
+	}
+
+	void sendParameterChange(const var& id, float newValue)
+	{
+		args.set(1, id);
+		args.set(2, newValue);
+
+		try
+		{
+			sb->sendAsyncMessage(args);
+		}
+		catch (String& s)
+		{
+			debugError(dynamic_cast<Processor*>(sb->getScriptProcessor()), s);
+		}
 	}
 
 	~ProcessorListener()
 	{
 		if (p != nullptr)
+		{
 			p->removeChangeListener(this);
+			p->removeBypassListener(this);
+		}
 	}
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override
@@ -980,23 +1018,14 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 
 		for (int i = 0; i < parameterIndexes.size(); i++)
 		{
+			auto id = parameterNames[i];
 			auto newValue = p->getAttribute(parameterIndexes[i]);
 
 			if (lastValues[i] != newValue)
 			{
 				lastValues.set(i, newValue);
-				args.set(1, parameterNames[i]);
-				args.set(2, newValue);
 
-				try
-				{
-					sb->sendAsyncMessage(args);
-				}
-				catch (String& s)
-				{
-					debugError(dynamic_cast<Processor*>(sb->getScriptProcessor()), s);
-				}
-
+				sendParameterChange(id, newValue);
 			}
 		}
 	}
@@ -1008,13 +1037,15 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	Array<float> lastValues;
 	Array<var> parameterNames;
 	const Array<int> parameterIndexes;
+	Identifier bypassId;
+	var bypassIdAsVar;
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata):
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& bypassId):
 	ListenerBase(metadata)
 {
 	for (auto& p : processors)
-		listeners.add(new ProcessorListener(b, p, parameterIndexes));
+		listeners.add(new ProcessorListener(b, p, parameterIndexes, bypassId));
 }
 
 void ScriptBroadcaster::ModuleParameterListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -1140,8 +1171,13 @@ int ScriptBroadcaster::ModuleParameterListener::getNumInitialCalls() const
 {
 	int i = 0;
 
+	
+
 	for (auto l : listeners)
 	{
+		if (l->bypassId.isValid())
+			i++;
+
 		i += l->parameterIndexes.size();
 	}
 
@@ -1160,14 +1196,37 @@ Array<juce::var> ScriptBroadcaster::ModuleParameterListener::getInitialArgs(int 
 	{
 		args.set(0, l->p->getId());
 
+		if (l->bypassId.isValid())
+		{
+			if (i == callIndex)
+			{
+				
+				auto v = l->p->isBypassed();
+
+				if (l->bypassId == Identifier("Enabled"))
+					v = !v;
+
+				args.set(1, l->bypassIdAsVar);
+				args.set(2, var((float)(int)v));
+
+				return args;
+			}
+
+			i++;
+		}
+
+		int pIndex = 0;
+
 		for (auto p : l->parameterIndexes)
 		{
 			if (i++ == callIndex)
 			{
-				args.set(1, p);
+				args.set(1, l->parameterNames[pIndex]);
 				args.set(2, l->p->getAttribute(p));
 				return args;
 			}
+
+			pIndex++;
 		}
 	}
 
@@ -1207,6 +1266,21 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 			continue;
 
 		args.set(0, processor->getId());
+
+		if (p->bypassId.isValid())
+		{
+			args.set(1, p->bypassIdAsVar);
+			auto v = p->p->isBypassed();
+			if (p->bypassId == Identifier("Enabled"))
+				v = !v;
+
+			args.set(2, var((float)(int)v));
+
+			auto r = n->callSync(args);
+
+			if (!r.wasOk())
+				return r;
+		}
 
 		for (int i = 0; i < p->parameterNames.size(); i++)
 		{
@@ -3165,29 +3239,46 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 	
 	Array<int> parameterIndexes;
 
+	Identifier bypassId;
+
 	if (parameterIds.isArray())
 	{
 		for (const auto& pId : *parameterIds.getArray())
 		{
-			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pId.toString());
+			auto pName = pId.toString();
+
+			if (pName == "Bypassed" || pName == "Enabled")
+			{
+				bypassId = Identifier(pName);
+				continue;
+			}
+
+			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
 			if (idx == -1)
-				reportScriptError("unknown parameter ID: " + pId.toString());
+				reportScriptError("unknown parameter ID: " + pName);
 
 			parameterIndexes.add(idx);
 		}
 	}
 	else
 	{
-		auto idx = processors.getFirst()->getParameterIndexForIdentifier(parameterIds.toString());
+		auto pName = parameterIds.toString();
 
-		if (idx == -1)
-			reportScriptError("unknown parameter ID: " + parameterIds.toString());
+		if (pName == "Bypassed" || pName == "Enabled")
+			bypassId = Identifier(pName);
+		else
+		{
+			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
-		parameterIndexes.add(idx);
+			if (idx == -1)
+				reportScriptError("unknown parameter ID: " + pName);
+
+			parameterIndexes.add(idx);
+		}
 	}
 
-	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata));
+	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, bypassId));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;
