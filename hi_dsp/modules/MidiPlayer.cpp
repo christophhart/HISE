@@ -1196,7 +1196,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 						auto noteOffTimeStampInBuffer = noteOff->getTimeStamp() - positionInTicks;
 
 						if (noteOffTimeStampInBuffer < 0.0)
-							noteOffTimeStampInBuffer += lengthInTicks;
+							noteOffTimeStampInBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 
 						timeStamp += timeStampForNextCommand;
 
