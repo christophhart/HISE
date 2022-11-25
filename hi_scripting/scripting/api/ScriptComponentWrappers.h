@@ -642,6 +642,7 @@ public:
 
 		void animationChanged() override;
 
+        void paintRoutineChanged() override;
 
 		void initPanel(ScriptingApi::Content::ScriptPanel* panel);
 

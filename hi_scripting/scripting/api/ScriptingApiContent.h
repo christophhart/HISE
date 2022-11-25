@@ -867,6 +867,8 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+        
+        
 		struct GlobalCableConnection;
 
 		AsyncControlCallbackSender controlSender;
@@ -877,6 +879,26 @@ public:
 
 		Array<Identifier> scriptChangedProperties;
 
+        struct SubComponentNotifier: public AsyncUpdater
+        {
+            SubComponentNotifier(ScriptComponent& p):
+              parent(p)
+            {};
+            
+            void handleAsyncUpdate() override;
+            
+            struct Item
+            {
+                WeakReference<ScriptComponent> sc;
+                bool wasAdded;
+            };
+            
+            hise::SimpleReadWriteLock lock;
+            Array<Item> pendingItems;
+            
+            ScriptComponent& parent;
+        } subComponentNotifier;
+        
 		Array<WeakReference<SubComponentListener>> subComponentListeners;
 		Array<WeakReference<ZLevelListener>> zLevelListeners;
 
@@ -1709,6 +1731,8 @@ public:
 
 			virtual void animationChanged() = 0;
 
+            virtual void paintRoutineChanged() = 0;
+            
 			JUCE_DECLARE_WEAK_REFERENCEABLE(AnimationListener);
 		};
 

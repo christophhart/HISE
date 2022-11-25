@@ -2159,12 +2159,24 @@ void ScriptCreatedComponentWrappers::PanelWrapper::animationChanged()
 #endif
 }
 
+void ScriptCreatedComponentWrappers::PanelWrapper::paintRoutineChanged()
+{
+    auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+    
+    if(auto bp = dynamic_cast<BorderPanel*>(getComponent()))
+    {
+        bp->isUsingCustomImage = panel->isUsingCustomPaintRoutine() || panel->isUsingClippedFixedImage();
+        
+        SafeAsyncCall::repaint(bp);
+    }
+}
+
 void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Content::ScriptPanel* panel)
 {
 	BorderPanel *bp = new BorderPanel(panel->getDrawActionHandler());
 
 	panel->addSubComponentListener(this);
-	panel->addAnimationListener(this);
+	
 
 	bp->setName(panel->name.toString());
 
@@ -2186,6 +2198,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::initPanel(ScriptingApi::Conte
 
 	component = bp;
 
+    panel->addAnimationListener(this);
 
 #if HISE_INCLUDE_RLOTTIE
 	animationChanged();

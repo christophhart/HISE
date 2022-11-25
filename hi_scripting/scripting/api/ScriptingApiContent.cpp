@@ -234,6 +234,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	controlSender(this, base),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
+    subComponentNotifier(*this),
 	skipRestoring(false),
 	hasChanged(false),
 	customControlCallback(var())
@@ -1314,32 +1315,44 @@ var ScriptingApi::Content::ScriptComponent::getAllProperties()
 	return var(list);
 }
 
+void ScriptingApi::Content::ScriptComponent::SubComponentNotifier::handleAsyncUpdate()
+{
+    Array<Item> items;
+    
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
+        items.swapWith(pendingItems);
+    }
+    
+    for (auto l : parent.subComponentListeners)
+    {
+        if (l != nullptr)
+        {
+            for(auto i: items)
+            {
+                if(i.sc != nullptr)
+                {
+                    if (i.wasAdded)
+                        l->subComponentAdded(i.sc);
+                    else
+                        l->subComponentRemoved(i.sc);
+                }
+            }
+        }
+    }
+}
+
 void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(ScriptComponent* s, bool wasAdded, NotificationType notify/*=sendNotificationAsync*/)
 {
-	WeakReference<ScriptComponent> ws(s);
-	WeakReference<ScriptComponent> ts(this);
-
-	auto f = [ts, ws, wasAdded]()
-	{
-		if (ts != nullptr && ws != nullptr)
-		{
-			for (auto l : ts->subComponentListeners)
-			{
-				if (l != nullptr)
-				{
-					if (wasAdded)
-						l->subComponentAdded(ws);
-					else
-						l->subComponentRemoved(ws);
-				}
-			}
-		}
-	};
-
-	if (notify == sendNotificationSync)
-		f();
-	else
-		MessageManager::callAsync(f);
+    {
+        hise::SimpleReadWriteLock::ScopedWriteLock sl(subComponentNotifier.lock);
+        subComponentNotifier.pendingItems.add({s, wasAdded});
+    }
+    
+    if(notify == sendNotificationSync)
+        subComponentNotifier.handleAsyncUpdate();
+    else
+        subComponentNotifier.triggerAsyncUpdate();
 }
 
 
@@ -3475,6 +3488,12 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 	if (HiseJavascriptEngine::isJavascriptFunction(paintFunction) && !parent->allowGuiCreation)
 	{
 		repaint();
+        
+        for(auto l: animationListeners)
+        {
+            if(l != nullptr)
+                l->paintRoutineChanged();
+        }
 	}
 
 }
