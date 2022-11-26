@@ -375,6 +375,8 @@ protected:
 	void zLevelChanged(ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel newLevel) override;
 
 	void wantsToLoseFocus() override;
+    
+    void wantsToGrabFocus() override;
 
 	bool keyPressed(const KeyPress& key,
 		Component* originatingComponent) override;
@@ -519,6 +521,8 @@ public:
 
 		void updateValue(var newValue) override;
 
+        void wantsToGrabFocus() override;
+        
 		void editorShown(Label*, TextEditor&) override;
 		void editorHidden(Label*, TextEditor&) override;
 

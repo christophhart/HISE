@@ -371,6 +371,8 @@ public:
 
 			virtual void wantsToLoseFocus() {}
 
+            virtual void wantsToGrabFocus() {};
+            
 			JUCE_DECLARE_WEAK_REFERENCEABLE(ZLevelListener);
 		};
 
@@ -612,6 +614,9 @@ public:
 		/** Call this method in order to give away the focus for this component. */
 		void loseFocus();
 
+        /** Call this method in order to grab the keyboard focus for this component. */
+        void grabFocus();
+        
 		/** Attaches the local look and feel to this component. */
 		void setLocalLookAndFeel(var lafObject);
 

@@ -795,6 +795,13 @@ void ScriptCreatedComponentWrapper::wantsToLoseFocus()
 	}
 }
 
+void ScriptCreatedComponentWrapper::wantsToGrabFocus()
+{
+    if (auto c = getComponent())
+        c->grabKeyboardFocusAsync();
+}
+
+
 bool ScriptCreatedComponentWrapper::keyPressed(const KeyPress& key, Component* originatingComponent)
 {
 	return getScriptComponent()->handleKeyPress(key);
@@ -1266,6 +1273,23 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateEditability(ScriptingAp
 	l->setInterceptsMouseClicks(editable, editable);
 	l->setEditable(editable);
 	l->setMultiline(multiline);
+}
+
+void ScriptCreatedComponentWrappers::LabelWrapper::wantsToGrabFocus()
+{
+    bool editable = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::Editable);
+    
+    if(!editable)
+        return;
+    
+    if(auto l = dynamic_cast<MultilineLabel*>(component.get()))
+    {
+        SafeAsyncCall::call<MultilineLabel>(*l, [](MultilineLabel& lb)
+        {
+            lb.showEditor();
+            lb.grabKeyboardFocusAsync();
+        });
+    }
 }
 
 void ScriptCreatedComponentWrappers::LabelWrapper::updateFont(ScriptingApi::Content::ScriptLabel * sl, MultilineLabel * l)

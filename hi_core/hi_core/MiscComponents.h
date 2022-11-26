@@ -793,6 +793,7 @@ private:
 	bool multiline;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultilineLabel);
+    JUCE_DECLARE_WEAK_REFERENCEABLE(MultilineLabel);
 
 	// ================================================================================================================
 };
