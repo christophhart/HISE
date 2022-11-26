@@ -2077,6 +2077,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i05, "radioGroup");
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    ADD_SCRIPT_PROPERTY(i07, "setValueOnClick"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	handleDefaultDeactivatedProperties();
 
@@ -2091,6 +2092,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
 	setDefaultValue(ScriptButton::Properties::enableMidiLearn, true);
+    setDefaultValue(ScriptButton::Properties::setValueOnClick, false);
 
 	initInternalPropertyFromValueTreeOrDefault(filmstripImage);
 

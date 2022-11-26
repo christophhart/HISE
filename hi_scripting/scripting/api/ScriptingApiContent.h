@@ -1052,6 +1052,7 @@ public:
 			radioGroup,
 			isMomentary,
 			enableMidiLearn,
+            setValueOnClick,
 			numProperties
 		};
 
