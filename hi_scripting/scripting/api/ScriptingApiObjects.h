@@ -902,14 +902,15 @@ namespace ScriptingObjects
 
 		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
 		{
-			if (t == ComplexDataUIUpdaterBase::EventType::DisplayIndex &&
-				displayCallback)
-			{
-				displayCallback.call1(data);
+			if (t == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+            {
+                if(displayCallback)
+                    displayCallback.call1(data);
 			}
-			else if (contentCallback)
+			else
 			{
-				contentCallback.call1(data);
+                if(contentCallback)
+                    contentCallback.call1(data);
 			}
 		}
 
