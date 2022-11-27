@@ -1413,8 +1413,8 @@ void ScriptingObjects::ScriptComplexDataReferenceBase::setCallbackInternal(bool 
 		auto& cb = isDisplay ? displayCallback : contentCallback;
 
 		cb = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
+        cb.incRefCount();
 		cb.setThisObject(this);
-		cb.incRefCount();
 		cb.addAsSource(this, "onComplexDataEvent");
 	}
 }
@@ -1767,21 +1767,7 @@ var ScriptingObjects::ScriptTableData::getTablePointsAsArray()
 {
 	if (auto table = getTable())
 	{
-		Array<var> a;
-
-		for (int i = 0; i < table->getNumGraphPoints(); i++)
-		{
-			auto gp = table->getGraphPoint(i);
-
-			Array<var> gpa;
-
-			gpa.add(gp.x);
-			gpa.add(gp.y);
-			gpa.add(gp.curve);
-			a.add(var(gpa));
-		}
-
-		return a;
+        return table->getTablePointsAsVarArray();
 	}
 
 	return var();

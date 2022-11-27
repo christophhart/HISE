@@ -234,16 +234,23 @@ void TableEditor::addDragPoint(int x, int y, float curve, bool isStart/*=false*/
 
 void TableEditor::createDragPoints()
 {
-	jassert(editedTable->getNumGraphPoints() >= 2);
+	
 	//jassert(getWidth() != 0);
 
 	drag_points.clear();
 
 	if(editedTable.get() != nullptr) 
 	{
-		addNormalizedDragPoint(editedTable->getGraphPoint(0), true, false);
-		for(int i = 1; i < editedTable->getNumGraphPoints() - 1; ++i) addNormalizedDragPoint(editedTable->getGraphPoint(i), false, false);
-		addNormalizedDragPoint(editedTable->getGraphPoint(editedTable->getNumGraphPoints()-1), false, true);
+        auto list = editedTable->getCopyOfGraphPoints();
+        
+        jassert(list.size() >= 2);
+        
+		addNormalizedDragPoint(list.getFirst(), true, false);
+        
+		for(int i = 1; i < list.size() - 1; ++i)
+            addNormalizedDragPoint(list[i], false, false);
+        
+		addNormalizedDragPoint(list.getLast(), false, true);
 	}
 };
 

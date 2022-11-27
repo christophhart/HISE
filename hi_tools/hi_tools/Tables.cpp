@@ -46,8 +46,11 @@ Table::~Table()
 
 void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints, bool refreshLookupTable)
 {
-	graphPoints.clear();
-	graphPoints.addArray(newGraphPoints, 0, numPoints);
+    {
+        hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+        graphPoints.clear();
+        graphPoints.addArray(newGraphPoints, 0, numPoints);
+    }
 
 	if (refreshLookupTable)
 		fillLookUpTable();
@@ -55,22 +58,59 @@ void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoint
 	internalUpdater.sendContentChangeMessage(sendNotificationSync, -1);
 };
 
+Array<Table::GraphPoint> Table::getCopyOfGraphPoints() const
+{
+    Array<GraphPoint> copy;
+    copy.ensureStorageAllocated(graphPoints.size());
+    
+    hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+    
+    copy.addArray(graphPoints);
+    return copy;
+}
+
+var Table::getTablePointsAsVarArray() const
+{
+    Array<var> a;
+
+    hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+    
+    a.ensureStorageAllocated(graphPoints.size());
+    
+    for(const auto& gp: graphPoints)
+    {
+        Array<var> gpa;
+
+        gpa.add(gp.x);
+        gpa.add(gp.y);
+        gpa.add(gp.curve);
+        a.add(var(gpa));
+    }
+
+    return a;
+}
+
 String Table::exportData() const
 {
-	if (graphPoints.size() == 2)
-	{
-		auto first = graphPoints.getFirst();
-		auto second = graphPoints.getLast();
+    Array<GraphPoint> copy;
+    
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+        copy.addArray(graphPoints);
+    }
 
-		if (first.x == 0.0f && first.y == 0.0f)
-		{
-			if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
-				return "";
-		}
-	}
-
-	Array<GraphPoint> copy = Array<GraphPoint>(graphPoints);
-
+    if (copy.size() == 2)
+    {
+        auto first = copy.getFirst();
+        auto second = copy.getLast();
+        
+        if (first.x == 0.0f && first.y == 0.0f)
+        {
+            if (second.x == 1.0f && second.y == 1.0f && second.curve == 0.5f)
+                return "";
+        }
+    }
+    
 	MemoryBlock b(copy.getRawDataPointer(), sizeof(Table::GraphPoint) * copy.size());
 
 	return b.toBase64Encoding();
@@ -107,6 +147,8 @@ var Table::base64ToDataVar(const String& b64)
 	Array<GraphPoint> gpd;
 	gpd.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
 
+    
+    
 	Array<var> data;
 
 	for (auto& gp : gpd)
@@ -141,40 +183,44 @@ void Table::createPath(Path &normalizedPath, bool fillPath, bool addStartEnd) co
 	normalizedPath.startNewSubPath(0.0f, 1.0f);
 	normalizedPath.startNewSubPath(1.0f, 0.0f);
 
-	if (addStartEnd)
-	{
-		normalizedPath.startNewSubPath(0.0f, 1.0f - jmax(0.0f, startY));
-		normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
-	}
-	else
-	{
-		normalizedPath.startNewSubPath(0.0f, 1.0f - graphPoints[0].y);
-	}
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+        
+        if (addStartEnd)
+        {
+            normalizedPath.startNewSubPath(0.0f, 1.0f - jmax(0.0f, startY));
+            normalizedPath.lineTo(0.0f, 1.0f - graphPoints[0].y);
+        }
+        else
+        {
+            normalizedPath.startNewSubPath(0.0f, 1.0f - graphPoints[0].y);
+        }
 
-	for(int i = 1; i < graphPoints.size(); ++i)
-	{
-		const float curve = graphPoints[i].curve;
-		
-		const float end_x = graphPoints[i].x;
-		const float end_y = 1.0f - graphPoints[i].y;
+        for(int i = 1; i < graphPoints.size(); ++i)
+        {
+            const float curve = graphPoints[i].curve;
+            
+            const float end_x = graphPoints[i].x;
+            const float end_y = 1.0f - graphPoints[i].y;
 
-		if(curve == 0.5)
-		{
-			normalizedPath.lineTo(end_x, end_y);
-		}
-		else
-		{
-			const float prev_x = graphPoints[i-1].x;
-			const float prev_y = 1.0f - graphPoints[i-1].y;
+            if(curve == 0.5)
+            {
+                normalizedPath.lineTo(end_x, end_y);
+            }
+            else
+            {
+                const float prev_x = graphPoints[i-1].x;
+                const float prev_y = 1.0f - graphPoints[i-1].y;
 
-			const float control_x = curve * prev_x + (1-curve) * end_x;
-			const float control_y = (1-curve) * prev_y + curve * end_y;
+                const float control_x = curve * prev_x + (1-curve) * end_x;
+                const float control_y = (1-curve) * prev_y + curve * end_y;
 
-			normalizedPath.quadraticTo(control_x, control_y, end_x, end_y);
-		}
-		
-	}
-
+                normalizedPath.quadraticTo(control_x, control_y, end_x, end_y);
+            }
+            
+        }
+    }
+    
 	if(addStartEnd)
 		normalizedPath.lineTo(1.0f, 1.0f - jmax(0.0f, endY));
 
@@ -187,13 +233,16 @@ void Table::fillLookUpTable()
 	HeapBlock<float> newValues;
 	newValues.calloc(getTableSize());
 
-	GraphPointComparator gpc;
-	graphPoints.sort(gpc);
-
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+        
+        GraphPointComparator gpc;
+        graphPoints.sort(gpc);
+    }
+    
 	fillExternalLookupTable(newValues, getTableSize());
 	
-	ScopedLock sl(getLock());
-	FloatVectorOperations::copy(getWritePointer(), newValues, getTableSize());
+    FloatVectorOperations::copy(getWritePointer(), newValues, getTableSize());
 };
 
 void Table::fillExternalLookupTable(float* d, int numValues)
@@ -236,10 +285,6 @@ void Table::fillExternalLookupTable(float* d, int numValues)
 		}
 	};
 }
-
-#if 0
-float *MidiTable::getWritePointer() {return data;};
-#endif
 
 float *SampleLookupTable::getWritePointer() {return data;};
 
