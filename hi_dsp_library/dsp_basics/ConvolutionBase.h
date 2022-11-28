@@ -124,9 +124,12 @@ public:
 
         ~BackgroundThread()
         {
+            soonToBeDeleted.clear();
             jassert(numRegisteredConvolvers == 0);
+            
             stopThread(1000);
             queue.callForEveryElementInQueue({});
+            
         }
         
 		void run() override
@@ -148,6 +151,16 @@ public:
                     });
                 }
                 
+                ReferenceCountedArray<MultithreadedConvolver> copy;
+                
+                if(!soonToBeDeleted.isEmpty())
+                {
+                    SpinLock::ScopedLockType sl(deleteLock);
+                    copy.swapWith(soonToBeDeleted);
+                }
+                
+                copy.clear();
+                
 				wait(500);
 			}
 		};
@@ -158,12 +171,22 @@ public:
             notify();
         }
         
+        void addConvolverToBeDeleted(MultithreadedConvolver::Ptr c)
+        {
+            SpinLock::ScopedLockType sl(deleteLock);
+            soonToBeDeleted.add(c);
+        }
+        
 		bool isBusy() const { return currentlyRendering; }
 		bool currentlyRendering = false;
 		
         int numRegisteredConvolvers = 0;
         
         hise::LockfreeQueue<MultithreadedConvolver::Ptr> queue;
+        
+        SpinLock deleteLock;
+        
+        ReferenceCountedArray<MultithreadedConvolver> soonToBeDeleted;
 	};
 
 
@@ -206,8 +229,6 @@ public:
 	static bool prepareImpulseResponse(const AudioSampleBuffer& originalBuffer, AudioSampleBuffer& buffer, bool* abortFlag, Range<int> range, double resampleRatio);
 
 	static double getResampleFactor(double sampleRate, double impulseSampleRate);
-
-
 
 	void setUseBackgroundThread(BackgroundThread* newThreadToUse, bool forceUpdate = false)
 	{
@@ -297,6 +318,10 @@ protected:
 	GainSmoother smoothedGainerDry;
 
 	AudioSampleBuffer wetBuffer;
+    AudioSampleBuffer fadeBuffer;
+    
+    float fadeValue = 0.0f;
+    float fadeDelta = 0.001f;
 
 	void enableProcessing(bool shouldBeProcessed);
 
@@ -327,6 +352,9 @@ protected:
 	MultithreadedConvolver::Ptr convolverL;
 	MultithreadedConvolver::Ptr convolverR;
 
+    MultithreadedConvolver::Ptr fadeOutConvolverL;
+    MultithreadedConvolver::Ptr fadeOutConvolverR;
+    
 	double cutoffFrequency = 20000.0;
 
 	double lastSampleRate = 0.0;

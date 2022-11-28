@@ -154,6 +154,7 @@ bool TwoStageFFTConvolver::init(size_t headBlockSize,
 
 void TwoStageFFTConvolver::process(const Sample* input, Sample* output, size_t len)
 {
+    
   // Head
   _headConvolver.process(input, output, len);
 

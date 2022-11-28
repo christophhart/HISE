@@ -174,6 +174,7 @@ ConvolutionEffectBase::ConvolutionEffectBase() :
 	dryGain(0.0f),
 	wetGain(1.0f),
 	wetBuffer(2, 0),
+    fadeBuffer(2, 0),
 	latency(0),
 	isReloading(false),
 	rampFlag(false),
@@ -198,6 +199,8 @@ ConvolutionEffectBase::~ConvolutionEffectBase()
 
 	convolverL = nullptr;
 	convolverR = nullptr;
+    fadeOutConvolverL = nullptr;
+    fadeOutConvolverR = nullptr;
 }
 
 void ConvolutionEffectBase::setImpulse(NotificationType sync)
@@ -308,6 +311,7 @@ void ConvolutionEffectBase::resetBase()
 	smoothedGainerDry.reset();
 	smoothedGainerWet.reset();
 	wetBuffer.clear();
+    fadeBuffer.clear();
 	smoothInputBuffer = false;
 	rampFlag = false;
 
@@ -328,7 +332,8 @@ void ConvolutionEffectBase::prepareBase(double sampleRate, int samplesPerBlock)
 {
 	if (wetBuffer.getNumSamples() < samplesPerBlock)
 	{
-
+        fadeBuffer.setSize(fadeBuffer.getNumChannels(), samplesPerBlock);
+        fadeBuffer.clear();
 
 		wetBuffer.setSize(wetBuffer.getNumChannels(), samplesPerBlock);
 		wetBuffer.clear();
@@ -336,10 +341,14 @@ void ConvolutionEffectBase::prepareBase(double sampleRate, int samplesPerBlock)
 
 	lastBlockSize = samplesPerBlock;
 
+    
+    
 	if (sampleRate != lastSampleRate)
 	{
 		lastSampleRate = sampleRate;
 
+        fadeDelta = 1.0f / (0.02f * (float)sampleRate);
+        
 		smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
 		smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -421,7 +430,65 @@ void ConvolutionEffectBase::processBase(ProcessDataDyn& d)
 
 				smoothInputBuffer = false;
 			}
-			else
+			else if (fadeOutConvolverL != nullptr)
+            {
+                auto fadeL = fadeBuffer.getWritePointer(0);
+                auto fadeR = numChannels > 1 ? fadeBuffer.getWritePointer(1) : nullptr;
+                
+                //fadeBuffer.clear();
+                //wetBuffer.clear();
+                
+
+                auto dryCopyL = (float*)alloca(sizeof(float)*numSamples);
+                auto dryCopyR = (float*)alloca(sizeof(float)*numSamples);
+                
+                FloatVectorOperations::copy(dryCopyL, l, numSamples);
+                FloatVectorOperations::copy(dryCopyR, r == nullptr ? l : r, numSamples);
+                
+                auto dryFadeValue = fadeValue;
+                
+                for(int i = 0; i < numSamples; i++)
+                {
+                    float g = jlimit(0.0f, 1.0f, dryFadeValue);
+                    
+                    dryCopyL[i] *= g*g;
+                    dryCopyR[i] *= g*g;
+                    
+                    dryFadeValue += fadeDelta;
+                }
+                
+                if (convolverL != nullptr)
+                    convolverL->process(dryCopyL, convolutedL, numSamples);
+
+                if (convolverR != nullptr && numChannels > 1)
+                    convolverR->process(dryCopyR, convolutedR, numSamples);
+                
+                if (fadeOutConvolverL != nullptr)
+                    fadeOutConvolverL->process(l, fadeL, numSamples);
+                if (fadeOutConvolverR != nullptr)
+                    fadeOutConvolverR->process(r, fadeR, numSamples);
+                
+                for(int i = 0; i < numSamples; i++)
+                {
+                    float g = jlimit(0.0f, 1.0f, fadeValue);
+                    g = 1.0f - g;
+                    g *= g;
+                    convolutedL[i] += fadeL[i] * g;
+                    convolutedR[i] += fadeR[i] * g;
+                    
+                    fadeValue += fadeDelta;
+                }
+                
+                if(fadeValue >= 1.0f)
+                {
+                    backgroundThread.addConvolverToBeDeleted(fadeOutConvolverL);
+                    backgroundThread.addConvolverToBeDeleted(fadeOutConvolverR);
+                    
+                    fadeOutConvolverL = nullptr;
+                    fadeOutConvolverR = nullptr;
+                }
+            }
+            else
 			{
 				if (convolverL != nullptr)
 					convolverL->process(l, convolutedL, numSamples);
@@ -543,6 +610,8 @@ bool ConvolutionEffectBase::reloadInternal()
 
 	MultithreadedConvolver::Ptr s1, s2;
 
+    
+    
 	for (int c = 0; c < scratchBuffer.getNumChannels(); c++)
 	{
 		auto r = scratchBuffer.getWritePointer(c);
@@ -560,14 +629,38 @@ bool ConvolutionEffectBase::reloadInternal()
 	s1->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(0), resampledLength);
 	s2->init(headSize, jmin<int>(8192, fullTailLength), scratchBuffer.getReadPointer(1), resampledLength);
 
+    s1->cleanPipeline();
+    s2->cleanPipeline();
+
+    scratchBuffer.clear();
+    
+    s1->process(scratchBuffer.getReadPointer(0), scratchBuffer.getWritePointer(1), jmin(scratchBuffer.getNumSamples(), 2048));
+    
+    scratchBuffer.clear();
+    
+    s2->process(scratchBuffer.getReadPointer(0), scratchBuffer.getWritePointer(1), jmin(scratchBuffer.getNumSamples(), 2048));
+    
+    
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
         
         while(backgroundThread.isBusy())
             Thread::getCurrentThread()->wait(10);
         
-        std::swap(s1, convolverL);
-		std::swap(s2, convolverR);
+        std::swap(fadeOutConvolverL, convolverL);
+		std::swap(fadeOutConvolverR, convolverR);
+        
+        fadeValue = 0.0f;
+        
+        if(convolverL != nullptr)
+        {
+            backgroundThread.addConvolverToBeDeleted(convolverL);
+            backgroundThread.addConvolverToBeDeleted(convolverR);
+            
+        }
+        
+        convolverL = s1;
+        convolverR = s2;
 	}
 
 	return true;
