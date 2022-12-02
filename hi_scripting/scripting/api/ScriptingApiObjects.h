@@ -184,6 +184,13 @@ namespace ScriptingObjects
 
 		/** Returns an array with the min and max value in the given range. */
 		var getPeakRange(int startSample, int numSamples);
+        
+        /** Trims a buffer at the start and end and returns a copy of it. */
+        var trim(int trimFromStart, int trimFromEnd)
+        {
+            jassertfalse;
+            return {};
+        }
 
 	};
 

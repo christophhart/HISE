@@ -317,6 +317,31 @@ void VariantBuffer::addMethods()
 		return var(0);
 	});
 
+    setMethod("trim", [](const var::NativeFunctionArgs& n)
+    {
+        if(auto bf = n.thisObject.getBuffer())
+        {
+            int numToTrimFromStart = 0;
+            int numToTrimFromEnd = 0;
+            
+            if(n.numArguments > 0)
+                numToTrimFromStart = jlimit(0, bf->size - 1, (int)n.arguments[0]);
+            if(n.numArguments > 1)
+                numToTrimFromEnd = jlimit(0, bf->size - numToTrimFromStart, (int)n.arguments[1]);
+            
+            auto ptr = bf->buffer.getWritePointer(0, numToTrimFromStart);
+            auto newSize = bf->size - numToTrimFromStart - numToTrimFromEnd;
+            
+            auto newBuffer = new VariantBuffer(newSize);
+            
+            FloatVectorOperations::copy(newBuffer->buffer.getWritePointer(0), ptr, newSize);
+            
+            return var(newBuffer);
+        }
+        
+        return var();
+    });
+    
 	setMethod("getPeakRange", [](const var::NativeFunctionArgs& n)
 	{
 		Array<var> range;
