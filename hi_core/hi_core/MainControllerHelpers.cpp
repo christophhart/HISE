@@ -1317,7 +1317,8 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 		mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
 #endif
 
-	samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
+    if(samplesPerBlock % HISE_EVENT_RASTER != 0)
+        samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
 
 	mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, mc->getMaximumBlockSize()));
 }

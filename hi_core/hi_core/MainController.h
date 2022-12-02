@@ -1182,6 +1182,8 @@ public:
 		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
 		bool voiceStartIsDisabled() const;
 
+        bool isCurrentlyExporting() const { return threadIds[TargetThread::AudioExportThread] != nullptr; }
+        
 		/** Call this in the processBlock method and it will check whether voice starts are allowed.
 		*
 		*	It checks if anything is pending and if yes, voiceStartIsDisabled() will return true for the callback.
@@ -1205,11 +1207,6 @@ public:
 
 		/** This can be set by the Internal Preloader. */
 		void setSampleLoadingThreadId(void* newId);
-
-		void setAudioExportThread(void* threadId)
-		{
-			threadIds[TargetThread::AudioExportThread] = threadId;
-		}
 
 		TargetThread getCurrentThread() const;
 
@@ -1252,7 +1249,8 @@ public:
 
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
-		
+        void setCurrentExportThread(void* exportThread);
+        
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;

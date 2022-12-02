@@ -44,7 +44,7 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	threadIds[TargetThread::ScriptingThread] = mc->javascriptThreadPool->getThreadId();
 	threadIds[TargetThread::MessageThread] = nullptr;
 
-	setAudioExportThread(nullptr);
+	setCurrentExportThread(nullptr);
 }
 
 
@@ -608,6 +608,22 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 #endif
 }
 
+
+void MainController::KillStateHandler::setCurrentExportThread(void* exportThread)
+{
+    auto& currentExportThread = threadIds[TargetThread::AudioExportThread];
+    
+    if(currentExportThread != exportThread)
+    {
+        if(currentExportThread != nullptr)
+            audioThreads.removeAllInstancesOf(currentExportThread);
+        
+        currentExportThread = exportThread;
+        
+        if(currentExportThread != nullptr)
+            audioThreads.addIfNotAlreadyThere(currentExportThread);
+    }
+}
 
 void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 {

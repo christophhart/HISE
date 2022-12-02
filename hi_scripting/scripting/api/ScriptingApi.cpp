@@ -1884,13 +1884,10 @@ struct AudioRenderer : public Thread,
 			Thread::wait(400);
 		}
 
-		getMainController()->getKillStateHandler().addThreadIdToAudioThreadList();
-
 		jassert(!getMainController()->getKillStateHandler().isAudioRunning());
 
-		getMainController()->getKillStateHandler().setAudioExportThread(getCurrentThreadId());
+		getMainController()->getKillStateHandler().setCurrentExportThread(getCurrentThreadId());
 
-		getMainController()->getKillStateHandler().addThreadIdToAudioThreadList();
 		dynamic_cast<AudioProcessor*>(getMainController())->setNonRealtime(true);
 		getMainController()->getSampleManager().handleNonRealtimeState();
 		
@@ -1957,13 +1954,13 @@ struct AudioRenderer : public Thread,
 			}
 		}
 
-                                                                                                                                                      		for (int i = 0; i < numChannelsToRender; i++)
+        for (int i = 0; i < numChannelsToRender; i++)
 		{
 			VariantBuffer* b = channels[i].get();
 			b->size = numActualSamples;
 		}
 
-		getMainController()->getKillStateHandler().removeThreadIdFromAudioThreadList();
+        getMainController()->getKillStateHandler().setCurrentExportThread(nullptr);
 		dynamic_cast<AudioProcessor*>(getMainController())->setNonRealtime(false);
 		getMainController()->getSampleManager().handleNonRealtimeState();
 		return true;
@@ -1984,7 +1981,7 @@ struct AudioRenderer : public Thread,
 
 	void cleanup()
 	{
-		getMainController()->getKillStateHandler().setAudioExportThread(nullptr);
+        getMainController()->getKillStateHandler().setCurrentExportThread(nullptr);
 		channels.clear();
 		memset(splitData, 0, sizeof(float*) * NUM_MAX_CHANNELS);
 		events.clear();
