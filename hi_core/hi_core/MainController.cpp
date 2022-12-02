@@ -907,7 +907,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	}
 
-	if (getMasterClock().shouldCreateInternalInfo(newTime))
+	if (getMasterClock().shouldCreateInternalInfo(newTime) || thisAsProcessor->isNonRealtime())
 	{
 		gridInfo = getMasterClock().processAndCheckGrid(buffer.getNumSamples(), newTime);
 		newTime = getMasterClock().createInternalPlayHead();
