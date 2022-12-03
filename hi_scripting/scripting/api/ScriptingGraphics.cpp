@@ -2127,6 +2127,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawNumberTag",
 		"createPresetBrowserIcons",
 		"drawPresetBrowserBackground",
+        "drawPresetBrowserDialog",
 		"drawPresetBrowserColumnBackground",
 		"drawPresetBrowserListItem",
 		"drawPresetBrowserSearchBar",

@@ -278,8 +278,11 @@ CustomKeyboard::~CustomKeyboard()
 void CustomKeyboard::paint(Graphics &g)
 {
 	if (!useCustomGraphics)
-		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawKeyboardBackground(g, this, getWidth(), getHeight());
-
+    {
+        if(auto laf = dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel()))
+            laf->drawKeyboardBackground(g, this, getWidth(), getHeight());
+    }
+		
 	MidiKeyboardComponent::paint(g);
 }
 
@@ -414,7 +417,8 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, Rectangle<fl
 	}
 	else
 	{
-		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawWhiteNote(state, this, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+        if(auto laf = dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel()))
+            laf->drawWhiteNote(state, this, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
 	}
 
 	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
@@ -452,7 +456,8 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, Rectangle<fl
 	}
 	else
 	{
-		dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel())->drawBlackNote(state, this, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
+		if(auto laf = dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel()))
+            laf->drawBlackNote(state, this, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
 	}
 }
 
