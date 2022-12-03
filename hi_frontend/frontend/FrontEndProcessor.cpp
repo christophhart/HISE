@@ -528,6 +528,8 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 	ScopedValueSetter<bool> svs(getKillStateHandler().getStateLoadFlag(), true);
 
+    UserPresetHandler::ScopedInternalPresetLoadSetter sipls(this);
+    
 #if USE_RAW_FRONTEND
 
 	MemoryInputStream in(data, sizeInBytes, false);

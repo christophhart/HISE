@@ -41,6 +41,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setCustomAutomation);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, setUseCustomUserPresetModel);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
+    API_METHOD_WRAPPER_0(ScriptUserPresetHandler, isInternalPresetLoad);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
@@ -63,6 +64,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	getMainController()->getUserPresetHandler().addListener(this);
 
 	ADD_API_METHOD_1(isOldVersion);
+    ADD_API_METHOD_0(isInternalPresetLoad);
 	ADD_API_METHOD_1(setPostCallback);
 	ADD_API_METHOD_1(setPreCallback);
 	ADD_API_METHOD_2(setEnableUserPresetPreprocessing);
@@ -114,6 +116,13 @@ void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBefor
 {
 	enablePreprocessing = processBeforeLoading;
 	unpackComplexData = shouldUnpackComplexData;
+}
+
+bool ScriptUserPresetHandler::isInternalPresetLoad() const
+{
+    auto& uph = getScriptProcessor()->getMainController_()->getUserPresetHandler();
+    
+    return uph.isInternalPresetLoad();
 }
 
 bool ScriptUserPresetHandler::isOldVersion(const String& version)

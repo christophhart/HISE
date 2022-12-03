@@ -582,6 +582,25 @@ public:
 	{
 	public:
 
+        struct ScopedInternalPresetLoadSetter: public ControlledObject
+        {
+            ScopedInternalPresetLoadSetter(MainController* mc):
+              ControlledObject(mc)
+            {
+                auto& flag = getMainController()->getUserPresetHandler().isInternalPresetLoadFlag;
+                prevValue = flag;
+                flag = true;
+            }
+            
+            ~ScopedInternalPresetLoadSetter()
+            {
+                getMainController()->getUserPresetHandler().isInternalPresetLoadFlag = prevValue;
+            }
+            
+            
+            bool prevValue;
+        };
+        
 		struct StoredModuleData : public ReferenceCountedObject
 		{
 			using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
@@ -833,6 +852,8 @@ public:
 		/** @internal */
 		void sendRebuildMessage();
 
+        bool isInternalPresetLoad() const { return isInternalPresetLoadFlag; }
+        
 		bool isUsingCustomDataModel() const { return isUsingCustomData; };
 		
 		bool isUsingPersistentObject() const { return usePersistentObject; }
@@ -934,6 +955,7 @@ public:
 
 		bool isUsingCustomData = false;
 		bool usePersistentObject = false;
+        bool isInternalPresetLoadFlag = false;
 
 		CustomAutomationData::List customAutomationData;
 
