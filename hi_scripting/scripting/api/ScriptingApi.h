@@ -1340,6 +1340,9 @@ public:
 		/** Enables a high precision grid timer. */
 		void setEnableGrid(bool shouldBeEnabled, int tempoFactor);
 
+        /** Sets the internal clock to stop when the external clock was stopped. */
+        void stopInternalClockOnExternalStop(bool shouldStop);
+        
 		/** Starts the internal master clock. */
 		void startInternalClock(int timestamp);
 
