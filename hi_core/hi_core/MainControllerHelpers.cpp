@@ -698,7 +698,10 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 		aArray.addIfNotAlreadyThere(a);
 	}
 
-	sendChangeMessage();
+    if(mc->getUserPresetHandler().isInternalPresetLoad())
+        sendSynchronousChangeMessage();
+    else
+        sendChangeMessage();
 
 	refreshAnyUsedState();
 }
