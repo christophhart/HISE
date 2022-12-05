@@ -1507,6 +1507,8 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 
     addAndMakeVisible(warningButton);
     
+    
+    
     rangeWatcher.setCallback(
         node->getRootNetwork()->getValueTree(),
         RangeHelpers::getRangeIds(),
@@ -1518,6 +1520,11 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
         RangeHelpers::getRangeIds(),
         valuetree::AsyncMode::Asynchronously,
         BIND_MEMBER_FUNCTION_2(MacroParameterSlider::checkAllParametersForWarning));
+    
+    sourceConnectionWatcher.setCallback(
+        slider.pTree.getChildWithName(PropertyIds::Connections),
+        valuetree::AsyncMode::Asynchronously,
+        BIND_MEMBER_FUNCTION_2(MacroParameterSlider::updateWarningOnConnectionChange));
     
     warningButton.onClick = [this, node]()
     {
@@ -1556,7 +1563,7 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 void MacroParameterSlider::checkAllParametersForWarning(const Identifier& , const var& )
 {
     auto nTree = slider.pTree.getParent().getParent().getChildWithName(PropertyIds::Nodes);
-    
+ 
     jassert(nTree.isValid());
     
     ScriptingApi::Content::Helpers::callRecursive(nTree, [&](ValueTree& v)
@@ -1568,6 +1575,19 @@ void MacroParameterSlider::checkAllParametersForWarning(const Identifier& , cons
 
         return true;
     });
+}
+
+void MacroParameterSlider::updateWarningOnConnectionChange(const ValueTree& v, bool wasAdded)
+{
+    auto cTree = slider.pTree.getChildWithName(PropertyIds::Connections);
+    
+    if(cTree.getNumChildren() == 0)
+    {
+        warningButton.setVisible(false);
+        return;
+    }
+    
+    checkAllParametersForWarning({}, {});
 }
 
 void MacroParameterSlider::updateWarningButton(const ValueTree& v, const Identifier& id)
@@ -1594,9 +1614,13 @@ void MacroParameterSlider::updateWarningButton(const ValueTree& v, const Identif
         auto pId = v[PropertyIds::ID].toString();
         auto nId = v.getParent().getParent()[PropertyIds::ID].toString();
         
+        if(cppgen::CustomNodeProperties::isUnscaledParameter(v))
+            continue;
+        
         if(spId == pId &&
            snId == nId)
         {
+            
             auto tr = RangeHelpers::getDoubleRange(v);
             
             found = true;

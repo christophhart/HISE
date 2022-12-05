@@ -309,12 +309,15 @@ private:
     
     void updateWarningButton(const ValueTree& v, const Identifier& id);
     
+    void updateWarningOnConnectionChange(const ValueTree& c, bool wasAdded);
+    
 	ParameterSlider slider;
     
     HiseShapeButton warningButton;
     
     valuetree::RecursivePropertyListener rangeWatcher;
     valuetree::PropertyListener sourceRangeWatcher;
+    valuetree::ChildListener sourceConnectionWatcher;
 };
 
 }
