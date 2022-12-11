@@ -1409,10 +1409,16 @@ bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 
 		auto c = k.getTextCharacter();
 
-		auto printable = CharacterFunctions::isPrintable(c);
+		auto printable    = CharacterFunctions::isPrintable(c);
+		auto isWhitespace = CharacterFunctions::isWhitespace(c);
+		auto isLetter     = CharacterFunctions::isLetter(c);
+		auto isDigit      = CharacterFunctions::isDigit(c);
 		
 		obj->setProperty("character", printable ? String::charToString(c) : "");
 		obj->setProperty("specialKey", !printable);
+		obj->setProperty("isWhitespace", isWhitespace);
+		obj->setProperty("isLetter", isLetter);
+		obj->setProperty("isDigit", isDigit);
 		obj->setProperty("keyCode", k.getKeyCode());
 		obj->setProperty("description", k.getTextDescription());
 		obj->setProperty("shift", k.getModifiers().isShiftDown());
