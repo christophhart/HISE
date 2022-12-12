@@ -2709,10 +2709,12 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 
 			auto ok = unlocker->unlockWithTime(time);
 
+			auto delta = unlocker->getExpiryTime() - time;
+
 			if (ok)
-				return var("");
+				return var((int)delta.inDays());
 			else
-				return var("Activation failed");
+				return var(false);
 
 		}
 

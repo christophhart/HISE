@@ -393,10 +393,12 @@ bool OnlineUnlockStatus::applyKeyFile (String keyFileContent)
 
         if (data.keyFileExpires)
         {
-            if ((! dummyResult) && actualResult)
-                status.setProperty (expiryTimeProp, data.expiryTime.toMilliseconds(), nullptr);
+			if ((!dummyResult) && actualResult)
+				status.setProperty(expiryTimeProp, data.expiryTime.toMilliseconds(), nullptr);
+            
+			jassert(!isUnlocked());
 
-            return getExpiryTime().toMilliseconds() > 0;
+			return isUnlocked();
         }
 
         if ((! dummyResult) && actualResult)
