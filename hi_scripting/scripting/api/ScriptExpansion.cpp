@@ -2712,7 +2712,14 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 			auto delta = unlocker->getExpiryTime() - time;
 
 			if (ok)
+			{
+#if USE_FRONTEND
+				dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController_())->loadSamplesAfterRegistration(true);
+#endif
+
 				return var((int)delta.inDays());
+			}
+				
 			else
 				return var(false);
 
