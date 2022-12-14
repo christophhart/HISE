@@ -23,7 +23,7 @@ Supported OS:
 - Windows 7+
 - OSX 10.7+
 - iOS 8.0+
-- Linux (experimental, tested on Ubuntu 16.04 LTS)
+- Linux (tested on Ubuntu 16.04 LTS)
 
 HISE is tested on Windows and OSX with the following hosts:
 
@@ -40,51 +40,52 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 ## How to compile HISE
 
-### Windows / OSX
+### Windows 
 
 1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
-2. Get all necessary 3rd party code:
-	- [ASIO SDK](http://www.steinberg.net/sdk_downloads/asiosdk2.3.zip) for standalone support on Windows.
-	- [VST SDK](http://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip) for building VST plugins
-	- [Intel Performance Primitives](https://software.intel.com/en-us/articles/free-ipp) (this is optional but heavily increases the performance of the convolution reverb)
+2. Extract the contents of `tools/SDK/sdk.zip` to `tools/SDK`. Your `tools` folder should now contain folders named `ASIOSDK2.3` and `VST3 SDK`.
 
 3. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
 
-4. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
+4. Click on "Save Project and open in IDE" to load the project in Visual Studio 2022.
 
-5. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
+5. Hit compile and wait...
+
+### OSX
+
+1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
+
+2. Extract the contents of `tools/SDK/sdk.zip` to `tools/SDK`. Your `tools` folder should now contain folders named `ASIOSDK2.3` and `VST3 SDK`.
+
+3. Install [xcpretty](https://github.com/xcpretty/xcpretty), a formatter for xcode. You can install it from the terminal using the command `sudo gem install xcpretty`.
+
+4. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`).
+
+> If you hit a permission issue when launching Projucer (or an error stating that Projucer is damaged) you need to open Security & Privacy and whitelist Projucer.
+
+5. Click on "Save Project and open in IDE" to load the project in XCode.
 
 6. Hit compile and wait...
 
-### Install xcpretty on OSX 
-[xcpretty](https://github.com/xcpretty/xcpretty) is a formatter for xcode. You can install it from the terminal using the command `sudo gem install xcpretty`.
-
-### Compiling without IPP on OSX
-
-If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 3 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:
-
-```
-/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a
-```
-
-Then remove the include directories from the **Debug** and **Release** configurations (Remove everything in the **Header Search Paths** and **Extra Library Search Paths**. As last step, you'll need to change the `USE_IPP` flag. Click on the `hi_core` module and change the `USE_IPP` field to *disabled*. Then proceed with step 5...
+> HISE does not run natively on Apple Silicon and should be compiled for x86 on that platform. Projects exported from HISE will run natively on both x86 and Apple Silicon devices when built as universal binaries.
 
 ### Linux
 
-1. Get these dependencies (taken from the JUCE forum):
-
+1. Install the dependencies: 
 ```
-sudo apt-get -y install llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
+sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
 ```
 
-2. Clone this repository.
+2. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
-3. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer` and resave the project (this will generate the Makefile with correct Linux paths).
+3. Extract the contents of `tools/SDK/sdk.zip` to `tools/SDK`. Your `tools` folder should now contain folders named `ASIOSDK2.3` and `VST3 SDK`.
 
-4. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+4. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer` and resave the project (this will generate the Makefile with correct Linux paths).
 
-5. Type `make CONFIG=Release` and wait. If you need the debug version (that is slower but allows you to jump around in the source code, use `make CONFIG=Debug`.
+5. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+
+6. Type `make CONFIG=Release` and wait. If you need the debug version (that is slower but allows you to jump around in the source code, use `make CONFIG=Debug`.
 
 
 ## License
