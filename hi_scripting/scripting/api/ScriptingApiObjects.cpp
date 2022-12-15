@@ -1558,6 +1558,7 @@ struct ScriptingObjects::ScriptRingBuffer::Wrapper
 	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
     API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setActive);
 	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setRingBufferProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, copyReadBuffer);
 };
 
 ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other/*=nullptr*/):
@@ -1567,6 +1568,7 @@ ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingConte
 	ADD_API_METHOD_3(createPath);
 	ADD_API_METHOD_2(getResizedBuffer);
 	ADD_API_METHOD_1(setRingBufferProperties);
+	ADD_API_METHOD_1(copyReadBuffer);
     ADD_API_METHOD_1(setActive);
 }
 
@@ -1676,6 +1678,34 @@ void ScriptingObjects::ScriptRingBuffer::setRingBufferProperties(var propertyDat
 				obj->setProperty(nv.name, nv.value);
 		}
 	}
+}
+
+void ScriptingObjects::ScriptRingBuffer::copyReadBuffer(var targetBuffer)
+{
+	if (auto obj = getRingBuffer())
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(obj->getDataLock());
+
+		if (auto tb = targetBuffer.getBuffer())
+		{
+			auto dst = tb->buffer.getWritePointer(0);
+			auto numSamples = tb->size;
+
+			auto& rb = obj->getReadBuffer();
+
+			if (rb.getNumSamples() != numSamples)
+			{
+				reportScriptError("size mismatch (" + String(numSamples) + "). Expected: " + String(rb.getNumSamples()));
+			}
+			else
+			{
+				ScopedLock sl2(obj->getReadBufferLock());
+				FloatVectorOperations::copy(dst, rb.getReadPointer(0), numSamples);
+			}
+		}
+	}
+	else
+		reportScriptError("You need to pass in a Buffer object");
 }
 
 struct ScriptingObjects::ScriptTableData::Wrapper
