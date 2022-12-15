@@ -151,8 +151,8 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 	lPath.clear();
 
-	lPath.startNewSubPath(0.0f, targetBounds.getY());
-	lPath.startNewSubPath(0.0f, targetBounds.getHeight());
+	lPath.startNewSubPath(targetBounds.getX(), targetBounds.getY());
+	lPath.startNewSubPath(targetBounds.getX(), targetBounds.getHeight());
 
     auto cpy = (float*)alloca(sizeof(float)*size);
 
@@ -168,24 +168,8 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 	if (sampleRate <= 0.0)
 		sampleRate = 44100.0;
 
-	for (float xPos = targetBounds.getX(); xPos < targetBounds.getWidth(); xPos += 2.0f)
+	auto getYValue = [&](double maxValue)
 	{
-		auto leftFreq = FFTHelpers::getFreqForLogX(xPos, targetBounds.getWidth());
-		auto rightFreq = FFTHelpers::getFreqForLogX(xPos + 2.0f, targetBounds.getWidth());
-
-		auto leftNorm = leftFreq / (sampleRate);
-		auto rightNorm = rightFreq / (sampleRate);
-
-		auto leftBinIndex = roundToInt(leftNorm * (float)size);
-		auto rightBinIndex = jmax(leftBinIndex + 1, roundToInt(rightNorm * (float)size));
-
-		float maxValue = 0.0f;
-
-		for (int i = leftBinIndex; i < rightBinIndex; i++)
-		{
-			maxValue = jmax(maxValue, data[i]);
-		}
-
 		if (!useDb)
 			maxValue = maxValue;
 		else if (!dbRange.isEmpty())
@@ -201,7 +185,79 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 		yPos *= targetBounds.getHeight();
 
-		lPath.lineTo(xPos, yPos);
+		return yPos;
+	};
+
+	auto getBinRange = [targetBounds, sampleRate, size](double xPos)
+	{
+		auto leftFreq = FFTHelpers::getFreqForLogX(xPos, targetBounds.getWidth());
+		auto rightFreq = FFTHelpers::getFreqForLogX(xPos + 2.0f, targetBounds.getWidth());
+
+		auto leftNorm = leftFreq / (sampleRate);
+		auto rightNorm = rightFreq / (sampleRate);
+
+		auto leftBinIndex = roundToInt(leftNorm * (float)size);
+		auto rightBinIndex = jmax(leftBinIndex + 1, roundToInt(rightNorm * (float)size));
+
+		return Range<int>(leftBinIndex, rightBinIndex);
+	};
+
+	auto getPixelRangeForBin = [&](int binIndex)
+	{
+		auto leftFreq = sampleRate * (double)binIndex / (double)size;
+		auto rightFreq = sampleRate * (double)(binIndex + 1) / (double)size;
+
+		auto lPos = FFTHelpers::getPixelValueForLogXAxis(leftFreq, targetBounds.getWidth() + targetBounds.getX());
+		auto rPos = jmax(lPos + 1.0f, (FFTHelpers::getPixelValueForLogXAxis(rightFreq, targetBounds.getWidth() + targetBounds.getX())));
+
+		return Range<float>(lPos, rPos);
+	};
+
+	float xPos = targetBounds.getX();
+
+	float lastY = 0.0f;
+
+	for (int i = 1; i < size-1; i++)
+	{
+		auto pr = getPixelRangeForBin(i);
+
+		xPos = pr.getStart() + pr.getLength() * 0.5f;
+
+		if (xPos > 0.0f)
+		{
+			auto y0 = (float)getYValue(data[i]);
+			auto y1 = (float)getYValue(data[++i]);
+
+			auto useQuad = pr.getLength() > 4.0f && (hmath::abs(y0 - y1) > 2.0f);
+
+			if (useQuad)
+				lPath.quadraticTo(pr.getStart(), y0, pr.getEnd(), y1);
+			else
+				lPath.lineTo(pr.getStart() + 0.5f * pr.getLength(), y0);
+		}
+
+		if (pr.getLength() < 2.0f)
+			break;
+	}
+
+	for (; xPos < targetBounds.getWidth(); xPos += 2.0f)
+	{
+		auto binRange = getBinRange(xPos);
+
+		float maxValue = 0.0f;
+		float avg = 0.0f;
+
+		for (int i = binRange.getStart(); i < binRange.getEnd(); i++)
+		{
+			maxValue = jmax(maxValue, data[i]);
+			avg += data[i];
+		}
+			
+		avg /= (float)binRange.getLength();
+
+		auto y = Interpolator::interpolateLinear(maxValue, avg, 0.5f);
+
+		lPath.lineTo(xPos, getYValue(y));
 	}
 
 	lPath.lineTo(targetBounds.getWidth(), targetBounds.getHeight());
