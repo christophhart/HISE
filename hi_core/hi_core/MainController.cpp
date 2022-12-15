@@ -831,6 +831,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
     numSamplesThisBlock = buffer.getNumSamples();
     
+#if USE_BACKEND || USE_SCRIPT_COPY_PROTECTION
+	if (auto ul = dynamic_cast<ScriptUnlocker*>(getLicenseUnlocker()))
+	{
+		if (ul->currentObject != nullptr && !ul->isUnlocked())
+		{
+			getMainSynthChain()->resetAllVoices();
+			buffer.clear();
+			midiMessages.clear();
+			usagePercent.store(0.0);
+			return;
+		}
+	}
+#endif
+
 	ScopedTryLock sl(processLock);
 
 	if (!sl.isLocked())
