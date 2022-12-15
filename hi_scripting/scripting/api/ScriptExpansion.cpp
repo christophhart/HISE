@@ -2717,7 +2717,7 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 				dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController_())->loadSamplesAfterRegistration(true);
 #endif
 
-				return var((int)delta.inDays());
+				return var(roundToInt(delta.inDays()));
 			}
 				
 			else
