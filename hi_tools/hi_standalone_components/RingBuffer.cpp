@@ -255,6 +255,8 @@ void SimpleRingBuffer::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
 		setupReadBuffer(externalBuffer);
 	else
 	{
+        ScopedLock sl(getReadBufferLock());
+        
 		read(externalBuffer);
 
 		if (properties != nullptr && getReferenceCount() > 1)

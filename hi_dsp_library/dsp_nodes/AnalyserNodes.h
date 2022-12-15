@@ -291,8 +291,6 @@ struct Helpers
 		mutable AudioSampleBuffer windowBuffer;
 		mutable AudioSampleBuffer lastBuffer;
 
-		CriticalSection fftLock;
-
 		bool usePeakDecay = false;
 	};
 

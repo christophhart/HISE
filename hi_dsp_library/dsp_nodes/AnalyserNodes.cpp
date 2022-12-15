@@ -49,8 +49,6 @@ RingBufferComponentBase* Helpers::FFT::createComponent()
 
 void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 {
-	ScopedLock sl(fftLock);
-
 	resizeBuffers(b.getNumSamples());
 
 	//const auto& b = buffer->getReadBuffer();
@@ -143,9 +141,7 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 
 juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const
 {
-	ScopedLock sl(fftLock);
-
-	Path lPath;
+    Path lPath;
 
 	auto data = buffer->getReadBuffer().getReadPointer(0);
 	int size = buffer->getReadBuffer().getNumSamples();
@@ -160,15 +156,17 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
     auto cpy = (float*)alloca(sizeof(float)*size);
 
-    FloatVectorOperations::copy(cpy, data, size);
-    data = cpy;
+    {
+        ScopedLock sl(buffer->getReadBufferLock());
+        FloatVectorOperations::copy(cpy, data, size);
+        data = cpy;
+    }
+    
     
 	auto sampleRate = buffer->getSamplerate();
 
 	if (sampleRate <= 0.0)
 		sampleRate = 44100.0;
-
-	
 
 	for (float xPos = targetBounds.getX(); xPos < targetBounds.getWidth(); xPos += 2.0f)
 	{
