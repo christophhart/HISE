@@ -714,7 +714,10 @@ hise::SampleThreadPool::Job::JobStatus ModulatorSamplerVoice::PlayFromPurger::ru
 
 	v.saveStartUptimeDelta();
 
+	sampler->refreshMemoryUsage(true);
+
 	v.waitForPlayFromPurge.store(false);
+
 	return SampleThreadPool::Job::jobHasFinished;
 }
 

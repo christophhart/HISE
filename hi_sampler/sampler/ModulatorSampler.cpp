@@ -746,7 +746,7 @@ double ModulatorSampler::getDiskUsage()
 	return diskUsage * 100.0;
 }
 
-void ModulatorSampler::refreshMemoryUsage()
+void ModulatorSampler::refreshMemoryUsage(bool fastMode)
 {
 	if (sampleMap == nullptr)
 		return;
@@ -754,23 +754,26 @@ void ModulatorSampler::refreshMemoryUsage()
     if(getLargestBlockSize() <= 0)
         return;
 
-	const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
-    
+	if (!fastMode)
+	{
+		const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
+
 #if HISE_IOS
-    const auto temporaryBufferShouldBeFloatingPoint = false;
+		const auto temporaryBufferShouldBeFloatingPoint = false;
 #else
-	const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
+		const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
 #endif
 
-	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint || temporaryVoiceBuffer.getNumSamples() == 0)
-	{
-		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
+		if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint || temporaryVoiceBuffer.getNumSamples() == 0)
+		{
+			temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		for (auto i = 0; i < getNumVoices(); i++)
-			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
+			for (auto i = 0; i < getNumVoices(); i++)
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
+		}
+
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 	}
-
-	StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 
 	int64 actualPreloadSize = 0;
 
@@ -791,7 +794,7 @@ void ModulatorSampler::refreshMemoryUsage()
 			}
 		}
         
-        if(maxPitch > (double)MAX_SAMPLER_PITCH)
+        if(!fastMode && maxPitch > (double)MAX_SAMPLER_PITCH)
         {
             StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), maxPitch * 1.2); // give it a little more to be safe...
         }

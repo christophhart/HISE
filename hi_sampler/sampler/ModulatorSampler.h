@@ -307,7 +307,7 @@ public:
 	double getDiskUsage();
 
 	/** Scans all sounds and voices and adds their memory usage. */
-	void refreshMemoryUsage();
+	void refreshMemoryUsage(bool fastMode=false);
 
 	int getNumActiveVoices() const override
 	{
