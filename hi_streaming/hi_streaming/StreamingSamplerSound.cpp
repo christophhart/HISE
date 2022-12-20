@@ -169,6 +169,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		internalPreloadSize = 0;
 		preloadSize = 0;
 
+		entireSampleLoaded = false;
 		preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, 0);
 
 		return;
@@ -415,6 +416,21 @@ String StreamingSamplerSound::getSampleStateAsString() const
 		if (purged) return "Purged";
 		else return "Normal";
 	}
+}
+
+double StreamingSamplerSound::getSampleRate() noexcept
+{
+
+	if (sampleRate == -1.0)
+	{
+		if(auto reader = fileReader.getReader())
+			sampleRate = reader->sampleRate;
+	}
+
+
+	// Must be initialised!
+	jassert(sampleRate != -1.0);
+	return sampleRate;
 }
 
 String StreamingSamplerSound::getFileName(bool getFullPath /*= false*/) const { return fileReader.getFileName(getFullPath); }

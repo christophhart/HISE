@@ -179,6 +179,8 @@ juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 		}
 	}
 
+	
+
 	if (sound->isMissing())
 	{
 		if (sound->isPurged()) return Colours::violet.withAlpha(0.3f);
@@ -186,7 +188,9 @@ juce::Colour SampleComponent::getColourForSound(bool wantsOutlineColour) const
 	}
 	else
 	{
-		auto w = Colours::white.withAlpha(transparency);
+		auto w = sound->hasUnpurgedButUnloadedSounds() ? Colours::grey : Colours::white;
+
+		w = w.withAlpha(transparency);
 
 		if (sound->isPurged()) return Colours::brown.withAlpha(0.3f);
 		else return wantsOutlineColour ? w.withAlpha(0.7f) : w;

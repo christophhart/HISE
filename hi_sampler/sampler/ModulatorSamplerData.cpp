@@ -529,7 +529,10 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 		sampler->addSound(newSound);
 	}
 
-	dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)sampler->getAttribute(ModulatorSampler::PreloadSize));
+	if (!sampler->shouldPlayFromPurge())
+		dynamic_cast<ModulatorSamplerSound*>(newSound)->initPreloadBuffer((int)sampler->getAttribute(ModulatorSampler::PreloadSize));
+	else
+		dynamic_cast<ModulatorSamplerSound*>(newSound)->checkFileReference();
 
 	const bool isReversed = sampler->getAttribute(ModulatorSampler::Reversed) > 0.5f;
 

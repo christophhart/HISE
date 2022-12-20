@@ -546,6 +546,20 @@ bool ModulatorSamplerSound::preloadBufferIsNonZero() const noexcept
 	return false;
 }
 
+bool ModulatorSamplerSound::hasUnpurgedButUnloadedSounds() const
+{
+	for (auto s : soundArray)
+	{
+		if (s->isPurged())
+			continue;
+
+		if (s->getPreloadBuffer().getNumSamples() == 0)
+			return true;
+	}
+
+	return false;
+}
+
 int ModulatorSamplerSound::getRRGroup() const {	return rrGroup; }
 
 void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set)

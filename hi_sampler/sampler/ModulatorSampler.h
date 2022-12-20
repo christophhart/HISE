@@ -481,40 +481,9 @@ public:
 
     void setReversed(bool shouldBeReversed);
 
-	void purgeAllSamples(bool shouldBePurged)
-	{
-		
+	void updatePurgeFromAttribute(int roundedValue);
 
-		if (shouldBePurged != purged)
-		{
-			if (shouldBePurged)
-				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-			else
-				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-
-			auto f = [shouldBePurged](Processor* p)
-			{
-				auto s = static_cast<ModulatorSampler*>(p);
-
-				jassert(s->allVoicesAreKilled());
-
-				s->purged = shouldBePurged;
-
-				for (int i = 0; i < s->sounds.size(); i++)
-				{
-					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
-					sound->setPurged(shouldBePurged);
-				}
-
-				s->refreshPreloadSizes();
-				s->refreshMemoryUsage();
-
-				return SafeFunctionCall::OK;
-			};
-
-			killAllVoicesAndCall(f, true);
-		}
-	}
+	void purgeAllSamples(bool shouldBePurged, bool changePreloadSize=true);
 
 	void setNumChannels(int numChannels);
 
@@ -676,6 +645,10 @@ public:
 
 	void setEnableEnvelopeFilter();
 
+	void setPlayFromPurge(bool shouldPlayFromPurge, bool refreshPreloadSize);
+
+	bool shouldPlayFromPurge() const { return enablePlayFromPurge; }
+
 private:
 
 	int lockVelocity = -1;
@@ -742,6 +715,8 @@ private:
 	int rrGroupAmount;
 	int currentRRGroupIndex;
 	
+	bool enablePlayFromPurge = false;
+
 	Array<float> rrGroupGains;
 	bool useRRGain = false;
 
