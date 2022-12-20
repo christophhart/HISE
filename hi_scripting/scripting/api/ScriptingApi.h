@@ -810,6 +810,9 @@ public:
 		/** Purges all samples of the given mic (Multimic samples only). */
 		void purgeMicPosition(String micName, bool shouldBePurged);
 
+		/** Purges the array of sampler sounds (and unpurges the rest). */
+		void purgeSampleSelection(var selection);
+
 		/** Returns the name of the channel with the given index (Multimic samples only. */
 		String getMicPositionName(int channelIndex);
 

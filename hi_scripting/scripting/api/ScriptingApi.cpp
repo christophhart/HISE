@@ -3253,6 +3253,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_2(Sampler, getSoundProperty);
 	API_VOID_METHOD_WRAPPER_3(Sampler, setSoundProperty);
 	API_VOID_METHOD_WRAPPER_2(Sampler, purgeMicPosition);
+	API_VOID_METHOD_WRAPPER_1(Sampler, purgeSampleSelection);
 	API_METHOD_WRAPPER_0(Sampler, getNumMicPositions);
 	API_METHOD_WRAPPER_1(Sampler, isMicPositionPurged);
 	API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
@@ -3306,6 +3307,7 @@ sampler(sampler_)
 	ADD_API_METHOD_2(getSoundProperty);
 	ADD_API_METHOD_3(setSoundProperty);
 	ADD_API_METHOD_2(purgeMicPosition);
+	ADD_API_METHOD_1(purgeSampleSelection);
 	ADD_API_METHOD_1(getMicPositionName);
 	ADD_API_METHOD_0(getNumMicPositions);
 	ADD_API_METHOD_1(isMicPositionPurged);
@@ -3920,6 +3922,66 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 
 	reportScriptError("Channel not found. Use getMicPositionName()");
     RETURN_VOID_IF_NO_THROW()
+}
+
+void ScriptingApi::Sampler::purgeSampleSelection(var selection)
+{
+	ReferenceCountedArray<ModulatorSamplerSound> soundsToBePurged;
+	ReferenceCountedArray<ModulatorSamplerSound> allSounds;
+
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	soundsToBePurged.ensureStorageAllocated(s->getNumSounds());
+	allSounds.ensureStorageAllocated(s->getNumSounds());
+
+	if (s == nullptr)
+	{
+		reportScriptError("purgeMicPosition() only works with Samplers.");
+		RETURN_VOID_IF_NO_THROW()
+	}
+
+	ModulatorSampler::SoundIterator iter(s);
+
+	while (auto sound = iter.getNextSound())
+		allSounds.add(sound);
+
+	if (selection.isArray())
+	{
+		for(auto e: *selection.getArray())
+			if (auto sObj = dynamic_cast<ScriptingObjects::ScriptingSamplerSound*>(e.getObject()))
+			{
+				auto mPtr = sObj->getSoundPtr();
+
+				if (!allSounds.contains(mPtr.get()))
+					reportScriptError("the sound " + mPtr->getPropertyAsString(SampleIds::FileName) + " is not loaded into the Sampler");
+
+				if(soundsToBePurged.contains(mPtr.get()))
+					reportScriptError("the sound " + mPtr->getPropertyAsString(SampleIds::FileName) + " exists more than once in the selection");
+
+				soundsToBePurged.add(mPtr);
+			}
+			else
+			{
+				reportScriptError("the array must contain only Sound objects");
+			}
+	}
+
+	auto f = [allSounds, soundsToBePurged](Processor* p)
+	{
+		auto s = static_cast<ModulatorSampler*>(p);
+
+		for (auto sound : allSounds)
+		{
+			sound->setPurged(soundsToBePurged.contains(sound));
+		}
+
+		s->refreshPreloadSizes();
+		s->refreshMemoryUsage();
+
+		return SafeFunctionCall::OK;
+	};
+
+	s->killAllVoicesAndCall(f, true);
 }
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
