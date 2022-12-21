@@ -1703,6 +1703,44 @@ void ScriptingObjects::ScriptRingBuffer::copyReadBuffer(var targetBuffer)
 				FloatVectorOperations::copy(dst, rb.getReadPointer(0), numSamples);
 			}
 		}
+        else if (targetBuffer.isArray())
+        {
+            int numChannels = targetBuffer.size();
+            
+            auto& rb = obj->getReadBuffer();
+            
+            if(numChannels != rb.getNumChannels())
+                reportScriptError("Illegal channel amount: " + String(numChannels) + ". Expected: " + String(rb.getNumChannels()));
+            else
+            {
+                for(int i = 0; i < numChannels; i++)
+                {
+                    if(auto tb = targetBuffer[i].getBuffer())
+                    {
+                        auto dst = tb->buffer.getWritePointer(0);
+                        auto numSamples = tb->size;
+
+                        auto& rb = obj->getReadBuffer();
+
+                        if (rb.getNumSamples() != numSamples)
+                        {
+                            reportScriptError("size mismatch (" + String(numSamples) + "). Expected: " + String(rb.getNumSamples()));
+                        }
+                        else
+                        {
+                            ScopedLock sl2(obj->getReadBufferLock());
+                            FloatVectorOperations::copy(dst, rb.getReadPointer(i), numSamples);
+                        }
+                    }
+                    else
+                    {
+                        reportScriptError("Channel " + String(i+1) + " is not a buffer");
+                    }
+                    
+                }
+            }
+            
+        }
 	}
 	else
 		reportScriptError("You need to pass in a Buffer object");
@@ -6767,6 +6805,9 @@ void ScriptingObjects::ScriptFFT::applyFFT(int numChannelsThisTime, bool skipFir
 
 		if (magnitudeFunction || enableInverse)
 		{
+            if(wb.magBuffer == nullptr)
+                reportScriptError("The magnitude buffer is not prepared. Make sure to call prepare after setMagnitudeFunction");
+            
 			FFTHelpers::toFreqSpectrum(wb.chunkInput->buffer, wb.magBuffer->buffer);
 			FFTHelpers::scaleFrequencyOutput(wb.magBuffer->buffer, convertMagnitudesToDecibel);
 		}

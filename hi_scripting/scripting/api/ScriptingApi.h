@@ -310,6 +310,7 @@ public:
 		/** Returns the amount of output channels. */
 		int getNumPluginChannels() const;
 
+        /** Creates an FFT object. */
 		var createFFT();
 
 		/** Returns the latency of the plugin as reported to the host. Default is 0. */
