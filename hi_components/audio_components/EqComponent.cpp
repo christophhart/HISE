@@ -239,6 +239,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		AllowFilterResizing = (int)PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
 		AllowDynamicSpectrumAnalyser,
 		UseUndoManager,
+		ResetOnDoubleClick,
 		numSpecialProperties
 	};
 
@@ -257,6 +258,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::AllowFilterResizing, "AllowFilterResizing");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::AllowDynamicSpectrumAnalyser, "AllowDynamicSpectrumAnalyser");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::UseUndoManager, "UseUndoManager");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::ResetOnDoubleClick, "ResetOnDoubleClick");
 
 		jassertfalse;
 		return {};
@@ -270,6 +272,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::AllowFilterResizing, var(true));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::AllowDynamicSpectrumAnalyser, var(0));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::UseUndoManager, var(false));
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::ResetOnDoubleClick, var(false));
 
 		jassertfalse;
 
@@ -286,10 +289,12 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			auto s = (int)getPropertyWithDefault(object, (int)SpecialProperties::AllowDynamicSpectrumAnalyser);
 
 			auto u = (bool)getPropertyWithDefault(object, (int)SpecialProperties::UseUndoManager);
+			auto rd = (bool)getPropertyWithDefault(object, (int)SpecialProperties::ResetOnDoubleClick);
 
 			if (u)
 				fd->setUndoManager(getMainController()->getControlUndoManager());
 			
+			fd->setResetOnDoubleClick(rd);
 			fd->setAllowFilterResizing(r);
 			fd->setSpectrumVisibility((SpectrumVisibility)s);
 		}
@@ -305,6 +310,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			storePropertyInObject(obj, (int)SpecialProperties::AllowDynamicSpectrumAnalyser, (int)fd->fftVisibility);
 
 			storePropertyInObject(obj, (int)SpecialProperties::UseUndoManager, fd->um != nullptr);
+			storePropertyInObject(obj, (int)SpecialProperties::ResetOnDoubleClick, fd->shouldResetOnDoubleClick());
 		}
 
 		return obj;
@@ -836,6 +842,9 @@ void FilterDragOverlay::selectDragger(int index)
 
 void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 {
+	auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
+	dragQStart = parent.eq->getAttribute(pi);
+
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
 		over = false;
@@ -874,7 +883,38 @@ void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& )
 
 void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 {
+	if (e.mods.isShiftDown())
+	{
+		auto deltaNormalised = (float)e.getDistanceFromDragStartY() / (float)getParentComponent()->getHeight();
+
+		if (parent.eq->getAttribute(parent.eq->getParameterIndex(index, CurveEq::BandParameter::Gain)) < 0.0f)
+			deltaNormalised *= -1.0;
+
+		auto qRange = NormalisableRange<double>(0.3, 9.0);
+		qRange.setSkewForCentre(1.0);
+
+		auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
+		auto start = qRange.convertTo0to1(dragQStart);
+		auto newValue = jlimit(0.0, 1.0, start + deltaNormalised);
+
+		parent.setEqAttribute(CurveEq::BandParameter::Q, index, qRange.convertFrom0to1(newValue));
+
+		return;
+	}
+	else
+	{
+		auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
+		dragQStart = parent.eq->getAttribute(pi);
+	}
+
 	auto te = e.getEventRelativeTo(this);
+
+	
+
+
+	auto constrainerToUse = constrainer;
+
+	
 
 	over = true;
 	down = true;
@@ -883,6 +923,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 	{
 		if (!parent.allowFilterResizing)
 		{
+			
 			parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1.0f);
 		}
 
@@ -890,7 +931,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 		draggin = true;
 	}
 
-	dragger.dragComponent(this, te, constrainer);
+	dragger.dragComponent(this, te, constrainerToUse);
 
 	auto x = getBoundsInParent().getCentreX() - parent.offset;
 	auto y = getBoundsInParent().getCentreY() - parent.offset;
@@ -935,12 +976,21 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 	if (parent.eq == nullptr)
 		return;
 
-	if (parent.allowFilterResizing)
-		return;
+	if (parent.resetOnDoubleClick)
+	{
+		parent.setEqAttribute(CurveEq::BandParameter::Gain, index, 0.0f);
+	}
+	else
+	{
+		if (parent.allowFilterResizing)
+			return;
 
-	auto enableIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
-	auto v = 1.0f - parent.eq->getAttribute(enableIndex);
-	parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, v);
+		auto enableIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
+		auto v = 1.0f - parent.eq->getAttribute(enableIndex);
+		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, v);
+	}
+
+	
 }
 
 FilterDragOverlay::FilterDragComponent::FilterDragComponent(FilterDragOverlay& parent_, int index_) :

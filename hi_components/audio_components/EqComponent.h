@@ -140,6 +140,10 @@ public:
 
 	void lookAndFeelChanged() override;
 
+	bool shouldResetOnDoubleClick() const noexcept { return resetOnDoubleClick; }
+
+	void setResetOnDoubleClick(bool shouldReset) { resetOnDoubleClick = shouldReset; }
+
 	virtual void fillPopupMenu(PopupMenu& m, int handleIndex);
 
 	virtual void popupMenuAction(int result, int handleIndex);
@@ -180,6 +184,8 @@ public:
 		int index;
 		bool selected;
 		bool menuActive = false;
+
+		float dragQStart = 1.0f;
 
 		ComponentBoundsConstrainer *constrainer;
 		ComponentDragger dragger;
@@ -222,8 +228,10 @@ public:
 
 private:
 
+
 	UndoManager* um = nullptr;
 
+	bool resetOnDoubleClick = false;
 	bool allowFilterResizing = true;
 	SpectrumVisibility fftVisibility = SpectrumVisibility::Dynamic;
 	LookAndFeelMethods defaultLaf;
