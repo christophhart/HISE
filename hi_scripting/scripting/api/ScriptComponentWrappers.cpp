@@ -62,7 +62,7 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 	void mouseDown(const MouseEvent& event)
 	{
-		if (event.mods.isRightButtonDown() && data.mouseCallbackLevel == MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
+		if (event.mods == data.popupModifier && data.mouseCallbackLevel == MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
 		{
 			if (data.listener == nullptr)
 				return;

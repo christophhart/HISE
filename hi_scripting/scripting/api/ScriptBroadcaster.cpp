@@ -1638,7 +1638,7 @@ Array<juce::var> ScriptBroadcaster::MouseEventListener::createChildArray() const
 
 struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
 {
-	InternalMenuListener(ScriptBroadcaster* parent, ScriptComponent* l, var stateFunction, const StringArray& itemList):
+	InternalMenuListener(ScriptBroadcaster* parent, ScriptComponent* l, var stateFunction, const StringArray& itemList, bool useLeftClick):
 		stateCallback(parent->getScriptProcessor(), parent, stateFunction, 2)
 	{
 		stateCallback.incRefCount();
@@ -1649,7 +1649,8 @@ struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
 			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsTicked),
 			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsEnabled),
 			BIND_MEMBER_FUNCTION_1(InternalMenuListener::getDynamicItemText),
-			itemList);
+			itemList,
+			useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier);
 	};
 
 	var itemIsEnabled(int index)
@@ -1692,11 +1693,12 @@ ScriptBroadcaster::ContextMenuListener::ContextMenuListener(ScriptBroadcaster* p
 															var componentIds, 
 															var stateFunction, 
 															const StringArray& itemList, 
-															const var& metadata):
+															const var& metadata,
+														    bool useLeftClick):
 	ListenerBase(metadata)
 {
 	for (auto l : BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds))
-		items.add(new InternalMenuListener(parent, l, stateFunction, itemList));
+		items.add(new InternalMenuListener(parent, l, stateFunction, itemList, useLeftClick));
 }
 
 
@@ -2568,7 +2570,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentProperties);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentVisibility);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToComponentMouseEvents);
-	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToContextMenu);
+	API_VOID_METHOD_WRAPPER_5(ScriptBroadcaster, attachToContextMenu);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRoutingMatrix);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
@@ -2613,7 +2615,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
-	ADD_API_METHOD_4(attachToContextMenu);
+	ADD_API_METHOD_5(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
@@ -3185,7 +3187,7 @@ void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callb
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
-void ScriptBroadcaster::attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata)
+void ScriptBroadcaster::attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata, var useLeftClick)
 {
 	throwIfAlreadyConnected();
 
@@ -3204,7 +3206,7 @@ void ScriptBroadcaster::attachToContextMenu(var componentIds, var stateFunction,
 
 	enableQueue = true;
 
-	attachedListeners.add(new ContextMenuListener(this, componentIds, stateFunction, sa, optionalMetadata));
+	attachedListeners.add(new ContextMenuListener(this, componentIds, stateFunction, sa, optionalMetadata, (bool)useLeftClick));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
