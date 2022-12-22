@@ -1607,6 +1607,9 @@ public:
 		/** Set the folder to be used when opening the file browser. */
 		void setDefaultFolder(var newDefaultFolder);
 
+		/** Sets the playback position. */
+		void setPlaybackPosition(double normalisedPosition);
+
 		// ========================================================================================================
 
 		void handleDefaultDeactivatedProperties() override;

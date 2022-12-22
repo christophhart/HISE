@@ -2948,6 +2948,7 @@ struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeEnd);
 	API_METHOD_WRAPPER_1(ScriptAudioWaveform, registerAtParent);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setDefaultFolder);
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setPlaybackPosition);
 };
 
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
@@ -2986,6 +2987,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	ADD_API_METHOD_0(getRangeEnd);
 	ADD_API_METHOD_1(setDefaultFolder);
 	ADD_API_METHOD_1(registerAtParent);
+	ADD_API_METHOD_1(setPlaybackPosition);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3091,10 +3093,20 @@ void ScriptingApi::Content::ScriptAudioWaveform::setDefaultFolder(var newDefault
 	}
 }
 
+void ScriptingApi::Content::ScriptAudioWaveform::setPlaybackPosition(double normalisedPosition)
+{
+	if (auto af = getCachedAudioFile())
+	{
+		auto sampleIndex = roundToInt((double)af->getCurrentRange().getLength() * normalisedPosition);
+		af->getUpdater().sendDisplayChangeMessage(sampleIndex, sendNotificationAsync, true);
+	}
+}
+
 struct ScriptingApi::Content::ScriptImage::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptImage, setImageFile);
 	API_VOID_METHOD_WRAPPER_1(ScriptImage, setAlpha);
+	
 };
 
 ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier imageName, int x, int y, int , int ) :
