@@ -486,7 +486,11 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
 
-	synthChain->saveInterfaceValues(v);
+
+	if (getUserPresetHandler().isUsingCustomDataModel())
+		v.addChild(getUserPresetHandler().createCustomValueTree("internal"), -1, nullptr);
+	else
+		synthChain->saveInterfaceValues(v);
 
 	v.setProperty("MidiChannelFilterData", getMainSynthChain()->getActiveChannelData()->exportData(), nullptr);
 
@@ -578,7 +582,10 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 		getUserPresetHandler().setCurrentlyLoadedFile(File(userPresetName));
 	}
 
-	synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
+	if (getUserPresetHandler().isUsingCustomDataModel())
+		getUserPresetHandler().loadCustomValueTree(v);
+	else
+		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 
 	auto mpeData = v.getChildWithName("MPEData");
 
