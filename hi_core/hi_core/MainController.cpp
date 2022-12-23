@@ -921,11 +921,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	}
 
+	
+	
 	if (getMasterClock().shouldCreateInternalInfo(newTime) || thisAsProcessor->isNonRealtime())
 	{
+		auto externalTime = newTime;
+
 		gridInfo = getMasterClock().processAndCheckGrid(buffer.getNumSamples(), newTime);
 		newTime = getMasterClock().createInternalPlayHead();
 		useTime = true;
+
+		if (!thisAsProcessor->isNonRealtime())
+		{
+			getMasterClock().checkInternalClockForExternalStop(newTime, externalTime);
+		}
 	}
 	else 
 	{

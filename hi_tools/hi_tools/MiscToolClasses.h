@@ -2811,10 +2811,22 @@ struct MasterClock
 
 		info.bpm = bpm;
 		info.isPlaying = currentState != State::Idle;
+
 		info.timeInSamples = uptime;
 		info.ppqPosition = quarterPos;
 
 		return info;
+	}
+
+	void checkInternalClockForExternalStop(AudioPlayHead::CurrentPositionInfo& infoToUse, const AudioPlayHead::CurrentPositionInfo& externalInfo)
+	{
+		if (externalClockWasPlayingLastTime && !externalInfo.isPlaying)
+		{
+			nextState = State::Idle;
+			infoToUse.isPlaying = false;
+		}
+		
+		externalClockWasPlayingLastTime = externalInfo.isPlaying;
 	}
 
 	void setSamplerate(double newSampleRate)
@@ -2893,6 +2905,8 @@ struct MasterClock
 
         internalClockIsRunning = false;
 
+		externalClockWasPlayingLastTime = false;
+
         // they don't need to be resetted...
         //sampleRate = 44100.0;
         //bpm = 120.0;
@@ -2934,6 +2948,7 @@ private:
 	bool internalClockIsRunning = false;
 
     bool stopInternalOnExternalStop = false;
+	bool externalClockWasPlayingLastTime = false;
     
 	double sampleRate = 44100.0;
 	double bpm = 120.0;
