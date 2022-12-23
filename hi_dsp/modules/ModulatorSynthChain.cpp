@@ -218,6 +218,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 #if PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN
 	
+	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
+
 	for (int i = 0; i < synths.size(); i++)
 	{
 		if (!synths[i]->isSoftBypassed())
