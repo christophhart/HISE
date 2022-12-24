@@ -563,6 +563,7 @@ struct dynamic
     {
         Ms2Freq,
         Freq2Ms,
+        Freq2Samples,
         Ms2Samples,
         Samples2Ms,
         Ms2BPM,
@@ -584,7 +585,7 @@ struct dynamic
     
     static StringArray getConverterNames()
     {
-        return { "Ms2Freq", "Freq2Ms", "Ms2Samples", "Samples2Ms", "Ms2BPM",
+        return { "Ms2Freq", "Freq2Ms", "Freq2Samples", "Ms2Samples", "Samples2Ms", "Ms2BPM",
                  "Pitch2St", "St2Pitch", "Pitch2Cent", "Cent2Pitch", "Midi2Freq", "Gain2dB", "db2Gain" };
     }
     
@@ -598,6 +599,7 @@ struct dynamic
     {
         m.prepare(ps);
         s.prepare(ps);
+        fs.prepare(ps);
     }
     
     double getValue(double input)
@@ -608,6 +610,7 @@ struct dynamic
             case Mode::Freq2Ms:    return freq2ms().getValue(input);
             case Mode::Ms2Samples: return m.getValue(input);
             case Mode::Samples2Ms: return s.getValue(input);
+            case Mode::Freq2Samples: return fs.getValue(input);
             case Mode::Ms2BPM:     return ms2bpm().getValue(input);
             case Mode::Pitch2St:   return pitch2st().getValue(input);
             case Mode::St2Pitch:   return st2pitch().getValue(input);
@@ -671,6 +674,7 @@ struct dynamic
             {
                 case Mode::Ms2Freq: inputDomain = "ms"; outputDomain = "Hz"; break;
                 case Mode::Freq2Ms: inputDomain = "Hz"; outputDomain = "ms"; break;
+                case Mode::Freq2Samples: inputDomain = "Hz"; outputDomain = "smp"; break;
                 case Mode::Ms2Samples:  inputDomain = "ms"; outputDomain = " smp"; break;
                 case Mode::Samples2Ms:  inputDomain = "smp"; outputDomain = "ms"; break;
                 case Mode::Ms2BPM:    inputDomain = "ms"; outputDomain = "BPM"; break;
@@ -699,6 +703,7 @@ struct dynamic
             {
                 case Mode::Ms2Freq: setRange({0.0, 1000.0, 1.0}); break;
                 case Mode::Freq2Ms: setRange({20.0, 20000.0, 0.1}, 1000.0); break;
+                case Mode::Freq2Samples: setRange({20.0, 20000.0, 0.1}, 1000.0); break;
                 case Mode::Ms2Samples:  setRange({0.0, 1000.0, 1.0}); break;
                 case Mode::Samples2Ms:  setRange({0.0, 44100.0, 1.0}); break;
                 case Mode::Pitch2St:  setRange({0.5, 2.0}, 1.0); break;
@@ -749,6 +754,7 @@ struct dynamic
     
     conversion_logic::ms2samples m;
     conversion_logic::samples2ms s;
+    conversion_logic::freq2samples fs;
     
     JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
 };

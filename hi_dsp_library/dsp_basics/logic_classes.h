@@ -73,6 +73,21 @@ struct ms2samples
     double sampleRate = 0.0;
 };
 
+struct freq2samples
+{
+    double getValue(double input) const
+    {
+        return input > 0.001f  ? sampleRate / input : 0.0f;
+    }
+    
+    void prepare(PrepareSpecs ps)
+    {
+        sampleRate = ps.sampleRate;
+    }
+    
+    double sampleRate = 0.0;
+};
+
 struct ms2bpm
 {
     double getValue(double input) const
