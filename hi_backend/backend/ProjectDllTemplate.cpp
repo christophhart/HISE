@@ -8,6 +8,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "    <GROUP id=\"{35679809-0FA5-3027-50B5-CF866453D7B2}\" name=\"Source\">\r\n"
 "      <FILE id=\"Sbp8Ar\" name=\"includes.h\" compile=\"0\" resource=\"0\" file=\"Source/includes.h\"/>\r\n"
 "      <FILE id=\"LviiT0\" name=\"Main.cpp\" compile=\"1\" resource=\"0\" file=\"Source/Main.cpp\"/>\r\n"
+"      <FILE id=\"HrkhQ5\" name=\"RNBO.cpp\" compile=\"1\" resource=\"0\" file=\"Source/RNBO.cpp\"\r\n/>"
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"

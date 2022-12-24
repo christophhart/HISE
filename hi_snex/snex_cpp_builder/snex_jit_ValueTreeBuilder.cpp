@@ -292,9 +292,7 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 			addEmptyLine();
 
 
-			Include(*this, "JuceHeader.h");
-            
-            ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [this](ValueTree& c)
+			ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [this](ValueTree& c)
             {
                 if(c.getType() == PropertyIds::Node)
                 {

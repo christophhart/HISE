@@ -170,6 +170,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsApplySampleMapProperties,
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
+        MenuToolsCreateRnboTemplate,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
@@ -539,6 +540,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+    case MenuToolsCreateRnboTemplate:
+        setCommandTarget(result, "Create C++ template for RNBO patch", true, false, 'X', false);
+        result.categoryName = "Tools";
+        break;
 	case MenuToolsConvertSampleMapToWavetableBanks:
 		setCommandTarget(result, "Convert samplemap to Wavetable Bank", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -762,6 +767,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
+    case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
@@ -1033,6 +1039,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsShowDspNetworkDllInfo);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		ADD_DESKTOP_ONLY(MenuToolsSimulateChangingBufferSize);
+        ADD_DESKTOP_ONLY(MenuToolsCreateRnboTemplate);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenseFile);
@@ -1853,6 +1860,11 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 	
 }
 
+void BackendCommandTarget::Actions::createRnboTemplate(BackendRootWindow* bpe)
+{
+    auto s = new RNBOTemplateBuilder(bpe);
+    s->setModalBaseWindowComponent(bpe);
+}
 
 void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 {
@@ -2981,24 +2993,7 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
 		codeFile.revealToUser();
 
-		File npFile = thirdPartyFolder.getChildFile("node_properties").withFileExtension("json");
-
-		var np;
-
-		if(npFile.existsAsFile())
-			np = JSON::parse(npFile);
-
-		if (np.getDynamicObject() == nullptr)
-			np = var(new DynamicObject());
-
-		auto obj = np.getDynamicObject();
-
-		Array<var> propList;
-		propList.add(PropertyIds::IsPolyphonic.toString());
-
-		obj->setProperty(Identifier(n), var(propList));
-
-		npFile.replaceWithText(JSON::toString(np));
+        BackendDllManager::addNodePropertyToJSONFile(bpe->getMainController(), n, PropertyIds::IsPolyphonic);
 	}
 }
 

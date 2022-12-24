@@ -1693,16 +1693,23 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
 	REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_FAUST%", includeFaust ? "enabled" : "disabled");
 
+    String headerPath;
+    
 	if (includeFaust)
 	{
-		auto headerPath = exporter->dataObject.getFaustPath().getChildFile("include");
-		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath.getFullPathName());
+		headerPath = exporter->dataObject.getFaustPath().getChildFile("include").getFullPathName();
 	}
-	else
-	{
-		REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", "");
-	}
-
+	
+    if(BackendDllManager::hasRNBOFiles(exporter->chainToExport->getMainController()))
+    {
+        auto folder = BackendDllManager::getRNBOSourceFolder(exporter->chainToExport->getMainController());
+        
+        headerPath << ";" << folder.getFullPathName();
+        headerPath << ";" << folder.getChildFile("common").getFullPathName();
+    }
+    
+    REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath);
+    
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "1" : "0");
 
     REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", exporter->useIpp ? "Static_Library" : String());
@@ -1825,7 +1832,8 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 
 		for (auto c : children)
 		{
-			bool isCustomNodeIncludeFile = c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes";
+			bool isCustomNodeIncludeFile = c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes" ||
+                c.getFileName() == "RNBO.cpp";
 
 			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, isCustomNodeIncludeFile))
 			{

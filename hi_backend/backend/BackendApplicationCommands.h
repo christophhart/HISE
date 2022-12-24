@@ -195,6 +195,7 @@ public:
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
+        MenuToolsCreateRnboTemplate,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
 		MenuHelpShowHelpForComponents,
@@ -333,6 +334,7 @@ public:
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
 
+        static void createRnboTemplate(BackendRootWindow* bpe);
 		static void convertSVGToPathData(BackendRootWindow* bpe);
 
 		static void applySampleMapProperties(BackendRootWindow* bpe);
