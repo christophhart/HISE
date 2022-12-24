@@ -830,6 +830,8 @@ namespace fx
 		}
 	};
 
+    
+
 	struct reverb_editor : simple_visualiser
 	{
 		reverb_editor(PooledUIUpdater* u) :
@@ -878,6 +880,43 @@ Factory::Factory(DspNetwork* network) :
 
 namespace math
 {
+struct map_editor : public simple_visualiser
+{
+    map_editor(PooledUIUpdater* u) :
+        simple_visualiser(nullptr, u)
+    {
+        setSize(256, 100);
+    };
+
+    void rebuildPath(Path& p) override
+    {
+        
+        auto p0 = getParameterRange(0).convertTo0to1(getParameter(0), true);
+        auto p1 = getParameterRange(1).convertTo0to1(getParameter(1), true);
+        auto p2 = getParameterRange(2).convertTo0to1(getParameter(2), true);
+        auto p3 = getParameterRange(3).convertTo0to1(getParameter(3), true);
+        
+        p.startNewSubPath(0.0f, 0.0f);
+        p.startNewSubPath(1.0f, 1.0f);
+        
+        original.startNewSubPath(0.0f, 0.0f);
+        original.startNewSubPath(1.0f, 1.0f);
+        
+        p.startNewSubPath(0.0f, 1.0f - p0);
+        p.lineTo(1.0f, 1.0f - p2);
+        p.startNewSubPath(0.0f, 1.0f - p1);
+        p.lineTo(1.0f, 1.0f - p3);
+        
+        original.startNewSubPath(0.0f, 1.0f - (p0 + p1) / 2.0f);
+        original.lineTo(1.0f, 1.0f - (p2 + p3) / 2.0f);
+    }
+
+    static Component* createExtraComponent(void*, PooledUIUpdater* u)
+    {
+        return new map_editor(u);
+    }
+};
+    
 
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
@@ -900,6 +939,8 @@ Factory::Factory(DspNetwork* n) :
 	REGISTER_POLY_MATH_NODE(square);
 	REGISTER_POLY_MATH_NODE(sqrt);
 	REGISTER_POLY_MATH_NODE(pow);
+    
+    registerNode<map, map_editor>();
     
 #undef REGISTER_POLY_MATH_NODE
 #undef REGISTER_MONO_MATH_NODE

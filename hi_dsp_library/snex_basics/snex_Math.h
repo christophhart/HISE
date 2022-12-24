@@ -69,7 +69,11 @@ namespace snex {
             return b1;
         }
 
-		
+		static forcedinline block& range(block& b1, float min, float max)
+        {
+            FloatVectorOperations::clip(b1.begin(), b1.begin(), min, max, b1.size());
+            return b1;
+        }
         
         static forcedinline block& max(block& b1, const block& b2)
         {

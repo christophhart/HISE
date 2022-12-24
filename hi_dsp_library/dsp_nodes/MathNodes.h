@@ -333,6 +333,100 @@ public:
 	OpType obj;
 };
 
+struct map: public mothernode
+{
+    enum class Parameters
+    {
+        InputStart,
+        InputEnd,
+        OutputStart,
+        OutputEnd,
+    };
+    
+    SNEX_NODE(map);
+    bool isPolyphonic() const { return false; }
+    
+    SN_DESCRIPTION("A math operator that maps a signal from one range to another");
+    SN_EMPTY_HANDLE_EVENT;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_RESET;
+    
+    template <int P> void setParameter(double v)
+    {
+        if(P == 0) inStart = (float)v;
+        if(P == 1) inEnd = (float)v;
+        if(P == 2) outStart = (float)v;
+        if(P == 3) outEnd = (float)v;
+        
+        auto inLengthInv = inEnd == inStart ? 0.0f : (1.0f / (inEnd - inStart));
+        auto outLength = (outEnd - outStart);
+        
+        rangeFactor = inLengthInv * outLength;
+        clipMax = hmath::abs(inEnd - inStart);
+    }
+    
+    template <typename T> void op(T& value)
+    {
+        value -= inStart;
+        
+        value = hmath::range(value, 0.0f, clipMax);
+        
+        value *= rangeFactor;
+        value += outStart;
+    }
+    
+    template <typename PD> void process(PD& d)
+    {
+        
+        for(auto& ch: d)
+        {
+            auto b = d.toChannelData(ch);
+            op(b);
+        }
+    }
+
+    template <typename FD> void processFrame(FD& d)
+    {
+        for(auto& s: d)
+            op(s);
+    }
+
+    void createParameters(ParameterDataList& data)
+    {
+        {
+            DEFINE_PARAMETERDATA(OpNode, InputStart);
+            p.setDefaultValue(0.0f);
+            data.add(std::move(p));
+        }
+        {
+            DEFINE_PARAMETERDATA(OpNode, InputEnd);
+            p.setDefaultValue(1.0f);
+            data.add(std::move(p));
+        }
+        {
+            DEFINE_PARAMETERDATA(OpNode, OutputStart);
+            p.setDefaultValue(0.0f);
+            data.add(std::move(p));
+        }
+        {
+            DEFINE_PARAMETERDATA(OpNode, OutputEnd);
+            p.setDefaultValue(1.0f);
+            data.add(std::move(p));
+        }
+    }
+    
+private:
+    
+    float inStart = 0.0f;
+    float inEnd = 1.0f;
+    
+    float outStart = 0.0f;
+    float outEnd = 1.0f;
+    
+    float clipMax = 1.0f;
+    float rangeFactor = 1.0f;
+};
+
 template <class OpType, int V> class OpNode: public OpNodeBase<OpType>
 {
 public:
