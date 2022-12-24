@@ -771,6 +771,8 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 
 		auto trimmedToken = token.fromLastOccurrenceOf("[", false, false);
 
+        trimmedToken = trimmedToken.removeCharacters("!");
+        
 		const String c = namespaceId.isEmpty() ? trimmedToken : namespaceId + "." + trimmedToken;
 
         auto infos = DebugableObject::Helpers::getDebugInformationFromString(getScriptEngine(), c);

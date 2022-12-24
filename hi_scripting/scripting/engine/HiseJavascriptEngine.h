@@ -79,6 +79,8 @@ public:
                 return l;
             }
         }
+        
+        return {};
     }
     
     snex::jit::ExternalPreprocessorDefinition::List definitions;
