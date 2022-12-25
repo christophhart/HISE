@@ -20,6 +20,7 @@ using namespace juce;
 namespace wrap
 {
 
+
 class rnbo_data_handler: public RNBO::EventHandler
 {
     struct Item
@@ -126,7 +127,8 @@ private:
 };
 
 template <class RNBOType, int NV> struct rnbo_wrapper:
-    public scriptnode::data::base
+    public scriptnode::data::base,
+    public hise::TempoListener
    
 {
     // Metadata Definitions ------------------------------------------------------
@@ -146,6 +148,20 @@ template <class RNBOType, int NV> struct rnbo_wrapper:
         {
             auto ei = first.getExternalDataInfo(i);
         }
+    }
+    
+    hise::DllBoundaryTempoSyncer* syncer = nullptr;
+    bool useSyncer = false;
+    
+    void setUseTempo(bool shouldUse)
+    {
+        useSyncer = true;
+    }
+    
+    virtual ~rnbo_wrapper()
+    {
+        if(syncer != nullptr)
+            syncer->deregisterItem(this);
     }
     
     auto resolveTag(RNBO::MessageTag tag) { return obj.getFirst().resolveTag(tag); };
@@ -173,14 +189,22 @@ template <class RNBOType, int NV> struct rnbo_wrapper:
     
     // Scriptnode Callbacks ------------------------------------------------------
     
-    void prepare(PrepareSpecs specs)
+    virtual void prepare(PrepareSpecs specs)
     {
         obj.prepare(specs);
-        
+            
         for(auto& o: obj)
         {
             o.prepareToProcess(specs.sampleRate, specs.blockSize, true);
             o.scheduleEvent(RNBO::MessageEvent(RNBO::TAG("blocksize"), specs.blockSize));
+        }
+        
+        if(useSyncer && syncer == nullptr)
+        {
+            syncer = specs.voiceIndex->getTempoSyncer();
+            
+            if(syncer != nullptr)
+                syncer->registerItem(this);
         }
     }
     
@@ -188,6 +212,24 @@ template <class RNBOType, int NV> struct rnbo_wrapper:
     {
         for(auto& o: obj)
             o.scheduleEvent(RNBO::MessageEvent(RNBO::TAG("reset"), RNBO::RNBOTimeNow));
+    }
+    
+    void tempoChanged(double newBpm) override
+    {
+        for(auto& o: obj)
+            o.scheduleEvent(RNBO::TempoEvent(RNBO::RNBOTimeNow, newBpm));
+    }
+    
+    void onTransportChange(bool isPlaying, double ppqPosition) override
+    {
+        auto state = isPlaying ? RNBO::TransportState::RUNNING :
+                                 RNBO::TransportState::STOPPED;
+        
+        for(auto& o: obj)
+        {
+            o.scheduleEvent(RNBO::TransportEvent(RNBO::RNBOTimeNow, state));
+            o.scheduleEvent(RNBO::BeatTimeEvent(RNBO::RNBOTimeNow, ppqPosition));
+        }
     }
     
     void handleHiseEvent(HiseEvent& e)

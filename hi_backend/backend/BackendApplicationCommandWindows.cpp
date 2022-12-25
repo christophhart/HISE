@@ -1164,6 +1164,9 @@ public:
         config->addComboBox("use_mod", {"Disabled", "Enabled"}, "Modulation Output");
         config->setInfoTextForLastComponent("Adds a modulation output to the node. Use this if you want to create a draggable modulation source for this node. If you enable this, you will have to send out a signal to the outport with the ID `modOutput`");
         
+        config->addComboBox("use_tempo", {"Disabled", "Enabled"}, "Tempo Sync");
+        config->setInfoTextForLastComponent("Registers this node to receive tempo events. Enable this if the RNBO patch requires tempo syncing");
+        
         config->addTextEditor("num_channels", "2", "Channel Amount");
         config->setInfoTextForLastComponent("The number of audio channels that this node is using. Set this to the number of `out~` ports of the RNBO patch");
         
@@ -1195,6 +1198,8 @@ public:
     {
         auto numChannels = config->getComponent<TextEditor>("num_channels")->getText().getIntValue();
         
+        
+        
         auto tableIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("table_ids")->getText(), ",", "");
         auto sliderPackIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("slider_pack_ids")->getText(), ",", "");
         auto audioFileIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("audio_file_ids")->getText(), ",", "");
@@ -1205,6 +1210,7 @@ public:
         
         auto allowPoly = (bool)config->getComponent<ComboBox>("polyphony")->getSelectedItemIndex();
         auto useMod = (bool)config->getComponent<ComboBox>("use_mod")->getSelectedItemIndex();
+        auto useTempo = (bool)config->getComponent<ComboBox>("use_tempo")->getSelectedItemIndex();
          
         auto rnboFile = root.getChildFile(config->getComponent<ComboBox>("rnbo_file")->getText());
         
@@ -1247,11 +1253,23 @@ public:
                 String fc;
                 
                 if(!tableIds.isEmpty())
-                    b << (String("static constexpr int NumTables = ") + String(tableIds.size()));
+                {
+                    String b_;
+                    b_ << "static constexpr int NumTables = " << String(tableIds.size()) << ";";
+                    b << b_;
+                }
                 if(!sliderPackIds.isEmpty())
-                    b << (String("static constexpr int NumSliderPacks = ") + String(sliderPackIds.size()));
+                {
+                    String b_;
+                    b_ << "static constexpr int NumSliderPacks = " << String(sliderPackIds.size()) << ";";
+                    b << b_;
+                }
                 if(!audioFileIds.isEmpty())
-                    b << (String("static constexpr int NumAudioFiles = ") + String(audioFileIds.size()));
+                {
+                    String b_;
+                    b_ << "static constexpr int NumAudioFiles = " << String(audioFileIds.size()) << ";";
+                    b << b_;
+                }
                 
                 b.addEmptyLine();
                 
@@ -1259,6 +1277,9 @@ public:
                 
                 {
                     StatementBlock bl(b);
+                    
+                    if(useTempo)
+                        b << "setUseTempo(true);";
                     
                     for(auto& t: tableIds)
                     {
@@ -1279,7 +1300,7 @@ public:
                     for(auto& t: audioFileIds)
                     {
                         String l;
-                        l << "this->dataHandler.registerDataSlot(ExternalData::DataType::AudioFiles";
+                        l << "this->dataHandler.registerDataSlot(ExternalData::DataType::AudioFile";
                         l << ", " << t.trim().quoted() << ");";
                         b << l;
                     }
