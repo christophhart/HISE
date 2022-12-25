@@ -276,6 +276,21 @@ void DialogWindowWithBackgroundThread::runThread()
 	thread->startThread();
 }
 
+void DialogWindowWithBackgroundThread::AdditionalRow::addTextEditor(const String& name, const String& initialText, const String& label, int width)
+{
+    auto* ed = new TextEditor (name, 0);
+    ed->setSelectAllWhenFocused (true);
+    ed->setEscapeAndReturnKeysConsumed (false);
+    
+    ed->setColour (TextEditor::outlineColourId, findColour (ComboBox::outlineColourId));
+    ed->setFont (getLookAndFeel().getAlertWindowMessageFont());
+    addAndMakeVisible (ed);
+    ed->setText (initialText);
+    ed->setCaretPosition (initialText.length());
+    
+    addCustomComponent(ed, label, width);
+}
+
 void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& name, const StringArray& items, const String& label, int width/*=0*/)
 {
 	auto listener = dynamic_cast<ComboBoxListener*>(parent);

@@ -1138,7 +1138,9 @@ public:
 
     RNBOTemplateBuilder(BackendRootWindow* bpe_) :
         DialogWindowWithBackgroundThread("Create RNBO Template files"),
-        bpe(bpe_)
+        bpe(bpe_),
+        config(new AdditionalRow(this)),
+        dataTypes(new AdditionalRow(this))
     {
         StringArray sa;
         
@@ -1153,13 +1155,30 @@ public:
         
         
         
-        addComboBox("rnbo_file", sa, "RNBO Patch");
+        config->addComboBox("rnbo_file", sa, "RNBO Patch");
+        config->setInfoTextForLastComponent("The RNBO patch you want to create the wrapper for.  > If this is empty, make sure you have exported the RNBO patch to the correct directory: `" + root.getFullPathName() + "`");
         
-        addComboBox("polyphony", {"Disabled", "Enabled"}, "Polyphony");
+        config->addComboBox("polyphony", {"Disabled", "Enabled"}, "Polyphony");
+        config->setInfoTextForLastComponent("Enables the polyphonic use of the RNBO patch. Please be aware that you always need to export the RNBO patch with the polyphony setting **Disabled** and then enable it here");
         
-        addTextEditor("num_channels", "2", "Channel Amount");
+        config->addComboBox("use_mod", {"Disabled", "Enabled"}, "Modulation Output");
+        config->setInfoTextForLastComponent("Adds a modulation output to the node. Use this if you want to create a draggable modulation source for this node. If you enable this, you will have to send out a signal to the outport with the ID `modOutput`");
         
-        addTextEditor("num_external_slots", "[0, 0, 0]", "ExternalData amount [TABLES, SLIDER_PACKS, AUDIO_FILES]");
+        config->addTextEditor("num_channels", "2", "Channel Amount");
+        config->setInfoTextForLastComponent("The number of audio channels that this node is using. Set this to the number of `out~` ports of the RNBO patch");
+        
+        dataTypes->addTextEditor("table_ids", "", "Table IDs");
+        dataTypes->setInfoTextForLastComponent("A comma-separated list of all buffer IDs that you want to show as table in HISE");
+        dataTypes->addTextEditor("slider_pack_ids", "", "SliderPack IDs");
+        dataTypes->setInfoTextForLastComponent("A comma-separated list of all buffer IDs that you want to show as slider pack in HISE");
+        dataTypes->addTextEditor("audio_file_ids", "", "AudioFile IDs");
+        dataTypes->setInfoTextForLastComponent("A comma-separated list of all buffer IDs that you want to show as audio file in HISE  > Be aware that it currently only supports loading a single audio file");
+        
+        config->setSize(512, 40);
+        dataTypes->setSize(512, 40);
+        
+        addCustomComponent(config);
+        addCustomComponent(dataTypes);
         
         addBasicComponents(true);
         
@@ -1169,25 +1188,25 @@ public:
             showStatusMessage("Press OK to create a C++ template file");
     }
 
+    ScopedPointer<AdditionalRow> config;
+    ScopedPointer<AdditionalRow> dataTypes;
+    
     void run() override
     {
-        auto numChannels = getTextEditor("num_channels")->getText().getIntValue();
-        auto numData = JSON::parse(getTextEditor("num_external_slots")->getText());
+        auto numChannels = config->getComponent<TextEditor>("num_channels")->getText().getIntValue();
         
-        auto allowPoly = (bool)getComboBoxComponent("polyphony")->getSelectedItemIndex();
+        auto tableIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("table_ids")->getText(), ",", "");
+        auto sliderPackIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("slider_pack_ids")->getText(), ",", "");
+        auto audioFileIds = StringArray::fromTokens(dataTypes->getComponent<TextEditor>("audio_file_ids")->getText(), ",", "");
         
-        int numTables = 0;
-        int numSliderPacks = 0;
-        int numAudioFiles = 0;
+        tableIds.removeEmptyStrings();
+        sliderPackIds.removeEmptyStrings();
+        audioFileIds.removeEmptyStrings();
         
-        if(numData.isArray())
-        {
-            numTables = numData[0];
-            numSliderPacks = numData[1];
-            numAudioFiles = numData[2];
-        }
+        auto allowPoly = (bool)config->getComponent<ComboBox>("polyphony")->getSelectedItemIndex();
+        auto useMod = (bool)config->getComponent<ComboBox>("use_mod")->getSelectedItemIndex();
          
-        auto rnboFile = root.getChildFile(getComboBoxComponent("rnbo_file")->getText());
+        auto rnboFile = root.getChildFile(config->getComponent<ComboBox>("rnbo_file")->getText());
         
         using namespace snex::cppgen;
         
@@ -1215,12 +1234,58 @@ public:
             
             snex::TemplateParameter templateArg(NamespacedIdentifier("NV"), 0, false);
             
+            
             {
-                auto baseClass = NamespacedIdentifier::fromString("wrap::rnbo_wrapper<RNBO::" + classId + ", NV>");
+                String bc;
+                bc << "wrap::" << (useMod ? "rnbo_wrapper_with_mod" : "rnbo_wrapper");
+                bc << "<RNBO::" << classId << ", NV>";
+                
+                auto baseClass = NamespacedIdentifier::fromString(bc);
                 
                 Struct s1(b, classId, {baseClass}, {templateArg}, true);
                 
                 String fc;
+                
+                if(!tableIds.isEmpty())
+                    b << (String("static constexpr int NumTables = ") + String(tableIds.size()));
+                if(!sliderPackIds.isEmpty())
+                    b << (String("static constexpr int NumSliderPacks = ") + String(sliderPackIds.size()));
+                if(!audioFileIds.isEmpty())
+                    b << (String("static constexpr int NumAudioFiles = ") + String(audioFileIds.size()));
+                
+                b.addEmptyLine();
+                
+                b << (classId + String("()"));
+                
+                {
+                    StatementBlock bl(b);
+                    
+                    for(auto& t: tableIds)
+                    {
+                        String l;
+                        l << "this->dataHandler.registerDataSlot(ExternalData::DataType::Table";
+                        l << ", " << t.trim().quoted() << ");";
+                        b << l;
+                    }
+                    
+                    for(auto& t: sliderPackIds)
+                    {
+                        String l;
+                        l << "this->dataHandler.registerDataSlot(ExternalData::DataType::SliderPack";
+                        l << ", " << t.trim().quoted() << ");";
+                        b << l;
+                    }
+                    
+                    for(auto& t: audioFileIds)
+                    {
+                        String l;
+                        l << "this->dataHandler.registerDataSlot(ExternalData::DataType::AudioFiles";
+                        l << ", " << t.trim().quoted() << ");";
+                        b << l;
+                    }
+                }
+                
+                b.addEmptyLine();
                 
                 fc << "static constexpr int getFixChannelAmount() { return " << String(numChannels) << "; };";
                 

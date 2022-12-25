@@ -231,6 +231,8 @@ public:
 
 		void addButton(const String& name, const KeyPress& k=KeyPress(), int width=0);
 
+        void addTextEditor(const String& name, const String& initialText, const String& label, int width = 0);
+        
 		void setInfoTextForLastComponent(const String& infoToShow);
 
 		void setStyleDataForMarkdownHelp(const MarkdownLayout::StyleData& sd);

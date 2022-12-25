@@ -109,11 +109,13 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 				viewport->setScrollBarsShown(true, false, true, false);
 
 				currentPopup = &CallOutBox::launchAsynchronously(std::unique_ptr<Component>(viewport), lb, window);
+                currentPopup->setAlwaysOnTop(true);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 			else
 			{
 				currentPopup = &CallOutBox::launchAsynchronously(std::unique_ptr<Component>(nc), lb, window);
+                currentPopup->setAlwaysOnTop(true);
 				currentPopup->setWantsKeyboardFocus(!ignoreKeyStrokes);
 			}
 		}
