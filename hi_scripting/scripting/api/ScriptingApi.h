@@ -1602,34 +1602,34 @@ public:
 		// ============================================================================================================ API Methods
 
 		/** Returns a colour value with the specified alpha value. */
-		int withAlpha(int colour, float alpha);
+		int withAlpha(var colour, float alpha);
 
 		/** Returns a colour with the specified hue. */
-		int withHue(int colour, float hue);
+		int withHue(var colour, float hue);
 
 		/** Returns a colour with the specified saturation. */
-		int withSaturation(int colour, float saturation);
+		int withSaturation(var colour, float saturation);
 
 		/** Returns a colour with the specified brightness. */
-		int withBrightness(int colour, float brightness);
+		int withBrightness(var colour, float brightness);
 
 		/** Returns a colour with a multiplied alpha value. */
-		int withMultipliedAlpha(int colour, float factor);
+		int withMultipliedAlpha(var colour, float factor);
 
 		/** Returns a colour with a multiplied saturation value. */
-		int withMultipliedSaturation(int colour, float factor);
+		int withMultipliedSaturation(var colour, float factor);
 
 		/** Returns a colour with a multiplied brightness value. */
-		int withMultipliedBrightness(int colour, float factor);
+		int withMultipliedBrightness(var colour, float factor);
 
 		/** Converts a colour to a [r, g, b, a] array that can be passed to GLSL as vec4. */
-		var toVec4(int colour);
+		var toVec4(var colour);
 
 		/** Converts a colour from a [r, g, b, a] float array to a uint32 value. */
 		int fromVec4(var vec4);
 
 		/** Linear interpolation between two colours. */
-		int mix(int colour1, int colour2, float alpha);
+		int mix(var colour1, var colour2, float alpha);
 
 		// ============================================================================================================
 

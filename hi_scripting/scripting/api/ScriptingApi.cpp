@@ -6346,51 +6346,51 @@ ApiClass(139)
 	ADD_INLINEABLE_API_METHOD_1(fromVec4);
 }
 
-int ScriptingApi::Colours::withAlpha(int colour, float alpha)
+int ScriptingApi::Colours::withAlpha(var colour, float alpha)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withAlpha(jlimit(0.0f, 1.0f, alpha)).getARGB();
 }
 
-int ScriptingApi::Colours::withHue(int colour, float hue)
+int ScriptingApi::Colours::withHue(var colour, float hue)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withHue(jlimit(0.0f, 1.0f, hue)).getARGB();
 }
 
-int ScriptingApi::Colours::withSaturation(int colour, float saturation)
+int ScriptingApi::Colours::withSaturation(var colour, float saturation)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withSaturation(jlimit(0.0f, 1.0f, saturation)).getARGB();
 }
 
-int ScriptingApi::Colours::withBrightness(int colour, float brightness)
+int ScriptingApi::Colours::withBrightness(var colour, float brightness)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withBrightness(jlimit(0.0f, 1.0f, brightness)).getARGB();
 }
 
-int ScriptingApi::Colours::withMultipliedAlpha(int colour, float factor)
+int ScriptingApi::Colours::withMultipliedAlpha(var colour, float factor)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withMultipliedAlpha(jmax(0.0f, factor)).getARGB();
 }
 
-int ScriptingApi::Colours::withMultipliedSaturation(int colour, float factor)
+int ScriptingApi::Colours::withMultipliedSaturation(var colour, float factor)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withMultipliedSaturation(jmax(0.0f, factor)).getARGB();
 }
 
-int ScriptingApi::Colours::withMultipliedBrightness(int colour, float factor)
+int ScriptingApi::Colours::withMultipliedBrightness(var colour, float factor)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 	return (int)c.withMultipliedBrightness(jmax(0.0f, factor)).getARGB();
 }
 
-var ScriptingApi::Colours::toVec4(int colour)
+var ScriptingApi::Colours::toVec4(var colour)
 {
-	Colour c((uint32)colour);
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
 
 	Array<var> v4;
 	v4.add(c.getFloatRed());
@@ -6416,10 +6416,10 @@ int ScriptingApi::Colours::fromVec4(var vec4)
 	return 0;
 }
 
-int ScriptingApi::Colours::mix(int colour1, int colour2, float alpha)
+int ScriptingApi::Colours::mix(var colour1, var colour2, float alpha)
 {
-	Colour c1((uint32)colour1);
-	Colour c2((uint32)colour2);
+	auto c1 = Content::Helpers::getCleanedObjectColour(colour1);
+	auto c2 = Content::Helpers::getCleanedObjectColour(colour2);
 
 	return c1.interpolatedWith(c2, alpha).getARGB();
 }
