@@ -34,6 +34,7 @@ namespace hise
 {
 using namespace juce;
 
+#if USE_BACKEND
 void DAWClockController::LAF::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
     g.setFont(GLOBAL_BOLD_FONT().withHeight(s.getHeight() - 2.0f));
@@ -379,7 +380,7 @@ void DAWClockController::resized()
     b.removeFromLeft(10);
     ruler->setBounds(b);
 }
-
+#endif
 
 
 juce::Image PoolTableHelpers::getPreviewImage(const AudioSampleBuffer* buffer, float width)
@@ -496,6 +497,7 @@ juce::Path PoolTableHelpers::Factory::createPath(const String& name) const
 	return p;
 }
 
+#if USE_BACKEND
 namespace ClockIcons
 {
 static const unsigned char play[] = { 110,109,48,200,67,68,112,182,151,67,98,184,219,68,68,40,55,153,67,4,128,69,68,60,173,155,67,4,128,69,68,240,76,158,67,98,4,128,69,68,180,238,160,67,184,219,68,68,184,98,163,67,48,200,67,68,132,229,164,67,98,192,23,56,68,196,67,181,67,224,196,25,68,160,
@@ -551,5 +553,6 @@ Path DAWClockController::Icons::createPath(const String& url) const
     
     return p;
 }
+#endif
 
 }

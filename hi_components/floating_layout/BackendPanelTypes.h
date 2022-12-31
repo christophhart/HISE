@@ -34,6 +34,7 @@
 
 namespace hise { using namespace juce;
 
+#if USE_BACKEND
 class ExternalClockSimulator: public juce::AudioPlayHead
 {
 public:
@@ -53,6 +54,9 @@ public:
     
     void process(int numSamples)
     {
+		if (bpm == -1.0)
+			bpm = 120.0;
+
         if(isPlaying)
         {
             auto ppqDelta = getPPQDelta(numSamples);
@@ -173,6 +177,7 @@ struct DAWClockController: public Component,
     
     ScopedPointer<Component> ruler;
 };
+#endif
 
 class ApplicationCommandButtonPanel : public FloatingTileContent,
 	public Component
