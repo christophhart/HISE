@@ -602,6 +602,11 @@ public:
 		updatePositionInCurrentSequence();
 	}
 
+    void onResync(double ppqPos)
+    {
+        setPositionWithTicksFromPlaybackStart(ppqPos * HiseMidiSequence::TicksPerQuarter);
+    }
+    
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
 

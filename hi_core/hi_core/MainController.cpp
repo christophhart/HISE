@@ -1374,7 +1374,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 		getConsoleHandler().writeToConsole(s, 0, getMainSynthChain(), Colours::white.withAlpha(0.4f));
 	}
 
-	getMasterClock().setSamplerate(processingSampleRate);
+	getMasterClock().prepareToPlay(processingSampleRate, processingBufferSize.get());
 }
 
 void MainController::setBpm(double newTempo)
@@ -1427,6 +1427,13 @@ bool MainController::isSyncedToHost() const
 
 void MainController::handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi)
 {
+    if(gi.resync)
+    {
+        for(auto tl: tempoListeners)
+            if(tl != nullptr)
+                tl->onResync(newInfo.ppqPosition);
+    }
+    
 	if (lastPosInfo.isPlaying != newInfo.isPlaying || (gi.change && gi.firstGridInPlayback))
 	{
 		for (auto tl : tempoListeners)

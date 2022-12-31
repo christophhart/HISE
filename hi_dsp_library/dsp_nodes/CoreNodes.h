@@ -757,7 +757,7 @@ public:
 
 	SN_POLY_NODE_ID("clock_ramp");
 	SN_GET_SELF_AS_OBJECT(clock_ramp);
-	SN_DESCRIPTION("Creates a (monophonic) ramp signal that is synced to the HISE clock");
+	SN_DESCRIPTION("Creates a ramp signal that is synced to the HISE clock");
 
 	static constexpr bool isNormalisedModulation() { return true; };
 
@@ -766,10 +766,6 @@ public:
 	{
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
-        
-        valueToUse[(int)InactiveMode::Zero] = 0.0;
-        valueToUse[(int)InactiveMode::One] = 1.0;
-        valueToUse[(int)InactiveMode::LastValue] = 0.0;
 	}
 
 	~clock_ramp()
@@ -791,40 +787,41 @@ public:
 	}
 
 	SN_EMPTY_INITIALISE;
-
 	SN_EMPTY_HANDLE_EVENT;
 	
     void reset()
     {
-        valueToUse[(int)InactiveMode::LastValue] = 0.0;
+        
+        clockState.inactive[(int)InactiveMode::LastValue] = 0.0;
     }
     
 	void onTransportChange(bool isPlaying_, double ppqPosition) override
 	{
-		isPlaying = isPlaying_;
-
-		if (isPlaying)
+		clockState.isPlaying = isPlaying_;
+        
+		if (clockState.isPlaying)
 		{
-			if (isContinuous)
-			{
-				startOffset = ppqPosition / (startMultiplier * startFactor);
-			}
-			else
-				startOffset = ppqPosition;
-
-			for (auto& s : state)
-				s.ppqPos = 0.0;
+            onResync(ppqPosition);
+            clockState.uptime = 0.0;
 		}
 	}
 
+    void onResync(double ppqPosition) override
+    {
+        clockState.offset = ppqPosition;
+        clockState.uptime = 0.0;
+    }
+    
 	void tempoChanged(double newTempo) override
 	{
 		bpm = newTempo;
+        clockState.recalculate(bpm, sr);
 	}
 
 	bool handleModulation(double& v)
 	{
-		return state.get().modValue.getChangedValue(v);
+        v = clockState.getModValue();
+        return true;
 	}
 
 	double getPPQDelta(int numSamples) const
@@ -837,127 +834,47 @@ public:
 
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		auto& s = state.get();
-
-		if (isPlaying)
-		{
-			auto ppqDelta = getPPQDelta(d.getNumSamples());
-			auto tf = s.tempoFactor * s.multiplier;
-
-			double tfDelta;
-			double start;
-
-			if (isContinuous)
-			{
-				tfDelta = ppqDelta / tf;
-				start = std::fmod(s.ppqPos + startOffset, 1.0);
-				s.ppqPos += tfDelta;
-			}
-				
-			else
-			{
-				tfDelta = ppqDelta * tf;
-				start = std::fmod(s.ppqPos + startOffset, tf) / tf;
-				s.ppqPos += ppqDelta;
-			}
-
-			double lastValue = 0.0;
-
-			if (addToSignal)
-			{
-				auto data = d.getRawChannelPointers()[0];
-				auto inc = tfDelta / (double)d.getNumSamples();
-
-				for (int i = 0; i < d.getNumSamples(); i++)
-				{
-					lastValue = hmath::fmod(start + (double)inc, 1.0);
-					data[i] = (float)lastValue;
-				}
-			}
-			else
-			{
-				// use the mid point to reduce rounding errors
-				lastValue = hmath::fmod(start + tfDelta / 2.0, 1.0);
-			}
-
-            valueToUse[(int)InactiveMode::LastValue] = lastValue;
-			s.modValue.setModValue(lastValue);	
-		}
-		else
-		{
-            auto mv = valueToUse[(int)inactiveMode];
-            
-            s.modValue.setModValue(mv);
-            
-			if(addToSignal)
-                FloatVectorOperations::fill(d.getRawChannelPointers()[0], (float)mv, d.getNumSamples());
-		}
-
-		this->updateBuffer((float)s.modValue.getModValue(), d.getNumSamples());
+        auto ptr = d[0].begin();
+        
+        for(int i = 0; i < d.getNumSamples(); i++)
+        {
+            ptr[i] += clockState.tick() * addToSignalGain;
+        }
+    
+        this->updateBuffer(clockState.getModValue(), d.getNumSamples());
 	}
 
 	template <typename FrameType> void processFrame(FrameType& d)
 	{
-		auto& s = state.get();
-
-		if (isPlaying)
-		{
-			auto ppqDelta = getPPQDelta(1);
-			auto tf = s.tempoFactor * s.multiplier;
-			auto start = hmath::fmod(s.ppqPos + startOffset, tf) / tf;
-			auto modValue = hmath::fmod(start + ppqDelta * tf, 1.0);
-
-			if (addToSignal)
-				d[0] = (float)modValue;
-
-			s.ppqPos += ppqDelta;
-			s.modValue.setModValue(modValue);
-            valueToUse[(int)InactiveMode::LastValue] = modValue;
-		}
-		else
-		{
-            auto mv = valueToUse[(int)inactiveMode];
-            
-            s.modValue.setModValue(mv);
-            
-            if(addToSignal)
-               d[0] = (float)mv;
-		}
-
-		this->updateBuffer(s.modValue.getModValue(), 1);
+        d[0] += clockState.tick() * addToSignalGain;
+        this->updateBuffer(clockState.getModValue(), 1);
 	}
 
 	void setTempo(double newTempo)
 	{
-		auto newFactor = TempoSyncer::getTempoFactor((TempoSyncer::Tempo)(int)newTempo);
-
-		startFactor = newFactor;
-
-		for (auto& s : state)
-			s.tempoFactor = newFactor;
+        clockState.t = (TempoSyncer::Tempo)(int)newTempo;
+        clockState.recalculate(bpm, sr);
 	}
 
 	void setMultiplier(double newMultiplier)
 	{
-		startMultiplier = newMultiplier;
-
-		for (auto& s : state)
-			s.multiplier = newMultiplier;
+		clockState.multiplier = newMultiplier;
+        clockState.recalculate(bpm, sr);
 	}
 
 	void setAddToSignal(double newValue)
 	{
-		addToSignal = newValue > 0.5;
+		addToSignalGain = newValue > 0.5 ? 1.0f : 0.0f;
 	}
 
 	void setUpdateMode(double newBehaviour)
 	{
-		isContinuous = newBehaviour < 0.5;
+		clockState.continuous = newBehaviour < 0.5;
 	}
 
 	void setInactive(double newInactiveMode)
 	{
-		inactiveMode = (InactiveMode)jlimit<int>(0, 2, (int)newInactiveMode);
+		clockState.inactiveIndex = jlimit<int>(0, 2, (int)newInactiveMode);
 	}
 
 	DEFINE_PARAMETERS
@@ -1011,30 +928,79 @@ public:
 		}
 	}
 
-	double startOffset = 0.0;
 	double bpm = 120.0;
 	double sr = 44100.0;
-	bool addToSignal = false;
-	bool isPlaying = false;
-	double startFactor = 1.0f;
-	double startMultiplier = 1.0f;
-	bool isContinuous = false;
-	InactiveMode inactiveMode = InactiveMode::LastValue;
-
-	struct State
-	{
-		double tempoFactor = 1.0;
-		double multiplier = 1.0;
-		double ppqPos = 0.0;
-		ModValue modValue;
-	};
-
-	PolyData<State, NV> state;
+	float addToSignalGain = 0.0f;
 	
-    double valueToUse[(int)InactiveMode::numInactiveModes];
-
 	DllBoundaryTempoSyncer* syncer = nullptr;
+    
+    struct State
+    {
+        State()
+        {
+            inactive[(int)InactiveMode::LastValue] = 0.0f;
+            inactive[(int)InactiveMode::Zero] = 0.0f;
+            inactive[(int)InactiveMode::One] = 1.0f;
+        }
+        
+        double getModValue() const
+        {
+            return (double)inactive[inactiveIndex * (1 - (int)isPlaying)];
+        }
+        
+        float tick()
+        {
+            if(!isPlaying)
+                return inactive[inactiveIndex];
+                
+            if(continuous)
+            {
+                uptime += deltaPerSample * factor;
+                
+                inactive[(int)InactiveMode::LastValue] = hmath::fmod((float)(uptime + offset*factor), 1.0f);
+                return inactive[(int)InactiveMode::LastValue];
+            }
+            else
+            {
+                uptime += deltaPerSample;
+                
+                auto v = (float)(offset + uptime);
+                v *= (float)factor;
+                inactive[(int)InactiveMode::LastValue] = hmath::fmod(v, 1.0f);
+                return inactive[(int)InactiveMode::LastValue];
+            }
+        }
+        
+        float inactive[3];
+        
+        bool isPlaying = false;
+        bool continuous = false;
+        double deltaPerSample = 0.0;
+        double uptime = 0.0;
+        double offset = 0.0;
+        TempoSyncer::Tempo t = TempoSyncer::Whole;
+        double multiplier = 1.0;
+        int inactiveIndex = 0;
+        
+        double factor = 1.0;
+
+        void recalculateFactor()
+        {
+            factor = 1.0 / ((double)TempoSyncer::getTempoFactor(t) * multiplier);
+        }
+        
+        void recalculate(double bpm, double sr)
+        {
+            auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(bpm, sr, TempoSyncer::Quarter);
+            deltaPerSample = 1.0 / quarterInSamples;
+            recalculateFactor();
+        }
+    };
+    
+    State clockState;
 };
+
+
 
 
 template <int NV> class oscillator: public OscillatorDisplayProvider,

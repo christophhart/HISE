@@ -783,7 +783,7 @@ void MidiPlayer::onGridChange(int gridIndex, uint16 timestamp, bool firstGridEve
 	}
 }
 
-void MidiPlayer::onTransportChange(bool isPlaying, double /*ppqPosition*/)
+void MidiPlayer::onTransportChange(bool isPlaying, double ppqPosition)
 {
 	if (syncToMasterClock && !isPlaying)
 	{
