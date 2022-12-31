@@ -441,6 +441,17 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 		tempoListeners.remove(obj);
 	}
 
+    void onResync(double ppqPos) override
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(listenerLock);
+        
+        ppqPosition = ppqPos;
+        
+        for(auto d: tempoListeners)
+            if(d != nullptr)
+                d->onResync(ppqPosition);
+    }
+    
 	void onTransportChange(bool isPlaying_, double ppqPosition_) override
 	{
 		SimpleReadWriteLock::ScopedReadLock sl(listenerLock);

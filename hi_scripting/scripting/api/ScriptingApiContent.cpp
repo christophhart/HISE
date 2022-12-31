@@ -2975,7 +2975,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	setDefaultValue(Properties::opaque, true);
 	setDefaultValue(Properties::showLines, false);
 	setDefaultValue(Properties::showFileName, true);
-	setDefaultValue(Properties::sampleIndex, -1);
+	setDefaultValue(Properties::sampleIndex, 0);
 	setDefaultValue(Properties::enableRange, true);
 
 	handleDefaultDeactivatedProperties();

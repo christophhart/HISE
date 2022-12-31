@@ -232,6 +232,14 @@ template <class RNBOType, int NV> struct rnbo_wrapper:
         }
     }
     
+    void onResync(double ppqPosition) override
+    {
+        for(auto& o: obj)
+        {
+            o.scheduleEvent(RNBO::BeatTimeEvent(RNBO::RNBOTimeNow, ppqPosition));
+        }
+    }
+    
     void handleHiseEvent(HiseEvent& e)
     {
         auto m = e.toMidiMesage();
