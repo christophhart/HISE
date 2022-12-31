@@ -190,9 +190,10 @@ If set to 1, then the FX plugin will also process child sound generators (eg. gl
 
 If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.
 This can be used to simulate an audio effect routing setup (when the appropriate plugin type is selected in the projucer settings).
+
 */
 #ifndef FORCE_INPUT_CHANNELS
-#define FORCE_INPUT_CHANNELS 0
+#define FORCE_INPUT_CHANNELS USE_BACKEND
 #endif
 
 /** Config: HISE_DEACTIVATE_OVERLAY

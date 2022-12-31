@@ -49,16 +49,464 @@ void DAWClockController::LAF::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/
 }
 
 
-struct DAWClockController::Ruler: public Component
+
+
+struct AudioTimelineObject : public TimelineObjectBase
 {
+	AudioTimelineObject(const File& f) :
+		TimelineObjectBase(f)
+	{};
+
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("Audio"); }
+
+	Colour getColour() const override
+	{
+		return Colour(EFFECT_PROCESSOR_COLOUR);
+	}
+
+	void initialise(double sampleRate) override
+	{
+		WavAudioFormat form;
+
+		auto fis = new FileInputStream(f);
+		ScopedPointer<AudioFormatReader> reader = form.createReaderFor(fis, true);
+
+		content.setSize(2, reader->lengthInSamples);
+
+		reader->read(&content, 0, reader->lengthInSamples, 0, true, true);
+
+		if (sampleRate != reader->sampleRate)
+		{
+			LagrangeInterpolator interpolator;
+			auto ratio = sampleRate / reader->sampleRate;
+
+			AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
+
+			interpolator.process(ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
+			interpolator.process(ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+
+			std::swap(content, newBuffer);
+		}
+
+		
+
+		reader = nullptr;
+		
+	}
+
+	void draw(Graphics& g, Rectangle<float> bounds) override
+	{
+		if (bounds != lastArea)
+			rebuildPeaks(bounds);
+
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.fillRectList(peaks);
+	}
+
+	void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) override
+	{
+		auto sampleOffset = clock->getSamplesDelta(ppqOffsetFromStart);
+
+		if (sampleOffset < 0)
+		{
+			int numToCopy = buffer.getNumSamples() + sampleOffset;
+
+			auto targetOffset = -sampleOffset;
+			auto contentOffset = 0;
+
+			if (numToCopy > 0)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(0, targetOffset), content.getReadPointer(0, contentOffset), numToCopy);
+				FloatVectorOperations::copy(buffer.getWritePointer(1, targetOffset), content.getReadPointer(1, contentOffset), numToCopy);
+			}
+
+			
+		}
+		else
+		{
+			auto contentOffset = sampleOffset;
+			auto targetOffset = 0;
+			auto numToCopy = jmin(buffer.getNumSamples(), content.getNumSamples() - contentOffset);
+
+			if (numToCopy > 0)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(0, targetOffset), content.getReadPointer(0, contentOffset), numToCopy);
+				FloatVectorOperations::copy(buffer.getWritePointer(1, targetOffset), content.getReadPointer(1, contentOffset), numToCopy);
+			}
+		}
+	}
+
+	void rebuildPeaks(Rectangle<float> bounds)
+	{
+		int samplesPerPixel = roundToInt(content.getNumSamples() / bounds.getWidth());
+
+		float x = 0.0f;
+
+		peaks.clear();
+
+		for (int i = 0; i < content.getNumSamples(); i += samplesPerPixel)
+		{
+			int numToDo = jmin(samplesPerPixel, content.getNumSamples() - i);
+			float mag = content.getMagnitude(i, numToDo);
+
+			float h = mag * bounds.getHeight();
+			float y = (bounds.getHeight() - h) * 0.5f;
+
+			peaks.addWithoutMerging({ x, y, 1.0f, h });
+			x += 1.0f;
+		}
+
+		lastArea = bounds;
+
+
+	}
+
+	double getPPQLength(double sampleRate, double bpm) const override
+	{
+		auto numSamples = content.getNumSamples();
+		auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+		return (double)numSamples / samplesPerQuarter;
+	}
+
+	AudioSampleBuffer content;
+
+	RectangleList<float> peaks;
+	Rectangle<float> lastArea;
+};
+
+struct MidiTimelineObject : public TimelineObjectBase,
+							public ControlledObject,
+						    public TempoListener
+{
+	MidiTimelineObject(const File& f, MainController* mc) :
+		TimelineObjectBase(f),
+		ControlledObject(mc)
+	{
+		getMainController()->addTempoListener(this);
+	};
+
+	~MidiTimelineObject()
+	{
+		if (auto mc = getMainController())
+		{
+			mc->allNotesOff();
+			mc->removeTempoListener(this);
+		}
+	}
+
+	void onTransportChange(bool isPlaying, double ppqPosition) override
+	{
+		if (!isPlaying)
+		{
+			getMainController()->allNotesOff();
+		}
+	}
+
+	void loopWrap() override
+	{
+		clearOnNextBuffer = true;
+	}
+
+	void onResync(double ppqPosition) override
+	{
+		clearOnNextBuffer = true;
+	}
+
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("Midi"); }
+
+	void initialise(double ) override
+	{
+		FileInputStream fis(f);
+		
+
+		auto ok = content.readFrom(fis);
+
+		
+	}
+
+	Colour getColour() const override
+	{
+		return Colour(MIDI_PROCESSOR_COLOUR);
+	}
+
+	void draw(Graphics& g, Rectangle<float> bounds) override
+	{
+		if (bounds != lastBounds)
+			rebuildEvents(bounds);
+		
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.fillRectList(midiEvents);
+
+	}
+
+	double getPPQLength(double sampleRate, double bpm) const override
+	{
+		return (double)content.getLastTimestamp() / (double)content.getTimeFormat();
+	}
+
+	void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) override
+	{
+		if (clearOnNextBuffer)
+		{
+			for (auto e : pendingNoteOffs)
+			{
+				mb.addEvent(e->message, 0);
+			}
+
+			pendingNoteOffs.clear();
+			clearOnNextBuffer = false;
+		}
+
+		if (auto t = content.getTrack(0))
+		{
+			auto ticksPerQuarter = (double)content.getTimeFormat();
+
+			auto idx = t->getNextIndexAtTime(ppqOffsetFromStart * ticksPerQuarter);
+			auto ppqDelta = clock->getPPQDelta(buffer.getNumSamples() + 1);
+
+			Range<double> timestampRange(ppqOffsetFromStart * ticksPerQuarter, (ppqOffsetFromStart + ppqDelta) * ticksPerQuarter);
+
+			for (int i = idx; i < t->getNumEvents(); i++)
+			{
+				auto e = t->getEventPointer(i);
+
+				auto ts = e->message.getTimeStamp();
+
+				if (timestampRange.contains(ts))
+				{
+					auto timestampPPQ = e->message.getTimeStamp() / ticksPerQuarter;
+					auto timestampSamples = clock->getSamplesDelta(timestampPPQ - ppqOffsetFromStart);
+
+					mb.addEvent(e->message, timestampSamples);
+
+					if (e->message.isNoteOff())
+						pendingNoteOffs.remove(e);
+
+					if (e->noteOffObject != nullptr)
+					{
+						pendingNoteOffs.insert(e->noteOffObject);
+					}
+				}
+				else
+					break;
+			}
+
+		}
+	}
+
+	void rebuildEvents(Rectangle<float> bounds)
+	{
+		lastBounds = bounds;
+
+		midiEvents.clear();
+
+		if (auto s = content.getTrack(0))
+		{
+			int max_ = 0;
+			int min_ = 128;
+
+			for (auto e : *s)
+			{
+				max_ = jmax(max_, e->message.getNoteNumber());
+				min_ = jmin(min_, e->message.getNoteNumber());
+			}
+			
+			auto numNotes = (float)(max_ - min_);
+
+			if (numNotes == 0.0f)
+				return;
+
+			for (auto e : *s)
+			{
+				if (e->message.isNoteOn() && e->noteOffObject != nullptr)
+				{
+					auto nn = e->message.getNoteNumber();
+					nn -= min_;
+
+					auto x = (float)(e->message.getTimeStamp() / content.getLastTimestamp());
+					auto w = (float)(e->noteOffObject->message.getTimeStamp() / content.getLastTimestamp()) - x;
+
+					if (x >= 1.0)
+						break;
+
+					x *= bounds.getWidth();
+					w *= bounds.getWidth();
+
+					auto y = (float)(numNotes - 1 - nn) / numNotes * bounds.getHeight();
+					auto h = jmax(1.0f, bounds.getHeight() / numNotes);
+
+					midiEvents.addWithoutMerging({ x, y, w, h });
+				}
+			}
+		}
+	}
+
+	MidiFile content;
+	RectangleList<float> midiEvents;
+
+	hise::UnorderedStack<MidiMessageSequence::MidiEventHolder*> pendingNoteOffs;
+	bool clearOnNextBuffer;
+
+	Rectangle<float> lastBounds;
+};
+
+
+struct DAWClockController::Ruler: public Component,
+								  public ControlledObject,
+								  public juce::FileDragAndDropTarget
+{
+	struct DraggableObject: public Component
+	{
+		
+
+		void updatePosition(double ppq, int pixelPos)
+		{
+			data->startPPQ = ppq;
+			setTopLeftPosition(pixelPos, LoopHeight);
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto c = data->getColour();
+
+			auto b = getLocalBounds().toFloat();
+
+			g.setColour(c.withAlpha(0.6f));
+			g.fillRoundedRectangle(b, 4.0f);
+
+			g.drawRoundedRectangle(b, 4.0f, 2.0f);
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			data->draw(g, b);
+		}
+
+		DraggableObject(TimelineObjectBase::Ptr obj):
+			data(obj)
+		{
+			Component::setInterceptsMouseClicks(false, false);
+		}
+
+		TimelineObjectBase::Ptr data;
+	};
+
     static constexpr int LoopHeight = 17;
     
-    Ruler(ExternalClockSimulator* clock_):
+    Ruler(ExternalClockSimulator* clock_, MainController* mc):
+	  ControlledObject(mc),
       clock(clock_)
     {
         setOpaque(true);
+
+		if (getTimelineFile().existsAsFile())
+		{
+			auto xml = XmlDocument::parse(getTimelineFile());
+
+			auto v = ValueTree::fromXml(*xml);
+
+			clock->isLooping = (bool)v["Loop"];
+			clock->ppqLoop = { (double)v["LoopStart"], (double)v["LoopEnd"] };
+
+			numBars = jmax(1, (int)v["NumBars"]);
+			grid = (bool)v["Grid"];
+
+			for (auto c : v)
+			{
+				auto f = c["File"];
+				auto p = c["StartPosition"];
+
+				auto obj = getOrCreate(File(f));
+				obj->startPPQ = p;
+			}
+		}
+
+		for (auto o : clock->timelineObjects)
+		{
+			auto newObj = new DraggableObject(o);
+			addAndMakeVisible(newObj);
+			existingObjects.add(newObj);
+		}
     };
     
+	bool isInterestedInFileDrag(const StringArray& files) override 
+	{ 
+		auto type = TimelineObjectBase::getTypeFromFile(File(files[0]));
+
+		return type != TimelineObjectBase::Type::Unknown;
+	}
+
+	OwnedArray<DraggableObject> existingObjects;
+
+	ScopedPointer<DraggableObject> currentObject;
+
+	TimelineObjectBase::Ptr getOrCreate(const File& f)
+	{
+		for (auto to : clock->timelineObjects)
+		{
+			if (to->f == f)
+				return to;
+		}
+
+		auto type = TimelineObjectBase::getTypeFromFile(f);
+
+		TimelineObjectBase::Ptr newObj;
+
+		if (type == TimelineObjectBase::Type::Audio)
+			newObj = new AudioTimelineObject(f);
+		else
+			newObj = new MidiTimelineObject(f, getMainController());
+
+		newObj->initialise(clock->sampleRate);
+
+		clock->timelineObjects.add(newObj);
+
+		return newObj;
+		
+	}
+
+	virtual void fileDragEnter(const StringArray& files, int x, int y)
+	{
+		auto f = File(files[0]);
+
+		auto newObj = getOrCreate(f);
+
+		newObj->startPPQ = pixelToPPQ(x);
+
+		addAndMakeVisible(currentObject = new DraggableObject(newObj));
+
+		updatePosition(currentObject);
+
+		Component::setMouseCursor(MouseCursor::StandardCursorType::CopyingCursor);
+	}
+
+	void updatePosition(DraggableObject* d)
+	{
+		auto ppqLength = d->data->getPPQLength(clock->sampleRate, clock->bpm);
+		auto x = (int)PPQToPixel(d->data->startPPQ);
+		d->setBounds(x, LoopHeight, PPQToPixel(ppqLength), getHeight() - LoopHeight);
+	}
+
+	virtual void fileDragMove(const StringArray& files, int x, int y)
+	{
+		auto ppq = pixelToPPQ(x);
+		
+		if (currentObject != nullptr)
+			currentObject->updatePosition(ppq, PPQToPixel(ppq));	
+	};
+
+	virtual void fileDragExit(const StringArray& files)
+	{
+		currentObject = nullptr;
+		setMouseCursor(MouseCursor::NormalCursor);
+	}
+
+	
+	virtual void filesDropped(const StringArray& files, int x, int y)
+	{
+		existingObjects.add(currentObject.release());
+
+		setMouseCursor(MouseCursor::NormalCursor);
+	}
+
     void setPositionFromEvent(const MouseEvent& e)
     {
         if(e.getPosition().getY() > LoopHeight)
@@ -78,14 +526,105 @@ struct DAWClockController::Ruler: public Component
                 clock->ppqLoop.setEnd(thisPos);
         }
     }
+
+	void mouseDoubleClick(const MouseEvent& e) override
+	{
+		currentObject = nullptr;
+		existingObjects.clear();
+		ScopedLock sl(clock->lock);
+		clock->timelineObjects.clear();
+	}
     
     void mouseDrag(const MouseEvent& e) override
     {
         setPositionFromEvent(e);
     }
     
+	File getTimelineFile() const
+	{
+		return ProjectHandler::getAppDataDirectory().getChildFile("Timeline.xml");
+	}
+
     void mouseDown(const MouseEvent& e) override
     {
+		if (e.mods.isRightButtonDown())
+		{
+			PopupMenu m;
+			PopupLookAndFeel plaf;
+			m.setLookAndFeel(&plaf);
+
+			auto mc = getMainController();
+
+			static constexpr int SyncOffset = 9000;
+
+			m.addSectionHeader("Sync Mode");
+
+#define ADD_SYNC_MODE(x) m.addItem(SyncOffset + (int)MasterClock::SyncModes::x, #x, true, mc->getMasterClock().getSyncMode() == MasterClock::SyncModes::x);
+
+			ADD_SYNC_MODE(Inactive);
+			ADD_SYNC_MODE(ExternalOnly);
+			ADD_SYNC_MODE(InternalOnly);
+			ADD_SYNC_MODE(PreferExternal);
+			ADD_SYNC_MODE(PreferInternal);
+
+#undef ADD_SYNC_MODE
+
+			m.addSeparator();
+
+			m.addItem(1, "Clear all objects", !clock->timelineObjects.isEmpty(), false);
+			m.addItem(2, "Save timelime as default", true, false);
+			m.addItem(3, "Reset default timeline", getTimelineFile().existsAsFile(), false);
+
+			auto result = m.show();
+
+			if (result == 1)
+			{
+				
+				existingObjects.clear();
+				currentObject = nullptr;
+
+				ScopedLock sl(clock->lock);
+				clock->timelineObjects.clear();
+			}
+			if (result == 2)
+			{
+				ValueTree v("Timeline");
+
+				v.setProperty("Loop", clock->isLooping, nullptr);
+				v.setProperty("LoopStart", clock->ppqLoop.getStart(), nullptr);
+				v.setProperty("LoopEnd", clock->ppqLoop.getEnd(), nullptr);
+				v.setProperty("NumBars", numBars, nullptr);
+				v.setProperty("Grid", grid, nullptr);
+
+				for (auto to : existingObjects)
+				{
+					auto f = to->data->f.getFullPathName();
+					auto startPos = to->data->startPPQ;
+
+					ValueTree c("Object");
+					c.setProperty("File", f, nullptr);
+					c.setProperty("StartPosition", startPos, nullptr);
+
+					v.addChild(c, -1, nullptr);
+				}
+
+				getTimelineFile().replaceWithText(v.createXml()->createDocument(""));
+			}
+			if (result == 3)
+			{
+				getTimelineFile().deleteFile();
+			}
+
+			if (result >= SyncOffset)
+			{
+				auto newMode = (MasterClock::SyncModes)(result - SyncOffset);
+
+				mc->getMasterClock().setSyncMode(newMode);
+			}
+
+			return;
+		}
+
         setPositionFromEvent(e);
     }
     
@@ -110,6 +649,21 @@ struct DAWClockController::Ruler: public Component
         return jmax<float>(0.0f, v);
     }
     
+	void resized() override
+	{
+		if (currentObject != nullptr)
+			updatePosition(currentObject);
+
+		for (auto d : existingObjects)
+			updatePosition(d);
+	}
+
+	void setNumBars(int newValue)
+	{
+		numBars = newValue;
+		resized();
+	}
+
     void paint(Graphics& g) override
     {
         g.setGradientFill(ColourGradient(Colour(0xFF303030), 0.0f, 0.0f, Colour(0xFF262626), 0.0f, (float)getHeight(), false));
@@ -118,6 +672,14 @@ struct DAWClockController::Ruler: public Component
         
         auto top = b.removeFromTop((float)LoopHeight);
         
+		if (existingObjects.isEmpty())
+		{
+			g.setColour(Colours::white.withAlpha(0.2f));
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Drop audio or MIDI files here", b, Justification::centred);
+		}
+
         g.setColour(Colours::white.withAlpha(0.1f));
         g.fillRect(top);
         g.setColour(Colour(0xFF555555));
@@ -200,7 +762,7 @@ DAWClockController::DAWClockController(MainController* mc):
     addAndMakeVisible(nom);
     addAndMakeVisible(denom);
     addAndMakeVisible(position);
-    addAndMakeVisible(ruler = new Ruler(clock));
+    addAndMakeVisible(ruler = new Ruler(clock, mc));
     
     addAndMakeVisible(grid);
     addAndMakeVisible(length);
@@ -306,13 +868,15 @@ void DAWClockController::sliderValueChanged(Slider* s)
     {
         clock->bpm = roundToInt(s->getValue());
         getMainController()->setHostBpm(clock->bpm);
+		ruler->resized();
     }
     if(s == &nom)
         clock->nom = roundToInt(s->getValue());
     if(s == &denom)
         clock->denom = nextPowerOfTwo(roundToInt(s->getValue()));
     if(s == &length)
-        dynamic_cast<Ruler*>(ruler.get())->numBars = (int)s->getValue();
+
+        dynamic_cast<Ruler*>(ruler.get())->setNumBars((int)s->getValue());
 }
 
 void DAWClockController::timerCallback()
@@ -553,6 +1117,33 @@ Path DAWClockController::Icons::createPath(const String& url) const
     
     return p;
 }
+
+void ExternalClockSimulator::addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb)
+{
+	if (!isPlaying)
+		return;
+
+	auto thisPPQ = getPPQDelta(bufferData.getNumSamples());
+
+	Range<double> thisRange(ppqPos, ppqPos + thisPPQ);
+
+	ScopedLock sl(lock);
+
+	for (auto to : timelineObjects)
+	{
+		auto l = to->getPPQLength(sampleRate, bpm);
+
+		Range<double> toRange(to->startPPQ, to->startPPQ + l);
+
+		if (!toRange.getIntersectionWith(thisRange).isEmpty())
+		{
+			auto offset = ppqPos - to->startPPQ;
+			to->process(bufferData, mb, offset, this);
+		}
+	}
+}
 #endif
+
+
 
 }

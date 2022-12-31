@@ -2722,6 +2722,11 @@ struct MasterClock
 		return currentState == State::ExternalClockPlay || currentState == State::InternalClockPlay;
 	}
 
+	SyncModes getSyncMode() const
+	{
+		return currentSyncMode;
+	}
+
 	GridInfo updateFromExternalPlayHead(const AudioPlayHead::CurrentPositionInfo& info, int numSamples)
 	{
 		GridInfo gi;

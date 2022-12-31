@@ -35,10 +35,70 @@
 namespace hise { using namespace juce;
 
 #if USE_BACKEND
+
+class ExternalClockSimulator;
+
+struct TimelineObjectBase : public ReferenceCountedObject
+{
+	enum class Type
+	{
+		Unknown,
+		Midi,
+		Audio,
+		numTypes
+	};
+
+	static Type getTypeFromFile(const File& f)
+	{
+		if (f.getFileExtension() == ".wav" ||
+			f.getFileExtension() == ".aif")
+		{
+			return Type::Audio;
+		}
+		if (f.getFileExtension() == ".mid" ||
+			f.getFileExtension() == ".midi")
+		{
+			return Type::Midi;
+		}
+
+		return Type::Unknown;
+	}
+
+	using Ptr = ReferenceCountedObjectPtr<TimelineObjectBase>;
+
+	virtual ~TimelineObjectBase() {};
+
+	virtual Identifier getTypeId() const = 0;
+
+	virtual void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) { jassertfalse; }
+
+	virtual void draw(Graphics& g, Rectangle<float> bounds) = 0;
+
+	virtual void initialise(double sampleRate) = 0;
+
+	virtual void loopWrap() {};
+
+	virtual double getPPQLength(double sampleRate, double bpm) const = 0;
+
+	virtual Colour getColour() const = 0;
+
+	double startPPQ = 0.0;
+	const Type type;
+	File f;
+
+	TimelineObjectBase(const File& f_) :
+		type(getTypeFromFile(f_)),
+		f(f_)
+	{};
+
+};
+
 class ExternalClockSimulator: public juce::AudioPlayHead
 {
 public:
     
+
+
     double getPPQDelta(int numSamples) const
     {
         auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
@@ -52,6 +112,14 @@ public:
         return roundToInt(samplesPerQuarter * ppqDelta);
     }
     
+	void sendLoopMessage()
+	{
+		for (auto to : timelineObjects)
+			to->loopWrap();
+	}
+
+	void addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb);
+
     void process(int numSamples)
     {
 		if (bpm == -1.0)
@@ -86,7 +154,7 @@ public:
             
             if(!afterInside)
             {
-                return getSamplesDelta(afterPos - ppqLoop.getEnd());
+				return getSamplesDelta(afterPos - ppqLoop.getEnd());
             }
             
             return 0;
@@ -132,6 +200,10 @@ public:
     
     double sampleRate;
     
+	ReferenceCountedArray<TimelineObjectBase> timelineObjects;
+
+	CriticalSection lock;
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalClockSimulator);
 };
 

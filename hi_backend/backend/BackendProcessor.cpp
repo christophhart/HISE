@@ -196,6 +196,8 @@ void BackendProcessor::refreshExpansionType()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+	buffer.clear();
+
     auto processChunk = [this](float** channels, AudioSampleBuffer& original, MidiBuffer& mb, int offset, int numThisTime)
     {
         for (int i = 0; i < original.getNumChannels(); i++)
@@ -206,6 +208,10 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 
         AudioSampleBuffer chunk(channels, original.getNumChannels(), numThisTime);
 
+#if IS_STANDALONE_APP
+		externalClockSim.addTimelineData(chunk, chunkMidiBuffer);
+#endif
+
         getDelayedRenderer().processWrapped(chunk, chunkMidiBuffer);
     };
     
@@ -214,6 +220,9 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
     
     auto numBeforeWrap = externalClockSim.getLoopBeforeWrap(buffer.getNumSamples());
     
+	// we need to align the loop points to the raster 
+	numBeforeWrap -= numBeforeWrap % HISE_EVENT_RASTER;
+
     if(numBeforeWrap != 0)
     {
         auto numAfterWrap = buffer.getNumSamples() - numBeforeWrap;
@@ -223,10 +232,14 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
         
         externalClockSim.process(numBeforeWrap);
         
+		
+
         processChunk(channels, buffer, midiMessages, numBeforeWrap, numAfterWrap);
         
         externalClockSim.process(numAfterWrap);
         
+		externalClockSim.sendLoopMessage();
+
         return;
     }
     
@@ -266,6 +279,10 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 	}
 	else
 	{
+#if IS_STANDALONE_APP
+		externalClockSim.addTimelineData(buffer, midiMessages);
+#endif
+
 		getDelayedRenderer().processWrapped(buffer, midiMessages);
 	}
 
