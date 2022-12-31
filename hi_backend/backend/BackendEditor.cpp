@@ -848,7 +848,6 @@ struct ToolkitPopup : public Component,
 					  public ControlledObject,
 					  public PooledUIUpdater::SimpleTimer,
 					  public ButtonListener,
-					  public SliderListener,
 					  public PathFactory
 {
 	ToolkitPopup(MainController* mc):
@@ -858,7 +857,7 @@ struct ToolkitPopup : public Component,
 		panicButton("Panic", this, *this),
         sustainButton("pedal", this, *this),
 		keyboard(mc),
-		masterConnection(&masterVolume, mc, mc->getMainSynthChain()->getId()),
+        clockController(mc),
 		resizer(this, &constrainer, ResizableEdgeComponent::rightEdge)
 	{
 		constrainer.setMinimumWidth(550);
@@ -867,45 +866,18 @@ struct ToolkitPopup : public Component,
 
 		addAndMakeVisible(resizer);
 		addAndMakeVisible(panicButton);
-		addAndMakeVisible(tempoKnob);
-        addAndMakeVisible(sustainButton);
-		addAndMakeVisible(peakMeter);
-		addAndMakeVisible(masterVolume);
+		addAndMakeVisible(sustainButton);
 		addAndMakeVisible(keyboard);
 
-		tempoKnob.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-		tempoKnob.setLookAndFeel(&slaf);
-		tempoKnob.setRange(30, 240, 1.0);
-		tempoKnob.addListener(this);
-		tempoKnob.setName("Tempo");
-
-		masterVolume.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-		masterVolume.setLookAndFeel(&slaf);
-		masterVolume.setRange(0.0, 1.0, 0.01);
-		masterVolume.setName("Volume");
-
-        masterVolume.setSkewFactor(0.5);
-        
-        masterVolume.textFromValueFunction = [](double v)
-        {
-            v = Decibels::gainToDecibels(v);
-            
-            return String((int)v) + " dB";
-        };
-        
-		peakMeter.setType(VuMeter::Type::StereoHorizontal);
-		peakMeter.setOpaque(false);
-		peakMeter.setColour(VuMeter::backgroundColour, Colours::transparentBlack);
-		peakMeter.setColour(VuMeter::ledColour, Colours::white.withAlpha(0.5f));
-		peakMeter.setName("Output");
-
-        panicButton.setTooltip("Send All-Note-Off message.");
+		panicButton.setTooltip("Send All-Note-Off message.");
         sustainButton.setTooltip("Enable Toggle mode (sustain) for keyboard.");
         sustainButton.setToggleModeWithColourChange(true);
         
 		keyboard.setUseVectorGraphics(true);
 
-		setSize(650, 72 + 48 + 35);
+        addAndMakeVisible(clockController);
+        
+		setSize(650, 83 + 72 + 10);
 	}
 
 	void buttonClicked(Button* b) override
@@ -927,12 +899,13 @@ struct ToolkitPopup : public Component,
 		g.setFont(GLOBAL_BOLD_FONT());
 
 		auto statBounds = getLocalBounds();
-		statBounds.removeFromTop(30);
-		statBounds.removeFromBottom(keyboard.getHeight());
-		statBounds.removeFromLeft(panicButton.getBounds().getRight() + 10);
-		statBounds.setRight(tempoKnob.getX());
-
-		g.drawText(getStatistics(), statBounds.toFloat(), Justification::centredLeft);
+        statBounds.removeFromRight(10);
+		statBounds = statBounds.removeFromTop(30);
+        statBounds = statBounds.removeFromRight(250);
+        
+		
+		
+		g.drawText(getStatistics(), statBounds.toFloat(), Justification::centredRight);
 
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.fillPath(midiPath);
@@ -942,68 +915,36 @@ struct ToolkitPopup : public Component,
 			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(midiAlpha));
 			g.fillPath(midiPath);
 		}
-
-		paintName(g, peakMeter);
-		paintName(g, masterVolume);
-		paintName(g, tempoKnob);
-	}
-
-	void paintName(Graphics& g, Component& c)
-	{
-		auto b = c.getBoundsInParent().withY(0).withHeight(30).toFloat();
-		g.setColour(Colours::white.withAlpha(0.4f));
-		g.drawText(c.getName(), b, Justification::centred);
 	}
 
 	void resized() override
 	{
+        static constexpr int TopHeight = 28;
+        static constexpr int Margin = 2;
+        
 		auto b = getLocalBounds();
 		b.removeFromLeft(10);
 		resizer.setBounds(b.removeFromRight(10));
         
-        auto bottom = b.removeFromBottom(72);
+        clockController.setBounds(b.removeFromTop(83));
         
-        b.removeFromBottom(5);
+        b.removeFromTop(10);
         
-        auto r = bottom.removeFromLeft(32);
+        auto r = b.removeFromLeft(TopHeight);
         
-        sustainButton.setBounds(r.removeFromBottom(32));
-        panicButton.setBounds(r.removeFromTop(32));
+        b.removeFromLeft(10);
         
-        bottom.removeFromLeft(10);
-		keyboard.setBounds(bottom);
-
-		b.removeFromTop(30);
+        sustainButton.setBounds(r.removeFromBottom(TopHeight).reduced(Margin));
+        panicButton.setBounds(r.removeFromTop(TopHeight).reduced(Margin));
+        
+        keyboard.setBounds(b);
 
         midiPath = createPath("midi");
-        scalePath(midiPath, b.removeFromLeft(b.getHeight()).reduced(0, 10).toFloat().translated(-8.0f, 0.0f));
-        
-		masterVolume.setBounds(b.removeFromRight(b.getHeight()));
-		b.removeFromRight(10);
-		peakMeter.setBounds(b.removeFromRight(200).reduced(0, 13));
-
-		
-		b.removeFromRight(5);
-		tempoKnob.setBounds(b.removeFromRight(b.getHeight()));
-		
-
-		
-	}
-
-	void sliderValueChanged(Slider* s)
-	{
-		getMainController()->setHostBpm(s->getValue());
+        scalePath(midiPath, r.removeFromTop(TopHeight).reduced(Margin).toFloat());
 	}
 
 	void timerCallback() override
 	{
-		if(!tempoKnob.isMouseOverOrDragging())
-			tempoKnob.setValue(getMainController()->getBpm(), dontSendNotification);
-
-		const auto& dv = getMainController()->getMainSynthChain()->getDisplayValues();
-
-		peakMeter.setPeak(dv.outL, dv.outR);
-
 		if (getMainController()->checkAndResetMidiInputFlag())
 			midiAlpha = 1.0f;
 		else
@@ -1047,17 +988,13 @@ struct ToolkitPopup : public Component,
 	float midiAlpha = 0.0f;
     HiseShapeButton panicButton, sustainButton;
 	
-	MacroKnobLookAndFeel slaf;
-	Slider tempoKnob;
-	Slider masterVolume;
-	raw::UIConnection::Slider<ModulatorSynth::Parameters::Gain> masterConnection;
-
-	VuMeter peakMeter;
 	CustomKeyboard keyboard;
 
 	juce::ResizableEdgeComponent resizer;
 	ComponentBoundsConstrainer constrainer;
 	ScrollbarFader::Laf rlaf;
+    
+    hise::DAWClockController clockController;
 };
 
 

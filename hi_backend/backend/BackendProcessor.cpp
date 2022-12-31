@@ -32,11 +32,17 @@
 
 namespace hise { using namespace juce;
 
+
+
+
+
 BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 scriptUnlocker(this)
 {
+    
+    
 	ExtendedApiDocumentation::init();
 
     synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES);
@@ -94,6 +100,8 @@ scriptUnlocker(this)
 
 		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
 	}
+    
+    externalClockSim.bpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 }
 
 
@@ -188,6 +196,44 @@ void BackendProcessor::refreshExpansionType()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+    auto processChunk = [this](float** channels, AudioSampleBuffer& original, MidiBuffer& mb, int offset, int numThisTime)
+    {
+        for (int i = 0; i < original.getNumChannels(); i++)
+            channels[i] = original.getWritePointer(i, offset);
+
+        MidiBuffer chunkMidiBuffer;
+        chunkMidiBuffer.addEvents(mb, offset, numThisTime, -offset);
+
+        AudioSampleBuffer chunk(channels, original.getNumChannels(), numThisTime);
+
+        getDelayedRenderer().processWrapped(chunk, chunkMidiBuffer);
+    };
+    
+#if IS_STANDALONE_APP
+    setPlayHead(&externalClockSim);
+    
+    auto numBeforeWrap = externalClockSim.getLoopBeforeWrap(buffer.getNumSamples());
+    
+    if(numBeforeWrap != 0)
+    {
+        auto numAfterWrap = buffer.getNumSamples() - numBeforeWrap;
+        float* channels[HISE_NUM_PLUGIN_CHANNELS];
+
+        processChunk(channels, buffer, midiMessages, 0, numBeforeWrap);
+        
+        externalClockSim.process(numBeforeWrap);
+        
+        processChunk(channels, buffer, midiMessages, numBeforeWrap, numAfterWrap);
+        
+        externalClockSim.process(numAfterWrap);
+        
+        return;
+    }
+    
+#endif
+    
+    
+    
 	if (isUsingDynamicBufferSize())
 	{
 		int numTodo = buffer.getNumSamples();
@@ -210,15 +256,9 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 
 			float* channels[HISE_NUM_PLUGIN_CHANNELS];
 
-			for (int i = 0; i < buffer.getNumChannels(); i++)
-				channels[i] = buffer.getWritePointer(i, pos);
-
-			MidiBuffer chunkMidiBuffer;
-			chunkMidiBuffer.addEvents(midiMessages, pos, fruityLoopsBufferSize, -pos);
-
-			AudioSampleBuffer chunk(channels, buffer.getNumChannels(), fruityLoopsBufferSize);
-
-			getDelayedRenderer().processWrapped(chunk, chunkMidiBuffer);
+            
+            
+            processChunk(channels, buffer, midiMessages, pos, fruityLoopsBufferSize);
 
 			numTodo -= fruityLoopsBufferSize;
 			pos += fruityLoopsBufferSize;
@@ -229,7 +269,9 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 		getDelayedRenderer().processWrapped(buffer, midiMessages);
 	}
 
-	
+#if IS_STANDALONE_APP
+    externalClockSim.process(buffer.getNumSamples());
+#endif
 };
 
 void BackendProcessor::processBlockBypassed(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
@@ -247,6 +289,8 @@ void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMe
 
 void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
+    externalClockSim.prepareToPlay(newSampleRate);
+    
 	setRateAndBufferSizeDetails(newSampleRate, samplesPerBlock);
  
 	handleLatencyInPrepareToPlay(newSampleRate);

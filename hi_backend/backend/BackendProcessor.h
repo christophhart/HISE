@@ -35,6 +35,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 class BackendProcessor;
 
 
@@ -211,8 +213,12 @@ public:
 	
 	LambdaBroadcaster<Identifier, Processor*> workspaceBroadcaster;
 
+    ExternalClockSimulator externalClockSim;
+    
 private:
 
+    
+    
 	File databaseRoot;
 
 	MemoryBlock tempLoadingData;

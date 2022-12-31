@@ -34,6 +34,146 @@
 
 namespace hise { using namespace juce;
 
+class ExternalClockSimulator: public juce::AudioPlayHead
+{
+public:
+    
+    double getPPQDelta(int numSamples) const
+    {
+        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+        
+        return (double)numSamples / samplesPerQuarter;
+    }
+    
+    int getSamplesDelta(double ppqDelta) const
+    {
+        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+        return roundToInt(samplesPerQuarter * ppqDelta);
+    }
+    
+    void process(int numSamples)
+    {
+        if(isPlaying)
+        {
+            auto ppqDelta = getPPQDelta(numSamples);
+            
+            ppqPos += ppqDelta;
+            
+            if(isLooping && !ppqLoop.isEmpty() && ppqPos > ppqLoop.getEnd())
+            {
+                auto posAfterStart = ppqPos - ppqLoop.getStart();
+                ppqPos = ppqLoop.getStart() + hmath::fmod(posAfterStart, ppqLoop.getLength());
+            }
+        }
+    }
+    
+    int getLoopBeforeWrap(int numSamples)
+    {
+        if(isPlaying && isLooping && !ppqLoop.isEmpty())
+        {
+            auto beforeInside = ppqLoop.contains(ppqPos);
+            
+            if(!beforeInside)
+                return 0;
+            
+            auto afterPos = ppqPos + getPPQDelta(numSamples);
+            
+            auto afterInside = ppqLoop.contains(afterPos);
+            
+            if(!afterInside)
+            {
+                return getSamplesDelta(afterPos - ppqLoop.getEnd());
+            }
+            
+            return 0;
+        }
+        
+        return 0;
+    }
+    
+    bool getCurrentPosition (CurrentPositionInfo& result) override
+    {
+        result.bpm = bpm;
+        result.timeSigNumerator = nom;
+        result.timeSigDenominator = denom;
+        result.timeInSamples = TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter) * ppqPos;
+        result.timeInSeconds = TempoSyncer::getTempoInMilliSeconds(bpm, TempoSyncer::Quarter) * ppqPos;
+        result.ppqPosition = ppqPos;
+        result.ppqPositionOfLastBarStart = hmath::floor(ppqPos / 4.0) * 4.0;
+        result.isPlaying = isPlaying;
+        result.isRecording = false;
+        result.ppqLoopStart = ppqLoop.getStart();
+        result.ppqLoopEnd = ppqLoop.getEnd();
+        result.isLooping = isLooping;
+        
+        return true;
+    }
+    
+    void prepareToPlay(double newSampleRate)
+    {
+        sampleRate = newSampleRate;
+    }
+    
+    
+    
+    bool isLooping = false;
+    bool isPlaying = false;
+    
+    int nom = 4;
+    int denom = 4;
+    
+    double bpm = 120.0;
+    double ppqPos = 0.0;
+    Range<double> ppqLoop = { 8.0, 16.0 };
+    
+    double sampleRate;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalClockSimulator);
+};
+
+struct DAWClockController: public Component,
+                           public ControlledObject,
+                           public PooledUIUpdater::SimpleTimer,
+                           public Slider::Listener
+{
+    struct Icons: public PathFactory
+    {
+        Path createPath(const String& url) const override;
+    };
+    
+    DAWClockController(MainController* mc);
+      
+    virtual ~DAWClockController() {};
+    
+    bool keyPressed(const KeyPress& k) override;
+    
+    void timerCallback() override;
+    
+    void resized() override;
+    
+    void sliderValueChanged(Slider* s) override;
+    
+    struct LAF: public LookAndFeel_V3
+    {
+        void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+    } laf;
+    
+    WeakReference<ExternalClockSimulator> clock;
+    Icons f;
+    
+    HiseShapeButton play, stop, loop, grid, rewind;
+    
+    Slider bpm, nom, denom, length;
+    
+    Label position;
+    
+    
+    
+    struct Ruler;
+    
+    ScopedPointer<Component> ruler;
+};
+
 class ApplicationCommandButtonPanel : public FloatingTileContent,
 	public Component
 {
