@@ -211,6 +211,8 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
+	API_METHOD_WRAPPER_2(ScriptFile, isChildOf);
+	API_METHOD_WRAPPER_1(ScriptFile, isSameFileAs);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
@@ -268,6 +270,8 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
 	ADD_API_METHOD_0(show);
+	ADD_API_METHOD_2(isChildOf);
+	ADD_API_METHOD_1(isSameFileAs);
 	ADD_API_METHOD_0(getNonExistentSibling);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_0(getNumZippedItems);
@@ -395,6 +399,29 @@ juce::var ScriptingObjects::ScriptFile::getRedirectedFolder()
 bool ScriptingObjects::ScriptFile::isFile() const
 {
 	return f.existsAsFile();
+}
+
+bool ScriptingObjects::ScriptFile::isChildOf(var otherFile, bool checkSubdirectories) const
+{
+	if (auto sf = dynamic_cast<ScriptFile*>(otherFile.getObject()))
+	{
+		if (checkSubdirectories)
+			return f.isAChildOf(sf->f);
+		else
+			return f.getParentDirectory() == sf->f;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptFile::isSameFileAs(var otherFile) const
+{
+	if (auto sf = dynamic_cast<ScriptFile*>(otherFile.getObject()))
+	{
+		return sf->f == f;
+	}
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptFile::isDirectory() const

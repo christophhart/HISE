@@ -340,6 +340,12 @@ namespace ScriptingObjects
 		/** Checks if this file exists and is a file. */
 		bool isFile() const;
 
+		/** Checks if this file is a child file of the other file. */
+		bool isChildOf(var otherFile, bool checkSubdirectories) const;
+
+		/** Checks if the file matches the other file (the object comparison might not work reliably). */
+		bool isSameFileAs(var otherFile) const;
+
 		/** Checks if this file exists and is a directory. */
 		bool isDirectory() const;
 
