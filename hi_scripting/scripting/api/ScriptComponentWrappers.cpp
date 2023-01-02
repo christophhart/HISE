@@ -67,64 +67,85 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 			if (data.listener == nullptr)
 				return;
 
-			StringArray thisArray;
-			Array<int> indexes;
+			WeakReference<AdditionalMouseCallback> safeThis(this);
 
-			int index = 0;
-
-			for (auto& s : data.popupMenuItems)
+			auto f = [safeThis, event]()
 			{
-				if (s.startsWith("**") || s.startsWith("__"))
+				if (safeThis == nullptr)
+					return;
+
+				StringArray thisArray;
+				Array<int> indexes;
+
+				int index = 0;
+
 				{
-					thisArray.add(s);
-					continue;
+					LockHelpers::SafeLock sl(safeThis->scriptComponent->getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
+
+					for (auto& s : safeThis->data.popupMenuItems)
+					{
+						if (s.startsWith("**") || s.startsWith("__"))
+						{
+							thisArray.add(s);
+							continue;
+						}
+
+						String copy(s);
+
+						static const String dynamicWildcard("{DYNAMIC}");
+
+						if (copy.contains(dynamicWildcard))
+						{
+							auto textValue = safeThis->data.textFunction(index).toString();
+							copy = copy.replace(dynamicWildcard, textValue);
+						}
+
+						if (!copy.startsWith("~~") && safeThis->data.enabledFunction && !safeThis->data.enabledFunction(index))
+							thisArray.add("~~" + copy + "~~");
+						else
+							thisArray.add(copy);
+
+						if (safeThis->data.tickedFunction && safeThis->data.tickedFunction(index))
+							indexes.add(index);
+
+						index++;
+					}
 				}
 
-				String copy(s);
+				auto m = MouseCallbackComponent::parseFromStringArray(thisArray, indexes, &safeThis->component->getLookAndFeel());
 
-				static const String dynamicWildcard("{DYNAMIC}");
-
-				if (copy.contains(dynamicWildcard))
+				if (auto r = m.show())
 				{
-					auto textValue = data.textFunction(index).toString();
-					copy = copy.replace(dynamicWildcard, textValue);
+					safeThis->sendMessage(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing, r - 1);
 				}
+			};
 
-				if (!copy.startsWith("~~") && data.enabledFunction && !data.enabledFunction(index))
-					thisArray.add("~~" + copy + "~~");
-				else
-					thisArray.add(copy);
-
-				if (data.tickedFunction && data.tickedFunction(index))
-					indexes.add(index);
-
-				index++;
+			if (data.delayMilliseconds == 0)
+			{
+				f();
 			}
-
-			auto m = MouseCallbackComponent::parseFromStringArray(thisArray, indexes, &component->getLookAndFeel());
-
-			if (auto r = m.show())
+			else
 			{
-				sendMessage(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing, r-1);
+				Timer::callAfterDelay(data.delayMilliseconds, f);
 			}
 
 			return;
 		}
 
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::ClicksOnly) return;
-		sendMessage(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing);
 	}
 
 	void mouseDoubleClick(const MouseEvent& event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::ClicksOnly) return;
-		sendMessage(event, MouseCallbackComponent::Action::DoubleClicked, MouseCallbackComponent::EnterState::Nothing);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::DoubleClicked, MouseCallbackComponent::EnterState::Nothing);
 	}
 
 	void mouseMove(const MouseEvent& event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::AllCallbacks) return;
-		sendMessage(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::EnterState::Nothing);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::EnterState::Nothing);
 	}
 
 	void mouseDrag(const MouseEvent& event)
@@ -134,25 +155,43 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
         // do not forward mouse drags within a 4px threshold
         if(event.getDistanceFromDragStart() < 4) return;
         
-		sendMessage(event, MouseCallbackComponent::Action::Dragged, MouseCallbackComponent::EnterState::Nothing);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::Dragged, MouseCallbackComponent::EnterState::Nothing);
 	}
 
 	void mouseEnter(const MouseEvent &event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::ClicksAndEnter) return;
-		sendMessage(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::Entered);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::Entered);
 	}
 
 	void mouseExit(const MouseEvent &event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::ClicksAndEnter) return;
-		sendMessage(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::Exited);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::Moved, MouseCallbackComponent::Exited);
 	}
 
 	void mouseUp(const MouseEvent &event)
 	{
 		if (data.mouseCallbackLevel < MouseCallbackComponent::CallbackLevel::ClicksOnly) return;
-		sendMessage(event, MouseCallbackComponent::Action::MouseUp, MouseCallbackComponent::EnterState::Nothing);
+		sendMessageOrAsync(event, MouseCallbackComponent::Action::MouseUp, MouseCallbackComponent::EnterState::Nothing);
+	}
+
+	void sendMessageOrAsync(const MouseEvent& event, MouseCallbackComponent::Action action, MouseCallbackComponent::EnterState state, int popupMenuIndex = -1)
+	{
+		if (data.delayMilliseconds == 0)
+			sendMessage(event, action, state, popupMenuIndex);
+		else
+		{
+			WeakReference<AdditionalMouseCallback> safeThis(this);
+
+			auto f = [safeThis, event, action, state, popupMenuIndex]()
+			{
+				if (safeThis != nullptr)
+					safeThis->sendMessage(event, action, state, popupMenuIndex);
+			};
+
+			Timer::callAfterDelay(data.delayMilliseconds, f);
+		}
 	}
 
 	void sendMessage(const MouseEvent& event, MouseCallbackComponent::Action action, MouseCallbackComponent::EnterState state, int popupMenuIndex = -1)
@@ -179,6 +218,8 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 	Component::SafePointer<Component> component;
 	WeakReference<ScriptComponent> scriptComponent;
 	ScriptComponent::MouseListenerData data;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AdditionalMouseCallback);
 };
 
 ScriptCreatedComponentWrapper::~ScriptCreatedComponentWrapper()

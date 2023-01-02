@@ -308,6 +308,7 @@ public:
 			StateFunction tickedFunction, enabledFunction, textFunction;
 			StringArray popupMenuItems;
 			ModifierKeys popupModifier = ModifierKeys::rightButtonModifier;
+			int delayMilliseconds = 0;
 		};
 
 		// ============================================================================================================
@@ -643,7 +644,7 @@ public:
 			sendValueListenerMessage();
 		}
 
-		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const StringArray& popupItems = {}, ModifierKeys pm = ModifierKeys::rightButtonModifier)
+		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const StringArray& popupItems = {}, ModifierKeys pm = ModifierKeys::rightButtonModifier, int delayMs=0)
 		{
 			for (int i = 0; i < mouseListeners.size(); i++)
 			{
@@ -651,7 +652,7 @@ public:
 					mouseListeners.remove(i--);
 			}
 
-			mouseListeners.add({ obj, cl, sf, ef, tf, popupItems, pm });
+			mouseListeners.add({ obj, cl, sf, ef, tf, popupItems, pm, delayMs });
 		}
 
 		const Array<MouseListenerData>& getMouseListeners() const { return mouseListeners; }

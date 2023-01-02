@@ -1650,7 +1650,8 @@ struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
 			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsEnabled),
 			BIND_MEMBER_FUNCTION_1(InternalMenuListener::getDynamicItemText),
 			itemList,
-			useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier);
+			useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier,
+			30);
 	};
 
 	var itemIsEnabled(int index)
