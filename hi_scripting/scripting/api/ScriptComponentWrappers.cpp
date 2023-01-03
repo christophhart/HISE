@@ -80,35 +80,38 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 				int index = 0;
 
 				{
-					LockHelpers::SafeLock sl(safeThis->scriptComponent->getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
-
-					for (auto& s : safeThis->data.popupMenuItems)
+					if (safeThis->data.popupMenuItemFunction)
 					{
-						if (s.startsWith("**") || s.startsWith("__"))
+						for (auto& s : safeThis->data.popupMenuItemFunction())
 						{
-							thisArray.add(s);
-							continue;
+							String copy(s);
+
+							static const String dynamicWildcard("{DYNAMIC}");
+
+							if (copy.contains(dynamicWildcard))
+							{
+								auto textValue = safeThis->data.textFunction(index).toString();
+								copy = copy.replace(dynamicWildcard, textValue);
+							}
+
+							if (copy.startsWith("**") ||copy.startsWith("__"))
+							{
+								thisArray.add(copy);
+								continue;
+							}
+
+							
+
+							if (!copy.startsWith("~~") && safeThis->data.enabledFunction && !safeThis->data.enabledFunction(index))
+								thisArray.add("~~" + copy + "~~");
+							else
+								thisArray.add(copy);
+
+							if (safeThis->data.tickedFunction && safeThis->data.tickedFunction(index))
+								indexes.add(index);
+
+							index++;
 						}
-
-						String copy(s);
-
-						static const String dynamicWildcard("{DYNAMIC}");
-
-						if (copy.contains(dynamicWildcard))
-						{
-							auto textValue = safeThis->data.textFunction(index).toString();
-							copy = copy.replace(dynamicWildcard, textValue);
-						}
-
-						if (!copy.startsWith("~~") && safeThis->data.enabledFunction && !safeThis->data.enabledFunction(index))
-							thisArray.add("~~" + copy + "~~");
-						else
-							thisArray.add(copy);
-
-						if (safeThis->data.tickedFunction && safeThis->data.tickedFunction(index))
-							indexes.add(index);
-
-						index++;
 					}
 				}
 

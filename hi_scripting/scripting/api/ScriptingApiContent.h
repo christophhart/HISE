@@ -306,7 +306,7 @@ public:
 			WeakReference<WeakCallbackHolder::CallableObject> listener;
 			MouseCallbackComponent::CallbackLevel mouseCallbackLevel = MouseCallbackComponent::CallbackLevel::NoCallbacks;
 			StateFunction tickedFunction, enabledFunction, textFunction;
-			StringArray popupMenuItems;
+			std::function<StringArray()> popupMenuItemFunction = {};
 			ModifierKeys popupModifier = ModifierKeys::rightButtonModifier;
 			int delayMilliseconds = 0;
 		};
@@ -653,7 +653,7 @@ public:
 			}
 		}
 
-		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const StringArray& popupItems = {}, ModifierKeys pm = ModifierKeys::rightButtonModifier, int delayMs=0)
+		void attachMouseListener(WeakCallbackHolder::CallableObject* obj, MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf = {}, const MouseListenerData::StateFunction& ef = {}, const MouseListenerData::StateFunction& tf = {}, const std::function<StringArray()>& popupItemFunction = {}, ModifierKeys pm = ModifierKeys::rightButtonModifier, int delayMs=0)
 		{
 			for (int i = 0; i < mouseListeners.size(); i++)
 			{
@@ -661,7 +661,7 @@ public:
 					mouseListeners.remove(i--);
 			}
 
-			mouseListeners.add({ obj, cl, sf, ef, tf, popupItems, pm, delayMs });
+			mouseListeners.add({ obj, cl, sf, ef, tf, popupItemFunction, pm, delayMs });
 		}
 
 		const Array<MouseListenerData>& getMouseListeners() const { return mouseListeners; }

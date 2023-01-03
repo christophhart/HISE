@@ -1639,16 +1639,19 @@ Array<juce::var> ScriptBroadcaster::MouseEventListener::createChildArray() const
 struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 {
 
-	ContextMenuListener(ScriptBroadcaster* parent_, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata, bool useLeftClick) :
+	ContextMenuListener(ScriptBroadcaster* parent_, var componentIds, var stateFunction, const StringArray& itemList_, const var& metadata, bool useLeftClick) :
 		ListenerBase(metadata),
 		parent(parent_),
 		stateCallback(parent_->getScriptProcessor(), parent_, stateFunction, 2),
-		numItems(itemList.size())
+		itemList(itemList_),
+		numItems(itemList_.size())
 	{
 		components = BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds);
 
 		for (auto l : components)
 		{
+			l->removeMouseListener(parent);
+
 			l->attachMouseListener(parent,
 				MouseCallbackComponent::CallbackLevel::PopupMenuOnly,
 				[parent_](int index)
@@ -1675,8 +1678,15 @@ struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 
 					return var(false);
 				},
-				itemList, useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier,
-				30);
+				[parent_]()
+				{ 
+					for (auto l : parent_->attachedListeners)
+						if (auto typed = dynamic_cast<ContextMenuListener*>(l))
+							return typed->itemList;
+
+					return StringArray();
+				}, useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier,
+				60);
 		}
 
 		refreshCachedValues();
@@ -1759,6 +1769,7 @@ struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 	Array<String> dynamicTexts;
 
 	WeakCallbackHolder stateCallback;
+	StringArray itemList;
 
 	WeakReference<ScriptBroadcaster> parent;
 	Array<ScriptingApi::Content::ScriptComponent*> components;
