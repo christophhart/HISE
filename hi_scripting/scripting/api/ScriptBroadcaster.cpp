@@ -1636,23 +1636,89 @@ Array<juce::var> ScriptBroadcaster::MouseEventListener::createChildArray() const
 	return list;
 }
 
-struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
+struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 {
-	InternalMenuListener(ScriptBroadcaster* parent, ScriptComponent* l, var stateFunction, const StringArray& itemList, bool useLeftClick):
-		stateCallback(parent->getScriptProcessor(), parent, stateFunction, 2)
-	{
-		stateCallback.incRefCount();
-		stateCallback.setThisObject(l);
 
-		l->attachMouseListener(parent, 
-			MouseCallbackComponent::CallbackLevel::PopupMenuOnly, 
-			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsTicked),
-			BIND_MEMBER_FUNCTION_1(InternalMenuListener::itemIsEnabled),
-			BIND_MEMBER_FUNCTION_1(InternalMenuListener::getDynamicItemText),
-			itemList,
-			useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier,
-			30);
-	};
+	ContextMenuListener(ScriptBroadcaster* parent_, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata, bool useLeftClick) :
+		ListenerBase(metadata),
+		parent(parent_),
+		stateCallback(parent_->getScriptProcessor(), parent_, stateFunction, 2),
+		numItems(itemList.size())
+	{
+		components = BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds);
+
+		for (auto l : components)
+		{
+			l->attachMouseListener(parent,
+				MouseCallbackComponent::CallbackLevel::PopupMenuOnly,
+				[parent_](int index)
+				{
+					for (auto l : parent_->attachedListeners)
+						if (auto typed = dynamic_cast<ContextMenuListener*>(l))
+							return typed->getCachedValue<0>(index);
+
+					return var(false);
+				},
+				[parent_](int index)
+				{
+					for (auto l : parent_->attachedListeners)
+						if (auto typed = dynamic_cast<ContextMenuListener*>(l))
+							return typed->getCachedValue<1>(index);
+
+					return var(false);
+				},
+				[parent_](int index)
+				{
+					for (auto l : parent_->attachedListeners)
+						if (auto typed = dynamic_cast<ContextMenuListener*>(l))
+							return typed->getCachedValue<2>(index);
+
+					return var(false);
+				},
+				itemList, useLeftClick ? ModifierKeys::leftButtonModifier : ModifierKeys::rightButtonModifier,
+				30);
+		}
+
+		refreshCachedValues();
+	}
+
+	~ContextMenuListener()
+	{
+		for (auto l : components)
+			l->removeMouseListener(parent);
+	}
+
+	Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ContextMenu"); }
+
+	int getNumInitialCalls() const override { return 0; }
+	Array<var> getInitialArgs(int callIndex) const override { return {}; }
+
+	Result callItem(TargetBase*) override { return Result::ok(); }
+
+	Array<var> createChildArray() const override { return {}; }
+
+	void refreshCachedValues()
+	{
+		tickStates.ensureStorageAllocated(numItems);
+		enableStates.ensureStorageAllocated(numItems);
+		dynamicTexts.ensureStorageAllocated(numItems);
+
+		for (int i = 0; i < numItems; i++)
+		{
+			tickStates.set(i, itemIsTicked(i));
+			enableStates.set(i, itemIsEnabled(i));
+			dynamicTexts.set(i, getDynamicItemText(i));
+		}
+	}
+
+	template <int P> var getCachedValue(int index) const
+	{
+		if (P == 0) return var(tickStates[index]);
+		if (P == 1) return var(enableStates[index]);
+		if (P == 2) return var(dynamicTexts[index]);
+
+		return {};
+	}
 
 	var itemIsEnabled(int index)
 	{
@@ -1670,7 +1736,7 @@ struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
 		var args[2] = { var("active"), var(index) };
 		var rv(false);
 
-		if(stateCallback)
+		if (stateCallback)
 			auto ok = stateCallback.callSync(args, 2, &rv);
 
 		return rv;
@@ -1687,21 +1753,16 @@ struct ScriptBroadcaster::ContextMenuListener::InternalMenuListener
 		return rv;
 	}
 
+	int numItems;
+	Array<bool> tickStates;
+	Array<bool> enableStates;
+	Array<String> dynamicTexts;
+
 	WeakCallbackHolder stateCallback;
+
+	WeakReference<ScriptBroadcaster> parent;
+	Array<ScriptingApi::Content::ScriptComponent*> components;
 };
-
-ScriptBroadcaster::ContextMenuListener::ContextMenuListener(ScriptBroadcaster* parent, 
-															var componentIds, 
-															var stateFunction, 
-															const StringArray& itemList, 
-															const var& metadata,
-														    bool useLeftClick):
-	ListenerBase(metadata)
-{
-	for (auto l : BroadcasterHelpers::getComponentsFromVar(parent->getScriptProcessor(), componentIds))
-		items.add(new InternalMenuListener(parent, l, stateFunction, itemList, useLeftClick));
-}
-
 
 struct ScriptBroadcaster::ComponentValueListener::InternalListener
 {
@@ -2583,6 +2644,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
     API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setRealtimeMode);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, setBypassed);
+	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, refreshContextMenuState);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setForceSynchronousExecution);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setSendMessageForUndefinedArgs);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, resendLastMessage);
@@ -2625,6 +2687,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_1(resendLastMessage);
 	ADD_API_METHOD_3(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
+	ADD_API_METHOD_0(refreshContextMenuState);
 	ADD_API_METHOD_1(setSendMessageForUndefinedArgs);
 	ADD_API_METHOD_1(setForceSynchronousExecution);
 
@@ -2742,6 +2805,8 @@ Result ScriptBroadcaster::call(HiseJavascriptEngine* engine, const var::NativeFu
 	String e;
 
 	e << metadata.id.toString() << " - " << "argument amount mismatch for connected callback. Expected: " << String(args.numArguments);
+
+	
 
 	return Result::fail(e);
 }
@@ -3186,6 +3251,17 @@ void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callb
 
 	attachedListeners.add(new MouseEventListener(this, componentIds, cLevel, optionalMetadata));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+}
+
+void ScriptBroadcaster::refreshContextMenuState()
+{
+	for (auto i : attachedListeners)
+	{
+		if (auto typed = dynamic_cast<ContextMenuListener*>(i))
+		{
+			typed->refreshCachedValues();
+		}
+	}
 }
 
 void ScriptBroadcaster::attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata, var useLeftClick)
@@ -3693,6 +3769,8 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 
 				rb->setButtonValueFromIndex(idx);
 			}
+			if (auto ct = dynamic_cast<ContextMenuListener*>(attachedListener))
+				ct->refreshCachedValues();
 		}
     }
     
@@ -3707,6 +3785,7 @@ void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const String& message, boo
 	if (i != nullptr)
 		errorBroadcaster.sendMessage(sendNotificationAsync, i, message);
 }
+
 
 void ScriptBroadcaster::initItem(TargetBase* ni)
 {
@@ -3779,6 +3858,8 @@ void ScriptBroadcaster::setRealtimeMode(bool enableRealTimeMode)
 {
 	realtimeSafe = enableRealTimeMode;
 }
+
+
 
 void ScriptBroadcaster::addBroadcasterAsListener(ScriptBroadcaster* targetBroadcaster, const var& transformFunction, bool async)
 {

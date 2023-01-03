@@ -3696,6 +3696,9 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics&
 		obj->setProperty("hover", isMouseOver);
 		obj->setProperty("down", isMouseDown);
 
+		obj->setProperty("sortColumnId", d.sortColumnId);
+		obj->setProperty("sortForwards", d.sortForward);
+
 		Rectangle<int> a(0, 0, width, height);
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));

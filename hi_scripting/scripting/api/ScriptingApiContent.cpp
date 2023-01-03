@@ -4354,7 +4354,9 @@ struct ScriptingApi::Content::ScriptedViewport::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableColumns);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableRowData);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableCallback);
+	API_METHOD_WRAPPER_1(ScriptedViewport, getOriginalRowIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setEventTypesForValueCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableSortFunction);
 };
 
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
@@ -4397,6 +4399,8 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	ADD_API_METHOD_1(setTableColumns);
 	ADD_API_METHOD_1(setTableRowData);
 	ADD_API_METHOD_1(setTableCallback);
+	ADD_API_METHOD_1(getOriginalRowIndex);
+	ADD_API_METHOD_1(setTableSortFunction);
 	ADD_API_METHOD_1(setEventTypesForValueCallback);
 }
 
@@ -4631,6 +4635,26 @@ void ScriptingApi::Content::ScriptedViewport::setEventTypesForValueCallback(var 
 
 		if (!r.wasOk())
 			reportScriptError(r.getErrorMessage());
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableSortFunction(var sortFunction)
+{
+	if (tableModel != nullptr)
+	{
+		tableModel->setTableSortFunction(sortFunction);
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
+}
+
+int ScriptingApi::Content::ScriptedViewport::getOriginalRowIndex(int rowIndex)
+{
+	if (tableModel != nullptr)
+	{
+		return tableModel->getOriginalRowIndex(rowIndex);
 	}
 	else
 		reportScriptError("You need to call setTableMode first");

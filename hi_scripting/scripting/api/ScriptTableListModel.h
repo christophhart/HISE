@@ -64,6 +64,9 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	struct LookAndFeelData
 	{
+		int sortColumnId = 0;
+		bool sortForward = true;
+
 		Font f = GLOBAL_BOLD_FONT();
 		Justification c = Justification::centredLeft;
 		Colour textColour, bgColour, itemColour1, itemColour2;
@@ -153,7 +156,11 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		return columnMetadata[columnId - 1].getProperty("MaxWidth", 10000);
 	}
 
+	void sortOrderChanged(int newSortColumnId, bool isForwards) override;
+
 	Result setEventTypesForValueCallback(var eventTypeList);
+
+	int getOriginalRowIndex(int rowIndex) const;
 
 	void cellClicked(int rowNumber, int columnId, const MouseEvent&) override;
 	void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e) override;
@@ -172,7 +179,20 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		additionalCallback = f;
 	}
 
+	using SortFunction = std::function<int(const var&, const var&)>;
+
+	void setTableSortFunction(var newSortFunction);
+
 private:
+
+	static int defaultSorter(const var& v1, const var& v2)
+	{
+		if (v1 < v2) return -1;
+		else if (v1 > v2) return 1;
+		else return 0;
+	}
+
+	SortFunction sortFunction = defaultSorter;
 
 	Array<EventType> eventTypesForCallback;
 
@@ -238,7 +258,9 @@ private:
 	var tableMetadata;
 	var columnMetadata;
 	var rowData;
+	var originalRowData;
 	WeakCallbackHolder cellCallback;
+	WeakCallbackHolder sortCallback;
 	ProcessorWithScriptingContent* pwsc;
 };
 
