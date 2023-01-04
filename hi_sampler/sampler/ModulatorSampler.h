@@ -618,7 +618,7 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
-	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods);
+	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods, NotificationType notifyListener);
 	
 	void setSortByGroup(bool shouldSortByGroup);
 

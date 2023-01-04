@@ -889,7 +889,7 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	}
 }
 
-void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods)
+void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods, NotificationType notifyListener)
 {
 #if USE_BACKEND
 	auto& s = getSamplerDisplayValues().visibleGroups;
@@ -913,7 +913,7 @@ void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, Modifi
 		}
 	}
 
-	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
+	getSampleEditHandler()->groupBroadcaster.sendMessage(notifyListener, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
 #endif
 }
 
