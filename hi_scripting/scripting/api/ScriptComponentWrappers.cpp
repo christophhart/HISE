@@ -1301,6 +1301,7 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptLabel::Alignment :		updateFont(sc, l); break;
 		PROPERTY_CASE::ScriptLabel::Editable:		 updateEditability(sc, l); break;
 		PROPERTY_CASE::ScriptLabel::Multiline:		l->setMultiline(newValue); break;
+        PROPERTY_CASE::ScriptLabel::SendValueEachKeyPress: sendValueEachKey = (bool)newValue;break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
@@ -1402,23 +1403,48 @@ void ScriptCreatedComponentWrappers::LabelWrapper::labelTextChanged(Label *l)
 
 void ScriptCreatedComponentWrappers::LabelWrapper::updateValue(var newValue)
 {
-	MultilineLabel *l = dynamic_cast<MultilineLabel*>(component.get());
+    if(valueChecker == nullptr)
+    {
+        MultilineLabel *l = dynamic_cast<MultilineLabel*>(component.get());
+        l->setText(newValue.toString(), dontSendNotification);
+    }
+}
 
-	l->setText(newValue.toString(), dontSendNotification);
+void ScriptCreatedComponentWrappers::LabelWrapper::ValueChecker::timerCallback()
+{
+    if(currentEditor.getComponent() == nullptr)
+        return;
+    
+    auto thisText = currentEditor->getText();
+    
+    if(lastValue != thisText)
+    {
+        lastValue = thisText;
+        auto sc = parent.getScriptComponent();
+        sc->setValue(lastValue);
+
+        dynamic_cast<ProcessorWithScriptingContent*>(parent.getProcessor())->controlCallback(sc, sc->getValue());
+    }
 }
 
 void ScriptCreatedComponentWrappers::LabelWrapper::editorShown(Label*, TextEditor& te)
 {
-	if (getScriptComponent()->wantsKeyboardFocus())
+	if (getScriptComponent()->wantsKeyboardFocus() || sendValueEachKey)
 	{
 		te.addKeyListener(this);
+        
+        if(sendValueEachKey)
+            valueChecker = new ValueChecker(*this, te);
 	}
 }
 
 void ScriptCreatedComponentWrappers::LabelWrapper::editorHidden(Label*, TextEditor& te)
 {
 	te.removeKeyListener(this);
+    valueChecker = nullptr;
 }
+
+
 
 ScriptCreatedComponentWrappers::TableWrapper::TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index) :
 ScriptCreatedComponentWrapper(content, index)

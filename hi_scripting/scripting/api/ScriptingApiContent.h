@@ -1190,6 +1190,7 @@ public:
 			Alignment,
 			Editable,
 			Multiline,
+            SendValueEachKeyPress,
 			numProperties
 		};
 

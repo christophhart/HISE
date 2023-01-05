@@ -2202,7 +2202,8 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i04, "alignment");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i05, "editable");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "multiline");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
+    ADD_SCRIPT_PROPERTY(i07, "updateEachKey"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 128);
@@ -2218,6 +2219,7 @@ ScriptComponent(base, name)
 	setDefaultValue(Alignment, "centred");
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
+    setDefaultValue(SendValueEachKeyPress, false);
 
 	handleDefaultDeactivatedProperties();
 
