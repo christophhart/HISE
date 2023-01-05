@@ -4637,6 +4637,8 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOffByEventId);
 	API_VOID_METHOD_WRAPPER_2(Synth, noteOffDelayedByEventId);
 	API_METHOD_WRAPPER_2(Synth, playNote);
+    API_VOID_METHOD_WRAPPER_3(Synth, playNoteFromUI);
+    API_VOID_METHOD_WRAPPER_2(Synth, noteOffFromUI);
 	API_METHOD_WRAPPER_4(Synth, playNoteWithStartOffset);
 	API_VOID_METHOD_WRAPPER_2(Synth, setAttribute);
 	API_METHOD_WRAPPER_1(Synth, getAttribute);
@@ -4713,6 +4715,8 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_2(noteOffDelayedByEventId);
 	ADD_API_METHOD_2(playNote);
 	ADD_API_METHOD_4(playNoteWithStartOffset);
+    ADD_API_METHOD_3(playNoteFromUI);
+    ADD_API_METHOD_2(noteOffFromUI);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_4(addNoteOn);
@@ -4852,6 +4856,19 @@ void ScriptingApi::Synth::addToFront(bool addToFront)
 void ScriptingApi::Synth::deferCallbacks(bool deferCallbacks)
 {
 	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->deferCallbacks(deferCallbacks);
+}
+
+void ScriptingApi::Synth::playNoteFromUI(int channel, int noteNumber, int velocity)
+{
+    CustomKeyboardState& state = getScriptProcessor()->getMainController_()->getKeyboardState();
+    
+    state.injectMessage(MidiMessage::noteOn(channel, noteNumber, (float)velocity * 127.0f));
+}
+
+void ScriptingApi::Synth::noteOffFromUI(int channel, int noteNumber)
+{
+    CustomKeyboardState& state = getScriptProcessor()->getMainController_()->getKeyboardState();
+    state.injectMessage(MidiMessage::noteOff(channel, noteNumber));
 }
 
 int ScriptingApi::Synth::playNote(int noteNumber, int velocity)

@@ -969,6 +969,12 @@ public:
 		/** Sends a note off message for the supplied event ID with the given delay in samples. */
 		void noteOffDelayedByEventId(int eventId, int timestamp);
 
+        /** Injects a note on to the incoming MIDI buffer (just as if the virtual keyboard was pressed. */
+        void playNoteFromUI(int channel, int noteNumber, int velocity);
+        
+        /** Injects a note off to the incoming MIDI buffer (similar to playNoteFromUI). */
+        void noteOffFromUI(int channel, int noteNumber);
+        
 		/** Plays a note and returns the event id. Be careful or you get stuck notes! */
 		int playNote(int noteNumber, int velocity);
 
