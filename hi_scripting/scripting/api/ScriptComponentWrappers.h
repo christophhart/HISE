@@ -330,6 +330,8 @@ public:
 			c->repaint();
 	}
 
+    Processor *getProcessor();
+    
 protected:
 
 	/** You need to do this tasks in your constructor:
@@ -342,7 +344,7 @@ protected:
 	/** Call this constructor for a content without data management. */
 	ScriptCreatedComponentWrapper(ScriptContentComponent* content, ScriptComponent* sc);
 
-	Processor *getProcessor();
+	
 
 	ScriptingApi::Content *getContent();
 
