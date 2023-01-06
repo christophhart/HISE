@@ -41,6 +41,7 @@ SimpleRingBuffer::SimpleRingBuffer()
 
 void SimpleRingBuffer::setupReadBuffer(AudioSampleBuffer& b)
 {
+    ScopedLock sl(getReadBufferLock());
 	auto numChannels = internalBuffer.getNumChannels();
 	auto numSamples = internalBuffer.getNumSamples();
 
