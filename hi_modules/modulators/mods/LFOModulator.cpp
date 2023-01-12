@@ -167,6 +167,7 @@ void LfoModulator::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Legato, "Legato");
 	loadAttributeWithDefault(PhaseOffset);
 	loadAttributeWithDefault(SyncToMasterClock);
+    loadAttributeWithDefault(IgnoreNoteOn);
 
 	loadAttribute(SmoothingTime, "SmoothingTime");
 
@@ -191,7 +192,9 @@ juce::ValueTree LfoModulator::exportAsValueTree() const
 	saveAttribute(LoopEnabled, "LoopEnabled");
 	saveAttribute(PhaseOffset, "PhaseOffset");
 	saveAttribute(SyncToMasterClock, "SyncToMasterClock");
-
+    saveAttribute(IgnoreNoteOn, "IgnoreNoteOn");
+    
+    
 	saveTable(getTableUnchecked(0), "CustomWaveform");
 
 	v.setProperty("StepData", getSliderPackDataUnchecked(0)->toBase64(), nullptr);
@@ -241,6 +244,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return 0.0;
 	case Parameters::SyncToMasterClock:
 		return false;
+    case Parameters::IgnoreNoteOn:
+        return false;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -271,6 +276,8 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return (float)phaseOffset; 
 	case Parameters::SyncToMasterClock:
 		return syncToMasterClock ? 1.0f : 0.0f;
+    case Parameters::IgnoreNoteOn:
+        return ignoreNoteOn ? 1.0f : 0.0f;
 	default: 
 		jassertfalse;
 		return 0.0f;
@@ -331,6 +338,16 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 
 		break;
 	}
+    case Parameters::IgnoreNoteOn:
+        ignoreNoteOn = newValue > 0.5f;
+            
+        // reset the phase so you can use this attribute
+        // for re-syncing the LFO somehow
+        if(ignoreNoteOn)
+            resetPhase();
+            
+        break;
+            
 	default: 
 		jassertfalse;
 	}
@@ -652,6 +669,24 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 	
 }
 
+void LfoModulator::resetPhase()
+{
+    uptime = phaseOffset * (double)SAMPLE_LOOKUP_TABLE_SIZE;
+    lastCycleIndex = 0;
+
+    loopEndValue = -1.0f;
+
+    if (currentWaveform == Steps)
+    {
+        currentSliderIndex = 0;
+        currentSliderValue = 1.0f - data->getValue(0);
+        getSliderPackDataUnchecked(0)->setDisplayedIndex(0);
+        lastSwapIndex = -1;
+    }
+
+    resetFadeIn();
+}
+
 void LfoModulator::handleHiseEvent(const HiseEvent &m)
 {
 	for (auto& mb : modChains)
@@ -663,25 +698,13 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	if(m.isNoteOn())
 	{
-		if(legato == false || keysPressed == 0)
+		if((legato == false || keysPressed == 0) && !ignoreNoteOn)
 		{
-			uptime = phaseOffset * (double)SAMPLE_LOOKUP_TABLE_SIZE;
-			lastCycleIndex = 0;
-
-			loopEndValue = -1.0f;
-
-			if (currentWaveform == Steps)
-			{
-				currentSliderIndex = 0;
-				currentSliderValue = 1.0f - data->getValue(0);
-				getSliderPackDataUnchecked(0)->setDisplayedIndex(0);
-				lastSwapIndex = -1;
-			}
-
+            resetPhase();
+            
 			for (auto& mb : modChains)
 				mb.startVoice(0);
 
-			resetFadeIn();
 			frequencyModulationValue = modChains[FrequencyChain].getConstantModulationValue();
 			calcAngleDelta();
 		}
