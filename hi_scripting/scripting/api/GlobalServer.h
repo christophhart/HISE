@@ -75,6 +75,18 @@ struct GlobalServer: public ControlledObject
 
 	uint32 startTime = 0;
 
+    bool resendLastCallback()
+    {
+        if(lastCall != nullptr)
+        {
+            auto r = resendCallback(lastCall.get());
+            
+            return r.wasOk();
+        }
+        
+        return false;
+    }
+    
 	void addListener(Listener* l)
 	{
 		listeners.addIfNotAlreadyThere(l);
@@ -155,6 +167,7 @@ struct GlobalServer: public ControlledObject
 		p->extraHeader = extraHeader;
 		internalThread.pendingCallbacks.add(p);
 		internalThread.notify();
+        lastCall = p;
 		sendMessage(false);
 	}
 
@@ -180,6 +193,8 @@ struct GlobalServer: public ControlledObject
 
 	Result resendCallback(PendingCallback* p);
 
+    
+    
 	/** Stops the execution of the request queue (pending tasks will be finished). */
 	void stop()
 	{
@@ -188,6 +203,7 @@ struct GlobalServer: public ControlledObject
 
 	void cleanup()
 	{
+        lastCall = nullptr;
 		internalThread.stopThread(HISE_SCRIPT_SERVER_TIMEOUT);
 	}
 
@@ -245,7 +261,7 @@ private:
 
 	} internalThread;
 
-	
+    PendingCallback::Ptr lastCall;
 
 	URL baseURL;
 	String extraHeader;

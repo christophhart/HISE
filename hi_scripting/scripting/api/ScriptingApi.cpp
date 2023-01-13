@@ -6812,6 +6812,7 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
 	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
+    API_METHOD_WRAPPER_0(Server, resendLastCall);
 	API_METHOD_WRAPPER_1(Server, isEmailAddress);
 };
 
@@ -6838,6 +6839,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
+    ADD_API_METHOD_0(resendLastCall);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_API_METHOD_1(setServerCallback);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
@@ -6884,6 +6886,16 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
 void ScriptingApi::Server::setHttpHeader(String newHeader)
 {
 	globalServer.setHttpHeader(newHeader);
+}
+
+bool ScriptingApi::Server::resendLastCall()
+{
+    if(isOnline())
+    {
+        return globalServer.resendLastCallback();
+    }
+    
+    return false;
 }
 
 var ScriptingApi::Server::downloadFile(String subURL, var parameters, var targetFile, var callback)

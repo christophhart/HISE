@@ -1456,6 +1456,9 @@ public:
 		/** Adds the given String to the HTTP POST header. */
 		void setHttpHeader(String additionalHeader);
 
+        /** Resends the last call to the Server (eg. in case that there was no internet connection). */
+        bool resendLastCall();
+        
 		/** Downloads a file to the given target and returns a Download object. */
 		var downloadFile(String subURL, var parameters, var targetFile, var callback);
 
