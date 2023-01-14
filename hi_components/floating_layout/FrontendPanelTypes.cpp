@@ -42,7 +42,9 @@ void MatrixPeakMeter::fillModuleList(StringArray& moduleList)
 ActivityLedPanel::ActivityLedPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
-	setOpaque(true);
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::black.withAlpha(0.0f));
+	setDefaultPanelColour(PanelColourId::itemColour1, Colours::green);
+	setDefaultPanelColour(PanelColourId::itemColour2, Colours::black);
 
 	startTimer(100);
 }
@@ -51,9 +53,10 @@ var ActivityLedPanel::toDynamicObject() const
 {
 	var obj = FloatingTileContent::toDynamicObject();
 
-	storePropertyInObject(obj, (int)SpecialPanelIds::OffImage, offName);
-	storePropertyInObject(obj, (int)SpecialPanelIds::OnImage, onName);
 	storePropertyInObject(obj, (int)SpecialPanelIds::ShowMidiLabel, showMidiLabel);
+	storePropertyInObject(obj, (int)SpecialPanelIds::MidiLabel, midiLabel);
+	storePropertyInObject(obj, (int)SpecialPanelIds::UseMidiPath, useMidiPath);
+	storePropertyInObject(obj, (int)SpecialPanelIds::Base64MidiPath, base64MidiPath);
 
 	return obj;
 }
@@ -70,30 +73,28 @@ void ActivityLedPanel::fromDynamicObject(const var& object)
 	FloatingTileContent::fromDynamicObject(object);
 
 	showMidiLabel = getPropertyWithDefault(object, (int)SpecialPanelIds::ShowMidiLabel);
+	midiLabel = getPropertyWithDefault(object, (int)SpecialPanelIds::MidiLabel);
+	useMidiPath   = getPropertyWithDefault(object, (int)SpecialPanelIds::UseMidiPath);
+	base64MidiPath  = getPropertyWithDefault(object, (int)SpecialPanelIds::Base64MidiPath);
 
-	onName = getPropertyWithDefault(object, (int)SpecialPanelIds::OnImage);
+	var propertyFromJSON(base64MidiPath);
+	String midiIconPath = propertyFromJSON.toString();
 
-	auto& handler = getMainController()->getExpansionHandler();
+	MemoryBlock mb;
+	mb.fromBase64Encoding(midiIconPath);
 
-	if (onName.isNotEmpty())
-		on = handler.loadImageReference(PoolReference(getMainController(), onName, ProjectHandler::SubDirectories::Images));
-
-	offName = getPropertyWithDefault(object, (int)SpecialPanelIds::OffImage);
-
-	if (offName.isNotEmpty())
-		on = handler.loadImageReference(PoolReference(getMainController(), offName, ProjectHandler::SubDirectories::Images));
+	path.loadPathFromData(mb.getData(), mb.getSize());
 }
-
-
 
 Identifier ActivityLedPanel::getDefaultablePropertyId(int index) const
 {
 	if (index < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultablePropertyId(index);
 
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::OffImage, "OffImage");
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::OnImage, "OnImage");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowMidiLabel, "ShowMidiLabel");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MidiLabel, "MidiLabel");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::UseMidiPath, "UseMidiPath");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Base64MidiPath, "Base64MidiPath");
 
 	jassertfalse;
 	return{};
@@ -104,9 +105,10 @@ var ActivityLedPanel::getDefaultProperty(int index) const
 	if (index < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultProperty(index);
 
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::OffImage, var(""));
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::OnImage, var(""));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowMidiLabel, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::MidiLabel, "MIDI");
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::UseMidiPath, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Base64MidiPath, "");
 
 	jassertfalse;
 	return{};
@@ -114,20 +116,29 @@ var ActivityLedPanel::getDefaultProperty(int index) const
 
 void ActivityLedPanel::paint(Graphics &g)
 {
-	g.fillAll(Colours::black);
-	g.setColour(Colours::white);
+	g.fillAll(findPanelColour(PanelColourId::bgColour));
 
-	g.setFont(getFont());
+	g.setColour(isOn ? findPanelColour(PanelColourId::itemColour1) : findPanelColour(PanelColourId::itemColour2));
 
 	if (showMidiLabel)
-		g.drawText("MIDI", 0, 0, 100, getHeight(), Justification::centredLeft, false);
-
-	if (auto img = isOn ? on.getData() : off.getData())
 	{
-		g.drawImageWithin(*img, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
+		g.setFont(getFont());
+		g.drawText(midiLabel, 0, 0, getWidth(), getHeight(), Justification::centredLeft, false);
 	}
 
-	
+	if (useMidiPath)
+	{
+		g.fillPath(path);
+	}
+	else
+		g.fillEllipse(getWidth()-getHeight(), 0, getHeight(), getHeight());
+}
+
+void ActivityLedPanel::resized()
+{
+	auto lp = getLocalBounds().toFloat();
+
+	PathFactory::scalePath(path, lp.reduced(1.0f));
 }
 
 void ActivityLedPanel::setOn(bool shouldBeOn)
@@ -135,6 +146,7 @@ void ActivityLedPanel::setOn(bool shouldBeOn)
 	isOn = shouldBeOn;
 	repaint();
 }
+
 
 
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
