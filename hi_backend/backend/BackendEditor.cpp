@@ -466,8 +466,12 @@ void MainTopBar::paint(Graphics& g)
 
 	String infoText;
 
+#if HISE_BACKEND_AS_FX
+    infoText << "FX Build";
+#endif
+    
 #if JUCE_DEBUG
-	infoText << "DEBUG Build";
+	infoText << " (DEBUG)";
 #endif
 
 #if HISE_INCLUDE_FAUST
@@ -479,6 +483,8 @@ void MainTopBar::paint(Graphics& g)
 	infoText << "Faust enabled";
 #endif
 
+    
+    
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawText(infoText, b.toFloat(), Justification::right);

@@ -575,7 +575,7 @@ void MainController::processMidiOutBuffer(MidiBuffer& mb, int numSamples)
 
 bool MainController::shouldUseSoftBypassRamps() const noexcept
 {
-#if USE_BACKEND || !FRONTEND_IS_PLUGIN
+#if (USE_BACKEND && !HISE_BACKEND_AS_FX) || !FRONTEND_IS_PLUGIN
 	return true;
 #else
 	return allowSoftBypassRamps;
@@ -1092,7 +1092,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #if FORCE_INPUT_CHANNELS
 	jassert(thisMultiChannelBuffer.getNumSamples() >= buffer.getNumSamples());
 	jassert(thisMultiChannelBuffer.getNumChannels() >= buffer.getNumChannels());
-	thisMultiChannelBuffer.makeCopyOf(buffer, true);
+	
+    for(int i = 0; i < buffer.getNumChannels(); i++)
+    {
+        FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(i),
+                                    buffer.getReadPointer(i), buffer.getNumSamples());
+    }
+    
+    
 #else
 	thisMultiChannelBuffer.clear();
 #endif

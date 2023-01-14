@@ -194,7 +194,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
 
-	if (getMainController()->getMainSynthChain() == this && !activeChannels.areAllChannelsEnabled())
+    auto isRoot = getMainController()->getMainSynthChain() == this;
+    
+	if (isRoot && !activeChannels.areAllChannelsEnabled())
 	{
 		HiseEventBuffer::Iterator it(inputMidiBuffer);
 
@@ -249,8 +251,15 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
 #if FORCE_INPUT_CHANNELS
-	if(internalBuffer.getNumChannels() == buffer.getNumChannels())
-		internalBuffer.makeCopyOf(buffer);
+    if(isRoot)
+    {
+        for(int i = 0; i < buffer.getNumChannels(); i++)
+        {
+            FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
+                                        buffer.getReadPointer(i), numSamples);
+        }
+    }
+    
 #endif
 
 	// Process the Synths and add store their output in the internal buffer
@@ -297,7 +306,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	}
 	else // save some cycles on non multichannel buffers...
 	{
-#if FORCE_INPUT_CHANNELS
+#if !FORCE_INPUT_CHANNELS
 		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
 		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
 #else

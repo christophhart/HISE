@@ -196,7 +196,9 @@ void BackendProcessor::refreshExpansionType()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+#if !HISE_BACKEND_AS_FX
 	buffer.clear();
+#endif
 
     auto processChunk = [this](float** channels, AudioSampleBuffer& original, MidiBuffer& mb, int offset, int numThisTime)
     {
