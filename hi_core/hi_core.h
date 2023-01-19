@@ -136,7 +136,7 @@ Set this to 1 to disable the creation of the Expansions folder at init (i.e. for
  Set this to 1 in order to use HISE as a effect plugin. This will simulate the processing setup of an FX plugin (so child sound generators will not be processed etc).
 */
 #ifndef HISE_BACKEND_AS_FX
-#define HISE_BACKEND_AS_FX 1
+#define HISE_BACKEND_AS_FX 0
 #endif
 
 /** Config: USE_COPY_PROTECTION
