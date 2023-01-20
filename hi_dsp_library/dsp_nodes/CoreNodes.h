@@ -1794,7 +1794,8 @@ DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
 
 
 
-template <int NV> class smoother: public mothernode
+template <int NV> class smoother: public mothernode,
+                                  public polyphonic_base
 {
 public:
 
@@ -1817,9 +1818,12 @@ public:
 	SN_GET_SELF_AS_OBJECT(smoother);
 	SN_DESCRIPTION("Smoothes the input signal using a low pass filter");
 
-	smoother() {};
-
+	smoother():
+      polyphonic_base(getStaticId(), false)
+    {};
+    
 	SN_EMPTY_INITIALISE;
+    
 	SN_EMPTY_MOD;
     
 	void createParameters(ParameterDataList& data)
