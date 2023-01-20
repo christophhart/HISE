@@ -1410,10 +1410,10 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 		p << "_" << parameterIndexInChain;
 
 
-	if (!c)
+	if (!c || c.index == -1)
 	{
 		Error e;
-		e.errorMessage = "Can't find connection for " + pName.toString();
+		e.errorMessage << "Can't find connection for " << pName.toString() << "\n> Make sure to save the network after you've added Faust or SNEX nodes so that all parameters are saved into the network XML.";
 		throw e;
 	}
 
