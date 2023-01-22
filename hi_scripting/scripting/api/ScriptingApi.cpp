@@ -2590,7 +2590,7 @@ var ScriptingApi::Settings::getAvailableBufferSizes()
 	
 	if (currentDevice != nullptr)
 	{
-		Array<int> bufferSizes = HiseSettings::ConversionHelpers::getBufferSizesForDevice(currentDevice);
+		Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
 		
 		for (auto x : bufferSizes)
 			result.add(x);
@@ -2620,7 +2620,7 @@ var ScriptingApi::Settings::getAvailableSampleRates()
 	
 	if (currentDevice != nullptr)
 	{
-		auto samplerates = HiseSettings::ConversionHelpers::getSampleRates(currentDevice);
+		auto samplerates = currentDevice->getAvailableSampleRates();
 
 		for (auto x : samplerates)
 			result.add(String(x, 0));
