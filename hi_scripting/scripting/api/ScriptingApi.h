@@ -631,15 +631,15 @@ public:
 	};
 
 	/** This class takes over a few of the Engine methods in order to break down this gigantomanic object. */
-	class Timing : public ApiClass,
+	class Date : public ApiClass,
 				   public ScriptingObject
 	{
 	public:
 
-		Timing(ProcessorWithScriptingContent* s);
-		~Timing() {};
+		Date(ProcessorWithScriptingContent* s);
+		~Date() {};
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Timing"); }
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Date"); }
 
 		// ================================================================================================== API Calls
 

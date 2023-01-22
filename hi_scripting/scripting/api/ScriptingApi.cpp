@@ -3239,15 +3239,15 @@ void ScriptingApi::Engine::logSettingWarning(const String& methodName) const
 
 // ====================================================================================================== Time functions
 
-struct ScriptingApi::Timing::Wrapper
+struct ScriptingApi::Date::Wrapper
 {
-	API_METHOD_WRAPPER_1(Timing, getSystemTimeISO8601);
-	API_METHOD_WRAPPER_0(Timing, getSystemTimeMs);
-	API_METHOD_WRAPPER_2(Timing, millisecondsToISO8601);
-	API_METHOD_WRAPPER_1(Timing, ISO8601ToMilliseconds);
+	API_METHOD_WRAPPER_1(Date, getSystemTimeISO8601);
+	API_METHOD_WRAPPER_0(Date, getSystemTimeMs);
+	API_METHOD_WRAPPER_2(Date, millisecondsToISO8601);
+	API_METHOD_WRAPPER_1(Date, ISO8601ToMilliseconds);
 };
 
-ScriptingApi::Timing::Timing(ProcessorWithScriptingContent* s) :
+ScriptingApi::Date::Date(ProcessorWithScriptingContent* s) :
 	ScriptingObject(s),
 	ApiClass(0)
 {
@@ -3257,22 +3257,22 @@ ScriptingApi::Timing::Timing(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_1(ISO8601ToMilliseconds);
 }
 
-String ScriptingApi::Timing::getSystemTimeISO8601(bool includeDividerCharacters)
+String ScriptingApi::Date::getSystemTimeISO8601(bool includeDividerCharacters)
 {
 	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
 }
 
-int64 ScriptingApi::Timing::getSystemTimeMs()
+int64 ScriptingApi::Date::getSystemTimeMs()
 {
 	return Time::getCurrentTime().toMilliseconds();
 }
 
-String ScriptingApi::Timing::millisecondsToISO8601(int64 miliseconds, bool includeDividerCharacters)
+String ScriptingApi::Date::millisecondsToISO8601(int64 miliseconds, bool includeDividerCharacters)
 {
 	return Time(miliseconds).toISO8601(includeDividerCharacters);
 }
 
-int64 ScriptingApi::Timing::ISO8601ToMilliseconds(String iso8601)
+int64 ScriptingApi::Date::ISO8601ToMilliseconds(String iso8601)
 {
     return juce::Time::fromISO8601(iso8601).toMilliseconds();
 }

@@ -5592,7 +5592,8 @@ juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 		"Settings",
 		"Server",
 		"FileSystem",
-		"Message"
+		"Message",
+		"Date"
 	};
 	
 	return ids;
