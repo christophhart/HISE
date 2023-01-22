@@ -779,6 +779,12 @@ namespace ScriptingObjects
 		/** Loads an image that can be used by the look and feel functions. */
 		void loadImage(String imageFile, String prettyName);
 
+		/** Unload all images from the look and feel object. */
+		void unloadAllImages();
+
+		/** Checks if the image has been loaded into the look and feel obkect */
+		bool isImageLoaded(String prettyName);
+
 		// ========================================================================================
 
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c);
