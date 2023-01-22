@@ -6285,8 +6285,11 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
 {
+
     NewLine nl;
     String code;
+
+#if USE_BACKEND
     
     Random r;
     
@@ -6400,7 +6403,7 @@ String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(Refer
         {
             code << "Content.getComponent(" << sc->getId().quoted() << ")";
             
-            if(sc != selection.getLast())
+            if(sc != selection.getLast().get())
                 code << ", " << nl << intend;
         }
            
@@ -6414,6 +6417,8 @@ String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(Refer
         code << "Content.getComponent(" << selection.getFirst()->getId().quoted()
              << ").setLocalLookAndFeel(" << lafName << ");" << nl;
     }
+    
+#endif
     
     return code;
 }
