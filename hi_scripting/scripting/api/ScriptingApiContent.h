@@ -2589,6 +2589,8 @@ public:
 
 		static String createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection);
 
+        static String createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection);
+        
 		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
 		static ScriptComponent * createComponentFromValueTree(Content* c, const ValueTree& v);
 		static bool hasLocation(ScriptComponent* sc);

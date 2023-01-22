@@ -6283,6 +6283,141 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 	jp->compileScript(f);
 }
 
+String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
+{
+    NewLine nl;
+    String code;
+    
+    Random r;
+    
+    String lafName = "local_laf" + String(r.nextInt({0, 999}));
+    
+    lafName = PresetHandler::getCustomName(lafName, "Enter the variable name for the LAF object (or press OK to use the random generated name).");
+    
+    if(lafName.isEmpty())
+        return {};
+    
+    code << "const var " << lafName << " = Content.createLocalLookAndFeel();" << nl << nl;
+    
+    Array<Identifier> ids;
+    
+    for(auto sc: selection)
+        ids.addIfNotAlreadyThere(sc->getObjectName());
+    
+    auto addCallback = [&](const String& callbackName, const StringArray& additionalLines={})
+    {
+        String nlt = "\n\t";
+        code << lafName << ".registerFunction(" << callbackName.quoted() << ", function(g, obj)" << nl;
+        code << "{";
+        
+        if(additionalLines.isEmpty())
+        {
+            code << nlt << "g.setColour(obj.bgColour);";
+            code << nlt << "g.fillRect(obj.area);";
+            code << nlt << "g.setColour(obj.textColour);";
+            code << nlt << "g.drawAlignedText(obj.text, obj.area, \"centred\");";
+        }
+        else
+        {
+            for(const auto& l: additionalLines)
+                code << nlt << l << ";";
+        }
+        
+        code << nl << "});" << nl << nl;
+    };
+    
+    if(ids.contains(ScriptSlider::getStaticObjectName()))
+    {
+        bool addRotary = false;
+        bool addLinear = false;
+        
+        for(auto sc: selection)
+        {
+            auto style = sc->getScriptObjectProperty(ScriptSlider::Properties::Style).toString();
+            
+            addRotary |= style == "Knob";
+            addLinear |= style != "Knob";
+        }
+        
+        if(addRotary)
+            addCallback("drawRotarySlider");
+        
+        if(addLinear)
+            addCallback("drawLinearSlider");
+    }
+    if(ids.contains(ScriptButton::getStaticObjectName()))
+        addCallback("drawToggleButton");
+    if(ids.contains(ScriptComboBox::getStaticObjectName()))
+        addCallback("drawComboBox");
+    if(ids.contains(ScriptSliderPack::getStaticObjectName()))
+    {
+        addCallback("drawSliderPackBackground", {
+            "g.setColour(obj.bgColour)",
+            "g.fillRect(obj.area)",
+            "g.setColour(obj.itemColour)",
+            "g.drawRect(obj.area, 1.0)"
+        });
+        
+        addCallback("drawSliderPackFlashOverlay", {
+            "g.setColour(Colours.withAlpha(obj.itemColour, obj.intensity))",
+            "g.fillRect(obj.area)"
+        });
+        
+        addCallback("drawSliderPackRightClickLine", {
+            "g.setColour(obj.itemColour)",
+            "g.drawLine(obj.x1, obj.x2, obj.y1, obj.y2, 2.0)"
+        });
+        
+        addCallback("drawSliderPackTextPopup", {
+            "g.setColour(obj.textColour)",
+            "g.fillRect([0, 0, obj.area[2], 14])",
+            "g.drawAlignedText(obj.text, obj.area, \"topRight\")"
+        });
+        
+        addCallback("drawLinearSlider", {
+            "g.setColour(obj.itemColour2)",
+            "obj.area[1] = (1.0 - obj.valueNormalized) * obj.area[3]",
+            "obj.area[3] -= obj.area[1]",
+            "g.fillRect(obj.area)"
+        });
+    }
+        
+       
+    if(selection.size() > 1)
+    {
+        String arrayDef;
+        
+        arrayDef << "const var " << lafName << "_targets = [";
+        
+        String intend;
+        
+        for(int i = 0; i < arrayDef.length(); i++)
+            intend << " ";
+        
+        code << arrayDef;;
+        
+        for(auto sc: selection)
+        {
+            code << "Content.getComponent(" << sc->getId().quoted() << ")";
+            
+            if(sc != selection.getLast())
+                code << ", " << nl << intend;
+        }
+           
+        code << "];" << nl << nl;
+        
+        code << "for(c in " << lafName << "_targets)" << nl;
+        code << "    c.setLocalLookAndFeel(" << lafName << ");" << nl;
+    }
+    else
+    {
+        code << "Content.getComponent(" << selection.getFirst()->getId().quoted()
+             << ").setLocalLookAndFeel(" << lafName << ");" << nl;
+    }
+    
+    return code;
+}
+
 String ScriptingApi::Content::Helpers::createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection)
 {
 	NewLine nl;
