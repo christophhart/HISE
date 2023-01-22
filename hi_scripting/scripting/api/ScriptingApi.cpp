@@ -3236,6 +3236,48 @@ void ScriptingApi::Engine::logSettingWarning(const String& methodName) const
 	debugToConsole(unconst, s);
 }
 
+
+// ====================================================================================================== Time functions
+
+struct ScriptingApi::Timing::Wrapper
+{
+	API_METHOD_WRAPPER_1(Timing, getSystemTimeISO8601);
+	API_METHOD_WRAPPER_0(Timing, getSystemTimeMs);
+	API_METHOD_WRAPPER_2(Timing, millisecondsToISO8601);
+	API_METHOD_WRAPPER_1(Timing, ISO8601ToMilliseconds);
+};
+
+ScriptingApi::Timing::Timing(ProcessorWithScriptingContent* s) :
+	ScriptingObject(s),
+	ApiClass(0)
+{
+	ADD_API_METHOD_1(getSystemTimeISO8601);
+	ADD_API_METHOD_0(getSystemTimeMs);
+	ADD_API_METHOD_2(millisecondsToISO8601);
+	ADD_API_METHOD_1(ISO8601ToMilliseconds);
+}
+
+String ScriptingApi::Timing::getSystemTimeISO8601(bool includeDividerCharacters)
+{
+	return Time::getCurrentTime().toISO8601(includeDividerCharacters);
+}
+
+int64 ScriptingApi::Timing::getSystemTimeMs()
+{
+	return Time::getCurrentTime().toMilliseconds();
+}
+
+String ScriptingApi::Timing::millisecondsToISO8601(int64 miliseconds, bool includeDividerCharacters)
+{
+	return Time(miliseconds).toISO8601(includeDividerCharacters);
+}
+
+int64 ScriptingApi::Timing::ISO8601ToMilliseconds(String iso8601)
+{
+    return juce::Time::fromISO8601(iso8601).toMilliseconds();
+}
+
+
 // ====================================================================================================== Sampler functions
 
 struct ScriptingApi::Sampler::Wrapper
