@@ -906,9 +906,25 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(PathObject, lineTo);
 	API_VOID_METHOD_WRAPPER_0(PathObject, clear);
 	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
+	API_VOID_METHOD_WRAPPER_4(PathObject, cubicTo);
+	API_VOID_METHOD_WRAPPER_4(PathObject, addQuadrilateral);
 	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
+	API_VOID_METHOD_WRAPPER_1(PathObject, addEllipse);
+	API_VOID_METHOD_WRAPPER_1(PathObject, addRectangle);
+    API_VOID_METHOD_WRAPPER_2(PathObject, addRoundedRectangle);
+    API_VOID_METHOD_WRAPPER_3(PathObject, addRoundedRectangleCustomisable);
+	API_VOID_METHOD_WRAPPER_3(PathObject, addTriangle);
+	API_VOID_METHOD_WRAPPER_4(PathObject, addPolygon);
+	API_VOID_METHOD_WRAPPER_5(PathObject, addArrow);
+	API_VOID_METHOD_WRAPPER_5(PathObject, addStar);
+	API_VOID_METHOD_WRAPPER_5(PathObject, scaleToFit);
+	API_VOID_METHOD_WRAPPER_1(PathObject, roundCorners);
 	API_METHOD_WRAPPER_2(PathObject, createStrokedPath);
+	API_METHOD_WRAPPER_3(PathObject, getIntersection);
+	API_METHOD_WRAPPER_1(PathObject, getPointOnPath);
+	API_METHOD_WRAPPER_1(PathObject, contains);
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
+	API_METHOD_WRAPPER_0(PathObject, getLength);
 	API_METHOD_WRAPPER_0(PathObject, toString);
 	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
@@ -922,8 +938,24 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_2(startNewSubPath);
 	ADD_API_METHOD_2(lineTo);
 	ADD_API_METHOD_4(quadraticTo);
+	ADD_API_METHOD_4(cubicTo);
+	ADD_API_METHOD_4(addQuadrilateral);
 	ADD_API_METHOD_3(addArc);
+	ADD_API_METHOD_1(addEllipse);
+	ADD_API_METHOD_1(addRectangle);
+    ADD_API_METHOD_2(addRoundedRectangle);
+    ADD_API_METHOD_3(addRoundedRectangleCustomisable);
+	ADD_API_METHOD_3(addTriangle);
+	ADD_API_METHOD_4(addPolygon);
+	ADD_API_METHOD_5(addArrow);
+	ADD_API_METHOD_5(addStar);
+	ADD_API_METHOD_5(scaleToFit);
+	ADD_API_METHOD_1(roundCorners);
+	ADD_API_METHOD_1(getPointOnPath);
+	ADD_API_METHOD_3(getIntersection);
+	ADD_API_METHOD_1(contains);
 	ADD_API_METHOD_1(getBounds);
+	ADD_API_METHOD_0(getLength);
 	ADD_API_METHOD_2(createStrokedPath);
 	ADD_API_METHOD_0(toString);
 	ADD_API_METHOD_1(fromString);
@@ -973,6 +1005,16 @@ void ScriptingObjects::PathObject::quadraticTo(var cx, var cy, var x, var y)
 	p.quadraticTo(cx, cy, x, y);
 }
 
+void ScriptingObjects::PathObject::cubicTo(var cxy1, var cxy2, var x, var y)
+{
+	p.cubicTo(cxy1[0], cxy1[1], cxy2[0], cxy2[1], x, y);
+}
+
+void ScriptingObjects::PathObject::addQuadrilateral(var xy1, var xy2, var xy3, var xy4)
+{
+	p.addQuadrilateral(xy1[0], xy1[1], xy2[0], xy2[1], xy3[0], xy3[1], xy4[0], xy4[1]);
+}
+
 void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadians)
 {
 	auto rect = ApiHelpers::getRectangleFromVar(area);
@@ -981,6 +1023,127 @@ void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadia
 	auto tr = (float)toRadians;
 
 	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), SANITIZED(fr), SANITIZED(tr), true);
+}
+
+void ScriptingObjects::PathObject::addEllipse(var area)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+
+	p.addEllipse(rect);
+}
+
+void ScriptingObjects::PathObject::addRectangle(var area)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+	
+	p.addRectangle(rect);
+}
+
+void ScriptingObjects::PathObject::addRoundedRectangle(var area, var cornerSize)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+	
+	p.addRoundedRectangle(rect, cornerSize);
+}
+
+void ScriptingObjects::PathObject::addRoundedRectangleCustomisable(var area, var cornerSizeXY, var boolCurves)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+	
+	p.addRoundedRectangle(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), cornerSizeXY[0], cornerSizeXY[1], boolCurves[0], boolCurves[1], boolCurves[2], boolCurves[3]);
+}
+
+void ScriptingObjects::PathObject::addTriangle(var xy1, var xy2, var xy3)
+{
+	p.addTriangle(xy1[0], xy1[1], xy2[0], xy2[1], xy3[0], xy3[1]);
+}
+
+void ScriptingObjects::PathObject::addPolygon(var center, var numSides, var radius, var angle)
+{
+    Point<float> c = ApiHelpers::getPointFromVar(center);
+
+	p.addPolygon(c, numSides, radius, angle);
+}
+
+void ScriptingObjects::PathObject::addArrow(var start, var end, var thickness, var headWidth, var headLength)
+{
+    Point<float> p1 = ApiHelpers::getPointFromVar(start);
+    Point<float> p2 = ApiHelpers::getPointFromVar(end);
+
+    auto l = Line<float>(p1, p2);
+
+	p.addArrow(l, thickness, headWidth, headLength);
+}
+
+void ScriptingObjects::PathObject::addStar(var center, var numPoints, var innerRadius, var outerRadius, var angle)
+{
+    Point<float> c = ApiHelpers::getPointFromVar(center);
+
+	p.addStar(c, numPoints, innerRadius, outerRadius, angle);
+}
+
+void ScriptingObjects::PathObject::scaleToFit(var x, var y, var width, var height, bool preserveProportions)
+{
+	p.applyTransform(p.getTransformToScaleToFit(x, y, width, height, preserveProportions));
+}
+
+void ScriptingObjects::PathObject::roundCorners(var radius)
+{
+	p = p.createPathWithRoundedCorners(radius);
+}
+
+var ScriptingObjects::PathObject::getIntersection(var start, var end, bool keepSectionOutsidePath)
+{
+	Point<float> p1 = ApiHelpers::getPointFromVar(start);
+	Point<float> p2 = ApiHelpers::getPointFromVar(end);
+
+	Line<float> l(p1.getX(), p1.getY() - 0.001f, p2.getX(), p2.getY()); // -0.001f ensures the line starts inside the path boundaries... Hmmm...
+
+	if (p.intersectsLine(l))
+	{
+		Line<float> clippedLine = p.getClippedLine(l, keepSectionOutsidePath);
+
+		Array<var> a;
+
+		if (keepSectionOutsidePath)
+		{
+			a.add(clippedLine.getStartX());
+			a.add(clippedLine.getStartY());
+		}
+		else
+		{
+			a.add(clippedLine.getEndX());
+			a.add(clippedLine.getEndY());
+		}
+
+		return var(a);
+	}
+
+	return false;
+}
+
+var ScriptingObjects::PathObject::getPointOnPath(var distanceFromStart)
+{
+	Point<float> point = p.getPointAlongPath((float)distanceFromStart);
+
+	Array<var> a;
+
+	a.add(point.getX());
+	a.add(point.getY());
+
+	return var(a);
+}
+
+var ScriptingObjects::PathObject::contains(var point)
+{
+	Point<float> pt = ApiHelpers::getPointFromVar(point);
+
+	return p.contains(pt);
+}
+
+var ScriptingObjects::PathObject::getLength()
+{
+	return p.getLength(AffineTransform::scale(1.0f), 1.0f);
 }
 
 var ScriptingObjects::PathObject::getBounds(var scaleFactor)
