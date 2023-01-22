@@ -1823,16 +1823,26 @@ void ScriptEncryptedExpansion::encodePoolAndUserPresets(ValueTree &hxiData, bool
 
 		BACKEND_ONLY(ExpansionHandler::ScopedProjectExporter sps(getMainController(), true));
 
-		for (int i = 0; i < nip.getNumLoadedFiles(); i++)
+		auto embedImageFiles = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EmbedImageFiles);
+		
+		if (embedImageFiles)
 		{
-			PoolReference ref(getMainController(), nip.getReference(i).getFile().getFullPathName(), FileHandlerBase::Images);
-			pool->getImagePool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			for (int i = 0; i < nip.getNumLoadedFiles(); i++)
+			{
+				PoolReference ref(getMainController(), nip.getReference(i).getFile().getFullPathName(), FileHandlerBase::Images);
+				pool->getImagePool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			}	
 		}
 
-		for (int i = 0; i < nap.getNumLoadedFiles(); i++)
+		auto embedAudioFiles = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EmbedAudioFiles);
+		
+		if (embedAudioFiles)
 		{
-			PoolReference ref(getMainController(), nap.getReference(i).getFile().getFullPathName(), FileHandlerBase::AudioFiles);
-			pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			for (int i = 0; i < nap.getNumLoadedFiles(); i++)
+			{
+				PoolReference ref(getMainController(), nap.getReference(i).getFile().getFullPathName(), FileHandlerBase::AudioFiles);
+				pool->getAudioSampleBufferPool().loadFromReference(ref, PoolHelpers::LoadAndCacheStrong);
+			}	
 		}
 	}
 
@@ -1846,9 +1856,13 @@ void ScriptEncryptedExpansion::encodePoolAndUserPresets(ValueTree &hxiData, bool
 			addDataType(poolData, fileType);
 	}
 
-	h.setErrorMessage("Embedding user presets", false);
+	auto embedUserPresets = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EmbedUserPresets);
 
-	addUserPresets(hxiData);
+  if (embedUserPresets)
+	{
+		h.setErrorMessage("Embedding user presets", false);
+		addUserPresets(hxiData);
+	}
 
 	hxiData.addChild(poolData, -1, nullptr);
 }
