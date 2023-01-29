@@ -201,6 +201,12 @@ struct GlobalServer: public ControlledObject
 		internalThread.running.store(false);
 	}
 
+    
+    void setTimeoutMessageString(String newTimeoutMessage)
+    {
+        internalThread.timeoutMessage = var(newTimeoutMessage);
+    }
+    
 	void cleanup()
 	{
         lastCall = nullptr;
@@ -242,7 +248,8 @@ private:
 	{
 		WebThread(GlobalServer& p) :
 			Thread("Server Thread"),
-			parent(p)
+			parent(p),
+            timeoutMessage("{}")
 		{};
 
 		GlobalServer& parent;
@@ -259,10 +266,14 @@ private:
 		ReferenceCountedArray<PendingCallback> pendingCallbacks;
 		ReferenceCountedArray<ScriptingObjects::ScriptDownloadObject> pendingDownloads;
 
+        var timeoutMessage;
+        
 	} internalThread;
 
     PendingCallback::Ptr lastCall;
 
+    
+    
 	URL baseURL;
 	String extraHeader;
 

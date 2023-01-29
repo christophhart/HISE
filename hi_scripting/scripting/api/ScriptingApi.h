@@ -1492,6 +1492,9 @@ public:
 		/** Downloads a file to the given target and returns a Download object. */
 		var downloadFile(String subURL, var parameters, var targetFile, var callback);
 
+        /** Sets a string that is parsed as timeout message when the server doesn't respond. Default is "{}" (empty JSON object). */
+        void setTimeoutMessageString(String timeoutMessage);
+        
 		/** Returns a list of all pending Downloads. */
 		var getPendingDownloads();
 

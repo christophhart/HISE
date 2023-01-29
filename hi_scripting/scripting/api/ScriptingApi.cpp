@@ -6854,6 +6854,7 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Server, setNumAllowedDownloads);
 	API_VOID_METHOD_WRAPPER_0(Server, cleanFinishedDownloads);
 	API_VOID_METHOD_WRAPPER_1(Server, setServerCallback);
+    API_VOID_METHOD_WRAPPER_1(Server, setTimeoutMessageString);
     API_METHOD_WRAPPER_0(Server, resendLastCall);
 	API_METHOD_WRAPPER_1(Server, isEmailAddress);
 };
@@ -6886,11 +6887,17 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_1(setServerCallback);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
 	ADD_API_METHOD_1(isEmailAddress);
+    ADD_API_METHOD_1(setTimeoutMessageString);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
 {
 	globalServer.setBaseURL(url);
+}
+
+void ScriptingApi::Server::setTimeoutMessageString(String timeoutMessage)
+{
+    globalServer.setTimeoutMessageString(timeoutMessage);
 }
 
 void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callback)
