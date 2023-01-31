@@ -750,6 +750,8 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 {
 	auto number = e.getControllerNumber();
 
+    bool thisConsumed = false;
+    
 	for (auto& a : automationData[number])
 	{
 		if (a.used && a.processor.get() != nullptr)
@@ -788,11 +790,11 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 				}
 			}
 
-			return consumeEvents;
+            thisConsumed |= consumeEvents;
 		}
 	}
 
-	return false;
+	return thisConsumed;
 }
 
 hise::MidiControllerAutomationHandler::AutomationData MidiControllerAutomationHandler::getDataFromIndex(int index) const
