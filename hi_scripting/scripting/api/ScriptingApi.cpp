@@ -914,6 +914,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setDiskMode);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
+	API_METHOD_WRAPPER_3(Engine, getComplexDataReference);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_2(Engine, sortWithFunction);
 	API_METHOD_WRAPPER_1(Engine, isControllerUsedByAutomation);
@@ -1012,6 +1013,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
+	ADD_API_METHOD_3(getComplexDataReference);
   ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_0(createUserPresetHandler);
 	ADD_API_METHOD_0(createMidiAutomationHandler);
@@ -2243,6 +2245,55 @@ var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
 juce::var ScriptingApi::Engine::getGlobalRoutingManager()
 {
 	return var(new ScriptingObjects::GlobalRoutingManagerReference(getScriptProcessor()));
+}
+
+juce::var ScriptingApi::Engine::getComplexDataReference(String dataType, String moduleId, int index)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), moduleId);
+
+	if (auto typed = dynamic_cast<ExternalDataHolder*>(p))
+	{
+		StringArray dataTypes =
+		{
+		  "Table",
+		  "SliderPack",
+		  "AudioFile",
+		  "FilterCoefficients",
+		  "DisplayBuffer",
+		};
+
+		auto idx = dataTypes.indexOf(dataType);
+
+		if (idx == -1)
+			reportScriptError("Illegal data type. Must be Table, SliderPack, AudioFile or DisplayBuffer");
+
+		auto dt = (ExternalData::DataType)idx;
+
+		if (auto obj = typed->getComplexBaseType(dt, index))
+		{
+			auto sp = getScriptProcessor();
+
+			switch (dt)
+			{
+			case ExternalData::DataType::Table: return var(new ScriptingObjects::ScriptTableData(sp, index, typed));
+			case ExternalData::DataType::SliderPack: return var(new ScriptingObjects::ScriptSliderPackData(sp, index, typed));
+			case ExternalData::DataType::AudioFile: return var(new ScriptingObjects::ScriptAudioFile(sp, index, typed));
+			case ExternalData::DataType::DisplayBuffer: return var(new ScriptingObjects::ScriptRingBuffer(sp, index, typed));
+			default: jassertfalse;
+			}
+		}
+		else
+		{
+			// Don't complain, just return undefined...
+			return var();
+		}
+	}
+	else
+	{
+		reportScriptError("Can't find module with ID " + moduleId);
+	}
+
+	RETURN_IF_NO_THROW(var());
 }
 
 var ScriptingApi::Engine::createBackgroundTask(String name)
