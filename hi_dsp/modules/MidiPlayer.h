@@ -36,7 +36,17 @@
 namespace hise {
 using namespace juce;
 
-
+#define DECLARE_ID(x) static Identifier x(#x);
+namespace TimeSigIds
+{
+	DECLARE_ID(Nominator);
+	DECLARE_ID(Denominator);
+	DECLARE_ID(NumBars);
+	DECLARE_ID(LoopStart);
+	DECLARE_ID(LoopEnd);
+	DECLARE_ID(Tempo);
+}
+#undef DECLARE_ID
 
 /** A wrapper around a MIDI file. 
 
@@ -71,6 +81,7 @@ public:
 		double numBars = 0.0;
 		double nominator = 4.0;
 		double denominator = 4.0;
+		double bpm = 120.0;
 		Range<double> normalisedLoopRange = { 0.0, 1.0 };
 
 		void setLoopEnd(double normalisedEnd)
@@ -114,22 +125,39 @@ public:
 		ValueTree exportAsValueTree() const override
 		{
 			ValueTree v("TimeSignature");
-			v.setProperty("NumBars", numBars, nullptr);
-			v.setProperty("Nominator", nominator, nullptr);
-			v.setProperty("Denominator", denominator, nullptr);
-			v.setProperty("LoopStart", normalisedLoopRange.getStart(), nullptr);
-			v.setProperty("LoopEnd", normalisedLoopRange.getEnd(), nullptr);
+			v.setProperty(TimeSigIds::NumBars, numBars, nullptr);
+			v.setProperty(TimeSigIds::Nominator, nominator, nullptr);
+			v.setProperty(TimeSigIds::Denominator, denominator, nullptr);
+			v.setProperty(TimeSigIds::LoopStart, normalisedLoopRange.getStart(), nullptr);
+			v.setProperty(TimeSigIds::LoopEnd, normalisedLoopRange.getEnd(), nullptr);
+			v.setProperty(TimeSigIds::Tempo, bpm, nullptr);
 
 			return v;
 		}
 
+		var getAsJSON() const
+		{
+			DynamicObject::Ptr obj = new DynamicObject();
+			
+			auto v = exportAsValueTree();
+
+			for (int i = 0; i < v.getNumProperties(); i++)
+			{
+				auto id = v.getPropertyName(i);
+				obj->setProperty(id, v[id]);
+			}
+			
+			return var(obj.get());
+		}
+
 		void restoreFromValueTree(const ValueTree &v) override
 		{
-			numBars = v.getProperty("NumBars", 0.0);
-			nominator = v.getProperty("Nominator", 4.0);
-			denominator = v.getProperty("Denominator", 4.0);
-			normalisedLoopRange.setStart(v.getProperty("LoopStart", 0.0));
-			normalisedLoopRange.setEnd(v.getProperty("LoopEnd", 1.0));
+			numBars =					 v.getProperty(TimeSigIds::NumBars, 0.0);
+			nominator =					 v.getProperty(TimeSigIds::Nominator, 4.0);
+			denominator =				 v.getProperty(TimeSigIds::Denominator, 4.0);
+			normalisedLoopRange.setStart(v.getProperty(TimeSigIds::LoopStart, 0.0));
+			normalisedLoopRange.setEnd(	 v.getProperty(TimeSigIds::LoopEnd, 1.0));
+			bpm =						 v.getProperty(TimeSigIds::Tempo, 120.0);
 		}
 
 	};

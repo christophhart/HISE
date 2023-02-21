@@ -300,9 +300,15 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 	MidiFile normalisedFile;
 
 	MidiMessageSequence times;
+	MidiMessageSequence tempos;
 
 	file.findAllTimeSigEvents(times);
+
+	file.findAllTempoEvents(tempos);
 	
+
+	for (auto te : tempos)
+		signature.bpm = jlimit(1.0, 1000.0, 60.0 / jmax(0.0001, te->message.getTempoSecondsPerQuarterNote()));
 
 	int nom = 4;
 	int denom = 4;
