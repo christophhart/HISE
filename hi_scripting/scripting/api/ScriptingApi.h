@@ -1595,6 +1595,9 @@ public:
 		/** Returns a list of all child files of a directory that match the wildcard. */
 		var findFiles(var directory, String wildcard, bool recursive);
 
+        /** Returns a list of all root drives of the current computer. */
+        var findFileSystemRoots();
+        
 		/** Opens a file browser to choose a file. */
 		void browse(var startFolder, bool forSaving, String wildcard, var callback);
 

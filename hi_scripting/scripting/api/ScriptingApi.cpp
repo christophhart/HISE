@@ -5475,8 +5475,7 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 	Processor::Iterator<ProcessorWithExternalData> it(owner);
 
 	ProcessorWithExternalData *asp;
-
-
+    
 	while ((asp = it.getNextProcessor()) != nullptr)
 	{
 		if (dynamic_cast<Processor*>(asp)->getId() == name)
@@ -6587,6 +6586,7 @@ struct ScriptingApi::FileSystem::Wrapper
 	API_VOID_METHOD_WRAPPER_2(FileSystem, browseForDirectory);
 	API_METHOD_WRAPPER_1(FileSystem, getBytesFreeOnVolume);
     API_METHOD_WRAPPER_2(FileSystem, encryptWithRSA);
+    API_METHOD_WRAPPER_0(FileSystem, findFileSystemRoots);
     API_METHOD_WRAPPER_2(FileSystem, decryptWithRSA);
 };
 
@@ -6619,6 +6619,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
 	ADD_API_METHOD_1(getBytesFreeOnVolume);
     ADD_API_METHOD_2(encryptWithRSA);
     ADD_API_METHOD_2(decryptWithRSA);
+    ADD_API_METHOD_0(findFileSystemRoots);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -6713,6 +6714,19 @@ void ScriptingApi::FileSystem::browseForDirectory(var startFolder, var callback)
 String ScriptingApi::FileSystem::getSystemId()
 {
 	return OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
+}
+
+var ScriptingApi::FileSystem::findFileSystemRoots()
+{
+    Array<File> roots;
+    File::findFileSystemRoots(roots);
+    
+    Array<var> entries;
+    
+    for(auto r: roots)
+        entries.add(var(new ScriptingObjects::ScriptFile(getScriptProcessor(), r)));
+    
+    return var(entries);
 }
 
 int64 ScriptingApi::FileSystem::getBytesFreeOnVolume(var folder)
