@@ -372,7 +372,7 @@ struct jchorus: public base::jwrapper<juce::dsp::Chorus<float>, 1>
 		for (auto& obj : this->objects)
 		{
 			if (P == 0)
-				obj.setCentreDelay(v);
+				obj.setCentreDelay(jmin(v, 99.9));
 			if (P == 1)
 				obj.setDepth(v);
 			if (P == 2)

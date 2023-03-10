@@ -214,8 +214,11 @@ void ConvolutionEffectBase::setImpulse(NotificationType sync)
 		break;
 	case sendNotification:
 	case sendNotificationAsync:
-		triggerAsyncUpdate();
-		break;
+		if (juce::MessageManager::getInstanceWithoutCreating() != nullptr)
+		{
+			triggerAsyncUpdate();
+			break;
+		}
 	case sendNotificationSync:
 		cancelPendingUpdate();
 		handleAsyncUpdate();
