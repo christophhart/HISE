@@ -4569,13 +4569,17 @@ hise::DebugInformationBase* ScriptingObjects::TimerObject::getChildElement(int i
 
 void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
 {
-	if (intervalInMilliSeconds > 10)
+#if ENABLE_TIMING_SAFE_CHECKS
+	if (intervalInMilliSeconds > 0.10)
+#endif
 	{
 		it.startTimer(intervalInMilliSeconds);
 		resetCounter();
 	}
+#if ENABLE_TIMING_SAFE_CHECKS
 	else
 		throw String("Go easy on the timer");
+#endif
 }
 
 void ScriptingObjects::TimerObject::stopTimer()
