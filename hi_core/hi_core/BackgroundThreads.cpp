@@ -594,10 +594,12 @@ void SampleDataExporter::criticalErrorOccured(const String& message)
 {
 	criticalError = message; fullLog << "CRITICAL ERROR: " << criticalError;
 
+#if USE_BACKEND
 	if (CompileExporter::isExportingFromCommandLine())
 	{
 		std::cout << criticalError << std::endl;
 	}
+#endif
 }
 
 void SampleDataExporter::run()
