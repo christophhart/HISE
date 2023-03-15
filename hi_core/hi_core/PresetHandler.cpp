@@ -2033,6 +2033,10 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 	ignoreUnused(root);
 
 #if USE_BACKEND
+
+	if (CompileExporter::isExportingFromCommandLine())
+		return;
+
 	auto f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
 
 	if (f.existsAsFile()) return;
