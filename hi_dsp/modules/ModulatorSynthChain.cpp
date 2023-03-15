@@ -306,13 +306,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	}
 	else // save some cycles on non multichannel buffers...
 	{
-#if !FORCE_INPUT_CHANNELS
-		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
-		FloatVectorOperations::copyWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
-#else
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
-#endif
 	}
 
 	getMatrix().handleDisplayValues(internalBuffer, buffer);

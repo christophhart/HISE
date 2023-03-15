@@ -411,11 +411,16 @@ struct DAWClockController::Ruler: public Component,
 
 			for (auto c : v)
 			{
-				auto f = c["File"];
+				auto f_ = c["File"];
 				auto p = c["StartPosition"];
 
-				auto obj = getOrCreate(File(f));
-				obj->startPPQ = p;
+				File f(f_);
+
+				if (f.existsAsFile())
+				{
+					auto obj = getOrCreate(f);
+					obj->startPPQ = p;
+				}
 			}
 		}
 
