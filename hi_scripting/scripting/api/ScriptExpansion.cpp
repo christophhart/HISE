@@ -2414,6 +2414,7 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 {
 	if (isProjectExport)
 	{
+#if USE_BACKEND
 		auto& h = GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
 		if (mc->getExpansionHandler().getEncryptionKey().isEmpty())
@@ -2430,6 +2431,7 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 
 		if (existingIntermediate.existsAsFile())
 			existingIntermediate.deleteFile();
+#endif
 	}
 	else
 	{
