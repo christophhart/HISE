@@ -110,6 +110,12 @@ public:
 		print(" - use a relative path for the project file" );
 		print(" - ignore the global HISE path and use the HISE repository folder from the");
 		print("   current HISE executable");
+		print("full_exp -p:PATH: exports the project as Full Instrument Expansion (aka HISE Player Library)");
+		print(" - you must supply the absolute path to the .XML file with the '-p:' argument.");
+		print("compress_samples -p:PATH: collects all HLAC files into a hr1 archive");
+		print(" - if an info.hxi file is found in the current work directory, it will embed it into the");
+		print("   archive. You must supply a XML project file with the `-p:` argument that will be");
+		print("   loaded during the export.");
 		print("Arguments: " );
 		print("FILE      The path to the project file (either .xml or .hip you want to export)." );
 		print("          In CI mode, this will be the relative path from the current project folder");
@@ -250,7 +256,7 @@ public:
 		else throwErrorAndQuit(pd.getFullPathName() + " is not a valid folder");
 	}
 	
-	static int loadPresetFile(const String& commandLine)
+	static int loadPresetFile(const String& commandLine, const std::function<Result(BackendProcessor*)>& additionalFunction = {})
 	{
 		auto args = getCommandLineArgs(commandLine);
 
@@ -270,6 +276,11 @@ public:
 		CompileExporter::setExportUsingCI(false);
 
 		File projectDirectory = presetFile.getParentDirectory().getParentDirectory();
+
+		if (currentProjectFolder != projectDirectory)
+		{
+			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory);
+		}
 
 		std::cout << "Loading the preset...";
 
@@ -302,6 +313,19 @@ public:
 		}
 		
 		std::cout << "DONE" << std::endl << std::endl;
+
+		if (additionalFunction)
+		{
+			auto ok = additionalFunction(bp);
+
+			if (ok.failed())
+			{
+				processor = nullptr;
+				throwErrorAndQuit(ok.getErrorMessage());
+				return 1;
+			}
+		}
+
 		processor = nullptr;
 		
 		return 0;
@@ -336,7 +360,7 @@ public:
 		exporter.run();
 	}
 
-	static void setProjectFolder(const String& commandLine)
+	static void setProjectFolder(const String& commandLine, bool exitOnSuccess=true)
 	{
 		auto args = getCommandLineArgs(commandLine);
 		auto root = getFilePathArgument(args);
@@ -354,7 +378,8 @@ public:
 		mc = nullptr;
 		sp = nullptr;
 
-		exit(0);
+		if(exitOnSuccess)
+			exit(0);
 	}
 
 	static void getProjectFolder(const String& /*commandLine*/)
@@ -563,6 +588,26 @@ public:
 				exit((int)result);
 			}
 			
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("full_exp"))
+		{
+			auto ok = CommandLineActions::loadPresetFile(commandLine, BackendCommandTarget::Actions::exportInstrumentExpansion);
+
+			if (ok)
+				exit(ok);
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("compress_samples"))
+		{
+			auto ok = CommandLineActions::loadPresetFile(commandLine, BackendCommandTarget::Actions::createSampleArchive);
+
+			if (ok)
+				exit(ok);
+
 			quit();
 			return;
 		}

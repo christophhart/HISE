@@ -308,7 +308,7 @@ public:
 	void runThread();
 
 	/** Starts the task synchronously. */
-	void runSynchronous();
+	void runSynchronous(bool deleteAfterExecution=true);
 
 	/** Checks if the thread should exist. */
 	bool threadShouldExit() const;

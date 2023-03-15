@@ -311,6 +311,7 @@ public:
 	{
 	public:
 
+		
 		static void editShortcuts(BackendRootWindow* bpe);
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
@@ -341,6 +342,8 @@ public:
 
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
 
+		
+
 		static void closeProject(BackendRootWindow *bpe);
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		static void saveUserPreset(BackendRootWindow *bpe);
@@ -365,6 +368,10 @@ public:
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendRootWindow * bpe);
 		static void exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe);
+		static Result exportInstrumentExpansion(BackendProcessor* bp);
+		static Result createSampleArchive(BackendProcessor* bp);
+
+
 		static void compileNetworksToDll(BackendRootWindow* bpe);
 		static void cleanBuildDirectory(BackendRootWindow * bpe);
 		static void convertAllSamplesToMonolith(BackendRootWindow * bpe);

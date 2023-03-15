@@ -2414,6 +2414,22 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 {
 	if (isProjectExport)
 	{
+		auto& h = GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+		if (mc->getExpansionHandler().getEncryptionKey().isEmpty())
+		{
+			auto k = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
+
+			if (k.isNotEmpty())
+				mc->getExpansionHandler().setEncryptionKey(k);
+			else
+				encodeResult = Result::fail("You have to specify an encryption key in order to encode the project as full expansion");
+		}
+
+		auto existingIntermediate = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
+
+		if (existingIntermediate.existsAsFile())
+			existingIntermediate.deleteFile();
 	}
 	else
 	{
@@ -2447,6 +2463,9 @@ void ExpansionEncodingWindow::run()
 #if USE_BACKEND
 	if (projectExport)
 	{
+		if (encodeResult.failed())
+			return;
+
 		auto& h = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain());
 		auto f = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::FileBased);
 

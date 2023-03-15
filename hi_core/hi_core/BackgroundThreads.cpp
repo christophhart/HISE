@@ -224,18 +224,29 @@ void DialogWindowWithBackgroundThread::stopThread()
 	thread = nullptr;
 }
 
-void DialogWindowWithBackgroundThread::runSynchronous()
+void DialogWindowWithBackgroundThread::runSynchronous(bool deleteAfterExecution)
 {
 	// Obviously only available in the message loop!
 	jassert(MessageManager::getInstance()->isThisTheMessageThread());
 
 	run();
 	threadFinished();
-	destroy();
+
+	if(deleteAfterExecution)
+		destroy();
 }
 
 void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) const
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		DBG(message);
+		std::cout << message << std::endl;
+		return;
+	}
+#endif
+
 	MessageManagerLock lock(thread);
 
 	if (lock.lockWasGained())
@@ -561,6 +572,10 @@ void SampleDataExporter::logVerboseMessage(const String& verboseMessage)
 #if USE_BACKEND
 	debugToConsole(synthChain, verboseMessage);
 
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << verboseMessage << std::endl;
+	}
 #else
 	ignoreUnused(verboseMessage);
 #endif
@@ -570,12 +585,19 @@ void SampleDataExporter::logStatusMessage(const String& message)
 {
 	fullLog << message << "\n";
 
+	
+
 	showStatusMessage(message);
 }
 
 void SampleDataExporter::criticalErrorOccured(const String& message)
 {
 	criticalError = message; fullLog << "CRITICAL ERROR: " << criticalError;
+
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << criticalError << std::endl;
+	}
 }
 
 void SampleDataExporter::run()
@@ -584,7 +606,16 @@ void SampleDataExporter::run()
 
 	showStatusMessage("Exporting");
 
-	hlac::HlacArchiver compressor(getCurrentThread());
+	auto currentThread = getCurrentThread();
+
+	if (currentThread == nullptr)
+	{
+		jassert(CompileExporter::isExportingFromCommandLine());
+		currentThread = getMainController()->getSampleManager().getGlobalSampleThreadPool();
+		jassert(currentThread != nullptr);
+	}
+
+	hlac::HlacArchiver compressor(currentThread);
 
 	compressor.setListener(this);
 

@@ -2437,27 +2437,15 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
                          
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
-	auto& h = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
 
-	if (bpe->getMainController()->getExpansionHandler().getEncryptionKey().isEmpty())
+	if (e->encodeResult.failed())
 	{
-		auto k = dynamic_cast<GlobalSettingManager*>(bpe->owner)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
-
-		if (k.isNotEmpty())
-			bpe->getMainController()->getExpansionHandler().setEncryptionKey(k);
-		else
-		{
-			PresetHandler::showMessageWindow("No encryption key", "You have to specify an encryption key in order to encode the project as full expansion", PresetHandler::IconType::Error);
-			return;
-		}
+		PresetHandler::showMessageWindow("Encoding Error", e->encodeResult.getErrorMessage(), PresetHandler::IconType::Error);
+		return;
 	}
 
-	auto existingIntermediate = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
 
-	if (existingIntermediate.existsAsFile())
-		existingIntermediate.deleteFile();
-
-	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
     e->setAdditionalFinishCallback([bpe]()
     {
         if(PresetHandler::showYesNoWindow("Create a .hr1 archive", "Do you want to compress the samples and embed the exported expansion into a archive for distribution?"))
@@ -2479,6 +2467,42 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendR
     });
     
 	e->setModalBaseWindowComponent(bpe);
+}
+
+juce::Result BackendCommandTarget::Actions::exportInstrumentExpansion(BackendProcessor* bp)
+{
+	ScopedPointer<ExpansionEncodingWindow> ne = new ExpansionEncodingWindow(bp, nullptr, true);
+
+	ne->runSynchronous(false);
+
+	return ne->encodeResult;
+}
+
+juce::Result BackendCommandTarget::Actions::createSampleArchive(BackendProcessor* bp)
+{
+	auto infoFile = GET_PROJECT_HANDLER(bp->getMainSynthChain()).getWorkDirectory().getChildFile("info.hxi");
+
+	auto exporter = new SampleDataExporter(bp);
+
+	if (auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(1)))
+	{
+		
+		fc->setCurrentFile(infoFile.getParentDirectory(), dontSendNotification);
+	}
+
+	if (infoFile.existsAsFile())
+	{
+		exporter->showStatusMessage("Adding info.hxi file to metadata");
+
+		if (auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(0)))
+		{
+			fc->setCurrentFile(infoFile, dontSendNotification);
+		}
+	}
+
+	exporter->runSynchronous();
+
+	return Result::ok();
 }
 
 void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
