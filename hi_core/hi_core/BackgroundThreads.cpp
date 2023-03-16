@@ -610,12 +610,14 @@ void SampleDataExporter::run()
 
 	auto currentThread = getCurrentThread();
 
+#if USE_BACKEND
 	if (currentThread == nullptr)
 	{
 		jassert(CompileExporter::isExportingFromCommandLine());
 		currentThread = getMainController()->getSampleManager().getGlobalSampleThreadPool();
 		jassert(currentThread != nullptr);
 	}
+#endif
 
 	hlac::HlacArchiver compressor(currentThread);
 
