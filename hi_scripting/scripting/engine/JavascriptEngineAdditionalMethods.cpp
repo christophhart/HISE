@@ -670,7 +670,8 @@ struct ManualEventObject : public DebugableObjectBase
 		ADD_IF("clicked", "bool", "true if the mouse is currently clicked");
 		ADD_IF("doubleClick", "bool", "true if the mouse is currently double clicked");
 		ADD_IF("rightClick", "bool", "true if the mouse is currently right clicked");
-		ADD_IF("drag", "bool", "true if the mouse is currently dragged");
+		ADD_IF("drag", "bool", "true if the mouse is currently dragged or clicked");
+		ADD_IF("isDragOnly", "bool", "true if the mouse is currently dragged only (false on clicked)");
 		ADD_IF("dragX", "int", "the drag x - delta from the start");
 		ADD_IF("dragY", "int", "the drag y - delta from the start");
 		ADD_IF("insideDrag", "bool", "true if the mouse is being dragged inside the component");
