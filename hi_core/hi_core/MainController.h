@@ -1538,6 +1538,8 @@ public:
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
+	LambdaBroadcaster<double, int>& getSpecBroadcaster() { return specBroadcaster; }
+
     const CriticalSection& getLock() const;
     
 	const CriticalSection& getLockNew() const { return processLock; };
@@ -1932,6 +1934,8 @@ private:
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
 #endif
+
+	LambdaBroadcaster<double, int> specBroadcaster;
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
 

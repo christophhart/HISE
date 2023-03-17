@@ -1606,7 +1606,62 @@ void ScriptBroadcaster::ComplexDataListener::registerSpecialBodyItems(ComponentW
 	factory.registerFunction(f);
 }
 
+ScriptBroadcaster::ProcessingSpecSource::ProcessingSpecSource(ScriptBroadcaster* b, const var& metadata):
+	ListenerBase(metadata),
+	parent(b)
+{
+	auto mc = b->getScriptProcessor()->getMainController_();
+	mc->getSpecBroadcaster().addListener(*this, prepareCalled);
+}
 
+ScriptBroadcaster::ProcessingSpecSource::~ProcessingSpecSource()
+{
+	if (parent != nullptr)
+	{
+		auto mc = parent->getScriptProcessor()->getMainController_();
+		mc->getSpecBroadcaster().removeListener(*this);
+	}
+
+	
+}
+
+void ScriptBroadcaster::ProcessingSpecSource::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	struct SpecViewer : public Component,
+						public ComponentWithPreferredSize
+	{
+		SpecViewer(const var& p) :
+			ComponentWithPreferredSize(),
+			args(p)
+		{};
+
+		int getPreferredHeight() const override { return 50; };
+		int getPreferredWidth() const override { return 128; };
+
+		
+
+		static ComponentWithPreferredSize* create(Component* r, const var& value)
+		{
+			return new SpecViewer(value);
+		}
+
+		var args;
+	};
+
+	factory.registerWithCreate<SpecViewer>();
+}
+
+juce::Result ScriptBroadcaster::ProcessingSpecSource::callItem(TargetBase* n)
+{
+	return n->callSync(processArgs);
+}
+
+void ScriptBroadcaster::ProcessingSpecSource::prepareCalled(ProcessingSpecSource& p, double sampleRate, int blockSize)
+{
+	p.processArgs.set(0, sampleRate);
+	p.processArgs.set(1, blockSize);
+	p.parent->sendAsyncMessage(p.processArgs);
+}
 
 struct ScriptBroadcaster::MouseEventListener::InternalMouseListener
 {
@@ -2650,6 +2705,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
@@ -2691,6 +2747,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
     ADD_API_METHOD_4(attachToComplexData);
 	ADD_API_METHOD_5(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
+	ADD_API_METHOD_1(attachToProcessingSpecs);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
 	ADD_API_METHOD_1(setEnableQueue);
@@ -2754,6 +2811,9 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 
 ScriptBroadcaster::~ScriptBroadcaster()
 {
+	attachedListeners.clear();
+	items.clear();
+
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
 	{
 		jp->deregisterCallableObject(this);
@@ -3453,6 +3513,20 @@ void ScriptBroadcaster::attachToRoutingMatrix(var moduleIds, var metadata)
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;
+}
+
+void ScriptBroadcaster::attachToProcessingSpecs(var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to processing specs, it needs two parameters (sampleRate, blockSize)");
+	}
+
+	attachedListeners.add(new ProcessingSpecSource(this, optionalMetadata));
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+	enableQueue = false;
 }
 
 void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList, var optionalMetadata)

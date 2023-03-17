@@ -1354,6 +1354,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
     
 #endif
 
+	getSpecBroadcaster().sendMessage(sendNotificationAsync, processingSampleRate, processingBufferSize.get());
+
 	getMainSynthChain()->prepareToPlay(processingSampleRate, processingBufferSize.get());
 
 	AudioThreadGuard guard(&getKillStateHandler());
