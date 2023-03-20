@@ -553,10 +553,9 @@ void BackendRootWindow::timerCallback()
 {
 	stopTimer();
 
-	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive() && PresetHandler::showYesNoWindow("Welcome to HISE", "Do you want to create a new project?\nA project is a folder which contains all external files needed for a sample library."))
+	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive())
 	{
 		owner->setChanged(false);
-
 		BackendCommandTarget::Actions::createNewProject(this);
 	}
 }

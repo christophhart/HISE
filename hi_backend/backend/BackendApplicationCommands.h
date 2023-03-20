@@ -93,6 +93,7 @@ public:
 		MenuProjectLoad,
 		MenuCloseProject,
 		MenuFileArchiveProject,
+		MenuFileImportProjectFromHXI,
 		MenuFileDownloadNewProject,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
@@ -334,6 +335,7 @@ public:
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
+		static void importProject(BackendRootWindow* bpe);
 
         static void createRnboTemplate(BackendRootWindow* bpe);
 		static void convertSVGToPathData(BackendRootWindow* bpe);

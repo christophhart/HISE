@@ -64,6 +64,9 @@ DECLARE_ID(PoolData);
 DECLARE_ID(Data);
 DECLARE_ID(URL);
 DECLARE_ID(UUID);
+DECLARE_ID(Description);
+DECLARE_ID(Company);
+DECLARE_ID(CompanyURL);
 }
 
 #undef DECLARE_ID
@@ -86,8 +89,6 @@ public:
 	{
 		afm.registerBasicFormats();
 		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-
-		
 	}
 
 	struct Sorter

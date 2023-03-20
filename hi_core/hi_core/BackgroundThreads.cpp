@@ -491,12 +491,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 	ControlledObject(mc),
 	synthChain(getMainController()->getMainSynthChain())
 {
-	StringArray sa;
-	sa.add("Export Monolith files only");
-
-	
-
-	addComboBox("file_selection", sa, "Select files to export");
+	addComboBox("format", { "HR Archive (custom FLAC)", "LWZ (Rhapsody Sample Archive)" }, "Output format");
 
 	StringArray sa2;
 
@@ -645,7 +640,51 @@ void SampleDataExporter::run()
 		break;
 	}
 
-	compressor.compressSampleData(data);
+	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
+	{
+		compressor.compressSampleData(data);
+	}
+	else
+	{
+		int64 currentSize = 0;
+		ScopedPointer<ZipFile::Builder> b = new ZipFile::Builder();
+
+		auto zipFile = data.targetFile.getNonexistentSibling(false);
+		auto original = zipFile;
+
+		for (auto f : data.fileList)
+		{
+			auto thisSize = f.getSize();
+
+			if (currentThread->threadShouldExit())
+				break;
+
+			if (currentSize + thisSize > data.partSize)
+			{
+				zipFile.deleteFile();
+				FileOutputStream fos(zipFile);
+				showStatusMessage("Write " + f.getFileName());
+				b->writeToStream(fos, &getProgressCounter());
+
+				b = new ZipFile::Builder();
+				zipFile = original.getNonexistentSibling(true);
+				currentSize = 0;
+			}
+
+			b->addFile(f, 0);
+			currentSize += thisSize;
+		}
+
+		if (currentSize != 0)
+		{
+			zipFile.deleteFile();
+			FileOutputStream fos(zipFile);
+			b->writeToStream(fos, &getProgressCounter());
+			b = nullptr;
+		}
+	}
+
+	
 }
 
 void SampleDataExporter::threadFinished()
@@ -806,21 +845,31 @@ File SampleDataExporter::getTargetFile() const
 {
 	auto currentFile = targetFile->getCurrentFile();
 
+	String fileName;
+
 	auto expName = getExpansionName();
 
-	if (expName.isEmpty())
+	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
 	{
-		auto name = getProjectName();
-		auto version = getProjectVersion();
-		version = version.replaceCharacter('.', '_');
-		auto fileName = name + "_" + version + "_Samples.hr1";
-		return currentFile.getChildFile(fileName);
+		if (expName.isEmpty())
+		{
+			auto name = getProjectName();
+			auto version = getProjectVersion();
+			version = version.replaceCharacter('.', '_');
+			fileName = name + "_" + version + "_Samples.hr1";
+		}
+		else
+		{
+			fileName << expName + "_Samples.hr1";
+		}
 	}
 	else
 	{
-		auto fileName = expName + "_Samples.hr1";
-		return currentFile.getChildFile(fileName);
+		fileName << getProjectName() << "_samples_" << getProjectVersion().replaceCharacter('.', '_');
+		fileName << ".lwz";
 	}
+
+	return currentFile.getChildFile(fileName);
 }
 
 

@@ -77,11 +77,6 @@ END_JUCE_MODULE_DECLARATION
 #include <complex>
 
 
-#ifndef HISE_VERSION
-#define HISE_VERSION "2.0.0"
-#endif
-
-
 //=============================================================================
 /** Config: USE_BACKEND
 

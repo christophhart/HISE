@@ -572,7 +572,7 @@ public:
 
 	static constexpr int AllExpansionId = 9000000;
 
-	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
+	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport, bool isRhapsody=true);
 	~ExpansionEncodingWindow();
 
 	void logMessage(const String& message, bool /*isCritical*/)
@@ -580,12 +580,18 @@ public:
 		showStatusMessage(message);
 	}
 
+	Result performRhapsodyChecks();
+
 	void run() override;
 	void threadFinished();
 
 	Result encodeResult;
 	
 	bool projectExport = false;
+	bool isRhapsody;
+
+	File rhapsodyOutput;
+
 	WeakReference<Expansion> e;
 };
 

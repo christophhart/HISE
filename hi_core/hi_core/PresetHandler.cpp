@@ -786,7 +786,7 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* )
 
 	}
 
-	setWorkingProject(workingDirectory);
+	
 }
 
 juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, bool checkDirectories)
@@ -874,7 +874,7 @@ void ProjectHandler::restoreWorkingProjects()
 
 		setWorkingProject(current, false);
 
-		jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
+		
 	}
 }
 

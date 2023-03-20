@@ -901,7 +901,7 @@ void AboutPagePanel::rebuildText()
 
 #endif
 
-	const String hiseVersion = String(HISE_VERSION);
+	const String hiseVersion = ProjectInfo::versionString;
 	const String buildTime = Time::getCompilationDate().toString(true, false, false, true);
 
 	Font bold = getFont(); // .boldened();

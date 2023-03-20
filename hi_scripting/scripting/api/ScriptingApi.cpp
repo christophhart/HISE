@@ -1141,7 +1141,7 @@ var ScriptingApi::Engine::getProjectInfo()
 		obj->setProperty("EncryptionKey", hise::FrontendHandler::getExpansionKey());
 	#endif
 
-	obj->setProperty("HISEBuild", String(HISE_VERSION));
+	obj->setProperty("HISEBuild", ProjectInfo::versionString);
 	obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
 	obj->setProperty("LicensedEmail", licencee);
 			

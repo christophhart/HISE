@@ -1421,11 +1421,15 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 
 	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(dynamic_cast<Processor*>(const_cast<JavascriptProcessor*>(p)));
 
+	static const String globalWildcard("{GLOBAL_SCRIPT_FOLDER}");
+
 	for (int i = 0; i < fileNames.size(); i++)
 	{				
 		File f;
 		
-		if (results[i].contains("{GLOBAL_SCRIPT_FOLDER}"))
+		auto isGlobalScript = results[i].contains(globalWildcard);
+
+		if (isGlobalScript)
 		{
 			f = globalScriptFolder.getChildFile(fileNames[i]).getFullPathName();
 		}
@@ -1443,7 +1447,23 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 
 		includedFiles.add(f);
 		String content = f.loadFileAsString();
-		includedContents.add(resolveIncludeStatements(content, includedFiles, p));
+
+		content = resolveIncludeStatements(content, includedFiles, p);
+
+		String thisContent;
+
+		String fileRef;
+
+		if (isGlobalScript)
+			fileRef << globalWildcard;
+
+		fileRef << fileNames[i];
+
+		thisContent << "\n//{BEGIN}" + fileRef << "\n";
+		thisContent << content;
+		thisContent << "\n//{END}" + fileRef << "\n";
+
+		includedContents.add(thisContent);
 	}
 
 	for (int i = 0; i < results.size(); i++)
@@ -1454,6 +1474,77 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 	return x;
 }
 
+
+Array<hise::JavascriptProcessor::Helpers::ExternalScript> JavascriptProcessor::Helpers::desolveIncludeStatements(String& x, const File& scriptRoot, MainController* mc)
+{
+	Array<ExternalScript> scripts;
+
+	auto lines = StringArray::fromLines(x);
+	String nl = "\n";
+
+	String newCode;
+
+	static String beginWildcard = "//{BEGIN}";
+	static String endWildcard = "//{END}";
+
+	bool somethingChanged = false;
+
+	File globalScriptFolder = PresetHandler::getGlobalScriptFolder(mc->getMainSynthChain());
+
+	static const String globalWildcard("{GLOBAL_SCRIPT_FOLDER}");
+
+	for (int i = 0; i < lines.size(); i++)
+	{
+		String currentLine = lines[i];
+
+		if (lines[i].startsWith(beginWildcard))
+		{
+			somethingChanged = true;
+			auto j = i+1;
+
+			String fileReference = lines[i].fromFirstOccurrenceOf(beginWildcard, false, false);
+
+			auto thisEnd = endWildcard + fileReference;
+
+			ExternalScript es;
+
+			if (fileReference.contains(globalWildcard))
+				es.f = globalScriptFolder.getChildFile(fileReference.fromFirstOccurrenceOf(globalWildcard, false, false));
+			else
+				es.f = scriptRoot.getChildFile(fileReference);
+
+			while (j < lines.size())
+			{
+				if (lines[j].startsWith(thisEnd))
+					break;
+
+				es.content << lines[j] << nl;
+
+				j++;
+			}
+
+			newCode << "include(" << fileReference.quoted() << ");" << nl;
+
+			i = j;
+
+			auto nested = desolveIncludeStatements(es.content, scriptRoot, mc);
+
+			if(!nested.isEmpty())
+				scripts.addArray(nested);
+
+			scripts.add(es);
+		}
+		else
+		{
+			newCode << lines[i] << nl;
+		}
+	}
+
+	if (somethingChanged)
+		x = newCode;
+
+	return scripts;
+}
 
 String JavascriptProcessor::collectScript(bool silent) const
 {
