@@ -2472,6 +2472,7 @@ ExpansionEncodingWindow::~ExpansionEncodingWindow()
 
 juce::Result ExpansionEncodingWindow::performRhapsodyChecks()
 {
+#if USE_BACKEND
 	if (getComboBoxComponent("rhapsody")->getSelectedItemIndex() == 0)
 		return Result::ok();
 
@@ -2501,6 +2502,8 @@ juce::Result ExpansionEncodingWindow::performRhapsodyChecks()
 
 	if (presetList[0].getParentDirectory().getParentDirectory().getParentDirectory() != userPresetFolder)
 		return Result::fail("The project needs to have at least one user preset and must use the default three level folder hierarchy (Bank/Category/Preset)");
+
+#endif
 
 	return Result::ok();
 }

@@ -3430,7 +3430,9 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 
 		auto xmlFolder = e->getRootFolder().getChildFile(e->getIdentifier(FileHandlerBase::Presets));
 
-		e->presetToLoad.writeToStream(FileOutputStream(xmlFolder.getChildFile("Preset.hip")));
+		FileOutputStream fos(xmlFolder.getChildFile("Preset.hip"));
+
+		e->presetToLoad.writeToStream(fos);
 	}
 
 	void extractUserPresets()
