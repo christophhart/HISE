@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<samplemap ID="Noise" RRGroupAmount="1.0" MicPositions=";" CrossfadeGamma="1.0"
+           SaveMode="2">
+  <sample Root="64" LoKey="0" HiKey="127" LoVel="0" HiVel="127" RRGroup="1"
+          FileName="{PROJECT_FOLDER}Noise.wav" Duplicate="0" SampleEnd="88200"
+          MonolithOffset="0" MonolithLength="90112" SampleRate="44100.0"/>
+</samplemap>

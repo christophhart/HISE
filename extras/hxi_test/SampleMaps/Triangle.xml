@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<samplemap CrossfadeGamma="1.0" ID="Triangle" RRGroupAmount="1.0" MicPositions=";"
+           SaveMode="2">
+  <sample Root="60" LoKey="0" HiKey="127" LoVel="0" HiVel="127" RRGroup="1"
+          FileName="{PROJECT_FOLDER}Triangle_-6dB.wav" Duplicate="1" SampleEnd="44100"
+          MonolithOffset="0" MonolithLength="45056" SampleRate="44100.0"/>
+</samplemap>

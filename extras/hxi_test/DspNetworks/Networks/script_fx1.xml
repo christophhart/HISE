@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="script_fx1" Version="0.0.0">
+  <Node FactoryPath="container.chain" ID="script_fx1" Bypassed="0" ShowParameters="1">
+    <Nodes>
+      <Node ID="fix32_block" FactoryPath="container.fix32_block" Bypassed="0">
+        <Nodes>
+          <Node ID="feedback_delay1" FactoryPath="container.fix32_block" Bypassed="0">
+            <Nodes>
+              <Node ID="fb_out" FactoryPath="routing.receive" Bypassed="0">
+                <Parameters>
+                  <Parameter MinValue="0.0" MaxValue="1.0" ID="Feedback" Automated="1"/>
+                </Parameters>
+              </Node>
+              <Node ID="delay" FactoryPath="core.fix_delay" Bypassed="0">
+                <Parameters>
+                  <Parameter MinValue="0.0" MaxValue="1000.0" StepSize="0.1000000014901161"
+                             SkewFactor="0.3010300099849701" ID="DelayTime" Value="100.0"/>
+                  <Parameter MinValue="0.0" MaxValue="1024.0" StepSize="1.0" ID="FadeTime"
+                             Value="512.0"/>
+                </Parameters>
+              </Node>
+              <Node ID="fb_in" FactoryPath="routing.send" Bypassed="0">
+                <Properties>
+                  <Property ID="Connection" Value="fb_out"/>
+                </Properties>
+                <Parameters/>
+              </Node>
+            </Nodes>
+            <Parameters/>
+          </Node>
+        </Nodes>
+        <Parameters/>
+      </Node>
+    </Nodes>
+    <Parameters>
+      <Parameter ID="Feedback" MinValue="0.0" MaxValue="1.0" Value="0.368">
+        <Connections>
+          <Connection NodeId="fb_out" ParameterId="Feedback"/>
+        </Connections>
+      </Parameter>
+    </Parameters>
+  </Node>
+</Network>
