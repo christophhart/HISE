@@ -420,7 +420,8 @@ struct SamplerTools
 */
 class SamplerSoundWaveform : public AudioDisplayComponent,
 	public Timer,
-	public SettableTooltipClient
+	public SettableTooltipClient,
+    public Processor::DeleteListener
 {
 public:
 
@@ -429,7 +430,7 @@ public:
 	*
 	*	@param ownerSampler the ModulatorSampler that the SamplerSoundWaveform should use.
 	*/
-	SamplerSoundWaveform(const ModulatorSampler *ownerSampler);
+	SamplerSoundWaveform(ModulatorSampler *ownerSampler);
 
 	~SamplerSoundWaveform();
 
@@ -475,6 +476,10 @@ public:
 
 	void mouseExit(const MouseEvent& e) override;
 
+    void processorDeleted(Processor* p) override { stopTimer(); }
+    
+    void updateChildEditorList(bool) override {};
+    
 	const ModulatorSamplerSound *getCurrentSound() const { return currentSound.get(); }
 
 	float getNormalizedPeak() override;
@@ -535,7 +540,7 @@ private:
 
 	float verticalZoomGain = 1.0f;
 
-	const ModulatorSampler *sampler;
+    WeakReference<ModulatorSampler> sampler;
 	ReferenceCountedObjectPtr<ModulatorSamplerSound> currentSound;
 
 	int numSamplesInCurrentSample;

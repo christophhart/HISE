@@ -286,7 +286,7 @@ void WaveformComponent::Broadcaster::updateData()
 
 }
 
-SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler) :
+SamplerSoundWaveform::SamplerSoundWaveform(ModulatorSampler *ownerSampler) :
 	AudioDisplayComponent(),
 	sampler(ownerSampler),
 	sampleStartPosition(-1.0),
@@ -299,6 +299,8 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 	setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xFF383838));
 
+    sampler->addDeleteListener(this);
+    
 	addAndMakeVisible(areas[PlayArea]);
 	areas[PlayArea]->addAndMakeVisible(areas[SampleStartArea]);
 	areas[PlayArea]->addAndMakeVisible(areas[LoopArea]);
@@ -312,6 +314,9 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 
 SamplerSoundWaveform::~SamplerSoundWaveform()
 {
+    if(sampler != nullptr)
+        sampler->removeDeleteListener(this);
+    
     getThumbnail()->setLookAndFeel(nullptr);
     slaf = nullptr;
 }
@@ -714,7 +719,7 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 
 	currentSound = const_cast<ModulatorSamplerSound*>(s);
 
-	gammaListener.setCallback(const_cast<ModulatorSampler*>(sampler)->getSampleMap()->getValueTree(), { Identifier("CrossfadeGamma") }, valuetree::AsyncMode::Asynchronously, [this](Identifier, var newValue)
+	gammaListener.setCallback(sampler.get()->getSampleMap()->getValueTree(), { Identifier("CrossfadeGamma") }, valuetree::AsyncMode::Asynchronously, [this](Identifier, var newValue)
 		{
 			getSampleArea(AreaTypes::LoopCrossfadeArea)->setGamma((float)newValue);
 		});
@@ -777,7 +782,7 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 
 		AudioSampleBuffer full = getThumbnail()->getBufferCopy({ 0, numSamples });
 
-		auto s = const_cast<ModulatorSampler*>(sampler);
+        auto s = sampler.get();
 
 		s->getSampleEditHandler()->setPreviewStart(start);
 		s->getSampleEditHandler()->togglePreview();
@@ -822,7 +827,7 @@ void SamplerSoundWaveform::mouseUp(const MouseEvent& e)
 
 #if USE_BACKEND
 	if(e.mods.isAnyModifierKeyDown())
-		const_cast<ModulatorSampler*>(sampler)->getSampleEditHandler()->togglePreview();
+		sampler->getSampleEditHandler()->togglePreview();
 #endif
 }
 

@@ -7543,6 +7543,7 @@ struct ScriptingObjects::ScriptBuilder::Wrapper
 	API_METHOD_WRAPPER_4(ScriptBuilder, create);
 	API_METHOD_WRAPPER_2(ScriptBuilder, get);
 	API_METHOD_WRAPPER_1(ScriptBuilder, getExisting);
+    API_VOID_METHOD_WRAPPER_2(ScriptBuilder, clearChildren);
 	API_VOID_METHOD_WRAPPER_2(ScriptBuilder, setAttributes);
 	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, clear);
 	API_VOID_METHOD_WRAPPER_0(ScriptBuilder, flush);
@@ -7562,6 +7563,7 @@ ScriptingObjects::ScriptBuilder::ScriptBuilder(ProcessorWithScriptingContent* p)
 	ADD_API_METHOD_1(getExisting);
 	ADD_API_METHOD_2(setAttributes);
 	ADD_API_METHOD_0(flush);
+    ADD_API_METHOD_2(clearChildren);
 	ADD_API_METHOD_2(connectToScript);
 }
 
@@ -7661,7 +7663,12 @@ int ScriptingObjects::ScriptBuilder::create(var type, var id, int rootBuildIndex
 			return createdModules.size() - 1;
 		}
 
-		raw::Builder b(getScriptProcessor()->getMainController_());
+        
+        auto mc = getScriptProcessor()->getMainController_();
+        
+        MainController::ScopedBadBabysitter sb(mc);
+        
+		raw::Builder b(mc);
 
 		Identifier t_(type.toString());
 
@@ -7687,6 +7694,48 @@ int ScriptingObjects::ScriptBuilder::create(var type, var id, int rootBuildIndex
 	}
 
 	RETURN_IF_NO_THROW(-1);
+}
+
+int ScriptingObjects::ScriptBuilder::clearChildren(int buildIndex, int chainIndex)
+{
+    if (auto p = createdModules[buildIndex])
+    {
+        Chain* c = nullptr;
+        
+        if(chainIndex == -1)
+            c = dynamic_cast<Chain*>(p.get());
+        else
+            c = dynamic_cast<Chain*>(p->getChildProcessor(chainIndex));
+        
+        if(c == nullptr)
+        {
+            reportScriptError("Illegal chain index for the module " + p->getId());
+        }
+        
+        auto h = c->getHandler();
+        
+        auto numBefore = h->getNumProcessors();
+        
+        if(numBefore != 0)
+        {
+            for(int i = 0; i < h->getNumProcessors(); i++)
+            {
+                auto pToDelete = h->getProcessor(i--);
+                {
+                    MessageManagerLock mm;
+                    pToDelete->sendDeleteMessage();
+                }
+                
+                h->remove(pToDelete);
+            }
+        }
+            
+        return numBefore;
+    }
+    else
+        reportScriptError("Can't find parent module with index " + String(buildIndex));
+    
+    return -1;
 }
 
 bool ScriptingObjects::ScriptBuilder::connectToScript(int buildIndex, String relativePath)
@@ -7789,7 +7838,11 @@ void ScriptingObjects::ScriptBuilder::clear()
 
 	auto thisAsP = dynamic_cast<Processor*>(getScriptProcessor());
 
-	raw::Builder b(getScriptProcessor()->getMainController_());
+    auto mc = getScriptProcessor()->getMainController_();
+    
+    MainController::ScopedBadBabysitter sb(mc);
+    
+	raw::Builder b(mc);
 
 	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
 	
@@ -7809,6 +7862,10 @@ void ScriptingObjects::ScriptBuilder::clear()
 
 				else
 				{
+                    {
+                        MessageManagerLock mm;
+                        cToRemove->sendDeleteMessage();
+                    }
 					b.remove<Processor>(cToRemove);
 					j--;
 				}
@@ -7816,7 +7873,14 @@ void ScriptingObjects::ScriptBuilder::clear()
 		}
 		else
 		{
-			b.remove<Processor>(synthChain->getChildProcessor(i--));
+            auto p = synthChain->getChildProcessor(i--);
+            
+            {
+                MessageManagerLock mm;
+                p->sendDeleteMessage();
+            }
+            
+			b.remove<Processor>(p);
 		}
 	}
 

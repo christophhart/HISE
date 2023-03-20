@@ -745,6 +745,9 @@ namespace ScriptingObjects
 		/** Connects the script processor to an external script. */
 		bool connectToScript(int buildIndex, String relativePath);
 
+        /** Clears all child processors of the chain in the module with the given build index*/
+        int clearChildren(int buildIndex, int chainIndex);
+        
 		/** Returns a typed reference for the module with the given build index. */
 		var get(int buildIndex, String interfaceType);
 

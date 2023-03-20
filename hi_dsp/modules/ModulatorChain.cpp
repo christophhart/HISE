@@ -1239,6 +1239,9 @@ bool ModulatorChain::checkModulatorStructure()
 	{
 		if(envelopeModulators[i]->polyManager.getVoiceAmount() != polyManager.getVoiceAmount()) correctVoiceAmount = false;
 	};
+    
+    jassert(arraySizeCorrect);
+    jassert(correctVoiceAmount);
 
 	return arraySizeCorrect && correctVoiceAmount;
 }

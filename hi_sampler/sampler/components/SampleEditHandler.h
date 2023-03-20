@@ -203,6 +203,7 @@ private:
 
 		~PrivateSelectionUpdater()
 		{
+            MessageManagerLock mm;
 			parent.selectedSamplerSounds.removeChangeListener(this);
 		}
 
