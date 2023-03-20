@@ -275,7 +275,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuProjectNew:
-		setCommandTarget(result, "Create new Project folder", true, false, 'X', false);
+		setCommandTarget(result, "Create new Project", true, false, 'X', false);
 		result.categoryName = "File";
 		break;
 	case MenuProjectLoad:
@@ -324,7 +324,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsPlayerLibrary:
-		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
+		setCommandTarget(result, "Export as Full Instrument Expansion", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsMidiFXPlugin:
@@ -344,7 +344,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuExportSampleDataForInstaller:
-		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		setCommandTarget(result, "Export Samples as archive", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportCompileFilesInPool:
@@ -980,10 +980,14 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsMidiFXPlugin);
 		ADD_DESKTOP_ONLY(MenuExportFileAsStandaloneApp);
 		
-		p.addSectionHeader("Export Tools");
+		p.addSeparator();
+
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
+
+		p.addSectionHeader("Export Tools");
+		
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
 		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
 		ADD_DESKTOP_ONLY(MenuExportCompileNetworksAsDll);
@@ -2084,6 +2088,9 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 
 void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 {
+	importProject(bpe);
+
+#if 0
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
     if (!shouldDiscard) return;
@@ -2099,6 +2106,7 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 		bpe->getBackendProcessor()->clearPreset();
 		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
+#endif
 }
 
 void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
@@ -2150,6 +2158,12 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		
 	}
 #endif
+}
+
+void BackendCommandTarget::Actions::importProject(BackendRootWindow* bpe)
+{
+	auto importWindow = new ProjectImporter(bpe);
+	importWindow->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::convertSVGToPathData(BackendRootWindow* bpe)
@@ -2446,26 +2460,6 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendR
 	}
 
 
-    e->setAdditionalFinishCallback([bpe]()
-    {
-        if(PresetHandler::showYesNoWindow("Create a .hr1 archive", "Do you want to compress the samples and embed the exported expansion into a archive for distribution?"))
-        {
-            Timer::callAfterDelay(500, [bpe]()
-            {
-                auto infoFile = GET_PROJECT_HANDLER(bpe->getMainController()->getMainSynthChain()).getWorkDirectory().getChildFile("info.hxi");
-                
-                jassert(infoFile.existsAsFile());
-                auto exporter = new SampleDataExporter(bpe->getMainController());
-
-                exporter->setModalBaseWindowComponent(bpe->mainEditor);
-                if(auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(0)))
-                {
-                    fc->setCurrentFile(infoFile, dontSendNotification);
-                }
-            });
-        }
-    });
-    
 	e->setModalBaseWindowComponent(bpe);
 }
 
