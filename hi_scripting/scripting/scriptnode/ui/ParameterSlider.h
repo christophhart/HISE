@@ -273,10 +273,13 @@ struct ParameterSlider : public Slider,
 };
 
 
-struct MacroParameterSlider : public Component
+struct MacroParameterSlider : public Component,
+                              public PathFactory
 {
-	MacroParameterSlider(NodeBase* node, int index);
+    MacroParameterSlider(NodeBase* node, int index);
 
+    Path createPath(const String& url) const override;
+    
 	void resized() override;
 
 	void mouseDrag(const MouseEvent& event) override;
@@ -302,9 +305,19 @@ struct MacroParameterSlider : public Component
 
 private:
 
-	
-
+    void checkAllParametersForWarning(const Identifier&, const var&);
+    
+    void updateWarningButton(const ValueTree& v, const Identifier& id);
+    
+    void updateWarningOnConnectionChange(const ValueTree& c, bool wasAdded);
+    
 	ParameterSlider slider;
+    
+    HiseShapeButton warningButton;
+    
+    valuetree::RecursivePropertyListener rangeWatcher;
+    valuetree::PropertyListener sourceRangeWatcher;
+    valuetree::ChildListener sourceConnectionWatcher;
 };
 
 }

@@ -459,6 +459,8 @@ public:
 
 	bool preloadBufferIsNonZero() const noexcept;
 
+	bool hasUnpurgedButUnloadedSounds() const;
+
 	// ====================================================================================================================
 
 	bool isPurged() const noexcept{ return purged; };

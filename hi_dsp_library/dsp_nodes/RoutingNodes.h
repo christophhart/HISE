@@ -586,6 +586,145 @@ struct ms_decode: public HiseDspBase
 	}
 };
 
+struct selector: public mothernode
+{
+    enum class Parameters
+    {
+        ChannelIndex,
+        NumChannels,
+        SelectOutput,
+        ClearOtherChannels
+    };
+    
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(ChannelIndex, selector);
+        DEF_PARAMETER(NumChannels, selector);
+        DEF_PARAMETER(SelectOutput, selector);
+        DEF_PARAMETER(ClearOtherChannels, selector);
+    };
+    
+    constexpr bool isPolyphonic() { return false; }
+    
+    SN_NODE_ID("selector");
+    SN_GET_SELF_AS_OBJECT(selector);
+    SN_DESCRIPTION("A dynamic router of the first channel (pair)");
+
+    SN_EMPTY_RESET;
+    SN_EMPTY_INITIALISE;
+    SN_EMPTY_HANDLE_EVENT;
+    
+    void prepare(PrepareSpecs ps)
+    {
+        numProcessingChannels = ps.numChannels;
+    }
+    
+    static void copy(block dst, const block& src)
+    {
+        hmath::vcopy(dst, src);
+    }
+    
+    static void copy(float& dst, const float& src)
+    {
+        dst = src;
+    }
+    
+    template <typename T> void op(T& data, int size)
+    {
+        int numToProcess = jmin(numChannels, size - channelIndex);
+        
+        if(channelIndex != 0)
+        {
+            if(selectOutput)
+            {
+                for(int i = 0; i < numToProcess; i++)
+                    copy(data[channelIndex + i], data[i]);
+            }
+            {
+                for(int i = 0; i < numToProcess; i++)
+                    copy(data[i], data[channelIndex + i]);
+            }
+        }
+        
+        if(clearOtherChannels)
+        {
+            for(int i = numChannels; i < size; i++)
+                data[i] = 0.0f;
+        }
+    }
+    
+    template <typename ProcessDataType> void process(ProcessDataType& data)
+    {
+        op(data, data.getNumChannels());
+    }
+
+    template <typename FrameDataType> void processFrame(FrameDataType& data)
+    {
+        op(data, data.size());
+    }
+    
+    void setChannelIndex(double v)
+    {
+        channelIndex = jlimit(0, 16, roundToInt(v));
+    }
+    
+    void setNumChannels(double v)
+    {
+        numChannels = jlimit(0, 16, roundToInt(v));
+    };
+    
+    void setClearOtherChannels(double v)
+    {
+        clearOtherChannels = v > 0.5;
+    }
+    
+    void setSelectOutput(double v)
+    {
+        selectOutput = v > 0.5;
+    }
+    
+    void createParameters(ParameterDataList& data)
+    {
+        {
+            DEFINE_PARAMETERDATA(receive, ChannelIndex);
+            p.setRange({0.0, 16.0, 1.0});
+            data.add(p);
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(receive, NumChannels);
+            p.setRange({1.0, 16.0, 1.0});
+            p.setDefaultValue(1.0);
+            data.add(p);
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(receive, SelectOutput);
+            p.setRange({1.0, 16.0, 1.0});
+            p.setParameterValueNames({"Disabled", "Enabled"});
+            p.setDefaultValue(0.0);
+            data.add(p);
+        }
+        
+        {
+            DEFINE_PARAMETERDATA(receive, ClearOtherChannels);
+            p.setParameterValueNames({"Disabled", "Enabled"});
+            p.setDefaultValue(1.0);
+            data.add(p);
+        }
+        
+    }
+
+    bool clearOtherChannels = true;
+    int channelIndex = 0;
+    int numChannels = 1;
+    bool selectOutput = false;
+    
+    int numProcessingChannels = 2;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(selector);
+};
+
 struct matrix_helpers
 {
 	enum class SpecialType

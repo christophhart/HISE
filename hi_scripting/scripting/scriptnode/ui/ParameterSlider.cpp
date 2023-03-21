@@ -1499,12 +1499,60 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 }
 
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
-	slider(node, index)
+	slider(node, index),
+    warningButton("warning", nullptr, *this)
 {
 	addAndMakeVisible(slider);
 	setWantsKeyboardFocus(true);
 
+    addAndMakeVisible(warningButton);
     
+    
+    
+    rangeWatcher.setCallback(
+        node->getRootNetwork()->getValueTree(),
+        RangeHelpers::getRangeIds(),
+        valuetree::AsyncMode::Asynchronously,
+        BIND_MEMBER_FUNCTION_2(MacroParameterSlider::updateWarningButton));
+    
+    sourceRangeWatcher.setCallback(
+        slider.pTree,
+        RangeHelpers::getRangeIds(),
+        valuetree::AsyncMode::Asynchronously,
+        BIND_MEMBER_FUNCTION_2(MacroParameterSlider::checkAllParametersForWarning));
+    
+    sourceConnectionWatcher.setCallback(
+        slider.pTree.getChildWithName(PropertyIds::Connections),
+        valuetree::AsyncMode::Asynchronously,
+        BIND_MEMBER_FUNCTION_2(MacroParameterSlider::updateWarningOnConnectionChange));
+    
+    warningButton.onClick = [this, node]()
+    {
+        auto firstConnection = slider.pTree.getChildWithName(PropertyIds::Connections).getChild(0);
+        auto nId = firstConnection[PropertyIds::NodeId].toString();
+        
+        if(auto fn = node->getRootNetwork()->getNodeWithId(nId))
+        {
+            if(auto targetParameter = fn->getParameterFromName(firstConnection[PropertyIds::ParameterId].toString()))
+            {
+                auto nr = RangeHelpers::getDoubleRange(targetParameter->data);
+                auto sr = RangeHelpers::getDoubleRange(slider.pTree);
+                
+                String m;
+                m << "Do you want to copy the range of the first target to this parameter?  \n> ";
+                
+                m << "Parameter Range: `" << RangeHelpers::toDisplayString(sr) << "`  ";
+                m << "First target Range: `" << RangeHelpers::toDisplayString(nr) << "`  ";
+                
+                if(PresetHandler::showYesNoWindow("Range mismatch", m))
+                {
+                    RangeHelpers::storeDoubleRange(slider.pTree, nr, node->getUndoManager());
+                }
+            }
+        }
+    };
+    
+    warningButton.setTooltip("Source / Target range mismatch. Click to copy the first target range");
     
 	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(slider.parameterToControl.get()))
 	{
@@ -1512,11 +1560,93 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 	}
 }
 
+void MacroParameterSlider::checkAllParametersForWarning(const Identifier& , const var& )
+{
+    auto nTree = slider.pTree.getParent().getParent().getChildWithName(PropertyIds::Nodes);
+ 
+    jassert(nTree.isValid());
+    
+    ScriptingApi::Content::Helpers::callRecursive(nTree, [&](ValueTree& v)
+    {
+        if(v.getType() == PropertyIds::Parameter)
+        {
+            this->updateWarningButton(v, {});
+        }
+
+        return true;
+    });
+}
+
+void MacroParameterSlider::updateWarningOnConnectionChange(const ValueTree& v, bool wasAdded)
+{
+    auto cTree = slider.pTree.getChildWithName(PropertyIds::Connections);
+    
+    if(cTree.getNumChildren() == 0)
+    {
+        warningButton.setVisible(false);
+        return;
+    }
+    
+    checkAllParametersForWarning({}, {});
+}
+
+void MacroParameterSlider::updateWarningButton(const ValueTree& v, const Identifier& id)
+{
+    jassert(v.getType() == PropertyIds::Parameter);
+    auto cTree = slider.pTree.getChildWithName(PropertyIds::Connections);
+    
+    jassert(cTree.isValid());
+    
+    auto containerRoot = slider.pTree.getParent().getParent().getChildWithName(PropertyIds::Nodes);
+    
+    jassert(containerRoot.isValid());
+    
+    auto isSame = true;
+    auto found = false;
+    
+    auto sr = RangeHelpers::getDoubleRange(slider.pTree);
+    
+    for(const auto& c: cTree)
+    {
+        auto spId = c[PropertyIds::ParameterId].toString();
+        auto snId = c[PropertyIds::NodeId].toString();
+        
+        auto pId = v[PropertyIds::ID].toString();
+        auto nId = v.getParent().getParent()[PropertyIds::ID].toString();
+        
+        if(cppgen::CustomNodeProperties::isUnscaledParameter(v))
+            continue;
+        
+        if(spId == pId &&
+           snId == nId)
+        {
+            
+            auto tr = RangeHelpers::getDoubleRange(v);
+            
+            found = true;
+            isSame &= RangeHelpers::isEqual(tr, sr);
+        }
+    }
+                         
+    if(found)
+        warningButton.setVisible(!isSame);
+}
+
+Path MacroParameterSlider::createPath(const String& url) const
+{
+    Path p;
+    
+    LOAD_PATH_IF_URL("warning", EditorIcons::warningIcon);
+    
+    return p;
+}
+
 void MacroParameterSlider::resized()
 {
 	auto b = getLocalBounds();
 	b.removeFromBottom(10);
 	slider.setBounds(b);
+    warningButton.setBounds(b.removeFromRight(18).removeFromTop(18));
 }
 
 void MacroParameterSlider::mouseDrag(const MouseEvent& )

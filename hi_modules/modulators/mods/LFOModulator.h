@@ -98,6 +98,7 @@ public:
 		LoopEnabled, ///< enables loop mode for the LFO
 		PhaseOffset, ///< the initial phase of the LFO
 		SyncToMasterClock, ///< sync the LFO to the master clock
+        IgnoreNoteOn, ///< does not reset the LFO phase on incoming notes (free run mode)
 		numParameters
 	};
 
@@ -255,6 +256,8 @@ private:
 		attackValue = 0.0f;
 	}
 
+    void resetPhase();
+    
 	void calcAngleDelta();;
     
     bool tempoSync = false;
@@ -280,6 +283,8 @@ private:
 
 	float currentRandomValue;
 
+    bool ignoreNoteOn = false;
+    
 	float const *currentTable;
 
 	Ramper intensityInterpolator;

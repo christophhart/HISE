@@ -77,7 +77,7 @@ SET_DOCUMENTATION(ModulatorSampler)
 		"If enabled, the groups are played simultanously and can be crossfaded with the Group-Fade Modulation Chain.");
 
 	ADD_PARAMETER_DOC(Purged, 
-		"If this is true, all samples of this sampler won't be loaded into memory. Turning this on will load them.");
+		"If *Enabled*, it will unload all preload buffers and deactivate the sample playback to save memory. The **Lazy load** option unloads all preload buffers and delays the preloading of a sample until it is triggered for the first time.");
 
 	ADD_PARAMETER_DOC(Reversed, 
 		"If this is true, the samples will be fully loaded into preload buffer and reversed");
@@ -227,6 +227,73 @@ void ModulatorSampler::setReversed(bool shouldBeReversed)
 
         killAllVoicesAndCall(f, true);
     }
+}
+
+void ModulatorSampler::updatePurgeFromAttribute(int roundedValue)
+{
+	if (roundedValue == 2)
+	{
+		purgeAllSamples(false, false);
+		setPlayFromPurge(true, true);
+	}
+	else
+	{
+		auto shouldBePurged = roundedValue == 1;
+
+		// if lazy loading was active, we need to
+		// force the value to be different so that
+		// purgeAllSamples will actually do something...
+		if (enablePlayFromPurge)
+			purged = !shouldBePurged;
+
+		setPlayFromPurge(false, false);
+		purgeAllSamples(shouldBePurged, true);
+	}
+}
+
+void ModulatorSampler::purgeAllSamples(bool shouldBePurged, bool changePreloadSize)
+{
+	if (shouldBePurged != purged)
+	{
+		if (shouldBePurged)
+			getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
+		else
+			getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
+
+		if (changePreloadSize)
+		{
+			auto f = [shouldBePurged](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				jassert(s->allVoicesAreKilled());
+
+				s->purged = shouldBePurged;
+
+				for (int i = 0; i < s->sounds.size(); i++)
+				{
+					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
+					sound->setPurged(shouldBePurged);
+				}
+
+				s->refreshPreloadSizes();
+				s->refreshMemoryUsage();
+
+				return SafeFunctionCall::OK;
+			};
+
+			killAllVoicesAndCall(f, true);
+		}
+		else
+		{
+			purged = shouldBePurged;
+
+			SoundIterator iter(this);
+
+			while (auto s = iter.getNextSound())
+				s->setPurged(shouldBePurged);
+		}
+	}
 }
 
 void ModulatorSampler::setNumChannels(int numNewChannels)
@@ -446,7 +513,9 @@ float ModulatorSampler::getAttribute(int parameterIndex) const
 	case PitchTracking:		return pitchTrackingEnabled ? 1.0f : 0.0f;
 	case OneShot:			return oneShotEnabled ? 1.0f : 0.0f;
 	case CrossfadeGroups:	return crossfadeGroups ? 1.0f : 0.0f;
-	case Purged:			return purged ? 1.0f : 0.0f;
+	case Purged:			
+		if (enablePlayFromPurge) return 2.0f;
+		else return purged ? 1.0f : 0.0f;
 	case Reversed:			return reversed ? 1.0f : 0.0f;
     case UseStaticMatrix:   return useStaticMatrix ? 1.0f : 0.0f;
 	case LowPassEnvelopeOrder: return (float)lowPassOrder * 6.0f;
@@ -478,7 +547,7 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 	case OneShot:			oneShotEnabled = newValue > 0.5f; break;
 	case Reversed:			setReversed(newValue > 0.5f); break;
 	case CrossfadeGroups:	crossfadeGroups = newValue > 0.5f; refreshCrossfadeTables(); break;
-	case Purged:			purgeAllSamples(newValue > 0.5f); break;
+	case Purged:			updatePurgeFromAttribute(roundToInt(newValue)); break;
 	case UseStaticMatrix:   setUseStaticMatrix(newValue > 0.5f); break;
 	case LowPassEnvelopeOrder: 
 		lowPassOrder = roundToInt(newValue / 6);
@@ -570,6 +639,7 @@ void ModulatorSampler::refreshStreamingBuffers()
 		SynthesiserVoice *v = getVoice(i);
 		static_cast<ModulatorSamplerVoice*>(v)->resetVoice();
 		static_cast<ModulatorSamplerVoice*>(v)->setLoaderBufferSize(bufferSize * preloadScaleFactor);
+		static_cast<ModulatorSamplerVoice*>(v)->setEnablePlayFromPurge(enablePlayFromPurge);
 	}
 }
 
@@ -676,7 +746,7 @@ double ModulatorSampler::getDiskUsage()
 	return diskUsage * 100.0;
 }
 
-void ModulatorSampler::refreshMemoryUsage()
+void ModulatorSampler::refreshMemoryUsage(bool fastMode)
 {
 	if (sampleMap == nullptr)
 		return;
@@ -684,23 +754,26 @@ void ModulatorSampler::refreshMemoryUsage()
     if(getLargestBlockSize() <= 0)
         return;
 
-	const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
-    
+	if (!fastMode)
+	{
+		const auto temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
+
 #if HISE_IOS
-    const auto temporaryBufferShouldBeFloatingPoint = false;
+		const auto temporaryBufferShouldBeFloatingPoint = false;
 #else
-	const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
+		const auto temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
 #endif
 
-	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint || temporaryVoiceBuffer.getNumSamples() == 0)
-	{
-		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
+		if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint || temporaryVoiceBuffer.getNumSamples() == 0)
+		{
+			temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
 
-		for (auto i = 0; i < getNumVoices(); i++)
-			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
+			for (auto i = 0; i < getNumVoices(); i++)
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
+		}
+
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 	}
-
-	StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), (double)MAX_SAMPLER_PITCH);
 
 	int64 actualPreloadSize = 0;
 
@@ -721,7 +794,7 @@ void ModulatorSampler::refreshMemoryUsage()
 			}
 		}
         
-        if(maxPitch > (double)MAX_SAMPLER_PITCH)
+        if(!fastMode && maxPitch > (double)MAX_SAMPLER_PITCH)
         {
             StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getLargestBlockSize(), maxPitch * 1.2); // give it a little more to be safe...
         }
@@ -816,7 +889,7 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 	}
 }
 
-void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods)
+void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods, NotificationType notifyListener)
 {
 #if USE_BACKEND
 	auto& s = getSamplerDisplayValues().visibleGroups;
@@ -840,7 +913,7 @@ void ModulatorSampler::setDisplayedGroup(int index, bool shouldBeVisible, Modifi
 		}
 	}
 
-	getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
+	getSampleEditHandler()->groupBroadcaster.sendMessage(notifyListener, getCurrentRRGroup(), &getSamplerDisplayValues().visibleGroups);
 #endif
 }
 
@@ -882,6 +955,35 @@ void ModulatorSampler::setEnableEnvelopeFilter()
 		ps.sampleRate = getSampleRate();
 		ps.numChannels = 2;
 		envelopeFilter->prepare(ps);
+	}
+}
+
+void ModulatorSampler::setPlayFromPurge(bool shouldPlayFromPurge, bool refreshPreload)
+{
+	if (enablePlayFromPurge != shouldPlayFromPurge)
+	{
+		enablePlayFromPurge = shouldPlayFromPurge;
+
+		if (refreshPreload)
+		{
+			auto pf = [](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				// if there are some sounds loaded already, purge them all
+				if (s->getNumSounds() > 0)
+				{
+					s->refreshPreloadSizes();
+				}
+
+				s->refreshStreamingBuffers();
+				s->refreshMemoryUsage();
+
+				return SafeFunctionCall::OK;
+			};
+
+			killAllVoicesAndCall(pf);
+		}
 	}
 }
 
@@ -1004,7 +1106,7 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 	if (!rrGroupApplies) return false;
 
-	const bool preloadBufferIsNonZero = static_cast<ModulatorSamplerSound*>(sound)->preloadBufferIsNonZero();
+	const bool preloadBufferIsNonZero = shouldPlayFromPurge() || static_cast<ModulatorSamplerSound*>(sound)->preloadBufferIsNonZero();
 
 	if (!preloadBufferIsNonZero) return false;
 
@@ -1505,7 +1607,10 @@ void ModulatorSampler::toggleMidiInputLock(const Identifier& id, int lockValue)
 
 bool ModulatorSampler::preloadAllSamples()
 {
-	const int preloadSizeToUse = (int)getAttribute(ModulatorSampler::PreloadSize) * getPreloadScaleFactor();
+	int preloadSizeToUse = (int)getAttribute(ModulatorSampler::PreloadSize) * getPreloadScaleFactor();
+
+	if (shouldPlayFromPurge())
+		preloadSizeToUse = 0;
 
 	resetNotes();
 	setShouldUpdateUI(false);

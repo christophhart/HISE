@@ -177,20 +177,23 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 	}
 #endif
 
-	for (int i = (int)lockType + 1; i < Type::numLockTypes; i++)
+	if (lockType != IteratorLock)
 	{
-		Type t = (Type)i;
-
-		if (isLockedBySameThread(mc, t))
+		for (int i = (int)lockType + 1; i < Type::numLockTypes; i++)
 		{
-			// If you hit this assertion, it means that you tried
-			// to acquire a lock with a lower priority after a lock
-			// with higher priority. This might cause deadlocks
-			jassertfalse;
-			throw BadLockException(lockType);
+			Type t = (Type)i;
+
+			if (isLockedBySameThread(mc, t))
+			{
+				// If you hit this assertion, it means that you tried
+				// to acquire a lock with a lower priority after a lock
+				// with higher priority. This might cause deadlocks
+				jassertfalse;
+				throw BadLockException(lockType);
+			}
 		}
 	}
-
+	
 	if (lockType == IteratorLock && isLockedBySameThread(mc, SampleLock))
 	{
 		// You can't hold the sample lock while trying to acquire the iterator lock

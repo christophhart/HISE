@@ -404,6 +404,29 @@ bool PoolHelpers::Reference::isEmbeddedReference() const
 	return m == EmbeddedResource;
 }
 
+File PoolHelpers::Reference::resolveFile(FileHandlerBase* handler, FileHandlerBase::SubDirectories type) const
+{
+	if (isEmbeddedReference())
+	{
+		auto id = Expansion::Helpers::getExpansionIdFromReference(reference);
+
+		auto typeRoot = handler->getRootFolder();
+		typeRoot = typeRoot.getChildFile(handler->getIdentifier(type));
+
+		auto refToUse = reference;
+
+		if (refToUse.containsChar('}'))
+			refToUse = refToUse.fromFirstOccurrenceOf("}", false, false);
+
+		if (type == FileHandlerBase::SampleMaps)
+			refToUse << ".xml";
+
+		return typeRoot.getChildFile(refToUse);
+	}
+
+	return f;
+}
+
 bool PoolHelpers::Reference::operator==(const Reference& other) const
 {
 	return other.hashCode == hashCode;
@@ -924,9 +947,12 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 {
 	const bool isValidImage = ImageFileFormat::loadFrom(originalFile).isValid();
 
-	FileInputStream fis(originalFile);
+	int originalFileSize = 0;
 
-	auto originalFileSize = fis.getTotalLength();
+	if (isValidImage)
+	{
+		originalFileSize = originalFile.getSize();
+	}
 
 	MemoryOutputStream newlyCompressedImage;
 
@@ -936,6 +962,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 
 	if (isValidImage && originalFileSize < (int64)newSize)
 	{
+		FileInputStream fis(originalFile);
 		output.writeFromInputStream(fis, fis.getTotalLength());
 	}
 	else

@@ -698,7 +698,10 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 		aArray.addIfNotAlreadyThere(a);
 	}
 
-	sendChangeMessage();
+    if(mc->getUserPresetHandler().isInternalPresetLoad())
+        sendSynchronousChangeMessage();
+    else
+        sendChangeMessage();
 
 	refreshAnyUsedState();
 }
@@ -747,6 +750,8 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 {
 	auto number = e.getControllerNumber();
 
+    bool thisConsumed = false;
+    
 	for (auto& a : automationData[number])
 	{
 		if (a.used && a.processor.get() != nullptr)
@@ -785,11 +790,11 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 				}
 			}
 
-			return consumeEvents;
+            thisConsumed |= consumeEvents;
 		}
 	}
 
-	return false;
+	return thisConsumed;
 }
 
 hise::MidiControllerAutomationHandler::AutomationData MidiControllerAutomationHandler::getDataFromIndex(int index) const
@@ -1317,7 +1322,8 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 		mc->sendOverlayMessage(OverlayMessageBroadcaster::IllegalBufferSize);
 #endif
 
-	samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
+    if(samplesPerBlock % HISE_EVENT_RASTER != 0)
+        samplesPerBlock += HISE_EVENT_RASTER - (samplesPerBlock % HISE_EVENT_RASTER);
 
 	mc->prepareToPlay(sampleRate, jmin(samplesPerBlock, mc->getMaximumBlockSize()));
 }

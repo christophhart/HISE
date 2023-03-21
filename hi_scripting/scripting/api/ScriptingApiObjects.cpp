@@ -192,6 +192,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, startAsProcess);
 	API_METHOD_WRAPPER_0(ScriptFile, getHash);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
+	API_METHOD_WRAPPER_0(ScriptFile, loadMidiMetadata);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
 	API_METHOD_WRAPPER_0(ScriptFile, hasWriteAccess);
@@ -211,6 +212,8 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
+	API_METHOD_WRAPPER_2(ScriptFile, isChildOf);
+	API_METHOD_WRAPPER_1(ScriptFile, isSameFileAs);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
 	API_METHOD_WRAPPER_1(ScriptFile, getRelativePathFrom);
 	API_METHOD_WRAPPER_0(ScriptFile, getNumZippedItems);
@@ -264,10 +267,13 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsObject);
 	ADD_API_METHOD_0(loadAsAudioFile);
 	ADD_API_METHOD_1(loadEncryptedObject);
+	ADD_API_METHOD_0(loadMidiMetadata);
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
 	ADD_API_METHOD_0(show);
+	ADD_API_METHOD_2(isChildOf);
+	ADD_API_METHOD_1(isSameFileAs);
 	ADD_API_METHOD_0(getNonExistentSibling);
 	ADD_API_METHOD_3(extractZipFile);
 	ADD_API_METHOD_0(getNumZippedItems);
@@ -395,6 +401,29 @@ juce::var ScriptingObjects::ScriptFile::getRedirectedFolder()
 bool ScriptingObjects::ScriptFile::isFile() const
 {
 	return f.existsAsFile();
+}
+
+bool ScriptingObjects::ScriptFile::isChildOf(var otherFile, bool checkSubdirectories) const
+{
+	if (auto sf = dynamic_cast<ScriptFile*>(otherFile.getObject()))
+	{
+		if (checkSubdirectories)
+			return f.isAChildOf(sf->f);
+		else
+			return f.getParentDirectory() == sf->f;
+	}
+
+	return false;
+}
+
+bool ScriptingObjects::ScriptFile::isSameFileAs(var otherFile) const
+{
+	if (auto sf = dynamic_cast<ScriptFile*>(otherFile.getObject()))
+	{
+		return sf->f == f;
+	}
+
+	return false;
 }
 
 bool ScriptingObjects::ScriptFile::isDirectory() const
@@ -635,7 +664,7 @@ juce::var ScriptingObjects::ScriptFile::loadAsMidiFile(int trackIndex)
 
 		auto list = newSequence->getEventList(44100.0, 120.0);
 
-		auto obj = ValueTreeConverters::convertValueTreeToDynamicObject(v);
+		auto obj = newSequence->getTimeSignature().getAsJSON();
 
 		Array<var> eventList;
 		eventList.ensureStorageAllocated(list.size());
@@ -781,6 +810,23 @@ juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
 
 		return var(channels);
 	}
+}
+
+juce::var ScriptingObjects::ScriptFile::loadMidiMetadata() const
+{
+	FileInputStream fis(f);
+
+	MidiFile mf;
+
+	if (f.existsAsFile() && mf.readFrom(fis))
+	{
+		hise::HiseMidiSequence::Ptr p = new HiseMidiSequence();
+		p->loadFrom(mf);
+
+		return p->getTimeSignature().getAsJSON();
+	}
+
+	return var();
 }
 
 String ScriptingObjects::ScriptFile::getRelativePathFrom(var otherFile)
@@ -1413,8 +1459,8 @@ void ScriptingObjects::ScriptComplexDataReferenceBase::setCallbackInternal(bool 
 		auto& cb = isDisplay ? displayCallback : contentCallback;
 
 		cb = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
+        cb.incRefCount();
 		cb.setThisObject(this);
-		cb.incRefCount();
 		cb.addAsSource(this, "onComplexDataEvent");
 	}
 }
@@ -1558,6 +1604,7 @@ struct ScriptingObjects::ScriptRingBuffer::Wrapper
 	API_METHOD_WRAPPER_2(ScriptRingBuffer, getResizedBuffer);
     API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setActive);
 	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setRingBufferProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, copyReadBuffer);
 };
 
 ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other/*=nullptr*/):
@@ -1567,6 +1614,7 @@ ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingConte
 	ADD_API_METHOD_3(createPath);
 	ADD_API_METHOD_2(getResizedBuffer);
 	ADD_API_METHOD_1(setRingBufferProperties);
+	ADD_API_METHOD_1(copyReadBuffer);
     ADD_API_METHOD_1(setActive);
 }
 
@@ -1678,6 +1726,72 @@ void ScriptingObjects::ScriptRingBuffer::setRingBufferProperties(var propertyDat
 	}
 }
 
+void ScriptingObjects::ScriptRingBuffer::copyReadBuffer(var targetBuffer)
+{
+	if (auto obj = getRingBuffer())
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(obj->getDataLock());
+
+		if (auto tb = targetBuffer.getBuffer())
+		{
+			auto dst = tb->buffer.getWritePointer(0);
+			auto numSamples = tb->size;
+
+			auto& rb = obj->getReadBuffer();
+
+			if (rb.getNumSamples() != numSamples)
+			{
+				reportScriptError("size mismatch (" + String(numSamples) + "). Expected: " + String(rb.getNumSamples()));
+			}
+			else
+			{
+				ScopedLock sl2(obj->getReadBufferLock());
+				FloatVectorOperations::copy(dst, rb.getReadPointer(0), numSamples);
+			}
+		}
+        else if (targetBuffer.isArray())
+        {
+            int numChannels = targetBuffer.size();
+            
+            auto& rb = obj->getReadBuffer();
+            
+            if(numChannels != rb.getNumChannels())
+                reportScriptError("Illegal channel amount: " + String(numChannels) + ". Expected: " + String(rb.getNumChannels()));
+            else
+            {
+                for(int i = 0; i < numChannels; i++)
+                {
+                    if(auto tb = targetBuffer[i].getBuffer())
+                    {
+                        auto dst = tb->buffer.getWritePointer(0);
+                        auto numSamples = tb->size;
+
+                        auto& rb = obj->getReadBuffer();
+
+                        if (rb.getNumSamples() != numSamples)
+                        {
+                            reportScriptError("size mismatch (" + String(numSamples) + "). Expected: " + String(rb.getNumSamples()));
+                        }
+                        else
+                        {
+                            ScopedLock sl2(obj->getReadBufferLock());
+                            FloatVectorOperations::copy(dst, rb.getReadPointer(i), numSamples);
+                        }
+                    }
+                    else
+                    {
+                        reportScriptError("Channel " + String(i+1) + " is not a buffer");
+                    }
+                    
+                }
+            }
+            
+        }
+	}
+	else
+		reportScriptError("You need to pass in a Buffer object");
+}
+
 struct ScriptingObjects::ScriptTableData::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptTableData, reset);
@@ -1767,21 +1881,7 @@ var ScriptingObjects::ScriptTableData::getTablePointsAsArray()
 {
 	if (auto table = getTable())
 	{
-		Array<var> a;
-
-		for (int i = 0; i < table->getNumGraphPoints(); i++)
-		{
-			auto gp = table->getGraphPoint(i);
-
-			Array<var> gpa;
-
-			gpa.add(gp.x);
-			gpa.add(gp.y);
-			gpa.add(gp.curve);
-			a.add(var(gpa));
-		}
-
-		return a;
+        return table->getTablePointsAsVarArray();
 	}
 
 	return var();
@@ -5357,16 +5457,7 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()
 	return 0;
 }
 
-#define DECLARE_ID(x) static Identifier x(#x);
-namespace TimeSigIds
-{
-DECLARE_ID(Nominator);
-DECLARE_ID(Denominator);
-DECLARE_ID(NumBars);
-DECLARE_ID(LoopStart);
-DECLARE_ID(LoopEnd);
-}
-#undef DECLARE_ID
+
 
 var ScriptingObjects::ScriptedMidiPlayer::getTimeSignature()
 {
@@ -5374,14 +5465,7 @@ var ScriptingObjects::ScriptedMidiPlayer::getTimeSignature()
 	{
 		auto sig = getSequence()->getTimeSignature();
 
-		auto newObj = new DynamicObject();
-		newObj->setProperty(TimeSigIds::Nominator, sig.nominator);
-		newObj->setProperty(TimeSigIds::Denominator, sig.denominator);
-		newObj->setProperty(TimeSigIds::NumBars, sig.numBars);
-		newObj->setProperty(TimeSigIds::LoopStart, sig.normalisedLoopRange.getStart());
-		newObj->setProperty(TimeSigIds::LoopEnd, sig.normalisedLoopRange.getEnd());
-
-		return var(newObj);
+		return sig.getAsJSON();
 	}
 
 	return {};
@@ -5511,7 +5595,8 @@ juce::Array<juce::Identifier> ApiHelpers::getGlobalApiClasses()
 		"Settings",
 		"Server",
 		"FileSystem",
-		"Message"
+		"Message",
+		"Date"
 	};
 	
 	return ids;
@@ -6751,6 +6836,9 @@ void ScriptingObjects::ScriptFFT::applyFFT(int numChannelsThisTime, bool skipFir
 
 		if (magnitudeFunction || enableInverse)
 		{
+            if(wb.magBuffer == nullptr)
+                reportScriptError("The magnitude buffer is not prepared. Make sure to call prepare after setMagnitudeFunction");
+            
 			FFTHelpers::toFreqSpectrum(wb.chunkInput->buffer, wb.magBuffer->buffer);
 			FFTHelpers::scaleFrequencyOutput(wb.magBuffer->buffer, convertMagnitudesToDecibel);
 		}

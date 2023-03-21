@@ -1,0 +1,1 @@
+Label1.set("textColour", Colours.withHue(Colours.red, Math.random()));

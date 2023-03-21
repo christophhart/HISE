@@ -1402,10 +1402,13 @@ void TextEditor::initKeyPresses(Component* root)
 	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::goto_definition, "Goto definition", KeyPress(KeyPress::F12Key));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::show_search, "Search in current file", 
-		KeyPress('f', ModifierKeys::ctrlModifier, 0));
+		KeyPress('f', ModifierKeys::commandModifier, 0));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::select_token, "Select current token",
-		KeyPress('t', ModifierKeys::ctrlModifier, 0));
+		KeyPress('t', ModifierKeys::commandModifier, 0));
+    
+    TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::comment_line, "Toggle comment for line",
+        KeyPress('#', ModifierKeys::commandModifier, 0));
 }
 
 struct TextEditor::DeactivatedRange
@@ -2033,7 +2036,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         return true;
     }
     
-	if ((key.getKeyCode() == 35) && key.getModifiers().isCommandDown()) // "Cmd + #"
+	if (keyMatchesId(key, TextEditorShortcuts::comment_line)) // "Cmd + #"
 	{
 		auto isComment = [this](Selection s)
 		{

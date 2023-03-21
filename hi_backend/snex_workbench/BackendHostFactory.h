@@ -136,6 +136,40 @@ struct BackendDllManager : public ReferenceCountedObject,
 	static File createIfNotDirectory(const File& f);
 	static File getSubFolder(const MainController* mc, FolderSubType t);
 
+    static bool hasRNBOFiles(const MainController* mc)
+    {
+        return getRNBOSourceFolder(mc).isDirectory();   
+    }
+    
+    static File getRNBOSourceFolder(const MainController* mc)
+    {
+        return getSubFolder(mc, FolderSubType::ThirdParty).getChildFile("src").getChildFile("rnbo");
+    }
+    
+    static void addNodePropertyToJSONFile(const MainController* mc, const String& classId, const Identifier& property)
+    {
+        auto thirdPartyFolder = getSubFolder(mc, FolderSubType::ThirdParty);
+        
+        File npFile = thirdPartyFolder.getChildFile("node_properties").withFileExtension("json");
+
+        var np;
+
+        if(npFile.existsAsFile())
+            np = JSON::parse(npFile);
+
+        if (np.getDynamicObject() == nullptr)
+            np = var(new DynamicObject());
+
+        auto obj = np.getDynamicObject();
+
+        Array<var> propList;
+        propList.add(PropertyIds::IsPolyphonic.toString());
+
+        obj->setProperty(Identifier(classId), var(propList));
+
+        npFile.replaceWithText(JSON::toString(np));
+    }
+    
 	static bool matchesDllType(DllType t, const File& f)
 	{
 		if (t == DllType::Current)

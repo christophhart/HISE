@@ -571,6 +571,33 @@ Preprocessor::TextBlockList Preprocessor::parseTextBlocks()
 					}
 				}
 			}
+            else if (*start == '\"' || *start == '\'')
+            {
+                auto quoteChar = *start;
+                
+                start++;
+                
+                while(start != end)
+                {
+                    if (*start == firstNewLineChar)
+                    {
+                        lineNumber++;
+                    }
+                    
+                    // skip escaped quoted (\")
+                    if(*start == '\\' && *(start + 1) == quoteChar)
+                    {
+                        start++;
+                        start++;
+                        continue;
+                    }
+                    
+                    if (*start == quoteChar)
+                        break;
+                    
+                    start++;
+                }
+            }
             
 			if (start >= end)
 				break;

@@ -196,7 +196,8 @@ void SettingWindows::buttonClicked(Button* b)
 {
 	if (b == &allSettings)		   setContent(  settingsToShow );
 	if (b == &projectSettings)	   setContent({ HiseSettings::SettingFiles::ProjectSettings, 
-												HiseSettings::SettingFiles::UserSettings });
+												HiseSettings::SettingFiles::UserSettings,
+											    HiseSettings::SettingFiles::ExpansionSettings});
 	if (b == &developmentSettings) setContent({	HiseSettings::SettingFiles::CompilerSettings, 
 												HiseSettings::SettingFiles::ScriptingSettings, 
 												HiseSettings::SettingFiles::OtherSettings});

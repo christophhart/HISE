@@ -441,6 +441,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 
 	purgeSampleEditor->addOption("Disabled");
 	purgeSampleEditor->addOption("Enabled");
+	purgeSampleEditor->addOption("Lazy Load");
 	purgeSampleEditor->setEditable(false);
 
 	for (int i = 0; i < 8; i++)

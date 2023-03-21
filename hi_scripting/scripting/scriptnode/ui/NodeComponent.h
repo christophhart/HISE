@@ -310,6 +310,9 @@ struct simple_visualiser : public ScriptnodeExtraComponent<NodeBase>
 
 	NodeBase* getNode();
 	double getParameter(int index);
+    
+    InvertableParameterRange getParameterRange(int index);
+    
 	Colour getNodeColour();
 
 	void timerCallback() override;

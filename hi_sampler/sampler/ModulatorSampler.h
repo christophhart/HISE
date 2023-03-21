@@ -307,7 +307,7 @@ public:
 	double getDiskUsage();
 
 	/** Scans all sounds and voices and adds their memory usage. */
-	void refreshMemoryUsage();
+	void refreshMemoryUsage(bool fastMode=false);
 
 	int getNumActiveVoices() const override
 	{
@@ -481,40 +481,9 @@ public:
 
     void setReversed(bool shouldBeReversed);
 
-	void purgeAllSamples(bool shouldBePurged)
-	{
-		
+	void updatePurgeFromAttribute(int roundedValue);
 
-		if (shouldBePurged != purged)
-		{
-			if (shouldBePurged)
-				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-			else
-				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-
-			auto f = [shouldBePurged](Processor* p)
-			{
-				auto s = static_cast<ModulatorSampler*>(p);
-
-				jassert(s->allVoicesAreKilled());
-
-				s->purged = shouldBePurged;
-
-				for (int i = 0; i < s->sounds.size(); i++)
-				{
-					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
-					sound->setPurged(shouldBePurged);
-				}
-
-				s->refreshPreloadSizes();
-				s->refreshMemoryUsage();
-
-				return SafeFunctionCall::OK;
-			};
-
-			killAllVoicesAndCall(f, true);
-		}
-	}
+	void purgeAllSamples(bool shouldBePurged, bool changePreloadSize=true);
 
 	void setNumChannels(int numChannels);
 
@@ -649,7 +618,7 @@ public:
     
     bool isUsingStaticMatrix() const noexcept { return useStaticMatrix; };
 
-	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods);
+	void setDisplayedGroup(int index, bool shouldBeVisible, ModifierKeys mods, NotificationType notifyListener);
 	
 	void setSortByGroup(bool shouldSortByGroup);
 
@@ -675,6 +644,10 @@ public:
 	CascadedEnvelopeLowPass* getEnvelopeFilter() { return envelopeFilter.get(); }
 
 	void setEnableEnvelopeFilter();
+
+	void setPlayFromPurge(bool shouldPlayFromPurge, bool refreshPreloadSize);
+
+	bool shouldPlayFromPurge() const { return enablePlayFromPurge; }
 
 private:
 
@@ -742,6 +715,8 @@ private:
 	int rrGroupAmount;
 	int currentRRGroupIndex;
 	
+	bool enablePlayFromPurge = false;
+
 	Array<float> rrGroupGains;
 	bool useRRGain = false;
 

@@ -264,9 +264,14 @@ public:
 
 		const int numFilters = v.getProperty("NumFilters", 0);
 
+		auto sr = getSampleRate();
+
 		for(int i = 0; i < numFilters; i++)
 		{
 			filterBands.add(new StereoFilter());
+
+			if (sr > 0.0)
+				filterBands.getLast()->setSampleRate(sr);
 		}
 
 		for(int i = 0; i < numFilters * numBandParameters; i++)

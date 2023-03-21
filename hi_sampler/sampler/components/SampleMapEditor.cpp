@@ -275,7 +275,7 @@ struct RRDisplayComponent : public Component,
 		{
 			auto isOn = midiButton.getToggleState();
 			auto idx = isOn ? sampler->getCurrentRRGroup() : -1;
-			sampler->setDisplayedGroup(idx, true, {});
+			sampler->setDisplayedGroup(idx, true, {}, sendNotificationSync);
 		};
 
 		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, setMainSelection);
@@ -312,7 +312,7 @@ struct RRDisplayComponent : public Component,
 
 		if (d.midiButton.getToggleState())
 		{
-			d.sampler->setDisplayedGroup(rrGroup, true, {});
+			d.sampler->setDisplayedGroup(rrGroup-1, true, {}, dontSendNotification);
 		}
 
 		auto shouldLock = d.sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
@@ -330,7 +330,7 @@ struct RRDisplayComponent : public Component,
 	{
 		if (id == SampleIds::RRGroup)
 		{
-			sampler->setDisplayedGroup((int)newValue-1, true, {});
+			sampler->setDisplayedGroup((int)newValue-1, true, {}, sendNotificationAsync);
 		}
 	};
 
@@ -416,7 +416,7 @@ struct RRDisplayComponent : public Component,
 			auto r = m.showAt(this);
 
 			if(r != 0)
-				sampler->setDisplayedGroup(r, true, e.mods);
+				sampler->setDisplayedGroup(r, true, e.mods, sendNotificationSync);
 
 			return;
 		}
@@ -428,7 +428,7 @@ struct RRDisplayComponent : public Component,
 			{
 				auto value = sampler->getSamplerDisplayValues().visibleGroups[index];
 
-				sampler->setDisplayedGroup(index, !value, e.mods);
+				sampler->setDisplayedGroup(index, !value, e.mods, sendNotificationSync);
 				return;
 			}
 

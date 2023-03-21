@@ -541,6 +541,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			enum ComponentOffsets
 			{
 				createCallbackDefinition = 10000,
+                createLocalLookAndFeel,
 				addDefinition,
 				DeleteSelection,
 				showCallback,
@@ -583,6 +584,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				m.addItem(addDefinition, "Create script reference for selection");
 				m.addItem(createCallbackDefinition, "Create custom callback for selection");
+                m.addItem(createLocalLookAndFeel, "Create local LookAndFeel for selection");
 
 				auto first = components.getFirst();
 
@@ -601,9 +603,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				m.addSeparator();
 
-				m.addItem(showDefinition, "Goto first Definition of " + first->getName().toString(), true);
+				m.addItem(showDefinition, "Goto first definition of " + first->getName().toString(), true);
 				m.addItem(showLookAndFeel, "Goto LookAndFeel for " + first->getName().toString(), first->getLookAndFeelObject().isObject());
-				m.addItem(showCallback, "Goto Callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
+				m.addItem(showCallback, "Goto callback for " + first->getName().toString(), first->getCustomControlCallback() != nullptr);
 			}
 
 			auto first = components.getFirst();
@@ -618,6 +620,14 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 				SystemClipboard::copyTextToClipboard(code);
 			}
+            else if (result == createLocalLookAndFeel)
+            {
+                auto code = ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(components);
+                
+                debugToConsole(processor, "local look and feel was copied to clipboard");
+                
+                SystemClipboard::copyTextToClipboard(code);
+            }
 			else if (result == addDefinition)
 			{
 				auto code = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(components);

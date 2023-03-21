@@ -224,18 +224,29 @@ void DialogWindowWithBackgroundThread::stopThread()
 	thread = nullptr;
 }
 
-void DialogWindowWithBackgroundThread::runSynchronous()
+void DialogWindowWithBackgroundThread::runSynchronous(bool deleteAfterExecution)
 {
 	// Obviously only available in the message loop!
 	jassert(MessageManager::getInstance()->isThisTheMessageThread());
 
 	run();
 	threadFinished();
-	destroy();
+
+	if(deleteAfterExecution)
+		destroy();
 }
 
 void DialogWindowWithBackgroundThread::showStatusMessage(const String &message) const
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		DBG(message);
+		std::cout << message << std::endl;
+		return;
+	}
+#endif
+
 	MessageManagerLock lock(thread);
 
 	if (lock.lockWasGained())
@@ -274,6 +285,21 @@ void DialogWindowWithBackgroundThread::runThread()
 	stopThread();
 	thread = new LoadingThread(this);
 	thread->startThread();
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::addTextEditor(const String& name, const String& initialText, const String& label, int width)
+{
+    auto* ed = new TextEditor (name, 0);
+    ed->setSelectAllWhenFocused (true);
+    ed->setEscapeAndReturnKeysConsumed (false);
+    
+    ed->setColour (TextEditor::outlineColourId, findColour (ComboBox::outlineColourId));
+    ed->setFont (getLookAndFeel().getAlertWindowMessageFont());
+    addAndMakeVisible (ed);
+    ed->setText (initialText);
+    ed->setCaretPosition (initialText.length());
+    
+    addCustomComponent(ed, label, width);
 }
 
 void DialogWindowWithBackgroundThread::AdditionalRow::addComboBox(const String& name, const StringArray& items, const String& label, int width/*=0*/)
@@ -465,12 +491,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 	ControlledObject(mc),
 	synthChain(getMainController()->getMainSynthChain())
 {
-	StringArray sa;
-	sa.add("Export Monolith files only");
-
-	
-
-	addComboBox("file_selection", sa, "Select files to export");
+	addComboBox("format", { "HR Archive (custom FLAC)", "LWZ (Rhapsody Sample Archive)" }, "Output format");
 
 	StringArray sa2;
 
@@ -546,6 +567,10 @@ void SampleDataExporter::logVerboseMessage(const String& verboseMessage)
 #if USE_BACKEND
 	debugToConsole(synthChain, verboseMessage);
 
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << verboseMessage << std::endl;
+	}
 #else
 	ignoreUnused(verboseMessage);
 #endif
@@ -555,12 +580,21 @@ void SampleDataExporter::logStatusMessage(const String& message)
 {
 	fullLog << message << "\n";
 
+	
+
 	showStatusMessage(message);
 }
 
 void SampleDataExporter::criticalErrorOccured(const String& message)
 {
 	criticalError = message; fullLog << "CRITICAL ERROR: " << criticalError;
+
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << criticalError << std::endl;
+	}
+#endif
 }
 
 void SampleDataExporter::run()
@@ -569,7 +603,18 @@ void SampleDataExporter::run()
 
 	showStatusMessage("Exporting");
 
-	hlac::HlacArchiver compressor(getCurrentThread());
+	auto currentThread = getCurrentThread();
+
+#if USE_BACKEND
+	if (currentThread == nullptr)
+	{
+		jassert(CompileExporter::isExportingFromCommandLine());
+		currentThread = getMainController()->getSampleManager().getGlobalSampleThreadPool();
+		jassert(currentThread != nullptr);
+	}
+#endif
+
+	hlac::HlacArchiver compressor(currentThread);
 
 	compressor.setListener(this);
 
@@ -595,7 +640,51 @@ void SampleDataExporter::run()
 		break;
 	}
 
-	compressor.compressSampleData(data);
+	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
+	{
+		compressor.compressSampleData(data);
+	}
+	else
+	{
+		int64 currentSize = 0;
+		ScopedPointer<ZipFile::Builder> b = new ZipFile::Builder();
+
+		auto zipFile = data.targetFile.getNonexistentSibling(false);
+		auto original = zipFile;
+
+		for (auto f : data.fileList)
+		{
+			auto thisSize = f.getSize();
+
+			if (currentThread->threadShouldExit())
+				break;
+
+			if (currentSize + thisSize > data.partSize)
+			{
+				zipFile.deleteFile();
+				FileOutputStream fos(zipFile);
+				showStatusMessage("Write " + f.getFileName());
+				b->writeToStream(fos, &getProgressCounter());
+
+				b = new ZipFile::Builder();
+				zipFile = original.getNonexistentSibling(true);
+				currentSize = 0;
+			}
+
+			b->addFile(f, 0);
+			currentSize += thisSize;
+		}
+
+		if (currentSize != 0)
+		{
+			zipFile.deleteFile();
+			FileOutputStream fos(zipFile);
+			b->writeToStream(fos, &getProgressCounter());
+			b = nullptr;
+		}
+	}
+
+	
 }
 
 void SampleDataExporter::threadFinished()
@@ -756,21 +845,31 @@ File SampleDataExporter::getTargetFile() const
 {
 	auto currentFile = targetFile->getCurrentFile();
 
+	String fileName;
+
 	auto expName = getExpansionName();
 
-	if (expName.isEmpty())
+	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
 	{
-		auto name = getProjectName();
-		auto version = getProjectVersion();
-		version = version.replaceCharacter('.', '_');
-		auto fileName = name + "_" + version + "_Samples.hr1";
-		return currentFile.getChildFile(fileName);
+		if (expName.isEmpty())
+		{
+			auto name = getProjectName();
+			auto version = getProjectVersion();
+			version = version.replaceCharacter('.', '_');
+			fileName = name + "_" + version + "_Samples.hr1";
+		}
+		else
+		{
+			fileName << expName + "_Samples.hr1";
+		}
 	}
 	else
 	{
-		auto fileName = expName + "_Samples.hr1";
-		return currentFile.getChildFile(fileName);
+		fileName << getProjectName() << "_samples_" << getProjectVersion().replaceCharacter('.', '_');
+		fileName << ".lwz";
 	}
+
+	return currentFile.getChildFile(fileName);
 }
 
 

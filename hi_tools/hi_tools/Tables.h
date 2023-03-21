@@ -177,8 +177,12 @@ public:
 
 		if(b.getSize() == 0) return;
 
-		graphPoints.clear();
-		graphPoints.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
+        {
+            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+            
+            graphPoints.clear();
+            graphPoints.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
+        }
 		
 		if (!delayUpdates)
 		{
@@ -193,17 +197,21 @@ public:
 		const float sanitizedY = jlimit(0.0f, 1.0f, y);
 		const float sanitizedCurve = jlimit(0.0f, 1.0f, curve);
 
-		if (pointIndex >= 0 && pointIndex < graphPoints.size())
-		{
-			if (pointIndex != 0 && pointIndex != graphPoints.size() - 1)
-			{
-				// Just change the x value of non-edge points...
-				graphPoints.getRawDataPointer()[pointIndex].x = sanitizedX;
-			}
-
-			graphPoints.getRawDataPointer()[pointIndex].y = sanitizedY;
-			graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
-		}
+        {
+            hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+            
+            if (pointIndex >= 0 && pointIndex < graphPoints.size())
+            {
+                if (pointIndex != 0 && pointIndex != graphPoints.size() - 1)
+                {
+                    // Just change the x value of non-edge points...
+                    graphPoints.getRawDataPointer()[pointIndex].x = sanitizedX;
+                }
+                
+                graphPoints.getRawDataPointer()[pointIndex].y = sanitizedY;
+                graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
+            }
+        }
 
 		if (!delayUpdates)
 		{
@@ -214,9 +222,12 @@ public:
 
 	void reset()
 	{
-		graphPoints.clear();
-		graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
-		graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
+        {
+            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+            graphPoints.clear();
+            graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
+            graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
+        }
 
 		if (!delayUpdates)
 		{
@@ -227,7 +238,10 @@ public:
 
 	void addTablePoint(float x, float y, float curve=0.5f)
 	{
-		graphPoints.add(GraphPoint(x, y, curve));
+        {
+            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+            graphPoints.add(GraphPoint(x, y, curve));
+        }
 
 		if (!delayUpdates)
 		{
@@ -239,6 +253,8 @@ public:
 	/** Returns the number of graph points */
 	int getNumGraphPoints() const { return graphPoints.size(); };
 
+    var getTablePointsAsVarArray() const;
+    
 	/** Get a copy of the graph point at pointIndex. */
 	GraphPoint getGraphPoint(int pointIndex) const {return graphPoints.getUnchecked(pointIndex); };
 
@@ -262,11 +278,6 @@ public:
 	virtual void fillLookUpTable();
 
 	void fillExternalLookupTable(float* d, int numValues);
-
-	CriticalSection &getLock()
-	{
-		return lock;
-	};
 
 	/** Overwrite this and return a pointer to the data array. */
 	virtual float *getWritePointer() = 0;
@@ -326,6 +337,8 @@ public:
 		internalUpdater.removeEventListener(l);
 	}
 
+    Array<GraphPoint> getCopyOfGraphPoints() const;
+    
 private:
 
 	bool delayUpdates = false;
@@ -346,9 +359,8 @@ private:
 		};
 	};
 
-	CriticalSection lock;
-
 	Array<GraphPoint> graphPoints;
+    mutable hise::SimpleReadWriteLock graphPointLock;
 
 	ValueTextConverter xConverter;
 	ValueTextConverter yConverter;

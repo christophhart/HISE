@@ -49,6 +49,7 @@ Array<juce::Identifier> HiseSettings::SettingFiles::getAllIds()
 	ids.add(UserSettings);
 	ids.add(CompilerSettings);
 	ids.add(GeneralSettings);
+	ids.add(ExpansionSettings);
 	ids.add(ScriptingSettings);
 	ids.add(DocSettings);
 	ids.add(SnexWorkbenchSettings);
@@ -134,6 +135,17 @@ Array<juce::Identifier> HiseSettings::User::getAllIds()
 	return ids;
 }
 
+Array<juce::Identifier> HiseSettings::ExpansionSettings::getAllIds()
+{
+	Array<Identifier> ids;
+
+	ids.add(UUID);
+	ids.add(Tags);
+	ids.add(Description);
+
+	return ids;
+}
+
 Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
 {
 	Array<Identifier> ids;
@@ -175,7 +187,6 @@ juce::Array<juce::Identifier> HiseSettings::Documentation::getAllIds()
 
 	return ids;
 }
-
 
 Array<juce::Identifier> HiseSettings::Midi::getAllIds()
 {
@@ -521,6 +532,18 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If this is enabled, it will save a connected script file everytime the script is compiled. By default this is disabled, but if you want to apply changes to a connected script file, you will have to enable this setting");
 		P_();
 
+		P(HiseSettings::ExpansionSettings::UUID);
+		D("A unique Identifier that will be used when this project is exported as full instrument expansion");
+		P_();
+
+		P(HiseSettings::ExpansionSettings::Tags);
+		D("A comma-separated list of strings that will be used as tags for full instrument expansions");
+		P_();
+
+		P(HiseSettings::ExpansionSettings::Description);
+		D("A markdown formatted text that will be written into the metadata of the full instrument expansion");
+		P_();
+
 		P(HiseSettings::Scripting::GlobalScriptPath);
 		D("There is a folder that can be used to store global script files like additional API functions or generic UI Component definitions.");
 		D("By default, this folder is stored in the application data folder, but you can choose to redirect it to another location, which may be useful if you want to put it under source control.");
@@ -657,6 +680,7 @@ juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 	{
 		if (id == SettingFiles::ProjectSettings)	return handler_->getWorkDirectory().getChildFile("project_info.xml");
 		else if (id == SettingFiles::UserSettings)	return handler_->getWorkDirectory().getChildFile("user_info.xml");
+		else if (id == SettingFiles::ExpansionSettings) return handler_->getWorkDirectory().getChildFile("expansion_info.xml");
 	}
 
 	if (id == SettingFiles::CompilerSettings)	return appDataFolder.getChildFile("compilerSettings.xml");
@@ -946,6 +970,7 @@ void HiseSettings::Data::addMissingSettings(ValueTree& v, const Identifier &id)
 	else if (id == SettingFiles::CompilerSettings)	ids = Compiler::getAllIds();
 	else if (id == SettingFiles::ScriptingSettings) ids = Scripting::getAllIds();
 	else if (id == SettingFiles::OtherSettings)		ids = Other::getAllIds();
+	else if (id == SettingFiles::ExpansionSettings) ids = ExpansionSettings::getAllIds();
 	else if (id == SettingFiles::DocSettings)		ids = Documentation::getAllIds();
 	else if (id == SettingFiles::SnexWorkbenchSettings) ids = SnexWorkbench::getAllIds();
 

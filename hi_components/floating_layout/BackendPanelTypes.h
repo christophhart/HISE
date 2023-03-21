@@ -34,6 +34,223 @@
 
 namespace hise { using namespace juce;
 
+#if USE_BACKEND
+
+class ExternalClockSimulator;
+
+struct TimelineObjectBase : public ReferenceCountedObject
+{
+	enum class Type
+	{
+		Unknown,
+		Midi,
+		Audio,
+		numTypes
+	};
+
+	static Type getTypeFromFile(const File& f)
+	{
+		if (f.getFileExtension() == ".wav" ||
+			f.getFileExtension() == ".aif")
+		{
+			return Type::Audio;
+		}
+		if (f.getFileExtension() == ".mid" ||
+			f.getFileExtension() == ".midi")
+		{
+			return Type::Midi;
+		}
+
+		return Type::Unknown;
+	}
+
+	using Ptr = ReferenceCountedObjectPtr<TimelineObjectBase>;
+
+	virtual ~TimelineObjectBase() {};
+
+	virtual Identifier getTypeId() const = 0;
+
+	virtual void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) { jassertfalse; }
+
+	virtual void draw(Graphics& g, Rectangle<float> bounds) = 0;
+
+	virtual void initialise(double sampleRate) = 0;
+
+	virtual void loopWrap() {};
+
+	virtual double getPPQLength(double sampleRate, double bpm) const = 0;
+
+	virtual Colour getColour() const = 0;
+
+	double startPPQ = 0.0;
+	const Type type;
+	File f;
+
+	TimelineObjectBase(const File& f_) :
+		type(getTypeFromFile(f_)),
+		f(f_)
+	{};
+
+};
+
+class ExternalClockSimulator: public juce::AudioPlayHead
+{
+public:
+    
+
+
+    double getPPQDelta(int numSamples) const
+    {
+        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+        
+        return (double)numSamples / samplesPerQuarter;
+    }
+    
+    int getSamplesDelta(double ppqDelta) const
+    {
+        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+        return roundToInt(samplesPerQuarter * ppqDelta);
+    }
+    
+	void sendLoopMessage()
+	{
+		for (auto to : timelineObjects)
+			to->loopWrap();
+	}
+
+	void addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb);
+
+    void process(int numSamples)
+    {
+		if (bpm == -1.0)
+			bpm = 120.0;
+
+        if(isPlaying)
+        {
+            auto ppqDelta = getPPQDelta(numSamples);
+            
+            ppqPos += ppqDelta;
+            
+            if(isLooping && !ppqLoop.isEmpty() && ppqPos > ppqLoop.getEnd())
+            {
+                auto posAfterStart = ppqPos - ppqLoop.getStart();
+                ppqPos = ppqLoop.getStart() + hmath::fmod(posAfterStart, ppqLoop.getLength());
+            }
+        }
+    }
+    
+    int getLoopBeforeWrap(int numSamples)
+    {
+        if(isPlaying && isLooping && !ppqLoop.isEmpty())
+        {
+            auto beforeInside = ppqLoop.contains(ppqPos);
+            
+            if(!beforeInside)
+                return 0;
+            
+            auto afterPos = ppqPos + getPPQDelta(numSamples);
+            
+            auto afterInside = ppqLoop.contains(afterPos);
+            
+            if(!afterInside)
+            {
+				return getSamplesDelta(afterPos - ppqLoop.getEnd());
+            }
+            
+            return 0;
+        }
+        
+        return 0;
+    }
+    
+    bool getCurrentPosition (CurrentPositionInfo& result) override
+    {
+        result.bpm = bpm;
+        result.timeSigNumerator = nom;
+        result.timeSigDenominator = denom;
+        result.timeInSamples = TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter) * ppqPos;
+        result.timeInSeconds = TempoSyncer::getTempoInMilliSeconds(bpm, TempoSyncer::Quarter) * ppqPos;
+        result.ppqPosition = ppqPos;
+        result.ppqPositionOfLastBarStart = hmath::floor(ppqPos / 4.0) * 4.0;
+        result.isPlaying = isPlaying;
+        result.isRecording = false;
+        result.ppqLoopStart = ppqLoop.getStart();
+        result.ppqLoopEnd = ppqLoop.getEnd();
+        result.isLooping = isLooping;
+        
+        return true;
+    }
+    
+    void prepareToPlay(double newSampleRate)
+    {
+        sampleRate = newSampleRate;
+    }
+    
+    
+    
+    bool isLooping = false;
+    bool isPlaying = false;
+    
+    int nom = 4;
+    int denom = 4;
+    
+    double bpm = 120.0;
+    double ppqPos = 0.0;
+    Range<double> ppqLoop = { 8.0, 16.0 };
+    
+    double sampleRate;
+    
+	ReferenceCountedArray<TimelineObjectBase> timelineObjects;
+
+	CriticalSection lock;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalClockSimulator);
+};
+
+struct DAWClockController: public Component,
+                           public ControlledObject,
+                           public PooledUIUpdater::SimpleTimer,
+                           public Slider::Listener
+{
+    struct Icons: public PathFactory
+    {
+        Path createPath(const String& url) const override;
+    };
+    
+    DAWClockController(MainController* mc);
+      
+    virtual ~DAWClockController() {};
+    
+    bool keyPressed(const KeyPress& k) override;
+    
+    void timerCallback() override;
+    
+    void resized() override;
+    
+    void sliderValueChanged(Slider* s) override;
+    
+    struct LAF: public LookAndFeel_V3
+    {
+        void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+    } laf;
+    
+    WeakReference<ExternalClockSimulator> clock;
+    Icons f;
+    
+    HiseShapeButton play, stop, loop, grid, rewind;
+    
+    Slider bpm, nom, denom, length;
+    
+    Label position;
+    
+    
+    
+    struct Ruler;
+    
+    ScopedPointer<Component> ruler;
+};
+#endif
+
 class ApplicationCommandButtonPanel : public FloatingTileContent,
 	public Component
 {

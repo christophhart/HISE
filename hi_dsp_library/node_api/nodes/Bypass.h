@@ -172,9 +172,12 @@ public:
 
 	bool handleModulation(double& value) noexcept
 	{
-		if (!bypassed)
-			return this->obj.handleModulation(value);
-
+		if constexpr (prototypes::check::handleModulation<T>::value)
+		{
+			if (!bypassed)
+				return this->obj.handleModulation(value);
+		}
+		
 		return false;
 	}
 
@@ -207,7 +210,7 @@ public:
 		}
 	}
 
-private:
+
 
 	void setBypassed(bool shouldBeBypassed)
 	{
@@ -220,6 +223,8 @@ private:
 				this->obj.reset();
 		}
 	}
+
+	private:
 
 	double sr = 0.0;
 	int smoothingTime;

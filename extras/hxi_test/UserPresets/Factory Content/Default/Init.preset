@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Preset Version="1.0.0">
+  <Content Processor="Interface">
+    <Control type="ScriptComboBox" id="ComboBox1" value="1.0"/>
+    <Control type="ScriptAudioWaveform" id="AudioWaveform1" value="0.0" data="{PROJECT_FOLDER}TestImpulse.wav"
+             rangeStart="0" rangeEnd="21296"/>
+    <Control type="ScriptButton" id="Button1" value="1.0"/>
+    <Control type="ScriptSlider" id="Knob1" value="0.8100000023841858"/>
+    <Control type="ScriptComboBox" id="ComboBox2" value="3.0"/>
+    <Control type="ScriptComboBox" id="ComboBox3" value="2.0"/>
+  </Content>
+  <MidiAutomation/>
+  <MPEData Enabled="0"/>
+</Preset>

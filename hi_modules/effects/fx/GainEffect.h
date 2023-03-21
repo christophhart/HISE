@@ -258,7 +258,9 @@ public:
 
 		lastPos = player->getPlaybackPosition() * player->getCurrentSequence()->getLengthInQuarters() * bf;
 
-		return (int)std::floor(lastPos);
+        using namespace std;
+        
+		return (int)floor(lastPos);
 	}
 
 	void connectToPlayer(MidiPlayer* p)

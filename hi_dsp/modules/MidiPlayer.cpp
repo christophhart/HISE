@@ -300,9 +300,15 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 	MidiFile normalisedFile;
 
 	MidiMessageSequence times;
+	MidiMessageSequence tempos;
 
 	file.findAllTimeSigEvents(times);
+
+	file.findAllTempoEvents(tempos);
 	
+
+	for (auto te : tempos)
+		signature.bpm = jlimit(1.0, 1000.0, 60.0 / jmax(0.0001, te->message.getTempoSecondsPerQuarterNote()));
 
 	int nom = 4;
 	int denom = 4;
@@ -783,7 +789,7 @@ void MidiPlayer::onGridChange(int gridIndex, uint16 timestamp, bool firstGridEve
 	}
 }
 
-void MidiPlayer::onTransportChange(bool isPlaying, double /*ppqPosition*/)
+void MidiPlayer::onTransportChange(bool isPlaying, double ppqPosition)
 {
 	if (syncToMasterClock && !isPlaying)
 	{
@@ -1196,7 +1202,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 						auto noteOffTimeStampInBuffer = noteOff->getTimeStamp() - positionInTicks;
 
 						if (noteOffTimeStampInBuffer < 0.0)
-							noteOffTimeStampInBuffer += lengthInTicks;
+							noteOffTimeStampInBuffer += getCurrentSequence()->getTimeSignature().normalisedLoopRange.getLength() * lengthInTicks;
 
 						timeStamp += timeStampForNextCommand;
 

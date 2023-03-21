@@ -457,9 +457,10 @@ public:
 
 	enum SpecialPanelIds
 	{
-		OnImage = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< The image for the **On** state. Use the same syntax as you when loading images via scripting: `{PROJECT_FOLDER}image.png`
-		OffImage, ///< The image for the **Off** state.
-		ShowMidiLabel, ///< Specifies whether the **MIDI** label should be shown.
+		ShowMidiLabel = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< Specifies whether the **MIDI** label should be shown.
+        MidiLabel,
+        UseMidiPath,
+        Base64MidiPath,
 		numSpecialPanelIds
 	};
 
@@ -475,21 +476,18 @@ public:
 	var getDefaultProperty(int index) const override;
 
 	void paint(Graphics &g) override;
+    void resized() override;
 	void setOn(bool shouldBeOn);
 
 private:
 
-	Path midiShape;
-
-	bool showMidiLabel = true;
-
-	String onName;
-	String offName;
+    bool showMidiLabel;
+    bool useMidiPath;
+    String midiLabel;
+    String base64MidiPath;
+    Path path;
 
 	bool isOn = false;
-
-	PooledImage on;
-	PooledImage off;
 };
 
 /** The base class for every panel.

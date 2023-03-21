@@ -1181,6 +1181,17 @@ double simple_visualiser::getParameter(int index)
 	return 0.0;
 }
 
+InvertableParameterRange simple_visualiser::getParameterRange(int index)
+{
+    if (auto n = getNode())
+    {
+        jassert(isPositiveAndBelow(index, n->getNumParameters()));
+        return RangeHelpers::getDoubleRange(n->getParameterFromIndex(index)->data);
+    }
+
+    return {};
+}
+
 juce::Colour simple_visualiser::getNodeColour()
 {
 	auto c = findParentComponentOfClass<NodeComponent>()->header.colour;

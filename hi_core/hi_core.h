@@ -77,11 +77,6 @@ END_JUCE_MODULE_DECLARATION
 #include <complex>
 
 
-#ifndef HISE_VERSION
-#define HISE_VERSION "2.0.0"
-#endif
-
-
 //=============================================================================
 /** Config: USE_BACKEND
 
@@ -131,6 +126,14 @@ Set this to 1 to disable the creation of the Expansions folder at init (i.e. for
 #define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+/** Config: HISE_BACKEND_AS_FX
+ 
+ Set this to 1 in order to use HISE as a effect plugin. This will simulate the processing setup of an FX plugin (so child sound generators will not be processed etc).
+*/
+#ifndef HISE_BACKEND_AS_FX
+#define HISE_BACKEND_AS_FX 0
+#endif
+
 /** Config: USE_COPY_PROTECTION
 
 If true, then the copy protection will be used
@@ -174,7 +177,11 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 If set to 1, the compiled plugin will be a effect (stereo in / out).
 */
 #ifndef FRONTEND_IS_PLUGIN
+#if USE_BACKEND
+#define FRONTEND_IS_PLUGIN HISE_BACKEND_AS_FX
+#else
 #define FRONTEND_IS_PLUGIN 0
+#endif
 #endif
 
 
@@ -190,9 +197,10 @@ If set to 1, then the FX plugin will also process child sound generators (eg. gl
 
 If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.
 This can be used to simulate an audio effect routing setup (when the appropriate plugin type is selected in the projucer settings).
+
 */
 #ifndef FORCE_INPUT_CHANNELS
-#define FORCE_INPUT_CHANNELS 0
+#define FORCE_INPUT_CHANNELS USE_BACKEND
 #endif
 
 /** Config: HISE_DEACTIVATE_OVERLAY

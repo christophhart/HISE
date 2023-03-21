@@ -238,12 +238,7 @@ public:
 	// ==============================================================================================================================================
 
 	/** Returns the sampleRate of the sample (not the current playback samplerate). */
-	double getSampleRate() const noexcept 
-	{ 
-		// Must be initialised!
-		jassert(sampleRate != -1.0);
-		return sampleRate; 
-	};
+	double getSampleRate() noexcept;;
 
 	/** Returns the length of the loaded audio file in samples. */
 	int64 getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };

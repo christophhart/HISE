@@ -80,6 +80,9 @@ public:
 	/** Enables a preprocessing of every user preset that is being loaded. */
 	void setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData);
 
+    /** Returns true if the user preset that is about to be loaded is a DAW state (or initial state). This function is only useful during the pre / post load callbacks. */
+    bool isInternalPresetLoad() const;
+    
 	/** Checks if the given version string is a older version than the current project version number. */
 	bool isOldVersion(const String& version);
 
@@ -569,7 +572,7 @@ public:
 
 	static constexpr int AllExpansionId = 9000000;
 
-	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport);
+	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport, bool isRhapsody=true);
 	~ExpansionEncodingWindow();
 
 	void logMessage(const String& message, bool /*isCritical*/)
@@ -577,12 +580,18 @@ public:
 		showStatusMessage(message);
 	}
 
+	Result performRhapsodyChecks();
+
 	void run() override;
 	void threadFinished();
 
 	Result encodeResult;
 	
 	bool projectExport = false;
+	bool isRhapsody;
+
+	File rhapsodyOutput;
+
 	WeakReference<Expansion> e;
 };
 

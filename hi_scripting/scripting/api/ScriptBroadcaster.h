@@ -174,7 +174,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	void attachToComponentMouseEvents(var componentIds, var callbackLevel, var optionalMetadata);
 
 	/** Registers this broadcaster to be notified when a context menu item from the given components was selected. */
-	void attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata);
+	void attachToContextMenu(var componentIds, var stateFunction, var itemList, var optionalMetadata, var useLeftClick);
 
     /** Registers this broadcaster to be notified when a complex data object changes. */
     void attachToComplexData(String dataTypeAndEvent, var moduleIds, var dataIndexes, var optionalMetadata);
@@ -190,6 +190,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	/** Attaches this broadcaster to a routing matrix and listens for changes. */
 	void attachToRoutingMatrix(var moduleIds, var optionalMetadata);
+
+	/** Attaches this broadcaster to changes of the audio processing specs (samplerate / buffer size). */
+	void attachToProcessingSpecs(var optionalMetadata);
 
 	/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
 	void callWithDelay(int delayInMilliseconds, var argArray, var function);
@@ -208,6 +211,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
     /** Guarantees that the synchronous execution of the listener callbacks can be called from the audio thread. */
     void setRealtimeMode(bool enableRealTimeMode);
+
+	/** If this broadcaster is attached to a context menu, calling this method will update the states for the menu items. */
+	void refreshContextMenuState();
 
 	// ===============================================================================
 
@@ -546,7 +552,7 @@ private:
 	{
 		struct ProcessorListener;
 
-		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata);
+		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& bypassId);
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ModuleParameter"); }
 
@@ -631,6 +637,32 @@ private:
 		Identifier typeId;
     };
 
+	struct ProcessingSpecSource : public ListenerBase
+	{
+		ProcessingSpecSource(ScriptBroadcaster* b, const var& metadata);
+
+		~ProcessingSpecSource();
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ProcessingSpecs"); }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
+
+		Array<var> createChildArray() const override { return processArgs; };
+
+		Result callItem(TargetBase* n) override;
+
+		static void prepareCalled(ProcessingSpecSource& p, double sampleRate, int blockSize);
+
+		Array<var> processArgs;
+
+		WeakReference<ScriptBroadcaster> parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessingSpecSource);
+	};
+
 	struct ComponentPropertyListener : public ListenerBase
 	{
 		struct InternalListener;
@@ -695,23 +727,7 @@ private:
 		MouseCallbackComponent::CallbackLevel level;
 	};
 
-	struct ContextMenuListener : public ListenerBase
-	{
-		struct InternalMenuListener;
-
-		ContextMenuListener(ScriptBroadcaster* parent, var componentIds, var stateFunction, const StringArray& itemList, const var& metadata);
-
-		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ContextMenu"); }
-
-		int getNumInitialCalls() const override { return 0; }
-		Array<var> getInitialArgs(int callIndex) const override { return {}; }
-
-		Result callItem(TargetBase*) override { return Result::ok(); }
-
-		Array<var> createChildArray() const override { return {}; }
-
-		OwnedArray<InternalMenuListener> items;
-	};
+	struct ContextMenuListener;
 
 	struct ComponentValueListener : public ListenerBase
 	{
@@ -731,6 +747,8 @@ private:
 		Array<var> createChildArray() const override;
 
 		OwnedArray<InternalListener> items;
+
+		
 	};
 
 	struct RadioGroupListener : public ListenerBase

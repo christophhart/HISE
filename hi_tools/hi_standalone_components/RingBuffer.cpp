@@ -41,6 +41,7 @@ SimpleRingBuffer::SimpleRingBuffer()
 
 void SimpleRingBuffer::setupReadBuffer(AudioSampleBuffer& b)
 {
+    ScopedLock sl(getReadBufferLock());
 	auto numChannels = internalBuffer.getNumChannels();
 	auto numSamples = internalBuffer.getNumSamples();
 
@@ -255,6 +256,8 @@ void SimpleRingBuffer::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
 		setupReadBuffer(externalBuffer);
 	else
 	{
+        ScopedLock sl(getReadBufferLock());
+        
 		read(externalBuffer);
 
 		if (properties != nullptr && getReferenceCount() > 1)

@@ -2069,6 +2069,8 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, registerFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, setGlobalFont);
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, loadImage);
+	API_VOID_METHOD_WRAPPER_0(ScriptedLookAndFeel, unloadAllImages);
+	API_METHOD_WRAPPER_1(ScriptedLookAndFeel, isImageLoaded);
 };
 
 
@@ -2082,6 +2084,8 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ADD_API_METHOD_2(registerFunction);
 	ADD_API_METHOD_2(setGlobalFont);
 	ADD_API_METHOD_2(loadImage);
+	ADD_API_METHOD_0(unloadAllImages);
+	ADD_API_METHOD_1(isImageLoaded);
 
 	if(isGlobal)
 		getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
@@ -2127,6 +2131,7 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawNumberTag",
 		"createPresetBrowserIcons",
 		"drawPresetBrowserBackground",
+        "drawPresetBrowserDialog",
 		"drawPresetBrowserColumnBackground",
 		"drawPresetBrowserListItem",
 		"drawPresetBrowserSearchBar",
@@ -3695,6 +3700,9 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics&
 		obj->setProperty("hover", isMouseOver);
 		obj->setProperty("down", isMouseDown);
 
+		obj->setProperty("sortColumnId", d.sortColumnId);
+		obj->setProperty("sortForwards", d.sortForward);
+
 		Rectangle<int> a(0, 0, width, height);
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(a.toFloat()));
@@ -3880,9 +3888,21 @@ void ScriptingObjects::ScriptedLookAndFeel::loadImage(String imageName, String p
 	}
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::unloadAllImages()
+{
+	loadedImages.clear();
+}
 
-
-
+bool ScriptingObjects::ScriptedLookAndFeel::isImageLoaded(String prettyName)
+{
+	for (auto& img : loadedImages)
+	{
+		if (img.prettyName == prettyName)
+			return true;
+	}
+	
+	return false;
+}
 
 ScriptingObjects::ScriptedLookAndFeel::LocalLaf::LocalLaf(ScriptedLookAndFeel* l) :
 	Laf(l->getScriptProcessor()->getMainController_()),

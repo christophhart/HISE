@@ -627,6 +627,12 @@ namespace control
 				updateValue();
 			}
 		}
+        
+        void onResync(double newPos) override
+        {
+            ppqPos = newPos;
+            updateValue();
+        }
 
 		template <int P> void setParameter(double v)
 		{

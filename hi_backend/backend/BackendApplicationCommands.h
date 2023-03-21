@@ -93,6 +93,7 @@ public:
 		MenuProjectLoad,
 		MenuCloseProject,
 		MenuFileArchiveProject,
+		MenuFileImportProjectFromHXI,
 		MenuFileDownloadNewProject,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
@@ -195,6 +196,7 @@ public:
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsDeviceSimulatorOffset,
+        MenuToolsCreateRnboTemplate,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
 		MenuHelpShowHelpForComponents,
@@ -310,6 +312,7 @@ public:
 	{
 	public:
 
+		
 		static void editShortcuts(BackendRootWindow* bpe);
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
@@ -332,12 +335,16 @@ public:
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
+		static void importProject(BackendRootWindow* bpe);
 
+        static void createRnboTemplate(BackendRootWindow* bpe);
 		static void convertSVGToPathData(BackendRootWindow* bpe);
 
 		static void applySampleMapProperties(BackendRootWindow* bpe);
 
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
+
+		
 
 		static void closeProject(BackendRootWindow *bpe);
 		static void showProjectInFinder(BackendRootWindow *bpe);
@@ -363,6 +370,10 @@ public:
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendRootWindow * bpe);
 		static void exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe);
+		static Result exportInstrumentExpansion(BackendProcessor* bp);
+		static Result createSampleArchive(BackendProcessor* bp);
+
+
 		static void compileNetworksToDll(BackendRootWindow* bpe);
 		static void cleanBuildDirectory(BackendRootWindow * bpe);
 		static void convertAllSamplesToMonolith(BackendRootWindow * bpe);

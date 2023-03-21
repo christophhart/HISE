@@ -63,6 +63,7 @@ public:
 
 	virtual void setNonRealtime(bool isNonRealtime)
 	{
+		nonRealtime = isNonRealtime;
 		wrappedVoice.loader.setIsNonRealtime(isNonRealtime);
 	}
 
@@ -95,8 +96,36 @@ public:
 	
 	// ================================================================================================================
 
+	void setEnablePlayFromPurge(bool shouldBeEnabled)
+	{
+		auto isEnabled = playFromPurger != nullptr;
+
+		if (isEnabled != shouldBeEnabled)
+		{
+			if (shouldBeEnabled)
+				playFromPurger = new PlayFromPurger(this);
+			else
+				playFromPurger = nullptr;
+		}
+	}
+
 protected:
 	
+	
+
+	struct PlayFromPurger : public SampleThreadPool::Job
+	{
+		PlayFromPurger(ModulatorSamplerVoice* voiceToPreload);
+
+		void notifyStart(int n, float ve);
+
+		JobStatus runJob() override;
+
+		ModulatorSamplerVoice& v;
+		int number;
+		float velocity;
+	};
+
 	ModulatorSamplerSound *currentlyPlayingSamplerSound;
 
 
@@ -106,9 +135,19 @@ protected:
 	float velocityXFadeValue;
 	float sampleStartModValue;
 
+	virtual void startVoiceInternal(int midiNoteNumber, float velocity);
+
+	int calculateSampleStartMod();
+
 	// ================================================================================================================
 
+	ScopedPointer<PlayFromPurger> playFromPurger;
+	std::atomic<bool> waitForPlayFromPurge = { false };
+
 private:
+
+	bool nonRealtime = false;
+	
 
 	StreamingSamplerVoice wrappedVoice;
 
@@ -157,6 +196,9 @@ public:
 	}
 
 	// ================================================================================================================
+
+	void startVoiceInternal(int midiNoteNumber, float velocity) override;
+
 private:
 
 	OwnedArray<StreamingSamplerVoice> wrappedVoices;

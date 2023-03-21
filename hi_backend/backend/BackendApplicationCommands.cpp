@@ -170,6 +170,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsApplySampleMapProperties,
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
+        MenuToolsCreateRnboTemplate,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewFullscreen,
@@ -274,7 +275,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuProjectNew:
-		setCommandTarget(result, "Create new Project folder", true, false, 'X', false);
+		setCommandTarget(result, "Create new Project", true, false, 'X', false);
 		result.categoryName = "File";
 		break;
 	case MenuProjectLoad:
@@ -323,7 +324,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsPlayerLibrary:
-		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
+		setCommandTarget(result, "Export as Full Instrument Expansion", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsMidiFXPlugin:
@@ -343,7 +344,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuExportSampleDataForInstaller:
-		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		setCommandTarget(result, "Export Samples as archive", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportCompileFilesInPool:
@@ -539,6 +540,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+    case MenuToolsCreateRnboTemplate:
+        setCommandTarget(result, "Create C++ template for RNBO patch", true, false, 'X', false);
+        result.categoryName = "Tools";
+        break;
 	case MenuToolsConvertSampleMapToWavetableBanks:
 		setCommandTarget(result, "Convert samplemap to Wavetable Bank", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -762,6 +767,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
+    case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
@@ -974,10 +980,14 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsMidiFXPlugin);
 		ADD_DESKTOP_ONLY(MenuExportFileAsStandaloneApp);
 		
-		p.addSectionHeader("Export Tools");
+		p.addSeparator();
+
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
+
+		p.addSectionHeader("Export Tools");
+		
 		ADD_DESKTOP_ONLY(MenuFileSettingsCleanBuildDirectory);
 		ADD_DESKTOP_ONLY(MenuExportCompileFilesInPool);
 		ADD_DESKTOP_ONLY(MenuExportCompileNetworksAsDll);
@@ -1033,6 +1043,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsShowDspNetworkDllInfo);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		ADD_DESKTOP_ONLY(MenuToolsSimulateChangingBufferSize);
+        ADD_DESKTOP_ONLY(MenuToolsCreateRnboTemplate);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenseFile);
@@ -1853,6 +1864,11 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 	
 }
 
+void BackendCommandTarget::Actions::createRnboTemplate(BackendRootWindow* bpe)
+{
+    auto s = new RNBOTemplateBuilder(bpe);
+    s->setModalBaseWindowComponent(bpe);
+}
 
 void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 {
@@ -2072,6 +2088,9 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 
 void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 {
+	importProject(bpe);
+
+#if 0
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
     if (!shouldDiscard) return;
@@ -2087,6 +2106,7 @@ void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 		bpe->getBackendProcessor()->clearPreset();
 		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
 	}
+#endif
 }
 
 void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
@@ -2138,6 +2158,12 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		
 	}
 #endif
+}
+
+void BackendCommandTarget::Actions::importProject(BackendRootWindow* bpe)
+{
+	auto importWindow = new ProjectImporter(bpe);
+	importWindow->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::convertSVGToPathData(BackendRootWindow* bpe)
@@ -2425,48 +2451,52 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
                          
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
-	auto& h = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
 
-	if (bpe->getMainController()->getExpansionHandler().getEncryptionKey().isEmpty())
+	if (e->encodeResult.failed())
 	{
-		auto k = dynamic_cast<GlobalSettingManager*>(bpe->owner)->getSettingsObject().getSetting(HiseSettings::Project::EncryptionKey).toString();
+		PresetHandler::showMessageWindow("Encoding Error", e->encodeResult.getErrorMessage(), PresetHandler::IconType::Error);
+		return;
+	}
 
-		if (k.isNotEmpty())
-			bpe->getMainController()->getExpansionHandler().setEncryptionKey(k);
-		else
+
+	e->setModalBaseWindowComponent(bpe);
+}
+
+juce::Result BackendCommandTarget::Actions::exportInstrumentExpansion(BackendProcessor* bp)
+{
+	ScopedPointer<ExpansionEncodingWindow> ne = new ExpansionEncodingWindow(bp, nullptr, true);
+
+	ne->runSynchronous(false);
+
+	return ne->encodeResult;
+}
+
+juce::Result BackendCommandTarget::Actions::createSampleArchive(BackendProcessor* bp)
+{
+	auto infoFile = GET_PROJECT_HANDLER(bp->getMainSynthChain()).getWorkDirectory().getChildFile("info.hxi");
+
+	auto exporter = new SampleDataExporter(bp);
+
+	if (auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(1)))
+	{
+		
+		fc->setCurrentFile(infoFile.getParentDirectory(), dontSendNotification);
+	}
+
+	if (infoFile.existsAsFile())
+	{
+		exporter->showStatusMessage("Adding info.hxi file to metadata");
+
+		if (auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(0)))
 		{
-			PresetHandler::showMessageWindow("No encryption key", "You have to specify an encryption key in order to encode the project as full expansion", PresetHandler::IconType::Error);
-			return;
+			fc->setCurrentFile(infoFile, dontSendNotification);
 		}
 	}
 
-	auto existingIntermediate = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
+	exporter->runSynchronous();
 
-	if (existingIntermediate.existsAsFile())
-		existingIntermediate.deleteFile();
-
-	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
-    e->setAdditionalFinishCallback([bpe]()
-    {
-        if(PresetHandler::showYesNoWindow("Create a .hr1 archive", "Do you want to compress the samples and embed the exported expansion into a archive for distribution?"))
-        {
-            Timer::callAfterDelay(500, [bpe]()
-            {
-                auto infoFile = GET_PROJECT_HANDLER(bpe->getMainController()->getMainSynthChain()).getWorkDirectory().getChildFile("info.hxi");
-                
-                jassert(infoFile.existsAsFile());
-                auto exporter = new SampleDataExporter(bpe->getMainController());
-
-                exporter->setModalBaseWindowComponent(bpe->mainEditor);
-                if(auto fc = dynamic_cast<FilenameComponent*>(exporter->getCustomComponent(0)))
-                {
-                    fc->setCurrentFile(infoFile, dontSendNotification);
-                }
-            });
-        }
-    });
-    
-	e->setModalBaseWindowComponent(bpe);
+	return Result::ok();
 }
 
 void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
@@ -2981,24 +3011,7 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
 		codeFile.revealToUser();
 
-		File npFile = thirdPartyFolder.getChildFile("node_properties").withFileExtension("json");
-
-		var np;
-
-		if(npFile.existsAsFile())
-			np = JSON::parse(npFile);
-
-		if (np.getDynamicObject() == nullptr)
-			np = var(new DynamicObject());
-
-		auto obj = np.getDynamicObject();
-
-		Array<var> propList;
-		propList.add(PropertyIds::IsPolyphonic.toString());
-
-		obj->setProperty(Identifier(n), var(propList));
-
-		npFile.replaceWithText(JSON::toString(np));
+        BackendDllManager::addNodePropertyToJSONFile(bpe->getMainController(), n, PropertyIds::IsPolyphonic);
 	}
 }
 

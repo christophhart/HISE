@@ -246,6 +246,8 @@ public:
 
 private:
 
+	friend class ProjectImporter;
+
 	FloatingTabComponent* getCodeTabs();
 
 	bool learnMode = false;

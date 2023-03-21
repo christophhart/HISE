@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ContentProperties DeviceType="Desktop">
+  <Component type="ScriptLabel" id="Label1" x="40.0" y="80.0" text="2023-03-20T13:54:48.178+01:00"
+             width="478.0" textColour="-3669761" editable="0" fontName="Dosis"
+             fontSize="18"/>
+  <Component type="ScriptComboBox" id="ComboBox1" x="190.0" y="235.0" max="2"
+             width="240.0" height="30.0" items="{PROJECT_FOLDER}TestImpulse.wav&#10;{PROJECT_FOLDER}TestImpulse2.wav"/>
+  <Component type="ScriptAudioWaveform" id="AudioWaveform1" x="80.0" y="300.0"
+             processorId="Convolution Reverb1" width="470.0" height="100.0"/>
+  <Component type="ScriptButton" id="Button1" x="436.0" y="160.0" filmstripImage="{PROJECT_FOLDER}ButtonInverted.png"
+             numStrips="6.0" width="32.0" height="32.0" scaleFactor="0.5"/>
+  <Component type="ScriptSlider" id="Knob1" x="162.3168870108202" y="420.0"
+             stepSize="0.009999999776482582" filmstripImage="{PROJECT_FOLDER}Knob.png"
+             numStrips="64.0" height="64.0" scaleFactor="0.5" width="64.0"
+             processorId="Script FX1" parameterId="Feedback"/>
+  <Component type="ScriptComboBox" id="ComboBox2" x="190.0" y="200.0" max="3"
+             width="240.0" height="30.0" items="Noise&#10;Sine&#10;Triangle"/>
+  <Component type="ScriptComboBox" id="ComboBox3" x="190.0" y="161.0" max="3"
+             width="239.0" height="32.0" items="{PROJECT_FOLDER}Never gonna give you up.mid&#10;{PROJECT_FOLDER}Pirates.mid&#10;{PROJECT_FOLDER}Super Mario 64.mid"/>
+</ContentProperties>

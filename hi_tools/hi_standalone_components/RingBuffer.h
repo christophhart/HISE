@@ -284,8 +284,12 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		SimpleRingBuffer* p;
 	};
 
+    CriticalSection& getReadBufferLock() { return readBufferLock; }
+    
 private:
 
+    CriticalSection readBufferLock;
+    
 	static PropertyObject* createPropertyObject(int propertyIndex, WriterBase* b);
 
 	public:

@@ -47,6 +47,7 @@ DECLARE_ID(ProjectSettings);
 DECLARE_ID(UserSettings);
 DECLARE_ID(CompilerSettings);
 DECLARE_ID(GeneralSettings);
+DECLARE_ID(ExpansionSettings);
 DECLARE_ID(AudioSettings);
 DECLARE_ID(MidiSettings);
 DECLARE_ID(ScriptingSettings);
@@ -112,6 +113,15 @@ DECLARE_ID(FaustExternalEditor);
 Array<Identifier> getAllIds();
 
 } // Compiler
+
+namespace ExpansionSettings
+{
+DECLARE_ID(UUID);
+DECLARE_ID(Tags);
+DECLARE_ID(Description);
+
+Array<Identifier> getAllIds();
+}
 
 namespace User
 {

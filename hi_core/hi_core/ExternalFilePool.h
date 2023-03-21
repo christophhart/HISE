@@ -94,6 +94,7 @@ private:
 using MidiFileReference = SharedFileReference<MidiFile>;
 using AdditionalDataReference = SharedFileReference<String>;
 
+class FileHandlerBase;
 class PoolBase;
 
 /** Helper functions for the file pools. 
@@ -280,6 +281,9 @@ struct PoolHelpers
 		bool isRelativeReference() const;
 		bool isAbsoluteFile() const;
 		bool isEmbeddedReference() const;;
+
+		/** Tries to resolve the file reference given a root folder. */
+		File resolveFile(FileHandlerBase* handler, FileHandlerBase::SubDirectories type) const;
 
 		/** This creates an input stream for the reference. If it's file based, it will be a FileInputStream, and for embedded references you'll get a MemoryInputStream. */
 	 	InputStream* createInputStream() const;
@@ -1012,12 +1016,24 @@ public:
 		}
 	}
 
+	
+
 	void writeItemToOutput(OutputStream& output, PoolReference r)
 	{
 		auto d = getWeakReferenceToItem(r);
 
-		if(d)
-			getDataProvider()->getCompressor()->write(output, *d.getData(), d.getRef().getFile());
+		if (d)
+		{
+			auto ref = d.getRef();
+
+			File original;
+
+			if (!ref.isEmbeddedReference())
+				original = ref.getFile();
+
+			getDataProvider()->getCompressor()->write(output, *d.getData(), original);
+		}
+			
 	}
 
 	ManagedPtr getWeakReferenceToItem(PoolReference r)

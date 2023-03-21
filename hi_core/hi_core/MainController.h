@@ -582,6 +582,25 @@ public:
 	{
 	public:
 
+        struct ScopedInternalPresetLoadSetter: public ControlledObject
+        {
+            ScopedInternalPresetLoadSetter(MainController* mc):
+              ControlledObject(mc)
+            {
+                auto& flag = getMainController()->getUserPresetHandler().isInternalPresetLoadFlag;
+                prevValue = flag;
+                flag = true;
+            }
+            
+            ~ScopedInternalPresetLoadSetter()
+            {
+                getMainController()->getUserPresetHandler().isInternalPresetLoadFlag = prevValue;
+            }
+            
+            
+            bool prevValue;
+        };
+        
 		struct StoredModuleData : public ReferenceCountedObject
 		{
 			using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
@@ -833,6 +852,8 @@ public:
 		/** @internal */
 		void sendRebuildMessage();
 
+        bool isInternalPresetLoad() const { return isInternalPresetLoadFlag; }
+        
 		bool isUsingCustomDataModel() const { return isUsingCustomData; };
 		
 		bool isUsingPersistentObject() const { return usePersistentObject; }
@@ -934,6 +955,7 @@ public:
 
 		bool isUsingCustomData = false;
 		bool usePersistentObject = false;
+        bool isInternalPresetLoadFlag = false;
 
 		CustomAutomationData::List customAutomationData;
 
@@ -1182,6 +1204,8 @@ public:
 		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
 		bool voiceStartIsDisabled() const;
 
+        bool isCurrentlyExporting() const { return threadIds[TargetThread::AudioExportThread] != nullptr; }
+        
 		/** Call this in the processBlock method and it will check whether voice starts are allowed.
 		*
 		*	It checks if anything is pending and if yes, voiceStartIsDisabled() will return true for the callback.
@@ -1205,11 +1229,6 @@ public:
 
 		/** This can be set by the Internal Preloader. */
 		void setSampleLoadingThreadId(void* newId);
-
-		void setAudioExportThread(void* threadId)
-		{
-			threadIds[TargetThread::AudioExportThread] = threadId;
-		}
 
 		TargetThread getCurrentThread() const;
 
@@ -1252,7 +1271,8 @@ public:
 
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
-		
+        void setCurrentExportThread(void* exportThread);
+        
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -1517,6 +1537,8 @@ public:
 	const MasterClock& getMasterClock() const { return masterClock; }
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
+
+	LambdaBroadcaster<double, int>& getSpecBroadcaster() { return specBroadcaster; }
 
     const CriticalSection& getLock() const;
     
@@ -1912,6 +1934,8 @@ private:
 #if HISE_INCLUDE_RLOTTIE
 	ScopedPointer<RLottieManager> rLottieManager;
 #endif
+
+	LambdaBroadcaster<double, int> specBroadcaster;
 
 	Array<WeakReference<ControlledObject>> registeredObjects;
 

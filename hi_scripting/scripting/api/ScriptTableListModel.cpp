@@ -36,6 +36,7 @@ ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, con
 	TableListBoxModel(),
 	tableMetadata(td),
 	cellCallback(p, nullptr, var(), 3),
+	sortCallback(p, nullptr, var(), 2),
 	pwsc(p)
 {
 	tableRefreshBroadcaster.enableLockFreeUpdate(p->getMainController_()->getGlobalUIUpdater());
@@ -83,16 +84,23 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		{
 		case CellType::Button:
 		{
-			if (auto b = dynamic_cast<juce::Button*>(existingComponentToUpdate))
+			if (auto b = dynamic_cast<MomentaryToggleButton*>(existingComponentToUpdate))
+			{
+				b->getProperties().set("RowIndex", rowNumber);
 				b->setToggleState((bool)value, dontSendNotification);
+			}
+				
 
 			break;
 		}
 		case CellType::Slider:
 		{
 			if (auto s = dynamic_cast<juce::Slider*>(existingComponentToUpdate))
+			{
+				s->getProperties().set("RowIndex", rowNumber);
 				s->setValue(value, dontSendNotification);
-
+			}
+			
 			break;
 		}
 		case CellType::Image:
@@ -118,13 +126,16 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 
 			b->setIsMomentary(momentary);
 
-			auto r = rowNumber;
 			auto c = columnId + 1;
 			
-			b->onClick = [r, c, b, this]()
+			b->getProperties().set("RowIndex", rowNumber);
+
+			b->onClick = [c, b, this]()
 			{
 				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
 				
+				auto r = (int)b->getProperties()["RowIndex"];
+
 				if (auto obj = rowData[r].getDynamicObject())
 				{
 					obj->setProperty(id, b->getToggleState());
@@ -147,6 +158,8 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			auto n = cd[scriptnode::PropertyIds::ID].toString();
 			n << String(rowNumber);
 
+			s->getProperties().set("RowIndex", rowNumber);
+
 			s->setName(n);
 
 			auto r = scriptnode::RangeHelpers::getDoubleRange(cd);
@@ -155,12 +168,14 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			s->setScrollWheelEnabled(false);
 
 			auto s_ = s;
-			auto r_ = rowNumber;
+			
 			auto c = columnId+1;
 
-			s->onValueChange = [s_, r_, c, this]()
+			s->onValueChange = [s_, c, this]()
 			{
 				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
+
+				auto r_ = (int)s_->getProperties()["RowIndex"];
 
 				if (auto obj = rowData[r_].getDynamicObject())
 				{
@@ -224,6 +239,9 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 
 			int flag = TableHeaderComponent::ColumnPropertyFlags::visible;
 
+			if(tableMetadata.getProperty("Sortable", false))
+				flag |= TableHeaderComponent::ColumnPropertyFlags::sortable;
+
 			header.addColumn(label, idx, w, min, max, flag);
 			idx++;
 		}
@@ -234,7 +252,6 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 	t->setRowHeight(tableMetadata.getProperty("RowHeight", 20));
 	t->setMultipleSelectionEnabled(tableMetadata.getProperty("MultiSelection", false));
 	t->getViewport()->setScrollOnDragEnabled(tableMetadata.getProperty("ScrollOnDrag", false));
-
 
 	t->setModel(this);
 }
@@ -276,6 +293,8 @@ void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderBackground(
 {
 	auto d = getDataFromTableHeader(h);
 
+	
+
 	g.setColour(d.itemColour2);
 	g.fillAll();
 }
@@ -294,6 +313,20 @@ void ScriptTableListModel::LookAndFeelMethods::drawDefaultTableHeaderColumn(Grap
 
 	g.setColour(d.textColour);
 	g.drawText(columnName, a.toFloat().reduced(3.0f), d.c);
+
+	if (d.sortColumnId == columnId)
+	{
+		auto b = a.toFloat().removeFromRight(a.getHeight()).reduced(8.0f);
+
+		Path p;
+
+		if (!d.sortForward)
+			p.addTriangle(b.getBottomLeft(), { b.getCentreX(), b.getY() }, b.getBottomRight());
+		else
+			p.addTriangle(b.getTopLeft(), { b.getCentreX(), b.getBottom() }, b.getTopRight());
+		
+		g.fillPath(p);
+	}
 }
 
 ScriptTableListModel::LookAndFeelData ScriptTableListModel::LookAndFeelMethods::getDataFromTableHeader(TableHeaderComponent& h)
@@ -364,6 +397,49 @@ void ScriptTableListModel::setColours(Colour textColour, Colour bgColour, Colour
 	d.itemColour2 = itemColour2;
 }
 
+void ScriptTableListModel::sortOrderChanged(int newSortColumnId, bool isForwards)
+{
+	auto idToUse = Identifier(columnMetadata[newSortColumnId-1]["ID"].toString());
+
+	d.sortColumnId = newSortColumnId;
+	d.sortForward = isForwards;
+
+	jassert(idToUse.isValid());
+
+	struct PropertySorter
+	{
+		PropertySorter(const Identifier& p_, bool sortForward_, const SortFunction& sf_):
+			p(p_),
+			sortForward(sortForward_),
+			sf(sf_)
+		{
+
+		}
+
+		int compareElements(const var& first, const var& second) const
+		{
+			auto v1 = first[p];
+			auto v2 = second[p];
+
+			if (!sortForward)
+				std::swap(v1, v2);
+
+			return sf(v1, v2);
+		}
+
+		const Identifier p;
+		const bool sortForward;
+		SortFunction sf;
+	};
+
+	if (auto a = rowData.getArray())
+	{
+		PropertySorter sorter(idToUse, isForwards, sortFunction);
+
+		a->sort(sorter);
+	}
+}
+
 Result ScriptTableListModel::setEventTypesForValueCallback(var eventTypeList)
 {
 	StringArray eventTypes =
@@ -409,6 +485,12 @@ Result ScriptTableListModel::setEventTypesForValueCallback(var eventTypeList)
 		return Result::fail("event type list is not an array");
 
 	return Result::ok();
+}
+
+int ScriptTableListModel::getOriginalRowIndex(int rowIndex) const
+{
+	auto item = rowData[rowIndex];
+	return originalRowData.indexOf(item);
 }
 
 void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseEvent& e)
@@ -462,9 +544,48 @@ void ScriptTableListModel::returnKeyPressed(int lastRowSelected)
 	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::ReturnKey);
 }
 
+void ScriptTableListModel::setTableSortFunction(var newSortFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(newSortFunction))
+	{
+		sortCallback = WeakCallbackHolder(pwsc, nullptr, newSortFunction, 2);
+		sortCallback.incRefCount();
+		
+
+		sortFunction = [this](const var& v1, const var& v2)
+		{
+			if (!sortCallback)
+				return defaultSorter(v1, v2);
+
+			var args[2] = { v1, v2 };
+			var rv;
+			sortCallback.callSync(args, 2, &rv);
+
+			return (int)rv;
+		};
+	}
+	else
+	{
+		sortFunction = defaultSorter;
+	}
+}
+
 void ScriptTableListModel::setRowData(var rd)
 {
-	rowData = rd.clone();
+	originalRowData = rd.clone();
+
+	Array<var> newData;
+
+	if (auto a = originalRowData.getArray())
+		newData.addArray(*a);
+
+	rowData = var(newData);
+
+	if (d.sortColumnId != 0)
+	{
+		sortOrderChanged(d.sortColumnId, d.sortForward);
+	}
+
 	tableRefreshBroadcaster.sendMessage(sendNotificationAsync, -1);
 }
 

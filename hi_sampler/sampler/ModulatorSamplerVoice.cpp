@@ -32,32 +32,34 @@
 
 namespace hise { using namespace juce;
 
-void ModulatorSamplerVoice::startNote(int midiNoteNumber,
-	float velocity,
-	SynthesiserSound* s,
-	int /*currentPitchWheelPosition*/)
+void ModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocity)
 {
-    ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::SampleStart);
-    
-    ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
-
-	midiNoteNumber += getTransposeAmount();
-
-	jassert(s != nullptr);
-
-	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
-    
 	auto sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
-
-	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
-	const bool samePitch = !sampler->isPitchTrackingEnabled();
-
+	auto startMod = calculateSampleStartMod();
 	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
 
+	wrappedVoice.setPitchFactor(midiNoteNumber, !sampler->isPitchTrackingEnabled() ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound.get(), getOwnerSynth()->getMainController()->getGlobalPitchFactor());
+	wrappedVoice.setSampleStartModValue(startMod);
+	wrappedVoice.startNote(midiNoteNumber, velocity, sound.get(), -1);
+
+	voiceUptime = wrappedVoice.voiceUptime;
+	uptimeDelta = wrappedVoice.uptimeDelta;
+	isActive = true;
+
+	jassert(uptimeDelta > 0.0);
+	jassert(sound->isEntireSampleLoaded() || uptimeDelta <= MAX_SAMPLER_PITCH);
+}
+
+
+
+int ModulatorSamplerVoice::calculateSampleStartMod()
+{
 	int sampleStartModulationDelta;
 
 	// if value is >= 0, then it comes from the modulator chain value
 	const bool sampleStartModIsFromChain = sampleStartModValue >= 0.0f;
+
+	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
 
 	if (sampleStartModIsFromChain)
 	{
@@ -75,17 +77,39 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
 	}
 
-	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound.get(), getOwnerSynth()->getMainController()->getGlobalPitchFactor());
-	wrappedVoice.setSampleStartModValue(sampleStartModulationDelta);
-	wrappedVoice.startNote(midiNoteNumber, velocity, sound.get(), -1);
+	return sampleStartModulationDelta;
+}
 
-	voiceUptime = wrappedVoice.voiceUptime;
-	uptimeDelta = wrappedVoice.uptimeDelta;
-    isActive = true;
+void ModulatorSamplerVoice::startNote(int midiNoteNumber,
+	float velocity,
+	SynthesiserSound* s,
+	int /*currentPitchWheelPosition*/)
+{
+    ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::SampleStart);
+    
+    ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
-	jassert(uptimeDelta > 0.0);
-	jassert(sound->isEntireSampleLoaded() || uptimeDelta <= MAX_SAMPLER_PITCH);
+	midiNoteNumber += getTransposeAmount();
 
+	jassert(s != nullptr);
+
+	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
+    
+	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
+	
+	if (playFromPurger != nullptr && 
+		currentlyPlayingSamplerSound->hasUnpurgedButUnloadedSounds())
+	{
+		// We need to notify the sample thread to preload this sample now...
+		playFromPurger->notifyStart(midiNoteNumber, velocity);
+	}
+	else
+	{
+		startVoiceInternal(midiNoteNumber, velocity);
+	}
+	
+	
+	
 	if (auto fEnve = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PanMode))
 	{
 		if (auto fe = sampler->getEnvelopeFilter())
@@ -105,6 +129,12 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
+	if (waitForPlayFromPurge.load())
+	{
+		voiceBuffer.clear(startSample, numSamples);
+		return;
+	}
+
     const StreamingSamplerSound *sound = wrappedVoice.getLoadedSound();
     
 	// In a synthgroup it might be possible that the wrapped sound is null
@@ -223,6 +253,8 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		handlePlaybackPosition(sound);
 	}
 }
+
+
 
 void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound)
 {
@@ -343,6 +375,8 @@ const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSampl
 	return sampler->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
 }
 
+
+
 void ModulatorSamplerVoice::resetVoice()
 {
 	sampler->resetNoteDisplay(this->getCurrentlyPlayingNote() + getTransposeAmount());
@@ -384,45 +418,15 @@ ModulatorSamplerVoice(ownerSynth)
 	}
 }
 
-void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/)
+void MultiMicModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocity)
 {
-	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
-
-	jassert(s != nullptr);
-
-	midiNoteNumber += transposeAmount;
-
-	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
-
-	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
-	const bool samePitch = !sampler->isPitchTrackingEnabled();
-
-	const int rootNote = samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote();
-	const double globalPitchFactor = getOwnerSynth()->getMainController()->getGlobalPitchFactor();
-    
-
-	int sampleStartModulationDelta;
-
+	auto sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
+	auto startMod = calculateSampleStartMod();
 	auto sound = currentlyPlayingSamplerSound->getReferenceToSound();
 
-	// if value is >= 0, then it comes from the modulator chain value
-	const bool sampleStartModIsFromChain = sampleStartModValue >= 0.0f;
-
-	if (sampleStartModIsFromChain)
-	{
-		jassert(sampleStartModValue <= 1.0f);
-		sampleStartModulationDelta = (int)(jlimit<float>(0.0f, 1.0f, sampleStartModValue) * sound->getSampleStartModulation());
-	}
-	else
-	{
-		auto maxOffset = sound->getSampleStartModulation();
-
-		// just flip the sign and use it directly...
-		sampleStartModulationDelta = jlimit<int>(0, maxOffset, (int)(-1.0f * sampleStartModValue));
-
-		// Now set the sample start mod value...
-		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
-	}
+	const bool samePitch = !sampler->isPitchTrackingEnabled();
+	const int rootNote = samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote();
+	const double globalPitchFactor = getOwnerSynth()->getMainController()->getGlobalPitchFactor();
 
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{
@@ -439,18 +443,50 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 		StreamingSamplerVoice *voiceToUse = wrappedVoices[i];
 
 		voiceToUse->setPitchFactor(midiNoteNumber, rootNote, micSound.get(), globalPitchFactor);
-		voiceToUse->setSampleStartModValue(sampleStartModulationDelta);
+		voiceToUse->setSampleStartModValue(startMod);
 		voiceToUse->startNote(midiNoteNumber, velocity, micSound.get(), -1);
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 		uptimeDelta = wrappedVoices[i]->uptimeDelta;
-        isActive = true;
+		isActive = true;
+	}
+}
+
+void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/)
+{
+	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
+
+	jassert(s != nullptr);
+
+	midiNoteNumber += transposeAmount;
+
+	
+
+	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
+
+	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
+	
+	if (playFromPurger != nullptr &&
+		currentlyPlayingSamplerSound->hasUnpurgedButUnloadedSounds())
+	{
+		// We need to notify the sample thread to preload this sample now...
+		playFromPurger->notifyStart(midiNoteNumber, velocity);
+	}
+	else
+	{
+		startVoiceInternal(midiNoteNumber, velocity);
 	}
 }
 
 void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
 	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::MultiMicSampleRendering);
+
+	if (waitForPlayFromPurge.load())
+	{
+		voiceBuffer.clear(startSample, numSamples);
+		return;
+	}
 
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
@@ -632,6 +668,57 @@ void MultiMicModulatorSamplerVoice::resetVoice()
 	}
 
 	ModulatorSynthVoice::resetVoice();
+}
+
+
+
+ModulatorSamplerVoice::PlayFromPurger::PlayFromPurger(ModulatorSamplerVoice* voiceToPreload) :
+	Job("Play from purge"),
+	v(*voiceToPreload)
+{
+
+}
+
+void ModulatorSamplerVoice::PlayFromPurger::notifyStart(int n, float ve)
+{
+	number = n;
+	velocity = ve;
+
+	v.waitForPlayFromPurge.store(true);
+
+	// in non realtime mode we want to force the preloading at this point.
+	if (v.nonRealtime)
+		runJob();
+	else
+		v.getOwnerSynth()->getMainController()->getSampleManager().getGlobalSampleThreadPool()->addJob(this, false);
+}
+
+hise::SampleThreadPool::Job::JobStatus ModulatorSamplerVoice::PlayFromPurger::runJob()
+{
+	auto sampler = static_cast<ModulatorSampler*>(v.getOwnerSynth());
+	auto sound = v.getCurrentlyPlayingSamplerSound();
+	auto preloadSize = sampler->getAttribute(ModulatorSampler::Parameters::PreloadSize);
+	
+	if(preloadSize != -1)
+		preloadSize *= sampler->getPreloadScaleFactor();
+
+	for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
+	{
+		if (shouldExit())
+			return SampleThreadPool::Job::jobNeedsRunningAgain;
+
+		sound->getReferenceToSound(i)->setPreloadSize(preloadSize, false);
+	}
+	
+	v.startVoiceInternal(number, velocity);
+
+	v.saveStartUptimeDelta();
+
+	sampler->refreshMemoryUsage(true);
+
+	v.waitForPlayFromPurge.store(false);
+
+	return SampleThreadPool::Job::jobHasFinished;
 }
 
 } // namespace hise

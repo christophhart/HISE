@@ -207,7 +207,7 @@ void GlobalServer::WebThread::run()
 					if (threadShouldExit())
 						return;
 
-					auto response = wis != nullptr ? wis->readEntireStreamAsString() : "{}";
+					auto response = wis != nullptr ? wis->readEntireStreamAsString() : timeoutMessage.toString();
 
 					if (!job->f)
 						continue;

@@ -132,6 +132,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setKeyPressCallback);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
+    API_VOID_METHOD_WRAPPER_0(ScriptComponent, grabFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
@@ -234,6 +235,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	controlSender(this, base),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
+    subComponentNotifier(*this),
 	skipRestoring(false),
 	hasChanged(false),
 	customControlCallback(var())
@@ -321,6 +323,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setZLevel);
 	ADD_API_METHOD_1(setKeyPressCallback);
 	ADD_API_METHOD_0(loseFocus);
+    ADD_API_METHOD_0(grabFocus);
 	ADD_API_METHOD_1(setLocalLookAndFeel);
 	ADD_API_METHOD_0(sendRepaintMessage);
 	ADD_API_METHOD_2(fadeComponent);
@@ -1314,32 +1317,44 @@ var ScriptingApi::Content::ScriptComponent::getAllProperties()
 	return var(list);
 }
 
+void ScriptingApi::Content::ScriptComponent::SubComponentNotifier::handleAsyncUpdate()
+{
+    Array<Item> items;
+    
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
+        items.swapWith(pendingItems);
+    }
+    
+    for (auto l : parent.subComponentListeners)
+    {
+        if (l != nullptr)
+        {
+            for(auto i: items)
+            {
+                if(i.sc != nullptr)
+                {
+                    if (i.wasAdded)
+                        l->subComponentAdded(i.sc);
+                    else
+                        l->subComponentRemoved(i.sc);
+                }
+            }
+        }
+    }
+}
+
 void ScriptingApi::Content::ScriptComponent::sendSubComponentChangeMessage(ScriptComponent* s, bool wasAdded, NotificationType notify/*=sendNotificationAsync*/)
 {
-	WeakReference<ScriptComponent> ws(s);
-	WeakReference<ScriptComponent> ts(this);
-
-	auto f = [ts, ws, wasAdded]()
-	{
-		if (ts != nullptr && ws != nullptr)
-		{
-			for (auto l : ts->subComponentListeners)
-			{
-				if (l != nullptr)
-				{
-					if (wasAdded)
-						l->subComponentAdded(ws);
-					else
-						l->subComponentRemoved(ws);
-				}
-			}
-		}
-	};
-
-	if (notify == sendNotificationSync)
-		f();
-	else
-		MessageManager::callAsync(f);
+    {
+        hise::SimpleReadWriteLock::ScopedWriteLock sl(subComponentNotifier.lock);
+        subComponentNotifier.pendingItems.add({s, wasAdded});
+    }
+    
+    if(notify == sendNotificationSync)
+        subComponentNotifier.handleAsyncUpdate();
+    else
+        subComponentNotifier.triggerAsyncUpdate();
 }
 
 
@@ -1394,10 +1409,16 @@ bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 
 		auto c = k.getTextCharacter();
 
-		auto printable = CharacterFunctions::isPrintable(c);
+		auto printable    = CharacterFunctions::isPrintable(c);
+		auto isWhitespace = CharacterFunctions::isWhitespace(c);
+		auto isLetter     = CharacterFunctions::isLetter(c);
+		auto isDigit      = CharacterFunctions::isDigit(c);
 		
 		obj->setProperty("character", printable ? String::charToString(c) : "");
 		obj->setProperty("specialKey", !printable);
+		obj->setProperty("isWhitespace", isWhitespace);
+		obj->setProperty("isLetter", isLetter);
+		obj->setProperty("isDigit", isDigit);
 		obj->setProperty("keyCode", k.getKeyCode());
 		obj->setProperty("description", k.getTextDescription());
 		obj->setProperty("shift", k.getModifiers().isShiftDown());
@@ -1451,6 +1472,20 @@ void ScriptingApi::Content::ScriptComponent::loseFocus()
 		if (l != nullptr)
 			l->wantsToLoseFocus();
 	}
+}
+
+void ScriptingApi::Content::ScriptComponent::grabFocus()
+{
+    for (auto l : zLevelListeners)
+    {
+        if (l != nullptr)
+        {
+            l->wantsToGrabFocus();
+            
+            return; // this is a exclusive operation so we don't
+                    // need to continue the loop
+        }
+    }
 }
 
 juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel()
@@ -2064,6 +2099,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i05, "radioGroup");
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    ADD_SCRIPT_PROPERTY(i07, "setValueOnClick"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	handleDefaultDeactivatedProperties();
 
@@ -2078,6 +2114,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
 	setDefaultValue(ScriptButton::Properties::enableMidiLearn, true);
+    setDefaultValue(ScriptButton::Properties::setValueOnClick, false);
 
 	initInternalPropertyFromValueTreeOrDefault(filmstripImage);
 
@@ -2171,7 +2208,8 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i04, "alignment");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i05, "editable");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "multiline");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
+    ADD_SCRIPT_PROPERTY(i07, "updateEachKey"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 128);
@@ -2187,6 +2225,7 @@ ScriptComponent(base, name)
 	setDefaultValue(Alignment, "centred");
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
+    setDefaultValue(SendValueEachKeyPress, false);
 
 	handleDefaultDeactivatedProperties();
 
@@ -2917,6 +2956,7 @@ struct ScriptingApi::Content::ScriptAudioWaveform::Wrapper
 	API_METHOD_WRAPPER_0(ScriptAudioWaveform, getRangeEnd);
 	API_METHOD_WRAPPER_1(ScriptAudioWaveform, registerAtParent);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setDefaultFolder);
+	API_VOID_METHOD_WRAPPER_1(ScriptAudioWaveform, setPlaybackPosition);
 };
 
 ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier waveformName, int x, int y, int, int) :
@@ -2943,7 +2983,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	setDefaultValue(Properties::opaque, true);
 	setDefaultValue(Properties::showLines, false);
 	setDefaultValue(Properties::showFileName, true);
-	setDefaultValue(Properties::sampleIndex, -1);
+	setDefaultValue(Properties::sampleIndex, 0);
 	setDefaultValue(Properties::enableRange, true);
 
 	handleDefaultDeactivatedProperties();
@@ -2955,6 +2995,7 @@ ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScr
 	ADD_API_METHOD_0(getRangeEnd);
 	ADD_API_METHOD_1(setDefaultFolder);
 	ADD_API_METHOD_1(registerAtParent);
+	ADD_API_METHOD_1(setPlaybackPosition);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3060,10 +3101,20 @@ void ScriptingApi::Content::ScriptAudioWaveform::setDefaultFolder(var newDefault
 	}
 }
 
+void ScriptingApi::Content::ScriptAudioWaveform::setPlaybackPosition(double normalisedPosition)
+{
+	if (auto af = getCachedAudioFile())
+	{
+		auto sampleIndex = roundToInt((double)af->getCurrentRange().getLength() * normalisedPosition);
+		af->getUpdater().sendDisplayChangeMessage(sampleIndex, sendNotificationAsync, true);
+	}
+}
+
 struct ScriptingApi::Content::ScriptImage::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptImage, setImageFile);
 	API_VOID_METHOD_WRAPPER_1(ScriptImage, setAlpha);
+	
 };
 
 ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier imageName, int x, int y, int , int ) :
@@ -3475,6 +3526,12 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 	if (HiseJavascriptEngine::isJavascriptFunction(paintFunction) && !parent->allowGuiCreation)
 	{
 		repaint();
+        
+        for(auto l: animationListeners)
+        {
+            if(l != nullptr)
+                l->paintRoutineChanged();
+        }
 	}
 
 }
@@ -4305,7 +4362,9 @@ struct ScriptingApi::Content::ScriptedViewport::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableColumns);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableRowData);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableCallback);
+	API_METHOD_WRAPPER_1(ScriptedViewport, getOriginalRowIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setEventTypesForValueCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedViewport, setTableSortFunction);
 };
 
 ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* /*parentContent*/, Identifier viewportName, int x, int y, int , int ):
@@ -4348,6 +4407,8 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	ADD_API_METHOD_1(setTableColumns);
 	ADD_API_METHOD_1(setTableRowData);
 	ADD_API_METHOD_1(setTableCallback);
+	ADD_API_METHOD_1(getOriginalRowIndex);
+	ADD_API_METHOD_1(setTableSortFunction);
 	ADD_API_METHOD_1(setEventTypesForValueCallback);
 }
 
@@ -4582,6 +4643,26 @@ void ScriptingApi::Content::ScriptedViewport::setEventTypesForValueCallback(var 
 
 		if (!r.wasOk())
 			reportScriptError(r.getErrorMessage());
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
+}
+
+void ScriptingApi::Content::ScriptedViewport::setTableSortFunction(var sortFunction)
+{
+	if (tableModel != nullptr)
+	{
+		tableModel->setTableSortFunction(sortFunction);
+	}
+	else
+		reportScriptError("You need to call setTableMode first");
+}
+
+int ScriptingApi::Content::ScriptedViewport::getOriginalRowIndex(int rowIndex)
+{
+	if (tableModel != nullptr)
+	{
+		return tableModel->getOriginalRowIndex(rowIndex);
 	}
 	else
 		reportScriptError("You need to call setTableMode first");
@@ -6200,6 +6281,146 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 	};
 
 	jp->compileScript(f);
+}
+
+String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
+{
+
+    NewLine nl;
+    String code;
+
+#if USE_BACKEND
+    
+    Random r;
+    
+    String lafName = "local_laf" + String(r.nextInt({0, 999}));
+    
+    lafName = PresetHandler::getCustomName(lafName, "Enter the variable name for the LAF object (or press OK to use the random generated name).");
+    
+    if(lafName.isEmpty())
+        return {};
+    
+    code << "const var " << lafName << " = Content.createLocalLookAndFeel();" << nl << nl;
+    
+    Array<Identifier> ids;
+    
+    for(auto sc: selection)
+        ids.addIfNotAlreadyThere(sc->getObjectName());
+    
+    auto addCallback = [&](const String& callbackName, const StringArray& additionalLines={})
+    {
+        String nlt = "\n\t";
+        code << lafName << ".registerFunction(" << callbackName.quoted() << ", function(g, obj)" << nl;
+        code << "{";
+        
+        if(additionalLines.isEmpty())
+        {
+            code << nlt << "g.setColour(obj.bgColour);";
+            code << nlt << "g.fillRect(obj.area);";
+            code << nlt << "g.setColour(obj.textColour);";
+            code << nlt << "g.drawAlignedText(obj.text, obj.area, \"centred\");";
+        }
+        else
+        {
+            for(const auto& l: additionalLines)
+                code << nlt << l << ";";
+        }
+        
+        code << nl << "});" << nl << nl;
+    };
+    
+    if(ids.contains(ScriptSlider::getStaticObjectName()))
+    {
+        bool addRotary = false;
+        bool addLinear = false;
+        
+        for(auto sc: selection)
+        {
+            auto style = sc->getScriptObjectProperty(ScriptSlider::Properties::Style).toString();
+            
+            addRotary |= style == "Knob";
+            addLinear |= style != "Knob";
+        }
+        
+        if(addRotary)
+            addCallback("drawRotarySlider");
+        
+        if(addLinear)
+            addCallback("drawLinearSlider");
+    }
+    if(ids.contains(ScriptButton::getStaticObjectName()))
+        addCallback("drawToggleButton");
+    if(ids.contains(ScriptComboBox::getStaticObjectName()))
+        addCallback("drawComboBox");
+    if(ids.contains(ScriptSliderPack::getStaticObjectName()))
+    {
+        addCallback("drawSliderPackBackground", {
+            "g.setColour(obj.bgColour)",
+            "g.fillRect(obj.area)",
+            "g.setColour(obj.itemColour)",
+            "g.drawRect(obj.area, 1.0)"
+        });
+        
+        addCallback("drawSliderPackFlashOverlay", {
+            "g.setColour(Colours.withAlpha(obj.itemColour, obj.intensity))",
+            "g.fillRect(obj.area)"
+        });
+        
+        addCallback("drawSliderPackRightClickLine", {
+            "g.setColour(obj.itemColour)",
+            "g.drawLine(obj.x1, obj.x2, obj.y1, obj.y2, 2.0)"
+        });
+        
+        addCallback("drawSliderPackTextPopup", {
+            "g.setColour(obj.textColour)",
+            "g.fillRect([0, 0, obj.area[2], 14])",
+            "g.drawAlignedText(obj.text, obj.area, \"topRight\")"
+        });
+        
+        addCallback("drawLinearSlider", {
+            "g.setColour(obj.itemColour2)",
+            "obj.area[1] = (1.0 - obj.valueNormalized) * obj.area[3]",
+            "obj.area[3] -= obj.area[1]",
+            "g.fillRect(obj.area)"
+        });
+    }
+        
+       
+    if(selection.size() > 1)
+    {
+        String arrayDef;
+        
+        arrayDef << "const var " << lafName << "_targets = [";
+        
+        String intend;
+        
+        for(int i = 0; i < arrayDef.length(); i++)
+            intend << " ";
+        
+        code << arrayDef;;
+        
+        for(auto sc: selection)
+        {
+            code << "Content.getComponent(" << sc->getId().quoted() << ")";
+            
+            if(sc != selection.getLast().get())
+                code << ", " << nl << intend;
+        }
+           
+        code << "];" << nl << nl;
+        
+        code << "for(c in " << lafName << "_targets)" << nl;
+        code << "    c.setLocalLookAndFeel(" << lafName << ");" << nl;
+    }
+    else
+    {
+        code << "Content.getComponent(" << selection.getFirst()->getId().quoted()
+             << ").setLocalLookAndFeel(" << lafName << ");" << nl;
+    }
+    
+#endif
+    
+    return code;
 }
 
 String ScriptingApi::Content::Helpers::createCustomCallbackDefinition(ReferenceCountedArray<ScriptComponent> selection)
