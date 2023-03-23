@@ -145,6 +145,8 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 
             Point<float> p(SANITIZED(d0), SANITIZED(d1));
 
+            if(r != nullptr) *r = Result::ok();
+            
 			return p;
 		}
 		else
@@ -220,6 +222,8 @@ Rectangle<int> ApiHelpers::getIntRectangleFromVar(const var &data, Result* r/*=n
 		{
 			Rectangle<int> rectangle((int)d->getUnchecked(0), (int)d->getUnchecked(1), (int)d->getUnchecked(2), (int)d->getUnchecked(3));
 
+            if(r != nullptr) *r = Result::ok();
+            
 			return rectangle;
 		}
 		else
