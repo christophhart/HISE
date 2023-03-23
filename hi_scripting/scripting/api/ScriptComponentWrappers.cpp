@@ -117,7 +117,7 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 				auto m = MouseCallbackComponent::parseFromStringArray(thisArray, indexes, &safeThis->component->getLookAndFeel());
 
-				if (auto r = m.show())
+				if (auto r = PopupLookAndFeel::showAtComponent(m, safeThis->component, true))
 				{
 					safeThis->sendMessage(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing, r - 1);
 				}

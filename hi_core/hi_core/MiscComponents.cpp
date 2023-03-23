@@ -404,18 +404,8 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 	
 	ScopedValueSetter<bool>(currentlyShowingPopup, true, false);
 
-	int result = 0;
-
-	if (popupShouldBeAligned)
-	{
-		auto gm = dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController());
-		result = m.showAt(this, 0, getWidth() * gm->getGlobalScaleFactor());
-	}
-	else
-	{
-		result = m.show();
-	}
-
+	auto result = PopupLookAndFeel::showAtComponent(m, this, popupShouldBeAligned);
+    
 	String itemName = result != 0 ? itemList[result - 1] : "";
 
 	auto obj = new DynamicObject();

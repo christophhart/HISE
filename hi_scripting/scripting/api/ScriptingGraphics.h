@@ -655,6 +655,10 @@ namespace ScriptingObjects
 				const String& shortcutKeyText,
 				const Drawable* icon, const Colour* textColourToUse);
 
+            void drawPopupMenuSectionHeader (Graphics& g,
+                                             const Rectangle<int>& area,
+                                             const String& sectionName);
+            
 			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
 
 			void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;

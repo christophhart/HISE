@@ -795,7 +795,9 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 		m.setLookAndFeel(&getLookAndFeel());
 
 		fillPopupMenu(m, -1);
-		auto result = m.show();
+        
+        auto result = PopupLookAndFeel::showAtComponent(m, this, false);
+        
 		popupMenuAction(result, -1);
 	}
 	else if (allowFilterResizing)
@@ -856,7 +858,8 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 		m.setLookAndFeel(&parent.getLookAndFeel());
 
 		parent.fillPopupMenu(m, index);
-		auto result = m.show();
+		
+        auto result = PopupLookAndFeel::showAtComponent(m, this, false);
 
 		if(result != 0)
 			parent.popupMenuAction(result, index);

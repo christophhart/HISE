@@ -2631,6 +2631,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuItem(Graphics& g_,
 		auto obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
 		obj->setProperty("isSeparator", isSeparator);
+        obj->setProperty("isSectionHeader", false);
 		obj->setProperty("isActive", isActive);
 		obj->setProperty("isHighlighted", isHighlighted);
 		obj->setProperty("isTicked", isTicked);
@@ -2653,6 +2654,27 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuItem(Graphics& g_,
 	}
 
 	GlobalHiseLookAndFeel::drawPopupMenuItem(g_, area, isSeparator, isActive, isHighlighted, isTicked, hasSubMenu, text, shortcutKeyText, icon, textColourToUse);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuSectionHeader (Graphics& g_, const Rectangle<int>& area, const String& sectionName)
+{
+    if (functionDefined("drawPopupMenuItem"))
+    {
+        auto obj = new DynamicObject();
+        obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
+        obj->setProperty("isSeparator", false);
+        obj->setProperty("isSectionHeader", true);
+        obj->setProperty("isActive", false);
+        obj->setProperty("isHighlighted", false);
+        obj->setProperty("isTicked", false);
+        obj->setProperty("hasSubMenu", false);
+        obj->setProperty("text", sectionName);
+
+        if (get()->callWithGraphics(g_, "drawPopupMenuItem", var(obj), nullptr))
+            return;
+    }
+
+    GlobalHiseLookAndFeel::drawPopupMenuSectionHeader(g_, area, sectionName);
 }
 
 void setColourOrBlack(DynamicObject* obj, const Identifier& id, Component& c, int colourId)

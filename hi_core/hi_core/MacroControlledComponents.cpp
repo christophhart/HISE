@@ -208,8 +208,8 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		rangeWithSkew.skew = slider->getSkewFactor();
 	}
 
-	const int result = m.show();
-
+    auto result = PopupLookAndFeel::showAtComponent(m, dynamic_cast<Component*>(this), false);
+    
 	if (result == Learn)
 	{
 		if (!learningActive)

@@ -1553,7 +1553,7 @@ void PresetBrowser::buttonClicked(Button* b)
 			p.addItem(ExportPresetsToFile, "Export " + destination + " as Collection");
 		}
 
-		auto result = (ID)p.show();
+        auto result = (ID)PopupLookAndFeel::showAtComponent(p, b, true);
 
 		switch (result)
 		{
