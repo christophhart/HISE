@@ -56,12 +56,15 @@ void ScriptTableListModel::paintCell(Graphics& g, int rowNumber, int columnId, i
 {
 	auto lafToUse = laf != nullptr ? laf : &fallback;
 
-	auto s = getCellValue(rowNumber, columnId - 1).toString();
+    auto s = getCellValue(rowNumber, columnId - 1);
 
+    if(s.isUndefined() || s.isVoid())
+        return;
+    
 	auto isClicked = lastClickedCell.y == rowNumber && lastClickedCell.x == columnId;
 	auto isHover = hoverPos.y == rowNumber && hoverPos.x == columnId;
 
-	lafToUse->drawTableCell(g, d, s, rowNumber, columnId - 1, width, height, rowIsSelected, isClicked, isHover);
+	lafToUse->drawTableCell(g, d, s.toString(), rowNumber, columnId - 1, width, height, rowIsSelected, isClicked, isHover);
 }
 
 Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected, Component* existingComponentToUpdate)
@@ -76,10 +79,18 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		return nullptr;
 	}
 
+    auto value = getCellValue(rowNumber, columnId);
+
+    if(value.isUndefined() || value.isVoid())
+    {
+        if(existingComponentToUpdate != nullptr)
+            delete existingComponentToUpdate;
+        
+        return nullptr;
+    }
+    
 	if (existingComponentToUpdate != nullptr)
 	{
-		auto value = getCellValue(rowNumber, columnId);
-
 		switch (cellType)
 		{
 		case CellType::Button:
@@ -495,8 +506,16 @@ int ScriptTableListModel::getOriginalRowIndex(int rowIndex) const
 
 void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseEvent& e)
 {
+    auto value = getCellValue(rowNumber, columnId);
+
+    if(value.isUndefined() || value.isVoid())
+    {
+        return;
+    }
+    
 	lastClickedCell = { columnId, rowNumber };
 
+    
 	TableListBoxModel::cellClicked(rowNumber, columnId, e);
 	sendCallback(rowNumber, columnId, rowData[rowNumber], EventType::SingleClick);
 }
