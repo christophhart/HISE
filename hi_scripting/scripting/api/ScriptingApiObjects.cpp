@@ -648,7 +648,7 @@ bool ScriptingObjects::ScriptFile::writeMidiFile(var eventList, var metadataObje
 
 juce::var ScriptingObjects::ScriptFile::loadAsMidiFile(int trackIndex)
 {
-	if (f.existsAsFile() && f.getFileExtension() == "mid")
+	if (f.existsAsFile() && f.getFileExtension() == ".mid")
 	{
 		HiseMidiSequence::Ptr newSequence = new HiseMidiSequence();
 
