@@ -346,7 +346,7 @@ public:
 		{
 			return entries.indexOf(f);
 		}
-
+		
 		String wildcard;
 
 		var database;
@@ -415,6 +415,11 @@ public:
 	}
 
 	int getColumnIndex() const { return listModel->getColumnIndex(); }
+	
+	File getFileForIndex(int fileIndex) const
+	{
+		return listModel->getFileForIndex(fileIndex);
+	};
 
 	int getIndexForPosition(Point<int> pos)
 	{
@@ -466,6 +471,11 @@ public:
 	{
 		listAreaOffset = offset;
 		resized();
+	}
+	
+	Array<var> getListAreaOffset()
+	{
+		return listAreaOffset;
 	}
 	
 	void setRowPadding(double padding)
@@ -578,6 +588,11 @@ public:
 		listbox->setModel(newModel);
 		newModel->setTotalRoot(totalRoot);
 		listModel = newModel;
+	}
+
+	void setDatabase(var db)
+	{
+		listModel->database = db;
 	}
 
 	void showAddButton()
