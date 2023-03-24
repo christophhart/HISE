@@ -79,6 +79,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("rightClick");
 	sa.add("mouseUp");
 	sa.add("drag");
+	sa.add("isDragOnly");
 	sa.add("dragX");
 	sa.add("dragY");
 	sa.add("insideDrag");
@@ -578,6 +579,7 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 	static const Identifier doubleClick("doubleClick");
 	static const Identifier rightClick("rightClick");
 	static const Identifier drag("drag");
+	static const Identifier isDragOnly("isDragOnly");
 	static const Identifier dragX("dragX");
 	static const Identifier dragY("dragY");
 	static const Identifier insideDrag("insideDrag");
@@ -618,6 +620,7 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 
 		e->setProperty(insideDrag, isIn ? 1 : 0);
 		e->setProperty(drag, action == Action::Dragged);
+		e->setProperty(isDragOnly, (event.getDistanceFromDragStartX() != 0) || (event.getDistanceFromDragStartY() != 0));
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
