@@ -642,6 +642,9 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 	auto userDirectory = FrontendHandler::getUserPresetDirectory();
 #endif
 
+	if (auto e = FullInstrumentExpansion::getCurrentFullExpansion(mc))
+		userDirectory = e->getSubDirectory(FileHandlerBase::UserPresets);
+
 	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
     PresetBrowser::DataBaseHelpers::cleanFileList(mc, allPresets);
 	allPresets.sort();
