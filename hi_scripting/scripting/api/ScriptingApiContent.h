@@ -2435,6 +2435,9 @@ public:
 
 	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
 	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
+	
+	/** Checks whether the CTRL key's flag is set. */
+	bool isCtrlDown();
 
 	/** Creates a look and feel that you can attach manually to certain components. */
 	var createLocalLookAndFeel();
@@ -2711,6 +2714,8 @@ private:
 			parent.sendRebuildMessage();
 		}
 	};
+
+	Array<Identifier> modifiers;
 
 	Array<WeakReference<ScreenshotListener>> screenshotListeners;
 
