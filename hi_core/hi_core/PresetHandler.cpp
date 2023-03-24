@@ -959,82 +959,104 @@ struct FileModificationComparator
 
 void ProjectHandler::createRSAKey() const
 {
-	RSAKey publicKey;
-	RSAKey privateKey;
-
-	Random r;
-
-	const int seeds[] = { r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt() };
-
-	auto existingFile = getWorkDirectory().getChildFile("RSA.xml");
-
-	if (existingFile.existsAsFile())
-	{
-		publicKey = RSAKey(getPublicKeyFromFile(existingFile));
-		privateKey = RSAKey(getPrivateKeyFromFile(existingFile));
-	}
-	else
-		RSAKey::createKeyPair(publicKey, privateKey, 512, seeds, 6);
-
-	
-
 	AlertWindowLookAndFeel wlaf;
 
-	AlertWindow w("RSA Keys", "You can use this key pair for the copy protection", AlertWindow::InfoIcon);
+	AlertWindow aw("Create RSA Keys", "Generate an RSA key pair of the desired bit length\n(Higher bit length can take time)", AlertWindow::AlertIconType::NoIcon);
 
-	w.setLookAndFeel(&wlaf);
+	aw.setLookAndFeel(&wlaf);
+	
+	aw.addComboBox("keyLength", StringArray(), "Select bit length");
 
-	w.addTextEditor("publicKey", publicKey.toString(), "Public Key", false);
-	w.getTextEditor("publicKey")->setReadOnly(true);
+	ComboBox* b = aw.getComboBoxComponent("keyLength");
 
-	w.addTextEditor("privateKey", privateKey.toString(), "Private Key", false);
-	w.getTextEditor("privateKey")->setReadOnly(true);
+    StringArray bitLength = { "512", "1024", "2048" };
 
-	w.addButton("OK", 0, KeyPress(KeyPress::returnKey));
-	w.addButton("Copy to clipboard", 1);
-	w.addButton("Save to project folder", 2);
+	b->addItemList(bitLength, 1);
+	b->setSelectedItemIndex(0);
+	GlobalHiseLookAndFeel::setDefaultColours(*b);
 
-	const int result = w.runModalLoop();
+	aw.addButton("Create", 1, KeyPress(KeyPress::returnKey));
+	aw.addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
-	String text = "public: " + publicKey.toString() + "\n";
-	text << "private: " << privateKey.toString();
+	const int awResult = aw.runModalLoop();
 
-	if (result == 1)
+	if (awResult == 1)
 	{
-		SystemClipboard::copyTextToClipboard(text);
-		PresetHandler::showMessageWindow("RSA Keys copied to clipboard", "The RSA keys are copied to the clipboard.", PresetHandler::IconType::Info);
-	}
-	else if (result == 2)
-	{
-		ScopedPointer<XmlElement> xml = new XmlElement("KeyPair");
+        RSAKey publicKey;
+		RSAKey privateKey;
 
-		xml->addChildElement(new XmlElement("PublicKey"));
-		xml->addChildElement(new XmlElement("PrivateKey"));
+		Random r;
+        
+        const int l = bitLength[b->getSelectedItemIndex()].getIntValue();
+        
+		const int seeds[] = { r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt() };
 
-		xml->getChildByName("PublicKey")->setAttribute("value", publicKey.toString());
-		xml->getChildByName("PrivateKey")->setAttribute("value", privateKey.toString());
+		auto existingFile = getWorkDirectory().getChildFile("RSA.xml");
 
-		auto key = privateKey.toString();
-		auto numbers = StringArray::fromTokens(key, ",", "");
+		if (existingFile.existsAsFile())
+		{
+			publicKey = RSAKey(getPublicKeyFromFile(existingFile));
+			privateKey = RSAKey(getPrivateKeyFromFile(existingFile));
+		}
+		else
+			RSAKey::createKeyPair(publicKey, privateKey, l, seeds, 6);
 
-		BigInteger b1, b2;
-		b1.parseString(numbers[0], 16);
-		b2.parseString(numbers[1], 16);
+		AlertWindow w("RSA Keys", "You can use this key pair for the copy protection", AlertWindow::InfoIcon);
 
-		auto n1 = b1.toString(10);
-		auto n2 = b2.toString(10);
+		w.setLookAndFeel(&wlaf);
 
-		xml->addChildElement(new XmlElement("ServerKey1"));
-		xml->addChildElement(new XmlElement("ServerKey2"));
+        w.addTextEditor("publicKey", publicKey.toString(), "Public Key", false);
+		w.getTextEditor("publicKey")->setReadOnly(true);
 
-		xml->getChildByName("ServerKey1")->setAttribute("value", n1);
-		xml->getChildByName("ServerKey2")->setAttribute("value", n2);
-		
-		File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
+		w.addTextEditor("privateKey", privateKey.toString(), "Private Key", false);
+		w.getTextEditor("privateKey")->setReadOnly(true);
 
-		rsaFile.replaceWithText(xml->createDocument(""));
-		
-		PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName(), PresetHandler::IconType::Info);
+		w.addButton("OK", 0, KeyPress(KeyPress::returnKey));
+		w.addButton("Copy to clipboard", 1);
+		w.addButton("Save to project folder", 2);
+
+		const int result = w.runModalLoop();
+
+		String text = "public: " + publicKey.toString() + "\n";
+		text << "private: " << privateKey.toString();
+
+		if (result == 1)
+		{
+			SystemClipboard::copyTextToClipboard(text);
+			PresetHandler::showMessageWindow("RSA Keys copied to clipboard", "The RSA keys are copied to the clipboard.", PresetHandler::IconType::Info);
+		}
+		else if (result == 2)
+		{
+			ScopedPointer<XmlElement> xml = new XmlElement("KeyPair");
+
+			xml->addChildElement(new XmlElement("PublicKey"));
+			xml->addChildElement(new XmlElement("PrivateKey"));
+
+			xml->getChildByName("PublicKey")->setAttribute("value", publicKey.toString());
+			xml->getChildByName("PrivateKey")->setAttribute("value", privateKey.toString());
+
+			auto key = privateKey.toString();
+			auto numbers = StringArray::fromTokens(key, ",", "");
+
+			BigInteger b1, b2;
+			b1.parseString(numbers[0], 16);
+			b2.parseString(numbers[1], 16);
+
+			auto n1 = b1.toString(10);
+			auto n2 = b2.toString(10);
+
+			xml->addChildElement(new XmlElement("ServerKey1"));
+			xml->addChildElement(new XmlElement("ServerKey2"));
+
+			xml->getChildByName("ServerKey1")->setAttribute("value", n1);
+			xml->getChildByName("ServerKey2")->setAttribute("value", n2);
+			
+			File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
+
+			rsaFile.replaceWithText(xml->createDocument(""));
+			
+			PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName(), PresetHandler::IconType::Info);
+		}
 	}
 }
 
