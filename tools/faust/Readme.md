@@ -9,11 +9,9 @@ So what we need to do instead is to download the x86-x64 Faust release from here
 
 https://github.com/grame-cncm/faust/releases
 
-> **Important**: The latest version of Faust will not work in HISE because of some build issues with LLVM (more info in [this thread](https://forum.hise.audio/topic/7026/unable-to-find-libncurses-6-dylib-when-launching-hise-faust/15?_=1673534840758)). The solution is to use a slighly older faust release until this is sorted out: 
-
-https://github.com/grame-cncm/faust/releases/tag/2.50.6
-
 Make sure you download this archive: `Faust-VERSION-x64.dmg` (there's also an ARM version which you must not use). Then open the .dmg file and extract all folders into this subdirecty. At the end there should be these folders:
+
+> The latest versions of Faust will work with HISE, but if you want to keep on using the older `2.50.6` version you need to enable the `FAUST_NO_WARNING_MESSAGES` flag of the `hi_faust_types` module in the Projucer.
 
 ```
 HISE_ROOT/tools/faust/include
