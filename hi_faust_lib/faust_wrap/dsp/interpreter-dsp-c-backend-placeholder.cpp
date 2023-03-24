@@ -64,7 +64,10 @@ namespace faust {
         
     std::vector<std::string> interpreter_dsp_factory::getIncludePathnames()
     { return ((::interpreter_dsp_factory*)this)->getIncludePathnames(); }
-        
+    
+    std::vector<std::string> interpreter_dsp_factory::getWarningMessages()
+    { return ((::interpreter_dsp_factory*)this)->getWarningMessages(); }
+    
     // interpreter_dsp* interpreter_dsp_factory::createDSPInstance()
     // { return (interpreter_dsp*)((::interpreter_dsp_factory*)this)->createDSPInstance(); }
         

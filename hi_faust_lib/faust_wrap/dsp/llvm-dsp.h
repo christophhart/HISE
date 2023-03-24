@@ -47,6 +47,8 @@ architecture section is not modified.
  */
 extern "C" LIBFAUST_API const char* getCLibFaustVersion();
 
+
+
 namespace faust {
 /**
  * DSP instance class with methods.
@@ -121,6 +123,11 @@ class LIBFAUST_API llvm_dsp_factory : public dsp_factory {
         
         /* Get the list of all used includes */
         std::vector<std::string> getIncludePathnames();
+     
+#if !FAUST_NO_WARNING_MESSAGES
+        /* Get warning messages list for a given compilation */
+        std::vector<std::string> getWarningMessages();
+#endif
         
         /* Create a new DSP instance, to be deleted with C++ 'delete' */
         llvm_dsp* createDSPInstance();

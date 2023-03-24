@@ -234,6 +234,10 @@ class FAUST_API dsp_factory {
         virtual std::vector<std::string> getLibraryList() = 0;
         virtual std::vector<std::string> getIncludePathnames() = 0;
     
+#if !FAUST_NO_WARNING_MESSAGES
+        virtual std::vector<std::string> getWarningMessages() = 0;
+#endif
+    
         virtual dsp* createDSPInstance() = 0;
     
         virtual void setMemoryManager(dsp_memory_manager* manager) = 0;

@@ -50,6 +50,15 @@ END_JUCE_MODULE_DECLARATION
 
 ******************************************************************************/
 
+/** Config: FAUST_NO_WARNING_MESSAGES
+ 
+ Set this to 1 if you're linking against a Faust version older than 2.54.0 in order
+ to fix the getWarningMessages() compile error
+*/
+#ifndef FAUST_NO_WARNING_MESSAGES
+#define FAUST_NO_WARNING_MESSAGES 0
+#endif
+
 #if HISE_INCLUDE_FAUST
 #include "faust_wrap/dsp/dsp.h"
 #include "faust_wrap/gui/UI.h"

@@ -124,8 +124,16 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, param
 			fdsp = interpreterFactory->createDSPInstance();
 
 #else // HISE_FAUST_USE_LLVM_JIT
+#if JUCE_MAC && !FAUST_NO_WARNING_MESSAGES
+    auto architecture =  "x86_64-apple-darwin";
+#else
+    auto architecture = "";
+#endif
+        
+        
+        
 		jitFactory = ::faust::createDSPFactoryFromString("faust", code, (int)llvm_argv.size() - 1, &(llvm_argv[0]),
-														 "", errorMessage, jitOptimize);
+														 architecture, errorMessage, jitOptimize);
 		if (jitFactory == nullptr) {
 			// error indication
 			error_msg = errorMessage;

@@ -69,7 +69,10 @@ namespace faust {
         
     // std::vector<std::string> llvm_dsp_factory::getIncludePathnames()
     // { return ((::llvm_dsp_factory*)this)->getIncludePathnames(); }
-        
+    
+    // std::vector<std::string> llvm_dsp_factory::getWarningMessages()
+    // { return ((::llvm_dsp_factory*)this)->getWarningMessages(); }
+    
     llvm_dsp* llvm_dsp_factory::createDSPInstance()
     { return (llvm_dsp*)(createCDSPInstance((::llvm_dsp_factory*)this)); }
         
@@ -78,7 +81,6 @@ namespace faust {
         
     // dsp_memory_manager* llvm_dsp_factory::getMemoryManager()
     // { return (dsp_memory_manager*) ((::llvm_dsp_factory*)this)->getMemoryManager(); }
-
 
     // LIBFAUST_API llvm_dsp_factory* getDSPFactoryFromSHAKey(const std::string& sha_key)
     // { return (llvm_dsp_factory*)::getDSPFactoryFromSHAKey(sha_key); }
