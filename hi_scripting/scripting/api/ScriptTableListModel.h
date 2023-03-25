@@ -118,13 +118,21 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	var getCellValue(int rowIndex, int columnIndex) const
 	{
-		jassert(isPositiveAndBelow(columnIndex, columnMetadata.size()));
-		auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
-        
-        if(isPositiveAndBelow(rowIndex, rowData.size()))
-            return rowData[rowIndex][Identifier(id)];
-        
-        return {};
+		if(isPositiveAndBelow(columnIndex, columnMetadata.size()))
+        {
+            auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
+            
+            if(isPositiveAndBelow(rowIndex, rowData.size()))
+                return rowData[rowIndex][Identifier(id)];
+            
+            return {};
+        }
+        else
+        {
+            jassertfalse;
+            return {};
+        }
+		
 	}
 
 	Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,

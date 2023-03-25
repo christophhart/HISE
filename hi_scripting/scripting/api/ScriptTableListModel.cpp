@@ -506,7 +506,7 @@ int ScriptTableListModel::getOriginalRowIndex(int rowIndex) const
 
 void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseEvent& e)
 {
-    auto value = getCellValue(rowNumber, columnId);
+    auto value = getCellValue(rowNumber, columnId-1);
 
     if(value.isUndefined() || value.isVoid())
     {
