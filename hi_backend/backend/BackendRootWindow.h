@@ -349,7 +349,7 @@ struct BackendPanelHelpers
 #if JUCE_LINUX
     // This might keep the fonts alive and increase the text
     // rendering performance...
-    hise::LinuxFontHandler fontHandler;
+    hise::LinuxFontHandler::Instance fontHandler;
 #endif
 
 };
