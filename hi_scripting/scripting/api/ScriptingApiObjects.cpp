@@ -2613,7 +2613,7 @@ String ScriptingObjects::ScriptingModulator::getGlobalModulatorId()
 void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
 {
 	if (checkValidObject())
-		mod->setAttribute(index, value, sendNotification);
+		mod->setAttribute(index, value, ProcessorHelpers::getAttributeNotificationType());
 }
 
 float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
@@ -2989,7 +2989,7 @@ void ScriptingObjects::ScriptingEffect::setAttribute(int parameterIndex, float n
 {
 	if (checkValidObject())
 	{
-		effect->setAttribute(parameterIndex, newValue, sendNotification);
+		effect->setAttribute(parameterIndex, newValue, ProcessorHelpers::getAttributeNotificationType());
 	}
 }
 
@@ -3707,7 +3707,9 @@ void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float ne
 {
 	if (checkValidObject())
 	{
-		synth->setAttribute(parameterIndex, newValue, sendNotification);
+        
+        
+		synth->setAttribute(parameterIndex, newValue, ProcessorHelpers::getAttributeNotificationType());
 	}
 }
 
@@ -4033,7 +4035,7 @@ void ScriptingObjects::ScriptingMidiProcessor::setAttribute(int index, float val
 {
 	if (checkValidObject())
 	{
-		mp->setAttribute(index, value, sendNotification);
+		mp->setAttribute(index, value,  ProcessorHelpers::getAttributeNotificationType());
 	}
 }
 

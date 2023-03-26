@@ -986,6 +986,15 @@ public:
 
 	static Processor *findParentProcessor(Processor *childProcessor, bool getParentSynth);
 
+    static juce::NotificationType getAttributeNotificationType()
+    {
+#if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
+        return dontSendNotification;
+#else
+        return sendNotification;
+#endif
+    }
+    
 	/** Returns the first Processor with the given name (It skips all InternalChains). If there are multiple Processors with the same name, it will always return the first one.
 	*
 	*	To avoid this, use PresetHandler::findProcessorsWithDuplicateId...

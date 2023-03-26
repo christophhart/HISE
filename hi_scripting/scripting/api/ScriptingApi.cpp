@@ -4596,7 +4596,7 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
         RETURN_VOID_IF_NO_THROW()
     }
 
-    s->setAttribute(index, newValue, sendNotification);
+    s->setAttribute(index, newValue, ProcessorHelpers::getAttributeNotificationType());
 }
 
 void ScriptingApi::Sampler::setUseStaticMatrix(bool shouldUseStaticMatrix)

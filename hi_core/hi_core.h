@@ -203,6 +203,15 @@ This can be used to simulate an audio effect routing setup (when the appropriate
 #define FORCE_INPUT_CHANNELS USE_BACKEND
 #endif
 
+/** Config: HI_DONT_SEND_ATTRIBUTE_UPDATES
+ 
+If enabled, this will skip the internal UI message update when calling setAttribute from a scripting callback. If you're calling
+ this method a lot, setting this to true might help with certain stability issues and UI message clogging.
+*/
+#ifndef HI_DONT_SEND_ATTRIBUTE_UPDATES
+#define HI_DONT_SEND_ATTRIBUTE_UPDATES 0
+#endif
+
 /** Config: HISE_DEACTIVATE_OVERLAY
 	If enabled, this will deactivate the dark overlay that shows error messages so you
 	can define your own thing.
