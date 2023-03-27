@@ -360,19 +360,22 @@ void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<
     float tenAlpha = JUCE_LIVE_CONSTANT_OFF(0.15f);
     float oneAlpha = JUCE_LIVE_CONSTANT_OFF(.06f);
     
+    const int R = jlimit<int>(1, 100, HI_RASTER_SIZE);
+    
     if (mulAlpha > 0.1f)
     {
-        for (int x = 10; x < bounds.getWidth(); x += 10)
+        
+        for (int x = R; x < bounds.getWidth(); x += R)
         {
-            float alpha = (x % 100 == 0) ? tenAlpha : oneAlpha;
+            float alpha = (x % (R*10) == 0) ? tenAlpha : oneAlpha;
             alpha *= mulAlpha;
             g.setColour(lineColour.withAlpha(alpha));
             ug.draw1PxVerticalLine(x, 0.0f, (float)bounds.getHeight());
         }
 
-        for (int y = 10; y < bounds.getHeight(); y += 10)
+        for (int y = R; y < bounds.getHeight(); y += R)
         {
-            float alpha = (y % 100 == 0) ? tenAlpha : oneAlpha;
+            float alpha = (y % (R*10) == 0) ? tenAlpha : oneAlpha;
             alpha *= mulAlpha;
             g.setColour(lineColour.withAlpha(alpha));
             ug.draw1PxHorizontalLine(y, 0.0f, (float)bounds.getWidth());

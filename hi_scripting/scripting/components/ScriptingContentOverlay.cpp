@@ -854,7 +854,9 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 	if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
 		return;
 
-	constrainer.setRasteredMovement(!e.mods.isCommandDown());
+    if(e.mouseWasDraggedSinceMouseDown())
+        constrainer.setRasteredMovement(!e.mods.isCommandDown());
+    
 	constrainer.setLockedMovement(e.mods.isShiftDown());
 
 	
@@ -863,10 +865,12 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 
 	setMouseCursor(copyMode ? MouseCursor::CopyingCursor : MouseCursor::DraggingHandCursor);
 
+    dragDistance = constrainer.getPosition().getTopLeft() - startBounds.getTopLeft();
+    
 	if (e.eventComponent == this)
 		dragger.dragComponent(this, e, &constrainer);
 
-	dragDistance = constrainer.getPosition().getTopLeft() - startBounds.getTopLeft();
+	
 
 	if (e.eventComponent != this)
 	{

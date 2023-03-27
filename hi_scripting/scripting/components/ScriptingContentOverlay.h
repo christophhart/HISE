@@ -36,6 +36,8 @@
 
 namespace hise { using namespace juce;
 
+
+
 namespace OverlayIcons
 {
 	static const unsigned char lockShape[] = { 110,109,41,100,31,68,33,48,94,67,98,156,188,33,68,33,48,94,67,248,163,35,68,211,205,101,67,248,163,35,68,92,47,111,67,108,248,163,35,68,223,111,184,67,98,248,163,35,68,164,32,189,67,139,188,33,68,125,239,192,67,41,100,31,68,125,239,192,67,108,37,182,
@@ -235,6 +237,7 @@ public:
 
 			void checkBounds(Rectangle<int>& newBounds, const Rectangle<int>& /*previousBounds*/, const Rectangle<int>& limits, bool /*isStretchingTop*/, bool /*isStretchingLeft*/, bool isStretchingBottom, bool isStretchingRight)
 			{
+                
 				newBounds.setWidth(jmax<int>(10, newBounds.getWidth()));
 				newBounds.setHeight(jmax<int>(10, newBounds.getHeight()));
 
@@ -242,15 +245,17 @@ public:
 
 				if (rasteredMovement)
 				{
+                    const int R = jlimit<int>(1, 100, HI_RASTER_SIZE);
+                    
 					if (isResizing)
 					{
-						newBounds.setWidth((newBounds.getWidth() / 10) * 10);
-						newBounds.setHeight((newBounds.getHeight() / 10) * 10);
+                        newBounds.setWidth((newBounds.getWidth() / R) * R);
+						newBounds.setHeight((newBounds.getHeight() / R) * R);
 					}
 					else
 					{
-						newBounds.setX((newBounds.getX() / 10) * 10);
-						newBounds.setY((newBounds.getY() / 10) * 10);
+						newBounds.setX((newBounds.getX() / R) * R);
+						newBounds.setY((newBounds.getY() / R) * R);
 					}
 				}
 

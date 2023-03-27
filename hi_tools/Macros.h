@@ -496,5 +496,9 @@ private:
 #define HISE_USE_VS2022 0
 #endif
 
+/** This sets the global raster size for dragging components. */
+#ifndef HI_RASTER_SIZE
+#define HI_RASTER_SIZE 10
+#endif
 
 } // namespace hise
