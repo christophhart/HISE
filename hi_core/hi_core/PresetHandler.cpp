@@ -766,27 +766,17 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* )
             FileChooser fc("Create new project directory");
             
             if (fc.browseForDirectory())
-            {
                 workingDirectory = fc.getResult();
-            }
             else
-            {
                 return;
-            }
 		}
 	}
 
 	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
 	{
 		File subDirectory = workingDirectory.getChildFile(getIdentifier((SubDirectories)i));
-
 		subDirectory.createDirectory();
-
-		
-
 	}
-
-	
 }
 
 juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, bool checkDirectories)
@@ -2394,7 +2384,6 @@ void AboutPage::refreshText()
 
 	Font normal = GLOBAL_FONT().withHeight(15.0f);
 	Font bold = GLOBAL_BOLD_FONT().withHeight(15.0f);
-	
 
 #if USE_BACKEND
 
@@ -2423,7 +2412,7 @@ void AboutPage::refreshText()
 	infoData.append("\nVersion: ", bold, bright);
     infoData.append(String(JucePlugin_VersionString), normal, bright);
     infoData.append("\nHISE build version: ", bold, bright);
-    infoData.append(String(BUILD_SUB_VERSION), normal, bright);
+    infoData.append(GlobalSettingManager::getHiseVersion(), normal, bright);
 	infoData.append("\nBuild date: ", bold, bright);
 	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nCreated by: ", bold, bright);

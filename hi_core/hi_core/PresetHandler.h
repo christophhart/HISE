@@ -391,6 +391,7 @@ public:
 	static String getAppGroupId();
 	static String getExpansionKey();
 	static String getExpansionType();
+	static String getHiseVersion();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 

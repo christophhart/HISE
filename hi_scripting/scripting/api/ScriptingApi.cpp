@@ -1136,6 +1136,7 @@ var ScriptingApi::Engine::getProjectInfo()
 		obj->setProperty("ProjectName", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString());
 		obj->setProperty("ProjectVersion", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::Version).toString());
 		obj->setProperty("EncryptionKey", GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString());
+		
 	#else 
 		obj->setProperty("Company", hise::FrontendHandler::getCompanyName());
 		obj->setProperty("CompanyURL", hise::FrontendHandler::getCompanyWebsiteName());
@@ -1143,9 +1144,12 @@ var ScriptingApi::Engine::getProjectInfo()
 		obj->setProperty("ProjectName", hise::FrontendHandler::getProjectName());
 		obj->setProperty("ProjectVersion", hise::FrontendHandler::getVersionString());
 		obj->setProperty("EncryptionKey", hise::FrontendHandler::getExpansionKey());
+		
 	#endif
 
-	obj->setProperty("HISEBuild", ProjectInfo::versionString);
+
+	obj->setProperty("HISEBuild", GlobalSettingManager::getHiseVersion());
+	
 	obj->setProperty("BuildDate", Time::getCompilationDate().toString(true, false, false, true));
 	obj->setProperty("LicensedEmail", licencee);
 			

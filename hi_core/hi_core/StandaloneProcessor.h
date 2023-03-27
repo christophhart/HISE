@@ -55,6 +55,8 @@ public:
 		return getSettingDirectory().getChildFile("GeneralSettings.xml");
 	}
 
+	static String getHiseVersion();
+
 	void setDiskMode(int mode);
 
 	void storeAllSamplesFound(bool areFound) noexcept

@@ -87,6 +87,15 @@ void AudioProcessorDriver::resetToDefault()
 	}
 }
 
+String GlobalSettingManager::getHiseVersion()
+{
+#if USE_BACKEND
+	return ProjectInfo::versionString;
+#else
+	return FrontendHandler::getHiseVersion();
+#endif
+}
+
 void GlobalSettingManager::setDiskMode(int mode)
 {
 	diskMode = mode;
