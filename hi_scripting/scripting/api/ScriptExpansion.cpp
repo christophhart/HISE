@@ -2618,7 +2618,8 @@ void ExpansionEncodingWindow::threadFinished()
 	{
 		if (projectExport && rhapsodyOutput.existsAsFile())
 		{
-			rhapsodyOutput.revealToUser();
+            if(!CompileExporter::isExportingFromCommandLine())
+                rhapsodyOutput.revealToUser();
 		}
 
 		if(!projectExport)
