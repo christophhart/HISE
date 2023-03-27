@@ -865,7 +865,7 @@ File SampleDataExporter::getTargetFile() const
 	}
 	else
 	{
-		fileName << getProjectName() << "_samples_" << getProjectVersion().replaceCharacter('.', '_');
+		fileName << getProjectName().toLowerCase().replaceCharacter(' ', '_') << "_samples_" << getProjectVersion().replaceCharacter('.', '_');
 		fileName << ".lwz";
 	}
 
