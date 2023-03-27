@@ -2094,7 +2094,7 @@ private:
 
     std::atomic<float> usagePercent;
 
-	bool enablePluginParameterUpdate;
+	bool enablePluginParameterUpdate = true;
 
     double globalPitchFactor;
     

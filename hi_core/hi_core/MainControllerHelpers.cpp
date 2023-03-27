@@ -758,6 +758,9 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 		{
 			jassert(a.processor.get() != nullptr);
 
+			// MIDI events should not be propagated as plugin parameter changes
+			ScopedValueSetter<bool> setter(a.processor->getMainController()->getPluginParameterUpdateState(), false);
+			
 			auto normalizedValue = (double)e.getControllerValue() / 127.0;
 
 			if (a.inverted) normalizedValue = 1.0 - normalizedValue;
