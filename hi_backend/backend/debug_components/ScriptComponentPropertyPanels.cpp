@@ -384,7 +384,7 @@ HiTogglePropertyComponent::HiTogglePropertyComponent(const Identifier& id, Scrip
 
 	addAndMakeVisible(button);
 
-	button.setLookAndFeel(&plaf);
+	button.setLookAndFeel(&blaf);
 
 	button.setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 	button.setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));
@@ -771,5 +771,55 @@ void HiPropertyComponent::Overlay::buttonClicked(Button* /*b*/)
 }
 
 
+
+void HiTogglePropertyComponent::LAF::drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+	if (b.getToggleState())
+	{
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x22FFFFFF)));
+		g.fillRoundedRectangle(b.getLocalBounds().toFloat(), 2.0f);
+	}
+}
+
+void HiTogglePropertyComponent::LAF::drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+	auto on = b.getToggleState();
+
+	float alpha = 0.7f;
+
+	if (shouldDrawButtonAsHighlighted)
+		alpha += 0.2f;
+
+	if (shouldDrawButtonAsDown)
+		alpha += 0.1f;
+
+	auto off = Colour(0xff252525);
+	auto onC = Colour(0xff767676);
+
+	auto c = on ? onC : off;
+
+	auto area = b.getLocalBounds().toFloat();
+
+	auto toggle = area.removeFromRight(area.getHeight() * 1.4f).reduced(4.0f);
+
+
+
+	g.setColour(c);
+	g.fillRoundedRectangle(toggle, toggle.getHeight() / 2.0f);
+	
+	g.setColour(on ? Colours::white.withAlpha(alpha) : Colour(0xFFDDDDDD).withAlpha(alpha));
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	
+
+	auto circle = on ? toggle.removeFromRight(toggle.getHeight()) : toggle.removeFromLeft(toggle.getHeight());
+
+	area.removeFromLeft(5.0f);
+
+	g.fillEllipse(circle.reduced(1.0f));
+
+	g.drawText(on ? "Enabled" : "Disabled", area, Justification::left);
+
+}
 
 } // namespace hise

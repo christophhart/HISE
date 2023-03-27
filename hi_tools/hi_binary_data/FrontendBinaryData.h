@@ -90,6 +90,15 @@ namespace FrontendBinaryData
 		251, 66, 221, 153, 211, 67, 108, 0, 163, 4, 67, 221, 153, 211, 67, 108, 0, 163, 4, 67, 93, 50, 217, 67, 108, 0, 164, 3, 67, 93, 71, 221, 67, 108, 0, 52, 253, 66, 93, 71, 221, 67, 108, 0, 54, 251, 66, 93, 50, 217, 67, 108, 0, 54, 251, 66, 221, 153, 211, 67, 99, 109, 0, 54, 251, 66, 93, 180, 222, 67, 108, 0, 163, 4, 67, 93, 180,
 		222, 67, 108, 0, 163, 4, 67, 93, 46, 226, 67, 108, 0, 54, 251, 66, 93, 46, 226, 67, 108, 0, 54, 251, 66, 93, 180, 222, 67, 99, 101, 0, 0 };
 
+#if USE_LATO_AS_DEFAULT
+
+	extern const char*   LatoBold_ttf;
+	const int            LatoBold_ttfSize = 73332;
+
+	extern const char*   LatoRegular_ttf;
+	const int            LatoRegular_ttfSize = 75152;
+
+#else
 
     extern const char*   oxygen_bold_ttf;
     const int            oxygen_bold_ttfSize = 48812;
@@ -97,12 +106,15 @@ namespace FrontendBinaryData
     extern const char*   oxygen_regular_ttf;
     const int            oxygen_regular_ttfSize = 48092;
 
+#endif
+
     extern const char*   SourceCodeProBold_otf;
     const int            SourceCodeProBold_otfSize = 143932;
 
     extern const char*   SourceCodeProRegular_otf;
     const int            SourceCodeProRegular_otfSize = 140088;
     
+	
 
 }
 

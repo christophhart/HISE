@@ -126,8 +126,17 @@ namespace hise { using namespace juce;
 
 #else
 
+#if USE_LATO_AS_DEFAULT
+static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::LatoBold_ttf, HiBinaryData::FrontendBinaryData::LatoBold_ttfSize);
+static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::LatoRegular_ttf, HiBinaryData::FrontendBinaryData::LatoRegular_ttfSize);
+#else
 static Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
 static Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+#endif
+
+
+
+
 static Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
 static Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
 
@@ -155,8 +164,14 @@ class LinuxFontHandler
 
     LinuxFontHandler()
     {
-        Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-        Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+#if USE_LATO_AS_DEFAULT
+		Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::LatoBold_ttf, HiBinaryData::FrontendBinaryData::LatoBold_ttfSize);
+		Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::LatoRegular_ttf, HiBinaryData::FrontendBinaryData::LatoRegular_ttfSize);
+#else
+		Typeface::Ptr oxygenBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
+		Typeface::Ptr oxygenTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+#endif
+
         Typeface::Ptr sourceCodeProTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
         Typeface::Ptr sourceCodeProBoldTypeFace = Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
 
