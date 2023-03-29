@@ -362,7 +362,7 @@ public:
 		void renderAudio(var eventList, var finishCallback);
 
 		/** Previews a audio buffer with a callback indicating the state. */
-		void playBuffer(var bufferData, var callback);
+		void playBuffer(var bufferData, var callback, double fileSampleRate);
 
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();

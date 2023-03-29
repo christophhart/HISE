@@ -966,7 +966,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, copyToClipboard);
 	API_METHOD_WRAPPER_1(Engine, decodeBase64ValueTree);
 	API_VOID_METHOD_WRAPPER_2(Engine, renderAudio);
-	API_VOID_METHOD_WRAPPER_2(Engine, playBuffer);
+	API_VOID_METHOD_WRAPPER_3(Engine, playBuffer);
 	
 	
 };
@@ -1109,7 +1109,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(reloadAllSamples);
 	ADD_API_METHOD_1(decodeBase64ValueTree);
 	ADD_API_METHOD_2(renderAudio);
-	ADD_API_METHOD_2(playBuffer);
+	ADD_API_METHOD_3(playBuffer);
 }
 
 
@@ -2043,10 +2043,11 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 	struct Job: public ControlledObject,
 				private PooledUIUpdater::SimpleTimer
 	{
-		Job(ProcessorWithScriptingContent* p, var buffer, var callbackFunction) :
+		Job(ProcessorWithScriptingContent* p, var buffer, var callbackFunction, double fileSampleRate_) :
 			ControlledObject(p->getMainController_()),
 			SimpleTimer(p->getMainController_()->getGlobalUIUpdater(), true),
 			bufferToPreview(buffer),
+            fileSampleRate(fileSampleRate_),
 			callback(p, nullptr, callbackFunction, 2)
 		{
 			callback.incRefCount();
@@ -2085,11 +2086,35 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 		{
 			AudioSampleBuffer b(channels, numChannels, numSamples);
 
-			AudioSampleBuffer copy;
-			copy.makeCopyOf(b);
+            auto originalSampleRate = fileSampleRate;
+            auto currentSampleRate = getMainController()->getMainSynthChain()->getSampleRate();
 
-			getMainController()->setBufferToPlay(copy);
-			start();
+            if (originalSampleRate != currentSampleRate)
+            {
+                auto ratio = originalSampleRate / currentSampleRate;
+
+                int numResampled = (int)((double)numSamples / ratio) + 1;
+
+                AudioSampleBuffer r(b.getNumChannels(), numResampled);
+
+                LagrangeInterpolator p;
+
+                for (int i = 0; i < b.getNumChannels(); i++)
+                {
+                    p.reset();
+                    p.process(ratio, b.getReadPointer(i), r.getWritePointer(i), numResampled);
+                }
+
+                getMainController()->setBufferToPlay(r);
+            }
+            else
+            {
+                AudioSampleBuffer copy;
+                copy.makeCopyOf(b);
+                getMainController()->setBufferToPlay(copy);
+            }
+            
+            start();
 		}
 
 		void sendCallback(bool isPlaying, double position)
@@ -2115,18 +2140,20 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 		int numChannels;
 		int numSamples = -1;
 
-
 		var args[2];
 		var bufferToPreview;
 		WeakCallbackHolder callback;
+        const double fileSampleRate;
 	};
 
-	void addJob(var buffer, var callback)
+	void addJob(var buffer, var callback, double fileSampleRate)
 	{
+        jassert(fileSampleRate >= 0.0);
+        
 		ScopedLock sl(jobLock);
 
 		getMainController()->stopBufferToPlay();
-		currentJobs.add(new Job(pwsc, buffer, callback));
+		currentJobs.add(new Job(pwsc, buffer, callback, fileSampleRate));
 
 		if (currentJobs.size() == 1)
 			startNextJob();
@@ -2163,12 +2190,15 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 	ProcessorWithScriptingContent* pwsc;
 };
 
-void ScriptingApi::Engine::playBuffer(var bufferData, var callback)
+void ScriptingApi::Engine::playBuffer(var bufferData, var callback, double fileSampleRate)
 {
+    if(fileSampleRate <= 0.0)
+        fileSampleRate = getSampleRate();
+    
 	if (previewHandler == nullptr)
 		previewHandler = new PreviewHandler(getScriptProcessor());
 
-	previewHandler->addJob(bufferData, callback);
+	previewHandler->addJob(bufferData, callback, fileSampleRate);
 }
 
 var ScriptingApi::Engine::createFFT()

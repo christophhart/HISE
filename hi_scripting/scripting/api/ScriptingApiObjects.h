@@ -397,6 +397,9 @@ namespace ScriptingObjects
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
 
+        /** Tries to parse the metadata from the audio file (channel amount, length, samplerate, etc) and returns a JSON object if sucessful. */
+        var loadAudioMetadata() const;
+        
 		/** Tries to parse the metadata of the MIDI file and returns a JSON object if successful. */
 		var loadMidiMetadata() const;
 

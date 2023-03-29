@@ -193,6 +193,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, getHash);
 	API_METHOD_WRAPPER_1(ScriptFile, toString);
 	API_METHOD_WRAPPER_0(ScriptFile, loadMidiMetadata);
+    API_METHOD_WRAPPER_0(ScriptFile, loadAudioMetadata);
 	API_METHOD_WRAPPER_0(ScriptFile, isFile);
 	API_METHOD_WRAPPER_0(ScriptFile, isDirectory);
 	API_METHOD_WRAPPER_0(ScriptFile, hasWriteAccess);
@@ -268,6 +269,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_0(loadAsAudioFile);
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_0(loadMidiMetadata);
+    ADD_API_METHOD_0(loadAudioMetadata);
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
@@ -810,6 +812,41 @@ juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
 
 		return var(channels);
 	}
+}
+
+juce::var ScriptingObjects::ScriptFile::loadAudioMetadata() const
+{
+    AudioFormatManager afm;
+    afm.registerBasicFormats();
+    
+    auto fis2= new FileInputStream(f);
+
+    std::unique_ptr<InputStream> fis(static_cast<InputStream*>(fis2));
+
+    if(ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(fis)))
+    {
+        DynamicObject::Ptr data = new DynamicObject();
+        
+        data->setProperty("SampleRate", reader->sampleRate);
+        data->setProperty("NumChannels", reader->numChannels);
+        data->setProperty("NumSamples", reader->lengthInSamples);
+        data->setProperty("BitDepth", reader->bitsPerSample);
+        data->setProperty("Format", reader->getFormatName());
+        data->setProperty("File", f.getFullPathName());
+        
+        DynamicObject::Ptr meta = new DynamicObject();
+        
+        for(const auto& r: reader->metadataValues.getAllKeys())
+        {
+            meta->setProperty(r, reader->metadataValues[r]);
+        }
+        
+        data->setProperty("Metadata", meta.get());
+        
+        return var(data.get());
+    }
+    
+    return {};
 }
 
 juce::var ScriptingObjects::ScriptFile::loadMidiMetadata() const
