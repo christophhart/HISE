@@ -101,6 +101,8 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(AdminPermissions);
 	ids.add(EmbedUserPresets);
 	ids.add(EnableGlobalPreprocessor);
+    ids.add(UseGlobalAppDataFolderWindows);
+    ids.add(UseGlobalAppDataFolderMacOS);
 
 	return ids;
 }
@@ -436,6 +438,16 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 				D(" This is neccessary for tasks that access restricted locations such as the user's VST3 directory.");
 				P_();
 		    
+        P(HiseSettings::Project::UseGlobalAppDataFolderWindows);
+        D("If enabled, this will use the global app data folder (C:/ProgramData/Common Files) for the app data");
+        D("> This setting will write the `HISE_USE_SYSTEM_APP_DATA_FOLDER` flag when exporting the plugin");
+        P_();
+        
+        P(HiseSettings::Project::UseGlobalAppDataFolderMacOS);
+        D("If enabled, this will use the global app data folder on macOS (/Library/Application Support)");
+        D("> This setting will write the `HISE_USE_SYSTEM_APP_DATA_FOLDER` flag when exporting the plugin");
+        P_();
+        
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();
@@ -484,6 +496,8 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
 
+        
+        
 		P(HiseSettings::Compiler::RebuildPoolFiles);
 		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
 		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
@@ -664,7 +678,7 @@ HiseSettings::Data::Data(MainController* mc_) :
 juce::File HiseSettings::Data::getFileForSetting(const Identifier& id) const
 {
 	
-	auto appDataFolder = NativeFileHandler::getAppDataDirectory();
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory(nullptr);
 
 	if (id == SettingFiles::AudioSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
 	else if (id == SettingFiles::MidiSettings)		return appDataFolder.getChildFile("DeviceSettings.xml");
@@ -852,6 +866,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
         id == Project::ForceStereoOutput ||
 		id == Project::AdminPermissions ||
 		id == Project::EnableGlobalPreprocessor ||
+        id == Project::UseGlobalAppDataFolderWindows ||
+        id == Project::UseGlobalAppDataFolderMacOS ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -1040,8 +1056,10 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
-	else if (id == Project::LinkExpansionsToProject)   return "No";
-	else if (id == Project::EnableGlobalPreprocessor) return "No";
+	else if (id == Project::LinkExpansionsToProject)       return "No";
+	else if (id == Project::EnableGlobalPreprocessor)      return "No";
+    else if (id == Project::UseGlobalAppDataFolderWindows) return "No";
+    else if (id == Project::UseGlobalAppDataFolderMacOS)   return "No";
 	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::GlassEffect)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
@@ -1077,7 +1095,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	{
 		FRONTEND_ONLY(jassertfalse);
 
-		File scriptFolder = File(NativeFileHandler::getAppDataDirectory()).getChildFile("scripts");
+		File scriptFolder = File(NativeFileHandler::getAppDataDirectory(nullptr)).getChildFile("scripts");
 		if (!scriptFolder.isDirectory())
 			scriptFolder.createDirectory();
 
@@ -1295,7 +1313,7 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		auto company = getSetting(User::Company).toString();
 		auto project = getSetting(Project::Name).toString();
 
-		auto expFolder = ProjectHandler::getAppDataRoot().getChildFile(company).getChildFile(project).getChildFile("Expansions");
+		auto expFolder = ProjectHandler::getAppDataRoot(mc).getChildFile(company).getChildFile(project).getChildFile("Expansions");
 
 		auto expRoot = mc->getExpansionHandler().getExpansionFolder();
 

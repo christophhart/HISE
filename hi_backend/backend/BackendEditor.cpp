@@ -807,7 +807,7 @@ struct PopupFloatingTile: public Component,
 
 	static File getDirectory()
 	{
-		auto dir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
+		auto dir = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("custom_popups");
 
 		if (!dir.isDirectory())
 			dir.createDirectory();

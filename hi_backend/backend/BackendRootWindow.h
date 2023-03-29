@@ -74,7 +74,7 @@ public:
     
 	File getKeyPressSettingFile() const override
 	{
-		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
 	}
 
 	void initialiseAllKeyPresses() override;

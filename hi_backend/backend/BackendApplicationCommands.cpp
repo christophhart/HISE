@@ -1660,7 +1660,7 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 	{
 		File f = fc.getResult();
 
-		ProjectHandler::createLinkFileInFolder(ProjectHandler::getAppDataDirectory().getChildFile("scripts"), f);
+		ProjectHandler::createLinkFileInFolder(ProjectHandler::getAppDataDirectory(nullptr).getChildFile("scripts"), f);
 	}
 }
 

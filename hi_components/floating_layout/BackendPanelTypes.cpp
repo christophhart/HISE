@@ -547,7 +547,7 @@ struct DAWClockController::Ruler: public Component,
     
 	File getTimelineFile() const
 	{
-		return ProjectHandler::getAppDataDirectory().getChildFile("Timeline.xml");
+		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("Timeline.xml");
 	}
 
     void mouseDown(const MouseEvent& e) override

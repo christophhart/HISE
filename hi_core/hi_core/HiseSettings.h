@@ -93,6 +93,8 @@ DECLARE_ID(ReadOnlyFactoryPresets);
 DECLARE_ID(ForceStereoOutput);
 DECLARE_ID(AdminPermissions);
 DECLARE_ID(EmbedUserPresets);
+DECLARE_ID(UseGlobalAppDataFolderWindows);
+DECLARE_ID(UseGlobalAppDataFolderMacOS);
 
 Array<Identifier> getAllIds();
 

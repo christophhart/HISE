@@ -830,7 +830,7 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, boo
 		xml->addChildElement(child);
 	}
 
-	getAppDataDirectory().getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
+	getAppDataDirectory(nullptr).getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
 
 	ScopedLock sl(listeners.getLock());
 
@@ -847,7 +847,7 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, boo
 
 void ProjectHandler::restoreWorkingProjects()
 {
-	auto xml = XmlDocument::parse(getAppDataDirectory().getChildFile("projects.xml"));
+	auto xml = XmlDocument::parse(getAppDataDirectory(nullptr).getChildFile("projects.xml"));
 
 	if (xml != nullptr)
 	{
@@ -1089,20 +1089,52 @@ void ProjectHandler::checkActiveProject()
 	
 }
 
-juce::File ProjectHandler::getAppDataRoot()
+juce::File ProjectHandler::getAppDataRoot(MainController* mc)
 {
+#if USE_BACKEND
+    
+    // Check this property dynamically
+    File::SpecialLocationType appDataDirectoryToUse;
+    
+    if(mc == nullptr)
+    {
+        // if we pass in nullptr here, it's supposed to return the HISE app data folder
+        // which is always local
+        appDataDirectoryToUse = File::userApplicationDataDirectory;
+    }
+    else
+    {
+#if JUCE_WINDOWS
+        auto idToUse = HiseSettings::Project::UseGlobalAppDataFolderWindows;
+#else
+        auto idToUse = HiseSettings::Project::UseGlobalAppDataFolderMacOS;
+#endif
+        
+        if(GET_HISE_SETTING(mc->getMainSynthChain(), idToUse))
+            appDataDirectoryToUse = File::commonApplicationDataDirectory;
+        else
+            appDataDirectoryToUse = File::userApplicationDataDirectory;
+    }
+#else
+    
+    // discard the mc pointer, we'll use a static property
+    ignoreUnused(mc);
+    
+    // Use the preprocessor to figure it out in the compiled plugin
 #if HISE_USE_SYSTEM_APP_DATA_FOLDER
     const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
 #else
-	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+    const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
 #endif
+#endif
+    
     
 #if JUCE_IOS
 	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/");
 #elif JUCE_MAC
 
 
-#if ENABLE_APPLE_SANDBOX
+#if !USE_BACKEND && ENABLE_APPLE_SANDBOX
     ignoreUnused(appDataDirectoryToUse);
 	return File::getSpecialLocation(File::userMusicDirectory);
 #else
@@ -1116,27 +1148,22 @@ juce::File ProjectHandler::getAppDataRoot()
 
 }
 
-juce::File ProjectHandler::getAppDataDirectory()
+juce::File ProjectHandler::getAppDataDirectory(MainController* mc)
 {
-
-#if HISE_USE_SYSTEM_APP_DATA_FOLDER
-	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
-#else
-	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-#endif
+    auto appDataRoot = getAppDataRoot(mc);
 
 
 #if JUCE_WINDOWS
 	// Windows
-	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("HISE");
+	File f = appDataRoot.getChildFile("HISE");
 #elif JUCE_MAC
 
 #if HISE_IOS
 	// iOS
-	File f = File::getSpecialLocation(appDataDirectoryToUse);
+	File f = appDataRoot
 #else
 	// OS X
-	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/HISE");
+	File f = appDataRoot.getChildFile("HISE");
 #endif
 
 #else
@@ -1144,9 +1171,10 @@ juce::File ProjectHandler::getAppDataDirectory()
 	File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
 #endif
 
-	if (!f.isDirectory()) f.createDirectory();
+	if (!f.isDirectory())
+        f.createDirectory();
 
-	return f.getFullPathName();
+    return f;
 }
 
 juce::String FrontendHandler::checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound)
@@ -1306,7 +1334,7 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
     
     
     
-	File appDataDir = getAppDataDirectory();
+	File appDataDir = getAppDataDirectory(nullptr);
 
 	// The installer should take care of creating the app data directory...
 	jassert(appDataDir.isDirectory());
@@ -1362,9 +1390,10 @@ File FrontendHandler::getSampleLocationForCompiledPlugin()
 #endif
 }
 
-juce::File FrontendHandler::getAppDataDirectory()
+juce::File FrontendHandler::getAppDataDirectory(MainController* /*unused*/)
 {
-	auto root = ProjectHandler::getAppDataRoot();
+    auto root = ProjectHandler::getAppDataRoot(nullptr);
+    
 	auto f = root.getChildFile(getCompanyName() + "/" + getProjectName());
 
 	if (!f.isDirectory())
@@ -2049,7 +2078,7 @@ void PresetHandler::buildProcessorDataBase(Processor *root)
 	if (CompileExporter::isExportingFromCommandLine())
 		return;
 
-	auto f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
+	auto f = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("moduleEnums.xml");
 
 	if (f.existsAsFile()) return;
 

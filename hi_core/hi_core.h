@@ -389,6 +389,16 @@ OpenGL should be enabled by default or not.
 #define HISE_DEFAULT_OPENGL_VALUE 1
 #endif
 
+/** Config: HISE_USE_SYSTEM_APP_DATA_FOLDER
+
+    If enabled, the compiled plugin will use the global app data folder instead of the local one.
+    This flag will be set automatically based on the project setting. In HISE this must not be changed
+    as the app data directory will be checked dynamically using this setting value.
+*/
+#ifndef HISE_USE_SYSTEM_APP_DATA_FOLDER
+#define HISE_USE_SYSTEM_APP_DATA_FOLDER 0
+#endif
+
 /** Config: ENABLE_STARTUP_LOGGER
 
 If this is enabled, compiled plugins will write a startup log to the desktop for debugging purposes

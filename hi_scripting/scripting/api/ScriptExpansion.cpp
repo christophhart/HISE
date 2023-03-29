@@ -2754,7 +2754,7 @@ juce::File ScriptUnlocker::getLicenseKeyFile()
 	auto c = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company).toString();
 	auto p = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
 
-	return ProjectHandler::getAppDataRoot().getChildFile(c).getChildFile(p).getChildFile(p).withFileExtension(FrontendHandler::getLicenseKeyExtension());
+	return ProjectHandler::getAppDataRoot(getMainController()).getChildFile(c).getChildFile(p).getChildFile(p).withFileExtension(FrontendHandler::getLicenseKeyExtension());
 #else
 	return FrontendHandler::getLicenseKey();
 #endif

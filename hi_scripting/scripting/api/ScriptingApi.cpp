@@ -6874,7 +6874,7 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 #if USE_BACKEND
 	case AppData:
 	{
-		f = ProjectHandler::getAppDataRoot();
+		f = ProjectHandler::getAppDataRoot(getMainController());
 
 		auto company = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company);
 		auto project = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name);

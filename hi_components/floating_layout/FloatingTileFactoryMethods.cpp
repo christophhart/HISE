@@ -665,7 +665,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	m.addItem((int)PopupMenuOptions::exportAsJSON, "Export as JSON", true, false);
 	m.addItem((int)PopupMenuOptions::loadFromJSON, "Load JSON from clipboard", parent->canBeDeleted(), false);
 
-	auto popupDir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
+	auto popupDir = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("custom_popups");
 
 	auto fileList = popupDir.findChildFiles(File::findFiles, false, "*.json");
 	fileList.sort();

@@ -476,7 +476,7 @@ public:
 			throwErrorAndQuit(hisePath.getFullPathName() + " is not HISE source folder");
 		}
 
-		auto compilerSettings = NativeFileHandler::getAppDataDirectory().getChildFile("compilerSettings.xml");
+		auto compilerSettings = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("compilerSettings.xml");
 
 		ScopedPointer<XmlElement> xml;
 

@@ -1025,7 +1025,7 @@ public:
 		auto& data = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
 		auto project = data.getSetting(HiseSettings::Project::Name).toString();
 		auto company = data.getSetting(HiseSettings::User::Company).toString();
-		auto targetDirectory = ProjectHandler::getAppDataDirectory().getParentDirectory().getChildFile(company).getChildFile(project);
+		auto targetDirectory = ProjectHandler::getAppDataDirectory(nullptr).getParentDirectory().getChildFile(company).getChildFile(project);
 		auto& handler = mc->getCurrentFileHandler();
 
 		if (!(bool)data.getSetting(HiseSettings::Project::EmbedImageFiles))

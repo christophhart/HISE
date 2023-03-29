@@ -82,7 +82,7 @@ RangePresets::RangePresets() :
 
 juce::File RangePresets::getRangePresetFile()
 {
-	return ProjectHandler::getAppDataDirectory().getChildFile("RangePresets").withFileExtension("xml");
+	return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("RangePresets").withFileExtension("xml");
 }
 
 void RangePresets::createDefaultRange(const String& id, InvertableParameterRange d, double midPoint /*= -10000000.0*/)

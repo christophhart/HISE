@@ -403,7 +403,7 @@ File GlobalSettingManager::getSettingDirectory()
 #if ENABLE_APPLE_SANDBOX
 	return NativeFileHandler::getAppDataDirectory().getChildFile("Resources/");
 #else
-	return NativeFileHandler::getAppDataDirectory();
+	return NativeFileHandler::getAppDataDirectory(nullptr);
 #endif
 
 }
