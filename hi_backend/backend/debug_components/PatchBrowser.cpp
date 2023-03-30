@@ -1933,7 +1933,7 @@ juce::Path PatchBrowser::Factory::createPath(const String& url) const
 }
 
 AutomationDataBrowser::AutomationCollection::ConnectionItem::ConnectionItem(AutomationData::Ptr d_, AutomationData::ConnectionBase::Ptr c_) :
-	Item(d_->id.toString()),
+	Item(d_->id),
 	d(d_),
 	c(c_)
 {
@@ -1988,7 +1988,7 @@ void AutomationDataBrowser::AutomationCollection::paint(Graphics& g)
 
 	String s;
 
-	s << "#" << String(index) << " " << data->id.toString() << ": " << String(data->lastValue);
+	s << "#" << String(index) << " " << data->id << ": " << String(data->lastValue);
 
 	g.drawText(s, top.reduced(10.0f, 0.0f), Justification::left);
 

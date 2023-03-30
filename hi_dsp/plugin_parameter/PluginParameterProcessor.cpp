@@ -39,7 +39,7 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 	using Data = MainController::UserPresetHandler::CustomAutomationData;
 
 	CustomAutomationParameter(Data::Ptr data_) :
-		AudioProcessorParameterWithID(data_->id.toString(), data_->id.toString()),
+		AudioProcessorParameterWithID(data_->id, data_->id),
 		data(data_)
 	{
 		data->syncListeners.addListener(*this, update, false);

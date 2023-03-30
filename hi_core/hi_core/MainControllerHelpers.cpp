@@ -229,7 +229,7 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 			{
 				if (auto ah = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(j))
 				{
-					if (ah->id.toString() == attributeString)
+					if (ah->id == attributeString)
 					{
 						attribute = j;
 						break;
@@ -306,7 +306,7 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 
 	if (auto ap = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(attribute))
 	{
-		cc.setProperty("Attribute", ap->id.toString(), nullptr);
+		cc.setProperty("Attribute", ap->id, nullptr);
 	}
 	else
 	{

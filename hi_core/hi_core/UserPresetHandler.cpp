@@ -217,7 +217,7 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Cu
 	args[0] = index;
 	args[1] = var(lastValue);
 
-	if (id.toString().isEmpty())
+    if (id.isEmpty())
 		r = Result::fail("No ID");
 
 	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
@@ -235,8 +235,8 @@ hise::MainController::UserPresetHandler::CustomAutomationData::ConnectionBase::P
 
 	auto pId = c[processorId].toString();
 	auto paramId = c[parameterId].toString();
-	auto automId = c[automationId].toString();
-	auto cId = c[cableId].toString();
+	
+	
 
 	if (pId.isNotEmpty() && paramId.isNotEmpty())
 	{
@@ -255,11 +255,14 @@ hise::MainController::UserPresetHandler::CustomAutomationData::ConnectionBase::P
 			throw String("Can't find processor / parameter with ID " + pId + "." + paramId);
 		}
 	}
-	else if (automId.isNotEmpty())
+    
+    auto automId = c[automationId].toString();
+    
+    if (automId.isNotEmpty())
 	{
 		for (auto l : newList)
 		{
-			if (l->id == Identifier(automId))
+			if (l->id == automId)
 			{
 				auto p = new MetaConnection();
 				p->target = l;
@@ -269,7 +272,10 @@ hise::MainController::UserPresetHandler::CustomAutomationData::ConnectionBase::P
 		
 		throw String("Can't find automation ID for meta automation: " + automId);
 	}
-	else if (cId.isNotEmpty())
+    
+    auto cId = c[cableId].toString();
+    
+    if (cId.isNotEmpty())
 	{
 		if (auto m = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(mc))
 		{
@@ -737,7 +743,7 @@ juce::StringArray MainController::UserPresetHandler::getCustomAutomationIds() co
 	StringArray sa;
 	for (auto l : customAutomationData)
 	{
-		sa.add(l->id.toString());
+		sa.add(l->id);
 	}
 
 	return sa;
@@ -749,7 +755,7 @@ int MainController::UserPresetHandler::getCustomAutomationIndex(const Identifier
 
 	for (auto l : customAutomationData)
 	{
-		if (l->id == id)
+		if (l->id == id.toString())
 			return index;
 
 		index++;
@@ -792,7 +798,7 @@ MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::Use
 {
 	for (auto l : customAutomationData)
 	{
-		if (l->id == id)
+		if (l->id == id.toString())
 			return l;
 	}
 
