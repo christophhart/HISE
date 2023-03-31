@@ -168,9 +168,10 @@ template <class RNBOType, int NV> struct rnbo_wrapper:
     
     static constexpr bool isModNode() { return false; };
     
-    // set to true if your node produces a tail
     static constexpr bool hasTail() { return false; };
-    // Undefine this method if you want a dynamic channel count
+
+	static constexpr bool isSuspendedOnSilence() { return false; }
+
     static constexpr int getFixChannelAmount() { return 2; };
     
     // Define the amount and types of external data slots you want to use

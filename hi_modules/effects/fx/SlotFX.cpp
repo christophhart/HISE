@@ -986,6 +986,14 @@ bool HardcodedMasterFX::hasTail() const
 	return hasHardcodedTail();
 }
 
+bool HardcodedMasterFX::isSuspendedOnSilence() const
+{
+	if (opaqueNode != nullptr)
+		return opaqueNode->isSuspendedOnSilence();
+
+	return true;
+}
+
 void HardcodedMasterFX::voicesKilled()
 {
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
@@ -1088,7 +1096,37 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 
 #endif
 
+	auto canBeSuspended = isSuspendedOnSilence();
+
+	if (canBeSuspended)
+	{
+		if (masterState.numSilentBuffers > numSilentCallbacksToWait && startSample == 0)
+		{
+			auto silent = DspHelpers::isSilentMultiChannel(b.getArrayOfWritePointers(), b.getNumChannels(), numSamples);
+			
+			if (silent)
+			{
+				getMatrix().handleDisplayValues(b, b, false);
+				masterState.currentlySuspended = true;
+				return;
+			}
+		}
+	}
+
+	masterState.currentlySuspended = false;
 	processHardcoded(b, eventBuffer, startSample, numSamples);
+
+	getMatrix().handleDisplayValues(b, b, false);
+
+	if (canBeSuspended)
+	{
+		bool isSilent = DspHelpers::isSilentMultiChannel(b.getArrayOfWritePointers(), b.getNumChannels(), numSamples);
+
+		if (isSilent)
+			masterState.numSilentBuffers++;
+		else
+			masterState.numSilentBuffers = 0;
+	}
 }
 
 void HardcodedMasterFX::renderWholeBuffer(AudioSampleBuffer &buffer)
@@ -1162,6 +1200,14 @@ bool HardcodedPolyphonicFX::hasTail() const
 	return hasHardcodedTail();
 }
 
+bool HardcodedPolyphonicFX::isSuspendedOnSilence() const
+{
+	if (opaqueNode != nullptr)
+		return opaqueNode->isSuspendedOnSilence();
+
+	return true;
+}
+
 hise::ProcessorEditorBody * HardcodedPolyphonicFX::createEditor(ProcessorEditor *parentEditor)
 {
 	return createHardcodedEditor(parentEditor);
@@ -1178,6 +1224,8 @@ void HardcodedPolyphonicFX::startVoice(int voiceIndex, const HiseEvent& e)
 {
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
+	VoiceEffectProcessor::startVoice(voiceIndex, e);
+
 	if (opaqueNode != nullptr)
 	{
 		voiceStack.startVoice(*opaqueNode, polyHandler, voiceIndex, e);
@@ -1192,7 +1240,12 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 
 	PolyHandler::ScopedVoiceSetter svs(polyHandler, voiceIndex);
 
+	if (checkPreSuspension(voiceIndex, b, startSample, numSamples))
+		return;
+
 	auto ok = processHardcoded(b, nullptr, startSample, numSamples);
+
+	checkPostSuspension(voiceIndex, b, startSample, numSamples);
 
 	isTailing = ok && voiceStack.containsVoiceIndex(voiceIndex);
 }

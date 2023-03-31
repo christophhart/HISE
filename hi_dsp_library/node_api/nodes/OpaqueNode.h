@@ -160,6 +160,9 @@ struct OpaqueNode
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
 
+		if constexpr (prototypes::check::isSuspendedOnSilence<T>::value)
+			canBeSuspended_ = t->isSuspendedOnSilence();
+
 		if constexpr (prototypes::check::getFixChannelAmount<typename T::ObjectType>::value)
 			numChannels = T::ObjectType::getFixChannelAmount();
 		else
@@ -269,6 +272,8 @@ struct OpaqueNode
 
 	bool hasTail() const { return hasTail_; }
 
+	bool isSuspendedOnSilence() const { return canBeSuspended_; }
+
 private:
 
 	String description;
@@ -283,6 +288,7 @@ private:
 	bool isPolyPossible = false;
 
 	bool hasTail_ = true;
+	bool canBeSuspended_ = false;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
 	prototypes::destruct destructFunc = nullptr;
@@ -436,7 +442,7 @@ namespace dll
 	{
 		// This is just used to check whether the dll is deprecated and needs to be recompiled...
 		// (It will be bumped whenever a breaking change into the DLL API is introduced)...
-		static constexpr int DllUpdateCounter = 2;
+		static constexpr int DllUpdateCounter = 3;
 
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 

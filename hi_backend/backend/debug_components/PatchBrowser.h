@@ -82,6 +82,7 @@ public:
 		
 		float channelValues[NUM_MAX_CHANNELS];
 		int numChannels;
+		bool suspended = false;
 
 		ProcessorType type;
 

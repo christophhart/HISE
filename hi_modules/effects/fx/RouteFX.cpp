@@ -61,7 +61,7 @@ void RouteEffect::renderWholeBuffer(AudioSampleBuffer &b)
 
 	const int numSamples = b.getNumSamples();
 
-	if (getMatrix().isEditorShown())
+	if (getMatrix().anyChannelActive())
 	{
 		float gainValues[NUM_MAX_CHANNELS];
 
@@ -69,7 +69,10 @@ void RouteEffect::renderWholeBuffer(AudioSampleBuffer &b)
 
 		for (int i = 0; i < b.getNumChannels(); i++)
 		{
-			gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+			if (getMatrix().isEditorShown(i))
+				gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+			else
+				gainValues[i] = 0.0f;
 		}
 
 		getMatrix().setGainValues(gainValues, true);
@@ -85,7 +88,7 @@ void RouteEffect::renderWholeBuffer(AudioSampleBuffer &b)
 		}
 	}
 
-	if (getMatrix().isEditorShown())
+	if (getMatrix().anyChannelActive())
 	{
 		float gainValues[NUM_MAX_CHANNELS];
 
@@ -93,7 +96,10 @@ void RouteEffect::renderWholeBuffer(AudioSampleBuffer &b)
 
 		for (int i = 0; i < b.getNumChannels(); i++)
 		{
-			gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+			if (getMatrix().isEditorShown(i))
+				gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+			else
+				gainValues[i] = 0.0f;
 		}
 
 		getMatrix().setGainValues(gainValues, false);

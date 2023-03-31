@@ -1291,6 +1291,8 @@ template <class T> struct node : public scriptnode::data::base
 
 	static constexpr bool hasTail() { return T::hasTail(); }
 
+	static constexpr bool isSuspendedOnSilence() { return T::isSuspendedOnSilence(); }
+
 	static constexpr int NumChannels =	  MetadataClass::NumChannels;
 	static constexpr int NumTables =	  MetadataClass::NumTables;
 	static constexpr int NumSliderPacks = MetadataClass::NumSliderPacks;

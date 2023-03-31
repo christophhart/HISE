@@ -1111,9 +1111,17 @@ template <int NV> struct silent_killer_impl: public voice_manager_base
 
 		if (active && s && activeEvents.isEmpty())
 		{
-			auto bToLook = d[0];
-			auto max = FloatVectorOperations::findMaximum(bToLook.begin(), bToLook.size());
-			auto isEmpty = max < threshold;
+			bool isEmpty = false;
+
+			if (d.getNumChannels() == 1)
+			{
+				float* stereo[2] = { d.getRawChannelPointers()[0], d.getRawChannelPointers()[0] };
+				isEmpty = DspHelpers::isSilent(stereo, d.getNumSamples());
+			}
+			else if (d.getNumChannels() == 2)
+				isEmpty = DspHelpers::isSilent(d.getRawChannelPointers(), d.getNumSamples());
+			else
+				isEmpty = DspHelpers::isSilentMultiChannel(d.getRawDataPointers(), d.getNumChannels(), d.getNumSamples());
 
 			if (isEmpty)
 			{

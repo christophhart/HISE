@@ -198,7 +198,7 @@ struct SendContainer : public ModulatorSynth
                 outputAudio.addFrom(idx, 0, internalBuffer, i, 0, numSamplesToProcess);
         }
         
-        getMatrix().handleDisplayValues(internalBuffer, outputAudio);
+        getMatrix().handleDisplayValues(internalBuffer, outputAudio, true);
 
         handlePeakDisplay(numSamplesToProcess);
         
@@ -310,6 +310,8 @@ struct SendEffect : public MasterEffectProcessor
 	int getNumInternalChains() const override { return 1; };
 
 	bool hasTail() const override { return false; };
+
+	bool isSuspendedOnSilence() const override { return true; }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return sendChain; };
 

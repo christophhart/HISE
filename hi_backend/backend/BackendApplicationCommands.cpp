@@ -2900,6 +2900,9 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 			b.addComment("set to true if your node produces a tail", Base::CommentType::Raw);
 			b << "static constexpr bool hasTail() { return false; };";
 
+			b.addComment("set to true if your doesn't generate sound from silence and can be suspended when the input signal is silent", Base::CommentType::Raw);
+			b << "static constexpr bool isSuspendedOnSilence() { return false; };";
+
 			b.addComment("Undefine this method if you want a dynamic channel count", Base::CommentType::Raw);
 			b << "static constexpr int getFixChannelAmount() { return 2; };";
 

@@ -85,7 +85,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	if (!data.hasProperty(PropertyIds::HasTail))
 		data.setProperty(PropertyIds::HasTail, true, nullptr);
 
+	if(!data.hasProperty(PropertyIds::SuspendOnSilence))
+		data.setProperty(PropertyIds::SuspendOnSilence, false, nullptr);
+
 	hasTailProperty.referTo(data, PropertyIds::HasTail, &um, true);
+	canBeSuspendedProperty.referTo(data, PropertyIds::SuspendOnSilence, &um, false);
 
 	if (!data.hasProperty(ExpansionIds::Version))
 	{
@@ -504,6 +508,11 @@ void DspNetwork::process(ProcessDataDyn& data)
 bool DspNetwork::hasTail() const
 {
 	return hasTailProperty.get();
+}
+
+bool DspNetwork::isSuspendedOnSilence() const
+{
+	return canBeSuspendedProperty.get();
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)

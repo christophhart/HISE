@@ -451,7 +451,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	getMatrix().handleDisplayValues(thisInternalBuffer, outputBuffer);
+	getMatrix().handleDisplayValues(thisInternalBuffer, outputBuffer, true);
 
 	
 

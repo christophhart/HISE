@@ -784,6 +784,8 @@ public:
 
 	bool hasTail() const;
 
+	bool isSuspendedOnSilence() const;
+
 	bool handleModulation(double& v)
 	{
 		if (isFrozen())
@@ -1098,6 +1100,7 @@ private:
 	const bool isPoly;
 
 	CachedValue<bool> hasTailProperty;
+	CachedValue<bool> canBeSuspendedProperty;
 
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	snex::Types::PolyHandler polyHandler;

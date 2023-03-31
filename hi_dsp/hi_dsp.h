@@ -112,6 +112,11 @@ class ProcessorEditor;
 
 #include "plugin_parameter/PluginParameterProcessor.h"
 
+/** This defines the tail duration for suspending effects when the input is silent. */
+#ifndef HISE_SUSPENSION_TAIL_MS
+#define HISE_SUSPENSION_TAIL_MS 500
+#endif
+
 
 
 #endif  // HI_DSP_H_INCLUDED

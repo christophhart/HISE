@@ -188,6 +188,11 @@ public:
 		return filterBands[filterIndex];
 	}
 
+	bool isSuspendedOnSilence() const final override
+	{
+		return true;
+	}
+
 	void enableSpectrumAnalyser(bool shouldBeEnabled)
 	{
 		fftBuffer->setActive(shouldBeEnabled);

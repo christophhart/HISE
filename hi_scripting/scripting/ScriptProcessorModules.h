@@ -781,6 +781,8 @@ public:
 
 	bool hasTail() const override;;
 
+	bool isSuspendedOnSilence() const override;
+
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
 
@@ -874,15 +876,9 @@ public:
 	void registerApiClasses() override;
 	void postCompileCallback() override;
 
-	bool hasTail() const override
-    {
-        if (auto n = getActiveNetwork())
-        {
-            return n->hasTail();
-        }
-        
-        return false;        
-    };
+	bool hasTail() const override;;
+
+	bool isSuspendedOnSilence() const override;
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };

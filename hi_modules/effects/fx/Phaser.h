@@ -79,6 +79,8 @@ public:
     void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;;
     
     bool hasTail() const override { return false; };
+	bool isSuspendedOnSilence() const final override { return true; }
+
     int getNumChildProcessors() const override { return numInternalChains; };
 	int getNumInternalChains() const override { return numInternalChains; };
     Processor *getChildProcessor(int /*processorIndex*/) override { return phaseModulationChain; };

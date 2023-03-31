@@ -4666,6 +4666,8 @@ int ScriptingApi::Content::ScriptedViewport::getOriginalRowIndex(int rowIndex)
 	}
 	else
 		reportScriptError("You need to call setTableMode first");
+
+	return 0;
 }
 
 // ====================================================================================================== ScriptFloatingTile functions

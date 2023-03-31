@@ -1978,15 +1978,21 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			parent << "static constexpr bool isProcessingHiseEvent() { return true; };";
 		}
 
-		
-
-
 		{
 			auto hasTail = parent.v.getParent().getProperty(PropertyIds::HasTail, true);
 			parent.addEmptyLine();
 
 			String def;
 			def << "static constexpr bool hasTail() { return " << (hasTail ? "true" : "false") << "; };";
+			parent << def;
+		}
+
+		{
+			auto isSuspendedOnSilence = parent.v.getParent().getProperty(PropertyIds::SuspendOnSilence, false);
+			parent.addEmptyLine();
+
+			String def;
+			def << "static constexpr bool isSuspendedOnSilence() { return " << (isSuspendedOnSilence ? "true" : "false") << "; };";
 			parent << def;
 		}
 

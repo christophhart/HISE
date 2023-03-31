@@ -310,7 +310,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
 	}
 
-	getMatrix().handleDisplayValues(internalBuffer, buffer);
+	getMatrix().handleDisplayValues(internalBuffer, buffer, true);
 
 	// Display the output
 	handlePeakDisplay(numSamples);

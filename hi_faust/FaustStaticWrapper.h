@@ -17,6 +17,8 @@ template <int NV, class ModParameterClass, class FaustClass, class MC, int nChan
 	// set to true if your node produces a tail
 	static constexpr bool hasTail() { return false; };
 
+	static constexpr bool isSuspendedOnSilence() { return false; };
+
 	// Define the amount and types of external data slots you want to use
 	static constexpr int NumTables = 0;
 	static constexpr int NumSliderPacks = 0;
