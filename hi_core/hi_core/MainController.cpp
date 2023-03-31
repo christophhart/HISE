@@ -865,6 +865,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
+
+#if ENABLE_CPU_MEASUREMENT
+	startCpuBenchmark(numSamplesThisBlock);
+#endif
+
 	jassert(getOriginalBufferSize() >= numSamplesThisBlock);
 
 #if !FRONTEND_IS_PLUGIN || HISE_ENABLE_MIDI_INPUT_FOR_FX
@@ -962,7 +967,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		FX_ONLY(masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
 															 HiseEvent::Type::NoteOff, 
 											 60, 127, 1));)
-
 	}
 
 	if (bpmFromHost == 0.0)
@@ -981,9 +985,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	
 
-#if ENABLE_CPU_MEASUREMENT
-	startCpuBenchmark(numSamplesThisBlock);
-#endif
 
 #if !FRONTEND_IS_PLUGIN
 
