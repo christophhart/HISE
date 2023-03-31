@@ -520,8 +520,7 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 {
 	if (auto n = getActiveNetwork())
 	{
-		if (checkPreSuspension(voiceIndex, b, startSample, numSamples))
-			return;
+		
 
 		float* channels[NUM_MAX_CHANNELS];
 
@@ -533,10 +532,13 @@ void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &
 
 		scriptnode::ProcessDataDyn d(channels, numSamples, numChannels);
 
+		if (checkPreSuspension(voiceIndex, d))
+			return;
+
 		scriptnode::DspNetwork::VoiceSetter vs(*n, voiceIndex);
 		n->getRootNode()->process(d);
         
-		checkPostSuspension(voiceIndex, b, startSample, numSamples);
+		checkPostSuspension(voiceIndex, d);
 
 		// overwrite the tailing with the voice index to cater in
 		// voice resetting calls...

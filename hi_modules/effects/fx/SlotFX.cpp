@@ -835,13 +835,21 @@ bool HardcodedSwappableEffect::processHardcoded(AudioSampleBuffer& b, HiseEventB
 		if (e != nullptr)
 			pd.setEventBuffer(*e);
 
-		opaqueNode->process(pd);
+		renderData(pd);
+
+		
 
 		return true;
 	}
 
 
 	return false;
+}
+
+void HardcodedSwappableEffect::renderData(ProcessDataDyn& data)
+{
+	jassert(opaqueNode != nullptr);
+	opaqueNode->process(data);
 }
 
 bool HardcodedSwappableEffect::hasHardcodedTail() const
@@ -865,9 +873,6 @@ void HardcodedSwappableEffect::prepareOpaqueNode(OpaqueNode* n)
 		ps.voiceIndex = &polyHandler;
 		n->prepare(ps);
 		n->reset();
-
-		
-			
 
 #if USE_BACKEND
 		auto e = factory->getError();
@@ -1243,14 +1248,25 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 
 	PolyHandler::ScopedVoiceSetter svs(polyHandler, voiceIndex);
 
-	if (checkPreSuspension(voiceIndex, b, startSample, numSamples))
-		return;
+	
 
 	auto ok = processHardcoded(b, nullptr, startSample, numSamples);
 
-	checkPostSuspension(voiceIndex, b, startSample, numSamples);
+	getMatrix().handleDisplayValues(b, b, false);
 
 	isTailing = ok && voiceStack.containsVoiceIndex(voiceIndex);
+}
+
+void HardcodedPolyphonicFX::renderData(ProcessDataDyn& data)
+{
+	auto voiceIndex = polyHandler.getVoiceIndex();
+
+	if (checkPreSuspension(voiceIndex, data))
+		return;
+
+	HardcodedSwappableEffect::renderData(data);
+
+	checkPostSuspension(voiceIndex, data);
 }
 
 HardcodedSwappableEffect::DataWithListener::DataWithListener(HardcodedSwappableEffect& parent, ComplexDataUIBase* p, int index_, OpaqueNode* nodeToInitialise) :

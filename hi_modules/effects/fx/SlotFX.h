@@ -81,6 +81,8 @@ public:
 
 	bool processHardcoded(AudioSampleBuffer& b, HiseEventBuffer* e, int startSample, int numSamples);
 
+	virtual void renderData(ProcessDataDyn& data);
+
 	bool hasHardcodedTail() const;
 
     var getParameterProperties() const override;
@@ -278,6 +280,8 @@ public:
 	void startVoice(int voiceIndex, const HiseEvent& e) final override;
 
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) final override;
+
+	void renderData(ProcessDataDyn& data) override;
 
 	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int /*startSample*/, int /*numSamples*/) override
 	{

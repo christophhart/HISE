@@ -654,9 +654,6 @@ public:
 
 		preVoiceRendering(voiceIndex, startSample, numSamples);
 
-		if (checkPreSuspension(voiceIndex, b, startIndex, samplesToCheck))
-			return;
-
 		constexpr int stepSize = 64;
 
 		while(numSamples >= stepSize)
@@ -672,10 +669,9 @@ public:
 			applyEffect(voiceIndex, b, startSample, numSamples);
 		}
 
-		checkPostSuspension(voiceIndex, b, startIndex, samplesToCheck);
 	}
 
-	bool checkPreSuspension(int voiceIndex, AudioSampleBuffer& b, int startIndex, int samplesToCheck)
+	bool checkPreSuspension(int voiceIndex, ProcessDataDyn& d)
 	{
 		if (isSuspendedOnSilence())
 		{
@@ -685,7 +681,7 @@ public:
 
 			if (s.numSilentBuffers > numSilentCallbacksToWait)
 			{
-				if (isSilent(b, startIndex, samplesToCheck))
+				if (d.isSilent())
 				{
 					s.currentlySuspended = true;
 					return true;
@@ -701,11 +697,13 @@ public:
 		return false;
 	}
 
-	void checkPostSuspension(int voiceIndex, AudioSampleBuffer& b, int startIndex, int samplesToCheck)
+	
+
+	void checkPostSuspension(int voiceIndex, ProcessDataDyn& data)
 	{
 		if (hasTail() || isSuspendedOnSilence())
 		{
-			isTailing = !isSilent(b, startIndex, samplesToCheck);
+			isTailing = !data.isSilent();
 
 			if (isTailing)
 				polyState.getReference(voiceIndex).numSilentBuffers = 0;
