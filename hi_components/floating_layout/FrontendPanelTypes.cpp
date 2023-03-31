@@ -1016,6 +1016,8 @@ int FrontendMacroPanel::getNumRows()
 		}
 	}
 
+	hise::SimpleReadWriteLock::ScopedWriteLock sl(connectionLock);
+
 	newList.swapWith(connectionList);
 
 	return connectionList.size();
@@ -1023,12 +1025,16 @@ int FrontendMacroPanel::getNumRows()
 
 void FrontendMacroPanel::removeEntry(int rowIndex)
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowIndex].get())
 		getData(data)->removeParameter(data->getParameterName(), data->getProcessor());
 }
 
 bool FrontendMacroPanel::setRange(int rowIndex, NormalisableRange<double> newRange)
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowIndex].get())
 	{
 		data->setRangeStart(newRange.start);
@@ -1051,6 +1057,8 @@ void FrontendMacroPanel::paint(Graphics& g)
 
 bool FrontendMacroPanel::isInverted(int rowIndex) const
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowIndex].get())
 		return data->isInverted();
 
@@ -1059,6 +1067,8 @@ bool FrontendMacroPanel::isInverted(int rowIndex) const
 
 juce::NormalisableRange<double> FrontendMacroPanel::getFullRange(int rowIndex) const
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowIndex].get())
 		return data->getTotalRange();
 
@@ -1067,6 +1077,8 @@ juce::NormalisableRange<double> FrontendMacroPanel::getFullRange(int rowIndex) c
 
 juce::NormalisableRange<double> FrontendMacroPanel::getRange(int rowIndex) const
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowIndex].get())
 		return data->getParameterRange();
 
@@ -1075,17 +1087,23 @@ juce::NormalisableRange<double> FrontendMacroPanel::getRange(int rowIndex) const
 
 bool FrontendMacroPanel::isUsed(int rowIndex) const
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	return isPositiveAndBelow(rowIndex, connectionList.size());
 }
 
 void FrontendMacroPanel::setInverted(int row, bool value)
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[row].get())
 		data->setInverted(value);
 }
 
 juce::String FrontendMacroPanel::getCellText(int rowNumber, int columnId) const
 {
+	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
+
 	if (auto data = connectionList[rowNumber].get())
 	{
 		if (columnId == ColumnId::ParameterName)

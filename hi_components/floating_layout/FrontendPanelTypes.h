@@ -1186,6 +1186,7 @@ struct FrontendMacroPanel : public TableFloatingTileBase,
 	void setInverted(int row, bool value);
 	String getCellText(int rowNumber, int columnId) const override;
 
+	mutable hise::SimpleReadWriteLock connectionLock;
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> connectionList;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendMacroPanel)
