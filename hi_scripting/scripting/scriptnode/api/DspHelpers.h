@@ -80,68 +80,6 @@ struct DspHelpers
 
 		return max;
 	}
-
-	static bool isSilent(float** stereoData, int numSamples)
-	{
-		if (numSamples == 0)
-			return true;
-
-		float* l = stereoData[0];
-		float* r = stereoData[1];
-
-		using SSEFloat = dsp::SIMDRegister<float>;
-
-		auto alignedL = SSEFloat::getNextSIMDAlignedPtr(l);
-		auto alignedR = SSEFloat::getNextSIMDAlignedPtr(r);
-
-		auto numUnaligned = alignedL - l;
-		auto numAligned = numSamples - numUnaligned;
-
-		static const auto gain90dB = Decibels::decibelsToGain(-90.0f);
-
-		while (--numUnaligned >= 0)
-		{
-			if (std::abs(*l++) > gain90dB || std::abs(*r++) > gain90dB)
-				return false;
-		}
-
-		constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
-
-		while (numAligned > sseSize)
-		{
-			auto l_ = SSEFloat::fromRawArray(alignedL);
-			auto r_ = SSEFloat::fromRawArray(alignedR);
-
-			auto sqL = SSEFloat::abs(l_);
-			auto sqR = SSEFloat::abs(r_);
-
-			auto max = SSEFloat::max(sqL, sqR).sum();
-
-			if (max > gain90dB)
-				return false;
-
-			alignedL += sseSize;
-			alignedR += sseSize;
-			numAligned -= sseSize;
-		}
-
-		return true;
-	}
-
-	static bool isSilentMultiChannel(float** multiData, int numChannels, int numSamples)
-	{
-		bool silent = true;
-
-		for (int i = 0; i < numChannels - 1; i += 2)
-		{
-			silent &= isSilent(multiData + i, numSamples);
-
-			if (!silent)
-				return false;
-		}
-
-		return silent;
-	}
 };
 
 }

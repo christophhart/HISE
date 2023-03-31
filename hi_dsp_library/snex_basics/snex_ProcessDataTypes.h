@@ -249,6 +249,55 @@ template <int C> struct ProcessData: public InternalData
 	/** Generates a frame processor that allows frame-based iteration over all given channels. */
 	FrameProcessor<C> toFrameData();
 
+	bool isSilent() const
+	{
+		static_assert(getNumChannels() <= 2, "only allowed with stereo channels");
+
+		if (numSamples == 0)
+			return true;
+
+		float* l = data[0];
+		float* r = getNumChannels() == 2 ? data[1] : data[0];
+
+		using SSEFloat = dsp::SIMDRegister<float>;
+
+		auto alignedL = SSEFloat::getNextSIMDAlignedPtr(l);
+		auto alignedR = SSEFloat::getNextSIMDAlignedPtr(r);
+
+		auto numUnaligned = alignedL - l;
+		auto numAligned = numSamples - numUnaligned;
+
+		static const auto gain90dB = Decibels::decibelsToGain(-90.0f);
+
+		while (--numUnaligned >= 0)
+		{
+			if (std::abs(*l++) > gain90dB || std::abs(*r++) > gain90dB)
+				return false;
+		}
+
+		constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
+
+		while (numAligned > sseSize)
+		{
+			auto l_ = SSEFloat::fromRawArray(alignedL);
+			auto r_ = SSEFloat::fromRawArray(alignedR);
+
+			auto sqL = SSEFloat::abs(l_);
+			auto sqR = SSEFloat::abs(r_);
+
+			auto max = SSEFloat::max(sqL, sqR).sum();
+
+			if (max > gain90dB)
+				return false;
+
+			alignedL += sseSize;
+			alignedR += sseSize;
+			numAligned -= sseSize;
+		}
+
+		return true;
+	}
+
 	/** Gets the number of channels. */
 	static constexpr int getNumChannels();
 	
@@ -297,6 +346,23 @@ struct ProcessDataDyn: public InternalData
 
 	int getNumChannels() const { return numChannels; };
 	
+	bool isSilent()
+	{
+		bool silent = true;
+
+		for (int i = 0; i < getNumChannels() - 1; i += 2)
+		{
+			ProcessData<2> c(data + i, numSamples);
+
+			silent &= c.isSilent();
+
+			if (!silent)
+				return false;
+		}
+
+		return silent;
+	}
+
 	template <int NumChannels> FrameProcessor<NumChannels> toFrameData()
 	{
 		return FrameProcessor<NumChannels>(data, numSamples);

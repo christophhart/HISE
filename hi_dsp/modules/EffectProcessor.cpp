@@ -36,7 +36,8 @@ namespace hise { using namespace juce;
 bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSamples)
 {
 	float* stereo[2] = { b.getWritePointer(0, startSample), b.getWritePointer(1, startSample) };
-	return DspHelpers::isSilent(stereo, numSamples);
+
+	return ProcessData<2>(stereo, numSamples).isSilent();
 }
 
 void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)

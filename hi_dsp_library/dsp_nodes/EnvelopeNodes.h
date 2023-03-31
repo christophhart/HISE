@@ -1109,25 +1109,12 @@ template <int NV> struct silent_killer_impl: public voice_manager_base
 	{
 		auto& s = state.get();
 
-		if (active && s && activeEvents.isEmpty())
+		if (active && s && 
+			activeEvents.isEmpty() &&
+			d.isSilent())
 		{
-			bool isEmpty = false;
-
-			if (d.getNumChannels() == 1)
-			{
-				float* stereo[2] = { d.getRawChannelPointers()[0], d.getRawChannelPointers()[0] };
-				isEmpty = DspHelpers::isSilent(stereo, d.getNumSamples());
-			}
-			else if (d.getNumChannels() == 2)
-				isEmpty = DspHelpers::isSilent(d.getRawChannelPointers(), d.getNumSamples());
-			else
-				isEmpty = DspHelpers::isSilentMultiChannel(d.getRawDataPointers(), d.getNumChannels(), d.getNumSamples());
-
-			if (isEmpty)
-			{
-				s = false;
-				p->sendVoiceResetMessage(false);
-			}
+			s = false;
+			p->sendVoiceResetMessage(false);
 		}
 	}
 

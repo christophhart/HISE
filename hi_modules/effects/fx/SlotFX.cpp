@@ -1102,13 +1102,18 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 	{
 		if (masterState.numSilentBuffers > numSilentCallbacksToWait && startSample == 0)
 		{
-			auto silent = DspHelpers::isSilentMultiChannel(b.getArrayOfWritePointers(), b.getNumChannels(), numSamples);
+			auto silent = ProcessDataDyn(b.getArrayOfWritePointers(), b.getNumSamples(), b.getNumChannels()).isSilent();
 			
 			if (silent)
 			{
 				getMatrix().handleDisplayValues(b, b, false);
 				masterState.currentlySuspended = true;
 				return;
+			}
+			else
+			{
+				masterState.numSilentBuffers = 0;
+				masterState.currentlySuspended = false;
 			}
 		}
 	}
@@ -1120,9 +1125,7 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 
 	if (canBeSuspended)
 	{
-		bool isSilent = DspHelpers::isSilentMultiChannel(b.getArrayOfWritePointers(), b.getNumChannels(), numSamples);
-
-		if (isSilent)
+		if (ProcessDataDyn(b.getArrayOfWritePointers(), numSamples, b.getNumChannels()).isSilent())
 			masterState.numSilentBuffers++;
 		else
 			masterState.numSilentBuffers = 0;
