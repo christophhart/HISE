@@ -380,7 +380,12 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
 				getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
 
+            if(!isInitialised())
+                getSampleManager().clearPreloadFlag();
+            
 			allNotesOff(true);
+            
+            
 		}
 		catch (String& errorMessage)
 		{
