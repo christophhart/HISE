@@ -245,7 +245,7 @@ void PatchBrowser::showProcessorInPopup(Component* c, const MouseEvent& e, Proce
 		b = bp->getLocalArea(c, b);
 		auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(e, c, p));
 		
-		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getCentreX(), b.getY() + 30 }, true);
+		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getRight() + 50 + (CONTAINER_WIDTH)/2, b.getY() + 30 }, true);
 
 		pe->rootBroadcaster.addListener(*bp, PatchBrowser::processorChanged);
 
