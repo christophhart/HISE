@@ -1241,7 +1241,9 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 #if USE_BACKEND
 
 	if (CompileExporter::isExportingFromCommandLine())
-		throw CommandLineException(errorMessage);
+    {
+        std::cout << errorMessage;
+    }
 	else
 		throw errorMessage;
 #else
