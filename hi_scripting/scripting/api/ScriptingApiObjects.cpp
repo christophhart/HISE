@@ -7111,6 +7111,8 @@ struct ScriptingObjects::GlobalCableReference::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithStep);
 	API_VOID_METHOD_WRAPPER_2(GlobalCableReference, registerCallback);
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, connectToMacroControl);
+    API_VOID_METHOD_WRAPPER_2(GlobalCableReference, connectToGlobalModulator);
+    API_VOID_METHOD_WRAPPER_3(GlobalCableReference, connectToModuleParameter);
 };
 
 struct ScriptingObjects::GlobalCableReference::DummyTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase
@@ -7175,6 +7177,8 @@ ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScript
 	ADD_API_METHOD_3(setRangeWithStep);
 	ADD_API_METHOD_2(registerCallback);
 	ADD_API_METHOD_3(connectToMacroControl);
+    ADD_API_METHOD_2(connectToGlobalModulator);
+    ADD_API_METHOD_3(connectToModuleParameter);
 }
 
 ScriptingObjects::GlobalCableReference::~GlobalCableReference()
@@ -7429,6 +7433,131 @@ void ScriptingObjects::GlobalCableReference::connectToMacroControl(int macroInde
 	}
 }
 
+
+void ScriptingObjects::GlobalCableReference::connectToGlobalModulator(const String& lfoId, bool addToMod)
+{
+    auto mc = getScriptProcessor()->getMainController_()->getMainSynthChain();
+    
+    if(auto p = ProcessorHelpers::getFirstProcessorWithName(mc, lfoId))
+    {
+        if(auto gc = dynamic_cast<GlobalModulatorContainer*>(p->getParentProcessor(true)))
+        {
+            gc->connectToGlobalCable(dynamic_cast<Modulator*>(p), cable, addToMod);
+        }
+    }
+}
+
+struct ProcessorParameterTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase,
+                                  public ControlledObject
+{
+    ProcessorParameterTarget(Processor* p, int index, const scriptnode::InvertableParameterRange& range) :
+        ControlledObject(p->getMainController()),
+        targetRange(range),
+        parameterIndex(index),
+        processor(p)
+    {
+        id << processor->getId();
+        id << "::";
+        id << processor->parameterNames[index].toString();
+    };
+
+    void selectCallback(Component* rootEditor)
+    {
+        // maybe open the macro panel?
+        jassertfalse;
+    }
+
+    String getTargetId() const override
+    {
+        return id;
+    }
+
+    void sendValue(double v) override
+    {
+        auto newValue = jlimit(0.0f, 1.0f, (float)v);
+        auto cv = targetRange.convertFrom0to1(newValue, true);
+        processor->setAttribute(parameterIndex, cv, sendNotification);
+    }
+
+    Path getTargetIcon() const override
+    {
+        Path p;
+        p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+        return p;
+    }
+
+    const int parameterIndex;
+    const scriptnode::InvertableParameterRange targetRange;
+    WeakReference<Processor> processor;
+    String id;
+};
+
+void ScriptingObjects::GlobalCableReference::connectToModuleParameter(const String& processorId, var parameterIndex, var targetRange)
+{
+    auto mc = getScriptProcessor()->getMainController_()->getMainSynthChain();
+    
+    if(processorId.isEmpty() && (int)parameterIndex == -1)
+    {
+        if (auto c = getCableFromVar(cable))
+        {
+            // Clear all module connections for this cable
+            for (int i = 0; i < c->getTargetList().size(); i++)
+            {
+                if (auto ppt = dynamic_cast<ProcessorParameterTarget*>(c->getTargetList()[i].get()))
+                {
+                    c->removeTarget(ppt);
+                    i--;
+                    continue;
+                }
+            }
+        }
+    }
+    
+    if(auto p = ProcessorHelpers::getFirstProcessorWithName(mc, processorId))
+    {
+        auto indexToUse = -1;
+        
+        if(parameterIndex.isString())
+        {
+            Identifier pId(parameterIndex.toString());
+            indexToUse = p->parameterNames.indexOf(pId);
+            
+            if(indexToUse == -1)
+                reportScriptError("Can't find parameter ID " + pId.toString());
+        }
+        else
+        {
+            indexToUse = (int)parameterIndex;
+        }
+        
+        if (auto c = getCableFromVar(cable))
+        {
+            for (int i = 0; i < c->getTargetList().size(); i++)
+            {
+                if (auto ppt = dynamic_cast<ProcessorParameterTarget*>(c->getTargetList()[i].get()))
+                {
+                    
+                    if (p == ppt->processor &&
+                        (indexToUse == -1 || ppt->parameterIndex == indexToUse))
+                    {
+                        c->removeTarget(ppt);
+                        i--;
+                        continue;
+                    }
+                }
+            }
+            
+            auto range = scriptnode::RangeHelpers::getDoubleRange(targetRange);
+            
+            if (indexToUse != -1)
+                c->addTarget(new ProcessorParameterTarget(p, indexToUse, range));
+        }
+    }
+    else
+    {
+        reportScriptError("Can't find module with ID " + processorId);
+    }
+}
 
 ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::PlaybackUpdater(ScriptedMidiPlayer& parent_, var f, bool sync_) :
 	SimpleTimer(parent_.getScriptProcessor()->getMainController_()->getGlobalUIUpdater(), !sync_),

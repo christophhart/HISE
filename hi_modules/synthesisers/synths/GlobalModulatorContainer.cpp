@@ -32,6 +32,47 @@
 
 namespace hise { using namespace juce;
 
+struct GlobalModulatorContainer::GlobalModulatorCable
+{
+    WeakReference<Modulator> mod;
+    var cable;
+    
+    void send(int voiceIndex)
+    {
+        if (auto c = cable.getObject())
+        {
+            auto cable = static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(c);
+            
+            double modValue = 1.0;
+            
+            if(voiceIndex == -1)
+            {
+                if(auto m = static_cast<TimeVariantModulator*>(mod.get()))
+                {
+                    modValue = m->getLastConstantValue();
+                }
+            }
+            else
+            {
+                if(auto m = static_cast<VoiceStartModulator*>(mod.get()))
+                {
+                    modValue = m->getVoiceStartValue(voiceIndex);
+                }
+            }
+            
+            cable->sendValue(nullptr, modValue);
+        }
+        
+        
+    }
+    
+    bool operator==(const GlobalModulatorCable& other) const
+    {
+        return other.mod == mod &&
+               cable == other.cable;
+    }
+};
+
 GlobalModulatorContainer::GlobalModulatorContainer(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
@@ -130,6 +171,34 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 	{
 		vd.saveValue(e.getNoteNumber(), voiceIndex);
 	}
+    
+    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
+    
+    for(auto& vc: voiceStartCables)
+        vc.send(voiceIndex);
+}
+
+void GlobalModulatorContainer::connectToGlobalCable(Modulator* childMod, var cable, bool add)
+{
+    GlobalModulatorCable c;
+    
+    c.cable = cable;
+    c.mod = childMod;
+    
+    hise::SimpleReadWriteLock::ScopedWriteLock sl(cableLock);
+    
+    if(!add)
+    {
+        timeVariantCables.removeAllInstancesOf(c);
+        voiceStartCables.removeAllInstancesOf(c);
+    }
+    else
+    {
+        if(auto vc = dynamic_cast<VoiceStartModulator*>(childMod))
+            voiceStartCables.addIfNotAlreadyThere(c);
+        else
+            timeVariantCables.addIfNotAlreadyThere(c);
+    }
 }
 
 void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTime)
@@ -149,6 +218,8 @@ void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTim
 
 				mod->setScratchBuffer(scratchBuffer, startSample_cr + numSamples_cr);
 				mod->render(modBuffer, scratchBuffer, startSample_cr, numSamples_cr);
+                
+                
 			}
 			else
 			{
@@ -156,6 +227,13 @@ void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTim
 			}
 		}
 	}
+    
+    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
+    
+    for(auto& c: timeVariantCables)
+    {
+        c.send(-1);
+    }
 }
 
 void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPerBlock)

@@ -367,8 +367,18 @@ public:
 
 	bool synthNeedsEnvelope() const override { return false; }
 
+    void connectToGlobalCable(Modulator* childMod, var cable, bool addToMod);
+    
 private:
 
+    struct GlobalModulatorCable;
+
+    SimpleReadWriteLock cableLock;
+    
+    Array<GlobalModulatorCable> timeVariantCables;
+    Array<GlobalModulatorCable> voiceStartCables;
+    
+    
 	Array<VoiceStartData> voiceStartData;
 	Array<TimeVariantData> timeVariantData;
 
