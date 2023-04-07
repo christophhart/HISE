@@ -239,6 +239,9 @@ public:
 		comboBoxFont = f;
 	}
 
+    PopupMenu::Options getOptionsForComboBoxPopupMenu (ComboBox& box, Label& label);
+   
+    
 protected:
 
 	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override

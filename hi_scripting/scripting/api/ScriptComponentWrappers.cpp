@@ -1055,6 +1055,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 		PROPERTY_CASE::ScriptComboBox::FontName:
 		PROPERTY_CASE::ScriptComboBox::FontSize :
 		PROPERTY_CASE::ScriptComboBox::FontStyle : updateFont(getScriptComponent()); break;
+        PROPERTY_CASE::ScriptComboBox::popupAlignment: cb->getProperties().set("popupAlignment", newValue); break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
@@ -2918,7 +2919,7 @@ float ScriptedControlAudioParameter::getValue() const
 	}
 	else
 	{
-		jassertfalse;
+		//jassertfalse;
 		return 0.0f;
 	}
 }
@@ -2946,7 +2947,7 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 	}
 	else
 	{
-		jassertfalse;
+		//jassertfalse;
 	}
 }
 

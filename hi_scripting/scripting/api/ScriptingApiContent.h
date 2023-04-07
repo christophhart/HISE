@@ -1134,6 +1134,7 @@ public:
 			FontSize,
 			FontStyle,
 			enableMidiLearn,
+            popupAlignment,
 			numProperties
 		};
 

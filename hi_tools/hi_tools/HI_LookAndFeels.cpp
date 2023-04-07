@@ -1089,6 +1089,31 @@ void PopupLookAndFeel::positionComboBoxText(ComboBox &c, Label &labelToPosition)
 	labelToPosition.setFont(getComboBoxFont(c));
 }
 
+PopupMenu::Options PopupLookAndFeel::getOptionsForComboBoxPopupMenu (ComboBox& box, Label& label)
+{
+    auto options = LookAndFeel_V3::getOptionsForComboBoxPopupMenu(box, label);
+    
+    auto alignment = box.getProperties()["popupAlignment"].toString();
+    
+    if(alignment.isNotEmpty())
+    {
+        auto area = options.getTargetScreenArea().toFloat();
+        
+        auto sf = UnblurryGraphics::getScaleFactorForComponent(&box);
+        
+        if(alignment == "topRight")
+            area.translate((float)box.getWidth() * sf, -1.0f * (float)box.getHeight() * sf);
+        if(alignment == "bottomRight")
+            area.translate((float)box.getWidth() * sf, 0.0f);
+        if(alignment == "top")
+            area.translate(0.0f, -1.0f * (float)box.getHeight() * sf);
+        
+        return options.withTargetScreenArea(area.toNearestInt());
+    }
+    
+    return options;
+}
+
 void PopupLookAndFeel::drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)
 {
 	g.setColour(box.findColour(HiseColourScheme::ColourIds::ComponentTextColourId).withMultipliedAlpha(0.5f));

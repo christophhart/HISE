@@ -2310,6 +2310,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    ADD_SCRIPT_PROPERTY(i05, "popupAlignment"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	priorityProperties.add(getIdFor(Items));
 
@@ -2318,6 +2319,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::width, 128);
 	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
+    setDefaultValue(ScriptComboBox::Properties::popupAlignment, "bottom");
 	setDefaultValue(FontStyle, "plain");
 	setDefaultValue(FontSize, 13.0f);
 	setDefaultValue(FontName, "Default");
@@ -2356,9 +2358,12 @@ String ScriptingApi::Content::ScriptComboBox::getItemText() const
 {
 	StringArray items = getItemList();
 
-	jassert((int)value <= items.size());
-
-	return items[(int)value - 1];
+    if(isPositiveAndBelow((int)value, items.size()))
+    {
+        return items[(int)value - 1];
+    }
+    
+    return "No options";
 }
 
 void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -2424,7 +2429,13 @@ juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Ide
 		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
 		sa.addArray(Font::findAllTypefaceNames());
 		break;
-	default:		sa = ScriptComponent::getOptionsFor(id);
+    case popupAlignment:
+        sa.add("bottom");
+        sa.add("top");
+        sa.add("topRight");
+        sa.add("bottomRight");
+        break;
+	default:	sa = ScriptComponent::getOptionsFor(id);
 	}
 
 	return sa;
