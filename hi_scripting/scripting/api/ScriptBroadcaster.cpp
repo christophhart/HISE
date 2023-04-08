@@ -950,11 +950,11 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
 																	   public hise::Processor::BypassListener
 {
-	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& bypassId_) :
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_) :
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
-		bypassId(bypassId_)
+		specialId(specialId_)
 	{
 		for (auto pi : parameterIndexes)
 		{
@@ -969,18 +969,34 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 		if(!parameterIndexes.isEmpty())
 			p->addChangeListener(this);
 
-		if (bypassId.isValid())
+		if (specialId.isValid())
 		{
-			p->addBypassListener(this);
-			bypassIdAsVar = var(bypassId.toString());
+            if(specialId.toString() == "Intensity")
+            {
+                if(auto mod = dynamic_cast<Modulation*>(p.get()))
+                {
+                    mod->intensityBroadcaster.addListener(*this, intensityChanged, true);
+                }
+            }
+            else
+            {
+                p->addBypassListener(this);
+                bypassIdAsVar = var(specialId.toString());
+            }
 		}
 	}
+    
+    static void intensityChanged(ProcessorListener& m, float newValue)
+    {
+        static const var ip("Intensity");
+        m.sendParameterChange(ip, newValue);
+    }
 
 	void bypassStateChanged(Processor* p, bool bypassState) override
 	{
 		static const Identifier e("Enabled");
 
-		if (bypassId == e)
+		if (specialId == e)
 			bypassState = !bypassState;
 
 		auto newValue = (float)(int)bypassState;
@@ -1037,15 +1053,17 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	Array<float> lastValues;
 	Array<var> parameterNames;
 	const Array<int> parameterIndexes;
-	Identifier bypassId;
+	Identifier specialId;
 	var bypassIdAsVar;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorListener);
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& bypassId):
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId):
 	ListenerBase(metadata)
 {
 	for (auto& p : processors)
-		listeners.add(new ProcessorListener(b, p, parameterIndexes, bypassId));
+		listeners.add(new ProcessorListener(b, p, parameterIndexes, specialId));
 }
 
 void ScriptBroadcaster::ModuleParameterListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -1175,7 +1193,7 @@ int ScriptBroadcaster::ModuleParameterListener::getNumInitialCalls() const
 
 	for (auto l : listeners)
 	{
-		if (l->bypassId.isValid())
+		if (l->specialId.isValid())
 			i++;
 
 		i += l->parameterIndexes.size();
@@ -1196,20 +1214,32 @@ Array<juce::var> ScriptBroadcaster::ModuleParameterListener::getInitialArgs(int 
 	{
 		args.set(0, l->p->getId());
 
-		if (l->bypassId.isValid())
+		if (l->specialId.isValid())
 		{
-			if (i == callIndex)
+            if (i == callIndex)
 			{
-				
-				auto v = l->p->isBypassed();
+				if(l->specialId == Identifier("Intensity"))
+                {
+                    if(auto m = dynamic_cast<Modulation*>(l->p.get()))
+                    {
+                        args.set(1, "Intensity");
+                        args.set(2, m->getIntensity());
+                        
+                        return args;
+                    }
+                }
+                else
+                {
+                    auto v = l->p->isBypassed();
 
-				if (l->bypassId == Identifier("Enabled"))
-					v = !v;
+                    if (l->specialId == Identifier("Enabled"))
+                        v = !v;
 
-				args.set(1, l->bypassIdAsVar);
-				args.set(2, var((float)(int)v));
+                    args.set(1, l->bypassIdAsVar);
+                    args.set(2, var((float)(int)v));
 
-				return args;
+                    return args;
+                }
 			}
 
 			i++;
@@ -1267,19 +1297,35 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 
 		args.set(0, processor->getId());
 
-		if (p->bypassId.isValid())
+		if (p->specialId.isValid())
 		{
-			args.set(1, p->bypassIdAsVar);
-			auto v = p->p->isBypassed();
-			if (p->bypassId == Identifier("Enabled"))
-				v = !v;
+            if(p->specialId == Identifier("Intensity"))
+            {
+                if(auto m = dynamic_cast<Modulation*>(p->p.get()))
+                {
+                    args.set(1, "Intensity");
+                    args.set(2, m->getIntensity());
+                    
+                    auto r = n->callSync(args);
 
-			args.set(2, var((float)(int)v));
+                    if (!r.wasOk())
+                        return r;
+                }
+            }
+            else
+            {
+                args.set(1, p->bypassIdAsVar);
+                auto v = p->p->isBypassed();
+                if (p->specialId == Identifier("Enabled"))
+                    v = !v;
 
-			auto r = n->callSync(args);
+                args.set(2, var((float)(int)v));
 
-			if (!r.wasOk())
-				return r;
+                auto r = n->callSync(args);
+
+                if (!r.wasOk())
+                    return r;
+            }
 		}
 
 		for (int i = 0; i < p->parameterNames.size(); i++)
@@ -3389,7 +3435,7 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 	
 	Array<int> parameterIndexes;
 
-	Identifier bypassId;
+    Identifier specialId;
 
 	if (parameterIds.isArray())
 	{
@@ -3399,10 +3445,16 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 
 			if (pName == "Bypassed" || pName == "Enabled")
 			{
-				bypassId = Identifier(pName);
+                specialId = Identifier(pName);
 				continue;
 			}
-
+            else if (pName == "Intensity" &&
+                     dynamic_cast<Modulator*>(processors.getFirst().get()) != nullptr)
+            {
+                specialId = Identifier(pName);
+                continue;
+            }
+            
 			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
 			if (idx == -1)
@@ -3416,7 +3468,11 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 		auto pName = parameterIds.toString();
 
 		if (pName == "Bypassed" || pName == "Enabled")
-			bypassId = Identifier(pName);
+            specialId = Identifier(pName);
+        else if (pName == "Intensity" && dynamic_cast<Modulator*>(processors.getFirst().get()))
+        {
+            specialId = Identifier(pName);
+        }
 		else
 		{
 			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
@@ -3428,7 +3484,7 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 		}
 	}
 
-	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, bypassId));
+	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, specialId));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;

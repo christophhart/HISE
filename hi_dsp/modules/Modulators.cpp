@@ -80,6 +80,8 @@ void Modulation::setIntensity(float newIntensity) noexcept
 	intensity = newIntensity;
 
 	smoothedIntensity.setValue(newIntensity);
+    
+    intensityBroadcaster.sendMessage(sendNotificationAsync, newIntensity);
 }
 
 void Modulation::setIntensityFromSlider(float sliderValue) noexcept

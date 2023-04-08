@@ -234,6 +234,7 @@ public:
 	}
 
     LambdaBroadcaster<int> modeBroadcaster;
+    LambdaBroadcaster<float> intensityBroadcaster;
     
 protected:
 
@@ -243,6 +244,8 @@ protected:
 
 private:
 
+    
+    
 	Component::SafePointer<Plotter> attachedPlotter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulation)
