@@ -741,6 +741,7 @@ void ScriptUserPresetHandler::presetChanged(const File& newPreset)
 	}
 }
 
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
 struct ScriptLorisManager::Wrapper
 {
     API_VOID_METHOD_WRAPPER_2(ScriptLorisManager, set);
@@ -837,6 +838,7 @@ void ScriptLorisManager::processCustom(var file, var processCallback)
         });
     }
 }
+#endif
 
 struct ScriptExpansionHandler::Wrapper
 {

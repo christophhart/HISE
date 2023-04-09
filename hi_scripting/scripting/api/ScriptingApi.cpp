@@ -2289,7 +2289,11 @@ juce::var ScriptingApi::Engine::getGlobalRoutingManager()
 
 juce::var ScriptingApi::Engine::getLorisManager()
 {
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
     return var(new ScriptLorisManager(getScriptProcessor()));
+#else
+    return var();
+#endif
 }
 
 juce::var ScriptingApi::Engine::getComplexDataReference(String dataType, String moduleId, int index)

@@ -1843,7 +1843,9 @@ public:
 	RLottieManager::Ptr getRLottieManager();
 #endif
 
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
     LorisManager* getLorisManager() { return lorisManager.get(); }
+#endif
     
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
@@ -1883,7 +1885,9 @@ protected:
 		}
 	};
 
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
     LorisManager::Ptr lorisManager;
+#endif
     
 	double uptime;
 

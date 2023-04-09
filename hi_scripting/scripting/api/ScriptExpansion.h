@@ -205,6 +205,7 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUserPresetHandler);
 };
 
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
 class ScriptLorisManager: public ConstScriptingObject,
                           public ControlledObject
 {
@@ -248,6 +249,7 @@ private:
     
     LorisManager::Ptr lorisManager;
 };
+#endif
 
 
 class ScriptExpansionHandler : public ConstScriptingObject,
