@@ -205,52 +205,6 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUserPresetHandler);
 };
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
-class ScriptLorisManager: public ConstScriptingObject,
-                          public ControlledObject
-{
-public:
-    
-    ScriptLorisManager(ProcessorWithScriptingContent* p);
-      
-    Identifier getObjectName() const override { return "LorisManager"; }
-    
-    // =================================================================
-    
-    /** set a option for the loris algorithm. */
-    void set(String optionId, var newValue)
-    {
-        if(lorisManager != nullptr)
-            lorisManager->set(optionId, newValue.toString());
-        else
-            reportScriptError("Loris is not available");
-    }
-    
-    /** Analyse a file. */
-    bool analyse(var file, double estimatedRootFrequency);
-    
-    /** Processes the partial list using predefined commands. */
-    void process(var file, String command, var data);
-    
-    /** Processes the partial list using the given function. */
-    void processCustom(var file, var processCallback);
-    
-    /** Resynthesise the file from the partial lists. Returns an array of variant buffers. */
-    var synthesise(var file);
-    
-    // =================================================================
-    
-private:
-    
-    struct Wrapper;
-    
-    WeakCallbackHolder logFunction;
-    WeakCallbackHolder processFunction;
-    
-    LorisManager::Ptr lorisManager;
-};
-#endif
-
 
 class ScriptExpansionHandler : public ConstScriptingObject,
 							   public ControlledObject,

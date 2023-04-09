@@ -35,6 +35,8 @@ xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "xml\selection"
 
 
+xcopy "xml\classhise_1_1_script_loris_manager.xml" "xml\selection"
+
 xcopy "xml\classhise_1_1_script_expansion_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_script_expansion_reference.xml" "xml\selection"
 
@@ -183,6 +185,8 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_wav
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "Buffer.xml"
 ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_error_handler.xml" "ErrorHandler.xml"
 ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_broadcaster.xml" "Broadcaster.xml"
+
+ren "xml\selection\classhise_1_1_script_loris_manager.xml" "LorisManager.xml"
 
 ren "xml\selection\classhise_1_1_script_expansion_handler.xml" "ExpansionHandler.xml"
 ren "xml\selection\classhise_1_1_script_expansion_reference.xml" "Expansion.xml"

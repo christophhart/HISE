@@ -61,6 +61,9 @@
 #include "scripting/api/ScriptTableListModel.cpp"
 #include "scripting/api/ScriptingGraphics.cpp"
 #include "scripting/api/ScriptExpansion.cpp"
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "scripting/api/ScriptLorisManager.cpp"
+#endif
 #include "scripting/api/GlobalServer.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 
