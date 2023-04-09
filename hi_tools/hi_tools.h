@@ -97,6 +97,16 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
+/** Config: HISE_ENABLE_LORIS_ON_FRONTEND
+ 
+ Includes the Loris Manager for compiled plugins. Be aware that the Loris library is only licensed under
+ the GPLv3 license, so you must not enable this flag for proprietary products!.
+ 
+ */
+#ifndef HISE_ENABLE_LORIS_ON_FRONTEND
+#define HISE_ENABLE_LORIS_ON_FRONTEND 0
+#endif
+
 /** Config: HISE_USE_EXTENDED_TEMPO_VALUES
 
 If this is true, the tempo mode will contain lower values than 1/1. This allows eg. the LFO to run slower, however it 
@@ -198,7 +208,9 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
-
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "hi_tools/LorisManager.h"
+#endif
 
 
 #include "hi_tools/PitchDetection.h"

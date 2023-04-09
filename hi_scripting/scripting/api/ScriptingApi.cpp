@@ -961,6 +961,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createLicenseUnlocker);
 	API_METHOD_WRAPPER_1(Engine, createBroadcaster);
 	API_METHOD_WRAPPER_0(Engine, getGlobalRoutingManager);
+    API_METHOD_WRAPPER_0(Engine, getLorisManager);
 	API_METHOD_WRAPPER_1(Engine, loadAudioFileIntoBufferArray);
 	API_METHOD_WRAPPER_0(Engine, getClipboardContent);
 	API_VOID_METHOD_WRAPPER_1(Engine, copyToClipboard);
@@ -1074,6 +1075,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterAudioFile);
 	ADD_API_METHOD_1(createAndRegisterRingBuffer);
 	ADD_API_METHOD_0(getGlobalRoutingManager);
+    ADD_API_METHOD_0(getLorisManager);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
@@ -2283,6 +2285,11 @@ var ScriptingApi::Engine::getDspNetworkReference(String processorId, String id)
 juce::var ScriptingApi::Engine::getGlobalRoutingManager()
 {
 	return var(new ScriptingObjects::GlobalRoutingManagerReference(getScriptProcessor()));
+}
+
+juce::var ScriptingApi::Engine::getLorisManager()
+{
+    return var(new ScriptLorisManager(getScriptProcessor()));
 }
 
 juce::var ScriptingApi::Engine::getComplexDataReference(String dataType, String moduleId, int index)

@@ -111,6 +111,7 @@ DECLARE_ID(Support32BitMacOS);
 DECLARE_ID(CustomNodePath);
 DECLARE_ID(FaustPath);
 DECLARE_ID(FaustExternalEditor);
+DECLARE_ID(EnableLoris);
 
 Array<Identifier> getAllIds();
 

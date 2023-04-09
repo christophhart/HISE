@@ -42,6 +42,7 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 	pis->readIntoMemoryBlock(pBlock);
 	pdec.expand(pBlock, presetData);
 	
+
 	/*ValueTree presetData = ValueTree::readFromData(PresetData::preset PresetData::presetSize);\*/ 
 	LOG_START("Loading embedded image data"); 
 	auto imageData = getEmbeddedData(FileHandlerBase::Images);
@@ -253,6 +254,17 @@ updater(*this)
     
 	GlobalSettingManager::initData(this);
 
+    
+#if HISE_ENABLE_LORIS_ON_FRONTEND
+    auto f = FrontendHandler::getAppDataDirectory(this).getChildFile("loris_library");
+    
+    lorisManager = new LorisManager(f, [this](String m)
+    {
+        this->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, m);
+    });
+    
+#endif
+    
     numInstances++;
     
     if(HiseDeviceSimulator::isAUv3() && numInstances > HISE_AUV3_MAX_INSTANCE_COUNT)

@@ -346,6 +346,9 @@ public:
 		/** Returns a reference to the global routing manager. */
 		var getGlobalRoutingManager();
 
+        /** Returns a reference to the global Loris manager. */
+        var getLorisManager();
+        
 		/** Returns a reference to a complex data type from the given module. */
 		var getComplexDataReference(String dataType, String moduleId, int index);
 

@@ -971,10 +971,10 @@ void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height,
 
 void PopupLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c /*= nullptr*/, bool isMouseOverButton /*= false*/)
 {
-	Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
+	Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId, true) :
 		Colour(0x66333333);
 
-	Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId) :
+	Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId, true) :
 		Colour(0xfb111111);
 
 	g.setGradientFill(ColourGradient(upperBgColour.withMultipliedBrightness(isMouseOverButton ? 1.6f : 1.1f),
@@ -985,7 +985,7 @@ void PopupLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, in
 
 	g.fillRect((float)x, (float)y, (float)width, (float)height);
 
-	Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId) :
+	Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId, true) :
 		Colours::white.withAlpha(0.3f);
 
 	g.setColour(outlineColour);
@@ -1017,7 +1017,10 @@ juce::Font PopupLookAndFeel::getPopupMenuFont()
 
 void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int, int, int, int, ComboBox &c)
 {
-	c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+    auto textColour = c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId, true);
+    jassert(textColour != Colours::transparentBlack);
+    
+	c.setColour(ComboBox::ColourIds::textColourId, textColour);
 
 	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
@@ -1028,7 +1031,7 @@ void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isB
 
 	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
 
-	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId, true));
 	g.fillPath(path);
 }
 

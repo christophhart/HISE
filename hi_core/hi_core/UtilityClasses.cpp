@@ -547,26 +547,6 @@ void UpdateDispatcher::Listener::triggerAsyncUpdate()
 		dispatcher->triggerAsyncUpdateForListener(this);
 }
 
-bool SemanticVersionChecker::isUpdate() const
-{
-	if (newVersion.majorVersion > oldVersion.majorVersion)
-		return true;
-	else if (newVersion.majorVersion < oldVersion.majorVersion)
-		return false;
-	else
-	{
-		if (newVersion.minorVersion > oldVersion.minorVersion)
-			return true;
-		else if (newVersion.minorVersion < oldVersion.minorVersion)
-			return false;
-		else
-		{
-			if (newVersion.patchVersion > oldVersion.patchVersion)
-				return true;
-			else
-				return false;
-		}
-	}
-}
+
 
 } // namespace hise

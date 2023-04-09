@@ -120,6 +120,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(CustomNodePath);
 	ids.add(FaustPath);
     ids.add(FaustExternalEditor);
+    ids.add(EnableLoris);
 
 	return ids;
 }
@@ -492,6 +493,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
         D("editing the faust source files. If disabled, it will use a FaustCodeEditor floating tile");
         P_();
         
+        P(HiseSettings::Compiler::EnableLoris);
+        D("If you want to use the Loris toolkit in HISE, you need to enable this setting and download and copy the Loris DLL to the expected location");
+        D("> The repository can be found here: `https://github.com/christophhart/loris-tools/`");
+        P_();
+        
         P(HiseSettings::Compiler::LegacyCPUSupport);
 		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
@@ -842,6 +848,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::EmbedUserPresets ||
 		id == Compiler::UseIPP ||
         id == Compiler::LegacyCPUSupport ||
+        id == Compiler::EnableLoris ||
 		id == Scripting::EnableCallstack ||
 		id == Other::EnableAutosave ||
 		id == Scripting::EnableDebugMode ||
@@ -1084,6 +1091,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
     else if (id == Compiler::FaustExternalEditor)   return "No";
+    else if (id == Compiler::EnableLoris)           return "No";
 	else if (id == SnexWorkbench::AddFade)			return "Yes";
 	else if (id == SnexWorkbench::PlayOnRecompile)  return "Yes";
 	else if (id == User::CompanyURL)				return "http://yourcompany.com";

@@ -1843,12 +1843,14 @@ public:
 	RLottieManager::Ptr getRLottieManager();
 #endif
 
+    LorisManager* getLorisManager() { return lorisManager.get(); }
+    
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 
-	
+    
 
 protected:
 
@@ -1881,6 +1883,8 @@ protected:
 		}
 	};
 
+    LorisManager::Ptr lorisManager;
+    
 	double uptime;
 
 	void setScrollY(int newY) {	scrollY = newY;	};

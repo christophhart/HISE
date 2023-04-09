@@ -106,6 +106,10 @@
 #include "hi_tools/Tables.cpp"
 #include "hi_tools/ValueTreeHelpers.cpp"
 
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "hi_tools/LorisManager.cpp"
+#endif
+
 #include "hi_standalone_components/SampleDisplayComponent.cpp"
 
 #include "hi_standalone_components/VuMeter.cpp"
