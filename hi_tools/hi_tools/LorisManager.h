@@ -157,8 +157,11 @@ struct LorisManager: public ReferenceCountedObject
     File getLorisDll() const
     {
 #if JUCE_WINDOWS
-        jassertfalse;
-        return {};
+#if JUCE_DEBUG
+		return hiseRoot.getChildFile("loris_library_debug.dll");
+#else
+		return hiseRoot.getChildFile("loris_library_release.dll");
+#endif
 #else
 #if JUCE_DEBUG
         return hiseRoot.getChildFile("loris_library_debug.dylib");
