@@ -950,16 +950,21 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
 																	   public hise::Processor::BypassListener
 {
-	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_) :
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
-		specialId(specialId_)
+		specialId(specialId_),
+		useIntegerIndexesAsArgument(useIntegerArgs)
 	{
 		for (auto pi : parameterIndexes)
 		{
 			lastValues.add(p->getAttribute(pi));
-			parameterNames.add(p->getIdentifierForParameterIndex(pi).toString());
+
+			if (!useIntegerIndexesAsArgument)
+				parameterNames.add(p->getIdentifierForParameterIndex(pi).toString());
+			else
+				parameterNames.add(pi);
 		}
 
 		args.add(p->getId());
@@ -1034,12 +1039,19 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 
 		for (int i = 0; i < parameterIndexes.size(); i++)
 		{
-			auto id = parameterNames[i];
+			
 			auto newValue = p->getAttribute(parameterIndexes[i]);
 
 			if (lastValues[i] != newValue)
 			{
 				lastValues.set(i, newValue);
+
+				var id = parameterNames[i];
+
+				if (useIntegerIndexesAsArgument)
+				{
+					jassert(id.isInt());
+				}
 
 				sendParameterChange(id, newValue);
 			}
@@ -1055,15 +1067,17 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	const Array<int> parameterIndexes;
 	Identifier specialId;
 	var bypassIdAsVar;
+
+	bool useIntegerIndexesAsArgument = false;
     
     JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorListener);
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId):
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters):
 	ListenerBase(metadata)
 {
 	for (auto& p : processors)
-		listeners.add(new ProcessorListener(b, p, parameterIndexes, specialId));
+		listeners.add(new ProcessorListener(b, p, parameterIndexes, specialId, useIntegerParameters));
 }
 
 void ScriptBroadcaster::ModuleParameterListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -3421,9 +3435,15 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 	{
 		for (const auto& pId : *moduleIds.getArray())
 		{
+			if (auto s = dynamic_cast<ScriptingObject*>(pId.getObject()))
+				reportScriptError("The module list parameter must be a list of ID strings, not object references...");
+
 			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
 
-			if (!processors.isEmpty() && p->getType() != processors.getFirst()->getType())
+			if (p == nullptr)
+				reportScriptError("Can't find module with ID " + pId.toString());
+
+			if (!processors.isEmpty() && (p != nullptr && p->getType() != processors.getFirst()->getType()))
 				reportScriptError("the modules must have the same type");
 
 			processors.add(p);
@@ -3437,54 +3457,72 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 
     Identifier specialId;
 
+	bool useIntegerParameters = false;
+
 	if (parameterIds.isArray())
 	{
 		for (const auto& pId : *parameterIds.getArray())
 		{
-			auto pName = pId.toString();
-
-			if (pName == "Bypassed" || pName == "Enabled")
+			if (pId.isInt() || pId.isInt64())
 			{
-                specialId = Identifier(pName);
-				continue;
+				parameterIndexes.add((int)pId);
+				useIntegerParameters = true;
 			}
-            else if (pName == "Intensity" &&
-                     dynamic_cast<Modulator*>(processors.getFirst().get()) != nullptr)
-            {
-                specialId = Identifier(pName);
-                continue;
-            }
-            
-			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
+			else
+			{
+				auto pName = pId.toString();
 
-			if (idx == -1)
-				reportScriptError("unknown parameter ID: " + pName);
+				if (pName == "Bypassed" || pName == "Enabled")
+				{
+					specialId = Identifier(pName);
+					continue;
+				}
+				else if (pName == "Intensity" &&
+					dynamic_cast<Modulator*>(processors.getFirst().get()) != nullptr)
+				{
+					specialId = Identifier(pName);
+					continue;
+				}
 
-			parameterIndexes.add(idx);
+				auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
+
+				if (idx == -1)
+					reportScriptError("unknown parameter ID: " + pName);
+
+				parameterIndexes.add(idx);
+			}
 		}
 	}
 	else
 	{
-		auto pName = parameterIds.toString();
-
-		if (pName == "Bypassed" || pName == "Enabled")
-            specialId = Identifier(pName);
-        else if (pName == "Intensity" && dynamic_cast<Modulator*>(processors.getFirst().get()))
-        {
-            specialId = Identifier(pName);
-        }
+		if (parameterIds.isInt() || parameterIds.isInt64())
+		{
+			useIntegerParameters = true;
+			parameterIndexes.add((int)parameterIds);
+		}
 		else
 		{
-			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
+			auto pName = parameterIds.toString();
 
-			if (idx == -1)
-				reportScriptError("unknown parameter ID: " + pName);
+			if (pName == "Bypassed" || pName == "Enabled")
+				specialId = Identifier(pName);
+			else if (pName == "Intensity" && dynamic_cast<Modulator*>(processors.getFirst().get()))
+			{
+				specialId = Identifier(pName);
+			}
+			else
+			{
+				auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
-			parameterIndexes.add(idx);
+				if (idx == -1)
+					reportScriptError("unknown parameter ID: " + pName);
+
+				parameterIndexes.add(idx);
+			}
 		}
 	}
 
-	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, specialId));
+	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, specialId, useIntegerParameters));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;

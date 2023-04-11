@@ -552,7 +552,7 @@ private:
 	{
 		struct ProcessorListener;
 
-		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId);
+		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters);
 
 		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("ModuleParameter"); }
 
