@@ -816,35 +816,38 @@ juce::var ScriptingObjects::ScriptFile::loadAsAudioFile() const
 
 juce::var ScriptingObjects::ScriptFile::loadAudioMetadata() const
 {
-    AudioFormatManager afm;
-    afm.registerBasicFormats();
-    
-    auto fis2= new FileInputStream(f);
+	if (f.existsAsFile())
+	{
+		AudioFormatManager afm;
+		afm.registerBasicFormats();
 
-    std::unique_ptr<InputStream> fis(static_cast<InputStream*>(fis2));
+		auto fis2 = new FileInputStream(f);
 
-    if(ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(fis)))
-    {
-        DynamicObject::Ptr data = new DynamicObject();
-        
-        data->setProperty("SampleRate", reader->sampleRate);
-        data->setProperty("NumChannels", reader->numChannels);
-        data->setProperty("NumSamples", reader->lengthInSamples);
-        data->setProperty("BitDepth", reader->bitsPerSample);
-        data->setProperty("Format", reader->getFormatName());
-        data->setProperty("File", f.getFullPathName());
-        
-        DynamicObject::Ptr meta = new DynamicObject();
-        
-        for(const auto& r: reader->metadataValues.getAllKeys())
-        {
-            meta->setProperty(r, reader->metadataValues[r]);
-        }
-        
-        data->setProperty("Metadata", meta.get());
-        
-        return var(data.get());
-    }
+		std::unique_ptr<InputStream> fis(static_cast<InputStream*>(fis2));
+
+		if (ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(std::move(fis)))
+		{
+			DynamicObject::Ptr data = new DynamicObject();
+
+			data->setProperty("SampleRate", reader->sampleRate);
+			data->setProperty("NumChannels", reader->numChannels);
+			data->setProperty("NumSamples", reader->lengthInSamples);
+			data->setProperty("BitDepth", reader->bitsPerSample);
+			data->setProperty("Format", reader->getFormatName());
+			data->setProperty("File", f.getFullPathName());
+
+			DynamicObject::Ptr meta = new DynamicObject();
+
+			for (const auto& r : reader->metadataValues.getAllKeys())
+			{
+				meta->setProperty(r, reader->metadataValues[r]);
+			}
+
+			data->setProperty("Metadata", meta.get());
+
+			return var(data.get());
+		}
+	}
     
     return {};
 }
