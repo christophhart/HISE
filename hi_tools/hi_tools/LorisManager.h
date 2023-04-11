@@ -167,6 +167,8 @@ struct LorisManager: public ReferenceCountedObject
         
 #if JUCE_DEBUG
         name << "Debug";
+#else
+		name << "Release";
 #endif
         
         auto linkFile = hiseRoot.getChildFile(name);
