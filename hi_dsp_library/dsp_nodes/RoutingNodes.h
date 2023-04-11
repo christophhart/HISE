@@ -603,6 +603,7 @@ struct selector: public mothernode
         DEF_PARAMETER(SelectOutput, selector);
         DEF_PARAMETER(ClearOtherChannels, selector);
     };
+	SN_PARAMETER_MEMBER_FUNCTION;
     
     constexpr bool isPolyphonic() { return false; }
     
@@ -640,6 +641,7 @@ struct selector: public mothernode
                 for(int i = 0; i < numToProcess; i++)
                     copy(data[channelIndex + i], data[i]);
             }
+			else
             {
                 for(int i = 0; i < numToProcess; i++)
                     copy(data[i], data[channelIndex + i]);
@@ -648,8 +650,21 @@ struct selector: public mothernode
         
         if(clearOtherChannels)
         {
-            for(int i = numChannels; i < size; i++)
-                data[i] = 0.0f;
+			if (selectOutput)
+			{
+				for (int i = 0; i < size; i++)
+				{
+					if (i >= channelIndex && i < (channelIndex + numChannels))
+						continue;
+
+					data[i] = 0.0f;
+				}
+			}
+			else
+			{
+				for (int i = numChannels; i < size; i++)
+					data[i] = 0.0f;
+			}
         }
     }
     
