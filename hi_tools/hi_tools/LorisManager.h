@@ -154,21 +154,51 @@ struct LorisManager: public ReferenceCountedObject
         }
     }
     
+    File getRedirectedFolder() const
+    {
+        
+#if JUCE_WINDOWS
+        String name = "LinkWindows";
+#elif JUCE_MAC
+        String name = "LinkOSX";
+#else
+        String name = "LinkLinux";
+#endif
+        
+#if JUCE_DEBUG
+        name << "Debug";
+#endif
+        
+        auto linkFile = hiseRoot.getChildFile(name);
+        
+        if(linkFile.existsAsFile())
+            return File(linkFile.loadFileAsString());
+        
+        return hiseRoot;
+    }
+    
     File getLorisDll() const
     {
+        auto root = getRedirectedFolder();
+        
+#if JUCE_DEBUG
+        String config = "debug";
+#else
+        String config = "release";
+#endif
+        
 #if JUCE_WINDOWS
-#if JUCE_DEBUG
-		return hiseRoot.getChildFile("loris_library_debug.dll");
+        String ext = ".dll";
+#elif JUCE_MAC
+        String ext = ".dylib";
 #else
-		return hiseRoot.getChildFile("loris_library_release.dll");
+        String ext = ".so";
 #endif
-#else
-#if JUCE_DEBUG
-        return hiseRoot.getChildFile("loris_library_debug.dylib");
-#else
-        return hiseRoot.getChildFile("loris_library_release.dylib");
-#endif
-#endif
+        
+        String fileName = "loris_library_";
+        fileName << config << ext;
+        
+        return getRedirectedFolder().getChildFile(fileName);
     }
     
     StringArray getList(bool getOptions)
@@ -176,9 +206,6 @@ struct LorisManager: public ReferenceCountedObject
         if(auto f = (LorisGetListFunction)getFunction("getIdList"))
         {
             f(messageBuffer, 2048, getOptions);
-            
-            
-            
             return StringArray::fromTokens(String(messageBuffer), ";", "");
         }
         
