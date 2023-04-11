@@ -1392,7 +1392,7 @@ void StateVariableEqSubType::processSamples(AudioSampleBuffer& b, int startSampl
 	auto numChannels = b.getNumChannels();
 	auto ptrs = b.getArrayOfWritePointers();
 
-	for (int i = startSample; i < numSamples; i++)
+	for (int i = startSample; i < startSample + numSamples; i++)
 	{
 		coefficients.tick();
 
