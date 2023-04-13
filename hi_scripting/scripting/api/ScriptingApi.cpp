@@ -945,6 +945,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, quit);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
+    API_VOID_METHOD_WRAPPER_0(Engine, clearUndoHistory);
 	API_METHOD_WRAPPER_2(Engine, performUndoAction);
 	API_METHOD_WRAPPER_0(Engine, getExtraDefinitionsInBackend);
 	API_METHOD_WRAPPER_0(Engine, loadAudioFilesIntoPool);
@@ -1086,6 +1087,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(quit);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
+    ADD_API_METHOD_0(clearUndoHistory);
 	ADD_API_METHOD_2(performUndoAction);
 	ADD_API_METHOD_0(getExtraDefinitionsInBackend);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
@@ -2084,6 +2086,8 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 			}
 		}
 
+        bool isValid() const { return numChannels > 0 && numSamples > 0; }
+        
 		void play()
 		{
 			AudioSampleBuffer b(channels, numChannels, numSamples);
@@ -2152,13 +2156,23 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 	{
         jassert(fileSampleRate >= 0.0);
         
-		ScopedLock sl(jobLock);
+		
 
-		getMainController()->stopBufferToPlay();
-		currentJobs.add(new Job(pwsc, buffer, callback, fileSampleRate));
+        ScopedPointer<Job> nj = new Job(pwsc, buffer, callback, fileSampleRate);
+        
+        if(nj->isValid())
+        {
+            ScopedLock sl(jobLock);
+            
+            getMainController()->stopBufferToPlay();
+            
+            currentJobs.add(nj.release());
 
-		if (currentJobs.size() == 1)
-			startNextJob();
+            if (currentJobs.size() == 1)
+                startNextJob();
+        }
+        
+		
 	}
 
 	void handleAsyncUpdate()
@@ -3294,6 +3308,18 @@ void ScriptingApi::Engine::undo()
 	};
 
 	MessageManager::callAsync(f);
+}
+
+void ScriptingApi::Engine::clearUndoHistory()
+{
+    auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+    
+    if(um->isPerformingUndoRedo())
+    {
+        reportScriptError("You can't clear the undo history while performing an undoable operation");
+    }
+    
+    um->clearUndoHistory();
 }
 
 void ScriptingApi::Engine::redo()
