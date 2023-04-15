@@ -1060,7 +1060,7 @@ void MidiPlayer::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
 
 		if (currentPosition > loopEnd && (!loopEnabled || (isRecording())))
 		{
-			if (overdubMode)
+			if (isRecording() && overdubMode)
 			{
 				if (!overdubNoteOns.isEmpty())
 				{
