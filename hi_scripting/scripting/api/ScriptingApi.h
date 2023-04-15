@@ -1504,6 +1504,9 @@ public:
         /** Sets a string that is parsed as timeout message when the server doesn't respond. Default is "{}" (empty JSON object). */
         void setTimeoutMessageString(String timeoutMessage);
         
+        /** Sets whether to append a trailing slash to each POST call (default is true). */
+        void setEnforceTrailingSlash(bool shouldAddSlash);
+        
 		/** Returns a list of all pending Downloads. */
 		var getPendingDownloads();
 

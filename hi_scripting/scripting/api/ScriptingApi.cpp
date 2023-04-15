@@ -6990,6 +6990,7 @@ struct ScriptingApi::Server::Wrapper
 	API_VOID_METHOD_WRAPPER_3(Server, callWithGET);
 	API_METHOD_WRAPPER_4(Server, downloadFile);
 	API_VOID_METHOD_WRAPPER_1(Server, setHttpHeader);
+    API_VOID_METHOD_WRAPPER_1(Server, setEnforceTrailingSlash);
 	API_METHOD_WRAPPER_0(Server, getPendingDownloads);
 	API_METHOD_WRAPPER_0(Server, getPendingCalls);
 	API_METHOD_WRAPPER_0(Server, isOnline);
@@ -7030,6 +7031,7 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	ADD_API_METHOD_0(cleanFinishedDownloads);
 	ADD_API_METHOD_1(isEmailAddress);
     ADD_API_METHOD_1(setTimeoutMessageString);
+    ADD_API_METHOD_1(setEnforceTrailingSlash);
 }
 
 void ScriptingApi::Server::setBaseURL(String url)
@@ -7053,6 +7055,11 @@ void ScriptingApi::Server::callWithGET(String subURL, var parameters, var callba
 	}
 }
 
+void ScriptingApi::Server::setEnforceTrailingSlash(bool shouldAdd)
+{
+    globalServer.addTrailingSlashes = shouldAdd;
+}
+
 void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callback)
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(callback))
@@ -7062,7 +7069,7 @@ void ScriptingApi::Server::callWithPOST(String subURL, var parameters, var callb
         const bool isNotAFile = !subURL.containsChar('.');
         const bool trailingSlashMissing = !subURL.endsWithChar('/');
         
-        if(isNotAFile && trailingSlashMissing)
+        if(isNotAFile && trailingSlashMissing && globalServer.addTrailingSlashes)
         {
             // We need to append a slash in order to prevent redirecting to a GET call
             subURL << '/';
