@@ -425,6 +425,10 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;
 	}
+    else if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_show_panel_data_json))
+    {
+        return getScriptComponentEditBroadcaster()->showPanelDataJSON(this);
+    }
 	else if ((keyCode == 'C' || keyCode == 'c') && key.getModifiers().isCommandDown())
 	{
 		auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());

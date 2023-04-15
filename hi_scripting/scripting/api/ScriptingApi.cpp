@@ -2983,7 +2983,9 @@ var ScriptingApi::Engine::loadAudioFilesIntoPool()
 	HiseJavascriptEngine::TimeoutExtender xt(dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine());
 
 	auto pool = getScriptProcessor()->getMainController_()->getCurrentAudioSampleBufferPool();
-	pool->loadAllFilesFromProjectFolder();
+    
+    if(!pool->areAllFilesLoaded())
+        pool->loadAllFilesFromProjectFolder();
 
 #endif
 

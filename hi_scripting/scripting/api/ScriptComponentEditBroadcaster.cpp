@@ -385,6 +385,78 @@ void ScriptComponentEditBroadcaster::showJSONEditor(Component* t)
 	editor->grabKeyboardFocus();
 }
 
+bool ScriptComponentEditBroadcaster::showPanelDataJSON(juce::Component *t)
+{
+    auto fc = getFirstFromSelection();
+    
+    var pd;
+    
+    JSONEditor* editor;
+    
+    if(auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(fc))
+    {
+        auto pd = sp->getConstantValue(0);
+        
+        editor = new JSONEditor(pd);
+
+        auto callback = [sp, pd](const var& newData)
+        {
+            auto copy = newData.clone();
+            auto& prop = copy.getDynamicObject()->getProperties();
+            pd.getDynamicObject()->swapProperties(std::move(prop));
+            sp->repaint();
+            return;
+        };
+        
+        editor->setCallback(callback, false);
+        
+        editor->setName("Editing Panel.data (non-persistent!)");
+    }
+    if(auto vp = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(fc))
+    {
+        if(auto tm = vp->getTableModel())
+        {
+            auto pd = tm->getRowData();
+            editor = new JSONEditor(pd);
+            
+            
+            
+            auto callback = [vp](const var& newData)
+            {
+                auto mc = vp->getScriptProcessor()->getMainController_();
+                
+                {
+                    LockHelpers::SafeLock(mc, LockHelpers::ScriptLock);
+                    vp->getTableModel()->setRowData(newData);
+                }
+                vp->sendRepaintMessage();
+                
+                return;
+            };
+            
+            editor->setCallback(callback, false);
+            
+            editor->setName("Editing Viewport table rows (non-persistent!)");
+        }
+    }
+    
+    if(editor != nullptr)
+    {
+        editor->setEditable(true);
+        
+        
+        editor->setSize(400, 400);
+
+        t->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, t, t->getLocalBounds().getCentre());
+
+        editor->grabKeyboardFocus();
+        
+        return true;
+    }
+    
+    return false;
+}
+
 String ScriptComponentEditBroadcaster::getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue)
 {
 	String p;
@@ -503,3 +575,7 @@ void ScriptComponentEditBroadcaster::setLearnData(const MacroControlledObject::L
 }
 
 } // namespace hise
+
+using namespace hise;
+
+

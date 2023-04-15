@@ -243,7 +243,8 @@ public:
 
 	void showJSONEditor(Component* t);
 
-	
+    bool showPanelDataJSON(Component* t);
+    
 	class PropertyChange : public UndoableAction
 	{
 	public:

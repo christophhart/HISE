@@ -799,6 +799,10 @@ bool ScriptComponentList::keyPressed(const KeyPress& key)
 		getScriptComponentEditBroadcaster()->showJSONEditor(this);
 		return true;
 	}
+    if (TopLevelWindowWithKeyMappings::matches(this, key, InterfaceDesignerShortcuts::id_show_panel_data_json))
+    {
+        return getScriptComponentEditBroadcaster()->showPanelDataJSON(this);
+    }
 	else if (key.isKeyCode(KeyPress::F2Key))
 	{
 		auto b = getScriptComponentEditBroadcaster();

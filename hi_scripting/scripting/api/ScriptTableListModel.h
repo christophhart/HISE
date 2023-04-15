@@ -191,6 +191,8 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	void setTableSortFunction(var newSortFunction);
 
+    var getRowData() const { return rowData.clone(); }
+    
 private:
 
 	static int defaultSorter(const var& v1, const var& v2)

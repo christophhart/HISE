@@ -44,6 +44,7 @@ namespace InterfaceDesignerShortcuts
 	DECLARE_ID(id_rebuild);
 	DECLARE_ID(id_lock_selection);
 	DECLARE_ID(id_show_json);
+    DECLARE_ID(id_show_panel_data_json);
 	DECLARE_ID(id_duplicate);
 }
 #undef DECLARE_ID

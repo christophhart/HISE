@@ -807,8 +807,13 @@ var HiseSettings::Data::getExtraDefinitionsAsObject() const
 
     DynamicObject::Ptr obj = new DynamicObject();
 
-    for (const auto& i : items)
+    for (auto i : items)
     {
+        i = i.trim();
+        
+        if(i.isEmpty())
+            continue;
+        
         obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
     }
     

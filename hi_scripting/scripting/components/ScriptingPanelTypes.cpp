@@ -1133,6 +1133,7 @@ void ScriptContentPanel::initKeyPresses(Component* root)
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_duplicate, "Duplicate selection at cursor", KeyPress('d', ModifierKeys::commandModifier, 'd'));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_json, "Show JSON properties", KeyPress('j'));
+    TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_panel_data_json, "Show Panel.data as JSON", KeyPress('p'));
 }
 
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)

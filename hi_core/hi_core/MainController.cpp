@@ -710,10 +710,13 @@ void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std:
 	}
 
 	{
+        AudioSampleBuffer copy;
+        copy.makeCopyOf(buffer);
+        
 		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
 		previewBufferIndex = 0;
-		previewBuffer = buffer;
+		previewBuffer = copy;
 		previewFunction = pf;
 		fadeOutPreviewBuffer = false;
 		fadeOutPreviewBufferGain = 1.0f;
