@@ -626,7 +626,7 @@ struct Operations::IfStatement : public Statement,
         {
             VariableStorage v;
             
-            if(interpretChildAndSetControlFlow(e, v))
+            if(interpretChildAndSetControlFlow(e.get(), v))
                 return v;
         }
         
