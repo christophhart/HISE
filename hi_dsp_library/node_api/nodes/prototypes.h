@@ -125,7 +125,25 @@ namespace prototypes
 		public:
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
+    
+        template <typename T> class process
+        {
+            typedef char one; struct two { char x[2]; };
+            template <typename C> static one test(decltype(&C::process));
+            template <typename C> static two test(...);
+        public:
+            enum { value = sizeof(test<T>(0)) == sizeof(char) };
+        };
 
+        template <typename T> class processFrame
+        {
+            typedef char one; struct two { char x[2]; };
+            template <typename C> static one test(decltype(&C::processFrame));
+            template <typename C> static two test(...);
+        public:
+            enum { value = sizeof(test<T>(0)) == sizeof(char) };
+        };
+    
 		template <typename T> class reset
 		{
 			typedef char one; struct two { char x[2]; };
