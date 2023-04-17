@@ -872,3 +872,4 @@ ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String:
 
 } // end namespace jit
 } // end namespace snex
+

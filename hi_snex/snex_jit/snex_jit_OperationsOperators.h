@@ -49,6 +49,7 @@ struct Operations::BinaryOp : public Expression
 	{
 		addStatement(left);
 		addStatement(right);
+        
 	};
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
@@ -58,6 +59,14 @@ struct Operations::BinaryOp : public Expression
 
 		return new BinaryOp(l, c1, c2, op);
 	}
+    
+    VariableStorage interpret() override
+    {
+        auto l = getSubExpr(0)->interpret();
+        auto r = getSubExpr(1)->interpret();
+        
+        return iop(l, r);
+    }
 
 	ValueTree toValueTree() const override
 	{
@@ -73,6 +82,8 @@ struct Operations::BinaryOp : public Expression
 		return getSubExpr(0)->getTypeInfo();
 	}
 
+    void setupInterpretedFunctions();
+    
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
 #if REMOVE_REUSABLE_REG
@@ -80,6 +91,8 @@ struct Operations::BinaryOp : public Expression
 #endif
 
 	TokenType op;
+    
+    std::function<VariableStorage(const VariableStorage&, const VariableStorage&)> iop;
 };
 
 /** TODO:
@@ -201,6 +214,20 @@ struct Operations::Increment : public UnaryOp
 		return t;
 	}
 
+    VariableStorage interpret() override
+    {
+        VariableStorage values[2];
+        values[1] = getSubExpr(0)->interpret();
+        
+        int delta[2] = { 1, -1};
+        
+        values[0] = VariableStorage(values[1].toInt() + delta[(int)isDecrement]);
+        
+        getSubExpr(0)->assignInterpreted(values[0]);
+        
+        return values[(int)isPreInc];
+    }
+    
 	bool hasSideEffect() const override
 	{
 		return true;
@@ -246,6 +273,13 @@ struct Operations::Cast : public Expression
 		return t;
 	}
 
+    VariableStorage interpret() override
+    {
+        auto v = getSubExpr(0)->interpret();
+        v.setWithType(targetType.getType(), v.toDouble());
+        return v;
+    }
+    
 	// Make sure the target type is used.
 	TypeInfo getTypeInfo() const override { return targetType; }
 
@@ -332,6 +366,22 @@ struct Operations::Subscript : public Expression,
 		return newSubscript;
 	}
 
+    VariableStorage interpret() override
+    {
+        auto expr = getSubExpr(0)->interpret();
+        auto index = (int)getSubExpr(1)->interpret();
+        
+        if(spanType != nullptr && !isPositiveAndBelow(index, spanType->getNumElements()))
+            location.throwError("Index out of bounds: " + spanType->toString() + "[" + String(index) + "]");
+            
+        
+        auto ptr = (uint8*)expr.getDataPointer();
+        auto numBytes = elementType.getRequiredByteSize();
+        ptr += index * numBytes;
+        
+        return VariableStorage(elementType.getType(), ptr);
+    }
+    
 	TypeInfo getTypeInfo() const override
 	{
 		return elementType;
@@ -391,6 +441,15 @@ struct Operations::Assignment : public Expression,
 
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Assignment"); }
 
+    VariableStorage interpret() override
+    {
+        auto e = getSubExpr(0)->interpret();
+        auto t = getSubExpr(1);
+        
+        t->assignInterpreted(e);
+        return t->interpret();
+    }
+    
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto ce = getSubExpr(0)->clone(l);
@@ -511,6 +570,16 @@ struct Operations::Compare : public Expression
 
 		return t;
 	}
+    
+    void setupInterpretedFunctions();
+    
+    VariableStorage interpret() override
+    {
+        auto l = getSubExpr(0)->interpret();
+        auto r = getSubExpr(1)->interpret();
+        
+        return iop(l, r);
+    }
 
 	TypeInfo getTypeInfo() const override { return TypeInfo(Types::Integer); }
 
@@ -521,6 +590,8 @@ struct Operations::Compare : public Expression
 
 private:
 
+    std::function<VariableStorage(const VariableStorage&, const VariableStorage&)> iop;
+    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compare);
 };
 
@@ -540,6 +611,12 @@ struct Operations::LogicalNot : public Expression
 		return new LogicalNot(l, dynamic_cast<Expression*>(c1.get()));
 	}
 
+    VariableStorage interpret() override
+    {
+        auto v = (bool)getSubExpr(0)->interpret().toInt();
+        return VariableStorage((int)v);
+    }
+    
 	TypeInfo getTypeInfo() const override { return TypeInfo(Types::ID::Integer); }
 
 	void process(BaseCompiler* compiler, BaseScope* scope);
@@ -596,6 +673,23 @@ struct Operations::Negation : public Expression
 		return new Negation(l, dynamic_cast<Expression*>(c1.get()));
 	}
 
+    VariableStorage interpret() override
+    {
+        auto v = getSubExpr(0)->interpret();
+        auto t = v.getType();
+        
+        switch(t)
+        {
+            case Types::ID::Integer: return VariableStorage(-1 * v.toInt());
+            case Types::ID::Float: return VariableStorage(-1.0f * v.toFloat());
+            case Types::ID::Double: return VariableStorage(-1.0 * v.toDouble());
+            default:
+                location.throwError("Can't negate " + getSubExpr(0)->toString(TextFormat::CppCode));
+        }
+            
+        return {};
+    };
+    
 	TypeInfo getTypeInfo() const override
 	{
 		return getSubExpr(0)->getTypeInfo();

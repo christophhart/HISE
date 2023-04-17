@@ -585,9 +585,14 @@ public:
 
 	bool isDebugModeEnabled() const { return debugMode; }
 
+    void setUseInterpreter(bool shouldUseInterpreter) { interpreterMode = shouldUseInterpreter; }
+    
+    bool isUsingInterpreter() const { return interpreterMode; }
+    
 private:
 
-	bool debugMode = false;
+    bool interpreterMode = false;
+    bool debugMode = false;
 
 	Array<Identifier> noInliners;
 

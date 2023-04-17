@@ -75,6 +75,29 @@ struct Operations::Function : public Statement,
 		return c;
 	}
 
+    VariableStorage callInterpreted(VariableStorage* args, int numArgs)
+    {
+        jassert(argHashes.size() == numArgs);
+        
+        auto av = functionScope->getInterpretedScopeValues();
+        
+        for(int i = 0; i < numArgs; i++)
+            av->assign(argHashes[i], args[i]);
+        
+        return interpret();
+    }
+    
+    VariableStorage interpret() override
+    {
+        if(!initialised)
+        {
+            initialised = true;
+            return {};
+        }
+        
+        return statements->interpret();
+    }
+    
 	ValueTree toValueTree() const override
 	{
 		auto t = Statement::toValueTree();
@@ -98,6 +121,8 @@ struct Operations::Function : public Statement,
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
+    
+    
 	ScopedPointer<FunctionScope> functionScope;
 
 	struct FunctionCompileData
@@ -133,6 +158,10 @@ struct Operations::Function : public Statement,
 
 private:
 
+    Array<int64> argHashes;
+    
+    bool initialised = false;
+    
 	/** Compiles the very own syntax tree. */
 	void compileSyntaxTree(FunctionCompileData& f);;
 
@@ -177,6 +206,19 @@ struct Operations::FunctionCall : public Expression
 		return nullptr;
 	}
 
+    VariableStorage interpret() override
+    {
+        auto fd = (VariableStorage*)alloca(getNumArguments() * sizeof(VariableStorage));
+        
+        
+        for(int i = 0; i < getNumArguments(); i++)
+        {
+            fd[i] = getArgument(i)->interpret();
+        }
+        
+        return function.callDynamic(fd, getNumArguments());
+    }
+    
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
 	{
 		auto newFC = new FunctionCall(l, nullptr, Symbol(function.id, function.returnType), function.templateParameters);
@@ -290,6 +332,8 @@ private:
 
 	bool allowInlining = true;
 
+    Function* interpretedFunction = nullptr;
+    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionCall);
 
 };

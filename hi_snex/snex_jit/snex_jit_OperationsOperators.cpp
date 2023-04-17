@@ -456,6 +456,120 @@ void Operations::Cast::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+template <typename DataType> struct InterpretedOps
+{
+    static DataType convertRaw(const VariableStorage& v)
+    {
+        if constexpr (std::is_same<DataType, int>()) return (int)v;
+        else if constexpr (std::is_same<DataType, double>()) return (double)v;
+        else if constexpr (std::is_same<DataType, float>()) return (float)v;
+        
+        jassertfalse;
+        return DataType(0);
+    }
+    
+    static VariableStorage add(const VariableStorage& l, const VariableStorage& r)
+    {
+        return {convertRaw(l) + convertRaw(r)};
+    }
+    
+    static VariableStorage sub(const VariableStorage& l, const VariableStorage& r)
+    {
+        return {convertRaw(l) - convertRaw(r)};
+    }
+    
+    static VariableStorage mul(const VariableStorage& l, const VariableStorage& r)
+    {
+        return {convertRaw(l) * convertRaw(r)};
+    }
+    
+    static VariableStorage div(const VariableStorage& l, const VariableStorage& r)
+    {
+        return {convertRaw(l) / convertRaw(r)};
+    }
+    
+    static VariableStorage logicalAnd(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l && (int)r));
+    }
+    
+    static VariableStorage logicalOr(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l || (int)r));
+    }
+    
+    static VariableStorage equals(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l == (int)r));
+    }
+
+    static VariableStorage notEquals(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l != (int)r));
+    }
+
+    static VariableStorage lessThan(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l < (int)r));
+    }
+
+    static VariableStorage lessThanOrEqual(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l <= (int)r));
+    }
+
+    static VariableStorage greaterThan(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l > (int)r));
+    }
+
+    static VariableStorage greaterThanOrEqual(const VariableStorage& l, const VariableStorage& r)
+    {
+        return VariableStorage((int)((int)l >= (int)r));
+    }
+};
+
+
+
+void BinaryOp::setupInterpretedFunctions()
+{
+    auto t = getTypeInfo().getType();
+    
+#define if_type(x) if(Types::Helpers::getTypeFromTypeId<x>() == t)
+    
+    if(op == JitTokens::plus)
+    {
+        if_type(int)    iop = InterpretedOps<int>::add;
+        if_type(float)  iop = InterpretedOps<float>::add;
+        if_type(double) iop = InterpretedOps<double>::add;
+    }
+    if(op == JitTokens::minus)
+    {
+        if_type(int)    iop = InterpretedOps<int>::sub;
+        if_type(float)  iop = InterpretedOps<float>::sub;
+        if_type(double) iop = InterpretedOps<double>::sub;
+    }
+    if(op == JitTokens::times)
+    {
+        if_type(int)    iop = InterpretedOps<int>::mul;
+        if_type(float)  iop = InterpretedOps<float>::mul;
+        if_type(double) iop = InterpretedOps<double>::mul;
+    }
+    if(op == JitTokens::divide)
+    {
+        if_type(int)    iop = InterpretedOps<int>::div;
+        if_type(float)  iop = InterpretedOps<float>::div;
+        if_type(double) iop = InterpretedOps<double>::div;
+    }
+    if(op == JitTokens::logicalAnd)
+        iop = InterpretedOps<int>::logicalAnd;
+    if(op == JitTokens::logicalOr)
+        iop = InterpretedOps<int>::logicalOr;
+    
+#undef if_type
+}
+
+
 void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	// Defer evaluation of the children for operators with short circuiting...
@@ -484,6 +598,8 @@ void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 			op == JitTokens::logicalOr)
 		{
 			checkAndSetType(0, TypeInfo(Types::ID::Integer));
+            
+            setupInterpretedFunctions();
 			return;
 		}
 
@@ -497,6 +613,7 @@ void Operations::BinaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 
 		checkAndSetType(0, {});
+        setupInterpretedFunctions();
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1445,6 +1562,16 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 	}
 }
 
+void Operations::Compare::setupInterpretedFunctions()
+{
+    if(op == JitTokens::equals) iop = InterpretedOps<int>::equals;
+    if(op == JitTokens::notEquals) iop = InterpretedOps<int>::notEquals;
+    if(op == JitTokens::lessThan) iop = InterpretedOps<int>::lessThan;
+    if(op == JitTokens::lessThanOrEqual) iop = InterpretedOps<int>::lessThanOrEqual;
+    if(op == JitTokens::greaterThan) iop = InterpretedOps<int>::greaterThan;
+    if(op == JitTokens::greaterThanOrEqual) iop = InterpretedOps<int>::greaterThanOrEqual;
+}
+
 void Operations::Compare::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
@@ -1460,6 +1587,8 @@ void Operations::Compare::process(BaseCompiler* compiler, BaseScope* scope)
 			logWarning("Implicit cast to int for comparison");
 			replaceChildStatement(1, implicitCast);
 		}
+        
+        setupInterpretedFunctions();
 	}
 
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
@@ -1573,3 +1702,6 @@ void Operations::Negation::process(BaseCompiler* compiler, BaseScope* scope)
 
 }
 }
+
+
+

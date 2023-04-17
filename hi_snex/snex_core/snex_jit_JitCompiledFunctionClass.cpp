@@ -122,6 +122,23 @@ FunctionData JitCompiledFunctionClass::getFunction(const NamespacedIdentifier& f
 	return {};
 }
 
+FunctionData JitCompiledFunctionClass::getInterpretedFunction(const NamespacedIdentifier& functionId)
+{
+    auto jitFunction = getFunction(functionId);
+    
+    if(jitFunction.isValid())
+    {
+        jitFunction.object = this;
+        jitFunction.function = nullptr;
+    }
+    
+    return jitFunction;
+}
+
+juce::Result JitCompiledFunctionClass::callInterpreted(snex::jit::FunctionData &f) { 
+    
+    return Result::ok();
+}
 
 
 bool JitObject::isStateless()
@@ -133,7 +150,23 @@ snex::jit::FunctionData JitObject::operator[](const NamespacedIdentifier& functi
 {
 	if (*this)
 	{
-		return functionClass->getFunction(functionId);
+		auto f = functionClass->getFunction(functionId);
+        
+        if(auto t = dynamic_cast<SyntaxTree*>(syntaxTree.get()))
+        {
+            SyntaxTreeWalker walker(t);
+            
+            while(auto fs = walker.getNextStatementOfType<Function>())
+            {
+                if(fs->data.matchIdArgs(f))
+                {
+                    f.object = fs;
+                    return f;
+                }
+            }
+        }
+        
+        return f;
 	}
 		
 
@@ -160,6 +193,37 @@ JitObject::operator bool() const
 {
 	return functionClass != nullptr;
 }
+
+VariableStorage JitObject::callInterpreted(snex::jit::FunctionData &f)
+{
+    if(auto typed = static_cast<snex::jit::Function*>(f.object))
+    {
+        auto fd = (VariableStorage*)alloca(f.args.size() * sizeof(VariableStorage));
+        
+        
+        
+        auto ptr = fd;
+        
+        for(auto& a: f.args)
+            *ptr++ = a.constExprValue;
+             
+        try
+        {
+            return typed->callInterpreted(fd, f.args.size());
+        }
+        catch(ParserHelpers::Error& e)
+        {
+            interpreterResult = Result::fail(e.toString());
+            
+        }
+        
+    }
+    
+    return {};
+    
+    
+}
+
 
 snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)
 {

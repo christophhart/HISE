@@ -234,6 +234,31 @@ struct FunctionData
 
 	int getSpecialFunctionType() const;
 
+    template <typename T> bool setInterpretedArgs(int index, T value)
+    {
+        if(isPositiveAndBelow(index, args.size()))
+        {
+            if constexpr (std::is_same<T, VariableStorage>())
+            {
+                args.getReference(index).constExprValue = value;
+            }
+            else
+            {
+                auto expectedType = args[0].typeInfo.getType();
+                VariableStorage v(value);
+                
+                if(Types::Helpers::getTypeFromTypeId<T>() != expectedType)
+                    v.setWithType(expectedType, (double)value);
+                
+                args.getReference(index).constExprValue = v;
+            }
+            
+            return true;
+        }
+            
+        return false;
+    }
+    
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
 		description = d;
@@ -311,6 +336,8 @@ struct FunctionData
 
 	VariableStorage callDynamic(VariableStorage* args, int numArgs) const;
 
+    VariableStorage callInterpreted(VariableStorage* args, int numArgs) const;
+    
 	template <typename... Parameters> void callVoid(Parameters... ps) const
 	{
 		if (function != nullptr)

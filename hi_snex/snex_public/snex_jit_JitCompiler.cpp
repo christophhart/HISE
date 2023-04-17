@@ -158,6 +158,8 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	compileCount++;
 	lastCode = code;
 	
+    auto enableInterpreter = memory.isUsingInterpreter();
+    
 	try
 	{
 		Preprocessor p(lastCode);
@@ -174,7 +176,18 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		return {};
 	}
 	
-	return JitObject(compiler->compileAndGetScope(preprocessedCode));
+	auto obj = JitObject(compiler->compileAndGetScope(preprocessedCode));
+    
+    if(enableInterpreter)
+    {
+        if(auto s = compiler->syntaxTree.get())
+        {
+            s->interpret();
+            obj.setSyntaxTree(s);
+        }
+    }
+    
+    return obj;
 }
 
 

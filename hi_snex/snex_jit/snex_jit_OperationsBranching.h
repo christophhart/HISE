@@ -77,6 +77,18 @@ struct Operations::StatementBlock : public Expression,
 		return v;
 	}
 
+    VariableStorage interpret() override
+    {
+        auto v = interpretChildren();
+        
+        if(isInlinedFunction)
+        {
+            setInterpretedControlFlow(ControlFlowInstruction::None);
+        }
+        
+        return v;
+    }
+    
 	static bool isRealStatement(Statement* s);
 
 	bool isConstExpr() const override
@@ -150,6 +162,11 @@ struct Operations::AnonymousBlock : public Expression
 		processBaseWithChildren(compiler, scope);
 	}
 
+    VariableStorage interpret() override
+    {
+        return interpretChildren();
+    }
+    
 	virtual Ptr clone(Location l) const override
 	{
 		auto ab = new AnonymousBlock(l);
@@ -173,6 +190,8 @@ struct Operations::ReturnStatement : public Expression,
 	{
 		if (expr != nullptr)
 			addStatement(expr);
+        
+        setInterpretedControlFlow(ControlFlowInstruction::Return);
 	}
 
 	Identifier getStatementId() const override
@@ -189,10 +208,17 @@ struct Operations::ReturnStatement : public Expression,
 		return new ReturnStatement(l, p);
 	}
 
+    
+    
 	bool isConstExpr() const override
 	{
 		return isVoid() || getSubExpr(0)->isConstExpr();
 	}
+    
+    VariableStorage interpret() override
+    {
+        return getSubExpr(0)->interpret();
+    }
 
 	VariableStorage getConstExprValue() const override
 	{
@@ -274,10 +300,18 @@ public:
 		return new TernaryOp(l, c1, c2, c3);
 	}
 
+    VariableStorage interpret() override
+    {
+        auto c1 = getSubExpr(0)->interpret().toInt();
+        return getSubExpr(c1)->interpret();
+    }
+    
 	TypeInfo getTypeInfo() const override {	return type; }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;
 
+    
+    
 private:
 
 	TypeInfo type;
@@ -329,6 +363,35 @@ struct Operations::WhileLoop : public Statement,
 	{
 		return Statement::toValueTree();
 	}
+    
+    VariableStorage interpret() override
+    {
+        if(loopType == LoopType::While)
+        {
+            auto cond = getSubExpr(0);
+            auto body = getSubExpr(1);
+            
+            while(cond->interpret().toInt())
+            {
+                body->interpret();
+            }
+        }
+        else
+        {
+            auto initialiser = getSubExpr(0);
+            auto condition = getSubExpr(1);
+            auto body = getSubExpr(2);
+            auto postOp = getSubExpr(3);
+            
+            initialiser->interpret();
+            
+            while(condition->interpret().toInt())
+            {
+                body->interpret();
+                postOp->interpret();
+            }
+        }
+    }
 
 	Statement::Ptr clone(Location l) const override
 	{
@@ -487,6 +550,7 @@ struct Operations::ControlFlowStatement : public Expression,
 		return new ControlFlowStatement(l, isBreak);
 	}
 
+    
 	TypeInfo getTypeInfo() const override { return {}; }
 
 	void process(BaseCompiler* compiler, BaseScope* scope) override;;
@@ -537,6 +601,38 @@ struct Operations::IfStatement : public Statement,
 		return new IfStatement(l, dynamic_cast<Expression*>(c1.get()), c2, c3);
 	}
 
+    bool interpretChildAndSetControlFlow(Statement* child, VariableStorage& v)
+    {
+        v = child->interpret();
+        
+        auto s = child->getInterpretedControlFlow();
+        
+        if(s != ControlFlowInstruction::None)
+        {
+            setInterpretedControlFlow(s);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    VariableStorage interpret() override
+    {
+        auto c = getSubExpr(0)->interpret().toInt();
+        
+        // 2 = false branch, 1 = true branch
+        
+        if(auto e = getSubExpr(2 - c))
+        {
+            VariableStorage v;
+            
+            if(interpretChildAndSetControlFlow(e, v))
+                return v;
+        }
+        
+        return {};
+    }
+    
 	asmjit::Label getJumpTargetForEnd(bool getContinue) override
 	{
 		location.throwError("Can't jump to end of if");

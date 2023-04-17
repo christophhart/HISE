@@ -34,7 +34,9 @@ namespace snex
 		VariableStorage(int s);
 		VariableStorage(const block& b);
 		VariableStorage(HiseEvent& m);
-
+        VariableStorage(Types::ID type_, uint8* dataPtr);
+        
+        
 		VariableStorage(void* ptr)
 		{
 			data.p.type = Types::ID::Pointer;

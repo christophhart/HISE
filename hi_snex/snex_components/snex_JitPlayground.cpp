@@ -835,7 +835,11 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 
     if(!wb->getLastResult().compiledOk())
     {
-        resultLabel.setText(wb->getLastResult().compileResult.getErrorMessage(), dontSendNotification);
+        auto m = wb->getLastResult().compileResult.getErrorMessage();
+        resultLabel.setText(m, dontSendNotification);
+        
+        editor.editor.setError(m);
+        
     }
 	else if (!result.testWasOk())
 	{

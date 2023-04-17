@@ -56,6 +56,11 @@ struct Operations::InlinedArgument : public Expression,
 		return s;
 	}
 
+    VariableStorage interpret() override
+    {
+        return getSubExpr(0)->interpret();
+    }
+    
 	bool isConstExpr() const override
 	{
 		return getSubExpr(0)->isConstExpr();
@@ -111,6 +116,8 @@ struct Operations::Noop : public Expression
 	{
 		return new Noop(l);
 	}
+    
+    VariableStorage interpret() override { return {}; };
 
 	void process(BaseCompiler* compiler, BaseScope* scope)
 	{
@@ -140,6 +147,8 @@ struct Operations::Immediate : public Expression
 	{
 		return new Immediate(l, v);
 	}
+    
+    VariableStorage interpret() override { return v; }
 
 	ValueTree toValueTree() const override
 	{
@@ -182,6 +191,8 @@ struct Operations::InlinedParameter : public Expression,
 	}
 
 
+    VariableStorage interpret() override { return source->interpret(); }
+    
 	TypeInfo getTypeInfo() const override
 	{
 		return source->getTypeInfo();
@@ -240,6 +251,24 @@ struct Operations::VariableReference : public Expression,
 		return id.id.toString();
 	}
 
+    VariableStorage interpret() override
+    {
+        if(auto vs = variableScope->getInterpretedScopeValues())
+        {
+            return vs->get(scopeHash);
+        }
+        
+        location.throwError("Can't resolve variable " + id.toString());
+    }
+    
+    void assignInterpreted(const VariableStorage& v) override
+    {
+        if(auto vs = variableScope->getInterpretedScopeValues())
+            vs->assign(scopeHash, v);
+        else
+            location.throwError("Can't assign to " + id.toString());
+    }
+    
 	/** This scans the tree and checks whether it's the last reference.
 
 		It ignores the control flow, so when the variable is part of a true
@@ -389,6 +418,7 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VariableReference);
 
+    int64 scopeHash = -1;
 
 };
 

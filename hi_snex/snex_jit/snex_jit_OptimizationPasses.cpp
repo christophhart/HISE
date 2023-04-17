@@ -1262,7 +1262,10 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 			}
 		}
 
+        SyntaxTreeInlineData::processUpToCurrentPass(l, lp);
+        
 		replaceExpression(l, lp);
+        
 		l->parent = nullptr;
 		return true;
 

@@ -170,6 +170,11 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		return n;
 	}
 
+    VariableStorage interpret() override
+    {
+        return {};
+    }
+    
 	TypeInfo getTypeInfo() const override
 	{
 		return type;

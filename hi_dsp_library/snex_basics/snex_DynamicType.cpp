@@ -24,6 +24,24 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		jassertfalse;
 }
 
+VariableStorage::VariableStorage(Types::ID type_, uint8* dataptr)
+{
+    data.i.type = type_;
+    
+    if (type_ == Types::ID::Integer)
+        data.i.value = *reinterpret_cast<int64*>(dataptr);
+    else if (type_ == Types::ID::Float)
+        data.f.value = *reinterpret_cast<float*>(dataptr);
+    else if (type_ == Types::ID::Double)
+        data.d.value = *reinterpret_cast<double*>(dataptr);
+    else if (type_ == Types::ID::Pointer)
+    {
+        data.p.data = reinterpret_cast<void*>(dataptr);
+    }
+    else
+        jassertfalse;
+}
+
 VariableStorage::VariableStorage(FloatType s)
 {
 	data.d.type = Types::ID::Float;
