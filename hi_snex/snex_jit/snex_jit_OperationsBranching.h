@@ -373,11 +373,23 @@ struct Operations::WhileLoop : public Statement,
             
             while(cond->interpret().toInt())
             {
-                body->interpret();
+                auto v = body->interpret();
+
+				auto s = body->getInterpretedControlFlow();
+				
+				if (s == ControlFlowInstruction::Break)
+					break;
+				else if (s == ControlFlowInstruction::Return)
+				{
+					setInterpretedControlFlow(s);
+					return v;
+				}
             }
         }
         else
         {
+			jassertfalse; // not sure when that's used...
+
             auto initialiser = getSubExpr(0);
             auto condition = getSubExpr(1);
             auto body = getSubExpr(2);
@@ -387,10 +399,13 @@ struct Operations::WhileLoop : public Statement,
             
             while(condition->interpret().toInt())
             {
-                body->interpret();
+                auto v = body->interpret();
+
                 postOp->interpret();
             }
         }
+
+		return {};
     }
 
 	Statement::Ptr clone(Location l) const override
