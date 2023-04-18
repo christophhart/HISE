@@ -316,6 +316,14 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		std::cout << "DONE" << std::endl << std::endl;
 
+		if (args.contains("-dsp"))
+		{
+			auto s = new DspNetworkCompileExporter(editor, editor->getBackendProcessor());
+			s->setModalBaseWindowComponent(editor);
+			s->run();
+			return ErrorCodes::OK;
+		}
+
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
 		

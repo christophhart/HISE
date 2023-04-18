@@ -133,6 +133,7 @@ public:
         print("          but the build time is much shorter");
         print("-D:NAME=VALUE Adds a temporary preprocessor definition to the extra definitions.");
         print("              You can use multiple definitions by using this flag multiple times.");
+		print("-dsp      Compile DSP networks only." );
 		print("--test [PLUGIN_FILE]" );
 		print("Tests the given plugin" );
 		print("");
