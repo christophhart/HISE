@@ -329,7 +329,6 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		std::cout << "DONE" << std::endl << std::endl;
 
-
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
 		
