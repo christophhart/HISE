@@ -1385,6 +1385,10 @@ void DspNetworkCompileExporter::threadFinished()
 
 	if (ok == ErrorCodes::OK)
 	{
+		if (isUsingCIMode()) {
+			return;
+		}
+
 #if JUCE_DEBUG
 		writeDebugFileAndShowSolution();
 #endif

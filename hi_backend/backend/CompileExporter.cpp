@@ -267,6 +267,19 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
 		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
+
+		if (args.contains("-dsp"))
+		{
+			auto s = new DspNetworkCompileExporter(editor, editor->getBackendProcessor());
+			s->setModalBaseWindowComponent(editor);
+			s->run();
+			s->threadFinished();
+			editor = nullptr;
+			processor = nullptr;
+
+			return ErrorCodes::OK;
+		}
+
 		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
         
         dynamic_cast<GlobalSettingManager*>(mainSynthChain->getMainController())->getSettingsObject().addTemporaryDefinitions(getTemporaryDefinitions(commandLine));
@@ -316,13 +329,6 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		std::cout << "DONE" << std::endl << std::endl;
 
-		if (args.contains("-dsp"))
-		{
-			auto s = new DspNetworkCompileExporter(editor, editor->getBackendProcessor());
-			s->setModalBaseWindowComponent(editor);
-			s->run();
-			return ErrorCodes::OK;
-		}
 
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
 
