@@ -352,6 +352,7 @@ public:
 		jsfx->getOrCreate("dsp");
 
 		CompileExporter::setExportingFromCommandLine();
+		CompileExporter::setExportUsingCI(true);
 
 		hise::DspNetworkCompileExporter exporter(nullptr, dynamic_cast<BackendProcessor*>(mc));
 
