@@ -42,71 +42,6 @@ class RootClassData;
 struct StructType;
 
 
-struct InterpretedScopeValues: public ReferenceCountedObject
-{
-    using Ptr = ReferenceCountedObjectPtr<InterpretedScopeValues>;
-    
-    struct Item
-    {
-        int64 hash;
-        NamespacedIdentifier id;
-        TypeInfo type;
-        VariableStorage v;
-        bool initialised = false;
-    };
-    
-    virtual ~InterpretedScopeValues()
-    {
-        
-    }
-    
-    virtual int64 registerSymbol(const NamespacedIdentifier& id, const TypeInfo& type)
-    {
-        auto hash = id.toString().hashCode64();;
-        
-        for(auto& e: items)
-        {
-            if(e.hash == hash)
-                return hash;
-        }
-        
-        Item i;
-        i.id = id;
-        i.type = type;
-        i.hash = hash;
-        
-        items.add(std::move(i));
-        return hash;
-    }
-    
-    virtual bool assign(int64 hash, const VariableStorage& nv)
-    {
-        for(auto& x: items)
-        {
-            if(x.hash == hash)
-            {
-                x.v = nv;
-                x.initialised = true;
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    virtual VariableStorage get(int64 hash) const
-    {
-        for(auto& x: items)
-        {
-            if(x.hash == hash)
-                return x.v;
-        }
-        
-        return {};
-    }
-    
-    Array<Item> items;
-};
 
 /** This class holds all data that is used by either the compiler or the JIT itself.
 
@@ -143,14 +78,6 @@ public:
 
 	RootClassData* getRootData() const;
 
-    InterpretedScopeValues::Ptr getInterpretedScopeValues()
-    {
-        if(interpretedValues == nullptr)
-            interpretedValues = new InterpretedScopeValues();
-        
-        return interpretedValues;
-    }
-    
 	template <class T> T* getParentScopeOfType()
 	{
 		if (auto thisAsT = dynamic_cast<T*>(this))
@@ -162,8 +89,6 @@ public:
 			return nullptr;
 	}
 
-    
-    
 public:
 
 	BaseScope(const NamespacedIdentifier& s, BaseScope* parent_ = nullptr);;
@@ -177,8 +102,6 @@ public:
 		return scopeType == Class && scopeId.isValid();
 	}
 
-    
-    
 	BaseScope* getChildScope(const NamespacedIdentifier& s) const
 	{
 		if (s == scopeId)
@@ -206,12 +129,8 @@ protected:
 
 	ScopeType scopeType;
 
-    InterpretedScopeValues::Ptr interpretedValues;
-    
 private:
 
-    InterpretedScopeValues scopeValues;
-    
 	BaseScope* findScopeWithId(const NamespacedIdentifier& id);
 
 	Array<WeakReference<BaseScope>> childScopes;
@@ -258,63 +177,6 @@ class RootClassData: public FunctionClass
 
 public:
 
-    struct InterpreterAccessor: public InterpretedScopeValues
-    {
-        InterpreterAccessor(RootClassData* data_):
-           data(data_)
-        {};
-        
-        RootClassData* data;
-        
-        virtual int64 registerSymbol(const NamespacedIdentifier& id, const TypeInfo& type)
-        {
-            auto hash = id.toString().hashCode64();;
-            
-            for(auto& e: items)
-            {
-                if(e.hash == hash)
-                    return hash;
-            }
-            
-            Item i;
-            i.id = id;
-            i.type = type;
-            i.hash = hash;
-            i.v = VariableStorage(data->getDataPointer(id));
-            
-            items.add(std::move(i));
-            return hash;
-        }
-        
-        virtual bool assign(int64 hash, const VariableStorage& nv)
-        {
-            for(auto& x: items)
-            {
-                if(x.hash == hash)
-                {
-                    ComplexType::writeNativeMemberType(x.v.getDataPointer(), 0, nv);
-                    x.initialised = true;
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-        
-        virtual VariableStorage get(int64 hash) const
-        {
-            for(auto& x: items)
-            {
-                if(x.hash == hash)
-                {
-                    return VariableStorage(x.type.getType(), static_cast<uint8*>(x.v.getDataPointer()));
-                }
-            }
-            
-            return {};
-        }
-    };
-    
 	juce::String dumpTable() const;
 
 	RootClassData();

@@ -53,14 +53,8 @@ public:
 
 	FunctionData getFunction(const NamespacedIdentifier& functionId);
 
-    FunctionData getInterpretedFunction(const NamespacedIdentifier& functionId);
-    
-    Result callInterpreted(FunctionData& f);
-    
 	VariableStorage getVariable(const Identifier& id);
 
-    
-    
 	ComplexType::Ptr getMainObjectType();
 	void* getMainObjectPtr();
 
@@ -102,14 +96,10 @@ public:
 
 	
 
-	JitObject() :
-      functionClass(nullptr),
-      interpreterResult(Result::ok())
-    {};
+	JitObject() : functionClass(nullptr) {};
 
 	JitObject(JitCompiledFunctionClass* f) :
-      functionClass(f),
-      interpreterResult(Result::ok())
+		functionClass(f)
 	{};
 
 
@@ -126,8 +116,6 @@ public:
 
 	Array<NamespacedIdentifier> getFunctionIds() const;
 
-    VariableStorage callInterpreted(FunctionData& f);
-    
 	explicit operator bool() const;;
 	
 	ComplexType::Ptr getMainObjectType()
@@ -150,18 +138,9 @@ public:
 		return {};
 	}
 
-    void setSyntaxTree(ReferenceCountedObject* p)
-    {
-        syntaxTree = p;
-    }
-    
-    Result getInterpreterError() const { return interpreterResult; }
-    
 private:
 
-    Result interpreterResult;
 	JitCompiledFunctionClass::Ptr functionClass;
-    ReferenceCountedObjectPtr<ReferenceCountedObject> syntaxTree;
 };
 
 

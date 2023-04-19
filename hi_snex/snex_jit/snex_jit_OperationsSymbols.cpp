@@ -283,10 +283,6 @@ void Operations::VariableReference::process(BaseCompiler* compiler, BaseScope* s
 	{
 		jassert(variableScope != nullptr);
 
-        auto sv = variableScope->getInterpretedScopeValues();
-        
-        scopeHash = sv->registerSymbol(id.id, id.typeInfo);
-        
 		if (objectExpression != nullptr && objectExpression->getType() != Types::ID::Pointer)
 			objectExpression->location.throwError("expression must have class type");
 	}

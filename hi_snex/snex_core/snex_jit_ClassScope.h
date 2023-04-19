@@ -60,7 +60,6 @@ public:
 
 			runtime = new asmjit::JitRuntime();
 			rootData = new RootClassData();
-            interpretedValues = new RootClassData::InterpreterAccessor(rootData.get());
 		}
 		else
 			jassert(typePtr != nullptr);

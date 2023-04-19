@@ -283,11 +283,6 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 				if (auto st = dynamic_cast<StructType*>(dynamic_cast<ClassScope*>(scope)->typePtr.get()))
 					st->addJitCompiledMemberFunction(*classData);
 			}
-            
-            for(auto& p: fParameters)
-            {
-                argHashes.add(functionScope->getInterpretedScopeValues()->registerSymbol(p.id, p.typeInfo));
-            }
 		}
 		catch (ParserHelpers::Error& e)
 		{
@@ -921,17 +916,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
-        SyntaxTreeWalker w(this, true);
-        
-        while(auto fs = w.getNextStatementOfType<Function>())
-        {
-            if(fs->data.matchIdArgs(function))
-            {
-                interpretedFunction = fs;
-                break;
-            }
-        }
-        
 		if (isVectorOpFunction())
 			return;
 

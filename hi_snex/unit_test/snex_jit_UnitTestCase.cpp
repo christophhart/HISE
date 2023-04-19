@@ -475,28 +475,15 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 			function = compiledF;
 
-            if(memory.isUsingInterpreter())
-            {
-                for(int i = 0; i < inputs.size(); i++)
-                    function.setInterpretedArgs(i, inputs[i]);
-                
-                actualResult = obj.callInterpreted(function);
-                
-                if(obj.getInterpreterError().failed())
-                    return obj.getInterpreterError();
-            }
-            else
-            {
-                switch (function.returnType.getType())
-                {
-                case Types::ID::Integer: actualResult = call<int>(); break;
-                case Types::ID::Float:   actualResult = call<float>(); break;
-                case Types::ID::Double:  actualResult = call<double>(); break;
-                default: jassertfalse;
-                }
-            }
-            
-            expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
+			switch (function.returnType.getType())
+			{
+			case Types::ID::Integer: actualResult = call<int>(); break;
+			case Types::ID::Float:   actualResult = call<float>(); break;
+			case Types::ID::Double:  actualResult = call<double>(); break;
+			default: jassertfalse;
+			}
+
+			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 		}
 
 		if (memory.checkRuntimeErrorAfterExecution())
@@ -913,10 +900,7 @@ juce::Result JitFileTestCase::expectValueMatch()
 		}
 		else
 		{
-            
-			t->expectWithinAbsoluteError(actualResult.toDouble(),
-                                         expectedResult.toDouble(),
-                                         0.0001);
+			t->expectEquals(Types::Helpers::getCppValueString(actualResult), Types::Helpers::getCppValueString(expectedResult), file.getFileName());
 		}
 
 		return r;
