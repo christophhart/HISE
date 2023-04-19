@@ -726,7 +726,7 @@ struct VariadicCallHelpers
 			return R();
 		}
 
-		template <typename R, typename T1> variadic_call R c3_ttv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3)
+		template <typename R, typename T1, typename T2> variadic_call R c3_ttv(const FunctionData& f, T1 a1, T2 a2, const VariableStorage& a3)
 		{
 			using namespace Types;
 

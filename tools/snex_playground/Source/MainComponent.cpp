@@ -21,9 +21,57 @@ using namespace snex;
 MainComponent::MainComponent() :
 	data(new ui::WorkbenchData())
 {
+	/** TODO:
+	
+	- Function calls!
+	- global data OK
+	- Classes with object pointers
+	- local stack data
+	- dyn & span
+	- iterator loop
+	
+	
+	*/
+
+
 	bool useValueTrees = false;
 	
 	laf.setDefaultColours(funkSlider);
+
+	GlobalScope m;
+	Compiler c(m);
+
+	//m.addOptimization(OptimizationIds::Inlining);
+
+	auto obj = c.compileJitObject("span<int, 4> x = { 1, 2, 3, 4 }; int test(float input) { return x[2]; }");
+	DBG(c.getCompileResult().getErrorMessage());
+
+	auto mirCode = c.getAST();
+
+	MirObject mobj;
+
+	DBG(c.getAssemblyCode());
+	auto ok = mobj.compileMirCode(mirCode);
+
+	DBG(ok.getErrorMessage());
+	
+	auto f = obj["test"];
+
+	auto res1 = f.call<int>(120.0f);
+
+	if (ok)
+	{
+		auto f = mobj["test"];
+
+		auto res2 = f.call<int>(120.0f);
+		int ssdfsdf = 0;
+	}
+
+
+	
+	
+
+	
 
 	if (useValueTrees)
 	{

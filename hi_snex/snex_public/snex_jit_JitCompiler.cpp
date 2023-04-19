@@ -75,6 +75,16 @@ juce::String Compiler::getAssemblyCode()
 
 
 
+juce::ValueTree Compiler::getAST() const
+{
+	if (compiler->syntaxTree != nullptr)
+	{
+		return compiler->syntaxTree->toValueTree();
+	}
+
+	return {};
+}
+
 juce::String Compiler::dumpSyntaxTree() const
 {
 	if (compiler->syntaxTree != nullptr)

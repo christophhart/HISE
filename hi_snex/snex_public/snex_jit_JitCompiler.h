@@ -117,6 +117,7 @@ public:
 	Result getCompileResult();
 
 	juce::String getAssemblyCode();
+	ValueTree getAST() const;
 	juce::String dumpSyntaxTree() const;
 	juce::String dumpNamespaceTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }

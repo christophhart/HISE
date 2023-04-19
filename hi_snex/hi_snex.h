@@ -239,6 +239,8 @@ namespace snex
 #include "snex_core/snex_jit_TemplateParameter.h"
 #include "snex_core/snex_jit_Inliner.h"
 #include "snex_public/snex_jit_FunctionData.h"
+#include "snex_mir/snex_MirObject.h"
+#include "snex_mir/snex_MirBuilder.h"
 #include "snex_core/snex_jit_FunctionClass.h"
 #include "snex_core/snex_jit_NamespaceHandler.h"
 #include "snex_core/snex_jit_BaseScope.h"
