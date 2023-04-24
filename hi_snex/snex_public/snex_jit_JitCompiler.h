@@ -159,6 +159,58 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Compiler);
 };
 
+/** This class will take a stringified init value list and converts it to a memory block.
+
+	It also allows iterating over each element and perform an operation based on its type and value.
+*/
+struct InitValueParser
+{
+	InitValueParser(const String& v) :
+		input(v)
+	{}
+
+	/** Pass in a function that will be called for each element in the initialiser list.
+
+		You can only call this when you've created the object with a Base64 string.
+
+		The function you pass in must have the prototype void(uint32 offset, Types::ID type, const VariableStorage&)
+
+		- offset: will contain the byte offset from the start
+		- type: the value type - either int, double or float
+		- value: the value.
+
+		Note that this also supports dynamic initialisation. In this case the value will be of type Types::ID::Pointer (while the type will contain the actual value type)
+		with the address pointing to the index in the child elements  (so 0x00000002 will point to the third child element).
+		This can be used to dynamically initialise the data.
+
+		You can take a look at the dumpContent() for an example usage of this function.
+	 */
+	void forEach(const std::function<void(uint32 offset, Types::ID type, const VariableStorage& value)>& f) const;
+
+	uint32 getNumBytesRequired() const;
+
+	String dumpContent() const;
+
+	String getB64() const;
+
+	String input;
+};
+
+struct SyntaxTreeExtractor
+{
+
+	static ValueTree getSyntaxTree(const String& b64);
+
+	/** Extracts the AST from the compiler and returns a compressed Base64 string. */
+	static String getBase64SyntaxTree(ValueTree v);
+
+	static bool isBase64Tree(const String& code);
+
+private:
+
+	static void removeLineInfo(ValueTree& v);
+};
+
 
 }
 }

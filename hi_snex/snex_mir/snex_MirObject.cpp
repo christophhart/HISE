@@ -30,8 +30,11 @@
 *   ===========================================================================
 */
 
-#include "mir.h"
-#include "mir-gen.h"
+
+
+#include "src/mir.h"
+#include "src/mir-gen.h"
+
 
 namespace snex {
 namespace jit {
@@ -72,6 +75,7 @@ MirObject::MirObject() :
 {
 	ctx = MIR_init();
 	MIR_set_error_func(ctx, mirError);
+	
 }
 
 
@@ -84,12 +88,33 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 
 	if (r.wasOk())
 	{
+#if CREATE_MIR_TEXT
+		return compileMirCode(b.getMirText());
+#else
 		modules.add(b.getModule());
 
 		MIR_load_module(ctx, b.getModule());
 
 		MIR_gen_init(ctx, 1);
+		MIR_gen_set_optimize_level(ctx, 1, 3);
 		MIR_link(ctx, MIR_set_gen_interface, NULL);
+
+		{
+			auto f = fopen("D:\\test.txt", "w");
+
+			MIR_output(ctx, f);
+
+			fclose(f);
+		}
+		
+		auto mf = File("D:\\test.txt");
+
+		auto mirCode = mf.loadFileAsString();
+		DBG(mirCode);
+
+		mf.deleteFile();
+
+#endif
 	}
 
 	return r;
@@ -97,6 +122,12 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 
 juce::Result MirObject::compileMirCode(const String& code)
 {
+	if (SyntaxTreeExtractor::isBase64Tree(code))
+	{
+		auto v = SyntaxTreeExtractor::getSyntaxTree(code);
+		return compileMirCode(v);
+	}
+
 	r = Result::ok();
 
 	try
@@ -108,6 +139,7 @@ juce::Result MirObject::compileMirCode(const String& code)
 			modules.add(m);
 			MIR_load_module(ctx, m);
 			MIR_gen_init(ctx, 1);
+			MIR_gen_set_optimize_level(ctx, 1, 3);
 			MIR_link(ctx, MIR_set_gen_interface, NULL);
 		}
 		else
@@ -219,6 +251,7 @@ void MirObject::example()
 		int x = 5;
 	}
 }
+
 
 
 

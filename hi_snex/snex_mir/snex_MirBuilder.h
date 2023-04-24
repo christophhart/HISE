@@ -53,6 +53,8 @@ struct MirBuilder
 
 	MIR_module* getModule() const;
 
+	String getMirText() const;
+
 private:
 
 	InstructionCollection* functions = nullptr;

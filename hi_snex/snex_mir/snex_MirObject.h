@@ -37,6 +37,8 @@
 struct MIR_context;
 struct MIR_module;
 
+#define CREATE_MIR_TEXT 1
+
 namespace snex {
 namespace jit {
 using namespace juce;

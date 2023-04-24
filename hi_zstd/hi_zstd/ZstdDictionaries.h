@@ -101,7 +101,6 @@ public:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HeaderDictionaryProvider)
 };
 
-
 // =========================================================================================================
 
 template <class SourceType> class ZDictionary : public ReferenceCountedObject
@@ -121,7 +120,7 @@ public:
 	// =========================================================================
 
 	void save(OutputStream& stream);
-	String dumpAsBinaryData() const;
+	juce::String dumpAsBinaryData() const;
 
 	DecompressorType* getRawDictionaryForDecompression() { return d_dictionary; }
 	CompressorType* getRawDictionaryForCompression() { return c_dictionary; }

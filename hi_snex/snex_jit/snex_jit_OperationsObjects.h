@@ -145,10 +145,13 @@ struct Operations::ComplexTypeDefinition : public Expression,
 	{
 		initValues = l;
 
-		initValues->forEach([this](InitialiserList::ChildBase* b)
+		int expressionIndex = 0;
+
+		initValues->forEach([this, &expressionIndex](InitialiserList::ChildBase* b)
 		{
 			if (auto ec = dynamic_cast<InitialiserList::ExpressionChild*>(b))
 			{
+				ec->expressionIndex = expressionIndex++;
 				this->addStatement(ec->expression);
 			}
 
@@ -184,12 +187,15 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		for (auto id : ids)
 			names << id.toString() << ",";
 
-		t.setProperty("Type", type.toString(), nullptr);
+		t.setProperty("Type", type.toStringWithoutAlias(), nullptr);
 
 		t.setProperty("Ids", names, nullptr);
 
 		if (initValues != nullptr)
+		{
 			t.setProperty("InitValues", initValues->toString(), nullptr);
+		}
+			
 
 		return t;
 	}

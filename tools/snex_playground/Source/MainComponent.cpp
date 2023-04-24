@@ -39,31 +39,45 @@ MainComponent::MainComponent() :
 	laf.setDefaultColours(funkSlider);
 
 	GlobalScope m;
+
+	//m.addOptimization(OptimizationIds::ConstantFolding);
+	//m.addOptimization(OptimizationIds::BinaryOpOptimisation);
+	//m.addOptimization(OptimizationIds::DeadCodeElimination);
+
 	Compiler c(m);
 
-	//m.addOptimization(OptimizationIds::Inlining);
+	
+	MirObject mobj;
+	
+	auto obj = c.compileJitObject("int test(int input) { return input == 0 ? input * 12 : input * 3; }");
 
-	auto obj = c.compileJitObject("span<int, 4> x = { 1, 2, 3, 4 }; int test(float input) { return x[2]; }");
+	//auto obj = c.compileJitObject("int x = 12; int test(float input) { return x; }");
 	DBG(c.getCompileResult().getErrorMessage());
 
 	auto mirCode = c.getAST();
 
-	MirObject mobj;
+	auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(mirCode);
+
+	DBG(mirCode.createXml()->createDocument(""));
 
 	DBG(c.getAssemblyCode());
-	auto ok = mobj.compileMirCode(mirCode);
+	auto ok = mobj.compileMirCode(b64);
 
 	DBG(ok.getErrorMessage());
 	
 	auto f = obj["test"];
 
-	auto res1 = f.call<int>(120.0f);
+	
+
+	auto res1 = f.call<int>(14);
 
 	if (ok)
 	{
 		auto f = mobj["test"];
 
-		auto res2 = f.call<int>(120.0f);
+
+
+		auto res2 = f.call<int>(14);
 		int ssdfsdf = 0;
 	}
 

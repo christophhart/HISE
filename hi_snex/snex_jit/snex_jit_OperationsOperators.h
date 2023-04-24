@@ -347,8 +347,9 @@ struct Operations::Subscript : public Expression,
 		auto t = Expression::toValueTree();
 
 		t.setProperty("Write", isWriteAccess, nullptr);
-		t.setProperty("ElementType", elementType.toString(), nullptr);
-		t.setProperty("ParentType", getSubExpr(0)->getTypeInfo().toString(), nullptr);
+		t.setProperty("ElementType", elementType.toStringWithoutAlias(), nullptr);
+		t.setProperty("ElementSize", (int)elementType.getRequiredByteSize(), nullptr);
+		t.setProperty("ParentType", getSubExpr(0)->getTypeInfo().toStringWithoutAlias(), nullptr);
 
 		return t;
 	}

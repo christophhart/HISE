@@ -853,7 +853,16 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 
 	juce::String toString() const override
 	{
-		return expression->toString(Operations::Statement::TextFormat::CppCode);
+		if(expressionIndex == -1)
+			return expression->toString(Operations::Statement::TextFormat::CppCode);
+		else
+		{
+			String s;
+			s << "$";
+			s << Types::Helpers::getTypeName(expression->getType())[0];
+			s << String(expressionIndex);
+			return s;
+		}
 	}
 
 	
@@ -889,6 +898,7 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 
 	Operations::Expression::Ptr expression;
 	VariableStorage value;
+	int expressionIndex = -1;
 };
 
 juce::ReferenceCountedObject* InitialiserList::getExpression(int index)

@@ -179,6 +179,14 @@ juce::String TypeInfo::toString() const
 	return s;
 }
 
+juce::String TypeInfo::toStringWithoutAlias() const
+{
+	if (isComplexType())
+		return getComplexType()->getActualTypeString();
+	else
+		return toString();
+}
+
 snex::InitialiserList::Ptr TypeInfo::makeDefaultInitialiserList() const
 {
 	if (isComplexType())
@@ -474,12 +482,20 @@ snex::Types::ID Symbol::getRegisterType() const
 	return typeInfo.isRef() ? Types::Pointer : typeInfo.getType();
 }
 
-juce::String Symbol::toString() const
+juce::String Symbol::toString(bool allowAlias) const
 {
 	juce::String s;
 
 	if (resolved)
-		s << typeInfo.toString() << " ";
+	{
+		if (allowAlias)
+			s << typeInfo.toString();
+		else
+			s << typeInfo.toStringWithoutAlias();
+		
+		s << " ";
+	}
+		
 	else
 		s << "unresolved ";
 
