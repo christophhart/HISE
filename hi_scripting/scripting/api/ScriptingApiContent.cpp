@@ -2358,7 +2358,7 @@ String ScriptingApi::Content::ScriptComboBox::getItemText() const
 {
 	StringArray items = getItemList();
 
-    if(isPositiveAndBelow((int)value, items.size()))
+    if(isPositiveAndBelow((int)value, (items.size()+1)))
     {
         return items[(int)value - 1];
     }
