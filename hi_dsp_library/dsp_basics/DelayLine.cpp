@@ -175,6 +175,8 @@ hise::DelayLine<MaxLength, LockType, AllowFade>::DelayLine() :
 	fadeCounter(-1),
 	fadeTimeSamples(1024)
 {
+	static_assert(isPowerOfTwo(MaxLength), "delay line length must be power of two");
+
 	FloatVectorOperations::clear(delayBuffer, DELAY_BUFFER_SIZE);
 }
 }
