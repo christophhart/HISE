@@ -1904,7 +1904,7 @@ struct InstructionParsers
 
 					if (v.getType() == Types::ID::Pointer)
 					{
-						auto childIndex = reinterpret_cast<int>(v.getDataPointer());
+						auto childIndex = (int)reinterpret_cast<int64_t>(v.getDataPointer());
 						l.addOperands(state, { childIndex }, { State::RegisterType::Value });
 					}
 					else
@@ -1954,7 +1954,7 @@ struct InstructionParsers
 
 					String op;
 
-					op = MirTypeConverters::MirType2MirTextType(t) << ":";
+					op << MirTypeConverters::MirType2MirTextType(t) << ":";
 
 					if (offset != 0)
 						op << String(offset);
@@ -1965,7 +1965,7 @@ struct InstructionParsers
 
 					if (v.getType() == Types::ID::Pointer)
 					{
-						auto childIndex = reinterpret_cast<int>(v.getDataPointer());
+						auto childIndex = (int)reinterpret_cast<int64_t>(v.getDataPointer());
 						il.addOperands(state, { childIndex }, { State::RegisterType::Value });
 					}
 					else
