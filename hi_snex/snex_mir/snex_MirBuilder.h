@@ -57,11 +57,8 @@ struct MirBuilder
 
 private:
 
-	InstructionCollection* functions = nullptr;
 	State* currentState = nullptr;
 
-	Result pre(const ValueTree& p);
-	Result post(const ValueTree& p);
 	Result parseInternal(const ValueTree& v);
 
 	bool checkAndFinish(const Result& r);

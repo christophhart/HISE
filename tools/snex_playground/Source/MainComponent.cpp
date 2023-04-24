@@ -26,7 +26,7 @@ MainComponent::MainComponent() :
 	- Function calls!
 	- global data OK
 	- Classes with object pointers
-	- local stack data
+	- local stack data OK
 	- dyn & span
 	- iterator loop
 	
@@ -49,7 +49,7 @@ MainComponent::MainComponent() :
 	
 	MirObject mobj;
 	
-	auto obj = c.compileJitObject("int test(int input) { return input == 0 ? input * 12 : input * 3; }");
+	auto obj = c.compileJitObject("span<int, 4> data = { 1, 2, 3, 4 }; int test(int input) { int x = 0; for(const auto& s: data) { x += s; s = 0; } return x; }");
 
 	//auto obj = c.compileJitObject("int x = 12; int test(float input) { return x; }");
 	DBG(c.getCompileResult().getErrorMessage());
@@ -66,26 +66,29 @@ MainComponent::MainComponent() :
 	DBG(ok.getErrorMessage());
 	
 	auto f = obj["test"];
-
-	
-
 	auto res1 = f.call<int>(14);
+
+	jassertfalse;
+	/** ITERATOR LOOP TODO:
+		
+		- create iterator variable with pointer type
+		- create anonymous end address variable with pointer type
+		- emit start_loop label
+		- emit body
+		- bump address by element size after loop body
+		- compare addresses
+		- jump to start_loop if iterator != end
+		- emit end_loop label
+	*/
 
 	if (ok)
 	{
 		auto f = mobj["test"];
 
 
-
 		auto res2 = f.call<int>(14);
 		int ssdfsdf = 0;
 	}
-
-
-	
-	
-
-	
 
 	if (useValueTrees)
 	{

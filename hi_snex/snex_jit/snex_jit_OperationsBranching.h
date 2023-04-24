@@ -470,16 +470,15 @@ struct Operations::ControlFlowStatement : public Expression,
 		isBreak(isBreak_)
 	{}
 
-	Identifier getStatementId() const override
+	SET_EXPRESSION_ID(ControlFlowStatement);
+
+	ValueTree toValueTree() const override
 	{
-		if (isBreak)
-		{
-			RETURN_STATIC_IDENTIFIER("break");
-		}
-		else
-		{
-			RETURN_STATIC_IDENTIFIER("continue");
-		}
+		auto t = Expression::toValueTree();
+
+		t.setProperty("command", isBreak ? "break" : "continue", nullptr);
+
+		return t;
 	}
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
