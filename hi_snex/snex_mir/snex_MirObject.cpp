@@ -74,8 +74,9 @@ MirObject::MirObject() :
 	r(Result::fail("nothing compiled"))
 {
 	ctx = MIR_init();
+#if JUCE_WINDOWS // don't want to bother...
 	MIR_set_error_func(ctx, mirError);
-	
+#endif
 }
 
 
