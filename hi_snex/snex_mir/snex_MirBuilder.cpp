@@ -647,23 +647,18 @@ struct State
 			{
 				if (t.registerType == RegisterType::Pointer && requiredType == RegisterType::Value)
 				{
-					//MirTextLine load;
-
-					//load.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(t.type, JitTokens::assign_);
-					
-					//auto l = load.addAnonymousReg(*this, t.type, RegisterType::Value);
-
-					//load.operands.add(l);
-                    
-                    auto x = t.text;
+					auto x = t.text;
                     
                     auto vt = MirTypeConverters::MirType2MirTextType(t.type);
+
+					// int registers are always 64 bit, but the 
+					// address memory layout is 32bit integers so 
+					// we need to use a different int type when accessing pointers
+					if (vt == "i64")
+						vt = "i32";
+
                     vt << ":(" << x << ")";
                     
-					//load.operands.add(vt);
-
-					//emitLine(load);
-
                     return vt;
 				}
 					
