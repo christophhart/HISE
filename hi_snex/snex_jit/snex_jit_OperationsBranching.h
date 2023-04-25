@@ -415,7 +415,14 @@ struct Operations::Loop : public Expression,
 		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
 		t.setProperty("LoadIterator", loadIterator, nullptr);
 		t.setProperty("Iterator", iterator.toString(), nullptr);
-
+        t.setProperty("ElementSize", (int)iterator.typeInfo.getRequiredByteSize(), nullptr);
+        
+        if(loopTargetType == ArrayType::Span)
+        {
+            t.setProperty("NumElements", numElements, nullptr);
+            
+        }
+        
 		return t;
 	}
 
@@ -457,6 +464,8 @@ struct Operations::Loop : public Expression,
 
 	ScopedPointer<AsmCodeGenerator::LoopEmitterBase> loopEmitter;
 
+    int numElements = -1;
+    
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Loop);
 };
 

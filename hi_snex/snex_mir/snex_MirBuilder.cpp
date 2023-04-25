@@ -62,6 +62,7 @@ namespace InstructionIds
 	DEFINE_ID(Subscript);
 	DEFINE_ID(InternalProperty);
 	DEFINE_ID(ControlFlowStatement);
+    DEFINE_ID(Loop);
 }
 
 #undef DEFINE_ID
@@ -200,7 +201,7 @@ struct MirTypeConverters
 
 			auto t = symbolCode.upToFirstOccurrenceOf(" ", false, false);
 			auto n = symbolCode.fromFirstOccurrenceOf(" ", false, false);
-			auto ti = TypeInfo(Types::Helpers::getTypeFromTypeName(t));
+			auto ti = TypeInfo(Types::Helpers::getTypeFromTypeName(t), isConst, isRef);
 
 			return Symbol(NamespacedIdentifier::fromString(n), ti);
 		}
@@ -440,12 +441,17 @@ struct State
 
 		String addAnonymousReg(State& state, MIR_type_t type, RegisterType rt)
 		{
-			auto id = state.getAnonymousId(MIR_fp_type_p(type));
+			auto id = state.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
 			state.registerCurrentTextOperand(id, type, rt);
 
 			auto t = TypeInfo(MirTypeConverters::MirType2TypeId(type), true);
 
-			localDef << MirTypeConverters::TypeInfo2MirTextType(t) << ":" << id;
+            auto tn = MirTypeConverters::TypeInfo2MirTextType(t);
+            
+            if(rt == RegisterType::Pointer)
+                tn = "i64";
+            
+			localDef << tn << ":" << id;
 			return id;
 		}
 
@@ -491,6 +497,7 @@ struct State
 			if (!localDef.isEmpty())
 				s << "local " << localDef << "; ";
 
+            
 			s << instruction;
 
 			if (!operands.isEmpty())
@@ -512,7 +519,7 @@ struct State
 			if (comment.isNotEmpty())
 				s << " # " << comment;
 
-			return s;
+            return s;
 		}
 
 		void appendComment(const String& c) { comment = c; }
@@ -550,11 +557,12 @@ struct State
 
 	void emitLine(MirTextLine& l)
 	{
-		if (nextLabel.isNotEmpty())
+        if (nextLabel.isNotEmpty())
 		{
-			l.label = nextLabel;
+            l.label = nextLabel;
 			nextLabel = "";
 		}
+        
 		lines.add(l);
 	}
 
@@ -581,7 +589,7 @@ struct State
 		return s;
 	}
 
-	void registerCurrentTextOperand(const String& n, MIR_type_t type, RegisterType rt)
+	void registerCurrentTextOperand(String n, MIR_type_t type, RegisterType rt)
 	{
 		textOperands.add({ currentTree, n, type, rt });
 	}
@@ -626,26 +634,37 @@ struct State
 	{
 		auto c = getCurrentChild(index);
 
-		for (const auto& t : textOperands)
+        if(!c.isValid())
+        {
+            jassertfalse;
+        }
+        
+		for (auto t : textOperands)
 		{
+            jassert(t.text.isNotEmpty());
+            
 			if (t.v == c)
 			{
 				if (t.registerType == RegisterType::Pointer && requiredType == RegisterType::Value)
 				{
-					MirTextLine load;
+					//MirTextLine load;
 
-					load.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(t.type, JitTokens::assign_);
+					//load.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(t.type, JitTokens::assign_);
 					
-					auto l = load.addAnonymousReg(*this, t.type, RegisterType::Value);
+					//auto l = load.addAnonymousReg(*this, t.type, RegisterType::Value);
 
-					load.operands.add(l);
-					load.operands.add(t.text);
+					//load.operands.add(l);
+                    
+                    auto x = t.text;
+                    
+                    auto vt = MirTypeConverters::MirType2MirTextType(t.type);
+                    vt << ":(" << x << ")";
+                    
+					//load.operands.add(vt);
 
-					auto vt = MirTypeConverters::MirType2MirTextType(t.type);
+					//emitLine(load);
 
-					emitLine(load);
-
-					return vt + ":(" + l + ")";
+                    return vt;
 				}
 					
 				else
@@ -802,7 +821,11 @@ struct InstructionParsers
 				}
 			}
 
-			state.registerCurrentTextOperand(mvn, type, State::RegisterType::Value);
+            auto isRef = s.typeInfo.isRef();
+            
+            jassert(!isRef);
+            
+			state.registerCurrentTextOperand(mvn, type, isRef ? State::RegisterType::Pointer : State::RegisterType::Value);
 		}
 		else
 		{
@@ -1075,16 +1098,22 @@ struct InstructionParsers
 
 		MirTypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
 		{
-			if (v.getType() == InstructionIds::VariableReference)
-			{
-				auto vSymbol = MirTypeConverters::String2Symbol(v.getProperty("Symbol").toString());
+            if(v.getType() == InstructionIds::Assignment && v["First"].toString() == "1")
+            {
+                auto c = v.getChild(1);
+                
+                if(c.getType() == InstructionIds::VariableReference)
+                {
+                    auto vSymbol = MirTypeConverters::String2Symbol(c.getProperty("Symbol").toString());
 
-				if (vSymbol.id.getParent() == scopeId)
-				{
-					localSymbols.add(vSymbol);
-				}
-			}
-
+                    if (vSymbol.id.getParent() == scopeId)
+                    {
+                        localSymbols.add(vSymbol);
+                    }
+                }
+                
+            }
+			
 			return false;
 		});
 
@@ -1206,55 +1235,88 @@ struct InstructionParsers
 		state.processChildTree(0);
 		state.processChildTree(1);
 
-		auto t = MirTypeConverters::String2Symbol(state.getProperty("ElementType"));
+        auto t = MirTypeConverters::String2Symbol(state.getProperty("ElementType"));
 
-		auto mir_t = MirTypeConverters::TypeInfo2MirType(t.typeInfo);
+        auto mir_t = MirTypeConverters::TypeInfo2MirType(t.typeInfo);
+        auto tn = MirTypeConverters::TypeInfo2MirTextType(t.typeInfo);
 
-		if (mir_t == MIR_T_P)
-			mir_t = MIR_T_I64;
+        auto targetIsValue = mir_t != MIR_T_P;
+        
+        if(targetIsValue)
+        {
+            // Create a register for the data pointer
+            State::MirTextLine d;
+            auto address = state.getAnonymousId(false);
+            d.instruction = "mov";
+            d.localDef << "i64:" << address;
+            d.operands.add(address);
+            d.operands.add(state.getOperandForChild(0, State::RegisterType::Pointer));
+            state.emitLine(d);
+            
+            // Create a register for the index
+            State::MirTextLine i;
+            auto index = state.getAnonymousId(false);
+            i.instruction = "mov";
+            i.localDef << "i64:" << index;
+            i.operands.add(index);
+            i.operands.add(state.getOperandForChild(1, State::RegisterType::Value));
+            state.emitLine(i);
+            
+            auto scale = state.getProperty("ElementSize");
+            
+            String ptr;
+            
+            ptr << tn << ":(" << address << ", " << index << ", " << scale << ")";
+            
+            state.registerCurrentTextOperand(ptr, mir_t, State::RegisterType::Value);
+        }
+        else
+        {
+            mir_t = MIR_T_I64;
 
-		State::MirTextLine l;
-		auto self = l.addAnonymousReg(state, mir_t, State::RegisterType::Pointer);
-		l.instruction = "mov";
+            State::MirTextLine l;
+            auto self = l.addAnonymousReg(state, mir_t, State::RegisterType::Pointer);
+            l.instruction = "mov";
 
-		l.addOperands(state, { -1, 0 }, { State::RegisterType::Pointer, State::RegisterType::Pointer });
+            l.addOperands(state, { -1, 0 }, { State::RegisterType::Pointer, State::RegisterType::Pointer });
 
-		String comment;
-		comment << self << " = " << state.getOperandForChild(0, State::RegisterType::Raw) << "[" << state.getOperandForChild(1, State::RegisterType::Raw) << "]";
+            String comment;
+            comment << self << " = " << state.getOperandForChild(0, State::RegisterType::Raw) << "[" << state.getOperandForChild(1, State::RegisterType::Raw) << "]";
 
-		l.appendComment(comment);
+            l.appendComment(comment);
 
-		state.emitLine(l);
+            state.emitLine(l);
 
-		State::MirTextLine idx;
+            State::MirTextLine idx;
 
-		auto idx_reg = idx.addAnonymousReg(state, MIR_T_I64, State::RegisterType::Value);
+            auto idx_reg = idx.addAnonymousReg(state, MIR_T_I64, State::RegisterType::Value);
 
-		idx.instruction = "mov";
-		idx.operands.add(idx_reg);
-		idx.addOperands(state, { 1 });
+            idx.instruction = "mov";
+            idx.operands.add(idx_reg);
+            idx.addOperands(state, { 1 });
 
-		auto scale = state.getProperty("ElementSize").getIntValue();
+            auto scale = state.getProperty("ElementSize").getIntValue();
 
-		state.emitLine(idx);
+            state.emitLine(idx);
 
-		State::MirTextLine scaleLine;
+            State::MirTextLine scaleLine;
 
-		scaleLine.instruction = "mul";
-		scaleLine.operands.add(idx_reg);
-		scaleLine.operands.add(idx_reg);
-		scaleLine.addImmOperand(scale);
+            scaleLine.instruction = "mul";
+            scaleLine.operands.add(idx_reg);
+            scaleLine.operands.add(idx_reg);
+            scaleLine.addImmOperand(scale);
 
-		state.emitLine(scaleLine);
+            state.emitLine(scaleLine);
 
-		State::MirTextLine offset_l;
-		offset_l.instruction = "add";
-		offset_l.operands.add(self);
-		offset_l.operands.add(self);
-		offset_l.operands.add(idx_reg);
+            State::MirTextLine offset_l;
+            offset_l.instruction = "add";
+            offset_l.operands.add(self);
+            offset_l.operands.add(self);
+            offset_l.operands.add(idx_reg);
 
-		state.emitLine(offset_l);
-
+            state.emitLine(offset_l);
+        }
+        
 		return Result::ok();
 	}
 
@@ -1278,6 +1340,109 @@ struct InstructionParsers
 
 		return Result::ok();
 	}
+    
+    static Result Loop(State& state)
+    {
+        auto startLabel = state.makeLabel();
+        auto endLabel = state.makeLabel();
+        
+        state.loopManager.pushLoopLabels(startLabel, endLabel);
+        
+        // create iterator variable with pointer type
+        auto iteratorSymbol = MirTypeConverters::String2Symbol(state.getProperty("Iterator"));
+        auto type = MirTypeConverters::SymbolToMirVar(iteratorSymbol).type;
+        auto mvn = MirTypeConverters::NamespacedIdentifier2MangledMirVar(iteratorSymbol.id);
+
+        auto isRef = iteratorSymbol.typeInfo.isRef();
+        
+        state.processChildTree(0);
+        
+        state.registerCurrentTextOperand(mvn, type, isRef ? State::RegisterType::Pointer :
+                                                            State::RegisterType::Value);
+        
+        // If the iterator is not a reference, we'll create another register for the address
+        String pointerReg = isRef ? mvn : state.getAnonymousId(false);
+        
+        State::MirTextLine loadIter;
+        loadIter.localDef << "i64:" << pointerReg;
+        loadIter.instruction = "mov";
+        loadIter.operands.add(pointerReg);
+        loadIter.addOperands(state, {0}, { State::RegisterType::Pointer });
+        state.emitLine(loadIter);
+        
+        // create anonymous end address variable with pointer type
+        auto endReg = state.getAnonymousId(false);
+        
+        auto elementSize = (int)state.currentTree.getProperty("ElementSize");
+        
+        if(state.getProperty("LoopType") == "Span")
+        {
+            int byteSize = elementSize *
+                           (int)state.currentTree.getProperty("NumElements");
+            
+            State::MirTextLine ii;
+            ii.localDef << "i64:" << endReg;
+            ii.instruction = "add";
+            ii.operands.add(endReg);
+            ii.operands.add(pointerReg);
+            ii.addImmOperand(byteSize);
+            
+            state.emitLine(ii);
+        }
+        else
+        {
+            // not implemented...
+            jassertfalse;
+        }
+        
+        // emit start_loop label
+        state.emitLabel(startLabel, true);
+        
+        if(!isRef)
+        {
+            auto tn = MirTypeConverters::MirType2MirTextType(type);
+            
+            // Load the value into the iterator variable
+            // from the address in pointerReg
+            State::MirTextLine loadCopy;
+            loadCopy.localDef << tn << ":" << mvn;
+            loadCopy.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(type, JitTokens::assign_);
+            loadCopy.operands.add(mvn);
+            
+            String ptrAddress;
+            ptrAddress << tn << ":(" << pointerReg << ")";
+            
+            loadCopy.operands.add(ptrAddress);
+            loadCopy.appendComment("iterator load");
+            
+            state.emitLine(loadCopy);
+        }
+        
+        // emit body
+        state.processChildTree(1);
+        
+        // bump address by element size after loop body
+        State::MirTextLine bump;
+        bump.instruction = "add";
+        bump.operands.add(pointerReg);
+        bump.operands.add(pointerReg);
+        bump.addImmOperand(elementSize);
+        state.emitLine(bump);
+        
+        // compare addresses, jump to start_loop if iterator != end
+        State::MirTextLine cmp;
+        cmp.instruction = "bne";
+        cmp.operands.add(startLabel);
+        cmp.operands.add(pointerReg);
+        cmp.operands.add(endReg);
+        state.emitLine(cmp);
+        
+        // emit end_loop label
+        state.emitLabel(endLabel, true);
+        state.loopManager.popLoopLabels();
+        
+        return Result::ok();
+    }
 };
 
 
@@ -1339,6 +1504,7 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_TYPE(Subscript);
 	REGISTER_TYPE(InternalProperty);
 	REGISTER_TYPE(ControlFlowStatement);
+    REGISTER_TYPE(Loop);
 }
 
 #undef REGISTER_TYPE

@@ -275,8 +275,15 @@ using namespace Types;
                 juce::String s;
                 s << "{ ";
                 
+                int index = 0;
+                
                 for (auto l : list)
+                {
                     s << l->toString();
+                    
+                    if(++index < list.size())
+                        s << ", ";
+                }
                 
                 s << " }";
                 return s;

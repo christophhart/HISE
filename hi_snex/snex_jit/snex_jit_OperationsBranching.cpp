@@ -604,6 +604,8 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			loopTargetType = Span;
 
+            numElements = sp->getNumElements();
+            
 			if (iterator.typeInfo.isDynamic())
 				iterator.typeInfo = sp->getElementType();
 			else if (iterator.typeInfo != sp->getElementType())
