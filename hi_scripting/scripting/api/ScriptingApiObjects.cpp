@@ -7320,7 +7320,8 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 	{
 		if (sync)
 		{
-			callback.call1(v);
+            var a(v);
+            callback.callSync(&a, 1);
 		}
 		else
 			value.setModValueIfChanged(v);
