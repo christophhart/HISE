@@ -35,7 +35,7 @@ namespace hise { using namespace juce;
 
 bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSamples)
 {
-	float* stereo[2] = { b.getWritePointer(0, startSample), b.getWritePointer(1, startSample) };
+	float* stereo[2] = { b.getWritePointer(0, startSample), b.getWritePointer(jmin(1, b.getNumChannels()-1), startSample) };
 
 	return ProcessData<2>(stereo, numSamples).isSilent();
 }

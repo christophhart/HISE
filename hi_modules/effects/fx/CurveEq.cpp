@@ -36,6 +36,8 @@ CurveEq::CurveEq(MainController *mc, const String &id) :
 	MasterEffectProcessor(mc, id),
     ProcessorWithStaticExternalData(mc, 0, 0, 0, 1)
 {
+	getMatrix().setNumAllowedConnections(-1);
+
 	finaliseModChains();
 
     fftBuffer = getDisplayBuffer(0);

@@ -343,18 +343,26 @@ public:
 		if (softBypassState == Bypassed)
 			return;
 
-		if (getLeftSourceChannel() != -1 && getRightSourceChannel() != -1 &&
-            getLeftSourceChannel() < getMatrix().getNumDestinationChannels() &&
-            getRightSourceChannel() < getMatrix().getNumDestinationChannels())
-		{
-			float *leftChannel = buffer.getWritePointer(getLeftSourceChannel());
-			float *rightChannel = buffer.getWritePointer(getRightSourceChannel());
+		auto leftChannel = getLeftSourceChannel();
+		auto rightChannel = getRightSourceChannel();
+		auto numAllowed = getMatrix().getNumAllowedConnections();
+		auto numMax = getMatrix().getNumDestinationChannels();
 
-			float *samples[2] = { leftChannel, rightChannel };
+		auto ok = (leftChannel != -1 && rightChannel != -1) ||
+				   numAllowed != 2 && (leftChannel != -1 || rightChannel != -1);
+
+		ok &= leftChannel < numMax &&
+			  rightChannel < numMax;
+
+		if (ok)
+		{
+			auto isStereo = rightChannel != -1;
+
+			float *samples[2] = { buffer.getWritePointer(leftChannel), isStereo ? buffer.getWritePointer(rightChannel) : nullptr };
 
 			const int samplesToUse = buffer.getNumSamples();
 
-			AudioSampleBuffer stereoBuffer(samples, 2, samplesToUse);
+			AudioSampleBuffer stereoBuffer(samples, isStereo ? 2 : 1, samplesToUse);
 
 			if (softBypassState == Pending)
 			{
@@ -364,7 +372,7 @@ public:
 				jassert(stereoBuffer.getNumSamples() <= killBuffer->getNumSamples());
 
 				int numSamples = stereoBuffer.getNumSamples();
-				int numChannels = 2;
+				int numChannels = isStereo ? 2 : 1;
 
 				float start = jmin<float>(1.0f, softBypassRamper.getCurrentValue());
 				float end = jmax<float>(0.0f, softBypassRamper.getNextValue());
@@ -401,7 +409,9 @@ public:
 				}
 
 				currentValues.outL = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(0, 0, samplesToUse);
-				currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
+
+				if(isStereo)
+					currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
 			}
 			else
 			{
@@ -454,7 +464,9 @@ public:
 
 #if ENABLE_ALL_PEAK_METERS
 				currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
-				currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
+
+				if(isStereo)
+					currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
 #endif
 			}
 
