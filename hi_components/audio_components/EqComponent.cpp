@@ -48,7 +48,8 @@ public:
 
 	enum SpecialPanelIds
 	{
-		showLines,
+		ShowLines = (int)PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
+		GainRange,
 		numSpecialPanelIds
 	};
 
@@ -72,7 +73,62 @@ public:
 		}
 	}
 
-	
+	int getNumDefaultableProperties() const override
+	{
+		return (int)SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (isPositiveAndBelow(index, PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds))
+			return PanelWithProcessorConnection::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowLines, "ShowLines");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::GainRange, "GainRange");
+		
+		jassertfalse;
+		return {};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (isPositiveAndBelow(index, PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds))
+			return PanelWithProcessorConnection::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowLines, var(false));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::GainRange, var(24.0));
+
+		jassertfalse;
+
+		return {};
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		PanelWithProcessorConnection::fromDynamicObject(object);
+
+		if (auto fd = getContent<FilterGraph>())
+		{
+			showLines = (bool)getPropertyWithDefault(object, (int)SpecialPanelIds::ShowLines);
+			gainRange = (double)getPropertyWithDefault(object, (int)SpecialPanelIds::GainRange);
+
+			fd->setGainRange(gainRange);
+			fd->setShowLines(showLines);
+		}
+	}
+
+	var toDynamicObject() const override
+	{
+		auto obj = PanelWithProcessorConnection::toDynamicObject();
+
+		if (auto fd = getContent<FilterGraph>())
+		{
+			storePropertyInObject(obj, (int)SpecialPanelIds::GainRange, gainRange);
+			storePropertyInObject(obj, (int)SpecialPanelIds::ShowLines, showLines);
+		}
+
+		return obj;
+	}
 
 	juce::Identifier getProcessorTypeId() const
 	{
@@ -119,7 +175,6 @@ public:
 			c->useFlatDesign = true;
 			c->showLines = false;
 
-
 			c->setColour(ColourIds::bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 			c->setColour(ColourIds::lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 			c->setColour(ColourIds::fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
@@ -152,6 +207,8 @@ public:
 		return nullptr;
 	}
 
+
+
 	void fillModuleList(StringArray& moduleList)
 	{
 		fillModuleListWithType<CurveEq>(moduleList);
@@ -159,6 +216,9 @@ public:
 	}
 
 private:
+
+	double gainRange = 24.0;
+	bool showLines = true;
 
 	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
 	{
@@ -201,6 +261,7 @@ private:
 		{
 			auto t = CurveEq::StereoFilter::SubType::getFilterType();
 			addFilter(c, i, (int)t);
+			c->enableBand(i, eq->getFilterBand(i)->isEnabled());
 		}
 
 		int numFilterBands = eq->getNumFilterBands();
@@ -240,6 +301,8 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		AllowDynamicSpectrumAnalyser,
 		UseUndoManager,
 		ResetOnDoubleClick,
+		AllowContextMenu,
+		GainRange,
 		numSpecialProperties
 	};
 
@@ -259,6 +322,8 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::AllowDynamicSpectrumAnalyser, "AllowDynamicSpectrumAnalyser");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::UseUndoManager, "UseUndoManager");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::ResetOnDoubleClick, "ResetOnDoubleClick");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::AllowContextMenu, "AllowContextMenu");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::GainRange, "GainRange");
 
 		jassertfalse;
 		return {};
@@ -273,6 +338,8 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::AllowDynamicSpectrumAnalyser, var(0));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::UseUndoManager, var(false));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::ResetOnDoubleClick, var(false));
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::AllowContextMenu, var(true));
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::GainRange, var(24.0));
 
 		jassertfalse;
 
@@ -294,6 +361,13 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			if (u)
 				fd->setUndoManager(getMainController()->getControlUndoManager());
 			
+			auto ctx = (bool)getPropertyWithDefault(object, (int)SpecialProperties::AllowContextMenu);
+
+			fd->setAllowContextMenu(ctx);
+
+			auto gr = getPropertyWithDefault(object, (int)SpecialProperties::GainRange);
+
+			fd->setGainRange(gr);
 			fd->setResetOnDoubleClick(rd);
 			fd->setAllowFilterResizing(r);
 			fd->setSpectrumVisibility((SpectrumVisibility)s);
@@ -311,6 +385,9 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 			storePropertyInObject(obj, (int)SpecialProperties::UseUndoManager, fd->um != nullptr);
 			storePropertyInObject(obj, (int)SpecialProperties::ResetOnDoubleClick, fd->shouldResetOnDoubleClick());
+
+			storePropertyInObject(obj, (int)SpecialProperties::GainRange, fd->gainRange);
+			storePropertyInObject(obj, (int)SpecialProperties::AllowContextMenu, fd->allowContextMenu);
 		}
 
 		return obj;
@@ -597,7 +674,7 @@ void FilterDragOverlay::updatePositions(bool forceUpdate)
 
 double FilterDragOverlay::getGain(int y)
 {
-	return (double)filterGraph.yToGain((float)y, 24.0f);
+	return (double)filterGraph.yToGain((float)y, gainRange);
 }
 
 void FilterDragOverlay::removeFilter(int index)
@@ -660,7 +737,7 @@ Point<int> FilterDragOverlay::getPosition(int index)
 		const int gainIndex = eq->getParameterIndex(index, CurveEq::BandParameter::Gain);
 
 		const int x = (int)filterGraph.freqToX(eq->getAttribute(freqIndex));
-		const int y = (int)filterGraph.gainToY(eq->getAttribute(gainIndex), 24.0f);
+		const int y = (int)filterGraph.gainToY(eq->getAttribute(gainIndex), gainRange);
 
 		return Point<int>(x, y).translated(offset, offset);
 	}
@@ -791,14 +868,17 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
-		PopupMenu m;
-		m.setLookAndFeel(&getLookAndFeel());
+		if (allowContextMenu)
+		{
+			PopupMenu m;
+			m.setLookAndFeel(&getLookAndFeel());
 
-		fillPopupMenu(m, -1);
-        
-        auto result = PopupLookAndFeel::showAtComponent(m, this, false);
-        
-		popupMenuAction(result, -1);
+			fillPopupMenu(m, -1);
+
+			auto result = PopupLookAndFeel::showAtComponent(m, this, false);
+
+			popupMenuAction(result, -1);
+		}
 	}
 	else if (allowFilterResizing)
 	{
@@ -849,24 +929,33 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
-		over = false;
-		down = false;
-		menuActive = true;
-		parent.repaint();
+		if (parent.allowContextMenu)
+		{
+			over = false;
+			down = false;
+			menuActive = true;
+			parent.repaint();
 
-		PopupMenu m;
-		m.setLookAndFeel(&parent.getLookAndFeel());
+			PopupMenu m;
+			m.setLookAndFeel(&parent.getLookAndFeel());
 
-		parent.fillPopupMenu(m, index);
-		
-        auto result = PopupLookAndFeel::showAtComponent(m, this, false);
+			parent.fillPopupMenu(m, index);
 
-		if(result != 0)
-			parent.popupMenuAction(result, index);
+			auto result = PopupLookAndFeel::showAtComponent(m, this, false);
 
-		menuActive = false;
-		over = isMouseOver();
-		
+			if (result != 0)
+				parent.popupMenuAction(result, index);
+
+			menuActive = false;
+			over = isMouseOver();
+		}
+		else
+		{
+			auto ei = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
+			auto v = parent.eq->getAttribute(ei);
+			parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1 - v);
+			parent.repaint();
+		}
 	}
 	else
 	{
@@ -941,7 +1030,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 
 	const double freq = jlimit<double>(20.0, 20000.0, (double)parent.filterGraph.xToFreq((float)x));
 
-	const double gain = parent.filterGraph.yToGain((float)y, 24.0f);
+	const double gain = parent.filterGraph.yToGain((float)y, parent.gainRange);
 
 	parent.setEqAttribute(CurveEq::BandParameter::Freq, index, freq);
 	parent.setEqAttribute(CurveEq::BandParameter::Gain, index, gain);
@@ -982,6 +1071,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 	if (parent.resetOnDoubleClick)
 	{
 		parent.setEqAttribute(CurveEq::BandParameter::Gain, index, 0.0f);
+		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 0.0f);
 	}
 	else
 	{

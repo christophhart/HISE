@@ -144,6 +144,17 @@ public:
 
 	void setResetOnDoubleClick(bool shouldReset) { resetOnDoubleClick = shouldReset; }
 
+	void setAllowContextMenu(bool shouldAllow)
+	{
+		allowContextMenu = shouldAllow;
+	}
+
+	void setGainRange(double maxGain)
+	{
+		gainRange = jlimit(1.0, 36.0, maxGain);
+		filterGraph.setGainRange(maxGain);
+	}
+
 	virtual void fillPopupMenu(PopupMenu& m, int handleIndex);
 
 	virtual void popupMenuAction(int result, int handleIndex);
@@ -230,6 +241,9 @@ private:
 
 
 	UndoManager* um = nullptr;
+
+	bool allowContextMenu = true;
+	double gainRange = 24.0;
 
 	bool resetOnDoubleClick = false;
 	bool allowFilterResizing = true;

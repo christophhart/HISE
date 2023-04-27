@@ -179,6 +179,11 @@ public:
 		repaint();
 	}
 
+	void setShowLines(bool shouldShowLines)
+	{
+		showLines = shouldShowLines;
+	}
+
 private:
 
 	
