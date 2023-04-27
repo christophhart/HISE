@@ -589,26 +589,55 @@ void RoutableProcessor::MatrixData::loadPreset(Presets newPreset)
 
 void RoutableProcessor::MatrixData::refreshSourceUseStates()
 {
-	for (int i = 0; i < numSourceChannels; i++)
+	if (numAllowedConnections == 2)
 	{
-		if (channelConnections[i] != -1)
+		for (int i = 0; i < numSourceChannels; i++)
 		{
-			owningProcessor->leftSourceChannel = i;
-			owningProcessor->leftTargetChannel = channelConnections[i];
-			break;
+			if (channelConnections[i] != -1)
+			{
+				owningProcessor->leftSourceChannel = i;
+				owningProcessor->leftTargetChannel = channelConnections[i];
+				break;
+			}
+
 		}
 
-	}
-
-	for (int i = numSourceChannels - 1; i >= 0; i--)
-	{
-		if (channelConnections[i] != -1)
+		for (int i = numSourceChannels - 1; i >= 0; i--)
 		{
-			owningProcessor->rightSourceChannel = i;
-			owningProcessor->rightTargetChannel = channelConnections[i];
-			break;
+			if (channelConnections[i] != -1)
+			{
+				owningProcessor->rightSourceChannel = i;
+				owningProcessor->rightTargetChannel = channelConnections[i];
+				break;
+			}
 		}
 	}
+	else
+	{
+		owningProcessor->leftSourceChannel = -1;
+		owningProcessor->rightSourceChannel = -1;
+		owningProcessor->leftTargetChannel = -1;
+		owningProcessor->rightTargetChannel = -1;
+
+		for (int i = 0; i < numSourceChannels; i++)
+		{
+			if (channelConnections[i] != -1)
+			{
+				if (owningProcessor->leftSourceChannel == -1)
+				{
+					owningProcessor->leftSourceChannel = i;
+					owningProcessor->leftTargetChannel = channelConnections[i];
+				}
+				else
+				{
+					owningProcessor->rightSourceChannel = i;
+					owningProcessor->rightTargetChannel = channelConnections[i];
+					break;
+				}
+			}
+		}
+	}
+	
 
 	owningProcessor->connectionChanged();
 

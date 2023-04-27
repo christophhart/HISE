@@ -94,6 +94,8 @@ public:
 
 		bool onlyEnablingAllowed() const noexcept { return allowEnablingOnly; }
 
+		int getNumAllowedConnections() const { return numAllowedConnections; }
+
 		int getConnectionForSourceChannel(int sourceChannel) const noexcept;
 		int getSendForSourceChannel(int sourceChannel) const noexcept;
 
