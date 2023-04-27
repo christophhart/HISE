@@ -50,6 +50,8 @@ class FunctionClass : public DebugableObjectBase,
 {
 public:
 
+	using Map = Array<StaticFunctionPointer>;
+
 	// Sort the matches so that resolved functions come first
 			// This avoids templated functions without inliner to be picked over their
 			// actual functions with proper inlining.
@@ -151,6 +153,40 @@ public:
 	bool isInlineable(const NamespacedIdentifier& id) const;
 	Inliner::Ptr getInliner(const NamespacedIdentifier& id) const;
 	void addInliner(const Identifier& id, const Inliner::Func& func, Inliner::InlineType type=Inliner::Assembly);
+
+	Map getMap()
+	{
+		Map m;
+
+		for (auto r : registeredClasses)
+			m.addArray(r->getMap());
+
+		for (auto f : functions)
+		{
+			if (f->function != nullptr)
+			{
+				StaticFunctionPointer item;
+				item.signature = f->getSignature();
+
+				auto l = f->id.toString().replace("::", "__");
+
+				l << "_";
+
+				if (f->returnType.isValid())
+					l << Types::Helpers::getCppTypeName(f->returnType.getType())[0];
+
+				for (const auto& a : f->args)
+					l << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];
+
+				item.label = l;
+				item.function = f->function;
+
+				m.add(item);
+			}
+		}
+
+		return m;
+	}
 
 protected:
 

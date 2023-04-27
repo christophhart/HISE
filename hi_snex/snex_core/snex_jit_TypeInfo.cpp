@@ -93,7 +93,7 @@ TypeInfo::TypeInfo(Types::ID type_, bool isConst_ /*= false*/, bool isRef_ /*= f
 {
 	jassert(!(type == Types::ID::Void && isRef()));
 
-	jassert(type != Types::ID::Pointer || isConst_);
+	
 	updateDebugName();
 }
 
@@ -150,7 +150,7 @@ snex::jit::TypeInfo TypeInfo::withModifiers(bool isConst_, bool isRef_, bool isS
 	return c;
 }
 
-juce::String TypeInfo::toString() const
+juce::String TypeInfo::toString(bool useAlias) const
 {
 	juce::String s;
 
@@ -162,7 +162,10 @@ juce::String TypeInfo::toString() const
 
 	if (isComplexType())
 	{
-		s << getRawComplexTypePtr()->toString();
+		if (useAlias)
+			s << getRawComplexTypePtr()->toString();
+		else
+			s << getRawComplexTypePtr()->getActualTypeString();
 
 		if (isRef())
 			s << "&";
@@ -181,10 +184,7 @@ juce::String TypeInfo::toString() const
 
 juce::String TypeInfo::toStringWithoutAlias() const
 {
-	if (isComplexType())
-		return getComplexType()->getActualTypeString();
-	else
-		return toString();
+	return toString(false);
 }
 
 snex::InitialiserList::Ptr TypeInfo::makeDefaultInitialiserList() const

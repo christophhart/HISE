@@ -218,7 +218,7 @@ struct Operations::FunctionCall : public Expression
 		return t;
 	}
 
-	void addArgument(Ptr arg)
+	void addArgument(Ptr arg) 
 	{
 		addStatement(arg);
 	}

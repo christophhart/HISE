@@ -45,6 +45,8 @@ using namespace juce;
 
 using namespace juce;
 
+
+
 struct MirObject
 {
 	MirObject();
@@ -60,7 +62,15 @@ struct MirObject
 
 	static void example();
 
+	static void setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap);
+
+	static void* resolve(const char* name);
+
+	static bool isExternalFunction(const String& sig);
+
 private:
+
+	static Array<StaticFunctionPointer> currentFunctions;
 
 	Result r;
 

@@ -327,7 +327,13 @@ struct Operations::WhileLoop : public Statement,
 
 	ValueTree toValueTree() const override
 	{
-		return Statement::toValueTree();
+		auto v = Statement::toValueTree();
+
+		StringArray types = { "While", "For" };
+		
+		v.setProperty("LoopType", types[(int)loopType], nullptr);
+
+		return v;
 	}
 
 	Statement::Ptr clone(Location l) const override
@@ -415,7 +421,7 @@ struct Operations::Loop : public Expression,
 		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
 		t.setProperty("LoadIterator", loadIterator, nullptr);
 		t.setProperty("Iterator", iterator.toString(), nullptr);
-        t.setProperty("ElementSize", (int)iterator.typeInfo.getRequiredByteSize(), nullptr);
+        t.setProperty("ElementSize", (int)iterator.typeInfo.getRequiredByteSizeNonZero(), nullptr);
         
         if(loopTargetType == ArrayType::Span)
         {

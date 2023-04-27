@@ -147,6 +147,10 @@ public:
 	GlobalScope& getGlobalScope() { return memory; }
 	const GlobalScope& getGlobalScope() const { return memory; }
 
+	FunctionClass::Map getFunctionMap();
+
+
+
 private:
 
 	NamespaceHandler::Ptr handler;

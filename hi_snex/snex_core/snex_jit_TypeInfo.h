@@ -63,7 +63,7 @@ struct TypeInfo
 
 	NamespacedIdentifier getTemplateId() const { return templateTypeId; }
 	TypeInfo withModifiers(bool isConst_, bool isRef_, bool isStatic_ = false) const;
-	juce::String toString() const;
+	juce::String toString(bool useAlias=true) const;
 
 	juce::String toStringWithoutAlias() const;
 

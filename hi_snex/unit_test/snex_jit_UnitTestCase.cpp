@@ -312,6 +312,8 @@ void JitFileTestCase::initCompiler()
 
 	if (!nodeId.isValid())
 		Types::SnexObjectDatabase::registerObjects(c, 2);
+
+	MirObject::setLibraryFunctions(c.getFunctionMap());
 }
 
 juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= false*/)
@@ -473,17 +475,59 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 				return r;
 			}
 
-			function = compiledF;
+			bool useMIR = true;
 
-			switch (function.returnType.getType())
+			if (useMIR)
 			{
-			case Types::ID::Integer: actualResult = call<int>(); break;
-			case Types::ID::Float:   actualResult = call<float>(); break;
-			case Types::ID::Double:  actualResult = call<double>(); break;
-			default: jassertfalse;
+				DBG("TEST MIR " + file.getFullPathName());
+
+				auto tree = c.getAST();
+
+				//DBG(tree.createXml()->createDocument(""));
+
+				auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(tree);
+
+				MirObject mobj;
+				auto ok = mobj.compileMirCode(b64);
+
+				if (ok.wasOk())
+				{
+					function = mobj["main"];
+
+					switch (function.returnType.getType())
+					{
+					case Types::ID::Integer: actualResult = call<int>(); break;
+					case Types::ID::Float:   actualResult = call<float>(); break;
+					case Types::ID::Double:  actualResult = call<double>(); break;
+					default: jassertfalse;
+					}
+					
+				}
+					
+				else
+					return ok;
 			}
+			else
+			{
+				function = compiledF;
+
+				switch (function.returnType.getType())
+				{
+				case Types::ID::Integer: actualResult = call<int>(); break;
+				case Types::ID::Float:   actualResult = call<float>(); break;
+				case Types::ID::Double:  actualResult = call<double>(); break;
+				default: jassertfalse;
+				}
+			}
+			
+			
+
+			
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
+
+			
+
 		}
 
 		if (memory.checkRuntimeErrorAfterExecution())

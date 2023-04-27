@@ -90,7 +90,12 @@ static constexpr bool isValidParameterType(const Arg1& a1, const Arg2& a2, const
 
 }
 
-
+struct StaticFunctionPointer
+{
+	String signature;
+	String label;
+	void* function;
+};
 
 
 /** A wrapper around a function. */
@@ -349,7 +354,7 @@ struct FunctionData
 		}
 	}
 
-	template <typename... Parameters> forcedinline void callVoidUnchecked(Parameters... ps) const
+	template <typename... Parameters> void callVoidUnchecked(Parameters... ps) const
 	{
 		using signature = void(*)(Parameters...);
 
@@ -357,7 +362,7 @@ struct FunctionData
 		f_(ps...);
 	}
 
-	template <typename... Parameters> forcedinline void callVoidUncheckedWithObject(Parameters... ps) const
+	template <typename... Parameters> void callVoidUncheckedWithObject(Parameters... ps) const
 	{
 		jassert(object != nullptr);
 		jassert(function != nullptr);
@@ -367,7 +372,7 @@ struct FunctionData
 		f_(object, ps...);
 	}
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUncheckedWithObj5ect(Parameters... ps) const
+	template <typename ReturnType, typename... Parameters> ReturnType callUncheckedWithObj5ect(Parameters... ps) const
 	{
 		jassert(object != nullptr);
 		jassert(function != nullptr);
@@ -377,7 +382,7 @@ struct FunctionData
 		return static_cast<ReturnType>(f_(object, ps...));
 	}
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callUnchecked(Parameters... ps) const
+	template <typename ReturnType, typename... Parameters> ReturnType callUnchecked(Parameters... ps) const
 	{
 		using signature = ReturnType(*)(Parameters...);
 		auto f_ = (signature)function;
@@ -400,7 +405,7 @@ struct FunctionData
 
 private:
 
-	template <typename ReturnType, typename... Parameters> forcedinline ReturnType callInternal(Parameters... ps) const
+	template <typename ReturnType, typename... Parameters> ReturnType callInternal(Parameters... ps) const
 	{
 		if (function != nullptr)
 			return callUnchecked<ReturnType, Parameters...>(ps...);

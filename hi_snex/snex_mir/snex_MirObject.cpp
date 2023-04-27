@@ -121,6 +121,41 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 	return r;
 }
 
+Array<StaticFunctionPointer> MirObject::currentFunctions;
+
+void MirObject::setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap)
+{
+	if (currentFunctions.size() == 0)
+		currentFunctions.addArray(functionMap);
+}
+
+void* MirObject::resolve(const char* name)
+{
+	String label(name);
+
+	for (const auto& f : currentFunctions)
+	{
+		if (f.label == label)
+			return f.function;
+	}
+
+	jassertfalse;
+	return nullptr;
+}
+
+
+
+bool MirObject::isExternalFunction(const String& sig)
+{
+	for (const auto& f : currentFunctions)
+	{
+		if (f.signature == sig)
+			return true;
+	}
+
+	return false;
+}
+
 juce::Result MirObject::compileMirCode(const String& code)
 {
 	if (SyntaxTreeExtractor::isBase64Tree(code))
@@ -141,7 +176,7 @@ juce::Result MirObject::compileMirCode(const String& code)
 			MIR_load_module(ctx, m);
 			MIR_gen_init(ctx, 1);
 			MIR_gen_set_optimize_level(ctx, 1, 3);
-			MIR_link(ctx, MIR_set_gen_interface, NULL);
+			MIR_link(ctx, MIR_set_gen_interface, &MirObject::resolve);
 		}
 		else
 		{
@@ -168,13 +203,20 @@ FunctionData MirObject::operator[](const String& functionName)
 	{
 		for (auto f = DLIST_HEAD(MIR_item_t, m->items); f != NULL; f = DLIST_NEXT(MIR_item_t, f))
 		{
-			if (f->item_type == MIR_func_item && strcmp(f->u.func->name, functionName.getCharPointer().getAddress()) == 0)
+			
+
+			
+
+			if (f->item_type == MIR_func_item)
 			{
-				
+				String x(f->u.func->name);
+				x = x.upToLastOccurrenceOf("_", false, false);
 
-
-				main_func = f;
-				break;
+				if (x == functionName)
+				{
+					main_func = f;
+					break;
+				}
 			}
 		}
 	}

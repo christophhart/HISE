@@ -55,6 +55,26 @@ int Compiler::compileCount = 0;
 	 return memory.getOptimizationPassList().contains(OptimizationIds::Inlining);
  }
 
+ snex::jit::FunctionClass::Map Compiler::getFunctionMap()
+ {
+	 auto m = memory.getMap();
+
+	 auto im = getInbuiltFunctionClass()->getMap();
+
+	 m.addArray(im);
+
+	 for (auto t : handler->getComplexTypeList())
+	 {
+		 FunctionClass::Ptr fc = t->getFunctionClass();
+		 auto fm = fc->getMap();
+
+		 m.addArray(fm);
+	 }
+
+	 return m;
+ }
+
+
 Compiler::Compiler(GlobalScope& memoryPool):
 	memory(memoryPool)
 {
@@ -560,8 +580,11 @@ void SyntaxTreeExtractor::removeLineInfo(ValueTree& v)
 void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID type, const VariableStorage& value)>& f) const
 {
 	jassert(input.startsWith("b64"));
+
+	auto d = input.substring(3);
+
 	MemoryBlock mb;
-	mb.fromBase64Encoding(input.substring(3));
+	mb.fromBase64Encoding(d);
 	MemoryInputStream mos(std::move(mb));
 
 	int offset = 0;
@@ -580,7 +603,13 @@ void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID 
 			f(offset, Types::ID::Float, VariableStorage(mos.readFloat()));
 			offset += sizeof(float);
 			break;
-		case 'd': f(offset, Types::ID::Double, VariableStorage(mos.readDouble()));
+		case 'd': 
+			
+			if (offset % sizeof(double) != 0)
+				offset += sizeof(double) - (offset % sizeof(double));
+
+			f(offset, Types::ID::Double, VariableStorage(mos.readDouble()));
+
 			offset += sizeof(double);
 			break;
 		case 'I':
@@ -592,8 +621,13 @@ void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID 
 			offset += sizeof(float);
 			break;
 		case 'D':
+
+			if (offset % sizeof(double) != 0)
+				offset += sizeof(double) - (offset % sizeof(double));
+
 			f(offset, Types::ID::Double, VariableStorage((void*)(uint64_t)mos.readInt()));
 			offset += sizeof(double);
+
 			break;
 		default: jassertfalse; return;
 		}
@@ -604,9 +638,14 @@ juce::uint32 InitValueParser::getNumBytesRequired() const
 {
 	uint32 b = 0;
 
-	forEach([&b](uint32, Types::ID t, const VariableStorage&)
+	forEach([&b](uint32 offset, Types::ID t, const VariableStorage&)
 	{
-		b += Types::Helpers::getSizeForType(t);
+		auto nb = Types::Helpers::getSizeForType(t);
+
+		if (t == Types::ID::Integer)
+			nb = sizeof(int64);
+
+		b = offset + nb;
 	});
 
 	return b;
@@ -635,7 +674,7 @@ String InitValueParser::getB64() const
 	MemoryOutputStream mos;
 
 	jassert(!input.startsWith("b64"));
-	DBG(input);
+	
 
 	auto ptr = input.begin();
 	auto end = input.end();

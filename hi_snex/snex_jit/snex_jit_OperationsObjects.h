@@ -64,6 +64,22 @@ struct Operations::ClassStatement : public Statement,
 		auto t = Statement::toValueTree();
 		t.setProperty("Type", classType->toString(), nullptr);
 
+		if(auto st = dynamic_cast<StructType*>(classType.get()))
+		{
+			String memberInfo;
+
+			for (int i = 0; i < st->getNumMembers(); i++)
+			{
+				auto mId = st->getMemberName(i);
+				memberInfo << st->getMemberTypeInfo(mId).toStringWithoutAlias() << " " << mId << "(" << st->getMemberOffset(i) << ")";
+
+				if(i != st->getNumMembers()-1)
+					memberInfo << "$";
+			}
+
+			t.setProperty("MemberInfo", memberInfo, nullptr);
+		}
+
 		return t;
 	}
 
@@ -190,6 +206,8 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		t.setProperty("Type", type.toStringWithoutAlias(), nullptr);
 
 		t.setProperty("Ids", names, nullptr);
+
+		t.setProperty("NumBytes", (int)type.getRequiredByteSize(), nullptr);
 
 		if (initValues != nullptr)
 		{
