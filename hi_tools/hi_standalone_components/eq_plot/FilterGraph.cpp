@@ -54,6 +54,7 @@ FilterGraph::FilterGraph (int numFiltersInit, int drawType_):
     setSize (500, 300);
     lowFreq = 20;
     highFreq = 20000;
+	
     fs = 44100;
     maxdB = 18;
     maxPhas = 1;
@@ -326,6 +327,12 @@ void FilterGraph::setFreqRange (float newLowFreq, float newHighFreq)
     repaint();
 }
 
+
+void FilterGraph::setGainRange(float maxGain)
+{
+	maxdB = maxGain-6.0;
+	setNumHorizontalLines(roundToInt(maxdB / 3)+1);
+}
 
 void FilterGraph::setBypassed(bool shouldBeBypassed)
 {
