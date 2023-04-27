@@ -45,6 +45,29 @@
 #define HISE_NUM_PLUGIN_CHANNELS 2
 #endif
 
+/** This is the amount of channels that your FX plugin will process.
+	This might be different from the amount of total channels that is automatically calculated
+	from the master container's routing matrix and stored into HISE_NUM_PLUGIN_CHANNELS (because
+	this might affect existing projects).
+
+	So if you want to use a FX with more than one stereo input, you need to define
+
+	```
+	HISE_NUM_FX_PLUGIN_CHANNELS=X
+	```
+
+	in your ExtraDefinitions. Be aware that this number must be greater or equal than the actual
+	channel count of the master container's routing matrix (which will still be stored into 
+	HISE_NUM_PLUGIN_CHANNELS). This still lets you use "hidden" internal stereo pairs by choosing
+	a number that is smaller than the routing matrix, so if you eg. want a 6 channel plugin but
+	use an additional stereo pair for internal processing, you can set the routing matrix to use
+	8 channels, set HISE_NUM_FX_PLUGIN_CHANNELS to 6 and use the last stereo pair for the internal
+	processing while the plugin only shows the first 6 in the DAW.
+*/
+#ifndef HISE_NUM_FX_PLUGIN_CHANNELS
+#define HISE_NUM_FX_PLUGIN_CHANNELS 2
+#endif
+
 
 #define NUM_GLOBAL_VARIABLES 128
 

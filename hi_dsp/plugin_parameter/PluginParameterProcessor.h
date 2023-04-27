@@ -81,15 +81,19 @@ public:
 #endif
 
 #if FRONTEND_IS_PLUGIN
-#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
+#if HI_SUPPORT_MONO_CHANNEL_LAYOUT && HI_SUPPORT_MONO_TO_STEREO
+		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());		
+#else
 
-#if HI_SUPPORT_MONO_TO_STEREO
-		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
-#else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
-#endif
-#else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+		constexpr int numChannels = HISE_NUM_FX_PLUGIN_CHANNELS;
+
+		auto busProp = BusesProperties();
+
+		for (int i = 0; i < numChannels; i += 2)
+			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
+
+		return busProp;
+		
 #endif
 #else
 auto busProp = BusesProperties();

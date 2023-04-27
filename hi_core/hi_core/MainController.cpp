@@ -1021,9 +1021,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		AudioSampleBuffer thisMultiChannelBuffer(multiChannelBuffer.getArrayOfWritePointers(), multiChannelBuffer.getNumChannels(), 0, numSamplesThisBlock);
 		thisMultiChannelBuffer.clear();
 
-		FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(0), buffer.getReadPointer(0), numSamplesThisBlock);
-		FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(1), buffer.getReadPointer(1), numSamplesThisBlock);
+		int numChannelsToCopy = jmin(thisMultiChannelBuffer.getNumChannels(), buffer.getNumChannels());
 
+		for(int i = 0; i < numChannelsToCopy; i++)
+			FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(i), buffer.getReadPointer(i), numSamplesThisBlock);
+		
 		if (oversampler == nullptr)
 		{
 			synthChain->renderNextBlockWithModulators(thisMultiChannelBuffer, masterEventBuffer);
@@ -1045,9 +1047,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		buffer.clear();
 
-		// Just use the first two channels. You need to route back all your send channels to the first stereo pair.
-		FloatVectorOperations::copy(buffer.getWritePointer(0), thisMultiChannelBuffer.getReadPointer(0), numSamplesThisBlock);
-		FloatVectorOperations::copy(buffer.getWritePointer(1), thisMultiChannelBuffer.getReadPointer(1), numSamplesThisBlock);
+		auto& matrix = getMainSynthChain()->getMatrix();
+
+		for (int i = 0; i < numChannelsToCopy; i++)
+		{
+			auto c = matrix.getConnectionForSourceChannel(i);
+
+			if(c != -1)
+				FloatVectorOperations::add(buffer.getWritePointer(c), thisMultiChannelBuffer.getReadPointer(i), numSamplesThisBlock);
+		}
+			
     }
     else
     {
