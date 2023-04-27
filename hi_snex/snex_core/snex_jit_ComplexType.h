@@ -260,6 +260,8 @@ struct ComplexType : public ReferenceCountedObject
 	virtual ComplexType::Ptr createSubType(SubTypeConstructData*) { return nullptr; }
 
 
+    /** returns a valuetree describing the data layout and available methods. */
+    virtual ValueTree createDataLayout() const = 0;
 
 	int hash() const
 	{

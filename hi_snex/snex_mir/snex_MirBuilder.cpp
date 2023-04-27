@@ -208,10 +208,11 @@ private:
 					break;
 			}
 
+            auto tp = String(start, ptr);
 			code = String(ptr, end);
 
 			jassert(numOpenTemplateBrackets == 0);
-			return String(start, ptr);
+            return tp;
 		}
 
 		return {};
@@ -586,8 +587,59 @@ private:
 
 struct State
 {
-	State() = default;
+    enum class RegisterType
+    {
+        Raw,
+        Value,
+        Pointer,
+        numRegisterTypes
+    };
 
+    struct MirTextOperand
+    {
+        ValueTree v;
+        String text;
+        String stackPtr;
+        MIR_type_t type;
+        RegisterType registerType = RegisterType::Value;
+    };
+    
+    using ValueTreeInliner = std::function<MirTextOperand(State&, const ValueTree&, const ValueTree&)>;
+    
+	State()
+    {
+        
+    }
+
+    Array<ValueTree> dataList;
+    
+    void setDataLayout(const String& b64)
+    {
+        dataList = SyntaxTreeExtractor::getDataLayoutTrees(b64);
+        
+        for(const auto& l: dataList)
+        {
+            DBG(l.createXml()->createDocument(""));
+            
+            Array<MirMemberInfo> members;
+            
+            for(const auto& m: l)
+            {
+                if(m.getType() == Identifier("Member"))
+                {
+                    auto id = m["ID"].toString();
+                    auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
+                    auto mir_type = MirTypeConverters::TypeInfo2MirType(TypeInfo(type));
+                    auto offset = (int)m["offset"];
+                    
+                    members.add({id, mir_type, offset});
+                }
+            }
+            
+            classTypes.emplace(Identifier(l["ID"].toString()), std::move(members));
+        }
+    }
+    
 	mutable int counter = 0;
 	mutable int labelCounter = 0;
 
@@ -641,6 +693,14 @@ struct State
 
 	Array<FunctionData> prototypes;
 
+    std::map<String, ValueTreeInliner> inlinerFunctions;
+    
+    ValueTreeInliner getInliner(const FunctionData& f)
+    {
+        auto l = MirTypeConverters::FunctionData2MirTextLabel(f);
+        return inlinerFunctions[l];
+    }
+    
 	String getProperty(const Identifier& id) const
 	{
 		if (!currentTree.hasProperty(id))
@@ -657,14 +717,8 @@ struct State
 		DBG(currentTree.createXml()->createDocument(""));
 	}
 
-	enum class RegisterType
-	{
-		Raw,
-		Value,
-		Pointer,
-		numRegisterTypes
-	};
-
+	
+    
 	struct MirMemberInfo
 	{
 		String id;
@@ -672,14 +726,7 @@ struct State
 		size_t offset;
 	};
 
-	struct MirTextOperand
-	{
-		ValueTree v;
-		String text;
-		String stackPtr;
-		MIR_type_t type;
-		RegisterType registerType = RegisterType::Value;
-	};
+	
 
 	struct MirTextLine
 	{
@@ -1036,6 +1083,21 @@ struct State
 
 	std::map<juce::Identifier, ValueTreeFuncton> functions;
 
+    bool hasPrototype(const FunctionData& sig) const
+    {
+        auto thisLabel = MirTypeConverters::FunctionData2MirTextLabel(sig);
+        
+        for (const auto& p : prototypes)
+        {
+            auto pLabel = MirTypeConverters::FunctionData2MirTextLabel(p);
+            
+            if(pLabel == thisLabel)
+                return true;
+        }
+        
+        return false;
+    }
+    
 	String getPrototype(const FunctionData& sig) const
 	{
 		auto thisLabel = MirTypeConverters::FunctionData2MirTextLabel(sig);
@@ -1053,7 +1115,7 @@ struct State
 
 			l++;
 		}
-
+        
 		throw String("prototype not found");
 	}
 
@@ -1115,6 +1177,8 @@ struct InstructionParsers
 
 		if (isRoot)
 		{
+            state.dump();
+            
 			state.emitSingleInstruction("module", "main");
 
 			StringArray staticSignatures, memberSignatures;
@@ -2108,132 +2172,194 @@ struct InstructionParsers
 
 		auto sig = MirTypeConverters::String2FunctionData(state.getProperty("Signature"));
 		auto fid = MirTypeConverters::FunctionData2MirTextLabel(sig);
-		auto protoType = state.getPrototype(sig);
+        
+        if(state.hasPrototype(sig))
+        {
+            auto protoType = state.getPrototype(sig);
+        
+            State::MirTextLine l;
 
-		State::MirTextLine l;
+            l.instruction = "call";
+            l.operands.add(protoType);
+            l.operands.add(fid);
 
-		l.instruction = "call";
-		l.operands.add(protoType);
-		l.operands.add(fid);
+            if (sig.returnType.isValid())
+            {
+                auto rrt = sig.returnType.isRef() ? State::RegisterType::Pointer : State::RegisterType::Value;
+                l.addAnonymousReg(state, MirTypeConverters::TypeInfo2MirType(sig.returnType), rrt);
+                l.operands.add(state.getOperandForChild(-1, rrt));
+            }
 
-		if (sig.returnType.isValid())
-		{
-			auto rrt = sig.returnType.isRef() ? State::RegisterType::Pointer : State::RegisterType::Value;
-			l.addAnonymousReg(state, MirTypeConverters::TypeInfo2MirType(sig.returnType), rrt);
-			l.operands.add(state.getOperandForChild(-1, rrt));
-		}
+            int argOffset = 0;
 
-		int argOffset = 0;
+            if (state.getProperty("CallType") == "MemberFunction")
+            {
+                auto a = state.loadIntoRegister(0, State::RegisterType::Pointer);
+                l.operands.add(a);
+                argOffset = 1;
+            }
 
-		if (state.getProperty("CallType") == "MemberFunction")
-		{
-			auto a = state.loadIntoRegister(0, State::RegisterType::Pointer);
-			l.operands.add(a);
-			argOffset = 1;
-		}
+            for (int i = 0; i < sig.args.size(); i++)
+            {
+                auto isRef = sig.args[i].typeInfo.isRef();
+                auto isComplexType = sig.args[i].typeInfo.getType() == Types::ID::Pointer;
 
-		
+                if (isComplexType && !isRef)
+                {
+                    // We need to copy the object on the stack and use the stack pointer as argument
+                    auto argString = state.getProperty("Signature").fromFirstOccurrenceOf("(", false, false);
+                    
+                    for (int j = 0; j < i; j++)
+                        argString = SimpleTypeParser(argString).getTrailingString().fromFirstOccurrenceOf(",", false, false);
 
-		for (int i = 0; i < sig.args.size(); i++)
-		{
-			auto isRef = sig.args[i].typeInfo.isRef();
-			auto isComplexType = sig.args[i].typeInfo.getType() == Types::ID::Pointer;
+                    SimpleTypeParser p(argString);
 
-			if (isComplexType && !isRef)
-			{
-				// We need to copy the object on the stack and use the stack pointer as argument
-				auto argString = state.getProperty("Signature").fromFirstOccurrenceOf("(", false, false);
-				
-				for (int j = 0; j < i; j++)
-					argString = SimpleTypeParser(argString).getTrailingString().fromFirstOccurrenceOf(",", false, false);
+                    size_t numBytes = 0;
 
-				SimpleTypeParser p(argString);
+                    for (const auto&m : state.classTypes[p.getComplexTypeId().getIdentifier()])
+                        numBytes = m.offset + Types::Helpers::getSizeForType(MirTypeConverters::MirType2TypeId(m.type));
+                    
+                    auto stackPtr = state.getAnonymousId(false);
 
-				size_t numBytes = 0;
+                    numBytes = state.allocateStack(stackPtr, numBytes, false);
+                    auto source = state.loadIntoRegister(i + argOffset, State::RegisterType::Pointer);
+                    state.emitMultiLineCopy(stackPtr, source, numBytes);
+                    l.operands.add(stackPtr);
+                }
+                else
+                {
+                    if (isRef)
+                    {
+                        auto rt = state.getRegisterTypeForChild(i + argOffset);
+                        auto tp = state.getTypeForChild(i + argOffset);
 
-				for (const auto&m : state.classTypes[p.getComplexTypeId().getIdentifier()])
-					numBytes = m.offset + Types::Helpers::getSizeForType(MirTypeConverters::MirType2TypeId(m.type));
-				
-				auto stackPtr = state.getAnonymousId(false);
+                        if (rt == State::RegisterType::Value && tp != MIR_T_P)
+                        {
+                            // We need to copy the value from the register to the stack
+                            
 
-				numBytes = state.allocateStack(stackPtr, numBytes, false);
-				auto source = state.loadIntoRegister(i + argOffset, State::RegisterType::Pointer);
-				state.emitMultiLineCopy(stackPtr, source, numBytes);
-				l.operands.add(stackPtr);
-			}
-			else
-			{
-				if (isRef)
-				{
-					auto rt = state.getRegisterTypeForChild(i + argOffset);
-					auto tp = state.getTypeForChild(i + argOffset);
+                            auto mir_t = state.getTypeForChild(i + argOffset);
 
-					if (rt == State::RegisterType::Value && tp != MIR_T_P)
-					{
-						// We need to copy the value from the register to the stack
-						
+                            auto stackPtr = state.getAnonymousId(false);
 
-						auto mir_t = state.getTypeForChild(i + argOffset);
+                            state.allocateStack(stackPtr, Types::Helpers::getSizeForType(MirTypeConverters::MirType2TypeId(mir_t)), false);
 
-						auto stackPtr = state.getAnonymousId(false);
+                            State::MirTextLine mv;
+                            mv.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(mir_t, JitTokens::assign_);
 
-						state.allocateStack(stackPtr, Types::Helpers::getSizeForType(MirTypeConverters::MirType2TypeId(mir_t)), false);
+                            String dst;
+                            dst << MirTypeConverters::MirType2MirTextType(mir_t);
+                            dst << ":(" << stackPtr << ")";
 
-						State::MirTextLine mv;
-						mv.instruction = MirTypeConverters::MirTypeAndToken2InstructionText(mir_t, JitTokens::assign_);
+                            mv.operands.add(dst);
+                            mv.addChildAsValueOperand(state, i + argOffset);
+                            mv.appendComment("Move register to stack");
 
-						String dst;
-						dst << MirTypeConverters::MirType2MirTextType(mir_t);
-						dst << ":(" << stackPtr << ")";
+                            state.emitLine(mv);
+                            
+                            auto registerToSpill = state.getOperandForChild(i + argOffset, State::RegisterType::Value);
 
-						mv.operands.add(dst);
-						mv.addChildAsValueOperand(state, i + argOffset);
-						mv.appendComment("Move register to stack");
+                            for (auto& l : state.localOperands)
+                            {
+                                if (l.text == registerToSpill)
+                                {
+                                    // update the operands to use the stack pointer from now on...
+                                    l.registerType = State::RegisterType::Pointer;
+                                    l.stackPtr = stackPtr;
+                                }
+                            }
 
-						state.emitLine(mv);
-						
-						auto registerToSpill = state.getOperandForChild(i + argOffset, State::RegisterType::Value);
+                            l.operands.add(stackPtr);
+                        }
+                        else
+                        {
+                            if (tp == MIR_T_P)
+                            {
+                                // it's already loaded into a register
+                                auto a = state.getOperandForChild(i + argOffset, State::RegisterType::Pointer);
+                                l.operands.add(a);
+                            }
+                            else
+                            {
+                                // make sure the adress is loaded into a register
+                                auto a = state.loadIntoRegister(i + argOffset, State::RegisterType::Pointer);
+                                l.operands.add(a);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        auto a = state.loadIntoRegister(i + argOffset, State::RegisterType::Value);
+                        l.operands.add(a);
+                    }
 
-						for (auto& l : state.localOperands)
-						{
-							if (l.text == registerToSpill)
-							{
-								// update the operands to use the stack pointer from now on...
-								l.registerType = State::RegisterType::Pointer;
-								l.stackPtr = stackPtr;
-							}
-						}
+                    
+                }
+            }
+                
+            state.emitLine(l);
+        }
+        else
+        {
+            
+            auto s = state.getProperty("ObjectType");
+            
+            SimpleTypeParser p(s);
+            auto type = p.getComplexTypeId().toString();
+            
+            ValueTree dataObject;
+            
+            for(const auto& s: state.dataList)
+            {
+                if(s["ID"].toString() == type)
+                {
+                    dataObject = s;
+                    break;
+                }
+            }
+            
+            auto dl = sig.createDataLayout(true);
 
-						l.operands.add(stackPtr);
-					}
-					else
-					{
-						if (tp == MIR_T_P)
-						{
-							// it's already loaded into a register
-							auto a = state.getOperandForChild(i + argOffset, State::RegisterType::Pointer);
-							l.operands.add(a);
-						}
-						else
-						{
-							// make sure the adress is loaded into a register
-							auto a = state.loadIntoRegister(i + argOffset, State::RegisterType::Pointer);
-							l.operands.add(a);
-						}
-					}
-				}
-				else
-				{
-					auto a = state.loadIntoRegister(i + argOffset, State::RegisterType::Value);
-					l.operands.add(a);
-				}
-
-				
-			}
-		}
-			
-		state.emitLine(l);
-
+            // This should only happen with unresolved functions
+            jassert(!(bool)dl["IsResolved"]);
+            
+            int numArgsAvailable = state.currentTree.getNumChildren();
+            int numArgsDefined = dl.getNumChildren();
+            
+            jassert(numArgsAvailable == numArgsDefined);
+            
+            for(int i = 0; i < jmin(numArgsAvailable, numArgsDefined); i++)
+            {
+                SimpleTypeParser p(dl.getChild(i).getProperty("Type").toString());
+                auto t = p.getTypeInfo();
+                auto isRef = t.isRef() || t.getType() == Types::ID::Pointer;
+                auto registerType = isRef ? State::RegisterType::Pointer : State::RegisterType::Value;
+                auto a = state.loadIntoRegister(i, registerType);
+                
+                dl.getChild(i).setProperty("Operand", a, nullptr);
+            }
+            
+            if(auto il = state.inlinerFunctions[fid])
+            {
+                State::MirTextLine c;
+                c.appendComment("Inlined function " + fid);
+                state.emitLine(c);
+                
+                auto returnReg = il(state, dataObject, dl);
+                
+                if(returnReg.text.isNotEmpty())
+                {
+                    state.registerCurrentTextOperand(returnReg.text, returnReg.type, returnReg.registerType);
+                }
+                
+                return Result::ok();
+            }
+            else
+            {
+                throw String("inliner for " + fid + " not found");
+            }
+        }
+        
 		return Result::ok();
 	};
 
@@ -2322,8 +2448,124 @@ struct InstructionParsers
 	}
 };
 
+struct InlinerFunctions
+{
+    struct InlineState
+    {
+        InlineState(State& state_, const ValueTree& d_, const ValueTree& f_):
+          state(state_),
+          data(d_),
+          function(f_)
+        {};
+        
+        void dump()
+        {
+            DBG("DATA:");
+            DBG(data.createXml()->createDocument(""));
+            DBG("FUNCTION");
+            DBG(function.createXml()->createDocument(""));
+        }
+        
+        String getOperandForArgument(int index) const
+        {
+            auto t = function.getChild(index).getProperty("Operand").toString();
+            return t;
+        }
+        
+        String dereferenced(const String& pointerOperand, MIR_type_t type)
+        {
+            String s;
+            
+            if(type == MIR_T_I64)
+                s << "i32:";
+            if(type == MIR_T_F)
+                s << "f:";
+            if(type == MIR_T_D)
+                s << "d:";
+            if(type == MIR_T_P)
+                s << "i64:";
+            
+            s << "(" << pointerOperand << ")";
+            return s;
+        }
+        
+        String getOperandForMember(const String& memberId) const
+        {
+            for(const auto& m: data)
+            {
+                if(m.getType() == Identifier("Member") &&
+                   m["ID"].toString() == memberId)
+                {
+                    auto mir_t = SimpleTypeParser(m["type"]).getMirType();
+                    
+                    State::MirTextLine l;
+                    auto id = state.getAnonymousId(false);
+                    l.localDef << "i64:" << id;
+                    l.instruction = "add";
+                    l.operands.add(id);
+                    l.operands.add(getOperandForArgument(0));
+                    l.operands.add(m["offset"].toString());
+                    l.appendComment(data["ID"].toString() + "." + memberId);
+                    state.emitLine(l);
+                    
+                    return id;
+                }
+            }
+            
+            throw String("member " + memberId + " not found");
+        }
+        
+        State& state;
+        ValueTree data;
+        ValueTree function;
+    };
+    
+    static State::MirTextOperand dyn__referTo_ppii(State& state, const ValueTree& data, const ValueTree& function)
+    {
+        InlineState obj(state, data, function);
+        
+        obj.dump();
+        
+        // Assign the data pointer with the offset
+        State::MirTextLine dl;
+        dl.instruction = "add";
+        dl.operands.add(obj.dereferenced(obj.getOperandForMember("data"), MIR_T_P));
+        dl.operands.add(obj.getOperandForArgument(1));
+        dl.operands.add(obj.getOperandForArgument(3));
+        state.emitLine(dl);
+        
+        // set the size
+        State::MirTextLine sl;
+        sl.instruction = "mov";
+        sl.operands.add(obj.dereferenced(obj.getOperandForMember("size"), MIR_T_I64));
+        sl.operands.add(obj.getOperandForArgument(2));
+        
+        state.emitLine(sl);
+        
+        State::MirTextOperand ret;
+        ret.type = MIR_T_P;
+        ret.text = obj.getOperandForArgument(0);
+        ret.registerType = State::RegisterType::Value;
+        
+        return ret;
+    };
+    
+    static State::MirTextOperand dyn__size_i(State& state, const ValueTree& data, const ValueTree& function)
+    {
+        InlineState obj(state, data, function);
+        
+        auto s = obj.getOperandForMember("size");
+        
+        State::MirTextOperand ret;
+        ret.text = s;
+        ret.type = MIR_T_I64;
+        ret.registerType = State::RegisterType::Pointer;
+        
+        return ret;
+    };
+};
 
-
+#define REGISTER_INLINER(x) currentState->inlinerFunctions.emplace(#x, InlinerFunctions::x);
 #define REGISTER_TYPE(X) currentState->registerFunction(InstructionIds::X, InstructionParsers::X);
 
 MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
@@ -2358,9 +2600,13 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_TYPE(Dot);
 	REGISTER_TYPE(ThisPointer);
 	REGISTER_TYPE(PointerAccess);
+    
+    REGISTER_INLINER(dyn__referTo_ppii);
+    REGISTER_INLINER(dyn__size_i);
 }
 
 #undef REGISTER_TYPE
+#undef REGISTER_INLINER
 
 MirBuilder::~MirBuilder()
 {
@@ -2375,6 +2621,11 @@ juce::Result MirBuilder::parse()
 MIR_module* MirBuilder::getModule() const
 {
 	return currentState->currentModule;
+}
+
+void MirBuilder::setDataLayout(const String& b64)
+{
+    currentState->setDataLayout(b64);
 }
 
 String MirBuilder::getMirText() const

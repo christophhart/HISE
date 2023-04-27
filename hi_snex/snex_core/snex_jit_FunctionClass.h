@@ -172,8 +172,7 @@ public:
 
 				l << "_";
 
-				if (f->returnType.isValid())
-					l << Types::Helpers::getCppTypeName(f->returnType.getType())[0];
+				l << Types::Helpers::getCppTypeName(f->returnType.getType())[0];
 
 				for (const auto& a : f->args)
 					l << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];

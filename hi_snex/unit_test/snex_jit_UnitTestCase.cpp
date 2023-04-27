@@ -481,13 +481,15 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 			{
 				DBG("TEST MIR " + file.getFullPathName());
 
-				auto tree = c.getAST();
+                
+                
+				auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
 
-				//DBG(tree.createXml()->createDocument(""));
-
-				auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(tree);
-
+                auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(c.createDataLayouts());
+                
 				MirObject mobj;
+                mobj.setDataLayout(datab64);
+                
 				auto ok = mobj.compileMirCode(b64);
 
 				if (ok.wasOk())

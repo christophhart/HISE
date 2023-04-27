@@ -671,6 +671,7 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 	FunctionData lf;
 	lf.id = st->id.getChildId("isLocked");
 	lf.returnType = Types::ID::Integer;
+    lf.function = (void*)Wrappers::isLocked;
 	lf.setConst(true);
 	lf.inliner = Inliner::createHighLevelInliner(lf.id, [](InlineData* b)
 	{
@@ -679,7 +680,7 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
 
-	st->addJitCompiledMemberFunction(lf);
+	st->addExternalMemberFunction(lf);
 
 	return st->finaliseAndReturn();
 }

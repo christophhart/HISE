@@ -311,6 +311,21 @@ public:
 
 	Result copySymbolsFromExistingNamespace(const NamespacedIdentifier& existingNamespace);
 
+    Array<ValueTree> createDataLayouts() const
+    {
+        Array<ValueTree> layouts;
+        
+        for(auto t: complexTypes)
+        {
+            auto v = t->createDataLayout();
+            
+            if(v.isValid())
+                layouts.add(v);
+        }
+        
+        return layouts;
+    }
+    
 	Namespace::WeakPtr getNamespaceForLineNumber(int lineNumber) const;
 
 	mcl::TokenCollection::List getTokenList();

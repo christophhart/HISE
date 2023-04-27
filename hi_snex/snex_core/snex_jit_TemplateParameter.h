@@ -140,6 +140,25 @@ struct TemplateParameter
 		return c;
 	}
 
+    ValueTree createDataLayout() const
+    {
+        ValueTree v("TemplateParameter");
+        v.setProperty("ID", argumentId.id.toString(), nullptr);
+        
+        if(t == ParameterType::ConstantInteger && constantDefined)
+        {
+            v.setProperty("ParameterType", "Integer", nullptr);
+            v.setProperty("Value", constant, nullptr);
+        }
+        else
+        {
+            v.setProperty("ParameterType", "Type", nullptr);
+            v.setProperty("Type", type.toStringWithoutAlias(), nullptr);
+        }
+        
+        return v;
+    }
+    
 	bool isVariadic() const
 	{
 		return variadic == VariadicType::Variadic;

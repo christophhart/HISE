@@ -54,6 +54,8 @@ struct MirObject
 	Result compileMirCode(const String& code);
 	Result compileMirCode(const ValueTree& ast);
 
+    void setDataLayout(const String& b64data);
+    
 	FunctionData operator[](const String& functionName);
 
 	Result getLastError() const;;
@@ -70,6 +72,8 @@ struct MirObject
 
 private:
 
+    String dataLayout;
+    
 	static Array<StaticFunctionPointer> currentFunctions;
 
 	Result r;

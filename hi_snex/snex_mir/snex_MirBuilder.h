@@ -55,6 +55,8 @@ struct MirBuilder
 
 	String getMirText() const;
 
+    void setDataLayout(const String& b64);
+    
 private:
 
 	State* currentState = nullptr;

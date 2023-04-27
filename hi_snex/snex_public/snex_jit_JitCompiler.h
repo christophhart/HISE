@@ -122,6 +122,8 @@ public:
 	juce::String dumpNamespaceTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
 
+    Array<ValueTree> createDataLayouts() const;
+    
 	/** This registers an external object as complex type.
 
 	If a similar type already exists, it returns the pointer to this type object,
@@ -208,6 +210,10 @@ struct SyntaxTreeExtractor
 	/** Extracts the AST from the compiler and returns a compressed Base64 string. */
 	static String getBase64SyntaxTree(ValueTree v);
 
+    static String getBase64DataLayout(const Array<ValueTree>& dataLayouts);
+    
+    static Array<ValueTree> getDataLayoutTrees(const String& b64);
+    
 	static bool isBase64Tree(const String& code);
 
 private:

@@ -213,6 +213,12 @@ struct Operations::FunctionCall : public Expression
 	{
 		auto t = Expression::toValueTree();
 		t.setProperty("Signature", function.getSignature(), nullptr);
+        
+        if(hasObjectExpression)
+        {
+            t.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toString(false), nullptr);
+        }
+        
 		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
 		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
 		return t;

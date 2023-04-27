@@ -120,6 +120,11 @@ juce::String Compiler::dumpNamespaceTree() const
 	return compiler->namespaceHandler.dump();
 }
 
+Array<ValueTree> Compiler::createDataLayouts() const
+{
+    return compiler->namespaceHandler.createDataLayouts();
+}
+
 ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
 {
 	if (auto st = dynamic_cast<StructType*>(t.get()))
@@ -577,6 +582,55 @@ void SyntaxTreeExtractor::removeLineInfo(ValueTree& v)
 		removeLineInfo(c);
 }
 
+String SyntaxTreeExtractor::getBase64DataLayout(const Array<ValueTree>& dataLayouts)
+{
+    MemoryOutputStream mos;
+    
+    for(const auto& x: dataLayouts)
+    {
+        zstd::ZDefaultCompressor comp;
+        
+        MemoryBlock mb;
+        comp.compress(x, mb);
+        
+        mos.writeInt(mb.getSize());
+        mos.write(mb.getData(), mb.getSize());
+    }
+    
+    mos.flush();
+    return "b64" + mos.getMemoryBlock().toBase64Encoding();
+}
+
+Array<juce::ValueTree> SyntaxTreeExtractor::getDataLayoutTrees(const juce::String &b64)
+{
+    Array<ValueTree> list;
+    
+    jassert(b64.startsWith("b64"));
+    
+    MemoryBlock mb;
+    mb.fromBase64Encoding(b64.substring(3));
+    MemoryInputStream mos(std::move(mb));
+    
+    while(!mos.isExhausted())
+    {
+        int numBytes = mos.readInt();
+        
+        MemoryBlock mb;
+        mb.ensureSize(numBytes);
+        mos.read(mb.getData(), numBytes);
+        
+        zstd::ZDefaultCompressor comp;
+        
+        ValueTree v;
+        comp.expand(mb, v);
+        
+        list.add(v);
+    }
+    
+    return list;
+}
+
+
 void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID type, const VariableStorage& value)>& f) const
 {
 	jassert(input.startsWith("b64"));
@@ -712,13 +766,17 @@ String InitValueParser::getB64() const
 		while (e != end &&
 			(CharacterFunctions::isDigit(*e) ||
 				*e == '.' ||
-				*e == 'f'))
+				*e == 'f') ||
+                *e == 'x')
 		{
 			e++;
 		}
 
 		String value(b, e);
 
+        if(value.isEmpty())
+            break;
+        
 		if (isExpression)
 		{
 			mos.writeByte(CharacterFunctions::toUpperCase(expressionType));

@@ -85,6 +85,8 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 {
 	MirBuilder b(ctx, ast);
 
+    b.setDataLayout(dataLayout);
+    
 	r = b.parse();
 
 	if (r.wasOk())
@@ -139,6 +141,11 @@ void* MirObject::resolve(const char* name)
 			return f.function;
 	}
 
+    for(const auto& f: currentFunctions)
+    {
+        DBG(f.label);
+    }
+    
 	jassertfalse;
 	return nullptr;
 }
@@ -255,6 +262,11 @@ FunctionData MirObject::operator[](const String& functionName)
 juce::Result MirObject::getLastError() const
 {
 	return r;
+}
+
+void MirObject::setDataLayout(const String& b64)
+{
+    dataLayout = b64;
 }
 
 MirObject::~MirObject()

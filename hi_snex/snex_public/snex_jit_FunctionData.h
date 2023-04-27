@@ -264,6 +264,35 @@ struct FunctionData
         return false;
     }
     
+    ValueTree createDataLayout(bool addThisPointer) const
+    {
+        ValueTree c1("Method");
+        c1.setProperty("ID", id.getIdentifier().toString(), nullptr);
+        c1.setProperty("ReturnType", returnType.toString(false), nullptr);
+        
+        c1.setProperty("IsResolved", function != nullptr, nullptr);
+        
+        if(addThisPointer)
+        {
+            ValueTree t("Arg");
+            t.setProperty("ID", "_this_", nullptr);
+            t.setProperty("Type", "pointer", nullptr);
+            c1.addChild(t, -1, nullptr);
+        }
+        
+        
+        
+        for(const auto& a: args)
+        {
+            ValueTree a1("Arg");
+            a1.setProperty("ID", a.id.getIdentifier().toString(), nullptr);
+            a1.setProperty("Type", Types::Helpers::getCppTypeName(a.typeInfo.getType()), nullptr);
+            c1.addChild(a1, -1, nullptr);
+        }
+        
+        return c1;
+    }
+    
 	void setDescription(const juce::String& d, const StringArray& parameterNames = StringArray())
 	{
 		description = d;
@@ -560,6 +589,12 @@ struct TemplatedComplexType : public ComplexType,
 
 	size_t getRequiredAlignment() const override { return 0; }
 
+    ValueTree createDataLayout() const override
+    {
+        jassertfalse;
+        return {};
+    }
+    
 	void dumpTable(juce::String&, int&, void*, void*) const override {}
 
 	Result initialise(InitData d) { return Result::ok(); };
