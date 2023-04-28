@@ -4,8 +4,8 @@ using namespace juce;
 
 struct InlineState
 {
-	InlineState(State& state_, const ValueTree& d_, const ValueTree& f_) :
-		state(state_),
+	InlineState(State* state_, const ValueTree& d_, const ValueTree& f_) :
+		state(*state_),
 		data(d_),
 		function(f_)
 	{};
@@ -67,15 +67,15 @@ struct InlineState
 				}
 				else
 				{
-					State::MirTextLine l;
-					auto id = state.getAnonymousId(false);
+					TextLine l(&state);
+					auto id = state.registerManager.getAnonymousId(false);
 					l.localDef << "i64:" << id;
 					l.instruction = "add";
 					l.operands.add(id);
 					l.operands.add(argOp(0));
 					l.operands.add(m["offset"].toString());
 					l.appendComment(data["ID"].toString() + "." + memberId);
-					state.emitLine(l);
+					l.flush();
 
 					return id;
 				}
@@ -92,7 +92,7 @@ struct InlineState
 
 struct InlinerFunctions
 {
-	static TextOperand dyn__referTo_ppii(State& state, const ValueTree& data, const ValueTree& function)
+	static TextOperand dyn__referTo_ppii(State* state, const ValueTree& data, const ValueTree& function)
 	{
 		InlineState obj(state, data, function);
 
@@ -100,26 +100,26 @@ struct InlinerFunctions
 
 		auto offset = obj.argOp(3).getIntValue();
 
-		auto offsetReg = state.getAnonymousId(false);
+		auto offsetReg = state->registerManager.getAnonymousId(false);
 
-		State::MirTextLine scale;
+		TextLine scale(state);
 		scale.localDef << "i64:" << offsetReg;
 		scale.instruction = "mul";
 		scale.operands.add(offsetReg);
 		scale.operands.add(obj.argOp(3));
 		scale.operands.add(data.getProperty("ElementSize"));
 		scale.appendComment("scale with element size");
-		state.emitLine(scale);
+		scale.flush();
 
 
 		// Assign the data pointer with the offset
-		State::MirTextLine dl;
+		TextLine dl(state);
 		dl.instruction = "add";
 		dl.operands.add(obj.memberOp("data"));
 		dl.operands.add(obj.argOp(1));
 		dl.operands.add(offsetReg);
 		dl.appendComment("dyn.data");
-		state.emitLine(dl);
+		dl.flush();
 
 		// set the size
 
@@ -130,17 +130,17 @@ struct InlinerFunctions
 			jassertfalse;
 		}
 
-		State::MirTextLine sl;
+		TextLine sl(scale);
 		sl.instruction = "mov";
 		sl.operands.add(obj.memberOp("size"));
 		sl.operands.add(size);
 		sl.appendComment("dyn.size");
-		state.emitLine(sl);
+		sl.flush();
 
 		return obj.flush(obj.argOp(0), RegisterType::Value);
 	};
 
-	static TextOperand dyn__size_i(State& state, const ValueTree& data, const ValueTree& function)
+	static TextOperand dyn__size_i(State* state, const ValueTree& data, const ValueTree& function)
 	{
 		InlineState obj(state, data, function);
 

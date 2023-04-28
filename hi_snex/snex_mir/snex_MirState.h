@@ -38,45 +38,7 @@ namespace mir {
 using namespace juce;
 
 
-struct LoopManager
-{
-	~LoopManager()
-	{
-		jassert(labelPairs.isEmpty());
-	}
 
-	void pushLoopLabels(const String& startLabel, const String& endLabel, const String& continueLabel)
-	{
-		labelPairs.add({ startLabel, endLabel, continueLabel });
-	}
-
-	String getCurrentLabel(const String& instructionId)
-	{
-		if (instructionId == "continue")
-			return labelPairs.getLast().continueLabel;
-		else if (instructionId == "break")
-			return labelPairs.getLast().endLabel;
-
-		jassertfalse;
-		return "";
-	}
-
-	void popLoopLabels()
-	{
-		labelPairs.removeLast();
-	}
-
-private:
-
-	struct LoopLabelSet
-	{
-		String startLabel;
-		String endLabel;
-		String continueLabel;
-	};
-
-	Array<LoopLabelSet> labelPairs;
-};
 
 enum class RegisterType
 {
@@ -95,48 +57,94 @@ struct TextOperand
 	RegisterType registerType = RegisterType::Value;
 };
 
-struct State
+struct MemberInfo
 {
-	using ValueTreeInliner = std::function<TextOperand(State&, const ValueTree&, const ValueTree&)>;
+	String id;
+	MIR_type_t type;
+	size_t offset;
+};
 
-	State() = default;
+struct State;
 
-	Array<ValueTree> dataList;
+struct TextLine
+{
+	TextLine(State* s);
 
-	void setDataLayout(const String& b64)
-	{
-		dataList = SyntaxTreeExtractor::getDataLayoutTrees(b64);
+	~TextLine();
 
-		for (const auto& l : dataList)
-		{
-			DBG(l.createXml()->createDocument(""));
+	void addImmOperand(const VariableStorage& value);
 
-			Array<MirMemberInfo> members;
+	String addAnonymousReg(MIR_type_t type, RegisterType rt);
+	void addSelfAsValueOperand();
+	void addSelfAsPointerOperand();
+	void addChildAsPointerOperand(int childIndex);
+	void addChildAsValueOperand(int childIndex);
+	void addOperands(const Array<int>& indexes, const Array<RegisterType>& registerTypes = {});
 
-			for (const auto& m : l)
-			{
-				if (m.getType() == Identifier("Member"))
-				{
-					auto id = m["ID"].toString();
-					auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
-					auto mir_type = TypeConverters::TypeInfo2MirType(TypeInfo(type));
-					auto offset = (size_t)(int)m["offset"];
+	void appendComment(const String& c) { comment = c; }
 
-					members.add({ id, mir_type, offset });
-				}
-			}
+	int getLabelLength() const;
+	String toLine(int maxLabelLength) const;
 
-			classTypes.emplace(Identifier(l["ID"].toString()), std::move(members));
-		}
-	}
+	void flush();
 
-	mutable int counter = 0;
+	bool flushed = false;
+	State* state;
+	String label;
+	String localDef;
+	String instruction;
+	StringArray operands;
+	String comment;
+};
+
+struct LoopManager
+{
+	~LoopManager();
+
+	void pushLoopLabels(String& startLabel, String& endLabel, String& continueLabel);
+
+	String getCurrentLabel(const String& instructionId);
+
+	void popLoopLabels();
+
+	String makeLabel() const;
+
+private:
+
 	mutable int labelCounter = 0;
 
-	String makeLabel() const
+	struct LoopLabelSet
 	{
-		return "L" + String(labelCounter++);
+		String startLabel;
+		String endLabel;
+		String continueLabel;
+	};
+
+	Array<LoopLabelSet> labelPairs;
+};
+
+struct InlinerManager
+{
+	using ValueTreeInliner = std::function<TextOperand(State*, const ValueTree&, const ValueTree&)>;
+
+	ValueTreeInliner getInliner(String fid)
+	{
+		return inlinerFunctions[fid];
 	}
+
+	void registerInliner(const String& fid, const ValueTreeInliner& f)
+	{
+		inlinerFunctions.emplace(fid, f);
+	}
+
+private:
+
+	std::map<String, ValueTreeInliner> inlinerFunctions;
+};
+
+struct RegisterManager
+{
+	mutable int counter = 0;
 
 	String getAnonymousId(bool isFloat) const
 	{
@@ -144,6 +152,18 @@ struct State
 		s << (isFloat ? "xmm" : "reg") << String(counter++);
 		return s;
 	}
+};
+
+struct State
+{
+	State() = default;
+
+	Array<ValueTree> dataList;
+
+	void setDataLayout(const String& b64);
+
+	InlinerManager inlinerManager;
+	RegisterManager registerManager;
 
 	using ValueTreeFuncton = std::function<Result(State& state)>;
 
@@ -160,7 +180,7 @@ struct State
 
 	void addPrototype(const FunctionData& f, bool addObjectPointer)
 	{
-		MirTextLine l;
+		TextLine l(this);
 
 		l.label = "proto" + String(prototypes.size());
 		l.instruction = "proto";
@@ -176,20 +196,12 @@ struct State
 		for (const auto& a : f.args)
 			l.operands.add(TypeConverters::Symbol2MirTextSymbol(a));
 
-		emitLine(l);
-
+		l.flush();
+		
 		prototypes.add(f);
 	}
 
 	Array<FunctionData> prototypes;
-
-	std::map<String, ValueTreeInliner> inlinerFunctions;
-
-	ValueTreeInliner getInliner(const FunctionData& f)
-	{
-		auto l = TypeConverters::FunctionData2MirTextLabel(f);
-		return inlinerFunctions[l];
-	}
 
 	String getProperty(const Identifier& id) const
 	{
@@ -207,170 +219,28 @@ struct State
 		DBG(currentTree.createXml()->createDocument(""));
 	}
 
-
-
-	struct MirMemberInfo
-	{
-		String id;
-		MIR_type_t type;
-		size_t offset;
-	};
-
-
-
-	struct MirTextLine
-	{
-		String label;
-		String localDef;
-		String instruction;
-		StringArray operands;
-		String comment;
-
-		String addAnonymousReg(State& state, MIR_type_t type, RegisterType rt)
-		{
-			auto id = state.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
-			state.registerCurrentTextOperand(id, type, rt);
-
-			auto t = TypeInfo(TypeConverters::MirType2TypeId(type), true);
-
-			auto tn = TypeConverters::TypeInfo2MirTextType(t);
-
-			if (rt == RegisterType::Pointer || type == MIR_T_P)
-				tn = "i64";
-
-			localDef << tn << ":" << id;
-			return id;
-		}
-
-		void addImmOperand(const VariableStorage& value)
-		{
-			operands.add(Types::Helpers::getCppValueString(value));
-		}
-
-		void addSelfAsValueOperand(State& s)
-		{
-			operands.add(s.getOperandForChild(-1, RegisterType::Value));
-		}
-
-		void addSelfAsPointerOperand(State& s)
-		{
-			operands.add(s.getOperandForChild(-1, RegisterType::Pointer));
-		}
-
-		void addChildAsPointerOperand(State& s, int childIndex)
-		{
-			operands.add(s.loadIntoRegister(childIndex, RegisterType::Pointer));
-		}
-
-		void addChildAsValueOperand(State& s, int childIndex)
-		{
-			operands.add(s.loadIntoRegister(childIndex, RegisterType::Value));
-		}
-
-		void addOperands(State& s, const Array<int>& indexes, const Array<RegisterType>& registerTypes = {})
-		{
-			if (!registerTypes.isEmpty())
-			{
-				jassert(indexes.size() == registerTypes.size());
-
-				for (int i = 0; i < indexes.size(); i++)
-					operands.add(s.getOperandForChild(indexes[i], registerTypes[i]));
-			}
-			else
-			{
-				for (auto& i : indexes)
-					operands.add(s.getOperandForChild(i, RegisterType::Value));
-			}
-
-		}
-
-		int getLabelLength() const
-		{
-			return label.isEmpty() ? -1 : (label.length() + 2);
-		}
-
-		String toLine(int maxLabelLength) const
-		{
-			String s;
-
-			if (label.isNotEmpty())
-				s << label << ":" << " ";
-
-			auto numToAdd = maxLabelLength - s.length();
-
-			for (int i = 0; i < numToAdd; i++)
-				s << " ";
-
-			if (!localDef.isEmpty())
-				s << "local " << localDef << "; ";
-
-
-			s << instruction;
-
-			if (!operands.isEmpty())
-			{
-				s << " ";
-
-				auto numOps = operands.size();
-				auto index = 0;
-
-				for (auto& o : operands)
-				{
-					s << o;
-
-					if (++index < numOps)
-						s << ", ";
-				}
-			}
-
-			if (comment.isNotEmpty())
-				s << " # " << comment;
-
-			return s;
-		}
-
-		void appendComment(const String& c) { comment = c; }
-	};
-
-	Array<MirTextLine> lines;
+	Array<TextLine> lines;
 
 	void emitSingleInstruction(const String& instruction, const String& label = {})
 	{
-		MirTextLine l;
+		TextLine l(this);
 		l.instruction = instruction;
 		l.label = label;
-		lines.add(l);
+		l.flush();
 	}
 
 	LoopManager loopManager;
 
-	String nextLabel;
-
 	/** emmit noop will add a dummy op that will prevent a compile error if the next statement has a local definition. */
-	void emitLabel(const String& label, bool emitNoop)
+	void emitLabel(const String& label)
 	{
-		nextLabel = label;
-
-		if (emitNoop)
-		{
-			MirTextLine noop;
-			noop.instruction = "bt";
-			noop.operands.add(label);
-			noop.addImmOperand(0);
-			noop.appendComment("noop");
-			emitLine(noop);
-		}
-	}
-
-	void emitLine(MirTextLine& l)
-	{
-		if (nextLabel.isNotEmpty())
-		{
-			l.label = nextLabel;
-			nextLabel = "";
-		}
-
-		lines.add(l);
+		TextLine noop(this);
+		noop.label = label;
+		noop.instruction = "bt";
+		noop.operands.add(label);
+		noop.addImmOperand(0);
+		noop.appendComment("noop");
+		noop.flush();
 	}
 
 	String toString(bool addTabs)
@@ -396,9 +266,9 @@ struct State
 		return s;
 	}
 
-	std::map<juce::Identifier, Array<MirMemberInfo>> classTypes;
+	std::map<juce::Identifier, Array<MemberInfo>> classTypes;
 
-	void registerClass(const Identifier& id, Array<MirMemberInfo>&& memberInfo)
+	void registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
 	{
 		classTypes.emplace(id, memberInfo);
 	}
@@ -411,7 +281,7 @@ struct State
 
 		for (int i = 0; i < numBytesToCopy; i += 8)
 		{
-			MirTextLine l;
+			TextLine l(this);
 			l.instruction = "mov";
 
 			auto dst = "i64:" + String(i) + "(" + targetPointerReg + ")";
@@ -419,13 +289,13 @@ struct State
 
 			l.operands.add(dst);
 			l.operands.add(src);
-			emitLine(l);
+			l.flush();
 		}
 	}
 
 	int allocateStack(const String& targetName, int numBytes, bool registerAsCurrentStatementReg)
 	{
-		State::MirTextLine l;
+		TextLine l(this);
 
 		if (registerAsCurrentStatementReg)
 			registerCurrentTextOperand(targetName, MIR_T_I64, RegisterType::Pointer);
@@ -439,8 +309,8 @@ struct State
 		l.instruction = "alloca";
 		l.operands.add(targetName);
 		l.addImmOperand((int)numBytesToAllocate);
-
-		emitLine(l);
+		l.flush();
+		
 
 		return numBytesToAllocate;
 	}
@@ -619,16 +489,15 @@ struct State
 		{
 			auto t = getTypeForChild(childIndex);
 
-			State::MirTextLine load;
+			TextLine load(this);
 			load.instruction = "mov";
 
-			auto id = "p" + String(counter++);
+			auto id = "p" + String(registerManager.counter++);
 
 			load.localDef << "i64:" << id;
 			load.operands.add(id);
-			load.addOperands(*this, { childIndex }, { RegisterType::Pointer });
-
-			emitLine(load);
+			load.addOperands({ childIndex }, { RegisterType::Pointer });
+			load.flush();
 
 			if (targetType == RegisterType::Pointer)
 				return id;

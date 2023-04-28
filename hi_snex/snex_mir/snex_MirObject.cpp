@@ -91,33 +91,7 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 
 	if (r.wasOk())
 	{
-#if CREATE_MIR_TEXT
 		return compileMirCode(b.getMirText());
-#else
-		modules.add(b.getModule());
-
-		MIR_load_module(ctx, b.getModule());
-
-		MIR_gen_init(ctx, 1);
-		MIR_gen_set_optimize_level(ctx, 1, 3);
-		MIR_link(ctx, MIR_set_gen_interface, NULL);
-
-		{
-			auto f = fopen("D:\\test.txt", "w");
-
-			MIR_output(ctx, f);
-
-			fclose(f);
-		}
-		
-		auto mf = File("D:\\test.txt");
-
-		auto mirCode = mf.loadFileAsString();
-		DBG(mirCode);
-
-		mf.deleteFile();
-
-#endif
 	}
 
 	return r;

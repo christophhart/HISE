@@ -2,7 +2,7 @@
 #include "src/mir-gen.h"
 
 #define DEFINE_ID(x) static const Identifier x(#x);
-#define REGISTER_INLINER(x) currentState->inlinerFunctions.emplace(#x, InlinerFunctions::x);
+#define REGISTER_INLINER(x) currentState->inlinerManager.registerInliner(#x, InlinerFunctions::x);
 #define REGISTER_TYPE(X) currentState->registerFunction(InstructionIds::X, InstructionParsers::X);
 
 #include "snex_MirHelpers.h"
