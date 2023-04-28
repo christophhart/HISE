@@ -212,7 +212,20 @@ struct Operations::FunctionCall : public Expression
 	ValueTree toValueTree() const override
 	{
 		auto t = Expression::toValueTree();
-		t.setProperty("Signature", function.getSignature(), nullptr);
+        
+        auto copy = function;
+        
+        for(int i = 0; i < copy.args.size(); i++)
+        {
+            auto originalType = copy.args[i].typeInfo;
+            auto argType =  getArgument(i)->getTypeInfo();
+            copy.args.getReference(i).typeInfo = argType.withModifiers(originalType.isConst(), originalType.isRef());
+            
+        }
+            
+        
+        
+		t.setProperty("Signature", copy.getSignature(), nullptr);
         
         if(hasObjectExpression)
         {

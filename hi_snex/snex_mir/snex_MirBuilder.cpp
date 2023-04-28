@@ -80,9 +80,9 @@ struct SimpleTypeParser
 		parse();
 	}
 
-	MIR_type_t getMirType() const
+	MIR_type_t getMirType(bool getPointerIfRef=true) const
 	{
-		if (isRef)
+		if (isRef && getPointerIfRef)
 			return MIR_T_P;
 		else
 		{
@@ -92,6 +92,8 @@ struct SimpleTypeParser
 				return MIR_T_F;
 			if (t == Types::ID::Double)
 				return MIR_T_D;
+            if(t == Types::ID::Pointer)
+                return MIR_T_P;
 
 			return MIR_T_I8;
 		}
@@ -152,7 +154,7 @@ private:
 			auto c = *ptr;
 
 			if (CharacterFunctions::isLetterOrDigit(c) ||
-				c == ':' || c == '_' || c == '-')
+				c == ':' || c == '_' || c == '-' || c == '*')
 				ptr++;
 			else
 				break;
@@ -228,6 +230,7 @@ private:
 		if (typeId == "double")     t = Types::ID::Double;
 		else if (typeId == "float") t = Types::ID::Float;
 		else if (typeId == "int")   t = Types::ID::Integer;
+        else if (typeId == "void*") t = Types::ID::Pointer;
 		else if (typeId == "void")  t = Types::ID::Void;
 		else						t = Types::ID::Pointer;
 
@@ -2301,10 +2304,7 @@ struct InstructionParsers
         }
         else
         {
-            
-            auto s = state.getProperty("ObjectType");
-            
-            SimpleTypeParser p(s);
+            SimpleTypeParser p(state.getProperty("ObjectType"));
             auto type = p.getComplexTypeId().toString();
             
             ValueTree dataObject;
@@ -2318,25 +2318,26 @@ struct InstructionParsers
                 }
             }
             
-            auto dl = sig.createDataLayout(true);
+            auto funcData = sig.createDataLayout(true);
 
             // This should only happen with unresolved functions
-            jassert(!(bool)dl["IsResolved"]);
+            jassert(!(bool)funcData["IsResolved"]);
             
             int numArgsAvailable = state.currentTree.getNumChildren();
-            int numArgsDefined = dl.getNumChildren();
+            int numArgsDefined = funcData.getNumChildren();
             
+            // all defaultable parameters should be resolved by the parser
             jassert(numArgsAvailable == numArgsDefined);
             
             for(int i = 0; i < jmin(numArgsAvailable, numArgsDefined); i++)
             {
-                SimpleTypeParser p(dl.getChild(i).getProperty("Type").toString());
+                SimpleTypeParser p(funcData.getChild(i).getProperty("Type").toString());
                 auto t = p.getTypeInfo();
                 auto isRef = t.isRef() || t.getType() == Types::ID::Pointer;
                 auto registerType = isRef ? State::RegisterType::Pointer : State::RegisterType::Value;
                 auto a = state.loadIntoRegister(i, registerType);
                 
-                dl.getChild(i).setProperty("Operand", a, nullptr);
+                funcData.getChild(i).setProperty("Operand", a, nullptr);
             }
             
             if(auto il = state.inlinerFunctions[fid])
@@ -2345,7 +2346,7 @@ struct InstructionParsers
                 c.appendComment("Inlined function " + fid);
                 state.emitLine(c);
                 
-                auto returnReg = il(state, dataObject, dl);
+                auto returnReg = il(state, dataObject, funcData);
                 
                 if(returnReg.text.isNotEmpty())
                 {
@@ -2458,7 +2459,7 @@ struct InlinerFunctions
           function(f_)
         {};
         
-        void dump()
+        void dump() const
         {
             DBG("DATA:");
             DBG(data.createXml()->createDocument(""));
@@ -2466,13 +2467,21 @@ struct InlinerFunctions
             DBG(function.createXml()->createDocument(""));
         }
         
-        String getOperandForArgument(int index) const
+        String argOp(int index) const
         {
-            auto t = function.getChild(index).getProperty("Operand").toString();
-            return t;
+            return function.getChild(index).getProperty("Operand").toString();
         }
         
-        String dereferenced(const String& pointerOperand, MIR_type_t type)
+        State::MirTextOperand flush(const String& s, State::RegisterType rt) const
+        {
+            State::MirTextOperand ret;
+            ret.text = s;
+            ret.type = SimpleTypeParser(function["ReturnType"].toString()).getMirType(false);
+            ret.registerType = rt;
+            return ret;
+        }
+        
+        String deref(const String& pointerOperand, MIR_type_t type, int offset=0) const
         {
             String s;
             
@@ -2485,11 +2494,14 @@ struct InlinerFunctions
             if(type == MIR_T_P)
                 s << "i64:";
             
+            if(offset != 0)
+                s << String(offset);
+            
             s << "(" << pointerOperand << ")";
             return s;
         }
         
-        String getOperandForMember(const String& memberId) const
+        String memberOp(const String& memberId, State::RegisterType rt = State::RegisterType::Value) const
         {
             for(const auto& m: data)
             {
@@ -2498,17 +2510,24 @@ struct InlinerFunctions
                 {
                     auto mir_t = SimpleTypeParser(m["type"]).getMirType();
                     
-                    State::MirTextLine l;
-                    auto id = state.getAnonymousId(false);
-                    l.localDef << "i64:" << id;
-                    l.instruction = "add";
-                    l.operands.add(id);
-                    l.operands.add(getOperandForArgument(0));
-                    l.operands.add(m["offset"].toString());
-                    l.appendComment(data["ID"].toString() + "." + memberId);
-                    state.emitLine(l);
-                    
-                    return id;
+                    if(rt == State::RegisterType::Value)
+                    {
+                        return deref(argOp(0), mir_t, (int)m["offset"]);
+                    }
+                    else
+                    {
+                        State::MirTextLine l;
+                        auto id = state.getAnonymousId(false);
+                        l.localDef << "i64:" << id;
+                        l.instruction = "add";
+                        l.operands.add(id);
+                        l.operands.add(argOp(0));
+                        l.operands.add(m["offset"].toString());
+                        l.appendComment(data["ID"].toString() + "." + memberId);
+                        state.emitLine(l);
+                        
+                        return id;
+                    }
                 }
             }
             
@@ -2526,42 +2545,54 @@ struct InlinerFunctions
         
         obj.dump();
         
+        auto offset = obj.argOp(3).getIntValue();
+        
+        auto offsetReg = state.getAnonymousId(false);
+        
+        State::MirTextLine scale;
+        scale.localDef << "i64:" << offsetReg;
+        scale.instruction = "mul";
+        scale.operands.add(offsetReg);
+        scale.operands.add(obj.argOp(3));
+        scale.operands.add(data.getProperty("ElementSize"));
+        scale.appendComment("scale with element size");
+        state.emitLine(scale);
+        
+        
         // Assign the data pointer with the offset
         State::MirTextLine dl;
         dl.instruction = "add";
-        dl.operands.add(obj.dereferenced(obj.getOperandForMember("data"), MIR_T_P));
-        dl.operands.add(obj.getOperandForArgument(1));
-        dl.operands.add(obj.getOperandForArgument(3));
+        dl.operands.add(obj.memberOp("data"));
+        dl.operands.add(obj.argOp(1));
+        dl.operands.add(offsetReg);
+        dl.appendComment("dyn.data");
         state.emitLine(dl);
         
         // set the size
+        
+        auto size = obj.argOp(2);
+        
+        if(size == "-1")
+        {
+            jassertfalse;
+        }
+        
         State::MirTextLine sl;
         sl.instruction = "mov";
-        sl.operands.add(obj.dereferenced(obj.getOperandForMember("size"), MIR_T_I64));
-        sl.operands.add(obj.getOperandForArgument(2));
-        
+        sl.operands.add(obj.memberOp("size"));
+        sl.operands.add(size);
+        sl.appendComment("dyn.size");
         state.emitLine(sl);
         
-        State::MirTextOperand ret;
-        ret.type = MIR_T_P;
-        ret.text = obj.getOperandForArgument(0);
-        ret.registerType = State::RegisterType::Value;
-        
-        return ret;
+        return obj.flush(obj.argOp(0), State::RegisterType::Value);
     };
     
     static State::MirTextOperand dyn__size_i(State& state, const ValueTree& data, const ValueTree& function)
     {
         InlineState obj(state, data, function);
         
-        auto s = obj.getOperandForMember("size");
-        
-        State::MirTextOperand ret;
-        ret.text = s;
-        ret.type = MIR_T_I64;
-        ret.registerType = State::RegisterType::Pointer;
-        
-        return ret;
+        auto s = obj.memberOp("size", State::RegisterType::Pointer);
+        return obj.flush(s, State::RegisterType::Pointer);
     };
 };
 
