@@ -37,7 +37,7 @@
 
 
 namespace snex {
-namespace jit {
+namespace mir {
 using namespace juce;
 
 struct MirHelpers

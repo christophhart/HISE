@@ -37,7 +37,7 @@ struct MIR_module;
 struct MIR_func;
 
 namespace snex {
-namespace jit {
+namespace mir {
 using namespace juce;
 
 struct InstructionCollection;

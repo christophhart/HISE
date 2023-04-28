@@ -313,7 +313,7 @@ void JitFileTestCase::initCompiler()
 	if (!nodeId.isValid())
 		Types::SnexObjectDatabase::registerObjects(c, 2);
 
-	MirObject::setLibraryFunctions(c.getFunctionMap());
+	mir::MirObject::setLibraryFunctions(c.getFunctionMap());
 }
 
 juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= false*/)
@@ -484,7 +484,7 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 				auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
                 auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(c.createDataLayouts());
                 
-				MirObject mobj;
+				mir::MirObject mobj;
                 mobj.setDataLayout(datab64);
                 
 				auto ok = mobj.compileMirCode(b64);
