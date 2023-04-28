@@ -1502,7 +1502,8 @@ struct InstructionParsers
 	{
 		auto& state = *state_;
 
-		state.processChildTree(0);
+        if(state.currentTree.getNumChildren() > 0)
+            state.processChildTree(0);
 
 		state.loopManager.emitInlinedReturn(state_);
 

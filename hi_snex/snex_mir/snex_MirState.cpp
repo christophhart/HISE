@@ -90,12 +90,13 @@ void LoopManager::pushInlineFunction(String& l, MIR_type_t type, const String& r
 
 void LoopManager::emitInlinedReturn(State* s)
 {
-	TextLine store(s);
+	
 	
 	auto l = inlineFunctionData.getLast();
 
 	if (l.returnReg.isNotEmpty())
 	{
+        TextLine store(s);
 		auto returnValue = s->registerManager.loadIntoRegister(0, RegisterType::Value);
 
 		store.instruction = TypeConverters::MirTypeAndToken2InstructionText(l.type, JitTokens::assign_);
@@ -635,7 +636,7 @@ snex::mir::TextOperand InlinerManager::emitInliner(const String& inlinerLabel, c
 	auto dTree = state->dataManager.getDataObject(className);
 	ValueTree fTree;
 
-	for (auto& m : dTree)
+	for (const auto& m : dTree)
 	{
 		DBG(m.createXml()->createDocument(""));
 		if (m.getType() == Identifier("Method") && m["ID"] == methodName)

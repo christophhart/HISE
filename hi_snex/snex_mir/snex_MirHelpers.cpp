@@ -361,6 +361,8 @@ String snex::mir::TypeConverters::MirTypeAndToken2InstructionText(MIR_type_t typ
 	intOps.set(JitTokens::lessThanOrEqual, "LES");
 	intOps.set(JitTokens::equals, "EQ");
 	intOps.set(JitTokens::notEquals, "NE");
+    intOps.set(JitTokens::logicalAnd, "AND");
+    intOps.set(JitTokens::logicalOr, "OR");
 
 	fltOps.set(JitTokens::assign_, "FMOV");
 	fltOps.set(JitTokens::plus, "FADD");
