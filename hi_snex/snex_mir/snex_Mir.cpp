@@ -3,7 +3,7 @@
 
 #define DEFINE_ID(x) static const Identifier x(#x);
 #define REGISTER_INLINER(x) currentState->inlinerManager.registerInliner(#x, InlinerFunctions::x);
-#define REGISTER_TYPE(X) currentState->registerFunction(InstructionIds::X, InstructionParsers::X);
+#define REGISTER_TYPE(X) currentState->registerInstruction(InstructionIds::X, InstructionParsers::X);
 
 #include "snex_MirHelpers.h"
 #include "snex_MirState.h"

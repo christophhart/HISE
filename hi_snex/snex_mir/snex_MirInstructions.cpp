@@ -31,7 +31,34 @@ namespace InstructionIds
 	DEFINE_ID(PointerAccess);
 }
 
-
+namespace InstructionPropertyIds
+{
+	DEFINE_ID(Signature);
+	DEFINE_ID(Source);
+	DEFINE_ID(Target);
+	DEFINE_ID(First);
+	DEFINE_ID(Type);
+	DEFINE_ID(Value);
+	DEFINE_ID(ScopeId);
+	DEFINE_ID(InitValues);
+	DEFINE_ID(Operand);
+	DEFINE_ID(NumElements);
+	DEFINE_ID(NumBytes);
+	DEFINE_ID(ObjectType);
+	DEFINE_ID(LoopType);
+	DEFINE_ID(Iterator);
+	DEFINE_ID(IsPre);
+	DEFINE_ID(IsDec);
+	DEFINE_ID(CallType);
+	DEFINE_ID(Ids);
+	DEFINE_ID(OpType);
+	DEFINE_ID(MemberInfo);
+	DEFINE_ID(ElementSize);
+	DEFINE_ID(ElementType);
+	DEFINE_ID(AssignmentType);
+	DEFINE_ID(command);
+	DEFINE_ID(Symbol);
+}
 
 struct InstructionParsers
 {
@@ -49,12 +76,12 @@ struct InstructionParsers
 			{
 				if (v.getType() == InstructionIds::FunctionCall)
 				{
-					auto sig = v.getProperty("Signature").toString();
+					auto sig = v[InstructionPropertyIds::Signature].toString();
 
 					if (!MirObject::isExternalFunction(sig))
 						return false;
 
-					if (v.getProperty("CallType").toString() == "MemberFunction")
+					if (v[InstructionPropertyIds::CallType].toString() == "MemberFunction")
 						memberSignatures.addIfNotAlreadyThere(sig);
 					else
 						staticSignatures.addIfNotAlreadyThere(sig);
@@ -66,13 +93,13 @@ struct InstructionParsers
 			for (const auto& c : memberSignatures)
 			{
 				auto f = TypeConverters::String2FunctionData(c);
-				state.addPrototype(f, true);
+				state.functionManager.addPrototype(&state, f, true);
 				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(f));
 			}
 			for (const auto& c : staticSignatures)
 			{
 				auto f = TypeConverters::String2FunctionData(c);
-				state.addPrototype(f, false);
+				state.functionManager.addPrototype(&state, f, false);
 				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(f));
 			}
 		}
@@ -88,11 +115,11 @@ struct InstructionParsers
 
 	static Result Function(State& state)
 	{
-		auto f = TypeConverters::String2FunctionData(state.getProperty("Signature"));
+		auto f = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
 
 		auto addObjectPtr = state.isParsingClass() && !f.returnType.isStatic();
 
-		state.addPrototype(f, addObjectPtr);
+		state.functionManager.addPrototype(&state, f, addObjectPtr);
 
 		TextLine line(&state);
 		line.label = TypeConverters::FunctionData2MirTextLabel(f);
@@ -127,7 +154,7 @@ struct InstructionParsers
 	{
 		if (state.currentTree.getNumChildren() != 0)
 		{
-			SimpleTypeParser p(state.getProperty("Type"));
+			SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
 			state.processChildTree(0);
 
@@ -153,7 +180,7 @@ struct InstructionParsers
 		TextLine line(&state);
 
 		auto type = state.getTypeForChild(0);
-		auto opType = state.getProperty("OpType");
+		auto opType = state[InstructionPropertyIds::OpType];
 
 		line.addAnonymousReg(type, RegisterType::Value);
 		line.instruction = TypeConverters::MirTypeAndToken2InstructionText(type, opType);
@@ -167,7 +194,7 @@ struct InstructionParsers
 
 	static Result VariableReference(State& state)
 	{
-		auto s = TypeConverters::String2Symbol(state.getProperty("Symbol"));
+		auto s = TypeConverters::String2Symbol(state[InstructionPropertyIds::Symbol]);
 
 		auto type = TypeConverters::SymbolToMirVar(s).type;
 
@@ -213,7 +240,7 @@ struct InstructionParsers
 
 	static Result Immediate(State& state)
 	{
-		auto v = state.getProperty("Value");
+		auto v = state[InstructionPropertyIds::Value];
 		auto id = Types::Helpers::getTypeFromStringValue(v);
 		auto type = TypeConverters::TypeInfo2MirType(TypeInfo(id, false, false));
 		state.registerCurrentTextOperand(v, type, RegisterType::Value);
@@ -225,8 +252,8 @@ struct InstructionParsers
 	{
 		state.processChildTree(0);
 
-		auto source = TypeConverters::String2MirType(state.getProperty("Source"));
-		auto target = TypeConverters::String2MirType(state.getProperty("Target"));
+		auto source = TypeConverters::String2MirType(state[InstructionPropertyIds::Source]);
+		auto target = TypeConverters::String2MirType(state[InstructionPropertyIds::Target]);
 
 		String x;
 
@@ -261,12 +288,12 @@ struct InstructionParsers
 
 		if (state.isParsingFunction)
 		{
-			auto opType = state.getProperty("AssignmentType");
+			auto opType = state[InstructionPropertyIds::AssignmentType];
 			auto t = state.getTypeForChild(0);
 
 			TextLine l(&state);
 
-			if (state.getProperty("First") == "1")
+			if (state[InstructionPropertyIds::First] == "1")
 			{
 				auto vt = state.getTypeForChild(1);
 				auto vrt = state.getRegisterTypeForChild(1);
@@ -333,7 +360,7 @@ struct InstructionParsers
 		state.processChildTree(0);
 		state.processChildTree(1);
 
-		auto opType = state.getProperty("OpType");
+		auto opType = state[InstructionPropertyIds::OpType];
 		auto type = state.getTypeForChild(0);
 
 		TextLine l(&state);
@@ -470,7 +497,7 @@ struct InstructionParsers
 		int bodyIndex = 1;
 		int postOpIndex = -1;
 
-		if (state.getProperty("LoopType") == "For")
+		if (state[InstructionPropertyIds::LoopType] == "For")
 		{
 			assignIndex = 0;
 			conditionIndex = 1;
@@ -514,8 +541,8 @@ struct InstructionParsers
 	{
 		state.processChildTree(0);
 
-		auto isPre = state.getProperty("IsPre") == "1";
-		auto isDec = state.getProperty("IsDec") == "1";
+		auto isPre = state[InstructionPropertyIds::IsPre] == "1";
+		auto isDec = state[InstructionPropertyIds::IsDec] == "1";
 
 		TextLine mov_l(&state);
 		mov_l.addAnonymousReg(MIR_T_I64, RegisterType::Value);
@@ -547,17 +574,17 @@ struct InstructionParsers
 	{
 		Array<Symbol> localSymbols;
 
-		auto scopeId = NamespacedIdentifier::fromString(state.getProperty("ScopeId"));
+		auto scopeId = NamespacedIdentifier::fromString(state[InstructionPropertyIds::ScopeId]);
 
 		TypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
 		{
-			if (v.getType() == InstructionIds::Assignment && v["First"].toString() == "1")
+			if (v.getType() == InstructionIds::Assignment && v[InstructionPropertyIds::First].toString() == "1")
 			{
 				auto c = v.getChild(1);
 
 				if (c.getType() == InstructionIds::VariableReference)
 				{
-					auto vSymbol = TypeConverters::String2Symbol(c.getProperty("Symbol").toString());
+					auto vSymbol = TypeConverters::String2Symbol(c[InstructionPropertyIds::Symbol].toString());
 
 					if (vSymbol.id.getParent() == scopeId)
 					{
@@ -586,7 +613,7 @@ struct InstructionParsers
 
 		state.processAllChildren();
 
-		SimpleTypeParser p(state.getProperty("Type"));
+		SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
 		if (p.getTypeInfo().isRef())
 		{
@@ -594,7 +621,7 @@ struct InstructionParsers
 
 			TextLine l(&state);
 
-			auto name = state.getProperty("Ids").upToLastOccurrenceOf(",", false, false);
+			auto name = state[InstructionPropertyIds::Ids].upToLastOccurrenceOf(",", false, false);
 
 			auto vn = TypeConverters::NamespacedIdentifier2MangledMirVar(NamespacedIdentifier::fromString(name));
 
@@ -611,7 +638,7 @@ struct InstructionParsers
 			if (!state.isParsingFunction)
 			{
 				// type copy with initialization
-				auto b64 = state.getProperty("InitValues");
+				auto b64 = state[InstructionPropertyIds::InitValues];
 
 				InitValueParser initParser(b64);
 
@@ -619,11 +646,11 @@ struct InstructionParsers
 
 				Symbol s;
 				s.typeInfo = TypeInfo(Types::ID::Pointer, true, false);
-				s.id = NamespacedIdentifier::fromString(state.getProperty("Ids").upToFirstOccurrenceOf(",", false, false).trim());
+				s.id = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
 
 				uint32 lastOffset = 0;
 
-				auto numBytes = (uint32)state.getProperty("NumBytes").getIntValue();
+				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
 
 				auto numBytesInParser = initParser.getNumBytesRequired();
 
@@ -696,11 +723,11 @@ struct InstructionParsers
 			else
 			{
 				// stack definition
-				auto numBytes = (uint32)state.getProperty("NumBytes").getIntValue();
+				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
 
 				bool something = numBytes != 0;
 
-				auto name = NamespacedIdentifier::fromString(state.getProperty("Ids").upToFirstOccurrenceOf(",", false, false).trim());
+				auto name = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
 				auto mn = TypeConverters::NamespacedIdentifier2MangledMirVar(name);
 
 				numBytes = state.allocateStack(mn, numBytes, true);
@@ -729,7 +756,7 @@ struct InstructionParsers
 				else
 				{
 					// static type copy with initialization values
-					auto b64 = state.getProperty("InitValues");
+					auto b64 = state[InstructionPropertyIds::InitValues];
 
 					InitValueParser initParser(b64);
 
@@ -806,7 +833,7 @@ struct InstructionParsers
 		state.processChildTree(0);
 		state.processChildTree(1);
 
-		auto t = TypeConverters::String2Symbol(state.getProperty("ElementType"));
+		auto t = TypeConverters::String2Symbol(state[InstructionPropertyIds::ElementType]);
 
 		auto mir_t = TypeConverters::TypeInfo2MirType(t.typeInfo);
 		auto tn = TypeConverters::TypeInfo2MirTextType(t.typeInfo);
@@ -835,7 +862,7 @@ struct InstructionParsers
 		scaleLine.instruction = "mul";
 		scaleLine.operands.add(idx_reg);
 		scaleLine.operands.add(idx_reg);
-		scaleLine.addImmOperand(state.getProperty("ElementSize").getIntValue());
+		scaleLine.addImmOperand(state[InstructionPropertyIds::ElementSize].getIntValue());
 		scaleLine.flush();
 
 		TextLine offset_l(&state);
@@ -856,7 +883,7 @@ struct InstructionParsers
 
 	static Result ControlFlowStatement(State& state)
 	{
-		auto command = state.getProperty("command");
+		auto command = state[InstructionPropertyIds::command];
 
 		TextLine l(&state);
 		l.instruction = "jmp";
@@ -874,7 +901,7 @@ struct InstructionParsers
 		state.loopManager.pushLoopLabels(startLabel, endLabel, unusedLabel);
 		
 		// create iterator variable with pointer type
-		auto iteratorSymbol = TypeConverters::String2Symbol(state.getProperty("Iterator"));
+		auto iteratorSymbol = TypeConverters::String2Symbol(state[InstructionPropertyIds::Iterator]);
 		auto type = TypeConverters::SymbolToMirVar(iteratorSymbol).type;
 		auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(iteratorSymbol.id);
 
@@ -898,12 +925,11 @@ struct InstructionParsers
 		// create anonymous end address variable with pointer type
 		auto endReg = state.registerManager.getAnonymousId(false);
 
-		auto elementSize = (int)state.currentTree.getProperty("ElementSize");
+		auto elementSize = state[InstructionPropertyIds::ElementSize].getIntValue();
 
-		if (state.getProperty("LoopType") == "Span")
+		if (state[InstructionPropertyIds::LoopType] == "Span")
 		{
-			int byteSize = elementSize *
-				(int)state.currentTree.getProperty("NumElements");
+			int byteSize = elementSize * state[InstructionPropertyIds::NumElements].getIntValue();
 
 			TextLine ii(&state);
 			ii.localDef << "i64:" << endReg;
@@ -971,12 +997,12 @@ struct InstructionParsers
 	{
 		state.processAllChildren();
 
-		auto sig = TypeConverters::String2FunctionData(state.getProperty("Signature"));
+		auto sig = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
 		auto fid = TypeConverters::FunctionData2MirTextLabel(sig);
 
-		if (state.hasPrototype(sig))
+		if (state.functionManager.hasPrototype(sig))
 		{
-			auto protoType = state.getPrototype(sig);
+			auto protoType = state.functionManager.getPrototype(sig);
 
 			TextLine l(&state);
 
@@ -993,7 +1019,7 @@ struct InstructionParsers
 
 			int argOffset = 0;
 
-			if (state.getProperty("CallType") == "MemberFunction")
+			if (state[InstructionPropertyIds::CallType] == "MemberFunction")
 			{
 				auto a = state.loadIntoRegister(0, RegisterType::Pointer);
 				l.operands.add(a);
@@ -1008,17 +1034,14 @@ struct InstructionParsers
 				if (isComplexType && !isRef)
 				{
 					// We need to copy the object on the stack and use the stack pointer as argument
-					auto argString = state.getProperty("Signature").fromFirstOccurrenceOf("(", false, false);
+					auto argString = state[InstructionPropertyIds::Signature].fromFirstOccurrenceOf("(", false, false);
 
 					for (int j = 0; j < i; j++)
 						argString = SimpleTypeParser(argString).getTrailingString().fromFirstOccurrenceOf(",", false, false);
 
 					SimpleTypeParser p(argString);
 
-					size_t numBytes = 0;
-
-					for (const auto&m : state.classTypes[p.getComplexTypeId().getIdentifier()])
-						numBytes = m.offset + Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(m.type));
+					auto numBytes = state.dataManager.getNumBytesRequired(p.getComplexTypeId().getIdentifier());
 
 					auto stackPtr = state.registerManager.getAnonymousId(false);
 
@@ -1101,19 +1124,10 @@ struct InstructionParsers
 		}
 		else
 		{
-			SimpleTypeParser p(state.getProperty("ObjectType"));
+			SimpleTypeParser p(state[InstructionPropertyIds::ObjectType]);
 			auto type = p.getComplexTypeId().toString();
 
-			ValueTree dataObject;
-
-			for (const auto& s : state.dataList)
-			{
-				if (s["ID"].toString() == type)
-				{
-					dataObject = s;
-					break;
-				}
-			}
+			auto dataObject = state.dataManager.getDataObject(type);
 
 			auto funcData = sig.createDataLayout(true);
 
@@ -1128,13 +1142,13 @@ struct InstructionParsers
 
 			for (int i = 0; i < jmin(numArgsAvailable, numArgsDefined); i++)
 			{
-				SimpleTypeParser p(funcData.getChild(i).getProperty("Type").toString());
+				SimpleTypeParser p(funcData.getChild(i)[InstructionPropertyIds::Type].toString());
 				auto t = p.getTypeInfo();
 				auto isRef = t.isRef() || t.getType() == Types::ID::Pointer;
 				auto registerType = isRef ? RegisterType::Pointer : RegisterType::Value;
 				auto a = state.loadIntoRegister(i, registerType);
 
-				funcData.getChild(i).setProperty("Operand", a, nullptr);
+				funcData.getChild(i).setProperty(InstructionPropertyIds::Operand, a, nullptr);
 			}
 
 			if (auto il = state.inlinerManager.getInliner(fid))
@@ -1163,7 +1177,7 @@ struct InstructionParsers
 
 	static Result ClassStatement(State& state)
 	{
-		auto members = StringArray::fromTokens(state.getProperty("MemberInfo"), "$", "");
+		auto members = StringArray::fromTokens(state[InstructionPropertyIds::MemberInfo], "$", "");
 
 		Array<MemberInfo> memberInfo;
 
@@ -1180,10 +1194,10 @@ struct InstructionParsers
 			memberInfo.add(item);
 		}
 
-		auto x = NamespacedIdentifier::fromString(state.getProperty("Type"));
+		auto x = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Type]);
 		auto className = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(x));
 
-		state.registerClass(className, std::move(memberInfo));
+		state.dataManager.registerClass(className, std::move(memberInfo));
 
 		state.numCurrentlyParsedClasses++;
 		state.processAllChildren();
@@ -1197,13 +1211,13 @@ struct InstructionParsers
 	{
 		state.processChildTree(0);
 
-		auto memberSymbol = TypeConverters::String2Symbol(state.getCurrentChild(1)["Symbol"].toString());
+		auto memberSymbol = TypeConverters::String2Symbol(state.getCurrentChild(1)[InstructionPropertyIds::Symbol].toString());
 
 		auto classId = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(memberSymbol.id.getParent()));
 		auto memberId = memberSymbol.id.getIdentifier().toString();
 		auto memberType = TypeConverters::Symbol2MirTextSymbol(memberSymbol);
 
-		for (const auto& m : state.classTypes[classId])
+		for (const auto& m : state.dataManager.getClassType(classId))
 		{
 			if (m.id == memberId)
 			{

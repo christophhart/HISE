@@ -154,56 +154,60 @@ struct RegisterManager
 	}
 };
 
+struct FunctionManager
+{
+	void addPrototype(State* state, const FunctionData& f, bool addObjectPointer);
+
+	bool hasPrototype(const FunctionData& sig) const;
+
+	String getPrototype(const FunctionData& sig) const;
+
+private:
+
+	Array<FunctionData> prototypes;
+};
+
+struct DataManager
+{
+	void setDataLayout(const String& b64);
+
+	void registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo);
+
+	ValueTree getDataObject(const String& type) const;
+
+	size_t getNumBytesRequired(const Identifier& id);
+
+	const Array<MemberInfo>& getClassType(const Identifier& id);
+
+private:
+
+	std::map<juce::Identifier, Array<MemberInfo>> classTypes;
+	Array<ValueTree> dataList;
+};
+
 struct State
 {
 	State() = default;
 
-	Array<ValueTree> dataList;
-
-	void setDataLayout(const String& b64);
-
+	LoopManager loopManager;
 	InlinerManager inlinerManager;
 	RegisterManager registerManager;
+	FunctionManager functionManager;
+	DataManager dataManager;
 
 	using ValueTreeFuncton = std::function<Result(State& state)>;
 
 	MIR_context_t ctx;
 	MIR_module_t currentModule = nullptr;
 	ValueTree currentTree;
+	std::map<juce::Identifier, ValueTreeFuncton> instructions;
 
-	void addPrototype(const std::string& functionName)
+	void registerInstruction(const Identifier& id, const ValueTreeFuncton& f)
 	{
-		String s(functionName);
-
-		auto tn = s.fromLastOccurrenceOf("_", false, false);
+		instructions.emplace(id, f);
 	}
 
-	void addPrototype(const FunctionData& f, bool addObjectPointer)
-	{
-		TextLine l(this);
-
-		l.label = "proto" + String(prototypes.size());
-		l.instruction = "proto";
-
-		if (f.returnType.isValid())
-			l.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType));
-
-		if (addObjectPointer)
-		{
-			l.operands.add("i64:_this_");
-		}
-
-		for (const auto& a : f.args)
-			l.operands.add(TypeConverters::Symbol2MirTextSymbol(a));
-
-		l.flush();
-		
-		prototypes.add(f);
-	}
-
-	Array<FunctionData> prototypes;
-
-	String getProperty(const Identifier& id) const
+	String operator[](const Identifier& id) const
 	{
 		if (!currentTree.hasProperty(id))
 		{
@@ -228,8 +232,6 @@ struct State
 		l.label = label;
 		l.flush();
 	}
-
-	LoopManager loopManager;
 
 	/** emmit noop will add a dummy op that will prevent a compile error if the next statement has a local definition. */
 	void emitLabel(const String& label)
@@ -264,13 +266,6 @@ struct State
 		}
 
 		return s;
-	}
-
-	std::map<juce::Identifier, Array<MemberInfo>> classTypes;
-
-	void registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
-	{
-		classTypes.emplace(id, memberInfo);
 	}
 
 	void emitMultiLineCopy(const String& targetPointerReg, const String& sourcePointerReg, int numBytesToCopy)
@@ -311,7 +306,6 @@ struct State
 		l.addImmOperand((int)numBytesToAllocate);
 		l.flush();
 		
-
 		return numBytesToAllocate;
 	}
 
@@ -401,12 +395,7 @@ struct State
 	Array<TextOperand> localOperands;
 	Array<TextOperand> globalOperands;
 
-	bool skipChildren = false;
-
-	void registerFunction(const Identifier& id, const ValueTreeFuncton& f)
-	{
-		functions.emplace(id, f);
-	}
+	
 
 	void processChildTree(int childIndex)
 	{
@@ -427,7 +416,7 @@ struct State
 	{
 		try
 		{
-			if (auto f = functions[v.getType()])
+			if (auto f = instructions[v.getType()])
 			{
 				currentTree = v;
 				return f(*this);
@@ -441,44 +430,7 @@ struct State
 		return Result::fail("unknown value tree type " + v.getType());
 	}
 
-	std::map<juce::Identifier, ValueTreeFuncton> functions;
-
-	bool hasPrototype(const FunctionData& sig) const
-	{
-		auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
-
-		for (const auto& p : prototypes)
-		{
-			auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
-
-			if (pLabel == thisLabel)
-				return true;
-		}
-
-		return false;
-	}
-
-	String getPrototype(const FunctionData& sig) const
-	{
-		auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
-
-		int l = 0;
-
-		for (const auto& p : prototypes)
-		{
-			auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
-
-			if (pLabel == thisLabel)
-			{
-				return "proto" + String(l);
-			}
-
-			l++;
-		}
-
-		throw String("prototype not found");
-	}
-
+	
 
 	/** Use this whenever you need a child operand as a register that might be a address.
 		This will take the address, emit a load operation and return a pointer instruction using the new register. */

@@ -91,7 +91,7 @@ MIR_module* MirBuilder::getModule() const
 
 void MirBuilder::setDataLayout(const String& b64)
 {
-    currentState->setDataLayout(b64);
+    currentState->dataManager.setDataLayout(b64);
 }
 
 String MirBuilder::getMirText() const

@@ -71,31 +71,6 @@ String LoopManager::makeLabel() const
 	return "L" + String(labelCounter++);
 }
 
-void State::setDataLayout(const String& b64)
-{
-	dataList = SyntaxTreeExtractor::getDataLayoutTrees(b64);
-
-	for (const auto& l : dataList)
-	{
-		Array<MemberInfo> members;
-
-		for (const auto& m : l)
-		{
-			if (m.getType() == Identifier("Member"))
-			{
-				auto id = m["ID"].toString();
-				auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
-				auto mir_type = TypeConverters::TypeInfo2MirType(TypeInfo(type));
-				auto offset = (size_t)(int)m["offset"];
-
-				members.add({ id, mir_type, offset });
-			}
-		}
-
-		classTypes.emplace(Identifier(l["ID"].toString()), std::move(members));
-	}
-}
-
 String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt)
 {
 	auto id = state->registerManager.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
@@ -216,6 +191,123 @@ void TextLine::flush()
 		flushed = true;
 		state->lines.add(*this);
 	}
+}
+
+void FunctionManager::addPrototype(State* state, const FunctionData& f, bool addObjectPointer)
+{
+	TextLine l(state);
+
+	l.label = "proto" + String(prototypes.size());
+	l.instruction = "proto";
+
+	if (f.returnType.isValid())
+		l.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType));
+
+	if (addObjectPointer)
+	{
+		l.operands.add("i64:_this_");
+	}
+
+	for (const auto& a : f.args)
+		l.operands.add(TypeConverters::Symbol2MirTextSymbol(a));
+
+	l.flush();
+
+	prototypes.add(f);
+}
+
+bool FunctionManager::hasPrototype(const FunctionData& sig) const
+{
+	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
+
+	for (const auto& p : prototypes)
+	{
+		auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
+
+		if (pLabel == thisLabel)
+			return true;
+	}
+
+	return false;
+}
+
+String FunctionManager::getPrototype(const FunctionData& sig) const
+{
+	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
+
+	int l = 0;
+
+	for (const auto& p : prototypes)
+	{
+		auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
+
+		if (pLabel == thisLabel)
+		{
+			return "proto" + String(l);
+		}
+
+		l++;
+	}
+
+	throw String("prototype not found");
+}
+
+void DataManager::setDataLayout(const String& b64)
+{
+	dataList = SyntaxTreeExtractor::getDataLayoutTrees(b64);
+
+	for (const auto& l : dataList)
+	{
+		Array<MemberInfo> members;
+
+		for (const auto& m : l)
+		{
+			if (m.getType() == Identifier("Member"))
+			{
+				auto id = m["ID"].toString();
+				auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
+				auto mir_type = TypeConverters::TypeInfo2MirType(TypeInfo(type));
+				auto offset = (size_t)(int)m["offset"];
+
+				members.add({ id, mir_type, offset });
+			}
+		}
+
+		classTypes.emplace(Identifier(l["ID"].toString()), std::move(members));
+	}
+}
+
+void DataManager::registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
+{
+	classTypes.emplace(id, memberInfo);
+}
+
+juce::ValueTree DataManager::getDataObject(const String& type) const
+{
+	for (const auto& s : dataList)
+	{
+		if (s["ID"].toString() == type)
+		{
+			return s;
+		}
+	}
+
+	return {};
+}
+
+size_t DataManager::getNumBytesRequired(const Identifier& id)
+{
+	size_t numBytes = 0;
+
+	for (const auto&m : classTypes[id])
+		numBytes = m.offset + Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(m.type));
+
+	return numBytes;
+}
+
+const juce::Array<snex::mir::MemberInfo>& DataManager::getClassType(const Identifier& id)
+{
+	return classTypes[id];
 }
 
 }
