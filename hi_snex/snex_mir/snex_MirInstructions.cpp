@@ -62,8 +62,9 @@ namespace InstructionPropertyIds
 
 struct InstructionParsers
 {
-	static Result SyntaxTree(State& state)
+	static Result SyntaxTree(State* state_)
 	{
+		auto& state = *state_;
 		auto isRoot = !state.currentTree.getParent().isValid();
 
 		if (isRoot)
@@ -112,8 +113,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Function(State& state)
+	static Result Function(State* state_)
 	{
+		auto& state = *state_;
 		auto f = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
 
 		auto addObjectPtr = state.isParsingClass() && !f.returnType.isStatic();
@@ -147,8 +149,10 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result ReturnStatement(State& state)
+	static Result ReturnStatement(State* state_)
 	{
+		auto& state = *state_;
+
 		if (state.currentTree.getNumChildren() != 0)
 		{
 			auto &rm = state.registerManager;
@@ -171,8 +175,10 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result BinaryOp(State& state)
+	static Result BinaryOp(State* state_)
 	{
+		auto& state = *state_;
+
 		auto& rm = state.registerManager;
 
 		state.processChildTree(0);
@@ -193,8 +199,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result VariableReference(State& state)
+	static Result VariableReference(State* state_)
 	{
+		auto& state = *state_;
 		auto s = TypeConverters::String2Symbol(state[InstructionPropertyIds::Symbol]);
 
 		auto type = TypeConverters::SymbolToMirVar(s).type;
@@ -239,8 +246,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Immediate(State& state)
+	static Result Immediate(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 
 		auto v = state[InstructionPropertyIds::Value];
@@ -251,8 +259,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Cast(State& state)
+	static Result Cast(State* state_)
 	{
+		auto& state = *state_;
 		state.processChildTree(0);
 
 		auto source = TypeConverters::String2MirType(state[InstructionPropertyIds::Source]);
@@ -278,8 +287,10 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Assignment(State& state)
+	static Result Assignment(State* state_)
 	{
+		auto& state = *state_;
+
 		if (state.isParsingClass() && !state.isParsingFunction())
 		{
 			// Skip class definitions (they are redundant)...
@@ -359,8 +370,10 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Comparison(State& state)
+	static Result Comparison(State* state_)
 	{
+		auto& state = *state_;
+
 		auto& rm = state.registerManager;
 		state.processChildTree(0);
 		state.processChildTree(1);
@@ -380,8 +393,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result TernaryOp(State& state)
+	static Result TernaryOp(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 
 		auto trueLabel = state.loopManager.makeLabel();
@@ -449,8 +463,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result IfStatement(State& state)
+	static Result IfStatement(State* state_)
 	{
+		auto& state = *state_;
 		auto hasFalseBranch = state.currentTree.getNumChildren() == 3;
 
 		auto falseLabel = hasFalseBranch ? state.loopManager.makeLabel() : "";
@@ -480,8 +495,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result LogicalNot(State& state)
+	static Result LogicalNot(State* state_)
 	{
+		auto& state = *state_;
 		state.processChildTree(0);
 
 		TextLine l(&state);
@@ -495,8 +511,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result WhileLoop(State& state)
+	static Result WhileLoop(State* state_)
 	{
+		auto& state = *state_;
 		String start_label, end_label, cond_label, post_label;
 
 		int assignIndex = -1;
@@ -544,8 +561,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Increment(State& state)
+	static Result Increment(State* state_)
 	{
+		auto& state = *state_;
 		state.processChildTree(0);
 
 		auto isPre = state[InstructionPropertyIds::IsPre] == "1";
@@ -577,8 +595,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result StatementBlock(State& state)
+	static Result StatementBlock(State* state_)
 	{
+		auto& state = *state_;
 		Array<Symbol> localSymbols;
 
 		auto scopeId = NamespacedIdentifier::fromString(state[InstructionPropertyIds::ScopeId]);
@@ -609,8 +628,10 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result ComplexTypeDefinition(State& state)
+	static Result ComplexTypeDefinition(State* state_)
 	{
+		auto& state = *state_;
+
 		if (state.isParsingClass() && !state.isParsingFunction())
 		{
 			// Skip complex type definitions on the class level,
@@ -836,8 +857,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Subscript(State& state)
+	static Result Subscript(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 
 		state.processChildTree(0);
@@ -886,13 +908,14 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result InternalProperty(State& state)
+	static Result InternalProperty(State* state_)
 	{
 		return Result::ok();
 	}
 
-	static Result ControlFlowStatement(State& state)
+	static Result ControlFlowStatement(State* state_)
 	{
+		auto& state = *state_;
 		auto command = state[InstructionPropertyIds::command];
 
 		TextLine l(&state);
@@ -904,8 +927,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result Loop(State& state)
+	static Result Loop(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 		String startLabel, endLabel, unusedLabel;
 
@@ -1004,8 +1028,9 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result FunctionCall(State& state)
+	static Result FunctionCall(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 		state.processAllChildren();
 
@@ -1185,8 +1210,9 @@ struct InstructionParsers
 		return Result::ok();
 	};
 
-	static Result ClassStatement(State& state)
+	static Result ClassStatement(State* state_)
 	{
+		auto& state = *state_;
 		auto members = StringArray::fromTokens(state[InstructionPropertyIds::MemberInfo], "$", "");
 
 		Array<MemberInfo> memberInfo;
@@ -1207,18 +1233,17 @@ struct InstructionParsers
 		auto x = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Type]);
 		auto className = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(x));
 
-		state.dataManager.registerClass(className, std::move(memberInfo));
-
-		state.numCurrentlyParsedClasses++;
+		state.dataManager.startClass(className, std::move(memberInfo));
 		state.processAllChildren();
-		state.numCurrentlyParsedClasses--;
-
+		state.dataManager.endClass();
+		
 		// Nothing to do for now, maybe we need to parse the functions, yo...
 		return Result::ok();
 	}
 
-	static Result Dot(State& state)
+	static Result Dot(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 
 		state.processChildTree(0);
@@ -1253,15 +1278,17 @@ struct InstructionParsers
 		return Result::ok();
 	}
 
-	static Result ThisPointer(State& state)
+	static Result ThisPointer(State* state_)
 	{
+		auto& state = *state_;
 		state.registerManager.registerCurrentTextOperand("_this_", MIR_T_P, RegisterType::Value);
 
 		return Result::ok();
 	}
 
-	static Result PointerAccess(State& state)
+	static Result PointerAccess(State* state_)
 	{
+		auto& state = *state_;
 		auto& rm = state.registerManager;
 		state.processChildTree(0);
 

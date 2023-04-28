@@ -102,11 +102,8 @@ struct LoopManager
 	~LoopManager();
 
 	void pushLoopLabels(String& startLabel, String& endLabel, String& continueLabel);
-
 	String getCurrentLabel(const String& instructionId);
-
 	void popLoopLabels();
-
 	String makeLabel() const;
 
 private:
@@ -146,9 +143,6 @@ struct RegisterManager
 {
 	RegisterManager(State* state);
 
-	mutable int counter = 0;
-	State* state;
-
 	String getAnonymousId(bool isFloat) const;
 
 	void emitMultiLineCopy(const String& targetPointerReg, const String& sourcePointerReg, int numBytesToCopy);
@@ -171,19 +165,25 @@ struct RegisterManager
 
 	void startFunction()
 	{
-		isParsingFunction = true;
+		currentlyParsingFunction = true;
 	}
 
 	void endFunction()
 	{
-		isParsingFunction = false;
+		currentlyParsingFunction = false;
 		localOperands.clear();
 	}
 
 	Array<TextOperand> localOperands;
 	Array<TextOperand> globalOperands;
 
-	bool isParsingFunction = false;
+	bool isParsingFunction() const { return currentlyParsingFunction; };
+
+private:
+
+	mutable int counter = 0;
+	State* state;
+	bool currentlyParsingFunction = false;
 };
 
 struct FunctionManager
@@ -203,6 +203,10 @@ struct DataManager
 {
 	void setDataLayout(const String& b64);
 
+	void startClass(const Identifier& id, Array<MemberInfo>&& memberInfo);
+
+	void endClass();
+
 	void registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo);
 
 	ValueTree getDataObject(const String& type) const;
@@ -211,10 +215,29 @@ struct DataManager
 
 	const Array<MemberInfo>& getClassType(const Identifier& id);
 
+	bool isParsingClass() const { return numCurrentlyParsedClasses > 0; }
+
 private:
 
+	int numCurrentlyParsedClasses = 0;
 	std::map<juce::Identifier, Array<MemberInfo>> classTypes;
 	Array<ValueTree> dataList;
+};
+
+struct InstructionManager
+{
+	using ValueTreeFuncton = std::function<Result(State* state)>;
+
+	void registerInstruction(const Identifier& id, const ValueTreeFuncton& f)
+	{
+		instructions.emplace(id, f);
+	}
+
+	Result perform(State* state, const ValueTree& v);
+
+private:
+
+	std::map<juce::Identifier, ValueTreeFuncton> instructions;
 };
 
 struct State
@@ -228,126 +251,29 @@ struct State
 	RegisterManager registerManager;
 	FunctionManager functionManager;
 	DataManager dataManager;
-
-	using ValueTreeFuncton = std::function<Result(State& state)>;
+	InstructionManager instructionManager;
 
 	MIR_context_t ctx;
 	MIR_module_t currentModule = nullptr;
 	ValueTree currentTree;
-	std::map<juce::Identifier, ValueTreeFuncton> instructions;
-
-	void registerInstruction(const Identifier& id, const ValueTreeFuncton& f)
-	{
-		instructions.emplace(id, f);
-	}
-
-	String operator[](const Identifier& id) const
-	{
-		if (!currentTree.hasProperty(id))
-		{
-			dump();
-			throw String("No property " + id.toString());
-		}
-
-		return currentTree[id].toString();
-	}
-
-	void dump() const
-	{
-		DBG(currentTree.createXml()->createDocument(""));
-	}
-
+	
 	Array<TextLine> lines;
 
-	void emitSingleInstruction(const String& instruction, const String& label = {})
-	{
-		TextLine l(this);
-		l.instruction = instruction;
-		l.label = label;
-		l.flush();
-	}
+	String operator[](const Identifier& id) const;
 
-	/** emmit noop will add a dummy op that will prevent a compile error if the next statement has a local definition. */
-	void emitLabel(const String& label)
-	{
-		TextLine noop(this);
-		noop.label = label;
-		noop.instruction = "bt";
-		noop.operands.add(label);
-		noop.addImmOperand(0);
-		noop.appendComment("noop");
-		noop.flush();
-	}
+	void dump() const;
+	void emitSingleInstruction(const String& instruction, const String& label = {});
+	void emitLabel(const String& label);
 
-	String toString(bool addTabs)
-	{
-		String s;
+	bool isParsingClass() const { return dataManager.isParsingClass(); };
+	bool isParsingFunction() const { return registerManager.isParsingFunction(); }
 
-		if (!addTabs)
-		{
-			for (const auto& l : lines)
-				s << l.toLine(-1) << "\n";
-		}
-		else
-		{
-			int maxLabelLength = -1;
+	ValueTree getCurrentChild(int index);
+	void processChildTree(int childIndex);
+	void processAllChildren();
+	Result processTreeElement(const ValueTree& v);
 
-			for (const auto& l : lines)
-				maxLabelLength = jmax(maxLabelLength, l.getLabelLength());
-
-			for (const auto& l : lines)
-				s << l.toLine(maxLabelLength) << "\n";
-		}
-
-		return s;
-	}
-
-	ValueTree getCurrentChild(int index)
-	{
-		if (index == -1)
-			return currentTree;
-		else
-			return currentTree.getChild(index);
-	}
-
-	int numCurrentlyParsedClasses = 0;
-
-	bool isParsingClass() const { return numCurrentlyParsedClasses > 0; };
-
-	bool isParsingFunction() const { return registerManager.isParsingFunction; }
-
-	void processChildTree(int childIndex)
-	{
-		ScopedValueSetter<ValueTree> svs(currentTree, currentTree.getChild(childIndex));
-		auto ok = processTreeElement(currentTree);
-
-		if (ok.failed())
-			throw ok.getErrorMessage();
-	}
-
-	void processAllChildren()
-	{
-		for (int i = 0; i < currentTree.getNumChildren(); i++)
-			processChildTree(i);
-	}
-
-	Result processTreeElement(const ValueTree& v)
-	{
-		try
-		{
-			if (auto f = instructions[v.getType()])
-			{
-				currentTree = v;
-				return f(*this);
-			}
-		}
-		catch (String& e)
-		{
-			return Result::fail(e);
-		}
-
-		return Result::fail("unknown value tree type " + v.getType());
-	}
+	String toString(bool addTabs);
 };
 
 }

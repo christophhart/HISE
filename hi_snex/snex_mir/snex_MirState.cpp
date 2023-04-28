@@ -279,9 +279,15 @@ void DataManager::setDataLayout(const String& b64)
 	}
 }
 
-void DataManager::registerClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
+void DataManager::startClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
 {
 	classTypes.emplace(id, memberInfo);
+	numCurrentlyParsedClasses++;
+}
+
+void DataManager::endClass()
+{
+	numCurrentlyParsedClasses--;
 }
 
 juce::ValueTree DataManager::getDataObject(const String& type) const
@@ -368,7 +374,7 @@ int RegisterManager::allocateStack(const String& targetName, int numBytes, bool 
 
 void RegisterManager::registerCurrentTextOperand(String n, MIR_type_t type, RegisterType rt)
 {
-	if (isParsingFunction)
+	if (isParsingFunction())
 		localOperands.add({ state->currentTree, n, {}, type, rt });
 	else
 		globalOperands.add({ state->currentTree, n, {}, type, rt });
@@ -468,6 +474,114 @@ String RegisterManager::getOperandForChild(int index, RegisterType requiredType)
 	{
 		return t.stackPtr.isNotEmpty() ? t.stackPtr : t.text;
 	}
+}
+
+
+
+String State::operator[](const Identifier& id) const
+{
+	if (!currentTree.hasProperty(id))
+	{
+		dump();
+		throw String("No property " + id.toString());
+	}
+
+	return currentTree[id].toString();
+}
+
+void State::dump() const
+{
+	DBG(currentTree.createXml()->createDocument(""));
+}
+
+void State::emitSingleInstruction(const String& instruction, const String& label /*= {}*/)
+{
+	TextLine l(this);
+	l.instruction = instruction;
+	l.label = label;
+	l.flush();
+}
+
+void State::emitLabel(const String& label)
+{
+	TextLine noop(this);
+	noop.label = label;
+	noop.instruction = "bt";
+	noop.operands.add(label);
+	noop.addImmOperand(0);
+	noop.appendComment("noop");
+	noop.flush();
+}
+
+String State::toString(bool addTabs)
+{
+	String s;
+
+	if (!addTabs)
+	{
+		for (const auto& l : lines)
+			s << l.toLine(-1) << "\n";
+	}
+	else
+	{
+		int maxLabelLength = -1;
+
+		for (const auto& l : lines)
+			maxLabelLength = jmax(maxLabelLength, l.getLabelLength());
+
+		for (const auto& l : lines)
+			s << l.toLine(maxLabelLength) << "\n";
+	}
+
+	return s;
+}
+
+juce::ValueTree State::getCurrentChild(int index)
+{
+	if (index == -1)
+		return currentTree;
+	else
+		return currentTree.getChild(index);
+}
+
+void State::processChildTree(int childIndex)
+{
+	ScopedValueSetter<ValueTree> svs(currentTree, currentTree.getChild(childIndex));
+	auto ok = processTreeElement(currentTree);
+
+	if (ok.failed())
+		throw ok.getErrorMessage();
+}
+
+void State::processAllChildren()
+{
+	for (int i = 0; i < currentTree.getNumChildren(); i++)
+		processChildTree(i);
+}
+
+juce::Result State::processTreeElement(const ValueTree& v)
+{
+	try
+	{
+		currentTree = v;
+		return instructionManager.perform(this, v);
+	}
+	catch (String& e)
+	{
+		return Result::fail(e);
+	}
+
+	return Result::fail("unknown value tree type " + v.getType());
+}
+
+juce::Result InstructionManager::perform(State* state, const ValueTree& v)
+{
+	if (auto f = instructions[v.getType()])
+	{
+		return f(state);
+	}
+
+	throw String("no instruction found");
 }
 
 }
