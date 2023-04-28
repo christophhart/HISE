@@ -129,6 +129,42 @@ struct Compiler
 
 #endif
 
+#define HNODE_JIT_OPERATORS(X) \
+    X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
+    X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
+    X(openBracket,   "[")        X(closeBracket, "]")       X(double_colon, "::")   X(colon,        ":")    X(question,   "?") \
+    X(typeEquals,    "===")      X(equals,       "==")      X(assign_,       "=") \
+    X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
+    X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") X(pointer_, "->") \
+    X(minusEquals,   "-=")       X(minusminus,   "--")      X(minus,        "-") \
+    X(timesEquals,   "*=")       X(times,        "*")       X(divideEquals, "/=")   X(divide,     "/") \
+    X(moduloEquals,  "%=")       X(modulo,       "%")       X(xorEquals,    "^=")   X(bitwiseXor, "^") \
+    X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
+    X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|")  \
+     X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
+      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$") 
+
+#define HNODE_JIT_KEYWORDS(X) \
+    X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
+    X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
+	X(void_, "void")			X(public_, "public")	X(private_, "private") \
+	X(class_, "class")			X(for_, "for")      X(enum_, "enum") \
+	X(if_, "if")				X(else_, "else")	X(protected_, "protected") \
+	X(auto_, "auto")			X(struct_, "struct")	\
+	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
+	X(template_, "template")    X(typename_, "typename") X(while_, "while") \
+	X(__internal_property, "__internal_property"); X(this_, "this"); X(operator_, "operator")
+
+namespace JitTokens
+{
+#define DECLARE_HNODE_JIT_TOKEN(name, str)  static const char* const name = str;
+	HNODE_JIT_KEYWORDS(DECLARE_HNODE_JIT_TOKEN)
+		HNODE_JIT_OPERATORS(DECLARE_HNODE_JIT_TOKEN)
+		DECLARE_HNODE_JIT_TOKEN(eof, "$eof")
+	DECLARE_HNODE_JIT_TOKEN(literal, "$literal")
+	DECLARE_HNODE_JIT_TOKEN(identifier, "$identifier")
+}
+
 
 namespace snex
 {
@@ -240,7 +276,6 @@ namespace snex
 #include "snex_core/snex_jit_Inliner.h"
 #include "snex_public/snex_jit_FunctionData.h"
 #include "snex_mir/snex_MirObject.h"
-#include "snex_mir/snex_MirBuilder.h"
 #include "snex_core/snex_jit_FunctionClass.h"
 #include "snex_core/snex_jit_NamespaceHandler.h"
 #include "snex_core/snex_jit_BaseScope.h"
