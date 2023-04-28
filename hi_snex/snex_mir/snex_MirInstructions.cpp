@@ -104,7 +104,6 @@ struct InstructionParsers
 			}
 		}
 
-
 		state.processAllChildren();
 
 		if (isRoot)
@@ -138,14 +137,12 @@ struct InstructionParsers
 
 		line.flush();
 
-		state.isParsingFunction = true;
+		state.registerManager.startFunction();
 		state.processChildTree(0);
-		state.isParsingFunction = false;
+		state.registerManager.endFunction();
 
 		state.emitSingleInstruction("endfunc");
 		state.emitSingleInstruction("export " + line.label);
-
-		state.localOperands.clear();
 
 		return Result::ok();
 	}
@@ -154,6 +151,8 @@ struct InstructionParsers
 	{
 		if (state.currentTree.getNumChildren() != 0)
 		{
+			auto &rm = state.registerManager;
+
 			SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
 			state.processChildTree(0);
@@ -161,7 +160,7 @@ struct InstructionParsers
 			TextLine line(&state);
 			line.instruction = "ret";
 
-			line.operands.add(state.loadIntoRegister(0, p.getTypeInfo().isRef() ? RegisterType::Pointer : RegisterType::Value));
+			line.operands.add(rm.loadIntoRegister(0, p.getTypeInfo().isRef() ? RegisterType::Pointer : RegisterType::Value));
 			line.flush();
 		}
 		else
@@ -174,12 +173,14 @@ struct InstructionParsers
 
 	static Result BinaryOp(State& state)
 	{
+		auto& rm = state.registerManager;
+
 		state.processChildTree(0);
 		state.processChildTree(1);
 
 		TextLine line(&state);
 
-		auto type = state.getTypeForChild(0);
+		auto type = rm.getTypeForChild(0);
 		auto opType = state[InstructionPropertyIds::OpType];
 
 		line.addAnonymousReg(type, RegisterType::Value);
@@ -197,30 +198,30 @@ struct InstructionParsers
 		auto s = TypeConverters::String2Symbol(state[InstructionPropertyIds::Symbol]);
 
 		auto type = TypeConverters::SymbolToMirVar(s).type;
+		auto& rm = state.registerManager;
+		auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(s.id);
 
-		if (state.isParsingFunction)
+		if (state.isParsingFunction())
 		{
-			auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(s.id);
-
-			for (auto& t : state.localOperands)
+			for (auto& t : rm.localOperands)
 			{
 				if (t.text == mvn)
 				{
 					auto copy = t;
 					copy.v = state.currentTree;
-					state.localOperands.add(copy);
+					rm.localOperands.add(copy);
 
 					return Result::ok();
 				}
 			}
 
-			for (auto& t : state.globalOperands)
+			for (auto& t : rm.globalOperands)
 			{
 				if (t.text == mvn)
 				{
 					auto copy = t;
 					copy.v = state.currentTree;
-					state.globalOperands.add(copy);
+					rm.globalOperands.add(copy);
 
 					return Result::ok();
 				}
@@ -228,11 +229,11 @@ struct InstructionParsers
 
 			auto isRef = s.typeInfo.isRef();
 
-			state.registerCurrentTextOperand(mvn, type, isRef ? RegisterType::Pointer : RegisterType::Value);
+			rm.registerCurrentTextOperand(mvn, type, isRef ? RegisterType::Pointer : RegisterType::Value);
 		}
 		else
 		{
-			state.registerCurrentTextOperand(TypeConverters::NamespacedIdentifier2MangledMirVar(s.id), type, RegisterType::Pointer);
+			rm.registerCurrentTextOperand(mvn, type, RegisterType::Pointer);
 		}
 
 		return Result::ok();
@@ -240,10 +241,12 @@ struct InstructionParsers
 
 	static Result Immediate(State& state)
 	{
+		auto& rm = state.registerManager;
+
 		auto v = state[InstructionPropertyIds::Value];
 		auto id = Types::Helpers::getTypeFromStringValue(v);
 		auto type = TypeConverters::TypeInfo2MirType(TypeInfo(id, false, false));
-		state.registerCurrentTextOperand(v, type, RegisterType::Value);
+		rm.registerCurrentTextOperand(v, type, RegisterType::Value);
 
 		return Result::ok();
 	}
@@ -277,35 +280,36 @@ struct InstructionParsers
 
 	static Result Assignment(State& state)
 	{
-		if (state.isParsingClass() && !state.isParsingFunction)
+		if (state.isParsingClass() && !state.isParsingFunction())
 		{
 			// Skip class definitions (they are redundant)...
 			return Result::ok();
 		}
 
+		auto& rm = state.registerManager;
 		state.processChildTree(0);
 		state.processChildTree(1);
 
-		if (state.isParsingFunction)
+		if (state.isParsingFunction())
 		{
 			auto opType = state[InstructionPropertyIds::AssignmentType];
-			auto t = state.getTypeForChild(0);
+			auto t = rm.getTypeForChild(0);
 
 			TextLine l(&state);
 
 			if (state[InstructionPropertyIds::First] == "1")
 			{
-				auto vt = state.getTypeForChild(1);
-				auto vrt = state.getRegisterTypeForChild(1);
+				auto vt = rm.getTypeForChild(1);
+				auto vrt = rm.getRegisterTypeForChild(1);
 
 				if (vrt == RegisterType::Pointer)
 				{
 					jassert(opType == JitTokens::assign_);
-					jassert(state.getRegisterTypeForChild(1) == RegisterType::Pointer);
+					jassert(rm.getRegisterTypeForChild(1) == RegisterType::Pointer);
 
-					auto name = state.getOperandForChild(1, RegisterType::Pointer);
+					auto name = rm.getOperandForChild(1, RegisterType::Pointer);
 
-					state.registerCurrentTextOperand(name, t, RegisterType::Pointer);
+					rm.registerCurrentTextOperand(name, t, RegisterType::Pointer);
 					l.localDef << "i64:" << name;
 					l.instruction = "mov";
 
@@ -317,8 +321,8 @@ struct InstructionParsers
 					return Result::ok();
 				}
 
-				l.localDef << TypeConverters::MirType2MirTextType(state.getTypeForChild(1));
-				l.localDef << ":" << state.getOperandForChild(1, RegisterType::Raw);
+				l.localDef << TypeConverters::MirType2MirTextType(rm.getTypeForChild(1));
+				l.localDef << ":" << rm.getOperandForChild(1, RegisterType::Raw);
 			}
 
 			//l.addAnonymousReg(state, t, State::RegisterType::Value);
@@ -344,8 +348,8 @@ struct InstructionParsers
 			e.addOperands({ 1 }, { RegisterType::Raw });
 			e.flush();
 			TextLine l(&state);
-			l.label = state.getOperandForChild(1, RegisterType::Raw);
-			l.instruction = TypeConverters::MirType2MirTextType(state.getTypeForChild(1));
+			l.label = rm.getOperandForChild(1, RegisterType::Raw);
+			l.instruction = TypeConverters::MirType2MirTextType(rm.getTypeForChild(1));
 			l.instruction;
 			l.addOperands({ 0 });
 			l.appendComment("global def ");
@@ -357,11 +361,12 @@ struct InstructionParsers
 
 	static Result Comparison(State& state)
 	{
+		auto& rm = state.registerManager;
 		state.processChildTree(0);
 		state.processChildTree(1);
 
 		auto opType = state[InstructionPropertyIds::OpType];
-		auto type = state.getTypeForChild(0);
+		auto type = rm.getTypeForChild(0);
 
 		TextLine l(&state);
 		l.addAnonymousReg(MIR_T_I64, RegisterType::Value);
@@ -377,6 +382,8 @@ struct InstructionParsers
 
 	static Result TernaryOp(State& state)
 	{
+		auto& rm = state.registerManager;
+
 		auto trueLabel = state.loopManager.makeLabel();
 		auto falseLabel = state.loopManager.makeLabel();
 		auto endLabel = state.loopManager.makeLabel();
@@ -394,8 +401,8 @@ struct InstructionParsers
 		// emit the true branch
 		state.processChildTree(1);
 
-		auto registerType = state.getRegisterTypeForChild(1);
-		auto type = state.getTypeForChild(1);
+		auto registerType = rm.getRegisterTypeForChild(1);
+		auto type = rm.getTypeForChild(1);
 
 		TextLine tl(&state);
 		tl.addAnonymousReg(type, registerType);
@@ -604,20 +611,21 @@ struct InstructionParsers
 
 	static Result ComplexTypeDefinition(State& state)
 	{
-		if (state.isParsingClass() && !state.isParsingFunction)
+		if (state.isParsingClass() && !state.isParsingFunction())
 		{
 			// Skip complex type definitions on the class level,
 			// they are embedded into the init values already
 			return Result::ok();
 		}
 
+		auto& rm = state.registerManager;
 		state.processAllChildren();
 
 		SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
 		if (p.getTypeInfo().isRef())
 		{
-			auto t = state.getTypeForChild(0);
+			auto t = rm.getTypeForChild(0);
 
 			TextLine l(&state);
 
@@ -625,7 +633,7 @@ struct InstructionParsers
 
 			auto vn = TypeConverters::NamespacedIdentifier2MangledMirVar(NamespacedIdentifier::fromString(name));
 
-			state.registerCurrentTextOperand(vn, t, RegisterType::Pointer);
+			rm.registerCurrentTextOperand(vn, t, RegisterType::Pointer);
 
 			l.localDef << "i64:" << vn;
 			l.instruction = "mov";
@@ -635,7 +643,7 @@ struct InstructionParsers
 		}
 		else
 		{
-			if (!state.isParsingFunction)
+			if (!state.isParsingFunction())
 			{
 				// type copy with initialization
 				auto b64 = state[InstructionPropertyIds::InitValues];
@@ -730,7 +738,7 @@ struct InstructionParsers
 				auto name = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
 				auto mn = TypeConverters::NamespacedIdentifier2MangledMirVar(name);
 
-				numBytes = state.allocateStack(mn, numBytes, true);
+				numBytes = rm.allocateStack(mn, numBytes, true);
 
 				auto hasDynamicInitialisation = state.currentTree.getNumChildren() != 0;
 
@@ -743,9 +751,9 @@ struct InstructionParsers
 
 						state.processChildTree(0);
 
-						auto src = state.loadIntoRegister(0, RegisterType::Pointer);
+						auto src = rm.loadIntoRegister(0, RegisterType::Pointer);
 
-						state.emitMultiLineCopy(mn, src, numBytes);
+						rm.emitMultiLineCopy(mn, src, numBytes);
 					}
 					else
 					{
@@ -769,7 +777,7 @@ struct InstructionParsers
 							TextLine il(&state);
 							auto t = TypeConverters::TypeInfo2MirType(TypeInfo(type));
 							il.instruction = TypeConverters::MirTypeAndToken2InstructionText(t, JitTokens::assign_);
-							auto p = state.getOperandForChild(-1, RegisterType::Raw);
+							auto p = rm.getOperandForChild(-1, RegisterType::Raw);
 							auto mir_t = TypeConverters::MirType2MirTextType(t);
 
 							// use 4 bytes for integer initialisation...
@@ -830,6 +838,8 @@ struct InstructionParsers
 
 	static Result Subscript(State& state)
 	{
+		auto& rm = state.registerManager;
+
 		state.processChildTree(0);
 		state.processChildTree(1);
 
@@ -847,7 +857,7 @@ struct InstructionParsers
 		l.instruction = "mov";
 		l.addOperands({ -1, 0 }, { RegisterType::Pointer, RegisterType::Pointer });
 		String comment;
-		comment << self << " = " << state.getOperandForChild(0, RegisterType::Raw) << "[" << state.getOperandForChild(1, RegisterType::Raw) << "]";
+		comment << self << " = " << rm.getOperandForChild(0, RegisterType::Raw) << "[" << rm.getOperandForChild(1, RegisterType::Raw) << "]";
 		l.appendComment(comment);
 		l.flush();
 
@@ -896,6 +906,7 @@ struct InstructionParsers
 
 	static Result Loop(State& state)
 	{
+		auto& rm = state.registerManager;
 		String startLabel, endLabel, unusedLabel;
 
 		state.loopManager.pushLoopLabels(startLabel, endLabel, unusedLabel);
@@ -909,7 +920,7 @@ struct InstructionParsers
 
 		state.processChildTree(0);
 
-		state.registerCurrentTextOperand(mvn, type, isRef ? RegisterType::Pointer :
+		rm.registerCurrentTextOperand(mvn, type, isRef ? RegisterType::Pointer :
 			RegisterType::Value);
 
 		// If the iterator is not a reference, we'll create another register for the address
@@ -995,6 +1006,7 @@ struct InstructionParsers
 
 	static Result FunctionCall(State& state)
 	{
+		auto& rm = state.registerManager;
 		state.processAllChildren();
 
 		auto sig = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
@@ -1014,14 +1026,14 @@ struct InstructionParsers
 			{
 				auto rrt = sig.returnType.isRef() ? RegisterType::Pointer : RegisterType::Value;
 				l.addAnonymousReg(TypeConverters::TypeInfo2MirType(sig.returnType), rrt);
-				l.operands.add(state.getOperandForChild(-1, rrt));
+				l.operands.add(rm.getOperandForChild(-1, rrt));
 			}
 
 			int argOffset = 0;
 
 			if (state[InstructionPropertyIds::CallType] == "MemberFunction")
 			{
-				auto a = state.loadIntoRegister(0, RegisterType::Pointer);
+				auto a = state.registerManager.loadIntoRegister(0, RegisterType::Pointer);
 				l.operands.add(a);
 				argOffset = 1;
 			}
@@ -1045,28 +1057,28 @@ struct InstructionParsers
 
 					auto stackPtr = state.registerManager.getAnonymousId(false);
 
-					numBytes = state.allocateStack(stackPtr, numBytes, false);
-					auto source = state.loadIntoRegister(i + argOffset, RegisterType::Pointer);
-					state.emitMultiLineCopy(stackPtr, source, numBytes);
+					numBytes = rm.allocateStack(stackPtr, numBytes, false);
+					auto source = rm.loadIntoRegister(i + argOffset, RegisterType::Pointer);
+					rm.emitMultiLineCopy(stackPtr, source, numBytes);
 					l.operands.add(stackPtr);
 				}
 				else
 				{
 					if (isRef)
 					{
-						auto rt = state.getRegisterTypeForChild(i + argOffset);
-						auto tp = state.getTypeForChild(i + argOffset);
+						auto rt = rm.getRegisterTypeForChild(i + argOffset);
+						auto tp = rm.getTypeForChild(i + argOffset);
 
 						if (rt == RegisterType::Value && tp != MIR_T_P)
 						{
 							// We need to copy the value from the register to the stack
 
 
-							auto mir_t = state.getTypeForChild(i + argOffset);
+							auto mir_t = rm.getTypeForChild(i + argOffset);
 
-							auto stackPtr = state.registerManager.getAnonymousId(false);
+							auto stackPtr = rm.getAnonymousId(false);
 
-							state.allocateStack(stackPtr, Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(mir_t)), false);
+							rm.allocateStack(stackPtr, Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(mir_t)), false);
 
 							TextLine mv(&state);
 							mv.instruction = TypeConverters::MirTypeAndToken2InstructionText(mir_t, JitTokens::assign_);
@@ -1080,9 +1092,9 @@ struct InstructionParsers
 							mv.appendComment("Move register to stack");
 							mv.flush();
 							
-							auto registerToSpill = state.getOperandForChild(i + argOffset, RegisterType::Value);
+							auto registerToSpill = rm.getOperandForChild(i + argOffset, RegisterType::Value);
 
-							for (auto& l : state.localOperands)
+							for (auto& l : rm.localOperands)
 							{
 								if (l.text == registerToSpill)
 								{
@@ -1099,24 +1111,22 @@ struct InstructionParsers
 							if (tp == MIR_T_P)
 							{
 								// it's already loaded into a register
-								auto a = state.getOperandForChild(i + argOffset, RegisterType::Pointer);
+								auto a = rm.getOperandForChild(i + argOffset, RegisterType::Pointer);
 								l.operands.add(a);
 							}
 							else
 							{
 								// make sure the adress is loaded into a register
-								auto a = state.loadIntoRegister(i + argOffset, RegisterType::Pointer);
+								auto a = rm.loadIntoRegister(i + argOffset, RegisterType::Pointer);
 								l.operands.add(a);
 							}
 						}
 					}
 					else
 					{
-						auto a = state.loadIntoRegister(i + argOffset, RegisterType::Value);
+						auto a = rm.loadIntoRegister(i + argOffset, RegisterType::Value);
 						l.operands.add(a);
 					}
-
-
 				}
 			}
 
@@ -1146,7 +1156,7 @@ struct InstructionParsers
 				auto t = p.getTypeInfo();
 				auto isRef = t.isRef() || t.getType() == Types::ID::Pointer;
 				auto registerType = isRef ? RegisterType::Pointer : RegisterType::Value;
-				auto a = state.loadIntoRegister(i, registerType);
+				auto a = rm.loadIntoRegister(i, registerType);
 
 				funcData.getChild(i).setProperty(InstructionPropertyIds::Operand, a, nullptr);
 			}
@@ -1161,7 +1171,7 @@ struct InstructionParsers
 
 				if (returnReg.text.isNotEmpty())
 				{
-					state.registerCurrentTextOperand(returnReg.text, returnReg.type, returnReg.registerType);
+					rm.registerCurrentTextOperand(returnReg.text, returnReg.type, returnReg.registerType);
 				}
 
 				return Result::ok();
@@ -1209,6 +1219,8 @@ struct InstructionParsers
 
 	static Result Dot(State& state)
 	{
+		auto& rm = state.registerManager;
+
 		state.processChildTree(0);
 
 		auto memberSymbol = TypeConverters::String2Symbol(state.getCurrentChild(1)[InstructionPropertyIds::Symbol].toString());
@@ -1221,7 +1233,7 @@ struct InstructionParsers
 		{
 			if (m.id == memberId)
 			{
-				auto ptr = state.loadIntoRegister(0, RegisterType::Pointer);
+				auto ptr = rm.loadIntoRegister(0, RegisterType::Pointer);
 
 				String p;
 
@@ -1233,7 +1245,7 @@ struct InstructionParsers
 				offset.appendComment(classId + "." + m.id);
 				offset.flush();
 
-				state.registerCurrentTextOperand(ptr, m.type, RegisterType::Pointer);
+				rm.registerCurrentTextOperand(ptr, m.type, RegisterType::Pointer);
 				break;
 			}
 		}
@@ -1243,17 +1255,18 @@ struct InstructionParsers
 
 	static Result ThisPointer(State& state)
 	{
-		state.registerCurrentTextOperand("_this_", MIR_T_P, RegisterType::Value);
+		state.registerManager.registerCurrentTextOperand("_this_", MIR_T_P, RegisterType::Value);
 
 		return Result::ok();
 	}
 
 	static Result PointerAccess(State& state)
 	{
+		auto& rm = state.registerManager;
 		state.processChildTree(0);
 
-		auto n = state.getOperandForChild(0, RegisterType::Raw);
-		state.registerCurrentTextOperand(n, MIR_T_P, RegisterType::Value);
+		auto n = rm.getOperandForChild(0, RegisterType::Raw);
+		rm.registerCurrentTextOperand(n, MIR_T_P, RegisterType::Value);
 
 		return Result::ok();
 	}

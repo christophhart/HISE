@@ -6,6 +6,7 @@ struct InlineState
 {
 	InlineState(State* state_, const ValueTree& d_, const ValueTree& f_) :
 		state(*state_),
+		rm(state_->registerManager),
 		data(d_),
 		function(f_)
 	{};
@@ -68,7 +69,7 @@ struct InlineState
 				else
 				{
 					TextLine l(&state);
-					auto id = state.registerManager.getAnonymousId(false);
+					auto id = rm.getAnonymousId(false);
 					l.localDef << "i64:" << id;
 					l.instruction = "add";
 					l.operands.add(id);
@@ -86,6 +87,7 @@ struct InlineState
 	}
 
 	State& state;
+	RegisterManager& rm;
 	ValueTree data;
 	ValueTree function;
 };
@@ -100,7 +102,7 @@ struct InlinerFunctions
 
 		auto offset = obj.argOp(3).getIntValue();
 
-		auto offsetReg = state->registerManager.getAnonymousId(false);
+		auto offsetReg = obj.rm.getAnonymousId(false);
 
 		TextLine scale(state);
 		scale.localDef << "i64:" << offsetReg;

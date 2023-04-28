@@ -73,8 +73,10 @@ String LoopManager::makeLabel() const
 
 String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt)
 {
-	auto id = state->registerManager.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
-	state->registerCurrentTextOperand(id, type, rt);
+	auto& rm = state->registerManager;
+
+	auto id = rm.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
+	rm.registerCurrentTextOperand(id, type, rt);
 
 	auto t = TypeInfo(TypeConverters::MirType2TypeId(type), true);
 
@@ -105,22 +107,22 @@ void TextLine::addImmOperand(const VariableStorage& value)
 
 void TextLine::addSelfAsValueOperand()
 {
-	operands.add(state->getOperandForChild(-1, RegisterType::Value));
+	operands.add(state->registerManager.getOperandForChild(-1, RegisterType::Value));
 }
 
 void TextLine::addSelfAsPointerOperand()
 {
-	operands.add(state->getOperandForChild(-1, RegisterType::Pointer));
+	operands.add(state->registerManager.getOperandForChild(-1, RegisterType::Pointer));
 }
 
 void TextLine::addChildAsPointerOperand(int childIndex)
 {
-	operands.add(state->loadIntoRegister(childIndex, RegisterType::Pointer));
+	operands.add(state->registerManager.loadIntoRegister(childIndex, RegisterType::Pointer));
 }
 
 void TextLine::addChildAsValueOperand(int childIndex)
 {
-	operands.add(state->loadIntoRegister(childIndex, RegisterType::Value));
+	operands.add(state->registerManager.loadIntoRegister(childIndex, RegisterType::Value));
 }
 
 void TextLine::addOperands(const Array<int>& indexes, const Array<RegisterType>& registerTypes /*= {}*/)
@@ -130,12 +132,12 @@ void TextLine::addOperands(const Array<int>& indexes, const Array<RegisterType>&
 		jassert(indexes.size() == registerTypes.size());
 
 		for (int i = 0; i < indexes.size(); i++)
-			operands.add(state->getOperandForChild(indexes[i], registerTypes[i]));
+			operands.add(state->registerManager.getOperandForChild(indexes[i], registerTypes[i]));
 	}
 	else
 	{
 		for (auto& i : indexes)
-			operands.add(state->getOperandForChild(i, RegisterType::Value));
+			operands.add(state->registerManager.getOperandForChild(i, RegisterType::Value));
 	}
 }
 
@@ -308,6 +310,164 @@ size_t DataManager::getNumBytesRequired(const Identifier& id)
 const juce::Array<snex::mir::MemberInfo>& DataManager::getClassType(const Identifier& id)
 {
 	return classTypes[id];
+}
+
+RegisterManager::RegisterManager(State* state_):
+	state(state_)
+{
+
+}
+
+String RegisterManager::getAnonymousId(bool isFloat) const
+{
+	String s;
+	s << (isFloat ? "xmm" : "reg") << String(counter++);
+	return s;
+}
+
+void RegisterManager::emitMultiLineCopy(const String& targetPointerReg, const String& sourcePointerReg, int numBytesToCopy)
+{
+	auto use64 = numBytesToCopy % 8 == 0;
+
+	jassert(use64);
+
+	for (int i = 0; i < numBytesToCopy; i += 8)
+	{
+		TextLine l(state);
+		l.instruction = "mov";
+
+		auto dst = "i64:" + String(i) + "(" + targetPointerReg + ")";
+		auto src = "i64:" + String(i) + "(" + sourcePointerReg + ")";
+
+		l.operands.add(dst);
+		l.operands.add(src);
+		l.flush();
+	}
+}
+
+int RegisterManager::allocateStack(const String& targetName, int numBytes, bool registerAsCurrentStatementReg)
+{
+	TextLine l(state);
+
+	if (registerAsCurrentStatementReg)
+		registerCurrentTextOperand(targetName, MIR_T_I64, RegisterType::Pointer);
+
+	l.localDef << "i64:" << targetName;
+
+	static constexpr int Alignment = 16;
+
+	auto numBytesToAllocate = numBytes + (Alignment - numBytes % Alignment);
+
+	l.instruction = "alloca";
+	l.operands.add(targetName);
+	l.addImmOperand((int)numBytesToAllocate);
+	l.flush();
+
+	return numBytesToAllocate;
+}
+
+void RegisterManager::registerCurrentTextOperand(String n, MIR_type_t type, RegisterType rt)
+{
+	if (isParsingFunction)
+		localOperands.add({ state->currentTree, n, {}, type, rt });
+	else
+		globalOperands.add({ state->currentTree, n, {}, type, rt });
+}
+
+String RegisterManager::loadIntoRegister(int childIndex, RegisterType targetType)
+{
+	if (getRegisterTypeForChild(childIndex) == RegisterType::Pointer ||
+		getTypeForChild(childIndex) == MIR_T_P)
+	{
+		auto t = getTypeForChild(childIndex);
+
+		TextLine load(state);
+		load.instruction = "mov";
+
+		auto id = "p" + String(counter++);
+
+		load.localDef << "i64:" << id;
+		load.operands.add(id);
+		load.addOperands({ childIndex }, { RegisterType::Pointer });
+		load.flush();
+
+		if (targetType == RegisterType::Pointer)
+			return id;
+		else
+		{
+			String ptr;
+
+			auto ptr_t = TypeConverters::MirType2MirTextType(t);
+
+			if (ptr_t == "i64")
+				ptr_t = "i32";
+
+			ptr << ptr_t << ":(" << id << ")";
+			return ptr;
+		}
+	}
+	else
+		return getOperandForChild(childIndex, RegisterType::Value);
+}
+
+snex::mir::TextOperand RegisterManager::getTextOperandForValueTree(const ValueTree& c)
+{
+	for (const auto& t : localOperands)
+	{
+		if (t.v == c)
+			return t;
+	}
+
+	for (const auto& t : globalOperands)
+	{
+		if (t.v == c)
+			return t;
+	}
+
+	throw String("not found");
+}
+
+snex::mir::RegisterType RegisterManager::getRegisterTypeForChild(int index)
+{
+	auto t = getTextOperandForValueTree(state->getCurrentChild(index));
+	return t.registerType;
+}
+
+MIR_type_t RegisterManager::getTypeForChild(int index)
+{
+	auto t = getTextOperandForValueTree(state->getCurrentChild(index));
+	return t.type;
+}
+
+String RegisterManager::getOperandForChild(int index, RegisterType requiredType)
+{
+	auto t = getTextOperandForValueTree(state->getCurrentChild(index));
+
+	if (t.registerType == RegisterType::Pointer && requiredType == RegisterType::Value)
+	{
+		auto x = t.text;
+
+		if (t.stackPtr.isNotEmpty())
+		{
+			x = t.stackPtr;
+		}
+
+		auto vt = TypeConverters::MirType2MirTextType(t.type);
+
+		// int registers are always 64 bit, but the 
+		// address memory layout is 32bit integers so 
+		// we need to use a different int type when accessing pointers
+		if (vt == "i64")
+			vt = "i32";
+
+		vt << ":(" << x << ")";
+
+		return vt;
+	}
+	else
+	{
+		return t.stackPtr.isNotEmpty() ? t.stackPtr : t.text;
+	}
 }
 
 }

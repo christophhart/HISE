@@ -144,14 +144,46 @@ private:
 
 struct RegisterManager
 {
-	mutable int counter = 0;
+	RegisterManager(State* state);
 
-	String getAnonymousId(bool isFloat) const
+	mutable int counter = 0;
+	State* state;
+
+	String getAnonymousId(bool isFloat) const;
+
+	void emitMultiLineCopy(const String& targetPointerReg, const String& sourcePointerReg, int numBytesToCopy);
+
+	int allocateStack(const String& targetName, int numBytes, bool registerAsCurrentStatementReg);
+
+	void registerCurrentTextOperand(String n, MIR_type_t type, RegisterType rt);
+
+	/** Use this whenever you need a child operand as a register that might be a address.
+		This will take the address, emit a load operation and return a pointer instruction using the new register. */
+	String loadIntoRegister(int childIndex, RegisterType targetType);
+
+	TextOperand getTextOperandForValueTree(const ValueTree& c);
+
+	RegisterType getRegisterTypeForChild(int index);
+
+	MIR_type_t getTypeForChild(int index);
+
+	String getOperandForChild(int index, RegisterType requiredType);
+
+	void startFunction()
 	{
-		String s;
-		s << (isFloat ? "xmm" : "reg") << String(counter++);
-		return s;
+		isParsingFunction = true;
 	}
+
+	void endFunction()
+	{
+		isParsingFunction = false;
+		localOperands.clear();
+	}
+
+	Array<TextOperand> localOperands;
+	Array<TextOperand> globalOperands;
+
+	bool isParsingFunction = false;
 };
 
 struct FunctionManager
@@ -187,7 +219,9 @@ private:
 
 struct State
 {
-	State() = default;
+	State() :
+		registerManager(this)
+	{};
 
 	LoopManager loopManager;
 	InlinerManager inlinerManager;
@@ -268,55 +302,6 @@ struct State
 		return s;
 	}
 
-	void emitMultiLineCopy(const String& targetPointerReg, const String& sourcePointerReg, int numBytesToCopy)
-	{
-		auto use64 = numBytesToCopy % 8 == 0;
-
-		jassert(use64);
-
-		for (int i = 0; i < numBytesToCopy; i += 8)
-		{
-			TextLine l(this);
-			l.instruction = "mov";
-
-			auto dst = "i64:" + String(i) + "(" + targetPointerReg + ")";
-			auto src = "i64:" + String(i) + "(" + sourcePointerReg + ")";
-
-			l.operands.add(dst);
-			l.operands.add(src);
-			l.flush();
-		}
-	}
-
-	int allocateStack(const String& targetName, int numBytes, bool registerAsCurrentStatementReg)
-	{
-		TextLine l(this);
-
-		if (registerAsCurrentStatementReg)
-			registerCurrentTextOperand(targetName, MIR_T_I64, RegisterType::Pointer);
-
-		l.localDef << "i64:" << targetName;
-
-		static constexpr int Alignment = 16;
-
-		auto numBytesToAllocate = numBytes + (Alignment - numBytes % Alignment);
-
-		l.instruction = "alloca";
-		l.operands.add(targetName);
-		l.addImmOperand((int)numBytesToAllocate);
-		l.flush();
-		
-		return numBytesToAllocate;
-	}
-
-	void registerCurrentTextOperand(String n, MIR_type_t type, RegisterType rt)
-	{
-		if (isParsingFunction)
-			localOperands.add({ currentTree, n, {}, type, rt });
-		else
-			globalOperands.add({ currentTree, n, {}, type, rt });
-	}
-
 	ValueTree getCurrentChild(int index)
 	{
 		if (index == -1)
@@ -325,77 +310,11 @@ struct State
 			return currentTree.getChild(index);
 	}
 
-	TextOperand getTextOperandForValueTree(const ValueTree& c)
-	{
-		for (const auto& t : localOperands)
-		{
-			if (t.v == c)
-				return t;
-		}
-
-		for (const auto& t : globalOperands)
-		{
-			if (t.v == c)
-				return t;
-		}
-
-		throw String("not found");
-	}
-
-	RegisterType getRegisterTypeForChild(int index)
-	{
-		auto t = getTextOperandForValueTree(getCurrentChild(index));
-		return t.registerType;
-	}
-
-	MIR_type_t getTypeForChild(int index)
-	{
-		auto t = getTextOperandForValueTree(getCurrentChild(index));
-		return t.type;
-	}
-
-	bool isParsingFunction = false;
 	int numCurrentlyParsedClasses = 0;
 
 	bool isParsingClass() const { return numCurrentlyParsedClasses > 0; };
 
-	String getOperandForChild(int index, RegisterType requiredType)
-	{
-		auto t = getTextOperandForValueTree(getCurrentChild(index));
-
-		if (t.registerType == RegisterType::Pointer && requiredType == RegisterType::Value)
-		{
-			auto x = t.text;
-
-			if (t.stackPtr.isNotEmpty())
-			{
-				x = t.stackPtr;
-			}
-
-
-			auto vt = TypeConverters::MirType2MirTextType(t.type);
-
-
-			// int registers are always 64 bit, but the 
-			// address memory layout is 32bit integers so 
-			// we need to use a different int type when accessing pointers
-			if (vt == "i64")
-				vt = "i32";
-
-			vt << ":(" << x << ")";
-
-			return vt;
-		}
-		else
-		{
-			return t.stackPtr.isNotEmpty() ? t.stackPtr : t.text;
-		}
-	}
-
-	Array<TextOperand> localOperands;
-	Array<TextOperand> globalOperands;
-
-	
+	bool isParsingFunction() const { return registerManager.isParsingFunction; }
 
 	void processChildTree(int childIndex)
 	{
@@ -429,47 +348,6 @@ struct State
 
 		return Result::fail("unknown value tree type " + v.getType());
 	}
-
-	
-
-	/** Use this whenever you need a child operand as a register that might be a address.
-		This will take the address, emit a load operation and return a pointer instruction using the new register. */
-	String loadIntoRegister(int childIndex, RegisterType targetType)
-	{
-		if (getRegisterTypeForChild(childIndex) == RegisterType::Pointer ||
-			getTypeForChild(childIndex) == MIR_T_P)
-		{
-			auto t = getTypeForChild(childIndex);
-
-			TextLine load(this);
-			load.instruction = "mov";
-
-			auto id = "p" + String(registerManager.counter++);
-
-			load.localDef << "i64:" << id;
-			load.operands.add(id);
-			load.addOperands({ childIndex }, { RegisterType::Pointer });
-			load.flush();
-
-			if (targetType == RegisterType::Pointer)
-				return id;
-			else
-			{
-				String ptr;
-
-				auto ptr_t = TypeConverters::MirType2MirTextType(t);
-
-				if (ptr_t == "i64")
-					ptr_t = "i32";
-
-				ptr << ptr_t << ":(" << id << ")";
-				return ptr;
-			}
-		}
-		else
-			return getOperandForChild(childIndex, RegisterType::Value);
-	}
-
 };
 
 }
