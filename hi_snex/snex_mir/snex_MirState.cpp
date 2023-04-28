@@ -41,6 +41,7 @@ LoopManager::~LoopManager()
 	jassert(labelPairs.isEmpty());
 }
 
+
 void LoopManager::pushLoopLabels(String& startLabel, String& endLabel, String& continueLabel)
 {
 	startLabel = makeLabel();
@@ -52,6 +53,8 @@ void LoopManager::pushLoopLabels(String& startLabel, String& endLabel, String& c
 
 String LoopManager::getCurrentLabel(const String& instructionId)
 {
+	if (instructionId == "inlined-return")
+		return inlineFunctionData.getLast().endLabel;
 	if (instructionId == "continue")
 		return labelPairs.getLast().continueLabel;
 	else if (instructionId == "break")
@@ -69,6 +72,42 @@ void LoopManager::popLoopLabels()
 String LoopManager::makeLabel() const
 {
 	return "L" + String(labelCounter++);
+}
+
+void LoopManager::pushInlineFunction(String& l, MIR_type_t type, const String& returnRegName)
+{
+	jassert((type != MIR_T_I8) == returnRegName.isNotEmpty());
+
+	l = makeLabel();
+
+	InlineFunctionData d;
+	d.endLabel = l;
+	d.type = type;
+	d.returnReg = returnRegName;
+
+	inlineFunctionData.add(d);
+}
+
+void LoopManager::emitInlinedReturn(State* s)
+{
+	TextLine store(s);
+	
+	auto l = inlineFunctionData.getLast();
+
+	if (l.returnReg.isNotEmpty())
+	{
+		auto returnValue = s->registerManager.loadIntoRegister(0, RegisterType::Value);
+
+		store.instruction = TypeConverters::MirTypeAndToken2InstructionText(l.type, JitTokens::assign_);
+		store.operands.add(l.returnReg);
+		store.operands.add(returnValue);
+		store.flush();
+	}
+	
+	TextLine jmp(s);
+	jmp.instruction = "jmp";
+	jmp.operands.add(l.endLabel);
+	jmp.flush();
 }
 
 String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt)
@@ -362,7 +401,10 @@ int RegisterManager::allocateStack(const String& targetName, int numBytes, bool 
 
 	static constexpr int Alignment = 16;
 
-	auto numBytesToAllocate = numBytes + (Alignment - numBytes % Alignment);
+	auto numBytesToAllocate = numBytes;
+
+	if(numBytesToAllocate % Alignment != 0)
+		numBytesToAllocate = numBytes + (Alignment - numBytes % Alignment);
 
 	l.instruction = "alloca";
 	l.operands.add(targetName);
@@ -429,6 +471,8 @@ snex::mir::TextOperand RegisterManager::getTextOperandForValueTree(const ValueTr
 		if (t.v == c)
 			return t;
 	}
+
+	state->dump();
 
 	throw String("not found");
 }
@@ -581,7 +625,33 @@ juce::Result InstructionManager::perform(State* state, const ValueTree& v)
 		return f(state);
 	}
 
-	throw String("no instruction found");
+	state->dump();
+
+	throw String("no instruction found for type " + v.getType());
+}
+
+snex::mir::TextOperand InlinerManager::emitInliner(const String& inlinerLabel, const String& className, const String& methodName, const StringArray& operands)
+{
+	auto dTree = state->dataManager.getDataObject(className);
+	ValueTree fTree;
+
+	for (auto& m : dTree)
+	{
+		DBG(m.createXml()->createDocument(""));
+		if (m.getType() == Identifier("Method") && m["ID"] == methodName)
+		{
+			fTree = m.createCopy();
+			break;
+		}
+	}
+	  
+	jassert(fTree.isValid());
+	jassert(fTree.getNumChildren() == operands.size());
+
+	for(int i = 0; i < operands.size(); i++)
+		fTree.getChild(i).setProperty("Operand", operands[i], nullptr);
+
+	return inlinerFunctions[inlinerLabel](state, dTree, fTree);
 }
 
 }

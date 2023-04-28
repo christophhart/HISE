@@ -74,6 +74,10 @@ struct Operations::StatementBlock : public Expression,
 	{
 		auto v = Statement::toValueTree();
 		v.setProperty("ScopeId", getPath().toString(), nullptr);
+
+		if (isInlinedFunction)
+			v.setProperty("ReturnType", getTypeInfo().toStringWithoutAlias(), nullptr);
+
 		return v;
 	}
 
@@ -417,10 +421,11 @@ struct Operations::Loop : public Expression,
 	{
 		auto t = Expression::toValueTree();
 
-		static const StringArray loopTypes = { "Undefined", "Span", "Block", "CustomObject" };
+		static const StringArray loopTypes = { "Undefined", "Span", "Dyn", "CustomObject" };
 		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
 		t.setProperty("LoadIterator", loadIterator, nullptr);
 		t.setProperty("Iterator", iterator.toString(), nullptr);
+		t.setProperty("ElementType", iterator.typeInfo.toStringWithoutAlias(), nullptr);
         t.setProperty("ElementSize", (int)iterator.typeInfo.getRequiredByteSizeNonZero(), nullptr);
         
         if(loopTargetType == ArrayType::Span)

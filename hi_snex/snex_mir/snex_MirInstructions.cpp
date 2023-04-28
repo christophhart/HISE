@@ -29,35 +29,46 @@ namespace InstructionIds
 	DEFINE_ID(Dot);
 	DEFINE_ID(ThisPointer);
 	DEFINE_ID(PointerAccess);
+	DEFINE_ID(TemplatedFunction);
+	DEFINE_ID(TemplateDefinition);
+	DEFINE_ID(Noop);
+	DEFINE_ID(AnonymousBlock);
+	DEFINE_ID(InlinedFunction);
+	DEFINE_ID(InlinedParameter);
+	DEFINE_ID(InlinedReturnValue);
+	DEFINE_ID(InlinedArgument);
 }
 
 namespace InstructionPropertyIds
 {
-	DEFINE_ID(Signature);
-	DEFINE_ID(Source);
-	DEFINE_ID(Target);
+	DEFINE_ID(AssignmentType);
+	DEFINE_ID(CallType);
+	DEFINE_ID(command);
+	DEFINE_ID(ElementSize);
+	DEFINE_ID(ElementType);
 	DEFINE_ID(First);
-	DEFINE_ID(Type);
-	DEFINE_ID(Value);
-	DEFINE_ID(ScopeId);
+	DEFINE_ID(Ids);
 	DEFINE_ID(InitValues);
-	DEFINE_ID(Operand);
+	DEFINE_ID(IsDec);
+	DEFINE_ID(IsPre);
+	DEFINE_ID(Iterator);
+	DEFINE_ID(LoopType);
+	DEFINE_ID(MemberInfo);
 	DEFINE_ID(NumElements);
 	DEFINE_ID(NumBytes);
 	DEFINE_ID(ObjectType);
-	DEFINE_ID(LoopType);
-	DEFINE_ID(Iterator);
-	DEFINE_ID(IsPre);
-	DEFINE_ID(IsDec);
-	DEFINE_ID(CallType);
-	DEFINE_ID(Ids);
+	DEFINE_ID(Operand);
 	DEFINE_ID(OpType);
-	DEFINE_ID(MemberInfo);
-	DEFINE_ID(ElementSize);
-	DEFINE_ID(ElementType);
-	DEFINE_ID(AssignmentType);
-	DEFINE_ID(command);
+	DEFINE_ID(ParentType);
+	DEFINE_ID(ParameterName);
+	DEFINE_ID(ReturnType);
+	DEFINE_ID(ScopeId);
+	DEFINE_ID(Signature);
+	DEFINE_ID(Source);
 	DEFINE_ID(Symbol);
+	DEFINE_ID(Target);
+	DEFINE_ID(Type);
+	DEFINE_ID(Value);
 }
 
 struct InstructionParsers
@@ -69,6 +80,7 @@ struct InstructionParsers
 
 		if (isRoot)
 		{
+			state.dump();
 			state.emitSingleInstruction("module", "main");
 
 			StringArray staticSignatures, memberSignatures;
@@ -134,8 +146,18 @@ struct InstructionParsers
 			line.operands.add("i64:_this_");
 		}
 
+		// We need to strip the template arguments from the local parameter variable names
+		// so that the VariableReference child elements can be resolved correctly
+		auto argParent = SimpleTypeParser(state[InstructionPropertyIds::Signature]).parseNamespacedIdentifier();
+
 		for (auto& a : f.args)
-			line.operands.add(TypeConverters::Symbol2MirTextSymbol(a));
+		{
+			jit::Symbol withoutTemplateArguments;
+			withoutTemplateArguments.id = argParent.getChildId(a.id.getIdentifier());
+			withoutTemplateArguments.typeInfo = a.typeInfo;
+			line.operands.add(TypeConverters::Symbol2MirTextSymbol(withoutTemplateArguments));
+		}
+			
 
 		line.flush();
 
@@ -206,7 +228,12 @@ struct InstructionParsers
 
 		auto type = TypeConverters::SymbolToMirVar(s).type;
 		auto& rm = state.registerManager;
+
+		state.dump();
+
 		auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(s.id);
+
+		DBG("VAR NAME: " + mvn);
 
 		if (state.isParsingFunction())
 		{
@@ -753,6 +780,7 @@ struct InstructionParsers
 			{
 				// stack definition
 				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
+				auto numOriginalBytes = numBytes;
 
 				bool something = numBytes != 0;
 
@@ -791,8 +819,12 @@ struct InstructionParsers
 
 					uint32 lastOffset = 0;
 
+					
+
 					while (something && lastOffset < numBytes)
 					{
+						int numToPad = numBytes - numOriginalBytes;
+
 						initParser.forEach([&](uint32 offset, Types::ID type, const VariableStorage& v)
 						{
 							TextLine il(&state);
@@ -823,6 +855,28 @@ struct InstructionParsers
 
 							il.flush();
 						});
+
+						while(numToPad > 0)
+						{
+							TextLine il(&state);
+
+							il.instruction = "mov";
+
+							auto p = rm.getOperandForChild(-1, RegisterType::Raw);
+							auto mir_t = "i32";
+
+							String op;
+							op << mir_t << ":";
+							op << String(lastOffset);
+							op << "(" << p << ")";
+
+							il.operands.add(op);
+							il.addImmOperand(0);
+							il.flush();
+
+							lastOffset += 4;
+							numToPad -= 4;
+						}
 					}
 				}
 
@@ -862,6 +916,9 @@ struct InstructionParsers
 		auto& state = *state_;
 		auto& rm = state.registerManager;
 
+		auto type = SimpleTypeParser(state[InstructionPropertyIds::ParentType]).getComplexTypeId().toString().upToFirstOccurrenceOf("<", false, false);
+
+		
 		state.processChildTree(0);
 		state.processChildTree(1);
 
@@ -876,12 +933,32 @@ struct InstructionParsers
 
 		TextLine l(&state);
 		self = l.addAnonymousReg(mir_t, RegisterType::Pointer);
-		l.instruction = "mov";
-		l.addOperands({ -1, 0 }, { RegisterType::Pointer, RegisterType::Pointer });
-		String comment;
-		comment << self << " = " << rm.getOperandForChild(0, RegisterType::Raw) << "[" << rm.getOperandForChild(1, RegisterType::Raw) << "]";
-		l.appendComment(comment);
-		l.flush();
+
+		if (type == "span")
+		{
+			l.instruction = "mov";
+			l.addOperands({ -1, 0 }, { RegisterType::Pointer, RegisterType::Pointer });
+			String comment;
+			comment << "span " << self << " = " << rm.getOperandForChild(0, RegisterType::Raw) << "[" << rm.getOperandForChild(1, RegisterType::Raw) << "]";
+			l.appendComment(comment);
+			l.flush();
+		}
+		else if (type == "dyn")
+		{
+			l.instruction = "mov";
+
+			l.operands.add(self);
+			l.operands.add("i64:8(" + rm.loadIntoRegister(0, RegisterType::Pointer) + ")");
+			String comment;
+
+			
+
+			comment << "dyn " << self << " = " << rm.getOperandForChild(0, RegisterType::Raw) << "[" << rm.getOperandForChild(1, RegisterType::Raw) << "]";
+			l.appendComment(comment);
+			l.flush();
+		}
+
+		
 
 		TextLine idx(&state);
 		idx_reg = idx.addAnonymousReg(MIR_T_I64, RegisterType::Value);
@@ -903,9 +980,10 @@ struct InstructionParsers
 		offset_l.operands.add(self);
 		offset_l.operands.add(idx_reg);
 		offset_l.flush();
-		
+
 
 		return Result::ok();
+		
 	}
 
 	static Result InternalProperty(State* state_)
@@ -933,6 +1011,8 @@ struct InstructionParsers
 		auto& rm = state.registerManager;
 		String startLabel, endLabel, unusedLabel;
 
+		auto loopType = state[InstructionPropertyIds::LoopType];
+
 		state.loopManager.pushLoopLabels(startLabel, endLabel, unusedLabel);
 		
 		// create iterator variable with pointer type
@@ -953,17 +1033,18 @@ struct InstructionParsers
 		TextLine loadIter(&state);
 		loadIter.localDef << "i64:" << pointerReg;
 		loadIter.instruction = "mov";
-		loadIter.operands.add(pointerReg);
-		loadIter.addOperands({ 0 }, { RegisterType::Pointer });
-		loadIter.flush();
 
 		// create anonymous end address variable with pointer type
-		auto endReg = state.registerManager.getAnonymousId(false);
+		String endReg = state.registerManager.getAnonymousId(false);
 
 		auto elementSize = state[InstructionPropertyIds::ElementSize].getIntValue();
 
-		if (state[InstructionPropertyIds::LoopType] == "Span")
+		if (loopType == "Span")
 		{
+			loadIter.operands.add(pointerReg);
+			loadIter.addOperands({ 0 }, { RegisterType::Pointer });
+			loadIter.flush();
+
 			int byteSize = elementSize * state[InstructionPropertyIds::NumElements].getIntValue();
 
 			TextLine ii(&state);
@@ -976,8 +1057,31 @@ struct InstructionParsers
 		}
 		else
 		{
-			// not implemented...
-			jassertfalse;
+			loadIter.operands.add(pointerReg);
+
+			auto dynPtr = rm.loadIntoRegister(0, RegisterType::Pointer);
+
+			String op("i64:8(" + dynPtr + ")");
+			loadIter.operands.add(op);
+			loadIter.flush();
+
+			TextLine ii(&state);
+			ii.localDef << "i64:" << endReg;
+			ii.instruction = "mul";
+			ii.operands.add(endReg);
+			ii.operands.add("i32:4  (" + dynPtr + ")");
+			ii.addImmOperand(elementSize);
+			ii.flush();
+
+			//pointerReg = "i64:8(" + pointerReg + ")";
+
+			TextLine ii2(&state);
+
+			ii2.instruction = "add";
+			ii2.operands.add(endReg);
+			ii2.operands.add(endReg);
+			ii2.operands.add(pointerReg);
+			ii2.flush();
 		}
 
 		// emit start_loop label
@@ -1002,6 +1106,15 @@ struct InstructionParsers
 			loadCopy.flush();
 		}
 
+		// compare addresses, jump to start_loop if iterator < end
+		TextLine cmp(&state);
+		cmp.instruction = "bge";
+		cmp.operands.add(endLabel);
+		cmp.operands.add(pointerReg);
+		cmp.operands.add(endReg);
+		
+		cmp.flush();
+
 		// emit body
 		state.processChildTree(1);
 
@@ -1013,13 +1126,11 @@ struct InstructionParsers
 		bump.addImmOperand(elementSize);
 		bump.flush();
 
-		// compare addresses, jump to start_loop if iterator != end
-		TextLine cmp(&state);
-		cmp.instruction = "bne";
-		cmp.operands.add(startLabel);
-		cmp.operands.add(pointerReg);
-		cmp.operands.add(endReg);
-		cmp.flush();
+		TextLine jmp(&state);
+		jmp.instruction = "jmp";
+		jmp.operands.add(startLabel);
+		jmp.flush();
+
 
 		// emit end_loop label
 		state.emitLabel(endLabel);
@@ -1294,6 +1405,106 @@ struct InstructionParsers
 
 		auto n = rm.getOperandForChild(0, RegisterType::Raw);
 		rm.registerCurrentTextOperand(n, MIR_T_P, RegisterType::Value);
+
+		return Result::ok();
+	}
+
+	static Result TemplatedFunction(State* state)
+	{
+		state->processAllChildren();
+		return Result::ok();
+	}
+
+	static Result TemplateDefinition(State* state)
+	{
+		state->processAllChildren();
+		return Result::ok();
+	}
+
+	static Result AnonymousBlock(State* state)
+	{
+		state->processAllChildren();
+		return Result::ok();
+	}
+
+	static Result Noop(State* state)
+	{
+		return Result::ok();
+	}
+
+	static Result InlinedFunction(State* state_)
+	{
+		auto& state = *state_;
+
+		String il;
+
+		auto returnType = SimpleTypeParser(state[InstructionPropertyIds::ReturnType]).getTypeInfo();
+
+		
+
+		if (returnType.isValid())
+		{
+			auto mir_t = TypeConverters::TypeInfo2MirType(returnType);
+			auto rt = returnType.isRef() ? RegisterType::Pointer : RegisterType::Value;
+
+			TextLine ml(state_);
+			ml.addAnonymousReg(mir_t, rt);
+			ml.flush();
+
+			auto name = state.registerManager.getOperandForChild(-1, rt);
+			state.loopManager.pushInlineFunction(il, mir_t, name);
+		}
+		else
+		{
+			state.loopManager.pushInlineFunction(il);
+		}
+
+		
+
+		state.processAllChildren();
+
+		state.emitLabel(il);
+		state.loopManager.popInlineFunction();
+
+		return Result::ok();
+	}
+
+	static Result InlinedArgument(State* state_)
+	{
+		auto& state = *state_;
+		auto& rm = state.registerManager;
+
+		auto n = state[InstructionPropertyIds::ParameterName];
+
+		state.processChildTree(0);
+
+		auto r = rm.getOperandForChild(0, RegisterType::Raw);
+
+		state.loopManager.addInlinedArgument(n, r);
+
+		return Result::ok();
+	}
+
+	static Result InlinedParameter(State* state_)
+	{
+		
+		auto& state = *state_;
+
+		auto arg = state[InstructionPropertyIds::Symbol];
+		auto p = state.loopManager.getInlinedParameter(arg);
+
+		state.registerManager.registerCurrentTextOperand(p, MIR_T_I64, RegisterType::Value);
+
+		return Result::ok();
+	}
+
+	static Result InlinedReturnValue(State* state_)
+	{
+		auto& state = *state_;
+
+		state.processChildTree(0);
+
+		state.loopManager.emitInlinedReturn(state_);
 
 		return Result::ok();
 	}

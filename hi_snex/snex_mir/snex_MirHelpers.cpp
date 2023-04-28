@@ -52,6 +52,15 @@ snex::mir::FunctionData snex::mir::SimpleTypeParser::parseFunctionData()
 	f.returnType = getTypeInfo();
 	f.id = parseNamespacedIdentifier();
 
+	auto templateArgs = skipTemplate();
+
+	if (templateArgs.isNotEmpty())
+	{
+		auto tId = TypeConverters::TemplateString2MangledLabel(templateArgs);
+
+		f.id = f.id.getChildId(tId);
+	}
+
 	auto rest = getTrailingString().trim().removeCharacters("()");
 
 	while (rest.isNotEmpty())
@@ -255,7 +264,7 @@ snex::mir::FunctionData snex::mir::TypeConverters::String2FunctionData(String s)
 String snex::mir::TypeConverters::NamespacedIdentifier2MangledMirVar(const NamespacedIdentifier& id)
 {
 	auto n = id.toString();
-	return n.replaceCharacters(":", "_");
+	return n.replace("::", "_");
 }
 
 snex::jit::Symbol snex::mir::TypeConverters::String2Symbol(const String& symbolCode)
@@ -289,7 +298,7 @@ String snex::mir::TypeConverters::FunctionData2MirTextLabel(const FunctionData& 
 	for (const auto& a : f.args)
 		label << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];
 
-	return label.replaceCharacter('~', '§');
+	return label.replace("~", "dest");
 }
 
 
@@ -314,7 +323,7 @@ String snex::mir::TypeConverters::Symbol2MirTextSymbol(const jit::Symbol& s)
 
 	auto tn = TypeInfo2MirTextType(s.typeInfo);
 
-	if (s.typeInfo.isRef())
+	if (s.typeInfo.isRef() && tn != "p")
 		tn = "i64";
 
 	t << tn << ":" << NamespacedIdentifier2MangledMirVar(s.id);
@@ -383,4 +392,9 @@ String snex::mir::TypeConverters::MirTypeAndToken2InstructionText(MIR_type_t typ
 
 	jassertfalse;
 	return "";
+}
+
+String snex::mir::TypeConverters::TemplateString2MangledLabel(const String& templateArgs)
+{
+	return templateArgs.removeCharacters(" <>,");
 }

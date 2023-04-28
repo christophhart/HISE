@@ -168,7 +168,7 @@ public:
 				StaticFunctionPointer item;
 				item.signature = f->getSignature();
 
-				auto l = f->id.toString().replace("::", "__");
+				auto l = f->id.toString().replace("::", "_");
 
 				l << "_";
 

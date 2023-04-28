@@ -106,9 +106,36 @@ struct LoopManager
 	void popLoopLabels();
 	String makeLabel() const;
 
+	void pushInlineFunction(String& l, MIR_type_t type = MIR_T_I8, const String& returnRegName={});
+
+	void popInlineFunction()
+	{
+		inlineFunctionData.removeLast(1);
+	}
+
+	void addInlinedArgument(const String& argumentId, const String& variableName)
+	{
+		inlineFunctionData.getReference(inlineFunctionData.size() - 1).arguments.emplace(argumentId, variableName);
+	}
+
+	String getInlinedParameter(const String& argumentId)
+	{
+		return inlineFunctionData.getReference(inlineFunctionData.size() - 1).arguments[argumentId];
+	}
+
+	void emitInlinedReturn(State* s);
+
 private:
 
 	mutable int labelCounter = 0;
+
+	struct InlineFunctionData
+	{
+		String endLabel;
+		String returnReg;
+		MIR_type_t type;
+		std::map<String, String> arguments;
+	};
 
 	struct LoopLabelSet
 	{
@@ -117,11 +144,17 @@ private:
 		String continueLabel;
 	};
 
+	Array<InlineFunctionData> inlineFunctionData;
+
 	Array<LoopLabelSet> labelPairs;
 };
 
 struct InlinerManager
 {
+	InlinerManager(State* s) :
+		state(s)
+	{};
+
 	using ValueTreeInliner = std::function<TextOperand(State*, const ValueTree&, const ValueTree&)>;
 
 	ValueTreeInliner getInliner(String fid)
@@ -134,8 +167,12 @@ struct InlinerManager
 		inlinerFunctions.emplace(fid, f);
 	}
 
+	TextOperand emitInliner(const String& inlinerLabel, const String& className, const String& methodName, const StringArray& operands);
+
+
 private:
 
+	State* state;
 	std::map<String, ValueTreeInliner> inlinerFunctions;
 };
 
@@ -243,7 +280,8 @@ private:
 struct State
 {
 	State() :
-		registerManager(this)
+		registerManager(this),
+		inlinerManager(this)
 	{};
 
 	LoopManager loopManager;

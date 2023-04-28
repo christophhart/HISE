@@ -11,8 +11,9 @@
 
 #include "snex_MirState.cpp"
 #include "snex_MirHelpers.cpp"
-#include "snex_MirInstructions.cpp"
 #include "snex_MirInliners.cpp"
+#include "snex_MirInstructions.cpp"
+
 
 #include "snex_MirBuilder.cpp"
 #include "snex_MirObject.cpp"

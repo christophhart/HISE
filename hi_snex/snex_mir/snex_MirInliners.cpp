@@ -94,7 +94,7 @@ struct InlineState
 
 struct InlinerFunctions
 {
-	static TextOperand dyn__referTo_ppii(State* state, const ValueTree& data, const ValueTree& function)
+	static TextOperand dyn_referTo_ppii(State* state, const ValueTree& data, const ValueTree& function)
 	{
 		InlineState obj(state, data, function);
 
@@ -132,7 +132,7 @@ struct InlinerFunctions
 			jassertfalse;
 		}
 
-		TextLine sl(scale);
+		TextLine sl(state);
 		sl.instruction = "mov";
 		sl.operands.add(obj.memberOp("size"));
 		sl.operands.add(size);
@@ -142,13 +142,38 @@ struct InlinerFunctions
 		return obj.flush(obj.argOp(0), RegisterType::Value);
 	};
 
-	static TextOperand dyn__size_i(State* state, const ValueTree& data, const ValueTree& function)
+	static TextOperand dyn_size_i(State* state, const ValueTree& data, const ValueTree& function)
 	{
 		InlineState obj(state, data, function);
 
 		auto s = obj.memberOp("size", RegisterType::Pointer);
 		return obj.flush(s, RegisterType::Pointer);
 	};
+
+	static TextOperand ProcessData_toEventData_p(State* state, const ValueTree& data, const ValueTree& function)
+	{
+		InlineState obj(state, data, function);
+
+		obj.dump();
+
+		auto blockReg = obj.rm.getAnonymousId(false);
+
+		obj.rm.allocateStack(blockReg, 16, false);
+
+		TextLine s(state);
+		s.instruction = "mov";
+		s.operands.add("i32:4(" + blockReg + ")");
+		s.operands.add(obj.memberOp("numEvents", RegisterType::Value));
+		s.flush();
+
+		TextLine s2(state);
+		s2.instruction = "mov";
+		s2.operands.add("i64:8(" + blockReg + ")");
+		s2.operands.add(obj.memberOp("events", RegisterType::Value));
+		s2.flush();
+		
+		return obj.flush(blockReg, RegisterType::Pointer);
+	}
 };
 
 }

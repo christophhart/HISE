@@ -69,9 +69,20 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_TYPE(Dot);
 	REGISTER_TYPE(ThisPointer);
 	REGISTER_TYPE(PointerAccess);
+	REGISTER_TYPE(TemplatedFunction);
+	REGISTER_TYPE(TemplateDefinition);
+	REGISTER_TYPE(Noop);
+	REGISTER_TYPE(AnonymousBlock);
+	REGISTER_TYPE(InlinedFunction);
+	REGISTER_TYPE(InlinedArgument);
+	REGISTER_TYPE(InlinedParameter);
+	REGISTER_TYPE(InlinedReturnValue);
+	
     
-    REGISTER_INLINER(dyn__referTo_ppii);
-    REGISTER_INLINER(dyn__size_i);
+
+    REGISTER_INLINER(dyn_referTo_ppii);
+    REGISTER_INLINER(dyn_size_i);
+	REGISTER_INLINER(ProcessData_toEventData_p);
 }
 
 MirBuilder::~MirBuilder()
