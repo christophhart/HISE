@@ -69,6 +69,11 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 
 	IndexLibrary iBuilder2(c, numChannels);
 	iBuilder2.registerTypes();
+
+
+#if SNEX_MIR_BACKEND
+	mir::MirCompiler::setLibraryFunctions(c.getFunctionMap());
+#endif
 }
 
 

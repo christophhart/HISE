@@ -82,6 +82,8 @@ struct InstructionParsers
 		{
 			state.emitSingleInstruction("module", "main");
 
+			state.emitSingleInstruction("import Console");
+
 			StringArray staticSignatures, memberSignatures;
 
 			TypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
@@ -90,7 +92,7 @@ struct InstructionParsers
 				{
 					auto sig = v[InstructionPropertyIds::Signature].toString();
 
-					if (!MirObject::isExternalFunction(sig))
+					if (!MirCompiler::isExternalFunction(sig))
 						return false;
 
 					if (v[InstructionPropertyIds::CallType].toString() == "MemberFunction")
@@ -111,7 +113,8 @@ struct InstructionParsers
 			for (const auto& c : staticSignatures)
 			{
 				auto f = TypeConverters::String2FunctionData(c);
-				state.functionManager.addPrototype(&state, f, false);
+				auto isConsole = f.id.getParent().toString() == "Console";
+				state.functionManager.addPrototype(&state, f, isConsole);
 				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(f));
 			}
 		}
@@ -1179,6 +1182,12 @@ struct InstructionParsers
 				auto a = state.registerManager.loadIntoRegister(0, RegisterType::Pointer);
 				l.operands.add(a);
 				argOffset = 1;
+			}
+
+			if (fid.startsWith("Console_"))
+			{
+				l.operands.add("Console");
+				
 			}
 
 			for (int i = 0; i < sig.args.size(); i++)

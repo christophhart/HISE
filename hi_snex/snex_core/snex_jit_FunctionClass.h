@@ -154,7 +154,7 @@ public:
 	Inliner::Ptr getInliner(const NamespacedIdentifier& id) const;
 	void addInliner(const Identifier& id, const Inliner::Func& func, Inliner::InlineType type=Inliner::Assembly);
 
-	Map getMap()
+	virtual Map getMap()
 	{
 		Map m;
 

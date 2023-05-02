@@ -503,6 +503,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 void* Operations::Function::compileFunction(FunctionCompileData& f, const FunctionCompileData::InnerFunction& func)
 {
+#if !SNEX_MIR_BACKEND
 	f.assemblyLogger = new asmjit::StringLogger();
 
 	auto runtime = getRuntime(f.compiler);
@@ -553,6 +554,9 @@ void* Operations::Function::compileFunction(FunctionCompileData& f, const Functi
 	ch = nullptr;
 
 	return f.data.function;
+#else
+	return nullptr;
+#endif
 }
 
 void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
@@ -560,9 +564,11 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 	auto compiler = f.compiler;
 	auto scope = f.scope;
 
-	FuncSignatureX sig;
-
 	hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !f.data.returnType.isStatic();
+
+#if !SNEX_MIR_BACKEND
+
+	FuncSignatureX sig;
 
 	auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
 
@@ -576,9 +582,10 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 		auto asg = CREATE_ASM_COMPILER(rType);
 		asg.emitParameter(this, funcNode, objectPtr, -1);
 	}
-
+	
 	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile.get());
 	compiler->executePass(BaseCompiler::CodeGeneration, f.functionScopeToUse, f.statementToCompile.get());
+#endif
 }
 
 void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f)

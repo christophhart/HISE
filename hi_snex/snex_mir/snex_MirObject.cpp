@@ -63,27 +63,117 @@ struct MirHelpers
 	}
 };
 
+struct MirFunctionCollection : public jit::FunctionCollectionBase
+{
+	MirFunctionCollection();
+
+	~MirFunctionCollection();
+
+	FunctionData getFunction(const NamespacedIdentifier& functionId) override;
+
+	virtual VariableStorage getVariable(const Identifier& id) override
+	{
+		for (auto& a : dataIds)
+		{
+			if (a.id.getIdentifier() == id)
+			{
+				switch (a.typeInfo.getType())
+				{
+				case Types::ID::Integer:	return VariableStorage(getData<int>(id.toString()));
+				case Types::ID::Float:		return VariableStorage(getData<float>(id.toString()));
+				case Types::ID::Double:		return VariableStorage(getData<double>(id.toString()));
+				default: jassertfalse;		return VariableStorage();
+				}
+			}
+		}
+
+		return VariableStorage();
+	}
+
+	void* getVariablePtr(const Identifier& id) override
+	{
+		return dataItems[id.toString()];
+	}
+
+	juce::String dumpTable() override
+	{
+		return {};
+	}
+
+	Array<NamespacedIdentifier> getFunctionIds() const override
+	{
+		return allFunctions;
+	}
+
+	virtual Array<jit::Symbol> getAllVariables() const
+	{
+		return dataIds;
+	}
+
+	template <typename T> T getData(const String& dataId, size_t byteOffset = 0) const
+	{
+		if (dataItems.contains(dataId))
+		{
+			auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
+			bytePtr += byteOffset;
+
+			return *reinterpret_cast<T*>(bytePtr);
+		}
+
+		jassertfalse;
+		return T();
+	}
+
+	ValueTree getDataLayout(int dataIndex) const override
+	{
+		auto c = globalData.getChild(dataIndex);
+
+		if (c.isValid())
+		{
+			return fillLayoutWithData(c["ObjectId"].toString(), c);
+		}
+
+		return {};
+	}
+
+	ValueTree fillLayoutWithData(const String& dataId, const ValueTree& valueData) const;
+
+	void fillRecursive(ValueTree& copy, const String& dataId, size_t offset) const;
+
+	Array<NamespacedIdentifier> allFunctions;
+
+	Array<Symbol> dataIds;
+
+	MIR_context* ctx;
+	Array<MIR_module*> modules;
+
+	HashMap<String, void*> dataItems;
+
+	ValueTree globalData;
+};
+
 static void mirError(MIR_error_type_t error_type, const char* format, ...)
 {
 	DBG(format);
 	throw String(format);
 }
 
+void* MirCompiler::currentConsole = nullptr;
 
-MirObject::MirObject() :
-	r(Result::fail("nothing compiled"))
+MirCompiler::MirCompiler(jit::GlobalScope& m):
+	r(Result::fail("nothing compiled")),
+	memory(m)
 {
-	ctx = MIR_init();
-#if JUCE_WINDOWS // don't want to bother...
-	MIR_set_error_func(ctx, mirError);
-#endif
+	currentConsole = m.getGlobalFunctionClass(NamespacedIdentifier("Console"));
+	
 }
 
-
-
-juce::Result MirObject::compileMirCode(const ValueTree& ast)
+snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const ValueTree& ast)
 {
-	MirBuilder b(ctx, ast);
+	if (currentFunctionClass == nullptr)
+		currentFunctionClass = new MirFunctionCollection();
+
+	MirBuilder b(getFunctionClass()->ctx, ast);
 
     b.setDataLayout(dataLayout);
     
@@ -94,27 +184,35 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
         auto code = b.getMirText();
 		auto ok = compileMirCode(code);
         
-        globalData = b.getGlobalData();
-        
-        
+        getFunctionClass()->globalData = b.getGlobalData();
         
         return ok;
 	}
 
-	return r;
+	return nullptr;
 }
 
-Array<StaticFunctionPointer> MirObject::currentFunctions;
+snex::mir::MirFunctionCollection* MirCompiler::getFunctionClass()
+{
+	return dynamic_cast<MirFunctionCollection*>(currentFunctionClass.get());
+}
 
-void MirObject::setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap)
+Array<StaticFunctionPointer> MirCompiler::currentFunctions;
+
+void MirCompiler::setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap)
 {
 	if (currentFunctions.size() == 0)
 		currentFunctions.addArray(functionMap);
 }
 
-void* MirObject::resolve(const char* name)
+void* MirCompiler::resolve(const char* name)
 {
+	
+
 	String label(name);
+
+	if (label == "Console")
+		return (void*)MirCompiler::currentConsole;
 
 	for (const auto& f : currentFunctions)
 	{
@@ -127,13 +225,15 @@ void* MirObject::resolve(const char* name)
         DBG(f.label);
     }
     
+	
+
 	jassertfalse;
 	return nullptr;
 }
 
 
 
-bool MirObject::isExternalFunction(const String& sig)
+bool MirCompiler::isExternalFunction(const String& sig)
 {
 	for (const auto& f : currentFunctions)
 	{
@@ -144,43 +244,39 @@ bool MirObject::isExternalFunction(const String& sig)
 	return false;
 }
 
-juce::Result MirObject::compileMirCode(const String& code)
+snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& code)
 {
-    assembly = code;
-    
-	if (SyntaxTreeExtractor::isBase64Tree(code))
+    if (SyntaxTreeExtractor::isBase64Tree(code))
 	{
 		auto v = SyntaxTreeExtractor::getSyntaxTree(code);
 		return compileMirCode(v);
 	}
 
+	if (currentFunctionClass == nullptr)
+		currentFunctionClass = new MirFunctionCollection();
+
+	assembly = code;
+
 	r = Result::ok();
 
 	try
 	{
-        auto df = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("mir_debug.txt");
-        
-        auto dp = df.getFullPathName();
-        
-        auto dbgfile = fopen(dp.getCharPointer().getAddress(), "w");
-        
         File fs;
         
+		auto ctx = getFunctionClass()->ctx;
+
 		MIR_scan_string(ctx, code.getCharPointer().getAddress());
 
 		if (auto m = DLIST_TAIL(MIR_module_t, *MIR_get_module_list(ctx)))
 		{
-			modules.add(m);
+			getFunctionClass()->modules.add(m);
 			MIR_load_module(ctx, m);
 			MIR_gen_init(ctx, 1);
 			MIR_gen_set_optimize_level(ctx, 1, 3);
-            MIR_gen_set_debug_file(ctx, 1, dbgfile);
-			MIR_link(ctx, MIR_set_gen_interface, &MirObject::resolve);
-            fclose(dbgfile);
+            //MIR_gen_set_debug_file(ctx, 1, dbgfile);
+			MIR_link(ctx, MIR_set_gen_interface, &MirCompiler::resolve);
             
-            
-            
-            for(auto& m: modules)
+            for(auto& m: getFunctionClass()->modules)
             {
                 for (auto f = DLIST_HEAD(MIR_item_t, m->items); f != NULL; f = DLIST_NEXT(MIR_item_t, f))
                 {
@@ -188,21 +284,36 @@ juce::Result MirObject::compileMirCode(const String& code)
                     {
                         String s(f->u.data->name);
                         
-                        if(s.isNotEmpty())
+                        if(s.isNotEmpty() && !s.startsWithChar('.'))
                         {
-                            dataItems.set(s, f->addr);
-                            dataIds.add(s);
-                        }
-                        
-                    }
+                            getFunctionClass()->dataItems.set(s, f->addr);
 
+							NamespacedIdentifier id(s);
+							TypeInfo t(Types::ID::Integer, false, false);
+
+                            getFunctionClass()->dataIds.add(jit::Symbol(id, t));
+                        }
+                    }
+					else if (f->item_type == MIR_func_item)
+					{
+						String s(f->u.data->name);
+
+						s = s.upToLastOccurrenceOf("_", false, false);
+
+						if (s.isNotEmpty())
+						{
+							NamespacedIdentifier id(s);
+							getFunctionClass()->allFunctions.add(id);
+						}
+					}
                 }
             }
+
+			return getFunctionClass();
 		}
 		else
 		{
 			r = Result::fail("Can't find module");
-            fclose(dbgfile);
 		}
 	}
 	catch (String& error)
@@ -210,10 +321,11 @@ juce::Result MirObject::compileMirCode(const String& code)
 		r = Result::fail(error);
 	}
 
-	return r;
+	return nullptr;
+
 }
 
-void MirObject::fillRecursive(ValueTree& d, const String& dataId, size_t offset)
+void MirFunctionCollection::fillRecursive(ValueTree& d, const String& dataId, size_t offset) const
 {
     if(d.getType() == Identifier("NativeType"))
     {
@@ -278,7 +390,7 @@ void MirObject::fillRecursive(ValueTree& d, const String& dataId, size_t offset)
     }
 }
 
-ValueTree MirObject::fillLayoutWithData(const String& dataId, const ValueTree& valueData)
+ValueTree MirFunctionCollection::fillLayoutWithData(const String& dataId, const ValueTree& valueData) const
 {
     auto copy = valueData.createCopy();
     
@@ -287,38 +399,74 @@ ValueTree MirObject::fillLayoutWithData(const String& dataId, const ValueTree& v
     return copy;
 }
 
-FunctionData MirObject::operator[](const String& functionName)
+juce::Result MirCompiler::getLastError() const
 {
-	MIR_item_t f, main_func;
+	return r;
+}
+
+void MirCompiler::setDataLayout(const String& b64)
+{
+    dataLayout = b64;
+}
+
+MirCompiler::~MirCompiler()
+{
+	
+}
+
+
+
+
+
+MirFunctionCollection::MirFunctionCollection()
+{
+	ctx = MIR_init();
+#if JUCE_WINDOWS // don't want to bother...
+	MIR_set_error_func(ctx, mirError);
+#endif
+}
+
+MirFunctionCollection::~MirFunctionCollection()
+{
+	MIR_finish(ctx);
+}
+
+snex::jit::FunctionData MirFunctionCollection::getFunction(const NamespacedIdentifier& functionId)
+{
+	auto functionName = TypeConverters::NamespacedIdentifier2MangledMirVar(functionId);
+
+	jassert(allFunctions.contains(NamespacedIdentifier(functionName)));
+	
+	MIR_item_t mir_f, main_func;
 
 	main_func = nullptr;
 
-    for (auto& m : modules)
+	for (auto& m : modules)
 	{
-		for (auto f = DLIST_HEAD(MIR_item_t, m->items); f != NULL; f = DLIST_NEXT(MIR_item_t, f))
+		for (auto mir_f = DLIST_HEAD(MIR_item_t, m->items); mir_f != NULL; mir_f = DLIST_NEXT(MIR_item_t, mir_f))
 		{
-			if (f->item_type == MIR_func_item)
+			if (mir_f->item_type == MIR_func_item)
 			{
-				String x(f->u.func->name);
+				String x(mir_f->u.func->name);
 				x = x.upToLastOccurrenceOf("_", false, false);
 
 				if (x == functionName)
 				{
-					main_func = f;
+					main_func = mir_f;
 					break;
 				}
 			}
 		}
 	}
 
+	jit::FunctionData f;
+	f.id = NamespacedIdentifier(functionName);
+
 	if (main_func)
 	{
-		FunctionData f;
-		f.id = NamespacedIdentifier(functionName);
-
 		auto x = main_func->u.func;
 
-		if(x->nres != 0)
+		if (x->nres != 0)
 			f.returnType = TypeInfo(MirHelpers::getTypeFromMirEnum(x->res_types[0]), false, false);
 
 		for (int i = 0; i < x->nargs; i++)
@@ -327,84 +475,11 @@ FunctionData MirObject::operator[](const String& functionName)
 			f.addArgs(v.name, TypeInfo(MirHelpers::getTypeFromMirEnum(v.type)));
 		}
 
-		
-		
-		
-
 		f.function = MIR_gen(ctx, 0, main_func);
-		
-		return f;
 	}
-	else
-	{
-		r = Result::fail("Can't find function with id " + functionName);
-		return {};
-	}
+	
+	return f;
 }
-
-juce::Result MirObject::getLastError() const
-{
-	return r;
-}
-
-void MirObject::setDataLayout(const String& b64)
-{
-    dataLayout = b64;
-}
-
-ValueTree MirObject::getGlobalDataLayout()
-{
-    ValueTree nt("GlobalData");
-    
-    for(const auto& c: globalData)
-    {
-        auto v = fillLayoutWithData(c["ObjectId"].toString(), c);
-        nt.addChild(v, -1, nullptr);
-    }
-    
-    return nt;
-}
-
-MirObject::~MirObject()
-{
-	MIR_finish(ctx);
-}
-
-void MirObject::example()
-{
-	String code = "\
-	m_loop: module\n\
-	loop:   func i64, i64:limit # a comment\n\
-	\n\
-	        local i64:count\n\
-	        mov count, 0\n\
-	        bge L1, count, limit\n\
-	L2:     # a separate label\n\
-	        add count, count, 1; blt L2, count, limit\n\
-	L1:     mul count, count, 24\n\
-	        ret count  # label with insn\n\
-	        endfunc\n\
-	        endmodule\n";
-
-	using FuncType = int64_t(*)(int64_t);
-
-	MirObject obj;
-	auto ok = obj.compileMirCode(code);
-
-	if (ok.wasOk())
-	{
-
-		auto f = obj["loop"];
-
-		auto res = f.call<int>(12);
-
-		
-		int x = 5;
-	}
-}
-
-
-
 
 }
 }

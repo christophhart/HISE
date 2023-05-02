@@ -45,77 +45,46 @@ using jit::FunctionData;
 using jit::StaticFunctionPointer;
 
 
+struct MirFunctionCollection;
 
-struct MirObject
+struct MirCompiler
 {
-	MirObject();
+	MirCompiler(jit::GlobalScope& m);
 
-	Result compileMirCode(const String& code);
-	Result compileMirCode(const ValueTree& ast);
+	jit::FunctionCollectionBase* compileMirCode(const String& code);
+	jit::FunctionCollectionBase* compileMirCode(const ValueTree& ast);
 
     void setDataLayout(const String& b64data);
     
-	FunctionData operator[](const String& functionName);
-
 	Result getLastError() const;;
 
-	~MirObject();
-
-	static void example();
+	~MirCompiler();
 
 	static void setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap);
 
 	static void* resolve(const char* name);
 
 	static bool isExternalFunction(const String& sig);
-
-    
-    
-    StringArray getGlobalDataIds()
-    {
-        return dataIds;
-    }
-    
-    
-    template <typename T> T getData(const String& dataId, size_t byteOffset=0)
-    {
-        if(dataItems.contains(dataId))
-        {
-            auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
-            bytePtr += byteOffset;
-            
-            return *reinterpret_cast<T*>(bytePtr);
-        }
-        
-        jassertfalse;
-        return T();
-    }
     
     String getAssembly() const { return assembly; }
     
-    ValueTree getGlobalDataLayout();
-    
-private:
+	jit::FunctionCollectionBase::Ptr currentFunctionClass;
 
-    ValueTree fillLayoutWithData(const String& dataId, const ValueTree& valueData);
-    
-    void fillRecursive(ValueTree& copy, const String& dataId, size_t offset);
-    
-    
-    ValueTree globalData;
-    
-    StringArray dataIds;
+	private:
+
+	jit::GlobalScope& memory;
+
+	MirFunctionCollection* getFunctionClass();
+
     String dataLayout;
     String assembly;
     
-    HashMap<String, void*> dataItems;
-    
 	static Array<StaticFunctionPointer> currentFunctions;
+	static void* currentConsole;
 
 	Result r;
 
-	MIR_context* ctx;
-	Array<MIR_module*> modules;
+	
 };
 
 }

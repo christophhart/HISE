@@ -742,27 +742,7 @@ Result ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 
 int ui::WorkbenchData::CompileResult::getNumDebugObjects() const
 {
-#if SNEX_MIR_BACKEND
-    return mirDataLayout.getNumChildren();
-#else
-	if (dataPtr == nullptr)
-		return 0;
-
-	int numObjects = 0;
-
-	if (auto st = dynamic_cast<StructType*>(mainClassPtr.get()))
-	{
-		String s;
-		int intent = 0;
-		st->dumpTable(s, intent, dataPtr, dataPtr);
-
-		DBG(s);
-
-		numObjects += st->getNumMembers();
-	}
-
-	return numObjects;
-#endif
+	return obj.getNumVariables();
 }
 
 struct ValueTreeDebugInfo: public hise::DebugInformationBase
@@ -844,10 +824,8 @@ struct ValueTreeDebugInfo: public hise::DebugInformationBase
 hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInformation(int index)
 {
 #if SNEX_MIR_BACKEND
-    auto c = mirDataLayout.getChild(index);
-    
+	auto c = obj.getDataLayout(index); 
     return new ValueTreeDebugInfo(c);
-    
 #else
 	if (dataPtr == nullptr)
 		return nullptr;

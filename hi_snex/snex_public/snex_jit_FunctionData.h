@@ -444,6 +444,33 @@ private:
 };
 
 
+struct FunctionCollectionBase : public ReferenceCountedObject
+{
+	using Ptr = ReferenceCountedObjectPtr<FunctionCollectionBase>;
+
+	virtual ~FunctionCollectionBase() {};
+
+	virtual FunctionData getFunction(const NamespacedIdentifier& functionId) = 0;
+
+	virtual VariableStorage getVariable(const Identifier& id) = 0;
+
+	void* getMainObjectPtr();
+
+	virtual void* getVariablePtr(const Identifier& id) = 0;
+
+	virtual juce::String dumpTable() = 0;
+
+	virtual Array<NamespacedIdentifier> getFunctionIds() const = 0;
+
+	virtual Array<Symbol> getAllVariables() const = 0;
+
+	virtual ValueTree getDataLayout(int dataIndex) const { return {}; }
+
+protected:
+
+	static NamespacedIdentifier getMainId();
+};
+
 
 struct TemplateObject
 {

@@ -331,9 +331,7 @@ public:
 		String assembly;
 		JitObject obj;
         
-        ValueTree mirDataLayout;
-		ComplexType::Ptr mainClassPtr;
-
+        ComplexType::Ptr mainClassPtr;
 
 		scriptnode::ParameterDataList parameters;
 		JitCompiledNode::Ptr lastNode;

@@ -311,10 +311,6 @@ void JitFileTestCase::initCompiler()
 	if (!nodeId.isValid())
     {
         Types::SnexObjectDatabase::registerObjects(c, 2);
-
-#if SNEX_MIR_BACKEND
-    mir::MirObject::setLibraryFunctions(c.getFunctionMap());
-#endif
     }
 }
 
@@ -351,24 +347,9 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 		obj = c.compileJitObject(code);
 
 		r = c.getCompileResult();
+        
+		assembly = c.getAssemblyCode();
 
-#if SNEX_MIR_BACKEND
-        
-        DBG("TEST MIR " + file.getFullPathName());
-        
-        auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
-        auto layout = c.createDataLayouts();
-        auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(layout);
-        
-        mobj.setDataLayout(datab64);
-        
-        r = mobj.compileMirCode(b64);
-        
-        assembly = mobj.getAssembly();
-#else
-        assembly = c.getAssemblyCode();
-#endif
-        
 		if (dumpBeforeTest)
 		{
 			DBG("code");
@@ -465,7 +446,7 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 	}
 	else
 	{
-		auto compiledF = SNEX_MIR_BACKEND ? mobj[function.id.toString()] : obj[function.id];
+		auto compiledF = obj[function.id];
 
 		PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
 
@@ -505,15 +486,9 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
             default: jassertfalse;
             }
 
-#if SNEX_MIR_BACKEND
-            mirDataLayout = mobj.getGlobalDataLayout();
-#endif
 			
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
-
-			
-
 		}
 
 		if (memory.checkRuntimeErrorAfterExecution())

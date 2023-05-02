@@ -60,7 +60,7 @@ public:
 			}
 		}
 
-		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
+		newScope = new AsmJitFunctionCollection(parentScope, classInstanceId);
 	};
 
 	virtual ~ClassCompiler()
@@ -84,13 +84,13 @@ public:
 	bool parseOnly = false;
 	asmjit::Runtime* parentRuntime = nullptr;
 
-	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
+	AsmJitFunctionCollection* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
 	{
 		ClassParser parser(this, classStart, length);
 
 		if (newScope == nullptr)
 		{
-			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
+			newScope = new AsmJitFunctionCollection(parentScope, instanceId);
 		}
 
 		newScope->pimpl->handler = &namespaceHandler;
@@ -148,7 +148,7 @@ public:
 		return newScope.release();
 	}
 
-	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
+	AsmJitFunctionCollection* compileAndGetScope(const juce::String& code)
 	{
 
 
@@ -159,7 +159,7 @@ public:
 
 	Result getLastResult() { return lastResult; }
 
-	ScopedPointer<JitCompiledFunctionClass> newScope;
+	ScopedPointer<AsmJitFunctionCollection> newScope;
 
 	asmjit::X86Compiler* asmCompiler;
 

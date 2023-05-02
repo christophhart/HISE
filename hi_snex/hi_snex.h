@@ -208,6 +208,9 @@ namespace snex
 #define SNEX_MIR_BACKEND 0
 #endif
 
+#define SNEX_ASMJIT_BACKEND !SNEX_MIR_BACKEND
+
+
 
 #define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
 #define JIT_MEMBER_WRAPPER_1(R, C, N, T1)				  static R N(void* o, T1 a1) { return static_cast<C*>(o)->N(a1); };
@@ -281,11 +284,12 @@ namespace snex
 #include "snex_core/snex_jit_TemplateParameter.h"
 #include "snex_core/snex_jit_Inliner.h"
 #include "snex_public/snex_jit_FunctionData.h"
-#include "snex_mir/snex_MirObject.h"
+
 #include "snex_core/snex_jit_FunctionClass.h"
 #include "snex_core/snex_jit_NamespaceHandler.h"
 #include "snex_core/snex_jit_BaseScope.h"
 #include "snex_public/snex_jit_GlobalScope.h"
+#include "snex_mir/snex_MirObject.h"
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
 #include "snex_public/snex_jit_JitCompiler.h"

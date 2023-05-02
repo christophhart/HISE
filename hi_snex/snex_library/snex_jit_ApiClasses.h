@@ -143,8 +143,11 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
-			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
-			logAsyncIfNecessary(s);
+			if (auto cs = gs->getCurrentClassScope())
+			{
+				auto s = cs->getRootData()->dumpTable();
+				logAsyncIfNecessary(s);
+			}
 		}
 	}
 

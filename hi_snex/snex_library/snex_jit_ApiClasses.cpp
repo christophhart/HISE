@@ -327,7 +327,8 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 {
 	using namespace Types;
 
-#if 0
+
+#if SNEX_MIR_BACKEND
 	{
 		auto f = createMemberFunction(Float, "print", { Float });
 		f->setFunction(WrapperFloat::print);
@@ -350,9 +351,12 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	}
 #endif
 
+
 	{
 		auto f = createMemberFunction(Types::ID::Void, "blink", {});
 
+		
+#if SNEX_ASMJIT_BACKEND
 		f->inliner = Inliner::createAsmInliner(f->id, [this](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -375,6 +379,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 			d->args.add(tempReg.tempReg);
 			return d->gen.emitFunctionCall(d->target, bf, d->object, d->args);
 		});
+#endif
 
 		addFunction(f);
 		setDescription("Sends a blink message to indicate that this was hit", {});
@@ -383,6 +388,9 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	{
 		auto f = createMemberFunction(Types::ID::Void, "stop", { Types::ID::Integer});
 		
+		f->setFunction(WrapperStop::stop);
+
+#if SNEX_ASMJIT_BACKEND
 		f->inliner = Inliner::createAsmInliner(f->id, [this](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -412,6 +420,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 
 			return d->gen.emitFunctionCall(d->target, rp, d->object, d->args);
 		});
+#endif
 
 		addFunction(f);
 		setDescription("Breaks the execution if condition is true and dumps all variables", { "condition"});
@@ -424,6 +433,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		setDescription("Dumps the current state of the class data", { });
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	{
 		auto f = createMemberFunction(Types::ID::Void, "print", {});
 
@@ -508,6 +518,7 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 		addFunction(f);
 		setDescription("Dumps the given object / expression", { "object" });
 	}
+#endif
 }
 
 

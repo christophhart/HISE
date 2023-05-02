@@ -432,6 +432,8 @@ public:
 	void addObjectDeleteListener(ObjectDeleteListener* l);
 	void removeObjectDeleteListener(ObjectDeleteListener* l);
 
+	Map getMap() override;
+
 	static GlobalScope* getFromChildScope(BaseScope* scope)
 	{
 		auto parent = scope->getParent();

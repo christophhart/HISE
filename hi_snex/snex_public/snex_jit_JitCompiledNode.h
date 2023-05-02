@@ -52,10 +52,6 @@ struct JitCompiledNode : public ReferenceCountedObject,
 	{
 		c.reset();
 		SnexObjectDatabase::registerObjects(c, numChannels);
-        
-#if SNEX_MIR_BACKEND
-        mir::MirObject::setLibraryFunctions(c.getFunctionMap());
-#endif
 	}
 
 	JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf = defaultInitialiser);
@@ -156,12 +152,7 @@ struct JitCompiledNode : public ReferenceCountedObject,
 
     String getAssembly() const
     {
-#if SNEX_MIR_BACKEND
-        return mobj.getAssembly();
-#else
-        return {};
-        //return c.getAssemblyCode();
-#endif
+		return assembly;
     }
     
 private:
@@ -182,9 +173,7 @@ private:
 
 	JitObject obj;
     
-#if SNEX_MIR_BACKEND
-    mir::MirObject mobj;
-#endif
+	String assembly;
     
 	ComplexType::Ptr instanceType;
 

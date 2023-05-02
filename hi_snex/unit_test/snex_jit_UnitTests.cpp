@@ -192,36 +192,8 @@ public:
 
             bool useMIR = true;
 
-            ReturnType v;
+            auto v = f.template call<ReturnType>(input);
             
-#if SNEX_MIR_BACKEND
-            
-            mir::MirObject::setLibraryFunctions(compiler->getFunctionMap());
-            
-            auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(compiler->getAST());
-            auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(compiler->createDataLayouts());
-            
-            mir::MirObject mobj;
-            mobj.setDataLayout(datab64);
-            
-            auto ok = mobj.compileMirCode(b64);
-
-            if (ok.wasOk())
-            {
-                if(auto sf = mobj["setup"])
-                {
-                    sf.callVoid();
-                }
-                
-                f = mobj[t.toString()];
-                v = f.template call<ReturnType>(input);
-            }
-        
-#else
-            v = f.template call<ReturnType>(input);
-#endif
-            
-
 			auto diff = std::abs(v - expected);
 
 			if (diff > 0.000001)

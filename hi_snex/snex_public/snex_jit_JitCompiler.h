@@ -38,6 +38,9 @@ using namespace juce;
 
 
 
+
+
+
 /** A JIT compiler for a C language subset based on AsmJIT.
 
 	It is supposed to be used as "scripting" language for the inner loop of a DSP routine. It offers about 70% - 80% performance of
@@ -95,8 +98,6 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<Compiler>;
 
-	
-
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
 
@@ -106,14 +107,6 @@ public:
 
 	NamespaceHandler& parseWithoutCompilation(const juce::String& code);
 
-	/** Compile a class that you want to use from C++. */
-	template <class T> T* compileJitClass(const juce::String& code, const String& classId)
-	{
-		auto obj = compileJitObject(code);
-		auto typePtr = getComplexType(NamespacedIdentifier::fromString(classId));
-		return new T(std::move(obj), typePtr);
-	};
-
 	Result getCompileResult();
 
 	juce::String getAssemblyCode();
@@ -122,8 +115,6 @@ public:
 	juce::String dumpNamespaceTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
 
-    Array<ValueTree> createDataLayouts() const;
-    
 	/** This registers an external object as complex type.
 
 	If a similar type already exists, it returns the pointer to this type object,
@@ -151,10 +142,11 @@ public:
 
 	FunctionClass::Map getFunctionMap();
 
-
-
 private:
 
+	
+
+	String assembly;
 	NamespaceHandler::Ptr handler;
 	juce::String lastCode;
 	juce::String preprocessedCode;

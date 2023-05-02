@@ -1199,7 +1199,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		lastResult.assembly = lastTest->assembly;
 		lastResult.obj = lastTest->obj;
 		lastResult.parameters.clear();
-
+		
 		if (lastTest->nodeToTest != nullptr)
 		{
 			lastResult.parameters.addArray(lastTest->nodeToTest->getParameterList());
@@ -1233,7 +1233,6 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			{
 				lastResult.compileResult = lastTest->testAfterCompilation();
                 lastResult.assembly = lastTest->assembly;
-                lastResult.mirDataLayout = lastTest->mirDataLayout;
 			}
 
 #if 0

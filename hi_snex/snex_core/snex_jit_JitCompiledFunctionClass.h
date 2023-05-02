@@ -41,28 +41,33 @@ class ClassCompiler;
 
 class ClassScope;
 
-class JitCompiledFunctionClass: public ReferenceCountedObject
+
+
+
+class AsmJitFunctionCollection: public FunctionCollectionBase
 {
 public:
 
-	using Ptr = ReferenceCountedObjectPtr<JitCompiledFunctionClass>;
+	AsmJitFunctionCollection(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId);
 
-	JitCompiledFunctionClass(BaseScope* parentScope, const NamespacedIdentifier& classInstanceId);
+	~AsmJitFunctionCollection();
 
-	~JitCompiledFunctionClass();
+	FunctionData getFunction(const NamespacedIdentifier& functionId) override;
 
-	FunctionData getFunction(const NamespacedIdentifier& functionId);
+	VariableStorage getVariable(const Identifier& id) override;
 
-	VariableStorage getVariable(const Identifier& id);
-
+	Array<Symbol> getAllVariables() const override;
 	ComplexType::Ptr getMainObjectType();
-	void* getMainObjectPtr();
+	void* getVariablePtr(const Identifier& id) override;
 
-	void* getVariablePtr(const Identifier& id);
+	juce::String dumpTable() override;
 
-	juce::String dumpTable();
+	Array<NamespacedIdentifier> getFunctionIds() const override;
 
-	Array<NamespacedIdentifier> getFunctionIds() const;
+	
+
+
+private:
 
 	ClassScope* releaseClassScope()
 	{
@@ -75,11 +80,6 @@ public:
 	{
 		return pimpl;
 	}
-
-
-private:
-
-	static NamespacedIdentifier getMainId();
 
 	ReferenceCountedArray<DebugInformationBase> debugInformation;
 	friend class ClassCompiler;
@@ -94,11 +94,9 @@ class JitObject
 {
 public:
 
-	
-
 	JitObject() : functionClass(nullptr) {};
 
-	JitObject(JitCompiledFunctionClass* f) :
+	JitObject(FunctionCollectionBase* f) :
 		functionClass(f)
 	{};
 
@@ -117,18 +115,11 @@ public:
 	Array<NamespacedIdentifier> getFunctionIds() const;
 
 	explicit operator bool() const;;
-	
-	ComplexType::Ptr getMainObjectType()
-	{
-		return functionClass->getMainObjectType();
-	}
 
 	void* getMainObjectPtr()
 	{
 		return functionClass->getMainObjectPtr();
 	}
-
-	ClassScope* getClassScope() { return functionClass->getClassScope(); };
 
 	juce::String dumpTable()
 	{
@@ -138,9 +129,19 @@ public:
 		return {};
 	}
 
+	int getNumVariables() const { return functionClass != nullptr ? functionClass->getAllVariables().size() : 0; }
+
+	ValueTree getDataLayout(int dataIndex)
+	{
+		if (functionClass != nullptr)
+			return functionClass->getDataLayout(dataIndex);
+
+		return {};
+	}
+
 private:
 
-	JitCompiledFunctionClass::Ptr functionClass;
+	FunctionCollectionBase::Ptr functionClass;
 };
 
 

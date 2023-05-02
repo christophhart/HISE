@@ -90,7 +90,7 @@ Compiler::~Compiler()
 
 juce::String Compiler::getAssemblyCode()
 {
-	return compiler->assembly;
+	return assembly;
 }
 
 
@@ -118,11 +118,6 @@ juce::String Compiler::dumpSyntaxTree() const
 juce::String Compiler::dumpNamespaceTree() const
 {
 	return compiler->namespaceHandler.dump();
-}
-
-Array<ValueTree> Compiler::createDataLayouts() const
-{
-    return compiler->namespaceHandler.createDataLayouts();
 }
 
 ComplexType::Ptr Compiler::registerExternalComplexType(ComplexType::Ptr t)
@@ -209,7 +204,29 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		return {};
 	}
 	
-	return JitObject(compiler->compileAndGetScope(preprocessedCode));
+	
+
+	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
+
+#if SNEX_MIR_BACKEND
+
+	auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(getAST());
+	auto layout = compiler->namespaceHandler.createDataLayouts();
+	auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(layout);
+
+	mir::MirCompiler mc(memory);
+
+	mc.setDataLayout(datab64);
+
+	JitObject mirObject(mc.compileMirCode(b64));
+
+	assembly = mc.getAssembly();
+
+	return mirObject;
+#else
+	assembly = compiler->assembly;
+	return snexObject;
+#endif
 }
 
 
