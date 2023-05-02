@@ -124,7 +124,10 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 
 void ModulatorSynthChain::numSourceChannelsChanged()
 {
-	getMainController()->updateMultiChannelBuffer(getMatrix().getNumSourceChannels());
+    auto mc = getMainController();
+    
+    if(mc->getMainSynthChain() == this)
+        mc->updateMultiChannelBuffer(getMatrix().getNumSourceChannels());
 
 
 	for (int i = 0; i < getHandler()->getNumProcessors(); i++)
