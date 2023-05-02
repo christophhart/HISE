@@ -64,7 +64,45 @@ struct SpanType : public ArrayTypeBase
 
 	Result callDestructor(InitData& data) override;
 
-    ValueTree createDataLayout() const override { return {}; }
+    ValueTree createDataLayout() const override
+    {
+        ValueTree d("DataLayout");
+        d.setProperty("ID",  toStringInternal(), nullptr);
+        d.setProperty("type", "void*", nullptr);
+        d.setProperty("size", (int)getRequiredByteSize(), nullptr);
+        
+        auto numElements = getNumElements();
+        
+        if(numElements > 16)
+            d.setProperty("NumElements", numElements, nullptr);
+        else
+        {
+            auto elementType = getElementType();
+            
+            auto byteSize = (int)elementType.getRequiredByteSizeNonZero();
+            
+            ValueTree item("Item");
+            item.setProperty("type", elementType.toStringWithoutAlias(), nullptr);
+            item.setProperty("size", byteSize, nullptr);
+            
+            
+            if(elementType.isComplexType())
+            {
+                item.addChild(elementType.getComplexType()->createDataLayout(), -1, nullptr);
+            }
+            
+            for(int i = 0; i < numElements; i++)
+            {
+                auto idx = item.createCopy();
+                idx.setProperty("index", i, nullptr);
+                idx.setProperty("offset", i * byteSize, nullptr);
+                d.addChild(idx, -1, nullptr);
+            }
+        }
+        
+        return d;
+        
+    }
     
 	bool hasDestructor() override
 	{
@@ -168,7 +206,8 @@ struct DynType : public ArrayTypeBase
     {
         ValueTree t("DataLayout");
         t.setProperty("ID", toString(), nullptr);
-        t.setProperty("NumBytes", 16, nullptr);
+        t.setProperty("type", "void*", nullptr);
+        t.setProperty("size", 16, nullptr);
         t.setProperty("ElementSize", elementType.getRequiredByteSizeNonZero(), nullptr);
         
         auto et = TemplateParameter(elementType).withId(NamespacedIdentifier("DataType"));
@@ -555,12 +594,18 @@ private:
             c1.setProperty("ID", id.toString(), nullptr);
             
             auto t = Types::Helpers::getCppTypeName(typeInfo.getType());
-                                                    
+                           
             if(t == "pointer") t = "void*";
             
             c1.setProperty("type", t, nullptr);
             c1.setProperty("offset", (int)offset, nullptr);
+            c1.setProperty("size", (int)typeInfo.getRequiredByteSizeNonZero(), nullptr);
             c1.setProperty("default", defaultList != nullptr ? defaultList->toString() : "", nullptr);
+            
+            if(typeInfo.isComplexType())
+            {
+                c1.addChild(typeInfo.getComplexType()->createDataLayout(), -1, nullptr);
+            }
             
             return c1;
         }

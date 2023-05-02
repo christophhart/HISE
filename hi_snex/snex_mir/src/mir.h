@@ -34,7 +34,7 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 
 /* Redefine MIR_NO_IO or/and MIR_NO_SCAN if you don't need the functionality they provide.  */
 #ifndef MIR_NO_IO
-#define MIR_NO_IO 0
+#define MIR_NO_IO 1
 #endif
 
 #ifndef MIR_NO_SCAN

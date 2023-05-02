@@ -388,7 +388,8 @@ String snex::mir::TypeConverters::MirTypeAndToken2InstructionText(MIR_type_t typ
 	dblOps.set(JitTokens::equals, "DEQ");
 	dblOps.set(JitTokens::notEquals, "DNE");
 
-	if (type == MIR_T_I64)	return intOps.getValue(token, "").toLowerCase();
+	if (type == MIR_T_I64 ||
+        type == MIR_T_P)	return intOps.getValue(token, "").toLowerCase();
 	if (type == MIR_T_F)	return fltOps.getValue(token, "").toLowerCase();
 	if (type == MIR_T_D)	return dblOps.getValue(token, "").toLowerCase();
 

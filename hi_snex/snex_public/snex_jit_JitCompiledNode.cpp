@@ -96,6 +96,17 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 	r = c.getCompileResult();
 
+#if SNEX_MIR_BACKEND
+        
+    auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
+    auto layout = c.createDataLayouts();
+    auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(layout);
+        
+    mobj.setDataLayout(datab64);
+        
+    r = mobj.compileMirCode(b64);
+#endif
+      
 	if (r.wasOk())
 	{
 		NamespacedIdentifier impl("impl");

@@ -83,6 +83,7 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
     REGISTER_INLINER(dyn_referTo_ppii);
     REGISTER_INLINER(dyn_size_i);
 	REGISTER_INLINER(ProcessData_toEventData_p);
+    REGISTER_INLINER(ProcessData_toChannelData_pp);
 }
 
 MirBuilder::~MirBuilder()
@@ -103,6 +104,11 @@ MIR_module* MirBuilder::getModule() const
 void MirBuilder::setDataLayout(const String& b64)
 {
     currentState->dataManager.setDataLayout(b64);
+}
+
+ValueTree MirBuilder::getGlobalData()
+{
+    return currentState->dataManager.getGlobalData();
 }
 
 String MirBuilder::getMirText() const

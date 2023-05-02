@@ -742,6 +742,9 @@ Result ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 
 int ui::WorkbenchData::CompileResult::getNumDebugObjects() const
 {
+#if SNEX_MIR_BACKEND
+    return mirDataLayout.getNumChildren();
+#else
 	if (dataPtr == nullptr)
 		return 0;
 
@@ -759,10 +762,93 @@ int ui::WorkbenchData::CompileResult::getNumDebugObjects() const
 	}
 
 	return numObjects;
+#endif
 }
+
+struct ValueTreeDebugInfo: public hise::DebugInformationBase
+{
+    ValueTreeDebugInfo(const ValueTree& v_):
+      v(v_)
+    {
+        
+    }
+    
+    int getNumChildElements() const override
+    {
+        return v.getNumChildren();
+    }
+    
+    virtual int getType() const
+    {
+        if (auto obj = getObject())
+            return obj->getTypeNumber();
+
+        return 0;
+    };
+
+    Ptr getChildElement(int index)
+    {
+        return new ValueTreeDebugInfo(v.getChild(index));
+    }
+
+    virtual String getTextForName() const
+    {
+        return v["ObjectId"].toString();
+    }
+
+    virtual String getCategory() const
+    {
+        return "";
+    }
+
+    virtual DebugableObjectBase::Location getLocation() const
+    {
+        return DebugableObjectBase::Location();
+    }
+
+    virtual String getTextForType() const { return "unknown"; }
+
+    virtual String getTextForDataType() const
+    {
+        return v["type"].toString();
+    }
+
+    virtual String getTextForValue() const
+    {
+        return v["Value"].toString();
+    }
+
+    virtual bool isWatchable() const
+    {
+        return true;
+    }
+
+    virtual bool isAutocompleteable() const
+    {
+        return false;
+    }
+
+    virtual String getCodeToInsert() const
+    {
+        return "";
+    };
+
+    virtual AttributedString getDescription() const
+    {
+        return AttributedString();
+    }
+    
+    ValueTree v;
+};
 
 hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInformation(int index)
 {
+#if SNEX_MIR_BACKEND
+    auto c = mirDataLayout.getChild(index);
+    
+    return new ValueTreeDebugInfo(c);
+    
+#else
 	if (dataPtr == nullptr)
 		return nullptr;
 
@@ -777,6 +863,7 @@ hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInform
 	}
 
 	return nullptr;
+#endif
 }
 
 int ui::WorkbenchData::CompileResult::DataEntry::getType() const

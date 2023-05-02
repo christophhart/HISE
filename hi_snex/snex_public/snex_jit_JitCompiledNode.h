@@ -52,6 +52,10 @@ struct JitCompiledNode : public ReferenceCountedObject,
 	{
 		c.reset();
 		SnexObjectDatabase::registerObjects(c, numChannels);
+        
+#if SNEX_MIR_BACKEND
+        mir::MirObject::setLibraryFunctions(c.getFunctionMap());
+#endif
 	}
 
 	JitCompiledNode(Compiler& c, const String& code, const String& classId, int numChannels_, const CompilerInitFunction& cf = defaultInitialiser);
@@ -150,6 +154,16 @@ struct JitCompiledNode : public ReferenceCountedObject,
 	}
 #endif
 
+    String getAssembly() const
+    {
+#if SNEX_MIR_BACKEND
+        return mobj.getAssembly();
+#else
+        return {};
+        //return c.getAssemblyCode();
+#endif
+    }
+    
 private:
 
 	int numRequiredDataTypes[(int)ExternalData::DataType::numDataTypes];
@@ -167,6 +181,11 @@ private:
 	Array<FunctionData> parameterFunctions;
 
 	JitObject obj;
+    
+#if SNEX_MIR_BACKEND
+    mir::MirObject mobj;
+#endif
+    
 	ComplexType::Ptr instanceType;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JitCompiledNode);

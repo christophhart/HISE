@@ -91,7 +91,14 @@ juce::Result MirObject::compileMirCode(const ValueTree& ast)
 
 	if (r.wasOk())
 	{
-		return compileMirCode(b.getMirText());
+        auto code = b.getMirText();
+		auto ok = compileMirCode(code);
+        
+        globalData = b.getGlobalData();
+        
+        
+        
+        return ok;
 	}
 
 	return r;
@@ -139,6 +146,8 @@ bool MirObject::isExternalFunction(const String& sig)
 
 juce::Result MirObject::compileMirCode(const String& code)
 {
+    assembly = code;
+    
 	if (SyntaxTreeExtractor::isBase64Tree(code))
 	{
 		auto v = SyntaxTreeExtractor::getSyntaxTree(code);
@@ -149,6 +158,14 @@ juce::Result MirObject::compileMirCode(const String& code)
 
 	try
 	{
+        auto df = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("mir_debug.txt");
+        
+        auto dp = df.getFullPathName();
+        
+        auto dbgfile = fopen(dp.getCharPointer().getAddress(), "w");
+        
+        File fs;
+        
 		MIR_scan_string(ctx, code.getCharPointer().getAddress());
 
 		if (auto m = DLIST_TAIL(MIR_module_t, *MIR_get_module_list(ctx)))
@@ -157,11 +174,35 @@ juce::Result MirObject::compileMirCode(const String& code)
 			MIR_load_module(ctx, m);
 			MIR_gen_init(ctx, 1);
 			MIR_gen_set_optimize_level(ctx, 1, 3);
+            MIR_gen_set_debug_file(ctx, 1, dbgfile);
 			MIR_link(ctx, MIR_set_gen_interface, &MirObject::resolve);
+            fclose(dbgfile);
+            
+            
+            
+            for(auto& m: modules)
+            {
+                for (auto f = DLIST_HEAD(MIR_item_t, m->items); f != NULL; f = DLIST_NEXT(MIR_item_t, f))
+                {
+                    if(f->item_type == MIR_data_item)
+                    {
+                        String s(f->u.data->name);
+                        
+                        if(s.isNotEmpty())
+                        {
+                            dataItems.set(s, f->addr);
+                            dataIds.add(s);
+                        }
+                        
+                    }
+
+                }
+            }
 		}
 		else
 		{
 			r = Result::fail("Can't find module");
+            fclose(dbgfile);
 		}
 	}
 	catch (String& error)
@@ -172,7 +213,79 @@ juce::Result MirObject::compileMirCode(const String& code)
 	return r;
 }
 
+void MirObject::fillRecursive(ValueTree& d, const String& dataId, size_t offset)
+{
+    if(d.getType() == Identifier("NativeType"))
+    {
+        auto type = Types::Helpers::getTypeFromTypeName(d["type"].toString());
+        
+        if(type == Types::ID::Integer)
+            d.setProperty("Value", getData<int>(dataId, offset), nullptr);
+        if(type == Types::ID::Float)
+            d.setProperty("Value", getData<float>(dataId, offset), nullptr);
+        if(type == Types::ID::Double)
+            d.setProperty("Value", getData<double>(dataId, offset), nullptr);
+        
+        return;
+    }
+    
+    for(int i = 0; i < d.getNumChildren(); i++)
+    {
+        auto m = d.getChild(i);
+        
+        if(m.getType() == Identifier("TemplateParameter") ||
+           m.getType() == Identifier("Method"))
+        {
+            d.removeChild(i--, nullptr);
+        }
+    }
+    
+    auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
+    bytePtr += offset;
+    
+    for(auto m: d)
+    {
+        auto o = (size_t)(int)m["offset"];
+        auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
+        
+        
+        
+        if(type == Types::ID::Integer)
+            m.setProperty("Value", getData<int>(dataId, offset + o), nullptr);
+        if(type == Types::ID::Float)
+            m.setProperty("Value", getData<float>(dataId, offset + o), nullptr);
+        if(type == Types::ID::Double)
+            m.setProperty("Value", getData<double>(dataId, offset + o), nullptr);
+        if(type == Types::ID::Pointer)
+        {
+            auto dl = m.getChildWithName("DataLayout");
+            
+            if(dl.isValid())
+            {
+                fillRecursive(dl, dataId, offset + o);
+            }
+            else
+            {
+                auto p = reinterpret_cast<uint64>(getData<void*>(dataId, offset + o));
+                
+                auto hexPtr = "0x" + String::toHexString(p);
+                
+                m.setProperty("Value", hexPtr, nullptr);
+            }
+        }
+        
+        m.setProperty("address", "0x" + String::toHexString(reinterpret_cast<uint64>(bytePtr) + o), nullptr);
+    }
+}
 
+ValueTree MirObject::fillLayoutWithData(const String& dataId, const ValueTree& valueData)
+{
+    auto copy = valueData.createCopy();
+    
+    fillRecursive(copy, dataId, 0);
+    
+    return copy;
+}
 
 FunctionData MirObject::operator[](const String& functionName)
 {
@@ -180,14 +293,10 @@ FunctionData MirObject::operator[](const String& functionName)
 
 	main_func = nullptr;
 
-	for (auto& m : modules)
+    for (auto& m : modules)
 	{
 		for (auto f = DLIST_HEAD(MIR_item_t, m->items); f != NULL; f = DLIST_NEXT(MIR_item_t, f))
 		{
-			
-
-			
-
 			if (f->item_type == MIR_func_item)
 			{
 				String x(f->u.func->name);
@@ -241,6 +350,19 @@ juce::Result MirObject::getLastError() const
 void MirObject::setDataLayout(const String& b64)
 {
     dataLayout = b64;
+}
+
+ValueTree MirObject::getGlobalDataLayout()
+{
+    ValueTree nt("GlobalData");
+    
+    for(const auto& c: globalData)
+    {
+        auto v = fillLayoutWithData(c["ObjectId"].toString(), c);
+        nt.addChild(v, -1, nullptr);
+    }
+    
+    return nt;
 }
 
 MirObject::~MirObject()

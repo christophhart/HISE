@@ -308,12 +308,14 @@ void JitFileTestCase::initCompiler()
 	c.reset();
 	c.setDebugHandler(debugHandler);
 
-	
-
 	if (!nodeId.isValid())
-		Types::SnexObjectDatabase::registerObjects(c, 2);
+    {
+        Types::SnexObjectDatabase::registerObjects(c, 2);
 
-	mir::MirObject::setLibraryFunctions(c.getFunctionMap());
+#if SNEX_MIR_BACKEND
+    mir::MirObject::setLibraryFunctions(c.getFunctionMap());
+#endif
+    }
 }
 
 juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= false*/)
@@ -340,7 +342,8 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 			DBG(obj.dumpTable());
 		}
 
-		assembly = c.getAssemblyCode();//
+        assembly = nodeToTest->getAssembly();
+        
 		return nodeToTest->r;
 	}
 	else
@@ -349,6 +352,23 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 
 		r = c.getCompileResult();
 
+#if SNEX_MIR_BACKEND
+        
+        DBG("TEST MIR " + file.getFullPathName());
+        
+        auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
+        auto layout = c.createDataLayouts();
+        auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(layout);
+        
+        mobj.setDataLayout(datab64);
+        
+        r = mobj.compileMirCode(b64);
+        
+        assembly = mobj.getAssembly();
+#else
+        assembly = c.getAssemblyCode();
+#endif
+        
 		if (dumpBeforeTest)
 		{
 			DBG("code");
@@ -357,12 +377,12 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 			DBG("symbol tree");
 			DBG(c.dumpNamespaceTree());
 			DBG("assembly");
-			DBG(c.getAssemblyCode());
+			DBG(assembly);
 			DBG("data dump");
 			DBG(obj.dumpTable());
 		}
 
-		assembly = c.getAssemblyCode();
+    
 
 		if (r.failed())
 			return r;
@@ -445,7 +465,7 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 	}
 	else
 	{
-		auto compiledF = obj[function.id];
+		auto compiledF = SNEX_MIR_BACKEND ? mobj[function.id.toString()] : obj[function.id];
 
 		PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
 
@@ -475,52 +495,19 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 				return r;
 			}
 
-			bool useMIR = true;
+			function = compiledF;
 
-			if (useMIR)
-			{
-				DBG("TEST MIR " + file.getFullPathName());
+            switch (function.returnType.getType())
+            {
+            case Types::ID::Integer: actualResult = call<int>(); break;
+            case Types::ID::Float:   actualResult = call<float>(); break;
+            case Types::ID::Double:  actualResult = call<double>(); break;
+            default: jassertfalse;
+            }
 
-				auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(c.getAST());
-                auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(c.createDataLayouts());
-                
-				mir::MirObject mobj;
-                mobj.setDataLayout(datab64);
-                
-				auto ok = mobj.compileMirCode(b64);
-
-				if (ok.wasOk())
-				{
-					function = mobj["main"];
-
-					switch (function.returnType.getType())
-					{
-					case Types::ID::Integer: actualResult = call<int>(); break;
-					case Types::ID::Float:   actualResult = call<float>(); break;
-					case Types::ID::Double:  actualResult = call<double>(); break;
-					default: jassertfalse;
-					}
-					
-				}
-					
-				else
-					return ok;
-			}
-			else
-			{
-				function = compiledF;
-
-				switch (function.returnType.getType())
-				{
-				case Types::ID::Integer: actualResult = call<int>(); break;
-				case Types::ID::Float:   actualResult = call<float>(); break;
-				case Types::ID::Double:  actualResult = call<double>(); break;
-				default: jassertfalse;
-				}
-			}
-			
-			
-
+#if SNEX_MIR_BACKEND
+            mirDataLayout = mobj.getGlobalDataLayout();
+#endif
 			
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));

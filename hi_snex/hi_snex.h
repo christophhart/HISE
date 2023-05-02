@@ -203,6 +203,12 @@ namespace snex
 
 #if HISE_INCLUDE_SNEX
 
+
+#ifndef SNEX_MIR_BACKEND
+#define SNEX_MIR_BACKEND 0
+#endif
+
+
 #define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
 #define JIT_MEMBER_WRAPPER_1(R, C, N, T1)				  static R N(void* o, T1 a1) { return static_cast<C*>(o)->N(a1); };
 #define JIT_MEMBER_WRAPPER_2(R, C, N, T1, T2)			  static R N(void* o, T1 a1, T2 a2) { return static_cast<C*>(o)->N(a1, a2); };

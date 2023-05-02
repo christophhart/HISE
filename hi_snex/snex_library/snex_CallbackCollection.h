@@ -185,6 +185,11 @@ private:
 	String errorMessage;
 	jit::GlobalScope memory;
 	jit::JitObject obj;
+    
+#if SNEX_MIR_BACKEND
+    mir::MirObject mobj;
+#endif
+    
 	jit::FunctionData f;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JitExpression);

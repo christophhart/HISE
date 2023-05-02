@@ -1163,7 +1163,7 @@ juce::Result NamespaceHandler::checkVisiblity(const NamespacedIdentifier& id) co
 snex::NamespacedIdentifier NamespaceHandler::createNonExistentIdForLocation(const NamespacedIdentifier& customParent, int lineNumber) const
 {
 	auto currentNamespace = customParent.isValid() ? customParent : getCurrentNamespaceIdentifier();
-	auto id = Identifier("AnonymousScopeLine" + juce::String(lineNumber));
+	auto id = Identifier("scope_" + juce::String(lineNumber));
 	
 	auto newId = currentNamespace.getChildId(id);
 

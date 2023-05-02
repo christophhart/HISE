@@ -851,41 +851,99 @@ void SnexPlayground::postPostCompile(ui::WorkbenchData::Ptr wb)
 
 int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	auto c = source.nextChar();
+    auto c = source.nextChar();
 
-	if (c == ';')
-	{
-		source.skipToEndOfLine(); return Comment;
-	}
-	if (CharacterFunctions::isDigit(c))
-	{
-		while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
-			c = source.nextChar();
+    auto commentChar = SNEX_MIR_BACKEND ? '#' : ';';
+    
+    if (c == commentChar)
+    {
+        source.skipToEndOfLine(); return Comment;
+    }
+    if (CharacterFunctions::isDigit(c))
+    {
+        while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
+            c = source.nextChar();
 
-		return Number;
-	}
-	if (c == 'L' || c == '[')
-	{
-		while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
-			c = source.nextChar();
+        return Number;
+    }
+    if (c == 'L' || c == '[')
+    {
+        while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
+            c = source.nextChar();
 
-		return Location;
-	}
-	if (CharacterFunctions::isLowerCase(c))
-	{
-		while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
-			c = source.nextChar();
+        return Location;
+    }
+#if SNEX_MIR_BACKEND
+    
+    if(c == 'l')
+    {
+        if(source.peekNextChar() == 'o')
+        {
+            source.skipToEndOfLine(); return Local;
+        }
+    }
+    
+    if(c == 'f')
+    {
+        if(CharacterFunctions::isWhitespace(source.peekNextChar()))
+        {
+            return Type;
+        }
+    }
+    if(c == 'i')
+    {
+        auto s = source.peekNextChar();
+        if(s == '6' || s == '3')
+        {
+            source.skip();
+            auto s2 = source.nextChar();
+            
+            if((s == '6' && s2 == '4') ||
+                (s == '3' && s2 == '2'))
+            {
+                return Type;
+            }
+            
+        }
+        
+        if(CharacterFunctions::isWhitespace(source.peekNextChar()))
+        {
+            return Instruction;
+        }
+    }
+    if(c == 'r' || c == 'x')
+    {
+        auto next = source.nextChar();
+        auto next2 = source.peekNextChar();
+        auto nextMatch = (c == 'r' && next == 'e' && next2 == 'g') ||
+        (c == 'x' && next == 'm' && next2 == 'm');
+        
+        if(nextMatch)
+        {
+            while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
+                c = source.nextChar();
+            
+            return Register;
+        }
+    }
+#endif
+   
+    if (CharacterFunctions::isLowerCase(c))
+    {
+        while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
+            c = source.nextChar();
 
-		return Instruction;
-	}
-	if (c == '.')
-	{
-		while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
-			c = source.nextChar();
+        return Instruction;
+    }
+    if (c == '.')
+    {
+        while (!CharacterFunctions::isWhitespace(c) && !source.isEOF())
+            c = source.nextChar();
 
-		return Label;
-	}
-
+        return Label;
+    }
+    
+	
 
 
 	return Unknown;
@@ -901,6 +959,10 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 	scheme.set("Number", Colour(0xFFFFBBBB));
 	scheme.set("Label", Colours::white);
 	scheme.set("Instruction", Colour(0xFFBBBBFF));
+    scheme.set("Register", Colour(0xFFBBDDEE));
+    scheme.set("Type", Colour(0xFFBBDDFF));
+    scheme.set("Local", Colour(0xFFAAAAAA));
+    
 
 	return scheme;
 }
@@ -1170,9 +1232,10 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			else
 			{
 				lastResult.compileResult = lastTest->testAfterCompilation();
+                lastResult.assembly = lastTest->assembly;
+                lastResult.mirDataLayout = lastTest->mirDataLayout;
 			}
 
-			
 #if 0
 			lastResult.testResult = lastTest->testAfterCompilation();
 			lastResult.cpuUsage = lastTest->cpuUsage;

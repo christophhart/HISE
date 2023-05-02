@@ -150,6 +150,37 @@ struct InlinerFunctions
 		return obj.flush(s, RegisterType::Pointer);
 	};
 
+    static TextOperand ProcessData_toChannelData_pp(State* state, const ValueTree& data, const ValueTree& function)
+    {
+        InlineState obj(state, data, function);
+        
+        obj.dump();
+        
+        auto blockReg = obj.rm.getAnonymousId(false);
+        
+        obj.rm.allocateStack(blockReg, 16, false);
+        
+        TextLine s1(state);
+        s1.instruction = "mov";
+        s1.operands.add("i32:(" + blockReg + ")");
+        s1.addImmOperand(128);
+        s1.flush();
+        
+        TextLine s2(state);
+        s2.instruction = "mov";
+        s2.operands.add("i32:4(" + blockReg + ")");
+        s2.operands.add(obj.memberOp("numSamples", RegisterType::Value));
+        s2.flush();
+        
+        TextLine s3(state);
+        s3.instruction = "mov";
+        s3.operands.add("i64:8(" + blockReg + ")");
+        s3.operands.add(obj.argOp(1));
+        s3.flush();
+        
+        return obj.flush(blockReg, RegisterType::Pointer);
+    }
+    
 	static TextOperand ProcessData_toEventData_p(State* state, const ValueTree& data, const ValueTree& function)
 	{
 		InlineState obj(state, data, function);
@@ -160,11 +191,17 @@ struct InlinerFunctions
 
 		obj.rm.allocateStack(blockReg, 16, false);
 
-		TextLine s(state);
-		s.instruction = "mov";
-		s.operands.add("i32:4(" + blockReg + ")");
-		s.operands.add(obj.memberOp("numEvents", RegisterType::Value));
-		s.flush();
+        TextLine s0(state);
+        s0.instruction = "mov";
+        s0.operands.add("i32:(" + blockReg + ")");
+        s0.addImmOperand(128);
+        s0.flush();
+        
+		TextLine s1(state);
+		s1.instruction = "mov";
+		s1.operands.add("i32:4(" + blockReg + ")");
+		s1.operands.add(obj.memberOp("numEvents", RegisterType::Value));
+		s1.flush();
 
 		TextLine s2(state);
 		s2.instruction = "mov";

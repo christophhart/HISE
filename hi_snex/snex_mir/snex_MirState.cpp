@@ -199,7 +199,12 @@ String TextLine::toLine(int maxLabelLength) const
 		s << " ";
 
 	if (!localDef.isEmpty())
-		s << "local " << localDef << "; ";
+    {
+        s << "local " << localDef << "\n";
+        
+        for (int i = 0; i < maxLabelLength; i++)
+            s << " ";
+    }
 
 
 	s << instruction;

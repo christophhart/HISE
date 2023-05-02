@@ -57,6 +57,8 @@ struct MirBuilder
 
     void setDataLayout(const String& b64);
     
+    ValueTree getGlobalData();
+    
 private:
 
 	State* currentState = nullptr;

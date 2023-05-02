@@ -204,7 +204,10 @@ public:
 	GlobalScope& memory;
 	Compiler c;
 	JitObject obj;
-
+    mir::MirObject mobj;
+    
+    ValueTree mirDataLayout;
+    
 	JitCompiledNode::Ptr nodeToTest;
 
 	double cpuUsage = 0.0;

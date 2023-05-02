@@ -231,14 +231,19 @@ public:
 		Location,
 		Number,
 		Label,
-		Instruction
+		Instruction,
+        Register,
+        Type,
+        Local
 	};
 
 	static SparseSet<int> applyDiff(const String& oldAsm, String& newAsm);
 
 	int readNextToken(CodeDocument::Iterator& source) override;
 
-	CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
+    CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
+    
+    Tokens currentState;
 };
 
 class BreakpointDataProvider : public ApiProviderBase,

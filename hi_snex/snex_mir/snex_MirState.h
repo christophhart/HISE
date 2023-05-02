@@ -248,6 +248,38 @@ struct DataManager
 
 	ValueTree getDataObject(const String& type) const;
 
+    void addGlobalData(const String& id, const String& type)
+    {
+        globalObjects.emplace(id, type);
+    }
+    
+    ValueTree getGlobalData()
+    {
+        ValueTree v("GlobalData");
+        
+        for(auto& k: globalObjects)
+        {
+            auto t = getDataObject(k.second).createCopy();
+            
+            if(t.isValid())
+            {
+                t.setProperty("ObjectId", k.first, nullptr);
+                v.addChild(t, -1, nullptr);
+            }
+            else
+            {
+                auto id = Types::Helpers::getTypeFromTypeName(k.second);
+                
+                ValueTree nt("NativeType");
+                nt.setProperty("ObjectId", k.first, nullptr);
+                nt.setProperty("type", k.second, nullptr);
+                v.addChild(nt, -1, nullptr);
+            }
+        }
+        
+        return v;
+    }
+    
 	size_t getNumBytesRequired(const Identifier& id);
 
 	const Array<MemberInfo>& getClassType(const Identifier& id);
@@ -256,6 +288,8 @@ struct DataManager
 
 private:
 
+    std::map<String, String> globalObjects; // ID => type
+    
 	int numCurrentlyParsedClasses = 0;
 	std::map<juce::Identifier, Array<MemberInfo>> classTypes;
 	Array<ValueTree> dataList;

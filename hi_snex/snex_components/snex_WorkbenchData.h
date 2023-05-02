@@ -330,6 +330,8 @@ public:
 		Result compileResult;
 		String assembly;
 		JitObject obj;
+        
+        ValueTree mirDataLayout;
 		ComplexType::Ptr mainClassPtr;
 
 

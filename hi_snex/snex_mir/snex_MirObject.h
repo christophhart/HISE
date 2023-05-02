@@ -69,9 +69,46 @@ struct MirObject
 
 	static bool isExternalFunction(const String& sig);
 
+    
+    
+    StringArray getGlobalDataIds()
+    {
+        return dataIds;
+    }
+    
+    
+    template <typename T> T getData(const String& dataId, size_t byteOffset=0)
+    {
+        if(dataItems.contains(dataId))
+        {
+            auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
+            bytePtr += byteOffset;
+            
+            return *reinterpret_cast<T*>(bytePtr);
+        }
+        
+        jassertfalse;
+        return T();
+    }
+    
+    String getAssembly() const { return assembly; }
+    
+    ValueTree getGlobalDataLayout();
+    
 private:
 
+    ValueTree fillLayoutWithData(const String& dataId, const ValueTree& valueData);
+    
+    void fillRecursive(ValueTree& copy, const String& dataId, size_t offset);
+    
+    
+    ValueTree globalData;
+    
+    StringArray dataIds;
     String dataLayout;
+    String assembly;
+    
+    HashMap<String, void*> dataItems;
     
 	static Array<StaticFunctionPointer> currentFunctions;
 

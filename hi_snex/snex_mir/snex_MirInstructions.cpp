@@ -80,7 +80,6 @@ struct InstructionParsers
 
 		if (isRoot)
 		{
-			state.dump();
 			state.emitSingleInstruction("module", "main");
 
 			StringArray staticSignatures, memberSignatures;
@@ -229,11 +228,7 @@ struct InstructionParsers
 		auto type = TypeConverters::SymbolToMirVar(s).type;
 		auto& rm = state.registerManager;
 
-		state.dump();
-
 		auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(s.id);
-
-		DBG("VAR NAME: " + mvn);
 
 		if (state.isParsingFunction())
 		{
@@ -381,6 +376,8 @@ struct InstructionParsers
 		}
 		else
 		{
+            //state.dataManager.addGlobalData(s.id.toString(), state[InstructionPropertyIds::Type]);
+            
 			TextLine e(&state);
 			e.instruction = "export";
 			e.addOperands({ 1 }, { RegisterType::Raw });
@@ -392,6 +389,11 @@ struct InstructionParsers
 			l.addOperands({ 0 });
 			l.appendComment("global def ");
 			l.flush();
+            
+            auto id = l.label;
+            auto type = Types::Helpers::getCppTypeName(TypeConverters::MirType2TypeId(rm.getTypeForChild(1)));
+            
+            state.dataManager.addGlobalData(id, type);
 		}
 
 		return Result::ok();
@@ -706,6 +708,8 @@ struct InstructionParsers
 
 				uint32 lastOffset = 0;
 
+                state.dataManager.addGlobalData(s.id.toString(), state[InstructionPropertyIds::Type]);
+                
 				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
 
 				auto numBytesInParser = initParser.getNumBytesRequired();
@@ -931,11 +935,12 @@ struct InstructionParsers
 
 		String self, idx_reg;
 
-		TextLine l(&state);
-		self = l.addAnonymousReg(mir_t, RegisterType::Pointer);
+		
 
 		if (type == "span")
 		{
+            TextLine l(&state);
+            self = l.addAnonymousReg(mir_t, RegisterType::Pointer);
 			l.instruction = "mov";
 			l.addOperands({ -1, 0 }, { RegisterType::Pointer, RegisterType::Pointer });
 			String comment;
@@ -945,6 +950,8 @@ struct InstructionParsers
 		}
 		else if (type == "dyn")
 		{
+            TextLine l(&state);
+            self = l.addAnonymousReg(mir_t, RegisterType::Pointer);
 			l.instruction = "mov";
 
 			l.operands.add(self);
