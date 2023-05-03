@@ -65,7 +65,7 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 	voiceUptime += randomized;
 
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
-
+	
 	SimpleReadWriteLock::ScopedReadLock sl(looper->getBuffer().getDataLock());
 
 	uptimeDelta = looper->getBuffer().isNotEmpty() ? 1.0 : 0.0;
@@ -434,6 +434,9 @@ void AudioLooper::setSyncMode(int newSyncMode)
 	case SyncToHostMode::OneBar:			multiplier = 4; break;
 	case SyncToHostMode::TwoBars:			multiplier = 8; break;
 	case SyncToHostMode::FourBars:			multiplier = 16; break;
+	case SyncToHostMode::EightBars:			multiplier = 32; break;
+	case SyncToHostMode::TwelveBars:			multiplier = 48; break;
+	case SyncToHostMode::SixteenBars:			multiplier = 64; break;
 	default:								jassertfalse; multiplier = 1;
 	}
 

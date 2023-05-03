@@ -714,7 +714,10 @@ public:
 		TwoBeats,
 		OneBar,
 		TwoBars,
-		FourBars
+		FourBars,
+		EightBars,
+		TwelveBars,
+		SixteenBars
 	};
 
 	AudioSampleProcessor(MainController* mc) :
