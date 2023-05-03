@@ -753,7 +753,7 @@ bool JavascriptMasterEffect::isSuspendedOnSilence() const
 	if (auto n = getActiveNetwork())
 		return n->isSuspendedOnSilence();
 
-	return true;
+	return false;
 }
 
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
