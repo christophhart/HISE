@@ -111,12 +111,14 @@ void LoopManager::emitInlinedReturn(State* s)
 	jmp.flush();
 }
 
-String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt)
+String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt, bool registerAsCurrentOp)
 {
 	auto& rm = state->registerManager;
 
 	auto id = rm.getAnonymousId(MIR_fp_type_p(type) && rt == RegisterType::Value);
-	rm.registerCurrentTextOperand(id, type, rt);
+
+	if(registerAsCurrentOp)
+		rm.registerCurrentTextOperand(id, type, rt);
 
 	auto t = TypeInfo(TypeConverters::MirType2TypeId(type), true);
 
@@ -129,10 +131,11 @@ String TextLine::addAnonymousReg(MIR_type_t type, RegisterType rt)
 	return id;
 }
 
-TextLine::TextLine(State* s_):
-	state(s_)
+TextLine::TextLine(State* s_, const String& instruction_):
+	state(s_),
+	instruction(instruction_)
 {
-
+	
 }
 
 TextLine::~TextLine()
@@ -231,13 +234,15 @@ String TextLine::toLine(int maxLabelLength) const
 	return s;
 }
 
-void TextLine::flush()
+String TextLine::flush()
 {
 	if (!flushed)
 	{
 		flushed = true;
 		state->lines.add(*this);
 	}
+
+	return operands[0];
 }
 
 void FunctionManager::addPrototype(State* state, const FunctionData& f, bool addObjectPointer)
@@ -552,14 +557,19 @@ void State::emitSingleInstruction(const String& instruction, const String& label
 	l.flush();
 }
 
-void State::emitLabel(const String& label)
+void State::emitLabel(const String& label, const String& optionalComment)
 {
 	TextLine noop(this);
 	noop.label = label;
 	noop.instruction = "bt";
 	noop.operands.add(label);
 	noop.addImmOperand(0);
-	noop.appendComment("noop");
+
+	if (optionalComment.isEmpty())
+		noop.appendComment("noop");
+	else
+		noop.appendComment(optionalComment);
+
 	noop.flush();
 }
 
@@ -656,6 +666,13 @@ snex::mir::TextOperand InlinerManager::emitInliner(const String& inlinerLabel, c
 
 	for(int i = 0; i < operands.size(); i++)
 		fTree.getChild(i).setProperty("Operand", operands[i], nullptr);
+
+	auto contains = inlinerFunctions.count(inlinerLabel) > 0;
+
+	if (!contains)
+	{
+		throw String("Can't find inliner with label " + inlinerLabel);
+	}
 
 	return inlinerFunctions[inlinerLabel](state, dTree, fTree);
 }

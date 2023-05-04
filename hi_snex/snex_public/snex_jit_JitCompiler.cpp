@@ -76,7 +76,8 @@ int Compiler::compileCount = 0;
 
 
 Compiler::Compiler(GlobalScope& memoryPool):
-	memory(memoryPool)
+	memory(memoryPool),
+	cr(Result::ok())
 {
 	reset();
 }
@@ -179,7 +180,7 @@ void Compiler::initInbuildFunctions()
 
 juce::Result Compiler::getCompileResult()
 {
-	return compiler->getLastResult();
+	return cr;
 }
 
 
@@ -204,7 +205,8 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 		return {};
 	}
 	
-	
+
+	cr = compiler->getLastResult();
 
 	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
 
@@ -219,6 +221,9 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	mc.setDataLayout(datab64);
 
 	JitObject mirObject(mc.compileMirCode(b64));
+
+	cr = mc.getLastError();
+		
 
 	assembly = mc.getAssembly();
 

@@ -1,5 +1,6 @@
 
-snex::mir::SimpleTypeParser::SimpleTypeParser(const String& s)
+snex::mir::SimpleTypeParser::SimpleTypeParser(const String& s, bool includeTemp):
+	includeTemplate(includeTemp)
 {
 	code = s;
 	parse();
@@ -189,7 +190,10 @@ void snex::mir::SimpleTypeParser::parse()
 	else if (typeId == "void")  t = Types::ID::Void;
 	else						t = Types::ID::Pointer;
 
-	typeId << skipTemplate();
+	if (includeTemplate)
+		typeId << skipTemplate();
+	else
+		skipTemplate();
 
 	isRef = matchIf("&");
 

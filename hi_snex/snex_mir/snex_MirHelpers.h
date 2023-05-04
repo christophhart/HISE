@@ -40,7 +40,7 @@ using namespace juce;
 
 struct SimpleTypeParser
 {
-	SimpleTypeParser(const String& s);
+	SimpleTypeParser(const String& s, bool includeTemplate_=true);
 
 	MIR_type_t getMirType(bool getPointerIfRef=true) const;
 	TypeInfo getTypeInfo() const;
@@ -50,6 +50,8 @@ struct SimpleTypeParser
 	FunctionData parseFunctionData();
 
 private:
+
+	bool includeTemplate = true;
 
 	void skipWhiteSpace();
 	String parseIdentifier();
@@ -84,6 +86,24 @@ struct TypeConverters
 	static String TypeInfo2MirTextType(const TypeInfo& t);
 	static String MirTypeAndToken2InstructionText(MIR_type_t type, const String& token);
 	static String TemplateString2MangledLabel(const String& templateArgs);
+
+	template <typename T> static MIR_type_t getMirTypeFromT()
+	{
+		
+		if constexpr (std::is_same<int, T>())
+			return MIR_T_I64;
+		else if constexpr (std::is_same<void*, T>() || std::is_pointer<T>())
+			return MIR_T_P;
+		else if constexpr (std::is_same<double, T>())
+			return MIR_T_D;
+		else if constexpr (std::is_same<float, T>())
+			return MIR_T_F;
+		else
+		{
+			static_assert(false, "invalid type");
+			return MIR_T_I8;
+		}
+	}
 };
 
 

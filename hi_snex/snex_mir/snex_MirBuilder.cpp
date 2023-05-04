@@ -76,6 +76,7 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_TYPE(InlinedFunction);
 	REGISTER_TYPE(InlinedArgument);
 	REGISTER_TYPE(InlinedParameter);
+	REGISTER_TYPE(MemoryReference);
 	REGISTER_TYPE(InlinedReturnValue);
 	
     
@@ -84,6 +85,16 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
     REGISTER_INLINER(dyn_size_i);
 	REGISTER_INLINER(ProcessData_toEventData_p);
     REGISTER_INLINER(ProcessData_toChannelData_pp);
+	REGISTER_INLINER(ProcessData_begin_p);
+	REGISTER_INLINER(ProcessData_size_i);
+	REGISTER_INLINER(ProcessData_subscript);
+	REGISTER_INLINER(ProcessData_toFrameData_p);
+
+	REGISTER_INLINER(FrameProcessor_next_i);
+	REGISTER_INLINER(FrameProcessor_begin_p);
+	REGISTER_INLINER(FrameProcessor_size_i);
+	REGISTER_INLINER(FrameProcessor_subscript);
+	
 }
 
 MirBuilder::~MirBuilder()

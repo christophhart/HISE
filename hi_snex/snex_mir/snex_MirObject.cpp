@@ -155,6 +155,7 @@ struct MirFunctionCollection : public jit::FunctionCollectionBase
 static void mirError(MIR_error_type_t error_type, const char* format, ...)
 {
 	DBG(format);
+	jassertfalse;
 	throw String(format);
 }
 
@@ -435,8 +436,11 @@ snex::jit::FunctionData MirFunctionCollection::getFunction(const NamespacedIdent
 {
 	auto functionName = TypeConverters::NamespacedIdentifier2MangledMirVar(functionId);
 
-	jassert(allFunctions.contains(NamespacedIdentifier(functionName)));
-	
+	if (!allFunctions.contains(NamespacedIdentifier(functionName)))
+	{
+		return {};
+	}
+
 	MIR_item_t mir_f, main_func;
 
 	main_func = nullptr;

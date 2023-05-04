@@ -431,8 +431,11 @@ struct Operations::Loop : public Expression,
         if(loopTargetType == ArrayType::Span)
         {
             t.setProperty("NumElements", numElements, nullptr);
-            
         }
+		if (loopTargetType == ArrayStatementBase::CustomObject)
+		{
+			t.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toStringWithoutAlias(), nullptr);
+		}
         
 		return t;
 	}

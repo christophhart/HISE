@@ -37,6 +37,7 @@ namespace InstructionIds
 	DEFINE_ID(InlinedParameter);
 	DEFINE_ID(InlinedReturnValue);
 	DEFINE_ID(InlinedArgument);
+	DEFINE_ID(MemoryReference);
 }
 
 namespace InstructionPropertyIds
@@ -57,6 +58,7 @@ namespace InstructionPropertyIds
 	DEFINE_ID(NumElements);
 	DEFINE_ID(NumBytes);
 	DEFINE_ID(ObjectType);
+	DEFINE_ID(Offset);
 	DEFINE_ID(Operand);
 	DEFINE_ID(OpType);
 	DEFINE_ID(ParentType);
@@ -805,7 +807,7 @@ struct InstructionParsers
 						// Only one expression is supported at the moment...
 						jassert(state.currentTree.getNumChildren() == 1);
 
-						state.processChildTree(0);
+						
 
 						auto src = rm.loadIntoRegister(0, RegisterType::Pointer);
 
@@ -923,7 +925,7 @@ struct InstructionParsers
 		auto& state = *state_;
 		auto& rm = state.registerManager;
 
-		auto type = SimpleTypeParser(state[InstructionPropertyIds::ParentType]).getComplexTypeId().toString().upToFirstOccurrenceOf("<", false, false);
+		auto type = SimpleTypeParser(state[InstructionPropertyIds::ParentType], false).getComplexTypeId().toString();
 
 		
 		state.processChildTree(0);
@@ -967,11 +969,21 @@ struct InstructionParsers
 			l.appendComment(comment);
 			l.flush();
 		}
+		else
+		{
+			auto classType = SimpleTypeParser(state[InstructionPropertyIds::ParentType], true).getComplexTypeId().toString();
 
-		
+			auto t = state.inlinerManager.emitInliner(type + "_subscript", classType, "operator[]", { state.registerManager.getOperandForChild(0, RegisterType::Pointer), 
+																									  state.registerManager.getOperandForChild(0, RegisterType::Pointer),
+																									  state.registerManager.getOperandForChild(1, RegisterType::Value) });
+
+			state.registerManager.registerCurrentTextOperand(t.text, t.type, t.registerType);
+
+			return Result::ok();
+		}
 
 		TextLine idx(&state);
-		idx_reg = idx.addAnonymousReg(MIR_T_I64, RegisterType::Value);
+		idx_reg = idx.addAnonymousReg(MIR_T_I64, RegisterType::Value, false);
 		idx.instruction = "mov";
 		idx.operands.add(idx_reg);
 		idx.addChildAsValueOperand(1);
@@ -1064,6 +1076,42 @@ struct InstructionParsers
 			ii.operands.add(pointerReg);
 			ii.addImmOperand(byteSize);
 			ii.flush();
+		}
+		else if (loopType == "CustomObject")
+		{
+			state.dump();
+
+			auto objPtr = rm.loadIntoRegister(0, RegisterType::Pointer);
+
+			auto className = state[InstructionPropertyIds::ObjectType];
+
+			auto objectType = SimpleTypeParser(className, true).getComplexTypeId().toString();
+			auto label = TypeConverters::TemplateString2MangledLabel(SimpleTypeParser(className, false).getComplexTypeId().toString());
+
+			auto b = state.inlinerManager.emitInliner(label + "_begin_p", objectType, "begin", {objPtr});
+			auto e = state.inlinerManager.emitInliner(label + "_size_i", objectType, "size", {objPtr});
+
+			loadIter.operands.add(pointerReg);
+			loadIter.operands.add(b.text);
+			loadIter.appendComment("custom begin");
+			loadIter.flush();
+
+			TextLine ml(&state);
+			ml.localDef << "i64:" << endReg;
+			ml.instruction = "mul";
+			ml.operands.add(endReg);
+			ml.operands.add(e.text);
+			ml.addImmOperand(elementSize);
+			ml.flush();
+
+			TextLine al(&state);
+			al.instruction = "add";
+			al.operands.add(endReg);
+			al.operands.add(endReg);
+			al.operands.add(pointerReg);
+			al.flush();
+
+			
 		}
 		else
 		{
@@ -1164,7 +1212,7 @@ struct InstructionParsers
 
 			TextLine l(&state);
 
-			l.instruction = "call";
+			l.instruction = "inline";
 			l.operands.add(protoType);
 			l.operands.add(fid);
 
@@ -1325,6 +1373,8 @@ struct InstructionParsers
 				{
 					rm.registerCurrentTextOperand(returnReg.text, returnReg.type, returnReg.registerType);
 				}
+
+				state.emitLabel(state.loopManager.makeLabel(), "End of inlined function " + fid);
 
 				return Result::ok();
 			}
@@ -1522,6 +1572,23 @@ struct InstructionParsers
             state.processChildTree(0);
 
 		state.loopManager.emitInlinedReturn(state_);
+
+		return Result::ok();
+	}
+
+	static Result MemoryReference(State* state_)
+	{
+		auto& state = *state_;
+
+		state.processChildTree(0);
+
+		TextLine l(&state, "mov");
+		l.addSelfOperand<void*>(true); l.addChildAsPointerOperand(0);
+		auto x = l.flush();
+
+		TextLine a(&state, "add");
+		a.addRawOperand(x); a.addRawOperand(x); a.addImmOperand(state[InstructionPropertyIds::Offset].getIntValue());
+		a.flush();
 
 		return Result::ok();
 	}

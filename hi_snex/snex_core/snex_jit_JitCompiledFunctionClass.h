@@ -118,7 +118,7 @@ public:
 
 	void* getMainObjectPtr()
 	{
-		return functionClass->getMainObjectPtr();
+		return functionClass != nullptr ? functionClass->getMainObjectPtr() : nullptr;
 	}
 
 	juce::String dumpTable()

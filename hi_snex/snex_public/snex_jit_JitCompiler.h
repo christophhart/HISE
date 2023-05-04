@@ -144,7 +144,7 @@ public:
 
 private:
 
-	
+	Result cr;
 
 	String assembly;
 	NamespaceHandler::Ptr handler;

@@ -68,13 +68,26 @@ struct State;
 
 struct TextLine
 {
-	TextLine(State* s);
+	TextLine(State* s, const String& instruction = {});
 
 	~TextLine();
 
 	void addImmOperand(const VariableStorage& value);
 
-	String addAnonymousReg(MIR_type_t type, RegisterType rt);
+	void addRawOperand(const String& op)
+	{
+		operands.add(op);
+	}
+
+	template <typename T> void addSelfOperand(bool registerAsCurrent=false)
+	{
+		auto t = TypeConverters::getMirTypeFromT<T>();
+
+		auto s = addAnonymousReg(t, RegisterType::Value, registerAsCurrent);
+		operands.add(s);
+	}
+
+	String addAnonymousReg(MIR_type_t type, RegisterType rt, bool registerAsCurrentOp=true);
 	void addSelfAsValueOperand();
 	void addSelfAsPointerOperand();
 	void addChildAsPointerOperand(int childIndex);
@@ -86,7 +99,7 @@ struct TextLine
 	int getLabelLength() const;
 	String toLine(int maxLabelLength) const;
 
-	void flush();
+	String flush();
 
 	bool flushed = false;
 	State* state;
@@ -335,7 +348,7 @@ struct State
 
 	void dump() const;
 	void emitSingleInstruction(const String& instruction, const String& label = {});
-	void emitLabel(const String& label);
+	void emitLabel(const String& label, const String& optionalComment = {});
 
 	bool isParsingClass() const { return dataManager.isParsingClass(); };
 	bool isParsingFunction() const { return registerManager.isParsingFunction(); }

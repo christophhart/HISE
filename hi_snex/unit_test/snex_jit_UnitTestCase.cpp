@@ -308,6 +308,8 @@ void JitFileTestCase::initCompiler()
 	c.reset();
 	c.setDebugHandler(debugHandler);
 
+	memory.setDebugMode(true);
+
 	if (!nodeId.isValid())
     {
         Types::SnexObjectDatabase::registerObjects(c, 2);

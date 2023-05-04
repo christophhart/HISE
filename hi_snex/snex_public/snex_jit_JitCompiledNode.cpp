@@ -199,6 +199,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 				fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fIds[i]));
 
+#if SNEX_ASMJIT_BACKEND
 				FunctionData wrappedFunction;
 
 				if (matches.size() == 1)
@@ -221,6 +222,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 					ok = false;
 					break;
 				}
+#endif
 
 				if (callbacks[i].function == nullptr)
 					ok = false;

@@ -238,6 +238,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 
 		match(JitTokens::closeParen);
 
+		location.calculatePosition(false, false);
+
 		auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
 
 		Symbol iteratorSymbol(id.getChildId(iteratorId), iteratorType);
