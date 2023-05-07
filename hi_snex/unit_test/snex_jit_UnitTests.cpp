@@ -538,7 +538,7 @@ public:
 	{
 		beginTest("funky");
 
-        runTestFiles("subscript3");
+        runTestFiles("");
         return;
         
         runTestsWithOptimisation({ OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination });
