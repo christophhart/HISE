@@ -34,6 +34,8 @@
 
 #include <type_traits>
 
+
+
 namespace snex {
 namespace jit {
 using namespace juce;
@@ -208,6 +210,8 @@ struct FunctionData
 
 	Symbol toSymbol() const { return { id, returnType }; }
 
+	String createAssembly() const;
+
 	bool matchIdArgs(const FunctionData& other) const;
 
 	bool matchIdArgsAndTemplate(const FunctionData& other) const;
@@ -314,6 +318,8 @@ struct FunctionData
 
 	/** the function pointer. Use call<ReturnType, Args...>() for type checking during debugging. */
 	void* function = nullptr;
+
+	size_t numBytes = 0;
 
 	/** The return type. */
 	TypeInfo returnType;
@@ -618,7 +624,7 @@ struct TemplatedComplexType : public ComplexType,
 
     ValueTree createDataLayout() const override
     {
-        jassertfalse;
+        
         return {};
     }
     

@@ -44,14 +44,14 @@ void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)
 	InbuiltTypeLibraryBuilder iBuilder(c, numChannels);
 	iBuilder.registerTypes();
 
-	ContainerLibraryBuilder cBuilder(c, numChannels);
-	cBuilder.registerTypes();
+	//ContainerLibraryBuilder cBuilder(c, numChannels);
+	//cBuilder.registerTypes();
 
-	ParameterLibraryBuilder pBuilder(c, numChannels);
-	pBuilder.registerTypes();
+	//ParameterLibraryBuilder pBuilder(c, numChannels);
+	//pBuilder.registerTypes();
 
-	WrapLibraryBuilder wBuilder(c, numChannels);
-	wBuilder.registerTypes();
+	//WrapLibraryBuilder wBuilder(c, numChannels);
+	//wBuilder.registerTypes();
 
 	DataLibraryBuilder dlBuilder(c, numChannels);
 	dlBuilder.registerTypes();

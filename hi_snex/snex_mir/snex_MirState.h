@@ -242,16 +242,41 @@ struct FunctionManager
 
 	bool hasPrototype(const FunctionData& sig) const;
 
-	String getPrototype(const FunctionData& sig) const;
+	String getPrototype(const String& fullSignature) const;
+
+	String getIdForComplexTypeOverload(const String& fullSignature) const
+	{
+		for (const auto& f : specialOverloads)
+		{
+			if (f.fullSignature == fullSignature)
+				return f.mangledId;
+		}
+
+		auto sig = TypeConverters::String2FunctionData(fullSignature);
+		return TypeConverters::FunctionData2MirTextLabel(sig);
+	}
+
+	String registerComplexTypeOverload(State* state, const String& fullSignature, bool addObjectPtr);
 
 private:
+
+	struct ComplexTypeOverload
+	{
+		ComplexTypeOverload(const String& fullSignature_);;
+
+		String fullSignature;
+		String mangledId;
+		String prototype;
+	};
+
+	Array<ComplexTypeOverload> specialOverloads;
 
 	Array<FunctionData> prototypes;
 };
 
 struct DataManager
 {
-	void setDataLayout(const String& b64);
+	void setDataLayout(const Array<ValueTree>& dl);
 
 	void startClass(const Identifier& id, Array<MemberInfo>&& memberInfo);
 
@@ -359,7 +384,126 @@ struct State
 	Result processTreeElement(const ValueTree& v);
 
 	String toString(bool addTabs);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(State);
 };
+
+#define INSTRUCTION2(x) template <typename T1> void x(const String& op1, const T1& op2) { emit(#x, _operands(op1, op2)); }
+#define INSTRUCTION3(x) template <typename T1, typename T2> void x(const String& op1, const T1& op2, const T2& op3) { emit(#x, _operands(op1, op2, op3)); }
+
+struct MirCodeGenerator
+{
+	MirCodeGenerator(mir::State* state_) :
+		state(*state_),
+		rm(state_->registerManager)
+	{};
+
+	virtual ~MirCodeGenerator() {}
+
+	template <typename T, typename OffsetType = int> String deref(const String& pointerOperand, int displacement = 0, const OffsetType& offset = {})
+	{
+		constexpr bool indexIsRegister = std::is_integral<OffsetType>::value;
+
+		auto t = TypeConverters::getMirTypeFromT<T>();
+
+		if constexpr (indexIsRegister)
+		{
+			return derefInternal(pointerOperand, t, displacement + sizeof(T) * offset, "");
+		}
+		else
+		{
+			return derefInternal(pointerOperand, t, displacement, offset, sizeof(T));
+		}
+
+		return {};
+	}
+
+	template <typename T> String newReg(const String& source)
+	{
+		TextLine s1(&state, "mov");
+		s1.addSelfOperand<T>(); s1.addRawOperand(source);
+		return s1.flush();
+	}
+
+	void emit(const String& instruction, const StringArray& operands);
+
+	String alloca(size_t numBytes);
+	void bind(const String& label, const String& comment = {});
+	String newLabel();
+	void jmp(const String& op);
+
+	template <typename ReturnType> String call(const String& functionId, const StringArray& args)
+	{
+		TextLine s1(&state, "call");
+
+		auto fd = TypeConverters::String2FunctionData(functionId);
+
+		auto prototype = state.functionManager.getPrototype(functionId);
+
+		s1.addRawOperand(prototype);
+
+		s1.addRawOperand(TypeConverters::FunctionData2MirTextLabel(fd));
+
+		s1.addSelfOperand<ReturnType>();
+
+		for (const auto& a : args)
+			s1.operands.add(a);
+
+		s1.flush();
+
+		return s1.operands[2];
+	}
+
+	INSTRUCTION2(fmov);
+	INSTRUCTION2(dmov);
+	INSTRUCTION2(mov);
+	INSTRUCTION3(mul);
+	INSTRUCTION3(add);
+	INSTRUCTION3(bne);
+	INSTRUCTION3(bge);
+
+	void setInlineComment(const String& s);
+
+private:
+
+	String nextComment;
+
+	template <typename T1> StringArray _operands(const String& op1, const T1& op2)
+	{
+		StringArray sa;
+		sa.add(op1);
+
+		if constexpr (std::is_same<T1, juce::String>()) sa.add(op2);
+		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op2)));
+
+		return sa;
+	}
+
+	template <typename T1, typename T2> StringArray _operands(const String& op1, const T1& op2, const T2& op3)
+	{
+		StringArray sa;
+		sa.add(op1);
+
+		if constexpr (std::is_same<T1, juce::String>()) sa.add(op2);
+		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op2)));
+
+		if constexpr (std::is_same<T2, juce::String>()) sa.add(op3);
+		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op3)));
+
+		return sa;
+	}
+
+protected:
+
+	String derefInternal(const String& pointerOperand, MIR_type_t type, int displacement = 0, const String& offset = {}, int elementSize = 0) const;
+
+	mir::State& state;
+	RegisterManager& rm;
+
+};
+
+#undef INSTRUCTION2;
+#undef INSTRUCTION3;
 
 }
 }

@@ -30,6 +30,14 @@
 *   ===========================================================================
 */
 
+#if SNEX_INCLUDE_NMD_ASSEMBLY
+#define NMD_ASSEMBLY_DISABLE_FORMATTER_ATT_SYNTAX
+#define NMD_ASSEMBLY_IMPLEMENTATION 
+#define NMD_ASSEMBLY_PRIVATE
+#include "../snex_core/nmd_assembly.h"
+
+#endif
+
 #pragma once
 
 namespace snex {
@@ -79,6 +87,8 @@ juce::String FunctionData::getCodeToInsert() const
 juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, bool useFullParameterIds) const
 {
 	juce::String s;
+
+	s.preallocateBytes(256);
 
 	s << returnType.toString(false) << " " << id.toString();
 	
@@ -203,6 +213,65 @@ snex::jit::TypeInfo FunctionData::getOrResolveReturnType(ComplexType::Ptr p)
 	}
 
 	return returnType;
+}
+
+String FunctionData::createAssembly() const
+{
+#if SNEX_INCLUDE_NMD_ASSEMBLY
+	if(numBytes != 0)
+	{
+		auto bytePtr = (uint8*)function;
+		int numToDo = numBytes;
+
+		StringArray lines;
+
+		int bytePos = 0;
+
+		while (numToDo > 0)
+		{
+			auto instructionLength = nmd_x86_ldisasm(bytePtr, numToDo, NMD_X86_MODE_64);
+
+			if (instructionLength == 0)
+				break;
+
+			nmd_x86_instruction instruction;
+			auto ok = nmd_x86_decode(bytePtr, numBytes, &instruction, NMD_X86_MODE_64, NMD_X86_DECODER_FLAGS_NONE);
+
+			if (ok)
+			{
+				char buffer[128];
+				memset(buffer, 0, 128);
+
+				auto format = NMD_X86_FORMAT_FLAGS_COMMA_SPACES |
+							  NMD_X86_FORMAT_FLAGS_POINTER_SIZE |
+							  NMD_X86_FORMAT_FLAGS_0X_PREFIX;
+				
+				nmd_x86_format(&instruction, buffer, NMD_X86_INVALID_RUNTIME_ADDRESS, format);
+				
+				auto s = String::createStringFromData(buffer, 128);
+
+				if(!s.startsWith("add byte ptr"))
+					lines.add(String(bytePos) + "\t" + s);
+			}
+			else
+			{
+				jassertfalse;
+				break;
+			}
+
+			bytePos += instructionLength;
+			bytePtr += instructionLength;
+			numToDo -= instructionLength;
+		}
+
+		return lines.joinIntoString("\n");
+	}
+#else
+	// You have to define SNEX_INCLUDE_NMD_ASSEMBLY
+	jassertfalse;
+#endif
+
+	return {};
 }
 
 bool FunctionData::matchIdArgs(const FunctionData& other) const

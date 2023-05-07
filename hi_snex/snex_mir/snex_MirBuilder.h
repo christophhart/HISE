@@ -55,7 +55,7 @@ struct MirBuilder
 
 	String getMirText() const;
 
-    void setDataLayout(const String& b64);
+    void setDataLayout(const Array<ValueTree>& data);
     
     ValueTree getGlobalData();
     

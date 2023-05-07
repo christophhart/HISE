@@ -593,6 +593,8 @@ public:
     
 private:
 
+	Map currentMap;
+
     bool interpreterMode = false;
     bool debugMode = false;
 

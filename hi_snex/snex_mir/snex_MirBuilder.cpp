@@ -94,6 +94,14 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_INLINER(FrameProcessor_begin_p);
 	REGISTER_INLINER(FrameProcessor_size_i);
 	REGISTER_INLINER(FrameProcessor_subscript);
+
+	REGISTER_INLINER(PolyData_get_i);
+	REGISTER_INLINER(PolyData_get_f);
+	REGISTER_INLINER(PolyData_get_d);
+	REGISTER_INLINER(PolyData_get_p);
+	REGISTER_INLINER(PolyData_prepare_vp);
+	REGISTER_INLINER(PolyData_begin_p);
+	REGISTER_INLINER(PolyData_size_i);
 	
 }
 
@@ -112,9 +120,9 @@ MIR_module* MirBuilder::getModule() const
 	return currentState->currentModule;
 }
 
-void MirBuilder::setDataLayout(const String& b64)
+void MirBuilder::setDataLayout(const Array<ValueTree>& dataTrees)
 {
-    currentState->dataManager.setDataLayout(b64);
+    currentState->dataManager.setDataLayout(dataTrees);
 }
 
 ValueTree MirBuilder::getGlobalData()

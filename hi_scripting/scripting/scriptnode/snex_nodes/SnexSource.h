@@ -781,6 +781,8 @@ protected:
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
 
+	void addDummyNodeCallbacks(String& s);
+
 	void addDummyProcessFunctions(String& s);
 
 	static void addSnexNodeId(cppgen::Base& c, const Identifier& id)

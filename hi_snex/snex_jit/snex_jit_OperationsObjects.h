@@ -211,7 +211,27 @@ struct Operations::ComplexTypeDefinition : public Expression,
 
 		if (initValues != nullptr)
 		{
+			auto numBytes = type.getRequiredByteSizeNonZero();
+
+			if (numBytes % 8 != 0)
+				numBytes += 8 - (numBytes % 8);
+
+			MemoryBlock mb(numBytes);
+
+			memset(mb.getData(), 0, numBytes);
+
+			ComplexType::InitData d;
+			d.callConstructor = false;
+			d.dataPointer = mb.getData();
+			d.initValues = initValues;
+
+			type.getComplexType()->initialise(d);
+
+			auto x = mb.toBase64Encoding();
+
+
 			t.setProperty("InitValues", initValues->toString(), nullptr);
+			t.setProperty("InitValuesB64", x, nullptr);
 		}
 			
 

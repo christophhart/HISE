@@ -884,15 +884,21 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 			return true;
 		}
 
-		auto cExpression = Operations::evalConstExpr(expression);
-
-		if (cExpression->isConstExpr())
+		if (expression->currentScope != nullptr &&
+			expression->currentCompiler != nullptr &&
+			expression->currentScope->getParent() != nullptr)
 		{
-			v = cExpression->getConstExprValue();
-			return true;
+			auto cExpression = Operations::evalConstExpr(expression);
+
+			if (cExpression->isConstExpr())
+			{
+				v = cExpression->getConstExprValue();
+				return true;
+			}
 		}
+
 		
-		jassertfalse;
+		
 		return false;
 	}
 

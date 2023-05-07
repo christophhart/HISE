@@ -163,6 +163,38 @@ void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 	}
 }
 
+void SnexSource::addDummyNodeCallbacks(String& s)
+{
+	using namespace cppgen;
+
+	Base b(Base::OutputType::AddTabs);
+
+	{
+		b << "void prepare(PrepareSpecs ps)";
+		{
+			StatementBlock sb(b, false);
+			b << "instance.prepare(ps);";
+		}
+
+		b << "void reset()";
+		{
+			StatementBlock sb(b, false);
+			b << "instance.reset();";
+		}
+
+		b << "void handleHiseEvent(HiseEvent& e)";
+		{
+			StatementBlock sb(b, false);
+			b << "instance.handleHiseEvent(e);";
+		}
+	}
+
+	auto x = b.toString();
+	DBG(x);
+
+	s << x;
+}
+
 void SnexSource::addDummyProcessFunctions(String& s)
 {
 	using namespace cppgen;
@@ -626,6 +658,9 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 {
 	if (auto wb = parent.getWorkbench())
 	{
+		return wb->getLastResult().obj[id];
+
+#if 0
 		if (auto obj = wb->getLastResult().mainClassPtr)
 		{
 			auto numChannels = parent.getParentNode()->getCurrentChannelAmount();
@@ -645,6 +680,7 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 				return f;
 			}
 		}
+#endif
 	}
 
 	return {};
@@ -652,8 +688,10 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 
 void SnexSource::HandlerBase::addObjectPtrToFunction(FunctionData& f)
 {
+#if 0
 	jassert(f.isResolved());
 	f.object = obj.getObjectPtr();
+#endif
 }
 
 juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexType::Ptr objectClass)

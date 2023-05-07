@@ -324,6 +324,7 @@ typedef struct MIR_func {
   DLIST (MIR_insn_t) insns, original_insns;
   uint32_t nres, nargs, last_temp_num, n_inlines;
   MIR_type_t *res_types;
+  size_t num_bytes;
   char vararg_p;           /* flag of variable number of arguments */
   char expr_p;             /* flag of that the func can be used as a linker expression */
   VARR (MIR_var_t) * vars; /* args and locals but temps */

@@ -211,7 +211,7 @@ public:
 
 private:
 
-	
+	PolyHandler polyHandler;
 
 	String inputFile;
 	
@@ -318,6 +318,7 @@ private:
 	File outputBufferFile;
 	HiseEventBuffer eventBuffer;
 	StringArray requiredCompileFlags;
+	int polyVoiceIndex = -1;
 	int expectedLoopCount = -1;
 
 };

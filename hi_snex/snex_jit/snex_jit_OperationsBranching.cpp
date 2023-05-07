@@ -228,7 +228,10 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 			if (!isVoid() && actualType == Types::ID::Void)
 				throwError("function must return a value");
 
-			checkAndSetType(0, getTypeInfo());
+			if(!isVoid())
+				setTypeForChild(0, getTypeInfo());
+
+			//checkAndSetType(0, getTypeInfo());
 		}
 		else
 			throwError("Can't deduce return type.");

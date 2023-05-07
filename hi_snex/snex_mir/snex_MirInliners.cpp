@@ -2,14 +2,10 @@ namespace snex {
 namespace mir {
 using namespace juce;
 
-#define INSTRUCTION2(x) template <typename T1> void x(const String& op1, const T1& op2) { emit(#x, _operands(op1, op2)); }
-#define INSTRUCTION3(x) template <typename T1, typename T2> void x(const String& op1, const T1& op2, const T2& op3) { emit(#x, _operands(op1, op2, op3)); }
-
-struct InlineState
+struct InlineCodeGenerator: public MirCodeGenerator
 {
-	InlineState(State* state_, const ValueTree& d_, const ValueTree& f_) :
-		state(*state_),
-		rm(state_->registerManager),
+	InlineCodeGenerator(State* state_, const ValueTree& d_, const ValueTree& f_) :
+		MirCodeGenerator(state_),
 		data(d_),
 		function(f_)
 	{};
@@ -36,6 +32,22 @@ struct InlineState
 		return ret;
 	}
 
+	String templateParameter(const String& templateId) const
+	{
+		for (const auto& d : data)
+		{
+			if (d.getType() == Identifier("TemplateParameter") &&
+				d["ID"] == templateId)
+			{
+				jassert(d["ParameterType"].toString() == "Type");
+				return d["Type"].toString();
+			}
+		}
+
+		jassertfalse;
+		return "";
+	}
+
 	int templateConstant(const String& templateId) const
 	{
 		for (const auto& d : data)
@@ -50,52 +62,6 @@ struct InlineState
 
 		jassertfalse;
 		return -1;
-	}
-
-	template <typename T, typename OffsetType = int> String deref(const String& pointerOperand, int displacement = 0, const OffsetType& offset = {})
-	{
-		constexpr bool indexIsRegister = std::is_integral<OffsetType>::value;
-
-		auto t = TypeConverters::getMirTypeFromT<T>();
-
-		if constexpr (indexIsRegister)
-		{
-			return derefInternal(pointerOperand, t, displacement + sizeof(T) * offset, "");
-		}
-		else
-		{
-			return derefInternal(pointerOperand, t, displacement, offset, sizeof(T));
-		}
-
-		return {};
-	}
-
-	String derefInternal(const String& pointerOperand, MIR_type_t type, int displacement = 0, const String& offset = {}, int elementSize = 0) const
-	{
-		String s;
-
-		if (type == MIR_T_I64)
-			s << "i32:";
-		if (type == MIR_T_F)
-			s << "f:";
-		if (type == MIR_T_D)
-			s << "d:";
-		if (type == MIR_T_P)
-			s << "i64:";
-
-		if (displacement != 0)
-			s << String(displacement);
-
-		s << "(" << pointerOperand;
-
-		if (offset.isNotEmpty())
-			s << ", " << offset;
-
-		if (elementSize != 0)
-			s << ", " << elementSize;
-
-		s << ")";
-		return s;
 	}
 
 	String dataProperty(const String& id)
@@ -136,101 +102,21 @@ struct InlineState
 		throw String("member " + memberId + " not found");
 	}
 
-	String alloca(size_t numBytes)
-	{
-		auto blockReg = rm.getAnonymousId(false);
-		rm.allocateStack(blockReg, numBytes, false);
-		return blockReg;
-	}
-
-	void emit(const String& instruction, const StringArray& operands)
-	{
-		TextLine tl(&state, instruction);
-		tl.operands = operands;
-
-		if (nextComment.isNotEmpty())
-		{
-			tl.appendComment(nextComment);
-			nextComment = {};
-		}
-
-		tl.flush();
-	}
-
-	template <typename T> String newReg(const String& source)
-	{
-		TextLine s1(&state, "mov");
-		s1.addSelfOperand<T>(); s1.addRawOperand(source);
-		return s1.flush();
-	}
-
-	void bind(const String& label, const String& comment = {})
-	{
-		state.emitLabel(label, comment);
-	}
-
-	void jmp(const String& op)
-	{
-		state.emitSingleInstruction("jmp " + op);
-	}
-
-	INSTRUCTION2(fmov);
-	INSTRUCTION2(mov);
-	INSTRUCTION3(mul);
-	INSTRUCTION3(add);
-	INSTRUCTION3(bne);
-	INSTRUCTION3(bge);
-
-	State& state;
-	RegisterManager& rm;
 	ValueTree data;
 	ValueTree function;
-
-	void setInlineComment(const String& s)
-	{
-		nextComment = s;
-	}
-
-	private:
-
-	String nextComment;
-
-	template <typename T1> StringArray _operands(const String& op1, const T1& op2)
-	{
-		StringArray sa;
-		sa.add(op1);
-
-		if constexpr (std::is_same<T1, juce::String>()) sa.add(op2);
-		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op2)));
-
-		return sa;
-	}
-
-	template <typename T1, typename T2> StringArray _operands(const String& op1, const T1& op2, const T2& op3)
-	{
-		StringArray sa;
-		sa.add(op1);
-
-		if constexpr (std::is_same<T1, juce::String>()) sa.add(op2);
-		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op2)));
-
-		if constexpr (std::is_same<T2, juce::String>()) sa.add(op3);
-		else										    sa.add(Types::Helpers::getCppValueString(VariableStorage(op3)));
-
-		return sa;
-	}
 };
 
-#undef INSTRUCTION2;
-#undef INSTRUCTION3;
+
 
 #define DEFINE_INLINER(x) static TextOperand x(State* state, const ValueTree& data, const ValueTree& function)
 
 struct InlinerFunctions
 {
+	/* dyn<T> ============================================================================================ */
+
 	DEFINE_INLINER(dyn_referTo_ppii)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 		
 		auto offset = cc.newReg<int>(cc.argOp(3));
 		cc.mul(offset, offset, cc.dataProperty("ElementSize"));
@@ -242,16 +128,18 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(dyn_size_i)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto s = cc.memberOp("size", RegisterType::Pointer);
 
 		return cc.flush(s, RegisterType::Pointer);
 	};
 
+	/* ProcessData<NumChannels> ============================================================================================ */
+
     DEFINE_INLINER(ProcessData_toChannelData_pp)
     {
-        InlineState cc(state, data, function);
+        InlineCodeGenerator cc(state, data, function);
         
         auto blockReg = cc.alloca(16);
 		cc.mov(cc.deref<int>(blockReg), 128);
@@ -263,7 +151,7 @@ struct InlinerFunctions
     
 	DEFINE_INLINER(ProcessData_toEventData_p)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto blockReg = cc.alloca(16);
 		cc.mov(cc.deref<int>(blockReg), 128);
@@ -275,7 +163,7 @@ struct InlinerFunctions
 	
 	DEFINE_INLINER(ProcessData_begin_p)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto reg = cc.newReg<void*>(cc.deref<void*>(cc.argOp(0)));
 
@@ -284,7 +172,7 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(ProcessData_size_i)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto s = cc.memberOp("numChannels", RegisterType::Value);
 
@@ -293,7 +181,7 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(ProcessData_subscript)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto blockReg = cc.alloca(16);
 		cc.mov(cc.deref<int>(blockReg),    128);
@@ -309,14 +197,7 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(ProcessData_toFrameData_p)
 	{
-		InlineState cc(state, data, function);
-
-		/* DATA LAYOUT FOR FRAME_PROCESSOR:
-		span<float*, NumChannels>& channels; // 8 byte
-		int frameLimit = 0;					 // 4 byte
-		int frameIndex = 0;				     // 4 byte
-		FrameType frameData;				 // sizeof(FrameData)
-		*/
+		InlineCodeGenerator cc(state, data, function);
 
 		auto NumChannels = cc.templateConstant("NumChannels");
 		auto numBytes = 8 + 4 + 4 + sizeof(float) * NumChannels;
@@ -346,9 +227,18 @@ struct InlinerFunctions
 		return cc.flush(fp, RegisterType::Pointer);
 	}
 
+	/*  FrameProcessor<NumChannels> ============================================================================================ 
+	
+		Memory Layout
+
+		span<float*, NumChannels>& channels; // void* 8 byte
+		int frameLimit = 0;					 // int 4 byte
+		int frameIndex = 0;				     // int 4 byte
+		FrameType frameData;				 // span<float, NumChannels>
+	*/
 	DEFINE_INLINER(FrameProcessor_next_i)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		int numChannels = cc.templateConstant("NumChannels");
 
@@ -361,9 +251,9 @@ struct InlinerFunctions
 		// float* frameData = fp.frameData.begin();
 		auto frameData = cc.memberOp("frameData", RegisterType::Pointer);
 
-		auto exit = cc.state.loopManager.makeLabel();
-		auto writeLastFrame = cc.state.loopManager.makeLabel();
-		auto finished = cc.state.loopManager.makeLabel();
+		auto exit = cc.newLabel();
+		auto writeLastFrame = cc.newLabel();
+		auto finished = cc.newLabel();
 
 		// int returnValue = *frameIndex;
 		auto returnValue = cc.newReg<int>(frameIndex);
@@ -416,7 +306,7 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(FrameProcessor_begin_p)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
 		auto reg = cc.newReg<void*>(cc.memberOp("frameData", RegisterType::Pointer));
 		return cc.flush(reg, RegisterType::Pointer);
@@ -424,28 +314,91 @@ struct InlinerFunctions
 
 	DEFINE_INLINER(FrameProcessor_size_i)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
+
 		auto reg = cc.newReg<int>(String(cc.templateConstant("NumChannels")));
+
 		return cc.flush(reg, RegisterType::Value);
 	}
 	
 	DEFINE_INLINER(FrameProcessor_subscript)
 	{
-		InlineState cc(state, data, function);
+		InlineCodeGenerator cc(state, data, function);
 
-		cc.dump();
-		
 		auto reg = cc.newReg<void*>(cc.argOp(1));
-
 		cc.add(reg, reg, 16);
-
 		auto idx = cc.newReg<int>(cc.argOp(2));
-
 		cc.mul(idx, idx, 4);
-
 		cc.add(reg, reg, idx);
 
 		return cc.flush(reg, RegisterType::Pointer);
+	}
+
+	/*	PolyData<T, NumVoices> ============================================================================================ 
+
+		Memory Layout
+
+		voiceIndex		0, void*
+		lastVoiceIndex  8, int
+		unused,         12, int
+		data,           16, span<T, NumVoices>
+	*/
+
+	DEFINE_INLINER(PolyData_get_i) { return PolyData_get_a(state, data, function); };
+	DEFINE_INLINER(PolyData_get_f) { return PolyData_get_a(state, data, function); };
+	DEFINE_INLINER(PolyData_get_d) { return PolyData_get_a(state, data, function); };
+	DEFINE_INLINER(PolyData_get_p) { return PolyData_get_a(state, data, function); };
+
+	DEFINE_INLINER(PolyData_get_a)
+	{
+		InlineCodeGenerator cc(state, data, function);
+
+		auto dataOffset = 16;
+		auto numVoices = cc.templateConstant("NumVoices");
+		auto elementSize = (cc.dataProperty("NumBytes").getIntValue() - dataOffset) / numVoices;
+
+		auto reg = cc.newReg<void*>(cc.memberOp("data", RegisterType::Pointer));
+
+		if (numVoices != 1)
+		{
+			auto voicePtr = cc.newReg<PolyHandler*>(cc.memberOp("voiceIndex"));
+			auto lastVoiceIndex = cc.call<int>("int PolyHandler::getVoiceIndexStatic(void*)", { voicePtr });
+			cc.mul(lastVoiceIndex, lastVoiceIndex, elementSize);
+			cc.add(reg, reg, lastVoiceIndex);
+		}
+
+		return cc.flush(reg, RegisterType::Pointer);
+	}
+
+	DEFINE_INLINER(PolyData_prepare_vp)
+	{
+		InlineCodeGenerator cc(state, data, function);
+		
+		auto voicePtr = cc.deref<void*>(cc.argOp(1), offsetof(PrepareSpecs, voiceIndex));
+		cc.mov(cc.memberOp("voiceIndex"), voicePtr);
+
+		return cc.flush("", RegisterType::Pointer);
+	}
+
+	DEFINE_INLINER(PolyData_begin_p)
+	{
+		return PolyData_get_p(state, data, function);
+	}
+
+	DEFINE_INLINER(PolyData_size_i)
+	{
+		InlineCodeGenerator cc(state, data, function);
+
+		auto numVoices = cc.templateConstant("NumVoices");
+		auto dataOffset = 16;
+		auto elementSize = (cc.dataProperty("NumBytes").getIntValue() - dataOffset) / numVoices;
+
+		auto voicePtr = cc.newReg<PolyHandler*>(cc.memberOp("voiceIndex"));
+		auto size = cc.call<int>("int PolyHandler::getSizeStatic(void*)", { voicePtr });
+		cc.mul(size, size, numVoices-1);
+		cc.add(size, size, 1);
+		
+		return cc.flush(size, RegisterType::Value);
 	}
 };
 

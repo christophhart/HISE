@@ -220,14 +220,15 @@ void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 
 snex::jit::FunctionClass::Map GlobalScope::getMap()
 {
-	auto m = FunctionClass::getMap();
-
-	for (auto f : objectClassesWithJitCallableFunctions)
+	if (currentMap.isEmpty())
 	{
-		m.addArray(f->getMap());
+		currentMap = FunctionClass::getMap();
+
+		for (auto f : objectClassesWithJitCallableFunctions)
+			currentMap.addArray(f->getMap());
 	}
 
-	return m;
+	return currentMap;
 }
 
 void GlobalScope::sendBlinkMessage(int lineNumber)

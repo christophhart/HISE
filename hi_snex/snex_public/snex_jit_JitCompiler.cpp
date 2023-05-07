@@ -59,10 +59,9 @@ int Compiler::compileCount = 0;
  {
 	 auto m = memory.getMap();
 
-	 auto im = getInbuiltFunctionClass()->getMap();
-
-	 m.addArray(im);
-
+	 if (auto ifc = getInbuiltFunctionClass())
+		 m.addArray(ifc->getMap());
+	 
 	 for (auto t : handler->getComplexTypeList())
 	 {
 		 FunctionClass::Ptr fc = t->getFunctionClass();
@@ -206,28 +205,50 @@ JitObject Compiler::compileJitObject(const juce::String& code)
 	}
 	
 
-	cr = compiler->getLastResult();
+	
 
 	JitObject snexObject(compiler->compileAndGetScope(preprocessedCode));
 
+	cr = compiler->getLastResult();
+
 #if SNEX_MIR_BACKEND
 
-	auto b64 = SyntaxTreeExtractor::getBase64SyntaxTree(getAST());
-	auto layout = compiler->namespaceHandler.createDataLayouts();
-	auto datab64 = SyntaxTreeExtractor::getBase64DataLayout(layout);
-
-	mir::MirCompiler mc(memory);
-
-	mc.setDataLayout(datab64);
-
-	JitObject mirObject(mc.compileMirCode(b64));
-
-	cr = mc.getLastError();
+	if (cr.wasOk())
+	{
+		auto layout = compiler->namespaceHandler.createDataLayouts();
 		
+		mir::MirCompiler mc(memory);
 
-	assembly = mc.getAssembly();
+		mc.setDataLayout(layout);
 
-	return mirObject;
+		JitObject mirObject(mc.compileMirCode(getAST()));
+
+		cr = mc.getLastError();
+
+#if SNEX_INCLUDE_NMD_ASSEMBLY
+
+		assembly = {};
+
+		for (const auto& fid : mirObject.getFunctionIds())
+		{
+			auto f = mirObject[fid.toString()];
+
+			assembly << "\t;" << f.getSignature({}, false) << "\n";
+
+			assembly << f.createAssembly() << "\n";
+		}
+#else
+		assembly = mc.getAssembly();
+#endif
+
+		return mirObject;
+	}
+	else
+	{
+		return {};
+	}
+
+	
 #else
 	assembly = compiler->assembly;
 	return snexObject;
@@ -593,12 +614,14 @@ void SyntaxTreeExtractor::removeLineInfo(ValueTree& v)
 	v.removeProperty("Line", nullptr);
 	v.removeProperty("FuncPointer", nullptr);
 
+#if 0
 	if (v.hasProperty("InitValues"))
 	{
 		InitValueParser p(v.getProperty("InitValues"));
 		auto x = p.getB64();
 		v.setProperty("InitValues", x, nullptr);
 	}
+#endif
 
 	for (auto c : v)
 		removeLineInfo(c);
@@ -655,7 +678,12 @@ Array<juce::ValueTree> SyntaxTreeExtractor::getDataLayoutTrees(const juce::Strin
 
 void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID type, const VariableStorage& value)>& f) const
 {
-	jassert(input.startsWith("b64"));
+	if (!input.startsWith("b64"))
+	{
+		InitValueParser p(getB64());
+		p.forEach(f);
+		return;
+	}
 
 	auto d = input.substring(3);
 
@@ -687,6 +715,14 @@ void InitValueParser::forEach(const std::function<void(uint32 offset, Types::ID 
 			f(offset, Types::ID::Double, VariableStorage(mos.readDouble()));
 
 			offset += sizeof(double);
+			break;
+		case 'p':
+
+			if (offset % sizeof(void*) != 0)
+				offset += sizeof(void*) - (offset % sizeof(void*));
+
+			f(offset, Types::ID::Pointer, VariableStorage(reinterpret_cast<void*>(mos.readInt64()), 8));
+			offset += sizeof(void*);
 			break;
 		case 'I':
 			f(offset, Types::ID::Integer, VariableStorage((void*)(uint64_t)mos.readInt()));
@@ -786,10 +822,11 @@ String InitValueParser::getB64() const
 		auto e = ptr;
 
 		while (e != end &&
-			(CharacterFunctions::isDigit(*e) ||
+			    (CharacterFunctions::isDigit(*e) ||
 				*e == '.' ||
-				*e == 'f') ||
-                *e == 'x')
+				*e == 'f' ||
+                *e == 'x' ||
+			    *e == 'p'))
 		{
 			e++;
 		}
@@ -822,6 +859,15 @@ String InitValueParser::getB64() const
 			{
 				mos.writeByte('d');
 				mos.writeDouble(value.getDoubleValue() * (!isMinus ? 1.0 : -1.0));
+			}
+			if (type == Types::ID::Pointer)
+			{
+				mos.writeByte('p');
+
+				auto v2 = value.substring(3);
+				auto hv = v2.getHexValue64();
+
+				mos.writeInt64(hv);
 			}
 		}
 

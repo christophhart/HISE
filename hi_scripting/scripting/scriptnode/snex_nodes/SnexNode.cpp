@@ -47,7 +47,10 @@ bool snex_node::preprocess(String& code)
 {
 	SnexSource::preprocess(code);
 
+	
 	SnexSource::addDummyProcessFunctions(code);
+
+	SnexSource::addDummyNodeCallbacks(code);
 
 	return true;
 }

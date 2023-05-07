@@ -225,7 +225,7 @@ struct Operations::FunctionCall : public Expression
             
         
         
-		t.setProperty("Signature", copy.getSignature(), nullptr);
+		t.setProperty("Signature", copy.getSignature({}, false), nullptr);
         
         if(hasObjectExpression)
         {

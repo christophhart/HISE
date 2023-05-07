@@ -166,7 +166,7 @@ public:
 			if (f->function != nullptr)
 			{
 				StaticFunctionPointer item;
-				item.signature = f->getSignature();
+				item.signature = f->getSignature({}, false);
 
 				auto l = f->id.toString().replace("::", "_");
 

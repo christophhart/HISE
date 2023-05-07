@@ -536,9 +536,9 @@ public:
 
 	void runTest() override
 	{
-        
-        beginTest("funky");
-        runTestFiles("node_half4.h");
+		beginTest("funky");
+
+        runTestFiles("subscript3");
         return;
         
         runTestsWithOptimisation({ OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination });

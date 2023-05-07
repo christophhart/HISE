@@ -40,6 +40,13 @@ namespace snex {
 namespace mir {
 using namespace juce;
 
+static void mirError(MIR_error_type_t error_type, const char* format, ...)
+{
+	DBG(format);
+	jassertfalse;
+	throw String(format);
+}
+
 struct MirHelpers
 {
 	static Types::ID getTypeFromMirEnum(int t)
@@ -149,17 +156,121 @@ struct MirFunctionCollection : public jit::FunctionCollectionBase
 
 	HashMap<String, void*> dataItems;
 
+	std::map<String, FunctionData> functionMap;
+
 	ValueTree globalData;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MirFunctionCollection);
 };
 
-static void mirError(MIR_error_type_t error_type, const char* format, ...)
+MirFunctionCollection::MirFunctionCollection()
 {
-	DBG(format);
-	jassertfalse;
-	throw String(format);
+	ctx = MIR_init();
+#if JUCE_WINDOWS // don't want to bother...
+	MIR_set_error_func(ctx, mirError);
+#endif
 }
 
+MirFunctionCollection::~MirFunctionCollection()
+{
+	
+
+	MIR_finish(ctx);
+}
+
+snex::jit::FunctionData MirFunctionCollection::getFunction(const NamespacedIdentifier& functionId)
+{
+	auto functionName = TypeConverters::NamespacedIdentifier2MangledMirVar(functionId);
+
+	if (!allFunctions.contains(NamespacedIdentifier(functionName)))
+	{
+		return {};
+	}
+
+	return functionMap[functionName];
+}
+
+void MirFunctionCollection::fillRecursive(ValueTree& d, const String& dataId, size_t offset) const
+{
+	if (d.getType() == Identifier("NativeType"))
+	{
+		auto type = Types::Helpers::getTypeFromTypeName(d["type"].toString());
+
+		if (type == Types::ID::Integer)
+			d.setProperty("Value", getData<int>(dataId, offset), nullptr);
+		if (type == Types::ID::Float)
+			d.setProperty("Value", getData<float>(dataId, offset), nullptr);
+		if (type == Types::ID::Double)
+			d.setProperty("Value", getData<double>(dataId, offset), nullptr);
+
+		return;
+	}
+
+	for (int i = 0; i < d.getNumChildren(); i++)
+	{
+		auto m = d.getChild(i);
+
+		if (m.getType() == Identifier("TemplateParameter") ||
+			m.getType() == Identifier("Method"))
+		{
+			d.removeChild(i--, nullptr);
+		}
+	}
+
+	auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
+	bytePtr += offset;
+
+	for (auto m : d)
+	{
+		auto o = (size_t)(int)m["offset"];
+
+		auto type = SimpleTypeParser(m["type"].toString()).getTypeInfo().getType();
+
+
+
+
+
+		if (type == Types::ID::Integer)
+			m.setProperty("Value", getData<int>(dataId, offset + o), nullptr);
+		if (type == Types::ID::Float)
+			m.setProperty("Value", getData<float>(dataId, offset + o), nullptr);
+		if (type == Types::ID::Double)
+			m.setProperty("Value", getData<double>(dataId, offset + o), nullptr);
+		if (type == Types::ID::Pointer)
+		{
+			auto dl = m.getChildWithName("DataLayout");
+
+			if (dl.isValid())
+			{
+				fillRecursive(dl, dataId, offset + o);
+			}
+			else
+			{
+				auto p = reinterpret_cast<uint64>(getData<void*>(dataId, offset + o));
+
+				auto hexPtr = "0x" + String::toHexString(p);
+
+				m.setProperty("Value", hexPtr, nullptr);
+			}
+		}
+
+		m.setProperty("address", "0x" + String::toHexString(reinterpret_cast<uint64>(bytePtr) + o), nullptr);
+	}
+}
+
+ValueTree MirFunctionCollection::fillLayoutWithData(const String& dataId, const ValueTree& valueData) const
+{
+	auto copy = valueData.createCopy();
+
+	fillRecursive(copy, dataId, 0);
+
+	return copy;
+}
+
+
+
 void* MirCompiler::currentConsole = nullptr;
+Array<StaticFunctionPointer> MirCompiler::currentFunctions;
 
 MirCompiler::MirCompiler(jit::GlobalScope& m):
 	r(Result::fail("nothing compiled")),
@@ -198,7 +309,7 @@ snex::mir::MirFunctionCollection* MirCompiler::getFunctionClass()
 	return dynamic_cast<MirFunctionCollection*>(currentFunctionClass.get());
 }
 
-Array<StaticFunctionPointer> MirCompiler::currentFunctions;
+
 
 void MirCompiler::setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap)
 {
@@ -214,6 +325,11 @@ void* MirCompiler::resolve(const char* name)
 
 	if (label == "Console")
 		return (void*)MirCompiler::currentConsole;
+
+	if (label == "PolyHandler_getVoiceIndexStatic_ip")
+		return (void*)PolyHandler::getVoiceIndexStatic;
+	if(label == "PolyHandler_getSizeStatic_ip")
+		return (void*)PolyHandler::getSizeStatic;
 
 	for (const auto& f : currentFunctions)
 	{
@@ -306,9 +422,36 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 							NamespacedIdentifier id(s);
 							getFunctionClass()->allFunctions.add(id);
 						}
+
+						auto main_func = f;
+						
+						jit::FunctionData fd;
+						fd.id = NamespacedIdentifier::fromString(s);
+
+						auto x = main_func->u.func;
+
+						if (x->nres != 0)
+							fd.returnType = TypeInfo(MirHelpers::getTypeFromMirEnum(x->res_types[0]), false, false);
+
+						for (int i = 0; i < x->nargs; i++)
+						{
+							auto v = x->vars->varr[i];
+							fd.addArgs(v.name, TypeInfo(MirHelpers::getTypeFromMirEnum(v.type)));
+						}
+
+						fd.function = MIR_gen(ctx, 0, main_func);
+
+						if (fd.function != nullptr)
+							fd.function = main_func->u.func->machine_code;
+
+						fd.numBytes = main_func->u.func->num_bytes;
+
+						getFunctionClass()->functionMap.emplace(s, fd);
 					}
                 }
             }
+
+			MIR_gen_finish(ctx);
 
 			return getFunctionClass();
 		}
@@ -326,88 +469,16 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 
 }
 
-void MirFunctionCollection::fillRecursive(ValueTree& d, const String& dataId, size_t offset) const
-{
-    if(d.getType() == Identifier("NativeType"))
-    {
-        auto type = Types::Helpers::getTypeFromTypeName(d["type"].toString());
-        
-        if(type == Types::ID::Integer)
-            d.setProperty("Value", getData<int>(dataId, offset), nullptr);
-        if(type == Types::ID::Float)
-            d.setProperty("Value", getData<float>(dataId, offset), nullptr);
-        if(type == Types::ID::Double)
-            d.setProperty("Value", getData<double>(dataId, offset), nullptr);
-        
-        return;
-    }
-    
-    for(int i = 0; i < d.getNumChildren(); i++)
-    {
-        auto m = d.getChild(i);
-        
-        if(m.getType() == Identifier("TemplateParameter") ||
-           m.getType() == Identifier("Method"))
-        {
-            d.removeChild(i--, nullptr);
-        }
-    }
-    
-    auto bytePtr = reinterpret_cast<uint8*>(dataItems[dataId]);
-    bytePtr += offset;
-    
-    for(auto m: d)
-    {
-        auto o = (size_t)(int)m["offset"];
-        auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
-        
-        
-        
-        if(type == Types::ID::Integer)
-            m.setProperty("Value", getData<int>(dataId, offset + o), nullptr);
-        if(type == Types::ID::Float)
-            m.setProperty("Value", getData<float>(dataId, offset + o), nullptr);
-        if(type == Types::ID::Double)
-            m.setProperty("Value", getData<double>(dataId, offset + o), nullptr);
-        if(type == Types::ID::Pointer)
-        {
-            auto dl = m.getChildWithName("DataLayout");
-            
-            if(dl.isValid())
-            {
-                fillRecursive(dl, dataId, offset + o);
-            }
-            else
-            {
-                auto p = reinterpret_cast<uint64>(getData<void*>(dataId, offset + o));
-                
-                auto hexPtr = "0x" + String::toHexString(p);
-                
-                m.setProperty("Value", hexPtr, nullptr);
-            }
-        }
-        
-        m.setProperty("address", "0x" + String::toHexString(reinterpret_cast<uint64>(bytePtr) + o), nullptr);
-    }
-}
 
-ValueTree MirFunctionCollection::fillLayoutWithData(const String& dataId, const ValueTree& valueData) const
-{
-    auto copy = valueData.createCopy();
-    
-    fillRecursive(copy, dataId, 0);
-    
-    return copy;
-}
 
 juce::Result MirCompiler::getLastError() const
 {
 	return r;
 }
 
-void MirCompiler::setDataLayout(const String& b64)
+void MirCompiler::setDataLayout(const Array<ValueTree>& data)
 {
-    dataLayout = b64;
+    dataLayout = data;
 }
 
 MirCompiler::~MirCompiler()
@@ -419,71 +490,7 @@ MirCompiler::~MirCompiler()
 
 
 
-MirFunctionCollection::MirFunctionCollection()
-{
-	ctx = MIR_init();
-#if JUCE_WINDOWS // don't want to bother...
-	MIR_set_error_func(ctx, mirError);
-#endif
-}
 
-MirFunctionCollection::~MirFunctionCollection()
-{
-	MIR_finish(ctx);
-}
-
-snex::jit::FunctionData MirFunctionCollection::getFunction(const NamespacedIdentifier& functionId)
-{
-	auto functionName = TypeConverters::NamespacedIdentifier2MangledMirVar(functionId);
-
-	if (!allFunctions.contains(NamespacedIdentifier(functionName)))
-	{
-		return {};
-	}
-
-	MIR_item_t mir_f, main_func;
-
-	main_func = nullptr;
-
-	for (auto& m : modules)
-	{
-		for (auto mir_f = DLIST_HEAD(MIR_item_t, m->items); mir_f != NULL; mir_f = DLIST_NEXT(MIR_item_t, mir_f))
-		{
-			if (mir_f->item_type == MIR_func_item)
-			{
-				String x(mir_f->u.func->name);
-				x = x.upToLastOccurrenceOf("_", false, false);
-
-				if (x == functionName)
-				{
-					main_func = mir_f;
-					break;
-				}
-			}
-		}
-	}
-
-	jit::FunctionData f;
-	f.id = NamespacedIdentifier(functionName);
-
-	if (main_func)
-	{
-		auto x = main_func->u.func;
-
-		if (x->nres != 0)
-			f.returnType = TypeInfo(MirHelpers::getTypeFromMirEnum(x->res_types[0]), false, false);
-
-		for (int i = 0; i < x->nargs; i++)
-		{
-			auto v = x->vars->varr[i];
-			f.addArgs(v.name, TypeInfo(MirHelpers::getTypeFromMirEnum(v.type)));
-		}
-
-		f.function = MIR_gen(ctx, 0, main_func);
-	}
-	
-	return f;
-}
 
 }
 }

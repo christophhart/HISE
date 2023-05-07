@@ -105,8 +105,6 @@ void NamespaceResolver::MustExist::resolve(NamespaceHandler& n, NamespacedIdenti
 
 	if (!r.wasOk())
 	{
-		DBG(n.dump());
-
 		l.throwError(r.getErrorMessage());
 	}
 		

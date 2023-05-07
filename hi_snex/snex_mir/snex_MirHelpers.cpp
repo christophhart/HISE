@@ -110,7 +110,7 @@ String snex::mir::SimpleTypeParser::parseIdentifier()
 		auto c = *ptr;
 
 		if (CharacterFunctions::isLetterOrDigit(c) ||
-			c == ':' || c == '_' || c == '-' || c == '*')
+			c == ':' || c == '_' || c == '-' || c == '*' || c == '~' || c == '=' || c == '+' || c == '[' || c == ']')
 			ptr++;
 		else
 			break;
@@ -267,7 +267,19 @@ snex::mir::FunctionData snex::mir::TypeConverters::String2FunctionData(String s)
 
 String snex::mir::TypeConverters::NamespacedIdentifier2MangledMirVar(const NamespacedIdentifier& id)
 {
-	auto n = id.toString();
+	auto n = id.toString().removeCharacters("&");
+
+	if (n.containsChar('='))
+		n = n.replace("=", "_assign");
+	if (n.containsChar('~'))
+		n = n.replace("~", "_dest");
+	if (n.contains("++"))
+		n = n.replace("++", "_inc_");
+	if (n.contains("--"))
+		n = n.replace("--", "_dec_");
+	if (n.contains("[]"))
+		n = n.replace("[]", "_subscript");
+
 	return n.replace("::", "_");
 }
 
@@ -302,7 +314,9 @@ String snex::mir::TypeConverters::FunctionData2MirTextLabel(const FunctionData& 
 	for (const auto& a : f.args)
 		label << Types::Helpers::getCppTypeName(a.typeInfo.getType())[0];
 
-	return label.replace("~", "dest");
+	
+	
+	return label;
 }
 
 
@@ -334,8 +348,11 @@ String snex::mir::TypeConverters::Symbol2MirTextSymbol(const jit::Symbol& s)
 	return t;
 }
 
-String snex::mir::TypeConverters::TypeInfo2MirTextType(const TypeInfo& t)
+String snex::mir::TypeConverters::TypeInfo2MirTextType(const TypeInfo& t, bool refToPtr)
 {
+	if (refToPtr && t.isRef())
+		return "i64";
+
 	if (t.getType() == Types::ID::Integer)
 		return "i64";
 	if (t.getType() == Types::ID::Double)

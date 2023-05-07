@@ -853,7 +853,7 @@ int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
     auto c = source.nextChar();
 
-    auto commentChar = SNEX_MIR_BACKEND ? '#' : ';';
+    auto commentChar = (SNEX_MIR_BACKEND && !SNEX_INCLUDE_NMD_ASSEMBLY) ? '#' : ';';
     
     if (c == commentChar)
     {
@@ -873,7 +873,7 @@ int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)
 
         return Location;
     }
-#if SNEX_MIR_BACKEND
+#if SNEX_MIR_BACKEND && !SNEX_INCLUDE_NMD_ASSEMBLY
     
     if(c == 'l')
     {

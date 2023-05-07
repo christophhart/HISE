@@ -54,7 +54,7 @@ struct MirCompiler
 	jit::FunctionCollectionBase* compileMirCode(const String& code);
 	jit::FunctionCollectionBase* compileMirCode(const ValueTree& ast);
 
-    void setDataLayout(const String& b64data);
+    void setDataLayout(const Array<ValueTree>& dataTree);
     
 	Result getLastError() const;;
 
@@ -76,7 +76,7 @@ struct MirCompiler
 
 	MirFunctionCollection* getFunctionClass();
 
-    String dataLayout;
+    Array<ValueTree> dataLayout;
     String assembly;
     
 	static Array<StaticFunctionPointer> currentFunctions;
@@ -84,6 +84,7 @@ struct MirCompiler
 
 	Result r;
 
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MirCompiler);
 	
 };
 

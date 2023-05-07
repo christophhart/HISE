@@ -83,7 +83,7 @@ struct TypeConverters
 	static String FunctionData2MirTextLabel(const FunctionData& f);
 	static String MirType2MirTextType(const MIR_type_t& t);
 	static String Symbol2MirTextSymbol(const jit::Symbol& s);
-	static String TypeInfo2MirTextType(const TypeInfo& t);
+	static String TypeInfo2MirTextType(const TypeInfo& t, bool refToPtr=false);
 	static String MirTypeAndToken2InstructionText(MIR_type_t type, const String& token);
 	static String TemplateString2MangledLabel(const String& templateArgs);
 

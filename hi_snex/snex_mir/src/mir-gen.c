@@ -5348,6 +5348,7 @@ void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
   gen_ctx_t gen_ctx;
   uint8_t *code;
   void *machine_code;
+  
   size_t code_len;
   double start_time = real_usec_time ();
 
@@ -5498,6 +5499,9 @@ void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
   destroy_func_live_ranges (gen_ctx);
   if (optimize_level != 0) destroy_loop_tree (gen_ctx, curr_cfg->root_loop_node);
   destroy_func_cfg (gen_ctx);
+
+  func_item->u.func->num_bytes = code_len;
+
   DEBUG (0, {
     fprintf (debug_file,
              "  Code generation for %s: %lu MIR insns (addr=%llx, len=%lu) -- time %.2f ms\n",

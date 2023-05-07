@@ -44,6 +44,7 @@ namespace MetaIds
 	static const Identifier input("input");
 	static const Identifier output("output");
 	static const Identifier error("error");
+	static const Identifier voiceindex("voiceindex");
 	static const Identifier filename("filename");
 	static const Identifier events("events");
 	static const Identifier loop_count("loop_count");
@@ -170,7 +171,8 @@ JitFileTestCase::JitFileTestCase(UnitTest* t_, GlobalScope& memory_, const File&
 	r(Result::ok()),
 	t(t_),
 	memory(memory_),
-	c(memory)
+	c(memory),
+	polyHandler(true)
 {
 	parseFunctionData();
 }
@@ -180,7 +182,8 @@ JitFileTestCase::JitFileTestCase(GlobalScope& memory_, const juce::String& s) :
 	r(Result::ok()),
 	t(nullptr),
 	memory(memory_),
-	c(memory)
+	c(memory),
+	polyHandler(true)
 {
 	parseFunctionData();
 }
@@ -478,17 +481,25 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 				return r;
 			}
 
+			PolyHandler::ScopedVoiceSetter svs(polyHandler, polyVoiceIndex);
+
+			if (auto prep = obj["prepare"])
+			{
+				PrepareSpecs ps;
+				ps.voiceIndex = &polyHandler;
+
+				prep.callVoid(&ps);
+			}
+
 			function = compiledF;
 
-            switch (function.returnType.getType())
+			switch (function.returnType.getType())
             {
             case Types::ID::Integer: actualResult = call<int>(); break;
             case Types::ID::Float:   actualResult = call<float>(); break;
             case Types::ID::Double:  actualResult = call<double>(); break;
             default: jassertfalse;
             }
-
-			
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 		}
@@ -611,6 +622,7 @@ void JitFileTestCase::parseFunctionData()
 		args: int
 		input: 12
 		output: 12
+		voiceindex: -1
 		error: "Line 12: expected result"
 		END_TEST_DATA
 	*/
@@ -781,6 +793,12 @@ void JitFileTestCase::parseFunctionData()
 		{
 			// Parse error
 			expectedFail = Helpers::parseQuotedString(s[error]);
+		}
+
+		{
+			// Parse voiceIndex;
+			if(s.contains(voiceindex))
+				polyVoiceIndex = (int)s[voiceindex];
 		}
 
 		{

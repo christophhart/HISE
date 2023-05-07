@@ -372,7 +372,7 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 	}
 	else if (type == Types::ID::Pointer)
 	{
-		return "0x" + juce::String::toHexString(reinterpret_cast<uint64_t>(v.getDataPointer())).toUpperCase();
+		return "p0x" + juce::String::toHexString(reinterpret_cast<uint64_t>(v.getDataPointer())).toUpperCase() + "";
 	}
 	else if (type == Types::ID::Block)
 	{
@@ -402,6 +402,8 @@ juce::String Types::Helpers::getCppTypeName(ID type)
 
 snex::Types::ID Types::Helpers::getTypeFromStringValue(const juce::String& value)
 {
+	if (value.contains("p"))
+		return Types::ID::Pointer;
 	if (value.contains("."))
 	{
 		if (value.contains("f"))

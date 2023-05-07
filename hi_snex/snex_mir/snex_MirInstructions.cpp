@@ -49,12 +49,15 @@ namespace InstructionPropertyIds
 	DEFINE_ID(ElementType);
 	DEFINE_ID(First);
 	DEFINE_ID(Ids);
+	DEFINE_ID(ID);
 	DEFINE_ID(InitValues);
+	DEFINE_ID(InitValuesB64);
 	DEFINE_ID(IsDec);
 	DEFINE_ID(IsPre);
 	DEFINE_ID(Iterator);
 	DEFINE_ID(LoopType);
 	DEFINE_ID(MemberInfo);
+	DEFINE_ID(Method);
 	DEFINE_ID(NumElements);
 	DEFINE_ID(NumBytes);
 	DEFINE_ID(ObjectType);
@@ -86,7 +89,14 @@ struct InstructionParsers
 
 			state.emitSingleInstruction("import Console");
 
+			
+			state.dump();
+			
+
 			StringArray staticSignatures, memberSignatures;
+
+			staticSignatures.add("int PolyHandler::getVoiceIndexStatic(void* voiceIndex)");
+			staticSignatures.add("int PolyHandler::getSizeStatic(void* voiceIndex)");
 
 			TypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
 			{
@@ -132,18 +142,31 @@ struct InstructionParsers
 	static Result Function(State* state_)
 	{
 		auto& state = *state_;
-		auto f = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
+
+		auto fullSig = state[InstructionPropertyIds::Signature];
+
+		auto f = TypeConverters::String2FunctionData(fullSig);
 
 		auto addObjectPtr = state.isParsingClass() && !f.returnType.isStatic();
 
-		state.functionManager.addPrototype(&state, f, addObjectPtr);
-
 		TextLine line(&state);
-		line.label = TypeConverters::FunctionData2MirTextLabel(f);
+
+		if (state.functionManager.hasPrototype(f))
+		{
+			line.label = state.functionManager.registerComplexTypeOverload(&state, fullSig, addObjectPtr);
+		}
+		else
+		{
+			state.functionManager.addPrototype(&state, f, addObjectPtr);
+			line.label = TypeConverters::FunctionData2MirTextLabel(f);
+		}
+		
+		
+		
 		line.instruction = "func ";
 
 		if (f.returnType.isValid())
-			line.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType));
+			line.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType, true));
 
 		if (addObjectPtr)
 		{
@@ -179,13 +202,15 @@ struct InstructionParsers
 	{
 		auto& state = *state_;
 
-		if (state.currentTree.getNumChildren() != 0)
+		auto isVoid = state[InstructionPropertyIds::Type].contains("void"); // could be "void" or "static void"
+
+		if (!isVoid)
 		{
 			auto &rm = state.registerManager;
 
 			SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
-			state.processChildTree(0);
+			state.processAllChildren();
 
 			TextLine line(&state);
 			line.instruction = "ret";
@@ -195,6 +220,7 @@ struct InstructionParsers
 		}
 		else
 		{
+			state.processAllChildren(); // could still have destructors attached...
 			state.emitSingleInstruction("ret");
 		}
 
@@ -678,6 +704,8 @@ struct InstructionParsers
 
 		SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
+		MirCodeGenerator cc(&state);
+
 		if (p.getTypeInfo().isRef())
 		{
 			auto t = rm.getTypeForChild(0);
@@ -700,89 +728,31 @@ struct InstructionParsers
 		{
 			if (!state.isParsingFunction())
 			{
-				// type copy with initialization
-				auto b64 = state[InstructionPropertyIds::InitValues];
-
-				InitValueParser initParser(b64);
-
 				// global definition
 
 				Symbol s;
 				s.typeInfo = TypeInfo(Types::ID::Pointer, true, false);
 				s.id = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
 
-				uint32 lastOffset = 0;
-
                 state.dataManager.addGlobalData(s.id.toString(), state[InstructionPropertyIds::Type]);
                 
-				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
+				MemoryBlock mb;
+				mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
 
-				auto numBytesInParser = initParser.getNumBytesRequired();
+				int numQuadWords = mb.getSize() / sizeof(int64);
 
-				if (numBytes == 0 || numBytesInParser == 0)
+				int64* d = reinterpret_cast<int64*>(mb.getData());
+
+				for (int i = 0; i < numQuadWords; i++)
 				{
 					TextLine l(&state);
 
-					l.label = s.id.toString();
-					l.instruction = "bss";
-					l.addImmOperand(jmax<int>(numBytes, numBytesInParser, 8));
-					l.appendComment("Dummy Address for zero sized-class object");
+					if (i == 0)
+						l.label = s.id.toString();
+
+					l.instruction = "i64";
+					l.addRawOperand(String(d[i]));
 					l.flush();
-				}
-				else
-				{
-					while (lastOffset < numBytes)
-					{
-						initParser.forEach([&](uint32 offset, Types::ID type, const VariableStorage& v)
-						{
-							TextLine l(&state);
-
-							if (lastOffset == 0)
-							{
-								l.label = s.id.toString();
-							}
-
-							auto numBytesForEntry = v.getSizeInBytes();
-
-							if (lastOffset % numBytesForEntry != 0)
-							{
-								auto alignment = numBytesForEntry - lastOffset % numBytesForEntry;
-
-								lastOffset += alignment;
-
-								String sl = "bss " + String(alignment);
-								state.emitSingleInstruction(sl);
-							}
-
-							lastOffset += numBytesForEntry;
-
-							l.instruction = TypeConverters::TypeInfo2MirTextType(TypeInfo(type));
-
-							// use 4 bytes for integer initialisation...
-							if (l.instruction == "i64")
-								l.instruction = "i32";
-
-							if (v.getType() == Types::ID::Pointer)
-							{
-								auto childIndex = (int)reinterpret_cast<int64_t>(v.getDataPointer());
-
-								l.addOperands({ childIndex }, { RegisterType::Value });
-							}
-							else
-								l.addImmOperand(v);
-
-							l.flush();
-						});
-					}
-
-					if (lastOffset % 8 != 0)
-					{
-						TextLine l(&state);
-						l.instruction = "bss";
-						l.addImmOperand(4);
-						l.appendComment("pad to 8 byte alignment");
-						l.flush();
-					}
 				}
 			}
 			else
@@ -797,7 +767,6 @@ struct InstructionParsers
 				auto mn = TypeConverters::NamespacedIdentifier2MangledMirVar(name);
 
 				numBytes = rm.allocateStack(mn, numBytes, true);
-
 				auto hasDynamicInitialisation = state.currentTree.getNumChildren() != 0;
 
 				if (hasDynamicInitialisation)
@@ -806,22 +775,59 @@ struct InstructionParsers
 					{
 						// Only one expression is supported at the moment...
 						jassert(state.currentTree.getNumChildren() == 1);
-
-						
-
 						auto src = rm.loadIntoRegister(0, RegisterType::Pointer);
-
 						rm.emitMultiLineCopy(mn, src, numBytes);
 					}
 					else
 					{
-						// mix expression with init values, not implemented...
-						jassertfalse;
+						InitValueParser p(state[InstructionPropertyIds::InitValues]);
+						
+						p.forEach([&](size_t offset, Types::ID type, const VariableStorage& f)
+						{
+							auto isExpression = type != Types::ID::Pointer && f.getType() == Types::ID::Pointer;
+
+							String value;
+
+							if (isExpression)
+							{
+								auto expressionIndex = reinterpret_cast<int>(f.getDataPointer());
+								value = state.registerManager.loadIntoRegister(expressionIndex, RegisterType::Value);
+							}
+							else
+							{
+								value = Types::Helpers::getCppValueString(f);
+							}
+
+							if (type == Types::ID::Integer)
+								cc.mov(cc.deref<int>(mn, offset), value);
+							else if (type == Types::ID::Float)
+								cc.fmov(cc.deref<float>(mn, offset), value);
+							else if (type == Types::ID::Double)
+								cc.dmov(cc.deref<double>(mn, offset), value);
+							else
+								jassertfalse;
+						});
 					}
 				}
 				else
 				{
 					// static type copy with initialization values
+
+					MemoryBlock mb;
+					mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
+
+					int numQuadWords = mb.getSize() / sizeof(int64);
+
+					int64* d = reinterpret_cast<int64*>(mb.getData());
+
+					auto p = rm.getOperandForChild(-1, RegisterType::Raw);
+
+					for (int i = 0; i < numQuadWords; i++)
+					{
+						cc.mov(cc.deref<void*>(p, i * 8), String(d[i]));
+					}
+
+#if 0
 					auto b64 = state[InstructionPropertyIds::InitValues];
 
 					InitValueParser initParser(b64);
@@ -887,6 +893,7 @@ struct InstructionParsers
 							numToPad -= 4;
 						}
 					}
+#endif
 				}
 
 #if 0
@@ -940,11 +947,11 @@ struct InstructionParsers
 
 		String self, idx_reg;
 
-		
+		MirCodeGenerator cc(&state);
 
 		if (type == "span")
 		{
-            TextLine l(&state);
+			TextLine l(&state);
             self = l.addAnonymousReg(mir_t, RegisterType::Pointer);
 			l.instruction = "mov";
 			l.addOperands({ -1, 0 }, { RegisterType::Pointer, RegisterType::Pointer });
@@ -1015,8 +1022,12 @@ struct InstructionParsers
 
 	static Result ControlFlowStatement(State* state_)
 	{
+		
+
 		auto& state = *state_;
 		auto command = state[InstructionPropertyIds::command];
+
+		state.processAllChildren(); // could have destructors attached...
 
 		TextLine l(&state);
 		l.instruction = "jmp";
@@ -1029,16 +1040,44 @@ struct InstructionParsers
 
 	static Result Loop(State* state_)
 	{
+		
+
 		auto& state = *state_;
 		auto& rm = state.registerManager;
+
+		MirCodeGenerator cc(state_);
+		
+
 		String startLabel, endLabel, unusedLabel;
 
 		auto loopType = state[InstructionPropertyIds::LoopType];
+
+		
 
 		state.loopManager.pushLoopLabels(startLabel, endLabel, unusedLabel);
 		
 		// create iterator variable with pointer type
 		auto iteratorSymbol = TypeConverters::String2Symbol(state[InstructionPropertyIds::Iterator]);
+
+		if (loopType == "CustomObject")
+		{
+			auto cType = state.dataManager.getDataObject(state[InstructionPropertyIds::ObjectType]);
+
+			if (cType.isValid())
+			{
+				for (auto& c : cType)
+				{
+					if (c.getType() == InstructionPropertyIds::Method && c[InstructionPropertyIds::ID] == "begin")
+					{
+						SimpleTypeParser p(c[InstructionPropertyIds::ReturnType]);
+
+						iteratorSymbol.typeInfo = p.getTypeInfo();
+						break;
+					}
+				}
+			}
+		}
+
 		auto type = TypeConverters::SymbolToMirVar(iteratorSymbol).type;
 		auto mvn = TypeConverters::NamespacedIdentifier2MangledMirVar(iteratorSymbol.id);
 
@@ -1063,6 +1102,8 @@ struct InstructionParsers
 
 		if (loopType == "Span")
 		{
+			
+
 			loadIter.operands.add(pointerReg);
 			loadIter.addOperands({ 0 }, { RegisterType::Pointer });
 			loadIter.flush();
@@ -1079,8 +1120,6 @@ struct InstructionParsers
 		}
 		else if (loopType == "CustomObject")
 		{
-			state.dump();
-
 			auto objPtr = rm.loadIntoRegister(0, RegisterType::Pointer);
 
 			auto className = state[InstructionPropertyIds::ObjectType];
@@ -1090,6 +1129,8 @@ struct InstructionParsers
 
 			auto b = state.inlinerManager.emitInliner(label + "_begin_p", objectType, "begin", {objPtr});
 			auto e = state.inlinerManager.emitInliner(label + "_size_i", objectType, "size", {objPtr});
+
+			jassert(type == b.type);
 
 			loadIter.operands.add(pointerReg);
 			loadIter.operands.add(b.text);
@@ -1104,17 +1145,13 @@ struct InstructionParsers
 			ml.addImmOperand(elementSize);
 			ml.flush();
 
-			TextLine al(&state);
-			al.instruction = "add";
-			al.operands.add(endReg);
-			al.operands.add(endReg);
-			al.operands.add(pointerReg);
-			al.flush();
-
-			
+			cc.add(endReg, endReg, pointerReg);
 		}
 		else
 		{
+			rm.registerCurrentTextOperand(mvn, type, isRef ? RegisterType::Pointer :
+				RegisterType::Value);
+
 			loadIter.operands.add(pointerReg);
 
 			auto dynPtr = rm.loadIntoRegister(0, RegisterType::Pointer);
@@ -1131,15 +1168,7 @@ struct InstructionParsers
 			ii.addImmOperand(elementSize);
 			ii.flush();
 
-			//pointerReg = "i64:8(" + pointerReg + ")";
-
-			TextLine ii2(&state);
-
-			ii2.instruction = "add";
-			ii2.operands.add(endReg);
-			ii2.operands.add(endReg);
-			ii2.operands.add(pointerReg);
-			ii2.flush();
+			cc.add(endReg, endReg, pointerReg);
 		}
 
 		// emit start_loop label
@@ -1165,33 +1194,18 @@ struct InstructionParsers
 		}
 
 		// compare addresses, jump to start_loop if iterator < end
-		TextLine cmp(&state);
-		cmp.instruction = "bge";
-		cmp.operands.add(endLabel);
-		cmp.operands.add(pointerReg);
-		cmp.operands.add(endReg);
-		
-		cmp.flush();
+		cc.bge(endLabel, pointerReg, endReg);
 
 		// emit body
 		state.processChildTree(1);
 
 		// bump address by element size after loop body
-		TextLine bump(&state);
-		bump.instruction = "add";
-		bump.operands.add(pointerReg);
-		bump.operands.add(pointerReg);
-		bump.addImmOperand(elementSize);
-		bump.flush();
-
-		TextLine jmp(&state);
-		jmp.instruction = "jmp";
-		jmp.operands.add(startLabel);
-		jmp.flush();
-
+		cc.add(pointerReg, pointerReg, elementSize);
+		cc.jmp(startLabel);
 
 		// emit end_loop label
-		state.emitLabel(endLabel);
+		cc.bind(endLabel);
+		
 		state.loopManager.popLoopLabels();
 
 		return Result::ok();
@@ -1203,12 +1217,14 @@ struct InstructionParsers
 		auto& rm = state.registerManager;
 		state.processAllChildren();
 
-		auto sig = TypeConverters::String2FunctionData(state[InstructionPropertyIds::Signature]);
-		auto fid = TypeConverters::FunctionData2MirTextLabel(sig);
+		auto fullSig = state[InstructionPropertyIds::Signature];
+
+		auto sig =  TypeConverters::String2FunctionData(fullSig);
+		auto fid = state.functionManager.getIdForComplexTypeOverload(fullSig);
 
 		if (state.functionManager.hasPrototype(sig))
 		{
-			auto protoType = state.functionManager.getPrototype(sig);
+			auto protoType = state.functionManager.getPrototype(fullSig);
 
 			TextLine l(&state);
 
@@ -1427,7 +1443,7 @@ struct InstructionParsers
 
 		auto memberSymbol = TypeConverters::String2Symbol(state.getCurrentChild(1)[InstructionPropertyIds::Symbol].toString());
 
-		auto classId = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(memberSymbol.id.getParent()));
+		auto classId = SimpleTypeParser(state[InstructionPropertyIds::ObjectType]).getComplexTypeId().toString();
 		auto memberId = memberSymbol.id.getIdentifier().toString();
 		auto memberType = TypeConverters::Symbol2MirTextSymbol(memberSymbol);
 

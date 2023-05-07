@@ -651,7 +651,12 @@ struct PolyHandler
 
 		jassert(ph->enabled != 0);
 
-		return ph->getVoiceIndex();
+		auto voiceIndex = ph->getVoiceIndex();
+
+		if (voiceIndex == -1)
+			return 0;
+
+		return voiceIndex;
 	}
 
 	static int getSizeStatic(PolyHandler* ph)

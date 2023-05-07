@@ -53,6 +53,8 @@ struct MIR_context {
   struct scan_ctx *scan_ctx;
   struct interp_ctx *interp_ctx;
   void *setjmp_addr; /* used in interpreter to call setjmp directly not from a shim and FFI */
+
+  size_t funcSize;
 };
 
 #define ctx_mutex ctx->ctx_mutex

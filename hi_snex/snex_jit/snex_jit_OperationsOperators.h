@@ -275,6 +275,16 @@ struct Operations::DotOperator : public Expression
 		return new DotOperator(l, cp, cc);
 	}
 
+	ValueTree toValueTree() const override
+	{
+		auto v = Expression::toValueTree();
+
+		v.setProperty("ObjectType", getDotParent()->getTypeInfo().toStringWithoutAlias(), nullptr);
+		v.setProperty("MemberType", getTypeInfo().toStringWithoutAlias(), nullptr);
+
+		return v;
+	}
+
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Dot"); }
 
 	Ptr getDotParent() const
