@@ -790,7 +790,7 @@ struct InstructionParsers
 
 							if (isExpression)
 							{
-								auto expressionIndex = reinterpret_cast<int>(f.getDataPointer());
+								auto expressionIndex = reinterpret_cast<uint64_t>(f.getDataPointer());
 								value = state.registerManager.loadIntoRegister(expressionIndex, RegisterType::Value);
 							}
 							else
@@ -1065,7 +1065,7 @@ struct InstructionParsers
 
 			if (cType.isValid())
 			{
-				for (auto& c : cType)
+				for (const auto& c : cType)
 				{
 					if (c.getType() == InstructionPropertyIds::Method && c[InstructionPropertyIds::ID] == "begin")
 					{

@@ -92,6 +92,11 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 #endif
 
+
+#ifndef SNEX_MIR_BACKEND
+#define SNEX_MIR_BACKEND 0
+#endif
+
 /** The SNEX compiler is only available on x64 builds so this preprocessor will allow compiling HISE on ARM withouth the JIT compiler. */
 #ifndef HISE_INCLUDE_SNEX_X64_CODEGEN
 #if JUCE_ARM

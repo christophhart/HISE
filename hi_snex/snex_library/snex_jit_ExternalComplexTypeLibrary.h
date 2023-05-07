@@ -133,6 +133,8 @@ struct DataReadLockJIT
             {
                 return thisPtr->holdsLock;
             }
+            
+            return false;
         }
 	};
 

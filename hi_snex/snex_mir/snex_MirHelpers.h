@@ -87,7 +87,7 @@ struct TypeConverters
 	static String MirTypeAndToken2InstructionText(MIR_type_t type, const String& token);
 	static String TemplateString2MangledLabel(const String& templateArgs);
 
-	template <typename T> static MIR_type_t getMirTypeFromT()
+	template <typename T> static constexpr MIR_type_t getMirTypeFromT()
 	{
 		
 		if constexpr (std::is_same<int, T>())
@@ -100,7 +100,7 @@ struct TypeConverters
 			return MIR_T_F;
 		else
 		{
-			static_assert(false, "invalid type");
+            jassertfalse;//static_assert(false, "invalid type");
 			return MIR_T_I8;
 		}
 	}
