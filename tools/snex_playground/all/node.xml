@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Node FactoryPath="container.chain" ID="split_midi" Bypassed="0" NodeColour="0"
+      Comment="">
+  <Nodes>
+    <Node ID="split" FactoryPath="container.split" Bypassed="0" NodeColour="0"
+          Comment="">
+      <Nodes>
+        <Node ID="chain1" FactoryPath="container.chain" Bypassed="0" NodeColour="0"
+              Comment="">
+          <Nodes>
+            <Node ID="midichain" FactoryPath="container.midichain" Bypassed="0"
+                  NodeColour="0" Comment="">
+              <Nodes>
+                <Node ID="midi" FactoryPath="control.midi" Bypassed="0" NodeColour="0"
+                      Comment="">
+                  <Properties>
+                    <Property ID="ClassId" Value=""/>
+                    <Property ID="Mode" Value="Gate"/>
+                  </Properties>
+                  <ModulationTargets>
+                    <ModulationTarget NodeId="logic_op" ParameterId="Left" Enabled="1" MinValue="0.0"
+                                      MaxValue="1.0"/>
+                  </ModulationTargets>
+                  <ComplexData>
+                    <Tables/>
+                    <SliderPacks/>
+                    <AudioFiles/>
+                    <Filters/>
+                    <DisplayBuffers/>
+                  </ComplexData>
+                  <Parameters/>
+                </Node>
+                <Node ID="logic_op" FactoryPath="control.logic_op" Bypassed="0" NodeColour="0"
+                      Comment="">
+                  <ModulationTargets>
+                    <ModulationTarget NodeId="oscillator" ParameterId="Gate" Enabled="1" MinValue="0.0"
+                                      MaxValue="1.0" StepSize="1.0"/>
+                  </ModulationTargets>
+                  <Parameters>
+                    <Parameter MinValue="0.0" MaxValue="1.0" ID="Left" Automated="1"/>
+                    <Parameter MinValue="0.0" MaxValue="1.0" ID="Right" Automated="1"/>
+                    <Parameter MinValue="0.0" MaxValue="2.0" StepSize="1.0" ID="Operator" Value="1.0"/>
+                  </Parameters>
+                  <Properties/>
+                </Node>
+                <Node ID="oscillator" FactoryPath="core.oscillator" Bypassed="0" NodeColour="0"
+                      Comment="">
+                  <ComplexData>
+                    <DisplayBuffers>
+                      <DisplayBuffer Index="-1"/>
+                    </DisplayBuffers>
+                  </ComplexData>
+                  <Parameters>
+                    <Parameter MinValue="0.0" MaxValue="4.0" StepSize="1.0" ID="Mode" Value="0.0"/>
+                    <Parameter MinValue="20.0" MaxValue="20000.0" StepSize="0.1000000014901161"
+                               SkewFactor="0.2299045622348785" ID="Frequency" Value="263.4000036269426"/>
+                    <Parameter MinValue="1.0" MaxValue="16.0" StepSize="1.0" ID="Freq Ratio"
+                               Value="1.0"/>
+                    <Parameter MinValue="0.0" MaxValue="1.0" StepSize="1.0" ID="Gate" Automated="1"/>
+                    <Parameter MinValue="0.0" MaxValue="1.0" ID="Phase" Value="0.0"/>
+                    <Parameter MinValue="0.0" MaxValue="1.0" ID="Gain" Value="1.0"/>
+                  </Parameters>
+                  <Properties/>
+                </Node>
+                <Node ID="simple_ar" FactoryPath="envelope.simple_ar" Bypassed="0"
+                      NodeColour="0" Comment="">
+                  <Properties>
+                    <Property ID="NumParameters" Value="2"/>
+                  </Properties>
+                  <SwitchTargets>
+                    <SwitchTarget>
+                      <Connections/>
+                    </SwitchTarget>
+                    <SwitchTarget>
+                      <Connections>
+                        <Connection NodeId="logic_op" ParameterId="Right" MinValue="0.0" MaxValue="1.0"/>
+                      </Connections>
+                    </SwitchTarget>
+                  </SwitchTargets>
+                  <ComplexData>
+                    <DisplayBuffers>
+                      <DisplayBuffer Index="-1" EmbeddedData=""/>
+                    </DisplayBuffers>
+                  </ComplexData>
+                  <Parameters>
+                    <Parameter MinValue="0.0" MaxValue="1000.0" StepSize="0.1000000014901161"
+                               SkewFactor="0.3010300099849701" ID="Attack" Value="2.30000003427267"/>
+                    <Parameter MinValue="0.0" MaxValue="1000.0" StepSize="0.1000000014901161"
+                               SkewFactor="0.3010300099849701" ID="Release" Value="106.7000015899539"/>
+                    <Parameter MinValue="0.0" MaxValue="1.0" StepSize="1.0" ID="Gate" Value="0.0"/>
+                  </Parameters>
+                  <ModulationTargets/>
+                </Node>
+              </Nodes>
+              <Parameters/>
+              <Properties>
+                <Property ID="IsVertical" Value="1"/>
+              </Properties>
+            </Node>
+          </Nodes>
+          <Parameters/>
+          <Properties>
+            <Property ID="IsVertical" Value="1"/>
+          </Properties>
+        </Node>
+        <Node ID="chain" FactoryPath="container.chain" Bypassed="0" NodeColour="0"
+              Comment="">
+          <Nodes/>
+          <Parameters/>
+          <Properties>
+            <Property ID="IsVertical" Value="1"/>
+          </Properties>
+        </Node>
+      </Nodes>
+      <Parameters/>
+      <Properties/>
+    </Node>
+  </Nodes>
+  <Parameters/>
+  <Properties>
+    <Property ID="IsVertical" Value="1"/>
+  </Properties>
+</Node>

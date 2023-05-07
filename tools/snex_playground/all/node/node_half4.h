@@ -3,14 +3,14 @@ BEGIN_TEST_DATA
   f: {processor}
   ret: int
   args: int
-  input: "zero2.wav"
-  output: "half2.wav"
+  input: "zero.wav"
+  output: "half1.wav"
   error: ""
   filename: "node/node_half4"
 END_TEST_DATA
 */
 
-static const int NumChannels = 2;
+static const int NumChannels = 1;
 
 struct processor
 {

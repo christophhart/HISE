@@ -4,9 +4,10 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 15
+  output: 1
+  voiceindex: 3
   error: ""
-  filename: "polydata/polydata_2"
+  filename: "polydata/polydata_5"
 END_TEST_DATA
 */
 

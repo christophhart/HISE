@@ -3,14 +3,14 @@ BEGIN_TEST_DATA
   f: {processor}
   ret: int
   args: int
-  input: "zero2.wav"
-  output: "half2.wav"
+  input: "zero4.wav"
+  output: "half4.wav"
   error: ""
-  filename: "node/node_half4"
+  filename: "node/node_half4frame"
 END_TEST_DATA
 */
 
-static const int NumChannels = 2;
+static const int NumChannels = 4;
 
 struct processor
 {
@@ -25,12 +25,12 @@ struct processor
 	
 	void process(ProcessData<NumChannels>& data)
 	{
-		for(auto c: data)
+		auto f = data.toFrameData();
+		
+		while(f.next())
 		{
-			for(auto& s: data.toChannelData(c))
-			{
+			for(auto& s: f)
 				s = 0.5f;
-			}
 		}
 	}
 	

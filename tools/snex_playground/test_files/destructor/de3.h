@@ -33,9 +33,11 @@ struct Outer
 	ScopedX b;
 };
 
-void tut()
+int tut()
 {
 	Outer e;
+
+	return 12;
 }
 
 int main(int input)

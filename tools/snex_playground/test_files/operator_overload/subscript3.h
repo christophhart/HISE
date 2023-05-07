@@ -16,10 +16,8 @@ struct StereoBuffer
 	{
 		span<float, 2> copy;
 		
-		index::unsafe<0> idx(i);
-		
-		copy[0] = left[idx];
-		copy[1] = right[idx];
+		copy[0] = left[i];
+		copy[1] = right[i];
 		
 		return copy;
 	}
@@ -34,7 +32,7 @@ StereoBuffer obj;
 
 int main(int input)
 {
-	int i = 3;
+	int i = 1;
 	
 	auto frame = obj[i];
 	

@@ -4,7 +4,7 @@ BEGIN_TEST_DATA
   ret: int
   args: double
   input: 12
-  output: 12
+  output: 24
   error: ""
   filename: "basics/constructor_with_cast"
 END_TEST_DATA
@@ -14,7 +14,7 @@ struct X
 {
 	X(int a)
 	{
-		value = a;
+		value = a * 2;
 	}
 	
 	int value = 5;
