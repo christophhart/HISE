@@ -3450,7 +3450,14 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 		}
 	}
 	else
-		processors.add(ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString()));
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+		if (p == nullptr)
+			reportScriptError("Can't find module with ID " + moduleIds.toString());
+
+		processors.add(p);
+	}
 
 	
 	Array<int> parameterIndexes;
