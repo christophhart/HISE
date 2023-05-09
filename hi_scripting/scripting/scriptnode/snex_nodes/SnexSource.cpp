@@ -165,6 +165,7 @@ void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 
 void SnexSource::addDummyNodeCallbacks(String& s)
 {
+#if SNEX_MIR_BACKEND
 	using namespace cppgen;
 
 	Base b(Base::OutputType::AddTabs);
@@ -193,6 +194,7 @@ void SnexSource::addDummyNodeCallbacks(String& s)
 	DBG(x);
 
 	s << x;
+#endif
 }
 
 void SnexSource::addDummyProcessFunctions(String& s)
@@ -658,9 +660,9 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 {
 	if (auto wb = parent.getWorkbench())
 	{
+#if SNEX_MIR_BACKEND
 		return wb->getLastResult().obj[id];
-
-#if 0
+#else
 		if (auto obj = wb->getLastResult().mainClassPtr)
 		{
 			auto numChannels = parent.getParentNode()->getCurrentChannelAmount();
@@ -688,7 +690,7 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 
 void SnexSource::HandlerBase::addObjectPtrToFunction(FunctionData& f)
 {
-#if 0
+#if !SNEX_MIR_BACKEND
 	jassert(f.isResolved());
 	f.object = obj.getObjectPtr();
 #endif

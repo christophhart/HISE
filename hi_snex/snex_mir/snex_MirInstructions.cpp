@@ -177,7 +177,7 @@ struct InstructionParsers
 		// so that the VariableReference child elements can be resolved correctly
 		auto argParent = SimpleTypeParser(state[InstructionPropertyIds::Signature]).parseNamespacedIdentifier();
 
-		for (auto& a : f.args)
+        for (auto& a : f.args)
 		{
 			jit::Symbol withoutTemplateArguments;
 			withoutTemplateArguments.id = argParent.getChildId(a.id.getIdentifier());
@@ -189,6 +189,28 @@ struct InstructionParsers
 		line.flush();
 
 		state.registerManager.startFunction();
+        
+        for(const auto& a: f.args)
+        {
+            auto at = a.typeInfo;
+            
+            if(at.getType() == Types::ID::Integer &&
+               !at.isRef())
+            {
+                // signextend 32bit integer arguments for internal
+                // 64bit calculations...
+                TextLine ext(&state, "ext32");
+                auto id = argParent.getChildId(a.id.getIdentifier());
+                
+                auto aId = TypeConverters::NamespacedIdentifier2MangledMirVar(id);
+                
+                ext.operands.add(aId);
+                ext.operands.add(aId);
+                ext.flush();
+            }
+        }
+        
+        
 		state.processChildTree(0);
 		state.registerManager.endFunction();
 
