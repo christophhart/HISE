@@ -132,6 +132,11 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 	}
 }
 
+void CurveEq::sendBroadcasterMessage(const String& type, const var& value, NotificationType n /*= sendNotificationAsync*/)
+{
+eqBroadcaster.sendMessage(n, type, value);
+}
+
 ProcessorEditorBody *CurveEq::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

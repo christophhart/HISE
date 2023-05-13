@@ -944,8 +944,69 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
     return Result::ok();
 }
 
+struct ScriptBroadcaster::EqListener::InternalListener
+{
+	InternalListener(ScriptBroadcaster* b_, CurveEq* eq_, const StringArray& eventList_) :
+		parent(b_),
+		eq(eq_),
+		eventTypes(eventList_),
+		keeper(args)
+	{
+		eq->eqBroadcaster.addListener(*this, onChange, false);
+	}
 
+	~InternalListener()
+	{
+		if (eq != nullptr)
+			eq->eqBroadcaster.removeListener(*this);
+	}
 
+	static void onChange(InternalListener& l, const String& type, const var& value)
+	{
+		if (l.eventTypes.contains(type))
+		{
+			l.sendMessage(type, value);
+		}
+	}
+
+	void sendMessage(const String& type, const var& value)
+	{
+		args.set(0, var(type));
+		args.set(1, value);
+
+		try
+		{
+			parent->sendAsyncMessage(var(args));
+		}
+		catch (String& s)
+		{
+			debugError(dynamic_cast<Processor*>(parent->getScriptProcessor()), s);
+		}
+	}
+
+	Array<var> args;
+	var keeper;
+
+	WeakReference<CurveEq> eq;
+	WeakReference<ScriptBroadcaster> parent;
+	StringArray eventTypes;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(InternalListener);
+};
+
+ScriptBroadcaster::EqListener::EqListener(ScriptBroadcaster* b, const Array<WeakReference<CurveEq>>& eqs, const StringArray& eventList, const var& metadata):
+	ListenerBase(metadata)
+{
+	for (const auto& eq : eqs)
+	{
+		listeners.add(new InternalListener(b, eq, eventList));
+	}
+}
+
+juce::Result ScriptBroadcaster::EqListener::callItem(TargetBase* b)
+{
+	return Result::ok();
+}
 
 struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
 																	   public hise::Processor::BypassListener
@@ -2764,6 +2825,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
@@ -2805,6 +2867,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
+	ADD_API_METHOD_3(attachToEqEvents);
 	ADD_API_METHOD_5(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_1(attachToProcessingSpecs);
@@ -3719,6 +3782,71 @@ void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleI
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
     enableQueue = processors.size() > 1 || indexListArray.size() > 1;
+}
+
+void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to an EQ, it needs two parameters (eventType, value)");
+	}
+
+	Array<WeakReference<CurveEq>> eqs;
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	if (moduleIds.isArray())
+	{
+		for (const auto& pId : *moduleIds.getArray())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+			if (auto asHolder = dynamic_cast<CurveEq*>(p))
+			{
+				eqs.add(asHolder);
+			}
+			else
+				reportScriptError(pId.toString() + " is not an EQ");
+		}
+	}
+	else
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+		if (auto asHolder = dynamic_cast<CurveEq*>(p))
+		{
+			eqs.add(asHolder);
+		}
+		else
+			reportScriptError(moduleIds.toString() + " is not an EQ");
+	}
+
+	StringArray eventTypes;
+	StringArray legitEventTypes = { "BandAdded", "BandRemoved", "BandSelected", "FFTEnabled" };
+
+	if (events.isString() && events.toString().isNotEmpty())
+	{
+		eventTypes.add(events.toString());
+	}
+	else if (events.isArray())
+	{
+		for (const auto& v : *events.getArray())
+			eventTypes.add(v.toString());
+	}
+
+	for (const auto& p : eventTypes)
+	{
+		if (!legitEventTypes.contains(p))
+			reportScriptError(p + " is not a valid EQ event type. Supported Types: " + legitEventTypes.joinIntoString(", "));
+	}
+
+	if (eventTypes.isEmpty())
+		eventTypes.swapWith(legitEventTypes);
+		
+	attachedListeners.add(new EqListener(this, eqs, eventTypes, optionalMetadata));
+
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
 void ScriptBroadcaster::callWithDelay(int delayInMilliseconds, var argArray, var function)

@@ -918,6 +918,8 @@ void FilterDragOverlay::selectDragger(int index)
 			if (l != nullptr)
 				l->filterBandSelected(index);
 		}
+
+		eq->sendBroadcasterMessage("BandSelected", index);
 	}
 }
 

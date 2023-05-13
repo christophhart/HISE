@@ -179,6 +179,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
     /** Registers this broadcaster to be notified when a complex data object changes. */
     void attachToComplexData(String dataTypeAndEvent, var moduleIds, var dataIndexes, var optionalMetadata);
         
+	/** Registers this broadcaster to be notified about changes to the EQ (adding / removing / selecting filter bands). */
+	void attachToEqEvents(var moduleIds, var eventTypes, var optionalMetadata);
+
 	/** Registers this broadcaster to be notified when a module parameter changes. */
 	void attachToModuleParameter(var moduleIds, var parameterIds, var optionalMetadata);
 
@@ -566,6 +569,22 @@ private:
 		Result callItem(TargetBase* n) override;
 
 		OwnedArray<ProcessorListener> listeners;
+	};
+
+	struct EqListener : public ListenerBase
+	{
+		struct InternalListener;
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("EqListener"); }
+
+		EqListener(ScriptBroadcaster* b, const Array<WeakReference<CurveEq>>& eqs, const StringArray& eventList, const var& metadata);
+
+		int getNumInitialCalls() const override { return 0; }
+		Array<var> getInitialArgs(int callIndex) const override { return {}; }
+		Array<var> createChildArray() const override { return {}; }
+
+		Result callItem(TargetBase* b) override;
+
+		OwnedArray<InternalListener> listeners;
 	};
 
 	struct RoutingMatrixListener : public ListenerBase
