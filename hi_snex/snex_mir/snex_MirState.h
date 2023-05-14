@@ -381,8 +381,6 @@ struct DataManager
             }
             else
             {
-                auto id = Types::Helpers::getTypeFromTypeName(k.second);
-                
                 ValueTree nt("NativeType");
                 nt.setProperty("ObjectId", k.first, nullptr);
                 nt.setProperty("type", k.second, nullptr);
@@ -577,8 +575,8 @@ protected:
 
 };
 
-#undef INSTRUCTION2;
-#undef INSTRUCTION3;
+#undef INSTRUCTION2
+#undef INSTRUCTION3
 
 }
 }

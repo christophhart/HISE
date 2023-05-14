@@ -390,9 +390,6 @@ struct InlinerFunctions
 		InlineCodeGenerator cc(state, data, function);
 
 		auto numVoices = cc.templateConstant("NumVoices");
-		auto dataOffset = 16;
-		auto elementSize = (cc.dataProperty("NumBytes").getIntValue() - dataOffset) / numVoices;
-
 		auto voicePtr = cc.newReg<PolyHandler*>(cc.memberOp("voiceIndex"));
 		auto size = cc.call<int>("int PolyHandler::getSizeStatic(void*)", { voicePtr });
 		cc.mul(size, size, numVoices-1);

@@ -143,6 +143,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsEnableCallStack,
 		MenuToolsCheckCyclicReferences,
+        MenuToolsCheckPluginParameterSanity,
 		MenuToolsConvertSVGToPathData,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
@@ -515,6 +516,11 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+     case MenuToolsCheckPluginParameterSanity:
+         setCommandTarget(result, "Check plugin parameters", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+         result.categoryName = "Tools";
+         break;
+                         
 	case MenuToolsImportArchivedSamples:
 		setCommandTarget(result, "Import archived samples", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -767,6 +773,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
+    case MenuToolsCheckPluginParameterSanity:    Actions::checkPluginParameterSanity(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
@@ -999,6 +1006,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsSanityCheck);
+        ADD_ALL_PLATFORMS(MenuToolsCheckPluginParameterSanity);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
 		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
 		
@@ -2280,7 +2288,137 @@ void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createRSAKey();
 }
 
-
+Result checkPluginParameterComponent(ScriptingApi::Content* c, ScriptComponent* sc)
+{
+    auto name = sc->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+    
+    if(name.isEmpty())
+        return Result::fail(sc->getName() + " has an empty plugin parameter ID");
+    
+    for(int i = 0; i < c->getNumComponents(); i++)
+    {
+        auto other = c->getComponent(i);
+        
+        if(sc == other)
+            continue;
+        
+        if(other->getScriptObjectProperty(ScriptComponent::isPluginParameter))
+        {
+            auto otherName = other->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+            auto thisName = sc->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+            
+            if(otherName == thisName)
+            {
+                String e;
+                e << sc->getName() << " has the same plugin parameter name as " << other->getName();
+                return Result::fail(e);
+            }
+        }
+    }
+            
+    if(!sc->getScriptObjectProperty(ScriptComponent::isMetaParameter))
+    {
+        auto state = c->exportAsValueTree();
+        
+        std::map<ScriptComponent*, double> values;
+        
+        for(int i = 0; i < c->getNumComponents(); i++)
+        {
+            auto other = c->getComponent(i);
+            
+            if(other == sc)
+                continue;
+            
+            if(other->getScriptObjectProperty(ScriptComponent::isPluginParameter))
+                values.emplace(other, (double)other->getValue());
+        }
+        
+        auto v = sc->getPropertyValueTree();
+        
+        NormalisableRange<double> nr;
+        
+        nr.start = (double)v["min"];
+        nr.end = (double)v["max"];
+        
+        if(v.hasProperty("stepSize"))
+        {
+            nr.interval = (double)v["stepSize"];
+        }
+        
+        if(v.hasProperty("middlePosition"))
+        {
+            auto midPoint = (double)v["middlePosition"];
+            
+            if(nr.getRange().contains(midPoint))
+                nr.setSkewForCentre(midPoint);
+        }
+        
+        auto newValue = (double)Random::getSystemRandom().nextFloat();
+        
+        MainController::ScopedBadBabysitter bb(c->getScriptProcessor()->getMainController_());
+        
+        sc->setValue(newValue);
+        
+        c->getScriptProcessor()->controlCallback(sc, newValue);
+        
+        for(const auto& pp: values)
+        {
+            auto prevValue = pp.second;
+            auto currentValue = (double)pp.first->getValue();
+            
+            if(prevValue != currentValue)
+            {
+                String e;
+                e << "`" << sc->getName() << "` changed another plugin parameter `" << pp.first->getName() << "` without having the `isMetaParameter` flag set";
+                
+                c->restoreFromValueTree(state);
+                return Result::fail(e);
+            }
+        }
+        
+        c->restoreFromValueTree(state);
+    }
+            
+    return Result::ok();
+}
+                         
+void BackendCommandTarget::Actions::checkPluginParameterSanity(BackendRootWindow* bpe)
+{
+    auto list = ProcessorHelpers::getListOfAllProcessors<JavascriptMidiProcessor>(bpe->getMainController()->getMainSynthChain());
+    
+    String report;
+    String nl = "\n";
+            
+    for(auto jp: list)
+    {
+        if(!jp->isFront())
+            continue;
+        
+        auto content = jp->getContent();
+        
+        report << "Plugin parameters from " << jp->getId() << nl;
+        
+        for(int i = 0; i < content->getNumComponents(); i++)
+        {
+            auto sc = content->getComponent(i);
+            
+            if(!sc->getScriptObjectProperty(ScriptComponent::isPluginParameter))
+                continue;
+            
+            auto r = checkPluginParameterComponent(content, sc);
+            
+            if(!r.wasOk())
+            {
+                PresetHandler::showMessageWindow("Plugin Parameter validation failed", r.getErrorMessage(), PresetHandler::IconType::Error);
+                return;
+            }
+            
+            report << "- " << sc->getName();
+            
+        }
+    }
+}
+                         
 void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * bpe)
 {
 	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());

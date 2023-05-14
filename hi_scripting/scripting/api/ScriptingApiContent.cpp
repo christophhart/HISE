@@ -850,7 +850,8 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::sendCon
 	{
 		changePending = true;
 
-		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread)
+		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread ||
+            p->getMainController_()->isFlakyThreadingAllowed())
 			handleAsyncUpdate();
 		else
 			triggerAsyncUpdate();

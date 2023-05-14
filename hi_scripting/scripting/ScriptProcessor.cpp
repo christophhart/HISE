@@ -1959,7 +1959,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 	}
 	case MainController::KillStateHandler::MessageThread:
 	{
-		if (getMainController()->isInitialised())
+		if (getMainController()->isInitialised() && !getMainController()->isFlakyThreadingAllowed())
 		{
 			pushToQueue(t, p, f);
 			notify();

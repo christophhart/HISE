@@ -137,6 +137,8 @@ bool snex::mir::SimpleTypeParser::matchIf(const char* token)
 		code = String(s + offset, e);
 		return true;
 	}
+    
+    return false;
 }
 
 String snex::mir::SimpleTypeParser::skipTemplate()

@@ -467,6 +467,8 @@ void RegisterManager::emitMultiLineCopy(const String& targetPointerReg, const St
 
 int RegisterManager::allocateStack(const String& targetName, int numBytes, bool registerAsCurrentStatementReg)
 {
+    jassert(targetName.isNotEmpty());
+    
 	TextLine l(state);
 
 	if (registerAsCurrentStatementReg)
@@ -781,7 +783,7 @@ void MirCodeGenerator::jmp(const String& op)
 String MirCodeGenerator::alloca(size_t numBytes)
 {
 	auto blockReg = rm.getAnonymousId(false);
-	rm.allocateStack(blockReg, numBytes, false);
+	rm.allocateStack(blockReg, (int)numBytes, false);
 	return blockReg;
 }
 

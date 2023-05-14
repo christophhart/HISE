@@ -215,8 +215,6 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 	float xPos = targetBounds.getX();
 
-	float lastY = 0.0f;
-
 	for (int i = 1; i < size-1; i++)
 	{
 		auto pr = getPixelRangeForBin(i);

@@ -118,7 +118,7 @@ bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 		return false;
 #endif
 
-	if (!mc->isInitialised())
+	if (!mc->isInitialised() || mc->isFlakyThreadingAllowed())
 	{
 		return false;
 	}

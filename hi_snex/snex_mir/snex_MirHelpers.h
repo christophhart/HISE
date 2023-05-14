@@ -100,8 +100,7 @@ struct TypeConverters
 			return MIR_T_F;
 		else
 		{
-            jassertfalse;//static_assert(false, "invalid type");
-			return MIR_T_I8;
+            return MIR_T_I8;
 		}
 	}
 };

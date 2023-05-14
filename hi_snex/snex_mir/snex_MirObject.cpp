@@ -67,6 +67,8 @@ struct MirHelpers
 		{
 			return Types::ID::Pointer;
 		}
+        
+        return Types::ID::Void;
 	}
 };
 
