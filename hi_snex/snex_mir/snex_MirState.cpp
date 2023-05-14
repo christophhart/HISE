@@ -74,7 +74,7 @@ String LoopManager::makeLabel() const
 	return "L" + String(labelCounter++);
 }
 
-void LoopManager::pushInlineFunction(String& l, MIR_type_t type, const String& returnRegName)
+void LoopManager::pushInlineFunction(String& l, MIR_type_t type, RegisterType rtype, const String& returnRegName)
 {
 	jassert((type != MIR_T_I8) == returnRegName.isNotEmpty());
 
@@ -84,22 +84,26 @@ void LoopManager::pushInlineFunction(String& l, MIR_type_t type, const String& r
 	d.endLabel = l;
 	d.type = type;
 	d.returnReg = returnRegName;
+    d.registerType = rtype;
 
 	inlineFunctionData.add(d);
 }
 
 void LoopManager::emitInlinedReturn(State* s)
 {
-	
-	
 	auto l = inlineFunctionData.getLast();
 
 	if (l.returnReg.isNotEmpty())
 	{
         TextLine store(s);
-		auto returnValue = s->registerManager.loadIntoRegister(0, RegisterType::Value);
+        auto returnValue = s->registerManager.loadIntoRegister(0, l.registerType);
 
-		store.instruction = TypeConverters::MirTypeAndToken2InstructionText(l.type, JitTokens::assign_);
+        auto at = l.type;
+        
+        if(l.registerType == RegisterType::Pointer)
+            at = MIR_T_I64;
+        
+		store.instruction = TypeConverters::MirTypeAndToken2InstructionText(at, JitTokens::assign_);
 		store.operands.add(l.returnReg);
 		store.operands.add(returnValue);
 		store.flush();
@@ -379,9 +383,9 @@ void DataManager::setDataLayout(const Array<ValueTree>& dataList_)
 				auto id = m["ID"].toString();
 				auto type = Types::Helpers::getTypeFromTypeName(m["type"].toString());
 				auto mir_type = TypeConverters::TypeInfo2MirType(TypeInfo(type));
-				auto offset = (size_t)(int)m["offset"];
+                size_t offset = (size_t)(int)m["offset"];
 
-				members.add({ id, mir_type, offset });
+				members.add(MemberInfo(id, mir_type, offset));
 			}
 		}
 
@@ -391,7 +395,7 @@ void DataManager::setDataLayout(const Array<ValueTree>& dataList_)
 
 void DataManager::startClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
 {
-	classTypes.emplace(id, memberInfo);
+    classTypes.emplace(id, memberInfo);
 	numCurrentlyParsedClasses++;
 }
 

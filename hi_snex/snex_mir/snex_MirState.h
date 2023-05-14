@@ -50,6 +50,11 @@ enum class RegisterType
 
 struct TextOperand
 {
+    operator bool() const
+    {
+        return v.isValid() && text.isNotEmpty();
+    }
+    
 	ValueTree v;
 	String text;
 	String stackPtr;
@@ -59,9 +64,15 @@ struct TextOperand
 
 struct MemberInfo
 {
-	String id;
-	MIR_type_t type;
-	size_t offset;
+    MemberInfo(const String& id_, const MIR_type_t t_, size_t o_):
+      id(id_),
+      type(t_),
+      offset(o_)
+    {};
+    
+	const String id;
+	const MIR_type_t type;
+	const size_t offset;
 };
 
 struct State;
@@ -119,21 +130,49 @@ struct LoopManager
 	void popLoopLabels();
 	String makeLabel() const;
 
-	void pushInlineFunction(String& l, MIR_type_t type = MIR_T_I8, const String& returnRegName={});
+    void pushInlineFunction(String& l, MIR_type_t type = MIR_T_I8, RegisterType rType=RegisterType::Value, const String& returnRegName={});
 
 	void popInlineFunction()
 	{
 		inlineFunctionData.removeLast(1);
 	}
 
-	void addInlinedArgument(const String& argumentId, const String& variableName)
+	void addInlinedArgument(const String& symbol, const TextOperand& op)
 	{
-		inlineFunctionData.getReference(inlineFunctionData.size() - 1).arguments.emplace(argumentId, variableName);
+        inlineFunctionData.getReference(inlineFunctionData.size() - 1).args.add({symbol, op});
 	}
 
-	String getInlinedParameter(const String& argumentId)
+    TextOperand getInlinedThis() const
+    {
+        for(int i = inlineFunctionData.size()-1; i >= 0; i--)
+        {
+            const auto& s = inlineFunctionData.getReference(i);
+            
+            for(const auto& a: s.args)
+            {
+                if(a.symbol == "unresolved this")
+                    return a.op;
+            }
+        }
+        
+        return {};
+    }
+    
+	TextOperand getInlinedParameter(const String& argumentId)
 	{
-		return inlineFunctionData.getReference(inlineFunctionData.size() - 1).arguments[argumentId];
+        for(int i = inlineFunctionData.size()-1; i >= 0; i--)
+        {
+            const auto& s = inlineFunctionData.getReference(i);
+            
+            for(auto& a: s.args)
+            {
+                if(a.symbol == argumentId)
+                    return a.op;
+            }
+        }
+        
+        jassertfalse;
+        return {};
 	}
 
 	void emitInlinedReturn(State* s);
@@ -142,12 +181,19 @@ private:
 
 	mutable int labelCounter = 0;
 
+    struct InlineArgument
+    {
+        String symbol;
+        TextOperand op;
+    };
+    
 	struct InlineFunctionData
 	{
 		String endLabel;
 		String returnReg;
+        RegisterType registerType;
 		MIR_type_t type;
-		std::map<String, String> arguments;
+        Array<InlineArgument> args;
 	};
 
 	struct LoopLabelSet
@@ -213,6 +259,17 @@ struct RegisterManager
 
 	String getOperandForChild(int index, RegisterType requiredType);
 
+    bool hasOperandWithName(const String& name) const
+    {
+        for(const auto& l: localOperands)
+        {
+            if(l.text == name)
+                return true;
+        }
+        
+        return false;
+    }
+    
 	void startFunction()
 	{
 		currentlyParsingFunction = true;
@@ -258,8 +315,26 @@ struct FunctionManager
 
 	String registerComplexTypeOverload(State* state, const String& fullSignature, bool addObjectPtr);
 
+    void addLocalVarDefinition(const String& lv)
+    {
+        localVarDefinitions.add(lv);
+    }
+    
+    void clearLocalVarDefinitions()
+    {
+        localVarDefinitions.clear();
+    }
+    
+    
+    bool hasLocalVar(const String& lv) const
+    {
+        return localVarDefinitions.contains(lv);
+    }
+    
 private:
 
+    StringArray localVarDefinitions;
+    
 	struct ComplexTypeOverload
 	{
 		ComplexTypeOverload(const String& fullSignature_);;

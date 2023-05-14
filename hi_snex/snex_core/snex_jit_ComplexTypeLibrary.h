@@ -598,7 +598,7 @@ private:
             if(t == "pointer") t = "void*";
             
             c1.setProperty("type", t, nullptr);
-            c1.setProperty("offset", (int)offset, nullptr);
+            c1.setProperty("offset", (int)(offset + padding), nullptr);
             c1.setProperty("size", (int)typeInfo.getRequiredByteSizeNonZero(), nullptr);
             c1.setProperty("default", defaultList != nullptr ? defaultList->toString() : "", nullptr);
             

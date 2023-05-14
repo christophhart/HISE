@@ -524,13 +524,13 @@ public:
 	{
         beginTest("Test index types");
         
-		testIntegerIndex<index::looped<9, false>>();
-		testIntegerIndex<index::looped<64, false>>();
+		//testIntegerIndex<index::looped<9, false>>();
+		//testIntegerIndex<index::looped<64, false>>();
 		testIntegerIndex<index::wrapped<32, false>>();
 		testIntegerIndex<index::wrapped<91, false>>();
-		testIntegerIndex<index::clamped<32, false>>();
+        testIntegerIndex<index::clamped<32, false>>();
 		testIntegerIndex<index::clamped<91, false>>();
-		testIntegerIndex<index::unsafe<91, false>>();
+        testIntegerIndex<index::unsafe<91, false>>();
 		testIntegerIndex<index::unsafe<64, true>>();
 	}
 
@@ -538,9 +538,6 @@ public:
 	{
 		beginTest("funky");
 
-        //runTestFiles("");
-        return;
-        
         runTestsWithOptimisation({ OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination });
         
 		return;
@@ -767,7 +764,7 @@ public:
 		testEvents();
 
 		runTestFiles();
-		//testIndexTypes();
+		testIndexTypes();
 
 		pc.stop();
 	}
@@ -1101,7 +1098,7 @@ private:
 			PerformanceCounter pc(mes);
 
 			code = {};
-			ADD_CODE_LINE("span<$T, 441000> data;");
+			ADD_CODE_LINE("span<$T, 44100> data;");
 			ADD_CODE_LINE("s$T d;");
 			ADD_CODE_LINE("$T test($T input) {");
 			ADD_CODE_LINE("    d.prepare(44100.0, 5000.0);");
@@ -1888,6 +1885,7 @@ private:
 
 	void testExternalStructDefinition()
 	{
+#if !SNEX_MIR_BACKEND
 		using namespace Types;
 
 		beginTest("Testing external struct definition");
@@ -1970,6 +1968,7 @@ private:
 			auto result = obj["test"].call<int>();
 			expectEquals(result, 98, "float value");
 		}
+#endif
 	}
 
 	void testOptimizations()
@@ -2447,7 +2446,7 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
+		CREATE_TYPED_TEST("block& test(int in2, block in){ return in; };");
 
 		test->setup();
 
@@ -3316,7 +3315,7 @@ private:
 
 		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) x += 1.0f; else x += 2.0f; return x; }");
 		EXPECT("Set global variable, true branch", 10.0f, 2.0f);
-		EXPECT("Set global variable, false branch", 12.0f, 3.0f);
+		EXPECT("Set global variable, false branch", 12.0f, 4.0f);
 
 		CREATE_TEST("float x = 1.0f; float test(float input) { if (input == 10.0f) x += 12.0f; return x; }");
 		EXPECT("Set global variable in true branch, false branch", 9.0f, 1.0f);

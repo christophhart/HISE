@@ -133,7 +133,7 @@ ValueTree MirBuilder::getGlobalData()
 String MirBuilder::getMirText() const
 {
 	auto text = currentState->toString(true);
-	DBG(text);
+    DBG(text);
 	return text;
 }
 

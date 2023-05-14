@@ -151,6 +151,8 @@ struct InstructionParsers
 
 		TextLine line(&state);
 
+        state.functionManager.clearLocalVarDefinitions();
+        
 		if (state.functionManager.hasPrototype(f))
 		{
 			line.label = state.functionManager.registerComplexTypeOverload(&state, fullSig, addObjectPtr);
@@ -383,6 +385,8 @@ struct InstructionParsers
 
 			TextLine l(&state);
 
+            
+            
 			if (state[InstructionPropertyIds::First] == "1")
 			{
 				auto vt = rm.getTypeForChild(1);
@@ -395,8 +399,10 @@ struct InstructionParsers
 
 					auto name = rm.getOperandForChild(1, RegisterType::Pointer);
 
-					rm.registerCurrentTextOperand(name, t, RegisterType::Pointer);
-					l.localDef << "i64:" << name;
+                    rm.registerCurrentTextOperand(name, t, RegisterType::Pointer);
+                    l.localDef << "i64:" << name;
+
+                    
 					l.instruction = "mov";
 
 					l.addSelfAsPointerOperand();
@@ -406,9 +412,16 @@ struct InstructionParsers
 
 					return Result::ok();
 				}
-
-				l.localDef << TypeConverters::MirType2MirTextType(rm.getTypeForChild(1));
-				l.localDef << ":" << rm.getOperandForChild(1, RegisterType::Raw);
+                
+                auto localVarName = rm.getOperandForChild(1, RegisterType::Raw);
+                
+                if(!state.functionManager.hasLocalVar(localVarName))
+                {
+                    l.localDef << TypeConverters::MirType2MirTextType(rm.getTypeForChild(1));
+                    l.localDef << ":" << localVarName;
+                    
+                    state.functionManager.addLocalVarDefinition(localVarName);
+                }
 			}
 
 			//l.addAnonymousReg(state, t, State::RegisterType::Value);
@@ -1434,15 +1447,15 @@ struct InstructionParsers
 
 		for (const auto& m : members)
 		{
-			MemberInfo item;
+			
 
 			auto symbol = TypeConverters::String2Symbol(m);
 
-			item.id = TypeConverters::NamespacedIdentifier2MangledMirVar(symbol.id);
-			item.type = TypeConverters::TypeInfo2MirType(symbol.typeInfo);
-			item.offset = m.fromFirstOccurrenceOf("(", false, false).getIntValue();
+			auto v1 = TypeConverters::NamespacedIdentifier2MangledMirVar(symbol.id);
+			auto v2 = TypeConverters::TypeInfo2MirType(symbol.typeInfo);
+			auto v3 = m.fromFirstOccurrenceOf("(", false, false).getIntValue();
 
-			memberInfo.add(item);
+            memberInfo.add(MemberInfo(v1, v2, v3));
 		}
 
 		auto x = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Type]);
@@ -1461,6 +1474,25 @@ struct InstructionParsers
 		auto& state = *state_;
 		auto& rm = state.registerManager;
 
+        auto isInlinedThis = [](const ValueTree& v)
+        {
+            return v.getType() == Identifier("InlinedParameter") &&
+                   v[InstructionPropertyIds::Symbol].toString().contains(" this");
+        };
+        
+        if(isInlinedThis(state.getCurrentChild(0)) &&
+           state.getCurrentChild(1).getType() == Identifier("Dot") &&
+           isInlinedThis(state.getCurrentChild(1).getChild(0)))
+        {
+            state.processChildTree(1);
+            
+            auto op = state.registerManager.getTextOperandForValueTree(state.getCurrentChild(1));
+            
+            state.registerManager.registerCurrentTextOperand(op.text, op.type, op.registerType);
+            
+            return Result::ok();
+        }
+        
 		state.processChildTree(0);
 
 		auto memberSymbol = TypeConverters::String2Symbol(state.getCurrentChild(1)[InstructionPropertyIds::Symbol].toString());
@@ -1469,11 +1501,13 @@ struct InstructionParsers
 		auto memberId = memberSymbol.id.getIdentifier().toString();
 		auto memberType = TypeConverters::Symbol2MirTextSymbol(memberSymbol);
 
-		for (const auto& m : state.dataManager.getClassType(classId))
+        const auto& members = state.dataManager.getClassType(classId);
+        
+		for (const auto& m : members)
 		{
 			if (m.id == memberId)
 			{
-				auto ptr = rm.loadIntoRegister(0, RegisterType::Pointer);
+                auto ptr = rm.loadIntoRegister(0, RegisterType::Pointer);
 
 				String p;
 
@@ -1496,7 +1530,17 @@ struct InstructionParsers
 	static Result ThisPointer(State* state_)
 	{
 		auto& state = *state_;
-		state.registerManager.registerCurrentTextOperand("_this_", MIR_T_P, RegisterType::Value);
+        
+        if(auto it = state.loopManager.getInlinedThis())
+        {
+            state.registerManager.registerCurrentTextOperand(it.text, it.type, it.registerType);
+        }
+        else
+        {
+            state.registerManager.registerCurrentTextOperand("_this_", MIR_T_P, RegisterType::Value);
+        }
+        
+		
 
 		return Result::ok();
 	}
@@ -1556,7 +1600,7 @@ struct InstructionParsers
 			ml.flush();
 
 			auto name = state.registerManager.getOperandForChild(-1, rt);
-			state.loopManager.pushInlineFunction(il, mir_t, name);
+			state.loopManager.pushInlineFunction(il, mir_t, rt, name);
 		}
 		else
 		{
@@ -1582,9 +1626,9 @@ struct InstructionParsers
 
 		state.processChildTree(0);
 
-		auto r = rm.getOperandForChild(0, RegisterType::Raw);
-
-		state.loopManager.addInlinedArgument(n, r);
+		auto t = state.registerManager.getTextOperandForValueTree(state.getCurrentChild(0));
+        
+		state.loopManager.addInlinedArgument(n, t);
 
 		return Result::ok();
 	}
@@ -1597,7 +1641,7 @@ struct InstructionParsers
 		auto arg = state[InstructionPropertyIds::Symbol];
 		auto p = state.loopManager.getInlinedParameter(arg);
 
-		state.registerManager.registerCurrentTextOperand(p, MIR_T_I64, RegisterType::Value);
+        state.registerManager.registerCurrentTextOperand(p.text, p.type, p.registerType);
 
 		return Result::ok();
 	}
