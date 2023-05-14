@@ -389,7 +389,6 @@ struct InstructionParsers
             
 			if (state[InstructionPropertyIds::First] == "1")
 			{
-				auto vt = rm.getTypeForChild(1);
 				auto vrt = rm.getRegisterTypeForChild(1);
 
 				if (vrt == RegisterType::Pointer)
@@ -451,7 +450,6 @@ struct InstructionParsers
 			TextLine l(&state);
 			l.label = rm.getOperandForChild(1, RegisterType::Raw);
 			l.instruction = TypeConverters::MirType2MirTextType(rm.getTypeForChild(1));
-			l.instruction;
 			l.addOperands({ 0 });
 			l.appendComment("global def ");
 			l.flush();
@@ -761,200 +759,117 @@ struct InstructionParsers
 		}
 		else
 		{
-			if (!state.isParsingFunction())
-			{
-				// global definition
+            auto ids = StringArray::fromTokens(state[InstructionPropertyIds::Ids], ",", "");
+            
+            ids.removeEmptyStrings();
+            
+            for(auto& id: ids)
+            {
+                if (!state.isParsingFunction())
+                {
+                    // global definition
 
-				Symbol s;
-				s.typeInfo = TypeInfo(Types::ID::Pointer, true, false);
-				s.id = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
+                    Symbol s;
+                    s.typeInfo = TypeInfo(Types::ID::Pointer, true, false);
+                    s.id =  NamespacedIdentifier::fromString(id.trim());
 
-                state.dataManager.addGlobalData(s.id.toString(), state[InstructionPropertyIds::Type]);
-                
-				MemoryBlock mb;
-				mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
+                    state.dataManager.addGlobalData(s.id.toString(), state[InstructionPropertyIds::Type]);
+                    
+                    MemoryBlock mb;
+                    mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
 
-				int numQuadWords = mb.getSize() / sizeof(int64);
+                    int numQuadWords = (int)mb.getSize() / (int)sizeof(int64);
 
-				int64* d = reinterpret_cast<int64*>(mb.getData());
+                    int64* d = reinterpret_cast<int64*>(mb.getData());
 
-				for (int i = 0; i < numQuadWords; i++)
-				{
-					TextLine l(&state);
+                    for (int i = 0; i < numQuadWords; i++)
+                    {
+                        TextLine l(&state);
 
-					if (i == 0)
-						l.label = s.id.toString();
+                        if (i == 0)
+                            l.label = s.id.toString();
 
-					l.instruction = "i64";
-					l.addRawOperand(String(d[i]));
-					l.flush();
-				}
-			}
-			else
-			{
-				// stack definition
-				auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
-				auto numOriginalBytes = numBytes;
+                        l.instruction = "i64";
+                        l.addRawOperand(String(d[i]));
+                        l.flush();
+                    }
+                }
+                else
+                {
+                    // stack definition
+                    auto numBytes = (uint32)state[InstructionPropertyIds::NumBytes].getIntValue();
+                    
+                    auto name = NamespacedIdentifier::fromString(id.trim());
+                    auto mn = TypeConverters::NamespacedIdentifier2MangledMirVar(name);
 
-				bool something = numBytes != 0;
+                    numBytes = rm.allocateStack(mn, numBytes, true);
+                    auto hasDynamicInitialisation = state.currentTree.getNumChildren() != 0;
 
-				auto name = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Ids].upToFirstOccurrenceOf(",", false, false).trim());
-				auto mn = TypeConverters::NamespacedIdentifier2MangledMirVar(name);
+                    if (hasDynamicInitialisation)
+                    {
+                        if (!state.currentTree.hasProperty("InitValues"))
+                        {
+                            // Only one expression is supported at the moment...
+                            jassert(state.currentTree.getNumChildren() == 1);
+                            auto src = rm.loadIntoRegister(0, RegisterType::Pointer);
+                            rm.emitMultiLineCopy(mn, src, numBytes);
+                        }
+                        else
+                        {
+                            InitValueParser p(state[InstructionPropertyIds::InitValues]);
+                            
+                            p.forEach([&](size_t offset, Types::ID type, const VariableStorage& f)
+                            {
+                                auto isExpression = type != Types::ID::Pointer && f.getType() == Types::ID::Pointer;
 
-				numBytes = rm.allocateStack(mn, numBytes, true);
-				auto hasDynamicInitialisation = state.currentTree.getNumChildren() != 0;
+                                String value;
+                                
+                                DBG(mn);
 
-				if (hasDynamicInitialisation)
-				{
-					if (!state.currentTree.hasProperty("InitValues"))
-					{
-						// Only one expression is supported at the moment...
-						jassert(state.currentTree.getNumChildren() == 1);
-						auto src = rm.loadIntoRegister(0, RegisterType::Pointer);
-						rm.emitMultiLineCopy(mn, src, numBytes);
-					}
-					else
-					{
-						InitValueParser p(state[InstructionPropertyIds::InitValues]);
-						
-						p.forEach([&](size_t offset, Types::ID type, const VariableStorage& f)
-						{
-							auto isExpression = type != Types::ID::Pointer && f.getType() == Types::ID::Pointer;
+                                if (isExpression)
+                                {
+                                    auto expressionIndex = reinterpret_cast<uint64_t>(f.getDataPointer());
+                                    value = state.registerManager.loadIntoRegister((int)expressionIndex, RegisterType::Value);
+                                }
+                                else
+                                {
+                                    value = Types::Helpers::getCppValueString(f);
+                                }
 
-							String value;
+                                if (type == Types::ID::Integer)
+                                    cc.mov(cc.deref<int>(mn, (int)offset), value);
+                                else if (type == Types::ID::Float)
+                                    cc.fmov(cc.deref<float>(mn, (int)offset), value);
+                                else if (type == Types::ID::Double)
+                                    cc.dmov(cc.deref<double>(mn, (int)offset), value);
+                                else
+                                    jassertfalse;
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // static type copy with initialization values
 
-							if (isExpression)
-							{
-								auto expressionIndex = reinterpret_cast<uint64_t>(f.getDataPointer());
-								value = state.registerManager.loadIntoRegister(expressionIndex, RegisterType::Value);
-							}
-							else
-							{
-								value = Types::Helpers::getCppValueString(f);
-							}
+                        MemoryBlock mb;
+                        mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
 
-							if (type == Types::ID::Integer)
-								cc.mov(cc.deref<int>(mn, offset), value);
-							else if (type == Types::ID::Float)
-								cc.fmov(cc.deref<float>(mn, offset), value);
-							else if (type == Types::ID::Double)
-								cc.dmov(cc.deref<double>(mn, offset), value);
-							else
-								jassertfalse;
-						});
-					}
-				}
-				else
-				{
-					// static type copy with initialization values
+                        int numQuadWords = (int)mb.getSize() / (int)sizeof(int64);
 
-					MemoryBlock mb;
-					mb.fromBase64Encoding(state[InstructionPropertyIds::InitValuesB64]);
+                        int64* d = reinterpret_cast<int64*>(mb.getData());
 
-					int numQuadWords = mb.getSize() / sizeof(int64);
+                        auto p = mn;
 
-					int64* d = reinterpret_cast<int64*>(mb.getData());
+                        for (int i = 0; i < numQuadWords; i++)
+                        {
+                            cc.mov(cc.deref<void*>(p, i * 8), String(d[i]));
+                        }
 
-					auto p = rm.getOperandForChild(-1, RegisterType::Raw);
-
-					for (int i = 0; i < numQuadWords; i++)
-					{
-						cc.mov(cc.deref<void*>(p, i * 8), String(d[i]));
-					}
-
-#if 0
-					auto b64 = state[InstructionPropertyIds::InitValues];
-
-					InitValueParser initParser(b64);
-
-					uint32 lastOffset = 0;
-
-					
-
-					while (something && lastOffset < numBytes)
-					{
-						int numToPad = numBytes - numOriginalBytes;
-
-						initParser.forEach([&](uint32 offset, Types::ID type, const VariableStorage& v)
-						{
-							TextLine il(&state);
-							auto t = TypeConverters::TypeInfo2MirType(TypeInfo(type));
-							il.instruction = TypeConverters::MirTypeAndToken2InstructionText(t, JitTokens::assign_);
-							auto p = rm.getOperandForChild(-1, RegisterType::Raw);
-							auto mir_t = TypeConverters::MirType2MirTextType(t);
-
-							// use 4 bytes for integer initialisation...
-
-							String op;
-							op << mir_t << ":";
-							if (lastOffset != 0)
-								op << String(lastOffset);
-							op << "(" << p << ")";
-
-							il.operands.add(op);
-
-							lastOffset += v.getSizeInBytes();
-
-							if (v.getType() == Types::ID::Pointer)
-							{
-								auto childIndex = (int)reinterpret_cast<int64_t>(v.getDataPointer());
-								il.addChildAsValueOperand(childIndex);
-							}
-							else
-								il.addImmOperand(v);
-
-							il.flush();
-						});
-
-						while(numToPad > 0)
-						{
-							TextLine il(&state);
-
-							il.instruction = "mov";
-
-							auto p = rm.getOperandForChild(-1, RegisterType::Raw);
-							auto mir_t = "i32";
-
-							String op;
-							op << mir_t << ":";
-							op << String(lastOffset);
-							op << "(" << p << ")";
-
-							il.operands.add(op);
-							il.addImmOperand(0);
-							il.flush();
-
-							lastOffset += 4;
-							numToPad -= 4;
-						}
-					}
-#endif
-				}
-
-#if 0
-				// fill with zeros
-				while (lastOffset < numBytesToAllocate)
-				{
-					TextLine il;
-
-					il.instruction = "mov";
-
-					auto p = state.getOperandForChild(-1, State::RegisterType::Raw);
-					auto mir_t = "i32";
-
-					String op;
-					op << mir_t << ":";
-					op << String(lastOffset);
-					op << "(" << p << ")";
-
-					il.operands.add(op);
-					il.addImmOperand(0);
-					state.emitLine(il);
-
-					lastOffset += 4;
-				}
-#endif
-			}
+                    }
+                }
+            }
+            
+			
 		}
 
 
@@ -1308,9 +1223,9 @@ struct InstructionParsers
 
 					auto stackPtr = state.registerManager.getAnonymousId(false);
 
-					numBytes = rm.allocateStack(stackPtr, numBytes, false);
+					numBytes = rm.allocateStack(stackPtr, (int)numBytes, false);
 					auto source = rm.loadIntoRegister(i + argOffset, RegisterType::Pointer);
-					rm.emitMultiLineCopy(stackPtr, source, numBytes);
+					rm.emitMultiLineCopy(stackPtr, source, (int)numBytes);
 					l.operands.add(stackPtr);
 				}
 				else
@@ -1329,7 +1244,7 @@ struct InstructionParsers
 
 							auto stackPtr = rm.getAnonymousId(false);
 
-							rm.allocateStack(stackPtr, Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(mir_t)), false);
+							rm.allocateStack(stackPtr, (int)Types::Helpers::getSizeForType(TypeConverters::MirType2TypeId(mir_t)), false);
 
 							TextLine mv(&state);
 							mv.instruction = TypeConverters::MirTypeAndToken2InstructionText(mir_t, JitTokens::assign_);
@@ -1620,8 +1535,7 @@ struct InstructionParsers
 	static Result InlinedArgument(State* state_)
 	{
 		auto& state = *state_;
-		auto& rm = state.registerManager;
-
+		
 		auto n = state[InstructionPropertyIds::ParameterName];
 
 		state.processChildTree(0);

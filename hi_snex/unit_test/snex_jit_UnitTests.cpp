@@ -190,8 +190,6 @@ public:
 				jassertfalse; // there you go...
 			}
 
-            bool useMIR = true;
-
             auto v = f.template call<ReturnType>(input);
             
 			auto diff = std::abs(v - expected);
