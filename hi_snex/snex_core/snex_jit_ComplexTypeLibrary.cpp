@@ -528,7 +528,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	assignFunction->addArgs("size", TypeInfo(Types::ID::Integer));
 	assignFunction->addArgs("offset", TypeInfo(Types::ID::Integer));
 
-	assignFunction->setDefaultParameter("size", VariableStorage(-1));
+	//assignFunction->setDefaultParameter("size", VariableStorage(-1));
 	assignFunction->setDefaultParameter("offset", VariableStorage(0));
 
 	assignFunction->returnType = TypeInfo(this);

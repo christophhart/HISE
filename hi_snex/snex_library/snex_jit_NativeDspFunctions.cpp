@@ -51,6 +51,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		
 	}
 
+#if SNEX_MIR_BACKEND
 	{
 		auto sliceFunction = new FunctionData();
 
@@ -193,6 +194,7 @@ InbuiltFunctions::InbuiltFunctions(BaseCompiler* compiler) :
 		compiler->namespaceHandler.addSymbol(sliceFunction->id, sliceFunction->returnType, NamespaceHandler::Function, {});
 		addFunction(sliceFunction);
 	}
+#endif
 
 	
 }

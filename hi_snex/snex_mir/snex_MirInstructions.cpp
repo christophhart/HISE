@@ -733,7 +733,11 @@ struct InstructionParsers
 		}
 
 		auto& rm = state.registerManager;
-		state.processAllChildren();
+        
+        // don't process child statements when not in a function
+        // (because there is no global constructor functionality yet)
+        if(state.isParsingFunction())
+            state.processAllChildren();
 
 		SimpleTypeParser p(state[InstructionPropertyIds::Type]);
 
@@ -998,13 +1002,13 @@ struct InstructionParsers
 		MirCodeGenerator cc(state_);
 		
 
-		String startLabel, endLabel, unusedLabel;
+		String startLabel, endLabel, continueLabel;
 
 		auto loopType = state[InstructionPropertyIds::LoopType];
 
 		
 
-		state.loopManager.pushLoopLabels(startLabel, endLabel, unusedLabel);
+		state.loopManager.pushLoopLabels(startLabel, endLabel, continueLabel);
 		
 		// create iterator variable with pointer type
 		auto iteratorSymbol = TypeConverters::String2Symbol(state[InstructionPropertyIds::Iterator]);
@@ -1149,6 +1153,8 @@ struct InstructionParsers
 		// emit body
 		state.processChildTree(1);
 
+        state.emitLabel(continueLabel);
+        
 		// bump address by element size after loop body
 		cc.add(pointerReg, pointerReg, elementSize);
 		cc.jmp(startLabel);
@@ -1303,8 +1309,13 @@ struct InstructionParsers
 			SimpleTypeParser p(state[InstructionPropertyIds::ObjectType]);
 			auto type = p.getComplexTypeId().toString();
 
+            if(type == "dyn<float>")
+                type = "block";
+            
 			auto dataObject = state.dataManager.getDataObject(type);
 
+            jassert(dataObject.isValid());
+            
 			auto funcData = sig.createDataLayout(true);
 
 			// This should only happen with unresolved functions
