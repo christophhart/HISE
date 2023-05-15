@@ -2290,8 +2290,16 @@ void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)
 
 Result checkPluginParameterComponent(ScriptingApi::Content* c, ScriptComponent* sc)
 {
-    auto name = sc->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
-    
+	auto name = sc->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+
+	if (!sc->getScriptObjectProperty(ScriptComponent::isPluginParameter))
+	{
+		if (name.isEmpty())
+			return Result::ok();
+		else
+			return Result::fail(sc->getName() + " has an non-empty plugin parameter ID but is not set as plugin parameter");
+	}
+		
     if(name.isEmpty())
         return Result::fail(sc->getName() + " has an empty plugin parameter ID");
     
@@ -2384,10 +2392,14 @@ Result checkPluginParameterComponent(ScriptingApi::Content* c, ScriptComponent* 
                          
 void BackendCommandTarget::Actions::checkPluginParameterSanity(BackendRootWindow* bpe)
 {
-    auto list = ProcessorHelpers::getListOfAllProcessors<JavascriptMidiProcessor>(bpe->getMainController()->getMainSynthChain());
+	auto chain = bpe->getMainController()->getMainSynthChain();
+
+    auto list = ProcessorHelpers::getListOfAllProcessors<JavascriptMidiProcessor>(chain);
     
     String report;
     String nl = "\n";
+
+	int numPluginParameters = 0;
             
     for(auto jp: list)
     {
@@ -2402,9 +2414,6 @@ void BackendCommandTarget::Actions::checkPluginParameterSanity(BackendRootWindow
         {
             auto sc = content->getComponent(i);
             
-            if(!sc->getScriptObjectProperty(ScriptComponent::isPluginParameter))
-                continue;
-            
             auto r = checkPluginParameterComponent(content, sc);
             
             if(!r.wasOk())
@@ -2413,10 +2422,26 @@ void BackendCommandTarget::Actions::checkPluginParameterSanity(BackendRootWindow
                 return;
             }
             
-            report << "- " << sc->getName();
-            
+			if (!sc->getScriptObjectProperty(ScriptComponent::isPluginParameter))
+				continue;
+
+			report << "ID: " << sc->getName();
+			report << " (" << sc->getObjectName() << ") ";
+			report << "Parameter ID: " << sc->getScriptObjectProperty(ScriptComponent::pluginParameterName).toString();
+
+			if (sc->getScriptObjectProperty(ScriptComponent::isMetaParameter))
+				report << " (meta parameter)";
+				
+			report << nl;
+
+			numPluginParameters++;
         }
     }
+
+	report << String(numPluginParameters) << " plugin parameters found";
+
+	debugToConsole(chain, report);
+	PresetHandler::showMessageWindow("Plugin Parameters OK", "No issues were found. Check the console for a report", PresetHandler::IconType::Info);
 }
                          
 void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * bpe)
