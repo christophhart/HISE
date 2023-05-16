@@ -160,6 +160,7 @@ Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
 	ids.add(CodeFontSize);
 	ids.add(EnableDebugMode);
 	ids.add(SaveConnectedFilesOnCompile);
+	ids.add(EnableMousePositioning);
 
 	return ids;
 }
@@ -518,6 +519,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Scripting::EnableOptimizations);
 		D("Enables some compiler optimizations like constant folding or dead code removal for the HiseScript compiler");
 		D("> This setting is baked into a plugin when you compile it");
+		P_();
+
+		P(HiseSettings::Scripting::EnableMousePositioning);
+		D("Sets the default value of whether the interface designer should allow dragging UI components with the mouse");
+		D("> This was always enabled, but on larger projects it's easy to accidentally drag UI elements when you really just wanted to select them so this gives you the option to remove the dragging.");
+		D("Note that you can always choose to enable / disable dragging in the interface designer menu bar, and this only sets the default value. It's still enabled by default so the HISE forum doesn't get swamped with bug reports that the interface designer stopped working...");
 		P_();
 
 		P(HiseSettings::Compiler::Support32BitMacOS);
@@ -883,7 +890,8 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
-		id == Scripting::SaveConnectedFilesOnCompile)
+		id == Scripting::SaveConnectedFilesOnCompile ||
+		id == Scripting::EnableMousePositioning)
 	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -1084,6 +1092,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Scripting::CodeFontSize)			return 17.0;
 	else if (id == Scripting::EnableCallstack)		return "No";
 	else if (id == Scripting::EnableOptimizations)	return "No";
+	else if (id == Scripting::EnableMousePositioning) return "Yes";
 	else if (id == Scripting::CompileTimeout)		return 5.0;
 	else if (id == Scripting::SaveConnectedFilesOnCompile) return "No";
 #if HISE_USE_VS2022

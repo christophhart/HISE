@@ -224,6 +224,8 @@ public:
 			static bool zoomOut(Editor& e);
 			static bool toggleEditMode(Editor& e);
 
+			static bool move(Editor& e);
+
 			static bool lockSelection(Editor& e);
 
 			static bool distribute(Editor* editor, bool isVertical);

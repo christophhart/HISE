@@ -197,7 +197,8 @@ ScriptingContentOverlay::ScriptingContentOverlay(ScriptEditHandler* handler_) :
 
 	setWantsKeyboardFocus(true);
 
-	
+	auto p = dynamic_cast<Processor*>(handler->getScriptEditHandlerProcessor());
+	enableMouseDragging = GET_HISE_SETTING(p, HiseSettings::Scripting::EnableMousePositioning);
 }
 
 
@@ -836,7 +837,8 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 	{
 		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
 
-		
+		if (!parent->enableMouseDragging)
+			return;
 
 		constrainer.setStartPosition(getBounds());
 		startBounds = getBounds();
@@ -857,6 +859,39 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
 	if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
 		return;
+
+	auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
+
+	if (!parent->enableMouseDragging)
+	{
+		static const unsigned char pathData[] = { 110,109,0,128,38,68,192,255,63,67,98,192,156,55,68,192,255,63,67,0,128,69,68,240,143,119,67,0,128,69,68,32,0,158,67,98,0,128,69,68,160,57,192,67,192,156,55,68,40,0,220,67,0,128,38,68,40,0,220,67,98,12,100,21,68,40,0,220,67,2,128,7,68,160,57,192,67,2,
+128,7,68,32,0,158,67,98,2,128,7,68,240,143,119,67,12,100,21,68,192,255,63,67,0,128,38,68,192,255,63,67,99,109,132,215,55,68,72,73,136,67,108,12,164,27,68,40,175,192,67,98,238,201,30,68,24,162,196,67,160,130,34,68,64,235,198,67,0,128,38,68,64,235,198,
+67,98,116,202,49,68,64,235,198,67,140,245,58,68,8,149,180,67,140,245,58,68,32,0,158,67,98,140,245,58,68,96,5,150,67,252,208,57,68,8,149,142,67,132,215,55,68,72,73,136,67,99,109,220,22,21,68,136,125,179,67,108,180,62,49,68,48,91,118,67,98,92,31,46,68,
+160,159,110,67,84,112,42,68,0,41,106,67,0,128,38,68,0,41,106,67,98,76,53,27,68,0,41,106,67,48,10,18,68,64,107,135,67,48,10,18,68,32,0,158,67,98,48,10,18,68,200,224,165,67,248,39,19,68,216,62,173,67,220,22,21,68,136,125,179,67,99,101,0,0 };
+
+		Path path;
+		path.loadPathFromData(pathData, sizeof(pathData));
+
+		
+
+		int size = 22;
+
+		Image img(Image::PixelFormat::ARGB, size, size, true);
+		
+		Graphics g(img);
+
+		PathFactory::scalePath(path, { 1.0f, 1.0f, (float)size-2.0f, (float)size-2.0f });
+		g.setColour(Colour(0xFFEEEEEE));
+		g.fillPath(path);
+		g.setColour(Colours::black.withAlpha(0.5f));
+		g.strokePath(path, PathStrokeType(1.0f));
+
+		MouseCursor c(img, size / 2, size / 2);
+
+		setMouseCursor(c);
+		return;
+	}
+		
 
     if(e.mouseWasDraggedSinceMouseDown())
         constrainer.setRasteredMovement(!e.mods.isCommandDown());
@@ -927,6 +962,11 @@ void ScriptingContentOverlay::Dragger::setUseSnapShot(bool shouldUseSnapShot)
 void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
 	setMouseCursor(MouseCursor::NormalCursor);
+
+	auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
+
+	if (!parent->enableMouseDragging)
+		return;
 
 	if (!e.mouseWasDraggedSinceMouseDown())
 	{

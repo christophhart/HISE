@@ -480,6 +480,16 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 	}
 #endif
 
+	void setEnablePositioningWithMouse(bool shouldBeEnabled)
+	{
+		overlay->setEnablePositioningWithMouse(shouldBeEnabled);
+	}
+	
+	bool isMousePositioningEnabled() const
+	{
+		return overlay->isMousePositioningEnabled();
+	}
+
 	void paint(Graphics& g) override;
 
 	void selectOnInitCallback() override
@@ -682,6 +692,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addSpacer(10);
 
 	addButton("lock");
+	addButton("move");
 
 	addSpacer(10);
 
@@ -721,6 +732,15 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		};
 
 		b->setTooltip("Zoom to fit");
+	}
+	if (name == "move")
+	{
+		b->actionFunction = Actions::move;
+		b->setTooltip("Allow dragging components by mouse");
+		b->stateFunction = [](Editor& e)
+		{
+			return e.canvas.getContent<Canvas>()->isMousePositioningEnabled();
+		};
 	}
 	if (name == "rebuild")
 	{
@@ -1112,6 +1132,17 @@ bool ScriptContentPanel::Editor::Actions::undo(Editor* e, bool shouldUndo)
 {
 	e->getScriptComponentEditBroadcaster()->undo(shouldUndo);
 	rebuild(*e);
+
+	return true;
+}
+
+bool ScriptContentPanel::Editor::Actions::move(Editor& e)
+{
+	auto c = e.canvas.getContent<Canvas>();
+
+	jassert(c != nullptr);
+
+	c->setEnablePositioningWithMouse(!c->isMousePositioningEnabled());
 
 	return true;
 }
@@ -2043,6 +2074,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);
+	LOAD_PATH_IF_URL("move", EditorIcons::resizeIcon);
 	LOAD_PATH_IF_URL("cancel", EditorIcons::cancelIcon);
 	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);

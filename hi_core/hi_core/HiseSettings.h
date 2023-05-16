@@ -147,6 +147,7 @@ DECLARE_ID(CodeFontSize);
 DECLARE_ID(EnableOptimizations);
 DECLARE_ID(EnableDebugMode);
 DECLARE_ID(SaveConnectedFilesOnCompile);
+DECLARE_ID(EnableMousePositioning);
 
 Array<Identifier> getAllIds();
 
