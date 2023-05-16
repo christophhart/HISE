@@ -965,13 +965,8 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 
 	auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
 
-	if (!parent->enableMouseDragging)
-		return;
-
 	if (!e.mouseWasDraggedSinceMouseDown())
 	{
-		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
-
 		if (e.mods.isShiftDown())
 		{
 			parent->getScriptComponentEditBroadcaster()->clearSelection();
@@ -990,6 +985,9 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 		getParentComponent()->mouseUp(e);
 		return;
 	}
+
+	if (!parent->enableMouseDragging)
+		return;
 
 	findParentComponentOfClass<ScriptingContentOverlay>()->smw.endDragging();
 
