@@ -74,7 +74,7 @@ struct TypeInfo
 	{
 		auto type = Types::Helpers::getTypeFromTypeId<CppType>();
 		
-		return TypeInfo(type, std::is_const<CppType>(), std::is_pointer<CppType>());
+		return TypeInfo(type, std::is_const<CppType>(), std::is_pointer<CppType>::value || std::is_reference<CppType>::value);
 	}
 
 	bool isNativePointer() const;

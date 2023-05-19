@@ -261,7 +261,10 @@ void WaveformComponent::Broadcaster::connectWaveformUpdaterToComplexUI(ComplexDa
 			rb->setPropertyObject(new BroadcasterPropertyObject(this));
 	}
 	else
+	{
 		d->getUpdater().removeEventListener(&updater);
+	}
+		
 }
 
 void WaveformComponent::Broadcaster::updateData()

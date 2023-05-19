@@ -622,7 +622,7 @@ struct selector: public mothernode
     
     static void copy(block dst, const block& src)
     {
-        hmath::vcopy(dst, src);
+        hmath::vmov(dst, src);
     }
     
     static void copy(float& dst, const float& src)

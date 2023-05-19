@@ -130,6 +130,14 @@ struct Operations::VectorOp : public Expression
 	{
 		auto t = Expression::toValueTree();
 		t.setProperty("OpType", opType, nullptr);
+		t.setProperty("Scalar", !getSubExpr(0)->getTypeInfo().isComplexType(), nullptr);
+		t.setProperty("TargetType", getSubExpr(1)->getTypeInfo().toStringWithoutAlias(), nullptr);
+		
+		if (auto spanType = dynamic_cast<SpanType*>(getSubExpr(1)->getTypeInfo().getComplexType().get()))
+		{
+			t.setProperty("NumElements", spanType->getNumElements(), nullptr);
+		}
+
 		return t;
 	}
 
