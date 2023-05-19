@@ -823,7 +823,7 @@ struct ValueTreeDebugInfo: public hise::DebugInformationBase
 
 hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInformation(int index)
 {
-#if SNEX_MIR_BACKEND
+#if 0//SNEX_MIR_BACKEND
 	auto c = obj.getDataLayout(index); 
     return new ValueTreeDebugInfo(c);
 #else

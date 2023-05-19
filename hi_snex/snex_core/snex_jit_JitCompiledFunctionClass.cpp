@@ -59,7 +59,7 @@ AsmJitFunctionCollection::~AsmJitFunctionCollection()
 }
 
 
-VariableStorage AsmJitFunctionCollection::getVariable(const Identifier& id)
+VariableStorage AsmJitFunctionCollection::getVariable(const Identifier& id) const
 {
 	auto s = pimpl->rootData->getClassName().getChildId(id);
 
@@ -73,7 +73,7 @@ VariableStorage AsmJitFunctionCollection::getVariable(const Identifier& id)
 }
 
 
-snex::jit::ComplexType::Ptr AsmJitFunctionCollection::getMainObjectType()
+snex::jit::ComplexType::Ptr AsmJitFunctionCollection::getMainObjectType() const
 {
 	auto symbols = pimpl->rootData->getAllVariables();
 
@@ -86,7 +86,7 @@ snex::jit::ComplexType::Ptr AsmJitFunctionCollection::getMainObjectType()
 	return nullptr;
 }
 
-void* AsmJitFunctionCollection::getVariablePtr(const Identifier& id)
+void* AsmJitFunctionCollection::getVariablePtr(const Identifier& id) const
 {
 	auto s = pimpl->rootData->getClassName().getChildId(id);
 
@@ -94,6 +94,14 @@ void* AsmJitFunctionCollection::getVariablePtr(const Identifier& id)
 		return pimpl->rootData->getDataPointer(s);
 
 	return nullptr;
+}
+
+size_t AsmJitFunctionCollection::getMainObjectSize() const
+{
+	if(auto t = getMainObjectType())
+		return t->getRequiredByteSize();
+
+	return 0;
 }
 
 juce::String AsmJitFunctionCollection::dumpTable()
@@ -166,6 +174,21 @@ Array<NamespacedIdentifier> JitObject::getFunctionIds() const
 JitObject::operator bool() const
 {
 	return functionClass != nullptr;
+}
+
+bool JitObject::initMainObject(ObjectStorage<16, 16>& obj)
+{
+	if (functionClass != nullptr)
+	{
+		auto d = functionClass->getMainObjectPtr();
+		auto numBytes = functionClass->getMainObjectSize();
+
+		obj.setSize(numBytes);
+		memcpy(obj.getObjectPtr(), d, numBytes);
+		return true;
+	}
+
+	return false;
 }
 
 snex::jit::FunctionData JitCompiledClassBase::getFunction(const Identifier& id)

@@ -1185,6 +1185,8 @@ public:
 		listeners.removeAllInstancesOf(l);
 	}
 
+	int getNumChannels() const { return numChannels; }
+
 	void setNumChannels(int newNumChannels)
 	{
 		if (numChannels != newNumChannels)

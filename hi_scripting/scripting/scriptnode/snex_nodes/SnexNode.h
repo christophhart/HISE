@@ -221,7 +221,7 @@ struct snex_node : public SnexSource
 #endif
 
 #if SNEX_MIR_BACKEND
-#define CALL_SNEX_VOID callVoidUnchecked
+#define CALL_SNEX_VOID callVoidUncheckedWithObject
 #else
 #define CALL_SNEX_VOID callVoidUncheckedWithObject
     

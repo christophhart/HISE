@@ -54,11 +54,13 @@ public:
 
 	FunctionData getFunction(const NamespacedIdentifier& functionId) override;
 
-	VariableStorage getVariable(const Identifier& id) override;
+	VariableStorage getVariable(const Identifier& id) const override;
 
 	Array<Symbol> getAllVariables() const override;
-	ComplexType::Ptr getMainObjectType();
-	void* getVariablePtr(const Identifier& id) override;
+	ComplexType::Ptr getMainObjectType() const;
+	void* getVariablePtr(const Identifier& id) const override;
+
+	size_t getMainObjectSize() const override;
 
 	juce::String dumpTable() override;
 
@@ -121,6 +123,8 @@ public:
 		return functionClass != nullptr ? functionClass->getMainObjectPtr() : nullptr;
 	}
 
+	
+
 	juce::String dumpTable()
 	{
 		if(functionClass != nullptr)
@@ -128,6 +132,8 @@ public:
 
 		return {};
 	}
+
+	bool initMainObject(ObjectStorage<16, 16>& obj);
 
 	int getNumVariables() const { return functionClass != nullptr ? functionClass->getAllVariables().size() : 0; }
 

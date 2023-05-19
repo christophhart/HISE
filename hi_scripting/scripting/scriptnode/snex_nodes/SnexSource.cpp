@@ -62,6 +62,13 @@ void SnexSource::recompiled(WorkbenchData::Ptr wb)
     else
         errorLevel = ErrorLevel::CompileFail;
     
+	
+
+	if (getParentNode()->isActive(true) && currentChannelCount != wb->getNumChannels())
+	{
+		lastResult = Result::fail("Channel mismatch. Expected: " + String(wb->getNumChannels()));
+	}
+
 	throwScriptnodeErrorIfCompileFail();
 
 	if (auto objPtr = wb->getLastResult().mainClassPtr)
@@ -153,80 +160,108 @@ void SnexSource::debugModeChanged(bool isEnabled)
 
 void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 {
-	if (wb != nullptr && parentNode->getCurrentChannelAmount() != numChannelsToProcess)
+	auto wasZero = currentChannelCount == 0;
+	currentChannelCount = numChannelsToProcess;
+
+	if (wb != nullptr)
 	{
+		
+		wb->setNumChannels(currentChannelCount);
+
+		if (wasZero)
+			wb->triggerRecompile();
+
+#if 0
 		if (auto objPtr = wb->getLastResult().mainClassPtr)
 		{
 			if (lastResult.wasOk())
 				lastResult = getCallbackHandler().recompiledOk(objPtr);
 		}
+#endif
 	}
 }
 
-void SnexSource::addDummyNodeCallbacks(String& s)
+void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset)
 {
 #if SNEX_MIR_BACKEND
 	using namespace cppgen;
 
 	Base b(Base::OutputType::AddTabs);
 
+	auto NV = String(getParentNode()->isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1);
+
+	String instanceType = getCurrentClassId().toString() + "<" + NV + ">";
+
 	{
-		b << "void prepare(PrepareSpecs ps)";
+		b << String("void prepare(" + instanceType + "& instance, PrepareSpecs ps)");
 		{
 			StatementBlock sb(b, false);
 			b << "instance.prepare(ps);";
 		}
 
-		b << "void reset()";
+		if (addReset)
 		{
-			StatementBlock sb(b, false);
-			b << "instance.reset();";
+			b << String("void reset(" + instanceType + "& instance)");
+			{
+				StatementBlock sb(b, false);
+				b << "instance.reset();";
+			}
 		}
 
-		b << "void handleHiseEvent(HiseEvent& e)";
+		if (addEvent)
 		{
-			StatementBlock sb(b, false);
-			b << "instance.handleHiseEvent(e);";
+			b << String("void handleHiseEvent(" + instanceType + "& instance, HiseEvent& e)");
+			{
+				StatementBlock sb(b, false);
+				b << "instance.handleHiseEvent(e);";
+			}
 		}
 	}
 
 	auto x = b.toString();
-	DBG(x);
-
 	s << x;
 #endif
 }
 
-void SnexSource::addDummyProcessFunctions(String& s)
+void SnexSource::addDummyProcessFunctions(String& s, bool addFrame, const String& processDataType)
 {
 	using namespace cppgen;
 
 	if (auto pn = getParentNode())
 	{
-		int nc = pn->getRootNetwork()->getCurrentSpecs().numChannels;
+		int nc = currentChannelCount;
 
 		if (nc == 0)
 			nc = 2;
 
+		auto NV = String(getParentNode()->isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1);
+
+		String instanceType = getCurrentClassId().toString() + "<" + NV + ">";
+
 		Base b(Base::OutputType::AddTabs);
 
-		b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
+		String def1, def2;
 
-		for (int i = 1; i <= nc; i++)
+		if (addFrame)
 		{
-			String def1, def2;
-
-			def2 << "void processFrame(span<float, " << String(i) << ">& data)"; b << def2;
-			{														 StatementBlock body(b);
-			
-			b << "instance.processFrame(data);";
+			def2 << "void processFrame(" << instanceType << "& instance, span<float, " << String(nc) << ">& data)"; b << def2;
+			{
+				StatementBlock body(b);
+				b << "instance.processFrame(data);";
 			}
+		}
 
-			def1 << "void process(ProcessData<" << String(i) << ">& data)";	  b << def1;
-			{														 StatementBlock body(b);
-			//b << (getCurrentClassId().toString() + "<NUM_POLYPHONIC_VOICES> instance;");
+		String pType;
+		if (processDataType.isNotEmpty())
+			pType = processDataType;
+		else
+			pType << "ProcessData<" << String(nc) << ">";
+
+		def1 << "void process(" << instanceType << "& instance, " << pType << "& data)";
+		b << def1;
+		{
+			StatementBlock body(b);
 			b << "instance.process(data);";
-			}
 		}
 
 		s << b.toString();
@@ -237,6 +272,8 @@ void SnexSource::addDummyProcessFunctions(String& s)
 
 void SnexSource::ParameterHandler::updateParameters(ValueTree v, bool wasAdded)
 {
+	
+
 	if (wasAdded)
 	{
 		auto newP = new SnexParameter(&parent, getNode(), v);
@@ -256,6 +293,8 @@ void SnexSource::ParameterHandler::updateParameters(ValueTree v, bool wasAdded)
 			}
 		}
 	}
+
+	this->numParameters = getNode()->getNumParameters();
 }
 
 void SnexSource::ParameterHandler::updateParametersForWorkbench(bool shouldAdd)
@@ -314,7 +353,7 @@ void SnexSource::ParameterHandler::addParameterCode(String& code)
 	{
 		cppgen::StatementBlock sb(c);
 
-		for (auto p : parameterTree)
+		for (const auto& p : parameterTree)
 		{
 			String def;
 			def << "obj.setParameter<" << p.getParent().indexOf(p) << ">(";
@@ -326,9 +365,28 @@ void SnexSource::ParameterHandler::addParameterCode(String& code)
 		}
 	}
 
-	code << c.toString();
+#if SNEX_MIR_BACKEND
+	auto NV = String(parent.getParentNode()->isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1);
 
-	
+	String instanceType = parent.getCurrentClassId().toString() + "<" + NV + ">";
+
+
+	int pIndex = 0;
+
+	for (const auto& p : parameterTree)
+	{
+		String def;
+		def << "void setParameter" << String(pIndex) << "(" << instanceType << "& instance, double value)";
+		c << def;
+		StatementBlock sb(c);
+		c << "instance.setParameter<" << String(pIndex) << ">(value);";
+
+		pIndex++;
+	}
+
+#endif
+
+	code << c.toString();
 }
 
 Result SnexSource::ComplexDataHandler::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
@@ -661,7 +719,15 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 	if (auto wb = parent.getWorkbench())
 	{
 #if SNEX_MIR_BACKEND
-		return wb->getLastResult().obj[id];
+
+		auto fData = wb->getLastResult().obj[id];
+
+		if (fData.isResolved())
+		{
+			addObjectPtrToFunction(fData);
+			return fData;
+		}
+
 #else
 		if (auto obj = wb->getLastResult().mainClassPtr)
 		{
@@ -690,14 +756,34 @@ snex::jit::FunctionData SnexSource::HandlerBase::getFunctionAsObjectCallback(con
 
 void SnexSource::HandlerBase::addObjectPtrToFunction(FunctionData& f)
 {
-#if !SNEX_MIR_BACKEND
+
 	jassert(f.isResolved());
 	f.object = obj.getObjectPtr();
-#endif
+
 }
 
 juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
 {
+#if SNEX_MIR_BACKEND
+
+	auto obj = parent.getWorkbench()->getLastJitObject();
+
+	for (int i = 0; i < numParameters; i++)
+	{
+		String id("setParameter" + String(i));
+		auto f = obj[id];
+
+		if (f.isResolved())
+		{
+			addObjectPtrToFunction(f);
+			pFunctions[i] = f;
+			pFunctions[i].callVoid(lastValues[i]);
+		}
+	}
+
+	return Result::ok();
+
+#else
 	using namespace snex::jit;
 
 	snex::jit::FunctionClass::Ptr fc = objectClass->getFunctionClass();
@@ -729,6 +815,7 @@ juce::Result SnexSource::ParameterHandlerLight::recompiledOk(snex::jit::ComplexT
 	}
 
 	return Result::ok();
+#endif
 }
 
 SnexComplexDataDisplay::SnexComplexDataDisplay(SnexSource* s) :

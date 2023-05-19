@@ -45,11 +45,14 @@ String snex_node::getEmptyText(const Identifier& id) const
 
 bool snex_node::preprocess(String& code)
 {
+	if (code.contains("instance.reset();"))
+	{
+		// already preprocessed...
+		return true;
+	}
+
 	SnexSource::preprocess(code);
-
-	
 	SnexSource::addDummyProcessFunctions(code);
-
 	SnexSource::addDummyNodeCallbacks(code);
 
 	return true;
