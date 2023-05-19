@@ -536,7 +536,12 @@ public:
 	{
 		beginTest("funky");
 
-        runTestsWithOptimisation({ OptimizationIds::BinaryOpOptimisation, OptimizationIds::ConstantFolding, OptimizationIds::DeadCodeElimination });
+		optimizations = OptimizationIds::getDefaultIds();
+
+		//runTestFiles("simple_template31");
+
+		
+        //runTestsWithOptimisation(OptimizationIds::getDefaultIds());
         
 		return;
 		optimizations = {};

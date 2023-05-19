@@ -6,6 +6,7 @@ BEGIN_TEST_DATA
   input: 12
   output: 15
   error: ""
+  voiceIndex: -1
   filename: "polydata/polydata_2"
 END_TEST_DATA
 */
