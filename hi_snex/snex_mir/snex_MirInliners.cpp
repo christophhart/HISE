@@ -118,9 +118,27 @@ struct InlinerFunctions
 	{
 		InlineCodeGenerator cc(state, data, function);
 		
+		auto fullSig = function[InstructionPropertyIds::Signature].toString();
+
+		auto firstArg = fullSig.fromFirstOccurrenceOf("(", false, false);
+
+		SimpleTypeParser p(firstArg);
+
+		auto sourceType = p.getComplexTypeId().toString();
+		
+		auto isDyn = sourceType.startsWith("dyn");
+
 		auto offset = cc.newReg<int>(cc.argOp(3));
 		cc.mul(offset, offset, cc.dataProperty("ElementSize"));
-		cc.add(cc.memberOp("data"), cc.argOp(1), offset);
+
+		String source;
+
+		if (isDyn)
+			source = cc.deref<void*>(cc.argOp(1), 8);
+		else
+			source = cc.argOp(1);
+
+		cc.add(cc.memberOp("data"), source, offset);
 		cc.mov(cc.memberOp("size"), cc.argOp(2));
 
 		return cc.flush(cc.argOp(0), RegisterType::Pointer);
@@ -362,7 +380,7 @@ struct InlinerFunctions
 		if (numVoices != 1)
 		{
 			auto voicePtr = cc.newReg<PolyHandler*>(cc.memberOp("voiceIndex"));
-			auto lastVoiceIndex = cc.call<int>("int PolyHandler::getVoiceIndexStatic(void*)", { voicePtr });
+			auto lastVoiceIndex = cc.call<int>({}, "int PolyHandler::getVoiceIndexStatic(void*)", { voicePtr });
 			cc.mul(lastVoiceIndex, lastVoiceIndex, elementSize);
 			cc.add(reg, reg, lastVoiceIndex);
 		}
@@ -391,7 +409,7 @@ struct InlinerFunctions
 
 		auto numVoices = cc.templateConstant("NumVoices");
 		auto voicePtr = cc.newReg<PolyHandler*>(cc.memberOp("voiceIndex"));
-		auto size = cc.call<int>("int PolyHandler::getSizeStatic(void*)", { voicePtr });
+		auto size = cc.call<int>({}, "int PolyHandler::getSizeStatic(void*)", { voicePtr });
 		cc.mul(size, size, numVoices-1);
 		cc.add(size, size, 1);
 		

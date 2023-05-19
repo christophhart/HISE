@@ -344,7 +344,7 @@ private:
 			{
 				cppgen::StatementBlock sb(c);
 
-				c << "d.referTo(data);";
+				c << "d.referTo(data, data.size());";
 				c << "i = input;";
 				c << "return d[i];";
 			}

@@ -38,43 +38,10 @@ namespace InstructionIds
 	DEFINE_ID(InlinedReturnValue);
 	DEFINE_ID(InlinedArgument);
 	DEFINE_ID(MemoryReference);
+	DEFINE_ID(VectorOp);
 }
 
-namespace InstructionPropertyIds
-{
-	DEFINE_ID(AssignmentType);
-	DEFINE_ID(CallType);
-	DEFINE_ID(command);
-	DEFINE_ID(ElementSize);
-	DEFINE_ID(ElementType);
-	DEFINE_ID(First);
-	DEFINE_ID(Ids);
-	DEFINE_ID(ID);
-	DEFINE_ID(InitValues);
-	DEFINE_ID(InitValuesB64);
-	DEFINE_ID(IsDec);
-	DEFINE_ID(IsPre);
-	DEFINE_ID(Iterator);
-	DEFINE_ID(LoopType);
-	DEFINE_ID(MemberInfo);
-	DEFINE_ID(Method);
-	DEFINE_ID(NumElements);
-	DEFINE_ID(NumBytes);
-	DEFINE_ID(ObjectType);
-	DEFINE_ID(Offset);
-	DEFINE_ID(Operand);
-	DEFINE_ID(OpType);
-	DEFINE_ID(ParentType);
-	DEFINE_ID(ParameterName);
-	DEFINE_ID(ReturnType);
-	DEFINE_ID(ScopeId);
-	DEFINE_ID(Signature);
-	DEFINE_ID(Source);
-	DEFINE_ID(Symbol);
-	DEFINE_ID(Target);
-	DEFINE_ID(Type);
-	DEFINE_ID(Value);
-}
+
 
 struct InstructionParsers
 {
@@ -89,17 +56,26 @@ struct InstructionParsers
 
 			state.emitSingleInstruction("import Console");
 
-			
-			state.dump();
-			
+			using SigListType = Array<std::tuple<NamespacedIdentifier, String>>;
 
-			StringArray staticSignatures, memberSignatures;
+			SigListType staticSignatures, memberSignatures;
 
-			staticSignatures.add("int PolyHandler::getVoiceIndexStatic(void* voiceIndex)");
-			staticSignatures.add("int PolyHandler::getSizeStatic(void* voiceIndex)");
+			staticSignatures.add({ {}, "int PolyHandler::getVoiceIndexStatic(void* voiceIndex)" });
+			staticSignatures.add({ {}, "int PolyHandler::getSizeStatic(void* voiceIndex)" });
 
 			TypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
 			{
+				if (v.getType() == InstructionIds::VectorOp)
+				{
+					auto sig = TypeConverters::VectorOp2Signature(v);
+
+					auto sd = TypeConverters::String2FunctionData(sig);
+					auto sig2 = TypeConverters::FunctionData2MirTextLabel({}, sd);
+
+					jassert(MirCompiler::resolve(sig2.getCharPointer().getAddress()) != nullptr);
+
+					staticSignatures.addIfNotAlreadyThere({ {}, sig });
+				}
 				if (v.getType() == InstructionIds::FunctionCall)
 				{
 					auto sig = v[InstructionPropertyIds::Signature].toString();
@@ -108,9 +84,13 @@ struct InstructionParsers
 						return false;
 
 					if (v[InstructionPropertyIds::CallType].toString() == "MemberFunction")
-						memberSignatures.addIfNotAlreadyThere(sig);
+					{
+						auto id = NamespacedIdentifier::fromString(v[InstructionPropertyIds::ObjectType].toString());
+						memberSignatures.addIfNotAlreadyThere({ id, sig }); // we still need to pass in an empty object type
+					}
+						
 					else
-						staticSignatures.addIfNotAlreadyThere(sig);
+						staticSignatures.addIfNotAlreadyThere({ {}, sig });
 				}
 
 				return false;
@@ -118,16 +98,16 @@ struct InstructionParsers
 
 			for (const auto& c : memberSignatures)
 			{
-				auto f = TypeConverters::String2FunctionData(c);
-				state.functionManager.addPrototype(&state, f, true);
-				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(f));
+				auto f = TypeConverters::String2FunctionData(std::get<1>(c));
+				state.functionManager.addPrototype(&state, std::get<0>(c), f, true);
+				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(std::get<0>(c), f));
 			}
 			for (const auto& c : staticSignatures)
 			{
-				auto f = TypeConverters::String2FunctionData(c);
+				auto f = TypeConverters::String2FunctionData(std::get<1>(c));
 				auto isConsole = f.id.getParent().toString() == "Console";
-				state.functionManager.addPrototype(&state, f, isConsole);
-				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(f));
+				state.functionManager.addPrototype(&state, {}, f, isConsole);
+				state.emitSingleInstruction("import " + TypeConverters::FunctionData2MirTextLabel(std::get<0>(c), f));
 			}
 		}
 
@@ -147,28 +127,34 @@ struct InstructionParsers
 
 		auto f = TypeConverters::String2FunctionData(fullSig);
 
+		auto classType = state.dataManager.getCurrentClassType();
+
 		auto addObjectPtr = state.isParsingClass() && !f.returnType.isStatic();
+
+		int returnBlockSize = (int)state.currentTree.getProperty(InstructionPropertyIds::ReturnBlockSize, -1);
 
 		TextLine line(&state);
 
         state.functionManager.clearLocalVarDefinitions();
         
-		if (state.functionManager.hasPrototype(f))
+		if (state.functionManager.hasPrototype(classType, f))
 		{
-			line.label = state.functionManager.registerComplexTypeOverload(&state, fullSig, addObjectPtr);
+			line.label = state.functionManager.registerComplexTypeOverload(&state, classType, fullSig, addObjectPtr);
 		}
 		else
 		{
-			state.functionManager.addPrototype(&state, f, addObjectPtr);
-			line.label = TypeConverters::FunctionData2MirTextLabel(f);
+			state.functionManager.addPrototype(&state, classType, f, addObjectPtr, returnBlockSize);
+			line.label = TypeConverters::FunctionData2MirTextLabel(classType, f);
 		}
 		
 		
 		
 		line.instruction = "func ";
 
-		if (f.returnType.isValid())
-			line.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType, true));
+		auto op = TypeConverters::TypeAndReturnBlockToReturnType(f.returnType, returnBlockSize);
+
+		if (op.isNotEmpty())
+			line.operands.add(op);
 
 		if (addObjectPtr)
 		{
@@ -239,8 +225,20 @@ struct InstructionParsers
 			TextLine line(&state);
 			line.instruction = "ret";
 
-			line.operands.add(rm.loadIntoRegister(0, p.getTypeInfo().isRef() ? RegisterType::Pointer : RegisterType::Value));
-			line.flush();
+			auto returnBlockSize = (int)state.currentTree.getProperty(InstructionPropertyIds::ReturnBlockSize, -1);
+
+			if (returnBlockSize == -1)
+			{
+				auto shouldReturnPointer = p.getTypeInfo().isRef() || p.getTypeInfo().getType() == Types::ID::Pointer;
+
+				line.operands.add(rm.loadIntoRegister(0, shouldReturnPointer ? RegisterType::Pointer : RegisterType::Value));
+				line.flush();
+			}
+			else
+			{
+				state.registerManager.emitMultiLineCopy("return_block", rm.loadIntoRegister(0, RegisterType::Pointer), returnBlockSize);
+				line.flush();
+			}
 		}
 		else
 		{
@@ -1175,12 +1173,17 @@ struct InstructionParsers
 
 		auto fullSig = state[InstructionPropertyIds::Signature];
 
-		auto sig =  TypeConverters::String2FunctionData(fullSig);
-		auto fid = state.functionManager.getIdForComplexTypeOverload(fullSig);
+		state.dump();
+		jassertfalse;
 
-		if (state.functionManager.hasPrototype(sig))
+		auto objectType = NamespacedIdentifier::fromString(state.currentTree.getProperty(InstructionPropertyIds::ObjectType, "").toString());
+		
+		auto sig =  TypeConverters::String2FunctionData(fullSig);
+		auto fid = state.functionManager.getIdForComplexTypeOverload(objectType, fullSig);
+
+		if (state.functionManager.hasPrototype(objectType, sig))
 		{
-			auto protoType = state.functionManager.getPrototype(fullSig);
+			auto protoType = state.functionManager.getPrototype(objectType, fullSig);
 
 			TextLine l(&state);
 
@@ -1190,9 +1193,30 @@ struct InstructionParsers
 
 			if (sig.returnType.isValid())
 			{
-				auto rrt = sig.returnType.isRef() ? RegisterType::Pointer : RegisterType::Value;
-				l.addAnonymousReg(TypeConverters::TypeInfo2MirType(sig.returnType), rrt);
-				l.operands.add(rm.getOperandForChild(-1, rrt));
+				auto returnBlockSize = (int)state.currentTree.getProperty(InstructionPropertyIds::ReturnBlockSize, -1);
+
+				if (returnBlockSize == -1)
+				{
+					auto rrt = sig.returnType.isRef() ? RegisterType::Pointer : RegisterType::Value;
+					l.addAnonymousReg(TypeConverters::TypeInfo2MirType(sig.returnType), rrt);
+					l.operands.add(rm.getOperandForChild(-1, rrt));
+				}
+				else
+				{
+					MirCodeGenerator cc(state_);
+
+					auto returnBlock = cc.alloca(returnBlockSize);
+
+					TextLine movLine(state_, "mov");
+
+					auto thisOp = movLine.addAnonymousReg(MIR_T_P, RegisterType::Value, true);
+					
+					movLine.addSelfAsValueOperand();
+					movLine.addRawOperand(returnBlock);
+					movLine.flush();
+
+					l.operands.add(TypeConverters::StringOperand2ReturnBlock(thisOp, returnBlockSize));
+				}
 			}
 
 			int argOffset = 0;
@@ -1338,11 +1362,15 @@ struct InstructionParsers
 				funcData.getChild(i).setProperty(InstructionPropertyIds::Operand, a, nullptr);
 			}
 
-			if (auto il = state.inlinerManager.getInliner(fid))
+			auto fidWithoutObject = state.functionManager.getIdForComplexTypeOverload({}, fullSig);
+
+			if (auto il = state.inlinerManager.getInliner(fidWithoutObject))
 			{
 				TextLine c(&state);
-				c.appendComment("Inlined function " + fid);
+				c.appendComment("Inlined function " + fidWithoutObject);
 				c.flush();
+
+				funcData.setProperty(InstructionPropertyIds::Signature, fullSig, nullptr);
 
 				auto returnReg = il(&state, dataObject, funcData);
 
@@ -1385,9 +1413,8 @@ struct InstructionParsers
 		}
 
 		auto x = NamespacedIdentifier::fromString(state[InstructionPropertyIds::Type]);
-		auto className = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(x));
-
-		state.dataManager.startClass(className, std::move(memberInfo));
+		
+		state.dataManager.startClass(x, std::move(memberInfo));
 		state.processAllChildren();
 		state.dataManager.endClass();
 		
@@ -1599,6 +1626,62 @@ struct InstructionParsers
 
 		return Result::ok();
 	}
+
+	
+
+	static Result VectorOp(State* state_)
+	{
+		MirCodeGenerator cc(state_);
+
+		auto& state = *state_;
+		state.dump();
+
+		state.processAllChildren();
+
+		auto fullSig = TypeConverters::VectorOp2Signature(state.currentTree);
+		auto sig = TypeConverters::String2FunctionData(fullSig);
+		auto fid = state.functionManager.getIdForComplexTypeOverload({}, fullSig);
+
+		
+
+		jassert(state.functionManager.hasPrototype({}, sig));
+
+		auto protoType = state.functionManager.getPrototype({}, fullSig);
+
+		
+
+		auto dst = state.registerManager.getOperandForChild(1, RegisterType::Pointer);
+
+		auto isSpanTarget = state.currentTree.hasProperty(InstructionPropertyIds::NumElements);
+
+		if (isSpanTarget)
+		{
+			auto blockData = cc.alloca(16);
+			cc.mov(cc.deref<void*>(blockData, 8), dst);
+			cc.mov(cc.deref<int>(blockData, 4), state[InstructionPropertyIds::NumElements]);
+			dst = blockData;
+		}
+
+		auto isScalar = state[InstructionPropertyIds::Scalar] == "1";
+
+		auto src = state.registerManager.getOperandForChild(0, isScalar ? 
+															   RegisterType::Value : 
+															   RegisterType::Pointer);
+
+		if (!isScalar && isSpanTarget)
+		{
+			auto blockData = cc.alloca(16);
+			cc.mov(cc.deref<void*>(blockData, 8), src);
+			cc.mov(cc.deref<int>(blockData, 4), state[InstructionPropertyIds::NumElements]);
+			src = blockData;
+		}
+
+		cc.call<void*>({}, fullSig, { dst, src });
+
+		return Result::ok();
+	}
+
+
 };
 
 }

@@ -147,7 +147,7 @@ struct FunctionData
 		FunctionData d;
 
 		d.id = NamespacedIdentifier(id);
-		d.returnType = TypeInfo(Types::Helpers::getTypeFromTypeId<ReturnType>());
+		d.returnType = TypeInfo::fromT<ReturnType>();
 		d.function = reinterpret_cast<void*>(ptr);
 
 		return d;
@@ -458,11 +458,13 @@ struct FunctionCollectionBase : public ReferenceCountedObject
 
 	virtual FunctionData getFunction(const NamespacedIdentifier& functionId) = 0;
 
-	virtual VariableStorage getVariable(const Identifier& id) = 0;
+	virtual VariableStorage getVariable(const Identifier& id) const = 0;
 
 	void* getMainObjectPtr();
 
-	virtual void* getVariablePtr(const Identifier& id) = 0;
+	virtual size_t getMainObjectSize() const = 0;
+
+	virtual void* getVariablePtr(const Identifier& id) const = 0;
 
 	virtual juce::String dumpTable() = 0;
 

@@ -96,7 +96,13 @@ void LoopManager::emitInlinedReturn(State* s)
 	if (l.returnReg.isNotEmpty())
 	{
         TextLine store(s);
-        auto returnValue = s->registerManager.loadIntoRegister(0, l.registerType);
+
+		auto regType = l.registerType;
+
+		if (l.type == MIR_T_P)
+			regType = RegisterType::Pointer;
+
+        auto returnValue = s->registerManager.loadIntoRegister(0, regType);
 
         auto at = l.type;
         
@@ -260,8 +266,9 @@ String TextLine::flush()
 	return operands[0];
 }
 
-FunctionManager::ComplexTypeOverload::ComplexTypeOverload(const String& fullSignature_) :
-	fullSignature(fullSignature_)
+FunctionManager::ComplexTypeOverload::ComplexTypeOverload(const NamespacedIdentifier& objectType_, const String& fullSignature_) :
+	fullSignature(fullSignature_),
+	objectType(objectType_)
 {
 	auto f = TypeConverters::String2FunctionData(fullSignature);
 
@@ -272,14 +279,14 @@ FunctionManager::ComplexTypeOverload::ComplexTypeOverload(const String& fullSign
 
 	f.id.id = Identifier(newid);
 
-	mangledId = TypeConverters::FunctionData2MirTextLabel(f);
+	mangledId = TypeConverters::FunctionData2MirTextLabel(objectType, f);
 }
 
 
 
-void FunctionManager::addPrototype(State* state, const FunctionData& f, bool addObjectPointer)
+void FunctionManager::addPrototype(State* state, const NamespacedIdentifier& objectType, const FunctionData& f, bool addObjectPointer, int returnBlockSize)
 {
-	if (hasPrototype(f))
+	if (hasPrototype(objectType, f))
 	{
 		// must be caught with registerComplexTypeOverload
 		jassertfalse;
@@ -290,8 +297,11 @@ void FunctionManager::addPrototype(State* state, const FunctionData& f, bool add
 	l.label = "proto" + String(prototypes.size());
 	l.instruction = "proto";
 
-	if (f.returnType.isValid())
-		l.operands.add(TypeConverters::TypeInfo2MirTextType(f.returnType, true));
+	auto op = TypeConverters::TypeAndReturnBlockToReturnType(f.returnType, returnBlockSize);
+
+	if (op.isNotEmpty())
+		l.operands.add(op);
+	
 
 	if (addObjectPointer)
 	{
@@ -303,16 +313,16 @@ void FunctionManager::addPrototype(State* state, const FunctionData& f, bool add
 
 	l.flush();
 
-	prototypes.add(f);
+	prototypes.add({objectType, f});
 }
 
-bool FunctionManager::hasPrototype(const FunctionData& sig) const
+bool FunctionManager::hasPrototype(const NamespacedIdentifier& objectType, const FunctionData& sig) const
 {
-	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
+	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(objectType, sig);
 
 	for (const auto& p : prototypes)
 	{
-		auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
+		auto pLabel = TypeConverters::FunctionData2MirTextLabel(std::get<0>(p), std::get<1>(p));
 
 		if (pLabel == thisLabel)
 			return true;
@@ -321,11 +331,12 @@ bool FunctionManager::hasPrototype(const FunctionData& sig) const
 	return false;
 }
 
-String FunctionManager::getPrototype(const String& fullSignature) const
+String FunctionManager::getPrototype(const NamespacedIdentifier& objectType, const String& fullSignature) const
 {
 	for (auto& f : specialOverloads)
 	{
-		if (f.fullSignature == fullSignature)
+		if (f.fullSignature == fullSignature &&
+			f.objectType == objectType)
 		{
 			return f.prototype;
 		}
@@ -333,13 +344,13 @@ String FunctionManager::getPrototype(const String& fullSignature) const
 
 	auto sig = TypeConverters::String2FunctionData(fullSignature);
 
-	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(sig);
+	auto thisLabel = TypeConverters::FunctionData2MirTextLabel(objectType, sig);
 
 	int l = 0;
 
 	for (const auto& p : prototypes)
 	{
-		auto pLabel = TypeConverters::FunctionData2MirTextLabel(p);
+		auto pLabel = TypeConverters::FunctionData2MirTextLabel(std::get<0>(p), std::get<1>(p));
 
 		if (pLabel == thisLabel)
 		{
@@ -352,9 +363,9 @@ String FunctionManager::getPrototype(const String& fullSignature) const
 	throw String("prototype not found");
 }
 
-String FunctionManager::registerComplexTypeOverload(State* state, const String& fullSignature, bool addObjectPtr)
+String FunctionManager::registerComplexTypeOverload(State* state, const NamespacedIdentifier& objectType, const String& fullSignature, bool addObjectPtr)
 {
-	ComplexTypeOverload t(fullSignature);
+	ComplexTypeOverload t(objectType, fullSignature);
 
 	t.prototype = "proto" + String(prototypes.size());
 
@@ -362,7 +373,7 @@ String FunctionManager::registerComplexTypeOverload(State* state, const String& 
 
 	f.id = NamespacedIdentifier(t.mangledId);
 
-	addPrototype(state, f, addObjectPtr);
+	addPrototype(state, objectType, f, addObjectPtr);
 
 	specialOverloads.add(t);
 	return t.mangledId;
@@ -393,14 +404,18 @@ void DataManager::setDataLayout(const Array<ValueTree>& dataList_)
 	}
 }
 
-void DataManager::startClass(const Identifier& id, Array<MemberInfo>&& memberInfo)
+void DataManager::startClass(const NamespacedIdentifier& nid, Array<MemberInfo>&& memberInfo)
 {
-    classTypes.emplace(id, memberInfo);
+	auto className = Identifier(TypeConverters::NamespacedIdentifier2MangledMirVar(nid));
+
+	currentClassTypes.add(nid.getIdentifier().toString());
+    classTypes.emplace(className, memberInfo);
 	numCurrentlyParsedClasses++;
 }
 
 void DataManager::endClass()
 {
+	currentClassTypes.removeLast();
 	numCurrentlyParsedClasses--;
 }
 
@@ -551,7 +566,7 @@ snex::mir::TextOperand RegisterManager::getTextOperandForValueTree(const ValueTr
 
 	state->dump();
 
-	throw String("not found");
+	throw String(2);
 }
 
 snex::mir::RegisterType RegisterManager::getRegisterTypeForChild(int index)

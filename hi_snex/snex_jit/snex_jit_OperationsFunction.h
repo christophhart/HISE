@@ -83,6 +83,11 @@ struct Operations::Function : public Statement,
 		if (classData != nullptr && classData->function != nullptr)
 			t.setProperty("FuncPointer", reinterpret_cast<int64>(classData->function), nullptr);
 
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+		{
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+		}
+
 		if (statements != nullptr)
 			t.addChild(statements->toValueTree(), -1, nullptr);
 
@@ -215,15 +220,15 @@ struct Operations::FunctionCall : public Expression
         
         auto copy = function;
         
+#if 1
         for(int i = 0; i < copy.args.size(); i++)
         {
             auto originalType = copy.args[i].typeInfo;
-            auto argType =  getArgument(i)->getTypeInfo();
+            auto argType = getArgument(i)->getTypeInfo();
             copy.args.getReference(i).typeInfo = argType.withModifiers(originalType.isConst(), originalType.isRef());
             
         }
-            
-        
+#endif
         
 		t.setProperty("Signature", copy.getSignature({}, false), nullptr);
         
@@ -231,7 +236,16 @@ struct Operations::FunctionCall : public Expression
         {
             t.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toString(false), nullptr);
         }
+		else if (callType == StaticFunction)
+		{
+			t.setProperty("ObjectType", copy.id.getParent().toString(), nullptr);
+		}
         
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+		{
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+		}
+
 		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
 		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
 		return t;

@@ -80,7 +80,7 @@ struct MirFunctionCollection : public jit::FunctionCollectionBase
 
 	FunctionData getFunction(const NamespacedIdentifier& functionId) override;
 
-	virtual VariableStorage getVariable(const Identifier& id) override
+	virtual VariableStorage getVariable(const Identifier& id) const override
 	{
 		for (auto& a : dataIds)
 		{
@@ -99,9 +99,15 @@ struct MirFunctionCollection : public jit::FunctionCollectionBase
 		return VariableStorage();
 	}
 
-	void* getVariablePtr(const Identifier& id) override
+	void* getVariablePtr(const Identifier& id) const override
 	{
 		return dataItems[id.toString()];
+	}
+
+	size_t getMainObjectSize() const override
+	{
+		jassertfalse;
+		return 0;
 	}
 
 	juce::String dumpTable() override
@@ -434,6 +440,8 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 
 						if (x->nres != 0)
 							fd.returnType = TypeInfo(MirHelpers::getTypeFromMirEnum(x->res_types[0]), false, false);
+						else
+							fd.returnType = Types::ID::Void;
 
 						for (int i = 0; i < x->nargs; i++)
 						{

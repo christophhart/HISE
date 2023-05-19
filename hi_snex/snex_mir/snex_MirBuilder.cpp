@@ -78,7 +78,7 @@ MirBuilder::MirBuilder(MIR_context* ctx_, const ValueTree& v_) :
 	REGISTER_TYPE(InlinedParameter);
 	REGISTER_TYPE(MemoryReference);
 	REGISTER_TYPE(InlinedReturnValue);
-	
+	REGISTER_TYPE(VectorOp);
     
 
     REGISTER_INLINER(dyn_referTo_ppii);

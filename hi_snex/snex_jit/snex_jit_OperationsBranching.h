@@ -207,6 +207,10 @@ struct Operations::ReturnStatement : public Expression,
 	{
 		auto t = Expression::toValueTree();
 		t.setProperty("Type", getTypeInfo().toString(), nullptr);
+
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+
 		return t;
 	}
 

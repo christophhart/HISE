@@ -392,8 +392,17 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 
 snex::jit::Operations::Statement::Ptr SyntaxTree::clone(ParserHelpers::CodeLocation l) const
 {
-	Statement::Ptr c = new Operations::StatementBlock(l, getPath());
-	dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
+	Statement::Ptr c;
+
+	if (dynamic_cast<Operations::ClassStatement*>(parent.get()) != nullptr)
+	{
+		c = new SyntaxTree(l, getPath());
+	}
+	else
+	{
+		c = new Operations::StatementBlock(l, getPath());
+		dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
+	}
 
 	cloneChildren(c);
 	return c;

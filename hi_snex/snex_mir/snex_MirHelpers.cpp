@@ -197,6 +197,17 @@ void snex::mir::SimpleTypeParser::parse()
 	else
 		skipTemplate();
 
+	while (matchIf(JitTokens::double_colon))
+	{
+		typeId << JitTokens::double_colon;
+		typeId << parseIdentifier();
+
+		if (includeTemplate)
+			typeId << skipTemplate();
+		else
+			skipTemplate();
+	}
+
 	isRef = matchIf("&");
 
 	skipWhiteSpace();
@@ -269,7 +280,10 @@ snex::mir::FunctionData snex::mir::TypeConverters::String2FunctionData(String s)
 
 String snex::mir::TypeConverters::NamespacedIdentifier2MangledMirVar(const NamespacedIdentifier& id)
 {
-	auto n = id.toString().removeCharacters("&");
+	auto n = id.toString().removeCharacters("& ");
+
+	n = n.replaceCharacters("<>,", "___");
+	
 
 	if (n.containsChar('='))
 		n = n.replace("=", "_assign");
@@ -306,10 +320,32 @@ MIR_var snex::mir::TypeConverters::SymbolToMirVar(const jit::Symbol& s)
 	return t;
 }
 
-String snex::mir::TypeConverters::FunctionData2MirTextLabel(const FunctionData& f)
+String snex::mir::TypeConverters::FunctionData2MirTextLabel(const NamespacedIdentifier& objectType, const FunctionData& f)
 {
-	auto label = NamespacedIdentifier2MangledMirVar(NamespacedIdentifier::fromString(f.id.toString()));
+	String label;
 
+	if (objectType.isValid() && objectType.toString().containsAnyOf("<>"))
+	{
+		label << NamespacedIdentifier2MangledMirVar(objectType);
+
+		auto fid = NamespacedIdentifier::fromString(f.id.toString());
+
+		for (int i = 0; i < fid.namespaces.size(); i++)
+		{
+			if (label.contains(fid.namespaces[i].toString()))
+				fid.namespaces.remove(i--);
+		}
+		
+
+		label << NamespacedIdentifier2MangledMirVar(fid);
+	}
+	else
+	{
+		label << NamespacedIdentifier2MangledMirVar(NamespacedIdentifier::fromString(f.id.toString()));
+	}
+	
+	
+	
 	label << "_";
 	label << Types::Helpers::getCppTypeName(f.returnType.getType())[0];
 
@@ -423,4 +459,47 @@ String snex::mir::TypeConverters::MirTypeAndToken2InstructionText(MIR_type_t typ
 String snex::mir::TypeConverters::TemplateString2MangledLabel(const String& templateArgs)
 {
 	return templateArgs.removeCharacters(" <>,");
+}
+
+String snex::mir::TypeConverters::StringOperand2ReturnBlock(const String& op, int returnBlockSize)
+{
+	return "rblk:" + String(returnBlockSize) + "(" + op + ")";
+}
+
+String snex::mir::TypeConverters::TypeAndReturnBlockToReturnType(const TypeInfo& rt, int returnBlockSize/*=-1*/)
+{
+	if (returnBlockSize != -1)
+		return StringOperand2ReturnBlock("return_block", returnBlockSize);
+	else if (rt.isValid())
+		return TypeInfo2MirTextType(rt, true);
+	else
+		return {};
+}
+
+String snex::mir::TypeConverters::VectorOp2Signature(const ValueTree& v)
+{
+	const String vf = "pointer& Math::{FUNCTION}(pointer& Param0, pointer& Param1)";
+	const String sf = "pointer& Math::{FUNCTION}(pointer& Param0, float Param1)";
+
+	auto isScalar = (bool)v[InstructionPropertyIds::Scalar];
+
+	auto prototypeToUse = isScalar ? sf : vf;
+
+	auto opType = v[InstructionPropertyIds::OpType].toString()[0];
+
+	String op = "v";
+
+	switch (opType)
+	{
+	case '*': op << "mul"; break;
+	case '+': op << "add"; break;
+	case '-': op << "sub"; break;
+	case '/': op << "div"; break;
+	case '=': op << "mov"; break;
+	}
+
+	if (isScalar)
+		op << "s";
+
+	return prototypeToUse.replace("{FUNCTION}", op);
 }

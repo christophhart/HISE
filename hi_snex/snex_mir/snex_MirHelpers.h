@@ -37,6 +37,44 @@ namespace mir {
 
 using namespace juce;
 
+namespace InstructionPropertyIds
+{
+	DEFINE_ID(AssignmentType);
+	DEFINE_ID(CallType);
+	DEFINE_ID(command);
+	DEFINE_ID(ElementSize);
+	DEFINE_ID(ElementType);
+	DEFINE_ID(First);
+	DEFINE_ID(Ids);
+	DEFINE_ID(ID);
+	DEFINE_ID(InitValues);
+	DEFINE_ID(InitValuesB64);
+	DEFINE_ID(IsDec);
+	DEFINE_ID(IsPre);
+	DEFINE_ID(Iterator);
+	DEFINE_ID(LoopType);
+	DEFINE_ID(MemberInfo);
+	DEFINE_ID(Method);
+	DEFINE_ID(NumElements);
+	DEFINE_ID(NumBytes);
+	DEFINE_ID(ObjectType);
+	DEFINE_ID(Offset);
+	DEFINE_ID(Operand);
+	DEFINE_ID(OpType);
+	DEFINE_ID(ParentType);
+	DEFINE_ID(ParameterName);
+	DEFINE_ID(ReturnBlockSize);
+	DEFINE_ID(ReturnType);
+	DEFINE_ID(Scalar);
+	DEFINE_ID(ScopeId);
+	DEFINE_ID(Signature);
+	DEFINE_ID(Source);
+	DEFINE_ID(Symbol);
+	DEFINE_ID(Target);
+	DEFINE_ID(TargetType);
+	DEFINE_ID(Type);
+	DEFINE_ID(Value);
+}
 
 struct SimpleTypeParser
 {
@@ -80,12 +118,17 @@ struct TypeConverters
 	static String NamespacedIdentifier2MangledMirVar(const NamespacedIdentifier& id);
 	static jit::Symbol String2Symbol(const String& symbolCode);
 	static MIR_var SymbolToMirVar(const jit::Symbol& s);
-	static String FunctionData2MirTextLabel(const FunctionData& f);
+	static String FunctionData2MirTextLabel(const NamespacedIdentifier& objectType, const FunctionData& f);
 	static String MirType2MirTextType(const MIR_type_t& t);
 	static String Symbol2MirTextSymbol(const jit::Symbol& s);
 	static String TypeInfo2MirTextType(const TypeInfo& t, bool refToPtr=false);
 	static String MirTypeAndToken2InstructionText(MIR_type_t type, const String& token);
 	static String TemplateString2MangledLabel(const String& templateArgs);
+
+	static String StringOperand2ReturnBlock(const String& op, int returnBlockSize);
+	static String TypeAndReturnBlockToReturnType(const TypeInfo& rt, int returnBlockSize=-1);
+
+	static String VectorOp2Signature(const ValueTree& v);
 
 	template <typename T> static constexpr MIR_type_t getMirTypeFromT()
 	{

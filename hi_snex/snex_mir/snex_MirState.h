@@ -295,13 +295,13 @@ private:
 
 struct FunctionManager
 {
-	void addPrototype(State* state, const FunctionData& f, bool addObjectPointer);
+	void addPrototype(State* state, const NamespacedIdentifier& objectType, const FunctionData& f, bool addObjectPointer, int returnBlockSize=-1);
 
-	bool hasPrototype(const FunctionData& sig) const;
+	bool hasPrototype(const NamespacedIdentifier& objectType, const FunctionData& sig) const;
 
-	String getPrototype(const String& fullSignature) const;
+	String getPrototype(const NamespacedIdentifier& objectType, const String& fullSignature) const;
 
-	String getIdForComplexTypeOverload(const String& fullSignature) const
+	String getIdForComplexTypeOverload(const NamespacedIdentifier& objectType, const String& fullSignature) const
 	{
 		for (const auto& f : specialOverloads)
 		{
@@ -310,10 +310,10 @@ struct FunctionManager
 		}
 
 		auto sig = TypeConverters::String2FunctionData(fullSignature);
-		return TypeConverters::FunctionData2MirTextLabel(sig);
+		return TypeConverters::FunctionData2MirTextLabel(objectType, sig);
 	}
 
-	String registerComplexTypeOverload(State* state, const String& fullSignature, bool addObjectPtr);
+	String registerComplexTypeOverload(State* state, const NamespacedIdentifier& objectType, const String& fullSignature, bool addObjectPtr);
 
     void addLocalVarDefinition(const String& lv)
     {
@@ -337,8 +337,9 @@ private:
     
 	struct ComplexTypeOverload
 	{
-		ComplexTypeOverload(const String& fullSignature_);;
+		ComplexTypeOverload(const NamespacedIdentifier& objectType_, const String& fullSignature_);;
 
+		NamespacedIdentifier objectType;
 		String fullSignature;
 		String mangledId;
 		String prototype;
@@ -346,14 +347,14 @@ private:
 
 	Array<ComplexTypeOverload> specialOverloads;
 
-	Array<FunctionData> prototypes;
+	Array<std::tuple<NamespacedIdentifier, FunctionData>> prototypes;
 };
 
 struct DataManager
 {
 	void setDataLayout(const Array<ValueTree>& dl);
 
-	void startClass(const Identifier& id, Array<MemberInfo>&& memberInfo);
+	void startClass(const NamespacedIdentifier& nid,Array<MemberInfo>&& memberInfo);
 
 	void endClass();
 
@@ -397,7 +398,19 @@ struct DataManager
 
 	bool isParsingClass() const { return numCurrentlyParsedClasses > 0; }
 
+	NamespacedIdentifier getCurrentClassType() const
+	{
+		auto id = NamespacedIdentifier::fromString(currentClassTypes.getFirst());
+
+		for (int i = 1; i < currentClassTypes.size(); i++)
+			id = id.getChildId(currentClassTypes[i]);
+		
+		return id;
+	}
+
 private:
+
+	Array<String> currentClassTypes;
 
     std::map<String, String> globalObjects; // ID => type
     
@@ -505,17 +518,17 @@ struct MirCodeGenerator
 	String newLabel();
 	void jmp(const String& op);
 
-	template <typename ReturnType> String call(const String& functionId, const StringArray& args)
+	template <typename ReturnType> String call(const NamespacedIdentifier& objectType, const String& functionId, const StringArray& args)
 	{
 		TextLine s1(&state, "call");
 
 		auto fd = TypeConverters::String2FunctionData(functionId);
 
-		auto prototype = state.functionManager.getPrototype(functionId);
+		auto prototype = state.functionManager.getPrototype(objectType, functionId);
 
 		s1.addRawOperand(prototype);
 
-		s1.addRawOperand(TypeConverters::FunctionData2MirTextLabel(fd));
+		s1.addRawOperand(TypeConverters::FunctionData2MirTextLabel(objectType, fd));
 
 		s1.addSelfOperand<ReturnType>();
 
