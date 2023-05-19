@@ -1809,7 +1809,7 @@ void GlobalRoutingManager::Signal::clearSignal()
 		if (sourceSpecs)
 		{
 			block b(buffer.begin(), sourceSpecs.blockSize * sourceSpecs.numChannels);
-			hmath::vset(b, 0.0f);
+			hmath::vmovs(b, 0.0f);
 		}
 	}
 }
