@@ -185,9 +185,7 @@ template <typename T> ID getTypeFromTypeId()
 		return ID::Integer;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
-	if (std::is_same<std::remove_reference<T>::type, block>())
-		return ID::Block;
-
+	
 	return ID::Void;
 }
 

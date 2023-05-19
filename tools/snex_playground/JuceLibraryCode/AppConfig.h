@@ -18,9 +18,6 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
-#define SNEX_STANDALONE_PLAYGROUND 1
-#define HISE_INCLUDE_SNEX 1
-
 // [END_USER_CODE_SECTION]
 
 /*
@@ -124,7 +121,11 @@
 #endif
 
 #ifndef    HISE_INCLUDE_SNEX
- //#define HISE_INCLUDE_SNEX 0
+ #define   HISE_INCLUDE_SNEX 1
+#endif
+
+#ifndef    SNEX_STANDALONE_PLAYGROUND
+ #define   SNEX_STANDALONE_PLAYGROUND 1
 #endif
 
 #ifndef    SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP
