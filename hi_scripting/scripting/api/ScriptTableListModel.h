@@ -265,6 +265,8 @@ private:
 	Point<int> hoverPos;
 	Point<int> lastClickedCell;
 
+    bool processSpaceKey = false;
+    
 	var tableMetadata;
 	var columnMetadata;
 	var rowData;

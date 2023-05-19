@@ -39,6 +39,8 @@ ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, con
 	sortCallback(p, nullptr, var(), 2),
 	pwsc(p)
 {
+    processSpaceKey = tableMetadata.getProperty("ProcessSpaceKey", false);
+    
 	tableRefreshBroadcaster.enableLockFreeUpdate(p->getMainController_()->getGlobalUIUpdater());
 
 	eventTypesForCallback.add(EventType::SingleClick);
@@ -733,8 +735,13 @@ bool ScriptTableListModel::TableRepainter::keyPressed(const KeyPress& key, Compo
 	}
 	if (key == KeyPress::spaceKey)
 	{
-		parent.sendCallback(parent.lastClickedCell.x, parent.lastClickedCell.y, parent.rowData[parent.lastClickedCell.y], EventType::SpaceKey);
-		return true;
+        if(parent.processSpaceKey)
+        {
+            parent.sendCallback(parent.lastClickedCell.x, parent.lastClickedCell.y, parent.rowData[parent.lastClickedCell.y], EventType::SpaceKey);
+            
+            return true;
+        }
+		
 	}
 
 	return false;
