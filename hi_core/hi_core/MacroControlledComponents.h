@@ -822,6 +822,8 @@ public:
 		}
 	}
 
+    bool enableShiftTextInput = true;
+    
 private:
 
 	ScopedPointer<TextEditor> inputLabel;

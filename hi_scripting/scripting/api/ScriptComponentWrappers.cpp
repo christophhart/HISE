@@ -589,10 +589,12 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingA
 		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 	}
 
+    auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
+    
+    s->enableShiftTextInput = showTextBox;
+    
 	if (sc->styleId == Slider::LinearBar || sc->styleId == Slider::LinearBarVertical)
 	{
-		auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
-
 		if (!showTextBox)
 			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 
@@ -615,7 +617,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 	s->setName(GET_SCRIPT_PROPERTY(text));
 	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
-	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+    ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
 
 	updateSensitivity(sc, s);
 

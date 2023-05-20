@@ -543,28 +543,30 @@ void HiSlider::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown() && !e.mods.isCtrlDown())
 	{
-		if (e.mods.isShiftDown() && getWidth() > 25)
+		if (e.mods.isShiftDown())
 		{
-			addAndMakeVisible(inputLabel = new TextEditor());
-			
-			inputLabel->centreWithSize(getWidth(), 20);
-			inputLabel->addListener(this);
-			
-			inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));
-			inputLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
-			inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
-			inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white.withAlpha(0.5f));
-			inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
-			inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+            if(getWidth() > 25 && enableShiftTextInput)
+            {
+                addAndMakeVisible(inputLabel = new TextEditor());
+                
+                inputLabel->centreWithSize(getWidth(), 20);
+                inputLabel->addListener(this);
+                
+                inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));
+                inputLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+                inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+                inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white.withAlpha(0.5f));
+                inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+                inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 
-			inputLabel->setFont(GLOBAL_BOLD_FONT());
-			inputLabel->setBorder(BorderSize<int>());
-			inputLabel->setJustification(Justification::centred);
-			
-			inputLabel->setText(getTextFromValue(getValue()), dontSendNotification);
-			inputLabel->selectAll();
-			inputLabel->grabKeyboardFocus();
-
+                inputLabel->setFont(GLOBAL_BOLD_FONT());
+                inputLabel->setBorder(BorderSize<int>());
+                inputLabel->setJustification(Justification::centred);
+                
+                inputLabel->setText(getTextFromValue(getValue()), dontSendNotification);
+                inputLabel->selectAll();
+                inputLabel->grabKeyboardFocus();
+            }
 		}
 		else
 		{
