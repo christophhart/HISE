@@ -40,6 +40,8 @@ using namespace juce;
 namespace InstructionPropertyIds
 {
 	DEFINE_ID(AssignmentType);
+	DEFINE_ID(BaseOffset);
+	DEFINE_ID(BaseObjectType);
 	DEFINE_ID(CallType);
 	DEFINE_ID(command);
 	DEFINE_ID(ElementSize);

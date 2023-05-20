@@ -1170,7 +1170,7 @@ snex::jit::FunctionClass* StructType::getFunctionClass()
 		for (const auto& f : b->baseClass->memberFunctions)
 		{
 			auto copy = new FunctionData(f);
-			copy->id = id.getChildId(f.id.getIdentifier());
+			//copy->id = id.getChildId(f.id.getIdentifier());
 			mf->addFunction(copy);
 		}
 	}
@@ -2168,6 +2168,24 @@ void StructType::addWrappedMemberMethod(const Identifier& memberId, FunctionData
 	memberFunctions.add(wrapperFunction);
 }
 
+TemplateParameter::List StructType::getTemplateInstanceParametersForFunction(NamespacedIdentifier& functionId)
+{
+	int unused;
+	ComplexType::Ptr c;
+	Array<FunctionData> u;
+
+	findMatchesFromBaseClasses(u, functionId, unused, c);
+
+	if(auto st = dynamic_cast<StructType*>(c.get()))
+	{
+		functionId.relocateSelf(id, st->id);
+
+		return st->getTemplateInstanceParameters();
+	}
+
+	return getTemplateInstanceParameters();
+}
+
 int StructType::getBaseClassIndexForMethod(const FunctionData& f) const
 {
 	for (auto b : baseClasses)
@@ -2194,6 +2212,30 @@ juce::Array<snex::jit::FunctionData> StructType::getBaseSpecialFunctions(Functio
 	}
 
 	return matches;
+}
+
+void StructType::findMatchesFromBaseClasses(Array<FunctionData>& possibleMatches,
+	const NamespacedIdentifier& idWithDerivedParent, int& baseOffset, ComplexType::Ptr& baseClass)
+{
+	for(auto b: baseClasses)
+	{
+		FunctionClass::Ptr fc = b->baseClass->getFunctionClass();
+
+		NamespacedIdentifier s;
+		s = idWithDerivedParent.relocate(idWithDerivedParent.getParent(), b->baseClass->id);
+
+		fc->addMatchingFunctions(possibleMatches, s);
+
+		if(!possibleMatches.isEmpty())
+		{
+			baseClass = b->baseClass.get();
+
+			if(!memberData.isEmpty())
+				baseOffset = getMemberOffset(b->memberOffset);
+
+			return;
+		}
+	}
 }
 
 Result StructType::redirectAllOverloadedMembers(const Identifier& id, TypeInfo::List mainArgs)

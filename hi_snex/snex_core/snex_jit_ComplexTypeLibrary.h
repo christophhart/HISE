@@ -513,6 +513,8 @@ struct StructType : public ComplexType,
 		memberFunctions.add(f);
 	}
 
+	TemplateParameter::List getTemplateInstanceParametersForFunction(NamespacedIdentifier& id);
+
 	TemplateParameter::List getTemplateInstanceParameters() const 
 	{
 		return templateParameters;
@@ -523,6 +525,8 @@ struct StructType : public ComplexType,
 
 	/** Returns a list of special functions for all base classes. */
 	Array<FunctionData> getBaseSpecialFunctions(FunctionClass::SpecialSymbols s, TypeInfo returnType = {}, const Array<TypeInfo>& args = {});
+
+	void findMatchesFromBaseClasses(Array<FunctionData>& possibleMatches, const NamespacedIdentifier& idWithDerivedParent, int& baseOffset, ComplexType::Ptr& baseClass);
 
 	NamespacedIdentifier id;
 

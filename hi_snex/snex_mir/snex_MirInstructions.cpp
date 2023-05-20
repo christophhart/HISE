@@ -1170,13 +1170,15 @@ struct InstructionParsers
 		auto& state = *state_;
 		auto& rm = state.registerManager;
 		state.processAllChildren();
-
+		
 		auto fullSig = state[InstructionPropertyIds::Signature];
 
-		state.dump();
-		jassertfalse;
+		auto isBaseMethod = state.currentTree.hasProperty(InstructionPropertyIds::BaseObjectType);
 
-		auto objectType = NamespacedIdentifier::fromString(state.currentTree.getProperty(InstructionPropertyIds::ObjectType, "").toString());
+		auto objectProperty = isBaseMethod ? InstructionPropertyIds::BaseObjectType :
+										     InstructionPropertyIds::ObjectType;
+
+		auto objectType = NamespacedIdentifier::fromString(state.currentTree.getProperty(objectProperty, "").toString());
 		
 		auto sig =  TypeConverters::String2FunctionData(fullSig);
 		auto fid = state.functionManager.getIdForComplexTypeOverload(objectType, fullSig);
@@ -1221,10 +1223,31 @@ struct InstructionParsers
 
 			int argOffset = 0;
 
-			if (state[InstructionPropertyIds::CallType] == "MemberFunction")
+			auto callType = state[InstructionPropertyIds::CallType];
+
+			if (callType.contains("MemberFunction"))
 			{
 				auto a = state.registerManager.loadIntoRegister(0, RegisterType::Pointer);
-				l.operands.add(a);
+
+				if(state[InstructionPropertyIds::CallType] == ("BaseMemberFunction"))
+				{
+					MirCodeGenerator cc(state_);
+
+					auto p = cc.newReg<void*>(a);
+
+					auto offset = state[InstructionPropertyIds::BaseOffset].getIntValue();
+
+					cc.setInlineComment("Adjust base class pointer");
+					cc.add(p, a, offset);
+
+					l.operands.add(p);
+				}
+				else
+				{
+					l.operands.add(a);
+				}
+
+				
 				argOffset = 1;
 			}
 

@@ -498,7 +498,7 @@ TemplateInstance BlockParser::getTemplateInstanceFromParent(ExprPtr p, Namespace
 
 			if (auto st = parentType.getTypedIfComplexType<StructType>())
 			{
-				parentInstanceParameters = st->getTemplateInstanceParameters();
+				parentInstanceParameters = st->getTemplateInstanceParametersForFunction(id);
 			}
 		}
 	}

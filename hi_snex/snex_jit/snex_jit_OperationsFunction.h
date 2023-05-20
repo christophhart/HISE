@@ -167,6 +167,7 @@ struct Operations::FunctionCall : public Expression
 		GlobalFunction,
 		ApiFunction,
 		NativeTypeCall, // either block or event
+		BaseMemberFunction,
 		numCallTypes
 	};
 
@@ -246,8 +247,15 @@ struct Operations::FunctionCall : public Expression
 			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
 		}
 
-		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
+		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "StaticFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall", "BaseMemberFunction" };
 		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
+
+		if(callType == CallType::BaseMemberFunction)
+			t.setProperty("BaseOffset", baseOffset, nullptr);
+
+		if(baseClass != nullptr)
+			t.setProperty("BaseObjectType", baseClass->toString(), nullptr);
+
 		return t;
 	}
 
@@ -289,6 +297,7 @@ struct Operations::FunctionCall : public Expression
 
 	TypeInfo getTypeInfo() const override;
 
+	void resolveBaseClassMethods();
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	bool isVectorOpFunction() const;
@@ -322,6 +331,8 @@ private:
 	bool preferFunctionPointer = false;
 
 	bool allowInlining = true;
+	int baseOffset = 0;
+	ComplexType::Ptr baseClass;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionCall);
 

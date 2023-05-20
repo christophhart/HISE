@@ -4,9 +4,9 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 50
+  output: 53
   error: ""
-  filename: "inheritance/inheritance_6"
+  filename: "inheritance/inheritance_8"
 END_TEST_DATA
 */
 
@@ -18,11 +18,16 @@ struct dc
 	{
 		value = (int)v;
 	}
+
+	template <int P> void processFrame(span<float, P>& d)
+	{
+		d[0] = (float)value;
+	}
 	
 	int value = 0;
 };
 
-struct Derived: public wrap::fix<1, dc>
+struct Derived: public dc
 {
 	int d = 1;
 };
@@ -31,8 +36,12 @@ Derived obj;
 
 int main(int input)
 {
-	obj.getObject().setParameter<0>(50.0);
+	span<float, 1> data;
 
-	return obj.getObject().value;
+	obj.setParameter<0>(53.0);
+
+	obj.processFrame(data);
+
+	return (int)data[0];
 }
 

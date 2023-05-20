@@ -113,6 +113,11 @@ public:
 	FunctionData getConstructor(InitialiserList::Ptr initList);
 	static bool isConstructor(const NamespacedIdentifier& id);
 
+	static bool isDestructor(const NamespacedIdentifier& id)
+	{
+		return id.getIdentifier().toString()[0] == '~';
+	}
+
 	FunctionData getSpecialFunction(SpecialSymbols s, TypeInfo returnType = {}, const TypeInfo::List& args = {}) const;
 	FunctionData getNonOverloadedFunctionRaw(NamespacedIdentifier id) const;
 	FunctionData getNonOverloadedFunction(NamespacedIdentifier id) const;

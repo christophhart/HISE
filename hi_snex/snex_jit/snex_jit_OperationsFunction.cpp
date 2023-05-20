@@ -117,9 +117,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 									for (auto& m : baseSpecialFunctions)
 									{
 										// We need to change the parent ID to the derived class
-										auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
+										//auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
 
-										auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+										//auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+
+										auto fc = new FunctionCall(location, nullptr, {m.id, m.returnType}, {});
 										fc->setObjectExpression(new ThisPointer(location, TypeInfo(st, false, true)));
 
 										l.add(fc);
@@ -631,6 +633,26 @@ void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f
 	location.test(ok);
 }
 
+void FunctionCall::resolveBaseClassMethods()
+{
+	if(possibleMatches.isEmpty())
+	{
+		if(auto st = getObjectExpression()->getTypeInfo().getTypedIfComplexType<StructType>())
+		{
+			st->findMatchesFromBaseClasses(possibleMatches, function.id, baseOffset, baseClass);
+
+			if(fc->isConstructor(function.id))
+				possibleMatches = st->getBaseSpecialFunctions(FunctionClass::SpecialSymbols::Constructor);
+
+			if(fc->isDestructor(function.id))
+				possibleMatches = st->getBaseSpecialFunctions(FunctionClass::SpecialSymbols::Destructor);
+
+			if(!possibleMatches.isEmpty())
+				callType = BaseMemberFunction;
+		}
+	}
+}
+
 void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithChildren(compiler, scope);
@@ -665,6 +687,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						TypeInfo thisType(cs->typePtr.get());
 
 						setObjectExpression(new ThisPointer(location, thisType));
+
+						resolveBaseClassMethods();
 
 						return;
 					}
@@ -746,6 +770,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				fc->addMatchingFunctions(possibleMatches, function.id);
 				callType = MemberFunction;
+
+				resolveBaseClassMethods();
 
 				return;
 			}
@@ -880,7 +906,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			for (auto& a : f.args)
 				a.typeInfo = compiler->convertToNativeTypeIfPossible(a.typeInfo);
 
-			jassert(function.id == f.id);
+			jassert(function.id.getIdentifier() == f.id.getIdentifier());
 
 			if (f.matchesArgumentTypes(parameterTypes) && f.matchesTemplateArguments(function.templateParameters))
 			{
