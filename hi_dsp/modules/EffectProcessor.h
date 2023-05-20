@@ -368,7 +368,7 @@ public:
 			{
 				masterState.reset();
 
-				jassert(stereoBuffer.getNumChannels() == killBuffer->getNumChannels());
+				jassert(stereoBuffer.getNumChannels() <= killBuffer->getNumChannels());
 				jassert(stereoBuffer.getNumSamples() <= killBuffer->getNumSamples());
 
 				int numSamples = stereoBuffer.getNumSamples();

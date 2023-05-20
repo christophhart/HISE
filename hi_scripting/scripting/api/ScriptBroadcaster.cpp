@@ -4095,6 +4095,10 @@ void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const String& message, boo
 {
 	if (throwError)
 		reportScriptError(message);
+    else
+    {
+        debugError(dynamic_cast<Processor*>(getScriptProcessor()), message);
+    }
 
 	if (i != nullptr)
 		errorBroadcaster.sendMessage(sendNotificationAsync, i, message);

@@ -31,6 +31,8 @@
 */
 
 
+#include "hi_tools/hi_standalone_components/CodeEditorApiBase.h"
+
 namespace snex {
 using namespace juce;
 
@@ -742,7 +744,20 @@ Result ui::WorkbenchData::TestData::processTestData(WorkbenchData::Ptr data)
 
 int ui::WorkbenchData::CompileResult::getNumDebugObjects() const
 {
+#if SNEX_MIR_BACKEND && SNEX_STANDALONE_PLAYGROUND
 	return obj.getNumVariables();
+#else
+	if (dataPtr == nullptr)
+		return 0;
+
+	if (auto st = dynamic_cast<StructType*>(mainClassPtr.get()))
+	{
+		return st->getNumMembers();
+	}
+
+	return 0;
+#endif
+	
 }
 
 struct ValueTreeDebugInfo: public hise::DebugInformationBase
@@ -823,7 +838,7 @@ struct ValueTreeDebugInfo: public hise::DebugInformationBase
 
 hise::DebugInformationBase::Ptr ui::WorkbenchData::CompileResult::getDebugInformation(int index)
 {
-#if 0//SNEX_MIR_BACKEND
+#if SNEX_MIR_BACKEND && SNEX_STANDALONE_PLAYGROUND
 	auto c = obj.getDataLayout(index); 
     return new ValueTreeDebugInfo(c);
 #else
