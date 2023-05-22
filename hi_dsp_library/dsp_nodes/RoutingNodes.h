@@ -236,7 +236,7 @@ template <int C> struct block: public block_base<C>
 	void reset()
 	{
 		for (auto& d : this->channels)
-			hmath::vmov(d, 0.0f);
+			hmath::vmovs(d, 0.0f);
 	}
 
 	void processFrame(FrameType& unused)
