@@ -109,7 +109,7 @@ public:
 
 	static File getSettingDirectory();
 
-	static void restoreGlobalSettings(MainController* mc);
+	static void restoreGlobalSettings(MainController* mc, bool checkReferences=true);
 
 	void initData(MainController* mc)
 	{
