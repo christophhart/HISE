@@ -201,7 +201,7 @@ namespace snex
             static StringArray getDefaultIds()
             {
 #if SNEX_MIR_BACKEND
-				return {  };
+                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
 #else
                 return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 #endif
