@@ -71,9 +71,9 @@ struct AudioTimelineObject : public TimelineObjectBase
 		auto fis = new FileInputStream(f);
 		ScopedPointer<AudioFormatReader> reader = form.createReaderFor(fis, true);
 
-		content.setSize(2, reader->lengthInSamples);
+		content.setSize(2, (int)reader->lengthInSamples);
 
-		reader->read(&content, 0, reader->lengthInSamples, 0, true, true);
+		reader->read(&content, 0, (int)reader->lengthInSamples, 0, true, true);
 
 		if (sampleRate != reader->sampleRate)
 		{
@@ -217,11 +217,6 @@ struct MidiTimelineObject : public TimelineObjectBase,
 	void initialise(double ) override
 	{
 		FileInputStream fis(f);
-		
-
-		auto ok = content.readFrom(fis);
-
-		
 	}
 
 	Colour getColour() const override

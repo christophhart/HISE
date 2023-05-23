@@ -987,7 +987,6 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 		auto qRange = NormalisableRange<double>(0.3, 9.0);
 		qRange.setSkewForCentre(1.0);
 
-		auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
 		auto start = qRange.convertTo0to1(dragQStart);
 		auto newValue = jlimit(0.0, 1.0, start + deltaNormalised);
 

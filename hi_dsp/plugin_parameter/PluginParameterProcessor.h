@@ -133,7 +133,7 @@ auto busProp = BusesProperties();
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 #if HI_SUPPORT_MONO_TO_STEREO
 		if (outputs == 1) return false; // only mono to stereo support
-		if (outputs == 2) return inputs == 1 || inputs == 2;
+		return (outputs == 2) && (inputs == 1 || inputs == 2);
 #else
 		return (inputs == 1 && outputs == 1) ||
 			   (inputs == 2 && outputs == 2);
