@@ -951,7 +951,7 @@ void PoolBase::DataProvider::Compressor::write(OutputStream& output, const Image
 
 	if (isValidImage)
 	{
-		originalFileSize = originalFile.getSize();
+		originalFileSize = (int)originalFile.getSize();
 	}
 
 	MemoryOutputStream newlyCompressedImage;

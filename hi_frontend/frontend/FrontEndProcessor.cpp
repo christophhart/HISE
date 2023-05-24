@@ -253,7 +253,7 @@ updater(*this)
     HiseDeviceSimulator::init(wrapperType);
     
 	GlobalSettingManager::initData(this);
-
+	GlobalSettingManager::restoreGlobalSettings(this, false);
     
 #if HISE_ENABLE_LORIS_ON_FRONTEND
     auto f = FrontendHandler::getAppDataDirectory(this).getChildFile("loris_library");

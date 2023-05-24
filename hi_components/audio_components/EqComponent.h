@@ -207,7 +207,7 @@ public:
 
 	double getGain(int y);
 
-	void selectDragger(int index);
+	void selectDragger(int index, NotificationType n = sendNotificationSync);
 	void addListener(Listener* l);
 	void removeListener(Listener* l);
 

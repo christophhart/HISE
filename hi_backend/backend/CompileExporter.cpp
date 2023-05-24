@@ -1841,7 +1841,7 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 
 		for (auto c : children)
 		{
-			bool isCustomNodeIncludeFile = c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes" ||
+			bool isCustomNodeIncludeFile = (c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes") ||
                 c.getFileName() == "RNBO.cpp";
 
 			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, isCustomNodeIncludeFile))
@@ -2580,8 +2580,6 @@ void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(CompileE
 
 void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
 	pluginDataHeaderFile << "{" << "\n";
 	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(hise::HiseCoreDspFactory);" << "\n";

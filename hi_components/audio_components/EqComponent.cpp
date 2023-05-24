@@ -548,7 +548,7 @@ void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *)
 {
 	checkEnabledBands();
 	updateFilters();
-	updatePositions(false);
+	updatePositions(true);
 }
 
 void FilterDragOverlay::checkEnabledBands()
@@ -587,7 +587,7 @@ void FilterDragOverlay::addFilterDragger(int index)
 
 		dragComponents.add(dc);
 
-		selectDragger(dragComponents.size() - 1);
+		selectDragger(dragComponents.size() - 1, dontSendNotification);
 	}
 
 	updatePositions(true);
@@ -902,7 +902,7 @@ void FilterDragOverlay::mouseMove(const MouseEvent &e)
 	setTooltip(String(getGain(e.getPosition().y - offset), 1) + " dB / " + String((int)filterGraph.xToFreq((float)e.getPosition().x - offset)) + " Hz");
 };
 
-void FilterDragOverlay::selectDragger(int index)
+void FilterDragOverlay::selectDragger(int index, NotificationType n)
 {
 	selectedIndex = index;
 
@@ -919,7 +919,7 @@ void FilterDragOverlay::selectDragger(int index)
 				l->filterBandSelected(index);
 		}
 
-		eq->sendBroadcasterMessage("BandSelected", index);
+		eq->sendBroadcasterMessage("BandSelected", index, n);
 	}
 }
 
@@ -987,7 +987,6 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 		auto qRange = NormalisableRange<double>(0.3, 9.0);
 		qRange.setSkewForCentre(1.0);
 
-		auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
 		auto start = qRange.convertTo0to1(dragQStart);
 		auto newValue = jlimit(0.0, 1.0, start + deltaNormalised);
 

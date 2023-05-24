@@ -349,7 +349,7 @@ public:
 		auto numMax = getMatrix().getNumDestinationChannels();
 
 		auto ok = (leftChannel != -1 && rightChannel != -1) ||
-				   numAllowed != 2 && (leftChannel != -1 || rightChannel != -1);
+                  (numAllowed != 2 && (leftChannel != -1 || rightChannel != -1));
 
 		ok &= leftChannel < numMax &&
 			  rightChannel < numMax;
@@ -660,9 +660,6 @@ public:
 	virtual void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 	{
 		jassert(isOnAir());
-
-		const int startIndex = startSample;
-		const int samplesToCheck = numSamples;
 
 		preVoiceRendering(voiceIndex, startSample, numSamples);
 

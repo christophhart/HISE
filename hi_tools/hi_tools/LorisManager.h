@@ -225,7 +225,7 @@ struct LorisManager: public ReferenceCountedObject
             {
                 auto f2 = ad.file.getFullPathName();
                 auto file = f2.getCharPointer().getAddress();
-                auto ok = f(state, file, ad.rootFrequency);
+                f(state, file, ad.rootFrequency);
              
                 if(!checkError())
                     return;

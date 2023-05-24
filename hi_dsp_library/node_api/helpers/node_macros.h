@@ -52,7 +52,7 @@ class NodeBase;
 #define DEFINE_PARAMETERDATA(ClassName, ParameterName) scriptnode::parameter::data p(#ParameterName); registerCallback<(int)Parameters::ParameterName>(p); 
 
 
-#define SN_REGISTER_CALLBACK(className) template <int P> void registerCallback(parameter::data& p) { p.template setParameterCallbackWithIndex<className, P>(this); }
+#define SN_REGISTER_CALLBACK(className) template <int P> void registerCallback(scriptnode::parameter::data& p) { p.template setParameterCallbackWithIndex<className, P>(this); }
 #define SN_PARAMETER_MEMBER_FUNCTION template <int P> void setParameter(double v) { setParameterStatic<P>(this, v); }
 
 /** Object Accessors
