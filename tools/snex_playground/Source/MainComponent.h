@@ -51,5 +51,7 @@ private:
 	ScopedPointer<snex::ui::TestDataComponent> testData;
 	OpenGLContext context;
 
+    ScopedPointer<Component> webViewWrapper;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
