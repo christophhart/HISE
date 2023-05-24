@@ -4,7 +4,7 @@ using namespace juce;
 
 #ifndef HISE_LORIS_LIBRARY_MAJOR_VERSION
 #define HISE_LORIS_LIBRARY_MAJOR_VERSION 0
-#define HISE_LORIS_LIBRARY_MINOR_VERSION 1
+#define HISE_LORIS_LIBRARY_MINOR_VERSION 2
 #define HISE_LORIS_LIBRARY_PATCH_VERSION 0
 #endif
 
@@ -73,10 +73,13 @@ struct LorisManager: public ReferenceCountedObject
     using LorisMessageFunction = bool(*)(void*, char*, int);
     using GetBufferSizeFunction = size_t(*)(void*, const char*);
     using SynthesiseFunction = bool(*)(void*, const char*, float*, int&, int&);
+    using CreateEnvelopeFunction = bool(*)(void*, const char*, const char*, int, float*, int&, int&);
     using LorisProcessFunction = bool(*)(void*, const char*, const char*, const char*);
+    using LorisGetFunction = double(*)(void*, const char*);
     using LorisSetFunction = bool(*)(void*, const char*, const char*);
     using LorisGetListFunction = void(*)(char*, int, bool);
     using LorisCustomFunction = void(*)(void*, const char*, void*, void*);
+    using LorisGetSnapshot = bool(*)(void*, const char*, double,const char*,double*,int&,int&);
     
     struct AnalyseData
     {
@@ -84,7 +87,7 @@ struct LorisManager: public ReferenceCountedObject
         double rootFrequency;
     };
     
-    void* getFunction(const String& name)
+    void* getFunction(const String& name) const
     {
         if(dll != nullptr)
         {
@@ -230,9 +233,22 @@ struct LorisManager: public ReferenceCountedObject
         }
     }
     
+    Array<var> createEnvelope(const File& audioFile, const Identifier& parameter, int index);
+    
+    
+    double get(String command) const
+    {
+        if(auto f = (LorisGetFunction)getFunction("loris_get"))
+        {
+            return f(state, command.getCharPointer().getAddress());
+        }
+        
+        return 0.0;
+    }
+    
     bool set(String command, String value)
     {
-        if(auto f = (LorisSetFunction)getFunction("loris_config"))
+        if(auto f = (LorisSetFunction)getFunction("loris_set"))
         {
             f(state, command.getCharPointer().getAddress(), value.getCharPointer().getAddress());
             
@@ -244,6 +260,12 @@ struct LorisManager: public ReferenceCountedObject
         
         return false;
     }
+    
+    Range<double> getEnvelopeRange(const Identifier& id) const;
+    
+    Path setEnvelope(const var& bf, const Identifier& id);
+    
+    
     
     static bool processCustomStatic(CustomPOD& data)
     {
@@ -338,6 +360,8 @@ struct LorisManager: public ReferenceCountedObject
         
         return lastError.wasOk();
     }
+    
+    var getSnapshot(const File& f, double time, const Identifier& parameter);
     
     void setLogFunction(const std::function<void(String)>& logFunction)
     {

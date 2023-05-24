@@ -46,7 +46,7 @@ public:
     
     // =================================================================
     
-    /** set a option for the loris algorithm. */
+    /** set a option for the Loris algorithm. */
     void set(String optionId, var newValue)
     {
         if(lorisManager != nullptr)
@@ -54,6 +54,9 @@ public:
         else
             reportScriptError("Loris is not available");
     }
+    
+    /** Returns the setting value for the Loris algorithm. */
+    var get(String optionId);
     
     /** Analyse a file. */
     bool analyse(var file, double estimatedRootFrequency);
@@ -66,6 +69,17 @@ public:
     
     /** Resynthesise the file from the partial lists. Returns an array of variant buffers. */
     var synthesise(var file);
+    
+    
+    
+    /** Creates an audio rate envelope from the given parameter and harmonic index. */
+    var createEnvelopes(var file, String parameter, int harmonicIndex);
+    
+    /** Creates a list of path of every channel from the envelope of the given parameter and harmonic index. */
+    var createEnvelopePaths(var file, String parameter, int harmonicIndex);
+    
+    /** Creates a parameter value list for each harmonic at the given time. */
+    var createSnapshot(var file, String parameter, double time);
     
     // =================================================================
     
