@@ -183,9 +183,11 @@ struct WebViewWrapper : public Component
 #if JUCE_WINDOWS
 	using NativeComponentType = juce::HWNDComponent;
 #define setWindowHandle setHWND
+#define resizeToFitCrossPlatform resizeToFit
 #elif JUCE_MAC
 	using NativeComponentType = juce::NSViewComponent;
 #define setWindowHandle setView
+#define resizeToFitCrossPlatform resizeToFitView
 #elif JUCE_LINUX
 	using NativeComponentType = juce::XViewComponent; // or whatever, Dave, your job...
 #endif

@@ -384,6 +384,17 @@ struct choc::ui::WebView::Pimpl
         objc::call<void> (webview, "evaluateJavaScript:completionHandler:", objc::getNSString (script), (id) nullptr);
     }
 
+    void resizeToFit(float scaleFactor)
+    {
+        juce::String s;
+        s << "document.body.style.zoom = " << juce::String(scaleFactor) << ";";
+        
+        evaluateJavascript(s.toStdString());
+        
+        
+        //objc::call<void>(webview, "setMagnification:", static_cast<CGFloat>(scaleFactor), p);
+    }
+    
 private:
     id createDelegate()
     {

@@ -419,7 +419,7 @@ void WebViewWrapper::refresh()
 
 void WebViewWrapper::refreshBounds(float newScaleFactor)
 {
-	content->resizeToFit();
+    content->resizeToFitCrossPlatform();
 
 	if (webView != nullptr)
 		webView->resizeToFit(newScaleFactor);

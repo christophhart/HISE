@@ -412,7 +412,9 @@ public:
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
 
+#if !USE_BACKEND
 	String getDefaultUserPreset() const override;
+#endif
 
 	/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 	*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
