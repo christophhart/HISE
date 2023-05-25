@@ -832,6 +832,27 @@ public:
         int lastIndex = -1;
 	};
 
+	class WebViewWrapper : public ScriptCreatedComponentWrapper,
+						   public GlobalSettingManager::ScaleFactorListener,
+						   public ZoomableViewport::ZoomListener
+	{
+	public:
+
+		WebViewWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptWebView *wv, int index);
+
+		~WebViewWrapper();
+
+		void updateComponent() override {}
+		
+		void scaleFactorChanged(float newScaleFactor) override;
+
+		void zoomChanged(float newScalingFactor) override { scaleFactorChanged(newScalingFactor); }
+
+		Component::SafePointer<ZoomableViewport> vp;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WebViewWrapper);
+	};
+
 	class FloatingTileWrapper : public ScriptCreatedComponentWrapper
 	{
 	public:

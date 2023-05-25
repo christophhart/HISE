@@ -12,6 +12,10 @@
 
 #define SHOW_VALUE_TREE_GEN 1
 
+
+
+
+
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
@@ -53,5 +57,7 @@ private:
 
     ScopedPointer<Component> webViewWrapper;
     
+
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

@@ -2728,6 +2728,31 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioDi
 	tn->repaint();
 }
 
+ScriptCreatedComponentWrappers::WebViewWrapper::WebViewWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptWebView *webview, int index) :
+	ScriptCreatedComponentWrapper(content, webview)
+{
+	auto wc = new hise::WebViewWrapper(webview->getData());
+	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->addScaleFactorListener(this);
+	component = wc;
+
+	if (vp = content->findParentComponentOfClass<ZoomableViewport>())
+		vp->addZoomListener(this);
+}
+
+ScriptCreatedComponentWrappers::WebViewWrapper::~WebViewWrapper()
+{
+	if(vp.getComponent() != nullptr)
+		vp->removeZoomListener(this);
+	
+
+	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->removeScaleFactorListener(this);
+	component = nullptr;
+}
+
+void ScriptCreatedComponentWrappers::WebViewWrapper::scaleFactorChanged(float newScaleFactor)
+{
+	dynamic_cast<hise::WebViewWrapper*>(component.get())->refreshBounds(newScaleFactor);
+}
 
 ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index):
 	ScriptCreatedComponentWrapper(content, index)

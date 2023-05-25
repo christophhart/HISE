@@ -76,6 +76,7 @@
 #include "gin_images/gin_imageutilities.cpp"
 #include "hi_tools/PostGraphicsRenderer.cpp"
 
+#include "hi_standalone_components/ChocWebView.cpp"
 #include "hi_standalone_components/CodeEditorApiBase.cpp"
 #include "hi_standalone_components/AdvancedCodeEditor.cpp"
 #include "hi_standalone_components/ScriptWatchTable.cpp"
