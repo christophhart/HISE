@@ -58,6 +58,7 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 	case ComponentType::Panel:				componentName = "Panel"; break;
 	case ComponentType::AudioWaveform:		componentName = "AudioWaveform"; break;
 	case ComponentType::SliderPack:			componentName = "SliderPack"; break;
+	case ComponentType::WebView:			componentName = "WebView"; break;
 	case ComponentType::FloatingTile:		componentName = "FloatingTile"; break;
 	case ComponentType::duplicateComponent:
 	{
@@ -111,6 +112,9 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 		break;
 	case hise::ScriptEditHandler::ComponentType::SliderPack:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y);
+		break;
+	case hise::ScriptEditHandler::ComponentType::WebView:
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptWebView>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::ComponentType::FloatingTile:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y);
@@ -575,6 +579,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			m.addItem((int)ScriptEditHandler::ComponentType::Panel, "Add new Panel");
 			m.addItem((int)ScriptEditHandler::ComponentType::AudioWaveform, "Add new AudioWaveform");
 			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::ComponentType::WebView, "Add new WebView");
 			m.addItem((int)ScriptEditHandler::ComponentType::FloatingTile, "Add new FloatingTile");
 
 			auto components = b->getSelection();

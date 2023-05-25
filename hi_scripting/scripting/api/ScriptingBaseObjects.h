@@ -414,6 +414,8 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	bool matches(const var& f) const;
 
+	void reportError(const Result& r);
+
 private:
 
 	var getThisObject();

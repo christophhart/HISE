@@ -112,6 +112,9 @@ public:
     /// Sends the browser to this URL
     void navigate (const std::string& url);
 
+	/// Resizes the browser to fit the bounds.
+	void resizeToFit(float scaleFactor);
+
     /// A callback function which can be passed to bind().
     using CallbackFn = std::function<choc::value::Value(const choc::value::ValueView& args)>;
     /// Binds a C++ function to a named javascript function that can be called
@@ -899,13 +902,18 @@ struct WebView::Pimpl
 
     void evaluateJavascript (const std::string& script)
     {
-        coreWebView->ExecuteScript (createUTF16StringFromUTF8 (script).c_str(), nullptr);
+		coreWebView->ExecuteScript(createUTF16StringFromUTF8(script).c_str(), nullptr);
     }
 
     void setHTML (const std::string& html)
     {
         coreWebView->NavigateToString (createUTF16StringFromUTF8 (html).c_str());
     }
+
+	void resizeToFit(float scaleFactor)
+	{
+		resizeContentToFit(scaleFactor);
+	}
 
 private:
     WindowClass windowClass { L"CHOCWebView", (WNDPROC) wndProc };
@@ -916,9 +924,9 @@ private:
 
     static LRESULT wndProc (HWND h, UINT msg, WPARAM wp, LPARAM lp)
     {
-        if (msg == WM_SIZE)
+		if (msg == WM_SIZE)
             if (auto w = getPimpl (h))
-                w->resizeContentToFit();
+                w->resizeContentToFit(w->scaleFactor);
 
         if (msg == WM_SHOWWINDOW)
             if (auto w = getPimpl (h); w->coreWebViewController != nullptr)
@@ -927,15 +935,20 @@ private:
         return DefWindowProcW (h, msg, wp, lp);
     }
 
-    void resizeContentToFit()
+    void resizeContentToFit(float newScaleFactor=1.0f)
     {
         if (coreWebViewController != nullptr)
         {
+			scaleFactor = newScaleFactor;
             RECT r;
             GetWindowRect (hwnd, &r);
             r.right -= r.left; r.bottom -= r.top;
             r.left = r.top = 0;
-            coreWebViewController->put_Bounds (r);
+			//coreWebViewController->put_DefaultBackgroundColor(0);
+
+			
+
+			coreWebViewController->SetBoundsAndZoomFactor(r, (double)scaleFactor);
         }
     }
 
@@ -1180,6 +1193,8 @@ private:
     ICoreWebView2Controller* coreWebViewController = nullptr;
     std::atomic_flag webviewInitialising = ATOMIC_FLAG_INIT;
 
+	float scaleFactor = 1.0f;
+
     //==============================================================================
     static std::wstring getUserDataFolder()
     {
@@ -1225,6 +1240,7 @@ inline WebView::~WebView()
     pimpl.reset();
 }
 
+inline void WebView::resizeToFit(float scaleFactor)					 { pimpl->resizeToFit(scaleFactor); }
 inline void WebView::navigate (const std::string& url)               { pimpl->navigate (url.empty() ? "about:blank" : url); }
 inline void WebView::setHTML (const std::string& html)               { pimpl->setHTML (html); }
 inline void WebView::addInitScript (const std::string& script)       { pimpl->addInitScript (script); }

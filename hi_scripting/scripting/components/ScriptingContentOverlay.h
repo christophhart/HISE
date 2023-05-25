@@ -71,6 +71,7 @@ public:
 		Panel,
 		AudioWaveform,
 		SliderPack,
+		WebView,
 		FloatingTile,
 		duplicateComponent,
 		numComponentTypes

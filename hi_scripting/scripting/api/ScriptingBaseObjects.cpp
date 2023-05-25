@@ -722,6 +722,12 @@ bool WeakCallbackHolder::matches(const var& f) const
 	return weakCallback == dynamic_cast<CallableObject*>(f.getObject());
 }
 
+void WeakCallbackHolder::reportError(const Result& r)
+{
+	if(!r.wasOk())
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+}
+
 juce::var WeakCallbackHolder::getThisObject()
 {
 	if (refCountedThisObject.isObject())
