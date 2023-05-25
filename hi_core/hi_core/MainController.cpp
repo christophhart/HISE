@@ -2158,10 +2158,10 @@ juce::var MainController::UserPresetHandler::DefaultPresetManager::getDefaultVal
 {
 	if (defaultPreset.isValid())
 	{
-		auto t = defaultPreset.getChildWithProperty("ID", componentId);
+		auto t = defaultPreset.getChild(0).getChildWithProperty("id", componentId);
 
 		if (t.isValid())
-			return t["Value"];
+			return t["value"];
 	}
 
 	return {};

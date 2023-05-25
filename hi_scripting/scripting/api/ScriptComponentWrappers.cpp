@@ -2955,6 +2955,14 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 
 float ScriptedControlAudioParameter::getDefaultValue() const
 {
+	float value = 0.0f;
+
+	if (dynamic_cast<MainController*>(parentProcessor)->getUserPresetHandler().getDefaultValueFromPreset(this->componentIndex, value))
+	{
+		const float v = range.convertTo0to1(value);
+		return  jlimit<float>(0.0f, 1.0f, v);;
+	}
+
 	if (scriptProcessor.get() != nullptr && type == Type::Slider)
 	{
 		const float v = range.convertTo0to1(scriptProcessor->getDefaultValue(componentIndex));

@@ -843,6 +843,8 @@ public:
 		void loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled=true);
 		void loadUserPreset(const File& f);
 
+		
+
 		struct DefaultPresetManager: public ControlledObject
 		{
 			DefaultPresetManager(UserPresetHandler& parent);
@@ -958,6 +960,17 @@ public:
 #endif
 
 		void initDefaultPresetManager(const ValueTree& defaultState);
+
+		bool getDefaultValueFromPreset(int componentIndex, float& value)
+		{
+			if (defaultPresetManager->getDefaultPreset().isValid())
+			{
+				value = defaultPresetManager->getDefaultValue(componentIndex);
+				return true;
+			}
+
+			return false;
+		}
 
 		ScopedPointer<DefaultPresetManager> defaultPresetManager;
 

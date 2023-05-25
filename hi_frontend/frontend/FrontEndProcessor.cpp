@@ -340,7 +340,7 @@ updater(*this)
 
 		auto defaultPreset = externalFiles->getChildWithName("DefaultPreset").getChild(0);
 
-		getUserPresetHandler()->initDefaultPresetManager(defaultPreset);
+		getUserPresetHandler().initDefaultPresetManager(defaultPreset);
 	}
     
 	numParameters = 0;
@@ -430,7 +430,7 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	synthChain->loadMacrosFromValueTree(synthData);
 
-	getUserPresetHandler().initDefaultPresetManager();
+	getUserPresetHandler().initDefaultPresetManager({});
 
 	LOG_START("Adding plugin parameters");
 
