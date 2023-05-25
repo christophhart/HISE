@@ -843,6 +843,28 @@ public:
 		void loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled=true);
 		void loadUserPreset(const File& f);
 
+		struct DefaultPresetManager: public ControlledObject
+		{
+			DefaultPresetManager(UserPresetHandler& parent);
+
+			void init(const ValueTree& v);
+
+			void resetToDefault();
+
+			var getDefaultValue(const String& componentId) const;
+			var getDefaultValue(int componentIndex) const;
+
+			ValueTree getDefaultPreset() { return defaultPreset; }
+
+		private:
+
+			File defaultFile;
+			WeakReference<Processor> interfaceProcessor;
+			ValueTree defaultPreset;
+		};
+
+
+
 		/** Returns the currently loaded file. Can be used to display the user preset name. */
 		File getCurrentlyLoadedFile() const;;
 
@@ -935,6 +957,10 @@ public:
 		FactoryPaths& getFactoryPaths() { return *factoryPaths; }
 #endif
 
+		void initDefaultPresetManager(const ValueTree& defaultState);
+
+		ScopedPointer<DefaultPresetManager> defaultPresetManager;
+
 		private:
 
 		SharedResourcePointer<TagDataBase> tagDataBase;
@@ -943,8 +969,6 @@ public:
 		void saveUserPresetInternal(const String& name=String());
 
 		Array<WeakReference<Listener>, CriticalSection> listeners;
-
-
 
 		File currentlyLoadedFile;
 		ValueTree pendingPreset;

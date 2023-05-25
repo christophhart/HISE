@@ -187,6 +187,8 @@ public:
 
 	virtual Array<SubDirectories> getSubDirectoryIds() const;
 
+	virtual String getDefaultUserPreset() const { return {}; }
+
 	static String getWildcardForFiles(SubDirectories directory);
 
 	void exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData=nullptr);
@@ -267,6 +269,8 @@ public:
 
 	File getWorkDirectory() const;
 
+	String getDefaultUserPreset() const override;
+
 	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	/** Checks if a directory is redirected. */
@@ -294,6 +298,8 @@ public:
 	static String getPrivateKeyFromFile(const File& f);
 
 	void checkActiveProject();
+
+	
 
 	void addListener(Listener* newProjectListener, bool sendWithInitialValue=false)
 	{
@@ -405,6 +411,8 @@ public:
 	static String getHiseVersion();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
+
+	String getDefaultUserPreset() const override;
 
 	/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 	*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */

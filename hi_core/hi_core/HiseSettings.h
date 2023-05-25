@@ -95,6 +95,7 @@ DECLARE_ID(AdminPermissions);
 DECLARE_ID(EmbedUserPresets);
 DECLARE_ID(UseGlobalAppDataFolderWindows);
 DECLARE_ID(UseGlobalAppDataFolderMacOS);
+DECLARE_ID(DefaultUserPreset);
 
 Array<Identifier> getAllIds();
 

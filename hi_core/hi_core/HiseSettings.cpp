@@ -103,6 +103,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(EnableGlobalPreprocessor);
     ids.add(UseGlobalAppDataFolderWindows);
     ids.add(UseGlobalAppDataFolderMacOS);
+	ids.add(DefaultUserPreset);
 
 	return ids;
 }
@@ -450,6 +451,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
         D("> This setting will write the `HISE_USE_SYSTEM_APP_DATA_FOLDER` flag when exporting the plugin");
         P_();
         
+		P(HiseSettings::Project::DefaultUserPreset);
+		D("The relative path to the user preset that is supposed to be the initialisation state. If non-empty, this will be used ");
+		D("in order to initialise the plugin as well as set the default states and select it in the preset browser");
+		P_();
+
 		P(HiseSettings::User::Company);
 		D("Your company name. This will be used for the path to the app data directory so make sure you don't use weird characters here");
 		P_();

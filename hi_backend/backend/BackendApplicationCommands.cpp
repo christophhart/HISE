@@ -149,6 +149,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsCreateUIDataFromDesktop,
 		MenuToolsCheckDeviceSanity,
+		MenuToolsRestoreToDefault,
 		MenuToolsValidateUserPresets,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
@@ -590,6 +591,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Convert SVG to Path data", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsRestoreToDefault:
+		setCommandTarget(result, "Restore interface to default values", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsCreateDummyLicenseFile:
 		setCommandTarget(result, "Create Dummy License File", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -755,6 +760,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsSanityCheck:			Actions::validatePluginParameters(bpe); return true;
 	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
+	case MenuToolsRestoreToDefault:		Actions::restoreToDefault(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsGetMissingSampleList:	Actions::copyMissingSampleListToClipboard(bpe); return true;
 	case MenuToolsCreateUIDataFromDesktop: Actions::createUIDataFromDesktop(bpe); updateCommands(); return true;
@@ -1012,6 +1018,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
+		ADD_DESKTOP_ONLY(MenuToolsRestoreToDefault);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSVGToPathData);
 		
 
@@ -1882,6 +1889,8 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 {
 	if (PresetHandler::showYesNoWindow("Save XML", "This will save the current XML file"))
 	{
+		bpe->owner->getUserPresetHandler().initDefaultPresetManager({});
+
 		const String mainSynthChainId = bpe->owner->getMainSynthChain()->getId();
 		const bool hasDefaultName = mainSynthChainId == "Master Chain";
 
@@ -3179,6 +3188,36 @@ void BackendCommandTarget::Actions::createThirdPartyNode(BackendRootWindow* bpe)
 
         BackendDllManager::addNodePropertyToJSONFile(bpe->getMainController(), n, PropertyIds::IsPolyphonic);
 	}
+}
+
+void BackendCommandTarget::Actions::restoreToDefault(BackendRootWindow * bpe)
+{
+	auto mp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
+
+	if (mp == nullptr)
+		return;
+
+	auto content = mp->getContent();
+
+	String message;
+
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		auto sc = content->getComponent(i);
+
+		if (sc->getScriptObjectProperty(ScriptComponent::saveInPreset))
+		{
+			auto v = sc->getScriptObjectProperty(ScriptComponent::defaultValue);
+			auto cv = sc->getValue().toString();
+			
+			message << sc->getName() << ": ";
+			message << cv << " -> " << v.toString() << "\n";
+
+			sc->resetValueToDefault();
+		}
+	}
+
+	debugToConsole(mp, message);
 }
 
 #undef REPLACE_WILDCARD

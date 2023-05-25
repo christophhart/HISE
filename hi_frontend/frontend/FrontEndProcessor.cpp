@@ -337,6 +337,10 @@ updater(*this)
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 		restoreEmbeddedMarkdownDocs(externalFiles->getChildWithName("MarkdownDocs"));
+
+		auto defaultPreset = externalFiles->getChildWithName("DefaultPreset").getChild(0);
+
+		getUserPresetHandler()->initDefaultPresetManager(defaultPreset);
 	}
     
 	numParameters = 0;
@@ -425,6 +429,8 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
 
 	synthChain->loadMacrosFromValueTree(synthData);
+
+	getUserPresetHandler().initDefaultPresetManager();
 
 	LOG_START("Adding plugin parameters");
 

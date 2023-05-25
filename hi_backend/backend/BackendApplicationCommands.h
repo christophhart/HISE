@@ -169,6 +169,7 @@ public:
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsConvertSVGToPathData,
+		MenuToolsRestoreToDefault,
 		MenuToolsValidateUserPresets,
 		MenuToolsExternalScriptFileOffset,
 		MenuToolsResolveMissingSamples = 0x60000,
@@ -409,6 +410,7 @@ public:
 		static void showNetworkDllInfo(BackendRootWindow * bpe);
 
 		static void createThirdPartyNode(BackendRootWindow* bpe);
+		static void restoreToDefault(BackendRootWindow * bpe);
 	};
 
 private:

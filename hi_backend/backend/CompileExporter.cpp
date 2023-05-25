@@ -93,6 +93,16 @@ juce::ValueTree BaseExporter::exportEmbeddedFiles()
 	externalFiles.addChild(markdownDocs, -1, nullptr);
 	externalFiles.addChild(networkFiles, -1, nullptr);
 
+	ValueTree defaultPreset("DefaultPreset");
+	ValueTree dc = chainToExport->getMainController()->getUserPresetHandler().defaultPresetManager->getDefaultPreset();
+
+	if (dc.isValid())
+	{
+		defaultPreset.addChild(dc.createCopy(), -1, nullptr);
+	}
+
+	externalFiles.addChild(defaultPreset, -1, nullptr);
+
 	return externalFiles;
 }
 
@@ -510,6 +520,8 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		return ErrorCodes::HISEPathNotSpecified;
 
 	if (!checkSanity(option)) return ErrorCodes::SanityCheckFailed;
+
+	chainToExport->getMainController()->getUserPresetHandler().initDefaultPresetManager({});
 
 	ErrorCodes result = ErrorCodes::OK;
 
@@ -2637,6 +2649,7 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
 	const String expType = exporter->GET_SETTING(HiseSettings::Project::ExpansionType);
 	const String expKey = exporter->GET_SETTING(HiseSettings::Project::EncryptionKey);
+	const String defaultPreset = exporter->GET_SETTING(HiseSettings::Project::DefaultUserPreset);
 	const String hiseVersion = ProjectInfo::versionString;
 
 	String nl = "\n";
@@ -2652,6 +2665,8 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionKey() { return " << expKey.quoted() << "; };" << nl;
 	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionType() { return " << expType.quoted() << "; };" << nl;
 	pluginDataHeaderFile << "String hise::FrontendHandler::getHiseVersion() { return " << hiseVersion.quoted() << "; };" << nl;
+
+	pluginDataHeaderFile << "String hise::FrontendHandler::getDefaultUserPreset() const { return " << defaultPreset.quoted() << "; };" << nl;
 }
 
 void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)

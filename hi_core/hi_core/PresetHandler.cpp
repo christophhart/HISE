@@ -911,6 +911,11 @@ File ProjectHandler::getWorkDirectory() const
 }
 
 
+String ProjectHandler::getDefaultUserPreset() const
+{
+	return GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::DefaultUserPreset);
+}
+
 juce::ValueTree ProjectHandler::getEmbeddedNetwork(const String& id)
 {
 #if USE_BACKEND
