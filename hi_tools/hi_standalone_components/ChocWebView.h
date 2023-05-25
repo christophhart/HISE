@@ -178,6 +178,18 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WebViewData);
 };
 
+struct SorryDavid: public Component
+{
+    void paint(Graphics& g) override
+    {
+        g.fillAll(Colours::grey);
+        g.setColour(Colours::black);
+        g.drawText("Not there yet...", getLocalBounds().toFloat(), Justification::centred);
+    }
+    void doNothing(float){}
+    void doNothing(void*){};
+};
+
 struct WebViewWrapper : public Component
 {
 #if JUCE_WINDOWS
@@ -189,7 +201,12 @@ struct WebViewWrapper : public Component
 #define setWindowHandle setView
 #define resizeToFitCrossPlatform resizeToFitView
 #elif JUCE_LINUX
-	using NativeComponentType = juce::XViewComponent; // or whatever, Dave, your job...
+    // Unfortunately I'm too stupid to figure out how to
+    // use the Linux native handle wrapper -
+    // that would be juce::XEmbedComponent
+	using NativeComponentType = SorryDavid;
+#define setWindowHandle doNothing
+#define resizeToFitCrossPlatform doNothing
 #endif
 
 	WebViewWrapper(WebViewData::Ptr data);
