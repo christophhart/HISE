@@ -484,6 +484,8 @@ struct WrapperWithMenuBarBase : public Component,
 		virtual bool hasChanged() = 0;
 	};
 
+	static Component* showPopup(FloatingTile* ft, Component* parent, const std::function<Component*()>& createFunc, bool show);
+
 	template <typename ContentType, typename PathFactoryType> struct ActionButtonBase :
 		public Component,
 		public ButtonWithStateFunction,
@@ -553,19 +555,12 @@ struct WrapperWithMenuBarBase : public Component,
 			{
 				auto ft = findParentComponentOfClass<FloatingTile>();
 
-				if (this->currentPopup)
-				{
-					ft->showComponentInRootPopup(nullptr, this, {});
-				}
-				else
-				{
-					this->currentPopup = createFunc();
-					ft->showComponentInRootPopup(this->currentPopup, this, { getWidth() / 2, getHeight() });
-				}
+				this->currentPopup = showPopup(ft, this, createFunc, this->currentPopup != nullptr);
 
 				return false;
 			};
 		}
+		
 
 		void paint(Graphics& g) override
 		{

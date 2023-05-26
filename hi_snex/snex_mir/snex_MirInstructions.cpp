@@ -60,8 +60,8 @@ struct InstructionParsers
 
 			SigListType staticSignatures, memberSignatures;
 
-			staticSignatures.add({ {}, "int PolyHandler::getVoiceIndexStatic(void* voiceIndex)" });
-			staticSignatures.add({ {}, "int PolyHandler::getSizeStatic(void* voiceIndex)" });
+			staticSignatures.add({ NamespacedIdentifier(), "int PolyHandler::getVoiceIndexStatic(void* voiceIndex)" });
+			staticSignatures.add({ NamespacedIdentifier(), "int PolyHandler::getSizeStatic(void* voiceIndex)" });
 
 			TypeConverters::forEachChild(state.currentTree, [&](const ValueTree& v)
 			{
@@ -74,7 +74,7 @@ struct InstructionParsers
 
 					jassert(MirCompiler::resolve(sig2.getCharPointer().getAddress()) != nullptr);
 
-					staticSignatures.addIfNotAlreadyThere({ {}, sig });
+					staticSignatures.addIfNotAlreadyThere({ NamespacedIdentifier(), sig });
 				}
 				if (v.getType() == InstructionIds::FunctionCall)
 				{
@@ -90,7 +90,7 @@ struct InstructionParsers
 					}
 						
 					else
-						staticSignatures.addIfNotAlreadyThere({ {}, sig });
+						staticSignatures.addIfNotAlreadyThere({ NamespacedIdentifier(), sig });
 				}
 
 				return false;

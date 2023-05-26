@@ -31,7 +31,9 @@
 */
 
 
-#include "choc/gui/choc_WebView.h"
+#if !JUCE_LINUX
+#include "choc/gui/choc_webview.h"
+#endif
 
 namespace hise {
 using namespace juce;
@@ -61,6 +63,7 @@ struct WebViewData::CallbackItem
 		callback(f_)
 	{};
 
+#if !JUCE_LINUX
 	choc::value::Value operator()(const choc::value::ValueView& args)
 	{
 		auto x = choc::json::toString(args);
@@ -85,6 +88,7 @@ struct WebViewData::CallbackItem
 		if (callback)
 			wv->bind(name, *this);
 	}
+#endif
 
 	std::string name;
 	CallbackType callback;
@@ -377,7 +381,9 @@ WebViewWrapper::~WebViewWrapper()
 		content->setWindowHandle(nullptr);
 
 	content = nullptr;
+#if !JUCE_LINUX
 	webView = nullptr;
+#endif
 	data = nullptr;
 }
 
@@ -393,8 +399,10 @@ void WebViewWrapper::resized()
 
 void WebViewWrapper::call(const String& jsCode)
 {
+#if !JUCE_LINUX
 	if(webView != nullptr)
 		webView->evaluateJavascript(jsCode.toStdString());
+#endif
 }
 
 
@@ -406,6 +414,7 @@ void WebViewWrapper::refresh()
 
 	content = new NativeComponentType();
 
+#if !JUCE_LINUX
 	choc::ui::WebView::Options options;
 	options.enableDebugMode = false;
 	auto d = data;
@@ -443,6 +452,7 @@ void WebViewWrapper::refresh()
 		c->registerToWebView(webView);
 
 	content->setWindowHandle(webView->getViewHandle());
+#endif
 
 	addAndMakeVisible(content);
 	
@@ -457,8 +467,10 @@ void WebViewWrapper::refreshBounds(float newScaleFactor)
 	if(content != nullptr)
 		content->resizeToFitCrossPlatform();
 
+#if !JUCE_LINUX
 	if (webView != nullptr)
 		webView->resizeToFit(newScaleFactor);
+#endif
 		
 	resized();
 }

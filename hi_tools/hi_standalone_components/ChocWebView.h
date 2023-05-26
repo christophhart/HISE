@@ -196,6 +196,7 @@ struct SorryDavid: public Component
     }
     void doNothing(float){}
     void doNothing(void*){};
+	void doNothing(){};
 };
 
 struct WebViewWrapper : public Component
@@ -236,7 +237,9 @@ private:
 	float lastScaleFactor = 1.0f;
 
 	WebViewData::Ptr data;
+#if !JUCE_LINUX
 	ScopedPointer<choc::ui::WebView> webView;
+#endif
 	ScopedPointer<NativeComponentType> content;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WebViewWrapper);
