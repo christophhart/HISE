@@ -131,7 +131,7 @@ void WebViewData::addResource(const String& path, const String& mimeType, const 
 		if (r->path == pstring && errorLogger)
 		{
 			String m;
-			m << "!WebView ERROR: Duplicate resource " << path;
+			m << "Duplicate WebView resource: " << path;
 		}
 	}
 
@@ -186,10 +186,43 @@ void WebViewData::restoreFromValueTree(const ValueTree& v)
 	}
 }
 
+void WebViewData::setRootDirectory(const File& newRootDirectory)
+{
+	if (serverType != ServerType::Embedded)
+	{
+		rootDirectory = newRootDirectory;
+		serverType = ServerType::FileBased;
+	}
+	
+}
+
+void WebViewData::setUsePersistentCalls(bool shouldUsePersistentCalls)
+{
+	usePersistentCalls = shouldUsePersistentCalls;
+}
+
+void WebViewData::reset(bool resetFiles)
+{
+	if (enableCache)
+		return;
+
+	pimpl->resources.clear();
+	pimpl->callbacks.clear();
+	initScripts.clear();
+	scripts.clear();
+
+	if (resetFiles)
+	{
+		rootFile = {};
+		rootDirectory = {};
+		serverType = ServerType::Uninitialised;
+	}
+}
+
 juce::ValueTree WebViewData::exportAsValueTree() const
 {
 	if (!enableCache && errorLogger)
-		errorLogger("!WebView ERROR: You must not disable the caching when exporting the resources");
+		errorLogger("You must not disable the caching when exporting the WebView resources");
 
 	ValueTree v("WebViewResources");
 
@@ -223,6 +256,8 @@ void WebViewData::call(const String& functionName, const var& args)
 
 	if (args.isObject() || args.isArray())
 		js << JSON::toString(args);
+	else if (args.isString())
+		js << args.toString().quoted();
 	else
 		js << args.toString();
 
@@ -235,7 +270,8 @@ void WebViewData::call(const String& functionName, const var& args)
 
 void WebViewData::evaluate(const String& identifier, const String& jsCode)
 {
-	initScripts.set(identifier, jsCode);
+	if(usePersistentCalls)
+		initScripts.set(identifier, jsCode);
 
 	// Apparently that only works on the message thread...
 	jassert(MessageManager::getInstance()->isThisTheMessageThread());
@@ -309,11 +345,10 @@ WebViewData::OpaqueResourceType WebViewData::fetch(const std::string& path)
 	if (errorLogger)
 	{
 		String m;
-		m << "!WebView Error: Resource for " << pathToUse << " not found";
+		m << "WebView Resource for " << pathToUse << " not found";
 		errorLogger(m);
 	}
 
-	jassertfalse;
 	return {};
 };
 
@@ -394,16 +429,16 @@ void WebViewWrapper::refresh()
 	for (const auto& x : data->scripts)
 		webView->addInitScript(x.toStdString());
 
-	for (const auto& x : data->initScripts.getAllValues())
+	if (data->usePersistentCalls)
 	{
-		String asyncCode;
-
-		asyncCode << "document.addEventListener('DOMContentLoaded', function() {" << x << " }, false);";
-
-		webView->addInitScript(asyncCode.toStdString());
+		for (const auto& x : data->initScripts.getAllValues())
+		{
+			String asyncCode;
+			asyncCode << "document.addEventListener('DOMContentLoaded', function() {" << x << " }, false);";
+			webView->addInitScript(asyncCode.toStdString());
+		}
 	}
-		
-
+	
 	for (const auto c : data->pimpl->callbacks)
 		c->registerToWebView(webView);
 
@@ -419,7 +454,8 @@ void WebViewWrapper::refresh()
 
 void WebViewWrapper::refreshBounds(float newScaleFactor)
 {
-    content->resizeToFitCrossPlatform();
+	if(content != nullptr)
+		content->resizeToFitCrossPlatform();
 
 	if (webView != nullptr)
 		webView->resizeToFit(newScaleFactor);

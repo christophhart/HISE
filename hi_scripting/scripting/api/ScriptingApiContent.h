@@ -2207,7 +2207,8 @@ public:
 		{
 			rootDirectory = ScriptComponent::numProperties,
 			indexFile,
-			enableCache
+			enableCache,
+			enablePersistence
 		};
 
 		ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height);
@@ -2235,6 +2236,9 @@ public:
 
 		/** Evaluates the code in the web view. You need to pass in an unique identifier so that it will initialise new web views correctly. */
 		void evaluate(const String& identifier, const String& jsCode);
+
+		/** Resets the entire webview. */
+		void reset();
 
 		// =========================================================================================================
 

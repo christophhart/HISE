@@ -248,6 +248,10 @@ public:
 
 	void setGlobalRoutingManager(ReferenceCountedObject* newManager) { routingManager = newManager; };
 
+	ValueTree exportWebViewResources();
+
+	void restoreWebResources(const ValueTree& v);
+
 	WebViewData::Ptr getOrCreateWebView(const Identifier& id)
 	{
 		for (const auto& wv : webviews)

@@ -337,6 +337,7 @@ updater(*this)
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 		restoreEmbeddedMarkdownDocs(externalFiles->getChildWithName("MarkdownDocs"));
+		restoreWebResources(externalFiles->getChildWithName("WebViewResources"));
 
 		auto defaultPreset = externalFiles->getChildWithName("DefaultPreset").getChild(0);
 

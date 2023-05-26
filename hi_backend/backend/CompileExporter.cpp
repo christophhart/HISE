@@ -87,11 +87,14 @@ juce::ValueTree BaseExporter::exportEmbeddedFiles()
 	ValueTree markdownDocs = chainToExport->getMainController()->exportAllMarkdownDocsAsValueTree();
 	ValueTree networkFiles = BackendDllManager::exportAllNetworks(chainToExport->getMainController(), false);
 
+	ValueTree webViewResources = chainToExport->getMainController()->exportWebViewResources();
+
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
 	externalFiles.addChild(markdownDocs, -1, nullptr);
 	externalFiles.addChild(networkFiles, -1, nullptr);
+	externalFiles.addChild(webViewResources, -1, nullptr);
 
 	ValueTree defaultPreset("DefaultPreset");
 	ValueTree dc = chainToExport->getMainController()->getUserPresetHandler().defaultPresetManager->getDefaultPreset();

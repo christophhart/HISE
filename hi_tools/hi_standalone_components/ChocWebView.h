@@ -101,11 +101,15 @@ struct WebViewData : public ReferenceCountedObject
 	void restoreFromValueTree(const ValueTree& v);
 
 	/** Sets the root directory from where all files should be cached (and sets the mode to ServerType::FileBased). */
-	void setRootDirectory(const File& newRootDirectory)
-	{
-		rootDirectory = newRootDirectory;
-		serverType = ServerType::FileBased;
-	}
+	void setRootDirectory(const File& newRootDirectory);
+
+	/** If set to true, a new webview will be initialised will all function calls that have been called so far. This allow
+		you to initialise a state correctly when the webview is created after the data has been initialised.
+	*/
+	void setUsePersistentCalls(bool usePersistentCalls);
+
+	/** Clears all caches and persistent calls and (optionally) the file resource information. */
+	void reset(bool resetFileStructure=false);
 
 	/** Sets the relative file name from the root directory that will be used as initial content (usually that's index.html). */
 	void setIndexFile(const String& newName)
@@ -127,7 +131,11 @@ struct WebViewData : public ReferenceCountedObject
 	*/
 	void evaluate(const String& identifier, const String& jsCode);
 
+	File getRootDirectory() const { return rootDirectory; }
+
 private:
+
+	bool usePersistentCalls = true;
 
 	StringPairArray initScripts;
 

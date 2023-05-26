@@ -162,6 +162,44 @@ ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(co
 	return includedFiles.getLast();
 }
 
+juce::ValueTree GlobalScriptCompileBroadcaster::exportWebViewResources()
+{
+	ValueTree v("WebViewResources");
+
+	for (const auto& wv : webviews)
+	{
+		auto data = std::get<1>(wv);
+
+		auto projectRoot = dynamic_cast<MainController*>(this)->getCurrentFileHandler().getRootFolder();
+
+		// We only embed file resources that are in the project directory (because then we'll assume
+		// that they are not likely to be installed on the end user's computer).
+		auto shouldEmbedResource = data->getRootDirectory().isAChildOf(projectRoot);
+
+		if (shouldEmbedResource)
+		{
+			auto id = std::get<0>(wv).toString();
+			auto c = data->exportAsValueTree();
+			c.setProperty("ID", id, nullptr);
+			v.addChild(c, -1, nullptr);
+		}
+	}
+
+	return v;
+}
+
+void GlobalScriptCompileBroadcaster::restoreWebResources(const ValueTree& v)
+{
+	// only call this once
+	jassert(webviews.isEmpty());
+
+	for (auto c : v)
+	{
+		auto d = getOrCreateWebView(c["ID"].toString());
+		d->restoreFromValueTree(c);
+	}
+}
+
 void ExternalScriptFile::setRuntimeErrors(const Result& r)
 {
 	runtimeErrors.clearQuick();
