@@ -214,7 +214,7 @@ void WebViewData::reset(bool resetFiles)
 	if (resetFiles)
 	{
 		rootFile = {};
-		rootDirectory = {};
+		rootDirectory = File();
 		serverType = ServerType::Uninitialised;
 	}
 }
