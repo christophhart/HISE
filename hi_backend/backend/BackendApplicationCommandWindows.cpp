@@ -1279,7 +1279,7 @@ public:
                     StatementBlock bl(b);
                     
                     if(useTempo)
-                        b << "setUseTempo(true);";
+                        b << "this->setUseTempo(true);";
                     
                     for(auto& t: tableIds)
                     {
