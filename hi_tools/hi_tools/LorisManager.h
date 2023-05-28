@@ -138,7 +138,7 @@ struct LorisManager: public ReferenceCountedObject
                 
                 if(libraryVersion != thisVersion)
                 {
-                    lorisVersion = "DLL Library version mismatch: ";
+                    lorisVersion = "Loris DLL Library version mismatch: ";
                     lorisVersion << libraryVersion << " vs. " << thisVersion;
                     errorFunction(lorisVersion);
                 }
