@@ -182,6 +182,9 @@ namespace ScriptingObjects
             return -1;
 		}
 
+        /** Returns a char from 0 to 255 with the given length and input range. */
+        var toCharString(int numChars, var range);
+        
 		/** Returns an array with the min and max value in the given range. */
 		var getPeakRange(int startSample, int numSamples);
         

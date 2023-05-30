@@ -236,6 +236,7 @@ void MainController::clearPreset()
         mc->getLocationUndoManager()->clearUndoHistory();
         mc->getMasterClock().reset();
         
+        mc->clearWebResources();
 		mc->setGlobalRoutingManager(nullptr);
 
 		BACKEND_ONLY(mc->getJavascriptThreadPool().getGlobalServer()->setInitialised());

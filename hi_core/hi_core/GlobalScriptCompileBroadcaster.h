@@ -252,6 +252,11 @@ public:
 
 	void restoreWebResources(const ValueTree& v);
 
+    void clearWebResources()
+    {
+        webviews.clear();
+    }
+    
 	WebViewData::Ptr getOrCreateWebView(const Identifier& id)
 	{
 		for (const auto& wv : webviews)

@@ -190,8 +190,7 @@ juce::ValueTree GlobalScriptCompileBroadcaster::exportWebViewResources()
 
 void GlobalScriptCompileBroadcaster::restoreWebResources(const ValueTree& v)
 {
-	// only call this once
-	jassert(webviews.isEmpty());
+    clearWebResources();
 
 	for (auto c : v)
 	{
