@@ -257,20 +257,19 @@ public:
         webviews.clear();
     }
     
-	WebViewData::Ptr getOrCreateWebView(const Identifier& id)
-	{
-		for (const auto& wv : webviews)
-		{
-			if (std::get<0>(wv) == id)
-				return std::get<1>(wv);
-		}
+	WebViewData::Ptr getOrCreateWebView(const Identifier& id);
 
-		webviews.add({ id, new WebViewData() });
-		return std::get<1>(webviews.getLast());
+	Array<Identifier> getAllWebViewIds() const;
+
+	void setWebViewRoot(File newRoot)
+	{
+		webViewRoot = newRoot;
 	}
 
 private:
 	
+	File webViewRoot;
+
 	Array<std::tuple<Identifier, WebViewData::Ptr>> webviews;
 
 	ReferenceCountedObjectPtr<ReferenceCountedObject> currentScriptLaf;

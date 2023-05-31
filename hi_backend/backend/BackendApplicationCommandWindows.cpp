@@ -3443,6 +3443,16 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		e->extractUserPresetsIfEmpty(allData, true);
 	}
 
+	void extractWebResources()
+	{
+		for (auto id : getMainController()->getAllWebViewIds())
+		{
+			auto wv = getMainController()->getOrCreateWebView(id);
+			auto ok = wv->explode();
+		}
+		
+	}
+
 	void logMessage(const String& message)
 	{
 		showStatusMessage(message);
@@ -3454,6 +3464,8 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 	{
 		jassert(newProjectFolder.isDirectory());
 		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) == 0);
+
+		
 
 		auto hxiFile = newProjectFolder.getChildFile("info.hxi");
 		
@@ -3504,6 +3516,8 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		createSubDirectories();
 		
 
+		getMainController()->setWebViewRoot(newProjectFolder);
+
 		ok = e->initialise();
 
 		if (ok.failed())
@@ -3522,6 +3536,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		extractPools();
 		extractNetworks();
 		extractUserPresets();
+		extractWebResources();
 
 		logMessage("... Done!");
 	}

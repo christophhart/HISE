@@ -94,7 +94,8 @@ struct WebViewData::CallbackItem
 	CallbackType callback;
 };
 
-WebViewData::WebViewData()
+WebViewData::WebViewData(File f):
+	projectRootDirectory(f)
 {
 	pimpl = new Pimpl();
 }
@@ -167,6 +168,13 @@ void WebViewData::restoreFromValueTree(const ValueTree& v)
 
 		enableCache = true;
 
+		auto rp = v.getProperty("RelativePath", "").toString();
+
+		if (projectRootDirectory.isDirectory())
+			rootDirectory = projectRootDirectory.getChildFile(rp);
+
+		rootFile = v.getProperty("IndexFile", "/").toString().toStdString();
+
 		for (const auto& c : v)
 		{
 			auto nr = new ExternalResource(c["path"]);
@@ -197,7 +205,6 @@ void WebViewData::setRootDirectory(const File& newRootDirectory)
 		rootDirectory = newRootDirectory;
 		serverType = ServerType::FileBased;
 	}
-	
 }
 
 void WebViewData::setUsePersistentCalls(bool shouldUsePersistentCalls)
@@ -229,6 +236,9 @@ juce::ValueTree WebViewData::exportAsValueTree() const
 		errorLogger("You must not disable the caching when exporting the WebView resources");
 
 	ValueTree v("WebViewResources");
+
+	v.setProperty("RelativePath", rootDirectory.getRelativePathFrom(projectRootDirectory).replaceCharacter('\\', '/'), nullptr);
+	v.setProperty("IndexFile", String(rootFile), nullptr);
 
 	for (auto r : pimpl->resources)
 	{
@@ -289,6 +299,53 @@ void WebViewData::evaluate(const String& identifier, const String& jsCode)
 	}
 }
 
+bool WebViewData::shouldBeEmbedded() const
+{
+	return rootDirectory.isAChildOf(projectRootDirectory) && enableCache;
+}
+
+bool WebViewData::explode()
+{
+	if (serverType != ServerType::Embedded)
+		return false;
+
+	if (!projectRootDirectory.isDirectory())
+		return false;
+
+	if (!rootDirectory.isDirectory())
+		rootDirectory.createDirectory();
+
+	for (auto f : pimpl->resources)
+	{
+		auto pToUse = String(f->path);
+
+		if (pToUse.startsWithChar('.'))
+			pToUse = pToUse.substring(1);
+
+		if (pToUse.startsWithChar('/'))
+			pToUse = pToUse.substring(1);
+
+		auto targetFile = rootDirectory.getChildFile(pToUse);
+		
+		targetFile.getParentDirectory().createDirectory();
+
+		FileOutputStream fos(targetFile);
+
+		
+		
+		auto& s = std::get<0>(f->resource);
+
+		fos.write(s.data(), s.size());
+
+		DBG(targetFile.getFullPathName());
+		DBG("NUM BYTES: " + String(s.size()));
+
+		fos.flush();
+	}
+
+	return true;
+}
+
 void WebViewData::registerWebView(Component* c)
 {
 	registeredViews.addIfNotAlreadyThere(c);
@@ -301,7 +358,11 @@ void WebViewData::deregisterWebView(Component* c)
 
 WebViewData::OpaqueResourceType WebViewData::fetch(const std::string& path)
 {
-	std::string pathToUse = path == "/" ? rootFile : path;
+	auto url = juce::URL(String(path));
+
+	auto s = url.toString(false);
+
+	std::string pathToUse = path == "/" ? rootFile : s.toStdString();
 
 	for (auto r : pimpl->resources)
 	{

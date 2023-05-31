@@ -842,6 +842,8 @@ juce::Result ProjectHandler::setWorkingProject(const File &workingDirectory, boo
 			listeners.remove(i--);
 	}
 
+	getMainController()->setWebViewRoot(currentWorkDirectory);
+
 	return Result::ok();
 }
 

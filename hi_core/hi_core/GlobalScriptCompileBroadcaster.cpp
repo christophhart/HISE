@@ -199,6 +199,28 @@ void GlobalScriptCompileBroadcaster::restoreWebResources(const ValueTree& v)
 	}
 }
 
+hise::WebViewData::Ptr GlobalScriptCompileBroadcaster::getOrCreateWebView(const Identifier& id)
+{
+	for (const auto& wv : webviews)
+	{
+		if (std::get<0>(wv) == id)
+			return std::get<1>(wv);
+	}
+
+	webviews.add({ id, new WebViewData(webViewRoot) });
+	return std::get<1>(webviews.getLast());
+}
+
+Array<juce::Identifier> GlobalScriptCompileBroadcaster::getAllWebViewIds() const
+{
+	Array<Identifier> ids;
+
+	for (const auto& wv : webviews)
+		ids.add(std::get<0>(wv));
+
+	return ids;
+}
+
 void ExternalScriptFile::setRuntimeErrors(const Result& r)
 {
 	runtimeErrors.clearQuick();

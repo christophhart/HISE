@@ -51,7 +51,7 @@ struct WebViewData : public ReferenceCountedObject
 	using Ptr = ReferenceCountedObjectPtr<WebViewData>;
 	using CallbackType = std::function<var(const var&)>;
 
-	WebViewData();
+	WebViewData(File projectRoot);
 
 	~WebViewData();
 
@@ -133,7 +133,21 @@ struct WebViewData : public ReferenceCountedObject
 
 	File getRootDirectory() const { return rootDirectory; }
 
+	/** Returns true if the webview root directory is a child of the project root folder
+	    and enableCache is set to true. */
+	bool shouldBeEmbedded() const;
+
+	/** Converts a embedded webview to a file based one. This only works if:
+	
+		1. The mode is embedded
+		2. You've supplied a valid project root folder.
+		3. You've called restoreFromValueTree with a ValueTree that contains the file path information
+	*/
+	bool explode();
+
 private:
+
+	File projectRootDirectory;
 
 	bool usePersistentCalls = true;
 

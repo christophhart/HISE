@@ -2241,6 +2241,13 @@ Result FullInstrumentExpansion::lazyLoad()
 
 	auto r = initialiseFromValueTree(allData);
 
+	auto webResources = allData.getChildWithName("WebViewResources");
+
+	if (webResources.isValid())
+	{
+		getMainController()->restoreWebResources(webResources);
+	}
+
 	if (r.wasOk())
 	{
 		fullyLoaded = true;
@@ -2393,6 +2400,8 @@ Result FullInstrumentExpansion::encodeExpansion()
 
 	encodePoolAndUserPresets(allData, isProjectExport);
 	
+	allData.addChild(getMainController()->exportWebViewResources(), -1, nullptr);
+
 	h.setErrorMessage("Writing file", false);
 
 #if HISE_USE_XML_FOR_HXI
