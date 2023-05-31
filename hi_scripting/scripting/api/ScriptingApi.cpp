@@ -2989,7 +2989,17 @@ var ScriptingApi::Engine::loadAudioFilesIntoPool()
 
 #endif
 
-	auto allList = getScriptProcessor()->getMainController_()->getSampleManager().getProjectHandler().pool->getAudioSampleBufferPool().getListOfAllReferences(true);
+    auto mc = getScriptProcessor()->getMainController_();
+     
+    auto poolToLoad = mc->getSampleManager().getProjectHandler().pool.get();
+    
+    if(FullInstrumentExpansion::isEnabled(mc))
+    {
+        if(auto e = mc->getExpansionHandler().getCurrentExpansion())
+            poolToLoad = e->pool;
+    }
+    
+	auto allList = poolToLoad->getAudioSampleBufferPool().getListOfAllReferences(true);
 
 	Array<var> ar;
 
