@@ -44,6 +44,12 @@ ML("Only used in FFT Resynthesis mode. If this is enabled, it will store the wav
 ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
 END_MARKDOWN()
 
+START_MARKDOWN(BatchConvert)
+ML("## Batch Convert")
+ML("When checked, the converter will run through all SampleMaps it finds in the Sample Maps folder. Only works in Resample mode.  ")
+ML("Ensure that they follow the appopriate protocol for converting to Wavetables (make sure there aren't any actual SampleMaps in there).  ")
+END_MARKDOWN()
+
 START_MARKDOWN(WindowType)
 ML("## FFT Window Type")
 ML("Only used in FFT Resynthesis mode. This changes the window function that is applied to the signal before the FFT.  ")
@@ -489,9 +495,7 @@ public:
 		auto list = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool().getIdList();
 
 		addComboBox("samplemap", list, "Samplemap");
-		getComboBoxComponent("samplemap")->addListener(this);
-		
-		
+		getComboBoxComponent("samplemap")->addListener(this);	
 
 		StringArray windows;
 		windows.add("Flat Top");
@@ -518,22 +522,31 @@ public:
 		yesNo.add("Yes");
 		yesNo.add("No");
 
-
-
 		selectors = new AdditionalRow(this);
 
-
 		selectors->addComboBox("mode", { "Resample Wavetables", "FFT Resynthesis"}, "Mode", 130);
-		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
-		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
-		selectors->addComboBox("WindowType", windows, "FFT Window Type", 120);
-		
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowType());
-		selectors->addComboBox("FFTSize", sizes, "FFT Size");
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowSize());
 
+		selectors->addComboBox("BatchConvert", { "No", "Yes" }, "Batch Convert?", 120);
+
+		selectors->setInfoTextForLastComponent(WavetableHelp::BatchConvert());
 		selectors->setSize(512, 40);
+
 		addCustomComponent(selectors);
+
+		selectorsFFT = new AdditionalRow(this);
+
+		selectorsFFT->addComboBox("ReverseTables", { "Yes", "No" }, "Reverse Wavetable order", 160);
+		selectorsFFT->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
+
+		selectorsFFT->addComboBox("WindowType", windows, "FFT Window Type", 120);
+		selectorsFFT->setInfoTextForLastComponent(WavetableHelp::WindowType());
+
+		selectorsFFT->addComboBox("FFTSize", sizes, "FFT Size", 120);
+		selectorsFFT->setInfoTextForLastComponent(WavetableHelp::WindowSize());
+
+		selectorsFFT->setSize(512, 40);
+
+		addCustomComponent(selectorsFFT);
 
 		preview = new CombinedPreview(*converter);
 		preview->setSize(512, 300);
@@ -552,8 +565,6 @@ public:
 		addCustomComponent(gainPack);
 
 		additionalButtons = new AdditionalRow(this);
-
-
 
 		additionalButtons->addButton("Previous", KeyPress(KeyPress::leftKey));
 		additionalButtons->addButton("Next", KeyPress(KeyPress::rightKey));
@@ -624,7 +635,6 @@ public:
 
 			chain->getMainController()->setBufferToPlay(b);
 		}
-		
 
 		refreshPreview();
 
@@ -667,7 +677,6 @@ public:
 				if (currentMode == FFTResynthesis)
 				{
 					converter->refreshCurrentWavetable(getProgressCounter());
-					
 				}
 
 				refreshPreview(); 
@@ -692,7 +701,18 @@ public:
 		{
 			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 0;
 		}
-		else
+		else if (comboBoxThatHasChanged->getName() == "BatchConvert")
+		{
+			if (comboBoxThatHasChanged->getText() == "No")
+			{
+				bulkConvert = false;
+			}
+			else
+			{
+				bulkConvert = true;
+			}
+		}
+		else 
 		{
 			if (comboBoxThatHasChanged->getText() == "Lowest possible")
 			{
@@ -710,27 +730,63 @@ public:
 
 	void run() override
 	{
-		if (currentMode == FFTResynthesis)
-			converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+		if (bulkConvert == true)
+		{
+			bulkConvertSampleMapsToWavetables();
+		}
 		else
-			converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
+		{
+			if (currentMode == FFTResynthesis)
+				converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+			else
+				converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
 
-		if (threadShouldExit())
-			return;
+			if (threadShouldExit())
+				return;
 
-		auto leftTree = converter->getValueTree(true);
-		auto rightTree = converter->getValueTree(false);
+			auto leftTree = converter->getValueTree(true);
+			auto rightTree = converter->getValueTree(false);
 
-		auto fileL = currentlyLoadedMap + "_Left.hwt";
-		auto fileR = currentlyLoadedMap + "_Right.hwt";
+			auto fileL = currentlyLoadedMap + "_Left.hwt";
+			auto fileR = currentlyLoadedMap + "_Right.hwt";
 
-		auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
-		auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
+			auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
+			auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
 
-		PresetHandler::writeValueTreeAsFile(leftTree, tfl.getFullPathName());		
-		PresetHandler::writeValueTreeAsFile(rightTree, tfr.getFullPathName());
+			PresetHandler::writeValueTreeAsFile(leftTree, tfl.getFullPathName());
+			PresetHandler::writeValueTreeAsFile(rightTree, tfr.getFullPathName());
+		}
+
+		
 	}
 
+	void bulkConvertSampleMapsToWavetables()
+	{
+		auto sampleComboBox = getComboBoxComponent("samplemap");
+		int loopLength = sampleComboBox->getNumItems();
+
+		for (int i = 0; i < loopLength; i++)
+		{
+			sampleComboBox->setSelectedItemIndex(i, sendNotificationAsync);
+
+			if (currentMode == FFTResynthesis)
+				converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
+			else
+				converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
+
+			if (threadShouldExit())
+				return;
+
+			auto tree = converter->getValueTree(true);
+			auto file = sampleComboBox->getItemText(i) + ".hwt";
+			auto tf = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(file);
+
+			PresetHandler::writeValueTreeAsFile(tree, tf.getFullPathName());
+
+			converter->getValueTree(true).removeAllChildren(nullptr);
+		}
+	}
+	   
 	void threadFinished() override
 	{
 		if (r.failed())
@@ -744,6 +800,8 @@ public:
 
 	Result r;
 
+	bool bulkConvert = false;
+
 	ScopedPointer<CombinedPreview> preview;
 
 	
@@ -754,6 +812,7 @@ public:
 	Mode currentMode = Resample;
 	ScopedPointer<AdditionalRow> fileHandling;
 	ScopedPointer<AdditionalRow> selectors;
+	ScopedPointer<AdditionalRow> selectorsFFT;
 	ScopedPointer<AdditionalRow> additionalButtons;
 	ScopedPointer<SampleMapToWavetableConverter> converter;
 
