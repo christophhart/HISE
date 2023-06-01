@@ -1141,8 +1141,11 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		bool isPoly = false;
 
 		int cIndex = 0;
+
 		for (auto& c : chainList)
 		{
+			ScopedValueSetter<bool> svs(allowPlainParameterChild, !unEqualRange);
+
 			if (c.n == nullptr)
 			{
 				jassertfalse;
@@ -1509,7 +1512,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 
 		auto useNormalisedMod = CustomNodeProperties::nodeHasProperty(pTree, PropertyIds::UseUnnormalisedModulation);
 
-		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod && !c.targetRange.inv)
+		if (allowPlainParameterChild && (RangeHelpers::isEqual(tr, sr) || useNormalisedMod) && !tr.inv)
 		{
 			// skip both ranges and just pass on the parameter;
 			auto up = makeParameter(p, "plain", c);
