@@ -52,7 +52,6 @@ MainController::MainController() :
 	temp_usage(0.0f),
 	uptime(0.0),
 	bpm(120.0),
-	bpmFromHost(120.0),
 	hostIsPlaying(false),
 	console(nullptr),
 	voiceAmount(0),
@@ -922,6 +921,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	AudioPlayHead::CurrentPositionInfo newTime;
 	MasterClock::GridInfo gridInfo;
 
+	double hostBpm = -1.0;
+
 	bool useTime = false;
 
     auto insideInternalExport = getKillStateHandler().isCurrentlyExporting();
@@ -936,11 +937,11 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		// so we use the time info from the internal clock...
 		if (!useTime)
 			newTime = getMasterClock().createInternalPlayHead();
+		else
+			hostBpm = newTime.bpm;
 
 	}
 
-	
-	
 	if (getMasterClock().shouldCreateInternalInfo(newTime) || insideInternalExport)
 	{
 		auto externalTime = newTime;
@@ -969,8 +970,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	storePlayheadIntoDynamicObject(lastPosInfo);
 	
-	bpmFromHost = lastPosInfo.bpm;
-
 	if (hostIsPlaying != lastPosInfo.isPlaying)
 	{
 		hostIsPlaying = lastPosInfo.isPlaying;
@@ -980,17 +979,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 											 60, 127, 1));)
 	}
 
-	if (bpmFromHost == 0.0)
-		bpmFromHost = 120.0;
-
-	auto otherBpm = *hostBpmPointer;
-
-	if (otherBpm > 0)
-		setBpm((double)otherBpm);
-	else
+	
+	if (hostBpm == -1.0)
 	{
-		setBpm(bpmFromHost);
+		// We need to get the host bpm again...
+		if (auto ph = thisAsProcessor->getPlayHead())
+		{
+			AudioPlayHead::CurrentPositionInfo bpmInfo;
+			ph->getCurrentPosition(bpmInfo);
+
+			hostBpm = bpmInfo.bpm;
+		}
 	}
+
+	setBpm(getMasterClock().getBpmToUse(hostBpm, *internalBpmPointer));
 	
 #endif
 
@@ -1339,7 +1341,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	processingBufferSize = jmin(maximumBlockSize, originalBufferSize) * currentOversampleFactor;
 	processingSampleRate = originalSampleRate * currentOversampleFactor;
  
-	hostBpmPointer = &dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
+	internalBpmPointer = &dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
 
 	// Prevent high buffer sizes from blowing up the 350MB limitation...
 	if (HiseDeviceSimulator::isAUv3())
@@ -1430,24 +1432,6 @@ void MainController::setBpm(double newTempo)
 		}
 	}
 };
-
-void MainController::setHostBpm(double newTempo)
-{
-	if (newTempo > 0.0)
-	{
-		auto nt = jlimit(32.0, 280.0, newTempo);
-
-		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = nt;
-		
-		setBpm(newTempo);
-	}
-	else
-	{
-		dynamic_cast<GlobalSettingManager*>(this)->globalBPM = -1;
-		
-		setBpm(bpmFromHost);
-	}
-}
 
 bool MainController::isSyncedToHost() const
 {

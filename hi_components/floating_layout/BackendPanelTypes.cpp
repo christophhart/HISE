@@ -867,7 +867,7 @@ void DAWClockController::sliderValueChanged(Slider* s)
     if(s == &bpm)
     {
         clock->bpm = roundToInt(s->getValue());
-        getMainController()->setHostBpm(clock->bpm);
+        //getMainController()->setHostBpm(clock->bpm);
 		ruler->resized();
     }
     if(s == &nom)

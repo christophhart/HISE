@@ -1404,6 +1404,9 @@ public:
 		/** sends a message on the next grid callback to resync the external clock. */
 		void sendGridSyncOnNextCallback();
 
+		/** If enabled, this will link the internal / external BPM to the sync mode. */
+		void setLinkBpmToSyncMode(bool shouldPrefer);
+
 	private:
 
 		void clearIf(ScopedPointer<Callback>& cb, const var& f)

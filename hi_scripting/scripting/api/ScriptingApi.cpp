@@ -1363,7 +1363,7 @@ double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMa
 
 void ScriptingApi::Engine::setHostBpm(double newTempo)
 {
-	getProcessor()->getMainController()->setHostBpm(newTempo);
+	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->globalBPM = newTempo;
 }
 
 double ScriptingApi::Engine::getMemoryUsage() const
@@ -7277,6 +7277,7 @@ struct ScriptingApi::TransportHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, startInternalClock);
 	API_VOID_METHOD_WRAPPER_1(TransportHandler, stopInternalClock);
 	API_VOID_METHOD_WRAPPER_0(TransportHandler, sendGridSyncOnNextCallback);
+	API_VOID_METHOD_WRAPPER_1(TransportHandler, setLinkBpmToSyncMode);
 };
 
 ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* sp) :
@@ -7303,6 +7304,7 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_2(setEnableGrid);
 	ADD_API_METHOD_0(sendGridSyncOnNextCallback);
     ADD_API_METHOD_1(stopInternalClockOnExternalStop);
+	ADD_API_METHOD_1(setLinkBpmToSyncMode);
 }
 
 ScriptingApi::TransportHandler::~TransportHandler()
@@ -7515,6 +7517,11 @@ void ScriptingApi::TransportHandler::setSyncMode(int syncMode)
 void ScriptingApi::TransportHandler::sendGridSyncOnNextCallback()
 {
 	getMainController()->getMasterClock().setNextGridIsFirst();
+}
+
+void ScriptingApi::TransportHandler::setLinkBpmToSyncMode(bool shouldPrefer)
+{
+	getMainController()->getMasterClock().setLinkBpmToSyncMode(shouldPrefer);
 }
 
 } // namespace hise
