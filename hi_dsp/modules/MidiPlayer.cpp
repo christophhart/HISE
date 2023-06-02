@@ -333,7 +333,17 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 			auto e = newSequence->getEventPointer(j);
 
 			if (e->message.isMetaEvent())
+			{
+				if (e->message.isEndOfTrackMetaEvent())
+				{
+					auto endStamp = e->message.getTimeStamp() * timeFactor;
+					auto numQuarters = endStamp / TicksPerQuarter;
+
+					signature.calculateNumBars(numQuarters);
+				}
+
 				newSequence->deleteEvent(j--, false);
+			}
 			else if (timeFactor != 1.0)
 				e->message.setTimeStamp(e->message.getTimeStamp() * timeFactor);
 		}
@@ -346,7 +356,8 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 
 	normalisedFile.setTicksPerQuarterNote(TicksPerQuarter);
 
-	signature.calculateNumBars(normalisedFile.getLastTimestamp() / TicksPerQuarter);
+	if(signature.numBars == 0.0)
+		signature.calculateNumBars(normalisedFile.getLastTimestamp() / TicksPerQuarter);
 
 	
 
@@ -380,9 +391,15 @@ juce::File HiseMidiSequence::writeToTempFile()
 
 	f.setTicksPerQuarterNote(HiseMidiSequence::TicksPerQuarter);
 
+	auto endTimestamp = signature.getNumQuarters() * (double)HiseMidiSequence::TicksPerQuarter;
+
+
+
 	for (int i = 0; i < sequences.size(); i++)
 	{
-		f.addTrack(*sequences[i]);
+		auto copy = MidiMessageSequence(*sequences[i]);
+		copy.addEvent(MidiMessage::endOfTrack(), endTimestamp);
+		f.addTrack(copy);
 	}
 
 	auto name = id.toString();
