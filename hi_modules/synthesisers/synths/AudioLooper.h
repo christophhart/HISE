@@ -103,16 +103,16 @@ public:
 		numLooperParameters
 	};
 
-	AudioLooper(MainController *mc, const String &id, int numVoices);;
+	AudioLooper(MainController *mc, const String &id, int numVoices);
 
-	void restoreFromValueTree(const ValueTree &v) override;;
+	void restoreFromValueTree(const ValueTree &v) override;
 
 	ValueTree exportAsValueTree() const override;
 
 	void tempoChanged(double /*newTempo*/) override
 	{
 		setSyncMode(syncMode);
-	}
+	};
 
 	float getAttribute(int parameterIndex) const override;;
 
