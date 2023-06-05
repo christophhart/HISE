@@ -53,7 +53,14 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 	int thirdPartyOffset = 0;
 
-	auto numNodesToCreate = jmax(numNetworks, numNodesInDll);
+	for (int i = 0; i < numNodesInDll; i++)
+	{
+		if (dllFactory.isThirdPartyNode(i))
+			thirdPartyOffset = i + 1;
+	}
+
+	// Cater in the scenario where we have third party effects...
+	auto numNodesToCreate = jmax(numNetworks + thirdPartyOffset, numNodesInDll);
 
 	for (int i = 0; i < numNodesToCreate; i++)
 	{
@@ -61,8 +68,6 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 		if (isThirdPartyNode)
 		{
-			thirdPartyOffset = i + 1;
-
 			NodeFactory::Item item;
 			item.id = dllFactory.getId(i);
 
