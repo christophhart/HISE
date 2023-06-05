@@ -880,11 +880,22 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+		struct AsyncValueUpdater : public AsyncUpdater
+		{
+			AsyncValueUpdater(ScriptComponent& p) :
+				parent(p)
+			{};
+
+			void handleAsyncUpdate() override;
+
+			ScriptComponent& parent;
+		};
         
         
 		struct GlobalCableConnection;
 
 		AsyncControlCallbackSender controlSender;
+		AsyncValueUpdater asyncValueUpdater;
 
 		bool isPositionProperty(Identifier id) const;
 

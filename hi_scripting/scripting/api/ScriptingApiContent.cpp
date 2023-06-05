@@ -233,6 +233,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	keyboardCallback(base, nullptr, {}, 1),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
+	asyncValueUpdater(*this),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
     subComponentNotifier(*this),
@@ -810,6 +811,14 @@ void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 {
 	if (valueListener != nullptr)
 	{
+		auto currentThread = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+		if (currentThread == MainController::KillStateHandler::AudioThread)
+		{
+			asyncValueUpdater.triggerAsyncUpdate();
+			return;
+		}
+
 		var a[2];
 		a[0] = var(this);
 		a[1] = getValue();
@@ -836,6 +845,12 @@ void ScriptingApi::Content::ScriptComponent::changed()
 			reportScriptError("Aborting script execution after error occured during changed() callback");
 	}
 }
+
+void ScriptingApi::Content::ScriptComponent::AsyncValueUpdater::handleAsyncUpdate()
+{
+	parent.sendValueListenerMessage();
+}
+
 
 
 ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_) :
