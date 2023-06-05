@@ -352,12 +352,14 @@ public:
 		jsfx->getOrCreate("dsp");
 
 		CompileExporter::setExportingFromCommandLine();
+		CompileExporter::setExportUsingCI(true);
 
 		hise::DspNetworkCompileExporter exporter(nullptr, dynamic_cast<BackendProcessor*>(mc));
 
 		exporter.getComboBoxComponent("build")->setText(config, dontSendNotification);
 
 		exporter.run();
+		exporter.threadFinished();
 	}
 
 	static void setProjectFolder(const String& commandLine, bool exitOnSuccess=true)
