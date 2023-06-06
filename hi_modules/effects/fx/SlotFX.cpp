@@ -492,6 +492,7 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 	if (idx != -1)
 	{
 		currentEffect = factoryId;
+		hash = factory->getHash(idx);
 		newNode = new OpaqueNode();
 
 		if (!factory->initOpaqueNode(newNode, idx, isPolyphonic()))
@@ -587,7 +588,7 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 		if (otherFX->isPolyphonic() != isPolyphonic())
 			return false;
 
-		std::swap(treeWhenNotLoaded, otherFX->treeWhenNotLoaded);
+		std::swap(previouslySavedTree, otherFX->previouslySavedTree);
 		std::swap(currentEffect, otherFX->currentEffect);
 
 		auto& ap = asProcessor();
@@ -638,6 +639,50 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 	return false;
 }
 
+juce::Result HardcodedSwappableEffect::sanityCheck()
+{
+	String errorMessage;
+
+	errorMessage << dynamic_cast<Processor*>(this)->getId();
+	errorMessage << ":  > ";
+
+	if (!properlyLoaded)
+	{
+		errorMessage << "Can't find effect in DLL";
+
+		return Result::fail(errorMessage);
+	}
+
+	if (previouslySavedTree.isValid() && previouslySavedTree.hasProperty("DllHash"))
+	{
+		int hash = (int)previouslySavedTree["DllHash"];
+
+		auto idx = getModuleList().indexOf(currentEffect);
+
+		if (factory->getHash(idx) != hash)
+		{
+			errorMessage << "Hash mismatch for effect " + currentEffect;
+			return Result::fail(errorMessage);
+		}
+	}
+
+	if (opaqueNode != nullptr)
+	{
+		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
+		{
+			Identifier pid(p.info.getId());
+
+			if (previouslySavedTree.isValid() && !previouslySavedTree.hasProperty(pid))
+			{
+				errorMessage << "Missing parameter: " << pid;
+				return Result::fail(errorMessage);
+			}
+		}
+	}
+
+	return Result::ok();
+}
+
 void HardcodedSwappableEffect::setHardcodedAttribute(int index, float newValue)
 {
 	lastParameters[index] = newValue;
@@ -681,13 +726,17 @@ hise::ProcessorEditorBody* HardcodedSwappableEffect::createHardcodedEditor(Proce
 
 void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 {
-	if (factory->getNumNodes() == 0)
+	previouslySavedTree = v.createCopy();
+
+	auto effect = v.getProperty("Network", "").toString();
+
+	if (factory->getNumNodes() == 0 && effect.isNotEmpty())
 	{
-		treeWhenNotLoaded = v.createCopy();
+		properlyLoaded = false;
 		return;
 	}
 
-	auto effect = v.getProperty("Network", "No Effect").toString();
+	
 
 	setEffect(effect, false);
 
@@ -733,16 +782,21 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 			setHardcodedAttribute(p.info.index, value);
 		}
 	}
+	else
+	{
+		properlyLoaded = effect.isEmpty();
+	}
 }
 
 ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 {
-	if (factory->getNumNodes() == 0 && treeWhenNotLoaded.isValid())
+	if (!properlyLoaded)
 	{
-		return treeWhenNotLoaded;
+		return previouslySavedTree;
 	}
 
 	v.setProperty("Network", currentEffect, nullptr);
+	v.setProperty("DllHash", hash, nullptr);
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 

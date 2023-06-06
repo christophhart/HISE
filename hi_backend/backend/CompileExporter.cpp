@@ -522,7 +522,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	if (!hisePath.isDirectory()) 
 		return ErrorCodes::HISEPathNotSpecified;
 
-	if (!checkSanity(option)) return ErrorCodes::SanityCheckFailed;
+	if (!checkSanity(type, option)) return ErrorCodes::SanityCheckFailed;
 
 	chainToExport->getMainController()->getUserPresetHandler().initDefaultPresetManager({});
 
@@ -812,7 +812,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     return String();
 }
 
-bool CompileExporter::checkSanity(BuildOption option)
+bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 {
 	// Check if a frontend script is in the main synth chain
 
@@ -938,9 +938,18 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
     
-	auto networks = ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport);
+	for (auto fx : ProcessorHelpers::getListOfAllProcessors<HardcodedSwappableEffect>(chainToExport))
+	{
+		auto r = fx->sanityCheck();
 
-	for (auto n : networks)
+		if (!r.wasOk())
+		{
+			printErrorMessage("Hardcoded FX Sanity check failed", r.getErrorMessage());
+			return false;
+		}
+	}
+
+	for (auto n : ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport))
 	{
 		if (auto network = n->getActiveOrDebuggedNetwork())
 		{
@@ -954,7 +963,7 @@ bool CompileExporter::checkSanity(BuildOption option)
 		}
 	}
 
-    if(!shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+    if((type != TargetTypes::EffectPlugin) && !shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);
         

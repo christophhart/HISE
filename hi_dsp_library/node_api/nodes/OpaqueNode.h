@@ -356,6 +356,8 @@ namespace dll
 		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
 		virtual int getWrapperType(int index) const = 0;
 
+		virtual int getHash(int index) const = 0;
+
 		virtual Error getError() const = 0;
 		virtual void clearError() const = 0;
 
@@ -393,6 +395,8 @@ namespace dll
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		int getHash(int) const override { return -1; }
 
 		/** We don't bother about whether it's a third party node or not in a static compiled plugin. */
 		bool isThirdPartyNode(int index) const override { return false; };
@@ -571,6 +575,8 @@ namespace dll
 		Error getError() const override;
 		
 		void deinitOpaqueNode(scriptnode::OpaqueNode* n) override;
+
+		int getHash(int index) const override;
 
 	private:
 

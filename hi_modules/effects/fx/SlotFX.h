@@ -70,6 +70,8 @@ public:
 
 	// ===================================================================================== Processor API tool functions
 
+	Result sanityCheck();
+
 	void setHardcodedAttribute(int index, float newValue);
 	float getHardcodedAttribute(int index) const;
 	Path getHardcodedSymbol() const;
@@ -150,7 +152,8 @@ protected:
 	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
 	ReferenceCountedArray<FilterDataObject> filterData;
 
-	ValueTree treeWhenNotLoaded;
+	ValueTree previouslySavedTree;
+	bool properlyLoaded = true;
 
 	String currentEffect = "No network";
 
@@ -170,12 +173,16 @@ protected:
 	int channelIndexes[NUM_MAX_CHANNELS];
 	int numChannelsToRender = 0;
 
+	int hash = -1;
+
     Array<scriptnode::InvertableParameterRange> parameterRanges;
     
 private:
 
 	MainController* mc_;
 	friend class HardcodedMasterEditor;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HardcodedSwappableEffect);
 };
 
 class HardcodedMasterFX: public MasterEffectProcessor,
