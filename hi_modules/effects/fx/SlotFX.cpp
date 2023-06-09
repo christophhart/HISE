@@ -653,6 +653,7 @@ juce::Result HardcodedSwappableEffect::sanityCheck()
 		return Result::fail(errorMessage);
 	}
 
+#if 0
 	if (previouslySavedTree.isValid() && previouslySavedTree.hasProperty("DllHash"))
 	{
 		int hash = (int)previouslySavedTree["DllHash"];
@@ -664,7 +665,8 @@ juce::Result HardcodedSwappableEffect::sanityCheck()
 			errorMessage << "Hash mismatch for effect " + currentEffect;
 			return Result::fail(errorMessage);
 		}
-	}
+    }
+#endif
 
 	if (opaqueNode != nullptr)
 	{
