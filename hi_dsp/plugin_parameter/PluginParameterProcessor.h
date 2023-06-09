@@ -85,7 +85,7 @@ public:
 #if HI_SUPPORT_MONO_TO_STEREO
 		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
 #else
-		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::mono());		
+		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());		
 #endif
 #else
 
