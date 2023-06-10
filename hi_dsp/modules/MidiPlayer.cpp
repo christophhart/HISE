@@ -284,7 +284,7 @@ double HiseMidiSequence::getLastPlayedNotePosition() const
 void HiseMidiSequence::setLengthInQuarters(double newLength)
 {
 	artificialLengthInQuarters = newLength;
-	signature.calculateNumBars(artificialLengthInQuarters);
+	signature.calculateNumBars(artificialLengthInQuarters, false);
 }
 
 void HiseMidiSequence::setLengthFromTimeSignature(TimeSignature s)
@@ -338,8 +338,8 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 				{
 					auto endStamp = e->message.getTimeStamp() * timeFactor;
 					auto numQuarters = endStamp / TicksPerQuarter;
-
-					signature.calculateNumBars(numQuarters);
+					
+					signature.calculateNumBars(numQuarters, true);
 				}
 
 				newSequence->deleteEvent(j--, false);
@@ -352,12 +352,10 @@ void HiseMidiSequence::loadFrom(const MidiFile& file)
 			normalisedFile.addTrack(*newSequence);
 	}
 
-	
-
 	normalisedFile.setTicksPerQuarterNote(TicksPerQuarter);
 
 	if(signature.numBars == 0.0)
-		signature.calculateNumBars(normalisedFile.getLastTimestamp() / TicksPerQuarter);
+		signature.calculateNumBars(normalisedFile.getLastTimestamp() / TicksPerQuarter, true);
 
 	
 
