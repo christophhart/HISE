@@ -2770,7 +2770,7 @@ void ScriptingApi::Settings::setVoiceMultiplier(int newVoiceAmount)
 
 void ScriptingApi::Settings::clearMidiLearn()
 {
-	mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+	mc->getMacroManager().getMidiControlAutomationHandler()->clear(sendNotification);
 }
 
 var ScriptingApi::Settings::getMidiInputDevices()

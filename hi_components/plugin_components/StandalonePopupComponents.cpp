@@ -439,7 +439,7 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 	{
 		ScopedLock sl(mc->getLock());
 
-		mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+		mc->getMacroManager().getMidiControlAutomationHandler()->clear(sendNotification);
 	}
 	else if (b == debugButton)
 	{

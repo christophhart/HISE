@@ -117,7 +117,7 @@ public:
 	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const;
 
 	void refreshAnyUsedState();
-	void clear();
+	void clear(NotificationType notifyListeners);
 
 	/** The main routine. Call this for every MidiBuffer you want to process and it handles both setting parameters as well as MIDI learning. */
 	void handleParameterData(MidiBuffer &b);
