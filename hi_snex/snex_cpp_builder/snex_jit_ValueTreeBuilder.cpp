@@ -1901,12 +1901,9 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 {
 	parent.addNumVoicesTemplate(root);
 
-	if (root->getLength() > 60)
-	{
-		root->scopedId = root->scopedId.getParent().getChildId(root->scopedId.getIdentifier().toString() + "_");
-		root->flushIfNot();
-		parent.addEmptyLine();
-	}
+    root->scopedId = root->scopedId.getParent().getChildId(root->scopedId.getIdentifier().toString() + "_");
+    root->flushIfNot();
+    parent.addEmptyLine();
 
 
 	nodeClassId = Identifier(parent.getGlueCode(FormatGlueCode::MainInstanceClass));
