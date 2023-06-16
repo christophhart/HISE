@@ -59,7 +59,7 @@ public:
 
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
-	void update();
+	void update(bool force);
 	void createProcessorFromPopup(Processor *insertBeforeSibling=nullptr);
 
 	void timerCallback() override;
@@ -147,6 +147,10 @@ private:
 	bool valueFlag;
 	bool intensityFlag;
 	bool isSoloHeader;
+	bool bipolar = false;
+	bool mono = false;
+	bool retrigger = false;
+
 	String parentName;
 	
 	double dragStartValue = 0.0;

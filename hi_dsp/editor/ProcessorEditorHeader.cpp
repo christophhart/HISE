@@ -291,7 +291,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     setSize(ProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 30);
 #endif
 
-	update();
+	update(true);
 
 	foldButton->setMouseClickGrabsKeyboardFocus(false);
 	deleteButton->setMouseClickGrabsKeyboardFocus(false);
@@ -805,6 +805,8 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 void ProcessorEditorHeader::updateBipolarIcon(bool shouldBeBipolar)
 {
+	bipolar = shouldBeBipolar;
+
 	Path p;
 
 	if (shouldBeBipolar)
@@ -817,6 +819,7 @@ void ProcessorEditorHeader::updateBipolarIcon(bool shouldBeBipolar)
 
 void ProcessorEditorHeader::updateRetriggerIcon(bool shouldRetrigger)
 {
+	retrigger = shouldRetrigger;
 	retriggerButton->setToggleState(shouldRetrigger, dontSendNotification);
 	
 	Path p;
@@ -831,6 +834,8 @@ void ProcessorEditorHeader::updateRetriggerIcon(bool shouldRetrigger)
 
 void ProcessorEditorHeader::updateMonoIcon(bool shouldBeMono)
 {
+	mono = shouldBeMono;
+
 	monophonicButton->setToggleState(shouldBeMono, dontSendNotification);
 
 	if (!monophonicButton->isVisible())
@@ -852,13 +857,14 @@ void ProcessorEditorHeader::updateMonoIcon(bool shouldBeMono)
 	resized();
 }
 
-void ProcessorEditorHeader::update()
+void ProcessorEditorHeader::update(bool force)
 {
 	Processor *p = getProcessor();
 
-	bypassButton->setToggleState(! p->isBypassed(), dontSendNotification);
+	bypassButton->setToggleState(!p->isBypassed(), dontSendNotification);
 
-	if(!idLabel->isBeingEdited()) idLabel->setText(p->getId(), dontSendNotification);
+	if(!idLabel->isBeingEdited() && force)
+		idLabel->setText(p->getId(), dontSendNotification);
 
 	if(isHeaderOfModulator())
 	{
@@ -868,21 +874,23 @@ void ProcessorEditorHeader::update()
 
 		auto mod = dynamic_cast<Modulation*>(p);
 
-		updateBipolarIcon(m->isBipolar());
+		if(bipolar != mod->isBipolar() || force)
+			updateBipolarIcon(m->isBipolar());
 
 		if (isHeaderOfChain())
 			return;
 
 		if (dynamic_cast<EnvelopeModulator*>(mod) != nullptr)
 		{
-			auto retrigger = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Retrigger) > 0.5f;
-			auto monophonic = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Monophonic) > 0.5f;
+			auto shouldRetrigger = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Retrigger) > 0.5f;
+			auto shouldBeMonophonic = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Monophonic) > 0.5f;
 
-			updateMonoIcon(monophonic);
-			updateRetriggerIcon(retrigger);
+			if(mono != shouldBeMonophonic || force)
+				updateMonoIcon(shouldBeMonophonic);
+
+			if(shouldRetrigger != retrigger || force)
+				updateRetriggerIcon(shouldRetrigger);
 		}
-
-	
 	}
 	else if(isHeaderOfModulatorSynth())
 	{
@@ -954,7 +962,6 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 void ProcessorEditorHeader::timerCallback()
 {
-
 	if (getProcessor() != nullptr)
 	{
 		if (isHeaderOfModulator())
@@ -965,7 +972,6 @@ void ProcessorEditorHeader::timerCallback()
 
 			if (m->getMode() == Modulation::PitchMode)
 			{
-				
 				const float intensity = m->getIntensity();
 
 				if (m->isBipolar())
@@ -992,6 +998,8 @@ void ProcessorEditorHeader::timerCallback()
 			valueMeter->setPeak(getProcessor()->getDisplayValues().outL,
 				getProcessor()->getDisplayValues().outR);
 		}
+
+		update(false);
 
 		bypassButton->refresh();
 		intensitySlider->setEnabled(!getProcessor()->isBypassed());
@@ -1118,7 +1126,7 @@ void ProcessorEditorHeader::scriptWasCompiled(JavascriptProcessor *processor)
 			storedInPreset = false;
 			auto id = getProcessor()->getId();
 
-			for (auto ms : jmp->getListOfModuleIds())
+			for (auto ms : getProcessor()->getMainController()->getModuleStateManager())
 			{
 				if (id == ms->id)
 				{

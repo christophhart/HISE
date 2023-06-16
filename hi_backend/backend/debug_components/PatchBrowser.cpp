@@ -826,7 +826,7 @@ isOver(false)
 	idLabel.setText(getProcessor()->getId(), dontSendNotification);
 	idLabel.addListener(this);
     
-    
+	bypassed = getProcessor()->isBypassed();
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
@@ -836,7 +836,6 @@ void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 	if (b == soloButton)
 	{
 		const bool isSolo = getProcessor()->getEditorState(Processor::EditorState::Solo);
-
 		refreshButtonState(soloButton, !isSolo);
 	}
 
@@ -862,13 +861,9 @@ void PatchBrowser::ModuleDragTarget::refreshAllButtonStates()
 void PatchBrowser::ModuleDragTarget::refreshButtonState(ShapeButton *button, bool on)
 {
 	if (on)
-	{
 		button->setColours(Colours::white.withAlpha(0.7f), Colours::white, Colours::white);
-	}
 	else
-	{
 		button->setColours(Colours::black.withAlpha(0.2f), Colours::white.withAlpha(0.5f), Colours::white);
-	}
 }
 
 void PatchBrowser::ModuleDragTarget::setDraggingOver(bool shouldBeOver)
