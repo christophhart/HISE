@@ -34,6 +34,7 @@ namespace hise { using namespace juce;
 
 ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, const var& td) :
 	TableListBoxModel(),
+	SimpleTimer(p->getMainController_()->getGlobalUIUpdater()),
 	tableMetadata(td),
 	cellCallback(p, nullptr, var(), 3),
 	sortCallback(p, nullptr, var(), 2),
@@ -69,8 +70,156 @@ void ScriptTableListModel::paintCell(Graphics& g, int rowNumber, int columnId, i
 	lafToUse->drawTableCell(g, d, s.toString(), rowNumber, columnId - 1, width, height, rowIsSelected, isClicked, isHover);
 }
 
+
+
+struct ComponentUpdateHelpers
+{
+	struct ShiftSlider : public juce::Slider,
+						 public SliderWithShiftTextBox
+	{
+		void mouseDown(const MouseEvent& e) override
+		{
+			if (onShiftClick(e))
+				return;
+			else
+				juce::Slider::mouseDown(e);
+		}
+	};
+
+	enum class ComboBoxValueMode
+	{
+		ID,
+		Index,
+		Text,
+		numModes
+	};
+
+	static ComboBoxValueMode getValueMode(const var& metadata, int columnId)
+	{
+		static const StringArray comboboxValueModes = { "ID", "Index", "Text" };
+		auto d = metadata[columnId].getProperty("ValueMode", "ID");
+		return (ComboBoxValueMode)comboboxValueModes.indexOf(d.toString());
+	}
+
+	static bool updateItemList(ComboBox* cb, const var& obj)
+	{
+		if (obj.isObject())
+		{
+			auto l = obj["items"];
+
+			if (auto ar = l.getArray())
+			{
+				StringArray items;
+
+				for (auto& v : *ar)
+					items.add(v.toString());
+
+				cb->clear(dontSendNotification);
+				cb->addItemList(items, 1);
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	static void updateValue(ComboBox* cb, ComboBoxValueMode mode, const var& valueToUse)
+	{
+		if (valueToUse.isObject())
+		{
+			updateValue(cb, mode, valueToUse[scriptnode::PropertyIds::Value]);
+			return;
+		}
+
+		if (valueToUse.isUndefined())
+			cb->setSelectedId(0, dontSendNotification);
+		else
+		{
+			if (mode == ComboBoxValueMode::ID)
+			{
+				auto id = (int)valueToUse;
+				if (id >= 1 && id <= cb->getNumItems())
+					cb->setSelectedId(id, dontSendNotification);
+			}
+			if (mode == ComboBoxValueMode::Index)
+			{
+				auto index = (int)valueToUse;
+
+				if (index != -1 && index < cb->getNumItems())
+					cb->setSelectedItemIndex(index, dontSendNotification);
+			}
+			if (mode == ComboBoxValueMode::Text)
+			{
+				auto t = valueToUse.toString();
+				cb->setText(t, dontSendNotification);
+			}
+		}
+	}
+
+	static void updateValue(ShiftSlider* s, const var& value)
+	{
+		if (value.isObject())
+			updateValue(s, value[scriptnode::PropertyIds::Value]);
+		else if (!value.isUndefined())
+		{
+			s->setValue((double)value, dontSendNotification);
+		}
+	}
+
+	static bool updateSliderProperties(ShiftSlider* s, const var& value)
+	{
+		if (value.isObject())
+		{
+			auto r = scriptnode::RangeHelpers::getDoubleRange(value);
+
+			s->setRange(r.getRange(), r.rng.interval);
+			s->setSkewFactor(r.rng.skew);
+			s->setTextValueSuffix(value["suffix"]);
+			s->setDoubleClickReturnValue(value.hasProperty("defaultValue"), (double)value["defaultValue"]);
+
+			s->enableShiftTextInput = value.getProperty("showTextBox", true);
+
+			StringArray modeNames = { "Knob", "Horizontal", "Vertical" };
+			Slider::SliderStyle modes[3] = { Slider::SliderStyle::RotaryHorizontalVerticalDrag,
+											 Slider::SliderStyle::LinearBar,
+											 Slider::SliderStyle::LinearBarVertical };
+
+			auto idx = modeNames.indexOf(value["style"].toString());
+
+			if (idx != -1)
+				s->setSliderStyle(modes[idx]);
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	static var getValue(ComboBox* cb, ComboBoxValueMode mode)
+	{
+		switch (mode)
+		{
+		case ComboBoxValueMode::ID:
+			return cb->getSelectedId();
+		case ComboBoxValueMode::Index:
+			return cb->getSelectedItemIndex();
+		case ComboBoxValueMode::Text:
+			return cb->getText();
+		case ComboBoxValueMode::numModes:
+		default:
+			jassertfalse;
+			return {};
+		}
+	}
+};
+
 Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected, Component* existingComponentToUpdate)
 {
+	
+
 	columnId--;
 
 	auto cellType = getCellType(columnId);
@@ -108,12 +257,28 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		}
 		case CellType::Slider:
 		{
-			if (auto s = dynamic_cast<juce::Slider*>(existingComponentToUpdate))
+			if (auto s = dynamic_cast<ComponentUpdateHelpers::ShiftSlider*>(existingComponentToUpdate))
 			{
 				s->getProperties().set("RowIndex", rowNumber);
-				s->setValue(value, dontSendNotification);
+
+				ComponentUpdateHelpers::updateSliderProperties(s, value);
+				ComponentUpdateHelpers::updateValue(s, value);
 			}
 			
+			break;
+		}
+		case CellType::ComboBox:
+		{
+			if (auto s = dynamic_cast<juce::ComboBox*>(existingComponentToUpdate))
+			{
+				s->getProperties().set("RowIndex", rowNumber);
+
+				auto valueMode = ComponentUpdateHelpers::getValueMode(columnMetadata, columnId);
+
+				ComponentUpdateHelpers::updateItemList(s, value);
+				ComponentUpdateHelpers::updateValue(s, valueMode, value);
+			}
+
 			break;
 		}
 		case CellType::Image:
@@ -166,7 +331,7 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 		}
 		case CellType::Slider:
 		{
-			auto s = new Slider();
+			auto s = new ComponentUpdateHelpers::ShiftSlider();
 
 			auto n = cd[scriptnode::PropertyIds::ID].toString();
 			n << String(rowNumber);
@@ -174,10 +339,6 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			s->getProperties().set("RowIndex", rowNumber);
 
 			s->setName(n);
-
-			auto r = scriptnode::RangeHelpers::getDoubleRange(cd);
-
-			s->setSliderStyle(Slider::LinearBar);
 			s->setScrollWheelEnabled(false);
 
 			auto s_ = s;
@@ -201,11 +362,60 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			fallback.setDefaultColours(*s);
 
 			s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
-			s->setRange(r.rng.getRange(), r.rng.interval);
-			s->setSkewFactor(r.rng.skew);
 
-			s->setValue((double)getCellValue(rowNumber, columnId), dontSendNotification);
+			if (!ComponentUpdateHelpers::updateSliderProperties(s, value))
+				ComponentUpdateHelpers::updateSliderProperties(s, cd);
+
+			ComponentUpdateHelpers::updateValue(s, value);
+
 			return s;
+		}
+		case CellType::ComboBox:
+		{
+			auto cb = new ComboBox();
+
+			auto n = cd[scriptnode::PropertyIds::ID].toString();
+			n << String(rowNumber);
+
+			cb->getProperties().set("RowIndex", rowNumber);
+
+			cb->setName(n);
+			cb->setTextWhenNothingSelected(cd.getProperty("Text", "No selection"));
+
+			
+
+			auto cb_ = cb;
+
+			auto c = columnId + 1;
+
+			auto valueMode = ComponentUpdateHelpers::getValueMode(columnMetadata, columnId);
+
+			cb->onChange = [cb_, c, this, valueMode]()
+			{
+				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
+
+				auto r_ = (int)cb_->getProperties()["RowIndex"];
+
+				var value = ComponentUpdateHelpers::getValue(cb_, valueMode);
+
+				if (auto obj = rowData[r_].getDynamicObject())
+				{
+					obj->setProperty(id, value);
+				}
+
+				sendCallback(r_, c, value, EventType::ComboboxCallback);
+			};
+
+			fallback.setDefaultColours(*cb);
+
+			
+
+			if(!ComponentUpdateHelpers::updateItemList(cb, value))
+				ComponentUpdateHelpers::updateItemList(cb, cd);
+
+			ComponentUpdateHelpers::updateValue(cb, valueMode, value);
+
+			return cb;
 		}
 		case CellType::Image:
 		{
@@ -382,7 +592,8 @@ hise::ScriptTableListModel::CellType ScriptTableListModel::getCellType(int colum
 				"Text",
 				"Button",
 				"Image",
-				"Slider"
+				"Slider",
+				"ComboBox"
 			};
 
 			auto type = (CellType)types.indexOf(t);
@@ -394,6 +605,30 @@ hise::ScriptTableListModel::CellType ScriptTableListModel::getCellType(int colum
 
 	jassertfalse;
 	return CellType::numCellTypes;
+}
+
+void ScriptTableListModel::setTableColumnData(var cd)
+{
+	columnMetadata = cd;
+
+	if (columnMetadata.isArray())
+	{
+		int idx = 0;
+		repaintedColumns.clear();
+
+		for (auto& v : *columnMetadata.getArray())
+		{
+			if (v["PeriodicRepaint"])
+				repaintedColumns.add(idx+1);
+
+			idx++;
+		}
+
+		if (repaintedColumns.isEmpty())
+			stop();
+		else
+			start();
+	}
 }
 
 void ScriptTableListModel::setFont(Font f, Justification c)
@@ -632,6 +867,9 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 			break;
 		case EventType::ButtonCallback:
 			obj->setProperty("Type", "Button");
+			break;
+		case EventType::ComboboxCallback:
+			obj->setProperty("Type", "ComboBox");
 			break;
 		case EventType::Selection:
 			obj->setProperty("Type", "Selection");

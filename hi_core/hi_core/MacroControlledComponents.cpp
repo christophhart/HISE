@@ -421,6 +421,67 @@ bool  MacroControlledObject::isReadOnly()
 	return ro;
 }
 
+bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
+{
+	if (!e.mods.isShiftDown())
+		return false;
+
+	if (asSlider()->getWidth() > 25 && enableShiftTextInput)
+	{
+		asSlider()->addAndMakeVisible(inputLabel = new TextEditor());
+
+		inputLabel->centreWithSize(asSlider()->getWidth(), 20);
+		inputLabel->addListener(this);
+
+		inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));
+		inputLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+		inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+		inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white.withAlpha(0.5f));
+		inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+		inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+
+		inputLabel->setFont(GLOBAL_BOLD_FONT());
+		inputLabel->setBorder(BorderSize<int>());
+		inputLabel->setJustification(Justification::centred);
+
+		inputLabel->setText(asSlider()->getTextFromValue(asSlider()->getValue()), dontSendNotification);
+		inputLabel->selectAll();
+		inputLabel->grabKeyboardFocus();
+	}
+
+	return true;
+}
+
+void SliderWithShiftTextBox::updateValueFromLabel(bool shouldUpdateValue)
+{
+	if (inputLabel == nullptr)
+		return;
+
+	auto doubleValue = asSlider()->getValueFromText(inputLabel->getText());
+
+	if (shouldUpdateValue && (asSlider()->getRange().contains(doubleValue) || doubleValue == asSlider()->getMaximum()))
+	{
+		onTextValueChange(doubleValue);
+	}
+
+	inputLabel->removeListener(this);
+	inputLabel = nullptr;
+}
+
+void SliderWithShiftTextBox::textEditorFocusLost(TextEditor&)
+{
+	updateValueFromLabel(true);
+}
+
+void SliderWithShiftTextBox::textEditorReturnKeyPressed(TextEditor&)
+{
+	updateValueFromLabel(true);
+}
+
+void SliderWithShiftTextBox::textEditorEscapeKeyPressed(TextEditor&)
+{
+	updateValueFromLabel(false);
+}
 
 void HiSlider::sliderValueChanged(Slider *s)
 {
@@ -539,34 +600,15 @@ HiSlider::HiSlider(const String &name) :
 	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 }
 
+
+
 void HiSlider::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown() && !e.mods.isCtrlDown())
 	{
-		if (e.mods.isShiftDown())
+		if (onShiftClick(e))
 		{
-            if(getWidth() > 25 && enableShiftTextInput)
-            {
-                addAndMakeVisible(inputLabel = new TextEditor());
-                
-                inputLabel->centreWithSize(getWidth(), 20);
-                inputLabel->addListener(this);
-                
-                inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::black.withAlpha(0.6f));
-                inputLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
-                inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
-                inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white.withAlpha(0.5f));
-                inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
-                inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-
-                inputLabel->setFont(GLOBAL_BOLD_FONT());
-                inputLabel->setBorder(BorderSize<int>());
-                inputLabel->setJustification(Justification::centred);
-                
-                inputLabel->setText(getTextFromValue(getValue()), dontSendNotification);
-                inputLabel->selectAll();
-                inputLabel->grabKeyboardFocus();
-            }
+			return;
 		}
 		else
 		{
@@ -605,36 +647,7 @@ void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 	enableMidiLearnWithPopup();
 }
 
-void HiSlider::updateValueFromLabel(bool shouldUpdateValue)
-{
-	if (inputLabel == nullptr)
-		return;
 
-	auto doubleValue = getValueFromText(inputLabel->getText());
-
-	if (shouldUpdateValue && (getRange().getRange().contains(doubleValue) || doubleValue == getMaximum()))
-	{
-		setAttributeWithUndo((float)doubleValue);
-	}
-
-	inputLabel->removeListener(this);
-	inputLabel = nullptr;
-}
-
-void HiSlider::textEditorFocusLost(TextEditor&)
-{
-	updateValueFromLabel(true);
-}
-
-void HiSlider::textEditorReturnKeyPressed(TextEditor&)
-{
-	updateValueFromLabel(true);
-}
-
-void HiSlider::textEditorEscapeKeyPressed(TextEditor&)
-{
-	updateValueFromLabel(false);
-}
 
 String HiSlider::getModeId() const
 {
