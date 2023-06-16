@@ -1688,6 +1688,11 @@ scriptnode::routing::GlobalRoutingManager::SelectableTargetBase::List GlobalRout
 	return l;
 }
 
+bool GlobalRoutingManager::Cable::containsTarget(CableTargetBase* n) const
+{
+	return targets.contains(n);
+}
+
 void GlobalRoutingManager::Cable::addTarget(CableTargetBase* n)
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(lock);
