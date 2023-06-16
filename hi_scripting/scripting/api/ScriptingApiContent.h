@@ -819,6 +819,13 @@ public:
 
 		LambdaBroadcaster<bool, int> fadeListener;
 
+		void setModulationData(MacroControlledObject::ModulationPopupData::Ptr newMod)
+		{
+			modulationData = newMod;
+		}
+
+		MacroControlledObject::ModulationPopupData::Ptr getModulationData() const { return modulationData; }
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -870,6 +877,8 @@ public:
 		void sendValueListenerMessage();
 
 		var localLookAndFeel;
+
+		MacroControlledObject::ModulationPopupData::Ptr modulationData;
 
 		WeakCallbackHolder keyboardCallback;
 

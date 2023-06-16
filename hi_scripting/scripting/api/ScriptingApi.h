@@ -577,6 +577,9 @@ public:
 		/** Creates an object that can listen to transport events. */
 		var createTransportHandler();
 
+		/** Creates a modulation matrix object that handles dynamic modulation using the given Global Modulator Container as source. */
+		var createModulationMatrix(String containerId);
+
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
 

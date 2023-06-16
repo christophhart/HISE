@@ -934,6 +934,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createBackgroundTask);
     API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
 	API_METHOD_WRAPPER_0(Engine, createErrorHandler);
+	API_METHOD_WRAPPER_1(Engine, createModulationMatrix);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
@@ -1103,6 +1104,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
 	ADD_API_METHOD_0(createExpansionHandler);
+	ADD_API_METHOD_1(createModulationMatrix);
 	ADD_API_METHOD_3(showYesNoWindow);
 	ADD_API_METHOD_3(showMessageBox);
 	ADD_API_METHOD_1(getSystemTime);
@@ -3172,6 +3174,11 @@ ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHol
 var ScriptingApi::Engine::createTransportHandler()
 {
 	return new TransportHandler(getScriptProcessor());
+}
+
+juce::var ScriptingApi::Engine::createModulationMatrix(String containerId)
+{
+	return new ScriptingObjects::ScriptModulationMatrix(getScriptProcessor(), containerId);
 }
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)

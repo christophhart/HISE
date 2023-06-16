@@ -194,6 +194,15 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	}
 	else
 	{
+		if (auto modulationData = component->getModulationData())
+		{
+			if (modulationData->valueCallback)
+			{
+				modulationData->valueCallback((float)controllerValue);
+				return;
+			}
+		}
+
 		int callbackIndex = getControlCallbackIndex();
 
 		getMainController_()->getDebugLogger().logParameterChange(thisAsJavascriptProcessor, component, controllerValue);

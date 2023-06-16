@@ -125,7 +125,9 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		AddMacroControlOffset = 50,
 		GlobalModAddOffset = 100,
 		GlobalModRemoveOffset = 200,
-		MidiOffset = 300,
+		EditModulationConnection = 300,
+		ModulationOffset,
+		MidiOffset = 400,
 		numCommands
 	};
 
@@ -201,6 +203,29 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		}
 	}
 
+	if (modulationData != nullptr)
+	{
+		m.addSeparator();
+		m.addSectionHeader("Modulation for " + modulationData->modulationId);
+		auto c = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getProcessor()->getMainController()->getMainSynthChain());
+
+		for (int i = 0; i < modulationData->sources.size(); i++)
+		{
+			auto modId = c->getChildProcessor(1)->getChildProcessor(i)->getId();
+
+			auto isEnabled = modulationData->queryFunction(i, false);
+			auto isTicked = modulationData->queryFunction(i, true);
+
+			m.addItem((int)ModulationOffset + i, "Connect to " + modulationData->sources[i], isEnabled || isTicked, isTicked);
+		}
+
+		if (modulationData->editCallback)
+		{
+			m.addSeparator();
+			m.addItem((int)EditModulationConnection, "Edit connections");
+		}
+	}
+
 	NormalisableRange<double> rangeWithSkew = getRange();
 
 	if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
@@ -244,6 +269,10 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		
 		initMacroControl(sendNotification);
 	}
+	else if (result == EditModulationConnection)
+	{
+		modulationData->editCallback(modulationData->modulationId);
+	}
 	else if (result >= MidiOffset)
 	{
 		auto number = result - MidiOffset;
@@ -254,6 +283,14 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		mHandler->removeMidiControlledParameter(processor, parameterToUse, sendNotificationAsync);
 		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, -1);
 		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
+	}
+	else if (result >= ModulationOffset)
+	{
+		result -= ModulationOffset;
+
+		auto v = !modulationData->queryFunction(result, true);
+
+		modulationData->toggleFunction(result, v);
 	}
 	else if (result >= AddMacroControlOffset)
 	{

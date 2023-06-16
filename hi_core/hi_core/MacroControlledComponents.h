@@ -177,6 +177,23 @@ class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionList
 {
 public:
 	
+	struct ModulationPopupData: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<ModulationPopupData>;
+
+		operator bool() const noexcept
+		{
+			return modulationId.isNotEmpty();
+		}
+
+		String modulationId;
+		StringArray sources;
+		std::function<bool(int, bool)> queryFunction;
+		std::function<void(int, bool)> toggleFunction;
+		std::function<void(double)> valueCallback;
+		std::function<void(String)> editCallback;
+	};
+
 	class UndoableControlEvent: public UndoableAction
 	{
 	public:
@@ -276,6 +293,11 @@ public:
 	
 	int getParameter() const { return parameter; };
 
+	void setModulationData(ModulationPopupData::Ptr modData)
+	{
+		modulationData = modData;
+	}
+
 protected:
 
 	/** checks if the macro learn mode is active.
@@ -302,6 +324,8 @@ protected:
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	ModulationPopupData::Ptr modulationData;
 
 	Identifier customId;
 

@@ -49,7 +49,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_data.xml" "xml
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_table_data.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_unordered_stack.xml" "xml\selection"
-
+xcopy "xml\structhise_1_1_scripting_objects_1_1_script_modulation_matrix.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_shader.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_audio_file.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_sampler_sound.xml" "xml\selection"
@@ -152,7 +152,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_audio_sample_pr
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml" "SliderPackProcessor.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_display_buffer_source.xml" "DisplayBufferSource.xml"
-
+ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_modulation_matrix.xml" "ScriptModulationMatrix.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "ScriptLookAndFeel.xml"
 ren "xml\selection\classhise_1_1_script_user_preset_handler.xml" "UserPresetHandler.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"

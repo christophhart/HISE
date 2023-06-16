@@ -395,6 +395,11 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 	component->setComponentID(sc->getName().toString());
 
+	if (auto bc = dynamic_cast<MacroControlledObject*>(getComponent()))
+	{
+		bc->setModulationData(sc->getModulationData());
+	}
+
 	for(const auto& c: sc->getMouseListeners())
 		mouseCallbacks.add(new AdditionalMouseCallback(sc, component, c));
 
