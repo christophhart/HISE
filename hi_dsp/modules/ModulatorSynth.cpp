@@ -766,6 +766,11 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 
 	activeVoices.insert(voice);
 
+	if (auto uvh = UniformVoiceHandler::findFromParent(this))
+	{
+		uvh->incVoiceCounter(this, voice->getVoiceIndex());
+	}
+
 	Synthesiser::startVoice(static_cast<SynthesiserVoice*>(voice), sound, e.getChannel(), e.getNoteNumber(), e.getFloatVelocity());
 
 	voice->saveStartUptimeDelta();
@@ -941,7 +946,7 @@ void ModulatorSynth::finaliseModChains()
 	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
 	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
 
-	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
+	//pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
 	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
 	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);
@@ -1070,30 +1075,11 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 	// Make room for the sounds
 	handleVoiceLimit(numSoundsToStart);
 
-	const int midiChannel = m.getChannel();
-	const int midiNoteNumber = m.getNoteNumber();
-	const bool retriggerWithDifferentChannels = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
+	
 
 	for(auto sound: soundsToBeStarted)
 	{
-		ModulatorSynthVoice* v = nullptr;
-
-        // If hitting a note that's still ringing, stop it first (it could be
-        // still playing because of the sustain or sostenuto pedal).
-        for (int j = 0; j < voices.size(); j++)
-        {
-            ModulatorSynthVoice* const voice = static_cast<ModulatorSynthVoice*>(voices.getUnchecked (j));
-
-            if (voice->getCurrentlyPlayingNote() == midiNoteNumber // Use the untransposed number for detecting repeated notes
-                    && (retriggerWithDifferentChannels || voice->isPlayingChannel (midiChannel)) 
-					&& !(voice->getCurrentHiseEvent() == m))
-			{
-				handleRetriggeredNote(voice);
-			}
-				
-			if(v == nullptr && voice->isInactive())
-				v = voice;
-        }
+		auto v = getVoiceToStart(m);
 
 		if( v != nullptr)
 		{
@@ -1250,6 +1236,11 @@ void ModulatorSynthVoice::resetVoice()
 	os->flagVoiceAsRemoved(this);
 
 	currentHiseEvent = HiseEvent();
+
+	if (auto uvh = UniformVoiceHandler::findFromParent(getOwnerSynth()))
+	{
+		uvh->decVoiceCounter(getOwnerSynth(), getVoiceIndex());
+	}
 }
 
 void ModulatorSynthVoice::checkRelease()
@@ -1718,6 +1709,49 @@ void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
 	{
 		static_cast<ModulatorSynthVoice*>(voices[i])->setKillFadeFactor(killTimeFactor);
 	}
+}
+
+hise::ModulatorSynthVoice* ModulatorSynth::getVoiceToStart(const HiseEvent& m)
+{
+	if (auto uv = UniformVoiceHandler::findFromParent(this))
+	{
+		if (soundsToBeStarted.size() > 1)
+		{
+			debugError(this, "Can't start more than one sound when uniform mode is enabled");
+			return nullptr;
+		}
+
+		auto idx = uv->getVoiceIndex(m);
+
+		if (isPositiveAndBelow(idx, voices.size()))
+		{
+			auto v = static_cast<ModulatorSynthVoice*>(voices[idx]);
+			jassert(v->isInactive());
+			return v;
+		}
+			
+	}
+
+	ModulatorSynthVoice* v = nullptr;
+
+	const bool retriggerWithDifferentChannels = getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
+
+	for (int j = 0; j < voices.size(); j++)
+	{
+		ModulatorSynthVoice* const voice = static_cast<ModulatorSynthVoice*>(voices.getUnchecked(j));
+
+		if (voice->getCurrentlyPlayingNote() == m.getNoteNumber() // Use the untransposed number for detecting repeated notes
+			&& (retriggerWithDifferentChannels || voice->isPlayingChannel(m.getChannel()))
+			&& !(voice->getCurrentHiseEvent() == m))
+		{
+			handleRetriggeredNote(voice);
+		}
+
+		if (v == nullptr && voice->isInactive())
+			v = voice;
+	}
+
+	return v;
 }
 
 void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)

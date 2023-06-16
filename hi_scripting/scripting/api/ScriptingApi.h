@@ -1176,6 +1176,9 @@ public:
 		/** Returns true if the sustain pedal is pressed. */
 		bool isSustainPedalDown() const { return sustainState; }
 
+		/** Use a uniform voice index for the given container. */
+		void setUseUniformVoiceHandler(String containerId, bool shouldUseUniformVoiceHandling);
+
 		// ============================================================================================================
 
 		void handleNoteCounter(const HiseEvent& e) noexcept

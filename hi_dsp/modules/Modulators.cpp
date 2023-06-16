@@ -640,8 +640,8 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
 	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
 	case voiceKillEnvelope: return new ScriptnodeVoiceKiller(m, id, numVoices);
+	case globalEnvelope:	return new GlobalEnvelopeModulator(m, id, mode, numVoices);
 	default: jassertfalse;	return nullptr;
-
 	}
 };
 

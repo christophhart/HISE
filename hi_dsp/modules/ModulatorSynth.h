@@ -523,6 +523,8 @@ protected:
 	HiseEvent eventForSoundCollection;
 #endif
 
+	ModulatorSynthVoice* getVoiceToStart(const HiseEvent& m);
+
 private:
 
     void updateShouldHaveEnvelope();

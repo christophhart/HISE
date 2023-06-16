@@ -276,7 +276,14 @@ public:
 
 		void setDisplayValue(float v);
 
+		void setScratchBufferFunction(const std::function<void(int, Modulator* m, float*, int, int)>& f)
+		{
+			scratchBufferFunction = f;
+		}
+
 	private:
+
+		std::function<void(int, Modulator* m, float*, int, int)> scratchBufferFunction;
 
 		void applyMonophonicValuesToVoiceInternal(float* voiceBuffer, float* monoBuffer, int numSamples);
 

@@ -421,6 +421,9 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 			while (auto mod = iter.next())
 			{
 				mod->render(voiceIndex, voiceData, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
+
+				if (scratchBufferFunction)
+					scratchBufferFunction(voiceIndex, mod, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
 			}
 
 			if (useMonophonicData)
@@ -866,7 +869,7 @@ float ModulatorChain::startVoice(int voiceIndex)
 bool ModulatorChain::isPlaying(int voiceIndex) const
 {
 	jassert(hasActivePolyEnvelopes());
-	jassert(getMode() == GainMode);
+	jassert(getMode() == GainMode || getMode() == Modulation::GlobalMode);
 
 	if (isBypassed())
 		return false;
@@ -1276,6 +1279,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
 	ADD_NAME_TO_TYPELIST(MPEModulator);
 	ADD_NAME_TO_TYPELIST(ScriptnodeVoiceKiller);
+	ADD_NAME_TO_TYPELIST(GlobalEnvelopeModulator);
 }
 
 

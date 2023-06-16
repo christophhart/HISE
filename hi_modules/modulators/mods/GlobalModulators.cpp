@@ -64,27 +64,9 @@ GlobalModulator::~GlobalModulator()
 
 	table = nullptr;
 
+	disconnect();
+
 	
-
-	if (auto oltp = dynamic_cast<LookupTableProcessor*>(getOriginalModulator()))
-	{
-		
-
-		WeakReference<Processor> target = getOriginalModulator();
-
-		if (target->getMainController()->isBeingDeleted())
-			return;
-
-		auto f = [target]()
-		{
-			if (auto ltp = dynamic_cast<LookupTableProcessor*>(target.get()))
-			{
-				ltp->refreshYConvertersAfterRemoval();
-			}
-		};
-
-		new DelayedFunctionCaller(f, 300);
-	}
 
 	
 }
@@ -182,6 +164,7 @@ StringArray GlobalModulator::getListOfAllModulatorsWithType()
 			case VoiceStart: matches = dynamic_cast<VoiceStartModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
 			case TimeVariant: matches = dynamic_cast<TimeVariantModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
 			case StaticTimeVariant: matches = dynamic_cast<TimeVariantModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
+			case Envelope: matches = dynamic_cast<EnvelopeModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
             case numTypes: jassertfalse; break;
 			}
 
@@ -193,6 +176,30 @@ StringArray GlobalModulator::getListOfAllModulatorsWithType()
 	}
 
 	return list;
+}
+
+void GlobalModulator::disconnect()
+{
+	if (auto oltp = dynamic_cast<LookupTableProcessor*>(getOriginalModulator()))
+	{
+		WeakReference<Processor> target = getOriginalModulator();
+
+		if (target->getMainController()->isBeingDeleted())
+			return;
+
+		auto f = [target]()
+		{
+			if (auto ltp = dynamic_cast<LookupTableProcessor*>(target.get()))
+			{
+				ltp->refreshYConvertersAfterRemoval();
+			}
+		};
+
+		new DelayedFunctionCaller(f, 300);
+	}
+
+	originalModulator = nullptr;
+	connectedContainer = nullptr;
 }
 
 bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
@@ -535,6 +542,157 @@ void GlobalTimeVariantModulator::invertBuffer(int startSample, int numSamples)
 		FloatVectorOperations::multiply(d, -1.0f, numSamples);
 		FloatVectorOperations::add(d, 1.0f, numSamples);
 	}
+}
+
+GlobalEnvelopeModulator::GlobalEnvelopeModulator(MainController *mc, const String &id, Modulation::Mode m, int numVoices) :
+	EnvelopeModulator(mc, id, numVoices, m),
+	Modulation(m),
+	GlobalModulator(mc)
+{
+
+}
+
+void GlobalEnvelopeModulator::restoreFromValueTree(const ValueTree &v)
+{
+	EnvelopeModulator::restoreFromValueTree(v);
+	loadFromValueTree(v);
+}
+
+juce::ValueTree GlobalEnvelopeModulator::exportAsValueTree() const
+{
+	ValueTree v = EnvelopeModulator::exportAsValueTree();
+	saveToValueTree(v);
+	return v;
+}
+
+hise::ProcessorEditorBody * GlobalEnvelopeModulator::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new GlobalModulatorEditor(parentEditor);
+#else
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+#endif
+}
+
+void GlobalEnvelopeModulator::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case UseTable:			useTable = (newValue > 0.5f); break;
+	case Inverted:			inverted = (newValue > 0.5f); break;
+	default:				jassertfalse; break;
+	}
+}
+
+float GlobalEnvelopeModulator::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case UseTable:			return useTable ? 1.0f : 0.0f;
+	case Inverted:			return inverted ? 1.0f : 0.0f;
+	default:				jassertfalse; return -1.0f;
+	}
+}
+
+float GlobalEnvelopeModulator::startVoice(int voiceIndex)
+{
+	if (isConnected())
+	{
+		return 0.0f;
+	}
+	else
+	{
+		active[voiceIndex] = true;
+		return getInitialValue();
+	}
+}
+
+void GlobalEnvelopeModulator::stopVoice(int voiceIndex)
+{
+	active[voiceIndex] = false;
+}
+
+void GlobalEnvelopeModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	connectIfPending();
+	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
+}
+
+bool GlobalEnvelopeModulator::isPlaying(int voiceIndex) const
+{
+	if (isConnected())
+	{
+		return static_cast<const EnvelopeModulator*>(getOriginalModulator())->isPlaying(voiceIndex);
+	}
+	else
+	{
+		return active[voiceIndex];
+	}
+}
+
+hise::EnvelopeModulator::ModulatorState * GlobalEnvelopeModulator::createSubclassedState(int voiceIndex) const
+{
+	return new EnvelopeModulator::ModulatorState(voiceIndex);
+}
+
+void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
+{
+	if (isConnected())
+	{
+		auto voiceIndex = polyManager.getCurrentVoice();
+
+		if (useTable)
+		{
+			const float *data = getConnectedContainer()->getEnvelopeValuesForModulator(getOriginalModulator(), startSample, voiceIndex);
+
+			if (data != nullptr)
+			{
+				const float thisInputValue = data[0];
+
+				int i = 0;
+
+				const int startIndex = startSample;
+
+				while (--numSamples >= 0)
+				{
+					internalBuffer.setSample(0, startSample++, table->getInterpolatedValue(data[i++], dontSendNotification));
+				}
+
+#if 0
+				if (numSamples > 0)
+					invertBuffer(startSample, numSamples);
+#endif
+
+
+				table->setNormalisedIndexSync(thisInputValue);
+				setOutputValue(internalBuffer.getSample(0, startIndex));
+
+				return;
+			}
+		}
+		else
+		{
+			if (auto src = getConnectedContainer()->getEnvelopeValuesForModulator(getOriginalModulator(), startSample, voiceIndex))
+			{
+				FloatVectorOperations::copy(internalBuffer.getWritePointer(0, startSample), src, numSamples);
+				//invertBuffer(startSample, numSamples);
+
+				setOutputValue(internalBuffer.getSample(0, startSample));
+
+				return;
+			}
+		}
+	}
+	else
+	{
+		auto v = Modulation::getInitialValue();
+		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), v, numSamples);
+		setOutputValue(v);
+	}
+
+	
 }
 
 } // namespace hise

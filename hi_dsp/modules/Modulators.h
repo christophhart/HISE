@@ -1092,7 +1092,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		tableEnvelope,
 		scriptEnvelope,
 		mpeModulator,
-		voiceKillEnvelope
+		voiceKillEnvelope,
+		globalEnvelope
 	};
 
 public:

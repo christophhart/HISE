@@ -4863,6 +4863,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, isArtificialEventActive);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
+	API_VOID_METHOD_WRAPPER_2(Synth, setUseUniformVoiceHandler);
 	API_METHOD_WRAPPER_0(Synth, createBuilder);
 	
 };
@@ -4912,6 +4913,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_2(sendController);
 	ADD_API_METHOD_2(sendControllerToChildSynths);
 	ADD_API_METHOD_4(setModulatorAttribute);
+	ADD_API_METHOD_2(setUseUniformVoiceHandler);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
 	ADD_API_METHOD_1(getMidiPlayer);
@@ -6113,6 +6115,22 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 }
 
 
+
+void ScriptingApi::Synth::setUseUniformVoiceHandler(String containerId, bool shouldUseUniformVoiceHandling)
+{
+	Processor::Iterator<ModulatorSynthChain> iter(getScriptProcessor()->getMainController_()->getMainSynthChain());
+
+	while (auto s = iter.getNextProcessor())
+	{
+		if (s->getId() == containerId)
+		{
+			s->setUseUniformVoiceHandler(shouldUseUniformVoiceHandling);
+			return;
+		}
+	}
+
+	reportScriptError("Can't find Container with ID " + containerId);
+}
 
 // ====================================================================================================== Console functions
 
