@@ -108,6 +108,8 @@ public:
 		{
 		}
 
+		double applyModValue(double f) const;
+
 		AudioSampleBuffer& b;
 		int voiceIndex = -1;
 

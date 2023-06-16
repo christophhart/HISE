@@ -492,7 +492,36 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	if (!forceMono && (hasPolyMods() || !blockIsActive))
+	{
+		FilterHelpers::RenderData r(b, startSample, numSamples);
+		r.voiceIndex = -1;
+
+		r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
+
+		modChains[FrequencyChain].setDisplayValue(r.freqModValue);
+
+		auto bp = bipolarIntensity.getNextValue();
+
+		if (bp != 0.0)
+		{
+			auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+
+			if (!modChains[BipolarFrequencyChain].getChain()->shouldBeProcessedAtAll())
+				bipolarFMod = 0.0;
+
+			modChains[BipolarFrequencyChain].setDisplayValue(bipolarFMod);
+
+			r.bipolarDelta = (double)(bp * bipolarFMod);
+		}
+
+		r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
+		r.qModValue = (double)modChains[ResonanceChain].getOneModulationValue(startSample);
+
+		monoFilters.setDisplayModValues(-1, (float)r.applyModValue(frequency), (float)r.gainModValue);
+
 		return;
+	}
+		
 
 	while (numSamples > 0)
 	{
@@ -509,16 +538,27 @@ void PolyFilterEffect::renderNextBlock(AudioSampleBuffer &b, int startSample, in
 		r.voiceIndex = -1;
 
 		r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
-
-		auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+		modChains[FrequencyChain].setDisplayValue(r.freqModValue);
 
 		auto bp = bipolarIntensity.getNextValue();
 
-		r.bipolarDelta = (double)(bp * bipolarFMod);
+		if (bp != 0.0)
+		{
+			auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+
+			if (!modChains[BipolarFrequencyChain].getChain()->shouldBeProcessedAtAll())
+				bipolarFMod = 0.0;
+
+			modChains[BipolarFrequencyChain].setDisplayValue(bipolarFMod);
+
+			r.bipolarDelta = (double)(bp * bipolarFMod);
+		}
 
 		r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
 		r.qModValue = (double)modChains[ResonanceChain].getOneModulationValue(startSample);
 		
+		
+
 		monoFilters.setDisplayModValues(-1, (float)r.applyModValue(frequency), (float)r.gainModValue);
 		monoFilters.renderMono(r);
 		
@@ -596,11 +636,18 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 
 	r.freqModValue = modChains[FrequencyChain].getOneModulationValue(startSample);
 
-	auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
-
 	auto bp = bipolarIntensity.getNextValue();
 
-	r.bipolarDelta = (double)(bp * bipolarFMod);
+	if (bp != 0.0)
+	{
+		auto bipolarFMod = modChains[BipolarFrequencyChain].getOneModulationValue(startSample);
+
+		if (!modChains[BipolarFrequencyChain].getChain()->shouldBeProcessedAtAll())
+			bipolarFMod = 0.0;
+
+		r.bipolarDelta = (double)(bp * bipolarFMod);
+	}
+
 	r.gainModValue = (double)modChains[GainChain].getOneModulationValue(startSample);
 	r.qModValue = (double)modChains[ResonanceChain].getOneModulationValue(startSample);
 
