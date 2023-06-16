@@ -95,7 +95,7 @@ public:
 *	For faster performance, one CC value can only control one parameter.
 *
 */
-class MidiControllerAutomationHandler : public RestorableObject,
+class MidiControllerAutomationHandler : public UserPresetStateManager,
 										public SafeChangeBroadcaster
 {
 public:
@@ -105,10 +105,15 @@ public:
 	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex);
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners);
 
+	
+
 	bool isLearningActive() const;
 
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
+
+	Identifier getUserPresetStateId() const override { return UserPresetIds::MidiAutomation; };
+	void resetUserPresetState() override { clear(); }
 
 	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const;
 	void deactivateMidiLearning();
@@ -125,7 +130,7 @@ public:
 	bool handleControllerMessage(const HiseEvent& e);
 		
 	class MPEData : public ControlledObject,
-					public RestorableObject,
+					public UserPresetStateManager,
 					public Dispatchable
 	{
 	public:
@@ -161,6 +166,10 @@ public:
             numEventTypes
         };
         
+		Identifier getUserPresetStateId() const override { return UserPresetIds::MPEData; }
+
+		void resetUserPresetState() override { reset(); }
+
 		void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
 
 		ValueTree exportAsValueTree() const override;

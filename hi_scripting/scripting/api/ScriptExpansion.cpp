@@ -507,7 +507,7 @@ void ScriptUserPresetHandler::runTest()
 		}
 		if (type == "moduleStates")
 		{
-			return String(uph.getStoredModuleData().size());
+			return String(getScriptProcessor()->getMainController_()->getModuleStateManager().modules.size());
 		}
         
         return String("unknown");
@@ -536,7 +536,7 @@ void ScriptUserPresetHandler::runTest()
 				addWarning(id + " is connected to a processor but does not have saveInPreset enabled");
 			}
 
-			for (auto l : uph.getStoredModuleData())
+			for (auto l : getScriptProcessor()->getMainController_()->getModuleStateManager().modules)
 			{
 				if (l->p == cp)
 				{
@@ -560,10 +560,12 @@ void ScriptUserPresetHandler::runTest()
 		addLine("...OK");
 	}
 
-	if (!uph.getStoredModuleData().isEmpty())
+	auto& moduleData = getScriptProcessor()->getMainController_()->getModuleStateManager().modules;
+
+	if (!moduleData.isEmpty())
 	{
 		addLine("| ============== Module State Information ================== |");
-		for (auto l : uph.getStoredModuleData())
+		for (auto l : moduleData)
 		{
 			addLineFromTokens({ "Module State for ", l->p->getId() });
 			auto v = l->p->exportAsValueTree();

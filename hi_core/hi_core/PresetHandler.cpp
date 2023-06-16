@@ -115,8 +115,7 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 
 		if (chain->getMainController()->getUserPresetHandler().isUsingCustomDataModel())
 		{
-			auto v = chain->getMainController()->getUserPresetHandler().createCustomValueTree("Unused");
-			preset.addChild(v, -1, nullptr);
+			chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::CustomJSON);
 		}
 		else
 		{
@@ -126,27 +125,23 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 			preset.addChild(v, -1, nullptr);
 		}
 
-		auto modules = createModuleStateTree(chain);
+		chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::Modules);
 
-		if (modules.getNumChildren() != 0)
-		{
-			preset.addChild(modules, -1, nullptr);
-		}
 	}
 #endif
 
-	ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
-	ValueTree mpeData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
+	chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::MidiAutomation);
+	chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::MPEData);
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
 
 	addRequiredExpansions(chain->getMainController(), preset);
 
-	preset.addChild(autoData, -1, nullptr);
-	preset.addChild(mpeData, -1, nullptr);
-
 	if(chain->getMainController()->getMacroManager().isMacroEnabledOnFrontend())
 		chain->saveMacrosToValueTree(preset);
+
+	// Store the rest...
+	chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::AdditionalStates);
 
 	return preset;
 }
@@ -190,31 +185,7 @@ StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, Value
 	return missingExpansions;
 }
 
-juce::ValueTree UserPresetHelpers::createModuleStateTree(ModulatorSynthChain* chain)
-{
-	ValueTree modules("Modules");
 
-	if (auto sp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(chain->getMainController()))
-	{
-		for (auto ms : sp->getListOfModuleIds())
-		{
-			auto id = ms->id;
-
-			if (auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id))
-			{
-				auto mTree = p->exportAsValueTree();
-
-				mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
-
-				ms->stripValueTree(mTree);
-
-				modules.addChild(mTree, -1, nullptr);
-			}
-		}
-	}
-
-	return modules;
-}
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
@@ -241,58 +212,7 @@ void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 
 }
 
-void UserPresetHelpers::restoreModuleStates(ModulatorSynthChain* chain, const ValueTree& v)
-{
-	auto modules = v.getChildWithName("Modules");
 
-	if (modules.isValid())
-	{
-		auto& md = chain->getMainController()->getUserPresetHandler().getStoredModuleData();
-
-		bool didSomething = false;
-
-		for (auto m : modules)
-		{
-			didSomething = true;
-
-			auto id = m["ID"].toString();
-			auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
-
-			if (p != nullptr)
-			{
-				auto mcopy = m.createCopy();
-
-				for (auto ms : md)
-				{
-					if (ms->id == id)
-					{
-						ms->restoreValueTree(mcopy);
-						break;
-					}
-				}
-
-				if (p->getType().toString() == mcopy["Type"].toString())
-				{
-					p->restoreFromValueTree(mcopy);
-					p->sendPooledChangeMessage();
-				}
-			}
-		}
-
-		auto& uph = chain->getMainController()->getUserPresetHandler();
-
-		if (didSomething && uph.isUsingCustomDataModel())
-		{
-			auto numDataObjects = uph.getNumCustomAutomationData();
-
-			// We might need to update the custom automation data values.
-			for (int i = 0; i < numDataObjects; i++)
-			{
-				uph.getCustomAutomationData(i)->updateFromConnectionValue(0);
-			}
-		}
-	}
-}
 
 #if !USE_MIDI_AUTOMATION_MIGRATION
 Identifier UserPresetHelpers::getAutomationIndexFromOldVersion(const String& /*oldVersion*/, int /*oldIndex*/)
@@ -3165,6 +3085,205 @@ juce::Image MessageWithIcon::LookAndFeelMethods::createIcon(PresetHandler::IconT
 		jassertfalse;
 		return Image(); 
 		
+	}
+}
+
+void removePropertyRecursive(NamedValueSet& removedProperties, String currentPath, ValueTree v, const Identifier& id)
+{
+	if (!currentPath.isEmpty())
+		currentPath << ":";
+
+	currentPath << v.getType();
+
+	if (v.hasProperty(id))
+	{
+		auto value = v.getProperty(id);
+		v.removeProperty(id, nullptr);
+		removedProperties.set(Identifier(currentPath + ":" + id.toString()), value);
+	}
+
+	for (auto c : v)
+		removePropertyRecursive(removedProperties, currentPath, c, id);
+}
+
+ModuleStateManager::StoredModuleData::StoredModuleData(var moduleId, Processor* pToRestore) :
+	p(pToRestore)
+{
+	if (moduleId.isString())
+		id = moduleId.toString();
+	else
+	{
+		id = moduleId["ID"].toString();
+
+		auto rp = moduleId["RemovedProperties"];
+		auto rc = moduleId["RemovedChildElements"];
+
+		if (rp.isArray() || rc.isArray())
+		{
+			auto v = p->exportAsValueTree();
+
+			if (rp.isArray())
+			{
+				for (auto propertyToRemove : *rp.getArray())
+				{
+					auto pid_ = propertyToRemove.toString();
+					if (pid_.isNotEmpty())
+					{
+						Identifier pid(pid_);
+						removePropertyRecursive(removedProperties, {}, v, pid);
+					}
+				}
+			}
+
+			if (rc.isArray())
+			{
+				for (auto childToRemove : *rc.getArray())
+				{
+					auto pid_ = childToRemove.toString();
+
+					if (pid_.isNotEmpty())
+					{
+						Identifier pid(pid_);
+						removedChildElements.add(v.getChildWithName(pid).createCopy());
+					}
+				}
+			}
+
+			removedProperties.remove(Identifier("Processor:ID"));
+		}
+	}
+}
+
+void restorePropertiesRecursive(ValueTree v, StringArray path, const var& value, bool restore)
+{
+	if (path.size() == 2)
+	{
+		if (Identifier(path[0]) == v.getType())
+		{
+			auto id = Identifier(path[1]);
+
+			if (restore)
+				v.setProperty(id, value, nullptr);
+			else
+				v.removeProperty(id, nullptr);
+		}
+	}
+	else
+	{
+		path.remove(0);
+
+		for (auto c : v)
+			restorePropertiesRecursive(c, path, value, restore);
+	}
+}
+
+void ModuleStateManager::StoredModuleData::stripValueTree(ValueTree& v)
+{
+	for (const auto& rp : removedProperties)
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+
+		restorePropertiesRecursive(v, path, {}, false);
+	}
+
+
+	for (const auto& rc : removedChildElements)
+	{
+		auto cToRemove = v.getChildWithName(rc.getType());
+
+		if (cToRemove.isValid())
+			v.removeChild(cToRemove, nullptr);
+	}
+}
+
+void ModuleStateManager::StoredModuleData::restoreValueTree(ValueTree& v)
+{
+	stripValueTree(v);
+
+	for (const auto& rp : removedProperties)
+	{
+		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
+		auto value = rp.value;
+		restorePropertiesRecursive(v, path, value, true);
+	}
+
+
+	for (const auto& rc : removedChildElements)
+		v.addChild(rc.createCopy(), -1, nullptr);
+}
+
+
+juce::ValueTree ModuleStateManager::exportAsValueTree() const
+{
+	if (modules.isEmpty())
+		return {};
+
+	ValueTree v(getUserPresetStateId());
+
+	for (auto ms : modules)
+	{
+		auto id = ms->id;
+
+		if (auto p = ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), id))
+		{
+			auto mTree = p->exportAsValueTree();
+
+			mTree.removeChild(mTree.getChildWithName("EditorStates"), nullptr);
+
+			ms->stripValueTree(mTree);
+
+			v.addChild(mTree, -1, nullptr);
+		}
+	}
+
+	return v;
+}
+
+void ModuleStateManager::restoreFromValueTree(const ValueTree &v)
+{
+	auto chain = getMainController()->getMainSynthChain();
+	
+	bool didSomething = false;
+
+	for (auto m : v)
+	{
+		didSomething = true;
+
+		auto id = m["ID"].toString();
+		auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
+
+		if (p != nullptr)
+		{
+			auto mcopy = m.createCopy();
+
+			for (auto ms : modules)
+			{
+				if (ms->id == id)
+				{
+					ms->restoreValueTree(mcopy);
+					break;
+				}
+			}
+
+			if (p->getType().toString() == mcopy["Type"].toString())
+			{
+				p->restoreFromValueTree(mcopy);
+				p->sendPooledChangeMessage();
+			}
+		}
+	}
+
+	auto& uph = chain->getMainController()->getUserPresetHandler();
+
+	if (didSomething && uph.isUsingCustomDataModel())
+	{
+		auto numDataObjects = uph.getNumCustomAutomationData();
+
+		// We might need to update the custom automation data values.
+		for (int i = 0; i < numDataObjects; i++)
+		{
+			uph.getCustomAutomationData(i)->updateFromConnectionValue(0);
+		}
 	}
 }
 
