@@ -87,7 +87,9 @@ class ScriptContentComponent: public Component,
 							  public ScriptingApi::Content::RebuildListener,
 							  public AsyncValueTreePropertyListener,
 							  public Processor::DeleteListener,
-							  public ScriptingApi::Content::ScreenshotListener
+							  public ScriptingApi::Content::ScreenshotListener,
+							  public DragAndDropContainer,
+							  public DragAndDropTarget
 {
 public:
 
@@ -242,7 +244,68 @@ public:
 		return valuePopupProperties.get();
 	}
 
+	bool onDragAction(ScriptingApi::Content::RebuildListener::DragAction a, ScriptComponent* source, var& data) override;
+
+	void itemDropped(const SourceDetails& dragSourceDetails);
+
+	bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+
+	void dragOperationEnded(const DragAndDropTarget::SourceDetails& dragData);
+
 private:
+
+	struct ComponentDragInfo: public DrawActions::Handler::Listener,
+							  public ControlledObject
+	{
+		ComponentDragInfo(ScriptContentComponent* parent, ScriptComponent* sc, const var& dragData);
+
+		~ComponentDragInfo();
+
+		ScaledImage getDragImage(bool refresh);
+		
+		void start(Component* sourceComponent)
+		{
+			source = sourceComponent;
+			callRepaint();
+		}
+
+		void stop();
+
+		bool dragTargetChanged();
+
+		bool getCurrentComponent(bool force, var& data);
+
+		bool isValid(bool force);
+
+		bool stopped = false;
+
+		void callRepaint();
+
+		void newPaintActionsAvailable() override;
+
+	private:
+
+		ScopedPointer<Component> dummyComponent;
+
+		var graphicsObject;
+
+		bool validTarget = false;
+
+		String currentDragTarget;
+		ScriptComponent* currentTargetComponent = nullptr;
+
+		Component* source = nullptr;
+
+		ScriptContentComponent& parent;
+
+		ScaledImage img;
+		var scriptComponent;
+		var dragData;
+		WeakCallbackHolder paintRoutine;
+		WeakCallbackHolder dragCallback;
+	};
+
+	ScopedPointer<ComponentDragInfo> currentDragInfo;
 
 	class ModalOverlay : public Component
 	{

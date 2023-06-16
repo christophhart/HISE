@@ -243,11 +243,22 @@ class ScriptingApi::Content : public ScriptingObject,
 {
 public:
 
+	struct ScriptComponent;
+
 	// ================================================================================================================
 
 	class RebuildListener
 	{
 	public:
+
+		enum class DragAction
+		{
+			Start,
+			End,
+			Repaint,
+			Query,
+			Drag
+		};
 
 		virtual ~RebuildListener()
 		{
@@ -257,6 +268,8 @@ public:
 		virtual void contentWasRebuilt() = 0;
         
         virtual void contentRebuildStateChanged(bool /*isRebuilding*/) {};
+
+		virtual bool onDragAction(DragAction a, ScriptComponent* source, var& data) { return false; }
 
 	private:
 
@@ -1892,6 +1905,9 @@ public:
 		/** Starts dragging an external file (or a number of files). */
 		bool startExternalFileDrag(var fileOrFilesToDrag, bool moveOriginalFiles, var finishCallback);
 
+		/** Starts dragging something inside the UI. */
+		bool startInternalDrag(var dragData);
+
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 
@@ -2535,6 +2551,12 @@ public:
 	/** Calls a function after a delay. This is not accurate and only useful for UI purposes!. */
 	void callAfterDelay(int milliSeconds, var function, var thisObject);
 
+	/** Calls the paint function of the drag operation again to refresh the image. */
+	bool refreshDragImage();
+
+	/** Returns the ID of the component under the mouse. */
+	String getComponentUnderDrag();
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -2545,8 +2567,6 @@ public:
 
 	void beginInitialization();
 
-    
-    
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -2762,11 +2782,15 @@ public:
         }
     }
     
+	void sendDragAction(RebuildListener::DragAction a, ScriptComponent* sc, var& data);
+
 	void suspendPanelTimers(bool shouldBeSuspended);
 
 	Array<VisualGuide> guides;
 
 private:
+
+	WeakCallbackHolder dragCallback;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{

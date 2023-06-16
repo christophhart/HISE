@@ -391,6 +391,73 @@ void ScriptContentComponent::setModalPopup(ScriptCreatedComponentWrapper* wrappe
 		modalOverlay.closeModalPopup();
 }
 
+bool ScriptContentComponent::onDragAction(DragAction a, ScriptComponent* source, var& data)
+{
+	if (a == ScriptingApi::Content::RebuildListener::DragAction::Start)
+	{
+		if (currentDragInfo == nullptr)
+		{
+			currentDragInfo = new ComponentDragInfo(this, source, data);
+
+			for (auto cw : componentWrappers)
+			{
+				if (cw->getScriptComponent() == source)
+				{
+					currentDragInfo->start(cw->getComponent());
+				}
+			}
+
+			return true;
+		}
+	}
+	if (a == ScriptingApi::Content::RebuildListener::DragAction::Repaint)
+	{
+		currentDragInfo->callRepaint();
+		return true;
+	}
+	if (a == ScriptingApi::Content::RebuildListener::DragAction::Query)
+	{
+		if (currentDragInfo == nullptr)
+			return false;
+
+		return currentDragInfo->getCurrentComponent(false, data);
+	}
+
+	return false;
+}
+
+void ScriptContentComponent::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	if (isDragAndDropActive() && currentDragInfo != nullptr)
+	{
+		currentDragInfo->stop();
+		currentDragInfo = nullptr;
+	}
+}
+
+bool ScriptContentComponent::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+	if (isDragAndDropActive() && currentDragInfo != nullptr)
+	{
+		var obj;
+
+		if (!currentDragInfo->dragTargetChanged())
+			return currentDragInfo->isValid(false);
+
+		return currentDragInfo->isValid(true);
+	}
+
+	return false;
+}
+
+void ScriptContentComponent::dragOperationEnded(const DragAndDropTarget::SourceDetails& dragData)
+{
+	if (currentDragInfo != nullptr && !currentDragInfo->stopped)
+		currentDragInfo->stop();
+
+	currentDragInfo = nullptr;
+}
+
 void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 {
 	if (jp == getScriptProcessor())
@@ -800,5 +867,274 @@ std::vector<Component*> ScriptContentComponent::SimpleTraverser::getAllComponent
 {
 	return {};
 }
+
+ScriptContentComponent::ComponentDragInfo::ComponentDragInfo(ScriptContentComponent* parent_, ScriptComponent* sc, const var& dragData_):
+	ControlledObject(sc->getScriptProcessor()->getMainController_()),
+	parent(*parent_),
+	paintRoutine(sc->getScriptProcessor(), nullptr, dragData_["paintRoutine"], 2),
+	dragCallback(sc->getScriptProcessor(), nullptr, dragData_["dragCallback"], 1),
+	scriptComponent(sc),
+	dragData(dragData_)
+{
+	if (!paintRoutine)
+	{
+		debugError(dynamic_cast<Processor*>(sc->getScriptProcessor()), "dragData must have a paintRoutine property");
+		return;
+	}
+
+	if (!dragCallback)
+	{
+		debugError(dynamic_cast<Processor*>(sc->getScriptProcessor()), "dragData must have a paintRoutine property");
+		return;
+	}
+
+	graphicsObject = var(new ScriptingObjects::GraphicsObject(sc->getScriptProcessor(), sc));
+
+	paintRoutine.incRefCount();
+	paintRoutine.setThisObject(sc);
+
+	dragCallback.incRefCount();
+	dragCallback.setThisObject(sc);
+
+	dynamic_cast<ScriptingObjects::GraphicsObject*>(graphicsObject.getObject())->getDrawHandler().addDrawActionListener(this);
+
+	//startDragging(obj, nullptr,);
+}
+
+ScriptContentComponent::ComponentDragInfo::~ComponentDragInfo()
+{
+	paintRoutine.clear();
+	dragCallback.clear();
+	dragData = var();
+}
+
+juce::ScaledImage ScriptContentComponent::ComponentDragInfo::getDragImage(bool refresh)
+{
+	if (!refresh && img.getImage().isValid())
+		return img;
+
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	auto sc = dynamic_cast<ScriptComponent*>(scriptComponent.getObject());
+
+	Rectangle<int> imgArea;
+	auto r = Result::ok();
+
+	if (dragData.hasProperty("area"))
+		imgArea = ApiHelpers::getRectangleFromVar(dragData["area"], &r).toNearestInt();
+	else
+		imgArea = ApiHelpers::getRectangleFromVar(sc->getLocalBounds(0), &r).toNearestInt();
+
+	auto sf = UnblurryGraphics::getScaleFactorForComponent(source);
+
+	auto img_ = Image(Image::PixelFormat::ARGB, imgArea.getWidth() * sf, imgArea.getHeight() * sf, true);
+
+	DrawActions::Handler::Iterator it(&dynamic_cast<ScriptingObjects::GraphicsObject*>(graphicsObject.getObject())->getDrawHandler());
+
+	
+
+	Graphics g(img_);
+	g.addTransform(AffineTransform::scale(sf));
+
+	while (auto a = it.getNextAction())
+	{
+		a->perform(g);
+	}
+
+	img = ScaledImage(img_, sf);
+
+	return img;
+}
+
+void ScriptContentComponent::ComponentDragInfo::stop()
+{
+	dummyComponent = nullptr;
+	
+	var args[2];
+	args[0] = isValid(false);
+	args[1] = currentDragTarget;
+
+	dragCallback.call(args, 2);
+
+	currentDragTarget = {};
+
+	if (currentTargetComponent != nullptr)
+	{
+		var sc(currentTargetComponent);
+
+		MessageManager::callAsync([sc]()
+		{
+			dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
+		});
+	}
+	
+	stopped = true;
+}
+
+bool ScriptContentComponent::ComponentDragInfo::dragTargetChanged()
+{
+	auto lastTarget = currentTargetComponent;
+
+	var obj;
+	getCurrentComponent(true, obj);
+
+	return lastTarget != currentTargetComponent;
+}
+
+bool ScriptContentComponent::ComponentDragInfo::getCurrentComponent(bool force, var& data)
+{
+	if (!parent.isDragAndDropActive())
+		return false;
+
+	if (!force && currentDragTarget.isNotEmpty())
+	{
+		data = var(currentDragTarget);
+		return true;
+	}
+
+	auto c = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+	auto screenPos = Desktop::getInstance().getMainMouseSource().getScreenPosition();
+	auto localPos = parent.getLocalPoint(nullptr, screenPos).roundToInt();
+
+	currentDragTarget = {};
+	
+
+	for (int i = parent.componentWrappers.size() - 1; i >= 0; i--)
+	{
+		auto c = parent.componentWrappers[i];
+
+		if (!c->getComponent()->isShowing())
+			continue;
+
+		auto b = c->getComponent()->getLocalBounds();
+		if (parent.getLocalArea(c->getComponent(), b).contains(localPos))
+		{
+			auto newTargetComponent = c->getScriptComponent();
+
+			if (currentTargetComponent != newTargetComponent)
+			{
+				if(currentTargetComponent != nullptr)
+					currentTargetComponent->sendRepaintMessage();
+
+				currentTargetComponent = newTargetComponent;
+				
+				currentTargetComponent->sendRepaintMessage();
+				
+			}
+
+			currentDragTarget = currentTargetComponent->getId();
+			data = var(currentDragTarget);
+				
+			return true;
+		}
+	}
+
+	if (currentTargetComponent != nullptr)
+		currentTargetComponent->sendRepaintMessage();
+
+	currentTargetComponent = nullptr;
+
+	validTarget = false;
+	return false;
+}
+
+bool ScriptContentComponent::ComponentDragInfo::isValid(bool force)
+{
+	if (!force)
+	{
+		return validTarget;
+	}
+	
+	var enabled(true);
+
+	auto vf = dragData["isValid"];
+
+	if (HiseJavascriptEngine::isJavascriptFunction(vf))
+	{
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::ScriptLock);
+		
+		auto sc = dynamic_cast<ScriptComponent*>(scriptComponent.getObject());
+		WeakCallbackHolder wc(sc->getScriptProcessor(), nullptr, vf, 1);
+		wc.incRefCount();
+		wc.setThisObject(sc);
+		var ct(currentDragTarget);
+		wc.callSync(&ct, 1, &enabled);
+	}
+
+	if (currentTargetComponent != nullptr)
+		currentTargetComponent->sendRepaintMessage();
+
+	validTarget = (bool)enabled;
+	return validTarget;
+}
+
+void ScriptContentComponent::ComponentDragInfo::callRepaint()
+{
+	if (paintRoutine)
+	{
+		jassert(source != nullptr);
+		jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+		jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread);
+
+		auto sf = UnblurryGraphics::getScaleFactorForComponent(source);
+
+		auto area = ApiHelpers::getRectangleFromVar(dragData["area"], nullptr);
+
+		auto sc = dynamic_cast<ScriptComponent*>(scriptComponent.getObject());
+
+		auto thisObj = new DynamicObject();
+
+		if (area.isEmpty())
+			thisObj->setProperty("area", sc->getLocalBounds(0));
+		else
+			thisObj->setProperty("area", ApiHelpers::getVarRectangle(area.withPosition({}).toFloat()));
+
+		thisObj->setProperty("source", sc->getId());
+		thisObj->setProperty("target", currentDragTarget);
+		thisObj->setProperty("valid", isValid(false));
+
+		var args[2] = { graphicsObject, var(thisObj) };
+
+		paintRoutine.callSync(args, 2, nullptr);
+
+		auto handler = &dynamic_cast<ScriptingObjects::GraphicsObject*>(graphicsObject.getObject())->getDrawHandler();
+		handler->flush();
+	}
+}
+
+void ScriptContentComponent::ComponentDragInfo::newPaintActionsAvailable()
+{
+	if (!parent.isDragAndDropActive())
+	{
+		Point<int> o;
+		Point<int>* offset = nullptr;
+
+		if (dragData.hasProperty("offset"))
+		{
+			auto r = Result::ok();
+			o = ApiHelpers::getPointFromVar(dragData["offset"], &r).toInt();
+
+			if (r.wasOk())
+				offset = &o;
+		}
+
+		auto customArea = ApiHelpers::getIntRectangleFromVar(dragData["area"]);
+
+		auto cToUse = source;
+
+		if (!customArea.isEmpty())
+		{
+			source->addChildComponent(dummyComponent = new Component());
+			dummyComponent->setBounds(customArea);
+			cToUse = dummyComponent.get();
+		}
+
+		parent.startDragging(dragData, cToUse, getDragImage(true), false, offset);
+	}
+	else
+		parent.setCurrentDragImage(getDragImage(true));
+}
+
+
 
 } // namespace hise
