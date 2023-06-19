@@ -85,136 +85,7 @@ private:
 	Array<FactoryType::ProcessorEntry> forbiddenModulators;
 };
 
-template <int NV> class VoiceBitMap
-{
-	using DataType = uint32;
 
-	constexpr static int getElementSize() { return sizeof(DataType) * 8; }
-	constexpr static int getNumElements() { return NV / getElementSize(); };
-	constexpr static int getMaxValue() 
-	{
-		if constexpr (std::is_same<DataType, uint8>())			 return 0xFF;
-		else if constexpr (std::is_same<DataType, uint16>())	 return 0xFFFF;
-		else if constexpr (std::is_same<DataType, uint32>())	 return 0xFFFFFFFF;
-		else /*if constexpr (std::is_same<DataType, uint64>())*/ return 0xFFFFFFFFFFFFFFFF;
-	}
-
-public:
-
-	VoiceBitMap()
-	{
-		clear();
-	}
-
-	void clear()
-	{
-		memset(data.begin(), 0, sizeof(data));
-	}
-
-	void setBit(int voiceIndex, bool value)
-	{
-		auto dIndex = voiceIndex / getElementSize();
-		auto bIndex = voiceIndex % getElementSize();
-
-		if (value)
-		{
-			auto mask = 1 << bIndex;
-			data[dIndex] |= mask;
-		}
-		else
-		{
-			auto mask = 1 << bIndex;
-			data[dIndex] &= ~mask;
-		}
-	}
-
-	int getFirstFreeBit() const
-	{
-		for (int i = 0; i < getNumElements(); i++)
-		{
-			if (data[i] != getMaxValue())
-			{
-				for (int j = 0; j < getElementSize(); j++)
-				{
-					DataType mask = 1 << j;
-
-					if ((data[i] & mask) == 0)
-						return i * getElementSize() + j;
-				}
-			}
-		}
-		
-		return -1;
-	}
-
-	VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV>& other)
-	{
-		for (int i = 0; i < getNumElements(); i++)
-			data[i] |= other.data[i];
-
-		return *this;
-	}
-
-private:
-
-	static constexpr int NumElements = getNumElements();
-
-	snex::span<DataType, NumElements> data;
-};
-
-/** The uniform voice handler will unify the voice indexes of a container so that all sound generators will use the
-	same voice index (derived by the event ID of the HiseEvent that started the voice).
-	
-	By default you can't make assumptions about voice indexes outside of the sound generator because the note might be killed
-	earlier for shorter sounds and a restarted voice might have a different voice index. This class manages the voice index
-	in a way that guarantees that all voices of child sound generators that are started by the same HiseEvent have the same voice index.
-
-	The obvious advantage of this is that allows you to reuse polyphonic modulation signals, which was a no-go before, but that comes
-	with some performance impact at the voice start (because of the logic that has to determine which voice index can be used by all child synths),
-	so only enable this when you need to.
-
-	Also you must not change the MIDI events within the container you're using this (so all sound generators inside the synth are supposed to start their sound),
-	so MIDI processing (eg. Arpeggiators etc) should not be used inside this (you can of course use an arpeggiator outside the container you're calling this on).
-*/
-struct UniformVoiceHandler
-{
-	
-
-	UniformVoiceHandler(ModulatorSynth* parent_) : parent(parent_) { rebuildChildSynthList(); }
-
-	~UniformVoiceHandler()
-	{
-		childSynths.clear();
-		parent = nullptr;
-	}
-
-	static UniformVoiceHandler* findFromParent(Processor* p);
-
-	/** This is called in the prepareToPlay function and makes sure that all. */
-	void rebuildChildSynthList();
-
-	/** This will ask all child synths which voice index it should use for that event, then store it. */
-	void processEventBuffer(const HiseEventBuffer& eventBuffer);
-
-	/** This will return the uniform voice index that is used for the given event. */
-	int getVoiceIndex(const HiseEvent& e);
-
-	void incVoiceCounter(ModulatorSynth* s, int voiceIndex);
-	void decVoiceCounter(ModulatorSynth* s, int voiceIndex);
-
-	void cleanupAfterProcessing();
-
-private:
-
-	hise::SimpleReadWriteLock arrayLock;
-
-	snex::span<std::tuple<HiseEvent, uint8>, NUM_POLYPHONIC_VOICES> currentEvents;
-
-	WeakReference<ModulatorSynth> parent;
-	Array<std::tuple<WeakReference<ModulatorSynth>, VoiceBitMap<NUM_POLYPHONIC_VOICES>>> childSynths;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(UniformVoiceHandler);
-};
 
 /** A ModulatorSynthChain processes multiple independent ModulatorSynth instances serially.
 	@ingroup synthTypes
@@ -358,15 +229,13 @@ public:
 
 	HiseEvent::ChannelFilterData* getActiveChannelData() { return &activeChannels; }
 
-	void setUseUniformVoiceHandler(bool shouldUseVoiceHandler);
+	void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler) override;
 
-	bool isUsingUniformVoiceHandler() const;
-
-	UniformVoiceHandler* getUniformVoiceHandler() const { return uniformVoiceHandler.get(); }
-
+    bool isUniformVoiceHandlerRoot() const { return ownedUniformVoiceHandler != nullptr; };
+	
 private:
 
-	ScopedPointer<UniformVoiceHandler> uniformVoiceHandler;
+	ScopedPointer<UniformVoiceHandler> ownedUniformVoiceHandler;
 
 	HiseEvent::ChannelFilterData activeChannels;
 	ModulatorSynthChainHandler handler;

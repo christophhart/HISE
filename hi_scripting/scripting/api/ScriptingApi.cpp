@@ -6131,7 +6131,7 @@ void ScriptingApi::Synth::setUseUniformVoiceHandler(String containerId, bool sho
 	{
 		if (s->getId() == containerId)
 		{
-			s->setUseUniformVoiceHandler(shouldUseUniformVoiceHandling);
+			s->setUseUniformVoiceHandler(shouldUseUniformVoiceHandling, nullptr);
 			return;
 		}
 	}
