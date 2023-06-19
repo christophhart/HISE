@@ -87,6 +87,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
+    ids.add(VST3Category);
 	ids.add(SupportMonoFX);
 	ids.add(EnableMidiInputFX);
     ids.add(EnableMidiOut);
@@ -378,6 +379,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("> This setting will not have an effect on compiled plugins as the preprocessor will already be evaluated on export");
 		P_();
 
+        P(HiseSettings::Project::VST3Category);
+        D("The category the VST3 plugin will appear in");
+        P_();
+        
 		P(HiseSettings::Project::AAXCategoryFX);
 		D("If you export an effect plugin, you can specify the category it will show up in ProTools here");
 		
@@ -908,6 +913,29 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		return { "Disabled", "FilesOnly", "Encrypted", "Full", "Custom" };
 	}
 
+    if(id == Project::VST3Category)
+    {
+        return {
+            "Analyzer",
+            "Delay",
+            "Distortion",
+            "Dynamics",
+            "EQ",
+            "Filter",
+            "Generator",
+            "Mastering",
+            "Modulation",
+            "Pitch Shift",
+            "Restoration",
+            "Reverb",
+            "Spatial",
+            "Surround",
+            "Tools",
+            "Drum",
+            "Synth",
+            "Sampler"
+        };
+    }
 	if (id == Project::AAXCategoryFX)
 		return {
 			"AAX_ePlugInCategory_EQ",
@@ -1071,7 +1099,8 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::EmbedUserPresets)		return "Yes";
 	else if (id == Project::SupportFullDynamicsHLAC)	return "No";
 	else if (id == Project::RedirectSampleFolder)	BACKEND_ONLY(return handler_.isRedirected(ProjectHandler::SubDirectories::Samples) ? handler_.getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName() : "");
-	else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";
+    else if (id == Project::AAXCategoryFX)			return "AAX_ePlugInCategory_Modulation";           
+    else if (id == Project::VST3Category)           return "";
 	else if (id == Project::SupportMonoFX)			return "No";
 	else if (id == Project::EnableMidiInputFX)		return "No";
     else if (id == Project::EnableMidiOut)          return "No";
