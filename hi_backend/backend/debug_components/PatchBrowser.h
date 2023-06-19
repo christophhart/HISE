@@ -392,12 +392,14 @@ private:
 				repaint();
 			}
 		}
+        
+        Rectangle<int> bypassArea;
 
 	private:
 
 		bool inPopup = false;
         
-		Rectangle<int> bypassArea;
+		
 		
         WeakReference<Processor> parent;
         

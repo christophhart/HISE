@@ -200,6 +200,13 @@ void GlobalModulator::disconnect()
 
 	originalModulator = nullptr;
 	connectedContainer = nullptr;
+    
+#if USE_BACKEND
+    if(auto asP = dynamic_cast<Processor*>(this))
+    {
+        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+    }
+#endif
 }
 
 bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
@@ -232,6 +239,12 @@ bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 			}
 		}
 
+#if USE_BACKEND
+        auto asP = dynamic_cast<Processor*>(this);
+        
+        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+        
         // return false if the connection can't be established (yet)
         return isConnected();
 	}
