@@ -158,6 +158,12 @@ public:
 
 	void reset();
 
+    static void updateBlockSize(hise_mod_base& b, int newBlockSize)
+    {
+        b.synthBlockSize = newBlockSize;
+        b.uptimeDelta = 0.0;
+    }
+    
 protected:
 
 	virtual double getModulationValue(int uptimeValue) = 0;
@@ -173,6 +179,8 @@ protected:
 	double synthBlockSize = 0.0;
 
 	hmath Math;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(hise_mod_base);
 };
 
 class extra_mod : public hise_mod_base
