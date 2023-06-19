@@ -916,7 +916,7 @@ public:
 		bool restoreStateManager(const ValueTree& presetRoot, const Identifier& stateId);
 		bool saveStateManager(ValueTree& preset, const Identifier& stateId);
 
-		bool processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId);
+		
 
 		UserPresetStateManager::List stateManagers;
 
@@ -1001,6 +1001,10 @@ public:
 
 		CustomAutomationData::List customAutomationData;
 
+    private:
+        
+        bool processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId);
+        
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);
 	};
 
