@@ -35,20 +35,11 @@
 namespace hise { using namespace juce;
 
 class GlobalModulator;
+class GlobalModulatorContainer;
 
 namespace ScriptingObjects
 {
 
-
-
-/* TODO:
-
-- fix bipolar mode
-- add different ranges for table sliders
-- fix inversion for envelopes
-- skip first gain envelope mod in bypassing logic
-- return 1.0 when global envelope is not connected
-*/
 struct ScriptModulationMatrix : public ConstScriptingObject,
 								public ControlledObject,
 								public UserPresetStateManager
