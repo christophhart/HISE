@@ -883,7 +883,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 
 #if ENABLE_CPU_MEASUREMENT
-	startCpuBenchmark(numSamplesThisBlock);
+	startCpuBenchmark(getOriginalBufferSize());
 #endif
 
 	jassert(getOriginalBufferSize() >= numSamplesThisBlock);
