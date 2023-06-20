@@ -1230,7 +1230,13 @@ bool ScriptingObjects::ScriptDownloadObject::resumeInternal()
 				String rangeHeader;
 				rangeHeader << "Range: bytes=" << existingBytesBeforeResuming << "-" << numTotal;
 
-				download = downloadURL.downloadToFile(resumeFile, rangeHeader, this).release();
+                URL::DownloadTaskOptions options;
+                
+                options.timeoutMs = HISE_SCRIPT_SERVER_TIMEOUT;
+                options.extraHeaders = rangeHeader;
+                options.listener = this;
+                
+				download = downloadURL.downloadToFile(resumeFile, options).release();
 
 				data->setProperty("numTotal", numTotal);
 				data->setProperty("numDownloaded", existingBytesBeforeResuming);
@@ -1418,7 +1424,12 @@ void ScriptingObjects::ScriptDownloadObject::start()
 	if (status == 200)
 	{
 		isRunning_ = true;
-		download = downloadURL.downloadToFile(targetFile, {}, this).release();
+        
+        URL::DownloadTaskOptions options;
+        options.listener = this;
+        options.timeoutMs = HISE_SCRIPT_SERVER_TIMEOUT;
+        
+		download = downloadURL.downloadToFile(targetFile, options).release();
 
 		data->setProperty("numTotal", 0);
 		data->setProperty("numDownloaded", 0);

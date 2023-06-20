@@ -457,6 +457,7 @@ public:
         String sharedContainer;
         DownloadTaskListener* listener = nullptr;
         bool usePost = false;
+        int timeoutMs = 0;
 
         /** Specifies headers to add to the request. */
         auto withExtraHeaders (String value) const            { return with (&DownloadTaskOptions::extraHeaders, std::move (value)); }
