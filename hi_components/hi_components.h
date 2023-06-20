@@ -88,6 +88,10 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 #endif
 
 
+#ifndef HISE_BROWSE_FOLDER_WHEN_RELOCATING_SAMPLES
+#define HISE_BROWSE_FOLDER_WHEN_RELOCATING_SAMPLES 1
+#endif
+
 #if HISE_INCLUDE_SNEX_FLOATING_TILES
 #include "../hi_snex/hi_snex.h"
 #endif
