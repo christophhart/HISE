@@ -37,6 +37,11 @@ namespace hise { using namespace juce;
 
 MARKDOWN_CHAPTER(WavetableHelp)
 
+START_MARKDOWN(Mode)
+ML("## Analysis mode")
+ML("- **Resample**: this will not perform any resynthesis and just resamples a perfectly aligned wavetable audio file into a .hwt file");
+ML("- **Loris**: this will use the Loris library and resynthesise the wavetables from the audio.");
+END_MARKDOWN()
 
 START_MARKDOWN(ReverseWavetables)
 ML("## Reverse Wavetable order")
@@ -44,19 +49,11 @@ ML("Only used in FFT Resynthesis mode. If this is enabled, it will store the wav
 ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
 END_MARKDOWN()
 
-START_MARKDOWN(WindowType)
-ML("## FFT Window Type")
-ML("Only used in FFT Resynthesis mode. This changes the window function that is applied to the signal before the FFT.  ")
-ML("The selection of the right window function has a drastic impact on the resulting accuracy and varies between different signal types. ")
-ML("Try out different window types and compare the results.");
-END_MARKDOWN()
-
-START_MARKDOWN(WindowSize)
-ML("## FFT Window Size")
-ML("Only used in FFT Resynthesis mode. Changes the size of the chunk that is used for the FFT.  ")
-ML("Generally, lower values yield more accurate results (and sizes above 2048 tend to smear the wavetables because their range start to overlap).  ");
-ML("However lower frequencies can't be detected with small FFT sizes so it might not work.    ")
-ML("> The recommended approach is to choose the **lowest possible FFT size** that still creates a reasonable harmonic spectrum.");
+START_MARKDOWN(MipmapSize)
+ML("## Mip Map size")
+ML("Defines the interval that will be used to resynthesise the same sample");
+ML("In order to reduce aliasing, you can resynthesise the same sample at different pitches.");
+ML("By default it is an octave but you can specify a lower amount for harmonicly rich signals");
 END_MARKDOWN()
 
 END_MARKDOWN_CHAPTER()
@@ -463,7 +460,7 @@ class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
 	enum Mode
 	{
 		Resample,
-		FFTResynthesis,
+		Loris,
 		numModes
 	};
 
@@ -491,46 +488,15 @@ public:
 		addComboBox("samplemap", list, "Samplemap");
 		getComboBoxComponent("samplemap")->addListener(this);
 		
-		
-
-		StringArray windows;
-		windows.add("Flat Top");
-		windows.add("Blackman Harris");
-		windows.add("Hann");
-		windows.add("Hamming");
-		windows.add("Kaiser");
-		windows.add("Gaussian");
-		windows.add("Triangle");
-		windows.add("Rectangle");
-		
-		StringArray sizes;
-		sizes.add("Lowest possible");
-		sizes.add("128");
-		sizes.add("256");
-		sizes.add("512");
-		sizes.add("1024");
-		sizes.add("2048");
-		sizes.add("4096");
-		sizes.add("8192");
-
-		StringArray yesNo;
-
-		yesNo.add("Yes");
-		yesNo.add("No");
-
-
-
 		selectors = new AdditionalRow(this);
 
-
-		selectors->addComboBox("mode", { "Resample Wavetables", "FFT Resynthesis"}, "Mode", 130);
+		selectors->addComboBox("mode", { "Resample Wavetables", "Loris Resynthesis"}, "Mode", 130);
+		selectors->setInfoTextForLastComponent(WavetableHelp::Mode());
 		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
-		selectors->addComboBox("WindowType", windows, "FFT Window Type", 120);
-		
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowType());
-		selectors->addComboBox("FFTSize", sizes, "FFT Size");
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowSize());
+		selectors->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap Range"
+	, 120);
+		selectors->setInfoTextForLastComponent(WavetableHelp::MipmapSize());
 
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);
@@ -553,12 +519,9 @@ public:
 
 		additionalButtons = new AdditionalRow(this);
 
-
-
 		additionalButtons->addButton("Previous", KeyPress(KeyPress::leftKey));
 		additionalButtons->addButton("Next", KeyPress(KeyPress::rightKey));
 		additionalButtons->addButton("Rescan", KeyPress(KeyPress::F5Key));
-		additionalButtons->addButton("Discard");
 		additionalButtons->addButton("Preview", KeyPress(KeyPress('p')));
 		additionalButtons->addButton("Original", KeyPress(KeyPress('o')));
 
@@ -577,17 +540,11 @@ public:
             refreshPreview();
             
             showStatusMessage("Imported samplemap from " + s->getId());
-            
         }
         else
         {
-            showStatusMessage("Choose Samplemap to convert");
+			showStatusMessage("Choose Samplemap to convert");
         }
-        
-        
-		
-		
-		
 	}
 
 	~WavetableConverterDialog()
@@ -638,10 +595,11 @@ public:
 		{
 			for (int i = 0; i < 64; i++)
 			{
-				gainPackData->setValue(i, gainData[i]);
+				gainPack->setValue(i, gainData[i]);
 			}
 
-			gainPackData->sendChangeMessage();
+			gainPackData->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+			
 		}
 
 		if (r.failed())
@@ -664,7 +622,7 @@ public:
 			{
 				converter->parseSampleMap(*vData.getData());
 
-				if (currentMode == FFTResynthesis)
+				if (currentMode == Loris)
 				{
 					converter->refreshCurrentWavetable(getProgressCounter());
 					
@@ -677,16 +635,19 @@ public:
 		{
 			currentMode = (Mode)comboBoxThatHasChanged->getSelectedItemIndex();
 
-			if (currentMode == FFTResynthesis)
+			if (currentMode == Loris)
 			{
 				converter->refreshCurrentWavetable(getProgressCounter());
 				refreshPreview();
 			}
 
 		}
-		if (comboBoxThatHasChanged->getName() == "WindowType")
+		if (comboBoxThatHasChanged->getName() == "mipmap")
 		{
-			converter->windowType = (SampleMapToWavetableConverter::WindowType)comboBoxThatHasChanged->getSelectedItemIndex();
+			static const int items[4] = { 12, 6, 2, 1 };
+
+			converter->mipmapSize = items[comboBoxThatHasChanged->getSelectedItemIndex()];
+			refreshPreview();
 		}
 		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
 		{
@@ -710,7 +671,7 @@ public:
 
 	void run() override
 	{
-		if (currentMode == FFTResynthesis)
+		if (currentMode == Mode::Loris)
 			converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
 		else
 			converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
@@ -2958,7 +2919,13 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		{
 			auto isFolder = parent.newProjectFolder.isDirectory();
 			
-			auto isEmpty = parent.newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) == 0;
+			auto numFiles = parent.newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories);
+
+			auto isEmpty = numFiles == 0;
+
+			// allow the .git folder to exist when creating a project...
+			if (!isEmpty && numFiles == 1 && parent.newProjectFolder.getChildFile(".git").isDirectory())
+				isEmpty = true;
 
 			auto ok = isFolder && isEmpty;
 
@@ -3463,7 +3430,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 	void run() override
 	{
 		jassert(newProjectFolder.isDirectory());
-		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) == 0);
+		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) <= 1);
 
 		
 

@@ -440,6 +440,12 @@ void GlobalModulatorContainerVoice::checkRelease()
 
 	ModulatorChain *g = static_cast<ModulatorChain*>(gc->getChildProcessor(ModulatorSynth::GainModulation));
 
+	if (killThisVoice && (killFadeLevel < 0.001f))
+	{
+		resetVoice();
+		return;
+	}
+
 	if (g->hasActivePolyEnvelopes())
 	{
 		for (auto& e : gc->envelopeData)

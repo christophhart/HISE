@@ -5,7 +5,7 @@ using namespace juce;
 #ifndef HISE_LORIS_LIBRARY_MAJOR_VERSION
 #define HISE_LORIS_LIBRARY_MAJOR_VERSION 0
 #define HISE_LORIS_LIBRARY_MINOR_VERSION 2
-#define HISE_LORIS_LIBRARY_PATCH_VERSION 0
+#define HISE_LORIS_LIBRARY_PATCH_VERSION 1
 #endif
 
 struct LorisManager: public ReferenceCountedObject
@@ -374,8 +374,11 @@ struct LorisManager: public ReferenceCountedObject
         {
             while(f(state, messageBuffer, 2048))
             {
-                String nm(messageBuffer);
-                lf(nm);
+				if (lf)
+				{
+					String nm(messageBuffer);
+					lf(nm);
+				}
             }
         }
     }

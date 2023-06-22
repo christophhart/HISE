@@ -160,7 +160,7 @@ void SampleMapToWavetableConverter::Preview::rebuildMap()
 		for (int i = 0; i < currentMap.harmonicGains.getNumSamples(); i++)
 		{
 			float gainL = currentMap.harmonicGains.getSample(j, i);
-			float gainR = currentMap.harmonicGainsRight.getSample(j, i);
+			float gainR = currentMap.harmonicGainsRight.getNumSamples() > 0 ? currentMap.harmonicGainsRight.getSample(j, i) : gainL;
 
 			gainL = powf(gainL, 0.25f);
 			gainR = powf(gainR, 0.25f);
@@ -243,7 +243,22 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 			g.drawRect(s.area, 1);
 			g.fillRect(s.area);
 		}
+
+		auto l = s.keyRange.getLength();
+
+		if (l > parent.mipmapSize)
+		{
+			for (int i = s.keyRange.getStart(); i < l; i += parent.mipmapSize)
+			{
+				int w = jmin(l - i, parent.mipmapSize);
+				g.setColour(Colours::red.withHue(Random::getSystemRandom().nextFloat()).withAlpha(0.05f));
+				
+				g.fillRect(i * widthPerNote, s.area.getY(), w * widthPerNote, s.area.getHeight());
+			}
+		}
 	}
+
+	
 }
 
 SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree& data, Rectangle<int> totalArea)
@@ -257,6 +272,9 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 
 	area = { x, y, w, h };
 	index = data.getProperty("ID");
+
+	keyRange = { d.lowKey, d.highKey };
+	rootNote = d.rootNote;
 }
 
 #endif

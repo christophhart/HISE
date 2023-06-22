@@ -492,7 +492,7 @@ struct ResynthesisHelpers
 		FloatVectorOperations::clear(data, length);
 
 
-
+		auto rootFreq = MidiMessage::getMidiNoteInHertz(noteNumber);
 
 		double rootDelta = 2.0 * double_Pi / (double)length;
 
@@ -502,6 +502,9 @@ struct ResynthesisHelpers
 
 			if (harmonicGain <= 0.0001f)
 				continue;
+
+			if (rootFreq * (double)(h + 1) > (sampleRate / 2.0))
+				break;
 
 			double uptime = 0.0;
 
@@ -608,12 +611,30 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& samp
         
         if (index != -1)
         {
-            HarmonicMap newMap;
-            
-            newMap.index.noteNumber = i;
-            newMap.index.sampleIndex = index;
-            
-            harmonicMaps.add(newMap);
+			auto root = (int)sampleMapTree.getChild(i).getProperty(SampleIds::Root);
+
+			bool found = false;
+
+			for (const auto& em : harmonicMaps)
+			{
+				if (em.rootNote == root)
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if (!found)
+			{
+				HarmonicMap newMap;
+
+				newMap.rootNote = root;
+				newMap.index.noteNumber = i;
+				newMap.index.sampleIndex = index;
+				newMap.noteRange = { (int)sampleMapTree.getChild(index)[SampleIds::LoKey], (int)sampleMapTree.getChild(index)[SampleIds::HiKey] };
+
+				harmonicMaps.add(newMap);
+			}
         }
     }
     
@@ -680,16 +701,126 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	Result result = Result::ok();
 
-	// Read entire sample & repitch
-	AudioSampleBuffer buffer;
+	m.wavetableLength = ResynthesisHelpers::getWavetableLength(m.rootNote, sampleRate);
 
-	result = readSample(buffer, m.index.sampleIndex, m.index.noteNumber);
+	auto lorisManager = dynamic_cast<BackendProcessor*>(chain->getMainController())->getLorisManager();
 
-	if (result.failed())
+	if (lorisManager == nullptr)
+	{
+		return Result::fail("Loris is not installed");
+	}
+
+	LorisManager::AnalyseData d;
+
+	auto ref = sampleMap.getChild(m.index.sampleIndex).getProperty(SampleIds::FileName).toString();
+
+	PoolReference pref(chain->getMainController(), ref, FileHandlerBase::Samples);
+
+	d.file = pref.getFile();
+	d.rootFrequency = MidiMessage::getMidiNoteInHertz(m.rootNote);
+
+	AudioFormatManager afm;
+	afm.registerBasicFormats();
+	
+	AudioSampleBuffer sampleContent;
+
+	int totalLength = 0;
+
+	if (ScopedPointer<AudioFormatReader> r = afm.createReaderFor(d.file))
+	{
+		m.sampleLengthSeconds = r->lengthInSamples / r->sampleRate;
+		m.isStereo = r->numChannels > 1;
+
+		totalLength = r->lengthInSamples;
+
+		sampleContent.setSize(r->numChannels, r->lengthInSamples);
+		r->read(&sampleContent, 0, r->lengthInSamples, 0, true, true);
+	}
+
+
+	ScopedValueSetter<std::function<void(String)>> svs(lorisManager->errorFunction, [&](const String& e)
+	{
+		result = Result::fail(e);
+	});
+
+	int numSlices = m.harmonicGains.getNumChannels();
+
+	auto hoptime = 0.5 * m.sampleLengthSeconds / (double)numSlices;
+
+	lorisManager->set("timedomain", "0to1");
+	lorisManager->set("hoptime", String(hoptime));
+	lorisManager->set("croptime", String(hoptime));
+
+	lorisManager->analyse({d}, nullptr);
+
+	if (!result.wasOk())
 		return result;
 
-	m.wavetableLength = ResynthesisHelpers::getWavetableLength(m.index.noteNumber, sampleRate);
+	
 
+	double delta = 1.0 / (double)numSlices;
+	double pos = 0.0;
+
+	auto nyquist = sampleRate / 2.0;
+
+	int numHarmonics = roundToInt(nyquist / MidiMessage::getMidiNoteInHertz(m.rootNote));
+
+	for (int i = 0; i < numSlices; i++)
+	{
+		auto ar = lorisManager->getSnapshot(d.file, pos + delta * 0.5, "gain");
+
+		if (ar.isArray())
+		{
+			for (int c = 0; c < ar.size(); c++)
+			{
+				auto channelData = ar[c];
+
+				if (channelData.isArray())
+				{
+					auto numHarmonicsThisTime = jmin(numHarmonics, channelData.size());
+
+					auto& bufferToUse = c == 0 ? m.harmonicGains : m.harmonicGainsRight;
+
+					bufferToUse.setSize(numSlices, numHarmonicsThisTime, true, true, true);
+
+					FloatVectorOperations::clear(bufferToUse.getWritePointer(i), bufferToUse.getNumSamples());
+
+					int idx = 0;
+
+					for (auto& v : *channelData.getArray())
+						bufferToUse.setSample(i, idx++, (float)v);
+
+					auto offset = roundToInt(pos * totalLength);
+					auto numToCheck = jmin(totalLength - offset, roundToInt(delta * totalLength));
+
+					auto max = jlimit(0.0f, 1.0f, sampleContent.getMagnitude(c, offset, numToCheck));
+
+					if (max != 0.0)
+					{
+						FloatVectorOperations::multiply(bufferToUse.getWritePointer(i), 1.0f / max, numHarmonicsThisTime);
+					}
+
+					m.gainValues.setSample(c, i, max);
+				}
+
+				
+			}
+		}
+
+		pos += delta;
+	}
+
+	m.analysed = true;
+
+	MessageManagerLock mm;
+	sendSynchronousChangeMessage();
+
+	return result;
+
+	
+	
+
+#if 0
 	auto parts = splitSample(buffer);
 
 	auto nyquist = sampleRate / 2.0;
@@ -789,6 +920,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 	sendSynchronousChangeMessage();
 
 	return result;
+#endif
 }
 
 
@@ -874,48 +1006,80 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& 
 
 		progress = (double)harmonicMaps.indexOf(map) / (double)harmonicMaps.size();
 
-		auto bank = calculateWavetableBank(map);
+		if (map.noteRange.getLength() > mipmapSize)
+		{
+			for (int i = map.noteRange.getStart(); i < map.noteRange.getEnd(); i += mipmapSize)
+			{
+				auto midNote = i + mipmapSize / 2;
 
-		float* dataL = bank.getWritePointer(0);
-		float* dataR = bank.getWritePointer(1);
+				auto bank = calculateWavetableBank(map, midNote);
 
-		storeData(map.index.noteNumber, dataL, leftValueTree, map.wavetableLength * numParts);
-		storeData(map.index.noteNumber, dataR, rightValueTree, map.wavetableLength * numParts);
+				float* dataL = bank.getWritePointer(0);
+				float* dataR = bank.getWritePointer(1);
+
+				auto midLength = ResynthesisHelpers::getWavetableLength(midNote, sampleRate);
+
+				storeData(midNote, dataL, leftValueTree, midLength * numParts);
+
+				if(map.isStereo)
+					storeData(midNote, dataR, rightValueTree, midLength * numParts);
+			}
+		}
+		else
+		{
+			auto bank = calculateWavetableBank(map);
+
+			float* dataL = bank.getWritePointer(0);
+			float* dataR = bank.getWritePointer(1);
+
+			storeData(map.rootNote, dataL, leftValueTree, map.wavetableLength * numParts);
+
+			if (map.isStereo)
+				storeData(map.rootNote, dataR, rightValueTree, map.wavetableLength * numParts);
+		}
 	}
 }
 
-AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const HarmonicMap &map)
+AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const HarmonicMap &map, int noteNumber)
 {
-	AudioSampleBuffer bank(2, map.wavetableLength * numParts);
+	if (noteNumber == -1)
+		noteNumber = map.rootNote;
+
+	auto numSamples = ResynthesisHelpers::getWavetableLength(noteNumber, sampleRate);
+
+	AudioSampleBuffer bank(2, numSamples * numParts);
 
 	bank.clear();
 
 	float* dataL = bank.getWritePointer(0);
 	float* dataR = bank.getWritePointer(1);
 
-	int offset = reverseOrder ? bank.getNumSamples() - map.wavetableLength : 0;
+	int offset = reverseOrder ? bank.getNumSamples() - numSamples : 0;
 
 	int partIndex = 0;
 
 	for (int i = 0; i < map.harmonicGains.getNumChannels(); i++)
 	{
-		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGains.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataL + offset, map.index.noteNumber, sampleRate);
+		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGains.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataL + offset, noteNumber, sampleRate);
 
-		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGainsRight.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataR + offset, map.index.noteNumber, sampleRate);
+		if(map.isStereo)
+			ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGainsRight.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataR + offset, noteNumber, sampleRate);
 
 		if (useOriginalGain)
 		{
 			const float gainL = map.gainValues.getSample(0, partIndex);
 			const float gainR = map.gainValues.getSample(1, partIndex);
 
-			FloatVectorOperations::multiply(dataL + offset, gainL, map.wavetableLength);
-			FloatVectorOperations::multiply(dataR + offset, gainR, map.wavetableLength);
+			FloatVectorOperations::multiply(dataL + offset, gainL, numSamples);
+
+			if(map.isStereo)
+				FloatVectorOperations::multiply(dataR + offset, gainR, numSamples);
 		}
 
 		if (reverseOrder)
-			offset -= map.wavetableLength;
+			offset -= numSamples;
 		else
-			offset += map.wavetableLength;
+			offset += numSamples;
 
 		partIndex++;
 	}
@@ -1008,7 +1172,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 			sampleRate = chain->getSampleRate();
 
-			readSample(b, currentMap->index.sampleIndex, currentMap->index.noteNumber);
+			readSample(b, currentMap->index.sampleIndex, currentMap->rootNote);
 
 			sampleRate = actualSampleRate;
 		}
@@ -1018,7 +1182,9 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 			int length = currentMap->wavetableLength;
 
-			auto numWavetables = (float)currentSampleLength / (float)length;
+			auto lengthSeconds = (double)length / sampleRate;
+
+			auto numWavetables = (float)currentMap->sampleLengthSeconds / (float)lengthSeconds;
 
 			int numWaveTablesPerPart = jmax<int>(1, nextPowerOfTwo(roundToInt(numWavetables / (float)numParts)));
 
@@ -1059,6 +1225,11 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 			if (reverseOrder)
 				b.reverse(0, b.getNumSamples());
+
+			if (!currentMap->isStereo)
+			{
+				FloatVectorOperations::copy(b.getWritePointer(1), b.getReadPointer(0), b.getNumSamples());
+			}
 
 			auto playbackRate = chain->getSampleRate();
 

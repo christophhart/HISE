@@ -123,10 +123,14 @@ public:
 		AudioSampleBuffer gainValues;
 		WavetableIndex index;
 
+		int rootNote = 0;
 		double pitchDeviations[64];
 		double lastFrequency = -1.0;
 		int wavetableLength = 0;
+		double sampleLengthSeconds = 0;
+		bool isStereo = false;
 		bool analysed = false;
+		Range<int> noteRange;
 	};
 
 	class Preview;
@@ -153,12 +157,13 @@ public:
 
 	void renderAllWavetablesFromHarmonicMaps(double& progress);
 
-	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map);
+	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map, int noteNumber=-1);
 
 	double sampleRate = 48000.0;
 	int numParts = 64;
 	int fftSize = -1;
 	bool reverseOrder = true;
+	int mipmapSize = 12;
 	bool useOriginalGain = true;
 	bool channelToUse = 0;
     WindowType windowType = FFTHelpers::FlatTop;

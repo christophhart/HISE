@@ -92,6 +92,8 @@ private:
 		int index;
 		bool analysed = false;
 		bool active = false;
+		Range<int> keyRange;
+		int rootNote;
 	};
 
 	Array<Sample> samples;
