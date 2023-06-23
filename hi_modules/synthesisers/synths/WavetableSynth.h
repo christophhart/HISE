@@ -90,10 +90,19 @@ public:
 	/** Call this in the prepareToPlay method to calculate the pitch error. It also resamples if the playback frequency is different. */
 	void calculatePitchRatio(double playBackSampleRate);
 
-	double getPitchRatio()
+	double getPitchRatio(double midiNoteNumber) const
 	{
-		return pitchRatio;
+        double p = pitchRatio;
+        
+        p *= hmath::pow(2.0, (midiNoteNumber - noteNumber) / 12.0);
+        
+		return p;
 	}
+    
+    Range<double> getFrequencyRange() const
+    {
+        return frequencyRange;
+    }
 
 	void normalizeTables();
 
@@ -111,6 +120,8 @@ private:
 	float unnormalizedMaximum;
 	float unnormalizedGainValues[64];
 
+    Range<double> frequencyRange;
+    
 	BigInteger midiNotes;
 	int noteNumber;
 
@@ -119,6 +130,7 @@ private:
 
 	double sampleRate;
 	double pitchRatio;
+    double playbackSampleRate;
 
 	int wavetableSize;
 	int wavetableAmount;
@@ -155,19 +167,10 @@ public:
 	void setHqMode(bool useHqMode)
 	{
 		hqMode = useHqMode;
-
-		if(hqMode)
-		{
-			lowerTable = currentTable;
-			nextTable = upperTable;
-		}
-		{
-			currentTable = lowerTable;
-			nextTable = upperTable;
-		}
-
 	};
 
+    bool updateSoundFromPitchFactor(double pitchFactor, WavetableSound* soundToUse);
+    
 private:
 
 	WavetableSynth *wavetableSynth;
@@ -180,11 +183,12 @@ private:
 	int nextWaveIndex;
 	int tableSize;
 	int currentTableIndex;
-	int nextTableIndex;
+	
 
 	float currentGainValue;
-	float nextGainValue;
-
+    int noteNumberAtStart = 0;
+    double startFrequency = 0.0;
+	
 	Interpolator tableGainInterpolator;
 
 	bool hqMode;
@@ -195,10 +199,6 @@ private:
 
 
 	float const *currentTable;
-	float const *nextTable;
-
-	int smoothSize;
-
 };
 
 

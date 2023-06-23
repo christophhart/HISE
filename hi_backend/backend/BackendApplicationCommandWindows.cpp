@@ -49,10 +49,22 @@ ML("Only used in FFT Resynthesis mode. If this is enabled, it will store the wav
 ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
 END_MARKDOWN()
 
+START_MARKDOWN(Offset)
+ML("## Offset")
+ML("Defines the offset within the slice that is used to determine the wavetable. If the source has a transient sound at the attack phase, lowering the offset allows to catch the frequency spectrum of the transient.");
+END_MARKDOWN();
+
+START_MARKDOWN(PreservePhase)
+ML("## Preserve Phase")
+ML("This will preserve the phase when resynthesising the wavetables.  ")
+ML("If the sound comes from a natural source, enabling this might improve the stereo image. ");
+ML("For pure synthetic sounds this might create phasing issues");
+END_MARKDOWN()
+
 START_MARKDOWN(MipmapSize)
 ML("## Mip Map size")
-ML("Defines the interval that will be used to resynthesise the same sample");
-ML("In order to reduce aliasing, you can resynthesise the same sample at different pitches.");
+ML("Defines the interval that will be used to resynthesise the same sample.  ");
+ML("In order to reduce aliasing, you can resynthesise the same sample at different pitches.  ");
 ML("By default it is an octave but you can specify a lower amount for harmonicly rich signals");
 END_MARKDOWN()
 
@@ -490,14 +502,23 @@ public:
 		
 		selectors = new AdditionalRow(this);
 
-		selectors->addComboBox("mode", { "Resample Wavetables", "Loris Resynthesis"}, "Mode", 130);
+		selectors->addComboBox("mode", { "Resample", "Loris"}, "Mode", 120);
 		selectors->setInfoTextForLastComponent(WavetableHelp::Mode());
-		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
+		selectors->addComboBox("ReverseTables", {"No", "Yes"}, "Reverse Wavetable", 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
 		selectors->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap Range"
-	, 120);
+	, 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::MipmapSize());
 
+        selectors->addComboBox("preservephase", {"No", "Yes"}, "Preserve Phase", 90);
+        selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
+        
+        selectors->addComboBox("offset", {"0", "10%", "25%", "50%", "66%", "75%"}, "Offset", 90);
+        selectors->setInfoTextForLastComponent(WavetableHelp::Offset());
+        
+        selectors->getComponent<ComboBox>("offset")->setSelectedItemIndex(3, dontSendNotification);
+        
+        
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);
 
@@ -649,23 +670,22 @@ public:
 			converter->mipmapSize = items[comboBoxThatHasChanged->getSelectedItemIndex()];
 			refreshPreview();
 		}
+        if (comboBoxThatHasChanged->getName() == "preservephase")
+        {
+            static const int items[4] = { 12, 6, 2, 1 };
+            converter->preservePhase = comboBoxThatHasChanged->getSelectedItemIndex();
+            converter->refreshCurrentWavetable(getProgressCounter());
+        }
+        if (comboBoxThatHasChanged->getName() == "offset")
+        {
+            static const double items[6] = {0.0, 0.1, 0.25, 0.5, 0.66666, 0.75 };
+
+            converter->offsetInSlice = items[comboBoxThatHasChanged->getSelectedItemIndex()];
+            converter->refreshCurrentWavetable(getProgressCounter());
+        }
 		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
 		{
-			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 0;
-		}
-		else
-		{
-			if (comboBoxThatHasChanged->getText() == "Lowest possible")
-			{
-				converter->fftSize = -1;
-			}
-			else
-			{
-				auto windowSize = comboBoxThatHasChanged->getText().getIntValue();
-				converter->fftSize = windowSize;
-			}
-
-			
+			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 1;
 		}
 	}
 

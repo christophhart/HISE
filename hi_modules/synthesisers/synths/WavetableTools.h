@@ -82,7 +82,7 @@ public:
 
     using WindowType = FFTHelpers::WindowType;
     
-	struct WavetableIndex
+    struct WavetableIndex
 	{
 		bool operator==(const WavetableIndex& other) const
 		{
@@ -118,6 +118,9 @@ public:
 
 		void replaceInternal(int harmonicIndex, bool useRightChannel);
 
+        AudioSampleBuffer harmonicPhase;
+        AudioSampleBuffer harmonicPhaseRight;
+        
 		AudioSampleBuffer harmonicGains;
 		AudioSampleBuffer harmonicGainsRight;
 		AudioSampleBuffer gainValues;
@@ -200,6 +203,9 @@ public:
 		return vt.getProperty(id);
 	}
 
+    bool preservePhase = false;
+    double offsetInSlice = 0.5;
+    
 private:
 
 	HarmonicMap * getCurrentMap()
@@ -219,7 +225,7 @@ private:
 	Array<HarmonicMap> harmonicMaps;
 
 
-	void storeData(int noteNumber, float* data, ValueTree& treeToSave, int length, int numPartsToUse=-1);
+	void storeData(int noteNumber, Range<int> noteRange, float* data, ValueTree& treeToSave, int length, int numPartsToUse=-1);
 
 	
 
@@ -241,6 +247,8 @@ private:
 
 	int currentSampleLength = 0;
 
+    
+    
 	AudioFormatManager afm;
 };
 

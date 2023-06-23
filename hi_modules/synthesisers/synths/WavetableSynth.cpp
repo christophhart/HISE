@@ -124,32 +124,98 @@ float WavetableSynthVoice::getGainValue(float modValue)
 	return wavetableSynth->getGainValueFromTable(modValue);
 }
 
+template <typename Type> static Type interpolateCubic(Type x0, Type x1, Type x2, Type x3, Type alpha)
+{
+    Type a = ((Type(3) * (x1 - x2)) - x0 + x3) * Type(0.5);
+    Type b = x2 + x2 + x0 - (Type(5) *x1 + x3) * Type(0.5);
+    Type c = (x2 - x0) * Type(0.5);
+    return ((a*alpha + b)*alpha + c)*alpha + x1;
+};
+
+bool WavetableSynthVoice::updateSoundFromPitchFactor(double pitchFactor, WavetableSound* soundToUse)
+{
+    if(soundToUse == nullptr)
+    {
+        auto thisFreq = startFrequency * pitchFactor;
+        
+        if(!currentSound->getFrequencyRange().contains(thisFreq))
+        {
+            auto owner = getOwnerSynth();
+            
+            for(int i = 0; i < owner->getNumSounds(); i++)
+            {
+                auto ws = static_cast<WavetableSound*>(owner->getSound(i));
+                
+                if(ws->getFrequencyRange().contains(thisFreq))
+                {
+                    soundToUse = ws;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if(soundToUse == nullptr)
+        return false;
+    
+    if(currentSound != soundToUse)
+    {
+        currentSound = soundToUse;
+        
+        lowerTable = currentSound->getWaveTableData(currentTableIndex);
+        upperTable = lowerTable;
+
+        currentTableIndex = 0;
+
+        tableSize = currentSound->getTableSize();
+        
+        uptimeDelta = currentSound->getPitchRatio(noteNumberAtStart);
+        uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
+        
+        return true;
+    }
+    
+    
+    return false;
+}
+
 void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 {
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
 	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
-		
+	
+    if(voicePitchValues != nullptr)
+    {
+        updateSoundFromPitchFactor(voicePitchValues[0], nullptr);
+    }
+    
 	if (auto tableValues = getTableModulationValues())
 	{
 		while (--numSamples >= 0)
 		{
 			int index = (int)voiceUptime;
 
-			const int i1 = index % (tableSize);
+            const auto i1 = index % (tableSize);
 
-			int i2 = i1 + 1;
+            auto i2 = i1 + 1;
+            auto i0 = i1 - 1;
+            auto i3 = i1 + 2;
+            
+            auto numTables = currentSound->getWavetableAmount();
+            
+            if (i2 >= tableSize)
+            {
+                const float tableModValue = tableValues[startSample];
+                currentTableIndex = roundToInt(tableModValue * (double)(numTables-1));
+                i2 = 0;
+            }
+            
+            if (i1 == 0)         i0 = tableSize-1;
+            if (i2 >= tableSize) i2 = 0;
+            if (i3 >= tableSize) i3 = 0;
 
-			auto numTables = currentSound->getWavetableAmount();
-
-			if (i2 >= tableSize)
-			{
-				const float tableModValue = tableValues[startSample];
-				currentTableIndex = roundToInt(tableModValue * (double)(numTables-1));
-				i2 = 0;
-			}
-			
 			const float tableModValue = tableValues[startSample];
 			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (float)(numTables -1);
 
@@ -165,6 +231,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 			tableGainValue *= getGainValue(tableModValue);
 
+#if 0
 			float u1 = upperTable[i1];
 			float u2 = upperTable[i2];
 
@@ -179,6 +246,44 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 			const float lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
 
 			float sample = lowerTableIndex != upperTableIndex ? tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta) : lowerSample;
+#else
+            float u0 = upperTable[i0];
+            float u1 = upperTable[i1];
+            float u2 = upperTable[i2];
+            float u3 = upperTable[i3];
+
+            float l0 = lowerTable[i0];
+            float l1 = lowerTable[i1];
+            float l2 = lowerTable[i2];
+            float l3 = lowerTable[i3];
+
+            const float alpha = float(voiceUptime) - (float)index;
+            
+            float sample;
+            
+            if(lowerTableIndex != upperTableIndex)
+            {
+                float upperSample, lowerSample;
+                
+                if(hqMode)
+                {
+                    upperSample = interpolateCubic(u0, u1, u2, u3, alpha);
+                    lowerSample = interpolateCubic(l0, l1, l2, l3, alpha);
+                }
+                else
+                {
+                    upperSample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+                    lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
+                }
+                
+                sample = tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta);
+            }
+            else
+            {
+                sample = hqMode ? interpolateCubic(u0, u1, u2, u3, alpha) :
+                    tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+            }
+#endif
 
 			sample *= tableGainValue;
 
@@ -204,24 +309,29 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 		{
 			int index = (int)voiceUptime;
 
-			const int i1 = index % (tableSize);
+			const auto i1 = index % (tableSize);
 
-			int i2 = i1 + 1;
+			auto i2 = i1 + 1;
+            auto i0 = i1 - 1;
+            auto i3 = i1 + 2;
+            
+            if (i1 == 0)         i0 = tableSize-1;
+			if (i2 >= tableSize) i2 = 0;
+            if (i3 >= tableSize) i3 = 0;
 
-			auto numTables = currentSound->getWavetableAmount();
-
-			if (i2 >= tableSize)
-			{
-				i2 = 0;
-			}
-
+            auto numTables = currentSound->getWavetableAmount();
+            
 			const float tableValue = jlimit<float>(0.0f, 1.0f, tableModValue) * (float)(numTables - 1);
 
+            
+            
 			const int lowerTableIndex = (int)(tableValue);
 			const int upperTableIndex = jmin(numTables - 1, lowerTableIndex + 1);
 			const float tableDelta = tableValue - (float)lowerTableIndex;
 			jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
 
+            currentTableIndex = lowerTableIndex;
+            
 			lowerTable = currentSound->getWaveTableData(lowerTableIndex);
 			upperTable = currentSound->getWaveTableData(upperTableIndex);
 
@@ -229,21 +339,43 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 			tableGainValue *= getGainValue(tableModValue);
 
+            float u0 = upperTable[i0];
 			float u1 = upperTable[i1];
 			float u2 = upperTable[i2];
+            float u3 = upperTable[i3];
 
+            float l0 = lowerTable[i0];
 			float l1 = lowerTable[i1];
 			float l2 = lowerTable[i2];
+            float l3 = lowerTable[i3];
 
 			const float alpha = float(voiceUptime) - (float)index;
-			//const float invAlpha = 1.0f - alpha;
-
-			const float upperSample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
-
-			const float lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
-
-			float sample = lowerTableIndex != upperTableIndex ? tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta) : lowerSample;
-
+			
+            float sample;
+            
+            if(lowerTableIndex != upperTableIndex)
+            {
+                float upperSample, lowerSample;
+                
+                if(hqMode)
+                {
+                    upperSample = interpolateCubic(u0, u1, u2, u3, alpha);
+                    lowerSample = interpolateCubic(l0, l1, l2, l3, alpha);
+                }
+                else
+                {
+                    upperSample = tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+                    lowerSample = tableGainInterpolator.interpolateLinear(l1, l2, alpha);
+                }
+                
+                sample = tableGainInterpolator.interpolateLinear(lowerSample, upperSample, tableDelta);
+            }
+            else
+            {
+                sample = hqMode ? interpolateCubic(u0, u1, u2, u3, alpha) :
+                    tableGainInterpolator.interpolateLinear(u1, u2, alpha);
+            }
+            
 			sample *= tableGainValue;
 
 			sample *= 1.0f / currentSound->getUnnormalizedMaximum();
@@ -294,26 +426,19 @@ int WavetableSynthVoice::getSmoothSize() const
 
 void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/)
 {
+    currentSound = nullptr;
+    
 	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
 	midiNoteNumber += getTransposeAmount();
-	currentSound = static_cast<WavetableSound*>(s);
-	voiceUptime = 0.0;
-
-	lowerTable = currentSound->getWaveTableData(0);
-	upperTable = lowerTable;
-
-	nextTable = lowerTable;
-	nextGainValue = getGainValue(0.0);
-	nextTableIndex = 0;
-	currentTableIndex = 0;
-
-	static_cast<WavetableSynth*>(getOwnerSynth())->lastGainIndex = -1;
-
-	tableSize = currentSound->getTableSize();
-	smoothSize = tableSize;
-	uptimeDelta = currentSound->getPitchRatio();
-	uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
+    
+    noteNumberAtStart = midiNoteNumber;
+    
+    startFrequency = MidiMessage::getMidiNoteInHertz(noteNumberAtStart);
+    
+    updateSoundFromPitchFactor(1.0, static_cast<WavetableSound*>(s));
+    
+    static_cast<WavetableSynth*>(getOwnerSynth())->lastGainIndex = -1;
 }
 
 WavetableSound::WavetableSound(const ValueTree &wavetableData)
@@ -337,6 +462,14 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData)
 	noteNumber = wavetableData.getProperty("noteNumber", 0);
 	midiNotes.setBit(noteNumber, true);
 
+    if(wavetableData.hasProperty(SampleIds::LoKey))
+    {
+        auto l = (int)wavetableData[SampleIds::LoKey];
+        auto h = (int)wavetableData[SampleIds::HiKey];
+        
+        midiNotes.setRange(l, h - l, true);
+    }
+    
 	wavetableSize = numSamples / wavetableAmount;
 
 	emptyBuffer = AudioSampleBuffer(1, wavetableSize);
@@ -347,6 +480,12 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData)
 	normalizeTables();
 
 	pitchRatio = 1.0;
+    
+    auto lowDelta = MidiMessage::getMidiNoteInHertz(midiNotes.findNextSetBit(0));
+    auto highDelta = MidiMessage::getMidiNoteInHertz(midiNotes.getHighestBit());
+                                
+    
+    frequencyRange = { lowDelta, highDelta };
 }
 
 const float * WavetableSound::getWaveTableData(int wavetableIndex) const
@@ -364,15 +503,13 @@ const float * WavetableSound::getWaveTableData(int wavetableIndex) const
 	}
 }
 
-void WavetableSound::calculatePitchRatio(double playBackSampleRate)
+void WavetableSound::calculatePitchRatio(double playBackSampleRate_)
 {
-	const double idealCycleLength = playBackSampleRate / MidiMessage::getMidiNoteInHertz(noteNumber);
-
-	pitchRatio = 1.0;
+    playbackSampleRate = playBackSampleRate_;
+    
+	const double idealCycleLength = playbackSampleRate / MidiMessage::getMidiNoteInHertz(noteNumber);
 
 	pitchRatio = (double)wavetableSize / idealCycleLength;
-
-	//pitchRatio *= sampleRate / playBackSampleRate;
 }
 
 void WavetableSound::normalizeTables()
