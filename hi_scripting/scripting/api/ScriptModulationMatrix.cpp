@@ -48,6 +48,7 @@ namespace MatrixIds
 	DECLARE_ID(Parameter);
 	DECLARE_ID(Source);
 	DECLARE_ID(Target);
+    DECLARE_ID(AddConstUIMod);
 	DECLARE_ID(items);
 }
 
@@ -983,19 +984,20 @@ int ScriptModulationMatrix::ModulatorTargetData::getTypeIndex(GlobalModulator* g
 
 void ScriptModulationMatrix::ModulatorTargetData::updateValue()
 {
-	switch (targetMode)
-	{
-	case TargetMode::FrequencyMode:
+    if(componentMod != nullptr)
+    {
+        auto mv = componentValue;
+        
+        auto mod = dynamic_cast<Modulation*>(componentMod.get());
+        
+        if(mod->getMode() == Modulation::Mode::GainMode)
+            mv = 1.0f - mv;
+        
+        mod->setIntensityFromSlider(mv);
+    }
+	else if(targetMode == TargetMode::FrequencyMode)
+    {
 		processor->setAttribute(PolyFilterEffect::Parameters::Frequency, componentValue, sendNotification);
-		break;
-	case TargetMode::PitchMode:
-		dynamic_cast<Modulation*>(componentMod.get())->setIntensityFromSlider(componentValue);
-		break;
-	case TargetMode::PanMode:
-		dynamic_cast<Modulation*>(componentMod.get())->setIntensityFromSlider(componentValue);
-		break;
-	default:
-		jassertfalse;
 	}
 }
 
@@ -1386,8 +1388,7 @@ void ScriptModulationMatrix::ModulatorTargetData::init(const var& json)
 		thisSlots[2] = (int)tsa[2];
 	}
 
-	if (targetMode == TargetMode::PitchMode ||
-		targetMode == TargetMode::PanMode)
+	if (json.getProperty(MatrixIds::AddConstUIMod, false))
 	{
 		componentMod = createOrGet<ConstantModulator>(processor, subIndex, modId + " UIMod");
 	}

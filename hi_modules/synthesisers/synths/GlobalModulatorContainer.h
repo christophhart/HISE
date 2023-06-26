@@ -111,6 +111,14 @@ public:
 
 	float getConstantVoiceValue(int noteNumber) const
 	{
+        if(auto m = const_cast<VoiceStartData*>(this)->getModulator())
+        {
+            auto unsavedValue = m->getUnsavedValue();
+            
+            if(unsavedValue != -1.0f)
+                return unsavedValue;
+        }
+        
 		if (isPositiveAndBelow(noteNumber, 128))
 		{
 			return voiceValues[noteNumber];
@@ -418,6 +426,9 @@ public:
 	
 	void renderEnvelopeData(int voiceIndex, int startSample, int numSamples);
 
+    void sendVoiceStartCableValue(Modulator* m, const HiseEvent& e);
+    
+    
 private:
 
     struct GlobalModulatorCable;

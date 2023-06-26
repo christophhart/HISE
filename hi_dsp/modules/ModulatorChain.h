@@ -456,6 +456,11 @@ public:
 		return handler.tableValueConverter;
 	}
 
+    void setPostEventFunction(const std::function<void(Modulator*, const HiseEvent&)>& pf)
+    {
+        postEventFunction = pf;
+    }
+    
 	void applyMonoOnOutputValue(float monoValue)
 	{
 		ignoreUnused(monoValue);
@@ -482,6 +487,23 @@ public:
 	{
 	public:
 
+        struct ModSorter
+        {
+            ModSorter(ModulatorChainHandler& parent_):
+              parent(parent_)
+            {};
+            
+            bool operator()(Modulator* f, Modulator* s) const
+            {
+                auto fi = parent.chain->allModulators.indexOf(f);
+                auto si = parent.chain->allModulators.indexOf(s);
+                
+                return si > fi;
+            };
+            
+            ModulatorChainHandler& parent;
+        };
+        
 		/** Creates a Chain::Handler. */
 		ModulatorChainHandler(ModulatorChain *handledChain);;
 
@@ -574,6 +596,8 @@ public:
 
 private:
 
+    std::function<void(Modulator* m, const HiseEvent& e)> postEventFunction;
+    
 	friend class GlobalModulatorContainer;
 
 	// Checks if the Modulators are initialized correctly and are set to the right voices */

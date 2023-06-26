@@ -73,22 +73,22 @@ GlobalModulator::~GlobalModulator()
 
 Modulator * GlobalModulator::getOriginalModulator()
 {
-	return dynamic_cast<Modulator*>(originalModulator.get());
+	return originalModulator.get();
 }
 
 const Modulator * GlobalModulator::getOriginalModulator() const
 {
-	return dynamic_cast<const Modulator*>(originalModulator.get());
+	return originalModulator.get();
 }
 
 GlobalModulatorContainer * GlobalModulator::getConnectedContainer()
 {
-	return dynamic_cast<GlobalModulatorContainer*>(connectedContainer.get());
+	return static_cast<GlobalModulatorContainer*>(connectedContainer.get());
 }
 
 const GlobalModulatorContainer * GlobalModulator::getConnectedContainer() const
 {
-	return dynamic_cast<const GlobalModulatorContainer*>(connectedContainer.get());
+	return static_cast<const GlobalModulatorContainer*>(connectedContainer.get());
 }
 
 void GlobalModulator::connectIfPending()
@@ -230,7 +230,7 @@ bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 			{
 				connectedContainer = c;
 
-				originalModulator = ProcessorHelpers::getFirstProcessorWithName(c, modulatorId);
+				originalModulator = dynamic_cast<Modulator*>(ProcessorHelpers::getFirstProcessorWithName(c, modulatorId));
 
 				if (auto ltp = dynamic_cast<LookupTableProcessor*>(originalModulator.get()))
 				{

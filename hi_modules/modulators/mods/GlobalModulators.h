@@ -111,7 +111,7 @@ private:
     
 	WeakReference<Processor> connectedContainer;
 
-	WeakReference<Processor> originalModulator;
+	WeakReference<Modulator> originalModulator;
 
 	Array<WeakReference<GlobalModulatorContainer>> watchedContainers;
 };
@@ -123,7 +123,7 @@ class NoGlobalsConstrainer : public FactoryType::Constrainer
 
 	bool allowType(const Identifier &typeName) override
 	{
-		return !typeName.toString().startsWith("Global");
+        return true;//!typeName.toString().startsWith("Global");
 	}
 };
 

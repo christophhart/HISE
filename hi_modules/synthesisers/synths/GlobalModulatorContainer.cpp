@@ -192,6 +192,29 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *par
 #endif
 }
 
+void GlobalModulatorContainer::sendVoiceStartCableValue(Modulator* m, const HiseEvent& e)
+{
+    if(!e.isNoteOn() || dynamic_cast<VoiceStartModulator*>(m) == nullptr)
+        return;
+        
+    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
+    
+    for(auto& vc: voiceStartCables)
+    {
+        if(vc.mod == m)
+        {
+            auto uv = static_cast<VoiceStartModulator*>(m)->getUnsavedValue();
+            
+            if (auto c = vc.cable.getObject())
+            {
+                auto cable = static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(c);
+                cable->sendValue(nullptr, uv);
+                break;
+            }
+        }
+    }
+}
+
 void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, e);
@@ -200,11 +223,6 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 	{
 		vd.saveValue(e.getNoteNumber(), voiceIndex);
 	}
-    
-    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
-    
-    for(auto& vc: voiceStartCables)
-        vc.send(voiceIndex);
 }
 
 void GlobalModulatorContainer::connectToGlobalCable(Modulator* childMod, var cable, bool add)
@@ -230,6 +248,15 @@ void GlobalModulatorContainer::connectToGlobalCable(Modulator* childMod, var cab
 			envelopeCables.addIfNotAlreadyThere(c);
 		else
             timeVariantCables.addIfNotAlreadyThere(c);
+    }
+    
+    if(voiceStartCables.isEmpty())
+    {
+        gainChain->setPostEventFunction({});
+    }
+    else
+    {
+        gainChain->setPostEventFunction(BIND_MEMBER_FUNCTION_2(GlobalModulatorContainer::sendVoiceStartCableValue));
     }
 }
 

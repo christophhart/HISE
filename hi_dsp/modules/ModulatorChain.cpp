@@ -722,8 +722,21 @@ void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 
 	ModIterator<Modulator> iter(this);
 
-	while(auto mod = iter.next())
-		mod->handleHiseEvent(m);
+    if(postEventFunction)
+    {
+        while(auto mod = iter.next())
+        {
+            mod->handleHiseEvent(m);
+            postEventFunction(mod, m);
+        }
+    }
+    else
+    {
+        while(auto mod = iter.next())
+            mod->handleHiseEvent(m);
+    }
+    
+	
 };
 
 
@@ -1225,6 +1238,12 @@ void ModulatorChain::ModulatorChainHandler::checkActiveState()
 	activeVoiceStarts = !activeVoiceStartList.isEmpty();
 	activeMonophonicEnvelopes = !activeMonophonicEnvelopesList.isEmpty();
 	anyActive = !activeAllList.isEmpty();
+    
+    std::sort(activeVoiceStartList.begin(), activeVoiceStartList.end(), ModSorter(*this));
+    std::sort(activeTimeVariantsList.begin(), activeTimeVariantsList.end(), ModSorter(*this));
+    std::sort(activeEnvelopesList.begin(), activeEnvelopesList.end(), ModSorter(*this));
+    std::sort(activeAllList.begin(), activeAllList.end(), ModSorter(*this));
+    
 }
 
 

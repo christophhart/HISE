@@ -543,7 +543,10 @@ public:
 		setOutputValue(unsavedValue);
 #endif
 
-		return unsavedValue;
+        auto v = unsavedValue;
+        unsavedValue = -1.0f;
+        
+		return v;
 	};
 
 	static Path getSymbolPath()
@@ -614,6 +617,11 @@ public:
 			unsavedValue = calculateVoiceStartValue(m);
 		}
 	};
+    
+    float getUnsavedValue() const
+    {
+        return unsavedValue;
+    }
 
 protected:
 
