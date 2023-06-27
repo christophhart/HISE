@@ -270,7 +270,7 @@ public:
 
 		loadAttribute(LoadedBankIndex, "LoadedBankIndex");
 		loadAttribute(HqMode, "HqMode");
-		loadAttributeWithDefault(TableIndexValue, "TableIndexValue");
+		loadAttributeWithDefault(TableIndexValue);
 	};
 
 	ValueTree exportAsValueTree() const override

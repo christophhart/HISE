@@ -61,6 +61,12 @@ ML("If the sound comes from a natural source, enabling this might improve the st
 ML("For pure synthetic sounds this might create phasing issues");
 END_MARKDOWN()
 
+START_MARKDOWN(Slices)
+ML("## Slices")
+ML("This will determine how many wavetables will be extraced from the sample. ")
+ML("You can morph between the wavetable slices with the table index modulator.");
+END_MARKDOWN()
+
 START_MARKDOWN(MipmapSize)
 ML("## Mip Map size")
 ML("Defines the interval that will be used to resynthesise the same sample.  ");
@@ -465,21 +471,24 @@ private:
 	File projectDirectory;
 };
 
+/** TODO:
+ 
+    - add preview using Wavetable sound & actual voice rendering
+    - add proper multithreading for rebuilding
+    - make samplemap selectable
+    - show statistics
+    - loris: add progress & status message manager
+    - fix start & end
+    - add loris DLL check
+    - add waterfall display to converter dialog with scanner
+    - add zero wavetable at the end for fade to silence (with option)
+ */
 class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
 								 public ComboBoxListener
 	
 {
-	enum Mode
-	{
-		Resample,
-		Loris,
-		numModes
-	};
-
 	enum ButtonIds
 	{
-		Next = 5,
-		Previous,
 		Rescan,
 		Discard,
 		Preview,
@@ -502,8 +511,6 @@ public:
 		
 		selectors = new AdditionalRow(this);
 
-		selectors->addComboBox("mode", { "Resample", "Loris"}, "Mode", 120);
-		selectors->setInfoTextForLastComponent(WavetableHelp::Mode());
 		selectors->addComboBox("ReverseTables", {"No", "Yes"}, "Reverse Wavetable", 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
 		selectors->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap Range"
@@ -523,6 +530,9 @@ public:
         
         selectors->getComponent<ComboBox>("offset")->setSelectedItemIndex(3, dontSendNotification);
         
+        selectors->addComboBox("numSlices", {"1", "2", "8", "64", "256"}, "Slices", 90);
+        selectors->setInfoTextForLastComponent(WavetableHelp::Slices());
+        selectors->getComponent<ComboBox>("numSlices")->setSelectedItemIndex(3, dontSendNotification);
         
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);
@@ -532,21 +542,10 @@ public:
 
 		addCustomComponent(preview);
 
-		gainPackData = new SliderPackData(nullptr, nullptr);
-		gainPackData->setNumSliders(64);
-		gainPackData->setRange(0.0, 1.0, 0.01);
-		gainPack = new SliderPack(gainPackData);
 		
-		
-		gainPack->setName("Gain Values");
-		gainPack->setSize(512, 40);
-
-		addCustomComponent(gainPack);
 
 		additionalButtons = new AdditionalRow(this);
 
-		additionalButtons->addButton("Previous", KeyPress(KeyPress::leftKey));
-		additionalButtons->addButton("Next", KeyPress(KeyPress::rightKey));
 		additionalButtons->addButton("Rescan", KeyPress(KeyPress::F5Key));
 		additionalButtons->addButton("Preview", KeyPress(KeyPress('p')));
 		additionalButtons->addButton("Original", KeyPress(KeyPress('o')));
@@ -557,20 +556,8 @@ public:
 
 		addBasicComponents(true);
 
-        if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
-        {
-			auto sampleMapTree = s->getSampleMap()->getValueTree();
-            
-            converter->parseSampleMap(sampleMapTree);
-            converter->refreshCurrentWavetable(getProgressCounter());
-            refreshPreview();
-            
-            showStatusMessage("Imported samplemap from " + s->getId());
-        }
-        else
-        {
-			showStatusMessage("Choose Samplemap to convert");
-        }
+        showStatusMessage("Choose Samplemap to convert");
+        
 	}
 
 	~WavetableConverterDialog()
@@ -617,17 +604,6 @@ public:
 	{
 		converter->sendChangeMessage();
 
-		if (auto gainData = converter->getCurrentGainValues())
-		{
-			for (int i = 0; i < 64; i++)
-			{
-				gainPack->setValue(i, gainData[i]);
-			}
-
-			gainPackData->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
-			
-		}
-
 		if (r.failed())
 			showStatusMessage("Fail at " + MidiMessage::getMidiNoteName(converter->getCurrentNoteNumber(), true, true, 3) + ": " + r.getErrorMessage());
 		else
@@ -647,58 +623,55 @@ public:
 			if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 			{
 				converter->parseSampleMap(*vData.getData());
-
-				if (currentMode == Loris)
-				{
-					converter->refreshCurrentWavetable(getProgressCounter());
-					
-				}
-
-				refreshPreview(); 
 			}
-		}
-		if (comboBoxThatHasChanged->getName() == "mode")
-		{
-			currentMode = (Mode)comboBoxThatHasChanged->getSelectedItemIndex();
-
-			if (currentMode == Loris)
-			{
-				converter->refreshCurrentWavetable(getProgressCounter());
-				refreshPreview();
-			}
-
 		}
 		if (comboBoxThatHasChanged->getName() == "mipmap")
 		{
 			static const int items[4] = { 12, 6, 2, 1 };
 
 			converter->mipmapSize = items[comboBoxThatHasChanged->getSelectedItemIndex()];
-			refreshPreview();
 		}
         if (comboBoxThatHasChanged->getName() == "preservephase")
         {
             converter->phaseMode = (SampleMapToWavetableConverter::PhaseMode)comboBoxThatHasChanged->getSelectedItemIndex();
-            converter->refreshCurrentWavetable(getProgressCounter());
+            
+        }
+        if (comboBoxThatHasChanged->getName() == "numSlices")
+        {
+            converter->numParts = comboBoxThatHasChanged->getText().getIntValue();
         }
         if (comboBoxThatHasChanged->getName() == "offset")
         {
             static const double items[6] = {0.0, 0.1, 0.25, 0.5, 0.66666, 0.75 };
 
             converter->offsetInSlice = items[comboBoxThatHasChanged->getSelectedItemIndex()];
-            converter->refreshCurrentWavetable(getProgressCounter());
         }
 		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
 		{
 			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 1;
 		}
+        
+        auto f = [this]()
+        {
+            showStatusMessage("Resynthesising");
+            ScopedValueSetter<bool> svs(rebuildPending, true);
+            converter->rebuild(&getProgressCounter());
+            
+            MessageManagerLock mm;
+            refreshPreview();
+            showStatusMessage("Done");
+        };
+        
+        if(!rebuildPending)
+            Thread::launch(f);
 	}
 
 	void run() override
 	{
-		if (currentMode == Mode::Loris)
-			converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
-		else
-			converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
+        while(rebuildPending)
+            wait(500);
+        
+        converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
 
 		if (threadShouldExit())
 			return;
@@ -727,12 +700,10 @@ public:
 
 	ScopedPointer<CombinedPreview> preview;
 
+    bool rebuildPending = false;
 	
-	ScopedPointer<SliderPack> gainPack;
-	ScopedPointer<SliderPackData> gainPackData;
 	ModulatorSynthChain* chain;
 	
-	Mode currentMode = Resample;
 	ScopedPointer<AdditionalRow> fileHandling;
 	ScopedPointer<AdditionalRow> selectors;
 	ScopedPointer<AdditionalRow> additionalButtons;

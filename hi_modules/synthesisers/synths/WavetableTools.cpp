@@ -741,44 +741,18 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& samp
     currentIndex = 0;
     
     return result;
-    
-        
 }
-    
-juce::Result SampleMapToWavetableConverter::parseSampleMap(const File& sampleMapFile)
+
+void SampleMapToWavetableConverter::rebuild(double* progress)
 {
-	Result result = Result::ok();
-
-	harmonicMaps.clear();
-
-	// Load samplemap
-	result = loadSampleMapFromFile(sampleMapFile);
-
-
-	if (result.failed())
-		return result;
-
-	for (int i = 0; i < 127; i++)
-	{
-		auto index = getSampleIndexForNoteNumber(i);
-
-		if (index != -1)
-		{
-			auto newMap = new HarmonicMap(numParts);
-
-			newMap->index.noteNumber = i;
-			newMap->index.sampleIndex = index;
-
-			harmonicMaps.add(newMap);
-		}
-	}
-
-	currentIndex = 0;
-
-	return result;
+    if(sampleMap.isValid())
+    {
+        parseSampleMap(sampleMap);
+        calculateHarmonicMap(progress);
+    }
 }
 
-juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
+juce::Result SampleMapToWavetableConverter::calculateHarmonicMap(double* progress)
 {
 	if (currentIndex > harmonicMaps.size() - 1)
 	{
@@ -856,17 +830,22 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
 	auto hoptime = jmin(offsetInSlice, 0.5) * m.sampleLengthSeconds / (double)numSlices;
 
-    hoptime = jmax(0.0129, hoptime);
+    
 
 
 	hoptime = delta * m.sampleLengthSeconds;
+    
+    while(hoptime < 0.005)
+        hoptime *= 2.0;
+    
+    
 	//offsetInSlice = 0.0;
     
 	lorisManager->set("timedomain", "0to1");
 	lorisManager->set("hoptime", String(hoptime));
 	lorisManager->set("croptime", String(hoptime));
 
-	lorisManager->analyse({d}, nullptr);
+	lorisManager->analyse({d}, progress);
 
 	if (!result.wasOk())
 		return result;
@@ -878,6 +857,11 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
     
 	for (int i = 0; i < numSlices; i++)
 	{
+        if(progress != nullptr)
+        {
+            *progress = pos;
+        }
+        
 		auto ar = lorisManager->getSnapshot(d.file, pos + delta * offsetInSlice, "gain");
         var pr;
         
@@ -1064,86 +1048,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 }
 
 
-void SampleMapToWavetableConverter::renderAllWavetablesFromSingleWavetables(double& progress)
-{
-	using Data = ResynthesisHelpers::SimpleNoteConversionData;
 
-    int lowestKey = 128;
-    int highestKey = 0;
-    
-    for(auto s: sampleMap)
-    {
-        lowestKey = jmin(lowestKey, (int)s[SampleIds::LoKey]);
-        highestKey = jmax(highestKey, (int)s[SampleIds::HiKey]);
-    }
-    
-	for (int i = lowestKey; i < highestKey; i += mipmapSize)
-	{
-		Array<Data> conversionData;
-
-		for (auto s : sampleMap)
-		{
-			int loKey = s.getProperty(SampleIds::LoKey, -1);
-			int hiKey = s.getProperty(SampleIds::HiKey, -1);
-			int root = s.getProperty(SampleIds::Root, -1);
-
-			if (i >= loKey && i <= hiKey)
-			{
-				auto thisFreq = MidiMessage::getMidiNoteInHertz(i);
-				auto rootFreq = MidiMessage::getMidiNoteInHertz(root);
-
-
-				auto fName = s.getProperty(SampleIds::FileName).toString();
-
-				if (fName.isEmpty())
-					s.getChild(0).getProperty(SampleIds::FileName).toString();
-
-				PoolReference r(chain->getMainController(), fName, FileHandlerBase::Samples);
-
-				Data data;
-				data.sampleFile = r.getFile();
-				data.rootRatio = thisFreq / rootFreq;
-                data.noteNumber = i;
-				data.veloRange.setStart((int)s.getProperty(SampleIds::LoVel, 0));
-				data.veloRange.setEnd((int)s.getProperty(SampleIds::HiVel, 127) + 1);
-                
-                
-				conversionData.insert(-1, data);
-			}
-		}
-
-		progress = (double)i / 128.0;
-
-		if (conversionData.isEmpty())
-			continue;
-
-		struct DataSorter
-		{
-			int compareElements(Data& first, Data& second)
-			{
-				if (first.veloRange.getStart() < second.veloRange.getStart())
-					return -1;
-
-				if (first.veloRange.getStart() > second.veloRange.getStart())
-					return 1;
-
-				return 0;
-			}
-		};
-
-		DataSorter sorter;
-
-		conversionData.sort(sorter);
-
-
-		auto output = ResynthesisHelpers::loadAndResampleAudioFilesForVelocity(conversionData, sampleRate);
-
-        Range<int> nr(i, jmin<int>(highestKey, i + mipmapSize));
-        auto ncenter = nr.getStart() + nr.getLength() / 2;
-        
-        storeData(ncenter, nr, output.getArrayOfWritePointers(), output.getNumChannels(), waveTableTree, output.getNumSamples(), conversionData.size());
-	}
-}
 
 void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& progress)
 {
@@ -1154,7 +1059,7 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& 
 		if (!map.analysed)
 		{
 			currentIndex = harmonicMaps.indexOf(map_);
-			calculateHarmonicMap();
+			calculateHarmonicMap(nullptr);
 		}
 			
 
@@ -1253,7 +1158,7 @@ juce::Result SampleMapToWavetableConverter::refreshCurrentWavetable(double& prog
 	}
 
 
-	Result r = calculateHarmonicMap();
+	Result r = calculateHarmonicMap(nullptr);
 
 	int numAnalysed = 0;
 

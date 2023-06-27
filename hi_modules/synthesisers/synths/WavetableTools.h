@@ -208,6 +208,8 @@ public:
 
 	AudioSampleBuffer getPreviewBuffers(bool original);
 
+    void rebuild(double* progress);
+    
 	static var getSampleProperty(const ValueTree& vt, const Identifier& id)
 	{
 		return vt.getProperty(id);
@@ -227,7 +229,7 @@ private:
 		return nullptr;
 	}
 
-	Result calculateHarmonicMap();
+	Result calculateHarmonicMap(double* progress);
 
 	int currentIndex = 0;
 

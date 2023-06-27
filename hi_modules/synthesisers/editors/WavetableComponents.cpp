@@ -98,7 +98,7 @@ int SampleMapToWavetableConverter::Preview::getHoverIndex(int xPos) const
 void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xFF222222));
-	float rectWidth = (float)getWidth() / 64.0f;
+    float rectWidth = (float)getWidth() / (float)parent.numParts;
 
 	for (auto& r : harmonicList)
 	{
@@ -128,13 +128,13 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 		g.fillRect(area);
 	}
 
-	g.setColour(Colour(0xff7559a4).withAlpha(0.4f));
-	g.strokePath(p, PathStrokeType(2.0f));
+	//g.setColour(Colour(0xff7559a4).withAlpha(0.4f));
+	//g.strokePath(p, PathStrokeType(2.0f));
 }
 
 void SampleMapToWavetableConverter::Preview::rebuildMap()
 {
-	float rectWidth = (float)getWidth() / 64.0f;
+	float rectWidth = (float)getWidth() / (float)parent.numParts;
 	float rectHeight = 0.0f;
 
 	const auto& currentMap = *parent.getCurrentMap();
