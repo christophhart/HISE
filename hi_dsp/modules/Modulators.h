@@ -1145,7 +1145,8 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		pitchWheel,
 		macroModulator,
 		globalTimeVariantModulator,
-		scriptTimeVariantModulator
+		scriptTimeVariantModulator,
+        hardcodedTimeVariantModulator
 	};
 
 public:

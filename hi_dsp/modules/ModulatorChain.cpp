@@ -1276,6 +1276,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MacroModulator);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptTimeVariantModulator);
+    ADD_NAME_TO_TYPELIST(HardcodedTimeVariantModulator);
 }
 
 void VoiceStartModulatorFactoryType::fillTypeNameList()

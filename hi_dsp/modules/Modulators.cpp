@@ -623,6 +623,7 @@ Processor *TimeVariantModulatorFactoryType::createProcessor(int typeIndex, const
 	case macroModulator:				return new MacroModulator(m, id, mode);
 	case globalTimeVariantModulator:	return new GlobalTimeVariantModulator(m, id, mode);
 	case scriptTimeVariantModulator:	return new JavascriptTimeVariantModulator(m, id, mode);
+    case hardcodedTimeVariantModulator: return new HardcodedTimeVariantModulator(m, id, mode);
 	default: jassertfalse;				return nullptr;
 
 	}

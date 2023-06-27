@@ -531,7 +531,7 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 				lastParameters[p.info.index] = p.info.defaultValue;
 			}
 
-			checkHardcodedChannelCount();
+            channelCountMatches = checkHardcodedChannelCount();
 		}		
 
 		asProcessor().parameterNames.clear();
@@ -848,7 +848,7 @@ ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 	return v;
 }
 
-void HardcodedSwappableEffect::checkHardcodedChannelCount()
+bool HardcodedSwappableEffect::checkHardcodedChannelCount()
 {
 	numChannelsToRender = 0;
 
@@ -868,8 +868,10 @@ void HardcodedSwappableEffect::checkHardcodedChannelCount()
 
 	if (opaqueNode != nullptr)
 	{
-		channelCountMatches = opaqueNode->numChannels == numChannelsToRender;
+		return opaqueNode->numChannels == numChannelsToRender;
 	}
+    
+    return false;
 }
 
 bool HardcodedSwappableEffect::processHardcoded(AudioSampleBuffer& b, HiseEventBuffer* e, int startSample, int numSamples)
@@ -1208,6 +1210,120 @@ void HardcodedMasterFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 		applyEffect(buffer, 0, buffer.getNumSamples());
 	}
 }
+
+
+HardcodedTimeVariantModulator::HardcodedTimeVariantModulator(hise::MainController *mc, const snex::jit::String &uid, Modulation::Mode m):
+  HardcodedSwappableEffect(mc, false),
+  Modulation(m),
+  TimeVariantModulator(mc, uid, m)
+{
+    numChannelsToRender = 1;
+}
+
+HardcodedTimeVariantModulator::~HardcodedTimeVariantModulator()
+{
+    
+}
+
+void HardcodedTimeVariantModulator::calculateBlock(int startSample, int numSamples)
+{
+    SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+    if(opaqueNode != nullptr)
+    {
+        const int startIndex = startSample;
+        const int numValues = numSamples;
+
+        auto* modData = internalBuffer.getWritePointer(0, startSample);
+        FloatVectorOperations::clear(modData, numSamples);
+        
+        ProcessDataDyn d(&modData, numSamples, 1);
+        opaqueNode->process(d);
+    }
+}
+
+void HardcodedTimeVariantModulator::handleHiseEvent(const hise::HiseEvent &m)
+{
+    HiseEvent copy(m);
+    if (opaqueNode != nullptr)
+        opaqueNode->handleHiseEvent(copy);
+}
+
+void HardcodedTimeVariantModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
+    
+    SimpleReadWriteLock::ScopedReadLock sl(lock);
+    prepareOpaqueNode(opaqueNode.get());
+}
+
+hise::ProcessorEditorBody *HardcodedTimeVariantModulator::createEditor(hise::ProcessorEditor *parentEditor)
+{
+    return createHardcodedEditor(parentEditor);
+}
+
+float HardcodedTimeVariantModulator::getAttribute(int index) const
+{
+    return getHardcodedAttribute(index);
+}
+
+void HardcodedTimeVariantModulator::restoreFromValueTree(const juce::ValueTree &v)
+{
+    LockHelpers::noMessageThreadBeyondInitialisation(getMainController());
+    TimeVariantModulator::restoreFromValueTree(v);
+
+    restoreHardcodedData(v);
+}
+
+juce::ValueTree HardcodedTimeVariantModulator::exportAsValueTree() const
+{
+    ValueTree v = TimeVariantModulator::exportAsValueTree();
+    return writeHardcodedData(v);
+}
+
+void HardcodedTimeVariantModulator::setInternalAttribute(int index, float newValue)
+{
+    setHardcodedAttribute(index, newValue);
+}
+
+bool HardcodedTimeVariantModulator::checkHardcodedChannelCount()
+{
+    if (opaqueNode != nullptr)
+    {
+        return opaqueNode->numChannels == 1;
+    }
+    
+    return false;
+}
+
+void HardcodedTimeVariantModulator::prepareOpaqueNode(scriptnode::OpaqueNode *n)
+{
+    if (n != nullptr && asProcessor().getSampleRate() > 0.0 && asProcessor().getLargestBlockSize() > 0)
+    {
+        PrepareSpecs ps;
+        ps.numChannels = 1;
+        ps.blockSize = asProcessor().getLargestBlockSize() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+        ps.sampleRate = asProcessor().getSampleRate() / (double)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+        ps.voiceIndex = &polyHandler;
+        n->prepare(ps);
+        n->reset();
+
+#if USE_BACKEND
+        auto e = factory->getError();
+
+        if (e.error != Error::OK)
+        {
+            jassertfalse;
+        }
+#endif
+    }
+}
+
+
+
+
+
+
 
 HardcodedPolyphonicFX::HardcodedPolyphonicFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
