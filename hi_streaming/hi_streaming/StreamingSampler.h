@@ -39,6 +39,38 @@ class ModulatorSampler;
 
 class StreamingSamplerSound;
 
+/** A utility class for linear interpolation between samples.
+*	@ingroup utility
+*
+*/
+class Interpolator
+{
+public:
+
+	/** A simple linear interpolation.
+	*
+	*	@param lowValue the value of the lower index.
+	*	@param highValue the value of the higher index.
+	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
+	*	@returns the interpolated value.
+	*/
+	template <typename Type> static double interpolateLinear(const Type x1, const Type x2, const Type delta)
+	{
+		jassert(isPositiveAndNotGreaterThan(delta, Type(1)));
+
+		const Type invDelta = Type(1) - delta;
+		return invDelta * x1 + delta * x2;
+	}
+
+	template <typename Type> static Type interpolateCubic(const Type x0, const Type x1, const Type x2, const Type x3, const Type alpha)
+	{
+		Type a = ((Type(3) * (x1 - x2)) - x0 + x3) * Type(0.5);
+		Type b = x2 + x2 + x0 - (Type(5) *x1 + x3) * Type(0.5);
+		Type c = (x2 - x0) * Type(0.5);
+		return ((a*alpha + b)*alpha + c)*alpha + x1;
+	};
+};
+
 struct StreamingHelpers
 {
 	/** This contains the minimal MIDI information that can be extracted from a SampleMap. */

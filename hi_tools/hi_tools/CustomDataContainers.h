@@ -545,7 +545,7 @@ public:
 
     void clear()
     {
-        memset(data.begin(), 0, sizeof(data));
+        memset(data.data(), 0, sizeof(data));
     }
 
     void setBit(int voiceIndex, bool value)

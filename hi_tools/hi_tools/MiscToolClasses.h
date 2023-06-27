@@ -3050,39 +3050,7 @@ private:
 };
 
 
-/** A utility class for linear interpolation between samples.
-*	@ingroup utility
-*
-*/
-class Interpolator
-{
-public:
 
-	/** A simple linear interpolation.
-	*
-	*	@param lowValue the value of the lower index.
-	*	@param highValue the value of the higher index.
-	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
-	*	@returns the interpolated value.
-	*/
-
-	static float interpolateLinear(const float lowValue, const float highValue, const float delta)
-	{
-		jassert(isPositiveAndNotGreaterThan(delta, 1.0f));
-
-		const float invDelta = 1.0f - delta;
-		return invDelta * lowValue + delta * highValue;
-	}
-
-	static double interpolateLinear(const double lowValue, const double highValue, const double delta)
-	{
-		jassert(isPositiveAndNotGreaterThan(delta, 1.0));
-
-		const double invDelta = 1.0 - delta;
-		return invDelta * lowValue + delta * highValue;
-	}
-
-};
 
 /** A interface class for getting notified when the realtime mode changed (eg. at DAW export). */
 class NonRealtimeProcessor
