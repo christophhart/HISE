@@ -578,6 +578,11 @@ float ModulatorChain::ModChainWithBuffer::getConstantModulationValue() const
 	return currentConstantValue;
 }
 
+float ModulatorChain::ModChainWithBuffer::getModValueForVoiceWithOffset(int startSample) const
+{
+	return currentVoiceData != nullptr ? currentVoiceData[startSample] : currentConstantValue;
+}
+
 float ModulatorChain::ModChainWithBuffer::getOneModulationValue(int startSample) const
 {
 	// If you set this, you probably don't need this method...

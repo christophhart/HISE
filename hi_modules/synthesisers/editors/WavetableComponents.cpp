@@ -137,7 +137,7 @@ void SampleMapToWavetableConverter::Preview::rebuildMap()
 	float rectWidth = (float)getWidth() / 64.0f;
 	float rectHeight = 0.0f;
 
-	const auto& currentMap = parent.harmonicMaps.getReference(parent.currentIndex);
+	const auto& currentMap = *parent.getCurrentMap();
 
 	int numHarmonics = currentMap.harmonicGains.getNumSamples();
 
@@ -211,7 +211,9 @@ void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 	for (auto& s : samples)
 	{
 		s.active = parent.currentIndex == s.index;
-		s.analysed = parent.harmonicMaps[s.index].analysed;
+
+		if(isPositiveAndBelow(s.index, parent.harmonicMaps.size()))
+			s.analysed = parent.harmonicMaps[s.index]->analysed;
 	}
 
 	repaint();

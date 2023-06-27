@@ -228,6 +228,8 @@ public:
 		/** Returns the first value in the modulation data or the constant value. */
 		float getOneModulationValue(int startSample) const;
 
+		float getModValueForVoiceWithOffset(int startSample) const;
+
 		/** Returns the scratch buffer. The scratch buffer is a aligned float array that's most likely in the cache,
 		*   but using this is rather hacky, so don't use it if there's another option. 
 		*/

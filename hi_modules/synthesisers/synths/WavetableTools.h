@@ -82,6 +82,14 @@ public:
 
     using WindowType = FFTHelpers::WindowType;
     
+	enum class PhaseMode
+	{
+		ZeroPhase,
+		StaticPhase,
+		StaticPhasePerNote,
+		DynamicPhase
+	};
+
     struct WavetableIndex
 	{
 		bool operator==(const WavetableIndex& other) const
@@ -105,14 +113,12 @@ public:
 			return other.index == index;
 		}
 
-		const int numWavetables = 64;
-
-		HarmonicMap()
+		HarmonicMap(int numSlices=64)
 		{
-			clear();
+			clear(numSlices);
 		}
 
-		void clear(int numHarmonics = 0);
+		void clear(int numSlices, int numHarmonics = 0);
 
 		void replaceWithNeighbours(int harmonicIndex);
 
@@ -127,13 +133,15 @@ public:
 		WavetableIndex index;
 
 		int rootNote = 0;
-		double pitchDeviations[64];
+		HeapBlock<double> pitchDeviations;
 		double lastFrequency = -1.0;
 		int wavetableLength = 0;
 		double sampleLengthSeconds = 0;
 		bool isStereo = false;
 		bool analysed = false;
 		Range<int> noteRange;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarmonicMap);
 	};
 
 	class Preview;
@@ -144,28 +152,30 @@ public:
 	~SampleMapToWavetableConverter()
 	{
 		harmonicMaps.clear();
-		leftValueTree = ValueTree();
+		waveTableTree = ValueTree();
 	}
 
 	Result parseSampleMap(const File& sampleMapFile);
 
     Result parseSampleMap(const ValueTree& sampleMapTree);
     
-	ValueTree getValueTree(bool getLeftTree)
+	ValueTree getValueTree()
 	{
-		return getLeftTree ? leftValueTree : rightValueTree;
+		return waveTableTree;
 	}
 
 	void renderAllWavetablesFromSingleWavetables(double& progress);
 
 	void renderAllWavetablesFromHarmonicMaps(double& progress);
 
+	float* getPhaseData(const HarmonicMap& map, int sliceIndex, bool getRight);
+
 	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map, int noteNumber=-1);
 
 	double sampleRate = 48000.0;
-	int numParts = 64;
+	int numParts = 256;
 	int fftSize = -1;
-	bool reverseOrder = true;
+	bool reverseOrder = false;
 	int mipmapSize = 12;
 	bool useOriginalGain = true;
 	bool channelToUse = 0;
@@ -190,7 +200,7 @@ public:
 	{
 		if (currentIndex < harmonicMaps.size())
 		{
-			return harmonicMaps.getReference(currentIndex).gainValues.getReadPointer(0);
+			return harmonicMaps[currentIndex]->gainValues.getReadPointer(0);
 		}
 		else
 			return nullptr;
@@ -203,37 +213,34 @@ public:
 		return vt.getProperty(id);
 	}
 
-    bool preservePhase = false;
     double offsetInSlice = 0.5;
     
+	PhaseMode phaseMode = PhaseMode::ZeroPhase;
+
 private:
 
 	HarmonicMap * getCurrentMap()
 	{
 		if (currentIndex < harmonicMaps.size())
-			return &harmonicMaps.getReference(currentIndex);
+			return harmonicMaps[currentIndex];
 
 		return nullptr;
 	}
-
-	int getLowestPossibleFFTSize() const;
 
 	Result calculateHarmonicMap();
 
 	int currentIndex = 0;
 
-	Array<HarmonicMap> harmonicMaps;
+	OwnedArray<HarmonicMap> harmonicMaps;
 
 
-	void storeData(int noteNumber, Range<int> noteRange, float* data, ValueTree& treeToSave, int length, int numPartsToUse=-1);
+	void storeData(int noteNumber, Range<int> noteRange, float** data, int numChannels, ValueTree& treeToSave, int length, int numPartsToUse=-1);
 
 	
 
 	int getSampleIndexForNoteNumber(int noteNumber);
 
 	Result readSample(AudioSampleBuffer& buffer, int index, int noteNumber);
-
-	Array<AudioSampleBuffer> splitSample(const AudioSampleBuffer& buffer);
 
 	Result loadSampleMapFromFile(File sampleMapFile);
 
@@ -242,12 +249,11 @@ private:
 
 	ValueTree sampleMap;
 
-	ValueTree leftValueTree;
-	ValueTree rightValueTree;
-
+	ValueTree waveTableTree;
+	
 	int currentSampleLength = 0;
 
-    
+	
     
 	AudioFormatManager afm;
 };

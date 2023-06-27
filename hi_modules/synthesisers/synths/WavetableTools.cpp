@@ -48,6 +48,9 @@ WavetableConverter::WavetableConverter()
 
 juce::ValueTree WavetableConverter::convertDirectoryToWavetableData(const String &directoryPath_)
 {
+	jassertfalse;
+
+#if 0
 	WavAudioFormat waf;
 	double sampleRate = -1.0;
 	directoryPath = File(directoryPath_);
@@ -104,6 +107,8 @@ juce::ValueTree WavetableConverter::convertDirectoryToWavetableData(const String
 	}
 
 	return data;
+#endif
+	return {};
 }
 
 int WavetableConverter::getWavetableLength(int noteNumber, double sampleRate)
@@ -259,15 +264,18 @@ struct ResynthesisHelpers
 		}
 	}
 
-	static int getWavetableLength(int noteNumber, double sampleRate)
+	static int getWavetableLength(int noteNumber, double sampleRate, bool applyMinLength=true)
 	{
 		const double freq = MidiMessage::getMidiNoteInHertz(noteNumber);
         int sampleNumber = (int)(sampleRate / freq);
 
-        while(sampleNumber < MinTableLength)
+		if(applyMinLength)
+			sampleNumber = nextPowerOfTwo(sampleNumber);
+
+        while(applyMinLength && sampleNumber < MinTableLength)
             sampleNumber *= 2;
         
-		return sampleNumber;
+		return jmin(4096, sampleNumber);
 	};
 
 	static AudioSampleBuffer loadAndResampleAudioFilesForVelocity(const Array<SimpleNoteConversionData>& data, double sampleRate)
@@ -486,6 +494,8 @@ struct ResynthesisHelpers
 
 			return output;
 #endif
+
+
 		}
 
 		return b;
@@ -501,6 +511,38 @@ struct ResynthesisHelpers
 		auto rootFreq = MidiMessage::getMidiNoteInHertz(noteNumber);
 
 		double rootDelta = 2.0 * double_Pi / (double)length;
+
+		auto offsets = (double*)alloca(sizeof(double)*numHarmonics);
+
+		FloatVectorOperations::clear(offsets, numHarmonics);
+
+		if (phaseData != nullptr)
+		{
+			for (int i = 0; i < numHarmonics; i++)
+			{
+				offsets[i] = (double)phaseData[0] * (double)(i + 1) - (double)i * double_Pi * 0.5;
+
+				
+			}
+
+			for (int i = 0; i < numHarmonics; i++)
+			{
+				auto p = (double)phaseData[i];
+
+				offsets[i] -= p;
+
+				offsets[i] = hmath::fmod(offsets[i] + 1000.0 * double_Pi, double_Pi * 2.0);
+
+				if (offsets[i] > double_Pi)
+					offsets[i] -= 2.0 * double_Pi;
+
+				if (hmath::abs(offsets[i]) < 0.000001 ||
+					hmx[i] == 0.0f)
+					offsets[i] = 0.0;
+			}
+		}
+		
+
 
 		for (int h = 0; h < numHarmonics; h++)
 		{
@@ -520,8 +562,25 @@ struct ResynthesisHelpers
 
 			double uptime = 0.0;
 
-            if(phaseData != nullptr)
-                uptime = phaseData[h];
+			auto isNegative = (((h) / 2) % 2) == 0;
+
+			//uptime =  ? double_Pi : 0.0;
+
+			//uptime *= (h + 1);
+
+			if (isNegative)
+			{
+				uptime = double_Pi;
+			}
+
+
+			if (phaseData != nullptr)
+			{
+				//uptime = offsets[h];
+				//uptime *= (double)(h + 1);
+
+			}
+                
             
 			for (int i = 0; i < length; i++)
 			{
@@ -542,16 +601,16 @@ struct ResynthesisHelpers
 
 };
 
-void SampleMapToWavetableConverter::HarmonicMap::clear(int numHarmonics /*= 0*/)
+void SampleMapToWavetableConverter::HarmonicMap::clear(int numSlices, int numHarmonics)
 {
-	memset(pitchDeviations, 0, sizeof(double) * numWavetables);
-	harmonicGains.setSize(64, numHarmonics);
+	pitchDeviations.calloc(numSlices);
+	harmonicGains.setSize(numSlices, numHarmonics);
 	harmonicGains.clear();
-	harmonicGainsRight.setSize(64, numHarmonics);
+	harmonicGainsRight.setSize(numSlices, numHarmonics);
 	harmonicGainsRight.clear();
 
 	gainValues.clear();
-	gainValues.setSize(2, 64);
+	gainValues.setSize(2, numSlices);
 }
 
 void SampleMapToWavetableConverter::HarmonicMap::replaceWithNeighbours(int harmonicIndex)
@@ -607,11 +666,35 @@ template <typename T> bool isBetween(T valueToCheck, T lowerLimit, T upperLimit)
 
 SampleMapToWavetableConverter::SampleMapToWavetableConverter(ModulatorSynthChain* mainSynthChain) :
 	chain(mainSynthChain),
-	leftValueTree("wavetableData"),
-	rightValueTree("wavetableData")
+	waveTableTree("wavetableData")
 {
 	afm.registerBasicFormats();
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+}
+
+
+float* SampleMapToWavetableConverter::getPhaseData(const HarmonicMap& map, int sliceIndex, bool getRight)
+{
+	if (phaseMode == PhaseMode::ZeroPhase)
+		return nullptr;
+
+	auto phaseMapIndex = jmin(harmonicMaps.size()-1, harmonicMaps.size() / 2);
+
+	if (phaseMode == PhaseMode::DynamicPhase ||
+		phaseMode == PhaseMode::StaticPhasePerNote)
+		phaseMapIndex = harmonicMaps.indexOf(&map);
+
+	auto sliceOffset = jmin(numParts - 1, numParts / 4);
+
+	if (phaseMode == PhaseMode::DynamicPhase)
+		sliceOffset = sliceIndex;
+
+
+	auto mapToUse = harmonicMaps[phaseMapIndex];
+	auto& arrayToUse = getRight ? mapToUse->harmonicPhaseRight : mapToUse->harmonicPhase;
+
+	return arrayToUse.getWritePointer(sliceOffset);
+
 }
 
 juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& sampleMapTree)
@@ -632,9 +715,9 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& samp
 
 			bool found = false;
 
-			for (const auto& em : harmonicMaps)
+			for (const auto em : harmonicMaps)
 			{
-				if (em.rootNote == root)
+				if (em->rootNote == root)
 				{
 					found = true;
 					break;
@@ -643,12 +726,12 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const ValueTree& samp
 
 			if (!found)
 			{
-				HarmonicMap newMap;
+				auto newMap = new HarmonicMap(numParts);
 
-				newMap.rootNote = root;
-				newMap.index.noteNumber = i;
-				newMap.index.sampleIndex = index;
-				newMap.noteRange = { (int)sampleMapTree.getChild(index)[SampleIds::LoKey], (int)sampleMapTree.getChild(index)[SampleIds::HiKey] };
+				newMap->rootNote = root;
+				newMap->index.noteNumber = i;
+				newMap->index.sampleIndex = index;
+				newMap->noteRange = { (int)sampleMapTree.getChild(index)[SampleIds::LoKey], (int)sampleMapTree.getChild(index)[SampleIds::HiKey] };
 
 				harmonicMaps.add(newMap);
 			}
@@ -681,10 +764,10 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const File& sampleMap
 
 		if (index != -1)
 		{
-			HarmonicMap newMap;
+			auto newMap = new HarmonicMap(numParts);
 
-			newMap.index.noteNumber = i;
-			newMap.index.sampleIndex = index;
+			newMap->index.noteNumber = i;
+			newMap->index.sampleIndex = index;
 
 			harmonicMaps.add(newMap);
 		}
@@ -695,17 +778,6 @@ juce::Result SampleMapToWavetableConverter::parseSampleMap(const File& sampleMap
 	return result;
 }
 
-int SampleMapToWavetableConverter::getLowestPossibleFFTSize() const
-{
-	if (currentIndex < harmonicMaps.size())
-	{
-		return 2 * nextPowerOfTwo(harmonicMaps.getReference(currentIndex).wavetableLength);
-	}
-
-	jassertfalse;
-	return 512;
-}
-
 juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 {
 	if (currentIndex > harmonicMaps.size() - 1)
@@ -714,7 +786,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 		return Result::fail("wrong array index");
 	}
 
-	auto& m = harmonicMaps.getReference(currentIndex);
+	auto& m = *getCurrentMap();
 
 	Result result = Result::ok();
 
@@ -785,6 +857,10 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 	auto hoptime = jmin(offsetInSlice, 0.5) * m.sampleLengthSeconds / (double)numSlices;
 
     hoptime = jmax(0.0129, hoptime);
+
+
+	hoptime = delta * m.sampleLengthSeconds;
+	//offsetInSlice = 0.0;
     
 	lorisManager->set("timedomain", "0to1");
 	lorisManager->set("hoptime", String(hoptime));
@@ -795,6 +871,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 	if (!result.wasOk())
 		return result;
 
+	
 	auto nyquist = sampleRate / 2.0;
 
 	int numHarmonics = roundToInt(nyquist / MidiMessage::getMidiNoteInHertz(m.rootNote));
@@ -804,7 +881,7 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 		auto ar = lorisManager->getSnapshot(d.file, pos + delta * offsetInSlice, "gain");
         var pr;
         
-        if(preservePhase)
+        if(phaseMode != SampleMapToWavetableConverter::PhaseMode::ZeroPhase)
             pr = lorisManager->getSnapshot(d.file, pos + delta * offsetInSlice, "phase");
 
 		if (ar.isArray())
@@ -821,18 +898,17 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
 
                     auto& phaseToUse = c == 0 ? m.harmonicPhase : m.harmonicPhaseRight;
                     
-                    
+					
                     
 					bufferToUse.setSize(numSlices, numHarmonicsThisTime, true, true, true);
 
 					FloatVectorOperations::clear(bufferToUse.getWritePointer(i), bufferToUse.getNumSamples());
 
-					int idx = 0;
 
-					for (auto& v : *channelData.getArray())
-						bufferToUse.setSample(i, idx++, (float)v);
+					for (int s = 0; s < numHarmonicsThisTime; s++)
+						bufferToUse.setSample(i, s, (float)channelData[s]);
 
-                    if(preservePhase)
+                    if(phaseMode != SampleMapToWavetableConverter::PhaseMode::ZeroPhase)
                     {
                         auto phaseData = pr[c];
                         
@@ -841,13 +917,18 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap()
                             phaseToUse.setSize(numSlices, numHarmonicsThisTime, true, true, true);
                             FloatVectorOperations::clear(phaseToUse.getWritePointer(i), phaseToUse.getNumSamples());
                             
-                            idx = 0;
                             
-                            for (auto& v : *phaseData.getArray())
-                                phaseToUse.setSample(i, idx++, (float)v);
+                            for (int s = 0; s < numHarmonicsThisTime; s++)
+                                phaseToUse.setSample(i, s, (float)phaseData[s]);
                         }
                     }
                     
+					for (int j = 2; j < numHarmonicsThisTime; j += 2)
+					{
+						bufferToUse.getWritePointer(i)[0] *= JUCE_LIVE_CONSTANT(1.0);
+					}
+
+					
                     
 					auto offset = roundToInt((pos - startPos) * totalLength);
 					auto numToCheck = jmin(totalLength - offset, roundToInt(delta * totalLength));
@@ -1060,23 +1141,24 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromSingleWavetables(doub
         Range<int> nr(i, jmin<int>(highestKey, i + mipmapSize));
         auto ncenter = nr.getStart() + nr.getLength() / 2;
         
-        storeData(ncenter, nr, output.getWritePointer(0), leftValueTree, output.getNumSamples(), conversionData.size());
-
-		if (output.getNumChannels() == 2)
-		{
-			storeData(ncenter, nr, output.getWritePointer(1), rightValueTree, output.getNumSamples(), conversionData.size());
-		}
+        storeData(ncenter, nr, output.getArrayOfWritePointers(), output.getNumChannels(), waveTableTree, output.getNumSamples(), conversionData.size());
 	}
 }
 
 void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& progress)
 {
-	for (const auto& map : harmonicMaps)
+	for (const auto map_ : harmonicMaps)
 	{
-		if (!map.analysed)
-			continue;
+		auto& map = *map_;
 
-		progress = (double)harmonicMaps.indexOf(map) / (double)harmonicMaps.size();
+		if (!map.analysed)
+		{
+			currentIndex = harmonicMaps.indexOf(map_);
+			calculateHarmonicMap();
+		}
+			
+
+		progress = (double)harmonicMaps.indexOf(map_) / (double)harmonicMaps.size();
 
 		if (map.noteRange.getLength() > mipmapSize)
 		{
@@ -1093,23 +1175,14 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps(double& 
 
 				auto midLength = ResynthesisHelpers::getWavetableLength(midNote, sampleRate);
 
-				storeData(midNote, nr, dataL, leftValueTree, midLength * numParts);
-
-				if(map.isStereo)
-					storeData(midNote, nr, dataR, rightValueTree, midLength * numParts);
+				storeData(midNote, nr, bank.getArrayOfWritePointers(), map.isStereo ? 2 : 1, waveTableTree, midLength * numParts);
 			}
 		}
 		else
 		{
 			auto bank = calculateWavetableBank(map);
 
-			float* dataL = bank.getWritePointer(0);
-			float* dataR = bank.getWritePointer(1);
-
-			storeData(map.rootNote, map.noteRange, dataL, leftValueTree, map.wavetableLength * numParts);
-
-			if (map.isStereo)
-				storeData(map.rootNote, map.noteRange, dataR, rightValueTree, map.wavetableLength * numParts);
+			storeData(map.rootNote, map.noteRange, bank.getArrayOfWritePointers(), map.isStereo ? 2 : 1, waveTableTree, map.wavetableLength * numParts);
 		}
 	}
 }
@@ -1120,6 +1193,8 @@ AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const Ha
 		noteNumber = map.rootNote;
 
 	auto numSamples = ResynthesisHelpers::getWavetableLength(noteNumber, sampleRate);
+	auto numHarmonics = map.harmonicGains.getNumSamples();
+	auto numSlices = map.harmonicGains.getNumChannels();
 
 	AudioSampleBuffer bank(2, numSamples * numParts);
 
@@ -1128,21 +1203,21 @@ AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const Ha
 	float* dataL = bank.getWritePointer(0);
 	float* dataR = bank.getWritePointer(1);
 
-	int offset = reverseOrder ? bank.getNumSamples() - numSamples : 0;
+	int offset = 0;
 
 	int partIndex = 0;
 
-	for (int i = 0; i < map.harmonicGains.getNumChannels(); i++)
+	for (int i = 0; i < numSlices; i++)
 	{
-        auto phase = preservePhase ? map.harmonicPhase.getReadPointer(0) : nullptr;
+		auto phase = getPhaseData(map, i, false);
         
-		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGains.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataL + offset, noteNumber, sampleRate, phase);
+		ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGains.getReadPointer(partIndex), numHarmonics, dataL + offset, noteNumber, sampleRate, phase);
 
 		if(map.isStereo)
         {
-            auto phase = preservePhase ? map.harmonicPhaseRight.getReadPointer(0) : nullptr;
+			phase = getPhaseData(map, i, true);
             
-            ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGainsRight.getReadPointer(partIndex), map.harmonicGains.getNumSamples(), dataR + offset, noteNumber, sampleRate, phase);
+            ResynthesisHelpers::createWavetableFromHarmonicSpectrum(map.harmonicGainsRight.getReadPointer(partIndex), numHarmonics, dataR + offset, noteNumber, sampleRate, phase);
         }
 
 		if (useOriginalGain)
@@ -1156,10 +1231,7 @@ AudioSampleBuffer SampleMapToWavetableConverter::calculateWavetableBank(const Ha
 				FloatVectorOperations::multiply(dataR + offset, gainR, numSamples);
 		}
 
-		if (reverseOrder)
-			offset -= numSamples;
-		else
-			offset += numSamples;
+		offset += numSamples;
 
 		partIndex++;
 	}
@@ -1174,7 +1246,7 @@ juce::Result SampleMapToWavetableConverter::refreshCurrentWavetable(double& prog
 
 	jassert(currentIndex < harmonicMaps.size());
 
-	if (!forceReanalysis && harmonicMaps.getReference(currentIndex).analysed)
+	if (!forceReanalysis && getCurrentMap()->analysed)
 	{
 		sendChangeMessage();
 		return Result::ok();
@@ -1185,9 +1257,9 @@ juce::Result SampleMapToWavetableConverter::refreshCurrentWavetable(double& prog
 
 	int numAnalysed = 0;
 
-	for (const auto& m : harmonicMaps)
+	for (auto m : harmonicMaps)
 	{
-		if (m.analysed)
+		if (m->analysed)
 			numAnalysed++;
 	}
 
@@ -1200,8 +1272,7 @@ void SampleMapToWavetableConverter::replacePartOfCurrentMap(int index)
 {
 	if (currentIndex < harmonicMaps.size())
 	{
-		harmonicMaps.getReference(currentIndex).replaceWithNeighbours(index);
-		
+		harmonicMaps[currentIndex]->replaceWithNeighbours(index);
 	}
 }
 
@@ -1209,7 +1280,7 @@ int SampleMapToWavetableConverter::getCurrentNoteNumber() const
 {
 	if (currentIndex < harmonicMaps.size())
 	{
-		return harmonicMaps.getReference(currentIndex).index.noteNumber;
+		return harmonicMaps[currentIndex]->index.noteNumber;
 	}
 
 	return -1;
@@ -1219,8 +1290,8 @@ juce::Result SampleMapToWavetableConverter::discardCurrentNoteAndUsePrevious()
 {
 	if (currentIndex > 0)
 	{
-		const auto& prev = harmonicMaps.getReference(currentIndex - 1);
-		auto& thisMap = harmonicMaps.getReference(currentIndex);
+		const auto& prev = *harmonicMaps[currentIndex - 1];
+		auto& thisMap = *harmonicMaps[currentIndex];
 
 		const auto samplesToCopy = jmin<int>(thisMap.harmonicGains.getNumSamples(), prev.harmonicGains.getNumSamples());
 
@@ -1230,7 +1301,7 @@ juce::Result SampleMapToWavetableConverter::discardCurrentNoteAndUsePrevious()
 			thisMap.harmonicGainsRight.copyFrom(i, 0, prev.harmonicGainsRight, i, 0, samplesToCopy);
 		}
 
-		FloatVectorOperations::copy(thisMap.pitchDeviations, prev.pitchDeviations, 64);
+		FloatVectorOperations::copy(thisMap.pitchDeviations, prev.pitchDeviations, numParts);
 
 		sendChangeMessage();
 
@@ -1262,12 +1333,17 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 			int length = currentMap->wavetableLength;
 
+			auto realLength = (double)ResynthesisHelpers::getWavetableLength(currentMap->rootNote, sampleRate, false);
+
+			auto realRatio = (double)realLength / (double)length;
+
 			auto lengthSeconds = (double)length / sampleRate;
 
-			auto numWavetables = (float)currentMap->sampleLengthSeconds / (float)lengthSeconds;
+			auto numWavetables = (float)currentMap->sampleLengthSeconds / (float)lengthSeconds / realRatio;
 
 			int numWaveTablesPerPart = jmax<int>(1, nextPowerOfTwo(roundToInt(numWavetables / (float)numParts)));
 
+			
 			int newLength = numWaveTablesPerPart * length * (numParts + 1);
 
 			b.setSize(2, newLength);
@@ -1303,15 +1379,14 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 				targetOffset += offsetForFade;
 			}
 
-			if (reverseOrder)
-				b.reverse(0, b.getNumSamples());
-
 			if (!currentMap->isStereo)
 			{
 				FloatVectorOperations::copy(b.getWritePointer(1), b.getReadPointer(0), b.getNumSamples());
 			}
 
-			auto playbackRate = chain->getSampleRate();
+			
+
+			auto playbackRate = chain->getSampleRate() * realRatio;
 
 			if (playbackRate != sampleRate)
 			{
@@ -1334,7 +1409,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 	return b;
 }
 
-void SampleMapToWavetableConverter::storeData(int noteNumber, Range<int> noteRange, float* data, ValueTree& treeToSave, int length, int numPartsToUse)
+void SampleMapToWavetableConverter::storeData(int noteNumber, Range<int> noteRange, float** data, int numChannels, ValueTree& treeToSave, int length, int numPartsToUse)
 {
 	ValueTree child = ValueTree("wavetable");
 
@@ -1346,15 +1421,24 @@ void SampleMapToWavetableConverter::storeData(int noteNumber, Range<int> noteRan
     child.setProperty(SampleIds::HiKey, noteRange.getEnd(), nullptr);
 	child.setProperty("amount", numPartsToUse, nullptr);
 	child.setProperty("sampleRate", sampleRate, nullptr);
+	child.setProperty("reversed", reverseOrder, nullptr);
 
-	MemoryBlock mb(length * sizeof(float));
+	for(int i = 0; i < numChannels; i++)
+	{
+		MemoryBlock mb(length * sizeof(float));
 
-	FloatVectorOperations::copy((float*)mb.getData(), data, length);
+		FloatVectorOperations::copy((float*)mb.getData(), data[i], length);
 
-	var binaryData(mb);
+		var binaryData(mb);
 
-	child.setProperty("data", binaryData, nullptr);
+		String s = "data";
 
+		if (i != 0)
+			s << String(i);
+
+		child.setProperty(s, binaryData, nullptr);
+	}
+	
 	treeToSave.addChild(child, -1, nullptr);
 }
 
@@ -1478,48 +1562,6 @@ juce::Result SampleMapToWavetableConverter::readSample(AudioSampleBuffer& buffer
 	{
 		return Result::fail("File couldn't be found.");
 	}
-}
-
-Array<juce::AudioSampleBuffer> SampleMapToWavetableConverter::splitSample(const AudioSampleBuffer& buffer)
-{
-	Array<AudioSampleBuffer> parts;
-	parts.ensureStorageAllocated(numParts);
-
-	int thisFFTSize = fftSize > 0 ? fftSize : getLowestPossibleFFTSize();
-
-	int oversampledLength = thisFFTSize * 1;
-	
-	
-
-	auto totalLength = buffer.getNumSamples() - thisFFTSize;
-
-	const float* lData = buffer.getReadPointer(0);
-	const float* rData = buffer.getReadPointer(1);
-
-	if (totalLength <= 0)
-	{
-		// Trying to split a buffer that's smaller than the split size...
-		jassertfalse;
-		return parts;
-	}
-
-	for (int i = 0; i < numParts; i++)
-	{
-		AudioSampleBuffer p;
-
-		auto offsetNormalized = (double)i / (double)numParts;
-		auto offsetSample = roundToInt(offsetNormalized * (double)totalLength);
-
-		p.setSize(2, oversampledLength);
-		p.clear();
-
-		FloatVectorOperations::copy(p.getWritePointer(0), lData + offsetSample, thisFFTSize);
-		FloatVectorOperations::copy(p.getWritePointer(1), rData + offsetSample, thisFFTSize);
-
-		parts.add(p);
-	}
-
-	return parts;
 }
 
 juce::Result SampleMapToWavetableConverter::loadSampleMapFromFile(File sampleMapFile)

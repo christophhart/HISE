@@ -510,8 +510,13 @@ public:
 	, 90);
 		selectors->setInfoTextForLastComponent(WavetableHelp::MipmapSize());
 
-        selectors->addComboBox("preservephase", {"No", "Yes"}, "Preserve Phase", 90);
-        selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
+		selectors->addComboBox("preservephase", {
+			"Zero Phase",
+			"Static Phase",
+			"Static PhasePerNote",
+			"Dynamic Phase"
+			}, "Preserve Phase", 90);
+        selectors->setInfoTextForLastComponent(WavetableHelp::PreservePhase());
         
         selectors->addComboBox("offset", {"0", "10%", "25%", "50%", "66%", "75%"}, "Offset", 90);
         selectors->setInfoTextForLastComponent(WavetableHelp::Offset());
@@ -672,8 +677,7 @@ public:
 		}
         if (comboBoxThatHasChanged->getName() == "preservephase")
         {
-            static const int items[4] = { 12, 6, 2, 1 };
-            converter->preservePhase = comboBoxThatHasChanged->getSelectedItemIndex();
+            converter->phaseMode = (SampleMapToWavetableConverter::PhaseMode)comboBoxThatHasChanged->getSelectedItemIndex();
             converter->refreshCurrentWavetable(getProgressCounter());
         }
         if (comboBoxThatHasChanged->getName() == "offset")
@@ -699,17 +703,13 @@ public:
 		if (threadShouldExit())
 			return;
 
-		auto leftTree = converter->getValueTree(true);
-		auto rightTree = converter->getValueTree(false);
+		auto leftTree = converter->getValueTree();
 
-		auto fileL = currentlyLoadedMap + "_Left.hwt";
-		auto fileR = currentlyLoadedMap + "_Right.hwt";
+		auto fileL = currentlyLoadedMap + ".hwt";
 
 		auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
-		auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
 
 		PresetHandler::writeValueTreeAsFile(leftTree, tfl.getFullPathName());		
-		PresetHandler::writeValueTreeAsFile(rightTree, tfr.getFullPathName());
 	}
 
 	void threadFinished() override
