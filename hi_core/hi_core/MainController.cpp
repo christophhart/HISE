@@ -844,7 +844,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 #endif
 
-    numSamplesThisBlock = buffer.getNumSamples();
+    if(numSamplesThisBlock != buffer.getNumSamples())
+    {
+        numSamplesThisBlock = buffer.getNumSamples();
+        blocksizeBroadcaster.sendMessage(sendNotificationSync, numSamplesThisBlock);
+    }
+    
+    
     
 #if USE_BACKEND || USE_SCRIPT_COPY_PROTECTION
 	if (auto ul = dynamic_cast<ScriptUnlocker*>(getLicenseUnlocker()))
@@ -882,7 +888,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 
 #if ENABLE_CPU_MEASUREMENT
-	startCpuBenchmark(numSamplesThisBlock);
+	startCpuBenchmark(getOriginalBufferSize());
 #endif
 
 	jassert(getOriginalBufferSize() >= numSamplesThisBlock);

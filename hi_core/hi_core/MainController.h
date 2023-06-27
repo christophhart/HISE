@@ -1892,6 +1892,8 @@ public:
     LorisManager* getLorisManager() { return lorisManager.get(); }
 #endif
     
+    LambdaBroadcaster<int>& getBlocksizeBroadcaster() { return blocksizeBroadcaster; }
+    
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1990,6 +1992,8 @@ private:
 
 	LambdaBroadcaster<double, int> specBroadcaster;
 
+    LambdaBroadcaster<int> blocksizeBroadcaster;
+    
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
 	int maxEventTimestamp = 0;

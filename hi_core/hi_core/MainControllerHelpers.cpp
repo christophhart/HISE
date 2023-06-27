@@ -1245,6 +1245,8 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		auto data = (float*)alloca(sizeof(float) * buffer.getNumChannels() * paddedBufferSize);
 
+        FloatVectorOperations::clear(data, buffer.getNumChannels() * paddedBufferSize);
+        
 		float* ptrs[HISE_NUM_PLUGIN_CHANNELS];
 
 		for (int i = 0; i < buffer.getNumChannels(); i++)

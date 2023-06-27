@@ -79,6 +79,7 @@ DECLARE_ID(ExtraDefinitionsLinux);
 DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
 DECLARE_ID(AAXCategoryFX);
+DECLARE_ID(VST3Category);
 DECLARE_ID(SupportMonoFX);
 DECLARE_ID(EnableSoundGeneratorsFX);
 DECLARE_ID(EnableMidiInputFX);

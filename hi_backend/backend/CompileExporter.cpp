@@ -1395,8 +1395,15 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
 
+    String vst3Category = GET_SETTING(HiseSettings::Project::VST3Category);
+    
 	if (type == TargetTypes::EffectPlugin)
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Fx," + vst3Category;
+        else
+            vst3Category = "Fx";
+        
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
         REPLACE_WILDCARD_WITH_STRING("%PLUGIN_PRODUCES_MIDI_OUT%", "0");
         
@@ -1417,6 +1424,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	}
 	else if (type == TargetTypes::MidiEffectPlugin)
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Fx," + vst3Category;
+        else
+            vst3Category = "Fx";
+        
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", "1");
         REPLACE_WILDCARD_WITH_STRING("%PLUGIN_PRODUCES_MIDI_OUT%", "1");
         
@@ -1432,6 +1444,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	}
 	else
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Instrument," + vst3Category;
+        else
+            vst3Category = "Instrument";
+        
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
         
@@ -1447,6 +1464,8 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");
 	}
 
+    REPLACE_WILDCARD_WITH_STRING("%VST3_CATEGORY%", vst3Category);
+    
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);

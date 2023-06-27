@@ -118,7 +118,8 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	else
 	{
 #if HI_SUPPORT_MONO_TO_STEREO
-		buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
+        if(getNumInputChannels() == 1)
+            buffer.copyFrom(1, 0, buffer, 0, 0, buffer.getNumSamples());
 #endif
 
 		getDelayedRenderer().processWrapped(buffer, midiMessages);
