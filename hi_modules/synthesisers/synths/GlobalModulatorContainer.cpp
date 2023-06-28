@@ -414,6 +414,7 @@ void GlobalModulatorContainer::refreshList()
 
 	for (auto& mod : handler_->activeVoiceStartList)
 	{
+        mod->setResetUnsavedValue(true);
 		voiceStartData.add(VoiceStartData(mod));
 	}
 

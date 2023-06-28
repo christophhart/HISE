@@ -1439,15 +1439,24 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 
 	if (m->getChildProcessor(ModulatorSynth::EffectChain)->getNumChildProcessors() != 0)
 	{
-		if (AlertWindow::showOkCancelBox(AlertWindow::AlertIconType::WarningIcon, "Effects detected", "Synths that are added to a SynthGroup are not allowed to have effects.\n Press OK to create the synth with all effects removed"))
-		{
-			dynamic_cast<EffectProcessorChain*>(m->getChildProcessor(ModulatorSynth::EffectChain))->getHandler()->clear();
-			m->setEditorState(ModulatorSynth::EffectChainShown, false);
-		}
-		else
-		{
-			return;
-		}
+        auto fxChain = m->getChildProcessor(ModulatorSynth::EffectChain);
+        
+        bool didSomething = false;
+        
+        for(int i = 0; i < fxChain->getNumChildProcessors(); i++)
+        {
+            auto fx = fxChain->getChildProcessor(i);
+            
+            if(dynamic_cast<VoiceEffectProcessor*>(fx) == nullptr)
+            {
+                dynamic_cast<Chain*>(fxChain)->getHandler()->remove(fx);
+                i--;
+                didSomething = true;
+            }
+        }
+        
+        if(didSomething)
+            PresetHandler::showMessageWindow("Removed non-polyphonic FX", "A child of a synth group can only render polyphonic effects");
 	}
 	else if (dynamic_cast<ModulatorSampler*>(m) != nullptr && m->getAttribute(ModulatorSampler::VoiceAmount) != group->getNumVoices())
 	{

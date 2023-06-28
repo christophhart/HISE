@@ -544,11 +544,19 @@ public:
 #endif
 
         auto v = unsavedValue;
-        unsavedValue = -1.0f;
+        
+        if(resetUnsavedValue)
+            unsavedValue = -1.0f;
         
 		return v;
 	};
 
+    /** Only used in Global Modulator Containers. */
+    void setResetUnsavedValue(bool shouldReset)
+    {
+        resetUnsavedValue = shouldReset;
+    }
+    
 	static Path getSymbolPath()
 	{
 		ChainBarPathFactory f;
@@ -638,6 +646,7 @@ private:
 		return unsavedValue == -1.0f;
 	};
 
+    bool resetUnsavedValue = false;
 	float unsavedValue;
 
 	Array<float> voiceValues;

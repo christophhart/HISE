@@ -962,6 +962,20 @@ void ModulatorSynth::finaliseModChains()
 	finalised = true;
 }
 
+void ModulatorSynth::setGroup(ModulatorSynthGroup* parent)
+{
+    jassert(group == nullptr);
+    group = parent;
+    disableChain(MidiProcessor, true);
+    //disableChain(EffectChain, true);
+
+    // only poly effects will be rendered
+    dynamic_cast<Chain*>(getChildProcessor(EffectChain))->getFactoryType()->setConstrainer(new SynthGroupFXConstrainer());
+    
+    // This will get lost otherwise
+    modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(true);
+}
+
 void ModulatorSynth::disableChain(InternalChains chainToDisable, bool shouldBeDisabled)
 {
 	disabledChains.setBit(chainToDisable, shouldBeDisabled);

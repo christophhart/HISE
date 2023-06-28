@@ -394,17 +394,8 @@ public:
 	void setScriptPitchValue(int voiceIndex, double pitchValue) noexcept;
 
 	/** Sets the parent group. This can only be called once, since synths are not supposed to change their parents. */
-	void setGroup(ModulatorSynthGroup *parent)
-	{
-		jassert(group == nullptr);
-		group = parent;
-		disableChain(MidiProcessor, true);
-		disableChain(EffectChain, true);
-
-		// This will get lost otherwise
-		modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(true);
-
-	};
+    void setGroup(ModulatorSynthGroup *parent);
+	
 
 	/** Returns the ModulatorSynthGroup that this ModulatorSynth belongs to. */
 	ModulatorSynthGroup *getGroup() const {	return group; };
