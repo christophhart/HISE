@@ -242,9 +242,18 @@ void SnexSource::addDummyProcessFunctions(String& s, bool addFrame, const String
 
 		String def1, def2;
 
+		String objPtr;
+
+#if SNEX_MIR_BACKEND
+		objPtr << instanceType << "& instance, ";
+#else
+		String instanceDef = instanceType + " instance;";
+		b << instanceDef;
+#endif
+
 		if (addFrame)
 		{
-			def2 << "void processFrame(" << instanceType << "& instance, span<float, " << String(nc) << ">& data)"; b << def2;
+			def2 << "void processFrame(" << objPtr << "span<float, " << String(nc) << ">& data)"; b << def2;
 			{
 				StatementBlock body(b);
 				b << "instance.processFrame(data);";
@@ -257,7 +266,7 @@ void SnexSource::addDummyProcessFunctions(String& s, bool addFrame, const String
 		else
 			pType << "ProcessData<" << String(nc) << ">";
 
-		def1 << "void process(" << instanceType << "& instance, " << pType << "& data)";
+		def1 << "void process(" << objPtr << pType << "& data)";
 		b << def1;
 		{
 			StatementBlock body(b);
