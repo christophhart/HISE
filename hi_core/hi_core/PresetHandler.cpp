@@ -679,7 +679,7 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* )
 {
 	if (workingDirectory.exists() && workingDirectory.isDirectory())
 	{
-		while (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) != 0)
+		while (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) > 1)
 		{
 			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...", PresetHandler::IconType::Warning);
             
