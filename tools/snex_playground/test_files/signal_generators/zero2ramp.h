@@ -2,7 +2,7 @@
 
 BEGIN_TEST_DATA
   f: main
-  ret: block
+  ret: int
   args: block
   input: "zero.wav"
   output: "ramp.wav"
@@ -11,7 +11,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-block main(block input)
+int main(block input)
 {
     float v = -1.0f;
     float delta = 2.0f / (float)(1024 - 1);
@@ -22,6 +22,6 @@ block main(block input)
 		v += delta;
     }
 		
-    return input;
+    return 1;
 }
 

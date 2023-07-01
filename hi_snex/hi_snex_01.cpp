@@ -5,7 +5,7 @@
 
 #if HISE_INCLUDE_SNEX
 
-#if HISE_INCLUDE_SNEX_X64_CODEGEN
+#if HISE_INCLUDE_SNEX_X64_CODEGEN || SNEX_MIR_BACKEND
 
 #if SNEX_ASMJIT_BACKEND
 #include "src/asmjit/asmjit.h"
@@ -13,7 +13,7 @@
 
 #include "asmjit_definitions.h"
 
-
+#endif
 
 #include "snex_parser/snex_jit_TokenIterator.h"
 #include "snex_parser/snex_jit_PreProcessor.h"
@@ -30,9 +30,11 @@
 #include "unit_test/snex_jit_UnitTests.cpp"
 #include "api/SnexApi.cpp"
 
+
+
 #include "snex_components/snex_DebugTools.cpp"
 #include "snex_components/snex_WorkbenchData.cpp"
 #include "snex_components/snex_ExtraComponents.cpp"
 #include "snex_components/snex_JitPlayground.cpp"
-#endif
+
 #endif

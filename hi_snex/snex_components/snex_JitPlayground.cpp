@@ -313,7 +313,11 @@ void SnexPlayground::resized()
 	
 	auto buttonWidth = topRight.getHeight();
 
+#if SNEX_MIR_BACKEND
+    showInfo.setVisible(false);
+#else
 	showInfo.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
+#endif
 	showWatch.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
 	showAssembly.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));
 	showConsole.setBounds(topRight.removeFromLeft(buttonWidth).reduced(2));

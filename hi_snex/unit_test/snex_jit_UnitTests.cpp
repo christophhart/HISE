@@ -538,10 +538,7 @@ public:
 
 		optimizations = OptimizationIds::getDefaultIds();
 
-		//runTestFiles("simple_template31");
-
-		
-        runTestsWithOptimisation(OptimizationIds::getDefaultIds());
+		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
         
 		return;
 		optimizations = {};

@@ -236,7 +236,11 @@ namespace snex
 
 
 #ifndef SNEX_INCLUDE_NMD_ASSEMBLY
+#if defined (__arm__) || defined (__arm64__)
+#define SNEX_INCLUDE_NMD_ASSEMBLY 0
+#else
 #define SNEX_INCLUDE_NMD_ASSEMBLY 1
+#endif
 #endif
 
 

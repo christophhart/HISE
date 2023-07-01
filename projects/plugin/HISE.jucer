@@ -46,8 +46,8 @@
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="/Volumes/Shared/Development/SDKs/vstsdk2.4"
                postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation"
                customPList="" aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
-               smallIcon="" bigIcon="" xcodeValidArchs="x86_64" extraDefs="USE_IPP=0"
-               extraLinkerFlags="">
+               smallIcon="" bigIcon="" xcodeValidArchs="arm64,arm64e,x86_64"
+               extraDefs="USE_IPP=0" extraLinkerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.7 SDK" osxArchitecture="64BitIntel"
                        isDebug="1" optimisation="1" targetName="HISE Debug" cppLanguageStandard="c++11"
