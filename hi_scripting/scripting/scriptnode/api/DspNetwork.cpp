@@ -1976,9 +1976,20 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Compile Faust file " + file.getFileNameWithoutExtension());
 
 		{
-			hise::SimpleReadWriteLock::ScopedReadLock sl(safeThis->listenerLock);
+			Array<WeakReference<FaustListener>> thisListeners;
+			thisListeners.ensureStorageAllocated(safeThis->listeners.size());
 
-			for (auto l : safeThis->listeners)
+			{
+				hise::SimpleReadWriteLock::ScopedReadLock sl(safeThis->listenerLock);
+
+				for (auto l : safeThis->listeners)
+				{
+					if (l != nullptr)
+						thisListeners.add(l);
+				}
+			}
+
+			for (auto l : thisListeners)
 			{
 				if (l != nullptr)
 				{
@@ -1993,7 +2004,6 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 			}
 		}
 		
-
 		if (n != dontSendNotification)
 		{
 			SafeAsyncCall::call<FaustManager>(*safeThis, [](FaustManager& m)
