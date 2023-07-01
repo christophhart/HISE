@@ -234,11 +234,9 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 
 	for (auto& s : samples)
 	{
-		Colour c = s.analysed ? Colours::green : Colours::grey;
-		if (s.active)
-			c = Colours::white;
+		Colour c = s.index == parent.getCurrentMap()->index.sampleIndex ? Colour(SIGNAL_COLOUR) : Colours::grey;
 
-		g.setColour(c.withAlpha(0.6f));
+		g.setColour(c.withAlpha(s.index == hoverIndex ? 0.8f : 0.4f));
 
 		if (s.area.getHeight() > 0)
 		{
@@ -263,6 +261,32 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 	
 }
 
+void SampleMapToWavetableConverter::SampleMapPreview::mouseDown(const MouseEvent& e)
+{
+	for (auto& s : samples)
+	{
+		if (s.area.contains(e.getPosition()))
+		{
+			parent.setCurrentIndex(s.index, sendNotification);
+			repaint();
+			break;
+		}
+	}
+}
+
+void SampleMapToWavetableConverter::SampleMapPreview::mouseMove(const MouseEvent& e)
+{
+	for (auto& s : samples)
+	{
+		if (s.area.contains(e.getPosition()))
+		{
+			hoverIndex = s.index;
+			repaint();
+			break;
+		}
+	}
+}
+
 SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree& data, Rectangle<int> totalArea)
 {
 	auto d = StreamingHelpers::getBasicMappingDataFromSample(data);
@@ -273,7 +297,7 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 	int h = jmap((int)(1 + d.highVelocity - d.lowVelocity), 0, 128, 0, totalArea.getHeight()-1);
 
 	area = { x, y, w, h };
-	index = data.getProperty("ID");
+	index = data.getParent().indexOf(data);
 
 	keyRange = { d.lowKey, d.highKey };
 	rootNote = d.rootNote;
