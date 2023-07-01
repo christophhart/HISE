@@ -37,9 +37,29 @@
 
 namespace hise { using namespace juce;
 
-#define WAVETABLE_HQ_MODE 1
 
 class WavetableSynth;
+
+struct WavetableMonolithHeader
+{
+	static void writeProjectInfo(OutputStream& output, const String& projectName, const String& key);
+
+	static bool checkProjectName(InputStream& input, const String& projectName, const String& key);
+
+	void write(OutputStream& output)
+	{
+		output.writeByte((uint8)name.length() + 1);
+		output.writeString(name);
+		output.writeInt64(offset);
+		output.writeInt64(length);
+	}
+
+	static Array<WavetableMonolithHeader> readHeader(InputStream& input, const String& projectName, const String& encryptionKey);
+
+	String name;
+	int64 offset;
+	int64 length;
+};
 
 class WavetableSound: public ModulatorSynthSound
 {
@@ -432,54 +452,11 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-	StringArray getWavetableList() const
-	{
-		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+	File getWavetableMonolith() const;
 
-		Array<File> wavetables;
-		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
-		wavetables.sort();
+	StringArray getWavetableList() const;
 
-		StringArray sa;
-
-		for (auto& f : wavetables)
-			sa.add(f.getFileNameWithoutExtension());
-
-		return sa;
-	}
-
-	void loadWavetableFromIndex(int index)
-	{
-		if (currentBankIndex != index)
-		{
-			currentBankIndex = index;
-		}
-
-		if (currentBankIndex == 0)
-		{
-			clearSounds();
-		}
-
-		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-
-		Array<File> wavetables;
-
-		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
-		wavetables.sort();
-
-		if (wavetables[index-1].existsAsFile())
-		{
-			FileInputStream fis(wavetables[index-1]);
-
-			ValueTree v = ValueTree::readFromStream(fis);
-
-			loadWaveTable(v);
-		}
-		else
-		{
-			clearSounds();
-		}
-	}
+	void loadWavetableFromIndex(int index);
 
 	void setDisplayTableValue(float nv)
 	{

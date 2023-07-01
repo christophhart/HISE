@@ -950,6 +950,115 @@ private:
 };
 
 
+
+class WavetableMonolithExporter : public DialogWindowWithBackgroundThread,
+								  public ControlledObject
+{
+public:
+
+	WavetableMonolithExporter(MainController* mc) :
+		DialogWindowWithBackgroundThread("Exporting wavetable banks"),
+		ControlledObject(mc)
+	{
+		auto expList = mc->getExpansionHandler().getListOfAvailableExpansions();
+
+		StringArray expansionList;
+		expansionList.add("Factory Content");
+
+		for (int i = 0; i < expList.size(); i++)
+			expansionList.add(expList[i].toString());
+
+		addComboBox("expansion", expansionList, "Expansion");
+
+		addBasicComponents(true);
+	}
+
+	void run() override
+	{
+		showStatusMessage("Exporting wavetables");
+
+		auto audioFileFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AudioFiles);
+		auto sampleFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(getComboBoxComponent("expansion")->getText()))
+		{
+			audioFileFolder = e->getSubDirectory(FileHandlerBase::AudioFiles);
+			sampleFolder = e->getSubDirectory(FileHandlerBase::Samples);
+		}
+
+		targetFile = sampleFolder.getChildFile("wavetables.hwm");
+
+		auto wavetableFiles = audioFileFolder.findChildFiles(File::findFiles, false, "*.hwt");
+
+		wavetableFiles.sort();
+
+		
+		
+		size_t numBytes = 0;
+
+		for (auto wv : wavetableFiles)
+			numBytes += wv.getSize(); 
+
+		MemoryOutputStream mos;
+		mos.preallocate(numBytes);
+
+		int i = 0;
+
+		MemoryOutputStream headerOutput;
+
+		auto projectName = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
+
+		auto encryptionKey = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString();
+
+		WavetableMonolithHeader::writeProjectInfo(headerOutput, projectName, encryptionKey);
+
+		
+
+		
+		
+
+		for (auto wv : wavetableFiles)
+		{
+			FileInputStream fis(wv);
+
+			WavetableMonolithHeader headerChild;
+			headerChild.name = wv.getFileNameWithoutExtension();
+			headerChild.offset = mos.getPosition();
+
+			setProgress((double)(i++) / (double)wavetableFiles.size());
+
+			headerChild.write(headerOutput);
+			mos.writeFromInputStream(fis, fis.getTotalLength());
+		}
+
+		showStatusMessage("Writing output file");
+
+		mos.flush();
+
+		if (targetFile.existsAsFile())
+			targetFile.deleteFile();
+
+		FileOutputStream fos(targetFile);
+
+		headerOutput.flush();
+
+		fos.writeInt64((int64)headerOutput.getDataSize());
+		fos.write(headerOutput.getData(), headerOutput.getDataSize());
+
+		fos.writeInt64((int64)mos.getDataSize());
+		fos.write(mos.getData(), mos.getDataSize());
+
+		fos.flush();
+	}
+
+	File targetFile;
+
+	void threadFinished() override
+	{
+		PresetHandler::showMessageWindow("Export successful", "All wavetables have been exported to " + targetFile.getFullPathName());
+	}
+};
+
 class PoolExporter : public DialogWindowWithBackgroundThread
 {
 public:

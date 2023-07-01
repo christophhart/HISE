@@ -122,6 +122,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
+		MenuExportWavetablesToMonolith,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -347,6 +348,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples as archive", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportWavetablesToMonolith:
+		setCommandTarget(result, "Export Wavetables to monolith", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportCompileFilesInPool:
@@ -829,6 +834,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
+	case MenuExportWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
 	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuToolsClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
@@ -998,6 +1004,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
 		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
+		ADD_DESKTOP_ONLY(MenuExportWavetablesToMonolith);
 
 		p.addSectionHeader("Export Tools");
 		
@@ -2621,6 +2628,12 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
     exporter->setModalBaseWindowComponent(bpe->mainEditor);
 }
                          
+void BackendCommandTarget::Actions::exportWavetablesToMonolith(BackendRootWindow* bpe)
+{
+	auto exporter = new WavetableMonolithExporter(bpe->getMainController());
+	exporter->setModalBaseWindowComponent(bpe->mainEditor);
+}
+
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
 	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);

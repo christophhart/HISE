@@ -119,9 +119,9 @@ public:
 		MenuExportFileAsPlayerLibrary,
         MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportWavetablesToMonolith,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
-		
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -395,6 +395,7 @@ public:
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
+		static void exportWavetablesToMonolith(BackendRootWindow* bpe);
 		static void importArchivedSamples(BackendRootWindow * bpe);
 		static void checkCyclicReferences(BackendRootWindow * bpe);
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);

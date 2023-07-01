@@ -118,6 +118,151 @@ ProcessorEditorBody* WavetableSynth::createEditor(ProcessorEditor *parentEditor)
 }
 
 
+juce::File WavetableSynth::getWavetableMonolith() const
+{
+	auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+	auto factoryData = dir.getChildFile("wavetables.hwm");
+
+	if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+	{
+		dir = e->getSubDirectory(FileHandlerBase::SampleMaps);
+		auto expData = dir.getChildFile("wavetables.hwm");
+
+		if (expData.existsAsFile())
+			return expData;
+	}
+
+	return factoryData;
+}
+
+juce::StringArray WavetableSynth::getWavetableList() const
+{
+	auto monolithFile = getWavetableMonolith();
+
+	StringArray sa;
+
+	if (monolithFile.existsAsFile())
+	{
+		FileInputStream fis(monolithFile);
+
+#if USE_BACKEND
+		auto projectName = GET_HISE_SETTING(this, HiseSettings::Project::Name).toString();
+		auto encryptionKey = GET_HISE_SETTING(this, HiseSettings::Project::EncryptionKey).toString();
+#else
+		auto encryptionKey = FrontendHandler::getExpansionKey();
+		auto projectName = FrontendHandler::getProjectName();
+#endif
+
+		auto headers = WavetableMonolithHeader::readHeader(fis, projectName, encryptionKey);
+
+#if USE_BACKEND
+		if (headers.isEmpty())
+		{
+			PresetHandler::showMessageWindow("Can't open wavetable monolith", "Make sure that the project name and encryption key haven't changed", PresetHandler::IconType::Error);
+		}
+#endif
+
+		for (auto item : headers)
+			sa.add(item.name);
+	}
+	else
+	{
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+
+		Array<File> wavetables;
+		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
+		wavetables.sort();
+
+		for (auto& f : wavetables)
+			sa.add(f.getFileNameWithoutExtension());
+	}
+
+	return sa;
+}
+
+void WavetableSynth::loadWavetableFromIndex(int index)
+{
+	if (currentBankIndex != index)
+	{
+		currentBankIndex = index;
+	}
+
+	if (currentBankIndex == 0)
+	{
+		clearSounds();
+	}
+
+	auto monolithFile = getWavetableMonolith();
+
+	if (monolithFile.existsAsFile())
+	{
+		FileInputStream fis(monolithFile);
+
+#if USE_BACKEND
+		auto projectName = GET_HISE_SETTING(this, HiseSettings::Project::Name).toString();
+		auto encryptionKey = GET_HISE_SETTING(this, HiseSettings::Project::EncryptionKey).toString();
+#else
+		auto encryptionKey = FrontendHandler::getExpansionKey();
+		auto projectName = FrontendHandler::getProjectName();
+#endif
+
+		auto headers = WavetableMonolithHeader::readHeader(fis, projectName, encryptionKey);
+
+		auto dataSize = fis.readInt64();
+
+		auto headerOffset = fis.getPosition();
+
+		
+
+		auto itemToLoad = headers[index - 1];
+
+		if (itemToLoad.name.isEmpty())
+		{
+			clearSounds();
+			return;
+		}
+
+		auto seekPosition = itemToLoad.offset + headerOffset;
+
+		if (fis.setPosition(seekPosition))
+		{
+			auto v = ValueTree::readFromStream(fis);
+
+			if (v.isValid())
+			{
+				loadWaveTable(v);
+				return;
+			}
+		}
+
+		clearSounds();
+		return;
+	}
+	else
+	{
+		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+
+		Array<File> wavetables;
+
+		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
+		wavetables.sort();
+
+		if (wavetables[index - 1].existsAsFile())
+		{
+			FileInputStream fis(wavetables[index - 1]);
+
+			ValueTree v = ValueTree::readFromStream(fis);
+
+			loadWaveTable(v);
+		}
+		else
+		{
+			clearSounds();
+		}
+	}
+}
+
 float WavetableSynth::getDisplayTableValue() const
 {
 	return (1.0f - reversed) * displayTableValue + (1.0f - displayTableValue) * reversed;
@@ -484,6 +629,93 @@ float WavetableSound::RenderData::calculateSample(const float* lowerTable, const
 	}
 
 	return sample;
+}
+
+void WavetableMonolithHeader::writeProjectInfo(OutputStream& output, const String& projectName, const String& encryptionKey)
+{
+	auto projectLength = projectName.length();
+
+	if (encryptionKey.isNotEmpty())
+	{
+		BlowFish bf(encryptionKey.getCharPointer().getAddress(), encryptionKey.length());
+
+		char buffer[512];
+		memset(buffer, 0, 512);
+		memcpy(buffer, projectName.getCharPointer().getAddress(), projectName.length());
+
+		auto numEncrypted = bf.encrypt(buffer, projectLength, 512);
+		output.writeBool(true);
+		output.writeByte(numEncrypted);
+		output.write(buffer, numEncrypted);
+	}
+	else
+	{
+		output.writeBool(false);
+		output.writeByte(projectLength + 1);
+		output.writeString(projectName);
+	}
+}
+
+bool WavetableMonolithHeader::checkProjectName(InputStream& input, const String& projectName, const String& encryptionKey)
+{
+	auto shouldBeEncrypted = input.readBool();
+
+	if (shouldBeEncrypted && encryptionKey.isEmpty())
+		return false;
+
+	char buffer[512];
+	memset(buffer, 0, 512);
+	String s;
+
+	if (shouldBeEncrypted)
+	{
+		BlowFish bf(encryptionKey.getCharPointer().getAddress(), encryptionKey.length());
+		
+		auto numEncrypted = input.readByte();
+
+		
+		input.read(buffer, numEncrypted);
+
+		auto numDecrypted = bf.decrypt(buffer, numEncrypted);
+
+		s = String(buffer, numDecrypted);
+	}
+	else
+	{
+		auto length = input.readByte();
+		input.read(buffer, length);
+		s = String(buffer, length);
+	}
+
+	return projectName.compare(s) == 0;
+}
+
+Array<hise::WavetableMonolithHeader> WavetableMonolithHeader::readHeader(InputStream& input, const String& projectName, const String& encryptionKey)
+{
+	Array<WavetableMonolithHeader> headers;
+
+	auto headerSize = input.readInt64();
+
+	if (!checkProjectName(input, projectName, encryptionKey))
+		return headers;
+
+	char buffer[512];
+
+	while (input.getPosition() < headerSize)
+	{
+		memset(buffer, 0, 512);
+		auto numBytes = (uint8)input.readByte();
+		input.read(buffer, numBytes);
+
+		WavetableMonolithHeader header;
+
+		header.name = String(buffer, numBytes);
+		header.offset = input.readInt64();
+		header.length = input.readInt64();
+		headers.add(header);
+	}
+
+	return headers;
 }
 
 } // namespace hise
