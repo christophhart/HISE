@@ -1344,6 +1344,11 @@ void Operations::Subscript::process(BaseCompiler* compiler, BaseScope* scope)
 		
 		auto indexType = getSubExpr(1)->getTypeInfo();
 
+		if (indexType.getType() == Types::ID::Float || indexType.getType() == Types::ID::Double)
+		{
+			getSubExpr(1)->throwError("subscript index must be integer type");
+		}
+
 		if (subscriptType != ArrayStatementBase::CustomObject && dynType == nullptr && !getSubExpr(1)->isConstExpr() && !compiler->allowUnsafeIndexes())
 		{
 			auto idx = getSubExpr(1);
