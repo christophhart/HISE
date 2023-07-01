@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void Operations::ClassStatement::process(BaseCompiler* compiler, BaseScope* scope)
@@ -211,6 +211,8 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 			}
 		}
 	}
+
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
 		if (isStackDefinition(scope))
@@ -314,6 +316,7 @@ void Operations::ComplexTypeDefinition::process(BaseCompiler* compiler, BaseScop
 			}
 		}
 	}
+#endif
 }
 
 void Operations::InternalProperty::process(BaseCompiler* compiler, BaseScope* scope)

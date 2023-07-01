@@ -34,7 +34,7 @@
 namespace snex {
 namespace Types {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void SnexObjectDatabase::registerObjects(Compiler& c, int numChannels)

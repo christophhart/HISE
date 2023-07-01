@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 TypeParser::TypeParser(TokenIterator& other_, NamespaceHandler& handler, const TemplateParameter::List& tp) :
 	ParserHelpers::TokenIterator(other_),

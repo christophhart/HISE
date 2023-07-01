@@ -43,7 +43,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void FunctionData::setDefaultParameter(const Identifier& s, const Inliner::Func& expressionBuilder)

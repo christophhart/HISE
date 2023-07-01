@@ -225,6 +225,16 @@ namespace snex
 
 #define SNEX_ASMJIT_BACKEND !SNEX_MIR_BACKEND
 
+
+#if SNEX_ASMJIT_BACKEND
+#define USE_ASMJIT_NAMESPACE using namespace asmjit;
+#define ASMJIT_ONLY(x) x
+#else
+#define USE_ASMJIT_NAMESPACE
+#define ASMJIT_ONLY(x)
+#endif
+
+
 #ifndef SNEX_INCLUDE_NMD_ASSEMBLY
 #define SNEX_INCLUDE_NMD_ASSEMBLY 1
 #endif

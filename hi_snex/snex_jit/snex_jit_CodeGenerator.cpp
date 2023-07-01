@@ -35,10 +35,10 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
-
+#if SNEX_ASMJIT_BACKEND
 AsmCodeGenerator::AsmCodeGenerator(Compiler& cc_, AssemblyRegisterPool* pool, Types::ID type_, ParserHelpers::CodeLocation l, const StringArray& opt) :
 	cc(cc_),
 	type(type_),
@@ -1993,6 +1993,7 @@ void CustomLoopEmitter::emitLoop(AsmCodeGenerator& gen, BaseCompiler* compiler, 
 		cc.bind(loopEnd);
 	}
 }
+#endif
 
 }
 

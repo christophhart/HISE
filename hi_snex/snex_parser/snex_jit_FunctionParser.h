@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 class CodeParser : public BlockParser
 {

@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 SpanType::SpanType(const TypeInfo& t, int size_) :
 	elementType(t),
@@ -153,7 +153,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 	subscript.inliner = new Inliner(subscript.id, [byteSize](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
-		d->gen.emitSpanReference(d->target, d->object, d->args[0], byteSize);
+		ASMJIT_ONLY(d->gen.emitSpanReference(d->target, d->object, d->args[0], byteSize));
 		return Result::ok();
 	}, {});
 
@@ -199,6 +199,8 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 		auto& toSimdFunction = st->createSpecialFunction(FunctionClass::ToSimdOp);
 
 		toSimdFunction.returnType = TypeInfo(Types::ID::Dynamic, false, true);
+
+#if SNEX_ASMJIT_BACKEND
 		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -213,6 +215,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 
 			return Result::ok();
 		});
+
 
 		toSimdFunction.inliner->returnTypeFunction = [this](InlineData* d)
 		{
@@ -233,6 +236,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 
 			return Result::ok();
 		};
+#endif
 	}
 
 	return st;
@@ -361,12 +365,18 @@ juce::Result SpanType::initialise(InitData d)
 
 			c.dataPointer = getPointerWithOffset(d.dataPointer, offset);
 
+
 			AssemblyMemory cm;
 
 			if (d.asmPtr != nullptr)
 			{
+#if SNEX_ASMJIT_BACKEND
 				cm = d.asmPtr->cloneWithOffset((int)offset);
 				c.asmPtr = &cm;
+#else
+				jassertfalse;
+				return Result::fail("MIR!!!");
+#endif
 			}
 			
 
@@ -533,6 +543,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 	assignFunction->returnType = TypeInfo(this);
 
+#if SNEX_ASMJIT_BACKEND
 	assignFunction->inliner = new Inliner(assignFunction->id, [](InlineData* d_)
 	{
 		auto setToZeroIfImmediate = [](int& vToChange, AssemblyRegister::Ptr& p, int limit)
@@ -720,28 +731,9 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		d->target = d->object;
 
 		return Result::ok();
-			
-#if 0
-		else if (auto dt = valueType.getTypedIfComplexType<DynType>())
-		{
-			if (thisObj->isGlobalVariableRegister())
-				thisObj->createMemoryLocation(cc);
-
-			if (value->isMemoryLocation())
-				thisObj->setCustomMemoryLocation(value->getAsMemoryLocation(), value->isGlobalMemory());
-			else
-				thisObj->setCustomMemoryLocation(x86::ptr(PTR_REG_R(value)).cloneResized(8), value->isGlobalMemory());
-
-			return Result::ok();
-		}
-
-		juce::String s;
-		s << "Can't assign" << valueType.toString() << " to " << thisObj->getTypeInfo().toString();
-		return Result::fail(s);
-
-#endif
 		
 	}, {});
+#endif
 
 	dynOperators->addFunction(assignFunction);
 
@@ -751,6 +743,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		sizeFunction->id = dynOperators->getClassName().getChildId("size");
 		sizeFunction->returnType = TypeInfo(Types::ID::Integer);
 
+#if SNEX_ASMJIT_BACKEND
 		sizeFunction->inliner = new Inliner(sizeFunction->id, [](InlineData* d_)
 		{
 			auto d = d_->toAsmInlineData();
@@ -773,6 +766,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			return Result::ok();
 		}, {});
+#endif
 
 		dynOperators->addFunction(sizeFunction);
 	}
@@ -781,6 +775,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 	{
 		auto& toSimdFunction = dynOperators->createSpecialFunction(FunctionClass::ToSimdOp);
 		
+#if SNEX_ASMJIT_BACKEND
 		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [this](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -811,6 +806,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			return Result::ok();
 		});
 
+
 		toSimdFunction.inliner->returnTypeFunction = [](InlineData* d)
 		{
 			auto rt = dynamic_cast<ReturnTypeInlineData*>(d);
@@ -823,6 +819,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 			
 			return Result::ok();
 		};
+#endif
 	}
 
 	{
@@ -831,6 +828,8 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 		auto isSimdableFunc = new FunctionData();
 		isSimdableFunc->id = dynOperators->getClassName().getChildId("isSimdable");
 		isSimdableFunc->returnType = TypeInfo(Types::ID::Integer);
+
+#if SNEX_ASMJIT_BACKEND
 		isSimdableFunc->inliner = Inliner::createAsmInliner(isSimdableFunc->id, [](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -867,6 +866,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			return Result::ok();
 		});
+#endif
 
 		dynOperators->addFunction(isSimdableFunc);
 	}
@@ -879,6 +879,7 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 		auto t = elementType;
 
+#if SNEX_ASMJIT_BACKEND
 		subscriptFunction.inliner = Inliner::createAsmInliner(subscriptFunction.id, [t](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -893,30 +894,6 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 			jassert(dynReg->getTypeInfo().getTypedComplexType<DynType>() != nullptr);
 			jassert(target->getTypeInfo() == t);
-
-#if 0
-			switch (getIndexType(index->getTypeInfo()))
-			{
-			case IndexType::W:
-			{
-				index->loadMemoryIntoRegister(cc);
-
-				cc.mov(limit, p);
-				auto tempReg = cc.newGpd();
-				auto i = INT_REG_R(index);
-				cc.cdq(tempReg, i);
-				cc.idiv(tempReg, i, limit);
-				cc.mov(i, tempReg);
-				break;
-			}
-			case IndexType::U:
-			{
-				break;
-			}
-			default:
-				jassertfalse;
-			}
-#endif
 
 			auto gs = d->target->getScope()->getGlobalScope();
 			auto safeCheck = gs->isRuntimeErrorCheckEnabled();
@@ -1003,27 +980,15 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 				
 				cc.lea(memReg, nirvana);
 
-#if 0
-				auto type = d->target->getType();
-
-				
-				IF_(int) cc.mov(INT_REG_W(target), nirvana);
-				IF_(double) cc.movsd(FP_REG_W(target), nirvana);
-				IF_(float) cc.movss(FP_REG_W(target), nirvana);
-				IF_(void*) cc.mov(PTR_REG_W(target), nirvana);
-#endif
-				
 				cc.bind(endLabel);
 				cc.nop();
 			}
 				
-
-
-
-
 			return Result::ok();
 		});
+#endif
 	}
+
 
 	return dynOperators;
 }
@@ -1219,8 +1184,12 @@ juce::Result StructType::initialise(InitData d)
 					c.dataPointer = getMemberPointer(m, d.dataPointer);
 				else
 				{
+#if SNEX_ASMJIT_BACKEND
 					cm = d.asmPtr->cloneWithOffset((int)(m->offset + m->padding));
 					c.asmPtr = &cm;
+#else
+					jassertfalse;
+#endif
 				}
 
 				auto ok = m->typeInfo.getComplexType()->initialise(c);

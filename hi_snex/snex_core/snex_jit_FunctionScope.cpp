@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 #if 0
 bool RegisterScope::hasVariable(const NamespacedIdentifier& id) const

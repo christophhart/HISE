@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 /** This class offers a convenient interface to build up template classes on the C++ side

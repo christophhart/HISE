@@ -43,7 +43,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 #pragma warning( push )
 #pragma warning( disable : 4244)
@@ -2193,9 +2193,10 @@ private:
 		
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	void testFpu()
 	{
-		using namespace asmjit;
+		USE_ASMJIT_NAMESPACE;
 
 		int ok = 0;
 
@@ -2249,7 +2250,7 @@ private:
 
     void testMacOSRelocation()
     {
-        using namespace asmjit;
+        USE_ASMJIT_NAMESPACE;
         
         int ok = 0;
         
@@ -2308,6 +2309,10 @@ private:
         expect(returnValue == 18.0f);
         
     }
+#else
+	void testFpu() {};
+	void testMacOSRelocation() {};
+#endif
     
 	void testUsingAliases()
 	{

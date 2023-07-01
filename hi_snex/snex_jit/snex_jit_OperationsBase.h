@@ -35,7 +35,8 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
+
 
 class FunctionScope;
 
@@ -50,9 +51,7 @@ class FunctionScope;
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
 namespace Operations
 {
-
-
-	using FunctionCompiler = asmjit::X86Compiler;
+	using FunctionCompiler = AsmJitX86Compiler;
 
 	static FunctionCompiler& getFunctionCompiler(BaseCompiler* c);
 	static BaseScope* findClassScope(BaseScope* scope);
@@ -68,7 +67,7 @@ namespace Operations
 
 	using RegPtr = AssemblyRegister::Ptr;
 
-	static asmjit::Runtime* getRuntime(BaseCompiler* c);
+	static AsmJitRuntime* getRuntime(BaseCompiler* c);
 
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
@@ -323,7 +322,7 @@ namespace Operations
 
 			if (currentPass == BaseCompiler::CodeGeneration && asmComment.isNotEmpty())
 			{
-				getFunctionCompiler(compiler).setInlineComment(asmComment.getCharPointer().getAddress());
+				ASMJIT_ONLY(getFunctionCompiler(compiler).setInlineComment(asmComment.getCharPointer().getAddress()));
 			}
 		}
 
@@ -567,7 +566,7 @@ namespace Operations
 	{
 		static void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
-		virtual asmjit::Label getJumpTargetForEnd(bool getContinue) = 0;
+		virtual AsmJitLabel getJumpTargetForEnd(bool getContinue) = 0;
 
 		virtual ~ConditionalBranch() {}
 

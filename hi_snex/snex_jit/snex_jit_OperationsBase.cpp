@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 
@@ -65,7 +65,7 @@ snex::jit::BaseScope* Operations::findFunctionScope(BaseScope* scope)
 		return findFunctionScope(scope->getParent());
 }
 
-asmjit::Runtime* Operations::getRuntime(BaseCompiler* c)
+AsmJitRuntime* Operations::getRuntime(BaseCompiler* c)
 {
 	return dynamic_cast<ClassCompiler*>(c)->getRuntime();
 }
@@ -283,8 +283,7 @@ void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* co
 
 	auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
 
-	if (prevReg != reg)
-		reg->setReferToReg(prevReg);
+	ASMJIT_ONLY(if (prevReg != reg) reg->setReferToReg(prevReg));
 }
 
 bool Operations::Expression::isAnonymousStatement() const
@@ -653,7 +652,7 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 				if (d != nullptr || (v != nullptr && v->isClassVariable(s)))
 					p->reg->loadMemoryIntoRegister(cc);
 
-				p->reg->setWriteBackToMemory(true);
+				ASMJIT_ONLY(p->reg->setWriteBackToMemory(true));
 			}
 		}
 		

@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 #define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData:: template createWithoutParameters<rt>(name, reinterpret_cast<void*>(ptr))))
@@ -247,6 +247,7 @@ class MathFunctions : public FunctionClass
 {
 public:
 
+#if SNEX_ASMJIT_BACKEND
 	struct Intrinsics
 	{
 		static void range(x86::Compiler& cc, x86::Gp rv, x86::Gp v, x86::Gp l, x86::Gp u)
@@ -273,9 +274,8 @@ public:
 		static Result norm(InlineData* b);
 		static Result sig2mod(InlineData* b);
 		static Result mod2sig(InlineData* b);
-
-		
 	};
+#endif
 
 	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;
 };

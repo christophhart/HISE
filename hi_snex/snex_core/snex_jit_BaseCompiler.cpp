@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
     void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
     {
