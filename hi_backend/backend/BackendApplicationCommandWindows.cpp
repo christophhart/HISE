@@ -473,15 +473,16 @@ private:
 
 /** TODO:
  
-    - add preview using Wavetable sound & actual voice rendering
+    - add preview using Wavetable sound & actual voice rendering ...OK
+	- make samplemap selectable ...OK
+	- add waterfall display to converter dialog with scanner
     - add proper multithreading for rebuilding
-    - make samplemap selectable
     - show statistics
     - loris: add progress & status message manager
+	- add loris DLL check
     - fix start & end
-    - add loris DLL check
-    - add waterfall display to converter dialog with scanner
-    - add zero wavetable at the end for fade to silence (with option)
+	- add zero wavetable at the end for fade to silence (with option)
+    
  */
 class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
 								 public ComboBoxListener
@@ -530,9 +531,9 @@ public:
         
         selectors->getComponent<ComboBox>("offset")->setSelectedItemIndex(3, dontSendNotification);
         
-        selectors->addComboBox("numSlices", {"1", "2", "8", "64", "256"}, "Slices", 90);
+        selectors->addComboBox("numSlices", {"1", "2", "8", "16", "32", "64", "128", "256"}, "Slices", 90);
         selectors->setInfoTextForLastComponent(WavetableHelp::Slices());
-        selectors->getComponent<ComboBox>("numSlices")->setSelectedItemIndex(3, dontSendNotification);
+        selectors->getComponent<ComboBox>("numSlices")->setSelectedItemIndex(5, dontSendNotification);
         
 		selectors->setSize(512, 40);
 		addCustomComponent(selectors);

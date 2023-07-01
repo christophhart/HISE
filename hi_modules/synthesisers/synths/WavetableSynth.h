@@ -117,6 +117,31 @@ public:
 
 	float isReversed() const { return reversed; };
 
+	struct RenderData
+	{
+		using TableIndexFunction = std::function<float(int)>;
+		RenderData(AudioSampleBuffer& b_, int startSample_, int numSamples_, double uptimeDelta_, const float* voicePitchValues_, bool hqMode_) :
+			b(b_),
+			startSample(startSample_),
+			numSamples(numSamples_),
+			voicePitchValues(voicePitchValues_),
+			uptimeDelta(uptimeDelta_),
+			hqMode(hqMode_)
+		{};
+
+		AudioSampleBuffer& b;
+		int startSample;
+		int numSamples;
+		const float* voicePitchValues;
+		const double uptimeDelta;
+		const bool hqMode;
+		bool dynamicPhase = false;
+
+		void render(WavetableSound* currentSound, double& voiceUptime, const TableIndexFunction& tf);
+
+		float calculateSample(const float* lowerTable, const float* upperTable, const span<int, 4>& i, float alpha, float tableAlpha) const;
+	};
+
 private:
 
 	float reversed = 0.0f;
@@ -140,6 +165,7 @@ private:
 
 	int wavetableSize;
 	int wavetableAmount;
+	bool dynamicPhase = false;
 };
 
 class WavetableSynth;
@@ -161,11 +187,6 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	int getCurrentTableIndex() const
-	{
-		return currentTableIndex;
-	};
-
 	void setHqMode(bool useHqMode)
 	{
 		hqMode = useHqMode;
@@ -181,23 +202,13 @@ private:
 
 	WavetableSound *currentSound;
 
-	int currentWaveIndex;
-	int nextWaveIndex;
 	int tableSize;
-	int currentTableIndex;
-
+	
 	float currentGainValue;
     int noteNumberAtStart = 0;
     double startFrequency = 0.0;
 	
-	Interpolator tableGainInterpolator;
-
 	bool hqMode;
-
-	float const *lowerTable;
-	float const *upperTable;
-
-
 
 	float const *currentTable;
 };

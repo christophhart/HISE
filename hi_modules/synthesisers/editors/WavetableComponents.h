@@ -82,6 +82,10 @@ public:
 
 	void paint(Graphics& g) override;
 
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseMove(const MouseEvent& e) override;
+
 private:
 
 	struct Sample
@@ -96,6 +100,7 @@ private:
 		int rootNote;
 	};
 
+	int hoverIndex = -1;
 	Array<Sample> samples;
 };
 

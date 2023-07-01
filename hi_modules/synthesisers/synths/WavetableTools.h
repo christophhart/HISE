@@ -173,15 +173,15 @@ public:
 	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map, int noteNumber=-1);
 
 	double sampleRate = 48000.0;
-	int numParts = 256;
-	int fftSize = -1;
+	int numParts = 64;
 	bool reverseOrder = false;
 	int mipmapSize = 12;
 	bool useOriginalGain = true;
 	bool channelToUse = 0;
-    WindowType windowType = FFTHelpers::FlatTop;
 
 	Result refreshCurrentWavetable(double& progress, bool forceReanalysis = true);
+
+	void setCurrentIndex(int index, NotificationType n);
 
 	void moveCurrentSampleIndex(bool advance)
 	{

@@ -74,7 +74,7 @@ void WavetableSynth::getWaveformTableValues(int /*displayIndex*/, float const** 
 
 		if (wavetableSound != nullptr)
 		{
-			const int tableIndex = wavetableVoice->getCurrentTableIndex();
+			const int tableIndex = roundToInt(getDisplayTableValue() * ((float)wavetableSound->getWavetableAmount()-1));
 			*tableValues = wavetableSound->getWaveTableData(0, tableIndex);
 			numValues = wavetableSound->getTableSize();
 			normalizeValue = 1.0f / wavetableSound->getMaxLevel();
@@ -163,11 +163,6 @@ bool WavetableSynthVoice::updateSoundFromPitchFactor(double pitchFactor, Wavetab
     {
         currentSound = soundToUse;
         
-        lowerTable = currentSound->getWaveTableData(0, currentTableIndex);
-        upperTable = lowerTable;
-
-        currentTableIndex = 0;
-
         tableSize = currentSound->getTableSize();
         
 		uptimeDelta = currentSound->getPitchRatio(noteNumberAtStart);
@@ -189,45 +184,7 @@ bool WavetableSynthVoice::updateSoundFromPitchFactor(double pitchFactor, Wavetab
     return false;
 }
 
-float calculateSample(const float* lowerTable, const float* upperTable, span<int, 4>& i, bool hqMode, float alpha, float tableAlpha)
-{
-	float l0 = lowerTable[i[0]];
-	float l1 = lowerTable[i[1]];
-	float l2 = lowerTable[i[2]];
-	float l3 = lowerTable[i[3]];
 
-	float sample;
-
-	if (lowerTable != upperTable)
-	{
-		float u0 = upperTable[i[0]];
-		float u1 = upperTable[i[1]];
-		float u2 = upperTable[i[2]];
-		float u3 = upperTable[i[3]];
-
-		float upperSample, lowerSample;
-
-		if (hqMode)
-		{
-			upperSample = Interpolator::interpolateCubic(u0, u1, u2, u3, alpha);
-			lowerSample = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
-		}
-		else
-		{
-			upperSample = Interpolator::interpolateLinear(u1, u2, alpha);
-			lowerSample = Interpolator::interpolateLinear(l1, l2, alpha);
-		}
-
-		sample = Interpolator::interpolateLinear(lowerSample, upperSample, tableAlpha);
-	}
-	else
-	{
-		sample = hqMode ? Interpolator::interpolateCubic(l0, l1, l2, l3, alpha) :
-			Interpolator::interpolateLinear(l1, l2, alpha);
-	}
-
-	return sample;
-}
 
 void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 {
@@ -236,73 +193,13 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	const float *voicePitchValues = getOwnerSynth()->getPitchValuesForVoice();
 	
+	auto stereoMode = currentSound->isStereo();
+	auto owner = static_cast<WavetableSynth*>(getOwnerSynth());
 	auto numTables = currentSound->getWavetableAmount();
 
-	auto stereoMode = currentSound->isStereo();
+	WavetableSound::RenderData r(voiceBuffer, startSample, numSamples, uptimeDelta, voicePitchValues, hqMode);
 
-	while (--numSamples >= 0)
-	{
-		int index = (int)voiceUptime;
-
-		span<int, 4> i;
-
-#if USE_MOD2_WAVETABLESIZE
-		i[0] = (index + tableSize - 1) & (tableSize - 1);
-		i[1] = index & (tableSize - 1);
-		i[2] = (index+1) & (tableSize - 1);
-		i[3] = (index + 2) & (tableSize - 1);
-#else
-        const auto i[1] = index % (tableSize);
-
-        auto i[2] = i[1] + 1;
-        auto i[0] = i[1] - 1;
-        auto i[3] = i[1] + 2;
-            
-        if (i[1] == 0)         i[0] = tableSize-1;
-		if (i[2] >= tableSize) i[2] = 0;
-        if (i[3] >= tableSize) i[3] = 0;
-
-#endif
-
-		const float tableModValue = static_cast<WavetableSynth*>(getOwnerSynth())->getTotalTableModValue(startSample);
-		const float tableValue = tableModValue * (float)(numTables - 1);
-
-		const int lowerTableIndex = (int)(tableValue);
-
-		if (i[2] < i[1])
-			currentTableIndex = lowerTableIndex;
-
-		const float tableDelta = tableValue - (float)lowerTableIndex;
-		jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
-
-		const int upperTableIndex = jmin(numTables - 1, lowerTableIndex + 1);
-
-		lowerTable = currentSound->getWaveTableData(0, lowerTableIndex);
-		upperTable = currentSound->getWaveTableData(0, upperTableIndex);
-		const float alpha = float(voiceUptime) - (float)index;
-
-		auto l = calculateSample(lowerTable, upperTable, i, hqMode, alpha, tableDelta);
-
-		// Stereo mode assumed
-		voiceBuffer.setSample(0, startSample, l);
-
-		if (stereoMode)
-		{
-			auto lowerTableR = currentSound->getWaveTableData(1, lowerTableIndex);
-			auto upperTableR = currentSound->getWaveTableData(1, upperTableIndex);
-
-			auto r = calculateSample(lowerTableR, upperTableR, i, hqMode, alpha, tableDelta);
-			voiceBuffer.setSample(1, startSample, r);
-		}
-
-		jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
-
-		const double delta = (uptimeDelta * (voicePitchValues == nullptr ? 1.0 : voicePitchValues[startSample]));
-
-		voiceUptime += delta;
-
-		++startSample;
-	}
+	r.render(currentSound, voiceUptime, [owner](int startSample) { return owner->getTotalTableModValue(startSample); });
 
 	if (hqMode)
 	{
@@ -337,8 +234,8 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	if (getOwnerSynth()->getLastStartedVoice() == this)
 	{
-		auto owner = static_cast<WavetableSynth*>(getOwnerSynth());
-		owner->setDisplayTableValue((float)currentTableIndex / (float)numTables);
+		auto currentTableIndex = owner->getTotalTableModValue(startSample);
+		owner->setDisplayTableValue(currentTableIndex);
 		owner->triggerWaveformUpdate();
 	}
 
@@ -348,7 +245,6 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/)
 {
     currentSound = nullptr;
-	currentTableIndex = 0;
     
 	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
@@ -357,13 +253,10 @@ void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synt
     noteNumberAtStart = midiNoteNumber;
     
     startFrequency = MidiMessage::getMidiNoteInHertz(noteNumberAtStart);
-    
-	
 
     updateSoundFromPitchFactor(1.0, static_cast<WavetableSound*>(s));
     
 	voiceUptime = (double)getCurrentHiseEvent().getStartOffset() / 441.0 * (double)tableSize;
-
 }
 
 WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent)
@@ -397,6 +290,8 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
 	midiNotes.setRange(0, 127, false);
 	noteNumber = wavetableData.getProperty("noteNumber", 0);
 	midiNotes.setBit(noteNumber, true);
+
+	dynamicPhase = wavetableData.getProperty("dynamic_phase", false);
 
     if(wavetableData.hasProperty(SampleIds::LoKey))
     {
@@ -468,6 +363,127 @@ void WavetableSound::normalizeTables()
 	}
 
 	maximum = 1.0f;
+}
+
+
+
+void WavetableSound::RenderData::render(WavetableSound* currentSound, double& voiceUptime, const TableIndexFunction& tf)
+{
+	auto numTables = currentSound->getWavetableAmount();
+	auto stereoMode = currentSound->isStereo();
+	auto tableSize = currentSound->getTableSize();
+
+	dynamicPhase = currentSound->dynamicPhase;
+
+	while (--numSamples >= 0)
+	{
+		int index = (int)voiceUptime;
+
+		span<int, 4> i;
+
+#if USE_MOD2_WAVETABLESIZE
+		i[0] = (index + tableSize - 1) & (tableSize - 1);
+		i[1] = index & (tableSize - 1);
+		i[2] = (index + 1) & (tableSize - 1);
+		i[3] = (index + 2) & (tableSize - 1);
+#else
+		const auto i[1] = index % (tableSize);
+
+		auto i[2] = i[1] + 1;
+		auto i[0] = i[1] - 1;
+		auto i[3] = i[1] + 2;
+
+		if (i[1] == 0)         i[0] = tableSize - 1;
+		if (i[2] >= tableSize) i[2] = 0;
+		if (i[3] >= tableSize) i[3] = 0;
+
+#endif
+
+		const float tableModValue = tf(startSample);
+		const float tableValue = tableModValue * (float)(numTables - 1);
+
+		const int lowerTableIndex = (int)(tableValue);
+
+		const float tableDelta = tableValue - (float)lowerTableIndex;
+		jassert(0.0f <= tableDelta && tableDelta <= 1.0f);
+
+		const int upperTableIndex = jmin(numTables - 1, lowerTableIndex + 1);
+
+		auto lowerTable = currentSound->getWaveTableData(0, lowerTableIndex);
+		auto upperTable = currentSound->getWaveTableData(0, upperTableIndex);
+		const float alpha = float(voiceUptime) - (float)index;
+
+		auto l = calculateSample(lowerTable, upperTable, i, alpha, tableDelta);
+
+		// Stereo mode assumed
+		b.setSample(0, startSample, l);
+
+		if (stereoMode)
+		{
+			auto lowerTableR = currentSound->getWaveTableData(1, lowerTableIndex);
+			auto upperTableR = currentSound->getWaveTableData(1, upperTableIndex);
+
+			auto r = calculateSample(lowerTableR, upperTableR, i, alpha, tableDelta);
+			b.setSample(1, startSample, r);
+		}
+
+		jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
+
+		const double delta = (uptimeDelta * (voicePitchValues == nullptr ? 1.0 : voicePitchValues[startSample]));
+
+		voiceUptime += delta;
+
+		++startSample;
+	}
+}
+
+float WavetableSound::RenderData::calculateSample(const float* lowerTable, const float* upperTable, const span<int, 4>& i, float alpha, float tableAlpha) const
+{
+	float l0 = lowerTable[i[0]];
+	float l1 = lowerTable[i[1]];
+	float l2 = lowerTable[i[2]];
+	float l3 = lowerTable[i[3]];
+
+	float sample;
+
+	if (lowerTable != upperTable)
+	{
+		float u0 = upperTable[i[0]];
+		float u1 = upperTable[i[1]];
+		float u2 = upperTable[i[2]];
+		float u3 = upperTable[i[3]];
+
+		float upperSample, lowerSample;
+
+		if (hqMode)
+		{
+			upperSample = Interpolator::interpolateCubic(u0, u1, u2, u3, alpha);
+			lowerSample = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
+		}
+		else
+		{
+			upperSample = Interpolator::interpolateLinear(u1, u2, alpha);
+			lowerSample = Interpolator::interpolateLinear(l1, l2, alpha);
+		}
+
+		if (dynamicPhase)
+		{
+			auto alpha1 = scriptnode::faders::rms().getFadeValue<0>(2, (double)tableAlpha);
+			auto alpha2 = scriptnode::faders::rms().getFadeValue<1>(2, (double)tableAlpha);
+			sample = alpha1 * lowerSample + alpha2 * upperSample;
+		}
+		else
+		{
+			sample = Interpolator::interpolateLinear(lowerSample, upperSample, tableAlpha);
+		}
+	}
+	else
+	{
+		sample = hqMode ? Interpolator::interpolateCubic(l0, l1, l2, l3, alpha) :
+			Interpolator::interpolateLinear(l1, l2, alpha);
+	}
+
+	return sample;
 }
 
 } // namespace hise

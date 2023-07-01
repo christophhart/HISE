@@ -521,8 +521,6 @@ struct ResynthesisHelpers
 			for (int i = 0; i < numHarmonics; i++)
 			{
 				offsets[i] = (double)phaseData[0] * (double)(i + 1) - (double)i * double_Pi * 0.5;
-
-				
 			}
 
 			for (int i = 0; i < numHarmonics; i++)
@@ -562,23 +560,9 @@ struct ResynthesisHelpers
 
 			double uptime = 0.0;
 
-			auto isNegative = (((h) / 2) % 2) == 0;
-
-			//uptime =  ? double_Pi : 0.0;
-
-			//uptime *= (h + 1);
-
-			if (isNegative)
-			{
-				uptime = double_Pi;
-			}
-
-
 			if (phaseData != nullptr)
 			{
-				//uptime = offsets[h];
-				//uptime *= (double)(h + 1);
-
+				uptime = offsets[h];
 			}
                 
             
@@ -691,6 +675,12 @@ float* SampleMapToWavetableConverter::getPhaseData(const HarmonicMap& map, int s
 
 
 	auto mapToUse = harmonicMaps[phaseMapIndex];
+
+	if (!mapToUse->analysed)
+	{
+		mapToUse = getCurrentMap();
+	}
+
 	auto& arrayToUse = getRight ? mapToUse->harmonicPhaseRight : mapToUse->harmonicPhase;
 
 	return arrayToUse.getWritePointer(sliceOffset);
@@ -819,6 +809,10 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap(double* progres
         pos = start / (double)r->lengthInSamples;
         startPos = pos;
 	}
+	else
+	{
+		return Result::fail("Can't find file " + d.file.getFullPathName());
+	}
 
 
 	ScopedValueSetter<std::function<void(String)>> svs(lorisManager->errorFunction, [&](const String& e)
@@ -832,11 +826,12 @@ juce::Result SampleMapToWavetableConverter::calculateHarmonicMap(double* progres
 
     
 
-
+#if 0
 	hoptime = delta * m.sampleLengthSeconds;
     
     while(hoptime < 0.005)
         hoptime *= 2.0;
+#endif
     
     
 	//offsetInSlice = 0.0;
@@ -1173,6 +1168,24 @@ juce::Result SampleMapToWavetableConverter::refreshCurrentWavetable(double& prog
 	return r;
 }
 
+void SampleMapToWavetableConverter::setCurrentIndex(int index, NotificationType n)
+{
+	for (int i = 0; i < harmonicMaps.size(); i++)
+	{
+		if (harmonicMaps[i]->index.sampleIndex == index)
+		{
+			if (currentIndex == i)
+				return;
+
+			currentIndex = i;
+			break;
+		}
+	}
+
+	if (n != dontSendNotification)
+		calculateHarmonicMap(nullptr);
+}
+
 void SampleMapToWavetableConverter::replacePartOfCurrentMap(int index)
 {
 	if (currentIndex < harmonicMaps.size())
@@ -1234,6 +1247,37 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 		}
 		else
 		{
+			if (!currentMap->analysed)
+				calculateHarmonicMap(nullptr);
+
+			int numSamplesToCalculate = chain->getSampleRate() * currentMap->sampleLengthSeconds;
+			b.setSize(2, numSamplesToCalculate);
+			b.clear();
+
+			auto bank = calculateWavetableBank(*currentMap);
+
+			ValueTree previewTree("preview");
+
+			storeData(currentMap->rootNote, currentMap->noteRange, bank.getArrayOfWritePointers(), currentMap->isStereo ? 2 : 1, previewTree, currentMap->wavetableLength * numParts);
+
+			ReferenceCountedObjectPtr<WavetableSound> sound = new WavetableSound(previewTree.getChild(0), nullptr);
+
+			sound->calculatePitchRatio(chain->getSampleRate());
+			
+
+			double uptimeDelta = sound->getPitchRatio(currentMap->rootNote);
+			double voiceUptime = 0.0;
+
+			WavetableSound::RenderData r(b, 0, numSamplesToCalculate, uptimeDelta, nullptr, true);
+
+			r.render(sound.get(), voiceUptime, [&](int startSample) { return jlimit(0.0f, 1.0f, (float)startSample / (float)numSamplesToCalculate); });
+
+			if (!currentMap->isStereo)
+				FloatVectorOperations::copy(b.getWritePointer(1), b.getReadPointer(0), b.getNumSamples());
+
+			
+
+#if 0
 			auto bank = calculateWavetableBank(*currentMap);
 
 			int length = currentMap->wavetableLength;
@@ -1307,7 +1351,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 				return resampled;
 			}
-
+#endif
 		}
 	}
 
@@ -1327,6 +1371,7 @@ void SampleMapToWavetableConverter::storeData(int noteNumber, Range<int> noteRan
 	child.setProperty("amount", numPartsToUse, nullptr);
 	child.setProperty("sampleRate", sampleRate, nullptr);
 	child.setProperty("reversed", reverseOrder, nullptr);
+	child.setProperty("dynamic_phase", phaseMode == PhaseMode::DynamicPhase, nullptr);
 
 	for(int i = 0; i < numChannels; i++)
 	{
