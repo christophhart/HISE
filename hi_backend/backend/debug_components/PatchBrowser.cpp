@@ -659,7 +659,8 @@ void PatchBrowser::paint(Graphics &g)
     
     Component::callRecursive<PatchItem>(this, [&](PatchItem* pi)
     {
-        if(!pi->isVisible())
+        
+        if(!pi->isVisible() || pi->getProcessor() == nullptr)
             return false;
         
         if(dynamic_cast<GlobalModulatorContainer*>(pi->getProcessor()->getParentProcessor(true)))

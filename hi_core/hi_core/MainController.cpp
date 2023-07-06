@@ -1982,7 +1982,7 @@ bool MainController::UserPresetHandler::processStateManager(bool shouldSave, Val
 			stateManagers.remove(i--);
 	}
 
-	jassert(presetRoot.getType() == Identifier("Preset"));
+	jassert(presetRoot.getType() == Identifier("Preset") || presetRoot.getType() == Identifier("ControlData"));
 
 	static const Array<Identifier> specialStates =
 	{

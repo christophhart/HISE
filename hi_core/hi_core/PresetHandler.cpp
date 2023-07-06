@@ -2909,10 +2909,10 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	if (Thread::currentThreadShouldExit())
 		return;
 
-	sampleOutputFile.deleteFile();
-	imageOutputFile.deleteFile();
-	samplemapFile.deleteFile();
-	midiOutputFile.deleteFile();
+	
+	
+	
+	
 
 	auto previousLogger = Logger::getCurrentLogger();
 
@@ -2923,19 +2923,36 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 
 	auto* progress = logData != nullptr ? &logData->progress : nullptr;
 
+    sampleOutputFile.deleteFile();
+    
 	if (logData != nullptr) logData->logFunction("Export audio files");
 	chain->getMainController()->getCurrentAudioSampleBufferPool()->getDataProvider()->writePool(new FileOutputStream(sampleOutputFile), progress);
 
+    if (Thread::currentThreadShouldExit())
+        return;
+    
+    imageOutputFile.deleteFile();
+    
 	if (logData != nullptr) logData->logFunction("Export image files");
 	chain->getMainController()->getCurrentImagePool()->getDataProvider()->writePool(new FileOutputStream(imageOutputFile), progress);
 
+    if (Thread::currentThreadShouldExit())
+        return;
+    
+    samplemapFile.deleteFile();
+    
 	if (logData != nullptr) logData->logFunction("Export samplemap files");
 	chain->getMainController()->getCurrentSampleMapPool()->getDataProvider()->writePool(new FileOutputStream(samplemapFile), progress);
 
+    if (Thread::currentThreadShouldExit())
+        return;
+    
+    midiOutputFile.deleteFile();
+    
 	if (logData != nullptr) logData->logFunction("Export MIDI files");
 	chain->getMainController()->getCurrentMidiFilePool()->getDataProvider()->writePool(new FileOutputStream(midiOutputFile), progress);
 
-	Logger::setCurrentLogger(previousLogger);
+    Logger::setCurrentLogger(previousLogger);
 
 	outputLogger = nullptr;
 #else
