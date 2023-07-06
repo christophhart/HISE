@@ -1108,6 +1108,9 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * c
 	cb->clear(dontSendNotification);
 
 	cb->addItemList(dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent())->getItemList(), 1);
+    
+    auto currentValue = (int)getScriptComponent()->getValue();
+    cb->setSelectedId(currentValue, dontSendNotification);
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateColours(HiComboBox * cb)
