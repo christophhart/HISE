@@ -656,6 +656,13 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 	{
 		auto voiceIndex = polyManager.getCurrentVoice();
 
+		if (static_cast<ModulatorSynth*>(getParentProcessor(true))->isInGroup())
+		{
+			auto unisonoAmount = (int)getParentProcessor(true)->getParentProcessor(true)->getAttribute(ModulatorSynthGroup::UnisonoVoiceAmount);
+
+			voiceIndex /= unisonoAmount;
+		}
+		
 		if (useTable)
 		{
 			const float *data = getConnectedContainer()->getEnvelopeValuesForModulator(getOriginalModulator(), startSample, voiceIndex);
