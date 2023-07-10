@@ -523,6 +523,9 @@ void ModulatorSynth::clearPendingRemoveVoices()
 	{
 		jassert(v->isInactive());
 		activeVoices.remove(v);
+
+		if (isLastStartedVoice(v) && !activeVoices.isEmpty())
+			lastStartedVoice = activeVoices[activeVoices.size()-1];
 	}
 
 	pendingRemoveVoices.clearQuick();

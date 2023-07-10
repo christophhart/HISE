@@ -34,201 +34,7 @@ namespace hise {
 using namespace juce;
 
 
-WaterfallComponent::WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_) :
-	SimpleTimer(mc->getGlobalUIUpdater()),
-	ControlledObject(mc),
-	sound(sound_)
-{
-	start();
-	setOpaque(true);
-}
 
-
-
-
-void WaterfallComponent::rebuildPaths()
-{
-	Array<Path> newPaths;
-
-	if (auto first = sound.get())
-	{
-		auto numTables = first->getWavetableAmount();
-		const auto realNumTables = numTables;
-
-		int tableStride = jmax(1, numTables / 64);
-		numTables = jmin(numTables, 64);
-
-		auto size = first->getTableSize();
-
-		stereo = first->isStereo();
-
-		if (stereo)
-			size *= 2;
-
-		auto b = getLocalBounds().reduced(5).toFloat();
-
-		b.removeFromTop(numTables);
-		b.removeFromRight(numTables / 4);
-
-		auto stride = b.getWidth() / (float)size;
-
-		float maxGain = 0.0f;
-
-		for (int i = 0; i < numTables; i++)
-		{
-			maxGain = jmax(maxGain, first->getUnnormalizedGainValue(i));
-		}
-
-		HeapBlock<float> data;
-		data.calloc(size);
-
-		auto reversed = first->isReversed();
-
-		if (maxGain != 0.0f)
-		{
-			for (int pi = 0; pi < realNumTables; pi += tableStride)
-			{
-				Path p;
-
-				auto thisBounds = b.translated((float)pi*0.25f / (float)tableStride, -pi / (float)tableStride);
-
-				auto tableIndex = reversed ? (realNumTables - pi - 1) : pi;
-
-				auto l = first->getWaveTableData(0, tableIndex);
-				FloatVectorOperations::copy(data.get(), l, first->getTableSize());
-
-				if (stereo)
-				{
-					auto r = first->getWaveTableData(1, tableIndex);
-					FloatVectorOperations::copy(data.get() + first->getTableSize(), r, first->getTableSize());
-				}
-
-				p.startNewSubPath(thisBounds.getX(), thisBounds.getCentreY());
-
-				auto gain = first->getUnnormalizedGainValue(tableIndex);
-
-				if (gain == 0.0f)
-					continue;
-
-				//gain /= maxGain;
-
-				gain = 1.0f / gain;
-				//gain = hmath::pow(maxGain, 0.8f);
-
-				for (int i = 0; i < b.getWidth(); i += 2)
-				{
-					auto uptime = ((float)i / thisBounds.getWidth()) * (float)size;
-
-
-
-					int pos = (int)uptime;
-					pos = jlimit(0, size - 1, pos);
-
-					int nextPos = jlimit(0, size - 1, pos+1);
-
-					auto alpha = uptime - (float)pos;
-
-					auto value = Interpolator::interpolateLinear(data[pos], data[nextPos], alpha);
-
-					p.lineTo(thisBounds.getX() + (float)i,
-						thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - value * gain));
-				}
-
-				p.lineTo(thisBounds.getRight(), thisBounds.getCentreY());
-
-				newPaths.add(p);
-			}
-		}
-	}
-
-	std::swap(paths, newPaths);
-	repaint();
-}
-
-void WaterfallComponent::paint(Graphics& g)
-{
-	g.fillAll(Colour(0xFF222222));
-
-	g.setColour(Colours::white.withAlpha(0.05f));
-	g.drawRect(getLocalBounds().toFloat(), 1.0f);
-
-	if (paths.isEmpty())
-	{
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.drawText("No preview available", getLocalBounds().toFloat(), Justification::centred);
-		return;
-	}
-
-	float alpha = 1.0f;
-
-	int idx = 0;
-
-	for (const auto& p : paths)
-	{
-		float thisAlpha = 1.0f - jlimit(0.0f, 1.0f, (float)hmath::abs(idx - currentIndex) / (float)(paths.size()));
-
-		thisAlpha = jmax(0.08f, hmath::pow(thisAlpha, 8.0f)*0.5f);
-		thisAlpha *= alpha;
-
-		if (idx == currentIndex)
-		{
-			thisAlpha = 1.0f;
-
-			if (stereo)
-			{
-				g.setColour(Colours::white.withAlpha(0.5f));
-				p.getBounds();
-
-
-				g.setFont(GLOBAL_BOLD_FONT());
-				auto pb = p.getBounds();
-
-				g.drawText("L    R", pb, Justification::centredTop);
-				g.drawVerticalLine(pb.getCentreX(), pb.getY(), pb.getBottom());
-			}
-
-		}
-
-		if (idx != currentIndex && (idx % 2) != 0)
-		{
-			idx++;
-			continue;
-		}
-
-		auto c = Colours::white.withAlpha(thisAlpha);
-
-		g.setColour(c);
-		alpha *= 0.988f;
-		g.strokePath(p, PathStrokeType(idx == currentIndex ? 2.0f : 1.0f));
-
-		idx++;
-	}
-}
-
-void WaterfallComponent::timerCallback()
-{
-	if (!displayDataFunction)
-		jassertfalse;
-
-	auto df = displayDataFunction();
-
-	float modValue = df.modValue;
-
-	auto thisIndex = roundToInt(modValue * (paths.size() - 1));
-
-	if (sound != df.sound)
-	{
-		sound = df.sound;
-		rebuildPaths();
-	}
-
-	if (currentIndex != thisIndex)
-	{
-		currentIndex = thisIndex;
-		repaint();
-	}
-}
 
 #if USE_BACKEND
 
@@ -274,17 +80,22 @@ void SampleMapToWavetableConverter::Preview::updateGraphics()
 
 void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF222222));
+	g.fillAll(Colours::black);
 
 	if (spectrumImage.isValid())
 	{
 		g.drawImageWithin(spectrumImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+
 		return;
 	}
 	else
 	{
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(Colours::white.withAlpha(0.1f));
+		g.setColour(Colours::white.withAlpha(0.5f));
 		g.drawText("No preview available", getLocalBounds().toFloat(), Justification::centred);
 		return;
 	}
@@ -487,6 +298,9 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 }
 
 #endif
+
+
+
 
 
 

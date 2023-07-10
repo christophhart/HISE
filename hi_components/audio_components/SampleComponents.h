@@ -553,6 +553,107 @@ private:
 };
 
 
+class WavetableSound;
 
+struct WaterfallComponent : public Component,
+	public PooledUIUpdater::SimpleTimer,
+	public ControlledObject
+{
+	struct LookAndFeelMethods
+	{
+		virtual void drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty);
+		virtual void drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables);
+	};
+
+	struct DefaultLookAndFeel : public LookAndFeel_V3,
+		public LookAndFeelMethods
+	{
+
+	};
+
+	WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_);
+
+	void rebuildPaths();
+
+	void paint(Graphics& g) override;
+
+	void timerCallback() override;
+
+	void resized() override
+	{
+		rebuildPaths();
+	}
+
+	struct DisplayData
+	{
+		float modValue = 0.0f;
+		ReferenceCountedObjectPtr<WavetableSound> sound;
+	};
+
+	void setPerspectiveDisplacement(const Point<float>& newDisplacement)
+	{
+		if (displacement != newDisplacement)
+		{
+			displacement = newDisplacement;
+			repaint();
+		}
+	}
+
+	Point<float> displacement;
+
+	std::function<DisplayData()> displayDataFunction;
+
+	struct Panel : public PanelWithProcessorConnection
+	{
+		SET_PANEL_NAME("WavetableWaterfall");
+
+		enum SpecialPanelIds
+		{
+			Displacement = (int)PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
+			numSpecialPanelIds
+		};
+
+		Panel(FloatingTile* parent) :
+			PanelWithProcessorConnection(parent)
+		{
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.05f));
+			setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
+		}
+
+		Identifier getProcessorTypeId() const override;
+
+		Component* createContentComponent(int index) override;
+
+		int getNumDefaultableProperties() const override;
+
+		Identifier getDefaultablePropertyId(int index) const override;
+
+		var getDefaultProperty(int index) const override;
+
+		void fromDynamicObject(const var& object) override;
+
+		var toDynamicObject() const override;
+
+		void contentChanged() override {};
+
+		void fillModuleList(StringArray& moduleList) override;;
+		void fillIndexList(StringArray& indexList) override;;
+
+		bool hasSubIndex() const override { return true; }
+	};
+
+private:
+
+	ReferenceCountedObjectPtr<WavetableSound> sound;
+	int currentTableIndex = -1;
+	int currentBank = -1;
+	bool stereo = false;
+
+	Array<Path> paths;
+
+	DefaultLookAndFeel defaultLaf;
+};
 
 }

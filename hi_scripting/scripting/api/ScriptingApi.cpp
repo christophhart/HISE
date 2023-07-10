@@ -935,6 +935,7 @@ struct ScriptingApi::Engine::Wrapper
     API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
 	API_METHOD_WRAPPER_0(Engine, createErrorHandler);
 	API_METHOD_WRAPPER_1(Engine, createModulationMatrix);
+	API_METHOD_WRAPPER_0(Engine, getWavetableList);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
@@ -1015,6 +1016,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
+	ADD_API_METHOD_0(getWavetableList);
 	ADD_API_METHOD_1(setFrontendMacros);
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
@@ -2504,6 +2506,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
 	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
+	
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
@@ -3035,6 +3038,22 @@ var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference
 		reportScriptError("Can't load audio file " + ref.getReferenceString());
 		RETURN_IF_NO_THROW(var());
 	}
+}
+
+juce::var ScriptingApi::Engine::getWavetableList()
+{
+	if (auto first = ProcessorHelpers::getFirstProcessorWithType<WavetableSynth>(getScriptProcessor()->getMainController_()->getMainSynthChain()))
+	{
+		Array<var> list;
+
+		for (const auto& w : first->getWavetableList())
+			list.add(w);
+
+		return list;
+	}
+
+	reportScriptError("You need at least one Wavetable synthesiser in your signal chain for this method");
+	RETURN_IF_NO_THROW(var());
 }
 
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)

@@ -743,6 +743,11 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::buildAllWavetables), true);
 		};
 
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, Colours::black);
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentFillTopColourId, Colours::white);
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentOutlineColourId, Colours::white.withAlpha(0.5f));
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentTextColourId, Colours::white.withAlpha(0.5f));
+
 		refreshEnablement();
 	}
 

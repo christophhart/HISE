@@ -457,6 +457,9 @@ public:
 		/** Loads a file and returns its content as array of Buffers. */
 		var loadAudioFileIntoBufferArray(String audioFileReference);
 
+		/** Returns the list of wavetables of the current expansion (or factory content). */
+		var getWavetableList();
+
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
 

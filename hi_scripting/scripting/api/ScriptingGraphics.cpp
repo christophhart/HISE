@@ -2299,6 +2299,8 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 		"drawPresetBrowserListItem",
 		"drawPresetBrowserSearchBar",
 		"drawPresetBrowserTag",
+		"drawWavetableBackground",
+		"drawWavetablePath",
 		"drawTableBackground",
 		"drawTablePath",
 		"drawTablePoint",
@@ -3940,6 +3942,71 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g
     }
 
     MatrixPeakMeter::LookAndFeelMethods::drawMatrixPeakMeter(g_, peakValues, maxPeaks, numChannels, isVertical, segmentSize, paddingSize, c);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWavetableBackground(Graphics& g_, WaterfallComponent& wc, bool isEmpty)
+{
+	if (functionDefined("drawWavetableBackground"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(wc.getLocalBounds().toFloat()));
+
+		obj->setProperty("isEmpty", isEmpty);
+		
+		if (auto pc = wc.findParentComponentOfClass<PanelWithProcessorConnection>())
+			obj->setProperty("processorId", pc->getConnectedProcessor()->getId());
+
+		addParentFloatingTile(wc, obj);
+
+		setColourOrBlack(obj, "bgColour", wc, HiseColourScheme::ComponentBackgroundColour);
+		setColourOrBlack(obj, "itemColour", wc, HiseColourScheme::ComponentFillTopColourId);
+		setColourOrBlack(obj, "itemColour2", wc, HiseColourScheme::ComponentOutlineColourId);
+		setColourOrBlack(obj, "textColour", wc, HiseColourScheme::ComponentTextColourId);
+
+		if (get()->callWithGraphics(g_, "drawWavetableBackground", var(obj), &wc))
+			return;
+	}
+
+	WaterfallComponent::LookAndFeelMethods::drawWavetableBackground(g_, wc, isEmpty);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWavetablePath(Graphics& g_, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables)
+{
+	if (functionDefined("drawWavetablePath"))
+	{
+		auto obj = new DynamicObject();
+
+		obj->setProperty("area", ApiHelpers::getVarRectangle(p.getBounds().toFloat()));
+
+		auto pat = new ScriptingObjects::PathObject(get()->getScriptProcessor());
+
+		var keeper(pat);
+
+		pat->getPath() = p;
+
+		obj->setProperty("path", keeper);
+
+		obj->setProperty("tableIndex", tableIndex);
+		obj->setProperty("isStereo", isStereo);
+		obj->setProperty("currentTableIndex", currentTableIndex);
+		obj->setProperty("numTables", numTables);
+
+		if (auto pc = wc.findParentComponentOfClass<PanelWithProcessorConnection>())
+			obj->setProperty("processorId", pc->getConnectedProcessor()->getId());
+
+		addParentFloatingTile(wc, obj);
+
+		setColourOrBlack(obj, "bgColour", wc, HiseColourScheme::ComponentBackgroundColour);
+		setColourOrBlack(obj, "itemColour", wc, HiseColourScheme::ComponentFillTopColourId);
+		setColourOrBlack(obj, "itemColour2", wc, HiseColourScheme::ComponentOutlineColourId);
+		setColourOrBlack(obj, "textColour", wc, HiseColourScheme::ComponentTextColourId);
+
+		if (get()->callWithGraphics(g_, "drawWavetablePath", var(obj), &wc))
+			return;
+	}
+
+	WaterfallComponent::LookAndFeelMethods::drawWavetablePath(g_, wc, p, tableIndex, isStereo, currentTableIndex, numTables);
 }
 
 juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler::IconType type)

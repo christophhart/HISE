@@ -36,44 +36,7 @@
 namespace hise {
 using namespace juce;
 
-class WavetableSound;
 
-struct WaterfallComponent : public Component,
-	public PooledUIUpdater::SimpleTimer,
-	public ControlledObject
-{
-	WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_);
-
-	
-
-	void rebuildPaths();
-
-	void paint(Graphics& g) override;
-
-	void timerCallback() override;
-
-	void resized() override
-	{
-		rebuildPaths();
-	}
-
-	struct DisplayData
-	{
-		float modValue = 0.0f;
-		ReferenceCountedObjectPtr<WavetableSound> sound;
-	};
-
-	std::function<DisplayData()> displayDataFunction;
-
-private:
-
-	ReferenceCountedObjectPtr<WavetableSound> sound;
-	int currentIndex = -1;
-	int currentBank = -1;
-	bool stereo = false;
-
-	Array<Path> paths;
-};
 
 
 #if USE_BACKEND
@@ -264,6 +227,8 @@ public:
 
 		waterfallButton->setToggleState(true, dontSendNotification);
 		spectrum->setVisible(false);
+
+		waterfall->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::white);
 	}
 
 	void buttonClicked(Button* b) override
@@ -287,6 +252,7 @@ public:
 
 		spectrum->setBounds(area);
 		waterfall->setBounds(area);
+		waterfall->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::white);
 	}
 
 	void setImageToShow(const Image& img)
