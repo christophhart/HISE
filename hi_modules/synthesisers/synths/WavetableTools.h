@@ -38,45 +38,8 @@ using namespace juce;
 
 #if USE_BACKEND
 
-/** Converts a directory containing the individual wavetable files into a ValueTree that can be loaded by a WavetableSynth.
-*
-*	Simply create one of these on the stack and call convertDirectoryToValueTree.
-*	It will create a ValueTree with the following structure:
-*
-*		<wavetableData>
-*			<wavetable noteNumber="X" amount="64" data="dataAsFloat" sampleRate="48000.0"/>
-*			...
-*		</wavetableData>
-*
-*	It assumes 48kHz mono files as input.
-*
-*	@param directoryPath the directory where the samples are. It assumes the following file name convenience:
-*						 NOTENAME_WAVETABLEINDEX.wav - with NOTENAME base octave 3 and WAVETABLEINDEX 0 - 63
-*/
-class WavetableConverter
-{
-public:
-
-	WavetableConverter();
-
-	ValueTree convertDirectoryToWavetableData(const String &directoryPath_);
-
-
-	static int getWavetableLength(int noteNumber, double sampleRate);;
-	static int getMidiNoteNumber(const String &midiNoteName);
-
-private:
-
-	ScopedPointer<MemoryMappedAudioFormatReader> reader;
-	File directoryPath;
-	ValueTree data;
-	OwnedArray<AudioSampleBuffer> dataBuffers;
-	Array<int> wavetableSizes;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WavetableConverter)
-};
-
-class SampleMapToWavetableConverter : public SafeChangeBroadcaster
+class SampleMapToWavetableConverter : public SafeChangeBroadcaster,
+									  public Spectrum2D::Holder
 {
 public:
 
@@ -84,10 +47,17 @@ public:
     
 	enum class PhaseMode
 	{
+		Resample,
 		ZeroPhase,
 		StaticPhase,
-		StaticPhasePerNote,
 		DynamicPhase
+	};
+
+	enum class PreviewNoise
+	{
+		Mute,
+		Mix,
+		Solo
 	};
 
     struct WavetableIndex
@@ -99,6 +69,18 @@ public:
 
 		int sampleIndex = -1;
 		int noteNumber = -1;
+	};
+
+	struct StoreData
+	{
+		WavetableIndex sample;
+		Range<int> noteRange;
+
+		AudioSampleBuffer dataBuffer;
+		int numChannels = -1;
+		ValueTree parent;
+		double sampleRate = -1.0;
+		int numParts = -1;
 	};
 
 	struct HarmonicMap
@@ -120,9 +102,7 @@ public:
 
 		void clear(int numSlices, int numHarmonics = 0);
 
-		void replaceWithNeighbours(int harmonicIndex);
-
-		void replaceInternal(int harmonicIndex, bool useRightChannel);
+		
 
         AudioSampleBuffer harmonicPhase;
         AudioSampleBuffer harmonicPhaseRight;
@@ -141,11 +121,18 @@ public:
 		bool analysed = false;
 		Range<int> noteRange;
 
+		double fileSampleRate = 0.0;
+		double lorisResynRatio = 1.0;
+		AudioSampleBuffer lorisResynBuffer;
+
+		AudioSampleBuffer noiseBuffer;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarmonicMap);
 	};
 
 	class Preview;
 	class SampleMapPreview;
+	class StatisticPreview;
 
 	SampleMapToWavetableConverter(ModulatorSynthChain* mainSynthChain);
 
@@ -155,22 +142,25 @@ public:
 		waveTableTree = ValueTree();
 	}
 
-	Result parseSampleMap(const File& sampleMapFile);
+	
+	void checkIfShouldExit();
 
-    Result parseSampleMap(const ValueTree& sampleMapTree);
+    void parseSampleMap(const ValueTree& sampleMapTree);
     
+	LambdaBroadcaster<Image*> spectrumBroadcaster;
+	
+	Spectrum2D::Parameters::Ptr s2dParameters;
+
+	Spectrum2D::Parameters::Ptr getParameters() const override;
+
 	ValueTree getValueTree()
 	{
 		return waveTableTree;
 	}
 
-	void renderAllWavetablesFromSingleWavetables(double& progress);
+	
 
-	void renderAllWavetablesFromHarmonicMaps(double& progress);
-
-	float* getPhaseData(const HarmonicMap& map, int sliceIndex, bool getRight);
-
-	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map, int noteNumber=-1);
+	Image originalSpectrum;
 
 	double sampleRate = 48000.0;
 	int numParts = 64;
@@ -179,7 +169,13 @@ public:
 	bool useOriginalGain = true;
 	bool channelToUse = 0;
 
-	Result refreshCurrentWavetable(double& progress, bool forceReanalysis = true);
+	PreviewNoise previewNoise = PreviewNoise::Mute;
+
+	SynthesiserSound::Ptr sound;
+
+	void discardAllScans();
+
+	void refreshCurrentWavetable(bool forceReanalysis = true);
 
 	void setCurrentIndex(int index, NotificationType n);
 
@@ -191,10 +187,7 @@ public:
 			currentIndex = jmax<int>(0, currentIndex - 1);
 	}
 
-	void replacePartOfCurrentMap(int index);
 	int getCurrentNoteNumber() const;
-
-	Result discardCurrentNoteAndUsePrevious();
 
 	const float* getCurrentGainValues() const
 	{
@@ -208,7 +201,7 @@ public:
 
 	AudioSampleBuffer getPreviewBuffers(bool original);
 
-    void rebuild(double* progress);
+    void rebuild();
     
 	static var getSampleProperty(const ValueTree& vt, const Identifier& id)
 	{
@@ -217,9 +210,43 @@ public:
 
     double offsetInSlice = 0.5;
     
-	PhaseMode phaseMode = PhaseMode::ZeroPhase;
+	PhaseMode phaseMode = PhaseMode::Resample;
+
+	int cycleLength = 0;
+	bool exportAsHwt = true;
+
+	ThreadController::Ptr threadController;
+
+	void exportAll();
+
+	void setLogFunction(const std::function<void(const String&)>& f)
+	{
+		logFunction = f;
+	}
+
+	String getPrefixFromNoiseMode(int noteNumber) const;
+
+	void setPreviewMode(PreviewNoise mode);
 
 private:
+
+	void rebuildPreviewBuffersInternal();
+
+	AudioSampleBuffer previewBuffer, originalBuffer;
+
+	AudioSampleBuffer removeHarmonicsAboveNyquistWithLoris(double ratio);
+
+	float* getPhaseData(const HarmonicMap& map, int sliceIndex, bool getRight);
+	AudioSampleBuffer calculateWavetableBank(const HarmonicMap& map, int noteNumber = -1);
+	void applyNoiseBuffer(const HarmonicMap& m, AudioSampleBuffer& tonalSignal);
+
+	std::function<void(const String&)> logFunction;
+
+	void renderAllWavetablesFromSingleWavetables(int sampleIndex=-1);
+	void renderAllWavetablesFromHarmonicMaps();
+
+	int currentOuterStep = 0;
+	int numOuterSteps = 0;
 
 	HarmonicMap * getCurrentMap()
 	{
@@ -229,34 +256,30 @@ private:
 		return nullptr;
 	}
 
-	Result calculateHarmonicMap(double* progress);
+	AudioSampleBuffer getResampledLorisBuffer(AudioSampleBuffer sourceBuffer, double r, int thisCycleLength, int realNoteNumber);
 
-	int currentIndex = 0;
+	void calculateHarmonicMap();
+
+	
+
+	int currentIndex = -1;
 
 	OwnedArray<HarmonicMap> harmonicMaps;
 
-
-	void storeData(int noteNumber, Range<int> noteRange, float** data, int numChannels, ValueTree& treeToSave, int length, int numPartsToUse=-1);
+	void storeData(StoreData& data);
 
 	
 
 	int getSampleIndexForNoteNumber(int noteNumber);
 
-	Result readSample(AudioSampleBuffer& buffer, int index, int noteNumber);
-
-	Result loadSampleMapFromFile(File sampleMapFile);
-
+	void readSample(AudioSampleBuffer& buffer, int index, int noteNumber);
 
 	ModulatorSynthChain* chain;
 
 	ValueTree sampleMap;
-
 	ValueTree waveTableTree;
 	
 	int currentSampleLength = 0;
-
-	
-    
 	AudioFormatManager afm;
 };
 

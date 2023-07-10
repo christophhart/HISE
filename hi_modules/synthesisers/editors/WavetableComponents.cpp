@@ -34,8 +34,201 @@ namespace hise {
 using namespace juce;
 
 
+WaterfallComponent::WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_) :
+	SimpleTimer(mc->getGlobalUIUpdater()),
+	ControlledObject(mc),
+	sound(sound_)
+{
+	start();
+	setOpaque(true);
+}
 
 
+
+
+void WaterfallComponent::rebuildPaths()
+{
+	Array<Path> newPaths;
+
+	if (auto first = sound.get())
+	{
+		auto numTables = first->getWavetableAmount();
+		const auto realNumTables = numTables;
+
+		int tableStride = jmax(1, numTables / 64);
+		numTables = jmin(numTables, 64);
+
+		auto size = first->getTableSize();
+
+		stereo = first->isStereo();
+
+		if (stereo)
+			size *= 2;
+
+		auto b = getLocalBounds().reduced(5).toFloat();
+
+		b.removeFromTop(numTables);
+		b.removeFromRight(numTables / 4);
+
+		auto stride = b.getWidth() / (float)size;
+
+		float maxGain = 0.0f;
+
+		for (int i = 0; i < numTables; i++)
+		{
+			maxGain = jmax(maxGain, first->getUnnormalizedGainValue(i));
+		}
+
+		HeapBlock<float> data;
+		data.calloc(size);
+
+		auto reversed = first->isReversed();
+
+		if (maxGain != 0.0f)
+		{
+			for (int pi = 0; pi < realNumTables; pi += tableStride)
+			{
+				Path p;
+
+				auto thisBounds = b.translated((float)pi*0.25f / (float)tableStride, -pi / (float)tableStride);
+
+				auto tableIndex = reversed ? (realNumTables - pi - 1) : pi;
+
+				auto l = first->getWaveTableData(0, tableIndex);
+				FloatVectorOperations::copy(data.get(), l, first->getTableSize());
+
+				if (stereo)
+				{
+					auto r = first->getWaveTableData(1, tableIndex);
+					FloatVectorOperations::copy(data.get() + first->getTableSize(), r, first->getTableSize());
+				}
+
+				p.startNewSubPath(thisBounds.getX(), thisBounds.getCentreY());
+
+				auto gain = first->getUnnormalizedGainValue(tableIndex);
+
+				if (gain == 0.0f)
+					continue;
+
+				//gain /= maxGain;
+
+				gain = 1.0f / gain;
+				//gain = hmath::pow(maxGain, 0.8f);
+
+				for (int i = 0; i < b.getWidth(); i += 2)
+				{
+					auto uptime = ((float)i / thisBounds.getWidth()) * (float)size;
+
+
+
+					int pos = (int)uptime;
+					pos = jlimit(0, size - 1, pos);
+
+					int nextPos = jlimit(0, size - 1, pos+1);
+
+					auto alpha = uptime - (float)pos;
+
+					auto value = Interpolator::interpolateLinear(data[pos], data[nextPos], alpha);
+
+					p.lineTo(thisBounds.getX() + (float)i,
+						thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - value * gain));
+				}
+
+				p.lineTo(thisBounds.getRight(), thisBounds.getCentreY());
+
+				newPaths.add(p);
+			}
+		}
+	}
+
+	std::swap(paths, newPaths);
+	repaint();
+}
+
+void WaterfallComponent::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF222222));
+
+	g.setColour(Colours::white.withAlpha(0.05f));
+	g.drawRect(getLocalBounds().toFloat(), 1.0f);
+
+	if (paths.isEmpty())
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawText("No preview available", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+
+	float alpha = 1.0f;
+
+	int idx = 0;
+
+	for (const auto& p : paths)
+	{
+		float thisAlpha = 1.0f - jlimit(0.0f, 1.0f, (float)hmath::abs(idx - currentIndex) / (float)(paths.size()));
+
+		thisAlpha = jmax(0.08f, hmath::pow(thisAlpha, 8.0f)*0.5f);
+		thisAlpha *= alpha;
+
+		if (idx == currentIndex)
+		{
+			thisAlpha = 1.0f;
+
+			if (stereo)
+			{
+				g.setColour(Colours::white.withAlpha(0.5f));
+				p.getBounds();
+
+
+				g.setFont(GLOBAL_BOLD_FONT());
+				auto pb = p.getBounds();
+
+				g.drawText("L    R", pb, Justification::centredTop);
+				g.drawVerticalLine(pb.getCentreX(), pb.getY(), pb.getBottom());
+			}
+
+		}
+
+		if (idx != currentIndex && (idx % 2) != 0)
+		{
+			idx++;
+			continue;
+		}
+
+		auto c = Colours::white.withAlpha(thisAlpha);
+
+		g.setColour(c);
+		alpha *= 0.988f;
+		g.strokePath(p, PathStrokeType(idx == currentIndex ? 2.0f : 1.0f));
+
+		idx++;
+	}
+}
+
+void WaterfallComponent::timerCallback()
+{
+	if (!displayDataFunction)
+		jassertfalse;
+
+	auto df = displayDataFunction();
+
+	float modValue = df.modValue;
+
+	auto thisIndex = roundToInt(modValue * (paths.size() - 1));
+
+	if (sound != df.sound)
+	{
+		sound = df.sound;
+		rebuildPaths();
+	}
+
+	if (currentIndex != thisIndex)
+	{
+		currentIndex = thisIndex;
+		repaint();
+	}
+}
 
 #if USE_BACKEND
 
@@ -54,50 +247,49 @@ SampleMapToWavetableConverter::Preview::~Preview()
 
 void SampleMapToWavetableConverter::Preview::mouseMove(const MouseEvent& event)
 {
-	hoverIndex = getHoverIndex(event.getMouseDownX());
 	repaint();
 }
 
 void SampleMapToWavetableConverter::Preview::mouseEnter(const MouseEvent& /*event*/)
 {
-	setMouseCursor(MouseCursor::CrosshairCursor);
 }
 
 void SampleMapToWavetableConverter::Preview::mouseExit(const MouseEvent& /*event*/)
 {
-	setMouseCursor(MouseCursor::NormalCursor);
-
-	hoverIndex = -1;
 	repaint();
 }
 
 void SampleMapToWavetableConverter::Preview::mouseDown(const MouseEvent& event)
 {
-	int index = getHoverIndex(event.getMouseDownX());
-
-	parent.replacePartOfCurrentMap(index);
-
-	rebuildMap(); 
 }
 
 void SampleMapToWavetableConverter::Preview::updateGraphics()
 {
-	rebuildMap();
+	repaint();
 }
 
-int SampleMapToWavetableConverter::Preview::getHoverIndex(int xPos) const
-{
-	int index = (int)((float)xPos / (float)getWidth() * (float)parent.numParts);
-	index = jlimit<int>(0, parent.numParts, index);
 
-	return index;
-}
 
 
 
 void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xFF222222));
+
+	if (spectrumImage.isValid())
+	{
+		g.drawImageWithin(spectrumImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+		return;
+	}
+	else
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawText("No preview available", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+
+#if 0
     float rectWidth = (float)getWidth() / (float)parent.numParts;
 
 	for (auto& r : harmonicList)
@@ -120,86 +312,63 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 		g.setColour(co);
 		g.fillRect(r.area);
 	}
-
-	if (hoverIndex != -1)
-	{
-		auto area = Rectangle<float>((float)(hoverIndex * rectWidth), 0, rectWidth, (float)getHeight());
-		g.setColour(Colours::red.withAlpha(0.1f));
-		g.fillRect(area);
-	}
-
-	//g.setColour(Colour(0xff7559a4).withAlpha(0.4f));
-	//g.strokePath(p, PathStrokeType(2.0f));
+#endif
 }
 
+#if 0
 void SampleMapToWavetableConverter::Preview::rebuildMap()
 {
-	float rectWidth = (float)getWidth() / (float)parent.numParts;
-	float rectHeight = 0.0f;
 
-	const auto& currentMap = *parent.getCurrentMap();
-
-	int numHarmonics = currentMap.harmonicGains.getNumSamples();
-
-	if (numHarmonics != 0)
+	if (const auto currentMap = parent.getCurrentMap())
 	{
-		rectHeight = (float)getHeight() / (float)numHarmonics;
-	}
+		int numHarmonics = currentMap->harmonicGains.getNumSamples();
 
-	float x = 0.0f;
+		float rectWidth = (float)getWidth() / (float)currentMap->harmonicGains.getNumChannels();
+		float rectHeight = 0.0f;
 
-
-
-	harmonicList.clear();
-	
-
-	for (int j = 0; j < currentMap.harmonicGains.getNumChannels(); j++)
-	{
-		float y = 0.0f;
-
-		for (int i = 0; i < currentMap.harmonicGains.getNumSamples(); i++)
+		if (numHarmonics != 0)
 		{
-			float gainL = currentMap.harmonicGains.getSample(j, i);
-			float gainR = currentMap.harmonicGainsRight.getNumSamples() > 0 ? currentMap.harmonicGainsRight.getSample(j, i) : gainL;
-
-			gainL = powf(gainL, 0.25f);
-			gainR = powf(gainR, 0.25f);
-
-			auto area = Rectangle<float>(x, (float)getHeight() - y, rectWidth, rectHeight);
-
-			Harmonic l;
-			
-			l.area = area;
-			l.lGain = gainL;
-			l.rGain = gainR;
-
-			harmonicList.add(l);
-			
-			y += rectHeight;
+			rectHeight = (float)getHeight() / (float)numHarmonics;
 		}
 
-		x += rectWidth;
-	}
+		float x = 0.0f;
 
-	p.clear();
+		harmonicList.clear();
 
-	p.startNewSubPath(0.0f, (float)getHeight() / 2.0f);
 
-	for (int i = 0; i < parent.numParts; i++)
-	{
-		auto deviation = jlimit<float>(-100.0f, 100.0f, (float)currentMap.pitchDeviations[i]);
+		for (int j = 0; j < currentMap->harmonicGains.getNumChannels(); j++)
+		{
+			float y = 0.0f;
 
-        deviation = FloatSanitizers::sanitizeFloatNumber(deviation);
-        
-		auto scaled = deviation / 100.0 * (float)getHeight() / 2.0f + getHeight() / 2.0f;
+			for (int i = 0; i < currentMap->harmonicGains.getNumSamples(); i++)
+			{
+				float gainL = currentMap->harmonicGains.getSample(j, i);
+				float gainR = currentMap->harmonicGainsRight.getNumSamples() > 0 ? currentMap->harmonicGainsRight.getSample(j, i) : gainL;
 
-		p.lineTo((float)i*rectWidth, (float)scaled);
-	}
+				gainL = powf(gainL, 0.25f);
+				gainR = powf(gainR, 0.25f);
 
-	p.lineTo((float)getWidth(), (float)getHeight() / 2.0f);
+				auto area = Rectangle<float>(x, (float)getHeight() - y, rectWidth, rectHeight);
 
-	repaint();
+				Harmonic l;
+
+				l.area = area;
+				l.lGain = gainL;
+				l.rGain = gainR;
+
+				harmonicList.add(l);
+
+				y += rectHeight;
+			}
+
+			x += rectWidth;
+		}
+
+		repaint();
+	}	
+
 }
+#endif
 
 void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 {
@@ -221,7 +390,10 @@ void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 
 void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 {
-	g.setColour(Colours::white.withAlpha(0.1f));
+	g.fillAll(Colour(0xFF222222));
+	g.setColour(Colours::white.withAlpha(0.05f));
+
+	g.drawRect(getLocalBounds(), 1.0f);
 
 	int widthPerNote = getWidth() / 128;
 	int x = 0;
@@ -232,11 +404,18 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 		x += widthPerNote;
 	}
 
+	if (samples.isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("No samplemap loaded", getLocalBounds().toFloat(), Justification::centred);
+	}
+
 	for (auto& s : samples)
 	{
 		Colour c = s.index == parent.getCurrentMap()->index.sampleIndex ? Colour(SIGNAL_COLOUR) : Colours::grey;
 
-		g.setColour(c.withAlpha(s.index == hoverIndex ? 0.8f : 0.4f));
+		g.setColour(c.withAlpha(s.index == hoverIndex ? 0.6f : 0.5f));
 
 		if (s.area.getHeight() > 0)
 		{
@@ -248,10 +427,14 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 
 		if (l > parent.mipmapSize)
 		{
-			for (int i = s.keyRange.getStart(); i < l; i += parent.mipmapSize)
+			bool bright = true;
+			for (int i = s.keyRange.getStart(); i < s.keyRange.getEnd(); i += parent.mipmapSize)
 			{
-				int w = jmin(l - i, parent.mipmapSize);
-				g.setColour(Colours::red.withHue(Random::getSystemRandom().nextFloat()).withAlpha(0.05f));
+				bright = !bright;
+
+				auto w = jmin(parent.mipmapSize, s.keyRange.getEnd() - i);
+
+				g.setColour((bright ? Colours::white : Colours::black).withAlpha(0.03f));
 				
 				g.fillRect(i * widthPerNote, s.area.getY(), w * widthPerNote, s.area.getHeight());
 			}
@@ -267,7 +450,7 @@ void SampleMapToWavetableConverter::SampleMapPreview::mouseDown(const MouseEvent
 	{
 		if (s.area.contains(e.getPosition()))
 		{
-			parent.setCurrentIndex(s.index, sendNotification);
+			indexBroadcaster.sendMessage(sendNotificationSync, s.index);
 			repaint();
 			break;
 		}
@@ -304,6 +487,9 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 }
 
 #endif
+
+
+
 
 
 

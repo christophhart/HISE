@@ -55,6 +55,8 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	parameterNames.add("HqMode");
 	parameterNames.add("LoadedBankIndex");
 	parameterNames.add("TableIndexValue");
+	parameterNames.add("RefreshMipmap");
+
 	editorStateIdentifiers.add("TableIndexChainShown");
 
 	for (int i = 0; i < numVoices; i++) 
@@ -346,10 +348,9 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	r.render(currentSound, voiceUptime, [owner](int startSample) { return owner->getTotalTableModValue(startSample); });
 
-	if (hqMode)
+	if (refreshMipmap)
 	{
 		auto pf = voicePitchValues != nullptr ? voicePitchValues[startIndex + samplesToCopy / 2] : (uptimeDelta / startUptimeDelta);
-
 		updateSoundFromPitchFactor(pf, nullptr);
 	}
 
@@ -433,7 +434,12 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
 	sampleRate = wavetableData.getProperty("sampleRate", 48000.0);
 
 	midiNotes.setRange(0, 127, false);
-	noteNumber = wavetableData.getProperty("noteNumber", 0);
+
+	if (wavetableData.hasProperty(SampleIds::Root))
+		noteNumber = (int)wavetableData[SampleIds::Root];
+	else
+		noteNumber = wavetableData.getProperty("noteNumber", 0);
+
 	midiNotes.setBit(noteNumber, true);
 
 	dynamicPhase = wavetableData.getProperty("dynamic_phase", false);
@@ -443,7 +449,7 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
         auto l = (int)wavetableData[SampleIds::LoKey];
         auto h = (int)wavetableData[SampleIds::HiKey];
         
-        midiNotes.setRange(l, h - l + 1, true);
+        midiNotes.setRange(l, h - l+1, true);
     }
     
 	wavetableSize = numSamples / wavetableAmount;
@@ -511,6 +517,29 @@ void WavetableSound::normalizeTables()
 }
 
 
+
+String WavetableSound::getMarkdownDescription() const
+{
+	String s;
+	String nl = "\n";
+
+	auto printProperty = [&s, &nl](const String& name, const var& value)
+	{
+		s << "**" << name << "**: `" << value.toString() << "`  " << nl;
+	};
+
+	s << "### Wavetable Data" << nl;
+
+	
+	printProperty("Wavetable Length", getTableSize());
+	printProperty("Wavetable Amount", getWavetableAmount());
+	printProperty("RootNote", MidiMessage::getMidiNoteName(getRootNote(), true, true, 3));
+	printProperty("Max Level", String(Decibels::gainToDecibels(getUnnormalizedMaximum()), 2) + " dB");
+	printProperty("Stereo", isStereo());
+	printProperty("Reversed", (bool)(int)isReversed());
+
+	return s;
+}
 
 void WavetableSound::RenderData::render(WavetableSound* currentSound, double& voiceUptime, const TableIndexFunction& tf)
 {
@@ -611,16 +640,7 @@ float WavetableSound::RenderData::calculateSample(const float* lowerTable, const
 			lowerSample = Interpolator::interpolateLinear(l1, l2, alpha);
 		}
 
-		if (dynamicPhase)
-		{
-			auto alpha1 = scriptnode::faders::rms().getFadeValue<0>(2, (double)tableAlpha);
-			auto alpha2 = scriptnode::faders::rms().getFadeValue<1>(2, (double)tableAlpha);
-			sample = alpha1 * lowerSample + alpha2 * upperSample;
-		}
-		else
-		{
-			sample = Interpolator::interpolateLinear(lowerSample, upperSample, tableAlpha);
-		}
+		sample = Interpolator::interpolateLinear(lowerSample, upperSample, tableAlpha);
 	}
 	else
 	{

@@ -87,7 +87,7 @@ public:
 	*/
 	const float *getWaveTableData(int channelIndex, int wavetableIndex) const;
 
-	float getUnnormalizedMaximum()
+	float getUnnormalizedMaximum() const
 	{
 		return unnormalizedMaximum;
 	}
@@ -132,6 +132,10 @@ public:
 		
 		return unnormalizedGainValues[tableIndex];
 	}
+
+	String getMarkdownDescription() const;
+
+	int getRootNote() const { return noteNumber; };
 
 	bool isStereo() const { return stereo; };
 
@@ -207,6 +211,11 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
+	void setRefreshMipmap(bool refreshMipmap_)
+	{
+		refreshMipmap = refreshMipmap_;
+	}
+
 	void setHqMode(bool useHqMode)
 	{
 		hqMode = useHqMode;
@@ -228,7 +237,8 @@ private:
     int noteNumberAtStart = 0;
     double startFrequency = 0.0;
 	
-	bool hqMode;
+	bool hqMode = true;
+	bool refreshMipmap = false;
 
 	float const *currentTable;
 };
@@ -255,6 +265,7 @@ public:
 		HqMode = ModulatorSynth::numModulatorSynthParameters,
 		LoadedBankIndex,
 		TableIndexValue,
+		RefreshMipmap,
 		numSpecialParameters
 	};
 
@@ -302,6 +313,7 @@ public:
 		loadAttribute(LoadedBankIndex, "LoadedBankIndex");
 		loadAttribute(HqMode, "HqMode");
 		loadAttributeWithDefault(TableIndexValue);
+		loadAttributeWithDefault(RefreshMipmap);
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -311,6 +323,7 @@ public:
 		saveAttribute(HqMode, "HqMode");
 		saveAttribute(LoadedBankIndex, "LoadedBankIndex");
 		saveAttribute(TableIndexValue, "TableIndexValue");
+		saveAttribute(RefreshMipmap, "RefreshMipMap");
 
 		return v;
 	}
@@ -372,18 +385,6 @@ public:
 
 	float getTotalTableModValue(int offset);
 
-#if 0
-	const float *getTableModValues(ChainIndex modIndex) const
-	{
-		return modChains[modIndex].getReadPointerForVoiceValues(0);
-	}
-
-	float getConstantTableModValue(ChainIndex modIndex) const noexcept
-	{
-		return modChains[modIndex].getConstantModulationValue();
-	}
-#endif
-
 	float getDefaultValue(int parameterIndex) const override
 	{
 		if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getDefaultValue(parameterIndex);
@@ -391,6 +392,7 @@ public:
 		switch (parameterIndex)
 		{
 		case HqMode: return 1.0f;
+		case RefreshMipmap: return 0.0f;
 		case LoadedBankIndex: return -1.0f;
 		case TableIndexValue: return 1.0f;
 		default: jassertfalse; return 0.0f;
@@ -404,6 +406,7 @@ public:
 		switch(parameterIndex)
 		{
 		case HqMode:		return hqMode ? 1.0f : 0.0f;
+		case RefreshMipmap:		return refreshMipmap ? 1.0f : 0.0f;
 		case LoadedBankIndex: return (float)currentBankIndex;
 		case TableIndexValue: return tableIndexKnobValue.targetValue;
 		default:			jassertfalse; return -1.0f;
@@ -421,17 +424,29 @@ public:
 		switch(parameterIndex)
 		{
 		case HqMode:
+		{
+			ScopedLock sl(getMainController()->getLock());
+
+			hqMode = newValue > 0.5f;
+
+			for(int i = 0; i < getNumVoices(); i++)
 			{
-				ScopedLock sl(getMainController()->getLock());
-
-				hqMode = newValue == 1.0f;
-
-				for(int i = 0; i < getNumVoices(); i++)
-				{
-					static_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
-				}
-				break;
+				static_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
 			}
+
+			break;
+		}
+		case RefreshMipmap:
+		{
+			refreshMipmap = newValue > 0.5f;
+
+			for (int i = 0; i < getNumVoices(); i++)
+			{
+				static_cast<WavetableSynthVoice*>(getVoice(i))->setRefreshMipmap(hqMode);
+			}
+
+			break;
+		}
 		case TableIndexValue:
 			tableIndexKnobValue.set(jlimit(0.0f, 1.0f, newValue));
 
@@ -480,7 +495,10 @@ private:
 
 	int currentBankIndex = 0;
 
-	bool hqMode;
+	bool hqMode = true;
+	bool refreshMipmap = false;
+
+	friend class WavetableSynthVoice;
 
 	ModulatorChain* tableIndexChain;
 	ModulatorChain* tableIndexBipolarChain;

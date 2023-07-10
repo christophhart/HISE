@@ -54,6 +54,7 @@ public:
 	void updateGui() override
 	{
 		hiqButton->updateValue();
+		mipmapButton->updateValue();
 		wavetableSelector->updateValue();
 		tableSlider->updateValue();
 
@@ -81,6 +82,7 @@ private:
     ScopedPointer<Label> voiceAmountEditor;
     ScopedPointer<Label> fadeTimeEditor;
     ScopedPointer<HiToggleButton> hiqButton;
+	ScopedPointer<HiToggleButton> mipmapButton;
     ScopedPointer<Label> voiceAmountLabel2;
     
     ScopedPointer<Label> voiceAmountLabel3;

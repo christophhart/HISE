@@ -24,201 +24,7 @@ namespace hise { using namespace juce;
 #include "WavetableBody.h"
 
 
-struct WaterfallComponent : public Component,
-	public PooledUIUpdater::SimpleTimer
-{
-	WaterfallComponent(WavetableBody& parent_) :
-		SimpleTimer(parent_.getProcessor()->getMainController()->getGlobalUIUpdater()),
-		parent(parent_)
-	{
-		owner = dynamic_cast<WavetableSynth*>(parent.getProcessor());
-		start();
-		setOpaque(true);
-	}
 
-	void rebuildPaths()
-	{
-		if (auto first = static_cast<WavetableSound*>(owner->getSound(0)))
-		{
-			auto numTables = first->getWavetableAmount();
-			const auto realNumTables = numTables;
-
-			int tableStride = jmax(1, numTables / 64);
-			numTables = jmin(numTables, 64);
-
-			
-
-			auto size = first->getTableSize();
-
-			stereo = first->isStereo();
-
-			if (stereo)
-				size *= 2;
-
-			Array<Path> newPaths;
-
-			auto b = getLocalBounds().reduced(5).toFloat();
-
-			b.removeFromTop(numTables);
-			b.removeFromRight(numTables/4);
-
-			auto stride = b.getWidth() / (float)size;
-
-			float maxGain = 0.0f;
-
-			for (int i = 0; i < numTables; i++)
-			{
-				maxGain = jmax(maxGain, first->getUnnormalizedGainValue(i));
-			}
-
-			HeapBlock<float> data;
-			data.calloc(size);
-
-			auto reversed = first->isReversed();
-
-			if (maxGain != 0.0f)
-			{
-				for (int pi = 0; pi < realNumTables; pi += tableStride)
-				{
-					Path p;
-
-					auto thisBounds = b.translated((float)pi*0.25f / (float)tableStride, -pi / (float)tableStride);
-
-					auto tableIndex = reversed ? (realNumTables - pi - 1) : pi;
-
-					auto l = first->getWaveTableData(0, tableIndex);
-					FloatVectorOperations::copy(data.get(), l, first->getTableSize());
-
-					if (stereo)
-					{
-						auto r = first->getWaveTableData(1, tableIndex);
-						FloatVectorOperations::copy(data.get() + first->getTableSize(), r, first->getTableSize());
-					}
-
-					p.startNewSubPath(thisBounds.getX(), thisBounds.getCentreY());
-
-					auto gain = first->getUnnormalizedGainValue(tableIndex);
-
-					if (gain == 0.0f)
-						continue;
-
-					//gain /= maxGain;
-
-					gain = 1.0f / gain;
-					//gain = hmath::pow(maxGain, 0.8f);
-
-					for (int i = 0; i < b.getWidth(); i += 2)
-					{
-						int pos = ((float)i / thisBounds.getWidth()) * (float)size;
-						pos = jlimit(0, size - 1, pos);
-
-						p.lineTo(thisBounds.getX() + (float)i,
-							thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - data[pos] * gain));
-					}
-
-					p.lineTo(thisBounds.getRight(), thisBounds.getCentreY());
-
-					newPaths.add(p);
-				}
-			}
-
-			
-
-			std::swap(paths, newPaths);
-		}
-
-		repaint();
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colour(0xFF222222));
-
-		g.setColour(Colours::white.withAlpha(0.05f));
-		g.drawRect(getLocalBounds().toFloat(), 1.0f);
-
-		float alpha = 1.0f;
-
-		int idx = 0;
-
-		for (const auto& p : paths)
-		{
-			float thisAlpha = 1.0f - jlimit(0.0f, 1.0f, (float)hmath::abs(idx - currentIndex) / (float)(paths.size()));
-
-			thisAlpha = jmax(0.08f, hmath::pow(thisAlpha, 8.0f)*0.5f);
-
-			thisAlpha *= alpha;
-
-			if (idx == currentIndex)
-			{
-				thisAlpha = 1.0f;
-
-				p.getBounds();
-
-				g.setColour(Colours::white.withAlpha(0.5f));
-				g.setFont(GLOBAL_BOLD_FONT());
-				auto pb = p.getBounds();
-
-				g.drawText("L    R", pb, Justification::centredTop);
-				g.drawVerticalLine(pb.getCentreX(), pb.getY(), pb.getBottom());
-			}
-				
-
-
-
-			if (idx != currentIndex && (idx % 2) != 0)
-			{
-				idx++;
-				continue;
-			}
-
-			auto c = Colours::white.withAlpha(thisAlpha);
-
-			g.setColour(c);
-			alpha *= 0.988f;
-			g.strokePath(p, PathStrokeType(idx == currentIndex ? 2.0f : 1.0f));
-
-			idx++;
-		}
-	}
-
-	void resized() override
-	{
-		rebuildPaths();
-	}
-
-	void timerCallback() override
-	{
-		auto modValue = owner->getDisplayTableValue();
-
-		auto thisIndex = roundToInt(modValue * (paths.size() - 1));
-
-		auto thisBank = (int)owner->getAttribute(WavetableSynth::LoadedBankIndex);
-
-		if (thisBank != currentBank)
-		{
-			rebuildPaths();
-			currentBank = thisBank;
-		}
-
-		if (currentIndex != thisIndex)
-		{
-			currentIndex = thisIndex;
-			repaint();
-		}
-	}
-
-	int currentIndex = -1;
-	int currentBank = -1;
-	bool stereo = false;
-
-	Array<Path> paths;
-
-	WavetableSynth* owner;
-
-
-	WavetableBody& parent;
-};
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 //[/MiscUserDefs]
@@ -278,6 +84,12 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     hiqButton->addListener (this);
     hiqButton->setColour (ToggleButton::textColourId, Colours::white);
 
+	addAndMakeVisible(mipmapButton = new HiToggleButton("Refresh Mipmap"));
+	mipmapButton->setTooltip(TRANS("Updates the mipmap sound when the pitch modulation goes outside the frequency range to avoid aliasing"));
+	mipmapButton->setButtonText(TRANS("Refresh Mipmap"));
+	mipmapButton->addListener(this);
+	mipmapButton->setColour(ToggleButton::textColourId, Colours::white);
+
     addAndMakeVisible (voiceAmountLabel2 = new Label ("new label",
                                                       TRANS("Gain Values")));
     voiceAmountLabel2->setFont (Font ("Khmer UI", 13.00f, Font::plain).withTypefaceStyle ("Regular"));
@@ -316,12 +128,34 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setFont (GLOBAL_FONT());
 
 	hiqButton->setup(getProcessor(), WavetableSynth::HqMode, "HQ");
+	mipmapButton->setup(getProcessor(), WavetableSynth::RefreshMipmap, "Refresh Mipmap");
 
 	wavetableSelector->setup(getProcessor(), WavetableSynth::LoadedBankIndex, "Loaded Wavetable");
 
+	WeakReference<Processor> owner = getProcessor();
+
 	wavetableSelector->addItemList(dynamic_cast<WavetableSynth*>(getProcessor())->getWavetableList(), 1);
 
-	addAndMakeVisible(waterfall = new WaterfallComponent(*this));
+	auto wv = new WaterfallComponent(getProcessor()->getMainController(), nullptr);
+
+	wv->displayDataFunction = [owner]()
+	{
+		WaterfallComponent::DisplayData d;
+
+		if (owner.get() != nullptr)
+		{
+			auto ws = dynamic_cast<WavetableSynth*>(owner.get());
+
+			d.sound = dynamic_cast<WavetableSound*>(ws->getSound(0));
+			d.modValue = ws->getDisplayTableValue();
+		}
+		
+		return d;
+	};
+
+	addAndMakeVisible(waterfall = wv);
+
+	
 
     //[/UserPreSize]
 
