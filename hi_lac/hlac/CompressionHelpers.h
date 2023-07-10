@@ -233,7 +233,7 @@ struct CompressionHelpers
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */
-	static AudioSampleBuffer loadFile(const File& f, double& speed);;
+	static AudioSampleBuffer loadFile(const File& f, double& speed, double* sampleRatePtr=nullptr);;
 
 	static float getFLACRatio(const File& f, double& speed);
 

@@ -740,6 +740,11 @@ int MainController::getPreviewBufferPosition() const
 	return previewBufferIndex;
 }
 
+int MainController::getPreviewBufferSize() const
+{
+	return previewBuffer.getNumSamples();
+}
+
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
 	keyboardState.setColourForSingleKey(keyNumber, colour);

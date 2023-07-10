@@ -1612,6 +1612,8 @@ public:
 
 	int getPreviewBufferPosition() const;
 
+	int getPreviewBufferSize() const;
+
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();

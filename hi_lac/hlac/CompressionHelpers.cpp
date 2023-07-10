@@ -199,7 +199,7 @@ void CompressionHelpers::AudioBufferInt16::deAllocate()
 	}
 }
 
-AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
+AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed, double* sampleRatePtr)
 {
 	if (!f.existsAsFile())
 	{
@@ -228,6 +228,9 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 		reader->read(&b, 0, (int)reader->lengthInSamples, 0, true, true);
 		double stop = Time::getMillisecondCounterHiRes();
 		
+		if (sampleRatePtr != nullptr)
+			*sampleRatePtr = reader->sampleRate;
+
 		double sampleLength = reader->lengthInSamples / reader->sampleRate;
 
 		double delta = (stop - start) / 1000.0;
