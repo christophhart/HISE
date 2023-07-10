@@ -223,7 +223,8 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 		return String(filename).hashCode() * lineNumber;
 	}
 
-	struct Item : public ReferenceCountedObject
+	struct Item : public ReferenceCountedObject,
+                  public LiveCodePopup::ItemBase
 	{
 		using List = ReferenceCountedArray<Item>;
 		using Ptr = ReferenceCountedObjectPtr<Item>;
@@ -283,7 +284,7 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 			f.function = compiledFunction.function;
 		}
 
-		template <typename ReturnType> ReturnType evaluate(const Array<Argument>& args)
+		VariableStorage evaluate(const Array<Argument>& args) override
 		{
 			if (f)
 			{
@@ -302,11 +303,11 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 					lastValues[lastValueIndex++] = lastValue.toDouble();
 				}
 
-				return (ReturnType)lastValue;
+				return lastValue;
 			}
 			else
 			{
-				return (ReturnType)lastValue;
+				return lastValue;
 			}
 
 		}
@@ -694,6 +695,11 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 };
 
 LiveCodePopup::Data* LiveCodePopup::instance = nullptr;
+
+LiveCodePopup::ItemBase* LiveCodePopup::getItem(const String& expression, const char* file, int lineNumber, Types::ID returnType, const Array<Argument>& args)
+{
+    return getInstance()->getItem(expression, file, lineNumber, returnType, args).get();
+}
 
 snex::LiveCodePopup::Data* LiveCodePopup::getInstance()
 {

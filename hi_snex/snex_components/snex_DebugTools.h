@@ -435,18 +435,28 @@ struct LiveCodePopup
 		return { sym, v };
 	}
 
-	struct Data;
-	struct Editor;
+	
+	
+    struct ItemBase
+    {
+        virtual ~ItemBase() {};
+        
+        virtual VariableStorage evaluate(const Array<Argument>& args) = 0;
+    };
 
+    struct Data;
+    
 	static Data* instance;
 
 	static Data* getInstance();
 
+    static ItemBase* getItem(const String& expression, const char* file, int lineNumber, Types::ID returnType, const Array<Argument>& args);
+    
 	template <typename ReturnType> static ReturnType show(const String& expression, const char* file, int lineNumber, const Array<Argument>& args)
 	{
 		auto returnType = Types::Helpers::getTypeFromTypeId<ReturnType>();
-		auto item = getInstance()->getItem(expression, file, lineNumber, returnType, args);
-		return item->evaluate<ReturnType>(args);
+        auto item = getItem(expression, file, lineNumber, returnType, args);
+		return (ReturnType)item->evaluate(args);
 	}
 };
 
