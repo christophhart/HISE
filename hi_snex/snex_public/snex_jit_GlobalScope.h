@@ -147,6 +147,8 @@ struct DebugHandler
 
 	virtual void recompiled() {};
 
+	virtual void clearLogger() {};
+
 	/** Override this and change the behaviour for the handler depending on its supposed enablement. */
 	virtual void setEnabled(bool shouldBeEnabled)
 	{
@@ -401,7 +403,8 @@ private:
 	You have to pass a reference to an object of this scope to the Compiler.
 */
 class GlobalScope : public FunctionClass,
-	public BaseScope
+				    public BaseScope,
+					public AsyncUpdater
 {
 public:
 
@@ -591,7 +594,15 @@ public:
     
     bool isUsingInterpreter() const { return interpreterMode; }
     
+	void clearDebugMessages();
+
 private:
+
+	void handleAsyncUpdate();
+
+	bool clearNext = false;
+	hise::SimpleReadWriteLock messageLock;
+	Array<String> pendingMessages;
 
 	Map currentMap;
 

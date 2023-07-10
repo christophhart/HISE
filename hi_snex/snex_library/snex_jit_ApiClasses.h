@@ -77,6 +77,11 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, dump);
 	};
+
+	struct WrapperClear
+	{
+		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, clear);
+	};
 	
 	int print(int value, int lineNumber)
 	{
@@ -114,6 +119,14 @@ class ConsoleFunctions : public JitCallableObject
 			logAsyncIfNecessary(s);
 		}
 		return value;
+	}
+
+	void clear()
+	{
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
+		{
+			gs->clearDebugMessages();
+		}
 	}
 
 	static void dumpObject(void* consoleObject, int dumpedObjectIndex, void* dataPtr)
@@ -156,18 +169,10 @@ class ConsoleFunctions : public JitCallableObject
 		jassert(gs != nullptr);
 		jassert(gs->isDebugModeEnabled());
 
-		auto f = [this, s]()
-		{
-			if (gs != nullptr)
-				gs->logMessage(s + "\n");
-		};
+		if (gs != nullptr)
+			gs->logMessage(s + "\n");
 
-		if (MessageManager::getInstance()->isThisTheMessageThread())
-		{
-			f();
-		}
-		else
-			MessageManager::callAsync(f);
+		
 	}
 
 	static void blink(void* obj, int lineNumber)

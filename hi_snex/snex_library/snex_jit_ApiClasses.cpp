@@ -439,6 +439,13 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	}
 
 	{
+		auto f = createMemberFunction(Types::ID::Void, "clear", { });
+		f->setFunction(WrapperClear::clear);
+		addFunction(f);
+		setDescription("Dumps the current state of the class data", { });
+	}
+
+	{
 		auto f = createMemberFunction(Types::ID::Void, "dump", { });
 		f->setFunction(WrapperDump::dump);
 		addFunction(f);
