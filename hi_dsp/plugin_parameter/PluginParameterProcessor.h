@@ -142,8 +142,8 @@ auto busProp = BusesProperties();
 		return inputs == 2 && outputs == 2;
 #endif
 #else
-		bool isStereo = inputs == 2 && outputs == 2;
-        bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
+		bool isStereo = (inputs == 2 || inputs == 0) && outputs == 2;
+        bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS || inputs == 0) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
         return isStereo || isMultiChannel;
 #endif
     }
