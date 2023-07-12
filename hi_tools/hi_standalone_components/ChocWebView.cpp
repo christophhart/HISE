@@ -530,7 +530,13 @@ void WebViewWrapper::refreshBounds(float newScaleFactor)
 
 #if !JUCE_LINUX
 	if (webView != nullptr)
-		webView->resizeToFit(newScaleFactor);
+    {
+        Timer::callAfterDelay(50, [this, newScaleFactor]()
+        {
+            webView->resizeToFit(newScaleFactor);
+        });
+    }
+		
 #endif
 		
 	resized();
