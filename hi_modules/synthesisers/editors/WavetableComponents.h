@@ -70,7 +70,8 @@ protected:
 
 
 
-class SampleMapToWavetableConverter::SampleMapPreview : public WavetablePreviewBase
+class SampleMapToWavetableConverter::SampleMapPreview : public WavetablePreviewBase,
+														public juce::FileDragAndDropTarget
 {
 public:
 
@@ -88,6 +89,30 @@ public:
 
 	LambdaBroadcaster<int> indexBroadcaster;
 
+	bool isInterestedInFileDrag(const StringArray& files) override { return files.size() == 1 && MultiChannelAudioBufferDisplay::isAudioFile(files[0]); }
+
+	std::function<void(const ValueTree& v)> sampleMapLoadFunction;
+
+	void fileDragEnter(const StringArray& files, int x, int y) override
+	{
+		insertPosition = (x * 128) / getWidth();
+		repaint();
+	}
+
+	void fileDragMove(const StringArray& files, int x, int y) override
+	{
+		insertPosition = (x * 128) / getWidth();
+		repaint();
+	}
+
+	void fileDragExit(const StringArray& files) override
+	{
+		insertPosition = -1;
+		repaint();
+	}
+
+	void filesDropped(const StringArray& files, int x, int y) override;
+
 private:
 
 	struct Sample
@@ -102,14 +127,20 @@ private:
 		int rootNote;
 	};
 
+	int insertPosition = -1;
+
 	int hoverIndex = -1;
 	Array<Sample> samples;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMapPreview);
 };
 
 
 
 
-class SampleMapToWavetableConverter::Preview : public WavetablePreviewBase
+class SampleMapToWavetableConverter::Preview : public WavetablePreviewBase,
+											   public ControlledObject,
+											   public PooledUIUpdater::SimpleTimer
 {
 public:
 
@@ -125,6 +156,8 @@ public:
 
 	void paint(Graphics& g);
 
+	void timerCallback() override;
+
 	void setImageToShow(const Image& img)
 	{
 		spectrumImage = img;
@@ -133,28 +166,10 @@ public:
 
 private:
 
+	double previewPosition = -1.0;
 	Image spectrumImage;
 
-#if 0
-	int getHoverIndex(int xPos) const;
-
-
-	struct Harmonic
-	{
-		Rectangle<float> area;
-		float lGain = 0.0f;
-		float rGain = 0.0f;
-	};
-
-	void rebuildMap();
-
-	int hoverIndex = 0;
-
-	Array<Harmonic> harmonicList;
-	
-
-	Path p;
-#endif
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Preview);
 };
 
 
@@ -272,6 +287,7 @@ private:
 	ScopedPointer<WaterfallComponent> waterfall;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(CombinedPreview);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CombinedPreview);
 };
 
 #endif

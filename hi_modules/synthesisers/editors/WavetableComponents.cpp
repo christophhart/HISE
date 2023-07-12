@@ -39,10 +39,10 @@ using namespace juce;
 #if USE_BACKEND
 
 SampleMapToWavetableConverter::Preview::Preview(SampleMapToWavetableConverter& parent_) :
-	WavetablePreviewBase(parent_)
+	WavetablePreviewBase(parent_),
+	ControlledObject(parent_.chain->getMainController()),
+	SimpleTimer(getMainController()->getGlobalUIUpdater())
 {
-	
-
 	setName("Harmonic Map Preview");
 }
 
@@ -88,6 +88,18 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.5f));
 		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
+		if (previewPosition >= 0.0)
+		{
+			auto x = (float)previewPosition * (float)getWidth();
+
+			g.setColour(Colours::white.withAlpha(0.1f));
+
+			g.fillRect(x - 5.0f, 0.0, 10.0f, (float)getHeight());
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.fillRect(x - 1.0f, 0.0, 2.0f, (float)getHeight());
+		}
+
 		return;
 	}
 	else
@@ -124,6 +136,31 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 		g.fillRect(r.area);
 	}
 #endif
+}
+
+
+
+void SampleMapToWavetableConverter::Preview::timerCallback()
+{
+	auto numSamples = getMainController()->getPreviewBufferSize();
+
+	if (numSamples != 0)
+	{
+		auto thisPreviewPosition = (double)getMainController()->getPreviewBufferPosition() / (double)numSamples;
+		
+		if (previewPosition != thisPreviewPosition)
+		{
+			previewPosition = thisPreviewPosition;
+			repaint();
+		}
+	}
+	else
+	{
+		if (previewPosition != -1.0)
+			repaint();
+
+		previewPosition = -1.0;
+	}
 }
 
 #if 0
@@ -215,11 +252,34 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 		x += widthPerNote;
 	}
 
-	if (samples.isEmpty())
+	if (insertPosition != -1)
+	{
+		auto c = Colour(SIGNAL_COLOUR);
+		g.setColour(c.withAlpha(0.05f));
+		g.fillRect(getLocalBounds());
+
+		Rectangle<int> ip(insertPosition * (getWidth() / 128), 0, getWidth() / 128, getHeight());
+
+		g.setColour(c.withAlpha(0.2f));
+		g.fillRect(ip.toFloat());
+		g.setColour(c.withAlpha(0.6f));
+		g.drawRect(ip.toFloat(), 2.0f);
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		String message;
+
+		message << "Load sample with root note ";
+		message << MidiMessage::getMidiNoteName(insertPosition, true, true, 3);
+		message << "(" << roundToInt(48000.0 / MidiMessage::getMidiNoteInHertz(insertPosition)) << " cycle length)";
+
+		g.drawText(message, getLocalBounds().toFloat(), Justification::centred);
+	}
+	else if (samples.isEmpty())
 	{
 		g.setColour(Colours::white.withAlpha(0.7f));
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText("No samplemap loaded", getLocalBounds().toFloat(), Justification::centred);
+		g.drawText("Load samplemap or drop audio file", getLocalBounds().toFloat(), Justification::centred);
 	}
 
 	for (auto& s : samples)
@@ -279,6 +339,55 @@ void SampleMapToWavetableConverter::SampleMapPreview::mouseMove(const MouseEvent
 			break;
 		}
 	}
+}
+
+void SampleMapToWavetableConverter::SampleMapPreview::filesDropped(const StringArray& files, int x, int y)
+{
+	ValueTree v("samplemap");
+
+	double sr, unused;
+
+	File f(files[0]);
+
+	auto fileContent = hlac::CompressionHelpers::loadFile(f, unused, &sr);
+
+	auto numSamples = PitchDetection::getNumSamplesNeeded(sr, 20.0);
+
+	AudioSampleBuffer wb(2, numSamples);
+
+	auto estimatedFreq = MidiMessage::getMidiNoteInHertz(insertPosition);
+
+	auto pitch = PitchDetection::detectPitch(f, wb, sr, estimatedFreq);
+
+	if (pitch == 0.0)
+	{
+		PresetHandler::showMessageWindow("The root frequency can't be detected.", "The pitch detection failed to use the provided root note. Try another root note", PresetHandler::IconType::Error);
+		return;
+	}
+
+	auto length = roundToInt(sr / pitch);
+
+	ValueTree sample("sample");
+
+	PoolReference ref(parent.chain->getMainController(), f.getFullPathName(), FileHandlerBase::Samples);
+
+	sample.setProperty(SampleIds::FileName, ref.getReferenceString(), nullptr);
+	sample.setProperty(SampleIds::LoKey, 0, nullptr);
+	sample.setProperty(SampleIds::HiKey, 127, nullptr);
+	sample.setProperty(SampleIds::LoVel, 0, nullptr);
+	sample.setProperty(SampleIds::HiVel, 127, nullptr);
+
+	ResynthesisHelpers::writeRootAndPitch(sample, sr, length);
+
+	v.addChild(sample, -1, nullptr);
+	v.setProperty(SampleIds::ID, f.getFileNameWithoutExtension(), nullptr);
+	v.setProperty("SaveMode", 0, nullptr);
+
+	if (sampleMapLoadFunction)
+		sampleMapLoadFunction(v);
+
+	insertPosition = -1;
+	repaint();
 }
 
 SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree& data, Rectangle<int> totalArea)

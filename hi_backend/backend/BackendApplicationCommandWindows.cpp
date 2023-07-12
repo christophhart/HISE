@@ -649,7 +649,7 @@ This will analyse the sample and recreate every cycle with the correct phase inf
 
 		addCustomComponent(row1);
 
-		auto sm = new SampleMapToWavetableConverter::SampleMapPreview(*converter);
+		sm = new SampleMapToWavetableConverter::SampleMapPreview(*converter);
 		sm->setSize(768, 80);
 
 		addCustomComponent(sm);
@@ -662,22 +662,25 @@ This will analyse the sample and recreate every cycle with the correct phase inf
 		row2->getComponent<ComboBox>("sourcelength")->addListener(this);
 		row2->setInfoTextForLastComponent("Use this to define the wavetable length in the original wavefile (Automatic is trying to find the correct length using auto-corellation)  \n> This setting is only used by the **Resample** mode, if you're resynthesizing the sample it will detect the cycle length from the root frequency.");
 
-		row2->addComboBox("offset", { "0", "10%", "25%", "50%", "66%", "75%", "100%" }, "Transients", 92);
+		row2->addComboBox("offset", { "0", "10%", "25%", "50%", "66%", "75%", "100%" }, "Transients", 82);
 		row2->setInfoTextForLastComponent(WavetableHelp::Offset());
 
 		row2->getComponent<ComboBox>("offset")->setSelectedItemIndex(3, dontSendNotification);
 
-		row2->addComboBox("numSlices", { "1", "2", "8", "16", "32", "64", "128", "256" }, "Slices", 92);
+		row2->addComboBox("numSlices", { "1", "2", "8", "16", "32", "64", "128", "256" }, "Slices", 60);
 		row2->setInfoTextForLastComponent(WavetableHelp::Slices());
 		row2->getComponent<ComboBox>("numSlices")->setSelectedItemIndex(5, dontSendNotification);
 
 		row2->addCustomComponent(new Separator("Export"));
 
-		row2->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap Range"
+		row2->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap"
 			, 92);
 		row2->setInfoTextForLastComponent(WavetableHelp::MipmapSize());
 
-		row2->addComboBox("ReverseTables", { "No", "Yes" }, "Reverse Wavetable", 92);
+		row2->addComboBox("compression", { "No compression", "FLAC codec" }, "Compression", 92);
+		row2->setInfoTextForLastComponent("### Compression\nUsing the FLAC codec might decrease the file size on disk but increase the load time of wavetables");
+
+		row2->addComboBox("ReverseTables", { "No", "Yes" }, "Reverse", 72);
 		row2->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
 
 		row2->addComboBox("Noise", { "Mute", "Mix", "Solo" }, "Residual Noise", 100);
@@ -696,6 +699,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 
 		auto c = converter.get();
 
+		sm->sampleMapLoadFunction = BIND_MEMBER_FUNCTION_1(WavetableConverterDialog::loadSampleMap);
 
 		preview->waterfall->displayDataFunction = [c, chain_]()
 		{
@@ -784,10 +788,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 
 			auto b = parent.converter->getPreviewBuffers(lastPreview);
 
-			if (auto s = dynamic_cast<WavetableSound*>(parent.converter->sound.get()))
-			{
-				parent.soundProperty->setHelpText(s->getMarkdownDescription());
-			}
+			
 
 			parent.wait(50);
 			parent.chain->getMainController()->setBufferToPlay(b, BIND_MEMBER_FUNCTION_1(bl::previewUpdate));
@@ -910,6 +911,21 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 			ct->stopThread(1000);
 	}
 
+	void loadSampleMap(const ValueTree& v)
+	{
+		ValueTree copy(v);
+
+		runTask([this, copy]()
+		{
+			currentlyLoadedMap = copy[SampleIds::ID].toString();
+
+			converter->parseSampleMap(copy);
+			
+			showStatusMessage("Loaded map " + currentlyLoadedMap);
+			refreshPreview();
+		}, true);
+	}
+
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
 	{
 		if (comboBoxThatHasChanged->getName() == "mode")
@@ -924,31 +940,24 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 
 			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::rescan));
 		}
+		if (comboBoxThatHasChanged->getName() == "compression")
+		{
+			converter->useCompression = comboBoxThatHasChanged->getSelectedItemIndex();
+			return;
+		}
 		if (comboBoxThatHasChanged->getName() == "samplemap")
 		{
 			if (comboBoxThatHasChanged->getSelectedItemIndex() == 0)
 				return;
 
-			cancelCurrentTask();
+			auto& spool = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool();
 
- 			runTask([this, comboBoxThatHasChanged]()
+			PoolReference ref(chain->getMainController(), comboBoxThatHasChanged->getText(), FileHandlerBase::SampleMaps);
+
+			if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 			{
-				
-				auto& spool = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool();
-
-				PoolReference ref(chain->getMainController(), comboBoxThatHasChanged->getText(), FileHandlerBase::SampleMaps);
-
-				currentlyLoadedMap = ref.getFile().getFileNameWithoutExtension();
-
-				if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
-				{
-					converter->parseSampleMap(*vData.getData());
-				}
-
-				showStatusMessage("Loaded map " + currentlyLoadedMap);
-
-				refreshPreview();
-			});
+				loadSampleMap(vData->data);
+			}
 
 			return;
 		}
@@ -1095,6 +1104,11 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 	{
 		stopThread();
 
+		if (auto s = dynamic_cast<WavetableSound*>(converter->sound.get()))
+		{
+			soundProperty->setHelpText(s->getMarkdownDescription());
+		}
+
 		if (done)
 		{
 			PresetHandler::showMessageWindow("Conversion OK", "Wavetable saved to " + currentFile.getFileName());
@@ -1110,6 +1124,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 	Result r;
 
 	ScopedPointer<CombinedPreview> preview;
+	ScopedPointer<SampleMapToWavetableConverter::SampleMapPreview> sm;
 
     bool rebuildPending = false;
 	
@@ -1405,8 +1420,6 @@ public:
 
 		wavetableFiles.sort();
 
-		
-		
 		size_t numBytes = 0;
 
 		for (auto wv : wavetableFiles)
