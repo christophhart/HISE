@@ -2436,7 +2436,7 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 #if USE_BACKEND
 		auto& h = GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
-		addComboBox("rhapsody", { "HXI Full Instrument Expansion", "Rhapsody Player Expansion", "HISE Project Archive" }, "Export Format");
+		addComboBox("rhapsody", { "HXI Full Instrument Expansion", "Rhapsody Player Library", "HISE Project Archive" }, "Export Format");
 		getComboBoxComponent("rhapsody")->setSelectedItemIndex((int)exportMode, dontSendNotification);
 
 		if (mc->getExpansionHandler().getEncryptionKey().isEmpty())
