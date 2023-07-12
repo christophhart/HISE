@@ -215,12 +215,16 @@ void WavetableBody::resized()
 	fadeTimeLabel->setBounds(t.removeFromLeft(64));
 	voiceAmountLabel->setBounds(t.removeFromLeft(64));
 
+	
+
 	auto l = leftTab.removeFromTop(16);
 
 	fadeTimeEditor->setBounds(l.removeFromLeft(64));
 	voiceAmountEditor->setBounds(l.removeFromLeft(64));
 
-	
+	leftTab.removeFromTop(Margin);
+
+	mipmapButton->setBounds(leftTab.removeFromTop(28));
 
 	b.removeFromLeft(Margin);
 

@@ -1250,7 +1250,7 @@ void WaterfallComponent::rebuildPaths()
 		auto numTables = first->getWavetableAmount();
 		const auto realNumTables = numTables;
 
-		int tableStride = jmax(1, numTables / 64);
+		float tableStride = jmax(1.0f, (float)numTables / 64.0f);
 		numTables = jmin(numTables, 64);
 
 		auto size = first->getTableSize();
@@ -1281,13 +1281,13 @@ void WaterfallComponent::rebuildPaths()
 
 		if (maxGain != 0.0f)
 		{
-			for (int pi = 0; pi < realNumTables; pi += tableStride)
+			for (float pi = 0.0f; pi < realNumTables; pi += tableStride)
 			{
 				Path p;
 
-				auto thisBounds = b.translated((float)pi* displacement.getX() / (float)tableStride, -1.0f * displacement.getY() * pi / (float)tableStride);
+				auto thisBounds = b.translated((float)pi* displacement.getX() / (float)tableStride, -1.0f * displacement.getY() * pi / tableStride);
 
-				auto tableIndex = reversed ? (realNumTables - pi - 1) : pi;
+				auto tableIndex = reversed ? (realNumTables - (int)pi - 1) : (int)pi;
 
 				auto l = first->getWaveTableData(0, tableIndex);
 				FloatVectorOperations::copy(data.get(), l, first->getTableSize());
@@ -1297,6 +1297,9 @@ void WaterfallComponent::rebuildPaths()
 					auto r = first->getWaveTableData(1, tableIndex);
 					FloatVectorOperations::copy(data.get() + first->getTableSize(), r, first->getTableSize());
 				}
+
+				p.startNewSubPath(thisBounds.getX(), thisBounds.getY());
+				p.startNewSubPath(thisBounds.getX(), thisBounds.getBottom());
 
 				p.startNewSubPath(thisBounds.getX(), thisBounds.getCentreY());
 
@@ -1324,6 +1327,8 @@ void WaterfallComponent::rebuildPaths()
 					auto alpha = uptime - (float)pos;
 
 					auto value = Interpolator::interpolateLinear(data[pos], data[nextPos], alpha);
+
+					jassert(hmath::abs(value) <= 1.0f);
 
 					p.lineTo(thisBounds.getX() + (float)i,
 						thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - value * gain));

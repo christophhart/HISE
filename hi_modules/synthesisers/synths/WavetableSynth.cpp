@@ -561,11 +561,10 @@ void WavetableSound::RenderData::render(WavetableSound* currentSound, double& vo
 		i[2] = (index + 1) & (tableSize - 1);
 		i[3] = (index + 2) & (tableSize - 1);
 #else
-		const auto i[1] = index % (tableSize);
-
-		auto i[2] = i[1] + 1;
-		auto i[0] = i[1] - 1;
-		auto i[3] = i[1] + 2;
+		i[1] = index % (tableSize);
+		i[2] = i[1] + 1;
+		i[0] = i[1] - 1;
+		i[3] = i[1] + 2;
 
 		if (i[1] == 0)         i[0] = tableSize - 1;
 		if (i[2] >= tableSize) i[2] = 0;

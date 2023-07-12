@@ -620,6 +620,7 @@ void SampleMapToWavetableConverter::calculateHarmonicMap()
 	
 	AudioSampleBuffer sampleContent;
 
+	int offsetInFile = 0;
 	int totalLength = 0;
     double delta = 1.0 / (double)numParts;
     double pos = 0.0;
@@ -642,6 +643,8 @@ void SampleMapToWavetableConverter::calculateHarmonicMap()
         if(start != 0)
             totalLength -= start;
         
+		offsetInFile = start;
+
         m.sampleLengthSeconds = totalLength / r->sampleRate;
 		sampleContent.setSize(r->numChannels, totalLength);
 
@@ -657,8 +660,8 @@ void SampleMapToWavetableConverter::calculateHarmonicMap()
         pos = start / (double)r->lengthInSamples + delta;
         startPos = 0.0;
 
-		m.noiseBuffer.setSize(r->numChannels, r->lengthInSamples);
-		r->read(&m.noiseBuffer, 0, r->lengthInSamples, 0, true, true);
+		m.noiseBuffer.setSize(r->numChannels, totalLength);
+		r->read(&m.noiseBuffer, 0, totalLength, start, true, true);
 	}
 	else
 	{
@@ -788,14 +791,16 @@ void SampleMapToWavetableConverter::calculateHarmonicMap()
 
 			auto& originalR = m.isStereo ? bf[1].getBuffer()->buffer : original;
 
-			auto numToUse = original.getNumSamples();
+			jassert(offsetInFile + totalLength <= original.getNumSamples());
+
+			auto numToUse = m.noiseBuffer.getNumSamples();
 
 			m.lorisResynRatio = ratio;
 			m.lorisResynBuffer.setSize(2, numToUse);
 			m.lorisResynBuffer.clear();
 
-			FloatVectorOperations::copy(m.lorisResynBuffer.getWritePointer(0), original.getReadPointer(0), numToUse);
-			FloatVectorOperations::copy(m.lorisResynBuffer.getWritePointer(1), originalR.getReadPointer(0), numToUse);
+			FloatVectorOperations::copy(m.lorisResynBuffer.getWritePointer(0), original.getReadPointer(0, offsetInFile), numToUse);
+			FloatVectorOperations::copy(m.lorisResynBuffer.getWritePointer(1), originalR.getReadPointer(0, offsetInFile), numToUse);
 
 			m.analysed = true;
 			m.gainValues.clear();
