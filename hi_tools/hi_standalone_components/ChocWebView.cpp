@@ -528,15 +528,18 @@ void WebViewWrapper::refreshBounds(float newScaleFactor)
 	if(content != nullptr)
 		content->resizeToFitCrossPlatform();
 
+    juce::String s;
+    s << "document.body.style.zoom = " << juce::String(newScaleFactor) << ";";
+    
+    data->evaluate("scaleFactor", s);
+    
 #if !JUCE_LINUX
 	if (webView != nullptr)
     {
-        Timer::callAfterDelay(50, [this, newScaleFactor]()
-        {
-            webView->resizeToFit(newScaleFactor);
-        });
+        String asyncCode;
+        asyncCode << "document.addEventListener('DOMContentLoaded', function() { " << s << "}, false);";
+        webView->addInitScript(asyncCode.toStdString());
     }
-		
 #endif
 		
 	resized();
