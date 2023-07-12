@@ -3405,7 +3405,8 @@ private:
 
 struct ProjectImporter : public DialogWindowWithBackgroundThread,
 						 public ControlledObject,
-						 public URL::DownloadTaskListener
+						 public URL::DownloadTaskListener,
+						 public hlac::HlacArchiver::Listener
 {
 	enum class SourceType
 	{
@@ -3692,6 +3693,22 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		setProgress(x);
 	}
 
+	void logStatusMessage(const String& message) override
+	{
+		debugToConsole(getMainController()->getMainSynthChain(), message);
+		showStatusMessage(message);
+	}
+
+	void logVerboseMessage(const String& verboseMessage) 
+	{
+		debugToConsole(getMainController()->getMainSynthChain(), verboseMessage);
+	};
+
+	void criticalErrorOccured(const String& message) override
+	{
+		showStatusMessage(message);
+	}
+
 	void createSubDirectories()
 	{
 		logMessage("Create subdirectories");
@@ -3876,9 +3893,19 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 
 		auto headerData = allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy();
 
+		auto projectSettings = headerData.getChildWithName("ProjectSettings");
+
+		if (!projectSettings.isValid())
+			projectSettings = ValueTree("ProjectSettings");
+
+		auto userSettings = headerData.getChildWithName("UserSettings");
+
+		if (!userSettings.isValid())
+			userSettings = ValueTree("UserSettings");
+
 		std::map<Identifier, ValueTree> map;
-		map[HiseSettings::SettingFiles::ProjectSettings] = ValueTree("ProjectSettings");
-		map[HiseSettings::SettingFiles::UserSettings] = ValueTree("UserSettings");
+		map[HiseSettings::SettingFiles::ProjectSettings] = projectSettings;
+		map[HiseSettings::SettingFiles::UserSettings] = userSettings;
 		map[HiseSettings::SettingFiles::ExpansionSettings] = ValueTree("ExpansionInfo");
 
 		std::map<Identifier, File> fileMap;
@@ -3901,13 +3928,19 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 			f.replaceWithText(xmlText);
 		};
 
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Name, headerData["Name"]);
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Version, headerData["Version"]);
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::EncryptionKey, "1234");
-
-		writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::Company, headerData["Company"]);
-		writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::CompanyURL, headerData["CompanyURL"]);
-
+		if (projectSettings.getNumChildren() == 0)
+		{
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Name, headerData["Name"]);
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Version, headerData["Version"]);
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::EncryptionKey, "1234");
+		}
+		
+		if (userSettings.getNumChildren() == 0)
+		{
+			writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::Company, headerData["Company"]);
+			writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::CompanyURL, headerData["CompanyURL"]);
+		}
+		
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::Description, headerData["Description"]);
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::Tags, headerData["Tags"]);
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::UUID, headerData["UUID"]);
@@ -3960,6 +3993,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) <= 1);
 
 		
+		Array<File> sampleArchives;
 
 		auto hxiFile = newProjectFolder.getChildFile("info.hxi");
 		
@@ -3987,6 +4021,30 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 
 			if (archive.getFileExtension() == ".hxi")
 				archive.copyFileTo(hxiFile);
+			else if (archive.getFileExtension() == ".hiseproject")
+			{
+				FileInputStream fis(archive);
+
+				hxiFile.deleteFile();
+
+				FileOutputStream fos(hxiFile);
+
+				auto numHeaderBytes = fis.readInt64();
+
+				fos.writeFromInputStream(fis, numHeaderBytes);
+
+				int archiveIndex = 0;
+
+				while (!fis.isExhausted())
+				{
+					auto numBytes = fis.readInt64();
+
+					FileOutputStream so(hxiFile.getSiblingFile("Samples" + String(++archiveIndex)).withFileExtension(".hr1"));
+					so.writeFromInputStream(fis, numBytes);
+
+					sampleArchives.add(so.getFile());
+				}
+			}
 			else
 			{
 				ZipFile zf(archive);
@@ -4031,6 +4089,29 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		extractNetworks();
 		extractUserPresets();
 		extractWebResources();
+
+		for (auto s : sampleArchives)
+		{
+			showStatusMessage("Extract Sample Archive " + s.getFileName());
+
+			hlac::HlacArchiver::DecompressData data;
+
+			data.option = hlac::HlacArchiver::OverwriteOption::ForceOverwrite;
+
+			data.supportFullDynamics = true;
+			data.sourceFile = s;
+			data.targetDirectory = e->getSubDirectory(FileHandlerBase::Samples);
+			data.progress = &logData.progress;
+			data.partProgress = &logData.progress;
+			data.totalProgress = &getProgressCounter();
+
+			hlac::HlacArchiver decompressor(getCurrentThread());
+
+			decompressor.setListener(this);
+
+			bool ok = decompressor.extractSampleData(data);
+
+		}
 
 		logMessage("... Done!");
 	}

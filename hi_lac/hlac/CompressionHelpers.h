@@ -381,6 +381,8 @@ struct HlacArchiver
 		EndOfArchive,
 		BeginHeaderFile,
 		EndHeaderFile,
+		BeginAdditionalFile,
+		EndAdditionalFile,
 		numFlags
 	};
 
@@ -388,6 +390,7 @@ struct HlacArchiver
 	{
 		Array<File> fileList;
 		File optionalHeaderFile;
+		Array<File> additionalFiles;
 		File targetFile;
 		String metadataJSON;
 		int64 partSize = -1;

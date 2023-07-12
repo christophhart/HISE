@@ -2424,10 +2424,10 @@ Result FullInstrumentExpansion::encodeExpansion()
 }
 
 ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport, bool isRhapsody_) :
-	DialogWindowWithBackgroundThread(isProjectExport ? "Encode project as Full Expansion" : "Encode Expansion"),
+	DialogWindowWithBackgroundThread(isProjectExport ? "Export HISE project" : "Encode Expansion"),
 	ControlledObject(mc),
 	e(eToEncode),
-	isRhapsody(isRhapsody_),
+	exportMode(isRhapsody_ ? ExportMode::Rhapsody : ExportMode::HXI),
 	encodeResult(Result::ok()),
 	projectExport(isProjectExport)
 {
@@ -2436,8 +2436,8 @@ ExpansionEncodingWindow::ExpansionEncodingWindow(MainController* mc, Expansion* 
 #if USE_BACKEND
 		auto& h = GET_PROJECT_HANDLER(mc->getMainSynthChain());
 
-		addComboBox("rhapsody", { "No", "Yes" }, "Use Rhapsody format");
-		getComboBoxComponent("rhapsody")->setSelectedItemIndex((int)isRhapsody, dontSendNotification);
+		addComboBox("rhapsody", { "HXI Full Instrument Expansion", "Rhapsody Player Expansion", "HISE Project Archive" }, "Export Format");
+		getComboBoxComponent("rhapsody")->setSelectedItemIndex((int)exportMode, dontSendNotification);
 
 		if (mc->getExpansionHandler().getEncryptionKey().isEmpty())
 		{
@@ -2482,38 +2482,44 @@ ExpansionEncodingWindow::~ExpansionEncodingWindow()
 	getMainController()->getExpansionHandler().removeListener(this);
 }
 
-juce::Result ExpansionEncodingWindow::performRhapsodyChecks()
+juce::Result ExpansionEncodingWindow::performChecks()
 {
 #if USE_BACKEND
-	if (getComboBoxComponent("rhapsody")->getSelectedItemIndex() == 0)
+
+	exportMode = (ExportMode)getComboBoxComponent("rhapsody")->getSelectedItemIndex();
+
+	if (exportMode == ExportMode::HXI)
 		return Result::ok();
 
 	if (getMainController()->getExpansionHandler().getEncryptionKey() != "1234")
 	{
-		return Result::fail("The encryption key must be `1234` in order to be loaded into Rhapsody");
+		return Result::fail("The encryption key must be `1234` for the open export to work");
 	}
 
 	// check that there is an icon image
 
-	auto thumb = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Images).getChildFile("Icon.png");
-	auto hasIcon = thumb.existsAsFile();
+	if (exportMode == ExportMode::Rhapsody)
+	{
+		auto thumb = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Images).getChildFile("Icon.png");
+		auto hasIcon = thumb.existsAsFile();
 
-	if (!hasIcon)
-		return Result::fail("The project needs a Icon.png image (with the dimensions 300x50)");
+		if (!hasIcon)
+			return Result::fail("The project needs a Icon.png image (with the dimensions 300x50)");
 
-	auto dllManager = dynamic_cast<BackendProcessor*>(getMainController())->dllManager;
+		auto dllManager = dynamic_cast<BackendProcessor*>(getMainController())->dllManager;
 
-	auto compileNetworks = dllManager->getNetworkFiles(getMainController(), false);
+		auto compileNetworks = dllManager->getNetworkFiles(getMainController(), false);
 
-	if (!compileNetworks.isEmpty())
-		return Result::fail("The project must not use compiled DSP Networks");
+		if (!compileNetworks.isEmpty())
+			return Result::fail("The project must not use compiled DSP Networks");
 
-	auto userPresetFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+		auto userPresetFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
 
-	auto presetList = userPresetFolder.findChildFiles(File::findFiles, true, "*.preset");
+		auto presetList = userPresetFolder.findChildFiles(File::findFiles, true, "*.preset");
 
-	if (presetList[0].getParentDirectory().getParentDirectory().getParentDirectory() != userPresetFolder)
-		return Result::fail("The project needs to have at least one user preset and must use the default three level folder hierarchy (Bank/Category/Preset)");
+		if (presetList[0].getParentDirectory().getParentDirectory().getParentDirectory() != userPresetFolder)
+			return Result::fail("The project needs to have at least one user preset and must use the default three level folder hierarchy (Bank/Category/Preset)");
+	}
 
 #endif
 
@@ -2528,7 +2534,7 @@ void ExpansionEncodingWindow::run()
 		if (encodeResult.failed())
 			return;
 
-		encodeResult = performRhapsodyChecks();
+		encodeResult = performChecks();
 
 		if (encodeResult.failed())
 			return;
@@ -2538,7 +2544,9 @@ void ExpansionEncodingWindow::run()
 
 		ValueTree mData(ExpansionIds::ExpansionInfo);
 
-		mData.setProperty(ExpansionIds::Name, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name), nullptr);
+		auto projectName = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
+
+		mData.setProperty(ExpansionIds::Name, projectName, nullptr);
 		mData.setProperty(ExpansionIds::Version, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Version), nullptr);
 		mData.setProperty(ExpansionIds::Company, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::Company), nullptr);
 		mData.setProperty(ExpansionIds::CompanyURL, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::User::CompanyURL), nullptr);
@@ -2546,6 +2554,21 @@ void ExpansionEncodingWindow::run()
 		mData.setProperty(ExpansionIds::Tags, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::ExpansionSettings::Tags), nullptr);
 		mData.setProperty(ExpansionIds::UUID, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::ExpansionSettings::UUID), nullptr);
 		mData.setProperty(ExpansionIds::HiseVersion, ProjectInfo::versionString, nullptr);
+
+		if (exportMode == ExportMode::HiseProject)
+		{
+			auto projectFile = h.getRootFolder().getChildFile("project_info.xml");
+			auto userFile = h.getRootFolder().getChildFile("user_info.xml");
+
+			auto projectXML = XmlDocument::parse(projectFile);
+			auto userXML = XmlDocument::parse(userFile);
+
+			if (projectXML != nullptr)
+				mData.addChild(ValueTree::fromXml(*projectXML), -1, nullptr);
+
+			if (userXML != nullptr)
+				mData.addChild(ValueTree::fromXml(*userXML), -1, nullptr);
+		}
 
 		auto xml = mData.createXml();
 		f.replaceWithText(xml->createDocument(""));
@@ -2558,32 +2581,60 @@ void ExpansionEncodingWindow::run()
 
 		f.deleteFile();
 
-		if (getComboBoxComponent("rhapsody")->getSelectedItemIndex() == 1)
+		if (exportMode > ExportMode::HXI)
 		{
 			auto hxiFile = Expansion::Helpers::getExpansionInfoFile(h.getWorkDirectory(), Expansion::Intermediate);
 			jassert(hxiFile.existsAsFile());
 
-			ZipFile::Builder b;
+			if (exportMode == ExportMode::Rhapsody)
+			{
+				ZipFile::Builder b;
 
-			b.addFile(hxiFile, 0);
+				b.addFile(hxiFile, 0);
 
-			String zipName;
-			zipName << mData[ExpansionIds::Name].toString().toLowerCase().replaceCharacter(' ', '_');
-			zipName << "_data";
-			zipName << "_" << mData[ExpansionIds::Version].toString().replaceCharacter('.', '_');
+				String zipName;
+				zipName << mData[ExpansionIds::Name].toString().toLowerCase().replaceCharacter(' ', '_');
+				zipName << "_data";
+				zipName << "_" << mData[ExpansionIds::Version].toString().replaceCharacter('.', '_');
 
-			auto zipFile = hxiFile.getSiblingFile(zipName + ".lwz");
-			zipFile.deleteFile();
-			FileOutputStream fos(zipFile);
+				auto zipFile = hxiFile.getSiblingFile(zipName + ".lwz");
+				zipFile.deleteFile();
+				FileOutputStream fos(zipFile);
 
-			auto ok = b.writeToStream(fos, &getProgressCounter());
+				auto ok = b.writeToStream(fos, &getProgressCounter());
 
-			if (ok)
-				hxiFile.deleteFile();
+				if (ok)
+					hxiFile.deleteFile();
 
-			rhapsodyOutput = zipFile;
+				rhapsodyOutput = zipFile;
 
-			jassert(ok);
+				jassert(ok);
+			}
+			else
+			{
+				rhapsodyOutput = hxiFile.getParentDirectory().getChildFile(projectName).withFileExtension(".hiseproject");
+
+				auto sampleArchives = hxiFile.getParentDirectory().findChildFiles(File::findFiles, false, "*.hr1");
+
+				rhapsodyOutput.deleteFile();
+
+				FileOutputStream fos(rhapsodyOutput);
+
+				FileInputStream hxiInput(hxiFile);
+
+				fos.writeInt64(hxiInput.getTotalLength());
+				fos.writeFromInputStream(hxiInput, hxiInput.getTotalLength());
+
+				for (auto s : sampleArchives)
+				{
+					FileInputStream si(s);
+
+					fos.writeInt64(si.getTotalLength());
+					fos.writeFromInputStream(si, si.getTotalLength());
+				}
+
+				fos.flush();
+			}
 		}
 	}
 	else

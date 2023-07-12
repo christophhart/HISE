@@ -622,6 +622,7 @@ void SampleDataExporter::run()
 
 	data.targetFile = getTargetFile();
 	data.optionalHeaderFile = hxiFile->getCurrentFile();
+	data.additionalFiles = collectWavetableMonoliths();
 	data.metadataJSON = getMetadataJSON();
 	data.fileList = collectMonoliths();
 	data.progress = &logData.progress;
@@ -706,9 +707,27 @@ void SampleDataExporter::setTargetDirectory(const File& targetDirectory)
 	targetFile->setCurrentFile(targetDirectory, false, dontSendNotification);
 }
 
+Array<juce::File> SampleDataExporter::collectWavetableMonoliths()
+{
+	auto expName = getExpansionName();
+
+	FileHandlerBase* handler = &getMainController()->getCurrentFileHandler();
+
+	if (expName.isNotEmpty())
+	{
+		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(expName))
+			handler = e;
+	}
+
+	auto sampleDirectory = handler->getSubDirectory(FileHandlerBase::Samples);
+
+	return sampleDirectory.findChildFiles(File::findFiles, false, "*.hwm");
+}
+
 Array<File> SampleDataExporter::collectMonoliths()
 {
 	Array<File> sampleMonoliths;
+
 	auto expName = getExpansionName();
 
 	FileHandlerBase* handler = &getMainController()->getCurrentFileHandler();
@@ -727,6 +746,10 @@ Array<File> SampleDataExporter::collectMonoliths()
 		auto entry = smPool.loadFromReference(smPool.getReference(i), PoolHelpers::DontCreateNewEntry);
 
 		MonolithFileReference mref(entry->data);
+
+		if (!mref.isUsingMonolith())
+			continue;
+
 		mref.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
 		mref.addSampleDirectory(sampleDirectory);
 

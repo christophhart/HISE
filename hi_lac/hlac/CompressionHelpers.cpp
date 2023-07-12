@@ -1232,6 +1232,24 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		currentFlag = readFlag(fis);
 	}
 
+	while(currentFlag == Flag::BeginAdditionalFile)
+	{
+		VERBOSE_LOG("    Read Additional file");
+
+		auto numBytesForAdditionalFile = fis->readInt64();
+		VERBOSE_LOG(String(numBytesForAdditionalFile) + String(" bytes"));
+
+		auto fileName = fis->readString();
+
+		auto additionalFile = data.targetDirectory.getChildFile(fileName);
+		additionalFile.create();
+		ScopedPointer<FileOutputStream> fos = new FileOutputStream(additionalFile);
+		fos->writeFromInputStream(*fis, numBytesForAdditionalFile);
+
+		CHECK_FLAG(Flag::EndAdditionalFile);
+		currentFlag = readFlag(fis);
+	}
+
 	while (currentFlag == Flag::BeginName)
 	{
 		auto name = fis->readString();
@@ -1569,6 +1587,20 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			ok = fos->writeFromInputStream(*fis, -1);
 			CHECK_FILE_WRITE_OP;
 			WRITE_FLAG(Flag::EndHeaderFile);
+		}
+
+		for (const auto& f : data.additionalFiles)
+		{
+			WRITE_FLAG(Flag::BeginAdditionalFile);
+
+			ScopedPointer<FileInputStream> fis = new FileInputStream(f);
+			auto numBytesToWrite = fis->getTotalLength();
+			fos->writeInt64(numBytesToWrite);
+			fos->writeString(f.getFileName());
+			ok = fos->writeFromInputStream(*fis, -1);
+			CHECK_FILE_WRITE_OP;
+
+			WRITE_FLAG(Flag::EndAdditionalFile);
 		}
 
 		hlac::HiseLosslessAudioFormat haf;

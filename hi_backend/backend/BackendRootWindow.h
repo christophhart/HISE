@@ -244,7 +244,14 @@ public:
 		return false;
 	}
 
+	void setProjectIsBeingExtracted()
+	{
+		projectIsBeingExtracted = true;
+	}
+
 private:
+
+	bool projectIsBeingExtracted = false;
 
 	friend class ProjectImporter;
 

@@ -570,6 +570,14 @@ class ExpansionEncodingWindow : public DialogWindowWithBackgroundThread,
 {
 public:
 
+	enum class ExportMode
+	{
+		HXI,			// The default expansion format
+		Rhapsody,		// LWZ zip file
+		HiseProject,	// The default expansion with the file extension .hiseproject and the project setting XML file
+		numExportModes
+	};
+
 	static constexpr int AllExpansionId = 9000000;
 
 	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport, bool isRhapsody=true);
@@ -580,7 +588,7 @@ public:
 		showStatusMessage(message);
 	}
 
-	Result performRhapsodyChecks();
+	Result performChecks();
 
 	void run() override;
 	void threadFinished();
@@ -588,7 +596,8 @@ public:
 	Result encodeResult;
 	
 	bool projectExport = false;
-	bool isRhapsody;
+	
+	ExportMode exportMode = ExportMode::HXI;
 
 	File rhapsodyOutput;
 
