@@ -405,6 +405,33 @@ void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synt
 	voiceUptime = (double)getCurrentHiseEvent().getStartOffset() / 441.0 * (double)tableSize;
 }
 
+static MemoryBlock getMemoryBlockFromWavetableData(const ValueTree& v, int channelIndex)
+{
+	MemoryBlock mb(*v.getProperty(channelIndex == 0 ? "data" : "data1", var::undefined()).getBinaryData());
+	auto useCompression = v.getProperty("useCompression", false);
+
+	if (useCompression)
+	{
+		auto mis = new MemoryInputStream(std::move(mb));
+
+		FlacAudioFormat flac;
+		ScopedPointer<AudioFormatReader> reader = flac.createReaderFor(mis, true);
+
+		MemoryBlock mb2;
+		mb2.ensureSize(sizeof(float) * reader->lengthInSamples, true);
+
+		float* d[1] = { (float*)mb2.getData() };
+
+		reader->read(d, 1, 0, reader->lengthInSamples);
+		reader = nullptr;
+		return mb2;
+	}
+	else
+	{
+		return mb;
+	}
+};
+
 WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent)
 {
 	jassert(wavetableData.getType() == Identifier("wavetable"));
@@ -413,17 +440,25 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
 
 	reversed = (float)(int)wavetableData.getProperty("reversed", false);
 	
+	auto mb = getMemoryBlockFromWavetableData(wavetableData, 0);
 
-	MemoryBlock mb = MemoryBlock(*wavetableData.getProperty("data", var::undefined()).getBinaryData());
 	const int numSamples = (int)(mb.getSize() / sizeof(float));
 
 	wavetables.setSize(stereo ? 2 : 1, numSamples);
+
+
+
+	memoryUsage = wavetables.getNumChannels() * wavetables.getNumSamples() * sizeof(float);
+	storageSize = wavetableData.getProperty("data").getBinaryData()->getSize();
+
+	if(stereo)
+		storageSize += wavetableData.getProperty("data1").getBinaryData()->getSize();
 
 	FloatVectorOperations::copy(wavetables.getWritePointer(0, 0), (float*)mb.getData(), numSamples);
 
 	if (stereo)
 	{
-		MemoryBlock mb2 = MemoryBlock(*wavetableData.getProperty("data1", var::undefined()).getBinaryData());
+		auto mb2 = getMemoryBlockFromWavetableData(wavetableData, 1);
 		FloatVectorOperations::copy(wavetables.getWritePointer(1, 0), (float*)mb2.getData(), numSamples);
 	}
 
@@ -537,6 +572,8 @@ String WavetableSound::getMarkdownDescription() const
 	printProperty("Max Level", String(Decibels::gainToDecibels(getUnnormalizedMaximum()), 2) + " dB");
 	printProperty("Stereo", isStereo());
 	printProperty("Reversed", (bool)(int)isReversed());
+	printProperty("Storage Size", String(storageSize / 1024) + " kB");
+	printProperty("Memory Usage", String(memoryUsage / 1024) + " kB");
 
 	return s;
 }

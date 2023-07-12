@@ -214,6 +214,7 @@ public:
 
 	int cycleLength = 0;
 	bool exportAsHwt = true;
+	bool useCompression = false;
 
 	ThreadController::Ptr threadController;
 

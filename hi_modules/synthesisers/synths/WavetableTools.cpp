@@ -1481,11 +1481,38 @@ void SampleMapToWavetableConverter::storeData(StoreData& data)
 		child.setProperty("reversed", reverseOrder, nullptr);
 		child.setProperty("dynamic_phase", phaseMode == PhaseMode::DynamicPhase, nullptr);
 
+		child.setProperty("useCompression", useCompression, nullptr);
+
+		
+
 		for (int i = 0; i < data.numChannels; i++)
 		{
-			MemoryBlock mb(data.dataBuffer.getNumSamples() * sizeof(float));
 
-			FloatVectorOperations::copy((float*)mb.getData(), data.dataBuffer.getReadPointer(i), data.dataBuffer.getNumSamples());
+			MemoryBlock mb;
+
+			if (useCompression)
+			{
+				ScopedPointer<MemoryOutputStream> mos = new MemoryOutputStream(mb, false);
+
+				FlacAudioFormat fm;
+
+				if (ScopedPointer<AudioFormatWriter> writer = fm.createWriterFor(mos, data.sampleRate, AudioChannelSet::mono(), 24, {}, 5))
+				{
+					mos.release();
+
+					float* d[1] = { data.dataBuffer.getWritePointer(i) };
+
+					writer->writeFromFloatArrays(d, 1, data.dataBuffer.getNumSamples());
+
+					writer->flush();
+					writer = nullptr;
+				}
+			}
+			else
+			{
+				mb = MemoryBlock(data.dataBuffer.getNumSamples() * sizeof(float));
+				FloatVectorOperations::copy((float*)mb.getData(), data.dataBuffer.getReadPointer(i), data.dataBuffer.getNumSamples());
+			}
 
 			var binaryData(mb);
 

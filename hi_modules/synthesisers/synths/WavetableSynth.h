@@ -171,6 +171,9 @@ private:
 	float reversed = 0.0f;
 	bool stereo = false;
 
+	size_t memoryUsage = 0;
+	size_t storageSize = 0;
+
 	float maximum;
 	float unnormalizedMaximum;
 	HeapBlock<float> unnormalizedGainValues;
