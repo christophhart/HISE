@@ -99,6 +99,8 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 			}
 		}
 	}
+
+	chain->getMainController()->getUserPresetHandler().postPresetSave();
 }
 
 juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)

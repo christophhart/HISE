@@ -611,6 +611,18 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 	mc->getSampleManager().preloadEverything();
 }
 
+void MainController::UserPresetHandler::postPresetSave()
+{
+	// Already on the message thread
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->presetSaved(currentlyLoadedFile);
+	}
+}
+
 void MainController::UserPresetHandler::postPresetLoad()
 {
 	auto f = [](Dispatchable* obj)

@@ -811,6 +811,8 @@ public:
 			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
 
+			virtual void presetSaved(const File& newPreset) {};
+
 			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
@@ -927,6 +929,8 @@ public:
 		void preprocess(ValueTree& presetToLoad);
 
 		void postPresetLoad();
+
+		void postPresetSave();
 
 		bool setCustomAutomationData(CustomAutomationData::List newList);
 

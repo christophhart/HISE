@@ -37,6 +37,7 @@ struct ScriptUserPresetHandler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPreCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostSaveCallback);
 	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setCustomAutomation);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, setUseCustomUserPresetModel);
@@ -58,6 +59,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ControlledObject(pwsc->getMainController_()),
 	preCallback(pwsc, nullptr, var(), 1),
 	postCallback(pwsc, nullptr, var(), 1),
+	postSaveCallback(pwsc, nullptr, var(), 1),
 	customLoadCallback(pwsc, nullptr, var(), 1),
 	customSaveCallback(pwsc, nullptr, var(), 1)
 {
@@ -66,6 +68,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(isOldVersion);
     ADD_API_METHOD_0(isInternalPresetLoad);
 	ADD_API_METHOD_1(setPostCallback);
+	ADD_API_METHOD_1(setPostSaveCallback);
 	ADD_API_METHOD_1(setPreCallback);
 	ADD_API_METHOD_2(setEnableUserPresetPreprocessing);
 	ADD_API_METHOD_1(setCustomAutomation);
@@ -110,6 +113,14 @@ void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
 	postCallback.addAsSource(this, "postCallback");
 	postCallback.setThisObject(this);
 
+}
+
+void ScriptUserPresetHandler::setPostSaveCallback(var presetPostSaveCallback)
+{
+	postSaveCallback = WeakCallbackHolder(getScriptProcessor(), this, presetPostSaveCallback, 1);
+	postSaveCallback.incRefCount();
+	postSaveCallback.addAsSource(this, "postCallback");
+	postSaveCallback.setThisObject(this);
 }
 
 void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData)
@@ -741,6 +752,19 @@ void ScriptUserPresetHandler::presetChanged(const File& newPreset)
 	}
 }
 
+
+void ScriptUserPresetHandler::presetSaved(const File& newPreset)
+{
+	if (postSaveCallback)
+	{
+		var f;
+
+		if (newPreset.existsAsFile())
+			f = var(new ScriptingObjects::ScriptFile(getScriptProcessor(), newPreset));
+
+		postSaveCallback.call(&f, 1);
+	}
+}
 
 struct ScriptExpansionHandler::Wrapper
 {
