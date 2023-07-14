@@ -880,6 +880,8 @@ public:
 
         bool isInternalPresetLoad() const { return isInternalPresetLoadFlag; }
         
+		bool isCurrentlyInsidePresetLoad() const { return LockHelpers::getCurrentThreadHandleOrMessageManager() == currentThreadThatIsLoadingPreset; };
+
 		bool isUsingCustomDataModel() const { return isUsingCustomData; };
 		
 		bool isUsingPersistentObject() const { return usePersistentObject; }
@@ -997,6 +999,8 @@ public:
 		bool isUsingCustomData = false;
 		bool usePersistentObject = false;
         bool isInternalPresetLoadFlag = false;
+
+		void* currentThreadThatIsLoadingPreset = nullptr;
 
 		CustomAutomationData::List customAutomationData;
 

@@ -519,6 +519,8 @@ void MainController::UserPresetHandler::saveUserPresetInternal(const String& nam
 
 void MainController::UserPresetHandler::loadUserPresetInternal()
 {
+	ScopedValueSetter<void*> svs(currentThreadThatIsLoadingPreset, LockHelpers::getCurrentThreadHandleOrMessageManager());
+
 	{
 		LockHelpers::freeToGo(mc);
         
