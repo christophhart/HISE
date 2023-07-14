@@ -473,12 +473,21 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 #if USE_FRONTEND && !DONT_CREATE_USER_PRESET_FOLDER
 	auto userPresetDirectory = FrontendHandler::getUserPresetDirectory();
 
+#if !HISE_OVERWRITE_OLD_USER_PRESETS
 	if (userPresetDirectory.isDirectory())
 		return;
+#else
+	auto infoFile = userPresetDirectory.getChildFile("info.json");
+	auto infoObj = JSON::parse(infoFile);
+
+	if (infoObj.getProperty(ExpansionIds::Version, "").toString() == FrontendHandler::getVersionString())
+		return;
+#endif
 
 	LOG_START("Extracting user presets to AppData directory");
 
-	userPresetDirectory.createDirectory();
+	if(!userPresetDirectory.isDirectory())
+		userPresetDirectory.createDirectory();
 
 	zstd::ZCompressor<UserPresetDictionaryProvider> decompressor;
 
@@ -489,6 +498,16 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 	decompressor.expand(mb, presetTree);
 
 	extractDirectory(presetTree, userPresetDirectory);
+
+#if HISE_OVERWRITE_OLD_USER_PRESETS
+	
+	infoObj = var(new DynamicObject());
+	infoObj.getDynamicObject()->setProperty(ExpansionIds::Name, FrontendHandler::getProjectName());
+	infoObj.getDynamicObject()->setProperty(ExpansionIds::Version, FrontendHandler::getVersionString());
+	infoObj.getDynamicObject()->setProperty("Date", Time::getCurrentTime().toISO8601(true));
+	infoFile.replaceWithText(JSON::toString(infoObj));
+
+#endif
 
 #else
 	ignoreUnused(userPresetData, size);
