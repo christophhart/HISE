@@ -826,7 +826,7 @@ isOver(false)
 	idLabel.setText(getProcessor()->getId(), dontSendNotification);
 	idLabel.addListener(this);
     
-    
+	bypassed = getProcessor()->isBypassed();
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
