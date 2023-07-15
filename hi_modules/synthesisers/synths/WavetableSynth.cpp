@@ -215,6 +215,7 @@ void WavetableSynth::loadWavetableFromIndex(int index)
 
 		auto headerOffset = fis.getPosition();
 
+        ignoreUnused(dataSize);
 		
 
 		auto itemToLoad = headers[index - 1];
@@ -342,8 +343,7 @@ void WavetableSynthVoice::calculateBlock(int startSample, int numSamples)
 	
 	auto stereoMode = currentSound->isStereo();
 	auto owner = static_cast<WavetableSynth*>(getOwnerSynth());
-	auto numTables = currentSound->getWavetableAmount();
-
+	
 	WavetableSound::RenderData r(voiceBuffer, startSample, numSamples, uptimeDelta, voicePitchValues, hqMode);
 
 	r.render(currentSound, voiceUptime, [owner](int startSample) { return owner->getTotalTableModValue(startSample); });
@@ -422,7 +422,7 @@ static MemoryBlock getMemoryBlockFromWavetableData(const ValueTree& v, int chann
 
 		float* d[1] = { (float*)mb2.getData() };
 
-		reader->read(d, 1, 0, reader->lengthInSamples);
+		reader->read(d, 1, 0, (int)reader->lengthInSamples);
 		reader = nullptr;
 		return mb2;
 	}

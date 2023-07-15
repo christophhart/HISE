@@ -561,6 +561,7 @@ struct WaterfallComponent : public Component,
 {
 	struct LookAndFeelMethods
 	{
+        virtual ~LookAndFeelMethods() {};
 		virtual void drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty);
 		virtual void drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables);
 	};

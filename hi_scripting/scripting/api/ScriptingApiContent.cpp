@@ -6523,12 +6523,11 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
 {
-
-    NewLine nl;
     String code;
 
 #if USE_BACKEND
     
+    NewLine nl;
     Random r;
     
     String lafName = "local_laf" + String(r.nextInt({0, 999}));

@@ -126,6 +126,10 @@
  //#define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+#ifndef    HISE_OVERWRITE_OLD_USER_PRESETS
+ //#define HISE_OVERWRITE_OLD_USER_PRESETS 0
+#endif
+
 #ifndef    HISE_BACKEND_AS_FX
  //#define HISE_BACKEND_AS_FX 0
 #endif

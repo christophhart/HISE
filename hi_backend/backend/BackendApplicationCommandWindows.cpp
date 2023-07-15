@@ -810,8 +810,6 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 
 			parent.chain->getMainController()->stopBufferToPlay();
 
-			auto p = &parent;
-
 			parent.runTask(BIND_MEMBER_FUNCTION_0(bl::onPreview), false);
 		}
 	} bl_;
@@ -3976,6 +3974,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		{
 			auto wv = getMainController()->getOrCreateWebView(id);
 			auto ok = wv->explode();
+            ignoreUnused(ok);
 		}
 		
 	}
@@ -4110,6 +4109,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 			decompressor.setListener(this);
 
 			bool ok = decompressor.extractSampleData(data);
+            ignoreUnused(ok);
 
 		}
 

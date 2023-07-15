@@ -1265,8 +1265,6 @@ void WaterfallComponent::rebuildPaths()
 		b.removeFromTop((float)numTables * displacement.getY());
 		b.removeFromRight((float)numTables * displacement.getX());
 
-		auto stride = b.getWidth() / (float)size;
-
 		float maxGain = 0.0f;
 
 		for (int i = 0; i < numTables; i++)

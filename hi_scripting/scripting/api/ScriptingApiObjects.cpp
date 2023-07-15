@@ -7475,8 +7475,6 @@ struct ProcessorParameterTarget : public scriptnode::routing::GlobalRoutingManag
         parameterIndex(index),
         processor(p)
     {
-		auto numSamples = p->getLargestBlockSize();
-
 		lastValue.prepare(p->getSampleRate() / (double)p->getLargestBlockSize(), smoothingTimeMs);
 
         id << processor->getId();

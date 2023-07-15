@@ -2777,7 +2777,7 @@ struct MasterClock
 			}
 		}
 		
-        Range<int> estimatedRange(uptime, uptime + currentBlockSize * 3);
+        Range<int64> estimatedRange(uptime, uptime + currentBlockSize * 3);
         
 		uptime = info.timeInSamples;
 
@@ -3424,7 +3424,7 @@ public:
 		{
 			// If this hits, it means that the timeout you've set is too low.
 			// Either increase the timeout or add more checks in between...
-			int x = 5;
+            ;
 
 			// prevent the jassert above to mess up subsequent timeouts...
 			thisTime = Time::getMillisecondCounter();

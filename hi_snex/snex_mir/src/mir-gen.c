@@ -97,6 +97,8 @@ static void setup_call_hard_reg_args (gen_ctx_t gen_ctx, MIR_insn_t call_insn, M
 #define MIR_GEN_CALL_TRACE 0
 #endif
 
+#undef DEBUG
+
 #if MIR_NO_GEN_DEBUG
 #define DEBUG(level, code)
 #else
@@ -5339,9 +5341,11 @@ static void *print_and_execute_wrapper (gen_ctx_t gen_ctx, MIR_item_t called_fun
 }
 #endif
 
+#if MIR_PARALLEL_GEN
 static void parallel_error (MIR_context_t ctx, const char *err_message) {
   MIR_get_error_func (ctx) (MIR_parallel_error, err_message);
 }
+#endif
 
 void *MIR_gen (MIR_context_t ctx, int gen_num, MIR_item_t func_item) {
   struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
@@ -5762,6 +5766,8 @@ void MIR_set_gen_interface (MIR_context_t ctx, MIR_item_t func_item) {
 void MIR_set_parallel_gen_interface (MIR_context_t ctx, MIR_item_t func_item) {
   struct all_gen_ctx *all_gen_ctx = *all_gen_ctx_loc (ctx);
 
+    (void)all_gen_ctx;
+    
 #if !MIR_PARALLEL_GEN
   if (func_item == NULL) return; /* finish setting interfaces */
   MIR_gen (ctx, 0, func_item);

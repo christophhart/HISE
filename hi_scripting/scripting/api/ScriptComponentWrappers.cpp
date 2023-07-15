@@ -2756,7 +2756,7 @@ ScriptCreatedComponentWrappers::WebViewWrapper::WebViewWrapper(ScriptContentComp
 	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->addScaleFactorListener(this);
 	component = wc;
 
-	if (vp = content->findParentComponentOfClass<ZoomableViewport>())
+	if ((vp = content->findParentComponentOfClass<ZoomableViewport>()))
 		vp->addZoomListener(this);
 }
 

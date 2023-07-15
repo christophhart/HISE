@@ -310,8 +310,10 @@ public:
 	const Symbol& getVariableId() const
 	{
 		jassertfalse;
-		return {};
+        return s;
 	}
+    
+    Symbol s;
 };
 
 #endif

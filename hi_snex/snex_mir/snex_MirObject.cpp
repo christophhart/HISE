@@ -40,7 +40,7 @@ namespace snex {
 namespace mir {
 using namespace juce;
 
-static void mirError(MIR_error_type_t error_type, const char* format, ...)
+[[maybe_unused]] static void mirError(MIR_error_type_t error_type, const char* format, ...)
 {
 	DBG(format);
 	jassertfalse;

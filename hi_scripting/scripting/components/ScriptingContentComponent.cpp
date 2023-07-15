@@ -992,7 +992,6 @@ bool ScriptContentComponent::ComponentDragInfo::getCurrentComponent(bool force, 
 		return true;
 	}
 
-	auto c = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
 	auto screenPos = Desktop::getInstance().getMainMouseSource().getScreenPosition();
 	auto localPos = parent.getLocalPoint(nullptr, screenPos).roundToInt();
 
@@ -1075,8 +1074,6 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 		jassert(source != nullptr);
 		jassert(!MessageManager::getInstance()->isThisTheMessageThread());
 		jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread);
-
-		auto sf = UnblurryGraphics::getScaleFactorForComponent(source);
 
 		auto area = ApiHelpers::getRectangleFromVar(dragData["area"], nullptr);
 

@@ -118,7 +118,7 @@ void mdaLimiter::getParameterName(int index, char *label) const
 }
 
 #include <stdio.h>
-void int2strng(int value, char *string) { sprintf(string, "%d", value); }
+void int2strng(int value, char *string) { snprintf(string, 512, "%d", value); }
 
 void mdaLimiter::getParameterDisplay(int index, char *text) const
 {

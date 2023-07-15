@@ -381,7 +381,7 @@ WebViewData::OpaqueResourceType WebViewData::fetch(const std::string& path)
 			ScopedPointer<ExternalResource> nr = new ExternalResource(pathToUse);
 			auto& dv = std::get<0>(nr->resource);
 			dv.resize(fis.getTotalLength());
-			fis.read(dv.data(), fis.getTotalLength());
+			fis.read(dv.data(), (int)fis.getTotalLength());
 
 			String mime;
 

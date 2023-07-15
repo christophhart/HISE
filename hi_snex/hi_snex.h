@@ -206,8 +206,8 @@ namespace snex
                 return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 #endif
             }
-
-            static StringArray getAllIds()
+    
+            [[maybe_unused]] static StringArray getAllIds()
             {
                 return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
             }

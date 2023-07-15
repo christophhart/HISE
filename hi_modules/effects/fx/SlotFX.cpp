@@ -1231,9 +1231,6 @@ void HardcodedTimeVariantModulator::calculateBlock(int startSample, int numSampl
 
     if(opaqueNode != nullptr)
     {
-        const int startIndex = startSample;
-        const int numValues = numSamples;
-
         auto* modData = internalBuffer.getWritePointer(0, startSample);
         FloatVectorOperations::clear(modData, numSamples);
         

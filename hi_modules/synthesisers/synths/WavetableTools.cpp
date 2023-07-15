@@ -254,12 +254,6 @@ struct ResynthesisHelpers
 			}
 		}
 
-		for (int i = 0; i < length; i++)
-		{
-			auto& s = data[i];
-			//s = LIVE_EXPRESSION3(float, "s", s, i, length);
-		}
-
 		auto range = FloatVectorOperations::findMinAndMax(data, length);
 
 		auto maxLevel = jmax<float>(fabsf(range.getStart()), fabsf(range.getEnd()));
@@ -421,8 +415,6 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::removeHarmonicsAboveNyqui
 	auto& map = *getCurrentMap();
 	jassert(ratio > 2.0);
 
-	auto maxFreq = map.fileSampleRate / 2.0;
-
 	auto fileToLoad = PoolReference(chain->getMainController(), sampleMap.getChild(map.index.sampleIndex)[SampleIds::FileName].toString(), FileHandlerBase::Samples).getFile();
 
 	auto lorisManager = dynamic_cast<BackendProcessor*>(chain->getMainController())->getLorisManager();
@@ -554,9 +546,6 @@ void SampleMapToWavetableConverter::exportAll()
 
 juce::AudioSampleBuffer SampleMapToWavetableConverter::getResampledLorisBuffer(AudioSampleBuffer sourceBuffer, double r, int thisCycleLength, int realNoteNumber)
 {
-	auto cycleLength = (double)ResynthesisHelpers::getWavetableLength(realNoteNumber, getCurrentMap()->fileSampleRate, true);
-	auto realLength = (double)ResynthesisHelpers::getWavetableLength(realNoteNumber, getCurrentMap()->fileSampleRate, false);
-
 	auto thisRatio = conversion_logic::st2pitch().getValue(realNoteNumber) / conversion_logic::st2pitch().getValue(getCurrentMap()->rootNote);
 
 	if ( thisRatio > 1.8)
@@ -1164,8 +1153,6 @@ void SampleMapToWavetableConverter::renderAllWavetablesFromHarmonicMaps()
 					}
 					else
 					{
-						auto midLength = ResynthesisHelpers::getWavetableLength(midNote, sampleRate);
-
 						sd.dataBuffer = calculateWavetableBank(map, midNote);
 						sd.numParts = numParts;
 
@@ -1395,7 +1382,6 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 	{
 		Spectrum2D s2d(this, bToUse);
 
-		s2dParameters;
 		s2d.parameters = getParameters();
 		
 		auto lb = s2d.createSpectrumBuffer();

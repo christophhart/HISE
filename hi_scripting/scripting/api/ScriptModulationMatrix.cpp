@@ -766,7 +766,7 @@ juce::ReferenceCountedObject* ScriptModulationMatrix::getSourceCable(const Strin
 	auto index = getSourceIndex(id);
 
 	if (isPositiveAndBelow(index, sourceData.size()))
-		return sourceData[index]->cable.getObject();
+		return sourceData[index]->cable.get();
 
 	return nullptr;
 }
@@ -1120,10 +1120,15 @@ juce::var ScriptModulationMatrix::ModulatorTargetData::getIntensitySliderData(St
 		break;
 	case TargetMode::FrequencyMode:
 		rng = { 0.0, 1.0 }; break;
+    case TargetMode::GlobalMode:
+        rng = { 0.0, 1.0 }; break;
 	case TargetMode::PanMode: 
 		rng = { -100.0, 100.0 }; 
 		rng.rng.interval = 1.0;
 		break;
+    default:
+        jassertfalse;
+        break;
 	}
 
 	scriptnode::RangeHelpers::storeDoubleRange(obj, rng);
@@ -1828,8 +1833,6 @@ void ScriptModulationMatrix::ParameterTargetData::init(const var& json)
 {
 	TargetDataBase::init(json);
 
-	auto p = parent.get();
-
 	verifyProperty(json, MatrixIds::Parameter);
 
 	auto param = json["Parameter"];
@@ -1874,7 +1877,7 @@ bool ScriptModulationMatrix::ParameterTargetData::queryFunction(int index, bool 
 {
 	if (checkTicked)
 	{
-		auto cable = parent->sourceData[index]->cable.getObject();
+		auto cable = parent->sourceData[index]->cable.get();
 
 		return forEach(cable, [](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
 		{

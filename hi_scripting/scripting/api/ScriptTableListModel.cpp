@@ -286,6 +286,9 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			jassertfalse;
 			break;
 		}
+        default:
+            jassertfalse;
+            break;    
 		}
 
 		return existingComponentToUpdate;
@@ -418,13 +421,12 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			return cb;
 		}
 		case CellType::Image:
-		{
 			jassertfalse;
 			break;
+        default:
+            jassertfalse;
+            break;
 		}
-		}
-
-
 	}
 
 	return existingComponentToUpdate;

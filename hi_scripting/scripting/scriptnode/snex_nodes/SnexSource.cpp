@@ -384,6 +384,8 @@ void SnexSource::ParameterHandler::addParameterCode(String& code)
 
 	for (const auto& p : parameterTree)
 	{
+        ignoreUnused(p);
+        
 		String def;
 		def << "void setParameter" << String(pIndex) << "(" << instanceType << "& instance, double value)";
 		c << def;
