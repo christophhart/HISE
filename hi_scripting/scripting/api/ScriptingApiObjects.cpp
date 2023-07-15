@@ -1113,8 +1113,9 @@ ScriptingObjects::ScriptDownloadObject::ScriptDownloadObject(ProcessorWithScript
 	data = new DynamicObject();
 	addConstant("data", var(data.get()));
 
-	callback.setThisObject(this);
 	callback.incRefCount();
+	callback.setThisObject(this);
+	
 
 	ADD_API_METHOD_0(resume);
 	ADD_API_METHOD_0(stop);

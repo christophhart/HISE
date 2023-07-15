@@ -37,11 +37,13 @@ struct ScriptUserPresetHandler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPreCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPostSaveCallback);
 	API_VOID_METHOD_WRAPPER_2(ScriptUserPresetHandler, setEnableUserPresetPreprocessing);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setCustomAutomation);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, setUseCustomUserPresetModel);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, isOldVersion);
     API_METHOD_WRAPPER_0(ScriptUserPresetHandler, isInternalPresetLoad);
+	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, isCurrentlyLoadingPreset);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
@@ -58,6 +60,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ControlledObject(pwsc->getMainController_()),
 	preCallback(pwsc, nullptr, var(), 1),
 	postCallback(pwsc, nullptr, var(), 1),
+	postSaveCallback(pwsc, nullptr, var(), 1),
 	customLoadCallback(pwsc, nullptr, var(), 1),
 	customSaveCallback(pwsc, nullptr, var(), 1)
 {
@@ -65,7 +68,9 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 
 	ADD_API_METHOD_1(isOldVersion);
     ADD_API_METHOD_0(isInternalPresetLoad);
+	ADD_API_METHOD_0(isCurrentlyLoadingPreset);
 	ADD_API_METHOD_1(setPostCallback);
+	ADD_API_METHOD_1(setPostSaveCallback);
 	ADD_API_METHOD_1(setPreCallback);
 	ADD_API_METHOD_2(setEnableUserPresetPreprocessing);
 	ADD_API_METHOD_1(setCustomAutomation);
@@ -112,6 +117,14 @@ void ScriptUserPresetHandler::setPostCallback(var presetPostCallback)
 
 }
 
+void ScriptUserPresetHandler::setPostSaveCallback(var presetPostSaveCallback)
+{
+	postSaveCallback = WeakCallbackHolder(getScriptProcessor(), this, presetPostSaveCallback, 1);
+	postSaveCallback.incRefCount();
+	postSaveCallback.addAsSource(this, "postCallback");
+	postSaveCallback.setThisObject(this);
+}
+
 void ScriptUserPresetHandler::setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData)
 {
 	enablePreprocessing = processBeforeLoading;
@@ -123,6 +136,13 @@ bool ScriptUserPresetHandler::isInternalPresetLoad() const
     auto& uph = getScriptProcessor()->getMainController_()->getUserPresetHandler();
     
     return uph.isInternalPresetLoad();
+}
+
+bool ScriptUserPresetHandler::isCurrentlyLoadingPreset() const
+{
+	auto& uph = getScriptProcessor()->getMainController_()->getUserPresetHandler();
+
+	return uph.isCurrentlyInsidePresetLoad();
 }
 
 bool ScriptUserPresetHandler::isOldVersion(const String& version)
@@ -743,6 +763,19 @@ void ScriptUserPresetHandler::presetChanged(const File& newPreset)
 	}
 }
 
+
+void ScriptUserPresetHandler::presetSaved(const File& newPreset)
+{
+	if (postSaveCallback)
+	{
+		var f;
+
+		if (newPreset.existsAsFile())
+			f = var(new ScriptingObjects::ScriptFile(getScriptProcessor(), newPreset));
+
+		postSaveCallback.call(&f, 1);
+	}
+}
 
 struct ScriptExpansionHandler::Wrapper
 {

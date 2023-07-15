@@ -792,6 +792,8 @@ public:
 			/** Called on the message thread whenever the new preset was loaded. */
 			virtual void presetChanged(const File& newPreset) = 0;
 
+			virtual void presetSaved(const File& newPreset) {};
+
 			/** Called whenever the number of presets changed. */
 			virtual void presetListUpdated() = 0;
 
@@ -857,6 +859,8 @@ public:
 
         bool isInternalPresetLoad() const { return isInternalPresetLoadFlag; }
         
+		bool isCurrentlyInsidePresetLoad() const { return LockHelpers::getCurrentThreadHandleOrMessageManager() == currentThreadThatIsLoadingPreset; };
+
 		bool isUsingCustomDataModel() const { return customStateManager != nullptr; };
 		
 		bool isUsingPersistentObject() const { return usePersistentObject; }
@@ -900,6 +904,8 @@ public:
 		void preprocess(ValueTree& presetToLoad);
 
 		void postPresetLoad();
+
+		void postPresetSave();
 
 		bool setCustomAutomationData(CustomAutomationData::List newList);
 
@@ -998,6 +1004,8 @@ public:
 
 		bool usePersistentObject = false;
         bool isInternalPresetLoadFlag = false;
+
+		void* currentThreadThatIsLoadingPreset = nullptr;
 
 		CustomAutomationData::List customAutomationData;
 

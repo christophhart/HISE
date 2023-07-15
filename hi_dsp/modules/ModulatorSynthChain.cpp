@@ -268,8 +268,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
             FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
                                         buffer.getReadPointer(i), numSamples);
         }
+
+		// now clear the buffer
+		buffer.clear();
     }
-    
 #endif
 
 	// Process the Synths and add store their output in the internal buffer
