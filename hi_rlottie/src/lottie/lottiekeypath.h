@@ -30,19 +30,19 @@
 class LOTKeyPath {
 public:
     LOTKeyPath(const std::string &keyPath);
-    bool matches(const std::string &key, uint depth);
-    uint nextDepth(const std::string key, uint depth);
-    bool fullyResolvesTo(const std::string key, uint depth);
+    bool     matches(const std::string &key, uint32_t depth);
+    uint32_t nextDepth(const std::string key, uint32_t depth);
+    bool     fullyResolvesTo(const std::string key, uint32_t depth);
 
-    bool propagate(const std::string key, uint depth)
+    bool propagate(const std::string key, uint32_t depth)
     {
         return skip(key) ? true : (depth < size()) || (mKeys[depth] == "**");
     }
     bool skip(const std::string &key) const { return key == "__"; }
 
 private:
-    bool   isGlobstar(uint depth) const { return mKeys[depth] == "**"; }
-    bool   isGlob(uint depth) const { return mKeys[depth] == "*"; }
+    bool   isGlobstar(uint32_t depth) const { return mKeys[depth] == "**"; }
+    bool   isGlob(uint32_t depth) const { return mKeys[depth] == "*"; }
     bool   endsWithGlobstar() const { return mKeys.back() == "**"; }
     size_t size() const { return mKeys.size() - 1; }
 

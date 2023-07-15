@@ -88,7 +88,7 @@ void renderer::Layer::buildLayerNode()
         mCApiData = std::make_unique<renderer::CApiData>();
         clayer().keypath = name();
     }
-    if (complexContent()) clayer().mAlpha = uchar(combinedAlpha() * 255.f);
+    if (complexContent()) clayer().mAlpha = uint8_t(combinedAlpha() * 255.f);
     clayer().mVisible = visible();
     // update matte
     if (hasMatte()) {
@@ -124,7 +124,7 @@ void renderer::Layer::buildLayerNode()
             cNode.mPath.ptCount = 2 * pts.size();
             cNode.mPath.elmPtr = elmPtr;
             cNode.mPath.elmCount = elm.size();
-            cNode.mAlpha = uchar(mask.mCombinedAlpha * 255.0f);
+            cNode.mAlpha = uint8_t(mask.mCombinedAlpha * 255.0f);
             switch (mask.maskMode()) {
             case model::Mask::Mode::Add:
                 cNode.mMode = MaskAdd;
@@ -196,7 +196,7 @@ void renderer::ImageLayer::buildLayerNode()
 
         // Alpha calculation already combined.
         lotDrawable->mCNode->mImageInfo.mAlpha =
-            uchar(lotDrawable->mBrush.mTexture->mAlpha);
+            uint8_t(lotDrawable->mBrush.mTexture->mAlpha);
 
         cnodes().push_back(lotDrawable->mCNode.get());
     }
@@ -216,7 +216,7 @@ static void updateGStops(LOTNode *n, const VGradient *grad)
     LOTGradientStop *ptr = n->mGradient.stopPtr;
     for (const auto &i : grad->mStops) {
         ptr->pos = i.first;
-        ptr->a = uchar(i.second.alpha() * grad->alpha());
+        ptr->a = uint8_t(i.second.alpha() * grad->alpha());
         ptr->r = i.second.red();
         ptr->g = i.second.green();
         ptr->b = i.second.blue();
