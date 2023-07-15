@@ -174,6 +174,7 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
         (mSurfaceCache.get_layer_surface()->width() != surface.width() ||
          mSurfaceCache.get_layer_surface()->height() != surface.height());
 
+#if 0 // performance regression, see https://github.com/Samsung/rlottie/issues/545
     if (!isLayerSurfaceCreated || isLayerSurfaceSizeChanged) {
         if (isLayerSurfaceCreated && isLayerSurfaceSizeChanged)
             mSurfaceCache.delete_layer_surface();
@@ -186,7 +187,8 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
             VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
                   int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
     }
-
+#endif
+    
     mRootLayer->render(&painter, {}, {}, mSurfaceCache);
     painter.end();
     return true;
