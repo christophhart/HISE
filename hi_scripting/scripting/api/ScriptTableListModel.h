@@ -265,7 +265,7 @@ private:
 
 	OwnedArray<TableRepainter> tableRepainters;
 
-	mutable Array<CellType> cellTypes;
+	Array<CellType> cellTypes;
 
 	LookAndFeelData d;
 
