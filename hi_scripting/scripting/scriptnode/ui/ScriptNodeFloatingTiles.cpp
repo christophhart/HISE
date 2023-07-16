@@ -540,7 +540,7 @@ SnexPopupEditor::SnexPopupEditor(const String& name, SnexSource* src, bool isPop
 	d.getCodeDocument().replaceAllContent(codeValue.getValue().toString());
 	d.getCodeDocument().clearUndoHistory();
 
-	for (auto& o : snex::OptimizationIds::getAllIds())
+	for (auto& o : snex::OptimizationIds::Helpers::getAllIds())
 		s.addOptimization(o);
 
 	s.addDebugHandler(this);
@@ -612,7 +612,7 @@ void SnexPopupEditor::buttonClicked(Button* b)
 	}
 	if (b == &optimiseButton)
 	{
-		auto allIds = snex::OptimizationIds::getAllIds();
+		auto allIds = snex::OptimizationIds::Helpers::getAllIds();
 
 		PopupLookAndFeel plaf;
 		PopupMenu m;

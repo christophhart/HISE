@@ -426,7 +426,7 @@ private:
 
 	private:
 
-		friend class ParameterTargetCable;
+		friend struct ParameterTargetCable;
 
 		void updateValue();
 

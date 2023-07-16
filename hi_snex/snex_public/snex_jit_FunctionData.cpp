@@ -221,7 +221,7 @@ String FunctionData::createAssembly() const
 	if(numBytes != 0)
 	{
 		auto bytePtr = (uint8*)function;
-		int numToDo = numBytes;
+		int numToDo = (int)numBytes;
 
 		StringArray lines;
 
@@ -259,9 +259,9 @@ String FunctionData::createAssembly() const
 				break;
 			}
 
-			bytePos += instructionLength;
-			bytePtr += instructionLength;
-			numToDo -= instructionLength;
+			bytePos += (int)instructionLength;
+			bytePtr += (int)instructionLength;
+			numToDo -= (int)instructionLength;
 		}
 
 		return lines.joinIntoString("\n");

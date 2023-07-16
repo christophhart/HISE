@@ -1293,10 +1293,10 @@ template <class T> struct node : public scriptnode::data::base
 
 	static constexpr bool isSuspendedOnSilence() 
 	{ 
-		if constexpr(prototypes::check::isSuspendedOnSilence<T>::value)
-			return T::isSuspendedOnSilence(); 
-
-		return false;
+		if constexpr (prototypes::check::isSuspendedOnSilence<T>::value)
+			return T::isSuspendedOnSilence();
+		else
+			return false;
 	}
 
 	static constexpr int NumChannels =	  MetadataClass::NumChannels;

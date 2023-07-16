@@ -711,8 +711,6 @@ juce::Result State::processTreeElement(const ValueTree& v)
 	{
 		return Result::fail(e);
 	}
-
-	return Result::fail("unknown value tree type " + v.getType());
 }
 
 juce::Result InstructionManager::perform(State* state, const ValueTree& v)

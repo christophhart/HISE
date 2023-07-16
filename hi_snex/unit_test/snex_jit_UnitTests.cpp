@@ -536,17 +536,9 @@ public:
 	{
 		beginTest("funky");
 
-		optimizations = OptimizationIds::getDefaultIds();
+		optimizations = OptimizationIds::Helpers::getDefaultIds();
 
-		runTestsWithOptimisation(OptimizationIds::getDefaultIds());
-        
-		return;
-		optimizations = {};
-		testOptimizations();
-		testInlining();
-
-		runTestsWithOptimisation({});
-		runTestsWithOptimisation(OptimizationIds::getAllIds());
+		runTestsWithOptimisation(OptimizationIds::Helpers::getDefaultIds());
 	}
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
@@ -637,7 +629,7 @@ public:
 
 	Array<OpList> getAllOptimizationCombinations()
 	{
-		OpList allIds = OptimizationIds::getAllIds();
+		OpList allIds = OptimizationIds::Helpers::getAllIds();
 
 		allIds.sort(false);
 
@@ -1145,11 +1137,8 @@ private:
 
 		juce::String code;
 
-		
-
 #define NEW_CODE_TEXT() code = {};
 #define DECLARE_SPAN(name) ADD_CODE_LINE("span<$T, $size> " + juce::String(name) + ";")
-
 
 		auto im = [](T v)
 		{
@@ -1161,8 +1150,6 @@ private:
 		juce::String tdi;
 
 		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
-
-#if 1
 
 		NEW_CODE_TEXT();
 
@@ -1181,9 +1168,6 @@ private:
 		CREATE_TYPED_TEST(code);
 		EXPECT_TYPED(GET_TYPE(T) + " iterator with struct element type ", 0, 6);
 
-#endif
-
-        return;
 		{
 			NEW_CODE_TEXT();
 			DECLARE_SPAN("data");
@@ -1245,10 +1229,6 @@ private:
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " iterator: sum elements", 0, 6);
 		}
-
-		
-
-		
 
 		{
 			NEW_CODE_TEXT();

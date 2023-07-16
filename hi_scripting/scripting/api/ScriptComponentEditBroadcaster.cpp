@@ -391,7 +391,7 @@ bool ScriptComponentEditBroadcaster::showPanelDataJSON(juce::Component *t)
     
     var pd;
     
-    JSONEditor* editor;
+    JSONEditor* editor = nullptr;
     
     if(auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(fc))
     {

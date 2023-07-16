@@ -444,7 +444,7 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 						else
 							fd.returnType = Types::ID::Void;
 
-						for (int i = 0; i < x->nargs; i++)
+						for (uint32 i = 0; i < x->nargs; i++)
 						{
 							auto v = x->vars->varr[i];
 							fd.addArgs(v.name, TypeInfo(MirHelpers::getTypeFromMirEnum(v.type)));

@@ -3401,11 +3401,13 @@ private:
 };
 
 
-struct ProjectImporter : public DialogWindowWithBackgroundThread,
+class ProjectImporter : public DialogWindowWithBackgroundThread,
 						 public ControlledObject,
 						 public URL::DownloadTaskListener,
 						 public hlac::HlacArchiver::Listener
 {
+public:
+
 	enum class SourceType
 	{
 		New,

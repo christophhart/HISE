@@ -153,6 +153,7 @@ snex::jit::FunctionClass* SpanType::getFunctionClass()
 	subscript.inliner = new Inliner(subscript.id, [byteSize](InlineData* d_)
 	{
 		auto d = d_->toAsmInlineData();
+		ignoreUnused(d);
 		ASMJIT_ONLY(d->gen.emitSpanReference(d->target, d->object, d->args[0], byteSize));
 		return Result::ok();
 	}, {});
@@ -773,9 +774,9 @@ snex::jit::FunctionClass* DynType::getFunctionClass()
 
 
 	{
-		auto& toSimdFunction = dynOperators->createSpecialFunction(FunctionClass::ToSimdOp);
-		
 #if SNEX_ASMJIT_BACKEND
+		auto& toSimdFunction = dynOperators->createSpecialFunction(FunctionClass::ToSimdOp);
+
 		toSimdFunction.inliner = Inliner::createAsmInliner(toSimdFunction.id, [this](InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -2200,7 +2201,7 @@ void StructType::findMatchesFromBaseClasses(Array<FunctionData>& possibleMatches
 			baseClass = b->baseClass.get();
 
 			if(!memberData.isEmpty())
-				baseOffset = getMemberOffset(b->memberOffset);
+				baseOffset = (int)getMemberOffset(b->memberOffset);
 
 			return;
 		}

@@ -1054,7 +1054,7 @@ public:
 	{
 		memory.addDebugHandler(this);
 
-		for (auto o : OptimizationIds::getDefaultIds())
+		for (auto o : OptimizationIds::Helpers::getDefaultIds())
 			memory.addOptimization(o);
 	};
 

@@ -65,10 +65,13 @@ snex::jit::BaseScope* Operations::findFunctionScope(BaseScope* scope)
 		return findFunctionScope(scope->getParent());
 }
 
+
+#if SNEX_ASMJIT_BACKEND
 AsmJitRuntime* Operations::getRuntime(BaseCompiler* c)
 {
 	return dynamic_cast<ClassCompiler*>(c)->getRuntime();
 }
+#endif
 
 
 

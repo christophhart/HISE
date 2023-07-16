@@ -197,20 +197,23 @@ namespace snex
             DECLARE_ID(AsmOptimisation)
             DECLARE_ID(NoSafeChecks);
 
+			struct Helpers
+			{
 #if HISE_INCLUDE_SNEX
-            static StringArray getDefaultIds()
-            {
+				static StringArray getDefaultIds()
+				{
 #if SNEX_MIR_BACKEND
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
 #else
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
 #endif
-            }
-    
-            [[maybe_unused]] static StringArray getAllIds()
-            {
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-            }
+				}
+
+				static StringArray getAllIds()
+				{
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+				}
+			};
 #endif
         }
 

@@ -566,6 +566,8 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 	auto compiler = f.compiler;
 	auto scope = f.scope;
 
+	ignoreUnused(compiler);
+
 	hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !f.data.returnType.isStatic();
 
 #if !SNEX_MIR_BACKEND

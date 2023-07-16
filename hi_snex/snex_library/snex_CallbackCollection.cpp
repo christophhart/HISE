@@ -193,7 +193,7 @@ JitExpression::JitExpression(const juce::String& s, DebugHandler* handler, bool 
 	else
 		code << "double get(double input){ return " << s << ";}";
 
-	for(auto s: snex::jit::OptimizationIds::getDefaultIds())
+	for(auto s: snex::jit::OptimizationIds::Helpers::getDefaultIds())
 		memory.addOptimization(s);
 
 	snex::jit::Compiler c(memory);

@@ -938,9 +938,9 @@ void Operations::VectorOp::process(BaseCompiler* compiler, BaseScope* scope)
 
 void Operations::VectorOp::emitVectorOp(BaseCompiler* compiler, BaseScope* scope)
 {
+#if SNEX_ASMJIT_BACKEND
 	auto& cc = getFunctionCompiler(compiler);
 
-#if SNEX_ASMJIT_BACKEND
 	if (isSimd4)
 	{
 		/* TODO:

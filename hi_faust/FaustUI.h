@@ -259,10 +259,10 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
             // branching
             if constexpr (ModParameterClass::isStaticList())
             {
-                double v;
-                
                 if constexpr ((P < ModParameterClass::getNumParameters()))
                 {
+					double v;
+
                     if(modoutputs[P]->handleModulation(v))
                         this->modParameters.template call<P>(v);
                 }

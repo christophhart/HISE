@@ -19,8 +19,10 @@
 #ifndef CHOC_WEBVIEW_HEADER_INCLUDED
 #define CHOC_WEBVIEW_HEADER_INCLUDED
 
+#if !(defined (_WIN32) || defined (_WIN64))
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wauto-var-id"
+#endif
 
 #include <optional>
 #include <unordered_map>
@@ -4728,6 +4730,8 @@ inline choc::ui::WebViewDLL choc::ui::getWebview2LoaderDLL()
 
 #endif
 
+#if !(defined (_WIN32) || defined (_WIN64))
 #pragma clang diagnostic pop
+#endif
 
 #endif // CHOC_WEBVIEW_HEADER_INCLUDED

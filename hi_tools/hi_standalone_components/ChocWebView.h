@@ -225,8 +225,10 @@ struct SorryDavid: public Component
 	void doNothing(){};
 };
 
-struct WebViewWrapper : public Component
+class WebViewWrapper : public Component
 {
+public:
+
 #if JUCE_WINDOWS
 	using NativeComponentType = juce::HWNDComponent;
 #define setWindowHandle setHWND

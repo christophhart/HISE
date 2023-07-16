@@ -857,7 +857,7 @@ int AssemblyTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
     auto c = source.nextChar();
 
-    auto commentChar = (SNEX_MIR_BACKEND && !SNEX_INCLUDE_NMD_ASSEMBLY) ? '#' : ';';
+    auto commentChar = (juce_wchar)((SNEX_MIR_BACKEND && !SNEX_INCLUDE_NMD_ASSEMBLY) ? '#' : ';');
     
     if (c == commentChar)
     {

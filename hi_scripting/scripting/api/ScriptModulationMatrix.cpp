@@ -1031,7 +1031,7 @@ double ScriptModulationMatrix::ModulatorTargetData::getIntensityValue(GlobalModu
 	auto intensity = dynamic_cast<Modulation*>(gm)->getDisplayIntensity();
 
 	if (isBipolarFreqMod(gm))
-		intensity *= 0.01;
+		intensity *= 0.01f;
 
 	return intensity;
 }

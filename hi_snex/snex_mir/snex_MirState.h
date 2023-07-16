@@ -493,15 +493,9 @@ struct MirCodeGenerator
 		auto t = TypeConverters::getMirTypeFromT<T>();
 
 		if constexpr (indexIsRegister)
-		{
 			return derefInternal(pointerOperand, t, displacement + sizeof(T) * offset, "");
-		}
 		else
-		{
 			return derefInternal(pointerOperand, t, displacement, offset, sizeof(T));
-		}
-
-		return {};
 	}
 
 	template <typename T> String newReg(const String& source)

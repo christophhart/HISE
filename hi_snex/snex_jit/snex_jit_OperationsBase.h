@@ -67,7 +67,9 @@ namespace Operations
 
 	using RegPtr = AssemblyRegister::Ptr;
 
+#if SNEX_ASMJIT_BACKEND
 	static AsmJitRuntime* getRuntime(BaseCompiler* c);
+#endif
 
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;

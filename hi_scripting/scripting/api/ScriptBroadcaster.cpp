@@ -4264,6 +4264,7 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 {
     return;
     
+#if 0
 	if (comment.isNotEmpty())
 		return;
 
@@ -4285,6 +4286,7 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 			}
 		}
 	}
+#endif
 #endif
 }
 
