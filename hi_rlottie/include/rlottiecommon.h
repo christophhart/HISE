@@ -23,6 +23,10 @@
 #ifndef _RLOTTIE_COMMON_H_
 #define _RLOTTIE_COMMON_H_
 
+#if _WIN32
+#define RLOTTIE_BUILD 1
+#endif
+
 #if defined _WIN32 || defined __CYGWIN__
   #ifdef RLOTTIE_BUILD
     #define RLOTTIE_API __declspec(dllexport)
