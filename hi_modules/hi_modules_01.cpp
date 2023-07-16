@@ -1,6 +1,4 @@
-
 #include "JuceHeader.h"
-
 
 #if JUCE_MSVC
 #pragma warning (push)
@@ -147,3 +145,6 @@
 #include "raw/raw_main_editor.cpp"
 #include "raw/raw_UserPreset.cpp"
 #include "raw/raw_PluginParameter.cpp"
+
+#include "nodes/HiseNodes.cpp"
+#include "nodes/HiseNodeFactory.cpp"

@@ -85,49 +85,49 @@ String ui::WorkbenchData::getDefaultNodeTemplate(const Identifier& mainClass)
 	c.addComment("Initialise the processing specs here", cppgen::Base::CommentType::Raw);
 	c << "void prepare(PrepareSpecs ps)";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	c.addEmptyLine();
 	c.addComment("Reset the processing pipeline here", cppgen::Base::CommentType::Raw);
 	c << "void reset()";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	c.addEmptyLine();
 	c.addComment("Process the signal here", cppgen::Base::CommentType::Raw);
 	c << "template <typename ProcessDataType> void process(ProcessDataType& data)";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	c.addEmptyLine();
 	c.addComment("Process the signal as frame here", cppgen::Base::CommentType::Raw);
 	c << "template <int C> void processFrame(span<float, C>& data)";
 	{
-		StatementBlock sb(c);
+		cppgen::StatementBlock sb(c);
 	}
 
 	c.addEmptyLine();
 	c.addComment("Process the MIDI events here", cppgen::Base::CommentType::Raw);
 	c << "void handleHiseEvent(HiseEvent& e)";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	c.addEmptyLine();
 	c.addComment("Use this function to setup the external data", cppgen::Base::CommentType::Raw);
 	c << "void setExternalData(const ExternalData& d, int index)";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	c.addEmptyLine();
 	c.addComment("Set the parameters here", cppgen::Base::CommentType::Raw);
 	c << "template <int P> void setParameter(double v)";
 	{
-		StatementBlock sb(c); c.addEmptyLine();
+		cppgen::StatementBlock sb(c); c.addEmptyLine();
 	}
 
 	st.flushIfNot();

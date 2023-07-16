@@ -36,7 +36,6 @@
 
 #include <regex>
 
-
 #include "scripting/api/DspFactory.cpp"
 #include "scripting/api/DspInstance.cpp"
 
@@ -70,3 +69,33 @@
 
 #include "scripting/api/ScriptingApiWrappers.cpp"
 #include "scripting/api/ScriptingApiContent.cpp"
+
+#include "scripting/api/XmlApi.cpp"
+#include "scripting/engine/DebugHelpers.cpp"
+
+#include "scripting/api/ScriptComponentWrappers.cpp"
+#include "scripting/components/ScriptingContentComponent.cpp"
+#include "scripting/api/ScriptComponentEditBroadcaster.cpp"
+
+#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
+
+#include "scripting/ScriptProcessor.cpp"
+#include "scripting/ScriptProcessorModules.cpp"
+#include "scripting/HardcodedScriptProcessor.cpp"
+#include "scripting/hardcoded_modules/Arpeggiator.cpp"
+
+#if USE_BACKEND
+
+#include "scripting/components/ScriptingPanelTypes.cpp"
+#include "scripting/components/ScriptBroadcasterMap.h"
+#include "scripting/components/ScriptBroadcasterMapItems.cpp"
+#include "scripting/components/ScriptBroadcasterMap.cpp"
+
+#include "scripting/components/PopupEditors.cpp"
+#include "scripting/components/AutoCompletePopup.cpp"
+#include "scripting/components/ScriptingCodeEditorHelpers.cpp"
+#include "scripting/components/ScriptingCodeEditor.cpp"
+#include "scripting/components/ScriptingContentOverlay.cpp"
+#include "scripting/components/ScriptingEditor.cpp"
+
+#endif 

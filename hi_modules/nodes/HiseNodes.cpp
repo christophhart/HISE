@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include "HiseNodes.h"
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
