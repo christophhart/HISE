@@ -108,6 +108,11 @@ struct WebViewData : public ReferenceCountedObject
 	*/
 	void setUsePersistentCalls(bool usePersistentCalls);
 
+	void setUseScaleFactorForZoom(bool shouldApplyScaleFactorAsZoom)
+	{
+		applyScaleFactorAsZoom = shouldApplyScaleFactorAsZoom;
+	}
+
 	/** Clears all caches and persistent calls and (optionally) the file resource information. */
 	void reset(bool resetFileStructure=false);
 
@@ -145,9 +150,16 @@ struct WebViewData : public ReferenceCountedObject
 	*/
 	bool explode();
 
+	bool shouldApplyScaleFactorAsZoom() const
+	{
+		return applyScaleFactorAsZoom;
+	}
+
 private:
 
 	File projectRootDirectory;
+
+	bool applyScaleFactorAsZoom = true;
 
 	bool usePersistentCalls = true;
 

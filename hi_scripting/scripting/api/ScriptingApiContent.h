@@ -2242,7 +2242,8 @@ public:
 		enum Properties
 		{
 			enableCache = ScriptComponent::numProperties,
-			enablePersistence
+			enablePersistence,
+			scaleFactorToZoom
 		};
 
 		ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height);
