@@ -4722,6 +4722,7 @@ ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingConten
 
 	ADD_SCRIPT_PROPERTY(i01, "enableCache");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i02, "enablePersistence");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "scaleFactorToZoom");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -4731,6 +4732,7 @@ ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingConten
 	
 	setDefaultValue(Properties::enableCache, false);
 	setDefaultValue(Properties::enablePersistence, true);
+	setDefaultValue(Properties::scaleFactorToZoom, true);
 	
 	handleDefaultDeactivatedProperties();
 
@@ -4752,6 +4754,8 @@ void ScriptingApi::Content::ScriptWebView::setScriptObjectPropertyWithChangeMess
 		data->setEnableCache((bool)newValue);
 	else if (id == getIdFor(Properties::enablePersistence))
 		data->setUsePersistentCalls((bool)newValue);
+	else if (id == getIdFor(Properties::scaleFactorToZoom))
+		data->setUseScaleFactorForZoom((bool)newValue);
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }

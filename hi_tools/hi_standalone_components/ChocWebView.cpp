@@ -525,12 +525,29 @@ void WebViewWrapper::refresh()
 
 void WebViewWrapper::refreshBounds(float newScaleFactor)
 {
-	if(content != nullptr)
+	auto currentBounds = getLocalBounds();
+
+	if (content != nullptr)
+	{
+		if (content->getLocalBounds().isEmpty())
+		{
+			content->setBounds(currentBounds);
+		}
+
 		content->resizeToFitCrossPlatform();
 
+		currentBounds = content->getLocalBounds();
+	}
+	
+	auto useZoom = data->shouldApplyScaleFactorAsZoom();
+
     juce::String s;
-    s << "document.body.style.zoom = " << juce::String(newScaleFactor) << ";";
-    
+
+	if (useZoom)
+		s << "document.body.style.zoom = " << juce::String(newScaleFactor) << ";";
+	else
+		s << "window.resizeTo(" << String(currentBounds.getWidth()) << ", " << String(currentBounds.getHeight()) << ");";
+
     data->evaluate("scaleFactor", s);
     
 #if !JUCE_LINUX
