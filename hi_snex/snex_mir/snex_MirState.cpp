@@ -464,7 +464,7 @@ void RegisterManager::emitMultiLineCopy(const String& targetPointerReg, const St
 {
 	auto use64 = numBytesToCopy % 8 == 0;
 
-	jassert(use64);
+    jassert(use64); ignoreUnused(use64);
 
 	for (int i = 0; i < numBytesToCopy; i += 8)
 	{

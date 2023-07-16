@@ -348,6 +348,7 @@ void* MirCompiler::resolve(const char* name)
     for(const auto& f: currentFunctions)
     {
         DBG(f.label);
+        ignoreUnused(f);
     }
     
 	

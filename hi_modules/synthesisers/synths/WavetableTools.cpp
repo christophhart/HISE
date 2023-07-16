@@ -560,7 +560,8 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getResampledLorisBuffer(A
 	AudioSampleBuffer b(2, roundToInt(numSamples));
 
 	auto numParts = numSamples / (double)thisCycleLength;
-
+    ignoreUnused(numParts);
+    
 	b.clear();
 
 	checkIfShouldExit();
