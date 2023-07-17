@@ -38,6 +38,9 @@ using namespace juce;
 
 
 
+
+
+
 /** A JIT compiler for a C language subset based on AsmJIT.
 
 	It is supposed to be used as "scripting" language for the inner loop of a DSP routine. It offers about 70% - 80% performance of
@@ -95,8 +98,6 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<Compiler>;
 
-	
-
 	~Compiler();
 	Compiler(GlobalScope& memoryPool);
 
@@ -106,17 +107,10 @@ public:
 
 	NamespaceHandler& parseWithoutCompilation(const juce::String& code);
 
-	/** Compile a class that you want to use from C++. */
-	template <class T> T* compileJitClass(const juce::String& code, const String& classId)
-	{
-		auto obj = compileJitObject(code);
-		auto typePtr = getComplexType(NamespacedIdentifier::fromString(classId));
-		return new T(std::move(obj), typePtr);
-	};
-
 	Result getCompileResult();
 
 	juce::String getAssemblyCode();
+	ValueTree getAST() const;
 	juce::String dumpSyntaxTree() const;
 	juce::String dumpNamespaceTree() const;
 	juce::String getLastCompiledCode() { return lastCode; }
@@ -146,8 +140,13 @@ public:
 	GlobalScope& getGlobalScope() { return memory; }
 	const GlobalScope& getGlobalScope() const { return memory; }
 
+	FunctionClass::Map getFunctionMap();
+
 private:
 
+	Result cr;
+
+	String assembly;
 	NamespaceHandler::Ptr handler;
 	juce::String lastCode;
 	juce::String preprocessedCode;
@@ -156,6 +155,62 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Compiler);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Compiler);
+};
+
+/** This class will take a stringified init value list and converts it to a memory block.
+
+	It also allows iterating over each element and perform an operation based on its type and value.
+*/
+struct InitValueParser
+{
+	InitValueParser(const String& v) :
+		input(v)
+	{}
+
+	/** Pass in a function that will be called for each element in the initialiser list.
+
+		You can only call this when you've created the object with a Base64 string.
+
+		The function you pass in must have the prototype void(uint32 offset, Types::ID type, const VariableStorage&)
+
+		- offset: will contain the byte offset from the start
+		- type: the value type - either int, double or float
+		- value: the value.
+
+		Note that this also supports dynamic initialisation. In this case the value will be of type Types::ID::Pointer (while the type will contain the actual value type)
+		with the address pointing to the index in the child elements  (so 0x00000002 will point to the third child element).
+		This can be used to dynamically initialise the data.
+
+		You can take a look at the dumpContent() for an example usage of this function.
+	 */
+	void forEach(const std::function<void(uint32 offset, Types::ID type, const VariableStorage& value)>& f) const;
+
+	uint32 getNumBytesRequired() const;
+
+	String dumpContent() const;
+
+	String getB64() const;
+
+	String input;
+};
+
+struct SyntaxTreeExtractor
+{
+
+	static ValueTree getSyntaxTree(const String& b64);
+
+	/** Extracts the AST from the compiler and returns a compressed Base64 string. */
+	static String getBase64SyntaxTree(ValueTree v);
+
+    static String getBase64DataLayout(const Array<ValueTree>& dataLayouts);
+    
+    static Array<ValueTree> getDataLayoutTrees(const String& b64);
+    
+	static bool isBase64Tree(const String& code);
+
+private:
+
+	static void removeLineInfo(ValueTree& v);
 };
 
 

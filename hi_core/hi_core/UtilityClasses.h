@@ -593,58 +593,7 @@ private:
 
 
 
-class SemanticVersionChecker
-{
-public:
 
-	SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)
-	{
-		parseVersion(oldVersion, oldVersion_);
-		parseVersion(newVersion, newVersion_);
-	};
-
-	bool isUpdate() const;
-
-	bool isMajorVersionUpdate() const { return newVersion.majorVersion > oldVersion.majorVersion; };
-	bool isMinorVersionUpdate() const { return newVersion.minorVersion > oldVersion.minorVersion; };
-	bool isPatchVersionUpdate() const { return newVersion.patchVersion > oldVersion.patchVersion; };
-	bool oldVersionNumberIsValid() const { return oldVersion.validVersion; }
-	bool newVersionNumberIsValid() const { return newVersion.validVersion; }
-
-private:
-
-	struct VersionInfo
-	{
-		bool validVersion = false;
-		int majorVersion = 0;
-		int minorVersion = 0;
-		int patchVersion = 0;
-	};
-
-	static void parseVersion(VersionInfo& info, const String& v)
-	{
-		const String sanitized = v.replace("v", "", true);
-		StringArray a = StringArray::fromTokens(sanitized, ".", "");
-
-		if (a.size() != 3)
-		{
-			info.validVersion = false;
-			return;
-		}
-		else
-		{
-			info.majorVersion = a[0].getIntValue();
-			info.minorVersion = a[1].getIntValue();
-			info.patchVersion = a[2].getIntValue();
-			info.validVersion = true;
-		}
-	};
-
-	VersionInfo oldVersion;
-	VersionInfo newVersion;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SemanticVersionChecker);
-};
 
 class DelayedFunctionCaller: public Timer
 {

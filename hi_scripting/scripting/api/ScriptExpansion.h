@@ -77,12 +77,18 @@ public:
 	/** Sets a callback that will be executed after the preset has been loaded. */
 	void setPostCallback(var presetPostCallback);
 
+	/** Sets a callback that will be executed after a preset has been saved. */
+	void setPostSaveCallback(var presetPostSaveCallback);
+
 	/** Enables a preprocessing of every user preset that is being loaded. */
 	void setEnableUserPresetPreprocessing(bool processBeforeLoading, bool shouldUnpackComplexData);
 
     /** Returns true if the user preset that is about to be loaded is a DAW state (or initial state). This function is only useful during the pre / post load callbacks. */
     bool isInternalPresetLoad() const;
     
+	/** Returns true if this is called somewhere inside a preset load. This takes the thread ID into account to avoid false positives when calling this on another thread. */
+	bool isCurrentlyLoadingPreset() const;
+
 	/** Checks if the given version string is a older version than the current project version number. */
 	bool isOldVersion(const String& version);
 
@@ -125,6 +131,8 @@ public:
 	ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) override;
 
 	void presetChanged(const File& newPreset) override;
+
+	void presetSaved(const File& newPreset) override;
 
 	void presetListUpdated() override
 	{
@@ -193,6 +201,7 @@ private:
 	bool unpackComplexData = false;
 	WeakCallbackHolder preCallback;
 	WeakCallbackHolder postCallback;
+	WeakCallbackHolder postSaveCallback;
 
 	WeakCallbackHolder customLoadCallback;
 	WeakCallbackHolder customSaveCallback;
@@ -570,6 +579,14 @@ class ExpansionEncodingWindow : public DialogWindowWithBackgroundThread,
 {
 public:
 
+	enum class ExportMode
+	{
+		HXI,			// The default expansion format
+		Rhapsody,		// LWZ zip file
+		HiseProject,	// The default expansion with the file extension .hiseproject and the project setting XML file
+		numExportModes
+	};
+
 	static constexpr int AllExpansionId = 9000000;
 
 	ExpansionEncodingWindow(MainController* mc, Expansion* eToEncode, bool isProjectExport, bool isRhapsody=true);
@@ -580,7 +597,7 @@ public:
 		showStatusMessage(message);
 	}
 
-	Result performRhapsodyChecks();
+	Result performChecks();
 
 	void run() override;
 	void threadFinished();
@@ -588,7 +605,8 @@ public:
 	Result encodeResult;
 	
 	bool projectExport = false;
-	bool isRhapsody;
+	
+	ExportMode exportMode = ExportMode::HXI;
 
 	File rhapsodyOutput;
 

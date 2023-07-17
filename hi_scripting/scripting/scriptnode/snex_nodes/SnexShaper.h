@@ -42,7 +42,8 @@ using namespace snex;
 
 namespace waveshapers
 {
-struct dynamic : public SnexSource
+struct dynamic : public SnexSource,
+			     public WaveformComponent::Broadcaster
 {
 	SN_GET_SELF_AS_OBJECT(dynamic);
 
@@ -159,17 +160,22 @@ struct dynamic : public SnexSource
 		callbacks.processFrame(d);
 	}
 
-	bool preprocess(String& c) final override
+	bool preprocess(String& code) final override
 	{
-		SnexSource::preprocess(c);
+		if (code.contains("instance.reset();"))
+		{
+			// already preprocessed...
+			return true;
+		}
 
-		SnexSource::addDummyProcessFunctions(c);
-
+		SnexSource::preprocess(code);
+		SnexSource::addDummyProcessFunctions(code);
+		SnexSource::addDummyNodeCallbacks(code, false);
 		
 		return true;
 	}
 
-	
+	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
 
 	String getEmptyText(const Identifier& id) const override;
 
@@ -181,7 +187,6 @@ struct dynamic : public SnexSource
 	}
 
 	class editor : public ScriptnodeExtraComponent<dynamic>,
-				   public WaveformComponent::Broadcaster,
 				   public SnexSource::SnexSourceListener
 	{
 	public:
@@ -190,14 +195,14 @@ struct dynamic : public SnexSource
 
 		~editor();
 
-		snex::Types::span<float, 128> tData;
+		
 
 		void wasCompiled(bool ) override { rebuild = true; };
 		void complexDataAdded(snex::ExternalData::DataType , int ) override { rebuild = true; };
 		void parameterChanged(int , double newValue) override { rebuild = true; };
 		void complexDataTypeChanged() override { rebuild = true; };
 
-		void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
+		
 
 		void timerCallback() override;
 
@@ -217,6 +222,8 @@ struct dynamic : public SnexSource
 	
 
 	ShaperCallbacks callbacks;
+
+	snex::Types::span<float, 128> tData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
 };

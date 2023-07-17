@@ -65,7 +65,7 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 	voiceUptime += randomized;
 
 	AudioLooper *looper = static_cast<AudioLooper*>(getOwnerSynth());
-
+	
 	SimpleReadWriteLock::ScopedReadLock sl(looper->getBuffer().getDataLock());
 
 	uptimeDelta = looper->getBuffer().isNotEmpty() ? 1.0 : 0.0;
@@ -187,7 +187,6 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 		const double pitchDelta = (uptimeDelta * syncFactor * (voicePitchValues == nullptr ? 1.0f : voicePitchValues[startSample]));
 
-		
 		voiceUptime += pitchDelta;
 
 		++startSample;
@@ -417,35 +416,40 @@ void AudioLooper::setSyncMode(int newSyncMode)
 	const bool tempoOK = globalBpm > 0.0 && globalBpm < 1000.0;
 	const bool sampleRateOK = getSampleRate() != -1.0;
 	const bool lengthOK = getBuffer().isNotEmpty();
+	const int lengthForOneBeat = TempoSyncer::getTempoInSamples(globalBpm, getSampleRate(), TempoSyncer::Quarter);
 
-	if (!tempoOK || !sampleRateOK || !lengthOK)
+	for (int i = 0; i < getNumVoices(); i++)
 	{
-		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0;
-		return;
-	}
+		if (!tempoOK || !sampleRateOK || !lengthOK)
+		{
+			dynamic_cast<AudioLooperVoice*>(getVoice(i))->syncFactor = 1.0;
+			continue;
+		}
 
-	int multiplier = 1;
+		int multiplier = 1;		
 
-	switch (syncMode)
-	{
-	case SyncToHostMode::FreeRunning:		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0; return;
-	case SyncToHostMode::OneBeat:			multiplier = 1; break;
-	case SyncToHostMode::TwoBeats:			multiplier = 2; break;
-	case SyncToHostMode::OneBar:			multiplier = 4; break;
-	case SyncToHostMode::TwoBars:			multiplier = 8; break;
-	case SyncToHostMode::FourBars:			multiplier = 16; break;
-	default:								jassertfalse; multiplier = 1;
-	}
+		switch (syncMode)
+		{
+			case SyncToHostMode::FreeRunning:		dynamic_cast<AudioLooperVoice*>(getVoice(i))->syncFactor = 1.0; continue;
+			case SyncToHostMode::OneBeat:			multiplier = 1; break;
+			case SyncToHostMode::TwoBeats:			multiplier = 2; break;
+			case SyncToHostMode::OneBar:			multiplier = 4; break;
+			case SyncToHostMode::TwoBars:			multiplier = 8; break;
+			case SyncToHostMode::FourBars:			multiplier = 16; break;
+			case SyncToHostMode::EightBars:			multiplier = 32; break;
+			case SyncToHostMode::TwelveBars:			multiplier = 48; break;
+			case SyncToHostMode::SixteenBars:			multiplier = 64; break;
+			default:								jassertfalse; multiplier = 1;
+		}	
 
-	const int lengthForOneBeat = TempoSyncer::getTempoInSamples(getMainController()->getBpm(), getSampleRate(), TempoSyncer::Quarter);
-
-	if (lengthForOneBeat == 0)
-	{
-		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0;
-	}
-	else
-	{
-		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = (float)getBuffer().getCurrentRange().getLength() / (float)(lengthForOneBeat * multiplier);
+		if (lengthForOneBeat == 0)
+		{
+			dynamic_cast<AudioLooperVoice*>(getVoice(i))->syncFactor = 1.0;
+		}
+		else
+		{
+				dynamic_cast<AudioLooperVoice*>(getVoice(i))->syncFactor = (float)getBuffer().getCurrentRange().getLength() / (float)(lengthForOneBeat * multiplier);
+		}		
 	}
 }
 

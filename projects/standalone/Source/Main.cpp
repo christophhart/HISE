@@ -86,7 +86,9 @@ private:
 
 		throwErrorAndQuit("`" + s + "` is not a valid path");
 
+#if JUCE_DEBUG
 		return File();
+#endif
 	}
 
 public:
@@ -352,12 +354,14 @@ public:
 		jsfx->getOrCreate("dsp");
 
 		CompileExporter::setExportingFromCommandLine();
+		CompileExporter::setExportUsingCI(true);
 
 		hise::DspNetworkCompileExporter exporter(nullptr, dynamic_cast<BackendProcessor*>(mc));
 
 		exporter.getComboBoxComponent("build")->setText(config, dontSendNotification);
 
 		exporter.run();
+		exporter.threadFinished();
 	}
 
 	static void setProjectFolder(const String& commandLine, bool exitOnSuccess=true)
@@ -476,7 +480,7 @@ public:
 			throwErrorAndQuit(hisePath.getFullPathName() + " is not HISE source folder");
 		}
 
-		auto compilerSettings = NativeFileHandler::getAppDataDirectory().getChildFile("compilerSettings.xml");
+		auto compilerSettings = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("compilerSettings.xml");
 
 		ScopedPointer<XmlElement> xml;
 

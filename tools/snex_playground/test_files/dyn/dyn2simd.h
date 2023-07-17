@@ -17,7 +17,7 @@ dyn<float> d;
 
 int main(int input)
 {
-	d.referTo(s);
+	d.referTo(s, s.size());
 	float sum = 0.0f;
 	
 	for(auto& f4: d.toSimd())

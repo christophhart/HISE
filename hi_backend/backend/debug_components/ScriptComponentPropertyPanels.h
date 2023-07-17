@@ -219,6 +219,13 @@ public:
 
 	void buttonClicked(Button *) override;
 
+	struct LAF : public PopupLookAndFeel
+	{
+		void drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+		void drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+	} blaf;
+
 	TextButton button;
 };
 

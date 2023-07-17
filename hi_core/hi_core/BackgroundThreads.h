@@ -523,6 +523,7 @@ public:
 
 private:
 
+	Array<File> collectWavetableMonoliths();
 
 	Array<File> collectMonoliths();
 

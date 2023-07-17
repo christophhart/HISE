@@ -28,7 +28,7 @@ int main(int input)
 	// here we assign the dyn array to the
 	// span data. It will be resized to 
 	// match the data length of the span
-	dynData.referTo(data);
+	dynData.referTo(data, data.size());
 	
 	// Iterate over the dyn array
 	// & means reference so you can change it.

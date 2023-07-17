@@ -11,6 +11,7 @@ END_TEST_DATA
 */
 
 
+
 index::wrapped<3> i;
 index::wrapped<2> j;
 span<span<int, 2>, 3> data = { { 1, 2 }, { 3, 4}, {5, 6} };
@@ -24,4 +25,3 @@ int main(int input)
     
     return v[j]; 
 }
-

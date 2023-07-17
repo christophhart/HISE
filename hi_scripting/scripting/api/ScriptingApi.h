@@ -346,6 +346,9 @@ public:
 		/** Returns a reference to the global routing manager. */
 		var getGlobalRoutingManager();
 
+        /** Returns a reference to the global Loris manager. */
+        var getLorisManager();
+        
 		/** Returns a reference to a complex data type from the given module. */
 		var getComplexDataReference(String dataType, String moduleId, int index);
 
@@ -362,7 +365,7 @@ public:
 		void renderAudio(var eventList, var finishCallback);
 
 		/** Previews a audio buffer with a callback indicating the state. */
-		void playBuffer(var bufferData, var callback);
+		void playBuffer(var bufferData, var callback, double fileSampleRate);
 
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
@@ -453,6 +456,9 @@ public:
 
 		/** Loads a file and returns its content as array of Buffers. */
 		var loadAudioFileIntoBufferArray(String audioFileReference);
+
+		/** Returns the list of wavetables of the current expansion (or factory content). */
+		var getWavetableList();
 
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
@@ -574,6 +580,9 @@ public:
 		/** Creates an object that can listen to transport events. */
 		var createTransportHandler();
 
+		/** Creates a modulation matrix object that handles dynamic modulation using the given Global Modulator Container as source. */
+		var createModulationMatrix(String containerId);
+
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
 
@@ -609,6 +618,9 @@ public:
 		/** Redo the last controller change. */
 		void redo();
 
+        /** Clears the undo history. */
+        void clearUndoHistory();
+        
 		/** Returns a fully described string of this date and time in ISO-8601 format (using the local timezone) with or without divider characters. */
 		String getSystemTime(bool includeDividerCharacters);
 		
@@ -1170,6 +1182,9 @@ public:
 		/** Returns true if the sustain pedal is pressed. */
 		bool isSustainPedalDown() const { return sustainState; }
 
+		/** Use a uniform voice index for the given container. */
+		void setUseUniformVoiceHandler(String containerId, bool shouldUseUniformVoiceHandling);
+
 		// ============================================================================================================
 
 		void handleNoteCounter(const HiseEvent& e) noexcept
@@ -1398,6 +1413,9 @@ public:
 		/** sends a message on the next grid callback to resync the external clock. */
 		void sendGridSyncOnNextCallback();
 
+		/** If enabled, this will link the internal / external BPM to the sync mode. */
+		void setLinkBpmToSyncMode(bool shouldPrefer);
+
 	private:
 
 		void clearIf(ScopedPointer<Callback>& cb, const var& f)
@@ -1497,6 +1515,9 @@ public:
 
         /** Sets a string that is parsed as timeout message when the server doesn't respond. Default is "{}" (empty JSON object). */
         void setTimeoutMessageString(String timeoutMessage);
+        
+        /** Sets whether to append a trailing slash to each POST call (default is true). */
+        void setEnforceTrailingSlash(bool shouldAddSlash);
         
 		/** Returns a list of all pending Downloads. */
 		var getPendingDownloads();

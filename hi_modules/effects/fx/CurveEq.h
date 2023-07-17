@@ -188,10 +188,19 @@ public:
 		return filterBands[filterIndex];
 	}
 
+	bool isSuspendedOnSilence() const final override
+	{
+		return true;
+	}
+
 	void enableSpectrumAnalyser(bool shouldBeEnabled)
 	{
 		fftBuffer->setActive(shouldBeEnabled);
+
+		sendBroadcasterMessage("FFTEnabled", shouldBeEnabled);
 	}
+
+	void sendBroadcasterMessage(const String& type, const var& value, NotificationType n = sendNotificationSync);
 
 	void addFilterBand(double freq, double gain, int insertIndex=-1)
 	{
@@ -209,6 +218,8 @@ public:
 		else
 			filterBands.insert(insertIndex, f);
 
+		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
+
 		sendChangeMessage();
 	}
 
@@ -217,6 +228,8 @@ public:
 		ScopedLock sl(getMainController()->getLock());
 
 		filterBands.remove(filterIndex);
+
+		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
 
 		sendChangeMessage();
 	}
@@ -300,6 +313,8 @@ public:
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	LambdaBroadcaster<String, var> eqBroadcaster;
 
 private:
 

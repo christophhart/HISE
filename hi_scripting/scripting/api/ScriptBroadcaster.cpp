@@ -944,22 +944,88 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
     return Result::ok();
 }
 
+struct ScriptBroadcaster::EqListener::InternalListener
+{
+	InternalListener(ScriptBroadcaster* b_, CurveEq* eq_, const StringArray& eventList_) :
+		parent(b_),
+		eq(eq_),
+		eventTypes(eventList_),
+		keeper(args)
+	{
+		eq->eqBroadcaster.addListener(*this, onChange, false);
+	}
 
+	~InternalListener()
+	{
+		if (eq != nullptr)
+			eq->eqBroadcaster.removeListener(*this);
+	}
 
+	static void onChange(InternalListener& l, const String& type, const var& value)
+	{
+		if (l.eventTypes.contains(type))
+		{
+			l.sendMessage(type, value);
+		}
+	}
+
+	void sendMessage(const String& type, const var& value)
+	{
+		args.set(0, var(type));
+		args.set(1, value);
+
+		try
+		{
+			parent->sendAsyncMessage(var(args));
+		}
+		catch (String& s)
+		{
+			debugError(dynamic_cast<Processor*>(parent->getScriptProcessor()), s);
+		}
+	}
+
+	Array<var> args;
+	var keeper;
+
+	WeakReference<CurveEq> eq;
+	WeakReference<ScriptBroadcaster> parent;
+	StringArray eventTypes;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(InternalListener);
+};
+
+ScriptBroadcaster::EqListener::EqListener(ScriptBroadcaster* b, const Array<WeakReference<CurveEq>>& eqs, const StringArray& eventList, const var& metadata):
+	ListenerBase(metadata)
+{
+	for (const auto& eq : eqs)
+	{
+		listeners.add(new InternalListener(b, eq, eventList));
+	}
+}
+
+juce::Result ScriptBroadcaster::EqListener::callItem(TargetBase* b)
+{
+	return Result::ok();
+}
 
 struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
 																	   public hise::Processor::BypassListener
 {
-	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& bypassId_) :
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
-		bypassId(bypassId_)
+		specialId(specialId_),
+		useIntegerIndexesAsArgument(useIntegerArgs)
 	{
 		for (auto pi : parameterIndexes)
 		{
 			lastValues.add(p->getAttribute(pi));
-			parameterNames.add(p->getIdentifierForParameterIndex(pi).toString());
+
+			if (!useIntegerIndexesAsArgument)
+				parameterNames.add(p->getIdentifierForParameterIndex(pi).toString());
+			else
+				parameterNames.add(pi);
 		}
 
 		args.add(p->getId());
@@ -969,18 +1035,34 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 		if(!parameterIndexes.isEmpty())
 			p->addChangeListener(this);
 
-		if (bypassId.isValid())
+		if (specialId.isValid())
 		{
-			p->addBypassListener(this);
-			bypassIdAsVar = var(bypassId.toString());
+            if(specialId.toString() == "Intensity")
+            {
+                if(auto mod = dynamic_cast<Modulation*>(p.get()))
+                {
+                    mod->intensityBroadcaster.addListener(*this, intensityChanged, true);
+                }
+            }
+            else
+            {
+                p->addBypassListener(this);
+                bypassIdAsVar = var(specialId.toString());
+            }
 		}
 	}
+    
+    static void intensityChanged(ProcessorListener& m, float newValue)
+    {
+        static const var ip("Intensity");
+        m.sendParameterChange(ip, newValue);
+    }
 
 	void bypassStateChanged(Processor* p, bool bypassState) override
 	{
 		static const Identifier e("Enabled");
 
-		if (bypassId == e)
+		if (specialId == e)
 			bypassState = !bypassState;
 
 		auto newValue = (float)(int)bypassState;
@@ -1018,12 +1100,19 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 
 		for (int i = 0; i < parameterIndexes.size(); i++)
 		{
-			auto id = parameterNames[i];
+			
 			auto newValue = p->getAttribute(parameterIndexes[i]);
 
 			if (lastValues[i] != newValue)
 			{
 				lastValues.set(i, newValue);
+
+				var id = parameterNames[i];
+
+				if (useIntegerIndexesAsArgument)
+				{
+					jassert(id.isInt());
+				}
 
 				sendParameterChange(id, newValue);
 			}
@@ -1037,15 +1126,19 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	Array<float> lastValues;
 	Array<var> parameterNames;
 	const Array<int> parameterIndexes;
-	Identifier bypassId;
+	Identifier specialId;
 	var bypassIdAsVar;
+
+	bool useIntegerIndexesAsArgument = false;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorListener);
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& bypassId):
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters):
 	ListenerBase(metadata)
 {
 	for (auto& p : processors)
-		listeners.add(new ProcessorListener(b, p, parameterIndexes, bypassId));
+		listeners.add(new ProcessorListener(b, p, parameterIndexes, specialId, useIntegerParameters));
 }
 
 void ScriptBroadcaster::ModuleParameterListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
@@ -1175,7 +1268,7 @@ int ScriptBroadcaster::ModuleParameterListener::getNumInitialCalls() const
 
 	for (auto l : listeners)
 	{
-		if (l->bypassId.isValid())
+		if (l->specialId.isValid())
 			i++;
 
 		i += l->parameterIndexes.size();
@@ -1196,20 +1289,32 @@ Array<juce::var> ScriptBroadcaster::ModuleParameterListener::getInitialArgs(int 
 	{
 		args.set(0, l->p->getId());
 
-		if (l->bypassId.isValid())
+		if (l->specialId.isValid())
 		{
-			if (i == callIndex)
+            if (i == callIndex)
 			{
-				
-				auto v = l->p->isBypassed();
+				if(l->specialId == Identifier("Intensity"))
+                {
+                    if(auto m = dynamic_cast<Modulation*>(l->p.get()))
+                    {
+                        args.set(1, "Intensity");
+                        args.set(2, m->getIntensity());
+                        
+                        return args;
+                    }
+                }
+                else
+                {
+                    auto v = l->p->isBypassed();
 
-				if (l->bypassId == Identifier("Enabled"))
-					v = !v;
+                    if (l->specialId == Identifier("Enabled"))
+                        v = !v;
 
-				args.set(1, l->bypassIdAsVar);
-				args.set(2, var((float)(int)v));
+                    args.set(1, l->bypassIdAsVar);
+                    args.set(2, var((float)(int)v));
 
-				return args;
+                    return args;
+                }
 			}
 
 			i++;
@@ -1267,19 +1372,35 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 
 		args.set(0, processor->getId());
 
-		if (p->bypassId.isValid())
+		if (p->specialId.isValid())
 		{
-			args.set(1, p->bypassIdAsVar);
-			auto v = p->p->isBypassed();
-			if (p->bypassId == Identifier("Enabled"))
-				v = !v;
+            if(p->specialId == Identifier("Intensity"))
+            {
+                if(auto m = dynamic_cast<Modulation*>(p->p.get()))
+                {
+                    args.set(1, "Intensity");
+                    args.set(2, m->getIntensity());
+                    
+                    auto r = n->callSync(args);
 
-			args.set(2, var((float)(int)v));
+                    if (!r.wasOk())
+                        return r;
+                }
+            }
+            else
+            {
+                args.set(1, p->bypassIdAsVar);
+                auto v = p->p->isBypassed();
+                if (p->specialId == Identifier("Enabled"))
+                    v = !v;
 
-			auto r = n->callSync(args);
+                args.set(2, var((float)(int)v));
 
-			if (!r.wasOk())
-				return r;
+                auto r = n->callSync(args);
+
+                if (!r.wasOk())
+                    return r;
+            }
 		}
 
 		for (int i = 0; i < p->parameterNames.size(); i++)
@@ -2704,6 +2825,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
@@ -2745,6 +2867,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
+	ADD_API_METHOD_3(attachToEqEvents);
 	ADD_API_METHOD_5(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_1(attachToProcessingSpecs);
@@ -3375,60 +3498,101 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 	{
 		for (const auto& pId : *moduleIds.getArray())
 		{
+			if (auto s = dynamic_cast<ScriptingObject*>(pId.getObject()))
+				reportScriptError("The module list parameter must be a list of ID strings, not object references...");
+
 			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
 
-			if (!processors.isEmpty() && p->getType() != processors.getFirst()->getType())
+			if (p == nullptr)
+				reportScriptError("Can't find module with ID " + pId.toString());
+
+			if (!processors.isEmpty() && (p != nullptr && p->getType() != processors.getFirst()->getType()))
 				reportScriptError("the modules must have the same type");
 
 			processors.add(p);
 		}
 	}
 	else
-		processors.add(ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString()));
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+		if (p == nullptr)
+			reportScriptError("Can't find module with ID " + moduleIds.toString());
+
+		processors.add(p);
+	}
 
 	
 	Array<int> parameterIndexes;
 
-	Identifier bypassId;
+    Identifier specialId;
+
+	bool useIntegerParameters = false;
 
 	if (parameterIds.isArray())
 	{
 		for (const auto& pId : *parameterIds.getArray())
 		{
-			auto pName = pId.toString();
-
-			if (pName == "Bypassed" || pName == "Enabled")
+			if (pId.isInt() || pId.isInt64())
 			{
-				bypassId = Identifier(pName);
-				continue;
+				parameterIndexes.add((int)pId);
+				useIntegerParameters = true;
 			}
+			else
+			{
+				auto pName = pId.toString();
 
-			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
+				if (pName == "Bypassed" || pName == "Enabled")
+				{
+					specialId = Identifier(pName);
+					continue;
+				}
+				else if (pName == "Intensity" &&
+					dynamic_cast<Modulator*>(processors.getFirst().get()) != nullptr)
+				{
+					specialId = Identifier(pName);
+					continue;
+				}
 
-			if (idx == -1)
-				reportScriptError("unknown parameter ID: " + pName);
+				auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
-			parameterIndexes.add(idx);
+				if (idx == -1)
+					reportScriptError("unknown parameter ID: " + pName);
+
+				parameterIndexes.add(idx);
+			}
 		}
 	}
 	else
 	{
-		auto pName = parameterIds.toString();
-
-		if (pName == "Bypassed" || pName == "Enabled")
-			bypassId = Identifier(pName);
+		if (parameterIds.isInt() || parameterIds.isInt64())
+		{
+			useIntegerParameters = true;
+			parameterIndexes.add((int)parameterIds);
+		}
 		else
 		{
-			auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
+			auto pName = parameterIds.toString();
 
-			if (idx == -1)
-				reportScriptError("unknown parameter ID: " + pName);
+			if (pName == "Bypassed" || pName == "Enabled")
+				specialId = Identifier(pName);
+			else if (pName == "Intensity" && dynamic_cast<Modulator*>(processors.getFirst().get()))
+			{
+				specialId = Identifier(pName);
+			}
+			else
+			{
+				auto idx = processors.getFirst()->getParameterIndexForIdentifier(pName);
 
-			parameterIndexes.add(idx);
+				if (idx == -1)
+					reportScriptError("unknown parameter ID: " + pName);
+
+				parameterIndexes.add(idx);
+			}
 		}
 	}
 
-	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, bypassId));
+	attachedListeners.add(new ModuleParameterListener(this, processors, parameterIndexes, optionalMetadata, specialId, useIntegerParameters));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;
@@ -3618,6 +3782,71 @@ void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleI
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
     enableQueue = processors.size() > 1 || indexListArray.size() > 1;
+}
+
+void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 2)
+	{
+		reportScriptError("If you want to attach a broadcaster to an EQ, it needs two parameters (eventType, value)");
+	}
+
+	Array<WeakReference<CurveEq>> eqs;
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	if (moduleIds.isArray())
+	{
+		for (const auto& pId : *moduleIds.getArray())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+			if (auto asHolder = dynamic_cast<CurveEq*>(p))
+			{
+				eqs.add(asHolder);
+			}
+			else
+				reportScriptError(pId.toString() + " is not an EQ");
+		}
+	}
+	else
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
+
+		if (auto asHolder = dynamic_cast<CurveEq*>(p))
+		{
+			eqs.add(asHolder);
+		}
+		else
+			reportScriptError(moduleIds.toString() + " is not an EQ");
+	}
+
+	StringArray eventTypes;
+	StringArray legitEventTypes = { "BandAdded", "BandRemoved", "BandSelected", "FFTEnabled" };
+
+	if (events.isString() && events.toString().isNotEmpty())
+	{
+		eventTypes.add(events.toString());
+	}
+	else if (events.isArray())
+	{
+		for (const auto& v : *events.getArray())
+			eventTypes.add(v.toString());
+	}
+
+	for (const auto& p : eventTypes)
+	{
+		if (!legitEventTypes.contains(p))
+			reportScriptError(p + " is not a valid EQ event type. Supported Types: " + legitEventTypes.joinIntoString(", "));
+	}
+
+	if (eventTypes.isEmpty())
+		eventTypes.swapWith(legitEventTypes);
+		
+	attachedListeners.add(new EqListener(this, eqs, eventTypes, optionalMetadata));
+
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
 void ScriptBroadcaster::callWithDelay(int delayInMilliseconds, var argArray, var function)
@@ -3866,6 +4095,10 @@ void ScriptBroadcaster::sendErrorMessage(ItemBase* i, const String& message, boo
 {
 	if (throwError)
 		reportScriptError(message);
+    else
+    {
+        debugError(dynamic_cast<Processor*>(getScriptProcessor()), message);
+    }
 
 	if (i != nullptr)
 		errorBroadcaster.sendMessage(sendNotificationAsync, i, message);
@@ -4031,6 +4264,7 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 {
     return;
     
+#if 0
 	if (comment.isNotEmpty())
 		return;
 
@@ -4052,6 +4286,7 @@ void ScriptBroadcaster::Metadata::attachCommentFromCallableObject(const var& cal
 			}
 		}
 	}
+#endif
 #endif
 }
 

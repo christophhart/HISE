@@ -21,7 +21,7 @@ dyn<int> data3;
 
 int main(int input)
 {
-	data1.referTo(data);
+	data1.referTo(data, data.size());
 	data2.referTo(data, 3);
 	data3.referTo(data, 4, 2);
 	

@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 struct Operations::ClassStatement : public Statement,
@@ -63,6 +63,22 @@ struct Operations::ClassStatement : public Statement,
 	{
 		auto t = Statement::toValueTree();
 		t.setProperty("Type", classType->toString(), nullptr);
+
+		if(auto st = dynamic_cast<StructType*>(classType.get()))
+		{
+			String memberInfo;
+
+			for (int i = 0; i < st->getNumMembers(); i++)
+			{
+				auto mId = st->getMemberName(i);
+				memberInfo << st->getMemberTypeInfo(mId).toStringWithoutAlias() << " " << mId << "(" << st->getMemberOffset(i) << ")";
+
+				if(i != st->getNumMembers()-1)
+					memberInfo << "$";
+			}
+
+			t.setProperty("MemberInfo", memberInfo, nullptr);
+		}
 
 		return t;
 	}
@@ -145,10 +161,13 @@ struct Operations::ComplexTypeDefinition : public Expression,
 	{
 		initValues = l;
 
-		initValues->forEach([this](InitialiserList::ChildBase* b)
+		int expressionIndex = 0;
+
+		initValues->forEach([this, &expressionIndex](InitialiserList::ChildBase* b)
 		{
 			if (auto ec = dynamic_cast<InitialiserList::ExpressionChild*>(b))
 			{
+				ec->expressionIndex = expressionIndex++;
 				this->addStatement(ec->expression);
 			}
 
@@ -184,12 +203,37 @@ struct Operations::ComplexTypeDefinition : public Expression,
 		for (auto id : ids)
 			names << id.toString() << ",";
 
-		t.setProperty("Type", type.toString(), nullptr);
+		t.setProperty("Type", type.toStringWithoutAlias(), nullptr);
 
 		t.setProperty("Ids", names, nullptr);
 
+		t.setProperty("NumBytes", (int)type.getRequiredByteSize(), nullptr);
+
 		if (initValues != nullptr)
+		{
+			auto numBytes = type.getRequiredByteSizeNonZero();
+
+			if (numBytes % 8 != 0)
+				numBytes += 8 - (numBytes % 8);
+
+			MemoryBlock mb(numBytes);
+
+			memset(mb.getData(), 0, numBytes);
+
+			ComplexType::InitData d;
+			d.callConstructor = false;
+			d.dataPointer = mb.getData();
+			d.initValues = initValues;
+
+			type.getComplexType()->initialise(d);
+
+			auto x = mb.toBase64Encoding();
+
+
 			t.setProperty("InitValues", initValues->toString(), nullptr);
+			t.setProperty("InitValuesB64", x, nullptr);
+		}
+			
 
 		return t;
 	}

@@ -158,6 +158,72 @@ void VariantBuffer::addMethods()
 
 		return var(0);
 	});
+    
+    setMethod("toCharString", [](const var::NativeFunctionArgs& n)
+    {
+        if(auto bf = n.thisObject.getBuffer())
+        {
+            int numChars = bf->size;
+            
+            if(n.numArguments > 0)
+                numChars = jmax(1, (int)n.arguments[0]);
+            
+            float min = 0.0f;
+            float max = 1.0f;
+            
+            if(n.numArguments > 1)
+            {
+                min = (float)n.arguments[1][0];
+                max = (float)n.arguments[1][1];
+            }
+             
+            int samplesPerChar = bf->size / numChars;
+            
+            String s;
+            s.preallocateBytes(numChars * 2);
+            
+            for(int i = 0; i < bf->size; i += samplesPerChar)
+            {
+                int numToCheck = jmin(samplesPerChar, bf->size-i);
+                auto r = bf->buffer.findMinMax(0, i, numToCheck);
+                
+                float v = r.getEnd();
+                
+                if(std::abs(r.getStart()) > v)
+                    v = r.getStart();
+                
+                v = jlimit(min, max, v);
+                
+                auto safe_offset = (float)(int)('(');
+                auto safe_limit = 124.0f;
+                
+                auto v2 = (v - min) / (max - min) * (safe_limit - safe_offset);
+                
+                char msb = (char)(int)(v2) + (char)safe_offset;
+                
+                auto min2 = std::floor(v2);
+                auto max2 = min2 + 1.0f;
+                
+                auto v3 = (v2 - min2) / (max2 - min2) * (safe_limit - safe_offset);
+                
+                char lsb = (char)(int)(v3) + (char)safe_offset;
+                
+                if(msb >= '\\')
+                    msb++;
+                
+                if(lsb >= '\\')
+                    lsb++;
+                
+                s << msb;
+                s << lsb;
+                
+            }
+            
+            return var(s);
+        }
+        
+        return var();
+    });
 
 #if HISE_INCLUDE_PITCH_DETECTION
 	setMethod("detectPitch", [](const var::NativeFunctionArgs& n)

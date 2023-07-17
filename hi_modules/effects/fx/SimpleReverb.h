@@ -165,6 +165,7 @@ public:
 
 	bool hasTail() const override {return true; };
 
+	bool isSuspendedOnSilence() const final override { return true; }
 	
 	int getNumChildProcessors() const override { return 0; };
 

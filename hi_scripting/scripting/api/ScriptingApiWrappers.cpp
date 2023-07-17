@@ -69,6 +69,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addPanel(const var::NativeFunctionArgs& args);
 	static var addAudioWaveform(const var::NativeFunctionArgs& args);
 	static var addSliderPack(const var::NativeFunctionArgs& args);
+	static var addWebView(const var::NativeFunctionArgs& args);
 	static var addFloatingTile(const var::NativeFunctionArgs& args);
 	static var getComponent(const var::NativeFunctionArgs& args);
 	static var getAllComponents(const var::NativeFunctionArgs& args);
@@ -134,6 +135,8 @@ struct ScriptingApi::Content::Wrapper
 	static var isMouseDown(const var::NativeFunctionArgs& args);
 	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
 	static var callAfterDelay(const var::NativeFunctionArgs& args);
+	static var refreshDragImage(const var::NativeFunctionArgs& args);
+	static var getComponentUnderDrag(const var::NativeFunctionArgs& args);
 
 };
 
@@ -311,18 +314,22 @@ var ScriptingApi::Content::Wrapper::addSliderPack(const var::NativeFunctionArgs&
 	return var();
 }
 
+juce::var ScriptingApi::Content::Wrapper::addWebView(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("addWebView()", 3);
+		return thisObject->addWebView(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::Wrapper::addFloatingTile(const var::NativeFunctionArgs& args)
 {
 	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
 	{
-		if (args.numArguments == 1)
-		{
-			return thisObject->addSliderPack(Identifier(args.arguments[0]), 0, 0);
-		}
-
 		CHECK_ARGUMENTS("addFloatingTile()", 3);
-
 		return thisObject->addFloatingTile(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
@@ -1055,6 +1062,27 @@ juce::var ScriptingApi::Content::Wrapper::callAfterDelay(const var::NativeFuncti
 
 	return var();
 }
+
+juce::var ScriptingApi::Content::Wrapper::refreshDragImage(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->refreshDragImage();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getComponentUnderDrag(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getComponentUnderDrag();
+	}
+
+	return var();
+}
+
 
 #undef GET_OBJECT
 #undef CHECK_ARGUMENTS

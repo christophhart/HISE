@@ -87,6 +87,15 @@ void AudioProcessorDriver::resetToDefault()
 	}
 }
 
+String GlobalSettingManager::getHiseVersion()
+{
+#if USE_BACKEND
+	return ProjectInfo::versionString;
+#else
+	return FrontendHandler::getHiseVersion();
+#endif
+}
+
 void GlobalSettingManager::setDiskMode(int mode)
 {
 	diskMode = mode;
@@ -304,7 +313,7 @@ GlobalSettingManager::GlobalSettingManager()
 	}
 }
 
-void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
+void GlobalSettingManager::restoreGlobalSettings(MainController* mc, bool checkReferences)
 {
 	LOG_START("Restoring global settings");
 
@@ -342,19 +351,23 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
 
 #if USE_FRONTEND
-		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
 
-		auto& handler = mc->getSampleManager().getProjectHandler();
+		if (checkReferences)
+		{
+			bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
 
-		if (!allSamplesThere)
-		{
-			LOG_START("Samples not validated. Checking references");
-			handler.checkAllSampleReferences();
-		}
-		else
-		{
-			LOG_START("Samples are validated. Skipping reference check");
-			handler.setAllSampleReferencesCorrect();
+			auto& handler = mc->getSampleManager().getProjectHandler();
+
+			if (!allSamplesThere)
+			{
+				LOG_START("Samples not validated. Checking references");
+				handler.checkAllSampleReferences();
+			}
+			else
+			{
+				LOG_START("Samples are validated. Skipping reference check");
+				handler.setAllSampleReferencesCorrect();
+			}
 		}
 #else
 		ignoreUnused(mc);
@@ -394,7 +407,7 @@ File GlobalSettingManager::getSettingDirectory()
 #if ENABLE_APPLE_SANDBOX
 	return NativeFileHandler::getAppDataDirectory().getChildFile("Resources/");
 #else
-	return NativeFileHandler::getAppDataDirectory();
+	return NativeFileHandler::getAppDataDirectory(nullptr);
 #endif
 
 }

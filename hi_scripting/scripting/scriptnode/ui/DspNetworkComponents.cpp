@@ -2490,6 +2490,8 @@ KeyboardPopup::PopupList::Item::Item(const Entry& entry_, bool isSelected_) :
 	static const StringArray icons = { "clipboard", "oldnode", "newnode" };
 
 	p = f.createPath(icons[(int)entry.t]);
+    
+    setWantsKeyboardFocus(true);
 }
 
 void KeyboardPopup::PopupList::Item::buttonClicked(Button*)
@@ -2507,6 +2509,28 @@ void KeyboardPopup::PopupList::Item::buttonClicked(Button*)
 void KeyboardPopup::PopupList::Item::mouseDown(const MouseEvent&)
 {
 	findParentComponentOfClass<PopupList>()->setSelected(this, false);
+}
+
+bool KeyboardPopup::PopupList::Item::keyPressed(const KeyPress& k)
+{
+    if(k == KeyPress::upKey)
+    {
+        findParentComponentOfClass<PopupList>()->selectNext(false);
+        return true;
+    }
+    if(k == KeyPress::downKey)
+    {
+        findParentComponentOfClass<PopupList>()->selectNext(true);
+        return true;
+    }
+    if(k == KeyPress::returnKey)
+    {
+        auto list = findParentComponentOfClass<PopupList>();
+        findParentComponentOfClass<KeyboardPopup>()->addNodeAndClose(list->getTextToInsert());
+        return true;
+    }
+    
+    return false;
 }
 
 void KeyboardPopup::PopupList::Item::mouseUp(const MouseEvent& event)

@@ -16,7 +16,7 @@ dyn<int> d;
 
 int main(int input)
 {
-    d.referTo(data);
+    d.referTo(data, data.size());
 	
     for(auto& s: d)
     {

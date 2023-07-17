@@ -238,7 +238,7 @@ class FilterData {
 public:
     void addValue(LOTVariant& value)
     {
-        uint index = static_cast<uint>(value.property());
+        uint32_t index = static_cast<uint32_t>(value.property());
         if (mBitset.test(index)) {
             std::replace_if(mFilters.begin(), mFilters.end(),
                             [&value](const LOTVariant& e) {
@@ -253,7 +253,7 @@ public:
 
     void removeValue(LOTVariant& value)
     {
-        uint index = static_cast<uint>(value.property());
+        uint32_t index = static_cast<uint32_t>(value.property());
         if (mBitset.test(index)) {
             mBitset.reset(index);
             mFilters.erase(std::remove_if(mFilters.begin(), mFilters.end(),
@@ -266,7 +266,7 @@ public:
     }
     bool hasFilter(rlottie::Property prop) const
     {
-        return mBitset.test(static_cast<uint>(prop));
+        return mBitset.test(static_cast<uint32_t>(prop));
     }
     model::Color color(rlottie::Property prop, int frame) const
     {

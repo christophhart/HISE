@@ -90,13 +90,13 @@ struct SnexOscillator : public SnexSource
 		}
 
 		void reset() override;
-		float tick(double uptime);
+		//float tick(double uptime);
 		void process(OscProcessData& d);
 
 		void prepare(PrepareSpecs ps);
 
 		double lastDelta = 0.0;
-		FunctionData tickFunction;
+		//FunctionData tickFunction;
 		FunctionData processFunction;
 		FunctionData prepareFunction;
 		PrepareSpecs lastSpecs;
@@ -115,7 +115,11 @@ struct SnexOscillator : public SnexSource
 	float tick(double uptime);
 	void process(OscProcessData& d);
 
+
+
 	void prepare(PrepareSpecs ps);
+
+	bool preprocess(String& code) final override;
 
 	OscillatorCallbacks callbacks;
 

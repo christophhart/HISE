@@ -82,6 +82,7 @@ public:
 		
 		float channelValues[NUM_MAX_CHANNELS];
 		int numChannels;
+		bool suspended = false;
 
 		ProcessorType type;
 
@@ -391,12 +392,14 @@ private:
 				repaint();
 			}
 		}
+        
+        Rectangle<int> bypassArea;
 
 	private:
 
 		bool inPopup = false;
         
-		Rectangle<int> bypassArea;
+		
 		
         WeakReference<Processor> parent;
         

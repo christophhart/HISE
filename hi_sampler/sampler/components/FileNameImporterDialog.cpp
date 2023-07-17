@@ -165,7 +165,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
 	setSeparator("_");
     setSize (600, 400);
 
-	File recentSettingsFile = NativeFileHandler::getAppDataDirectory().getChildFile("FileNameParserSettings.xml");
+	File recentSettingsFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("FileNameParserSettings.xml");
 
 	if (recentSettingsFile.existsAsFile())
 	{
@@ -176,7 +176,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
 
 FileNameImporterDialog::~FileNameImporterDialog()
 {
-	File recentSettingsFile = NativeFileHandler::getAppDataDirectory().getChildFile("FileNameParserSettings.xml");
+	File recentSettingsFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("FileNameParserSettings.xml");
 
 	ScopedPointer<XmlElement> settings = saveAsXml();
 

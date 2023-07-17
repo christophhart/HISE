@@ -18,7 +18,7 @@ END_TEST_DATA
 */
 struct ExampleNode
 {
-	DECLARE_NODE(ExampleNode);
+	SNEX_NODE(ExampleNode);
 	
 
 	/*  This method will be called to do block based processing.

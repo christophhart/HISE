@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 
@@ -130,6 +130,14 @@ struct Operations::VectorOp : public Expression
 	{
 		auto t = Expression::toValueTree();
 		t.setProperty("OpType", opType, nullptr);
+		t.setProperty("Scalar", !getSubExpr(0)->getTypeInfo().isComplexType(), nullptr);
+		t.setProperty("TargetType", getSubExpr(1)->getTypeInfo().toStringWithoutAlias(), nullptr);
+		
+		if (auto spanType = dynamic_cast<SpanType*>(getSubExpr(1)->getTypeInfo().getComplexType().get()))
+		{
+			t.setProperty("NumElements", spanType->getNumElements(), nullptr);
+		}
+
 		return t;
 	}
 
@@ -275,6 +283,16 @@ struct Operations::DotOperator : public Expression
 		return new DotOperator(l, cp, cc);
 	}
 
+	ValueTree toValueTree() const override
+	{
+		auto v = Expression::toValueTree();
+
+		v.setProperty("ObjectType", getDotParent()->getTypeInfo().toStringWithoutAlias(), nullptr);
+		v.setProperty("MemberType", getTypeInfo().toStringWithoutAlias(), nullptr);
+
+		return v;
+	}
+
 	Identifier getStatementId() const override { RETURN_STATIC_IDENTIFIER("Dot"); }
 
 	Ptr getDotParent() const
@@ -347,8 +365,9 @@ struct Operations::Subscript : public Expression,
 		auto t = Expression::toValueTree();
 
 		t.setProperty("Write", isWriteAccess, nullptr);
-		t.setProperty("ElementType", elementType.toString(), nullptr);
-		t.setProperty("ParentType", getSubExpr(0)->getTypeInfo().toString(), nullptr);
+		t.setProperty("ElementType", elementType.toStringWithoutAlias(), nullptr);
+		t.setProperty("ElementSize", (int)elementType.getRequiredByteSize(), nullptr);
+		t.setProperty("ParentType", getSubExpr(0)->getTypeInfo().toStringWithoutAlias(), nullptr);
 
 		return t;
 	}

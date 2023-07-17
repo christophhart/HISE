@@ -178,11 +178,7 @@ public:
     
 	bool handleModulation(double& max) noexcept
     {
-        max = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
-        
-        updateBuffer(max, lastNumSamples);
-        
-        return true;
+		return modValue.getChangedValue(max);
     }
     
 	void prepare(PrepareSpecs ps)
@@ -196,11 +192,24 @@ public:
         obj.initRuntime();
     }
 
+	void updateModValue(int numSamples)
+	{
+		if (updateOnFrame)
+		{
+			auto mv = jlimit(0.0, 1.0, 1.0 - obj.getGainReduction());
+			modValue.setModValueIfChanged(mv);
+			updateBuffer(mv, numSamples);
+		}
+	}
+
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-        snex::Types::FrameConverters::forwardToFrameStereo(this, data);
-
-		lastNumSamples = data.getNumSamples();
+		{
+			ScopedValueSetter<bool> svs(updateOnFrame, false);
+			snex::Types::FrameConverters::forwardToFrameStereo(this, data);
+		}
+		
+		updateModValue(data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
@@ -241,7 +250,7 @@ public:
 			data[0] = (float)values[0];
 		}
 
-		lastNumSamples = 1;
+		updateModValue(1);
 	}
 
 	void setThreshhold(double v)
@@ -271,7 +280,9 @@ public:
     }
 
 	DynamicProcessorType obj;
-	int lastNumSamples = 0;
+	ModValue modValue;
+	bool updateOnFrame = true;
+	
     
     SidechainMode sidechainMode = SidechainMode::Disabled;
 };

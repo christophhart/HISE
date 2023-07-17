@@ -182,6 +182,9 @@ namespace ScriptingObjects
             return -1;
 		}
 
+        /** Returns a char from 0 to 255 with the given length and input range. */
+        var toCharString(int numChars, var range);
+        
 		/** Returns an array with the min and max value in the given range. */
 		var getPeakRange(int startSample, int numSamples);
         
@@ -397,6 +400,9 @@ namespace ScriptingObjects
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
 
+        /** Tries to parse the metadata from the audio file (channel amount, length, samplerate, etc) and returns a JSON object if sucessful. */
+        var loadAudioMetadata() const;
+        
 		/** Tries to parse the metadata of the MIDI file and returns a JSON object if successful. */
 		var loadMidiMetadata() const;
 
@@ -551,6 +557,9 @@ namespace ScriptingObjects
 		/** Kills all voices and calls the given function on the sample loading thread. */
 		bool killVoicesAndCall(var loadingFunction);
 
+		/** Spawns a OS process and executes it with the given command line arguments. */
+		void runProcess(var command, var args, var logFunction);
+
 		/** Set a progress for this task. */
 		void setProgress(double p);
 
@@ -603,6 +612,27 @@ namespace ScriptingObjects
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		struct ChildProcessData
+		{
+			ChildProcessData(ScriptBackgroundTask& parent_, const String& command_, const var& args_, const var& pf);
+
+			void run();
+
+		private:
+
+			void callLog(var* a);
+
+			ScriptBackgroundTask& parent;
+			juce::ChildProcess childProcess;
+			WeakCallbackHolder processLogFunction;
+			StringArray args;
+		};
+
+		ScopedPointer<ChildProcessData> childProcessData;
+		
+
+
 
         bool realtimeSafe = true;
         
@@ -2392,6 +2422,12 @@ namespace ScriptingObjects
 		/** Connects the cable to a macro control. */
 		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
 
+        /** Connects the cable to a global LFO modulation output as source. */
+        void connectToGlobalModulator(const String& lfoId, bool addToMod);
+        
+        /** Connects the cable to a module parameter using a JSON object for defining the range. */
+        void connectToModuleParameter(const String& processorId, var parameterIndexOrId, var targetObject);
+        
 		// =============================================================================================
 
 	private:

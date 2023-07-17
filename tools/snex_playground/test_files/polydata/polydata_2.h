@@ -4,13 +4,20 @@ BEGIN_TEST_DATA
   ret: int
   args: int
   input: 12
-  output: 1
+  output: 15
   error: ""
+  voiceIndex: -1
   filename: "polydata/polydata_2"
 END_TEST_DATA
 */
 
-PolyData<int, 18> data;
+PolyData<int, 15> data;
+
+
+void prepare(PrepareSpecs ps)
+{
+  data.prepare(ps);
+}
 
 int main(int input)
 {
@@ -23,3 +30,5 @@ int main(int input)
 	return counter;
 }
 
+
+  

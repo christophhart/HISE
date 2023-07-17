@@ -318,6 +318,9 @@ private:
 	{
 		if constexpr (!isInterpolator())
 		{
+            if(ArraySize == 0)
+                return;
+            
 			// Test Code ===================================================
 
 			heap<int> data;
@@ -341,7 +344,7 @@ private:
 			{
 				cppgen::StatementBlock sb(c);
 
-				c << "d.referTo(data);";
+				c << "d.referTo(data, data.size());";
 				c << "i = input;";
 				c << "return d[i];";
 			}
@@ -432,11 +435,12 @@ private:
 
 	void testFloatAlphaAndIndex()
 	{
+        
 		if constexpr (std::is_floating_point<Type>() && !isInterpolator())
 		{
 			if constexpr (hasDynamicBounds())
 			{
-				// Test Code ===================================================
+                // Test Code ===================================================
 
 				cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 

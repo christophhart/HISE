@@ -17,7 +17,7 @@ index::unsafe<0> i;
 
 void assign()
 {
-    d.referTo(s);
+    d.referTo(s, s.size());
 }
 
 float main(float input)

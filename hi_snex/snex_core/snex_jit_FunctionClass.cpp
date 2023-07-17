@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 bool FunctionClass::hasFunction(const NamespacedIdentifier& s) const
 {
@@ -128,14 +128,6 @@ void FunctionClass::removeFunctionClass(const NamespacedIdentifier& id)
 
 void FunctionClass::addFunction(FunctionData* newData)
 {
-	if (newData->isConstructor())
-	{
-		if (getClassName() != newData->id.getParent())
-		{
-			jassertfalse;
-		}
-	}
-
 	if (newData->id.isExplicit())
 	{
 		newData->id = getClassName().getChildId(newData->id.getIdentifier());
@@ -294,7 +286,7 @@ FunctionData FunctionClass::getConstructor(const Array<TypeInfo>& args)
 {
 	for (auto f : functions)
 	{
-		if (f->isConstructor() && f->matchesArgumentTypesWithDefault(args))
+		if (f->isConstructor() && getClassName() == f->id.getParent() && f->matchesArgumentTypesWithDefault(args))
 			return FunctionData(*f);
 	}
 

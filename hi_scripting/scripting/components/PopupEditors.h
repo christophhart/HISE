@@ -171,7 +171,7 @@ public:
 
 	static File getPropertyFile()
 	{
-		return ProjectHandler::getAppDataDirectory().getChildFile("code_editor.json");
+		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("code_editor.json");
 	}
 
 	using EditorType = CommonEditorFunctions::EditorType;

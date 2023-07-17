@@ -126,6 +126,16 @@ struct DataReadLockJIT
 				}
 			}
 		}
+        
+        static int isLocked(void* obj)
+        {
+            if (auto thisPtr = static_cast<DataReadLockJIT*>(obj))
+            {
+                return thisPtr->holdsLock;
+            }
+            
+            return false;
+        }
 	};
 
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);

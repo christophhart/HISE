@@ -184,7 +184,7 @@ private:
 	const bool hasFloatValue = 0;
 	String errorMessage;
 	jit::GlobalScope memory;
-	jit::JitObject obj;
+	jit::JitObject obj;    
 	jit::FunctionData f;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JitExpression);

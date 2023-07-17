@@ -74,7 +74,7 @@ public:
     
 	File getKeyPressSettingFile() const override
 	{
-		return ProjectHandler::getAppDataDirectory().getChildFile("KeyPressMapping.xml");
+		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
 	}
 
 	void initialiseAllKeyPresses() override;
@@ -244,7 +244,14 @@ public:
 		return false;
 	}
 
+	void setProjectIsBeingExtracted()
+	{
+		projectIsBeingExtracted = true;
+	}
+
 private:
+
+	bool projectIsBeingExtracted = false;
 
 	friend class ProjectImporter;
 
@@ -349,7 +356,7 @@ struct BackendPanelHelpers
 #if JUCE_LINUX
     // This might keep the fonts alive and increase the text
     // rendering performance...
-    hise::LinuxFontHandler fontHandler;
+    hise::LinuxFontHandler::Instance fontHandler;
 #endif
 
 };

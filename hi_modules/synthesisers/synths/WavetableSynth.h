@@ -37,9 +37,29 @@
 
 namespace hise { using namespace juce;
 
-#define WAVETABLE_HQ_MODE 1
 
 class WavetableSynth;
+
+struct WavetableMonolithHeader
+{
+	static void writeProjectInfo(OutputStream& output, const String& projectName, const String& key);
+
+	static bool checkProjectName(InputStream& input, const String& projectName, const String& key);
+
+	void write(OutputStream& output)
+	{
+		output.writeByte((uint8)name.length() + 1);
+		output.writeString(name);
+		output.writeInt64(offset);
+		output.writeInt64(length);
+	}
+
+	static Array<WavetableMonolithHeader> readHeader(InputStream& input, const String& projectName, const String& encryptionKey);
+
+	String name;
+	int64 offset;
+	int64 length;
+};
 
 class WavetableSound: public ModulatorSynthSound
 {
@@ -55,7 +75,7 @@ public:
 	*	- 'sampleRate' the sample rate
 	*
 	*/
-	WavetableSound(const ValueTree &wavetableData);;
+	WavetableSound(const ValueTree &wavetableData, Processor* parent);;
 
 	bool appliesToNote (int midiNoteNumber) override   { return midiNotes[midiNoteNumber]; }
     bool appliesToChannel (int /*midiChannel*/) override   { return true; }
@@ -65,9 +85,9 @@ public:
 	*
 	*	Make sure you don't get off bounds, it will return a nullptr if the index is bigger than the wavetable amount.
 	*/
-	const float *getWaveTableData(int wavetableIndex) const;
+	const float *getWaveTableData(int channelIndex, int wavetableIndex) const;
 
-	float getUnnormalizedMaximum()
+	float getUnnormalizedMaximum() const
 	{
 		return unnormalizedMaximum;
 	}
@@ -90,27 +110,76 @@ public:
 	/** Call this in the prepareToPlay method to calculate the pitch error. It also resamples if the playback frequency is different. */
 	void calculatePitchRatio(double playBackSampleRate);
 
-	double getPitchRatio()
+	double getPitchRatio(double midiNoteNumber) const
 	{
-		return pitchRatio;
+        double p = pitchRatio;
+        
+        p *= hmath::pow(2.0, (midiNoteNumber - noteNumber) / 12.0);
+        
+		return p;
 	}
+    
+    Range<double> getFrequencyRange() const
+    {
+        return frequencyRange;
+    }
 
 	void normalizeTables();
 
 	float getUnnormalizedGainValue(int tableIndex)
 	{
-		jassert(tableIndex < 64);
-		jassert(tableIndex >= 0);
-
+		jassert(isPositiveAndBelow(tableIndex, wavetableAmount));
+		
 		return unnormalizedGainValues[tableIndex];
 	}
 
+	String getMarkdownDescription() const;
+
+	int getRootNote() const { return noteNumber; };
+
+	bool isStereo() const { return stereo; };
+
+	float isReversed() const { return reversed; };
+
+	struct RenderData
+	{
+		using TableIndexFunction = std::function<float(int)>;
+		RenderData(AudioSampleBuffer& b_, int startSample_, int numSamples_, double uptimeDelta_, const float* voicePitchValues_, bool hqMode_) :
+			b(b_),
+			startSample(startSample_),
+			numSamples(numSamples_),
+			voicePitchValues(voicePitchValues_),
+			uptimeDelta(uptimeDelta_),
+			hqMode(hqMode_)
+		{};
+
+		AudioSampleBuffer& b;
+		int startSample;
+		int numSamples;
+		const float* voicePitchValues;
+		const double uptimeDelta;
+		const bool hqMode;
+		bool dynamicPhase = false;
+
+		void render(WavetableSound* currentSound, double& voiceUptime, const TableIndexFunction& tf);
+
+		float calculateSample(const float* lowerTable, const float* upperTable, const span<int, 4>& i, float alpha, float tableAlpha) const;
+	};
+
 private:
+
+	float reversed = 0.0f;
+	bool stereo = false;
+
+	size_t memoryUsage = 0;
+	size_t storageSize = 0;
 
 	float maximum;
 	float unnormalizedMaximum;
-	float unnormalizedGainValues[64];
+	HeapBlock<float> unnormalizedGainValues;
 
+    Range<double> frequencyRange;
+    
 	BigInteger midiNotes;
 	int noteNumber;
 
@@ -119,9 +188,11 @@ private:
 
 	double sampleRate;
 	double pitchRatio;
+    double playbackSampleRate;
 
 	int wavetableSize;
 	int wavetableAmount;
+	bool dynamicPhase = false;
 };
 
 class WavetableSynth;
@@ -141,33 +212,20 @@ public:
 
 	void startNote (int midiNoteNumber, float /*velocity*/, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;;
 
-	const float *getTableModulationValues();
-
-	float getGainValue(float modValue);
-
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	int getCurrentTableIndex() const
+	void setRefreshMipmap(bool refreshMipmap_)
 	{
-		return currentTableIndex;
-	};
+		refreshMipmap = refreshMipmap_;
+	}
 
 	void setHqMode(bool useHqMode)
 	{
 		hqMode = useHqMode;
-
-		if(hqMode)
-		{
-			lowerTable = currentTable;
-			nextTable = upperTable;
-		}
-		{
-			currentTable = lowerTable;
-			nextTable = upperTable;
-		}
-
 	};
 
+    bool updateSoundFromPitchFactor(double pitchFactor, WavetableSound* soundToUse);
+    
 private:
 
 	WavetableSynth *wavetableSynth;
@@ -176,29 +234,16 @@ private:
 
 	WavetableSound *currentSound;
 
-	int currentWaveIndex;
-	int nextWaveIndex;
 	int tableSize;
-	int currentTableIndex;
-	int nextTableIndex;
-
+	
 	float currentGainValue;
-	float nextGainValue;
-
-	Interpolator tableGainInterpolator;
-
-	bool hqMode;
-
-	float const *lowerTable;
-	float const *upperTable;
-
-
+    int noteNumberAtStart = 0;
+    double startFrequency = 0.0;
+	
+	bool hqMode = true;
+	bool refreshMipmap = false;
 
 	float const *currentTable;
-	float const *nextTable;
-
-	int smoothSize;
-
 };
 
 
@@ -206,7 +251,6 @@ private:
 	@ingroup synthTypes
 */
 class WavetableSynth: public ModulatorSynth,
-					  public SliderPackProcessor,
 					  public WaveformComponent::Broadcaster
 {
 public:
@@ -215,13 +259,16 @@ public:
 
 	enum EditorStates
 	{
-		TableIndexChainShow = ModulatorSynth::numEditorStates
+		TableIndexChainShow = ModulatorSynth::numEditorStates,
+		TableIndexBipolarShow
 	};
 
 	enum SpecialParameters
 	{
 		HqMode = ModulatorSynth::numModulatorSynthParameters,
 		LoadedBankIndex,
+		TableIndexValue,
+		RefreshMipmap,
 		numSpecialParameters
 	};
 
@@ -229,12 +276,14 @@ public:
 	{
 		Gain = 0,
 		Pitch = 1,
-		TableIndex = 2
+		TableIndex = 2,
+		TableIndexBipolar
 	};
 
-	enum InternalChains
+	enum class WavetableInternalChains
 	{
 		TableIndexModulation = ModulatorSynth::numInternalChains,
+		TableIndexBipolarChain,
 		numInternalChains
 	};
 
@@ -248,34 +297,17 @@ public:
         
 		for(int i = 0; i < v.getNumChildren(); i++)
 		{
-			auto s = new WavetableSound(v.getChild(i));
+			auto s = new WavetableSound(v.getChild(i), this);
 
 			s->calculatePitchRatio(getSampleRate());
 
+			reversed = s->isReversed();
+
 			addSound(s);
 		}
-        
-		
-
 	}
 
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
-
-	float getGainValueFromTable(float level)
-	{
-		int index = roundToInt(128 * level);
-		index = jlimit<int>(0, 127, roundToInt(128.0 * index));
-
-		if (lastGainIndex != index)
-		{
-			lastGainIndex = index;
-			pack->setDisplayedIndex(index);
-			lastGainValue = pack->getValue(index);
-		}
-
-		return lastGainValue;
-	}
-
 	
 	void restoreFromValueTree(const ValueTree &v) override
 	{
@@ -283,12 +315,8 @@ public:
 
 		loadAttribute(LoadedBankIndex, "LoadedBankIndex");
 		loadAttribute(HqMode, "HqMode");
-
-
-		pack->fromBase64(v.getProperty("SliderPackData"));
-
-		//loadWaveTable();
-
+		loadAttributeWithDefault(TableIndexValue);
+		loadAttributeWithDefault(RefreshMipmap);
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -297,26 +325,26 @@ public:
 
 		saveAttribute(HqMode, "HqMode");
 		saveAttribute(LoadedBankIndex, "LoadedBankIndex");
-
-		v.setProperty("SliderPackData", pack->toBase64(), nullptr);
+		saveAttribute(TableIndexValue, "TableIndexValue");
+		saveAttribute(RefreshMipmap, "RefreshMipMap");
 
 		return v;
 	}
 
+	int getNumChildProcessors() const override { return (int)WavetableInternalChains::numInternalChains;	};
 
-	int getNumChildProcessors() const override { return numInternalChains;	};
-
-	int getNumInternalChains() const override {return numInternalChains; };
+	int getNumInternalChains() const override {return (int)WavetableInternalChains::numInternalChains; };
 
 	virtual Processor *getChildProcessor(int processorIndex) override
 	{
-		jassert(processorIndex < numInternalChains);
+		jassert(processorIndex < (int)WavetableInternalChains::numInternalChains);
 
 		switch(processorIndex)
 		{
 		case GainModulation:	return gainChain;
 		case PitchModulation:	return pitchChain;
-		case TableIndexModulation:	return tableIndexChain;
+		case (int)WavetableInternalChains::TableIndexModulation:	return tableIndexChain;
+		case (int)WavetableInternalChains::TableIndexBipolarChain: return tableIndexBipolarChain;
 		case MidiProcessor:		return midiProcessorChain;
 		case EffectChain:		return effectChain;
 		default:				jassertfalse; return nullptr;
@@ -325,13 +353,14 @@ public:
 
 	virtual const Processor *getChildProcessor(int processorIndex) const override
 	{
-		jassert(processorIndex < numInternalChains);
+		jassert(processorIndex < (int)WavetableInternalChains::numInternalChains);
 
 		switch(processorIndex)
 		{
 		case GainModulation:	return gainChain;
 		case PitchModulation:	return pitchChain;
-		case TableIndexModulation:	return tableIndexChain;
+		case (int)WavetableInternalChains::TableIndexModulation:	return tableIndexChain;
+		case (int)WavetableInternalChains::TableIndexBipolarChain: return tableIndexBipolarChain;
 		case MidiProcessor:		return midiProcessorChain;
 		case EffectChain:		return effectChain;
 		default:				jassertfalse; return nullptr;
@@ -346,28 +375,32 @@ public:
 			{
 				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(newSampleRate);
 			}
+
+			
 		}
 
+		if (samplesPerBlock > 0 && newSampleRate > 0.0)
+			tableIndexKnobValue.prepare(newSampleRate, 80.0);
+
+
 		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
-
-		
 	}
 
-	int getMorphSmoothing() const
+	float getTotalTableModValue(int offset);
+
+	float getDefaultValue(int parameterIndex) const override
 	{
-		return morphSmoothing;
-	}
+		if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getDefaultValue(parameterIndex);
 
-	const float *getTableModValues() const
-	{
-		return modChains[ChainIndex::TableIndex].getReadPointerForVoiceValues(0);
+		switch (parameterIndex)
+		{
+		case HqMode: return 1.0f;
+		case RefreshMipmap: return 0.0f;
+		case LoadedBankIndex: return -1.0f;
+		case TableIndexValue: return 1.0f;
+		default: jassertfalse; return 0.0f;
+		}
 	}
-
-	float getConstantTableModValue() const noexcept
-	{
-		return modChains[ChainIndex::TableIndex].getConstantModulationValue();
-	}
-
 
 	float getAttribute(int parameterIndex) const override 
 	{
@@ -376,7 +409,9 @@ public:
 		switch(parameterIndex)
 		{
 		case HqMode:		return hqMode ? 1.0f : 0.0f;
+		case RefreshMipmap:		return refreshMipmap ? 1.0f : 0.0f;
 		case LoadedBankIndex: return (float)currentBankIndex;
+		case TableIndexValue: return tableIndexKnobValue.targetValue;
 		default:			jassertfalse; return -1.0f;
 		}
 	};
@@ -392,17 +427,36 @@ public:
 		switch(parameterIndex)
 		{
 		case HqMode:
+		{
+			ScopedLock sl(getMainController()->getLock());
+
+			hqMode = newValue > 0.5f;
+
+			for(int i = 0; i < getNumVoices(); i++)
 			{
-				ScopedLock sl(getMainController()->getLock());
-
-				hqMode = newValue == 1.0f;
-
-				for(int i = 0; i < getNumVoices(); i++)
-				{
-					static_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
-				}
-				break;
+				static_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
 			}
+
+			break;
+		}
+		case RefreshMipmap:
+		{
+			refreshMipmap = newValue > 0.5f;
+
+			for (int i = 0; i < getNumVoices(); i++)
+			{
+				static_cast<WavetableSynthVoice*>(getVoice(i))->setRefreshMipmap(hqMode);
+			}
+
+			break;
+		}
+		case TableIndexValue:
+			tableIndexKnobValue.set(jlimit(0.0f, 1.0f, newValue));
+
+			if(getNumActiveVoices() == 0)
+				setDisplayTableValue((1.0f - reversed) * newValue + (1.0f - newValue) * reversed);
+
+			break;
 		case LoadedBankIndex:
 		{
 			loadWavetableFromIndex((int)newValue);
@@ -416,74 +470,41 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-	StringArray getWavetableList() const
+	File getWavetableMonolith() const;
+
+	StringArray getWavetableList() const;
+
+	void loadWavetableFromIndex(int index);
+
+	void setDisplayTableValue(float nv)
 	{
-		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-
-		Array<File> wavetables;
-		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
-		wavetables.sort();
-
-		StringArray sa;
-
-		for (auto& f : wavetables)
-			sa.add(f.getFileNameWithoutExtension());
-
-		return sa;
+		displayTableValue = nv;
 	}
 
-	int lastGainIndex = -1;
-	float lastGainValue = 1.0f;
+	float getDisplayTableValue() const;
 
-	void loadWavetableFromIndex(int index)
+	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
-		if (currentBankIndex != index)
-		{
-			currentBankIndex = index;
-		}
-
-		if (currentBankIndex == 0)
-		{
-			clearSounds();
-		}
-
-		auto dir = getMainController()->getCurrentFileHandler().getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-
-		Array<File> wavetables;
-
-		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
-		wavetables.sort();
-
-		if (wavetables[index-1].existsAsFile())
-		{
-			FileInputStream fis(wavetables[index-1]);
-
-			ValueTree v = ValueTree::readFromStream(fis);
-
-			loadWaveTable(v);
-		}
-		else
-		{
-			clearSounds();
-		}
+		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
 	}
-
 
 private:
 
+	float displayTableValue = 1.0f;
+
+	sfloat tableIndexKnobValue;
 	
+	float reversed = 0.0f;
 
 	int currentBankIndex = 0;
 
-	SliderPackData* pack;
-	
-	bool hqMode;
+	bool hqMode = true;
+	bool refreshMipmap = false;
+
+	friend class WavetableSynthVoice;
 
 	ModulatorChain* tableIndexChain;
-
-	int morphSmoothing;
-
-
+	ModulatorChain* tableIndexBipolarChain;
 };
 
 

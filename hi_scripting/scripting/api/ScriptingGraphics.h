@@ -660,7 +660,8 @@ namespace ScriptingObjects
 			public SliderPack::LookAndFeelMethods,
 			public CustomKeyboardLookAndFeelBase,
 			public ScriptTableListModel::LookAndFeelMethods,
-            public MatrixPeakMeter::LookAndFeelMethods
+            public MatrixPeakMeter::LookAndFeelMethods,
+			public WaterfallComponent::LookAndFeelMethods
 		{
 			Laf(MainController* mc) :
 				ControlledObject(mc)
@@ -790,6 +791,9 @@ namespace ScriptingObjects
 
             void drawMatrixPeakMeter(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c) override;
             
+			void drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty) override;
+			void drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables) override;
+
 			Image createIcon(PresetHandler::IconType type) override;
 
 			bool functionDefined(const String& s);

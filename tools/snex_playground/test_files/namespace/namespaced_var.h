@@ -13,12 +13,12 @@ END_TEST_DATA
 
 namespace Space
 {
+    int z = 8;
+    
     int getFunky()
     {
 	   return z * 2; 
     }
-    
-    int z = 8;
 }
 
 int main(int input)

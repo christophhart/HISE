@@ -70,7 +70,8 @@ protected:
 
 
 
-class SampleMapToWavetableConverter::SampleMapPreview : public WavetablePreviewBase
+class SampleMapToWavetableConverter::SampleMapPreview : public WavetablePreviewBase,
+														public juce::FileDragAndDropTarget
 {
 public:
 
@@ -82,6 +83,36 @@ public:
 
 	void paint(Graphics& g) override;
 
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseMove(const MouseEvent& e) override;
+
+	LambdaBroadcaster<int> indexBroadcaster;
+
+	bool isInterestedInFileDrag(const StringArray& files) override { return files.size() == 1 && MultiChannelAudioBufferDisplay::isAudioFile(files[0]); }
+
+	std::function<void(const ValueTree& v)> sampleMapLoadFunction;
+
+	void fileDragEnter(const StringArray& files, int x, int y) override
+	{
+		insertPosition = (x * 128) / getWidth();
+		repaint();
+	}
+
+	void fileDragMove(const StringArray& files, int x, int y) override
+	{
+		insertPosition = (x * 128) / getWidth();
+		repaint();
+	}
+
+	void fileDragExit(const StringArray& files) override
+	{
+		insertPosition = -1;
+		repaint();
+	}
+
+	void filesDropped(const StringArray& files, int x, int y) override;
+
 private:
 
 	struct Sample
@@ -92,12 +123,24 @@ private:
 		int index;
 		bool analysed = false;
 		bool active = false;
+		Range<int> keyRange;
+		int rootNote;
 	};
 
+	int insertPosition = -1;
+
+	int hoverIndex = -1;
 	Array<Sample> samples;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMapPreview);
 };
 
-class SampleMapToWavetableConverter::Preview : public WavetablePreviewBase
+
+
+
+class SampleMapToWavetableConverter::Preview : public WavetablePreviewBase,
+											   public ControlledObject,
+											   public PooledUIUpdater::SimpleTimer
 {
 public:
 
@@ -113,25 +156,20 @@ public:
 
 	void paint(Graphics& g);
 
+	void timerCallback() override;
+
+	void setImageToShow(const Image& img)
+	{
+		spectrumImage = img;
+		repaint();
+	}
+
 private:
 
-	int getHoverIndex(int xPos) const;
+	double previewPosition = -1.0;
+	Image spectrumImage;
 
-	struct Harmonic
-	{
-		Rectangle<float> area;
-		float lGain = 0.0f;
-		float rGain = 0.0f;
-	};
-
-	void rebuildMap();
-
-	int hoverIndex = 0;
-
-	Array<Harmonic> harmonicList;
-	
-
-	Path p;
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Preview);
 };
 
 
@@ -140,44 +178,116 @@ class CombinedPreview : public Component,
 {
 public:
 
-	CombinedPreview(SampleMapToWavetableConverter& parent)
+	struct LAF : public AlertWindowLookAndFeel
 	{
-		setName("Preview");
+		void drawButtonBackground(Graphics& g, Button& button, const Colour&, bool isMouseOverButton, bool isButtonDown) override
+		{
+			Path p;
 
-		addAndMakeVisible(sampleMapButton = new TextButton("Sample Map"));
+			auto b = button.getLocalBounds().toFloat().reduced(1.0f);
+
+			if (button.isConnectedOnLeft())
+			{
+				p.startNewSubPath(b.getX(), b.getY());
+				p.lineTo(b.getRight() - b.getHeight() * 0.5f, b.getY());
+				p.quadraticTo(b.getRight(), b.getY(), b.getRight(), b.getCentreY());
+				p.quadraticTo(b.getRight(), b.getBottom(), b.getRight() - b.getHeight() * 0.5f, b.getBottom());
+				p.lineTo(b.getX(), b.getBottom());
+				p.closeSubPath();
+			}
+			else
+			{
+				p.startNewSubPath(b.getRight(), b.getY());
+				p.lineTo(b.getX() + b.getHeight() * 0.5f, b.getY());
+				p.quadraticTo(b.getX(), b.getY(), b.getX(), b.getCentreY());
+				p.quadraticTo(b.getX(), b.getBottom(), b.getX() + b.getHeight() * 0.5f, b.getBottom());
+				p.lineTo(b.getRight(), b.getBottom());
+				p.closeSubPath();
+			}
+
+			g.setColour(bright);
+
+			g.strokePath(p, PathStrokeType(2.0f));
+
+			if (button.getToggleState())
+			{
+				g.setColour(bright.withAlpha(0.5f));
+				g.fillPath(p);
+			}
+				
+				
+		}
+	} laf;
+
+	CombinedPreview(SampleMapToWavetableConverter& parent, MainController* mc)
+	{
 		addAndMakeVisible(spectrumButton = new TextButton("Spectrum"));
-		addAndMakeVisible(sampleMap = new SampleMapToWavetableConverter::SampleMapPreview(parent));
+		addAndMakeVisible(waterfallButton = new TextButton("Waterfall"));
 		addAndMakeVisible(spectrum = new SampleMapToWavetableConverter::Preview(parent));
+		addAndMakeVisible(waterfall = new WaterfallComponent(mc, nullptr));
 
-		sampleMapButton->addListener(this);
+		spectrumButton->setClickingTogglesState(true);
+		waterfallButton->setClickingTogglesState(true);
+		spectrumButton->setRadioGroupId(9004242);
+		waterfallButton->setRadioGroupId(9004242);
+
 		spectrumButton->addListener(this);
+		waterfallButton->addListener(this);
+
+		spectrumButton->setConnectedEdges(Button::ConnectedEdgeFlags::ConnectedOnLeft);
+		waterfallButton->setConnectedEdges(Button::ConnectedEdgeFlags::ConnectedOnRight);
+
+		spectrumButton->setLookAndFeel(&laf);
+		waterfallButton->setLookAndFeel(&laf);
+
+		waterfallButton->setToggleState(true, dontSendNotification);
+		spectrum->setVisible(false);
+
+		waterfall->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::white);
 	}
 
 	void buttonClicked(Button* b) override
 	{
-		spectrum->setVisible(b != sampleMapButton);
-		sampleMap->setVisible(b == sampleMapButton);
+		spectrum->setVisible(b == spectrumButton);
+		waterfall->setVisible(b == waterfallButton);
 	}
 
 	void resized() override
 	{
 		auto area = getLocalBounds();
 
-		auto topBar = area.removeFromTop(22);
+		area.removeFromTop(10);
 
-		spectrumButton->setBounds(topBar.removeFromLeft(getWidth() / 2).reduced(2));
-		sampleMapButton->setBounds(topBar.reduced(2));
+		auto topBar = area.removeFromTop(24).reduced(128, 0);
+		
+		area.removeFromTop(10);
+
+		waterfallButton->setBounds(topBar.removeFromLeft(topBar.getWidth() / 2).reduced(2));
+		spectrumButton->setBounds(topBar.reduced(2));
 
 		spectrum->setBounds(area);
-		sampleMap->setBounds(area);
+		waterfall->setBounds(area);
+		waterfall->setColour(HiseColourScheme::ComponentFillTopColourId, Colours::white);
 	}
+
+	void setImageToShow(const Image& img)
+	{
+		spectrum->setImageToShow(img);
+	}
+
 
 private:
 
-	ScopedPointer<TextButton> sampleMapButton;
+	friend class WavetableConverterDialog;
+
 	ScopedPointer<TextButton> spectrumButton;
+	ScopedPointer<TextButton> waterfallButton;
 	ScopedPointer<SampleMapToWavetableConverter::Preview> spectrum;
-	ScopedPointer<SampleMapToWavetableConverter::SampleMapPreview> sampleMap;
+	
+	ScopedPointer<WaterfallComponent> waterfall;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CombinedPreview);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CombinedPreview);
 };
 
 #endif

@@ -50,7 +50,22 @@ class EffectProcessor: public Processor
 {
 public:
 
+	struct SuspensionState
+	{
+		void reset()
+		{
+			numSilentBuffers = 0;
+			currentlySuspended = false;
+		}
+
+		int numSilentBuffers = 0;
+		bool currentlySuspended = false;
+		bool playing = false;
+	};
+
 	static bool isSilent(AudioSampleBuffer& b, int startSample, int numSamples);
+
+	
 
 	EffectProcessor(MainController *mc, const String &uid, int numVoices): 
 		Processor(mc, uid, numVoices),	
@@ -99,7 +114,13 @@ public:
 
 	/** Overwrite this method if the effect has a tail (produces sound if no input is active */
 	virtual bool hasTail() const = 0;
-	
+
+	/** Overwrite this method and return true if the effect should be suspended when there is no audio input. */
+	virtual bool isSuspendedOnSilence() const { return false; };
+
+	/** Overwrite this method and return true if the effect is currently suspended. */
+	virtual bool isCurrentlySuspended() const { return false; };
+
 	/** Checks if the effect is tailing off. This simply returns the calculated value, but the EffectChain overwrites this. */
 	bool isTailingOff() const {	return isTailing; };
 
@@ -115,6 +136,9 @@ public:
 protected:
 
 	bool isTailing = false;
+
+	int numSilentCallbacksToWait = 86;
+	
 
 	bool isInSendContainer() const noexcept { return isInSend; };
 
@@ -269,12 +293,21 @@ public:
 			mb.resetVoice(0);
 	}
 
+	bool isCurrentlySuspended() const final override
+	{
+		return masterState.currentlySuspended;
+	}
+
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
 		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
 		if (sampleRate > 0.0 && samplesPerBlock > 0)
 			softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
+
+		masterState.reset();
+
+		
 	}
 
 	void setEventBuffer(HiseEventBuffer* eventBufferFromSynth)
@@ -310,26 +343,36 @@ public:
 		if (softBypassState == Bypassed)
 			return;
 
-		if (getLeftSourceChannel() != -1 && getRightSourceChannel() != -1 &&
-            getLeftSourceChannel() < getMatrix().getNumDestinationChannels() &&
-            getRightSourceChannel() < getMatrix().getNumDestinationChannels())
-		{
-			float *leftChannel = buffer.getWritePointer(getLeftSourceChannel());
-			float *rightChannel = buffer.getWritePointer(getRightSourceChannel());
+		auto leftChannel = getLeftSourceChannel();
+		auto rightChannel = getRightSourceChannel();
+		auto numAllowed = getMatrix().getNumAllowedConnections();
+		auto numMax = getMatrix().getNumDestinationChannels();
 
-			float *samples[2] = { leftChannel, rightChannel };
+		auto ok = (leftChannel != -1 && rightChannel != -1) ||
+                  (numAllowed != 2 && (leftChannel != -1 || rightChannel != -1));
+
+		ok &= leftChannel < numMax &&
+			  rightChannel < numMax;
+
+		if (ok)
+		{
+			auto isStereo = rightChannel != -1;
+
+			float *samples[2] = { buffer.getWritePointer(leftChannel), isStereo ? buffer.getWritePointer(rightChannel) : nullptr };
 
 			const int samplesToUse = buffer.getNumSamples();
 
-			AudioSampleBuffer stereoBuffer(samples, 2, samplesToUse);
+			AudioSampleBuffer stereoBuffer(samples, isStereo ? 2 : 1, samplesToUse);
 
 			if (softBypassState == Pending)
 			{
-				jassert(stereoBuffer.getNumChannels() == killBuffer->getNumChannels());
+				masterState.reset();
+
+				jassert(stereoBuffer.getNumChannels() <= killBuffer->getNumChannels());
 				jassert(stereoBuffer.getNumSamples() <= killBuffer->getNumSamples());
 
 				int numSamples = stereoBuffer.getNumSamples();
-				int numChannels = 2;
+				int numChannels = isStereo ? 2 : 1;
 
 				float start = jmin<float>(1.0f, softBypassRamper.getCurrentValue());
 				float end = jmax<float>(0.0f, softBypassRamper.getNextValue());
@@ -366,20 +409,68 @@ public:
 				}
 
 				currentValues.outL = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(0, 0, samplesToUse);
-				currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
+
+				if(isStereo)
+					currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
 			}
 			else
 			{
+				auto suspendAtSilence = isSuspendedOnSilence();
+
+				if (suspendAtSilence && masterState.numSilentBuffers > numSilentCallbacksToWait)
+				{
+					if (isSilent(stereoBuffer, 0, samplesToUse))
+					{
+						if (getMatrix().anyChannelActive())
+						{
+							float gainValues[NUM_MAX_CHANNELS];
+
+							memset(gainValues, 0, getMatrix().getNumSourceChannels() * sizeof(float));
+
+							getMatrix().setGainValues(gainValues, true);
+							getMatrix().setGainValues(gainValues, false);
+						}
+
+#if ENABLE_ALL_PEAK_METERS
+						currentValues.outL = 0.0f;
+						currentValues.outR = 0.0f;
+#endif
+
+						masterState.currentlySuspended = true;
+						return;
+					}
+						
+				}
+
+				masterState.currentlySuspended = false;
 				applyEffect(stereoBuffer, 0, samplesToUse);
-				isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
+
+				if (suspendAtSilence)
+				{
+					isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
+
+					if (!isTailing)
+						masterState.numSilentBuffers++;
+					else
+						masterState.numSilentBuffers = 0;
+				}
+				else
+				{
+					isTailing = hasTail() && !isSilent(stereoBuffer, 0, samplesToUse);
+					masterState.numSilentBuffers = 0;
+				}
+
+				
 
 #if ENABLE_ALL_PEAK_METERS
 				currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
-				currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
+
+				if(isStereo)
+					currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
 #endif
 			}
 
-			if (getMatrix().isEditorShown())
+			if (getMatrix().anyChannelActive())
 			{
 				float gainValues[NUM_MAX_CHANNELS];
 
@@ -387,16 +478,14 @@ public:
 
 				for (int i = 0; i < buffer.getNumChannels(); i++)
 				{
-					gainValues[i] = buffer.getMagnitude(i, 0, samplesToUse);
+					if (getMatrix().isEditorShown(i))
+						gainValues[i] = buffer.getMagnitude(i, 0, samplesToUse);
+					else
+						gainValues[i] = 0.0f;
 				}
 
 				getMatrix().setGainValues(gainValues, true);
 				getMatrix().setGainValues(gainValues, false);
-			}
-
-			if (softBypassState == Pending)
-			{
-				
 			}
 		}
 
@@ -408,6 +497,7 @@ public:
 protected:
 
 	HiseEventBuffer* eventBuffer = nullptr;
+	SuspensionState masterState;
 
 private:
 
@@ -523,7 +613,10 @@ public:
 
 	VoiceEffectProcessor(MainController *mc, const String &uid, int numVoices_): 
 		EffectProcessor(mc, uid, numVoices_)
-	{};
+	{
+		for (int i = 0; i < numVoices_; i++)
+			polyState.add({});
+	};
 
 	virtual ~VoiceEffectProcessor() {};
 
@@ -568,9 +661,6 @@ public:
 	{
 		jassert(isOnAir());
 
-		const int startIndex = startSample;
-		const int samplesToCheck = numSamples;
-
 		preVoiceRendering(voiceIndex, startSample, numSamples);
 
 		constexpr int stepSize = 64;
@@ -588,12 +678,63 @@ public:
 			applyEffect(voiceIndex, b, startSample, numSamples);
 		}
 
-		if (hasTail())
+	}
+
+	bool checkPreSuspension(int voiceIndex, ProcessDataDyn& d)
+	{
+		if (isSuspendedOnSilence())
 		{
-			isTailing = !isSilent(b, startIndex, samplesToCheck);
+			jassert(isPositiveAndBelow(voiceIndex, polyState.size()));
+
+			auto& s = polyState.getReference(voiceIndex);
+
+			if (s.numSilentBuffers > numSilentCallbacksToWait)
+			{
+				if (d.isSilent())
+				{
+					s.currentlySuspended = true;
+					return true;
+				}
+					
+			}
+			else
+			{
+				s.currentlySuspended = false;
+			}
 		}
 
-		return;
+		return false;
+	}
+
+	
+
+	void checkPostSuspension(int voiceIndex, ProcessDataDyn& data)
+	{
+		if (hasTail() || isSuspendedOnSilence())
+		{
+			isTailing = !data.isSilent();
+
+			if (isTailing)
+				polyState.getReference(voiceIndex).numSilentBuffers = 0;
+			else
+				polyState.getReference(voiceIndex).numSilentBuffers++;
+		}
+	}
+
+	bool isCurrentlySuspended() const final override
+	{
+		if (!isSuspendedOnSilence())
+			return false;
+
+		
+
+		for (const auto& s : polyState)
+		{
+			if (s.playing && !s.currentlySuspended)
+				return false;
+		}
+
+		return true;
 	}
 
 	virtual void startVoice(int voiceIndex, const HiseEvent& e)
@@ -602,6 +743,13 @@ public:
 
 		for (auto& mb : modChains)
 			mb.startVoice(voiceIndex);
+
+		if (isSuspendedOnSilence())
+		{
+			auto& s = polyState.getReference(voiceIndex);
+			s.playing = true;
+			s.reset();
+		}
 	}
 
 	virtual void stopVoice(int voiceIndex)
@@ -614,6 +762,11 @@ public:
 	{
 		for (auto& mb : modChains)
 			mb.resetVoice(voiceIndex);
+
+		if (isSuspendedOnSilence())
+		{
+			polyState.getReference(voiceIndex).playing = false;
+		}
 	}
 
 	void handleHiseEvent(const HiseEvent &m) override
@@ -631,6 +784,8 @@ public:
 protected:
 
 	bool forceMono = false;
+
+	Array<SuspensionState> polyState;
 };
 
 } // namespace hise

@@ -438,13 +438,16 @@ public:
 	/** This bypasses the processor. You don't have to check in the processors logic itself, normally the chain should do that for you. */
 	virtual void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept 
 	{ 
-		bypassed = shouldBeBypassed; 
-		currentValues.clear();
+		if (bypassed != shouldBeBypassed)
+		{
+			bypassed = shouldBeBypassed;
+			currentValues.clear();
 
-		sendSynchronousBypassChangeMessage();
+			sendSynchronousBypassChangeMessage();
 
-		if (notifyChangeHandler)
-			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
+			if (notifyChangeHandler)
+				getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
+		}		
 	};
 
 	/** Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). */
@@ -986,6 +989,15 @@ public:
 
 	static Processor *findParentProcessor(Processor *childProcessor, bool getParentSynth);
 
+    static juce::NotificationType getAttributeNotificationType()
+    {
+#if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
+        return dontSendNotification;
+#else
+        return sendNotification;
+#endif
+    }
+    
 	/** Returns the first Processor with the given name (It skips all InternalChains). If there are multiple Processors with the same name, it will always return the first one.
 	*
 	*	To avoid this, use PresetHandler::findProcessorsWithDuplicateId...

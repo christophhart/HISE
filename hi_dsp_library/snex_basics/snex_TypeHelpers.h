@@ -283,6 +283,7 @@ struct NamespacedIdentifier
 	juce::String toString() const
 	{
 		juce::String s;
+		s.preallocateBytes(256);
 
 		for (auto n : namespaces)
 			s << n << "::";

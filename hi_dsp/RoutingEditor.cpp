@@ -87,7 +87,15 @@ RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
 	data = data_;
 	data->addChangeListener(this);
 
-	data->setEditorShown(true);
+	auto numChannels = jmax(data->getNumDestinationChannels(), data->getNumSourceChannels());
+
+	Array<int> channelIndexes;
+
+	for (int i = 0; i < numChannels; i++)
+		channelIndexes.add(i);
+
+
+  	data->setEditorShown(channelIndexes, true);
 	
 
 	rebuildConnectors();
@@ -103,7 +111,15 @@ RouterComponent::~RouterComponent()
 	if (data != nullptr)
 	{
 		data->removeChangeListener(this);
-		data->setEditorShown(false);
+
+		auto numChannels = jmax(data->getNumDestinationChannels(), data->getNumSourceChannels());
+
+		Array<int> channelIndexes;
+
+		for (int i = 0; i < numChannels; i++)
+			channelIndexes.add(i);
+
+		data->setEditorShown(channelIndexes, false);
 	}
 	
 }

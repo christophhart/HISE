@@ -34,7 +34,7 @@
 namespace snex {
 namespace Types {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 struct PolyDataBuilder : public TemplateClassBuilder
 {
@@ -85,6 +85,9 @@ private:
 			st->setDefaultValue("unused", InitialiserList::makeSingleList(VariableStorage(0)));
 		};
 
+		
+
+#if SNEX_ASMJIT_BACKEND
 		static Result prepareInliner(InlineData* b)
 		{
 			auto d = b->toAsmInlineData();
@@ -109,33 +112,6 @@ private:
 		}
 
 		
-
-		static FunctionData prepareFunction(StructType* st)
-		{
-			auto f = ScriptnodeCallbacks::getPrototype(st->getCompiler(), ScriptnodeCallbacks::PrepareFunction, 2);
-
-			f.id = st->id.getChildId(f.id.getIdentifier());
-
-			f.inliner = Inliner::createAsmInliner({}, prepareInliner);
-
-			return f;
-		}
-
-#if 0
-		static Result beginInliner(InlineData* b)
-		{
-			auto d = b->toAsmInlineData();
-
-			auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
-			auto dataOffset = polyDataType->getMemberOffset("data");
-
-			d->target->setCustomMemoryLocation(d->object->getMemoryLocationForReference().cloneAdjustedAndResized(dataOffset, 8), d->object->isGlobalMemory());
-
-			auto numVoices = polyDataType->getTemplateInstanceParameters()[1].constant;
-
-			return Result::ok();
-		}
-#endif
 
 		static Result getVoiceIndexForDataInliner(InlineData* b)
 		{
@@ -213,42 +189,6 @@ private:
 			}
 		}
 
-		static FunctionData getVoiceIndexForData(StructType* st)
-		{
-			FunctionData f;
-
-			f.id = st->id.getChildId("getVoiceIndexForData");
-			f.returnType = Types::ID::Integer;
-			f.setConst(true);
-			
-			auto argType = st->getTemplateInstanceParameters()[0].type.withModifiers(true, true, false);
-
-			f.addArgs("data", argType);
-
-			f.inliner = Inliner::createAsmInliner({}, getVoiceIndexForDataInliner);
-
-			return f;
-		}
-
-		static FunctionData beginFunction(StructType* st)
-		{
-			FunctionData f;
-
-			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::BeginIterator));
-			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true, false);
-			f.inliner = Inliner::createAsmInliner({}, getInliner);
-
-			return f;
-		}
-
-		static FunctionData getFunction(StructType* st)
-		{
-			FunctionData f;
-			f.id = st->id.getChildId("get");
-			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true);
-			f.inliner = Inliner::createAsmInliner({}, getInliner);
-			return f;
-		}
 
 		static void asmGetVoiceIndex(AsmCodeGenerator& gen, AssemblyRegister::Ptr objReg, AssemblyRegister::Ptr retReg)
 		{
@@ -287,8 +227,65 @@ private:
 			cc.mov(r, x86::ptr(o).cloneAdjustedAndResized(8, 4));
 			cc.imul(r, x86::ptr(o).cloneAdjustedAndResized(12, 4));
 			cc.bind(branchEnd);
-			
+
 		}
+#else
+
+		static Result prepareInliner(InlineData* b) { jassertfalse; return Result::ok(); };
+		static Result getVoiceIndexForDataInliner(InlineData* b) { jassertfalse; return Result::ok(); };
+		static Result getInliner(InlineData* b) { jassertfalse; return Result::ok(); };
+		static Result asmGetVoiceIndex(InlineData* b) { jassertfalse; return Result::ok(); };
+
+#endif
+
+		static FunctionData prepareFunction(StructType* st)
+		{
+			auto f = ScriptnodeCallbacks::getPrototype(st->getCompiler(), ScriptnodeCallbacks::PrepareFunction, 2);
+
+			f.id = st->id.getChildId(f.id.getIdentifier());
+
+			f.inliner = Inliner::createAsmInliner({}, prepareInliner);
+
+			return f;
+		}
+
+		static FunctionData getVoiceIndexForData(StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId("getVoiceIndexForData");
+			f.returnType = Types::ID::Integer;
+			f.setConst(true);
+			
+			auto argType = st->getTemplateInstanceParameters()[0].type.withModifiers(true, true, false);
+
+			f.addArgs("data", argType);
+
+			f.inliner = Inliner::createAsmInliner({}, getVoiceIndexForDataInliner);
+
+			return f;
+		}
+
+		static FunctionData beginFunction(StructType* st)
+		{
+			FunctionData f;
+
+			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::BeginIterator));
+			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true, false);
+			f.inliner = Inliner::createAsmInliner({}, getInliner);
+
+			return f;
+		}
+
+		static FunctionData getFunction(StructType* st)
+		{
+			FunctionData f;
+			f.id = st->id.getChildId("get");
+			f.returnType = st->getTemplateInstanceParameters()[0].type.withModifiers(false, true);
+			f.inliner = Inliner::createAsmInliner({}, getInliner);
+			return f;
+		}
+
 
 		static FunctionData sizeFunction(StructType* st)
 		{
@@ -297,8 +294,10 @@ private:
 			f.id = st->id.getChildId(FunctionClass::getSpecialSymbol({}, FunctionClass::SizeFunction));
 			f.returnType = TypeInfo(Types::ID::Integer);
 
+
 			f.inliner = Inliner::createAsmInliner({}, [](InlineData* b)
 			{
+#if SNEX_ASMJIT_BACKEND
 				auto d = b->toAsmInlineData();
 
 				auto polyDataType = d->object->getTypeInfo().getTypedComplexType<StructType>();
@@ -326,9 +325,10 @@ private:
 					cc.mov(tPtr, 1);
 					cc.cmove(tPtr, tmp);
 				}
-
+#endif
 				return Result::ok();
 			});
+
 
 			return f;
 		}
@@ -428,63 +428,7 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 		return SyntaxTreeInlineParser(b, {"newTargetValue"}, c).flush();
 	});
 
-#if 0
-	ADD_INLINER(set, {
-		SETUP_INLINER(T);
-
-		auto skipSmooth = cc.newLabel();
-		auto end = cc.newLabel();
-		auto numSteps = cc.newGpd();
-		d->args[0]->loadMemoryIntoRegister(cc);
-		auto newTargetValue = FP_REG_R(d->args[0]);
-		x86::Xmm dl;
-
-		IF_(float)  dl = cc.newXmmSs();
-		IF_(double) dl = cc.newXmmSd();
-
-		cc.setInlineComment("Inlined sfloat::set");
-		cc.mov(numSteps, MEMBER_PTR(numSteps));
-		cc.test(numSteps, numSteps);
-		cc.je(skipSmooth);
-
-		// if(numSteps != 0)
-		{
-			IF_(float)
-			{
-				cc.movss(dl, newTargetValue);
-				cc.subss(dl, MEMBER_PTR(value));
-				cc.mulss(dl, MEMBER_PTR(stepDivider));
-				cc.movss(MEMBER_PTR(delta), dl);
-				cc.movss(MEMBER_PTR(targetValue), newTargetValue);
-			}
-			IF_(double)
-			{
-				cc.movsd(dl, newTargetValue);
-				cc.subsd(dl, MEMBER_PTR(value));
-				cc.mulsd(dl, MEMBER_PTR(stepDivider));
-				cc.movsd(MEMBER_PTR(delta), dl);
-				cc.movsd(MEMBER_PTR(targetValue), newTargetValue);
-			}
-
-			cc.mov(MEMBER_PTR(stepsToDo), numSteps);
-			cc.jmp(end);
-		}
-		// else
-		{
-			cc.bind(skipSmooth);
-
-			IF_(float) cc.movss(MEMBER_PTR(value), newTargetValue);
-			IF_(double) cc.movsd(MEMBER_PTR(value), newTargetValue);
-
-			cc.mov(MEMBER_PTR(stepsToDo), 0);
-		}
-
-		cc.bind(end);
-
-		return Result::ok();
-		});
-#endif
-
+#if SNEX_ASMJIT_BACKEND
 	ADD_INLINER(get,
 	{
 		SETUP_INLINER(T);
@@ -497,6 +441,7 @@ jit::ComplexType::Ptr RampWrapper<T>::createComplexType(Compiler& c, const Ident
 
 		return Result::ok();
 	});
+#endif
 
 
 	return obj->finaliseAndReturn();
@@ -542,6 +487,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 
 	FunctionClass::Ptr fc = obj->getFunctionClass();
 
+#if SNEX_ASMJIT_BACKEND
 	ADD_INLINER(getChannel,
 	{
 		SETUP_INLINER(int);
@@ -616,6 +562,7 @@ snex::jit::ComplexType::Ptr EventWrapper::createComplexType(Compiler& c, const I
 
 		return Result::ok();
 	});
+#endif
 
 	return obj->finaliseAndReturn();
 }
@@ -671,6 +618,7 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 	FunctionData lf;
 	lf.id = st->id.getChildId("isLocked");
 	lf.returnType = Types::ID::Integer;
+    lf.function = (void*)Wrappers::isLocked;
 	lf.setConst(true);
 	lf.inliner = Inliner::createHighLevelInliner(lf.id, [](InlineData* b)
 	{
@@ -679,7 +627,7 @@ snex::jit::ComplexType::Ptr DataReadLockJIT::createComplexType(Compiler& c, cons
 		return SyntaxTreeInlineParser(b, {}, c).flush();
 	});
 
-	st->addJitCompiledMemberFunction(lf);
+	st->addExternalMemberFunction(lf);
 
 	return st->finaliseAndReturn();
 }
@@ -953,32 +901,32 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 		pType->setDefaultValue("shouldReset", InitialiserList::makeSingleList(0));
 
 		pType->setCustomDumpFunction([numChannels](void* obj)
+		{
+			String s;
+
+			auto d = static_cast<ProcessDataDyn*>(obj);
+
+			s << "| ProcessData<" << numChannels << ">\t{ ";
+			s << "numSamples: " << d->getNumSamples() << " }\n";
+
+
+			for (int i = 0; i < numChannels; i++)
 			{
-				String s;
+				s << "|   Channel " << numChannels << "\t{ }\n";
 
-				auto d = static_cast<ProcessDataDyn*>(obj);
+				auto chPtr = d->getRawChannelPointers()[i];
 
-				s << "| ProcessData<" << numChannels << ">\t{ ";
-				s << "numSamples: " << d->getNumSamples() << " }\n";
-
-
-				for (int i = 0; i < numChannels; i++)
+				for (int j = 0; j < d->getNumSamples(); j++)
 				{
-					s << "|   Channel " << numChannels << "\t{ }\n";
+					String t;
+					t << "d[" << i << "][" << j << "]";
 
-					auto chPtr = d->getRawChannelPointers()[i];
-
-					for (int j = 0; j < d->getNumSamples(); j++)
-					{
-						String t;
-						t << "d[" << i << "][" << j << "]";
-
-						Types::Helpers::dumpNativeData(s, 2, t, chPtr, chPtr + i, sizeof(float), Types::ID::Float);
-					}
+					Types::Helpers::dumpNativeData(s, 2, t, chPtr, chPtr + i, sizeof(float), Types::ID::Float);
 				}
+			}
 
-				return s;
-			});
+			return s;
+		});
 
 		{
 			FunctionData subscript;
@@ -986,53 +934,54 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 			subscript.returnType = blockType;
 			subscript.addArgs("obj", TypeInfo(Types::ID::Pointer, true, true));
 			subscript.addArgs("index", TypeInfo(Types::ID::Integer));
+
 			subscript.inliner = Inliner::createAsmInliner(subscript.id, [pType](InlineData* b)
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
+
+				auto dynObj = cc.newStack(16, 32);
+				cc.mov(dynObj.cloneResized(4), 128);
+
+				auto dataObject = d->args[0];
+				dataObject->loadMemoryIntoRegister(cc);
+
+				auto tmp = cc.newGpq();
+
+				auto indexReg = d->args[1];
+				cc.mov(tmp, x86::ptr(PTR_REG_R(dataObject)));
+
+				if (indexReg->isMemoryLocation())
 				{
-					auto d = b->toAsmInlineData();
+					int value = indexReg->getImmediateIntValue();
 
-					auto& cc = d->gen.cc;
+					auto numChannels = pType->getTemplateInstanceParameters()[0].constant;
 
-					auto dynObj = cc.newStack(16, 32);
-					cc.mov(dynObj.cloneResized(4), 128);
+					if (value >= numChannels)
+						return Result::fail("channel index out of bounds");
 
-					auto dataObject = d->args[0];
-					dataObject->loadMemoryIntoRegister(cc);
+					cc.mov(tmp, x86::ptr(tmp, value * sizeof(float*), 8));
+				}
+				else
+				{
+					cc.mov(tmp, x86::ptr(tmp, INT_REG_R(indexReg), 3, 8));
+				}
 
-					auto tmp = cc.newGpq();
+				cc.mov(dynObj.cloneAdjustedAndResized(8, 8), tmp);
 
-					auto indexReg = d->args[1];
-					cc.mov(tmp, x86::ptr(PTR_REG_R(dataObject)));
+				auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
 
-					if (indexReg->isMemoryLocation())
-					{
-						int value = indexReg->getImmediateIntValue();
+				auto size = x86::ptr(PTR_REG_R(dataObject)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
+				auto tmp2 = cc.newGpd();
 
-						auto numChannels = pType->getTemplateInstanceParameters()[0].constant;
+				cc.mov(tmp2, size);
+				cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp2);
 
-						if (value >= numChannels)
-							return Result::fail("channel index out of bounds");
-
-						cc.mov(tmp, x86::ptr(tmp, value * sizeof(float*), 8));
-					}
-					else
-					{
-						cc.mov(tmp, x86::ptr(tmp, INT_REG_R(indexReg), 3, 8));
-					}
-
-					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), tmp);
-
-					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
-
-					auto size = x86::ptr(PTR_REG_R(dataObject)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
-					auto tmp2 = cc.newGpd();
-
-					cc.mov(tmp2, size);
-					cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp2);
-
-					d->target->setCustomMemoryLocation(dynObj, false);
-
-					return Result::ok();
-				});
+				d->target->setCustomMemoryLocation(dynObj, false);
+#endif
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(subscript);
 		}
@@ -1056,40 +1005,43 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 			sizeFunction.returnType = TypeInfo(Types::ID::Integer);
 
 			beginF.inliner = Inliner::createAsmInliner(beginF.id, [](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
+			{
+#if SNEX_ASMJIT_BACKEND
 
-					d->object->loadMemoryIntoRegister(cc);
-					d->target->createRegister(cc);
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
 
-					cc.mov(PTR_REG_W(d->target), x86::qword_ptr(PTR_REG_R(d->object)));
+				d->object->loadMemoryIntoRegister(cc);
+				d->target->createRegister(cc);
 
-
-					return Result::ok();
-				});
+				cc.mov(PTR_REG_W(d->target), x86::qword_ptr(PTR_REG_R(d->object)));
+#endif
+				return Result::ok();
+			});
 
 			sizeFunction.inliner = Inliner::createAsmInliner(sizeFunction.id, [pType](InlineData* b)
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
+				jassert(d->object->isActive());
+				d->target->createRegister(cc);
+
+				if (!d->templateParameters.isEmpty())
 				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
-					jassert(d->object->isActive());
-					d->target->createRegister(cc);
+					cc.mov(INT_REG_W(d->target), d->templateParameters[0].constant);
+				}
+				else
+				{
+					auto sizeOffset = (int64_t)pType->getMemberOffset("numChannels");
+					auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
+					cc.mov(INT_REG_W(d->target), size);
 
-					if (!d->templateParameters.isEmpty())
-					{
-						cc.mov(INT_REG_W(d->target), d->templateParameters[0].constant);
-					}
-					else
-					{
-						auto sizeOffset = (int64_t)pType->getMemberOffset("numChannels");
-						auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
-						cc.mov(INT_REG_W(d->target), size);
+				}
 
-					}
-
-					return Result::ok();
-				});
+#endif
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(beginF);
 			pType->addJitCompiledMemberFunction(sizeFunction);
@@ -1101,34 +1053,36 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 			tcd.returnType = blockType;
 			tcd.addArgs("channelPtr", channelType);
 
+
 			tcd.inliner = Inliner::createAsmInliner(tcd.id, [pType](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
 
-					d->object->loadMemoryIntoRegister(cc);
-					d->args[0]->loadMemoryIntoRegister(cc);
+				d->object->loadMemoryIntoRegister(cc);
+				d->args[0]->loadMemoryIntoRegister(cc);
 
-					auto dynObj = cc.newStack(16, 0);
+				auto dynObj = cc.newStack(16, 0);
 
-					cc.mov(dynObj.cloneResized(4), 128);
+				cc.mov(dynObj.cloneResized(4), 128);
 
-					auto data = cc.newGpq();
-					cc.mov(data, x86::qword_ptr(PTR_REG_R(d->args[0])));
+				auto data = cc.newGpq();
+				cc.mov(data, x86::qword_ptr(PTR_REG_R(d->args[0])));
 
-					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
-					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
-					auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
+				cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
+				auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
+				auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 
-					auto tmp = cc.newGpd();
+				auto tmp = cc.newGpd();
 
-					cc.mov(tmp, size);
-					cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp);
+				cc.mov(tmp, size);
+				cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp);
 
-					d->target->setCustomMemoryLocation(dynObj, false);
-
-					return Result::ok();
-				});
+				d->target->setCustomMemoryLocation(dynObj, false);
+#endif
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(tcd);
 		}
@@ -1141,37 +1095,39 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 			auto eventBufferType = new DynType(TypeInfo(eventType));
 			ted.returnType = TypeInfo(c.handler->registerComplexTypeOrReturnExisting(eventBufferType));
 
+
 			ted.inliner = Inliner::createAsmInliner(ted.id, [pType](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
 
-					d->object->loadMemoryIntoRegister(cc);
+				d->object->loadMemoryIntoRegister(cc);
 
-					auto dynObj = cc.newStack(16, 0);
+				auto dynObj = cc.newStack(16, 0);
 
-					cc.mov(dynObj.cloneResized(4), 128);
-					auto data = cc.newGpq();
-					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
+				cc.mov(dynObj.cloneResized(4), 128);
+				auto data = cc.newGpq();
+				cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
 
-					auto eventOffset = (int64_t)pType->getMemberOffset("events");
-					auto eventDataPtr = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(eventOffset, sizeof(int));
+				auto eventOffset = (int64_t)pType->getMemberOffset("events");
+				auto eventDataPtr = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(eventOffset, sizeof(int));
 
-					cc.mov(data, eventDataPtr);
-					cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
+				cc.mov(data, eventDataPtr);
+				cc.mov(dynObj.cloneAdjustedAndResized(8, 8), data);
 
-					auto sizeOffset = (int64_t)pType->getMemberOffset("numEvents");
-					auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
+				auto sizeOffset = (int64_t)pType->getMemberOffset("numEvents");
+				auto size = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
 
-					auto tmp = cc.newGpd();
+				auto tmp = cc.newGpd();
 
-					cc.mov(tmp, size);
-					cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp);
+				cc.mov(tmp, size);
+				cc.mov(dynObj.cloneAdjustedAndResized(4, 4), tmp);
 
-					d->target->setCustomMemoryLocation(dynObj, false);
-
-					return Result::ok();
-				});
+				d->target->setCustomMemoryLocation(dynObj, false);
+#endif
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(ted);
 		}
@@ -1187,52 +1143,55 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 
 			tfd.returnType = TypeInfo(frameProcessor);
 
+
 			tfd.inliner = Inliner::createAsmInliner(tfd.id, [pType, frameProcessor, numChannels](InlineData* b)
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
+
+				auto size = frameProcessor->getRequiredByteSize();
+
+				auto frameStackData = cc.newStack((uint32_t)size, 0);
+
+				/*
+				span<float*, NumChannels>& channels; // 8 byte
+				int frameLimit = 0;					 // 4 byte
+				int frameIndex = 0;				     // 4 byte
+				FrameType frameData;				 // sizeof(FrameData)
+				*/
+
+				cc.mov(frameStackData.cloneResized(8), PTR_REG_R(d->object));
+
+				auto channelsPtrReg = cc.newGpq();
+				cc.mov(channelsPtrReg, x86::qword_ptr(PTR_REG_R(d->object)));
+
+				auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
+				auto frameSize = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
+
+				auto sizeReg = cc.newGpd();
+
+				cc.mov(sizeReg, frameSize);
+				cc.mov(frameStackData.cloneAdjustedAndResized(8, 4), sizeReg);
+				cc.mov(frameStackData.cloneAdjustedAndResized(12, 4), 0);
+
+				auto cReg = cc.newGpq();
+				auto fReg = cc.newXmmSs();
+
+				auto frameStart = frameStackData.cloneAdjustedAndResized(16, 4);
+
+				for (int i = 0; i < numChannels; i++)
 				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
+					cc.mov(cReg, x86::ptr(channelsPtrReg).cloneAdjustedAndResized(i * 8, 4));
+					cc.movss(fReg, x86::ptr(cReg));
+					cc.movss(frameStart.cloneAdjusted(i * 4), fReg);
+				}
 
-					auto size = frameProcessor->getRequiredByteSize();
+				d->target->setCustomMemoryLocation(frameStackData, false);
 
-					auto frameStackData = cc.newStack((uint32_t)size, 0);
-
-					/*
-					span<float*, NumChannels>& channels; // 8 byte
-					int frameLimit = 0;					 // 4 byte
-					int frameIndex = 0;				     // 4 byte
-					FrameType frameData;				 // sizeof(FrameData)
-					*/
-
-					cc.mov(frameStackData.cloneResized(8), PTR_REG_R(d->object));
-
-					auto channelsPtrReg = cc.newGpq();
-					cc.mov(channelsPtrReg, x86::qword_ptr(PTR_REG_R(d->object)));
-
-					auto sizeOffset = (int64_t)pType->getMemberOffset("numSamples");
-					auto frameSize = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(sizeOffset, sizeof(int));
-
-					auto sizeReg = cc.newGpd();
-
-					cc.mov(sizeReg, frameSize);
-					cc.mov(frameStackData.cloneAdjustedAndResized(8, 4), sizeReg);
-					cc.mov(frameStackData.cloneAdjustedAndResized(12, 4), 0);
-
-					auto cReg = cc.newGpq();
-					auto fReg = cc.newXmmSs();
-
-					auto frameStart = frameStackData.cloneAdjustedAndResized(16, 4);
-
-					for (int i = 0; i < numChannels; i++)
-					{
-						cc.mov(cReg, x86::ptr(channelsPtrReg).cloneAdjustedAndResized(i * 8, 4));
-						cc.movss(fReg, x86::ptr(cReg));
-						cc.movss(frameStart.cloneAdjusted(i * 4), fReg);
-					}
-
-					d->target->setCustomMemoryLocation(frameStackData, false);
-
-					return Result::ok();
-				});
+#endif
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(tfd);
 		}
@@ -1263,13 +1222,10 @@ void InbuiltTypeLibraryBuilder::createProcessData(const TypeInfo& eventType)
 
 
 			numSamplesF.inliner = Inliner::createAsmInliner(numSamplesF.id, [](InlineData* b)
-				{
-
-
-					jassertfalse;
-
-					return Result::ok();
-				});
+			{
+				jassertfalse;
+				return Result::ok();
+			});
 
 			pType->addJitCompiledMemberFunction(numSamplesF);
 		}
@@ -1333,34 +1289,40 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 			FunctionData beginF;
 			beginF.id = fId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::BeginIterator));
 			beginF.returnType = TypeInfo(Types::ID::Float, false, true);
+
+
 			beginF.inliner = Inliner::createAsmInliner(beginF.id, [fType](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
-					auto frameDataOffset = fType->getMemberOffset("frameData");
+			{
+#if SNEX_ASMJIT_BACKEND
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
+				auto frameDataOffset = fType->getMemberOffset("frameData");
 
-					X86Mem framePtr;
+				X86Mem framePtr;
 
-					if (d->object->isActive())
-						framePtr = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(frameDataOffset, 8);
-					else
-						framePtr = d->object->getAsMemoryLocation().cloneAdjustedAndResized(frameDataOffset, 8);
+				if (d->object->isActive())
+					framePtr = x86::ptr(PTR_REG_R(d->object)).cloneAdjustedAndResized(frameDataOffset, 8);
+				else
+					framePtr = d->object->getAsMemoryLocation().cloneAdjustedAndResized(frameDataOffset, 8);
 
-					cc.lea(PTR_REG_W(d->target), framePtr);
-					return Result::ok();
-				});
+				cc.lea(PTR_REG_W(d->target), framePtr);
+#endif
+				return Result::ok();
+			});
+
 
 			fType->addJitCompiledMemberFunction(beginF);
 
 			FunctionData sizeF;
 			sizeF.id = fId.getChildId(FunctionClass::getSpecialSymbol({}, jit::FunctionClass::SizeFunction));
 			sizeF.returnType = TypeInfo(Types::ID::Integer);
-			sizeF.inliner = Inliner::createAsmInliner(sizeF.id, [numChannels](InlineData* b)
-				{
-					auto d = b->toAsmInlineData();
-					d->target->setImmediateValue(numChannels);
-					return Result::ok();
-				});
+
+			sizeF.inliner = Inliner::createHighLevelInliner(sizeF.id, [numChannels](InlineData* b)
+			{
+				auto d = b->toSyntaxTreeData();
+				d->target = new Operations::Immediate(d->location, numChannels);
+				return Result::ok();
+			});
 
 			fType->addJitCompiledMemberFunction(sizeF);
 		}
@@ -1369,103 +1331,106 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 			nextF.id = fId.getChildId("next");
 
 			nextF.returnType = TypeInfo(Types::ID::Integer);
+
+#if SNEX_ASMJIT_BACKEND
 			nextF.inliner = Inliner::createAsmInliner(nextF.id, [fType, numChannels](InlineData* b)
+			{
+				auto d = b->toAsmInlineData();
+				auto& cc = d->gen.cc;
+
+				d->target->createRegister(cc);
+
+				auto returnValue = INT_REG_W(d->target);
+
+				X86Mem frameStack;
+
+				if (d->object->isActive())
+					frameStack = x86::ptr(PTR_REG_W(d->object));
+				else
+					frameStack = d->object->getAsMemoryLocation();
+
+				auto channelPtrs = frameStack.cloneResized(8);
+				auto frameLimit = frameStack.cloneAdjustedAndResized(8, 4);
+				auto frameIndex = frameStack.cloneAdjustedAndResized(12, 4);
+				auto frameData = frameStack.cloneAdjustedAndResized(16, 4);
+
+
+				auto exit = cc.newLabel();
+				auto writeLastFrame = cc.newLabel();
+
+				cc.mov(returnValue, frameIndex);
+
+				// if (fp->frameIndex == 0)
+				cc.cmp(returnValue, 0);
+				cc.jne(writeLastFrame);
+
+				//++fp->frameIndex;
+				cc.inc(frameIndex);
+
+				//return fp->frameLimit;
+				cc.mov(returnValue, frameLimit);
+				cc.jmp(exit);
+
+				cc.setInlineComment("Write the last frame");
+				cc.bind(writeLastFrame);
+
+
+				auto channelData = cc.newGpq();
+				cc.mov(channelData, channelPtrs);
+				cc.mov(channelData, x86::qword_ptr(channelData));
+				auto tmp = cc.newXmmSs();
+				auto cReg = cc.newGpq();
+
+				for (int i = 0; i < numChannels; i++)
 				{
-					auto d = b->toAsmInlineData();
-					auto& cc = d->gen.cc;
+					//channels[i][frameIndex - 1] = frameData[i];
+					auto cPtr = x86::ptr(channelData).cloneAdjusted(i * 8);
+					cc.mov(cReg, cPtr);
 
-					d->target->createRegister(cc);
+					auto src = frameData.cloneAdjusted(i * 4);
+					auto dst = x86::ptr(cReg, returnValue, 2, -4, 4);
 
-					auto returnValue = INT_REG_W(d->target);
-
-					X86Mem frameStack;
-
-					if (d->object->isActive())
-						frameStack = x86::ptr(PTR_REG_W(d->object));
-					else
-						frameStack = d->object->getAsMemoryLocation();
-
-					auto channelPtrs = frameStack.cloneResized(8);
-					auto frameLimit = frameStack.cloneAdjustedAndResized(8, 4);
-					auto frameIndex = frameStack.cloneAdjustedAndResized(12, 4);
-					auto frameData = frameStack.cloneAdjustedAndResized(16, 4);
+					cc.movss(tmp, src);
+					cc.movss(dst, tmp);
+				}
 
 
-					auto exit = cc.newLabel();
-					auto writeLastFrame = cc.newLabel();
+				// if(fp->frameIndex < fp->frameLimit)
+				cc.cmp(returnValue, frameLimit);
+				auto finished = cc.newLabel();
+				cc.jnb(finished);
+				cc.setInlineComment("Load the next frame");
 
-					cc.mov(returnValue, frameIndex);
+				for (int i = 0; i < numChannels; i++)
+				{
+					//frameData[i] = channels[i][frameIndex];
 
-					// if (fp->frameIndex == 0)
-					cc.cmp(returnValue, 0);
-					cc.jne(writeLastFrame);
+					auto cPtr = x86::ptr(channelData).cloneAdjusted(i * 8);
+					cc.mov(cReg, cPtr);
 
-					//++fp->frameIndex;
-					cc.inc(frameIndex);
+					auto src = x86::ptr(cReg, returnValue, 2, 0, 4);
+					auto dst = frameData.cloneAdjusted(i * 4);
 
-					//return fp->frameLimit;
-					cc.mov(returnValue, frameLimit);
-					cc.jmp(exit);
+					cc.movss(tmp, src);
+					cc.movss(dst, tmp);
+				}
 
-					cc.setInlineComment("Write the last frame");
-					cc.bind(writeLastFrame);
+				//	++fp->frameIndex;
+				cc.inc(frameIndex);
 
+				//	return 1;
+				cc.mov(returnValue, 1);
+				cc.jmp(exit);
+				cc.bind(finished);
 
-					auto channelData = cc.newGpq();
-					cc.mov(channelData, channelPtrs);
-					cc.mov(channelData, x86::qword_ptr(channelData));
-					auto tmp = cc.newXmmSs();
-					auto cReg = cc.newGpq();
-
-					for (int i = 0; i < numChannels; i++)
-					{
-						//channels[i][frameIndex - 1] = frameData[i];
-						auto cPtr = x86::ptr(channelData).cloneAdjusted(i * 8);
-						cc.mov(cReg, cPtr);
-
-						auto src = frameData.cloneAdjusted(i * 4);
-						auto dst = x86::ptr(cReg, returnValue, 2, -4, 4);
-
-						cc.movss(tmp, src);
-						cc.movss(dst, tmp);
-					}
+				// return 0;
+				cc.mov(returnValue, 0);
+				cc.bind(exit);
 
 
-					// if(fp->frameIndex < fp->frameLimit)
-					cc.cmp(returnValue, frameLimit);
-					auto finished = cc.newLabel();
-					cc.jnb(finished);
-					cc.setInlineComment("Load the next frame");
-
-					for (int i = 0; i < numChannels; i++)
-					{
-						//frameData[i] = channels[i][frameIndex];
-
-						auto cPtr = x86::ptr(channelData).cloneAdjusted(i * 8);
-						cc.mov(cReg, cPtr);
-
-						auto src = x86::ptr(cReg, returnValue, 2, 0, 4);
-						auto dst = frameData.cloneAdjusted(i * 4);
-
-						cc.movss(tmp, src);
-						cc.movss(dst, tmp);
-					}
-
-					//	++fp->frameIndex;
-					cc.inc(frameIndex);
-
-					//	return 1;
-					cc.mov(returnValue, 1);
-					cc.jmp(exit);
-					cc.bind(finished);
-
-					// return 0;
-					cc.mov(returnValue, 0);
-					cc.bind(exit);
-
-
-					return Result::ok();
-				});
+				return Result::ok();
+			});
+#endif
 
 			fType->addJitCompiledMemberFunction(nextF);
 
@@ -1475,31 +1440,34 @@ void InbuiltTypeLibraryBuilder::createFrameProcessor()
 				subscript.returnType = TypeInfo(Types::ID::Float, false, true);
 				subscript.addArgs("obj", TypeInfo(Types::ID::Pointer, true)); // break ref-count cycle...
 				subscript.addArgs("index", TypeInfo(Types::ID::Integer));
+
+#if SNEX_ASMJIT_BACKEND
 				subscript.inliner = Inliner::createAsmInliner(subscript.id, [](InlineData* b)
+				{
+					auto d = b->toAsmInlineData();
+
+					X86Mem frameStack;
+
+					if (d->args[0]->isActive())
+						frameStack = x86::ptr(PTR_REG_W(d->args[0]));
+					else
+						frameStack = d->args[0]->getAsMemoryLocation();
+
+					auto frameData = frameStack.cloneAdjustedAndResized(16, 4);
+
+					if (d->args[1]->isMemoryLocation())
 					{
-						auto d = b->toAsmInlineData();
+						auto offset = INT_IMM(d->args[1]);
+						d->target->setCustomMemoryLocation(frameData.cloneAdjusted(offset * 4), d->args[0]->isGlobalMemory());
+					}
+					else
+					{
+						return Result::fail("Can't use non-constant index for frame []-operator");
+					}
 
-						X86Mem frameStack;
-
-						if (d->args[0]->isActive())
-							frameStack = x86::ptr(PTR_REG_W(d->args[0]));
-						else
-							frameStack = d->args[0]->getAsMemoryLocation();
-
-						auto frameData = frameStack.cloneAdjustedAndResized(16, 4);
-
-						if (d->args[1]->isMemoryLocation())
-						{
-							auto offset = INT_IMM(d->args[1]);
-							d->target->setCustomMemoryLocation(frameData.cloneAdjusted(offset * 4), d->args[0]->isGlobalMemory());
-						}
-						else
-						{
-							return Result::fail("Can't use non-constant index for frame []-operator");
-						}
-
-						return Result::ok();
-					});
+					return Result::ok();
+				});
+#endif
 
 				fType->addJitCompiledMemberFunction(subscript);
 			}

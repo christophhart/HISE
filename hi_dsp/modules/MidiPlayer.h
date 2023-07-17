@@ -103,8 +103,11 @@ public:
 			normalisedLoopRange.setStart(normalisedStart);
 		}
 
-		void calculateNumBars(double lengthInQuarters)
+		void calculateNumBars(double lengthInQuarters, bool roundToQuarter)
 		{
+			if (roundToQuarter)
+				lengthInQuarters = hmath::ceil(lengthInQuarters);
+
 			numBars = lengthInQuarters * denominator / 4.0 / nominator;
 		}
 		

@@ -360,19 +360,22 @@ void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<
     float tenAlpha = JUCE_LIVE_CONSTANT_OFF(0.15f);
     float oneAlpha = JUCE_LIVE_CONSTANT_OFF(.06f);
     
+    const int R = jlimit<int>(1, 100, HI_RASTER_SIZE);
+    
     if (mulAlpha > 0.1f)
     {
-        for (int x = 10; x < bounds.getWidth(); x += 10)
+        
+        for (int x = R; x < bounds.getWidth(); x += R)
         {
-            float alpha = (x % 100 == 0) ? tenAlpha : oneAlpha;
+            float alpha = (x % (R*10) == 0) ? tenAlpha : oneAlpha;
             alpha *= mulAlpha;
             g.setColour(lineColour.withAlpha(alpha));
             ug.draw1PxVerticalLine(x, 0.0f, (float)bounds.getHeight());
         }
 
-        for (int y = 10; y < bounds.getHeight(); y += 10)
+        for (int y = R; y < bounds.getHeight(); y += R)
         {
-            float alpha = (y % 100 == 0) ? tenAlpha : oneAlpha;
+            float alpha = (y % (R*10) == 0) ? tenAlpha : oneAlpha;
             alpha *= mulAlpha;
             g.setColour(lineColour.withAlpha(alpha));
             ug.draw1PxHorizontalLine(y, 0.0f, (float)bounds.getWidth());
@@ -968,10 +971,10 @@ void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height,
 
 void PopupLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c /*= nullptr*/, bool isMouseOverButton /*= false*/)
 {
-	Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId) :
+	Colour upperBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId, true) :
 		Colour(0x66333333);
 
-	Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId) :
+	Colour lowerBgColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId, true) :
 		Colour(0xfb111111);
 
 	g.setGradientFill(ColourGradient(upperBgColour.withMultipliedBrightness(isMouseOverButton ? 1.6f : 1.1f),
@@ -982,7 +985,7 @@ void PopupLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, in
 
 	g.fillRect((float)x, (float)y, (float)width, (float)height);
 
-	Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId) :
+	Colour outlineColour = (c != nullptr) ? c->findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId, true) :
 		Colours::white.withAlpha(0.3f);
 
 	g.setColour(outlineColour);
@@ -1014,7 +1017,10 @@ juce::Font PopupLookAndFeel::getPopupMenuFont()
 
 void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int, int, int, int, ComboBox &c)
 {
-	c.setColour(ComboBox::ColourIds::textColourId, c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+    auto textColour = c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId, true);
+    //jassert(textColour != Colours::transparentBlack);
+    
+	c.setColour(ComboBox::ColourIds::textColourId, textColour);
 
 	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
@@ -1025,7 +1031,7 @@ void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isB
 
 	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
 
-	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId));
+	g.setColour(c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId, true));
 	g.fillPath(path);
 }
 
@@ -1084,6 +1090,31 @@ void PopupLookAndFeel::positionComboBoxText(ComboBox &c, Label &labelToPosition)
 	labelToPosition.setBounds(getTextBoundsForComboBox(c));
 
 	labelToPosition.setFont(getComboBoxFont(c));
+}
+
+PopupMenu::Options PopupLookAndFeel::getOptionsForComboBoxPopupMenu (ComboBox& box, Label& label)
+{
+    auto options = LookAndFeel_V3::getOptionsForComboBoxPopupMenu(box, label);
+    
+    auto alignment = box.getProperties()["popupAlignment"].toString();
+    
+    if(alignment.isNotEmpty())
+    {
+        auto area = options.getTargetScreenArea().toFloat();
+        
+        auto sf = UnblurryGraphics::getScaleFactorForComponent(&box);
+        
+        if(alignment == "topRight")
+            area.translate((float)box.getWidth() * sf, -1.0f * (float)box.getHeight() * sf);
+        if(alignment == "bottomRight")
+            area.translate((float)box.getWidth() * sf, 0.0f);
+        if(alignment == "top")
+            area.translate(0.0f, -1.0f * (float)box.getHeight() * sf);
+        
+        return options.withTargetScreenArea(area.toNearestInt());
+    }
+    
+    return options;
 }
 
 void PopupLookAndFeel::drawComboBoxTextWhenNothingSelected(Graphics& g, ComboBox& box, Label& label)

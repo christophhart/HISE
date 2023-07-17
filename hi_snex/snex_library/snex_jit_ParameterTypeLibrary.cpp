@@ -35,7 +35,7 @@ namespace snex
 {
 
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 namespace jit
 {
@@ -132,28 +132,30 @@ snex::jit::FunctionData ParameterBuilder::Helpers::connectFunction(StructType* s
 		cFunc.templateParameters.add(TemplateParameter(cFunc.id.getChildId("Index"), 0, false));
 		cFunc.addArgs("target", TypeInfo(Types::ID::Dynamic));
 
+#if SNEX_ASMJIT_BACKEND
 		cFunc.inliner = Inliner::createAsmInliner(cFunc.id, [](InlineData* b)
-			{
-				auto d = b->toAsmInlineData();
+		{
+			auto d = b->toAsmInlineData();
 
-				if (d->templateParameters.size() == 0)
-					return Result::fail("Missing template parameter for connect()");
+			if (d->templateParameters.size() == 0)
+				return Result::fail("Missing template parameter for connect()");
 
-				auto& cc = d->gen.cc;
-				auto target = d->args[0];
-				auto obj = d->object;
+			auto& cc = d->gen.cc;
+			auto target = d->args[0];
+			auto obj = d->object;
 
-				auto mem = target->getMemoryLocationForReference();
+			auto mem = target->getMemoryLocationForReference();
 
-				if (mem.isNone())
-					jassertfalse;
+			if (mem.isNone())
+				jassertfalse;
 
-				auto tmp = cc.newGpq();
-				cc.lea(tmp, mem);
-				obj->loadMemoryIntoRegister(cc);
-				cc.mov(x86::ptr(PTR_REG_R(obj)), tmp);
-				return Result::ok();
-			});
+			auto tmp = cc.newGpq();
+			cc.lea(tmp, mem);
+			obj->loadMemoryIntoRegister(cc);
+			cc.mov(x86::ptr(PTR_REG_R(obj)), tmp);
+			return Result::ok();
+		});
+#endif
 	}
 
 	return cFunc;

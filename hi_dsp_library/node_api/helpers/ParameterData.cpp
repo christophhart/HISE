@@ -151,6 +151,20 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, Un
 	d.setProperty(SkewFactor, r.rng.skew, um);
 }
 
+void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r)
+{
+	using namespace PropertyIds;
+
+	auto d = new DynamicObject();
+
+	d->setProperty(r.inv ? MaxValue : MinValue, r.rng.start);
+	d->setProperty(r.inv ? MinValue : MaxValue, r.rng.end);
+	d->setProperty(StepSize, r.rng.interval);
+	d->setProperty(SkewFactor, r.rng.skew);
+
+	obj = var(d);
+}
+
 bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError)
 {
 	if (isEqual(r1, r2))

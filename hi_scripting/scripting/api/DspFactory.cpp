@@ -108,7 +108,7 @@ void DynamicDspFactory::openDynamicLibrary()
 {
 #if JUCE_WINDOWS
 
-	const File path = NativeFileHandler::getAppDataDirectory().getChildFile("dll/");
+	const File path = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("dll/");
 
 #if USE_FRONTEND
 
@@ -131,7 +131,7 @@ void DynamicDspFactory::openDynamicLibrary()
 #else
     
 
-    const File path = NativeFileHandler::getAppDataDirectory().getChildFile("lib/");
+    const File path = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("lib/");
     
 #if USE_FRONTEND
     

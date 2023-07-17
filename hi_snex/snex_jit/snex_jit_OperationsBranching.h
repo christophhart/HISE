@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 struct Operations::StatementBlock : public Expression,
@@ -74,6 +74,10 @@ struct Operations::StatementBlock : public Expression,
 	{
 		auto v = Statement::toValueTree();
 		v.setProperty("ScopeId", getPath().toString(), nullptr);
+
+		if (isInlinedFunction)
+			v.setProperty("ReturnType", getTypeInfo().toStringWithoutAlias(), nullptr);
+
 		return v;
 	}
 
@@ -117,7 +121,7 @@ struct Operations::StatementBlock : public Expression,
 
 	BaseScope* createOrGetBlockScope(BaseScope* parent);
 
-	void addInlinedReturnJump(X86Compiler& cc);
+	void addInlinedReturnJump(AsmJitX86Compiler& cc);
 
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
@@ -128,7 +132,7 @@ struct Operations::StatementBlock : public Expression,
 
 private:
 
-	asmjit::Label endLabel;
+	AsmJitLabel endLabel;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatementBlock);
 };
@@ -203,6 +207,10 @@ struct Operations::ReturnStatement : public Expression,
 	{
 		auto t = Expression::toValueTree();
 		t.setProperty("Type", getTypeInfo().toString(), nullptr);
+
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+
 		return t;
 	}
 
@@ -327,7 +335,13 @@ struct Operations::WhileLoop : public Statement,
 
 	ValueTree toValueTree() const override
 	{
-		return Statement::toValueTree();
+		auto v = Statement::toValueTree();
+
+		StringArray types = { "While", "For" };
+		
+		v.setProperty("LoopType", types[(int)loopType], nullptr);
+
+		return v;
 	}
 
 	Statement::Ptr clone(Location l) const override
@@ -369,14 +383,14 @@ struct Operations::WhileLoop : public Statement,
 
 	Ptr getLoopChildStatement(ChildStatementType t);
 
-	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	AsmJitLabel getJumpTargetForEnd(bool getContinue) override
 	{
 		return getContinue ? continueTarget : breakTarget;
 	}
 
 
-	asmjit::Label continueTarget;
-	asmjit::Label breakTarget;
+	AsmJitLabel continueTarget;
+	AsmJitLabel breakTarget;
 
 	ScopedPointer<RegisterScope> forScope;
 };
@@ -411,11 +425,22 @@ struct Operations::Loop : public Expression,
 	{
 		auto t = Expression::toValueTree();
 
-		static const StringArray loopTypes = { "Undefined", "Span", "Block", "CustomObject" };
+		static const StringArray loopTypes = { "Undefined", "Span", "Dyn", "CustomObject" };
 		t.setProperty("LoopType", loopTypes[loopTargetType], nullptr);
 		t.setProperty("LoadIterator", loadIterator, nullptr);
 		t.setProperty("Iterator", iterator.toString(), nullptr);
-
+		t.setProperty("ElementType", iterator.typeInfo.toStringWithoutAlias(), nullptr);
+        t.setProperty("ElementSize", (int)iterator.typeInfo.getRequiredByteSizeNonZero(), nullptr);
+        
+        if(loopTargetType == ArrayType::Span)
+        {
+            t.setProperty("NumElements", numElements, nullptr);
+        }
+		if (loopTargetType == ArrayStatementBase::CustomObject)
+		{
+			t.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toStringWithoutAlias(), nullptr);
+		}
+        
 		return t;
 	}
 
@@ -434,7 +459,7 @@ struct Operations::Loop : public Expression,
 
 	bool evaluateIteratorLoad();
 
-	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	AsmJitLabel getJumpTargetForEnd(bool getContinue) override
 	{
 		return loopEmitter->getLoopPoint(getContinue);
 	}
@@ -449,14 +474,16 @@ struct Operations::Loop : public Expression,
 
 	ArrayType loopTargetType;
 
-	asmjit::Label loopStart;
-	asmjit::Label loopEnd;
+	AsmJitLabel loopStart;
+	AsmJitLabel loopEnd;
 
 	FunctionData customBegin;
 	FunctionData customSizeFunction;
 
 	ScopedPointer<AsmCodeGenerator::LoopEmitterBase> loopEmitter;
 
+    int numElements = -1;
+    
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Loop);
 };
 
@@ -470,16 +497,15 @@ struct Operations::ControlFlowStatement : public Expression,
 		isBreak(isBreak_)
 	{}
 
-	Identifier getStatementId() const override
+	SET_EXPRESSION_ID(ControlFlowStatement);
+
+	ValueTree toValueTree() const override
 	{
-		if (isBreak)
-		{
-			RETURN_STATIC_IDENTIFIER("break");
-		}
-		else
-		{
-			RETURN_STATIC_IDENTIFIER("continue");
-		}
+		auto t = Expression::toValueTree();
+
+		t.setProperty("command", isBreak ? "break" : "continue", nullptr);
+
+		return t;
 	}
 
 	Statement::Ptr clone(ParserHelpers::CodeLocation l) const override
@@ -537,10 +563,11 @@ struct Operations::IfStatement : public Statement,
 		return new IfStatement(l, dynamic_cast<Expression*>(c1.get()), c2, c3);
 	}
 
-	asmjit::Label getJumpTargetForEnd(bool getContinue) override
+	AsmJitLabel getJumpTargetForEnd(bool getContinue) override
 	{
 		location.throwError("Can't jump to end of if");
-		return {};
+
+		RETURN_DEBUG_ONLY({});
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; }

@@ -55,6 +55,8 @@ public:
 		return getSettingDirectory().getChildFile("GeneralSettings.xml");
 	}
 
+	static String getHiseVersion();
+
 	void setDiskMode(int mode);
 
 	void storeAllSamplesFound(bool areFound) noexcept
@@ -107,7 +109,7 @@ public:
 
 	static File getSettingDirectory();
 
-	static void restoreGlobalSettings(MainController* mc);
+	static void restoreGlobalSettings(MainController* mc, bool checkReferences=true);
 
 	void initData(MainController* mc)
 	{

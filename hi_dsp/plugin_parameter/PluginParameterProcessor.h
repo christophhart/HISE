@@ -82,14 +82,22 @@ public:
 
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
-
 #if HI_SUPPORT_MONO_TO_STEREO
 		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
 #else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());		
 #endif
 #else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+
+		constexpr int numChannels = HISE_NUM_FX_PLUGIN_CHANNELS;
+
+		auto busProp = BusesProperties();
+
+		for (int i = 0; i < numChannels; i += 2)
+			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
+
+		return busProp;
+		
 #endif
 #else
 auto busProp = BusesProperties();
@@ -114,26 +122,28 @@ auto busProp = BusesProperties();
     
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override
     {
+		auto inputs = layouts.getMainInputChannels();
+		auto outputs = layouts.getMainOutputChannels();
+
 #if HISE_MIDIFX_PLUGIN
-		return layouts.getMainInputChannels() == 0 && layouts.getMainOutputChannels() == 0;
+		return inputs == 0 && outputs == 0;
 #endif
 
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
 #if HI_SUPPORT_MONO_TO_STEREO
-		return (layouts.getMainInputChannels() == 1 && layouts.getMainOutputChannels() == 2);
+		if (outputs == 1) return false; // only mono to stereo support
+		return (outputs == 2) && (inputs == 1 || inputs == 2);
 #else
-
-		return (layouts.getMainInputChannels() == 1 && layouts.getMainOutputChannels() == 1) ||
-			   (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+		return (inputs == 1 && outputs == 1) ||
+			   (inputs == 2 && outputs == 2);
 #endif
 #else
-		return (layouts.getMainInputChannels() == 2 && layouts.getMainOutputChannels() == 2);
+		return inputs == 2 && outputs == 2;
 #endif
 #else
-        bool isStereo = (layouts.getMainInputChannels() == 2) && (layouts.getMainOutputChannels() == 2);
-        bool isMultiChannel = (layouts.getMainInputChannels() == HISE_NUM_PLUGIN_CHANNELS) && (layouts.getMainOutputChannels() == HISE_NUM_PLUGIN_CHANNELS);
-        
+		bool isStereo = (inputs == 2 || inputs == 0) && outputs == 2;
+        bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS || inputs == 0) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
         return isStereo || isMultiChannel;
 #endif
     }

@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 struct Operations::InlinedArgument : public Expression,
@@ -231,7 +231,9 @@ struct Operations::VariableReference : public Expression,
 	ValueTree toValueTree() const override
 	{
 		auto t = Statement::toValueTree();
-		t.setProperty("Symbol", id.toString(), nullptr);
+
+
+		t.setProperty("Symbol", id.toString(false), nullptr);
 		return t;
 	}
 

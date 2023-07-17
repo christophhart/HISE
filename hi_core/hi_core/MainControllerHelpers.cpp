@@ -42,7 +42,7 @@ ccName("MIDI CC")
 {
 	tempBuffer.ensureSize(2048);
 
-	clear();
+	clear(sendNotification);
 }
 
 void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
@@ -137,7 +137,7 @@ void MidiControllerAutomationHandler::refreshAnyUsedState()
 	}
 }
 
-void MidiControllerAutomationHandler::clear()
+void MidiControllerAutomationHandler::clear(NotificationType notifyListeners)
 {
 	for (int i = 0; i < 128; i++)
 	{
@@ -147,6 +147,9 @@ void MidiControllerAutomationHandler::clear()
 	unlearnedData = AutomationData();
 
 	anyUsed = false;
+	
+	if (notifyListeners == sendNotification)
+		sendChangeMessage();
 }
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
@@ -229,7 +232,7 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 			{
 				if (auto ah = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(j))
 				{
-					if (ah->id.toString() == attributeString)
+					if (ah->id == attributeString)
 					{
 						attribute = j;
 						break;
@@ -306,7 +309,7 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 
 	if (auto ap = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(attribute))
 	{
-		cc.setProperty("Attribute", ap->id.toString(), nullptr);
+		cc.setProperty("Attribute", ap->id, nullptr);
 	}
 	else
 	{
@@ -680,7 +683,7 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 {
 	if (v.getType() != Identifier("MidiAutomation")) return;
 
-	clear();
+	clear(sendNotification);
 
 	for (int i = 0; i < v.getNumChildren(); i++)
 	{
@@ -758,6 +761,9 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 		{
 			jassert(a.processor.get() != nullptr);
 
+			// MIDI events should not be propagated as plugin parameter changes
+			ScopedValueSetter<bool> setter(a.processor->getMainController()->getPluginParameterUpdateState(), false);
+			
 			auto normalizedValue = (double)e.getControllerValue() / 127.0;
 
 			if (a.inverted) normalizedValue = 1.0 - normalizedValue;
@@ -1242,6 +1248,8 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		auto data = (float*)alloca(sizeof(float) * buffer.getNumChannels() * paddedBufferSize);
 
+        FloatVectorOperations::clear(data, buffer.getNumChannels() * paddedBufferSize);
+        
 		float* ptrs[HISE_NUM_PLUGIN_CHANNELS];
 
 		for (int i = 0; i < buffer.getNumChannels(); i++)

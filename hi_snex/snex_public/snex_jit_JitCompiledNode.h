@@ -150,6 +150,11 @@ struct JitCompiledNode : public ReferenceCountedObject,
 	}
 #endif
 
+    String getAssembly() const
+    {
+		return assembly;
+    }
+    
 private:
 
 	int numRequiredDataTypes[(int)ExternalData::DataType::numDataTypes];
@@ -167,6 +172,9 @@ private:
 	Array<FunctionData> parameterFunctions;
 
 	JitObject obj;
+    
+	String assembly;
+    
 	ComplexType::Ptr instanceType;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(JitCompiledNode);

@@ -248,8 +248,30 @@ public:
 
 	void setGlobalRoutingManager(ReferenceCountedObject* newManager) { routingManager = newManager; };
 
+	ValueTree exportWebViewResources();
+
+	void restoreWebResources(const ValueTree& v);
+
+    void clearWebResources()
+    {
+        webviews.clear();
+    }
+    
+	WebViewData::Ptr getOrCreateWebView(const Identifier& id);
+
+	Array<Identifier> getAllWebViewIds() const;
+
+	void setWebViewRoot(File newRoot)
+	{
+		webViewRoot = newRoot;
+	}
+
 private:
 	
+	File webViewRoot;
+
+	Array<std::tuple<Identifier, WebViewData::Ptr>> webviews;
+
 	ReferenceCountedObjectPtr<ReferenceCountedObject> currentScriptLaf;
 
 	ScopedPointer<ScriptComponentEditBroadcaster> globalEditBroadcaster;

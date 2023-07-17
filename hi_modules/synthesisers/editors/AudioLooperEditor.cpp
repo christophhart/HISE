@@ -59,6 +59,9 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
     syncToHost->addItem (TRANS("1 Bar"), 4);
     syncToHost->addItem (TRANS("2 Bars"), 5);
     syncToHost->addItem (TRANS("4 Bars"), 6);
+    syncToHost->addItem (TRANS("8 Bars"), 7);
+    syncToHost->addItem (TRANS("12 Bars"), 8);
+    syncToHost->addItem (TRANS("16 Bars"), 9);
     syncToHost->addSeparator();
     syncToHost->addListener (this);
 
@@ -282,7 +285,7 @@ BEGIN_JUCER_METADATA
   <COMBOBOX name="Mode Selection" id="63f5b1527f75c45b" memberName="syncToHost"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="56 45 134 28"
             tooltip="Sync the loop to the host tempo" editable="0" layout="33"
-            items="Free running&#10;1 Beat&#10;2 Beats&#10;1 Bar&#10;2 Bars&#10;4 Bars&#10;"
+            items="Free running&#10;1 Beat&#10;2 Beats&#10;1 Bar&#10;2 Bars&#10;4 Bars&#10;8 Bars&#10;12 Bars&#10;16 Bars&#10;"
             textWhenNonSelected="Sync to Tempo" textWhenNoItems="(no choices)"/>
   <TOGGLEBUTTON name="FM Synthesiser" id="e77edc03c117de85" memberName="pitchButton"
                 virtualName="HiToggleButton" explicitFocusOrder="0" pos="354r 12 128 32"

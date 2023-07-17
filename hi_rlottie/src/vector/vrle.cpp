@@ -41,7 +41,7 @@ static size_t _opGeneric(rle_view &a, rle_view &b, Result &result,
 static size_t _opIntersect(const VRect &, rle_view &, Result &);
 static size_t _opIntersect(rle_view &, rle_view &, Result &);
 
-static inline uchar divBy255(int x)
+static inline uint8_t divBy255(int x)
 {
     return (x + (x >> 8) + 0x80) >> 8;
 }
@@ -142,7 +142,7 @@ void VRle::Data::updateBbox() const
     }
 }
 
-void VRle::Data::operator*=(uchar alpha)
+void VRle::Data::operator*=(uint8_t alpha)
 {
     for (auto &i : mSpans) {
         i.coverage = divBy255(i.coverage * alpha);
@@ -425,7 +425,7 @@ static size_t _opIntersect(const VRect &clip, rle_view &obj, Result &result)
             out->x = minx;
         } else {
             out->x = span.x;
-            out->len = std::min(span.len, ushort(maxx - span.x + 1));
+            out->len = std::min(span.len, uint16_t(maxx - span.x + 1));
         }
         if (out->len != 0) {
             out->y = span.y;
@@ -442,12 +442,12 @@ static size_t _opIntersect(const VRect &clip, rle_view &obj, Result &result)
     return result.max_size() - available;
 }
 
-static void blitXor(VRle::Span *spans, int count, uchar *buffer, int offsetX)
+static void blitXor(VRle::Span *spans, int count, uint8_t *buffer, int offsetX)
 {
     while (count--) {
         int    x = spans->x + offsetX;
         int    l = spans->len;
-        uchar *ptr = buffer + x;
+        uint8_t *ptr = buffer + x;
         while (l--) {
             int da = *ptr;
             *ptr = divBy255((255 - spans->coverage) * (da) +
@@ -458,13 +458,13 @@ static void blitXor(VRle::Span *spans, int count, uchar *buffer, int offsetX)
     }
 }
 
-static void blitDestinationOut(VRle::Span *spans, int count, uchar *buffer,
+static void blitDestinationOut(VRle::Span *spans, int count, uint8_t *buffer,
                                int offsetX)
 {
     while (count--) {
         int    x = spans->x + offsetX;
         int    l = spans->len;
-        uchar *ptr = buffer + x;
+        uint8_t *ptr = buffer + x;
         while (l--) {
             *ptr = divBy255((255 - spans->coverage) * (*ptr));
             ptr++;
@@ -473,13 +473,13 @@ static void blitDestinationOut(VRle::Span *spans, int count, uchar *buffer,
     }
 }
 
-static void blitSrcOver(VRle::Span *spans, int count, uchar *buffer,
+static void blitSrcOver(VRle::Span *spans, int count, uint8_t *buffer,
                         int offsetX)
 {
     while (count--) {
         int    x = spans->x + offsetX;
         int    l = spans->len;
-        uchar *ptr = buffer + x;
+        uint8_t *ptr = buffer + x;
         while (l--) {
             *ptr = spans->coverage + divBy255((255 - spans->coverage) * (*ptr));
             ptr++;
@@ -488,12 +488,12 @@ static void blitSrcOver(VRle::Span *spans, int count, uchar *buffer,
     }
 }
 
-void blitSrc(VRle::Span *spans, int count, uchar *buffer, int offsetX)
+void blitSrc(VRle::Span *spans, int count, uint8_t *buffer, int offsetX)
 {
     while (count--) {
         int    x = spans->x + offsetX;
         int    l = spans->len;
-        uchar *ptr = buffer + x;
+        uint8_t *ptr = buffer + x;
         while (l--) {
             *ptr = std::max(spans->coverage, *ptr);
             ptr++;
@@ -502,15 +502,16 @@ void blitSrc(VRle::Span *spans, int count, uchar *buffer, int offsetX)
     }
 }
 
-size_t bufferToRle(uchar *buffer, int size, int offsetX, int y, VRle::Span *out)
+size_t bufferToRle(uint8_t *buffer, int size, int offsetX, int y,
+                   VRle::Span *out)
 {
     size_t count = 0;
-    uchar  value = buffer[0];
+    uint8_t value = buffer[0];
     int    curIndex = 0;
 
     // size = offsetX < 0 ? size + offsetX : size;
     for (int i = 0; i < size; i++) {
-        uchar curValue = buffer[0];
+        uint8_t curValue = buffer[0];
         if (value != curValue) {
             if (value) {
                 out->y = y;
@@ -550,10 +551,10 @@ struct SpanMerger {
             break;
         }
     }
-    using blitter = void (*)(VRle::Span *, int, uchar *, int);
+    using blitter = void (*)(VRle::Span *, int, uint8_t *, int);
     blitter                     _blitter;
     std::array<VRle::Span, 256> _result;
-    std::array<uchar, 1024>     _buffer;
+    std::array<uint8_t, 1024>   _buffer;
     VRle::Span *                _aStart{nullptr};
     VRle::Span *                _bStart{nullptr};
 

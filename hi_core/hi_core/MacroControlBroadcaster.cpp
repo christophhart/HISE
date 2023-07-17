@@ -139,7 +139,7 @@ bool MacroControlBroadcaster::MacroControlledParameterData::matchesCustomAutomat
 		return false;
 
 	if (auto ad = controlledProcessor->getMainController()->getUserPresetHandler().getCustomAutomationData(parameter))
-		return ad->id == id;
+		return Identifier(ad->id) == id;
 
 	return false;
 }

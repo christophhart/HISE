@@ -98,6 +98,62 @@ private:
 
 class ModulatorSynthChain;
 
+#define DECLARE_ID(x) static const Identifier x(#x);
+
+namespace UserPresetIds
+{
+	DECLARE_ID(MPEData);
+	DECLARE_ID(MidiAutomation);
+	DECLARE_ID(Modules);
+	DECLARE_ID(Preset);
+	DECLARE_ID(CustomJSON);
+	DECLARE_ID(AdditionalStates);
+}
+
+#undef DECLARE_ID
+
+class UserPresetStateManager: public RestorableObject
+{
+public:
+
+	using Ptr = WeakReference<UserPresetStateManager>;
+	using List = Array<Ptr>;
+
+	virtual ~UserPresetStateManager() {};
+
+	virtual Identifier getUserPresetStateId() const = 0;
+
+	/** Override this and reset the state (this is called when the user preset doesn't contain a matching child. */
+	virtual void resetUserPresetState() = 0;
+
+	bool restoreUserPresetState(const ValueTree& root)
+	{
+		auto r = root.getChildWithName(getUserPresetStateId());
+
+		if (r.isValid())
+			restoreFromValueTree(r);
+		else
+			resetUserPresetState();
+
+		return true;
+	}
+
+	void saveUserPresetState(ValueTree& presetRoot) const
+	{
+		auto v = exportAsValueTree();
+
+		if (!v.isValid())
+			return;
+
+		jassert(v.getType() == getUserPresetStateId());
+		presetRoot.addChild(v, -1, nullptr);
+	}
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetStateManager);
+};
+
 class PoolCollection;
 
 /** The base class for handling external resources. 
@@ -187,6 +243,8 @@ public:
 
 	virtual Array<SubDirectories> getSubDirectoryIds() const;
 
+	virtual String getDefaultUserPreset() const { return {}; }
+
 	static String getWildcardForFiles(SubDirectories directory);
 
 	void exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData=nullptr);
@@ -267,6 +325,8 @@ public:
 
 	File getWorkDirectory() const;
 
+	String getDefaultUserPreset() const override;
+
 	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	/** Checks if a directory is redirected. */
@@ -295,6 +355,8 @@ public:
 
 	void checkActiveProject();
 
+	
+
 	void addListener(Listener* newProjectListener, bool sendWithInitialValue=false)
 	{
 		listeners.addIfNotAlreadyThere(newProjectListener);
@@ -308,9 +370,20 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
-	static File getAppDataRoot();
-   
-	static File getAppDataDirectory();
+    /** This function will return the directory where the app data is stored.
+        It uses getAppDataRoot in order to figure out the folder from where it has to go.
+        If you pass in nullptr, it will always default to the local app data folder, otherwise
+        it might use the global app data folder as root (see getAppDataRoot()).
+     */
+	static File getAppDataDirectory(MainController* mc);
+    
+    /** This will return the app data folder to be used for HISE and all compiled plugins.
+     
+        In HISE it will use the platform-dependent setting property (UseGlobalAppDataFolderWindows / MacOS)
+        and in the compiled plugin it will use the preprocessor macro that has been set accordingly during
+        compilation.
+    */
+    static File getAppDataRoot(MainController* mc);
 	
 	void restoreWorkingProjects();
 
@@ -391,8 +464,13 @@ public:
 	static String getAppGroupId();
 	static String getExpansionKey();
 	static String getExpansionType();
+	static String getHiseVersion();
 
 	static String checkSampleReferences(MainController* mc, bool returnTrueIfOneSampleFound);
+
+#if !USE_BACKEND
+	String getDefaultUserPreset() const override;
+#endif
 
 	/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 	*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
@@ -409,7 +487,7 @@ public:
 	*	- user presets (in the UserPresets subfolder)
 	*	- license key file
 	*/
-	static File getAppDataDirectory();
+	static File getAppDataDirectory(MainController* unused=nullptr);
 
 	void setValueTree(SubDirectories type, ValueTree tree)
 	{
@@ -488,11 +566,7 @@ public:
 
 	static StringArray checkRequiredExpansions(MainController* mc, ValueTree& preset);
 
-	static ValueTree createModuleStateTree(ModulatorSynthChain* chain);
-
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
-
-	static void restoreModuleStates(ModulatorSynthChain* chain, const ValueTree& v);
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
@@ -515,7 +589,49 @@ public:
 
 	static void extractDirectory(ValueTree directory, File parent);
 
+	
+};
 
+struct ModuleStateManager : public UserPresetStateManager,
+							public ControlledObject
+{
+	ModuleStateManager(MainController* mc) :
+		ControlledObject(mc)
+	{};
+
+	struct StoredModuleData : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
+		using List = ReferenceCountedArray<StoredModuleData>;
+
+		StoredModuleData(var moduleId, Processor* pToRestore);
+
+		void stripValueTree(ValueTree& v);
+
+		void restoreValueTree(ValueTree& v);
+
+		String id;
+
+		WeakReference<Processor> p;
+		NamedValueSet removedProperties;
+		Array<ValueTree> removedChildElements;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(StoredModuleData);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StoredModuleData);
+	};
+
+	StoredModuleData** begin() { return modules.begin(); }
+	StoredModuleData** end() { return modules.end(); }
+
+	Identifier getUserPresetStateId() const override { return UserPresetIds::Modules; }
+
+	ValueTree exportAsValueTree() const override;
+
+	StoredModuleData::List modules;
+
+	void resetUserPresetState() override {};
+
+	void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
 };
 
 /** A helper class which provides loading and saving Processors to files and clipboard. 

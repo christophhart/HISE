@@ -80,6 +80,8 @@ void Modulation::setIntensity(float newIntensity) noexcept
 	intensity = newIntensity;
 
 	smoothedIntensity.setValue(newIntensity);
+    
+    intensityBroadcaster.sendMessage(sendNotificationAsync, newIntensity);
 }
 
 void Modulation::setIntensityFromSlider(float sliderValue) noexcept
@@ -621,6 +623,7 @@ Processor *TimeVariantModulatorFactoryType::createProcessor(int typeIndex, const
 	case macroModulator:				return new MacroModulator(m, id, mode);
 	case globalTimeVariantModulator:	return new GlobalTimeVariantModulator(m, id, mode);
 	case scriptTimeVariantModulator:	return new JavascriptTimeVariantModulator(m, id, mode);
+    case hardcodedTimeVariantModulator: return new HardcodedTimeVariantModulator(m, id, mode);
 	default: jassertfalse;				return nullptr;
 
 	}
@@ -638,8 +641,8 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
 	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
 	case voiceKillEnvelope: return new ScriptnodeVoiceKiller(m, id, numVoices);
+	case globalEnvelope:	return new GlobalEnvelopeModulator(m, id, mode, numVoices);
 	default: jassertfalse;	return nullptr;
-
 	}
 };
 

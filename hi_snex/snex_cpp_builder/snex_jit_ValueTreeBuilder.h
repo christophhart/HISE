@@ -952,7 +952,7 @@ private:
 	ValueTree v;
 	const int rootChannelAmount;
     int numChannelsToCompile;
-	
+	bool allowPlainParameterChild = true;
 };
 
 

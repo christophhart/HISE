@@ -148,18 +148,21 @@ struct SendContainer : public ModulatorSynth
 	{
         channelOffset = jlimit(0, internalBuffer.getNumChannels() - 2, channelOffset);
         
+		auto isStereo = b.getNumChannels() == 2;
+
         if(startGain == endGain)
         {
             internalBuffer.addFrom(channelOffset, startSample, b, 0, startSample, numSamples, startGain);
-            internalBuffer.addFrom(channelOffset+1, startSample, b, 1, startSample, numSamples, startGain);
+
+			if(isStereo)
+				internalBuffer.addFrom(channelOffset+1, startSample, b, 1, startSample, numSamples, startGain);
         }
         else
         {
-            auto l = b.getReadPointer(0, startSample);
-            auto r = b.getReadPointer(1, startSample);
-            
-            internalBuffer.addFromWithRamp(channelOffset, startSample, l, numSamples, startGain, endGain);
-            internalBuffer.addFromWithRamp(channelOffset+1, startSample, r, numSamples, startGain, endGain);
+            internalBuffer.addFromWithRamp(channelOffset, startSample, b.getReadPointer(0, startSample), numSamples, startGain, endGain);
+
+			if(isStereo)
+				internalBuffer.addFromWithRamp(channelOffset+1, startSample, b.getReadPointer(1, startSample), numSamples, startGain, endGain);
         }
 	}
 
@@ -198,7 +201,7 @@ struct SendContainer : public ModulatorSynth
                 outputAudio.addFrom(idx, 0, internalBuffer, i, 0, numSamplesToProcess);
         }
         
-        getMatrix().handleDisplayValues(internalBuffer, outputAudio);
+        getMatrix().handleDisplayValues(internalBuffer, outputAudio, true);
 
         handlePeakDisplay(numSamplesToProcess);
         
@@ -231,6 +234,7 @@ struct SendEffect : public MasterEffectProcessor
 	SendEffect(MainController *mc, const String &id) :
 		MasterEffectProcessor(mc, id)
 	{
+		getMatrix().setNumAllowedConnections(-1);
         modChains.reserve((int)InternalChains::numInternalChains);
 
         modChains += {this, "Send Modulation"};
@@ -310,6 +314,8 @@ struct SendEffect : public MasterEffectProcessor
 	int getNumInternalChains() const override { return 1; };
 
 	bool hasTail() const override { return false; };
+
+	bool isSuspendedOnSilence() const override { return true; }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return sendChain; };
 

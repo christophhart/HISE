@@ -410,11 +410,19 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 
 		File oldLocation = FrontendHandler::getSampleLocationForCompiledPlugin();
 
+#if HISE_BROWSE_FOLDER_WHEN_RELOCATING_SAMPLES
 		FileChooser fc("Select new Sample folder", oldLocation);
 
 		if (fc.browseForDirectory())
 		{
 			File newLocation = fc.getResult();
+#else
+        FileChooser fc("Select one of the .ch1 files at the new location", oldLocation, "*.ch1", true);
+            
+        if(fc.browseForFileToOpen())
+        {
+            File newLocation = fc.getResult().getParentDirectory();
+#endif
 
 			if (newLocation.isDirectory())
 			{
@@ -439,7 +447,7 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 	{
 		ScopedLock sl(mc->getLock());
 
-		mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+		mc->getMacroManager().getMidiControlAutomationHandler()->clear(sendNotification);
 	}
 	else if (b == debugButton)
 	{

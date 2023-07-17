@@ -77,8 +77,10 @@ struct OptimizationProperties : public WorkbenchComponent
 	{
 		data->addListener(this);
 
-		for (auto o : OptimizationIds::getAllIds())
+#if !SNEX_MIR_BACKEND
+		for (auto o : OptimizationIds::Helpers::getAllIds())
 			addOptimization(o);
+#endif
 
 		recompiled(getWorkbench());
 

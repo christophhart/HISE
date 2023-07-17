@@ -85,7 +85,11 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	if (!data.hasProperty(PropertyIds::HasTail))
 		data.setProperty(PropertyIds::HasTail, true, nullptr);
 
+	if(!data.hasProperty(PropertyIds::SuspendOnSilence))
+		data.setProperty(PropertyIds::SuspendOnSilence, false, nullptr);
+
 	hasTailProperty.referTo(data, PropertyIds::HasTail, &um, true);
+	canBeSuspendedProperty.referTo(data, PropertyIds::SuspendOnSilence, &um, false);
 
 	if (!data.hasProperty(ExpansionIds::Version))
 	{
@@ -504,6 +508,11 @@ void DspNetwork::process(ProcessDataDyn& data)
 bool DspNetwork::hasTail() const
 {
 	return hasTailProperty.get();
+}
+
+bool DspNetwork::isSuspendedOnSilence() const
+{
+	return canBeSuspendedProperty.get();
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
@@ -1902,7 +1911,10 @@ void DspNetwork::FaustManager::sendPostCompileMessage()
 
 void DspNetwork::FaustManager::addFaustListener(FaustListener* l)
 {
-	listeners.addIfNotAlreadyThere(l);
+	{
+		hise::SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
+		listeners.addIfNotAlreadyThere(l);
+	}
 
 	l->faustFileSelected(currentFile);
 	l->faustCodeCompiled(lastCompiledFile, lastCompileResult);
@@ -1910,6 +1922,7 @@ void DspNetwork::FaustManager::addFaustListener(FaustListener* l)
 
 void DspNetwork::FaustManager::removeFaustListener(FaustListener* l)
 {
+	hise::SimpleReadWriteLock::ScopedWriteLock sl(listenerLock);
 	listeners.removeAllInstancesOf(l);
 }
 
@@ -1923,6 +1936,8 @@ void DspNetwork::FaustManager::setSelectedFaustFile(Component* c, const File& f,
 
 	if (n != dontSendNotification)
 	{
+		hise::SimpleReadWriteLock::ScopedReadLock sl(listenerLock);
+
 		for (auto l : listeners)
 		{
 			if (l != nullptr)
@@ -1940,11 +1955,16 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 	lastCompiledFile = f;
 	lastCompileResult = Result::ok();
 
-	for (auto l : listeners)
 	{
-		if (l != nullptr)
-			l->preCompileFaustCode(lastCompiledFile);
+		hise::SimpleReadWriteLock::ScopedReadLock sl(listenerLock);
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->preCompileFaustCode(lastCompiledFile);
+		}
 	}
+	
 
 	auto pf = [safeThis, n](Processor* p)
 	{
@@ -1955,20 +1975,35 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 
 		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Compile Faust file " + file.getFileNameWithoutExtension());
 
-		for (auto l : safeThis->listeners)
 		{
-			if (l != nullptr)
-			{
-				auto thisOk = l->compileFaustCode(file);
+			Array<WeakReference<FaustListener>> thisListeners;
+			thisListeners.ensureStorageAllocated(safeThis->listeners.size());
 
-				if (!thisOk.wasOk())
+			{
+				hise::SimpleReadWriteLock::ScopedReadLock sl(safeThis->listenerLock);
+
+				for (auto l : safeThis->listeners)
 				{
-					safeThis->lastCompileResult = thisOk;
-					break;
+					if (l != nullptr)
+						thisListeners.add(l);
+				}
+			}
+
+			for (auto l : thisListeners)
+			{
+				if (l != nullptr)
+				{
+					auto thisOk = l->compileFaustCode(file);
+
+					if (!thisOk.wasOk())
+					{
+						safeThis->lastCompileResult = thisOk;
+						break;
+					}
 				}
 			}
 		}
-
+		
 		if (n != dontSendNotification)
 		{
 			SafeAsyncCall::call<FaustManager>(*safeThis, [](FaustManager& m)

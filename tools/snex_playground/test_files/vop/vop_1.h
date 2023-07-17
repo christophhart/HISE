@@ -16,8 +16,9 @@ dyn<float> d;
 
 int main(int input)
 {
-	d.referTo(data);
+	d.referTo(data, data.size());
 	
+  
 	d *= 2.0f;
 
 	return 12;

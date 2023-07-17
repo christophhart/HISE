@@ -100,7 +100,7 @@ namespace Operations
 			for (auto ch : data)
             {
                 auto dst = data.toChannelData(ch);
-                hmath::vset(dst, 0.0f);
+                hmath::vmovs(dst, 0.0f);
             }
 				
 		}

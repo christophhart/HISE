@@ -116,10 +116,10 @@ public:
 	{
 		try
 		{
-			if (typeid(TargetType) == typeid(String))
+			if (std::is_same<TargetType, juce::String>())
 				return Result::fail("Can't use String as target for compression");
 
-			if (typeid(TargetType) == typeid(ValueTree))
+			if (std::is_same<TargetType, juce::ValueTree>())
 				return Result::fail("Can't use Value as target for compression");
 
 			MemoryOutputStream mos;
@@ -134,7 +134,7 @@ public:
 
 			return Result::ok();
 		}
-		catch (const String& errorMessage)
+		catch (const juce::String& errorMessage)
 		{
 			return Result::fail(errorMessage);
 		}
@@ -160,7 +160,7 @@ public:
 
 			return Result::ok();
 		}
-		catch (const String& errorMessage)
+		catch (const juce::String& errorMessage)
 		{
 			return Result::fail(errorMessage);
 		}

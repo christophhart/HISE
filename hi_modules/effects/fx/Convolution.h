@@ -99,6 +99,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;;
 	bool hasTail() const override {return true; };
+	bool isSuspendedOnSilence() const override { return true; }
 
 	void voicesKilled() override;
 

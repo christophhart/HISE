@@ -29,9 +29,6 @@
 #include <type_traits>
 #include <utility>
 
-using uint   = uint32_t;
-using ushort = uint16_t;
-using uchar  = uint8_t;
 
 #if !defined(V_NAMESPACE)
 
@@ -122,10 +119,13 @@ public:
     explicit constexpr inline vFlagHelper(int ai) noexcept : i(ai) {}
     constexpr inline operator int() const noexcept { return i; }
 
-    explicit constexpr inline vFlagHelper(uint ai) noexcept : i(int(ai)) {}
+    explicit constexpr inline vFlagHelper(uint32_t ai) noexcept : i(int(ai)) {}
     explicit constexpr inline vFlagHelper(short ai) noexcept : i(int(ai)) {}
-    explicit constexpr inline vFlagHelper(ushort ai) noexcept : i(int(uint(ai))) {}
-    constexpr inline operator uint() const noexcept { return uint(i); }
+    explicit constexpr inline vFlagHelper(uint16_t ai) noexcept
+        : i(int(uint32_t(ai)))
+    {
+    }
+    constexpr inline operator uint32_t() const noexcept { return uint32_t(i); }
 };
 
 template <typename Enum>
@@ -139,7 +139,7 @@ public:
 
     using Int = typename std::conditional<
         std::is_unsigned<typename std::underlying_type<Enum>::type>::value,
-        unsigned int, signed int>::type;
+        uint32_t, signed int>::type;
 
     using  enum_type = Enum;
     // compiler-generated copy/move ctor/assignment operators are fine!
@@ -153,7 +153,7 @@ public:
         i &= mask;
         return *this;
     }
-    inline vFlag &operator&=(uint mask) noexcept
+    inline vFlag &operator&=(uint32_t mask) noexcept
     {
         i &= mask;
         return *this;
@@ -206,7 +206,7 @@ public:
     {
         return vFlag(vFlagHelper(i & mask));
     }
-    constexpr inline vFlag operator&(uint mask) const noexcept
+    constexpr inline vFlag operator&(uint32_t mask) const noexcept
     {
         return vFlag(vFlagHelper(i & mask));
     }
@@ -236,44 +236,47 @@ public:
 class VColor {
 public:
     VColor() = default;
-    explicit VColor(uchar red, uchar green, uchar blue, uchar alpha = 255) noexcept
-        :a(alpha), r(red), g(green), b(blue){}
-    inline uchar  red() const noexcept { return r; }
-    inline uchar  green() const noexcept { return g; }
-    inline uchar  blue() const noexcept { return b; }
-    inline uchar  alpha() const noexcept { return a; }
-    inline void setRed(uchar red) noexcept { r = red; }
-    inline void setGreen(uchar green) noexcept { g = green; }
-    inline void setBlue(uchar blue) noexcept { b = blue; }
-    inline void setAlpha(uchar alpha) noexcept { a = alpha; }
+    explicit VColor(uint8_t red, uint8_t green, uint8_t blue,
+                    uint8_t alpha = 255) noexcept
+        : a(alpha), r(red), g(green), b(blue)
+    {
+    }
+    inline uint8_t red() const noexcept { return r; }
+    inline uint8_t green() const noexcept { return g; }
+    inline uint8_t blue() const noexcept { return b; }
+    inline uint8_t alpha() const noexcept { return a; }
+    inline void    setRed(uint8_t red) noexcept { r = red; }
+    inline void    setGreen(uint8_t green) noexcept { g = green; }
+    inline void    setBlue(uint8_t blue) noexcept { b = blue; }
+    inline void    setAlpha(uint8_t alpha) noexcept { a = alpha; }
     inline bool isOpaque() const { return a == 255; }
     inline bool isTransparent() const { return a == 0; }
     inline bool operator==(const VColor &o) const
     {
         return ((a == o.a) && (r == o.r) && (g == o.g) && (b == o.b));
     }
-    uint premulARGB() const
+    uint32_t premulARGB() const
     {
         int pr = (r * a) / 255;
         int pg = (g * a) / 255;
         int pb = (b * a) / 255;
-        return uint((a << 24) | (pr << 16) | (pg << 8) | (pb));
+        return uint32_t((a << 24) | (pr << 16) | (pg << 8) | (pb));
     }
 
-    uint premulARGB(float opacity) const
+    uint32_t premulARGB(float opacity) const
     {
         int alpha = int(a * opacity);
         int pr = (r * alpha) / 255;
         int pg = (g * alpha) / 255;
         int pb = (b * alpha) / 255;
-        return uint((alpha << 24) | (pr << 16) | (pg << 8) | (pb));
+        return uint32_t((alpha << 24) | (pr << 16) | (pg << 8) | (pb));
     }
 
 public:
-    uchar a{0};
-    uchar r{0};
-    uchar g{0};
-    uchar b{0};
+    uint8_t a{0};
+    uint8_t r{0};
+    uint8_t g{0};
+    uint8_t b{0};
 };
 
 enum class FillRule: unsigned char { EvenOdd, Winding };

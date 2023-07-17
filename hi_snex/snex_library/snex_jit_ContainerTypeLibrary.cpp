@@ -34,7 +34,7 @@
 namespace snex {
 
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 namespace jit
 {

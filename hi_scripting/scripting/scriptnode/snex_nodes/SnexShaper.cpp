@@ -102,29 +102,30 @@ namespace waveshapers
 		t->addCompileListener(this);
 		addAndMakeVisible(menuBar);
 
-		connectWaveformUpdaterToComplexUI(t->getMainDisplayBuffer().get(), true);
+		getObject()->connectWaveformUpdaterToComplexUI(t->getMainDisplayBuffer().get(), true);
 
 		waveform.setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
 		waveform.setComplexDataUIBase(t->getMainDisplayBuffer().get());
 
 		addAndMakeVisible(waveform);
-		addWaveformListener(&waveform);
+		t->addWaveformListener(&waveform);
 
 		this->setSize(256, 128 + 24 + 16);
 	}
 
 	dynamic::editor::~editor()
 	{
-		connectWaveformUpdaterToComplexUI(getObject()->getMainDisplayBuffer().get(), false);
+		getObject()->removeWaveformListener(&waveform);
+		getObject()->connectWaveformUpdaterToComplexUI(getObject()->getMainDisplayBuffer().get(), false);
 		getObject()->removeCompileListener(this);
 	}
 
-	void dynamic::editor::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
+	void dynamic::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
 	{
 		for (int i = 0; i < 128; i++)
 			tData[i] = 2.0f * (float)i / 127.0f - 1.0f;
 
-		auto n = getObject()->getParentNode()->getCurrentChannelAmount();
+		auto n = getParentNode()->getCurrentChannelAmount();
 
 		float** d = (float**)alloca(sizeof(float*) * n);
 
@@ -135,7 +136,7 @@ namespace waveshapers
 
 		ProcessDataDyn pd(d, 128, n);
 
-		SnexSource::Tester<ShaperCallbacks> tester(*getObject());
+		SnexSource::Tester<ShaperCallbacks> tester(*this);
 
 		tester.callbacks.process(pd);
 
@@ -174,16 +175,24 @@ namespace waveshapers
 		auto newPrepareFunc = getFunctionAsObjectCallback("prepare");
 		auto newResetFunc = getFunctionAsObjectCallback("reset");
 
-		auto r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+		Array<Types::ID> argTypes = { Types::ID::Pointer };
+		Array<Types::ID> argTypes0 = {  };
+
+#if SNEX_MIR_BACKEND
+		argTypes.add(Types::ID::Pointer);
+		argTypes0.add(Types::ID::Pointer);
+#endif
+
+		auto r = newProcessFunction.validateWithArgs(Types::ID::Void, argTypes);
 
 		if (r.wasOk())
-			r = newProcessFrameFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+			r = newProcessFrameFunction.validateWithArgs(Types::ID::Void, argTypes);
 
 		if (r.wasOk())
-			r = newPrepareFunc.validateWithArgs("void", { "PrepareSpecs" });
+			r = newPrepareFunc.validateWithArgs(Types::ID::Void, argTypes);
 
 		if (r.wasOk())
-			r = newResetFunc.validateWithArgs(Types::ID::Void, {});
+			r = newResetFunc.validateWithArgs(Types::ID::Void, argTypes0);
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());

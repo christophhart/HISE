@@ -35,11 +35,12 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+
+USE_ASMJIT_NAMESPACE;
 
 
 struct Operations::Function : public Statement,
-	public asmjit::ErrorHandler,
+	public AsmJitErrorHandler,
 	public Operations::FunctionDefinitionBase
 {
 	static constexpr int InlineScoreThreshhold = 70;
@@ -83,16 +84,23 @@ struct Operations::Function : public Statement,
 		if (classData != nullptr && classData->function != nullptr)
 			t.setProperty("FuncPointer", reinterpret_cast<int64>(classData->function), nullptr);
 
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+		{
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+		}
+
 		if (statements != nullptr)
 			t.addChild(statements->toValueTree(), -1, nullptr);
 
 		return t;
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	void handleError(asmjit::Error, const char* message, asmjit::BaseEmitter* emitter) override
 	{
 		throwError(juce::String(message));
 	}
+#endif
 
 	TypeInfo getTypeInfo() const override { return TypeInfo(data.returnType); }
 
@@ -116,9 +124,9 @@ struct Operations::Function : public Statement,
 		FunctionData& data;
 		BaseCompiler* compiler;
 		BaseScope* scope;
-		ScopedPointer<asmjit::X86Compiler> cc;
-		ScopedPointer<asmjit::StringLogger> assemblyLogger;
-		asmjit::ErrorHandler* errorHandler = nullptr;
+		ScopedPointer<AsmJitX86Compiler> cc;
+		ScopedPointer<AsmJitStringLogger> assemblyLogger;
+		AsmJitErrorHandler* errorHandler = nullptr;
 		Statement::Ptr statementToCompile = nullptr;
 	};
 
@@ -162,6 +170,7 @@ struct Operations::FunctionCall : public Expression
 		GlobalFunction,
 		ApiFunction,
 		NativeTypeCall, // either block or event
+		BaseMemberFunction,
 		numCallTypes
 	};
 
@@ -212,13 +221,48 @@ struct Operations::FunctionCall : public Expression
 	ValueTree toValueTree() const override
 	{
 		auto t = Expression::toValueTree();
-		t.setProperty("Signature", function.getSignature(), nullptr);
-		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall" };
+        
+        auto copy = function;
+        
+#if 1
+        for(int i = 0; i < copy.args.size(); i++)
+        {
+            auto originalType = copy.args[i].typeInfo;
+            auto argType = getArgument(i)->getTypeInfo();
+            copy.args.getReference(i).typeInfo = argType.withModifiers(originalType.isConst(), originalType.isRef());
+            
+        }
+#endif
+        
+		t.setProperty("Signature", copy.getSignature({}, false), nullptr);
+        
+        if(hasObjectExpression)
+        {
+            t.setProperty("ObjectType", getSubExpr(0)->getTypeInfo().toString(false), nullptr);
+        }
+		else if (callType == StaticFunction)
+		{
+			t.setProperty("ObjectType", copy.id.getParent().toString(), nullptr);
+		}
+        
+		if (getTypeInfo().isComplexType() && !getTypeInfo().isRef())
+		{
+			t.setProperty("ReturnBlockSize", getTypeInfo().getRequiredByteSizeNonZero(), nullptr);
+		}
+
+		const StringArray resolveNames = { "Unresolved", "InbuiltFunction", "MemberFunction", "StaticFunction", "ExternalObjectFunction", "RootFunction", "GlobalFunction", "ApiFunction", "NativeTypeCall", "BaseMemberFunction" };
 		t.setProperty("CallType", resolveNames[(int)callType], nullptr);
+
+		if(callType == CallType::BaseMemberFunction)
+			t.setProperty("BaseOffset", baseOffset, nullptr);
+
+		if(baseClass != nullptr)
+			t.setProperty("BaseObjectType", baseClass->toString(), nullptr);
+
 		return t;
 	}
 
-	void addArgument(Ptr arg)
+	void addArgument(Ptr arg) 
 	{
 		addStatement(arg);
 	}
@@ -256,6 +300,7 @@ struct Operations::FunctionCall : public Expression
 
 	TypeInfo getTypeInfo() const override;
 
+	void resolveBaseClassMethods();
 	void process(BaseCompiler* compiler, BaseScope* scope);
 
 	bool isVectorOpFunction() const;
@@ -289,6 +334,8 @@ private:
 	bool preferFunctionPointer = false;
 
 	bool allowInlining = true;
+	int baseOffset = 0;
+	ComplexType::Ptr baseClass;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FunctionCall);
 

@@ -173,7 +173,7 @@ public:
 
 	void setParameterNotifyingHost(int index, float newValue)
 	{
-		ScopedValueSetter<bool> setter(getMainController()->getPluginParameterUpdateState(), false, true);
+		ScopedValueSetter<bool> setter(getMainController()->getPluginParameterUpdateState(), false);
 
 		auto sanitizedValue = jlimit<float>(parameterRange.start, parameterRange.end, newValue);
 		auto parentProcessor = dynamic_cast<AudioProcessor*>(getMainController());

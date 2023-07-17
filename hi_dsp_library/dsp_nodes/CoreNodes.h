@@ -400,7 +400,7 @@ public:
 		if (data.getNumChannels() >= 2)
         {
             auto dst = data[1];
-            Math.vcopy(dst, data[0]);
+            Math.vmov(dst, data[0]);
         }
 			
 	}

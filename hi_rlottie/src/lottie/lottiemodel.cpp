@@ -256,57 +256,32 @@ void model::Gradient::populate(VGradientStops &stops, int frameNo)
     auto   opacityArraySize = size - colorPoints * 4;
     float *opacityPtr = ptr + (colorPoints * 4);
     stops.clear();
-    size_t j = 0;
     for (int i = 0; i < colorPoints; i++) {
         float        colorStop = ptr[0];
         model::Color color = model::Color(ptr[1], ptr[2], ptr[3]);
         if (opacityArraySize) {
-            if (j == opacityArraySize) {
-                // already reached the end
-                float stop1 = opacityPtr[j - 4];
-                float op1 = opacityPtr[j - 3];
-                float stop2 = opacityPtr[j - 2];
-                float op2 = opacityPtr[j - 1];
-                if (colorStop > stop2) {
-                    stops.push_back(
-                        std::make_pair(colorStop, color.toColor(op2)));
-                } else {
-                    float progress = (colorStop - stop1) / (stop2 - stop1);
-                    float opacity = op1 + progress * (op2 - op1);
-                    stops.push_back(
-                        std::make_pair(colorStop, color.toColor(opacity)));
-                }
-                continue;
-            }
-            for (; j < opacityArraySize; j += 2) {
-                float opacityStop = opacityPtr[j];
-                if (opacityStop < colorStop) {
-                    // add a color using opacity stop
-                    stops.push_back(std::make_pair(
-                        opacityStop, color.toColor(opacityPtr[j + 1])));
-                    continue;
-                }
-                // add a color using color stop
-                if (j == 0) {
-                    stops.push_back(std::make_pair(
-                        colorStop, color.toColor(opacityPtr[j + 1])));
-                } else {
-                    float progress = (colorStop - opacityPtr[j - 2]) /
-                                     (opacityPtr[j] - opacityPtr[j - 2]);
-                    float opacity =
-                        opacityPtr[j - 1] +
-                        progress * (opacityPtr[j + 1] - opacityPtr[j - 1]);
-                    stops.push_back(
-                        std::make_pair(colorStop, color.toColor(opacity)));
-                }
-                j += 2;
-                break;
-            }
+            float opacity = getOpacityAtPosition(opacityPtr, opacityArraySize, colorStop);
+            stops.push_back(std::make_pair(colorStop, color.toColor(opacity)));
         } else {
             stops.push_back(std::make_pair(colorStop, color.toColor()));
         }
         ptr += 4;
     }
+}
+
+float model::Gradient::getOpacityAtPosition(float *opacities, size_t opacityArraySize, float position)
+{
+    for (size_t i = 2; i < opacityArraySize; i += 2)
+    {
+        float lastPosition = opacities[i - 2];
+        float thisPosition = opacities[i];
+        if (opacities[i] >= position) {
+            float progress = (position - lastPosition) / (thisPosition - lastPosition);
+            progress = progress < 0.0f ? 0.0f : 1.0f < progress ? 1.0f : progress; //clamp(progress, 0, 1)
+            return opacities[i - 1] + progress * (opacities[i + 1] - opacities[i - 1]);
+        }
+    }
+    return 0.0f;
 }
 
 void model::Gradient::update(std::unique_ptr<VGradient> &grad, int frameNo)

@@ -233,6 +233,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	keyboardCallback(base, nullptr, {}, 1),
 	parent(base->getScriptingContent()),
 	controlSender(this, base),
+	asyncValueUpdater(*this),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
     subComponentNotifier(*this),
@@ -810,6 +811,14 @@ void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 {
 	if (valueListener != nullptr)
 	{
+		auto currentThread = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+		if (currentThread == MainController::KillStateHandler::AudioThread)
+		{
+			asyncValueUpdater.triggerAsyncUpdate();
+			return;
+		}
+
 		var a[2];
 		a[0] = var(this);
 		a[1] = getValue();
@@ -837,6 +846,12 @@ void ScriptingApi::Content::ScriptComponent::changed()
 	}
 }
 
+void ScriptingApi::Content::ScriptComponent::AsyncValueUpdater::handleAsyncUpdate()
+{
+	parent.sendValueListenerMessage();
+}
+
+
 
 ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::AsyncControlCallbackSender(ScriptComponent* parent_, ProcessorWithScriptingContent* p_) :
 	UpdateDispatcher::Listener(p_->getScriptingContent()->getUpdateDispatcher()),
@@ -850,7 +865,8 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::sendCon
 	{
 		changePending = true;
 
-		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread)
+		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread ||
+            p->getMainController_()->isFlakyThreadingAllowed())
 			handleAsyncUpdate();
 		else
 			triggerAsyncUpdate();
@@ -2310,6 +2326,7 @@ ScriptComponent(base, name)
 	ADD_NUMBER_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    ADD_SCRIPT_PROPERTY(i05, "popupAlignment"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	priorityProperties.add(getIdFor(Items));
 
@@ -2318,6 +2335,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::width, 128);
 	setDefaultValue(ScriptComponent::Properties::height, 32);
 	setDefaultValue(Items, "");
+    setDefaultValue(ScriptComboBox::Properties::popupAlignment, "bottom");
 	setDefaultValue(FontStyle, "plain");
 	setDefaultValue(FontSize, 13.0f);
 	setDefaultValue(FontName, "Default");
@@ -2356,9 +2374,12 @@ String ScriptingApi::Content::ScriptComboBox::getItemText() const
 {
 	StringArray items = getItemList();
 
-	jassert((int)value <= items.size());
-
-	return items[(int)value - 1];
+    if(isPositiveAndBelow((int)value, (items.size()+1)))
+    {
+        return items[(int)value - 1];
+    }
+    
+    return "No options";
 }
 
 void ScriptingApi::Content::ScriptComboBox::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -2424,7 +2445,13 @@ juce::StringArray ScriptingApi::Content::ScriptComboBox::getOptionsFor(const Ide
 		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
 		sa.addArray(Font::findAllTypefaceNames());
 		break;
-	default:		sa = ScriptComponent::getOptionsFor(id);
+    case popupAlignment:
+        sa.add("bottom");
+        sa.add("top");
+        sa.add("topRight");
+        sa.add("bottomRight");
+        break;
+	default:	sa = ScriptComponent::getOptionsFor(id);
 	}
 
 	return sa;
@@ -3352,6 +3379,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 	API_METHOD_WRAPPER_3(ScriptPanel, startExternalFileDrag);
+	API_METHOD_WRAPPER_1(ScriptPanel, startInternalDrag);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
@@ -3461,6 +3489,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
 	ADD_API_METHOD_3(startExternalFileDrag);
+	ADD_API_METHOD_1(startInternalDrag);
 }
 
 
@@ -4351,6 +4380,13 @@ bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, b
     return true;
 }
 
+bool ScriptingApi::Content::ScriptPanel::startInternalDrag(var dragData)
+{
+	getScriptProcessor()->getScriptingContent()->sendDragAction(Content::RebuildListener::DragAction::Start, this, dragData);
+
+	return true;
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
@@ -4666,6 +4702,158 @@ int ScriptingApi::Content::ScriptedViewport::getOriginalRowIndex(int rowIndex)
 	}
 	else
 		reportScriptError("You need to call setTableMode first");
+
+	return 0;
+}
+
+// ====================================================================================================== ScriptWebView functions
+
+struct ScriptingApi::Content::ScriptWebView::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(ScriptWebView, bindCallback);
+	API_VOID_METHOD_WRAPPER_2(ScriptWebView, callFunction);
+	API_VOID_METHOD_WRAPPER_2(ScriptWebView, evaluate);
+	API_VOID_METHOD_WRAPPER_0(ScriptWebView, reset);
+    API_VOID_METHOD_WRAPPER_1(ScriptWebView, setIndexFile);
+};
+
+ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height):
+	ScriptComponent(base, webViewName)
+{
+	auto mc = base->getMainController_();
+
+	data = mc->getOrCreateWebView(webViewName);
+
+	data->setErrorLogger([mc](const String& error)
+	{
+		mc->getConsoleHandler().writeToConsole(error, 1, mc->getMainSynthChain(), juce::Colours::orange);
+	});
+
+	ADD_SCRIPT_PROPERTY(i01, "enableCache");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "enablePersistence");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "scaleFactorToZoom");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 200);
+	setDefaultValue(ScriptComponent::Properties::height, 100);
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+	
+	setDefaultValue(Properties::enableCache, false);
+	setDefaultValue(Properties::enablePersistence, true);
+	setDefaultValue(Properties::scaleFactorToZoom, true);
+	
+	handleDefaultDeactivatedProperties();
+
+    ADD_API_METHOD_1(setIndexFile);
+	ADD_API_METHOD_2(bindCallback);
+	ADD_API_METHOD_2(callFunction);
+	ADD_API_METHOD_2(evaluate);
+	ADD_API_METHOD_0(reset);
+}
+
+hise::ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptWebView::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::WebViewWrapper(content, this, index);
+}
+
+void ScriptingApi::Content::ScriptWebView::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */)
+{
+	if (id == getIdFor(Properties::enableCache))
+		data->setEnableCache((bool)newValue);
+	else if (id == getIdFor(Properties::enablePersistence))
+		data->setUsePersistentCalls((bool)newValue);
+	else if (id == getIdFor(Properties::scaleFactorToZoom))
+		data->setUseScaleFactorForZoom((bool)newValue);
+
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+}
+
+void ScriptingApi::Content::ScriptWebView::handleDefaultDeactivatedProperties()
+{
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::saveInPreset));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::text));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::tooltip));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::processorId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
+}
+
+ScriptingApi::Content::ScriptWebView::~ScriptWebView()
+{
+	data = nullptr;
+}
+
+void ScriptingApi::Content::ScriptWebView::callFunction(const String& javascriptFunction, const var& args)
+{
+	auto copy = data;
+	MessageManager::callAsync([copy, javascriptFunction, args]()
+	{
+		copy->call(javascriptFunction, args);
+	});
+}
+
+juce::var ScriptingApi::Content::ScriptWebView::HiseScriptCallback::operator()(const var& args)
+{
+	if (f)
+	{
+		var copy(args);
+		var rv;
+
+		auto ok = f.callSync(&copy, 1, &rv);
+
+		f.reportError(ok);
+
+		if (ok.wasOk())
+			return rv;
+	}
+
+	return {};
+}
+
+void ScriptingApi::Content::ScriptWebView::bindCallback(const String& callbackId, const var& functionToCall)
+{
+	data->addCallback(callbackId, HiseScriptCallback(this, callbackId, functionToCall));
+}
+
+void ScriptingApi::Content::ScriptWebView::evaluate(const String& uid, const String& jsCode)
+{
+	auto copy = data;
+
+	MessageManager::callAsync([uid, copy, jsCode]()
+	{
+		copy->evaluate(uid, jsCode);
+	});
+}
+
+void ScriptingApi::Content::ScriptWebView::setIndexFile(var file)
+{
+    if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
+    {
+        String s = "/" + sf->f.getFileName();
+        
+        
+        data->setRootDirectory(sf->f.getParentDirectory());
+        data->setIndexFile(s);
+    }
+    else
+    {
+        reportScriptError("setIndexFile must be called with a file object");
+    }
+}
+
+void ScriptingApi::Content::ScriptWebView::reset()
+{
+	data->reset(false);
 }
 
 // ====================================================================================================== ScriptFloatingTile functions
@@ -4896,6 +5084,7 @@ height(50),
 width(600),
 name(String()),
 allowGuiCreation(true),
+dragCallback(p, nullptr, var(), 1),
 colour(Colour(0xff777777))
 {
 #if USE_FRONTEND
@@ -4926,6 +5115,7 @@ colour(Colour(0xff777777))
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
 	setMethod("addFloatingTile", Wrapper::addFloatingTile);
+	setMethod("addWebView", Wrapper::addWebView);
 	setMethod("setContentTooltip", Wrapper::setContentTooltip);
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
@@ -4955,6 +5145,8 @@ colour(Colour(0xff777777))
 	setMethod("isMouseDown", Wrapper::isMouseDown);
 	setMethod("getComponentUnderMouse", Wrapper::getComponentUnderMouse);
 	setMethod("callAfterDelay", Wrapper::callAfterDelay);
+	setMethod("getComponentUnderDrag", Wrapper::getComponentUnderDrag);
+	setMethod("refreshDragImage", Wrapper::refreshDragImage);
 }
 
 ScriptingApi::Content::~Content()
@@ -5063,6 +5255,12 @@ ScriptingApi::Content::ScriptAudioWaveform * ScriptingApi::Content::addAudioWave
 ScriptingApi::Content::ScriptSliderPack * ScriptingApi::Content::addSliderPack(Identifier sliderPackName, int x, int y)
 {
 	return addComponent<ScriptSliderPack>(sliderPackName, x, y);
+}
+
+
+ScriptingApi::Content::ScriptWebView* ScriptingApi::Content::addWebView(Identifier webviewName, int x, int y)
+{
+	return addComponent<ScriptWebView>(webviewName, x, y);
 }
 
 
@@ -5964,6 +6162,45 @@ void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)
 	}
 }
 
+void ScriptingApi::Content::sendDragAction(RebuildListener::DragAction a, ScriptComponent* sc, var& data)
+{
+	for (auto r : rebuildListeners)
+	{
+		if (r != nullptr && r->onDragAction(a, sc, data))
+			return;
+	}
+}
+
+bool ScriptingApi::Content::refreshDragImage()
+{
+	var obj;
+
+	for (auto r : rebuildListeners)
+	{
+		if (r->onDragAction(RebuildListener::DragAction::Repaint, nullptr, obj))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+String ScriptingApi::Content::getComponentUnderDrag()
+{
+	var obj;
+
+	for (auto r : rebuildListeners)
+	{
+		if (r->onDragAction(RebuildListener::DragAction::Query, nullptr, obj))
+		{
+			return obj.toString();
+		}
+	}
+
+	return obj.toString();
+}
+
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
 #undef SEND_MESSAGE
@@ -6290,12 +6527,11 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
 {
-
-    NewLine nl;
     String code;
 
 #if USE_BACKEND
     
+    NewLine nl;
     Random r;
     
     String lafName = "local_laf" + String(r.nextInt({0, 999}));
@@ -6670,6 +6906,9 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::Helpers::createC
 		return sc;
 
 	if (auto sc = createComponentIfTypeMatches<ScriptAudioWaveform>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if (auto sc = createComponentIfTypeMatches<ScriptWebView>(c, typeId, name, x, y, w, h))
 		return sc;
 
 	if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))

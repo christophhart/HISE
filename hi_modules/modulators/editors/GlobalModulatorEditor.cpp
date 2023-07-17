@@ -167,7 +167,16 @@ void GlobalModulatorEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 
 		const String text = globalModSelector->getText();
 
-		dynamic_cast<GlobalModulator*>(getProcessor())->connectToGlobalModulator(text);
+        if(globalModSelector->getSelectedItemIndex() == 0)
+        {
+            dynamic_cast<GlobalModulator*>(getProcessor())->disconnect();
+        }
+        else
+        {
+            dynamic_cast<GlobalModulator*>(getProcessor())->connectToGlobalModulator(text);
+        }
+        
+		
 
         //[/UserComboBoxCode_globalModSelector]
     }
@@ -187,6 +196,8 @@ void GlobalModulatorEditor::setItemEntry()
 
 	StringArray itemList = gm->getListOfAllModulatorsWithType();
 
+    itemList.insert(0, "No connection");
+    
 	String item = gm->getItemEntryFor(gm->getConnectedContainer(), gm->getOriginalModulator());
 
 	globalModSelector->clear(dontSendNotification);
@@ -195,12 +206,14 @@ void GlobalModulatorEditor::setItemEntry()
 
 	const int index = itemList.indexOf(item);
 
-
-
 	if (index != -1)
 	{
 		globalModSelector->setSelectedItemIndex(index, dontSendNotification);
 	}
+    else
+    {
+        globalModSelector->setSelectedItemIndex(0, dontSendNotification);
+    }
 }
 
 //[/MiscUserCode]

@@ -46,6 +46,61 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
+
+
+
+
+/** The uniform voice handler will unify the voice indexes of a container so that all sound generators will use the
+    same voice index (derived by the event ID of the HiseEvent that started the voice).
+    
+    By default you can't make assumptions about voice indexes outside of the sound generator because the note might be killed
+    earlier for shorter sounds and a restarted voice might have a different voice index. This class manages the voice index
+    in a way that guarantees that all voices of child sound generators that are started by the same HiseEvent have the same voice index.
+
+    The obvious advantage of this is that allows you to reuse polyphonic modulation signals, which was a no-go before, but that comes
+    with some performance impact at the voice start (because of the logic that has to determine which voice index can be used by all child synths),
+    so only enable this when you need to.
+
+    Also you must not change the MIDI events within the container you're using this (so all sound generators inside the synth are supposed to start their sound),
+    so MIDI processing (eg. Arpeggiators etc) should not be used inside this (you can of course use an arpeggiator outside the container you're calling this on).
+*/
+struct UniformVoiceHandler
+{
+    UniformVoiceHandler(ModulatorSynth* parent_) : parent(parent_) { rebuildChildSynthList(); }
+
+    ~UniformVoiceHandler()
+    {
+        childSynths.clear();
+        parent = nullptr;
+    }
+
+    /** This is called in the prepareToPlay function and makes sure that all. */
+    void rebuildChildSynthList();
+
+    /** This will ask all child synths which voice index it should use for that event, then store it. */
+    void processEventBuffer(const HiseEventBuffer& eventBuffer);
+
+    /** This will return the uniform voice index that is used for the given event. */
+    int getVoiceIndex(const HiseEvent& e);
+
+    void incVoiceCounter(ModulatorSynth* s, int voiceIndex);
+    void decVoiceCounter(ModulatorSynth* s, int voiceIndex);
+
+    void cleanupAfterProcessing();
+
+private:
+
+    hise::SimpleReadWriteLock arrayLock;
+
+    snex::span<std::tuple<HiseEvent, uint8>, NUM_POLYPHONIC_VOICES> currentEvents;
+
+    WeakReference<ModulatorSynth> parent;
+    Array<std::tuple<WeakReference<ModulatorSynth>, VoiceBitMap<NUM_POLYPHONIC_VOICES>>> childSynths;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(UniformVoiceHandler);
+};
+
+
 /** The base class for all sound generators in HISE.
 	@ingroup dsp_base_classes
 
@@ -339,17 +394,8 @@ public:
 	void setScriptPitchValue(int voiceIndex, double pitchValue) noexcept;
 
 	/** Sets the parent group. This can only be called once, since synths are not supposed to change their parents. */
-	void setGroup(ModulatorSynthGroup *parent)
-	{
-		jassert(group == nullptr);
-		group = parent;
-		disableChain(MidiProcessor, true);
-		disableChain(EffectChain, true);
-
-		// This will get lost otherwise
-		modChains[BasicChains::GainChain].setIncludeMonophonicValuesInVoiceRendering(true);
-
-	};
+    void setGroup(ModulatorSynthGroup *parent);
+	
 
 	/** Returns the ModulatorSynthGroup that this ModulatorSynth belongs to. */
 	ModulatorSynthGroup *getGroup() const {	return group; };
@@ -484,9 +530,25 @@ public:
 
 	HiseEventBuffer* getEventBuffer() { return &eventBuffer; }
 
+    virtual void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalHandlerToUse)
+    {
+        currentUniformVoiceHandler = shouldUseVoiceHandler ? externalHandlerToUse :
+                                                             nullptr;
+    }
+
+    bool isUsingUniformVoiceHandler() const { return currentUniformVoiceHandler.get() != nullptr; }
+    
+    UniformVoiceHandler* getUniformVoiceHandler() const
+    {
+        return currentUniformVoiceHandler.get();
+        
+    }
+    
 private:
 
 	VoiceStack pendingRemoveVoices;
+    
+    WeakReference<UniformVoiceHandler> currentUniformVoiceHandler;
 
 protected:
 
@@ -522,6 +584,8 @@ protected:
 	// Makes sure that everything matches...
 	HiseEvent eventForSoundCollection;
 #endif
+
+	ModulatorSynthVoice* getVoiceToStart(const HiseEvent& m);
 
 private:
 

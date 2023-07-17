@@ -64,6 +64,46 @@ struct SpanType : public ArrayTypeBase
 
 	Result callDestructor(InitData& data) override;
 
+    ValueTree createDataLayout() const override
+    {
+        ValueTree d("DataLayout");
+        d.setProperty("ID",  toStringInternal(), nullptr);
+        d.setProperty("type", "void*", nullptr);
+        d.setProperty("size", (int)getRequiredByteSize(), nullptr);
+        
+        auto numElements = getNumElements();
+        
+        if(numElements > 16)
+            d.setProperty("NumElements", numElements, nullptr);
+        else
+        {
+            auto elementType = getElementType();
+            
+            auto byteSize = (int)elementType.getRequiredByteSizeNonZero();
+            
+            ValueTree item("Item");
+            item.setProperty("type", elementType.toStringWithoutAlias(), nullptr);
+            item.setProperty("size", byteSize, nullptr);
+            
+            
+            if(elementType.isComplexType())
+            {
+                item.addChild(elementType.getComplexType()->createDataLayout(), -1, nullptr);
+            }
+            
+            for(int i = 0; i < numElements; i++)
+            {
+                auto idx = item.createCopy();
+                idx.setProperty("index", i, nullptr);
+                idx.setProperty("offset", i * byteSize, nullptr);
+                d.addChild(idx, -1, nullptr);
+            }
+        }
+        
+        return d;
+        
+    }
+    
 	bool hasDestructor() override
 	{
 		if (auto typePtr = getElementType().getTypedIfComplexType<ComplexType>())
@@ -162,6 +202,54 @@ struct DynType : public ArrayTypeBase
 		return false;
 	}
 
+    ValueTree createDataLayout() const override
+    {
+        ValueTree t("DataLayout");
+        t.setProperty("ID", toString(), nullptr);
+        t.setProperty("type", "void*", nullptr);
+        t.setProperty("size", 16, nullptr);
+        t.setProperty("ElementSize", elementType.getRequiredByteSizeNonZero(), nullptr);
+        
+        auto et = TemplateParameter(elementType).withId(NamespacedIdentifier("DataType"));
+        
+        t.addChild(et.createDataLayout(), -1, nullptr);
+        
+        ValueTree c2("Member");
+        c2.setProperty("ID", "size", nullptr);
+        c2.setProperty("type", "int", nullptr);
+        c2.setProperty("offset", 4, nullptr);
+        c2.setProperty("default", 0, nullptr);
+        
+        t.addChild(c2, -1, nullptr);
+        
+        ValueTree c1("Member");
+        c1.setProperty("ID", "data", nullptr);
+        c1.setProperty("type", "void*", nullptr);
+        c1.setProperty("offset", 8, nullptr);
+        c1.setProperty("default", 0, nullptr);
+        
+        t.addChild(c1, -1, nullptr);
+        
+        FunctionClass::Ptr fc = const_cast<DynType*>(this)->getFunctionClass();
+        
+        Array<NamespacedIdentifier> functions;
+        fc->getAllFunctionNames(functions);
+        
+        for(auto& s: functions)
+        {
+            Array<FunctionData> flist;
+            
+            fc->addMatchingFunctions(flist, s);
+            
+            for(const auto& f: flist)
+            {
+                t.addChild(f.createDataLayout(true), -1, nullptr);
+            }
+        }
+        
+        return t;
+    }
+    
 	TypeInfo getElementType() const override { return elementType; }
 
 	size_t getRequiredByteSize() const override;
@@ -250,6 +338,30 @@ struct StructType : public ComplexType,
 		return false;
 	}
 
+    ValueTree createDataLayout() const override
+    {
+        ValueTree t("DataLayout");
+        t.setProperty("ID", toStringInternal(), nullptr);
+        t.setProperty("NumBytes", (int)getRequiredByteSize(), nullptr);
+        
+        for(const auto& tp: templateParameters)
+        {
+            t.addChild(tp.createDataLayout(), -1, nullptr);
+        }
+        
+        for(auto m: memberData)
+        {
+            t.addChild(m->createDataLayout(), -1, nullptr);
+        }
+        
+        for(const auto& m: memberFunctions)
+        {
+            t.addChild(m.createDataLayout(true), -1, nullptr);
+        }
+        
+        return t;
+    }
+    
 	void registerExternalAtNamespaceHandler(NamespaceHandler* handler, const String& description) override;
 
 	bool setDefaultValue(const Identifier& id, InitialiserList::Ptr defaultList);
@@ -401,6 +513,8 @@ struct StructType : public ComplexType,
 		memberFunctions.add(f);
 	}
 
+	TemplateParameter::List getTemplateInstanceParametersForFunction(NamespacedIdentifier& id);
+
 	TemplateParameter::List getTemplateInstanceParameters() const 
 	{
 		return templateParameters;
@@ -411,6 +525,8 @@ struct StructType : public ComplexType,
 
 	/** Returns a list of special functions for all base classes. */
 	Array<FunctionData> getBaseSpecialFunctions(FunctionClass::SpecialSymbols s, TypeInfo returnType = {}, const Array<TypeInfo>& args = {});
+
+	void findMatchesFromBaseClasses(Array<FunctionData>& possibleMatches, const NamespacedIdentifier& idWithDerivedParent, int& baseOffset, ComplexType::Ptr& baseClass);
 
 	NamespacedIdentifier id;
 
@@ -476,6 +592,28 @@ private:
 
 	struct Member
 	{
+        ValueTree createDataLayout() const
+        {
+            ValueTree c1("Member");
+            c1.setProperty("ID", id.toString(), nullptr);
+            
+            auto t = Types::Helpers::getCppTypeName(typeInfo.getType());
+                           
+            if(t == "pointer") t = "void*";
+            
+            c1.setProperty("type", t, nullptr);
+            c1.setProperty("offset", (int)(offset + padding), nullptr);
+            c1.setProperty("size", (int)typeInfo.getRequiredByteSizeNonZero(), nullptr);
+            c1.setProperty("default", defaultList != nullptr ? defaultList->toString() : "", nullptr);
+            
+            if(typeInfo.isComplexType())
+            {
+                c1.addChild(typeInfo.getComplexType()->createDataLayout(), -1, nullptr);
+            }
+            
+            return c1;
+        }
+        
 		String comment;
 		size_t offset = 0;
 		size_t padding = 0;

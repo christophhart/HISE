@@ -283,7 +283,7 @@ protected:
 
 	ErrorCodes exportInternal(TargetTypes type, BuildOption option);
 
-	bool checkSanity(BuildOption option);
+	bool checkSanity(TargetTypes type, BuildOption option);
 
 	BuildOption showCompilePopup(TargetTypes type);
 

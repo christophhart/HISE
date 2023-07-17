@@ -65,7 +65,7 @@ double PitchDetection::detectPitch(float* fullData, int numSamples, double sampl
 	return 0.0;
 }
 
-double PitchDetection::detectPitch(const File &fileToScan, AudioSampleBuffer &workingBuffer, double sampleRate)
+double PitchDetection::detectPitch(const File &fileToScan, AudioSampleBuffer &workingBuffer, double sampleRate, double estimatedFrequency)
 {
 	const int numSamplesPerDetection = workingBuffer.getNumSamples();
 
@@ -86,8 +86,27 @@ double PitchDetection::detectPitch(const File &fileToScan, AudioSampleBuffer &wo
 		startSample += numSamplesPerDetection / 2;
 	}
 
+	if (estimatedFrequency > 0.0)
+	{
+		// allow +-4 semitones, this should cover octave jumps...
+		auto upperRatio = scriptnode::conversion_logic::st2pitch().getValue(4.0);
+		auto lowerRatio = scriptnode::conversion_logic::st2pitch().getValue(-4.0);
+
+		for (int i = 0; i < pitchResults.size(); i++)
+		{
+			auto ratio = (pitchResults[i] / estimatedFrequency);
+
+			if (ratio > upperRatio || ratio < lowerRatio)
+			{
+				pitchResults.remove(i--);
+			}
+		}
+	}
+
 	if (pitchResults.size() > 0)
 	{
+		// return the median
+		pitchResults.sort();
 		return pitchResults[pitchResults.size() / 2];
 	}
 

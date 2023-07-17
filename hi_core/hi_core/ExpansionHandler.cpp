@@ -367,6 +367,24 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 		if (currentExpansion == nullptr)
 			FullInstrumentExpansion::setNewDefault(getMainController(), getMainController()->getMainSynthChain()->exportAsValueTree());
 
+		if (e != nullptr)
+		{
+			auto hiseVersion = e->getPropertyValueTree()[ExpansionIds::HiseVersion].toString();
+			auto thisVersion = GlobalSettingManager::getHiseVersion();
+			
+			SemanticVersionChecker svs(thisVersion, hiseVersion);
+
+			if (svs.isUpdate())
+			{
+				String errorMessage;
+
+				errorMessage << "The expansion " << e->getProperty(ExpansionIds::Name) << " was made with HISE version " + hiseVersion;
+				errorMessage << " but the player was compiled with the HISE version " << thisVersion << ". Please upgrade the player to ensure full compatibility.";
+
+				setErrorMessage(errorMessage, false);
+			}
+		}
+
 		currentExpansion = e;
 		notifier.sendNotification(Notifier::EventType::ExpansionLoaded, notifyListeners);
 	}

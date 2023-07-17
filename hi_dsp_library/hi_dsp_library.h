@@ -81,29 +81,32 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #define IS_STATIC_DSP_LIBRARY 1
 #endif
 
+/** Config: HISE_LOG_FILTER_FREQMOD
 
-/** TODO List for scripnode rework:
-
-	Move nodes over:
-
-	- nodes with Tables / Sliderpacks
-	- nodes with acccess to NodeBase*
-	- nodes with properties
-	- wrapper nodes
-	- nodes with obvious access to MainController
+	If enabled, it will use a logarithmic scale to apply the filter modulation. It's disabled
+	by default for old projects in order to keep the sound persistent, but you can enable it to
+	get a more natural modulation curve.
 */
+#ifndef HISE_LOG_FILTER_FREQMOD
+#define HISE_LOG_FILTER_FREQMOD 0
+#endif
 
+/** Set the max delay time for the hise delay line class in samples. It must be a power of two. 
 
-/** TODO JIT integration
-
-	- inline assembly for wrapper nodes / other containers
-	- make PolyData JIT template
-
+	By default this means that the max delay time at 44kHz is ~1.5 seconds, so if you have long delay times
+	from a tempo synced delay at 1/1, the delay time will get capped and the delay looses its synchronisation.
+	
+	If that happens on your project, just raise that to a bigger power of two value (131072, 262144, 524288, 1048576)
+	in the ExtraDefinitions field of your project settings.
 */
+#ifndef HISE_MAX_DELAY_TIME_SAMPLES
+#define HISE_MAX_DELAY_TIME_SAMPLES 65536
+#endif
 
 
-/** As soon as we jump to C++14, we can use proper if constexpr. */
-#define IF_CONSTEXPR if
+
+
+
 
 // Include the basic structures from SNEX
 

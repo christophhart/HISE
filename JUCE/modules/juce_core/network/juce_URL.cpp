@@ -121,6 +121,9 @@ std::unique_ptr<URL::DownloadTask> URL::DownloadTask::createFallbackDownloader (
         auto stream = std::make_unique<WebInputStream> (urlToUse, options.usePost);
         stream->withExtraHeaders (options.extraHeaders);
 
+        if (options.timeoutMs != 0)
+            stream->withConnectionTimeout (options.timeoutMs);
+        
         if (stream->connect (nullptr))
             return std::make_unique<FallbackDownloadTask> (std::move (outputStream),
                                                            bufferSize,

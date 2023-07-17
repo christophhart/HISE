@@ -535,5 +535,20 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 }
 
 
+Component* WrapperWithMenuBarBase::showPopup(FloatingTile* ft, Component* parent, const std::function<Component*()>& createFunc, bool show)
+	{
+		if (!show)
+		{
+			ft->showComponentInRootPopup(nullptr, parent, {});
+			return nullptr;
+		}
+		else
+		{
+			auto p = createFunc();
+			ft->showComponentInRootPopup(p, parent, { parent->getWidth() / 2, parent->getHeight() });
+			return p;
+		}
+	}
+
 
 }

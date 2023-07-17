@@ -198,7 +198,9 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
 		}
 
 		float* zones[(int)HardcodedMidiZones::numHardcodedMidiZones];
-		
+        bool sustain = false;
+        
+        
 	};
 
 	faust_ui() 
@@ -257,10 +259,10 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
             // branching
             if constexpr (ModParameterClass::isStaticList())
             {
-                double v;
-                
                 if constexpr ((P < ModParameterClass::getNumParameters()))
                 {
+					double v;
+
                     if(modoutputs[P]->handleModulation(v))
                         this->modParameters.template call<P>(v);
                 }
@@ -306,8 +308,10 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
     
 	void handleHiseEvent(HiseEvent& e)
 	{
-		// We don't want to bother if there are no zones defined or it's not a note on/off message
-		if (!anyMidiZonesActive || !e.isNoteOnOrOff())
+        auto isSustain = e.isControllerOfType(64);
+        
+        // We don't want to bother if there are no zones defined or it's not a note on/off message
+		if (!anyMidiZonesActive || (!e.isNoteOnOrOff() && !isSustain))
 			return;
 
 		if (e.isNoteOn())
@@ -321,13 +325,34 @@ template <int NV, class ModParameterClass> struct faust_ui : public ::faust::UI
 			if (auto gainPtr = mz.zones[(int)HardcodedMidiZones::Gain])
 				*gainPtr = e.getFloatVelocity();
 		}
-		else
+        else if(e.isNoteOff())
 		{
 			auto& mz = midiZones.get();
 
-			if (auto gatePtr = mz.zones[(int)HardcodedMidiZones::Gate])
-				*gatePtr = 0.0f;
+            if(!mz.sustain)
+            {
+                if (auto gatePtr = mz.zones[(int)HardcodedMidiZones::Gate])
+                    *gatePtr = 0.0f;
+            }
 		}
+        else if (isSustain)
+        {
+            auto thisSustain = e.getControllerValue() > 64;
+            
+            for(auto& mz: midiZones)
+            {
+                if(mz.sustain != thisSustain)
+                {
+                    mz.sustain = thisSustain;
+                    
+                    if(!thisSustain)
+                    {
+                        if (auto gatePtr = mz.zones[(int)HardcodedMidiZones::Gate])
+                            *gatePtr = 0.0f;
+                    }
+                }
+            }
+        }
 	}
 
 	void reset()

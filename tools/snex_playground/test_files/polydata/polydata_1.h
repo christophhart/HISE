@@ -17,3 +17,7 @@ int main(int input)
 	return data.get();
 }
 
+void prepare(PrepareSpecs ps)
+{
+	data.prepare(ps);
+}

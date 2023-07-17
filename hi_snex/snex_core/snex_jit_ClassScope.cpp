@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 class ClassCompiler final : public BaseCompiler
@@ -60,7 +60,7 @@ public:
 			}
 		}
 
-		newScope = new JitCompiledFunctionClass(parentScope, classInstanceId);
+		newScope = new AsmJitFunctionCollection(parentScope, classInstanceId);
 	};
 
 	virtual ~ClassCompiler()
@@ -68,12 +68,12 @@ public:
 		syntaxTree = nullptr;
 	}
 
-	void setFunctionCompiler(asmjit::X86Compiler* cc)
+	void setFunctionCompiler(AsmJitX86Compiler* cc)
 	{
 		asmCompiler = cc;
 	}
 
-	asmjit::Runtime* getRuntime()
+	AsmJitRuntime* getRuntime()
 	{
 		if (parentRuntime != nullptr)
 			return parentRuntime;
@@ -82,15 +82,15 @@ public:
 	}
 
 	bool parseOnly = false;
-	asmjit::Runtime* parentRuntime = nullptr;
+	AsmJitRuntime* parentRuntime = nullptr;
 
-	JitCompiledFunctionClass* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
+	AsmJitFunctionCollection* compileAndGetScope(const ParserHelpers::CodeLocation& classStart, int length)
 	{
 		ClassParser parser(this, classStart, length);
 
 		if (newScope == nullptr)
 		{
-			newScope = new JitCompiledFunctionClass(parentScope, instanceId);
+			newScope = new AsmJitFunctionCollection(parentScope, instanceId);
 		}
 
 		newScope->pimpl->handler = &namespaceHandler;
@@ -148,7 +148,7 @@ public:
 		return newScope.release();
 	}
 
-	JitCompiledFunctionClass* compileAndGetScope(const juce::String& code)
+	AsmJitFunctionCollection* compileAndGetScope(const juce::String& code)
 	{
 
 
@@ -159,9 +159,9 @@ public:
 
 	Result getLastResult() { return lastResult; }
 
-	ScopedPointer<JitCompiledFunctionClass> newScope;
+	ScopedPointer<AsmJitFunctionCollection> newScope;
 
-	asmjit::X86Compiler* asmCompiler;
+	AsmJitX86Compiler* asmCompiler;
 
 	juce::String assembly;
 

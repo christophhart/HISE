@@ -44,6 +44,7 @@ namespace MetaIds
 	static const Identifier input("input");
 	static const Identifier output("output");
 	static const Identifier error("error");
+	static const Identifier voiceindex("voiceindex");
 	static const Identifier filename("filename");
 	static const Identifier events("events");
 	static const Identifier loop_count("loop_count");
@@ -170,7 +171,8 @@ JitFileTestCase::JitFileTestCase(UnitTest* t_, GlobalScope& memory_, const File&
 	r(Result::ok()),
 	t(t_),
 	memory(memory_),
-	c(memory)
+	c(memory),
+	polyHandler(true)
 {
 	parseFunctionData();
 }
@@ -180,7 +182,8 @@ JitFileTestCase::JitFileTestCase(GlobalScope& memory_, const juce::String& s) :
 	r(Result::ok()),
 	t(nullptr),
 	memory(memory_),
-	c(memory)
+	c(memory),
+	polyHandler(true)
 {
 	parseFunctionData();
 }
@@ -308,10 +311,12 @@ void JitFileTestCase::initCompiler()
 	c.reset();
 	c.setDebugHandler(debugHandler);
 
-	
+	memory.setDebugMode(true);
 
 	if (!nodeId.isValid())
-		Types::SnexObjectDatabase::registerObjects(c, 2);
+    {
+        Types::SnexObjectDatabase::registerObjects(c, 2);
+    }
 }
 
 juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= false*/)
@@ -338,7 +343,8 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 			DBG(obj.dumpTable());
 		}
 
-		assembly = c.getAssemblyCode();//
+        assembly = nodeToTest->getAssembly();
+        
 		return nodeToTest->r;
 	}
 	else
@@ -346,6 +352,8 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 		obj = c.compileJitObject(code);
 
 		r = c.getCompileResult();
+        
+		assembly = c.getAssemblyCode();
 
 		if (dumpBeforeTest)
 		{
@@ -355,12 +363,12 @@ juce::Result JitFileTestCase::compileWithoutTesting(bool dumpBeforeTest /*= fals
 			DBG("symbol tree");
 			DBG(c.dumpNamespaceTree());
 			DBG("assembly");
-			DBG(c.getAssemblyCode());
+			DBG(assembly);
 			DBG("data dump");
 			DBG(obj.dumpTable());
 		}
 
-		assembly = c.getAssemblyCode();
+    
 
 		if (r.failed())
 			return r;
@@ -447,14 +455,16 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 		PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
 
-		if (function.returnType == Types::ID::Block)
+		if (function.args[0].typeInfo.getType() == Types::ID::Block)
 		{
 			function.function = compiledF.function;
 			auto b = inputs[0].toBlock();
 
 			if (b.begin() != nullptr)
 			{
-				function.call<block*>(&b);
+				auto r = function.call<int>(&b);
+                jassert(r == 1);
+				ignoreUnused(r);
 				actualResult = VariableStorage(b);
 			}
 			else
@@ -473,15 +483,25 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 				return r;
 			}
 
+			PolyHandler::ScopedVoiceSetter svs(polyHandler, polyVoiceIndex);
+
+			if (auto prep = obj["prepare"])
+			{
+				PrepareSpecs ps;
+				ps.voiceIndex = &polyHandler;
+
+				prep.callVoid(&ps);
+			}
+
 			function = compiledF;
 
 			switch (function.returnType.getType())
-			{
-			case Types::ID::Integer: actualResult = call<int>(); break;
-			case Types::ID::Float:   actualResult = call<float>(); break;
-			case Types::ID::Double:  actualResult = call<double>(); break;
-			default: jassertfalse;
-			}
+            {
+            case Types::ID::Integer: actualResult = call<int>(); break;
+            case Types::ID::Float:   actualResult = call<float>(); break;
+            case Types::ID::Double:  actualResult = call<double>(); break;
+            default: jassertfalse;
+            }
 
 			expectedResult = VariableStorage(function.returnType.getType(), var(expectedResult.toDouble()));
 		}
@@ -604,6 +624,7 @@ void JitFileTestCase::parseFunctionData()
 		args: int
 		input: 12
 		output: 12
+		voiceindex: -1
 		error: "Line 12: expected result"
 		END_TEST_DATA
 	*/
@@ -777,6 +798,12 @@ void JitFileTestCase::parseFunctionData()
 		}
 
 		{
+			// Parse voiceIndex;
+			if(s.contains(voiceindex))
+				polyVoiceIndex = (int)s[voiceindex];
+		}
+
+		{
 			auto obj = s[events].toString();
 
 			try
@@ -828,6 +855,8 @@ void JitFileTestCase::parseFunctionData()
 
 			if (isProcessDataTest)
 				t = Types::ID::Block;
+            if(function.args[0].typeInfo.getType() == Types::ID::Block)
+                t = Types::ID::Block;
 
 			switch (t)
 			{

@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 int DebugHandler::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 {
@@ -124,6 +124,7 @@ GlobalScope::GlobalScope() :
 	addNoInliner("setExternalData");
 
 	jassert(scopeType == BaseScope::Global);
+
 }
 
 
@@ -218,6 +219,19 @@ void GlobalScope::removeObjectDeleteListener(ObjectDeleteListener* l)
 	deleteListeners.removeAllInstancesOf(l);
 }
 
+snex::jit::FunctionClass::Map GlobalScope::getMap()
+{
+	if (currentMap.isEmpty())
+	{
+		currentMap = FunctionClass::getMap();
+
+		for (auto f : objectClassesWithJitCallableFunctions)
+			currentMap.addArray(f->getMap());
+	}
+
+	return currentMap;
+}
+
 void GlobalScope::sendBlinkMessage(int lineNumber)
 {
 	for (auto dh : debugHandlers)
@@ -229,10 +243,24 @@ void GlobalScope::sendBlinkMessage(int lineNumber)
 
 void GlobalScope::logMessage(const String& message)
 {
-	for (auto dh : debugHandlers)
+	
+
+	if (MessageManager::getInstance()->isThisTheMessageThread())
 	{
-		if (dh != nullptr)
-			dh->logMessage(BaseCompiler::AsmJitMessage, message);
+		for (auto dh : debugHandlers)
+		{
+			if (dh != nullptr)
+				dh->logMessage(BaseCompiler::AsmJitMessage, message);
+		}
+	}
+	else
+	{
+		{
+			SimpleReadWriteLock::ScopedReadLock sl(messageLock);
+			pendingMessages.add(message);
+		}
+		
+		triggerAsyncUpdate();
 	}
 }
 
@@ -438,6 +466,59 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	}
 
 	return defaultMacros;
+}
+
+void GlobalScope::clearDebugMessages()
+{
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		for (auto dh : debugHandlers)
+		{
+			if (dh != nullptr)
+				dh->clearLogger();
+		}
+	}
+	else
+	{
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(messageLock);
+			pendingMessages.clearQuick();
+		}
+
+		clearNext = true;
+		triggerAsyncUpdate();
+	}
+}
+
+void GlobalScope::handleAsyncUpdate()
+{
+	if (clearNext)
+	{
+		for (auto dh : debugHandlers)
+		{
+			if (dh != nullptr)
+				dh->clearLogger();
+		}
+
+		clearNext = false;
+		return;
+	}
+
+	Array<String> thisTime;
+
+	{
+		hise::SimpleReadWriteLock::ScopedWriteLock sl(messageLock);
+		std::swap(pendingMessages, thisTime);
+	}
+
+	for (const auto& t : thisTime)
+	{
+		for (auto dh : debugHandlers)
+		{
+			if (dh != nullptr)
+				dh->logMessage(BaseCompiler::AsmJitMessage, t);
+		}
+	}
 }
 
 }

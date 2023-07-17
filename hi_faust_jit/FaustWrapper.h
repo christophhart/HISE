@@ -124,7 +124,8 @@ template <int NV> struct faust_jit_wrapper : public faust_base_wrapper<NV, param
 			fdsp = interpreterFactory->createDSPInstance();
 
 #else // HISE_FAUST_USE_LLVM_JIT
-#if JUCE_MAC && !FAUST_NO_WARNING_MESSAGES
+#if JUCE_MAC && !FAUST_NO_WARNING_MESSAGES && !JUCE_ARM
+
     auto architecture =  "x86_64-apple-darwin";
 #else
     auto architecture = "";

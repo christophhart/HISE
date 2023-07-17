@@ -330,8 +330,8 @@ public:
 		Result compileResult;
 		String assembly;
 		JitObject obj;
-		ComplexType::Ptr mainClassPtr;
-
+        
+        ComplexType::Ptr mainClassPtr;
 
 		scriptnode::ParameterDataList parameters;
 		JitCompiledNode::Ptr lastNode;
@@ -1054,7 +1054,7 @@ public:
 	{
 		memory.addDebugHandler(this);
 
-		for (auto o : OptimizationIds::getDefaultIds())
+		for (auto o : OptimizationIds::Helpers::getDefaultIds())
 			memory.addOptimization(o);
 	};
 
@@ -1184,6 +1184,8 @@ public:
 	{
 		listeners.removeAllInstancesOf(l);
 	}
+
+	int getNumChannels() const { return numChannels; }
 
 	void setNumChannels(int newNumChannels)
 	{

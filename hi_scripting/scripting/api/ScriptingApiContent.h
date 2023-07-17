@@ -243,11 +243,22 @@ class ScriptingApi::Content : public ScriptingObject,
 {
 public:
 
+	struct ScriptComponent;
+
 	// ================================================================================================================
 
 	class RebuildListener
 	{
 	public:
+
+		enum class DragAction
+		{
+			Start,
+			End,
+			Repaint,
+			Query,
+			Drag
+		};
 
 		virtual ~RebuildListener()
 		{
@@ -257,6 +268,8 @@ public:
 		virtual void contentWasRebuilt() = 0;
         
         virtual void contentRebuildStateChanged(bool /*isRebuilding*/) {};
+
+		virtual bool onDragAction(DragAction a, ScriptComponent* source, var& data) { return false; }
 
 	private:
 
@@ -806,6 +819,13 @@ public:
 
 		LambdaBroadcaster<bool, int> fadeListener;
 
+		void setModulationData(MacroControlledObject::ModulationPopupData::Ptr newMod)
+		{
+			modulationData = newMod;
+		}
+
+		MacroControlledObject::ModulationPopupData::Ptr getModulationData() const { return modulationData; }
+
 	protected:
 
 		bool isCorrectlyInitialised(int p) const
@@ -858,6 +878,8 @@ public:
 
 		var localLookAndFeel;
 
+		MacroControlledObject::ModulationPopupData::Ptr modulationData;
+
 		WeakCallbackHolder keyboardCallback;
 
 		struct AsyncControlCallbackSender : private UpdateDispatcher::Listener
@@ -880,11 +902,22 @@ public:
             ProcessorWithScriptingContent* p;
         };
         
+		struct AsyncValueUpdater : public AsyncUpdater
+		{
+			AsyncValueUpdater(ScriptComponent& p) :
+				parent(p)
+			{};
+
+			void handleAsyncUpdate() override;
+
+			ScriptComponent& parent;
+		};
         
         
 		struct GlobalCableConnection;
 
 		AsyncControlCallbackSender controlSender;
+		AsyncValueUpdater asyncValueUpdater;
 
 		bool isPositionProperty(Identifier id) const;
 
@@ -1134,6 +1167,7 @@ public:
 			FontSize,
 			FontStyle,
 			enableMidiLearn,
+            popupAlignment,
 			numProperties
 		};
 
@@ -1880,6 +1914,9 @@ public:
 		/** Starts dragging an external file (or a number of files). */
 		bool startExternalFileDrag(var fileOrFilesToDrag, bool moveOriginalFiles, var finishCallback);
 
+		/** Starts dragging something inside the UI. */
+		bool startInternalDrag(var dragData);
+
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 
@@ -2200,7 +2237,77 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedViewport);
 	};
 
-	
+	struct ScriptWebView : public ScriptComponent
+	{
+		enum Properties
+		{
+			enableCache = ScriptComponent::numProperties,
+			enablePersistence,
+			scaleFactorToZoom
+		};
+
+		ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height);
+
+		~ScriptWebView();
+
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptWebView"); }
+
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		void handleDefaultDeactivatedProperties() override;
+
+		hise::WebViewData::Ptr getData() const { return data; }
+
+		// ========================================================================================================= API Methods
+
+		/** Binds a HiseScript function to a Javascript callback id. */
+		void bindCallback(const String& callbackId, const var& functionToCall);
+
+		/** Calls the JS function (in the global scope) with the given arguments. */
+		void callFunction(const String& javascriptFunction, const var& args);
+
+		/** Evaluates the code in the web view. You need to pass in an unique identifier so that it will initialise new web views correctly. */
+		void evaluate(const String& identifier, const String& jsCode);
+
+        /** Sets the file to be displayed by the WebView. */
+        void setIndexFile(var indexFile);
+        
+		/** Resets the entire webview. */
+		void reset();
+
+		// =========================================================================================================
+
+	private:
+
+		struct HiseScriptCallback
+		{
+			HiseScriptCallback(ScriptWebView* wv, const String& callback, const var& function) :
+				f(wv->getScriptProcessor(), nullptr, function, 1),
+				callbackId(callback)
+			{
+				f.incRefCount();
+				f.setHighPriority();
+				f.setThisObject(wv);
+			};
+
+			var operator()(const var& args);
+
+			const String& callbackId;
+			WeakCallbackHolder f;
+		};
+
+		OwnedArray<HiseScriptCallback> callbacks;
+
+		struct Wrapper;
+
+		hise::WebViewData::Ptr data;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptWebView);
+	};
+						
 
 	struct ScriptFloatingTile : public ScriptComponent,
 								public Dispatchable
@@ -2364,6 +2471,9 @@ public:
 	/** Adds a viewport. */
 	ScriptedViewport* addViewport(Identifier viewportName, int x, int y);
 
+	/** Adds a web view. */
+	ScriptWebView* addWebView(Identifier webviewName, int x, int y);
+
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
 
@@ -2451,6 +2561,12 @@ public:
 	/** Calls a function after a delay. This is not accurate and only useful for UI purposes!. */
 	void callAfterDelay(int milliSeconds, var function, var thisObject);
 
+	/** Calls the paint function of the drag operation again to refresh the image. */
+	bool refreshDragImage();
+
+	/** Returns the ID of the component under the mouse. */
+	String getComponentUnderDrag();
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -2461,8 +2577,6 @@ public:
 
 	void beginInitialization();
 
-    
-    
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -2678,11 +2792,15 @@ public:
         }
     }
     
+	void sendDragAction(RebuildListener::DragAction a, ScriptComponent* sc, var& data);
+
 	void suspendPanelTimers(bool shouldBeSuspended);
 
 	Array<VisualGuide> guides;
 
 private:
+
+	WeakCallbackHolder dragCallback;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{

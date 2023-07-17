@@ -38,7 +38,7 @@ using namespace juce;
 RLottieDevComponent::RLottieDevComponent(RLottieManager::Ptr m_) :
 	manager(m_),
 	animationComponent(manager),
-	editor(doc, &tok),
+	editor(doc, nullptr),
 	loadButton("Load"),
 	compileButton("Apply changes"),
 	frameSlider("Timeline"),

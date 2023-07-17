@@ -243,12 +243,14 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 	void handleHiseEvent(HiseEvent& e)
 	{
 		if (isBypassed()) return;
+		hise::SimpleReadWriteLock::ScopedReadLock sl(getFaustCompileLock());
 		faust->handleHiseEvent(e);
 	}
 
 	void processFrame(FrameType& data)
 	{
 		if (isBypassed()) return;
+		hise::SimpleReadWriteLock::ScopedReadLock sl(getFaustCompileLock());
 		faust->faust_jit_wrapper<NV>::template processFrame<FrameType>(data);
 	}
 
@@ -259,11 +261,13 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
         NodeProfiler np(this, data.getNumSamples());
         ProcessDataPeakChecker fd(this, data);
         
+		hise::SimpleReadWriteLock::ScopedReadLock sl(getFaustCompileLock());
 		faust->process(data);
 	}
 
 	void reset()
 	{
+		hise::SimpleReadWriteLock::ScopedReadLock sl(getFaustCompileLock());
 		faust->reset();
 	}
 
@@ -276,6 +280,7 @@ template <int NV> struct faust_jit_node: public faust_jit_node_base
 			getRootNetwork()->getExceptionHandler().removeError(this, Error::ErrorCode::IllegalFaustChannelCount);
 
 			lastSpecs = specs;
+			hise::SimpleReadWriteLock::ScopedReadLock sl(getFaustCompileLock());
 			faust->prepare(specs);
 		}
 		catch (scriptnode::Error& e)

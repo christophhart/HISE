@@ -799,11 +799,93 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 
 Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 {
-    auto v = u->nodeTree;
-    auto pTree = v.getChildWithName(PropertyIds::Parameters);
-    auto nTree = v.getChildWithName(PropertyIds::Nodes);
+	
+
+	
+
+    auto ct = u->nodeTree;
+    auto pTree = ct.getChildWithName(PropertyIds::Parameters);
+    auto nTree = ct.getChildWithName(PropertyIds::Nodes);
     
 	auto hasNumCloneAutomation = (bool)pTree.getChild(0)[PropertyIds::Automated];
+
+	auto cloneRange = RangeHelpers::getDoubleRange(pTree.getChildWithProperty(PropertyIds::ID, "NumClones"));
+
+	// Check all `control.clone_cable` nodes if they are connected to a child node of this clone container
+	// and verify that the NumClones parameter has the same range as the NumClones parameter
+	// of this clone container
+	ValueTreeIterator::forEach(v, ValueTreeIterator::IterationType::Forward, [cloneRange, nTree](ValueTree& tree)
+	{
+		if (tree[PropertyIds::FactoryPath].toString() == "control.clone_cable")
+		{
+			for (auto m : tree.getChildWithName(PropertyIds::ModulationTargets))
+			{
+				auto targetNodeId = m[PropertyIds::NodeId];
+
+				auto targetIsChild = ValueTreeIterator::forEach(nTree, ValueTreeIterator::IterationType::Forward, [targetNodeId](ValueTree& tree)
+				{
+					if (tree.getType() == PropertyIds::Node)
+						return tree[PropertyIds::ID] == targetNodeId;
+
+					return false;
+				});
+
+				if (targetIsChild)
+				{
+					auto cableP = tree.getChildWithName(PropertyIds::Parameters).getChildWithProperty(PropertyIds::ID, "NumClones");
+
+					auto cableRange = RangeHelpers::getDoubleRange(cableP);
+
+					if (!RangeHelpers::isEqual(cableRange, cloneRange))
+					{
+						Error e;
+						e.errorMessage = "Clone node sanity check failed: range mismatch between clone container and clone cable";
+						e.errorMessage << "`" << RangeHelpers::toDisplayString(cableRange) << "` vs. `" << RangeHelpers::toDisplayString(cloneRange) << "`";
+						e.v = nTree;
+						throw e;
+					}
+				}
+			}
+		}
+
+		return false;
+	});
+
+	if (hasNumCloneAutomation)
+	{
+		for (auto p : v.getChildWithName(PropertyIds::Parameters))
+		{
+			auto cTree = p.getChildWithName(PropertyIds::Connections);
+
+			auto c = cTree.getChildWithProperty(PropertyIds::NodeId, ct[PropertyIds::ID]);
+
+			if (c.isValid())
+			{
+				auto parameterRange = RangeHelpers::getDoubleRange(p);
+
+				
+
+				if (!RangeHelpers::isEqual(parameterRange, cloneRange))
+				{
+					Error e;
+					e.errorMessage = "Clone node sanity check failed: range mismatch at automated parameter";
+					e.errorMessage << "`" << RangeHelpers::toDisplayString(parameterRange) << "` vs. `" << RangeHelpers::toDisplayString(cloneRange) << "`";
+					e.v = u->nodeTree;
+					throw e;
+				}
+
+				if (cTree.indexOf(c) != 0)
+				{
+					Error e;
+					e.errorMessage = "Clone node sanity check failed: NumClones must be first target in root parameter";
+					e.v = u->nodeTree;
+					throw e;
+				}
+			}
+		}
+
+		
+	}
 
 	auto processType = (CloneProcessType)(int)pTree.getChild(1)[PropertyIds::Value];
 
@@ -1141,8 +1223,11 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 		bool isPoly = false;
 
 		int cIndex = 0;
+
 		for (auto& c : chainList)
 		{
+			ScopedValueSetter<bool> svs(allowPlainParameterChild, !unEqualRange);
+
 			if (c.n == nullptr)
 			{
 				jassertfalse;
@@ -1509,7 +1594,7 @@ snex::cppgen::PooledParameter::Ptr ValueTreeBuilder::createParameterFromConnecti
 
 		auto useNormalisedMod = CustomNodeProperties::nodeHasProperty(pTree, PropertyIds::UseUnnormalisedModulation);
 
-		if (RangeHelpers::isEqual(tr, sr) || useNormalisedMod && !c.targetRange.inv)
+		if (allowPlainParameterChild && (RangeHelpers::isEqual(tr, sr) || useNormalisedMod) && !tr.inv)
 		{
 			// skip both ranges and just pass on the parameter;
 			auto up = makeParameter(p, "plain", c);
@@ -1898,12 +1983,9 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 {
 	parent.addNumVoicesTemplate(root);
 
-	if (root->getLength() > 60)
-	{
-		root->scopedId = root->scopedId.getParent().getChildId(root->scopedId.getIdentifier().toString() + "_");
-		root->flushIfNot();
-		parent.addEmptyLine();
-	}
+    root->scopedId = root->scopedId.getParent().getChildId(root->scopedId.getIdentifier().toString() + "_");
+    root->flushIfNot();
+    parent.addEmptyLine();
 
 
 	nodeClassId = Identifier(parent.getGlueCode(FormatGlueCode::MainInstanceClass));
@@ -1978,15 +2060,21 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			parent << "static constexpr bool isProcessingHiseEvent() { return true; };";
 		}
 
-		
-
-
 		{
 			auto hasTail = parent.v.getParent().getProperty(PropertyIds::HasTail, true);
 			parent.addEmptyLine();
 
 			String def;
 			def << "static constexpr bool hasTail() { return " << (hasTail ? "true" : "false") << "; };";
+			parent << def;
+		}
+
+		{
+			auto isSuspendedOnSilence = parent.v.getParent().getProperty(PropertyIds::SuspendOnSilence, false);
+			parent.addEmptyLine();
+
+			String def;
+			def << "static constexpr bool isSuspendedOnSilence() { return " << (isSuspendedOnSilence ? "true" : "false") << "; };";
 			parent << def;
 		}
 

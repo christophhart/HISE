@@ -36,8 +36,8 @@ public:
     struct Span {
         short  x{0};
         short  y{0};
-        ushort len{0};
-        uchar  coverage{0};
+        uint16_t len{0};
+        uint8_t  coverage{0};
     };
     using VRleSpanCb = void (*)(size_t count, const VRle::Span *spans,
                                 void *userData);
@@ -52,7 +52,7 @@ public:
     void reset() { d.write().reset(); }
     void translate(const VPoint &p) { d.write().translate(p); }
 
-    void operator*=(uchar alpha) { d.write() *= alpha; }
+    void operator*=(uint8_t alpha) { d.write() *= alpha; }
 
     void intersect(const VRect &r, VRleSpanCb cb, void *userData) const;
     void intersect(const VRle &rle, VRleSpanCb cb, void *userData) const;
@@ -91,7 +91,7 @@ public:
         void  setBbox(const VRect &bbox) const;
         void  reset();
         void  translate(const VPoint &p);
-        void  operator*=(uchar alpha);
+        void  operator*=(uint8_t alpha);
         void  opGeneric(const VRle::Data &, const VRle::Data &, Op code);
         void  opSubstract(const VRle::Data &, const VRle::Data &);
         void  opIntersect(VRle::View a, VRle::View b);

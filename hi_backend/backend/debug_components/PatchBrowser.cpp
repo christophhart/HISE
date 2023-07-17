@@ -245,7 +245,7 @@ void PatchBrowser::showProcessorInPopup(Component* c, const MouseEvent& e, Proce
 		b = bp->getLocalArea(c, b);
 		auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(e, c, p));
 		
-		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getCentreX(), b.getY() + 30 }, true);
+		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getRight() + 50 + (CONTAINER_WIDTH)/2, b.getY() + 30 }, true);
 
 		pe->rootBroadcaster.addListener(*bp, PatchBrowser::processorChanged);
 
@@ -566,13 +566,16 @@ void PatchBrowser::paint(Graphics &g)
 
 	int numCollections = getNumCollections();
 
-	for (int i = 1; i < numCollections; i++) // skip the Master Chain
+	for (int i = 0; i < numCollections; i++)
 	{
 		PatchCollection *c = dynamic_cast<PatchCollection*>(getCollection(i));
 
+        if(i == 0) // skip the Master Chain
+            continue;
+        
 		if (!c->hasVisibleItems()) continue;
 
-		Processor *p = c->getProcessor();
+        Processor *p = c->getProcessor();
 
 		if (p == nullptr) return;
 
@@ -591,10 +594,25 @@ void PatchBrowser::paint(Graphics &g)
 			}
 		}
 
-		Point<int> endPoint = c->getPointForTreeGraph(false);
-		Point<int> endPointInParent = getLocalPoint(c, endPoint);
+		auto endPoint = c->getPointForTreeGraph(false).toFloat();
+		auto endPointInParent = getLocalPoint(c, endPoint);
 
-		g.setColour(Colour(0xFF222222));
+        bool paintUniform = false;
+        
+        if(auto ms = dynamic_cast<ModulatorSynth*>(c->getProcessor()))
+        {
+            if(ms->isUsingUniformVoiceHandler())
+                paintUniform = true;
+            
+            if(auto msc = dynamic_cast<ModulatorSynthChain*>(ms))
+            {
+                if(msc->isUniformVoiceHandlerRoot())
+                    paintUniform = false;
+            }
+        }
+        
+		g.setColour(paintUniform ? Colour(0xFF888888) :
+            Colour(0xFF222222));
 
 		g.drawLine((float)startPointInParent.getX(), (float)startPointInParent.getY(), (float)startPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
 		g.drawLine((float)startPointInParent.getX(), (float)endPointInParent.getY(), (float)endPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
@@ -627,6 +645,77 @@ void PatchBrowser::paint(Graphics &g)
                 ug.draw1PxHorizontalLine(y, 0.0f, (float)getWidth());
             }
         }
+    }
+    
+    struct GlobalModCablePin
+    {
+        Processor* p = nullptr;
+        Point<float> point;
+        Colour c;
+    };
+    
+    Array<GlobalModCablePin> sources;
+    Array<std::tuple<GlobalModCablePin, GlobalModCablePin>> connections;
+    
+    Component::callRecursive<PatchItem>(this, [&](PatchItem* pi)
+    {
+        
+        if(!pi->isVisible() || pi->getProcessor() == nullptr)
+            return false;
+        
+        if(dynamic_cast<GlobalModulatorContainer*>(pi->getProcessor()->getParentProcessor(true)))
+        {
+            GlobalModCablePin nd;
+            nd.p = pi->getProcessor();
+            nd.c = pi->getProcessor()->getColour();
+            nd.point = getLocalPoint(pi, pi->bypassArea.getCentre()).toFloat();
+            
+            sources.add(nd);
+        }
+        
+        if(auto gm = dynamic_cast<GlobalModulator*>(pi->getProcessor()))
+        {
+            if(auto om = gm->getOriginalModulator())
+            {
+                for(const auto& s: sources)
+                {
+                    if(s.p == om)
+                    {
+                        GlobalModCablePin nd;;
+                        nd.p = pi->getProcessor();
+                        nd.c = nd.p->getColour();
+                        
+                        
+                        
+                        nd.point = getLocalPoint(pi, pi->bypassArea.getCentre()).toFloat();
+                        
+                        connections.add({s, nd});
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    });
+    
+    auto x = 2.0f;
+    
+    for(const auto& c: connections)
+    {
+        auto startPoint = std::get<0>(c).point;
+        auto endPoint = std::get<1>(c).point;
+        
+        Path gc;
+        gc.startNewSubPath(startPoint);
+        gc.lineTo(x, startPoint.getY() + x);
+        gc.lineTo(x, endPoint.getY());
+        gc.lineTo(endPoint);
+        
+        g.setColour(std::get<1>(c).c.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.7f)));
+        g.strokePath(gc, PathStrokeType(1.0f));
+        
+        x += 2.0f;
     }
 }
 
@@ -826,7 +915,7 @@ isOver(false)
 	idLabel.setText(getProcessor()->getId(), dontSendNotification);
 	idLabel.addListener(this);
     
-    
+	bypassed = getProcessor()->isBypassed();
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
@@ -836,7 +925,6 @@ void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 	if (b == soloButton)
 	{
 		const bool isSolo = getProcessor()->getEditorState(Processor::EditorState::Solo);
-
 		refreshButtonState(soloButton, !isSolo);
 	}
 
@@ -862,13 +950,9 @@ void PatchBrowser::ModuleDragTarget::refreshAllButtonStates()
 void PatchBrowser::ModuleDragTarget::refreshButtonState(ShapeButton *button, bool on)
 {
 	if (on)
-	{
 		button->setColours(Colours::white.withAlpha(0.7f), Colours::white, Colours::white);
-	}
 	else
-	{
 		button->setColours(Colours::black.withAlpha(0.2f), Colours::white.withAlpha(0.5f), Colours::white);
-	}
 }
 
 void PatchBrowser::ModuleDragTarget::setDraggingOver(bool shouldBeOver)
@@ -1139,6 +1223,26 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 	}
 
 	idLabel.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(bypassed ? 0.2f : 0.8f));
+    
+    if(auto ms = dynamic_cast<ModulatorSynthChain*>(getProcessor()))
+    {
+        if(ms->isUniformVoiceHandlerRoot())
+        {
+            
+            g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
+            
+            
+            
+            auto b = iconSpace2.removeFromRight(30.0f);
+            
+            g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x14FFFFFF)));
+            g.fillRoundedRectangle(b.reduced(3.0f), 2.0f);
+            
+            g.setColour(Colour(0xFF888888));
+            g.drawText("UVH", b, Justification::centred);
+        }
+        
+    }
 }
 
 
@@ -1656,8 +1760,13 @@ PatchBrowser::MiniPeak::MiniPeak(Processor* p_) :
 			numChannels = rp->getMatrix().getNumSourceChannels();
 			rp->getMatrix().addChangeListener(this);
             
+			Array<int> channelIndexes;
+
+			for (int i = 0; i < numChannels; i++)
+				channelIndexes.add(i);
+
             if(numChannels != 2)
-                rp->getMatrix().setEditorShown(true);
+                rp->getMatrix().setEditorShown(channelIndexes, true);
 		}
 			
 		else
@@ -1675,8 +1784,14 @@ PatchBrowser::MiniPeak::~MiniPeak()
 	{
 		rp->getMatrix().removeChangeListener(this);
         
+
+		Array<int> channelIndexes;
+
+		for (int i = 0; i < numChannels; i++)
+			channelIndexes.add(i);
+
         if(numChannels != 2)
-            rp->getMatrix().setEditorShown(false);
+            rp->getMatrix().setEditorShown(channelIndexes, false);
 	}
 }
 
@@ -1718,6 +1833,16 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
 	{
 		area = area.reduced(0.0f, 3.0f);
 
+		float suspendAlpha = 0.0f;
+
+		if (auto mfx = dynamic_cast<EffectProcessor*>(p.get()))
+		{
+			if (mfx->isCurrentlySuspended())
+			{
+				suspendAlpha = -0.1f;
+			}
+		}
+
 		for (int i = 0; i < numChannels; i++)
 		{
 			auto a = area.removeFromLeft(3.0f);
@@ -1736,17 +1861,28 @@ void PatchBrowser::MiniPeak::paint(Graphics& g)
 					
 			}
 
+			alpha1 += suspendAlpha;
+
 			g.setColour(Colours::white.withAlpha(alpha1));
 			g.fillRect(a);
 
-			
-			
-			g.setColour(Colours::white.withAlpha(alpha2));
+			if (suspendAlpha == 0.0f)
+			{
+				g.setColour(Colours::white.withAlpha(alpha2));
 
-			auto skew = JUCE_LIVE_CONSTANT_OFF(0.4f);
-			auto v = std::pow(jlimit(0.0f, 1.0f, channelValues[i]), skew);
-			a = a.removeFromBottom(v * a.getHeight());
-			g.fillRect(a);
+				auto skew = JUCE_LIVE_CONSTANT_OFF(0.4f);
+				auto v = std::pow(jlimit(0.0f, 1.0f, channelValues[i]), skew);
+				a = a.removeFromBottom(v * a.getHeight());
+
+				g.fillRect(a);
+			}
+		}
+
+		if (suspendAlpha != 0.0f)
+		{
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("S", getLocalBounds().toFloat(), Justification::centred);
 		}
 
 		break;
@@ -1859,14 +1995,23 @@ void PatchBrowser::MiniPeak::timerCallback()
 		float thisData[NUM_MAX_CHANNELS];
 		bool somethingChanged = false;
 
+		if (auto mfx = dynamic_cast<EffectProcessor*>(p.get()))
+		{
+			auto thisSuspended = mfx->isCurrentlySuspended();
+
+			auto change = thisSuspended != suspended;
+
+			somethingChanged |= change;
+
+			suspended = thisSuspended;
+		}
 		
 		if (auto rp = dynamic_cast<RoutableProcessor*>(p.get()))
 		{
 			auto& mat = rp->getMatrix();
 			thisNumChannels = mat.getNumSourceChannels();
 			
-
-			somethingChanged = numChannels != thisNumChannels;
+			somethingChanged |= numChannels != thisNumChannels;
 
 			if (thisNumChannels == 2)
 			{
@@ -1933,7 +2078,7 @@ juce::Path PatchBrowser::Factory::createPath(const String& url) const
 }
 
 AutomationDataBrowser::AutomationCollection::ConnectionItem::ConnectionItem(AutomationData::Ptr d_, AutomationData::ConnectionBase::Ptr c_) :
-	Item(d_->id.toString()),
+	Item(d_->id),
 	d(d_),
 	c(c_)
 {
@@ -1988,7 +2133,7 @@ void AutomationDataBrowser::AutomationCollection::paint(Graphics& g)
 
 	String s;
 
-	s << "#" << String(index) << " " << data->id.toString() << ": " << String(data->lastValue);
+	s << "#" << String(index) << " " << data->id << ": " << String(data->lastValue);
 
 	g.drawText(s, top.reduced(10.0f, 0.0f), Justification::left);
 

@@ -12,8 +12,6 @@ END_TEST_DATA
 
 struct dc
 {
-	DECLARE_NODE(dc);
-	
 	template <int P> void setParameter(double v)
 	{
 		value = (int)v;
@@ -22,7 +20,7 @@ struct dc
 	int value = 0;
 };
 
-struct Derived: public wrap::fix<1, dc>
+struct Derived: public dc
 {
 	int d = 1;
 };
@@ -31,8 +29,8 @@ Derived obj;
 
 int main(int input)
 {
-	obj.getObject().setParameter<0>(50.0);
+	obj.setParameter<0>(50.0);
 
-	return obj.getObject().value;
+	return obj.value;
 }
 

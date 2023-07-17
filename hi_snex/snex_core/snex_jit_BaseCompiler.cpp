@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
     void BaseCompiler::executeOptimization(ReferenceCountedObject* statement, BaseScope* scope)
     {
@@ -219,11 +219,11 @@ using namespace asmjit;
 
 		auto st = dynamic_cast<Operations::Statement*>(statement);
 
-        if (isOptimizationPass(p) && passes.isEmpty())
-            return;
-        
-        setCurrentPass(p);
-        
+		if (isOptimizationPass(p) && passes.isEmpty())
+			return;
+
+		setCurrentPass(p);
+
 		if (isOptimizationPass(p))
 		{
 			for (int i = 0; i < st->getNumChildStatements(); i++)
@@ -234,9 +234,12 @@ using namespace asmjit;
 					o->reset();
 
 				optimize(s.get(), scope, true);
-
+				
+				
 				st->removeNoops();
 			}
+
+			st->currentPass = p;
 		}
 		else
 			st->process(this, scope);

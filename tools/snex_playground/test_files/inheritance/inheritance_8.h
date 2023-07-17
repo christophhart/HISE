@@ -27,7 +27,7 @@ struct dc
 	int value = 0;
 };
 
-struct Derived: public wrap::fix<1, dc>
+struct Derived: public dc
 {
 	int d = 1;
 };
@@ -38,7 +38,7 @@ int main(int input)
 {
 	span<float, 1> data;
 
-	obj.getObject().setParameter<0>(53.0);
+	obj.setParameter<0>(53.0);
 
 	obj.processFrame(data);
 

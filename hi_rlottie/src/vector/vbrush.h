@@ -75,7 +75,7 @@ public:
     VBrush():mType(Type::NoBrush),mColor(){};
     explicit VBrush(const VColor &color);
     explicit VBrush(const VGradient *gradient);
-    explicit VBrush(uchar r, uchar g, uchar b, uchar a);
+    explicit VBrush(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
     explicit VBrush(const VTexture *texture);
     inline VBrush::Type type() const { return mType; }
 public:

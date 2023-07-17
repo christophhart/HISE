@@ -95,22 +95,15 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 	obj = c.compileJitObject(s);
 
 	r = c.getCompileResult();
-
+  
 	if (r.wasOk())
 	{
-		NamespacedIdentifier impl("impl");
+		assembly = c.getAssemblyCode();
 
-		
+		NamespacedIdentifier impl("impl");
 
 		if (instanceType = c.getComplexType(implId))
 		{
-			
-#if 0
-			if (auto libraryNode = dynamic_cast<SnexNodeBase*>(instanceType.get()))
-			{
-				parameterList = libraryNode->getParameterList();
-			}
-#endif
 			if (auto st = dynamic_cast<StructType*>(instanceType.get()))
 			{
 				WrapBuilder::InnerData inner(instanceType.get(), WrapBuilder::GetObj);
@@ -206,6 +199,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 
 				fc->addMatchingFunctions(matches, fc->getClassName().getChildId(fIds[i]));
 
+#if SNEX_ASMJIT_BACKEND
 				FunctionData wrappedFunction;
 
 				if (matches.size() == 1)
@@ -228,6 +222,7 @@ JitCompiledNode::JitCompiledNode(Compiler& c, const String& code, const String& 
 					ok = false;
 					break;
 				}
+#endif
 
 				if (callbacks[i].function == nullptr)
 					ok = false;

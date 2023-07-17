@@ -30,12 +30,20 @@
 *   ===========================================================================
 */
 
+#if SNEX_INCLUDE_NMD_ASSEMBLY
+#define NMD_ASSEMBLY_DISABLE_FORMATTER_ATT_SYNTAX
+#define NMD_ASSEMBLY_IMPLEMENTATION 
+#define NMD_ASSEMBLY_PRIVATE
+#include "../snex_core/nmd_assembly.h"
+
+#endif
+
 #pragma once
 
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void FunctionData::setDefaultParameter(const Identifier& s, const Inliner::Func& expressionBuilder)
@@ -80,7 +88,9 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 {
 	juce::String s;
 
-	s << returnType.toString() << " " << id.toString();
+	s.preallocateBytes(256);
+
+	s << returnType.toString(false) << " " << id.toString();
 	
 	if (!templateParameters.isEmpty())
 	{
@@ -91,7 +101,7 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 			auto t = templateParameters[i];
 
 			if (t.type.isValid())
-				s << t.type.toString();
+				s << t.type.toString(false);
 			else
 				s << juce::String(t.constant);
 
@@ -108,7 +118,7 @@ juce::String FunctionData::getSignature(const Array<Identifier>& parameterIds, b
 
 	for (auto arg : args)
 	{
-		s << arg.typeInfo.toString();
+		s << arg.typeInfo.toString(false);
 
 		auto pName = parameterIds[index].toString();
 
@@ -177,6 +187,8 @@ bool FunctionData::hasUnresolvedTemplateParameters() const
 	return false;
 }
 
+
+
 snex::jit::FunctionData FunctionData::withParent(const NamespacedIdentifier& newParent) const
 {
 	auto copy = *this;
@@ -201,6 +213,65 @@ snex::jit::TypeInfo FunctionData::getOrResolveReturnType(ComplexType::Ptr p)
 	}
 
 	return returnType;
+}
+
+String FunctionData::createAssembly() const
+{
+#if SNEX_INCLUDE_NMD_ASSEMBLY
+	if(numBytes != 0)
+	{
+		auto bytePtr = (uint8*)function;
+		int numToDo = (int)numBytes;
+
+		StringArray lines;
+
+		int bytePos = 0;
+
+		while (numToDo > 0)
+		{
+			auto instructionLength = nmd_x86_ldisasm(bytePtr, numToDo, NMD_X86_MODE_64);
+
+			if (instructionLength == 0)
+				break;
+
+			nmd_x86_instruction instruction;
+			auto ok = nmd_x86_decode(bytePtr, numBytes, &instruction, NMD_X86_MODE_64, NMD_X86_DECODER_FLAGS_NONE);
+
+			if (ok)
+			{
+				char buffer[128];
+				memset(buffer, 0, 128);
+
+				auto format = NMD_X86_FORMAT_FLAGS_COMMA_SPACES |
+							  NMD_X86_FORMAT_FLAGS_POINTER_SIZE |
+							  NMD_X86_FORMAT_FLAGS_0X_PREFIX;
+				
+				nmd_x86_format(&instruction, buffer, NMD_X86_INVALID_RUNTIME_ADDRESS, format);
+				
+				auto s = String::createStringFromData(buffer, 128);
+
+				if(!s.startsWith("add byte ptr"))
+					lines.add(String(bytePos) + "\t" + s);
+			}
+			else
+			{
+				jassertfalse;
+				break;
+			}
+
+			bytePos += (int)instructionLength;
+			bytePtr += (int)instructionLength;
+			numToDo -= (int)instructionLength;
+		}
+
+		return lines.joinIntoString("\n");
+	}
+#else
+	// You have to define SNEX_INCLUDE_NMD_ASSEMBLY
+	jassertfalse;
+#endif
+
+	return {};
 }
 
 bool FunctionData::matchIdArgs(const FunctionData& other) const
@@ -442,7 +513,7 @@ struct VariadicCallHelpers
 #if JUCE_LINUX
 #define variadic_call static
 #else
-#define variadic_call static forcedinline
+#define variadic_call static
 #endif
 
 	template <typename T> static constexpr bool isDynamic()
@@ -726,7 +797,7 @@ struct VariadicCallHelpers
 			return R();
 		}
 
-		template <typename R, typename T1> variadic_call R c3_ttv(const FunctionData& f, T1 a1, const VariableStorage& a2, const VariableStorage& a3)
+		template <typename R, typename T1, typename T2> variadic_call R c3_ttv(const FunctionData& f, T1 a1, T2 a2, const VariableStorage& a3)
 		{
 			using namespace Types;
 
@@ -872,3 +943,4 @@ ExternalTypeParser::ExternalTypeParser(String::CharPointerType location, String:
 
 } // end namespace jit
 } // end namespace snex
+

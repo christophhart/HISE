@@ -359,6 +359,25 @@ hise::ComplexDataUIBase::EditorBase* ExternalData::createEditor(ComplexDataUIBas
 	return c;
 }
 
+juce::String InitialiserList::toString() const
+{
+	juce::String s;
+	s << "{ ";
+
+	for (auto l : root)
+	{
+		s << l->toString();
+
+		if (root.getLast().get() != l)
+			s << ", ";
+	}
+
+	s << " }";
+	return s;
+}
+
+
+
 juce::Result InitialiserList::getValue(int index, VariableStorage& v)
 {
 	if (auto child = root[index])

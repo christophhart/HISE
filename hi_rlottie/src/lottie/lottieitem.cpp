@@ -149,9 +149,9 @@ bool renderer::Composition::update(int frameNo, const VSize &size,
 
 bool renderer::Composition::render(const rlottie::Surface &surface)
 {
-    mSurface.reset(reinterpret_cast<uchar *>(surface.buffer()),
-                   uint(surface.width()), uint(surface.height()),
-                   uint(surface.bytesPerLine()),
+    mSurface.reset(reinterpret_cast<uint8_t *>(surface.buffer()),
+                   uint32_t(surface.width()), uint32_t(surface.height()),
+                   uint32_t(surface.bytesPerLine()),
                    VBitmap::Format::ARGB32_Premultiplied);
 
     /* schedule all preprocess task for this frame at once.
@@ -165,6 +165,31 @@ bool renderer::Composition::render(const rlottie::Surface &surface)
     painter.setDrawRegion(
         VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
               int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+
+#if 0 // performance regression, see https://github.com/Samsung/rlottie/issues/545
+
+    // layer surface should be created if it is not created already or its size
+    // is changed.
+    bool isLayerSurfaceCreated = mSurfaceCache.is_layer_surface_created();
+    bool isLayerSurfaceSizeChanged =
+        isLayerSurfaceCreated &&
+        (mSurfaceCache.get_layer_surface()->width() != surface.width() ||
+         mSurfaceCache.get_layer_surface()->height() != surface.height());
+
+    if (!isLayerSurfaceCreated || isLayerSurfaceSizeChanged) {
+        if (isLayerSurfaceCreated && isLayerSurfaceSizeChanged)
+            mSurfaceCache.delete_layer_surface();
+
+        mSurfaceCache.create_layer_surface(surface.width(), surface.height(),
+                                           VBitmap::Format::ARGB32_Premultiplied);
+
+        // set layer draw region
+        mSurfaceCache.get_layer_painter()->setDrawRegion(
+            VRect(int(surface.drawRegionPosX()), int(surface.drawRegionPosY()),
+                  int(surface.drawRegionWidth()), int(surface.drawRegionHeight())));
+    }
+#endif
+    
     mRootLayer->render(&painter, {}, {}, mSurfaceCache);
     painter.end();
     return true;
@@ -200,7 +225,7 @@ VRle renderer::Mask::rle()
 {
     if (!vCompare(mCombinedAlpha, 1.0f)) {
         VRle obj = mRasterizer.rle();
-        obj *= uchar(mCombinedAlpha * 255);
+        obj *= uint8_t(mCombinedAlpha * 255);
         return obj;
     } else {
         return mRasterizer.rle();
@@ -214,7 +239,7 @@ void renderer::Mask::preprocess(const VRect &clip)
 }
 
 void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
-                             const VRle &matteRle, SurfaceCache &)
+                             const VRle &matteRle, SurfaceCache &cache)
 {
     auto renderlist = renderList();
 
@@ -230,30 +255,41 @@ void renderer::Layer::render(VPainter *painter, const VRle &inheritMask,
         mask = inheritMask;
     }
 
+    VPainter *usedPainter = painter;
+
+    if (cache.get_layer_painter() != nullptr) {
+        usedPainter = cache.get_layer_painter();
+        usedPainter->begin(cache.get_layer_surface());
+    }
+
     for (auto &i : renderlist) {
-        painter->setBrush(i->mBrush);
+        usedPainter->setBrush(i->mBrush);
         VRle rle = i->rle();
         if (matteRle.empty()) {
             if (mask.empty()) {
                 // no mask no matte
-                painter->drawRle(VPoint(), rle);
+                usedPainter->drawRle(VPoint(), rle);
             } else {
                 // only mask
-                painter->drawRle(rle, mask);
+                usedPainter->drawRle(rle, mask);
             }
-
         } else {
             if (!mask.empty()) rle = rle & mask;
 
             if (rle.empty()) continue;
             if (matteType() == model::MatteType::AlphaInv) {
                 rle = rle - matteRle;
-                painter->drawRle(VPoint(), rle);
+                usedPainter->drawRle(VPoint(), rle);
             } else {
                 // render with matteRle as clip.
-                painter->drawRle(rle, matteRle);
+                usedPainter->drawRle(rle, matteRle);
             }
         }
+    }
+
+    if (cache.get_layer_painter() != nullptr) {
+        usedPainter->end();
+        painter->drawBitmap(VPoint(), *cache.get_layer_surface(), mCombinedAlpha * 255.0f);
     }
 }
 
@@ -343,7 +379,7 @@ renderer::Layer::Layer(model::Layer *layerData) : mLayerData(layerData)
         mLayerMask = std::make_unique<renderer::LayerMask>(mLayerData);
 }
 
-bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                      LOTVariant &value)
 {
     if (!keyPath.matches(name(), depth)) {
@@ -359,12 +395,12 @@ bool renderer::Layer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return true;
 }
 
-bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                           LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint newDepth = keyPath.nextDepth(name(), depth);
+            uint32_t newDepth = keyPath.nextDepth(name(), depth);
             mRoot->resolveKeyPath(keyPath, newDepth, value);
         }
         return true;
@@ -372,12 +408,12 @@ bool renderer::ShapeLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return false;
 }
 
-bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::CompLayer::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                          LOTVariant &value)
 {
     if (renderer::Layer::resolveKeyPath(keyPath, depth, value)) {
         if (keyPath.propagate(name(), depth)) {
-            uint newDepth = keyPath.nextDepth(name(), depth);
+            uint32_t newDepth = keyPath.nextDepth(name(), depth);
             for (const auto &layer : mLayers) {
                 layer->resolveKeyPath(keyPath, newDepth, value);
             }
@@ -443,7 +479,7 @@ VMatrix renderer::Layer::matrix(int frameNo) const
 bool renderer::Layer::visible() const
 {
     return (frameNo() >= mLayerData->inFrame() &&
-            frameNo() < mLayerData->outFrame());
+            frameNo() <= mLayerData->outFrame());
 }
 
 void renderer::Layer::preprocess(const VRect &clip)
@@ -507,7 +543,7 @@ void renderer::CompLayer::render(VPainter *painter, const VRle &inheritMask,
             renderHelper(&srcPainter, inheritMask, matteRle, cache);
             srcPainter.end();
             painter->drawBitmap(VPoint(), srcBitmap,
-                                uchar(combinedAlpha() * 255.0f));
+                                uint8_t(combinedAlpha() * 255.0f));
             cache.release_surface(srcBitmap);
         } else {
             renderHelper(painter, inheritMask, matteRle, cache);
@@ -863,7 +899,7 @@ renderer::DrawableList renderer::ShapeLayer::renderList()
     return {mDrawableList.data(), mDrawableList.size()};
 }
 
-bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                      LOTVariant &value)
 {
     if (!keyPath.skip(name())) {
@@ -880,7 +916,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     }
 
     if (keyPath.propagate(name(), depth)) {
-        uint newDepth = keyPath.nextDepth(name(), depth);
+        uint32_t newDepth = keyPath.nextDepth(name(), depth);
         for (auto &child : mContents) {
             child->resolveKeyPath(keyPath, newDepth, value);
         }
@@ -888,7 +924,7 @@ bool renderer::Group::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return true;
 }
 
-bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                     LOTVariant &value)
 {
     if (!keyPath.matches(mModel.name(), depth)) {
@@ -903,7 +939,7 @@ bool renderer::Fill::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
     return false;
 }
 
-bool renderer::Stroke::resolveKeyPath(LOTKeyPath &keyPath, uint depth,
+bool renderer::Stroke::resolveKeyPath(LOTKeyPath &keyPath, uint32_t depth,
                                       LOTVariant &value)
 {
     if (!keyPath.matches(mModel.name(), depth)) {
@@ -958,7 +994,7 @@ void renderer::Group::update(int frameNo, const VMatrix &parentMatrix,
 
         mMatrix = m;
 
-        alpha = parentAlpha * mModel.transform()->opacity(frameNo);
+        alpha = mModel.transform()->opacity(frameNo);
         if (!vCompare(alpha, parentAlpha)) {
             newFlag |= DirtyFlagBit::Alpha;
         }
@@ -1284,9 +1320,9 @@ renderer::Stroke::Stroke(model::Stroke *data)
 static vthread_local std::vector<float> Dash_Vector;
 
 bool renderer::Stroke::updateContent(int frameNo, const VMatrix &matrix,
-                                     float alpha)
+                                     float)
 {
-    auto combinedAlpha = alpha * mModel.opacity(frameNo);
+    auto combinedAlpha = mModel.opacity(frameNo);
     auto color = mModel.color(frameNo).toColor(combinedAlpha);
 
     VBrush brush(color);

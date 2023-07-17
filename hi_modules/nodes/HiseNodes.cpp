@@ -32,6 +32,8 @@
 
 #pragma once
 
+#include "HiseNodes.h"
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
@@ -42,6 +44,10 @@ namespace core
 void hise_mod_base::initialise(NodeBase* b)
 {
 	parentNode = dynamic_cast<ModulationSourceNode*>(b);
+    
+    auto& bl = parentNode->getScriptProcessor()->getMainController_()->getBlocksizeBroadcaster();
+    
+    bl.addListener(*this, hise_mod_base::updateBlockSize, true);
 }
 
 void hise_mod_base::prepare(PrepareSpecs ps)

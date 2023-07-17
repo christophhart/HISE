@@ -271,10 +271,9 @@ void MultiChannelFilter<FilterSubType>::updateEvery64Frame()
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::update(FilterHelpers::RenderData& renderData)
 {
-	auto f = frequency.getNextValue() * renderData.freqModValue;
-	auto bp = renderData.bipolarDelta;
+	
 
-	f += bp * (20000.0);
+	const auto f = renderData.applyModValue(frequency.getNextValue());
 
 	auto thisFreq = FilterLimits::limitFrequency(f);
 	auto thisGain = renderData.gainModValue * gain.getNextValue();
@@ -1392,7 +1391,7 @@ void StateVariableEqSubType::processSamples(AudioSampleBuffer& b, int startSampl
 	auto numChannels = b.getNumChannels();
 	auto ptrs = b.getArrayOfWritePointers();
 
-	for (int i = startSample; i < numSamples; i++)
+	for (int i = startSample; i < startSample + numSamples; i++)
 	{
 		coefficients.tick();
 
@@ -1558,5 +1557,33 @@ float StateVariableEqSubType::State::tick(float inp, const Coefficients& c)
 
 DEFINE_MULTI_CHANNEL_FILTER(StateVariableEqSubType);
 
+
+double FilterHelpers::RenderData::applyModValue(double f) const
+{
+	bool calcModulation = !HISE_LOG_FILTER_FREQMOD || ((1.0 + bipolarDelta) * freqModValue != 1.0);
+
+	if (!calcModulation)
+		return f;
+
+	f -= 20.0;
+	f *= 1.0 / 19980.0;
+
+#if HISE_LOG_FILTER_FREQMOD
+	const double skew = 0.2299045622348785;
+	f = hmath::pow(f, skew);
+#endif
+
+	f += bipolarDelta;
+	f *= freqModValue;
+
+#if HISE_LOG_FILTER_FREQMOD
+	f = hmath::pow(jmax(0.0, f), 1.0 / skew);
+#endif
+
+	f *= 19980.0;
+	f += 20.0;
+	
+	return f;
+}
 
 }

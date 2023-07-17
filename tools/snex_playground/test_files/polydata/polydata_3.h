@@ -10,14 +10,16 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-PolyData<int, 18> data;
+PolyData<double, 180> data;
+
+span<double, 8> d = {0.0};
 
 int main(int input)
 {
-	for(auto& s: data)
-	    s = 90;
+  for(auto& s: data)
+	    s = 90.0;
 
-	return data.get();
+	return (int)data.get();
 	    
 }
 

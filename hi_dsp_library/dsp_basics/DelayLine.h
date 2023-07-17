@@ -34,7 +34,11 @@
 
 namespace hise { using namespace juce;
 
-template <int MaxLength=65536, typename LockType=SpinLock, bool AllowFade=true> class DelayLine
+
+
+
+
+template <int MaxLength=HISE_MAX_DELAY_TIME_SAMPLES, typename LockType=SpinLock, bool AllowFade=true> class DelayLine
 {
     static constexpr int DELAY_BUFFER_SIZE = MaxLength;
     static constexpr int DELAY_BUFFER_MASK = MaxLength - 1;

@@ -478,6 +478,8 @@ public:
         
     private:
         
+		hise::SimpleReadWriteLock listenerLock;
+
 		void sendPostCompileMessage();
 
         Result lastCompileResult;
@@ -783,6 +785,8 @@ public:
 	bool isPolyphonic() const { return isPoly; }
 
 	bool hasTail() const;
+
+	bool isSuspendedOnSilence() const;
 
 	bool handleModulation(double& v)
 	{
@@ -1098,6 +1102,7 @@ private:
 	const bool isPoly;
 
 	CachedValue<bool> hasTailProperty;
+	CachedValue<bool> canBeSuspendedProperty;
 
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	snex::Types::PolyHandler polyHandler;

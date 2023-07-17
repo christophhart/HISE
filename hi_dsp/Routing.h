@@ -73,6 +73,8 @@ public:
         
 		MatrixData(RoutableProcessor *p);
 
+		~MatrixData();
+
 		void clearAllConnections();
 		bool resizingIsAllowed() const noexcept{ return resizeAllowed; };
 		void setAllowResizing(bool shouldAllowResizing) noexcept{ resizeAllowed = shouldAllowResizing; }
@@ -92,6 +94,8 @@ public:
 
 		bool onlyEnablingAllowed() const noexcept { return allowEnablingOnly; }
 
+		int getNumAllowedConnections() const { return numAllowedConnections; }
+
 		int getConnectionForSourceChannel(int sourceChannel) const noexcept;
 		int getSendForSourceChannel(int sourceChannel) const noexcept;
 
@@ -103,7 +107,7 @@ public:
 		void setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors=sendNotification);
 		void setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors = sendNotification);
 
-		void handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output);
+		void handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output, bool useOutput);
 
 		SimpleReadWriteLock& getLock() const;
 
@@ -113,13 +117,35 @@ public:
 		void setOnlyEnablingAllowed(bool noRouting) { allowEnablingOnly = noRouting; }
 		void setNumAllowedConnections(int newNum) noexcept { numAllowedConnections = newNum; };
 
-		bool isEditorShown() const noexcept { return numEditors > 0; }
-		void setEditorShown(bool isShown) noexcept
+		bool isEditorShown(int channelIndex) const noexcept 
+		{ 
+			jassert(isPositiveAndBelow(channelIndex, NUM_MAX_CHANNELS));
+
+			return numEditors[channelIndex] > 0; 
+		}
+
+		bool anyChannelActive() const noexcept
+		{
+			return anyActive;
+		}
+
+		void setEditorShown(Array<int> channelIndexes, bool isShown) noexcept
         {
-            if(isShown)
-                numEditors++;
-            else
-                numEditors = jmax(0, numEditors-1);
+			for (auto& c : channelIndexes)
+			{
+				if (isPositiveAndBelow(c, NUM_MAX_CHANNELS))
+				{
+					if (isShown)
+						numEditors[c]++;
+					else
+						numEditors[c] = jmax(0, numEditors[c] - 1);
+				}
+			}
+
+			anyActive = false;
+
+			for (int i = 0; i < NUM_MAX_CHANNELS; i++)
+				anyActive |= (numEditors[i] != 0);
         }
 
 		void setTargetProcessor(Processor *p);
@@ -162,6 +188,8 @@ public:
 
 	private:
 
+		bool anyActive = false;
+
         float upDecayFactor = 1.0f;
         float downDecayFactor = 0.97f;
         
@@ -176,7 +204,8 @@ public:
 
 		bool resizeAllowed;
 		bool allowEnablingOnly;
-        int numEditors = 0;
+
+        int numEditors[NUM_MAX_CHANNELS];
 
 		float sourceGainValues[NUM_MAX_CHANNELS];
 		float targetGainValues[NUM_MAX_CHANNELS];

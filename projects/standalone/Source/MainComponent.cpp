@@ -39,6 +39,36 @@ void MainContentComponent::handleCommandLineArguments(const String& args)
 		{
 			File presetFile(presetFilename);
 
+
+			if (presetFile.getFileExtension() == ".hiseproject")
+			{
+				if (!presetFile.existsAsFile())
+					return;
+
+				auto newFolder = presetFile.getParentDirectory().getChildFile(presetFile.getFileNameWithoutExtension());
+				
+				if (newFolder.isDirectory())
+				{
+					PresetHandler::showMessageWindow("The folder already exists", "The directory " + newFolder.getFullPathName() + " already exists. Aborting project extraction.");
+					return;
+				}
+
+				newFolder.createDirectory();
+
+				auto bpe = dynamic_cast<hise::BackendRootWindow*>(editor.get());
+
+				bpe->setProjectIsBeingExtracted();
+
+				auto f = [bpe, newFolder, presetFile]()
+				{
+					BackendCommandTarget::Actions::extractProject(bpe, newFolder, presetFile);
+				};
+
+				MessageManager::callAsync(f);
+
+				return;
+			}
+
 			File projectDirectory = File(presetFile).getParentDirectory().getParentDirectory();
 			auto bpe = dynamic_cast<hise::BackendRootWindow*>(editor.get());
 			auto mainSynthChain = bpe->getBackendProcessor()->getMainSynthChain();

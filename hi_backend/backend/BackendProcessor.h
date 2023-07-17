@@ -66,7 +66,7 @@ public:
 	void handleEditorData(bool save)
 	{
 #if IS_STANDALONE_APP
-		File jsonFile = NativeFileHandler::getAppDataDirectory().getChildFile("editorData.json");
+		File jsonFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("editorData.json");
 
 		if (save)
 		{

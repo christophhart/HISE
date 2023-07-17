@@ -59,7 +59,7 @@ isPopupMode(false)
 
 	setInterceptsMouseClicks(true, true);
 
-	header->update();
+	header->update(true);
 	body->updateGui();
 }
 
@@ -75,7 +75,7 @@ void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 		return;
 	}
 
-	if (header != nullptr) header->update();
+	if (header != nullptr) header->update(false);
 	if (body != nullptr)  body->updateGui();
 }
 

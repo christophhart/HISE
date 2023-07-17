@@ -3,8 +3,8 @@ BEGIN_TEST_DATA
   f: {processor}
   ret: int
   args: int
-  input: "zero4.wav"
-  output: "half4.wav"
+  input: "half4.wav"
+  output: "seven4.wav"
   error: ""
   filename: "node/node_half4frame"
 END_TEST_DATA
@@ -29,8 +29,10 @@ struct processor
 		
 		while(f.next())
 		{
-			for(auto& s: f)
-				s = 0.5f;
+			for(auto& s: f.toSpan())
+			{
+				s += 0.2f;
+			}
 		}
 	}
 	

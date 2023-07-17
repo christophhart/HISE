@@ -1455,6 +1455,7 @@ namespace control
 			SN_DESCRIPTION("applies the HISE modulation intensity to the value");
 
 			static constexpr bool isNormalisedModulation() { return true; }
+            static constexpr bool needsProcessing() { return false; }
 
 			double intensityValue = 1.0;
 			double value = 1.0;
@@ -1511,6 +1512,7 @@ namespace control
 			{};
 
 			static constexpr bool isNormalisedModulation() { return false; }
+            static constexpr bool needsProcessing() { return false; }
 
 			bool operator==(const bang& other) const
 			{
@@ -1559,6 +1561,7 @@ namespace control
 			SN_DESCRIPTION("Creates a bipolar mod signal from a 0...1 range");
 
 			static constexpr bool isNormalisedModulation() { return true; }
+            static constexpr bool needsProcessing() { return false; }
 
 			bool operator==(const bipolar& other) const
 			{
@@ -1643,6 +1646,7 @@ namespace control
 			SN_DESCRIPTION("Combines the (binary) input signals using a logic operator");
 
 			static constexpr bool isNormalisedModulation() { return true; }
+            static constexpr bool needsProcessing() { return false; }
 
 			bool operator==(const logic_op& other) const
 			{
@@ -1736,6 +1740,8 @@ namespace control
 				no_mod_normalisation(getStaticId(), { "Value" })
 			{};
 
+            static constexpr bool needsProcessing() { return false; }
+            
 			bool operator==(const change& other) const { return other.value == value; }
 
 			double getValue() const
@@ -1767,6 +1773,95 @@ namespace control
 			double value = 0.0;
 			mutable bool dirty = false;
 		};
+    
+        struct delay_cable: public pimpl::no_mod_normalisation
+        {
+            SN_NODE_ID("delay_cable");
+            SN_DESCRIPTION("Delays the message by a given amount");
+
+            delay_cable() :
+                no_mod_normalisation(getStaticId(), { "Value" })
+            {};
+            
+            static constexpr bool needsProcessing() { return true; }
+
+            bool operator==(const change& other) const { return other.value == value; }
+
+            double getValue() const
+            {
+                dirty = false;
+                return value;
+            }
+
+            template <typename T> void process(T& pd)
+            {
+                auto numSamples = pd.getNumSamples();
+                
+                if(wait)
+                {
+                    uptime += numSamples;
+                    
+                    if(uptime >= delayTimeSamples)
+                    {
+                        wait = false;
+                        uptime = 0.0;
+                        dirty = true;
+                    }
+                }
+            }
+            
+            template <typename T> void processFrame(T&)
+            {
+                if(wait)
+                {
+                    if(++uptime >= delayTimeSamples)
+                    {
+                        wait = false;
+                        uptime = 0.0;
+                        dirty = true;
+                    }
+                }
+            }
+            
+            template <int P> void setParameter(double v)
+            {
+                if constexpr (P == 0)
+                {
+                    value = v;
+                    uptime = 0.0;
+                    wait = true;
+                    dirty = false;
+                }
+                if constexpr (P == 1)
+                {
+                    delayTimeSamples = v;
+                }
+            }
+
+            template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+            {
+                {
+                    parameter::data p("Value");
+                    p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
+                    p.setRange({ 0.0, 1.0 });
+                    p.setDefaultValue(0.0);
+                    data.add(std::move(p));
+                }
+                {
+                    parameter::data p("DelayTimeSamples");
+                    p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
+                    p.setRange({ 0.0, 44100.0 });
+                    p.setDefaultValue(0.0);
+                    data.add(std::move(p));
+                }
+            }
+
+            double value = 0.0;
+            double delayTimeSamples = 0.0;
+            double uptime = 0.0;
+            bool wait = false;
+            mutable bool dirty = false;
+        };
 
 		struct minmax: public pimpl::no_mod_normalisation
 		{
@@ -1776,6 +1871,8 @@ namespace control
 			minmax() :
 				no_mod_normalisation(getStaticId(), {}) // no unscaled input parameters...
 			{};
+            
+            static constexpr bool needsProcessing() { return false; }
 
 			bool operator==(const minmax& other) const { return other.range == range && value == other.value; }
 
@@ -1863,6 +1960,8 @@ namespace control
 		{
 			virtual ~pma_base() {};
 
+            
+            
 			template <int P> void setParameter(double v)
 			{
 				if constexpr (P == 0)
@@ -1913,6 +2012,7 @@ namespace control
 			SN_DESCRIPTION("multiplies and adds an offset to an unscaled modulation signal");
 
 			static constexpr bool isNormalisedModulation() { return false; }
+            static constexpr bool needsProcessing() { return false; }
 
 			pma_unscaled() :
 				no_mod_normalisation(getStaticId(), { "Value", "Add" })
@@ -1931,6 +2031,7 @@ namespace control
 			SN_DESCRIPTION("Scales and offsets a modulation signal");
 
 			static constexpr bool isNormalisedModulation() { return true; }
+            static constexpr bool needsProcessing() { return false; }
 
 			double getValue() const
 			{
@@ -1999,11 +2100,14 @@ namespace control
 			}
 		}
 
-		template <typename T> void process(T&)
+		template <typename T> void process(T& pd)
 		{
+            if constexpr (DataType::needsProcessing())
+                data.get().process(pd);
+            
 			sendPending();
 		}
-
+        
 		void reset()
 		{
 			if constexpr (prototypes::check::reset<DataType>::value)
@@ -2013,8 +2117,11 @@ namespace control
 			}
 		}
 
-		template <typename T> void processFrame(T&)
+		template <typename T> void processFrame(T& fd)
 		{
+            if constexpr (DataType::needsProcessing())
+                data.get().processFrame(fd);
+            
 			sendPending();
 		}
 
@@ -2046,6 +2153,7 @@ namespace control
 	template <int NV, typename ParameterType> using logic_op = multi_parameter<NV, ParameterType, multilogic::logic_op>;
 	template <int NV, typename ParameterType> using intensity = multi_parameter<NV, ParameterType, multilogic::intensity>;
 	template <int NV, typename ParameterType> using bang = multi_parameter<NV, ParameterType, multilogic::bang>;
+    template <int NV, typename ParameterType> using delay_cable = multi_parameter<NV, ParameterType, multilogic::delay_cable>;
 	template <int NV, typename ParameterType> using change = multi_parameter<NV, ParameterType, multilogic::change>;
 
 	struct smoothed_parameter_base: public mothernode

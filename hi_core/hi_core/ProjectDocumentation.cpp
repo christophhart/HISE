@@ -74,7 +74,7 @@ juce::File ProjectDocDatabaseHolder::getCachedDocFolder() const
 	
 	p << "/" << settings.getSetting(HiseSettings::Project::Name).toString();
 
-	auto appData = ProjectHandler::getAppDataDirectory().getParentDirectory();
+	auto appData = ProjectHandler::getAppDataDirectory(nullptr).getParentDirectory();
 	auto projectDir = appData.getChildFile(p);
 	return projectDir.getChildFile("Documentation");
 

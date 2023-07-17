@@ -421,6 +421,9 @@ void ModulatorChain::ModChainWithBuffer::calculateModulationValuesForCurrentVoic
 			while (auto mod = iter.next())
 			{
 				mod->render(voiceIndex, voiceData, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
+
+				if (scratchBufferFunction)
+					scratchBufferFunction(voiceIndex, mod, modBuffer.scratchBuffer, startSample_cr, numSamples_cr);
 			}
 
 			if (useMonophonicData)
@@ -575,6 +578,11 @@ float ModulatorChain::ModChainWithBuffer::getConstantModulationValue() const
 	return currentConstantValue;
 }
 
+float ModulatorChain::ModChainWithBuffer::getModValueForVoiceWithOffset(int startSample) const
+{
+	return currentVoiceData != nullptr ? currentVoiceData[startSample] : currentConstantValue;
+}
+
 float ModulatorChain::ModChainWithBuffer::getOneModulationValue(int startSample) const
 {
 	// If you set this, you probably don't need this method...
@@ -719,8 +727,21 @@ void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 
 	ModIterator<Modulator> iter(this);
 
-	while(auto mod = iter.next())
-		mod->handleHiseEvent(m);
+    if(postEventFunction)
+    {
+        while(auto mod = iter.next())
+        {
+            mod->handleHiseEvent(m);
+            postEventFunction(mod, m);
+        }
+    }
+    else
+    {
+        while(auto mod = iter.next())
+            mod->handleHiseEvent(m);
+    }
+    
+	
 };
 
 
@@ -866,7 +887,7 @@ float ModulatorChain::startVoice(int voiceIndex)
 bool ModulatorChain::isPlaying(int voiceIndex) const
 {
 	jassert(hasActivePolyEnvelopes());
-	jassert(getMode() == GainMode);
+	jassert(getMode() == GainMode || getMode() == Modulation::GlobalMode);
 
 	if (isBypassed())
 		return false;
@@ -1222,6 +1243,12 @@ void ModulatorChain::ModulatorChainHandler::checkActiveState()
 	activeVoiceStarts = !activeVoiceStartList.isEmpty();
 	activeMonophonicEnvelopes = !activeMonophonicEnvelopesList.isEmpty();
 	anyActive = !activeAllList.isEmpty();
+    
+    std::sort(activeVoiceStartList.begin(), activeVoiceStartList.end(), ModSorter(*this));
+    std::sort(activeTimeVariantsList.begin(), activeTimeVariantsList.end(), ModSorter(*this));
+    std::sort(activeEnvelopesList.begin(), activeEnvelopesList.end(), ModSorter(*this));
+    std::sort(activeAllList.begin(), activeAllList.end(), ModSorter(*this));
+    
 }
 
 
@@ -1254,6 +1281,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MacroModulator);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptTimeVariantModulator);
+    ADD_NAME_TO_TYPELIST(HardcodedTimeVariantModulator);
 }
 
 void VoiceStartModulatorFactoryType::fillTypeNameList()
@@ -1276,6 +1304,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
 	ADD_NAME_TO_TYPELIST(MPEModulator);
 	ADD_NAME_TO_TYPELIST(ScriptnodeVoiceKiller);
+	ADD_NAME_TO_TYPELIST(GlobalEnvelopeModulator);
 }
 
 

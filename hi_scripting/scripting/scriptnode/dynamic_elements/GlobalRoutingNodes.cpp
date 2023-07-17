@@ -1688,6 +1688,11 @@ scriptnode::routing::GlobalRoutingManager::SelectableTargetBase::List GlobalRout
 	return l;
 }
 
+bool GlobalRoutingManager::Cable::containsTarget(CableTargetBase* n) const
+{
+	return targets.contains(n);
+}
+
 void GlobalRoutingManager::Cable::addTarget(CableTargetBase* n)
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(lock);
@@ -1809,7 +1814,7 @@ void GlobalRoutingManager::Signal::clearSignal()
 		if (sourceSpecs)
 		{
 			block b(buffer.begin(), sourceSpecs.blockSize * sourceSpecs.numChannels);
-			hmath::vset(b, 0.0f);
+			hmath::vmovs(b, 0.0f);
 		}
 	}
 }

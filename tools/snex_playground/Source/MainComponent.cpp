@@ -8,6 +8,10 @@
 
 #include "MainComponent.h"
 
+
+
+
+
 using namespace hise;
 using namespace scriptnode;
 using namespace snex::Types;
@@ -17,14 +21,32 @@ using namespace snex;
 
 
 
+
 //==============================================================================
 MainComponent::MainComponent() :
 	data(new ui::WorkbenchData())
 {
+	/** TODO:
+	
+	- split the entire snex compiler into parser & code generator, then test everything
+
+	- chew threw unit tests with MIR
+	- implement dyn
+	- add all library objects (polydata, osc process data, etc)
+
+	- remove all unnecessary things:
+	  - inlining (?)
+	  - indexes (?)
+	  - 
+	
+
+	*/
+
+
 	bool useValueTrees = false;
 	
 	laf.setDefaultColours(funkSlider);
-
+    
 	if (useValueTrees)
 	{
 		data->getTestData().setUpdater(&updater);
@@ -51,7 +73,7 @@ MainComponent::MainComponent() :
 		auto compileThread = new snex::jit::TestCompileThread(data);
 		data->setCompileHandler(compileThread);
 
-		for (auto o : OptimizationIds::getAllIds())
+		for (auto o : OptimizationIds::getDefaultIds())
 			data->getGlobalScope().addOptimization(o);
 
 		playground = new snex::ui::SnexPlayground(data, true);
@@ -61,19 +83,28 @@ MainComponent::MainComponent() :
 		
 	}
 
-	context.attachTo(*this);
-	
-	addAndMakeVisible(playground);
+    //context.attachTo(*playground);
+    
+    
 
+
+
+	
+    
+    addAndMakeVisible(playground);
+    
+    playground->toFront(true);
+    context.attachTo(*playground);
+    
     setSize (1024, 768);
 }
 
 MainComponent::~MainComponent()
 {
-	data = nullptr;
-
 	context.detach();
 
+	
+    
 
 }
 
@@ -99,7 +130,6 @@ void MainComponent::resized()
 		
 		
 	}
-		
-
-	playground->setBounds(b);
+	
+    playground->setBounds(b);
 }

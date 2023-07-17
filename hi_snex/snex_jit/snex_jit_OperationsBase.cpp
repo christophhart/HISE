@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 
@@ -65,10 +65,13 @@ snex::jit::BaseScope* Operations::findFunctionScope(BaseScope* scope)
 		return findFunctionScope(scope->getParent());
 }
 
-asmjit::Runtime* Operations::getRuntime(BaseCompiler* c)
+
+#if SNEX_ASMJIT_BACKEND
+AsmJitRuntime* Operations::getRuntime(BaseCompiler* c)
 {
 	return dynamic_cast<ClassCompiler*>(c)->getRuntime();
 }
+#endif
 
 
 
@@ -283,8 +286,7 @@ void Operations::Expression::replaceMemoryWithExistingReference(BaseCompiler* co
 
 	auto prevReg = compiler->registerPool.getRegisterWithMemory(reg);
 
-	if (prevReg != reg)
-		reg->setReferToReg(prevReg);
+	ASMJIT_ONLY(if (prevReg != reg) reg->setReferToReg(prevReg));
 }
 
 bool Operations::Expression::isAnonymousStatement() const
@@ -311,7 +313,8 @@ bool Operations::Expression::hasSubExpr(int index) const
 snex::VariableStorage Operations::Expression::getPointerValue() const
 {
 	location.throwError("Can't use address of temporary register");
-	return {};
+
+	RETURN_DEBUG_ONLY({});
 }
 
 Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
@@ -392,8 +395,17 @@ bool SyntaxTree::isFirstReference(Operations::Statement* v_) const
 
 snex::jit::Operations::Statement::Ptr SyntaxTree::clone(ParserHelpers::CodeLocation l) const
 {
-	Statement::Ptr c = new Operations::StatementBlock(l, getPath());
-	dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
+	Statement::Ptr c;
+
+	if (dynamic_cast<Operations::ClassStatement*>(parent.get()) != nullptr)
+	{
+		c = new SyntaxTree(l, getPath());
+	}
+	else
+	{
+		c = new Operations::StatementBlock(l, getPath());
+		dynamic_cast<Operations::StatementBlock*>(c.get())->isInlinedFunction = true;
+	}
 
 	cloneChildren(c);
 	return c;
@@ -644,7 +656,7 @@ void Operations::ConditionalBranch::preallocateVariableRegistersBeforeBranching(
 				if (d != nullptr || (v != nullptr && v->isClassVariable(s)))
 					p->reg->loadMemoryIntoRegister(cc);
 
-				p->reg->setWriteBackToMemory(true);
+				ASMJIT_ONLY(p->reg->setWriteBackToMemory(true));
 			}
 		}
 		

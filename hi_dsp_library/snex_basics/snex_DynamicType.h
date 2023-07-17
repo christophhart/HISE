@@ -87,9 +87,9 @@ namespace snex
 
 		template <Types::ID expectedType> VariableStorage& store(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value = (int)other;
-else IF_CONSTEXPR(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+else if constexpr(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(= )
 
 return *this;
@@ -98,9 +98,9 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& add(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value += (int)other;
-else IF_CONSTEXPR(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+else if constexpr(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(+= )
 
 
@@ -109,7 +109,7 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& and_(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value &= (int)other;
 
 			return *this;
@@ -117,7 +117,7 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& or_(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value |= (int)other;
 
 			return *this;
@@ -125,7 +125,7 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& mod(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value %= (int)other;
 
 			return *this;
@@ -133,9 +133,9 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& sub(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value -= (int)other;
-else IF_CONSTEXPR(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+else if constexpr(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(-= )
 
 
@@ -144,9 +144,9 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& div(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value /= (int)other;
-else IF_CONSTEXPR(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+else if constexpr(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(/= )
 
 return *this;
@@ -154,9 +154,9 @@ return *this;
 
 		template <Types::ID expectedType> VariableStorage& mul(const VariableStorage& other)
 		{
-			IF_CONSTEXPR(expectedType == Types::ID::Integer)
+			if constexpr(expectedType == Types::ID::Integer)
 				data.i.value *= (int)other;
-else IF_CONSTEXPR(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
+else if constexpr(expectedType == Types::ID::Float || expectedType == Types::ID::Double)
 CONVERT_TO_DOUBLE_IF_REQUIRED_AND_OP(*= )
 
 

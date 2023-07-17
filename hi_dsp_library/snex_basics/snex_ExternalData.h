@@ -90,22 +90,7 @@ using namespace Types;
             virtual juce::String toString() const = 0;
         };
         
-        juce::String toString() const
-        {
-            juce::String s;
-            s << "{ ";
-            
-            for (auto l : root)
-            {
-                s << l->toString();
-                
-                if (root.getLast().get() != l)
-                    s << ", ";
-            }
-            
-            s << " }";
-            return s;
-        }
+        juce::String toString() const;
         
         static Ptr makeSingleList(const VariableStorage& v)
         {
@@ -175,7 +160,7 @@ using namespace Types;
             return root.size();
         }
         
-        bool forEach(const std::function<bool(ChildBase*)>& func)
+        bool forEach(const std::function<bool(ChildBase*)>& func) const
         {
             for (auto l : root)
             {
@@ -290,8 +275,15 @@ using namespace Types;
                 juce::String s;
                 s << "{ ";
                 
+                int index = 0;
+                
                 for (auto l : list)
+                {
                     s << l->toString();
+                    
+                    if(++index < list.size())
+                        s << ", ";
+                }
                 
                 s << " }";
                 return s;

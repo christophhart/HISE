@@ -2,7 +2,7 @@
 
 BEGIN_TEST_DATA
   f: main
-  ret: block
+  ret: int
   args: block
   input: "zero.wav"
   output: "one.wav"
@@ -11,11 +11,11 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-block main(block input)
+int main(block input)
 {
 	for(auto& s: input)
 		s = 1.0f;
-	
-    return input;
+
+	return 1;
 }
 

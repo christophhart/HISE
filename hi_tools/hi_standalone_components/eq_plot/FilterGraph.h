@@ -120,6 +120,8 @@ public:
 
     void setNumHorizontalLines (int newValue);
     void setFreqRange (float newLowFreq, float newHighFreq);
+	void setGainRange(float maxGain);
+
 	void setBypassed(bool shouldBeBypassed);;
 
     void setFilterGain (int filterNum, double gain);
@@ -128,6 +130,7 @@ public:
     void setCustom (int filterNum, double sampleRate, std::vector <double> numCoeffs, std::vector <double> denCoeffs);
     
 	void setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
+
 
     float xToFreq (float xPos);
     float freqToX (float freq);
@@ -174,6 +177,11 @@ public:
 		}
 
 		repaint();
+	}
+
+	void setShowLines(bool shouldShowLines)
+	{
+		showLines = shouldShowLines;
 	}
 
 private:

@@ -87,11 +87,24 @@ juce::ValueTree BaseExporter::exportEmbeddedFiles()
 	ValueTree markdownDocs = chainToExport->getMainController()->exportAllMarkdownDocsAsValueTree();
 	ValueTree networkFiles = BackendDllManager::exportAllNetworks(chainToExport->getMainController(), false);
 
+	ValueTree webViewResources = chainToExport->getMainController()->exportWebViewResources();
+
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
 	externalFiles.addChild(markdownDocs, -1, nullptr);
 	externalFiles.addChild(networkFiles, -1, nullptr);
+	externalFiles.addChild(webViewResources, -1, nullptr);
+
+	ValueTree defaultPreset("DefaultPreset");
+	ValueTree dc = chainToExport->getMainController()->getUserPresetHandler().defaultPresetManager->getDefaultPreset();
+
+	if (dc.isValid())
+	{
+		defaultPreset.addChild(dc.createCopy(), -1, nullptr);
+	}
+
+	externalFiles.addChild(defaultPreset, -1, nullptr);
 
 	return externalFiles;
 }
@@ -509,7 +522,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	if (!hisePath.isDirectory()) 
 		return ErrorCodes::HISEPathNotSpecified;
 
-	if (!checkSanity(option)) return ErrorCodes::SanityCheckFailed;
+	if (!checkSanity(type, option)) return ErrorCodes::SanityCheckFailed;
+
+	chainToExport->getMainController()->getUserPresetHandler().initDefaultPresetManager({});
 
 	ErrorCodes result = ErrorCodes::OK;
 
@@ -658,7 +673,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 			auto pname = GET_SETTING(HiseSettings::Project::Name);
 			auto cname = GET_SETTING(HiseSettings::User::Company);
-			auto projectFolder = ProjectHandler::getAppDataDirectory().getParentDirectory().getChildFile(cname).getChildFile(pname);
+			auto projectFolder = ProjectHandler::getAppDataDirectory(chainToExport->getMainController()).getParentDirectory().getChildFile(cname).getChildFile(pname);
 
 			if (IS_SETTING_TRUE(HiseSettings::Project::EmbedAudioFiles))
 			{
@@ -797,7 +812,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     return String();
 }
 
-bool CompileExporter::checkSanity(BuildOption option)
+bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 {
 	// Check if a frontend script is in the main synth chain
 
@@ -923,9 +938,18 @@ bool CompileExporter::checkSanity(BuildOption option)
     }
 #endif
     
-	auto networks = ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport);
+	for (auto fx : ProcessorHelpers::getListOfAllProcessors<HardcodedSwappableEffect>(chainToExport))
+	{
+		auto r = fx->sanityCheck();
 
-	for (auto n : networks)
+		if (!r.wasOk())
+		{
+			printErrorMessage("Hardcoded FX Sanity check failed", r.getErrorMessage());
+			return false;
+		}
+	}
+
+	for (auto n : ProcessorHelpers::getListOfAllProcessors<scriptnode::DspNetwork::Holder>(chainToExport))
 	{
 		if (auto network = n->getActiveOrDebuggedNetwork())
 		{
@@ -939,7 +963,7 @@ bool CompileExporter::checkSanity(BuildOption option)
 		}
 	}
 
-    if(!shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+    if((type != TargetTypes::EffectPlugin) && !shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
     {
         const String faultySample = checkSampleReferences(chainToExport);
         
@@ -1371,8 +1395,18 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
 
+	String overwriteUserPresets = GET_SETTING(HiseSettings::Project::OverwriteOldUserPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%OVERWRITE_OLD_USER_PRESETS%", overwriteUserPresets);
+
+    String vst3Category = GET_SETTING(HiseSettings::Project::VST3Category);
+    
 	if (type == TargetTypes::EffectPlugin)
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Fx," + vst3Category;
+        else
+            vst3Category = "Fx";
+        
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
         REPLACE_WILDCARD_WITH_STRING("%PLUGIN_PRODUCES_MIDI_OUT%", "0");
         
@@ -1393,6 +1427,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	}
 	else if (type == TargetTypes::MidiEffectPlugin)
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Fx," + vst3Category;
+        else
+            vst3Category = "Fx";
+        
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN%", "1");
         REPLACE_WILDCARD_WITH_STRING("%PLUGIN_PRODUCES_MIDI_OUT%", "1");
         
@@ -1408,6 +1447,11 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 	}
 	else
 	{
+        if(vst3Category.isNotEmpty())
+            vst3Category = "Instrument," + vst3Category;
+        else
+            vst3Category = "Instrument";
+        
 		REPLACE_WILDCARD_WITH_STRING("%SUPPORT_MONO%", "disabled");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISMIDIFX%", "0");
         
@@ -1423,6 +1467,8 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
 		REPLACE_WILDCARD_WITH_STRING("%HISE_MIDIFX_PLUGIN%", "disabled");
 	}
 
+    REPLACE_WILDCARD_WITH_STRING("%VST3_CATEGORY%", vst3Category);
+    
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
@@ -1641,6 +1687,9 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 	String readOnlyFactoryPresets = GET_SETTING(HiseSettings::Project::ReadOnlyFactoryPresets) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%READ_ONLY_FACTORY_PRESETS%", readOnlyFactoryPresets);
 
+	String overwriteUserPresets = GET_SETTING(HiseSettings::Project::OverwriteOldUserPresets) == "1" ? "enabled" : "disabled";
+	REPLACE_WILDCARD_WITH_STRING("%OVERWRITE_OLD_USER_PRESETS%", overwriteUserPresets);
+
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
@@ -1724,7 +1773,16 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString() + s);
 	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
 
+#if JUCE_WINDOWS
+    const auto useGlobalAppFolder = (bool)exporter->dataObject.getSetting(HiseSettings::Project::UseGlobalAppDataFolderWindows);
+#elif JUCE_MAC
+    const auto useGlobalAppFolder = (bool)exporter->dataObject.getSetting(HiseSettings::Project::UseGlobalAppDataFolderMacOS);
+#else
+    // Dave let me know if you need this LOL...
+    const bool useGlobalAppFolder = false;
+#endif
     
+    REPLACE_WILDCARD_WITH_STRING("%USE_GLOBAL_APP_FOLDER%", useGlobalAppFolder ? "enabled" : "disabled");
     
 	auto allow32BitMacOS = exporter->dataObject.getSetting(HiseSettings::Compiler::Support32BitMacOS);
 
@@ -1832,7 +1890,7 @@ XmlElement* createXmlElementForFile(ModulatorSynthChain* chainToExport, String& 
 
 		for (auto c : children)
 		{
-			bool isCustomNodeIncludeFile = c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes" ||
+			bool isCustomNodeIncludeFile = (c.getFileName() == "includes.cpp" && c.getParentDirectory().getFileName() == "CustomNodes") ||
                 c.getFileName() == "RNBO.cpp";
 
 			if (auto c_xml = createXmlElementForFile(chainToExport, templateProject, c, isCustomNodeIncludeFile))
@@ -2571,8 +2629,6 @@ void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(CompileE
 
 void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
 	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
 	pluginDataHeaderFile << "{" << "\n";
 	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(hise::HiseCoreDspFactory);" << "\n";
@@ -2630,17 +2686,24 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String appGroupString = exporter->GET_SETTING(HiseSettings::Project::AppGroupID);
 	const String expType = exporter->GET_SETTING(HiseSettings::Project::ExpansionType);
 	const String expKey = exporter->GET_SETTING(HiseSettings::Project::EncryptionKey);
+	const String defaultPreset = exporter->GET_SETTING(HiseSettings::Project::DefaultUserPreset);
+	const String hiseVersion = ProjectInfo::versionString;
 
-	pluginDataHeaderFile << "String hise::FrontendHandler::getProjectName() { return \"" << projectName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyName() { return \"" << companyName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
-	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyCopyright() { return \"" << companyCopyright << "\"; };\n";
-	pluginDataHeaderFile << "String hise::FrontendHandler::getVersionString() { return \"" << versionString << "\"; };\n";
+	String nl = "\n";
+	
+	pluginDataHeaderFile << "String hise::FrontendHandler::getProjectName() { return " << projectName.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyName() { return " << companyName.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyWebsiteName() { return " << companyWebsiteName.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getCompanyCopyright() { return " << companyCopyright.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getVersionString() { return " << versionString.quoted() << "; };" << nl;
     
-    pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
+    pluginDataHeaderFile << "String hise::FrontendHandler::getAppGroupId() { return " << appGroupString.quoted() << "; };" << nl;
     
-	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionKey() { return \"" << expKey << "\"; };\n";
-	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionType() { return \"" << expType << "\"; };\n";
+	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionKey() { return " << expKey.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getExpansionType() { return " << expType.quoted() << "; };" << nl;
+	pluginDataHeaderFile << "String hise::FrontendHandler::getHiseVersion() { return " << hiseVersion.quoted() << "; };" << nl;
+
+	pluginDataHeaderFile << "String hise::FrontendHandler::getDefaultUserPreset() const { return " << defaultPreset.quoted() << "; };" << nl;
 }
 
 void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)

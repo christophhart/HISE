@@ -255,7 +255,7 @@ public:
 
 	static File getPropertyFile()
 	{
-		return ProjectHandler::getAppDataDirectory().getChildFile("SampleEditorSettings").withFileExtension("js");
+		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("SampleEditorSettings").withFileExtension("js");
 	}
 
 	void saveEditorSettings();

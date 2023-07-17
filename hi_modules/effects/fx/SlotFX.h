@@ -70,6 +70,8 @@ public:
 
 	// ===================================================================================== Processor API tool functions
 
+	Result sanityCheck();
+
 	void setHardcodedAttribute(int index, float newValue);
 	float getHardcodedAttribute(int index) const;
 	Path getHardcodedSymbol() const;
@@ -77,9 +79,11 @@ public:
 	void restoreHardcodedData(const ValueTree& v);
 	ValueTree writeHardcodedData(ValueTree& v) const;
 
-	void checkHardcodedChannelCount();
+	virtual bool checkHardcodedChannelCount();
 
 	bool processHardcoded(AudioSampleBuffer& b, HiseEventBuffer* e, int startSample, int numSamples);
+
+	virtual void renderData(ProcessDataDyn& data);
 
 	bool hasHardcodedTail() const;
 
@@ -148,7 +152,8 @@ protected:
 	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
 	ReferenceCountedArray<FilterDataObject> filterData;
 
-	ValueTree treeWhenNotLoaded;
+	ValueTree previouslySavedTree;
+	bool properlyLoaded = true;
 
 	String currentEffect = "No network";
 
@@ -161,12 +166,14 @@ protected:
 	ScopedPointer<scriptnode::OpaqueNode> opaqueNode;
 	ScopedPointer<scriptnode::dll::FactoryBase> factory;
 
-	void prepareOpaqueNode(OpaqueNode* n);
+	virtual void prepareOpaqueNode(OpaqueNode* n);
 
 	bool channelCountMatches = false;
 
 	int channelIndexes[NUM_MAX_CHANNELS];
 	int numChannelsToRender = 0;
+
+	int hash = -1;
 
     Array<scriptnode::InvertableParameterRange> parameterRanges;
     
@@ -174,6 +181,8 @@ private:
 
 	MainController* mc_;
 	friend class HardcodedMasterEditor;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HardcodedSwappableEffect);
 };
 
 class HardcodedMasterFX: public MasterEffectProcessor,
@@ -187,6 +196,8 @@ public:
 	~HardcodedMasterFX();;
 
 	bool hasTail() const override;
+
+	bool isSuspendedOnSilence() const override;
 
     bool isFadeOutPending() const noexcept override
     {
@@ -210,8 +221,10 @@ public:
 	void connectionChanged()
 	{
 		MasterEffectProcessor::connectionChanged();
-		checkHardcodedChannelCount();
+        channelCountMatches = checkHardcodedChannelCount();
 	}
+
+    
 
 	void voicesKilled() override;
 	void setInternalAttribute(int index, float newValue) override;
@@ -260,6 +273,8 @@ public:
 
 	bool hasTail() const override;;
 
+	bool isSuspendedOnSilence() const final override;
+
 	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
 	const Processor *getChildProcessor(int processorIndex) const override { return nullptr; };
 	int getNumChildProcessors() const override { return 0; };
@@ -273,6 +288,8 @@ public:
 
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) final override;
 
+	void renderData(ProcessDataDyn& data) override;
+
 	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int /*startSample*/, int /*numSamples*/) override
 	{
 		
@@ -280,6 +297,8 @@ public:
 
 	void reset(int voiceIndex) override 
 	{
+		VoiceEffectProcessor::reset(voiceIndex);
+
 		voiceStack.reset(voiceIndex);
 	}
 	
@@ -297,7 +316,7 @@ public:
 
 	void connectionChanged() override
 	{
-		checkHardcodedChannelCount();
+        channelCountMatches = checkHardcodedChannelCount();
 		
 	};
 
@@ -325,9 +344,53 @@ public:
 
 	VoiceDataStack voiceStack;
 
-	
-	
 };
+
+class HardcodedTimeVariantModulator: public TimeVariantModulator,
+                                     public HardcodedSwappableEffect
+{
+public:
+    
+    SET_PROCESSOR_NAME("Hardcoded Timevariant Modulator", "HardcodedTimeVariantModulator", "Atime variant modulator wrapper around a compiled DSP network");
+
+    HardcodedTimeVariantModulator(MainController* mc, const String& uid, Modulation::Mode m);
+    ~HardcodedTimeVariantModulator();;
+
+    Processor *getChildProcessor(int processorIndex) override { return nullptr; };
+    const Processor *getChildProcessor(int processorIndex) const override { return nullptr; }
+
+    int getNumInternalChains() const override { return 0; };
+    int getNumChildProcessors() const override { return 0; };
+
+    void setInternalAttribute(int index, float newValue) override;
+    ValueTree exportAsValueTree() const override;
+    void restoreFromValueTree(const ValueTree& v) override;
+    float getAttribute(int index) const override;
+
+    bool checkHardcodedChannelCount() override;
+    
+    ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+    void prepareToPlay(double sampleRate, int samplesPerBlock);
+
+    void handleHiseEvent(const HiseEvent &m) override;
+    
+    void calculateBlock(int startSample, int numSamples) override;
+    
+    void prepareOpaqueNode(OpaqueNode* n) override;
+};
+
+
+
+
+
+
+
+
+
+
+
+
 
 /** Aplaceholder for another effect that can be swapped pretty conveniently.
 	@ingroup effectTypes.

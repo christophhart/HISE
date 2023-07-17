@@ -233,13 +233,4 @@ END_JUCE_MODULE_DECLARATION
 #include "raw/raw_UserPreset.h"
 #include "raw/raw_PluginParameter.h"
 
-#include "nodes/HiseNodes.h"
-#include "nodes/ComplexDataNodes.h"
-
-
-
-#include "nodes/MetaNodes.h"
-#include "nodes/snex_library/snex_NodeLibrary.h"
-
-
 #endif   // HI_MODULES_INCLUDED

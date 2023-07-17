@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 snex::jit::BlockParser::StatementPtr CodeParser::parseStatementToBlock()
@@ -237,6 +237,8 @@ snex::jit::BlockParser::StatementPtr CodeParser::parseLoopStatement()
 		ExprPtr loopBlock = parseExpression();
 
 		match(JitTokens::closeParen);
+
+		location.calculatePosition(false, false);
 
 		auto id = compiler->namespaceHandler.createNonExistentIdForLocation({}, location.getLine());
 

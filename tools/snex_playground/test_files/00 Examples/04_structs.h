@@ -52,7 +52,7 @@ struct MyFirstStruct
 /* You can declare global objects. In this case, the 19 will be passed to 
    the constructor, while the other data values will be set to their default. 
 */
-MyFirstStruct obj1 = { 19 };
+MyFirstStruct obj1;
 
 int main(int input)
 {

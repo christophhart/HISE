@@ -15,7 +15,7 @@ dyn<int> b;
 
 int main(int input)
 {
-	b.referTo(data);
+	b.referTo(data, data.size());
 	
 	return b[29 % input];
 }

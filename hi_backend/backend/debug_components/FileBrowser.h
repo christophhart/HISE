@@ -319,14 +319,14 @@ private:
             v.addChild(favorites[i]->exportAsValueTree(), -1, nullptr);
         }
         
-        File favoritesFile = NativeFileHandler::getAppDataDirectory().getChildFile("Favorites.xml");
+        File favoritesFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("Favorites.xml");
         
         favoritesFile.replaceWithText(v.toXmlString());
     }
     
     void loadFavoriteFile()
     {
-        File favoritesFile = NativeFileHandler::getAppDataDirectory().getChildFile("Favorites.xml");
+        File favoritesFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("Favorites.xml");
         
         auto xml = XmlDocument::parse(favoritesFile);
         

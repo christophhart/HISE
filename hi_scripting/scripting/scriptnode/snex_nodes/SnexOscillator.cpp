@@ -46,7 +46,7 @@ void core::SnexOscillator::OscillatorCallbacks::reset()
 {
 	SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 	ok = false;
-	tickFunction = {};
+	//tickFunction = {};
 	processFunction = {};
 }
 
@@ -58,20 +58,24 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 	auto newProcessFunction = getFunctionAsObjectCallback("process", false);
 	auto newPrepareFunction = getFunctionAsObjectCallback("prepare", false);
 
-	
+	//r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
 
-	r = newTickFunction.validateWithArgs(Types::ID::Float, { Types::ID::Double });
+	Array<Types::ID> argTypes = { Types::ID::Pointer };
+
+#if SNEX_MIR_BACKEND
+	argTypes.add(Types::ID::Pointer);
+#endif
 
 	if (r.wasOk())
-		r = newProcessFunction.validateWithArgs(Types::ID::Void, { Types::ID::Pointer });
+		r = newProcessFunction.validateWithArgs(Types::ID::Void, argTypes);
 
 	if (r.wasOk() && newPrepareFunction.isResolved())
-		r = newPrepareFunction.validateWithArgs("void", { "PrepareSpecs" });
+		r = newPrepareFunction.validateWithArgs(Types::ID::Void, argTypes);
 
 	{
 		SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 		ok = r.wasOk();
-		std::swap(newTickFunction, tickFunction);
+		//std::swap(newTickFunction, tickFunction);
 		std::swap(newProcessFunction, processFunction);
 		std::swap(newPrepareFunction, prepareFunction);
 	}
@@ -81,6 +85,7 @@ juce::Result core::SnexOscillator::OscillatorCallbacks::recompiledOk(snex::jit::
 	return r;
 }
 
+#if 0
 float core::SnexOscillator::OscillatorCallbacks::tick(double uptime)
 {
 	if (auto c = ScopedCallbackChecker(*this))
@@ -88,6 +93,7 @@ float core::SnexOscillator::OscillatorCallbacks::tick(double uptime)
 
 	return 0.0;
 }
+#endif
 
 void core::SnexOscillator::OscillatorCallbacks::process(OscProcessData& d)
 {
@@ -169,10 +175,23 @@ void core::SnexOscillator::initialise(NodeBase* n)
 	SnexSource::initialise(n);
 }
 
+
 float core::SnexOscillator::tick(double uptime)
 {
-	return callbacks.tick(uptime);
+	float v = 0.0f;
+	
+	OscProcessData d;
+	d.uptime = uptime;
+	d.delta = 0.0;
+	d.data.referToRawData(&v, 1);
+
+	process(d);
+
+	return v;
+
+	//return callbacks.tick(uptime);
 }
+
 
 void core::SnexOscillator::process(OscProcessData& d)
 {
@@ -181,7 +200,26 @@ void core::SnexOscillator::process(OscProcessData& d)
 
 void core::SnexOscillator::prepare(PrepareSpecs ps)
 {
+	rebuildCallbacksAfterChannelChange(ps.numChannels);
 	callbacks.prepare(ps);
+	
+}
+
+bool core::SnexOscillator::preprocess(String& code)
+{
+	if (code.contains("instance.prepare(;"))
+	{
+		// already preprocessed...
+		return true;
+	}
+
+	SnexSource::preprocess(code);
+	SnexSource::addDummyProcessFunctions(code, false, "OscProcessData");
+	SnexSource::addDummyNodeCallbacks(code, false, false);
+
+	
+
+	return true;
 }
 
 core::NewSnexOscillatorDisplay::NewSnexOscillatorDisplay(SnexOscillator* osc, PooledUIUpdater* updater) :

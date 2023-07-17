@@ -404,8 +404,8 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 	ib.getContainer(personaContainer)->setIsDynamic(false);
 
-	File scriptJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/ScriptingWorkspace.json");
-	File sampleJSON = ProjectHandler::getAppDataDirectory().getChildFile("Workspaces/SamplerWorkspace.json");
+    File scriptJSON = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("Workspaces/ScriptingWorkspace.json");
+	File sampleJSON = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("Workspaces/SamplerWorkspace.json");
 
 	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
 	var sampleData = JSON::parse(sampleJSON.loadFileAsString());

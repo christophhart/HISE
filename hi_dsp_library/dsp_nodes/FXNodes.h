@@ -81,7 +81,7 @@ public:
 			for (auto c : d)
             {
                 auto b = d.toChannelData(c);
-				hmath::vset(b, v.currentValues[i++]);
+				hmath::vmovs(b, v.currentValues[i++]);
             }
 
 			v.counter -= d.getNumSamples();

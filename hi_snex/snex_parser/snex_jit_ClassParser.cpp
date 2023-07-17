@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 ClassParser::ClassParser(BaseCompiler* c, const juce::String& code) :
@@ -514,11 +514,11 @@ snex::jit::NamespaceHandler::Visibility ClassParser::parseVisibility()
 {
 	if (matchIf(JitTokens::public_))
 		return NamespaceHandler::Visibility::Public;
-	else if (matchIf(JitTokens::private_))
+	if (matchIf(JitTokens::private_))
 		return NamespaceHandler::Visibility::Private;
-	else if (matchIf(JitTokens::protected_))
+	if (matchIf(JitTokens::protected_))
 		return NamespaceHandler::Visibility::Protected;
-	
+
 	return NamespaceHandler::Visibility::numVisibilities;
 }
 

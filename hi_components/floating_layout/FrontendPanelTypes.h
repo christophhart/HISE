@@ -169,13 +169,15 @@ public:
             memset(currentPeaks, 0, sizeof(float) * NUM_MAX_CHANNELS);
             memset(maxPeaks, 0, sizeof(float) * NUM_MAX_CHANNELS);
             memset(maxPeakCounter, 0, sizeof(int) * NUM_MAX_CHANNELS);
-            data->setEditorShown(true);
+            
         }
         
         ~InternalComp()
         {
-            if(data != nullptr)
-                data->setEditorShown(false);
+			if (data != nullptr)
+			{
+				setChannelIndexes({});
+			}
         }
         
         void timerCallback() override
@@ -234,6 +236,16 @@ public:
             if(change)
                 repaint();
         }
+
+		void setChannelIndexes(const Array<int> channels)
+		{
+			data->setEditorShown(channelIndexes, false);
+
+			channelIndexes.clearQuick();
+			channelIndexes.addArray(channels);
+
+			data->setEditorShown(channelIndexes, true);
+		}
         
         void paint(Graphics& g) override
         {
@@ -273,11 +285,16 @@ public:
         float segmentSize = 0.0f;
         float paddingSize = 1.0f;
         
-        Array<int> channelIndexes;
+        
         
         bool showMaxPeaks = false;
         
         static constexpr int MaxCounter = 40;
+
+	private:
+
+		Array<int> channelIndexes;
+
     };
     
     MatrixPeakMeter(FloatingTile* parent):
@@ -427,7 +444,7 @@ public:
             ni->paddingSize = paddingSize;
             ni->showMaxPeaks = showMaxPeak;
             
-            ni->channelIndexes.addArray(channelIndexes);
+			ni->setChannelIndexes(channelIndexes);
             
             return ni;
         }
@@ -1169,6 +1186,7 @@ struct FrontendMacroPanel : public TableFloatingTileBase,
 	void setInverted(int row, bool value);
 	String getCellText(int rowNumber, int columnId) const override;
 
+	mutable hise::SimpleReadWriteLock connectionLock;
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> connectionList;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendMacroPanel)

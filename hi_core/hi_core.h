@@ -126,6 +126,15 @@ Set this to 1 to disable the creation of the Expansions folder at init (i.e. for
 #define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+/** Config: HISE_OVERWRITE_OLD_USER_PRESETS
+
+If true, then the plugin will silently overwrite user presets with the same name but an older version number. This will also overwrite user-modified factory presets
+but will not modify or delete user-created user presets (with the exception of a name collision).
+*/
+#ifndef HISE_OVERWRITE_OLD_USER_PRESETS
+#define HISE_OVERWRITE_OLD_USER_PRESETS 0
+#endif
+
 /** Config: HISE_BACKEND_AS_FX
  
  Set this to 1 in order to use HISE as a effect plugin. This will simulate the processing setup of an FX plugin (so child sound generators will not be processed etc).
@@ -201,6 +210,15 @@ This can be used to simulate an audio effect routing setup (when the appropriate
 */
 #ifndef FORCE_INPUT_CHANNELS
 #define FORCE_INPUT_CHANNELS USE_BACKEND
+#endif
+
+/** Config: HI_DONT_SEND_ATTRIBUTE_UPDATES
+ 
+If enabled, this will skip the internal UI message update when calling setAttribute from a scripting callback. If you're calling
+ this method a lot, setting this to true might help with certain stability issues and UI message clogging.
+*/
+#ifndef HI_DONT_SEND_ATTRIBUTE_UPDATES
+#define HI_DONT_SEND_ATTRIBUTE_UPDATES 0
 #endif
 
 /** Config: HISE_DEACTIVATE_OVERLAY
@@ -378,6 +396,16 @@ OpenGL should be enabled by default or not.
 */
 #ifndef HISE_DEFAULT_OPENGL_VALUE
 #define HISE_DEFAULT_OPENGL_VALUE 1
+#endif
+
+/** Config: HISE_USE_SYSTEM_APP_DATA_FOLDER
+
+    If enabled, the compiled plugin will use the global app data folder instead of the local one.
+    This flag will be set automatically based on the project setting. In HISE this must not be changed
+    as the app data directory will be checked dynamically using this setting value.
+*/
+#ifndef HISE_USE_SYSTEM_APP_DATA_FOLDER
+#define HISE_USE_SYSTEM_APP_DATA_FOLDER 0
 #endif
 
 /** Config: ENABLE_STARTUP_LOGGER

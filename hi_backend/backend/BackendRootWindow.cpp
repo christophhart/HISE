@@ -553,7 +553,7 @@ void BackendRootWindow::timerCallback()
 {
 	stopTimer();
 
-	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive())
+	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive() && !projectIsBeingExtracted)
 	{
 		owner->setChanged(false);
 		BackendCommandTarget::Actions::createNewProject(this);

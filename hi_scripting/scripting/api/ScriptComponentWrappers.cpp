@@ -395,6 +395,11 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 	component->setComponentID(sc->getName().toString());
 
+	if (auto bc = dynamic_cast<MacroControlledObject*>(getComponent()))
+	{
+		bc->setModulationData(sc->getModulationData());
+	}
+
 	for(const auto& c: sc->getMouseListeners())
 		mouseCallbacks.add(new AdditionalMouseCallback(sc, component, c));
 
@@ -589,10 +594,12 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingA
 		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 	}
 
+    auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
+    
+    s->enableShiftTextInput = showTextBox;
+    
 	if (sc->styleId == Slider::LinearBar || sc->styleId == Slider::LinearBarVertical)
 	{
-		auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
-
 		if (!showTextBox)
 			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 
@@ -615,7 +622,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 	s->setName(GET_SCRIPT_PROPERTY(text));
 	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
-	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+    ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
 
 	updateSensitivity(sc, s);
 
@@ -990,8 +997,8 @@ juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup
 		{
 			if (auto jp = dynamic_cast<JavascriptProcessor*>(sl->getScriptProcessor()))
 			{
-				var data[1] = { slider->getValue() };
-				var::NativeFunctionArgs args(sl, data, 2);
+				var data = slider->getValue();
+				var::NativeFunctionArgs args(sl, &data, 1);
 				Result r = Result::ok();
 	
 				auto text = jp->getScriptEngine()->callExternalFunction(sl->sliderValueFunction, args, &r, true);
@@ -1055,6 +1062,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 		PROPERTY_CASE::ScriptComboBox::FontName:
 		PROPERTY_CASE::ScriptComboBox::FontSize :
 		PROPERTY_CASE::ScriptComboBox::FontStyle : updateFont(getScriptComponent()); break;
+        PROPERTY_CASE::ScriptComboBox::popupAlignment: cb->getProperties().set("popupAlignment", newValue); break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
@@ -1105,6 +1113,9 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * c
 	cb->clear(dontSendNotification);
 
 	cb->addItemList(dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent())->getItemList(), 1);
+    
+    auto currentValue = (int)getScriptComponent()->getValue();
+    cb->setSelectedId(currentValue, dontSendNotification);
 }
 
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateColours(HiComboBox * cb)
@@ -1621,6 +1632,7 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 	{
 		mode = Mode::Table;
 		tableModel->tableRefreshBroadcaster.addListener(*this, ViewportWrapper::tableUpdated, false);
+		tableModel->tableColumnRepaintBroadcaster.addListener(*this, ViewportWrapper::columnNeedsRepaint, false);
 	}
 	else
 	{
@@ -1793,6 +1805,18 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::tableUpdated(ViewportWrapp
 	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
 	{
 		t->updateContent();
+	}
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::columnNeedsRepaint(ViewportWrapper& w, int index)
+{
+	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
+	{
+		auto cell = t->getCellPosition(index, 0, true);
+
+		cell.setTop(0);
+		cell.setBottom(t->getHeight());
+		t->repaint(cell);
 	}
 }
 
@@ -2725,6 +2749,31 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioDi
 	tn->repaint();
 }
 
+ScriptCreatedComponentWrappers::WebViewWrapper::WebViewWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptWebView *webview, int index) :
+	ScriptCreatedComponentWrapper(content, webview)
+{
+	auto wc = new hise::WebViewWrapper(webview->getData());
+	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->addScaleFactorListener(this);
+	component = wc;
+
+	if ((vp = content->findParentComponentOfClass<ZoomableViewport>()))
+		vp->addZoomListener(this);
+}
+
+ScriptCreatedComponentWrappers::WebViewWrapper::~WebViewWrapper()
+{
+	if(vp.getComponent() != nullptr)
+		vp->removeZoomListener(this);
+	
+
+	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->removeScaleFactorListener(this);
+	component = nullptr;
+}
+
+void ScriptCreatedComponentWrappers::WebViewWrapper::scaleFactorChanged(float newScaleFactor)
+{
+	dynamic_cast<hise::WebViewWrapper*>(component.get())->refreshBounds(newScaleFactor);
+}
 
 ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index):
 	ScriptCreatedComponentWrapper(content, index)
@@ -2918,7 +2967,7 @@ float ScriptedControlAudioParameter::getValue() const
 	}
 	else
 	{
-		jassertfalse;
+		//jassertfalse;
 		return 0.0f;
 	}
 }
@@ -2946,12 +2995,20 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 	}
 	else
 	{
-		jassertfalse;
+		//jassertfalse;
 	}
 }
 
 float ScriptedControlAudioParameter::getDefaultValue() const
 {
+	float value = 0.0f;
+
+	if (dynamic_cast<MainController*>(parentProcessor)->getUserPresetHandler().getDefaultValueFromPreset(this->componentIndex, value))
+	{
+		const float v = range.convertTo0to1(value);
+		return  jlimit<float>(0.0f, 1.0f, v);;
+	}
+
 	if (scriptProcessor.get() != nullptr && type == Type::Slider)
 	{
 		const float v = range.convertTo0to1(scriptProcessor->getDefaultValue(componentIndex));

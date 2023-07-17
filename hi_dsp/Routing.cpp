@@ -37,13 +37,17 @@ owningProcessor(p),
 numSourceChannels(2),
 numDestinationChannels(2),
 resizeAllowed(false),
-allowEnablingOnly(false),
-numEditors(0)
+allowEnablingOnly(false)
 {
-	
-    
+	memset(numEditors, 0, sizeof(int)*NUM_MAX_CHANNELS);
     
 	resetToDefault();
+}
+
+RoutableProcessor::MatrixData::~MatrixData()
+{
+	// should be cleaned up properly...
+	jassert(!anyActive);
 }
 
 void RoutableProcessor::MatrixData::clearAllConnections()
@@ -451,9 +455,9 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 	if (notifyProcessors == sendNotification) owningProcessor->numDestinationChannelsChanged();
 }
 
-void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output)
+void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer& input, const AudioSampleBuffer& output, bool useOutput)
 {
-	if (isEditorShown())
+	if (anyChannelActive())
 	{
 		auto numToCheck = jmin(input.getNumSamples(), output.getNumSamples());
 
@@ -461,18 +465,25 @@ void RoutableProcessor::MatrixData::handleDisplayValues(const AudioSampleBuffer&
         
 		for (int i = 0; i < input.getNumChannels(); i++)
 		{
-			auto max = input.getMagnitude(i, 0, numToCheck);
-            thisPeaks[i] = max;
+			if (isEditorShown(i))
+				thisPeaks[i] = input.getMagnitude(i, 0, numToCheck);
+			else
+				thisPeaks[i] = 0.0f;
 		}
 
-        setGainValues(thisPeaks, true);
-        
-		for (int i = 0; i < output.getNumChannels(); i++)
+		setGainValues(thisPeaks, true);
+		
+		if (useOutput)
 		{
-			auto max = output.getMagnitude(i, 0, numToCheck);
-            thisPeaks[i] = max;
+			for (int i = 0; i < output.getNumChannels(); i++)
+			{
+				if (isEditorShown(i))
+					thisPeaks[i] = output.getMagnitude(i, 0, numToCheck);
+				else
+					thisPeaks[i] = 0.0f;
+			}
 		}
-        
+		
         setGainValues(thisPeaks, false);
 	}
 }
@@ -578,26 +589,55 @@ void RoutableProcessor::MatrixData::loadPreset(Presets newPreset)
 
 void RoutableProcessor::MatrixData::refreshSourceUseStates()
 {
-	for (int i = 0; i < numSourceChannels; i++)
+	if (numAllowedConnections == 2)
 	{
-		if (channelConnections[i] != -1)
+		for (int i = 0; i < numSourceChannels; i++)
 		{
-			owningProcessor->leftSourceChannel = i;
-			owningProcessor->leftTargetChannel = channelConnections[i];
-			break;
+			if (channelConnections[i] != -1)
+			{
+				owningProcessor->leftSourceChannel = i;
+				owningProcessor->leftTargetChannel = channelConnections[i];
+				break;
+			}
+
 		}
 
-	}
-
-	for (int i = numSourceChannels - 1; i >= 0; i--)
-	{
-		if (channelConnections[i] != -1)
+		for (int i = numSourceChannels - 1; i >= 0; i--)
 		{
-			owningProcessor->rightSourceChannel = i;
-			owningProcessor->rightTargetChannel = channelConnections[i];
-			break;
+			if (channelConnections[i] != -1)
+			{
+				owningProcessor->rightSourceChannel = i;
+				owningProcessor->rightTargetChannel = channelConnections[i];
+				break;
+			}
 		}
 	}
+	else
+	{
+		owningProcessor->leftSourceChannel = -1;
+		owningProcessor->rightSourceChannel = -1;
+		owningProcessor->leftTargetChannel = -1;
+		owningProcessor->rightTargetChannel = -1;
+
+		for (int i = 0; i < numSourceChannels; i++)
+		{
+			if (channelConnections[i] != -1)
+			{
+				if (owningProcessor->leftSourceChannel == -1)
+				{
+					owningProcessor->leftSourceChannel = i;
+					owningProcessor->leftTargetChannel = channelConnections[i];
+				}
+				else
+				{
+					owningProcessor->rightSourceChannel = i;
+					owningProcessor->rightTargetChannel = channelConnections[i];
+					break;
+				}
+			}
+		}
+	}
+	
 
 	owningProcessor->connectionChanged();
 

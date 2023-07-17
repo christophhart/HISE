@@ -185,7 +185,7 @@ template <typename T> ID getTypeFromTypeId()
 		return ID::Integer;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
-
+	
 	return ID::Void;
 }
 
@@ -651,7 +651,12 @@ struct PolyHandler
 
 		jassert(ph->enabled != 0);
 
-		return ph->getVoiceIndex();
+		auto voiceIndex = ph->getVoiceIndex();
+
+		if (voiceIndex == -1)
+			return 0;
+
+		return voiceIndex;
 	}
 
 	static int getSizeStatic(PolyHandler* ph)

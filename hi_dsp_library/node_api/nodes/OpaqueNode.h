@@ -160,6 +160,9 @@ struct OpaqueNode
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
 
+		if constexpr (prototypes::check::isSuspendedOnSilence<T>::value)
+			canBeSuspended_ = t->isSuspendedOnSilence();
+
 		if constexpr (prototypes::check::getFixChannelAmount<typename T::ObjectType>::value)
 			numChannels = T::ObjectType::getFixChannelAmount();
 		else
@@ -269,6 +272,8 @@ struct OpaqueNode
 
 	bool hasTail() const { return hasTail_; }
 
+	bool isSuspendedOnSilence() const { return canBeSuspended_; }
+
 private:
 
 	String description;
@@ -283,6 +288,7 @@ private:
 	bool isPolyPossible = false;
 
 	bool hasTail_ = true;
+	bool canBeSuspended_ = false;
 
 	prototypes::handleHiseEvent eventFunc = nullptr;
 	prototypes::destruct destructFunc = nullptr;
@@ -350,6 +356,8 @@ namespace dll
 		virtual int getNumDataObjects(int index, int dataTypeAsInt) const = 0;
 		virtual int getWrapperType(int index) const = 0;
 
+		virtual int getHash(int index) const = 0;
+
 		virtual Error getError() const = 0;
 		virtual void clearError() const = 0;
 
@@ -387,6 +395,8 @@ namespace dll
 		bool initOpaqueNode(scriptnode::OpaqueNode* n, int index, bool polyphonicIfPossible) override;
 
 		int getNumDataObjects(int index, int dataTypeAsInt) const override;
+
+		int getHash(int) const override { return -1; }
 
 		/** We don't bother about whether it's a third party node or not in a static compiled plugin. */
 		bool isThirdPartyNode(int index) const override { return false; };
@@ -436,7 +446,7 @@ namespace dll
 	{
 		// This is just used to check whether the dll is deprecated and needs to be recompiled...
 		// (It will be bumped whenever a breaking change into the DLL API is introduced)...
-		static constexpr int DllUpdateCounter = 2;
+		static constexpr int DllUpdateCounter = 3;
 
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 
@@ -565,6 +575,8 @@ namespace dll
 		Error getError() const override;
 		
 		void deinitOpaqueNode(scriptnode::OpaqueNode* n) override;
+
+		int getHash(int index) const override;
 
 	private:
 

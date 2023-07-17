@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 bool Operations::StatementBlock::isRealStatement(Statement* s)
@@ -103,6 +103,7 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 		reg = returnRegister;
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		if (isInlinedFunction && endLabel.isValid())
@@ -112,6 +113,7 @@ void Operations::StatementBlock::process(BaseCompiler* compiler, BaseScope* scop
 			acg.cc.bind(endLabel);
 		}
 	}
+#endif
 }
 
 snex::jit::BaseScope* Operations::StatementBlock::createOrGetBlockScope(BaseScope* parent)
@@ -167,16 +169,16 @@ snex::jit::Operations::InlinedArgument* Operations::StatementBlock::findInlinedP
 	return nullptr;
 }
 
-void Operations::StatementBlock::addInlinedReturnJump(X86Compiler& cc)
+void Operations::StatementBlock::addInlinedReturnJump(AsmJitX86Compiler& cc)
 {
 	jassert(isInlinedFunction);
 
+#if SNEX_ASMJIT_BACKEND
 	if (!endLabel.isValid())
-	{
 		endLabel = cc.newLabel();
-	}
 
 	cc.jmp(endLabel);
+#endif
 }
 
 Operations::Statement::Ptr Operations::StatementBlock::getThisExpression()
@@ -228,12 +230,16 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 			if (!isVoid() && actualType == Types::ID::Void)
 				throwError("function must return a value");
 
-			checkAndSetType(0, getTypeInfo());
+			if(!isVoid())
+				setTypeForChild(0, getTypeInfo());
+
+			//checkAndSetType(0, getTypeInfo());
 		}
 		else
 			throwError("Can't deduce return type.");
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto t = getTypeInfo().toPointerIfNativeRef();
@@ -320,6 +326,7 @@ void Operations::ReturnStatement::process(BaseCompiler* compiler, BaseScope* sco
 			asg.writeDirtyGlobals(compiler);
 		}
 	}
+#endif
 }
 
 snex::jit::Operations::StatementBlock* Operations::ReturnStatement::findInlinedRoot() const
@@ -378,12 +385,14 @@ void Operations::TernaryOp::process(BaseCompiler* compiler, BaseScope* scope)
 		type = checkAndSetType(1, type);
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto asg = CREATE_ASM_COMPILER(getType());
 		reg = asg.emitTernaryOp(this, compiler, scope);
 		jassert(reg->isActive());
 	}
+#endif
 }
 
 void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
@@ -408,6 +417,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 		}
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		preallocateVariableRegistersBeforeBranching(getLoopChildStatement(ChildStatementType::Body), compiler, scope);
@@ -514,6 +524,7 @@ void Operations::WhileLoop::process(BaseCompiler* compiler, BaseScope* scope)
 		acg.cc.jmp(cond);
 		acg.cc.bind(exit);
 	}
+#endif
 }
 
 snex::jit::Operations::Compare* Operations::WhileLoop::getCompareCondition()
@@ -604,6 +615,8 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			loopTargetType = Span;
 
+            numElements = sp->getNumElements();
+            
 			if (iterator.typeInfo.isDynamic())
 				iterator.typeInfo = sp->getElementType();
 			else if (iterator.typeInfo != sp->getElementType())
@@ -665,6 +678,7 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 		evaluateIteratorLoad();
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto acg = CREATE_ASM_COMPILER(compiler->getRegisterType(iterator.typeInfo));
@@ -702,6 +716,7 @@ void Operations::Loop::process(BaseCompiler* compiler, BaseScope* scope)
 		if (loopEmitter != nullptr)
 			loopEmitter->emitLoop(acg, compiler, scope);
 	}
+#endif
 }
 
 bool Operations::Loop::evaluateIteratorLoad()
@@ -847,11 +862,13 @@ void Operations::ControlFlowStatement::process(BaseCompiler* compiler, BaseScope
 		}
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
 		acg.emitLoopControlFlow(parentLoop, isBreak);
 	}
+#endif
 }
 
 snex::jit::Operations::ScopeStatementBase* Operations::ControlFlowStatement::findRoot() const
@@ -890,6 +907,7 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 			throwError("Condition must be boolean expression");
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		auto acg = CREATE_ASM_COMPILER(Types::ID::Integer);
@@ -902,6 +920,7 @@ void Operations::IfStatement::process(BaseCompiler* compiler, BaseScope* scope)
 
 		acg.emitBranch(TypeInfo(Types::ID::Void), cond, trueBranch.get(), falseBranch.get(), compiler, scope);
 	}
+#endif
 }
 
 }

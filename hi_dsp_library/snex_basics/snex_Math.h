@@ -106,17 +106,14 @@ vectorOp(b1.data, s, b1.size()); \
 return b1; \
 };
         
-#define vOpScalar2A(name, vectorOp)
-        
-        
-        vOpBinary(vmul, FloatVectorOperations::multiply);
+		vOpBinary(vmul, FloatVectorOperations::multiply);
         vOpBinary(vadd, FloatVectorOperations::add);
         vOpBinary(vsub, FloatVectorOperations::subtract);
-        vOpBinary(vcopy, FloatVectorOperations::copy);
+        vOpBinary(vmov, FloatVectorOperations::copy);
         
-        vOpScalar(vset, FloatVectorOperations::fill);
         vOpScalar(vmuls, FloatVectorOperations::multiply);
-        vOpScalar(vadds, FloatVectorOperations::add);
+		vOpScalar(vadds, FloatVectorOperations::add);
+		vOpScalar(vmovs, FloatVectorOperations::fill);
         
         static forcedinline block& vclip(block& b1, float s1, float s2)
         {

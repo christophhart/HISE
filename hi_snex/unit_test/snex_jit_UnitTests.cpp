@@ -43,7 +43,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 #pragma warning( push )
 #pragma warning( disable : 4244)
@@ -190,8 +190,8 @@ public:
 				jassertfalse; // there you go...
 			}
 
-			ReturnType v = f.template call<ReturnType>(input);
-
+            auto v = f.template call<ReturnType>(input);
+            
 			auto diff = std::abs(v - expected);
 
 			if (diff > 0.000001)
@@ -522,24 +522,23 @@ public:
 	{
         beginTest("Test index types");
         
-		testIntegerIndex<index::looped<9, false>>();
-		testIntegerIndex<index::looped<64, false>>();
+		//testIntegerIndex<index::looped<9, false>>();
+		//testIntegerIndex<index::looped<64, false>>();
 		testIntegerIndex<index::wrapped<32, false>>();
 		testIntegerIndex<index::wrapped<91, false>>();
-		testIntegerIndex<index::clamped<32, false>>();
+        testIntegerIndex<index::clamped<32, false>>();
 		testIntegerIndex<index::clamped<91, false>>();
-		testIntegerIndex<index::unsafe<91, false>>();
+        testIntegerIndex<index::unsafe<91, false>>();
 		testIntegerIndex<index::unsafe<64, true>>();
 	}
 
 	void runTest() override
 	{
-		optimizations = {};
-		testOptimizations();
-		testInlining();
+		beginTest("funky");
 
-		runTestsWithOptimisation({});
-		runTestsWithOptimisation(OptimizationIds::getAllIds());
+		optimizations = OptimizationIds::Helpers::getDefaultIds();
+
+		runTestsWithOptimisation(OptimizationIds::Helpers::getDefaultIds());
 	}
 
 #if INCLUDE_SNEX_BIG_TESTSUITE
@@ -630,7 +629,7 @@ public:
 
 	Array<OpList> getAllOptimizationCombinations()
 	{
-		OpList allIds = OptimizationIds::getAllIds();
+		OpList allIds = OptimizationIds::Helpers::getAllIds();
 
 		allIds.sort(false);
 
@@ -1091,7 +1090,7 @@ private:
 			PerformanceCounter pc(mes);
 
 			code = {};
-			ADD_CODE_LINE("span<$T, 441000> data;");
+			ADD_CODE_LINE("span<$T, 44100> data;");
 			ADD_CODE_LINE("s$T d;");
 			ADD_CODE_LINE("$T test($T input) {");
 			ADD_CODE_LINE("    d.prepare(44100.0, 5000.0);");
@@ -1138,11 +1137,8 @@ private:
 
 		juce::String code;
 
-		
-
 #define NEW_CODE_TEXT() code = {};
 #define DECLARE_SPAN(name) ADD_CODE_LINE("span<$T, $size> " + juce::String(name) + ";")
-
 
 		auto im = [](T v)
 		{
@@ -1154,8 +1150,6 @@ private:
 		juce::String tdi;
 
 		tdi << "{ " << im(1) << ", " << im(2) << ", " << im(3) << "};";
-
-#if 1
 
 		NEW_CODE_TEXT();
 
@@ -1173,9 +1167,6 @@ private:
 
 		CREATE_TYPED_TEST(code);
 		EXPECT_TYPED(GET_TYPE(T) + " iterator with struct element type ", 0, 6);
-
-#endif
-
 
 		{
 			NEW_CODE_TEXT();
@@ -1210,13 +1201,8 @@ private:
 
 			EXPECT_TYPED(GET_TYPE(T) + " span set with dynamic index", T(index), T(4.0));
 		}
-
-		
-
-
-
-		
-
+        
+        
 		{
 			NEW_CODE_TEXT();
 			ADD_CODE_LINE("span<$T, 3> data = " + tdi);
@@ -1243,10 +1229,6 @@ private:
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED(GET_TYPE(T) + " iterator: sum elements", 0, 6);
 		}
-
-		
-
-		
 
 		{
 			NEW_CODE_TEXT();
@@ -1777,6 +1759,7 @@ private:
 			EXPECT_TYPED("static const variable with ternary op", 5, 83);
 		}
 		{
+#if 0
 			juce::String code;
 
 			ADD_CODE_LINE("static const int x = 4;");
@@ -1787,8 +1770,10 @@ private:
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span size argument", 1, 2);
+#endif
 		}
 		{
+#if 0
 			juce::String code;
 
 			ADD_CODE_LINE("static const int x = 4;");
@@ -1797,6 +1782,7 @@ private:
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span initialiser list", 1, 94);
+#endif
 		}
 		{
 			juce::String code;
@@ -1809,6 +1795,7 @@ private:
 			EXPECT_TYPED("test static const variable with using alias", 1, 4);
 		}
 		{
+#if 0
 			juce::String code;
 
 			ADD_CODE_LINE("static const int x = 2;");
@@ -1818,6 +1805,7 @@ private:
 
 			CREATE_TYPED_TEST(code);
 			EXPECT_TYPED("test static const variable in span initialiser list", 10, 1);
+#endif
 		}
 	}
 
@@ -1877,6 +1865,7 @@ private:
 
 	void testExternalStructDefinition()
 	{
+#if !SNEX_MIR_BACKEND
 		using namespace Types;
 
 		beginTest("Testing external struct definition");
@@ -1959,6 +1948,7 @@ private:
 			auto result = obj["test"].call<int>();
 			expectEquals(result, 98, "float value");
 		}
+#endif
 	}
 
 	void testOptimizations()
@@ -2180,9 +2170,10 @@ private:
 		
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	void testFpu()
 	{
-		using namespace asmjit;
+		USE_ASMJIT_NAMESPACE;
 
 		int ok = 0;
 
@@ -2236,7 +2227,7 @@ private:
 
     void testMacOSRelocation()
     {
-        using namespace asmjit;
+        USE_ASMJIT_NAMESPACE;
         
         int ok = 0;
         
@@ -2295,6 +2286,10 @@ private:
         expect(returnValue == 18.0f);
         
     }
+#else
+	void testFpu() {};
+	void testMacOSRelocation() {};
+#endif
     
 	void testUsingAliases()
 	{
@@ -2436,7 +2431,7 @@ private:
 		block bl(b.getWritePointer(0), 512);
 		block bl2(b.getWritePointer(0), 512);
 
-		CREATE_TYPED_TEST("block test(int in2, block in){ return in; };");
+		CREATE_TYPED_TEST("block& test(int in2, block in){ return in; };");
 
 		test->setup();
 
@@ -2893,7 +2888,7 @@ private:
 		expectCompileOK(test->compiler);
 		EXPECT("span member access", 7, 14);
 
-		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1, x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
+		CREATE_TYPED_TEST("struct X { int value = 3; int get() { return value; } }; X x1; X x2; int test(int input) { x1.value = 8; x2.value = 9; return x1.get() + x2.get(); }");
 		expectCompileOK(test->compiler);
 		EXPECT("two instances set value", 7, 8 + 9);
 

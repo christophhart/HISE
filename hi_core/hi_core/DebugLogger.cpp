@@ -1036,7 +1036,7 @@ File DebugLogger::getLogFile()
 File DebugLogger::getLogFolder()
 {
     
-	File f = NativeFileHandler::getAppDataDirectory().getChildFile("Logs/");
+	File f = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("Logs/");
 
 	if (!f.isDirectory())
 		f.createDirectory();

@@ -148,7 +148,7 @@ void ModuleBrowser::ModuleItem::setParameters(const ValueTree &v)
 
 ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 {
-	File f = NativeFileHandler::getAppDataDirectory().getChildFile("moduleEnums.xml");
+	File f = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("moduleEnums.xml");
 
 	jassert(f.existsAsFile());
 

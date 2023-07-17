@@ -32,16 +32,8 @@
 
 /* HI Module */
 
-#include "JuceHeader.h"
 
-#include <regex>
 
-#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
-
-#include "scripting/ScriptProcessor.cpp"
-#include "scripting/ScriptProcessorModules.cpp"
-#include "scripting/HardcodedScriptProcessor.cpp"
-#include "scripting/hardcoded_modules/Arpeggiator.cpp"
 
 
 

@@ -118,7 +118,7 @@ bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 		return false;
 #endif
 
-	if (!mc->isInitialised())
+	if (!mc->isInitialised() || mc->isFlakyThreadingAllowed())
 	{
 		return false;
 	}
@@ -132,6 +132,14 @@ bool LockHelpers::isLockedBySameThread(const MainController* mc, Type lockToChec
 		return MessageManager::getInstance()->currentThreadHasLockedMessageManager();
 	else
 		return mc->getKillStateHandler().currentThreadHoldsLock(lockToCheck);
+}
+
+void* LockHelpers::getCurrentThreadHandleOrMessageManager()
+{
+	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+		return MessageManager::getInstanceWithoutCreating();
+	else
+		return Thread::getCurrentThreadId();
 }
 
 bool LockHelpers::isDuringInitialisation(const MainController* mc)

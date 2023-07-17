@@ -2,7 +2,7 @@
 
 BEGIN_TEST_DATA
   f: main
-  ret: block
+  ret: int
   args: block
   input: "zero.wav"
   output: "sine.wav"
@@ -11,7 +11,7 @@ BEGIN_TEST_DATA
 END_TEST_DATA
 */
 
-block main(block input)
+int main(block input)
 {
     double uptime = 0.0;
     double delta = (Math.PI * 2.0) / 1024.0;
@@ -22,6 +22,6 @@ block main(block input)
 		uptime += delta;
     }
 	
-    return input;
+    return 1;
 }
 

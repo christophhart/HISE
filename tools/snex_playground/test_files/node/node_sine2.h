@@ -11,9 +11,9 @@ END_TEST_DATA
 */
 
 
-struct osc
+struct processor
 {
-	DECLARE_NODE(osc);
+	DECLARE_NODE(processor);
 
 	template <int P> void setParameter(double v)
 	{
@@ -56,7 +56,5 @@ struct osc
 		delta = (Math.PI * 2.0) / (double)ps.blockSize;
 	}
 };
-
-using processor = container::chain<parameter::empty, wrap::fix<1, osc>>;
 
 

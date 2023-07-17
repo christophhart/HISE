@@ -1,38 +1,30 @@
 /*
 BEGIN_TEST_DATA
   f: main
-  ret: int
+  ret: float
   args: int
   input: 12
-  output: 9
+  output: 13.8
   error: ""
   filename: "vop/vop8"
 END_TEST_DATA
 */
 
+
+
+span<float, 2> d2 = { 1.5f, 2.3f };
+
 span<float, 2> tick1()
 {
-	span<float, 2> d = { 1.0f, 2.0f };
+	span<float, 2> d = { 4.0f, 6.0f };
 	
 	return d;
 }
 
-span<float, 2> tick2()
+float main(int input)
 {
-	span<float, 2> e = { 2.0f, 4.0f};
+	d2 += tick1();
 	
-	e += tick1();
-	
-	return e;
-}
-
-int main(int input)
-{
-	span<float, 2> d2;
-	
-	d2 += tick2();
-	
-	return (int)(d2[0] + d2[1]);
-	
+	return d2[0] + d2[1];
 }
 

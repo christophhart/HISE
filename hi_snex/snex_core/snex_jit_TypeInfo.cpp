@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 bool TypeInfo::operator==(const Types::ID other) const
@@ -93,7 +93,7 @@ TypeInfo::TypeInfo(Types::ID type_, bool isConst_ /*= false*/, bool isRef_ /*= f
 {
 	jassert(!(type == Types::ID::Void && isRef()));
 
-	jassert(type != Types::ID::Pointer || isConst_);
+	
 	updateDebugName();
 }
 
@@ -150,7 +150,7 @@ snex::jit::TypeInfo TypeInfo::withModifiers(bool isConst_, bool isRef_, bool isS
 	return c;
 }
 
-juce::String TypeInfo::toString() const
+juce::String TypeInfo::toString(bool useAlias) const
 {
 	juce::String s;
 
@@ -162,7 +162,10 @@ juce::String TypeInfo::toString() const
 
 	if (isComplexType())
 	{
-		s << getRawComplexTypePtr()->toString();
+		if (useAlias)
+			s << getRawComplexTypePtr()->toString();
+		else
+			s << getRawComplexTypePtr()->getActualTypeString();
 
 		if (isRef())
 			s << "&";
@@ -177,6 +180,11 @@ juce::String TypeInfo::toString() const
 	}
 
 	return s;
+}
+
+juce::String TypeInfo::toStringWithoutAlias() const
+{
+	return toString(false);
 }
 
 snex::InitialiserList::Ptr TypeInfo::makeDefaultInitialiserList() const
@@ -474,12 +482,20 @@ snex::Types::ID Symbol::getRegisterType() const
 	return typeInfo.isRef() ? Types::Pointer : typeInfo.getType();
 }
 
-juce::String Symbol::toString() const
+juce::String Symbol::toString(bool allowAlias) const
 {
 	juce::String s;
 
 	if (resolved)
-		s << typeInfo.toString() << " ";
+	{
+		if (allowAlias)
+			s << typeInfo.toString();
+		else
+			s << typeInfo.toStringWithoutAlias();
+		
+		s << " ";
+	}
+		
 	else
 		s << "unresolved ";
 

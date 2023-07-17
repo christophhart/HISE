@@ -278,6 +278,10 @@ private:
 	String extraHeader;
 
 	Array<WeakReference<Listener>> listeners;
+    
+public:
+    
+    bool addTrailingSlashes = true;
 };
 
 

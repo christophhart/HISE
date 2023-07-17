@@ -35,47 +35,9 @@ namespace hise { using namespace juce;
 
 bool EffectProcessor::isSilent(AudioSampleBuffer& b, int startSample, int numSamples)
 {
-	if (numSamples == 0)
-		return true;
+	float* stereo[2] = { b.getWritePointer(0, startSample), b.getWritePointer(jmin(1, b.getNumChannels()-1), startSample) };
 
-	float* l = b.getWritePointer(0, startSample);
-	float* r = b.getWritePointer(1, startSample);
-
-	using SSEFloat = dsp::SIMDRegister<float>;
-
-	auto alignedL = SSEFloat::getNextSIMDAlignedPtr(l);
-	auto alignedR = SSEFloat::getNextSIMDAlignedPtr(r);
-
-	auto numUnaligned = alignedL - l;
-	auto numAligned = numSamples - numUnaligned;
-
-	while (--numUnaligned >= 0)
-	{
-		if (std::abs(*l++) > 0.001f || std::abs(*r++) > 0.001f)
-			return false;
-	}
-
-	constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
-	
-	while (numAligned > sseSize)
-	{
-		auto l_ = SSEFloat::fromRawArray(alignedL);
-		auto r_ = SSEFloat::fromRawArray(alignedR);
-
-		auto sqL = l_ * l_;
-		auto sqR = r_ * r_;
-
-		auto max = SSEFloat::max(sqL, sqR);
-
-		if (max.sum() > 0.0001f)
-			return false;
-
-		alignedL += sseSize;
-		alignedR += sseSize;
-		numAligned -= sseSize;
-	}
-
-	return true;
+	return ProcessData<2>(stereo, numSamples).isSilent();
 }
 
 void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -83,6 +45,12 @@ void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 	jassert(finalised);
 
 	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (sampleRate >= 0.0)
+	{
+		auto callbackDurationMs = jmax(1.0, (double)samplesPerBlock / sampleRate * 1000.0);
+		numSilentCallbacksToWait = roundToInt((double)HISE_SUSPENSION_TAIL_MS / callbackDurationMs);
+	}
 
 	isInSend = dynamic_cast<SendContainer*>(getParentProcessor(true, false)) != nullptr;
 
@@ -115,6 +83,8 @@ bool MasterEffectProcessor::isFadeOutPending() const noexcept
 
 void MasterEffectProcessor::setSoftBypass(bool shouldBeSoftBypassed, bool useRamp/*=true*/)
 {
+	masterState.reset();
+
 	if (useRamp)
 	{
 		softBypassRamper.setValue(shouldBeSoftBypassed ? 0.0f : 1.0f);

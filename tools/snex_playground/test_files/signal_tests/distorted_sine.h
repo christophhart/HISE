@@ -2,7 +2,7 @@
 
 BEGIN_TEST_DATA
   f: main
-  ret: block
+  ret: int
   args: block
   input: "sine.wav"
   output: "distored_sine.wav"
@@ -13,13 +13,13 @@ END_TEST_DATA
 
 
 
-block main(block input)
+int main(block input)
 {
     for(auto& s: input)
     {
         s = Math.range(Math.tanh(s * 8.0f), -1.0f, 1.0f);
     }
 	
-    return input;
+    return 1;
 }
 

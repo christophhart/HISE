@@ -988,6 +988,9 @@ namespace control
 		
 
 		registerPolyNoProcessNode<control::change<1, parameter::dynamic_base_holder>, control::change<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+        
+        registerPolyNoProcessNode<control::delay_cable<1, parameter::dynamic_base_holder>, control::delay_cable<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+        
 
         registerNoProcessNode<dynamic_pack_resizer, data::ui::sliderpack_editor>();
         
@@ -1396,7 +1399,7 @@ Factory::Factory(DspNetwork* network) :
 
 	registerNode<voice_manager, voice_manager_base::editor>();
 
-	registerPolyNode<silent_killer, silent_killer_poly, voice_manager_base::editor>();
+	registerPolyNode<silent_killer<1>, silent_killer<NUM_POLYPHONIC_VOICES>, voice_manager_base::editor>();
 }
 }
 

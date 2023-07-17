@@ -204,14 +204,14 @@ public:
 	GlobalScope& memory;
 	Compiler c;
 	JitObject obj;
-
-	JitCompiledNode::Ptr nodeToTest;
+    
+    JitCompiledNode::Ptr nodeToTest;
 
 	double cpuUsage = 0.0;
 
 private:
 
-	
+	PolyHandler polyHandler;
 
 	String inputFile;
 	
@@ -318,6 +318,7 @@ private:
 	File outputBufferFile;
 	HiseEventBuffer eventBuffer;
 	StringArray requiredCompileFlags;
+	int polyVoiceIndex = -1;
 	int expectedLoopCount = -1;
 
 };

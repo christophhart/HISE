@@ -35,7 +35,8 @@
 namespace hise { using namespace juce;
 
 struct ScriptTableListModel : public juce::TableListBoxModel,
-	public ReferenceCountedObject
+							  public ReferenceCountedObject,
+							  public PooledUIUpdater::SimpleTimer
 {
 	using Ptr = ReferenceCountedObjectPtr<ScriptTableListModel>;
 
@@ -43,6 +44,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	{
 		SliderCallback,
 		ButtonCallback,
+		ComboboxCallback,
 		Selection,
 		SingleClick,
 		DoubleClick,
@@ -59,6 +61,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		Button,
 		Image,
 		Slider,
+		ComboBox,
 		numCellTypes
 	};
 
@@ -118,13 +121,21 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	var getCellValue(int rowIndex, int columnIndex) const
 	{
-		jassert(isPositiveAndBelow(columnIndex, columnMetadata.size()));
-		auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
-        
-        if(isPositiveAndBelow(rowIndex, rowData.size()))
-            return rowData[rowIndex][Identifier(id)];
-        
-        return {};
+		if(isPositiveAndBelow(columnIndex, columnMetadata.size()))
+        {
+            auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
+            
+            if(isPositiveAndBelow(rowIndex, rowData.size()))
+                return rowData[rowIndex][Identifier(id)];
+            
+            return {};
+        }
+        else
+        {
+            jassertfalse;
+            return {};
+        }
+		
 	}
 
 	Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
@@ -134,9 +145,13 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	CellType getCellType(int columnId) const;
 
-	void setTableColumnData(var cd)
+	void setTableColumnData(var cd);
+
+	void timerCallback() override
 	{
-		columnMetadata = cd;
+		for (auto r : repaintedColumns)
+			tableColumnRepaintBroadcaster.sendMessage(sendNotificationSync, r);
+			
 	}
 
 	void setRowData(var rd);
@@ -150,6 +165,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	void setColours(Colour textColour, Colour bgColour, Colour itemColour1, Colour itemColour2);
 
 	LambdaBroadcaster<int> tableRefreshBroadcaster;
+	LambdaBroadcaster<int> tableColumnRepaintBroadcaster;
 
 	int getColumnAutoSizeWidth(int columnId) override
 	{
@@ -183,7 +199,11 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	void setTableSortFunction(var newSortFunction);
 
+    var getRowData() const { return rowData.clone(); }
+    
 private:
+
+	Array<int> repaintedColumns;
 
 	static int defaultSorter(const var& v1, const var& v2)
 	{
@@ -245,7 +265,7 @@ private:
 
 	OwnedArray<TableRepainter> tableRepainters;
 
-	mutable Array<CellType> cellTypes;
+	Array<CellType> cellTypes;
 
 	LookAndFeelData d;
 
@@ -255,6 +275,8 @@ private:
 	Point<int> hoverPos;
 	Point<int> lastClickedCell;
 
+    bool processSpaceKey = false;
+    
 	var tableMetadata;
 	var columnMetadata;
 	var rowData;

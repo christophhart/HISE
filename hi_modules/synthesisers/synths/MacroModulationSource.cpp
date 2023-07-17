@@ -93,6 +93,9 @@ void MacroModulationSource::preVoiceRendering(int startSample, int numThisTime)
 {
 	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
 
+	// skip plugin parameter update calls
+	ScopedValueSetter<bool> setter(getMainController()->getPluginParameterUpdateState(), false);
+
 	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		auto& mb = modChains[i+2];

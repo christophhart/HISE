@@ -193,12 +193,16 @@ JitExpression::JitExpression(const juce::String& s, DebugHandler* handler, bool 
 	else
 		code << "double get(double input){ return " << s << ";}";
 
-	for(auto s: snex::jit::OptimizationIds::getAllIds())
+	for(auto s: snex::jit::OptimizationIds::Helpers::getDefaultIds())
 		memory.addOptimization(s);
 
 	snex::jit::Compiler c(memory);
 	c.setDebugHandler(handler, false);
 	
+#if SNEX_MIR_BACKEND
+	mir::MirCompiler::setLibraryFunctions(c.getFunctionMap());
+#endif
+
 	obj = c.compileJitObject(code);
 
 	if (c.getCompileResult().wasOk())

@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 #define HNODE_JIT_ADD_C_FUNCTION_0(rt, ptr, name) addFunction(new FunctionData(FunctionData:: template createWithoutParameters<rt>(name, reinterpret_cast<void*>(ptr))))
@@ -77,6 +77,11 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, dump);
 	};
+
+	struct WrapperClear
+	{
+		JIT_MEMBER_WRAPPER_0(void, ConsoleFunctions, clear);
+	};
 	
 	int print(int value, int lineNumber)
 	{
@@ -116,6 +121,14 @@ class ConsoleFunctions : public JitCallableObject
 		return value;
 	}
 
+	void clear()
+	{
+		if (gs.get() != nullptr && gs->isDebugModeEnabled())
+		{
+			gs->clearDebugMessages();
+		}
+	}
+
 	static void dumpObject(void* consoleObject, int dumpedObjectIndex, void* dataPtr)
 	{
 		auto c = static_cast<ConsoleFunctions*>(consoleObject);
@@ -143,8 +156,11 @@ class ConsoleFunctions : public JitCallableObject
 	{
 		if (gs.get() != nullptr && gs->isDebugModeEnabled())
 		{
-			auto s = gs->getCurrentClassScope()->getRootData()->dumpTable();
-			logAsyncIfNecessary(s);
+			if (auto cs = gs->getCurrentClassScope())
+			{
+				auto s = cs->getRootData()->dumpTable();
+				logAsyncIfNecessary(s);
+			}
 		}
 	}
 
@@ -153,18 +169,10 @@ class ConsoleFunctions : public JitCallableObject
 		jassert(gs != nullptr);
 		jassert(gs->isDebugModeEnabled());
 
-		auto f = [this, s]()
-		{
-			if (gs != nullptr)
-				gs->logMessage(s + "\n");
-		};
+		if (gs != nullptr)
+			gs->logMessage(s + "\n");
 
-		if (MessageManager::getInstance()->isThisTheMessageThread())
-		{
-			f();
-		}
-		else
-			MessageManager::callAsync(f);
+		
 	}
 
 	static void blink(void* obj, int lineNumber)
@@ -244,6 +252,7 @@ class MathFunctions : public FunctionClass
 {
 public:
 
+#if SNEX_ASMJIT_BACKEND
 	struct Intrinsics
 	{
 		static void range(x86::Compiler& cc, x86::Gp rv, x86::Gp v, x86::Gp l, x86::Gp u)
@@ -270,9 +279,8 @@ public:
 		static Result norm(InlineData* b);
 		static Result sig2mod(InlineData* b);
 		static Result mod2sig(InlineData* b);
-
-		
 	};
+#endif
 
 	MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockType);;
 };

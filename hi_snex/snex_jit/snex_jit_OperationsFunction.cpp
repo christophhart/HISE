@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
@@ -117,9 +117,11 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 									for (auto& m : baseSpecialFunctions)
 									{
 										// We need to change the parent ID to the derived class
-										auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
+										//auto specialFunctionId = st->id.getChildId(m.id.getIdentifier());
 
-										auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+										//auto fc = new FunctionCall(location, nullptr, { specialFunctionId, m.returnType }, {});
+
+										auto fc = new FunctionCall(location, nullptr, {m.id, m.returnType}, {});
 										fc->setObjectExpression(new ThisPointer(location, TypeInfo(st, false, true)));
 
 										l.add(fc);
@@ -503,6 +505,7 @@ void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
 
 void* Operations::Function::compileFunction(FunctionCompileData& f, const FunctionCompileData::InnerFunction& func)
 {
+#if !SNEX_MIR_BACKEND
 	f.assemblyLogger = new asmjit::StringLogger();
 
 	auto runtime = getRuntime(f.compiler);
@@ -553,6 +556,9 @@ void* Operations::Function::compileFunction(FunctionCompileData& f, const Functi
 	ch = nullptr;
 
 	return f.data.function;
+#else
+	return nullptr;
+#endif
 }
 
 void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
@@ -560,9 +566,13 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 	auto compiler = f.compiler;
 	auto scope = f.scope;
 
-	FuncSignatureX sig;
+	ignoreUnused(compiler);
 
 	hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !f.data.returnType.isStatic();
+
+#if !SNEX_MIR_BACKEND
+
+	FuncSignatureX sig;
 
 	auto objectType = hasObjectPtr ? compiler->getRegisterType(TypeInfo(dynamic_cast<ClassScope*>(scope)->typePtr.get())) : Types::ID::Void;
 
@@ -576,13 +586,15 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 		auto asg = CREATE_ASM_COMPILER(rType);
 		asg.emitParameter(this, funcNode, objectPtr, -1);
 	}
-
+	
 	compiler->executePass(BaseCompiler::RegisterAllocation, f.functionScopeToUse, f.statementToCompile.get());
 	compiler->executePass(BaseCompiler::CodeGeneration, f.functionScopeToUse, f.statementToCompile.get());
+#endif
 }
 
 void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f)
 {
+#if SNEX_ASMJIT_BACKEND
 	auto fc = as<FunctionCall>(f.statementToCompile);
 
 	jassert(fc != nullptr);
@@ -622,6 +634,27 @@ void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f
 	auto ok = acg.emitFunctionCall(returnReg, f.data, objectPtr, parameters);
 
 	location.test(ok);
+#endif
+}
+
+void FunctionCall::resolveBaseClassMethods()
+{
+	if(possibleMatches.isEmpty())
+	{
+		if(auto st = getObjectExpression()->getTypeInfo().getTypedIfComplexType<StructType>())
+		{
+			st->findMatchesFromBaseClasses(possibleMatches, function.id, baseOffset, baseClass);
+
+			if(fc->isConstructor(function.id))
+				possibleMatches = st->getBaseSpecialFunctions(FunctionClass::SpecialSymbols::Constructor);
+
+			if(fc->isDestructor(function.id))
+				possibleMatches = st->getBaseSpecialFunctions(FunctionClass::SpecialSymbols::Destructor);
+
+			if(!possibleMatches.isEmpty())
+				callType = BaseMemberFunction;
+		}
+	}
 }
 
 void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
@@ -658,6 +691,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						TypeInfo thisType(cs->typePtr.get());
 
 						setObjectExpression(new ThisPointer(location, thisType));
+
+						resolveBaseClassMethods();
 
 						return;
 					}
@@ -739,6 +774,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 				fc->addMatchingFunctions(possibleMatches, function.id);
 				callType = MemberFunction;
+
+				resolveBaseClassMethods();
 
 				return;
 			}
@@ -873,7 +910,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			for (auto& a : f.args)
 				a.typeInfo = compiler->convertToNativeTypeIfPossible(a.typeInfo);
 
-			jassert(function.id == f.id);
+			jassert(function.id.getIdentifier() == f.id.getIdentifier());
 
 			if (f.matchesArgumentTypes(parameterTypes) && f.matchesTemplateArguments(function.templateParameters))
 			{
@@ -914,6 +951,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		throwError(s);
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
 		if (isVectorOpFunction())
@@ -940,17 +978,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						continue;
 					}
 				}
-
-#if 0
-				if (auto subReg = getSubRegister(i))
-				{
-					if (!subReg->getVariableId())
-					{
-						parameterRegs.add(subReg);
-						continue;
-					}
-				}
-#endif
 
 				tryToResolveType(compiler);
 
@@ -991,7 +1018,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 	}
-
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		if (isVectorOpFunction())
@@ -1137,15 +1163,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (!r.wasOk())
 			location.throwError(r.getErrorMessage());
-
-#if REMOVE_REUSABLE_REG
-		for (int i = 0; i < parameterRegs.size(); i++)
-		{
-			if (!function.args[i].isReference())
-				parameterRegs[i]->flagForReuse();
-		}
-#endif
 	}
+#endif
 }
 
 
@@ -1478,6 +1497,7 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 			{
 				if (auto byteOffset = st->getMemberOffset(bindex))
 				{
+#if SNEX_ASMJIT_BACKEND
 					auto asg = CREATE_ASM_COMPILER(obj->reg->getType());
 					AsmCodeGenerator::TemporaryRegister tempReg(asg, scope, obj->reg->getTypeInfo());
 
@@ -1493,6 +1513,9 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 					}
 
 					obj->reg = tempReg.tempReg;
+#else
+					jassertfalse;
+#endif
 				}
 			}
 		}

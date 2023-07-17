@@ -63,7 +63,10 @@ struct TypeInfo
 
 	NamespacedIdentifier getTemplateId() const { return templateTypeId; }
 	TypeInfo withModifiers(bool isConst_, bool isRef_, bool isStatic_ = false) const;
-	juce::String toString() const;
+	juce::String toString(bool useAlias=true) const;
+
+	juce::String toStringWithoutAlias() const;
+
 	InitialiserList::Ptr makeDefaultInitialiserList() const;
 	void setType(Types::ID newType);
 
@@ -71,7 +74,7 @@ struct TypeInfo
 	{
 		auto type = Types::Helpers::getTypeFromTypeId<CppType>();
 		
-		return TypeInfo(type, std::is_const<CppType>(), std::is_pointer<CppType>());
+		return TypeInfo(type, std::is_const<CppType>(), std::is_pointer<CppType>::value || std::is_reference<CppType>::value);
 	}
 
 	bool isNativePointer() const;
@@ -169,7 +172,7 @@ struct Symbol
 
 	NamespacedIdentifier getId() const { return id; }
 	bool isReference() const { return typeInfo.isRef(); };
-	juce::String toString() const;
+	juce::String toString(bool allowAlias=true) const;
 
 	operator bool() const;
 

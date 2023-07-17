@@ -265,7 +265,7 @@ public:
 		helpButton.addListener(this);
 		setSize(tagList.getWidth(), 64 + 240 + 2 * UIValues::NodeMargin);
 		nodeEditor.addKeyListener(this);
-		list.rebuild(getWidthForListItems());
+		list.rebuild(getWidthForListItems(), true);
 	}
 
 	void buttonClicked(Button* )
@@ -320,7 +320,7 @@ public:
 	{
 		nodeEditor.setText(text, dontSendNotification);
 		list.setSearchText(nodeEditor.getText());
-		list.rebuild(getWidthForListItems());
+		list.rebuild(getWidthForListItems(), true);
 		resized();
 	}
 
@@ -337,7 +337,7 @@ public:
 		b.removeFromTop(UIValues::NodeMargin);
 
 		tagList.setBounds(b.removeFromTop(32));
-		list.rebuild(getWidthForListItems());
+		list.rebuild(getWidthForListItems(), false);
 		
 		b.removeFromTop(UIValues::NodeMargin);
 
@@ -413,7 +413,7 @@ public:
 				allIds.add(nItem);
 			}
 
-			rebuild(getWidth());
+			rebuild(getWidth(), true);
 		}
 
 		WeakReference<DspNetwork> network;
@@ -462,7 +462,7 @@ public:
 		void setSearchText(const String& text)
 		{
 			searchTerm = text.toLowerCase();
-			rebuild(maxWidth);
+			rebuild(maxWidth, true);
 
 			selectedIndex = 0;
 			setSelected(items[selectedIndex], true);
@@ -484,6 +484,8 @@ public:
 
 			void mouseUp(const MouseEvent& event);
 
+            bool keyPressed(const KeyPress& k) override;
+            
 			void paint(Graphics& g) override;
 
 			void resized() override;
@@ -511,34 +513,37 @@ public:
 
 		int maxWidth = 0;
 
-		void rebuild(int maxWidthToUse)
+		void rebuild(int maxWidthToUse, bool force)
 		{
-			items.clear();
+            if(maxWidthToUse != maxWidth || force)
+            {
+                items.clear();
 
-			int y = 0;
-			
-			maxWidth = maxWidthToUse;
+                int y = 0;
+                
+                maxWidth = maxWidthToUse;
 
-			auto f = GLOBAL_MONOSPACE_FONT();
+                auto f = GLOBAL_MONOSPACE_FONT();
 
-			for (auto id : allIds)
-			{
-				if (searchTerm.isNotEmpty() && !id.displayName.contains(searchTerm))
-					continue;
+                for (auto id : allIds)
+                {
+                    if (searchTerm.isNotEmpty() && !id.displayName.contains(searchTerm))
+                        continue;
 
-				if (searchTerm == id.displayName)
-					selectedIndex = items.size();
+                    if (searchTerm == id.displayName)
+                        selectedIndex = items.size();
 
-				auto newItem = new Item(id, selectedIndex == items.size());
-				items.add(newItem);
-				addAndMakeVisible(newItem);
+                    auto newItem = new Item(id, selectedIndex == items.size());
+                    items.add(newItem);
+                    addAndMakeVisible(newItem);
 
-				maxWidth = jmax(f.getStringWidth(id.displayName) + 20, maxWidth);
-				y += ItemHeight;
-			}
+                    maxWidth = jmax(f.getStringWidth(id.displayName) + 20, maxWidth);
+                    y += ItemHeight;
+                }
 
-			setSize(maxWidth, y);
-			resized();
+                setSize(maxWidth, y);
+                resized();
+            }
 		}
 
 		OwnedArray<Item> items;

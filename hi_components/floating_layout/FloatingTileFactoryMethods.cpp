@@ -163,6 +163,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
 	registerType<FilterDragOverlay::Panel>(PopupMenuOptions::DraggableFilterPanel);
+	registerType<WaterfallComponent::Panel>(PopupMenuOptions::WavetableWaterfall);
 	registerType<MPEPanel>(PopupMenuOptions::MPEPanel);
 	
 	registerType<AhdsrEnvelope::Panel>(PopupMenuOptions::AHDSRGraph);
@@ -640,6 +641,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
 			addToPopupMenu(fm, PopupMenuOptions::TooltipPanel, "Tooltip Bar");
 			addToPopupMenu(fm, PopupMenuOptions::MidiLearnPanel, "MIDI Learn Panel");
+			addToPopupMenu(fm, PopupMenuOptions::WavetableWaterfall, "WavetableWaterfall");
 			addToPopupMenu(fm, PopupMenuOptions::MidiPlayerOverlay, "MIDI Player Overlay");
 			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 			addToPopupMenu(fm, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
@@ -665,7 +667,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	m.addItem((int)PopupMenuOptions::exportAsJSON, "Export as JSON", true, false);
 	m.addItem((int)PopupMenuOptions::loadFromJSON, "Load JSON from clipboard", parent->canBeDeleted(), false);
 
-	auto popupDir = ProjectHandler::getAppDataDirectory().getChildFile("custom_popups");
+	auto popupDir = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("custom_popups");
 
 	auto fileList = popupDir.findChildFiles(File::findFiles, false, "*.json");
 	fileList.sort();
@@ -760,6 +762,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MidiLearnPanel:		parent->setNewContent(GET_PANEL_NAME(MidiLearnPanel)); break;
 	case PopupMenuOptions::MidiPlayerOverlay:	parent->setNewContent(GET_PANEL_NAME(MidiOverlayPanel)); break;
 	case PopupMenuOptions::TooltipPanel:		parent->setNewContent(GET_PANEL_NAME(TooltipPanel)); break;
+	case PopupMenuOptions::WavetableWaterfall:	parent->setNewContent(GET_PANEL_NAME(WaterfallComponent::Panel)); break;
 	case PopupMenuOptions::DspNodeList:			parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNodeList::Panel)); break;
 	case PopupMenuOptions::DspNodeParameterEditor: parent->setNewContent(GET_PANEL_NAME(scriptnode::NodePropertyPanel)); break;
     case PopupMenuOptions::DspFaustEditorPanel: parent->setNewContent(GET_PANEL_NAME(scriptnode::FaustEditorPanel)); break;

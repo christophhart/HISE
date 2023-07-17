@@ -92,6 +92,19 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 #endif
 
+/** Config: SNEX_STANDALONE_PLAYGROUND
+ 
+ Enables the playground.
+*/
+#ifndef SNEX_STANDALONE_PLAYGROUND
+#define SNEX_STANDALONE_PLAYGROUND 0
+#endif
+
+
+#ifndef SNEX_MIR_BACKEND
+#define SNEX_MIR_BACKEND 1
+#endif
+
 /** The SNEX compiler is only available on x64 builds so this preprocessor will allow compiling HISE on ARM withouth the JIT compiler. */
 #ifndef HISE_INCLUDE_SNEX_X64_CODEGEN
 #if JUCE_ARM
@@ -129,6 +142,42 @@ struct Compiler
 
 #endif
 
+#define HNODE_JIT_OPERATORS(X) \
+    X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
+    X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
+    X(openBracket,   "[")        X(closeBracket, "]")       X(double_colon, "::")   X(colon,        ":")    X(question,   "?") \
+    X(typeEquals,    "===")      X(equals,       "==")      X(assign_,       "=") \
+    X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
+    X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") X(pointer_, "->") \
+    X(minusEquals,   "-=")       X(minusminus,   "--")      X(minus,        "-") \
+    X(timesEquals,   "*=")       X(times,        "*")       X(divideEquals, "/=")   X(divide,     "/") \
+    X(moduloEquals,  "%=")       X(modulo,       "%")       X(xorEquals,    "^=")   X(bitwiseXor, "^") \
+    X(andEquals,     "&=")       X(logicalAnd,   "&&")      X(bitwiseAnd,   "&") \
+    X(orEquals,      "|=")       X(logicalOr,    "||")      X(bitwiseOr,    "|")  \
+     X(lessThanOrEqual,  "<=")  X(lessThan,   "<")  		X(destructor,   "~") \
+      X(greaterThanOrEqual, ">=")  X(greaterThan,  ">")	    X(syntax_tree_variable, "$") 
+
+#define HNODE_JIT_KEYWORDS(X) \
+    X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
+    X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
+	X(void_, "void")			X(public_, "public")	X(private_, "private") \
+	X(class_, "class")			X(for_, "for")      X(enum_, "enum") \
+	X(if_, "if")				X(else_, "else")	X(protected_, "protected") \
+	X(auto_, "auto")			X(struct_, "struct")	\
+	X(using_, "using")		    X(static_, "static")	X(break_, "break") X(continue_, "continue")			X(namespace_, "namespace") \
+	X(template_, "template")    X(typename_, "typename") X(while_, "while") \
+	X(__internal_property, "__internal_property"); X(this_, "this"); X(operator_, "operator")
+
+namespace JitTokens
+{
+#define DECLARE_HNODE_JIT_TOKEN(name, str)  static const char* const name = str;
+	HNODE_JIT_KEYWORDS(DECLARE_HNODE_JIT_TOKEN)
+		HNODE_JIT_OPERATORS(DECLARE_HNODE_JIT_TOKEN)
+		DECLARE_HNODE_JIT_TOKEN(eof, "$eof")
+	DECLARE_HNODE_JIT_TOKEN(literal, "$literal")
+	DECLARE_HNODE_JIT_TOKEN(identifier, "$identifier")
+}
+
 
 namespace snex
 {
@@ -149,15 +198,23 @@ namespace snex
             DECLARE_ID(NoSafeChecks);
 
 #if HISE_INCLUDE_SNEX
-            static StringArray getDefaultIds()
-            {
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-            }
+			struct Helpers
+			{
 
-            static StringArray getAllIds()
-            {
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-            }
+				static StringArray getDefaultIds()
+				{
+#if SNEX_MIR_BACKEND
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
+#else
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+#endif
+				}
+
+				static StringArray getAllIds()
+				{
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+				}
+			};
 #endif
         }
 
@@ -166,6 +223,30 @@ namespace snex
 }
 
 #if HISE_INCLUDE_SNEX
+
+
+
+
+#define SNEX_ASMJIT_BACKEND !SNEX_MIR_BACKEND
+
+
+#if SNEX_ASMJIT_BACKEND
+#define USE_ASMJIT_NAMESPACE using namespace asmjit;
+#define ASMJIT_ONLY(x) x
+#else
+#define USE_ASMJIT_NAMESPACE
+#define ASMJIT_ONLY(x)
+#endif
+
+
+#ifndef SNEX_INCLUDE_NMD_ASSEMBLY
+#if defined (__arm__) || defined (__arm64__)
+#define SNEX_INCLUDE_NMD_ASSEMBLY 0
+#else
+#define SNEX_INCLUDE_NMD_ASSEMBLY 1
+#endif
+#endif
+
 
 #define JIT_MEMBER_WRAPPER_0(R, C, N)					  static R N(void* o) { return static_cast<C*>(o)->N(); };
 #define JIT_MEMBER_WRAPPER_1(R, C, N, T1)				  static R N(void* o, T1 a1) { return static_cast<C*>(o)->N(a1); };
@@ -239,10 +320,12 @@ namespace snex
 #include "snex_core/snex_jit_TemplateParameter.h"
 #include "snex_core/snex_jit_Inliner.h"
 #include "snex_public/snex_jit_FunctionData.h"
+
 #include "snex_core/snex_jit_FunctionClass.h"
 #include "snex_core/snex_jit_NamespaceHandler.h"
 #include "snex_core/snex_jit_BaseScope.h"
 #include "snex_public/snex_jit_GlobalScope.h"
+#include "snex_mir/snex_MirObject.h"
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
 #include "snex_public/snex_jit_JitCompiler.h"

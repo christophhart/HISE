@@ -35,7 +35,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 using namespace Operations;
 
 void OptimizationPass::replaceWithNoop(StatementPtr s)
@@ -1262,7 +1262,10 @@ bool LoopOptimiser::unroll(BaseCompiler* c, BaseScope* s, Operations::Loop* l)
 			}
 		}
 
+        SyntaxTreeInlineData::processUpToCurrentPass(l, lp);
+        
 		replaceExpression(l, lp);
+        
 		l->parent = nullptr;
 		return true;
 
@@ -1666,6 +1669,7 @@ bool LoopVectoriser::isUnSimdableOperation(Ptr s)
 	return false;
 }
 
+#if SNEX_ASMJIT_BACKEND
 namespace AsmSubPasses
 {
 
@@ -2565,7 +2569,7 @@ AsmCleanupPass::AsmCleanupPass() :
 	addSubPass<AsmSubPasses::RemoveSwappedMovCallsToMemory>();
 	addSubPass<AsmSubPasses::RemoveDoubleMemoryWrites>();
 }
-
+#endif
 
 }
 }

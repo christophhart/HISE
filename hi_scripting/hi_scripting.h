@@ -119,10 +119,16 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingApiObjects.h"
+#include "scripting/api/ScriptModulationMatrix.h"
 #include "scripting/api/ScriptBroadcaster.h"
 #include "scripting/api/ScriptTableListModel.h"
 #include "scripting/api/ScriptingGraphics.h"
 #include "scripting/api/ScriptExpansion.h"
+
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "scripting/api/ScriptLorisManager.h"
+#endif
+
 #include "scripting/api/GlobalServer.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"

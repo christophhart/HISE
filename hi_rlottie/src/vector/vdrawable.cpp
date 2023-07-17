@@ -106,7 +106,7 @@ void VDrawable::setDashInfo(std::vector<float> &dashInfo)
     bool hasChanged = false;
 
     if (obj->mDash.size() == dashInfo.size()) {
-        for (uint i = 0; i < dashInfo.size(); ++i) {
+        for (uint32_t i = 0; i < dashInfo.size(); ++i) {
             if (!vCompare(obj->mDash[i], dashInfo[i])) {
                 hasChanged = true;
                 break;

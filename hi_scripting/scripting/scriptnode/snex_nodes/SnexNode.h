@@ -220,22 +220,29 @@ struct snex_node : public SnexSource
 		}
 #endif
 
+#if SNEX_MIR_BACKEND
+#define CALL_SNEX_VOID callVoidUncheckedWithObject
+#else
+#define CALL_SNEX_VOID callVoidUncheckedWithObject
+    
+#endif
+        
 		void resetFunc()
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ResetFunction].callVoidUncheckedWithObject();
+				f[(int)ScriptnodeCallbacks::ResetFunction].CALL_SNEX_VOID();
 		}
 
 		void process(ProcessDataDyn& data)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ProcessFunction].callVoidUncheckedWithObject(&data);
+				f[(int)ScriptnodeCallbacks::ProcessFunction].CALL_SNEX_VOID(&data);
 		}
 
 		template <typename T> void processFrame(T& d)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::ProcessFrameFunction].callVoidUncheckedWithObject(&d);
+				f[(int)ScriptnodeCallbacks::ProcessFrameFunction].CALL_SNEX_VOID(&d);
 		}
 
 		void prepare(PrepareSpecs ps)
@@ -243,13 +250,13 @@ struct snex_node : public SnexSource
 			lastSpecs = ps;
 
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::PrepareFunction].callVoidUncheckedWithObject(&lastSpecs);
+				f[(int)ScriptnodeCallbacks::PrepareFunction].CALL_SNEX_VOID(&lastSpecs);
 		}
 		
 		void handleHiseEvent(HiseEvent& e)
 		{
 			if (auto s = ScopedCallbackChecker(*this))
-				f[(int)ScriptnodeCallbacks::HandleEventFunction].callVoidUncheckedWithObject(&e);
+				f[(int)ScriptnodeCallbacks::HandleEventFunction].CALL_SNEX_VOID(&e);
 		}
 
 		bool handleModulation(double& value)
@@ -259,7 +266,7 @@ struct snex_node : public SnexSource
 				if (auto s = ScopedCallbackChecker(*this))
 				{
 					auto v = (void*)&value;
-					return f[(int)ScriptnodeCallbacks::HandleModulation - 1].callUncheckedWithObj5ect<int>(v);
+					return f[(int)ScriptnodeCallbacks::HandleModulation - 1].callUnchecked<int>(v);
 				}
 			}
 

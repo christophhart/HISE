@@ -35,7 +35,8 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
+
 
 class FunctionScope;
 
@@ -50,9 +51,7 @@ class FunctionScope;
 /** This class has a variable pool that will not exceed the lifetime of the compilation. */
 namespace Operations
 {
-
-
-	using FunctionCompiler = asmjit::X86Compiler;
+	using FunctionCompiler = AsmJitX86Compiler;
 
 	static FunctionCompiler& getFunctionCompiler(BaseCompiler* c);
 	static BaseScope* findClassScope(BaseScope* scope);
@@ -68,7 +67,9 @@ namespace Operations
 
 	using RegPtr = AssemblyRegister::Ptr;
 
-	static asmjit::Runtime* getRuntime(BaseCompiler* c);
+#if SNEX_ASMJIT_BACKEND
+	static AsmJitRuntime* getRuntime(BaseCompiler* c);
+#endif
 
 	using Location = ParserHelpers::CodeLocation;
 	using TokenType = ParserHelpers::TokenType;
@@ -323,7 +324,7 @@ namespace Operations
 
 			if (currentPass == BaseCompiler::CodeGeneration && asmComment.isNotEmpty())
 			{
-				getFunctionCompiler(compiler).setInlineComment(asmComment.getCharPointer().getAddress());
+				ASMJIT_ONLY(getFunctionCompiler(compiler).setInlineComment(asmComment.getCharPointer().getAddress()));
 			}
 		}
 
@@ -567,7 +568,7 @@ namespace Operations
 	{
 		static void preallocateVariableRegistersBeforeBranching(Statement::Ptr stament, BaseCompiler* c, BaseScope* s);
 
-		virtual asmjit::Label getJumpTargetForEnd(bool getContinue) = 0;
+		virtual AsmJitLabel getJumpTargetForEnd(bool getContinue) = 0;
 
 		virtual ~ConditionalBranch() {}
 
@@ -853,7 +854,26 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 
 	juce::String toString() const override
 	{
-		return expression->toString(Operations::Statement::TextFormat::CppCode);
+		if(expressionIndex == -1)
+			return expression->toString(Operations::Statement::TextFormat::CppCode);
+		else
+		{
+            if(expression->isConstExpr())
+            {
+                auto v = expression->getConstExprValue();
+                return Types::Helpers::getCppValueString(v);
+            }
+            else
+            {
+                String s;
+                s << "$";
+                s << Types::Helpers::getTypeName(expression->getType())[0];
+                s << String(expressionIndex);
+                return s;
+            }
+            
+			
+		}
 	}
 
 	
@@ -875,20 +895,29 @@ struct InitialiserList::ExpressionChild : public InitialiserList::ChildBase
 			return true;
 		}
 
-		auto cExpression = Operations::evalConstExpr(expression);
-
-		if (cExpression->isConstExpr())
+		if (expression->currentScope != nullptr &&
+			expression->currentCompiler != nullptr &&
+			expression->currentScope->getParent() != nullptr)
 		{
-			v = cExpression->getConstExprValue();
-			return true;
+			auto cExpression = Operations::evalConstExpr(expression);
+
+			if (cExpression->isConstExpr())
+			{
+                expression = cExpression;
+                
+				v = cExpression->getConstExprValue();
+                return true;
+			}
 		}
+
 		
-		jassertfalse;
+		
 		return false;
 	}
 
-	Operations::Expression::Ptr expression;
-	VariableStorage value;
+	mutable Operations::Expression::Ptr expression;
+	mutable VariableStorage value;
+	mutable int expressionIndex = -1;
 };
 
 juce::ReferenceCountedObject* InitialiserList::getExpression(int index)
