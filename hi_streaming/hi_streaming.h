@@ -87,6 +87,15 @@ Set this to true if you add this module to your existing C++ project and don't e
 #define STANDALONE_STREAMING 1
 #endif
 
+/** Config: HISE_SAMPLER_CUBIC_INTERPOLATION
+
+Set this to true in order to use cubic interpolation for the sample playback.
+
+*/
+#ifndef HISE_SAMPLER_CUBIC_INTERPOLATION
+#define HISE_SAMPLER_CUBIC_INTERPOLATION 0
+#endif
+
 
 #include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
 #include "hi_streaming/lockfree_fifo/concurrentqueue.h"

@@ -2,7 +2,7 @@
 #if defined (__arm__) || defined (__arm64__)
   #define JUCE_ARM 1
 #else
-  #define JUCE_INTEL 1
+  #define JUCE_INTEL 0
 #endif
 
 #define ASMJIT_STATIC 1

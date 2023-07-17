@@ -116,12 +116,12 @@ public:
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
 		MenuExportFileAsStandaloneApp,
-		MenuExportFileAsPlayerLibrary,
+		MenuExportProject,
         MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
+		MenuExportWavetablesToMonolith,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
-		
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -337,7 +337,9 @@ public:
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
-		static void importProject(BackendRootWindow* bpe);
+		static DialogWindowWithBackgroundThread* importProject(BackendRootWindow* bpe);
+
+		static void extractProject(BackendRootWindow* bpe, const File& newProjectRoot, const File& sourceFile);
 
         static void createRnboTemplate(BackendRootWindow* bpe);
 		static void convertSVGToPathData(BackendRootWindow* bpe);
@@ -371,7 +373,7 @@ public:
 		static void showMainMenu(BackendRootWindow * bpe);
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendRootWindow * bpe);
-		static void exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe);
+		static void exportHiseProject(BackendRootWindow * bpe);
 		static Result exportInstrumentExpansion(BackendProcessor* bp);
 		static Result createSampleArchive(BackendProcessor* bp);
 
@@ -395,6 +397,7 @@ public:
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
+		static void exportWavetablesToMonolith(BackendRootWindow* bpe);
 		static void importArchivedSamples(BackendRootWindow * bpe);
 		static void checkCyclicReferences(BackendRootWindow * bpe);
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);

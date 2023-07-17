@@ -1239,7 +1239,6 @@ void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND
-
 	if (CompileExporter::isExportingFromCommandLine())
     {
         std::cout << errorMessage;

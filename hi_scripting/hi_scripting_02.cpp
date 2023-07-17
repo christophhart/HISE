@@ -32,38 +32,10 @@
 
 /* HI Module */
 
-#include "JuceHeader.h"
+//#include "JuceHeader.h"
 
-#include <regex>
+//#include <regex>
 
-
-
-#include "scripting/api/XmlApi.cpp"
-
-#include "scripting/engine/DebugHelpers.cpp"
-
-
-
-#include "scripting/api/ScriptComponentWrappers.cpp"
-#include "scripting/components/ScriptingContentComponent.cpp"
-#include "scripting/api/ScriptComponentEditBroadcaster.cpp"
-
-
-#if USE_BACKEND
-
-#include "scripting/components/ScriptingPanelTypes.cpp"
-#include "scripting/components/ScriptBroadcasterMap.h"
-#include "scripting/components/ScriptBroadcasterMapItems.cpp"
-#include "scripting/components/ScriptBroadcasterMap.cpp"
-
-#include "scripting/components/PopupEditors.cpp"
-#include "scripting/components/AutoCompletePopup.cpp"
-#include "scripting/components/ScriptingCodeEditorHelpers.cpp"
-#include "scripting/components/ScriptingCodeEditor.cpp"
-#include "scripting/components/ScriptingContentOverlay.cpp"
-#include "scripting/components/ScriptingEditor.cpp"
-
-#endif 
 
 
 

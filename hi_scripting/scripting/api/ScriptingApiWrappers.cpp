@@ -135,6 +135,8 @@ struct ScriptingApi::Content::Wrapper
 	static var isMouseDown(const var::NativeFunctionArgs& args);
 	static var getComponentUnderMouse(const var::NativeFunctionArgs& args);
 	static var callAfterDelay(const var::NativeFunctionArgs& args);
+	static var refreshDragImage(const var::NativeFunctionArgs& args);
+	static var getComponentUnderDrag(const var::NativeFunctionArgs& args);
 
 };
 
@@ -1061,6 +1063,25 @@ juce::var ScriptingApi::Content::Wrapper::callAfterDelay(const var::NativeFuncti
 	return var();
 }
 
+juce::var ScriptingApi::Content::Wrapper::refreshDragImage(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->refreshDragImage();
+	}
+
+	return var();
+}
+
+juce::var ScriptingApi::Content::Wrapper::getComponentUnderDrag(const var::NativeFunctionArgs& args)
+{
+	if (auto thisObject = GET_OBJECT(Content))
+	{
+		return thisObject->getComponentUnderDrag();
+	}
+
+	return var();
+}
 
 
 #undef GET_OBJECT

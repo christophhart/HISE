@@ -98,6 +98,62 @@ private:
 
 class ModulatorSynthChain;
 
+#define DECLARE_ID(x) static const Identifier x(#x);
+
+namespace UserPresetIds
+{
+	DECLARE_ID(MPEData);
+	DECLARE_ID(MidiAutomation);
+	DECLARE_ID(Modules);
+	DECLARE_ID(Preset);
+	DECLARE_ID(CustomJSON);
+	DECLARE_ID(AdditionalStates);
+}
+
+#undef DECLARE_ID
+
+class UserPresetStateManager: public RestorableObject
+{
+public:
+
+	using Ptr = WeakReference<UserPresetStateManager>;
+	using List = Array<Ptr>;
+
+	virtual ~UserPresetStateManager() {};
+
+	virtual Identifier getUserPresetStateId() const = 0;
+
+	/** Override this and reset the state (this is called when the user preset doesn't contain a matching child. */
+	virtual void resetUserPresetState() = 0;
+
+	bool restoreUserPresetState(const ValueTree& root)
+	{
+		auto r = root.getChildWithName(getUserPresetStateId());
+
+		if (r.isValid())
+			restoreFromValueTree(r);
+		else
+			resetUserPresetState();
+
+		return true;
+	}
+
+	void saveUserPresetState(ValueTree& presetRoot) const
+	{
+		auto v = exportAsValueTree();
+
+		if (!v.isValid())
+			return;
+
+		jassert(v.getType() == getUserPresetStateId());
+		presetRoot.addChild(v, -1, nullptr);
+	}
+
+private:
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetStateManager);
+};
+
 class PoolCollection;
 
 /** The base class for handling external resources. 
@@ -510,11 +566,7 @@ public:
 
 	static StringArray checkRequiredExpansions(MainController* mc, ValueTree& preset);
 
-	static ValueTree createModuleStateTree(ModulatorSynthChain* chain);
-
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
-
-	static void restoreModuleStates(ModulatorSynthChain* chain, const ValueTree& v);
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
@@ -537,7 +589,49 @@ public:
 
 	static void extractDirectory(ValueTree directory, File parent);
 
+	
+};
 
+struct ModuleStateManager : public UserPresetStateManager,
+							public ControlledObject
+{
+	ModuleStateManager(MainController* mc) :
+		ControlledObject(mc)
+	{};
+
+	struct StoredModuleData : public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<StoredModuleData>;
+		using List = ReferenceCountedArray<StoredModuleData>;
+
+		StoredModuleData(var moduleId, Processor* pToRestore);
+
+		void stripValueTree(ValueTree& v);
+
+		void restoreValueTree(ValueTree& v);
+
+		String id;
+
+		WeakReference<Processor> p;
+		NamedValueSet removedProperties;
+		Array<ValueTree> removedChildElements;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(StoredModuleData);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StoredModuleData);
+	};
+
+	StoredModuleData** begin() { return modules.begin(); }
+	StoredModuleData** end() { return modules.end(); }
+
+	Identifier getUserPresetStateId() const override { return UserPresetIds::Modules; }
+
+	ValueTree exportAsValueTree() const override;
+
+	StoredModuleData::List modules;
+
+	void resetUserPresetState() override {};
+
+	void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
 };
 
 /** A helper class which provides loading and saving Processors to files and clipboard. 

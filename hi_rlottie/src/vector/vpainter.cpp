@@ -66,7 +66,7 @@ static void fillRect(const VRect &r, VSpanData *data)
         int i = 0;
         while (i < n) {
             spans[i].x = short(x1);
-            spans[i].len = ushort(x2 - x1);
+            spans[i].len = uint16_t(x2 - x1);
             spans[i].y = short(y + i);
             spans[i].coverage = 255;
             ++i;

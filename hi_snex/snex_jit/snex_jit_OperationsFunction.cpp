@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void Operations::Function::process(BaseCompiler* compiler, BaseScope* scope)
@@ -566,6 +566,8 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 	auto compiler = f.compiler;
 	auto scope = f.scope;
 
+	ignoreUnused(compiler);
+
 	hasObjectPtr = scope->getParent()->getScopeType() == BaseScope::Class && !f.data.returnType.isStatic();
 
 #if !SNEX_MIR_BACKEND
@@ -592,6 +594,7 @@ void Operations::Function::compileSyntaxTree(FunctionCompileData& f)
 
 void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f)
 {
+#if SNEX_ASMJIT_BACKEND
 	auto fc = as<FunctionCall>(f.statementToCompile);
 
 	jassert(fc != nullptr);
@@ -631,6 +634,7 @@ void Operations::Function::compileAsmInlinerBeforeCodegen(FunctionCompileData& f
 	auto ok = acg.emitFunctionCall(returnReg, f.data, objectPtr, parameters);
 
 	location.test(ok);
+#endif
 }
 
 void FunctionCall::resolveBaseClassMethods()
@@ -947,6 +951,7 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 		throwError(s);
 	}
 
+#if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::RegisterAllocation)
 	{
 		if (isVectorOpFunction())
@@ -973,17 +978,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 						continue;
 					}
 				}
-
-#if 0
-				if (auto subReg = getSubRegister(i))
-				{
-					if (!subReg->getVariableId())
-					{
-						parameterRegs.add(subReg);
-						continue;
-					}
-				}
-#endif
 
 				tryToResolveType(compiler);
 
@@ -1024,7 +1018,6 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 			}
 		}
 	}
-
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{
 		if (isVectorOpFunction())
@@ -1170,15 +1163,8 @@ void Operations::FunctionCall::process(BaseCompiler* compiler, BaseScope* scope)
 
 		if (!r.wasOk())
 			location.throwError(r.getErrorMessage());
-
-#if REMOVE_REUSABLE_REG
-		for (int i = 0; i < parameterRegs.size(); i++)
-		{
-			if (!function.args[i].isReference())
-				parameterRegs[i]->flagForReuse();
-		}
-#endif
 	}
+#endif
 }
 
 
@@ -1511,6 +1497,7 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 			{
 				if (auto byteOffset = st->getMemberOffset(bindex))
 				{
+#if SNEX_ASMJIT_BACKEND
 					auto asg = CREATE_ASM_COMPILER(obj->reg->getType());
 					AsmCodeGenerator::TemporaryRegister tempReg(asg, scope, obj->reg->getTypeInfo());
 
@@ -1526,6 +1513,9 @@ void Operations::FunctionCall::adjustBaseClassPointer(BaseCompiler* compiler, Ba
 					}
 
 					obj->reg = tempReg.tempReg;
+#else
+					jassertfalse;
+#endif
 				}
 			}
 		}

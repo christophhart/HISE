@@ -72,6 +72,7 @@ MainController::MainController() :
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
 	lockfreeDispatcher(this),
+	moduleStateManager(this),
 	userPresetHandler(this),
 	codeHandler(this),
 	processorChangeHandler(this),
@@ -83,6 +84,10 @@ MainController::MainController() :
 	xyzPool(new MultiChannelAudioBuffer::XYZPool())
 {
 	PresetHandler::setCurrentMainController(this);
+
+	getUserPresetHandler().addStateManager(getMacroManager().getMidiControlAutomationHandler());
+	getUserPresetHandler().addStateManager(&getMacroManager().getMidiControlAutomationHandler()->getMPEData());
+	getUserPresetHandler().addStateManager(&moduleStateManager);
 
 	globalFont = GLOBAL_FONT();
 
@@ -733,6 +738,11 @@ void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std:
 int MainController::getPreviewBufferPosition() const
 {
 	return previewBufferIndex;
+}
+
+int MainController::getPreviewBufferSize() const
+{
+	return previewBuffer.getNumSamples();
 }
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
@@ -1948,6 +1958,66 @@ hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainControlle
 	return nullptr;
 }
 
+void MainController::UserPresetHandler::addStateManager(UserPresetStateManager* newManager)
+{
+	stateManagers.addIfNotAlreadyThere(newManager);
+}
+
+void MainController::UserPresetHandler::removeStateManager(UserPresetStateManager* managerToRemove)
+{
+	stateManagers.removeAllInstancesOf(managerToRemove);
+}
+
+bool MainController::UserPresetHandler::restoreStateManager(const ValueTree& newPreset, const Identifier& id)
+{
+	auto unconst = const_cast<ValueTree*>(&newPreset);
+	return processStateManager(false, *unconst, id);
+}
+
+bool MainController::UserPresetHandler::saveStateManager(ValueTree& newPreset, const Identifier& id)
+{
+	return processStateManager(true, newPreset, id);
+}
+
+bool MainController::UserPresetHandler::processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId)
+{
+	for (int i = 0; i < stateManagers.size(); i++)
+	{
+		if (stateManagers[i] == nullptr)
+			stateManagers.remove(i--);
+	}
+
+	jassert(presetRoot.getType() == Identifier("Preset") || presetRoot.getType() == Identifier("ControlData"));
+
+	static const Array<Identifier> specialStates =
+	{
+		UserPresetIds::MidiAutomation,
+		UserPresetIds::MPEData,
+		UserPresetIds::CustomJSON,
+		UserPresetIds::Modules
+	};
+
+	auto wantsSpecialState = stateId != UserPresetIds::AdditionalStates;
+
+	for (auto s : stateManagers)
+	{
+		auto shouldProcess = wantsSpecialState ? 
+			s->getUserPresetStateId() == stateId :
+			!specialStates.contains(s->getUserPresetStateId());
+
+		if (shouldProcess)
+		{
+			if (shouldSave)
+				s->saveUserPresetState(presetRoot);
+			else
+				s->restoreUserPresetState(presetRoot);
+		}
+	}
+	
+
+	return true;
+}
+
 void MainController::UserPresetHandler::initDefaultPresetManager(const ValueTree& defaultState)
 {
 	if (defaultPresetManager == nullptr)
@@ -1956,131 +2026,6 @@ void MainController::UserPresetHandler::initDefaultPresetManager(const ValueTree
 	defaultPresetManager->init(defaultState);
 }
 
-void removePropertyRecursive(NamedValueSet& removedProperties, String currentPath, ValueTree v, const Identifier& id)
-{
-	if (!currentPath.isEmpty())
-		currentPath << ":";
-
-	currentPath << v.getType();
-
-	if (v.hasProperty(id))
-	{
-		auto value = v.getProperty(id);
-		v.removeProperty(id, nullptr);
-		removedProperties.set(Identifier(currentPath + ":" + id.toString()), value);
-	}
-	
-	for (auto c : v)
-		removePropertyRecursive(removedProperties, currentPath, c, id);
-}
-
-MainController::UserPresetHandler::StoredModuleData::StoredModuleData(var moduleId, Processor* pToRestore) :
-	p(pToRestore)
-{
-	if (moduleId.isString())
-		id = moduleId.toString();
-	else
-	{
-		id = moduleId["ID"].toString();
-
-		auto rp = moduleId["RemovedProperties"];
-		auto rc = moduleId["RemovedChildElements"];
-
-		if (rp.isArray() || rc.isArray())
-		{
-			auto v = p->exportAsValueTree();
-
-			if (rp.isArray())
-			{
-				for (auto propertyToRemove : *rp.getArray())
-				{
-					auto pid_ = propertyToRemove.toString();
-					if (pid_.isNotEmpty())
-					{
-						Identifier pid(pid_);
-						removePropertyRecursive(removedProperties, {}, v, pid);
-					}
-				}
-			}
-			
-			if (rc.isArray())
-			{
-				for (auto childToRemove : *rc.getArray())
-				{
-					auto pid_ = childToRemove.toString();
-
-					if (pid_.isNotEmpty())
-					{
-						Identifier pid(pid_);
-						removedChildElements.add(v.getChildWithName(pid).createCopy());
-					}
-				}
-			}
-
-			removedProperties.remove(Identifier("Processor:ID"));
-		}
-	}
-}
-
-void restorePropertiesRecursive(ValueTree v, StringArray path, const var& value, bool restore)
-{
-	if (path.size() == 2)
-	{
-		if (Identifier(path[0]) == v.getType())
-		{
-			auto id = Identifier(path[1]);
-
-			if (restore)
-				v.setProperty(id, value, nullptr);
-			else
-				v.removeProperty(id, nullptr);
-		}
-	}
-	else
-	{
-		path.remove(0);
-
-		for (auto c : v)
-			restorePropertiesRecursive(c, path, value, restore);
-	}
-}
-
-void MainController::UserPresetHandler::StoredModuleData::stripValueTree(ValueTree& v)
-{
-	for (const auto& rp : removedProperties)
-	{
-		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
-		
-		restorePropertiesRecursive(v, path, {}, false);
-	}
-		
-
-	for (const auto& rc : removedChildElements)
-	{
-		auto cToRemove = v.getChildWithName(rc.getType());
-
-		if (cToRemove.isValid())
-			v.removeChild(cToRemove, nullptr);
-	}
-}
-
-
-
-void MainController::UserPresetHandler::StoredModuleData::restoreValueTree(ValueTree& v)
-{
-	stripValueTree(v);
-
-	for (const auto& rp : removedProperties)
-	{
-		auto path = StringArray::fromTokens(rp.name.toString(), ":", "\"");
-		auto value = rp.value;
-		restorePropertiesRecursive(v, path, value, true);
-	}
-		
-
-	for (const auto& rc : removedChildElements)
-		v.addChild(rc.createCopy(), -1, nullptr);
-}
 
 
 
@@ -2092,8 +2037,6 @@ MainController::UserPresetHandler::DefaultPresetManager::DefaultPresetManager(Us
 
 void MainController::UserPresetHandler::DefaultPresetManager::init(const ValueTree& v)
 {
-	
-
 	auto mc = getMainController();
 	auto defaultValue = mc->getCurrentFileHandler().getDefaultUserPreset();
 
@@ -2171,6 +2114,40 @@ juce::var MainController::UserPresetHandler::DefaultPresetManager::getDefaultVal
 	}
 
 	return {};
+}
+
+MainController::UserPresetHandler::CustomStateManager::CustomStateManager(UserPresetHandler& parent_) :
+	parent(parent_)
+{
+	parent.addStateManager(this);
+}
+
+void MainController::UserPresetHandler::CustomStateManager::restoreFromValueTree(const ValueTree &v)
+{
+	auto obj = ValueTreeConverters::convertValueTreeToDynamicObject(v);
+
+	if (obj.isObject() || obj.isArray())
+	{
+		for (auto l : parent.listeners)
+		{
+			l->loadCustomUserPreset(obj);
+		}
+	}
+}
+
+juce::ValueTree MainController::UserPresetHandler::CustomStateManager::exportAsValueTree() const
+{
+	for (auto l : parent.listeners)
+	{
+		auto obj = l->saveCustomUserPreset("Unused");
+
+		if (obj.isObject())
+			return ValueTreeConverters::convertDynamicObjectToValueTree(obj, getUserPresetStateId());
+	}
+
+	return ValueTree(getUserPresetStateId());
+
+
 }
 
 } // namespace hise

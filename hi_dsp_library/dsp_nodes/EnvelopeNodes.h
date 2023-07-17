@@ -1110,15 +1110,14 @@ template <int NV> struct silent_killer: public voice_manager_base,
 		
 	}
 
+	
+
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
 		auto& s = state.get();
 
-		if (active && s && 
-			activeEvents.isEmpty() &&
-			d.isSilent())
+		if (active && !s && d.isSilent())
 		{
-			s = false;
 			p->sendVoiceResetMessage(false);
 		}
 	}
@@ -1126,12 +1125,9 @@ template <int NV> struct silent_killer: public voice_manager_base,
 	void handleHiseEvent(HiseEvent& e)
 	{
 		if (e.isNoteOn())
-		{
-			activeEvents.insertWithoutSearch(e.getEventId());
 			state.get() = true;
-		}
 		if (e.isNoteOff())
-			activeEvents.remove(e.getEventId());
+			state.get() = false;
 	}
 	
 	void setThreshold(double gainDb)
@@ -1161,7 +1157,6 @@ template <int NV> struct silent_killer: public voice_manager_base,
 		}
 	}
 
-	hise::UnorderedStack<int16, NUM_POLYPHONIC_VOICES> activeEvents;
 	PolyData<bool, NumVoices> state;
 	bool isEmpty = false;
 	bool active = false;

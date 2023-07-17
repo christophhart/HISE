@@ -233,7 +233,7 @@ struct CompressionHelpers
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */
-	static AudioSampleBuffer loadFile(const File& f, double& speed);;
+	static AudioSampleBuffer loadFile(const File& f, double& speed, double* sampleRatePtr=nullptr);;
 
 	static float getFLACRatio(const File& f, double& speed);
 
@@ -381,6 +381,8 @@ struct HlacArchiver
 		EndOfArchive,
 		BeginHeaderFile,
 		EndHeaderFile,
+		BeginAdditionalFile,
+		EndAdditionalFile,
 		numFlags
 	};
 
@@ -388,6 +390,7 @@ struct HlacArchiver
 	{
 		Array<File> fileList;
 		File optionalHeaderFile;
+		Array<File> additionalFiles;
 		File targetFile;
 		String metadataJSON;
 		int64 partSize = -1;

@@ -557,6 +557,9 @@ namespace ScriptingObjects
 		/** Kills all voices and calls the given function on the sample loading thread. */
 		bool killVoicesAndCall(var loadingFunction);
 
+		/** Spawns a OS process and executes it with the given command line arguments. */
+		void runProcess(var command, var args, var logFunction);
+
 		/** Set a progress for this task. */
 		void setProgress(double p);
 
@@ -609,6 +612,27 @@ namespace ScriptingObjects
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		struct ChildProcessData
+		{
+			ChildProcessData(ScriptBackgroundTask& parent_, const String& command_, const var& args_, const var& pf);
+
+			void run();
+
+		private:
+
+			void callLog(var* a);
+
+			ScriptBackgroundTask& parent;
+			juce::ChildProcess childProcess;
+			WeakCallbackHolder processLogFunction;
+			StringArray args;
+		};
+
+		ScopedPointer<ChildProcessData> childProcessData;
+		
+
+
 
         bool realtimeSafe = true;
         

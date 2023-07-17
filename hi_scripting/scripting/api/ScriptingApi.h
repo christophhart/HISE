@@ -457,6 +457,9 @@ public:
 		/** Loads a file and returns its content as array of Buffers. */
 		var loadAudioFileIntoBufferArray(String audioFileReference);
 
+		/** Returns the list of wavetables of the current expansion (or factory content). */
+		var getWavetableList();
+
 		/** Loads an image into the pool. You can use a wildcard to load multiple images at once. */
 		void loadImageIntoPool(const String& id);
 
@@ -576,6 +579,9 @@ public:
 
 		/** Creates an object that can listen to transport events. */
 		var createTransportHandler();
+
+		/** Creates a modulation matrix object that handles dynamic modulation using the given Global Modulator Container as source. */
+		var createModulationMatrix(String containerId);
 
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
@@ -1175,6 +1181,9 @@ public:
 
 		/** Returns true if the sustain pedal is pressed. */
 		bool isSustainPedalDown() const { return sustainState; }
+
+		/** Use a uniform voice index for the given container. */
+		void setUseUniformVoiceHandler(String containerId, bool shouldUseUniformVoiceHandling);
 
 		// ============================================================================================================
 

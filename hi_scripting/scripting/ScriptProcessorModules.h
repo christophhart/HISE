@@ -125,10 +125,6 @@ public:
 		return nullptr;
 	}
 
-	MainController::UserPresetHandler::StoredModuleData::List& getListOfModuleIds() {
-		return getMainController()->getUserPresetHandler().getStoredModuleData();
-	}
-
 	ScriptingApi::Server::WeakPtr getServerObject() { return serverObject; }
 
 private:

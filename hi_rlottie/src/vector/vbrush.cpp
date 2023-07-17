@@ -43,7 +43,7 @@ VBrush::VBrush(const VColor &color) : mType(VBrush::Type::Solid), mColor(color)
 {
 }
 
-VBrush::VBrush(uchar r, uchar g, uchar b, uchar a)
+VBrush::VBrush(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
     : mType(VBrush::Type::Solid), mColor(r, g, b, a)
 
 {

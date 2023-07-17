@@ -43,7 +43,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 
 void FunctionData::setDefaultParameter(const Identifier& s, const Inliner::Func& expressionBuilder)
@@ -221,7 +221,7 @@ String FunctionData::createAssembly() const
 	if(numBytes != 0)
 	{
 		auto bytePtr = (uint8*)function;
-		int numToDo = numBytes;
+		int numToDo = (int)numBytes;
 
 		StringArray lines;
 
@@ -259,9 +259,9 @@ String FunctionData::createAssembly() const
 				break;
 			}
 
-			bytePos += instructionLength;
-			bytePtr += instructionLength;
-			numToDo -= instructionLength;
+			bytePos += (int)instructionLength;
+			bytePtr += (int)instructionLength;
+			numToDo -= (int)instructionLength;
 		}
 
 		return lines.joinIntoString("\n");
@@ -513,7 +513,7 @@ struct VariadicCallHelpers
 #if JUCE_LINUX
 #define variadic_call static
 #else
-#define variadic_call static forcedinline
+#define variadic_call static
 #endif
 
 	template <typename T> static constexpr bool isDynamic()

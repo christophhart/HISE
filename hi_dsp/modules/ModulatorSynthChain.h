@@ -62,6 +62,25 @@ private:
 	Array<FactoryType::ProcessorEntry> forbiddenModulators;
 };
 
+class SynthGroupFXConstrainer : public FactoryType::Constrainer
+{
+public:
+
+    SynthGroupFXConstrainer() = default;
+
+    String getDescription() const override { return "Only Polyphonic FX"; }
+
+    bool allowType(const Identifier &typeName) override
+    {
+        auto isPoly = typeName.toString().toLowerCase().contains("poly");
+        
+        // just trying to get through the day...
+        isPoly |= (typeName == Identifier("StereoFX"));
+        
+        return isPoly;
+    }
+};
+
 class SynthGroupConstrainer : public FactoryType::Constrainer
 {
 public:
@@ -229,7 +248,13 @@ public:
 
 	HiseEvent::ChannelFilterData* getActiveChannelData() { return &activeChannels; }
 
+	void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler) override;
+
+    bool isUniformVoiceHandlerRoot() const { return ownedUniformVoiceHandler != nullptr; };
+	
 private:
+
+	ScopedPointer<UniformVoiceHandler> ownedUniformVoiceHandler;
 
 	HiseEvent::ChannelFilterData activeChannels;
 	ModulatorSynthChainHandler handler;

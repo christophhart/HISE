@@ -119,6 +119,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingApiObjects.h"
+#include "scripting/api/ScriptModulationMatrix.h"
 #include "scripting/api/ScriptBroadcaster.h"
 #include "scripting/api/ScriptTableListModel.h"
 #include "scripting/api/ScriptingGraphics.h"

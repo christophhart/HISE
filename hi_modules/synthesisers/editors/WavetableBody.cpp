@@ -24,6 +24,8 @@ namespace hise { using namespace juce;
 #include "WavetableBody.h"
 
 
+
+
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 //[/MiscUserDefs]
 
@@ -33,9 +35,6 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
-
-    addAndMakeVisible (waveTableDisplay = new WaveformComponent (dynamic_cast<WavetableSynth*>(getProcessor())));
-    waveTableDisplay->setName ("new component");
 
     addAndMakeVisible (fadeTimeLabel = new Label ("new label",
                                                   TRANS("Fade Time")));
@@ -79,14 +78,17 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
     fadeTimeEditor->addListener (this);
 
-    addAndMakeVisible (component = new SliderPack (dynamic_cast<WavetableSynth*>(getProcessor())->getSliderPackUnchecked(0)));
-    component->setName ("new component");
-
     addAndMakeVisible (hiqButton = new HiToggleButton ("HQ Mode"));
     hiqButton->setTooltip (TRANS("Enables HQ rendering mode (more CPU intensive)"));
     hiqButton->setButtonText (TRANS("HQ"));
     hiqButton->addListener (this);
     hiqButton->setColour (ToggleButton::textColourId, Colours::white);
+
+	addAndMakeVisible(mipmapButton = new HiToggleButton("Refresh Mipmap"));
+	mipmapButton->setTooltip(TRANS("Updates the mipmap sound when the pitch modulation goes outside the frequency range to avoid aliasing"));
+	mipmapButton->setButtonText(TRANS("Refresh Mipmap"));
+	mipmapButton->addListener(this);
+	mipmapButton->setColour(ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (voiceAmountLabel2 = new Label ("new label",
                                                       TRANS("Gain Values")));
@@ -96,9 +98,6 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     voiceAmountLabel2->setColour (Label::textColourId, Colours::white);
     voiceAmountLabel2->setColour (TextEditor::textColourId, Colours::black);
     voiceAmountLabel2->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
-    addAndMakeVisible (modMeter = new VuMeter());
-    modMeter->setName ("new component");
 
     addAndMakeVisible (voiceAmountLabel3 = new Label ("new label",
                                                       TRANS("Wavetable Preview\n")));
@@ -116,6 +115,10 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     wavetableSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     wavetableSelector->addListener (this);
 
+	addAndMakeVisible(tableSlider = new HiSlider("Table Index"));
+	tableSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	tableSlider->setup(getProcessor(), WavetableSynth::TableIndexValue, "Table Index");
+	tableSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
     //[UserPreSize]
 
@@ -125,26 +128,40 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
     fadeTimeEditor->setFont (GLOBAL_FONT());
 
 	hiqButton->setup(getProcessor(), WavetableSynth::HqMode, "HQ");
+	mipmapButton->setup(getProcessor(), WavetableSynth::RefreshMipmap, "Refresh Mipmap");
 
 	wavetableSelector->setup(getProcessor(), WavetableSynth::LoadedBankIndex, "Loaded Wavetable");
 
-	modMeter->setType(VuMeter::MonoHorizontal);
-
-	modMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
-	modMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
-	modMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
+	WeakReference<Processor> owner = getProcessor();
 
 	wavetableSelector->addItemList(dynamic_cast<WavetableSynth*>(getProcessor())->getWavetableList(), 1);
 
-	startTimer(30);
+	auto wv = new WaterfallComponent(getProcessor()->getMainController(), nullptr);
 
+	wv->displayDataFunction = [owner]()
+	{
+		WaterfallComponent::DisplayData d;
 
+		if (owner.get() != nullptr)
+		{
+			auto ws = dynamic_cast<WavetableSynth*>(owner.get());
+
+			d.sound = dynamic_cast<WavetableSound*>(ws->getSound(0));
+			d.modValue = ws->getDisplayTableValue();
+		}
+		
+		return d;
+	};
+
+	addAndMakeVisible(waterfall = wv);
+
+	
 
     //[/UserPreSize]
 
 	
 
-    setSize (800, 300);
+    setSize (800, 250);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -158,16 +175,14 @@ WavetableBody::~WavetableBody()
     //[Destructor_pre]. You can add your own custom destruction code here..
     //[/Destructor_pre]
 
-    waveTableDisplay = nullptr;
     fadeTimeLabel = nullptr;
     voiceAmountLabel = nullptr;
     voiceAmountEditor = nullptr;
     fadeTimeEditor = nullptr;
-    component = nullptr;
     hiqButton = nullptr;
     voiceAmountLabel2 = nullptr;
-    modMeter = nullptr;
     voiceAmountLabel3 = nullptr;
+	tableSlider = nullptr;
     wavetableSelector = nullptr;
 
 
@@ -178,33 +193,7 @@ WavetableBody::~WavetableBody()
 //==============================================================================
 void WavetableBody::paint (Graphics& g)
 {
-    //[UserPrePaint] Add your own custom painting code here..
-    //[/UserPrePaint]
-
-    {
-        int x = 16, y = 0, width = getWidth() - 32, height = getHeight() - 16;
-        Colour strokeColour = Colour (0x23ffffff);
-        //[UserPaintCustomArguments] Customize the painting arguments here..
-        //[/UserPaintCustomArguments]
-        g.setColour (strokeColour);
-        g.drawRect (x, y, width, height, 1);
-
-    }
-
-    {
-        int x = getWidth() - 24 - 200, y = 4, width = 200, height = 30;
-        String text (TRANS("WAVETABLE"));
-        Colour fillColour = Colour (0x52ffffff);
-        //[UserPaintCustomArguments] Customize the painting arguments here..
-        //[/UserPaintCustomArguments]
-        g.setColour (fillColour);
-        g.setFont (Font ("Arial", 24.00f, Font::plain).withTypefaceStyle ("Bold"));
-        g.drawText (text, x, y, width, height,
-                    Justification::centredRight, true);
-    }
-
-    //[UserPaint] Add your own custom painting code here..
-    //[/UserPaint]
+    
 }
 
 void WavetableBody::resized()
@@ -212,17 +201,47 @@ void WavetableBody::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    waveTableDisplay->setBounds (31, 44, getWidth() - 466, 165);
+	auto b = getLocalBounds().withSizeKeepingCentre(600, getHeight() - 30);
+
+	auto leftTab = b.removeFromLeft(128);
+	constexpr int Margin = 10;
+
+	wavetableSelector->setBounds(leftTab.removeFromTop(28)); leftTab.removeFromTop(Margin);
+	tableSlider->setBounds(leftTab.removeFromTop(48)); leftTab.removeFromTop(Margin);
+	hiqButton->setBounds(leftTab.removeFromTop(28)); leftTab.removeFromTop(Margin);
+
+	auto t = leftTab.removeFromTop(24);
+
+	fadeTimeLabel->setBounds(t.removeFromLeft(64));
+	voiceAmountLabel->setBounds(t.removeFromLeft(64));
+
+	
+
+	auto l = leftTab.removeFromTop(16);
+
+	fadeTimeEditor->setBounds(l.removeFromLeft(64));
+	voiceAmountEditor->setBounds(l.removeFromLeft(64));
+
+	leftTab.removeFromTop(Margin);
+
+	mipmapButton->setBounds(leftTab.removeFromTop(28));
+
+	b.removeFromLeft(Margin);
+
+	waterfall->setBounds(b);
+
+#if 0
+    waterfall->setBounds (31, 44, getWidth() - 466, 165);
     fadeTimeLabel->setBounds (getWidth() - 271 - 79, 237, 79, 24);
     voiceAmountLabel->setBounds (getWidth() - 347 - 79, 238, 79, 24);
     voiceAmountEditor->setBounds (getWidth() - 353 - 68, 256, 68, 16);
     fadeTimeEditor->setBounds (getWidth() - 294 - 51, 256, 51, 16);
-    component->setBounds (getWidth() - 38 - 384, 43, 384, 165);
     hiqButton->setBounds (getWidth() - 149 - 128, 244, 128, 32);
     voiceAmountLabel2->setBounds ((getWidth() - 38 - 384) + 0, 18, 79, 24);
-    modMeter->setBounds ((getWidth() - 38 - 384) + 0, 211, 384, 24);
+	tableSlider->setBounds(getWidth() - 294, 44, 128, 32);
     voiceAmountLabel3->setBounds (31 + 0, 17, 136, 24);
     wavetableSelector->setBounds (31 + 0, 211, getWidth() - 466, 24);
+#endif
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }

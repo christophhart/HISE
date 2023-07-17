@@ -177,6 +177,23 @@ class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionList
 {
 public:
 	
+	struct ModulationPopupData: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<ModulationPopupData>;
+
+		operator bool() const noexcept
+		{
+			return modulationId.isNotEmpty();
+		}
+
+		String modulationId;
+		StringArray sources;
+		std::function<bool(int, bool)> queryFunction;
+		std::function<void(int, bool)> toggleFunction;
+		std::function<void(double)> valueCallback;
+		std::function<void(String)> editCallback;
+	};
+
 	class UndoableControlEvent: public UndoableAction
 	{
 	public:
@@ -276,6 +293,11 @@ public:
 	
 	int getParameter() const { return parameter; };
 
+	void setModulationData(ModulationPopupData::Ptr modData)
+	{
+		modulationData = modData;
+	}
+
 protected:
 
 	/** checks if the macro learn mode is active.
@@ -302,6 +324,8 @@ protected:
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	ModulationPopupData::Ptr modulationData;
 
 	Identifier customId;
 
@@ -551,7 +575,47 @@ private:
 };
 
 
+class SliderWithShiftTextBox : public TextEditor::Listener
+{
+public:
 
+	bool enableShiftTextInput = true;
+
+protected:
+
+	virtual ~SliderWithShiftTextBox() {};
+
+	void init()
+	{
+		
+	}
+
+	void cleanup()
+	{
+		inputLabel = nullptr;
+	}
+
+	virtual void onTextValueChange(double newValue)
+	{
+		asSlider()->setValue(newValue, sendNotificationAsync);
+	}
+
+	void updateValueFromLabel(bool updateValue);
+
+	void textEditorFocusLost(TextEditor&) override;
+
+	void textEditorReturnKeyPressed(TextEditor&) override;
+
+	void textEditorEscapeKeyPressed(TextEditor&) override;
+
+	bool onShiftClick(const MouseEvent& e);
+
+	
+	ScopedPointer<TextEditor> inputLabel;
+
+	Slider* asSlider() { return dynamic_cast<Slider*>(this); }
+	const Slider* asSlider() const { return dynamic_cast<const Slider*>(this); }
+};
 
 /** A custom Slider class that automatically sets up its properties according to the specified mode.
 *
@@ -559,10 +623,10 @@ private:
 *	and its range, skew factor and suffix are specified.
 */
 class HiSlider: public juce::Slider,
+			    public SliderWithShiftTextBox,
 				public MacroControlledObject,
 				public SliderListener,
-				public TouchAndHoldComponent,
-				public TextEditor::Listener
+				public TouchAndHoldComponent
 {
 public:
 
@@ -638,6 +702,7 @@ public:
 
     ~HiSlider()
     {
+		cleanup();
         setLookAndFeel(nullptr);
     }
     
@@ -673,15 +738,11 @@ public:
 
 	void touchAndHold(Point<int> downPosition) override;
 
+	void onTextValueChange(double newValue) override
+	{
+		setAttributeWithUndo((float)newValue);
+	}
 	
-	void updateValueFromLabel(bool updateValue);
-	
-	void textEditorFocusLost(TextEditor&) override;
-
-	void textEditorReturnKeyPressed(TextEditor&) override;
-
-	void textEditorEscapeKeyPressed(TextEditor&) override;
-
 	void resized() override
 	{
 		Slider::resized();
@@ -822,11 +883,9 @@ public:
 		}
 	}
 
-    bool enableShiftTextInput = true;
+    
     
 private:
-
-	ScopedPointer<TextEditor> inputLabel;
 
 	String getModeSuffix()
 	{
@@ -843,7 +902,6 @@ private:
 		normRange.end = max;
 		
 		normRange.interval = stepSize != DBL_MAX ? stepSize : 0.01;
-			
 
 		if(mid != DBL_MAX)
 			setRangeSkewFactorFromMidPoint(normRange, mid);

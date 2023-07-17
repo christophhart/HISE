@@ -455,14 +455,16 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 
 		PolyHandler::ScopedVoiceSetter svs(*memory.getPolyHandler(), voiceIndex);
 
-		if (function.returnType == Types::ID::Block)
+		if (function.args[0].typeInfo.getType() == Types::ID::Block)
 		{
 			function.function = compiledF.function;
 			auto b = inputs[0].toBlock();
 
 			if (b.begin() != nullptr)
 			{
-				function.call<block*>(&b);
+				auto r = function.call<int>(&b);
+                jassert(r == 1);
+				ignoreUnused(r);
 				actualResult = VariableStorage(b);
 			}
 			else
@@ -853,6 +855,8 @@ void JitFileTestCase::parseFunctionData()
 
 			if (isProcessDataTest)
 				t = Types::ID::Block;
+            if(function.args[0].typeInfo.getType() == Types::ID::Block)
+                t = Types::ID::Block;
 
 			switch (t)
 			{

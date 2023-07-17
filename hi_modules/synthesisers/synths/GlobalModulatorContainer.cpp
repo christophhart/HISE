@@ -37,7 +37,9 @@ struct GlobalModulatorContainer::GlobalModulatorCable
     WeakReference<Modulator> mod;
     var cable;
     
-    void send(int voiceIndex)
+	
+
+    void send(int voiceIndex, bool isEnvelope=false, int startSample=0)
     {
         if (auto c = cable.getObject())
         {
@@ -52,7 +54,14 @@ struct GlobalModulatorContainer::GlobalModulatorCable
                     modValue = m->getLastConstantValue();
                 }
             }
-            else
+			else if (isEnvelope)
+			{
+				auto gs = dynamic_cast<GlobalModulatorContainer*>(mod->getParentProcessor(true));
+
+				if (auto data = gs->getEnvelopeValuesForModulator(mod, startSample, voiceIndex))
+					modValue = *data;
+			}
+			else
             {
                 if(auto m = static_cast<VoiceStartModulator*>(mod.get()))
                 {
@@ -84,7 +93,16 @@ ModulatorSynth(mc, id, numVoices)
 	// Do not expand the values, but leave them compressed for the receivers to expand them...
 	modChains[BasicChains::GainChain].setExpandToAudioRate(false);
 
-	
+	modChains[BasicChains::GainChain].setScratchBufferFunction([this](int voiceIndex, Modulator* m, float* data, int offset, int numSamples)
+	{
+		for (auto& ev : envelopeData)
+		{
+			if (ev.getModulator() == m)
+			{
+				ev.saveValues(voiceIndex, data, offset, numSamples);
+			}
+		}
+	});
 
 	for (int i = 0; i < numVoices; i++) addVoice(new GlobalModulatorContainerVoice(this));
 	addSound(new GlobalModulatorContainerSound());
@@ -119,6 +137,17 @@ void GlobalModulatorContainer::restoreFromValueTree(const ValueTree &v)
 	ModulatorSynth::restoreFromValueTree(v);
 
 	refreshList();
+}
+
+const float* GlobalModulatorContainer::getEnvelopeValuesForModulator(Processor* p, int startIndex, int voiceIndex)
+{
+	for (auto& tv : envelopeData)
+	{
+		if (tv.getModulator() == p)
+			return tv.getReadPointer(voiceIndex, startIndex);
+	}
+
+	return nullptr;
 }
 
 float GlobalModulatorContainer::getVoiceStartValueFor(const Processor * /*voiceStartModulator*/)
@@ -163,6 +192,29 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *par
 #endif
 }
 
+void GlobalModulatorContainer::sendVoiceStartCableValue(Modulator* m, const HiseEvent& e)
+{
+    if(!e.isNoteOn() || dynamic_cast<VoiceStartModulator*>(m) == nullptr)
+        return;
+        
+    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
+    
+    for(auto& vc: voiceStartCables)
+    {
+        if(vc.mod == m)
+        {
+            auto uv = static_cast<VoiceStartModulator*>(m)->getUnsavedValue();
+            
+            if (auto c = vc.cable.getObject())
+            {
+                auto cable = static_cast<scriptnode::routing::GlobalRoutingManager::Cable*>(c);
+                cable->sendValue(nullptr, uv);
+                break;
+            }
+        }
+    }
+}
+
 void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, e);
@@ -171,11 +223,6 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, const HiseEvent& e)
 	{
 		vd.saveValue(e.getNoteNumber(), voiceIndex);
 	}
-    
-    SimpleReadWriteLock::ScopedReadLock sl(cableLock);
-    
-    for(auto& vc: voiceStartCables)
-        vc.send(voiceIndex);
 }
 
 void GlobalModulatorContainer::connectToGlobalCable(Modulator* childMod, var cable, bool add)
@@ -191,14 +238,42 @@ void GlobalModulatorContainer::connectToGlobalCable(Modulator* childMod, var cab
     {
         timeVariantCables.removeAllInstancesOf(c);
         voiceStartCables.removeAllInstancesOf(c);
+		envelopeCables.removeAllInstancesOf(c);
     }
     else
     {
-        if(auto vc = dynamic_cast<VoiceStartModulator*>(childMod))
-            voiceStartCables.addIfNotAlreadyThere(c);
-        else
+		if (auto vc = dynamic_cast<VoiceStartModulator*>(childMod))
+			voiceStartCables.addIfNotAlreadyThere(c);
+		else if (auto e = dynamic_cast<EnvelopeModulator*>(childMod))
+			envelopeCables.addIfNotAlreadyThere(c);
+		else
             timeVariantCables.addIfNotAlreadyThere(c);
     }
+    
+    if(voiceStartCables.isEmpty())
+    {
+        gainChain->setPostEventFunction({});
+    }
+    else
+    {
+        gainChain->setPostEventFunction(BIND_MEMBER_FUNCTION_2(GlobalModulatorContainer::sendVoiceStartCableValue));
+    }
+}
+
+bool GlobalModulatorContainer::shouldReset(int voiceIndex)
+{
+	for (auto& e : envelopeData)
+	{
+		if (static_cast<EnvelopeModulator*>(e.getModulator())->isPlaying(voiceIndex))
+			return false;
+	}
+
+	return true;
+}
+
+void GlobalModulatorContainer::renderEnvelopeData(int voiceIndex, int startSample, int numSamples)
+{
+	
 }
 
 void GlobalModulatorContainer::preVoiceRendering(int startSample, int numThisTime)
@@ -241,6 +316,9 @@ void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPe
 	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
 	for (auto& d : timeVariantData)
+		d.prepareToPlay(samplesPerBlock);
+
+	for (auto& d : envelopeData)
 		d.prepareToPlay(samplesPerBlock);
 
 	for (int i = 0; i < data.size(); i++)
@@ -336,6 +414,7 @@ void GlobalModulatorContainer::refreshList()
 
 	for (auto& mod : handler_->activeVoiceStartList)
 	{
+        mod->setResetUnsavedValue(true);
 		voiceStartData.add(VoiceStartData(mod));
 	}
 
@@ -345,6 +424,13 @@ void GlobalModulatorContainer::refreshList()
 	{
 		timeVariantData.add(TimeVariantData(mod, getLargestBlockSize()));
 		//mod->deactivateIntensitySmoothing();
+	}
+
+	envelopeData.clearQuick();
+
+	for (auto& mod : handler_->activeEnvelopesList)
+	{
+		envelopeData.add(EnvelopeData(mod, getLargestBlockSize()));
 	}
 }
 
@@ -359,10 +445,43 @@ void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*veloci
 
 void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSamples)
 {
-
-	
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(1, startSample), 0.0f, numSamples);
+
+	auto gs = static_cast<GlobalModulatorContainer*>(getOwnerSynth());
+
+	for (auto& e : gs->envelopeCables)
+	{
+		e.send(getVoiceIndex(), true, startSample);
+	}
+		
+
+#if 0
+	if(gs->shouldReset(getVoiceIndex()))
+		resetVoice();
+#endif
+}
+
+void GlobalModulatorContainerVoice::checkRelease()
+{
+	auto gc = static_cast<GlobalModulatorContainer*>(getOwnerSynth());
+
+	ModulatorChain *g = static_cast<ModulatorChain*>(gc->getChildProcessor(ModulatorSynth::GainModulation));
+
+	if (killThisVoice && (killFadeLevel < 0.001f))
+	{
+		resetVoice();
+		return;
+	}
+
+	if (g->hasActivePolyEnvelopes())
+	{
+		for (auto& e : gc->envelopeData)
+		{
+			if (e.getModulator()->isPlaying(getVoiceIndex()))
+				return;
+		}
+	}
 
 	resetVoice();
 }

@@ -57,6 +57,8 @@ public:
 	void startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound*, int /*currentPitchWheelPosition*/) override;
 	void calculateBlock(int startSample, int numSamples) override;;
 
+	void checkRelease() override;
+
 };
 
 template <class ModulatorType> class GlobalModulatorDataBase
@@ -109,6 +111,14 @@ public:
 
 	float getConstantVoiceValue(int noteNumber) const
 	{
+        if(auto m = const_cast<VoiceStartData*>(this)->getModulator())
+        {
+            auto unsavedValue = m->getUnsavedValue();
+            
+            if(unsavedValue != -1.0f)
+                return unsavedValue;
+        }
+        
 		if (isPositiveAndBelow(noteNumber, 128))
 		{
 			return voiceValues[noteNumber];
@@ -172,6 +182,49 @@ private:
 	bool isClear = false;
 };
 
+class EnvelopeData : public GlobalModulatorDataBase<EnvelopeModulator>
+{
+public:
+
+	EnvelopeData(Modulator* mod, int samplesPerBlock) :
+		GlobalModulatorDataBase(mod),
+		savedValuesForBlock(NUM_POLYPHONIC_VOICES, 0)
+	{
+		prepareToPlay(samplesPerBlock);
+	}
+
+	void prepareToPlay(int samplesPerBlock)
+	{
+		ProcessorHelpers::increaseBufferIfNeeded(savedValuesForBlock, samplesPerBlock);
+	}
+
+	const float* getReadPointer(int voiceIndex, int startSample) const
+	{
+		return savedValuesForBlock.getReadPointer(voiceIndex, startSample);
+	}
+
+	void saveValues(int voiceIndex, const float* data, int startSample, int numSamples)
+	{
+		auto dest = savedValuesForBlock.getWritePointer(voiceIndex, startSample);
+		FloatVectorOperations::copy(dest, data + startSample, numSamples);
+		isClear = false;
+	}
+
+	void clear(int voiceIndex)
+	{
+		if (!isClear)
+		{
+			FloatVectorOperations::fill(savedValuesForBlock.getWritePointer(voiceIndex, 0), 1.0f, savedValuesForBlock.getNumSamples());
+			isClear = true;
+		}
+	}
+
+private:
+
+	AudioSampleBuffer savedValuesForBlock;
+	bool isClear = false;
+};
+
 class GlobalModulatorData
 {
 public:
@@ -186,8 +239,6 @@ public:
 	float getConstantVoiceValue(int noteNumber);
 
 	const Processor *getProcessor() const { return modulator.get(); }
-
-	
 
 	VoiceStartModulator *getVoiceStartModulator() { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
 	const VoiceStartModulator *getVoiceStartModulator() const { return dynamic_cast<VoiceStartModulator*>(modulator.get()); }
@@ -339,6 +390,8 @@ public:
 
 	void restoreFromValueTree(const ValueTree &v) override;
 
+	const float* getEnvelopeValuesForModulator(Processor* p, int startIndex, int voiceIndex);
+
 	const float *getModulationValuesForModulator(Processor *p, int startIndex);
 	float getConstantVoiceValue(Processor *p, int noteNumber);
 
@@ -369,6 +422,13 @@ public:
 
     void connectToGlobalCable(Modulator* childMod, var cable, bool addToMod);
     
+	bool shouldReset(int voiceIndex);
+	
+	void renderEnvelopeData(int voiceIndex, int startSample, int numSamples);
+
+    void sendVoiceStartCableValue(Modulator* m, const HiseEvent& e);
+    
+    
 private:
 
     struct GlobalModulatorCable;
@@ -377,10 +437,11 @@ private:
     
     Array<GlobalModulatorCable> timeVariantCables;
     Array<GlobalModulatorCable> voiceStartCables;
-    
+	Array<GlobalModulatorCable> envelopeCables;
     
 	Array<VoiceStartData> voiceStartData;
 	Array<TimeVariantData> timeVariantData;
+	Array<EnvelopeData> envelopeData;
 
 	Array<WeakReference<ModulatorListListener>> modListeners;
 

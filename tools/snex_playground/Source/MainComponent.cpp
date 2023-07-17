@@ -85,90 +85,23 @@ MainComponent::MainComponent() :
 
     //context.attachTo(*playground);
     
-    WebViewData::Ptr data = new WebViewData();
-
-
-
-	auto root = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("webtest");
-
-	
-	auto cacheFile = root.getChildFile("cached.dat");
-
-	if (cacheFile.existsAsFile())
-	{
-		zstd::ZDefaultCompressor comp;
-		
-		ValueTree v;
-		comp.expand(cacheFile, v);
-		data->restoreFromValueTree(v);
-	}
-	else
-	{
-		data->setRootDirectory(root);
-		data->setEnableCache(true);
-	}
-		
-	data->setIndexFile("/index.html");
-
-    data->addCallback("getX", [](const var& v)
-    {
-        return JUCE_LIVE_CONSTANT(0.01);
-    });
     
-    data->setErrorLogger([](const String& d)
-    {
-        DBG(d);
-    });
-    
-	
+
+
 
 	
-    addAndMakeVisible(webViewWrapper = new WebViewWrapper(data));
     
     addAndMakeVisible(playground);
     
-    //playground->toFront(true);
-    //context.attachTo(*playground);
+    playground->toFront(true);
+    context.attachTo(*playground);
     
-	addAndMakeVisible(funkSlider);
-	
-	funkSlider.onValueChange = [data, this]()
-	{
-		auto v = funkSlider.getValue();
-
-		data->call("something", v);
-	};
-
-
     setSize (1024, 768);
 }
 
 MainComponent::~MainComponent()
 {
-	auto wv = dynamic_cast<WebViewWrapper*>(webViewWrapper.get());
-
-	auto data2 = wv->getData();
-
-	auto v = data2->exportAsValueTree();
-
-	auto root = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("webtest");
-	auto cacheFile = root.getChildFile("cached.dat");
-	cacheFile.deleteFile();
-
-	//FileOutputStream fos(cacheFile);
-	//v.writeToStream(fos);
-	
-	zstd::ZDefaultCompressor comp;
-
-	comp.compress(v, cacheFile);
-
-	//fos.flush();
-
-	webViewWrapper = nullptr;
-
-	data = nullptr;
-
-	//context.detach();
+	context.detach();
 
 	
     
@@ -178,7 +111,7 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (Graphics& g)
 {
-	//g.fillAll(Colour(0xFF333336));
+	g.fillAll(Colour(0xFF333336));
 }
 
 void MainComponent::resized()
@@ -198,11 +131,5 @@ void MainComponent::resized()
 		
 	}
 	
-	funkSlider.setBounds(b.removeFromBottom(100));
-    
-    webViewWrapper->setBounds(b);
-    playground->setBounds(b.removeFromBottom(200));
-    
-    
-	
+    playground->setBounds(b);
 }

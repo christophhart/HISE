@@ -117,11 +117,12 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
 		MenuExportFileAsStandaloneApp,
-		MenuExportFileAsPlayerLibrary,
+		MenuExportProject,
 		MenuExportFileAsSnippet,
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
+		MenuExportWavetablesToMonolith,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -325,8 +326,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Export as Standalone Application", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
-	case MenuExportFileAsPlayerLibrary:
-		setCommandTarget(result, "Export as Full Instrument Expansion", true, false, 'X', false);
+	case MenuExportProject:
+		setCommandTarget(result, "Export Project", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportFileAsMidiFXPlugin:
@@ -347,6 +348,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportSampleDataForInstaller:
 		setCommandTarget(result, "Export Samples as archive", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportWavetablesToMonolith:
+		setCommandTarget(result, "Export Wavetables to monolith", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuExportCompileFilesInPool:
@@ -827,8 +832,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
-	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
+	case MenuExportProject:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
+	case MenuExportWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
 	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuToolsClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
@@ -996,8 +1002,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSeparator();
 
 		ADD_DESKTOP_ONLY(MenuExportFileAsSnippet);
-		ADD_DESKTOP_ONLY(MenuExportFileAsPlayerLibrary);
+		ADD_DESKTOP_ONLY(MenuExportProject);
 		ADD_DESKTOP_ONLY(MenuExportSampleDataForInstaller);
+		ADD_DESKTOP_ONLY(MenuExportWavetablesToMonolith);
 
 		p.addSectionHeader("Export Tools");
 		
@@ -2177,10 +2184,27 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 #endif
 }
 
-void BackendCommandTarget::Actions::importProject(BackendRootWindow* bpe)
+DialogWindowWithBackgroundThread* BackendCommandTarget::Actions::importProject(BackendRootWindow* bpe)
 {
 	auto importWindow = new ProjectImporter(bpe);
 	importWindow->setModalBaseWindowComponent(bpe);
+
+	return importWindow;
+}
+
+void BackendCommandTarget::Actions::extractProject(BackendRootWindow* bpe, const File& newProjectRoot, const File& sourceFile)
+{
+	auto importWindow = new ProjectImporter(bpe);
+	importWindow->setModalBaseWindowComponent(bpe);
+
+	jassert(newProjectRoot.isDirectory());
+	jassert(sourceFile.existsAsFile());
+
+	importWindow->newProjectFolder = newProjectRoot;
+	importWindow->sourceType = ProjectImporter::SourceType::Import;
+	importWindow->header->importFile = sourceFile;
+
+	importWindow->runThread();
 }
 
 void BackendCommandTarget::Actions::convertSVGToPathData(BackendRootWindow* bpe)
@@ -2621,7 +2645,13 @@ void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWind
     exporter->setModalBaseWindowComponent(bpe->mainEditor);
 }
                          
-void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::exportWavetablesToMonolith(BackendRootWindow* bpe)
+{
+	auto exporter = new WavetableMonolithExporter(bpe->getMainController());
+	exporter->setModalBaseWindowComponent(bpe->mainEditor);
+}
+
+void BackendCommandTarget::Actions::exportHiseProject(BackendRootWindow * bpe)
 {
 	auto e = new ExpansionEncodingWindow(bpe->owner, nullptr, true);
 
@@ -2630,7 +2660,6 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendR
 		PresetHandler::showMessageWindow("Encoding Error", e->encodeResult.getErrorMessage(), PresetHandler::IconType::Error);
 		return;
 	}
-
 
 	e->setModalBaseWindowComponent(bpe);
 }

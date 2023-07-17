@@ -35,7 +35,7 @@ class VPath {
 public:
     enum class Direction { CCW, CW };
 
-    enum class Element : uchar { MoveTo, LineTo, CubicTo, Close };
+    enum class Element : uint8_t { MoveTo, LineTo, CubicTo, Close };
     bool  empty() const;
     bool  null() const;
     void  moveTo(const VPointF &p);

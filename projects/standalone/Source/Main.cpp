@@ -86,7 +86,9 @@ private:
 
 		throwErrorAndQuit("`" + s + "` is not a valid path");
 
+#if JUCE_DEBUG
 		return File();
+#endif
 	}
 
 public:

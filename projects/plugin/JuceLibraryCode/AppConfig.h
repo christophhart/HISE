@@ -129,6 +129,10 @@
  //#define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+#ifndef    HISE_BACKEND_AS_FX
+ //#define HISE_BACKEND_AS_FX 0
+#endif
+
 #ifndef    USE_COPY_PROTECTION
  #define   USE_COPY_PROTECTION 0
 #endif
@@ -154,7 +158,11 @@
 #endif
 
 #ifndef    FORCE_INPUT_CHANNELS
- //#define FORCE_INPUT_CHANNELS 0
+ //#define FORCE_INPUT_CHANNELS 1
+#endif
+
+#ifndef    HI_DONT_SEND_ATTRIBUTE_UPDATES
+ //#define HI_DONT_SEND_ATTRIBUTE_UPDATES 0
 #endif
 
 #ifndef    HISE_DEACTIVATE_OVERLAY
@@ -245,6 +253,10 @@
  //#define HISE_DEFAULT_OPENGL_VALUE 1
 #endif
 
+#ifndef    HISE_USE_SYSTEM_APP_DATA_FOLDER
+ //#define HISE_USE_SYSTEM_APP_DATA_FOLDER 0
+#endif
+
 #ifndef    ENABLE_STARTUP_LOGGER
  //#define ENABLE_STARTUP_LOGGER 0
 #endif
@@ -292,6 +304,10 @@
  //#define IS_STATIC_DSP_LIBRARY 1
 #endif
 
+#ifndef    HISE_LOG_FILTER_FREQMOD
+ //#define HISE_LOG_FILTER_FREQMOD 0
+#endif
+
 //==============================================================================
 // hi_faust flags:
 
@@ -305,6 +321,13 @@
 
 #ifndef    HISE_INCLUDE_FAUST_JIT
  //#define HISE_INCLUDE_FAUST_JIT 0
+#endif
+
+//==============================================================================
+// hi_faust_types flags:
+
+#ifndef    FAUST_NO_WARNING_MESSAGES
+ //#define FAUST_NO_WARNING_MESSAGES 0
 #endif
 
 //==============================================================================
@@ -355,6 +378,10 @@
  //#define HISE_INCLUDE_SNEX 0
 #endif
 
+#ifndef    SNEX_STANDALONE_PLAYGROUND
+ //#define SNEX_STANDALONE_PLAYGROUND 0
+#endif
+
 #ifndef    SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP
  //#define SNEX_INCLUDE_MEMORY_ADDRESS_IN_DUMP 0
 #endif
@@ -364,6 +391,10 @@
 
 #ifndef    STANDALONE_STREAMING
  #define   STANDALONE_STREAMING 0
+#endif
+
+#ifndef    HISE_SAMPLER_CUBIC_INTERPOLATION
+ //#define HISE_SAMPLER_CUBIC_INTERPOLATION 0
 #endif
 
 //==============================================================================
@@ -383,6 +414,10 @@
 
 #ifndef    HISE_INCLUDE_PITCH_DETECTION
  //#define HISE_INCLUDE_PITCH_DETECTION 1
+#endif
+
+#ifndef    HISE_ENABLE_LORIS_ON_FRONTEND
+ //#define HISE_ENABLE_LORIS_ON_FRONTEND 0
 #endif
 
 #ifndef    HISE_USE_EXTENDED_TEMPO_VALUES
@@ -660,6 +695,13 @@
 
 #ifndef    JUCE_ENABLE_LIVE_CONSTANT_EDITOR
  //#define JUCE_ENABLE_LIVE_CONSTANT_EDITOR 0
+#endif
+
+//==============================================================================
+// juce_product_unlocking flags:
+
+#ifndef    JUCE_USE_BETTER_MACHINE_IDS
+ //#define JUCE_USE_BETTER_MACHINE_IDS 0
 #endif
 
 //==============================================================================

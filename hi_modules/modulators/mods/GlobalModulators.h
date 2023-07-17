@@ -61,6 +61,7 @@ public:
 		VoiceStart,
 		TimeVariant,
 		StaticTimeVariant,
+		Envelope,
 		numTypes
 	};
 
@@ -81,6 +82,8 @@ public:
 	const GlobalModulatorContainer *getConnectedContainer() const;
 
 	StringArray getListOfAllModulatorsWithType();
+
+	void disconnect();
 
 	bool connectToGlobalModulator(const String &itemEntry);
 
@@ -108,7 +111,7 @@ private:
     
 	WeakReference<Processor> connectedContainer;
 
-	WeakReference<Processor> originalModulator;
+	WeakReference<Modulator> originalModulator;
 
 	Array<WeakReference<GlobalModulatorContainer>> watchedContainers;
 };
@@ -120,7 +123,7 @@ class NoGlobalsConstrainer : public FactoryType::Constrainer
 
 	bool allowType(const Identifier &typeName) override
 	{
-		return !typeName.toString().startsWith("Global");
+        return true;//!typeName.toString().startsWith("Global");
 	}
 };
 
@@ -261,6 +264,48 @@ private:
 
 	float currentValue;
 
+};
+
+class GlobalEnvelopeModulator : public EnvelopeModulator,
+								public GlobalModulator
+{
+public:
+
+	SET_PROCESSOR_NAME("GlobalEnvelopeModulator", "Global Envelope Modulator", "A modulator that connects to a global EnvelopeModulator (eg. AHDSR).");
+
+	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::Envelope; };
+
+	GlobalEnvelopeModulator(MainController *mc, const String &id, Modulation::Mode m, int numVoices);;
+
+	void restoreFromValueTree(const ValueTree &v) override;;
+
+	ValueTree exportAsValueTree() const override;;
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+
+	float getAttribute(int parameterIndex) const override;;
+
+	float startVoice(int voiceIndex) override;
+
+	void stopVoice(int voiceIndex) override;
+
+	virtual Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
+
+	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
+
+	virtual int getNumChildProcessors() const override final { return 0; };
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
+
+	virtual bool isPlaying(int voiceIndex) const override;
+
+	virtual ModulatorState * createSubclassedState(int voiceIndex) const override;
+
+	void calculateBlock(int startSample, int numSamples) override;
+
+	uint8 active[NUM_POLYPHONIC_VOICES];
 };
 
 

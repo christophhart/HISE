@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 TypeParser::TypeParser(TokenIterator& other_, NamespaceHandler& handler, const TemplateParameter::List& tp) :
 	ParserHelpers::TokenIterator(other_),
@@ -323,7 +323,7 @@ snex::Types::ID TypeParser::matchTypeId()
 
 	throwTokenMismatch("Type");
 
-	RETURN_IF_NO_THROW(Types::ID::Void);
+	RETURN_DEBUG_ONLY(Types::ID::Void);
 }
 
 ExpressionTypeParser::ExpressionTypeParser(NamespaceHandler& n, const String& statement, int lineNumber_) :

@@ -126,6 +126,15 @@ Set this to 1 to disable the creation of the Expansions folder at init (i.e. for
 #define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+/** Config: HISE_OVERWRITE_OLD_USER_PRESETS
+
+If true, then the plugin will silently overwrite user presets with the same name but an older version number. This will also overwrite user-modified factory presets
+but will not modify or delete user-created user presets (with the exception of a name collision).
+*/
+#ifndef HISE_OVERWRITE_OLD_USER_PRESETS
+#define HISE_OVERWRITE_OLD_USER_PRESETS 0
+#endif
+
 /** Config: HISE_BACKEND_AS_FX
  
  Set this to 1 in order to use HISE as a effect plugin. This will simulate the processing setup of an FX plugin (so child sound generators will not be processed etc).

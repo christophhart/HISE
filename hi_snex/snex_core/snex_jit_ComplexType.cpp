@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 int ComplexType::numInstances = 0;
 
@@ -387,6 +387,7 @@ bool ComplexType::isValidCastTarget(Types::ID nativeTargetType, ComplexType::Ptr
 
 void ComplexType::writeNativeMemberTypeToAsmStack(const ComplexType::InitData& d, int initIndex, int offsetInBytes, int size)
 {
+#if SNEX_ASMJIT_BACKEND
 	auto& cc = GET_COMPILER_FROM_INIT_DATA(d);
 	auto mem = d.asmPtr->memory.cloneAdjustedAndResized(offsetInBytes, size);
 
@@ -427,6 +428,7 @@ void ComplexType::writeNativeMemberTypeToAsmStack(const ComplexType::InitData& d
 			cc.movsd(mem, temp);
 		}
 	}
+#endif
 }
 
 void ComplexType::writeNativeMemberType(void* dataPointer, int byteOffset, const VariableStorage& initValue)

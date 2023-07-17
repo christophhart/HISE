@@ -56,7 +56,7 @@ public:
         VCacheKey             hash_val = 0;
         VCacheData            info;
         const VGradientStops &stops = gradient.mStops;
-        for (uint i = 0; i < stops.size() && i <= 2; i++)
+        for (uint32_t i = 0; i < stops.size() && i <= 2; i++)
             hash_val +=
                 VCacheKey(stops[i].second.premulARGB() * gradient.alpha());
 
@@ -100,11 +100,11 @@ public:
     }
 
 protected:
-    uint       maxCacheSize() const { return 60; }
+    uint32_t   maxCacheSize() const { return 60; }
     VCacheData addCacheElement(VCacheKey hash_val, const VGradient &gradient)
     {
         if (mCache.size() == maxCacheSize()) {
-            uint count = maxCacheSize() / 10;
+            uint32_t count = maxCacheSize() / 10;
             while (count--) {
                 mCache.erase(mCache.begin());
             }
@@ -147,7 +147,7 @@ bool VGradientCache::generateGradientColorTable(const VGradientStops &stops,
 
     colorTable[pos++] = curColor;
 
-    while (fpos <= curr->first) {
+    while (fpos <= curr->first && pos < size) {
         colorTable[pos] = colorTable[pos - 1];
         pos++;
         fpos += incr;
@@ -519,7 +519,7 @@ static void blend_color(size_t size, const VRle::Span *array, void *userData)
 {
     VSpanData *data = (VSpanData *)(userData);
     Operator   op = getOperator(data);
-    const uint color = data->mSolid;
+    const uint32_t color = data->mSolid;
 
     for (size_t i = 0 ; i < size; ++i) {
         const auto &span = array[i];
@@ -528,12 +528,12 @@ static void blend_color(size_t size, const VRle::Span *array, void *userData)
 }
 
 // Signature of Process Object
-//  void Pocess(uint* scratchBuffer, size_t x, size_t y, uchar cov)
+//  void Pocess(uint* scratchBuffer, size_t x, size_t y, uint8_t cov)
 template <class Process>
 static inline void process_in_chunk(const VRle::Span *array, size_t size,
                                     Process process)
 {
-    std::array<uint, 2048> buf;
+    std::array<uint32_t, 2048> buf;
     for (size_t i = 0; i < size; i++) {
         const auto &span = array[i];
         size_t      len = span.len;
@@ -557,7 +557,7 @@ static void blend_gradient(size_t size, const VRle::Span *array,
 
     process_in_chunk(
         array, size,
-        [&](uint *scratch, size_t x, size_t y, size_t len, uchar cov) {
+        [&](uint32_t *scratch, size_t x, size_t y, size_t len, uint8_t cov) {
             op.srcFetch(scratch, &op, data, (int)y, (int)x, (int)len);
             op.func(data->buffer((int)x, (int)y), (int)len, scratch, cov);
         });
@@ -569,7 +569,7 @@ constexpr const T &clamp(const T &v, const T &lo, const T &hi)
     return v < lo ? lo : hi < v ? hi : v;
 }
 
-static constexpr inline uchar alpha_mul(uchar a, uchar b)
+static constexpr inline uint8_t alpha_mul(uint8_t a, uint8_t b)
 {
     return ((a * b) >> 8);
 }
@@ -590,7 +590,7 @@ static void blend_image_xform(size_t size, const VRle::Span *array,
 
     process_in_chunk(
         array, size,
-        [&](uint *scratch, size_t x, size_t y, size_t len, uchar cov) {
+        [&](uint32_t *scratch, size_t x, size_t y, size_t len, uint8_t cov) {
             const auto  coverage = (cov * src.alpha()) >> 8;
             const float xfactor = y * data->m21 + data->dx + data->m11;
             const float yfactor = y * data->m22 + data->dy + data->m12;

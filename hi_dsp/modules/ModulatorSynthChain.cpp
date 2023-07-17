@@ -120,6 +120,9 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 
 	for (auto s: synths)
 		s->prepareToPlay(newSampleRate, samplesPerBlock);
+
+	if (ownedUniformVoiceHandler != nullptr)
+        ownedUniformVoiceHandler->rebuildChildSynthList();
 }
 
 void ModulatorSynthChain::numSourceChannelsChanged()
@@ -250,6 +253,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	processHiseEventBuffer(inputMidiBuffer, numSamples);
 
+	if (ownedUniformVoiceHandler != nullptr)
+        ownedUniformVoiceHandler->processEventBuffer(inputMidiBuffer);
+		
+
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
@@ -261,8 +268,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
             FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
                                         buffer.getReadPointer(i), numSamples);
         }
+
+		// now clear the buffer
+		buffer.clear();
     }
-    
 #endif
 
 	// Process the Synths and add store their output in the internal buffer
@@ -319,6 +328,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	handlePeakDisplay(numSamples);
 
 #endif
+
+	if (ownedUniformVoiceHandler != nullptr)
+        ownedUniformVoiceHandler->cleanupAfterProcessing();
 }
 
 
@@ -369,7 +381,7 @@ void ModulatorSynthChain::reset()
 
 	setIconColour(Colours::transparentBlack);
 
-	
+    setUseUniformVoiceHandler(false, nullptr);
 
 #if USE_BACKEND
 	setId("Master Chain");
@@ -484,6 +496,43 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 		}
 	}
 }
+
+void ModulatorSynthChain::setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler)
+{
+    if(externalVoiceHandler == nullptr)
+    {
+        ScopedPointer<UniformVoiceHandler> newHandler;
+
+        if(shouldUseVoiceHandler)
+            newHandler = new UniformVoiceHandler(this);
+
+        {
+            LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
+            newHandler.swapWith(ownedUniformVoiceHandler);
+        }
+
+        externalVoiceHandler = ownedUniformVoiceHandler.get();
+        getMainController()->allNotesOff();
+    }
+    else
+    {
+        if(shouldUseVoiceHandler && ownedUniformVoiceHandler != nullptr)
+        {
+            debugError(this, "Can't use more than one uniform voice handler!");
+        }
+    }
+    
+    ModulatorSynth::setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
+    
+    for(int i = 0; i < getHandler()->getNumProcessors(); i++)
+    {
+        auto cs = dynamic_cast<ModulatorSynth*>(getHandler()->getProcessor(i));
+        cs->setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
+    }
+    
+    getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+}
+
 
 bool ModulatorSynthChain::hasDefinedFrontInterface() const
 {   
@@ -603,5 +652,7 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 
 	synth->synths.clear();
 }
+
+
 
 } // namespace hise

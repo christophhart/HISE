@@ -380,7 +380,7 @@ struct VRleTask {
             outRef.convert(mPath);
             outRef.convert(mCap, mJoin, mStrokeWidth, mMiterLimit);
 
-            uint points, contors;
+            uint32_t points, contors;
 
             SW_FT_Stroker_Set(stroker, outRef.ftWidth, outRef.ftCap,
                               outRef.ftJoin, outRef.ftMiterLimit);
@@ -420,6 +420,11 @@ using VTask = std::shared_ptr<VRleTask>;
 #include <thread>
 #include "vtaskqueue.h"
 
+#ifdef __linux__
+#include <pthread.h>
+#include <sstream>
+#endif
+
 class RleTaskScheduler {
     const unsigned                _count{std::thread::hardware_concurrency()};
     std::vector<std::thread>      _threads;
@@ -434,6 +439,13 @@ class RleTaskScheduler {
         FTOutline     outlineRef;
         SW_FT_Stroker stroker;
         SW_FT_Stroker_New(&stroker);
+
+        // Create Thread Name for Debugging (Linux)
+#ifdef __linux__
+        std::ostringstream nameStream;
+        nameStream << "lottie-tsk-" << i;
+        pthread_setname_np(pthread_self(), nameStream.str().c_str());
+#endif
 
         // Task Loop
         VTask task;
@@ -461,20 +473,29 @@ class RleTaskScheduler {
         for (unsigned n = 0; n != _count; ++n) {
             _threads.emplace_back([&, n] { run(n); });
         }
+
+        IsRunning = true;
     }
 
 public:
+    static bool IsRunning;
+
     static RleTaskScheduler &instance()
     {
         static RleTaskScheduler singleton;
         return singleton;
     }
 
-    ~RleTaskScheduler()
-    {
-        for (auto &e : _q) e.done();
+    ~RleTaskScheduler() { stop(); }
 
-        for (auto &e : _threads) e.join();
+    void stop()
+    {
+        if (IsRunning) {
+            IsRunning = false;
+
+            for (auto &e : _q) e.done();
+            for (auto &e : _threads) e.join();
+        }
     }
 
     void process(VTask task)
@@ -499,11 +520,15 @@ public:
     SW_FT_Stroker stroker;
 
 public:
+    static bool IsRunning;
+
     static RleTaskScheduler &instance()
     {
         static RleTaskScheduler singleton;
         return singleton;
     }
+
+    void stop() {}
 
     RleTaskScheduler() { SW_FT_Stroker_New(&stroker); }
 
@@ -512,6 +537,8 @@ public:
     void process(VTask task) { (*task)(outlineRef, stroker); }
 };
 #endif
+
+bool RleTaskScheduler::IsRunning{false};
 
 struct VRasterizer::VRasterizerImpl {
     VRleTask mTask;
@@ -558,6 +585,13 @@ void VRasterizer::rasterize(VPath path, CapStyle cap, JoinStyle join,
     }
     d->task().update(std::move(path), cap, join, width, miterLimit, clip);
     updateRequest();
+}
+
+void lottieShutdownRasterTaskScheduler()
+{
+    if (RleTaskScheduler::IsRunning) {
+        RleTaskScheduler::instance().stop();
+    }
 }
 
 V_END_NAMESPACE

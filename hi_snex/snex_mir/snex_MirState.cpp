@@ -464,7 +464,7 @@ void RegisterManager::emitMultiLineCopy(const String& targetPointerReg, const St
 {
 	auto use64 = numBytesToCopy % 8 == 0;
 
-	jassert(use64);
+    jassert(use64); ignoreUnused(use64);
 
 	for (int i = 0; i < numBytesToCopy; i += 8)
 	{
@@ -711,8 +711,6 @@ juce::Result State::processTreeElement(const ValueTree& v)
 	{
 		return Result::fail(e);
 	}
-
-	return Result::fail("unknown value tree type " + v.getType());
 }
 
 juce::Result InstructionManager::perform(State* state, const ValueTree& v)

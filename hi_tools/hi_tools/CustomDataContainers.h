@@ -520,6 +520,119 @@ private:
 #pragma warning(pop)
 #endif
 
+/** A bitmap with a compile-time size.
+ 
+    This is more or less a drop in replacement of the BigInteger class without the dynamic reallocation.
+*/
+template <int NV, typename DataType=uint32> class VoiceBitMap
+{
+    constexpr static int getElementSize() { return sizeof(DataType) * 8; }
+    constexpr static int getNumElements() { return NV / getElementSize(); };
+    constexpr static DataType getMaxValue()
+    {
+        if constexpr (std::is_same<DataType, uint8>())           return 0xFF;
+        else if constexpr (std::is_same<DataType, uint16>())     return 0xFFFF;
+        else if constexpr (std::is_same<DataType, uint32>())     return 0xFFFFFFFF;
+        else /*if constexpr (std::is_same<DataType, uint64>())*/ return 0xFFFFFFFFFFFFFFFF;
+    }
+
+public:
+
+    VoiceBitMap()
+    {
+        clear();
+    }
+
+    void clear()
+    {
+        memset(data.data(), 0, sizeof(data));
+    }
+
+    void setBit(int voiceIndex, bool value)
+    {
+        auto dIndex = voiceIndex / getElementSize();
+        auto bIndex = voiceIndex % getElementSize();
+
+        if (value)
+        {
+            auto mask = 1 << bIndex;
+            data[dIndex] |= mask;
+        }
+        else
+        {
+            auto mask = 1 << bIndex;
+            data[dIndex] &= ~mask;
+        }
+    }
+
+    String toBase64() const
+    {
+        MemoryBlock mb(data, sizeof(data));
+        return mb.toBase64Encoding();
+    }
+    
+    bool fromBase64(const String& b64) const
+    {
+        MemoryBlock mb;
+        
+        if(mb.fromBase64Encoding(b64) && mb.getSize() == sizeof(data))
+        {
+            memcpy(data, mb.getData(), sizeof(data));
+            return true;
+        }
+        
+        return false;
+    }
+    
+    bool operator[](int index) const
+    {
+        if(isPositiveAndBelow(index, getNumElements()))
+        {
+            auto bIndex = index % getElementSize();
+            auto dIndex = index / getElementSize();
+            
+            DataType mask = 1 << bIndex;
+
+            return (data[dIndex] & mask);
+        }
+        
+        return false;
+    }
+    
+    int getFirstFreeBit() const
+    {
+        for (int i = 0; i < getNumElements(); i++)
+        {
+            if (data[i] != getMaxValue())
+            {
+                for (int j = 0; j < getElementSize(); j++)
+                {
+                    DataType mask = 1 << j;
+
+                    if ((data[i] & mask) == 0)
+                        return i * getElementSize() + j;
+                }
+            }
+        }
+        
+        return -1;
+    }
+
+    VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV>& other)
+    {
+        for (int i = 0; i < getNumElements(); i++)
+            data[i] |= other.data[i];
+
+        return *this;
+    }
+
+private:
+
+    static constexpr int NumElements = getNumElements();
+
+    std::array<DataType, NumElements> data;
+};
+
 
 /** A simple data block that either uses a preallocated memory to avoid relocating or a heap block. */
 template <int BSize, int Alignment> struct ObjectStorage

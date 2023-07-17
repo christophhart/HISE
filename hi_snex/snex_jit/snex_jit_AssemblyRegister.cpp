@@ -35,7 +35,9 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
+
+#if SNEX_ASMJIT_BACKEND
 
 // Just for debugging purposes...
 static int reg_counter = 0;
@@ -686,6 +688,8 @@ void AssemblyRegister::setMemoryState()
 	state = memIsValid ? LoadedMemoryLocation : UnloadedMemoryLocation;
 }
 
+#endif
+
 AssemblyRegisterPool::AssemblyRegisterPool(BaseCompiler* c):
 	compiler(c)
 {
@@ -702,11 +706,13 @@ snex::jit::AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllDirty
 {
 	RegList l;
 
+#if SNEX_ASMJIT_BACKEND
 	for (auto r : currentRegisterPool)
 	{
 		if (r->isDirtyGlobalMemory())
 			l.add(r);
 	}
+#endif
 
 	return l;
 }
@@ -714,20 +720,23 @@ snex::jit::AssemblyRegisterPool::RegList AssemblyRegisterPool::getListOfAllDirty
 
 snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterForVariable(BaseScope* scope, const Symbol& s)
 {
+#if SNEX_ASMJIT_BACKEND
 	for (const auto r : currentRegisterPool)
 	{
 		if (r->matchesScopeAndSymbol(scope, s))
 			return r;
 	}
+#endif
 
 	auto newReg = getNextFreeRegister(scope, s.typeInfo);
-	newReg->setReference(scope, s);
+	ASMJIT_ONLY(newReg->setReference(scope, s));
 	return newReg;
 }
 
 
 snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getActiveRegisterForCustomMem(RegPtr regWithCustomMem)
 {
+#if SNEX_ASMJIT_BACKEND
 	for (auto r : currentRegisterPool)
 	{
 		if (r->hasCustomMemoryLocation() && r->isActive())
@@ -738,6 +747,7 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getActiveRegisterF
 			}
 		}
 	}
+#endif
 
 	return regWithCustomMem;
 }
@@ -753,21 +763,8 @@ void AssemblyRegisterPool::removeIfUnreferenced(AssemblyRegister::Ptr ref)
 
 AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope, TypeInfo type)
 {
-#if REMOVE_REUSABLE_REG
-	for (auto r : currentRegisterPool)
-	{
-		if (r->getType() == compiler->getRegisterType(type) && r->canBeReused())
-		{
-			r->clearForReuse();
-			r->scope = scope;
-			r->type = type;
-			return r;
-		}
-	}
-#endif
-
 	RegPtr newReg = new AssemblyRegister(compiler, type);
-	newReg->scope = scope;
+	ASMJIT_ONLY(newReg->scope = scope);
 
 	currentRegisterPool.add(newReg);
 
@@ -776,6 +773,7 @@ AssemblyRegister::Ptr AssemblyRegisterPool::getNextFreeRegister(BaseScope* scope
 
 snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMemory(RegPtr other)
 {
+#if SNEX_ASMJIT_BACKEND
 	if (!other->hasCustomMemoryLocation())
 		return other;
 
@@ -789,14 +787,12 @@ snex::jit::AssemblyRegisterPool::RegPtr AssemblyRegisterPool::getRegisterWithMem
 
 		if (r->matchesMemoryLocation(other))
 		{
-#if REMOVE_REUSABLE_REG
-			other->clearForReuse();
-#endif
 			r->numMemoryReferences++;
 			return r;
 		}
 			
 	}
+#endif
 
 	return other;
 }

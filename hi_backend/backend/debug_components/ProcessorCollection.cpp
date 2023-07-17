@@ -140,6 +140,8 @@ void SearchableListComponent::refreshDisplayedItems()
 	}
 
 	internalContainer->setSize(getWidth(), height);
+
+	repaintAllItems();
 }
 
 

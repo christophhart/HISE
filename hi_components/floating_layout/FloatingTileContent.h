@@ -664,6 +664,7 @@ public:
 			MarkdownPreviewPanel,
 			FilterGraphPanel,
 			DraggableFilterPanel,
+			WavetableWaterfall,
 			MPEPanel,
 			Matrix2x2,
 			ThreeColumns,

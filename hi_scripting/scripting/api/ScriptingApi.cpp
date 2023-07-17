@@ -934,6 +934,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createBackgroundTask);
     API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
 	API_METHOD_WRAPPER_0(Engine, createErrorHandler);
+	API_METHOD_WRAPPER_1(Engine, createModulationMatrix);
+	API_METHOD_WRAPPER_0(Engine, getWavetableList);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
@@ -1014,6 +1016,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
+	ADD_API_METHOD_0(getWavetableList);
 	ADD_API_METHOD_1(setFrontendMacros);
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
@@ -1103,6 +1106,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(getLatencySamples);
 	ADD_API_METHOD_2(getDspNetworkReference);
 	ADD_API_METHOD_0(createExpansionHandler);
+	ADD_API_METHOD_1(createModulationMatrix);
 	ADD_API_METHOD_3(showYesNoWindow);
 	ADD_API_METHOD_3(showMessageBox);
 	ADD_API_METHOD_1(getSystemTime);
@@ -1167,68 +1171,65 @@ void ScriptingApi::Engine::allNotesOff()
 
 void ScriptingApi::Engine::addModuleStateToUserPreset(var moduleId)
 {
-	if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+	String newId;
+
+	auto& ids = getScriptProcessor()->getMainController_()->getModuleStateManager().modules;
+
+	if (moduleId.isString())
 	{
-		String newId;
-
-		auto& ids = jmp->getListOfModuleIds();
-
-		if (moduleId.isString())
-		{
-			newId = moduleId.toString();
-
-			if (newId.isEmpty())
-			{
-				ids.clear();
-				debugToConsole(getProcessor(), "Removed all stored modules");
-				return;
-			}
-
-		}
-		else
-			newId = moduleId["ID"].toString();
+		newId = moduleId.toString();
 
 		if (newId.isEmpty())
-			reportScriptError("Invalid ID");
-
-		auto p = ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), newId);
-
-		if (p == nullptr)
-			reportScriptError("Can't find processor " + newId);
-
-		auto childList = ProcessorHelpers::getListOfAllProcessors<Processor>(p);
-
-		for (auto c : childList)
 		{
-			if (c == p)
-				continue;
-
-			if (dynamic_cast<Chain*>(c.get()) != nullptr)
-			{
-				reportScriptError("Can't store modules with child modules");
-				return;
-			}
+			ids.clear();
+			debugToConsole(getProcessor(), "Removed all stored modules");
+			return;
 		}
 
-		bool wasRemoved = false;
+	}
+	else
+		newId = moduleId["ID"].toString();
 
-		for (auto ms : ids)
+	if (newId.isEmpty())
+		reportScriptError("Invalid ID");
+
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getProcessor()->getMainController()->getMainSynthChain(), newId);
+
+	if (p == nullptr)
+		reportScriptError("Can't find processor " + newId);
+
+	auto childList = ProcessorHelpers::getListOfAllProcessors<Processor>(p);
+
+	for (auto c : childList)
+	{
+		if (c == p)
+			continue;
+
+		if (dynamic_cast<Chain*>(c.get()) != nullptr)
 		{
-			if (ms->id == newId)
-			{
-				ids.removeObject(ms);
-				wasRemoved = true;
-				
-				break;
-			}
+			reportScriptError("Can't store modules with child modules");
+			return;
 		}
+	}
 
-		ids.add(new MainController::UserPresetHandler::StoredModuleData(moduleId, p));
+	bool wasRemoved = false;
 
-		if (!wasRemoved)
+	for (auto ms : ids)
+	{
+		if (ms->id == newId)
 		{
-			debugToConsole(getProcessor(), "Added " + newId + " to user preset system");
+			ids.removeObject(ms);
+			wasRemoved = true;
+
+			break;
 		}
+	}
+
+	ids.add(new ModuleStateManager::StoredModuleData(moduleId, p));
+
+	if (!wasRemoved)
+	{
+		debugToConsole(getProcessor(), "Added " + newId + " to user preset system");
 	}
 }
 
@@ -2505,6 +2506,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
 	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
+	
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
@@ -3038,6 +3040,22 @@ var ScriptingApi::Engine::loadAudioFileIntoBufferArray(String audioFileReference
 	}
 }
 
+juce::var ScriptingApi::Engine::getWavetableList()
+{
+	if (auto first = ProcessorHelpers::getFirstProcessorWithType<WavetableSynth>(getScriptProcessor()->getMainController_()->getMainSynthChain()))
+	{
+		Array<var> list;
+
+		for (const auto& w : first->getWavetableList())
+			list.add(w);
+
+		return list;
+	}
+
+	reportScriptError("You need at least one Wavetable synthesiser in your signal chain for this method");
+	RETURN_IF_NO_THROW(var());
+}
+
 void ScriptingApi::Engine::loadImageIntoPool(const String& id)
 {
 #if USE_BACKEND
@@ -3175,6 +3193,11 @@ ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHol
 var ScriptingApi::Engine::createTransportHandler()
 {
 	return new TransportHandler(getScriptProcessor());
+}
+
+juce::var ScriptingApi::Engine::createModulationMatrix(String containerId)
+{
+	return new ScriptingObjects::ScriptModulationMatrix(getScriptProcessor(), containerId);
 }
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
@@ -4866,6 +4889,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, isArtificialEventActive);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
+	API_VOID_METHOD_WRAPPER_2(Synth, setUseUniformVoiceHandler);
 	API_METHOD_WRAPPER_0(Synth, createBuilder);
 	
 };
@@ -4915,6 +4939,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_2(sendController);
 	ADD_API_METHOD_2(sendControllerToChildSynths);
 	ADD_API_METHOD_4(setModulatorAttribute);
+	ADD_API_METHOD_2(setUseUniformVoiceHandler);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
 	ADD_API_METHOD_1(getMidiPlayer);
@@ -6116,6 +6141,22 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 }
 
 
+
+void ScriptingApi::Synth::setUseUniformVoiceHandler(String containerId, bool shouldUseUniformVoiceHandling)
+{
+	Processor::Iterator<ModulatorSynthChain> iter(getScriptProcessor()->getMainController_()->getMainSynthChain());
+
+	while (auto s = iter.getNextProcessor())
+	{
+		if (s->getId() == containerId)
+		{
+			s->setUseUniformVoiceHandler(shouldUseUniformVoiceHandling, nullptr);
+			return;
+		}
+	}
+
+	reportScriptError("Can't find Container with ID " + containerId);
+}
 
 // ====================================================================================================== Console functions
 

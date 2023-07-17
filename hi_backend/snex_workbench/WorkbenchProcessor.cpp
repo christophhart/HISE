@@ -1856,7 +1856,7 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 		}
 
 		{
-			b << "DLL_EXPORT scriptnode::Error getError()";
+			b << "DLL_EXPORT ErrorC getError()";
 			StatementBlock bk(b);
 			b << "return f.getError();";
 		}

@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 struct VectorMathFunction
 {
@@ -304,6 +304,7 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	if (!addInlinedFunctions)
 		return;
 
+#if SNEX_ASMJIT_BACKEND
 	addInliner("abs", Inliners::abs);
 	addInliner("max", Inliners::max);
 	addInliner("min", Inliners::min);
@@ -316,6 +317,7 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	addInliner("norm", Inliners::norm, Inliner::InlineType::HighLevel);
 	addInliner("sig2mod", Inliners::sig2mod, Inliner::InlineType::HighLevel);
 	addInliner("mod2sig", Inliners::mod2sig, Inliner::InlineType::HighLevel);
+#endif
 
 	for (auto& f : functions)
 	{
@@ -437,6 +439,13 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 	}
 
 	{
+		auto f = createMemberFunction(Types::ID::Void, "clear", { });
+		f->setFunction(WrapperClear::clear);
+		addFunction(f);
+		setDescription("Dumps the current state of the class data", { });
+	}
+
+	{
 		auto f = createMemberFunction(Types::ID::Void, "dump", { });
 		f->setFunction(WrapperDump::dump);
 		addFunction(f);
@@ -532,7 +541,86 @@ void ConsoleFunctions::registerAllObjectFunctions(GlobalScope*)
 }
 
 
+struct Funky
+{
+	Funky(InlineData* b) : b_(b), args({}) { resolveType(); };
+	Funky(InlineData* b, const StringArray& arguments) : b_(b), args(arguments) { resolveType(); }
+	Funky(InlineData* b, const String& a1) : b_(b), args(StringArray::fromTokens(a1, ",", "")) { args.trim(); resolveType(); };
 
+	Funky& operator<<(double v)
+	{
+		currentLine << getLiteral(v);
+		return *this;
+	}
+
+	Funky& operator<<(const String& s)
+	{
+		currentLine << s;
+
+		if (s.contains(";"))
+			flushLine(false);
+
+		return *this;
+	}
+
+	void flushLine(bool addMissingSemicolon = true)
+	{
+		if (addMissingSemicolon && currentLine.isNotEmpty() && !currentLine.endsWith(";"))
+			currentLine << ";";
+
+		c << currentLine;
+		currentLine = {};
+	}
+
+	Result flush()
+	{
+		if (currentLine.isNotEmpty())
+			flushLine();
+
+		return SyntaxTreeInlineParser(b_, args, c).flush();
+	}
+
+	operator Result()
+	{
+		return flush();
+	}
+
+private:
+
+	void resolveType()
+	{
+		auto st = b_->toSyntaxTreeData();
+
+		if (st->target != nullptr)
+			type = st->target->getType();
+
+		if (type == Types::ID::Dynamic || type == Types::ID::Void)
+		{
+			for (auto a : b_->toSyntaxTreeData()->args)
+			{
+				type = a->getType();
+
+				if (type != Types::ID::Dynamic)
+					break;
+			}
+		}
+	}
+
+	String getLiteral(double value)
+	{
+		VariableStorage v(type, var(value));
+		return Types::Helpers::getCppValueString(value);
+	}
+
+	Types::ID type = Types::ID::Dynamic;
+	String currentLine;
+	InlineData* b_;
+	cppgen::Base c;
+	StringArray args;
+};
+
+
+#if SNEX_ASMJIT_BACKEND
 juce::Result MathFunctions::Inliners::abs(InlineData* d_)
 {
 	SETUP_MATH_INLINE("inline abs");
@@ -710,85 +798,6 @@ juce::Result MathFunctions::Inliners::sign(InlineData* d_)
 }
 
 
-
-struct Funky
-{
-	Funky(InlineData* b) : b_(b), args({}) { resolveType(); };
-	Funky(InlineData* b, const StringArray& arguments) : b_(b), args(arguments) { resolveType(); }
-	Funky(InlineData* b, const String& a1): b_(b), args(StringArray::fromTokens(a1, ",", "")) { args.trim(); resolveType(); };
-
-	Funky& operator<<(double v)
-	{
-		currentLine << getLiteral(v);
-		return *this;
-	}
-
-	Funky& operator<<(const String& s)
-	{
-		currentLine << s;
-
-		if (s.contains(";"))
-			flushLine(false);
-
-		return *this;
-	}
-
-	void flushLine(bool addMissingSemicolon=true)
-	{
-		if (addMissingSemicolon && currentLine.isNotEmpty() && !currentLine.endsWith(";"))
-			currentLine << ";";
-
-		c << currentLine;
-		currentLine = {};
-	}
-
-	Result flush()
-	{
-		if (currentLine.isNotEmpty())
-			flushLine();
-
-		return SyntaxTreeInlineParser(b_, args, c).flush();
-	}
-
-	operator Result()
-	{
-		return flush();
-	}
-
-private:
-
-	void resolveType()
-	{
-		auto st = b_->toSyntaxTreeData();
-
-		if(st->target != nullptr)
-			type = st->target->getType();
-
-		if (type == Types::ID::Dynamic || type == Types::ID::Void)
-		{
-			for (auto a : b_->toSyntaxTreeData()->args)
-			{
-				type = a->getType();
-
-				if (type != Types::ID::Dynamic)
-					break;
-			}
-		}
-	}
-
-	String getLiteral(double value)
-	{
-		VariableStorage v(type, var(value));
-		return Types::Helpers::getCppValueString(value);
-	}
-
-	Types::ID type = Types::ID::Dynamic;
-	String currentLine;
-	InlineData* b_;
-	cppgen::Base c;
-	StringArray args;
-};
-
 juce::Result MathFunctions::Inliners::map(InlineData* b)
 {
 	Funky c(b, "v, minValue, maxValue");
@@ -954,7 +963,7 @@ juce::Result MathFunctions::Inliners::sin(InlineData* d_)
 	return Result::ok();
 }
 
-
+#endif
 
 }
 }

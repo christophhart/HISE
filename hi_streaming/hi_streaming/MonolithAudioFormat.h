@@ -75,6 +75,8 @@ struct MonolithFileReference
 	MonolithFileReference(int numChannels_, int numParts_);;
 	MonolithFileReference(const File& monolithFile, int numChannels_, int numParts_);
 
+	bool isUsingMonolith() const;
+
 	bool isMultimic() const noexcept { return numChannels > 1; };
 	bool useSplitIndex() const noexcept { return numParts > 0; };
 	int getNumMicPositions() const { return numChannels; }
@@ -109,6 +111,7 @@ private:
 	Array<File> sampleRoots;
 	int numParts = 0;
 	int numChannels = 1;
+	bool isMonolith = true;
 };
 
 #undef DECLARE_ID

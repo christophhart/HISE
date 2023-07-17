@@ -37,7 +37,6 @@ namespace hise { using namespace juce;
                                                                     //[/Comments]
 */
 class WavetableBody  : public ProcessorEditorBody,
-                       public Timer,
                        public Label::Listener,
                        public Button::Listener,
                        public ComboBox::Listener
@@ -50,23 +49,19 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-	void timerCallback() override
-	{
-		modMeter->setPeak(getProcessor()->getChildProcessor(WavetableSynth::TableIndexModulation)->getOutputValue());
-	}
-
 	int getBodyHeight() const override {return h;};
 
 	void updateGui() override
 	{
 		hiqButton->updateValue();
+		mipmapButton->updateValue();
 		wavetableSelector->updateValue();
+		tableSlider->updateValue();
 
 		fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 		voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
 	}
 
-    //[/UserMethods]
 
     void paint (Graphics& g) override;
     void resized() override;
@@ -77,24 +72,23 @@ public:
 
 
 private:
-    //[UserVariables]   -- You can add your own custom variables in this section.
 
 	int h;
 
-    //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<WaveformComponent> waveTableDisplay;
     ScopedPointer<Label> fadeTimeLabel;
     ScopedPointer<Label> voiceAmountLabel;
     ScopedPointer<Label> voiceAmountEditor;
     ScopedPointer<Label> fadeTimeEditor;
-    ScopedPointer<SliderPack> component;
     ScopedPointer<HiToggleButton> hiqButton;
+	ScopedPointer<HiToggleButton> mipmapButton;
     ScopedPointer<Label> voiceAmountLabel2;
-    ScopedPointer<VuMeter> modMeter;
+    
     ScopedPointer<Label> voiceAmountLabel3;
     ScopedPointer<HiComboBox> wavetableSelector;
+	ScopedPointer<HiSlider> tableSlider;
+	ScopedPointer<Component> waterfall;
 
 
     //==============================================================================

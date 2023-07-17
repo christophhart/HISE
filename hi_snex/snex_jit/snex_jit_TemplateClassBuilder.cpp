@@ -34,7 +34,7 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
 
 TemplateClassBuilder::TemplateClassBuilder(Compiler& compiler, const NamespacedIdentifier& id_) :
 	id(id_),

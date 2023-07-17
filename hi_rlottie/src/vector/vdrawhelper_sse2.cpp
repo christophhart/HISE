@@ -1,8 +1,14 @@
-#if defined(__SSE2__)
+#if defined(__SSE2__) || defined(__ARM_NEON__)
 
 #include <cstring>
+
+#if defined(__SSE2__)
 #include <emmintrin.h> /* for SSE2 intrinsics */
 #include <xmmintrin.h> /* for _mm_shuffle_pi16 and _MM_SHUFFLE */
+#else
+#include "../../../hi_tools/hi_tools/sse2neon.h"
+#endif
+
 
 #include "vdrawhelper.h"
 // Each 32bits components of alphaChannel must be in the form 0x00AA00AA
@@ -257,5 +263,12 @@ void RenderFuncTable::sse()
 
     updateSrc(BlendMode::Src , src_Source);
 }
+
+void RenderFuncTable::neon()
+{
+    sse();
+    
+}
+
 
 #endif

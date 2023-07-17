@@ -47,7 +47,7 @@ public:
 	*	You have to supply a working buffer that is used to read the data from the file.
 	*	It must be stereo and have the desired length that can be obtained by getNumSamplesNeeded()
 	*/
-	static double detectPitch(const File &fileToScan, AudioSampleBuffer &workingBuffer, double sampleRate);;
+	static double detectPitch(const File &fileToScan, AudioSampleBuffer &workingBuffer, double sampleRate, double estimatedFrequency = -1.0);;
 
 	/** detects the pitch in the audio buffer. */
 	static double detectPitch(const AudioSampleBuffer &buffer, int startSample, int numSamples, double sampleRate);;

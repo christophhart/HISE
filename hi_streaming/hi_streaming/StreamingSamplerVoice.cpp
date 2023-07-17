@@ -592,6 +592,8 @@ void StreamingSamplerVoice::setDebugLogger(DebugLogger* newLogger)
 static int alignedCalls = 0;
 static int unalignedCalls = 0;
 
+#define USE_CUBIC_INTERPOLATION 0 // not there yet, need to fetch more samples to get 4 values...
+
 template <typename SignalType, bool isFloat> void interpolateMonoSamples(const SignalType* inL, const SignalType* unusedIn, const float* pitchData, float* outL, float* unusedOut, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
 	ignoreUnused(unusedIn, unusedOut);
@@ -608,9 +610,18 @@ template <typename SignalType, bool isFloat> void interpolateMonoSamples(const S
 		{
 			const int pos = int(indexInBufferFloat);
 			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			auto l1 = (float)inL[pos];
+			auto l2 = (float)inL[pos + 1];
+			
+#if USE_CUBIC_INTERPOLATION
+			auto l0 = (float)(pos > 0 ? inL[pos - 1] : 0);
+			auto l3 = (float)inL[pos + 2];
+
+			float l = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
+#else
+			float l = Interpolator::interpolateLinear(l1, l2, alpha);
+#endif
 
 			outL[i] = l * gainFactor;
 
@@ -628,9 +639,18 @@ template <typename SignalType, bool isFloat> void interpolateMonoSamples(const S
 		{
 			const int pos = int(indexInBufferFloat);
 			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
+			
+			auto l1 = (float)inL[pos];
+			auto l2 = (float)inL[pos + 1];
+			
+#if USE_CUBIC_INTERPOLATION
+			auto l0 = (float)(pos > 0 ? inL[pos - 1] : 0);
+			auto l3 = (float)inL[pos + 2];
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			float l = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
+#else
+			float l = Interpolator::interpolateLinear(l1, l2, alpha);
+#endif
 
 			*outL++ = l * gainFactor;
 
@@ -659,10 +679,24 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 				return;
 
 			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
-			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
+			auto l1 = (float)inL[pos];
+			auto l2 = (float)inL[pos+1];
+			auto r1 = (float)inR[pos];
+			auto r2 = (float)inR[pos + 1];
+
+#if USE_CUBIC_INTERPOLATION
+			auto l0 = (float)(pos > 0 ? inL[pos - 1] : 0);
+			auto l3 = (float)inL[pos + 2];
+			auto r0 = (float)(pos > 0 ? inR[pos - 1] : 0);
+			auto r3 = (float)inR[pos + 2];
+
+			float l = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
+			float r = Interpolator::interpolateCubic(r0, r1, r2, r3, alpha);
+#else
+			float l = Interpolator::interpolateLinear(l1, l2, alpha);
+			float r = Interpolator::interpolateLinear(r1, r2, alpha);
+#endif
 
 			outL[i] = l * gainFactor;
 			outR[i] = r * gainFactor;
@@ -687,10 +721,24 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 		{
 			const int pos = int(indexInBufferFloat);
 			const float alpha = indexInBufferFloat - (float)pos;
-			const float invAlpha = 1.0f - alpha;
+			
+			auto l1 = (float)inL[pos];
+			auto l2 = (float)inL[pos + 1];
+			auto r1 = (float)inR[pos];
+			auto r2 = (float)inR[pos + 1];
+			
+#if USE_CUBIC_INTERPOLATION
+			auto l0 = (float)(pos > 0 ? inL[pos - 1] : 0);
+			auto l3 = (float)inL[pos + 2];
+			auto r0 = (float)(pos > 0 ? inR[pos - 1] : 0);
+			auto r3 = (float)inR[pos + 2];
 
-			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
-			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
+			float l = Interpolator::interpolateCubic(l0, l1, l2, l3, alpha);
+			float r = Interpolator::interpolateCubic(r0, r1, r2, r3, alpha);
+#else
+			float l = Interpolator::interpolateLinear(l1, l2, alpha);
+			float r = Interpolator::interpolateLinear(r1, r2, alpha);
+#endif
 
 			*outL++ = l * gainFactor;
 			*outR++ = r * gainFactor;

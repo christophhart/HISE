@@ -862,6 +862,8 @@ struct ToolkitPopup : public Component,
 		SimpleTimer(mc->getGlobalUIUpdater()),
 		panicButton("Panic", this, *this),
         sustainButton("pedal", this, *this),
+        octaveUpButton("octave_up", this, *this),
+        octaveDownButton("octave_down", this, *this),
 		keyboard(mc),
         clockController(mc),
 		resizer(this, &constrainer, ResizableEdgeComponent::rightEdge)
@@ -874,12 +876,15 @@ struct ToolkitPopup : public Component,
 		addAndMakeVisible(panicButton);
 		addAndMakeVisible(sustainButton);
 		addAndMakeVisible(keyboard);
+        addAndMakeVisible(octaveUpButton);
+        addAndMakeVisible(octaveDownButton);
 
 		panicButton.setTooltip("Send All-Note-Off message.");
         sustainButton.setTooltip("Enable Toggle mode (sustain) for keyboard.");
         sustainButton.setToggleModeWithColourChange(true);
         
 		keyboard.setUseVectorGraphics(true);
+        keyboard.setRange(24, 127);
 
         addAndMakeVisible(clockController);
         
@@ -897,6 +902,16 @@ struct ToolkitPopup : public Component,
         }
 		if (b == &panicButton)
 			getMainController()->allNotesOff(true);
+        if(b == &octaveUpButton || b == &octaveDownButton)
+        {
+            auto delta = b == &octaveUpButton ? 12 : -12;
+            
+            auto l = keyboard.getRangeStart() + delta;
+            auto h = jmin(127, keyboard.getRangeEnd() + delta);
+            
+            if(l > 0)
+                keyboard.setRange(l, h);
+        }
 	}
 
 	void paint(Graphics& g) override
@@ -943,6 +958,11 @@ struct ToolkitPopup : public Component,
         sustainButton.setBounds(r.removeFromBottom(TopHeight).reduced(Margin));
         panicButton.setBounds(r.removeFromTop(TopHeight).reduced(Margin));
         
+        auto oct = b.removeFromRight(TopHeight);
+        
+        octaveUpButton.setBounds(oct.removeFromTop(TopHeight).reduced(Margin));
+        octaveDownButton.setBounds(oct.removeFromBottom(TopHeight).reduced(Margin));
+        
         keyboard.setBounds(b);
 
         midiPath = createPath("midi");
@@ -966,6 +986,8 @@ struct ToolkitPopup : public Component,
 		LOAD_PATH_IF_URL("Panic", HiBinaryData::FrontendBinaryData::panicButtonShape);
 		LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
         LOAD_PATH_IF_URL("pedal", BackendBinaryData::PopupSymbols::sustainIcon);
+        LOAD_PATH_IF_URL("octave_up", BackendBinaryData::PopupSymbols::octaveUpIcon);
+        LOAD_PATH_IF_URL("octave_down", BackendBinaryData::PopupSymbols::octaveDownIcon);
 
 		return p;
 	}
@@ -992,7 +1014,7 @@ struct ToolkitPopup : public Component,
 
 	Path midiPath;
 	float midiAlpha = 0.0f;
-    HiseShapeButton panicButton, sustainButton;
+    HiseShapeButton panicButton, sustainButton, octaveUpButton, octaveDownButton;
 	
 	CustomKeyboard keyboard;
 

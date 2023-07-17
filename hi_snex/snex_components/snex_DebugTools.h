@@ -419,5 +419,62 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 
 }
 
+struct LiveCodePopup
+{
+	using Argument = std::tuple<snex::jit::Symbol, snex::VariableStorage>;
+
+	template <typename T> static Argument createArg(T value, const char* s)
+	{
+		TypeInfo type(snex::Types::Helpers::getTypeFromTypeId<T>());
+
+		String variableName(s);
+
+		auto id = snex::NamespacedIdentifier::fromString(variableName.replaceCharacters(".->", "___"));
+		snex::jit::Symbol sym(id, type);
+		snex::VariableStorage v(value);
+		return { sym, v };
+	}
+
+	
+	
+    struct ItemBase
+    {
+        virtual ~ItemBase() {};
+        
+        virtual VariableStorage evaluate(const Array<Argument>& args) = 0;
+    };
+
+    struct Data;
+    
+	static Data* instance;
+
+	static Data* getInstance();
+
+    static ItemBase* getItem(const String& expression, const char* file, int lineNumber, Types::ID returnType, const Array<Argument>& args);
+    
+	template <typename ReturnType> static ReturnType show(const String& expression, const char* file, int lineNumber, const Array<Argument>& args)
+	{
+		auto returnType = Types::Helpers::getTypeFromTypeId<ReturnType>();
+        auto item = getItem(expression, file, lineNumber, returnType, args);
+		return (ReturnType)item->evaluate(args);
+	}
+};
+
+#define LIVE_ARG(x) snex::LiveCodePopup::createArg(x, #x)
+#define LIVE_ARGS0() {}
+#define LIVE_ARGS1(arg1) { LIVE_ARG(arg1) }
+#define LIVE_ARGS2(arg1, arg2) { LIVE_ARG(arg1), LIVE_ARG(arg2) }
+#define LIVE_ARGS3(arg1, arg2, arg3) { LIVE_ARG(arg1),LIVE_ARG(arg2),LIVE_ARG(arg3) }
+#define LIVE_ARGS4(arg1, arg2, arg3, arg4) { LIVE_ARG(arg1),LIVE_ARG(arg2), LIVE_ARG(arg3), LIVE_ARG(arg4) }
+#define LIVE_EXPRESSION_P(rt, code, args) snex::LiveCodePopup::show<rt>(code, __FILE__, __LINE__ - 1, args)
+
+//LIVE_EXPRESSION(double, "Math.max(input, 2.0)", input)
+#define LIVE_EXPRESSION0(rt, code)							LIVE_EXPRESSION_P(rt, code, LIVE_ARGS0())
+#define LIVE_EXPRESSION1(rt, code, arg1)					LIVE_EXPRESSION_P(rt, code, LIVE_ARGS1(arg1))
+#define LIVE_EXPRESSION2(rt, code, arg1, arg2)				LIVE_EXPRESSION_P(rt, code, LIVE_ARGS2(arg1, arg2))
+#define LIVE_EXPRESSION3(rt, code, arg1, arg2, arg3)		LIVE_EXPRESSION_P(rt, code, LIVE_ARGS3(arg1, arg2, arg3))
+#define LIVE_EXPRESSION4(rt, code, arg1, arg2, arg3, arg4)  LIVE_EXPRESSION_P(rt, code, LIVE_ARGS4(arg1, arg2, arg3, arg4))
+
+
 
 }

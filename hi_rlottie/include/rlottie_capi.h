@@ -27,6 +27,10 @@
 #include <stdint.h>
 #include "rlottiecommon.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     LOTTIE_ANIMATION_PROPERTY_FILLCOLOR,      /*!< Color property of Fill object , value type is float [0 ... 1] */
     LOTTIE_ANIMATION_PROPERTY_FILLOPACITY,    /*!< Opacity property of Fill object , value type is float [ 0 .. 100] */
@@ -43,6 +47,36 @@ typedef enum {
 typedef struct Lottie_Animation_S Lottie_Animation;
 
 /**
+ *  @brief Runs lottie initialization code when rlottie library is loaded
+ * dynamically.
+ *
+ *
+ * This api should be called before any other api when rlottie library
+ * is loaded using dlopen() or equivalent.
+ *
+ *  @see lottie_shutdown()
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_init(void);
+
+/**
+ *  @brief Runs lottie teardown code when rlottie library  is loaded
+ * dynamically.
+ *
+ * This api should be called before unloading the rlottie library for
+ * proper cleanup of the resource without doing so will result in undefined
+ * behaviour.
+ *
+ *  @see lottie_init()
+ *
+ *  @ingroup Lottie_Animation
+ *  @internal
+ */
+RLOTTIE_API void lottie_shutdown(void);
+
+/**
  *  @brief Constructs an animation object from file path.
  *
  *  @param[in] path Lottie resource file path
@@ -55,7 +89,7 @@ typedef struct Lottie_Animation_S Lottie_Animation;
  *  @ingroup Lottie_Animation
  *  @internal
  */
-Lottie_Animation *lottie_animation_from_file(const char *path);
+RLOTTIE_API Lottie_Animation *lottie_animation_from_file(const char *path);
 
 /**
  *  @brief Constructs an animation object from JSON string data.
@@ -70,7 +104,7 @@ Lottie_Animation *lottie_animation_from_file(const char *path);
  *  @ingroup Lottie_Animation
  *  @internal
  */
-Lottie_Animation *lottie_animation_from_data(const char *data, const char *key, const char *resource_path);
+RLOTTIE_API Lottie_Animation *lottie_animation_from_data(const char *data, const char *key, const char *resource_path);
 
 /**
  *  @brief Free given Animation object resource.
@@ -83,7 +117,7 @@ Lottie_Animation *lottie_animation_from_data(const char *data, const char *key, 
  *  @ingroup Lottie_Animation
  *  @internal
  */
-void lottie_animation_destroy(Lottie_Animation *animation);
+RLOTTIE_API void lottie_animation_destroy(Lottie_Animation *animation);
 
 /**
  *  @brief Returns default viewport size of the Lottie resource.
@@ -95,7 +129,7 @@ void lottie_animation_destroy(Lottie_Animation *animation);
  *  @ingroup Lottie_Animation
  *  @internal
  */
-void lottie_animation_get_size(const Lottie_Animation *animation, size_t *width, size_t *height);
+RLOTTIE_API void lottie_animation_get_size(const Lottie_Animation *animation, size_t *width, size_t *height);
 
 /**
  *  @brief Returns total animation duration of Lottie resource in second.
@@ -113,7 +147,7 @@ void lottie_animation_get_size(const Lottie_Animation *animation, size_t *width,
  *  @ingroup Lottie_Animation
  *  @internal
  */
-double lottie_animation_get_duration(const Lottie_Animation *animation);
+RLOTTIE_API double lottie_animation_get_duration(const Lottie_Animation *animation);
 
 /**
  *  @brief Returns total number of frames present in the Lottie resource.
@@ -130,7 +164,7 @@ double lottie_animation_get_duration(const Lottie_Animation *animation);
  *  @ingroup Lottie_Animation
  *  @internal
  */
-size_t lottie_animation_get_totalframe(const Lottie_Animation *animation);
+RLOTTIE_API size_t lottie_animation_get_totalframe(const Lottie_Animation *animation);
 
 /**
  *  @brief Returns default framerate of the Lottie resource.
@@ -143,7 +177,7 @@ size_t lottie_animation_get_totalframe(const Lottie_Animation *animation);
  *  @internal
  *
  */
-double lottie_animation_get_framerate(const Lottie_Animation *animation);
+RLOTTIE_API double lottie_animation_get_framerate(const Lottie_Animation *animation);
 
 /**
  *  @brief Get the render tree which contains the snapshot of the animation object
@@ -164,7 +198,7 @@ double lottie_animation_get_framerate(const Lottie_Animation *animation);
  *  @ingroup Lottie_Animation
  *  @internal
  */
-const LOTLayerNode *lottie_animation_render_tree(Lottie_Animation *animation, size_t frame_num, size_t width, size_t height);
+RLOTTIE_API const LOTLayerNode *lottie_animation_render_tree(Lottie_Animation *animation, size_t frame_num, size_t width, size_t height);
 
 /**
  *  @brief Maps position to frame number and returns it.
@@ -179,7 +213,7 @@ const LOTLayerNode *lottie_animation_render_tree(Lottie_Animation *animation, si
  *  @ingroup Lottie_Animation
  *  @internal
  */
-size_t lottie_animation_get_frame_at_pos(const Lottie_Animation *animation, float pos);
+RLOTTIE_API size_t lottie_animation_get_frame_at_pos(const Lottie_Animation *animation, float pos);
 
 /**
  *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer.
@@ -195,7 +229,7 @@ size_t lottie_animation_get_frame_at_pos(const Lottie_Animation *animation, floa
  *  @ingroup Lottie_Animation
  *  @internal
  */
-void lottie_animation_render(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
+RLOTTIE_API void lottie_animation_render(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
 
 /**
  *  @brief Request to render the content of the frame @p frame_num to buffer @p buffer asynchronously.
@@ -212,7 +246,7 @@ void lottie_animation_render(Lottie_Animation *animation, size_t frame_num, uint
  *  @ingroup Lottie_Animation
  *  @internal
  */
-void lottie_animation_render_async(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
+RLOTTIE_API void lottie_animation_render_async(Lottie_Animation *animation, size_t frame_num, uint32_t *buffer, size_t width, size_t height, size_t bytes_per_line);
 
 /**
  *  @brief Request to finish the current async renderer job for this animation object.
@@ -229,7 +263,7 @@ void lottie_animation_render_async(Lottie_Animation *animation, size_t frame_num
  *  @ingroup Lottie_Animation
  *  @internal
  */
-uint32_t *lottie_animation_render_flush(Lottie_Animation *animation);
+RLOTTIE_API uint32_t *lottie_animation_render_flush(Lottie_Animation *animation);
 
 
 /**
@@ -253,7 +287,7 @@ uint32_t *lottie_animation_render_flush(Lottie_Animation *animation);
  *  @ingroup Lottie_Animation
  *  @internal
  * */
-void lottie_animation_property_override(Lottie_Animation *animation, const Lottie_Animation_Property type, const char *keypath, ...);
+RLOTTIE_API void lottie_animation_property_override(Lottie_Animation *animation, const Lottie_Animation_Property type, const char *keypath, ...);
 
 
 /**
@@ -268,7 +302,7 @@ void lottie_animation_property_override(Lottie_Animation *animation, const Lotti
  *  @ingroup Lottie_Animation
  *  @internal
  * */
-const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animation *animation);
+RLOTTIE_API const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animation *animation);
 
 /**
  *  @brief Configures rlottie model cache policy.
@@ -285,8 +319,11 @@ const LOTMarkerList* lottie_animation_get_markerlist(Lottie_Animation *animation
  *
  *  @internal
  */
-void lottie_configure_model_cache_size(size_t cacheSize);
+RLOTTIE_API void lottie_configure_model_cache_size(size_t cacheSize);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif //_RLOTTIE_CAPI_H_
 

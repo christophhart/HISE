@@ -395,6 +395,11 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 	component->setComponentID(sc->getName().toString());
 
+	if (auto bc = dynamic_cast<MacroControlledObject*>(getComponent()))
+	{
+		bc->setModulationData(sc->getModulationData());
+	}
+
 	for(const auto& c: sc->getMouseListeners())
 		mouseCallbacks.add(new AdditionalMouseCallback(sc, component, c));
 
@@ -992,8 +997,8 @@ juce::String ScriptCreatedComponentWrappers::SliderWrapper::getTextForValuePopup
 		{
 			if (auto jp = dynamic_cast<JavascriptProcessor*>(sl->getScriptProcessor()))
 			{
-				var data[1] = { slider->getValue() };
-				var::NativeFunctionArgs args(sl, data, 2);
+				var data = slider->getValue();
+				var::NativeFunctionArgs args(sl, &data, 1);
 				Result r = Result::ok();
 	
 				auto text = jp->getScriptEngine()->callExternalFunction(sl->sliderValueFunction, args, &r, true);
@@ -1627,6 +1632,7 @@ ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentCo
 	{
 		mode = Mode::Table;
 		tableModel->tableRefreshBroadcaster.addListener(*this, ViewportWrapper::tableUpdated, false);
+		tableModel->tableColumnRepaintBroadcaster.addListener(*this, ViewportWrapper::columnNeedsRepaint, false);
 	}
 	else
 	{
@@ -1799,6 +1805,18 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::tableUpdated(ViewportWrapp
 	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
 	{
 		t->updateContent();
+	}
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::columnNeedsRepaint(ViewportWrapper& w, int index)
+{
+	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
+	{
+		auto cell = t->getCellPosition(index, 0, true);
+
+		cell.setTop(0);
+		cell.setBottom(t->getHeight());
+		t->repaint(cell);
 	}
 }
 
@@ -2738,7 +2756,7 @@ ScriptCreatedComponentWrappers::WebViewWrapper::WebViewWrapper(ScriptContentComp
 	dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->addScaleFactorListener(this);
 	component = wc;
 
-	if (vp = content->findParentComponentOfClass<ZoomableViewport>())
+	if ((vp = content->findParentComponentOfClass<ZoomableViewport>()))
 		vp->addZoomListener(this);
 }
 

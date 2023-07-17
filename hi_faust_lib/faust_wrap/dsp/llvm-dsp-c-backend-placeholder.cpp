@@ -66,7 +66,7 @@ namespace faust {
     { return ((::llvm_dsp_factory*)this)->getIncludePathnames(); }
     
 
-#if !FAUST_NO_WARNING_MESSAGES
+#if !FAUST_NO_WARNING_MESSAGES // if the compilation fails here, update Faust to > 2.50.4 or disable the flag in the projucer
     std::vector<std::string> llvm_dsp_factory::getWarningMessages()
     { return ((::llvm_dsp_factory*)this)->getWarningMessages(); }
 #endif

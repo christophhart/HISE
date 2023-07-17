@@ -126,6 +126,10 @@
  //#define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+#ifndef    HISE_OVERWRITE_OLD_USER_PRESETS
+ //#define HISE_OVERWRITE_OLD_USER_PRESETS 0
+#endif
+
 #ifndef    HISE_BACKEND_AS_FX
  //#define HISE_BACKEND_AS_FX 0
 #endif
@@ -301,6 +305,10 @@
  //#define IS_STATIC_DSP_LIBRARY 1
 #endif
 
+#ifndef    HISE_LOG_FILTER_FREQMOD
+ //#define HISE_LOG_FILTER_FREQMOD 0
+#endif
+
 //==============================================================================
 // hi_faust flags:
 
@@ -320,7 +328,7 @@
 // hi_faust_types flags:
 
 #ifndef    FAUST_NO_WARNING_MESSAGES
- #define   FAUST_NO_WARNING_MESSAGES 1
+ //#define FAUST_NO_WARNING_MESSAGES 0
 #endif
 
 //==============================================================================
@@ -384,6 +392,10 @@
 
 #ifndef    STANDALONE_STREAMING
  //#define STANDALONE_STREAMING 1
+#endif
+
+#ifndef    HISE_SAMPLER_CUBIC_INTERPOLATION
+ //#define HISE_SAMPLER_CUBIC_INTERPOLATION 0
 #endif
 
 //==============================================================================

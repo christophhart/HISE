@@ -543,9 +543,20 @@ public:
 		setOutputValue(unsavedValue);
 #endif
 
-		return unsavedValue;
+        auto v = unsavedValue;
+        
+        if(resetUnsavedValue)
+            unsavedValue = -1.0f;
+        
+		return v;
 	};
 
+    /** Only used in Global Modulator Containers. */
+    void setResetUnsavedValue(bool shouldReset)
+    {
+        resetUnsavedValue = shouldReset;
+    }
+    
 	static Path getSymbolPath()
 	{
 		ChainBarPathFactory f;
@@ -614,6 +625,11 @@ public:
 			unsavedValue = calculateVoiceStartValue(m);
 		}
 	};
+    
+    float getUnsavedValue() const
+    {
+        return unsavedValue;
+    }
 
 protected:
 
@@ -630,6 +646,7 @@ private:
 		return unsavedValue == -1.0f;
 	};
 
+    bool resetUnsavedValue = false;
 	float unsavedValue;
 
 	Array<float> voiceValues;
@@ -1092,7 +1109,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		tableEnvelope,
 		scriptEnvelope,
 		mpeModulator,
-		voiceKillEnvelope
+		voiceKillEnvelope,
+		globalEnvelope
 	};
 
 public:
@@ -1136,7 +1154,8 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		pitchWheel,
 		macroModulator,
 		globalTimeVariantModulator,
-		scriptTimeVariantModulator
+		scriptTimeVariantModulator,
+        hardcodedTimeVariantModulator
 	};
 
 public:

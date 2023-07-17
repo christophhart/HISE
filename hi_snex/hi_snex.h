@@ -102,7 +102,7 @@ Set to 0 to disable SNEX compilation (default on iOS).
 
 
 #ifndef SNEX_MIR_BACKEND
-#define SNEX_MIR_BACKEND 0
+#define SNEX_MIR_BACKEND 1
 #endif
 
 /** The SNEX compiler is only available on x64 builds so this preprocessor will allow compiling HISE on ARM withouth the JIT compiler. */
@@ -198,19 +198,23 @@ namespace snex
             DECLARE_ID(NoSafeChecks);
 
 #if HISE_INCLUDE_SNEX
-            static StringArray getDefaultIds()
-            {
-#if SNEX_MIR_BACKEND
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
-#else
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-#endif
-            }
+			struct Helpers
+			{
 
-            static StringArray getAllIds()
-            {
-                return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
-            }
+				static StringArray getDefaultIds()
+				{
+#if SNEX_MIR_BACKEND
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination };
+#else
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+#endif
+				}
+
+				static StringArray getAllIds()
+				{
+					return { BinaryOpOptimisation, ConstantFolding, DeadCodeElimination, Inlining, LoopOptimisation, AsmOptimisation, NoSafeChecks };
+				}
+			};
 #endif
         }
 
@@ -225,8 +229,22 @@ namespace snex
 
 #define SNEX_ASMJIT_BACKEND !SNEX_MIR_BACKEND
 
+
+#if SNEX_ASMJIT_BACKEND
+#define USE_ASMJIT_NAMESPACE using namespace asmjit;
+#define ASMJIT_ONLY(x) x
+#else
+#define USE_ASMJIT_NAMESPACE
+#define ASMJIT_ONLY(x)
+#endif
+
+
 #ifndef SNEX_INCLUDE_NMD_ASSEMBLY
+#if defined (__arm__) || defined (__arm64__)
+#define SNEX_INCLUDE_NMD_ASSEMBLY 0
+#else
 #define SNEX_INCLUDE_NMD_ASSEMBLY 1
+#endif
 #endif
 
 

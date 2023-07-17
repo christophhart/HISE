@@ -499,16 +499,17 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	//synthChain->saveMacroValuesToValueTree(v);
 
-	auto modules = UserPresetHelpers::createModuleStateTree(synthChain);
-
-	if (modules.getNumChildren() > 0)
-		v.addChild(modules, -1, nullptr);
-
-	v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
-
+    getUserPresetHandler().saveStateManager(v, UserPresetIds::Modules);
+    
+    getUserPresetHandler().saveStateManager(v, UserPresetIds::MidiAutomation);
+    
+	
 
 	if (getUserPresetHandler().isUsingCustomDataModel())
-		v.addChild(getUserPresetHandler().createCustomValueTree("internal"), -1, nullptr);
+    {
+        getUserPresetHandler().saveStateManager(v, UserPresetIds::CustomJSON);
+        
+    }
 	else
 		synthChain->saveInterfaceValues(v);
 
@@ -523,14 +524,13 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 	// Make sure to save the version string into the plugin state
 	v.setProperty("Version", FrontendHandler::getVersionString(), nullptr);
 
-	auto mpeData = getMacroManager().getMidiControlAutomationHandler()->getMPEData().exportAsValueTree();
-
+    getUserPresetHandler().saveStateManager(v, UserPresetIds::MPEData);
+    
+	
 	// Reload the macro connections before restoring the preset values
 		// so that it will update the correct connections with `setMacroControl()` in a control callback
 	if (getMacroManager().isMacroEnabledOnFrontend())
 		getMacroManager().getMacroChain()->saveMacrosToValueTree(v);
-
-	v.addChild(mpeData, -1, nullptr);
 
 	v.writeToStream(output);
 
@@ -586,15 +586,15 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 	if (getMacroManager().isMacroEnabledOnFrontend())
 		getMacroManager().getMacroChain()->loadMacrosFromValueTree(v, false);
 
-	getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
+    getUserPresetHandler().restoreStateManager(v, UserPresetIds::MidiAutomation);
 
 	channelData = v.getProperty("MidiChannelFilterData", -1);
 	if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 
 	globalBPM = v.getProperty("HostTempo", -1.0);
 
-	UserPresetHelpers::restoreModuleStates(synthChain, v);
-
+    getUserPresetHandler().restoreStateManager(v, UserPresetIds::Modules);
+    
 	const String userPresetName = v.getProperty("UserPreset").toString();
 
 	if (userPresetName.isNotEmpty())
@@ -603,17 +603,12 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 	}
 
 	if (getUserPresetHandler().isUsingCustomDataModel())
-		getUserPresetHandler().loadCustomValueTree(v);
+        getUserPresetHandler().restoreStateManager(v, UserPresetIds::CustomJSON);
 	else
 		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 
-	auto mpeData = v.getChildWithName("MPEData");
-
-	if (mpeData.isValid())
-		getMacroManager().getMidiControlAutomationHandler()->getMPEData().restoreFromValueTree(mpeData);
-	else
-		getMacroManager().getMidiControlAutomationHandler()->getMPEData().reset();
-
+    getUserPresetHandler().restoreStateManager(v, UserPresetIds::MPEData);
+    
 	getUserPresetHandler().postPresetLoad();
 
 #endif

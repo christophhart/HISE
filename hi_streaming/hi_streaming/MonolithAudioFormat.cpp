@@ -201,6 +201,12 @@ MonolithFileReference::MonolithFileReference(const ValueTree& v)
 	numChannels = jmax(1, v.getChild(0).getNumChildren());
 	numParts = v.getProperty(MonolithIds::MonolithSplitAmount, 0);
 	referenceString = getIdFromValueTree(v);
+	isMonolith = (int)v.getProperty("SaveMode") == 2;
+}
+
+bool MonolithFileReference::isUsingMonolith() const
+{
+	return isMonolith;
 }
 
 HlacMonolithInfo::HlacMonolithInfo(const Array<File>& monolithicFiles_)

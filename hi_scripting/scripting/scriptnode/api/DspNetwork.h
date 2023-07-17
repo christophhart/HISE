@@ -478,6 +478,8 @@ public:
         
     private:
         
+		hise::SimpleReadWriteLock listenerLock;
+
 		void sendPostCompileMessage();
 
         Result lastCompileResult;

@@ -36,14 +36,13 @@ using namespace juce;
 
 
 
-
 #if USE_BACKEND
 
 SampleMapToWavetableConverter::Preview::Preview(SampleMapToWavetableConverter& parent_) :
-	WavetablePreviewBase(parent_)
+	WavetablePreviewBase(parent_),
+	ControlledObject(parent_.chain->getMainController()),
+	SimpleTimer(getMainController()->getGlobalUIUpdater())
 {
-	
-
 	setName("Harmonic Map Preview");
 }
 
@@ -54,51 +53,67 @@ SampleMapToWavetableConverter::Preview::~Preview()
 
 void SampleMapToWavetableConverter::Preview::mouseMove(const MouseEvent& event)
 {
-	hoverIndex = getHoverIndex(event.getMouseDownX());
 	repaint();
 }
 
 void SampleMapToWavetableConverter::Preview::mouseEnter(const MouseEvent& /*event*/)
 {
-	setMouseCursor(MouseCursor::CrosshairCursor);
 }
 
 void SampleMapToWavetableConverter::Preview::mouseExit(const MouseEvent& /*event*/)
 {
-	setMouseCursor(MouseCursor::NormalCursor);
-
-	hoverIndex = -1;
 	repaint();
 }
 
 void SampleMapToWavetableConverter::Preview::mouseDown(const MouseEvent& event)
 {
-	int index = getHoverIndex(event.getMouseDownX());
-
-	parent.replacePartOfCurrentMap(index);
-
-	rebuildMap(); 
 }
 
 void SampleMapToWavetableConverter::Preview::updateGraphics()
 {
-	rebuildMap();
+	repaint();
 }
 
-int SampleMapToWavetableConverter::Preview::getHoverIndex(int xPos) const
-{
-	int index = (int)((float)xPos / (float)getWidth() * (float)parent.numParts);
-	index = jlimit<int>(0, parent.numParts, index);
 
-	return index;
-}
 
 
 
 void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 {
-	g.fillAll(Colour(0xFF222222));
-	float rectWidth = (float)getWidth() / 64.0f;
+	g.fillAll(Colours::black);
+
+	if (spectrumImage.isValid())
+	{
+		g.drawImageWithin(spectrumImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+
+		if (previewPosition >= 0.0)
+		{
+			auto x = (float)previewPosition * (float)getWidth();
+
+			g.setColour(Colours::white.withAlpha(0.1f));
+
+			g.fillRect(x - 5.0f, 0.0, 10.0f, (float)getHeight());
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+			g.fillRect(x - 1.0f, 0.0, 2.0f, (float)getHeight());
+		}
+
+		return;
+	}
+	else
+	{
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawRect(getLocalBounds().toFloat(), 1.0f);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawText("No preview available", getLocalBounds().toFloat(), Justification::centred);
+		return;
+	}
+
+#if 0
+    float rectWidth = (float)getWidth() / (float)parent.numParts;
 
 	for (auto& r : harmonicList)
 	{
@@ -120,86 +135,88 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 		g.setColour(co);
 		g.fillRect(r.area);
 	}
-
-	if (hoverIndex != -1)
-	{
-		auto area = Rectangle<float>((float)(hoverIndex * rectWidth), 0, rectWidth, (float)getHeight());
-		g.setColour(Colours::red.withAlpha(0.1f));
-		g.fillRect(area);
-	}
-
-	g.setColour(Colour(0xff7559a4).withAlpha(0.4f));
-	g.strokePath(p, PathStrokeType(2.0f));
+#endif
 }
 
+
+
+void SampleMapToWavetableConverter::Preview::timerCallback()
+{
+	auto numSamples = getMainController()->getPreviewBufferSize();
+
+	if (numSamples != 0)
+	{
+		auto thisPreviewPosition = (double)getMainController()->getPreviewBufferPosition() / (double)numSamples;
+		
+		if (previewPosition != thisPreviewPosition)
+		{
+			previewPosition = thisPreviewPosition;
+			repaint();
+		}
+	}
+	else
+	{
+		if (previewPosition != -1.0)
+			repaint();
+
+		previewPosition = -1.0;
+	}
+}
+
+#if 0
 void SampleMapToWavetableConverter::Preview::rebuildMap()
 {
-	float rectWidth = (float)getWidth() / 64.0f;
-	float rectHeight = 0.0f;
 
-	const auto& currentMap = parent.harmonicMaps.getReference(parent.currentIndex);
-
-	int numHarmonics = currentMap.harmonicGains.getNumSamples();
-
-	if (numHarmonics != 0)
+	if (const auto currentMap = parent.getCurrentMap())
 	{
-		rectHeight = (float)getHeight() / (float)numHarmonics;
-	}
+		int numHarmonics = currentMap->harmonicGains.getNumSamples();
 
-	float x = 0.0f;
+		float rectWidth = (float)getWidth() / (float)currentMap->harmonicGains.getNumChannels();
+		float rectHeight = 0.0f;
 
-
-
-	harmonicList.clear();
-	
-
-	for (int j = 0; j < currentMap.harmonicGains.getNumChannels(); j++)
-	{
-		float y = 0.0f;
-
-		for (int i = 0; i < currentMap.harmonicGains.getNumSamples(); i++)
+		if (numHarmonics != 0)
 		{
-			float gainL = currentMap.harmonicGains.getSample(j, i);
-			float gainR = currentMap.harmonicGainsRight.getSample(j, i);
-
-			gainL = powf(gainL, 0.25f);
-			gainR = powf(gainR, 0.25f);
-
-			auto area = Rectangle<float>(x, (float)getHeight() - y, rectWidth, rectHeight);
-
-			Harmonic l;
-			
-			l.area = area;
-			l.lGain = gainL;
-			l.rGain = gainR;
-
-			harmonicList.add(l);
-			
-			y += rectHeight;
+			rectHeight = (float)getHeight() / (float)numHarmonics;
 		}
 
-		x += rectWidth;
-	}
+		float x = 0.0f;
 
-	p.clear();
+		harmonicList.clear();
 
-	p.startNewSubPath(0.0f, (float)getHeight() / 2.0f);
 
-	for (int i = 0; i < parent.numParts; i++)
-	{
-		auto deviation = jlimit<float>(-100.0f, 100.0f, (float)currentMap.pitchDeviations[i]);
+		for (int j = 0; j < currentMap->harmonicGains.getNumChannels(); j++)
+		{
+			float y = 0.0f;
 
-        deviation = FloatSanitizers::sanitizeFloatNumber(deviation);
-        
-		auto scaled = deviation / 100.0 * (float)getHeight() / 2.0f + getHeight() / 2.0f;
+			for (int i = 0; i < currentMap->harmonicGains.getNumSamples(); i++)
+			{
+				float gainL = currentMap->harmonicGains.getSample(j, i);
+				float gainR = currentMap->harmonicGainsRight.getNumSamples() > 0 ? currentMap->harmonicGainsRight.getSample(j, i) : gainL;
 
-		p.lineTo((float)i*rectWidth, (float)scaled);
-	}
+				gainL = powf(gainL, 0.25f);
+				gainR = powf(gainR, 0.25f);
 
-	p.lineTo((float)getWidth(), (float)getHeight() / 2.0f);
+				auto area = Rectangle<float>(x, (float)getHeight() - y, rectWidth, rectHeight);
 
-	repaint();
+				Harmonic l;
+
+				l.area = area;
+				l.lGain = gainL;
+				l.rGain = gainR;
+
+				harmonicList.add(l);
+
+				y += rectHeight;
+			}
+
+			x += rectWidth;
+		}
+
+		repaint();
+	}	
+
 }
+#endif
 
 void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 {
@@ -211,7 +228,9 @@ void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 	for (auto& s : samples)
 	{
 		s.active = parent.currentIndex == s.index;
-		s.analysed = parent.harmonicMaps[s.index].analysed;
+
+		if(isPositiveAndBelow(s.index, parent.harmonicMaps.size()))
+			s.analysed = parent.harmonicMaps[s.index]->analysed;
 	}
 
 	repaint();
@@ -219,7 +238,10 @@ void SampleMapToWavetableConverter::SampleMapPreview::updateGraphics()
 
 void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 {
-	g.setColour(Colours::white.withAlpha(0.1f));
+	g.fillAll(Colour(0xFF222222));
+	g.setColour(Colours::white.withAlpha(0.05f));
+
+	g.drawRect(getLocalBounds(), 1.0f);
 
 	int widthPerNote = getWidth() / 128;
 	int x = 0;
@@ -230,20 +252,142 @@ void SampleMapToWavetableConverter::SampleMapPreview::paint(Graphics& g)
 		x += widthPerNote;
 	}
 
+	if (insertPosition != -1)
+	{
+		auto c = Colour(SIGNAL_COLOUR);
+		g.setColour(c.withAlpha(0.05f));
+		g.fillRect(getLocalBounds());
+
+		Rectangle<int> ip(insertPosition * (getWidth() / 128), 0, getWidth() / 128, getHeight());
+
+		g.setColour(c.withAlpha(0.2f));
+		g.fillRect(ip.toFloat());
+		g.setColour(c.withAlpha(0.6f));
+		g.drawRect(ip.toFloat(), 2.0f);
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		String message;
+
+		message << "Load sample with root note ";
+		message << MidiMessage::getMidiNoteName(insertPosition, true, true, 3);
+		message << "(" << roundToInt(48000.0 / MidiMessage::getMidiNoteInHertz(insertPosition)) << " cycle length)";
+
+		g.drawText(message, getLocalBounds().toFloat(), Justification::centred);
+	}
+	else if (samples.isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Load samplemap or drop audio file", getLocalBounds().toFloat(), Justification::centred);
+	}
+
 	for (auto& s : samples)
 	{
-		Colour c = s.analysed ? Colours::green : Colours::grey;
-		if (s.active)
-			c = Colours::white;
+		Colour c = s.index == parent.getCurrentMap()->index.sampleIndex ? Colour(SIGNAL_COLOUR) : Colours::grey;
 
-		g.setColour(c.withAlpha(0.6f));
+		g.setColour(c.withAlpha(s.index == hoverIndex ? 0.6f : 0.5f));
 
 		if (s.area.getHeight() > 0)
 		{
 			g.drawRect(s.area, 1);
 			g.fillRect(s.area);
 		}
+
+		auto l = s.keyRange.getLength();
+
+		if (l > parent.mipmapSize)
+		{
+			bool bright = true;
+			for (int i = s.keyRange.getStart(); i < s.keyRange.getEnd(); i += parent.mipmapSize)
+			{
+				bright = !bright;
+
+				auto w = jmin(parent.mipmapSize, s.keyRange.getEnd() - i);
+
+				g.setColour((bright ? Colours::white : Colours::black).withAlpha(0.03f));
+				
+				g.fillRect(i * widthPerNote, s.area.getY(), w * widthPerNote, s.area.getHeight());
+			}
+		}
 	}
+
+	
+}
+
+void SampleMapToWavetableConverter::SampleMapPreview::mouseDown(const MouseEvent& e)
+{
+	for (auto& s : samples)
+	{
+		if (s.area.contains(e.getPosition()))
+		{
+			indexBroadcaster.sendMessage(sendNotificationSync, s.index);
+			repaint();
+			break;
+		}
+	}
+}
+
+void SampleMapToWavetableConverter::SampleMapPreview::mouseMove(const MouseEvent& e)
+{
+	for (auto& s : samples)
+	{
+		if (s.area.contains(e.getPosition()))
+		{
+			hoverIndex = s.index;
+			repaint();
+			break;
+		}
+	}
+}
+
+void SampleMapToWavetableConverter::SampleMapPreview::filesDropped(const StringArray& files, int x, int y)
+{
+	ValueTree v("samplemap");
+
+	double sr, unused;
+
+	File f(files[0]);
+
+	auto fileContent = hlac::CompressionHelpers::loadFile(f, unused, &sr);
+
+	auto numSamples = PitchDetection::getNumSamplesNeeded(sr, 20.0);
+
+	AudioSampleBuffer wb(2, numSamples);
+
+	auto estimatedFreq = MidiMessage::getMidiNoteInHertz(insertPosition);
+
+	auto pitch = PitchDetection::detectPitch(f, wb, sr, estimatedFreq);
+
+	if (pitch == 0.0)
+	{
+		PresetHandler::showMessageWindow("The root frequency can't be detected.", "The pitch detection failed to use the provided root note. Try another root note", PresetHandler::IconType::Error);
+		return;
+	}
+
+	auto length = roundToInt(sr / pitch);
+
+	ValueTree sample("sample");
+
+	PoolReference ref(parent.chain->getMainController(), f.getFullPathName(), FileHandlerBase::Samples);
+
+	sample.setProperty(SampleIds::FileName, ref.getReferenceString(), nullptr);
+	sample.setProperty(SampleIds::LoKey, 0, nullptr);
+	sample.setProperty(SampleIds::HiKey, 127, nullptr);
+	sample.setProperty(SampleIds::LoVel, 0, nullptr);
+	sample.setProperty(SampleIds::HiVel, 127, nullptr);
+
+	ResynthesisHelpers::writeRootAndPitch(sample, sr, length);
+
+	v.addChild(sample, -1, nullptr);
+	v.setProperty(SampleIds::ID, f.getFileNameWithoutExtension(), nullptr);
+	v.setProperty("SaveMode", 0, nullptr);
+
+	if (sampleMapLoadFunction)
+		sampleMapLoadFunction(v);
+
+	insertPosition = -1;
+	repaint();
 }
 
 SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree& data, Rectangle<int> totalArea)
@@ -256,10 +400,19 @@ SampleMapToWavetableConverter::SampleMapPreview::Sample::Sample(const ValueTree&
 	int h = jmap((int)(1 + d.highVelocity - d.lowVelocity), 0, 128, 0, totalArea.getHeight()-1);
 
 	area = { x, y, w, h };
-	index = data.getProperty("ID");
+	index = data.getParent().indexOf(data);
+
+	keyRange = { d.lowKey, d.highKey };
+	rootNote = d.rootNote;
 }
 
 #endif
+
+
+
+
+
+
 
 
 

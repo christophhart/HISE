@@ -3379,6 +3379,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_0(ScriptPanel, isVisibleAsPopup);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setIsModalPopup);
 	API_METHOD_WRAPPER_3(ScriptPanel, startExternalFileDrag);
+	API_METHOD_WRAPPER_1(ScriptPanel, startInternalDrag);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier panelName, int x, int y, int , int ) :
@@ -3488,6 +3489,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setAnimation);
 	ADD_API_METHOD_1(setAnimationFrame);
 	ADD_API_METHOD_3(startExternalFileDrag);
+	ADD_API_METHOD_1(startInternalDrag);
 }
 
 
@@ -4378,6 +4380,13 @@ bool ScriptingApi::Content::ScriptPanel::startExternalFileDrag(var fileToDrag, b
     return true;
 }
 
+bool ScriptingApi::Content::ScriptPanel::startInternalDrag(var dragData)
+{
+	getScriptProcessor()->getScriptingContent()->sendDragAction(Content::RebuildListener::DragAction::Start, this, dragData);
+
+	return true;
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
@@ -4722,6 +4731,7 @@ ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingConten
 
 	ADD_SCRIPT_PROPERTY(i01, "enableCache");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i02, "enablePersistence");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "scaleFactorToZoom");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -4731,6 +4741,7 @@ ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingConten
 	
 	setDefaultValue(Properties::enableCache, false);
 	setDefaultValue(Properties::enablePersistence, true);
+	setDefaultValue(Properties::scaleFactorToZoom, true);
 	
 	handleDefaultDeactivatedProperties();
 
@@ -4752,6 +4763,8 @@ void ScriptingApi::Content::ScriptWebView::setScriptObjectPropertyWithChangeMess
 		data->setEnableCache((bool)newValue);
 	else if (id == getIdFor(Properties::enablePersistence))
 		data->setUsePersistentCalls((bool)newValue);
+	else if (id == getIdFor(Properties::scaleFactorToZoom))
+		data->setUseScaleFactorForZoom((bool)newValue);
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -5071,6 +5084,7 @@ height(50),
 width(600),
 name(String()),
 allowGuiCreation(true),
+dragCallback(p, nullptr, var(), 1),
 colour(Colour(0xff777777))
 {
 #if USE_FRONTEND
@@ -5131,6 +5145,8 @@ colour(Colour(0xff777777))
 	setMethod("isMouseDown", Wrapper::isMouseDown);
 	setMethod("getComponentUnderMouse", Wrapper::getComponentUnderMouse);
 	setMethod("callAfterDelay", Wrapper::callAfterDelay);
+	setMethod("getComponentUnderDrag", Wrapper::getComponentUnderDrag);
+	setMethod("refreshDragImage", Wrapper::refreshDragImage);
 }
 
 ScriptingApi::Content::~Content()
@@ -6146,6 +6162,45 @@ void ScriptingApi::Content::recompileAndThrowAtDefinition(ScriptComponent* sc)
 	}
 }
 
+void ScriptingApi::Content::sendDragAction(RebuildListener::DragAction a, ScriptComponent* sc, var& data)
+{
+	for (auto r : rebuildListeners)
+	{
+		if (r != nullptr && r->onDragAction(a, sc, data))
+			return;
+	}
+}
+
+bool ScriptingApi::Content::refreshDragImage()
+{
+	var obj;
+
+	for (auto r : rebuildListeners)
+	{
+		if (r->onDragAction(RebuildListener::DragAction::Repaint, nullptr, obj))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+String ScriptingApi::Content::getComponentUnderDrag()
+{
+	var obj;
+
+	for (auto r : rebuildListeners)
+	{
+		if (r->onDragAction(RebuildListener::DragAction::Query, nullptr, obj))
+		{
+			return obj.toString();
+		}
+	}
+
+	return obj.toString();
+}
+
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
 #undef SEND_MESSAGE
@@ -6472,12 +6527,11 @@ void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptC
 
 String ScriptingApi::Content::Helpers::createLocalLookAndFeelForComponents(ReferenceCountedArray<ScriptComponent> selection)
 {
-
-    NewLine nl;
     String code;
 
 #if USE_BACKEND
     
+    NewLine nl;
     Random r;
     
     String lafName = "local_laf" + String(r.nextInt({0, 999}));

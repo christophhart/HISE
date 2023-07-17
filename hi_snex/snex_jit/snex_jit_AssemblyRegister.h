@@ -35,7 +35,11 @@
 namespace snex {
 namespace jit {
 using namespace juce;
-using namespace asmjit;
+
+
+#if SNEX_ASMJIT_BACKEND
+USE_ASMJIT_NAMESPACE;
+
 
 
 class SyntaxTree;
@@ -281,6 +285,39 @@ private:
 	Symbol id;
 };
 
+#else
+
+struct AssemblyMemory
+{
+	void* cc = nullptr;
+};
+
+class AssemblyRegister : public ReferenceCountedObject
+{
+public:
+
+	AssemblyRegister(BaseCompiler* compiler, TypeInfo type_) { jassertfalse; };
+
+	using Ptr = ReferenceCountedObjectPtr<AssemblyRegister>;
+	using List = ReferenceCountedArray<AssemblyRegister>;
+
+	TypeInfo getTypeInfo() const { jassertfalse; return TypeInfo(Types::ID::Void); }
+	void loadMemoryIntoRegister(AsmJitX86Compiler& cc, bool forceLoad = false) { jassertfalse; }
+	void createMemoryLocation(AsmJitX86Compiler& cc) { jassertfalse; }
+	bool isValid() const { jassertfalse; return false; }
+	bool isActive() const { return isValid(); }
+
+	const Symbol& getVariableId() const
+	{
+		jassertfalse;
+        return s;
+	}
+    
+    Symbol s;
+};
+
+#endif
+
 class AssemblyRegisterPool
 {
 public:
@@ -310,6 +347,8 @@ private:
 	ReferenceCountedArray<AssemblyRegister> currentRegisterPool;
 	BaseCompiler* compiler;
 };
+
+
 
 }
 }

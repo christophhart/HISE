@@ -37,26 +37,50 @@ namespace hise { using namespace juce;
 
 MARKDOWN_CHAPTER(WavetableHelp)
 
+START_MARKDOWN(Mode)
+ML("## Analysis mode")
+ML("- **Resample**: this will not perform any resynthesis and just resamples a perfectly aligned wavetable audio file into a .hwt file");
+ML("- **Loris**: this will use the Loris library and resynthesise the wavetables from the audio.");
+END_MARKDOWN()
 
 START_MARKDOWN(ReverseWavetables)
 ML("## Reverse Wavetable order")
-ML("Only used in FFT Resynthesis mode. If this is enabled, it will store the wavetables in reversed order.  ")
+ML("If this is enabled, it will store the wavetables in reversed order.  ")
 ML("This is useful if you have decaying samples and want to use the table index to modulate the decay process")
 END_MARKDOWN()
 
-START_MARKDOWN(WindowType)
-ML("## FFT Window Type")
-ML("Only used in FFT Resynthesis mode. This changes the window function that is applied to the signal before the FFT.  ")
-ML("The selection of the right window function has a drastic impact on the resulting accuracy and varies between different signal types. ")
-ML("Try out different window types and compare the results.");
+START_MARKDOWN(Offset)
+ML("## Transient detection")
+ML("This setting defines how much the resynthesis should try to preserve transient and / or fast changing harmonics. Setting a low value here might result in smeared transients, but increases the frequency resolution.");
+END_MARKDOWN();
+
+START_MARKDOWN(PreservePhase)
+ML("## Preserve Phase")
+ML("This will preserve the phase when resynthesising the wavetables.  ")
+ML("If the sound comes from a natural source, enabling this might improve the stereo image. ");
+ML("For pure synthetic sounds this might create phasing issues");
 END_MARKDOWN()
 
-START_MARKDOWN(WindowSize)
-ML("## FFT Window Size")
-ML("Only used in FFT Resynthesis mode. Changes the size of the chunk that is used for the FFT.  ")
-ML("Generally, lower values yield more accurate results (and sizes above 2048 tend to smear the wavetables because their range start to overlap).  ");
-ML("However lower frequencies can't be detected with small FFT sizes so it might not work.    ")
-ML("> The recommended approach is to choose the **lowest possible FFT size** that still creates a reasonable harmonic spectrum.");
+START_MARKDOWN(Slices)
+ML("## Slices")
+ML("This will determine how many wavetables will be extraced from the sample. ")
+ML("> This setting only affects Zero Phase or Static Phase analysis, if you're using Dynamic Phase or Resample, the number of slices will be determined by the source file");
+END_MARKDOWN()
+
+START_MARKDOWN(About)
+ML("### How to use this tool")
+ML("1. Create a samplemap with the samples that you want to convert to a wavetable.You can use multiple samples for different notes, however the samplemap must not have multiple velocity layers.")
+ML("2. Choose a Analysis mode that suits your source samples.")
+ML("3. Play around with the different analysis and exporter options.You can click on the samplemap below to select different samples for previewing.")
+ML("4. Click one of the Export buttons to create a.HWT file that can be loaded into the Wavetable Synthesiser or a samplemap with the processed sound(which is useful for noise separation or performing additional steps before the wavetable conversion).")
+ML("> As soon as you've analysed your first sample, clicking on this button again will show the wavetable properties of the currently selected sample.")
+END_MARKDOWN()
+
+START_MARKDOWN(MipmapSize)
+ML("## Mip Map size")
+ML("Defines the interval that will be used to resynthesise the same sample.  ");
+ML("In order to reduce aliasing, you can resynthesise the same sample at different pitches.  ");
+ML("By default it is an octave but you can specify a lower amount for harmonicly rich signals");
 END_MARKDOWN()
 
 END_MARKDOWN_CHAPTER()
@@ -456,21 +480,46 @@ private:
 	File projectDirectory;
 };
 
+
+
+/** TODO:
+ 
+    - add preview using Wavetable sound & actual voice rendering ...OK
+	- make samplemap selectable ...OK
+	- add waterfall display to converter dialog with scanner
+    - add proper multithreading for rebuilding
+    - show statistics
+    - loris: add progress & status message manager
+	- add loris DLL check
+    - fix start & end
+	- add zero wavetable at the end for fade to silence (with option)
+    
+ */
 class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
-								 public ComboBoxListener
-	
+	public ComboBoxListener,
+	public PathFactory
+
 {
-	enum Mode
+	struct Separator : public Component
 	{
-		Resample,
-		FFTResynthesis,
-		numModes
+		Separator(const String& text_) :
+			text(text_)
+		{
+			setSize(GLOBAL_BOLD_FONT().getStringWidthFloat(text) + 10, 32);
+		}
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(text, getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		String text;
 	};
+
 
 	enum ButtonIds
 	{
-		Next = 5,
-		Previous,
 		Rescan,
 		Discard,
 		Preview,
@@ -478,117 +527,347 @@ class WavetableConverterDialog : public DialogWindowWithBackgroundThread,
 		numButtonIds
 	};
 
+	struct PreviewButton : public Button
+	{
+		PreviewButton(const String& name) :
+			Button(name)
+		{
+			setClickingTogglesState(true);
+			setSize(128, 32);
+		}
+
+		void setProgress(double d)
+		{
+			progress = d;
+			
+			SafeAsyncCall::repaint(this);
+		}
+
+		double progress = 1.0;
+
+		void paintButton(Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+		{
+			auto b = getLocalBounds().toFloat().reduced(5.0f, 8.0f);
+
+			Path p;
+			p.addTriangle({ 0.0f, 0.0f }, { 1.0f, 0.5f }, { 0.0f, 1.0f });
+
+			
+
+			auto tb = b.removeFromLeft(b.getHeight()).reduced(4.0f);
+
+			p.scaleToFit(tb.getX(), tb.getY(), tb.getWidth(), tb.getHeight(), false);
+
+			float alpha = 0.4f;
+
+			if (shouldDrawButtonAsHighlighted)
+				alpha += 0.1f;
+
+			if (shouldDrawButtonAsDown)
+				alpha += 0.4f;
+
+			if (getToggleState())
+			{
+				g.setColour(Colours::white.withAlpha(0.05f));
+				
+				auto b = getLocalBounds().toFloat().reduced(0.0, 4.0f);
+				
+				g.fillRect(b);
+				b = b.removeFromLeft(getWidth() * progress);
+				g.fillRect(b);
+			}
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.fillPath(p);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(getName(), b, Justification::left);
+		}
+	};
+
 public:
 	WavetableConverterDialog(ModulatorSynthChain* chain_) :
 		DialogWindowWithBackgroundThread("Convert Samplemaps to Wavetable"),
 		chain(chain_),
 		converter(new SampleMapToWavetableConverter(chain_)),
-		r(Result::ok())
+		r(Result::ok()),
+		currentTasks(32),
+		bl_(*this)
 	{
-		
+		converter->setLogFunction([this](const String& m)
+		{
+			this->showStatusMessage(m);
+		});
+
 		auto list = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool().getIdList();
+		list.insert(0, "Select sample map");
 
-		addComboBox("samplemap", list, "Samplemap");
-		getComboBoxComponent("samplemap")->addListener(this);
+		row1 = new AdditionalRow(this);
+
+		auto rb = new HiseShapeButton("refresh", nullptr, *this);
+
+		row1->addCustomComponent(rb);
+		rb->onClick = [&]()
+		{
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::rescan), true);
+		};
+
+		row1->addComboBox("samplemap", list, "Samplemap", 190);
+		row1->getComponent<ComboBox>("samplemap")->addListener(this);
+		row1->setInfoTextForLastComponent("The samplemap you want to convert into a .hwt wavetable");
+
+		row1->addComboBox("mode", { "Resample", "Zero Phase", "Static Phase", "Dynamic Phase" }, "Analysis Mode", 120);
+		row1->getComponent<ComboBox>("mode")->addListener(this);
+		row1->setInfoTextForLastComponent(R"(## Analysis Mode
+This setting will define how the wavetable conversion will create the wavetable data and is maybe the most important setting of this dialogue.
+### Resample
+Use this with audio files that are already in perfect power of two cycle length(like most "wavetable bank" files ready to be dropped in a wavetable synth).This will not perform any resynthesis but just store the cycles into a mip map(with some band limiting applied to higher notes to avoid aliasing).If you can use this mode with your source material, then it's highly recommended to do so as it will avoid the artifacts of any of the resynthesis modes.
+### Zero Phase
+This will analyse the harmonics of each slice and create a wavetable where every phase is zero.This might be a suitable mode for simple waveforms(sine, saws, etc), but it will mess with the stereo image of stereo wavetables and sound rather static.
+### Static Phase
+This will analyse the harmonics of each slice and pick a phase from somewhere in the middle of the sample to create a wavetable with varying phase offsets for each harmonic.The resulting wavetable will keep some of the stereo field and might look better than a zero phase resynthesis and is the preferred way of converting samples of synthesiser waveforms into a wavetable.
+### Dynamic Phase
+This will analyse the sample and recreate every cycle with the correct phase information.This will use the Loris library to resynthesise and pitch lock the sample and export it as wavetable.This might vastly increase the wavetable size, but yields the best results for organic material like real world instruments with subtle pitch differences and a complex stereo image.)");
+
+
 		
-		
 
-		StringArray windows;
-		windows.add("Flat Top");
-		windows.add("Blackman Harris");
-		windows.add("Hann");
-		windows.add("Hamming");
-		windows.add("Kaiser");
-		windows.add("Gaussian");
-		windows.add("Triangle");
-		windows.add("Rectangle");
-		
-		StringArray sizes;
-		sizes.add("Lowest possible");
-		sizes.add("128");
-		sizes.add("256");
-		sizes.add("512");
-		sizes.add("1024");
-		sizes.add("2048");
-		sizes.add("4096");
-		sizes.add("8192");
+		row1->addCustomComponent(new PreviewButton("Original"));
+		row1->addCustomComponent(new PreviewButton("Preview"));
 
-		StringArray yesNo;
+		row1->getComponent<Button>("Original")->addListener(&bl_);
+		row1->getComponent<Button>("Preview")->addListener(&bl_);
 
-		yesNo.add("Yes");
-		yesNo.add("No");
+		soundProperty = new MarkdownHelpButton();
+
+		soundProperty->setHelpText(WavetableHelp::About());
+
+		row1->addCustomComponent(soundProperty);
 
 
 
-		selectors = new AdditionalRow(this);
+		row1->setSize(768, 40);
 
+		addCustomComponent(row1);
 
-		selectors->addComboBox("mode", { "Resample Wavetables", "FFT Resynthesis"}, "Mode", 130);
-		selectors->addComboBox("ReverseTables", {"Yes", "No"}, "Reverse Wavetable order", 90);
-		selectors->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
-		selectors->addComboBox("WindowType", windows, "FFT Window Type", 120);
-		
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowType());
-		selectors->addComboBox("FFTSize", sizes, "FFT Size");
-		selectors->setInfoTextForLastComponent(WavetableHelp::WindowSize());
+		sm = new SampleMapToWavetableConverter::SampleMapPreview(*converter);
+		sm->setSize(768, 80);
 
-		selectors->setSize(512, 40);
-		addCustomComponent(selectors);
+		addCustomComponent(sm);
 
-		preview = new CombinedPreview(*converter);
-		preview->setSize(512, 300);
+		row2 = new AdditionalRow(this);
+
+		row2->addCustomComponent(new Separator("Analysis"));
+
+		row2->addComboBox("sourcelength", { "Automatic", "128", "256", "512", "1024", "2048", "4096" }, "Source Length", 92);
+		row2->getComponent<ComboBox>("sourcelength")->addListener(this);
+		row2->setInfoTextForLastComponent("Use this to define the wavetable length in the original wavefile (Automatic is trying to find the correct length using auto-corellation)  \n> This setting is only used by the **Resample** mode, if you're resynthesizing the sample it will detect the cycle length from the root frequency.");
+
+		row2->addComboBox("offset", { "0", "10%", "25%", "50%", "66%", "75%", "100%" }, "Transients", 82);
+		row2->setInfoTextForLastComponent(WavetableHelp::Offset());
+
+		row2->getComponent<ComboBox>("offset")->setSelectedItemIndex(3, dontSendNotification);
+
+		row2->addComboBox("numSlices", { "1", "2", "8", "16", "32", "64", "128", "256" }, "Slices", 60);
+		row2->setInfoTextForLastComponent(WavetableHelp::Slices());
+		row2->getComponent<ComboBox>("numSlices")->setSelectedItemIndex(5, dontSendNotification);
+
+		row2->addCustomComponent(new Separator("Export"));
+
+		row2->addComboBox("mipmap", { "Octave", "Half Octave", "Semitone", "Chromatic" }, "Mipmap"
+			, 92);
+		row2->setInfoTextForLastComponent(WavetableHelp::MipmapSize());
+
+		row2->addComboBox("compression", { "No compression", "FLAC codec" }, "Compression", 92);
+		row2->setInfoTextForLastComponent("### Compression\nUsing the FLAC codec might decrease the file size on disk but increase the load time of wavetables");
+
+		row2->addComboBox("ReverseTables", { "No", "Yes" }, "Reverse", 72);
+		row2->setInfoTextForLastComponent(WavetableHelp::ReverseWavetables());
+
+		row2->addComboBox("Noise", { "Mute", "Mix", "Solo" }, "Residual Noise", 100);
+
+		row2->setInfoTextForLastComponent(R"(### Residual Noise
+This will use Loris to separate the noise from the sinusoidal parts of the sample. The preview (and samplemap export) will then either mix or solo the noise signal so you can compare it against the original better.  
+> Setting the noise to solo is also a good way to check the quality of the analysis as it gives you hints what went wrong.)");
+
+		row2->setSize(768, 40);
+		addCustomComponent(row2);
+
+		preview = new CombinedPreview(*converter, chain->getMainController());
+		preview->setSize(768, 300);
+
+		sm->indexBroadcaster.addListener(*this, updateIndex, false);
+
+		auto c = converter.get();
+
+		sm->sampleMapLoadFunction = BIND_MEMBER_FUNCTION_1(WavetableConverterDialog::loadSampleMap);
+
+		preview->waterfall->displayDataFunction = [c, chain_]()
+		{
+			auto mc = chain_->getMainController();
+			WaterfallComponent::DisplayData d;
+
+			d.sound = dynamic_cast<WavetableSound*>(c->sound.get());
+
+			auto previewSize = mc->getPreviewBufferSize();
+
+			if (previewSize != 0)
+				d.modValue = (float)mc->getPreviewBufferPosition() / (float)previewSize;
+			else
+				d.modValue = 0.0f;
+
+			return d;
+		};
 
 		addCustomComponent(preview);
 
-		gainPackData = new SliderPackData(nullptr, nullptr);
-		gainPackData->setNumSliders(64);
-		gainPackData->setRange(0.0, 1.0, 0.01);
-		gainPack = new SliderPack(gainPackData);
-		
-		
-		gainPack->setName("Gain Values");
-		gainPack->setSize(512, 40);
+		converter->spectrumBroadcaster.addListener(*preview.get(), [](CombinedPreview& p, Image* i)
+		{
+			if (i != nullptr)
+				p.setImageToShow(*i);
+		});
 
-		addCustomComponent(gainPack);
+		addBasicComponents(false);
 
-		additionalButtons = new AdditionalRow(this);
+		addButton("Export as HWT", 1, KeyPress('h'));
+		addButton("Export as Samplemap", 2, KeyPress('s'));
 
+		showStatusMessage("Choose Samplemap to convert");
 
+		setDestroyWhenFinished(false);
 
-		additionalButtons->addButton("Previous", KeyPress(KeyPress::leftKey));
-		additionalButtons->addButton("Next", KeyPress(KeyPress::rightKey));
-		additionalButtons->addButton("Rescan", KeyPress(KeyPress::F5Key));
-		additionalButtons->addButton("Discard");
-		additionalButtons->addButton("Preview", KeyPress(KeyPress('p')));
-		additionalButtons->addButton("Original", KeyPress(KeyPress('o')));
+		getButton("Export as HWT")->onClick = [&]()
+		{
+			converter->exportAsHwt = true;
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::buildAllWavetables), true);
+		};
 
-		additionalButtons->setSize(512, 32);
+		getButton("Export as Samplemap")->onClick = [&]()
+		{
+			converter->exportAsHwt = false;
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::buildAllWavetables), true);
+		};
 
-		addCustomComponent(additionalButtons);
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, Colours::black);
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentFillTopColourId, Colours::white);
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentOutlineColourId, Colours::white.withAlpha(0.5f));
+		preview->waterfall->setColour(HiseColourScheme::ColourIds::ComponentTextColourId, Colours::white.withAlpha(0.5f));
 
-		addBasicComponents(true);
-
-        if(auto s = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(chain))
-        {
-			auto sampleMapTree = s->getSampleMap()->getValueTree();
-            
-            converter->parseSampleMap(sampleMapTree);
-            converter->refreshCurrentWavetable(getProgressCounter());
-            refreshPreview();
-            
-            showStatusMessage("Imported samplemap from " + s->getId());
-            
-        }
-        else
-        {
-            showStatusMessage("Choose Samplemap to convert");
-        }
-        
-        
-		
-		
-		
+		refreshEnablement();
 	}
+
+	MarkdownHelpButton* soundProperty;
+
+	struct bl : public ButtonListener
+	{
+		bl(WavetableConverterDialog& parent_) :
+			parent(parent_)
+		{};
+
+		~bl()
+		{
+			parent.chain->getMainController()->setBufferToPlay({}, {});
+		}
+
+		int lastPreview = -1;
+		WavetableConverterDialog&parent;
+
+		void previewUpdate(int pos)
+		{
+			auto normValue = (double)pos / (double)(jmax(1, parent.chain->getMainController()->getPreviewBufferSize()));
+
+			if (parent.row1 != nullptr)
+			{
+				parent.row1->getComponent<PreviewButton>("Original")->setProgress(normValue);
+				parent.row1->getComponent<PreviewButton>("Preview")->setProgress(normValue);
+			}
+		}
+
+		void onPreview()
+		{
+			parent.chain->getMainController()->stopBufferToPlay();
+
+			auto b = parent.converter->getPreviewBuffers(lastPreview);
+
+			
+
+			parent.wait(50);
+			parent.chain->getMainController()->setBufferToPlay(b, BIND_MEMBER_FUNCTION_1(bl::previewUpdate));
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			auto original = b->getName() == "Original";
+
+			parent.row1->getComponent<Button>("Original")->setToggleState(false, dontSendNotification);
+			parent.row1->getComponent<Button>("Preview")->setToggleState(false, dontSendNotification);
+			b->setToggleState(true, dontSendNotification);
+
+			if (lastPreview != (int)original)
+			{
+				lastPreview = (int)original;
+				parent.converter->originalSpectrum = {};
+			}
+
+			parent.chain->getMainController()->stopBufferToPlay();
+
+			parent.runTask(BIND_MEMBER_FUNCTION_0(bl::onPreview), false);
+		}
+	} bl_;
+
+	static void updateIndex(WavetableConverterDialog& d, int newIndex)
+	{
+		auto converter = d.converter.get();
+
+		d.runTask([newIndex, converter]()
+		{
+			converter->setCurrentIndex(newIndex, sendNotificationSync);
+		}, true);
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path path;
+		if (url == "refresh")
+		{
+			static const unsigned char pathData[] = { 110,109,68,196,21,68,162,38,190,67,98,112,28,26,68,227,203,198,67,168,254,31,68,9,170,203,67,208,34,38,68,9,170,203,67,98,196,243,50,68,9,170,203,67,0,88,61,68,148,225,182,67,0,88,61,68,220,62,157,67,108,0,128,69,68,220,62,157,67,98,0,128,69,68,170,227,
+	191,67,136,116,55,68,237,248,219,67,208,34,38,68,237,248,219,67,98,148,212,29,68,237,248,219,67,112,223,21,68,116,98,213,67,32,0,16,68,238,174,201,67,108,240,163,8,68,78,103,216,67,108,144,134,8,68,64,107,176,67,108,152,132,28,68,0,166,176,67,108,68,
+	196,21,68,162,38,190,67,99,109,188,59,55,68,189,178,123,67,98,36,227,50,68,60,104,106,67,16,1,45,68,124,172,96,67,8,221,38,68,124,172,96,67,98,172,11,26,68,124,172,96,67,152,167,15,68,108,30,133,67,152,167,15,68,36,193,158,67,108,0,128,7,68,36,193,158,
+	67,98,0,128,7,68,172,56,120,67,200,138,21,68,37,14,64,67,8,221,38,68,37,14,64,67,98,72,43,47,68,37,14,64,67,4,32,55,68,23,59,77,67,80,255,60,68,36,162,100,67,108,164,91,68,68,100,49,71,67,108,192,120,68,68,192,148,139,67,108,244,123,48,68,0,90,139,67,
+	108,188,59,55,68,189,178,123,67,99,101,0,0 };
+			path.loadPathFromData(pathData, sizeof(pathData));
+		}
+
+		return path;
+	}
+
+	void runTask(const std::function<void(void)>& f, bool clearTasks=true)
+	{
+		rebuildPending = true;
+
+		auto isRunning = getCurrentThread() != nullptr && getCurrentThread()->isThreadRunning();
+
+		if (clearTasks)
+		{
+			if (isRunning)
+			{
+				if (getCurrentThread()->stopThread(1000))
+					isRunning = false;
+			}
+
+			currentTasks.callForEveryElementInQueue([](std::function<void(void)>& f) {return true; });
+		}
+
+		currentTasks.push(f);
+
+		if (!isRunning)
+		{
+			runThread();
+		}
+	}
+
+	std::function<void(void)> finishFunction;
+
+	LockfreeQueue<std::function<void(void)>> currentTasks;
 
 	~WavetableConverterDialog()
 	{
@@ -597,170 +876,270 @@ public:
 		converter = nullptr;
 	}
 
-	void resultButtonClicked(const String &name)
+	void refreshEnablement()
 	{
-		if (name == "Previous")
-		{
-			converter->moveCurrentSampleIndex(false);
-			r = converter->refreshCurrentWavetable(getProgressCounter(), false);
-		}
-		else if (name == "Next")
-		{
-			converter->moveCurrentSampleIndex(true);
-			r = converter->refreshCurrentWavetable(getProgressCounter(), false);
-		}
-		else if (name == "Rescan")
-		{
-			r = converter->refreshCurrentWavetable(getProgressCounter(), true);
-		}
-		else if (name == "Discard")
-		{
-			r = converter->discardCurrentNoteAndUsePrevious();
-		}
-		else if (name == "Original" || name == "Preview")
-		{
-			showStatusMessage("Preview");
-			auto b = converter->getPreviewBuffers(name == "Original");
+		auto resynthesise = converter->phaseMode != SampleMapToWavetableConverter::PhaseMode::Resample;
 
-			chain->getMainController()->setBufferToPlay(b);
-		}
+		row2->getComponent<ComboBox>("offset")->setEnabled(resynthesise);
+		row2->getComponent<ComboBox>("numSlices")->setEnabled(resynthesise && converter->phaseMode != SampleMapToWavetableConverter::PhaseMode::DynamicPhase);
+		row2->getComponent<ComboBox>("sourcelength")->setEnabled(!resynthesise);
+
+		row2->getComponent<ComboBox>("Noise")->setEnabled(resynthesise);
+
+		getButton("Export as Samplemap")->setEnabled(resynthesise);
+	}
+
+	void rescan()
+	{
+		showStatusMessage("Rebuilding current sample");
+		converter->refreshCurrentWavetable(true);
+		showStatusMessage("Rebuilding done");
 		
-
 		refreshPreview();
-
 	}
 
 	void refreshPreview()
 	{
 		converter->sendChangeMessage();
+	}
 
-		if (auto gainData = converter->getCurrentGainValues())
+	void cancelCurrentTask()
+	{
+		if (auto ct = getCurrentThread())
+			ct->stopThread(1000);
+	}
+
+	void loadSampleMap(const ValueTree& v)
+	{
+		ValueTree copy(v);
+
+		runTask([this, copy]()
 		{
-			for (int i = 0; i < 64; i++)
-			{
-				gainPackData->setValue(i, gainData[i]);
-			}
+			currentlyLoadedMap = copy[SampleIds::ID].toString();
 
-			gainPackData->sendChangeMessage();
-		}
-
-		if (r.failed())
-			showStatusMessage("Fail at " + MidiMessage::getMidiNoteName(converter->getCurrentNoteNumber(), true, true, 3) + ": " + r.getErrorMessage());
-		else
-			showStatusMessage("OK: " + MidiMessage::getMidiNoteName(converter->getCurrentNoteNumber(), true, true, 3));
+			converter->parseSampleMap(copy);
+			
+			showStatusMessage("Loaded map " + currentlyLoadedMap);
+			refreshPreview();
+		}, true);
 	}
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
 	{
-		if (getComboBoxComponent("samplemap") == comboBoxThatHasChanged)
+		if (comboBoxThatHasChanged->getName() == "mode")
 		{
+			cancelCurrentTask();
+
+			converter->phaseMode = (SampleMapToWavetableConverter::PhaseMode)comboBoxThatHasChanged->getSelectedItemIndex();
+
+			refreshEnablement();
+			
+			converter->discardAllScans();
+
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::rescan));
+		}
+		if (comboBoxThatHasChanged->getName() == "compression")
+		{
+			converter->useCompression = comboBoxThatHasChanged->getSelectedItemIndex();
+			return;
+		}
+		if (comboBoxThatHasChanged->getName() == "samplemap")
+		{
+			if (comboBoxThatHasChanged->getSelectedItemIndex() == 0)
+				return;
+
 			auto& spool = chain->getMainController()->getActiveFileHandler()->pool->getSampleMapPool();
 
 			PoolReference ref(chain->getMainController(), comboBoxThatHasChanged->getText(), FileHandlerBase::SampleMaps);
 
-			currentlyLoadedMap = ref.getFile().getFileNameWithoutExtension();
-
 			if (auto vData = spool.loadFromReference(ref, PoolHelpers::LoadAndCacheWeak))
 			{
-				converter->parseSampleMap(*vData.getData());
-
-				if (currentMode == FFTResynthesis)
-				{
-					converter->refreshCurrentWavetable(getProgressCounter());
-					
-				}
-
-				refreshPreview(); 
+				loadSampleMap(vData->data);
 			}
-		}
-		if (comboBoxThatHasChanged->getName() == "mode")
-		{
-			currentMode = (Mode)comboBoxThatHasChanged->getSelectedItemIndex();
 
-			if (currentMode == FFTResynthesis)
+			return;
+		}
+		if (comboBoxThatHasChanged->getName() == "Noise")
+		{
+			auto nm = (SampleMapToWavetableConverter::PreviewNoise)comboBoxThatHasChanged->getSelectedItemIndex();
+
+			runTask([this, nm]()
 			{
-				converter->refreshCurrentWavetable(getProgressCounter());
-				refreshPreview();
-			}
+				converter->setPreviewMode(nm);
+				row1->getComponent<Button>("Preview")->triggerClick(sendNotificationAsync);
+			});
+			
+			return;
+		}
+		if (comboBoxThatHasChanged->getName() == "mipmap")
+		{
+			cancelCurrentTask();
 
+			static const int items[4] = { 12, 6, 2, 1 };
+			converter->mipmapSize = items[comboBoxThatHasChanged->getSelectedItemIndex()];
 		}
-		if (comboBoxThatHasChanged->getName() == "WindowType")
+        if (comboBoxThatHasChanged->getName() == "sourcelength")
 		{
-			converter->windowType = (SampleMapToWavetableConverter::WindowType)comboBoxThatHasChanged->getSelectedItemIndex();
-		}
-		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
-		{
-			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 0;
-		}
-		else
-		{
-			if (comboBoxThatHasChanged->getText() == "Lowest possible")
-			{
-				converter->fftSize = -1;
-			}
-			else
-			{
-				auto windowSize = comboBoxThatHasChanged->getText().getIntValue();
-				converter->fftSize = windowSize;
-			}
+			cancelCurrentTask();
 
+			auto cl = comboBoxThatHasChanged->getSelectedItemIndex();
+
+			if (cl >= 1)
+				cl = std::pow(2, 6 + cl);
+
+			converter->cycleLength = cl;
+			converter->discardAllScans();
 			
 		}
+        if (comboBoxThatHasChanged->getName() == "numSlices")
+        {
+			cancelCurrentTask();
+
+            converter->numParts = comboBoxThatHasChanged->getText().getIntValue();
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::rescan));
+        }
+        if (comboBoxThatHasChanged->getName() == "offset")
+        {
+            static const double items[7] = {0.0, 0.1, 0.25, 0.5, 0.66666, 0.75, 1.0 };
+
+            converter->offsetInSlice = items[comboBoxThatHasChanged->getSelectedItemIndex()];
+			converter->discardAllScans();
+
+			runTask(BIND_MEMBER_FUNCTION_0(WavetableConverterDialog::rescan));
+        }
+		else if (comboBoxThatHasChanged->getName() == "ReverseTables")
+		{
+			cancelCurrentTask();
+
+			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 1;
+		}
+        
+		refreshPreview();
 	}
 
-	void run() override
+	void buildAllWavetables()
 	{
-		if (currentMode == FFTResynthesis)
-			converter->renderAllWavetablesFromHarmonicMaps(getProgressCounter());
-		else
-			converter->renderAllWavetablesFromSingleWavetables(getProgressCounter());
+		converter->exportAll();
+
+		if (converter->phaseMode == SampleMapToWavetableConverter::PhaseMode::Resample)
+		{
+			showStatusMessage("Wavetables exported with " + String(converter->cycleLength) + " cycle length");
+		}
 
 		if (threadShouldExit())
 			return;
 
-		auto leftTree = converter->getValueTree(true);
-		auto rightTree = converter->getValueTree(false);
+		auto exportedTree = converter->getValueTree();
 
-		auto fileL = currentlyLoadedMap + "_Left.hwt";
-		auto fileR = currentlyLoadedMap + "_Right.hwt";
+		auto outputFileName = currentlyLoadedMap;
 
-		auto tfl = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileL);
-		auto tfr = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles).getChildFile(fileR);
+		if (converter->exportAsHwt)
+			outputFileName << ".hwt";
+		else
+			outputFileName << converter->getPrefixFromNoiseMode(-1) << ".xml";
 
-		PresetHandler::writeValueTreeAsFile(leftTree, tfl.getFullPathName());		
-		PresetHandler::writeValueTreeAsFile(rightTree, tfr.getFullPathName());
+		currentFile = GET_PROJECT_HANDLER(chain).getSubDirectory(converter->exportAsHwt ? FileHandlerBase::AudioFiles : FileHandlerBase::SampleMaps).getChildFile(outputFileName);
+
+		if (converter->exportAsHwt)
+		{
+			PresetHandler::writeValueTreeAsFile(exportedTree, currentFile.getFullPathName());
+		}
+		else
+		{
+			currentFile.replaceWithText(exportedTree.createXml()->createDocument(""));
+
+			chain->getMainController()->getCurrentSampleMapPool()->refreshPoolAfterUpdate();
+		}
+
+		done = true;
+	}
+
+	void run() override
+	{
+		getProgressCounter() = 0.0;
+
+		r = Result::ok();
+
+		lastTime = 0;
+		converter->threadController = new ThreadController(getCurrentThread(), &getProgressCounter(), 1000, lastTime);
+
+		int currentIndex = 0;
+		int numTotal = currentTasks.size();
+
+		currentTasks.callForEveryElementInQueue([&](std::function<void(void)>& f)
+		{
+			if (auto s = ThreadController::ScopedStepScaler(converter->threadController.get(), currentIndex++, numTotal))
+			{
+				try
+				{
+					f();
+				}				
+				catch (Result& r)
+				{
+					showStatusMessage(r.getErrorMessage());
+					return true;
+				}
+				
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+
+		});
+
+		getProgressCounter() = 1.0;
+
+		if (r.failed())
+			showStatusMessage(r.getErrorMessage());
+
+		rebuildPending = false;
+		
 	}
 
 	void threadFinished() override
 	{
-		if (r.failed())
-			PresetHandler::showMessageWindow("Conversion failed", r.getErrorMessage(), PresetHandler::IconType::Error);
-		else
-			PresetHandler::showMessageWindow("Conversion OK", "The wavetables were created sucessfully", PresetHandler::IconType::Info);
+		stopThread();
+
+		if (auto s = dynamic_cast<WavetableSound*>(converter->sound.get()))
+		{
+			soundProperty->setHelpText(s->getMarkdownDescription());
+		}
+
+		if (done)
+		{
+			PresetHandler::showMessageWindow("Conversion OK", "Wavetable saved to " + currentFile.getFileName());
+			done = false;
+		}
 	}
 
+	uint32_t lastTime = 0;
+	bool done = false;
 	double wavetableProgress = 0.0;
 	int numWavetables = 0;
 
 	Result r;
 
 	ScopedPointer<CombinedPreview> preview;
+	ScopedPointer<SampleMapToWavetableConverter::SampleMapPreview> sm;
 
+    bool rebuildPending = false;
 	
-	ScopedPointer<SliderPack> gainPack;
-	ScopedPointer<SliderPackData> gainPackData;
+
 	ModulatorSynthChain* chain;
 	
-	Mode currentMode = Resample;
 	ScopedPointer<AdditionalRow> fileHandling;
-	ScopedPointer<AdditionalRow> selectors;
-	ScopedPointer<AdditionalRow> additionalButtons;
+	ScopedPointer<AdditionalRow> row1;
+	ScopedPointer<AdditionalRow> row2;
 	ScopedPointer<SampleMapToWavetableConverter> converter;
 
 	String currentlyLoadedMap;
 
 	File currentFile;
 
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WavetableConverterDialog);
 };
 
 
@@ -996,6 +1375,113 @@ private:
 	ModulatorSynthChain* chain;
 };
 
+
+
+class WavetableMonolithExporter : public DialogWindowWithBackgroundThread,
+								  public ControlledObject
+{
+public:
+
+	WavetableMonolithExporter(MainController* mc) :
+		DialogWindowWithBackgroundThread("Exporting wavetable banks"),
+		ControlledObject(mc)
+	{
+		auto expList = mc->getExpansionHandler().getListOfAvailableExpansions();
+
+		StringArray expansionList;
+		expansionList.add("Factory Content");
+
+		for (int i = 0; i < expList.size(); i++)
+			expansionList.add(expList[i].toString());
+
+		addComboBox("expansion", expansionList, "Expansion");
+
+		addBasicComponents(true);
+	}
+
+	void run() override
+	{
+		showStatusMessage("Exporting wavetables");
+
+		auto audioFileFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AudioFiles);
+		auto sampleFolder = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+
+		if (auto e = getMainController()->getExpansionHandler().getExpansionFromName(getComboBoxComponent("expansion")->getText()))
+		{
+			audioFileFolder = e->getSubDirectory(FileHandlerBase::AudioFiles);
+			sampleFolder = e->getSubDirectory(FileHandlerBase::Samples);
+		}
+
+		targetFile = sampleFolder.getChildFile("wavetables.hwm");
+
+		auto wavetableFiles = audioFileFolder.findChildFiles(File::findFiles, false, "*.hwt");
+
+		wavetableFiles.sort();
+
+		size_t numBytes = 0;
+
+		for (auto wv : wavetableFiles)
+			numBytes += wv.getSize(); 
+
+		MemoryOutputStream mos;
+		mos.preallocate(numBytes);
+
+		int i = 0;
+
+		MemoryOutputStream headerOutput;
+
+		auto projectName = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
+
+		auto encryptionKey = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::EncryptionKey).toString();
+
+		WavetableMonolithHeader::writeProjectInfo(headerOutput, projectName, encryptionKey);
+
+		
+
+		
+		
+
+		for (auto wv : wavetableFiles)
+		{
+			FileInputStream fis(wv);
+
+			WavetableMonolithHeader headerChild;
+			headerChild.name = wv.getFileNameWithoutExtension();
+			headerChild.offset = mos.getPosition();
+
+			setProgress((double)(i++) / (double)wavetableFiles.size());
+
+			headerChild.write(headerOutput);
+			mos.writeFromInputStream(fis, fis.getTotalLength());
+		}
+
+		showStatusMessage("Writing output file");
+
+		mos.flush();
+
+		if (targetFile.existsAsFile())
+			targetFile.deleteFile();
+
+		FileOutputStream fos(targetFile);
+
+		headerOutput.flush();
+
+		fos.writeInt64((int64)headerOutput.getDataSize());
+		fos.write(headerOutput.getData(), headerOutput.getDataSize());
+
+		fos.writeInt64((int64)mos.getDataSize());
+		fos.write(mos.getData(), mos.getDataSize());
+
+		fos.flush();
+	}
+
+	File targetFile;
+
+	void threadFinished() override
+	{
+		PresetHandler::showMessageWindow("Export successful", "All wavetables have been exported to " + targetFile.getFullPathName());
+	}
+};
 
 class PoolExporter : public DialogWindowWithBackgroundThread
 {
@@ -2915,10 +3401,13 @@ private:
 };
 
 
-struct ProjectImporter : public DialogWindowWithBackgroundThread,
+class ProjectImporter : public DialogWindowWithBackgroundThread,
 						 public ControlledObject,
-						 public URL::DownloadTaskListener
+						 public URL::DownloadTaskListener,
+						 public hlac::HlacArchiver::Listener
 {
+public:
+
 	enum class SourceType
 	{
 		New,
@@ -2958,7 +3447,13 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		{
 			auto isFolder = parent.newProjectFolder.isDirectory();
 			
-			auto isEmpty = parent.newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) == 0;
+			auto numFiles = parent.newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories);
+
+			auto isEmpty = numFiles == 0;
+
+			// allow the .git folder to exist when creating a project...
+			if (!isEmpty && numFiles == 1 && parent.newProjectFolder.getChildFile(".git").isDirectory())
+				isEmpty = true;
 
 			auto ok = isFolder && isEmpty;
 
@@ -3198,6 +3693,22 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		setProgress(x);
 	}
 
+	void logStatusMessage(const String& message) override
+	{
+		debugToConsole(getMainController()->getMainSynthChain(), message);
+		showStatusMessage(message);
+	}
+
+	void logVerboseMessage(const String& verboseMessage) 
+	{
+		debugToConsole(getMainController()->getMainSynthChain(), verboseMessage);
+	};
+
+	void criticalErrorOccured(const String& message) override
+	{
+		showStatusMessage(message);
+	}
+
 	void createSubDirectories()
 	{
 		logMessage("Create subdirectories");
@@ -3382,9 +3893,19 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 
 		auto headerData = allData.getChildWithName(ExpansionIds::ExpansionInfo).createCopy();
 
+		auto projectSettings = headerData.getChildWithName("ProjectSettings");
+
+		if (!projectSettings.isValid())
+			projectSettings = ValueTree("ProjectSettings");
+
+		auto userSettings = headerData.getChildWithName("UserSettings");
+
+		if (!userSettings.isValid())
+			userSettings = ValueTree("UserSettings");
+
 		std::map<Identifier, ValueTree> map;
-		map[HiseSettings::SettingFiles::ProjectSettings] = ValueTree("ProjectSettings");
-		map[HiseSettings::SettingFiles::UserSettings] = ValueTree("UserSettings");
+		map[HiseSettings::SettingFiles::ProjectSettings] = projectSettings;
+		map[HiseSettings::SettingFiles::UserSettings] = userSettings;
 		map[HiseSettings::SettingFiles::ExpansionSettings] = ValueTree("ExpansionInfo");
 
 		std::map<Identifier, File> fileMap;
@@ -3407,13 +3928,19 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 			f.replaceWithText(xmlText);
 		};
 
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Name, headerData["Name"]);
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Version, headerData["Version"]);
-		writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::EncryptionKey, "1234");
-
-		writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::Company, headerData["Company"]);
-		writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::CompanyURL, headerData["CompanyURL"]);
-
+		if (projectSettings.getNumChildren() == 0)
+		{
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Name, headerData["Name"]);
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::Version, headerData["Version"]);
+			writeSetting(HiseSettings::SettingFiles::ProjectSettings, HiseSettings::Project::EncryptionKey, "1234");
+		}
+		
+		if (userSettings.getNumChildren() == 0)
+		{
+			writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::Company, headerData["Company"]);
+			writeSetting(HiseSettings::SettingFiles::UserSettings, HiseSettings::User::CompanyURL, headerData["CompanyURL"]);
+		}
+		
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::Description, headerData["Description"]);
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::Tags, headerData["Tags"]);
 		writeSetting(HiseSettings::SettingFiles::ExpansionSettings, HiseSettings::ExpansionSettings::UUID, headerData["UUID"]);
@@ -3449,6 +3976,7 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		{
 			auto wv = getMainController()->getOrCreateWebView(id);
 			auto ok = wv->explode();
+            ignoreUnused(ok);
 		}
 		
 	}
@@ -3463,9 +3991,10 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 	void run() override
 	{
 		jassert(newProjectFolder.isDirectory());
-		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) == 0);
+		jassert(newProjectFolder.getNumberOfChildFiles(File::findFilesAndDirectories) <= 1);
 
 		
+		Array<File> sampleArchives;
 
 		auto hxiFile = newProjectFolder.getChildFile("info.hxi");
 		
@@ -3493,6 +4022,30 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 
 			if (archive.getFileExtension() == ".hxi")
 				archive.copyFileTo(hxiFile);
+			else if (archive.getFileExtension() == ".hiseproject")
+			{
+				FileInputStream fis(archive);
+
+				hxiFile.deleteFile();
+
+				FileOutputStream fos(hxiFile);
+
+				auto numHeaderBytes = fis.readInt64();
+
+				fos.writeFromInputStream(fis, numHeaderBytes);
+
+				int archiveIndex = 0;
+
+				while (!fis.isExhausted())
+				{
+					auto numBytes = fis.readInt64();
+
+					FileOutputStream so(hxiFile.getSiblingFile("Samples" + String(++archiveIndex)).withFileExtension(".hr1"));
+					so.writeFromInputStream(fis, numBytes);
+
+					sampleArchives.add(so.getFile());
+				}
+			}
 			else
 			{
 				ZipFile zf(archive);
@@ -3537,6 +4090,30 @@ struct ProjectImporter : public DialogWindowWithBackgroundThread,
 		extractNetworks();
 		extractUserPresets();
 		extractWebResources();
+
+		for (auto s : sampleArchives)
+		{
+			showStatusMessage("Extract Sample Archive " + s.getFileName());
+
+			hlac::HlacArchiver::DecompressData data;
+
+			data.option = hlac::HlacArchiver::OverwriteOption::ForceOverwrite;
+
+			data.supportFullDynamics = true;
+			data.sourceFile = s;
+			data.targetDirectory = e->getSubDirectory(FileHandlerBase::Samples);
+			data.progress = &logData.progress;
+			data.partProgress = &logData.progress;
+			data.totalProgress = &getProgressCounter();
+
+			hlac::HlacArchiver decompressor(getCurrentThread());
+
+			decompressor.setListener(this);
+
+			bool ok = decompressor.extractSampleData(data);
+            ignoreUnused(ok);
+
+		}
 
 		logMessage("... Done!");
 	}

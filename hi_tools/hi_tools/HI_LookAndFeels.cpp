@@ -1018,7 +1018,7 @@ juce::Font PopupLookAndFeel::getPopupMenuFont()
 void PopupLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int, int, int, int, ComboBox &c)
 {
     auto textColour = c.findColour(HiseColourScheme::ColourIds::ComponentTextColourId, true);
-    jassert(textColour != Colours::transparentBlack);
+    //jassert(textColour != Colours::transparentBlack);
     
 	c.setColour(ComboBox::ColourIds::textColourId, textColour);
 

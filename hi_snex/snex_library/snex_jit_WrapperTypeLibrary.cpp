@@ -34,7 +34,9 @@
 namespace snex {
 
 using namespace juce;
-using namespace asmjit;
+USE_ASMJIT_NAMESPACE;
+
+
 
 namespace jit
 {
@@ -561,11 +563,17 @@ WrapBuilder::ExternalFunctionMapData::ExternalFunctionMapData(Compiler& c_, AsmI
 	c(c_),
 	acg(d->gen),
 	objectType(d->object->getTypeInfo()),
+#if SNEX_ASMJIT_BACKEND
 	scope(d->object->getScope()),
+#else
+	scope(nullptr),
+#endif
 	target(d->target),
 	object(d->object)
 {
-	
+#if SNEX_MIR_BACKEND
+	jassertfalse;
+#endif
 
 	tp = objectType.getTypedComplexType<StructType>()->getTemplateInstanceParameters();
 	argumentRegisters.addArray(d->args);
@@ -628,10 +636,14 @@ Result WrapBuilder::ExternalFunctionMapData::emitRemappedFunction(FunctionData& 
 	for (auto d : argumentRegisters)
 		f.addArgs(Identifier("a" + String(i++)), d->getTypeInfo());
 
+#if SNEX_ASMJIT_BACKEND
 	if (!f.isResolved())
 		return Result::fail("Can't find function for template parameters " + TemplateParameter::ListOps::toString(tp));
 	else
 		return acg.emitFunctionCall(target, f, object, argumentRegisters);
+#else
+	return Result::fail("funky");
+#endif
 }
 
 snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallbackFromObject(Types::ScriptnodeCallbacks::ID cb)
@@ -706,11 +718,16 @@ snex::jit::FunctionData WrapBuilder::ExternalFunctionMapData::getCallback(TypeIn
 
 snex::jit::AssemblyRegister::Ptr WrapBuilder::ExternalFunctionMapData::createPointerArgument(void* ptr)
 {
+#if SNEX_ASMJIT_BACKEND
 	AsmCodeGenerator::TemporaryRegister functionPointer(acg, scope, TypeInfo(Types::ID::Pointer, true, false));
 	auto fReg = functionPointer.tempReg;
 	fReg->createRegister(acg.cc);
 	acg.cc.mov(PTR_REG_W(fReg), (uint64_t)ptr);
 	return fReg;
+#else
+	jassertfalse;
+	return nullptr;
+#endif
 }
 
 

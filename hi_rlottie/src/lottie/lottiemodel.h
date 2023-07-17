@@ -57,9 +57,9 @@ inline T lerp(const T &start, const T &end, float t)
 
 namespace model {
 
-enum class MatteType : uchar { None = 0, Alpha = 1, AlphaInv, Luma, LumaInv };
+enum class MatteType : uint8_t { None = 0, Alpha = 1, AlphaInv, Luma, LumaInv };
 
-enum class BlendMode : uchar {
+enum class BlendMode : uint8_t {
     Normal = 0,
     Multiply = 1,
     Screen = 2,
@@ -72,8 +72,8 @@ public:
     Color(float red, float green, float blue) : r(red), g(green), b(blue) {}
     VColor toColor(float a = 1)
     {
-        return VColor(uchar(255 * r), uchar(255 * g), uchar(255 * b),
-                      uchar(255 * a));
+        return VColor(uint8_t(255 * r), uint8_t(255 * g), uint8_t(255 * b),
+                      uint8_t(255 * a));
     }
     friend inline Color operator+(const Color &c1, const Color &c2);
     friend inline Color operator-(const Color &c1, const Color &c2);
@@ -539,8 +539,8 @@ public:
     {
         return long(frameAtPos(timeInSec / duration()));
     }
-    size_t totalFrame() const { return mEndFrame - mStartFrame; }
-    long   frameDuration() const { return mEndFrame - mStartFrame - 1; }
+    size_t totalFrame() const { return mEndFrame - mStartFrame + 1; }
+    long   frameDuration() const { return mEndFrame - mStartFrame; }
     float  frameRate() const { return mFrameRate; }
     size_t startFrame() const { return mStartFrame; }
     size_t endFrame() const { return mEndFrame; }
@@ -667,7 +667,7 @@ public:
 
 class Layer : public Group {
 public:
-    enum class Type : uchar {
+    enum class Type : uint8_t {
         Precomp = 0,
         Solid = 1,
         Image = 2,
@@ -821,6 +821,7 @@ public:
 
 private:
     void populate(VGradientStops &stops, int frameNo);
+    float getOpacityAtPosition(float *opacities, size_t opacityArraySize, float position);
 
 public:
     int                      mGradientType{1};    /* "t" Linear=1 , Radial = 2*/
@@ -1136,7 +1137,7 @@ std::shared_ptr<model::Composition> loadFromData(std::string jsonData,
                                                  std::string resourcePath,
                                                  ColorFilter filter);
 
-std::shared_ptr<model::Composition> parse(char *str, std::string dir_path,
+std::shared_ptr<model::Composition> parse(char *str, size_t length, std::string dir_path,
                                           ColorFilter filter = {});
 
 }  // namespace model

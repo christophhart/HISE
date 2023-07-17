@@ -164,6 +164,8 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 		bool cleanup() final override;
 		bool isConnected() const final override { return !targets.isEmpty(); }
 
+		bool containsTarget(CableTargetBase* n) const;
+
 		void addTarget(CableTargetBase* n);
 		void removeTarget(CableTargetBase* n);
 

@@ -127,7 +127,7 @@ public:
 
     void resetBuffer(int val = 0);
 
-    inline uchar *scanLine(int y)
+    inline uint8_t *scanLine(int y)
     {
         assert(y >= 0);
         assert(size_t(y) < mHeight);
@@ -150,7 +150,7 @@ private:
     size_t          mHeight{0};
     size_t          mBytesPerLine{0};
     size_t          mBytesPerPixel{0};
-    mutable uchar * mBuffer{nullptr};
+    mutable uint8_t *mBuffer{nullptr};
 };
 
 struct VGradientData {
@@ -171,8 +171,8 @@ struct VGradientData {
 
 struct VTextureData : public VRasterBuffer {
     uint32_t pixel(int x, int y) const { return *pixelRef(x, y); };
-    uchar    alpha() const { return mAlpha; }
-    void     setAlpha(uchar alpha) { mAlpha = alpha; }
+    uint8_t  alpha() const { return mAlpha; }
+    void     setAlpha(uint8_t alpha) { mAlpha = alpha; }
     void     setClip(const VRect &clip);
     // clip rect
     int   left;
@@ -180,7 +180,7 @@ struct VTextureData : public VRasterBuffer {
     int   top;
     int   bottom;
     bool  hasAlpha;
-    uchar mAlpha;
+    uint8_t mAlpha;
 };
 
 struct VColorTable {
@@ -208,7 +208,7 @@ struct VSpanData {
         mDrawableSize = VSize(region.width(), region.height());
     }
 
-    uint *buffer(int x, int y) const
+    uint32_t *buffer(int x, int y) const
     {
         return mRasterBuffer->pixelRef(x + mOffset.x(), y + mOffset.y());
     }
@@ -256,9 +256,10 @@ inline constexpr int vAlpha(uint32_t c)
     return c >> 24;
 }
 
-static inline uint32_t interpolate_pixel(uint x, uint a, uint y, uint b)
+static inline uint32_t interpolate_pixel(uint32_t x, uint32_t a, uint32_t y,
+                                         uint32_t b)
 {
-    uint t = (x & 0xff00ff) * a + (y & 0xff00ff) * b;
+    uint32_t t = (x & 0xff00ff) * a + (y & 0xff00ff) * b;
     t >>= 8;
     t &= 0xff00ff;
     x = ((x >> 8) & 0xff00ff) * a + ((y >> 8) & 0xff00ff) * b;

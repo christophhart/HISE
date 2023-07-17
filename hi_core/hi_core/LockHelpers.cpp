@@ -134,6 +134,14 @@ bool LockHelpers::isLockedBySameThread(const MainController* mc, Type lockToChec
 		return mc->getKillStateHandler().currentThreadHoldsLock(lockToCheck);
 }
 
+void* LockHelpers::getCurrentThreadHandleOrMessageManager()
+{
+	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+		return MessageManager::getInstanceWithoutCreating();
+	else
+		return Thread::getCurrentThreadId();
+}
+
 bool LockHelpers::isDuringInitialisation(const MainController* mc)
 {
 	return mc->isInitialised() && MessageManager::getInstance()->isThisTheMessageThread();

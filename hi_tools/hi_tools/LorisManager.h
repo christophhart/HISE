@@ -5,7 +5,7 @@ using namespace juce;
 #ifndef HISE_LORIS_LIBRARY_MAJOR_VERSION
 #define HISE_LORIS_LIBRARY_MAJOR_VERSION 0
 #define HISE_LORIS_LIBRARY_MINOR_VERSION 2
-#define HISE_LORIS_LIBRARY_PATCH_VERSION 0
+#define HISE_LORIS_LIBRARY_PATCH_VERSION 2
 #endif
 
 struct LorisManager: public ReferenceCountedObject
@@ -80,7 +80,8 @@ struct LorisManager: public ReferenceCountedObject
     using LorisGetListFunction = void(*)(char*, int, bool);
     using LorisCustomFunction = void(*)(void*, const char*, void*, void*);
     using LorisGetSnapshot = bool(*)(void*, const char*, double,const char*,double*,int&,int&);
-    
+	using LorisSetThreadController = void(*)(void*, void*);
+
     struct AnalyseData
     {
         File file;
@@ -92,7 +93,16 @@ struct LorisManager: public ReferenceCountedObject
         if(dll != nullptr)
         {
             if(auto f = dll->getFunction(name))
-                return f;
+			{
+				auto tf = (LorisSetThreadController)dll->getFunction("setThreadController");
+
+				if (state != nullptr && tf != nullptr)
+				{
+					tf(state, threadController.get());
+				}
+
+				return f;
+			}
             else
                 errorFunction("Can't find function pointer for " + name + "()");
         }
@@ -217,7 +227,7 @@ struct LorisManager: public ReferenceCountedObject
         return {};
     }
     
-    void analyse(const Array<AnalyseData>& data, double* progress=nullptr)
+    void analyse(const Array<AnalyseData>& data)
     {
         if(auto f = (LorisAnalyseFunction)getFunction("loris_analyze"))
         {
@@ -374,8 +384,11 @@ struct LorisManager: public ReferenceCountedObject
         {
             while(f(state, messageBuffer, 2048))
             {
-                String nm(messageBuffer);
-                lf(nm);
+				if (lf)
+				{
+					String nm(messageBuffer);
+					lf(nm);
+				}
             }
         }
     }
@@ -398,6 +411,8 @@ struct LorisManager: public ReferenceCountedObject
     char messageBuffer[2048];
     String lorisVersion;
     
+	mutable ThreadController::Ptr threadController;
+
     std::function<void(String)> lf;
     std::function<void(String)> errorFunction;
     
