@@ -6355,8 +6355,9 @@ void ScriptingObjects::ScriptBackgroundTask::setFinishCallback(var newFinishCall
 	if (HiseJavascriptEngine::isJavascriptFunction(newFinishCallback))
 	{
 		finishCallback = WeakCallbackHolder(getScriptProcessor(), this, newFinishCallback, 2);
-		finishCallback.setThisObject(this);
 		finishCallback.incRefCount();
+		finishCallback.setThisObject(this);
+		
 		finishCallback.addAsSource(this, "onTaskFinished");
 	}
 }
@@ -6445,6 +6446,7 @@ void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::run()
 	a[0] = &parent;
 	a[1] = false;
 	
+	String currentLine;
 
 	while (childProcess.isRunning())
 	{
@@ -6454,54 +6456,57 @@ void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::run()
 			break;
 		}
 		
-		constexpr int BufferSize = 512;
+		char newChar;
 
-		MemoryOutputStream mos;
-		mos.preallocate(BufferSize);
+		auto numBytesRead = childProcess.readProcessOutput(&newChar, 1);
 
-		while (true)
+		if (numBytesRead == 1)
 		{
-			char buffer[BufferSize];
+			currentLine << newChar;
 
-			auto numBytesRead = childProcess.readProcessOutput(buffer, BufferSize, false);
+			if (newChar == '\n' || newChar == '\r')
+			{
+				if (currentLine.trim().isNotEmpty())
+				{
+					a[2] = var(currentLine);
+					callLog(a);
+				}
+
+				currentLine = {};
+
+				parent.wait(10);
+			}
+		}
 			
-			if (numBytesRead <= 0)
-				break;
-
-			mos.write(buffer, numBytesRead);
-		}
-
-		a[2] = var(mos.toString());
-
-		if (!a[2].toString().isEmpty())
-		{
-			callLog(a);
-		}
-
-		parent.wait(parent.timeOut);
+		parent.wait(1);
 	}
 
-	a[2] = childProcess.readAllProcessOutput();
+	currentLine << childProcess.readAllProcessOutput();
 
-	if (!a[2].toString().isEmpty())
+	if (!currentLine.isEmpty())
+	{
+		a[2] = var(currentLine);
 		callLog(a);
+	}
+		
 
 	a[1] = true;
 	a[2] = (int)childProcess.getExitCode();
 
 	callLog(a);
-
-	parent.callFinishCallback(true, false);
 }
 
 
 
 void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::callLog(var* a)
 {
-	auto ok = processLogFunction.callSync(a, 3);
+	if (processLogFunction)
+	{
+		auto ok = processLogFunction.callSync(a, 3);
 
-	if (!ok.wasOk())
-		debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.getErrorMessage());
+		if (!ok.wasOk())
+			debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.getErrorMessage());
+	}
 }
 
 void ScriptingObjects::ScriptBackgroundTask::runProcess(var command, var args, var logFunction)

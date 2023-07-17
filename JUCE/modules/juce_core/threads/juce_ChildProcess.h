@@ -82,7 +82,7 @@ public:
         This will attempt to read up to the given number of bytes of data from the
         process. It returns the number of bytes that were actually read.
     */
-    int readProcessOutput (void* destBuffer, int numBytesToRead, bool blockUntilNumBytesAreRead=true);
+    int readProcessOutput (void* destBuffer, int numBytesToRead);
 
     /** Blocks until the process has finished, and then returns its complete output
         as a string.
