@@ -47,7 +47,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60104
+#define JUCE_PROJUCER_VERSION 0x60103
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                    1
@@ -127,6 +127,10 @@
 
 #ifndef    DONT_CREATE_EXPANSIONS_FOLDER
  //#define DONT_CREATE_EXPANSIONS_FOLDER 0
+#endif
+
+#ifndef    HISE_OVERWRITE_OLD_USER_PRESETS
+ //#define HISE_OVERWRITE_OLD_USER_PRESETS 0
 #endif
 
 #ifndef    HISE_BACKEND_AS_FX
