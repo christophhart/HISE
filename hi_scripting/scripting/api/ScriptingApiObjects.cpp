@@ -7310,7 +7310,8 @@ struct ScriptingObjects::GlobalCableReference::DummyTarget : public scriptnode::
 ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScriptingContent* ps, var c) :
 	ConstScriptingObject(ps, 0),
 	cable(c),
-	dummyTarget(new DummyTarget(*this))
+	dummyTarget(new DummyTarget(*this)),
+	inputRange(0.0, 1.0)
 {
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_0(getValueNormalised);
@@ -7323,6 +7324,8 @@ ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScript
 	ADD_API_METHOD_3(connectToMacroControl);
     ADD_API_METHOD_2(connectToGlobalModulator);
     ADD_API_METHOD_3(connectToModuleParameter);
+
+	inputRange.checkIfIdentity();
 }
 
 ScriptingObjects::GlobalCableReference::~GlobalCableReference()
@@ -7359,20 +7362,21 @@ void ScriptingObjects::GlobalCableReference::setValue(double inputWithinRange)
 void ScriptingObjects::GlobalCableReference::setRange(double min, double max)
 {
 	inputRange = scriptnode::InvertableParameterRange(min, max);
+	inputRange.checkIfIdentity();
 }
 
 void ScriptingObjects::GlobalCableReference::setRangeWithSkew(double min, double max, double midPoint)
 {
 	inputRange = scriptnode::InvertableParameterRange(min, max);
 	inputRange.setSkewForCentre(midPoint);
+	inputRange.checkIfIdentity();
 }
 
 void ScriptingObjects::GlobalCableReference::setRangeWithStep(double min, double max, double stepSize)
 {
 	inputRange = scriptnode::InvertableParameterRange(min, max, stepSize);
+	inputRange.checkIfIdentity();
 }
-
-
 
 struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::routing::GlobalRoutingManager::CableTargetBase,
 														 public PooledUIUpdater::SimpleTimer
@@ -7459,6 +7463,8 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 
 	void sendValue(double v) override
 	{
+		v = parent.inputRange.convertFrom0to1(v, false);
+
 		if (sync)
 		{
             var a(v);
