@@ -116,6 +116,14 @@ namespace hise { using namespace juce;
 #define RETURN_VOID_IF_NO_THROW()
 #endif
 
+#if JUCE_DEBUG
+#define DEBUG_ONLY(x) x
+#define RETURN_DEBUG_ONLY(x) return x
+#else
+#define DEBUG_ONLY(x)
+#define RETURN_DEBUG_ONLY(x)
+#endif
+
 #if JUCE_WINDOWS || JUCE_MAC || JUCE_IOS
 
 #if HISE_NO_GUI_TOOLS
