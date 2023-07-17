@@ -255,7 +255,7 @@ BlockParser::StatementPtr ClassParser::parseVariableDefinition()
 		if (!s.typeInfo.isTemplateType())
 		{
 			location.throwError("Expected initialiser for non-templated member");
-			RETURN_IF_NO_THROW(nullptr);
+			return nullptr;
 		}
 		else
 		{
