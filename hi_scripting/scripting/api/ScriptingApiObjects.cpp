@@ -6408,7 +6408,7 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 	return false;
 }
 
-ScriptingObjects::ScriptBackgroundTask::ChildProcessData::ChildProcessData(ScriptBackgroundTask& parent_, String& command_, const var& args_, const var& pf) :
+ScriptingObjects::ScriptBackgroundTask::ChildProcessData::ChildProcessData(ScriptBackgroundTask& parent_, const String& command_, const var& args_, const var& pf) :
 	processLogFunction(parent_.getScriptProcessor(), &parent_, pf, 3),
 	parent(parent_)
 {

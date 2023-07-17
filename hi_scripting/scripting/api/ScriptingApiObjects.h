@@ -615,7 +615,7 @@ namespace ScriptingObjects
 
 		struct ChildProcessData
 		{
-			ChildProcessData(ScriptBackgroundTask& parent_, String& command_, const var& args_, const var& pf);
+			ChildProcessData(ScriptBackgroundTask& parent_, const String& command_, const var& args_, const var& pf);
 
 			void run();
 
