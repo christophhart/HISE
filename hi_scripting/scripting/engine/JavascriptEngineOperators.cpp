@@ -63,7 +63,7 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
 	{
 		location.throwError(getTokenName(operation) + " is not allowed on the " + typeName + " type"); 
 		
-		RETURN_DEBUG_ONLY(var());
+		return var();
 	}
 };
 

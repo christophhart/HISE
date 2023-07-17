@@ -2024,7 +2024,7 @@ private:
 	Expression* parseNewOperator()
 	{
 		location.throwError("new is not supported anymore");
-		RETURN_DEBUG_ONLY(nullptr);
+		return nullptr;
 	}
 
 	Expression* parseIsDefined()
