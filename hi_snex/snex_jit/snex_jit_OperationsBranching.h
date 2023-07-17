@@ -567,7 +567,7 @@ struct Operations::IfStatement : public Statement,
 	{
 		location.throwError("Can't jump to end of if");
 
-		DEBUG_ONLY(return {});
+		RETURN_DEBUG_ONLY({});
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; }

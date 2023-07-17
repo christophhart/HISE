@@ -41,8 +41,10 @@ using String = juce::String;
 
 #if JUCE_DEBUG
 #define DEBUG_ONLY(x) x
+#define RETURN_DEBUG_ONLY(x) return x
 #else
 #define DEBUG_ONLY(x)
+#define RETURN_DEBUG_ONLY(x)
 #endif
 #define HNODE_PREPROCESSOR_KEYWORDS(X) \
     

@@ -314,7 +314,7 @@ snex::VariableStorage Operations::Expression::getPointerValue() const
 {
 	location.throwError("Can't use address of temporary register");
 
-	DEBUG_ONLY(return {});
+	RETURN_DEBUG_ONLY({});
 }
 
 Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
