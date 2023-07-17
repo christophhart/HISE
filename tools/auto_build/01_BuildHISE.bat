@@ -47,6 +47,7 @@ REM Compiling
 echo Compiling 64bit VST Plugins
 
 set Platform=X64
+set PreferredToolArchitecture=x64
 
 echo Compiling Stereo Version...
 
