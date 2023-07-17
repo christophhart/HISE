@@ -42,7 +42,7 @@ ccName("MIDI CC")
 {
 	tempBuffer.ensureSize(2048);
 
-	clear();
+	clear(sendNotification);
 }
 
 void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
@@ -137,7 +137,7 @@ void MidiControllerAutomationHandler::refreshAnyUsedState()
 	}
 }
 
-void MidiControllerAutomationHandler::clear()
+void MidiControllerAutomationHandler::clear(NotificationType notifyListeners)
 {
 	for (int i = 0; i < 128; i++)
 	{
@@ -147,6 +147,9 @@ void MidiControllerAutomationHandler::clear()
 	unlearnedData = AutomationData();
 
 	anyUsed = false;
+	
+	if (notifyListeners == sendNotification)
+		sendChangeMessage();
 }
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners)
@@ -680,7 +683,7 @@ void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
 {
 	if (v.getType() != Identifier("MidiAutomation")) return;
 
-	clear();
+	clear(sendNotification);
 
 	for (int i = 0; i < v.getNumChildren(); i++)
 	{
