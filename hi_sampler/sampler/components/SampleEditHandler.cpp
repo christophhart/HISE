@@ -69,6 +69,8 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 			highestValue = jmax<int>(highestValue, sound->getSampleProperty(SampleIds::HiVel));
 			break;
 		}
+		default:
+			break;
 		}
 
 	}
@@ -115,6 +117,8 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 		}
 		break;
 	}
+	default:
+		break;
 	}
 }
 
@@ -553,6 +557,8 @@ hise::ModulatorSamplerSound* SampleEditHandler::SampleEditingActions::getNeighbo
 			case SamplerSoundMap::Right:	selectThisComponent = hiKeys.contains(thisLowKey - 1); break;
 			case SamplerSoundMap::Up:		selectThisComponent = hiVelos.contains(thisLowVelo - 1); break;
 			case SamplerSoundMap::Down:		selectThisComponent = lowVelos.contains(thisHiVelo + 1); break;
+			default:
+				break;
 			}
 
 			if (selectThisComponent)
