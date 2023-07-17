@@ -6266,6 +6266,7 @@ struct ScriptingObjects::ScriptBackgroundTask::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, callOnBackgroundThread);
 	API_METHOD_WRAPPER_1(ScriptBackgroundTask, killVoicesAndCall);
 	API_METHOD_WRAPPER_0(ScriptBackgroundTask, getProgress);
+	API_VOID_METHOD_WRAPPER_3(ScriptBackgroundTask, runProcess);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setProgress);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setTimeOut);
 	API_VOID_METHOD_WRAPPER_1(ScriptBackgroundTask, setStatusMessage);
@@ -6285,6 +6286,7 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	ADD_API_METHOD_0(shouldAbort);
 	ADD_API_METHOD_2(setProperty);
 	ADD_API_METHOD_1(getProperty);
+	ADD_API_METHOD_3(runProcess);
 	ADD_API_METHOD_1(setFinishCallback);
 	ADD_API_METHOD_1(callOnBackgroundThread);
 	ADD_API_METHOD_1(killVoicesAndCall);
@@ -6365,6 +6367,9 @@ void ScriptingObjects::ScriptBackgroundTask::callOnBackgroundThread(var backgrou
 	{
 		callFinishCallback(false, false);
 		stopThread(timeOut);
+
+		childProcessData = nullptr;
+
 		currentTask = WeakCallbackHolder(getScriptProcessor(), this, backgroundTaskFunction, 1);
 		currentTask.incRefCount();
 		currentTask.addAsSource(this, "backgroundFunction");
@@ -6402,6 +6407,117 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 	return false;
 }
 
+ScriptingObjects::ScriptBackgroundTask::ChildProcessData::ChildProcessData(ScriptBackgroundTask& parent_, String& command_, const var& args_, const var& pf) :
+	processLogFunction(parent_.getScriptProcessor(), &parent_, pf, 3),
+	parent(parent_)
+{
+	processLogFunction.incRefCount();
+	processLogFunction.setHighPriority();
+
+	args.add(command_);
+
+	if (args_.isArray())
+	{
+		for (const auto& v : *args_.getArray())
+			args.add(v.toString());
+	}
+	else if (args_.isString())
+	{
+		args.addArray(StringArray::fromTokens(args_.toString(), " ", "\"\'"));
+	}
+
+	args.removeEmptyStrings(true);
+	args.trim();
+}
+
+void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::run()
+{
+	if (args.isEmpty())
+	{
+		debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), "no args");
+		return;
+	}
+
+	childProcess.start(args, ChildProcess::StreamFlags::wantStdErr | ChildProcess::StreamFlags::wantStdOut);
+
+	var a[3];
+
+	a[0] = &parent;
+	a[1] = false;
+	
+
+	while (childProcess.isRunning())
+	{
+		if (parent.shouldAbort())
+		{
+			childProcess.kill();
+			break;
+		}
+		
+		constexpr int BufferSize = 512;
+
+		MemoryOutputStream mos;
+		mos.preallocate(BufferSize);
+
+		while (true)
+		{
+			char buffer[BufferSize];
+
+			auto numBytesRead = childProcess.readProcessOutput(buffer, BufferSize, false);
+			
+			if (numBytesRead <= 0)
+				break;
+
+			mos.write(buffer, numBytesRead);
+		}
+
+		a[2] = var(mos.toString());
+
+		if (!a[2].toString().isEmpty())
+		{
+			callLog(a);
+		}
+
+		parent.wait(parent.timeOut);
+	}
+
+	a[2] = childProcess.readAllProcessOutput();
+
+	if (!a[2].toString().isEmpty())
+		callLog(a);
+
+	a[1] = true;
+	a[2] = (int)childProcess.getExitCode();
+
+	callLog(a);
+
+	parent.callFinishCallback(true, false);
+}
+
+
+
+void ScriptingObjects::ScriptBackgroundTask::ChildProcessData::callLog(var* a)
+{
+	auto ok = processLogFunction.callSync(a, 3);
+
+	if (!ok.wasOk())
+		debugError(dynamic_cast<Processor*>(parent.getScriptProcessor()), ok.getErrorMessage());
+}
+
+void ScriptingObjects::ScriptBackgroundTask::runProcess(var command, var args, var logFunction)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(logFunction))
+	{
+		callFinishCallback(false, false);
+		stopThread(timeOut);
+
+		currentTask.clear();
+		childProcessData = new ChildProcessData(*this, command.toString(), args, logFunction);
+
+		startThread(8);
+	}
+}
+
 void ScriptingObjects::ScriptBackgroundTask::setProgress(double p)
 {
 	progress.store(jlimit(0.0, 1.0, p));
@@ -6428,28 +6544,36 @@ void ScriptingObjects::ScriptBackgroundTask::setStatusMessage(String m)
 
 void ScriptingObjects::ScriptBackgroundTask::run()
 {
-	if (currentTask)
+	if (currentTask || childProcessData)
 	{
 		if (forwardToLoadingThread)
 		{
 			getScriptProcessor()->getMainController_()->getSampleManager().setPreloadFlag();
 		}
 
-		var t(this);
+		if (childProcessData != nullptr)
+		{
+			childProcessData->run();
+			childProcessData = nullptr;
 
-		auto r = currentTask.callSync(&t, 1);
+		}
+		else
+		{
+			var t(this);
+
+			auto r = currentTask.callSync(&t, 1);
 
 #if USE_BACKEND
-		if (!r.wasOk())
-			getScriptProcessor()->getMainController_()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
+			if (!r.wasOk())
+				getScriptProcessor()->getMainController_()->writeToConsole(r.getErrorMessage(), 1, dynamic_cast<Processor*>(getScriptProcessor()));
 #endif
+		}
 
 		if (forwardToLoadingThread)
 		{
 			getScriptProcessor()->getMainController_()->getSampleManager().clearPreloadFlag();
 		}
 	}
-
 
 	callFinishCallback(true, threadShouldExit());
 }

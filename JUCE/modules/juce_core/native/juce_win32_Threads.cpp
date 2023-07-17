@@ -442,7 +442,7 @@ public:
         return WaitForSingleObject (processInfo.hProcess, 0) != WAIT_OBJECT_0;
     }
 
-    int read (void* dest, int numNeeded) const noexcept
+    int read (void* dest, int numNeeded, bool blockUntilFinished) const noexcept
     {
         int total = 0;
 
@@ -457,7 +457,7 @@ public:
 
             if (available == 0)
             {
-                if (! isRunning())
+                if (! isRunning() || !blockUntilFinished)
                     break;
 
                 Thread::sleep (1);
