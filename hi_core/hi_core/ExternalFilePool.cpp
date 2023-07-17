@@ -551,6 +551,13 @@ void PoolHelpers::Reference::parseReferenceString(const MainController* mc, cons
 				input = input.replace(projectFolderWildcard, e->getWildcard());
 			}
 		}
+		else if (input.startsWith(sampleFolderWildcard))
+		{
+			if (auto e = mc->getExpansionHandler().getCurrentExpansion())
+			{
+				input = input.replace(sampleFolderWildcard, e->getSubDirectory(FileHandlerBase::Samples).getFullPathName() + "/");
+			}
+		}
 	}
 
 #if USE_RELATIVE_PATH_FOR_AUDIO_FILES
