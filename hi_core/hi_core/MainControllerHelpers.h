@@ -113,7 +113,7 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;
 
 	Identifier getUserPresetStateId() const override { return UserPresetIds::MidiAutomation; };
-	void resetUserPresetState() override { clear(); }
+	void resetUserPresetState() override { clear(sendNotification); }
 
 	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const;
 	void deactivateMidiLearning();
