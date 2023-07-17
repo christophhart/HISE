@@ -705,7 +705,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			else
 			{
 				location.throwError("Accessing parameter reference outside the function call");
-				return var();
+				DEBUG_ONLY(return var());
 			}
 		}
 

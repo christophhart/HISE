@@ -566,7 +566,8 @@ struct Operations::IfStatement : public Statement,
 	AsmJitLabel getJumpTargetForEnd(bool getContinue) override
 	{
 		location.throwError("Can't jump to end of if");
-		return {};
+
+		DEBUG_ONLY(return {});
 	}
 
 	TypeInfo getTypeInfo() const override { return {}; }

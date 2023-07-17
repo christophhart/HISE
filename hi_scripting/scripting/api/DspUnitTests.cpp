@@ -312,7 +312,6 @@ public:
 
 //static DspUnitTests dspUnitTest;
 
-constexpr int sampleRate = 44100;
 
 class ModulationTests : public UnitTest
 {
@@ -456,6 +455,8 @@ private:
 
 	void testGlobalModulatorIntensity(bool useGroup)
 	{
+		constexpr int sampleRate = 44100;
+
 		beginTestWithOptionalGroup("Testing global modulator intensity ", useGroup);
 
 		// Init
@@ -641,7 +642,7 @@ private:
 
 
 		const int attackSamples = 2048;
-		const float attackMs = (float)attackSamples / (float)sampleRate * 1000.0f;
+		const float attackMs = (float)attackSamples / (float)44100 * 1000.0f;
 
 		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, attackMs);
 		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 20.0f);
@@ -767,7 +768,7 @@ private:
 		auto testData = Helpers::createTestDataWithOneSecondNote();
 
 		float attackSamples = 512;
-		float attackMs = (float)attackSamples / (float)sampleRate * 1000.0f;
+		float attackMs = (float)attackSamples / (float)44100 * 1000.0f;
 
 		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Attack, attackMs);
 		Helpers::process(bp, testData, 512);
@@ -1349,12 +1350,12 @@ private:
 		{
 			TestData d;
 
-			d.audioBuffer.setSize(2, sampleRate * 2);
+			d.audioBuffer.setSize(2, 44100 * 2);
 			d.audioBuffer.clear();
 			d.midiBuffer.addEvent(MidiMessage::noteOn(1, 64, 1.0f), startOffset);
 
 			if (stopOffset == -1)
-				stopOffset = roundToInt(sampleRate*0.7);
+				stopOffset = roundToInt(44100*0.7);
 
 			d.midiBuffer.addEvent(MidiMessage::noteOff(1, 64), stopOffset);
 
@@ -1363,7 +1364,7 @@ private:
 
 		static void process(BackendProcessor* bp, TestData& data, int blockSize, int numToProcess=-1)
 		{
-			bp->prepareToPlay((double)sampleRate, blockSize);
+			bp->prepareToPlay((double)44100, blockSize);
 
 			resumeProcessing(bp, data, blockSize, numToProcess, 0);
 		}

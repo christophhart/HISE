@@ -513,7 +513,7 @@ struct VariadicCallHelpers
 #if JUCE_LINUX
 #define variadic_call static
 #else
-#define variadic_call static forcedinline
+#define variadic_call static
 #endif
 
 	template <typename T> static constexpr bool isDynamic()

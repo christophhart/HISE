@@ -464,6 +464,7 @@ juce::Result JitFileTestCase::testAfterCompilation(bool dumpBeforeTest /*= false
 			{
 				auto r = function.call<int>(&b);
                 jassert(r == 1);
+				ignoreUnused(r);
 				actualResult = VariableStorage(b);
 			}
 			else

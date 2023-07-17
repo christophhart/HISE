@@ -313,7 +313,8 @@ bool Operations::Expression::hasSubExpr(int index) const
 snex::VariableStorage Operations::Expression::getPointerValue() const
 {
 	location.throwError("Can't use address of temporary register");
-	return {};
+
+	DEBUG_ONLY(return {});
 }
 
 Operations::Expression::Ptr Operations::Expression::getSubExpr(int index) const
