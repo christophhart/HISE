@@ -545,7 +545,7 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Driver);
 	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Device);
 
-	var sd(sData);
+	var sd(sData.get()x);
 
 	ib.getContent<CustomSettingsWindowPanel>(settingsWindows)->fromDynamicObject(sd);
 #endif
