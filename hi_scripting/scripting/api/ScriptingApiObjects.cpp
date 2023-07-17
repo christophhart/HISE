@@ -1525,6 +1525,7 @@ struct ScriptingObjects::ScriptAudioFile::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptAudioFile, setRange);
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getNumSamples);
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getSampleRate);
+	API_METHOD_WRAPPER_0(ScriptAudioFile, getCurrentlyLoadedFile);
 	API_METHOD_WRAPPER_0(ScriptAudioFile, getCurrentlyDisplayedIndex);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, setContentCallback);
@@ -1540,10 +1541,11 @@ ScriptingObjects::ScriptAudioFile::ScriptAudioFile(ProcessorWithScriptingContent
 	ADD_API_METHOD_0(update);
 	ADD_API_METHOD_0(getNumSamples);
 	ADD_API_METHOD_0(getSampleRate);
+	ADD_API_METHOD_0(getCurrentlyLoadedFile);
 	ADD_API_METHOD_0(getCurrentlyDisplayedIndex);
 	ADD_API_METHOD_1(setDisplayCallback);
 	ADD_API_METHOD_1(setContentCallback);
-    ADD_API_METHOD_1(linkTo);
+  ADD_API_METHOD_1(linkTo);
 }
 
 void ScriptingObjects::ScriptAudioFile::clear()
