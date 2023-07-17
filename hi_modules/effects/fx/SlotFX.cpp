@@ -1212,7 +1212,7 @@ void HardcodedMasterFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 }
 
 
-HardcodedTimeVariantModulator::HardcodedTimeVariantModulator(hise::MainController *mc, const snex::jit::String &uid, Modulation::Mode m):
+HardcodedTimeVariantModulator::HardcodedTimeVariantModulator(hise::MainController *mc, const String &uid, Modulation::Mode m):
   HardcodedSwappableEffect(mc, false),
   Modulation(m),
   TimeVariantModulator(mc, uid, m)

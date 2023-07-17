@@ -197,9 +197,10 @@ namespace snex
             DECLARE_ID(AsmOptimisation)
             DECLARE_ID(NoSafeChecks);
 
+#if HISE_INCLUDE_SNEX
 			struct Helpers
 			{
-#if HISE_INCLUDE_SNEX
+
 				static StringArray getDefaultIds()
 				{
 #if SNEX_MIR_BACKEND
