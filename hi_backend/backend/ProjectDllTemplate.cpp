@@ -12,7 +12,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
-"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%\" IPP1ALibrary=\"%IPP_1A%\" extraCompilerFlags=\"/bigobj %MSVC_WARNINGS%\" >\r\n"
+"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%\" IPP1ALibrary=\"%IPP_1A%\" extraCompilerFlags=\"/bigobj /cgthreads8 %MSVC_WARNINGS%\" >\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION isDebug=\"1\" name=\"Debug\" binaryPath=\"dll\" targetName=\"%DEBUG_DLL_NAME%\" headerPath =\"%FAUST_HEADER_PATH%\"/>\r\n"
 "		 <CONFIGURATION isDebug = \"0\" name = \"CI\" targetName=\"%CI_DLL_NAME%\" headerPath =\"%FAUST_HEADER_PATH%\" binaryPath = \"dll\"\r\n"
