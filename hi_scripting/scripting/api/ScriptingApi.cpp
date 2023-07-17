@@ -6958,7 +6958,18 @@ juce::File ScriptingApi::FileSystem::getFile(SpecialLocations l)
 
 	switch (l)
 	{
-	case Samples:	f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);
+	case Samples:
+	
+		if(FullInstrumentExpansion::isEnabled(getMainController()))
+		{
+		  if (auto e = getMainController()->getExpansionHandler().getCurrentExpansion())
+		    f = e->getSubDirectory(FileHandlerBase::Samples);
+		}
+		else 
+		{
+			f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples);	
+		}
+		
 		break;
 	case Expansions: return getMainController()->getExpansionHandler().getExpansionFolder();
 #if USE_BACKEND
