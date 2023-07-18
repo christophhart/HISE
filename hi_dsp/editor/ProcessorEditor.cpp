@@ -406,7 +406,11 @@ void ProcessorEditor::paint(Graphics &g)
 
 	if (isSelectedForCopyAndPaste()) c = getProcessorAsChain() ? c.withMultipliedBrightness(1.05f) : c.withMultipliedBrightness(1.05f);
 
-    
+	if (dynamic_cast<BackendRootWindow*>(getParentComponent()) != nullptr)
+	{
+		// prevent screenshots from being transparent:
+		g.fillAll(Colour(0xFF282828));
+	}
     
     if(dynamic_cast<ModulatorSynth*>(getProcessor()) ||
        dynamic_cast<Chain*>(getProcessor()) )
