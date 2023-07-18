@@ -3,7 +3,7 @@
 <JUCERPROJECT id="v5Vi2v" name="doc_builder" displaySplashScreen="0" reportAppUsage="0"
               splashScreenColour="Dark" projectType="consoleapp" version="1.0.0"
               bundleIdentifier="com.yourcompany.doc_builder" includeBinaryInAppConfig="1"
-              cppLanguageStandard="14" companyCopyright="" jucerVersion="5.4.3">
+              cppLanguageStandard="17" companyCopyright="" jucerFormatVersion="1">
   <MAINGROUP id="CBhHJQ" name="doc_builder">
     <GROUP id="{1BF6A806-D526-1F84-0778-2A3D496375C7}" name="Source">
       <FILE id="RG17Js" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
@@ -36,7 +36,7 @@
   </MAINGROUP>
   <EXPORTFORMATS>
     <VS2017 targetFolder="Builds/VisualStudio2017" windowsTargetPlatformVersion="10.0.16299.0"
-            IPPLibrary="Sequential" smallIcon="uBwWN0" bigIcon="uBwWN0">
+            IPPLibrary="Sequential" smallIcon="uBwWN0" bigIcon="uBwWN0" extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;&#10;&#10; ">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
@@ -58,13 +58,15 @@
         <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_zstd" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" linuxExtraPkgConfig="x11 xinerama xext">
@@ -94,11 +96,15 @@
         <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_streaming" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
   <MODULES>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -122,7 +128,7 @@
   <JUCEOPTIONS USE_BACKEND="enabled" USE_FRONTEND="disabled" USE_RAW_FRONTEND="disabled"
                IS_STANDALONE_APP="enabled" USE_COPY_PROTECTION="disabled" USE_IPP="enabled"
                USE_VDSP_FFT="disabled" FRONTEND_IS_PLUGIN="disabled" JUCE_ASIO="0"
-               HI_EXPORT_DSP_LIBRARY="disabled"/>
+               HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"/>
   <LIVE_SETTINGS>
     <WINDOWS/>
   </LIVE_SETTINGS>

@@ -526,6 +526,8 @@ void MarkdownParser::Element::recalculateHyperLinkAreas(MarkdownLayout& l, Array
 
 void MarkdownParser::Element::prepareLinksForHtmlExport(const String& )
 {
+	getHeightForWidth(850);
+
 	for (auto& l : hyperLinks)
 	{
 

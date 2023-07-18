@@ -251,10 +251,7 @@ juce::Image MarkdownParser::GlobalPathProvider::getImage(const MarkdownLink& url
 		Image img(Image::ARGB, (int)widthToUseMax, (int)widthToUseMax, true);
 		Graphics g(img);
 		
-		if (parent != nullptr)
-			g.setColour(parent->getStyleData().textColour);
-		else
-			g.setColour(Colours::white);
+		g.setColour(Colour(0xFF424242));
 
 		g.fillPath(p);
 
