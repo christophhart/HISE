@@ -337,12 +337,14 @@ public:
 
 	bool isMappable(int controllerValue) const
 	{
-		if (!exclusiveMode)
-			return shouldAddControllerToPopup(controllerValue);
-
 		if (isPositiveAndBelow(controllerValue, 128))
-			return automationData[controllerValue].isEmpty();
-
+		{
+			if (!exclusiveMode)
+				return shouldAddControllerToPopup(controllerValue);
+			else
+				return shouldAddControllerToPopup(controllerValue) && automationData[controllerValue].isEmpty();
+		}
+		
 		return false;
 	}
 

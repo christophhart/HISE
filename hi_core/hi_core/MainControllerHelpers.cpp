@@ -79,6 +79,11 @@ void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumbe
 {
 	jassert(isLearningActive());
 
+	if (!shouldAddControllerToPopup(ccNumber))
+	{
+		return;
+	}
+
 	ScopedLock sl(mc->getLock());
 
 	unlearnedData.ccNumber = ccNumber;
