@@ -830,13 +830,13 @@ void WorkbenchTestPlayer::postPostCompile(WorkbenchData::Ptr wb)
 void WorkbenchTestPlayer::play()
 {
 	playButton.setToggleStateAndUpdateIcon(true);
-	getMainController()->setBufferToPlay(wb->getTestData().testOutputData);
+	getMainController()->setBufferToPlay(wb->getTestData().testOutputData, 44100.0);
 }
 
 void WorkbenchTestPlayer::stop()
 {
 	playButton.setToggleStateAndUpdateIcon(false);
-	getMainController()->setBufferToPlay({});
+	getMainController()->setBufferToPlay({}, 44100.0);
 }
 
 void WorkbenchTestPlayer::timerCallback()

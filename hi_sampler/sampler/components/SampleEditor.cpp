@@ -1450,7 +1450,7 @@ struct LoopImproveWindow: public Component,
 			b.applyGainRamp(0, 1024, 0.0f, 1.0f);
 			b.applyGainRamp(PreviewLength - 1024, 1024, 1.0f, 0.0f);
 
-            getMainController()->setBufferToPlay(b);
+            getMainController()->setBufferToPlay(b, sound->getSampleRate());
         }
         if(b == &findButton)
         {

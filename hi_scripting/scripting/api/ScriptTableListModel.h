@@ -62,6 +62,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		Image,
 		Slider,
 		ComboBox,
+		Hidden,
 		numCellTypes
 	};
 

@@ -791,7 +791,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 			
 
 			parent.wait(50);
-			parent.chain->getMainController()->setBufferToPlay(b, BIND_MEMBER_FUNCTION_1(bl::previewUpdate));
+			parent.chain->getMainController()->setBufferToPlay(b, parent.converter->sampleRate, BIND_MEMBER_FUNCTION_1(bl::previewUpdate));
 		}
 
 		void buttonClicked(Button* b) override

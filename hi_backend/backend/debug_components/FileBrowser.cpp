@@ -442,7 +442,7 @@ struct AudioPreviewComponent: public Component,
         addAndMakeVisible(stopButton);
         
         double unused;
-        b = hlac::CompressionHelpers::loadFile(f, unused);
+        b = hlac::CompressionHelpers::loadFile(f, unused, &sr);
         
         getMainController()->addPreviewListener(this);
         
@@ -459,6 +459,8 @@ struct AudioPreviewComponent: public Component,
         startPreview();
     }
     
+	double sr = 44100.0;
+
     void buttonClicked(Button* b) override
     {
         if(b == &startButton)
@@ -546,7 +548,7 @@ struct AudioPreviewComponent: public Component,
     
     void startPreview()
     {
-        getMainController()->setBufferToPlay(b);
+        getMainController()->setBufferToPlay(b, sr);
     }
     
     void stopPreview()

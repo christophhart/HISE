@@ -2093,34 +2093,8 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 		{
 			AudioSampleBuffer b(channels, numChannels, numSamples);
 
-            auto originalSampleRate = fileSampleRate;
-            auto currentSampleRate = getMainController()->getMainSynthChain()->getSampleRate();
+			getMainController()->setBufferToPlay(b, fileSampleRate);
 
-            if (originalSampleRate != currentSampleRate)
-            {
-                auto ratio = originalSampleRate / currentSampleRate;
-
-                int numResampled = (int)((double)numSamples / ratio) + 1;
-
-                AudioSampleBuffer r(b.getNumChannels(), numResampled);
-
-                LagrangeInterpolator p;
-
-                for (int i = 0; i < b.getNumChannels(); i++)
-                {
-                    p.reset();
-                    p.process(ratio, b.getReadPointer(i), r.getWritePointer(i), numResampled);
-                }
-
-                getMainController()->setBufferToPlay(r);
-            }
-            else
-            {
-                AudioSampleBuffer copy;
-                copy.makeCopyOf(b);
-                getMainController()->setBufferToPlay(copy);
-            }
-            
             start();
 		}
 
@@ -2157,53 +2131,37 @@ struct ScriptingApi::Engine::PreviewHandler: public ControlledObject,
 	{
         jassert(fileSampleRate >= 0.0);
         
-		
+		getMainController()->stopBufferToPlay();
 
-        ScopedPointer<Job> nj = new Job(pwsc, buffer, callback, fileSampleRate);
+		ScopedPointer<Job> nj = new Job(pwsc, buffer, callback, fileSampleRate);
         
         if(nj->isValid())
         {
-            ScopedLock sl(jobLock);
-            
-            getMainController()->stopBufferToPlay();
-            
-            currentJobs.add(nj.release());
+			nj->play();
 
-            if (currentJobs.size() == 1)
-                startNextJob();
+            ScopedLock sl(jobLock);
+			currentJob.swapWith(nj);
         }
-        
-		
 	}
 
 	void handleAsyncUpdate()
 	{
 		ScopedLock sl(jobLock);
 
-		if (auto j = currentJobs.removeAndReturn(0))
+		if (currentJob != nullptr)
 		{
-			j->sendCallback(false, 1.0);
+			currentJob->sendCallback(false, 1.0);
 		}
-
-		startNextJob();
 	}
 
 	void previewStateChanged(bool isPlaying, const AudioSampleBuffer& currentBuffer) override
 	{
-		if (!isPlaying && !currentJobs.isEmpty())
+		if (!isPlaying)
 			triggerAsyncUpdate();
 	}
 
-	void startNextJob()
-	{
-		ScopedLock sl(jobLock);
-
-		if (!currentJobs.isEmpty())
-			currentJobs[0]->play();
-	}
-
 	CriticalSection jobLock;
-	OwnedArray<Job> currentJobs;
+	ScopedPointer<Job> currentJob;
 	ProcessorWithScriptingContent* pwsc;
 };
 

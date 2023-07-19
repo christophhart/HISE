@@ -1616,7 +1616,7 @@ public:
 
 	void stopBufferToPlay();
 
-	void setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& previewFunction = {});
+	void setBufferToPlay(const AudioSampleBuffer& buffer, double previewSampleRate, const std::function<void(int)>& previewFunction = {});
 
 	int getPreviewBufferPosition() const;
 
@@ -2012,7 +2012,8 @@ private:
 	PooledUIUpdater globalUIUpdater;
 
 	AudioSampleBuffer previewBuffer;
-	int previewBufferIndex = -1;
+	double previewBufferIndex = -1.0;
+	double previewBufferDelta = 1.0;
 	float fadeOutPreviewBufferGain = 1.0f;
 	bool fadeOutPreviewBuffer = false;
 

@@ -1640,9 +1640,14 @@ void SamplePreviewer::previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPl
 
 		afr->read(&copy, 0, numPreview, offset, true, true);
 
-		auto pitchFactor = soundToPlay->getSampleRate() / sampler->getSampleRate();
-
+		
+		auto fileSampleRate = soundToPlay->getSampleRate();
 		auto pitchValue = conversion_logic::st2pitch().getValue((double)soundToPlay->getSampleProperty(SampleIds::Pitch) * 0.01);
+
+		fileSampleRate *= pitchValue;
+
+#if 0
+		auto pitchFactor = soundToPlay->getSampleRate() / sampler->getSampleRate();
 
 		pitchFactor *= pitchValue;
 
@@ -1662,6 +1667,7 @@ void SamplePreviewer::previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPl
 			numPreview = newNum;
 			std::swap(resampled, copy);
 		}
+#endif
 
 		auto o = offset - (int)soundToPlay->getSampleProperty(SampleIds::SampleStart);
 
@@ -1676,7 +1682,7 @@ void SamplePreviewer::previewSampleFromDisk(ModulatorSamplerSound::Ptr soundToPl
 		
 		auto sampleLength = soundToPlay->getReferenceToSound(0)->getSampleLength();
 
-		sampler->getMainController()->setBufferToPlay(copy, [o, sampler, sampleLength](int pos)
+		sampler->getMainController()->setBufferToPlay(copy, fileSampleRate, [o, sampler, sampleLength](int pos)
 		{
 			sampler->getSamplerDisplayValues().currentSamplePos = (double)(pos + o) / (double)sampleLength;
 		});

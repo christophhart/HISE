@@ -700,16 +700,16 @@ void MainController::stopBufferToPlay()
 	}
 }
 
-void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std::function<void(int)>& pf)
+void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, double bufferSampleRate, const std::function<void(int)>& pf)
 {
 	if (buffer.getNumSamples() > 400000 && getKillStateHandler().getCurrentThread() != KillStateHandler::SampleLoadingThread)
 	{
 		AudioSampleBuffer copy;
 		copy.makeCopyOf(buffer);
 
-		killAndCallOnLoadingThread([copy, pf](Processor* p)
+		killAndCallOnLoadingThread([copy, bufferSampleRate, pf](Processor* p)
 		{
-			p->getMainController()->setBufferToPlay(copy, pf);
+			p->getMainController()->setBufferToPlay(copy, bufferSampleRate, pf);
 			return SafeFunctionCall::OK;
 		});
 
@@ -720,13 +720,19 @@ void MainController::setBufferToPlay(const AudioSampleBuffer& buffer, const std:
         AudioSampleBuffer copy;
         copy.makeCopyOf(buffer);
         
-		LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
+		{
+			LockHelpers::SafeLock sl(this, LockHelpers::AudioLock);
 
-		previewBufferIndex = 0;
-		previewBuffer = copy;
-		previewFunction = pf;
-		fadeOutPreviewBuffer = false;
-		fadeOutPreviewBufferGain = 1.0f;
+			previewBufferIndex = 0;
+			std::swap(previewBuffer, copy);
+			previewFunction = pf;
+
+			if (originalSampleRate > 0)
+				previewBufferDelta = bufferSampleRate / originalSampleRate;
+
+			fadeOutPreviewBuffer = false;
+			fadeOutPreviewBufferGain = 1.0f;
+		}
 	}
 
 	for (auto pl : previewListeners)
@@ -1147,22 +1153,28 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	if (previewBufferIndex != -1)
 	{
-		int numToPlay = jmin<int>(numSamplesThisBlock, previewBuffer.getNumSamples() - previewBufferIndex);
+		int numChannels = jmin(multiChannelBuffer.getNumChannels(), previewBuffer.getNumChannels());
 
-		if (numToPlay > 0)
+		for (int i = 0; i < numSamplesThisBlock; i++)
 		{
-            for(int i = 0; i < multiChannelBuffer.getNumChannels(); i++)
-            {
-                if(isPositiveAndBelow(i, previewBuffer.getNumChannels()))
-                {
-                    FloatVectorOperations::copy(multiChannelBuffer.getWritePointer(i, 0), previewBuffer.getReadPointer(i, previewBufferIndex), numToPlay);
-                }
-            }
-            
-			if (previewFunction)
-				previewFunction(previewBufferIndex);
+			int loIndex = (int)previewBufferIndex;
+			int hiIndex = jmin(loIndex + 1, previewBuffer.getNumSamples() - 1);
+			float alpha = (float)previewBufferIndex - (float)loIndex;
 
-			previewBufferIndex += numToPlay;
+			for (int c = 0; c < numChannels; c++)
+			{
+				auto loSample = previewBuffer.getSample(c, loIndex);
+				auto hiSample = previewBuffer.getSample(c, hiIndex);
+				auto value = Interpolator::interpolateLinear(loSample, hiSample, alpha);
+				multiChannelBuffer.addSample(c, i, value);
+			}
+
+			previewBufferIndex += previewBufferDelta;
+
+			if (previewBufferIndex >= previewBuffer.getNumSamples())
+			{
+				break;
+			}
 		}
 
 		if (fadeOutPreviewBuffer)

@@ -224,7 +224,7 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 
 	auto cellType = getCellType(columnId);
 
-	if (cellType == CellType::numCellTypes || cellType == CellType::Text)
+	if (cellType == CellType::numCellTypes || cellType == CellType::Text || cellType == CellType::Hidden)
 	{
 		jassert(existingComponentToUpdate == nullptr);
 		return nullptr;
@@ -615,7 +615,8 @@ void ScriptTableListModel::setTableColumnData(var cd)
 						"Button",
 						"Image",
 						"Slider",
-						"ComboBox"
+						"ComboBox",
+						"Hidden"
 					};
 
 					auto type = (CellType)types.indexOf(t);
