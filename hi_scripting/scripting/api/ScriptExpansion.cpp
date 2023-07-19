@@ -47,6 +47,8 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, clearAttachedCallbacks);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, attachAutomationCallback);
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
+	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, getAutomationIndex);
+	API_METHOD_WRAPPER_2(ScriptUserPresetHandler, setAutomationValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, updateSaveInPresetComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, updateConnectedComponentsFromModuleState);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setUseUndoForPresetLoading);
@@ -77,6 +79,8 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_3(setUseCustomUserPresetModel);
 	ADD_API_METHOD_3(attachAutomationCallback);
 	ADD_API_METHOD_0(clearAttachedCallbacks);
+	ADD_API_METHOD_1(getAutomationIndex);
+	ADD_API_METHOD_2(setAutomationValue);
 	ADD_API_METHOD_3(updateAutomationValues);
 	ADD_API_METHOD_1(updateSaveInPresetComponents);
 	ADD_API_METHOD_0(updateConnectedComponentsFromModuleState);
@@ -253,31 +257,32 @@ void ScriptUserPresetHandler::AttachedCallback::onCallbackAsync(AttachedCallback
 	}
 }
 
-void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var updateCallback, bool isSynchronous)
+void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var updateCallback, var isSynchronous)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(updateCallback))
+	auto realSync = ApiHelpers::isSynchronous(isSynchronous);
+
+	if (auto cData = getMainController()->getUserPresetHandler().getCustomAutomationData(Identifier(automationId)))
 	{
-		if (auto cData = getMainController()->getUserPresetHandler().getCustomAutomationData(Identifier(automationId)))
+		for (auto& c : attachedCallbacks)
 		{
-			for (auto& c : attachedCallbacks)
+			if (automationId == c->id)
 			{
-				if (automationId == c->id)
-				{
-					attachedCallbacks.removeObject(c);
-					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "removing old attached callback for " + automationId);
-					break;
-				}
+				attachedCallbacks.removeObject(c);
+				debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "removing old attached callback for " + automationId);
+				break;
 			}
-
-			attachedCallbacks.add(new AttachedCallback(this, cData, updateCallback, isSynchronous));
-
-
-			return;
 		}
-		else
+
+		if (HiseJavascriptEngine::isJavascriptFunction(updateCallback))
 		{
-			reportScriptError(automationId + " not found");
+			attachedCallbacks.add(new AttachedCallback(this, cData, updateCallback, realSync));
 		}
+
+		return;
+	}
+	else
+	{
+		reportScriptError(automationId + " not found");
 	}
 }
 
@@ -338,6 +343,35 @@ struct AutomationValueUndoAction: public UndoableAction
     bool sendMessage;
     WeakReference<ScriptUserPresetHandler> suph;
 };
+
+int ScriptUserPresetHandler::getAutomationIndex(String automationID)
+{
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	if (uph.isUsingCustomDataModel())
+	{
+		for (int i = 0; i < uph.getNumCustomAutomationData(); i++)
+		{
+			if (uph.getCustomAutomationData(i)->id == automationID)
+				return i;
+		}
+	}
+
+	return -1;
+}
+
+bool ScriptUserPresetHandler::setAutomationValue(int automationIndex, float newValue)
+{
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	if (uph.isUsingCustomDataModel() && isPositiveAndBelow(automationIndex, uph.getNumCustomAutomationData()))
+	{
+		uph.getCustomAutomationData(automationIndex)->call(newValue);
+		return true;
+	}
+
+	return false;
+}
 
 void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage, bool useUndoManager)
 {
@@ -472,6 +506,8 @@ void ScriptUserPresetHandler::updateConnectedComponentsFromModuleState()
         sc->updateValueFromProcessorConnection();
 	}
 }
+
+
 
 void ScriptUserPresetHandler::runTest()
 {
