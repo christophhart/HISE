@@ -340,14 +340,16 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 
 	template <int P> void setParameter(double v)
 	{
-		auto sampleValue = v * 0.001 * sr;
+		auto sampleValue = jmax(0.0f, (float)(v * 0.001 * sr));
+
+		FloatSanitizers::sanitizeFloatNumber(sampleValue);
 
 		for (auto& obj : objects)
 		{
 			if constexpr (P == 0)
 			{
 				if (sr != 0.0)
-					obj.setMaxDelaySamples(sampleValue);
+					obj.setMaxDelaySamples(roundToInt(sampleValue));
 				else
 					maxSize = v;
 			}
