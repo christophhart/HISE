@@ -817,11 +817,13 @@ ScriptingObjects::SVGObject::SVGObject(ProcessorWithScriptingContent* p, const S
     
     comp.expand(mb, xmlText);
     
-    if(auto xml = XmlDocument::parse(xmlText))
-    {
-        MessageManagerLock mm;
-        svg = Drawable::createFromSVG(*xml);
-    }
+	WeakReference<SVGObject> safeThis(this);
+
+	SafeAsyncCall::call<SVGObject>(*this, [xmlText](SVGObject& obj)
+	{
+		if (auto xml = XmlDocument::parse(xmlText))
+			obj.svg = Drawable::createFromSVG(*xml);
+	});
 }
 
 

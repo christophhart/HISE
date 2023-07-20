@@ -291,6 +291,8 @@ namespace ScriptingObjects
         
         Rectangle<float> currentBounds;
         std::unique_ptr<Drawable> svg;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(SVGObject);
     };
 
 	class PathObject : public ConstScriptingObject
