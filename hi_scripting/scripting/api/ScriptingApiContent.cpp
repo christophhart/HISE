@@ -3363,6 +3363,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, unloadAllImages);
 	API_METHOD_WRAPPER_1(ScriptPanel, isImageLoaded);
+	API_METHOD_WRAPPER_1(ScriptPanel, getImageSize);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
   API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
@@ -3473,6 +3474,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_0(unloadAllImages);
 	ADD_API_METHOD_1(isImageLoaded);
+	ADD_API_METHOD_1(getImageSize);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
 	ADD_API_METHOD_3(setValueWithUndo);
@@ -3771,6 +3773,13 @@ bool ScriptingApi::Content::ScriptPanel::isImageLoaded(String prettyName)
 	}
 	
 	return false;
+}
+
+var ScriptingApi::Content::ScriptPanel::getImageSize(String imageName)
+{
+	Image img = getLoadedImage(imageName);
+
+	return Array<var> (img.getWidth(), img.getHeight());
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
