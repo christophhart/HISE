@@ -105,7 +105,7 @@ scriptUnlocker(this)
     
     if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::EnableLoris))
     {
-        auto f = ProjectHandler::getAppDataDirectory(this).getChildFile("loris_library");
+        auto f = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("loris_library");
         
         if(f.isDirectory())
         {
