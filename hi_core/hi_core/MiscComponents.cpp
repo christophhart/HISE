@@ -596,7 +596,7 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 	{
 		e->setProperty(clicked, action == Action::Clicked);
 		e->setProperty(doubleClick, action == Action::DoubleClicked);
-		e->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
+		e->setProperty(rightClick, ((action == Action::Clicked || action == Action::Dragged) && event.mods.isRightButtonDown()) ||
 			(action == Action::MouseUp && event.mods.isRightButtonDown()));
 		e->setProperty(mouseUp, action == Action::MouseUp);
 		e->setProperty(mouseDownX, event.getMouseDownX());
