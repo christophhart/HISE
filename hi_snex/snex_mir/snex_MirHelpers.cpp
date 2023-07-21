@@ -336,6 +336,7 @@ String snex::mir::TypeConverters::FunctionData2MirTextLabel(const NamespacedIden
 				fid.namespaces.remove(i--);
 		}
 		
+        label << "_";
 
 		label << NamespacedIdentifier2MangledMirVar(fid);
 	}

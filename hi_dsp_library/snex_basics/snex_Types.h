@@ -660,13 +660,11 @@ struct PolyHandler
 	}
 
 	static int getSizeStatic(PolyHandler* ph)
-	{
-		if (ph == nullptr)
-			return 0;
-
-		jassert(ph->enabled != 0);
-
-		if (ph->getVoiceIndex() == -1)
+    {
+        if (ph == nullptr)
+            return 0;
+        
+        if (!ph->enabled || ph->getVoiceIndex() == -1)
 			return 1;
 
 		return 0;

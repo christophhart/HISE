@@ -73,7 +73,7 @@ MainComponent::MainComponent() :
 		auto compileThread = new snex::jit::TestCompileThread(data);
 		data->setCompileHandler(compileThread);
 
-		for (auto o : OptimizationIds::getDefaultIds())
+		for (auto o : OptimizationIds::Helpers::getDefaultIds())
 			data->getGlobalScope().addOptimization(o);
 
 		playground = new snex::ui::SnexPlayground(data, true);

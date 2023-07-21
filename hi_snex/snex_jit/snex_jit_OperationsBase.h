@@ -57,6 +57,20 @@ namespace Operations
 	static BaseScope* findClassScope(BaseScope* scope);
 	static BaseScope* findFunctionScope(BaseScope* scope);
 
+    static bool callRecursive(ValueTree& root, const std::function<bool(ValueTree&)>& f)
+    {
+        if(f(root))
+            return true;
+        
+        for(auto c: root)
+        {
+            if(callRecursive(c, f))
+                return true;
+        }
+        
+        return false;
+    }
+
 	enum class IterationType
 	{
 		AllChildStatements,			 //< all child nodes will be iterated

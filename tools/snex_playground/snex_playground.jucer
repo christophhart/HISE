@@ -40,7 +40,7 @@
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
-               xcodeValidArchs="arm64,arm64e,x86_64">
+               xcodeValidArchs="arm64,arm64e">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK"/>
