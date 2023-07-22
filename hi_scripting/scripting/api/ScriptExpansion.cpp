@@ -2645,6 +2645,12 @@ void ExpansionEncodingWindow::run()
 				mData.addChild(ValueTree::fromXml(*userXML), -1, nullptr);
 		}
 
+        String prevContent;
+        
+        if(f.existsAsFile())
+            prevContent = f.loadFileAsString();
+        
+        
 		auto xml = mData.createXml();
 		f.replaceWithText(xml->createDocument(""));
 		ScopedPointer<FullInstrumentExpansion> e = new FullInstrumentExpansion(getMainController(), h.getWorkDirectory());
@@ -2652,9 +2658,12 @@ void ExpansionEncodingWindow::run()
 		e->setIsProjectExporter();
 		encodeResult = e->encodeExpansion();
 
-		
-
-		f.deleteFile();
+		// This file is used by the FullInstrument Expansion so
+        // we have to restore it to not lose the original file data
+        if(prevContent.isNotEmpty())
+            f.replaceWithText(prevContent);
+        else
+            f.deleteFile();
 
 		if (exportMode > ExportMode::HXI)
 		{

@@ -748,6 +748,7 @@ void HiseSettings::Data::refreshProjectData()
 {
 	loadSettingsFromFile(SettingFiles::ProjectSettings);
 	loadSettingsFromFile(SettingFiles::UserSettings);
+    loadSettingsFromFile(SettingFiles::ExpansionSettings);
 }
 
 void HiseSettings::Data::loadSettingsFromFile(const Identifier& id)
