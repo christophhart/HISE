@@ -321,8 +321,9 @@ snex::mir::MirFunctionCollection* MirCompiler::getFunctionClass()
 
 void MirCompiler::setLibraryFunctions(const Array<StaticFunctionPointer>& functionMap)
 {
-	if (currentFunctions.size() == 0)
-		currentFunctions.addArray(functionMap);
+    currentFunctions.clearQuick();
+    
+	currentFunctions.addArray(functionMap);
 }
 
 void* MirCompiler::resolve(const char* name)
