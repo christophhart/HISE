@@ -477,7 +477,7 @@ void WebViewWrapper::refresh()
 
 #if !JUCE_LINUX
 	choc::ui::WebView::Options options;
-	options.enableDebugMode = false;
+	options.enableDebugMode = data->isDebugModeEnabled();
 	auto d = data;
 	options.fetchResource = [d](const std::string& path)
 	{

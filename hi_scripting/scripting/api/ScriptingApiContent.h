@@ -2243,7 +2243,8 @@ public:
 		{
 			enableCache = ScriptComponent::numProperties,
 			enablePersistence,
-			scaleFactorToZoom
+			scaleFactorToZoom,
+            enableDebugMode
 		};
 
 		ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height);

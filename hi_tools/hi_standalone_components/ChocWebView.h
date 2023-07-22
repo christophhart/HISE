@@ -155,6 +155,16 @@ struct WebViewData : public ReferenceCountedObject
 		return applyScaleFactorAsZoom;
 	}
 
+    bool isDebugModeEnabled() const
+    {
+        return debugModeEnabled;
+    }
+    
+    void setEnableDebugMode(bool shouldBeEnabled)
+    {
+        debugModeEnabled = shouldBeEnabled;
+    }
+    
 private:
 
 	File projectRootDirectory;
@@ -163,6 +173,8 @@ private:
 
 	bool usePersistentCalls = true;
 
+    bool debugModeEnabled = false;
+    
 	StringPairArray initScripts;
 
 	using OpaqueResourceType = std::tuple<std::vector<uint8>, std::string>;
