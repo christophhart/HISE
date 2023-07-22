@@ -410,9 +410,15 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
 					Identifier i1(first["id"].toString());
 					Identifier i2(first["id"].toString());
 
-					auto firstIndex = uph.getCustomAutomationData(i1)->index;
-					auto secondIndex = uph.getCustomAutomationData(i2)->index;
+                    auto firstIndex = 0;
+                    auto secondIndex = 0;
 
+                    if(auto fi = uph.getCustomAutomationData(i1))
+                        firstIndex = fi->index;
+                    
+                    if(auto si = uph.getCustomAutomationData(i2))
+                        secondIndex = si->index;
+                    
 					if (firstIndex < secondIndex)
 						return -1;
 					if (firstIndex > secondIndex)
