@@ -674,9 +674,12 @@ public:
 
 		const Rectangle<int> r (getPropertyComponentContentPosition (component));
 
-		g.drawFittedText (component.getName(),
-						  3, r.getY(), r.getX() - 8, r.getHeight(),
-						  Justification::centredRight, 2);
+        if(r.getX() > 8)
+        {
+            g.drawFittedText (component.getName(),
+                              3, r.getY(), r.getX() - 8, r.getHeight(),
+                              Justification::centredRight, 2);
+        }
 	};
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, 

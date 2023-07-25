@@ -548,11 +548,12 @@ void SettingWindows::save(const Identifier& s)
 			c.setProperty("value", c.getProperty("value") ? "Yes" : "No", nullptr);
 	}
 
-	ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(getValueTree(s));
+	if(ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(getValueTree(s)))
+    {
+        auto f = dataObject.getFileForSetting(s);
 
-	auto f = dataObject.getFileForSetting(s);
-
-	xml->writeToFile(f, "");
+        xml->writeToFile(f, "");
+    }
 }
 
 

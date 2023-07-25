@@ -264,9 +264,8 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
         
         externalClockSim.process(numBeforeWrap);
         
-		
-
-        processChunk(channels, buffer, midiMessages, numBeforeWrap, numAfterWrap);
+        if(numAfterWrap > 0)
+            processChunk(channels, buffer, midiMessages, numBeforeWrap, numAfterWrap);
         
         externalClockSim.process(numAfterWrap);
         
