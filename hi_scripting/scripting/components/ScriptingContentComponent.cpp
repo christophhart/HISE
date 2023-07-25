@@ -111,7 +111,7 @@ void ScriptContentComponent::refreshMacroIndexes()
 			MacroControlBroadcaster::MacroControlledParameterData * pData = mcb->getMacroControlData(macroIndex)->getParameterWithProcessorAndIndex(p, i);
 
 			// Check if the name matches
-			if(pData->getParameterName() != componentWrappers[i]->getComponent()->getName())
+			if(pData->getParameterName() != componentWrappers[i]->getScriptComponent()->getName().toString())
 			{
 				const String x = pData->getParameterName();
 

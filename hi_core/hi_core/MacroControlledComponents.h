@@ -260,17 +260,23 @@ public:
 	void initMacroControl(NotificationType notify);
 
 	virtual void addToMacroController(int newMacroIndex)
-	{ 
-		numberTag->setNumber(newMacroIndex+1);
-		numberTag->setVisible(true);
-		macroIndex = newMacroIndex; 
+	{
+        id(macroIndex != newMacroIndex)
+        {
+            numberTag->setNumber(newMacroIndex+1);
+            numberTag->setVisible(true);
+            macroIndex = newMacroIndex;
+        }
 	};
 
 	virtual void removeFromMacroController() 
-	{ 
-		numberTag->setNumber(0);
-		numberTag->setVisible(false);
-		macroIndex = -1;	
+	{
+        if(macroIndex != -1)
+        {
+            numberTag->setNumber(0);
+            numberTag->setVisible(false);
+            macroIndex = -1;
+        }
 	}
 
 	/** overwrite this method and update the element to display the current value of the controlled attribute. */
