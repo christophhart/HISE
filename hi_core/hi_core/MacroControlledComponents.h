@@ -261,7 +261,7 @@ public:
 
 	virtual void addToMacroController(int newMacroIndex)
 	{
-        id(macroIndex != newMacroIndex)
+        if(macroIndex != newMacroIndex)
         {
             numberTag->setNumber(newMacroIndex+1);
             numberTag->setVisible(true);
