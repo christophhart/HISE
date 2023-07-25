@@ -156,6 +156,9 @@ public:
 
 	const float* getReadPointer(int startSample) const
 	{
+        if(savedValuesForBlock.getNumSamples() == 0)
+            return nullptr;
+        
 		return savedValuesForBlock.getReadPointer(0, startSample);
 	}
 

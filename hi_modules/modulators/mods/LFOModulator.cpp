@@ -557,6 +557,22 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	intensityInterpolator.setStepAmount(samplesPerBlock);
 };
 
+
+void LfoModulator::resyncInternal(double ppqPosition)
+{
+    if(!(syncToMasterClock && tempoSync))
+        return;
+        
+    auto cycleLength = (double)TempoSyncer::getTempoFactor(currentTempo);
+    
+    auto ppqOffset = hmath::fmod(ppqPosition, cycleLength);
+    
+    auto normalizedOffset = ppqOffset / cycleLength;
+    
+    uptime = roundToInt(normalizedOffset * (double)SAMPLE_LOOKUP_TABLE_SIZE);
+    
+}
+
 void LfoModulator::calculateBlock(int startSample, int numSamples)
 {
 	const int startIndex = startSample;
@@ -564,6 +580,7 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 	auto* modData = internalBuffer.getWritePointer(0, startSample);
 
+#if 0
 	if (syncToMasterClock && tempoSync)
 	{
 		auto startPPQ = getMainController()->getMasterClock().getPPQPos(numSamples - startSample);
@@ -573,6 +590,7 @@ void LfoModulator::calculateBlock(int startSample, int numSamples)
 
 		uptime = (int)(uptimeNorm * SAMPLE_LOOKUP_TABLE_SIZE);
 	}
+#endif
 
 	while (--numSamples >= 0)
 	{

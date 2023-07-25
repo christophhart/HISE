@@ -180,8 +180,22 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
+    void onTransportChange(bool isPlaying, double ppqPosition) override
+    {
+        if(isPlaying)
+            resyncInternal(ppqPosition);
+    }
+    
+    void onResync(double ppqPosition) override
+    {
+        resyncInternal(ppqPosition);
+    }
+    
+    
 private:
 
+    void resyncInternal(double ppqPosition);
+    
 	/** Calculates the oscillator value of the LFO
 	*	Don't use this for GUI stuff, since it advances the LFO
 	*/

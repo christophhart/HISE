@@ -381,6 +381,8 @@ public:
 
 			if (auto m = dynamic_cast<Modulator*>(p))
 				connectedMod = m;
+            
+            connectedToVoiceStart = dynamic_cast<VoiceStartModulator*>(p) != nullptr;
 		}
 	}
 
@@ -414,10 +416,14 @@ public:
 	{
 		if (isConnected())
 		{
-			if(auto ptr = globalContainer->getModulationValuesForModulator(connectedMod, jmax(0, startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR)))
-				return ptr[0];
-
-			return globalContainer->getConstantVoiceValue(connectedMod, noteNumbers.get());
+            if(connectedToVoiceStart)
+            {
+                return globalContainer->getConstantVoiceValue(connectedMod, noteNumbers.get());
+            }
+            else if(auto ptr = globalContainer->getModulationValuesForModulator(connectedMod, jmax(0, startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR)))
+            {
+                return ptr[0];
+            }
 		}
 
 		return 0.0;
@@ -456,6 +462,7 @@ private:
 	
 	WeakReference<GlobalModulatorContainer> globalContainer;
 	WeakReference<Modulator> connectedMod;
+    bool connectedToVoiceStart = false;
 };
 
 

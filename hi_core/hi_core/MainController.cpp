@@ -995,10 +995,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	if (hostIsPlaying != lastPosInfo.isPlaying)
 	{
 		hostIsPlaying = lastPosInfo.isPlaying;
-
-		FX_ONLY(masterEventBuffer.addEvent(HiseEvent(hostIsPlaying ? HiseEvent::Type::NoteOn :
-															 HiseEvent::Type::NoteOff, 
-											 60, 127, 1));)
 	}
 
 	
