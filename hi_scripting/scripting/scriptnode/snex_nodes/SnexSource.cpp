@@ -199,6 +199,12 @@ void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset)
 			b << "instance.prepare(ps);";
 		}
 
+        b << String("void setExternalData(" + instanceType + "& instance, ExternalData& d, int index)");
+        {
+            StatementBlock sb(b, false);
+            b << "instance.setExternalData(d, index);";
+        }
+        
 		if (addReset)
 		{
 			b << String("void reset(" + instanceType + "& instance)");
