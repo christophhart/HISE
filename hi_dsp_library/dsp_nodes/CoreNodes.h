@@ -230,6 +230,11 @@ public:
 				updater = new InternalUpdater(*this, gu);
 		}
 
+        if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(externalData.obj))
+        {
+            af->setDisabledXYZProviders({ Identifier("SampleMap"), Identifier("SFZ") });
+        }
+        
 		base::setExternalData(d, index);
 	}
 
@@ -252,12 +257,15 @@ public:
 		}
 	}
 
-	void setRecordingLength(double lengthInMilliseconds)
+	void setRecordingLength(double newLength)
 	{
-		bufferSize = lengthInMilliseconds / 1000.0 * lastSpecs.sampleRate;
-
-		if (updater != nullptr)
-			updater->resizeFlag.store(true);
+        if(newLength != lengthInMilliseconds)
+        {
+            lengthInMilliseconds = newLength;
+            
+            if (updater != nullptr)
+                updater->resizeFlag.store(true);
+        }
 	}
 
 	void createParameters(ParameterDataList& data)
@@ -289,50 +297,81 @@ public:
 
 	void rebuildBuffer()
 	{
-		AudioSampleBuffer newBuffer(lastSpecs.numChannels, bufferSize);
-		newBuffer.clear();
+        auto bufferSize = lengthInMilliseconds / 1000.0 * lastSpecs.sampleRate;
+        
+        if(recordingBuffer.getNumSamples() != bufferSize)
+        {
+            AudioSampleBuffer newBuffer(lastSpecs.numChannels, bufferSize);
+            newBuffer.clear();
 
-		{
-			SimpleReadWriteLock::ScopedWriteLock l(bufferLock);
-			std::swap(newBuffer, recordingBuffer);
-			recordingIndex = 0;
-		}
+            {
+                SimpleReadWriteLock::ScopedWriteLock l(bufferLock);
+                std::swap(newBuffer, recordingBuffer);
+                recordingIndex = 0;
+            }
+        }
 	}
 
+    template <typename FD> void processFrameInternal(FD& data)
+    {
+        int numSamplesInBuffer = recordingBuffer.getNumSamples();
+
+        if (currentState == RecordingState::Recording && isPositiveAndBelow(recordingIndex, numSamplesInBuffer))
+        {
+            for (int i = 0; i < data.size(); i++)
+                recordingBuffer.setSample(i, recordingIndex, data[i]);
+
+            recordingIndex++;
+        }
+
+        if (recordingIndex >= numSamplesInBuffer)
+        {
+            recordingIndex = 0;
+            currentState = RecordingState::WaitingForStop;
+
+            if (updater != nullptr)
+                updater->flushFlag.store(true);
+        }
+    }
+    
+    template <typename PD, int C> void processFix(PD& data)
+    {
+        if (currentState == RecordingState::Recording)
+        {
+            SimpleReadWriteLock::ScopedReadLock l(bufferLock);
+
+            auto fd = data.template as<ProcessData<C>>().toFrameData();
+            
+            while(fd.next())
+                processFrameInternal(fd.toSpan());
+        }
+    }
+    
 	template <typename ProcessDataType> void process(ProcessDataType& d)
 	{
-		if (currentState == RecordingState::Recording)
-		{
-			SimpleReadWriteLock::ScopedReadLock l(bufferLock);
-
-			if (d.getNumChannels() == 2)
-				FrameConverters::forwardToFrameStereo(this, d);
-			if (d.getNumChannels() == 1)
-				FrameConverters::forwardToFrameMono(this, d);
-		}
+        if constexpr (ProcessDataType::hasCompileTimeSize())
+        {
+            constexpr int NumChannels = d.getNumChannels();
+            processFix<ProcessDataType, NumChannels>(d);
+        }
+        else
+        {
+            switch(d.getNumChannels())
+            {
+                case 1: processFix<ProcessDataType, 1>(d); break;
+                case 2: processFix<ProcessDataType, 2>(d); break;
+            }
+        }
+		
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		int numSamplesInBuffer = recordingBuffer.getNumSamples();
-
-		if (currentState == RecordingState::Recording && isPositiveAndBelow(recordingIndex, numSamplesInBuffer))
-		{
-			for (int i = 0; i < data.size(); i++)
-				recordingBuffer.setSample(i, recordingIndex, data[i]);
-
-			recordingIndex++;
-		}
-
-
-		if (recordingIndex++ >= numSamplesInBuffer)
-		{
-			recordingIndex = 0;
-			currentState = RecordingState::WaitingForStop;
-
-			if (updater != nullptr)
-				updater->flushFlag.store(true);
-		}
+        if (currentState == RecordingState::Recording)
+        {
+            SimpleReadWriteLock::ScopedReadLock l(bufferLock);
+            processFrameInternal(data);
+        }
 	}
 
 private:
@@ -374,7 +413,9 @@ private:
 	ScopedPointer<InternalUpdater> updater;
 
 	int recordingIndex = 0;
-	int bufferSize = 0;
+	
+    double lengthInMilliseconds = 0.0;
+    
 	RecordingState currentState = RecordingState::Idle;
 	PrepareSpecs lastSpecs;
 	SimpleReadWriteLock bufferLock;
