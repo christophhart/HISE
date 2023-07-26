@@ -175,6 +175,8 @@ public:
 
 				auto l = f->id.toString().replace("::", "_");
 
+                l = l.replace("~", "_dest");
+                
 				l << "_";
 
 				l << Types::Helpers::getCppTypeName(f->returnType.getType())[0];
