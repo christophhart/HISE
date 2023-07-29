@@ -118,6 +118,17 @@ struct CloneHelpers
     }
 };
 
+void ValueTreeBuilder::checkUnflushed(Node::Ptr n)
+{
+    if(n->isFlushed())
+    {
+        Error e;
+        e.v = n->nodeTree;
+        e.errorMessage << "Trying to wrap node that was already flushed";
+        throw e;
+    }
+}
+
 Result ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
 {
     Array<Identifier> existingIds;
@@ -1260,7 +1271,7 @@ PooledParameter::Ptr ValueTreeBuilder::parseParameter(const ValueTree& p, Connec
 Node::Ptr ValueTreeBuilder::wrapNode(Node::Ptr u, const NamespacedIdentifier& wrapId, int firstIntParam)
 {
 	// The id is already used by the wrapped node...
-	jassert(!u->isFlushed());
+    checkUnflushed(u);
 
 	Node::Ptr wn = new Node(*this, u->scopedId.id, wrapId);
 
@@ -1451,8 +1462,6 @@ Node::Ptr ValueTreeBuilder::parseMod(Node::Ptr u)
 		// Could be an unused node with a template parameter (like smoothed_parameter)...
 		u->addOptionalModeTemplate();
 	}
-
-	addNodeComment(u);
 
 	return parseComplexDataNode(u);
 }
@@ -2824,7 +2833,12 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseExternalDataNode(ExternalDa
 	if (t == ExternalData::DataType::DisplayBuffer)
 		n = parseSingleDisplayBufferNode(true);
 
+    parent.checkUnflushed(n);
+    
+    
+    
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
+    
 	wn->nodeTree = n->nodeTree;
 	NamespacedIdentifier edId = NamespacedIdentifier::fromString("data::external");
 	edId = edId.getChildId(ExternalData::getDataTypeName(t).toLowerCase());
@@ -2887,6 +2901,8 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parseMatrixDataNode()
 	if (!needsMatrix(n->nodeTree))
 		return n;
 
+    parent.checkUnflushed(n);
+    
 	Node::Ptr wn = new Node(parent, n->scopedId.id, NamespacedIdentifier("wrap::data"));
 	wn->nodeTree = n->nodeTree;
 	NamespacedIdentifier edId = NamespacedIdentifier::fromString("data::matrix");

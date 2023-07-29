@@ -351,7 +351,7 @@ public:
 	{
         if constexpr (ProcessDataType::hasCompileTimeSize())
         {
-            constexpr int NumChannels = d.getNumChannels();
+            static constexpr int NumChannels = ProcessDataType::getNumChannels();
             processFix<ProcessDataType, NumChannels>(d);
         }
         else

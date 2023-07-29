@@ -693,6 +693,8 @@ struct ValueTreeBuilder: public Base
 
 private:
 
+    void checkUnflushed(Node::Ptr n);
+    
 	SampleList externalReferences;
 
 	ReferenceCountedArray<hise::MultiChannelAudioBuffer::DataProvider> audioFileProviders;
