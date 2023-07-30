@@ -208,6 +208,9 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/DynamicsNode.cpp"
 #include "dsp_nodes/AnalyserNodes.h"
 
+#include "signalsmith_stretch/time_stretcher.h"
+#include "dsp_nodes/StretchNode.h"
+
 #include "dsp_nodes/FXNodes_impl.h"
 
 
