@@ -40,3 +40,7 @@
 #include "hlac/HlacAudioFormatWriter.cpp"
 #include "hlac/HlacAudioFormatReader.cpp"
 #include "hlac/HiseLosslessAudioFormat.cpp"
+
+#if PERFETTO
+PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+#endif

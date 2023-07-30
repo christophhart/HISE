@@ -2183,7 +2183,9 @@ private:
 	int scrollY;
 	BigInteger shownComponents;
 
-
+#if PERFETTO
+    std::unique_ptr<perfetto::TracingSession> tracingSession;
+#endif
 
     // Make sure that this is alive all the time...
     snex::cppgen::CustomNodeProperties data;

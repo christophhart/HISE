@@ -106,6 +106,10 @@ MainController::MainController() :
 	hostInfo = new DynamicObject();
     
 	startTimer(500);
+    
+#if PERFETTO
+    MelatoninPerfetto::get().beginSession();
+#endif
 };
 
 
@@ -127,6 +131,10 @@ MainController::~MainController()
 
 	sampleManager = nullptr;
 	javascriptThreadPool = nullptr;
+    
+#if PERFETTO
+    MelatoninPerfetto::get().endSession();
+#endif
 }
 
 
@@ -807,7 +815,7 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
-	if (getKillStateHandler().getStateLoadFlag())
+    if (getKillStateHandler().getStateLoadFlag())
 		return;
 
 	AudioThreadGuard audioThreadGuard(&getKillStateHandler());

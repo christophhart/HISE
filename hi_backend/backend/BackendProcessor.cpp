@@ -226,6 +226,8 @@ void BackendProcessor::refreshExpansionType()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+    TRACE_DSP();
+    
 #if !HISE_BACKEND_AS_FX
 	buffer.clear();
 #endif

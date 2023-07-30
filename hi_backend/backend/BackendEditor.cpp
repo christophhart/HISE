@@ -483,7 +483,9 @@ void MainTopBar::paint(Graphics& g)
 	infoText << "Faust enabled";
 #endif
 
-    
+#if PERFETTO
+    infoText << " + Perfetto";
+#endif
     
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.setColour(Colours::white.withAlpha(0.2f));

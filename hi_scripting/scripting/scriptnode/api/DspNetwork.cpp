@@ -489,6 +489,8 @@ void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
 
 void DspNetwork::process(ProcessDataDyn& data)
 {
+    TRACE_DSP();
+    
     if(!isInitialised())
         return;
     

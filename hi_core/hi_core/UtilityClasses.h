@@ -416,9 +416,9 @@ private:
 
 
 #if USE_GLITCH_DETECTION // && !JUCE_DEBUG
-#define ADD_GLITCH_DETECTOR(processor, location) ScopedGlitchDetector sgd(processor, (int)location)
+#define ADD_GLITCH_DETECTOR(processor, location) TRACE_DSP(); ScopedGlitchDetector sgd(processor, (int)location)
 #else
-#define ADD_GLITCH_DETECTOR(processor, loc)
+#define ADD_GLITCH_DETECTOR(processor, loc) TRACE_DSP();
 #endif
 
 
