@@ -16,6 +16,11 @@
 #define USE_VDSP_COMPLEX_MUL 0
 #endif
 
+
+#ifndef ENABLE_JUCE_VECTOR_OPS
+#define ENABLE_JUCE_VECTOR_OPS 0
+#endif
+
 #include "dsp/spectral.h"
 #include "dsp/delay.h"
 #include "dsp/perf.h"

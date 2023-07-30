@@ -1,7 +1,12 @@
 #include "time_stretcher.h"
 
-#define USE_JUCE_FFT 1
+#define USE_JUCE_FFT 0
+
+#if JUCE_WINDOWS
+#define USE_VDSP_COMPLEX_MUL 0
+#else
 #define USE_VDSP_COMPLEX_MUL 1
+#endif
 
 #include "signalsmith-stretch.h"
 
@@ -84,16 +89,66 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     return currentPos;
 }
 
-void time_stretcher::process(float** input, int numInput, float** output, int numOutput)
+void time_stretcher::process(float** input, int numInput, float** originalOutputs, int numOutput)
 {
     if(auto sl = hise::SimpleReadWriteLock::ScopedTryReadLock(stretchLock))
     {
-        pimpl->process(input, numInput, output, numOutput);
+        float* outputs[2];
+
+        outputs[0] = originalOutputs[0];
+        outputs[1] = originalOutputs[1];
+
+        if (playbackRatio != 1.0)
+        {
+            jassert(numOutput <= (resampledBuffer.size() / 2));
+
+            outputs[0] = resampledBuffer.begin();
+            outputs[1] = resampledBuffer.begin() + numOutput;
+        }
+
+
+        pimpl->process(input, numInput, outputs, numOutput);
         
         static constexpr float minus3dB = 0.707106781186548f;
         
         for(int i = 0; i < numChannels; i++)
-            FloatVectorOperations::multiply(output[i], minus3dB, numOutput);
+            FloatVectorOperations::multiply(outputs[i], minus3dB, numOutput);
+
+        if (playbackRatio != 1.0)
+        {
+            
+
+            for (int c = 0; c < numChannels; c++)
+            {
+                block b(outputs[c], numOutput);
+
+                double uptime = 0.0;
+
+                auto ptr = originalOutputs[c];
+
+                auto realNumOutputs = roundToInt((double)numOutput / playbackRatio);
+
+                for (int i = 0; i < realNumOutputs; i++)
+                {
+                    auto loIndex = (int)uptime;
+                    auto alpha = (float)uptime - (float)loIndex;
+                    auto hiIndex = jmin(b.size() - 1, loIndex + 1);
+
+                    auto lo = loIndex > 0 ? b[loIndex - 1] : lastValues[c];
+                    auto hi = b[hiIndex - 1];
+
+                    auto v = Interpolator::interpolateLinear(b[loIndex], b[hiIndex], alpha);
+
+                    ptr[i] = v;
+                    uptime += playbackRatio;
+                }
+
+                lastValues[c] = b[numOutput - 1];
+
+                int x = 05;
+            }
+        }
+
     }
 }
 
@@ -102,4 +157,16 @@ void time_stretcher::setTransposeSemitones(double semiTones, double tonality)
     pimpl->setTransposeSemitones(semiTones, tonality);
 }
 
+void time_stretcher::setResampleBuffer(double ratio, float* resampleBuffer_, int size)
+{
+    if (ratio != playbackRatio)
+    {
+        playbackRatio = ratio;
+
+        if (ratio == 1.0)
+            resampledBuffer.referToNothing();
+        else
+            resampledBuffer.referToRawData(resampleBuffer_, size);
+    }
+}
 }

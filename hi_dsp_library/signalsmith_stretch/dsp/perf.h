@@ -1,7 +1,7 @@
 #ifndef SIGNALSMITH_DSP_PERF_H
 #define SIGNALSMITH_DSP_PERF_H
 
-#if USE_VDSP_COMPLEX_MUL
+#if USE_VDSP_COMPLEX_MUL && JUCE_MAC
 #define Point DummyPoint
 #define Component DummyComponent
 #define MemoryBlock DummyMB
@@ -33,6 +33,14 @@ namespace perf {
 	#endif
 	#endif
 
+    template <typename V>
+    SIGNALSMITH_INLINE V complexReal(const std::complex<V>& c) {
+        return ((V*)(&c))[0];
+    }
+    template <typename V>
+    SIGNALSMITH_INLINE V complexImag(const std::complex<V>& c) {
+        return ((V*)(&c))[1];
+    }
 
 
 
@@ -63,9 +71,50 @@ namespace perf {
 		};
 	}
 
+
+#if ENABLE_JUCE_VECTOR_OPS
+    template <typename V> using SimdType = juce::dsp::SIMDRegister<V>;
+
+    template <typename V> using SimdComplexType = std::complex<SimdType<V>>;
+
+    template <typename V> static SimdComplexType<V> loadWithStride(const std::complex<V>* ptr, int simdIndex, int stride)
+    {
+        constexpr auto SimdSize = SimdType<V>::size();
+
+        V re[SimdSize];
+        V im[SimdSize];
+
+        for (int i = 0; i < SimdSize; i++)
+        {
+            re[i] = ptr[(simdIndex * SimdSize + i) * stride].real();
+            im[i] = ptr[(simdIndex * SimdSize + i) * stride].imag();
+        }
+
+        return { SimdType<V>::fromRawArray(re), SimdType<V>::fromRawArray(im) };
+    }
+
+    template <typename V> static void writeWithStride(std::complex<V>* ptr, int simdIndex, int stride, const SimdComplexType<V>& value)
+    {
+        constexpr auto SimdSize = SimdType<V>::size();
+
+        V re[SimdSize];
+        V im[SimdSize];
+
+        value.real().copyToRawArray(re);
+        value.imag().copyToRawArray(im);
+
+        for (int i = 0; i < SimdSize; i++)
+        {
+            ptr[(simdIndex * SimdSize + i) * stride].real(re[i]);
+            ptr[(simdIndex * SimdSize + i) * stride].imag(im[i]);
+        }
+    }
+#endif
+
+
     template <bool conjugateSecond=false, typename V> void mulVec(const std::complex<V>* a, int strideA, const std::complex<V>* b, int strideB, std::complex<V>* c, int strideC, int numElements)
     {
-        TRACE_DSP();
+        TRACE_EVENT("dsp", "mulConj");
         
 #if USE_VDSP_COMPLEX_MUL
         
@@ -81,13 +130,29 @@ namespace perf {
         DSPSplitComplex c_ = { reinterpret_cast<V*>(c), reinterpret_cast<V*>(c) + 1 };
         
         vDSP_zvmul(&a_, strideA, &b_, strideB, &c_, strideC, numElements, !conjugateSecond ? 1 : -1);
+                
+#else
+
         
-        
+#if ENABLE_JUCE_VECTOR_OPS
+
+
+        for (int i = 0; i < numElements / SimdType<V>::size(); i++)
+        {
+            auto a_ = loadWithStride(a, i, strideA);
+            auto b_ = loadWithStride(b, i, strideA);
+
+            auto c_ = mul<conjugateSecond, SimdType<V>>(a_, b_);
+
+            writeWithStride(c, i, strideC, c_);
+        }
+
 #else
         for(int i = 0; i < numElements; i++)
         {
             c[i * strideC] = mul<conjugateSecond, V>(a[i*strideA], b[i*strideB]);
         }
+#endif
 #endif
     }
 

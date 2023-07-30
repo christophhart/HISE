@@ -85,35 +85,25 @@ template <int NV> struct stretch_player: public data::base,
                 outputs[0] = data[0].begin();
                 outputs[1] = data[1].begin();
                 
-                auto numSamplesToProduce = roundToInt((double)data.getNumSamples() * playbackRatio);
+                auto numSamplesToProduce = roundToInt(static_cast<double>(data.getNumSamples()) * playbackRatio);
                 
-                auto alpha = hmath::fmod(s.currentPosition, 1.0);
-                
-                if(playbackRatio != 1.0)
-                {
-                    jassert(numSamplesToProduce <= (resampledBuffer.size()/2));
-                    
-                    outputs[0] = resampledBuffer.begin();
-                    outputs[1] = resampledBuffer.begin() + numSamplesToProduce;
-                }
-                
-                auto numInputs = (double)numSamplesToProduce * s.timeRatio + s.leftOver;
+                auto numInputs = static_cast<double>(numSamplesToProduce) * s.timeRatio + s.leftOver;
                 auto numSamplesInLoop = numSourceSamples;
                 auto rounded = hmath::round(numInputs);
                 
                 s.leftOver = rounded - numInputs;
                 numInputs = rounded;
-                
-                auto currentLeft = stereoData[0].begin() + (int)s.currentPosition;
-                auto currentRight = stereoData[1].begin() + (int)s.currentPosition;
+
+                const auto currentLeft = stereoData[0].begin() + static_cast<int>(s.currentPosition);
+                const auto currentRight = stereoData[1].begin() + static_cast<int>(s.currentPosition);
                 
                 if(s.currentPosition + numInputs > numSamplesInLoop)
                 {
-                    int numBeforeWrap = stereoData[0].size() - (int)s.currentPosition;
-                    int numAfterWrap = (int)numInputs - numBeforeWrap;
+	                const int numBeforeWrap = stereoData[0].size() - static_cast<int>(s.currentPosition);
+	                const int numAfterWrap = static_cast<int>(numInputs) - numBeforeWrap;
                     
                     inputs[0] = loopBuffer.begin();;
-                    inputs[1] = loopBuffer.begin() + (int)numInputs;;
+                    inputs[1] = loopBuffer.begin() + static_cast<int>(numInputs);;
                     
                     FloatVectorOperations::copy(inputs[0], currentLeft, numBeforeWrap);
                     FloatVectorOperations::copy(inputs[1], currentRight, numBeforeWrap);
@@ -121,7 +111,7 @@ template <int NV> struct stretch_player: public data::base,
                     FloatVectorOperations::copy(inputs[0]+numBeforeWrap, stereoData[0].begin(), numAfterWrap);
                     FloatVectorOperations::copy(inputs[1]+numBeforeWrap, stereoData[1].begin(), numAfterWrap);
                     
-                    s.stretcher.process(inputs, (int)numInputs, outputs, numSamplesToProduce);
+                    s.stretcher.process(inputs, int(numInputs), outputs, numSamplesToProduce);
                     s.currentPosition += numInputs - numSamplesInLoop;
                 }
                 else
@@ -129,30 +119,8 @@ template <int NV> struct stretch_player: public data::base,
                     inputs[0] = currentLeft;
                     inputs[1] = currentRight;
                     
-                    s.stretcher.process(inputs, (int)numInputs, outputs, numSamplesToProduce);
+                    s.stretcher.process(inputs, static_cast<int>(numInputs), outputs, numSamplesToProduce);
                     s.currentPosition += numInputs;
-                }
-                
-                if(playbackRatio != 1.0)
-                {
-                    auto ptrs = data.getRawDataPointers();
-                    
-                    for(int c = 0; c < data.getNumChannels(); c++)
-                    {
-                        double uptime = 0.0;
-                        block b(outputs[c], numSamplesToProduce);
-                        auto ptr = ptrs[c];
-                        
-                        for(int i = 0; i < data.getNumSamples(); i++)
-                        {
-                            InterpolatorType idx(uptime);
-                            
-                            ptr[i] = b[idx];
-                            uptime += playbackRatio;
-                        }
-                        
-                        int x = 5;
-                    }
                 }
             }
             else
@@ -290,7 +258,6 @@ template <int NV> struct stretch_player: public data::base,
             {
                 playbackRatio = thisRatio;
                 
-                
                 auto numSamplesResampled = (int)hmath::ceil(lastSpecs.blockSize * playbackRatio);
                 
                 int maxTimeFactor = 4.0;
@@ -302,9 +269,9 @@ template <int NV> struct stretch_player: public data::base,
                 
                 resampledBuffer.setSize(numSamplesResampled * lastSpecs.numChannels);
                 
-                
+                for (auto& s : state)
+                    s.stretcher.setResampleBuffer(playbackRatio, resampledBuffer.begin(), resampledBuffer.size());
             }
-            
         }
     }
     
