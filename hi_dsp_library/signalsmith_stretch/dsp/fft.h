@@ -75,7 +75,32 @@ template <typename Sample> struct JuceFFTWrapper
 			return ((V*)(&c))[1];
 		}
 
-		
+		// Complex multiplication has edge-cases around Inf/NaN - handling those properly makes std::complex non-inlineable, so we use our own
+		template <bool conjugateSecond, typename V>
+		SIGNALSMITH_INLINE std::complex<V> complexMul(const std::complex<V> &a, const std::complex<V> &b) {
+			V aReal = complexReal(a), aImag = complexImag(a);
+			V bReal = complexReal(b), bImag = complexImag(b);
+			return conjugateSecond ? std::complex<V>{
+				bReal*aReal + bImag*aImag,
+				bReal*aImag - bImag*aReal
+			} : std::complex<V>{
+				aReal*bReal - aImag*bImag,
+				aReal*bImag + aImag*bReal
+			};
+		}
+
+		template<bool flipped, typename V>
+		SIGNALSMITH_INLINE std::complex<V> complexAddI(const std::complex<V> &a, const std::complex<V> &b) {
+			V aReal = complexReal(a), aImag = complexImag(a);
+			V bReal = complexReal(b), bImag = complexImag(b);
+			return flipped ? std::complex<V>{
+				aReal + bImag,
+				aImag - bReal
+			} : std::complex<V>{
+				aReal - bImag,
+				aImag + bReal
+			};
+		}
 
 		// Use SFINAE to get an iterator from std::begin(), if supported - otherwise assume the value itself is an iterator
 		template<typename T, typename=void>
@@ -227,14 +252,14 @@ template <typename Sample> struct JuceFFTWrapper
 				const size_t factor = step.factor;
 				for (size_t repeat = 0; repeat < step.innerRepeats; ++repeat) {
 					for (size_t i = 0; i < step.factor; ++i) {
-						working[i] = perf::mul<inverse>(data[i*stride], twiddles[i]);
+						working[i] = _fft_impl::complexMul<inverse>(data[i*stride], twiddles[i]);
 					}
 					for (size_t f = 0; f < factor; ++f) {
 						complex sum = working[0];
 						for (size_t i = 1; i < factor; ++i) {
 							double phase = 2*M_PI*f*i/factor;
 							complex twiddle = {V(std::cos(phase)), V(-std::sin(phase))};
-							sum += perf::mul<inverse>(working[i], twiddle);
+							sum += _fft_impl::complexMul<inverse>(working[i], twiddle);
 						}
 						data[f*stride] = sum;
 					}
@@ -253,7 +278,7 @@ template <typename Sample> struct JuceFFTWrapper
 				const complex* twiddles = origTwiddles;
 				for (RandomAccessIterator data = origData; data < origData + stride; ++data) {
 					complex A = data[0];
-					complex B = perf::mul<inverse>(data[stride], twiddles[1]);
+					complex B = _fft_impl::complexMul<inverse>(data[stride], twiddles[1]);
 					
 					data[0] = A + B;
 					data[stride] = A - B;
@@ -273,15 +298,15 @@ template <typename Sample> struct JuceFFTWrapper
 				const complex* twiddles = origTwiddles;
 				for (RandomAccessIterator data = origData; data < origData + stride; ++data) {
 					complex A = data[0];
-					complex B = perf::mul<inverse>(data[stride], twiddles[1]);
-					complex C = perf::mul<inverse>(data[stride*2], twiddles[2]);
+					complex B = _fft_impl::complexMul<inverse>(data[stride], twiddles[1]);
+					complex C = _fft_impl::complexMul<inverse>(data[stride*2], twiddles[2]);
 					
 					complex realSum = A + (B + C)*factor3.real();
 					complex imagSum = (B - C)*factor3.imag();
 
 					data[0] = A + B + C;
-					data[stride] = perf::add<false>(realSum, imagSum);
-					data[stride*2] = perf::add<true>(realSum, imagSum);
+					data[stride] = _fft_impl::complexAddI<false>(realSum, imagSum);
+					data[stride*2] = _fft_impl::complexAddI<true>(realSum, imagSum);
 
 					twiddles += 3;
 				}
@@ -298,17 +323,17 @@ template <typename Sample> struct JuceFFTWrapper
 				const complex* twiddles = origTwiddles;
 				for (RandomAccessIterator data = origData; data < origData + stride; ++data) {
 					complex A = data[0];
-					complex C = perf::mul<inverse>(data[stride], twiddles[2]);
-					complex B = perf::mul<inverse>(data[stride*2], twiddles[1]);
-					complex D = perf::mul<inverse>(data[stride*3], twiddles[3]);
+					complex C = _fft_impl::complexMul<inverse>(data[stride], twiddles[2]);
+					complex B = _fft_impl::complexMul<inverse>(data[stride*2], twiddles[1]);
+					complex D = _fft_impl::complexMul<inverse>(data[stride*3], twiddles[3]);
 
 					complex sumAC = A + C, sumBD = B + D;
 					complex diffAC = A - C, diffBD = B - D;
 
 					data[0] = sumAC + sumBD;
-					data[stride] = perf::add<!inverse>(diffAC, diffBD);
+					data[stride] = _fft_impl::complexAddI<!inverse>(diffAC, diffBD);
 					data[stride*2] = sumAC - sumBD;
-					data[stride*3] = perf::add<inverse>(diffAC, diffBD);
+					data[stride*3] = _fft_impl::complexAddI<inverse>(diffAC, diffBD);
 
 					twiddles += 4;
 				}
@@ -486,28 +511,15 @@ template <typename Sample> struct JuceFFTWrapper
             TRACE_EVENT("dsp", "outerFFT");
             
 			size_t hSize = complexFft.size();
-            
-            auto unwindowedData = input.input.data();
-            auto windowData = input.window.data();
-            
-            FloatVectorOperations::multiply(unwindowedData, windowData, input.input.size());
-            
-            auto inputToUse = reinterpret_cast<std::complex<V>*>(unwindowedData);
-            
-            if(modified)
-                perf::mulVec<false>(inputToUse, 1, modifiedRotations.data(), 1, inputToUse, 1, hSize);
-            
-#if 0
 			for (size_t i = 0; i < hSize; ++i) {
 				if (modified) {
-					complexBuffer1[i] = perf::mul<false>({input[2*i], input[2*i + 1]}, modifiedRotations[i]);
+					complexBuffer1[i] = _fft_impl::complexMul<false>({input[2*i], input[2*i + 1]}, modifiedRotations[i]);
 				} else {
 					complexBuffer1[i] = {input[2*i], input[2*i + 1]};
 				}
 			}
-#endif
 			
-			complexFft.fft(inputToUse, complexBuffer2.data());
+			complexFft.fft(complexBuffer1.data(), complexBuffer2.data());
 			
 			if (!modified) output[0] = {
 				complexBuffer2[0].real() + complexBuffer2[0].imag(),
@@ -518,7 +530,7 @@ template <typename Sample> struct JuceFFTWrapper
 				
 				complex odd = (complexBuffer2[i] + conj(complexBuffer2[conjI]))*(V)0.5;
 				complex evenI = (complexBuffer2[i] - conj(complexBuffer2[conjI]))*(V)0.5;
-				complex evenRotMinusI = perf::mul<false>(evenI, twiddlesMinusI[i]);
+				complex evenRotMinusI = _fft_impl::complexMul<false>(evenI, twiddlesMinusI[i]);
 
 				output[i] = odd + evenRotMinusI;
 				output[conjI] = conj(odd - evenRotMinusI);
@@ -541,18 +553,20 @@ template <typename Sample> struct JuceFFTWrapper
 
 				complex odd = v + conj(v2);
 				complex evenRotMinusI = v - conj(v2);
-				complex evenI = perf::mul<true>(evenRotMinusI, twiddlesMinusI[i]);
+				complex evenI = _fft_impl::complexMul<true>(evenRotMinusI, twiddlesMinusI[i]);
 				
 				complexBuffer1[i] = odd + evenI;
 				complexBuffer1[conjI] = conj(odd - evenI);
 			}
 			
-            auto outputToUse = reinterpret_cast<std::complex<V>*>(output.data());
-            
-			complexFft.ifft(complexBuffer1.data(), outputToUse);
+			complexFft.ifft(complexBuffer1.data(), complexBuffer2.data());
 			
-            if(modified)
-                perf::mulVec(outputToUse, 1, modifiedRotations.data(), 1, outputToUse, 1, hSize);
+			for (size_t i = 0; i < hSize; ++i) {
+				complex v = complexBuffer2[i];
+				if (modified) v = _fft_impl::complexMul<true>(v, modifiedRotations[i]);
+				output[2*i] = v.real();
+				output[2*i + 1] = v.imag();
+			}
 		}
 	};
 

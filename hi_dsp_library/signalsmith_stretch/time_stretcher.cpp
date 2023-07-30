@@ -1,6 +1,6 @@
 #include "time_stretcher.h"
 
-#define USE_JUCE_FFT 0
+#define USE_JUCE_FFT 1
 
 #if JUCE_WINDOWS
 #define USE_VDSP_COMPLEX_MUL 0

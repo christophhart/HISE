@@ -1,26 +1,6 @@
 #ifndef SIGNALSMITH_STRETCH_H
 #define SIGNALSMITH_STRETCH_H
 
-#ifndef PERFETTO
-#define TRACE_DSP()
-#define TRACE_EVENT(...)
-#define TRACE_EVENT_BEGIN(...)
-#define TRACE_EVENT_END(...)
-#endif
-
-#ifndef USE_JUCE_FFT
-#define USE_JUCE_FFT 0
-#endif
-
-#ifndef USE_VDSP_COMPLEX_MUL
-#define USE_VDSP_COMPLEX_MUL 0
-#endif
-
-
-#ifndef ENABLE_JUCE_VECTOR_OPS
-#define ENABLE_JUCE_VECTOR_OPS 0
-#endif
-
 #include "dsp/spectral.h"
 #include "dsp/delay.h"
 #include "dsp/perf.h"
@@ -56,7 +36,6 @@ struct SignalsmithStretch {
 		inputBuffer.reset();
 		prevInputOffset = -1;
 		channelBands.assign(channelBands.size(), Band());
-		inputEnergy.assign(channelBands.size(), 0.0f);
 		silenceCounter = 2*stft.windowSize();
 	}
 
@@ -76,7 +55,6 @@ struct SignalsmithStretch {
 		inputBuffer.resize(channels, blockSamples + intervalSamples + 1);
 		timeBuffer.assign(stft.fftSize(), 0);
 		channelBands.assign(bands*channels, Band());
-		inputEnergy.assign(bands*channels, 0.0f);
 		
 		// Various phase rotations
 		rotCentreSpectrum.resize(bands);
@@ -88,7 +66,6 @@ struct SignalsmithStretch {
 		smoothedEnergy.resize(bands);
 		outputMap.resize(bands);
 		channelPredictions.resize(channels*bands);
-		predictionEnergy.assign(channels*bands, Sample(0));
 	}
 
 	/// Frequency multiplier, and optional tonality limit (as multiple of sample-rate)
@@ -112,7 +89,6 @@ struct SignalsmithStretch {
 	
 	template<class Inputs, class Outputs>
 	void process(Inputs &&inputs, int inputSamples, Outputs &&outputs, int outputSamples) {
-        
 		Sample totalEnergy = 0;
 		for (int c = 0; c < channels; ++c) {
 			auto &&inputChannel = inputs[c];
@@ -127,10 +103,8 @@ struct SignalsmithStretch {
 					silenceFirst = false;
 					for (auto &b : channelBands) {
 						b.input = b.prevInput = b.output = b.prevOutput = 0;
+						b.inputEnergy = 0;
 					}
-                    
-                    for(auto& s: inputEnergy)
-                        s = Sample(0);
 				}
 			
 				if (inputSamples > 0) {
@@ -195,8 +169,9 @@ struct SignalsmithStretch {
 					for (int c = 0; c < channels; ++c) {
 						auto channelBands = bandsForChannel(c);
 						auto &&spectrumBands = stft.spectrum[c];
-      
-                        perf::mulVec(spectrumBands, 1, rotCentreSpectrum.data(), 1, &channelBands[0].input, 4, bands);
+						for (int b = 0; b < bands; ++b) {
+							channelBands[b].input = signalsmith::perf::mul(spectrumBands[b], rotCentreSpectrum[b]);
+						}
 					}
 
 					if (inputInterval != stft.interval()) { // make sure the previous input is the correct distance in the past
@@ -217,8 +192,9 @@ struct SignalsmithStretch {
 						for (int c = 0; c < channels; ++c) {
 							auto channelBands = bandsForChannel(c);
 							auto &&spectrumBands = stft.spectrum[c];
-                            
-                            perf::mulVec(spectrumBands, 1, rotCentreSpectrum.data(), 1, &channelBands[0].prevInput, 4, bands);
+							for (int b = 0; b < bands; ++b) {
+								channelBands[b].prevInput = signalsmith::perf::mul(spectrumBands[b], rotCentreSpectrum[b]);
+							}
 						}
 					}
 				}
@@ -289,23 +265,9 @@ private:
 	struct Band {
 		Complex input, prevInput{0};
 		Complex output, prevOutput{0};
+		Sample inputEnergy;
 	};
 	std::vector<Band> channelBands;
-	
-	std::vector<Sample> inputEnergy;
-	
-	float* energyForChannel(int channel)
-	{
-		return inputEnergy.data() + channel*bands;
-	}
-	
-	float getEnergy(float* energyData, int index)
-	{
-		if(index <= 0 || index >= bands) return 0.0f;
-		
-		return energyData[index];
-	}
-	
 	Band * bandsForChannel(int channel) {
 		return channelBands.data() + channel*bands;
 	}
@@ -355,10 +317,11 @@ private:
 	std::vector<PitchMapPoint> outputMap;
 	
 	struct Prediction {
+		Sample energy = 0;
 		Complex input;
 		Complex shortVerticalTwist, longVerticalTwist;
 
-		Complex makeOutput(Complex phase, Sample energy) {
+		Complex makeOutput(Complex phase) {
 			Sample phaseNorm = std::norm(phase);
 			if (phaseNorm <= noiseFloor) {
 				phase = input; // prediction is too weak, fall back to the input
@@ -367,16 +330,7 @@ private:
 			return phase*std::sqrt(energy/phaseNorm);
 		}
 	};
-	
-	Sample* predictionEnergyForChannel(int c)
-	{
-		return predictionEnergy.data() + c*bands;
-	}
-	
 	std::vector<Prediction> channelPredictions;
-	std::vector<Sample> predictionEnergy;
-	
-	
 	Prediction * predictionsForChannel(int c) {
 		return channelPredictions.data() + c*bands;
 	}
@@ -394,11 +348,11 @@ private:
 			
 			for (int c = 0; c < channels; ++c) {
 				auto bins = bandsForChannel(c);
-                
-
-                perf::mulVec(&bins[0].prevOutput, 4, rotPrevInterval.data(), 1, &bins[0].prevOutput, 4, bands);
-                
-                perf::mulVec(&bins[0].prevInput, 4, rotPrevInterval.data(), 1, &bins[0].prevInput, 4, bands);
+				for (int b = 0; b < bands; ++b) {
+					auto &bin = bins[b];
+					bin.prevOutput = signalsmith::perf::mul(bin.prevOutput, rotPrevInterval[b]);
+					bin.prevInput = signalsmith::perf::mul(bin.prevInput, rotPrevInterval[b]);
+				}
 			}
 			
 			TRACE_EVENT_END ("dsp");
@@ -413,10 +367,8 @@ private:
 			TRACE_EVENT_BEGIN("dsp", "noPitchShift");
 			for (int c = 0; c < channels; ++c) {
 				Band *bins = bandsForChannel(c);
-				float* thisEnergy = energyForChannel(c);
-				
 				for (int b = 0; b < bands; ++b) {
-					thisEnergy[b] = std::norm(bins[b].input);
+					bins[b].inputEnergy = std::norm(bins[b].input);
 				}
 			}
 			for (int b = 0; b < bands; ++b) {
@@ -432,32 +384,23 @@ private:
 		// Preliminary output prediction from phase-vocoder
 		for (int c = 0; c < channels; ++c) {
 			Band *bins = bandsForChannel(c);
-			float* energy = energyForChannel(c);
 			auto *predictions = predictionsForChannel(c);
-			auto *thisPredictionEnergy = predictionEnergyForChannel(c);
-			
 			for (int b = 0; b < bands; ++b) {
 				auto mapPoint = outputMap[b];
-				auto lowIndex = std::floor(mapPoint.inputBin);
+				int lowIndex = std::floor(mapPoint.inputBin);
 				Sample fracIndex = mapPoint.inputBin - lowIndex;
 
 				Prediction &prediction = predictions[b];
-				Sample prevEnergy = thisPredictionEnergy[b];
-				
-				auto lo = getEnergy(energy, (int)lowIndex);
-				auto hi = getEnergy(energy, (int)lowIndex+1);
-				
-				auto newEnergy = hi * fracIndex + lo * (1.0f - fracIndex);
-				newEnergy *= std::max<Sample>(0, mapPoint.freqGrad); // scale the energy
-				thisPredictionEnergy[b] = newEnergy;
-				
+				Sample prevEnergy = prediction.energy;
+				prediction.energy = getFractional<&Band::inputEnergy>(c, lowIndex, fracIndex);
+				prediction.energy *= std::max<Sample>(0, mapPoint.freqGrad); // scale the energy according to local stretch factor
 				prediction.input = getFractional<&Band::input>(c, lowIndex, fracIndex);
 
 				auto &outputBin = bins[b];
 				Complex prevInput = getFractional<&Band::prevInput>(c, lowIndex, fracIndex);
 				Complex freqTwist = signalsmith::perf::mul<true>(prediction.input, prevInput);
 				Complex phase = signalsmith::perf::mul(outputBin.prevOutput, freqTwist);
-				outputBin.output = phase/(std::max(prevEnergy, newEnergy) + noiseFloor);
+				outputBin.output = phase/(std::max(prevEnergy, prediction.energy) + noiseFloor);
 
 				if (b > 0) {
 					Sample binTimeFactor = randomTimeFactor ? timeFactorDist(randomEngine) : timeFactor;
@@ -483,9 +426,9 @@ private:
 		for (int b = 0; b < bands; ++b) {
 			// Find maximum-energy channel and calculate that
 			int maxChannel = 0;
-			Sample maxEnergy = predictionEnergyForChannel(0)[b];
+			Sample maxEnergy = predictionsForChannel(0)[b].energy;
 			for (int c = 1; c < channels; ++c) {
-				Sample e = predictionEnergyForChannel(c)[b];
+				Sample e = predictionsForChannel(c)[b].energy;
 				if (e > maxEnergy) {
 					maxChannel = c;
 					maxEnergy = e;
@@ -522,7 +465,7 @@ private:
 				}
 			}
 
-			outputBin.output = prediction.makeOutput(phase, predictionEnergyForChannel(maxChannel)[b]);
+			outputBin.output = prediction.makeOutput(phase);
 			
 			// All other bins are locked in phase
 			for (int c = 0; c < channels; ++c) {
@@ -530,11 +473,9 @@ private:
 					auto &channelBin = bandsForChannel(c)[b];
 					auto &channelPrediction = predictionsForChannel(c)[b];
 					
-					auto &channelEnergy = predictionEnergyForChannel(c)[b];
-					
 					Complex channelTwist = signalsmith::perf::mul<true>(channelPrediction.input, prediction.input);
 					Complex channelPhase = signalsmith::perf::mul(outputBin.output, channelTwist);
-					channelBin.output = channelPrediction.makeOutput(channelPhase, channelEnergy);
+					channelBin.output = channelPrediction.makeOutput(channelPhase);
 				}
 			}
 		}
@@ -557,22 +498,18 @@ private:
 	void smoothEnergy(Sample smoothingBins) {
 		TRACE_EVENT("dsp", "smoothEnergy");
 		Sample smoothingSlew = 1/(1 + smoothingBins*Sample(0.5));
-        
-        memset(energy.data(), 0, sizeof(Sample) * energy.size());
-        
+		for (auto &e : energy) e = 0;
 		for (int c = 0; c < channels; ++c) {
 			Band *bins = bandsForChannel(c);
-			float* thisEnergy = energyForChannel(c);
-			
 			for (int b = 0; b < bands; ++b) {
 				Sample e = std::norm(bins[b].input);
-				thisEnergy[b] = e; // Used for interpolating prediction energy
+				bins[b].inputEnergy = e; // Used for interpolating prediction energy
 				energy[b] += e;
 			}
 		}
-        
-        memcpy(smoothedEnergy.data(), energy.data(), sizeof(Sample)*bands);
-        
+		for (int b = 0; b < bands; ++b) {
+			smoothedEnergy[b] = energy[b];
+		}
 		Sample e = 0;
 		for (int repeat = 0; repeat < 2; ++repeat) {
 			for (int b = bands - 1; b >= 0; --b) {
@@ -661,10 +598,9 @@ private:
 	}
 };
 
-// Allow forward declaration for pimpl idiom
-struct FloatStretcher: public SignalsmithStretch<float>
+struct FloatStretcher : public SignalsmithStretch<float>
 {
-    
+
 };
 
 }} // namespace
