@@ -146,11 +146,11 @@ If enabled, then the unit test suite will be compiled and added to all unit test
 #include <perfetto.h>
 #include <thread>
 
-PERFETTO_DEFINE_CATEGORIES (
-    perfetto::Category ("component")
-        .SetDescription ("Component"),
-    perfetto::Category ("dsp")
-        .SetDescription ("dsp"));
+PERFETTO_DEFINE_CATEGORIES(
+	perfetto::Category("component")
+	.SetDescription("Component"),
+	perfetto::Category("dsp")
+	.SetDescription("dsp"));
 
 class MelatoninPerfetto
 {
@@ -163,81 +163,18 @@ public:
         return instance;
     }
 
-    void beginSession (uint32_t buffer_size_kb = 80000)
-    {
-        perfetto::TraceConfig cfg;
-        cfg.add_buffers()->set_size_kb (buffer_size_kb); // 80MB is the default
-        auto* ds_cfg = cfg.add_data_sources()->mutable_config();
-        ds_cfg->set_name ("track_event");
-        session = perfetto::Tracing::NewTrace();
-        session->Setup (cfg);
-        session->StartBlocking();
-    }
+    void beginSession (uint32_t buffer_size_kb = 80000);
 
     // Returns the file where the dump was written to (or a null file if an error occurred)
     // the return value can be ignored if you don't need this information
-    juce::File endSession()
-    {
-        // Make sure the last event is closed for this example.
-        perfetto::TrackEvent::Flush();
+    juce::File endSession();
 
-        // Stop tracing
-        session->StopBlocking();
-
-        return writeFile();
-    }
-
-    static juce::File getDumpFileDirectory()
-    {
-    #if JUCE_WINDOWS
-        return juce::File::getSpecialLocation (juce::File::SpecialLocationType::userDesktopDirectory);
-    #else
-        return juce::File::getSpecialLocation (juce::File::SpecialLocationType::userHomeDirectory).getChildFile ("Downloads");
-    #endif
-    }
+    static juce::File getDumpFileDirectory();
 
 private:
-    MelatoninPerfetto()
-    {
-        perfetto::TracingInitArgs args;
-        // The backends determine where trace events are recorded. For this example we
-        // are going to use the in-process tracing service, which only includes in-app
-        // events.
-        args.backends = perfetto::kInProcessBackend;
-        perfetto::Tracing::Initialize (args);
-        perfetto::TrackEvent::Register();
-    }
+    MelatoninPerfetto();
 
-    juce::File writeFile()
-    {
-        // Read trace data
-        std::vector<char> trace_data (session->ReadTraceBlocking());
-
-        const auto file = getDumpFileDirectory();
-
-    #if JUCE_DEBUG
-        auto mode = juce::String ("-DEBUG-");
-    #else
-        auto mode = juce::String ("-RELEASE-");
-    #endif
-
-        const auto currentTime = juce::Time::getCurrentTime().formatted ("%Y-%m-%d_%H%M");
-        const auto childFile = file.getChildFile ("perfetto" + mode + currentTime + ".pftrace");
-
-        if (auto output = childFile.createOutputStream())
-        {
-            output->setPosition (0);
-            output->write (&trace_data[0], trace_data.size() * sizeof (char));
-
-            DBG ("Wrote perfetto trace to: " + childFile.getFullPathName());
-
-            return childFile;
-        }
-
-        DBG ("Failed to write perfetto trace file. Check for missing permissions.");
-        jassertfalse;
-        return juce::File {};
-    }
+    juce::File writeFile();
 
     std::unique_ptr<perfetto::TracingSession> session;
 };

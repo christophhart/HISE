@@ -359,6 +359,11 @@ namespace pimpl
 		c->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(ed, c, {}, false);
 	}
 
+	Colour editor_base::getColourFromNodeComponent(NodeComponent* nc)
+	{
+		return nc->header.colour;
+	}
+
 	void complex_ui_laf::drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition)
 	{
 		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);	

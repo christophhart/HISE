@@ -69996,6 +69996,9 @@ inline int GetSockType(SockType type) {
 SockaddrAny MakeSockAddr(SockFamily family, const std::string& socket_name) {
   switch (family) {
     case SockFamily::kUnix: {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+		return SockaddrAny{};
+#else
       struct sockaddr_un saddr {};
       const size_t name_len = socket_name.size();
       if (name_len + 1 /* for trailing \0 */ >= sizeof(saddr.sun_path)) {
@@ -70015,8 +70018,13 @@ SockaddrAny MakeSockAddr(SockFamily family, const std::string& socket_name) {
 #endif
       }
       saddr.sun_family = AF_UNIX;
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+	  auto size = static_cast<socklen_t>(name_len + 1);
+#else
       auto size = static_cast<socklen_t>(
           __builtin_offsetof(sockaddr_un, sun_path) + name_len + 1);
+#endif
 
       // Abstract sockets do NOT require a trailing null terminator (which is
       // instad mandatory for filesystem sockets). Any byte up to `size`,
@@ -70025,6 +70033,7 @@ SockaddrAny MakeSockAddr(SockFamily family, const std::string& socket_name) {
         --size;
       PERFETTO_CHECK(static_cast<size_t>(size) <= sizeof(saddr));
       return SockaddrAny(&saddr, size);
+#endif
     }
     case SockFamily::kInet: {
       auto parts = SplitString(socket_name, ":");

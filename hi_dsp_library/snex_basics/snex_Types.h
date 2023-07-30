@@ -967,7 +967,7 @@ template <typename T, int NumVoices> struct PolyData
 #if JUCE_DEBUG
 		String s;
 		s << "VoiceIndex: ";
-		s << (voicePtr != nullptr ? String(*voicePtr) : "inactive");
+		s << (voicePtr != nullptr ? String(voicePtr->getVoiceIndex()) : "inactive");
 		return s;
 #else
 		return {};
