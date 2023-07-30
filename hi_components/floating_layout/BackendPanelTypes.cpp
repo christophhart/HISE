@@ -217,6 +217,8 @@ struct MidiTimelineObject : public TimelineObjectBase,
 	void initialise(double ) override
 	{
 		FileInputStream fis(f);
+        
+        content.readFrom(fis);
 	}
 
 	Colour getColour() const override
@@ -422,6 +424,9 @@ struct DAWClockController::Ruler: public Component,
 		for (auto o : clock->timelineObjects)
 		{
 			auto newObj = new DraggableObject(o);
+            
+            updatePosition(newObj);
+            
 			addAndMakeVisible(newObj);
 			existingObjects.add(newObj);
 		}
