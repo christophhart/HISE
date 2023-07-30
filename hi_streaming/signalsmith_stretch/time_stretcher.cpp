@@ -10,8 +10,7 @@
 
 #include "signalsmith-stretch.h"
 
-namespace scriptnode {
-using namespace hise;
+namespace hise {
 using namespace juce;
 
 time_stretcher::time_stretcher()
@@ -26,7 +25,7 @@ time_stretcher::~time_stretcher()
 
 void time_stretcher::reset()
 {
-    SimpleReadWriteLock::ScopedWriteLock sl(stretchLock);
+    ScopedLock sl(stretchLock);
     pimpl->reset();
 }
 
@@ -35,7 +34,7 @@ void time_stretcher::configure(int numChannels_, double sourceSampleRate_)
     if(numChannels != numChannels_ ||
        sourceSampleRate != sourceSampleRate_)
     {
-        SimpleReadWriteLock::ScopedWriteLock sl(stretchLock);
+        ScopedLock sl(stretchLock);
         
         numChannels = numChannels_;
         sourceSampleRate = sourceSampleRate_;
@@ -43,8 +42,6 @@ void time_stretcher::configure(int numChannels_, double sourceSampleRate_)
         if(numChannels > 0 && sourceSampleRate > 0)
         {
             //pimpl->presetDefault(numChannels, sourceSampleRate);
-            
-            
             
             pimpl->configure(numChannels, 4096, 512);
             pimpl->reset();
@@ -54,7 +51,7 @@ void time_stretcher::configure(int numChannels_, double sourceSampleRate_)
 
 double time_stretcher::skipLatency(float** inputs, double ratio)
 {
-    hise::SimpleReadWriteLock::ScopedWriteLock sl(stretchLock);
+    ScopedLock sl(stretchLock);
     
     pimpl->reset();
     
@@ -91,7 +88,9 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
 
 void time_stretcher::process(float** input, int numInput, float** originalOutputs, int numOutput)
 {
-    if(auto sl = hise::SimpleReadWriteLock::ScopedTryReadLock(stretchLock))
+    juce::ScopedTryLock sl(stretchLock);
+
+    if(sl.isLocked())
     {
         float* outputs[2];
 
@@ -100,27 +99,25 @@ void time_stretcher::process(float** input, int numInput, float** originalOutput
 
         if (playbackRatio != 1.0)
         {
-            jassert(numOutput <= (resampledBuffer.size() / 2));
+            jassert(numOutput <= (resampledBuffer.getNumSamples() / 2));
 
-            outputs[0] = resampledBuffer.begin();
-            outputs[1] = resampledBuffer.begin() + numOutput;
+            outputs[0] = resampledBuffer.getWritePointer(0);
+            outputs[1] = resampledBuffer.getWritePointer(1);
         }
-
 
         pimpl->process(input, numInput, outputs, numOutput);
         
-        static constexpr float minus3dB = 0.707106781186548f;
+        static constexpr float minus3dB = 0.5;//0.707106781186548f;
         
         for(int i = 0; i < numChannels; i++)
             FloatVectorOperations::multiply(outputs[i], minus3dB, numOutput);
 
         if (playbackRatio != 1.0)
         {
-            
-
             for (int c = 0; c < numChannels; c++)
             {
-                block b(outputs[c], numOutput);
+                auto b = outputs[c];
+                auto size = numOutput;
 
                 double uptime = 0.0;
 
@@ -132,23 +129,18 @@ void time_stretcher::process(float** input, int numInput, float** originalOutput
                 {
                     auto loIndex = (int)uptime;
                     auto alpha = (float)uptime - (float)loIndex;
-                    auto hiIndex = jmin(b.size() - 1, loIndex + 1);
+                    auto hiIndex = jmin(size - 1, loIndex + 1);
 
-                    auto lo = loIndex > 0 ? b[loIndex - 1] : lastValues[c];
-                    auto hi = b[hiIndex - 1];
+                    auto lo = b[loIndex];
+                    auto hi = b[hiIndex];
 
                     auto v = Interpolator::interpolateLinear(b[loIndex], b[hiIndex], alpha);
 
                     ptr[i] = v;
                     uptime += playbackRatio;
                 }
-
-                lastValues[c] = b[numOutput - 1];
-
-                int x = 05;
             }
         }
-
     }
 }
 
@@ -163,10 +155,20 @@ void time_stretcher::setResampleBuffer(double ratio, float* resampleBuffer_, int
     {
         playbackRatio = ratio;
 
-        if (ratio == 1.0)
-            resampledBuffer.referToNothing();
+        if (playbackRatio != 1.0)
+        {
+            float* s[2];
+
+            s[0] = resampleBuffer_;
+            s[1] = resampleBuffer_ + size;
+
+
+            resampledBuffer = AudioSampleBuffer(s, 2, size);
+        }
         else
-            resampledBuffer.referToRawData(resampleBuffer_, size);
+        {
+            resampledBuffer = {};
+        }
     }
 }
 }

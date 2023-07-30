@@ -5,9 +5,8 @@ namespace stretch {
 struct FloatStretcher;
 }}
 
-namespace scriptnode
+namespace hise
 {
-using namespace hise;
 using namespace juce;
 
 /** A pimpl wrapper around the signalsmith stretcher. */
@@ -28,14 +27,13 @@ struct time_stretcher
 private:
     
     double playbackRatio = 0.0;
-    block resampledBuffer;
-
-    span<float, 2> lastValues;
+    AudioSampleBuffer resampledBuffer;
 
     int numChannels = 0;
     double sourceSampleRate = 0.0;
     
-    hise::SimpleReadWriteLock stretchLock;
+    CriticalSection stretchLock;
+
     signalsmith::stretch::FloatStretcher* pimpl;
 };
 

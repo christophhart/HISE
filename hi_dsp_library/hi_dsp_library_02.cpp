@@ -54,7 +54,7 @@
 #include "dsp_nodes/AnalyserNodes.cpp"
 #include "dsp_nodes/ConvolutionNode.cpp"
 
-#include "signalsmith_stretch/time_stretcher.cpp"
+
 
 #endif
 

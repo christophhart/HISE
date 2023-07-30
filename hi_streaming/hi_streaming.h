@@ -100,6 +100,8 @@ Set this to true in order to use cubic interpolation for the sample playback.
 #include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
 #include "hi_streaming/lockfree_fifo/concurrentqueue.h"
 
+#include "signalsmith_stretch/time_stretcher.h"
+
 #include "hi_streaming/SampleThreadPool.h"
 #include "hi_streaming/MonolithAudioFormat.h"
 #include "hi_streaming/StreamingSampler.h"
