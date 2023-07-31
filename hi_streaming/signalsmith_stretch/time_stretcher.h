@@ -12,18 +12,24 @@ using namespace juce;
 /** A pimpl wrapper around the signalsmith stretcher. */
 struct time_stretcher
 {
+    time_stretcher(bool enabled = true);
+
     void reset();
     void process(float** input, int numInput, float** outputs, int numOutput);
     void configure(int numChannels, double sourceSampleRate);
     void setTransposeSemitones(double semitTones, double tonality=0.0);
     
-    void setResampleBuffer(double ratio, float* resampleBuffer_, int size);
+    void setResampleBuffer(double ratio, float* resampleBuffer_, int totalNumFloats);
 
     double skipLatency(float** input, double ratio);
     
     time_stretcher();
     ~time_stretcher();
     
+    bool isEnabled() const;
+
+    void setEnabled(bool shouldBeEnabled);
+
 private:
     
     double playbackRatio = 0.0;

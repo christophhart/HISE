@@ -13,14 +13,48 @@
 namespace hise {
 using namespace juce;
 
-time_stretcher::time_stretcher()
+time_stretcher::time_stretcher(bool enabled):
+    pimpl(nullptr)
 {
-    pimpl = new signalsmith::stretch::FloatStretcher();
+    setEnabled(enabled);
+    
 }
 
 time_stretcher::~time_stretcher()
 {
     delete pimpl;
+}
+
+bool time_stretcher::isEnabled() const
+{
+    return pimpl != nullptr;
+}
+
+void time_stretcher::setEnabled(bool shouldBeEnabled)
+{
+    if (isEnabled() != shouldBeEnabled)
+    {
+        ScopedLock sl(stretchLock);
+
+        if (!shouldBeEnabled)
+        {
+            if(!pimpl)
+                delete pimpl;
+
+            pimpl = nullptr;
+        }
+        else
+        {
+            pimpl = new signalsmith::stretch::FloatStretcher();
+
+            if (numChannels != 0 && sourceSampleRate != 0.0)
+            {
+                pimpl->configure(2, 4096, 512);
+            }
+
+            pimpl->reset();
+        }
+    }
 }
 
 void time_stretcher::reset()
@@ -39,15 +73,59 @@ void time_stretcher::configure(int numChannels_, double sourceSampleRate_)
         numChannels = numChannels_;
         sourceSampleRate = sourceSampleRate_;
      
-        if(numChannels > 0 && sourceSampleRate > 0)
+        if(pimpl != nullptr && numChannels > 0 && sourceSampleRate > 0)
         {
-            //pimpl->presetDefault(numChannels, sourceSampleRate);
-            
             pimpl->configure(numChannels, 4096, 512);
             pimpl->reset();
         }
     }
 }
+
+struct Helpers
+{
+    static bool isSilent(float** data, int numSamples)
+    {
+        if (numSamples == 0)
+            return true;
+
+        float* l = data[0];
+        float* r = data[1];
+
+        using SSEFloat = dsp::SIMDRegister<float>;
+
+        auto alignedL = SSEFloat::getNextSIMDAlignedPtr(l);
+        auto alignedR = SSEFloat::getNextSIMDAlignedPtr(r);
+
+        jassert(alignedL == l);
+
+        auto numUnaligned = alignedL - l;
+        auto numAligned = numSamples - numUnaligned;
+
+        static const auto gain90dB = Decibels::decibelsToGain(-60.0f);
+        
+        constexpr int sseSize = SSEFloat::SIMDRegisterSize / sizeof(float);
+
+        while (numAligned >= sseSize)
+        {
+            auto l_ = SSEFloat::fromRawArray(alignedL);
+            auto r_ = SSEFloat::fromRawArray(alignedR);
+
+            auto sqL = SSEFloat::abs(l_);
+            auto sqR = SSEFloat::abs(r_);
+
+            auto max = SSEFloat::max(sqL, sqR).sum();
+
+            if (max > gain90dB)
+                return false;
+
+            alignedL += sseSize;
+            alignedR += sseSize;
+            numAligned -= sseSize;
+        }
+
+        return true;
+    }
+};
 
 double time_stretcher::skipLatency(float** inputs, double ratio)
 {
@@ -55,7 +133,7 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     
     pimpl->reset();
     
-    auto numBeforeOutput = 2048;
+    auto numBeforeOutput = roundToInt(2048 / ratio);// 2048;
     
     float* thisInputs[2];
     float* outputs[2];
@@ -67,19 +145,19 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     
     while(numBeforeOutput > 0)
     {
-        int numThisTime = jmin(numBeforeOutput, 1024);
-        int numInputs = ratio * (double)numThisTime;
+	    const int numThisTime = jmin(numBeforeOutput, 256);
+        const int numInputs = ratio * static_cast<double>(numThisTime);
         
-        outputs[0] = (float*)alloca(numThisTime * sizeof(float));
-        outputs[1] = (float*)alloca(numThisTime * sizeof(float));
+        outputs[0] = static_cast<float*>(alloca(numThisTime * sizeof(float)));
+        outputs[1] = static_cast<float*>(alloca(numThisTime * sizeof(float)));
         
         pimpl->process(thisInputs, numInputs, outputs, numThisTime);
         
         currentPos += numInputs;
-        
-        thisInputs[0] = inputs[0] + (int)currentPos;
-        thisInputs[1] = inputs[1] + (int)currentPos;
-        
+
+        thisInputs[0] = inputs[0] + static_cast<int>(currentPos);
+        thisInputs[1] = inputs[1] + static_cast<int>(currentPos);
+
         numBeforeOutput -= numThisTime;
     }
     
@@ -99,7 +177,7 @@ void time_stretcher::process(float** input, int numInput, float** originalOutput
 
         if (playbackRatio != 1.0)
         {
-            jassert(numOutput <= (resampledBuffer.getNumSamples() / 2));
+            jassert(numOutput <= (resampledBuffer.getNumSamples()));
 
             outputs[0] = resampledBuffer.getWritePointer(0);
             outputs[1] = resampledBuffer.getWritePointer(1);
@@ -160,10 +238,10 @@ void time_stretcher::setResampleBuffer(double ratio, float* resampleBuffer_, int
             float* s[2];
 
             s[0] = resampleBuffer_;
-            s[1] = resampleBuffer_ + size;
+            s[1] = resampleBuffer_ + size/2;
 
 
-            resampledBuffer = AudioSampleBuffer(s, 2, size);
+            resampledBuffer = AudioSampleBuffer(s, 2, size/2);
         }
         else
         {
