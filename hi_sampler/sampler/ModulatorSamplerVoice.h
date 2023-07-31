@@ -109,9 +109,17 @@ public:
 		}
 	}
 
+	virtual void setEnableTimestretch(bool shouldBeEnabled)
+	{
+		wrappedVoice.setEnableTimestretch(shouldBeEnabled);
+	}
+
+	virtual void setTimestretchRatio(double r)
+	{
+		wrappedVoice.setTimestretchRatio(r);
+	}
+
 protected:
-	
-	
 
 	struct PlayFromPurger : public SampleThreadPool::Job
 	{
@@ -198,6 +206,18 @@ public:
 	// ================================================================================================================
 
 	void startVoiceInternal(int midiNoteNumber, float velocity) override;
+
+	void setEnableTimestretch(bool shouldBeEnabled) override
+	{
+		for (auto v : wrappedVoices)
+			v->setEnableTimestretch(shouldBeEnabled);
+	}
+
+	void setTimestretchRatio(double ratio) override
+	{
+		for (auto v : wrappedVoices)
+			v->setTimestretchRatio(ratio);
+	}
 
 private:
 

@@ -34,6 +34,7 @@
 #define MODULATORSAMPLER_H_INCLUDED
 
 namespace hise { using namespace juce;
+using namespace scriptnode;
 
 
 
@@ -219,6 +220,7 @@ public:
 		Reversed,
         UseStaticMatrix,
 		LowPassEnvelopeOrder,
+		Timestretching,
 		numModulatorSamplerParameters
 	};
 
@@ -230,6 +232,14 @@ public:
 		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
 		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
 		KillThirdOldestNote
+	};
+
+	enum TimestretchMode
+	{
+		Disabled,	 ///< no timestretching
+		VoiceStart,	 ///< currently active voices will keep their ratio and new voices will use the current ratio
+		TimeVariant, ///< all currently active voices will use the same ratio
+		TempoSynced  ///< calculate the stretch ratio based on the length of the sample and the current tempo
 	};
 
 	enum Chains
@@ -354,9 +364,18 @@ public:
 			return;
 		}
 
+		if(currentTimestretchMode == TimestretchMode::TempoSynced ||
+		   currentTimestretchMode == TimestretchMode::TimeVariant)
+		{
+			auto r = getCurrentTimestretchRatio();
+
+			for(auto av: activeVoices)
+			{
+				static_cast<ModulatorSamplerVoice*>(av)->setTimestretchRatio(r);
+			}
+		}
+
 		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
-
-
 	}
 
 	SampleThreadPool *getBackgroundThreadPool();
@@ -598,6 +617,8 @@ public:
 		return saveString;
 	}
 
+	AudioSampleBuffer* getTemporaryStretchBuffer() { return &stretchBuffer; }
+
 	hlac::HiseSampleBuffer* getTemporaryVoiceBuffer() { return &temporaryVoiceBuffer; }
 
 	bool checkAndLogIsSoftBypassed(DebugLogger::Location location) const;
@@ -649,7 +670,20 @@ public:
 
 	bool shouldPlayFromPurge() const { return enablePlayFromPurge; }
 
+	TimestretchMode getTimestretchMode() const { return currentTimestretchMode; }
+
+	void setCurrentTimestretchMode(TimestretchMode newMode);
+	
+	void setTimestretchRatio(double newRatio);
+
+	double getCurrentTimestretchRatio() const;
+
 private:
+	
+	scriptnode::core::TimestretchSyncer<1> syncer;
+
+	TimestretchMode currentTimestretchMode = TimestretchMode::Disabled;
+	double ratioToUse = 1.0;
 
 	int lockVelocity = -1;
 	int lockRRGroup = -1;
@@ -783,6 +817,7 @@ private:
 	AudioSampleBuffer crossfadeBuffer;
 
 	hlac::HiseSampleBuffer temporaryVoiceBuffer;
+	AudioSampleBuffer stretchBuffer;
 
 	bool delayUpdate = false;
 	int lowPassOrder = 0;

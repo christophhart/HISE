@@ -49,13 +49,9 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-	void timerCallback()
-	{
-		const double usage = sampler->getDiskUsage();
-		diskSlider->setValue(usage, dontSendNotification);
-	}
+	void timerCallback();
 
-	int getPanelHeight() const
+    int getPanelHeight() const
 	{
 		const bool crossFadeShown = sampler->getAttribute(ModulatorSampler::Parameters::CrossfadeGroups) > 0.5f;
 
@@ -71,76 +67,7 @@ public:
 	}
 
 
-	void updateGui()
-	{
-		if(bufferSizeEditor->getCurrentTextEditor() == nullptr)
-        {
-			bufferSizeEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::BufferSize)), dontSendNotification);
-        }
-
-        if(preloadBufferEditor->getCurrentTextEditor() == nullptr)
-        {
-            preloadBufferEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::PreloadSize)), dontSendNotification);
-        }
-
-		memoryUsageLabel->setText(sampler->getMemoryUsage(), dontSendNotification);
-
-        if(voiceLimitEditor->getCurrentTextEditor() == nullptr)
-        {
-            voiceLimitEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::VoiceLimit)), dontSendNotification);
-        }
-
-        if(fadeTimeEditor->getCurrentTextEditor() == nullptr)
-        {
-            fadeTimeEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::KillFadeTime)), dontSendNotification);
-        }
-
-        if(voiceAmountEditor->getCurrentTextEditor() == nullptr)
-        {
-		    voiceAmountEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::VoiceAmount)), dontSendNotification);
-        }
-
-
-		if(retriggerEditor->getCurrentTextEditor() == nullptr)
-        {
-		    retriggerEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::SamplerRepeatMode), dontSendNotification);
-        }
-
-        if(playbackEditor->getCurrentTextEditor() == nullptr)
-        {
-			const int oneShot = (int)sampler->getAttribute(ModulatorSampler::OneShot);
-			const int reversed = (int)sampler->getAttribute(ModulatorSampler::Reversed);
-
-		    playbackEditor->setItemIndex(reversed * 2 + oneShot, dontSendNotification);
-        }
-
-		if (showCrossfadeLabel->getCurrentTextEditor() == nullptr)
-		{
-			showCrossfadeLabel->setItemIndex(sampler->getEditorState(ModulatorSampler::EditorStates::CrossfadeTableShown));
-		}
-
-		if (crossfadeGroupEditor->getCurrentTextEditor() == nullptr)
-		{
-			crossfadeGroupEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::CrossfadeGroups), dontSendNotification);
-		}
-
-        if(pitchTrackingEditor->getCurrentTextEditor() == nullptr)
-        {
-		    pitchTrackingEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::PitchTracking), dontSendNotification);
-        }
-
-        if(rrGroupEditor->getCurrentTextEditor() == nullptr)
-        {
-		    rrGroupEditor->setText(String((int)sampler->getAttribute(ModulatorSampler::RRGroupAmount)), dontSendNotification);
-        }
-
-		if (purgeSampleEditor->getCurrentTextEditor() == nullptr)
-		{
-			purgeSampleEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::Purged), dontSendNotification);
-		}
-
-		refreshMicAmount();
-	};
+	void updateGui();;
 
 	void refreshMicAmount();
 
@@ -159,7 +86,7 @@ public:
     void labelTextChanged (Label* labelThatHasChanged);
     void sliderValueChanged (Slider* sliderThatWasMoved);
 
-
+    void attachLabel(Graphics& g, Component& c, const String& text);
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
@@ -172,39 +99,33 @@ private:
 	int h;
     //[/UserVariables]
 
+    Rectangle<float> columns[3];
+
     //==============================================================================
-    ScopedPointer<Label> fadeTimeLabel;
-    ScopedPointer<Label> voiceAmountLabel;
-    ScopedPointer<Label> label2;
-    ScopedPointer<Label> label;
-    ScopedPointer<Label> label4;
-    ScopedPointer<Label> label3;
-    ScopedPointer<Label> fadeTimeLabel2;
-    ScopedPointer<Label> voiceLimitLabel;
     ScopedPointer<Label> bufferSizeEditor;
     ScopedPointer<Label> preloadBufferEditor;
+    ScopedPointer<PopupLabel> purgeChannelLabel;
+
     ScopedPointer<Label> memoryUsageLabel;
     ScopedPointer<Slider> diskSlider;
+    ScopedPointer<PopupLabel> purgeSampleEditor;
+
     ScopedPointer<Label> voiceAmountEditor;
     ScopedPointer<Label> voiceLimitEditor;
     ScopedPointer<Label> fadeTimeEditor;
-    ScopedPointer<PopupLabel> retriggerEditor;
-    ScopedPointer<Label> voiceAmountLabel2;
+    
     ScopedPointer<Label> rrGroupEditor;
-    ScopedPointer<Label> playbackModeDescription;
-    ScopedPointer<PopupLabel> playbackEditor;
-    ScopedPointer<Label> playbackModeDescription2;
-    ScopedPointer<PopupLabel> pitchTrackingEditor;
-    ScopedPointer<Label> voiceLimitLabel2;
     ScopedPointer<PopupLabel> crossfadeGroupEditor;
-    ScopedPointer<TableEditor> crossfadeEditor;
-    ScopedPointer<Label> voiceLimitLabel3;
     ScopedPointer<PopupLabel> showCrossfadeLabel;
-    ScopedPointer<Label> voiceLimitLabel4;
-    ScopedPointer<PopupLabel> purgeSampleEditor;
-    ScopedPointer<Label> channelAmountLabel3;
-    ScopedPointer<PopupLabel> purgeChannelLabel;
 
+    ScopedPointer<PopupLabel> pitchTrackingEditor;
+    ScopedPointer<PopupLabel> retriggerEditor;
+    ScopedPointer<PopupLabel> playbackEditor;
+
+    ScopedPointer<PopupLabel> timestretchEditor;
+    ScopedPointer<Slider> stretchRatioSlider;
+
+    ScopedPointer<TableEditor> crossfadeEditor;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerSettings)

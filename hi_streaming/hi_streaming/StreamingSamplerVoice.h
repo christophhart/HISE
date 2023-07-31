@@ -285,7 +285,7 @@ public:
 	hlac::HiseSampleBuffer *getTemporaryVoiceBuffer();
 
 	/** Gives the voice a reference to the sampler temp buffer. */
-	void setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buffer);
+	void setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buffer, AudioSampleBuffer* stretchBuffer);
 
 	/** Call this once for every sampler. */
 	static void initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock, double maxPitchRatio);
@@ -297,11 +297,27 @@ public:
 	/** Set this to false if you're using HLAC compressed monoliths. */
 	void setStreamingBufferDataType(bool shouldBeFloat);
 
+	void setEnableTimestretch(bool shouldBeEnabled)
+	{
+		stretcher.setEnabled(shouldBeEnabled);
+	}
+
+	void setTimestretchRatio(double newRatio)
+	{
+		stretchRatio = jlimit(0.5, 2.0, newRatio);
+	}
+
 private:
+
+	bool skipStretcher = false;
 
 	double pitchCounter = 0.0;
 
 	hlac::HiseSampleBuffer* tvb = nullptr;
+	AudioSampleBuffer* stretchBuffer = nullptr;
+
+	time_stretcher stretcher;
+	double stretchRatio = 1.0;
 
 	const float *pitchData;
 
