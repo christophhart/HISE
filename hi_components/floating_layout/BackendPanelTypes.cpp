@@ -757,7 +757,8 @@ DAWClockController::DAWClockController(MainController* mc):
   stop("stop", nullptr, f),
   loop("loop", nullptr, f),
   grid("grid", nullptr, f),
-  rewind("rewind", nullptr, f)
+  rewind("rewind", nullptr, f),
+  metronome("metronome", nullptr, f)
 {
     addAndMakeVisible(play);
     addAndMakeVisible(stop);
@@ -766,6 +767,7 @@ DAWClockController::DAWClockController(MainController* mc):
     addAndMakeVisible(bpm);
     addAndMakeVisible(nom);
     addAndMakeVisible(denom);
+	addAndMakeVisible(metronome);
     addAndMakeVisible(position);
     addAndMakeVisible(ruler = new Ruler(clock, mc));
     
@@ -776,6 +778,7 @@ DAWClockController::DAWClockController(MainController* mc):
     stop.setToggleModeWithColourChange(true);
     loop.setToggleModeWithColourChange(true);
     grid.setToggleModeWithColourChange(true);
+	metronome.setToggleModeWithColourChange(true);
     
     denom.setName("denom");
     
@@ -803,6 +806,11 @@ DAWClockController::DAWClockController(MainController* mc):
     {
         clock->isPlaying = false;
     };
+
+	metronome.onClick = [this]()
+	{
+		clock->metronomeEnabled = !clock->metronomeEnabled;
+	};
     
     loop.onClick = [this]()
     {
@@ -837,7 +845,7 @@ DAWClockController::DAWClockController(MainController* mc):
     rewind.setTooltip("Rewind to 1|1|0 [Backspace]");
     grid.setTooltip("Enable the magnetic grid for the playback ruler");
     length.setTooltip("Set the length of the playback ruler");
-    
+	metronome.setTooltip("Enable a metronome that plays a click on each beat");
 }
 
 bool DAWClockController::keyPressed(const KeyPress& k)
@@ -909,6 +917,7 @@ void DAWClockController::timerCallback()
     play.setToggleStateAndUpdateIcon(clock->isPlaying);
     stop.setToggleStateAndUpdateIcon(!clock->isPlaying);
     loop.setToggleStateAndUpdateIcon(clock->isLooping);
+	metronome.setToggleStateAndUpdateIcon(clock->metronomeEnabled);
     
     ruler->repaint();
 }
@@ -929,6 +938,7 @@ void DAWClockController::resized()
     play.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     stop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     rewind.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
+	metronome.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     top.removeFromLeft(Margin);
     loop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     bpm.setBounds(top.removeFromLeft(TopHeight * 2).reduced(Margin));
@@ -1066,7 +1076,7 @@ juce::Path PoolTableHelpers::Factory::createPath(const String& name) const
 	return p;
 }
 
-#if USE_BACKEND
+#if 1 || USE_BACKEND
 namespace ClockIcons
 {
 static const unsigned char play[] = { 110,109,48,200,67,68,112,182,151,67,98,184,219,68,68,40,55,153,67,4,128,69,68,60,173,155,67,4,128,69,68,240,76,158,67,98,4,128,69,68,180,238,160,67,184,219,68,68,184,98,163,67,48,200,67,68,132,229,164,67,98,192,23,56,68,196,67,181,67,224,196,25,68,160,
@@ -1099,6 +1109,13 @@ static const unsigned char loopEnd[] = { 110,109,0,128,7,68,64,40,54,67,108,0,12
 
 static const unsigned char loopStart[] = { 110,109,0,128,69,68,160,37,54,67,108,0,128,7,68,64,45,58,67,108,248,144,68,68,64,237,224,67,108,0,128,69,68,160,37,54,67,99,101,0,0 };
 
+
+static const unsigned char metronome[] = { 110,109,164,19,27,68,112,185,121,67,98,164,19,27,68,112,185,121,67,200,80,30,68,16,244,85,67,40,88,33,68,24,130,52,67,98,20,33,34,68,248,210,43,67,32,49,36,68,104,10,38,67,0,128,38,68,104,10,38,67,98,222,206,40,68,104,10,38,67,234,222,42,68,248,210,43,
+67,212,167,43,68,24,130,52,67,98,234,120,52,68,204,240,138,67,0,128,69,68,208,250,232,67,0,128,69,68,208,250,232,67,108,0,128,7,68,208,250,232,67,108,194,73,22,68,244,79,151,67,108,32,151,26,68,84,139,173,67,108,146,169,18,68,128,81,217,67,98,44,161,
+33,68,128,81,217,67,220,85,58,68,128,81,217,67,220,85,58,68,128,81,217,67,108,0,128,38,68,80,137,87,67,108,4,97,31,68,20,24,147,67,108,164,19,27,68,112,185,121,67,99,109,252,119,23,68,232,162,108,67,98,44,140,24,68,208,113,104,67,58,56,25,68,152,146,
+98,67,58,56,25,68,240,20,92,67,98,58,56,25,68,240,88,79,67,12,162,22,68,56,0,69,67,12,115,19,68,56,0,69,67,98,126,67,16,68,56,0,69,67,78,173,13,68,240,88,79,67,78,173,13,68,240,20,92,67,98,78,173,13,68,208,113,104,67,112,28,16,68,48,139,114,67,122,41,
+19,68,216,34,115,67,108,228,102,36,68,168,167,210,67,108,178,86,41,68,168,167,210,67,108,252,119,23,68,232,162,108,67,99,101,0,0 };
+
 static const unsigned char rewind[] = { 110,109,212,254,24,68,202,91,153,67,98,48,52,24,68,204,119,154,67,232,186,23,68,240,72,156,67,232,186,23,68,206,56,158,67,98,232,186,23,68,50,42,160,67,48,52,24,68,208,249,161,67,212,254,24,68,90,23,163,67,98,236,159,33,68,176,44,175,67,172,2,56,68,10,
 136,206,67,18,85,65,68,158,151,219,67,98,82,36,66,68,194,185,220,67,128,50,67,68,18,221,220,67,162,18,68,68,186,243,219,67,98,138,243,68,68,98,10,219,67,0,128,69,68,194,58,217,67,0,128,69,68,38,64,215,67,98,0,128,69,68,66,240,189,67,0,128,69,68,76,217,
 120,67,0,128,69,68,76,104,72,67,98,0,128,69,68,88,213,68,67,92,1,69,68,56,146,65,67,182,54,68,68,148,237,63,67,98,20,108,67,68,224,69,62,67,250,119,66,68,92,134,62,67,118,189,65,68,96,147,64,67,98,156,174,56,68,40,244,89,67,238,192,33,68,218,22,141,67,
@@ -1119,8 +1136,95 @@ Path DAWClockController::Icons::createPath(const String& url) const
     LOAD_PATH_IF_URL("loopStart", ClockIcons::loopStart);
     LOAD_PATH_IF_URL("loopEnd", ClockIcons::loopEnd);
     LOAD_PATH_IF_URL("rewind", ClockIcons::rewind);
-    
+	LOAD_PATH_IF_URL("metronome", ClockIcons::metronome);
+
     return p;
+}
+
+void TimelineMetronome::process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart,
+	ExternalClockSimulator* clock)
+{
+	if (!enabled)
+		return;
+
+	Range hiRange(0.0, 1.0 / (double)clock->nom);
+
+
+	auto normPos = hmath::fmod(clock->ppqPos, (double)clock->nom) * ((double)clock->nom / (double)clock->denom);
+
+	auto useHi = hiRange.contains(normPos);
+	
+
+	auto& bufferToUse = useHi ? hiClick : loClick;
+
+	
+
+	auto sampleOffset = clock->getSamplesDelta(ppqOffsetFromStart);
+
+	
+
+	if (sampleOffset < 0)
+	{
+		int numToCopy = bufferToUse.getNumSamples() + sampleOffset;
+		
+		auto targetOffset = -sampleOffset;
+		auto contentOffset = 0;
+
+		numToCopy = jmin(numToCopy, buffer.getNumSamples() - targetOffset);
+
+		if (numToCopy > 0)
+		{
+			FloatVectorOperations::add(buffer.getWritePointer(0, targetOffset), bufferToUse.getReadPointer(0, contentOffset), numToCopy);
+			FloatVectorOperations::add(buffer.getWritePointer(1, targetOffset), bufferToUse.getReadPointer(1, contentOffset), numToCopy);
+		}
+	}
+	else
+	{
+		auto contentOffset = sampleOffset;
+		auto targetOffset = 0;
+		auto numToCopy = jmin(buffer.getNumSamples(), bufferToUse.getNumSamples() - contentOffset);
+
+		if (numToCopy > 0)
+		{
+			FloatVectorOperations::add(buffer.getWritePointer(0, targetOffset), bufferToUse.getReadPointer(0, contentOffset), numToCopy);
+			FloatVectorOperations::add(buffer.getWritePointer(1, targetOffset), bufferToUse.getReadPointer(1, contentOffset), numToCopy);
+		}
+	}
+
+	
+}
+
+void TimelineMetronome::initialise(double sampleRate)
+{
+	auto numSamples = sampleRate * 0.4;
+
+	auto cycleLength = sampleRate / 220.0;
+		
+	auto delta = hmath::PI * 2.0 / cycleLength;
+
+	hiClick.setSize(2, numSamples);
+	loClick.setSize(2, numSamples);
+
+	double uptime = 0.0;
+	auto env = 1.0f;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		auto hiSample = 0.5f * (float)hmath::sin(uptime * 2.0) + 0.1f * (hmath::random() * 2.0f - 1.0f);
+		auto loSample = 0.5f * (float)hmath::sin(uptime) + 0.1f * (hmath::random() * 2.0f - 1.0f);
+
+		hiSample *= env;
+		loSample *= env;
+
+		env *= 0.998f;
+
+		hiClick.setSample(0, i, hiSample);
+		hiClick.setSample(1, i, hiSample);
+		loClick.setSample(0, i, loSample);
+		loClick.setSample(1, i, loSample);
+
+		uptime += delta;
+	}
 }
 
 void ExternalClockSimulator::addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb)
@@ -1134,6 +1238,8 @@ void ExternalClockSimulator::addTimelineData(AudioSampleBuffer& bufferData, Midi
 
 	ScopedLock sl(lock);
 
+	
+
 	for (auto to : timelineObjects)
 	{
 		auto l = to->getPPQLength(sampleRate, bpm);
@@ -1144,6 +1250,47 @@ void ExternalClockSimulator::addTimelineData(AudioSampleBuffer& bufferData, Midi
 		{
 			auto offset = ppqPos - to->startPPQ;
 			to->process(bufferData, mb, offset, this);
+		}
+	}
+}
+
+void ExternalClockSimulator::addPostTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb)
+{
+	if (!isPlaying || !metronomeEnabled)
+		return;
+
+	auto normedPPQ = hmath::fmod(ppqPos + 0.5, 1.0) - 0.5;
+
+	auto thisPPQ = getPPQDelta(bufferData.getNumSamples());
+
+	Range thisRange(normedPPQ, normedPPQ + thisPPQ);
+
+	auto l = metronome->getPPQLength(sampleRate, bpm);
+
+	Range<double> floorRange(0.0, l);
+	
+	if (!floorRange.getIntersectionWith(thisRange).isEmpty())
+	{
+		auto offset = normedPPQ - thisPPQ;
+		metronome->process(bufferData, mb, offset, this);
+	}
+}
+
+void ExternalClockSimulator::process(int numSamples)
+{
+	if (bpm == -1.0)
+		bpm = 120.0;
+
+	if(isPlaying)
+	{
+		auto ppqDelta = getPPQDelta(numSamples);
+            
+		ppqPos += ppqDelta;
+            
+		if(isLooping && !ppqLoop.isEmpty() && ppqPos > ppqLoop.getEnd())
+		{
+			auto posAfterStart = ppqPos - ppqLoop.getStart();
+			ppqPos = ppqLoop.getStart() + hmath::fmod(posAfterStart, ppqLoop.getLength());
 		}
 	}
 }

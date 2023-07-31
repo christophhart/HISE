@@ -317,6 +317,10 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 #endif
 
 		getDelayedRenderer().processWrapped(buffer, midiMessages);
+
+#if IS_STANDALONE_APP
+		externalClockSim.addPostTimelineData(buffer, midiMessages);
+#endif
 	}
 
 #if IS_STANDALONE_APP

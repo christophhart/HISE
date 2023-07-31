@@ -45,6 +45,7 @@ struct TimelineObjectBase : public ReferenceCountedObject
 		Unknown,
 		Midi,
 		Audio,
+		Metronome,
 		numTypes
 	};
 
@@ -93,11 +94,43 @@ struct TimelineObjectBase : public ReferenceCountedObject
 
 };
 
+struct TimelineMetronome : public TimelineObjectBase
+{
+	TimelineMetronome() :
+		TimelineObjectBase(File())
+	{}
+
+	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("Metronome"); }
+
+	void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart,
+		ExternalClockSimulator* clock) override;
+
+	void draw(Graphics& g, Rectangle<float> bounds) override {}
+
+	void initialise(double sampleRate) override;
+
+	Colour getColour() const override { return Colours::transparentBlack; }
+
+	double getPPQLength(double sampleRate, double bpm) const override
+	{
+		auto numSamples = loClick.getNumSamples();
+		auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+		return (double)numSamples / samplesPerQuarter;
+	}
+
+	bool enabled = true;
+
+	AudioSampleBuffer loClick, hiClick;
+};
+
 class ExternalClockSimulator: public juce::AudioPlayHead
 {
 public:
     
-
+	ExternalClockSimulator()
+	{
+		metronome = new TimelineMetronome();
+	}
 
     double getPPQDelta(int numSamples) const
     {
@@ -114,32 +147,19 @@ public:
     
 	void sendLoopMessage()
 	{
+		metronome->loopWrap();
+
 		for (auto to : timelineObjects)
 			to->loopWrap();
 	}
 
 	void addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb);
 
-    void process(int numSamples)
-    {
-		if (bpm == -1.0)
-			bpm = 120.0;
+	void addPostTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb);
+	
+	void process(int numSamples);
 
-        if(isPlaying)
-        {
-            auto ppqDelta = getPPQDelta(numSamples);
-            
-            ppqPos += ppqDelta;
-            
-            if(isLooping && !ppqLoop.isEmpty() && ppqPos > ppqLoop.getEnd())
-            {
-                auto posAfterStart = ppqPos - ppqLoop.getStart();
-                ppqPos = ppqLoop.getStart() + hmath::fmod(posAfterStart, ppqLoop.getLength());
-            }
-        }
-    }
-    
-    int getLoopBeforeWrap(int numSamples)
+	int getLoopBeforeWrap(int numSamples)
     {
         if(isPlaying && isLooping && !ppqLoop.isEmpty())
         {
@@ -184,12 +204,16 @@ public:
     void prepareToPlay(double newSampleRate)
     {
         sampleRate = newSampleRate;
+
+		metronome->initialise(newSampleRate);
+
+		for (auto o : timelineObjects)
+			o->initialise(newSampleRate);
     }
-    
-    
-    
+
     bool isLooping = false;
     bool isPlaying = false;
+	bool metronomeEnabled = false;
     
     int nom = 4;
     int denom = 4;
@@ -199,7 +223,9 @@ public:
     Range<double> ppqLoop = { 8.0, 16.0 };
     
     double sampleRate;
-    
+
+	TimelineObjectBase::Ptr metronome;
+
 	ReferenceCountedArray<TimelineObjectBase> timelineObjects;
 
 	CriticalSection lock;
@@ -237,7 +263,7 @@ struct DAWClockController: public Component,
     WeakReference<ExternalClockSimulator> clock;
     Icons f;
     
-    HiseShapeButton play, stop, loop, grid, rewind;
+    HiseShapeButton play, stop, loop, grid, rewind, metronome;
     
     Slider bpm, nom, denom, length;
     
