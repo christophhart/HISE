@@ -43,19 +43,9 @@ struct Helpers
 {
 	using Function = std::function<bool(ValueTree&)>;
 
-	static bool foreach(ValueTree v, const Function& f)
-	{
-		if (f(v))
-			return true;
-
-		for (auto c : v)
-		{
-			if (foreach(c, f))
-				return true;
-		}
-
-		return false;
-	}
+	static bool foreach(ValueTree v, const Function& f);
+	static var valueTreeToJSON(const ValueTree& v);
+	static juce::ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData=true);
 };
 
 enum class AsyncMode

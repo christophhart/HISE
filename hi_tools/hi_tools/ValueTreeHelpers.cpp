@@ -38,6 +38,130 @@ using namespace juce;
 namespace valuetree
 {
 
+bool Helpers::foreach(ValueTree v, const Function& f)
+{
+	if (f(v))
+		return true;
+
+	for (auto c : v)
+	{
+		if (foreach(c, f))
+			return true;
+	}
+
+	return false;
+}
+
+var Helpers::valueTreeToJSON(const ValueTree& v)
+{
+	DynamicObject::Ptr p = new DynamicObject();
+
+	for (int i = 0; i < v.getNumProperties(); i++)
+	{
+		auto id = v.getPropertyName(i);
+		p->setProperty(id, v[id]);
+	}
+
+	bool hasChildrenWithSameName = v.getNumChildren() > 0;
+	auto firstType = v.getChild(0).getType();
+
+	for (auto c : v)
+	{
+		if (c.getType() != firstType)
+		{
+			hasChildrenWithSameName = false;
+			break;
+		}
+	}
+
+	Array<var> childList;
+
+
+
+	for (auto c : v)
+	{
+		if (c.getNumChildren() == 0 && c.getNumProperties() == 0)
+		{
+			p->setProperty(c.getType(), new DynamicObject());
+			continue;
+		}
+
+		auto jsonChild = valueTreeToJSON(c);
+
+		if (hasChildrenWithSameName)
+			childList.add(jsonChild);
+		else
+			p->setProperty(c.getType(), jsonChild);
+	}
+
+	if (hasChildrenWithSameName)
+	{
+		p->setProperty("ChildId", firstType.toString());
+		p->setProperty("Children", var(childList));
+	}
+
+	return var(p.get());
+}
+
+juce::ValueTree Helpers::jsonToValueTree(var data, const Identifier& typeId, bool isParentData)
+{
+	if (isParentData)
+	{
+		data = data.getProperty(typeId, {});
+		jassert(data.isObject());
+	}
+
+	ValueTree v(typeId);
+
+	if (data.hasProperty("ChildId"))
+	{
+		Identifier childId(data.getProperty("ChildId", "").toString());
+
+		for (auto& nv : data.getDynamicObject()->getProperties())
+		{
+			if (nv.name.toString() == "ChildId")
+				continue;
+
+			if (nv.name.toString() == "Children")
+				continue;
+
+			v.setProperty(nv.name, nv.value, nullptr);
+		}
+
+		auto lv = data.getProperty("Children", var());
+		if (auto l = lv.getArray())
+		{
+			for (auto& c : *l)
+			{
+				v.addChild(jsonToValueTree(c, childId, false), -1, nullptr);
+			}
+		}
+	}
+	else
+	{
+		if (auto dyn = data.getDynamicObject())
+		{
+			for (const auto& nv : dyn->getProperties())
+			{
+				if (nv.value.isObject())
+				{
+					v.addChild(jsonToValueTree(nv.value, nv.name, false), -1, nullptr);
+				}
+				else if (nv.value.isArray())
+				{
+					// must not happen
+					jassertfalse;
+				}
+				else
+				{
+					v.setProperty(nv.name, nv.value, nullptr);
+				}
+			}
+		}
+	}
+
+	return v;
+}
 
 void PropertyListener::setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_)
 {

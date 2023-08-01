@@ -497,14 +497,9 @@ public:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AssignableObject);
 };
 
-
-struct JSONConversionHelpers
+struct JSONConversionHelpers: public valuetree::Helpers
 {
 	static bool isPluginState(const ValueTree& v) { return v.getType() == Identifier("ControlData"); };
-
-	static var valueTreeToJSON(const ValueTree& v);
-
-	static ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData = true);
 
 	static var convertBase64Data(const String& d, const ValueTree& cTree);
 
