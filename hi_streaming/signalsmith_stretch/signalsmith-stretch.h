@@ -47,6 +47,11 @@ struct SignalsmithStretch {
 		configure(nChannels, sampleRate*0.1, sampleRate*0.04);
 	}
 
+	void setEnableOutput(bool shouldBeEnabled)
+	{
+		enableOutput = shouldBeEnabled;
+	}
+	
 	// Manual setup
 	void configure(int nChannels, int blockSamples, int intervalSamples) {
 		channels = nChannels;
@@ -89,6 +94,8 @@ struct SignalsmithStretch {
 	
 	template<class Inputs, class Outputs>
 	void process(Inputs &&inputs, int inputSamples, Outputs &&outputs, int outputSamples) {
+		TRACE_EVENT("dsp", "process timestretcher");
+
 		Sample totalEnergy = 0;
 		for (int c = 0; c < channels; ++c) {
 			auto &&inputChannel = inputs[c];
@@ -202,19 +209,25 @@ struct SignalsmithStretch {
 				Sample timeFactor = stft.interval()/std::max<Sample>(1, inputInterval);
 				processSpectrum(newSpectrum, timeFactor);
 
-				for (int c = 0; c < channels; ++c) {
-					auto channelBands = bandsForChannel(c);
-					auto &&spectrumBands = stft.spectrum[c];
-					for (int b = 0; b < bands; ++b) {
-						spectrumBands[b] = signalsmith::perf::mul<true>(channelBands[b].output, rotCentreSpectrum[b]);
+				if(enableOutput)
+				{
+					for (int c = 0; c < channels; ++c) {
+						auto channelBands = bandsForChannel(c);
+						auto&& spectrumBands = stft.spectrum[c];
+						for (int b = 0; b < bands; ++b) {
+							spectrumBands[b] = signalsmith::perf::mul<true>(channelBands[b].output, rotCentreSpectrum[b]);
+						}
 					}
 				}
-			});
+			}, enableOutput);
 
-			for (int c = 0; c < channels; ++c) {
-				auto &&outputChannel = outputs[c];
-				auto &&stftChannel = stft[c];
-				outputChannel[outputIndex] = stftChannel[outputIndex];
+			if(enableOutput)
+			{
+				for (int c = 0; c < channels; ++c) {
+					auto&& outputChannel = outputs[c];
+					auto&& stftChannel = stft[c];
+					outputChannel[outputIndex] = stftChannel[outputIndex];
+				}
 			}
 		}
 
@@ -247,6 +260,8 @@ private:
 	int channels = 0, bands = 0;
 	int prevInputOffset = -1;
 	std::vector<Sample> timeBuffer;
+	bool enableOutput = true;
+
 
 	std::vector<Complex> rotCentreSpectrum, rotPrevInterval;
 	Sample bandToFreq(Sample b) const {

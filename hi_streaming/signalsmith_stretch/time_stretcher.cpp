@@ -129,11 +129,13 @@ struct Helpers
 
 double time_stretcher::skipLatency(float** inputs, double ratio)
 {
+    TRACE_EVENT("dsp", "skipLatency");
+
     ScopedLock sl(stretchLock);
     
     pimpl->reset();
     
-    auto numBeforeOutput = roundToInt(2048 / ratio);// 2048;
+    auto numBeforeOutput = roundToInt(pimpl->outputLatency() + pimpl->inputLatency() * ratio);
     
     float* thisInputs[2];
     float* outputs[2];
@@ -142,23 +144,28 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     thisInputs[1] = inputs[1];
     
     double currentPos = 0.0;
+
+    pimpl->setEnableOutput(false);
     
     while(numBeforeOutput > 0)
     {
-	    const int numThisTime = jmin(numBeforeOutput, 256);
-        const int numInputs = ratio * static_cast<double>(numThisTime);
+	    const int numInputs = jmin(numBeforeOutput, 512);
+        const int numOutputs = static_cast<double>(numInputs) / ratio;
         
-        outputs[0] = static_cast<float*>(alloca(numThisTime * sizeof(float)));
-        outputs[1] = static_cast<float*>(alloca(numThisTime * sizeof(float)));
+        outputs[0] = static_cast<float*>(alloca(numOutputs * sizeof(float)));
+        outputs[1] = static_cast<float*>(alloca(numOutputs * sizeof(float)));
         
-        pimpl->process(thisInputs, numInputs, outputs, numThisTime);
+        pimpl->process(thisInputs, numInputs, outputs, numOutputs);
         
         currentPos += numInputs;
+
+        if (currentPos >= 1536)
+            pimpl->setEnableOutput(true);
 
         thisInputs[0] = inputs[0] + static_cast<int>(currentPos);
         thisInputs[1] = inputs[1] + static_cast<int>(currentPos);
 
-        numBeforeOutput -= numThisTime;
+        numBeforeOutput -= numInputs;
     }
     
     return currentPos;

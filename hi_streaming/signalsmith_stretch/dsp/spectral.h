@@ -293,7 +293,7 @@ namespace spectral {
 			The block created from these spectra will start at this index in the output, plus `.latency()`.
 		*/
 		template<class AnalysisFn>
-		void ensureValid(int i, AnalysisFn fn) {
+		void ensureValid(int i, AnalysisFn fn, bool enableOutput) {
 			while (validUntilIndex < i) {
 				int blockIndex = validUntilIndex + 1;
 				fn(blockIndex);
@@ -301,17 +301,21 @@ namespace spectral {
 				auto output = this->view(blockIndex);
 				for (int c = 0; c < channels; ++c) {
 					auto channel = output[c];
-
+					
 					// Clear out the future sum, a window-length and an interval ahead
 					for (int wi = _windowSize; wi < _windowSize + _interval; ++wi) {
 						channel[wi] = 0;
 					}
 
-					// Add in the IFFT'd result
-					fft.ifft(spectrum[c], timeBuffer);
-					for (int wi = 0; wi < _windowSize; ++wi) {
-						channel[wi] += timeBuffer[wi];
+					if(enableOutput)
+					{
+						// Add in the IFFT'd result
+						fft.ifft(spectrum[c], timeBuffer);
+						for (int wi = 0; wi < _windowSize; ++wi) {
+							channel[wi] += timeBuffer[wi];
+						}
 					}
+					
 				}
 				validUntilIndex += _interval;
 			}
