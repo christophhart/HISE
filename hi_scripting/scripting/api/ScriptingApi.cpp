@@ -3437,6 +3437,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, getAudioWaveformContentAsBase64);
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapAsBase64);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchRatio);
+	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchOptions);
+	API_METHOD_WRAPPER_0(Sampler, getTimestretchOptions);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionWithFilter);
@@ -3502,6 +3504,8 @@ sampler(sampler_)
 	ADD_API_METHOD_0(getSampleMapAsBase64);
 	ADD_API_METHOD_1(getAudioWaveformContentAsBase64);
 	ADD_API_METHOD_1(setTimestretchRatio);
+	ADD_API_METHOD_1(setTimestretchOptions);
+	ADD_API_METHOD_0(getTimestretchOptions);
 
 	sampleIds.add(SampleIds::ID);
 	sampleIds.add(SampleIds::FileName);
@@ -4356,6 +4360,30 @@ void ScriptingApi::Sampler::setTimestretchRatio(double newRatio)
 		reportScriptError("Invalid sampler call");
 
 	s->setTimestretchRatio(newRatio);
+}
+
+var ScriptingApi::Sampler::getTimestretchOptions()
+{
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	auto o = s->getTimestretchOptions();
+
+	return o.toJSON();
+}
+
+void ScriptingApi::Sampler::setTimestretchOptions(var newOptions)
+{
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	ModulatorSampler::TimestretchOptions no;
+	no.fromJSON(newOptions);
+	s->setTimestretchOptions(no);
 }
 
 String ScriptingApi::Sampler::getAudioWaveformContentAsBase64(var presetObj)

@@ -220,7 +220,6 @@ public:
 		Reversed,
         UseStaticMatrix,
 		LowPassEnvelopeOrder,
-		Timestretching,
 		numModulatorSamplerParameters
 	};
 
@@ -232,14 +231,6 @@ public:
 		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
 		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
 		KillThirdOldestNote
-	};
-
-	enum TimestretchMode
-	{
-		Disabled,	 ///< no timestretching
-		VoiceStart,	 ///< currently active voices will keep their ratio and new voices will use the current ratio
-		TimeVariant, ///< all currently active voices will use the same ratio
-		TempoSynced  ///< calculate the stretch ratio based on the length of the sample and the current tempo
 	};
 
 	enum Chains
@@ -269,11 +260,81 @@ public:
 		numEditorStates
 	};
 
+	struct TimestretchOptions: public RestorableObject
+	{
+		static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER("TimestretchOptions"); }
+
+		enum class TimestretchMode
+		{
+			Disabled,	 ///< no timestretching
+			VoiceStart,	 ///< currently active voices will keep their ratio and new voices will use the current ratio
+			TimeVariant, ///< all currently active voices will use the same ratio
+			TempoSynced,  ///< calculate the stretch ratio based on the length of the sample and the current tempo,
+			numTimestretchModes
+		};
+
+		TimestretchMode mode = TimestretchMode::Disabled;
+		double tonality = 0.0;
+		bool skipStart = false;
+		double numQuarters = 0.0;
+
+		void reset()
+		{
+			mode = TimestretchMode::Disabled;
+			tonality = 0.0;
+			skipStart = false;
+			numQuarters = 0.0;
+		}
+
+		var toJSON() const
+		{
+			static const StringArray modes = { "Disabled", "VoiceStart", "TimeVariant", "TempoSynced" };
+
+			const DynamicObject::Ptr obj = new DynamicObject();
+			obj->setProperty("Tonality", tonality);
+			obj->setProperty("SkipLatency", skipStart);
+			obj->setProperty("Mode", modes[static_cast<int>(mode)]);
+			obj->setProperty("NumQuarters", numQuarters);
+
+			return {obj.get()};
+		}
+
+		void fromJSON(const var& json)
+		{
+			static const StringArray modes = { "Disabled", "VoiceStart", "TimeVariant", "TempoSynced" };
+
+			tonality = jlimit(0.0, 1.0, static_cast<double>(json.getProperty("Tonality", 0.0)));
+			skipStart = json.getProperty("SkipLatency", false);
+			mode = static_cast<TimestretchMode>(modes.indexOf(json.getProperty("Mode", "Disabled").toString()));
+			numQuarters = json.getProperty("NumQuarters", 0.0);
+		}
+
+		void restoreFromValueTree(const ValueTree& v) override
+		{
+			if(v.getType() == getStaticId())
+			{
+				auto obj = valuetree::Helpers::valueTreeToJSON(v);
+				fromJSON(obj);
+			}
+			else
+			{
+				reset();
+			}
+		}
+
+		ValueTree exportAsValueTree() const override
+		{
+			return valuetree::Helpers::jsonToValueTree(toJSON(), getStaticId(), false);
+		}
+
+		operator bool() const { return mode != TimestretchMode::Disabled; }
+	};
+
 	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
 
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
-	~ModulatorSampler();
+	~ModulatorSampler() override;
 
 	SET_PROCESSOR_CONNECTOR_TYPE_ID("StreamingSampler");
 
@@ -357,26 +418,7 @@ public:
 	void resetNoteDisplay(int noteNumber);
 	void resetNotes();
 
-	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
-	{
-		if (purged)
-		{
-			return;
-		}
-
-		if(currentTimestretchMode == TimestretchMode::TempoSynced ||
-		   currentTimestretchMode == TimestretchMode::TimeVariant)
-		{
-			auto r = getCurrentTimestretchRatio();
-
-			for(auto av: activeVoices)
-			{
-				static_cast<ModulatorSamplerVoice*>(av)->setTimestretchRatio(r);
-			}
-		}
-
-		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
-	}
+	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override;
 
 	SampleThreadPool *getBackgroundThreadPool();
 	String getMemoryUsage() const;;
@@ -670,20 +712,32 @@ public:
 
 	bool shouldPlayFromPurge() const { return enablePlayFromPurge; }
 
-	TimestretchMode getTimestretchMode() const { return currentTimestretchMode; }
+	TimestretchOptions::TimestretchMode getTimestretchMode() const { return currentTimestretchOptions.mode; }
 
-	void setCurrentTimestretchMode(TimestretchMode newMode);
+	void setCurrentTimestretchMode(TimestretchOptions::TimestretchMode newMode);
 	
 	void setTimestretchRatio(double newRatio);
 
+	
+
+	TimestretchOptions getTimestretchOptions() const { return currentTimestretchOptions; }
+
+	void setTimestretchOptions(const TimestretchOptions& newOptions);
+
 	double getCurrentTimestretchRatio() const;
 
-private:
-	
-	scriptnode::core::TimestretchSyncer<1> syncer;
+	PolyHandler& getSyncVoiceHandler() { return syncVoiceHandler; }
 
-	TimestretchMode currentTimestretchMode = TimestretchMode::Disabled;
+private:
+
+	scriptnode::PolyHandler syncVoiceHandler;
+	scriptnode::core::TimestretchSyncer<NUM_POLYPHONIC_VOICES> syncer;
+
+	TimestretchOptions currentTimestretchOptions;
+
 	double ratioToUse = 1.0;
+
+	TimestretchOptions timestretchOptions;
 
 	int lockVelocity = -1;
 	int lockRRGroup = -1;

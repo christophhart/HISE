@@ -143,7 +143,16 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	CHECK_AND_LOG_ASSERTION(getOwnerSynth(), DebugLogger::Location::SampleRendering, sound != nullptr, 1);
 
 	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::SampleRendering);
- 
+
+	auto owner = static_cast<ModulatorSampler*>(getOwnerSynth());
+
+	if(owner->getTimestretchOptions().mode == ModulatorSampler::TimestretchOptions::TimestretchMode::TempoSynced)
+	{
+		PolyHandler::ScopedVoiceSetter svs(owner->getSyncVoiceHandler(), getVoiceIndex());
+
+		wrappedVoice.setTimestretchRatio(owner->getCurrentTimestretchRatio());
+	}
+
 	ignoreUnused(sound);
 
 	const int startIndex = startSample;

@@ -269,9 +269,6 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 	docs->createHelpButtonForParameter(ModulatorSynth::Parameters::KillFadeTime, fadeTimeEditor);
 	docs->createHelpButtonForParameter(ModulatorSampler::Parameters::PreloadSize, preloadBufferEditor);
 
-    docs->createHelpButtonForParameter(ModulatorSampler::Parameters::Timestretching, timestretchEditor);
-
-
 	retriggerEditor->addListener(this);
 
 	diskSlider->setInterceptsMouseClicks(false, false);
@@ -343,7 +340,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 
     //[/UserPreSize]
 
-    setSize (800, 170);
+    setSize (800, 180);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -571,6 +568,13 @@ void SamplerSettings::resized()
 
     auto w = b.getWidth() / 3;
 
+    if(crossfadeEditor->isVisible())
+    {
+        
+        crossfadeEditor->setBounds(b.removeFromBottom(115).toNearestInt());
+        b.removeFromBottom(10.0f);
+    }
+
     columns[0] = b.removeFromLeft(w);
     columns[1] = b.removeFromLeft(w);
     columns[2] = b.removeFromLeft(w);
@@ -766,7 +770,9 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
     {
         //[UserLabelCode_pitchTrackingEditor] -- add your label text handling code here..
 
-        sampler->setAttribute(ModulatorSampler::Timestretching, (float)timestretchEditor->getCurrentIndex(), sendNotificationAsync);
+        using TM = ModulatorSampler::TimestretchOptions::TimestretchMode;
+
+        sampler->setCurrentTimestretchMode(static_cast<TM>(timestretchEditor->getCurrentIndex()));
 
         //[/UserLabelCode_pitchTrackingEditor]
     }
@@ -929,7 +935,7 @@ void SamplerSettings::updateGui()
 
 	if (timestretchEditor->getCurrentTextEditor() == nullptr)
 	{
-		timestretchEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::Timestretching), dontSendNotification);
+		timestretchEditor->setItemIndex((int)sampler->getTimestretchMode(), dontSendNotification);
 	}
 
 	if(rrGroupEditor->getCurrentTextEditor() == nullptr)

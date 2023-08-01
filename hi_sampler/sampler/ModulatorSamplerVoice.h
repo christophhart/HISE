@@ -109,9 +109,11 @@ public:
 		}
 	}
 
-	virtual void setEnableTimestretch(bool shouldBeEnabled)
+	virtual void setTimestretchOptions(const ModulatorSampler::TimestretchOptions& options)
 	{
-		wrappedVoice.setEnableTimestretch(shouldBeEnabled);
+		wrappedVoice.setEnableTimestretch(options);
+		wrappedVoice.setSkipLatency(options.skipStart);
+		wrappedVoice.setTimestretchTonality(options.tonality);
 	}
 
 	virtual void setTimestretchRatio(double r)
@@ -207,10 +209,14 @@ public:
 
 	void startVoiceInternal(int midiNoteNumber, float velocity) override;
 
-	void setEnableTimestretch(bool shouldBeEnabled) override
+	void setTimestretchOptions(const ModulatorSampler::TimestretchOptions& options) override
 	{
 		for (auto v : wrappedVoices)
-			v->setEnableTimestretch(shouldBeEnabled);
+		{
+			v->setEnableTimestretch(options);
+			v->setSkipLatency(options.skipStart);
+			v->setTimestretchTonality(options.tonality);
+		}
 	}
 
 	void setTimestretchRatio(double ratio) override

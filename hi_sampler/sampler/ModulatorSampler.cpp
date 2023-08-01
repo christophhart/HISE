@@ -85,9 +85,6 @@ SET_DOCUMENTATION(ModulatorSampler)
     ADD_PARAMETER_DOC(UseStaticMatrix,
         "If this is true, then the routing matrix will not be resized when you load a sample map with another mic position amount.");
 
-	ADD_PARAMETER_DOC(Timestretching,
-		"Enables timestretching for the sample playback. There are three modes that determine how the stretch ratio is applied:  \n- `Disabled`: no timestretching\n- `VoiceStart`: the stretch ratio will be applied to new voices, currently active voices will keep their ratio\n- `TimeVariant`: the stretch ratio will be applied to all active voices\n- `TempoSynced`: the stretch ratio will be determined by the length of the sample and the current tempo\n> If timestretching is enabled, the pitch modulation will be applied from the timestretching engine");
-
 	ADD_CHAIN_DOC(SampleStartModulation, "Sample Start", 
 		"Allows modification of the sample start if the sound allows this. The modulation range is depending on the *SampleStartMod* value of each sample.");
 
@@ -118,7 +115,8 @@ repeatMode(RepeatMode::KillSecondOldestNote),
 deactivateUIUpdate(false),
 samplePreloadPending(false),
 realVoiceAmount(numVoices),
-temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
+temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0),
+syncVoiceHandler(false)
 {
 #if USE_BACKEND || HI_ENABLE_EXPANSION_EDITING
 	sampleEditHandler = new SampleEditHandler(this);
@@ -181,7 +179,9 @@ temporaryVoiceBuffer(DEFAULT_BUFFER_TYPE_IS_FLOAT, 2, 0)
 
 	getMatrix().setAllowResizing(true);
 
-	
+	PrepareSpecs ps;
+	ps.voiceIndex = &syncVoiceHandler;
+	syncer.state.prepare(ps);
 }
 
 
@@ -427,7 +427,11 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
-	loadAttribute(Timestretching, "Timestretching");
+
+	TimestretchOptions newOptions;
+	newOptions.restoreFromValueTree(v.getChildWithName(TimestretchOptions::getStaticId()));
+
+	setTimestretchOptions(newOptions);
 
 	for (int i = 0; i < 8; i++)
 		loadTable(getTableUnchecked(i), "Group" + String(i) + "Table");
@@ -451,7 +455,6 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	saveAttribute(Reversed, "Reversed");
 	v.setProperty("NumChannels", numChannels, nullptr);
     saveAttribute(UseStaticMatrix, "UseStaticMatrix");
-	saveAttribute(Timestretching, "Timestretching");
 
 	ValueTree channels("channels");
 
@@ -463,6 +466,9 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	}
 
 	v.addChild(channels, -1, nullptr);
+
+	if (currentTimestretchOptions)
+		v.addChild(currentTimestretchOptions.exportAsValueTree(), -1, nullptr);
 
 	for (int i = 0; i < 8; i++)
 	{
@@ -527,7 +533,6 @@ float ModulatorSampler::getAttribute(int parameterIndex) const
 	case Reversed:			return reversed ? 1.0f : 0.0f;
     case UseStaticMatrix:   return useStaticMatrix ? 1.0f : 0.0f;
 	case LowPassEnvelopeOrder: return (float)lowPassOrder * 6.0f;
-	case Timestretching:	return (float)(int)(currentTimestretchMode);
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -563,8 +568,6 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 		if (envelopeFilter != nullptr)
 			envelopeFilter->setOrder(lowPassOrder);
 		break;
-	case Timestretching:	setCurrentTimestretchMode((TimestretchMode)(int)newValue); break;
-
 	default:				jassertfalse; break;
 	}
 }
@@ -860,15 +863,10 @@ void ModulatorSampler::setVoiceAmountInternal()
 
 		for (int i = 0; i < voiceAmount; i++)
 		{
-
 			if (numChannels != 1)
-			{
 				addVoice(new MultiMicModulatorSamplerVoice(this, numChannels));
-			}
 			else
-			{
 				addVoice(new ModulatorSamplerVoice(this));
-			}
 
 			dynamic_cast<ModulatorSamplerVoice*>(voices.getLast())->setStreamingBufferDataType(temporaryVoiceBuffer.isFloatingPoint());
 
@@ -876,6 +874,8 @@ void ModulatorSampler::setVoiceAmountInternal()
 			{
 				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getLargestBlockSize());
 			}
+
+			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setTimestretchOptions(currentTimestretchOptions);
 		};
 	}
 
@@ -1004,40 +1004,51 @@ void ModulatorSampler::setPlayFromPurge(bool shouldPlayFromPurge, bool refreshPr
 	}
 }
 
-void ModulatorSampler::setCurrentTimestretchMode(TimestretchMode newMode)
+void ModulatorSampler::setCurrentTimestretchMode(TimestretchOptions::TimestretchMode newMode)
 {
-	if(currentTimestretchMode != newMode)
+	if(currentTimestretchOptions.mode != newMode)
 	{
-		auto f = [newMode](Processor* p)
-		{
-			auto s = static_cast<ModulatorSampler*>(p);
+		auto options = currentTimestretchOptions;
+		options.mode = newMode;
 
-			s->currentTimestretchMode = newMode;
-
-			auto enableSync = s->currentTimestretchMode == TimestretchMode::TempoSynced;
-
-			s->syncer.setEnabled(enableSync);
-
-			if (enableSync)
-				s->getMainController()->addTempoListener(&s->syncer);
-			else
-				s->getMainController()->removeTempoListener(&s->syncer);
-
-			for (auto v : s->voices)
-			{
-				dynamic_cast<ModulatorSamplerVoice*>(v)->setEnableTimestretch(s->currentTimestretchMode != TimestretchMode::Disabled);
-			}
-
-			return SafeFunctionCall::OK;
-		};
-
-		killAllVoicesAndCall(f, true);
+		setTimestretchOptions(options);
 	}
+}
+
+void ModulatorSampler::setTimestretchOptions(const TimestretchOptions& newOptions)
+{
+	currentTimestretchOptions = newOptions;
+
+	auto f = [](Processor* p)
+	{
+		auto s = static_cast<ModulatorSampler*>(p);
+
+		const auto& options = s->currentTimestretchOptions;
+
+		auto enableSync = options.mode == TimestretchOptions::TimestretchMode::TempoSynced;
+
+		s->syncer.setEnabled(enableSync);
+		s->syncVoiceHandler.setEnabled(enableSync);
+
+		if (enableSync)
+			s->getMainController()->addTempoListener(&s->syncer);
+		else
+			s->getMainController()->removeTempoListener(&s->syncer);
+		
+		for (auto v : s->voices)
+		{
+			dynamic_cast<ModulatorSamplerVoice*>(v)->setTimestretchOptions(options);
+		}
+
+		return SafeFunctionCall::OK;
+	};
+
+	killAllVoicesAndCall(f, true);
 }
 
 double ModulatorSampler::getCurrentTimestretchRatio() const
 {
-	if (currentTimestretchMode == Disabled)
+	if (currentTimestretchOptions.mode == TimestretchOptions::TimestretchMode::Disabled)
 		return 1.0;
 
 	return syncer.getRatio(ratioToUse);
@@ -1109,6 +1120,26 @@ void ModulatorSampler::resetNotes()
 	}
 }
 
+void ModulatorSampler::renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi)
+{
+	if (purged)
+	{
+		return;
+	}
+
+	if(currentTimestretchOptions.mode == TimestretchOptions::TimestretchMode::TimeVariant)
+	{
+		auto r = getCurrentTimestretchRatio();
+
+		for(auto av: activeVoices)
+		{
+			static_cast<ModulatorSamplerVoice*>(av)->setTimestretchRatio(r);
+		}
+	}
+
+	ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
+}
+
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
 {
 	return getMainController()->getSampleManager().getGlobalSampleThreadPool();
@@ -1150,13 +1181,32 @@ void ModulatorSampler::preStartVoice(int voiceIndex, const HiseEvent& e)
 		samplerDisplayValues.currentSampleStartPos = 0.0f;
 	}
 
-	auto v = static_cast<ModulatorSamplerVoice*>(getLastStartedVoice());
+	auto lv = static_cast<ModulatorSamplerVoice*>(getLastStartedVoice());
 
-	v->setSampleStartModValue(sampleStartModValue);
+	lv->setSampleStartModValue(sampleStartModValue);
 
-	if(currentTimestretchMode != TimestretchMode::Disabled)
+	
+
+
+	if(currentTimestretchOptions.mode != TimestretchOptions::TimestretchMode::Disabled)
 	{
-		v->setTimestretchRatio(getCurrentTimestretchRatio());
+		auto v = static_cast<ModulatorSamplerVoice*>(voices[voiceIndex]);
+
+		if(currentTimestretchOptions.mode == TimestretchOptions::TimestretchMode::TempoSynced)
+		{
+			PolyHandler::ScopedVoiceSetter svs(syncVoiceHandler, voiceIndex);
+
+			if(auto nextSound = dynamic_cast<ModulatorSamplerSound*>(soundsToBeStarted[0]))
+			{
+				syncer.setSource(nextSound->getSampleRate(), nextSound->getReferenceToSound(0)->getLengthInSamples(), currentTimestretchOptions.numQuarters);
+			}
+				
+			v->setTimestretchRatio(getCurrentTimestretchRatio());
+		}
+		else
+		{
+			v->setTimestretchRatio(getCurrentTimestretchRatio());
+		}
 	}
 }
 
