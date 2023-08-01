@@ -727,9 +727,9 @@ struct IncludeSorter
 				return false;
 			};
 
-			auto firstIsReferencedInSecond = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
+			auto firstIsReferencedInSecond = valuetree::Helpers::forEach(v1, f2, valuetree::Helpers::IterationType::ChildrenFirst);
 
-			auto secondIsReferencedInFirst = ValueTreeIterator::forEach(v1, ValueTreeIterator::ChildrenFirst, f2);
+			auto secondIsReferencedInFirst = valuetree::Helpers::forEach(v1, f2, valuetree::Helpers::IterationType::ChildrenFirst);
 
 			String e;
 			e << "Cyclic reference: ";

@@ -2807,7 +2807,7 @@ public:
 		{
 			auto v = ValueTree::fromXml(*xml);
 
-			cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& c)
+			valuetree::Helpers::forEach(v, [&](ValueTree& c)
 			{
 				if (c.hasType("path"))
 				{
@@ -3844,7 +3844,7 @@ public:
 
 		auto scriptRoot = newProjectFolder.getChildFile(ProjectHandler::getIdentifier(FileHandlerBase::Scripts));
 
-		snex::cppgen::ValueTreeIterator::forEach(e->presetToLoad, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& v)
+		valuetree::Helpers::forEach(e->presetToLoad, [&](ValueTree& v)
 		{
 			if (v.hasProperty("Script"))
 			{

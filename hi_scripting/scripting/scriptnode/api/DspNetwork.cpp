@@ -302,7 +302,7 @@ void DspNetwork::createAllNodesOnce()
         {
             auto v = ValueTree::fromXml(*xml);
             
-            auto isPoly = ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [](ValueTree& v)
+            auto isPoly = ValueTreeIterator::forEach(v, [](ValueTree& v)
             {
                 if(v.getType() == PropertyIds::Node)
                 {
@@ -916,7 +916,7 @@ void DspNetwork::checkIfDeprecated()
 #if USE_BACKEND
 	using namespace cppgen;
 
-	ValueTreeIterator::forEach(getValueTree(), ValueTreeIterator::IterationType::Forward, [&](ValueTree v)
+	valuetree::Helpers::forEach(getValueTree(), [&](ValueTree v)
 	{
 		DeprecationChecker d(this, v);
 		return d.notOk;
@@ -1101,7 +1101,7 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 		return false;
 	};
 
-	valuetree::Helpers::foreach(c, setNewId);
+	valuetree::Helpers::forEach(c, setNewId);
 
     if(changeIds)
     {
@@ -1132,7 +1132,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 		return false;
 	};
 
-	valuetree::Helpers::foreach(c, updateConnection);
+	valuetree::Helpers::forEach(c, updateConnection);
 
 	auto updateSendConnection = [oldId, newId, undoManager](ValueTree& v)
 	{
@@ -1150,7 +1150,7 @@ void DspNetwork::changeNodeId(ValueTree& c, const String& oldId, const String& n
 		return false;
 	};
 
-	valuetree::Helpers::foreach(c, updateSendConnection);
+	valuetree::Helpers::forEach(c, updateSendConnection);
 }
 
 void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
@@ -1342,9 +1342,7 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 				// look if there's a network file that we 
 				// need to replace with this content
-                cppgen::ValueTreeIterator::forEach(c,
-                    snex::cppgen::ValueTreeIterator::IterationType::Forward,
-                    DspNetworkListeners::PatchAutosaver::stripValueTree);
+                valuetree::Helpers::forEach(c, DspNetworkListeners::PatchAutosaver::stripValueTree);
 
                 auto f = BackendDllManager::getSubFolder(dynamic_cast<const ControlledObject*>(this)->getMainController(), BackendDllManager::FolderSubType::Networks);
 
@@ -1710,7 +1708,7 @@ int HostHelpers::getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::Da
 	int numMax = 0;
 
 #if USE_BACKEND
-	snex::cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::Forward, [&](ValueTree& v)
+	valuetree::Helpers::forEach(v, [&](ValueTree& v)
 	{
 		if (v.getType() == id)
 			numMax = jmax(numMax, (int)v[PropertyIds::Index] + 1);
@@ -1812,49 +1810,49 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 #if USE_BACKEND
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
-	cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [v](ValueTree& c)
+	valuetree::Helpers::forEach(v, [v](ValueTree& c)
+	{
+		auto nodeExists = [v](const String& id)
 		{
-			auto nodeExists = [v](const String& id)
+			return cppgen::ValueTreeIterator::forEach(v, [id](ValueTree& n)
 			{
-				return cppgen::ValueTreeIterator::forEach(v, snex::cppgen::ValueTreeIterator::ChildrenFirst, [id](ValueTree& n)
-					{
-						if (n.getType() == PropertyIds::Node)
-						{
-							if (n[PropertyIds::ID].toString() == id)
-								return true;
-						}
-
-						return false;
-					});
-			};
-
-			if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
-			{
-				// A global cable will also store its cable ID as Connection property so we need to avoid stripping this
-				// vital information...
-				auto isGlobalCableConnection = c.getParent().getParent()[PropertyIds::FactoryPath].toString().startsWith("routing.global");
-
-				if (!isGlobalCableConnection)
+				if (n.getType() == PropertyIds::Node)
 				{
-					auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
+					if (n[PropertyIds::ID].toString() == id)
+						return true;
+				}
 
-					int numBefore = idList.size();
+				return false;
+			}, valuetree::Helpers::IterationType::ChildrenFirst);
+		};
 
-					for (int i = 0; i < idList.size(); i++)
-					{
-						if (!nodeExists(idList[i]))
-							idList.remove(i--);
-					}
+		if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
+		{
+			// A global cable will also store its cable ID as Connection property so we need to avoid stripping this
+			// vital information...
+			auto isGlobalCableConnection = c.getParent().getParent()[PropertyIds::FactoryPath].toString().startsWith("routing.global");
 
-					if (idList.size() != numBefore)
-					{
-						c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
-					}
+			if (!isGlobalCableConnection)
+			{
+				auto idList = StringArray::fromTokens(c[PropertyIds::Value].toString(), ";", "");
+
+				int numBefore = idList.size();
+
+				for (int i = 0; i < idList.size(); i++)
+				{
+					if (!nodeExists(idList[i]))
+						idList.remove(i--);
+				}
+
+				if (idList.size() != numBefore)
+				{
+					c.setProperty(PropertyIds::Value, idList.joinIntoString(";"), nullptr);
 				}
 			}
+		}
 
-			return false;
-		});
+		return false;
+	}, valuetree::Helpers::IterationType::ChildrenFirst);
 }
 
 bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)

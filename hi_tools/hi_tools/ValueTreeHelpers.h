@@ -41,11 +41,33 @@ namespace valuetree
 
 struct Helpers
 {
+	enum class IterationType
+	{
+		Forward,
+		Backwards,
+		ChildrenFirst,
+		ChildrenFirstBackwards,
+		OnlyChildren,
+		OnlyChildrenBackwards
+	};
+	
+	static bool isBetween(IterationType l, IterationType u, IterationType v);
+	static bool isBackwards(IterationType t);
+	static bool isRecursive(IterationType t);
+
 	using Function = std::function<bool(ValueTree&)>;
 
-	static bool foreach(ValueTree v, const Function& f);
+	static bool forEach(ValueTree v, const Function& f, IterationType type=IterationType::Forward);
+
+	
 	static var valueTreeToJSON(const ValueTree& v);
 	static juce::ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData=true);
+	static ValueTree findParentWithType(const ValueTree& v, const Identifier& id);
+	static bool isLast(const ValueTree& v);
+	static bool isParent(const ValueTree& v, const ValueTree& possibleParent);
+	static int getIndexInParent(const ValueTree& v);
+	static ValueTree getRoot(const ValueTree& v);
+	static bool forEachParent(ValueTree& v, const Function& f);
 };
 
 enum class AsyncMode

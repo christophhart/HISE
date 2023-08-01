@@ -136,7 +136,7 @@ Result ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
     auto r = Result::ok();
     auto rptr = &r;
     
-	ValueTreeIterator::forEach(vToClean, ValueTreeIterator::ChildrenFirst, [&existingIds, rptr](ValueTree& c)
+	ValueTreeIterator::forEach(vToClean, [&existingIds, rptr](ValueTree& c)
 	{
 		static const Array<Identifier> idsToClean = { PropertyIds::ID, PropertyIds::NodeId, PropertyIds::ParameterId };
 
@@ -168,7 +168,7 @@ Result ValueTreeBuilder::cleanValueTreeIds(ValueTree& vToClean)
 		}
 
 		return false;
-	});
+	}, ValueTreeIterator::IterationType::ChildrenFirst);
     
     return r;
 }
@@ -303,7 +303,7 @@ String ValueTreeBuilder::getGlueCode(ValueTreeBuilder::FormatGlueCode c)
 			addEmptyLine();
 
 
-			ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [this](ValueTree& c)
+			ValueTreeIterator::forEach(v, [this](ValueTree& c)
             {
                 if(c.getType() == PropertyIds::Node)
                 {
@@ -825,7 +825,7 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 	// Check all `control.clone_cable` nodes if they are connected to a child node of this clone container
 	// and verify that the NumClones parameter has the same range as the NumClones parameter
 	// of this clone container
-	ValueTreeIterator::forEach(v, ValueTreeIterator::IterationType::Forward, [cloneRange, nTree](ValueTree& tree)
+	ValueTreeIterator::forEach(v, [cloneRange, nTree](ValueTree& tree)
 	{
 		if (tree[PropertyIds::FactoryPath].toString() == "control.clone_cable")
 		{
@@ -833,7 +833,7 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 			{
 				auto targetNodeId = m[PropertyIds::NodeId];
 
-				auto targetIsChild = ValueTreeIterator::forEach(nTree, ValueTreeIterator::IterationType::Forward, [targetNodeId](ValueTree& tree)
+				auto targetIsChild = ValueTreeIterator::forEach(nTree, [targetNodeId](ValueTree& tree)
 				{
 					if (tree.getType() == PropertyIds::Node)
 						return tree[PropertyIds::ID] == targetNodeId;
@@ -983,7 +983,7 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
     
 	bool isMulti = FactoryIds::isMulti(getNodePath(container->nodeTree));
 
-	ValueTreeIterator::forEach(nodeTree, ValueTreeIterator::OnlyChildren, [&](ValueTree& c)
+	ValueTreeIterator::forEach(nodeTree, [&](ValueTree& c)
 	{
 		auto parentPath = getNodePath(ValueTreeIterator::findParentWithType(c, PropertyIds::Node));
 
@@ -998,7 +998,7 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 			children.add(getNode(c, false));
 
 		return false;
-	});
+	}, ValueTreeIterator::IterationType::OnlyChildren);
 
 	if (children.isEmpty())
 	{
@@ -1322,7 +1322,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	rc.expressionCode = c[PropertyIds::Expression].toString();
 
-	ValueTreeIterator::forEach(v, ValueTreeIterator::Forward, [&](ValueTree& t)
+	ValueTreeIterator::forEach(v, [&](ValueTree& t)
 	{
 		if (t.getType() == PropertyIds::Node)
 		{
@@ -1351,7 +1351,7 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 					auto root = ValueTreeIterator::getRoot(t);
 					auto numChannelsToUse = rootChannelAmount;
 
-					ValueTreeIterator::forEach(root, ValueTreeIterator::Forward, [&](ValueTree& c)
+					ValueTreeIterator::forEach(root, [&](ValueTree& c)
 					{
 						if (FactoryIds::isContainer(getNodePath(c)) && ValueTreeIterator::isParent(t, c))
 							numChannelsToUse = ValueTreeIterator::calculateChannelCount(c, numChannelsToUse);
@@ -1658,86 +1658,12 @@ NamespacedIdentifier ValueTreeBuilder::getNodeVariable(const ValueTree& n)
 	return getCurrentScope().getChildId(typeId);
 }
 
-bool ValueTreeIterator::isBetween(IterationType l, IterationType u, IterationType v)
-{
-	return v >= l && v <= u;
-}
-
-bool ValueTreeIterator::isBackwards(IterationType t)
-{
-	return t == Backwards || t == ChildrenFirstBackwards || t == OnlyChildrenBackwards;
-}
-
-bool ValueTreeIterator::isRecursive(IterationType t)
-{
-	return !isBetween(OnlyChildren, OnlyChildrenBackwards, t);
-}
-
-bool ValueTreeIterator::forEach(ValueTree v, IterationType type, const std::function<bool(ValueTree& v)>& f)
-{
-	if (isBetween(Forward, Backwards, type))
-	{
-		if (f(v))
-			return true;
-	}
-
-	if (isBackwards(type))
-	{
-		for (int i = v.getNumChildren() - 1; i >= 0; i--)
-		{
-			if (isRecursive(type))
-			{
-				if (forEach(v.getChild(i), type, f))
-					return true;
-			}
-			else
-			{
-                auto c = v.getChild(i);
-				if (f(c))
-					return true;
-			}
-		}
-	}
-	else
-	{
-		for (auto c : v)
-		{
-			if (isRecursive(type))
-			{
-				if (forEach(c, type, f))
-					return true;
-			}
-			else
-			{
-				if (f(c))
-					return true;
-			}
-		}
-	}
-
-	if (isBetween(ChildrenFirst, ChildrenFirstBackwards, type))
-	{
-		if (f(v))
-			return true;
-	}
-
-	return false;
-}
 
 
 
-bool ValueTreeIterator::forEachParent(ValueTree& v, const Func& f)
-{
-	if (!v.isValid())
-		return false;
 
-	if (f(v))
-		return true;
 
-    
-    auto p = v.getParent();
-	return forEachParent(p, f);
-}
+
 
 bool ValueTreeIterator::needsModulationWrapper(ValueTree& v)
 {
@@ -1842,7 +1768,7 @@ int ValueTreeIterator::getMaxDataTypeIndex(const ValueTree& rootTree, ExternalDa
 {
 	int max = -1;
 
-	forEach(rootTree, Forward, [t, &max](ValueTree& v)
+	forEach(rootTree, [t, &max](ValueTree& v)
 	{
 		if (v.getType() == PropertyIds::Node)
 		{
@@ -1877,7 +1803,7 @@ bool ValueTreeIterator::isAutomated(const ValueTree& parameterTree)
 	auto pId = Identifier(parameterTree[PropertyIds::ID].toString());
 	auto nodeId = Identifier(findParentWithType(parameterTree, PropertyIds::Node)[PropertyIds::ID].toString());
 
-	return forEach(root, Forward, [pId, nodeId](ValueTree& v)
+	return forEach(root, [pId, nodeId](ValueTree& v)
 	{
 		if (v.getType() == PropertyIds::Connection || v.getType() == PropertyIds::ModulationTarget)
 		{
@@ -1938,7 +1864,7 @@ juce::ValueTree ValueTreeIterator::getTargetParameterTree(const ValueTree& conne
 
 	ValueTree ptr;
 
-	forEach(getRoot(connectionTree), Forward, [&](ValueTree& v)
+	forEach(getRoot(connectionTree), [&](ValueTree& v)
 	{
 		if (v.getType() == PropertyIds::Parameter)
 		{
@@ -1979,13 +1905,13 @@ int ValueTreeIterator::calculateChannelCount(const ValueTree& nodeTree, int numC
 
 bool ValueTreeIterator::hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId)
 {
-	return forEach(nodeTree, ChildrenFirst, [propId](ValueTree& v)
+	return forEach(nodeTree, [propId](ValueTree& v)
 	{
 		if (v.getType() != PropertyIds::Node)
 			return false;
 
 		return CustomNodeProperties::nodeHasProperty(v, propId);
-	});
+	}, IterationType::ChildrenFirst);
 }
 
 snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
@@ -2100,7 +2026,7 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 
 			parent.addComment("External Data Connections", Base::CommentType::FillTo80Light);
 
-			ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), ValueTreeIterator::Forward, [&](ValueTree& childNode)
+			ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), [&](ValueTree& childNode)
 			{
 				if (childNode.getType() == PropertyIds::Node)
 				{
@@ -2535,7 +2461,7 @@ void ValueTreeBuilder::RootContainerBuilder::addSendConnections()
 
 void ValueTreeBuilder::RootContainerBuilder::createStackVariablesForChildNodes()
 {
-	ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), ValueTreeIterator::Forward, [&](ValueTree& childNode)
+	ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), [&](ValueTree& childNode)
 	{
 		if (childNode.getType() == PropertyIds::Node)
 		{
@@ -2625,7 +2551,7 @@ snex::cppgen::Node::List ValueTreeBuilder::RootContainerBuilder::getContainersWi
 
 bool ValueTreeBuilder::RootContainerBuilder::hasComplexTypes() const
 {
-	return ValueTreeIterator::forEach(root->nodeTree, ValueTreeIterator::Forward, [](ValueTree& v)
+	return ValueTreeIterator::forEach(root->nodeTree, [](ValueTree& v)
 	{
 		if(ValueTreeIterator::isComplexDataNode(v))
 			return true;

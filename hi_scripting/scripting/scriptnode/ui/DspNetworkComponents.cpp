@@ -1292,7 +1292,7 @@ bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
 
 	DspNetworkListeners::PatchAutosaver::removeDanglingConnections(saveCopy);
 
-    cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, DspNetworkListeners::PatchAutosaver::stripValueTree);
+    valuetree::Helpers::forEach(saveCopy, DspNetworkListeners::PatchAutosaver::stripValueTree);
 
     auto xml = saveCopy.createXml();
 
@@ -1873,7 +1873,7 @@ struct DuplicateHelpers
         int index = 0;
         auto iptr = &index;
         
-        valuetree::Helpers::foreach(p, [&iptr, v](ValueTree& c)
+        valuetree::Helpers::forEach(p, [&iptr, v](ValueTree& c)
         {
             *iptr = *iptr + 1;
             return c == v;

@@ -38,19 +38,72 @@ using namespace juce;
 namespace valuetree
 {
 
-bool Helpers::foreach(ValueTree v, const Function& f)
+bool Helpers::isBetween(IterationType l, IterationType u, IterationType v)
 {
-	if (f(v))
-		return true;
+	return v >= l && v <= u;
+}
 
-	for (auto c : v)
+bool Helpers::isBackwards(IterationType t)
+{
+	return t == IterationType::Backwards || t == IterationType::ChildrenFirstBackwards || t == IterationType::OnlyChildrenBackwards;
+}
+
+bool Helpers::isRecursive(IterationType t)
+{
+	return !isBetween(IterationType::OnlyChildren, IterationType::OnlyChildrenBackwards, t);
+}
+
+bool Helpers::forEach(ValueTree v, const std::function<bool(ValueTree& v)>& f, IterationType type)
+{
+	if (isBetween(IterationType::Forward, IterationType::Backwards, type))
 	{
-		if (foreach(c, f))
+		if (f(v))
+			return true;
+	}
+
+	if (isBackwards(type))
+	{
+		for (int i = v.getNumChildren() - 1; i >= 0; i--)
+		{
+			if (isRecursive(type))
+			{
+				if (forEach(v.getChild(i), f, type))
+					return true;
+			}
+			else
+			{
+				auto c = v.getChild(i);
+				if (f(c))
+					return true;
+			}
+		}
+	}
+	else
+	{
+		for (auto c : v)
+		{
+			if (isRecursive(type))
+			{
+				if (forEach(c, f, type))
+					return true;
+			}
+			else
+			{
+				if (f(c))
+					return true;
+			}
+		}
+	}
+
+	if (isBetween(IterationType::ChildrenFirst, IterationType::ChildrenFirstBackwards, type))
+	{
+		if (f(v))
 			return true;
 	}
 
 	return false;
 }
+
 
 var Helpers::valueTreeToJSON(const ValueTree& v)
 {
@@ -161,6 +214,63 @@ juce::ValueTree Helpers::jsonToValueTree(var data, const Identifier& typeId, boo
 	}
 
 	return v;
+}
+
+ValueTree Helpers::findParentWithType(const ValueTree& v, const Identifier& id)
+{
+	auto p = v.getParent();
+
+	if (!p.isValid())
+		return {};
+
+	if (p.getType() == id)
+		return p;
+
+	return findParentWithType(p, id);
+}
+
+bool Helpers::isLast(const ValueTree& v)
+{
+	return (v.getParent().getNumChildren() - 1) == getIndexInParent(v);
+}
+
+bool Helpers::isParent(const ValueTree& v, const ValueTree& possibleParent)
+{
+	if (!v.isValid())
+		return false;
+
+	if (v == possibleParent)
+		return true;
+
+	return isParent(v.getParent(), possibleParent);
+}
+
+int Helpers::getIndexInParent(const ValueTree& v)
+{
+	return v.getParent().indexOf(v);
+}
+
+ValueTree Helpers::getRoot(const ValueTree& v)
+{
+	auto p = v.getParent();
+
+	if (p.isValid())
+		return getRoot(p);
+
+	return v;
+}
+
+bool Helpers::forEachParent(ValueTree& v, const Function& f)
+{
+	if (!v.isValid())
+		return false;
+
+	if (f(v))
+		return true;
+
+
+	auto p = v.getParent();
+	return forEachParent(p, f);
 }
 
 void PropertyListener::setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_)

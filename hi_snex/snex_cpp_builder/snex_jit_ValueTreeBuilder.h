@@ -41,81 +41,21 @@ namespace cppgen {
 using namespace juce;
 using namespace scriptnode;
 
-struct ValueTreeIterator
+struct ValueTreeIterator: public valuetree::Helpers
 {
-	using Func = std::function<bool(ValueTree& v)>;
+	
+	
 
-	enum IterationType
+	static bool fixCppIllegalCppKeyword(String& s)
 	{
-		Forward,
-		Backwards,
-		ChildrenFirst,
-		ChildrenFirstBackwards,
-		OnlyChildren,
-		OnlyChildrenBackwards
-	};
-
-	static ValueTree findParentWithType(const ValueTree& v, const Identifier& id)
-	{
-		auto p = v.getParent();
-
-		if (!p.isValid())
-			return {};
-
-		if (p.getType() == id)
-			return p;
-
-		return findParentWithType(p, id);
-	}
-
-	static bool isLast(const ValueTree& v)
-	{
-		return (v.getParent().getNumChildren() - 1) == getIndexInParent(v);
-	}
-
-	static bool isParent(const ValueTree& v, const ValueTree& possibleParent)
-	{
-		if (!v.isValid())
-			return false;
-
-		if (v == possibleParent)
+		if (s == "switch")
+		{
+			s = "switcher";
 			return true;
+		}
 
-		return isParent(v.getParent(), possibleParent);
+		return false;
 	}
-
-	static int getIndexInParent(const ValueTree& v)
-	{
-		return v.getParent().indexOf(v);
-	}
-
-	static ValueTree getRoot(const ValueTree& v)
-	{
-		auto p = v.getParent();
-
-		if (p.isValid())
-			return getRoot(p);
-
-		return v;
-	}
-
-    static bool fixCppIllegalCppKeyword(String& s)
-    {
-        if(s == "switch")
-        {
-            s = "switcher";
-            return true;
-        }
-        
-        return false;
-    }
-    
-	static bool isBetween(IterationType l, IterationType u, IterationType v);
-	static bool isBackwards(IterationType t);
-	static bool isRecursive(IterationType t);
-	static bool forEach(ValueTree v, IterationType type, const Func& f);
-
-	static bool forEachParent(ValueTree& v, const Func& f);
 
 	static bool needsModulationWrapper(ValueTree& v);
 

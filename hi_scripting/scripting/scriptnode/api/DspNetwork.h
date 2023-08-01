@@ -1508,7 +1508,7 @@ struct DspNetworkListeners
 
 			DspNetworkListeners::PatchAutosaver::removeDanglingConnections(saveCopy);
 
-			cppgen::ValueTreeIterator::forEach(saveCopy, snex::cppgen::ValueTreeIterator::IterationType::Forward, stripValueTree);
+			valuetree::Helpers::forEach(saveCopy, stripValueTree);
 
 			auto xml = saveCopy.createXml();
 
