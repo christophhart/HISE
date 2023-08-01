@@ -17,7 +17,7 @@
   ==============================================================================
 */
 
-#include "hi_rlottie/src/vector/pixman/pixman-arm-neon-asm.h"
+
 
 //[Headers] You can add your own extra header files here...
 namespace hise { using namespace juce;
