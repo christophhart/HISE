@@ -33,6 +33,8 @@
 #ifndef MODULATORSAMPLERVOICE_H_INCLUDED
 #define MODULATORSAMPLERVOICE_H_INCLUDED
 
+#include "ModulatorSampler.h"
+
 namespace hise { using namespace juce;
 
 /** A ModulatorSamplerVoice is a wrapper around a StreamingSamplerVoice with logic for modulation stuff
