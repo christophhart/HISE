@@ -1817,6 +1817,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::tableUpdated(ViewportWrapp
 	if (auto t = dynamic_cast<TableListBox*>(w.getComponent()))
 	{
 		t->updateContent();
+		t->repaint();
 	}
 }
 
