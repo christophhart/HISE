@@ -327,9 +327,14 @@ public:
 		controllerNumbersInPopup = controllerNumberToShow;
 	}
 
+	bool hasSelectedControllerPopupNumbers() const
+	{
+		return !controllerNumbersInPopup.isZero();
+	}
+
 	bool shouldAddControllerToPopup(int controllerValue) const
 	{
-		if (controllerNumbersInPopup.isZero())
+		if (!hasSelectedControllerPopupNumbers())
 			return true;
 
 		return controllerNumbersInPopup[controllerValue];

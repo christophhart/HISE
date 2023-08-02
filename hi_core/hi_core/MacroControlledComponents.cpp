@@ -142,20 +142,34 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	if (!isOnHiseModuleUI)
 	{
-		m.addItem(Learn, "Learn " + ccName, true, learningActive);
-		
-		auto value = handler->getMidiControllerNumber(processor, parameterToUse);
-
-		PopupMenu s;
-		for (int i = 1; i < 127; i++)
+		auto addNumbersToMenu = [&](PopupMenu& mToUse)
 		{
-			if(handler->shouldAddControllerToPopup(i))
-				s.addItem(i + MidiOffset, handler->getControllerName(i), handler->isMappable(i), i == value);
-		}
+			auto value = handler->getMidiControllerNumber(processor, parameterToUse);
 
-		m.addSubMenu("Assign " + ccName, s, true);
+			for (int i = 1; i < 127; i++)
+			{
+				if (handler->shouldAddControllerToPopup(i))
+					mToUse.addItem(i + MidiOffset, handler->getControllerName(i), handler->isMappable(i), i == value);
+			}
+		};
+
+		if(handler->hasSelectedControllerPopupNumbers())
+		{
+			m.addSectionHeader("Assign " + ccName);
+
+			addNumbersToMenu(m);
+		}
+		else
+		{
+			m.addItem(Learn, "Learn " + ccName, true, learningActive);
+
+			PopupMenu s;
+
+			addNumbersToMenu(s);
+
+			m.addSubMenu("Assign " + ccName, s, true);
+		}
 	}
-		
 
 	auto& data = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData();
 
