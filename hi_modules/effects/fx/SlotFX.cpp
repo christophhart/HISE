@@ -652,22 +652,7 @@ juce::Result HardcodedSwappableEffect::sanityCheck()
 
 		return Result::fail(errorMessage);
 	}
-
-#if 0
-	if (previouslySavedTree.isValid() && previouslySavedTree.hasProperty("DllHash"))
-	{
-		int hash = (int)previouslySavedTree["DllHash"];
-
-		auto idx = getModuleList().indexOf(currentEffect);
-
-		if (factory->getHash(idx) != hash)
-		{
-			errorMessage << "Hash mismatch for effect " + currentEffect;
-			return Result::fail(errorMessage);
-		}
-    }
-#endif
-
+	
 	if (opaqueNode != nullptr)
 	{
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
@@ -798,8 +783,7 @@ ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 	}
 
 	v.setProperty("Network", currentEffect, nullptr);
-	v.setProperty("DllHash", hash, nullptr);
-
+	
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
 	if (opaqueNode != nullptr)
