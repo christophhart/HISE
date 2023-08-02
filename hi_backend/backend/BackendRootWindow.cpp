@@ -49,12 +49,6 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	loadKeyPressMap();
 
-	if (GET_HISE_SETTING(owner->getMainSynthChain(), HiseSettings::Other::GlassEffect))
-	{
-		if(!CompileExporter::isExportingFromCommandLine())
-			screenshotter = new PeriodicScreenshotter(floatingRoot);
-	}
-
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
 
@@ -228,8 +222,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 #else
 
 	addAndMakeVisible(menuBar = new MenuBarComponent(this));
-	plaf = new PeriodicScreenshotter::PopupGlassLookAndFeel(*menuBar);
-	menuBar->setLookAndFeel(plaf);
+	menuBar->setLookAndFeel(&plaf);
 
 #endif
 
@@ -524,9 +517,6 @@ void BackendRootWindow::resized()
 		menuBar->setBounds(getLocalBounds().withHeight(menuBarOffset));
 
 	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
-
-	if(screenshotter != nullptr)
-		screenshotter->notify();
 
 #if IS_STANDALONE_APP
 
@@ -861,32 +851,6 @@ FloatingTile* BackendPanelHelpers::SamplerWorkspace::get(BackendRootWindow* root
 void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow* rootWindow, ModulatorSampler* sampler)
 {
 	rootWindow->getBackendProcessor()->workspaceBroadcaster.sendMessage(sendNotificationAsync, ModulatorSampler::getConnectorId(), sampler);
-}
-
-
-
-void PeriodicScreenshotter::run()
-{
-	while (!threadShouldExit())
-	{
-        if(MessageManager::getInstanceWithoutCreating() == nullptr)
-        {
-            return;
-        }
-        
-		Image newImage;
-		{
-			MessageManagerLock mm;
-			ScopedPopupDisabler spd(comp);
-            newImage = comp->createComponentSnapshot(comp->getLocalBounds(), true, 0.5f);
-		}
-
-		gin::applyStackBlur(newImage, 30);
-
-		std::swap(newImage, img);
-
-		wait(6000);
-	}
 }
 
 

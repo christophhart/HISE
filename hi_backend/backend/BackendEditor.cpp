@@ -727,7 +727,7 @@ struct PopupFloatingTile: public Component,
         auto w = GET_BACKEND_ROOT_WINDOW(c);
         auto mc = w->getBackendProcessor();
         var dataToLoad;
-        PeriodicScreenshotter::PopupGlassLookAndFeel plaf(*c);
+		PopupLookAndFeel plaf;
         PopupMenu m;
         m.setLookAndFeel(&plaf);
 

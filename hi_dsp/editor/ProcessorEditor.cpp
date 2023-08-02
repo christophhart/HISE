@@ -567,7 +567,7 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
     // Create the Popup
 
     {
-        PeriodicScreenshotter::PopupGlassLookAndFeel plaf(*editorIfPossible);
+		PopupLookAndFeel plaf;
         PopupMenu m;
         
         m.setLookAndFeel(&plaf);

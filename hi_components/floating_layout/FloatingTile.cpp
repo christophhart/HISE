@@ -67,8 +67,6 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	localPointInComponent(localPoint),
 	moveButton("move", this, factory)
 {
-    PeriodicScreenshotter::disableForScreenshot(this);
-
 	addAndMakeVisible(moveButton);
 	moveButton.setToggleModeWithColourChange(true);
 
@@ -173,27 +171,9 @@ void FloatingTilePopup::paint(Graphics &g)
 #if USE_BACKEND
     
     auto ok = false;
-    
-    if(auto p = findParentComponentOfClass<PeriodicScreenshotter::Holder>())
-    {
-        if (auto s = p->getScreenshotter())
-        {
-            s->drawGlassSection(g, this, getRectangle(RectangleType::BoxPath));
-            g.setOpacity(1.0f);
-
-            g.saveState();
-            g.setImageResamplingQuality(Graphics::lowResamplingQuality);
-            g.drawImageTransformed(shadowImage, AffineTransform::scale(4.0f));
-            g.restoreState();
-            ok = true;
-        }
-    }
 	
-    if(!ok)
-	{
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
-		g.fillPath(boxPath);
-	}
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
+	g.fillPath(boxPath);
 		
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF222222)));
 	g.strokePath(boxPath, PathStrokeType(1.0f));

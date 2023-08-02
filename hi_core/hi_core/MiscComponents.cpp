@@ -657,8 +657,6 @@ c2(Colours::white),
 borderRadius(0.0f),
 borderSize(1.0f)
 {
-    PeriodicScreenshotter::disableForScreenshot(this);
-    
 	addAndMakeVisible(closeButton);
 	
 	drawHandler->addDrawActionListener(this);

@@ -58,7 +58,6 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public ComponentWithBackendConnection,
 						  public DragAndDropContainer,
 						  public ComponentWithHelp::GlobalHandler,
-						  public PeriodicScreenshotter::Holder,
                           public ProjectHandler::Listener,
 						  public MainController::LockFreeDispatcher::PresetLoadListener
 {
@@ -221,8 +220,6 @@ public:
 
 	MarkdownPreview* createOrShowDocWindow(const MarkdownLink& l);
 
-	PeriodicScreenshotter* getScreenshotter() override { return screenshotter; };
-
 	void paintOverChildren(Graphics& g) override;
 
 	template <class EditorType> bool addEditorTabsOfType()
@@ -271,7 +268,7 @@ private:
 
 	friend class BackendCommandTarget;
 
-	ScopedPointer<PeriodicScreenshotter::PopupGlassLookAndFeel> plaf;
+	PopupLookAndFeel plaf;
 
 	BackendProcessor *owner;
 
@@ -296,8 +293,6 @@ private:
 	ScopedPointer<FloatingTileDocumentWindow> docWindow;
 
 	bool resetOnClose = false;
-
-	ScopedPointer<PeriodicScreenshotter> screenshotter;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendRootWindow);
 };
