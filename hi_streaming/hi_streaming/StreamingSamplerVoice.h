@@ -307,7 +307,7 @@ public:
 
 	void setTimestretchRatio(double newRatio)
 	{
-		stretchRatio = jlimit(0.5, 2.0, newRatio);
+		stretchRatio = jlimit(0.0625, 2.0, newRatio);
 	}
 
 	void setSkipLatency(bool shouldSkipLatency)

@@ -1056,7 +1056,7 @@ double ModulatorSampler::getCurrentTimestretchRatio() const
 
 void ModulatorSampler::setTimestretchRatio(double newRatio)
 {
-	ratioToUse = jlimit(0.5, 2.0, newRatio);
+	ratioToUse = jlimit(0.0625, 2.0, newRatio);
 }
 
 void ModulatorSampler::AsyncPurger::timerCallback()

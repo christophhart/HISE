@@ -5,166 +5,162 @@ namespace core {
 using namespace juce;
 using namespace hise;
 
-template <int NV> struct TimestretchSyncer : public hise::TempoListener
-{
-    TimestretchSyncer() = default;
 
-    void prepare(PrepareSpecs ps)
-    {
-        tempoSyncer = ps.voiceIndex->getTempoSyncer();
-        tempoSyncer->registerItem(this);
-
-        state.prepare(ps);
-    }
-
-    DllBoundaryTempoSyncer* tempoSyncer = nullptr;
-
-    ~TimestretchSyncer() override
-    {
-        if (tempoSyncer != nullptr)
-            tempoSyncer->deregisterItem(this);
-    }
-
-    void updateFromPPQ(double ppq)
-    {
-        for (auto& s : state)
-        {
-            auto normed = hmath::fmod(ppq, s.numQuarters) / s.numQuarters;
-
-            normed *= s.numSamples;
-            normed += s.numSamples;
-            normed = hmath::fmod(normed, s.numSamples);
-
-            s.resyncPosition.setModValueIfChanged(normed);
-        }
-    }
-    
-    void onTransportChange(bool isPlaying_, double ppqPosition) override
-    {
-        isPlaying = isPlaying_;
-
-        if (isPlaying)
-            updateFromPPQ(ppqPosition);
-    }
-
-    
-
-    void onResync(double ppqPosition) override
-    {
-        updateFromPPQ(ppqPosition);
-    }
-
-    bool updatePlayback(bool& shouldPlay)
-    {
-        if (enabled)
-        {
-	        if(shouldPlay != isPlaying)
-	        {
-                shouldPlay = isPlaying;
-
-                if (isPlaying)
-                    state.get().resyncPosition.changed = 1;
-
-                return shouldPlay;
-	        }
-
-            return false;
-        }
-
-        return false;
-    }
-
-    bool resync(double& pos) const
-    {
-        if(enabled)
-        {
-            return state.get().resyncPosition.getChangedValue(pos);
-        }
-
-        return false;
-    }
-    
-    void setSource(double sourceSamplerate, int numSourceSamples, double numQuarters = 0.0)
-    {
-	    const auto numSeconds = static_cast<double>(numSourceSamples) / sourceSamplerate;
-
-        if (numQuarters == 0.0)
-        {
-            // Try to guess the duration by picking the nearest numQuarters that matches a bar
-            const auto durationPerQuarterForCurrentBpm = 60.0 / bpm;
-
-            const auto exp = std::log2(numSeconds / durationPerQuarterForCurrentBpm);
-            numQuarters = std::pow(2.0, hmath::round(exp));
-        }
-
-        const auto durationPerQuarter = numSeconds / numQuarters;
-
-        for (auto& s : state)
-        {
-            s.sourceBpm = 60.0 / durationPerQuarter;
-            s.numSamples = numSourceSamples;
-            s.numQuarters = numQuarters;
-        }
-    }
-
-    double getRatio(double fallbackRatio) const
-    {
-        if(enabled)
-        {
-            auto bpmRatio = bpm / state.get().sourceBpm;
-
-            while (bpmRatio < 0.5)
-                bpmRatio *= 2.0;
-
-            while (bpmRatio > 2.0)
-                bpmRatio *= 0.5;
-
-            return bpmRatio;
-        }
-
-        return fallbackRatio;
-    }
-
-    void tempoChanged(double newTempo) override
-    {
-        bpm = newTempo;
-    }
-
-    struct State
-    {
-        double sourceBpm = 120.0;
-        double numSamples = 0.0;
-        double numQuarters = 0.0;
-        ModValue resyncPosition;
-    };
-
-    void setEnabled(bool shouldBeEnabled)
-    {
-        enabled = shouldBeEnabled;
-
-        if(enabled)
-        {
-	        for(auto& s: state)
-	        {
-                s.resyncPosition.changed = 1;
-	        }
-        }
-    }
-
-    PolyData<State, NV> state;
-
-    double bpm = 120.0;
-
-    bool enabled = true;
-
-    bool isPlaying = false;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimestretchSyncer)
-};
 
 template <int NV> struct stretch_player: public data::base,
                                          public polyphonic_base
 {
+    struct tempo_syncer: public hise::TempoListener
+    {
+        tempo_syncer() = default;
+
+        void prepare(PrepareSpecs ps)
+        {
+            tempoSyncer = ps.voiceIndex->getTempoSyncer();
+            tempoSyncer->registerItem(this);
+
+            state.prepare(ps);
+        }
+
+        DllBoundaryTempoSyncer* tempoSyncer = nullptr;
+
+        ~tempo_syncer() override
+        {
+            if (tempoSyncer != nullptr)
+                tempoSyncer->deregisterItem(this);
+        }
+
+        void updateFromPPQ(double ppq)
+        {
+            for (auto& s : state)
+            {
+                auto normed = hmath::fmod(ppq, s.numQuarters) / s.numQuarters;
+
+                normed *= s.numSamples;
+                normed += s.numSamples;
+                normed = hmath::fmod(normed, s.numSamples);
+
+                s.resyncPosition.setModValueIfChanged(normed);
+            }
+        }
+
+        void onTransportChange(bool isPlaying_, double ppqPosition) override
+        {
+            isPlaying = isPlaying_;
+
+            if (isPlaying)
+                updateFromPPQ(ppqPosition);
+        }
+
+
+
+        void onResync(double ppqPosition) override
+        {
+            updateFromPPQ(ppqPosition);
+        }
+
+        bool updatePlayback(bool& shouldPlay)
+        {
+            if (enabled)
+            {
+                if (shouldPlay != isPlaying)
+                {
+                    shouldPlay = isPlaying;
+
+                    if (isPlaying)
+                        state.get().resyncPosition.changed = 1;
+
+                    return shouldPlay;
+                }
+
+                return false;
+            }
+
+            return false;
+        }
+
+        bool resync(double& pos) const
+        {
+            if (enabled)
+            {
+                return state.get().resyncPosition.getChangedValue(pos);
+            }
+
+            return false;
+        }
+
+        void setSource(double sourceSamplerate, int numSourceSamples, double numQuarters = 0.0)
+        {
+            const auto numSeconds = static_cast<double>(numSourceSamples) / sourceSamplerate;
+
+            if (numQuarters == 0.0)
+            {
+                // Try to guess the duration by picking the nearest numQuarters that matches a bar
+                const auto durationPerQuarterForCurrentBpm = 60.0 / bpm;
+
+                const auto exp = std::log2(numSeconds / durationPerQuarterForCurrentBpm);
+                numQuarters = std::pow(2.0, hmath::round(exp));
+            }
+
+            const auto durationPerQuarter = numSeconds / numQuarters;
+
+            for (auto& s : state)
+            {
+                s.sourceBpm = 60.0 / durationPerQuarter;
+                s.numSamples = numSourceSamples;
+                s.numQuarters = numQuarters;
+            }
+        }
+
+        double getRatio(double fallbackRatio) const
+        {
+            if (enabled)
+            {
+                auto bpmRatio = bpm / state.get().sourceBpm;
+                
+                return jmin(bpmRatio, 2.0);
+            }
+
+            return fallbackRatio;
+        }
+
+        void tempoChanged(double newTempo) override
+        {
+            bpm = newTempo;
+        }
+
+        struct State
+        {
+            double sourceBpm = 120.0;
+            double numSamples = 0.0;
+            double numQuarters = 0.0;
+            ModValue resyncPosition;
+        };
+
+        void setEnabled(bool shouldBeEnabled)
+        {
+            enabled = shouldBeEnabled;
+
+            if (enabled)
+            {
+                for (auto& s : state)
+                {
+                    s.resyncPosition.changed = 1;
+                }
+            }
+        }
+
+        PolyData<State, NV> state;
+
+        double bpm = 120.0;
+
+        bool enabled = true;
+
+        bool isPlaying = false;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(tempo_syncer)
+    };
+
     constexpr static int NumVoices = NV;
     
     SN_NODE_ID("stretch_player");
@@ -548,7 +544,7 @@ template <int NV> struct stretch_player: public data::base,
     
     PolyData<State, NV> state;
 
-    TimestretchSyncer<NV> syncer;
+    tempo_syncer syncer;
 };
 }
 }

@@ -17,12 +17,15 @@ struct time_stretcher
     void reset();
     void process(float** input, int numInput, float** outputs, int numOutput);
     void configure(int numChannels, double sourceSampleRate);
-    void setTransposeSemitones(double semitTones, double tonality=0.0);
+    void setTransposeSemitones(double semiTones, double tonality=0.0);
+    void setTransposeFactor(double pitchFactor, double tonality = 0.0);
     
     void setResampleBuffer(double ratio, float* resampleBuffer_, int totalNumFloats);
 
     double skipLatency(float** input, double ratio);
-    
+
+    double getLatency(double ratio) const;
+
     time_stretcher();
     ~time_stretcher();
     

@@ -571,7 +571,7 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 
 			if(skipLatency)
 			{
-				auto numBeforeOutput = 2048 + 2048 * stretchRatio;
+				auto numBeforeOutput = stretcher.getLatency(stretchRatio);
 
 				StereoChannelData data = loader.fillVoiceBuffer(*getTemporaryVoiceBuffer(), numBeforeOutput);
 
@@ -582,7 +582,7 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 
 				float* inp[2] = { outL, outR };
 
-				voiceUptime = stretcher.skipLatency(inp, stretchRatio);
+				voiceUptime += stretcher.skipLatency(inp, stretchRatio);
 
 				if (!loader.advanceReadIndex(voiceUptime))
 				{

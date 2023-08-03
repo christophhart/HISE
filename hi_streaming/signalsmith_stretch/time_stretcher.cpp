@@ -135,7 +135,7 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     
     pimpl->reset();
     
-    auto numBeforeOutput = roundToInt(pimpl->outputLatency() + pimpl->inputLatency() * ratio);
+    auto numBeforeOutput = roundToInt(getLatency(ratio));
     
     float* thisInputs[2];
     float* outputs[2];
@@ -169,6 +169,11 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     }
     
     return currentPos;
+}
+
+double time_stretcher::getLatency(double ratio) const
+{
+    return pimpl->outputLatency() + pimpl->inputLatency() * ratio;
 }
 
 void time_stretcher::process(float** input, int numInput, float** originalOutputs, int numOutput)
@@ -232,6 +237,11 @@ void time_stretcher::process(float** input, int numInput, float** originalOutput
 void time_stretcher::setTransposeSemitones(double semiTones, double tonality)
 {
     pimpl->setTransposeSemitones(semiTones, tonality);
+}
+
+void time_stretcher::setTransposeFactor(double pitchFactor, double tonality)
+{
+    pimpl->setTransposeFactor(pitchFactor, tonality);
 }
 
 void time_stretcher::setResampleBuffer(double ratio, float* resampleBuffer_, int size)
