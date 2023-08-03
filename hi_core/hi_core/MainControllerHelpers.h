@@ -662,6 +662,9 @@ private:
 	AudioSampleBuffer processBuffer;
 	MidiBuffer delayedMidiBuffer;
 
+	HiseEventBuffer shortBuffer;
+	int lastBlockSizeForShortBuffer = 0;
+
 	int fullBlockSize;
 
 	int sampleIndexInternal = 0;

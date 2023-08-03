@@ -1217,6 +1217,20 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		if (numSamplesToCalculate <= 0)
 		{
+			if (!midiMessages.isEmpty())
+			{
+				// We need to save the messages for the next block so that
+				// they don't get dropped (FL Studio yay...)
+				lastBlockSizeForShortBuffer = buffer.getNumSamples();
+				MidiBuffer::Iterator it(midiMessages);
+
+				MidiMessage m;
+				int pos;
+
+				while (it.getNextEvent(m, pos))
+					shortBuffer.addEvent(m, pos);
+			}
+
 			// we need to calculate less samples than we have already available, so we can just return
 			// the samples and skip the process for this buffer
 			int numToCopy = buffer.getNumSamples();
@@ -1278,24 +1292,27 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 			AudioSampleBuffer tempBuffer(ptrs, buffer.getNumChannels(), paddedBufferSize);
 
-			const int lastEventTime = midiMessages.getLastEventTime();
-
-			if (lastEventTime > numSamplesToCalculate)
+			if (lastTimestamp > numSamplesToCalculate || !shortBuffer.isEmpty())
 			{
-				MidiBuffer other;
 				MidiBuffer::Iterator it(midiMessages);
+
+				delayedMidiBuffer.clear();
 
 				MidiMessage m;
 				int pos;
 
+				for (auto& e : shortBuffer)
+					delayedMidiBuffer.addEvent(e.toMidiMesage(), e.getTimeStamp());
+
 				while (it.getNextEvent(m, pos))
 				{
-					other.addEvent(m, jmin(pos, numSamplesToCalculate));
+					delayedMidiBuffer.addEvent(m, jmin(pos + lastBlockSizeForShortBuffer, numSamplesToCalculate));
 				}
 
-				other.swapWith(midiMessages);
+				delayedMidiBuffer.swapWith(midiMessages);
 
-				//jassertfalse;
+				shortBuffer.clear();
+				lastBlockSizeForShortBuffer = 0;
 			}
 
 			mc->setMaxEventTimestamp(numSamplesToCalculate);
@@ -1310,8 +1327,6 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 			if(numSamplesToCalculate > 0)
 				FloatVectorOperations::copy(buffer.getWritePointer(i, numLeftOvers), ptrs[i], numSamplesToCalculate);
-
-			
 
 			if(thisLeftOver != 0)
 				FloatVectorOperations::copy(leftOverChannels[i], ptrs[i] + numSamplesToCalculate, thisLeftOver);
