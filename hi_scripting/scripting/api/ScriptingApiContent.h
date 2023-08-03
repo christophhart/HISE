@@ -2732,7 +2732,7 @@ public:
 		//newData.setProperty(hId, h, nullptr);
 
 #if JUCE_WINDOWS && USE_BACKEND
-		auto undoManager = &getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->getUndoManager();
+		auto undoManager = nullptr; //&getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster()->getUndoManager();
 #else
 		UndoManager* undoManager = nullptr;
 #endif
