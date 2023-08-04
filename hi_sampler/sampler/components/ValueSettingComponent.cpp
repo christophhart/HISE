@@ -53,7 +53,7 @@ struct ValueSettingComponent::ValueSlider : public Component
 			parentC->addAndMakeVisible(this);
 			
 			auto b = parentC->getLocalArea(c, c->getLocalBounds());
-			b = b.withSizeKeepingCentre(600, 32).translated(0, -40);
+			b = b.withSizeKeepingCentre(600, 40).translated(0, -48);
 			setWantsKeyboardFocus(false);
 			setBounds(b);
 		}
@@ -79,14 +79,16 @@ struct ValueSettingComponent::ValueSlider : public Component
 
 	void paint(Graphics& g) override
 	{
-		g.setColour(Colour(0x88222222));
+		g.setColour(Colour(0xDD222222));
 		g.fillAll();
 		g.setColour(Colours::white.withAlpha(0.2f));
 		g.drawRect(getLocalBounds().toFloat().reduced(1.0f), 1.0f);
 
-		auto b = getLocalBounds().toFloat().reduced(3.0f);
+		auto b = getLocalBounds().toFloat().reduced(8.0f, 3.0f);
 		g.setFont(GLOBAL_FONT());
+
 		
+
 		g.drawText(String(roundToInt(slider.getValue())), b, Justification::centredTop);
 		g.drawText(String(fullRange.getStart()), b, Justification::topLeft);
 		g.drawText(String(fullRange.getEnd()), b, Justification::topRight);
@@ -258,6 +260,8 @@ void ValueSettingComponent::paint (Graphics& g)
 
 void ValueSettingComponent::resized()
 {
+	
+
 	auto b = getLocalBounds().reduced(2, 0);
 
 	descriptionLabel->setBounds(b.removeFromTop(JUCE_LIVE_CONSTANT_OFF(15)));
@@ -333,6 +337,63 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
     //[/UserbuttonClicked_Post]
 }
 
+void ValueSettingComponent::mouseDrag(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+		return;
+
+	auto distX = e.getDistanceFromDragStartX();
+	auto distY = e.getDistanceFromDragStartY();
+
+	auto distToUse = 0;
+
+	if (hmath::abs(distX) > hmath::abs(distY))
+		distToUse = distX / 2;
+	else
+		distToUse = distY * -1;
+
+	auto normed = (double)distToUse / (400.0);
+
+	for (int i = 0; i < currentSelection.size(); i++)
+	{
+		auto r = downRanges[i];
+
+		NormalisableRange<double> nr(r.getStart(), r.getEnd());
+
+		auto startValue = downValues[i];
+		auto newValue = jlimit(0.0, 1.0, nr.convertTo0to1(startValue) + normed);
+		newValue = nr.convertFrom0to1(newValue);
+		currentSelection[i]->setSampleProperty(soundProperty, newValue);
+	}
+
+	updateValue();
+}
+
+void ValueSettingComponent::mouseDoubleClick(const MouseEvent& event)
+{
+	if (event.mods.isRightButtonDown())
+		return;
+
+	for(auto s: currentSelection)
+	{
+		s->setSampleProperty(soundProperty, s->getDefaultValue(soundProperty));
+	}
+
+	updateValue();
+}
+
+void ValueSettingComponent::Dismisser::mouseDown(const MouseEvent& e)
+{
+	auto isParentOrSame = [&](Component* parent)
+	{
+		return e.eventComponent == parent || parent->isParentOf(e.eventComponent);
+	};
+
+	if (isParentOrSame(&parent) || isParentOrSame(parent.newSlider))
+		return;
+
+	parent.resetValueSlider();
+}
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
@@ -356,67 +417,44 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
     }
 #endif
     
-    if(currentSelection.size() != 0 && e.mods.isRightButtonDown())
+    if(!currentSelection.isEmpty())
     {
-		if (newSlider != nullptr)
+		downValues.clearQuick();
+		downRanges.clearQuick();
+
+		for(auto s: currentSelection)
 		{
-			resetValueSlider();
-			return;
+			downValues.add((int)s->getSampleProperty(soundProperty));
+			downRanges.add(s->getPropertyRange(soundProperty));
 		}
 
-		auto se = getSubEditorComponent(this);
-
-		callRecursive<ValueSettingComponent>(se, [](ValueSettingComponent* v)
+		if(e.mods.isRightButtonDown())
 		{
-			v->resetValueSlider();
-			return false;
-		});
+			
 
-		newSlider = new ValueSlider(this);
-		descriptionLabel->setFont(GLOBAL_BOLD_FONT());
-		descriptionLabel->setColour(Label::textColourId, Colours::white);
+			if (newSlider != nullptr)
+			{
+				resetValueSlider();
+				return;
+			}
 
-#if 0
-        Slider *s = new Slider();
-        
-		
+			auto se = getSubEditorComponent(this);
 
-        s->setSliderStyle(Slider::LinearBar);
-        s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
-        s->setRange(currentSelection[0]->getPropertyRange(soundProperty).getStart(),
-                    currentSelection[0]->getPropertyRange(soundProperty).getEnd(),
-                    1);
-        s->setTextBoxStyle (Slider::NoTextBox, false, 80, 20);
-        s->setColour (Slider::thumbColourId, Colours::white);
-        s->setColour (Slider::rotarySliderOutlineColourId, Colour (0x00000000));
-        s->setColour (Slider::textBoxOutlineColourId, Colour (0x00808080));
-        s->addListener (this);
-        
-        s->setLookAndFeel(&laf);
-        
-        currentSlider = s;
-        
-		s->setWantsKeyboardFocus(false);
+			if(dismisser == nullptr)
+			{
+				dismisser = new Dismisser(*this, se);
+			}
+			
+			callRecursive<ValueSettingComponent>(se, [](ValueSettingComponent* v)
+			{
+				v->resetValueSlider();
+				return false;
+			});
 
-        if(currentSelection.size() != 0)
-        {
-            s->setValue(currentSelection[0]->getSampleProperty(soundProperty), dontSendNotification);
-        }
-        else
-        {
-            s->setEnabled(false);
-        }
-        
-        s->setSize (600, 32);
-        
-		if (auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this))
-		{
-			auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
-
-			auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(s), rootPos, root);
-			cb.setWantsKeyboardFocus(false);
+			newSlider = new ValueSlider(this);
+			descriptionLabel->setFont(GLOBAL_BOLD_FONT());
+			descriptionLabel->setColour(Label::textColourId, Colours::white);
 		}
-#endif
     }
 }
 

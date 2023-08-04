@@ -814,9 +814,10 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 			return;
 
         auto r = currentSound->getPropertyRange(propId);
-        
-        value = jlimit(r.getStart(), r.getEnd(), value);
-        
+
+		if (!r.contains(value))
+			return;
+		
         currentSound->setSampleProperty(propId, value, true);
         return;
     }

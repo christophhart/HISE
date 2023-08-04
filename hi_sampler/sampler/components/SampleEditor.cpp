@@ -850,7 +850,7 @@ String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
         case SampleMapCommands::EnableSampleStartArea: return on ? "samplestart-area" : "";
         case SampleMapCommands::EnableLoopArea: return on ? "loop-area" : "";
         case SampleMapCommands::NormalizeVolume: return on ? "normalise-on" : "normalise-off";
-        case SampleMapCommands::LoopEnabled: return on ? "loop-on" : "loop-off";
+        case SampleMapCommands::LoopEnabled: return on ? "loop-on" : "loop-on";
         case SampleMapCommands::ExternalEditor: return on ? "external" : "";
         case SampleMapCommands::ZeroCrossing: return on ? "zero" : "";
 		case SampleMapCommands::ImproveLoopPoints: return on ? "improve-loop" : "";

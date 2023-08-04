@@ -203,6 +203,33 @@ public:
     void labelTextChanged (Label* labelThatHasChanged);
     void buttonClicked (Button* buttonThatWasClicked);
 
+	void mouseDrag(const MouseEvent& event) override;
+
+	void mouseDoubleClick(const MouseEvent& event) override;
+
+	struct Dismisser: public juce::MouseListener
+	{
+		Dismisser(ValueSettingComponent& parent_, Component* mainParent_):
+		  mainParent(mainParent_),
+		  parent(parent_)
+		{
+			mainParent->addMouseListener(this, true);
+		}
+
+		~Dismisser()
+		{
+			if (mainParent.getComponent() != nullptr)
+				mainParent->removeMouseListener(this);
+		}
+
+		void mouseDown(const MouseEvent& e) override;
+
+		Component::SafePointer<Component> mainParent;
+		ValueSettingComponent& parent;
+	};
+
+	ScopedPointer<Dismisser> dismisser;
+
 private:
 
 	ChainBarButtonLookAndFeel cb;
@@ -218,6 +245,8 @@ private:
 
 	SampleSelection currentSelection;
 
+	Array<int> downValues;
+	Array<Range<int>> downRanges;
 	Array<int> dragStartValues;
 
 	int sliderStartValue;
