@@ -555,7 +555,7 @@ struct WrapperWithMenuBarBase : public Component,
 			{
 				auto ft = findParentComponentOfClass<FloatingTile>();
 
-				this->currentPopup = showPopup(ft, this, createFunc, this->currentPopup != nullptr);
+				this->currentPopup = showPopup(ft, this, createFunc, this->currentPopup == nullptr);
 
 				return false;
 			};

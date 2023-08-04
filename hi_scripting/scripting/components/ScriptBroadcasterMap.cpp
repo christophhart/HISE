@@ -596,7 +596,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 				
 			int totalHeight = 24 * numRows + HeaderHeight;
 
-			setSize(totalWidth, totalHeight);
+			setSize(jmax(200, totalWidth), totalHeight);
 		}
 
 		Component::SafePointer<ScriptBroadcasterMap> map;
