@@ -4070,7 +4070,8 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
             auto r = i->callSync(thisValues);
             if (!r.wasOk())
             {
-				sendErrorMessage(i, r.getErrorMessage(), false);
+
+				sendErrorMessage(i, this->getMetadata().id + ": " + r.getErrorMessage(), false);
                 return r;
             }
         }
