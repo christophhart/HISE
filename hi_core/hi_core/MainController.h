@@ -123,16 +123,15 @@ public:
 		public:
 
 			PreloadListener(SampleManager& sampleManager):
-				manager(sampleManager)
+				manager(&sampleManager)
 			{
-				manager.addPreloadListener(this);
+				manager->addPreloadListener(this);
 			}
 
 			virtual ~PreloadListener()
 			{
-				manager.removePreloadListener(this);
-
-				masterReference.clear();
+				if(manager != nullptr)
+					manager->removePreloadListener(this);
 			}
 
 			/** This gets called whenever the preload state changes.
@@ -149,15 +148,14 @@ public:
 			/** Returns the preload message. */
 			String getCurrentErrorMessage() const
 			{
-				return manager.currentPreloadMessage;
+				return manager != nullptr ? manager->currentPreloadMessage : "";
 			}
 
 		private:
 
-			SampleManager& manager;
+			WeakReference<SampleManager> manager;
 
-			friend class WeakReference<PreloadListener>;
-			WeakReference<PreloadListener>::Master masterReference;
+			JUCE_DECLARE_WEAK_REFERENCEABLE(PreloadListener);
 		};
 		
 		/** A POD structure that contains information about a Preload function. */
@@ -379,6 +377,7 @@ public:
 
 		std::atomic<int> pendingTasksWithSuspension;
 
+		JUCE_DECLARE_WEAK_REFERENCEABLE(SampleManager);
 	};
 
 	/** Contains methods for handling macros, MIDI automation and MPE gestures. */
