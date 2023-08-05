@@ -613,10 +613,7 @@ private:
 	}
 };
 
-struct FloatStretcher : public SignalsmithStretch<float>
-{
 
-};
 
 }} // namespace
 #endif // include guard

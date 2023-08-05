@@ -300,9 +300,9 @@ public:
 	/** Set this to false if you're using HLAC compressed monoliths. */
 	void setStreamingBufferDataType(bool shouldBeFloat);
 
-	void setEnableTimestretch(bool shouldBeEnabled)
+	void setEnableTimestretch(bool shouldBeEnabled, const Identifier& engineId={})
 	{
-		stretcher.setEnabled(shouldBeEnabled);
+		stretcher.setEnabled(shouldBeEnabled, engineId);
 	}
 
 	void setTimestretchRatio(double newRatio)

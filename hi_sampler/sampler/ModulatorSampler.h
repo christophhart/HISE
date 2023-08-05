@@ -277,6 +277,7 @@ public:
 		double tonality = 0.0;
 		bool skipStart = false;
 		double numQuarters = 0.0;
+		Identifier engineId;
 
 		void reset()
 		{
@@ -284,6 +285,7 @@ public:
 			tonality = 0.0;
 			skipStart = false;
 			numQuarters = 0.0;
+			engineId = {};
 		}
 
 		var toJSON() const
@@ -295,6 +297,7 @@ public:
 			obj->setProperty("SkipLatency", skipStart);
 			obj->setProperty("Mode", modes[static_cast<int>(mode)]);
 			obj->setProperty("NumQuarters", numQuarters);
+			obj->setProperty("PreferredEngine", engineId.toString());
 
 			return {obj.get()};
 		}
@@ -307,6 +310,13 @@ public:
 			skipStart = json.getProperty("SkipLatency", false);
 			mode = static_cast<TimestretchMode>(modes.indexOf(json.getProperty("Mode", "Disabled").toString()));
 			numQuarters = json.getProperty("NumQuarters", 0.0);
+
+			auto id = json.getProperty("PreferredEngine", "").toString();
+
+			if (id.isEmpty())
+				engineId = {};
+			else
+				engineId = Identifier(id);
 		}
 
 		void restoreFromValueTree(const ValueTree& v) override
@@ -731,7 +741,7 @@ public:
 private:
 
 	scriptnode::PolyHandler syncVoiceHandler;
-	scriptnode::core::stretch_player<NUM_POLYPHONIC_VOICES>::tempo_syncer syncer;
+	scriptnode::core::stretch_player<1>::tempo_syncer syncer;
 
 	TimestretchOptions currentTimestretchOptions;
 
