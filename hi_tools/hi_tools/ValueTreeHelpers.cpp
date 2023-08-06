@@ -104,6 +104,17 @@ bool Helpers::forEach(ValueTree v, const std::function<bool(ValueTree& v)>& f, I
 	return false;
 }
 
+void Helpers::dump(const ValueTree& v)
+{
+#if JUCE_DEBUG
+	auto xml = v.createXml();
+
+	auto xmlText = xml->createDocument("");
+
+	DBG(xmlText);
+#endif
+}
+
 
 var Helpers::valueTreeToJSON(const ValueTree& v)
 {

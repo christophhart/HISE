@@ -59,7 +59,8 @@ struct Helpers
 
 	static bool forEach(ValueTree v, const Function& f, IterationType type=IterationType::Forward);
 
-	
+	static void dump(const ValueTree& v);
+
 	static var valueTreeToJSON(const ValueTree& v);
 	static juce::ValueTree jsonToValueTree(var data, const Identifier& typeId, bool isParentData=true);
 	static ValueTree findParentWithType(const ValueTree& v, const Identifier& id);

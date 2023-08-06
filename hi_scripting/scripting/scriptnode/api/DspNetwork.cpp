@@ -1077,6 +1077,14 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 {
 	auto c = treeToClone.createCopy();
 
+	valuetree::Helpers::forEach(c, [](ValueTree& v)
+	{
+		if (v[PropertyIds::Automated])
+			v.removeProperty(PropertyIds::Automated, nullptr);
+
+		return false;
+	});
+
 	StringArray sa;
 	for (auto n : nodes)
 		sa.add(n->getId());
