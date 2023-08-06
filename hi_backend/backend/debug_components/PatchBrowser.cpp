@@ -1593,7 +1593,9 @@ void PatchBrowser::PatchItem::applyLayout()
     auto canBeDeleted = dynamic_cast<Chain*>(getProcessor()) == nullptr;
     canBeDeleted |= dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr;
     canBeDeleted &= getProcessor() != getProcessor()->getMainController()->getMainSynthChain();
-
+    canBeDeleted &= dynamic_cast<SlotFX*>(getProcessor()->getParentProcessor(false, true)) == nullptr;
+    
+    
     closeButton.setVisible(canBeDeleted && findParentComponentOfClass<PatchBrowser>()->showChains);
     
     if (closeButton.isVisible())
