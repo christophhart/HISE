@@ -890,6 +890,27 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 		else
 			eq->addFilterBand(freq, gain);
 	}
+	else
+	{
+		Array<int> distance;
+
+		int minDist = INT_MAX;
+
+		for(int i = 0; i < dragComponents.size(); i++)
+		{
+			distance.add(hmath::abs(dragComponents[i]->getX() - e.getMouseDownX()));
+			minDist = jmin(minDist, distance.getLast());
+		}
+
+		for(int i = 0; i < dragComponents.size(); i++)
+		{
+			if(distance[i] == minDist)
+			{
+				selectDragger(i);
+				dragComponents[i]->mouseDown(e);
+			}
+		}
+	}
 }
 
 void FilterDragOverlay::mouseUp(const MouseEvent& )
