@@ -633,7 +633,12 @@ bool ScriptingObjects::ScriptFile::writeMidiFile(var eventList, var metadataObje
 			t.restoreFromValueTree(v);
 		}
 
-		newSequence->setLengthFromTimeSignature(t);
+        if(t.numBars == 0)
+        {
+            t.numBars = hmath::ceil((double)events.getLast().getTimeStamp() / (double)HiseMidiSequence::TicksPerQuarter);
+        }
+        
+        newSequence->setLengthFromTimeSignature(t);
 		newSequence->setTimeStampEditFormat(HiseMidiSequence::TimestampEditFormat::Ticks);
 		MidiPlayer::EditAction::writeArrayToSequence(newSequence, events, 120, 44100.0);
 
