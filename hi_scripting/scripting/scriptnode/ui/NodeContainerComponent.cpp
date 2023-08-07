@@ -159,6 +159,8 @@ void ContainerComponent::mouseExit(const MouseEvent& )
 
 void ContainerComponent::mouseDown(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (auto n = findParentComponentOfClass<DspNetworkGraph>())
 	{
 		if (e.mods.isShiftDown())
@@ -194,12 +196,16 @@ bool ContainerComponent::shouldPaintCable(CableLocation location) const
 
 void ContainerComponent::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (lasso.isVisible())
 		lasso.dragLasso(e.getEventRelativeTo(findParentComponentOfClass<DspNetworkGraph>()));
 }
 
 void ContainerComponent::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	if (lasso.isVisible())
 	{
 		lasso.endLasso();

@@ -181,6 +181,8 @@ void NodeComponent::Header::resized()
 
 void NodeComponent::Header::mouseDown(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (e.mods.isRightButtonDown())
 	{
 		parent.handlePopupMenuResult((int)MenuActions::EditProperties);
@@ -189,6 +191,8 @@ void NodeComponent::Header::mouseDown(const MouseEvent& e)
 
 void NodeComponent::Header::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	if (e.mods.isRightButtonDown())
 	{
 		return;
@@ -207,6 +211,8 @@ void NodeComponent::Header::mouseUp(const MouseEvent& e)
 
 void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (isDragging)
 	{
 		d.dragComponent(&parent, e, nullptr);

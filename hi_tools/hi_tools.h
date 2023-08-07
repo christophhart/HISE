@@ -252,6 +252,7 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/JavascriptTokeniser.h"
 #include "hi_tools/JavascriptTokeniserFunctions.h"
 
+#include "hi_standalone_components/ZoomableViewport.h"
 #include "hi_standalone_components/ChocWebView.h"
 #include "hi_standalone_components/CodeEditorApiBase.h"
 #include "hi_standalone_components/AdvancedCodeEditor.h"

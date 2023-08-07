@@ -434,6 +434,8 @@ void SliderPack::sliderValueChanged(Slider *s)
 
 void SliderPack::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (!isEnabled()) return;
 
 	int x = e.getEventRelativeTo(this).getMouseDownPosition().getX();
@@ -480,6 +482,8 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 void SliderPack::mouseDrag(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (!isEnabled()) return;
 
 	int x = e.getEventRelativeTo(this).getPosition().getX();
@@ -568,6 +572,8 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 void SliderPack::mouseUp(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	if (!isEnabled()) return;
 
 	currentlyDragged = false;

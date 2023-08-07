@@ -386,13 +386,9 @@ public:
 
 	void comboBoxChanged(ComboBox *c) override;
                
-    void mouseUp(const MouseEvent& e) override
-    {
-        abortTouch();
-        ComboBox::mouseUp(e);
-    }
-    
-    void touchAndHold(Point<int> downPosition) override;
+    void mouseUp(const MouseEvent& e) override;
+
+	void touchAndHold(Point<int> downPosition) override;
     
 	void resized() override
 	{
@@ -438,7 +434,8 @@ public:
 	}
 #endif
 
-    void mouseDown(const MouseEvent &e);
+    void mouseDown(const MouseEvent &e) override;
+	void mouseDrag(const MouseEvent& e) override;
 
 	NormalisableRange<double> getRange() const override 
 	{ 
@@ -551,7 +548,10 @@ public:
 
 	void mouseUp(const MouseEvent& e) override;
 
-    void touchAndHold(Point<int> downPosition) override;
+	void mouseDrag(const MouseEvent& event) override;
+	
+
+	void touchAndHold(Point<int> downPosition) override;
     
 	void resized() override
 	{
@@ -650,55 +650,11 @@ public:
 		numModes
 	};
 
-	static void setRangeSkewFactorFromMidPoint(NormalisableRange<double>& range, const double midPoint)
-	{
-		const double length = range.end - range.start;
+	static void setRangeSkewFactorFromMidPoint(NormalisableRange<double>& range, const double midPoint);
 
-		if (range.end > range.start && range.getRange().contains(midPoint))
-			range.skew = std::log(0.5) / std::log((midPoint - range.start)
-				/ (length));
-	}
+	static double getMidPointFromRangeSkewFactor(const NormalisableRange<double>& range);
 
-	static double getMidPointFromRangeSkewFactor(const NormalisableRange<double>& range)
-	{
-		const double length = range.end - range.start;
-
-		return std::pow(2.0, -1.0 / range.skew) * length + range.start;
-	}
-
-	static NormalisableRange<double> getRangeForMode(HiSlider::Mode m)
-	{
-		NormalisableRange<double> r;
-
-		switch(m)
-		{
-		case Frequency:				r = NormalisableRange<double>(20.0, 20000.0, 1);
-									setRangeSkewFactorFromMidPoint(r, 1500.0);
-									break;
-		case Decibel:				r = NormalisableRange<double>(-100.0, 0.0, 0.1);
-									setRangeSkewFactorFromMidPoint(r, -18.0);
-									break;
-		case Time:					r = NormalisableRange<double>(0.0, 20000.0, 1);
-									setRangeSkewFactorFromMidPoint(r, 1000.0);
-									break;
-		case TempoSync:				r = NormalisableRange<double>(0, TempoSyncer::numTempos-1, 1);
-									break;
-		case Pan:					r = NormalisableRange<double>(-100.0, 100.0, 1);
-									break;
-		case NormalizedPercentage:	r = NormalisableRange<double>(0.0, 1.0, 0.01);									
-									break;
-		case Linear:				r = NormalisableRange<double>(0.0, 1.0, 0.01); 
-									break;
-		case Discrete:				r = NormalisableRange<double>();
-									r.interval = 1;
-									break;
-        case numModes: 
-		default:					jassertfalse; 
-									r = NormalisableRange<double>();
-		}
-
-		return r;
-	};
+	static NormalisableRange<double> getRangeForMode(HiSlider::Mode m);;
 
 	/** Creates a Slider. The name will be displayed. 
 	*
@@ -706,35 +662,11 @@ public:
 	*/
 	HiSlider(const String &name);;
 
-    ~HiSlider()
-    {
-		cleanup();
-        setLookAndFeel(nullptr);
-    }
-    
-	static String getFrequencyString(float input)
-	{
-		if (input < 30.0f)
-		{
-			return String(input, 1) + " Hz";
-		}
-		if (input < 1000.0f)
-		{
-			return String(roundToInt(input)) + " Hz";
-		}
-		else
-		{
-			return String(input / 1000.0, 1) + " kHz";
-		}
-	}
-	
-	static double getFrequencyFromTextString(const String& t)
-	{
-		if (t.contains("kHz"))
-			return t.getDoubleValue() * 1000.0;
-		else
-			return t.getDoubleValue();
-	}
+    ~HiSlider() override;
+
+	static String getFrequencyString(float input);
+
+	static double getFrequencyFromTextString(const String& t);
 
 	void mouseDown(const MouseEvent &e) override;
 
@@ -742,62 +674,21 @@ public:
 
 	void mouseUp(const MouseEvent&) override;
 
+	void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
+
 	void touchAndHold(Point<int> downPosition) override;
 
-	void onTextValueChange(double newValue) override
-	{
-		setAttributeWithUndo((float)newValue);
-	}
-	
-	void resized() override
-	{
-		Slider::resized();
-		numberTag->setBounds(getLocalBounds());
-	}
+	void onTextValueChange(double newValue) override;
+
+	void resized() override;
 
 	String getModeId() const;
 
-	void setMode(Mode m)
-	{
-		if (mode != m)
-		{
-			mode = m;
-
-			normRange = getRangeForMode(m);
-
-			setTextValueSuffix(getModeSuffix());
-
-			setRange(normRange.start, normRange.end, normRange.interval);
-			setSkewFactor(normRange.skew);
-
-			setValue(modeValues[m], dontSendNotification);
-
-			repaint();
-		}
-	}
-
+	void setMode(Mode m);
 
 
 	/** sets the mode. */
-	void setMode(Mode m, double min, double max, double mid=DBL_MAX, double stepSize=DBL_MAX)
-	{ 
-		
-
-		if(mode != m)
-		{
-			mode = m; 
-			setModeRange(min, max, mid, stepSize);
-			setTextValueSuffix(getModeSuffix());
-
-			setValue(modeValues[m], dontSendNotification);
-
-			repaint();
-		}
-		else
-		{
-			setModeRange(min, max, mid, stepSize);
-		}
-	};
+	void setMode(Mode m, double min, double max, double mid=DBL_MAX, double stepSize=DBL_MAX);;
 
 	Mode getMode() const { return mode; }
 
@@ -837,84 +728,27 @@ public:
 	void updateValue(NotificationType sendAttributeChange=sendNotification) override;
 
 	/** Overrides the slider method to display the tempo names for the TempoSync mode. */
-	String getTextFromValue(double value) override
-	{
-		if(mode == Pan) setTextValueSuffix(getModeSuffix());
-
-		if (mode == Frequency) return getFrequencyString((float)value);
-		if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
-		else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
-		else				  return Slider::getTextFromValue(value);
-	};
+	String getTextFromValue(double value) override;;
 
 	/** Overrides the slider method to set the value from the Tempo names */
-	double getValueFromText(const String &text) override
-	{
-		if (mode == Frequency) return getFrequencyFromTextString(text);
-		if(mode == TempoSync) return TempoSyncer::getTempoIndex(text);
-		else if (mode == NormalizedPercentage) return text.getDoubleValue() / 100.0;
-		else				  return Slider::getValueFromText(text);
-	};
+	double getValueFromText(const String &text) override;;
 
 	void setLookAndFeelOwned(LookAndFeel *fslaf);
 
 	NormalisableRange<double> getRange() const override { return normRange; };
 
-	static double getSkewFactorFromMidPoint(double minimum, double maximum, double midPoint)
-	{
-		if (maximum > minimum)
-			return log(0.5) / log((midPoint - minimum) / (maximum - minimum));
-		
-		jassertfalse;
-		return 1.0;
-	}
+	static double getSkewFactorFromMidPoint(double minimum, double maximum, double midPoint);
 
-	static String getSuffixForMode(HiSlider::Mode mode, float panValue)
-	{
-		jassert(mode != numModes);
+	static String getSuffixForMode(HiSlider::Mode mode, float panValue);
 
-
-
-		switch (mode)
-		{
-		case Frequency:		return " Hz";
-		case Decibel:		return " dB";
-		case Time:			return " ms";
-		case Pan:			return panValue > 0.0 ? "R" : "L";
-		case TempoSync:		return String();
-		case Linear:		return String();
-		case Discrete:		return String();
-		case NormalizedPercentage:	return "%";
-		default:			return String();
-		}
-	}
-
-    
-    
 private:
 
-	String getModeSuffix()
+	String getModeSuffix() const
 	{
 		return getSuffixForMode(mode, (float)modeValues[Pan]);
 	};
 
-	void setModeRange(double min, double max, double mid, double stepSize)
-	{
-		jassert(mode != numModes);
-
-		normRange = NormalisableRange<double>();
-
-		normRange.start = min;
-		normRange.end = max;
-		
-		normRange.interval = stepSize != DBL_MAX ? stepSize : 0.01;
-
-		if(mid != DBL_MAX)
-			setRangeSkewFactorFromMidPoint(normRange, mid);
-
-		setRange(normRange.start, normRange.end, normRange.interval);
-		setSkewFactor(normRange.skew);
-	};
+	void setModeRange(double min, double max, double mid, double stepSize);;
 	
 	Mode mode;
 

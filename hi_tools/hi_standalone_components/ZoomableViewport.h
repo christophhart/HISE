@@ -39,7 +39,12 @@ using namespace juce;
 
 using DragAnimator = juce::AnimatedPosition<juce::AnimatedPositionBehaviours::ContinuousWithMomentum>;
 
-
+enum class MouseEventFlags
+{
+	Down,
+	Up,
+	Drag
+};
 
 struct ZoomableViewport : public Component,
 	public ScrollBar::Listener,
@@ -62,6 +67,12 @@ struct ZoomableViewport : public Component,
 			parent(p)
 		{
 			refreshListener();
+		}
+
+		~MouseWatcher()
+		{
+			if (auto c = parent.getContentComponent())
+				c->removeMouseListener(this);
 		}
 
 		void refreshListener()
@@ -89,14 +100,7 @@ struct ZoomableViewport : public Component,
 		}
 
 		Point<float> getDeltaAfterResize();
-
 		Point<float> mousePos, graphMousePos;
-
-		~MouseWatcher()
-		{
-			if (auto c = parent.getContentComponent())
-				c->removeMouseListener(this);
-		}
 
 		ZoomableViewport& parent;
 	};
@@ -105,6 +109,9 @@ struct ZoomableViewport : public Component,
 
 	virtual ~ZoomableViewport();
 
+	static bool checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& details);
+
+	static bool checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type);
 
 	void mouseDown(const MouseEvent& e) override;
 
@@ -122,28 +129,7 @@ struct ZoomableViewport : public Component,
 
 	void positionChanged(DragAnimator&, double newPosition) override;
 
-	void timerCallback() override
-	{
-		swapBounds = swapBounds.transformedBy(AffineTransform::scale(swapScale, swapScale, swapBounds.getCentreX(), swapBounds.getCentreY()));
-
-		if (getContentComponent()->isVisible())
-		{
-			swapAlpha *= JUCE_LIVE_CONSTANT_OFF(1.2f);
-
-			getContentComponent()->setAlpha(swapAlpha);
-
-			if (swapAlpha >= 1.0f)
-			{
-				stopTimer();
-			}
-		}
-		else
-		{
-			swapAlpha *= JUCE_LIVE_CONSTANT_OFF(0.9f);
-		}
-
-		repaint();
-	}
+	void timerCallback() override;
 
 	void makeSwapSnapshot(float newSwapScale)
 	{
@@ -451,11 +437,11 @@ struct ZoomableViewport : public Component,
 		mouseWheelScroll = shouldBeEnabled;
 	}
 
+	std::function<void(Component*)> contentFunction;
+
 private:
 	
-
     float maxZoomFactor = 3.0f;
-	
 
 	bool dragToScroll = false;
 	bool mouseWheelScroll = true;
@@ -473,333 +459,34 @@ private:
 	ScopedPointer<MouseWatcher> mouseWatcher;
 };
 
-struct WrapperWithMenuBarBase : public Component,
-	public ComboBoxListener,
-	public ZoomableViewport::ZoomListener,
-	public Timer
+
+#if USE_BACKEND
+#define CHECK_MIDDLE_MOUSE_DOWN(e) if(ZoomableViewport::checkMiddleMouseDrag(e, MouseEventFlags::Down)) return;
+#define CHECK_MIDDLE_MOUSE_UP(e) if(ZoomableViewport::checkMiddleMouseDrag(e, MouseEventFlags::Up)) return;
+#define CHECK_MIDDLE_MOUSE_DRAG(e) if(ZoomableViewport::checkMiddleMouseDrag(e, MouseEventFlags::Drag)) return;
+#define CHECK_VIEWPORT_SCROLL(e, details) if(ZoomableViewport::checkViewportScroll(e, details)) return;
+
+struct ComponentWithMiddleMouseDrag: public Component
 {
-	struct ButtonWithStateFunction
+	void mouseDown(const MouseEvent& e) override
 	{
-        virtual ~ButtonWithStateFunction() {};
-		virtual bool hasChanged() = 0;
-	};
-
-	static Component* showPopup(FloatingTile* ft, Component* parent, const std::function<Component*()>& createFunc, bool show);
-
-	template <typename ContentType, typename PathFactoryType> struct ActionButtonBase :
-		public Component,
-		public ButtonWithStateFunction,
-		public SettableTooltipClient
-	{
-		ActionButtonBase(ContentType* parent_, const String& name) :
-			Component(name),
-			parent(parent_)
-		{
-			PathFactoryType f;
-
-			p = f.createPath(name);
-			setSize(MenuHeight, MenuHeight);
-			setRepaintsOnMouseActivity(true);
-
-			setColour(TextButton::ColourIds::buttonOnColourId, Colour(SIGNAL_COLOUR));
-			setColour(TextButton::ColourIds::buttonColourId, Colour(0xFFAAAAAA));
-		}
-
-		virtual ~ActionButtonBase()
-		{
-
-		}
-
-		bool hasChanged() override
-		{
-			bool changed = false;
-
-			if (stateFunction)
-			{
-				auto thisState = stateFunction(*parent);
-				changed |= thisState != lastState;
-				lastState = thisState;
-				
-			}
-
-			if (enabledFunction)
-			{
-				auto thisState = enabledFunction(*parent);
-				changed |= thisState != lastEnableState;
-				lastEnableState = thisState;
-			}
-
-			return changed;
-		}
-
-		void triggerClick(NotificationType sendNotification)
-		{
-			if (enabledFunction && !enabledFunction(*parent))
-				return;
-
-			if (actionFunction)
-				actionFunction(*parent);
-
-			SafeAsyncCall::repaint(this);
-		}
-
-		/** Call this function with a lambda that creates a component and it will be shown as Floating Tile popup. */
-		void setControlsPopup(const std::function<Component*()>& createFunc)
-		{
-			stateFunction = [this](ContentType&)
-			{
-				return this->currentPopup != nullptr;
-			};
-
-			actionFunction = [this, createFunc](ContentType&)
-			{
-				auto ft = findParentComponentOfClass<FloatingTile>();
-
-				this->currentPopup = showPopup(ft, this, createFunc, this->currentPopup == nullptr);
-
-				return false;
-			};
-		}
-		
-
-		void paint(Graphics& g) override
-		{
-			auto on = stateFunction ? stateFunction(*parent) : false;
-			auto enabled = enabledFunction ? enabledFunction(*parent) : true;
-			auto over = isMouseOver(false);
-			auto down = isMouseButtonDown(false);
-
-			Colour c = findColour(on ? TextButton::ColourIds::buttonOnColourId : TextButton::ColourIds::buttonColourId);
-
-			float alpha = 1.0f;
-
-			if (!enabled)
-				alpha *= 0.6f;
-
-			if (!over)
-				alpha *= 0.9f;
-			if (!down)
-				alpha *= 0.9f;
-
-			c = c.withAlpha(alpha);
-
-			g.setColour(c);
-
-			PathFactory::scalePath(p, getLocalBounds().toFloat().reduced(down && enabled ? 5.0f : 4.0f));
-
-			g.fillPath(p);
-		}
-
-		void mouseDown(const MouseEvent& e) override
-		{
-			triggerClick(sendNotificationSync);
-		}
-
-		void resized() override
-		{
-			PathFactory::scalePath(p, this, 2.0f);
-		}
-
-		Path p;
-
-		using Callback = std::function<bool(ContentType& g)>;
-
-		Component::SafePointer<ContentType> parent;
-		Callback stateFunction;
-		Callback enabledFunction;
-		Callback actionFunction;
-		bool lastState = false;
-		bool lastEnableState = false;
-
-		Component::SafePointer<Component> currentPopup;
-
-		bool isPopupShown = false;
-	};
-
-	constexpr static int MenuHeight = 24;
-
-	struct Spacer : public Component
-	{
-		Spacer(int width)
-		{
-			setSize(width, MenuHeight);
-		}
-	};
-
-	WrapperWithMenuBarBase(Component* contentComponent) :
-		canvas(contentComponent)
-	{
-		addAndMakeVisible(canvas);
-		canvas.addZoomListener(this);
-        canvas.setMaxZoomFactor(1.5f);
-		startTimer(100);
+		CHECK_MIDDLE_MOUSE_DOWN(e);
 	}
-
-	/** Override this method and initialise the menu bar here. */
-	virtual void rebuildAfterContentChange() = 0;
-
-	virtual bool isValid() const { return true; }
-
-	template <typename ComponentType> ComponentType* getComponentWithName(const String& id)
+	void mouseUp(const MouseEvent& e) override
 	{
-		for (auto b : actionButtons)
-		{
-			if (b->getName() == id)
-			{
-				if (auto typed = dynamic_cast<ComponentType*>(b))
-					return typed;
-			}
-		}
-
-		jassertfalse;
-		return nullptr;
+		CHECK_MIDDLE_MOUSE_UP(e);
 	}
-	
-	void setContentComponent(Component* newContent)
+	void mouseDrag(const MouseEvent& e) override
 	{
-		actionButtons.clear();
-		bookmarkBox = nullptr;
-		rebuildAfterContentChange();
-		resized();
+		CHECK_MIDDLE_MOUSE_DRAG(e);
 	}
-
-	void timerCallback() override
-	{
-		for (auto a : actionButtons)
-		{
-			if (!isValid())
-				break;
-
-			if (auto asB = dynamic_cast<ButtonWithStateFunction*>(a))
-			{
-				if (asB->hasChanged())
-					a->repaint();
-			}
-		}
-	}
-
-	void addSpacer(int width)
-	{
-		auto p = new Spacer(width);
-		actionButtons.add(p);
-		addAndMakeVisible(p);
-	}
-
-	void updateBookmarks(ValueTree, bool)
-	{
-		StringArray sa;
-
-		for (auto b : bookmarkUpdater.getParentTree())
-		{
-			sa.add(b["ID"].toString());
-		}
-
-        sa.add("Add new bookmark");
-        
-		auto currentIdx = bookmarkBox->getSelectedId();
-		bookmarkBox->clear(dontSendNotification);
-		bookmarkBox->addItemList(sa, 1);
-		bookmarkBox->setSelectedId(currentIdx, dontSendNotification);
-	}
-
-    virtual int bookmarkAdded() { return -1; };
-    
-	virtual void zoomChanged(float newScalingFactor) {};
-
-	virtual void bookmarkUpdated(const StringArray& idsToShow) = 0;
-	virtual ValueTree getBookmarkValueTree() = 0;
-
-	void comboBoxChanged(ComboBox* c) override
-	{
-        auto isLastEntry = c->getSelectedItemIndex() == c->getNumItems() - 1;
-        
-        if(isLastEntry)
-        {
-            auto idx = bookmarkAdded();
-            
-            if(idx == -1)
-                c->setSelectedId(0, dontSendNotification);
-            else
-                c->setSelectedItemIndex(idx, dontSendNotification);
-            
-            return;
-        }
-        
-		auto bm = bookmarkUpdater.getParentTree().getChildWithProperty("ID", bookmarkBox->getText());
-
-		if (bm.isValid())
-		{
-			auto l = StringArray::fromTokens(bm["Value"].toString(), ";", "");
-			bookmarkUpdated(l);
-		}
-	}
-
-	void addBookmarkComboBox()
-	{
-		bookmarkBox = new ComboBox();
-
-		bookmarkBox->setLookAndFeel(&glaf);
-		bookmarkBox->addListener(this);
-
-		glaf.setDefaultColours(*bookmarkBox);
-
-		auto cTree = getBookmarkValueTree();
-
-		bookmarkUpdater.setCallback(cTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperWithMenuBarBase::updateBookmarks));
-        
-        updateBookmarks({}, true);
-		bookmarkBox->setSize(100, 24);
-		actionButtons.add(bookmarkBox);
-		addAndMakeVisible(bookmarkBox);
-	}
-
-	virtual void addButton(const String& name) = 0;
-
-	void paint(Graphics& g) override
-	{
-		GlobalHiseLookAndFeel::drawFake3D(g, getLocalBounds().removeFromTop(MenuHeight));
-	}
-
-	void addCustomComponent(Component* c)
-	{
-		// must be sized before passing in here
-		jassert(!c->getBounds().isEmpty());
-
-		addAndMakeVisible(c);
-		actionButtons.add(c);
-	}
-
-	void setPostResizeFunction(const std::function<void(Component*)>& f)
-	{
-		resizeFunction = f;
-	}
-
-	void resized() override
-	{
-		auto b = getLocalBounds();
-		auto menuBar = b.removeFromTop(MenuHeight);
-
-		for (auto ab : actionButtons)
-		{
-			ab->setTopLeftPosition(menuBar.getTopLeft());
-			menuBar.removeFromLeft(ab->getWidth() + 3);
-		}
-
-		canvas.setBounds(b);
-
-		if (resizeFunction)
-			resizeFunction(canvas.getContentComponent());
-	}
-    
-	std::function<void(Component*)> resizeFunction;
-
-	ZoomableViewport canvas;
-	OwnedArray<Component> actionButtons;
-
-	GlobalHiseLookAndFeel glaf;
-	ComboBox* bookmarkBox;
-
-	valuetree::ChildListener bookmarkUpdater;
 };
+#else
+#define CHECK_MIDDLE_MOUSE_DOWN(e) ignoreUnused(e);
+#define CHECK_MIDDLE_MOUSE_UP(e) ignoreUnused(e);
+#define CHECK_MIDDLE_MOUSE_DRAG(e) ignoreUnused(e);
+#define CHECK_VIEWPORT_SCROLL(e, details) ignoreUnused(e, details);
+using ComponentWithMiddleMouseDrag = juce::Component;
+#endif
 
 }

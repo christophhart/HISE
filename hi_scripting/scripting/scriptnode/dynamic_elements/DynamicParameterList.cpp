@@ -735,6 +735,8 @@ namespace ui
 
 	void dynamic_list_editor::DragComponent::mouseDown(const MouseEvent& e)
 	{
+		CHECK_MIDDLE_MOUSE_DOWN(e);
+
 		if (e.mods.isRightButtonDown())
 		{
 			if (auto t = pdl->targets[index])
@@ -746,6 +748,8 @@ namespace ui
 
 	void dynamic_list_editor::DragComponent::mouseDrag(const MouseEvent& e)
 	{
+		CHECK_MIDDLE_MOUSE_DRAG(e);
+
 		if (e.mods.isRightButtonDown())
 		{
 			return;
@@ -776,6 +780,8 @@ namespace ui
 
 	void dynamic_list_editor::DragComponent::mouseUp(const MouseEvent& event)
 	{
+		CHECK_MIDDLE_MOUSE_UP(event);
+
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 	}
 

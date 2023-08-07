@@ -140,42 +140,19 @@ private:
 struct ComboBoxWithModeProperty : public ComboBox,
 	public ComboBoxListener
 {
-	ComboBoxWithModeProperty(String defaultValue, const Identifier& id=PropertyIds::Mode) :
-		ComboBox(),
-		mode(id, defaultValue)
-	{
-		addListener(this);
-		setLookAndFeel(&plaf);
-		setColour(ColourIds::textColourId, Colour(0xFFAAAAAA));
-	}
+	ComboBoxWithModeProperty(String defaultValue, const Identifier& id=PropertyIds::Mode);
 
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
-	{
-		if (initialised)
-			mode.storeValue(getText(), um);
-	}
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged);
 
-	void valueTreeCallback(Identifier id, var newValue)
-	{
-        SafeAsyncCall::call<ComboBoxWithModeProperty>(*this, [newValue](ComboBoxWithModeProperty& c)
-        {
-            c.setText(newValue.toString(), dontSendNotification);
-        });
-	}
+	void valueTreeCallback(Identifier id, var newValue);
 
-	void initModes(const StringArray& modes, NodeBase* n)
-	{
-		if (initialised)
-			return;
+	void mouseDown(const MouseEvent& e) override;
 
-		clear(dontSendNotification);
-		addItemList(modes, 1);
+	void mouseDrag(const MouseEvent& e) override;
 
-		um = n->getUndoManager();
-		mode.initialise(n);
-		mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(ComboBoxWithModeProperty::valueTreeCallback), true);
-		initialised = true;
-	}
+	void mouseUp(const MouseEvent& e) override;
+
+	void initModes(const StringArray& modes, NodeBase* n);
 
 	bool initialised = false;
 	UndoManager* um;

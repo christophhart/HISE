@@ -111,6 +111,7 @@
 #include "hi_tools/LorisManager.cpp"
 #endif
 
+#include "hi_standalone_components/ZoomableViewport.cpp"
 #include "hi_standalone_components/SampleDisplayComponent.cpp"
 
 #include "hi_standalone_components/VuMeter.cpp"

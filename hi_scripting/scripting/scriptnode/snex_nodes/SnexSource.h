@@ -878,7 +878,7 @@ struct SnexComplexDataDisplay : public Component,
 	WeakReference<SnexSource> source;
 };
 
-struct SnexMenuBar : public Component,
+struct SnexMenuBar : public ComponentWithMiddleMouseDrag,
 	public ButtonListener,
 	public ComboBox::Listener,
 	public SnexSource::SnexSourceListener,

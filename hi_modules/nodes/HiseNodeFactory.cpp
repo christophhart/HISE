@@ -174,7 +174,7 @@ template <typename ParameterClass> struct xy :
 	JUCE_DECLARE_WEAK_REFERENCEABLE(xy);
 };
 
-struct TransportDisplay : public juce::Component,
+struct TransportDisplay : public juce::ComponentWithMiddleMouseDrag,
 						  public PooledUIUpdater::SimpleTimer
 {
 	TransportDisplay(PooledUIUpdater* updater) :

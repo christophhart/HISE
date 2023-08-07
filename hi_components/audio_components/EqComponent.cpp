@@ -720,6 +720,8 @@ void FilterDragOverlay::setUndoManager(UndoManager* newUndoManager)
 
 void FilterDragOverlay::mouseDrag(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (dragComponents[selectedIndex] != nullptr)
 	{
 		dragComponents[selectedIndex]->mouseDrag(e);
@@ -863,6 +865,8 @@ void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (eq == nullptr)
 		return;
 
@@ -913,8 +917,10 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 	}
 }
 
-void FilterDragOverlay::mouseUp(const MouseEvent& )
+void FilterDragOverlay::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	selectDragger(-1);
 }
 
@@ -947,6 +953,8 @@ void FilterDragOverlay::selectDragger(int index, NotificationType n)
 
 void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	auto pi = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Q);
 	dragQStart = parent.eq->getAttribute(pi);
 
@@ -988,8 +996,10 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 	}
 }
 
-void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& )
+void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	down = false;
 	draggin = false;
 	parent.selectDragger(-1);
@@ -998,6 +1008,8 @@ void FilterDragOverlay::FilterDragComponent::mouseUp(const MouseEvent& )
 
 void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (e.mods.isShiftDown())
 	{
 		auto deltaNormalised = (float)e.getDistanceFromDragStartY() / (float)getParentComponent()->getHeight();

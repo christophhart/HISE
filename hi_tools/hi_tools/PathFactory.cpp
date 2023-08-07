@@ -59,6 +59,51 @@ namespace hise {
 		return p;
 	}
 
+	HiseShapeButton::HiseShapeButton(const String& name, ButtonListener* listener, const PathFactory& factory,
+		const String& offName):
+		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
+	{
+		onShape = factory.createPath(name);
+
+		if (offName.isEmpty())
+			offShape = onShape;
+		else
+			offShape = factory.createPath(offName);
+
+		if (listener != nullptr)
+			addListener(listener);
+
+		refreshShape();
+		refreshButtonColours();
+	}
+
+	void HiseShapeButton::setToggleModeWithColourChange(bool shouldBeEnabled)
+	{
+		setClickingTogglesState(shouldBeEnabled);
+
+		if (shouldBeEnabled)
+			addListener(this);
+		else
+			removeListener(this);
+	}
+
+	void HiseShapeButton::setToggleStateAndUpdateIcon(bool shouldBeEnabled, bool forceUpdate)
+	{
+		if (forceUpdate || getToggleState() != shouldBeEnabled)
+		{
+			setToggleState(shouldBeEnabled, dontSendNotification);
+			refreshButtonColours();
+			refreshShape();
+		}
+	}
+
+	void HiseShapeButton::buttonClicked(Button*)
+	{
+		refreshShape();
+		refreshButtonColours();
+	}
+
+
 	PathFactory::Description::Description(const String& name, const String& description_) :
 		url(StringSanitizer::get(name)),
 		description(description_.trim())
@@ -91,4 +136,70 @@ namespace hise {
 		k = KeyPress(keyCode, mods, 0);
 	}
 
+	void HiseShapeButton::refreshButtonColours()
+	{
+		if (getToggleState())
+		{
+			setColours(onColour.withAlpha(0.8f), onColour, onColour);
+		}
+		else
+		{
+			setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
+		}
+
+		repaint();
+	}
+
+	void HiseShapeButton::refreshShape()
+	{
+		if (getToggleState())
+		{
+			setShape(onShape, false, true, true);
+		}
+		else
+			setShape(offShape, false, true, true);
+	}
+
+	void HiseShapeButton::refresh()
+	{
+		refreshShape();
+		refreshButtonColours();
+	}
+
+	void HiseShapeButton::toggle()
+	{
+		setToggleState(!getToggleState(), dontSendNotification);
+
+		refresh();
+	}
+
+	void HiseShapeButton::mouseDown(const MouseEvent& e)
+	{
+		CHECK_MIDDLE_MOUSE_DOWN(e);
+		ShapeButton::mouseDown(e);
+	}
+
+	void HiseShapeButton::mouseUp(const MouseEvent& e)
+	{
+		CHECK_MIDDLE_MOUSE_UP(e);
+		ShapeButton::mouseUp(e);
+	}
+
+	void HiseShapeButton::mouseDrag(const MouseEvent& e)
+	{
+		CHECK_MIDDLE_MOUSE_DRAG(e);
+		ShapeButton::mouseDrag(e);
+	}
+
+	void HiseShapeButton::setShapes(Path newOnShape, Path newOffShape)
+	{
+		onShape = newOnShape;
+		offShape = newOffShape;
+	}
+
+	void HiseShapeButton::clicked(const ModifierKeys& modifiers)
+	{
+		lastMods = modifiers;
+		ShapeButton::clicked(modifiers);
+	}
 }

@@ -175,8 +175,10 @@ juce::MouseCursor ModulationSourceBaseComponent::createMouseCursor()
 	return mc;
 }
 
-void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
+void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (getSourceNodeFromParent() == nullptr)
 		return;
 
@@ -202,6 +204,8 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent&)
 
 void ModulationSourceBaseComponent::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(false);
 }
 
@@ -220,6 +224,8 @@ void ModulationSourceBaseComponent::resized()
 
 void ModulationSourceBaseComponent::mouseDown(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (getSourceNodeFromParent() == nullptr)
 		return;
 

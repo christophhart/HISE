@@ -275,7 +275,7 @@ namespace ui
 struct dynamic_list_editor : public ScriptnodeExtraComponent<parameter::dynamic_list>,
 	public ButtonListener
 {
-	struct MultiConnectionEditor : public Component
+	struct MultiConnectionEditor : public ComponentWithMiddleMouseDrag
 	{
 		static constexpr int ViewportWidth = 400 + 16;
 

@@ -66,6 +66,58 @@ juce::Identifier NodeProperty::getValueTreePropertyId() const
 	return valueTreePropertyid;
 }
 
+ComboBoxWithModeProperty::ComboBoxWithModeProperty(String defaultValue, const Identifier& id):
+	ComboBox(),
+	mode(id, defaultValue)
+{
+	addListener(this);
+	setLookAndFeel(&plaf);
+	setColour(ColourIds::textColourId, Colour(0xFFAAAAAA));
+}
 
+void ComboBoxWithModeProperty::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+{
+	if (initialised)
+		mode.storeValue(getText(), um);
+}
 
+void ComboBoxWithModeProperty::valueTreeCallback(Identifier id, var newValue)
+{
+	SafeAsyncCall::call<ComboBoxWithModeProperty>(*this, [newValue](ComboBoxWithModeProperty& c)
+	{
+		c.setText(newValue.toString(), dontSendNotification);
+	});
+}
+
+void ComboBoxWithModeProperty::mouseDown(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+	ComboBox::mouseDown(e);
+}
+
+void ComboBoxWithModeProperty::mouseDrag(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+	ComboBox::mouseDrag(e);
+}
+
+void ComboBoxWithModeProperty::mouseUp(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_UP(e);
+	ComboBox::mouseUp(e);
+}
+
+void ComboBoxWithModeProperty::initModes(const StringArray& modes, NodeBase* n)
+{
+	if (initialised)
+		return;
+
+	clear(dontSendNotification);
+	addItemList(modes, 1);
+
+	um = n->getUndoManager();
+	mode.initialise(n);
+	mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(ComboBoxWithModeProperty::valueTreeCallback), true);
+	initialised = true;
+}
 }

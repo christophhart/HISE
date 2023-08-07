@@ -1037,7 +1037,7 @@ bool ScriptContentPanel::Editor::Actions::toggleEditMode(Editor& e)
 	auto shouldDrag = !e.canvas.getContent<Canvas>()->overlay->isEditModeEnabled();
 
 	e.canvas.setScrollOnDragEnabled(shouldDrag);
-	e.canvas.setMouseWheelScrollEnabled(!shouldDrag);
+	e.canvas.setMouseWheelScrollEnabled(true);// !shouldDrag);
 
 	return true;
 }

@@ -287,6 +287,8 @@ void MouseCallbackComponent::setEnableFileDrop(const String& newCallbackLevel, c
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(event);
+
 	ignoreMouseUp = false;
 	startTouch(event.getMouseDownPosition());
 
@@ -487,6 +489,8 @@ void MouseCallbackComponent::mouseMove(const MouseEvent& event)
 
 void MouseCallbackComponent::mouseDrag(const MouseEvent& event)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(event);
+
 	if (draggingEnabled)
 	{
 		dragger.dragComponent(this, event, constrainer);
@@ -513,6 +517,8 @@ void MouseCallbackComponent::mouseExit(const MouseEvent &event)
 
 void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 {
+	CHECK_MIDDLE_MOUSE_UP(event);
+
 	abortTouch();
 
 	if (draggingEnabled)

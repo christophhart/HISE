@@ -40,7 +40,7 @@ using namespace juce;
 
 
 
-template <class T> class ScriptnodeExtraComponent : public Component,
+template <class T> class ScriptnodeExtraComponent : public ComponentWithMiddleMouseDrag,
 public PooledUIUpdater::SimpleTimer
 {
 public:
@@ -65,7 +65,7 @@ private:
 };
 
 
-class NodeComponent : public Component,
+class NodeComponent : public ComponentWithMiddleMouseDrag,
 					  public DspNetwork::SelectionListener,
 					  public ComponentWithDocumentation
 {

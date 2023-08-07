@@ -58,7 +58,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
     setNewContent(processor->getScriptingContent());
 
-	setInterceptsMouseClicks(false, true);
+	setInterceptsMouseClicks(true, true);
 
     setWantsKeyboardFocus(true);
     

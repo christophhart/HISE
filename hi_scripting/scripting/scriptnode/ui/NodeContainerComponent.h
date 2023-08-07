@@ -446,7 +446,7 @@ public:
         numCableLocations
     };
     
-	struct MacroToolbar : public Component,
+	struct MacroToolbar : public ComponentWithMiddleMouseDrag,
 						  public ButtonListener
 	{
 		MacroToolbar() :
@@ -514,7 +514,7 @@ public:
 		HiseShapeButton addButton;
 	};
 	
-	struct ParameterComponent : public Component,
+	struct ParameterComponent : public ComponentWithMiddleMouseDrag,
 								public ValueTree::Listener,
 								public AsyncUpdater
 	{

@@ -505,32 +505,13 @@ void ScriptingContentOverlay::findLassoItemsInArea(Array<ScriptComponent*> &item
 
 void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 {
-	if (e.mods.isMiddleButtonDown())
-	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			setMouseCursor(MouseCursor::DraggingHandCursor);
-			zp->mouseDown(ze);
-			return;
-		}
-	}
+	CHECK_MIDDLE_MOUSE_DOWN(e);
 }
 
 void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 {
-	if (e.mods.isMiddleButtonDown())
-	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			setMouseCursor(MouseCursor::NormalCursor);
-			zp->mouseUp(ze);
-			return;
-		}
-	}
+	CHECK_MIDDLE_MOUSE_UP(e);
 		
-
 	if (isDisabledUntilUpdate)
 		return;
 
@@ -739,15 +720,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 {
-	if (e.mods.isMiddleButtonDown())
-	{
-		if (auto zp = findParentComponentOfClass<ZoomableViewport>())
-		{
-			auto ze = e.getEventRelativeTo(zp);
-			zp->mouseDrag(ze);
-			return;
-		}
-	}
+	CHECK_MIDDLE_MOUSE_DRAG(e);
 		
 	if (isDisabledUntilUpdate)
 		return;
@@ -838,6 +811,8 @@ void ScriptingContentOverlay::Dragger::paint(Graphics &g)
 
 void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (e.mods.isLeftButtonDown())
 	{
 		auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
@@ -862,6 +837,8 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 
 void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (e.mods.isRightButtonDown() || e.mods.isMiddleButtonDown())
 		return;
 
@@ -924,48 +901,10 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
 
 }
 
-hise::MarkdownLink ScriptingContentOverlay::Dragger::getLink() const
-{
-	if (sc != nullptr)
-	{
-		auto objName = sc->getObjectName().toString();
-		objName = objName.replace("Scripting", "");
-		objName = objName.replace("Scripted", "");
-		objName = objName.replace("Script", "");
-
-		if (objName == "Slider")
-			objName = "Knob";
-		else if (objName == "AudioWaveform")
-			objName = "audio-waveform";
-		else if (objName == "FloatingTile")
-			objName = "floating-tile";
-
-
-		String url = "ui-components/plugin-components/" + MarkdownLink::Helpers::getSanitizedFilename(objName);
-
-		return MarkdownLink(File(), url);
-	}
-
-	return {};
-}
-
-void ScriptingContentOverlay::Dragger::setUseSnapShot(bool shouldUseSnapShot)
-{
-	if (shouldUseSnapShot)
-	{
-		auto sf = UnblurryGraphics::getScaleFactorForComponent(this);
-		snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds(), true, sf);
-	}
-	else
-	{
-		snapShot = {};
-	}
-
-	repaint();
-}
-
 void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	setMouseCursor(MouseCursor::NormalCursor);
 
 	auto parent = dynamic_cast<ScriptingContentOverlay*>(getParentComponent());
@@ -1019,11 +958,53 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 	}
 	else
 	{
-		
+
 
 		moveOverlayedComponent(deltaX, deltaY);
 	}
 }
+
+hise::MarkdownLink ScriptingContentOverlay::Dragger::getLink() const
+{
+	if (sc != nullptr)
+	{
+		auto objName = sc->getObjectName().toString();
+		objName = objName.replace("Scripting", "");
+		objName = objName.replace("Scripted", "");
+		objName = objName.replace("Script", "");
+
+		if (objName == "Slider")
+			objName = "Knob";
+		else if (objName == "AudioWaveform")
+			objName = "audio-waveform";
+		else if (objName == "FloatingTile")
+			objName = "floating-tile";
+
+
+		String url = "ui-components/plugin-components/" + MarkdownLink::Helpers::getSanitizedFilename(objName);
+
+		return MarkdownLink(File(), url);
+	}
+
+	return {};
+}
+
+void ScriptingContentOverlay::Dragger::setUseSnapShot(bool shouldUseSnapShot)
+{
+	if (shouldUseSnapShot)
+	{
+		auto sf = UnblurryGraphics::getScaleFactorForComponent(this);
+		snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds(), true, sf);
+	}
+	else
+	{
+		snapShot = {};
+	}
+
+	repaint();
+}
+
+
 
 void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int deltaX, int deltaY)
 {

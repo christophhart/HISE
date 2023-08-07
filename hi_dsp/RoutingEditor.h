@@ -37,7 +37,7 @@ namespace hise { using namespace juce;
 
 class VuMeter;
 
-class RouterComponent : public Component,
+class RouterComponent : public ComponentWithMiddleMouseDrag,
 						public SafeChangeListener,
 						public Timer
 {
@@ -45,7 +45,7 @@ public:
 
 	
 
-	class ChannelConnector : public Component
+	class ChannelConnector : public ComponentWithMiddleMouseDrag
 	{
 	public:
 

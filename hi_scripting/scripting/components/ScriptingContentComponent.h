@@ -75,13 +75,15 @@ private:
 	ScopedPointer<VuMeter> vuMeter;
 };
 
+
+
 /** A component that can be populated with GUI elements by a script. 
 *	@ingroup scripting
 *	
 *
 *
 */
-class ScriptContentComponent: public Component,
+class ScriptContentComponent: public ComponentWithMiddleMouseDrag,
 							  public SafeChangeListener,
 							  public GlobalScriptCompileListener,
 							  public ScriptingApi::Content::RebuildListener,

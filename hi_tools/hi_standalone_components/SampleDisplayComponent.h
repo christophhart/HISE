@@ -44,7 +44,7 @@ class AudioDisplayComponent;
 
 #define EDGE_WIDTH 8
 
-class HiseAudioThumbnail: public Component,
+class HiseAudioThumbnail: public ComponentWithMiddleMouseDrag,
 						  public AsyncUpdater,
                           public Spectrum2D::Holder
 {
@@ -400,7 +400,7 @@ private:
 *
 *	You can create subclasses of this component and populate it with some SampleArea objects (you can nest them if desired)
 */
-class AudioDisplayComponent: public Component
+class AudioDisplayComponent: public ComponentWithMiddleMouseDrag
 {
 public:
 

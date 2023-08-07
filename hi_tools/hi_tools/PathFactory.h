@@ -111,104 +111,29 @@ using namespace juce;
 	{
 	public:
 
-		HiseShapeButton(const String& name, ButtonListener* listener, const PathFactory& factory, const String& offName = String()) :
-			ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white)
-		{
-			onShape = factory.createPath(name);
+		HiseShapeButton(const String& name, ButtonListener* listener, const PathFactory& factory, const String& offName = String());
 
-			if (offName.isEmpty())
-				offShape = onShape;
-			else
-				offShape = factory.createPath(offName);
+		void setToggleModeWithColourChange(bool shouldBeEnabled);
 
-			if (listener != nullptr)
-				addListener(listener);
-
-			refreshShape();
-			refreshButtonColours();
-		}
-
-		void setToggleModeWithColourChange(bool shouldBeEnabled)
-		{
-			setClickingTogglesState(shouldBeEnabled);
-
-			if (shouldBeEnabled)
-				addListener(this);
-			else
-				removeListener(this);
-		}
-
-		void setToggleStateAndUpdateIcon(bool shouldBeEnabled, bool forceUpdate=false)
-		{
-			if (forceUpdate || getToggleState() != shouldBeEnabled)
-			{
-				setToggleState(shouldBeEnabled, dontSendNotification);
-				refreshButtonColours();
-				refreshShape();
-			}
-		}
-
-		void buttonClicked(Button* /*b*/) override
-		{
-			refreshShape();
-			refreshButtonColours();
-		}
-
-
-		void refreshButtonColours()
-		{
-			if (getToggleState())
-			{
-				setColours(onColour.withAlpha(0.8f), onColour, onColour);
-			}
-			else
-			{
-				setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
-			}
-
-			repaint();
-		}
+		void setToggleStateAndUpdateIcon(bool shouldBeEnabled, bool forceUpdate=false);
+		void buttonClicked(Button* /*b*/) override;
+		void refreshButtonColours();
 
 		bool operator==(const String& id) const
 		{
 			return getName() == id;
 		}
 
-		void refreshShape()
-		{
-			if (getToggleState())
-			{
-				setShape(onShape, false, true, true);
-			}
-			else
-				setShape(offShape, false, true, true);
-		}
+		void refreshShape();
+		void refresh();
+		void toggle();
 
-		void refresh()
-		{
-			refreshShape();
-			refreshButtonColours();
-		}
+		void mouseDown(const MouseEvent& e) override;
+		void mouseUp(const MouseEvent& e) override;
+		void mouseDrag(const MouseEvent& e) override;
 
-		void toggle()
-		{
-			setToggleState(!getToggleState(), dontSendNotification);
-
-			refresh();
-		}
-
-		void setShapes(Path newOnShape, Path newOffShape)
-		{
-			onShape = newOnShape;
-			offShape = newOffShape;
-		}
-
-		void clicked(const ModifierKeys& modifiers) override
-		{
-			lastMods = modifiers;
-			ShapeButton::clicked(modifiers);
-		}
-
+		void setShapes(Path newOnShape, Path newOffShape);
+		void clicked(const ModifierKeys& modifiers) override;
 		bool wasRightClicked() const { return lastMods.isRightButtonDown(); }
 
 		Colour onColour = Colour(SIGNAL_COLOUR);

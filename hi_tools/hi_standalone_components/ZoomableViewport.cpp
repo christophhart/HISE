@@ -108,6 +108,51 @@ ZoomableViewport::~ZoomableViewport()
 	content = nullptr;
 }
 
+bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& wheel)
+{
+	if (wheel.deltaX > 0.0 || wheel.deltaY > 0.0)
+	{
+		if (auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto ve = e.getEventRelativeTo(vp);
+			vp->mouseWheelMove(e, wheel);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ZoomableViewport::checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type)
+{
+	if (e.mods.isMiddleButtonDown())
+	{
+		if (auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
+		{
+			auto ve = e.getEventRelativeTo(vp);
+
+			switch (type)
+			{
+			case MouseEventFlags::Down:
+				vp->mouseDown(ve);
+				e.eventComponent->setMouseCursor(MouseCursor::DraggingHandCursor);
+				break;
+			case MouseEventFlags::Up:
+				vp->mouseUp(ve);
+				e.eventComponent->setMouseCursor(MouseCursor::NormalCursor);
+				break;
+			case MouseEventFlags::Drag:
+				vp->mouseDrag(ve);
+				break;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void ZoomableViewport::mouseDown(const MouseEvent& e)
 {
 	auto cBounds = content->getBoundsInParent().toDouble();
@@ -267,6 +312,29 @@ void ZoomableViewport::positionChanged(DragAnimator& p, double newPosition)
 		vBar.setCurrentRangeStart(newPosition, sendNotificationAsync);
 }
 
+void ZoomableViewport::timerCallback()
+{
+	swapBounds = swapBounds.transformedBy(AffineTransform::scale(swapScale, swapScale, swapBounds.getCentreX(), swapBounds.getCentreY()));
+
+	if (getContentComponent()->isVisible())
+	{
+		swapAlpha *= JUCE_LIVE_CONSTANT_OFF(1.2f);
+
+		getContentComponent()->setAlpha(swapAlpha);
+
+		if (swapAlpha >= 1.0f)
+		{
+			stopTimer();
+		}
+	}
+	else
+	{
+		swapAlpha *= JUCE_LIVE_CONSTANT_OFF(0.9f);
+	}
+
+	repaint();
+}
+
 void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
 {
 	auto tBounds = getLocalBounds().toFloat();
@@ -383,7 +451,7 @@ void ZoomableViewport::setCurrentModalWindow(Component* newComponent, Rectangle<
 		auto maxWidthRatio = (float)(getWidth() - 50) / (float)currentModalWindow->getWidth();
 		auto maxHeightRatio = (float)(getHeight() - 50) / (float)currentModalWindow->getHeight();
 
-		auto sf = jmax(1.0f, jmin(hmath::pow(zoomFactor, 0.7f), maxWidthRatio, maxHeightRatio));
+		auto sf = jmax(1.0f, jmin(std::pow(zoomFactor, 0.7f), maxWidthRatio, maxHeightRatio));
 
 		currentModalWindow->setTransform(AffineTransform::scale(sf));
 
@@ -415,7 +483,8 @@ void ZoomableViewport::setNewContent(Component* newContentToDisplay, Component* 
 		content->removeComponentListener(this);
 		addAndMakeVisible(content = pendingNewComponent.release());
 		content->addComponentListener(this);
-		this->findParentComponentOfClass<WrapperWithMenuBarBase>()->setContentComponent(content);
+		this->contentFunction(content);
+		
 		clearSwapSnapshot();
 		mouseWatcher->refreshListener();
 		zoomToRectangle(content->getLocalBounds());
@@ -507,15 +576,7 @@ void ZoomableViewport::Holder::setBackground(Image img)
 	PostGraphicsRenderer g2(stack, bg);
 	g2.stackBlur(JUCE_LIVE_CONSTANT_OFF(20));
 	
-#if 0
-	stack.clear();
-
-	ImageConvolutionKernel kernel(7);
-	kernel.createGaussianBlur(30.0f);
-	kernel.applyToImage(bg, bg, { 0, 0, bg.getWidth(), bg.getHeight() });
-#endif
 	repaint();
-	
 }
 
 void ZoomableViewport::Holder::paint(Graphics& g)
@@ -533,22 +594,6 @@ void ZoomableViewport::Holder::paint(Graphics& g)
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0f));
 	g.drawText(content->getName(), b, Justification::centred);
 }
-
-
-Component* WrapperWithMenuBarBase::showPopup(FloatingTile* ft, Component* parent, const std::function<Component*()>& createFunc, bool show)
-	{
-		if (!show)
-		{
-			ft->showComponentInRootPopup(nullptr, parent, {});
-			return nullptr;
-		}
-		else
-		{
-			auto p = createFunc();
-			ft->showComponentInRootPopup(p, parent, { parent->getWidth() / 2, parent->getHeight() });
-			return p;
-		}
-	}
 
 
 }

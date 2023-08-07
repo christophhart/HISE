@@ -300,6 +300,8 @@ int RouterComponent::getConnectorIndex(const ChannelConnector *firstConnector, c
 
 void RouterComponent::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (e.mods.isRightButtonDown())
 	{
 		PopupLookAndFeel laf;

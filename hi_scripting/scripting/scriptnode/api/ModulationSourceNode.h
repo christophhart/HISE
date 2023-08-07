@@ -153,7 +153,7 @@ struct MultiOutputDragSource
 	Component* asComponent() { return dynamic_cast<Component*>(this); }
 };
 
-struct ModulationSourceBaseComponent : public Component,
+struct ModulationSourceBaseComponent : public ComponentWithMiddleMouseDrag,
 	public PooledUIUpdater::SimpleTimer
 {
 	ModulationSourceBaseComponent(PooledUIUpdater* updater);;

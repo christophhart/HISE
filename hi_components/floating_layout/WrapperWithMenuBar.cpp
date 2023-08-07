@@ -30,35 +30,23 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+namespace hise
+{
+using namespace juce;
 
+Component* WrapperWithMenuBarBase::showPopup(FloatingTile* ft, Component* parent, const std::function<Component*()>& createFunc, bool show)
+{
+	if (!show)
+	{
+		ft->showComponentInRootPopup(nullptr, parent, {});
+		return nullptr;
+	}
+	else
+	{
+		auto p = createFunc();
+		ft->showComponentInRootPopup(p, parent, { parent->getWidth() / 2, parent->getHeight() });
+		return p;
+	}
+}
 
-#include "resizable_height_component/ResizableHeightComponent.cpp"
-
-
-#include "keyboard/CustomKeyboard.cpp"
-#include "plugin_components/VoiceCpuBpmComponent.cpp"
-#include "plugin_components/PresetBrowserComponents.cpp"
-#include "plugin_components/PresetBrowser.cpp"
-#include "plugin_components/StandalonePopupComponents.cpp"
-#include "plugin_components/PanelTypes.cpp"
-#include "plugin_components/FrontendBar.cpp"
-
-#include "markdown_components/MarkdownComponents.cpp"
-#include "markdown_components/MarkdownPreview.cpp"
-
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.cpp"
-#endif
-
-#include "audio_components/SampleComponents.cpp"
-#include "audio_components/EqComponent.cpp"
-#include "floating_layout/WrapperWithMenuBar.cpp"
-#include "floating_layout/FloatingLayout.cpp"
-#include "hi_expansion/ExpansionFloatingTiles.cpp"
-
-#include "midi_overlays/SimpleMidiViewer.cpp"
-#include "midi_overlays/MidiDropper.cpp"
-#include "midi_overlays/MidiLooper.cpp"
-#include "midi_overlays/MidiOverlayFactory.cpp"
-
+}

@@ -116,7 +116,7 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 
 
 
-#include "floating_layout/ZoomableViewport.h"
+#include "floating_layout/WrapperWithMenuBar.h"
 
 #include "floating_layout/FloatingLayout.h"
 #include "plugin_components/PanelTypes.h"

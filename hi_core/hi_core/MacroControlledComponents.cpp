@@ -607,6 +607,16 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 	
 }
 
+String HiSlider::getTextFromValue(double value)
+{
+	if(mode == Pan) setTextValueSuffix(getModeSuffix());
+
+	if (mode == Frequency) return getFrequencyString((float)value);
+	if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
+	else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
+	else				  return Slider::getTextFromValue(value);
+}
+
 void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterName)
 {
 	MacroControlledObject::setup(p, parameterIndex, parameterName);
@@ -623,10 +633,115 @@ void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterNa
 	setName(parameterName);
 }
 
+double HiSlider::getValueFromText(const String& text)
+{
+	if (mode == Frequency) return getFrequencyFromTextString(text);
+	if(mode == TempoSync) return TempoSyncer::getTempoIndex(text);
+	else if (mode == NormalizedPercentage) return text.getDoubleValue() / 100.0;
+	else				  return Slider::getValueFromText(text);
+}
+
 void HiSlider::setLookAndFeelOwned(LookAndFeel *laf_)
 {
 	laf = laf_;
 	setLookAndFeel(laf);
+}
+
+double HiSlider::getSkewFactorFromMidPoint(double minimum, double maximum, double midPoint)
+{
+	if (maximum > minimum)
+		return log(0.5) / log((midPoint - minimum) / (maximum - minimum));
+		
+	jassertfalse;
+	return 1.0;
+}
+
+String HiSlider::getSuffixForMode(HiSlider::Mode mode, float panValue)
+{
+	jassert(mode != numModes);
+
+
+
+	switch (mode)
+	{
+	case Frequency:		return " Hz";
+	case Decibel:		return " dB";
+	case Time:			return " ms";
+	case Pan:			return panValue > 0.0 ? "R" : "L";
+	case TempoSync:		return String();
+	case Linear:		return String();
+	case Discrete:		return String();
+	case NormalizedPercentage:	return "%";
+	default:			return String();
+	}
+}
+
+void HiSlider::setModeRange(double min, double max, double mid, double stepSize)
+{
+	jassert(mode != numModes);
+
+	normRange = NormalisableRange<double>();
+
+	normRange.start = min;
+	normRange.end = max;
+		
+	normRange.interval = stepSize != DBL_MAX ? stepSize : 0.01;
+
+	if(mid != DBL_MAX)
+		setRangeSkewFactorFromMidPoint(normRange, mid);
+
+	setRange(normRange.start, normRange.end, normRange.interval);
+	setSkewFactor(normRange.skew);
+}
+
+void HiSlider::setRangeSkewFactorFromMidPoint(NormalisableRange<double>& range, const double midPoint)
+{
+	const double length = range.end - range.start;
+
+	if (range.end > range.start && range.getRange().contains(midPoint))
+		range.skew = std::log(0.5) / std::log((midPoint - range.start)
+			/ (length));
+}
+
+double HiSlider::getMidPointFromRangeSkewFactor(const NormalisableRange<double>& range)
+{
+	const double length = range.end - range.start;
+
+	return std::pow(2.0, -1.0 / range.skew) * length + range.start;
+}
+
+NormalisableRange<double> HiSlider::getRangeForMode(HiSlider::Mode m)
+{
+	NormalisableRange<double> r;
+
+	switch(m)
+	{
+	case Frequency:				r = NormalisableRange<double>(20.0, 20000.0, 1);
+		setRangeSkewFactorFromMidPoint(r, 1500.0);
+		break;
+	case Decibel:				r = NormalisableRange<double>(-100.0, 0.0, 0.1);
+		setRangeSkewFactorFromMidPoint(r, -18.0);
+		break;
+	case Time:					r = NormalisableRange<double>(0.0, 20000.0, 1);
+		setRangeSkewFactorFromMidPoint(r, 1000.0);
+		break;
+	case TempoSync:				r = NormalisableRange<double>(0, TempoSyncer::numTempos-1, 1);
+		break;
+	case Pan:					r = NormalisableRange<double>(-100.0, 100.0, 1);
+		break;
+	case NormalizedPercentage:	r = NormalisableRange<double>(0.0, 1.0, 0.01);									
+		break;
+	case Linear:				r = NormalisableRange<double>(0.0, 1.0, 0.01); 
+		break;
+	case Discrete:				r = NormalisableRange<double>();
+		r.interval = 1;
+		break;
+	case numModes: 
+	default:					jassertfalse; 
+		r = NormalisableRange<double>();
+	}
+
+	return r;
 }
 
 HiSlider::HiSlider(const String &name) :
@@ -651,10 +766,41 @@ HiSlider::HiSlider(const String &name) :
 	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 }
 
+HiSlider::~HiSlider()
+{
+	cleanup();
+	setLookAndFeel(nullptr);
+}
+
+String HiSlider::getFrequencyString(float input)
+{
+	if (input < 30.0f)
+	{
+		return String(input, 1) + " Hz";
+	}
+	if (input < 1000.0f)
+	{
+		return String(roundToInt(input)) + " Hz";
+	}
+	else
+	{
+		return String(input / 1000.0, 1) + " kHz";
+	}
+}
+
+double HiSlider::getFrequencyFromTextString(const String& t)
+{
+	if (t.contains("kHz"))
+		return t.getDoubleValue() * 1000.0;
+	else
+		return t.getDoubleValue();
+}
 
 
 void HiSlider::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (e.mods.isLeftButtonDown() && !e.mods.isCtrlDown())
 	{
 		if (onShiftClick(e))
@@ -683,14 +829,25 @@ void HiSlider::mouseDown(const MouseEvent &e)
 
 void HiSlider::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	setDragDistance((float)e.getDistanceFromDragStart());
 	Slider::mouseDrag(e);
 }
 
 void HiSlider::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	abortTouch();
 	Slider::mouseUp(e);
+}
+
+void HiSlider::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)
+{
+	CHECK_VIEWPORT_SCROLL(event, wheel);
+
+	Slider::mouseWheelMove(event, wheel);
 }
 
 void HiSlider::touchAndHold(Point<int> /*downPosition*/)
@@ -698,6 +855,16 @@ void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 	enableMidiLearnWithPopup();
 }
 
+void HiSlider::onTextValueChange(double newValue)
+{
+	setAttributeWithUndo((float)newValue);
+}
+
+void HiSlider::resized()
+{
+	Slider::resized();
+	numberTag->setBounds(getLocalBounds());
+}
 
 
 String HiSlider::getModeId() const
@@ -718,6 +885,45 @@ String HiSlider::getModeId() const
 	return "";
 }
 
+void HiSlider::setMode(Mode m)
+{
+	if (mode != m)
+	{
+		mode = m;
+
+		normRange = getRangeForMode(m);
+
+		setTextValueSuffix(getModeSuffix());
+
+		setRange(normRange.start, normRange.end, normRange.interval);
+		setSkewFactor(normRange.skew);
+
+		setValue(modeValues[m], dontSendNotification);
+
+		repaint();
+	}
+}
+
+void HiSlider::setMode(Mode m, double min, double max, double mid, double stepSize)
+{ 
+		
+
+	if(mode != m)
+	{
+		mode = m; 
+		setModeRange(min, max, mid, stepSize);
+		setTextValueSuffix(getModeSuffix());
+
+		setValue(modeValues[m], dontSendNotification);
+
+		repaint();
+	}
+	else
+	{
+		setModeRange(min, max, mid, stepSize);
+	}
+}
+
 void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 {
 	laf = laf_;
@@ -728,9 +934,15 @@ void HiToggleButton::touchAndHold(Point<int> /*downPosition*/)
 {
 	enableMidiLearnWithPopup();
 }
-    
+
+void HiToggleButton::mouseDrag(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+}
+
 void HiToggleButton::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
 
     if(e.mods.isLeftButtonDown())
     {
@@ -779,6 +991,8 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 
 void HiToggleButton::mouseUp(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
     abortTouch();
     MomentaryToggleButton::mouseUp(e);
 }
@@ -792,21 +1006,32 @@ void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameter
 
 void HiComboBox::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
     if(e.mods.isLeftButtonDown())
     {
         checkLearnMode();
-        
         PresetHandler::setChanged(getProcessor());
-        
         startTouch(e.getMouseDownPosition());
-        
         
         ComboBox::mouseDown(e);
     }
     else
-    {
 		enableMidiLearnWithPopup();
-    }
+}
+
+void HiComboBox::mouseUp(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_UP(e);
+	abortTouch();
+	ComboBox::mouseUp(e);
+};
+
+
+void HiComboBox::mouseDrag(const MouseEvent& e)
+{
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+	ComboBox::mouseDrag(e);
 }
 
 void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
@@ -846,7 +1071,9 @@ void HiComboBox::comboBoxChanged(ComboBox *c)
 
 		//getProcessor()->setAttribute(parameter, (float)index, dontSendNotification);
 	}
-};
+}
+
+
 
 
 void HiToggleButton::setup(Processor *p, int parameterIndex, const String &parameterName)

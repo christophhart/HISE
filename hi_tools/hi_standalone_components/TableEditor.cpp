@@ -382,6 +382,8 @@ void TableEditor::setSnapValues(var snapArray)
 
 void TableEditor::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (!isEnabled()) return;
 
 	if (e.mods.isAltDown())
@@ -500,7 +502,9 @@ void TableEditor::mouseDoubleClick(const MouseEvent& e)
 }
 
 void TableEditor::mouseUp(const MouseEvent& e)
-{	
+{
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	if (!isEnabled()) return;
 
 	if (e.mods.isAltDown())
@@ -525,6 +529,8 @@ void TableEditor::mouseUp(const MouseEvent& e)
 
 void TableEditor::mouseDrag(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	if (!isEnabled()) return;
 
 	if (e.mods.isAltDown())

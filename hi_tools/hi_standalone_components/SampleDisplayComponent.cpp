@@ -142,6 +142,8 @@ AudioDisplayComponent::SampleArea::~SampleArea()
 
 void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_UP(e);
+
 	checkBounds();
 
 	const int  dragEndWidth = getWidth();
@@ -189,6 +191,8 @@ int AudioDisplayComponent::SampleArea::getSampleForX(int x, bool relativeToAudio
 
 void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	prevDragWidth = getWidth();
 	leftEdgeClicked = e.eventComponent == leftEdge;
 
@@ -196,8 +200,10 @@ void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 
 }
 
-void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent &)
+void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent& e)
 {
+	CHECK_MIDDLE_MOUSE_DRAG(e);
+
 	checkBounds();
 
 	parentWaveform->refreshSampleAreaBounds(this);
@@ -1618,6 +1624,8 @@ void MultiChannelAudioBufferDisplay::setRange(Range<int> newRange)
 
 void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 {
+	CHECK_MIDDLE_MOUSE_DOWN(e);
+
 	if (connectedBuffer != nullptr && (e.mods.isRightButtonDown() || e.mods.isCtrlDown()))
 	{
 		if (auto p = connectedBuffer->getProvider())

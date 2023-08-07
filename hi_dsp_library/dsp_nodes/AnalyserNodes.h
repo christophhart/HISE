@@ -460,7 +460,7 @@ namespace ui
 {
 
 struct simple_osc_display : public hise::OscilloscopeBase,
-						    public Component,
+						    public ComponentWithMiddleMouseDrag,
 							public ComponentWithDefinedSize
 {
 	simple_osc_display() = default;
@@ -482,7 +482,7 @@ struct simple_osc_display : public hise::OscilloscopeBase,
 
 
 struct simple_fft_display : public hise::FFTDisplayBase,
-							public Component,
+							public ComponentWithMiddleMouseDrag,
 							public ComponentWithDefinedSize
 {
 	simple_fft_display();

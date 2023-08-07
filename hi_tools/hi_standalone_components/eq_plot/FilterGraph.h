@@ -39,7 +39,7 @@
 namespace hise { using namespace juce;
 
 
-class FilterGraph    : public Component,
+class FilterGraph    : public ComponentWithMiddleMouseDrag,
                        public SettableTooltipClient,
 					   public SafeChangeListener,
 					   public ComplexDataUIUpdaterBase::EventListener,
