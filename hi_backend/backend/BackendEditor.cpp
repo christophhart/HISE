@@ -420,13 +420,6 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	layoutPath.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
 	layoutButton->setShape(layoutPath, false, true, true);
 	
-	addAndMakeVisible(tooltipBar = new TooltipBar());
-	
-	tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, Colour(0));
-	tooltipBar->setColour(TooltipBar::ColourIds::textColour, Colours::white);
-	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::white);
-	//tooltipBar->setShowInfoIcon(false);
-
 	stop();
 
 
@@ -564,7 +557,6 @@ void MainTopBar::resized()
     auto b = getLocalBounds();
     
     customPopupButton->setBounds(b.removeFromLeft(getHeight()).reduced(8));
-    tooltipBar->setBounds(b.removeFromLeft(macroButton->getX()).reduced(7));
                                  
     macroButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
     pluginPreviewButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));

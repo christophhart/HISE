@@ -63,6 +63,26 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 {
 public:
 
+	struct TooltipLookAndFeel: public LookAndFeel_V4
+	{
+		static TextLayout layoutTooltipText(const String& text, Colour colour) noexcept;
+
+		Rectangle< int > getTooltipBounds(const String& tipText, Point<int> screenPos, Rectangle<int> parentArea) override;
+
+		void drawTooltip(Graphics& g, const String& text, int width,int height) override;
+	} ttlaf;
+
+	struct TooltipWindowWithoutScriptContent: public juce::TooltipWindow
+	{
+		TooltipWindowWithoutScriptContent() :
+			TooltipWindow(nullptr, 900)
+		{};
+
+		String getTipFor(Component&component) override;
+	};
+
+	TooltipWindowWithoutScriptContent funkytooltips;
+
 	BackendRootWindow(AudioProcessor *ownerProcessor, var editorState);
 
 	~BackendRootWindow();
@@ -71,21 +91,13 @@ public:
 
     
     
-	File getKeyPressSettingFile() const override
-	{
-		return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
-	}
+	File getKeyPressSettingFile() const override;
 
 	void initialiseAllKeyPresses() override;
 
-	void paint(Graphics& g) override
-	{
-		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	void paint(Graphics& g) override;
 
-		//g.fillAll(Colour(0xFF333333));
-	}
-
-    void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
+	void workbenchChanged(WorkbenchData::Ptr newWorkbench) override
     {
         if(newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
         {

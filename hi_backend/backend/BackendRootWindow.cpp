@@ -32,12 +32,70 @@
 
 namespace hise { using namespace juce;
 
-BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
+	TextLayout BackendRootWindow::TooltipLookAndFeel::layoutTooltipText(const String& text, Colour colour) noexcept
+	{
+		const int maxToolTipWidth = 400;
+
+		AttributedString s;
+		s.setJustification(Justification::centred);
+		s.append(text, GLOBAL_BOLD_FONT(), colour);
+
+		TextLayout tl;
+		tl.createLayoutWithBalancedLineLengths(s, (float)maxToolTipWidth);
+		return tl;
+	}
+
+	Rectangle<int> BackendRootWindow::TooltipLookAndFeel::getTooltipBounds(const String& tipText, Point<int> screenPos,
+	                                                                       Rectangle<int> parentArea)
+	{
+		const TextLayout tl(layoutTooltipText(tipText, Colours::black));
+
+		auto w = (int)(tl.getWidth() + 14.0f);
+		auto h = (int)(tl.getHeight() + 8.0f);
+
+		auto c = dynamic_cast<TooltipClient*>(Desktop::getInstance().getMainMouseSource().getComponentUnderMouse());
+
+		if(c != nullptr && c->getTooltip() == tipText)
+		{
+			auto screenBounds = dynamic_cast<Component*>(c)->getScreenBounds();
+			return screenBounds.withWidth(w).withHeight(h).translated(0, jmax(screenBounds.getHeight(), h * 3 / 2)).constrainedWithin(parentArea.reduced(10));
+		}
+
+		
+
+		return Rectangle<int>(screenPos.x > parentArea.getCentreX() ? screenPos.x - (w + 12) : screenPos.x + 24,
+		                      screenPos.y > (parentArea.getBottom() - 90) ? screenPos.y - (h + 9) : screenPos.y + 9,
+		                      w, h)
+			.constrainedWithin(parentArea);
+	}
+
+	void BackendRootWindow::TooltipLookAndFeel::drawTooltip(Graphics& g, const String& text, int width, int height)
+	{
+		Rectangle<int> bounds(width, height);
+		auto cornerSize = 3.0f;
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xffe0e0e0)));
+		g.fillRoundedRectangle(bounds.toFloat(), cornerSize);
+	
+		layoutTooltipText(text, JUCE_LIVE_CONSTANT_OFF(Colour(0xff313131)))
+			.draw(g, { static_cast<float> (width), static_cast<float> (height) });
+			
+	}
+
+	String BackendRootWindow::TooltipWindowWithoutScriptContent::getTipFor(Component& component)
+	{
+		if (component.findParentComponentOfClass<ScriptContentComponent>())
+			return {};
+
+		return TooltipWindow::getTipFor(component);
+	}
+
+	BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
-	
+	funkytooltips.setLookAndFeel(&ttlaf);
 
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
@@ -331,6 +389,11 @@ bool BackendRootWindow::isFullScreenMode() const
 #endif
 }
 
+File BackendRootWindow::getKeyPressSettingFile() const
+{
+	return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
+}
+
 void BackendRootWindow::initialiseAllKeyPresses()
 {
 	// Workspace Shortcuts
@@ -398,6 +461,13 @@ void BackendRootWindow::initialiseAllKeyPresses()
 	scriptnode::DspNetwork::initKeyPresses(this);
 
 	ScriptContentPanel::initKeyPresses(this);
+}
+
+void BackendRootWindow::paint(Graphics& g)
+{
+	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+
+	//g.fillAll(Colour(0xFF333333));
 }
 
 void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)

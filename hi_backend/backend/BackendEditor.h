@@ -433,8 +433,6 @@ private:
 	Rectangle<int> frontendArea;
 	Rectangle<int> workspaceArea;
 
-	ScopedPointer<TooltipBar> tooltipBar;
-	
 	ScopedPointer<ImageButton> hiseButton;
 
 	ScopedPointer<ShapeButton> backButton;
