@@ -784,6 +784,348 @@ juce::ValueTree Expansion::getPropertyValueTree()
 	return {};
 }
 
+Expansion::Expansion(MainController* mc, const File& expansionFolder):
+	FileHandlerBase(mc),
+	root(expansionFolder)
+{
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+}
+
+int Expansion::Sorter::compareElements(Expansion* first, Expansion* second)
+{
+	return first->getProperty(ExpansionIds::Name).compare(second->getProperty(ExpansionIds::Name));
+}
+
+Expansion::~Expansion()
+{
+	if (root.isDirectory() && root.getChildFile("expansion_info.xml").existsAsFile())
+		saveExpansionInfoFile();
+}
+
+Result Expansion::initialise()
+{
+	data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root), getMainController());
+
+	saveExpansionInfoFile();
+
+	addMissingFolders();
+
+	checkSubDirectories();
+
+	pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+	pool->getMidiFilePool().loadAllFilesFromProjectFolder();
+
+	return Result::ok();
+}
+
+template <class T>
+void Expansion::Helpers::initCachedValue(ValueTree v, const T& cachedValue)
+{
+	if (!v.hasProperty(cachedValue.getPropertyID()))
+	{
+		v.setProperty(cachedValue.getPropertyID(), cachedValue.getDefault(), nullptr);
+	}
+}
+
+Result Expansion::encodeExpansion()
+{
+	return Result::fail("The current project does not allow encryption because it's FileBased only");
+}
+
+var Expansion::getPropertyObject() const
+{
+	return data->toPropertyObject();
+}
+
+Array<FileHandlerBase::SubDirectories> Expansion::getSubDirectoryIds() const
+{
+	return { AdditionalSourceCode, Images, AudioFiles, SampleMaps, MidiFiles, Samples, UserPresets };
+}
+
+Expansion::ExpansionType Expansion::getExpansionType() const
+{ return ExpansionType::FileBased; }
+
+File Expansion::getRootFolder() const
+{ return root; }
+
+bool Expansion::isActive() const noexcept
+{ return numActiveReferences != 0; }
+
+void Expansion::incActiveRefCount()
+{ 
+	numActiveReferences++; 
+}
+
+void Expansion::decActiveRefCount()
+{
+	jassert(numActiveReferences > 0);
+
+	numActiveReferences = jmax(0, numActiveReferences - 1);
+}
+
+String Expansion::getProperty(const Identifier& id) const
+{
+	if(data != nullptr)
+		return data->v.getProperty(id).toString();
+
+	jassertfalse;
+	return {};
+
+}
+
+String Expansion::getWildcard() const
+{
+	String s;
+	s << "{EXP::" << getProperty(ExpansionIds::Name) << "}";
+	return s;
+}
+
+Expansion::Data::~Data()
+{}
+
+Array<FileHandlerBase::SubDirectories> Expansion::getListOfPooledSubDirectories()
+{
+	Array<SubDirectories> sub;
+	sub.add(AdditionalSourceCode);
+	sub.add(AudioFiles);
+	sub.add(Images);
+	sub.add(MidiFiles);
+	sub.add(SampleMaps);
+		
+	return sub;
+}
+
+void Expansion::addMissingFolders()
+{
+	addFolder(ProjectHandler::SubDirectories::Samples);
+
+	if (getExpansionType() != FileBased)
+		return;
+
+	addFolder(ProjectHandler::SubDirectories::AdditionalSourceCode);
+	addFolder(ProjectHandler::SubDirectories::AudioFiles);
+	addFolder(ProjectHandler::SubDirectories::Images);
+	addFolder(ProjectHandler::SubDirectories::SampleMaps);
+	addFolder(ProjectHandler::SubDirectories::MidiFiles);
+	addFolder(ProjectHandler::SubDirectories::UserPresets);
+}
+
+void Expansion::addFolder(ProjectHandler::SubDirectories directory)
+{
+	jassert(getExpansionType() == FileBased || directory == Samples);
+
+	auto d = root.getChildFile(ProjectHandler::getIdentifier(directory));
+
+	subDirectories.add({ directory, false, d });
+
+	if (!d.isDirectory())
+		d.createDirectory();
+}
+
+ExpansionHandler::Disabled::Disabled(MainController*, const File&)
+{}
+
+ExpansionHandler::Disabled::~Disabled()
+{}
+
+ExpansionHandler::Listener::~Listener()
+{}
+
+void ExpansionHandler::Listener::expansionPackCreated(Expansion* newExpansion)
+{ expansionPackLoaded(newExpansion); }
+
+void ExpansionHandler::Listener::expansionPackLoaded(Expansion* currentExpansion)
+{
+	ignoreUnused(currentExpansion);
+}
+
+void ExpansionHandler::Listener::expansionInstalled(Expansion* newExpansion)
+{
+	ignoreUnused(newExpansion);
+}
+
+void ExpansionHandler::Listener::expansionInstallStarted(const File& targetRoot, const File& packageFile,
+	const File& sampleDirectory)
+{
+	ignoreUnused(targetRoot, packageFile, sampleDirectory);
+}
+
+void ExpansionHandler::Listener::logMessage(const String& message, bool isCritical)
+{
+	ignoreUnused(message, isCritical);
+}
+
+bool ExpansionHandler::InitialisationError::operator==(const InitialisationError& other) const
+{
+	return other.e == e;
+}
+
+void ExpansionHandler::addListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void ExpansionHandler::removeListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+bool ExpansionHandler::isActive() const
+{ return currentExpansion != nullptr; }
+
+int ExpansionHandler::getNumExpansions() const
+{ return isEnabled() ? expansionList.size() : 0; }
+
+Expansion* ExpansionHandler::getExpansionFromRootFile(const File& expansionRoot) const
+{
+	for (auto& e : expansionList)
+	{
+		if (e->getRootFolder() == expansionRoot)
+			return e;
+	}
+
+	return nullptr;
+}
+
+Expansion* ExpansionHandler::getExpansionFromName(const String& name) const
+{
+	for (auto e : expansionList)
+	{
+		if (e->data->name == name)
+			return e;
+	}
+
+	return nullptr;
+}
+
+Expansion* ExpansionHandler::getExpansion(int index) const
+{
+	return expansionList[index];
+}
+
+Expansion* ExpansionHandler::getCurrentExpansion() const
+{ return currentExpansion.get(); }
+
+template <class DataType>
+SharedPoolBase<DataType>* ExpansionHandler::getCurrentPool()
+{
+	return getCurrentPoolCollection()->getPool<DataType>();
+}
+
+bool& ExpansionHandler::getNotifierFlag()
+{
+	return notifier.enabled;
+}
+
+void ExpansionHandler::setCredentials(var newCredentials)
+{
+	if (!Helpers::equalJSONData(credentials, newCredentials))
+	{
+		credentials = newCredentials;
+		forceReinitialisation();
+	}
+}
+
+bool ExpansionHandler::setErrorMessage(const String& message, bool isCritical)
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->logMessage(message, isCritical);
+	}
+
+	return false;
+}
+
+void ExpansionHandler::setEncryptionKey(const String& newKey, NotificationType reinitialise)
+{
+	if (keyCode != newKey)
+	{
+		keyCode = newKey;
+
+		if(reinitialise != dontSendNotification)
+			forceReinitialisation();
+	}
+}
+
+void ExpansionHandler::setInstallFullDynamics(bool shouldInstallFullDynamics)
+{
+	installFullDynamics = shouldInstallFullDynamics;
+}
+
+var ExpansionHandler::getCredentials() const
+{ return credentials; }
+
+bool ExpansionHandler::getInstallFullDynamics() const
+{ return installFullDynamics; }
+
+double ExpansionHandler::getTotalProgress() const
+{ return totalProgress; }
+
+String ExpansionHandler::getEncryptionKey() const
+{ return keyCode; }
+
+bool ExpansionHandler::isEnabled() const noexcept
+{ return enabled; }
+
+Array<Expansion::ExpansionType> ExpansionHandler::getAllowedExpansionTypes() const
+{ return allowedExpansions; }
+
+void ExpansionHandler::setAllowedExpansions(const Array<Expansion::ExpansionType>& newAllowedExpansions)
+{
+	allowedExpansions.clear();
+	allowedExpansions.addArray(newAllowedExpansions);
+	forceReinitialisation();
+}
+
+
+
+void ExpansionHandler::logVerboseMessage(const String&)
+{}
+
+ExpansionHandler::Notifier::Notifier(ExpansionHandler& parent_):
+	parent(parent_)
+{}
+
+void ExpansionHandler::Notifier::sendNotification(EventType eventType, NotificationType notificationType)
+{
+	if (!enabled)
+		return;
+
+	if ((int)eventType > (int)m)
+		m = eventType;
+
+	if (notificationType == sendNotificationAsync)
+	{
+		IF_NOT_HEADLESS(triggerAsyncUpdate());
+	}
+	else if (notificationType == sendNotificationSync)
+	{
+		handleAsyncUpdate();
+	}
+}
+
+void ExpansionHandler::Notifier::handleAsyncUpdate()
+{
+	for (int i = 0; i < parent.listeners.size(); i++)
+	{
+		auto l = parent.listeners[i];
+
+		if (l.get() != nullptr)
+		{
+			if (m == EventType::ExpansionLoaded)
+				l->expansionPackLoaded(parent.currentExpansion);
+			else
+				l->expansionPackCreated(parent.currentExpansion);
+		}
+	}
+
+	m = EventType::Nothing;
+
+	return;
+}
+
 juce::ValueTree Expansion::Helpers::loadValueTreeForFileBasedExpansion(const File& root)
 {
 	auto infoFile = Helpers::getExpansionInfoFile(root, FileBased);

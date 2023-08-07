@@ -32,6 +32,227 @@
 
 namespace hise { using namespace juce;
 
+	MacroControlBroadcaster::MacroConnectionListener::~MacroConnectionListener()
+	{}
+
+	MacroControlBroadcaster::~MacroControlBroadcaster()
+	{}
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setInverted(bool shouldBeInverted)
+	{ inverted = shouldBeInverted; }
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setIsCustomAutomation(bool shouldBeCustomAutomation)
+	{ customAutomation = shouldBeCustomAutomation; }
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setReadOnly(bool shouldBeReadOnly)
+	{ readOnly = shouldBeReadOnly; }
+
+	bool MacroControlBroadcaster::MacroControlledParameterData::isReadOnly() const
+	{ return readOnly;}
+
+	bool MacroControlBroadcaster::MacroControlledParameterData::isInverted() const
+	{return inverted; }
+
+	bool MacroControlBroadcaster::MacroControlledParameterData::isCustomAutomation() const
+	{ return customAutomation; }
+
+	NormalisableRange<double> MacroControlBroadcaster::MacroControlledParameterData::getTotalRange() const
+	{ return range; }
+
+	NormalisableRange<double> MacroControlBroadcaster::MacroControlledParameterData::getParameterRange() const
+	{return parameterRange;}
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setRangeStart(double min)
+	{parameterRange.start = min; }
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setRangeEnd(double max)
+	{	parameterRange.end = max; }
+
+	Processor* MacroControlBroadcaster::MacroControlledParameterData::getProcessor()
+	{return controlledProcessor.get(); }
+
+	const Processor* MacroControlBroadcaster::MacroControlledParameterData::getProcessor() const
+	{return controlledProcessor.get(); }
+
+	int MacroControlBroadcaster::MacroControlledParameterData::getParameter() const
+	{	return parameter; }
+
+	void MacroControlBroadcaster::MacroControlledParameterData::setParameterIndex(int newParameter)
+	{
+		parameter = newParameter;
+	}
+
+	String MacroControlBroadcaster::MacroControlledParameterData::getParameterName() const
+	{ return parameterName; }
+
+	void MacroControlBroadcaster::sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex,
+		bool wasAdded)
+	{
+		// Should only be called from the message thread
+		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+		for (auto l : macroListeners)
+		{
+			if (l != nullptr)
+				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
+		}
+	}
+
+	void MacroControlBroadcaster::sendMacroConnectionChangeMessageForAll(bool wasAdded)
+	{
+		struct AsyncData
+		{
+			int index;
+			WeakReference<Processor> p;
+			int parameter;
+			bool wasAdded;
+		};
+
+		Array<AsyncData> data;
+
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+
+		for (auto m : macroControls)
+		{
+			auto index = m->macroIndex;
+
+			for (int i = 0; i < m->getNumParameters(); i++)
+			{
+				if (auto p = m->getParameter(i))
+					data.add({ index, p->getProcessor(), p->getParameter(), wasAdded });
+			}
+		}
+
+		if (!data.isEmpty())
+		{
+			WeakReference<MacroControlBroadcaster> safeThis(this);
+
+			auto f = [data, safeThis]()
+			{
+				if (safeThis != nullptr)
+				{
+					for (auto d : data)
+					{
+						if(d.p != nullptr)
+							safeThis.get()->sendMacroConnectionChangeMessage(d.index, d.p.get(), d.parameter, d.wasAdded);
+					}
+				}
+				
+			};
+
+			MessageManager::callAsync(f);
+		}
+	}
+
+	void MacroControlBroadcaster::addMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.addIfNotAlreadyThere(l);
+	}
+
+	void MacroControlBroadcaster::removeMacroConnectionListener(MacroConnectionListener* l)
+	{
+		macroListeners.removeAllInstancesOf(l);
+	}
+
+	MacroControlBroadcaster::MacroControlData::MacroControlData(int index, MacroControlBroadcaster& parent_):
+		macroName("Macro " + String(index + 1)),
+		currentValue(0.0),
+		midiController(-1),
+		parent(parent_),
+		macroIndex(index)
+	{}
+
+	MacroControlBroadcaster::MacroControlData::~MacroControlData()
+	{
+		controlledParameters.clear();
+	}
+
+	MacroControlBroadcaster::MacroControlledParameterData* MacroControlBroadcaster::MacroControlData::getParameter(
+		int parameterIndex)
+	{
+		return controlledParameters[parameterIndex];
+	}
+
+	const MacroControlBroadcaster::MacroControlledParameterData* MacroControlBroadcaster::MacroControlData::
+	getParameter(int parameterIndex) const
+	{
+		return controlledParameters[parameterIndex];
+	}
+
+	MacroControlBroadcaster::MacroControlledParameterData* MacroControlBroadcaster::MacroControlData::
+	getParameterWithProcessorAndIndex(Processor* p, int parameterIndex)
+	{
+		for(int i = 0; i < controlledParameters.size(); i++)
+		{
+			if(controlledParameters[i]->getProcessor() == p && controlledParameters[i]->getParameter() == parameterIndex)
+			{
+				return controlledParameters[i];
+			}
+		}
+
+		return nullptr;
+	}
+
+	MacroControlBroadcaster::MacroControlledParameterData* MacroControlBroadcaster::MacroControlData::
+	getParameterWithProcessorAndName(Processor* p, const String& parameterName)
+	{
+		for(int i = 0; i < controlledParameters.size(); i++)
+		{
+			if(controlledParameters[i]->getProcessor() == p && controlledParameters[i]->getParameterName() == parameterName)
+			{
+				return controlledParameters[i];
+			}
+		}
+
+		return nullptr;
+	}
+
+	String MacroControlBroadcaster::MacroControlData::getMacroName() const
+	{return macroName; }
+
+	void MacroControlBroadcaster::MacroControlData::setMacroName(const String& name)
+	{
+		macroName = name;
+	}
+
+	int MacroControlBroadcaster::MacroControlData::getNumParameters() const
+	{ return controlledParameters.size(); }
+
+	void MacroControlBroadcaster::MacroControlData::setMidiController(int newControllerNumber)
+	{ 
+		midiController = newControllerNumber;	
+	}
+
+	int MacroControlBroadcaster::MacroControlData::getMidiController() const noexcept
+	{ return midiController; }
+
+	MacroControlBroadcaster::MacroControlData* MacroControlBroadcaster::getMacroControlData(int index)
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+		return macroControls[index];	
+	}
+
+	const MacroControlBroadcaster::MacroControlData* MacroControlBroadcaster::getMacroControlData(int index) const
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+		return macroControls[index]; 
+	}
+
+	void MacroControlBroadcaster::clearAllMacroControls()
+	{
+		const int numMacros = macroControls.size();
+        
+		for(int i = 0; i < numMacros; i++)
+		{
+			clearData(i);
+		}
+	}
+
+	bool MacroControlBroadcaster::hasActiveParameters(int macroIndex)
+	{
+		return macroControls[macroIndex]->getNumParameters() != 0;
+	}
+
 MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 	thisAsSynth(chain)
 {

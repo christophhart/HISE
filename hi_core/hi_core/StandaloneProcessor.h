@@ -27,10 +27,7 @@ public:
 	{
 	public:
 
-		virtual ~ScaleFactorListener()
-		{
-			masterReference.clear();
-		}
+		virtual ~ScaleFactorListener();
 
 		virtual void scaleFactorChanged(float newScaleFactor) = 0;
 
@@ -43,78 +40,42 @@ public:
 
 	GlobalSettingManager();
 
-	virtual ~GlobalSettingManager()
-	{
-		saveSettingsAsXml();
-	}
+	virtual ~GlobalSettingManager();
 
-	
 
-	static File getGlobalSettingsFile()
-	{
-		return getSettingDirectory().getChildFile("GeneralSettings.xml");
-	}
+	static File getGlobalSettingsFile();
 
 	static String getHiseVersion();
 
 	void setDiskMode(int mode);
 
-	void storeAllSamplesFound(bool areFound) noexcept
-	{
-		allSamplesFound = areFound;
-	}
+	void storeAllSamplesFound(bool areFound) noexcept;
 
-	void setVoiceAmountMultiplier(int newVoiceAmountMultiplier)
-	{
-		voiceAmountMultiplier = newVoiceAmountMultiplier;
-	}
+	void setVoiceAmountMultiplier(int newVoiceAmountMultiplier);
 
-	void setEnabledMidiChannels(int newMidiChannelNumber)
-	{
-		channelData = newMidiChannelNumber;
-	}
+	void setEnabledMidiChannels(int newMidiChannelNumber);
 
-	int getChannelData() const { return channelData; };
+	int getChannelData() const;;
 
 	void setGlobalScaleFactor(double scaleFactor, NotificationType sendNotification=dontSendNotification);
 
-	float getGlobalScaleFactor() const noexcept { return (float)scaleFactor; }
+	float getGlobalScaleFactor() const noexcept;
 
-	void addScaleFactorListener(ScaleFactorListener* newListener)
-	{
-		listeners.addIfNotAlreadyThere(newListener);
-	}
+	void addScaleFactorListener(ScaleFactorListener* newListener);
 
-	void removeScaleFactorListener(ScaleFactorListener* listenerToRemove)
-	{
-		listeners.removeAllInstancesOf(listenerToRemove);
-	}
+	void removeScaleFactorListener(ScaleFactorListener* listenerToRemove);
 
-	HiseSettings::Data& getSettingsObject()
-	{ 
-		jassert(dataObject != nullptr);
-		return *dataObject;
-	}
+	HiseSettings::Data& getSettingsObject();
 
-	const HiseSettings::Data& getSettingsObject() const 
-	{
-		jassert(dataObject != nullptr);
-		return *dataObject;
-	}
+	const HiseSettings::Data& getSettingsObject() const;
 
-	HiseSettings::Data* getSettingsAsPtr()
-	{
-		return dataObject.get();
-	}
+	HiseSettings::Data* getSettingsAsPtr();
 
 	static File getSettingDirectory();
 
 	static void restoreGlobalSettings(MainController* mc, bool checkReferences=true);
 
-	void initData(MainController* mc)
-	{
-		dataObject = new HiseSettings::Data(mc);
-	}
+	void initData(MainController* mc);
 
 	void saveSettingsAsXml();
 
@@ -148,48 +109,17 @@ class AudioProcessorDriver: public GlobalSettingManager
 {
 public:
 
-	AudioProcessorDriver(AudioDeviceManager* manager, AudioProcessorPlayer* callback_) :
-		GlobalSettingManager(),
-		callback(callback_),
-		deviceManager(manager)
-	{};
+	AudioProcessorDriver(AudioDeviceManager* manager, AudioProcessorPlayer* callback_);;
 
-	virtual ~AudioProcessorDriver()
-	{
-        saveDeviceSettingsAsXml();
-        
+	virtual ~AudioProcessorDriver();
 
-		deviceManager = nullptr;
-		callback = nullptr;
-	}
+	double getCurrentSampleRate();
 
-	double getCurrentSampleRate()
-	{
-		return callback->getCurrentProcessor()->getSampleRate();
-	}
+	int getCurrentBlockSize();
 
-	int getCurrentBlockSize()
-	{
-		return callback->getCurrentProcessor()->getBlockSize();
-	}
+	void setCurrentSampleRate(double newSampleRate);
 
-	void setCurrentSampleRate(double newSampleRate)
-	{
-		AudioDeviceManager::AudioDeviceSetup currentSetup;
-		
-		deviceManager->getAudioDeviceSetup(currentSetup);
-		currentSetup.sampleRate = newSampleRate;
-		deviceManager->setAudioDeviceSetup(currentSetup, true);
-	}
-
-	void setCurrentBlockSize(int newBlockSize)
-	{
-		AudioDeviceManager::AudioDeviceSetup currentSetup;
-
-		deviceManager->getAudioDeviceSetup(currentSetup);
-		currentSetup.bufferSize = newBlockSize;
-		deviceManager->setAudioDeviceSetup(currentSetup, true);
-	}
+	void setCurrentBlockSize(int newBlockSize);
 
 	static File getDeviceSettingsFile();
 
@@ -201,35 +131,11 @@ public:
 
 	void resetToDefault();
 
-	void setOutputChannelName(const int channelIndex)
-	{
-		AudioDeviceManager::AudioDeviceSetup currentSetup;
+	void setOutputChannelName(const int channelIndex);
 
-		deviceManager->getAudioDeviceSetup(currentSetup);
-		
-		BigInteger thisChannels = 0;
-		thisChannels.setBit(channelIndex);
-		currentSetup.outputChannels = thisChannels;
+	void setAudioDevice(const String &deviceName);
 
-		deviceManager->setAudioDeviceSetup(currentSetup, true);
-	}
-
-	void setAudioDevice(const String &deviceName)
-	{
-		AudioDeviceManager::AudioDeviceSetup currentSetup;
-
-		deviceManager->getAudioDeviceSetup(currentSetup);
-		currentSetup.outputDeviceName = deviceName;
-		deviceManager->setAudioDeviceSetup(currentSetup, true);
-	}
-
-	void toggleMidiInput(const String &midiInputName, bool enableInput)
-	{
-		if (midiInputName.isNotEmpty())
-		{
-			deviceManager->setMidiInputEnabled(midiInputName, enableInput);
-		}
-	}
+	void toggleMidiInput(const String &midiInputName, bool enableInput);
 
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
@@ -288,38 +194,18 @@ public:
 
 	StandaloneProcessor();
 
-	~StandaloneProcessor()
-	{
-		
-		deviceManager->removeAudioCallback(callback);
-		deviceManager->removeMidiInputCallback(String(), callback);
-        deviceManager->closeAudioDevice();
-        
-		callback = nullptr;
-		wrappedProcessor = nullptr;
-		deviceManager = nullptr;
-	}
+	~StandaloneProcessor();
 
 	AudioProcessor* createProcessor();;
 
-	AudioProcessorEditor *createEditor()
-	{
-		return wrappedProcessor->createEditor();
-	}
+	AudioProcessorEditor *createEditor();
 
-	float getScaleFactor() const 
-	{ 
-#if USE_BACKEND
-		return 1.0;
-#else
-		return scaleFactor; 
-#endif
-	}
+	float getScaleFactor() const;
 
 	void requestQuit();
 
-	AudioProcessor* getCurrentProcessor() { return wrappedProcessor.get(); }
-	const AudioProcessor* getCurrentProcessor() const { return wrappedProcessor.get(); }
+	AudioProcessor* getCurrentProcessor();
+	const AudioProcessor* getCurrentProcessor() const;
 
 private:
 

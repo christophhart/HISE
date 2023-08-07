@@ -136,4 +136,61 @@ void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* p, Wha
 	}
 }
 
+MainController::ProcessorChangeHandler::ProcessorChangeHandler(MainController* mc_):
+	mc(mc_)
+{}
+
+MainController::ProcessorChangeHandler::~ProcessorChangeHandler()
+{
+	listeners.clear();
+}
+
+MainController::ProcessorChangeHandler::Listener::~Listener()
+{
+	masterReference.clear();
+}
+
+void MainController::ProcessorChangeHandler::sendProcessorChangeMessage(Processor* changedProcessor, EventType type,
+	bool synchronous)
+{
+	tempProcessor = changedProcessor;
+	tempType = type;
+
+	if (synchronous)
+		handleAsyncUpdate();
+	else
+		triggerAsyncUpdate();
+}
+
+void MainController::ProcessorChangeHandler::handleAsyncUpdate()
+{
+	if (tempProcessor == nullptr)
+		return;
+
+	{
+		ScopedLock sl(listeners.getLock());
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+				listeners[i]->moduleListChanged(tempProcessor, tempType);
+			else
+				listeners.remove(i--);
+		}
+	}
+			
+
+	tempProcessor = nullptr;
+	tempType = EventType::numEventTypes;
+}
+
+void MainController::ProcessorChangeHandler::addProcessorChangeListener(Listener* newListener)
+{
+	listeners.addIfNotAlreadyThere(newListener);
+}
+
+void MainController::ProcessorChangeHandler::removeProcessorChangeListener(Listener* listenerToRemove)
+{
+	listeners.removeAllInstancesOf(listenerToRemove);
+}
 } // namespace hise

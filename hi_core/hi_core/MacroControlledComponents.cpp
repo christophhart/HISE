@@ -503,6 +503,30 @@ bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
 	return true;
 }
 
+SliderWithShiftTextBox::~SliderWithShiftTextBox()
+{}
+
+void SliderWithShiftTextBox::init()
+{
+		
+}
+
+void SliderWithShiftTextBox::cleanup()
+{
+	inputLabel = nullptr;
+}
+
+void SliderWithShiftTextBox::onTextValueChange(double newValue)
+{
+	asSlider()->setValue(newValue, sendNotificationAsync);
+}
+
+Slider* SliderWithShiftTextBox::asSlider()
+{ return dynamic_cast<Slider*>(this); }
+
+const Slider* SliderWithShiftTextBox::asSlider() const
+{ return dynamic_cast<const Slider*>(this); }
+
 void SliderWithShiftTextBox::updateValueFromLabel(bool shouldUpdateValue)
 {
 	if (inputLabel == nullptr)
@@ -924,6 +948,37 @@ void HiSlider::setMode(Mode m, double min, double max, double mid, double stepSi
 	}
 }
 
+HiSlider::Mode HiSlider::getMode() const
+{ return mode; }
+
+void HiSlider::setDisplayValue(float newDisplayValue)
+{
+	if(newDisplayValue != displayValue)
+	{
+		displayValue = newDisplayValue;
+		repaint();
+	}
+}
+
+bool HiSlider::isUsingModulatedRing() const noexcept
+{ return useModulatedRing; }
+
+void HiSlider::setIsUsingModulatedRing(bool shouldUseModulatedRing)
+{ useModulatedRing = shouldUseModulatedRing; }
+
+float HiSlider::getDisplayValue() const
+{
+	return useModulatedRing ? displayValue : 1.0f;
+}
+
+NormalisableRange<double> HiSlider::getRange() const
+{ return normRange; }
+
+String HiSlider::getModeSuffix() const
+{
+	return getSuffixForMode(mode, (float)modeValues[Pan]);
+}
+
 void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 {
 	laf = laf_;
@@ -995,6 +1050,126 @@ void HiToggleButton::mouseUp(const MouseEvent& e)
 
     abortTouch();
     MomentaryToggleButton::mouseUp(e);
+}
+
+HiComboBox::HiComboBox(const String& name):
+	ComboBox(name),
+	MacroControlledObject()
+{
+	addChildComponent(numberTag);
+	font = GLOBAL_FONT();
+
+	addListener(this);
+
+	setWantsKeyboardFocus(false);
+        
+	setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+	setColour(HiseColourScheme::ComponentTextColourId, Colours::white);
+}
+
+HiComboBox::~HiComboBox()
+{
+	setLookAndFeel(nullptr);
+}
+
+void HiComboBox::resized()
+{
+	ComboBox::resized();
+	numberTag->setBounds(getLocalBounds());
+}
+
+NormalisableRange<double> HiComboBox::getRange() const
+{ 
+	NormalisableRange<double> r(1.0, (double)getNumItems()); 
+
+	r.interval = 1.0;
+
+	return r;
+}
+
+MomentaryToggleButton::MomentaryToggleButton(const String& name):
+	ToggleButton(name)
+{}
+
+void MomentaryToggleButton::setIsMomentary(bool shouldBeMomentary)
+{
+	isMomentary = shouldBeMomentary;
+}
+
+void MomentaryToggleButton::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+		return;
+
+	if (isMomentary)
+	{
+		setToggleState(true, sendNotification);
+	}
+	else
+	{
+		ToggleButton::mouseDown(e);
+	}
+}
+
+void MomentaryToggleButton::mouseUp(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+		return;
+
+	if (isMomentary)
+	{
+		setToggleState(false, sendNotification);
+	}
+	else
+	{
+		ToggleButton::mouseUp(e);
+	}
+}
+
+HiToggleButton::HiToggleButton(const String& name):
+	MomentaryToggleButton(name),
+	MacroControlledObject(),
+	notifyEditor(dontSendNotification)
+{
+	addChildComponent(numberTag);
+	addListener(this);
+	setWantsKeyboardFocus(false);
+        
+	setColour(HiseColourScheme::ComponentFillTopColourId, Colour(0x66333333));
+	setColour(HiseColourScheme::ComponentFillBottomColourId, Colour(0xfb111111));
+	setColour(HiseColourScheme::ComponentOutlineColourId, Colours::white.withAlpha(0.3f));
+}
+
+HiToggleButton::~HiToggleButton()
+{
+	setLookAndFeel(nullptr);
+}
+
+void HiToggleButton::setNotificationType(NotificationType notify)
+{
+	notifyEditor = notify;
+}
+
+void HiToggleButton::setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition)
+{
+	popupData = newPopupData;
+	popupPosition = newPopupPosition;
+}
+
+void HiToggleButton::resized()
+{
+	ToggleButton::resized();
+	numberTag->setBounds(getLocalBounds());
+}
+
+NormalisableRange<double> HiToggleButton::getRange() const
+{ 
+	NormalisableRange<double> r(0.0, 1.0); 
+	r.interval = 1.0;
+
+	return r;
 }
 
 void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
@@ -1126,6 +1301,70 @@ void HiToggleButton::buttonClicked(Button *b)
 
 #undef GET_MACROCHAIN
 
+	MacroControlledObject::ModulationPopupData::operator bool() const noexcept
+	{
+		return modulationId.isNotEmpty();
+	}
+
+	MacroControlledObject::MacroControlledObject():
+		parameter(-1),
+		processor(nullptr),
+		macroIndex(-1),
+		name(""),
+		numberTag(new NumberTag(3, 14.0f, Colour(SIGNAL_COLOUR))),
+		macroControlledComponentEnabled(true)
+	{}
+
+	const String MacroControlledObject::getName() const noexcept
+	{ return name; }
+
+	void MacroControlledObject::setCanBeMidiLearned(bool shouldBe)
+	{
+		midiLearnEnabled = shouldBe;
+	}
+
+	void MacroControlledObject::setUseUndoManagerForEvents(bool shouldUseUndo)
+	{ useUndoManagerForEvents = shouldUseUndo; }
+
+	void MacroControlledObject::addToMacroController(int newMacroIndex)
+	{
+		if(macroIndex != newMacroIndex)
+		{
+			numberTag->setNumber(newMacroIndex+1);
+			numberTag->setVisible(true);
+			macroIndex = newMacroIndex;
+		}
+	}
+
+	void MacroControlledObject::removeFromMacroController()
+	{
+		if(macroIndex != -1)
+		{
+			numberTag->setNumber(0);
+			numberTag->setVisible(false);
+			macroIndex = -1;
+		}
+	}
+
+	void MacroControlledObject::enableMacroControlledComponent(bool shouldBeEnabled) noexcept
+	{
+		macroControlledComponentEnabled = shouldBeEnabled;
+	}
+
+	int MacroControlledObject::getParameter() const
+	{ return parameter; }
+
+	void MacroControlledObject::setModulationData(ModulationPopupData::Ptr modData)
+	{
+		modulationData = modData;
+	}
+
+	Processor* MacroControlledObject::getProcessor()
+	{return processor.get(); }
+
+	const Processor* MacroControlledObject::getProcessor() const
+	{return processor.get(); }
+
 MacroControlledObject::UndoableControlEvent::UndoableControlEvent(Processor* p_, int parameterIndex_, float oldValue_, float newValue_) :
 	processor(p_),
 	parameterIndex(parameterIndex_),
@@ -1178,6 +1417,71 @@ namespace LearnableIcons
 21,67,31,165,7,67,104,177,37,67,31,165,7,67,98,254,244,103,67,31,165,7,67,113,157,192,67,31,165,7,67,113,157,192,67,31,165,7,67,108,113,157,192,67,240,167,160,66,108,80,77,1,68,86,110,37,67,108,113,157,192,67,180,136,122,67,108,113,157,192,67,141,55,
 67,67,98,113,157,192,67,141,55,67,67,12,130,103,67,141,55,67,67,43,103,37,67,141,55,67,67,99,101,0,0 };
 
+}
+
+TouchAndHoldComponent::TouchAndHoldComponent():
+	updateTimer(this)
+{
+
+}
+
+TouchAndHoldComponent::~TouchAndHoldComponent()
+{
+	abortTouch();
+}
+
+void TouchAndHoldComponent::startTouch(Point<int> downPosition)
+{
+	if (isTouchEnabled())
+	{
+		updateTimer.startTouch(downPosition);
+	}
+}
+
+void TouchAndHoldComponent::setDragDistance(float newDistance)
+{
+	updateTimer.setDragDistance(newDistance);
+}
+
+void TouchAndHoldComponent::abortTouch()
+{
+	updateTimer.stopTimer();
+}
+
+bool TouchAndHoldComponent::isTouchEnabled() const
+{
+	return touchEnabled && HiseDeviceSimulator::isMobileDevice();
+}
+
+void TouchAndHoldComponent::setTouchEnabled(bool shouldBeEnabled)
+{
+	touchEnabled = shouldBeEnabled;
+}
+
+TouchAndHoldComponent::UpdateTimer::UpdateTimer(TouchAndHoldComponent* parent_):
+	parent(parent_),
+	dragDistance(0.0f)
+{}
+
+void TouchAndHoldComponent::UpdateTimer::startTouch(Point<int>& newDownPosition)
+{
+	downPosition = newDownPosition;
+	startTimer(1000);
+}
+
+void TouchAndHoldComponent::UpdateTimer::setDragDistance(float newDistance)
+{
+	dragDistance = newDistance;
+}
+
+void TouchAndHoldComponent::UpdateTimer::timerCallback()
+{
+	stopTimer();
+
+	if (dragDistance < 8.0f)
+	{
+		parent->touchAndHold(downPosition);
+	}
 }
 
 juce::Path Learnable::Factory::createPath(const String& url) const

@@ -83,48 +83,21 @@ public:
 		numExpansionType
 	};
 
-	Expansion(MainController* mc, const File& expansionFolder) :
-		FileHandlerBase(mc),
-		root(expansionFolder)
-	{
-		afm.registerBasicFormats();
-		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-	}
+	Expansion(MainController* mc, const File& expansionFolder);
 
 	struct Sorter
 	{
-		static int compareElements(Expansion* first, Expansion* second)
-		{
-			return first->getProperty(ExpansionIds::Name).compare(second->getProperty(ExpansionIds::Name));
-		};
+		static int compareElements(Expansion* first, Expansion* second);;
 	};
 
-	~Expansion()
-	{
-		if (root.isDirectory() && root.getChildFile("expansion_info.xml").existsAsFile())
-			saveExpansionInfoFile();
-	}
+	~Expansion();
 
 	/** Override this method and initialise the expansion. You need to do at least those things:
 	
 		- create a Data object
 	    - setup the pools
 	*/
-	virtual Result initialise() 
-	{
-		data = new Data(root, Helpers::loadValueTreeForFileBasedExpansion(root), getMainController());
-
-		saveExpansionInfoFile();
-
-		addMissingFolders();
-
-		checkSubDirectories();
-
-		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
-		pool->getMidiFilePool().loadAllFilesFromProjectFolder();
-
-		return Result::ok();
-	};
+	virtual Result initialise();;
 
 	struct Helpers
 	{
@@ -132,13 +105,7 @@ public:
 
 		static bool isXmlFile(const File& f);
 
-		template <class T> static void initCachedValue(ValueTree v, const T& cachedValue)
-		{
-			if (!v.hasProperty(cachedValue.getPropertyID()))
-			{
-				v.setProperty(cachedValue.getPropertyID(), cachedValue.getDefault(), nullptr);
-			}
-		}
+		template <class T> static void initCachedValue(ValueTree v, const T& cachedValue);
 
 		static File getExpansionInfoFile(const File& expansionRoot, ExpansionType type);
 
@@ -148,26 +115,17 @@ public:
 
 	};
 
-	virtual Result encodeExpansion()
-	{
-		return Result::fail("The current project does not allow encryption because it's FileBased only");
-	}
+	virtual Result encodeExpansion();
 
-	var getPropertyObject() const
-	{
-		return data->toPropertyObject();
-	}
+	var getPropertyObject() const;
 
-	Array<SubDirectories> getSubDirectoryIds() const override
-	{
-		return { AdditionalSourceCode, Images, AudioFiles, SampleMaps, MidiFiles, Samples, UserPresets };
-	}
+	Array<SubDirectories> getSubDirectoryIds() const override;
 
-	virtual ExpansionType getExpansionType() const { return ExpansionType::FileBased; }
+	virtual ExpansionType getExpansionType() const;
 
 	static ExpansionType getExpansionTypeFromFolder(const File& f);
 
-	File getRootFolder() const override { return root; }
+	File getRootFolder() const override;
 
 	virtual PoolReference createReferenceForFile(const String& relativePath, FileHandlerBase::SubDirectories fileType);
 
@@ -179,37 +137,17 @@ public:
 
 	ValueTree getEmbeddedNetwork(const String& id) override;
 
-	bool isActive() const noexcept { return numActiveReferences != 0; }
+	bool isActive() const noexcept;
 
-	void incActiveRefCount() 
-	{ 
-		numActiveReferences++; 
-	}
-	void decActiveRefCount() 
-	{
-		jassert(numActiveReferences > 0);
+	void incActiveRefCount();
 
-		numActiveReferences = jmax(0, numActiveReferences - 1);
-	}
+	void decActiveRefCount();
 
-	String getProperty(const Identifier& id) const
-	{
-		if(data != nullptr)
-			return data->v.getProperty(id).toString();
-
-		jassertfalse;
-		return {};
-
-	}
+	String getProperty(const Identifier& id) const;
 
 	void saveExpansionInfoFile();
 
-	String getWildcard() const
-	{
-		String s;
-		s << "{EXP::" << getProperty(ExpansionIds::Name) << "}";
-		return s;
-	}
+	String getWildcard() const;
 
 	ValueTree getPropertyValueTree();
 
@@ -225,7 +163,7 @@ protected:
 
 		var toPropertyObject() const;
 
-		virtual ~Data() {};
+		virtual ~Data();;
 
 		ValueTree v;
 
@@ -248,48 +186,14 @@ protected:
 
 	AudioFormatManager afm;
 
-	Array<SubDirectories> getListOfPooledSubDirectories()
-	{
-		Array<SubDirectories> sub;
-		sub.add(AdditionalSourceCode);
-		sub.add(AudioFiles);
-		sub.add(Images);
-		sub.add(MidiFiles);
-		sub.add(SampleMaps);
-		
-		return sub;
-	}
+	Array<SubDirectories> getListOfPooledSubDirectories();
 
-	
 
-	void addMissingFolders()
-	{
-		addFolder(ProjectHandler::SubDirectories::Samples);
+	void addMissingFolders();
 
-		if (getExpansionType() != FileBased)
-			return;
+	void addFolder(ProjectHandler::SubDirectories directory);
 
-		addFolder(ProjectHandler::SubDirectories::AdditionalSourceCode);
-		addFolder(ProjectHandler::SubDirectories::AudioFiles);
-		addFolder(ProjectHandler::SubDirectories::Images);
-		addFolder(ProjectHandler::SubDirectories::SampleMaps);
-		addFolder(ProjectHandler::SubDirectories::MidiFiles);
-		addFolder(ProjectHandler::SubDirectories::UserPresets);
-	}
 
-	void addFolder(ProjectHandler::SubDirectories directory)
-	{
-		jassert(getExpansionType() == FileBased || directory == Samples);
-
-		auto d = root.getChildFile(ProjectHandler::getIdentifier(directory));
-
-		subDirectories.add({ directory, false, d });
-
-		if (!d.isDirectory())
-			d.createDirectory();
-	}
-
-	
 	friend class ExpansionHandler;
 	
 	JUCE_DECLARE_WEAK_REFERENCEABLE(Expansion)
@@ -304,9 +208,9 @@ public:
 
 	struct Disabled
 	{
-		Disabled(MainController*, const File& ) {};
+		Disabled(MainController*, const File& );;
 
-		virtual ~Disabled() {};
+		virtual ~Disabled();;
 	};
 
 	struct Reference
@@ -318,8 +222,7 @@ public:
 	{
 	public:
 
-		virtual ~Listener()
-		{}
+		virtual ~Listener();
 
 		/** This will be called whenever a expansion pack was created. 
 		
@@ -329,34 +232,22 @@ public:
 			Be aware that this call supersedes the expansionPackLoaded call (so if an expansion is being
 			created, it will call this instead of expansionPackLoaded asynchronously.
 		*/
-		virtual void expansionPackCreated(Expansion* newExpansion) { expansionPackLoaded(newExpansion); };
+		virtual void expansionPackCreated(Expansion* newExpansion);;
 
 		/** This will be called whenever an expansion pack was loaded. 
 		
 			Loading an expansion pack is not the only way of accessing its content, it is just telling
 			that it is supposed to be the "active" expansion.
 		*/
-		virtual void expansionPackLoaded(Expansion* currentExpansion) 
-		{
-			ignoreUnused(currentExpansion);
-		};
+		virtual void expansionPackLoaded(Expansion* currentExpansion);;
 
 		/** This callback will be called whenever a new expansion has been installed (and initialised). */
-		virtual void expansionInstalled(Expansion* newExpansion)
-		{
-			ignoreUnused(newExpansion);
-		}
+		virtual void expansionInstalled(Expansion* newExpansion);
 
-		virtual void expansionInstallStarted(const File& targetRoot, const File& packageFile, const File& sampleDirectory)
-		{
-			ignoreUnused(targetRoot, packageFile, sampleDirectory);
-		}
+		virtual void expansionInstallStarted(const File& targetRoot, const File& packageFile, const File& sampleDirectory);
 
 		/** Can be used to handle error messages. */
-		virtual void logMessage(const String& message, bool isCritical) 
-		{
-			ignoreUnused(message, isCritical);
-		}
+		virtual void logMessage(const String& message, bool isCritical);
 
 	private:
 
@@ -365,10 +256,7 @@ public:
 
 	struct InitialisationError
 	{
-		bool operator==(const InitialisationError& other) const
-		{
-			return other.e == e;
-		};
+		bool operator==(const InitialisationError& other) const;;
 
 		WeakReference<Expansion> e;
 		Result r;
@@ -423,15 +311,9 @@ public:
 
 	void setCurrentExpansion(Expansion* e, NotificationType notifyListeners = NotificationType::sendNotificationAsync);
 
-	void addListener(Listener* l)
-	{
-		listeners.addIfNotAlreadyThere(l);
-	}
+	void addListener(Listener* l);
 
-	void removeListener(Listener* l)
-	{
-		listeners.removeAllInstancesOf(l);
-	}
+	void removeListener(Listener* l);
 
 	bool installFromResourceFile(const File& f, const File& sampleDirectoryToUse);
 
@@ -447,112 +329,52 @@ public:
 
 	PooledSampleMap loadSampleMap(const PoolReference& sampleMapId);
 
-	bool isActive() const { return currentExpansion != nullptr; }
+	bool isActive() const;
 
 
 	Expansion* getExpansionForWildcardReference(const String& stringToTest) const;
 
-	int getNumExpansions() const { return isEnabled() ? expansionList.size() : 0; }
+	int getNumExpansions() const;
 
 
-	Expansion* getExpansionFromRootFile(const File& expansionRoot) const
-	{
-		for (auto& e : expansionList)
-		{
-			if (e->getRootFolder() == expansionRoot)
-				return e;
-		}
-
-		return nullptr;
-	}
+	Expansion* getExpansionFromRootFile(const File& expansionRoot) const;
 
 
-	Expansion* getExpansionFromName(const String& name) const
-	{
-		for (auto e : expansionList)
-		{
-			if (e->data->name == name)
-				return e;
-		}
+	Expansion* getExpansionFromName(const String& name) const;
 
-		return nullptr;
-	}
+	Expansion* getExpansion(int index) const;
 
-	Expansion* getExpansion(int index) const
-	{
-		return expansionList[index];
-	}
+	Expansion* getCurrentExpansion() const;
 
-	Expansion* getCurrentExpansion() const { return currentExpansion.get(); }
+	template <class DataType> SharedPoolBase<DataType>* getCurrentPool();
 
-	template <class DataType> SharedPoolBase<DataType>* getCurrentPool()
-	{
-		return getCurrentPoolCollection()->getPool<DataType>();
-	}
-
-    PoolCollection* getCurrentPoolCollection();
+	PoolCollection* getCurrentPoolCollection();
     
 	void clearPools();
 
-	bool& getNotifierFlag()
-	{
-		return notifier.enabled;
-	}
-    
-	void setCredentials(var newCredentials)
-	{
-		if (!Helpers::equalJSONData(credentials, newCredentials))
-		{
-			credentials = newCredentials;
-			forceReinitialisation();
-		}
-	}
+	bool& getNotifierFlag();
 
-	bool setErrorMessage(const String& message, bool isCritical)
-	{
-		for (auto l : listeners)
-		{
-			if (l != nullptr)
-				l->logMessage(message, isCritical);
-		}
+	void setCredentials(var newCredentials);
 
-		return false;
-	}
+	bool setErrorMessage(const String& message, bool isCritical);
 
-	void setEncryptionKey(const String& newKey, NotificationType reinitialise=sendNotification)
-	{
-		if (keyCode != newKey)
-		{
-			keyCode = newKey;
+	void setEncryptionKey(const String& newKey, NotificationType reinitialise=sendNotification);
 
-			if(reinitialise != dontSendNotification)
-				forceReinitialisation();
-		}
-	}
+	void setInstallFullDynamics(bool shouldInstallFullDynamics);
 
-	void setInstallFullDynamics(bool shouldInstallFullDynamics)
-	{
-		installFullDynamics = shouldInstallFullDynamics;
-	}
+	var getCredentials() const;
 
-	var getCredentials() const { return credentials; }
-	
-	bool getInstallFullDynamics() const { return installFullDynamics; }
+	bool getInstallFullDynamics() const;
 
-	double getTotalProgress() const { return totalProgress; }
+	double getTotalProgress() const;
 
-	String getEncryptionKey() const { return keyCode; }
+	String getEncryptionKey() const;
 
-	bool isEnabled() const noexcept { return enabled; };
+	bool isEnabled() const noexcept;;
 
-	Array<Expansion::ExpansionType> getAllowedExpansionTypes() const { return allowedExpansions; };
+	Array<Expansion::ExpansionType> getAllowedExpansionTypes() const;;
 
-	void setAllowedExpansions(const Array<Expansion::ExpansionType>& newAllowedExpansions)
-	{
-		allowedExpansions.clear();
-		allowedExpansions.addArray(newAllowedExpansions);
-		forceReinitialisation();
-	}
+	void setAllowedExpansions(const Array<Expansion::ExpansionType>& newAllowedExpansions);
 
 	/** Call this method to set the expansion type you want to create. */
 	template <class T> void setExpansionType()
@@ -591,7 +413,7 @@ private:
 
 	void logStatusMessage(const String& message);;
 
-	void logVerboseMessage(const String&) {};
+	void logVerboseMessage(const String&);;
 
 	void criticalErrorOccured(const String& message);;
 
@@ -620,7 +442,7 @@ private:
 
 		ignoreUnused(p, type);
 		jassert(p.getFileType() == type);
-		
+
 		if (auto e = getExpansionForWildcardReference(p.getReferenceString()))
 		{
 			*pool = e->pool->getPool<DataType>();
@@ -640,51 +462,15 @@ private:
 			numModes
 		};
 
-		Notifier(ExpansionHandler& parent_) :
-			parent(parent_)
-		{};
+		Notifier(ExpansionHandler& parent_);;
 
-		void sendNotification(EventType eventType, NotificationType notificationType = sendNotificationAsync)
-		{
-			if (!enabled)
-				return;
-
-			if ((int)eventType > (int)m)
-				m = eventType;
-
-			if (notificationType == sendNotificationAsync)
-			{
-				IF_NOT_HEADLESS(triggerAsyncUpdate());
-			}
-			else if (notificationType == sendNotificationSync)
-			{
-				handleAsyncUpdate();
-			}
-		}
+		void sendNotification(EventType eventType, NotificationType notificationType = sendNotificationAsync);
 
 		bool enabled = true;
 
 	private:
 
-		void handleAsyncUpdate()
-		{
-			for (int i = 0; i < parent.listeners.size(); i++)
-			{
-				auto l = parent.listeners[i];
-
-				if (l.get() != nullptr)
-				{
-					if (m == EventType::ExpansionLoaded)
-						l->expansionPackLoaded(parent.currentExpansion);
-					else
-						l->expansionPackCreated(parent.currentExpansion);
-				}
-			}
-
-			m = EventType::Nothing;
-
-			return;
-		}
+		void handleAsyncUpdate();
 
 		ExpansionHandler& parent;
 

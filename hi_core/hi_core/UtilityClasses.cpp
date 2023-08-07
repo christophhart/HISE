@@ -139,6 +139,28 @@ double ScopedGlitchDetector::getAllowedPercentageForLocation(int locationId)
 }
 
 
+AutoSaver::AutoSaver(MainController* mc_):
+	mc(mc_),
+	currentAutoSaveIndex(0)
+{
+		
+}
+
+void AutoSaver::updateAutosaving()
+{
+	if (isAutoSaving()) enableAutoSaving();
+	else disableAutoSaving();
+}
+
+void AutoSaver::enableAutoSaving()
+{
+	IF_NOT_HEADLESS(startTimer(1000 * 60 * getIntervalInMinutes())); // autosave all 5 minutes
+}
+
+void AutoSaver::disableAutoSaving()
+{
+	stopTimer();
+}
 
 int AutoSaver::getIntervalInMinutes() const
 {
@@ -205,6 +227,22 @@ File AutoSaver::getAutoSaveFile()
 #else
 	return File();
 #endif
+}
+
+DelayedFunctionCaller::DelayedFunctionCaller(std::function<void()> func, int delayInMilliseconds):
+	f(func)
+{
+	startTimer(delayInMilliseconds);
+}
+
+void DelayedFunctionCaller::timerCallback()
+{
+	stopTimer();
+
+	if(f)
+		f();
+
+	delete this;
 }
 
 #if USE_VDSP_FFT
@@ -452,6 +490,44 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 	else return String(abs(balanceValue)) + (balanceValue > 0 ? " R" : " L");
 }
 
+CustomKeyboardState::CustomKeyboardState():
+	MidiKeyboardState(),
+	lowestKey(40)
+{
+	for (int i = 0; i < 127; i++)
+	{
+		setColourForSingleKey(i, Colours::transparentBlack);
+	}
+}
+
+Colour CustomKeyboardState::getColourForSingleKey(int noteNumber) const
+{
+	return noteColours[noteNumber];
+}
+
+bool CustomKeyboardState::isColourDefinedForKey(int noteNumber) const
+{
+	return noteColours[noteNumber] != Colours::transparentBlack;
+}
+
+void CustomKeyboardState::setColourForSingleKey(int noteNumber, Colour colour)
+{
+	if (noteNumber >= 0 && noteNumber < 127)
+	{
+		noteColours[noteNumber] = colour;
+	}
+
+	sendChangeMessage();
+}
+
+void CustomKeyboardState::setLowestKeyToDisplay(int lowestKeyToDisplay)
+{
+	lowestKey = lowestKeyToDisplay;
+}
+
+int CustomKeyboardState::getLowestKeyToDisplay() const
+{ return lowestKey; }
+
 SafeFunctionCall::SafeFunctionCall(Processor* p_, const Function& f_) noexcept:
 	p(p_),
 	f(f_)
@@ -495,6 +571,34 @@ UpdateDispatcher::UpdateDispatcher(MainController* mc_) :
 	startTimer(30);
 }
 
+UpdateDispatcher::~UpdateDispatcher()
+{
+	pendingListeners.clear();
+
+	stopTimer();
+}
+
+void UpdateDispatcher::suspendUpdates(bool shouldSuspendUpdates)
+{
+	if (shouldSuspendUpdates)
+		stopTimer();
+	else
+		startTimer(30);
+}
+
+UpdateDispatcher::Listener::~Listener()
+{
+	masterReference.clear();
+}
+
+void UpdateDispatcher::Listener::cancelPendingUpdate()
+{
+	if (!pending)
+		return;
+
+	cancelled.store(true);
+}
+
 void UpdateDispatcher::triggerAsyncUpdateForListener(Listener* l)
 {
 	pendingListeners.push(WeakReference<Listener>(l));
@@ -525,7 +629,57 @@ void UpdateDispatcher::timerCallback()
 	pendingListeners.clear(f);
 }
 
+AsyncValueTreePropertyListener::AsyncValueTreePropertyListener(ValueTree state_, UpdateDispatcher* dispatcher_):
+	state(state_),
+	dispatcher(dispatcher_),
+	asyncHandler(*this)
+{
+	pendingPropertyChanges.ensureStorageAllocated(1024);
+	state.addListener(this);
+}
 
+void AsyncValueTreePropertyListener::valueTreePropertyChanged(ValueTree& v, const Identifier& id)
+{
+	pendingPropertyChanges.addIfNotAlreadyThere(PropertyChange(v, id));
+	asyncHandler.triggerAsyncUpdate();
+}
+
+void AsyncValueTreePropertyListener::valueTreeChildAdded(ValueTree& valueTrees, ValueTree& valueTree)
+{}
+
+void AsyncValueTreePropertyListener::valueTreeChildRemoved(ValueTree& valueTrees, ValueTree& valueTree, int i)
+{}
+
+void AsyncValueTreePropertyListener::valueTreeChildOrderChanged(ValueTree& valueTrees, int i, int i1)
+{}
+
+void AsyncValueTreePropertyListener::valueTreeParentChanged(ValueTree& valueTrees)
+{}
+
+AsyncValueTreePropertyListener::PropertyChange::PropertyChange(ValueTree v_, Identifier id_): v(v_), id(id_)
+{}
+
+AsyncValueTreePropertyListener::PropertyChange::PropertyChange()
+{}
+
+bool AsyncValueTreePropertyListener::PropertyChange::operator==(const PropertyChange& other) const
+{
+	return v == other.v && id == other.id;
+}
+
+AsyncValueTreePropertyListener::AsyncHandler::AsyncHandler(AsyncValueTreePropertyListener& parent_):
+	Listener(parent_.dispatcher),
+	parent(parent_)
+{}
+
+void AsyncValueTreePropertyListener::AsyncHandler::handleAsyncUpdate()
+{
+	while (!parent.pendingPropertyChanges.isEmpty())
+	{
+		auto pc = parent.pendingPropertyChanges.removeAndReturn(0);
+		parent.asyncValueTreePropertyChanged(pc.v, pc.id);
+	}
+}
 
 
 UpdateDispatcher::Listener::Listener(UpdateDispatcher* dispatcher_) :

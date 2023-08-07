@@ -280,6 +280,123 @@ void DialogWindowWithBackgroundThread::reset()
 	}
 }
 
+DialogWindowWithBackgroundThread::AdditionalRow::AdditionalRow(DialogWindowWithBackgroundThread* parent_):
+	parent(parent_)
+{
+
+}
+
+DialogWindowWithBackgroundThread::AdditionalRow::~AdditionalRow()
+{
+	columns.clear();
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::buttonClicked(Button* b)
+{
+	parent->buttonClicked(b);
+}
+
+
+
+
+void DialogWindowWithBackgroundThread::AdditionalRow::Column::buttonClicked(Button*)
+{
+				
+}
+
+DialogWindowWithBackgroundThread::AdditionalRow::Column::~Column()
+{
+	component = nullptr;
+	infoButton = nullptr;
+}
+
+void DialogWindowWithBackgroundThread::AdditionalRow::Column::paint(Graphics& g)
+{
+	if (name.isNotEmpty())
+	{
+		auto area = getLocalBounds().removeFromTop(16);
+		area.removeFromRight(18);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white);
+		g.drawText(name, area, Justification::centredLeft);
+	}
+}
+
+void DialogWindowWithBackgroundThread::setProgress(double progressValue)
+{ logData.progress = progressValue; }
+
+double& DialogWindowWithBackgroundThread::getProgressCounter()
+{ return logData.progress; }
+
+void DialogWindowWithBackgroundThread::resultButtonClicked(const String&)
+{}
+
+bool DialogWindowWithBackgroundThread::checkConditionsBeforeStartingThread()
+{ return true; }
+
+void DialogWindowWithBackgroundThread::wait(int milliSeconds)
+{
+	if (thread != nullptr)
+	{
+		thread->wait(milliSeconds);
+	}
+}
+
+void DialogWindowWithBackgroundThread::setAdditionalLogFunction(const LogFunction& additionalLogFunction)
+{
+	logData.logFunction = additionalLogFunction;
+}
+
+void DialogWindowWithBackgroundThread::setAdditionalFinishCallback(const std::function<void()>& f)
+{
+	additionalFinishCallback = f;
+}
+
+void DialogWindowWithBackgroundThread::setDestroyWhenFinished(bool shouldBeDestroyed)
+{
+	destroyWhenFinished = shouldBeDestroyed;
+}
+
+Button* DialogWindowWithBackgroundThread::getButton(const String& name)
+{
+	for (int i = 0; i < getNumChildComponents(); i++)
+	{
+		if (auto b = dynamic_cast<Button*>(getChildComponent(i)))
+		{
+			if(b->getName() == name)
+				return b;
+		}
+	}
+
+	return nullptr;
+}
+
+void DialogWindowWithBackgroundThread::setTimeoutMs(int newTimeout)
+{
+	timeoutMs = newTimeout;
+}
+
+Thread* DialogWindowWithBackgroundThread::getCurrentThread()
+{
+	return thread;
+}
+
+DialogWindowWithBackgroundThread::LoadingThread::LoadingThread(DialogWindowWithBackgroundThread* parent_):
+	Thread(parent_->getName(), HISE_DEFAULT_STACK_SIZE),
+	parent(parent_)
+{}
+
+DialogWindowWithBackgroundThread::LoadingThread::~LoadingThread()
+{
+			
+}
+
+void DialogWindowWithBackgroundThread::LoadingThread::run()
+{
+	parent->run();
+	parent->triggerAsyncUpdate();
+}
+
 void DialogWindowWithBackgroundThread::runThread()
 {
 	stopThread();
@@ -484,6 +601,50 @@ hise::MainController* ModalBaseWindow::getMainController()
 	auto fp = dynamic_cast<FrontendProcessorEditor*>(this)->getAudioProcessor();
 	return dynamic_cast<MainController*>(fp);
 #endif
+}
+
+ComponentWithHelp::GlobalHandler::~GlobalHandler()
+{}
+
+bool ComponentWithHelp::GlobalHandler::isHelpEnabled() const
+{ return helpEnabled; }
+
+void ComponentWithHelp::GlobalHandler::toggleHelp()
+{
+	helpEnabled = !helpEnabled;
+
+	for (auto c : registeredHelpers)
+	{
+		if (auto asComponent = dynamic_cast<Component*>(c.get()))
+		{
+			asComponent->repaint();
+		}
+	}
+}
+
+void ComponentWithHelp::GlobalHandler::registerHelper(ComponentWithHelp* c)
+{
+	registeredHelpers.addIfNotAlreadyThere(c);
+}
+
+void ComponentWithHelp::GlobalHandler::removeHelper(ComponentWithHelp* c)
+{
+	registeredHelpers.removeAllInstancesOf(c);
+}
+
+ComponentWithHelp::ComponentWithHelp(GlobalHandler* handler_):
+	handler(handler_)
+{
+	p.loadPathFromData(MainToolbarIcons::help, MainToolbarIcons::help_Size);
+
+	if (handler != nullptr)
+		handler->registerHelper(this);
+}
+
+ComponentWithHelp::~ComponentWithHelp()
+{
+	if (handler != nullptr)
+		handler->removeHelper(this);
 }
 
 SampleDataExporter::SampleDataExporter(MainController* mc) :

@@ -37,6 +37,79 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 #endif
 }
 
+AudioProcessorDriver::AudioProcessorDriver(AudioDeviceManager* manager, AudioProcessorPlayer* callback_):
+	GlobalSettingManager(),
+	callback(callback_),
+	deviceManager(manager)
+{}
+
+AudioProcessorDriver::~AudioProcessorDriver()
+{
+	saveDeviceSettingsAsXml();
+        
+
+	deviceManager = nullptr;
+	callback = nullptr;
+}
+
+double AudioProcessorDriver::getCurrentSampleRate()
+{
+	return callback->getCurrentProcessor()->getSampleRate();
+}
+
+int AudioProcessorDriver::getCurrentBlockSize()
+{
+	return callback->getCurrentProcessor()->getBlockSize();
+}
+
+void AudioProcessorDriver::setCurrentSampleRate(double newSampleRate)
+{
+	AudioDeviceManager::AudioDeviceSetup currentSetup;
+		
+	deviceManager->getAudioDeviceSetup(currentSetup);
+	currentSetup.sampleRate = newSampleRate;
+	deviceManager->setAudioDeviceSetup(currentSetup, true);
+}
+
+void AudioProcessorDriver::setCurrentBlockSize(int newBlockSize)
+{
+	AudioDeviceManager::AudioDeviceSetup currentSetup;
+
+	deviceManager->getAudioDeviceSetup(currentSetup);
+	currentSetup.bufferSize = newBlockSize;
+	deviceManager->setAudioDeviceSetup(currentSetup, true);
+}
+
+void AudioProcessorDriver::setOutputChannelName(const int channelIndex)
+{
+	AudioDeviceManager::AudioDeviceSetup currentSetup;
+
+	deviceManager->getAudioDeviceSetup(currentSetup);
+		
+	BigInteger thisChannels = 0;
+	thisChannels.setBit(channelIndex);
+	currentSetup.outputChannels = thisChannels;
+
+	deviceManager->setAudioDeviceSetup(currentSetup, true);
+}
+
+void AudioProcessorDriver::setAudioDevice(const String& deviceName)
+{
+	AudioDeviceManager::AudioDeviceSetup currentSetup;
+
+	deviceManager->getAudioDeviceSetup(currentSetup);
+	currentSetup.outputDeviceName = deviceName;
+	deviceManager->setAudioDeviceSetup(currentSetup, true);
+}
+
+void AudioProcessorDriver::toggleMidiInput(const String& midiInputName, bool enableInput)
+{
+	if (midiInputName.isNotEmpty())
+	{
+		deviceManager->setMidiInputEnabled(midiInputName, enableInput);
+	}
+}
+
 File AudioProcessorDriver::getDeviceSettingsFile()
 {
 
@@ -163,6 +236,38 @@ StandaloneProcessor::StandaloneProcessor()
 #endif
 	
 }
+
+StandaloneProcessor::~StandaloneProcessor()
+{
+		
+	deviceManager->removeAudioCallback(callback);
+	deviceManager->removeMidiInputCallback(String(), callback);
+	deviceManager->closeAudioDevice();
+        
+	callback = nullptr;
+	wrappedProcessor = nullptr;
+	deviceManager = nullptr;
+}
+
+AudioProcessorEditor* StandaloneProcessor::createEditor()
+{
+	return wrappedProcessor->createEditor();
+}
+
+float StandaloneProcessor::getScaleFactor() const
+{ 
+#if USE_BACKEND
+	return 1.0;
+#else
+		return scaleFactor; 
+#endif
+}
+
+AudioProcessor* StandaloneProcessor::getCurrentProcessor()
+{ return wrappedProcessor.get(); }
+
+const AudioProcessor* StandaloneProcessor::getCurrentProcessor() const
+{ return wrappedProcessor.get(); }
 
 
 void StandaloneProcessor::requestQuit()
@@ -293,6 +398,74 @@ juce::BigInteger AudioProcessorDriver::getMidiInputState() const
 
 
 	return state;
+}
+
+GlobalSettingManager::ScaleFactorListener::~ScaleFactorListener()
+{
+	masterReference.clear();
+}
+
+GlobalSettingManager::~GlobalSettingManager()
+{
+	saveSettingsAsXml();
+}
+
+File GlobalSettingManager::getGlobalSettingsFile()
+{
+	return getSettingDirectory().getChildFile("GeneralSettings.xml");
+}
+
+void GlobalSettingManager::storeAllSamplesFound(bool areFound) noexcept
+{
+	allSamplesFound = areFound;
+}
+
+void GlobalSettingManager::setVoiceAmountMultiplier(int newVoiceAmountMultiplier)
+{
+	voiceAmountMultiplier = newVoiceAmountMultiplier;
+}
+
+void GlobalSettingManager::setEnabledMidiChannels(int newMidiChannelNumber)
+{
+	channelData = newMidiChannelNumber;
+}
+
+int GlobalSettingManager::getChannelData() const
+{ return channelData; }
+
+float GlobalSettingManager::getGlobalScaleFactor() const noexcept
+{ return (float)scaleFactor; }
+
+void GlobalSettingManager::addScaleFactorListener(ScaleFactorListener* newListener)
+{
+	listeners.addIfNotAlreadyThere(newListener);
+}
+
+void GlobalSettingManager::removeScaleFactorListener(ScaleFactorListener* listenerToRemove)
+{
+	listeners.removeAllInstancesOf(listenerToRemove);
+}
+
+HiseSettings::Data& GlobalSettingManager::getSettingsObject()
+{ 
+	jassert(dataObject != nullptr);
+	return *dataObject;
+}
+
+const HiseSettings::Data& GlobalSettingManager::getSettingsObject() const
+{
+	jassert(dataObject != nullptr);
+	return *dataObject;
+}
+
+HiseSettings::Data* GlobalSettingManager::getSettingsAsPtr()
+{
+	return dataObject.get();
+}
+
+void GlobalSettingManager::initData(MainController* mc)
+{
+	dataObject = new HiseSettings::Data(mc);
 }
 
 GlobalSettingManager::GlobalSettingManager()

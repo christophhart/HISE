@@ -83,7 +83,7 @@ public:
 
 		String toString() const;
 
-		RuntimeError() = default;
+		RuntimeError();
 
 		ErrorLevel errorLevel = ErrorLevel::Invalid;
 
@@ -100,38 +100,23 @@ public:
 
 
 
-	ExternalScriptFile(const File&file) :
-		file(file),
-		currentResult(Result::ok())
-	{
-#if USE_BACKEND
-		content.replaceAllContent(file.loadFileAsString());
-		content.setSavePoint();
-		content.clearUndoHistory();
-#endif
-	}
+	ExternalScriptFile(const File&file);
 
-	~ExternalScriptFile()
-	{
+	~ExternalScriptFile();
 
-	}
+	void setResult(Result r);
 
-	void setResult(Result r)
-	{
-		currentResult = r;
-	}
+	CodeDocument& getFileDocument();
 
-	CodeDocument& getFileDocument() { return content; }
+	Result getResult() const;
 
-	Result getResult() const { return currentResult; }
-
-	File getFile() const { return file; }
+	File getFile() const;
 
 	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
 	void setRuntimeErrors(const Result& r);
 
-	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster() { return runtimeErrorBroadcaster; }
+	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster();
 
 private:
 
@@ -161,13 +146,7 @@ public:
 
 	GlobalScriptCompileBroadcaster();
 
-	virtual ~GlobalScriptCompileBroadcaster()
-	{
-        dummyLibraryLoader = nullptr;
-		globalEditBroadcaster = nullptr;
-    
-		clearIncludedFiles();
-    };
+	virtual ~GlobalScriptCompileBroadcaster();;
 
 	/** This sends a synchronous message to all registered listeners.
 	*
@@ -176,32 +155,17 @@ public:
 	void sendScriptCompileMessage(JavascriptProcessor *processorThatWasCompiled);
 
 	/** Adds a ScriptListener. You can influence the order of the callback by inserting Listeners at the beginning of the list. */
-	void addScriptListener(GlobalScriptCompileListener *listener, bool insertAtBeginning = false)
-	{
-		if (insertAtBeginning)
-		{
-			listenerListStart.addIfNotAlreadyThere(listener);
-		}
-		else
-		{
-			listenerListEnd.addIfNotAlreadyThere(listener);
-		}
+	void addScriptListener(GlobalScriptCompileListener *listener, bool insertAtBeginning = false);;
 
-	};
+	void removeScriptListener(GlobalScriptCompileListener *listener);;
 
-	void removeScriptListener(GlobalScriptCompileListener *listener)
-	{
-		listenerListStart.removeAllInstancesOf(listener);
-		listenerListEnd.removeAllInstancesOf(listener);
-	};
-
-	void setShouldUseBackgroundThreadForCompiling(bool shouldBeEnabled) noexcept{ useBackgroundCompiling = shouldBeEnabled; }
-	bool isUsingBackgroundThreadForCompiling() const noexcept{ return useBackgroundCompiling; }
+	void setShouldUseBackgroundThreadForCompiling(bool shouldBeEnabled) noexcept;
+	bool isUsingBackgroundThreadForCompiling() const noexcept;
 
 	double getCompileTimeOut() const noexcept;
 
-	void setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept{ enableGlobalRecompile = shouldBeEnabled; };
-	bool isCompilingAllScriptsOnPresetLoad() const noexcept{ return enableGlobalRecompile; };
+	void setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept;;
+	bool isCompilingAllScriptsOnPresetLoad() const noexcept;;
 
 	bool isCallStackEnabled() const noexcept;;
 	void updateCallstackSettingForExistingScriptProcessors();
@@ -213,58 +177,37 @@ public:
 
 	String getExternalScriptFromCollection(const String &fileName);
 
-	int getNumExternalScriptFiles() const { return includedFiles.size(); }
+	int getNumExternalScriptFiles() const;
 
 	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude);
 
-	ExternalScriptFile::Ptr getExternalScriptFile(int index) const
-	{
-		return includedFiles[index];
-	}
+	ExternalScriptFile::Ptr getExternalScriptFile(int index) const;
 
-	void clearIncludedFiles()
-	{
-		includedFiles.clear();
-	}
+	void clearIncludedFiles();
 
-	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster()
-	{
-		return globalEditBroadcaster;
-	}
+	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster();
 
-	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const
-	{
-		return globalEditBroadcaster;
-	}
+	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const;
 
-	ReferenceCountedObject* getCurrentScriptLookAndFeel() { return currentScriptLaf.get(); }
+	ReferenceCountedObject* getCurrentScriptLookAndFeel();
 
-	virtual void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf)
-	{
-		currentScriptLaf = newLaf;
-	}
+	virtual void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf);
 
-	ReferenceCountedObject* getGlobalRoutingManager() { return routingManager.get(); }
+	ReferenceCountedObject* getGlobalRoutingManager();
 
-	void setGlobalRoutingManager(ReferenceCountedObject* newManager) { routingManager = newManager; };
+	void setGlobalRoutingManager(ReferenceCountedObject* newManager);;
 
 	ValueTree exportWebViewResources();
 
 	void restoreWebResources(const ValueTree& v);
 
-    void clearWebResources()
-    {
-        webviews.clear();
-    }
-    
+    void clearWebResources();
+
 	WebViewData::Ptr getOrCreateWebView(const Identifier& id);
 
 	Array<Identifier> getAllWebViewIds() const;
 
-	void setWebViewRoot(File newRoot)
-	{
-		webViewRoot = newRoot;
-	}
+	void setWebViewRoot(File newRoot);
 
 private:
 	

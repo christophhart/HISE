@@ -82,6 +82,35 @@ void Console::resized()
 	newTextConsole->setBounds(getLocalBounds());
 }
 
+void Console::codeDocumentTextInserted(const String&, int)
+{
+	auto fh = newTextConsole->getFont().getHeight();
+
+	int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / fh));
+
+	newTextConsole->scrollToLine(numLinesVisible);
+}
+
+void Console::codeDocumentTextDeleted(int, int)
+{}
+
+void Console::setTokeniser(CodeTokeniser* newTokeniser)
+{
+	tokeniser = newTokeniser;
+	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser.get()));
+	newTextConsole->addMouseListener(this, true);
+}
+
+void Console::updateFontSize(Console& c, float newSize)
+{
+	c.newTextConsole->setFont(GLOBAL_MONOSPACE_FONT().withHeight(newSize));
+}
+
+CodeEditorComponent::ColourScheme Console::ConsoleTokeniser::getDefaultColourScheme()
+{ return s; }
+
+void Console::ConsoleEditorComponent::addPopupMenuItems(PopupMenu& popupMenu, const MouseEvent* mouseEvent)
+{}
 
 
 void Console::clear()

@@ -655,6 +655,283 @@ void MouseCallbackComponent::sendToListeners(var clickInformation)
 	}
 }
 
+bool DrawActions::PostActionBase::needsStackData() const
+{ return false; }
+
+DrawActions::ActionBase::ActionBase()
+{}
+
+DrawActions::ActionBase::~ActionBase()
+{}
+
+bool DrawActions::ActionBase::wantsCachedImage() const
+{ return false; }
+
+bool DrawActions::ActionBase::wantsToDrawOnParent() const
+{ return false; }
+
+void DrawActions::ActionBase::setCachedImage(Image& actionImage_, Image& mainImage_)
+{ actionImage = actionImage_; mainImage = mainImage_; }
+
+void DrawActions::ActionBase::setScaleFactor(float sf)
+{ scaleFactor = sf; }
+
+DrawActions::MarkdownAction::MarkdownAction():
+	renderer("")
+{}
+
+void DrawActions::MarkdownAction::perform(Graphics& g)
+{
+	ScopedLock sl(lock);
+	renderer.draw(g, area);
+}
+
+DrawActions::ActionLayer::ActionLayer(bool drawOnParent_):
+	ActionBase(),
+	drawOnParent(drawOnParent_)
+{}
+
+bool DrawActions::ActionLayer::wantsCachedImage() const
+{ 
+	if(postActions.size() > 0)
+		return true;
+
+	for (auto a : internalActions)
+	{
+		if (a->wantsCachedImage())
+			return true;
+	}
+
+	return false;
+}
+
+bool DrawActions::ActionLayer::wantsToDrawOnParent() const
+{ return drawOnParent; }
+
+void DrawActions::ActionLayer::setCachedImage(Image& actionImage_, Image& mainImage_)
+{ 
+	ActionBase::setCachedImage(actionImage_, mainImage_);
+
+	// do not propagate the main image
+	for (auto a : internalActions)
+		a->setCachedImage(actionImage_, actionImage_);
+}
+
+void DrawActions::ActionLayer::setScaleFactor(float sf)
+{ 
+	ActionBase::setScaleFactor(sf);
+
+	for (auto a : internalActions)
+		a->setScaleFactor(sf);
+}
+
+void DrawActions::ActionLayer::perform(Graphics& g)
+{
+	for (auto action : internalActions)
+		action->perform(g);
+			
+	if (postActions.size() > 0)
+	{
+		PostGraphicsRenderer r(stack, actionImage, scaleFactor);
+		int numDataRequired = 0;
+
+		for (auto p : postActions)
+		{
+			if (p->needsStackData())
+				numDataRequired++;
+		}
+				
+		r.reserveStackOperations(numDataRequired);
+
+		for (auto p : postActions)
+			p->perform(r);
+	}
+}
+
+void DrawActions::ActionLayer::addDrawAction(ActionBase* a)
+{
+	internalActions.add(a);
+}
+
+void DrawActions::ActionLayer::addPostAction(PostActionBase* a)
+{
+	postActions.add(a);
+}
+
+DrawActions::BlendingLayer::BlendingLayer(gin::BlendMode m, float alpha_):
+	ActionLayer(true),
+	blendMode(m),
+	alpha(alpha_)
+{
+
+}
+
+bool DrawActions::BlendingLayer::wantsCachedImage() const
+{ return true; }
+
+void DrawActions::NoiseMapManager::drawNoiseMap(Graphics& g, Rectangle<int> area, float alpha, bool monochrom,
+	float scale)
+{
+	auto originalArea = area;
+
+	if(scale != 1.0f)
+		area = area.transformed(AffineTransform::scale(scale));
+
+	const auto& m = getNoiseMap(area, monochrom);
+
+	g.setColour(Colours::black.withAlpha(alpha));
+
+	if (scale != 1.0f)
+		g.drawImageWithin(m.img, originalArea.getX(), originalArea.getY(), originalArea.getWidth(), originalArea.getHeight(), RectanglePlacement::stretchToFit);
+	else
+		g.drawImageAt(m.img, area.getX(), area.getY());
+}
+
+DrawActions::NoiseMapManager::NoiseMap& DrawActions::NoiseMapManager::getNoiseMap(Rectangle<int> area, bool monochrom)
+{
+	for (auto m : maps)
+	{
+
+		if (area.getWidth() == m->width &&
+			area.getHeight() == m->height &&
+			monochrom == m->monochrom)
+		{
+			return *m;
+		}
+	}
+
+	maps.add(new NoiseMap(area, monochrom));
+
+	return *maps.getLast();
+}
+
+DrawActions::Handler::Iterator::Iterator(Handler* handler_):
+	handler(handler_)
+{
+	if (handler != nullptr)
+	{
+		actionsInIterator.ensureStorageAllocated(handler->nextActions.size());
+		SpinLock::ScopedLockType sl(handler->lock);
+
+		actionsInIterator.addArray(handler->nextActions);
+	}
+}
+
+DrawActions::ActionBase::Ptr DrawActions::Handler::Iterator::getNextAction()
+{
+	if (index < actionsInIterator.size())
+		return actionsInIterator[index++];
+
+	return nullptr;
+}
+
+bool DrawActions::Handler::Iterator::wantsCachedImage() const
+{
+	for (auto action : actionsInIterator)
+		if (action != nullptr && action->wantsCachedImage())
+			return true;
+
+	return false;
+}
+
+bool DrawActions::Handler::Iterator::wantsToDrawOnParent() const
+{
+	for (auto action : actionsInIterator)
+		if (action != nullptr && action->wantsToDrawOnParent())
+			return true;
+
+	return false;
+}
+
+DrawActions::Handler::Listener::~Listener()
+{}
+
+DrawActions::Handler::~Handler()
+{
+	cancelPendingUpdate();
+}
+
+void DrawActions::Handler::beginDrawing()
+{
+	currentActions.clear();
+}
+
+void DrawActions::Handler::beginLayer(bool drawOnParent)
+{
+	auto newLayer = new ActionLayer(drawOnParent);
+
+	addDrawAction(newLayer);
+	layerStack.insert(-1, newLayer);
+}
+
+DrawActions::ActionLayer::Ptr DrawActions::Handler::getCurrentLayer()
+{
+	return layerStack.getLast();
+}
+
+void DrawActions::Handler::endLayer()
+{
+	layerStack.removeLast();
+}
+
+void DrawActions::Handler::addDrawAction(ActionBase* newDrawAction)
+{
+	if (layerStack.getLast() != nullptr)
+		layerStack.getLast()->addDrawAction(newDrawAction);
+	else
+		currentActions.add(newDrawAction);
+}
+
+void DrawActions::Handler::flush()
+{
+	{
+		SpinLock::ScopedLockType sl(lock);
+
+		nextActions.swapWith(currentActions);
+		currentActions.clear();
+		layerStack.clear();
+	}
+
+	triggerAsyncUpdate();
+}
+
+void DrawActions::Handler::logError(const String& message)
+{
+	if (errorLogger)
+		errorLogger(message);
+}
+
+void DrawActions::Handler::addDrawActionListener(Listener* l)
+{ listeners.addIfNotAlreadyThere(l); }
+
+void DrawActions::Handler::removeDrawActionListener(Listener* l)
+{ listeners.removeAllInstancesOf(l); }
+
+void DrawActions::Handler::setGlobalBounds(Rectangle<int> gb, Rectangle<int> tb, float sf)
+{
+	globalBounds = gb;
+	topLevelBounds = tb;
+	scaleFactor = sf;
+}
+
+Rectangle<int> DrawActions::Handler::getGlobalBounds() const
+{ return globalBounds; }
+
+float DrawActions::Handler::getScaleFactor() const
+{ return scaleFactor; }
+
+DrawActions::NoiseMapManager* DrawActions::Handler::getNoiseMapManager()
+{ return &noiseManager.getObject(); }
+
+void DrawActions::Handler::handleAsyncUpdate()
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->newPaintActionsAvailable();
+	}
+}
+
 BorderPanel::BorderPanel(DrawActions::Handler* handler_) :
 borderColour(Colours::black),
 drawHandler(handler_),
@@ -730,6 +1007,51 @@ BorderPanel::~BorderPanel()
 {
 	if (drawHandler != nullptr)
 		drawHandler->removeDrawActionListener(this);
+}
+
+void BorderPanel::newOpenGLContextCreated()
+{
+}
+
+void BorderPanel::renderOpenGL()
+{
+		
+}
+
+void BorderPanel::openGLContextClosing()
+{
+}
+
+void BorderPanel::newPaintActionsAvailable()
+{ repaint(); }
+
+void BorderPanel::registerToTopLevelComponent()
+{
+#if 0
+		if (srs == nullptr)
+		{
+			if (auto tc = findParentComponentOfClass<TopLevelWindowWithOptionalOpenGL>())
+				srs = new TopLevelWindowWithOptionalOpenGL::ScopedRegisterState(*tc, this);
+		}
+#endif
+}
+
+void BorderPanel::resized()
+{
+	registerToTopLevelComponent();
+
+	if (isPopupPanel)
+	{
+		closeButton.setBounds(getWidth() - 24, 0, 24, 24);
+	}
+	else
+		closeButton.setVisible(false);
+		
+}
+
+void BorderPanel::setAnimation(RLottieAnimation::Ptr newAnimation)
+{
+	animation = newAnimation;
 }
 
 void BorderPanel::buttonClicked(Button* /*b*/)
@@ -971,6 +1293,49 @@ void ImageComponentWithMouseCallback::setScale(double newScale)
 
 		repaint();
 	}
+}
+
+MouseCallbackComponent::Listener::Listener()
+{}
+
+MouseCallbackComponent::Listener::~Listener()
+{ masterReference.clear(); }
+
+MouseCallbackComponent::RectangleConstrainer::Listener::~Listener()
+{ masterReference.clear(); }
+
+MouseCallbackComponent::~MouseCallbackComponent()
+{}
+
+void MouseCallbackComponent::setJSONPopupData(var jsonData, Rectangle<int> popupSize_)
+{ 
+	jsonPopupData = jsonData; 
+	popupSize = popupSize_;
+}
+
+void MouseCallbackComponent::setActivePopupItem(int menuId)
+{
+	activePopupId = menuId;
+}
+
+void MouseCallbackComponent::updateValue(NotificationType)
+{
+	repaint();
+}
+
+NormalisableRange<double> MouseCallbackComponent::getRange() const
+{
+	return range;
+}
+
+void MouseCallbackComponent::setRange(NormalisableRange<double>& newRange)
+{
+	range = newRange;
+}
+
+void MouseCallbackComponent::setMidiLearnEnabled(bool shouldBeEnabled)
+{
+	midiLearnEnabled = shouldBeEnabled;
 }
 
 void MouseCallbackComponent::RectangleConstrainer::checkBounds(Rectangle<int> &newBounds, const Rectangle<int> &, const Rectangle<int> &, bool, bool, bool, bool)

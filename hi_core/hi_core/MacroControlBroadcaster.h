@@ -47,7 +47,7 @@ public:
 
 	struct MacroConnectionListener
 	{
-		virtual ~MacroConnectionListener() {};
+		virtual ~MacroConnectionListener();;
 
 		virtual void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) = 0;
 
@@ -59,7 +59,7 @@ public:
 	/** Creates a new MacroControlBroadcaster with eight Macro slots. */
 	MacroControlBroadcaster(ModulatorSynthChain *chain);
 
-	virtual ~MacroControlBroadcaster() {};
+	virtual ~MacroControlBroadcaster();;
 
 	/** A simple POD object to store information about a macro controlled parameter. 
 	*	@ingroup macroControl
@@ -84,29 +84,29 @@ public:
 		void setAttribute(double normalizedInputValue);
 
 		/** Inverts the range of the parameter. */
-		void setInverted(bool shouldBeInverted) { inverted = shouldBeInverted; };
+		void setInverted(bool shouldBeInverted);;
 
-		void setIsCustomAutomation(bool shouldBeCustomAutomation) { customAutomation = shouldBeCustomAutomation; }
+		void setIsCustomAutomation(bool shouldBeCustomAutomation);
 
 		/** Sets the parameter to be read only. 
 		*
 		*	By default it is activated. if not, it can change the whole macro control. 
 		*/
-		void setReadOnly(bool shouldBeReadOnly) { readOnly = shouldBeReadOnly; };
+		void setReadOnly(bool shouldBeReadOnly);;
 
 		/** Checks if the parameter data is read only. */
-		bool isReadOnly() const { return readOnly;};
+		bool isReadOnly() const;;
 
 		/** Returns true if the parameter range is inverted. */
-		bool isInverted() const {return inverted; };
+		bool isInverted() const;;
 
 		bool matchesCustomAutomation(const Identifier& id) const;
 
-		bool isCustomAutomation() const { return customAutomation; }
+		bool isCustomAutomation() const;
 
 		/** Returns the min and max values for the parameter range. This is determined by the Controls that are
 		*	connected to the parameter. */
-		NormalisableRange<double> getTotalRange() const { return range; };
+		NormalisableRange<double> getTotalRange() const;;
 
 		/** Returns the actual limit of the range.
 		*
@@ -114,7 +114,7 @@ public:
 		*/
 		double getParameterRangeLimit(bool getHighLimit) const;
 
-		NormalisableRange<double> getParameterRange() const {return parameterRange;};
+		NormalisableRange<double> getParameterRange() const;;
 
 		/** Returns the value of the parameter.
 		*
@@ -124,27 +124,24 @@ public:
 		float getNormalizedValue(double normalizedSliderInput);
 
 		/** set the range start that is used by the macro control. */
-		void setRangeStart(double min) {parameterRange.start = min; };
+		void setRangeStart(double min);;
 
 		/** set the range end that is used by the macro control. */
-		void setRangeEnd(double max) {	parameterRange.end = max; };
+		void setRangeEnd(double max);;
 
 		/** returns the processor that the parameter is connected to. This may be nullptr, if the Processor was deleted. */
-		Processor *getProcessor() {return controlledProcessor.get(); };
+		Processor *getProcessor();;
 
 		/** returns the processor (read only) that the parameter is connected to. This may be nullptr, if the Processor was deleted. */
-		const Processor *getProcessor() const {return controlledProcessor.get(); };
+		const Processor *getProcessor() const;;
 
 		/** Returns the parameter index that the parameter is controlling. This is a Processor::SpecialParameter enum value in most cases. */
-		int getParameter() const {	return parameter; };
+		int getParameter() const;;
 
-		void setParameterIndex(int newParameter)
-		{
-			parameter = newParameter;
-		}
+		void setParameterIndex(int newParameter);
 
 		/** Returns the parameter name. This is the name of the interface control (Processor parameter have no name per se). */
-		String getParameterName() const { return parameterName; };
+		String getParameterName() const;;
 
 		
 		/** Exports all data as xml element which can be added as ValueTreeProperty. */
@@ -182,73 +179,13 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlledParameterData);
 	};
 
-	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded)
-	{
-		// Should only be called from the message thread
-		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded);
 
-		for (auto l : macroListeners)
-		{
-			if (l != nullptr)
-				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
-		}
-	}
+	void sendMacroConnectionChangeMessageForAll(bool wasAdded);
 
-	void sendMacroConnectionChangeMessageForAll(bool wasAdded)
-	{
-		struct AsyncData
-		{
-			int index;
-			WeakReference<Processor> p;
-			int parameter;
-			bool wasAdded;
-		};
+	void addMacroConnectionListener(MacroConnectionListener* l);
 
-		Array<AsyncData> data;
-
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
-		for (auto m : macroControls)
-		{
-			auto index = m->macroIndex;
-
-			for (int i = 0; i < m->getNumParameters(); i++)
-			{
-				if (auto p = m->getParameter(i))
-					data.add({ index, p->getProcessor(), p->getParameter(), wasAdded });
-			}
-		}
-
-		if (!data.isEmpty())
-		{
-			WeakReference<MacroControlBroadcaster> safeThis(this);
-
-			auto f = [data, safeThis]()
-			{
-				if (safeThis != nullptr)
-				{
-					for (auto d : data)
-					{
-						if(d.p != nullptr)
-							safeThis.get()->sendMacroConnectionChangeMessage(d.index, d.p.get(), d.parameter, d.wasAdded);
-					}
-				}
-				
-			};
-
-			MessageManager::callAsync(f);
-		}
-	}
-
-	void addMacroConnectionListener(MacroConnectionListener* l)
-	{
-		macroListeners.addIfNotAlreadyThere(l);
-	}
-
-	void removeMacroConnectionListener(MacroConnectionListener* l)
-	{
-		macroListeners.removeAllInstancesOf(l);
-	}
+	void removeMacroConnectionListener(MacroConnectionListener* l);
 
 	/** A MacroControlData object stores information about all parameters that are mapped to one macro control. 
 	*	@ingroup macroControl
@@ -257,21 +194,12 @@ public:
 	struct MacroControlData
 	{
 		/** Creates an empty data object. */
-		MacroControlData(int index, MacroControlBroadcaster& parent_):
-			macroName("Macro " + String(index + 1)),
-			currentValue(0.0),
-			midiController(-1),
-			parent(parent_),
-			macroIndex(index)
-		{};
+		MacroControlData(int index, MacroControlBroadcaster& parent_);;
 
 		MacroControlBroadcaster& parent;
 		const int macroIndex;
 
-		virtual ~MacroControlData()
-		{
-			controlledParameters.clear();
-		};
+		virtual ~MacroControlData();;
 
 		/** Creates a new data object from an XmlElement. 
 		*
@@ -319,65 +247,30 @@ public:
 		void removeParameter(const String &parameterName, const Processor *processor=nullptr);
 
 		/** returns the parameter at the supplied index. */
-		MacroControlledParameterData *getParameter(int parameterIndex)
-		{
-			return controlledParameters[parameterIndex];
-		}
+		MacroControlledParameterData *getParameter(int parameterIndex);
 
-		const MacroControlledParameterData *getParameter(int parameterIndex) const
-		{
-			return controlledParameters[parameterIndex];
-		}
+		const MacroControlledParameterData *getParameter(int parameterIndex) const;
 
-		
 
 		/** Searches the parameters for a match with the processor and index. */
-		MacroControlledParameterData *getParameterWithProcessorAndIndex(Processor *p, int parameterIndex)
-		{
-			for(int i = 0; i < controlledParameters.size(); i++)
-			{
-				if(controlledParameters[i]->getProcessor() == p && controlledParameters[i]->getParameter() == parameterIndex)
-				{
-					return controlledParameters[i];
-				}
-			}
-
-			return nullptr;
-		}
+		MacroControlledParameterData *getParameterWithProcessorAndIndex(Processor *p, int parameterIndex);
 
 		/** Searches the parameters for a match with the processor and parameter name. */
-		MacroControlledParameterData *getParameterWithProcessorAndName(Processor *p, const String &parameterName)
-		{
-			for(int i = 0; i < controlledParameters.size(); i++)
-			{
-				if(controlledParameters[i]->getProcessor() == p && controlledParameters[i]->getParameterName() == parameterName)
-				{
-					return controlledParameters[i];
-				}
-			}
-
-			return nullptr;
-		}
+		MacroControlledParameterData *getParameterWithProcessorAndName(Processor *p, const String &parameterName);
 
 		/** Returns the macro name. */
-		String getMacroName() const {return macroName; };
+		String getMacroName() const;;
 
 		/** Sets the macro name that is displayed beyond the knob. */
-		void setMacroName(const String &name)
-		{
-			macroName = name;
-		}
+		void setMacroName(const String &name);
 
 		/** Returns the number of mapped parameters. */
-		int getNumParameters() const { return controlledParameters.size(); };
+		int getNumParameters() const;;
 
 		/** sets the MidiController number that controls this macro when loaded as main chain. */
-		void setMidiController(int newControllerNumber)
-		{ 
-			midiController = newControllerNumber;	
-		};
+		void setMidiController(int newControllerNumber);;
 
-		int getMidiController() const noexcept { return midiController; };
+		int getMidiController() const noexcept;;
 
 	private:
 
@@ -422,18 +315,10 @@ public:
 								bool readOnly=true);
 
 	/** Returns the MacroControlData object at the supplied index. */
-	MacroControlData *getMacroControlData(int index) 
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-		return macroControls[index];	
-	}
+	MacroControlData *getMacroControlData(int index);
 
 	/** Returns the MacroControlData object at the supplied index. */
-	const MacroControlData *getMacroControlData(int index) const 
-	{
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-		return macroControls[index]; 
-	}
+	const MacroControlData *getMacroControlData(int index) const;
 
 	void saveMacrosToValueTree(ValueTree &v) const;
 
@@ -447,21 +332,10 @@ public:
 	/** Removes all parameters and resets the name. */
 	void clearData(int macroIndex);
     
-    void clearAllMacroControls()
-    {
-        const int numMacros = macroControls.size();
-        
-        for(int i = 0; i < numMacros; i++)
-        {
-            clearData(i);
-        }
-    }
+    void clearAllMacroControls();
 
 	/** Checks if the macro control has any parameters. */
-	bool hasActiveParameters(int macroIndex)
-	{
-		return macroControls[macroIndex]->getNumParameters() != 0;
-	}
+	bool hasActiveParameters(int macroIndex);
 
 	/** this replaces the macro control data object at the specified index with the new one. 
 	*

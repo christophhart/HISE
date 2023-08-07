@@ -465,6 +465,22 @@ void UserPresetHelpers::extractDirectory(ValueTree directory, File parent)
 	}
 }
 
+ModuleStateManager::ModuleStateManager(MainController* mc):
+	ControlledObject(mc)
+{}
+
+ModuleStateManager::StoredModuleData** ModuleStateManager::begin()
+{ return modules.begin(); }
+
+ModuleStateManager::StoredModuleData** ModuleStateManager::end()
+{ return modules.end(); }
+
+Identifier ModuleStateManager::getUserPresetStateId() const
+{ return UserPresetIds::Modules; }
+
+void ModuleStateManager::resetUserPresetState()
+{}
+
 void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String()*/)
 {
 	const bool hasCustomName = p->getName() != p->getId();
@@ -1770,6 +1786,151 @@ PopupMenu PresetHandler::getAllSavedPresets(int minIndex, Processor *p)
 	return m;
 }
 
+void PresetHandler::stripViewsFromPreset(ValueTree& preset)
+{
+	preset.removeProperty("views", nullptr);
+	preset.removeProperty("currentView", nullptr);
+
+	preset.removeProperty("EditorState", nullptr);
+
+	for(int i = 0; i < preset.getNumChildren(); i++)
+	{
+		ValueTree child = preset.getChild(i);
+            
+		stripViewsFromPreset(child);
+	}
+}
+
+File PresetHandler::loadFile(const String& extension)
+{
+	jassert(extension.isEmpty() || extension.startsWith("*"));
+
+	FileChooser fc("Load File", File(), extension, true);
+        
+	if(fc.browseForFileToOpen())
+	{
+            
+		return fc.getResult();
+	}
+	return File();
+}
+
+void PresetHandler::saveFile(const String& dataToSave, const String& extension)
+{
+	jassert(extension.isEmpty() || extension.startsWith("*"));
+
+	FileChooser fc("Save File", File(), extension);
+        
+	if(fc.browseForFileToSave(true))
+	{
+		fc.getResult().deleteFile();
+		fc.getResult().create();
+		fc.getResult().appendText(dataToSave);
+	}
+        
+}
+
+File PresetHandler::getSampleFolder(const String& libraryName)
+{
+	const bool search = NativeMessageBox::showOkCancelBox(AlertWindow::WarningIcon, "Sample Folder can't be found", "The sample folder for " + libraryName + "can't be found. Press OK to search or Cancel to abort loading");
+
+	if(search)
+	{
+		FileChooser fc("Searching Sample Folder");
+
+		if(fc.browseForDirectory())
+		{
+			File sampleFolder = fc.getResult();
+
+				
+
+			return sampleFolder;
+		}
+	}
+		
+
+	return File();
+		
+		
+}
+
+ValueTree PresetHandler::loadValueTreeFromData(const void* data, size_t size, bool wasCompressed)
+{
+	if (wasCompressed)
+	{
+		return ValueTree::readFromGZIPData(data, size);
+	}
+	else
+	{
+		return ValueTree::readFromData(data, size);
+	}
+}
+
+void PresetHandler::writeValueTreeAsFile(const ValueTree& v, const String& fileName, bool compressData)
+{
+	File file(fileName);
+	file.deleteFile();
+	file.create();
+
+	if (compressData)
+	{
+		FileOutputStream fos(file);
+
+		GZIPCompressorOutputStream gzos(&fos, 9, false);
+
+		MemoryOutputStream mos;
+
+		v.writeToStream(mos);
+
+		gzos.write(mos.getData(), mos.getDataSize());
+		gzos.flush();
+	}
+	else
+	{
+		FileOutputStream fos(file);
+
+		v.writeToStream(fos);
+	}
+}
+
+var PresetHandler::writeValueTreeToMemoryBlock(const ValueTree& v, bool compressData)
+{
+
+	juce::MemoryBlock mb;
+
+	if (compressData)
+	{
+		MemoryOutputStream mos(mb, false);
+
+		GZIPCompressorOutputStream gzos(&mos, 9, false);
+
+		MemoryOutputStream internalMos;
+
+		v.writeToStream(internalMos);
+
+		gzos.write(internalMos.getData(), internalMos.getDataSize());
+		gzos.flush();
+	}
+	else
+	{
+		MemoryOutputStream mos(mb, false);
+
+		v.writeToStream(mos);
+	}
+
+	return var(mb.getData(), mb.getSize());
+}
+
+void PresetHandler::setCurrentMainController(void* mc)
+{
+	currentController = mc;
+}
+
+LookAndFeel* PresetHandler::createAlertWindowLookAndFeel()
+{
+	return HiseColourScheme::createAlertWindowLookAndFeel(currentController);
+}
+
 File PresetHandler::getPresetFileFromMenu(int menuIndexDelta, Processor *parent)
 {
 	File directory = getDirectory(parent);
@@ -2354,6 +2515,32 @@ void AboutPage::paint(Graphics &g)
 	infoData.draw(g, Rectangle<float>(40.0f, textOffset, (float)getWidth() - 80.0f, (float)getHeight() - textOffset));
 }
 
+UserPresetStateManager::~UserPresetStateManager()
+{}
+
+bool UserPresetStateManager::restoreUserPresetState(const ValueTree& root)
+{
+	auto r = root.getChildWithName(getUserPresetStateId());
+
+	if (r.isValid())
+		restoreFromValueTree(r);
+	else
+		resetUserPresetState();
+
+	return true;
+}
+
+void UserPresetStateManager::saveUserPresetState(ValueTree& presetRoot) const
+{
+	auto v = exportAsValueTree();
+
+	if (!v.isValid())
+		return;
+
+	jassert(v.getType() == getUserPresetStateId());
+	presetRoot.addChild(v, -1, nullptr);
+}
+
 
 void AboutPage::refreshText()
 {
@@ -2906,6 +3093,39 @@ juce::File FileHandlerBase::checkSubDirectory(SubDirectories dir)
 
 		return File();
 	}
+}
+
+ProjectHandler::ProjectHandler(MainController* mc_):
+	FileHandlerBase(mc_)
+{
+		
+}
+
+ProjectHandler::Listener::~Listener()
+{}
+
+const StringArray& ProjectHandler::getRecentWorkDirectories()
+{ return recentWorkDirectories; }
+
+File ProjectHandler::getRootFolder() const
+{ return getWorkDirectory(); }
+
+bool ProjectHandler::isRedirected(ProjectHandler::SubDirectories dir) const
+{
+	return subDirectories[(int)dir].isReference;
+}
+
+void ProjectHandler::addListener(Listener* newProjectListener, bool sendWithInitialValue)
+{
+	listeners.addIfNotAlreadyThere(newProjectListener);
+        
+	if(sendWithInitialValue && currentWorkDirectory.isDirectory())
+		newProjectListener->projectChanged(currentWorkDirectory);
+}
+
+void ProjectHandler::removeListener(Listener* listenerToRemove)
+{
+	listeners.removeAllInstancesOf(listenerToRemove);
 }
 
 void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* chain, DialogWindowWithBackgroundThread::LogData* logData)

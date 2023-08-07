@@ -1064,9 +1064,7 @@ public:
 	{
 	public:
 
-		ProcessorChangeHandler(MainController* mc_) :
-			mc(mc_)
-		{}
+		ProcessorChangeHandler(MainController* mc_);
 
 		enum class EventType
 		{
@@ -1079,20 +1077,14 @@ public:
 			numEventTypes
 		};
 
-		~ProcessorChangeHandler()
-		{
-			listeners.clear();
-		}
+		~ProcessorChangeHandler();
 
 		class Listener
 		{
 		public:
 			virtual void moduleListChanged(Processor* processorThatWasChanged, EventType type) = 0;
 
-			virtual ~Listener()
-			{
-				masterReference.clear();
-			}
+			virtual ~Listener();
 
 		private:
 
@@ -1100,48 +1092,13 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		void sendProcessorChangeMessage(Processor* changedProcessor, EventType type, bool synchronous = true)
-		{
-			tempProcessor = changedProcessor;
-			tempType = type;
+		void sendProcessorChangeMessage(Processor* changedProcessor, EventType type, bool synchronous = true);
 
-			if (synchronous)
-				handleAsyncUpdate();
-			else
-				triggerAsyncUpdate();
-		}
+		void handleAsyncUpdate();
 
-		void handleAsyncUpdate()
-		{
-			if (tempProcessor == nullptr)
-				return;
+		void addProcessorChangeListener(Listener* newListener);
 
-			{
-				ScopedLock sl(listeners.getLock());
-
-				for (int i = 0; i < listeners.size(); i++)
-				{
-					if (listeners[i].get() != nullptr)
-						listeners[i]->moduleListChanged(tempProcessor, tempType);
-					else
-						listeners.remove(i--);
-				}
-			}
-			
-
-			tempProcessor = nullptr;
-			tempType = EventType::numEventTypes;
-		}
-
-		void addProcessorChangeListener(Listener* newListener)
-		{
-			listeners.addIfNotAlreadyThere(newListener);
-		}
-
-		void removeProcessorChangeListener(Listener* listenerToRemove)
-		{
-			listeners.removeAllInstancesOf(listenerToRemove);
-		}
+		void removeProcessorChangeListener(Listener* listenerToRemove);
 
 	private:
 
