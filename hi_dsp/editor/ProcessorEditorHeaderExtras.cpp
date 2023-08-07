@@ -333,22 +333,22 @@ void ChainIcon::paint(Graphics &g)
 
 	if (chainType == ModulatorSynth::GainModulation)
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorIcons::gainModulation, sizeof(HiBinaryData::ProcessorIcons::gainModulation));
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::gainModulation, SIZE_OF_PATH(HiBinaryData::ProcessorIcons::gainModulation));
 
 	}
 	else if (chainType == ModulatorSynth::PitchModulation)
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorIcons::pitchModulation, sizeof(HiBinaryData::ProcessorIcons::pitchModulation));
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::pitchModulation, SIZE_OF_PATH(HiBinaryData::ProcessorIcons::pitchModulation));
 
 	}
 	else if (chainType == ModulatorSynth::EffectChain)
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorIcons::effectChain, sizeof(HiBinaryData::ProcessorIcons::effectChain));
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::effectChain, SIZE_OF_PATH(HiBinaryData::ProcessorIcons::effectChain));
 	}
 
 	else if (chainType == ModulatorSampler::SampleStartModulation)
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorIcons::sampleStartModulation, sizeof(HiBinaryData::ProcessorIcons::sampleStartModulation));
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::sampleStartModulation, SIZE_OF_PATH(HiBinaryData::ProcessorIcons::sampleStartModulation));
 
 	}
 	else if (chainType == Filter)

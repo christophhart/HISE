@@ -30,9 +30,24 @@
 *   ===========================================================================
 */
 
+// This is a helper tool to print out definitions for the extern const char* variables with the sizeof([]) operator
+#if 0
+#define PRINT_DATA(ns, x) DBG(juce::String("DECLARE_DATA(") + #x + ", " + juce::String(sizeof(ns::x)) + ");")
+
+void printData()
+{
+	PRINT_DATA(HiBinaryData::SpecialSymbols, midiData);
+	PRINT_DATA(HiBinaryData::SpecialSymbols, masterEffect);
+	PRINT_DATA(HiBinaryData::SpecialSymbols, macros);
+	PRINT_DATA(HiBinaryData::SpecialSymbols, globalCableIcon);
+	PRINT_DATA(HiBinaryData::SpecialSymbols, scriptProcessor);
+	PRINT_DATA(HiBinaryData::SpecialSymbols, routingIcon);
+}
+
+#undef PRINT_DATA
+#endif
+
 namespace hise { using namespace juce;
-
-
 
 
 
@@ -41,7 +56,7 @@ MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 scriptUnlocker(this)
 {
-    
+	//printData();
     
 	ExtendedApiDocumentation::init();
 

@@ -1292,6 +1292,7 @@ void Path::loadPathFromStream (InputStream& source)
 
 void Path::loadPathFromData (const void* const pathData, const size_t numberOfBytes)
 {
+    jassert(numberOfBytes != sizeof(char*));
     MemoryInputStream in (pathData, numberOfBytes, false);
     loadPathFromStream (in);
 }

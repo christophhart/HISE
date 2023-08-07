@@ -273,13 +273,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case PopupMenuOptions::MacroControls:
 	{
-		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::macros));
 		break;
 	}
 	case PopupMenuOptions::SnexParameterList:
 	case PopupMenuOptions::MacroTable:
 	{
-		path.loadPathFromData(MainToolbarIcons::macroControlTable, sizeof(MainToolbarIcons::macroControlTable));
+		path.loadPathFromData(MainToolbarIcons::macroControlTable, SIZE_OF_PATH(MainToolbarIcons::macroControlTable));
 
 		break;
 	}
@@ -287,23 +287,23 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case PopupMenuOptions::DspNodeList:
 	case PopupMenuOptions::DspNodeParameterEditor:
 	{
-		path.loadPathFromData(ScriptnodeIcons::pinIcon, sizeof(ScriptnodeIcons::pinIcon));
+		path.loadPathFromData(ScriptnodeIcons::pinIcon, SIZE_OF_PATH(ScriptnodeIcons::pinIcon));
 		break;
 	}
 	case PopupMenuOptions::PresetBrowser:
 	{
-		path.loadPathFromData(MainToolbarIcons::presetBrowser, sizeof(MainToolbarIcons::presetBrowser));
+		path.loadPathFromData(MainToolbarIcons::presetBrowser, SIZE_OF_PATH(MainToolbarIcons::presetBrowser));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::MidiKeyboard:
 #if USE_BACKEND
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, sizeof(BackendBinaryData::ToolbarIcons::keyboard));
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::keyboard));
 #endif
 		break;
 	case PopupMenuOptions::SampleConnector:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptConnectorPanel:
 	{
-		path.loadPathFromData(EditorIcons::connectIcon, sizeof(EditorIcons::connectIcon));
+		path.loadPathFromData(EditorIcons::connectIcon, SIZE_OF_PATH(EditorIcons::connectIcon));
 		break;
 	}
     case PopupMenuOptions::MarkdownPreviewPanel:
@@ -320,27 +320,27 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case FloatingTileContent::Factory::PopupMenuOptions::SnexEditor:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptEditor:
 	{
-		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptContent:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(MainToolbarIcons::home, sizeof(MainToolbarIcons::home));
+		path.loadPathFromData(MainToolbarIcons::home, SIZE_OF_PATH(MainToolbarIcons::home));
 #endif
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ServerController:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(MainToolbarIcons::web, sizeof(MainToolbarIcons::web));
+		path.loadPathFromData(MainToolbarIcons::web, SIZE_OF_PATH(MainToolbarIcons::web));
 #endif
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentList:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(MainToolbarIcons::home, sizeof(MainToolbarIcons::home));
+		path.loadPathFromData(MainToolbarIcons::home, SIZE_OF_PATH(MainToolbarIcons::home));
 #endif
 		break;
 	}
@@ -355,13 +355,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::VisibilityToggleBar:
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape));
+		path.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape));
 
 		return path;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::SnexTestDataInfo:
 	{
-		path.loadPathFromData(HnodeIcons::testIcon, sizeof(HnodeIcons::testIcon));
+		path.loadPathFromData(HnodeIcons::testIcon, SIZE_OF_PATH(HnodeIcons::testIcon));
 		return path;
 	}
 
@@ -381,7 +381,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case FloatingTileContent::Factory::PopupMenuOptions::Console:
 	{
 #if USE_BACKEND
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::debugPanel, sizeof(BackendBinaryData::ToolbarIcons::debugPanel));
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::debugPanel, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::debugPanel));
 #endif
 		break;
 	}
@@ -403,7 +403,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case PopupMenuOptions::SampleEditor:
 	{
-		path.loadPathFromData(MainToolbarIcons::samplerWorkspace , sizeof(MainToolbarIcons::samplerWorkspace));
+		path.loadPathFromData(MainToolbarIcons::samplerWorkspace , SIZE_OF_PATH(MainToolbarIcons::samplerWorkspace));
 		return path;
 	}
 	case PopupMenuOptions::SampleMapEditor:
@@ -454,58 +454,58 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ApiCollection:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::apiList)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptWatchTable:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::viewPanel)));
 
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentEditPanel:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::mixer, sizeof(BackendBinaryData::ToolbarIcons::mixer)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::mixer, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::mixer)));
 		path.applyTransform(AffineTransform::rotation(float_Pi / 2.0f));
 
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
 		break;
 	}
 	break;
 	case FloatingTileContent::Factory::PopupMenuOptions::ExpansionEditBar:
 	case FloatingTileContent::Factory::PopupMenuOptions::FileBrowser:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::fileBrowser)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::SamplePoolTable:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::sampleTable, sizeof(BackendBinaryData::ToolbarIcons::sampleTable)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::sampleTable, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::sampleTable)));
 		break;
 	}
 	case PopupMenuOptions::AudioFileTable:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, sizeof(BackendBinaryData::ToolbarIcons::fileTable)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::fileTable)));
 		break;
 	}
 	case PopupMenuOptions::ImageTable:
 	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, sizeof(BackendBinaryData::ToolbarIcons::imageTable)));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::imageTable)));
 		break;
 	}
 	case PopupMenuOptions::numOptions:
 	{
 		
-		path.loadPathFromData(MainToolbarIcons::mainWorkspace, sizeof(MainToolbarIcons::mainWorkspace));
+		path.loadPathFromData(MainToolbarIcons::mainWorkspace, SIZE_OF_PATH(MainToolbarIcons::mainWorkspace));
 
 		return path;
 	}

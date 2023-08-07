@@ -41,20 +41,20 @@ namespace hise {
 
 		Path p;
 
-		LOAD_PATH_IF_URL("midi", ProcessorIcons::midiIcon);
-		LOAD_PATH_IF_URL("gain", ProcessorIcons::gainIcon);
-		LOAD_PATH_IF_URL("pitch", ProcessorIcons::pitchIcon);
-		LOAD_PATH_IF_URL("fx", ProcessorIcons::fxIcon);
-		LOAD_PATH_IF_URL("sample-start", ProcessorIcons::sampleStartIcon);
-		LOAD_PATH_IF_URL("group-fade", ProcessorIcons::groupFadeIcon);
-		LOAD_PATH_IF_URL("speaker", ProcessorIcons::speaker);
+		LOAD_EPATH_IF_URL("midi", ProcessorIcons::midiIcon);
+		LOAD_EPATH_IF_URL("gain", ProcessorIcons::gainIcon);
+		LOAD_EPATH_IF_URL("pitch", ProcessorIcons::pitchIcon);
+		LOAD_EPATH_IF_URL("fx", ProcessorIcons::fxIcon);
+		LOAD_EPATH_IF_URL("sample-start", ProcessorIcons::sampleStartIcon);
+		LOAD_EPATH_IF_URL("group-fade", ProcessorIcons::groupFadeIcon);
+		LOAD_EPATH_IF_URL("speaker", ProcessorIcons::speaker);
 		
-		LOAD_PATH_IF_URL("master-effects", HiBinaryData::SpecialSymbols::masterEffect);
-		LOAD_PATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
-		LOAD_PATH_IF_URL("polyphonic-effects", ProcessorIcons::polyFX);
-		LOAD_PATH_IF_URL("voice-start-modulator", ProcessorIcons::voiceStart);
-		LOAD_PATH_IF_URL("time-variant-modulator", ProcessorIcons::timeVariant);
-		LOAD_PATH_IF_URL("envelope", ProcessorIcons::envelope);
+		LOAD_EPATH_IF_URL("master-effects", HiBinaryData::SpecialSymbols::masterEffect);
+		LOAD_EPATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
+		LOAD_EPATH_IF_URL("polyphonic-effects", ProcessorIcons::polyFX);
+		LOAD_EPATH_IF_URL("voice-start-modulator", ProcessorIcons::voiceStart);
+		LOAD_EPATH_IF_URL("time-variant-modulator", ProcessorIcons::timeVariant);
+		LOAD_EPATH_IF_URL("envelope", ProcessorIcons::envelope);
 
 		return p;
 	}

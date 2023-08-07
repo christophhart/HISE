@@ -316,12 +316,12 @@ struct DspNetworkCodeProvider : public WorkbenchData::CodeProvider,
 
 			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 
-			LOAD_PATH_IF_URL("dll", HnodeIcons::dllIcon);
-			LOAD_PATH_IF_URL("code", HiBinaryData::SpecialSymbols::scriptProcessor);
-			LOAD_PATH_IF_URL("jit", HnodeIcons::jit);
-			LOAD_PATH_IF_URL("scriptnode", ScriptnodeIcons::pinIcon);
-			LOAD_PATH_IF_URL("main_logo", ScriptnodeIcons::mainLogo);
-			LOAD_PATH_IF_URL("parameters", HiBinaryData::SpecialSymbols::macros);
+			LOAD_EPATH_IF_URL("dll", HnodeIcons::dllIcon);
+			LOAD_EPATH_IF_URL("code", HiBinaryData::SpecialSymbols::scriptProcessor);
+			LOAD_EPATH_IF_URL("jit", HnodeIcons::jit);
+			LOAD_EPATH_IF_URL("scriptnode", ScriptnodeIcons::pinIcon);
+			LOAD_EPATH_IF_URL("main_logo", ScriptnodeIcons::mainLogo);
+			LOAD_EPATH_IF_URL("parameters", HiBinaryData::SpecialSymbols::macros);
 
 			if(url == "console")
 				return FloatingTileContent::Factory::getPath(FloatingTileContent::Factory::PopupMenuOptions::Console);

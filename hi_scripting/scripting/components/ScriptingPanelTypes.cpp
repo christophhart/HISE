@@ -1313,17 +1313,17 @@ struct ServerController: public Component,
 		{
 			Path p;
 
-			LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
-			LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
+			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
-			LOAD_PATH_IF_URL("web", MainToolbarIcons::web);
+			LOAD_EPATH_IF_URL("web", MainToolbarIcons::web);
 			LOAD_PATH_IF_URL("response", ServerIcons::response);
 			LOAD_PATH_IF_URL("resend", ServerIcons::resend);
 			LOAD_PATH_IF_URL("downloads", ServerIcons::downloads);
 			LOAD_PATH_IF_URL("requests", ServerIcons::requests);
 			LOAD_PATH_IF_URL("start", ServerIcons::play);
 			LOAD_PATH_IF_URL("stop", ServerIcons::pause);
-			LOAD_PATH_IF_URL("file", SampleMapIcons::loadSampleMap);
+			LOAD_EPATH_IF_URL("file", SampleMapIcons::loadSampleMap);
 
 			return p;
 		}
@@ -2070,16 +2070,16 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+	LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);
-	LOAD_PATH_IF_URL("move", EditorIcons::resizeIcon);
-	LOAD_PATH_IF_URL("cancel", EditorIcons::cancelIcon);
-	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
-	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
+	LOAD_EPATH_IF_URL("move", EditorIcons::resizeIcon);
+	LOAD_EPATH_IF_URL("cancel", EditorIcons::cancelIcon);
+	LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);
+	LOAD_EPATH_IF_URL("redo", EditorIcons::redoIcon);
 	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
-	LOAD_PATH_IF_URL("learn", EditorIcons::connectIcon);
+	LOAD_EPATH_IF_URL("learn", EditorIcons::connectIcon);
 	LOAD_PATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
 	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
 	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
@@ -2214,10 +2214,10 @@ juce::Path OSCLogger::createPath(const String& url) const
 	Path p;
 
 	LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
-	LOAD_PATH_IF_URL("clear", SampleMapIcons::deleteSamples);
-	LOAD_PATH_IF_URL("pause", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-	LOAD_PATH_IF_URL("scale", ScriptnodeIcons::scaleIcon);
-	LOAD_PATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
+	LOAD_EPATH_IF_URL("pause", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	LOAD_EPATH_IF_URL("scale", ScriptnodeIcons::scaleIcon);
+	LOAD_EPATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
 
 	return p;
 }

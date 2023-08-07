@@ -1027,10 +1027,10 @@ juce::Path FaustMenuBar::Factory::createPath(const String& url) const
 
 	LOAD_PATH_IF_URL("new", ColumnIcons::threeDots);
 	LOAD_PATH_IF_URL("edit", ColumnIcons::openWorkspaceIcon);
-	LOAD_PATH_IF_URL("compile", EditorIcons::compileIcon);
-	LOAD_PATH_IF_URL("reset", EditorIcons::swapIcon);
+	LOAD_EPATH_IF_URL("compile", EditorIcons::compileIcon);
+	LOAD_EPATH_IF_URL("reset", EditorIcons::swapIcon);
 	LOAD_PATH_IF_URL("add", ColumnIcons::threeDots);
-	LOAD_PATH_IF_URL("preview", BackendBinaryData::ToolbarIcons::viewPanel);
+	LOAD_EPATH_IF_URL("preview", BackendBinaryData::ToolbarIcons::viewPanel);
 
 	return p;
 }

@@ -190,7 +190,7 @@ public:
 		{
 			Path p;
 
-			LOAD_PATH_IF_URL("help", MainToolbarIcons::help);
+			LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
 
 			return p;
 		}

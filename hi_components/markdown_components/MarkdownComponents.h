@@ -281,16 +281,16 @@ public:
 
 			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 
-			LOAD_PATH_IF_URL("live-preview", EditorIcons::swapIcon);
-			LOAD_PATH_IF_URL("new-file", EditorIcons::newFile);
-			LOAD_PATH_IF_URL("open-file", EditorIcons::openFile);
-			LOAD_PATH_IF_URL("save-file", EditorIcons::saveFile);
-			LOAD_PATH_IF_URL("create-link", EditorIcons::urlIcon);
-			LOAD_PATH_IF_URL("create-image", EditorIcons::imageIcon);
-			LOAD_PATH_IF_URL("create-table", EditorIcons::tableIcon);
+			LOAD_EPATH_IF_URL("live-preview", EditorIcons::swapIcon);
+			LOAD_EPATH_IF_URL("new-file", EditorIcons::newFile);
+			LOAD_EPATH_IF_URL("open-file", EditorIcons::openFile);
+			LOAD_EPATH_IF_URL("save-file", EditorIcons::saveFile);
+			LOAD_EPATH_IF_URL("create-link", EditorIcons::urlIcon);
+			LOAD_EPATH_IF_URL("create-image", EditorIcons::imageIcon);
+			LOAD_EPATH_IF_URL("create-table", EditorIcons::tableIcon);
 
 #if USE_BACKEND
-			LOAD_PATH_IF_URL("show-settings", BackendBinaryData::ToolbarIcons::settings);
+			LOAD_EPATH_IF_URL("show-settings", BackendBinaryData::ToolbarIcons::settings);
 #endif
 
 			return p;

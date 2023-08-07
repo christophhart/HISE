@@ -647,21 +647,20 @@ juce::Path ComponentWithTopBar::Icons::createPath(const String& t) const
 
 	Path p;
 
-	LOAD_PATH_IF_URL("new-file", SampleMapIcons::newSampleMap);
-	LOAD_PATH_IF_URL("open-file", SampleMapIcons::loadSampleMap);
-	LOAD_PATH_IF_URL("save-file", SampleMapIcons::saveSampleMap);
-	LOAD_PATH_IF_URL("switch-domains", SampleMapIcons::monolith);
-	LOAD_PATH_IF_URL("processing-setup", SampleMapIcons::deleteSamples);
+	LOAD_EPATH_IF_URL("new-file", SampleMapIcons::newSampleMap);
+	LOAD_EPATH_IF_URL("open-file", SampleMapIcons::loadSampleMap);
+	LOAD_EPATH_IF_URL("save-file", SampleMapIcons::saveSampleMap);
+	LOAD_EPATH_IF_URL("switch-domains", SampleMapIcons::monolith);
+	LOAD_EPATH_IF_URL("processing-setup", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("loop", GraphIcons::loopIcon);
-	LOAD_PATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
-	LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+	LOAD_EPATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+	LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_PATH_IF_URL("bypass", GraphIcons::bypassIcon);
 	LOAD_PATH_IF_URL("process", GraphIcons::processIcon);
 	LOAD_PATH_IF_URL("log-scale", GraphIcons::logIcon);
 	LOAD_PATH_IF_URL("markers", GraphIcons::markerIcons);
 	LOAD_PATH_IF_URL("compare", GraphIcons::compareIcon);
-	LOAD_PATH_IF_URL("copy", SampleMapIcons::pasteSamples);
-
+	LOAD_EPATH_IF_URL("copy", SampleMapIcons::pasteSamples);
 
 	LOAD_PATH_IF_URL("test", SnexIcons::bugIcon);
 	return p;

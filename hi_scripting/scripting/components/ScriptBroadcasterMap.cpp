@@ -702,10 +702,10 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 		{
 			Path p;
 
-			LOAD_PATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
+			LOAD_EPATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
 			LOAD_PATH_IF_URL("clear", ColumnIcons::moveIcon);
-			LOAD_PATH_IF_URL("error", ScriptnodeIcons::errorIcon);
-			LOAD_PATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("error", ScriptnodeIcons::errorIcon);
+			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
 			LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
 			LOAD_PATH_IF_URL("tags", ScriptBroadcasterMapIcons::tagIcon);
 			LOAD_PATH_IF_URL("dim", ScriptBroadcasterMapIcons::dimIcon);
@@ -976,7 +976,7 @@ juce::Path ScriptBroadcasterMap::ListenerEntry::createPath(const String& url) co
 	LOAD_PATH_IF_URL("broadcastersource", ScriptBroadcasterMapIcons::otherBroadcasterIcon);
 	LOAD_PATH_IF_URL("componentvalue", ScriptBroadcasterMapIcons::valueIcon);
 	LOAD_PATH_IF_URL("componentproperties", ScriptBroadcasterMapIcons::propertyIcon);
-    LOAD_PATH_IF_URL("scriptfunctioncalls", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_EPATH_IF_URL("scriptfunctioncalls", HiBinaryData::SpecialSymbols::scriptProcessor);
 
 	if (p.isEmpty())
 		p.loadPathFromData(ScriptBroadcasterMapIcons::complexDataIcon, sizeof(ScriptBroadcasterMapIcons::complexDataIcon));
@@ -988,11 +988,11 @@ juce::Path ScriptBroadcasterMapFactory::createPath(const String& url) const
 {
     Path p;
 
-    LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
     LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
     LOAD_PATH_IF_URL("queue", ScriptBroadcasterMapIcons::queueIcon);
 	LOAD_PATH_IF_URL("error", ColumnIcons::errorIcon);
-    LOAD_PATH_IF_URL("realtime", HnodeIcons::jit);
+    LOAD_EPATH_IF_URL("realtime", HnodeIcons::jit);
 	LOAD_PATH_IF_URL("comment", ScriptBroadcasterMapIcons::commentIcon);
     return p;
 }

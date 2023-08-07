@@ -105,20 +105,20 @@ juce::Path MainToolbarFactory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_PATH_IF_URL("back", MainToolbarIcons::back);
-	LOAD_PATH_IF_URL("forward", MainToolbarIcons::forward);
-    LOAD_PATH_IF_URL("custom-popup", MainToolbarIcons::customPopup);
-    LOAD_PATH_IF_URL("keyboard", BackendBinaryData::ToolbarIcons::keyboard);
-	LOAD_PATH_IF_URL("macro-controls", HiBinaryData::SpecialSymbols::macros);
-	LOAD_PATH_IF_URL("preset-browser", MainToolbarIcons::presetBrowser);
-	LOAD_PATH_IF_URL("plugin-preview", MainToolbarIcons::home);
-	LOAD_PATH_IF_URL("main-workspace", MainToolbarIcons::mainWorkspace);
-	LOAD_PATH_IF_URL("scripting-workspace", HiBinaryData::SpecialSymbols::scriptProcessor);
-	LOAD_PATH_IF_URL("sampler-workspace", MainToolbarIcons::samplerWorkspace);
+	LOAD_EPATH_IF_URL("back", MainToolbarIcons::back);
+	LOAD_EPATH_IF_URL("forward", MainToolbarIcons::forward);
+    LOAD_EPATH_IF_URL("custom-popup", MainToolbarIcons::customPopup);
+	LOAD_EPATH_IF_URL("keyboard", BackendBinaryData::ToolbarIcons::keyboard);
+	LOAD_EPATH_IF_URL("macro-controls", HiBinaryData::SpecialSymbols::macros);
+	LOAD_EPATH_IF_URL("preset-browser", MainToolbarIcons::presetBrowser);
+	LOAD_EPATH_IF_URL("plugin-preview", MainToolbarIcons::home);
+	LOAD_EPATH_IF_URL("main-workspace", MainToolbarIcons::mainWorkspace);
+	LOAD_EPATH_IF_URL("scripting-workspace", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_EPATH_IF_URL("sampler-workspace", MainToolbarIcons::samplerWorkspace);
 	LOAD_PATH_IF_URL("custom-workspace", ColumnIcons::customizeIcon);
-	LOAD_PATH_IF_URL("settings", MainToolbarIcons::settings);
-	LOAD_PATH_IF_URL("help", MainToolbarIcons::help);
-	LOAD_PATH_IF_URL("hise", MainToolbarIcons::hise);
+	LOAD_EPATH_IF_URL("settings", MainToolbarIcons::settings);
+	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
+	LOAD_EPATH_IF_URL("hise", MainToolbarIcons::hise);
 
 	return p;
 

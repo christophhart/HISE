@@ -96,7 +96,7 @@ void ModulationSourceNode::rebuildCallback()
 ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* updater) :
 	SimpleTimer(updater, true)
 {
-	unscaledPath.loadPathFromData(ScriptnodeIcons::unscaledMod, sizeof(ScriptnodeIcons::unscaledMod));
+	unscaledPath.loadPathFromData(ScriptnodeIcons::unscaledMod, SIZE_OF_PATH(ScriptnodeIcons::unscaledMod));
 
 	dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
 

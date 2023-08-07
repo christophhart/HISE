@@ -344,7 +344,7 @@ FloatingTile::CloseButton::CloseButton() :
 	ShapeButton("Close", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white)
 {
 	Path p;
-	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	setShape(p, false, true, true);
 
 	addListener(this);
@@ -658,11 +658,11 @@ void FloatingTile::setFolded(bool shouldBeFolded)
 void FloatingTile::refreshFoldButton()
 {
 	Path p;
-	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
 
 	bool rotate = isFolded();
 
-	foldButton->setTooltip((isFolded() ? "Expand " : "Fold ") + getCurrentFloatingPanel()->getBestTitle());
+	
 
 	if (getParentType() == ParentType::Vertical)
 		rotate = !rotate;
@@ -917,7 +917,6 @@ void FloatingTile::bringButtonsToFront()
 	{
 		closeButton->setTooltip("Delete " + getCurrentFloatingPanel()->getBestTitle());
 		resizeButton->setTooltip("Toggle absolute size for " + getCurrentFloatingPanel()->getBestTitle());
-		foldButton->setTooltip("Fold " + getCurrentFloatingPanel()->getBestTitle());
 	}
 
 	moveButton->toFront(false);

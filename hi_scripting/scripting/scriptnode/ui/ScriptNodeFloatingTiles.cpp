@@ -217,9 +217,9 @@ struct Selector : public Component,
 	Path createPath(const String& url) const override
 	{
 		Path p;
-		LOAD_PATH_IF_URL("new", SampleMapIcons::newSampleMap);
-		LOAD_PATH_IF_URL("embedded", HnodeIcons::mapIcon);
-		LOAD_PATH_IF_URL("import", SampleMapIcons::pasteSamples);
+		LOAD_EPATH_IF_URL("new", SampleMapIcons::newSampleMap);
+		LOAD_EPATH_IF_URL("embedded", HnodeIcons::mapIcon);
+		LOAD_EPATH_IF_URL("import", SampleMapIcons::pasteSamples);
 		return p;
 	}
 
@@ -874,7 +874,7 @@ juce::Path WorkbenchTestPlayer::Factory::createPath(const String& url) const
 	if (!p.isEmpty())
 		return p;
 
-	LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
+	LOAD_EPATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
 
 	return p;
 }

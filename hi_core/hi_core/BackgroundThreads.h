@@ -130,7 +130,7 @@ public:
 	ComponentWithHelp(GlobalHandler* handler_):
 		handler(handler_)
 	{
-		p.loadPathFromData(MainToolbarIcons::help, sizeof(MainToolbarIcons::help));
+		p.loadPathFromData(MainToolbarIcons::help, MainToolbarIcons::help_Size);
 
 		if (handler != nullptr)
 			handler->registerHelper(this);

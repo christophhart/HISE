@@ -536,7 +536,7 @@ struct ScriptBroadcaster::Display: public Component,
 		LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
 		LOAD_PATH_IF_URL("reset", ColumnIcons::resetIcon);
 		LOAD_PATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
-		LOAD_PATH_IF_URL("enable", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+		LOAD_EPATH_IF_URL("enable", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 		LOAD_PATH_IF_URL("delay", ColumnIcons::delayIcon);
 
 		return p;

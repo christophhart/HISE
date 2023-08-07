@@ -35,7 +35,7 @@
 namespace hise {
 using namespace juce;
 
-#define LOAD_PATH_IF_URL(urlName, editorIconName) ids.addIfNotAlreadyThere(urlName); if (url == urlName) p.loadPathFromData(editorIconName, sizeof(editorIconName));
+
 
 	/** A simple interface class. Give it a String and get a path back. */
 	class PathFactory

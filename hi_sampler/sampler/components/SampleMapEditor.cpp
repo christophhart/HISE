@@ -300,7 +300,7 @@ struct RRDisplayComponent : public Component,
 		Path p;
 
 		LOAD_PATH_IF_URL("lock", ColumnIcons::lockIcon);
-		LOAD_PATH_IF_URL("midi", SampleToolbarIcons::selectMidi);
+		LOAD_EPATH_IF_URL("midi", SampleToolbarIcons::selectMidi);
 
 		return p;
 	}
@@ -1720,37 +1720,37 @@ juce::Path SampleMapEditor::Factory::createPath(const String& name) const
 
 	Path p;
 
-	LOAD_PATH_IF_URL("new-samplemap", EditorIcons::newFile);
-	LOAD_PATH_IF_URL("import-sfz-file-format", SampleMapIcons::sfzImport);
+	LOAD_EPATH_IF_URL("new-samplemap", SampleMapIcons::newSampleMap);
+	LOAD_EPATH_IF_URL("import-sfz-file-format", SampleMapIcons::sfzImport);
 
-	LOAD_PATH_IF_URL("warning", EditorIcons::warningIcon);
-	LOAD_PATH_IF_URL("save-samplemap", EditorIcons::saveFile);
-	LOAD_PATH_IF_URL("convert-to-monolith", SampleMapIcons::monolith);
+	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
+	LOAD_EPATH_IF_URL("save-samplemap", EditorIcons::saveFile);
+	LOAD_EPATH_IF_URL("convert-to-monolith", SampleMapIcons::monolith);
 
-	LOAD_PATH_IF_URL("zoom-in", SampleMapIcons::zoomIn);
-	LOAD_PATH_IF_URL("zoom-out", SampleMapIcons::zoomOut);
+	LOAD_EPATH_IF_URL("zoom-in", SampleMapIcons::zoomIn);
+	LOAD_EPATH_IF_URL("zoom-out", SampleMapIcons::zoomOut);
 
-	LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
-	LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
-	LOAD_PATH_IF_URL("enable-autopreview", SampleMapIcons::autoPreview);
-	LOAD_PATH_IF_URL("select-all-samples", SampleMapIcons::selectAll);
-	LOAD_PATH_IF_URL("deselect-all-samples", EditorIcons::cancelIcon);
+	LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);
+	LOAD_EPATH_IF_URL("redo", EditorIcons::redoIcon);
+	LOAD_EPATH_IF_URL("enable-autopreview", SampleMapIcons::autoPreview);
+	LOAD_EPATH_IF_URL("select-all-samples", SampleMapIcons::selectAll);
+	LOAD_EPATH_IF_URL("deselect-all-samples", EditorIcons::cancelIcon);
 
-	LOAD_PATH_IF_URL("cut", SampleMapIcons::cutSamples);
-	LOAD_PATH_IF_URL("copy", SampleMapIcons::copySamples);
-	LOAD_PATH_IF_URL("paste", SampleMapIcons::pasteSamples);
-	LOAD_PATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
-	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_EPATH_IF_URL("cut", SampleMapIcons::cutSamples);
+	LOAD_EPATH_IF_URL("copy", SampleMapIcons::copySamples);
+	LOAD_EPATH_IF_URL("paste", SampleMapIcons::pasteSamples);
+	LOAD_EPATH_IF_URL("duplicate", SampleMapIcons::duplicateSamples);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	
-	LOAD_PATH_IF_URL("fill-note-gaps", SampleMapIcons::fillNoteGaps);
-	LOAD_PATH_IF_URL("fill-velocity-gaps", SampleMapIcons::fillVelocityGaps);
+	LOAD_EPATH_IF_URL("fill-note-gaps", SampleMapIcons::fillNoteGaps);
+	LOAD_EPATH_IF_URL("fill-velocity-gaps", SampleMapIcons::fillVelocityGaps);
 
 	
-	LOAD_PATH_IF_URL("load-samplemap", EditorIcons::openFile);
+	LOAD_EPATH_IF_URL("load-samplemap", EditorIcons::openFile);
 	
-	LOAD_PATH_IF_URL("refresh-velocity-crossfades.", SampleMapIcons::refreshCrossfade);
+	LOAD_EPATH_IF_URL("refresh-velocity-crossfades.", SampleMapIcons::refreshCrossfade);
 	
-	LOAD_PATH_IF_URL("trim-sample-start", SampleMapIcons::trimSampleStart);
+	LOAD_EPATH_IF_URL("trim-sample-start", SampleMapIcons::trimSampleStart);
 	
 	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 	

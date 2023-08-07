@@ -42,9 +42,9 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 
 	Path p;
 
-	LOAD_PATH_IF_URL("export", HnodeIcons::freezeIcon);
-	LOAD_PATH_IF_URL("wrap", HnodeIcons::mapIcon);
-	LOAD_PATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
+	LOAD_EPATH_IF_URL("export", HnodeIcons::freezeIcon);
+	LOAD_EPATH_IF_URL("wrap", HnodeIcons::mapIcon);
+	LOAD_EPATH_IF_URL("surround", HnodeIcons::injectNodeIcon);
 
 	return p;
 }

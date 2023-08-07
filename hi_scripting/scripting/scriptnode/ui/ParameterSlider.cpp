@@ -1648,7 +1648,7 @@ Path MacroParameterSlider::createPath(const String& url) const
 {
     Path p;
     
-    LOAD_PATH_IF_URL("warning", EditorIcons::warningIcon);
+	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
     
     return p;
 }

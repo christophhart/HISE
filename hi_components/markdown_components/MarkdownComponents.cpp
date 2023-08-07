@@ -130,7 +130,7 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 juce::Path MarkdownHelpButton::getPath()
 {
 	Path path;
-	path.loadPathFromData(MainToolbarIcons::help, sizeof(MainToolbarIcons::help));
+	path.loadPathFromData(MainToolbarIcons::help, MainToolbarIcons::help_Size);
 
 	return path;
 }

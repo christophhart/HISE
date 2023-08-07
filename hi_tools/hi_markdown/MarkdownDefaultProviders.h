@@ -262,7 +262,7 @@ struct MarkdownCodeComponentBase : public Component,
 		{
 			Path p;
 
-			LOAD_PATH_IF_URL("copy", EditorIcons::pasteIcon);
+			LOAD_EPATH_IF_URL("copy", EditorIcons::pasteIcon);
 
 			return p;
 		}

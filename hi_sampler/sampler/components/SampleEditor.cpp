@@ -154,9 +154,9 @@ struct EnvelopePopup : public Component
 		Path createPath(const String& url) const override
 		{
 			Path p;
-			LOAD_PATH_IF_URL("power", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-			LOAD_PATH_IF_URL("view", SampleToolbarIcons::envelope);
-			LOAD_PATH_IF_URL("apply", LoopIcons::apply);
+			LOAD_EPATH_IF_URL("power", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+			LOAD_EPATH_IF_URL("view", SampleToolbarIcons::envelope);
+			LOAD_EPATH_IF_URL("apply", LoopIcons::apply);
 			return p;
 		}
 
@@ -1073,9 +1073,9 @@ struct LoopImproveWindow: public Component,
     Path createPath(const String& url) const override
     {
         Path p;
-        LOAD_PATH_IF_URL("preview", LoopIcons::preview);
-        LOAD_PATH_IF_URL("apply", LoopIcons::apply);
-        LOAD_PATH_IF_URL("find", LoopIcons::find);
+        LOAD_EPATH_IF_URL("preview", LoopIcons::preview);
+        LOAD_EPATH_IF_URL("apply", LoopIcons::apply);
+        LOAD_EPATH_IF_URL("find", LoopIcons::find);
         
         return p;
     }

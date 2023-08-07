@@ -100,29 +100,29 @@ std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPat
 	case SampleMapEditor::CutSamples:
 		{
 		
-		path.loadPathFromData (SampleMapIcons::cutSamples, sizeof (SampleMapIcons::cutSamples));
+		path.loadPathFromData (SampleMapIcons::cutSamples, SIZE_OF_PATH(SampleMapIcons::cutSamples));
 
 		break;
 		}
 	case SampleMapEditor::CopySamples:
 		{
-			path.loadPathFromData (SampleMapIcons::copySamples, sizeof (SampleMapIcons::copySamples));
+			path.loadPathFromData (SampleMapIcons::copySamples, SIZE_OF_PATH(SampleMapIcons::copySamples));
 			break;
 		}
 	case SampleMapEditor::PasteSamples:
 		{
-			path.loadPathFromData (SampleMapIcons::pasteSamples, sizeof (SampleMapIcons::pasteSamples));
+			path.loadPathFromData (SampleMapIcons::pasteSamples, SIZE_OF_PATH(SampleMapIcons::pasteSamples));
 			break;
 		}
 	case SampleMapEditor::DeleteSamples:
 		{
-			path.loadPathFromData (SampleMapIcons::deleteSamples, sizeof (SampleMapIcons::deleteSamples));
+			path.loadPathFromData (SampleMapIcons::deleteSamples, SIZE_OF_PATH(SampleMapIcons::deleteSamples));
 			break;
 
 		}
 	case SampleMapEditor::DuplicateSamples:
 		{
-			path.loadPathFromData (SampleMapIcons::duplicateSamples, sizeof (SampleMapIcons::duplicateSamples));
+			path.loadPathFromData (SampleMapIcons::duplicateSamples, SIZE_OF_PATH(SampleMapIcons::duplicateSamples));
 			break;
 		}
 	case SampleMapEditor::FillNoteGaps:
@@ -148,20 +148,20 @@ std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPat
 	case SampleMapEditor::NewSampleMap:
 		{
 			
-			path.loadPathFromData (SampleMapIcons::newSampleMap, sizeof (SampleMapIcons::newSampleMap));
+			path.loadPathFromData (SampleMapIcons::newSampleMap, SIZE_OF_PATH (SampleMapIcons::newSampleMap));
 			break;
 		}
 	case SampleMapEditor::LoadSampleMap:
 		{
 			
-			path.loadPathFromData (SampleMapIcons::loadSampleMap, sizeof (SampleMapIcons::loadSampleMap));
+			path.loadPathFromData (SampleMapIcons::loadSampleMap, SIZE_OF_PATH(SampleMapIcons::loadSampleMap));
 			break;
 		}
 	case SampleMapEditor::SaveSampleMap:
 		{
 			
 
-			path.loadPathFromData (SampleMapIcons::saveSampleMap, sizeof (SampleMapIcons::saveSampleMap));
+			path.loadPathFromData (SampleMapIcons::saveSampleMap, SIZE_OF_PATH(SampleMapIcons::saveSampleMap));
 			break;
 		}
 	case SampleMapEditor::ImportSfz:
@@ -243,7 +243,7 @@ std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPat
 	case SampleMapEditor::ZoomIn:
 		{
 			
-			path.loadPathFromData (SampleMapIcons::zoomIn, sizeof (SampleMapIcons::zoomIn));
+			path.loadPathFromData (SampleMapIcons::zoomIn, SIZE_OF_PATH (SampleMapIcons::zoomIn));
 			break;
 
 		}
@@ -251,7 +251,7 @@ std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPat
 		{
 			
 
-			path.loadPathFromData (SampleMapIcons::zoomOut, sizeof (SampleMapIcons::zoomOut));
+			path.loadPathFromData (SampleMapIcons::zoomOut, SIZE_OF_PATH(SampleMapIcons::zoomOut));
 			break;
 
 		}
@@ -282,7 +282,7 @@ std::unique_ptr<Drawable> SampleMapEditorToolbarFactory::ToolbarPaths::createPat
 
 	case SampleMapEditor::PopOutMap:
 	{
-		path.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::popupShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::popupShape));
+		path.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::popupShape, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::popupShape));
 		break;
 	}
 
@@ -354,26 +354,26 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 {
 	Path p;
 
-	LOAD_PATH_IF_URL("analyse", SampleToolbarIcons::more);
-	LOAD_PATH_IF_URL("zoom-in", SampleToolbarIcons::zoomIn);
-	LOAD_PATH_IF_URL("zoom-out", SampleToolbarIcons::zoomOut);
-	LOAD_PATH_IF_URL("normalise-on", SampleToolbarIcons::normaliseOn);
-	LOAD_PATH_IF_URL("normalise-off", SampleToolbarIcons::normaliseOff);
-	LOAD_PATH_IF_URL("loop-on", SampleToolbarIcons::loopOn);
-	LOAD_PATH_IF_URL("loop-off", SampleToolbarIcons::loopOff);
-	LOAD_PATH_IF_URL("select-midi", SampleToolbarIcons::selectMidi);
-	LOAD_PATH_IF_URL("select-mouse", SampleToolbarIcons::selectMouse);
-	LOAD_PATH_IF_URL("samplestart-area", SampleToolbarIcons::sampleStartArea);
-	LOAD_PATH_IF_URL("play-area", SampleToolbarIcons::playArea);
-	LOAD_PATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
+	LOAD_EPATH_IF_URL("analyse", SampleToolbarIcons::more);
+	LOAD_EPATH_IF_URL("zoom-in", SampleToolbarIcons::zoomIn);
+	LOAD_EPATH_IF_URL("zoom-out", SampleToolbarIcons::zoomOut);
+	LOAD_EPATH_IF_URL("normalise-on", SampleToolbarIcons::normaliseOn);
+	LOAD_EPATH_IF_URL("normalise-off", SampleToolbarIcons::normaliseOff);
+	LOAD_EPATH_IF_URL("loop-on", SampleToolbarIcons::loopOn);
+	LOAD_EPATH_IF_URL("loop-off", SampleToolbarIcons::loopOff);
+	LOAD_EPATH_IF_URL("select-midi", SampleToolbarIcons::selectMidi);
+	LOAD_EPATH_IF_URL("select-mouse", SampleToolbarIcons::selectMouse);
+	LOAD_EPATH_IF_URL("samplestart-area", SampleToolbarIcons::sampleStartArea);
+	LOAD_EPATH_IF_URL("play-area", SampleToolbarIcons::playArea);
+	LOAD_EPATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
 	LOAD_PATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
-    LOAD_PATH_IF_URL("zero", SampleToolbarIcons::zero);
-    LOAD_PATH_IF_URL("improve-loop", SampleToolbarIcons::smooth_loop);
-	LOAD_PATH_IF_URL("main-only", SampleToolbarIcons::tabIcon);
-	LOAD_PATH_IF_URL("preview", LoopIcons::preview);
-	LOAD_PATH_IF_URL("envelope", SampleToolbarIcons::envelope);
-	LOAD_PATH_IF_URL("script-popup", HiBinaryData::SpecialSymbols::scriptProcessor);
-	LOAD_PATH_IF_URL("toggle-first", SampleToolbarIcons::toggleFirst);
+    LOAD_EPATH_IF_URL("zero", SampleToolbarIcons::zero);
+    LOAD_EPATH_IF_URL("improve-loop", SampleToolbarIcons::smooth_loop);
+	LOAD_EPATH_IF_URL("main-only", SampleToolbarIcons::tabIcon);
+	LOAD_EPATH_IF_URL("preview", LoopIcons::preview);
+	LOAD_EPATH_IF_URL("envelope", SampleToolbarIcons::envelope);
+	LOAD_EPATH_IF_URL("script-popup", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_EPATH_IF_URL("toggle-first", SampleToolbarIcons::toggleFirst);
 
 	return p;
 }

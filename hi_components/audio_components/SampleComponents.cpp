@@ -118,11 +118,11 @@ juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) con
 {
 	Path p;
 
-	LOAD_PATH_IF_URL("sine", WaveformIcons::sine);
-	LOAD_PATH_IF_URL("triangle", WaveformIcons::triangle);
-	LOAD_PATH_IF_URL("saw", WaveformIcons::saw);
-	LOAD_PATH_IF_URL("square", WaveformIcons::square);
-	LOAD_PATH_IF_URL("noise", WaveformIcons::noise);
+	LOAD_EPATH_IF_URL("sine", WaveformIcons::sine);
+	LOAD_EPATH_IF_URL("triangle", WaveformIcons::triangle);
+	LOAD_EPATH_IF_URL("saw", WaveformIcons::saw);
+	LOAD_EPATH_IF_URL("square", WaveformIcons::square);
+	LOAD_EPATH_IF_URL("noise", WaveformIcons::noise);
 
 	return p;
 }
@@ -332,9 +332,9 @@ struct SamplerLaf : public HiseAudioThumbnail::LookAndFeelMethods,
 	{
 		Path p;
 
-		LOAD_PATH_IF_URL("loop", SampleToolbarIcons::loopOn);
-		LOAD_PATH_IF_URL("samplestart", ProcessorIcons::sampleStartIcon);
-		LOAD_PATH_IF_URL("xfade", ProcessorIcons::groupFadeIcon);
+		LOAD_EPATH_IF_URL("loop", SampleToolbarIcons::loopOn);
+		LOAD_EPATH_IF_URL("samplestart", ProcessorIcons::sampleStartIcon);
+		LOAD_EPATH_IF_URL("xfade", ProcessorIcons::groupFadeIcon);
 		return p;
 	}
 

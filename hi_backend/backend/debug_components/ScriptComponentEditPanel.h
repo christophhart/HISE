@@ -65,8 +65,8 @@ public:
 			Path p;
 			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 			
-			LOAD_PATH_IF_URL("copy", SampleMapIcons::copySamples);
-			LOAD_PATH_IF_URL("paste", SampleMapIcons::pasteSamples);
+			LOAD_EPATH_IF_URL("copy", SampleMapIcons::copySamples);
+			LOAD_EPATH_IF_URL("paste", SampleMapIcons::pasteSamples);
 			
 			return p;
 		}

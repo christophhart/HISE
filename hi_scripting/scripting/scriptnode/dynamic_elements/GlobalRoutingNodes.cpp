@@ -139,10 +139,10 @@ juce::Path GlobalRoutingManager::RoutingIcons::createPath(const String& url) con
 	Path p;
 
 #if USE_BACKEND
-	LOAD_PATH_IF_URL("new", SampleMapIcons::newSampleMap);
-	LOAD_PATH_IF_URL("debug", BackendBinaryData::ToolbarIcons::viewPanel);
+	LOAD_EPATH_IF_URL("new", SampleMapIcons::newSampleMap);
+	LOAD_EPATH_IF_URL("debug", BackendBinaryData::ToolbarIcons::viewPanel);
 	LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
-	LOAD_PATH_IF_URL("global", HiBinaryData::SpecialSymbols::globalCableIcon);
+	LOAD_EPATH_IF_URL("global", HiBinaryData::SpecialSymbols::globalCableIcon);
 #endif
 
 	return p;

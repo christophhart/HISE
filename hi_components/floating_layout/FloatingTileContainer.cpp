@@ -238,7 +238,7 @@ FloatingTabComponent::CloseButton::CloseButton() :
 	ShapeButton("Close", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white)
 {
 	Path p;
-	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	setShape(p, false, true, true);
 
 	addListener(this);
@@ -334,7 +334,7 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
 	Path p;
-	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
 
 	addButton->setWantsKeyboardFocus(false);
 	addButton->setShape(p, false, false, true);

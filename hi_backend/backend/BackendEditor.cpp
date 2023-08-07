@@ -688,9 +688,9 @@ struct PopupFloatingTile: public Component,
 	Path createPath(const String& url) const override
 	{
 		Path p;
-		LOAD_PATH_IF_URL("clear", SampleMapIcons::newSampleMap);
-		LOAD_PATH_IF_URL("load", SampleMapIcons::loadSampleMap);
-		LOAD_PATH_IF_URL("save", SampleMapIcons::saveSampleMap);
+		LOAD_EPATH_IF_URL("clear", SampleMapIcons::newSampleMap);
+		LOAD_EPATH_IF_URL("load", SampleMapIcons::loadSampleMap);
+		LOAD_EPATH_IF_URL("save", SampleMapIcons::saveSampleMap);
 		LOAD_PATH_IF_URL("layout", ColumnIcons::customizeIcon);
 		return p;
 	}
@@ -977,11 +977,11 @@ struct ToolkitPopup : public Component,
 	{
 		Path p;
 
-		LOAD_PATH_IF_URL("Panic", HiBinaryData::FrontendBinaryData::panicButtonShape);
-		LOAD_PATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
-        LOAD_PATH_IF_URL("pedal", BackendBinaryData::PopupSymbols::sustainIcon);
-        LOAD_PATH_IF_URL("octave_up", BackendBinaryData::PopupSymbols::octaveUpIcon);
-        LOAD_PATH_IF_URL("octave_down", BackendBinaryData::PopupSymbols::octaveDownIcon);
+		LOAD_EPATH_IF_URL("Panic", HiBinaryData::FrontendBinaryData::panicButtonShape);
+		LOAD_EPATH_IF_URL("midi", HiBinaryData::SpecialSymbols::midiData);
+        LOAD_EPATH_IF_URL("pedal", BackendBinaryData::PopupSymbols::sustainIcon);
+        LOAD_EPATH_IF_URL("octave_up", BackendBinaryData::PopupSymbols::octaveUpIcon);
+        LOAD_EPATH_IF_URL("octave_down", BackendBinaryData::PopupSymbols::octaveDownIcon);
 
 		return p;
 	}

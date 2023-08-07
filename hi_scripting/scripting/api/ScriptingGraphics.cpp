@@ -415,8 +415,8 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 		Path p;
 
 #if USE_BACKEND
-		LOAD_PATH_IF_URL("stats", BackendBinaryData::ToolbarIcons::debugPanel);
-		LOAD_PATH_IF_URL("view", BackendBinaryData::ToolbarIcons::viewPanel);
+		LOAD_EPATH_IF_URL("stats", BackendBinaryData::ToolbarIcons::debugPanel);
+		LOAD_EPATH_IF_URL("view", BackendBinaryData::ToolbarIcons::viewPanel);
 		LOAD_PATH_IF_URL("time", ColumnIcons::moveIcon);
 #endif
 		return p;

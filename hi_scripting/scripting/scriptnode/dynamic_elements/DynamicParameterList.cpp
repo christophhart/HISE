@@ -447,8 +447,8 @@ void dynamic_list::updateParameterAmount(Identifier, var newValue)
 juce::Path ui::Factory::createPath(const String& url) const
 {
 	Path p;
-	LOAD_PATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
 	LOAD_PATH_IF_URL("edit", ColumnIcons::moveIcon);
 

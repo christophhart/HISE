@@ -101,7 +101,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     typeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     
-	addAndMakeVisible(bypassButton = new HeaderButton("Bypass Button", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape), this));
+	addAndMakeVisible(bypassButton = new HeaderButton("Bypass Button", (const unsigned char*)HiBinaryData::ProcessorEditorHeaderIcons::bypassShape, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::bypassShape), this));
 
 	addAndMakeVisible (foldButton = new ShapeButton ("Fold", drawColour, drawColour, drawColour));
 	
@@ -122,7 +122,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     
     addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", drawColour, drawColour, drawColour));
 	Path deletePath;
-	deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+	deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	deleteButton->setShape(deletePath, true, true, true);
 	deleteButton->setToggleState(true, dontSendNotification);
 	refreshShapeButton(deleteButton);
@@ -141,12 +141,12 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", drawColour, drawColour, drawColour));
 	
 	Path bipolarPath;
-	bipolarPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
+	bipolarPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
 	bipolarModButton->setShape(bipolarPath, true, true, true);
 	
 	addAndMakeVisible (addButton = new ShapeButton ("Add new Processor", Colours::white, Colours::white, Colours::white));
 	Path addPath;
-	addPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
+	addPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
 	addButton->setShape(addPath, true, true, true);
 	addButton->setToggleState(true, dontSendNotification);
 	
@@ -810,9 +810,9 @@ void ProcessorEditorHeader::updateBipolarIcon(bool shouldBeBipolar)
 	Path p;
 
 	if (shouldBeBipolar)
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
 	else
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon));
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon));
 
 	bipolarModButton->setShape(p, false, true, true);
 }
@@ -825,9 +825,9 @@ void ProcessorEditorHeader::updateRetriggerIcon(bool shouldRetrigger)
 	Path p;
 
 	if (!shouldRetrigger)
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath));
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath));
 	else
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath));	
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath));
 
 	retriggerButton->setShape(p, false, true, true);
 }
@@ -845,11 +845,11 @@ void ProcessorEditorHeader::updateMonoIcon(bool shouldBeMono)
 
 	if (!shouldBeMono)
 	{
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath));		
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath));		
 	}
 	else
 	{
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));	
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));
 	}
 
 	monophonicButton->setShape(p, false, true, true);
@@ -1148,7 +1148,7 @@ void ProcessorEditorHeader::checkFoldButton()
 
 	Path foldPath;
 		
-	foldPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
+	foldPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
 	if(on) foldPath.applyTransform(AffineTransform::rotation(float_Pi * 0.5f));
 
 	foldButton->setShape(foldPath, false, true, true);

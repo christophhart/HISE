@@ -1225,11 +1225,11 @@ juce::Path SnexMenuBar::Factory::createPath(const String& url) const
 
 	LOAD_PATH_IF_URL("new", ColumnIcons::threeDots);
 	LOAD_PATH_IF_URL("edit", ColumnIcons::openWorkspaceIcon);
-	LOAD_PATH_IF_URL("popup", HiBinaryData::ProcessorEditorHeaderIcons::popupShape);
-	LOAD_PATH_IF_URL("compile", EditorIcons::compileIcon);
-	LOAD_PATH_IF_URL("reset", EditorIcons::swapIcon);
+	LOAD_EPATH_IF_URL("popup", HiBinaryData::ProcessorEditorHeaderIcons::popupShape);
+	LOAD_EPATH_IF_URL("compile", EditorIcons::compileIcon);
+	LOAD_EPATH_IF_URL("reset", EditorIcons::swapIcon);
 	LOAD_PATH_IF_URL("add", ColumnIcons::threeDots);
-	LOAD_PATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("asm", SnexIcons::asmIcon);
 	LOAD_PATH_IF_URL("debug", SnexIcons::bugIcon);
 	//LOAD_PATH_IF_URL("optimize", SnexIcons::optimizeIcon);

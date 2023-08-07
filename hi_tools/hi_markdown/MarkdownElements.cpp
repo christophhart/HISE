@@ -1491,8 +1491,8 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				Path p;
 				auto url = MarkdownLink::Helpers::getSanitizedFilename(l);
 
-				LOAD_PATH_IF_URL("next", MainToolbarIcons::forward);
-				LOAD_PATH_IF_URL("discussion", MainToolbarIcons::comment);
+				LOAD_EPATH_IF_URL("next", MainToolbarIcons::forward);
+				LOAD_EPATH_IF_URL("discussion", MainToolbarIcons::comment);
 
 				return p;
 			}

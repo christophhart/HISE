@@ -1085,7 +1085,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 		LOAD_PATH_IF_URL("asm", SnexIcons::asmIcon);
 		LOAD_PATH_IF_URL("optimise", SnexIcons::optimizeIcon);
 		LOAD_PATH_IF_URL("console", SnexIcons::debugPanel);
-		LOAD_PATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
+		LOAD_EPATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
 
         return p;
     }

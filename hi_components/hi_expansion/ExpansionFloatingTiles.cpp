@@ -49,19 +49,19 @@ public:
 
 		Path p;
 
-		LOAD_PATH_IF_URL("filebased", ExpansionIcons::filebased);
-		LOAD_PATH_IF_URL("intermediate", ExpansionIcons::intermediate);
-		LOAD_PATH_IF_URL("encrypted", ExpansionIcons::encrypted);
-		LOAD_PATH_IF_URL("new", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
+		LOAD_EPATH_IF_URL("filebased", ExpansionIcons::filebased);
+		LOAD_EPATH_IF_URL("intermediate", ExpansionIcons::intermediate);
+		LOAD_EPATH_IF_URL("encrypted", ExpansionIcons::encrypted);
+		LOAD_EPATH_IF_URL("new", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 
-		LOAD_PATH_IF_URL("open", EditorIcons::openFile);
+		LOAD_EPATH_IF_URL("open", EditorIcons::openFile);
 		LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 
 
 		BACKEND_ONLY(LOAD_PATH_IF_URL("edit", OverlayIcons::penShape));
-		LOAD_PATH_IF_URL("undo", EditorIcons::undoIcon);
-		LOAD_PATH_IF_URL("redo", EditorIcons::redoIcon);
-		LOAD_PATH_IF_URL("encode", SampleMapIcons::monolith);
+		LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);
+		LOAD_EPATH_IF_URL("redo", EditorIcons::redoIcon);
+		LOAD_EPATH_IF_URL("encode", SampleMapIcons::monolith);
 
 		return p;
 	};

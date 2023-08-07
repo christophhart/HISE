@@ -125,13 +125,13 @@ juce::Path MPEPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_PATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
-	LOAD_PATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-	LOAD_PATH_IF_URL("stroke", MpeIcons::stroke);
-	LOAD_PATH_IF_URL("press", MpeIcons::press);
-	LOAD_PATH_IF_URL("glide", MpeIcons::glide);
-	LOAD_PATH_IF_URL("lift", MpeIcons::lift);
-	LOAD_PATH_IF_URL("slide", MpeIcons::slide);
+	LOAD_EPATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	LOAD_EPATH_IF_URL("stroke", MpeIcons::stroke);
+	LOAD_EPATH_IF_URL("press", MpeIcons::press);
+	LOAD_EPATH_IF_URL("glide", MpeIcons::glide);
+	LOAD_EPATH_IF_URL("lift", MpeIcons::lift);
+	LOAD_EPATH_IF_URL("slide", MpeIcons::slide);
 
 	return p;
 }

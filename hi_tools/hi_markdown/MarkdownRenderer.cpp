@@ -518,24 +518,22 @@ juce::Path MarkdownPreview::Topbar::TopbarPaths::createPath(const String& id) co
 
 	Path p;
 
-	LOAD_PATH_IF_URL("back", EditorIcons::backIcon);
-	LOAD_PATH_IF_URL("forward", EditorIcons::forwardIcon);
-	LOAD_PATH_IF_URL("search", EditorIcons::searchIcon2);
-	LOAD_PATH_IF_URL("home", MainToolbarIcons::home);
-
-	LOAD_PATH_IF_URL("drag", EditorIcons::dragIcon);
-	LOAD_PATH_IF_URL("select", EditorIcons::selectIcon);
-	LOAD_PATH_IF_URL("sun", EditorIcons::sunIcon);
-	LOAD_PATH_IF_URL("night", EditorIcons::nightIcon);
-	LOAD_PATH_IF_URL("book", EditorIcons::bookIcon);
-	
-	LOAD_PATH_IF_URL("rebuild", EditorIcons::moveIcon);
+	LOAD_EPATH_IF_URL("back", EditorIcons::backIcon);
+	LOAD_EPATH_IF_URL("forward", EditorIcons::forwardIcon);
+	LOAD_EPATH_IF_URL("search", EditorIcons::searchIcon2);
+	LOAD_EPATH_IF_URL("home", MainToolbarIcons::home);
+	LOAD_EPATH_IF_URL("drag", EditorIcons::dragIcon);
+	LOAD_EPATH_IF_URL("select", EditorIcons::selectIcon);
+	LOAD_EPATH_IF_URL("sun", EditorIcons::sunIcon);
+	LOAD_EPATH_IF_URL("night", EditorIcons::nightIcon);
+	LOAD_EPATH_IF_URL("book", EditorIcons::bookIcon);
+	LOAD_EPATH_IF_URL("rebuild", EditorIcons::moveIcon);
     
 #if USE_BACKEND
-	LOAD_PATH_IF_URL("toc", BackendBinaryData::ToolbarIcons::hamburgerIcon);
+	LOAD_EPATH_IF_URL("toc", BackendBinaryData::ToolbarIcons::hamburgerIcon);
 #endif
-	LOAD_PATH_IF_URL("edit", EditorIcons::penShape);
-	LOAD_PATH_IF_URL("lock", EditorIcons::lockShape);
+	LOAD_EPATH_IF_URL("edit", EditorIcons::penShape);
+	LOAD_EPATH_IF_URL("lock", EditorIcons::lockShape);
 
 	return p;
 }
