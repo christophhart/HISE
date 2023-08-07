@@ -199,6 +199,22 @@ void FloatingTilePopup::paint(Graphics &g)
 #endif
 }
 
+bool FloatingTilePopup::hasTitle() const
+{
+	return content != nullptr && content->getName().containsNonWhitespaceChars();
+}
+
+bool FloatingTilePopup::keyPressed(const KeyPress& k)
+{
+	if(k == KeyPress::escapeKey)
+	{
+		deleteAndClose();
+		return true;
+	}
+        
+	return false;
+}
+
 void FloatingTilePopup::resized()
 {
     closeButton->setBounds(getRectangle(RectangleType::CloseButton));
@@ -340,6 +356,163 @@ Identifier FloatingTile::LayoutData::getDefaultablePropertyId(int index) const
 	return Identifier();
 }
 
+var FloatingTile::LayoutData::getDefaultProperty(int id) const
+{
+	switch (id)
+	{
+	case FloatingTile::LayoutData::LayoutData::ID:		  return var("anonymous");
+	case FloatingTile::LayoutData::LayoutDataIds::Size:   return var(-0.5);
+	case FloatingTile::LayoutData::LayoutDataIds::Folded: return var(0);
+	case FloatingTile::LayoutData::LayoutDataIds::ForceFoldButton: return var(0);
+	case FloatingTile::LayoutData::LayoutDataIds::Visible: return var(true);
+	case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
+	case FloatingTile::LayoutData::LayoutDataIds::ForceShowTitle: return var(0);
+	case FloatingTile::LayoutData::LayoutDataIds::FocusKeyPress: return var("");
+	case FloatingTile::LayoutData::LayoutDataIds::FoldKeyPress: return var("");
+	default:
+		break;
+	}
+
+	jassertfalse;
+	return var();
+}
+
+void FloatingTile::LayoutData::reset()
+{
+	layoutDataObject = var(new DynamicObject());
+
+	resetObject(layoutDataObject.getDynamicObject());
+
+	cachedValues = CachedValues();
+
+	swappingEnabled = false;
+}
+
+bool FloatingTile::LayoutData::isAbsolute() const
+{ 
+	double currentSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Size);
+	return currentSize > 0.0; 
+}
+
+bool FloatingTile::LayoutData::isFolded() const
+{
+	int foldState = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Folded);
+	return foldState > 0; 
+}
+
+bool FloatingTile::LayoutData::canBeFolded() const
+{
+	int foldState = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Folded);
+	return foldState >= 0; 
+}
+
+int FloatingTile::LayoutData::getForceTitleState() const
+{
+	return getPropertyWithDefault(layoutDataObject, LayoutDataIds::ForceShowTitle);
+}
+
+void FloatingTile::LayoutData::setFoldState(int newFoldState)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
+	cachedValues.folded = newFoldState;
+}
+
+void FloatingTile::LayoutData::setKeyPress(bool isFocus, const Identifier& shortcutId)
+{
+	String s;
+	s << "$" << shortcutId.toString();
+			
+	storePropertyInObject(layoutDataObject, isFocus ? LayoutDataIds::FocusKeyPress : LayoutDataIds::FoldKeyPress, s);
+}
+
+KeyPress FloatingTile::LayoutData::getFoldKeyPress(Component* c) const
+{
+	auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
+	return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
+}
+
+KeyPress FloatingTile::LayoutData::getFocusKeyPress(Component* c) const
+{
+	auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FocusKeyPress).toString();
+	return TopLevelWindowWithKeyMappings::getKeyPressFromString(c, s);
+}
+
+double FloatingTile::LayoutData::getCurrentSize() const
+{
+	double currentSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Size);
+
+	return currentSize;
+}
+
+void FloatingTile::LayoutData::setForceShowTitle(int shouldForceTitle)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::ForceShowTitle, shouldForceTitle);
+	cachedValues.forceShowTitle = shouldForceTitle;
+}
+
+void FloatingTile::LayoutData::setCurrentSize(double newSize)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::Size, newSize);
+	cachedValues.size = newSize;
+}
+
+void FloatingTile::LayoutData::setMinSize(int minSize)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::MinSize, minSize);
+	cachedValues.minSize = minSize;
+}
+
+int FloatingTile::LayoutData::getMinSize() const
+{
+	int minSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::MinSize);
+	return minSize;
+}
+
+var FloatingTile::LayoutData::getLayoutDataObject() const
+{
+	return layoutDataObject;
+}
+
+Identifier FloatingTile::LayoutData::getID() const
+{
+	String id = getPropertyWithDefault(layoutDataObject, LayoutDataIds::ID);
+
+	if (id.isNotEmpty())
+		return Identifier(id);
+
+	static const Identifier an("anonymous");
+
+	return an;
+}
+
+void FloatingTile::LayoutData::setId(const String& id)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::ID, id);
+	cachedValues.id = id;
+}
+
+void FloatingTile::LayoutData::setVisible(bool shouldBeVisible)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::Visible, shouldBeVisible);
+	cachedValues.visible = shouldBeVisible;
+}
+
+bool FloatingTile::LayoutData::isVisible() const
+{
+	return getPropertyWithDefault(layoutDataObject, LayoutDataIds::Visible);
+}
+
+void FloatingTile::LayoutData::setForceFoldButton(bool shouldBeShown)
+{
+	storePropertyInObject(layoutDataObject, LayoutDataIds::ForceFoldButton, shouldBeShown);
+	cachedValues.forceFoldButton = shouldBeShown;
+}
+
+bool FloatingTile::LayoutData::mustShowFoldButton() const
+{
+	return getPropertyWithDefault(layoutDataObject, LayoutDataIds::ForceFoldButton);
+}
+
 FloatingTile::CloseButton::CloseButton() :
 	ShapeButton("Close", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white)
 {
@@ -349,6 +522,26 @@ FloatingTile::CloseButton::CloseButton() :
 
 	addListener(this);
 
+}
+
+void FloatingTile::CloseButton::mouseEnter(const MouseEvent& m)
+{
+	auto ft = dynamic_cast<FloatingTile*>(getParentComponent());
+            
+	ft->deleteHover = true;
+	ft->repaint();
+            
+	ShapeButton::mouseEnter(m);
+}
+
+void FloatingTile::CloseButton::mouseExit(const MouseEvent& m)
+{
+	auto ft = dynamic_cast<FloatingTile*>(getParentComponent());
+            
+	ft->deleteHover = false;
+	ft->repaint();
+            
+	ShapeButton::mouseExit(m);
 }
 
 void FloatingTile::CloseButton::buttonClicked(Button* )
@@ -514,6 +707,17 @@ FloatingTile::FloatingTile(MainController* mc_, FloatingTileContainer* parent, v
 
 
 	setContent(data);
+}
+
+FloatingTile::~FloatingTile()
+{
+	currentPopup = nullptr;
+
+	content = nullptr;
+	foldButton = nullptr;
+	moveButton = nullptr;
+	resizeButton = nullptr;
+	closeButton = nullptr;
 }
 
 void FloatingTile::forEachDetachedPopup(const std::function<void(FloatingTilePopup* p)>& f)
@@ -1654,6 +1858,11 @@ void FloatingTilePopup::mouseDrag(const MouseEvent& e)
 	}
 }
 
+void FloatingTilePopup::mouseUp(const MouseEvent& e)
+{
+	dragging = false;
+}
+
 void FloatingTilePopup::mouseDown(const MouseEvent& e)
 {
 	if (moveButton.getToggleState())
@@ -1911,6 +2120,30 @@ hise::FloatingTile* FloatingTile::toggleFold()
 	return pc;
 }
 
+void FloatingTile::setCloseTogglesVisibility(bool shouldToggleVisibility)
+{
+	closeTogglesVisibility = shouldToggleVisibility;
+}
+
+void FloatingTile::setForceShowTitle(bool shouldShowTitle)
+{
+	getLayoutData().setForceShowTitle(shouldShowTitle ? 2 : 1);
+}
+
+void FloatingTile::addPopupListener(PopupListener* listener)
+{
+	jassert(getParentType() == ParentType::Root);
+
+	listeners.addIfNotAlreadyThere(listener);
+}
+
+void FloatingTile::removePopupListener(PopupListener* listener)
+{
+	jassert(getParentType() == ParentType::Root);
+
+	listeners.removeAllInstancesOf(listener);
+}
+
 void FloatingTile::refreshFixedSizeForNewContent()
 {
 	int fixedSize = getCurrentFloatingPanel()->getFixedSizeForOrientation();
@@ -2043,6 +2276,45 @@ bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
 		return true;
 
 	return false;
+}
+
+void FloatingTile::removePopup(FloatingTilePopup* p)
+{
+	if (currentPopup == p)
+	{
+		showComponentInRootPopup(nullptr, nullptr, {});
+	}
+	else
+	{
+		detachedPopups.removeObject(p);
+	}
+}
+
+void FloatingTile::detachCurrentPopupAsync()
+{
+	Component::SafePointer<FloatingTile> safeThis(this);
+
+	MessageManager::callAsync([safeThis]()
+	{
+		if (safeThis != nullptr)
+			safeThis->toggleDetachPopup(safeThis.getComponent()->currentPopup);
+	});
+}
+
+void FloatingTile::toggleDetachPopup(FloatingTilePopup* p)
+{
+	if (p == nullptr)
+		return;
+
+	if (currentPopup == p)
+	{
+		detachedPopups.add(currentPopup.release());
+	}
+	else
+	{
+		auto index = detachedPopups.indexOf(p);
+		currentPopup = detachedPopups.removeAndReturn(index);
+	}
 }
 
 void FloatingTile::TilePopupLookAndFeel::getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight)

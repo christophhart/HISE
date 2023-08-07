@@ -76,61 +76,6 @@ private:
 	void updateSize();
 };
 
-class ActivationWindow : 
-	public FloatingTileContent,
-	public Component,
-	public Button::Listener,
-	public Timer,
-	public OverlayMessageBroadcaster
-{
-public:
-
-	ActivationWindow(FloatingTile* parent);
-
-	SET_PANEL_NAME("ActivationPanel");
-
-	void paint(Graphics &/*g*/) override
-	{
-
-	}
-
-	void buttonClicked(Button*) override;
-
-	void resized() override
-	{
-		int y = 20;
-		productKey->setBounds(10, y, getWidth() - 20, 30);
-
-		y += 40;
-
-		statusLabel->setBounds(10, y, getWidth() - 20, 30);
-
-		y += 40;
-
-		submitButton->setBounds(10, y, getWidth() - 20, 30);
-
-	}
-
-	void timerCallback() override
-	{
-		refreshStatusLabel();
-	}
-
-private:
-
-	bool good = false;
-
-	void refreshStatusLabel();
-
-	MainController* mc;
-
-	ScopedPointer<Label> productKey;
-	ScopedPointer<TextButton> submitButton;
-	ScopedPointer<Label> statusLabel;
-
-	BlackTextButtonLookAndFeel tblaf;
-};
-
 
 
 class PopoutButtonPanel : public Component,
@@ -158,24 +103,10 @@ public:
 
 	SET_PANEL_NAME("PopupButton");
 
-	PopoutButtonPanel(FloatingTile* p):
-		FloatingTileContent(p)
-	{
-		addAndMakeVisible(button = new TextButton("Unused"));
-		button->addListener(this);
-		button->setLookAndFeel(&blaf);
-		
-		button->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
-		button->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-	};
-
-	~PopoutButtonPanel()
-	{
-		button = nullptr;
-	}
+	PopoutButtonPanel(FloatingTile* p);;
+	~PopoutButtonPanel() override;
 
 	void buttonClicked(Button* b) override;
-
 	void paint(Graphics& g) override
 	{
 		g.fillAll(Colours::black);
@@ -187,63 +118,11 @@ public:
 	}
 
 	void resized() override;
-
-	var toDynamicObject() const override
-	{
-		var obj = FloatingTileContent::toDynamicObject();
-
-		storePropertyInObject(obj, SpecialPanelIds::Text, button->getButtonText());
-		storePropertyInObject(obj, SpecialPanelIds::PopoutData, popoutData);
-		storePropertyInObject(obj, SpecialPanelIds::Width, width);
-		storePropertyInObject(obj, SpecialPanelIds::Height, height);
-		
-		return obj;
-	}
-
-	void fromDynamicObject(const var& object) override
-	{
-		FloatingTileContent::fromDynamicObject(object);
-
-		button->setButtonText(getPropertyWithDefault(object, SpecialPanelIds::Text));
-
-		popoutData = getPropertyWithDefault(object, SpecialPanelIds::PopoutData);
-		width = getPropertyWithDefault(object, SpecialPanelIds::Width);
-		height = getPropertyWithDefault(object, SpecialPanelIds::Height);
-	}
-
-	int getNumDefaultableProperties() const override
-	{
-		return SpecialPanelIds::numSpecialPanelIds;
-	}
-
-	Identifier getDefaultablePropertyId(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultablePropertyId(index);
-
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "ButtonText");
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Width, "Width");
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Height, "Height");
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::PopoutData, "PopoutData");
-
-		jassertfalse;
-		return{};
-	}
-
-	var getDefaultProperty(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultProperty(index);
-
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var("Popout Button"));
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Width, var(300));
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Height, var(300));
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::PopoutData, var());
-
-		jassertfalse;
-		return{};
-	}
-
+	var toDynamicObject() const override;
+	void fromDynamicObject(const var& object) override;
+	int getNumDefaultableProperties() const override;
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
 
 private:
 
@@ -268,17 +147,7 @@ public:
 
 	SET_PANEL_NAME("Empty");
 
-	EmptyComponent(FloatingTile* p) :
-		FloatingTileContent(p)
-	{
-		Random r;
-
-		setTooltip("Right click to create a Panel");
-
-		setInterceptsMouseClicks(false, true);
-
-		c = Colour(r.nextInt()).withAlpha(0.1f);
-	};
+	EmptyComponent(FloatingTile* p);;
 
 	void paint(Graphics& g) override;
 
@@ -361,41 +230,12 @@ public:
 	void refreshButtons();
 
 	var toDynamicObject() const override;
-
 	void fromDynamicObject(const var& object) override;
-
-
-	int getNumDefaultableProperties() const override
-	{
-		return SpecialPanelIds::numSpecialPanelIds;
-	}
-
-	Identifier getDefaultablePropertyId(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultablePropertyId(index);
-
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Alignment, "Alignment");
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::IconIds, "IconIds");
-
-		jassertfalse;
-		return{};
-	}
-
-	var getDefaultProperty(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultProperty(index);
-
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Alignment, var((int)Justification::centred));
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::IconIds, Array<var>());
-
-		jassertfalse;
-		return{};
-	}
+	int getNumDefaultableProperties() const override;
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
 
 	void siblingAmountChanged() override;
-
 	void resized() override;
 
 private:
@@ -455,44 +295,18 @@ private:
 
 struct ComplexDataEditorPanel : public PanelWithProcessorConnection
 {
-	ComplexDataEditorPanel(FloatingTile* parent, snex::ExternalData::DataType t):
-		PanelWithProcessorConnection(parent),
-		type(t)
-	{}
+	ComplexDataEditorPanel(FloatingTile* parent, snex::ExternalData::DataType t);
 
 	bool hasSubIndex() const override { return true; }
 
-	Component* createContentComponent(int index) override
-	{
-		if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
-		{
-			if (isPositiveAndBelow(index, pb->getNumDataObjects(type)))
-			{
-				auto obj = pb->getComplexBaseType(type, index);
-				return dynamic_cast<Component*>(snex::ExternalData::createEditor(obj));
-			}
-		}
-
-		return nullptr;
-	}
+	Component* createContentComponent(int index) override;
 
 	void fillModuleList(StringArray& moduleList) override
 	{
 		moduleList.addArray(ProcessorHelpers::getAllIdsForDataType(getMainController()->getMainSynthChain(), type));
 	}
 
-	void fillIndexList(StringArray& indexList) override
-	{
-		if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
-		{
-			int numObjects = pb->getNumDataObjects(type);
-
-			auto name = ExternalData::getDataTypeName(type);
-
-			for (int i = 0; i < numObjects; i++)
-				indexList.add(name + String(i + 1));
-		}
-	}
+	void fillIndexList(StringArray& indexList) override;
 
 protected:
 
@@ -534,16 +348,7 @@ public:
 
 	SET_PANEL_NAME("Plotter");
 
-	Component* createContentComponent(int /*index*/) override
-	{
-		auto p = new Plotter();
-		if (auto mod = dynamic_cast<Modulation*>(getConnectedProcessor()))
-		{
-			mod->setPlotter(p);
-		}
-
-		return p;
-	}
+	Component* createContentComponent(int /*index*/) override;
 
 	Identifier getProcessorTypeId() const override;
 
@@ -551,13 +356,7 @@ public:
 	{
 		fillModuleListWithType<TimeModulation>(moduleList);
 	}
-
-private:
-
 };
-
-
-
 
 
 class ProcessorPeakMeter : public Component,
@@ -565,61 +364,20 @@ class ProcessorPeakMeter : public Component,
 {
 public:
 
-	ProcessorPeakMeter(Processor* p) :
-		processor(p)
-	{
-		addAndMakeVisible(vuMeter = new VuMeter());
+	ProcessorPeakMeter(Processor* p);
 
-		setOpaque(true);
+	~ProcessorPeakMeter() override;
 
-		vuMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
-		vuMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
-		vuMeter->setColour(VuMeter::outlineColour, Colour(0x22000000));
-
-		startTimer(30);
-	}
-
-	~ProcessorPeakMeter()
-	{
-		stopTimer();
-		vuMeter = nullptr;
-		processor = nullptr;
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colour(0xFF333333));
-	}
-
-	void resized() override
-	{
-		if (getWidth() > getHeight())
-			vuMeter->setType(VuMeter::StereoHorizontal);
-		else
-			vuMeter->setType(VuMeter::StereoVertical);
-
-		vuMeter->setBounds(getLocalBounds());
-	}
-
-	void timerCallback() override
-	{
-		if (processor.get())
-		{
-			const auto& values = processor->getDisplayValues();
-
-			vuMeter->setPeak(values.outL, values.outR);
-		}
-	}
+	void paint(Graphics& g) override;
+	void resized() override;
+	void timerCallback() override;
 
 private:
 
 	ScopedPointer<VuMeter> vuMeter;
-
 	WeakReference<Processor> processor;
 
 };
-
-
 
 template <class ContentType> class GenericPanel : public Component,
 												  public FloatingTileContent

@@ -56,61 +56,18 @@ class DeactiveOverlay : public Component,
 public:
 
 	DeactiveOverlay(MainController* mc);;
-
 	~DeactiveOverlay();
 
 	void buttonClicked(Button *b);
 
 	using State = OverlayMessageBroadcaster::State;
 
-	void paint(Graphics &g)
-	{
-		g.fillAll();
-		g.drawImageAt(img, 0, 0);
-		g.setColour(Colours::black.withAlpha(0.66f * (float)(numFramesLeft) / 10.0f));
-		g.fillAll();
-	}
-
-	void timerCallback() override
-	{
-		numFramesLeft -= 1;
-
-		if (numFramesLeft <= 0)
-		{
-			stopTimer();
-			setVisible(false);
-			originalImage = Image();
-			return;
-		}
-
-		triggerAsyncUpdate();
-	}
-
-	void fadeout()
-	{
-		numFramesLeft = 1;
-		startTimer(30);
-	}
-
-	void handleAsyncUpdate()
-	{
-		rebuildImage();
-		repaint();
-	}
-
+	void paint(Graphics &g) override;
+	void timerCallback() override;
+	void fadeout();
+	void handleAsyncUpdate() override;
 	void rebuildImage();
-
-	void overlayMessageSent(int state, const String& message) override
-	{
-		if (state == OverlayMessageBroadcaster::CustomErrorMessage ||
-			state == OverlayMessageBroadcaster::CustomInformation ||
-			state == OverlayMessageBroadcaster::CriticalCustomErrorMessage)
-		{
-			customMessage = message;
-		}
-
-		setStateInternal((State)state, true);
-	}
+	void overlayMessageSent(int state, const String& message) override;
 
 	void checkVisibility()
 	{
@@ -128,29 +85,9 @@ public:
 	State checkLicense(const String &keyContent = String());
 #endif
 
-	void refreshLabel()
-	{
-		if (currentState == 0)
-		{
-			descriptionLabel->setText("", dontSendNotification);
-		}
-
-		for (int i = 0; i < State::numReasons; i++)
-		{
-			if (currentState[i])
-			{
-				descriptionLabel->setText(getTextForError((State)i), dontSendNotification);
-				return;
-			}
-		}
-
-		resized();
-	}
-
+	void refreshLabel();
 	String getTextForError(State s) const;
-
 	void resized();
-
 	void clearState(State s);
 
 private:

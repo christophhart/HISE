@@ -107,7 +107,6 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerFrontendPanelTypes();
 
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
-	registerType<ActivationWindow>(PopupMenuOptions::ActivationPanel);
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
 

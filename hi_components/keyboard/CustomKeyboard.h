@@ -123,39 +123,14 @@ public:
 
 	using CustomClickCallback = std::function<bool(const MouseEvent&, bool)>;
 
-	void buttonClicked(Button *b) override
-	{
-		if (b->getName() == "OctaveUp")
-		{
-            lowKey += 12;
-        }
-            
-		else
-		{
-            lowKey -= 12;
-        }
-		
-        setAvailableRange(lowKey, lowKey + 19);
-	}
+	void buttonClicked(Button *b) override;
+    void paint(Graphics &g) override;;
+	void changeListenerCallback(SafeChangeBroadcaster *) override;
 
-	void paint(Graphics &g) override;;
-
-
-	void changeListenerCallback(SafeChangeBroadcaster *) override
-	{
-		
-		repaint();
-	}
-
-	
-	void mouseDown(const MouseEvent& e) override;
-
+    void mouseDown(const MouseEvent& e) override;
 	void mouseUp(const MouseEvent& e) override;
-
 	void mouseDrag(const MouseEvent& e) override;
-
 	bool isMPEKeyboard() const override { return false; }
-
 	bool isUsingCustomGraphics() const noexcept override { return useCustomGraphics; };
 	void setUseCustomGraphics(bool shouldUseCustomGraphics) override;
 
@@ -171,20 +146,12 @@ public:
 	int getRangeEndBase() const override { return hiKey; };
 
 	int getMidiChannelBase() const override { return getMidiChannel(); }
-	void setMidiChannelBase(int newChannel) override 
-	{ 
-		setMidiChannel(newChannel); 
-		//BigInteger mask = 0;
-		//mask.setBit(newChannel-1, true);
-		//setMidiChannelsToDisplay(mask.toInteger());
-	}
+	void setMidiChannelBase(int newChannel) override;
 
-	int getLowKey() const { return lowKey; }
+    int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }
 	
 	void setRangeBase(int min, int max) override { setRange(min, max); }
-
-	
 
 	void setBlackNoteLengthProportionBase(float ratio) override { setBlackNoteLengthProportion(ratio); }
 	double getBlackNoteLengthProportionBase() const override { return getBlackNoteLengthProportion(); }
@@ -198,15 +165,9 @@ public:
 
 	bool isUsingFlatStyle() const override;
 
-	void setRange(int lowKey_, int hiKey_)
-	{
-		lowKey = jlimit<int>(0, 100, lowKey_);
-		hiKey = jlimit<int>(10, 128, hiKey_);
+	void setRange(int lowKey_, int hiKey_);
 
-		setAvailableRange(lowKey, hiKey);
-	}
-
-	Rectangle<float> getRectangleForKeyPublic(int midiNoteNumber)
+    Rectangle<float> getRectangleForKeyPublic(int midiNoteNumber)
 	{
 		return getRectangleForKey(midiNoteNumber);
 	}
@@ -218,18 +179,12 @@ public:
 		that returns true if the event was consumed or if it should perform
 		the default functionality.
 	*/
-	void setCustomClickCallback(const CustomClickCallback& f)
-	{
-		ccc = f;
-	}
+	void setCustomClickCallback(const CustomClickCallback& f);
 
 protected:
 
 	void drawWhiteNote (int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour lineColour, Colour textColour) override;
-
 	void drawBlackNote (int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour noteFillColour) override;
-
-
 
 private:
 
@@ -265,7 +220,6 @@ class ComponentWithKeyboard
 public:
     
     virtual ~ComponentWithKeyboard() {};
-    
     virtual Component *getKeyboard() const = 0;
 };
 

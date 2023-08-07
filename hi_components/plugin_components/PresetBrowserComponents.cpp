@@ -34,6 +34,11 @@ namespace hise {
 using namespace juce;
 
 
+void BetterLabel::update()
+{
+	setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
+	setFont(getPresetBrowserLookAndFeel().font);
+}
 
 PresetBrowserSearchBar::PresetBrowserSearchBar(PresetBrowser* p):
 	PresetBrowserChildComponentBase(p)
@@ -578,6 +583,30 @@ void PresetBrowserColumn::setNewRootDirectory(const File& newRootDirectory)
 	updateButtonVisibility(parent->isReadOnly(newRootDirectory));
 }
 
+Array<var> PresetBrowserColumn::getListAreaOffset()
+{
+	return listAreaOffset;
+}
+
+void PresetBrowserColumn::setRowPadding(double padding)
+{
+	rowPadding = padding;
+	resized();
+}
+
+void PresetBrowserColumn::update()
+{
+	auto& l = getPresetBrowserLookAndFeel();
+
+	listbox->setRowHeight((int)l.font.getHeight() * 2 + rowPadding);
+
+	if (auto v = listbox->getViewport())
+	{
+		v->setColour(ScrollBar::ColourIds::backgroundColourId, Colours::transparentBlack);
+		v->setColour(ScrollBar::ColourIds::thumbColourId, l.highlightColour.withAlpha(0.1f));
+	}
+}
+
 void PresetBrowserColumn::touchAndHold(Point<int> /*downPosition*/)
 {
 	bool scrolling = listbox->getViewport()->isCurrentlyScrollingOnDrag();
@@ -587,6 +616,21 @@ void PresetBrowserColumn::touchAndHold(Point<int> /*downPosition*/)
 		listModel->deleteOnClick = !listModel->deleteOnClick;
 		listbox->repaint();
 	}
+}
+
+void PresetBrowserColumn::mouseDown(const MouseEvent& e)
+{
+	TouchAndHoldComponent::startTouch(e.getPosition());
+}
+
+void PresetBrowserColumn::mouseUp(const MouseEvent& mouseEvent)
+{
+	TouchAndHoldComponent::abortTouch();
+}
+
+void PresetBrowserColumn::mouseMove(const MouseEvent& e)
+{
+	repaint();
 }
 
 void PresetBrowserColumn::buttonClicked(Button* b)
@@ -738,6 +782,37 @@ void PresetBrowserColumn::updateButtonVisibility(bool isReadOnly)
 	renameButton->setVisible(buttonsVisible && fileIsSelected && shouldShowRenameButton);
 }
 
+void PresetBrowserColumn::timerCallback()
+{
+	if (!isVisible()) return;
+
+	listbox->updateContent();
+	listbox->repaint();
+}
+
+void PresetBrowserColumn::setSelectedFile(const File& file, NotificationType notifyListeners)
+{
+	const int rowIndex = listModel->getIndexForFile(file);
+
+	if (rowIndex >= 0)
+	{
+		if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+			ec->setLastIndex(rowIndex);
+
+		selectedFile = file;
+
+		SparseSet<int> s;
+		s.addRange(Range<int>(rowIndex, rowIndex + 1));
+		listbox->setSelectedRows(s, dontSendNotification);
+		listbox->repaint();
+	}
+
+	if (notifyListeners == sendNotification)
+	{
+		listModel->sendRowChangeMessage(rowIndex);
+	}
+}
+
 
 PresetBrowserChildComponentBase::PresetBrowserChildComponentBase(PresetBrowser* b):
 	parent(b)
@@ -748,6 +823,33 @@ PresetBrowserChildComponentBase::PresetBrowserChildComponentBase(PresetBrowser* 
 PresetBrowserLookAndFeelMethods &PresetBrowserChildComponentBase::getPresetBrowserLookAndFeel()
 {
 	return parent->getPresetBrowserLookAndFeel();
+}
+
+TextEditor* NiceLabel::createEditorComponent()
+{
+	TextEditor* t = Label::createEditorComponent();
+	t->setIndents(4, 7);
+	return t;
+}
+
+void NiceLabel::textEditorReturnKeyPressed(TextEditor& t)
+{
+	if (getText() == t.getText())
+	{
+		hideEditor(true);
+		textWasEdited();
+		callChangeListeners();
+	}
+	else
+	{
+		Label::textEditorReturnKeyPressed(t);
+	}
+}
+
+void NiceLabel::textWasEdited()
+{
+	if (refreshWithEachKey)
+		textWasChanged();
 }
 
 PresetBrowserColumn::ExpansionColumnModel::ExpansionColumnModel(PresetBrowser* p) :

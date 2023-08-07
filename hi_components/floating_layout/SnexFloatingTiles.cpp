@@ -34,6 +34,13 @@
 namespace hise {
 using namespace juce;
 
+var SnexTileBase::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+	storePropertyInObject(obj, SpecialPanelIds::FileName, currentFile.getFullPathName(), String());
+	return obj;
+}
+
 void SnexTileBase::setCurrentFile(const File& f)
 {
 	currentFile = f;
@@ -59,6 +66,37 @@ void SnexTileBase::setCurrentFile(const File& f)
 	resized();
 }
 
+void SnexTileBase::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	auto fileName = getPropertyWithDefault(object, SpecialPanelIds::FileName).toString();
+
+	if (fileName.isNotEmpty())
+		setCurrentFile(File(fileName));
+}
+
+Identifier SnexTileBase::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FileName, "FileName");
+
+	jassertfalse;
+	return{};
+}
+
+var SnexTileBase::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FileName, var(""));
+
+	jassertfalse;
+	return{};
+}
 
 
 SnexEditorPanel::SnexEditorPanel(FloatingTile* parent) :
@@ -75,6 +113,34 @@ SnexEditorPanel::~SnexEditorPanel()
 		wb->removeListener(this);
 }
 
+void SnexEditorPanel::workbenchChanged(Ptr newWorkbench)
+{
+	if (newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
+		return;
+
+	setWorkbenchData(newWorkbench);
+}
+
+void SnexEditorPanel::setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench)
+{
+	if (wb != nullptr)
+		wb->removeListener(this);
+
+	wb = newWorkbench.get();
+
+	if (wb != nullptr)
+	{
+		addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench.get(), false));
+		wb->addListener(this);
+	}
+	else
+	{
+		playground = nullptr;
+	}
+
+	resized();
+}
+
 void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
 {
 	if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
@@ -84,6 +150,13 @@ void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
 			//playground->updateTextFromCodeProvider();
 		}
 	}
+}
+
+void SnexEditorPanel::resized()
+{
+	auto b = FloatingTileContent::getParentContentBounds();
+	if (playground != nullptr)
+		playground->setBounds(b);
 }
 
 void SnexEditorPanel::paint(Graphics& g)

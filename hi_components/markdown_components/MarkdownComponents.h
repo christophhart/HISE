@@ -54,32 +54,13 @@ public:
 	};
 
 	MarkdownHelpButton();
+	~MarkdownHelpButton() override;
 
-	~MarkdownHelpButton()
-	{
-		if (ownerComponent != nullptr)
-			ownerComponent->removeComponentListener(this);
-	}
-
-	void setup()
-	{
-		parser = new MarkdownRenderer("");
-		parser->setTextColour(Colours::white);
-		parser->setDefaultTextSize(fontSizeToUse);
-		parser->setStyleData(sd);
-	}
+	void setup();
 
 	MarkdownParser* getParser() { return parser; }
 
-	void addImageProvider(MarkdownParser::ImageProvider* newImageProvider)
-	{
-		if (parser != nullptr)
-		{
-			parser->setImageProvider(newImageProvider);
-		}
-		else
-			jassertfalse; // you need to call setup before that.
-	}
+	void addImageProvider(MarkdownParser::ImageProvider* newImageProvider);
 
 	template <class ProviderType = MarkdownParser::ImageProvider> void setHelpText(const String& markdownText)
 	{
@@ -92,126 +73,17 @@ public:
 		parser->parse();
 	}
 
-	void setPopupWidth(int newPopupWidth)
-	{
-		popupWidth = newPopupWidth;
-	}
+	void setPopupWidth(int newPopupWidth);
 
-	void setFontSize(float fontSize)
-	{
-		fontSizeToUse = fontSize;
-	}
-
+	void setFontSize(float fontSize);
 	void buttonClicked(Button* b) override;
-
-	void attachTo(Component* componentToAttach, AttachmentType attachmentType_)
-	{
-		if (ownerComponent != nullptr)
-			ownerComponent->removeComponentListener(this);
-
-		ownerComponent = componentToAttach;
-		attachmentType = attachmentType_;
-
-		if (ownerComponent != nullptr)
-		{
-			jassert(getParentComponent() == nullptr);
-
-			if (auto parent = ownerComponent->getParentComponent())
-			{
-				parent->addAndMakeVisible(this);
-			}
-			else
-				jassertfalse; // You tried to attach a help button to a component without a parent...
-
-			setVisible(ownerComponent->isVisible());
-			ownerComponent->addComponentListener(this);
-			componentMovedOrResized(*ownerComponent, true, true);
-		}
-	}
-
-	void componentMovedOrResized(Component& c, bool /*wasMoved*/, bool /*wasResized*/) override
-	{
-		auto cBounds = c.getBoundsInParent();
-
-		switch (attachmentType)
-		{
-		case Overlay:
-		{
-			setBounds(cBounds.withSizeKeepingCentre(16, 16));
-			break;
-		}
-		case OverlayLeft:
-		{
-			auto square = cBounds.removeFromLeft(20);
-
-			setBounds(square.withSizeKeepingCentre(16, 16));
-
-			break;
-		}
-		case OverlayRight:
-		{
-			auto square = cBounds.removeFromRight(20);
-
-			setBounds(square.withSizeKeepingCentre(16, 16));
-
-			break;
-		}
-		case Left:
-		{
-			setBounds(cBounds.getX() - 20, cBounds.getY() + 2, 16, 16);
-			break;
-		}
-		case TopRight:
-		{
-			Rectangle<int> r(cBounds.getRight() - 16, cBounds.getY() - 16, 16, 16);
-			setBounds(r);
-		}
-		default:
-			break;
-		}
-	}
-
-	void componentVisibilityChanged(Component& c) override
-	{
-		setVisible(c.isVisible());
-	}
-
-	void setIgnoreKeyStrokes(bool shouldIgnoreKeyStrokes)
-	{
-		setWantsKeyboardFocus(shouldIgnoreKeyStrokes);
-		ignoreKeyStrokes = shouldIgnoreKeyStrokes;
-
-	}
-
-	static MarkdownHelpButton* createAndAddToComponent(Component* c, const String& s, int popupWidth = 400)
-	{
-		auto h = new MarkdownHelpButton();
-
-		h->attachTo(c, MarkdownHelpButton::TopRight);
-		h->setHelpText(s);
-		h->setPopupWidth(popupWidth);
-		return h;
-	}
-
-	void componentBeingDeleted(Component& component) override
-	{
-		component.removeComponentListener(this);
-
-		getParentComponent()->removeChildComponent(this);
-
-		delete this;
-	}
-
-	void setStyleData(const MarkdownLayout::StyleData& newStyleData)
-	{
-		sd = newStyleData;
-
-		if (parser != nullptr)
-		{
-			parser->setStyleData(sd);
-			parser->parse();
-		}
-	}
+	void attachTo(Component* componentToAttach, AttachmentType attachmentType_);
+	void componentMovedOrResized(Component& c, bool /*wasMoved*/, bool /*wasResized*/) override;
+	void componentVisibilityChanged(Component& c) override;
+	void setIgnoreKeyStrokes(bool shouldIgnoreKeyStrokes);
+	static MarkdownHelpButton* createAndAddToComponent(Component* c, const String& s, int popupWidth = 400);
+	void componentBeingDeleted(Component& component) override;
+	void setStyleData(const MarkdownLayout::StyleData& newStyleData);
 
 	static Path getPath();
 
@@ -275,90 +147,21 @@ public:
 	{
 		String getId() const override { return "Markdown Editor"; }
 
-		Path createPath(const String& id) const override
-		{
-			Path p;
-
-			auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
-
-			LOAD_EPATH_IF_URL("live-preview", EditorIcons::swapIcon);
-			LOAD_EPATH_IF_URL("new-file", EditorIcons::newFile);
-			LOAD_EPATH_IF_URL("open-file", EditorIcons::openFile);
-			LOAD_EPATH_IF_URL("save-file", EditorIcons::saveFile);
-			LOAD_EPATH_IF_URL("create-link", EditorIcons::urlIcon);
-			LOAD_EPATH_IF_URL("create-image", EditorIcons::imageIcon);
-			LOAD_EPATH_IF_URL("create-table", EditorIcons::tableIcon);
-
-#if USE_BACKEND
-			LOAD_EPATH_IF_URL("show-settings", BackendBinaryData::ToolbarIcons::settings);
-#endif
-
-			return p;
-		}
+		Path createPath(const String& id) const override;
 	};
 
 	SET_PANEL_NAME("Markdown Editor");
 
 	MarkdownEditorPanel(FloatingTile* root);
+	~MarkdownEditorPanel() override;
 
-	~MarkdownEditorPanel()
-	{
-	}
-
-	bool updatePreview()
-	{
-		if (preview.getComponent() != nullptr)
-			return true;
-
-		auto p = dynamic_cast<MarkdownPreview*>(getMainController()->getCurrentMarkdownPreview());
-
-		if (p != nullptr)
-		{
-			setPreview(p);
-			return true;
-		}
-			
-		return false;
-	}
-
+	bool updatePreview();
 	void buttonClicked(Button* b) override;
-
-	void setPreview(MarkdownPreview* p)
-	{
-		if (p != nullptr)
-		{
-			preview = p;
-            syncer = new mcl::MarkdownPreviewSyncer(editor, *p);
-            syncer->setEnableScrollbarListening(true);
-		}
-			
-	}
-
-	bool keyPressed(const KeyPress& key) override
-	{
-		if (key == KeyPress::F5Key)
-		{
-			if(syncer != nullptr)
-                syncer->startTimer(500);
-            
-			return true;
-		}
-		if ((key.getKeyCode() == 's' ||
-			key.getKeyCode() == 'S') && key.getModifiers().isCommandDown())
-		{
-			saveButton.triggerClick();
-			return true;
-		}
-
-		return false;
-	}
-
+	void setPreview(MarkdownPreview* p);
+	bool keyPressed(const KeyPress& key) override;
 	void loadText(const String& s);
-
 	void loadFile(File f);
-
 	File getRootFile();
-
 	void resized() override;
 
 	Factory f;
@@ -367,7 +170,6 @@ public:
 	HiseShapeButton newButton;
 	HiseShapeButton openButton;
 	HiseShapeButton saveButton;
-
 	HiseShapeButton urlButton;
 	HiseShapeButton imageButton;
 	HiseShapeButton tableButton;

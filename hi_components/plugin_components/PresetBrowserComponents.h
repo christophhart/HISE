@@ -57,33 +57,11 @@ protected:
 class NiceLabel : public Label
 {
 public:
+	TextEditor* createEditorComponent() override;
 
-	virtual TextEditor* createEditorComponent()
-	{
-		TextEditor* t = Label::createEditorComponent();
-		t->setIndents(4, 7);
-		return t;
-	}
+	void textEditorReturnKeyPressed(TextEditor& t) override;
 
-	void textEditorReturnKeyPressed(TextEditor& t) override
-	{
-		if (getText() == t.getText())
-		{
-			hideEditor(true);
-			textWasEdited();
-			callChangeListeners();
-		}
-		else
-		{
-			Label::textEditorReturnKeyPressed(t);
-		}
-	}
-
-	void textWasEdited() override
-	{
-		if (refreshWithEachKey)
-			textWasChanged();
-	}
+	void textWasEdited() override;
 
 	bool refreshWithEachKey = true;
 };
@@ -97,14 +75,7 @@ public:
 		PresetBrowserChildComponentBase(p)
 	{}
 
-	void update() override
-	{
-		setColour(Label::backgroundColourId, getPresetBrowserLookAndFeel().highlightColour.withAlpha(0.1f));
-		setFont(getPresetBrowserLookAndFeel().font);
-	}
-
-	
-
+	void update() override;
 };
 
 class PresetBrowserSearchBar : public Component,
@@ -473,46 +444,17 @@ public:
 		resized();
 	}
 	
-	Array<var> getListAreaOffset()
-	{
-		return listAreaOffset;
-	}
-	
-	void setRowPadding(double padding)
-	{
-		rowPadding = padding;
-		resized();
-	}
+	Array<var> getListAreaOffset();
 
-	void update() override
-	{
-		auto& l = getPresetBrowserLookAndFeel();
+	void setRowPadding(double padding);
 
-		listbox->setRowHeight((int)l.font.getHeight() * 2 + rowPadding);
-
-		if (auto v = listbox->getViewport())
-		{
-			v->setColour(ScrollBar::ColourIds::backgroundColourId, Colours::transparentBlack);
-			v->setColour(ScrollBar::ColourIds::thumbColourId, l.highlightColour.withAlpha(0.1f));
-		}
-	}
+	void update() override;
 
 	void touchAndHold(Point<int> /*downPosition*/) override;
 
-	void mouseDown(const MouseEvent& e) override
-	{
-		TouchAndHoldComponent::startTouch(e.getPosition());
-	}
-
-	void mouseUp(const MouseEvent& /*e*/) override
-	{
-		TouchAndHoldComponent::abortTouch();
-	}
-
-	void mouseMove(const MouseEvent& e) override
-	{
-		repaint();
-	}
+	void mouseDown(const MouseEvent& e) override;
+	void mouseUp(const MouseEvent& /*e*/) override;
+	void mouseMove(const MouseEvent& e) override;
 
 	void buttonClicked(Button* b);
 
@@ -526,7 +468,6 @@ public:
 	void tagSelectionChanged(const StringArray& newSelection) override
 	{
 		listModel->updateTags(newSelection);
-
 		listbox->deselectAllRows();
 		listbox->updateContent();
 		listbox->repaint();
@@ -552,36 +493,9 @@ public:
 		updateButtonVisibility(false);
 	}
 
-	void timerCallback() override
-	{
-		if (!isVisible()) return;
+	void timerCallback() override;
 
-		listbox->updateContent();
-		listbox->repaint();
-	}
-
-	void setSelectedFile(const File& file, NotificationType notifyListeners = dontSendNotification)
-	{
-		const int rowIndex = listModel->getIndexForFile(file);
-
-		if (rowIndex >= 0)
-		{
-			if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
-				ec->setLastIndex(rowIndex);
-
-			selectedFile = file;
-
-			SparseSet<int> s;
-			s.addRange(Range<int>(rowIndex, rowIndex + 1));
-			listbox->setSelectedRows(s, dontSendNotification);
-			listbox->repaint();
-		}
-
-		if (notifyListeners == sendNotification)
-		{
-			listModel->sendRowChangeMessage(rowIndex);
-		}
-	}
+	void setSelectedFile(const File& file, NotificationType notifyListeners = dontSendNotification);
 
 	void setModel(ColumnListModel* newModel, const File& totalRoot)
 	{

@@ -64,18 +64,11 @@ public:
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 
-	void setMainControllers(Array<WeakReference<MainController>> &newMainControllers)
-	{
-		mainControllers.swapWith(newMainControllers);
-	}
+	void setMainControllers(Array<WeakReference<MainController>> &newMainControllers);
 
 	void preloadStateChanged(bool isPreloading) override;
 
-	void recordStateChanged(bool state) override
-	{
-		isRecording = state;
-		repaint();
-	}
+	void recordStateChanged(bool state) override;
 
 	void mouseDown(const MouseEvent& e) override;
 

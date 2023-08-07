@@ -1141,8 +1141,24 @@ Path DAWClockController::Icons::createPath(const String& url) const
     return p;
 }
 
+TimelineObjectBase::Type TimelineObjectBase::getTypeFromFile(const File& f)
+{
+	if (f.getFileExtension() == ".wav" ||
+		f.getFileExtension() == ".aif")
+	{
+		return Type::Audio;
+	}
+	if (f.getFileExtension() == ".mid" ||
+		f.getFileExtension() == ".midi")
+	{
+		return Type::Midi;
+	}
+
+	return Type::Unknown;
+}
+
 void TimelineMetronome::process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart,
-	ExternalClockSimulator* clock)
+                                ExternalClockSimulator* clock)
 {
 	if (!enabled)
 		return;
@@ -1227,6 +1243,32 @@ void TimelineMetronome::initialise(double sampleRate)
 	}
 }
 
+ExternalClockSimulator::ExternalClockSimulator()
+{
+	metronome = new TimelineMetronome();
+}
+
+double ExternalClockSimulator::getPPQDelta(int numSamples) const
+{
+	auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+        
+	return (double)numSamples / samplesPerQuarter;
+}
+
+int ExternalClockSimulator::getSamplesDelta(double ppqDelta) const
+{
+	auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
+	return roundToInt(samplesPerQuarter * ppqDelta);
+}
+
+void ExternalClockSimulator::sendLoopMessage()
+{
+	metronome->loopWrap();
+
+	for (auto to : timelineObjects)
+		to->loopWrap();
+}
+
 void ExternalClockSimulator::addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb)
 {
 	if (!isPlaying)
@@ -1293,6 +1335,58 @@ void ExternalClockSimulator::process(int numSamples)
 			ppqPos = ppqLoop.getStart() + hmath::fmod(posAfterStart, ppqLoop.getLength());
 		}
 	}
+}
+
+int ExternalClockSimulator::getLoopBeforeWrap(int numSamples)
+{
+	if(isPlaying && isLooping && !ppqLoop.isEmpty())
+	{
+		auto beforeInside = ppqLoop.contains(ppqPos);
+            
+		if(!beforeInside)
+			return 0;
+            
+		auto afterPos = ppqPos + getPPQDelta(numSamples);
+            
+		auto afterInside = ppqLoop.contains(afterPos);
+            
+		if(!afterInside)
+		{
+			return getSamplesDelta(afterPos - ppqLoop.getEnd());
+		}
+            
+		return 0;
+	}
+        
+	return 0;
+}
+
+bool ExternalClockSimulator::getCurrentPosition(CurrentPositionInfo& result)
+{
+	result.bpm = bpm;
+	result.timeSigNumerator = nom;
+	result.timeSigDenominator = denom;
+	result.timeInSamples = TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter) * ppqPos;
+	result.timeInSeconds = TempoSyncer::getTempoInMilliSeconds(bpm, TempoSyncer::Quarter) * ppqPos;
+	result.ppqPosition = ppqPos;
+	result.ppqPositionOfLastBarStart = hmath::floor(ppqPos / 4.0) * 4.0;
+	result.isPlaying = isPlaying;
+	result.isRecording = false;
+	result.ppqLoopStart = ppqLoop.getStart();
+	result.ppqLoopEnd = ppqLoop.getEnd();
+	result.isLooping = isLooping;
+        
+	return true;
+}
+
+void ExternalClockSimulator::prepareToPlay(double newSampleRate)
+{
+	sampleRate = newSampleRate;
+
+	metronome->initialise(newSampleRate);
+
+	for (auto o : timelineObjects)
+		o->initialise(newSampleRate);
 }
 #endif
 

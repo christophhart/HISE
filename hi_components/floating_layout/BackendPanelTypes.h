@@ -49,21 +49,7 @@ struct TimelineObjectBase : public ReferenceCountedObject
 		numTypes
 	};
 
-	static Type getTypeFromFile(const File& f)
-	{
-		if (f.getFileExtension() == ".wav" ||
-			f.getFileExtension() == ".aif")
-		{
-			return Type::Audio;
-		}
-		if (f.getFileExtension() == ".mid" ||
-			f.getFileExtension() == ".midi")
-		{
-			return Type::Midi;
-		}
-
-		return Type::Unknown;
-	}
+	static Type getTypeFromFile(const File& f);
 
 	using Ptr = ReferenceCountedObjectPtr<TimelineObjectBase>;
 
@@ -127,31 +113,13 @@ class ExternalClockSimulator: public juce::AudioPlayHead
 {
 public:
     
-	ExternalClockSimulator()
-	{
-		metronome = new TimelineMetronome();
-	}
+	ExternalClockSimulator();
 
-    double getPPQDelta(int numSamples) const
-    {
-        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
-        
-        return (double)numSamples / samplesPerQuarter;
-    }
-    
-    int getSamplesDelta(double ppqDelta) const
-    {
-        auto samplesPerQuarter = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter);
-        return roundToInt(samplesPerQuarter * ppqDelta);
-    }
-    
-	void sendLoopMessage()
-	{
-		metronome->loopWrap();
+	double getPPQDelta(int numSamples) const;
 
-		for (auto to : timelineObjects)
-			to->loopWrap();
-	}
+	int getSamplesDelta(double ppqDelta) const;
+
+	void sendLoopMessage();
 
 	void addTimelineData(AudioSampleBuffer& bufferData, MidiBuffer& mb);
 
@@ -159,59 +127,13 @@ public:
 	
 	void process(int numSamples);
 
-	int getLoopBeforeWrap(int numSamples)
-    {
-        if(isPlaying && isLooping && !ppqLoop.isEmpty())
-        {
-            auto beforeInside = ppqLoop.contains(ppqPos);
-            
-            if(!beforeInside)
-                return 0;
-            
-            auto afterPos = ppqPos + getPPQDelta(numSamples);
-            
-            auto afterInside = ppqLoop.contains(afterPos);
-            
-            if(!afterInside)
-            {
-				return getSamplesDelta(afterPos - ppqLoop.getEnd());
-            }
-            
-            return 0;
-        }
-        
-        return 0;
-    }
-    
-    bool getCurrentPosition (CurrentPositionInfo& result) override
-    {
-        result.bpm = bpm;
-        result.timeSigNumerator = nom;
-        result.timeSigDenominator = denom;
-        result.timeInSamples = TempoSyncer::getTempoInSamples(bpm, sampleRate, TempoSyncer::Quarter) * ppqPos;
-        result.timeInSeconds = TempoSyncer::getTempoInMilliSeconds(bpm, TempoSyncer::Quarter) * ppqPos;
-        result.ppqPosition = ppqPos;
-        result.ppqPositionOfLastBarStart = hmath::floor(ppqPos / 4.0) * 4.0;
-        result.isPlaying = isPlaying;
-        result.isRecording = false;
-        result.ppqLoopStart = ppqLoop.getStart();
-        result.ppqLoopEnd = ppqLoop.getEnd();
-        result.isLooping = isLooping;
-        
-        return true;
-    }
-    
-    void prepareToPlay(double newSampleRate)
-    {
-        sampleRate = newSampleRate;
+	int getLoopBeforeWrap(int numSamples);
 
-		metronome->initialise(newSampleRate);
+	bool getCurrentPosition (CurrentPositionInfo& result) override;
 
-		for (auto o : timelineObjects)
-			o->initialise(newSampleRate);
-    }
+	void prepareToPlay(double newSampleRate);
 
-    bool isLooping = false;
+	bool isLooping = false;
     bool isPlaying = false;
 	bool metronomeEnabled = false;
     

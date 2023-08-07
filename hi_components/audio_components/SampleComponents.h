@@ -78,30 +78,12 @@ public:
 		{
 		public:
 
-			Updater(Broadcaster& p) :
-				parent(p)
-			{
-				startTimer(30);
-			}
+			Updater(Broadcaster& p);
 
-			void timerCallback() override
-			{
-				if (changeFlag)
-				{
-					changeFlag = false;
-
-					parent.updateData();
-				}
-			}
-
-			void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override
-			{
-				if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
-					parent.triggerWaveformUpdate();
-			}
+			void timerCallback() override;
+			void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
 
 			std::atomic<bool> changeFlag;
-
 			Broadcaster& parent;
 		};
 
@@ -112,56 +94,9 @@ public:
 				br(br_)
 			{};
 
-			bool validateInt(const Identifier& id, int& v) const override
-			{
-				if (id == RingBufferIds::BufferLength)
-					return SimpleRingBuffer::toFixSize<128>(v);
-
-				if (id == RingBufferIds::NumChannels)
-					return SimpleRingBuffer::toFixSize<1>(v);
-                
-                return true;
-			}
-
-			Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const override
-			{
-				const float* d[1] = { nullptr };
-				int numSamples = 0;
-				float nv;
-				br->getWaveformTableValues(0, d, numSamples, nv);
-
-				AudioSampleBuffer b((float**)d, 1, numSamples);
-				
-				Path p;
-				p.preallocateSpace(numSamples);
-				p.startNewSubPath(0.0f, 0.0f);
-				p.startNewSubPath(0.0f, -1.0f);
-				p.startNewSubPath(0.0f, -1.0f * startValue);
-
-				for (int i = 0; i < numSamples; i++)
-					p.lineTo((float)i, -1.0f * b.getSample(0, i));
-
-				
-
-				if(!p.getBounds().isEmpty() && !targetBounds.isEmpty())
-					p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
-
-				return p;
-			}
-
-			void transformReadBuffer(AudioSampleBuffer& b) override
-			{
-				if (br != nullptr)
-				{
-					const float* d[1] = { nullptr };
-					int numSamples = 0;
-					float nv;
-					br->getWaveformTableValues(0, d, numSamples, nv);
-
-					if (numSamples == 128)
-						FloatVectorOperations::copy(b.getWritePointer(0), d[0], numSamples);
-				}
-			}
+			bool validateInt(const Identifier& id, int& v) const override;
+			Path createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const override;
+			void transformReadBuffer(AudioSampleBuffer& b) override;
 
 			WeakReference<Broadcaster> br;
 		};
@@ -176,26 +111,10 @@ public:
 
 		/** If you want to display a complex UI in the waveform, just connect the updaters here. */
 		void connectWaveformUpdaterToComplexUI(ComplexDataUIBase* d, bool enableUpdate);
-
-		void suspendStateChanged(bool shouldBeSuspended) override
-		{
-			updater.suspendTimer(shouldBeSuspended);
-		}
-
+		void suspendStateChanged(bool shouldBeSuspended) override;
 		void triggerWaveformUpdate() { updater.changeFlag = true; };
-
-		void addWaveformListener(WaveformComponent* listener)
-		{
-			listener->broadcaster = this;
-			listeners.addIfNotAlreadyThere(listener);
-		}
-
-		void removeWaveformListener(WaveformComponent* listener)
-		{
-			listener->broadcaster = nullptr;
-			listeners.removeAllInstancesOf(listener);
-		}
-
+		void addWaveformListener(WaveformComponent* listener);
+		void removeWaveformListener(WaveformComponent* listener);
 		void updateData();
 
 		ScaleFunction scaleFunction = identity;
@@ -217,42 +136,17 @@ public:
 	};
 
 	WaveformComponent(Processor *p, int index = 0);
-
 	~WaveformComponent();
 
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		setBypassed(processor->isBypassed());
-	}
-
-	void setBypassed(bool shouldBeBypassed)
-	{
-		if (bypassed != shouldBeBypassed)
-		{
-			bypassed = shouldBeBypassed;
-			rebuildPath();
-		}
-	}
-
-	void setUseFlatDesign(bool shouldUseFlatDesign)
-	{
-		useFlatDesign = shouldUseFlatDesign;
-		repaint();
-	}
+	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override;
+	void setBypassed(bool shouldBeBypassed);
+	void setUseFlatDesign(bool shouldUseFlatDesign);
 
 	void paint(Graphics &g);
-
+	void resized() override;
 	void refresh() override;
 
-	Colour getColourForAnalyserBase(int colourId) override
-    {
-        return findColour(colourId);
-    }
-
-	void resized() override
-	{
-		rebuildPath();
-	}
+	Colour getColourForAnalyserBase(int colourId) override;
 
 	class Panel : public PanelWithProcessorConnection
 	{
@@ -260,18 +154,9 @@ public:
 
 		SET_PANEL_NAME("Waveform");
 
-		Panel(FloatingTile* parent) :
-			PanelWithProcessorConnection(parent)
-		{
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
-		}
-
+		Panel(FloatingTile* parent);
 		Identifier getProcessorTypeId() const override;
-
 		Component* createContentComponent(int /*index*/) override;
-
 		void fillModuleList(StringArray& moduleList) override;
 	};
 
@@ -279,36 +164,22 @@ protected:
 
 	void setTableValues(const float* values, int numValues, float normalizeValue_);
 
-
-
 private:
-
-	bool bypassed = false;
-
-	int index = 0;
 
 	friend class Broadcaster;
 
 	static Path getPathForBasicWaveform(WaveformType t);
-
 	void rebuildPath();
 
+	bool bypassed = false;
+	int index = 0;
 	Path path;
-
 	bool useFlatDesign = false;
-
 	WeakReference<Processor> processor;
-
-
-
 	float const *tableValues;
-
 	int tableLength;
-
 	float normalizeValue;
-
 	WeakReference<Broadcaster> broadcaster;
-
 };
 
 class SamplerSoundWaveform;
@@ -373,40 +244,12 @@ struct SamplerTools
         ToolModes
     };
     
-    static Colour getToolColour(Mode m)
-    {
-        switch(m)
-        {
-            case Mode::GainEnvelope:
-            case Mode::PitchEnvelope:
-            case Mode::FilterEnvelope:  return SamplerDisplayWithTimeline::getColourForEnvelope((Modulation::Mode)((int)m - (int)Mode::GainEnvelope));
-            case Mode::PlayArea:
-            case Mode::LoopArea:
-            case Mode::LoopCrossfadeArea:
-            case Mode::SampleStartArea: return AudioDisplayComponent::SampleArea::getAreaColour((AudioDisplayComponent::AreaTypes)((int)m - (int)Mode::PlayArea));
-            default: return Colours::white;
-        }
-    }
-    
-    void toggleMode(Mode newMode)
-    {
-        if(currentMode == newMode)
-            currentMode = Mode::Nothing;
-        else
-            currentMode = newMode;
-        
-        broadcaster.sendMessage(sendNotificationSync, currentMode);
-    }
-    
-    void setMode(Mode newMode)
-    {
-        if(currentMode != newMode)
-        {
-            currentMode = newMode;
-            broadcaster.sendMessage(sendNotificationSync, currentMode);
-        }
-    }
-    
+    static Colour getToolColour(Mode m);
+
+    void toggleMode(Mode newMode);
+
+    void setMode(Mode newMode);
+
     Mode currentMode = Mode::Nothing;
     LambdaBroadcaster<Mode> broadcaster;
 };
@@ -484,37 +327,11 @@ public:
 
 	float getNormalizedPeak() override;
 
-	void refresh(NotificationType n)
-	{
-		getThumbnail()->setDisplayGain(getCurrentSampleGain(), n);
-	}
+	void refresh(NotificationType n);
 
-	void setVerticalZoom(float zf)
-	{
-		if (zf != verticalZoomGain)
-		{
-			verticalZoomGain = zf;
-			refresh(sendNotificationSync);
-		}
-	}
+	void setVerticalZoom(float zf);
 
-	void setClickArea(AreaTypes newArea, bool resetIfSame=true)
-	{
-		if (newArea == currentClickArea && resetIfSame)
-			currentClickArea = AreaTypes::numAreas;
-		else
-			currentClickArea = newArea;
-
-		for (int i = 0; i < areas.size(); i++)
-		{
-			areas[i]->setAreaEnabled(currentClickArea == i);
-		}
-
-		auto isSomething = currentClickArea != AreaTypes::numAreas;
-
-		setMouseCursor(!isSomething ? MouseCursor::DraggingHandCursor : MouseCursor::CrosshairCursor);
-		
-	}
+	void setClickArea(AreaTypes newArea, bool resetIfSame=true);
 
 	float getCurrentSampleGain() const;
 
@@ -568,9 +385,7 @@ struct WaterfallComponent : public Component,
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,
 		public LookAndFeelMethods
-	{
-
-	};
+	{};
 
 	WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_);
 
@@ -580,10 +395,7 @@ struct WaterfallComponent : public Component,
 
 	void timerCallback() override;
 
-	void resized() override
-	{
-		rebuildPaths();
-	}
+	void resized() override;
 
 	struct DisplayData
 	{
@@ -591,14 +403,7 @@ struct WaterfallComponent : public Component,
 		ReferenceCountedObjectPtr<WavetableSound> sound;
 	};
 
-	void setPerspectiveDisplacement(const Point<float>& newDisplacement)
-	{
-		if (displacement != newDisplacement)
-		{
-			displacement = newDisplacement;
-			repaint();
-		}
-	}
+	void setPerspectiveDisplacement(const Point<float>& newDisplacement);
 
 	Point<float> displacement;
 
@@ -614,14 +419,7 @@ struct WaterfallComponent : public Component,
 			numSpecialPanelIds
 		};
 
-		Panel(FloatingTile* parent) :
-			PanelWithProcessorConnection(parent)
-		{
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.05f));
-			setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
-		}
+		explicit Panel(FloatingTile* parent);
 
 		Identifier getProcessorTypeId() const override;
 

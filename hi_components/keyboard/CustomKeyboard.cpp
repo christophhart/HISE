@@ -274,6 +274,21 @@ CustomKeyboard::~CustomKeyboard()
 	state->removeChangeListener(this);
 }
 
+void CustomKeyboard::buttonClicked(Button* b)
+{
+	if (b->getName() == "OctaveUp")
+	{
+		lowKey += 12;
+	}
+            
+	else
+	{
+		lowKey -= 12;
+	}
+		
+	setAvailableRange(lowKey, lowKey + 19);
+}
+
 
 void CustomKeyboard::paint(Graphics &g)
 {
@@ -284,6 +299,12 @@ void CustomKeyboard::paint(Graphics &g)
     }
 		
 	MidiKeyboardComponent::paint(g);
+}
+
+void CustomKeyboard::changeListenerCallback(SafeChangeBroadcaster*)
+{
+		
+	repaint();
 }
 
 void CustomKeyboard::mouseDown(const MouseEvent& e)
@@ -374,6 +395,14 @@ void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
 	repaint();
 }
 
+void CustomKeyboard::setMidiChannelBase(int newChannel)
+{ 
+	setMidiChannel(newChannel); 
+	//BigInteger mask = 0;
+	//mask.setBit(newChannel-1, true);
+	//setMidiChannelsToDisplay(mask.toInteger());
+}
+
 void CustomKeyboard::setUseVectorGraphics(bool shouldUseVectorGraphics, bool useFlatStyle/*=false*/)
 {
 	if(auto laf = dynamic_cast<CustomKeyboardLookAndFeelBase*>(&getLookAndFeel()))
@@ -385,6 +414,11 @@ void CustomKeyboard::setUseVectorGraphics(bool shouldUseVectorGraphics, bool use
 	}
 
 	setOpaque(!useFlatStyle);
+}
+
+void CustomKeyboard::setCustomClickCallback(const CustomClickCallback& f)
+{
+	ccc = f;
 }
 
 void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, Rectangle<float> area, bool isDown, bool isOver, Colour lineColour, Colour textColour)
@@ -469,4 +503,11 @@ bool CustomKeyboard::isUsingFlatStyle() const
 	return false;
 }
 
+void CustomKeyboard::setRange(int lowKey_, int hiKey_)
+{
+	lowKey = jlimit<int>(0, 100, lowKey_);
+	hiKey = jlimit<int>(10, 128, hiKey_);
+
+	setAvailableRange(lowKey, hiKey);
+}
 } // namespace hise

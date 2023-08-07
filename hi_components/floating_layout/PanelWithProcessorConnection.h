@@ -151,97 +151,22 @@ public:
 
 	void setContentWithUndo(Processor* newProcessor, int newIndex);
 
-    void refreshTitle()
-    {
-        auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
-
-        if (getProcessor() && !hasCustomTitle())
-        {
-            titleToUse << ": " << getConnectedProcessor()->getId();
-        }
-
-        setDynamicTitle(titleToUse);
-
-        resized();
-        repaint();
-    }
-    
-	void refreshContent()
-	{
-		if (getConnectedProcessor())
-			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
-		else
-			connectionSelector->setSelectedId(1, dontSendNotification);
-
-		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
-
-		if (getProcessor() == nullptr || (hasSubIndex() && currentIndex == -1))
-		{
-			content = nullptr;
-		}
-		else
-		{
-			getProcessor()->addDeleteListener(this);
-
-			content = nullptr;
-			content = createContentComponent(currentIndex);
-			
-			if(content != nullptr)
-				addAndMakeVisible(content);
-		}
-
-        refreshTitle();
-		
-
-		contentChanged();
-	}
-
-
-    void setContentForIdentifier(Identifier idToSearch);
+    void refreshTitle();
+	void refreshContent();
+	void setContentForIdentifier(Identifier idToSearch);
 
 	virtual Component* createContentComponent(int index) = 0;
-
 	virtual void contentChanged() {};
-
 	virtual void fillModuleList(StringArray& moduleList) = 0;
-
 	virtual void fillIndexList(StringArray& /*indexList*/) {};
-
 	virtual bool hasSubIndex() const { return false; }
 
-	bool showTitleInPresentationMode() const override
-	{
-		return !forceHideSelector;
-	}
-
-	void setCurrentProcessor(Processor* p)
-	{
-		if (currentProcessor.get() != nullptr)
-		{
-			currentProcessor->removeDeleteListener(this);
-		}
-
-		currentProcessor = p;
-		connectedProcessor = currentProcessor;
-	}
-
-	void setConnectionIndex(int newIndex)
-	{
-		currentIndex = newIndex;
-	}
-
+	bool showTitleInPresentationMode() const override;
+	void setCurrentProcessor(Processor* p);
+	void setConnectionIndex(int newIndex);
 	int getCurrentIndex() const { return currentIndex; }
-
-	void setForceHideSelector(bool shouldHide)
-	{
-		forceHideSelector = shouldHide;
-		
-	}
-
-	virtual bool shouldFollowNewWorkspace(Processor* p, const Identifier& id) const
-	{
-		return followWorkspaceButton.getToggleState() && id == getProcessorTypeId();
-	}
+	void setForceHideSelector(bool shouldHide);
+	virtual bool shouldFollowNewWorkspace(Processor* p, const Identifier& id) const;
 
 protected:
 
@@ -273,10 +198,7 @@ protected:
 
 private:
 
-	
-
 	bool forceHideSelector = false;
-
 	bool listInitialised = false;
 
 	GlobalHiseLookAndFeel hlaf;
@@ -284,7 +206,6 @@ private:
 	ScopedPointer<ComboBox> connectionSelector;
 	ScopedPointer<ComboBox> indexSelector;
 	
-
 	int currentIndex = -1;
 	int previousIndex = -1;
 	int nextIndex = -1;
@@ -301,9 +222,7 @@ template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProc
 															public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
-
-
-	GlobalConnectorPanel(FloatingTile* parent) :
+	explicit GlobalConnectorPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
 	{
 		getMainController()->getLockFreeDispatcher().addPresetLoadListener(this);

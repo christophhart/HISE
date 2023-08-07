@@ -385,6 +385,22 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 }
 
 
+void CustomSettingsWindow::refreshSizeFromProperties()
+{
+	int height = 0;
+
+	for (int i = (int)Properties::Driver; i <= (int)Properties::DebugMode; i++)
+	{
+		if (properties[i])
+			height += 40;
+	}
+
+	if (properties[(int)Properties::SampleLocation])
+		height += 40;
+
+	setSize(320, height);
+}
+
 void CustomSettingsWindow::rebuildScaleFactorList()
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);

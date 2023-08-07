@@ -175,6 +175,41 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 }
 
+void DeactiveOverlay::paint(Graphics& g)
+{
+	g.fillAll();
+	g.drawImageAt(img, 0, 0);
+	g.setColour(Colours::black.withAlpha(0.66f * (float)(numFramesLeft) / 10.0f));
+	g.fillAll();
+}
+
+void DeactiveOverlay::timerCallback()
+{
+	numFramesLeft -= 1;
+
+	if (numFramesLeft <= 0)
+	{
+		stopTimer();
+		setVisible(false);
+		originalImage = Image();
+		return;
+	}
+
+	triggerAsyncUpdate();
+}
+
+void DeactiveOverlay::fadeout()
+{
+	numFramesLeft = 1;
+	startTimer(30);
+}
+
+void DeactiveOverlay::handleAsyncUpdate()
+{
+	rebuildImage();
+	repaint();
+}
+
 void DeactiveOverlay::rebuildImage()
 {
 	auto rebuildFromParent = !originalImage.isValid();
@@ -208,6 +243,17 @@ void DeactiveOverlay::rebuildImage()
 	}
 }
 
+void DeactiveOverlay::overlayMessageSent(int state, const String& message)
+{
+	if (state == OverlayMessageBroadcaster::CustomErrorMessage ||
+		state == OverlayMessageBroadcaster::CustomInformation ||
+		state == OverlayMessageBroadcaster::CriticalCustomErrorMessage)
+	{
+		customMessage = message;
+	}
+
+	setStateInternal((State)state, true);
+}
 
 
 #if !USE_COPY_PROTECTION
@@ -222,6 +268,25 @@ DeactiveOverlay::State DeactiveOverlay::checkLicense(const String &keyContent)
 {
 	ignoreUnused(keyContent);
 	return State::numReasons;
+}
+
+void DeactiveOverlay::refreshLabel()
+{
+	if (currentState == 0)
+	{
+		descriptionLabel->setText("", dontSendNotification);
+	}
+
+	for (int i = 0; i < State::numReasons; i++)
+	{
+		if (currentState[i])
+		{
+			descriptionLabel->setText(getTextForError((State)i), dontSendNotification);
+			return;
+		}
+	}
+
+	resized();
 }
 
 #endif

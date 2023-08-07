@@ -503,6 +503,51 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 
 }
 
+void PanelWithProcessorConnection::refreshTitle()
+{
+	auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
+
+	if (getProcessor() && !hasCustomTitle())
+	{
+		titleToUse << ": " << getConnectedProcessor()->getId();
+	}
+
+	setDynamicTitle(titleToUse);
+
+	resized();
+	repaint();
+}
+
+void PanelWithProcessorConnection::refreshContent()
+{
+	if (getConnectedProcessor())
+		connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
+	else
+		connectionSelector->setSelectedId(1, dontSendNotification);
+
+	indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
+
+	if (getProcessor() == nullptr || (hasSubIndex() && currentIndex == -1))
+	{
+		content = nullptr;
+	}
+	else
+	{
+		getProcessor()->addDeleteListener(this);
+
+		content = nullptr;
+		content = createContentComponent(currentIndex);
+			
+		if(content != nullptr)
+			addAndMakeVisible(content);
+	}
+
+	refreshTitle();
+		
+
+	contentChanged();
+}
+
 PanelWithProcessorConnection::ProcessorConnection::ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_, var additionalInfo_) :
 	panel(panel_),
 	newProcessor(newProcessor_),
@@ -567,5 +612,36 @@ void PanelWithProcessorConnection::setContentForIdentifier(Identifier idToSearch
             }
         }
     }
-    
+
+bool PanelWithProcessorConnection::showTitleInPresentationMode() const
+{
+	return !forceHideSelector;
+}
+
+void PanelWithProcessorConnection::setCurrentProcessor(Processor* p)
+{
+	if (currentProcessor.get() != nullptr)
+	{
+		currentProcessor->removeDeleteListener(this);
+	}
+
+	currentProcessor = p;
+	connectedProcessor = currentProcessor;
+}
+
+void PanelWithProcessorConnection::setConnectionIndex(int newIndex)
+{
+	currentIndex = newIndex;
+}
+
+void PanelWithProcessorConnection::setForceHideSelector(bool shouldHide)
+{
+	forceHideSelector = shouldHide;
+		
+}
+
+bool PanelWithProcessorConnection::shouldFollowNewWorkspace(Processor* p, const Identifier& id) const
+{
+	return followWorkspaceButton.getToggleState() && id == getProcessorTypeId();
+}
 } // namespace hise

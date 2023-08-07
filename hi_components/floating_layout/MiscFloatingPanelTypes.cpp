@@ -33,7 +33,17 @@
 namespace hise { using namespace juce;
 
 
+	EmptyComponent::EmptyComponent(FloatingTile* p):
+		FloatingTileContent(p)
+	{
+		Random r;
 
+		setTooltip("Right click to create a Panel");
+
+		setInterceptsMouseClicks(false, true);
+
+		c = Colour(r.nextInt()).withAlpha(0.1f);
+	}
 
 void EmptyComponent::paint(Graphics& g)
 {
@@ -194,6 +204,35 @@ void VisibilityToggleBar::fromDynamicObject(const var& object)
 
 }
 
+int VisibilityToggleBar::getNumDefaultableProperties() const
+{
+	return SpecialPanelIds::numSpecialPanelIds;
+}
+
+Identifier VisibilityToggleBar::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Alignment, "Alignment");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::IconIds, "IconIds");
+
+	jassertfalse;
+	return{};
+}
+
+var VisibilityToggleBar::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Alignment, var((int)Justification::centred));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::IconIds, Array<var>());
+
+	jassertfalse;
+	return{};
+}
+
 void VisibilityToggleBar::siblingAmountChanged()
 {
 	if (!pendingCustomPanels.isEmpty())
@@ -303,6 +342,22 @@ void VisibilityToggleBar::Icon::buttonClicked(Button*)
 	refreshColour();
 }
 
+PopoutButtonPanel::PopoutButtonPanel(FloatingTile* p):
+	FloatingTileContent(p)
+{
+	addAndMakeVisible(button = new TextButton("Unused"));
+	button->addListener(this);
+	button->setLookAndFeel(&blaf);
+		
+	button->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+	button->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+}
+
+PopoutButtonPanel::~PopoutButtonPanel()
+{
+	button = nullptr;
+}
+
 void PopoutButtonPanel::buttonClicked(Button* /*b*/)
 {
 	ScopedPointer<FloatingTile> popout = new FloatingTile(getMainController(), nullptr, popoutData);
@@ -319,6 +374,62 @@ void PopoutButtonPanel::buttonClicked(Button* /*b*/)
 void PopoutButtonPanel::resized()
 {
 	button->setBounds(getParentShell()->getContentBounds());
+}
+
+var PopoutButtonPanel::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+
+	storePropertyInObject(obj, SpecialPanelIds::Text, button->getButtonText());
+	storePropertyInObject(obj, SpecialPanelIds::PopoutData, popoutData);
+	storePropertyInObject(obj, SpecialPanelIds::Width, width);
+	storePropertyInObject(obj, SpecialPanelIds::Height, height);
+		
+	return obj;
+}
+
+void PopoutButtonPanel::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	button->setButtonText(getPropertyWithDefault(object, SpecialPanelIds::Text));
+
+	popoutData = getPropertyWithDefault(object, SpecialPanelIds::PopoutData);
+	width = getPropertyWithDefault(object, SpecialPanelIds::Width);
+	height = getPropertyWithDefault(object, SpecialPanelIds::Height);
+}
+
+int PopoutButtonPanel::getNumDefaultableProperties() const
+{
+	return SpecialPanelIds::numSpecialPanelIds;
+}
+
+Identifier PopoutButtonPanel::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "ButtonText");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Width, "Width");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Height, "Height");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::PopoutData, "PopoutData");
+
+	jassertfalse;
+	return{};
+}
+
+var PopoutButtonPanel::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var("Popout Button"));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Width, var(300));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Height, var(300));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::PopoutData, var());
+
+	jassertfalse;
+	return{};
 }
 
 
@@ -488,153 +599,47 @@ void InterfaceContentPanel::updateSize()
 }
 
 
-ActivationWindow::ActivationWindow(FloatingTile* parent) :
-	FloatingTileContent(parent),
-	mc(parent->getMainController())
+ComplexDataEditorPanel::ComplexDataEditorPanel(FloatingTile* parent, snex::ExternalData::DataType t):
+	PanelWithProcessorConnection(parent),
+	type(t)
+{}
+
+Component* ComplexDataEditorPanel::createContentComponent(int index)
 {
-	addAndMakeVisible(productKey = new Label());
-	addAndMakeVisible(statusLabel = new Label());
-	addAndMakeVisible(submitButton = new TextButton("Deactivate Computer"));
-	submitButton->addListener(this);
-	submitButton->setLookAndFeel(&tblaf);
-	submitButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-	submitButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+	if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
+	{
+		if (isPositiveAndBelow(index, pb->getNumDataObjects(type)))
+		{
+			auto obj = pb->getComplexBaseType(type, index);
+			return dynamic_cast<Component*>(snex::ExternalData::createEditor(obj));
+		}
+	}
 
-#if USE_TURBO_ACTIVATE
-	const String pKey = String(dynamic_cast<FrontendProcessor*>(mc)->unlocker.getProductKey());
-#else
-	const String pKey = "1234-1234-1234-1234";
-#endif
-
-	productKey->setFont(GLOBAL_MONOSPACE_FONT());
-	productKey->setText(pKey, dontSendNotification);
-	productKey->setJustificationType(Justification::centred);
-	productKey->setColour(Label::ColourIds::backgroundColourId, Colours::white);
-
-	statusLabel->setJustificationType(Justification::centred);
-	statusLabel->setEditable(false, false, false);
-
-	refreshStatusLabel();
-
-	setSize(300, 150);
-	startTimer(3000);
+	return nullptr;
 }
 
-void ActivationWindow::buttonClicked(Button*)
+void ComplexDataEditorPanel::fillIndexList(StringArray& indexList)
 {
-	if (PresetHandler::showYesNoWindow("Deactivate this computer", "Do you really want to deactivate this computer?", PresetHandler::IconType::Question))
+	if (auto pb = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
 	{
-#if USE_TURBO_ACTIVATE
-		TurboActivateUnlocker* ul = &dynamic_cast<FrontendProcessor*>(mc)->unlocker;
+		int numObjects = pb->getNumDataObjects(type);
 
-		ul->deactivateThisComputer();
-		refreshStatusLabel();
+		auto name = ExternalData::getDataTypeName(type);
 
-		const bool noInternet = ul->unlockState == TurboActivateUnlocker::State::NoInternet;
-
-		if (noInternet)
-		{
-			if (PresetHandler::showYesNoWindow("Deactivate using request file", "Do you want to deactivate this computer using a offline request file"))
-			{
-				FileChooser fc("Create Deactivation Request file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
-
-				if (fc.browseForFileToSave(true))
-				{
-					File f = fc.getResult();
-
-#if JUCE_WINDOWS
-					TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
-#else
-					TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
-#endif
-					ul->deactivateWithFile(path);
-
-
-					if (ul->unlockState == TurboActivateUnlocker::State::Deactivated)
-					{
-						PresetHandler::showMessageWindow("Deactivation request file created", "Submit this file to customer support to complete the deactivation procedure for this machine");
-					}
-
-					refreshStatusLabel();
-				}
-			}
-		}
-
-		auto x = findParentComponentOfClass<FrontendProcessorEditor>();
-
-		if (x != nullptr && !good)
-		{
-			addOverlayListener(x);
-			sendOverlayMessage(DeactiveOverlay::State::CopyProtectionError);
-			dynamic_cast<AudioProcessor*>(mc)->suspendProcessing(true);
-
-			getParentComponent()->setVisible(false);
-		}
-#endif
+		for (int i = 0; i < numObjects; i++)
+			indexList.add(name + String(i + 1));
 	}
 }
 
-void ActivationWindow::refreshStatusLabel()
+Component* PlotterPanel::createContentComponent(int)
 {
-#if USE_TURBO_ACTIVATE
-	auto state = dynamic_cast<FrontendProcessor*>(mc)->unlocker.unlockState;
-
-	String message;
-	good = true;
-
-	switch (state)
+	auto p = new Plotter();
+	if (auto mod = dynamic_cast<Modulation*>(getConnectedProcessor()))
 	{
-	case TurboActivateUnlocker::State::Activated:
-		message = "Activation Successful";
-		good = true;
-		break;
-	case TurboActivateUnlocker::State::ActivatedButFailedToConnect:
-		message = "Activation Successful";
-		good = true;
-		break;
-	case TurboActivateUnlocker::State::Deactivated:
-		message = "Deactivated";
-		good = false;
-		break;
-	case TurboActivateUnlocker::State::TrialExpired:
-		message = "Trial expired";
-		good = false;
-		break;
-	case TurboActivateUnlocker::State::Trial:
-		message = "Trial period";
-		good = true;
-		break;
-	case TurboActivateUnlocker::State::Invalid:
-		message = "Invalid Product Key";
-		good = false;
-		break;
-	case TurboActivateUnlocker::State::KeyFileFailedToOpen:
-		message = "License file not found";
-		good = false;
-		break;
-	case TurboActivateUnlocker::State::NoInternet:
-		message = "Can't deactivate when offline";
-		good = true;
-		break;
-	case TurboActivateUnlocker::State::numStates:
-		break;
-	default:
-		break;
+		mod->setPlotter(p);
 	}
 
-	auto key = dynamic_cast<FrontendProcessor*>(mc)->unlocker.getProductKey();
-#else
-	good = true;
-	const String key = "1234 1234 1234";
-	const String message = "Dummy mode";
-#endif
-
-	productKey->setText(key, dontSendNotification);
-
-	statusLabel->setColour(Label::backgroundColourId, (good ? Colour(0xFF168000) : Colour(0xFFE90303)));
-	statusLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-	statusLabel->setText(message, dontSendNotification);
-
+	return p;
 }
 
 juce::Identifier PlotterPanel::getProcessorTypeId() const
@@ -642,4 +647,49 @@ juce::Identifier PlotterPanel::getProcessorTypeId() const
 	return LfoModulator::getClassType();
 }
 
+ProcessorPeakMeter::ProcessorPeakMeter(Processor* p):
+	processor(p)
+{
+	addAndMakeVisible(vuMeter = new VuMeter());
+
+	setOpaque(true);
+
+	vuMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+	vuMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+	vuMeter->setColour(VuMeter::outlineColour, Colour(0x22000000));
+
+	startTimer(30);
+}
+
+ProcessorPeakMeter::~ProcessorPeakMeter()
+{
+	stopTimer();
+	vuMeter = nullptr;
+	processor = nullptr;
+}
+
+void ProcessorPeakMeter::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF333333));
+}
+
+void ProcessorPeakMeter::resized()
+{
+	if (getWidth() > getHeight())
+		vuMeter->setType(VuMeter::StereoHorizontal);
+	else
+		vuMeter->setType(VuMeter::StereoVertical);
+
+	vuMeter->setBounds(getLocalBounds());
+}
+
+void ProcessorPeakMeter::timerCallback()
+{
+	if (processor.get())
+	{
+		const auto& values = processor->getDisplayValues();
+
+		vuMeter->setPeak(values.outL, values.outR);
+	}
+}
 } // namespace hise

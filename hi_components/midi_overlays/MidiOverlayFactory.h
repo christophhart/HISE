@@ -55,15 +55,7 @@ public:
 	static void registerAdditionalMidiOverlays();
 #endif
 
-	static MidiOverlayFactory& getInstance()
-	{
-		if (instance == nullptr)
-		{
-			instance = new MidiOverlayFactory();
-		}
-
-		return *instance;
-	}
+	static MidiOverlayFactory& getInstance();
 
 	MidiPlayerBaseType* create(const Identifier& id, MidiPlayer* player)
 	{
@@ -113,6 +105,16 @@ private:
 
 	static MidiOverlayFactory* instance;
 };
+
+inline MidiOverlayFactory& MidiOverlayFactory::getInstance()
+{
+	if (instance == nullptr)
+	{
+		instance = new MidiOverlayFactory();
+	}
+
+	return *instance;
+}
 
 
 class MidiOverlayPanel : public PanelWithProcessorConnection

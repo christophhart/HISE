@@ -63,130 +63,41 @@ public:
 	virtual ~ObjectWithDefaultProperties() {};
 
 	/** Writes the state of this object into a dynamic object. */
-	virtual var toDynamicObject() const
-	{
-		jassert(useCustomDefaultValues);
-
-		var obj(new DynamicObject());
-		saveValuesFromList(obj);
-		return obj;
-	}
+	virtual var toDynamicObject() const;
 
 	/** Restores the state of this object from a dynamic object. */
-	virtual void fromDynamicObject(const var& objectData)
-	{
-		jassert(useCustomDefaultValues);
-		loadValuesToList(objectData);
-	}
+	virtual void fromDynamicObject(const var& objectData);
 
 	/** Overwrite this and get the default property. */
-	virtual var getDefaultProperty(int id) const 
-	{
-		jassert(useCustomDefaultValues);
-
-		return defaultValues.getValueAt(id);
-	};
+	virtual var getDefaultProperty(int id) const;;
 	
-	var operator()(const var& data, int index) const
-	{
-		return getPropertyWithDefault(data, index);
-	}
-
-	void operator()(const var& data, int index, const var& value) const
-	{
-		storePropertyInObject(data, index, value);
-	}
+	var operator()(const var& data, int index) const;
+	void operator()(const var& data, int index, const var& value) const;
 
 	/** Overwrite this and return the number of properties that are defaultable. */
-	virtual int getNumDefaultableProperties() const
-	{
-		jassert(useCustomDefaultValues);
+	virtual int getNumDefaultableProperties() const;
 
-		return defaultValues.size();
-	}
-	
 	/** Overwrite this and return the Identifier for the given property index. 
 	*
 	*	You might want to use the macro RETURN_DEFAULT_PROPERTY_ID(idToCheck, name) with a named enum for this. 
 	*
 	*/
-	virtual Identifier getDefaultablePropertyId(int i) const
-	{
-		jassert(useCustomDefaultValues);
-
-		return defaultValues.getName(i);
-	}
+	virtual Identifier getDefaultablePropertyId(int i) const;
 
 	/** Clears the given object and sets all defaultable properties to their initial values. */
-	void resetObject(DynamicObject* objectToClear)
-	{
-		jassert(objectToClear != nullptr);
+	void resetObject(DynamicObject* objectToClear);
 
-		objectToClear->clear();
-
-		for (int i = 0; i < getNumDefaultableProperties(); i++)
-		{
-			objectToClear->setProperty(getDefaultablePropertyId(i), getDefaultProperty(i));
-		}
-	}
-
-	void storePropertyInObject(var obj, int id, var value, var defaultValue = var()) const
-	{
-		jassert(obj.isObject());
-
-		if ((defaultValue.isUndefined() || defaultValue.isVoid()) || value != defaultValue)
-		{
-			obj.getDynamicObject()->setProperty(getDefaultablePropertyId(id), value);
-		}
-	}
-
-	var getPropertyWithDefault(var obj, int id) const
-	{
-		if (auto object = obj.getDynamicObject())
-		{
-			auto prop = getDefaultablePropertyId(id);
-
-			if (object->hasProperty(prop))
-				return object->getProperty(prop);
-			else
-				return getDefaultProperty(id);
-		}
-
-		return getDefaultProperty(id);
-	}
-
-	void setDefaultValues(const NamedValueSet& newDefaultValues)
-	{
-		defaultValues = newDefaultValues;
-		useCustomDefaultValues = true;
-	}
-
-	void setValueList(const Array<Value>& valueList)
-	{
-		jassert(useCustomDefaultValues);
-		jassert(valueList.size() == defaultValues.size());
-
-		values = valueList;
-	}
-
-	static Colour getColourFrom(const Value& colourValue)
-	{
-		return Colour((uint32)(int64)(colourValue.getValue()));
-	}
+	void storePropertyInObject(var obj, int id, var value, var defaultValue = var()) const;
+	var getPropertyWithDefault(var obj, int id) const;
+	void setDefaultValues(const NamedValueSet& newDefaultValues);
+	void setValueList(const Array<Value>& valueList);
+	static Colour getColourFrom(const Value& colourValue);
 
 protected:
 
-	void saveValuesFromList(var& object) const
-	{
-		jassert(useCustomDefaultValues);
+	void saveValuesFromList(var& object) const;
 
-		for (int i = 0; i < getNumDefaultableProperties(); i++)
-		{
-			storePropertyInObject(object, i, values[i].getValue(), getDefaultProperty(i));
-		}
-	}
-
-	void loadValuesToList(const var& object)
+	void loadValuesToList(const var& object) const
 	{
 		jassert(useCustomDefaultValues);
 
@@ -214,203 +125,32 @@ public:
 
 	using CompileCallback = std::function<Result(const String& text, var& data)>;
 
-	JSONEditor(ObjectWithDefaultProperties* editedObject):
-		editedComponent(dynamic_cast<Component*>(editedObject))
-	{
-		constructionTime = Time::getApproximateMillisecondCounter();
+	JSONEditor(ObjectWithDefaultProperties* editedObject);
+	JSONEditor(var object);
+	JSONEditor(const String& f, CodeTokeniser* t);
 
-		setName("JSON Editor");
-
-		tokeniser = new JavascriptTokeniser();
-		doc = new CodeDocument();
-		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject(), false, DOUBLE_TO_STRING_DIGITS));
-		doc->setSavePoint();
-		doc->clearUndoHistory();
-		doc->addListener(this);
-
-		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
-
-		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-
-		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
-
-		addButtonAndLabel();
-
-		constrainer.setMinimumWidth(200);
-		constrainer.setMinimumHeight(300);
-
-		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
-	}
-
-	JSONEditor(var object)
-	{
-		constructionTime = Time::getApproximateMillisecondCounter();
-
-		auto s = JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS);
-
-		tokeniser = new JavascriptTokeniser();
-		doc = new CodeDocument();
-		doc->replaceAllContent(s);
-		doc->setSavePoint();
-		doc->clearUndoHistory();
-		doc->addListener(this);
-
-		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
-
-		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-		editor->setReadOnly(true);
-		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
-
-		addButtonAndLabel();
-
-		constrainer.setMinimumWidth(200);
-		constrainer.setMinimumHeight(300);
-
-		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
-
-	}
-
-	
-
-	JSONEditor(const String& f, CodeTokeniser* t)
-	{
-		constructionTime = Time::getApproximateMillisecondCounter();
-
-		setName("External Script Preview");
-
-		tokeniser = t;
-		doc = new CodeDocument();
-		doc->replaceAllContent(f);
-		doc->setSavePoint();
-		doc->clearUndoHistory();
-		doc->addListener(this);
-
-		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
-
-		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-		editor->setReadOnly(true);
-		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
-
-		addButtonAndLabel();
-
-
-		constrainer.setMinimumWidth(200);
-		constrainer.setMinimumHeight(300);
-
-		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
-	}
+	~JSONEditor() override;
 
 	void addButtonAndLabel();
-
-	void buttonClicked(Button* /*b*/) override
-	{
-		executeCallback();
-	}
-
-	void codeDocumentTextInserted(const String& /*newText*/, int /*insertIndex*/)
-	{
-		setChanged();
-	}
-
-	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/)
-	{
-		setChanged();
-	}
-
+	void buttonClicked(Button* /*b*/) override;
+	void codeDocumentTextInserted(const String& /*newText*/, int /*insertIndex*/) override;
+	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/) override;
 	void setChanged();
 
-	~JSONEditor()
-	{
-		editor = nullptr;
-		doc = nullptr;
-	}
+	bool keyPressed(const KeyPress& key) override;
 
-	bool keyPressed(const KeyPress& key)
-	{
-		
-
-		if (key == KeyPress::F5Key)
-		{
-			if (callback)
-			{
-				executeCallback();
-			}
-			else
-			{
-				if (editedComponent == nullptr)
-					return false;
-
-				replace();
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	void setEditable(bool shouldBeEditable)
-	{
-		editor->setReadOnly(!shouldBeEditable);
-	}
-
-	void setDataToEdit(var newData)
-	{
-		doc->clearUndoHistory();
-		doc->replaceAllContent(JSON::toString(newData, false, DOUBLE_TO_STRING_DIGITS));
-	}
-
+	void setEditable(bool shouldBeEditable);
+	void setDataToEdit(var newData);
 	void replace();
-	
 	void executeCallback();
 
-	void setCallback(const F5Callback& newCallback, bool closeAfterExecution=false)
-	{
-		callback = newCallback;
-		closeAfterCallbackExecution = closeAfterExecution;
-	}
+	void setCallback(const F5Callback& newCallback, bool closeAfterExecution=false);
 
-	void resized() override
-	{
-		auto b = getLocalBounds();
+	void resized() override;
 
-		auto bottomRow = b.removeFromBottom(24);
+	static Result defaultJSONParse(const String& s, var& value);
 
-		applyButton->setBounds(bottomRow.removeFromRight(50));
-		changeLabel->setBounds(bottomRow);
-
-		editor->setBounds(b);
-		resizer->setBounds(getWidth() - 12, getHeight() - 12, 12, 12);
-	}
-
-	static Result defaultJSONParse(const String& s, var& value)
-	{
-		return JSON::parse(s, value);
-	}
-
-	void setCompileCallback(const CompileCallback& c, bool closeAfterExecution)
-	{
-		compileCallback = c;
-		closeAfterCallbackExecution = closeAfterExecution;
-	}
+	void setCompileCallback(const CompileCallback& c, bool closeAfterExecution);
 
 private:
 
@@ -477,14 +217,7 @@ protected:
 	*
 	*	You must supply a FloatingShellComponent at initialisation to prevent the requirement for lazy initialisation.
 	*/
-	FloatingTileContent(FloatingTile* parent_) :
-		parent(parent_)
-	{
-		styleData = getDefaultProperty((int)PanelPropertyId::StyleData);
-
-		setDefaultPanelColour(PanelColourId::itemColour3, Colours::white.withAlpha(0.6f));
-
-	}
+	FloatingTileContent(FloatingTile* parent_);
 
 public:
 
@@ -500,25 +233,14 @@ public:
 		numPropertyIds
 	};
 
-	
 
-	virtual ~FloatingTileContent()
-	{
-		parent = nullptr;
-	}
+	~FloatingTileContent() override;
 
 	/** Returns the parent shell. 
 	*
 	*	Unlike getParentComponent(), this always returns non nullptr, so you can use it in the constructor.
 	*/
-	FloatingTile* getParentShell()
-	{
-		jassert(parent != nullptr);
-
-		return parent; 
-	}
-
-	
+	FloatingTile* getParentShell();
 
 
 	int getNumDefaultableProperties() const override { return (int)PanelPropertyId::numPropertyIds; };
@@ -533,12 +255,7 @@ public:
 
 	const BackendRootWindow* getRootWindow() const;
 
-	const FloatingTile* getParentShell() const 
-	{
-		jassert(parent != nullptr);
-
-		return parent; 
-	}
+	const FloatingTile* getParentShell() const;
 
 	Rectangle<int> getParentContentBounds();
 
@@ -590,7 +307,6 @@ public:
 	class Factory
 	{
 	public:
-
 
 		enum class PopupMenuOptions
 		{
@@ -808,121 +524,17 @@ private:
 			numColourIds
 		};
 
-		ColourHolder()
-		{
-			for (int i = 0; i < (int)ColourId::numColourIds; i++)
-			{
-				colours[i] = Colours::transparentBlack;
-				defaultColours[i] = Colours::transparentBlack;
-			}	
-		}
+		ColourHolder();
 
-		int getNumDefaultableProperties() const override { return (int)ColourId::numColourIds; };
-
-		Identifier getDefaultablePropertyId(int i) const override
-		{
-			switch ((ColourId)i)
-			{
-			case ColourId::bgColour: return "bgColour";
-			case ColourId::textColour: return "textColour";
-			case ColourId::itemColour1: return "itemColour1";
-			case ColourId::itemColour2: return "itemColour2";
-			case ColourId::itemColour3: return "itemColour3";
-			default: jassertfalse;  return Identifier();
-			}
-		}
-
-		var getDefaultProperty(int id) const override
-		{
-			auto c = defaultColours[id];
-
-			//jassert(c != Colours::pink);
-
-			return var(c.toString());
-		}
-
-		Colour getColour(ColourId id) const
-		{
-			if (id < ColourId::numColourIds)
-			{
-				return colours[(int)id];
-			}
-			else
-			{
-				jassertfalse;
-				return Colours::transparentBlack;
-			}
-		}
-
-		void setColour(ColourId id, Colour newColour)
-		{
-			if (id < ColourId::numColourIds)
-			{
-				colours[(int)id] = newColour;
-			}
-		}
-
-		void setDefaultColour(ColourId id, Colour newColour)
-		{
-			if (id < ColourId::numColourIds)
-			{
-				defaultColours[(int)id] = newColour;
-			}
-		}
-
-		Colour getDefaultColour(ColourId id) const
-		{
-			if (id < ColourId::numColourIds)
-				return defaultColours[(int)id];
-
-			return Colours::transparentBlack;
-		}
-
-		var toDynamicObject() const override
-		{
-			auto o = new DynamicObject();
-
-			var obj(o);
-
-			for (int i = 0; i < (int)ColourId::numColourIds; i++)
-			{
-				storePropertyInObject(obj, i, colours[i].toString(), defaultColours[i].toString());
-			}
-
-			return obj;
-		}
-
-		void fromDynamicObject(const var& object) override
-		{
-			for (int i = 0; i < (int)ColourId::numColourIds; i++)
-			{
-				auto colourVar = getPropertyWithDefault(object, i);
-
-				if (colourVar.isString())
-				{
-					auto stringValue = colourVar.toString();
-
-					// thanks to the awesomeness of XML, this could still be a number, yay...
-
-					int64 normal = stringValue.getLargeIntValue();
-					int64 asHex = stringValue.getHexValue64();
-
-					if (stringValue.containsAnyOf("ABCDEFabcdefx"))
-					{
-						colours[i] = Colour((uint32)asHex);
-					}
-					else
-					{
-						colours[i] = Colour((uint32)normal);
-					}
-				}
-				else if (colourVar.isInt64() || colourVar.isInt64())
-				{
-					colours[i] = Colour((uint32)(int64)colourVar);
-				}
-			}
-				
-		}
+		int getNumDefaultableProperties() const override;;
+		Identifier getDefaultablePropertyId(int i) const override;
+		var getDefaultProperty(int id) const override;
+		Colour getColour(ColourId id) const;
+		void setColour(ColourId id, Colour newColour);
+		void setDefaultColour(ColourId id, Colour newColour);
+		Colour getDefaultColour(ColourId id) const;
+		var toDynamicObject() const override;
+		void fromDynamicObject(const var& object) override;
 
 		Colour colours[(int)ColourId::numColourIds];
 
@@ -947,28 +559,13 @@ private:
 
 	typedef ColourHolder::ColourId PanelColourId;
 
-	void setPanelColour(PanelColourId id, Colour newColour)
-	{
-		colourData.setColour(id, newColour);
-	}
-
-	void setDefaultPanelColour(PanelColourId id, Colour newColour)
-	{
-		colourData.setDefaultColour(id, newColour);
-		colourData.setColour(id, newColour);
-	}
-
-	Colour getDefaultPanelColour(PanelColourId id) const
-	{
-		return colourData.getDefaultColour(id);
-	}
-
-
-	Colour findPanelColour(PanelColourId colourId)
+	void setPanelColour(PanelColourId id, Colour newColour);
+	void setDefaultPanelColour(PanelColourId id, Colour newColour);
+	Colour getDefaultPanelColour(PanelColourId id) const;
+	Colour findPanelColour(PanelColourId colourId) const
 	{
 		return colourData.getColour(colourId);
 	}
-
 };
 
 #define DECLARE_ID(x) static const Identifier x(#x);
@@ -995,26 +592,17 @@ namespace FloatingTileKeyPressIds
 struct FloatingPanelTemplates
 {
 	static Component* createHiseLayout(FloatingTile* root);
-
 	static Component* createMainPanel(FloatingTile* root);
-
 	static Component* createScriptingWorkspace(FloatingTile* root);
-
 	static Component* createSamplerWorkspace(FloatingTile* root);
-
 	static Component* createCodeEditorPanel(FloatingTile* root);
 	static Component* createScriptnodeEditorPanel(FloatingTile* root);
-
 	static var createSettingsWindow(MainController* mc);
-
 	static void create2x2Matrix(FloatingTile* parent);
-
 	static void create3Columns(FloatingTile* parent);
-
 	static void create3Rows(FloatingTile* parent);
 
 	struct Helpers;
-	
 };
 
 

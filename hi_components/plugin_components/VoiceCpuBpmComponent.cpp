@@ -332,6 +332,11 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 	
 }
 
+void VoiceCpuBpmComponent::setMainControllers(Array<WeakReference<MainController>>& newMainControllers)
+{
+	mainControllers.swapWith(newMainControllers);
+}
+
 void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
 {
 	preloadActive = isPreloading;
@@ -343,6 +348,12 @@ void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
 	else
 		startTimer(300);
 
+	repaint();
+}
+
+void VoiceCpuBpmComponent::recordStateChanged(bool state)
+{
+	isRecording = state;
 	repaint();
 }
 

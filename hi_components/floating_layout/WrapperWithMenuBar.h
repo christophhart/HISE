@@ -194,20 +194,7 @@ struct WrapperWithMenuBarBase : public Component,
 		}
 	};
 
-	WrapperWithMenuBarBase(Component* contentComponent) :
-		canvas(contentComponent)
-	{
-		addAndMakeVisible(canvas);
-		canvas.addZoomListener(this);
-        canvas.setMaxZoomFactor(1.5f);
-
-		canvas.contentFunction = [this](Component* c)
-		{
-			this->setContentComponent(c);
-		};
-
-		startTimer(100);
-	}
+	WrapperWithMenuBarBase(Component* contentComponent);
 
 	/** Override this method and initialise the menu bar here. */
 	virtual void rebuildAfterContentChange() = 0;
@@ -229,139 +216,24 @@ struct WrapperWithMenuBarBase : public Component,
 		return nullptr;
 	}
 	
-	void setContentComponent(Component* newContent)
-	{
-		actionButtons.clear();
-		bookmarkBox = nullptr;
-		rebuildAfterContentChange();
-		resized();
-	}
+	void setContentComponent(Component* newContent);
 
-	void timerCallback() override
-	{
-		for (auto a : actionButtons)
-		{
-			if (!isValid())
-				break;
+	void timerCallback() override;
+	void addSpacer(int width);
+	void updateBookmarks(ValueTree, bool);
 
-			if (auto asB = dynamic_cast<ButtonWithStateFunction*>(a))
-			{
-				if (asB->hasChanged())
-					a->repaint();
-			}
-		}
-	}
-
-	void addSpacer(int width)
-	{
-		auto p = new Spacer(width);
-		actionButtons.add(p);
-		addAndMakeVisible(p);
-	}
-
-	void updateBookmarks(ValueTree, bool)
-	{
-		StringArray sa;
-
-		for (auto b : bookmarkUpdater.getParentTree())
-		{
-			sa.add(b["ID"].toString());
-		}
-
-        sa.add("Add new bookmark");
-        
-		auto currentIdx = bookmarkBox->getSelectedId();
-		bookmarkBox->clear(dontSendNotification);
-		bookmarkBox->addItemList(sa, 1);
-		bookmarkBox->setSelectedId(currentIdx, dontSendNotification);
-	}
-
-    virtual int bookmarkAdded() { return -1; };
-    
+	virtual int bookmarkAdded() { return -1; };
 	virtual void zoomChanged(float newScalingFactor) {};
-
 	virtual void bookmarkUpdated(const StringArray& idsToShow) = 0;
 	virtual ValueTree getBookmarkValueTree() = 0;
-
-	void comboBoxChanged(ComboBox* c) override
-	{
-        auto isLastEntry = c->getSelectedItemIndex() == c->getNumItems() - 1;
-        
-        if(isLastEntry)
-        {
-            auto idx = bookmarkAdded();
-            
-            if(idx == -1)
-                c->setSelectedId(0, dontSendNotification);
-            else
-                c->setSelectedItemIndex(idx, dontSendNotification);
-            
-            return;
-        }
-        
-		auto bm = bookmarkUpdater.getParentTree().getChildWithProperty("ID", bookmarkBox->getText());
-
-		if (bm.isValid())
-		{
-			auto l = StringArray::fromTokens(bm["Value"].toString(), ";", "");
-			bookmarkUpdated(l);
-		}
-	}
-
-	void addBookmarkComboBox()
-	{
-		bookmarkBox = new ComboBox();
-
-		bookmarkBox->setLookAndFeel(&glaf);
-		bookmarkBox->addListener(this);
-
-		glaf.setDefaultColours(*bookmarkBox);
-
-		auto cTree = getBookmarkValueTree();
-
-		bookmarkUpdater.setCallback(cTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperWithMenuBarBase::updateBookmarks));
-        
-        updateBookmarks({}, true);
-		bookmarkBox->setSize(100, 24);
-		actionButtons.add(bookmarkBox);
-		addAndMakeVisible(bookmarkBox);
-	}
-
+	void comboBoxChanged(ComboBox* c) override;
+	void addBookmarkComboBox();
 	virtual void addButton(const String& name) = 0;
-
 	void paint(Graphics& g) override;
+	void addCustomComponent(Component* c);
+	void setPostResizeFunction(const std::function<void(Component*)>& f);
+	void resized() override;
 
-	void addCustomComponent(Component* c)
-	{
-		// must be sized before passing in here
-		jassert(!c->getBounds().isEmpty());
-
-		addAndMakeVisible(c);
-		actionButtons.add(c);
-	}
-
-	void setPostResizeFunction(const std::function<void(Component*)>& f)
-	{
-		resizeFunction = f;
-	}
-
-	void resized() override
-	{
-		auto b = getLocalBounds();
-		auto menuBar = b.removeFromTop(MenuHeight);
-
-		for (auto ab : actionButtons)
-		{
-			ab->setTopLeftPosition(menuBar.getTopLeft());
-			menuBar.removeFromLeft(ab->getWidth() + 3);
-		}
-
-		canvas.setBounds(b);
-
-		if (resizeFunction)
-			resizeFunction(canvas.getContentComponent());
-	}
-    
 	std::function<void(Component*)> resizeFunction;
 
 	ZoomableViewport canvas;

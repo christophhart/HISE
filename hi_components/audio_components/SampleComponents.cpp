@@ -81,6 +81,26 @@ WaveformComponent::~WaveformComponent()
 
 }
 
+void WaveformComponent::changeListenerCallback(SafeChangeBroadcaster*)
+{
+	setBypassed(processor->isBypassed());
+}
+
+void WaveformComponent::setBypassed(bool shouldBeBypassed)
+{
+	if (bypassed != shouldBeBypassed)
+	{
+		bypassed = shouldBeBypassed;
+		rebuildPath();
+	}
+}
+
+void WaveformComponent::setUseFlatDesign(bool shouldUseFlatDesign)
+{
+	useFlatDesign = shouldUseFlatDesign;
+	repaint();
+}
+
 void WaveformComponent::paint(Graphics &g)
 {
 	if (useFlatDesign)
@@ -103,6 +123,11 @@ void WaveformComponent::paint(Graphics &g)
 	}
 }
 
+void WaveformComponent::resized()
+{
+	rebuildPath();
+}
+
 void WaveformComponent::refresh()
 {
 	if (rb != nullptr)
@@ -112,6 +137,11 @@ void WaveformComponent::refresh()
 	}
 
 	rebuildPath();
+}
+
+Colour WaveformComponent::getColourForAnalyserBase(int colourId)
+{
+	return findColour(colourId);
 }
 
 juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) const
@@ -127,6 +157,79 @@ juce::Path WaveformComponent::WaveformFactory::createPath(const String& url) con
 	return p;
 }
 
+WaveformComponent::Broadcaster::Updater::Updater(Broadcaster& p):
+	parent(p)
+{
+	startTimer(30);
+}
+
+void WaveformComponent::Broadcaster::Updater::timerCallback()
+{
+	if (changeFlag)
+	{
+		changeFlag = false;
+
+		parent.updateData();
+	}
+}
+
+void WaveformComponent::Broadcaster::Updater::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if (t != ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+		parent.triggerWaveformUpdate();
+}
+
+bool WaveformComponent::Broadcaster::BroadcasterPropertyObject::validateInt(const Identifier& id, int& v) const
+{
+	if (id == RingBufferIds::BufferLength)
+		return SimpleRingBuffer::toFixSize<128>(v);
+
+	if (id == RingBufferIds::NumChannels)
+		return SimpleRingBuffer::toFixSize<1>(v);
+                
+	return true;
+}
+
+Path WaveformComponent::Broadcaster::BroadcasterPropertyObject::createPath(Range<int> sampleRange,
+	Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const
+{
+	const float* d[1] = { nullptr };
+	int numSamples = 0;
+	float nv;
+	br->getWaveformTableValues(0, d, numSamples, nv);
+
+	AudioSampleBuffer b((float**)d, 1, numSamples);
+				
+	Path p;
+	p.preallocateSpace(numSamples);
+	p.startNewSubPath(0.0f, 0.0f);
+	p.startNewSubPath(0.0f, -1.0f);
+	p.startNewSubPath(0.0f, -1.0f * startValue);
+
+	for (int i = 0; i < numSamples; i++)
+		p.lineTo((float)i, -1.0f * b.getSample(0, i));
+
+				
+
+	if(!p.getBounds().isEmpty() && !targetBounds.isEmpty())
+		p.scaleToFit(targetBounds.getX(), targetBounds.getY(), targetBounds.getWidth(), targetBounds.getHeight(), false);
+
+	return p;
+}
+
+void WaveformComponent::Broadcaster::BroadcasterPropertyObject::transformReadBuffer(AudioSampleBuffer& b)
+{
+	if (br != nullptr)
+	{
+		const float* d[1] = { nullptr };
+		int numSamples = 0;
+		float nv;
+		br->getWaveformTableValues(0, d, numSamples, nv);
+
+		if (numSamples == 128)
+			FloatVectorOperations::copy(b.getWritePointer(0), d[0], numSamples);
+	}
+}
 
 
 juce::Path WaveformComponent::getPathForBasicWaveform(WaveformType t)
@@ -220,6 +323,14 @@ void WaveformComponent::rebuildPath()
 	repaint();
 }
 
+WaveformComponent::Panel::Panel(FloatingTile* parent):
+	PanelWithProcessorConnection(parent)
+{
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colours::transparentBlack);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.5f));
+}
+
 juce::Identifier WaveformComponent::Panel::getProcessorTypeId() const
 {
 	return WavetableSynth::getClassType();
@@ -267,6 +378,23 @@ void WaveformComponent::Broadcaster::connectWaveformUpdaterToComplexUI(ComplexDa
 		
 }
 
+void WaveformComponent::Broadcaster::suspendStateChanged(bool shouldBeSuspended)
+{
+	updater.suspendTimer(shouldBeSuspended);
+}
+
+void WaveformComponent::Broadcaster::addWaveformListener(WaveformComponent* listener)
+{
+	listener->broadcaster = this;
+	listeners.addIfNotAlreadyThere(listener);
+}
+
+void WaveformComponent::Broadcaster::removeWaveformListener(WaveformComponent* listener)
+{
+	listener->broadcaster = nullptr;
+	listeners.removeAllInstancesOf(listener);
+}
+
 void WaveformComponent::Broadcaster::updateData()
 {
 	for (int i = 0; i < getNumWaveformDisplays(); i++)
@@ -287,6 +415,40 @@ void WaveformComponent::Broadcaster::updateData()
 		}
 	}
 
+}
+
+Colour SamplerTools::getToolColour(Mode m)
+{
+	switch(m)
+	{
+	case Mode::GainEnvelope:
+	case Mode::PitchEnvelope:
+	case Mode::FilterEnvelope:  return SamplerDisplayWithTimeline::getColourForEnvelope((Modulation::Mode)((int)m - (int)Mode::GainEnvelope));
+	case Mode::PlayArea:
+	case Mode::LoopArea:
+	case Mode::LoopCrossfadeArea:
+	case Mode::SampleStartArea: return AudioDisplayComponent::SampleArea::getAreaColour((AudioDisplayComponent::AreaTypes)((int)m - (int)Mode::PlayArea));
+	default: return Colours::white;
+	}
+}
+
+void SamplerTools::toggleMode(Mode newMode)
+{
+	if(currentMode == newMode)
+		currentMode = Mode::Nothing;
+	else
+		currentMode = newMode;
+        
+	broadcaster.sendMessage(sendNotificationSync, currentMode);
+}
+
+void SamplerTools::setMode(Mode newMode)
+{
+	if(currentMode != newMode)
+	{
+		currentMode = newMode;
+		broadcaster.sendMessage(sendNotificationSync, currentMode);
+	}
 }
 
 SamplerSoundWaveform::SamplerSoundWaveform(ModulatorSampler *ownerSampler) :
@@ -938,6 +1100,37 @@ float SamplerSoundWaveform::getNormalizedPeak()
 	else return 1.0f;
 }
 
+void SamplerSoundWaveform::refresh(NotificationType n)
+{
+	getThumbnail()->setDisplayGain(getCurrentSampleGain(), n);
+}
+
+void SamplerSoundWaveform::setVerticalZoom(float zf)
+{
+	if (zf != verticalZoomGain)
+	{
+		verticalZoomGain = zf;
+		refresh(sendNotificationSync);
+	}
+}
+
+void SamplerSoundWaveform::setClickArea(AreaTypes newArea, bool resetIfSame)
+{
+	if (newArea == currentClickArea && resetIfSame)
+		currentClickArea = AreaTypes::numAreas;
+	else
+		currentClickArea = newArea;
+
+	for (int i = 0; i < areas.size(); i++)
+	{
+		areas[i]->setAreaEnabled(currentClickArea == i);
+	}
+
+	auto isSomething = currentClickArea != AreaTypes::numAreas;
+
+	setMouseCursor(!isSomething ? MouseCursor::DraggingHandCursor : MouseCursor::CrosshairCursor);
+		
+}
 
 
 float SamplerSoundWaveform::getCurrentSampleGain() const
@@ -1383,6 +1576,29 @@ void WaterfallComponent::timerCallback()
 		currentTableIndex = thisIndex;
 		repaint();
 	}
+}
+
+void WaterfallComponent::resized()
+{
+	rebuildPaths();
+}
+
+void WaterfallComponent::setPerspectiveDisplacement(const Point<float>& newDisplacement)
+{
+	if (displacement != newDisplacement)
+	{
+		displacement = newDisplacement;
+		repaint();
+	}
+}
+
+WaterfallComponent::Panel::Panel(FloatingTile* parent):
+	PanelWithProcessorConnection(parent)
+{
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.05f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
 }
 
 juce::Identifier WaterfallComponent::Panel::getProcessorTypeId() const

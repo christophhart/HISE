@@ -358,6 +358,13 @@ FloatingTabComponent::~FloatingTabComponent()
 	clear();
 }
 
+Rectangle<int> FloatingTabComponent::getContainerBounds() const
+{
+	auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
+
+	return localBounds.withTrimmedTop(getTabBarDepth());
+}
+
 void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tabName*/)
 {
 	PopupMenu m;

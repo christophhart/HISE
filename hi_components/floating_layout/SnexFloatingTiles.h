@@ -48,50 +48,17 @@ struct SnexTileBase : public Component,
 		FloatingTileContent(parent)
 	{};
 
-	var toDynamicObject() const override
-	{
-		var obj = FloatingTileContent::toDynamicObject();
-		storePropertyInObject(obj, SpecialPanelIds::FileName, currentFile.getFullPathName(), String());
-		return obj;
-	}
+	var toDynamicObject() const override;
 
 	void setCurrentFile(const File& f);
 
-	void fromDynamicObject(const var& object) override
-	{
-		FloatingTileContent::fromDynamicObject(object);
-
-		auto fileName = getPropertyWithDefault(object, SpecialPanelIds::FileName).toString();
-
-		if (fileName.isNotEmpty())
-			setCurrentFile(File(fileName));
-	}
+	void fromDynamicObject(const var& object) override;
 
 	virtual void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) = 0;
 
 	int getNumDefaultableProperties() const override { return numSpecialPanelIds; };
-	Identifier getDefaultablePropertyId(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultablePropertyId(index);
-
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FileName, "FileName");
-
-		jassertfalse;
-		return{};
-	}
-
-	var getDefaultProperty(int index) const override
-	{
-		if (index < (int)PanelPropertyId::numPropertyIds)
-			return FloatingTileContent::getDefaultProperty(index);
-
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FileName, var(""));
-
-		jassertfalse;
-		return{};
-	}
-
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
 	File currentFile;
 };
 
@@ -162,13 +129,6 @@ template <typename C> struct SnexWorkbenchPanel : public FloatingTileContent,
 		resized();
 	}
 
-#if 0
-	void workbenchChanged(Ptr oldWorkBench, Ptr newWorkbench) override
-	{
-		setWorkbench(newWorkbench);
-	}
-#endif
-
 	static Identifier getPanelId() { return C::getId(); };
 	
 	Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
@@ -191,37 +151,13 @@ struct SnexEditorPanel : public Component,
 {
 	using Ptr = snex::ui::WorkbenchData::Ptr;
 
-	SnexEditorPanel(FloatingTile* parent);;
+	SET_PANEL_NAME("SnexEditTab");
 
+	SnexEditorPanel(FloatingTile* parent);;
 	~SnexEditorPanel();
 
-	void workbenchChanged(Ptr newWorkbench) override
-	{
-		if (newWorkbench != nullptr && newWorkbench->getCodeProvider()->providesCode())
-			return;
-
-		setWorkbenchData(newWorkbench);
-	}
-
-	void setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench)
-	{
-		if (wb != nullptr)
-			wb->removeListener(this);
-
-		wb = newWorkbench.get();
-
-		if (wb != nullptr)
-		{
-			addAndMakeVisible(playground = new snex::jit::SnexPlayground(newWorkbench.get(), false));
-			wb->addListener(this);
-		}
-        else
-        {
-            playground = nullptr;
-        }
-
-		resized();
-	}
+	void workbenchChanged(Ptr newWorkbench) override;
+	void setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench);
 
 	bool showTitleInPresentationMode() const override
 	{
@@ -229,20 +165,10 @@ struct SnexEditorPanel : public Component,
 	}
 
 	void recompiled(snex::ui::WorkbenchData::Ptr);
-
-	SET_PANEL_NAME("SnexEditTab");
-
-	void resized() override
-	{
-		auto b = FloatingTileContent::getParentContentBounds();
-		if (playground != nullptr)
-			playground->setBounds(b);
-	}
-
+	void resized() override;
 	void paint(Graphics& g) override;
 
 	WeakReference<snex::ui::WorkbenchData> wb;
-
 	ScopedPointer<snex::jit::SnexPlayground> playground;
 };
 

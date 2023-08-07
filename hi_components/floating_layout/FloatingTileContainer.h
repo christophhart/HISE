@@ -186,12 +186,7 @@ public:
 
 	String getTitle() const override { return ""; };
 
-	Rectangle<int> getContainerBounds() const override
-	{
-		auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
-
-		return localBounds.withTrimmedTop(getTabBarDepth());
-	}
+	Rectangle<int> getContainerBounds() const override;
 
 	void popupMenuClickOnTab(int tabIndex, const String& tabName) override;
 

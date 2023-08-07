@@ -78,6 +78,39 @@ MarkdownHelpButton::MarkdownHelpButton() :
 	addListener(this);
 }
 
+MarkdownHelpButton::~MarkdownHelpButton()
+{
+	if (ownerComponent != nullptr)
+		ownerComponent->removeComponentListener(this);
+}
+
+void MarkdownHelpButton::setup()
+{
+	parser = new MarkdownRenderer("");
+	parser->setTextColour(Colours::white);
+	parser->setDefaultTextSize(fontSizeToUse);
+	parser->setStyleData(sd);
+}
+
+void MarkdownHelpButton::addImageProvider(MarkdownParser::ImageProvider* newImageProvider)
+{
+	if (parser != nullptr)
+	{
+		parser->setImageProvider(newImageProvider);
+	}
+	else
+	jassertfalse; // you need to call setup before that.
+}
+
+void MarkdownHelpButton::setPopupWidth(int newPopupWidth)
+{
+	popupWidth = newPopupWidth;
+}
+
+void MarkdownHelpButton::setFontSize(float fontSize)
+{
+	fontSizeToUse = fontSize;
+}
 
 
 void MarkdownHelpButton::buttonClicked(Button* /*b*/)
@@ -123,6 +156,115 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
 
 
 
+	}
+}
+
+void MarkdownHelpButton::attachTo(Component* componentToAttach, AttachmentType attachmentType_)
+{
+	if (ownerComponent != nullptr)
+		ownerComponent->removeComponentListener(this);
+
+	ownerComponent = componentToAttach;
+	attachmentType = attachmentType_;
+
+	if (ownerComponent != nullptr)
+	{
+		jassert(getParentComponent() == nullptr);
+
+		if (auto parent = ownerComponent->getParentComponent())
+		{
+			parent->addAndMakeVisible(this);
+		}
+		else
+		jassertfalse; // You tried to attach a help button to a component without a parent...
+
+		setVisible(ownerComponent->isVisible());
+		ownerComponent->addComponentListener(this);
+		componentMovedOrResized(*ownerComponent, true, true);
+	}
+}
+
+void MarkdownHelpButton::componentMovedOrResized(Component& c, bool cond, bool cond1)
+{
+	auto cBounds = c.getBoundsInParent();
+
+	switch (attachmentType)
+	{
+	case Overlay:
+		{
+			setBounds(cBounds.withSizeKeepingCentre(16, 16));
+			break;
+		}
+	case OverlayLeft:
+		{
+			auto square = cBounds.removeFromLeft(20);
+
+			setBounds(square.withSizeKeepingCentre(16, 16));
+
+			break;
+		}
+	case OverlayRight:
+		{
+			auto square = cBounds.removeFromRight(20);
+
+			setBounds(square.withSizeKeepingCentre(16, 16));
+
+			break;
+		}
+	case Left:
+		{
+			setBounds(cBounds.getX() - 20, cBounds.getY() + 2, 16, 16);
+			break;
+		}
+	case TopRight:
+		{
+			Rectangle<int> r(cBounds.getRight() - 16, cBounds.getY() - 16, 16, 16);
+			setBounds(r);
+		}
+	default:
+		break;
+	}
+}
+
+void MarkdownHelpButton::componentVisibilityChanged(Component& c)
+{
+	setVisible(c.isVisible());
+}
+
+void MarkdownHelpButton::setIgnoreKeyStrokes(bool shouldIgnoreKeyStrokes)
+{
+	setWantsKeyboardFocus(shouldIgnoreKeyStrokes);
+	ignoreKeyStrokes = shouldIgnoreKeyStrokes;
+
+}
+
+MarkdownHelpButton* MarkdownHelpButton::createAndAddToComponent(Component* c, const String& s, int popupWidth)
+{
+	auto h = new MarkdownHelpButton();
+
+	h->attachTo(c, MarkdownHelpButton::TopRight);
+	h->setHelpText(s);
+	h->setPopupWidth(popupWidth);
+	return h;
+}
+
+void MarkdownHelpButton::componentBeingDeleted(Component& component)
+{
+	component.removeComponentListener(this);
+
+	getParentComponent()->removeChildComponent(this);
+
+	delete this;
+}
+
+void MarkdownHelpButton::setStyleData(const MarkdownLayout::StyleData& newStyleData)
+{
+	sd = newStyleData;
+
+	if (parser != nullptr)
+	{
+		parser->setStyleData(sd);
+		parser->parse();
 	}
 }
 
@@ -643,6 +785,27 @@ struct MarkdownEditorPopupComponents
 	};
 };
 
+Path MarkdownEditorPanel::Factory::createPath(const String& id) const
+{
+	Path p;
+
+	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
+
+	LOAD_EPATH_IF_URL("live-preview", EditorIcons::swapIcon);
+	LOAD_EPATH_IF_URL("new-file", EditorIcons::newFile);
+	LOAD_EPATH_IF_URL("open-file", EditorIcons::openFile);
+	LOAD_EPATH_IF_URL("save-file", EditorIcons::saveFile);
+	LOAD_EPATH_IF_URL("create-link", EditorIcons::urlIcon);
+	LOAD_EPATH_IF_URL("create-image", EditorIcons::imageIcon);
+	LOAD_EPATH_IF_URL("create-table", EditorIcons::tableIcon);
+
+#if USE_BACKEND
+	LOAD_EPATH_IF_URL("show-settings", BackendBinaryData::ToolbarIcons::settings);
+#endif
+
+	return p;
+}
+
 MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
 	FloatingTileContent(root),
 	tdoc(doc),
@@ -689,6 +852,26 @@ MarkdownEditorPanel::MarkdownEditorPanel(FloatingTile* root) :
     editor.editor.setLanguageManager(new mcl::MarkdownLanguageManager());
 #endif
 
+}
+
+MarkdownEditorPanel::~MarkdownEditorPanel()
+{
+}
+
+bool MarkdownEditorPanel::updatePreview()
+{
+	if (preview.getComponent() != nullptr)
+		return true;
+
+	auto p = dynamic_cast<MarkdownPreview*>(getMainController()->getCurrentMarkdownPreview());
+
+	if (p != nullptr)
+	{
+		setPreview(p);
+		return true;
+	}
+			
+	return false;
 }
 
 void MarkdownEditorPanel::buttonClicked(Button* b)
@@ -783,6 +966,36 @@ void MarkdownEditorPanel::buttonClicked(Button* b)
 		c->grabKeyboardFocus();
 	}
 	
+}
+
+void MarkdownEditorPanel::setPreview(MarkdownPreview* p)
+{
+	if (p != nullptr)
+	{
+		preview = p;
+		syncer = new mcl::MarkdownPreviewSyncer(editor, *p);
+		syncer->setEnableScrollbarListening(true);
+	}
+			
+}
+
+bool MarkdownEditorPanel::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::F5Key)
+	{
+		if(syncer != nullptr)
+			syncer->startTimer(500);
+            
+		return true;
+	}
+	if ((key.getKeyCode() == 's' ||
+		key.getKeyCode() == 'S') && key.getModifiers().isCommandDown())
+	{
+		saveButton.triggerClick();
+		return true;
+	}
+
+	return false;
 }
 
 void MarkdownEditorPanel::loadText(const String& s)
