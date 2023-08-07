@@ -49,19 +49,7 @@ struct ViewportWithScrollCallback : public Viewport
 	};
 
 
-	void visibleAreaChanged(const Rectangle<int>& newVisibleArea) override
-	{
-		visibleArea = newVisibleArea;
-
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (listeners[i].get() == nullptr)
-				listeners.remove(i--);
-			else
-				listeners[i]->scrolled(visibleArea);
-		}
-	}
-
+	void visibleAreaChanged(const Rectangle<int>& newVisibleArea) override;
 	void addListener(Listener* l) { listeners.addIfNotAlreadyThere(l); }
 	void removeListener(Listener* l) { listeners.removeAllInstancesOf(l); }
 
@@ -104,18 +92,7 @@ public:
 	{
 		struct Sorter
 		{
-			static int compareElements(LinkResolver* first, LinkResolver* second)
-			{
-				auto fp = first->getPriority();
-				auto sp = second->getPriority();
-
-				if (fp > sp)
-					return -1;
-				else if (fp < sp)
-					return 1;
-				else
-					return 0;
-			}
+			static int compareElements(LinkResolver* first, LinkResolver* second);
 		};
 
 		virtual ~LinkResolver() {};
@@ -149,18 +126,7 @@ public:
 
 		struct Sorter
 		{
-			static int compareElements(ImageProvider* first, ImageProvider* second)
-			{
-				auto fp = first->getPriority();
-				auto sp = second->getPriority();
-
-				if (fp > sp)
-					return -1;
-				else if (fp < sp)
-					return 1;
-				else
-					return 0;
-			}
+			static int compareElements(ImageProvider* first, ImageProvider* second);
 		};
 
 		bool operator==(const ImageProvider& other) const
@@ -184,29 +150,7 @@ public:
 		virtual ImageProvider* clone(MarkdownParser* newParent) const { return new ImageProvider(newParent); }
 		virtual Identifier getId() const { RETURN_STATIC_IDENTIFIER("EmptyImageProvider"); };
 
-		static void updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate)
-		{
-			auto extraData = url.getExtraData();
-
-			if (extraData.isEmpty())
-				return;
-
-			float widthValue = widthToUpdate;
-
-			auto size = MarkdownLink::Helpers::getSizeFromExtraData(extraData);
-
-			if (size > 0.0)
-			{
-				widthValue = (float)size;
-				
-			}
-			else
-			{
-				widthValue *= (-1.0f * (float)size);
-			}
-
-			widthToUpdate = jmin(widthToUpdate, widthValue);
-		}
+		static void updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate);
 
 
 		/** Helper function that makes sure that the image doesn't exceed the given width. */
@@ -232,33 +176,9 @@ public:
 
 	Image resolveImage(const MarkdownLink& imageUrl, float width);
 
-	void setLinkResolver(LinkResolver* ownedResolver)
-	{
-		ScopedPointer<LinkResolver> owned = ownedResolver;
+	void setLinkResolver(LinkResolver* ownedResolver);
 
-		for (auto r : linkResolvers)
-		{
-			if (r->getId() == owned->getId())
-				return;
-		}
-
-        LinkResolver::Sorter s;
-		linkResolvers.addSorted(s, owned.release());
-	}
-
-	void setImageProvider(ImageProvider* newProvider)
-	{
-		ScopedPointer<ImageProvider> owned = newProvider;
-
-		for (auto p : imageProviders)
-		{
-			if (*p == *newProvider)
-				return;
-		}
-
-        ImageProvider::Sorter s;
-		imageProviders.addSorted(s, owned.release());
-	};
+	void setImageProvider(ImageProvider* newProvider);;
 
 	virtual void parse();
 
@@ -266,17 +186,11 @@ public:
 
 	void setDefaultTextSize(float fontSize);
 
-	void setDatabaseHolder(MarkdownDatabaseHolder* holder_)
-	{
-		holder = holder_;
-	}
-	
+	void setDatabaseHolder(MarkdownDatabaseHolder* holder_);
+
 	String getCurrentText(bool includeMarkdownHeader=true) const;
 
-	MarkdownLink getLastLink() const 
-	{ 
-		return lastLink;
-	}
+	MarkdownLink getLastLink() const;
 
 	void setNewText(const String& newText);
 	
@@ -311,115 +225,13 @@ public:
 
 	struct TokeniserT
 	{
-		static int readNextToken(CodeDocument::Iterator& source)
-		{
-			source.skipWhitespace();
-
-			const juce_wchar firstChar = source.peekNextChar();
-
-			switch (firstChar)
-			{
-			case '#':
-			{
-				source.skipToEndOfLine();
-				return 1;
-			}
-			case '*':
-			{
-				while (source.peekNextChar() == '*')
-					source.skip();
-
-				while (!source.isEOF() && source.peekNextChar() != '*')
-					source.skip();
-
-				while (source.peekNextChar() == '*')
-					source.skip();
-
-				return 2;
-			}
-			case '`':
-			{
-				source.skip();
-
-				while (!source.isEOF() && source.peekNextChar() != '`')
-				{
-					source.skip();
-				}
-
-				source.skip();
-
-				return 3;
-			}
-
-			case '>':
-			{
-				source.skipToEndOfLine();
-				return 4;
-			}
-			case '-':
-			{
-				source.skip();
-
-				if (source.nextChar() == '-')
-				{
-					if (source.nextChar() == '-')
-					{
-						source.skipToEndOfLine();
-
-						while (!source.isEOF())
-						{
-							if (source.peekNextChar() == '-')
-							{
-								source.nextChar();
-
-								if (source.nextChar() == '-')
-								{
-									if (source.nextChar() == '-')
-									{
-										source.skipToEndOfLine();
-										break;
-									}
-								}
-							}
-
-							source.skipToEndOfLine();
-						}
-
-						return 5;
-					}
-					else
-						return 0;
-				}
-				else
-					return 0;
-			}
-			case '!':
-			case '[':
-			{
-				source.skip();
-
-                while(!source.isEOF() && source.peekNextChar() != ']')
-                    source.skip();
-                
-				while (!source.isEOF() && source.peekNextChar() != ')')
-					source.skip();
-
-				source.skip();
-
-				return 6;
-			}
-			case '|': source.skipToEndOfLine(); return 7;
-			default: source.skip(); return 0;
-			}
-		}
+		static int readNextToken(CodeDocument::Iterator& source);
 	};
 
 	
 	struct Tokeniser: public CodeTokeniser
 	{
 		Tokeniser() {};
-
-
 
 		int readNextToken(CodeDocument::Iterator& source);
 		CodeEditorComponent::ColourScheme getDefaultColourScheme();
@@ -436,15 +248,7 @@ public:
 		createFooter = shouldCreateFooter;
 	}
 
-	void setStyleData(MarkdownLayout::StyleData newStyleData)
-	{
-		styleData = newStyleData;
-
-		if (markdownCode.isNotEmpty())
-		{
-			setNewText(markdownCode);
-		}
-	}
+	void setStyleData(MarkdownLayout::StyleData newStyleData);
 
 	MarkdownDatabaseHolder* getHolder() { return holder; }
 
@@ -483,12 +287,7 @@ protected:
 		
 		float getZoomRatio() const { return parent->styleData.fontSize / 17.0f; }
 
-		virtual String getTextForRange(Range<int> range) const
-		{
-			ignoreUnused(range);
-			jassertfalse;
-			return {};
-		}
+		virtual String getTextForRange(Range<int> range) const;
 
 		void drawHighlight(Graphics& g, Rectangle<float> area);;
 
@@ -527,34 +326,7 @@ protected:
 
 		int getLineNumber() const { return lineNumber; }
 
-		String generateHtmlAndResolveLinks(const File& localRoot) const
-		{
-			auto s = generateHtml();
-			
-			int index = 0;
-
-			for (const auto& link : hyperLinks)
-			{
-				String linkWildcard = "{LINK" + String(index++) + "}";
-
-				String resolvedLink;
-
-				if (localRoot.isDirectory())
-				{
-					auto url = link.url.withRoot(localRoot, false);
-
-					resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
-				}
-				else
-				{
-					resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
-				}
-
-				s = s.replace(linkWildcard, resolvedLink);
-			}
-
-			return s;
-		}
+		String generateHtmlAndResolveLinks(const File& localRoot) const;
 
 	protected:
 

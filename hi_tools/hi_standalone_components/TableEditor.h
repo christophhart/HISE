@@ -46,72 +46,14 @@ public:
 		public ButtonListener,
 		public TextEditor::Listener
 	{
-		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p, File::TypesOfFileToFind fileType_) :
-			parent(p),
-			browseButton("Browse"),
-			fileType(fileType_)
-		{
-			addAndMakeVisible(&editor);
-			editor.addListener(this);
-			editor.setFont(GLOBAL_BOLD_FONT());
-			editor.setSelectAllWhenFocused(true);
+		MyFunkyFilenameComponent(FileNameValuePropertyComponent& p, File::TypesOfFileToFind fileType_);
 
-			editor.setTextToShowWhenEmpty("No folder selected", Colours::grey);
-
-			addAndMakeVisible(&browseButton);
-			browseButton.addListener(this);
-			browseButton.setLookAndFeel(&alaf);
-		}
-
-		void buttonClicked(Button*) override
-		{
-			if (fileType == File::findDirectories)
-			{
-				FileChooser fileChooser("Select Folder");
-
-				if (fileChooser.browseForDirectory())
-				{
-					parent.v = fileChooser.getResult().getFullPathName();
-					parent.refresh();
-				}
-			}
-			else
-			{
-				FileChooser fileChooser("Select Folder");
-
-				if (fileChooser.browseForFileToOpen())
-				{
-					parent.v = fileChooser.getResult().getFullPathName();
-					parent.refresh();
-				}
-			}
-		}
-
-		void textEditorReturnKeyPressed(TextEditor&) override
-		{
-			updateFromTextEditor();
-		}
-
+		void buttonClicked(Button*) override;
+		void textEditorReturnKeyPressed(TextEditor&) override;
 		void updateFromTextEditor();
-
-		void textEditorFocusLost(TextEditor&) override
-		{
-			updateFromTextEditor();
-		}
-
-		void textEditorTextChanged(TextEditor&) override
-		{
-
-		}
-
-		void resized() override
-		{
-			auto area = getLocalBounds();
-
-			browseButton.setBounds(area.removeFromRight(60));
-			area.removeFromRight(5);
-			editor.setBounds(area);
-		}
+		void textEditorFocusLost(TextEditor&) override;
+		void textEditorTextChanged(TextEditor&) override;
+		void resized() override;
 
 		File::TypesOfFileToFind fileType;
 		FileNameValuePropertyComponent& parent;
@@ -122,32 +64,14 @@ public:
 		AlertWindowLookAndFeel alaf;
 	};
 
-	FileNameValuePropertyComponent(const String& name, File initialFile, File::TypesOfFileToFind ft, Value v_) :
-		PropertyComponent(name),
-		fc(*this, ft),
-		v(v_)
-	{
-		addAndMakeVisible(fc);
-	}
+	FileNameValuePropertyComponent(const String& name, File initialFile, File::TypesOfFileToFind ft, Value v_);
 
-	void refresh() override
-	{
-		fc.editor.setText(v.getValue().toString(), dontSendNotification);
-	}
-
+	void refresh() override;
 
 
 	MyFunkyFilenameComponent fc;
 	Value v;
 };
-
-
-
-
-
-
-
-
 
 
 class Processor;
@@ -166,11 +90,11 @@ public:
 
 	struct LookAndFeelMethods
 	{
-        virtual ~LookAndFeelMethods() {};
+        virtual ~LookAndFeelMethods();;
      
-		virtual bool shouldClosePath() const { return true; }
+		virtual bool shouldClosePath() const;
 
-		virtual void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition);
+        virtual void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition);
 		virtual void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness);
 		virtual void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged);
 		virtual void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition);
@@ -181,7 +105,7 @@ public:
 	struct HiseTableLookAndFeel : public LookAndFeel_V3,
 		public LookAndFeelMethods
 	{
-        virtual ~HiseTableLookAndFeel() {};
+        virtual ~HiseTableLookAndFeel();;
 	};
 
 	/** This listener can be used to react on user interaction to display stuff.
@@ -190,30 +114,19 @@ public:
 	*/
 	struct EditListener
 	{
-		virtual ~EditListener() {};
+		virtual ~EditListener();;
 
 		/** Will be called when the user starts dragging a point. */
-		virtual void pointDragStarted(Point<int> position, float index, float value)
-		{
-			ignoreUnused(position, index, value);
-		}
+		virtual void pointDragStarted(Point<int> position, float index, float value);
 
 		/** Will be called when the user stops dragging a point. */
-		virtual void pointDragEnded()
-		{
-		}
+		virtual void pointDragEnded();
 
 		/** Called while the point is being dragged. */
-		virtual void pointDragged(Point<int> position, float index, float value)
-		{
-			ignoreUnused(position, index, value);
-		}
+		virtual void pointDragged(Point<int> position, float index, float value);
 
 		/** Called when the user changes a curve. The position will be the middle between the points. */
-		virtual void curveChanged(Point<int> position, float curveValue) 
-		{
-			ignoreUnused(position, curveValue);
-		}
+		virtual void curveChanged(Point<int> position, float curveValue);
 
 	private:
 
@@ -249,79 +162,32 @@ public:
 
 	~TableEditor();
 
-	void setComplexDataUIBase(ComplexDataUIBase* newData) override
-	{
-		if (auto t = dynamic_cast<Table*>(newData))
-			setEditedTable(t);
-	}
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override;
 
 	void paint(Graphics&) override;
 
 	/** If you resize the TableEditor, all internal DragPoints are deleted and new created. */
 	void resized() override;
 
-	void changeListenerCallback(SafeChangeBroadcaster *b)
-	{
-		if (dynamic_cast<Table*>(b) != nullptr)
-		{
-			createDragPoints();
+	void changeListenerCallback(SafeChangeBroadcaster *b);
 
-			refreshGraph();
+	Table *getEditedTable() const;
 
-			return;
-		}
-	}
+	void setEditedTable(Table *newTable);
 
-	Table *getEditedTable() const
-	{
-		return editedTable.get();
-	}
-
-	void setEditedTable(Table *newTable)
-	{
-		if (editedTable != nullptr)
-			editedTable->removeRulerListener(this);
-
-		editedTable = newTable;
-
-		if (editedTable != nullptr)
-		{
-			editedTable->addRulerListener(this);
-			createDragPoints();
-			refreshGraph();
-			setDisplayedIndex(editedTable->getUpdater().getLastDisplayValue());
-		}
-	}
-
-	void indexChanged(float newIndex) override
-	{
-		setDisplayedIndex(newIndex);
-	}
+	void indexChanged(float newIndex) override;
 
 	void graphHasChanged(int point) override;
 
-	String getObjectTypeName() override
-	{ 
-		return "Table Data"; 
-	};
+	String getObjectTypeName() override;;
 
-    void setDrawTableValueLabel(bool shouldBeDisplayed)
-    {
-        displayPopup = shouldBeDisplayed;
-    }
-    
-    bool shouldDrawTableValueLabel() const { return displayPopup; }
-    
-	void copyAction() override { SystemClipboard::copyTextToClipboard(getEditedTable()->exportData()); };
+    void setDrawTableValueLabel(bool shouldBeDisplayed);
 
-	virtual void pasteAction() override
-	{
-		const String data = SystemClipboard::getTextFromClipboard();
-		getEditedTable()->restoreData(data);
+	bool shouldDrawTableValueLabel() const;
 
-		createDragPoints();
-		refreshGraph();
-	}
+	void copyAction() override;;
+
+	virtual void pasteAction() override;
 
 	/** Set the display of the domain value to the desired type. If you want a scaled value to be displayed, pass a Range<int> object */
 	void setDomain(DomainType newDomainType, Range<int> newRange=Range<int>());
@@ -330,40 +196,18 @@ public:
 	*
 	*	If you pass anything else than -1.0f here, the edge will be read only, so it can't be dragged around.
 	*/
-	void setReadOnlyEdge(float constantLeftEdge, float constantRightEdge)
-	{
-		drag_points.getFirst()->setConstantValue(constantLeftEdge);
-		drag_points.getLast()->setConstantValue(constantRightEdge);
-	};
+	void setReadOnlyEdge(float constantLeftEdge, float constantRightEdge);;
 
-	void setMargin(float newMargin)
-	{
-		margin = newMargin;
-	}
+	void setMargin(float newMargin);
 
-	Rectangle<float> getTableArea() const 
-	{
-		return getLocalBounds().toFloat().reduced(margin);
-	}
+	Rectangle<float> getTableArea() const;
 
-	void setUseFlatDesign(bool shouldUseFlatDesign)
-	{
-        useFlatDesign = shouldUseFlatDesign;
-		
-		repaint();
-	}
+	void setUseFlatDesign(bool shouldUseFlatDesign);
 
-	void setLineThickness(float newLineThickness)
-	{
-		lineThickness = newLineThickness;
-		repaint();
-	}
+	void setLineThickness(float newLineThickness);
 
 
-	void setFont(Font newFont)
-	{
-		fontToUse = newFont;
-	}
+	void setFont(Font newFont);
 
 	void setSnapValues(var snapArray);
 
@@ -385,59 +229,16 @@ public:
 
 	void mouseExit(const MouseEvent& e) override;
 
-	UndoManager* getUndoManager(bool useUndoManager = true)
-	{
-		if (!useUndoManager)
-			return nullptr;
+	UndoManager* getUndoManager(bool useUndoManager = true);
 
-		if (auto d = getEditedTable())
-			return getEditedTable()->getUndoManager();
-
-		return nullptr;
-	}
-
-	void changePointPosition(int index, int x, int y, bool useUndoManager=false)
-	{
-		if (index == -1 || index >= drag_points.size())
-			return;
-
-		if (auto um = getUndoManager(useUndoManager))
-		{
-			auto oldPos = drag_points[index]->getPos();
-
-			um->perform(new TableAction(this, TableAction::Drag, index, x, y, 0.0f, oldPos.getX(), oldPos.getY(), 0.0f));
-		}
-		else
-		{
-			drag_points[index]->changePos(Point<int>(x, y));
-
-			updateTouchOverlayPosition();
-
-			updateTable(false); // Only update small tables while dragging
-			refreshGraph();
-
-			needsRepaint = true;
-			repaint();
-		}
-	}
+	void changePointPosition(int index, int x, int y, bool useUndoManager=false);
 
 	/** If you move the mouse wheel over a point, you can adjust the curve to the left of the point */
 	void mouseWheelMove(const MouseEvent &e, const MouseWheelDetails &wheel)  override;
 
-	void setScrollModifiers(ModifierKeys newScrollModifiers)
-	{
-		scrollModifiers = newScrollModifiers;
-	}
+	void setScrollModifiers(ModifierKeys newScrollModifiers);
 
-	void setScrollWheelEnabled(bool shouldBeEnabled)
-	{
-		ModifierKeys mod;
-
-		if (!shouldBeEnabled)
-			mod.withFlags(ModifierKeys::commandModifier);
-
-		setScrollModifiers(mod);
-	}
+	void setScrollWheelEnabled(bool shouldBeEnabled);
 
 	void updateCurve(int x, int y, float newCurveValue, bool useUndoManager);
 
@@ -456,35 +257,20 @@ public:
 	 */  
 	void setEdge(float f, bool setLeftEdge=true);
 
-	void paintOverChildren(Graphics& g)
-	{
-		CopyPasteTarget::paintOutlineIfSelected(g);
-	}
+	void paintOverChildren(Graphics& g);
 
-	void addEditListener(EditListener* l)
-	{
-		editListeners.addIfNotAlreadyThere(l);
-	}
+	void addEditListener(EditListener* l);
 
-	void removeEditListener(EditListener* l)
-	{
-		editListeners.removeAllInstancesOf(l);
-	}
+	void removeEditListener(EditListener* l);
 
 	String getPopupString(float x, float y);
 	std::function<String(float, float)> popupFunction;
 
-	float getLastIndex() const { return jlimit(0.0f, 1.0f, lastIndex); }
+	float getLastIndex() const;
 
 	Rectangle<int> getPointAreaBetweenMouse() const;
 
-	LookAndFeelMethods* getTableLookAndFeel()
-	{
-		if (auto lm = getSpecialLookAndFeel<LookAndFeelMethods>())
-			return lm;
-
-		return &defaultLaf;
-	}
+	LookAndFeelMethods* getTableLookAndFeel();
 
 private:
 
@@ -504,25 +290,13 @@ private:
 	{
 	public:
 
-		Ruler() :
-			value(0.0f)
-		{
-			setInterceptsMouseClicks(false, false);
-		};
+		Ruler();;
 
 		void paint(Graphics &g);
 		
-		double getValue() {return value;}
-		
-		void setIndex(float newIndex)
-		{
-			if (newIndex != value)
-			{
-				value = newIndex;
+		double getValue();
 
-				SafeAsyncCall::repaint(this);
-			}
-		};
+		void setIndex(float newIndex);;
 
 	private:
 
@@ -548,12 +322,7 @@ private:
 		*	
 			@param newConstantValue the new constant value. If you want to make it variable again, pass -1.
 		*/
-		void setConstantValue(float newConstantValue)
-		{
-			jassert(isStartOrEnd());
-
-			constantValue = newConstantValue;
-		}
+		void setConstantValue(float newConstantValue);
 
 		~DragPoint();
 
@@ -561,98 +330,39 @@ private:
 		void resized();
 	
 		/** Returns the scaled position in the TableEditor. */
-		Point<int> getPos() const
-		{
-			//jassert( !dragPlotSize.isEmpty() );
-
-			const int x_pos = (int)(normalizedGraphPoint.x * dragPlotSize.getWidth());
-			const int y_pos = (int)((1.0f - normalizedGraphPoint.y) * dragPlotSize.getHeight());
-
-			return Point<int>(x_pos,y_pos);
-		};
+		Point<int> getPos() const;;
 	
 		/** Changes the position of the DragPoint
 		*
 		*	Use this when you drag the point around so it can check whether a point should be moved and how.
 		*/
-		void changePos(Point<int> newPosition)
-		{
-			jassert( !dragPlotSize.isEmpty() );
-
-			// Check if the x value can be changed
-			if(! isStartOrEnd()) normalizedGraphPoint.x = (float)newPosition.getX() / (float)dragPlotSize.getWidth();
-
-			// Check if the y value should be changed.
-			if(constantValue == -1.0f) normalizedGraphPoint.y = 1.0f - ((float)newPosition.getY() / (float)dragPlotSize.getHeight());
-		
-			this->setCentrePosition(getPos().getX(), getPos().getY());
-		}
+		void changePos(Point<int> newPosition);
 
 		/** Sets up the position of the DragPoint in the TableEditor. It doesn't check if a point is start or end, so be careful!
 		*
 		*/
-		void setPos(Point<int> newPosition)
-		{
-			//jassert( !dragPlotSize.isEmpty() );
+		void setPos(Point<int> newPosition);;
 
-			normalizedGraphPoint.x = (float)newPosition.getX() / (float)dragPlotSize.getWidth();
-			normalizedGraphPoint.y = 1.0f - ((float)newPosition.getY() / (float)dragPlotSize.getHeight());
-
-			this->setCentrePosition(getPos().getX(), getPos().getY());
-		};
-
-		void setPos(Point<float> normalizedPoint)
-		{
-			jassert(!dragPlotSize.isEmpty());
-
-			normalizedGraphPoint.x = normalizedPoint.x;
-			normalizedGraphPoint.y = normalizedPoint.y;
-
-			this->setCentrePosition(getPos().getX(), getPos().getY());
-		}
+		void setPos(Point<float> normalizedPoint);
 
 		/* sets the curve */
-		void updateCurve(float newCurveValue)
-		{
-			normalizedGraphPoint.curve += (newCurveValue * 0.1f);
-			normalizedGraphPoint.curve = jlimit<float>(0.0f, 1.0f, normalizedGraphPoint.curve);
-		};
+		void updateCurve(float newCurveValue);;
 
-		void setCurve(float newValue)
-		{
-			normalizedGraphPoint.curve = jlimit<float>(0.0f, 1.0f, newValue);
-		}
+		void setCurve(float newValue);
 
-		float getCurve() const
-		{
-			return normalizedGraphPoint.curve;
-		}
+		float getCurve() const;
 
 		/** Saves the TableEditor size for scaling. Call this method whenever you resize the TableEditor */
-		void setTableEditorSize(int width, int height)
-		{
-			dragPlotSize = Rectangle<int>(width, height);
-		}
+		void setTableEditorSize(int width, int height);
 
-		void mouseEnter(const MouseEvent &)
-		{
-			if (auto te = findParentComponentOfClass<TableEditor>())
-				te->pointAreaBetweenMouse = {};
+		void mouseEnter(const MouseEvent &);;
 
-			over = true;
-			repaint();
-		};
+		void mouseExit(const MouseEvent &);;
 
-		void mouseExit(const MouseEvent &)
-		{
-			over = false;
-			repaint();
-		};
-
-		bool isStartOrEnd() const { return ( isStart || isEnd ); };
+		bool isStartOrEnd() const;;
 
 		/** Returns the reference to the internal graph point. This is const, so you can't change it */
-		const Table::GraphPoint &getGraphPoint() const { return normalizedGraphPoint; }
+		const Table::GraphPoint &getGraphPoint() const;
 
 	private:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragPoint)
@@ -676,76 +386,26 @@ private:
 	class DragPointComparator
 	{
 	public:
-		DragPointComparator(){};
+		DragPointComparator();;
 
-		static int compareElements(DragPoint *dp1, DragPoint *dp2) 
-		{
-			if(dp1->getGraphPoint().x < dp2->getGraphPoint().x) return -1;
-			else if(dp1->getGraphPoint().x > dp2->getGraphPoint().x) return 1;
-			else return 0;
-		};
+		static int compareElements(DragPoint *dp1, DragPoint *dp2);;
 	};
 
 	
 
 	// Returns the DragPoint at the position x,y
-	TableEditor::DragPoint * getPointUnder(int x, int y)
-	{
-		DragPoint *dp = static_cast<DragPoint*>(this->getComponentAt(x, y));
+	TableEditor::DragPoint * getPointUnder(int x, int y);;
 
-		for (int i = 0; i < drag_points.size(); i++)
-		{
-			if (dp == drag_points[i]) return dp;
-		}
+	TableEditor::DragPoint* getNextPointFor(int x) const;
 
-		return nullptr;
-	};
+	TableEditor::DragPoint* getPrevPointFor(int x) const;
 
-	TableEditor::DragPoint* getNextPointFor(int x) const
-	{
-		for (int i = 0; i < drag_points.size() - 1; i++)
-		{
-			auto dp = drag_points[i];
-
-			auto next = drag_points[i + 1];
-
-			if (x >= dp->getX() && x <= next->getX())
-			{
-				return next;
-			}
-		}
-
-		return nullptr;
-	}
-
-	TableEditor::DragPoint* getPrevPointFor(int x) const
-	{
-		for (int i = 0; i < drag_points.size() - 1; i++)
-		{
-			auto dp = drag_points[i];
-
-			auto next = drag_points[i + 1];
-
-			if (x >= dp->getX() && x <= next->getX())
-			{
-				return dp;
-			}
-		}
-
-		return nullptr;
-	}
-
-	
 
 	// Adds a new DragPoint and selects it.
 	void addDragPoint(int x, int y, float curve, bool isStart=false, bool isEnd=false, bool useUndoManager=false);
 
 	// Add a drag point directly from a GraphPoint
-	void addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false)
-	{
-		auto a = getTableArea();
-		addDragPoint((int)(a.getX() + normalizedPoint.x * a.getWidth()), (int)(a.getY() + (1.0f - normalizedPoint.y) * a.getHeight()), normalizedPoint.curve, isStart, isEnd);
-	}
+	void addNormalizedDragPoint(Table::GraphPoint normalizedPoint, bool isStart=false, bool isEnd=false);
 
 	// Recreates the drag points from the given Table. It automatically adds the start / end flags.
 	void createDragPoints();
@@ -754,19 +414,7 @@ private:
 	void refreshGraph();
 
 	// Updates the graph point list in the table this editor refers to. If refreshLookUpTable is true, then the look up table is also recalculated.
-	void updateTable(bool refreshLookUpTable)
-	{
-		ScopedPointer<DragPointComparator> dpc = new DragPointComparator();
-
-		drag_points.sort(*dpc);
-
-		Array<Table::GraphPoint> newPoints;
-
-		for(int i = 0; i < drag_points.size(); i++)	newPoints.add(drag_points[i]->getGraphPoint());
-
-		if(editedTable.get() != nullptr) 
-			editedTable->setGraphPoints(newPoints, drag_points.size(), refreshLookUpTable);
-	};
+	void updateTable(bool refreshLookUpTable);;
 
 	int snapXValueToGrid(int x) const;
 
@@ -805,17 +453,7 @@ private:
 		};
 
 		TableAction(TableEditor* table_, Action what_, int index_, int x_, int y_, float curve_,
-			int oldX_, int oldY_, float oldCurve_) :
-			table(table_),
-			what(what_),
-			index(index_),
-			x(x_),
-			y(y_),
-			curve(curve_),
-			oldX(oldX_),
-			oldY(oldY_),
-			oldCurve(oldCurve_)
-		{};
+			int oldX_, int oldY_, float oldCurve_);;
 
 		bool perform() override;
 

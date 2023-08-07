@@ -422,6 +422,30 @@ hise::MarkdownHeader MarkdownLink::getHeaderFromFile(const File& rootDirectory )
 	return p.getHeader();
 }
 
+void MarkdownLink::setType(Type t)
+{
+	type = t;
+}
+
+MarkdownLink::operator bool() const
+{ 
+	switch (type)
+	{
+	case hise::MarkdownLink::Icon:
+	case hise::MarkdownLink::WebContent:
+	case hise::MarkdownLink::SimpleAnchor:	return true;
+	case hise::MarkdownLink::Invalid:		return false;
+	case hise::MarkdownLink::MarkdownFile:
+	case hise::MarkdownLink::Folder:
+	case hise::MarkdownLink::Image:
+	case hise::MarkdownLink::SVGImage:		return fileExists({});
+	default:
+		break;
+	}
+
+	return false;
+}
+
 bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 {
 	if (type == WebContent)
@@ -431,6 +455,15 @@ bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 		return false;
 
 	return getMarkdownFile(rootDirectory).existsAsFile();
+}
+
+String MarkdownLink::getHtmlStringForBaseURL(const String& baseURL) const
+{
+	String u;
+
+	u << baseURL;
+	u << toString(FormattedLinkHtml);
+	return u;
 }
 
 
@@ -470,6 +503,164 @@ juce::String MarkdownLink::createHtmlLink() const noexcept
 	return s.substring(1);
 }
 
+String MarkdownLink::Helpers::getPrettyName(const String& urlToPrettify)
+{
+	auto n = urlToPrettify.replaceCharacter('-', ' ');
+	String pretty;
+	auto ptr = n.getCharPointer();
+
+	bool nextIsUppercase = true;
+
+	while (!ptr.isEmpty())
+	{
+		auto thisChar = *ptr;
+
+		if (nextIsUppercase)
+			pretty << CharacterFunctions::toUpperCase(thisChar);
+		else
+			pretty << thisChar;
+
+		nextIsUppercase = thisChar == ' ';
+
+		ptr++;
+	}
+
+	return pretty;
+}
+
+String MarkdownLink::Helpers::getAnchor(const String& url)
+{
+	return url.fromFirstOccurrenceOf("#", true, false);
+}
+
+String MarkdownLink::Helpers::removeAnchor(const String& url)
+{
+	return url.upToFirstOccurrenceOf("#", false, false);
+}
+
+String MarkdownLink::Helpers::getExtraData(const String& url)
+{
+	return url.fromFirstOccurrenceOf(":", false, false);
+}
+
+String MarkdownLink::Helpers::getPrettyVarString(const var& value)
+{
+	String valueString;
+
+	if (value.isObject())
+		valueString = "`{}`";
+	else if (value.isArray())
+		valueString = "`[]`";
+	else if (value.isBool())
+		valueString = (bool)value ? "`true`" : "`false`";
+	else
+		valueString = value.toString();
+
+	if (valueString.isEmpty())
+		valueString << "`\"\"`";
+
+	return valueString;
+}
+
+String MarkdownLink::Helpers::removeExtraData(const String& url)
+{
+	return url.upToFirstOccurrenceOf(":", false, false);
+}
+
+File MarkdownLink::Helpers::getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype)
+{
+	auto urlToUse = url;
+	if (urlToUse.startsWith("/"))
+		urlToUse = urlToUse.substring(1);
+
+	auto f = root.getChildFile(urlToUse);
+
+	if (f.isDirectory())
+	{
+		if (filetype == File::findDirectories)
+			return f;
+		else
+			return f.getChildFile("Readme.md");
+	}
+
+	if (!f.existsAsFile())
+		f = root.getChildFile(urlToUse).withFileExtension(".md");
+
+	return f;
+
+#if 0
+			// You have to sanitize this before calling this method
+			jassert(!url.contains("#"));
+
+			auto urlToUse = removeAnchor(url);
+
+			if (urlToUse.startsWithChar('/'))
+				urlToUse = urlToUse.substring(1);
+
+			Array<File> files;
+
+			root.findChildFiles(files, filetype, true, extension);
+
+			for (auto f : files)
+			{
+				auto path = f.getRelativePathFrom(root);
+
+				path = getSanitizedFilename(path);
+
+				if (path == urlToUse)
+					return f;
+			}
+
+			return {};
+#endif
+}
+
+File MarkdownLink::Helpers::getFolderReadmeFile(File root, const String& url)
+{
+	auto f = getLocalFileForSanitizedURL(root, url, File::findDirectories);
+
+	if (f.isDirectory())
+	{
+		return f.getChildFile("Readme.md");
+	}
+
+	return {};
+}
+
+String MarkdownLink::Helpers::getSanitizedFilename(const String& path)
+{
+	if (path.startsWith("http"))
+		return path;
+
+	auto p = removeLeadingNumbers(path);
+
+	return StringSanitizer::get(p);
+}
+
+String MarkdownLink::Helpers::getSanitizedURL(const String& path)
+{
+	auto p = getSanitizedFilename(path);
+
+	if (p.startsWith("/"))
+		return p;
+
+	return "/" + p;
+}
+
+String MarkdownLink::Helpers::removeLeadingNumbers(const String& p)
+{
+	auto path = p.replaceCharacter('\\', '/').trimCharactersAtStart("01234567890 ");
+	path = path.removeCharacters("()[]");
+	return path;
+}
+
+bool MarkdownLink::Helpers::isImageLink(const String& url)
+{
+	return url.endsWith(".jpg") || url.endsWith(".JPG") ||
+		url.endsWith(".gif") || url.endsWith(".GIF") ||
+		url.endsWith(".png") || url.endsWith(".PNG");
+}
+
 double MarkdownLink::Helpers::getSizeFromExtraData(const String& extraData)
 {
 	if (extraData.contains("%"))
@@ -483,6 +674,39 @@ double MarkdownLink::Helpers::getSizeFromExtraData(const String& extraData)
 	}
 
 	return extraData.getDoubleValue();
+}
+
+bool MarkdownLink::Helpers::isReadme(File f)
+{
+	return f.getFileNameWithoutExtension().toLowerCase() == "readme";
+}
+
+File MarkdownLink::Helpers::getFileOrReadmeFromFolder(File root, const String& url)
+{
+	auto f = getFolderReadmeFile(root, url);
+	if (f.existsAsFile())
+		return f;
+
+	f = getLocalFileForSanitizedURL(root, url, File::findFiles);
+
+	if (f.existsAsFile())
+		return f;
+
+	return {};
+}
+
+String MarkdownLink::Helpers::getFileNameFromURL(const String& url)
+{
+	return url.fromLastOccurrenceOf("/", false, false).upToFirstOccurrenceOf("#", false, false);
+}
+
+String MarkdownLink::Helpers::getChildURL(const String& url, const String& childName, bool asAnchor)
+{
+
+
+	jassert(getSanitizedFilename(url) == url);
+
+	return removeAnchor(url) + (asAnchor ? "#" : "/") + getSanitizedFilename(childName);
 }
 
 juce::String MarkdownLink::Helpers::removeMarkdownHeader(const String& content)

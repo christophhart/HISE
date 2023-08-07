@@ -34,6 +34,27 @@
 namespace hise {
 using namespace juce;
 
+MarkdownRenderer::~MarkdownRenderer()
+{
+	setTargetComponent(nullptr);
+}
+
+void MarkdownRenderer::draw(Graphics& g, Rectangle<float> totalArea, Rectangle<int> viewedArea) const
+{
+	for (auto* e : elements)
+	{
+		auto heightToUse = e->getHeightForWidthCached(totalArea.getWidth());
+		auto topMargin = e->getTopMargin();
+		totalArea.removeFromTop((float)topMargin);
+		auto ar = totalArea.removeFromTop(heightToUse);
+
+		if (firstDraw || viewedArea.isEmpty() || ar.toNearestInt().intersects(viewedArea))
+			e->draw(g, ar);
+	}
+
+	firstDraw = false;
+}
+
 float MarkdownRenderer::getHeightForWidth(float width, bool forceUpdate/*=false*/)
 {
 	if (width == lastWidth && !forceUpdate)
@@ -73,6 +94,22 @@ void MarkdownRenderer::parse()
 	}
 }
 
+bool MarkdownRenderer::canNavigate(bool back) const
+{
+	if (back)
+		return undoManager.canUndo();
+	else
+		return undoManager.canRedo();
+}
+
+void MarkdownRenderer::navigate(bool back)
+{
+	if (back)
+		undoManager.undo();
+	else
+		undoManager.redo();
+}
+
 void MarkdownRenderer::jumpToCurrentAnchor()
 {
 	if (lastWidth == -1.0)
@@ -101,6 +138,27 @@ void MarkdownRenderer::jumpToCurrentAnchor()
 	}
 }
 
+RectangleList<float> MarkdownRenderer::searchInContent(const String& searchString)
+{
+	RectangleList<float> positions;
+
+	float y = 0.0f;
+
+	for (auto e : elements)
+	{
+		e->searchInContent(searchString);
+
+		y += e->getTopMargin();
+
+		for (auto r : e->searchResults)
+			positions.add(r.translated(0.0f, y));
+
+		y += e->getLastHeight();
+	}
+
+	return positions;
+}
+
 juce::String MarkdownRenderer::getAnchorForY(int y) const
 {
 	int thisY = 0;
@@ -127,6 +185,211 @@ juce::String MarkdownRenderer::getAnchorForY(int y) const
 	return {};
 }
 
+String MarkdownRenderer::getSelectionContent() const
+{
+	String s;
+
+	for (auto e : elements)
+	{
+		if (e->selected)
+		{
+			s << e->getTextToCopy() << "\n";
+		}
+	}
+
+	return s;
+}
+
+void MarkdownRenderer::updateSelection(Rectangle<float> area)
+{
+	Range<float> yRange(area.getY(), area.getBottom());
+
+	float y = 0.0f;
+
+	for (auto e : elements)
+	{
+		float h = e->getTopMargin() + e->getLastHeight();
+
+		e->setSelected(Range<float>(y, y + h).intersects(yRange));
+
+		y += h;
+	}
+}
+
+bool MarkdownRenderer::gotoLink(const MarkdownLink& url)
+{
+	undoManager.beginNewTransaction("New Link");
+	return undoManager.perform(new NavigationAction(this, url));
+}
+
+bool MarkdownRenderer::gotoLinkFromMouseEvent(const MouseEvent& e, Rectangle<float> markdownBounds, const File& root)
+{
+	auto l = getLinkForMouseEvent(e, markdownBounds);
+
+	if (l.isValid())
+		return gotoLink(l.withRoot(root, true));
+        
+	return false;
+}
+
+void MarkdownRenderer::setTargetComponent(Component* newTarget)
+{
+	if (targetComponent == newTarget)
+		return;
+
+	if (auto existing = targetComponent.getComponent())
+	{
+		for (auto e : elements)
+		{
+			if (auto c = e->createComponent(existing->getWidth()))
+				existing->removeChildComponent(c);
+		}
+	}
+
+	targetComponent = newTarget;
+}
+
+void MarkdownRenderer::updateHeight()
+{
+	float y = currentY;
+
+	getHeightForWidth(lastWidth, true);
+		
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->markdownWasParsed(getParseResult());
+	}
+
+	scrollToY(y);
+
+}
+
+void MarkdownRenderer::updateCreatedComponents()
+{
+	if (targetComponent == nullptr)
+		return;
+
+	if (targetComponent->getWidth() == 0)
+		return;
+
+	float y = (float)childArea.getY();
+
+	auto wToUse = childArea.getWidth();
+
+	if (wToUse == 0)
+		wToUse = (int)targetComponent->getWidth();
+
+	for (auto e : elements)
+	{
+		y += e->getTopMargin();
+
+		if (auto c = e->createComponent(wToUse))
+		{
+			if (c->getParentComponent() == nullptr)
+				targetComponent->addAndMakeVisible(c);
+
+			jassert(c->getWidth() > 0);
+			jassert(c->getHeight() > 0);
+
+			c->setTopLeftPosition(childArea.getX(), (int)y);
+
+			y += (float)e->getLastHeight();
+		}
+		else
+		{
+			y += e->getLastHeight();
+		}
+	}
+
+		
+}
+
+bool MarkdownRenderer::navigateFromXButtons(const MouseEvent& e)
+{
+	if (e.mods.isX1ButtonDown())
+	{
+		navigate(true);
+		return true;
+	}
+	if (e.mods.isX2ButtonDown())
+	{
+		navigate(false);
+		return true;
+	}
+
+	return false;
+}
+
+void MarkdownRenderer::scrollToY(float y)
+{
+	if (disableScrolling)
+		return;
+
+	currentY = y;
+
+	WeakReference<MarkdownRenderer> r = this;
+
+	auto f = [r, y]()
+	{
+		if (r != nullptr)
+		{
+			for (auto l : r->listeners)
+			{
+				if (l.get() != nullptr)
+					l->scrollToAnchor(y);
+			}
+		}
+            
+	};
+
+	MessageManager::callAsync(f);
+}
+
+
+void SimpleMarkdownDisplay::InternalComp::mouseDown(const MouseEvent& e)
+{
+	if(e.mods.isLeftButtonDown())
+	{
+		auto markdownBounds = getLocalBounds().toFloat();
+		parent.r.gotoLinkFromMouseEvent(e, markdownBounds, File());
+	}
+}
+
+SimpleMarkdownDisplay::SimpleMarkdownDisplay():
+	r("", nullptr),
+	canvas(*this)
+{
+	vp.setViewedComponent(&canvas, false);
+	addAndMakeVisible(vp);
+	vp.setScrollOnDragEnabled(true);
+        
+	sf.addScrollBarToAnimate(vp.getVerticalScrollBar());
+	vp.setScrollBarThickness(14);
+}
+
+void SimpleMarkdownDisplay::setText(const String& text)
+{
+	r.setNewText(text);
+	r.setTargetComponent(&canvas);
+		
+
+	resized();
+	r.updateCreatedComponents();
+}
+
+void SimpleMarkdownDisplay::resized()
+{
+	auto b = getLocalBounds();
+	vp.setBounds(b);
+		
+	auto w = b.getWidth() - vp.getScrollBarThickness();
+
+	totalHeight = r.getHeightForWidth(w, true);
+
+	canvas.setSize(w, totalHeight);
+	repaint();
+}
 
 MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	MarkdownContentProcessor(holder),
@@ -164,6 +427,102 @@ MarkdownPreview::~MarkdownPreview()
 	viewport.removeListener(&renderer);
 }
 
+void MarkdownPreview::resolversUpdated()
+{
+	renderer.clearResolvers();
+
+	for (auto l : linkResolvers)
+		renderer.setLinkResolver(l->clone(&renderer));
+
+	for (auto ip : imageProviders)
+		renderer.setImageProvider(ip->clone(&renderer));
+}
+
+void MarkdownPreview::addEditingMenuItems(PopupMenu& m)
+{
+	m.addItem(EditingMenuCommands::CopyLink, "Copy link");
+
+	if (editingEnabled)
+	{
+		m.addSectionHeader("Editing Tools");
+		m.addItem(EditingMenuCommands::EditCurrentPage, "Edit this page in new editor tab");
+		m.addItem(EditingMenuCommands::CreateMarkdownLink, "Create markdown formatted link", true);
+		m.addItem(EditingMenuCommands::RevealFile, "Show file");
+		m.addItem(EditingMenuCommands::DebugExactContent, "Debug current content");
+	}
+}
+
+bool MarkdownPreview::performPopupMenuForEditingIcons(int result, const MarkdownLink& linkToUse)
+{
+	if (result == EditingMenuCommands::EditCurrentPage)
+	{
+		editCurrentPage(linkToUse);
+		return true;
+	}
+	if (result == EditingMenuCommands::CreateMarkdownLink)
+	{
+		SystemClipboard::copyTextToClipboard(linkToUse.toString(MarkdownLink::FormattedLinkMarkdown));
+		return true;
+	}
+	if (result == EditingMenuCommands::CopyLink)
+	{
+		SystemClipboard::copyTextToClipboard(linkToUse.toString(MarkdownLink::Everything));
+		return true;
+	}
+	if (result == EditingMenuCommands::RevealFile)
+	{
+		auto f = linkToUse.getDirectory({});
+
+		if (f.isDirectory())
+		{
+			f.revealToUser();
+			return true;
+		}
+
+		f = linkToUse.getMarkdownFile({});
+
+		if (f.existsAsFile())
+		{
+			f.revealToUser();
+			return true;
+		}
+	}
+	if (result == EditingMenuCommands::DebugExactContent)
+	{
+		editCurrentPage({}, true);
+		return true;
+	}
+
+	return false;
+}
+
+void MarkdownPreview::setNavigationShown(bool shouldBeShown)
+{
+	navigationShown = shouldBeShown;
+}
+
+void MarkdownPreview::mouseDown(const MouseEvent& e)
+{
+	currentSearchResults = nullptr;
+
+	if (renderer.navigateFromXButtons(e))
+		return;
+
+	if (e.mods.isRightButtonDown())
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		addEditingMenuItems(m);
+
+		int result = m.show();
+
+		if (performPopupMenuForEditingIcons(result, renderer.getLastLink()))
+			return;
+	}
+}
+
 bool MarkdownPreview::keyPressed(const KeyPress& k)
 {
 	if (k.getModifiers().isCommandDown() && k.getKeyCode() == 'C')
@@ -183,6 +542,20 @@ bool MarkdownPreview::keyPressed(const KeyPress& k)
 	}
 
 	return false;
+}
+
+void MarkdownPreview::setMouseMode(MouseMode newMode)
+{
+	if (newMode == Drag)
+	{
+		viewport.setScrollOnDragEnabled(true);
+		internalComponent.enableSelect = false;
+	}
+	else
+	{
+		viewport.setScrollOnDragEnabled(false);
+		internalComponent.enableSelect = true;
+	}
 }
 
 void MarkdownPreview::setNewText(const String& newText, const File& f, bool scrollToStart)
@@ -538,7 +911,481 @@ juce::Path MarkdownPreview::Topbar::TopbarPaths::createPath(const String& id) co
 	return p;
 }
 
+MarkdownPreview::Topbar::SearchResults::ItemComponent::ItemComponent(MarkdownDataBase::Item i,
+	const MarkdownLayout::StyleData& l):
+	item(i),
+	p(i.description),
+	style(l)
+{
+	p.parse();
+	setInterceptsMouseClicks(true, true);
+}
 
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::mouseEnter(const MouseEvent& mouseEvent)
+{
+	hover = true;
+	setMouseCursor(MouseCursor(MouseCursor::PointingHandCursor));
+	repaint();
+}
+
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::mouseExit(const MouseEvent& mouseEvent)
+{
+	hover = false;
+	setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
+	repaint();
+}
+
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::mouseDown(const MouseEvent& e)
+{
+	down = true;
+	repaint();
+
+	if (e.mods.isRightButtonDown())
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		auto mp = findParentComponentOfClass<MarkdownPreview>();
+		mp->addEditingMenuItems(m);
+
+		int result = m.show();
+
+		if (mp->performPopupMenuForEditingIcons(result, item.url))
+			return;
+	}
+}
+
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::gotoLink()
+{
+	if (auto mp = findParentComponentOfClass<MarkdownPreview>())
+	{
+		auto& r = mp->renderer;
+
+		r.gotoLink(item.url.withRoot(mp->rootDirectory, true));
+
+		auto f2 = [mp]()
+		{
+			mp->currentSearchResults = nullptr;
+			mp->topbar.searchBar.setText("", dontSendNotification);
+		};
+
+		MessageManager::callAsync(f2);
+	}
+}
+
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::mouseUp(const MouseEvent& e)
+{
+	down = false;
+	repaint();
+
+	if (!e.mouseWasDraggedSinceMouseDown())
+		gotoLink();
+}
+
+void MarkdownPreview::Topbar::SearchResults::ItemComponent::paint(Graphics& g)
+{
+	g.fillAll(Colours::grey.withAlpha(down ? 0.6f : (hover ? 0.3f : 0.1f)));
+
+	g.setColour(item.c);
+
+	g.fillRect(0.0f, 0.0f, 3.0f, (float)getHeight());
+
+	auto ar = getLocalBounds();
+
+	auto f = GLOBAL_BOLD_FONT();
+
+	g.setColour(Colours::black.withAlpha(0.1f));
+	g.fillRect(kBounds);
+
+	g.setFont(f);
+	g.setColour(Colours::white);
+
+	ar.removeFromLeft(kBounds.getWidth());
+
+	g.drawText(item.keywords[0], kBounds.toFloat(), Justification::centred);
+
+	if (!starBounds.isEmpty())
+	{
+		ar.removeFromLeft(starBounds.getWidth());
+
+		g.setColour(item.c);
+
+		Path starPath;
+		starPath.addStar(starBounds.toFloat().getCentre(), 5, 5.0f, 10.0f);
+		g.fillPath(starPath);
+	}
+
+
+
+	p.draw(g, ar.toFloat().reduced(5.0f).translated(0.0f, -5.0f));
+
+	if (isFuzzyMatch)
+		g.fillAll(Colours::grey.withAlpha(0.3f));
+}
+
+int MarkdownPreview::Topbar::SearchResults::ItemComponent::calculateHeight(int width)
+{
+	kBounds = { 0, 0, GLOBAL_BOLD_FONT().getStringWidth(item.keywords[0]) + 20, 0 };
+
+	starBounds = {};
+
+
+	if (height == 0)
+	{
+		height = (int)p.getHeightForWidth((float)(width - 10.0f - kBounds.getWidth() - starBounds.getWidth()));
+	}
+
+	kBounds.setHeight(height);
+	starBounds.setHeight(height);
+
+	return height;
+}
+
+MarkdownPreview::Topbar::SearchResults::SearchResults(Topbar& parent_):
+	parent(parent_),
+	nextButton("Forward", this, factory),
+	prevButton("Back", this, factory),
+	shadower(DropShadow(Colours::black.withAlpha(0.5f), 10, {}))
+{
+	addAndMakeVisible(nextButton);
+	addAndMakeVisible(prevButton);
+	addAndMakeVisible(textSearchResults);
+	textSearchResults.setEditable(false);
+	textSearchResults.setColour(Label::backgroundColourId, Colours::red.withSaturation(0.3f));
+	textSearchResults.setFont(parent.parent.internalComponent.styleData.getFont());
+	addAndMakeVisible(viewport);
+	viewport.setViewedComponent(&content, false);
+	viewport.setScrollOnDragEnabled(true);
+	shadower.setOwner(this);
+}
+
+void MarkdownPreview::Topbar::SearchResults::buttonClicked(Button* b)
+{
+	if (b == &nextButton)
+	{
+		currentIndex++;
+
+		if (currentIndex >= currentSearchResultPositions.getNumRectangles())
+			currentIndex = 0;
+
+
+	}
+	if (b == &prevButton)
+	{
+		currentIndex--;
+
+		if (currentIndex == -1)
+			currentIndex = currentSearchResultPositions.getNumRectangles() - 1;
+	}
+
+	setSize(getWidth(), 32);
+
+
+
+	parent.parent.internalComponent.scrollToSearchResult(currentSearchResultPositions.getRectangle(currentIndex));
+
+	refreshTextResultLabel();
+}
+
+void MarkdownPreview::Topbar::SearchResults::resized()
+{
+	auto ar = getLocalBounds();
+
+	if (currentSearchResultPositions.isEmpty())
+	{
+		nextButton.setVisible(false);
+		prevButton.setVisible(false);
+		textSearchResults.setVisible(false);
+	}
+	else
+	{
+		nextButton.setVisible(true);
+		prevButton.setVisible(true);
+		textSearchResults.setVisible(true);
+
+		auto top = ar.removeFromTop(32);
+
+		nextButton.setBounds(top.removeFromRight(32).reduced(6));
+		prevButton.setBounds(top.removeFromRight(32).reduced(6));
+		textSearchResults.setBounds(top);
+	}
+
+	viewport.setBounds(ar);
+}
+
+void MarkdownPreview::Topbar::SearchResults::refreshTextResultLabel()
+{
+	if (!currentSearchResultPositions.isEmpty())
+	{
+		String s;
+
+		s << "Search in current page:" << String(currentIndex + 1) << "/" << String(currentSearchResultPositions.getNumRectangles());
+
+		textSearchResults.setText(s, dontSendNotification);
+	}
+	else
+		textSearchResults.setText("No matches", dontSendNotification);
+}
+
+void MarkdownPreview::Topbar::SearchResults::timerCallback()
+{
+	currentSearchResultPositions = parent.parent.renderer.searchInContent(searchString);
+
+	refreshTextResultLabel();
+
+	parent.parent.repaint();
+
+	int textSearchOffset = currentSearchResultPositions.isEmpty() ? 0 : 32;
+
+	rebuildItems();
+
+	if (viewport.getViewedComponent()->getHeight() > 350)
+	{
+		setSize(getWidth(), 350 + textSearchOffset);
+	}
+	else
+	{
+		setSize(getWidth(), viewport.getViewedComponent()->getHeight() + textSearchOffset);
+	}
+
+	stopTimer();
+}
+
+void MarkdownPreview::Topbar::SearchResults::gotoSelection()
+{
+	if (currentSelection != nullptr)
+	{
+		currentSelection->gotoLink();
+	}
+}
+
+void MarkdownPreview::Topbar::SearchResults::selectNextItem(bool inc)
+{
+	if (currentSelection == nullptr)
+	{
+		itemIndex = 0;
+	}
+	else
+	{
+		if (inc)
+		{
+			itemIndex++;
+
+			if (itemIndex >= displayedItems.size())
+				itemIndex = 0;
+		}
+		else
+		{
+			itemIndex--;
+
+			if (itemIndex < 0)
+				itemIndex = displayedItems.size();
+		}
+	}
+
+	if ((currentSelection = displayedItems[itemIndex]))
+	{
+		for (auto s : displayedItems)
+		{
+			s->hover = s == currentSelection.get();
+			s->repaint();
+		}
+
+		auto visibleArea = viewport.getViewArea();
+
+		if (!visibleArea.contains(currentSelection->getPosition()))
+		{
+			if (currentSelection->getY() > visibleArea.getBottom())
+			{
+				auto y = currentSelection->getBottom() - visibleArea.getHeight();
+
+				viewport.setViewPosition(0, y);
+			}
+			else
+			{
+				viewport.setViewPosition(0, currentSelection->getY());
+			}
+		}
+	}
+}
+
+void MarkdownPreview::Topbar::SearchResults::rebuildItems()
+{
+	if (parent.database == nullptr)
+		return;
+
+	if (searchString.isEmpty())
+	{
+		displayedItems.clear();
+		exactMatches.clear();
+		fuzzyMatches.clear();
+
+		content.setSize(viewport.getMaximumVisibleWidth(), 20);
+		return;
+	}
+
+
+	auto allItems = parent.database->getFlatList();
+
+	if (searchString.startsWith("/"))
+	{
+		displayedItems.clear();
+		exactMatches.clear();
+		fuzzyMatches.clear();
+
+		MarkdownLink linkURL = { parent.parent.rootDirectory, searchString };
+
+		MarkdownDataBase::Item linkItem;
+
+		for (auto item : allItems)
+		{
+			if (item.url == linkURL)
+			{
+				linkItem = item;
+				break;
+			}
+		}
+
+		if (linkItem)
+		{
+			ScopedPointer<ItemComponent> newItem(new ItemComponent(linkItem, parent.parent.internalComponent.styleData));
+
+			displayedItems.add(newItem);
+			exactMatches.add(newItem);
+			content.addAndMakeVisible(newItem.release());
+		}
+	}
+	else
+	{
+		MarkdownDataBase::Item::PrioritySorter sorter(searchString);
+
+		auto sorted = sorter.sortItems(allItems);
+
+		displayedItems.clear();
+		exactMatches.clear();
+		fuzzyMatches.clear();
+
+		for (const auto& item : sorted)
+		{
+			int matchLevel = item.fits(searchString);
+
+			if (matchLevel > 0)
+			{
+				ScopedPointer<ItemComponent> newItem(new ItemComponent(item, parent.parent.internalComponent.styleData));
+
+				if (matchLevel == 1)
+				{
+					if (exactMatches.size() < 50)
+					{
+						content.addAndMakeVisible(newItem);
+						exactMatches.add(newItem.release());
+					}
+				}
+				else
+				{
+					if (fuzzyMatches.size() < 10)
+					{
+						content.addAndMakeVisible(newItem);
+						newItem->isFuzzyMatch = true;
+						fuzzyMatches.add(newItem.release());
+					}
+				}
+
+			}
+		}
+
+
+	}
+
+	for (auto i : exactMatches)
+		displayedItems.add(i);
+
+	for (auto i : fuzzyMatches)
+		displayedItems.add(i);
+
+	content.setSize(viewport.getMaximumVisibleWidth(), 20);
+
+	int y = 0;
+
+	for (auto d : displayedItems)
+	{
+		auto h = d->calculateHeight(content.getWidth());
+
+		d->setBounds(0, y, content.getWidth(), h);
+		y += h;
+
+		if (h == 0)
+			continue;
+
+		y += 2;
+
+	}
+
+	content.setSize(content.getWidth(), y);
+}
+
+void MarkdownPreview::Topbar::SearchResults::setSearchString(const String& s)
+{
+	searchString = s;
+
+	startTimer(200);
+	itemIndex = 0;
+}
+
+void MarkdownPreview::Topbar::SearchResults::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF333333));
+	g.fillAll(Colours::black.withAlpha(0.1f));
+}
+
+
+MarkdownPreview::Topbar::Topbar(MarkdownPreview& parent_):
+	parent(parent_),
+	tocButton("TOC", this, factory),
+	homeButton("Home", this, factory),
+	backButton("Back", this, factory),
+	forwardButton("Forward", this, factory),
+	searchPath(factory.createPath("Search")),
+	lightSchemeButton("Sun", this, factory, "Night"),
+	selectButton("Select", this, factory, "Drag"),
+	refreshButton("Rebuild", this, factory),
+	editButton("Edit", this, factory, "Lock")
+{
+	parent.getHolder().addDatabaseListener(this);
+	selectButton.setToggleModeWithColourChange(true);
+	editButton.setToggleModeWithColourChange(true);
+
+	addAndMakeVisible(homeButton);
+	addAndMakeVisible(tocButton);
+	addAndMakeVisible(backButton);
+	addAndMakeVisible(forwardButton);
+	addAndMakeVisible(lightSchemeButton);
+	addAndMakeVisible(searchBar);
+	addAndMakeVisible(selectButton);
+	addAndMakeVisible(editButton);
+	addAndMakeVisible(refreshButton);
+	lightSchemeButton.setClickingTogglesState(true);
+
+	const auto& s = parent.internalComponent.styleData;
+
+	searchBar.setColour(Label::backgroundColourId, Colour(0x22000000));
+	searchBar.setFont(s.getFont());
+	searchBar.setEditable(true);
+	searchBar.setColour(Label::textColourId, Colours::white);
+	searchBar.setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+	searchBar.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+	searchBar.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+	searchBar.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+	searchBar.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+	searchBar.addListener(this);
+	databaseWasRebuild();
+}
+
+MarkdownPreview::Topbar::~Topbar()
+{
+	parent.getHolder().removeDatabaseListener(this);
+}
 
 void MarkdownPreview::Topbar::databaseWasRebuild()
 {
@@ -666,6 +1513,57 @@ void MarkdownPreview::Topbar::buttonClicked(Button* b)
 	}
 }
 
+bool MarkdownPreview::Topbar::keyPressed(const KeyPress& key, Component*)
+{
+	if (key == KeyPress('f') && key.getModifiers().isCommandDown())
+	{
+		showPopup();
+		return true;
+	}
+	if (key == KeyPress::upKey)
+	{
+		if (parent.currentSearchResults != nullptr)
+			parent.currentSearchResults->selectNextItem(false);
+
+		return true;
+	}
+	else if (key == KeyPress::downKey)
+	{
+		if (parent.currentSearchResults != nullptr)
+			parent.currentSearchResults->selectNextItem(true);
+
+		return true;
+	}
+	else if (key == KeyPress::returnKey)
+	{
+		if (searchBar.getText(true).startsWith("/"))
+		{
+
+			parent.renderer.gotoLink({ parent.rootDirectory, searchBar.getText(true) });
+			searchBar.hideEditor(false);
+			searchBar.setText("", dontSendNotification);
+			parent.currentSearchResults = nullptr;
+			return true;
+		}
+
+		if (parent.currentSearchResults != nullptr)
+			parent.currentSearchResults->gotoSelection();
+
+		return true;
+	}
+	else if (key == KeyPress::tabKey)
+	{
+
+		if (parent.currentSearchResults != nullptr)
+			parent.currentSearchResults->nextButton.triggerClick();
+
+		return true;
+	}
+
+	return false;
+
+}
+
 void MarkdownPreview::Topbar::resized()
 {
 	Colour c = Colours::white;
@@ -753,6 +1651,328 @@ void MarkdownPreview::Topbar::resized()
 		searchBar.setVisible(false);
 		searchPath = {};
 	}
+}
+
+void MarkdownPreview::Topbar::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF444444));
+	//g.fillAll(Colours::white.withAlpha(0.05f));
+	g.setColour(Colours::white.withAlpha(0.7f));
+	g.fillPath(searchPath);
+}
+
+MarkdownPreview::MarkdownDatabaseTreeview::Item::Item(MarkdownDataBase::Item item_, MarkdownPreview& previewParent_):
+	TreeViewItem(),
+	item(item_),
+	previewParent(previewParent_)
+{
+	previewParent_.toc.tree.addKeyListener(this);
+}
+
+MarkdownPreview::MarkdownDatabaseTreeview::Item::~Item()
+{
+	previewParent.toc.tree.removeKeyListener(this);
+}
+
+bool MarkdownPreview::MarkdownDatabaseTreeview::Item::keyPressed(const KeyPress& key, Component*)
+{
+	if (key.getKeyCode() == KeyPress::returnKey)
+	{
+		gotoLink();
+		return true;
+	}
+
+	return false;
+}
+
+bool MarkdownPreview::MarkdownDatabaseTreeview::Item::mightContainSubItems()
+{ return item.hasChildren(); }
+
+String MarkdownPreview::MarkdownDatabaseTreeview::Item::getUniqueName() const
+{ return item.url.toString(MarkdownLink::UrlFull); }
+
+void MarkdownPreview::MarkdownDatabaseTreeview::Item::itemOpennessChanged(bool isNowOpen)
+{
+	if (item.isAlwaysOpen && !isNowOpen)
+		return;
+
+	clearSubItems();
+
+	if (isNowOpen)
+	{
+		for (auto c : item)
+		{
+			if (c.tocString.isEmpty())
+				continue;
+
+			auto i = new Item(c, previewParent);
+
+			addSubItem(i);
+
+			auto currentLink = previewParent.renderer.getLastLink();
+
+			const bool open = c.isAlwaysOpen || currentLink.isChildOf(c.url);
+
+			if (open)
+				i->setOpen(true);
+
+
+		}
+
+	}
+
+	//previewParent.resized();
+}
+
+MarkdownParser* MarkdownPreview::MarkdownDatabaseTreeview::Item::getCurrentParser()
+{
+	return &previewParent.renderer;
+}
+
+MarkdownPreview::MarkdownDatabaseTreeview::Item* MarkdownPreview::MarkdownDatabaseTreeview::Item::selectIfURLMatches(
+	const MarkdownLink& url)
+{
+	if (item.url == url)
+	{
+		return this;
+	}
+
+	for (int i = 0; i < getNumSubItems(); i++)
+	{
+		if (auto it = dynamic_cast<Item*>(getSubItem(i))->selectIfURLMatches(url))
+			return it;
+	}
+
+	return nullptr;
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::Item::gotoLink()
+{
+	if (auto p = getCurrentParser())
+	{
+		previewParent.currentSearchResults = nullptr;
+
+		previewParent.renderer.gotoLink(item.url.withRoot(previewParent.rootDirectory, true));
+
+#if 0
+					auto link = item.url.upToFirstOccurrenceOf("#", false, false);
+
+					if (p->getLastLink(true, false) != link)
+						p->gotoLink(item.url);
+
+					auto anchor = item.url.fromFirstOccurrenceOf("#", true, false);
+
+					if (anchor.isNotEmpty())
+					{
+						auto mp = &previewParent;
+
+						auto it = this;
+
+						auto f2 = [mp, anchor, it]()
+						{
+							if (anchor.isNotEmpty())
+								mp->renderer.gotoLink(anchor);
+
+							it->setSelected(true, true);
+						};
+
+						MessageManager::callAsync(f2);
+					}
+#endif
+	}
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::Item::itemClicked(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+	{
+		PopupLookAndFeel plaf;
+		PopupMenu m;
+		m.setLookAndFeel(&plaf);
+
+		previewParent.addEditingMenuItems(m);
+
+		int result = m.show();
+
+		if (previewParent.performPopupMenuForEditingIcons(result, item.url))
+			return;
+	}
+	else
+	{
+		setOpen(true);
+		gotoLink();
+	}
+
+
+}
+
+bool MarkdownPreview::MarkdownDatabaseTreeview::Item::canBeSelected() const
+{
+	return true;
+}
+
+int MarkdownPreview::MarkdownDatabaseTreeview::Item::getItemHeight() const
+{
+	return 26;
+}
+
+int MarkdownPreview::MarkdownDatabaseTreeview::Item::getItemWidth() const
+{
+	auto intendation = getItemPosition(false).getX();
+
+	const auto& s = previewParent.internalComponent.styleData;
+	auto f = s.getBoldFont().withHeight(16.0f);
+
+	int thisWidth = intendation + f.getStringWidth(item.tocString) + 30;
+
+	int maxWidth = thisWidth;
+
+	for (int i = 0; i < getNumSubItems(); i++)
+	{
+		maxWidth = jmax<int>(maxWidth, getSubItem(i)->getItemWidth());
+	}
+
+	return maxWidth;
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::Item::paintItem(Graphics& g, int width, int height)
+{
+
+
+
+	Rectangle<float> area({ 0.0f, 0.0f, (float)width, (float)height });
+
+
+
+	if (isSelected())
+	{
+		g.setColour(Colours::white.withAlpha(0.3f));
+		g.fillRoundedRectangle(area, 2.0f);
+	}
+
+	auto r = area.removeFromLeft(3.0f).reduced(0.0f, 1.0f);
+
+	area.removeFromLeft(5.0f);
+
+
+	const auto& s = previewParent.internalComponent.styleData;
+
+	g.setColour(item.c);
+	g.fillRect(r);
+
+
+
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+
+	auto f = s.getBoldFont().withHeight(16.0f);
+
+	g.setFont(f);
+
+	g.drawText(item.tocString, area, Justification::centredLeft);
+}
+
+MarkdownPreview::MarkdownDatabaseTreeview::MarkdownDatabaseTreeview(MarkdownPreview& parent_):
+	parent(parent_)
+{
+	parent.getHolder().addDatabaseListener(this);
+	addAndMakeVisible(tree);
+
+	setBgColour(bgColour);
+	tree.setColour(TreeView::ColourIds::selectedItemBackgroundColourId, Colours::transparentBlack);
+	tree.setColour(TreeView::ColourIds::linesColourId, Colours::red);
+	tree.setRootItemVisible(false);
+
+	tree.getViewport()->setScrollBarsShown(true, false);
+	databaseWasRebuild();
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::setBgColour(Colour c)
+{
+	bgColour = c;
+	tree.setColour(TreeView::ColourIds::backgroundColourId, bgColour);
+}
+
+MarkdownPreview::MarkdownDatabaseTreeview::~MarkdownDatabaseTreeview()
+{
+	parent.getHolder().removeDatabaseListener(this);
+
+	tree.setRootItem(nullptr);
+	rootItem = nullptr;
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::openAll(TreeViewItem* item)
+{
+	item->setOpen(true);
+
+	for (int i = 0; i < item->getNumSubItems(); i++)
+	{
+		openAll(item->getSubItem(i));
+	}
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::closeAllExcept(TreeViewItem* item, Array<TreeViewItem*> path)
+{
+	if (path.contains(item))
+		return;
+
+	item->setOpen(false);
+}
+
+bool MarkdownPreview::MarkdownDatabaseTreeview::closeIfNoMatch(TreeViewItem* item, const MarkdownLink& id)
+{
+	if (dynamic_cast<Item*>(item)->item.url == id)
+		return true;
+
+	item->setOpen(true);
+
+	bool found = false;
+
+	for (int i = 0; i < item->getNumSubItems(); i++)
+	{
+		found |= closeIfNoMatch(item->getSubItem(i), id);
+	}
+
+	if (!found)
+		item->setOpen(false);
+
+	return found;
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::setCurrentAnchor(const String& s)
+{
+	if (tree.getRootItem() == nullptr)
+		return;
+
+	auto nl = parent.renderer.getLastLink();
+
+	if (auto t = dynamic_cast<Item*>(tree.getRootItem())->selectIfURLMatches(nl.withAnchor(s)))
+	{
+		t->setSelected(true, true);
+		tree.scrollToKeepItemVisible(t);
+	}
+}
+
+int MarkdownPreview::MarkdownDatabaseTreeview::getPreferredWidth() const
+{
+	if (fixWidth != -1)
+		return fixWidth;
+
+	if (rootItem == nullptr)
+		return 300;
+
+	return jmax(300, tree.getRootItem()->getItemWidth());
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::paint(Graphics& g)
+{
+	g.fillAll(bgColour);
+
+}
+
+void MarkdownPreview::MarkdownDatabaseTreeview::resized()
+{
+	tree.setBounds(getLocalBounds());
 }
 
 

@@ -241,16 +241,14 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
 #include "hi_markdown/MarkdownRenderer.h"
 
-#if USE_BACKEND // Only include this file in the GPL build configuration
-#include "hi_tools/FaustTokeniser.h"
-#endif
+
 
 #include "mcl_editor/mcl_editor.h"
 
 
 
 #include "hi_tools/JavascriptTokeniser.h"
-#include "hi_tools/JavascriptTokeniserFunctions.h"
+
 
 #include "hi_standalone_components/ZoomableViewport.h"
 #include "hi_standalone_components/ChocWebView.h"

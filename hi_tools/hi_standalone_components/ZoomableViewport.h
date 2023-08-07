@@ -63,41 +63,15 @@ struct ZoomableViewport : public Component,
 
 	struct MouseWatcher : public MouseListener
 	{
-		MouseWatcher(ZoomableViewport& p) :
-			parent(p)
-		{
-			refreshListener();
-		}
+		MouseWatcher(ZoomableViewport& p);
 
-		~MouseWatcher()
-		{
-			if (auto c = parent.getContentComponent())
-				c->removeMouseListener(this);
-		}
+		~MouseWatcher();
 
-		void refreshListener()
-		{
-			if (auto c = parent.getContentComponent())
-			{
-				c->addMouseListener(this, true);
-				
-			}
-		}
+		void refreshListener();
 
-		void setToMidAfterResize()
-		{
-			if (auto c = parent.getContentComponent())
-			{
-				mousePos = parent.getLocalBounds().toFloat().getCentre();
-				graphMousePos = parent.getContentComponent()->getLocalBounds().getCentre().toFloat();
-			}
-		}
+		void setToMidAfterResize();
 
-		void mouseMove(const MouseEvent& e) override
-		{
-			mousePos = e.getEventRelativeTo(&parent).getPosition().toFloat();
-			graphMousePos = e.getEventRelativeTo(parent.getContentComponent()).getPosition().toFloat();
-		}
+		void mouseMove(const MouseEvent& e) override;
 
 		Point<float> getDeltaAfterResize();
 		Point<float> mousePos, graphMousePos;
@@ -131,34 +105,16 @@ struct ZoomableViewport : public Component,
 
 	void timerCallback() override;
 
-	void makeSwapSnapshot(float newSwapScale)
-	{
-		swapImage = content->createComponentSnapshot(content->getLocalBounds(), true, zoomFactor);
-		swapBounds = content->getBoundsInParent().toFloat();
-		swapScale = newSwapScale;
-		swapAlpha = 1.0f;
-		content->setVisible(false);
-		repaint();
-		startTimer(30);
-	}
+	void makeSwapSnapshot(float newSwapScale);
 
-	void clearSwapSnapshot()
-	{
-		swapImage = {};
-		content->setVisible(true);
-		content->setAlpha(swapAlpha);
-		repaint();
-	}
+	void clearSwapSnapshot();
 
 	void zoomToRectangle(Rectangle<int> areaToShow);
 
 	void setZoomFactor(float newZoomFactor, Point<float> centerPositionInGraph);
 
-    void setMaxZoomFactor(float newMaxZoomFactor)
-    {
-        maxZoomFactor = newMaxZoomFactor;
-    }
-    
+    void setMaxZoomFactor(float newMaxZoomFactor);
+
 	bool changeZoom(bool zoomIn);
 
 	void componentMovedOrResized(Component& component,
@@ -169,10 +125,7 @@ struct ZoomableViewport : public Component,
 	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved,
 		double newRangeStart) override;
 
-	Rectangle<int> getCurrentTarget() const
-	{
-		return dark.ruler.toNearestInt();
-	}
+	Rectangle<int> getCurrentTarget() const;
 
 	void setCurrentModalWindow(Component* newComponent, Rectangle<int> target);
 
@@ -184,16 +137,7 @@ struct ZoomableViewport : public Component,
 		static constexpr int margin = 20;
 		static constexpr int headerHeight = 32;
 
-		Holder(Component* content_, Rectangle<int> targetArea_) :
-			content(content_),
-			target(targetArea_)
-		{
-			addAndMakeVisible(content);
-
-			content->addComponentListener(this);
-
-			updateSize();
-		}
+		Holder(Component* content_, Rectangle<int> targetArea_);
 
 		Image bg;
 		PostGraphicsRenderer::DataStack stack;
@@ -202,123 +146,21 @@ struct ZoomableViewport : public Component,
 
 		void setBackground(Image img);
 
-		void updateSize()
-		{
-			setSize(content->getWidth() + margin, content->getHeight() + margin + headerHeight);
-		}
+		void updateSize();
 
-		void componentMovedOrResized(Component&, bool, bool wasResized)
-		{
-			if (wasResized)
-			{
-				updateSize();
-				updatePosition();
-			}
-		}
+		void componentMovedOrResized(Component&, bool, bool wasResized);
 
-		void updatePosition()
-		{
-			if (getParentComponent() == nullptr)
-			{
-				jassertfalse;
-				return;
-			}
+		void updatePosition();
 
-			auto thisBounds = getBoundsInParent();
-
-			auto parentBounds = getParentComponent()->getLocalBounds();
-
-			if (parentBounds.getWidth() - 150 > thisBounds.getWidth() || parentBounds.getHeight() - 150)
-			{
-				lockPosition = true;
-
-				auto newBounds = parentBounds.withSizeKeepingCentre(thisBounds.getWidth(), thisBounds.getHeight());
-
-				Point<int> x(newBounds.getX(), newBounds.getY());
-
-				setTopLeftPosition(x.transformedBy(getTransform().inverted()));
-				updateShadow();
-				return;
-			}
-
-			bool alignY = target.getWidth() > target.getHeight();
-
-			auto rect = target.withSizeKeepingCentre(getWidth(), getHeight());
-
-			if (alignY)
-			{
-				auto delta = target.getHeight() / 2 + 20;
-
-				auto yRatio = (float)target.getY() / (float)getParentComponent()->getHeight();
-
-				if (yRatio > 0.5f)
-				{
-					if (lockPosition) // this prevents jumping around...
-					{
-						updateShadow();
-						return;
-					}
-
-					rect.translate(0, -rect.getHeight() / 2 - delta);
-					lockPosition = true;
-				}
-				else
-					rect.translate(0, rect.getHeight() / 2 + delta);
-			}
-			else
-			{
-				auto delta = target.getWidth() / 2 + 20;
-
-				auto xRatio = (float)target.getX() / (float)getParentComponent()->getWidth();
-
-				if (xRatio > 0.5f)
-				{
-					if (lockPosition) // this prevents jumping around...
-					{
-						updateShadow();
-						return;
-					}
-
-					rect.translate(-rect.getWidth() / 2 - delta, 0);
-					lockPosition = true;
-				}
-				else
-					rect.translate(rect.getWidth() / 2 + delta, 0);
-
-				rect.setY(target.getY());
-			}
-
-			setTopLeftPosition(rect.getTopLeft());
-			updateShadow();
-		}
-
-		void updateShadow()
-		{
-			auto b = getBoundsInParent();
-
-			findParentComponentOfClass<ZoomableViewport>()->dark.setRuler(target, b);
-		}
+		void updateShadow();
 
 		void paint(Graphics& g) override;
 
-		void mouseDown(const MouseEvent& event) override
-		{
-			dragger.startDraggingComponent(this, event);
-		}
+		void mouseDown(const MouseEvent& event) override;
 
-		void mouseDrag(const MouseEvent& event) override
-		{
-			dragger.dragComponent(this, event, nullptr);
-			updateShadow();
-		}
+		void mouseDrag(const MouseEvent& event) override;
 
-		void resized()
-		{
-			auto b = getLocalBounds();
-			b.removeFromTop(headerHeight);
-			b = b.reduced(margin / 2);
-			content->setBounds(b);
-		}
+		void resized();
 
 		Rectangle<int> target;
 
@@ -331,30 +173,11 @@ struct ZoomableViewport : public Component,
 
 	struct Dark : public Component
 	{
-		void paint(Graphics& g) override
-		{
-			g.fillAll(Colour(0xff1d1d1d).withAlpha(0.5f));
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
-			float width = 2.0f;
-			g.fillRoundedRectangle(ruler, width);
+		void paint(Graphics& g) override;
 
-			DropShadow sh;
-			sh.colour = Colours::black.withAlpha(0.5f);
-			sh.radius = 40;
-			sh.drawForRectangle(g, shadow);
-		}
+		void setRuler(Rectangle<int> area, Rectangle<int> componentArea);
 
-		void setRuler(Rectangle<int> area, Rectangle<int> componentArea)
-		{
-			ruler = area.toFloat();
-			shadow = componentArea;
-			repaint();
-		}
-
-		void mouseDown(const MouseEvent&) override
-		{
-			findParentComponentOfClass<ZoomableViewport>()->setCurrentModalWindow(nullptr, {});
-		}
+		void mouseDown(const MouseEvent&) override;
 
 		Rectangle<float> ruler;
 		Rectangle<int> shadow;
@@ -393,49 +216,26 @@ struct ZoomableViewport : public Component,
 		return dynamic_cast<const T*>(getContentComponent());
 	}
 
-	Component* getContentComponent()
-	{
-		return content.get();
-	}
+	Component* getContentComponent();
 
-	const Component* getContentComponent() const
-	{
-		return content.get();
-	}
+	const Component* getContentComponent() const;
 
 	struct ZoomListener
 	{
-		virtual ~ZoomListener() {};
+		virtual ~ZoomListener();;
 
 		virtual void zoomChanged(float newScalingFactor) = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ZoomListener);
 	};
 
-	void addZoomListener(ZoomListener* l)
-	{
-		listeners.addIfNotAlreadyThere(l);
-	}
+	void addZoomListener(ZoomListener* l);
 
-	void removeZoomListener(ZoomListener* l)
-	{
-		listeners.removeAllInstancesOf(l);
-	}
+	void removeZoomListener(ZoomListener* l);
 
-	void setScrollOnDragEnabled(bool shouldBeEnabled)
-	{
-		if (shouldBeEnabled != dragToScroll)
-		{
-			dragToScroll = shouldBeEnabled;
+	void setScrollOnDragEnabled(bool shouldBeEnabled);
 
-			setMouseCursor(shouldBeEnabled ? MouseCursor::DraggingHandCursor : MouseCursor::NormalCursor);
-		}
-	}
-
-	void setMouseWheelScrollEnabled(bool shouldBeEnabled)
-	{
-		mouseWheelScroll = shouldBeEnabled;
-	}
+	void setMouseWheelScrollEnabled(bool shouldBeEnabled);
 
 	std::function<void(Component*)> contentFunction;
 

@@ -119,6 +119,25 @@ void SafeChangeBroadcaster::enablePooledUpdate(PooledUIUpdater* updater)
 
 CopyPasteTarget::HandlerFunction* CopyPasteTarget::handlerFunction = nullptr;
 
+CopyPasteTargetHandler* CopyPasteTarget::HandlerFunction::getHandler(Component* c)
+{
+	return f(c);
+}
+
+CopyPasteTarget::CopyPasteTarget(): isSelected(false)
+{}
+
+CopyPasteTarget::~CopyPasteTarget()
+{
+	masterReference.clear();
+}
+
+bool CopyPasteTarget::isSelectedForCopyAndPaste()
+{ return isSelected; }
+
+CopyPasteTargetHandler* CopyPasteTarget::getNothing(Component*)
+{ return nullptr; }
+
 void CopyPasteTarget::grabCopyAndPasteFocus()
 {
 	Component *thisAsComponent = dynamic_cast<Component*>(this);
@@ -289,6 +308,83 @@ StringArray RegexFunctions::getFirstMatch(const String &wildcard, const String &
 	}
 #endif
 }
+
+ComplexDataUIBase::SourceListener::~SourceListener()
+{}
+
+ComplexDataUIBase::EditorBase::~EditorBase()
+{}
+
+void ComplexDataUIBase::EditorBase::setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn)
+{
+	laf = l;
+
+	if (shouldOwn)
+		ownedLaf = l;
+
+	if (auto asComponent = dynamic_cast<Component*>(this))
+		asComponent->setLookAndFeel(l);
+}
+
+template <typename T>
+T* ComplexDataUIBase::EditorBase::getSpecialLookAndFeel()
+{
+	return dynamic_cast<T*>(laf);
+}
+
+void ComplexDataUIBase::SourceWatcher::setNewSource(ComplexDataUIBase* newSource)
+{
+	if (newSource != currentSource)
+	{
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->sourceHasChanged(currentSource, newSource);
+		}
+
+		currentSource = newSource;
+	}
+}
+
+void ComplexDataUIBase::SourceWatcher::addSourceListener(SourceListener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void ComplexDataUIBase::SourceWatcher::removeSourceListener(SourceListener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+ComplexDataUIBase::~ComplexDataUIBase()
+{}
+
+void ComplexDataUIBase::setGlobalUIUpdater(PooledUIUpdater* updater)
+{
+	internalUpdater.setUpdater(updater);
+}
+
+void ComplexDataUIBase::sendDisplayIndexMessage(float n)
+{
+	internalUpdater.sendDisplayChangeMessage(n, sendNotificationAsync);
+}
+
+ComplexDataUIUpdaterBase& ComplexDataUIBase::getUpdater()
+{ return internalUpdater; }
+
+const ComplexDataUIUpdaterBase& ComplexDataUIBase::getUpdater() const
+{ return internalUpdater; }
+
+void ComplexDataUIBase::setUndoManager(UndoManager* managerToUse)
+{
+	undoManager = managerToUse;
+}
+
+UndoManager* ComplexDataUIBase::getUndoManager(bool useUndoManager)
+{ return useUndoManager ? undoManager : nullptr; }
+
+hise::SimpleReadWriteLock& ComplexDataUIBase::getDataLock() const
+{ return dataLock; }
 
 bool FuzzySearcher::fitsSearch(const String &searchTerm, const String &stringToMatch, double fuzzyness)
 {
@@ -531,6 +627,43 @@ SimpleReadWriteLock::ScopedTryReadLock::~ScopedTryReadLock()
 }
 #endif
 
+	LockfreeAsyncUpdater::TimerPimpl::TimerPimpl(LockfreeAsyncUpdater* p_):
+		parent(*p_)
+	{
+		dirty = false;
+		startTimer(30);
+	}
+
+	LockfreeAsyncUpdater::TimerPimpl::~TimerPimpl()
+	{
+		dirty = false;
+		stopTimer();
+	}
+
+	void LockfreeAsyncUpdater::TimerPimpl::timerCallback()
+	{
+		bool v = true;
+		if (dirty.compare_exchange_strong(v, false))
+		{
+			parent.handleAsyncUpdate();
+		}
+	}
+
+	void LockfreeAsyncUpdater::TimerPimpl::triggerAsyncUpdate()
+	{
+		dirty.store(true);
+	}
+
+	void LockfreeAsyncUpdater::TimerPimpl::cancelPendingUpdate()
+	{
+		dirty.store(false);
+	}
+
+	void LockfreeAsyncUpdater::suspend(bool shouldBeSuspended)
+	{
+		pimpl.suspendTimer(shouldBeSuspended);
+	}
+
 LockfreeAsyncUpdater::~LockfreeAsyncUpdater()
 {
 	cancelPendingUpdate();
@@ -703,6 +836,714 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	}
 }
 
+ScrollbarFader::ScrollbarFader() = default;
+
+ScrollbarFader::~ScrollbarFader()
+{
+	for(auto sb: scrollbars)
+	{
+		if(sb != nullptr)
+		{
+			sb->removeListener(this);
+			sb->setLookAndFeel(nullptr);
+		}
+	}
+}
+
+void ScrollbarFader::Laf::drawStretchableLayoutResizerBar(Graphics& g, int w, int h, bool cond, bool isMouseOver,
+	bool isMouseDragging)
+{
+	float alpha = 0.0f;
+            
+	if(isMouseOver)
+		alpha += 0.3f;
+            
+	if(isMouseDragging)
+		alpha += 0.3f;
+            
+	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
+            
+	Rectangle<float> area(0.0f, 0.0f, (float)w, (float)h);
+            
+	area = area.reduced(1.0f);
+	g.fillRoundedRectangle(area, jmin(area.getWidth() / 2.0f, area.getHeight() / 2.0f));
+}
+
+void ScrollbarFader::scrollBarMoved(ScrollBar* sb, double)
+{
+	sb->setAlpha(1.0f);
+	startFadeOut();
+}
+
+void ScrollbarFader::addScrollBarToAnimate(ScrollBar& b)
+{
+	b.addListener(this);
+	b.setLookAndFeel(&slaf);
+	scrollbars.add({&b});
+}
+
+
+GlContextHolder::GlContextHolder(juce::Component& topLevelComponent): parent(topLevelComponent)
+{
+	context.setRenderer(this);
+	context.setContinuousRepainting(true);
+	context.setComponentPaintingEnabled(true);
+	context.attachTo(parent);
+}
+
+void GlContextHolder::detach()
+{
+	jassert(juce::MessageManager::getInstance()->isThisTheMessageThread());
+
+	const int n = clients.size();
+	for (int i = 0; i < n; ++i)
+		if (juce::Component* comp = clients.getReference(i).c)
+			comp->removeComponentListener(this);
+
+	context.detach();
+	context.setRenderer(nullptr);
+}
+
+void GlContextHolder::registerOpenGlRenderer(juce::Component* child)
+{
+	jassert(juce::MessageManager::getInstance()->isThisTheMessageThread());
+
+	if (dynamic_cast<juce::OpenGLRenderer*> (child) != nullptr)
+	{
+		if (findClientIndexForComponent(child) < 0)
+		{
+			clients.add(Client(child, (parent.isParentOf(child) ? Client::State::running : Client::State::suspended)));
+			child->addComponentListener(this);
+		}
+	}
+	else
+	jassertfalse;
+}
+
+void GlContextHolder::unregisterOpenGlRenderer(juce::Component* child)
+{
+	jassert(juce::MessageManager::getInstance()->isThisTheMessageThread());
+
+	const int index = findClientIndexForComponent(child);
+
+	if (index >= 0)
+	{
+		Client& client = clients.getReference(index);
+		{
+			juce::ScopedLock stateChangeLock(stateChangeCriticalSection);
+			client.nextState = Client::State::suspended;
+		}
+
+		child->removeComponentListener(this);
+		context.executeOnGLThread([this](juce::OpenGLContext&)
+		{
+			checkComponents(false, false);
+		}, true);
+		client.c = nullptr;
+
+		clients.remove(index);
+	}
+}
+
+void GlContextHolder::setBackgroundColour(const juce::Colour c)
+{
+	backgroundColour = c;
+}
+
+void GlContextHolder::checkComponents(bool isClosing, bool isDrawing)
+{
+	juce::Array<juce::Component*> initClients, runningClients;
+
+	{
+		juce::ScopedLock arrayLock(clients.getLock());
+		juce::ScopedLock stateLock(stateChangeCriticalSection);
+
+		const int n = clients.size();
+
+		for (int i = 0; i < n; ++i)
+		{
+			Client& client = clients.getReference(i);
+			if (client.c != nullptr)
+			{
+				Client::State nextState = (isClosing ? Client::State::suspended : client.nextState);
+
+				if (client.currentState == Client::State::running   && nextState == Client::State::running)   runningClients.add(client.c);
+				else if (client.currentState == Client::State::suspended && nextState == Client::State::running)   initClients.add(client.c);
+				else if (client.currentState == Client::State::running   && nextState == Client::State::suspended)
+				{
+					dynamic_cast<juce::OpenGLRenderer*> (client.c)->openGLContextClosing();
+				}
+
+				client.currentState = nextState;
+			}
+		}
+	}
+
+	for (int i = 0; i < initClients.size(); ++i)
+		dynamic_cast<juce::OpenGLRenderer*> (initClients.getReference(i))->newOpenGLContextCreated();
+
+	if (runningClients.size() > 0 && isDrawing)
+	{
+		const float displayScale = static_cast<float> (context.getRenderingScale());
+		const juce::Rectangle<int> parentBounds = (parent.getLocalBounds().toFloat() * displayScale).getSmallestIntegerContainer();
+
+		for (int i = 0; i < runningClients.size(); ++i)
+		{
+			juce::Component* comp = runningClients.getReference(i);
+				
+			juce::Rectangle<int> r = (parent.getLocalArea(comp, comp->getLocalBounds()).toFloat() * displayScale).getSmallestIntegerContainer();
+			juce::gl::glViewport((GLint)r.getX(),
+			                     (GLint)parentBounds.getHeight() - (GLint)r.getBottom(),
+			                     (GLsizei)r.getWidth(), (GLsizei)r.getHeight());
+			juce::OpenGLHelpers::clear(backgroundColour);
+
+			dynamic_cast<juce::OpenGLRenderer*> (comp)->renderOpenGL();
+		}
+	}
+}
+
+void GlContextHolder::componentParentHierarchyChanged(juce::Component& component)
+{
+	if (Client* client = findClientForComponent(&component))
+	{
+		juce::ScopedLock stateChangeLock(stateChangeCriticalSection);
+
+		client->nextState = (parent.isParentOf(&component) && component.isVisible() ? Client::State::running : Client::State::suspended);
+	}
+}
+
+void GlContextHolder::componentVisibilityChanged(juce::Component& component)
+{
+	if (Client* client = findClientForComponent(&component))
+	{
+		juce::ScopedLock stateChangeLock(stateChangeCriticalSection);
+
+		client->nextState = (parent.isParentOf(&component) && component.isVisible() ? Client::State::running : Client::State::suspended);
+	}
+}
+
+void GlContextHolder::componentBeingDeleted(juce::Component& component)
+{
+	const int index = findClientIndexForComponent(&component);
+
+	if (index >= 0)
+	{
+		Client& client = clients.getReference(index);
+
+		// You didn't call unregister before deleting this component
+		jassert(client.nextState == Client::State::suspended);
+		client.nextState = Client::State::suspended;
+
+		component.removeComponentListener(this);
+		context.executeOnGLThread([this](juce::OpenGLContext&)
+		{
+			checkComponents(false, false);
+		}, true);
+
+		client.c = nullptr;
+
+		clients.remove(index);
+	}
+}
+
+void GlContextHolder::newOpenGLContextCreated()
+{
+	checkComponents(false, false);
+}
+
+void GlContextHolder::renderOpenGL()
+{
+	juce::OpenGLHelpers::clear(backgroundColour);
+	checkComponents(false, true);
+}
+
+void GlContextHolder::openGLContextClosing()
+{
+	checkComponents(true, false);
+}
+
+GlContextHolder::Client::Client(juce::Component* comp, State nextStateToUse): c(comp), currentState(State::suspended), nextState(nextStateToUse)
+{}
+
+int GlContextHolder::findClientIndexForComponent(juce::Component* comp)
+{
+	const int n = clients.size();
+	for (int i = 0; i < n; ++i)
+		if (comp == clients.getReference(i).c)
+			return i;
+
+	return -1;
+}
+
+GlContextHolder::Client* GlContextHolder::findClientForComponent(juce::Component* comp)
+{
+	const int index = findClientIndexForComponent(comp);
+	if (index >= 0)
+		return &clients.getReference(index);
+
+	return nullptr;
+}
+
+KeyPress TopLevelWindowWithKeyMappings::getKeyPressFromString(Component* c, const String& s)
+{
+	if (s.isEmpty())
+		return {};
+
+	if (s.startsWith("$"))
+	{
+		auto id = Identifier(s.removeCharacters("$"));
+		return getFirstKeyPress(c, id);
+	}
+	else
+		return KeyPress::createFromDescription(s);
+}
+
+void TopLevelWindowWithKeyMappings::addShortcut(Component* c, const String& category, const Identifier& id,
+	const String& description, const KeyPress& k)
+{
+	if (auto t = getFromComponent(c))
+	{
+		if (t->shortcutIds.contains(id))
+			return;
+
+		auto info = ApplicationCommandInfo(t->shortcutIds.size() + 1);
+		t->shortcutIds.add(id);
+
+		info.categoryName = category;
+		info.shortName << description << " ($" << id.toString() << ")";
+		info.defaultKeypresses.add(k);
+		t->m.registerCommand(info);
+		t->keyMap.resetToDefaultMapping(info.commandID);
+	}
+}
+
+KeyPress TopLevelWindowWithKeyMappings::getFirstKeyPress(Component* c, const Identifier& id)
+{
+	if (auto t = getFromComponent(c))
+	{
+		if (auto idx = t->shortcutIds.indexOf(id) + 1)
+			return t->keyMap.getKeyPressesAssignedToCommand(idx).getFirst();
+	}
+
+	return KeyPress();
+}
+
+bool TopLevelWindowWithKeyMappings::matches(Component* c, const KeyPress& k, const Identifier& id)
+{
+	if (auto t = getFromComponent(c))
+	{
+		if (auto idx = t->shortcutIds.indexOf(id) + 1)
+		{
+			return t->keyMap.getKeyPressesAssignedToCommand(idx).contains(k);
+		}
+	}
+
+	return false;
+}
+
+KeyPressMappingSet& TopLevelWindowWithKeyMappings::getKeyPressMappingSet()
+{ return keyMap; }
+
+TopLevelWindowWithKeyMappings::TopLevelWindowWithKeyMappings():
+	keyMap(m)
+{}
+
+TopLevelWindowWithKeyMappings::~TopLevelWindowWithKeyMappings()
+{
+	jassert(loaded);
+	// If you hit this assertion, you need to store the data in your
+	// sub class constructor
+	jassert(saved);
+}
+
+void TopLevelWindowWithKeyMappings::initialiseAllKeyPresses()
+{
+	initialised = true;
+}
+
+void TopLevelWindowWithKeyMappings::saveKeyPressMap()
+{
+	auto f = getKeyPressSettingFile();
+	auto xml = keyMap.createXml(true);
+	f.replaceWithText(xml->createDocument(""));
+	saved = true;
+}
+
+void TopLevelWindowWithKeyMappings::loadKeyPressMap()
+{
+	initialiseAllKeyPresses();
+
+	auto f = getKeyPressSettingFile();
+
+	if (auto xml = XmlDocument::parse(f))
+		keyMap.restoreFromXml(*xml);
+
+	loaded = true;
+}
+
+TopLevelWindowWithKeyMappings* TopLevelWindowWithKeyMappings::getFromComponent(Component* c)
+{
+	if (auto same = dynamic_cast<TopLevelWindowWithKeyMappings*>(c))
+		return same;
+
+	return c->findParentComponentOfClass<TopLevelWindowWithKeyMappings>();
+}
+
+TopLevelWindowWithOptionalOpenGL::~TopLevelWindowWithOptionalOpenGL()
+{
+	// Must call detachOpenGL() in derived destructor!
+		
+}
+
+Component* TopLevelWindowWithOptionalOpenGL::findRoot(Component* c)
+{
+	return dynamic_cast<Component*>(c->findParentComponentOfClass<TopLevelWindowWithOptionalOpenGL>());
+}
+
+TopLevelWindowWithOptionalOpenGL::ScopedRegisterState::ScopedRegisterState(TopLevelWindowWithOptionalOpenGL& t_,
+	Component* c_):
+	t(t_),
+	c(c_)
+{
+	if (t.contextHolder != nullptr)
+		t.contextHolder->registerOpenGlRenderer(c);
+}
+
+TopLevelWindowWithOptionalOpenGL::ScopedRegisterState::~ScopedRegisterState()
+{
+	if (t.contextHolder != nullptr)
+		t.contextHolder->unregisterOpenGlRenderer(c);
+}
+
+bool TopLevelWindowWithOptionalOpenGL::isOpenGLEnabled() const
+{ return contextHolder != nullptr; }
+
+void TopLevelWindowWithOptionalOpenGL::detachOpenGl()
+{
+	if (contextHolder != nullptr)
+		contextHolder->detach();
+}
+
+void TopLevelWindowWithOptionalOpenGL::setEnableOpenGL(Component* c)
+{
+	contextHolder = new GlContextHolder(*c);
+}
+
+void TopLevelWindowWithOptionalOpenGL::addChildComponentWithOpenGLRenderer(Component* c)
+{
+	if (contextHolder != nullptr)
+	{
+		contextHolder->registerOpenGlRenderer(c);
+	}
+}
+
+void TopLevelWindowWithOptionalOpenGL::removeChildComponentWithOpenGLRenderer(Component* c)
+{
+	if (contextHolder != nullptr)
+		contextHolder->unregisterOpenGlRenderer(c);
+}
+
+SuspendableTimer::Manager::~Manager()
+{}
+
+SuspendableTimer::SuspendableTimer():
+	internalTimer(*this)
+{}
+
+SuspendableTimer::~SuspendableTimer()
+{ internalTimer.stopTimer(); }
+
+void SuspendableTimer::startTimer(int milliseconds)
+{
+	lastTimerInterval = milliseconds;
+
+#if !HISE_HEADLESS
+	if (!suspended)
+		internalTimer.startTimer(milliseconds);
+#endif
+}
+
+void SuspendableTimer::stopTimer()
+{
+	lastTimerInterval = -1;
+
+	if (!suspended)
+	{
+		internalTimer.stopTimer();
+	}
+	else
+	{
+		// Must be stopped by suspendTimer
+		jassert(!internalTimer.isTimerRunning());
+	}
+}
+
+void SuspendableTimer::suspendTimer(bool shouldBeSuspended)
+{
+	if (shouldBeSuspended != suspended)
+	{
+		suspended = shouldBeSuspended;
+
+#if !HISE_HEADLESS
+		if (suspended)
+			internalTimer.stopTimer();
+		else if (lastTimerInterval != -1)
+			internalTimer.startTimer(lastTimerInterval);
+#endif
+	}
+}
+
+bool SuspendableTimer::isSuspended()
+{
+	return suspended;
+}
+
+SuspendableTimer::Internal::Internal(SuspendableTimer& parent_):
+	parent(parent_)
+{}
+
+void SuspendableTimer::Internal::timerCallback()
+{ parent.timerCallback(); }
+
+PooledUIUpdater::PooledUIUpdater():
+	pendingHandlers(8192)
+{
+	suspendTimer(false);
+	startTimer(30);
+}
+
+PooledUIUpdater::Listener::~Listener()
+{}
+
+PooledUIUpdater::SimpleTimer::SimpleTimer(PooledUIUpdater* h, bool shouldStart):
+	updater(h)
+{
+	if(shouldStart)
+		start();
+}
+
+PooledUIUpdater::SimpleTimer::~SimpleTimer()
+{
+	stop();
+}
+
+void PooledUIUpdater::SimpleTimer::start()
+{
+	startOrStop(true);
+}
+
+void PooledUIUpdater::SimpleTimer::stop()
+{
+	startOrStop(false);
+}
+
+bool PooledUIUpdater::SimpleTimer::isTimerRunning() const
+{ return isRunning; }
+
+void PooledUIUpdater::SimpleTimer::startOrStop(bool shouldStart)
+{
+	WeakReference<SimpleTimer> safeThis(this);
+
+	auto f = [safeThis, shouldStart]()
+	{
+		if (safeThis.get() != nullptr)
+		{
+			safeThis->isRunning = shouldStart;
+
+			if(shouldStart)
+				safeThis.get()->updater->simpleTimers.addIfNotAlreadyThere(safeThis);
+			else
+				safeThis.get()->updater->simpleTimers.removeAllInstancesOf(safeThis);
+		}
+	};
+
+	if (MessageManager::getInstance()->currentThreadHasLockedMessageManager())
+		f();
+	else
+		MessageManager::callAsync(f);
+}
+
+PooledUIUpdater::Broadcaster::Broadcaster()
+{}
+
+PooledUIUpdater::Broadcaster::~Broadcaster()
+{}
+
+void PooledUIUpdater::Broadcaster::setHandler(PooledUIUpdater* handler_)
+{
+	handler = handler_;
+}
+
+void PooledUIUpdater::Broadcaster::addPooledChangeListener(Listener* l)
+{ pooledListeners.addIfNotAlreadyThere(l); }
+
+void PooledUIUpdater::Broadcaster::removePooledChangeListener(Listener* l)
+{ pooledListeners.removeAllInstancesOf(l); }
+
+bool PooledUIUpdater::Broadcaster::isHandlerInitialised() const
+{ return handler != nullptr; }
+
+void PooledUIUpdater::timerCallback()
+{
+	{
+		ScopedLock sl(simpleTimers.getLock());
+
+		int x = 0;
+
+		for (int i = 0; i < simpleTimers.size(); i++)
+		{
+			auto st = simpleTimers[i];
+
+			x++;
+			if (st.get() != nullptr)
+				st->timerCallback();
+			else
+				simpleTimers.remove(i--);
+		}
+	}
+
+	WeakReference<Broadcaster> b;
+
+	while (pendingHandlers.pop(b))
+	{
+		if (b.get() != nullptr)
+		{
+			b->pending = false;
+
+			for (auto l : b->pooledListeners)
+			{
+				if (l != nullptr)
+					l->handlePooledMessage(b);
+			}
+		}
+	}
+}
+
+ComplexDataUIUpdaterBase::EventListener::~EventListener()
+{}
+
+ComplexDataUIUpdaterBase::~ComplexDataUIUpdaterBase()
+{
+	ScopedLock sl(updateLock);
+	listeners.clear();
+}
+
+void ComplexDataUIUpdaterBase::addEventListener(EventListener* l)
+{
+	ScopedLock sl(updateLock);
+	listeners.addIfNotAlreadyThere(l);
+	updateUpdater();
+}
+
+void ComplexDataUIUpdaterBase::removeEventListener(EventListener* l)
+{
+	ScopedLock sl(updateLock);
+	listeners.removeAllInstancesOf(l);
+	updateUpdater();
+}
+
+void ComplexDataUIUpdaterBase::setUpdater(PooledUIUpdater* updater)
+{
+	if (globalUpdater == nullptr)
+	{
+		ScopedLock sl(updateLock);
+		globalUpdater = updater;
+		updateUpdater();
+	}
+}
+
+void ComplexDataUIUpdaterBase::sendDisplayChangeMessage(float newIndexValue, NotificationType notify,
+	bool forceUpdate) const
+{
+	sendMessageToListeners(EventType::DisplayIndex, var(newIndexValue), notify, forceUpdate);
+}
+
+void ComplexDataUIUpdaterBase::sendContentChangeMessage(NotificationType notify, int indexThatChanged)
+{
+	sendMessageToListeners(EventType::ContentChange, var(indexThatChanged), notify, true);
+}
+
+void ComplexDataUIUpdaterBase::sendContentRedirectMessage()
+{
+	sendMessageToListeners(EventType::ContentRedirected, {}, sendNotificationSync, true);
+}
+
+PooledUIUpdater* ComplexDataUIUpdaterBase::getGlobalUIUpdater()
+{
+	return globalUpdater;
+}
+
+float ComplexDataUIUpdaterBase::getLastDisplayValue() const
+{
+	return lastDisplayValue;
+}
+
+void ComplexDataUIUpdaterBase::updateUpdater()
+{
+	if (globalUpdater != nullptr && currentUpdater == nullptr && listeners.size() > 0)
+		currentUpdater = new Updater(*this);
+
+	if (listeners.size() == 0 || globalUpdater == nullptr)
+		currentUpdater = nullptr;
+}
+
+void ComplexDataUIUpdaterBase::Updater::timerCallback()
+{
+	if (parent.lastChange != EventType::Idle)
+	{
+		parent.sendMessageToListeners(parent.lastChange, parent.lastValue, sendNotificationSync, true);
+	}
+}
+
+ComplexDataUIUpdaterBase::Updater::Updater(ComplexDataUIUpdaterBase& parent_):
+	SimpleTimer(parent_.globalUpdater),
+	parent(parent_)
+{
+	start();
+}
+
+void ComplexDataUIUpdaterBase::sendMessageToListeners(EventType t, var v, NotificationType n, bool forceUpdate) const
+{
+	if (n == dontSendNotification)
+		return;
+
+	if (t == EventType::DisplayIndex)
+		lastDisplayValue = (float)v;
+
+	if (n == sendNotificationSync)
+	{
+		bool isMoreImportantChange = t >= lastChange;
+		bool valueHasChanged = lastValue != v;
+
+		if (forceUpdate || (isMoreImportantChange && valueHasChanged))
+		{
+			ScopedLock sl(updateLock);
+
+			lastChange = jmax(t, lastChange);
+
+			for (auto l : listeners)
+			{
+				if (l.get() != nullptr)
+				{
+					l->onComplexDataEvent(t, v);
+
+					if (lastChange != EventType::DisplayIndex)
+						l->onComplexDataEvent(ComplexDataUIUpdaterBase::EventType::DisplayIndex, lastDisplayValue);
+				}
+			}
+		}
+
+		lastChange = EventType::Idle;
+	}
+	else
+	{
+		if (t >= lastChange)
+		{
+			lastChange = jmax(lastChange, t);
+			lastValue = v;
+		}
+	}
+}
 
 void PooledUIUpdater::Broadcaster::sendPooledChangeMessage()
 {
@@ -852,6 +1693,375 @@ float TempoSyncer::getTempoFactor(Tempo t)
 	return t < numTempos ? tempoFactors[(int)t] : tempoFactors[(int)Tempo::Quarter];
 }
 
+void MasterClock::setNextGridIsFirst()
+{
+	waitForFirstGrid = true;
+}
+
+void MasterClock::setSyncMode(SyncModes newSyncMode)
+{
+	currentSyncMode = newSyncMode;
+}
+
+void MasterClock::changeState(int timestamp, bool internalClock, bool startPlayback)
+{
+	if (currentSyncMode == SyncModes::Inactive)
+		return;
+
+	if (internalClock)
+		internalClockIsRunning = startPlayback;
+
+	// Already stopped / not running, just return
+	if (!startPlayback && currentState == State::Idle)
+		return;
+
+	// Nothing to do
+	if (internalClock && startPlayback && currentState == State::InternalClockPlay)
+		return;
+
+	// Nothing to do
+	if (!internalClock && startPlayback && currentState == State::ExternalClockPlay)
+		return;
+
+	// Ignore any internal clock events when the external is running and should be preferred
+	if(!shouldPreferInternal() && (currentState == State::ExternalClockPlay && internalClock))
+		return;
+
+	// Ignore any external clock events when the external is running and should be preferred
+	if (shouldPreferInternal() && (currentState == State::InternalClockPlay && !internalClock))
+		return;
+		
+	// Ignore the stop command from the external clock
+	if (currentSyncMode == SyncModes::SyncInternal && !startPlayback && !internalClock)
+		return;
+
+	nextTimestamp = timestamp;
+
+	if (startPlayback)
+		nextState = internalClock ? State::InternalClockPlay : State::ExternalClockPlay;
+	else
+		nextState = State::Idle;
+
+	// Restart the internal clock when the external is stopped
+	if (!internalClock && !startPlayback && internalClockIsRunning)
+	{
+		if(stopInternalOnExternalStop)
+			nextState = State::Idle;
+		else
+			nextState = State::InternalClockPlay;
+	}
+}
+
+MasterClock::GridInfo MasterClock::processAndCheckGrid(int numSamples,
+	const AudioPlayHead::CurrentPositionInfo& externalInfo)
+{
+	// check whether we want to process the external bpm
+	auto shouldUseExternalBpm = !linkBpmToSync || !shouldPreferInternal();
+
+	if (bpm != externalInfo.bpm && shouldUseExternalBpm)
+		setBpm(externalInfo.bpm);
+
+	GridInfo gi;
+
+	if (currentSyncMode == SyncModes::Inactive)
+		return gi;
+
+	if (currentSyncMode == SyncModes::SyncInternal && externalInfo.isPlaying)
+	{
+		uptime = externalInfo.timeInSamples;
+		samplesToNextGrid = gridDelta - (uptime % gridDelta);
+	}
+
+	if (currentState != nextState)
+	{
+		currentState = nextState;
+		uptime = numSamples - nextTimestamp;
+		currentGridIndex = 0;
+
+		if (currentState != State::Idle && gridEnabled)
+		{
+
+			gi.change = true;
+			gi.timestamp = nextTimestamp;
+			gi.gridIndex = currentGridIndex;
+			gi.firstGridInPlayback = true;
+
+			samplesToNextGrid = gridDelta - nextTimestamp;
+		}
+
+		nextTimestamp = 0;
+	}
+	else
+	{
+		if (currentState == State::Idle)
+			uptime = 0;
+		else
+		{
+			jassert(nextTimestamp == 0);
+			uptime += numSamples;
+
+			samplesToNextGrid -= numSamples;
+
+			if (samplesToNextGrid < 0 && gridEnabled)
+			{
+				currentGridIndex++;
+
+				gi.change = true;
+				gi.firstGridInPlayback = waitForFirstGrid;
+				waitForFirstGrid = false;
+				gi.gridIndex = currentGridIndex;
+				gi.timestamp = numSamples + samplesToNextGrid;
+
+				samplesToNextGrid += gridDelta;
+			}
+		}
+	}
+
+	return gi;
+}
+
+bool MasterClock::isPlaying() const
+{
+	return currentState == State::ExternalClockPlay || currentState == State::InternalClockPlay;
+}
+
+MasterClock::SyncModes MasterClock::getSyncMode() const
+{
+	return currentSyncMode;
+}
+
+MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHead::CurrentPositionInfo& info,
+	int numSamples)
+{
+	GridInfo gi;
+
+	if (currentSyncMode == SyncModes::Inactive)
+		return gi;
+
+	auto isPlayingExternally = currentState == State::ExternalClockPlay;
+	auto shouldPlayExternally = (currentSyncMode == SyncModes::ExternalOnly || currentSyncMode == SyncModes::PreferExternal) &&
+		info.isPlaying;
+		
+	if (isPlayingExternally != shouldPlayExternally)
+	{
+		changeState(0, false, shouldPlayExternally);
+
+		if (currentSyncMode == SyncModes::PreferExternal &&
+			currentState == State::InternalClockPlay &&
+			nextState == State::ExternalClockPlay)
+		{
+			gi.change = true;
+			gi.gridIndex = 0;
+			gi.firstGridInPlayback = true;
+		}
+
+		currentState = nextState;
+
+		if (currentState == State::ExternalClockPlay && gridEnabled)
+		{
+			auto multiplier = (double)TempoSyncer::getTempoFactor(clockGrid);
+
+			auto gridPos = std::fmod(info.ppqPosition, multiplier);
+
+			if (gridPos == 0.0)
+			{
+				gi.change = true;
+				gi.gridIndex = info.ppqPosition / multiplier;
+				gi.firstGridInPlayback = true;
+				gi.timestamp = 0;
+				waitForFirstGrid = false;
+			}
+			else
+			{
+				waitForFirstGrid = true;
+			}
+		}
+	}
+		
+	Range<int64> estimatedRange(uptime, uptime + currentBlockSize * 3);
+        
+	uptime = info.timeInSamples;
+
+	if(!estimatedRange.contains(uptime))
+	{
+		if(info.isPlaying)
+		{
+			gi.resync = true;
+		}
+	}
+        
+	if (info.isPlaying && gridEnabled)
+	{
+		auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(info.bpm, sampleRate, 1.0f);
+		auto numSamplesInPPQ = (double)numSamples / quarterInSamples;
+		auto ppqBefore = info.ppqPosition;
+		auto ppqAfter = ppqBefore + numSamplesInPPQ;
+		auto multiplier = (double)TempoSyncer::getTempoFactor(clockGrid);
+
+		auto i1 = (int)(ppqBefore / multiplier);
+		auto i2 = (int)(ppqAfter / multiplier);
+
+		if (i1 != i2)
+		{
+			auto gridPosPPQ = (double)i2 * multiplier;
+			auto deltaPPQ = gridPosPPQ - ppqBefore;
+
+			gi.change = true;
+			gi.gridIndex = i2;
+			gi.timestamp = TempoSyncer::getTempoInSamples(bpm, sampleRate, (float)deltaPPQ);
+
+			if (waitForFirstGrid)
+			{
+				gi.firstGridInPlayback = true;
+				waitForFirstGrid = false;
+			}
+		}
+	}
+
+	return gi;
+}
+
+AudioPlayHead::CurrentPositionInfo MasterClock::createInternalPlayHead()
+{
+	AudioPlayHead::CurrentPositionInfo info;
+		
+	int ms = 1000.0 * uptime / sampleRate;
+	auto quarterMs = TempoSyncer::getTempoInMilliSeconds(bpm, TempoSyncer::Quarter);
+	float quarterPos = ms / quarterMs;
+
+	info.bpm = bpm;
+	info.isPlaying = currentState != State::Idle;
+
+	info.timeInSamples = uptime;
+	info.ppqPosition = quarterPos;
+
+	return info;
+}
+
+void MasterClock::checkInternalClockForExternalStop(AudioPlayHead::CurrentPositionInfo& infoToUse,
+	const AudioPlayHead::CurrentPositionInfo& externalInfo)
+{
+	if (externalClockWasPlayingLastTime && !externalInfo.isPlaying)
+	{
+		nextState = State::Idle;
+		infoToUse.isPlaying = false;
+	}
+		
+	externalClockWasPlayingLastTime = externalInfo.isPlaying;
+}
+
+void MasterClock::prepareToPlay(double newSampleRate, int blockSize)
+{
+	sampleRate = newSampleRate;
+	currentBlockSize = blockSize;
+	updateGridDelta();
+}
+
+void MasterClock::setBpm(double newBPM)
+{
+	bpm = newBPM;
+	updateGridDelta();
+}
+
+void MasterClock::setLinkBpmToSyncMode(bool should)
+{
+	linkBpmToSync = should;
+}
+
+TempoSyncer::Tempo MasterClock::getCurrentClockGrid() const
+{ return clockGrid; }
+
+bool MasterClock::allowExternalSync() const
+{
+	return currentSyncMode != SyncModes::InternalOnly;
+}
+
+void MasterClock::setStopInternalClockOnExternalStop(bool shouldStop)
+{
+	stopInternalOnExternalStop = shouldStop;
+}
+
+bool MasterClock::shouldCreateInternalInfo(const AudioPlayHead::CurrentPositionInfo& externalInfo) const
+{
+	if (currentSyncMode == SyncModes::Inactive)
+		return false;
+
+	if (currentSyncMode == SyncModes::ExternalOnly)
+		return false;
+
+	if (currentSyncMode == SyncModes::InternalOnly)
+		return true;
+
+	if (currentSyncMode == SyncModes::PreferExternal && (externalInfo.isPlaying || currentState == State::ExternalClockPlay))
+		return false;
+
+	if (currentSyncMode == SyncModes::SyncInternal)
+		return true;
+
+	return true;
+}
+
+void MasterClock::setClockGrid(bool enableGrid, TempoSyncer::Tempo t)
+{
+	gridEnabled = enableGrid;
+	clockGrid = t;
+	updateGridDelta();
+}
+
+bool MasterClock::isGridEnabled() const
+{ return gridEnabled; }
+
+double MasterClock::getPPQPos(int timestampFromNow) const
+{
+	if (currentSyncMode == SyncModes::Inactive)
+		return 0.0;
+
+	auto quarterSamples = (double)TempoSyncer::getTempoInSamples(bpm, sampleRate, 1.0f);
+	auto uptimeToUse = uptime - timestampFromNow;
+	return uptimeToUse / quarterSamples;
+}
+
+void MasterClock::reset()
+{
+	gridEnabled = false;
+	clockGrid = TempoSyncer::numTempos;
+	currentSyncMode = SyncModes::Inactive;
+        
+	uptime = 0;
+	samplesToNextGrid = 0;
+        
+	currentGridIndex = 0;
+
+	internalClockIsRunning = false;
+
+	externalClockWasPlayingLastTime = false;
+
+	// they don't need to be resetted...
+	//sampleRate = 44100.0;
+	//bpm = 120.0;
+
+	nextTimestamp = 0;
+	currentState = State::Idle;
+	nextState = State::Idle;
+
+	waitForFirstGrid = false;
+        
+	updateGridDelta();
+}
+
+void MasterClock::updateGridDelta()
+{
+	if (gridEnabled)
+	{
+		gridDelta = TempoSyncer::getTempoInSamples(bpm, sampleRate, clockGrid);
+	}
+}
+
+bool MasterClock::shouldPreferInternal() const
+{
+	return currentSyncMode == SyncModes::PreferInternal || currentSyncMode == SyncModes::InternalOnly || currentSyncMode == SyncModes::SyncInternal;
+}
+
 void ScrollbarFader::Laf::drawScrollbar(Graphics& g, ScrollBar&, int x, int y, int width, int height, bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
 {
     g.fillAll(bg);
@@ -959,6 +2169,153 @@ void FFTHelpers::applyWindow(WindowType t, float* data, int s, bool normalise)
         FloatVectorOperations::clear(data, s);
         break;
     }
+}
+
+Array<FFTHelpers::WindowType> FFTHelpers::getAvailableWindowTypes()
+{
+	return { Rectangle, Triangle, Hamming, Hann, BlackmanHarris, Kaiser, FlatTop };
+}
+
+String FFTHelpers::getWindowType(WindowType w)
+{
+	switch (w)
+	{
+	case Rectangle: return "Rectangle";
+	case Hamming: return "Hamming";
+	case Hann: return "Hann";
+	case BlackmanHarris: return "Blackman Harris";
+	case Triangle: return "Triangle";
+	case FlatTop: return "FlatTop";
+	case Kaiser: return "Kaiser";
+	default: return {};
+	}
+}
+
+void FFTHelpers::toComplexArray(const AudioSampleBuffer& phaseBuffer, const AudioSampleBuffer& magBuffer,
+	AudioSampleBuffer& out)
+{
+	auto phase = phaseBuffer.getReadPointer(0);
+	auto mag = magBuffer.getReadPointer(0);
+
+	auto output = out.getWritePointer(0);
+		
+	jassert(phaseBuffer.getNumSamples() == magBuffer.getNumSamples());
+	jassert(phaseBuffer.getNumSamples() * 2 == out.getNumSamples());
+
+	int size = phaseBuffer.getNumSamples();
+
+	for (int i = 0; i < size; i++)
+	{
+		auto re = mag[i] * std::cos(phase[i]);
+		auto im = mag[i] * std::sin(phase[i]);
+
+		output[i * 2] = re;
+		output[i * 2 + 1] = im;
+	}
+}
+
+void FFTHelpers::toPhaseSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+{
+	auto input = inp.getReadPointer(0);
+	auto output = out.getWritePointer(0);
+
+	jassert(inp.getNumSamples() == out.getNumSamples() * 2);
+
+	auto numOriginalSamples = out.getNumSamples();
+
+	for (int i = 0; i < numOriginalSamples; i++)
+	{
+		auto re = input[i * 2];
+		auto im = input[i * 2 + 1];
+		output[i] = std::atan2(im, re);
+	}
+}
+
+void FFTHelpers::toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+{
+	auto input = inp.getReadPointer(0);
+	auto output = out.getWritePointer(0);
+        
+	jassert(inp.getNumSamples() == out.getNumSamples() * 2);
+
+	auto numOriginalSamples = out.getNumSamples();
+
+	for (int i = 0; i < numOriginalSamples; i++)
+	{
+		auto re = input[i * 2];
+		auto im = input[i * 2 + 1];
+		output[i] = sqrt(re * re + im * im);
+	}
+}
+
+void FFTHelpers::scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb, bool invert)
+{
+	auto data = b.getWritePointer(0);
+	auto numOriginalSamples = b.getNumSamples();
+
+	if (numOriginalSamples == 0)
+		return;
+
+	auto factor = 2.f / (float)numOriginalSamples;
+
+	if (invert)
+	{
+		factor = 1.0f / factor;
+		factor *= 0.5f;
+
+		if (convertToDb)
+		{
+			for (int i = 0; i < numOriginalSamples; i++)
+				data[i] = Decibels::decibelsToGain(data[i]);
+		}
+	}
+
+	FloatVectorOperations::multiply(data, factor, numOriginalSamples);
+
+	if (!invert && convertToDb)
+	{
+		for (int i = 0; i < numOriginalSamples; i++)
+			data[i] = Decibels::gainToDecibels(data[i]);
+	}
+}
+
+StringArray Spectrum2D::LookupTable::getColourSchemes()
+{ return { "BlackWhite", "Rainbow", "VioletOrange", "HiseColours" }; }
+
+void Spectrum2D::Parameters::setFromBuffer(const AudioSampleBuffer& originalSource)
+{
+	auto numSamplesToCheck = (double)originalSource.getNumSamples();
+	numSamplesToCheck = std::pow(numSamplesToCheck, JUCE_LIVE_CONSTANT_OFF(0.54));
+
+	auto bestOrder = 11;
+
+	set("FFTSize", bestOrder, dontSendNotification);
+
+	notifier.sendMessage(sendNotificationSync, "All", -1);
+}
+
+Spectrum2D::Holder::~Holder()
+{}
+
+float Spectrum2D::Holder::getXPosition(float input) const
+{
+	auto db = (float)getParameters()->minDb;
+	auto l = Decibels::gainToDecibels(input, -1.0f * db);
+	l = (l + db) / db;
+	return l * l;
+}
+
+float Spectrum2D::Holder::getYPosition(float input) const
+{
+	return 1.0f - std::exp(std::log(input) * 0.2f);
+}
+
+Spectrum2D::Spectrum2D(Holder* h, const AudioSampleBuffer& s):
+	holder(h),
+	originalSource(s),
+	parameters(new Parameters())
+{
+	parameters->setFromBuffer(s);
 }
 
 void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
@@ -1121,6 +2478,96 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
     }
     
     return b;
+}
+
+ThreadController::Scaler::Scaler(bool isStep_):
+	isStep(isStep_)
+{}
+
+double ThreadController::Scaler::getScaledProgress(double input) const
+{
+	if(isStep)
+		return (v1 + input) / v2;
+	else
+		return v1 + (v2 - v1) * input;
+}
+
+
+
+
+
+
+ThreadController::ThreadController(Thread* t, double* p, int timeoutMs, uint32& lastTime_):
+	juceThreadPointer(t),
+	progress(p),
+	timeout(timeoutMs),
+	lastTime(&lastTime_)
+{}
+
+ThreadController::ThreadController():
+	juceThreadPointer(nullptr),
+	progress(nullptr),
+	lastTime(nullptr)
+{}
+
+ThreadController::operator bool() const
+{
+	if (juceThreadPointer == nullptr)
+		return false;
+
+	auto thisTime = Time::getMillisecondCounter();
+
+	if (lastTime != nullptr && *lastTime != 0 && thisTime - *lastTime > timeout)
+	{
+		// If this hits, it means that the timeout you've set is too low.
+		// Either increase the timeout or add more checks in between...
+		;
+
+		// prevent the jassert above to mess up subsequent timeouts...
+		thisTime = Time::getMillisecondCounter();
+	}
+
+	if(lastTime != nullptr)
+		*lastTime = thisTime;
+
+	return !static_cast<Thread*>(juceThreadPointer)->threadShouldExit();
+}
+
+void ThreadController::extendTimeout(uint32 milliSeconds)
+{
+	if(lastTime != nullptr)
+		*lastTime += milliSeconds;
+}
+
+bool ThreadController::setProgress(double p)
+{
+	if (progress == nullptr)
+		return true;
+
+	for (int i = progressScalerIndex-1; i >= 0; i--)
+	{
+		p = jlimit(0.0, 1.0, progressScalers[i].getScaledProgress(p));
+	}
+
+	// If this hits, you might have forgot a scaler in the call stack...
+	jassert(*progress <= p);
+
+	*progress = p;
+
+	return *this;
+}
+
+void ThreadController::pushProgressScaler(const Scaler& f)
+{
+	progressScalers[progressScalerIndex++] = f;
+	jassert(isPositiveAndBelow(progressScalerIndex, NumProgressScalers));
+	setProgress(0.0);
+}
+
+void ThreadController::popProgressScaler()
+{
+	progressScalers[progressScalerIndex--] = {};
+	jassert(progressScalerIndex >= 0);
 }
 
 void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationType n)
@@ -1335,6 +2782,46 @@ void Spectrum2D::Parameters::Editor::resized()
 		labels[i]->setBounds(r.removeFromLeft(128));
 		editors[i]->setBounds(r);
 	}	
+}
+
+SemanticVersionChecker::SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)
+{
+	parseVersion(oldVersion, oldVersion_);
+	parseVersion(newVersion, newVersion_);
+}
+
+bool SemanticVersionChecker::isMajorVersionUpdate() const
+{ return newVersion.majorVersion > oldVersion.majorVersion; }
+
+bool SemanticVersionChecker::isMinorVersionUpdate() const
+{ return newVersion.minorVersion > oldVersion.minorVersion; }
+
+bool SemanticVersionChecker::isPatchVersionUpdate() const
+{ return newVersion.patchVersion > oldVersion.patchVersion; }
+
+bool SemanticVersionChecker::oldVersionNumberIsValid() const
+{ return oldVersion.validVersion; }
+
+bool SemanticVersionChecker::newVersionNumberIsValid() const
+{ return newVersion.validVersion; }
+
+void SemanticVersionChecker::parseVersion(VersionInfo& info, const String& v)
+{
+	const String sanitized = v.replace("v", "", true);
+	StringArray a = StringArray::fromTokens(sanitized, ".", "");
+
+	if (a.size() != 3)
+	{
+		info.validVersion = false;
+		return;
+	}
+	else
+	{
+		info.majorVersion = a[0].getIntValue();
+		info.minorVersion = a[1].getIntValue();
+		info.patchVersion = a[2].getIntValue();
+		info.validVersion = true;
+	}
 }
 
 bool SemanticVersionChecker::isUpdate() const

@@ -1253,6 +1253,657 @@ mcl::TextDocument::TextDocument(CodeDocument& doc_) :
 }
 
 
+BreakpointManager::~BreakpointManager()
+{}
+
+BreakpointManager::Listener::~Listener()
+{}
+
+void BreakpointManager::addListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void BreakpointManager::removeListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+void BreakpointManager::addBreakpoint(int lineNumber, NotificationType notifyListeners)
+{
+	if (!breakpoints.contains(lineNumber))
+	{
+		breakpoints.add(lineNumber);
+		breakpoints.sort();
+
+		if (notifyListeners != dontSendNotification)
+			sendListenerMessage();
+	}
+}
+
+void BreakpointManager::sendListenerMessage()
+{
+	for (auto l : listeners)
+	{
+		if (l != nullptr)
+			l->breakpointsChanged();
+	}
+}
+
+FoldableLineRange::FoldableLineRange(const CodeDocument& doc, Range<int> r, bool folded_):
+	start(doc, r.getStart(), 0),
+	end(doc, r.getEnd(), 0),
+	folded(folded_)
+{
+	start.setPositionMaintained(true);
+	end.setPositionMaintained(true);
+}
+
+void FoldableLineRange::sortList(List listToSort, bool sortChildren)
+{
+	struct PositionSorter
+	{
+		static int compareElements(FoldableLineRange* first, FoldableLineRange* second)
+		{
+			auto start1 = first->start.getLineNumber();
+			auto start2 = second->start.getLineNumber();
+
+			if (start1 < start2)
+				return -1;
+			if (start1 > start2)
+				return 1;
+
+			return 0;
+		}
+	};
+
+	PositionSorter s;
+	listToSort.sort(s);
+
+	if (sortChildren)
+	{
+		for (auto l : listToSort)
+			sortList(l->children, true);
+	}
+}
+
+Result FoldableLineRange::checkList(List& listToCheck, WeakPtr parent)
+{
+	for (int i = 0; i < listToCheck.size(); i++)
+	{
+		if (listToCheck[i]->getLineRange().getLength() <= 1)
+			listToCheck.remove(i--);
+	}
+
+	for (auto l : listToCheck)
+	{
+		if (l->parent != parent)
+			return Result::fail("Illegal parent in list");
+
+		auto r = checkList(l->children, l);
+
+		if (!r.wasOk())
+			return r;
+	}
+
+	return Result::ok();
+}
+
+FoldableLineRange::Listener::~Listener()
+{}
+
+void FoldableLineRange::Listener::rootWasRebuilt(WeakPtr newRoot)
+{}
+
+FoldableLineRange::Holder::Holder(CodeDocument& d):
+	doc(d)
+{}
+
+void FoldableLineRange::Holder::toggleFoldState(int lineNumber)
+{
+	if (auto r = getRangeWithStartAtLine(lineNumber))
+	{
+		r->folded = !r->folded;
+		updateFoldState(r);
+	}
+}
+
+void FoldableLineRange::Holder::unfold(int lineNumber)
+{
+	for (auto a : all)
+	{
+		if (a->getLineRange().contains(lineNumber))
+			a->folded = false;
+	}
+
+	updateFoldState(nullptr);
+}
+
+void FoldableLineRange::Holder::updateFoldState(WeakPtr r)
+{
+	lineStates.clear();
+
+	for (auto a : all)
+	{
+		if (a->folded)
+		{
+			auto r = a->getLineRange();
+			lineStates.setRange(r.getStart() + 1, r.getLength() - 1, true);
+		}
+	}
+
+	sendFoldChangeMessage(r);
+}
+
+void FoldableLineRange::Holder::sendFoldChangeMessage(WeakPtr r)
+{
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->foldStateChanged(r);
+	}
+}
+
+FoldableLineRange::WeakPtr FoldableLineRange::Holder::getRangeWithStartAtLine(int lineNumber) const
+{
+	for (auto r : all)
+	{
+		if (r->getLineRange().getStart() == lineNumber)
+			return r;
+	}
+
+	return nullptr;
+}
+
+int FoldableLineRange::Holder::getNearestLineStartOfAnyRange(int lineNumber)
+{
+	for (auto r : all)
+	{
+		auto n = r->getNearestLineStart(lineNumber);
+
+		if (n != -1)
+			return n;
+	}
+
+	return lineNumber;
+}
+
+FoldableLineRange::WeakPtr FoldableLineRange::Holder::getRangeContainingLine(int lineNumber) const
+{
+	for (auto r : all)
+	{
+		if (r->getLineRange().contains(lineNumber))
+			return r;
+	}
+
+	return nullptr;
+}
+
+Range<int> FoldableLineRange::Holder::getRangeForLineNumber(int lineNumber) const
+{
+	if (auto p = getRangeContainingLine(lineNumber))
+	{
+		if (p->folded)
+			return { lineNumber, lineNumber + 1 };
+		else
+			return p->getLineRange();
+	}
+
+	return {};
+}
+
+FoldableLineRange::Holder::LineType FoldableLineRange::Holder::getLineType(int lineNumber) const
+{
+	bool isBetween = false;
+			
+	for (auto l : all)
+	{
+		auto lineRange = l->getLineRange();
+
+		isBetween |= lineRange.contains(lineNumber);
+
+		if (lineRange.getStart() == lineNumber)
+			return l->isFolded() ? RangeStartClosed : RangeStartOpen;
+
+		if (lineRange.contains(lineNumber) && l->isFolded())
+			return Folded;
+
+		if (lineRange.getEnd()-1 == lineNumber)
+			return RangeEnd;
+	}
+
+	if (isBetween)
+		return Between;
+	else
+		return Nothing;
+}
+
+bool FoldableLineRange::Holder::isFolded(int lineNumber) const
+{
+	return lineStates[lineNumber];
+}
+
+void FoldableLineRange::Holder::addToFlatList(List& flatList, const List& nestedList)
+{
+	for (auto l : nestedList)
+	{
+		flatList.add(l);
+		addToFlatList(flatList, l->children);
+	}
+}
+
+void FoldableLineRange::Holder::setRanges(FoldableLineRange::List newRanges)
+{
+			
+
+	Array<int> foldedLines;
+
+	checkList(newRanges, nullptr);
+
+	List l;
+			
+	addToFlatList(l, newRanges);
+
+	std::swap(newRanges, roots);
+
+	for (auto old : all)
+	{
+		if (old->folded)
+		{
+			for (auto n : l)
+			{
+				if (*old == *n)
+				{
+					n->setFolded(true);
+					break;
+				}
+			}
+		}
+	}
+
+	std::swap(all, l);
+
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->rootWasRebuilt(nullptr);
+	}
+
+	updateFoldState(nullptr);
+}
+
+bool FoldableLineRange::contains(Ptr other) const
+{
+	return getLineRange().contains(other->getLineRange());
+}
+
+FoldableLineRange::WeakPtr FoldableLineRange::getParent() const
+{ return parent; }
+
+bool FoldableLineRange::isFolded() const
+{
+	if (folded)
+		return true;
+
+	WeakPtr p = parent;
+
+	while (p != nullptr)
+	{
+		if (p->folded)
+			return true;
+
+		p = p->parent;
+	}
+
+	return false;
+}
+
+bool FoldableLineRange::forEach(const std::function<bool(WeakPtr)>& f)
+{
+	if (f(this))
+		return true;
+
+	for (auto c : children)
+	{
+		if (c->forEach(f))
+			return true;
+	}
+
+	return false;
+}
+
+Range<int> FoldableLineRange::getLineRange() const
+{
+	return { start.getLineNumber(), end.getLineNumber() +1};
+}
+
+void FoldableLineRange::setFolded(bool shouldBeFolded)
+{
+	folded = shouldBeFolded;
+}
+
+bool FoldableLineRange::operator==(const FoldableLineRange& other) const
+{
+	return other.start.getPosition() == start.getPosition();
+}
+
+void FoldableLineRange::setEnd(int charPos)
+{
+	end.setPosition(charPos);
+}
+
+int FoldableLineRange::getNearestLineStart(int lineNumber)
+{
+	if (getLineRange().contains(lineNumber))
+	{
+		for (auto c : children)
+		{
+			auto n = c->getNearestLineStart(lineNumber);
+			if (n != -1)
+				return n;
+		}
+
+		return start.getLineNumber();
+	}
+
+	return -1;
+}
+
+TextDocument::SelectionAction::SelectionAction(TextDocument& t, const Array<Selection>& now_):
+	now(now_),
+	doc(t)
+{
+	before.addArray(t.selections);
+}
+
+bool TextDocument::SelectionAction::perform()
+{
+	doc.setSelections(now, false);
+	return true;
+}
+
+bool TextDocument::SelectionAction::undo()
+{
+	doc.setSelections(before, false);
+	return true;
+}
+
+void TextDocument::deactivateLines(SparseSet<int> deactivatedLines)
+{
+		
+}
+
+juce::Font TextDocument::getFont() const
+{ return font; }
+
+float TextDocument::getLineSpacing() const
+{ return lineSpacing; }
+
+void TextDocument::setFont(juce::Font fontToUse)
+{
+
+	font = fontToUse; lines.font = fontToUse;
+	lines.characterRectangle = { 0.0f, 0.0f, font.getStringWidthFloat(" "), font.getHeight() };
+}
+
+void TextDocument::addSelection(Selection selection)
+{ 
+	auto newSelections = selections;
+	newSelections.add(selection);
+	setSelections(newSelections, true);
+}
+
+void TextDocument::setSelection(int index, Selection newSelection, bool useUndo)
+{
+	if (useUndo)
+	{
+		auto copy = selections;
+		copy.setUnchecked(index, newSelection);
+
+		viewUndoManagerToUse->perform(new SelectionAction(*this, copy));
+	}
+	else
+		selections.setUnchecked(index, newSelection); sendSelectionChangeMessage(); 
+}
+
+void TextDocument::sendSelectionChangeMessage() const
+{
+	for (auto l : selectionListeners)
+	{
+		if (l != nullptr)
+			l.get()->selectionChanged();
+	}
+}
+
+void TextDocument::foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged)
+{
+	rebuildRowPositions();
+}
+
+void TextDocument::rootWasRebuilt(FoldableLineRange::WeakPtr newRoot)
+{
+
+}
+
+int TextDocument::getNumSelections() const
+{ return selections.size(); }
+
+const juce::String& TextDocument::getLine(int lineIndex) const
+{ return lines[lineIndex]; }
+
+float TextDocument::getRowHeight() const
+{
+	return font.getHeight() * lineSpacing;
+}
+
+Rectangle<float> TextDocument::getCharacterRectangle() const
+{
+	return lines.characterRectangle;
+}
+
+void TextDocument::setMaxLineWidth(int maxWidth)
+{
+	if (maxWidth != lines.maxLineWidth)
+	{
+		lines.maxLineWidth = maxWidth;
+		invalidate({});
+	}
+}
+
+CodeDocument& TextDocument::getCodeDocument()
+{
+	return doc;
+}
+
+void TextDocument::invalidate(Range<int> lineRange)
+{
+	lines.invalidate(lineRange);
+	cachedBounds = {};
+	rebuildRowPositions();
+}
+
+void TextDocument::rebuildRowPositions()
+{
+	rowPositions.clearQuick();
+	rowPositions.ensureStorageAllocated(lines.size());
+
+	float yPos = 0.0f;
+
+	float gap = getCharacterRectangle().getHeight() * (lineSpacing - 1.f) * 0.5f;
+
+	for (int i = 0; i < lines.size(); i++)
+	{
+		rowPositions.add(yPos);
+
+		auto l = lines.lines[i];
+
+		lines.ensureValid(i);
+
+		if(!foldManager.isFolded(i))
+			yPos += l->height + gap;
+	}
+
+	rowPositions.add(yPos);
+}
+
+void TextDocument::lineRangeChanged(Range<int> r, bool wasAdded)
+{
+	if (!wasAdded)
+	{
+		auto rangeToInvalidate = r;
+		rangeToInvalidate.setLength(jmax(1, r.getLength()));
+		invalidate(rangeToInvalidate);
+	}
+			
+	if (!wasAdded && r.getLength() > 0)
+	{
+		lines.removeRange(r);
+		lines.set(r.getStart(), doc.getLine(r.getStart()));
+		return;
+	}
+
+	if (r.getLength() > 1)
+	{
+		lines.set(r.getStart(), doc.getLine(r.getStart()));
+
+		for (int i = r.getStart() + 1; i < r.getEnd(); i++)
+			lines.insert(i, doc.getLine(i));
+	}
+	else
+	{
+		auto lineNumber = r.getStart();
+		lines.set(lineNumber, doc.getLine(lineNumber));
+	}
+
+	if (wasAdded && r.getEnd() > getNumRows())
+	{
+		lines.set(r.getEnd(), "");
+			
+			
+	}
+
+
+		
+}
+
+void TextDocument::codeChanged(bool wasInserted, int startIndex, int endIndex)
+{
+	CodeDocument::Position pos(getCodeDocument(), wasInserted ? endIndex : startIndex);
+
+	if (getNumSelections() == 1)
+	{
+		setSelections(Selection(pos.getLineNumber(), pos.getIndexInLine(), pos.getLineNumber(), pos.getIndexInLine()), false);
+	}
+}
+
+int TextDocument::getNumLinesForRow(int rowIndex) const
+{
+	if(isPositiveAndBelow(rowIndex, lines.lines.size()))
+		return roundToInt(lines.lines[rowIndex]->height / font.getHeight());
+
+	return 1;
+}
+
+float TextDocument::getFontHeight() const
+{ return font.getHeight(); }
+
+void TextDocument::addSelectionListener(Selection::Listener* l)
+{
+	selectionListeners.addIfNotAlreadyThere(l);
+	l->displayedLineRangeChanged(currentlyDisplayedLineRange);
+}
+
+void TextDocument::removeSelectionListener(Selection::Listener* l)
+{
+	selectionListeners.removeAllInstancesOf(l);
+}
+
+void TextDocument::setDisplayedLineRange(Range<int> newRange)
+{
+	if (newRange != currentlyDisplayedLineRange)
+	{
+		currentlyDisplayedLineRange = newRange;
+
+		for (auto sl : selectionListeners)
+		{
+			if(sl != nullptr)
+				sl->displayedLineRangeChanged(currentlyDisplayedLineRange);
+		}
+	}
+}
+
+bool TextDocument::jumpToLine(int lineNumber, bool justScroll)
+{
+	if (lineNumber >= 0)
+	{
+		if (justScroll)
+		{
+			auto newRange = currentlyDisplayedLineRange.movedToStartAt(lineNumber - currentlyDisplayedLineRange.getLength()/2);
+			setDisplayedLineRange(newRange);
+			return true;
+		}
+
+		auto sourceLine = Point<int>(lineNumber, 0);
+
+		navigate(sourceLine, Target::character, Direction::backwardCol);
+		navigate(sourceLine, Target::firstnonwhitespace, Direction::backwardCol);
+
+		Selection ss(sourceLine, sourceLine);
+
+		auto newRange = currentlyDisplayedLineRange.movedToStartAt(lineNumber - currentlyDisplayedLineRange.getLength() / 2 - 4);
+
+		setDisplayedLineRange(newRange);
+
+		setSelections({ ss }, true);
+
+
+
+		return true;
+	}
+
+	return false;
+}
+
+void TextDocument::setDuplicateOriginal(const Selection& s)
+{
+	duplicateOriginal = s;
+}
+
+FoldableLineRange::Holder& TextDocument::getFoldableLineRangeHolder()
+{
+	return foldManager;
+}
+
+const FoldableLineRange::Holder& TextDocument::getFoldableLineRangeHolder() const
+{
+	return foldManager;
+}
+
+void TextDocument::addFoldListener(FoldableLineRange::Listener* l)
+{
+	foldManager.listeners.addIfNotAlreadyThere(l);
+}
+
+void TextDocument::removeFoldListener(FoldableLineRange::Listener* l)
+{
+	foldManager.listeners.removeAllInstancesOf(l);
+}
+
+void TextDocument::setSearchResults(const Array<Selection>& newSearchResults)
+{
+	searchResults = newSearchResults;
+}
+
+void TextDocument::setExternalViewUndoManager(UndoManager* um)
+{
+	viewUndoManagerToUse = um;
+}
+
+Array<Selection> TextDocument::getSearchResults() const
+{
+	return searchResults;
+}
+
 mcl::Bookmark FoldableLineRange::getBookmark() const
 {
 	Bookmark b;

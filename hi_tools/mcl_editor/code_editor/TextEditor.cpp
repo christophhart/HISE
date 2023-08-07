@@ -143,6 +143,652 @@ void TextEditor::scrollToLine(float centerLine, bool scrollToLine)
 	}
 }
 
+void TextEditor::timerCallback()
+{
+	document.getCodeDocument().getUndoManager().beginNewTransaction();
+
+	document.viewUndoManagerToUse->beginNewTransaction();
+}
+
+void TextEditor::setReadOnly(bool shouldBeReadOnly)
+{
+	readOnly = shouldBeReadOnly;
+}
+
+void TextEditor::setShowNavigation(bool shouldShowNavigation)
+{
+	resized();
+}
+
+void TextEditor::focusGained(FocusChangeType t)
+{
+	if (onFocusChange)
+		onFocusChange(true, t);
+
+	caret.startTimer(50);
+}
+
+Font TextEditor::getFont() const
+{ return document.getFont(); }
+
+void TextEditor::setGotoFunction(const GotoFunction& f)
+{
+	gotoFunction = f;
+}
+
+void TextEditor::clearWarningsAndErrors()
+{
+	currentError = nullptr;
+	warnings.clear();
+	repaint();
+}
+
+void TextEditor::addWarning(const String& errorMessage, bool isWarning)
+{
+	warnings.add(new Error(document, errorMessage, isWarning));
+	repaint();
+}
+
+void TextEditor::setError(const String& errorMessage)
+{
+	if (errorMessage.isEmpty())
+		currentError = nullptr;
+	else
+		currentError = new Error(document, errorMessage, false);
+
+	repaint();
+}
+
+void TextEditor::abortAutocomplete()
+{
+	autocompleteTimer.stopTimer();
+}
+
+void TextEditor::refreshLineWidth()
+{
+	auto actualLineWidth = (maxLinesToShow - gutter.getGutterWidth()) / viewScaleFactor;
+
+	if (linebreakEnabled)
+		document.setMaxLineWidth(actualLineWidth);
+	else
+		document.setMaxLineWidth(-1);
+}
+
+CodeDocument& TextEditor::getDocument()
+{ return document.getCodeDocument(); }
+
+TooltipWithArea::Data TextEditor::getTooltip(Point<float> position)
+{
+	for (auto ps : currentParameterSelection)
+	{
+		if (ps->p.getBounds().contains(position))
+		{
+			TooltipWithArea::Data d;
+				
+			d.id = "ps" + String(currentParameterSelection.indexOf(ps));
+			d.relativePosition = ps->p.getBounds().getBottomLeft();
+			d.text = ps->tooltip;
+			return d;
+		}
+	}
+
+	if (currentError != nullptr)
+	{
+		if (auto d = currentError->getTooltip(transform, position))
+			return d;
+	}
+
+	for (auto w : warnings)
+	{
+		if (auto d = w->getTooltip(transform, position))
+			return d;
+	}
+
+	if (tokenTooltipFunction)
+	{
+		auto start = document.findIndexNearestPosition(position.transformedBy(transform.inverted()));
+		auto end = start;
+
+		document.navigate(start, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+		document.navigate(end, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+		auto token = document.getSelectionContent({ start, end });
+
+		if (token.isNotEmpty())
+		{
+			TooltipWithArea::Data d;
+			d.id = Identifier(token);
+			d.text = tokenTooltipFunction(token, start.x);
+
+				
+
+			auto b = document.getBoundsOnRow(start.x, { start.y, end.y }, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
+
+			d.relativePosition = b.getBottomLeft().transformedBy(transform);
+
+			if (d.text.isEmpty())
+				return {};
+
+			return d;
+		}
+	}
+
+	return {};
+}
+
+bool TextEditor::gotoDefinition(Selection s1)
+{
+	if (gotoFunction)
+	{
+		if (s1.tail.isOrigin())
+			s1 = document.getSelection(0);
+
+		const auto o = s1.tail;
+
+		auto p = o;
+		auto s = p;
+
+		document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
+		document.navigate(s, mcl::TextDocument::Target::cppToken, mcl::TextDocument::Direction::backwardCol);
+		document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
+
+		Selection tokenSelection(s.x, s.y, p.x, p.y);
+		auto token = document.getSelectionContent(tokenSelection);
+
+		auto sl = gotoFunction(s.x, token);
+
+		document.jumpToLine(sl);
+            
+		return true;
+	}
+
+	return false;
+}
+
+TextEditor::Action::Action(TextEditor* te, List nl, Ptr ncp):
+	editor(te),
+	oldList(te->currentParameterSelection),
+	newList(std::move(nl)),
+	oldCurrent(te->currentParameter),
+	newCurrent(ncp)
+{}
+
+bool TextEditor::Action::undo()
+{
+	if (editor != nullptr)
+	{
+		editor->setParameterSelectionInternal(oldList, oldCurrent, false);
+		return true;
+	}
+
+	return false;
+}
+
+bool TextEditor::Action::perform()
+{
+	if (editor != nullptr)
+	{
+		editor->setParameterSelectionInternal(newList, newCurrent, false);
+		return true;
+	}
+
+	return false;
+}
+
+void TextEditor::setParameterSelectionInternal(Action::List l, Action::Ptr p, bool useUndo)
+{
+	if (useUndo)
+	{
+		auto a = new Action(this, l, p);
+		document.getCodeDocument().getUndoManager().perform(a);
+	}
+	else
+	{
+		currentParameterSelection = l;
+		currentParameter = p;
+
+		if (currentParameter != nullptr)
+			document.setSelections({ currentParameter->getSelection() }, false);
+
+		grabKeyboardFocus();
+		repaint();
+	}
+}
+
+void TextEditor::clearParameters(bool useUndo)
+{
+	setParameterSelectionInternal({}, nullptr, useUndo);
+
+#if OLD
+		currentParameter = nullptr;
+		currentParameterSelection.clear();
+		repaint();
+#endif
+}
+
+bool TextEditor::incParameter(bool useUndo)
+{
+	if (currentParameter != nullptr)
+	{
+		auto newIndex = currentParameterSelection.indexOf(currentParameter) + 1;
+
+		if (auto next = currentParameterSelection[newIndex])
+			setParameterSelectionInternal(currentParameterSelection, next, useUndo);
+		else
+		{
+			setParameterSelectionInternal(currentParameterSelection, nullptr, useUndo);
+			Point<int> p(postParameterPos.getLineNumber(), postParameterPos.getIndexInLine());
+			document.setSelections({ Selection(p) }, true);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool TextEditor::setParameterSelection(int index, bool useUndo)
+{
+	setParameterSelectionInternal(currentParameterSelection, currentParameterSelection[index], useUndo);
+
+	return true;
+
+#if OLD
+		auto s = currentParameterSelection.size();
+
+		if (isPositiveAndBelow(index, s))
+		{
+			currentParameter = currentParameterSelection[index];
+			document.setSelections({ currentParameter->getSelection() });
+			repaint();
+			return true;
+		}
+		else
+		{
+			currentParameter = nullptr;
+			repaint();
+			return false;
+		}
+
+		return false;
+#endif
+}
+
+void TextEditor::updateLineRanges()
+{
+	auto ranges = languageManager->createLineRange(document.getCodeDocument());
+	document.getFoldableLineRangeHolder().setRanges(ranges);
+}
+
+void TextEditor::updateAfterTextChange(Range<int> rangeToInvalidate)
+{
+	if (!skipTextUpdate)
+	{
+		document.invalidate(rangeToInvalidate);
+		
+		if (languageManager != nullptr && rangeToInvalidate.getLength() > 1)
+		{
+			updateLineRanges();
+		}
+
+		updateSelections();
+
+		if(rangeToInvalidate.getLength() != 0 &&
+			rangeToInvalidate.getLength() != document.getNumRows())
+			autocompleteTimer.startAutocomplete();
+			
+		updateViewTransform();
+
+		if(currentError != nullptr)
+			currentError->rebuild();
+
+		for (auto w : warnings)
+			w->rebuild();
+	}
+}
+
+void TextEditor::setPopupLookAndFeel(LookAndFeel* ownedLaf)
+{
+	plaf = ownedLaf;
+}
+
+void TextEditor::setIncludeDotInAutocomplete(bool shouldInclude)
+{
+	includeDotInAutocomplete = shouldInclude;
+}
+
+int TextEditor::getFirstLineOnScreen() const
+{
+	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
+	return rows.getStart();
+}
+
+void TextEditor::searchItemsChanged()
+{
+	if (document.getNumSelections() == 0)
+		return;
+
+	auto selectedLine = document.getSelection(0).head.x;
+
+	Range<int> visibleLines = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
+
+	if (!visibleLines.contains(selectedLine))
+	{
+		auto firstLineToShow = jmax(0, selectedLine - 4);
+		setFirstLineOnScreen(firstLineToShow);
+	}
+
+	updateSelections();
+	repaint();
+}
+
+void TextEditor::setFirstLineOnScreen(int firstRow)
+{
+	translation.y = -document.getVerticalPosition(firstRow, TextDocument::Metric::top) * viewScaleFactor;
+	translateView(0.0f, 0.0f);
+}
+
+void TextEditor::setTokenTooltipFunction(const TokenTooltipFunction& f)
+{
+	tokenTooltipFunction = f;
+}
+
+bool TextEditor::isLiveParsingEnabled() const
+{ return enableLiveParsing; }
+
+bool TextEditor::isPreprocessorParsingEnabled() const
+{ return enablePreprocessorParsing; }
+
+bool TextEditor::isReadOnly() const
+{ return readOnly; }
+
+void TextEditor::addPopupMenuFunction(const PopupMenuFunction& pf, const PopupMenuResultFunction& rf)
+{
+	popupMenuFunctions.add(pf);
+	popupMenuResultFunctions.add(rf);
+}
+
+TextDocument& TextEditor::getTextDocument()
+{ return document; }
+
+void TextEditor::addKeyPressFunction(const KeyPressFunction& kf)
+{
+	keyPressFunctions.add(kf);
+}
+
+void TextEditor::setEnableBreakpoint(bool shouldBeEnabled)
+{
+	gutter.setBreakpointsEnabled(shouldBeEnabled);
+}
+
+void TextEditor::setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser)
+{
+	tokeniser = ownedTokeniser;
+	colourScheme = tokeniser->getDefaultColourScheme();
+}
+
+void TextEditor::setEnableAutocomplete(bool shouldBeEnabled)
+{
+	autocompleteEnabled = shouldBeEnabled;
+	currentAutoComplete = nullptr;
+}
+
+LanguageManager* TextEditor::getLanguageManager()
+{ return languageManager; }
+
+ScrollBar& TextEditor::getVerticalScrollBar()
+{ return scrollBar; }
+
+TextEditor::AutocompleteTimer::AutocompleteTimer(TextEditor& p):
+	parent(p)
+{}
+
+void TextEditor::AutocompleteTimer::startAutocomplete()
+{
+	auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 400;
+
+	if(parent.showAutocompleteAfterDelay || parent.currentAutoComplete != nullptr)
+		startTimer(updateSpeed);
+}
+
+void TextEditor::AutocompleteTimer::abortAutocomplete()
+{
+	stopTimer();
+}
+
+void TextEditor::AutocompleteTimer::timerCallback()
+{
+	parent.updateAutocomplete();
+	stopTimer();
+}
+
+void TextEditor::setLineBreakEnabled(bool shouldBeEnabled)
+{
+	if (linebreakEnabled != shouldBeEnabled)
+	{
+		linebreakEnabled = !linebreakEnabled;
+
+		if (linebreakEnabled)
+			xPos = 0.0f;
+
+		resized();
+		refreshLineWidth();
+	}
+}
+
+bool TextEditor::expand(TextDocument::Target target)
+{
+	document.navigateSelections(target, TextDocument::Direction::backwardCol, Selection::Part::tail);
+	document.navigateSelections(target, TextDocument::Direction::forwardCol, Selection::Part::head);
+	updateSelections();
+	return true;
+}
+
+bool TextEditor::expandBack(TextDocument::Target target, TextDocument::Direction direction)
+{
+	document.navigateSelections(target, direction, Selection::Part::head);
+	translateToEnsureCaretIsVisible();
+	updateSelections();
+	return true;
+}
+
+bool TextEditor::nav(ModifierKeys mods, TextDocument::Target target, TextDocument::Direction direction)
+{
+	lastInsertWasDouble = false;
+
+
+
+	bool isLineSwap = mods.isCommandDown() && mods.isShiftDown() && (direction == TextDocument::Direction::backwardRow ||
+		direction == TextDocument::Direction::forwardRow);
+
+	auto currentSelection = document.getSelection(0).oriented();
+
+	auto up = direction == TextDocument::Direction::backwardRow;
+
+	Range<int> currentLineRange(currentSelection.head.x, currentSelection.tail.x);
+
+	isLineSwap &= (currentLineRange.getStart() > 0 || !up);
+	isLineSwap &= (currentLineRange.getEnd() < (document.getNumRows()-1) || up);
+
+	if (mods.isCommandDown() && mods.isShiftDown() && target == TextDocument::Target::word)
+		return true;
+
+
+
+	if (isLineSwap && document.getNumSelections() == 1)
+	{
+			
+
+		auto prevSelection = document.getSelection(0).oriented();
+
+			
+
+		document.setSelection(0, prevSelection, true);
+
+		if(prevSelection.head.y != 0)
+			document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::backwardCol, Selection::Part::head);
+
+		document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::forwardCol, Selection::Part::tail);
+		document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::forwardCol, Selection::Part::tail);
+
+		auto content = document.getSelectionContent(document.getSelection(0));
+
+		insert("");
+
+		auto s = document.getSelection(0).oriented();
+
+		auto delta = up ? -1 : 1;
+
+		s.head.x += delta;
+		s.tail.x += delta;
+
+		document.setSelection(0, s, true);
+		insert(content);
+
+		prevSelection.head.x += delta;
+		prevSelection.tail.x += delta;
+
+		document.setSelection(0, prevSelection, true);
+
+		abortAutocomplete();
+            
+		return true;
+	}
+
+	if (mods.isShiftDown())
+		document.navigateSelections(target, direction, Selection::Part::head);
+	else
+		document.navigateSelections(target, direction, Selection::Part::both);
+
+	translateToEnsureCaretIsVisible();
+	updateSelections();
+	return true;
+}
+
+TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
+	document(doc_),
+	isWarning(isWarning_)
+{
+	auto s = e.fromFirstOccurrenceOf("Line ", false, false);
+	auto l = s.getIntValue() - 1;
+	auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
+	errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
+
+	Point<int> pos, endPoint;
+
+	auto maxLength = document.doc.getLine(l).trimCharactersAtEnd(" \t\n").length();
+
+	if (c >= (maxLength-1))
+		c = -1;
+
+	if (c == -1)
+	{
+		isEntireLine = true;
+		pos = Point<int>(l, 0);
+				
+		document.navigate(pos, TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+
+		endPoint = pos;
+				
+
+		document.navigate(pos, TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+	}
+	else
+	{
+		pos = Point<int>(l, c);
+
+		document.navigate(pos, TextDocument::Target::subwordWithPoint, TextDocument::Direction::backwardCol);
+		endPoint = pos;
+		document.navigate(endPoint, TextDocument::Target::subwordWithPoint, TextDocument::Direction::forwardCol);
+
+		if (pos == endPoint)
+			endPoint.y += 1;
+	}
+
+	start = CodeDocument::Position(document.getCodeDocument(), pos.x, pos.y);
+	end = CodeDocument::Position(document.getCodeDocument(), endPoint.x, endPoint.y);
+	start.setPositionMaintained(true);
+	end.setPositionMaintained(true);
+
+	rebuild();
+}
+
+Selection TextEditor::Error::getSelection() const
+{
+	return Selection(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+}
+
+void TextEditor::Error::paintLine(Line<float> l, Graphics& g, const AffineTransform& transform, Colour c)
+{
+	l.applyTransform(transform);
+	Path p;
+	p.startNewSubPath(l.getStart());
+
+	auto startX = jmin(l.getStartX(), l.getEndX());
+	auto endX = jmax(l.getStartX(), l.getEndX());
+	auto y = l.getStartY() - 2.0f;
+
+	float delta = 2.0f;
+	float deltaY = delta * 0.5f;
+
+	for (float s = startX + delta; s < endX; s += delta)
+	{
+		deltaY *= -1.0f;
+		p.lineTo(s, y + deltaY);
+	}
+
+	p.lineTo(l.getEnd());
+
+	g.setColour(c);
+	g.strokePath(p, PathStrokeType(1.0f));
+}
+
+void TextEditor::Error::paintLines(Graphics& g, const AffineTransform& transform, Colour c)
+{
+	for (auto l : errorLines)
+	{
+		paintLine(l, g, transform, c);
+				
+	}
+}
+
+TooltipWithArea::Data TextEditor::Error::getTooltip(const AffineTransform& transform, Point<float> position)
+{
+	auto a = area.transformed(transform);
+
+	TooltipWithArea::Data d;
+
+	if (a.contains(position))
+	{
+		d.text = errorMessage;
+		d.relativePosition = a.getBottomLeft().translated(0.0f, 5.0f);
+
+		d.id = String(d.relativePosition.toString().hash());
+
+		d.clickAction = {};
+	}
+
+	return d;
+}
+
+void TextEditor::Error::rebuild()
+{
+	if (isEntireLine)
+	{
+		Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+		errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
+		area = document.getSelectionRegion(errorWord).getRectangle(0).withWidth(errorLines[0].getLength());
+	}
+	else
+	{
+		Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
+		errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
+		area = document.getSelectionRegion(errorWord).getRectangle(0);
+	}
+
+			
+}
+
 int TextEditor::getNumDisplayedRows() const
 {
 	return roundToInt((float)getHeight() / viewScaleFactor / document.getRowHeight());

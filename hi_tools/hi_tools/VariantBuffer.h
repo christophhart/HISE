@@ -91,34 +91,8 @@ public:
 	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Buffer") };
 
 	/** Removes Nan numbers from a array of float data. */
-    static void sanitizeFloatArray(float** channels, int numChannels, int numSamples)
-    {
-        if(numChannels == 2)
-        {
-            float* l = channels[0];
-            float* r = channels[1];
-            
-            Range<float> l_r = FloatVectorOperations::findMinAndMax(l, numSamples);
-            Range<float> r_r = FloatVectorOperations::findMinAndMax(r, numSamples);
-            
-            if(std::isnan(l_r.getStart()) || std::isnan(l_r.getEnd()))
-            {
-                FloatVectorOperations::clear(l, numSamples);
-            }
-            
-            if(std::isnan(r_r.getStart()) || std::isnan(r_r.getEnd()))
-            {
-                FloatVectorOperations::clear(r, numSamples);
-            }
-        }
-        {
-            while(--numSamples >= 0)
-            {
-                
-            }
-        }
-    }
-    
+    static void sanitizeFloatArray(float** channels, int numChannels, int numSamples);
+
 	// ================================================================================================================
 
 	void referToOtherBuffer(VariantBuffer *b, int offset = 0, int numSamples = -1);

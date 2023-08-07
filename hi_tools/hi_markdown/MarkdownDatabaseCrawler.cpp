@@ -288,6 +288,34 @@ void DatabaseCrawler::addImagesFromContent(float maxWidth /*= 1000.0f*/)
 	addImagesInternal(contentTree, maxWidth);
 }
 
+void DatabaseCrawler::createImagesInHtmlFolder(File htmlRoot, MarkdownDatabaseHolder& holder,
+	DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
+{
+	DatabaseCrawler crawler(holder);
+
+	auto contentDirectory = htmlRoot;
+
+	crawler.setLogger(nonOwnedLogger, false);
+	crawler.setProgressCounter(progress);
+	crawler.loadDataFiles(holder.getCachedDocFolder());
+	crawler.writeImagesToSubDirectory(contentDirectory);
+}
+
+void DatabaseCrawler::createHtmlFilesInHtmlFolder(File htmlRoot, MarkdownDatabaseHolder& holder,
+	DatabaseCrawler::Logger* nonOwnedLogger, double* progress)
+{
+	DatabaseCrawler crawler(holder);
+
+	auto contentDirectory = htmlRoot;
+
+	crawler.setLogger(nonOwnedLogger, false);
+	crawler.setProgressCounter(progress);
+
+	crawler.loadDataFiles(holder.getCachedDocFolder());
+	crawler.writeJSONTocFile(htmlRoot);
+	crawler.createHtmlFilesInternal(contentDirectory, Markdown2HtmlConverter::LinkMode::LocalFile, htmlRoot.getFullPathName());
+}
+
 void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 {
 	if (getHolder().shouldAbort())
@@ -450,6 +478,17 @@ void DatabaseCrawler::createHtmlFilesInternal(File htmlTemplateDirectoy, Markdow
 		createHtmlInternal(c);
 }
 
+void DatabaseCrawler::addPathResolver()
+{
+	for (auto lr : linkResolvers)
+	{
+		if (lr->getPriority() == MarkdownParser::ResolveType::EmbeddedPath)
+			return;
+	}
+
+	addImageProvider(new MarkdownParser::GlobalPathProvider(nullptr));
+}
+
 void DatabaseCrawler::createImageTree()
 {
 	if (imageTree.isValid())
@@ -581,6 +620,19 @@ void DatabaseCrawler::writeJSONTocFile(File htmlDirectory)
 	auto f2 = htmlDirectory.getChildFile("template/scripts/search.json");
 	f2.create();
 	f2.replaceWithText(s2);
+}
+
+void DatabaseCrawler::setLogger(Logger* l, bool ownThisLogger)
+{
+	if (ownThisLogger)
+		logger = l;
+	else
+		nonOwnedLogger = l;
+}
+
+void DatabaseCrawler::setStyleData(MarkdownLayout::StyleData& newStyleData)
+{
+	styleData = newStyleData;
 }
 
 juce::int64 DatabaseCrawler::getHashFromFileContent(const File& f) const

@@ -68,26 +68,15 @@ public:
 
 	void scrollToLine(float centerLine, bool roundToLine);
 
-	void timerCallback() override
-	{
-		document.getCodeDocument().getUndoManager().beginNewTransaction();
+	void timerCallback() override;
 
-		document.viewUndoManagerToUse->beginNewTransaction();
-	}
-
-	void setReadOnly(bool shouldBeReadOnly)
-	{
-		readOnly = shouldBeReadOnly;
-	}
+	void setReadOnly(bool shouldBeReadOnly);
 
 	int getNumDisplayedRows() const;
 
-	void setShowNavigation(bool shouldShowNavigation)
-	{
-		resized();
-	}
+	void setShowNavigation(bool shouldShowNavigation);
 
-    //==========================================================================
+	//==========================================================================
     void resized() override;
     void paint (juce::Graphics& g) override;
     void paintOverChildren (juce::Graphics& g) override;
@@ -104,165 +93,43 @@ public:
     bool keyPressed (const juce::KeyPress& key) override;
     juce::MouseCursor getMouseCursor() override;
 
-	void focusGained(FocusChangeType t) override
-	{
-		if (onFocusChange)
-			onFocusChange(true, t);
-
-		caret.startTimer(50);
-	}
+	void focusGained(FocusChangeType t) override;
 
 	bool shouldSkipInactiveUpdate() const;
 
 	void focusLost(FocusChangeType t) override;
 
-	Font getFont() const { return document.getFont(); }
+	Font getFont() const;
 
 	void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
 
 	void codeDocumentTextDeleted(int startIndex, int endIndex) override;
 
-	void setGotoFunction(const GotoFunction& f)
-	{
-		gotoFunction = f;
-	}
+	void setGotoFunction(const GotoFunction& f);
 
-    void setDeactivatedLines(const SparseSet<int>& lines);
+	void setDeactivatedLines(const SparseSet<int>& lines);
 	
 
-	void clearWarningsAndErrors()
-	{
-		currentError = nullptr;
-		warnings.clear();
-		repaint();
-	}
+	void clearWarningsAndErrors();
 
 	virtual MarkdownLink getLink() const override;
 
-	void addWarning(const String& errorMessage, bool isWarning=true)
-	{
-		warnings.add(new Error(document, errorMessage, isWarning));
-		repaint();
-	}
+	void addWarning(const String& errorMessage, bool isWarning=true);
 
-	void setError(const String& errorMessage)
-	{
-		if (errorMessage.isEmpty())
-			currentError = nullptr;
-		else
-			currentError = new Error(document, errorMessage, false);
+	void setError(const String& errorMessage);
 
-		repaint();
-	}
+	void abortAutocomplete();
 
-    void abortAutocomplete()
-    {
-        autocompleteTimer.stopTimer();
-    }
-    
-	void refreshLineWidth()
-	{
-		auto actualLineWidth = (maxLinesToShow - gutter.getGutterWidth()) / viewScaleFactor;
+	void refreshLineWidth();
 
-		if (linebreakEnabled)
-			document.setMaxLineWidth(actualLineWidth);
-		else
-			document.setMaxLineWidth(-1);
-	}
+	CodeDocument& getDocument();
 
-	CodeDocument& getDocument() { return document.getCodeDocument(); }
-
-	TooltipWithArea::Data getTooltip(Point<float> position) override
-	{
-		for (auto ps : currentParameterSelection)
-		{
-			if (ps->p.getBounds().contains(position))
-			{
-				TooltipWithArea::Data d;
-				
-				d.id = "ps" + String(currentParameterSelection.indexOf(ps));
-				d.relativePosition = ps->p.getBounds().getBottomLeft();
-				d.text = ps->tooltip;
-				return d;
-			}
-		}
-
-		if (currentError != nullptr)
-		{
-			if (auto d = currentError->getTooltip(transform, position))
-				return d;
-		}
-
-		for (auto w : warnings)
-		{
-			if (auto d = w->getTooltip(transform, position))
-				return d;
-		}
-
-		if (tokenTooltipFunction)
-		{
-			auto start = document.findIndexNearestPosition(position.transformedBy(transform.inverted()));
-			auto end = start;
-
-			document.navigate(start, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-			document.navigate(end, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
-
-			auto token = document.getSelectionContent({ start, end });
-
-			if (token.isNotEmpty())
-			{
-				TooltipWithArea::Data d;
-				d.id = Identifier(token);
-				d.text = tokenTooltipFunction(token, start.x);
-
-				
-
-				auto b = document.getBoundsOnRow(start.x, { start.y, end.y }, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
-
-				d.relativePosition = b.getBottomLeft().transformedBy(transform);
-
-				if (d.text.isEmpty())
-					return {};
-
-				return d;
-			}
-		}
-
-		return {};
-	}
+	TooltipWithArea::Data getTooltip(Point<float> position) override;
 
 	void updateAutocomplete(bool forceShow = false);
 
-	bool gotoDefinition(Selection s1 = {})
-	{
-		if (gotoFunction)
-		{
-			if (s1.tail.isOrigin())
-				s1 = document.getSelection(0);
+	bool gotoDefinition(Selection s1 = {});
 
-			const auto o = s1.tail;
-
-			auto p = o;
-			auto s = p;
-
-			document.navigate(s, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::backwardCol);
-			document.navigate(s, mcl::TextDocument::Target::cppToken, mcl::TextDocument::Direction::backwardCol);
-			document.navigate(p, mcl::TextDocument::Target::subword, mcl::TextDocument::Direction::forwardCol);
-
-			Selection tokenSelection(s.x, s.y, p.x, p.y);
-			auto token = document.getSelectionContent(tokenSelection);
-
-			auto sl = gotoFunction(s.x, token);
-
-            document.jumpToLine(sl);
-            
-            return true;
-		}
-
-		return false;
-	}
-
-	
 
 	void codeDocumentTextInserted(const String& newText, int insertIndex) override;
 	
@@ -271,212 +138,54 @@ public:
 		using List = Autocomplete::ParameterSelection::List;
 		using Ptr = Autocomplete::ParameterSelection::Ptr;
 
-		Action(TextEditor* te, List nl, Ptr ncp) :
-			editor(te),
-			oldList(te->currentParameterSelection),
-			newList(std::move(nl)),
-			oldCurrent(te->currentParameter),
-			newCurrent(ncp)
-		{}
+		Action(TextEditor* te, List nl, Ptr ncp);
 
-		bool undo() override
-		{
-			if (editor != nullptr)
-			{
-				editor->setParameterSelectionInternal(oldList, oldCurrent, false);
-				return true;
-			}
+		bool undo() override;
 
-			return false;
-		}
-
-		bool perform() override
-		{
-			if (editor != nullptr)
-			{
-				editor->setParameterSelectionInternal(newList, newCurrent, false);
-				return true;
-			}
-
-			return false;
-		}
+		bool perform() override;
 
 		WeakReference<TextEditor> editor;
 		List oldList, newList;
 		Ptr oldCurrent, newCurrent;
 	};
 
-	void setParameterSelectionInternal(Action::List l, Action::Ptr p, bool useUndo)
-	{
-		if (useUndo)
-		{
-			auto a = new Action(this, l, p);
-			document.getCodeDocument().getUndoManager().perform(a);
-		}
-		else
-		{
-			currentParameterSelection = l;
-			currentParameter = p;
-
-			if (currentParameter != nullptr)
-				document.setSelections({ currentParameter->getSelection() }, false);
-
-			grabKeyboardFocus();
-			repaint();
-		}
-	}
+	void setParameterSelectionInternal(Action::List l, Action::Ptr p, bool useUndo);
 
 	void setScaleFactor(float newFactor);
 
-	void clearParameters(bool useUndo=true)
-	{
-		setParameterSelectionInternal({}, nullptr, useUndo);
+	void clearParameters(bool useUndo=true);
 
-#if OLD
-		currentParameter = nullptr;
-		currentParameterSelection.clear();
-		repaint();
-#endif
-	}
+	bool incParameter(bool useUndo=true);
 
-	bool incParameter(bool useUndo=true)
-	{
-		if (currentParameter != nullptr)
-		{
-			auto newIndex = currentParameterSelection.indexOf(currentParameter) + 1;
-
-			if (auto next = currentParameterSelection[newIndex])
-				setParameterSelectionInternal(currentParameterSelection, next, useUndo);
-			else
-			{
-				setParameterSelectionInternal(currentParameterSelection, nullptr, useUndo);
-				Point<int> p(postParameterPos.getLineNumber(), postParameterPos.getIndexInLine());
-				document.setSelections({ Selection(p) }, true);
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	bool setParameterSelection(int index, bool useUndo=true)
-	{
-		setParameterSelectionInternal(currentParameterSelection, currentParameterSelection[index], useUndo);
-
-		return true;
-
-#if OLD
-		auto s = currentParameterSelection.size();
-
-		if (isPositiveAndBelow(index, s))
-		{
-			currentParameter = currentParameterSelection[index];
-			document.setSelections({ currentParameter->getSelection() });
-			repaint();
-			return true;
-		}
-		else
-		{
-			currentParameter = nullptr;
-			repaint();
-			return false;
-		}
-
-		return false;
-#endif
-	}
+	bool setParameterSelection(int index, bool useUndo=true);
 
 	void closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges);
 
-    void updateLineRanges()
-    {
-        auto ranges = languageManager->createLineRange(document.getCodeDocument());
-        document.getFoldableLineRangeHolder().setRanges(ranges);
-    }
-    
-	void updateAfterTextChange(Range<int> rangeToInvalidate = Range<int>())
-	{
-		if (!skipTextUpdate)
-		{
-			document.invalidate(rangeToInvalidate);
-		
-			if (languageManager != nullptr && rangeToInvalidate.getLength() > 1)
-			{
-                updateLineRanges();
-			}
+    void updateLineRanges();
 
-			updateSelections();
+	void updateAfterTextChange(Range<int> rangeToInvalidate = Range<int>());
 
-            if(rangeToInvalidate.getLength() != 0 &&
-               rangeToInvalidate.getLength() != document.getNumRows())
-                autocompleteTimer.startAutocomplete();
-			
-			updateViewTransform();
+	void setPopupLookAndFeel(LookAndFeel* ownedLaf);
 
-			if(currentError != nullptr)
-				currentError->rebuild();
+	void setIncludeDotInAutocomplete(bool shouldInclude);
 
-			for (auto w : warnings)
-				w->rebuild();
-		}
-	}
+	int getFirstLineOnScreen() const;
 
-	void setPopupLookAndFeel(LookAndFeel* ownedLaf)
-	{
-		plaf = ownedLaf;
-	}
+	void searchItemsChanged() override;
 
-	void setIncludeDotInAutocomplete(bool shouldInclude)
-	{
-		includeDotInAutocomplete = shouldInclude;
-	}
-
-	int getFirstLineOnScreen() const
-	{
-		auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
-		return rows.getStart();
-	}
-
-	void searchItemsChanged() override
-	{
-		if (document.getNumSelections() == 0)
-			return;
-
-		auto selectedLine = document.getSelection(0).head.x;
-
-		Range<int> visibleLines = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
-
-		if (!visibleLines.contains(selectedLine))
-		{
-			auto firstLineToShow = jmax(0, selectedLine - 4);
-			setFirstLineOnScreen(firstLineToShow);
-		}
-
-		updateSelections();
-		repaint();
-	}
-
-	void setFirstLineOnScreen(int firstRow)
-	{
-		translation.y = -document.getVerticalPosition(firstRow, TextDocument::Metric::top) * viewScaleFactor;
-		translateView(0.0f, 0.0f);
-	}
+	void setFirstLineOnScreen(int firstRow);
 
 	CodeEditorComponent::ColourScheme colourScheme;
 	juce::AffineTransform transform;
 
 	TokenCollection tokenCollection;
 
-	void setTokenTooltipFunction(const TokenTooltipFunction& f)
-	{
-		tokenTooltipFunction = f;
-	}
+	void setTokenTooltipFunction(const TokenTooltipFunction& f);
 
 	void grabKeyboardFocusAndActivateTokenBuilding();
 
-	bool isLiveParsingEnabled() const { return enableLiveParsing; }
-	bool isPreprocessorParsingEnabled() const { return enablePreprocessorParsing; }
+	bool isLiveParsingEnabled() const;
+	bool isPreprocessorParsingEnabled() const;
 
 	bool cut();
 	bool copy();
@@ -486,50 +195,32 @@ public:
 
 	void translateToEnsureCaretIsVisible();
 
-	bool isReadOnly() const { return readOnly; }
+	bool isReadOnly() const;
 
-	void addPopupMenuFunction(const PopupMenuFunction& pf, const PopupMenuResultFunction& rf)
-	{
-		popupMenuFunctions.add(pf);
-		popupMenuResultFunctions.add(rf);
-	}
+	void addPopupMenuFunction(const PopupMenuFunction& pf, const PopupMenuResultFunction& rf);
 
-	TextDocument& getTextDocument() { return document; }
+	TextDocument& getTextDocument();
 
 	bool insert(const juce::String& content);
 
 	bool enableLiveParsing = true;
 	bool enablePreprocessorParsing = true;
 
-	void addKeyPressFunction(const KeyPressFunction& kf)
-	{
-		keyPressFunctions.add(kf);
-	}
+	void addKeyPressFunction(const KeyPressFunction& kf);
 
 	void setLanguageManager(LanguageManager* ownedLanguageManager);
 
-	void setEnableBreakpoint(bool shouldBeEnabled)
-	{
-		gutter.setBreakpointsEnabled(shouldBeEnabled);
-	}
+	void setEnableBreakpoint(bool shouldBeEnabled);
 
-	void setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser)
-	{
-		tokeniser = ownedTokeniser;
-		colourScheme = tokeniser->getDefaultColourScheme();
-	}
+	void setCodeTokeniser(juce::CodeTokeniser* ownedTokeniser);
 
-	void setEnableAutocomplete(bool shouldBeEnabled)
-	{
-		autocompleteEnabled = shouldBeEnabled;
-		currentAutoComplete = nullptr;
-	}
+	void setEnableAutocomplete(bool shouldBeEnabled);
 
 	ScopedPointer<CodeTokeniser> tokeniser;
 
-    LanguageManager* getLanguageManager() { return languageManager; }
-    
-	ScrollBar& getVerticalScrollBar() { return scrollBar; }
+    LanguageManager* getLanguageManager();
+
+	ScrollBar& getVerticalScrollBar();
 
 private:
 
@@ -539,262 +230,40 @@ private:
 
     struct AutocompleteTimer: public Timer
     {
-        AutocompleteTimer(TextEditor& p):
-          parent(p)
-        {}
-        
-        void startAutocomplete()
-        {
-            auto updateSpeed = parent.currentAutoComplete != nullptr ? 30 : 400;
+        AutocompleteTimer(TextEditor& p);
 
-			if(parent.showAutocompleteAfterDelay || parent.currentAutoComplete != nullptr)
-				startTimer(updateSpeed);
-        }
-        
-        void abortAutocomplete()
-        {
-            stopTimer();
-        }
-        
-        void timerCallback() override
-        {
-            parent.updateAutocomplete();
-            stopTimer();
-        }
-        
+        void startAutocomplete();
+
+        void abortAutocomplete();
+
+        void timerCallback() override;
+
         TextEditor& parent;
     } autocompleteTimer;
     
 	bool readOnly = false;
 
-	void setLineBreakEnabled(bool shouldBeEnabled)
-	{
-		if (linebreakEnabled != shouldBeEnabled)
-		{
-			linebreakEnabled = !linebreakEnabled;
+	void setLineBreakEnabled(bool shouldBeEnabled);
 
-			if (linebreakEnabled)
-				xPos = 0.0f;
+	bool expand(TextDocument::Target target);;
 
-			resized();
-			refreshLineWidth();
-		}
-	}
+	bool expandBack(TextDocument::Target target, TextDocument::Direction direction);;
 
-	bool expand(TextDocument::Target target)
-	{
-		document.navigateSelections(target, TextDocument::Direction::backwardCol, Selection::Part::tail);
-		document.navigateSelections(target, TextDocument::Direction::forwardCol, Selection::Part::head);
-		updateSelections();
-		return true;
-	};
-
-	bool expandBack(TextDocument::Target target, TextDocument::Direction direction)
-	{
-		document.navigateSelections(target, direction, Selection::Part::head);
-		translateToEnsureCaretIsVisible();
-		updateSelections();
-		return true;
-	};
-
-	bool nav(ModifierKeys mods, TextDocument::Target target, TextDocument::Direction direction)
-	{
-		lastInsertWasDouble = false;
-
-
-
-		bool isLineSwap = mods.isCommandDown() && mods.isShiftDown() && (direction == TextDocument::Direction::backwardRow ||
-			direction == TextDocument::Direction::forwardRow);
-
-		auto currentSelection = document.getSelection(0).oriented();
-
-		auto up = direction == TextDocument::Direction::backwardRow;
-
-		Range<int> currentLineRange(currentSelection.head.x, currentSelection.tail.x);
-
-		isLineSwap &= (currentLineRange.getStart() > 0 || !up);
-		isLineSwap &= (currentLineRange.getEnd() < (document.getNumRows()-1) || up);
-
-		if (mods.isCommandDown() && mods.isShiftDown() && target == TextDocument::Target::word)
-			return true;
-
-
-
-		if (isLineSwap && document.getNumSelections() == 1)
-		{
-			
-
-			auto prevSelection = document.getSelection(0).oriented();
-
-			
-
-			document.setSelection(0, prevSelection, true);
-
-			if(prevSelection.head.y != 0)
-				document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::backwardCol, Selection::Part::head);
-
-			document.navigateSelections(TextDocument::Target::line, TextDocument::Direction::forwardCol, Selection::Part::tail);
-			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::forwardCol, Selection::Part::tail);
-
-			auto content = document.getSelectionContent(document.getSelection(0));
-
-			insert("");
-
-			auto s = document.getSelection(0).oriented();
-
-			auto delta = up ? -1 : 1;
-
-			s.head.x += delta;
-			s.tail.x += delta;
-
-			document.setSelection(0, s, true);
-			insert(content);
-
-			prevSelection.head.x += delta;
-			prevSelection.tail.x += delta;
-
-			document.setSelection(0, prevSelection, true);
-
-            abortAutocomplete();
-            
-			return true;
-		}
-
-		if (mods.isShiftDown())
-			document.navigateSelections(target, direction, Selection::Part::head);
-		else
-			document.navigateSelections(target, direction, Selection::Part::both);
-
-		translateToEnsureCaretIsVisible();
-		updateSelections();
-		return true;
-	}
+	bool nav(ModifierKeys mods, TextDocument::Target target, TextDocument::Direction direction);
 
 	struct Error
 	{
-		Error(TextDocument& doc_, const String& e, bool isWarning_):
-			document(doc_),
-			isWarning(isWarning_)
-		{
-			auto s = e.fromFirstOccurrenceOf("Line ", false, false);
-			auto l = s.getIntValue() - 1;
-			auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
-			errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
+		Error(TextDocument& doc_, const String& e, bool isWarning_);
 
-			Point<int> pos, endPoint;
+		Selection getSelection() const;
 
-			auto maxLength = document.doc.getLine(l).trimCharactersAtEnd(" \t\n").length();
+		static void paintLine(Line<float> l, Graphics& g, const AffineTransform& transform, Colour c);
 
-			if (c >= (maxLength-1))
-				c = -1;
+		void paintLines(Graphics& g, const AffineTransform& transform, Colour c);
 
-			if (c == -1)
-			{
-				isEntireLine = true;
-				pos = Point<int>(l, 0);
-				
-				document.navigate(pos, TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+		TooltipWithArea::Data getTooltip(const AffineTransform& transform, Point<float> position);
 
-				endPoint = pos;
-				
-
-				document.navigate(pos, TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
-			}
-			else
-			{
-				pos = Point<int>(l, c);
-
-				document.navigate(pos, TextDocument::Target::subwordWithPoint, TextDocument::Direction::backwardCol);
-				endPoint = pos;
-				document.navigate(endPoint, TextDocument::Target::subwordWithPoint, TextDocument::Direction::forwardCol);
-
-				if (pos == endPoint)
-					endPoint.y += 1;
-			}
-
-			start = CodeDocument::Position(document.getCodeDocument(), pos.x, pos.y);
-			end = CodeDocument::Position(document.getCodeDocument(), endPoint.x, endPoint.y);
-			start.setPositionMaintained(true);
-			end.setPositionMaintained(true);
-
-			rebuild();
-		}
-
-		Selection getSelection() const
-		{
-			return Selection(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-		}
-		
-		static void paintLine(Line<float> l, Graphics& g, const AffineTransform& transform, Colour c)
-		{
-			l.applyTransform(transform);
-			Path p;
-			p.startNewSubPath(l.getStart());
-
-			auto startX = jmin(l.getStartX(), l.getEndX());
-			auto endX = jmax(l.getStartX(), l.getEndX());
-			auto y = l.getStartY() - 2.0f;
-
-			float delta = 2.0f;
-			float deltaY = delta * 0.5f;
-
-			for (float s = startX + delta; s < endX; s += delta)
-			{
-				deltaY *= -1.0f;
-				p.lineTo(s, y + deltaY);
-			}
-
-			p.lineTo(l.getEnd());
-
-			g.setColour(c);
-			g.strokePath(p, PathStrokeType(1.0f));
-		}
-
-		void paintLines(Graphics& g, const AffineTransform& transform, Colour c)
-		{
-			for (auto l : errorLines)
-			{
-				paintLine(l, g, transform, c);
-				
-			}
-		}
-
-		TooltipWithArea::Data getTooltip(const AffineTransform& transform, Point<float> position)
-		{
-			auto a = area.transformed(transform);
-
-			TooltipWithArea::Data d;
-
-			if (a.contains(position))
-			{
-				d.text = errorMessage;
-				d.relativePosition = a.getBottomLeft().translated(0.0f, 5.0f);
-
-				d.id = String(d.relativePosition.toString().hash());
-
-				d.clickAction = {};
-			}
-
-			return d;
-		}
-
-		void rebuild()
-		{
-			if (isEntireLine)
-			{
-				Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-				errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
-				area = document.getSelectionRegion(errorWord).getRectangle(0).withWidth(errorLines[0].getLength());
-			}
-			else
-			{
-				Selection errorWord(start.getLineNumber(), start.getIndexInLine(), end.getLineNumber(), end.getIndexInLine());
-				errorLines = document.getUnderlines(errorWord, mcl::TextDocument::Metric::baseline);
-				area = document.getSelectionRegion(errorWord).getRectangle(0);
-			}
-
-			
-		}
+		void rebuild();
 
 		bool isEntireLine = false;
 

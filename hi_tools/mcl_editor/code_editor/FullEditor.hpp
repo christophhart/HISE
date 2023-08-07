@@ -71,115 +71,33 @@ struct FullEditor: public Component,
 
 	struct TemplateProvider : public TokenCollection::Provider
 	{
-		void addTokens(TokenCollection::List& tokens) override
-		{
-			for (int i = 0; i < templateExpressions.size(); i++)
-			{
-
-			}
-		}
+		void addTokens(TokenCollection::List& tokens) override;
 
 		StringArray templateExpressions;
 		StringArray classIds;
 	};
 
-	void addAutocompleteTemplate(const String& templateExpression, const String& classId)
-	{
+	void addAutocompleteTemplate(const String& templateExpression, const String& classId);
 
-	}
+	void loadSettings(const File& sFile);
 
-	void loadSettings(const File& sFile)
-	{
-		settingFile = sFile;
+	static void saveSetting(Component* c, const Identifier& id, const var& newValue);
 
-		auto s = JSON::parse(settingFile);
+	void setReadOnly(bool shouldBeReadOnly);
 
-		editor.setLineBreakEnabled(s.getProperty(TextEditorSettings::LineBreaks, true));
-		mapWidth = s.getProperty(TextEditorSettings::MapWidth, 150);
-		
-		mapButton.setToggleStateAndUpdateIcon(s.getProperty(TextEditorSettings::EnableMap, false));
+	bool injectBreakpointCode(String& s);
 
-		resized();
+	void setColourScheme(const juce::CodeEditorComponent::ColourScheme& s);
 
-		codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
-        editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
-	}
+	void setCurrentBreakline(int n);
 
-	static void saveSetting(Component* c, const Identifier& id, const var& newValue)
-	{
-		auto pe = c->findParentComponentOfClass<FullEditor>();
-		
-		auto s = JSON::parse(pe->settingFile);
+	void sendBlinkMessage(int n);
 
-		if (s.getDynamicObject() == nullptr)
-			s = var(new DynamicObject());
+	void addBreakpointListener(GutterComponent::BreakpointListener* l);
 
-		s.getDynamicObject()->setProperty(id, newValue);
-		pe->settingFile.replaceWithText(JSON::toString(s));
+	void removeBreakpointListener(GutterComponent::BreakpointListener* l);
 
-		if (id == TextEditorSettings::MapWidth)
-		{
-			pe->mapWidth = (int)newValue;
-			pe->resized();
-		}
-		if (id == TextEditorSettings::EnableHover)
-		{
-			pe->codeMap.allowHover = (bool)newValue;
-		}
-		if (id == TextEditorSettings::AutoAutocomplete)
-		{
-			pe->editor.showAutocompleteAfterDelay = (bool)newValue;
-		}
-		if (id == TextEditorSettings::LineBreaks)
-		{
-			pe->editor.setLineBreakEnabled((bool)newValue);
-		}
-		if (id == TextEditorSettings::EnableMap)
-		{
-			pe->mapButton.setToggleStateAndUpdateIcon((bool)newValue);
-			pe->resized();
-		}
-	}
-
-	void setReadOnly(bool shouldBeReadOnly)
-	{
-		editor.setReadOnly(shouldBeReadOnly);
-	}
-
-	bool injectBreakpointCode(String& s)
-	{
-		return editor.gutter.injectBreakPoints(s);
-	}
-
-	void setColourScheme(const juce::CodeEditorComponent::ColourScheme& s)
-	{
-		editor.colourScheme = s;
-	}
-
-	void setCurrentBreakline(int n)
-	{
-		editor.gutter.setCurrentBreakline(n);
-	}
-
-	void sendBlinkMessage(int n)
-	{
-		editor.gutter.sendBlinkMessage(n);
-	}
-
-	void addBreakpointListener(GutterComponent::BreakpointListener* l)
-	{
-		editor.gutter.addBreakpointListener(l);
-	}
-
-	void removeBreakpointListener(GutterComponent::BreakpointListener* l)
-	{
-		editor.gutter.removeBreakpointListener(l);
-	}
-
-	void enableBreakpoints(bool shouldBeEnabled)
-	{
-		editor.gutter.setBreakpointsEnabled(shouldBeEnabled);
-	}
+	void enableBreakpoints(bool shouldBeEnabled);
 
 	static void initKeyPresses(Component* root);
 
@@ -214,33 +132,9 @@ struct FullEditor: public Component,
 
 struct XmlEditor : public Component
 {
-	XmlEditor(const File& xmlFile, const String& content = {}) :
-		tdoc(doc),
-		editor(tdoc),
-		resizer(this, nullptr)
-	{
-		if (!content.isEmpty())
-			doc.replaceAllContent(content);
-		else
-		{
-			doc.replaceAllContent(xmlFile.loadFileAsString());
-			setName(xmlFile.getFileName());
-		}
-			
-		doc.clearUndoHistory();
-		addAndMakeVisible(editor);
-		editor.editor.setLanguageManager(new mcl::XmlLanguageManager());
-		addAndMakeVisible(resizer);
-		setSize(600, 400);
-	}
+	XmlEditor(const File& xmlFile, const String& content = {});
 
-	void resized() override
-	{
-		auto b = getLocalBounds();
-		b.removeFromTop(24);
-		editor.setBounds(b);
-		resizer.setBounds(b.removeFromBottom(15).removeFromRight(15));
-	}
+	void resized() override;
 
 	std::function<void()> closeCallback;
 
@@ -260,28 +154,14 @@ struct MarkdownPreviewSyncer : public Timer,
     
     void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override;
 
-    void codeDocumentTextInserted(const String& newText, int insertIndex) override
-    {
-        startTimer(500);
-    }
+    void codeDocumentTextInserted(const String& newText, int insertIndex) override;
 
-    void codeDocumentTextDeleted(int startIndex, int endIndex) override
-    {
-        startTimer(500);
-    }
-    
-    MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPreview& preview) :
-        p(preview),
-        e(editor)
-    {
-        e.editor.getTextDocument().getCodeDocument().addListener(this);
-    };
+    void codeDocumentTextDeleted(int startIndex, int endIndex) override;
 
-    ~MarkdownPreviewSyncer()
-    {
-        e.editor.getTextDocument().getCodeDocument().removeListener(this);
-    }
-    
+    MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPreview& preview);;
+
+    ~MarkdownPreviewSyncer();
+
     void timerCallback() override;
 
     bool recursiveScrollProtector = false;

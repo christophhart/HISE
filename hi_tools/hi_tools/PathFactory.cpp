@@ -130,6 +130,34 @@ namespace hise {
 
 	}
 
+	void PathFactory::scalePath(Path& p, Rectangle<float> f)
+	{
+		p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
+	}
+
+	void PathFactory::scalePath(Path& p, Component* c, float padding)
+	{
+		auto b = c->getBoundsInParent().toFloat().reduced(padding);
+		scalePath(p, b);
+	}
+
+	PathFactory::PathFactory()
+	{
+
+	}
+
+	String PathFactory::getId() const
+	{ return {}; }
+
+	PathFactory::~PathFactory()
+	{}
+
+	Array<PathFactory::Description> PathFactory::getDescription() const
+	{ return {}; }
+
+	Array<PathFactory::KeyMapping> PathFactory::getKeyMapping() const
+	{ return {}; }
+
 	PathFactory::KeyMapping::KeyMapping(const String& name, int keyCode, ModifierKeys::Flags mods)
 	{
 		url = StringSanitizer::get(name);

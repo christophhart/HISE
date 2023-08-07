@@ -31,11 +31,11 @@ struct Selection
 {
 	struct Listener
 	{
-		virtual ~Listener() {};
+		virtual ~Listener();;
 
 		virtual void selectionChanged() = 0;
 
-		virtual void displayedLineRangeChanged(Range<int> newRange) {};
+		virtual void displayedLineRangeChanged(Range<int> newRange);;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
@@ -45,80 +45,41 @@ struct Selection
 		head, tail, both,
 	};
 
-	Selection() {}
+	Selection();
 	Selection(const juce::CodeDocument& doc, int headChar, int tailChar);
-	Selection(juce::Point<int> head) : head(head), tail(head) {}
-	Selection(juce::Point<int> head, juce::Point<int> tail) : head(head), tail(tail) {}
-	Selection(int r0, int c0, int r1, int c1) : head(r0, c0), tail(r1, c1) {}
+	Selection(juce::Point<int> head);
+	Selection(juce::Point<int> head, juce::Point<int> tail);
+	Selection(int r0, int c0, int r1, int c1);
 
 	/** Construct a selection whose head is at (0, 0), and whose tail is at the end of
 		the given content string, which may span multiple lines.
 	 */
 	Selection(const juce::String& content);
 
-	bool operator== (const Selection& other) const
-	{
-		return head == other.head && tail == other.tail;
-	}
+	bool operator== (const Selection& other) const;
 
-	bool operator< (const Selection& other) const
-	{
-		const auto A = this->oriented();
-		const auto B = other.oriented();
-		if (A.head.x == B.head.x) return A.head.y < B.head.y;
-		return A.head.x < B.head.x;
-	}
+	bool operator< (const Selection& other) const;
 
-	juce::String toString() const
-	{
-		return "(" + head.toString() + ") - (" + tail.toString() + ")";
-	}
+	juce::String toString() const;
 
 	/** Whether or not this selection covers any extent. */
-	bool isSingular() const { return head == tail; }
+	bool isSingular() const;
 
 	/** Whether or not this selection is only a single line. */
-	bool isSingleLine() const { return head.x == tail.x; }
+	bool isSingleLine() const;
 
 	/** Whether the given row is within the selection. */
-	bool intersectsRow(int row) const
-	{
-		return isOriented()
-			? head.x <= row && row <= tail.x
-			: head.x >= row && row >= tail.x;
-	}
+	bool intersectsRow(int row) const;
 
-	static Selection fromCodePosition(const CodeDocument::Position& p)
-	{
-		return Selection(p.getLineNumber(), p.getIndexInLine(), p.getLineNumber(), p.getIndexInLine());
-	}
+	static Selection fromCodePosition(const CodeDocument::Position& p);
 
-	static Selection fromCodePosition(const CodeDocument::Position& s, const CodeDocument::Position& e)
-	{
-		return Selection(s.getLineNumber(), s.getIndexInLine(), e.getLineNumber(), e.getIndexInLine());
-	}
+	static Selection fromCodePosition(const CodeDocument::Position& s, const CodeDocument::Position& e);
 
-	CodeDocument::Position toCodePosition(const CodeDocument& doc, bool getHead=true) const
-	{
-		return CodeDocument::Position(doc, getHead ? head.x : tail.x, getHead ? head.y : tail.y);
-	}
+	CodeDocument::Position toCodePosition(const CodeDocument& doc, bool getHead=true) const;
 
 	/** Return the range of columns this selection covers on the given row.
 	 */
-	juce::Range<int> getColumnRangeOnRow(int row, int numColumns) const
-	{
-		const auto A = oriented();
-
-		if (row < A.head.x || row > A.tail.x)
-			return { 0, 0 };
-		if (row == A.head.x && row == A.tail.x)
-			return { A.head.y, A.tail.y };
-		if (row == A.head.x)
-			return { A.head.y, numColumns };
-		if (row == A.tail.x)
-			return { 0, A.tail.y };
-		return { 0, numColumns };
-	}
+	juce::Range<int> getColumnRangeOnRow(int row, int numColumns) const;
 
 	/** Whether the head precedes the tail. */
 	bool isOriented() const;
@@ -147,7 +108,7 @@ struct Selection
 	 */
 	Selection startingFrom(juce::Point<int> index) const;
 
-	Selection withStyle(int token) const { auto s = *this; s.token = token; return s; }
+	Selection withStyle(int token) const;
 
 	/** Modify this selection (if necessary) to account for the disapearance of a
 		selection someplace else.
@@ -169,21 +130,8 @@ struct Selection
 	 */
 	void push(juce::Point<int>& index) const;
 
-    bool contains(Point<int> pos) const
-    {
-        if(isSingular())
-            return false;
-        
-        auto o = oriented();
-        
-        auto isBiggerThanHead = pos.x > o.head.x ||
-                              ((pos.x == o.head.x) && (pos.y > o.head.y));
-        auto isSmallerThanTail = pos.x < o.tail.x ||
-                               ((pos.x == o.tail.x) && (pos.y < o.tail.y));
-        
-        return isBiggerThanHead && isSmallerThanTail;
-    }
-    
+    bool contains(Point<int> pos) const;
+
 	juce::Point<int> head; // (row, col) of the selection head (where the caret is drawn)
 	juce::Point<int> tail; // (row, col) of the tail
 	int token = 0;

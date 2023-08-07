@@ -145,22 +145,7 @@ class MarkdownParser::FileBasedImageProvider : public ImageProvider
 {
 public:
 
-	static Image createImageFromSvg(Drawable* drawable, float width)
-	{
-		if (drawable != nullptr)
-		{
-			float maxWidth = jmax(10.0f, width);
-			float height = drawable->getOutlineAsPath().getBounds().getAspectRatio(false) * maxWidth;
-
-			Image img(Image::PixelFormat::ARGB, (int)maxWidth, (int)height, true);
-			Graphics g(img);
-			drawable->drawWithin(g, { 0.0f, 0.0f, maxWidth, height }, RectanglePlacement::centred, 1.0f);
-
-			return img;
-		}
-
-		return {};
-	}
+	static Image createImageFromSvg(Drawable* drawable, float width);
 
 	FileBasedImageProvider(MarkdownParser* parent, const File& root);;
 
@@ -281,65 +266,9 @@ struct MarkdownCodeComponentBase : public Component,
 
 	MarkdownCodeComponentBase(SyntaxType syntax_, String code, float width, float fontsize, MarkdownParser* parent);
 
-	void createChildComponents()
-	{
-		addAndMakeVisible(editor);
-		addAndMakeVisible(o);
+	void createChildComponents();
 
-		addAndMakeVisible(expandButton = new TextButton("Expand this code"));
-		expandButton->setLookAndFeel(&blaf);
-		expandButton->addListener(this);
-	}
-
-	virtual void initialiseEditor()
-	{
-		usedDocument = ownedDoc;
-
-		editor = new CodeEditorComponent(*usedDocument, tok);
-
-		if (syntax == Cpp)
-		{
-			struct Type
-			{
-				const char* name;
-				uint32 colour;
-			};
-
-			const Type types[] =
-			{
-				{ "Error", 0xffBB3333 },
-				{ "Comment", 0xff77CC77 },
-				{ "Keyword", 0xffbbbbff },
-				{ "Operator", 0xffCCCCCC },
-				{ "Identifier", 0xffDDDDFF },
-				{ "Integer", 0xffDDAADD },
-				{ "Float", 0xffEEAA00 },
-				{ "String", 0xffDDAAAA },
-				{ "Bracket", 0xffFFFFFF },
-				{ "Punctuation", 0xffCCCCCC },
-				{ "Preprocessor Text", 0xffCC7777 }
-			};
-
-			CodeEditorComponent::ColourScheme cs;
-
-			for (unsigned int i = 0; i < sizeof(types) / sizeof(types[0]); ++i)  // (NB: numElementsInArray doesn't work here in GCC4.2)
-				cs.set(types[i].name, Colour(types[i].colour));
-
-			editor->setColourScheme(cs);
-		}
-
-		
-
-		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
-		editor->setReadOnly(true);
-	}
+	virtual void initialiseEditor();
 
 	virtual int getPreferredHeight() const
 	{
@@ -383,28 +312,7 @@ struct MarkdownCodeComponentBase : public Component,
 
 	void updateHeightInParent();
 
-	void resized() override
-	{
-		editor->setBounds(getLocalBounds());
-
-		editor->scrollToLine(0);
-
-		auto b = getLocalBounds();
-		b.removeFromLeft(getGutterWidth());
-
-		if (autoHideEditor())
-		{
-			o.setVisible(true);
-			o.setBounds(b);
-			expandButton->setVisible(true);
-			expandButton->setBounds(b.withSizeKeepingCentre(130, editor->getLineHeight()));
-		}
-		else
-		{
-			o.setVisible(false);
-			expandButton->setVisible(false);
-		}
-	}
+	void resized() override;
 
 	Overlay o;
 
@@ -425,43 +333,13 @@ struct MarkdownCodeComponentBase : public Component,
 
 struct SnapshotMarkdownCodeComponent : public MarkdownCodeComponentBase
 {
-	SnapshotMarkdownCodeComponent(SyntaxType syntax, String code, float width, MarkdownParser* parent) :
-		MarkdownCodeComponentBase(syntax, code, width, parent->getStyleData().fontSize, parent)
-	{
-		initialiseEditor();
-		createChildComponents();
-
-		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
-		{
-			String link = "/images/floating-tile_";
-
-			String s = JSON::parse(code).getProperty("Type", "").toString();
-
-			link << s << ".png";
-			l = { {}, link };
-			l = l.withPostData(code);
-		}
-	}
+	SnapshotMarkdownCodeComponent(SyntaxType syntax, String code, float width, MarkdownParser* parent);
 
 	String generateHtml() const override;
 
-	void addImageLinks(Array<MarkdownLink>& sa)
-	{
-		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile)
-		{
-			sa.add(l);
-		}
-	}
+	void addImageLinks(Array<MarkdownLink>& sa) override;
 
-	int getPreferredHeight() const override
-	{
-		if (syntax == MarkdownCodeComponentBase::EditableFloatingTile && screenshot.isNull())
-		{
-			screenshot = parent->resolveImage(l, MarkdownParser::DefaultLineWidth);
-		}
-
-		return jmax<int>(50, screenshot.getHeight());
-	}
+	int getPreferredHeight() const override;
 
 	void paint(Graphics& g) override
 	{

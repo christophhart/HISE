@@ -139,6 +139,235 @@ mcl::HighlightComponent::~HighlightComponent()
 	document.removeFoldListener(this);
 }
 
+SearchBoxComponent::SearchBoxComponent(TextDocument& d, float scaleFactor):
+	doc(d),
+	find("Find"),
+	prev("Find prev"),
+	findAll("Find all")
+{
+	searchField.setFont(d.getFont().withHeight(d.getFontHeight() * scaleFactor));
+
+	laf.f = searchField.getFont();
+
+	searchField.setCaretVisible(true);
+	searchField.setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::black);
+
+	addAndMakeVisible(searchField);
+
+	searchField.addKeyListener(this);
+	searchField.addListener(this);
+
+	find.setLookAndFeel(&laf);
+	prev.setLookAndFeel(&laf);
+	findAll.setLookAndFeel(&laf);
+
+	find.addListener(this);
+	prev.addListener(this);
+
+	findAll.onClick = [this]()
+	{
+		doc.setSelections(doc.getSearchResults(), true);
+		doc.setSearchResults({});
+		sendSearchChangeMessage();
+	};
+
+	addAndMakeVisible(find);
+	addAndMakeVisible(prev);
+	addAndMakeVisible(findAll);
+}
+
+SearchBoxComponent::~SearchBoxComponent()
+{
+	doc.setSearchResults({});
+
+	sendSearchChangeMessage();
+}
+
+void SearchBoxComponent::buttonClicked(Button* b)
+{
+	auto currentPos = doc.getSelection(0);
+	auto sr = doc.getSearchResults();
+
+	auto toUse = sr[0];
+
+	if (b == &prev)
+	{
+		toUse = sr.getLast();
+
+		for (int i = sr.size()-1; i >= 0; i--)
+		{
+			if (sr[i] < currentPos)
+			{
+				toUse = sr[i];
+				break;
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < sr.size(); i++)
+		{
+			if (currentPos < sr[i])
+			{
+				toUse = sr[i];
+				break;
+			}
+		}
+	}
+
+		
+
+
+	doc.setSelections({ toUse.oriented() }, true);
+	sendSearchChangeMessage();
+}
+
+void SearchBoxComponent::sendSearchChangeMessage()
+{
+	for (auto l : listeners)
+	{
+		if (l.get() != nullptr)
+			l->searchItemsChanged();
+	}
+}
+
+SearchBoxComponent::Listener::~Listener()
+{}
+
+void SearchBoxComponent::Listener::searchItemsChanged()
+{}
+
+void SearchBoxComponent::textEditorTextChanged(juce::TextEditor& t)
+{
+	auto input = searchField.getText();
+	setSearchInput(input);
+}
+
+void SearchBoxComponent::setSearchInput(const String& text)
+{
+	CodeDocument::Position p(doc.getCodeDocument(), 0);
+
+	auto firstChar = text[0];
+	int maxIndex = text.length();
+	Array<Selection> searchResults;
+
+	while (p.getPosition() < doc.getCodeDocument().getNumCharacters())
+	{
+		if (p.getCharacter() == firstChar)
+		{
+			auto e = p.movedBy(maxIndex);
+
+			auto t = doc.getCodeDocument().getTextBetween(p, e);
+
+			if (text == t)
+			{
+				Point<int> ps(p.getLineNumber(), p.getIndexInLine());
+				Point<int> pe(e.getLineNumber(), e.getIndexInLine());
+
+				searchResults.add({ ps, pe });
+			}
+		}
+
+		p.moveBy(1);
+	}
+
+		
+	doc.setSearchResults(searchResults);
+		
+	sendSearchChangeMessage();
+}
+
+bool SearchBoxComponent::keyPressed(const KeyPress& k, Component* c)
+{
+	if (k == KeyPress::returnKey)
+	{
+		find.triggerClick();
+		return true;
+	}
+	if (k == KeyPress::escapeKey)
+	{
+		auto parent = getParentComponent();
+		MessageManager::callAsync([parent, k]()
+		{
+			parent->keyPressed(k);
+		});
+
+		return true;
+	}
+
+	return false;
+}
+
+void SearchBoxComponent::addListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void SearchBoxComponent::removeListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+void SearchBoxComponent::paint(Graphics& g)
+{
+	auto b = getLocalBounds();
+		
+	DropShadow sh;
+	sh.colour = Colours::black.withAlpha(0.8f);
+	sh.radius = 5;
+	sh.drawForRectangle(g, b.toNearestInt());
+
+	g.setColour(Colour(0xFF555555));
+	g.fillRect(b);
+
+	String s;
+		
+	s << String(doc.getSearchResults().size()) << " matches";
+		
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(getResultFont());
+	g.drawText(s, b.reduced(8.0f, 0.0f), Justification::centredLeft);
+
+}
+
+Font SearchBoxComponent::getResultFont() const
+{
+	return laf.f.withHeight(laf.f.getHeight() * 0.8f).boldened();
+}
+
+void SearchBoxComponent::resized()
+{
+	auto b = getLocalBounds();
+	b.removeFromTop(5);
+	auto okBox = b.removeFromRight(200);
+
+
+
+	b.removeFromLeft(getResultFont().getStringWidth("1230 matches"));
+
+	searchField.setBounds(b);
+
+	find.setBounds(okBox.removeFromLeft(60));
+	prev.setBounds(okBox.removeFromLeft(60));
+	findAll.setBounds(okBox);
+		
+}
+
+void SearchBoxComponent::Blaf::drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour,
+	bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
+{
+	float alpha = 0.4f;
+
+	if (shouldDrawButtonAsHighlighted)
+		alpha += 0.1f;
+
+	if (shouldDrawButtonAsDown)
+		alpha += 0.2f;
+
+	g.setColour(Colours::white.withAlpha(alpha));
+	g.fillRoundedRectangle(b.getLocalBounds().toFloat().reduced(1.0f, 1.0f), 2.0f);
+}
+
 void SearchBoxComponent::Blaf::drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 {
 	g.setFont(Font("Oxygen", 13.0f, Font::bold));

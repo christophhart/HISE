@@ -32,6 +32,179 @@
 
 namespace hise { using namespace juce;
 
+	SliderPackData::Listener::~Listener()
+	{}
+
+	void SliderPackData::Listener::sliderAmountChanged(SliderPackData* d)
+	{}
+
+	void SliderPackData::Listener::displayedIndexChanged(SliderPackData* d, int newIndex)
+	{}
+
+	void SliderPackData::Listener::setSliderPack(SliderPackData* d)
+	{
+		connectedSliderPack = d;
+	}
+
+	void SliderPackData::Listener::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var v)
+	{
+		switch (t)
+		{
+		case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
+			sliderAmountChanged(connectedSliderPack);
+			break;
+		case ComplexDataUIUpdaterBase::EventType::ContentChange:
+			sliderPackChanged(connectedSliderPack, (int)v);
+			break;
+		case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+			displayedIndexChanged(connectedSliderPack, (int)v);
+			break;
+		default:
+			break;
+		}
+	}
+
+	void SliderPackData::startDrag()
+	{
+		
+	}
+
+	bool SliderPackData::fromBase64String(const String& b64)
+	{
+		fromBase64(b64);
+
+		return getNumSliders() > 0;
+	}
+
+	String SliderPackData::toBase64String() const
+	{
+		return toBase64();
+	}
+
+	int SliderPackData::getNextIndexToDisplay() const
+	{
+		return nextIndexToDisplay;
+	}
+
+	void SliderPackData::setDisplayedIndex(int index)
+	{
+		nextIndexToDisplay = index;
+		internalUpdater.sendDisplayChangeMessage((float)index, sendNotificationAsync);
+	}
+
+	const float* SliderPackData::getCachedData() const
+	{
+		return dataBuffer->buffer.getReadPointer(0);
+	}
+
+	var SliderPackData::getDataArray() const
+	{ return var(dataBuffer.get()); }
+
+	void SliderPackData::setFlashActive(bool shouldBeShown)
+	{ flashActive = shouldBeShown; }
+
+	void SliderPackData::setShowValueOverlay(bool shouldBeShown)
+	{ showValueOverlay = shouldBeShown; }
+
+	bool SliderPackData::isFlashActive() const
+	{ return flashActive; }
+
+	bool SliderPackData::isValueOverlayShown() const
+	{ return showValueOverlay; }
+
+	void SliderPackData::setDefaultValue(double newDefaultValue)
+	{
+		defaultValue = (float)newDefaultValue;
+	}
+
+	float SliderPackData::getDefaultValue() const
+	{ return defaultValue; }
+
+	void SliderPackData::addListener(Listener* listener)
+	{
+		listener->setSliderPack(this);
+		internalUpdater.addEventListener(listener);
+	}
+
+	void SliderPackData::removeListener(Listener* listener)
+	{
+		listener->setSliderPack(nullptr);
+		internalUpdater.removeEventListener(listener);
+	}
+
+	void SliderPackData::sendValueChangeMessage(int index, NotificationType notify)
+	{
+		internalUpdater.sendContentChangeMessage(notify, index);
+	}
+
+	void SliderPackData::setUsePreallocatedLength(int numMaxSliders)
+	{
+		if(numMaxSliders != numPreallocated)
+		{
+			numPreallocated = numMaxSliders;
+            
+			if(numPreallocated > 0)
+			{
+				preallocatedData.calloc(numPreallocated);
+                
+				int numToCopy = jmin(numMaxSliders, getNumSliders());
+                
+				FloatVectorOperations::copy(preallocatedData.get(), dataBuffer->buffer.getReadPointer(0), numToCopy);
+                
+				{
+					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+					dataBuffer->referToData(preallocatedData.get(), numToCopy);
+				}
+                
+				internalUpdater.sendContentRedirectMessage();
+			}
+			else
+			{
+				auto newBuffer = new VariantBuffer(getNumSliders());
+                
+				FloatVectorOperations::copy(newBuffer->buffer.getWritePointer(0), dataBuffer->buffer.getReadPointer(0), getNumSliders());
+                
+				swapBuffer(newBuffer, sendNotification);
+                
+				preallocatedData.free();
+			}
+            
+            
+		}
+	}
+
+	SliderPackData::SliderPackAction::SliderPackAction(SliderPackData* data_, int sliderIndex_, float oldValue_,
+		float newValue_, NotificationType n_):
+		UndoableAction(),
+		data(data_),
+		sliderIndex(sliderIndex_),
+		oldValue(oldValue_),
+		newValue(newValue_),
+		n(n_)
+	{}
+
+	bool SliderPackData::SliderPackAction::perform()
+	{
+		if (data != nullptr)
+		{
+			data->setValue(sliderIndex, newValue, n, false);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool SliderPackData::SliderPackAction::undo()
+	{
+		if (data != nullptr)
+		{
+			data->setValue(sliderIndex, oldValue, n, false);
+			return true;
+		}
+
+		return false;
+	}
+
 SliderPackData::SliderPackData(UndoManager* undoManager_, PooledUIUpdater* updater) :
 stepSize(0.01),
 nextIndexToDisplay(-1),
@@ -970,6 +1143,85 @@ void SliderPack::SliderLookAndFeel::drawLinearSlider(Graphics &g, int /*x*/, int
 			false));
 		g.fillRect(leftX, 2.0f, actualWidth, (float)(height - 2));
 	}
+}
+
+SliderPack::LookAndFeelMethods::~LookAndFeelMethods()
+{}
+
+void SliderPack::sliderAmountChanged(SliderPackData* d)
+{
+	slidersNeedRebuild = true;
+	startTimer(30);
+}
+
+void SliderPack::sliderPackChanged(SliderPackData* s, int index)
+{
+	for (int i = 0; i < sliders.size(); i++)
+	{
+		auto shouldBe = data->getValue(i);
+
+		if (sliders[i]->getValue() != shouldBe)
+			sliders[i]->setValue(shouldBe, dontSendNotification);
+	}
+}
+
+int SliderPack::getCurrentlyDraggedSliderIndex() const
+{ return currentlyDraggedSlider; }
+
+double SliderPack::getCurrentlyDraggedSliderValue() const
+{ return currentlyDraggedSliderValue; }
+
+void SliderPack::setComplexDataUIBase(ComplexDataUIBase* newData)
+{
+	if (auto sp = dynamic_cast<SliderPackData*>(newData))
+		setSliderPackData(sp);
+}
+
+void SliderPack::mouseMove(const MouseEvent& mouseEvent)
+{ repaint(); }
+
+void SliderPack::notifyListeners(int index, NotificationType n)
+{
+	if (getData() != nullptr)
+	{
+		getData()->sendValueChangeMessage(index, n);
+	}
+}
+
+const SliderPackData* SliderPack::getData() const
+{ return data; }
+
+SliderPackData* SliderPack::getData()
+{ return data; }
+
+void SliderPack::setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn)
+{
+	EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+	sliders.clear();
+	rebuildSliders();
+}
+
+void SliderPack::setSliderWidths(const Array<var>& newWidths)
+{
+	sliderWidths = newWidths;
+	resized();
+}
+
+void SliderPack::addListener(Listener* l)
+{
+	if (auto d = getData())
+		d->addListener(l);
+}
+
+void SliderPack::removeListener(Listener* listener)
+{
+	if (auto d = getData())
+		d->removeListener(listener);
+}
+
+void SliderPack::setCallbackOnMouseUp(bool shouldFireOnMouseUp)
+{
+	callbackOnMouseUp = shouldFireOnMouseUp;
 }
 
 void SliderPack::LookAndFeelMethods::drawSliderPackBackground(Graphics& g, SliderPack& s)

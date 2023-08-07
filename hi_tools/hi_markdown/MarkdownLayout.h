@@ -80,19 +80,7 @@ struct MarkdownLayout
 
 		bool useSpecialBoldFont = false;
 
-		static StyleData createBrightStyle()
-		{
-			MarkdownLayout::StyleData l;
-			l.textColour = Colour(0xFF333333);
-			l.headlineColour = Colour(0xFF444444);
-			l.backgroundColour = Colour(0xFFEEEEEE);
-			l.linkColour = Colour(0xFF000044);
-			l.codeColour = Colour(0xFF333333);
-			l.tableHeaderBackgroundColour = Colours::grey.withAlpha(0.2f);
-			l.tableLineColour = Colours::grey.withAlpha(0.2f);
-
-			return l;
-		}
+		static StyleData createBrightStyle();
 
 		bool fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader);
 

@@ -284,6 +284,9 @@ bool Helpers::forEachParent(ValueTree& v, const Function& f)
 	return forEachParent(p, f);
 }
 
+
+
+
 void PropertyListener::setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_)
 {
 	if (v.isValid())
@@ -780,6 +783,40 @@ AnyListener::AnyListener(AsyncMode mode_) :
 
 	for (int i = 0; i < numCallbackTypes; i++)
 		setForwardCallback((CallbackType)i, true);
+}
+
+void AnyListener::setMillisecondsBetweenUpdate(int milliSeconds)
+{
+	if (milliSeconds == 0)
+		mode = AsyncMode::Asynchronously;
+	else
+	{
+		mode = AsyncMode::Coallescated;
+		milliSecondsBetweenUpdate = milliSeconds;
+	}
+}
+
+void AnyListener::setEnableLogging(bool shouldLog)
+{
+	loggingEnabled = shouldLog;
+}
+
+void AnyListener::setRootValueTree(const ValueTree& d)
+{
+	data = d;
+	data.addListener(this);
+
+	anythingChanged(lastCallbackType);
+}
+
+void AnyListener::setForwardCallback(CallbackType c, bool shouldForward)
+{
+	forwardCallbacks[c] = shouldForward;
+}
+
+void AnyListener::setPropertyCondition(const PropertyConditionFunc& f)
+{
+	pcf = f;
 }
 
 void AnyListener::handleAsyncUpdate()

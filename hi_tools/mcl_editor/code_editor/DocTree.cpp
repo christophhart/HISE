@@ -13,6 +13,110 @@ namespace mcl
 {
 using namespace juce;
 
+DocTreeBuilder::Item** DocTreeBuilder::Item::begin() const
+{ return const_cast<Item**>(children.begin()); }
+
+DocTreeBuilder::Item** DocTreeBuilder::Item::end() const
+{ return const_cast<Item**>(children.end()); }
+
+DocTreeBuilder::Listener::~Listener()
+{}
+
+DocTreeBuilder::DocTreeBuilder(TextDocument& t):
+	CoallescatedCodeDocumentListener(t.getCodeDocument()),
+	doc(t)
+{}
+
+DocTreeBuilder::~DocTreeBuilder()
+{}
+
+void DocTreeBuilder::addListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void DocTreeBuilder::removeListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
+}
+
+CodeDocument::Iterator DocTreeBuilder::createIterator() const
+{
+	return CodeDocument::Iterator(doc.getCodeDocument());
+}
+
+DocTreeView::DocTreeViewItem::DocTreeViewItem(DocTreeBuilder::Ptr item_):
+	item(item_)
+{}
+
+bool DocTreeView::DocTreeViewItem::mightContainSubItems()
+{
+	return item->begin() != item->end();
+}
+
+String DocTreeView::DocTreeViewItem::getUniqueName() const
+{
+	return item->getPath();
+}
+
+void DocTreeView::DocTreeViewItem::itemOpennessChanged(bool isNowOpen)
+{
+	if (isNowOpen)
+	{
+		for (auto c : *item)
+			addSubItem(new DocTreeViewItem(c));
+	}
+	else
+		clearSubItems();
+}
+
+void DocTreeView::DocTreeViewItem::paintItem(Graphics& g, int width, int height)
+{
+	Font f(Font::getDefaultMonospacedFontName(), 16.0f, Font::plain);
+	g.setFont(f);
+	g.setColour(Colours::white.withAlpha(0.7f));
+	g.drawText(item->name, 0.0f, 0.0f, (float)width, (float)height, Justification::centredLeft);
+}
+
+void DocTreeView::treeWasRebuilt(DocTreeBuilder::Ptr newRoot)
+{
+	tree.setRootItem(nullptr);
+
+	rootItem = new DocTreeViewItem(newRoot);
+	tree.setRootItem(rootItem);
+	tree.setDefaultOpenness(true);
+	tree.setRootItemVisible(false);
+	resized();
+}
+
+DocTreeView::DocTreeView(TextDocument& doc)
+{
+	addAndMakeVisible(tree);
+}
+
+void DocTreeView::setBuilder(DocTreeBuilder* ownedBuilder)
+{
+	builder = ownedBuilder;
+	builder->addListener(this);
+}
+
+void DocTreeView::resized()
+{
+	tree.setBounds(getLocalBounds());
+}
+
+DocTreeView::~DocTreeView()
+{
+	tree.setRootItem(nullptr);
+	rootItem = nullptr;
+
+	if (builder != nullptr)
+	{
+		builder->removeListener(this);
+		builder = nullptr;
+	}
+}
+
 void DocTreeBuilder::Item::clearChildren()
 {
 	children.clear();

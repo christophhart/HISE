@@ -146,42 +146,20 @@ class DynamicDebugableObjectWrapper : public DebugableObjectBase
 {
 public:
 
-	DynamicDebugableObjectWrapper(DynamicObject::Ptr obj_, const Identifier& className_, const Identifier& instanceId_) :
-		obj(obj_),
-		className(className_),
-		instanceId(instanceId_)
-	{
+	DynamicDebugableObjectWrapper(DynamicObject::Ptr obj_, const Identifier& className_, const Identifier& instanceId_);
 
-	}
+	virtual Identifier getObjectName() const override;
+	virtual Identifier getInstanceName() const override;
 
-	virtual Identifier getObjectName() const override { return className; }
-	virtual Identifier getInstanceName() const override { return instanceId; }
+	virtual String getDebugValue() const override;
 
-	virtual String getDebugValue() const override { return getInstanceName().toString(); }
+	virtual void getAllFunctionNames(Array<Identifier>& functions) const;;
 
-	virtual void getAllFunctionNames(Array<Identifier>& functions) const
-	{
-		for (const auto& p : obj->getProperties())
-		{
-			if (p.value.isMethod())
-				functions.add(p.name);
-		}
-	};
-
-	virtual void getAllConstants(Array<Identifier>& ids) const
-	{
-		for (const auto& p : obj->getProperties())
-		{
-			if (p.value.isMethod())
-				continue;
-
-			ids.add(p.name);
-		}
-	};
+	virtual void getAllConstants(Array<Identifier>& ids) const;;
 
 	
 
-	virtual const var getConstantValue(int index) const { return obj->getProperties().getValueAt(index); };
+	virtual const var getConstantValue(int index) const;;
 
 	Identifier className;
 	Identifier instanceId;
@@ -198,169 +176,31 @@ public:
 	using List = ReferenceCountedArray<DebugInformationBase>;
 
 	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
-	{
-		if (auto obj = getObject())
-			getObject()->doubleClickCallback(e, componentToNotify);
-	};
-
+	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify);;
 	virtual Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify);;
+	virtual int getType() const;;
+	virtual int getNumChildElements() const;
+	virtual Ptr getChildElement(int index);
+	virtual String getTextForName() const;
+	virtual String getCategory() const;
+	virtual DebugableObjectBase::Location getLocation() const;
+	virtual String getTextForType() const;
+	virtual String getTextForDataType() const;
+	virtual String getTextForValue() const;
+	virtual bool isWatchable() const;
+	virtual bool isAutocompleteable() const;
+	virtual String getCodeToInsert() const;;
+	virtual AttributedString getDescription() const;
+	virtual DebugableObjectBase* getObject();
+	virtual const DebugableObjectBase* getObject() const;
 
-	virtual int getType() const 
-	{ 
-		if (auto obj = getObject())
-			return obj->getTypeNumber();
+	virtual ~DebugInformationBase();;
 
-		return 0; 
-	};
+	static String replaceParentWildcard(const String& id, const String& parentId);
 
-	virtual int getNumChildElements() const 
-	{ 
-		if (auto obj = getObject())
-		{
-			auto numCustom = obj->getNumChildElements();
+	static String getVarType(const var &v);
 
-			if (numCustom != -1)
-				return numCustom;
-		}
-
-		return 0; 
-	}
-
-	virtual Ptr getChildElement(int index) 
-	{ 
-		if (auto obj = getObject())
-		{
-			return obj->getChildElement(index);
-
-		}
-		return nullptr; 
-	}
-
-	virtual String getTextForName() const
-	{
-		if (auto obj = getObject())
-			return obj->getDebugName();
-
-		return "undefined";
-	}
-
-	virtual String getCategory() const
-	{ 
-		if (auto obj = getObject())
-			return obj->getCategory();
-
-		return ""; 
-	}
-
-	virtual DebugableObjectBase::Location getLocation() const
-	{
-		if (auto obj = getObject())
-			return obj->getLocation();
-
-		return DebugableObjectBase::Location();
-	}
-
-	virtual String getTextForType() const { return "unknown"; }
-
-	virtual String getTextForDataType() const 
-	{ 
-		if (auto obj = getObject()) 
-			return obj->getDebugDataType(); 
-
-		return "undefined";
-	}
-
-	virtual String getTextForValue() const
-	{
-		if (auto obj = getObject())
-			return obj->getDebugValue();
-
-		return "empty";
-	}
-
-	virtual bool isWatchable() const 
-	{ 
-		if (auto obj = getObject())
-			return obj->isWatchable();
-
-		return true; 
-	}
-
-	virtual bool isAutocompleteable() const
-	{
-		if (auto obj = getObject())
-			return obj->isAutocompleteable();
-
-		return true;
-	}
-
-	virtual String getCodeToInsert() const 
-	{ 
-		return ""; 
-	};
-
-	virtual AttributedString getDescription() const
-	{
-		if (auto obj = getObject())
-			return obj->getDescription();
-
-		return AttributedString();
-	}
-
-	virtual DebugableObjectBase* getObject() { return nullptr; }
-	virtual const DebugableObjectBase* getObject() const { return nullptr; }
-
-	virtual ~DebugInformationBase() {};
-
-	static String replaceParentWildcard(const String& id, const String& parentId)
-	{
-		static const String pWildcard = "%PARENT%";
-
-		if (id.contains(pWildcard))
-		{
-			String s;
-			s << parentId << id.fromLastOccurrenceOf(pWildcard, false, false);
-			return s;
-		}
-
-		return id;
-	}
-
-	static String getVarType(const var &v)
-	{
-		if (v.isUndefined())	return "undefined";
-		else if (v.isArray())	return "Array";
-		else if (v.isBool())	return "bool";
-		else if (v.isInt() ||
-			v.isInt64())	return "int";
-		else if (v.isBuffer()) return "Buffer";
-		else if (v.isObject())
-		{
-			if (auto d = dynamic_cast<DebugableObjectBase*>(v.getObject()))
-			{
-				return d->getDebugDataType();
-			}
-			else return "Object";
-		}
-		else if (v.isDouble()) return "double";
-		else if (v.isString()) return "String";
-		else if (v.isMethod()) return "function";
-
-		return "undefined";
-	}
-
-	StringArray createTextArray() const
-	{
-		StringArray sa;
-
-		sa.add(getTextForType());
-		sa.add(getTextForDataType());
-		sa.add(getTextForName());
-		sa.add(getTextForValue());
-
-		return sa;
-	}
+	StringArray createTextArray() const;
 };
 
 
@@ -523,85 +363,51 @@ public:
 		the getProviderBase() method always returns the most up to date object. */
 	struct Holder
 	{
-		virtual ~Holder() {};
+		virtual ~Holder();;
 
 		/** Override this method and return a provider if it exists. */
 		virtual ApiProviderBase* getProviderBase() = 0;
 
-		void addEditor(Component* editor)
-		{
-			repaintUpdater.editors.add(editor);
-		}
+		void addEditor(Component* editor);
 
-		void removeEditor(Component* editor)
-		{
-			repaintUpdater.editors.removeAllInstancesOf(editor);
-		}
+		void removeEditor(Component* editor);
 
-		virtual int getCodeFontSize() const { return 15; }
+		virtual int getCodeFontSize() const;
 
-		virtual void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos) {}
+		virtual void setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos);
 
-		virtual JavascriptCodeEditor* getActiveEditor() { return nullptr; }
+		virtual JavascriptCodeEditor* getActiveEditor();
 
 		/** Override this method and return a ValueTree containing the API documentation. */
-		virtual ValueTree createApiTree() { return {}; };
+		virtual ValueTree createApiTree();;
 
-		virtual void jumpToDefinition(const String& token, const String& namespaceId) {
-			ignoreUnused(token, namespaceId);
-		}
+		virtual void jumpToDefinition(const String& token, const String& namespaceId);
 
 		virtual void rebuild();;
 
         void sendClearMessage();
         
-		virtual bool handleKeyPress(const KeyPress& k, Component* c) 
-		{
-			ignoreUnused(k, c);
-			return false; 
-		}
+		virtual bool handleKeyPress(const KeyPress& k, Component* c);
 
-		virtual void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent& e) 
-		{
-			ignoreUnused(m, c, e);
-		};
+		virtual void addPopupMenuItems(PopupMenu &m, Component* c, const MouseEvent& e);;
 
-		virtual bool performPopupMenuAction(int menuId, Component* c) 
-		{
-			ignoreUnused(menuId, c);
-			return false;
-		};
+		virtual bool performPopupMenuAction(int menuId, Component* c);;
 
-		virtual void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c) 
-		{
-			ignoreUnused(codeFile, g, c);
-		};
+		virtual void handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c);;
 
-		virtual void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e)
-		{
-			ignoreUnused(codeFile, ed, e);
-		}
+		virtual void handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed, const MouseEvent& e);
 
-		juce::ReadWriteLock& getDebugLock() { return debugLock; }
+		juce::ReadWriteLock& getDebugLock();
 
-		bool shouldReleaseDebugLock() const { return wantsToCompile; }
+		bool shouldReleaseDebugLock() const;
 
 	protected:
 
 		struct CompileDebugLock
 		{
-			CompileDebugLock(Holder& h) :
-				p(h),
-				prevValue(h.wantsToCompile),
-				sl(h.getDebugLock())
-			{
-				p.wantsToCompile = true;
-			}
+			CompileDebugLock(Holder& h);
 
-			~CompileDebugLock()
-			{
-				p.wantsToCompile = prevValue;
-			}
+			~CompileDebugLock();
 
 			Holder& p;
 			bool prevValue = false;
@@ -611,22 +417,9 @@ public:
 
 		struct RepaintUpdater : public AsyncUpdater
 		{
-			void update(int index)
-			{
-				if (lastIndex != index)
-				{
-					lastIndex = index;
-					triggerAsyncUpdate();
-				}
-			}
+			void update(int index);
 
-			void handleAsyncUpdate() override
-			{
-				for (int i = 0; i < editors.size(); i++)
-				{
-					editors[i]->repaint();
-				}
-			}
+			void handleAsyncUpdate() override;
 
 			int lastIndex = -1;
 			Array<Component::SafePointer<Component>> editors;
@@ -648,49 +441,28 @@ public:
 	class ApiComponentBase
 	{
 	public:
-		ApiProviderBase* getProviderBase()
-		{
-			if (holder != nullptr)
-				return holder->getProviderBase();
+		ApiProviderBase* getProviderBase();
 
-			return nullptr;
-		}
+		virtual void providerWasRebuilt();;
 
-		virtual void providerWasRebuilt() {};
-
-        virtual void providerCleared() {};
+        virtual void providerCleared();;
         
 	protected:
 
-		void registerAtHolder()
-		{
-			if (holder != nullptr)
-				holder->registeredComponents.addIfNotAlreadyThere(this);
-		}
+		void registerAtHolder();
 
-		void deregisterAtHolder()
-		{
-			if (holder != nullptr)
-				holder->registeredComponents.removeAllInstancesOf(this);
-		}
+		void deregisterAtHolder();
 
-		ApiComponentBase(Holder* h) :
-			holder(h)
-		{
-			registerAtHolder();
-		};
+		ApiComponentBase(Holder* h);;
 
-		virtual ~ApiComponentBase()
-		{
-			deregisterAtHolder();
-		}
+		virtual ~ApiComponentBase();
 
 		WeakReference<Holder> holder;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ApiComponentBase);
 	};
 
-	virtual ~ApiProviderBase() {};
+	virtual ~ApiProviderBase();;
 
 	/** Override this method and return the number of all objects that you want to use. */
 	virtual int getNumDebugObjects() const = 0;
@@ -701,18 +473,7 @@ public:
 	virtual void getColourAndLetterForType(int type, Colour& colour, char& letter);
 
 	/** Override this and return a string that will be displayed when you hover over a token. */
-	virtual String getHoverString(const String& token) 
-	{ 
-		if (auto obj = getDebugObject(token))
-		{
-			String s;
-
-			s << obj->getDebugDataType() << " " << obj->getDebugName() << ": " << obj->getDebugValue();
-			return s;
-		}
-
-		return "";
-	}
+	virtual String getHoverString(const String& token);
 
 	/** Override this method and return the object for the given token.
 

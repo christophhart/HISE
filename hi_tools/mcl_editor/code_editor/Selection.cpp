@@ -242,6 +242,103 @@ UndoableAction* mcl::Transaction::on(TextDocument& document, Callback callback)
 	return new Undoable(document, callback, *this);
 }
 
+Selection::Listener::~Listener()
+{}
+
+void Selection::Listener::displayedLineRangeChanged(Range<int> newRange)
+{}
+
+Selection::Selection()
+{}
+
+Selection::Selection(juce::Point<int> head): head(head), tail(head)
+{}
+
+Selection::Selection(juce::Point<int> head, juce::Point<int> tail): head(head), tail(tail)
+{}
+
+Selection::Selection(int r0, int c0, int r1, int c1): head(r0, c0), tail(r1, c1)
+{}
+
+bool Selection::operator==(const Selection& other) const
+{
+	return head == other.head && tail == other.tail;
+}
+
+bool Selection::operator<(const Selection& other) const
+{
+	const auto A = this->oriented();
+	const auto B = other.oriented();
+	if (A.head.x == B.head.x) return A.head.y < B.head.y;
+	return A.head.x < B.head.x;
+}
+
+juce::String Selection::toString() const
+{
+	return "(" + head.toString() + ") - (" + tail.toString() + ")";
+}
+
+bool Selection::isSingular() const
+{ return head == tail; }
+
+bool Selection::isSingleLine() const
+{ return head.x == tail.x; }
+
+bool Selection::intersectsRow(int row) const
+{
+	return isOriented()
+		       ? head.x <= row && row <= tail.x
+		       : head.x >= row && row >= tail.x;
+}
+
+Selection Selection::fromCodePosition(const CodeDocument::Position& p)
+{
+	return Selection(p.getLineNumber(), p.getIndexInLine(), p.getLineNumber(), p.getIndexInLine());
+}
+
+Selection Selection::fromCodePosition(const CodeDocument::Position& s, const CodeDocument::Position& e)
+{
+	return Selection(s.getLineNumber(), s.getIndexInLine(), e.getLineNumber(), e.getIndexInLine());
+}
+
+CodeDocument::Position Selection::toCodePosition(const CodeDocument& doc, bool getHead) const
+{
+	return CodeDocument::Position(doc, getHead ? head.x : tail.x, getHead ? head.y : tail.y);
+}
+
+juce::Range<int> Selection::getColumnRangeOnRow(int row, int numColumns) const
+{
+	const auto A = oriented();
+
+	if (row < A.head.x || row > A.tail.x)
+		return { 0, 0 };
+	if (row == A.head.x && row == A.tail.x)
+		return { A.head.y, A.tail.y };
+	if (row == A.head.x)
+		return { A.head.y, numColumns };
+	if (row == A.tail.x)
+		return { 0, A.tail.y };
+	return { 0, numColumns };
+}
+
+Selection Selection::withStyle(int token) const
+{ auto s = *this; s.token = token; return s; }
+
+bool Selection::contains(Point<int> pos) const
+{
+	if(isSingular())
+		return false;
+        
+	auto o = oriented();
+        
+	auto isBiggerThanHead = pos.x > o.head.x ||
+		((pos.x == o.head.x) && (pos.y > o.head.y));
+	auto isSmallerThanTail = pos.x < o.tail.x ||
+		((pos.x == o.tail.x) && (pos.y < o.tail.y));
+        
+	return isBiggerThanHead && isSmallerThanTail;
+}
+
 Selection::Selection(const juce::CodeDocument& doc, int headChar, int tailChar)
 {
 	auto h = juce::CodeDocument::Position(doc, headChar);

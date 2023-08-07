@@ -41,70 +41,9 @@ struct HtmlGenerator
 {
 	HtmlGenerator() {};
 
-	String surroundWithTag(const String& content, const String& tag, String additionalProperties = {})
-	{
-		String s;
-
-		s << "<" << tag;
-		
-		if (additionalProperties.isNotEmpty())
-			s << " " << additionalProperties;
-		
-		s<< ">";
-		s << content << "";
-		s << "</" << tag << ">\n";
-
-		return s;
-	}
-
-	String getSubString(const AttributedString& s, int index)
-	{
-		const auto attribute = s.getAttribute(index);
-		return s.getText().substring(attribute.range.getStart(), attribute.range.getEnd()).replace("\n", "<br>");
-	}
-
-	
-#if 0
-	static String createImageLink(String imageURL, const String& rootString)
-	{
-	
-		auto oldExtension = imageURL.fromLastOccurrenceOf(".", true, true);
-
-		if (oldExtension == imageURL)
-		{
-			oldExtension = ".png";
-			imageURL << oldExtension;
-		}
-			
-		return MarkdownLink::Helpers::createHtmlLink(imageURL, rootString).replace(".html", oldExtension);
-	}
-#endif
-
-
-	String createFromAttributedString(const AttributedString& s, int& linkIndex)
-	{
-		String html;
-
-		String content = s.getText();
-
-		for (int i = 0; i < s.getNumAttributes(); i++)
-		{
-			const auto& a = s.getAttribute(i);
-
-			if (a.font.isUnderlined())
-				html << surroundWithTag(getSubString(s, i), "a", "href=\"{LINK" + String(linkIndex++) + "}\"");
-			else if (a.font.isBold())
-				html << surroundWithTag(getSubString(s, i), "b");
-			else if (a.font.isItalic())
-				html << surroundWithTag(getSubString(s, i), "i");
-			else if (a.font.getTypefaceName() == GLOBAL_MONOSPACE_FONT().getTypefaceName())
-				html << surroundWithTag(getSubString(s, i), "code");
-			else
-				html << getSubString(s, i);
-		}
-
-		return html;
-	}
+	static String surroundWithTag(const String& content, const String& tag, String additionalProperties = {});
+	static String getSubString(const AttributedString& s, int index);
+	static String createFromAttributedString(const AttributedString& s, int& linkIndex);
 };
 
 class Markdown2HtmlConverter : public MarkdownParser
@@ -121,66 +60,19 @@ public:
 
 	
 
-	Markdown2HtmlConverter(MarkdownDataBase& db, const String& markdownCode):
-		MarkdownParser(markdownCode),
-		database(db)
-	{
-		setCreateFooter(db.createFooter);
-		parse();
-	}
-    
+	Markdown2HtmlConverter(MarkdownDataBase& db, const String& markdownCode);
+
     virtual ~Markdown2HtmlConverter() {};
 
-	void setHeaderFile(File headerFile)
-	{
-		headerContent = headerFile.loadFileAsString();
-	}
+	void setHeaderFile(File headerFile);
 
-	void setFooterFile(File footerFile)
-	{
-		footerContent = footerFile.loadFileAsString();
-	}
+	void setFooterFile(File footerFile);
 
-	String generateHtml(const String& /*activeLink*/)
-	{
-		jassert(headerContent.isNotEmpty());
-		jassert(footerContent.isNotEmpty());
+	String generateHtml(const String& /*activeLink*/);
 
-		String html;
+	void writeToFile(File f, const String& activeLink);
 
-		html << headerContent;
-		
-		File root;
-
-		if (mode == LocalFile)
-			root = File(linkBase);
-
-		
-
-		for (auto e : elements)
-		{
-			html << e->generateHtmlAndResolveLinks(root);
-		}
-			
-
-		html << footerContent;
-
-		return html;
-	}
-
-	void writeToFile(File f, const String& activeLink)
-	{
-		auto r = f.create();
-		
-		f.replaceWithText(generateHtml(activeLink));
-	}
-
-	void setLinkMode(LinkMode , String)
-	{
-		mode = LinkMode::URLBase;
-		
-		updateLinks();
-	}
+	void setLinkMode(LinkMode , String);
 
 private:
 

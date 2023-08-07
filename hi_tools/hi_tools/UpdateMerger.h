@@ -73,40 +73,7 @@ public:
 	{
 		jassert(dsp::SIMDRegister<float>::isSIMDAligned(data));
 	}
-
-#if 0
-	void rampWithMultiply(float startValue, float endValue)
-	{
-		constexpr float ratio = 1.0f / (float)RampLength;
-		const float deltaWhole = (endValue - startValue);
-		const float delta1 = deltaWhole * ratio;
-
-		constexpr int numSSE = dsp::SIMDRegister<float>::SIMDRegisterSize / sizeof(float);
-		constexpr int numLoop = RampLength / numSSE;
-
-		auto deltaConstant = _mm_set1_ps(delta1);
-		auto step = _mm_mul_ps(deltaConstant, _mm_set1_ps(4.0f));
-
-		constexpr float r_[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
-
-		auto r = _mm_load_ps(r_);
-
-		auto deltaRamp = _mm_mul_ps(deltaConstant, r);
-
-		int i = 0;
-
-		for (int i = 0; i < numLoop; i++)
-		{
-			auto d = _mm_load_ps(data);
-
-			d = _mm_mul_ps(deltaRamp, d);
-			_mm_store_ps(data, d);
-			data += numSSE;
-
-			deltaRamp = _mm_add_ps(deltaRamp, step);
-		}
-	}
-#endif
+	
 
 	void ramp(float startValue, float delta1)
 	{

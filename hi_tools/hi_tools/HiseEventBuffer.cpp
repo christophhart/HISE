@@ -359,10 +359,165 @@ juce::String HiseEvent::toDebugString() const
 	return s;
 }
 
+HiseEvent::ChannelFilterData::ChannelFilterData():
+	enableAllChannels(true)
+{
+	for (int i = 0; i < 16; i++) activeChannels[i] = false;
+}
+
+void HiseEvent::ChannelFilterData::restoreFromData(int data)
+{
+	BigInteger d(data);
+
+	enableAllChannels = d[0];
+	for (int i = 0; i < 16; i++) activeChannels[i] = d[i + 1];
+}
+
+int HiseEvent::ChannelFilterData::exportData() const
+{
+	BigInteger d;
+
+	d.setBit(0, enableAllChannels);
+	for (int i = 0; i < 16; i++) d.setBit(i + 1, activeChannels[i]);
+
+	return d.toInteger();
+}
+
+void HiseEvent::ChannelFilterData::setEnableAllChannels(bool shouldBeEnabled) noexcept
+{ enableAllChannels = shouldBeEnabled; }
+
+bool HiseEvent::ChannelFilterData::areAllChannelsEnabled() const noexcept
+{ return enableAllChannels; }
+
+void HiseEvent::ChannelFilterData::setEnableMidiChannel(int channelIndex, bool shouldBeEnabled) noexcept
+{
+	activeChannels[channelIndex] = shouldBeEnabled;
+}
+
+bool HiseEvent::ChannelFilterData::isChannelEnabled(int channelIndex) const noexcept
+{
+	return activeChannels[channelIndex];
+}
+
+HiseEventBuffer::EventStack::EventStack()
+{
+	clear();
+}
+
+void HiseEventBuffer::EventStack::push(const HiseEvent& newEvent)
+{
+	size = jmin<int>(16, size + 1);
+
+	data[size-1] = HiseEvent(newEvent);
+
+}
+
+HiseEvent HiseEventBuffer::EventStack::pop()
+{
+	if (size == 0) return HiseEvent();
+
+	HiseEvent returnEvent = data[size - 1];
+	data[size - 1] = HiseEvent();
+
+	size = jmax<int>(0, size-1);
+
+	return returnEvent;
+}
+
+bool HiseEventBuffer::EventStack::peekNoteOnForEventId(uint16 eventId, HiseEvent& eventToFill)
+{
+	for (int i = 0; i < size; i++)
+	{
+		if (data[i].getEventId() == eventId)
+		{
+			eventToFill = data[i];
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool HiseEventBuffer::EventStack::popNoteOnForEventId(uint16 eventId, HiseEvent& eventToFill)
+{
+	int thisIndex = -1;
+
+	for (int i = 0; i < size; i++)
+	{
+		if (data[i].getEventId() == eventId)
+		{
+			thisIndex = i;
+			break;
+		}
+	}
+
+	if (thisIndex == -1) return false;
+			
+	eventToFill = data[thisIndex];
+
+	for (int i = thisIndex; i < size-1; i++)
+	{
+		data[i] = data[i + 1];
+	}
+
+	data[size-1] = HiseEvent();
+	size--;
+
+	return true;
+}
+
+void HiseEventBuffer::EventStack::clear()
+{
+	for (int i = 0; i < 16; i++)
+		data[i] = HiseEvent();
+	size = 0;
+}
+
+const HiseEvent* HiseEventBuffer::EventStack::peek() const
+{
+	if (size == 0) return nullptr;
+
+	return &data[size - 1];
+}
+
+HiseEvent* HiseEventBuffer::EventStack::peek()
+{ 
+	if (size == 0) return nullptr;
+
+	return &data[size - 1];
+}
+
+int HiseEventBuffer::EventStack::getNumUsed()
+{ return size; }
+
 HiseEventBuffer::HiseEventBuffer()
 {
 	numUsed = HISE_EVENT_BUFFER_SIZE;
 	clear();
+}
+
+bool HiseEventBuffer::operator==(const HiseEventBuffer& other)
+{
+	if (other.getNumUsed() != numUsed) return false;
+
+	const HiseEventBuffer::Iterator iter(other);
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		const HiseEvent* e = iter.getNextConstEventPointer();
+
+		if (e == nullptr)
+		{
+			jassertfalse;
+			return false;
+		}
+
+		if (!(*e == buffer[i])) 
+			return false;
+			
+	}
+
+	return true;
 }
 
 void HiseEventBuffer::clear()
@@ -751,6 +906,32 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
     {
         jassertfalse;
     }
+}
+
+EventIdHandler::ChokeListener::~ChokeListener()
+{}
+
+int EventIdHandler::ChokeListener::getChokeGroup() const
+{ return chokeGroup; }
+
+void EventIdHandler::ChokeListener::setChokeGroup(int newChokeGroup)
+{
+	chokeGroup = newChokeGroup;
+}
+
+bool EventIdHandler::isArtificialEventId(uint16 eventId) const
+{
+	return !artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE].isEmpty();
+}
+
+void EventIdHandler::addChokeListener(ChokeListener* l)
+{
+	chokeListeners.addIfNotAlreadyThere(l);
+}
+
+void EventIdHandler::removeChokeListener(ChokeListener* l)
+{
+	chokeListeners.removeAllInstancesOf(l);
 }
 
 EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :

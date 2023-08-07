@@ -29,7 +29,7 @@ class LanguageManager
 {
 public:
 
-    virtual ~LanguageManager() {};
+    virtual ~LanguageManager();;
     
     virtual CodeTokeniser* createCodeTokeniser() = 0;
 
@@ -42,62 +42,24 @@ public:
         String value;
     };
     
-    virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const
-    {
-        return false;
-    }
-    
+    virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const;
+
     virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
 
     /** Add all token providers you want to use for this language. */
     virtual void addTokenProviders(TokenCollection* t) = 0;
 
     /** Use this for additional setup. */
-    virtual void setupEditor(TextEditor* editor) {}
+    virtual void setupEditor(TextEditor* editor);
 };
 
 struct XmlLanguageManager: public LanguageManager
 {
-    CodeTokeniser* createCodeTokeniser() override
-    {
-        return new XmlTokeniser();
-    }
+    CodeTokeniser* createCodeTokeniser() override;
 
-    void processBookmarkTitle(juce::String& bookmarkTitle) override
-    {
-        if(!bookmarkTitle.trim().endsWith("/>"))
-            bookmarkTitle = bookmarkTitle.replace(">", "/>");
-        
-        if(auto xml = XmlDocument::parse(bookmarkTitle))
-        {
-            bookmarkTitle = "<";
-            
-            bookmarkTitle << xml->getTagName();
-            
-            static const StringArray possibleIds =
-            {
-                "FileName",
-                "ID",
-                "id",
-                "name",
-                "file"
-            };
-            
-            for(auto& id: possibleIds)
-            {
-                if(xml->hasAttribute(id))
-                {
-                    bookmarkTitle << " (" << xml->getStringAttribute(id) << ")";
-                    break;
-                }
-            }
-            
-            bookmarkTitle << ">";
-        }
-        
-    }
+    void processBookmarkTitle(juce::String& bookmarkTitle) override;
 
-    void addTokenProviders(mcl::TokenCollection*) override {};
+    void addTokenProviders(mcl::TokenCollection*) override;;
 
     mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override;
     
@@ -127,18 +89,8 @@ struct MarkdownLanguageManager : public LanguageManager
 
 struct FaustLanguageManager: public LanguageManager
 {
-    CodeTokeniser* createCodeTokeniser() override
-    {
-#if USE_BACKEND
-        return new FaustTokeniser();
-#else
-        // I don't know of any use case where the faust tokeniser is required
-        // in a compiled project so this will most likely never get called
-        jassertfalse;
-        return nullptr;
-#endif
-    }
-    
+    CodeTokeniser* createCodeTokeniser() override;
+
     void processBookmarkTitle(juce::String& bookmarkTitle) {};
 
     void setupEditor(mcl::TextEditor* e) override;

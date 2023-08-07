@@ -83,9 +83,11 @@
 #include "hi_standalone_components/ComponentWithPreferredSize.cpp"
 
 #if USE_BACKEND // Only include this file in the GPL build configuration
+#include "hi_tools/FaustTokeniser.h"
 #include "hi_tools/FaustTokeniser.cpp"
 #endif
 
+#include "hi_tools/JavascriptTokeniserFunctions.h"
 #include "hi_tools/JavascriptTokeniser.cpp"
 #include "hi_markdown/MarkdownLink.cpp"
 #include "hi_markdown/MarkdownHeader.cpp"
@@ -98,6 +100,7 @@
 #include "hi_markdown/MarkdownHtmlExporter.cpp"
 #include "hi_markdown/MarkdownDatabaseCrawler.cpp"
 #include "hi_markdown/MarkdownParser.cpp"
+
 
 
 #include "mcl_editor/mcl_editor.cpp"

@@ -13,6 +13,59 @@ namespace mcl
 {
 using namespace juce;
 
+LanguageManager::~LanguageManager()
+{}
+
+bool LanguageManager::getInplaceDebugValues(Array<InplaceDebugValue>& values) const
+{
+	return false;
+}
+
+void LanguageManager::setupEditor(TextEditor* editor)
+{}
+
+CodeTokeniser* XmlLanguageManager::createCodeTokeniser()
+{
+	return new XmlTokeniser();
+}
+
+void XmlLanguageManager::processBookmarkTitle(juce::String& bookmarkTitle)
+{
+	if(!bookmarkTitle.trim().endsWith("/>"))
+		bookmarkTitle = bookmarkTitle.replace(">", "/>");
+        
+	if(auto xml = XmlDocument::parse(bookmarkTitle))
+	{
+		bookmarkTitle = "<";
+            
+		bookmarkTitle << xml->getTagName();
+            
+		static const StringArray possibleIds =
+		{
+			"FileName",
+			"ID",
+			"id",
+			"name",
+			"file"
+		};
+            
+		for(auto& id: possibleIds)
+		{
+			if(xml->hasAttribute(id))
+			{
+				bookmarkTitle << " (" << xml->getStringAttribute(id) << ")";
+				break;
+			}
+		}
+            
+		bookmarkTitle << ">";
+	}
+        
+}
+
+void XmlLanguageManager::addTokenProviders(mcl::TokenCollection*)
+{}
+
 mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDocument& doc)
 {
     mcl::FoldableLineRange::List lineRanges;
@@ -291,6 +344,18 @@ void MarkdownLanguageManager::setupEditor(mcl::TextEditor* editor)
 {
     editor->setEnableAutocomplete(false);
     editor->setEnableBreakpoint(false);
+}
+
+CodeTokeniser* FaustLanguageManager::createCodeTokeniser()
+{
+#if USE_BACKEND
+	return new FaustTokeniser();
+#else
+        // I don't know of any use case where the faust tokeniser is required
+        // in a compiled project so this will most likely never get called
+        jassertfalse;
+        return nullptr;
+#endif
 }
 
 FoldableLineRange::List XmlLanguageManager::createLineRange(const CodeDocument& doc)

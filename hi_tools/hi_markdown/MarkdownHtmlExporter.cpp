@@ -34,6 +34,112 @@ namespace hise {
 using namespace juce;
 
 
+String HtmlGenerator::surroundWithTag(const String& content, const String& tag, String additionalProperties)
+{
+	String s;
+
+	s << "<" << tag;
+		
+	if (additionalProperties.isNotEmpty())
+		s << " " << additionalProperties;
+		
+	s<< ">";
+	s << content << "";
+	s << "</" << tag << ">\n";
+
+	return s;
+}
+
+String HtmlGenerator::getSubString(const AttributedString& s, int index)
+{
+	const auto attribute = s.getAttribute(index);
+	return s.getText().substring(attribute.range.getStart(), attribute.range.getEnd()).replace("\n", "<br>");
+}
+
+String HtmlGenerator::createFromAttributedString(const AttributedString& s, int& linkIndex)
+{
+	String html;
+
+	String content = s.getText();
+
+	for (int i = 0; i < s.getNumAttributes(); i++)
+	{
+		const auto& a = s.getAttribute(i);
+
+		if (a.font.isUnderlined())
+			html << surroundWithTag(getSubString(s, i), "a", "href=\"{LINK" + String(linkIndex++) + "}\"");
+		else if (a.font.isBold())
+			html << surroundWithTag(getSubString(s, i), "b");
+		else if (a.font.isItalic())
+			html << surroundWithTag(getSubString(s, i), "i");
+		else if (a.font.getTypefaceName() == GLOBAL_MONOSPACE_FONT().getTypefaceName())
+			html << surroundWithTag(getSubString(s, i), "code");
+		else
+			html << getSubString(s, i);
+	}
+
+	return html;
+}
+
+Markdown2HtmlConverter::Markdown2HtmlConverter(MarkdownDataBase& db, const String& markdownCode):
+	MarkdownParser(markdownCode),
+	database(db)
+{
+	setCreateFooter(db.createFooter);
+	parse();
+}
+
+void Markdown2HtmlConverter::setHeaderFile(File headerFile)
+{
+	headerContent = headerFile.loadFileAsString();
+}
+
+void Markdown2HtmlConverter::setFooterFile(File footerFile)
+{
+	footerContent = footerFile.loadFileAsString();
+}
+
+String Markdown2HtmlConverter::generateHtml(const String&)
+{
+	jassert(headerContent.isNotEmpty());
+	jassert(footerContent.isNotEmpty());
+
+	String html;
+
+	html << headerContent;
+		
+	File root;
+
+	if (mode == LocalFile)
+		root = File(linkBase);
+
+		
+
+	for (auto e : elements)
+	{
+		html << e->generateHtmlAndResolveLinks(root);
+	}
+			
+
+	html << footerContent;
+
+	return html;
+}
+
+void Markdown2HtmlConverter::writeToFile(File f, const String& activeLink)
+{
+	auto r = f.create();
+		
+	f.replaceWithText(generateHtml(activeLink));
+}
+
+void Markdown2HtmlConverter::setLinkMode(LinkMode, String)
+{
+	mode = LinkMode::URLBase;
+		
+	updateLinks();
+}
+
 void Markdown2HtmlConverter::updateLinks()
 {
 	if (mode == Unprocessed)

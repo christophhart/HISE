@@ -873,6 +873,35 @@ void JavascriptCodeEditor::mouseDown(const MouseEvent& e)
 	}
 }
 
+int JavascriptCodeEditor::Helpers::getOffsetToFirstToken(const String& content)
+{
+	auto p = content.getCharPointer();
+	auto start = p;
+
+	for (;;)
+	{
+		p = p.findEndOfWhitespace();
+
+		if (*p == '/')
+		{
+			const juce_wchar c2 = p[1];
+
+			if (c2 == '/') { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
+
+			if (c2 == '*')
+			{
+				p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
+
+				if (p.isEmpty()) return 0;
+				p += 2; continue;
+			}
+		}
+
+		break;
+	}
+
+	return (int)(p - start);
+}
 
 
 String JavascriptCodeEditor::Helpers::getLeadingWhitespace(String line)
@@ -948,6 +977,24 @@ char JavascriptCodeEditor::Helpers::getCharacterAtCaret(CodeDocument::Position p
 	{
 		return (char)pos.getCharacter();
 	}
+}
+
+void JavascriptCodeEditor::Helpers::findAdvancedTokenRange(const CodeDocument::Position& pos,
+	CodeDocument::Position& start, CodeDocument::Position& end)
+{
+	end = pos;
+	while (isAdvancedTokenCharacter(end.getCharacter()))
+		end.moveBy(1);
+
+	start = end;
+	while (start.getIndexInLine() > 0
+		&& isAdvancedTokenCharacter(start.movedBy(-1).getCharacter()))
+		start.moveBy(-1);
+}
+
+bool JavascriptCodeEditor::Helpers::isAdvancedTokenCharacter(juce_wchar c)
+{
+	return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '[' || c == ']' || c == '"';
 }
 
 
@@ -1049,6 +1096,46 @@ String JavascriptCodeEditor::Helpers::findNamespaceForPosition(CodeDocument::Pos
 	}
 
 	return String();
+}
+
+void JavascriptCodeEditor::mouseMove(const MouseEvent& e)
+{
+	auto pos = e.getPosition();
+	auto pos2 = getPositionAt(pos.x, pos.y); 
+	auto token = getTokenForPosition(pos2);
+
+	if (token != hoverManager.lastToken)
+	{
+		hoverManager.stopTimer();
+		hoverPosition = {};
+		hoverText = {};
+		repaint();
+
+		hoverManager.position = pos;
+		hoverManager.lastToken = token;
+		hoverManager.startTimer(700);
+	}
+}
+
+void JavascriptCodeEditor::HoverManager::timerCallback()
+{
+	if (auto pr = parent.getProviderBase())
+	{
+		parent.hoverText = pr->getHoverString(lastToken);
+
+		if (parent.hoverText.isNotEmpty())
+		{
+			parent.hoverPosition = position;
+			parent.repaint();
+			startTimer(300);
+		}
+		else
+		{
+			parent.hoverPosition = {};
+			stopTimer();
+		}
+					
+	}
 }
 
 

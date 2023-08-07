@@ -35,6 +35,37 @@ namespace hise {
 using namespace juce;
 
 
+MarkdownRenderer::NavigationAction::NavigationAction(MarkdownRenderer* renderer, const MarkdownLink& newLink):
+	currentLink(newLink),
+	parent(renderer)
+{
+	lastLink = renderer->getLastLink();
+	lastY = renderer->currentY;
+}
+
+bool MarkdownRenderer::NavigationAction::perform()
+{
+	if (parent != nullptr)
+	{
+		parent->MarkdownParser::gotoLink(currentLink);
+		return true;
+	}
+
+	return false;
+}
+
+bool MarkdownRenderer::NavigationAction::undo()
+{
+	if (parent != nullptr)
+	{
+		parent->MarkdownParser::gotoLink(lastLink);
+		parent->scrollToY(lastY);
+		return true;
+	}
+
+	return false;
+}
+
 const MarkdownLayout& MarkdownRenderer::LayoutCache::getLayout(const AttributedString& s, float w)
 {
 	int64 hash = s.getText().hashCode64();
@@ -114,9 +145,42 @@ juce::Image MarkdownParser::resolveImage(const MarkdownLink& imageUrl, float wid
 	return {};
 }
 
+void MarkdownParser::setLinkResolver(LinkResolver* ownedResolver)
+{
+	ScopedPointer<LinkResolver> owned = ownedResolver;
+
+	for (auto r : linkResolvers)
+	{
+		if (r->getId() == owned->getId())
+			return;
+	}
+
+	LinkResolver::Sorter s;
+	linkResolvers.addSorted(s, owned.release());
+}
+
+void MarkdownParser::setImageProvider(ImageProvider* newProvider)
+{
+	ScopedPointer<ImageProvider> owned = newProvider;
+
+	for (auto p : imageProviders)
+	{
+		if (*p == *newProvider)
+			return;
+	}
+
+	ImageProvider::Sorter s;
+	imageProviders.addSorted(s, owned.release());
+}
+
 void MarkdownParser::setDefaultTextSize(float fontSize)
 {
 	styleData.fontSize = fontSize;
+}
+
+void MarkdownParser::setDatabaseHolder(MarkdownDatabaseHolder* holder_)
+{
+	holder = holder_;
 }
 
 String MarkdownParser::getCurrentText(bool includeMarkdownHeader) const
@@ -127,8 +191,10 @@ String MarkdownParser::getCurrentText(bool includeMarkdownHeader) const
 		return markdownCode.fromLastOccurrenceOf("---\n", false, false);
 }
 
-
-
+MarkdownLink MarkdownParser::getLastLink() const
+{ 
+	return lastLink;
+}
 
 
 void MarkdownParser::setNewText(const String& newText)
@@ -421,6 +487,13 @@ bool MarkdownParser::Helpers::belongsToTextBlock(juce_wchar c, bool isCode, bool
 }
 
 
+String MarkdownParser::Element::getTextForRange(Range<int> range) const
+{
+	ignoreUnused(range);
+	jassertfalse;
+	return {};
+}
+
 void MarkdownParser::Element::drawHighlight(Graphics& g, Rectangle<float> area)
 {
 	if (selected)
@@ -548,6 +621,35 @@ void MarkdownParser::Element::prepareLinksForHtmlExport(const String& )
 			l.url = link;
 		}
 	}
+}
+
+String MarkdownParser::Element::generateHtmlAndResolveLinks(const File& localRoot) const
+{
+	auto s = generateHtml();
+			
+	int index = 0;
+
+	for (const auto& link : hyperLinks)
+	{
+		String linkWildcard = "{LINK" + String(index++) + "}";
+
+		String resolvedLink;
+
+		if (localRoot.isDirectory())
+		{
+			auto url = link.url.withRoot(localRoot, false);
+
+			resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
+		}
+		else
+		{
+			resolvedLink = link.url.toString(MarkdownLink::FormattedLinkHtml);
+		}
+
+		s = s.replace(linkWildcard, resolvedLink);
+	}
+
+	return s;
 }
 
 juce::Array<juce::Range<int>> MarkdownParser::Element::getMatchRanges(const String& fullText, const String& searchString, bool countNewLines)
@@ -782,6 +884,16 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::Tokeniser::getDefaultCol
 	return s;
 }
 
+void MarkdownParser::setStyleData(MarkdownLayout::StyleData newStyleData)
+{
+	styleData = newStyleData;
+
+	if (markdownCode.isNotEmpty())
+	{
+		setNewText(markdownCode);
+	}
+}
+
 
 int MarkdownParser::SnippetTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
@@ -807,6 +919,147 @@ juce::CodeEditorComponent::ColourScheme MarkdownParser::SnippetTokeniser::getDef
 	return s;
 }
 
+int MarkdownParser::TokeniserT::readNextToken(CodeDocument::Iterator& source)
+{
+	source.skipWhitespace();
+
+	const juce_wchar firstChar = source.peekNextChar();
+
+	switch (firstChar)
+	{
+	case '#':
+		{
+			source.skipToEndOfLine();
+			return 1;
+		}
+	case '*':
+		{
+			while (source.peekNextChar() == '*')
+				source.skip();
+
+			while (!source.isEOF() && source.peekNextChar() != '*')
+				source.skip();
+
+			while (source.peekNextChar() == '*')
+				source.skip();
+
+			return 2;
+		}
+	case '`':
+		{
+			source.skip();
+
+			while (!source.isEOF() && source.peekNextChar() != '`')
+			{
+				source.skip();
+			}
+
+			source.skip();
+
+			return 3;
+		}
+
+	case '>':
+		{
+			source.skipToEndOfLine();
+			return 4;
+		}
+	case '-':
+		{
+			source.skip();
+
+			if (source.nextChar() == '-')
+			{
+				if (source.nextChar() == '-')
+				{
+					source.skipToEndOfLine();
+
+					while (!source.isEOF())
+					{
+						if (source.peekNextChar() == '-')
+						{
+							source.nextChar();
+
+							if (source.nextChar() == '-')
+							{
+								if (source.nextChar() == '-')
+								{
+									source.skipToEndOfLine();
+									break;
+								}
+							}
+						}
+
+						source.skipToEndOfLine();
+					}
+
+					return 5;
+				}
+				else
+					return 0;
+			}
+			else
+				return 0;
+		}
+	case '!':
+	case '[':
+		{
+			source.skip();
+
+			while(!source.isEOF() && source.peekNextChar() != ']')
+				source.skip();
+                
+			while (!source.isEOF() && source.peekNextChar() != ')')
+				source.skip();
+
+			source.skip();
+
+			return 6;
+		}
+	case '|': source.skipToEndOfLine(); return 7;
+	default: source.skip(); return 0;
+	}
+}
+
+
+void ViewportWithScrollCallback::visibleAreaChanged(const Rectangle<int>& newVisibleArea)
+{
+	visibleArea = newVisibleArea;
+
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() == nullptr)
+			listeners.remove(i--);
+		else
+			listeners[i]->scrolled(visibleArea);
+	}
+}
+
+int MarkdownParser::LinkResolver::Sorter::compareElements(LinkResolver* first, LinkResolver* second)
+{
+	auto fp = first->getPriority();
+	auto sp = second->getPriority();
+
+	if (fp > sp)
+		return -1;
+	else if (fp < sp)
+		return 1;
+	else
+		return 0;
+}
+
+int MarkdownParser::ImageProvider::Sorter::compareElements(ImageProvider* first, ImageProvider* second)
+{
+	auto fp = first->getPriority();
+	auto sp = second->getPriority();
+
+	if (fp > sp)
+		return -1;
+	else if (fp < sp)
+		return 1;
+	else
+		return 0;
+}
 
 juce::Image MarkdownParser::ImageProvider::getImage(const MarkdownLink& /*imageURL*/, float width)
 {
@@ -823,6 +1076,30 @@ juce::Image MarkdownParser::ImageProvider::getImage(const MarkdownLink& /*imageU
 	return img;
 }
 
+
+void MarkdownParser::ImageProvider::updateWidthFromURL(const MarkdownLink& url, float& widthToUpdate)
+{
+	auto extraData = url.getExtraData();
+
+	if (extraData.isEmpty())
+		return;
+
+	float widthValue = widthToUpdate;
+
+	auto size = MarkdownLink::Helpers::getSizeFromExtraData(extraData);
+
+	if (size > 0.0)
+	{
+		widthValue = (float)size;
+				
+	}
+	else
+	{
+		widthValue *= (-1.0f * (float)size);
+	}
+
+	widthToUpdate = jmin(widthToUpdate, widthValue);
+}
 
 juce::Image MarkdownParser::ImageProvider::resizeImageToFit(const Image& otherImage, float width)
 {

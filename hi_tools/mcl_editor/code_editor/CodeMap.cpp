@@ -22,11 +22,439 @@ static const unsigned char lineBreak[] = { 110,109,254,60,16,68,10,247,170,68,10
 }
 
 
+SearchReplaceComponent::SearchReplaceComponent(TextEditor* parent_, Mode searchMode):
+	parent(parent_)
+{
+	addAndMakeVisible(searchLabel);
+
+	if (searchMode)
+		addAndMakeVisible(replaceLabel);
+}
+
 LinebreakDisplay::LinebreakDisplay(mcl::TextDocument& d) :
 	LambdaCodeDocumentListener(d.getCodeDocument()),
 	document(d)
 {
 	setCallback(std::bind(&LinebreakDisplay::refresh, this));
+}
+
+void LinebreakDisplay::refresh()
+{
+	repaint();
+}
+
+void LinebreakDisplay::setViewTransform(const AffineTransform& t)
+{
+	transform = t;
+	repaint();
+}
+
+bool FoldMap::Helpers::trimAndGet(String& s, const String& keyword)
+{
+	if (s.startsWith(keyword))
+	{
+		s = s.fromFirstOccurrenceOf(keyword, false, false).trim();
+		return true;
+	}
+
+	return false;
+}
+
+int FoldMap::Helpers::getLevel(FoldableLineRange::WeakPtr p)
+{
+	int level = 0;
+
+	while (p != nullptr)
+	{
+		p = p->getParent();
+		level++;
+	}
+
+	return level;
+}
+
+void FoldMap::Helpers::trimIf(String& s, const String& keyword)
+{
+	if (s.startsWith(keyword))
+		s = s.fromFirstOccurrenceOf(keyword, false, false).trim();
+}
+
+FoldMap::EntryType FoldMap::Helpers::getEntryType(String& s)
+{
+	static const StringArray skipWords = { "for", "if", "else", "while", "switch", "/*", "```", "---" };
+
+	auto trimmed = s.trim();
+
+	for (auto& w : skipWords)
+		if (trimmed.startsWith(w))
+			return EntryType::Skip;
+
+	if (s.startsWith("template"))
+		s = s.fromFirstOccurrenceOf(">", false, false).trim();
+
+	if (trimAndGet(s, "class"))
+		return EntryType::Class;
+
+	if (trimAndGet(s, "struct"))
+		return EntryType::Class;
+
+	if (trimAndGet(s, "namespace"))
+		return EntryType::Namespace;
+
+	if (auto t = trimAndGet(s, "enum"))
+		return EntryType::Enum;
+
+	trimIf(s, "static");
+	trimIf(s, "inline");
+	trimIf(s, "function");
+	trimIf(s, "void");
+	trimIf(s, "int");
+	trimIf(s, "float");
+	trimIf(s, "double");
+
+	return EntryType::Function;
+}
+
+void FoldMap::selectionChanged()
+{
+	if (doc.getNumSelections() == 1)
+	{
+		auto lineToBolden = doc.getSelection(0).head.x;
+
+		for (auto i : items)
+		{
+			i->setBoldLine(lineToBolden);
+		}
+	}
+}
+
+void FoldMap::displayedLineRangeChanged(Range<int> newRange)
+{
+	lastRange = newRange;
+
+	for (auto i : items)
+		i->setDisplayedRange(newRange);
+			
+	repaint();
+}
+
+String FoldMap::getTextForFoldRange(FoldableLineRange::WeakPtr p)
+{
+	return doc.getCodeDocument().getLine(p->getLineRange().getStart());
+}
+
+FoldMap::Item::Item(FoldableLineRange::WeakPtr p_, FoldMap& m):
+	p(p_)
+{
+	auto* lm = m.getLanguageManager();
+            
+	text = m.getTextForFoldRange(p);
+            
+	if(lm != nullptr)
+		lm->processBookmarkTitle(text);
+            
+	type = Helpers::getEntryType(text);
+
+	bestWidth = getFont().boldened().getStringWidth(text) + roundToInt((float)Helpers::getLevel(p) * 5.0f);
+
+	bestWidth = jmin(bestWidth, 600);
+
+	int h = Height;
+
+	for (auto c : p->children)
+	{
+		ScopedPointer<Item> n = new Item(c, m);
+		addAndMakeVisible(n);
+
+		if (n->type == Skip)
+			continue;
+
+		addAndMakeVisible(n);
+		h += n->getHeight();
+		children.add(n.release());
+
+		bestWidth = jmax(bestWidth, children.getLast()->bestWidth + 10);
+	}
+
+	setRepaintsOnMouseActivity(true);
+	setSize(1, h);
+}
+
+TooltipWithArea::Data FoldMap::Item::getTooltip(Point<float> positionInThisComponent)
+{
+	TooltipWithArea::Data d;
+	d.id = Identifier(text);
+	d.text = text;
+
+	auto f = TooltipWithArea::getBasicFont();
+
+	auto w = f.getStringWidthFloat(text);
+
+			
+
+			
+
+	d.relativePosition = { (float)getWidth() - w, (float)Height };
+
+	if (d.relativePosition.x < 0.0f)
+		return d;
+	else
+		return {};
+}
+
+void FoldMap::Item::setBoldLine(int lineToBolden)
+{
+	isBoldLine = p->getLineRange().contains(lineToBolden);
+
+	for (auto c : children)
+		c->setBoldLine(lineToBolden);
+
+	repaint();
+}
+
+void FoldMap::Item::setDisplayedRange(Range<int> newRange)
+{
+	auto r = p->getLineRange();
+	onScreen = newRange.contains(r);
+
+	edgeOnScreen = r.intersects(newRange) && !r.contains(newRange);
+
+	for (auto c : children)
+		c->setDisplayedRange(newRange);
+
+	repaint();
+
+}
+
+void FoldMap::Item::updateHeight()
+{
+	int h = Height;
+
+	if (!folded)
+	{
+		for (auto c : children)
+		{
+			h += c->getHeight();
+		}
+	}
+
+	setSize(getWidth(), h);
+
+	if (auto p = findParentComponentOfClass<Item>())
+	{
+		p->updateHeight();
+	}
+}
+
+void FoldMap::Item::mouseDown(const MouseEvent& e)
+{
+	folded = !folded;
+	updateHeight();
+	findParentComponentOfClass<FoldMap>()->resized();
+}
+
+void FoldMap::Item::resized()
+{
+	int y = Height;
+
+	if (!folded)
+	{
+		for (auto c : children)
+		{
+			c->setBounds(0, y, getWidth(), c->getHeight());
+			y = c->getBottom();
+		}
+	}
+}
+
+Font FoldMap::Item::getFont()
+{ return Font(Font::getDefaultMonospacedFontName(), 14.0f, clicked ? Font::bold : Font::plain); }
+
+void FoldMap::Item::paint(Graphics& g)
+{
+	auto a = getLocalBounds().removeFromTop(Height).toFloat();;
+
+	auto f = getFont();
+
+	//auto f = GLOBAL_FONT().withHeight(12.0f);
+
+			
+
+	if (isBoldLine)
+		f = f.boldened();
+
+	if (edgeOnScreen) 
+	{
+		auto b = a;// .removeFromRight(4.0f);
+		g.setColour(Colours::white.withAlpha(0.03f));
+		g.fillRect(b);
+
+		if (onScreen)
+			g.fillRect(b);
+	}
+
+	if (isMouseOver(false))
+	{
+		g.setColour(Colours::white.withAlpha(0.05f));
+		g.fillRect(a);
+		g.drawRect(a, 1.0f);
+	}
+
+
+
+	auto icon = a.removeFromLeft(a.getHeight()).reduced(5.0f);
+
+	switch (type)
+	{
+	case Class:		g.setColour(Colour(0xFF3B4261).brighter(0.2f)); break;
+	case Function:	g.setColour(Colour(0xFF76425A).brighter(0.2f)); break;
+	case Enum:		g.setColour(Colour(0xFF6C8249).brighter(0.2f)); break;
+	case Namespace: g.setColour(Colour(0xFF8D7B4F).brighter(0.2f)); break;
+	default:                                                        break;
+	}
+
+
+	if (children.isEmpty())
+	{
+		g.fillEllipse(icon.reduced(2.0f));
+
+		if (isBoldLine)
+		{
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.drawEllipse(icon.reduced(2.0f), 1.0f);
+		}
+	}
+	else
+	{
+
+		Path path;
+		path.addTriangle({ 0.0f, 0.0f }, { 0.5f, 1.0f }, { 1.0f, 0.0f });
+
+		if (folded)
+		{
+			path.applyTransform(AffineTransform::rotation(float_Pi * -0.5f));
+		}
+
+
+		path.scaleToFit(icon.getX(), icon.getY(), icon.getWidth(), icon.getHeight(), true);
+
+		g.fillPath(path);
+
+		if (isBoldLine)
+		{
+			g.setColour(Colours::white.withAlpha(0.5f));
+			g.strokePath(path, PathStrokeType(1.0f));
+		}
+	}
+
+			
+
+	g.setFont(f);
+	g.setColour(Colours::white.withAlpha(isBoldLine ? 1.0f : 0.6f));
+
+	a.removeFromLeft((float)Helpers::getLevel(p) * 5.0f);
+
+	g.drawText(text, a, Justification::centredLeft);
+}
+
+FoldMap::FoldMap(TextDocument& d):
+	doc(d)
+{
+	doc.addFoldListener(this);
+	doc.addSelectionListener(this);
+
+	vp.setViewedComponent(&content, false);
+	addAndMakeVisible(vp);
+	vp.setColour(ScrollBar::ColourIds::thumbColourId, Colours::white.withAlpha(0.2f));
+	vp.setScrollBarThickness(10);
+	vp.getVerticalScrollBar().setWantsKeyboardFocus(false);
+	vp.setScrollBarsShown(true, false);
+}
+
+FoldMap::~FoldMap()
+{
+	doc.removeFoldListener(this);
+	doc.removeSelectionListener(this);
+}
+
+int FoldMap::getBestWidth() const
+{
+	Font f(Font::getDefaultMonospacedFontName(), 13.0f, Font::bold);
+
+	int maxWidth = 0;
+
+	for (auto i : items)
+	{
+		maxWidth = jmax(maxWidth, i->bestWidth + JUCE_LIVE_CONSTANT_OFF(35));
+	}
+
+	return maxWidth + 10;
+}
+
+void FoldMap::foldStateChanged(FoldableLineRange::WeakPtr rangeThatHasChanged)
+{
+	rebuild();
+}
+
+void FoldMap::paint(Graphics& g)
+{
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xe3212121)));
+
+}
+
+void FoldMap::rootWasRebuilt(FoldableLineRange::WeakPtr rangeThatHasChanged)
+{
+		
+	rebuild();
+}
+
+void FoldMap::rebuild()
+{
+	items.clear();
+
+	int h = 0;
+
+	for (auto r : doc.getFoldableLineRangeHolder().roots)
+	{
+		ScopedPointer<Item> n = new Item(r, *this);
+
+		if (n->type == Skip)
+			continue;
+
+		h += n->getHeight();
+
+		content.addAndMakeVisible(n);
+		items.add(n.release());
+	}
+
+	content.setSize(getWidth() - vp.getScrollBarThickness(), h);
+	updateSize();
+
+	selectionChanged();
+	displayedLineRangeChanged(lastRange);
+}
+
+void FoldMap::updateSize()
+{
+	auto y = 0;
+
+	for (auto i : items)
+	{
+		i->setBounds(0, y, content.getWidth(), i->getHeight());
+		y += i->getHeight();
+	}
+
+	repaint();
+}
+
+void FoldMap::resized()
+{
+	updateSize();
+
+	auto b = getLocalBounds();
+	b.removeFromLeft(10);
+
+	vp.setBounds(b);
 }
 
 void LinebreakDisplay::paint(Graphics& g)
@@ -464,6 +892,85 @@ void mcl::CodeMap::mouseUp(const MouseEvent& e)
 		stopTimer();
 		doc.jumpToLine(targetAnimatedLine, true);
 	}
+}
+
+CodeMap::CodeMap(TextDocument& doc_):
+	doc(doc_),
+	rebuilder(*this),
+	transformToUse(defaultTransform)
+{
+	doc.addSelectionListener(this);
+	doc.getCodeDocument().addListener(this);
+}
+
+CodeMap::DelayedUpdater::DelayedUpdater(CodeMap& p):
+	parent(p)
+{}
+
+void CodeMap::DelayedUpdater::timerCallback()
+{
+	parent.rebuild();
+	stopTimer();
+}
+
+CodeMap::~CodeMap()
+{
+	doc.getCodeDocument().removeListener(this);
+	doc.removeSelectionListener(this);
+}
+
+void CodeMap::selectionChanged()
+{
+	rebuilder.startTimer(300);
+}
+
+void CodeMap::displayedLineRangeChanged(Range<int> newRange)
+{
+	setVisibleRange(newRange);
+}
+
+void CodeMap::codeDocumentTextDeleted(int startIndex, int endIndex)
+{
+	rebuilder.startTimer(300);
+}
+
+void CodeMap::codeDocumentTextInserted(const String& newText, int insertIndex)
+{
+	rebuilder.startTimer(300);
+}
+
+int CodeMap::getNumLinesToShow() const
+{
+	auto numLinesFull = getHeight() / 2;
+
+	return jmin(doc.getCodeDocument().getNumLines(), numLinesFull);
+}
+
+CodeMap::HoverPreview::HoverPreview(CodeMap& parent_, int centerRow):
+	parent(parent_)
+{
+	setCenterRow(centerRow);
+}
+
+void CodeMap::resized()
+{
+	rebuild();
+}
+
+bool CodeMap::isActive() const
+{
+	return doc.getNumRows() < 10000;
+}
+
+bool CodeMap::ColouredRectangle::isWhitespace() const
+{
+	return c.isTransparent();
+}
+
+void CodeMap::visibilityChanged()
+{
+	if (isVisible() && dirty)
+		rebuild();
 }
 
 void mcl::CodeMap::timerCallback()

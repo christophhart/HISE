@@ -46,251 +46,26 @@ public:
 
 	struct Helpers
 	{
-		static String getPrettyName(const String& urlToPrettify)
-		{
-			auto n = urlToPrettify.replaceCharacter('-', ' ');
-			String pretty;
-			auto ptr = n.getCharPointer();
-
-			bool nextIsUppercase = true;
-
-			while (!ptr.isEmpty())
-			{
-				auto thisChar = *ptr;
-
-				if (nextIsUppercase)
-					pretty << CharacterFunctions::toUpperCase(thisChar);
-				else
-					pretty << thisChar;
-
-				nextIsUppercase = thisChar == ' ';
-
-				ptr++;
-			}
-
-			return pretty;
-		}
-
-		static String getAnchor(const String& url)
-		{
-			return url.fromFirstOccurrenceOf("#", true, false);
-		}
-
-		static String removeAnchor(const String& url)
-		{
-			return url.upToFirstOccurrenceOf("#", false, false);
-		}
-
-		static String getExtraData(const String& url)
-		{
-			return url.fromFirstOccurrenceOf(":", false, false);
-		}
-
-		static String getPrettyVarString(const var& value)
-		{
-			String valueString;
-
-			if (value.isObject())
-				valueString = "`{}`";
-			else if (value.isArray())
-				valueString = "`[]`";
-			else if (value.isBool())
-				valueString = (bool)value ? "`true`" : "`false`";
-			else
-				valueString = value.toString();
-
-			if (valueString.isEmpty())
-				valueString << "`\"\"`";
-
-			return valueString;
-		}
-
-		static String removeExtraData(const String& url)
-		{
-			return url.upToFirstOccurrenceOf(":", false, false);
-		}
-
-		static File getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype = File::findFiles)
-		{
-			auto urlToUse = url;
-			if (urlToUse.startsWith("/"))
-				urlToUse = urlToUse.substring(1);
-
-			auto f = root.getChildFile(urlToUse);
-
-			if (f.isDirectory())
-			{
-				if (filetype == File::findDirectories)
-					return f;
-				else
-					return f.getChildFile("Readme.md");
-			}
-
-			if (!f.existsAsFile())
-				f = root.getChildFile(urlToUse).withFileExtension(".md");
-
-			return f;
-
-#if 0
-			// You have to sanitize this before calling this method
-			jassert(!url.contains("#"));
-
-			auto urlToUse = removeAnchor(url);
-
-			if (urlToUse.startsWithChar('/'))
-				urlToUse = urlToUse.substring(1);
-
-			Array<File> files;
-
-			root.findChildFiles(files, filetype, true, extension);
-
-			for (auto f : files)
-			{
-				auto path = f.getRelativePathFrom(root);
-
-				path = getSanitizedFilename(path);
-
-				if (path == urlToUse)
-					return f;
-			}
-
-			return {};
-#endif
-		}
-
-		static File getFolderReadmeFile(File root, const String& url)
-		{
-			auto f = getLocalFileForSanitizedURL(root, url, File::findDirectories);
-
-			if (f.isDirectory())
-			{
-				return f.getChildFile("Readme.md");
-			}
-
-			return {};
-		}
-
-		static String getSanitizedFilename(const String& path)
-		{
-			if (path.startsWith("http"))
-				return path;
-
-			auto p = removeLeadingNumbers(path);
-
-			return StringSanitizer::get(p);
-		}
-
-		static String getSanitizedURL(const String& path)
-		{
-			auto p = getSanitizedFilename(path);
-
-			if (p.startsWith("/"))
-				return p;
-
-			return "/" + p;
-		}
-
-		static String removeLeadingNumbers(const String& p)
-		{
-			auto path = p.replaceCharacter('\\', '/').trimCharactersAtStart("01234567890 ");
-			path = path.removeCharacters("()[]");
-			return path;
-		}
-
-		static bool isImageLink(const String& url)
-		{
-			return url.endsWith(".jpg") || url.endsWith(".JPG") ||
-				url.endsWith(".gif") || url.endsWith(".GIF") ||
-				url.endsWith(".png") || url.endsWith(".PNG");
-		}
-
+		static String getPrettyName(const String& urlToPrettify);
+		static String getAnchor(const String& url);
+		static String removeAnchor(const String& url);
+		static String getExtraData(const String& url);
+		static String getPrettyVarString(const var& value);
+		static String removeExtraData(const String& url);
+		static File getLocalFileForSanitizedURL(File root, const String& url, File::TypesOfFileToFind filetype = File::findFiles);
+		static File getFolderReadmeFile(File root, const String& url);
+		static String getSanitizedFilename(const String& path);
+		static String getSanitizedURL(const String& path);
+		static String removeLeadingNumbers(const String& p);
+		static bool isImageLink(const String& url);
 		static double getSizeFromExtraData(const String& extraData);
-
-#if 0
-		static String createHtmlLink(const String& url, const String& rootString)
-		{
-			if (url.startsWith("http"))
-			{
-				return url;
-			}
-
-			MarkdownLink l({}, url);
-
-			return l.toString(FormattedLinkHtml);
-
-#if 0
-			String absoluteFilePath = rootString + url;
-
-			auto urlWithoutAnchor = url.upToFirstOccurrenceOf("#", false, false);
-			auto anchor = url.fromFirstOccurrenceOf("#", true, false);
-
-			auto urlWithoutExtension = urlWithoutAnchor.upToLastOccurrenceOf(".", false, false);
-
-			bool isFile = urlWithoutExtension != urlWithoutAnchor;
-
-			String realURL;
-
-			realURL << rootString;
-
-			if (!rootString.endsWith("/") && !urlWithoutExtension.startsWith("/"))
-				realURL << "/";
-
-			realURL << getSanitizedFilename(urlWithoutExtension);
-
-			if (isFile)
-				realURL << ".html";
-			else
-				realURL << "/index.html";
-
-			realURL << anchor;
-
-
-			return realURL;
-#endif
-		};
-#endif
-
-
-
-		static bool isReadme(File f)
-		{
-			return f.getFileNameWithoutExtension().toLowerCase() == "readme";
-		}
-
-		static File getFileOrReadmeFromFolder(File root, const String& url)
-		{
-			auto f = getFolderReadmeFile(root, url);
-			if (f.existsAsFile())
-				return f;
-
-			f = getLocalFileForSanitizedURL(root, url, File::findFiles);
-
-			if (f.existsAsFile())
-				return f;
-
-			return {};
-		}
-
-		static String getFileNameFromURL(const String& url)
-		{
-			return url.fromLastOccurrenceOf("/", false, false).upToFirstOccurrenceOf("#", false, false);
-		}
-
-		static String getChildURL(const String &url, const String& childName, bool asAnchor = false)
-		{
-
-
-			jassert(getSanitizedFilename(url) == url);
-
-			return removeAnchor(url) + (asAnchor ? "#" : "/") + getSanitizedFilename(childName);
-		}
-
+		static bool isReadme(File f);
+		static File getFileOrReadmeFromFolder(File root, const String& url);
+		static String getFileNameFromURL(const String& url);
+		static String getChildURL(const String &url, const String& childName, bool asAnchor = false);
 		static String removeMarkdownHeader(const String& content);
-
 		static String getMarkdownHeader(const String& content);
 	};
-
-
 
 	enum Format
 	{
@@ -415,45 +190,17 @@ public:
 
 	MarkdownHeader getHeaderFromFile(const File& rootDirectory) const;
 
-	void setType(Type t)
-	{
-		type = t;
-	}
+	void setType(Type t);
 
-	explicit operator bool() const 
-	{ 
-		switch (type)
-		{
-		case hise::MarkdownLink::Icon:
-		case hise::MarkdownLink::WebContent:
-		case hise::MarkdownLink::SimpleAnchor:	return true;
-		case hise::MarkdownLink::Invalid:		return false;
-		case hise::MarkdownLink::MarkdownFile:
-		case hise::MarkdownLink::Folder:
-		case hise::MarkdownLink::Image:
-		case hise::MarkdownLink::SVGImage:		return fileExists({});
-		default:
-			break;
-		}
-
-		return false;
-	}
+	explicit operator bool() const;
 
 	bool fileExists(const File& rootDirectory) const noexcept;
 
-	String getHtmlStringForBaseURL(const String& baseURL)
-	{
-		String u;
-
-		u << baseURL;
-		u << toString(FormattedLinkHtml);
-		return u;
-	}
+	String getHtmlStringForBaseURL(const String& baseURL) const;
 
 private:
 
 	String createHtmlLink() const noexcept;
-	
 
 	File root;
 	Type type;

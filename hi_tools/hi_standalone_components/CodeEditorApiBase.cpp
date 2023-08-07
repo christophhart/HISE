@@ -196,6 +196,153 @@ hise::DebugableObjectBase* ApiProviderBase::getDebugObject(const String& token)
 	return nullptr;
 }
 
+ApiProviderBase::Holder::~Holder()
+{}
+
+void ApiProviderBase::Holder::addEditor(Component* editor)
+{
+	repaintUpdater.editors.add(editor);
+}
+
+void ApiProviderBase::Holder::removeEditor(Component* editor)
+{
+	repaintUpdater.editors.removeAllInstancesOf(editor);
+}
+
+int ApiProviderBase::Holder::getCodeFontSize() const
+{ return 15; }
+
+void ApiProviderBase::Holder::setActiveEditor(JavascriptCodeEditor* e, CodeDocument::Position pos)
+{}
+
+JavascriptCodeEditor* ApiProviderBase::Holder::getActiveEditor()
+{ return nullptr; }
+
+ValueTree ApiProviderBase::Holder::createApiTree()
+{ return {}; }
+
+void ApiProviderBase::Holder::jumpToDefinition(const String& token, const String& namespaceId)
+{
+	ignoreUnused(token, namespaceId);
+}
+
+bool ApiProviderBase::Holder::handleKeyPress(const KeyPress& k, Component* c)
+{
+	ignoreUnused(k, c);
+	return false; 
+}
+
+void ApiProviderBase::Holder::addPopupMenuItems(PopupMenu& m, Component* c, const MouseEvent& e)
+{
+	ignoreUnused(m, c, e);
+}
+
+bool ApiProviderBase::Holder::performPopupMenuAction(int menuId, Component* c)
+{
+	ignoreUnused(menuId, c);
+	return false;
+}
+
+void ApiProviderBase::Holder::handleBreakpoints(const Identifier& codeFile, Graphics& g, Component* c)
+{
+	ignoreUnused(codeFile, g, c);
+}
+
+void ApiProviderBase::Holder::handleBreakpointClick(const Identifier& codeFile, CodeEditorComponent& ed,
+	const MouseEvent& e)
+{
+	ignoreUnused(codeFile, ed, e);
+}
+
+juce::ReadWriteLock& ApiProviderBase::Holder::getDebugLock()
+{ return debugLock; }
+
+bool ApiProviderBase::Holder::shouldReleaseDebugLock() const
+{ return wantsToCompile; }
+
+ApiProviderBase::Holder::CompileDebugLock::CompileDebugLock(Holder& h):
+	p(h),
+	prevValue(h.wantsToCompile),
+	sl(h.getDebugLock())
+{
+	p.wantsToCompile = true;
+}
+
+ApiProviderBase::Holder::CompileDebugLock::~CompileDebugLock()
+{
+	p.wantsToCompile = prevValue;
+}
+
+void ApiProviderBase::Holder::RepaintUpdater::update(int index)
+{
+	if (lastIndex != index)
+	{
+		lastIndex = index;
+		triggerAsyncUpdate();
+	}
+}
+
+void ApiProviderBase::Holder::RepaintUpdater::handleAsyncUpdate()
+{
+	for (int i = 0; i < editors.size(); i++)
+	{
+		editors[i]->repaint();
+	}
+}
+
+ApiProviderBase* ApiProviderBase::ApiComponentBase::getProviderBase()
+{
+	if (holder != nullptr)
+		return holder->getProviderBase();
+
+	return nullptr;
+}
+
+void ApiProviderBase::ApiComponentBase::providerWasRebuilt()
+{}
+
+void ApiProviderBase::ApiComponentBase::providerCleared()
+{}
+
+void ApiProviderBase::ApiComponentBase::registerAtHolder()
+{
+	if (holder != nullptr)
+		holder->registeredComponents.addIfNotAlreadyThere(this);
+}
+
+void ApiProviderBase::ApiComponentBase::deregisterAtHolder()
+{
+	if (holder != nullptr)
+		holder->registeredComponents.removeAllInstancesOf(this);
+}
+
+ApiProviderBase::ApiComponentBase::ApiComponentBase(Holder* h):
+	holder(h)
+{
+	registerAtHolder();
+}
+
+ApiProviderBase::ApiComponentBase::~ApiComponentBase()
+{
+	deregisterAtHolder();
+}
+
+ApiProviderBase::~ApiProviderBase()
+{}
+
+String ApiProviderBase::getHoverString(const String& token)
+{ 
+	if (auto obj = getDebugObject(token))
+	{
+		String s;
+
+		s << obj->getDebugDataType() << " " << obj->getDebugName() << ": " << obj->getDebugValue();
+		return s;
+	}
+
+	return "";
+}
+
 void ApiProviderBase::Holder::rebuild()
 {
 	for (auto c : registeredComponents)
@@ -222,6 +369,214 @@ void DebugableObjectBase::updateLocation(Location& l, var possibleObject)
 		if (newLocation.charNumber != 0)
 			l = newLocation;
 	}
+}
+
+DynamicDebugableObjectWrapper::DynamicDebugableObjectWrapper(DynamicObject::Ptr obj_, const Identifier& className_,
+	const Identifier& instanceId_):
+	obj(obj_),
+	className(className_),
+	instanceId(instanceId_)
+{
+
+}
+
+Identifier DynamicDebugableObjectWrapper::getObjectName() const
+{ return className; }
+
+Identifier DynamicDebugableObjectWrapper::getInstanceName() const
+{ return instanceId; }
+
+String DynamicDebugableObjectWrapper::getDebugValue() const
+{ return getInstanceName().toString(); }
+
+void DynamicDebugableObjectWrapper::getAllFunctionNames(Array<Identifier>& functions) const
+{
+	for (const auto& p : obj->getProperties())
+	{
+		if (p.value.isMethod())
+			functions.add(p.name);
+	}
+}
+
+void DynamicDebugableObjectWrapper::getAllConstants(Array<Identifier>& ids) const
+{
+	for (const auto& p : obj->getProperties())
+	{
+		if (p.value.isMethod())
+			continue;
+
+		ids.add(p.name);
+	}
+}
+
+const var DynamicDebugableObjectWrapper::getConstantValue(int index) const
+{ return obj->getProperties().getValueAt(index); }
+
+void DebugInformationBase::doubleClickCallback(const MouseEvent& e, Component* componentToNotify)
+{
+	if (auto obj = getObject())
+		getObject()->doubleClickCallback(e, componentToNotify);
+}
+
+int DebugInformationBase::getType() const
+{ 
+	if (auto obj = getObject())
+		return obj->getTypeNumber();
+
+	return 0; 
+}
+
+int DebugInformationBase::getNumChildElements() const
+{ 
+	if (auto obj = getObject())
+	{
+		auto numCustom = obj->getNumChildElements();
+
+		if (numCustom != -1)
+			return numCustom;
+	}
+
+	return 0; 
+}
+
+DebugInformationBase::Ptr DebugInformationBase::getChildElement(int index)
+{ 
+	if (auto obj = getObject())
+	{
+		return obj->getChildElement(index);
+
+	}
+	return nullptr; 
+}
+
+String DebugInformationBase::getTextForName() const
+{
+	if (auto obj = getObject())
+		return obj->getDebugName();
+
+	return "undefined";
+}
+
+String DebugInformationBase::getCategory() const
+{ 
+	if (auto obj = getObject())
+		return obj->getCategory();
+
+	return ""; 
+}
+
+DebugableObjectBase::Location DebugInformationBase::getLocation() const
+{
+	if (auto obj = getObject())
+		return obj->getLocation();
+
+	return DebugableObjectBase::Location();
+}
+
+String DebugInformationBase::getTextForType() const
+{ return "unknown"; }
+
+String DebugInformationBase::getTextForDataType() const
+{ 
+	if (auto obj = getObject()) 
+		return obj->getDebugDataType(); 
+
+	return "undefined";
+}
+
+String DebugInformationBase::getTextForValue() const
+{
+	if (auto obj = getObject())
+		return obj->getDebugValue();
+
+	return "empty";
+}
+
+bool DebugInformationBase::isWatchable() const
+{ 
+	if (auto obj = getObject())
+		return obj->isWatchable();
+
+	return true; 
+}
+
+bool DebugInformationBase::isAutocompleteable() const
+{
+	if (auto obj = getObject())
+		return obj->isAutocompleteable();
+
+	return true;
+}
+
+String DebugInformationBase::getCodeToInsert() const
+{ 
+	return ""; 
+}
+
+AttributedString DebugInformationBase::getDescription() const
+{
+	if (auto obj = getObject())
+		return obj->getDescription();
+
+	return AttributedString();
+}
+
+DebugableObjectBase* DebugInformationBase::getObject()
+{ return nullptr; }
+
+const DebugableObjectBase* DebugInformationBase::getObject() const
+{ return nullptr; }
+
+DebugInformationBase::~DebugInformationBase()
+{}
+
+String DebugInformationBase::replaceParentWildcard(const String& id, const String& parentId)
+{
+	static const String pWildcard = "%PARENT%";
+
+	if (id.contains(pWildcard))
+	{
+		String s;
+		s << parentId << id.fromLastOccurrenceOf(pWildcard, false, false);
+		return s;
+	}
+
+	return id;
+}
+
+String DebugInformationBase::getVarType(const var& v)
+{
+	if (v.isUndefined())	return "undefined";
+	else if (v.isArray())	return "Array";
+	else if (v.isBool())	return "bool";
+	else if (v.isInt() ||
+		v.isInt64())	return "int";
+	else if (v.isBuffer()) return "Buffer";
+	else if (v.isObject())
+	{
+		if (auto d = dynamic_cast<DebugableObjectBase*>(v.getObject()))
+		{
+			return d->getDebugDataType();
+		}
+		else return "Object";
+	}
+	else if (v.isDouble()) return "double";
+	else if (v.isString()) return "String";
+	else if (v.isMethod()) return "function";
+
+	return "undefined";
+}
+
+StringArray DebugInformationBase::createTextArray() const
+{
+	StringArray sa;
+
+	sa.add(getTextForType());
+	sa.add(getTextForDataType());
+	sa.add(getTextForName());
+	sa.add(getTextForValue());
+
+	return sa;
 }
 
 Component* DebugInformationBase::createPopupComponent(const MouseEvent& e, Component* componentToNotify)

@@ -79,7 +79,7 @@ public:
     
 	struct LookAndFeelMethods
 	{
-		virtual ~LookAndFeelMethods() {};
+		virtual ~LookAndFeelMethods();;
 
 		virtual void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area);
 		virtual void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path);
@@ -89,42 +89,14 @@ public:
 
 		virtual void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition);
         
-        virtual RenderOptions getThumbnailRenderOptions(HiseAudioThumbnail& te, const RenderOptions& defaultRenderOptions) { return defaultRenderOptions; }
+        virtual RenderOptions getThumbnailRenderOptions(HiseAudioThumbnail& te, const RenderOptions& defaultRenderOptions);
 	};
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,
 		public LookAndFeelMethods
 	{} defaultLaf;
 
-	static Image createPreview(const AudioSampleBuffer* buffer, int width)
-	{
-		jassert(buffer != nullptr);
-
-		HiseAudioThumbnail thumbnail;
-
-		thumbnail.setSize(width, 150);
-
-		auto data = const_cast<float**>(buffer->getArrayOfReadPointers());
-
-		VariantBuffer::Ptr l = new VariantBuffer(data[0], buffer->getNumSamples());
-
-		var lVar = var(l.get());
-		var rVar;
-
-		thumbnail.lBuffer = var(l.get());
-
-		if (data[1] != nullptr)
-		{
-			VariantBuffer::Ptr r = new VariantBuffer(data[1], buffer->getNumSamples());
-			thumbnail.rBuffer = var(r.get());
-		}
-
-		thumbnail.setDrawHorizontalLines(true);
-
-		thumbnail.loadingThread.run();
-
-		return thumbnail.createComponentSnapshot(thumbnail.getLocalBounds());
-	}
+	static Image createPreview(const AudioSampleBuffer* buffer, int width);
 
 
 	HiseAudioThumbnail();;
@@ -147,127 +119,43 @@ public:
 
     
     
-	double getTotalLength() const
-	{
-		return lengthInSeconds;
-	}
-	
-	bool shouldScaleVertically() const { return currentOptions.scaleVertically; };
+	double getTotalLength() const;
 
-	void setShouldScaleVertically(bool shouldScale)
-	{
-		currentOptions.scaleVertically = shouldScale;
-	};
+	bool shouldScaleVertically() const;;
 
-	void setDisplayGain(float gainToApply, NotificationType notify=sendNotification)
-	{
-		if (gainToApply != 1.0f)
-			currentOptions.scaleVertically = false;
+	void setShouldScaleVertically(bool shouldScale);;
 
-		if (gainToApply != currentOptions.displayGain)
-		{
-			currentOptions.displayGain = gainToApply;
+	void setDisplayGain(float gainToApply, NotificationType notify=sendNotification);
 
-			switch (notify)
-			{
-			case sendNotification:
-			case sendNotificationSync: rebuildPaths(true);
-			case sendNotificationAsync: rebuildPaths(false);
-			default: break;
-			}
-		}
-	}
-
-	Spectrum2D::Parameters::Ptr getParameters() const override { return spectrumParameters; };
+	Spectrum2D::Parameters::Ptr getParameters() const override;;
 
 	void setReader(AudioFormatReader* r, int64 actualNumSamples=-1);
 
 	void clear();
 
-	void resized() override
-	{
-		if (rebuildOnResize)
-			rebuildPaths();
-		else
-		{
-			repaint();
-		}
-			
-	}
+	void resized() override;
 
-    void lookAndFeelChanged() override
-    {
-        auto prevOptions = currentOptions;
-        
-        if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-            currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
-        
-        if(!(prevOptions == currentOptions))
-            rebuildPaths();
-    }
-    
-	void setDisplayMode(DisplayMode newDisplayMode)
-	{
-		if (newDisplayMode != currentOptions.displayMode)
-		{
-			currentOptions.displayMode = newDisplayMode;
-			rebuildPaths();
-		}
-	};
+	void lookAndFeelChanged() override;
 
-	void setManualDownsampleFactor(float newDownSampleFactor)
-	{
-		FloatSanitizers::sanitizeFloatNumber(newDownSampleFactor);
+	void setDisplayMode(DisplayMode newDisplayMode);;
 
-		if (newDownSampleFactor == -1)
-			currentOptions.manualDownSampleFactor = -1.0f;
-		else
-			currentOptions.manualDownSampleFactor = jlimit<float>(1.0f, 10.0f, newDownSampleFactor);
+	void setManualDownsampleFactor(float newDownSampleFactor);
 
-	}
+	void setDrawHorizontalLines(bool shouldDrawHorizontalLines);
 
-	void setDrawHorizontalLines(bool shouldDrawHorizontalLines)
-	{
-		currentOptions.drawHorizontalLines = shouldDrawHorizontalLines;
-		repaint();
-	}
+	void handleAsyncUpdate();
 
-	void handleAsyncUpdate()
-	{
-		if (rebuildOnUpdate)
-		{
-			loadingThread.stopThread(-1);
-			loadingThread.startThread(5);
-				
-			repaint();
-			rebuildOnUpdate = false;
-		}
+	void setRebuildOnResize(bool shouldRebuild);
 
-		if (repaintOnUpdate)
-		{
-			repaint();
-			repaintOnUpdate = false;
-		}
-		
-	}
-
-	void setRebuildOnResize(bool shouldRebuild)
-	{
-		rebuildOnResize = shouldRebuild;
-	}
-
-    void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha);
+	void setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha);
     
 	void setRange(const int left, const int right);
 
-	bool isEmpty() const noexcept
-	{
-		return isClear || !lBuffer.isBuffer();
-	}
+	bool isEmpty() const noexcept;
 
 	using AudioDataProcessor = LambdaBroadcaster<var, var>;
 
-	AudioDataProcessor& getAudioDataProcessor() { return sampleProcessor; };
+	AudioDataProcessor& getAudioDataProcessor();;
 
 	float waveformAlpha = 1.0f;
 	float spectrumAlpha = 0.0f;
@@ -289,10 +177,7 @@ private:
 
     
     
-	float applyDisplayGain(float value)
-	{
-		return jlimit(-1.0f, 1.0f, value * currentOptions.displayGain);
-	}
+	float applyDisplayGain(float value);
 
 	double sampleRate = 44100.0;
 
@@ -303,50 +188,15 @@ private:
 	bool repaintOnUpdate = false;
 	bool rebuildOnUpdate = false;
 
-	void refresh()
-	{
-		repaintOnUpdate = true;
-		triggerAsyncUpdate();
-	}
+	void refresh();
 
-	void rebuildPaths(bool synchronously = false)
-	{
-        // refresh the options here...
-        if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-            currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
-        
-		if (synchronously)
-		{
-			isClear = true;
-			
-			loadingThread.run();
-
-			Component::SafePointer<Component> thisSafe = this;
-
-			auto f = [thisSafe]()
-			{
-				if (thisSafe.getComponent() != nullptr)
-					thisSafe.getComponent()->repaint();
-			};
-
-			MessageManager::callAsync(f);
-		}
-		else
-		{
-			rebuildOnUpdate = true;
-			triggerAsyncUpdate();
-		}
-	}
+	void rebuildPaths(bool synchronously = false);
 
 	class LoadingThread : public Thread
 	{
 	public:
 
-		LoadingThread(HiseAudioThumbnail* parent_) :
-			Thread("Thumbnail Generator"),
-			parent(parent_)
-		{
-		};
+		LoadingThread(HiseAudioThumbnail* parent_);;
 
 		void run() override;;
 
@@ -427,76 +277,6 @@ public:
 	{
 	public:
 
-#if 0 // sometime in the future...
-		class ValuePopup : public Component,
-			public Timer
-		{
-		public:
-
-			ValuePopup(Component* c_) :
-				c(c_)
-			{
-				updateText();
-				startTimer(30);
-			}
-
-			void updateText()
-			{
-				if (auto area = dynamic_cast<SampleArea*>(c.getComponent()))
-				{
-					auto oldText = currentText;
-
-					auto range = area->getSampleRange();
-
-					currentText = String(range.getStart()) + " - " + String(range.getEnd());
-
-					if (currentText != oldText)
-					{
-						auto f = GLOBAL_BOLD_FONT();
-						int newWidth = f.getStringWidth(currentText) + 20;
-
-						setSize(newWidth, 20);
-
-						repaint();
-					}
-				}
-			}
-
-			void timerCallback() override
-			{
-				updateText();
-			}
-
-			void paint(Graphics& g) override
-			{
-
-				auto ar = Rectangle<float>(1.0f, 1.0f, (float)getWidth() - 2.0f, (float)getHeight() - 2.0f);
-
-				g.setGradientFill(ColourGradient(itemColour, 0.0f, 0.0f, itemColour2, 0.0f, (float)getHeight(), false));
-				g.fillRoundedRectangle(ar, 2.0f);
-
-				g.setColour(bgColour);
-				g.drawRoundedRectangle(ar, 2.0f, 2.0f);
-
-				if (dynamic_cast<Slider*>(c.getComponent()) != nullptr)
-				{
-					g.setFont(GLOBAL_BOLD_FONT());
-					g.setColour(textColour);
-					g.drawText(currentText, getLocalBounds(), Justification::centred);
-				}
-			}
-
-			Colour bgColour;
-			Colour itemColour;
-			Colour itemColour2;
-			Colour textColour;
-
-			String currentText;
-
-			Component::SafePointer<Component> c;
-		};
-#endif
-
 		/** Creates a new SampleArea.
 		*
 		*	@param area the AreaType that will be used.
@@ -507,18 +287,13 @@ public:
 		~SampleArea();
 
 		/** Returns the sample range (0 ... numSamples). */
-		Range<int> getSampleRange() const {	return range; }
+		Range<int> getSampleRange() const;
 
 		/** Sets the sample range that this SampleArea represents. */
-		void setSampleRange(Range<int> r)
-		{ 
-			range = r; 
+		void setSampleRange(Range<int> r);;
 
-			repaint();
-		};
+        bool isAreaEnabled() const;
 
-        bool isAreaEnabled() const { return areaEnabled; }
-        
 		/** Returns the x-coordinate of the given sample within its parent.
 		*
 		*	If a SampleArea is a child of another SampleArea, you can still get the absolute x value by passing 'true'.a
@@ -549,37 +324,12 @@ public:
 
 		/** You can set a constrainer on the boundaries of the SampleArea. If you don't want a constrainer (which is the default),
 		*	simply pass two empty ranges. */
-		void setAllowedPixelRanges(Range<int> leftRangeInSamples, Range<int> rightRangeInSamples)
-		{
-			useConstrainer = !(leftRangeInSamples.isEmpty() && rightRangeInSamples.isEmpty());
-			
-			if(!useConstrainer) return;
-			
-
-			leftEdgeRangeInPixels = Range<int>(getXForSample(leftRangeInSamples.getStart(), false),
-											   getXForSample(leftRangeInSamples.getEnd(), false));
-
-			rightEdgeRangeInPixels = Range<int>(getXForSample(rightRangeInSamples.getStart(), false),
-											   getXForSample(rightRangeInSamples.getEnd(), false));
-		}
+		void setAllowedPixelRanges(Range<int> leftRangeInSamples, Range<int> rightRangeInSamples);
 
 		/** This toggles the area enabled (which is not the same as Component::setEnabled()) */
-		void setAreaEnabled(bool shouldBeEnabled)
-		{
-			areaEnabled = shouldBeEnabled;
+		void setAreaEnabled(bool shouldBeEnabled);
 
-			leftEdge->setInterceptsMouseClicks(areaEnabled, false);
-			rightEdge->setInterceptsMouseClicks(areaEnabled, false);
-
-			repaint();
-		}
-
-		void toggleEnabled()
-		{
-			setAreaEnabled(!areaEnabled);
-
-			repaint();
-		}
+		void toggleEnabled();
 
 		/** Returns the hardcoded colour depending on the AreaType. */
 		static Colour getAreaColour(AreaTypes a);
@@ -591,19 +341,13 @@ public:
 		{
 		public:
 
-			AreaEdge(Component* componentToResize, ComponentBoundsConstrainer* constrainer, Edge edgeToResize) :
-				ResizableEdgeComponent(componentToResize, constrainer, edgeToResize)
-			{};
+			AreaEdge(Component* componentToResize, ComponentBoundsConstrainer* constrainer, Edge edgeToResize);;
 		};
 
 		ScopedPointer<AreaEdge> leftEdge;
 		ScopedPointer<AreaEdge> rightEdge;
 
-		void setReversed(bool isReversed)
-		{
-			reversed = isReversed;
-			repaint();
-		}
+		void setReversed(bool isReversed);
 
 		void setGamma(float newGamma);
 
@@ -619,7 +363,7 @@ public:
 
 		struct EdgeLookAndFeel: public LookAndFeel_V3
 		{
-			EdgeLookAndFeel(SampleArea *areaParent): parentArea(areaParent) {};
+			EdgeLookAndFeel(SampleArea *areaParent);;
 
 			void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 
@@ -645,57 +389,30 @@ public:
 	*
 	*	If you need this functionality, use a timer callback to call this periodically.
 	*/
-	void setPlaybackPosition(double normalizedPlaybackPosition)
-	{
-		if(playBackPosition != normalizedPlaybackPosition)
-        {
-            playBackPosition = normalizedPlaybackPosition;
-
-			SafeAsyncCall::repaint(this);
-        }
-	};
+	void setPlaybackPosition(double normalizedPlaybackPosition);;
 
 
 
-	AudioDisplayComponent():
-	playBackPosition(0.0)
-	{
-		afm.registerBasicFormats();
-
-		addAndMakeVisible(preview = new HiseAudioThumbnail());
-
-		preview->setLookAndFeel(&defaultLaf);
-	};
+	AudioDisplayComponent();;
 
 	/** Removes all listeners. */
-	virtual ~AudioDisplayComponent()
-	{
-		preview = nullptr;
-
-		list.clear();		
-	};
+	virtual ~AudioDisplayComponent();;
 
 	/** Acts as listener and gets a callback whenever a area was changed. */
 	class Listener
 	{
 	public:
         
-        virtual ~Listener() {};
+        virtual ~Listener();;
 
 		/** overwrite this method and handle the new area (eg. set the sample properties...) */
 		virtual void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea) = 0;
 	};
 
 	/** Adds an AreaListener that will be informed whenever a Area was dragged. */
-	void addAreaListener(Listener *l)
-	{
-		list.add(l);
-	};
+	void addAreaListener(Listener *l);;
 
-	void removeAreaListener(Listener* l)
-	{
-		list.remove(l);
-	}
+	void removeAreaListener(Listener* l);
 
 	void refreshSampleAreaBounds(SampleArea* areaToSkip=nullptr);
 
@@ -706,60 +423,30 @@ public:
 	virtual void updateRanges(SampleArea *areaToSkip=nullptr) = 0;
 	
 	/** Sets the current Area .*/
-	void setCurrentArea(SampleArea *area)
-	{
-		currentArea = area;
-	}
+	void setCurrentArea(SampleArea *area);
 
-	void sendAreaChangedMessage()
-	{
-		list.call(&Listener::rangeChanged, this, areas.indexOf(currentArea));
-		repaint();
-	}
+	void sendAreaChangedMessage();
 
-	void resized() override
-	{
-		preview->setBounds(getLocalBounds());
-		preview->resized();
-		refreshSampleAreaBounds();
-		updateRanges();
-	}
+	void resized() override;
 
 	virtual void paintOverChildren(Graphics &g) override;
 
-	HiseAudioThumbnail* getThumbnail()
-	{
-		return preview;
-	}
+	HiseAudioThumbnail* getThumbnail();
 
-	int getTotalSampleAmount() const
-	{
-		return (int)(preview->getTotalLength() * getSampleRate());
-	}
+	int getTotalSampleAmount() const;
 
-	void setIsOnInterface(bool isOnInterface)
-	{
-		onInterface = isOnInterface;
-	}
+	void setIsOnInterface(bool isOnInterface);
 
-	SampleArea *getSampleArea(int index) {return areas[index];};
+	SampleArea *getSampleArea(int index);;
 
 	virtual double getSampleRate() const = 0;
 
 	
-	virtual float getNormalizedPeak() { return 1.0f; };
+	virtual float getNormalizedPeak();;
 
-	void mouseMove(const MouseEvent& e)
-	{
-		auto xNormalised = (float)e.getPosition().getX() / (float)getWidth();
+	void mouseMove(const MouseEvent& e);
 
-		hoverPosition = xNormalised * (float)getTotalSampleAmount();
-	}
-
-	float getHoverPosition() const
-	{
-		return hoverPosition;
-	}
+	float getHoverPosition() const;
 
 protected:
 
@@ -807,17 +494,11 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	{
 		using Ptr = ReferenceCountedObjectPtr<SampleReference>;
 
-		SampleReference(bool ok = true, const String& ref = String()) :
-			r(ok ? Result::ok() : Result::fail(ref + " not found")),
-			reference(ref)
-		{};
+		SampleReference(bool ok = true, const String& ref = String());;
 
-		operator bool() { return r.wasOk(); }
+		operator bool();
 
-		bool operator==(const SampleReference& other) const
-		{
-			return reference == other.reference;
-		}
+		bool operator==(const SampleReference& other) const;
 
 		AudioSampleBuffer buffer;
 		Result r;
@@ -834,19 +515,16 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	{
 		using Ptr = ReferenceCountedObjectPtr<DataProvider>;
 
-		virtual ~DataProvider() = default;
+		virtual ~DataProvider();
 
 		/** Override this function and load the content and process the string to be displayed. */
 		virtual SampleReference::Ptr loadFile(const String& referenceString) = 0;
 
 		/** This directory will be used as default directory when opening files. */
-		virtual File getRootDirectory() { return rootDir; }
+		virtual File getRootDirectory();
 
 		/** Allows you to change the default root directory. */
-		virtual void setRootDirectory(const File& rootDirectory) 
-		{ 
-			rootDir = rootDirectory; 
-		}
+		virtual void setRootDirectory(const File& rootDirectory);
 
 	protected:
 
@@ -866,12 +544,7 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	{
 		using List = Array<XYZItem>;
 
-		bool matches(int n, int v, int r)
-		{
-			return veloRange.contains(v) &&
-				keyRange.contains(n) &&
-				rrGroup == r;
-		}
+		bool matches(int n, int v, int r);
 
 		Range<int> veloRange;
 		Range<int> keyRange;
@@ -882,66 +555,32 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	struct XYZPool : public DataProvider
 	{
-		int indexOf(const String& ref) const
-		{
-			for (int i = 0; i < pool.size(); i++)
-				if (pool[i]->reference == ref)
-					return i;
+		int indexOf(const String& ref) const;
 
-			return -1;
-		}
-
-		SampleReference::Ptr loadFile(const String& ref) override
-		{
-			for (auto i : pool)
-			{
-				if (i->reference == ref)
-					return i;
-			}
-
-			return new SampleReference(false, ref);
-		}
+		SampleReference::Ptr loadFile(const String& ref) override;
 
 		ReferenceCountedArray<SampleReference> pool;
 	};
 
 	struct XYZProviderBase : public ReferenceCountedObject
 	{
-		XYZProviderBase(XYZPool* pool_) : pool(pool_) {}
+		XYZProviderBase(XYZPool* pool_);
 
 		virtual ComplexDataUIBase::EditorBase* createEditor(MultiChannelAudioBuffer* ed) = 0;
 
 		SampleReference::Ptr loadFileFromReference(const String& f);
 
-		void removeFromPool(SampleReference::Ptr p)
-		{
-			if(pool != nullptr)
-				pool->pool.removeObject(p);
-		}
+		void removeFromPool(SampleReference::Ptr p);
 
 		virtual Identifier getId() const = 0;
 
-		String getWildcard() const 
-		{ 
-			String s;
-			s << "{XYZ::" << getId() << "}";
-			return s;
-		}
+		String getWildcard() const;
 
 		virtual bool parse(const String& v, XYZItem::List& list) = 0;
 
 		virtual DataProvider* getDataProvider() = 0;
 
-		SampleReference::Ptr getPooledItem(int idx) const
-		{
-			if (pool != nullptr)
-			{
-				if (isPositiveAndBelow(idx, pool->pool.size()))
-					return pool->pool[idx];
-			}
-			
-			return nullptr;
-		}
+		SampleReference::Ptr getPooledItem(int idx) const;
 
 	protected:
 		
@@ -956,47 +595,13 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 			std::function<XYZProviderBase*()> f;
 		};
 
-		static Identifier parseID(const String& referenceString)
-		{
-			static const String wildcard("{XYZ::");
-			if (referenceString.startsWith(wildcard))
-			{
-				auto wc = referenceString.upToFirstOccurrenceOf("}", false, false);
-				return Identifier(wc.fromLastOccurrenceOf(":", false, false));
-			}
+		static Identifier parseID(const String& referenceString);
 
-			return Identifier();
-		}
+		void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()>& f);
 
-		void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()>& f)
-		{
-			for (const auto& i : items)
-				if (i.id == id)
-					return;
+		XYZProviderBase* create(const Identifier& id);
 
-			items.add({ id, f });
-		}
-
-		XYZProviderBase* create(const Identifier& id)
-		{
-			for (const auto& i : items)
-				if (i.id == id)
-					return i.f();
-
-			return nullptr;
-		}
-		
-		Array<Identifier> getIds()
-		{
-			Array<Identifier> ids;
-
-			for (auto& i : items)
-			{
-				ids.add(i.id);
-			}
-
-			return ids;
-		}
+		Array<Identifier> getIds();
 
 	private:
 
@@ -1013,8 +618,8 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 	*/
 	struct Listener: private ComplexDataUIUpdaterBase::EventListener
 	{
-		Listener() = default;
-		virtual ~Listener() = default;
+		Listener();
+		virtual ~Listener();
 
 		/** This will be called (synchronously while holding the data write lock) whenever the data is relocated. */
 		virtual void bufferWasLoaded() = 0;
@@ -1023,226 +628,74 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		virtual void bufferWasModified() = 0;
 
 		/** This will be called asynchronously whenever the sample index has been changed. The index is relative to the data buffer. */
-		virtual void sampleIndexChanged(int newSampleIndex) {};
+		virtual void sampleIndexChanged(int newSampleIndex);;
 
 	private:
 
 		friend struct MultiChannelAudioBuffer;
 
-		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v) override
-		{
-			switch (d)
-			{
-			case ComplexDataUIUpdaterBase::EventType::ContentChange:
-				bufferWasModified();
-				break;
-			case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
-				bufferWasLoaded();
-				break;
-			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
-				sampleIndexChanged((int)v);
-				break;
-            default:
-                break;
-			}
-		}
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v) override;
 	};
 
-	void addListener(Listener* l)
-	{
-		internalUpdater.addEventListener(l);
-	}
+	void addListener(Listener* l);
 
-	void removeListener(Listener* l)
-	{
-		internalUpdater.removeEventListener(l);
-	}
+	void removeListener(Listener* l);
 
-	String toBase64String() const override 
-	{ 
-		return referenceString;
-	}
-	
+	String toBase64String() const override;
+
 	void setXYZProvider(const Identifier& id);
 
 	bool fromBase64String(const String& b64) override;
 
 	
 	/** Set the range of the buffer. The notification to the listeners will always be synchronous. */
-	void setRange(Range<int> sampleRange)
-	{
-		sampleRange.setStart(jmax(0, sampleRange.getStart()));
-		sampleRange.setEnd(jmin(originalBuffer.getNumSamples(), sampleRange.getEnd()));
+	void setRange(Range<int> sampleRange);
 
-		if (sampleRange != bufferRange)
-		{
-			{
-				auto nb = createNewDataBuffer(sampleRange);
+	void loadFromEmbeddedData(SampleReference::Ptr r);
 
-				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-				bufferRange = sampleRange;
-				setDataBuffer(nb);
-			}
-		}
-	}
+	void loadBuffer(const AudioSampleBuffer& b, double sr);
 
-	void loadFromEmbeddedData(SampleReference::Ptr r)
-	{
-		referenceString = "{INTERNAL}";
-		
-		auto mag = r->buffer.getMagnitude(0, r->buffer.getNumSamples());
+	void setLoopRange(Range<int> newLoopRange, NotificationType n);
 
-        ignoreUnused(mag);
-		jassert(mag < 1.0f);
+	var getChannelBuffer(int channelIndex, bool getFullContent);
 
-		originalBuffer.makeCopyOf(r->buffer);
+	void setProvider(DataProvider::Ptr p);
 
-		auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
-		SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
-		sampleRate = r->sampleRate;
-		bufferRange = { 0, originalBuffer.getNumSamples() };
-		loopRange = r->loopRange;
-		setDataBuffer(nb);
-	}
+	Range<int> getCurrentRange() const;
 
-	void loadBuffer(const AudioSampleBuffer& b, double sr)
-	{
-		referenceString = "{INTERNAL}";
-		
-		originalBuffer.makeCopyOf(b);
+	Range<int> getTotalRange() const;
 
-		auto nb = createNewDataBuffer({ 0, b.getNumSamples() });
-		SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
-		sampleRate = sr;
-		bufferRange = { 0, b.getNumSamples() };
-		setDataBuffer(nb);
-	}
-
-	void setLoopRange(Range<int> newLoopRange, NotificationType n)
-	{
-		newLoopRange.setStart(jmax(bufferRange.getStart(), newLoopRange.getStart()));
-		newLoopRange.setEnd(jmin(bufferRange.getEnd(), newLoopRange.getEnd()));
-
-		if (newLoopRange != loopRange)
-		{
-			{
-				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-				loopRange = newLoopRange;
-			}
-			
-			if(n != dontSendNotification)
-				getUpdater().sendContentChangeMessage(sendNotificationSync, -1);
-		}
-	}
-
-	var getChannelBuffer(int channelIndex, bool getFullContent)
-	{
-		auto& bToUse = getFullContent ? originalBuffer : currentData;
-
-		if(isPositiveAndBelow(channelIndex, bToUse.getNumChannels()))
-			return var(new VariantBuffer(bToUse.getWritePointer(channelIndex, 0), bToUse.getNumSamples()));
-
-		return {};
-	}
-	
-	void setProvider(DataProvider::Ptr p)
-	{
-		provider = p;
-	}
-
-	Range<int> getCurrentRange() const
-	{
-		return bufferRange;
-	}
-
-	Range<int> getTotalRange() const
-	{
-		return { 0, originalBuffer.getNumSamples() };
-	}
-
-	Range<int> getLoopRange(bool subtractStart = false) const
-	{
-		bool useLoop = !loopRange.isEmpty() && loopRange.getStart() < bufferRange.getEnd();
-
-		auto delta = (int)subtractStart * bufferRange.getStart();
-
-		return (useLoop ? loopRange.getIntersectionWith(bufferRange): bufferRange) - delta;
-	}
+	Range<int> getLoopRange(bool subtractStart = false) const;
 
 	double sampleRate = 0.0;
 
-	AudioSampleBuffer& getBuffer() { return currentData; }
-	const AudioSampleBuffer& getBuffer() const { return currentData; }
+	AudioSampleBuffer& getBuffer();
+	const AudioSampleBuffer& getBuffer() const;
 
-	DataProvider::Ptr getProvider()
-	{
-		return provider;
-	}
+	DataProvider::Ptr getProvider();
 
-	bool isEmpty() const
-	{
-		return originalBuffer.getNumChannels() == 0 || originalBuffer.getNumSamples() == 0;
-	}
+	bool isEmpty() const;
 
-	bool isNotEmpty() const
-	{
-		return originalBuffer.getNumChannels() != 0 || originalBuffer.getNumSamples() != 0;
-	}
+	bool isNotEmpty() const;
 
-	float** getDataPtrs()
-	{
-		jassert(!isXYZ());
-		return currentData.getArrayOfWritePointers();
-	}
+	float** getDataPtrs();
 
-	Array<Identifier> getAvailableXYZProviders()
-	{
-		auto ids = factory->getIds();
+	Array<Identifier> getAvailableXYZProviders();
 
-		for (int i = 0; i < ids.size(); i++)
-		{
-			if (deactivatedXYZIds.contains(ids[i]))
-				ids.remove(i--);
-		}
+	Identifier getCurrentXYZId() const;
 
-		return ids;
-	}
+	bool isXYZ() const;
 
-	Identifier getCurrentXYZId() const
-	{
-		if (xyzProvider != nullptr)
-			return xyzProvider->getId();
-
-		return Identifier();
-	}
-
-	bool isXYZ() const
-	{
-		return xyzProvider != nullptr;
-	}
-
-	void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()> & f)
-	{
-		factory->registerXYZProvider(id, f);
-	}
+	void registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()> & f);
 
 	ComplexDataUIBase::EditorBase* createEditor();
 
-	const XYZItem::List& getXYZItems() const { return xyzItems; }
-	XYZItem::List& getXYZItems() { return xyzItems; }
+	const XYZItem::List& getXYZItems() const;
+	XYZItem::List& getXYZItems();
 
-	SampleReference::Ptr getFirstXYZData()
-	{
-		if (xyzItems.isEmpty())
-			return nullptr;
+	SampleReference::Ptr getFirstXYZData();
 
-		return xyzItems[0].data;
-	}
-
-	void setDisabledXYZProviders(const Array<Identifier>& ids)
-	{
-		deactivatedXYZIds = ids;
-	}
+	void setDisabledXYZProviders(const Array<Identifier>& ids);
 
 private:
 
@@ -1250,29 +703,9 @@ private:
 
 	SharedResourcePointer<XYZProviderFactory> factory;
 
-	void setDataBuffer(AudioSampleBuffer& newBuffer)
-	{
-		// Never call this without holding the lock
-		jassert(getDataLock().writeAccessIsLocked());
+	void setDataBuffer(AudioSampleBuffer& newBuffer);
 
-		std::swap(currentData, newBuffer);
-		getUpdater().sendContentRedirectMessage();
-	}
-
-	AudioSampleBuffer createNewDataBuffer(Range<int> newRange)
-	{
-		if (newRange.isEmpty())
-			return {};
-		
-		SimpleReadWriteLock::ScopedReadLock l(getDataLock());
-
-		AudioSampleBuffer newDataBuffer(originalBuffer.getNumChannels(), newRange.getLength());
-
-		for (int i = 0; i < newDataBuffer.getNumChannels(); i++)
-			newDataBuffer.copyFrom(i, 0, originalBuffer.getReadPointer(i, newRange.getStart()), newDataBuffer.getNumSamples());
-
-		return newDataBuffer;
-	}
+	AudioSampleBuffer createNewDataBuffer(Range<int> newRange);
 
 	friend struct DataProvider;
 
@@ -1317,54 +750,6 @@ struct XYZMultiChannelAudioBufferEditor : public ComplexDataUIBase::EditorBase,
 	WeakReference<MultiChannelAudioBuffer> currentBuffer;
 };
 
-#if 0
-struct MultiChannelAudioBufferDisplay : public AudioDisplayComponent,
-										public ComplexDataUIBase::EditorBase,
-										public MultiChannelAudioBuffer::Listener,
-										public AudioDisplayComponent::Listener
-{
-	MultiChannelAudioBufferDisplay()
-	{
-		addAreaListener(this);
-
-		areas.add(new SampleArea(AreaTypes::PlayArea, this));
-		addAndMakeVisible(areas[0]);
-		areas[0]->setAreaEnabled(true);
-	}
-
-	
-
-	void updateRanges(SampleArea *areaToSkip/* =nullptr */) override
-	{
-		areas[0]->setSampleRange(connectedFile->getCurrentRange());
-		refreshSampleAreaBounds(areaToSkip);
-	}
-
-	double getSampleRate() const override
-	{
-		if (connectedFile != nullptr)
-			return connectedFile->sampleRate;
-	}
-
-	
-
-	void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea) override
-	{
-		if (auto ar = getSampleArea(changedArea))
-		{
-			if (connectedFile != nullptr)
-			{
-				ar->getSampleRange();
-			}
-		}
-	}
-
-	
-
-	WeakReference<MultiChannelAudioBuffer> connectedFile;
-};
-#endif
-
 
 /** Rewrite AudioDisplayComponent:
 
@@ -1407,13 +792,7 @@ public:
 
 	};
 
-
-
-	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false)
-	{
-		preview->setLookAndFeel(l);
-		EditorBase::setSpecialLookAndFeel(l, shouldOwn);
-	}
+	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false);
 
 	MultiChannelAudioBufferDisplay();
 	virtual ~MultiChannelAudioBufferDisplay();
@@ -1435,140 +814,39 @@ public:
 	/** Call this whenever you need to set the range from outside. */
 	void setRange(Range<int> newRange);
 
-	void setShowFileName(bool shouldShowFileName)
-	{
-		showFileName = shouldShowFileName;
-		repaint();
-	}
+	void setShowFileName(bool shouldShowFileName);
 
-	void rangeChanged(AudioDisplayComponent *, int ) override
-	{
-		auto range = areas[0]->getSampleRange();
+	void rangeChanged(AudioDisplayComponent *, int ) override;
 
-		if (connectedBuffer != nullptr)
-			connectedBuffer->setRange(range);
-	}
-
-	void setBackgroundColour(Colour c) { bgColour = c; };
+	void setBackgroundColour(Colour c);;
 
 	void mouseDown(const MouseEvent &e) override;
 
-	void mouseDoubleClick(const MouseEvent&)
-	{
-		if (connectedBuffer != nullptr)
-			connectedBuffer->fromBase64String({});
-	}
+	void mouseDoubleClick(const MouseEvent&);
 
 	void paint(Graphics &g) override;
 
 	void paintOverChildren(Graphics& g) override;
 
 	/** Returns the currently loaded file name. */
-	String getCurrentlyLoadedFileName() const
-	{
-		if (connectedBuffer != nullptr)
-		{
-			auto a = connectedBuffer->toBase64String();
-
-			if (a == "-1")
-				return {};
-
-			return a;
-		}
-
-		return {};
-	}
+	String getCurrentlyLoadedFileName() const;
 
 	/** Returns only 44100.0 (this will have no impact, but must be overriden. */
-	double getSampleRate() const override
-	{
-		if (connectedBuffer != nullptr)
-			return connectedBuffer->sampleRate;
+	double getSampleRate() const override;
 
-		return 0.0;
-	}
+	void setShowLoop(bool shouldShowLoop);
 
-	void setShowLoop(bool shouldShowLoop)
-	{
-		if (showLoop != shouldShowLoop)
-		{
-			showLoop = shouldShowLoop;
+	void bufferWasLoaded() override;
 
-			WeakReference<Component> safeThis(this);
+	void bufferWasModified() override;
 
-			MessageManager::callAsync([safeThis]()
-			{
-				if (safeThis != nullptr)
-					safeThis->repaint();
-			});
-		}
-	}
+	void sampleIndexChanged(int newSampleIndex) override;
 
-	void bufferWasLoaded() override
-	{
-		Component::SafePointer<MultiChannelAudioBufferDisplay> safeThis(this);
+	void setComplexDataUIBase(ComplexDataUIBase* newData) override;
 
-		auto f = [safeThis]()
-		{
-			if (safeThis == nullptr)
-				return;
+	void setAudioFile(MultiChannelAudioBuffer* af);
 
-			auto cb = safeThis.getComponent()->connectedBuffer;
-
-			if (cb != nullptr)
-				safeThis->preview->setBufferAndSampleRate(cb->sampleRate, cb->getChannelBuffer(0, true), cb->getChannelBuffer(1, true));
-			else
-				safeThis->preview->setBuffer({}, {});
-
-			auto shouldShowLoop = cb != nullptr && cb->getLoopRange() != cb->getCurrentRange();
-			safeThis->setShowLoop(shouldShowLoop);
-
-			safeThis->updateRanges(nullptr);
-		};
-
-		if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
-			f();
-		else
-			MessageManager::callAsync(f);
-		
-	}
-
-	void bufferWasModified() override
-	{
-		updateRanges(nullptr);
-	}
-
-	void sampleIndexChanged(int newSampleIndex) override
-	{
-		if (connectedBuffer != nullptr)
-		{
-			auto s = connectedBuffer->getCurrentRange().getLength();
-			AudioDisplayComponent::setPlaybackPosition((double)newSampleIndex / s);
-		}
-	}
-
-	void setComplexDataUIBase(ComplexDataUIBase* newData) override
-	{
-		if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(newData))
-			setAudioFile(af);
-	}
-
-	void setAudioFile(MultiChannelAudioBuffer* af)
-	{
-		if (af != connectedBuffer)
-		{
-			if (connectedBuffer != nullptr)
-				connectedBuffer->removeListener(this);
-
-			connectedBuffer = af;
-			bufferWasLoaded();
-
-			if (connectedBuffer != nullptr)
-				connectedBuffer->addListener(this);
-		}
-	}
-
-	MultiChannelAudioBuffer* getBuffer() { return connectedBuffer.get(); }
+	MultiChannelAudioBuffer* getBuffer();
 
 protected:
 

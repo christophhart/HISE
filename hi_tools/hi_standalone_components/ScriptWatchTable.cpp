@@ -760,7 +760,320 @@ void ScriptWatchTable::setHolder(ApiProviderBase::Holder* h)
 		getParentComponent()->repaint();
 
 }
-	
+
+void ScriptWatchTable::textEditorTextChanged(TextEditor& textEditor)
+{
+	applySearchFilter();
+}
+
+void ScriptWatchTable::setResizeOnChange(bool shouldResize)
+{
+	resizeOnChange = shouldResize;
+}
+
+void ScriptWatchTable::updateFontSize(ScriptWatchTable& t, float newSize)
+{
+	t.table->setRowHeight(roundToInt(newSize / 0.7f));
+}
+
+void ScriptWatchTable::providerWasRebuilt()
+{
+	rebuildLines();
+}
+
+void ScriptWatchTable::setLogFunction(const std::function<void(const String&)>& f)
+{
+	logFunction = f;
+}
+
+void ScriptWatchTable::setPopupFunction(const std::function<void(Component*, Component*, Point<int>)>& pf)
+{
+	popupFunction = pf;
+}
+
+var ScriptWatchTable::getStateObject() const
+{ return viewInfo.exportViewSettings(); }
+
+void ScriptWatchTable::fromStateObject(const var& o)
+{ viewInfo.importViewSettings(o); }
+
+ScriptWatchTable::TooltipInfo::TooltipInfo(ScriptWatchTable& parent_):
+	parent(parent_)
+{
+	startTimer(800);
+}
+
+void ScriptWatchTable::TooltipInfo::timerCallback()
+{
+	ready = true;
+	parent.repaint();
+	stopTimer();
+}
+
+void ScriptWatchTable::refreshTimer()
+{
+	startTimer(timerspeed);
+	fullRefreshCounter = 0;
+}
+
+ScriptWatchTable::Rebuilder::Rebuilder(ScriptWatchTable* parent_):
+	parent(parent_)
+{}
+
+void ScriptWatchTable::Rebuilder::handleAsyncUpdate()
+{
+	parent->rebuildLines();
+}
+
+void ScriptWatchTable::rebuildLinesAsync()
+{
+	rebuilder.triggerAsyncUpdate();
+}
+
+String ScriptWatchTable::Info::getValue()
+{
+	if (!valueInitialised && source != nullptr)
+	{
+		value = source->getTextForValue();
+		valueInitialised = true;
+	}
+
+	return value;
+}
+
+bool ScriptWatchTable::Info::checkValueChange()
+{
+	if (source == nullptr)
+		return false;
+
+	const String oldValue = getValue();
+
+	const String currentValue = source->getTextForValue();
+
+	if (oldValue != currentValue)
+	{
+		value = currentValue;
+		return true;
+	}
+				
+	return false;
+}
+
+ScriptWatchTable::ViewInfo::ViewInfo(ScriptWatchTable& p): parent(p)
+{}
+
+bool ScriptWatchTable::ViewInfo::isRoot(Info::Ptr info) const
+{
+	return info->name == currentRoot;
+}
+
+bool ScriptWatchTable::ViewInfo::matchesRoot(Info::Ptr info) const
+{
+	if (currentRoot.isEmpty())
+		return true;
+
+	Info* p = info.get();
+
+	while (p != nullptr)
+	{
+		if (p->name == currentRoot)
+			return true;
+
+		p = p->parent;
+	}
+
+	return false;
+}
+
+void ScriptWatchTable::ViewInfo::toggleRoot(Info::Ptr info)
+{
+	auto newRoot = info->name;
+
+	if (newRoot == currentRoot)
+		currentRoot = {};
+	else
+		currentRoot = newRoot;
+
+	parent.applySearchFilter();
+}
+
+bool ScriptWatchTable::ViewInfo::isTypeAllowed(Info::Ptr info) const
+{
+	auto t = info->type;
+
+	for (const auto& vt : viewDataTypes)
+	{
+		if (vt.typeId == t)
+			return vt.on;
+	}
+
+	return true;
+}
+
+bool ScriptWatchTable::ViewInfo::is(Info::Ptr info, ViewProperty p) const
+{
+	return d[p]->contains(info->name);
+}
+
+bool ScriptWatchTable::ViewInfo::isAny(ViewProperty p) const
+{
+	return !d[p]->isEmpty();
+}
+
+bool ScriptWatchTable::ViewInfo::is(ViewStates s) const
+{
+	return states[s];
+}
+
+void ScriptWatchTable::ViewInfo::addDataTypeToPopup(PopupMenu& m)
+{
+	bool on = false;
+	for (const auto& d : viewDataTypes)
+	{
+		on |= d.on;
+		m.addItem(70000 + d.typeId, d.name, true, d.on);
+	}
+				
+	m.addItem(80000, "Toggle all", true, on);
+}
+
+bool ScriptWatchTable::ViewInfo::performPopup(int result)
+{
+	if (result >= 70000)
+	{
+		for (auto& d : viewDataTypes)
+		{
+			if (d.typeId == result - 70000 || result == 80000)
+			{
+				d.on = !d.on;
+
+				if(result != 80000)
+					break;
+			}
+		}
+
+		parent.applySearchFilter();
+		return true;
+	}
+
+	return false;
+				
+}
+
+void ScriptWatchTable::ViewInfo::set(ViewStates s, bool v)
+{
+	states[s] = v;
+	parent.applySearchFilter();
+}
+
+void ScriptWatchTable::ViewInfo::toggle(ViewStates s)
+{
+	states[s] = !states[s];
+	parent.applySearchFilter();
+}
+
+void ScriptWatchTable::ViewInfo::toggle(Info::Ptr info, ViewProperty p)
+{
+	if (is(info, p))
+		d[p]->removeString(info->name);
+	else
+		d[p]->addIfNotAlreadyThere(info->name);
+}
+
+void ScriptWatchTable::ViewInfo::clear(ViewProperty p)
+{
+	d[p]->clear();
+	parent.rebuildLines();
+}
+
+void ScriptWatchTable::ViewInfo::clear()
+{
+	importViewSettings(var());
+}
+
+void ScriptWatchTable::ViewInfo::importViewSettings(var data)
+{
+	debugNames.clear();
+	pinnedRows.clear();
+	expandedNames.clear();
+	currentRoot = {};
+			
+	for (int i = 0; i < (int)ViewStates::numViewStates; i++)
+		states[i] = false;
+
+	for (auto& df : viewDataTypes)
+		df.on = true;
+
+	if (auto obj = data.getDynamicObject())
+	{
+		auto d = obj->getProperty("DebugEntries");
+		auto p = obj->getProperty("PinnedEntries");
+		auto e = obj->getProperty("ExpandedEntries");
+		auto dta = obj->getProperty("DataTypes");
+
+		currentRoot = obj->getProperty("Root").toString();
+
+		if (auto da = d.getArray())
+		{
+			for (auto& s : *da)
+				debugNames.add(s.toString());
+		}
+
+		if (auto pa = p.getArray())
+		{
+			for (auto& s : *pa)
+				pinnedRows.add(s.toString());
+		}
+
+		if (auto ea = e.getArray())
+		{
+			for (auto& s : *ea)
+				expandedNames.add(s.toString());
+		}
+
+		if (auto dt = dta.getArray())
+		{
+			for (auto& df : viewDataTypes)
+				df.on = dt->contains(var(df.name));
+		}
+	}
+
+	parent.rebuildLines();
+}
+
+var ScriptWatchTable::ViewInfo::exportViewSettings() const
+{
+	auto obj = new DynamicObject();
+
+	Array<var> debugData;
+	Array<var> pinnedData;
+	Array<var> expandedData;
+	Array<var> dataTypeList;
+
+	for (const auto& s : debugNames)
+		debugData.add(s);
+
+	for (const auto& s : pinnedRows)
+		pinnedData.add(s);
+
+	for (const auto& s : expandedNames)
+		expandedData.add(s);
+
+	for (const auto& dt : viewDataTypes)
+	{
+		if (dt.on)
+			dataTypeList.add(dt.name);
+	}
+
+	obj->setProperty("Root", currentRoot);
+	obj->setProperty("DebugEntries", var(debugData));
+	obj->setProperty("PinnedEntries", var(pinnedData));
+	obj->setProperty("ExpandedEntries", var(expandedData));
+	obj->setProperty("DataTypes", var(dataTypeList));
+
+	return var(obj);
+}
+
 void ScriptWatchTable::paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) 
 {
 	if (auto i = filteredFlatList[rowNumber])

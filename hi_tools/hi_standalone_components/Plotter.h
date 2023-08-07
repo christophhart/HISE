@@ -89,21 +89,12 @@ public:
 
 	void mouseExit(const MouseEvent& m) override;
 
-	void setMode(Mode m)
-	{
-		currentMode = m;
-	}
-	
-	void setFont(const Font& f)
-	{
-		font = f;
-	}
+	void setMode(Mode m);
+
+	void setFont(const Font& f);
 
 
-	void setYConverter(const Table::ValueTextConverter& newYConverter)
-	{
-		yConverter = newYConverter;
-	}
+	void setYConverter(const Table::ValueTextConverter& newYConverter);
 
 private:
 

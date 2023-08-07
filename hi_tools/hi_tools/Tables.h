@@ -53,31 +53,17 @@ public:
 
 	struct Listener : private ComplexDataUIUpdaterBase::EventListener
 	{
-		virtual ~Listener() {};
+		virtual ~Listener();;
 
-		virtual void indexChanged(float newIndex) {};
+		virtual void indexChanged(float newIndex);;
 
-		virtual void graphHasChanged(int point) {};
+		virtual void graphHasChanged(int point);;
 
 	private:
 
 		friend class Table;
 
-		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var n) override
-		{
-			switch (t)
-			{
-			case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
-				indexChanged((float)n);
-				break;
-			case ComplexDataUIUpdaterBase::EventType::ContentChange:
-				graphHasChanged((int)n);
-				break;
-			default:
-				jassertfalse;
-				break;
-			}
-		}
+		void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var n) override;
 	};
 
 	/** Delays the notification until this object goes out of scope. 
@@ -85,24 +71,15 @@ public:
 		to avoid unnecessary updates between those calls. */
 	struct ScopedUpdateDelayer
 	{
-		ScopedUpdateDelayer(Table& t) :
-			table(t)
-		{
-			prevValue = t.delayUpdates;
-		}
+		ScopedUpdateDelayer(Table& t);
 
-		~ScopedUpdateDelayer()
-		{
-			table.internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
-			table.fillLookUpTable();
-			table.delayUpdates = prevValue;
-		}
+		~ScopedUpdateDelayer();
 
 		Table& table;
 		bool prevValue = false;
 	};
 
-	static String getDefaultTextValue(float input) { return String(roundToInt(input * 100.0f)) + "%"; };
+	static String getDefaultTextValue(float input);;
 
 	using ValueTextConverter = std::function<String(float)>;
 
@@ -128,11 +105,11 @@ public:
 	*/
 	struct GraphPoint
 	{
-		GraphPoint(float x_, float y_, float curve_): x(x_), y(y_), curve(curve_) { };
+		GraphPoint(float x_, float y_, float curve_);;
 		
-		GraphPoint(const GraphPoint &g): x(g.x), y(g.y), curve(g.curve) { };
+		GraphPoint(const GraphPoint &g);;
 
-		GraphPoint() { jassertfalse; };
+		GraphPoint();;
 
 		float x; ///< the x position of the point.
 		float y; ///< the y position of the point.
@@ -163,100 +140,21 @@ public:
 	*
 	*	@see exportData()
 	*/
-	virtual void restoreData(const String &savedString)
-	{
-		if (savedString.isEmpty())
-		{
-			reset();
-			return;
-		}
-			
-		MemoryBlock b;
-		
-		b.fromBase64Encoding(savedString);
+	virtual void restoreData(const String &savedString);;
 
-		if(b.getSize() == 0) return;
+	void setTablePoint(int pointIndex, float x, float y, float curve);
 
-        {
-            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
-            
-            graphPoints.clear();
-            graphPoints.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
-        }
-		
-		if (!delayUpdates)
-		{
-			fillLookUpTable();
-			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
-		}
-	};
+	void reset();
 
-	void setTablePoint(int pointIndex, float x, float y, float curve)
-	{
-		const float sanitizedX = jlimit(0.0f, 1.0f, x);
-		const float sanitizedY = jlimit(0.0f, 1.0f, y);
-		const float sanitizedCurve = jlimit(0.0f, 1.0f, curve);
-
-        {
-            hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
-            
-            if (pointIndex >= 0 && pointIndex < graphPoints.size())
-            {
-                if (pointIndex != 0 && pointIndex != graphPoints.size() - 1)
-                {
-                    // Just change the x value of non-edge points...
-                    graphPoints.getRawDataPointer()[pointIndex].x = sanitizedX;
-                }
-                
-                graphPoints.getRawDataPointer()[pointIndex].y = sanitizedY;
-                graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
-            }
-        }
-
-		if (!delayUpdates)
-		{
-			fillLookUpTable();
-			internalUpdater.sendContentChangeMessage(sendNotificationSync, pointIndex);
-		}
-	}
-
-	void reset()
-	{
-        {
-            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
-            graphPoints.clear();
-            graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
-            graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
-        }
-
-		if (!delayUpdates)
-		{
-			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
-			fillLookUpTable();
-		}
-	}
-
-	void addTablePoint(float x, float y, float curve=0.5f)
-	{
-        {
-            hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
-            graphPoints.add(GraphPoint(x, y, curve));
-        }
-
-		if (!delayUpdates)
-		{
-			internalUpdater.sendContentChangeMessage(sendNotificationAsync, graphPoints.size() - 1);
-			fillLookUpTable();
-		}
-	}
+	void addTablePoint(float x, float y, float curve=0.5f);
 
 	/** Returns the number of graph points */
-	int getNumGraphPoints() const { return graphPoints.size(); };
+	int getNumGraphPoints() const;;
 
     var getTablePointsAsVarArray() const;
     
 	/** Get a copy of the graph point at pointIndex. */
-	GraphPoint getGraphPoint(int pointIndex) const {return graphPoints.getUnchecked(pointIndex); };
+	GraphPoint getGraphPoint(int pointIndex) const;;
 
 	/** This generates a normalized path from the GraphPoint array.
 	*
@@ -264,12 +162,7 @@ public:
 	*/
 	void createPath(Path &normalizedPath, bool fillPath, bool addStartEnd=true) const;
 
-	void setStartAndEndY(float newStartY, float newEndY)
-	{
-		startY = newStartY;
-		endY = newEndY;
-		fillLookUpTable();
-	}
+	void setStartAndEndY(float newStartY, float newEndY);
 
 	/** Fills the look up table with the graph points generated from calculateGraphPoints()
 	*
@@ -286,58 +179,25 @@ public:
 	*
 	*	You can supply a lambda for the conversion using setTextConverter().
 	*/
-	String getXValueText(float value)
-	{
-		if (xConverter)
-			return xConverter(value);
-		else
-			return String(value, 2);
-	}
+	String getXValueText(float value);
 
-	String getYValueText(float value)
-	{
-		if (yConverter)
-			return yConverter(value);
-		else
-			return String(value, 2);
-	}
+	String getYValueText(float value);
 
-	void setXTextConverter(const ValueTextConverter& converter)
-	{
-		xConverter = converter;
-	}
+	void setXTextConverter(const ValueTextConverter& converter);
 
-	void setYTextConverterRaw(const ValueTextConverter& converter)
-	{
-		yConverter = converter;
-	}
+	void setYTextConverterRaw(const ValueTextConverter& converter);
 
-	ValueTextConverter getYTextConverter()
-	{
-		return yConverter;
-	}
+	ValueTextConverter getYTextConverter();
 
-	void setNormalisedIndexSync(float value)
-	{
-		internalUpdater.sendDisplayChangeMessage(value, sendNotificationAsync);
-	}
+	void setNormalisedIndexSync(float value);
 
-	void sendGraphUpdateMessage()
-	{
-		internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
-	}
+	void sendGraphUpdateMessage();
 
-	void addRulerListener(Listener* l)
-	{
-		internalUpdater.addEventListener(l);
-	}
+	void addRulerListener(Listener* l);
 
-	void removeRulerListener(Listener* l)
-	{
-		internalUpdater.removeEventListener(l);
-	}
+	void removeRulerListener(Listener* l);
 
-    Array<GraphPoint> getCopyOfGraphPoints() const;
+	Array<GraphPoint> getCopyOfGraphPoints() const;
     
 private:
 
@@ -349,14 +209,9 @@ private:
 	class GraphPointComparator
 	{
 	public:
-		GraphPointComparator(){};
+		GraphPointComparator();;
 
-		static int compareElements(GraphPoint dp1, GraphPoint dp2) 
-		{
-			if(dp1.x < dp2.x) return -1;
-			else if(dp1.x > dp2.x) return 1;
-			else return 0;
-		};
+		static int compareElements(GraphPoint dp1, GraphPoint dp2);;
 	};
 
 	Array<GraphPoint> graphPoints;

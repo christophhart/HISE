@@ -32,6 +32,217 @@
 
 namespace hise { using namespace juce;;
 
+	Table::Listener::~Listener()
+	{}
+
+	void Table::Listener::indexChanged(float newIndex)
+	{}
+
+	void Table::Listener::graphHasChanged(int point)
+	{}
+
+	void Table::Listener::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var n)
+	{
+		switch (t)
+		{
+		case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+			indexChanged((float)n);
+			break;
+		case ComplexDataUIUpdaterBase::EventType::ContentChange:
+			graphHasChanged((int)n);
+			break;
+		default:
+			jassertfalse;
+			break;
+		}
+	}
+
+	Table::ScopedUpdateDelayer::ScopedUpdateDelayer(Table& t):
+		table(t)
+	{
+		prevValue = t.delayUpdates;
+	}
+
+	Table::ScopedUpdateDelayer::~ScopedUpdateDelayer()
+	{
+		table.internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+		table.fillLookUpTable();
+		table.delayUpdates = prevValue;
+	}
+
+	String Table::getDefaultTextValue(float input)
+	{ return String(roundToInt(input * 100.0f)) + "%"; }
+
+	Table::GraphPoint::GraphPoint(float x_, float y_, float curve_): x(x_), y(y_), curve(curve_)
+	{ }
+
+	Table::GraphPoint::GraphPoint(const GraphPoint& g): x(g.x), y(g.y), curve(g.curve)
+	{ }
+
+	Table::GraphPoint::GraphPoint()
+	{ jassertfalse; }
+
+	void Table::restoreData(const String& savedString)
+	{
+		if (savedString.isEmpty())
+		{
+			reset();
+			return;
+		}
+			
+		MemoryBlock b;
+		
+		b.fromBase64Encoding(savedString);
+
+		if(b.getSize() == 0) return;
+
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+            
+			graphPoints.clear();
+			graphPoints.insertArray(0, static_cast<const Table::GraphPoint*>(b.getData()), (int)(b.getSize() / sizeof(Table::GraphPoint)));
+		}
+		
+		if (!delayUpdates)
+		{
+			fillLookUpTable();
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+		}
+	}
+
+	void Table::setTablePoint(int pointIndex, float x, float y, float curve)
+	{
+		const float sanitizedX = jlimit(0.0f, 1.0f, x);
+		const float sanitizedY = jlimit(0.0f, 1.0f, y);
+		const float sanitizedCurve = jlimit(0.0f, 1.0f, curve);
+
+		{
+			hise::SimpleReadWriteLock::ScopedReadLock sl(graphPointLock);
+            
+			if (pointIndex >= 0 && pointIndex < graphPoints.size())
+			{
+				if (pointIndex != 0 && pointIndex != graphPoints.size() - 1)
+				{
+					// Just change the x value of non-edge points...
+					graphPoints.getRawDataPointer()[pointIndex].x = sanitizedX;
+				}
+                
+				graphPoints.getRawDataPointer()[pointIndex].y = sanitizedY;
+				graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
+			}
+		}
+
+		if (!delayUpdates)
+		{
+			fillLookUpTable();
+			internalUpdater.sendContentChangeMessage(sendNotificationSync, pointIndex);
+		}
+	}
+
+	void Table::reset()
+	{
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+			graphPoints.clear();
+			graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
+			graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
+		}
+
+		if (!delayUpdates)
+		{
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+			fillLookUpTable();
+		}
+	}
+
+	void Table::addTablePoint(float x, float y, float curve)
+	{
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(graphPointLock);
+			graphPoints.add(GraphPoint(x, y, curve));
+		}
+
+		if (!delayUpdates)
+		{
+			internalUpdater.sendContentChangeMessage(sendNotificationAsync, graphPoints.size() - 1);
+			fillLookUpTable();
+		}
+	}
+
+	int Table::getNumGraphPoints() const
+	{ return graphPoints.size(); }
+
+	Table::GraphPoint Table::getGraphPoint(int pointIndex) const
+	{return graphPoints.getUnchecked(pointIndex); }
+
+	void Table::setStartAndEndY(float newStartY, float newEndY)
+	{
+		startY = newStartY;
+		endY = newEndY;
+		fillLookUpTable();
+	}
+
+	String Table::getXValueText(float value)
+	{
+		if (xConverter)
+			return xConverter(value);
+		else
+			return String(value, 2);
+	}
+
+	String Table::getYValueText(float value)
+	{
+		if (yConverter)
+			return yConverter(value);
+		else
+			return String(value, 2);
+	}
+
+	void Table::setXTextConverter(const ValueTextConverter& converter)
+	{
+		xConverter = converter;
+	}
+
+	void Table::setYTextConverterRaw(const ValueTextConverter& converter)
+	{
+		yConverter = converter;
+	}
+
+	Table::ValueTextConverter Table::getYTextConverter()
+	{
+		return yConverter;
+	}
+
+	void Table::setNormalisedIndexSync(float value)
+	{
+		internalUpdater.sendDisplayChangeMessage(value, sendNotificationAsync);
+	}
+
+	void Table::sendGraphUpdateMessage()
+	{
+		internalUpdater.sendContentChangeMessage(sendNotificationAsync, -1);
+	}
+
+	void Table::addRulerListener(Listener* l)
+	{
+		internalUpdater.addEventListener(l);
+	}
+
+	void Table::removeRulerListener(Listener* l)
+	{
+		internalUpdater.removeEventListener(l);
+	}
+
+	Table::GraphPointComparator::GraphPointComparator()
+	{}
+
+	int Table::GraphPointComparator::compareElements(GraphPoint dp1, GraphPoint dp2)
+	{
+		if(dp1.x < dp2.x) return -1;
+		else if(dp1.x > dp2.x) return 1;
+		else return 0;
+	}
+
 Table::Table():
 	xConverter(getDefaultTextValue),
 	yConverter(getDefaultTextValue)

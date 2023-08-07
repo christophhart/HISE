@@ -42,16 +42,9 @@ using namespace juce;
 	{
 	public:
 
-		static void scalePath(Path& p, Rectangle<float> f)
-		{
-			p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
-		}
+		static void scalePath(Path& p, Rectangle<float> f);
 
-		static void scalePath(Path& p, Component* c, float padding)
-		{
-			auto b = c->getBoundsInParent().toFloat().reduced(padding);
-			scalePath(p, b);
-		}
+		static void scalePath(Path& p, Component* c, float padding);
 
 		struct KeyMapping
 		{
@@ -74,20 +67,17 @@ using namespace juce;
 			OwnedArray<PathFactory> allFactories;
 		};
 
-		PathFactory()
-		{
+		PathFactory();;
 
-		};
+		virtual String getId() const;
 
-		virtual String getId() const { return {}; }
-
-		virtual ~PathFactory() {};
+		virtual ~PathFactory();;
 		virtual Path createPath(const String& id) const = 0;
 
 
-		virtual Array<Description> getDescription() const { return {}; }
+		virtual Array<Description> getDescription() const;
 
-		virtual Array<KeyMapping> getKeyMapping() const { return {}; }
+		virtual Array<KeyMapping> getKeyMapping() const;
 
 		void updateCommandInfoWithKeymapping(juce::ApplicationCommandInfo& info);
 

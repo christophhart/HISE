@@ -91,17 +91,11 @@ public:
     
     void setHolder(ApiProviderBase::Holder* h);
     
-	void textEditorTextChanged(TextEditor& )
-	{
-		applySearchFilter();
-	}
+	void textEditorTextChanged(TextEditor& );
 
-	void setResizeOnChange(bool shouldResize)
-	{
-		resizeOnChange = shouldResize;
-	}
+    void setResizeOnChange(bool shouldResize);
 
-	bool keyPressed(const KeyPress&) override;
+    bool keyPressed(const KeyPress&) override;
 
     int getNumRows() override;
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
@@ -112,10 +106,7 @@ public:
 
 	void mouseExit(const MouseEvent& e) override;
 
-	static void updateFontSize(ScriptWatchTable& t, float newSize)
-	{
-		t.table->setRowHeight(roundToInt(newSize / 0.7f));
-	}
+	static void updateFontSize(ScriptWatchTable& t, float newSize);
 
     String getHeadline() const;
     void resized() override;
@@ -130,49 +121,31 @@ public:
 	void paintOverChildren(Graphics& g) override;
 	
 
-	void providerWasRebuilt() override
-	{
-		rebuildLines();
-	}
-    
+	void providerWasRebuilt() override;
+
     void providerCleared() override;
 
 	void buttonClicked(Button* b) override;
 
-	void setLogFunction(const std::function<void(const String&)>& f)
-	{
-		logFunction = f;
-	}
+	void setLogFunction(const std::function<void(const String&)>& f);
 
-	void setPopupFunction(const std::function<void(Component*, Component*, Point<int>)>& pf)
-	{
-		popupFunction = pf;
-	}
+    void setPopupFunction(const std::function<void(Component*, Component*, Point<int>)>& pf);
 
-	void setViewDataTypes(const StringArray& names, const Array<int>& typeIds);
+    void setViewDataTypes(const StringArray& names, const Array<int>& typeIds);
 
-	var getStateObject() const { return viewInfo.exportViewSettings(); }
+	var getStateObject() const;
 
-	void fromStateObject(const var& o) { viewInfo.importViewSettings(o); }
+    void fromStateObject(const var& o);
 
-	void mouseMove(const MouseEvent& e) override;
+    void mouseMove(const MouseEvent& e) override;
 
 private:
     
 	struct TooltipInfo : public Timer
 	{
-		TooltipInfo(ScriptWatchTable& parent_) :
-			parent(parent_)
-		{
-			startTimer(800);
-		}
+		TooltipInfo(ScriptWatchTable& parent_);
 
-		void timerCallback() override
-		{
-			ready = true;
-			parent.repaint();
-			stopTimer();
-		}
+		void timerCallback() override;
 
 		ScriptWatchTable& parent;
 
@@ -186,13 +159,9 @@ private:
 
 	ScopedPointer<TooltipInfo> currentTooltip;
 
-	void refreshTimer()
-	{
-		startTimer(timerspeed);
-		fullRefreshCounter = 0;
-	}
+	void refreshTimer();
 
-	int timerspeed = 500;
+    int timerspeed = 500;
 	int fullRefreshFactor = 0;
 	int fullRefreshCounter = 0;
 
@@ -206,26 +175,18 @@ private:
 
 	struct Rebuilder : public LockfreeAsyncUpdater
 	{
-		Rebuilder(ScriptWatchTable* parent_):
-			parent(parent_)
-		{};
+		Rebuilder(ScriptWatchTable* parent_);;
 
-		void handleAsyncUpdate() override
-		{
-			parent->rebuildLines();
-		}
+		void handleAsyncUpdate() override;
 
 		ScriptWatchTable* parent;
 	};
 
 	Rebuilder rebuilder;
 
-	void rebuildLinesAsync()
-	{
-		rebuilder.triggerAsyncUpdate();
-	}
+	void rebuildLinesAsync();
 
-	void applySearchFilter();
+    void applySearchFilter();
 
 	ScopedPointer<TextEditor> fuzzySearchBox;
 
@@ -251,34 +212,9 @@ private:
 		List children;
 		WeakReference<Info> parent;
 
-		String getValue()
-		{
-			if (!valueInitialised && source != nullptr)
-			{
-				value = source->getTextForValue();
-				valueInitialised = true;
-			}
+		String getValue();
 
-			return value;
-		}
-
-		bool checkValueChange()
-		{
-			if (source == nullptr)
-				return false;
-
-			const String oldValue = getValue();
-
-			const String currentValue = source->getTextForValue();
-
-			if (oldValue != currentValue)
-			{
-				value = currentValue;
-				return true;
-			}
-				
-			return false;
-		}
+		bool checkValueChange();
 
 	private:
 
@@ -316,7 +252,7 @@ private:
 			numViewStates
 		};
 
-		ViewInfo(ScriptWatchTable& p) : parent(p) {};
+		ViewInfo(ScriptWatchTable& p);;
 
 		ScriptWatchTable& parent;
 
@@ -333,217 +269,37 @@ private:
 
 		
 
-		bool isRoot(Info::Ptr info) const
-		{
-			return info->name == currentRoot;
-		}
+		bool isRoot(Info::Ptr info) const;
 
-		bool matchesRoot(Info::Ptr info) const
-		{
-			if (currentRoot.isEmpty())
-				return true;
+		bool matchesRoot(Info::Ptr info) const;
 
-			Info* p = info.get();
+		void toggleRoot(Info::Ptr info);
 
-			while (p != nullptr)
-			{
-				if (p->name == currentRoot)
-					return true;
+		bool isTypeAllowed(Info::Ptr info) const;
 
-				p = p->parent;
-			}
+		bool is(Info::Ptr info, ViewProperty p) const;
 
-			return false;
-		}
+		bool isAny(ViewProperty p) const;
 
-		void toggleRoot(Info::Ptr info)
-		{
-			auto newRoot = info->name;
+		bool is(ViewStates s) const;
 
-			if (newRoot == currentRoot)
-				currentRoot = {};
-			else
-				currentRoot = newRoot;
+		void addDataTypeToPopup(PopupMenu& m);
 
-			parent.applySearchFilter();
-		}
+		bool performPopup(int result);
 
-		bool isTypeAllowed(Info::Ptr info) const
-		{
-			auto t = info->type;
+		void set(ViewStates s, bool v);
 
-			for (const auto& vt : viewDataTypes)
-			{
-				if (vt.typeId == t)
-					return vt.on;
-			}
+		void toggle(ViewStates s);
 
-			return true;
-		}
+		void toggle(Info::Ptr info, ViewProperty p);
 
-		bool is(Info::Ptr info, ViewProperty p) const
-		{
-			return d[p]->contains(info->name);
-		}
+		void clear(ViewProperty p);
 
-		bool isAny(ViewProperty p) const
-		{
-			return !d[p]->isEmpty();
-		}
+		void clear();
 
-		bool is(ViewStates s) const
-		{
-			return states[s];
-		}
+		void importViewSettings(var data);
 
-		void addDataTypeToPopup(PopupMenu& m)
-		{
-			bool on = false;
-			for (const auto& d : viewDataTypes)
-			{
-				on |= d.on;
-				m.addItem(70000 + d.typeId, d.name, true, d.on);
-			}
-				
-			m.addItem(80000, "Toggle all", true, on);
-		}
-
-		bool performPopup(int result)
-		{
-			if (result >= 70000)
-			{
-				for (auto& d : viewDataTypes)
-				{
-					if (d.typeId == result - 70000 || result == 80000)
-					{
-						d.on = !d.on;
-
-						if(result != 80000)
-break;
-					}
-				}
-
-				parent.applySearchFilter();
-				return true;
-			}
-
-			return false;
-				
-		}
-
-		void set(ViewStates s, bool v)
-		{
-			states[s] = v;
-			parent.applySearchFilter();
-		}
-
-		void toggle(ViewStates s)
-		{
-			states[s] = !states[s];
-			parent.applySearchFilter();
-		}
-
-		void toggle(Info::Ptr info, ViewProperty p)
-		{
-			if (is(info, p))
-				d[p]->removeString(info->name);
-			else
-				d[p]->addIfNotAlreadyThere(info->name);
-		}
-
-		void clear(ViewProperty p)
-		{
-			d[p]->clear();
-			parent.rebuildLines();
-		}
-
-		void clear()
-		{
-			importViewSettings(var());
-		}
-
-		void importViewSettings(var data)
-		{
-			debugNames.clear();
-			pinnedRows.clear();
-			expandedNames.clear();
-			currentRoot = {};
-			
-			for (int i = 0; i < (int)ViewStates::numViewStates; i++)
-				states[i] = false;
-
-			for (auto& df : viewDataTypes)
-				df.on = true;
-
-			if (auto obj = data.getDynamicObject())
-			{
-				auto d = obj->getProperty("DebugEntries");
-				auto p = obj->getProperty("PinnedEntries");
-				auto e = obj->getProperty("ExpandedEntries");
-				auto dta = obj->getProperty("DataTypes");
-
-				currentRoot = obj->getProperty("Root").toString();
-
-				if (auto da = d.getArray())
-				{
-					for (auto& s : *da)
-						debugNames.add(s.toString());
-				}
-
-				if (auto pa = p.getArray())
-				{
-					for (auto& s : *pa)
-						pinnedRows.add(s.toString());
-				}
-
-				if (auto ea = e.getArray())
-				{
-					for (auto& s : *ea)
-						expandedNames.add(s.toString());
-				}
-
-				if (auto dt = dta.getArray())
-				{
-					for (auto& df : viewDataTypes)
-						df.on = dt->contains(var(df.name));
-				}
-			}
-
-			parent.rebuildLines();
-		}
-
-		var exportViewSettings() const
-		{
-			auto obj = new DynamicObject();
-
-			Array<var> debugData;
-			Array<var> pinnedData;
-			Array<var> expandedData;
-			Array<var> dataTypeList;
-
-			for (const auto& s : debugNames)
-				debugData.add(s);
-
-			for (const auto& s : pinnedRows)
-				pinnedData.add(s);
-
-			for (const auto& s : expandedNames)
-				expandedData.add(s);
-
-			for (const auto& dt : viewDataTypes)
-			{
-				if (dt.on)
-					dataTypeList.add(dt.name);
-			}
-
-			obj->setProperty("Root", currentRoot);
-			obj->setProperty("DebugEntries", var(debugData));
-			obj->setProperty("PinnedEntries", var(pinnedData));
-			obj->setProperty("ExpandedEntries", var(expandedData));
-			obj->setProperty("DataTypes", var(dataTypeList));
-
-			return var(obj);
-		}
+		var exportViewSettings() const;
 
 		StringArray debugNames;
 		StringArray pinnedRows;
@@ -569,15 +325,10 @@ break;
     
 	Info::List getSelectedInfos() const;
 
-
-
 	HiseShapeButton refreshButton;
 	HiseShapeButton menuButton;
 	HiseShapeButton expandButton;
-
 	HiseShapeButton pinButton;
-
-    
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptWatchTable);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptWatchTable);

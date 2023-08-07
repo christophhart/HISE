@@ -258,6 +258,20 @@ MarkdownLayout::StyleData::StyleData()
 	fontSize = 18.0f;
 }
 
+MarkdownLayout::StyleData MarkdownLayout::StyleData::createBrightStyle()
+{
+	MarkdownLayout::StyleData l;
+	l.textColour = Colour(0xFF333333);
+	l.headlineColour = Colour(0xFF444444);
+	l.backgroundColour = Colour(0xFFEEEEEE);
+	l.linkColour = Colour(0xFF000044);
+	l.codeColour = Colour(0xFF333333);
+	l.tableHeaderBackgroundColour = Colours::grey.withAlpha(0.2f);
+	l.tableLineColour = Colours::grey.withAlpha(0.2f);
+
+	return l;
+}
+
 bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader)
 {
 	auto fName = obj.getProperty(MarkdownStyleIds::Font, f.getTypefaceName());

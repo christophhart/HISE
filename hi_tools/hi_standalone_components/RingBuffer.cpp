@@ -414,6 +414,71 @@ void RingBufferComponentBase::setComplexDataUIBase(ComplexDataUIBase* newData)
 	refresh();
 }
 
+RingBufferComponentBase::LookAndFeelMethods::~LookAndFeelMethods()
+{}
+
+RingBufferComponentBase::RingBufferComponentBase()
+{
+	setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
+}
+
+Colour RingBufferComponentBase::getColourForAnalyserBase(int colourId)
+{ 
+	switch (colourId)
+	{
+	case ColourId::bgColour: return Colours::transparentBlack;
+	case ColourId::fillColour: return Colours::white.withAlpha(0.05f);
+	case ColourId::lineColour: return Colours::white.withAlpha(0.9f);
+	}
+		
+	return Colours::transparentBlack;
+}
+
+ModPlotter::ModPlotterPropertyObject::ModPlotterPropertyObject(SimpleRingBuffer::WriterBase* wb):
+	PropertyObject(wb)
+{
+	setProperty(RingBufferIds::BufferLength, 32768 * 2);
+	setProperty(RingBufferIds::NumChannels, 1);
+}
+
+int ModPlotter::ModPlotterPropertyObject::getClassIndex() const
+{ return PropertyIndex; }
+
+bool ModPlotter::ModPlotterPropertyObject::allowModDragger() const
+{ return true; }
+
+bool ModPlotter::ModPlotterPropertyObject::validateInt(const Identifier& id, int& v) const
+{
+	if (id == RingBufferIds::BufferLength)
+	{
+		bool wasPowerOfTwo = isPowerOfTwo(v);
+
+		if (!wasPowerOfTwo)
+			v = nextPowerOfTwo(v);
+				
+		return SimpleRingBuffer::withinRange<4096, 32768 * 4>(v) && wasPowerOfTwo;
+	}
+
+	if (id == RingBufferIds::NumChannels)
+		return SimpleRingBuffer::toFixSize<1>(v);
+
+	return false;
+}
+
+RingBufferComponentBase* ModPlotter::ModPlotterPropertyObject::createComponent()
+{
+	return new ModPlotter();
+}
+
+void ModPlotter::ModPlotterPropertyObject::transformReadBuffer(AudioSampleBuffer& b)
+{
+	if (transformFunction)
+		transformFunction(b.getWritePointer(0), b.getNumSamples());
+}
+
+Rectangle<int> ModPlotter::getFixedBounds() const
+{ return { 0, 0, 256, 80 }; }
+
 void ModPlotter::refresh()
 {
 	if (rb != nullptr)
@@ -763,6 +828,196 @@ void AhdsrGraph::LookAndFeelMethods::drawAhdsrBallPosition(Graphics& g, AhdsrGra
 	auto circle = Rectangle<float>(p, p).withSizeKeepingCentre(6.0f, 6.0f);
 	g.setColour(graph.findColour(lineColour).withAlpha(1.0f));
 	g.fillRoundedRectangle(circle, 2.0f);
+}
+
+SimpleRingBuffer::WriterBase::~WriterBase()
+{}
+
+SimpleRingBuffer::PropertyObject::PropertyObject(WriterBase* b):
+	writerBase(b)
+{
+	// This object must not be created from the DLL space...
+	JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+}
+
+int SimpleRingBuffer::PropertyObject::getClassIndex() const
+{ return 0; }
+
+SimpleRingBuffer::PropertyObject::~PropertyObject()
+{}
+
+bool SimpleRingBuffer::PropertyObject::validateInt(const Identifier& id, int& v) const
+{
+	if (id == RingBufferIds::BufferLength)
+		return withinRange<512, 65536*2>(v);
+
+	if (id == RingBufferIds::NumChannels)
+		return withinRange<1, 2>(v);
+
+	return false;
+}
+
+bool SimpleRingBuffer::PropertyObject::allowModDragger() const
+{ return false; }
+
+void SimpleRingBuffer::PropertyObject::initialiseRingBuffer(SimpleRingBuffer* b)
+{
+	buffer = b;
+}
+
+var SimpleRingBuffer::PropertyObject::getProperty(const Identifier& id) const
+{
+	jassert(properties.contains(id));
+
+	if (buffer != nullptr)
+	{
+		if (id.toString() == "BufferLength")
+			return var(buffer->internalBuffer.getNumSamples());
+
+		if (id.toString() == "NumChannels")
+			return var(buffer->internalBuffer.getNumChannels());
+	}
+
+	return {};
+}
+
+void SimpleRingBuffer::PropertyObject::setProperty(const Identifier& id, const var& newValue)
+{
+	properties.set(id, newValue);
+
+	if (buffer != nullptr)
+	{
+		if ((id.toString() == "BufferLength") && (int)newValue > 0)
+			buffer->setRingBufferSize(buffer->internalBuffer.getNumChannels(), (int)newValue);
+
+		if ((id.toString() == "NumChannels") && (int)newValue > 0)
+			buffer->setRingBufferSize((int)newValue, buffer->internalBuffer.getNumSamples());
+	}
+}
+
+void SimpleRingBuffer::PropertyObject::transformReadBuffer(AudioSampleBuffer& b)
+{
+}
+
+Array<Identifier> SimpleRingBuffer::PropertyObject::getPropertyList() const
+{
+	Array<Identifier> ids;
+
+	for (const auto& nv : properties)
+		ids.add(nv.name);
+
+	return ids;
+}
+
+bool SimpleRingBuffer::fromBase64String(const String& b64)
+{
+	return true;
+}
+
+void SimpleRingBuffer::setRingBufferSize(int numChannels, int numSamples, bool acquireLock)
+{
+	validateLength(numSamples);
+	validateChannels(numChannels);
+
+	if (numChannels != internalBuffer.getNumChannels() ||
+		numSamples != internalBuffer.getNumSamples())
+	{
+		jassert(!isBeingWritten);
+
+		SimpleReadWriteLock::ScopedWriteLock sl(getDataLock(), acquireLock);
+		internalBuffer.setSize(numChannels, numSamples);
+		internalBuffer.clear();
+		numAvailable = 0;
+		writeIndex = 0;
+		updateCounter = 0;
+
+		setupReadBuffer(externalBuffer);
+
+		if (!currentlyChanged)
+		{
+			ScopedValueSetter<bool> svs(currentlyChanged, true);
+			getUpdater().sendContentRedirectMessage();
+		}
+	}
+}
+
+String SimpleRingBuffer::toBase64String() const
+{ return {}; }
+
+void SimpleRingBuffer::setActive(bool shouldBeActive)
+{
+	active = shouldBeActive;
+}
+
+bool SimpleRingBuffer::isActive() const noexcept
+{
+	return active;
+}
+
+var SimpleRingBuffer::getReadBufferAsVar()
+{ return externalBufferData; }
+
+const AudioSampleBuffer& SimpleRingBuffer::getReadBuffer() const
+{ return externalBuffer; }
+
+AudioSampleBuffer& SimpleRingBuffer::getWriteBuffer()
+{ return internalBuffer; }
+
+void SimpleRingBuffer::setSamplerate(double newSampleRate)
+{
+	sr = newSampleRate;
+}
+
+double SimpleRingBuffer::getSamplerate() const
+{ return sr; }
+
+bool SimpleRingBuffer::isConnectedToWriter(WriterBase* b) const
+{ return currentWriter == b; }
+
+SimpleRingBuffer::PropertyObject::Ptr SimpleRingBuffer::getPropertyObject() const
+{ return properties; }
+
+SimpleRingBuffer::WriterBase* SimpleRingBuffer::getCurrentWriter() const
+{ return currentWriter.get(); }
+
+void SimpleRingBuffer::setCurrentWriter(WriterBase* newWriter)
+{
+	currentWriter = newWriter;
+}
+
+SimpleRingBuffer::ScopedPropertyCreator::ScopedPropertyCreator(ComplexDataUIBase* obj):
+	p(dynamic_cast<SimpleRingBuffer*>(obj))
+{
+	JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+}
+
+SimpleRingBuffer::ScopedPropertyCreator::~ScopedPropertyCreator()
+{
+	JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+			
+	if(p != nullptr)
+		p->refreshPropertyObject();
+}
+
+CriticalSection& SimpleRingBuffer::getReadBufferLock()
+{ return readBufferLock; }
+
+void SimpleRingBuffer::refreshPropertyObject()
+{
+	auto pIndex = properties != nullptr ? properties->getClassIndex() : 0;
+
+	if (currentPropertyIndex != pIndex)
+	{
+		JUCE_ASSERT_MESSAGE_MANAGER_EXISTS;
+
+		auto p = createPropertyObject(currentPropertyIndex, currentWriter.get());
+
+		if (p == nullptr)
+			p = new PropertyObject(currentWriter.get());
+
+		setPropertyObject(p);
+	}
 }
 
 hise::RingBufferComponentBase* SimpleRingBuffer::PropertyObject::createComponent()

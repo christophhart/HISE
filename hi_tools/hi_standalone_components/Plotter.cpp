@@ -349,4 +349,18 @@ void Plotter::mouseExit(const MouseEvent& /*m*/)
 	repaint();
 }
 
+void Plotter::setMode(Mode m)
+{
+	currentMode = m;
+}
+
+void Plotter::setFont(const Font& f)
+{
+	font = f;
+}
+
+void Plotter::setYConverter(const Table::ValueTextConverter& newYConverter)
+{
+	yConverter = newYConverter;
+}
 } // namespace hise

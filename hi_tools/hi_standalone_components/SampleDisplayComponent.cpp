@@ -140,6 +140,517 @@ AudioDisplayComponent::SampleArea::~SampleArea()
 	rightEdge->setLookAndFeel(nullptr);
 }
 
+Range<int> AudioDisplayComponent::SampleArea::getSampleRange() const
+{	return range; }
+
+void AudioDisplayComponent::SampleArea::setSampleRange(Range<int> r)
+{ 
+	range = r; 
+
+	repaint();
+}
+
+bool AudioDisplayComponent::SampleArea::isAreaEnabled() const
+{ return areaEnabled; }
+
+void AudioDisplayComponent::SampleArea::setAllowedPixelRanges(Range<int> leftRangeInSamples,
+	Range<int> rightRangeInSamples)
+{
+	useConstrainer = !(leftRangeInSamples.isEmpty() && rightRangeInSamples.isEmpty());
+			
+	if(!useConstrainer) return;
+			
+
+	leftEdgeRangeInPixels = Range<int>(getXForSample(leftRangeInSamples.getStart(), false),
+	                                   getXForSample(leftRangeInSamples.getEnd(), false));
+
+	rightEdgeRangeInPixels = Range<int>(getXForSample(rightRangeInSamples.getStart(), false),
+	                                    getXForSample(rightRangeInSamples.getEnd(), false));
+}
+
+void AudioDisplayComponent::SampleArea::setAreaEnabled(bool shouldBeEnabled)
+{
+	areaEnabled = shouldBeEnabled;
+
+	leftEdge->setInterceptsMouseClicks(areaEnabled, false);
+	rightEdge->setInterceptsMouseClicks(areaEnabled, false);
+
+	repaint();
+}
+
+void AudioDisplayComponent::SampleArea::toggleEnabled()
+{
+	setAreaEnabled(!areaEnabled);
+
+	repaint();
+}
+
+AudioDisplayComponent::SampleArea::AreaEdge::AreaEdge(Component* componentToResize,
+	ComponentBoundsConstrainer* constrainer, Edge edgeToResize):
+	ResizableEdgeComponent(componentToResize, constrainer, edgeToResize)
+{}
+
+void AudioDisplayComponent::SampleArea::setReversed(bool isReversed)
+{
+	reversed = isReversed;
+	repaint();
+}
+
+AudioDisplayComponent::SampleArea::EdgeLookAndFeel::EdgeLookAndFeel(SampleArea* areaParent): parentArea(areaParent)
+{}
+
+void AudioDisplayComponent::setPlaybackPosition(double normalizedPlaybackPosition)
+{
+	if(playBackPosition != normalizedPlaybackPosition)
+	{
+		playBackPosition = normalizedPlaybackPosition;
+
+		SafeAsyncCall::repaint(this);
+	}
+}
+
+AudioDisplayComponent::AudioDisplayComponent():
+	playBackPosition(0.0)
+{
+	afm.registerBasicFormats();
+
+	addAndMakeVisible(preview = new HiseAudioThumbnail());
+
+	preview->setLookAndFeel(&defaultLaf);
+}
+
+AudioDisplayComponent::~AudioDisplayComponent()
+{
+	preview = nullptr;
+
+	list.clear();		
+}
+
+AudioDisplayComponent::Listener::~Listener()
+{}
+
+void AudioDisplayComponent::addAreaListener(Listener* l)
+{
+	list.add(l);
+}
+
+void AudioDisplayComponent::removeAreaListener(Listener* l)
+{
+	list.remove(l);
+}
+
+void AudioDisplayComponent::setCurrentArea(SampleArea* area)
+{
+	currentArea = area;
+}
+
+void AudioDisplayComponent::sendAreaChangedMessage()
+{
+	list.call(&Listener::rangeChanged, this, areas.indexOf(currentArea));
+	repaint();
+}
+
+void AudioDisplayComponent::resized()
+{
+	preview->setBounds(getLocalBounds());
+	preview->resized();
+	refreshSampleAreaBounds();
+	updateRanges();
+}
+
+HiseAudioThumbnail* AudioDisplayComponent::getThumbnail()
+{
+	return preview;
+}
+
+int AudioDisplayComponent::getTotalSampleAmount() const
+{
+	return (int)(preview->getTotalLength() * getSampleRate());
+}
+
+void AudioDisplayComponent::setIsOnInterface(bool isOnInterface)
+{
+	onInterface = isOnInterface;
+}
+
+AudioDisplayComponent::SampleArea* AudioDisplayComponent::getSampleArea(int index)
+{return areas[index];}
+
+float AudioDisplayComponent::getNormalizedPeak()
+{ return 1.0f; }
+
+void AudioDisplayComponent::mouseMove(const MouseEvent& e)
+{
+	auto xNormalised = (float)e.getPosition().getX() / (float)getWidth();
+
+	hoverPosition = xNormalised * (float)getTotalSampleAmount();
+}
+
+float AudioDisplayComponent::getHoverPosition() const
+{
+	return hoverPosition;
+}
+
+MultiChannelAudioBuffer::SampleReference::SampleReference(bool ok, const String& ref):
+	r(ok ? Result::ok() : Result::fail(ref + " not found")),
+	reference(ref)
+{}
+
+MultiChannelAudioBuffer::SampleReference::operator bool()
+{ return r.wasOk(); }
+
+bool MultiChannelAudioBuffer::SampleReference::operator==(const SampleReference& other) const
+{
+	return reference == other.reference;
+}
+
+MultiChannelAudioBuffer::DataProvider::~DataProvider() = default;
+
+File MultiChannelAudioBuffer::DataProvider::getRootDirectory()
+{ return rootDir; }
+
+void MultiChannelAudioBuffer::DataProvider::setRootDirectory(const File& rootDirectory)
+{ 
+	rootDir = rootDirectory; 
+}
+
+bool MultiChannelAudioBuffer::XYZItem::matches(int n, int v, int r)
+{
+	return veloRange.contains(v) &&
+		keyRange.contains(n) &&
+		rrGroup == r;
+}
+
+int MultiChannelAudioBuffer::XYZPool::indexOf(const String& ref) const
+{
+	for (int i = 0; i < pool.size(); i++)
+		if (pool[i]->reference == ref)
+			return i;
+
+	return -1;
+}
+
+MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::XYZPool::loadFile(const String& ref)
+{
+	for (auto i : pool)
+	{
+		if (i->reference == ref)
+			return i;
+	}
+
+	return new SampleReference(false, ref);
+}
+
+MultiChannelAudioBuffer::XYZProviderBase::XYZProviderBase(XYZPool* pool_): pool(pool_)
+{}
+
+void MultiChannelAudioBuffer::XYZProviderBase::removeFromPool(SampleReference::Ptr p)
+{
+	if(pool != nullptr)
+		pool->pool.removeObject(p);
+}
+
+String MultiChannelAudioBuffer::XYZProviderBase::getWildcard() const
+{ 
+	String s;
+	s << "{XYZ::" << getId() << "}";
+	return s;
+}
+
+MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::XYZProviderBase::getPooledItem(int idx) const
+{
+	if (pool != nullptr)
+	{
+		if (isPositiveAndBelow(idx, pool->pool.size()))
+			return pool->pool[idx];
+	}
+			
+	return nullptr;
+}
+
+Identifier MultiChannelAudioBuffer::XYZProviderFactory::parseID(const String& referenceString)
+{
+	static const String wildcard("{XYZ::");
+	if (referenceString.startsWith(wildcard))
+	{
+		auto wc = referenceString.upToFirstOccurrenceOf("}", false, false);
+		return Identifier(wc.fromLastOccurrenceOf(":", false, false));
+	}
+
+	return Identifier();
+}
+
+void MultiChannelAudioBuffer::XYZProviderFactory::registerXYZProvider(const Identifier& id,
+	const std::function<XYZProviderBase*()>& f)
+{
+	for (const auto& i : items)
+		if (i.id == id)
+			return;
+
+	items.add({ id, f });
+}
+
+MultiChannelAudioBuffer::XYZProviderBase* MultiChannelAudioBuffer::XYZProviderFactory::create(const Identifier& id)
+{
+	for (const auto& i : items)
+		if (i.id == id)
+			return i.f();
+
+	return nullptr;
+}
+
+Array<Identifier> MultiChannelAudioBuffer::XYZProviderFactory::getIds()
+{
+	Array<Identifier> ids;
+
+	for (auto& i : items)
+	{
+		ids.add(i.id);
+	}
+
+	return ids;
+}
+
+MultiChannelAudioBuffer::Listener::Listener() = default;
+MultiChannelAudioBuffer::Listener::~Listener() = default;
+
+void MultiChannelAudioBuffer::Listener::sampleIndexChanged(int newSampleIndex)
+{}
+
+void MultiChannelAudioBuffer::Listener::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType d, var v)
+{
+	switch (d)
+	{
+	case ComplexDataUIUpdaterBase::EventType::ContentChange:
+		bufferWasModified();
+		break;
+	case ComplexDataUIUpdaterBase::EventType::ContentRedirected:
+		bufferWasLoaded();
+		break;
+	case ComplexDataUIUpdaterBase::EventType::DisplayIndex:
+		sampleIndexChanged((int)v);
+		break;
+	default:
+		break;
+	}
+}
+
+void MultiChannelAudioBuffer::addListener(Listener* l)
+{
+	internalUpdater.addEventListener(l);
+}
+
+void MultiChannelAudioBuffer::removeListener(Listener* l)
+{
+	internalUpdater.removeEventListener(l);
+}
+
+String MultiChannelAudioBuffer::toBase64String() const
+{ 
+	return referenceString;
+}
+
+void MultiChannelAudioBuffer::setRange(Range<int> sampleRange)
+{
+	sampleRange.setStart(jmax(0, sampleRange.getStart()));
+	sampleRange.setEnd(jmin(originalBuffer.getNumSamples(), sampleRange.getEnd()));
+
+	if (sampleRange != bufferRange)
+	{
+		{
+			auto nb = createNewDataBuffer(sampleRange);
+
+			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+			bufferRange = sampleRange;
+			setDataBuffer(nb);
+		}
+	}
+}
+
+void MultiChannelAudioBuffer::loadFromEmbeddedData(SampleReference::Ptr r)
+{
+	referenceString = "{INTERNAL}";
+		
+	auto mag = r->buffer.getMagnitude(0, r->buffer.getNumSamples());
+
+	ignoreUnused(mag);
+	jassert(mag < 1.0f);
+
+	originalBuffer.makeCopyOf(r->buffer);
+
+	auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+	SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
+	sampleRate = r->sampleRate;
+	bufferRange = { 0, originalBuffer.getNumSamples() };
+	loopRange = r->loopRange;
+	setDataBuffer(nb);
+}
+
+void MultiChannelAudioBuffer::loadBuffer(const AudioSampleBuffer& b, double sr)
+{
+	referenceString = "{INTERNAL}";
+		
+	originalBuffer.makeCopyOf(b);
+
+	auto nb = createNewDataBuffer({ 0, b.getNumSamples() });
+	SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
+	sampleRate = sr;
+	bufferRange = { 0, b.getNumSamples() };
+	setDataBuffer(nb);
+}
+
+void MultiChannelAudioBuffer::setLoopRange(Range<int> newLoopRange, NotificationType n)
+{
+	newLoopRange.setStart(jmax(bufferRange.getStart(), newLoopRange.getStart()));
+	newLoopRange.setEnd(jmin(bufferRange.getEnd(), newLoopRange.getEnd()));
+
+	if (newLoopRange != loopRange)
+	{
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+			loopRange = newLoopRange;
+		}
+			
+		if(n != dontSendNotification)
+			getUpdater().sendContentChangeMessage(sendNotificationSync, -1);
+	}
+}
+
+var MultiChannelAudioBuffer::getChannelBuffer(int channelIndex, bool getFullContent)
+{
+	auto& bToUse = getFullContent ? originalBuffer : currentData;
+
+	if(isPositiveAndBelow(channelIndex, bToUse.getNumChannels()))
+		return var(new VariantBuffer(bToUse.getWritePointer(channelIndex, 0), bToUse.getNumSamples()));
+
+	return {};
+}
+
+void MultiChannelAudioBuffer::setProvider(DataProvider::Ptr p)
+{
+	provider = p;
+}
+
+Range<int> MultiChannelAudioBuffer::getCurrentRange() const
+{
+	return bufferRange;
+}
+
+Range<int> MultiChannelAudioBuffer::getTotalRange() const
+{
+	return { 0, originalBuffer.getNumSamples() };
+}
+
+Range<int> MultiChannelAudioBuffer::getLoopRange(bool subtractStart) const
+{
+	bool useLoop = !loopRange.isEmpty() && loopRange.getStart() < bufferRange.getEnd();
+
+	auto delta = (int)subtractStart * bufferRange.getStart();
+
+	return (useLoop ? loopRange.getIntersectionWith(bufferRange): bufferRange) - delta;
+}
+
+AudioSampleBuffer& MultiChannelAudioBuffer::getBuffer()
+{ return currentData; }
+
+const AudioSampleBuffer& MultiChannelAudioBuffer::getBuffer() const
+{ return currentData; }
+
+MultiChannelAudioBuffer::DataProvider::Ptr MultiChannelAudioBuffer::getProvider()
+{
+	return provider;
+}
+
+bool MultiChannelAudioBuffer::isEmpty() const
+{
+	return originalBuffer.getNumChannels() == 0 || originalBuffer.getNumSamples() == 0;
+}
+
+bool MultiChannelAudioBuffer::isNotEmpty() const
+{
+	return originalBuffer.getNumChannels() != 0 || originalBuffer.getNumSamples() != 0;
+}
+
+float** MultiChannelAudioBuffer::getDataPtrs()
+{
+	jassert(!isXYZ());
+	return currentData.getArrayOfWritePointers();
+}
+
+Array<Identifier> MultiChannelAudioBuffer::getAvailableXYZProviders()
+{
+	auto ids = factory->getIds();
+
+	for (int i = 0; i < ids.size(); i++)
+	{
+		if (deactivatedXYZIds.contains(ids[i]))
+			ids.remove(i--);
+	}
+
+	return ids;
+}
+
+Identifier MultiChannelAudioBuffer::getCurrentXYZId() const
+{
+	if (xyzProvider != nullptr)
+		return xyzProvider->getId();
+
+	return Identifier();
+}
+
+bool MultiChannelAudioBuffer::isXYZ() const
+{
+	return xyzProvider != nullptr;
+}
+
+void MultiChannelAudioBuffer::registerXYZProvider(const Identifier& id, const std::function<XYZProviderBase*()>& f)
+{
+	factory->registerXYZProvider(id, f);
+}
+
+const MultiChannelAudioBuffer::XYZItem::List& MultiChannelAudioBuffer::getXYZItems() const
+{ return xyzItems; }
+
+MultiChannelAudioBuffer::XYZItem::List& MultiChannelAudioBuffer::getXYZItems()
+{ return xyzItems; }
+
+MultiChannelAudioBuffer::SampleReference::Ptr MultiChannelAudioBuffer::getFirstXYZData()
+{
+	if (xyzItems.isEmpty())
+		return nullptr;
+
+	return xyzItems[0].data;
+}
+
+void MultiChannelAudioBuffer::setDisabledXYZProviders(const Array<Identifier>& ids)
+{
+	deactivatedXYZIds = ids;
+}
+
+void MultiChannelAudioBuffer::setDataBuffer(AudioSampleBuffer& newBuffer)
+{
+	// Never call this without holding the lock
+	jassert(getDataLock().writeAccessIsLocked());
+
+	std::swap(currentData, newBuffer);
+	getUpdater().sendContentRedirectMessage();
+}
+
+AudioSampleBuffer MultiChannelAudioBuffer::createNewDataBuffer(Range<int> newRange)
+{
+	if (newRange.isEmpty())
+		return {};
+		
+	SimpleReadWriteLock::ScopedReadLock l(getDataLock());
+
+	AudioSampleBuffer newDataBuffer(originalBuffer.getNumChannels(), newRange.getLength());
+
+	for (int i = 0; i < newDataBuffer.getNumChannels(); i++)
+		newDataBuffer.copyFrom(i, 0, originalBuffer.getReadPointer(i, newRange.getStart()), newDataBuffer.getNumSamples());
+
+	return newDataBuffer;
+}
+
 void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
@@ -858,6 +1369,138 @@ void HiseAudioThumbnail::LoadingThread::calculatePath(Path &p, float width, cons
 }
 
 
+HiseAudioThumbnail::LookAndFeelMethods::~LookAndFeelMethods()
+{}
+
+HiseAudioThumbnail::RenderOptions HiseAudioThumbnail::LookAndFeelMethods::getThumbnailRenderOptions(
+	HiseAudioThumbnail& te, const RenderOptions& defaultRenderOptions)
+{ return defaultRenderOptions; }
+
+bool HiseAudioThumbnail::shouldScaleVertically() const
+{ return currentOptions.scaleVertically; }
+
+void HiseAudioThumbnail::setShouldScaleVertically(bool shouldScale)
+{
+	currentOptions.scaleVertically = shouldScale;
+}
+
+Spectrum2D::Parameters::Ptr HiseAudioThumbnail::getParameters() const
+{ return spectrumParameters; }
+
+void HiseAudioThumbnail::lookAndFeelChanged()
+{
+	auto prevOptions = currentOptions;
+        
+	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+		currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
+        
+	if(!(prevOptions == currentOptions))
+		rebuildPaths();
+}
+
+void HiseAudioThumbnail::setDisplayMode(DisplayMode newDisplayMode)
+{
+	if (newDisplayMode != currentOptions.displayMode)
+	{
+		currentOptions.displayMode = newDisplayMode;
+		rebuildPaths();
+	}
+}
+
+void HiseAudioThumbnail::setManualDownsampleFactor(float newDownSampleFactor)
+{
+	FloatSanitizers::sanitizeFloatNumber(newDownSampleFactor);
+
+	if (newDownSampleFactor == -1)
+		currentOptions.manualDownSampleFactor = -1.0f;
+	else
+		currentOptions.manualDownSampleFactor = jlimit<float>(1.0f, 10.0f, newDownSampleFactor);
+
+}
+
+void HiseAudioThumbnail::setDrawHorizontalLines(bool shouldDrawHorizontalLines)
+{
+	currentOptions.drawHorizontalLines = shouldDrawHorizontalLines;
+	repaint();
+}
+
+void HiseAudioThumbnail::handleAsyncUpdate()
+{
+	if (rebuildOnUpdate)
+	{
+		loadingThread.stopThread(-1);
+		loadingThread.startThread(5);
+				
+		repaint();
+		rebuildOnUpdate = false;
+	}
+
+	if (repaintOnUpdate)
+	{
+		repaint();
+		repaintOnUpdate = false;
+	}
+		
+}
+
+void HiseAudioThumbnail::setRebuildOnResize(bool shouldRebuild)
+{
+	rebuildOnResize = shouldRebuild;
+}
+
+bool HiseAudioThumbnail::isEmpty() const noexcept
+{
+	return isClear || !lBuffer.isBuffer();
+}
+
+HiseAudioThumbnail::AudioDataProcessor& HiseAudioThumbnail::getAudioDataProcessor()
+{ return sampleProcessor; }
+
+float HiseAudioThumbnail::applyDisplayGain(float value)
+{
+	return jlimit(-1.0f, 1.0f, value * currentOptions.displayGain);
+}
+
+void HiseAudioThumbnail::refresh()
+{
+	repaintOnUpdate = true;
+	triggerAsyncUpdate();
+}
+
+void HiseAudioThumbnail::rebuildPaths(bool synchronously)
+{
+	// refresh the options here...
+	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+		currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
+        
+	if (synchronously)
+	{
+		isClear = true;
+			
+		loadingThread.run();
+
+		Component::SafePointer<Component> thisSafe = this;
+
+		auto f = [thisSafe]()
+		{
+			if (thisSafe.getComponent() != nullptr)
+				thisSafe.getComponent()->repaint();
+		};
+
+		MessageManager::callAsync(f);
+	}
+	else
+	{
+		rebuildOnUpdate = true;
+		triggerAsyncUpdate();
+	}
+}
+
+HiseAudioThumbnail::LoadingThread::LoadingThread(HiseAudioThumbnail* parent_):
+	Thread("Thumbnail Generator"),
+	parent(parent_)
+{
+}
 
 void HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area)
 {
@@ -953,6 +1596,36 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(Graphics& g, HiseAu
 	g.setColour(Colours::white.withAlpha(0.5f));
 	g.drawRect(area, 1);
 	g.drawText(text, area, Justification::centred);
+}
+
+Image HiseAudioThumbnail::createPreview(const AudioSampleBuffer* buffer, int width)
+{
+	jassert(buffer != nullptr);
+
+	HiseAudioThumbnail thumbnail;
+
+	thumbnail.setSize(width, 150);
+
+	auto data = const_cast<float**>(buffer->getArrayOfReadPointers());
+
+	VariantBuffer::Ptr l = new VariantBuffer(data[0], buffer->getNumSamples());
+
+	var lVar = var(l.get());
+	var rVar;
+
+	thumbnail.lBuffer = var(l.get());
+
+	if (data[1] != nullptr)
+	{
+		VariantBuffer::Ptr r = new VariantBuffer(data[1], buffer->getNumSamples());
+		thumbnail.rBuffer = var(r.get());
+	}
+
+	thumbnail.setDrawHorizontalLines(true);
+
+	thumbnail.loadingThread.run();
+
+	return thumbnail.createComponentSnapshot(thumbnail.getLocalBounds());
 }
 
 HiseAudioThumbnail::HiseAudioThumbnail() :
@@ -1278,6 +1951,30 @@ void HiseAudioThumbnail::drawSection(Graphics &g, bool enabled)
 	}
 }
 
+double HiseAudioThumbnail::getTotalLength() const
+{
+	return lengthInSeconds;
+}
+
+void HiseAudioThumbnail::setDisplayGain(float gainToApply, NotificationType notify)
+{
+	if (gainToApply != 1.0f)
+		currentOptions.scaleVertically = false;
+
+	if (gainToApply != currentOptions.displayGain)
+	{
+		currentOptions.displayGain = gainToApply;
+
+		switch (notify)
+		{
+		case sendNotification:
+		case sendNotificationSync: rebuildPaths(true);
+		case sendNotificationAsync: rebuildPaths(false);
+		default: break;
+		}
+	}
+}
+
 void HiseAudioThumbnail::setReader(AudioFormatReader* r, int64 actualNumSamples)
 {
 	currentReader = r;
@@ -1314,6 +2011,17 @@ void HiseAudioThumbnail::clear()
 	currentReader = nullptr;
 
 	repaint();
+}
+
+void HiseAudioThumbnail::resized()
+{
+	if (rebuildOnResize)
+		rebuildPaths();
+	else
+	{
+		repaint();
+	}
+			
 }
 
 void HiseAudioThumbnail::setSpectrumAndWaveformAlpha(float wAlpha, float sAlpha)
@@ -1512,6 +2220,141 @@ void XYZMultiChannelAudioBufferEditor::resized()
 	if (currentEditor != nullptr)
 		currentEditor->setBounds(b);
 }
+
+void MultiChannelAudioBufferDisplay::setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn)
+{
+	preview->setLookAndFeel(l);
+	EditorBase::setSpecialLookAndFeel(l, shouldOwn);
+}
+
+void MultiChannelAudioBufferDisplay::setShowFileName(bool shouldShowFileName)
+{
+	showFileName = shouldShowFileName;
+	repaint();
+}
+
+void MultiChannelAudioBufferDisplay::rangeChanged(AudioDisplayComponent*, int)
+{
+	auto range = areas[0]->getSampleRange();
+
+	if (connectedBuffer != nullptr)
+		connectedBuffer->setRange(range);
+}
+
+void MultiChannelAudioBufferDisplay::setBackgroundColour(Colour c)
+{ bgColour = c; }
+
+void MultiChannelAudioBufferDisplay::mouseDoubleClick(const MouseEvent& mouseEvent)
+{
+	if (connectedBuffer != nullptr)
+		connectedBuffer->fromBase64String({});
+}
+
+String MultiChannelAudioBufferDisplay::getCurrentlyLoadedFileName() const
+{
+	if (connectedBuffer != nullptr)
+	{
+		auto a = connectedBuffer->toBase64String();
+
+		if (a == "-1")
+			return {};
+
+		return a;
+	}
+
+	return {};
+}
+
+double MultiChannelAudioBufferDisplay::getSampleRate() const
+{
+	if (connectedBuffer != nullptr)
+		return connectedBuffer->sampleRate;
+
+	return 0.0;
+}
+
+void MultiChannelAudioBufferDisplay::setShowLoop(bool shouldShowLoop)
+{
+	if (showLoop != shouldShowLoop)
+	{
+		showLoop = shouldShowLoop;
+
+		WeakReference<Component> safeThis(this);
+
+		MessageManager::callAsync([safeThis]()
+		{
+			if (safeThis != nullptr)
+				safeThis->repaint();
+		});
+	}
+}
+
+void MultiChannelAudioBufferDisplay::bufferWasLoaded()
+{
+	Component::SafePointer<MultiChannelAudioBufferDisplay> safeThis(this);
+
+	auto f = [safeThis]()
+	{
+		if (safeThis == nullptr)
+			return;
+
+		auto cb = safeThis.getComponent()->connectedBuffer;
+
+		if (cb != nullptr)
+			safeThis->preview->setBufferAndSampleRate(cb->sampleRate, cb->getChannelBuffer(0, true), cb->getChannelBuffer(1, true));
+		else
+			safeThis->preview->setBuffer({}, {});
+
+		auto shouldShowLoop = cb != nullptr && cb->getLoopRange() != cb->getCurrentRange();
+		safeThis->setShowLoop(shouldShowLoop);
+
+		safeThis->updateRanges(nullptr);
+	};
+
+	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+		f();
+	else
+		MessageManager::callAsync(f);
+		
+}
+
+void MultiChannelAudioBufferDisplay::bufferWasModified()
+{
+	updateRanges(nullptr);
+}
+
+void MultiChannelAudioBufferDisplay::sampleIndexChanged(int newSampleIndex)
+{
+	if (connectedBuffer != nullptr)
+	{
+		auto s = connectedBuffer->getCurrentRange().getLength();
+		AudioDisplayComponent::setPlaybackPosition((double)newSampleIndex / s);
+	}
+}
+
+void MultiChannelAudioBufferDisplay::setComplexDataUIBase(ComplexDataUIBase* newData)
+{
+	if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(newData))
+		setAudioFile(af);
+}
+
+void MultiChannelAudioBufferDisplay::setAudioFile(MultiChannelAudioBuffer* af)
+{
+	if (af != connectedBuffer)
+	{
+		if (connectedBuffer != nullptr)
+			connectedBuffer->removeListener(this);
+
+		connectedBuffer = af;
+		bufferWasLoaded();
+
+		if (connectedBuffer != nullptr)
+			connectedBuffer->addListener(this);
+	}
+}
+
+MultiChannelAudioBuffer* MultiChannelAudioBufferDisplay::getBuffer()
+{ return connectedBuffer.get(); }
 
 MultiChannelAudioBufferDisplay::MultiChannelAudioBufferDisplay() :
 	AudioDisplayComponent(),

@@ -126,6 +126,34 @@ void VuMeter::drawStereoMeter(Graphics &g)
 }
 
 
+VuMeter::LookAndFeelMethods::~LookAndFeelMethods()
+{}
+
+VuMeter::~VuMeter()
+{}
+
+void VuMeter::setColour(ColourId id, Colour newColour)
+{	colours[id] = newColour; }
+
+void VuMeter::setInvertMode(bool shouldInvertRange)
+{
+	invertMode = shouldInvertRange;
+	repaint();
+}
+
+void VuMeter::setForceLinear(bool shouldForceLinear)
+{
+	forceLinear = shouldForceLinear;
+}
+
+VuMeter::LookAndFeelMethods* VuMeter::getLaf()
+{
+	if (auto other = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+		return other;
+
+	return &defaultLaf;
+}
+
 void VuMeter::LookAndFeelMethods::drawMonoMeter2(Graphics& g, VuMeter& v, VuMeter::Type type, float value)
 {
 	const float w = (float)v.getWidth();

@@ -300,6 +300,69 @@ juce::Array<hise::MarkdownDataBase::Item> MarkdownDataBase::Item::PrioritySorter
 	return arrayToBeSorted;
 }
 
+bool MarkdownDataBase::Item::callForEach(const IteratorFunction& f)
+{
+	if (f(*this))
+		return true;
+
+	for (auto& child : children)
+	{
+		if (child.callForEach(f))
+			return true;
+	}
+
+	return false;
+}
+
+bool MarkdownDataBase::Item::swapChildWithName(Item& itemToSwap, const String& name)
+{
+	for (auto& i : children)
+	{
+		if (i.url.toString(MarkdownLink::UrlSubPath) == name)
+		{
+			std::swap(i, itemToSwap);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+var MarkdownDataBase::Item::toJSONObject() const
+{
+	jassert(url.getType() == MarkdownLink::Folder || url.getType() == MarkdownLink::MarkdownFile);
+
+	DynamicObject::Ptr newObject = new DynamicObject();
+	newObject->setProperty("URL", url.toString(MarkdownLink::FormattedLinkHtml));
+	newObject->setProperty("Title", tocString);
+	newObject->setProperty("Colour", "#" + c.toDisplayString(false));
+
+	Array<var> childrenArray;
+
+	for (const auto& child : children)
+		childrenArray.add(child.toJSONObject());
+
+	newObject->setProperty("Children", childrenArray);
+
+	return var(newObject.get());
+}
+
+MarkdownDataBase::Item MarkdownDataBase::Item::getChildWithName(const String& name) const
+{
+	if (url.toString(MarkdownLink::UrlSubPath) == name)
+		return *this;
+
+	for (const auto& child : children)
+	{
+		auto i = child.getChildWithName(name);
+
+		if (i.url.isValid())
+			return i;
+	}
+
+	return {};
+}
+
 int MarkdownDataBase::Item::fits(String search) const
 {
 	search = search.toLowerCase().removeCharacters("\\/[]()`* ").substring(0, 64);
@@ -511,6 +574,31 @@ void MarkdownDataBase::Item::loadFromValueTree(ValueTree& v)
 	}
 }
 
+void MarkdownDataBase::Item::setDefaultColour(Colour newColour)
+{
+	if (c.isTransparent())
+		c = newColour;
+
+	for (auto& child : children)
+		child.setDefaultColour(c);
+}
+
+
+void MarkdownDataBase::addForumDiscussion(const ForumDiscussionLink& link)
+{
+	discussions.add(link);
+}
+
+MarkdownLink MarkdownDataBase::getForumDiscussion(const MarkdownLink& contentLink) const
+{
+	for (auto d : discussions)
+	{
+		if (d.contentLink == contentLink)
+			return d.forumLink;
+	}
+
+	return {};
+}
 
 hise::MarkdownLink MarkdownDataBase::getLink(const String& link)
 {
@@ -563,6 +651,68 @@ void MarkdownDataBase::Item::fillMetadataFromURL()
 	}
 }
 
+void MarkdownDataBase::Item::addChild(Item&& item)
+{
+	item.parent = this;
+	item.setAutoweight(getWeight() - 10);
+
+	if (item.url.getType() == MarkdownLink::Type::MarkdownFileOrFolder)
+	{
+		jassert(item.url.hasAnchor());
+		item.url.setType(url.getType());
+	}
+
+	children.add(item);
+}
+
+void MarkdownDataBase::Item::sortChildren()
+{
+	MarkdownDataBase::Item::Sorter sorter;
+	children.sort(sorter);
+}
+
+void MarkdownDataBase::Item::removeChild(int childIndex)
+{
+	children.remove(childIndex);
+}
+
+void MarkdownDataBase::Item::swapChildren(Array<Item>& other)
+{
+	children.swapWith(other);
+}
+
+int MarkdownDataBase::Item::getWeight() const
+{
+	if (absoluteWeight != -1)
+		return absoluteWeight + deltaWeight;
+	else
+		return autoWeight + deltaWeight;
+}
+
+void MarkdownDataBase::Item::setAutoweight(int newAutoWeight)
+{
+	autoWeight = newAutoWeight;
+
+	for (auto& child : children)
+		child.setAutoweight(getWeight() - 10);
+}
+
+void MarkdownDataBase::Item::applyWeightFromHeader(const MarkdownHeader& h)
+{
+	auto weightString = h.getKeyValue("weight");
+
+	if (weightString.isNotEmpty())
+		applyWeightString(weightString);
+}
+
+void MarkdownDataBase::Item::setIndexFromHeader(const MarkdownHeader& h)
+{
+	auto indexString = h.getKeyValue("index");
+
+	if (indexString.isNotEmpty())
+		index = indexString.getIntValue();
+}
+
 void MarkdownDataBase::Item::applyWeightString(const String& weightString)
 {
 	if (weightString.contains("!"))
@@ -593,6 +743,30 @@ bool MarkdownDatabaseHolder::shouldUseCachedData() const
 		return true;
 
 	return !getDatabaseRootDirectory().isDirectory();
+}
+
+void MarkdownDatabaseHolder::setForceCachedDataUse(bool shouldUseCachedData, bool rebuild)
+{
+	if (forceUseCachedData != shouldUseCachedData)
+	{
+		forceUseCachedData = shouldUseCachedData;
+
+		if (rebuild)
+		{
+			rebuildDatabase();
+		}
+	}
+}
+
+bool MarkdownDatabaseHolder::shouldAbort() const
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread() &&
+		Thread::getCurrentThread()->threadShouldExit())
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void MarkdownDatabaseHolder::rebuildDatabase()
@@ -670,4 +844,37 @@ void MarkdownDatabaseHolder::addContentProcessor(MarkdownContentProcessor* conte
 	registerContentProcessor(contentProcessor);
 }
 
+void MarkdownDatabaseHolder::removeContentProcessor(MarkdownContentProcessor* contentToRemove)
+{
+	contentProcessors.removeAllInstancesOf(contentToRemove);
+}
+
+void MarkdownDatabaseHolder::addItemGenerator(MarkdownDataBase::ItemGeneratorBase* newItemGenerator)
+{
+	db.addItemGenerator(newItemGenerator);
+}
+
+void MarkdownDatabaseHolder::addServerUpdateListener(ServerUpdateListener* l)
+{
+	serverUpdateListeners.addIfNotAlreadyThere(l);
+}
+
+void MarkdownDatabaseHolder::removeServerUpdateListener(ServerUpdateListener* l)
+{
+	serverUpdateListeners.removeAllInstancesOf(l);
+}
+
+void MarkdownDatabaseHolder::sendServerUpdateMessage(bool started, bool successful)
+{
+	for (auto l : serverUpdateListeners)
+	{
+		if (l == nullptr)
+			continue;
+
+		if (started)
+			l->serverUpdateStateStarted();
+		else
+			l->serverUpdateFinished(successful);
+	}
+}
 }
