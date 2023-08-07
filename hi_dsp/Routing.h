@@ -58,27 +58,23 @@ public:
     
 	RoutableProcessor();
 
-	virtual ~RoutableProcessor() {};
+	virtual ~RoutableProcessor();;
 
 	class MatrixData : public RestorableObject,
 					   public SafeChangeBroadcaster
 	{
 	public:
 
-        void setDecayCoefficients(float newUpDecayFactor, float newDownDecayFactor)
-        {
-            upDecayFactor = jlimit(0.0f, 1.0f, newUpDecayFactor);
-            downDecayFactor = jlimit(0.0f, 1.0f, newDownDecayFactor);
-        }
-        
-		MatrixData(RoutableProcessor *p);
+        void setDecayCoefficients(float newUpDecayFactor, float newDownDecayFactor);
+
+        MatrixData(RoutableProcessor *p);
 
 		~MatrixData();
 
 		void clearAllConnections();
-		bool resizingIsAllowed() const noexcept{ return resizeAllowed; };
-		void setAllowResizing(bool shouldAllowResizing) noexcept{ resizeAllowed = shouldAllowResizing; }
-		bool isUsed(int sourceChannel) const noexcept;;
+		bool resizingIsAllowed() const noexcept;;
+		void setAllowResizing(bool shouldAllowResizing) noexcept;
+        bool isUsed(int sourceChannel) const noexcept;;
 
         float getGainValue(int channelIndex, bool getSource) const;
         
@@ -92,11 +88,11 @@ public:
 		bool addSendConnection(int sourceChannel, int destinationChannel) noexcept;
 		bool removeSendConnection(int sourceChannel, int destinationChannel) noexcept;
 
-		bool onlyEnablingAllowed() const noexcept { return allowEnablingOnly; }
+		bool onlyEnablingAllowed() const noexcept;
 
-		int getNumAllowedConnections() const { return numAllowedConnections; }
+        int getNumAllowedConnections() const;
 
-		int getConnectionForSourceChannel(int sourceChannel) const noexcept;
+        int getConnectionForSourceChannel(int sourceChannel) const noexcept;
 		int getSendForSourceChannel(int sourceChannel) const noexcept;
 
 		void resetToDefault();
@@ -111,74 +107,31 @@ public:
 
 		SimpleReadWriteLock& getLock() const;
 
-		int getNumSourceChannels() const { return numSourceChannels; }
-		int getNumDestinationChannels() const { return numDestinationChannels; };
+		int getNumSourceChannels() const;
+        int getNumDestinationChannels() const;;
 
-		void setOnlyEnablingAllowed(bool noRouting) { allowEnablingOnly = noRouting; }
-		void setNumAllowedConnections(int newNum) noexcept { numAllowedConnections = newNum; };
+		void setOnlyEnablingAllowed(bool noRouting);
+        void setNumAllowedConnections(int newNum) noexcept;;
 
-		bool isEditorShown(int channelIndex) const noexcept 
-		{ 
-			jassert(isPositiveAndBelow(channelIndex, NUM_MAX_CHANNELS));
+		bool isEditorShown(int channelIndex) const noexcept;
 
-			return numEditors[channelIndex] > 0; 
-		}
+        bool anyChannelActive() const noexcept;
 
-		bool anyChannelActive() const noexcept
-		{
-			return anyActive;
-		}
+        void setEditorShown(Array<int> channelIndexes, bool isShown) noexcept;
 
-		void setEditorShown(Array<int> channelIndexes, bool isShown) noexcept
-        {
-			for (auto& c : channelIndexes)
-			{
-				if (isPositiveAndBelow(c, NUM_MAX_CHANNELS))
-				{
-					if (isShown)
-						numEditors[c]++;
-					else
-						numEditors[c] = jmax(0, numEditors[c] - 1);
-				}
-			}
+        void setTargetProcessor(Processor *p);
+		String getTargetName() const;
 
-			anyActive = false;
+        String getSourceName() const;
 
-			for (int i = 0; i < NUM_MAX_CHANNELS; i++)
-				anyActive |= (numEditors[i] != 0);
-        }
-
-		void setTargetProcessor(Processor *p);
-		String getTargetName() const 
-		{ 
-			if (!isProcessorMatrix())
-				return "Output";
-
-			return targetProcessor.get() != nullptr ? targetProcessor.get()->getId() : "HISE Output"; 
-		}
-		String getSourceName() const 
-		{ 
-			if (!isProcessorMatrix())
-				return "Input";
-
-			return thisAsProcessor->getId(); 
-		}
-
-		void setGainValues(float *numMaxChannelValues, bool isSourceValue);
+        void setGainValues(float *numMaxChannelValues, bool isSourceValue);
 		
 
-		void init(Processor* pTouse=nullptr)
-		{
-			thisAsProcessor = pTouse != nullptr ? pTouse : dynamic_cast<Processor*>(owningProcessor);
-			resetToDefault();
-		}
+		void init(Processor* pTouse=nullptr);
 
-		bool isProcessorMatrix() const
-		{
-			return dynamic_cast<Processor*>(owningProcessor) != nullptr;
-		}
+        bool isProcessorMatrix() const;
 
-		void loadPreset(Presets newPreset);
+        void loadPreset(Presets newPreset);
 
 	protected:
 
@@ -219,26 +172,26 @@ public:
 
 	virtual void numDestinationChannelsChanged() = 0;
 
-	virtual void connectionChanged() {};
+	virtual void connectionChanged();;
 
 	/** Opens a routing editor in the quasi modal popup. Pass in any component that is a child component of the backend window. */
 	void editRouting(Component *childComponent);
 
-	const MatrixData &getMatrix() const { return data; };
+	const MatrixData &getMatrix() const;;
 
-	MatrixData &getMatrix() { return data; };
+	MatrixData &getMatrix();;
 
 	/** Quick way to get the left channel for processing. */
-	int getLeftSourceChannel() const { return leftSourceChannel; };
+	int getLeftSourceChannel() const;;
 
 	/** Quick way to get the right channel for processing. */
-	int getRightSourceChannel() const  { return rightSourceChannel; };
+	int getRightSourceChannel() const;;
 
 	/** Quick way to get the left target channel. */
-	int getLeftDestinationChannel() const  { return leftTargetChannel; };
+	int getLeftDestinationChannel() const;;
 
 	/** Quick way to get the right target channel. */
-	int getRightDestinationChannel() const  { return leftTargetChannel; };
+	int getRightDestinationChannel() const;;
 
 	MatrixData data;
 

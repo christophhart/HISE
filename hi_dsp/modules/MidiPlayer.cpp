@@ -67,6 +67,111 @@ struct MidiPlayerHelpers
 };
 
 
+void HiseMidiSequence::TimeSignature::setLoopEnd(double normalisedEnd)
+{
+	jassert(numBars > 0.0);
+	jassert(denominator != 0.0);
+	auto beatLengthNormalised = 1.0 / (numBars * denominator);
+	normalisedEnd = jmax(normalisedLoopRange.getStart() + beatLengthNormalised, normalisedEnd);
+	normalisedLoopRange.setEnd(normalisedEnd);
+}
+
+void HiseMidiSequence::TimeSignature::setLoopStart(double normalisedStart)
+{
+	jassert(numBars > 0.0);
+	jassert(denominator != 0.0);
+	auto beatLengthNormalised = 1.0 / (numBars * denominator);
+
+	normalisedStart = jmin(normalisedStart, normalisedLoopRange.getEnd() - beatLengthNormalised);
+	normalisedLoopRange.setStart(normalisedStart);
+}
+
+void HiseMidiSequence::TimeSignature::calculateNumBars(double lengthInQuarters, bool roundToQuarter)
+{
+	if (roundToQuarter)
+		lengthInQuarters = hmath::ceil(lengthInQuarters);
+
+	numBars = lengthInQuarters * denominator / 4.0 / nominator;
+}
+
+String HiseMidiSequence::TimeSignature::toString() const
+{
+	String s;
+	s << roundToInt(numBars) << " of ";
+	s << roundToInt(nominator) << "/";
+	s << roundToInt(denominator);
+	return s;
+}
+
+double HiseMidiSequence::TimeSignature::getNumQuarters() const
+{
+	return numBars / denominator * 4.0 * nominator;
+}
+
+ValueTree HiseMidiSequence::TimeSignature::exportAsValueTree() const
+{
+	ValueTree v("TimeSignature");
+	v.setProperty(TimeSigIds::NumBars, numBars, nullptr);
+	v.setProperty(TimeSigIds::Nominator, nominator, nullptr);
+	v.setProperty(TimeSigIds::Denominator, denominator, nullptr);
+	v.setProperty(TimeSigIds::LoopStart, normalisedLoopRange.getStart(), nullptr);
+	v.setProperty(TimeSigIds::LoopEnd, normalisedLoopRange.getEnd(), nullptr);
+	v.setProperty(TimeSigIds::Tempo, bpm, nullptr);
+
+	return v;
+}
+
+var HiseMidiSequence::TimeSignature::getAsJSON() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+			
+	auto v = exportAsValueTree();
+
+	for (int i = 0; i < v.getNumProperties(); i++)
+	{
+		auto id = v.getPropertyName(i);
+		obj->setProperty(id, v[id]);
+	}
+			
+	return var(obj.get());
+}
+
+void HiseMidiSequence::TimeSignature::restoreFromValueTree(const ValueTree& v)
+{
+	numBars =					 v.getProperty(TimeSigIds::NumBars, 0.0);
+	nominator =					 v.getProperty(TimeSigIds::Nominator, 4.0);
+	denominator =				 v.getProperty(TimeSigIds::Denominator, 4.0);
+	normalisedLoopRange.setStart(v.getProperty(TimeSigIds::LoopStart, 0.0));
+	normalisedLoopRange.setEnd(	 v.getProperty(TimeSigIds::LoopEnd, 1.0));
+	bpm =						 v.getProperty(TimeSigIds::Tempo, 120.0);
+}
+
+HiseMidiSequence::Ptr HiseMidiSequence::clone() const
+{
+	HiseMidiSequence::Ptr newSeq = new HiseMidiSequence();
+	newSeq->restoreFromValueTree(exportAsValueTree());
+	return newSeq;
+}
+
+HiseMidiSequence::TimeSignature HiseMidiSequence::getTimeSignature() const
+{ return signature; }
+
+HiseMidiSequence::TimeSignature* HiseMidiSequence::getTimeSignaturePtr()
+{ return &signature; }
+
+Identifier HiseMidiSequence::getId() const noexcept
+{ return id; }
+
+int HiseMidiSequence::getNumTracks() const
+{ return sequences.size(); }
+
+HiseMidiSequence::TimestampEditFormat HiseMidiSequence::getTimestampEditFormat() const
+{ return timestampFormat; }
+
+void HiseMidiSequence::setTimeStampEditFormat(TimestampEditFormat formatToUse)
+{
+	timestampFormat = formatToUse;
+}
 
 HiseMidiSequence::HiseMidiSequence()
 {
@@ -629,6 +734,197 @@ void HiseMidiSequence::swapCurrentSequence(MidiMessageSequence* sequenceToSwap)
 	sequences.set(currentTrackIndex, sequenceToSwap, true);
 }
 
+
+MidiPlayer::PlaybackListener::~PlaybackListener()
+{}
+
+MidiPlayer::EventRecordProcessor::~EventRecordProcessor()
+{}
+
+MidiPlayer::SequenceListener::~SequenceListener()
+{}
+
+MidiPlayer::SequenceListAction::SequenceListAction(MidiPlayer* p, HiseMidiSequence::List newList_, int newSeqIndex):
+	player(p),
+	oldList(p->createListOfCurrentSequences()),
+	newList(newList_),
+	newIndex(newSeqIndex)
+{
+	oldIndex = oldList.indexOf(p->getCurrentSequence());
+}
+
+bool MidiPlayer::SequenceListAction::perform()
+{
+	if (player == nullptr)
+		return false;
+
+	player->swapSequenceListWithIndex(newList, newIndex);
+	return true;
+}
+
+bool MidiPlayer::SequenceListAction::undo()
+{
+	if (player == nullptr)
+		return false;
+
+	player->swapSequenceListWithIndex(oldList, oldIndex);
+	return true;
+}
+
+MidiPlayer::TimesigUndo::TimesigUndo(MidiPlayer* player_, HiseMidiSequence::TimeSignature newSig_):
+	player(player_),
+	newSig(newSig_)
+{
+	if (auto seq = player->getCurrentSequence())
+		oldSig = seq->getTimeSignature();
+}
+
+bool MidiPlayer::TimesigUndo::perform()
+{
+	if (player == nullptr)
+		return false;
+
+	player->setLength(newSig, false);
+	return true;
+}
+
+bool MidiPlayer::TimesigUndo::undo()
+{
+	if (player == nullptr)
+		return false;
+
+	player->setLength(oldSig, false);
+	return true;
+}
+
+bool MidiPlayer::isProcessingWholeBuffer() const
+{ return true; }
+
+MidiPlayer::PlayState MidiPlayer::getPlayState() const
+{ return playState; }
+
+int MidiPlayer::getNumSequences() const
+{ return currentSequences.size(); }
+
+void MidiPlayer::setMidiControlAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled)
+{
+	globalMidiHandlerConsumesCC = shouldBeEnabled;
+}
+
+UndoManager* MidiPlayer::getUndoManager()
+{ return undoManager; }
+
+void MidiPlayer::setUseExternalUndoManager(UndoManager* externalUndoManagerToUse)
+{
+	if (externalUndoManagerToUse == nullptr)
+		undoManager = ownedUndoManager.get();
+	else
+		undoManager = externalUndoManagerToUse;
+}
+
+void MidiPlayer::setFlushRecordingOnStop(bool shouldFlushRecording)
+{
+	flushRecordedEvents = shouldFlushRecording;
+}
+
+double MidiPlayer::getCurrentTicksSincePlaybackStart() const
+{
+	return ticksSincePlaybackStart;
+}
+
+void MidiPlayer::setPositionWithTicksFromPlaybackStart(double newPos)
+{
+	ticksSincePlaybackStart = newPos;
+	updatePositionInCurrentSequence();
+}
+
+void MidiPlayer::onResync(double ppqPos)
+{
+	setPositionWithTicksFromPlaybackStart(ppqPos * HiseMidiSequence::TicksPerQuarter);
+}
+
+double MidiPlayer::getTicksPerSample() const
+{ return ticksPerSample * getPlaybackSpeed(); }
+
+double MidiPlayer::getPlaybackSpeed() const
+{ return playbackSpeed * getMainController()->getGlobalPlaybackSpeed(); }
+
+const Array<HiseEvent>& MidiPlayer::getListOfCurrentlyRecordedEventsRaw() const
+{ return currentlyRecordedEvents; }
+
+void MidiPlayer::addPlaybackListener(PlaybackListener* l)
+{
+	playbackListeners.addIfNotAlreadyThere(l);
+}
+
+void MidiPlayer::removePlaybackListener(PlaybackListener* l)
+{
+	playbackListeners.removeAllInstancesOf(l);
+}
+
+void MidiPlayer::setNoteOffAtStop(bool shouldMoveNotesOfToStop)
+{
+	noteOffAtStop = shouldMoveNotesOfToStop;
+}
+
+void MidiPlayer::setReferenceWithoutLoading(PoolReference r)
+{
+	forcedReference = r;
+}
+
+void MidiPlayer::addEventRecordProcessor(EventRecordProcessor* newProcessor)
+{
+	eventRecordProcessors.addIfNotAlreadyThere(newProcessor);
+}
+
+void MidiPlayer::removeEventRecordProcessor(EventRecordProcessor* processorToRemove)
+{
+	eventRecordProcessors.removeAllInstancesOf(processorToRemove);
+}
+
+bool MidiPlayer::processRecordedEvent(HiseEvent& m)
+{
+	for (auto& p : eventRecordProcessors)
+	{
+		jassert(p != nullptr);
+
+		if (p != nullptr)
+			p->processRecordedEvent(m);
+	}
+
+	return !m.isIgnored();
+}
+
+bool MidiPlayer::NotePair::operator==(const NotePair& other) const
+{ return on == other.on && off == other.off; }
+
+MidiPlayer::OverdubUpdater::OverdubUpdater(MidiPlayer& mp):
+	SimpleTimer(mp.getMainController()->getGlobalUIUpdater()),
+	parent(mp)
+{}
+
+void MidiPlayer::OverdubUpdater::timerCallback()
+{
+	if (dirty)
+	{
+		parent.flushOverdubNotes(lastTimestamp);
+		lastTimestamp = -1.0;
+		dirty.store(false);
+	}
+}
+
+void MidiPlayer::OverdubUpdater::setDirty(double activeNoteTimestamp)
+{
+	if (activeNoteTimestamp != lastTimestamp)
+	{
+		lastTimestamp = activeNoteTimestamp;
+	}
+
+	dirty.store(true);
+}
+
+bool MidiPlayer::isRecording() const noexcept
+{ return getPlayState() == PlayState::Record; }
 
 MidiPlayer::EditAction::EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse_) :
 	UndoableAction(),
@@ -2136,6 +2432,45 @@ void MidiPlayer::addNoteOffsToPendingNoteOns()
 
 	if (sortAfterOp)
 		midiChain->artificialEvents.sortTimestamps();
+}
+
+String MidiPlayerBaseType::TransportPaths::getId() const
+{ return "MIDI Transport"; }
+
+Identifier MidiPlayerBaseType::getId()
+{ RETURN_STATIC_IDENTIFIER("undefined"); }
+
+MidiPlayerBaseType* MidiPlayerBaseType::create(MidiPlayer* player)
+{
+	ignoreUnused(player);
+	return nullptr; 
+}
+
+int MidiPlayerBaseType::getPreferredHeight() const
+{ return 0; }
+
+void MidiPlayerBaseType::setFont(Font f)
+{
+	font = f;
+}
+
+void MidiPlayerBaseType::cancelUpdates()
+{
+	if (player != nullptr)
+	{
+		player->removeSequenceListener(this);
+	}
+}
+
+MidiPlayer* MidiPlayerBaseType::getPlayer()
+{ return player.get(); }
+
+const MidiPlayer* MidiPlayerBaseType::getPlayer() const
+{ return player.get(); }
+
+Font MidiPlayerBaseType::getFont() const
+{
+	return font;
 }
 
 juce::Path MidiPlayerBaseType::TransportPaths::createPath(const String& name) const

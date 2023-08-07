@@ -331,7 +331,10 @@ void ProcessorEditorHeader::setLookAndFeel()
 	}
 	
 	repaint();
-};
+}
+
+void ProcessorEditorHeader::displayFoldState(bool shouldBeFolded)
+{ foldButton->setToggleState(shouldBeFolded, dontSendNotification); };
 
 void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m_)
 {

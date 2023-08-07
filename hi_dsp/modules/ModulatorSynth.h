@@ -46,10 +46,6 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
-
-
-
-
 /** The uniform voice handler will unify the voice indexes of a container so that all sound generators will use the
     same voice index (derived by the event ID of the HiseEvent that started the voice).
     
@@ -66,13 +62,9 @@ using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 */
 struct UniformVoiceHandler
 {
-    UniformVoiceHandler(ModulatorSynth* parent_) : parent(parent_) { rebuildChildSynthList(); }
+    UniformVoiceHandler(ModulatorSynth* parent_);
 
-    ~UniformVoiceHandler()
-    {
-        childSynths.clear();
-        parent = nullptr;
-    }
+    ~UniformVoiceHandler();
 
     /** This is called in the prepareToPlay function and makes sure that all. */
     void rebuildChildSynthList();
@@ -189,8 +181,8 @@ public:
 
 	Processor *getChildProcessor(int processorIndex) override;
 	const Processor *getChildProcessor(int processorIndex) const override;
-	int getNumChildProcessors() const override { return numInternalChains; };
-	int getNumInternalChains() const override { return numInternalChains; };
+	int getNumChildProcessors() const override;;
+	int getNumInternalChains() const override;;
 
 	// ===================================================================================================================
 
@@ -241,14 +233,10 @@ public:
 
 	// ===================================================================================================================
 
-	void setIconColour(Colour newIconColour)
-	{ 
-		iconColour = newIconColour; 
-		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
-	};
+	void setIconColour(Colour newIconColour);;
 
-	Colour getIconColour() const { return iconColour; }
-	Colour getColour() const override { return HiseColourScheme::getColour(HiseColourScheme::ModulatorSynthBackgroundColourId); };
+	Colour getIconColour() const;
+	Colour getColour() const override;;
 
 	// ===================================================================================================================
 
@@ -303,7 +291,7 @@ public:
 
 	
 
-	bool isSoftBypassed() const { return bypassState; };
+	bool isSoftBypassed() const;;
 
 	void deleteAllVoices();
     
@@ -338,7 +326,7 @@ public:
 	struct SoundCollectorBase
 	{
 
-		virtual ~SoundCollectorBase() {};
+		virtual ~SoundCollectorBase();;
 
 		virtual void collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound*>& soundsToBeStarted) = 0;
 	};
@@ -358,36 +346,19 @@ public:
 	virtual void addProcessorsWhenEmpty();
 
 	/** Clears the internal buffer. This must be called by subclasses for every renderNextBlockWithModulators. */
-	virtual void initRenderCallback()
-	{
-		internalBuffer.clear();
-	};
+	virtual void initRenderCallback();;
 
 	/** sets the gain of the ModulatorSynth from 0.0 to 1.0. */
-	void setGain(float newGain)
-	{
-		gain = newGain;
-	};
+	void setGain(float newGain);;
 
 	/** sets the balance from -1.0 (left) to 1.0 (right) and applies a equal power pan rule. */
-	void setBalance(float newBalance)
-	{
-		const float l = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), true);
-		const float r = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), false);
-
-		balance.store(newBalance);
-		leftBalanceGain.store(l);
-		rightBalanceGain.store(r);
-	};
+	void setBalance(float newBalance);;
 
 	/** Returns the calculated (equal power) pan value for either the left or the right channel. */
-	float getBalance(bool getRightChannelGain) const 
-	{
-		return getRightChannelGain ? rightBalanceGain : leftBalanceGain;
-	};
+	float getBalance(bool getRightChannelGain) const;;
 
 	/** Returns the gain of the ModulatorSynth from 0.0 to 1.0. */
-	float getGain() const {	return gain; };
+	float getGain() const;;
 
 	void setScriptGainValue(int voiceIndex, float gainValue) noexcept;
 
@@ -398,10 +369,10 @@ public:
 	
 
 	/** Returns the ModulatorSynthGroup that this ModulatorSynth belongs to. */
-	ModulatorSynthGroup *getGroup() const {	return group; };
+	ModulatorSynthGroup *getGroup() const;;
 
 	/** Checks if the Synth was added to a group. */
-	bool isInGroup() const { return group != nullptr;};
+	bool isInGroup() const;;
 
 	/** Returns the index of the child synth if it resides in a group and -1 if not. */
 	int getIndexInGroup() const;
@@ -413,70 +384,34 @@ public:
 	const ModulatorSynth* getPlayingSynth() const;
 
 	/** Sets the interval for the internal clock callback. */
-	void setClockSpeed(ClockSpeed newClockSpeed)
-	{
-		clockSpeed = newClockSpeed;
-	}
+	void setClockSpeed(ClockSpeed newClockSpeed);
 
-	bool allowEmptyPitchValues() const
-	{
-		const bool isGroup = ProcessorHelpers::is<ModulatorSynthGroup>(this);
-
-		return !(isGroup || isInGroup());
-	}
+	bool allowEmptyPitchValues() const;
 
 	/** Returns the pointer to the calculated pitch buffers for the ModulatorSynthVoice's render callback. */
-	const float *getConstantPitchValues() const { return pitchBuffer.getReadPointer(0);	};
+	const float *getConstantPitchValues() const;;
 
-	double getSampleRate() const { return Processor::getSampleRate(); }
+	double getSampleRate() const;
 
-	void setKillRetriggeredNote(bool shouldBeKilled) { shouldKillRetriggeredNote = shouldBeKilled; }
+	void setKillRetriggeredNote(bool shouldBeKilled);
 
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
 
 	
 	/** Returns a read pointer to the calculated pitch values. */
-	float *getPitchValuesForVoice() const 
-	{
-		if (useScratchBufferForArtificialPitch)
-			return modChains[BasicChains::PitchChain].getScratchBuffer();
-		
-		return modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
-	};
+	float *getPitchValuesForVoice() const;;
 
-	void overwritePitchValues(const float* modDataValues, int startSample, int numSamples)
-	{
-		useScratchBufferForArtificialPitch = true;
+	void overwritePitchValues(const float* modDataValues, int startSample, int numSamples);
 
-		auto destination = modChains[BasicChains::PitchChain].getScratchBuffer();
+	const float* getVoiceGainValues() const;
 
-		FloatVectorOperations::copy(destination + startSample, modDataValues + startSample, numSamples);
-	}
+	float getConstantPitchModValue() const;
 
-	const float* getVoiceGainValues() const
-	{
-		return modChains[BasicChains::GainChain].getReadPointerForVoiceValues(0);
-	}
-
-	float getConstantPitchModValue() const
-	{
-		return modChains[BasicChains::PitchChain].getConstantModulationValue();
-	}
-
-	float getConstantGainModValue() const
-	{
-		return modChains[BasicChains::GainChain].getConstantModulationValue();
-	}
+	float getConstantGainModValue() const;
 
 
-	float getConstantVoicePitchModulationValueDeleteSoon() const
-	{
-		// Is applied to uptimeDelta already...
-		jassertfalse;
-
-		return 1.0f;
-	}
+	float getConstantVoicePitchModulationValueDeleteSoon() const;
 
 
 	/** Returns a read pointer to the calculated pitch values. Used by Synthgroups to render their pitch values on the voice value. */
@@ -528,22 +463,14 @@ public:
 
 	UnorderedStack<ModulatorSynthSound*> soundsToBeStarted;
 
-	HiseEventBuffer* getEventBuffer() { return &eventBuffer; }
+	HiseEventBuffer* getEventBuffer();
 
-    virtual void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalHandlerToUse)
-    {
-        currentUniformVoiceHandler = shouldUseVoiceHandler ? externalHandlerToUse :
-                                                             nullptr;
-    }
+	virtual void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalHandlerToUse);
 
-    bool isUsingUniformVoiceHandler() const { return currentUniformVoiceHandler.get() != nullptr; }
-    
-    UniformVoiceHandler* getUniformVoiceHandler() const
-    {
-        return currentUniformVoiceHandler.get();
-        
-    }
-    
+	bool isUsingUniformVoiceHandler() const;
+
+	UniformVoiceHandler* getUniformVoiceHandler() const;
+
 private:
 
 	VoiceStack pendingRemoveVoices;
@@ -552,29 +479,14 @@ private:
 
 protected:
 
-	virtual bool synthNeedsEnvelope() const { return true; };
+	virtual bool synthNeedsEnvelope() const;;
 	
 	void finaliseModChains();
 	
 
 	bool finalised = false;
 
-	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
-	{
-        if(!anyTimerActive)
-            return false;
-        
-		auto nextCallbackTime = nextTimerCallbackTimes[timerIndex].load();
-
-		if (nextTimerCallbackTimes[timerIndex] == 0.0)
-			return false;
-
-		auto uptime = getMainController()->getUptime();
-		auto timeThisBlock = (double)numSamplesThisBlock / getSampleRate();
-
-		Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
-		return uptime > nextCallbackTime || rangeThisBlock.contains(nextCallbackTime);
-	};
+	bool checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept;;
 	
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
@@ -667,23 +579,7 @@ class ModulatorSynthVoice: public SynthesiserVoice
 {
 public:
 
-	ModulatorSynthVoice(ModulatorSynth *ownerSynth_):
-		SynthesiserVoice(),
-		ownerSynth(ownerSynth_),
-		voiceIndex(ownerSynth_->getNumVoices()),
-		voiceUptime(0.0),
-		voiceBuffer(2, 0),
-		uptimeDelta(0.0),
-		killThisVoice(false),
-		startUptime(DBL_MAX),
-		killFadeLevel(1.0f),
-		killFadeFactor(0.5f),
-		isTailing(false)
-		
-	{
-		pitchFader.setValueWithoutSmoothing(1.0);
-		gainFader.setValue(1.0f);
-	};
+	ModulatorSynthVoice(ModulatorSynth *ownerSynth_);;
 
 	/** If not overriden, this uses a sine generator for an example usage of this voice class. */
 	virtual void renderNextBlock (AudioSampleBuffer& outputBuffer,
@@ -693,223 +589,84 @@ public:
 
 	virtual void calculateBlock(int startSample, int numSamples) = 0;
 	
-	bool isPitchFadeActive() const noexcept
-	{
-		return pitchFader.isSmoothing();
-	}
+	bool isPitchFadeActive() const noexcept;
 
-	void applyScriptPitchFactors(float* voicePitchModulationData, int numSamples)
-	{
-		jassert(pitchFader.isSmoothing());
+	void applyScriptPitchFactors(float* voicePitchModulationData, int numSamples);
 
-		float eventPitchFactorFloat = (float)eventPitchFactor;
-
-		while (--numSamples >= 0)
-		{
-			eventPitchFactor = pitchFader.getNextValue();
-			*voicePitchModulationData++ *= eventPitchFactorFloat;
-		}
-	}
-	
-	
 
 	/** This only checks if the sound is valid, but you can override this with the desired behaviour. */
-	virtual bool canPlaySound(SynthesiserSound *s) override
-	{
-		return s != nullptr;
-	};
+	virtual bool canPlaySound(SynthesiserSound *s) override;;
 
 	
 	void setCurrentHiseEvent(const HiseEvent &m);
 
-	const HiseEvent &getCurrentHiseEvent() const { return currentHiseEvent; }
+	const HiseEvent &getCurrentHiseEvent() const;
 
-	void addToStartOffset(uint16 delta)
-	{
-		currentHiseEvent.setStartOffset(currentHiseEvent.getStartOffset() + delta);
-	}
+	void addToStartOffset(uint16 delta);
 
 	/** This calculates the angle delta. For this synth, it detects the sine frequency, but you can override it to make something else. */
-	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/)
-	{
-		LOG_SYNTH_EVENT("Start Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
+	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/);
 
-		jassert(!currentHiseEvent.isEmpty());
+	bool isBeingKilled() const;
 
-		killThisVoice = false;
-		isTailing = false;
-		voiceUptime = 0.0;
-		uptimeDelta = 0.0;
-		startUptimeDelta = 0.0;
-        isActive = true;
-	}
-   
-	bool isBeingKilled() const
-	{
-		return killThisVoice;
-	}
+	bool isTailingOff() const;;
 
-	bool isTailingOff() const
-	{
-		return isTailing;
-	};
+	virtual void prepareToPlay(double sampleRate, int samplesPerBlock);
 
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		SynthesiserVoice::setCurrentPlaybackSampleRate(sampleRate);
-
-		ProcessorHelpers::increaseBufferIfNeeded(voiceBuffer, samplesPerBlock);
-	}
-
-	virtual void setInactive()
-	{
-		// Call this only on non active notes!
-		jassert(uptimeDelta == 0.0);
-
-		uptimeDelta = 0.0;
-        isActive = false;
-		
-	};
+	virtual void setInactive();;
 
 	virtual void resetVoice();
 
-	bool isInactive() const noexcept
-	{
-        return !isActive; //uptimeDelta == 0.0;
-	};
+	bool isInactive() const noexcept;;
 
 	/** This handles the voice stop. If any envelopes are active, the voice keeps playing and repeatedly call checkRelease(), until they are finished. */
 	virtual void stopNote(float velocity, bool allowTailOff) override;
 
 	/** This kills the note with a short fade time. */
-	void killVoice()
-	{
-		//stopNote(true);
-		killThisVoice = true;	
-	}
+	void killVoice();
 
-	bool const shouldBeKilled() const
-	{
-		return killThisVoice;
-	}
+	bool const shouldBeKilled() const;
 
-	void setKillFadeFactor(float newKillFadeFactor)
-	{
-		killFadeFactor = newKillFadeFactor;
-	}
+	void setKillFadeFactor(float newKillFadeFactor);
 
-	
 
-	void applyKillFadeout(int startSample, int numSamples)
-	{
-		while(--numSamples >= 0)
-		{
-			killFadeLevel *= killFadeFactor;
+	void applyKillFadeout(int startSample, int numSamples);
 
-			for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
-			{
-				voiceBuffer.getWritePointer(i)[startSample] *= killFadeLevel;
-			}
+	void applyEventVolumeFade(int startSample, int numSamples);
 
-			startSample++;
-		}
-	}
-
-	void applyEventVolumeFade(int startSample, int numSamples)
-	{
-		while (--numSamples >= 0)
-		{
-			eventGainFactor = gainFader.getNextValue();
-
-			for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
-			{
-				voiceBuffer.getWritePointer(i)[startSample] *= eventGainFactor;
-			}
-
-			startSample++;
-		}
-	}
-
-	void applyEventVolumeFactor(int startSample, int numSamples)
-	{
-		jassert(eventGainFactor >= 0.0f && eventGainFactor < 20.0f);
-
-        if(eventGainFactor == 0.0f)
-        {
-            killVoice();
-        }
-        
-		for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
-		{
-			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i) + startSample , eventGainFactor, numSamples);
-		}
-	}
+	void applyEventVolumeFactor(int startSample, int numSamples);
 
 	/** This checks the envelopes of the gain modulation if any envelopes are tailing off. */
 	virtual void checkRelease();
 
-	virtual void pitchWheelMoved (int /*newValue*/) { };
+	virtual void pitchWheelMoved (int /*newValue*/);;
 
-    virtual void controllerMoved (int /*controllerNumber*/, int /*newValue*/) { };
+    virtual void controllerMoved (int /*controllerNumber*/, int /*newValue*/);;
 
-	const float * getVoiceValues(int channelIndex, int startSample) const
-	{
-		return voiceBuffer.getReadPointer(channelIndex, startSample);
-	}
+	const float * getVoiceValues(int channelIndex, int startSample) const;
 
-	double getVoiceUptime() const noexcept { return startUptime; }
+	double getVoiceUptime() const noexcept;
 
 	int getVoiceIndex() const;
 
-	void setStartUptime(double newUptime) noexcept { startUptime = newUptime; }
+	void setStartUptime(double newUptime) noexcept;
 
-	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
-	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
+	void setScriptGainValue(float newGainValue);
+	void setScriptPitchValue(float newPitchValue);
 
-	void setTransposeAmount(int value) noexcept{ transposeAmount = value; };
-	int getTransposeAmount() const noexcept { return transposeAmount; };
+	void setTransposeAmount(int value) noexcept;;
+	int getTransposeAmount() const noexcept;;
 
-	void setVolumeFade(double fadeTimeSeconds, float targetVolume)
-	{
-		if (fadeTimeSeconds == 0.0)
-		{
-			eventGainFactor = targetVolume;
-			gainFader.setValueWithoutSmoothing(targetVolume);
-		}
-		else
-		{
-			gainFader.setValueAndRampTime(targetVolume, getSampleRate(), fadeTimeSeconds);
-		}
-	}
+	void setVolumeFade(double fadeTimeSeconds, float targetVolume);
 
-	void setPitchFade(double fadeTimeSeconds, double targetPitch)
-	{
-		if (fadeTimeSeconds == 0.0)
-		{
-			eventPitchFactor = targetPitch;
-			pitchFader.setValueWithoutSmoothing(eventPitchFactor);
-		}
-		else
-		{
-			pitchFader.setValueAndRampTime(targetPitch, getSampleRate(), fadeTimeSeconds);
-		}
-	}
+	void setPitchFade(double fadeTimeSeconds, double targetPitch);
 
-	
-	void saveStartUptimeDelta()
-	{
-		startUptimeDelta = uptimeDelta;
-	}
 
-	void setUptimeDeltaValueForBlock()
-	{
-		uptimeDelta = startUptimeDelta * (isPitchFadeActive() ? 1.0 : eventPitchFactor);
-	}
+	void saveStartUptimeDelta();
 
-	void applyConstantPitchFactor(double pitchFactorToAdd)
-	{
-		uptimeDelta *= pitchFactorToAdd;
-	}
+	void setUptimeDeltaValueForBlock();
+
+	void applyConstantPitchFactor(double pitchFactorToAdd);
 
 	void applyGainModulation(int startSample, int numSamples, bool copyLeftChannel);
 
@@ -921,9 +678,9 @@ protected:
 	*
 	*	You need this to get the information needed for the processing of the Modulators.
 	*/
-	const ModulatorSynth *getOwnerSynth() const noexcept { return ownerSynth; };
+	const ModulatorSynth *getOwnerSynth() const noexcept;;
 
-	ModulatorSynth *getOwnerSynth() noexcept { return ownerSynth; };
+	ModulatorSynth *getOwnerSynth() noexcept;;
 	
 	/** The current delta value in which the uptime gets increased per calculated sample. 
 	*	The unit can change from Synth to synth (eg. angle vs. sample position ), so it must be calculated for each subclass in its startNote function. 
@@ -984,10 +741,7 @@ public:
 
 	virtual bool appliesToVelocity(int velocity) = 0;
 
-	bool appliesToMessage(int midiChannel, const int midiNoteNumber, const int velocity) 
-	{
-		return appliesToChannel(midiChannel) && appliesToNote(midiNoteNumber) && appliesToVelocity(velocity);
-	};
+	bool appliesToMessage(int midiChannel, const int midiNoteNumber, const int velocity);;
 
 };
 
@@ -1012,17 +766,9 @@ public:
 		silentSynth
 	};
 
-	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):
-		FactoryType(ownerProcessor),
-		numVoices(numVoices_)
-	{
-		fillTypeNameList();
-	};
+	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor);;
 
-	void setNumVoices(int newNumVoices)
-	{
-		numVoices = newNumVoices;
-	}
+	void setNumVoices(int newNumVoices);
 
 	void fillTypeNameList();
 
@@ -1030,10 +776,7 @@ public:
 	
 protected:
 
-	const Array<ProcessorEntry>& getTypeNames() const override
-	{
-		return typeNames;
-	};
+	const Array<ProcessorEntry>& getTypeNames() const override;;
 
 private:
 

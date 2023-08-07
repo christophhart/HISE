@@ -655,6 +655,118 @@ rightTargetChannel(-1)
 
 }
 
+RoutableProcessor::~RoutableProcessor()
+{}
+
+void RoutableProcessor::MatrixData::setDecayCoefficients(float newUpDecayFactor, float newDownDecayFactor)
+{
+	upDecayFactor = jlimit(0.0f, 1.0f, newUpDecayFactor);
+	downDecayFactor = jlimit(0.0f, 1.0f, newDownDecayFactor);
+}
+
+bool RoutableProcessor::MatrixData::resizingIsAllowed() const noexcept
+{ return resizeAllowed; }
+
+void RoutableProcessor::MatrixData::setAllowResizing(bool shouldAllowResizing) noexcept
+{ resizeAllowed = shouldAllowResizing; }
+
+bool RoutableProcessor::MatrixData::onlyEnablingAllowed() const noexcept
+{ return allowEnablingOnly; }
+
+int RoutableProcessor::MatrixData::getNumAllowedConnections() const
+{ return numAllowedConnections; }
+
+int RoutableProcessor::MatrixData::getNumSourceChannels() const
+{ return numSourceChannels; }
+
+int RoutableProcessor::MatrixData::getNumDestinationChannels() const
+{ return numDestinationChannels; }
+
+void RoutableProcessor::MatrixData::setOnlyEnablingAllowed(bool noRouting)
+{ allowEnablingOnly = noRouting; }
+
+void RoutableProcessor::MatrixData::setNumAllowedConnections(int newNum) noexcept
+{ numAllowedConnections = newNum; }
+
+bool RoutableProcessor::MatrixData::isEditorShown(int channelIndex) const noexcept
+{ 
+	jassert(isPositiveAndBelow(channelIndex, NUM_MAX_CHANNELS));
+
+	return numEditors[channelIndex] > 0; 
+}
+
+bool RoutableProcessor::MatrixData::anyChannelActive() const noexcept
+{
+	return anyActive;
+}
+
+void RoutableProcessor::MatrixData::setEditorShown(Array<int> channelIndexes, bool isShown) noexcept
+{
+	for (auto& c : channelIndexes)
+	{
+		if (isPositiveAndBelow(c, NUM_MAX_CHANNELS))
+		{
+			if (isShown)
+				numEditors[c]++;
+			else
+				numEditors[c] = jmax(0, numEditors[c] - 1);
+		}
+	}
+
+	anyActive = false;
+
+	for (int i = 0; i < NUM_MAX_CHANNELS; i++)
+		anyActive |= (numEditors[i] != 0);
+}
+
+String RoutableProcessor::MatrixData::getTargetName() const
+{ 
+	if (!isProcessorMatrix())
+		return "Output";
+
+	return targetProcessor.get() != nullptr ? targetProcessor.get()->getId() : "HISE Output"; 
+}
+
+String RoutableProcessor::MatrixData::getSourceName() const
+{ 
+	if (!isProcessorMatrix())
+		return "Input";
+
+	return thisAsProcessor->getId(); 
+}
+
+void RoutableProcessor::MatrixData::init(Processor* pTouse)
+{
+	thisAsProcessor = pTouse != nullptr ? pTouse : dynamic_cast<Processor*>(owningProcessor);
+	resetToDefault();
+}
+
+bool RoutableProcessor::MatrixData::isProcessorMatrix() const
+{
+	return dynamic_cast<Processor*>(owningProcessor) != nullptr;
+}
+
+void RoutableProcessor::connectionChanged()
+{}
+
+const RoutableProcessor::MatrixData& RoutableProcessor::getMatrix() const
+{ return data; }
+
+RoutableProcessor::MatrixData& RoutableProcessor::getMatrix()
+{ return data; }
+
+int RoutableProcessor::getLeftSourceChannel() const
+{ return leftSourceChannel; }
+
+int RoutableProcessor::getRightSourceChannel() const
+{ return rightSourceChannel; }
+
+int RoutableProcessor::getLeftDestinationChannel() const
+{ return leftTargetChannel; }
+
+int RoutableProcessor::getRightDestinationChannel() const
+{ return leftTargetChannel; }
+
 void RoutableProcessor::editRouting(Component *childComponent)
 {
 #if USE_BACKEND

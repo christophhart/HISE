@@ -74,22 +74,14 @@ class ModulatorSynthGroupVoice : public ModulatorSynthVoice
 		float detuneModValue = 1.0f;
 		float spreadModValue = 1.0f;
 
-		float getGainFactor(bool getRightChannel)
-		{
-			return gainFactor * (getRightChannel ? balanceRight : balanceLeft);
-		}
+		float getGainFactor(bool getRightChannel);
 	};
 
 public:
 
 	struct Iterator
 	{
-		Iterator(ModulatorSynthGroupVoice* v_):
-			v(v_)
-		{
-			numSize = v->childSynths.size();
-			mod = v->getFMModulator();
-		}
+		Iterator(ModulatorSynthGroupVoice* v_);
 
 		ModulatorSynth* getNextActiveChildSynth();
 
@@ -156,59 +148,17 @@ private:
 	{
 	public:
 
-		ChildVoiceContainer()
-		{
-			clear();
-		}
+		ChildVoiceContainer();
 
-		void addVoice(ModulatorSynthVoice* v)
-		{
-			jassert(numVoices < 8);
-			voices[numVoices++] = v;
-		}
+		void addVoice(ModulatorSynthVoice* v);
 
-		bool removeVoice(ModulatorSynthVoice* v)
-		{
-			for (int i = 0; i < numVoices; i++)
-			{
-				if (voices[i] == v)
-				{
-					for (int j = i; j < numVoices-1; j++)
-					{
-						voices[j] = voices[j + 1];
-					}
+		bool removeVoice(ModulatorSynthVoice* v);
 
-					voices[numVoices--] = nullptr;
-					return true;
-				}
-			}
+		ModulatorSynthVoice* getVoice(int index);
 
-			return false;
-		}
+		int size() const;
 
-		ModulatorSynthVoice* getVoice(int index)
-		{
-			if (index < numVoices)
-			{
-				return voices[index];
-			}
-			else
-			{
-				jassertfalse;
-				return nullptr;
-			}
-		}
-
-		int size() const
-		{
-			return numVoices;
-		}
-
-		void clear()
-		{
-			memset(voices, 0, sizeof(ModulatorSynthGroupVoice*) * 8);
-			numVoices = 0;
-		}
+		void clear();
 
 	private:
 
@@ -216,10 +166,7 @@ private:
 		int numVoices = 0;
 	};
 
-	ChildVoiceContainer& getChildContainer(int childVoiceIndex)
-	{
-		return startedChildVoices[childVoiceIndex % NUM_MAX_UNISONO_VOICES];
-	}
+	ChildVoiceContainer& getChildContainer(int childVoiceIndex);
 
 	ChildVoiceContainer startedChildVoices[NUM_MAX_UNISONO_VOICES];
 
@@ -233,67 +180,22 @@ private:
 	{
 		static constexpr int bitsPerNumber = 64;
 
-		uint64 getIndex(int index) const
-		{
-			return static_cast<uint64>(index % bitsPerNumber);
-		}
+		uint64 getIndex(int index) const;
 
-		uint64 getOffset(int index) const
-		{
-			return static_cast<uint64>(index / bitsPerNumber);
-		}
+		uint64 getOffset(int index) const;
 
-		UnisonoState()
-		{
-			clear();
-		}
+		UnisonoState();
 
-		bool anyActive() const noexcept
-		{
-			bool active = false;
+		bool anyActive() const noexcept;
 
-			for (int i = 0; i < getNumInts(); i++)
-			{
-				active |= state[i] != 0;
-			}
+		void clearBit(int index);
 
-			return active;
-		}
+		bool isBitSet(int index) const;
 
-		void clearBit(int index)
-		{
-			auto i = getIndex(index);
-			auto offset = getOffset(index);
-			auto v = ~(uint64(1) << i);
+		void setBit(int index);
 
-			state[offset] &= v;
-		}
+		void clear();
 
-		bool isBitSet(int index) const
-		{
-			auto i = getIndex(index);
-			auto offset = getOffset(index);
-			auto v = uint64(1) << i;
-
-			return (state[offset] & v) != 0;
-		}
-
-		void setBit(int index)
-		{
-			auto i = getIndex(index);
-			auto offset = getOffset(index);
-
-			auto v = uint64(1) << i;
-
-			state[offset] |= v;
-		}
-
-		void clear()
-		{
-			memset(state, 0, sizeof(uint64) * getNumInts());
-		}
-
-		
 
 		uint64 state[getNumInts()];
 	} unisonoStates;
@@ -306,26 +208,14 @@ private:
 
 	struct ChildSynth
 	{
-		ChildSynth() :
-			synth(nullptr),
-			isActiveForThisVoice(false)
-		{}
+		ChildSynth();
 
-		ChildSynth(ModulatorSynth* synth_) :
-			synth(synth_),
-			isActiveForThisVoice(false)
-		{}
+		ChildSynth(ModulatorSynth* synth_);
 
-		ChildSynth(const ChildSynth& other) :
-			synth(other.synth),
-			isActiveForThisVoice(other.isActiveForThisVoice)
-		{};
+		ChildSynth(const ChildSynth& other);;
 
 		
-		bool operator== (const ChildSynth& other) const
-		{
-			return synth == other.synth;
-		}
+		bool operator== (const ChildSynth& other) const;
 
 		ModulatorSynth* synth;
 		bool isActiveForThisVoice = false;
@@ -399,15 +289,15 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
-	Chain::Handler *getHandler() override { return &handler; };
-	const Chain::Handler *getHandler() const override { return &handler; };
+	Chain::Handler *getHandler() override;;
+	const Chain::Handler *getHandler() const override;;
 
-	FactoryType *getFactoryType() const override { return modulatorSynthFactory; };
-	void setFactoryType(FactoryType *newFactoryType) override { modulatorSynthFactory = newFactoryType; };
+	FactoryType *getFactoryType() const override;;
+	void setFactoryType(FactoryType *newFactoryType) override;;
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
-	int getNumChildProcessors() const override { return numInternalChains + handler.getNumProcessors(); };
-	int getNumInternalChains() const override { return numInternalChains; };
+	int getNumChildProcessors() const override;;
+	int getNumInternalChains() const override;;
 	void setInternalAttribute(int index, float newValue) override;
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
@@ -480,8 +370,8 @@ public:
 
 	virtual int getNumActiveVoices() const;
 
-	Processor *getParentProcessor() { return nullptr; };
-	const Processor *getParentProcessor() const { return nullptr; };
+	Processor *getParentProcessor();;
+	const Processor *getParentProcessor() const;;
 
 	/** Passes the incoming MidiMessage only to the modulation chains of all child synths and NOT to the child synth's voices, as they get rendered by the ModulatorSynthGroupVoices. */
 	void preHiseEventCallback(HiseEvent &m) override;
@@ -494,15 +384,9 @@ public:
 
 	int collectSoundsToBeStarted(const HiseEvent& m) override;
 
-	float getDetuneModValue(int startSample) const
-	{
-		return modChains[ModChains::Detune].getOneModulationValue(startSample);
-	}
+	float getDetuneModValue(int startSample) const;
 
-	float getSpreadModValue(int startSample) const noexcept
-	{
-		return modChains[ModChains::Spread].getOneModulationValue(startSample);
-	}
+	float getSpreadModValue(int startSample) const noexcept;
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 
@@ -526,11 +410,7 @@ public:
 	class ModulatorSynthGroupHandler : public Chain::Handler
 	{
 	public:
-		ModulatorSynthGroupHandler(ModulatorSynthGroup *synthGroupToHandle) :
-			group(synthGroupToHandle)
-		{
-
-		};
+		ModulatorSynthGroupHandler(ModulatorSynthGroup *synthGroupToHandle);;
 
 		/** Adds a new ModulatorSynth to the ModulatorSynthGroup. It also stores a reference in each ModulatorSynthGroupVoice.
 		*
@@ -556,21 +436,18 @@ public:
 		ModulatorSynthGroup *group;
 	};
 
-	String getFMState() const { return getFMStateString(); };
+	String getFMState() const;;
 	void checkFmState();
 
 	void checkFMStateInternally();
 
-	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
+	bool fmIsCorrectlySetup() const;;
 
 private:
 
 	struct SynthVoiceAmount
 	{
-		bool operator ==(const SynthVoiceAmount& other) const
-		{
-			return other.s == s;
-		}
+		bool operator ==(const SynthVoiceAmount& other) const;
 
 		ModulatorSynth* s = nullptr;
 		int numVoicesNeeded = 0;

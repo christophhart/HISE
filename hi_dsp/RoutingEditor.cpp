@@ -75,6 +75,36 @@ void RouterComponent::ChannelConnector::resized()
 	inMeter->setBounds(0, isSource ? 0 : 5, getWidth() * 2 - 2, getHeight() - 4);
 }
 
+Point<int> RouterComponent::ChannelConnector::getConnectionPoint() const
+{	return Point<int>(getWidth() / 2, isSource ? getHeight() - 3 : 3); }
+
+Point<int> RouterComponent::ChannelConnector::getConnectionPointInParent() const
+{ return getParentComponent()->getLocalPoint(this, getConnectionPoint()); }
+
+void RouterComponent::ChannelConnector::setUsed(bool shouldBeUsed)
+{ used = shouldBeUsed; repaint(); }
+
+void RouterComponent::ChannelConnector::setSelected(bool shouldBeSelected, bool shouldBeSelectedAsSend)
+{ selected = shouldBeSelected; selectedAsSend = shouldBeSelectedAsSend; repaint(); }
+
+bool RouterComponent::ChannelConnector::isDifferent(const ChannelConnector* otherConnector) const
+{ return otherConnector->isSource != isSource; }
+
+void RouterComponent::timerCallback()
+{
+	if (data.get() == nullptr)
+		return;
+
+	for (int i = 0; i < sourceChannels.size(); i++)
+	{
+		sourceChannels[i]->setGainValue(data->getGainValue(i, true) * 2.0f);
+	}
+	for (int i = 0; i < destinationChannels.size(); i++)
+	{
+		destinationChannels[i]->setGainValue(data->getGainValue(i, false) * 2.0f);
+	}
+}
+
 void RouterComponent::ChannelConnector::setGainValue(float newGainValue)
 {
 	inMeter->setPeak(newGainValue, newGainValue);

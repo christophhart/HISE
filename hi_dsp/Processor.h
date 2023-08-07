@@ -83,18 +83,10 @@ public:
 	{
 		struct Sorter
 		{
-			int compareElements(Entry& first, Entry& second)
-			{
-				if (first.index > second.index)
-					return 1;
-				else if (first.index < second.index)
-					return -1;
-				else
-					return 0;
-			}
+			int compareElements(Entry& first, Entry& second);
 		};
 
-		bool operator==(const Entry& other) const { return id == other.id; };
+		bool operator==(const Entry& other) const;;
 
 		int index;
 		Identifier id;
@@ -109,11 +101,11 @@ public:
 
 public:
 
-	virtual ~ProcessorDocumentation() {};
+	virtual ~ProcessorDocumentation();;
 
-	int getNumAttributes() const { return parameters.size(); }
+	int getNumAttributes() const;
 
-	Identifier getAttributeId(int index) const { return parameters[index].id; }
+	Identifier getAttributeId(int index) const;
 
 	/** This creates and attaches a markdown help button to the given component.
 	*
@@ -127,34 +119,17 @@ public:
 
 	void fillMissingParameters(Processor* p);
 
-	void setOffset(int pOffset, int cOffset)
-	{
-		parameterOffset = pOffset;
-		chainOffset = cOffset;
-	}
+	void setOffset(int pOffset, int cOffset);
 
-	ProcessorDocumentation()
-	{};
+	ProcessorDocumentation();;
 
-	void addParameter(Entry newParameter)
-	{
-		parameters.add(newParameter);
-	}
+	void addParameter(Entry newParameter);
 
-	void addChain(Entry newChain)
-	{
-		chains.add(newChain);
-	}
+	void addChain(Entry newChain);
 
-	void addLine(const String &l)
-	{
-		description << l << "\n";
-	}
+	void addLine(const String &l);
 
-	void setName(const String& name_)
-	{
-		name = name_;
-	}
+	void setName(const String& name_);
 
 	String description;
 	int parameterOffset = 0;
@@ -307,26 +282,19 @@ public:
     */
 	virtual const Identifier getType() const = 0;
 
-	virtual ProcessorDocumentation* createDocumentation() const { return nullptr; }
+	virtual ProcessorDocumentation* createDocumentation() const;
 
 	/** Returns the symbol of the Processor. 
 	*
 	*	It either checks if a special symbol is set for this particular Processor, or returns the default one defined in getSpecialSymbol()
 	*/
-	const Path getSymbol() const
-	{
-		if(symbol.isEmpty())
-		{
-			return getSpecialSymbol();
-		}
-		else return symbol;
-	}
+	const Path getSymbol() const;
 
 	/** Sets a special symbol for the Processor.
 	*
 	*	If this method is used, the getSymbol() method will return this Path instead of the default one defined in getSpecialSymbol();
 	*/
-	void setSymbol(Path newSymbol) {symbol = newSymbol;	};
+	void setSymbol(Path newSymbol);;
 
 	/** Changes a Processor parameter. 
 	*
@@ -339,18 +307,13 @@ public:
 	*   \param newValue the new value between 0.0 and 1.0
 	*	\param notifyEditor if sendNotification, then a asynchronous message is sent.
 	*/
-	void setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor )
-					 
-	{
-		setInternalAttribute(parameterIndex, newValue);
-		if(notifyEditor == sendNotification) sendPooledChangeMessage();
-	}
+	void setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor );
 
 	/** returns the attribute with the specified index (use a enum in the derived class). */
 	virtual float getAttribute(int parameterIndex) const = 0;
 
 	/** Overwrite this and return the default value. */
-	virtual float getDefaultValue(int /*parameterIndex*/) const { return 1.0f; }
+	virtual float getDefaultValue(int /*parameterIndex*/) const;
 
 	/** This must be overriden by every Processor and return the Chain with the Chain index.
 	*
@@ -376,7 +339,7 @@ public:
 	*
 	*	This is used by the ProcessorEditor to make the chain button bar. 
 	*/
-	virtual int getNumInternalChains() const { return 0;};
+	virtual int getNumInternalChains() const;;
 
 	void setConstrainerForAllInternalChains(BaseConstrainer *constrainer);
 
@@ -384,97 +347,47 @@ public:
     *
 	*   This method itself does nothing, but you can use this to make a button or something else.
 	*/
-	void enableConsoleOutput(bool shouldBeEnabled) {consoleEnabled = shouldBeEnabled;};
+	void enableConsoleOutput(bool shouldBeEnabled);;
 
 	/** Overwrite this method if you want a special colour. 
 	*
 	*	This colour will be used in the debug console and in the editor.
 	*/
-	virtual Colour getColour() const
-	{
-		return Colours::grey;
-	};
+	virtual Colour getColour() const;;
 
 	/** getNumVoices() is occupied by the Synthesiser class, d'oh! */
-	int getVoiceAmount() const noexcept { return numVoices; };
+	int getVoiceAmount() const noexcept;;
 
 	/** Returns the unique id of the Processor instance (!= the Processor name). 
 	*
 	*	It must be a valid Identifier (so no whitespace and weird characters).
 	*/
-	const String & getId() const {return id;};
+	const String & getId() const;;
 
 	/** Overwrite this and return a pretty name. If you don't overwrite it, the getType() method is used. */
-	virtual const String getName() const 
-	{
-		return getType().toString();
-	}
+	virtual const String getName() const;
 
-	void setId(const String &newId, NotificationType notifyChangeHandler=dontSendNotification)
-	{
-		id = newId;
+	void setId(const String &newId, NotificationType notifyChangeHandler=dontSendNotification);;
 
-		if (Identifier::isValidIdentifier(id))
-		{
-			idAsIdentifier = Identifier(id);
-		}
-		else
-		{
-			idAsIdentifier = Identifier();
-		}
-
-		sendChangeMessage();
-
-		if (notifyChangeHandler)
-			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
-				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
-	};
-
-	const Identifier& getIDAsIdentifier() const
-	{
-		return idAsIdentifier;
-	}
+	const Identifier& getIDAsIdentifier() const;
 
 	/** This bypasses the processor. You don't have to check in the processors logic itself, normally the chain should do that for you. */
-	virtual void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept 
-	{ 
-		if (bypassed != shouldBeBypassed)
-		{
-			bypassed = shouldBeBypassed;
-			currentValues.clear();
-
-			sendSynchronousBypassChangeMessage();
-
-			if (notifyChangeHandler)
-				getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
-		}		
-	};
+	virtual void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept;
+	;
 
 	/** Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). */
-	bool isBypassed() const noexcept { return bypassed; };
+	bool isBypassed() const noexcept;;
 
-	void sendSynchronousBypassChangeMessage()
-	{
-		for (auto l : bypassListeners)
-			if (l)
-				l->bypassStateChanged(this, bypassed);
-	}
+	void sendSynchronousBypassChangeMessage();
 
 	/** Sets the sample rate and the block size. */
-	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_)
-	{
-		samplerate = sampleRate_;
-		largestBlockSize = samplesPerBlock_;
-	}
+	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_);
 
 	/** Returns the sample rate. */
-	double getSampleRate() const { return samplerate; };
+	double getSampleRate() const;;
 
 	/** Returns the block size. */
-	int getLargestBlockSize() const
-    {   
-        return largestBlockSize;
-    };
+	int getLargestBlockSize() const;;
 
 	
 #if USE_BACKEND
@@ -488,13 +401,10 @@ public:
 #endif
 
 	/** This can be used to display the Processors output value. */
-	float getOutputValue() const {	return currentValues.outL;	};
+	float getOutputValue() const;;
 
 	/** This can be used to display the Processors input value. */
-	float getInputValue() const
-	{
-		return inputValue;
-	};
+	float getInputValue() const;;
 
     bool isValidAndInitialised(bool checkOnAir=false) const;
     
@@ -507,82 +417,29 @@ public:
 	*			newState = Processor::numEditorStates,
 	*		};
 	*/
-	void setEditorState(int state, bool isOn, NotificationType notifyView=sendNotification)
-	{
-		const Identifier stateId = getEditorStateForIndex(state);
+	void setEditorState(int state, bool isOn, NotificationType notifyView=sendNotification);;
 
-		editorStateValueSet.set(stateId, isOn);
-	};
+	const var getEditorState(Identifier editorStateId) const;
 
-	const var getEditorState(Identifier editorStateId) const
-	{
-		return editorStateValueSet[editorStateId];
-	}
+	void setEditorState(Identifier state, var stateValue, NotificationType notifyView=sendNotification);
 
-	void setEditorState(Identifier state, var stateValue, NotificationType notifyView=sendNotification)
-	{
-		jassert(state.isValid());
+	Identifier getEditorStateForIndex(int index) const;
 
-		editorStateValueSet.set(state, stateValue);
-	}
-
-	Identifier getEditorStateForIndex(int index) const
-	{
-		// Did you forget to add the identifier to the id list in your subtype constructor?
-		jassert(index < editorStateIdentifiers.size());
-
-		return editorStateIdentifiers[index];
-	}
-
-	void toggleEditorState(int index, NotificationType notifyEditor)
-	{
-		bool on = getEditorState(getEditorStateForIndex(index));
-
-		setEditorState(getEditorStateForIndex(index), !on, notifyEditor);
-	}
+	void toggleEditorState(int index, NotificationType notifyEditor);
 
 	/** Restores the state of the Processor's editor. It must be saved within the Processor, because the Editor can be deleted. */
-	bool getEditorState(int state) const 
-	{
-		return editorStateValueSet[getEditorStateForIndex(state)];
+	bool getEditorState(int state) const;;
 
-		//return editorState[state];
-	};
-
-	XmlElement *getCompleteEditorState() const
-	{
-		XmlElement *state = new XmlElement("EditorState");
-
-		editorStateValueSet.copyToXmlAttributes(*state);
-
-		return state;
-	};
+	XmlElement *getCompleteEditorState() const;;
 
 	/** Restores the EditorState from a BigInteger that was retrieved using getCompleteEditorState. */
-	void restoreCompleteEditorState(const XmlElement *storedState)
-	{
-		if(storedState != nullptr)
-		{
-			editorStateValueSet.setFromXmlAttributes(*storedState);
-		}
-	};
+	void restoreCompleteEditorState(const XmlElement *storedState);;
 
 	struct DisplayValues
 	{
-		DisplayValues():
-			inL(0.0f),
-			inR(0.0f),
-			outL(0.0f),
-			outR(0.0f)
-		{};
+		DisplayValues();;
 
-		void clear()
-		{
-			inL = 0.0f;
-			inR = 0.0f;
-			outL = 0.0f;
-			outR = 0.0f;
-		};
+		void clear();;
 
 		float inL;
 		float outL;
@@ -590,11 +447,11 @@ public:
 		float outR;
 	};
 
-	DisplayValues getDisplayValues() const { return currentValues;};
+	DisplayValues getDisplayValues() const;;
 
 	struct BypassListener
 	{
-		virtual ~BypassListener() {};
+		virtual ~BypassListener();;
 
 		virtual void bypassStateChanged(Processor* p, bool bypassState) = 0;
 
@@ -769,13 +626,7 @@ public:
 	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;
 	int getParameterIndexForIdentifier(String id) const;
 
-	String getDescriptionForParameters(int parameterIndex)
-	{
-		if (parameterNames.size() == parameterDescriptions.size())
-			return parameterDescriptions[parameterIndex];
-
-		return "-";
-	}
+	String getDescriptionForParameters(int parameterIndex);
 
 	/** This returns the number of (named) parameters. */
 	virtual int getNumParameters() const;; 
@@ -786,14 +637,11 @@ public:
 	*/
 	void setIsOnAir(bool isBeingProcessedInAudioThread);
 
-	bool isOnAir() const noexcept{ return onAir; }
+	bool isOnAir() const noexcept;
 
 	struct DeleteListener
 	{
-		virtual ~DeleteListener()
-		{
-			masterReference.clear();
-		}
+		virtual ~DeleteListener();
 
 		virtual void processorDeleted(Processor* deletedProcessor) = 0;
 
@@ -805,42 +653,19 @@ public:
 		WeakReference<DeleteListener>::Master masterReference;
 	};
 
-	void addDeleteListener(DeleteListener* listener)
-	{
-		deleteListeners.addIfNotAlreadyThere(listener);
-	}
+	void addDeleteListener(DeleteListener* listener);
 
-	void setIsWaitingForDeletion()
-	{
-		// Must be called before this method
-		jassert(!isOnAir());
-		pendingDelete = true;
+	void setIsWaitingForDeletion();
 
-		for (int i = 0; i < getNumChildProcessors(); i++)
-			getChildProcessor(i)->setIsWaitingForDeletion();
-	}
+	bool isWaitingForDeletion() const noexcept;
 
-	bool isWaitingForDeletion() const noexcept
-	{
-		return pendingDelete;
-	}
-
-	void removeDeleteListener(DeleteListener* listener)
-	{
-		deleteListeners.removeAllInstancesOf(listener);
-	}
+	void removeDeleteListener(DeleteListener* listener);
 
 	void sendDeleteMessage();
 
-	void addBypassListener(BypassListener* l)
-	{
-		bypassListeners.addIfNotAlreadyThere(l);
-	}
+	void addBypassListener(BypassListener* l);
 
-	void removeBypassListener(BypassListener* l)
-	{
-		bypassListeners.removeAllInstancesOf(l);
-	}
+	void removeBypassListener(BypassListener* l);
 
 	bool isRebuildMessagePending() const noexcept;
 
@@ -852,18 +677,7 @@ public:
 
 	const Processor* getParentProcessor(bool getOwnerSynth, bool assertIfFalse=true) const;
 
-	void setParentProcessor(Processor* newParent)
-	{
-		// You must call setParentProcessor before locking and inserting to the processing chain
-		jassert(!isOnAir());
-		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
-		jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
-
-		parentProcessor = newParent;
-
-		for (int i = 0; i < getNumChildProcessors(); i++)
-			getChildProcessor(i)->setParentProcessor(this);
-	}
+	void setParentProcessor(Processor* newParent);
 
 	Array<Identifier> parameterNames;
 
@@ -873,32 +687,18 @@ protected:
 	*
 	*	By default, it creates an empty Path, so you either have to set a custom Symbol using setSymbol(), or overwrite the getSpecialSymbol() method in a subclass.
 	*/
-	virtual Path getSpecialSymbol() const { return Path(); }
+	virtual Path getSpecialSymbol() const;
 
 	DisplayValues currentValues;
 
 	/** Call this from the baseclass whenever you want its editor to display a value change. */
-	void setOutputValue(float newValue)
-	{
-		currentValues.outL = newValue;
-
-		//outputValue = (double)newValue;
-		//sendChangeMessage();
-	};
+	void setOutputValue(float newValue);;
 
 	/** Call this from the baseclass whenever you want its editor to display a input value change. 
 	*
 	*	For most stuff a 0.0 ... 1.0 range is assumed.
 	*/
-	void setInputValue(float newValue, NotificationType notify=sendNotification)
-	{
-		inputValue = newValue;
-
-		if(notify == sendNotification)
-		{
-			sendPooledChangeMessage();
-		}
-	};
+	void setInputValue(float newValue, NotificationType notify=sendNotification);;
 
 	
 
@@ -989,15 +789,8 @@ public:
 
 	static Processor *findParentProcessor(Processor *childProcessor, bool getParentSynth);
 
-    static juce::NotificationType getAttributeNotificationType()
-    {
-#if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
-        return dontSendNotification;
-#else
-        return sendNotification;
-#endif
-    }
-    
+    static juce::NotificationType getAttributeNotificationType();
+
 	/** Returns the first Processor with the given name (It skips all InternalChains). If there are multiple Processors with the same name, it will always return the first one.
 	*
 	*	To avoid this, use PresetHandler::findProcessorsWithDuplicateId...
@@ -1099,18 +892,8 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
-    static void connectTableEditor(TableEditor& t, Processor* p, int index=0)
-    {
-        if(auto eh = dynamic_cast<snex::ExternalDataHolder*>(p))
-        {
-            t.setEditedTable(eh->getTable(index));
-        }
-        else
-        {
-            jassertfalse;
-        }
-    }
-	
+    static void connectTableEditor(TableEditor& t, Processor* p, int index=0);
+
 
 	/** Returns a list of all processors that can be connected to a parameter. */
 	static StringArray getListOfAllConnectableProcessors(const Processor* processorToSkip);

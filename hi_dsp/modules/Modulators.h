@@ -54,31 +54,15 @@ public:
 
 	
 
-	static String getDomainAsMidiRange(float input)
-	{
-		return String(roundToInt(input*127.0f));
-	};
+	static String getDomainAsMidiRange(float input);;
 
-	static String getDomainAsPitchBendRange(float input)
-	{
-		auto v = jmap<float>(input, -8192.0f, 8192.0f);
-		return String(roundToInt(v));
-	};
+	static String getDomainAsPitchBendRange(float input);;
 
-	static String getDomainAsMidiNote(float input)
-	{
-		return MidiMessage::getMidiNoteName(roundToInt(input*127.0f), true, true, 3);
-	};
+	static String getDomainAsMidiNote(float input);;
 
-	static String getValueAsDecibel(float input)
-	{
-		return String(Decibels::gainToDecibels(input), 1) + " dB";
-	};
+	static String getValueAsDecibel(float input);;
 
-	static String getValueAsSemitone(float input)
-	{
-		return String(input*12.0f, 2) + " st";
-	}
+	static String getValueAsSemitone(float input);
 
 	/** There are two modes that Modulation can work: GainMode and PitchMode */
 	enum Mode
@@ -97,31 +81,16 @@ public:
 		numModes
 	};
 
-	static void applyModulationValue(Mode m, float& target, const float modValue)
-	{
-		if (m == PanMode)
-			target += modValue;
-		else
-			target *= modValue;
+	static void applyModulationValue(Mode m, float& target, const float modValue);
 
-		// This should not happen...
-		jassert(m != PitchMode || target > 0.0f);
-	}
-
-	Modulation(Mode m): 
-		intensity(m == PitchMode ? 0.0f : 1.0f), 
-		modulationMode(m), 
-		bipolar(m == PitchMode || m == PanMode)
-	{
-        modeBroadcaster.sendMessage(dontSendNotification, m);
-    };
+	Modulation(Mode m);;
 
     virtual ~Modulation();;
 
 	virtual Processor *getProcessor() = 0;
 
 	/** returns the mode the Modulator is operating. */
-	Mode getMode() const noexcept { return modulationMode; };
+	Mode getMode() const noexcept;;
 
 	/** This applies the intensity to the given value and returns the applied value. 
 	*
@@ -174,40 +143,21 @@ public:
 
 	struct PitchConverters
 	{
-		static inline float octaveRangeToSignedNormalisedRange(float octaveValue)
-		{
-			return (octaveValue / 12.0f);
-		}
+		static inline float octaveRangeToSignedNormalisedRange(float octaveValue);
 
 		/** [-1 ... 1] => [0.5 ... 2.0] */
-		static inline float normalisedRangeToPitchFactor(float range)
-		{
-			return std::exp2(range);
-		}
+		static inline float normalisedRangeToPitchFactor(float range);
 
 		/** [0.5 ... 2.0] => [-1 ... 1] */
-		static inline float pitchFactorToNormalisedRange(float pitchFactor)
-		{
-			return std::log2(pitchFactor);
-		}
+		static inline float pitchFactorToNormalisedRange(float pitchFactor);
 
-		static inline float octaveRangeToPitchFactor(float octaveValue)
-		{
-			return std::exp2(octaveValue / 12.0f);
-		}
+		static inline float octaveRangeToPitchFactor(float octaveValue);
 
-		static inline void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues)
-		{
-			FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
-			FloatVectorOperations::add(octaveValues, 0.5f, numValues);
-		}
+		static inline void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
 
 		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
 
-		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues)
-		{
-			FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
-		}
+		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues);
 	};
 
 	public:
@@ -219,21 +169,13 @@ public:
 
 	void pushPlotterValues(const float* b, int startSample, int numSamples);
 
-	virtual bool shouldUpdatePlotter() const { return true; };
+	virtual bool shouldUpdatePlotter() const;;
 
-	void deactivateIntensitySmoothing()
-	{
-		smoothedIntensity.reset(44100.0, 0.0);
-	}
+	void deactivateIntensitySmoothing();
 
-	virtual void setMode(Mode newMode, NotificationType n=dontSendNotification)
-	{
-		modulationMode = newMode;
-        
-        modeBroadcaster.sendMessage(n, (int)newMode);
-	}
+	virtual void setMode(Mode newMode, NotificationType n=dontSendNotification);
 
-    LambdaBroadcaster<int> modeBroadcaster;
+	LambdaBroadcaster<int> modeBroadcaster;
     LambdaBroadcaster<float> intensityBroadcaster;
     
 protected:
@@ -304,12 +246,12 @@ public:
 	// Class methods
 
 	/** Normally a Modulator has no child processors, you can overwrite it if you use internal chains. */
-	virtual int getNumChildProcessors() const override {return 0;};
+	virtual int getNumChildProcessors() const override;;
 
 	/** Sets the colour of the modulator. */
 	virtual void setColour(Colour c);;
 
-	virtual Colour getColour() const override { return colour; };
+	virtual Colour getColour() const override;;
 
 	
 
@@ -338,7 +280,7 @@ public:
 
 	
     
-    virtual ~TimeModulation() {};
+    virtual ~TimeModulation();;
 
 
 	/** This calculates the time modulated values and stores them in the internal buffer. 
@@ -356,10 +298,7 @@ public:
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
 
-	void setScratchBuffer(float* scratchBuffer, int numSamples)
-	{
-		internalBuffer.setDataToReferTo(&scratchBuffer, 1, numSamples);
-	}
+	void setScratchBuffer(float* scratchBuffer, int numSamples);
 
 protected:
 
@@ -425,7 +364,7 @@ protected:
 
 	AudioSampleBuffer internalBuffer;
 
-	double getControlRate() const noexcept { return controlRate; };
+	double getControlRate() const noexcept;;
 
 private:
 
@@ -445,7 +384,7 @@ class VoiceModulation: virtual public Modulation
 {
 public:
     
-    virtual ~VoiceModulation() {};
+    virtual ~VoiceModulation();;
 
 	/** Implement the startVoice logic here. */
 	virtual float startVoice(int voiceIndex) = 0;
@@ -461,14 +400,10 @@ public:
 	public:
 
 		// You should never create one of these directly...
-		PolyphonyManager(int voiceAmount_):
-			voiceAmount(voiceAmount_),
-			currentVoice(-1),
-			lastStartedVoice(0)
-		{};
+		PolyphonyManager(int voiceAmount_);;
 
 		/** Returns the amount of voices the Modulator can handle. */
-		int getVoiceAmount() const {return voiceAmount;};
+		int getVoiceAmount() const;;
 
 		/** This sets the current voice. Call this before you process the modulator! 
 		*
@@ -482,17 +417,9 @@ public:
 		int getLastStartedVoice() const;
 
 		/** Call this when you finished the processing to clear the current voice. */
-		void clearCurrentVoice() noexcept
-		{
-			//jassert(currentVoice != -1);
-			currentVoice = -1;
-		};
+		void clearCurrentVoice() noexcept;;
 
-		int getCurrentVoice() const noexcept
-		{
-			jassert (currentVoice != -1);
-			return currentVoice;
-		};
+		int getCurrentVoice() const noexcept;;
 
 	private:
 
@@ -510,9 +437,7 @@ protected:
 
 	
 
-	VoiceModulation(int numVoices, Modulation::Mode m):
-		Modulation(m),
-		polyManager(numVoices)	{};
+	VoiceModulation(int numVoices, Modulation::Mode m);;
 
 	
 };
@@ -533,103 +458,37 @@ public:
 	VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 	
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
-	virtual float startVoice(int voiceIndex) override
-	{
-		jassert(isOnAir());
-
-		voiceValues.setUnchecked(voiceIndex, unsavedValue);
-
-#if ENABLE_ALL_PEAK_METERS
-		setOutputValue(unsavedValue);
-#endif
-
-        auto v = unsavedValue;
-        
-        if(resetUnsavedValue)
-            unsavedValue = -1.0f;
-        
-		return v;
-	};
+	virtual float startVoice(int voiceIndex) override;;
 
     /** Only used in Global Modulator Containers. */
-    void setResetUnsavedValue(bool shouldReset)
-    {
-        resetUnsavedValue = shouldReset;
-    }
-    
-	static Path getSymbolPath()
-	{
-		ChainBarPathFactory f;
+    void setResetUnsavedValue(bool shouldReset);
 
-		return f.createPath("voice-start-modulator");
-	}
+	static Path getSymbolPath();
 
-	Path getSpecialSymbol() const override
-	{
-		return getSymbolPath();
-	}
+	Path getSpecialSymbol() const override;
 
 	/** A VoiceStartModulator has no child processors. */
-	virtual Processor *getChildProcessor(int /*processorIndex*/) override final {return nullptr;};
+	virtual Processor *getChildProcessor(int /*processorIndex*/) override final;;
 
-	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final {return nullptr;};
+	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final;;
 
-	virtual int getNumChildProcessors() const override final {return 0;};
+	virtual int getNumChildProcessors() const override final;;
 
-	virtual ValueTree exportAsValueTree() const override
-	{
-		ValueTree v(Processor::exportAsValueTree());
+	virtual ValueTree exportAsValueTree() const override;;
 
-		v.setProperty("Intensity", getIntensity(), nullptr);
+	virtual void restoreFromValueTree(const ValueTree &v) override;;
 
-		if (getMode() != Modulation::GainMode)
-			v.setProperty("Bipolar", isBipolar(), nullptr);
+	Processor *getProcessor() override;;
 
-		return v;
-
-	};
-
-	virtual void restoreFromValueTree(const ValueTree &v) override
-	{
-		Processor::restoreFromValueTree(v);
-
-		if (getMode() != Modulation::GainMode)
-        {
-            auto defaultMode = true;
-            
-            if(getMode() == Modulation::GlobalMode)
-                defaultMode = false;
-            
-            setIsBipolar(v.getProperty("Bipolar", defaultMode));
-        }
-			
-
-		setIntensity(v.getProperty("Intensity", 1.0f));
-	};
-
-	Processor *getProcessor() override { return this; };
-
-	virtual void stopVoice(int voiceIndex) override
-	{
-		voiceValues.setUnchecked(voiceIndex, -1.0f);
-	}
+	virtual void stopVoice(int voiceIndex) override;
 
 	/** Returns the previously calculated voice start value. */
-	virtual float getVoiceStartValue(int voiceIndex) const noexcept { return voiceValues.getUnchecked(voiceIndex); };
+	virtual float getVoiceStartValue(int voiceIndex) const noexcept;;
 
 	/**	If a note on is received, the voice start value is calculated and stored temporarily until startNote() is called. */
-	virtual void handleHiseEvent(const HiseEvent &m) override
-	{
-		if(m.isNoteOnOrOff() && m.isNoteOn())
-		{
-			unsavedValue = calculateVoiceStartValue(m);
-		}
-	};
+	virtual void handleHiseEvent(const HiseEvent &m) override;;
     
-    float getUnsavedValue() const
-    {
-        return unsavedValue;
-    }
+    float getUnsavedValue() const;
 
 protected:
 
@@ -641,10 +500,7 @@ private:
 	friend class JavascriptVoiceStartModulator;
 
 	/** Checks if the last value that was calculated by a note on message was saved. */
-	bool lastValueWasSaved() const
-	{
-		return unsavedValue == -1.0f;
-	};
+	bool lastValueWasSaved() const;;
 
     bool resetUnsavedValue = false;
 	float unsavedValue;
@@ -664,69 +520,25 @@ class TimeVariantModulator: public Modulator,
 
 public:
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
-		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
-	};
+	void prepareToPlay(double sampleRate, int samplesPerBlock);;
 
-	static Path getSymbolPath()
-	{
-		ChainBarPathFactory f;
+	static Path getSymbolPath();
 
-		return f.createPath("time-variant-modulator");
-	}
-
-	Path getSpecialSymbol() const override
-	{
-		return getSymbolPath();
-	};
+	Path getSpecialSymbol() const override;;
 
 	void render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples);
 
-	float getLastConstantValue() const noexcept { return lastConstantValue; }
+	float getLastConstantValue() const noexcept;
 
 protected:
 
-	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m):
-		Modulator(mc, id, 1),
-		TimeModulation(m),
-		Modulation(m)
-	{
-		lastConstantValue = getInitialValue();
-		smoothedIntensity.setValueWithoutSmoothing(0);
-	};
+	TimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m);;
 
-	virtual ValueTree exportAsValueTree() const override
-	{
-		ValueTree v(Processor::exportAsValueTree());
+	virtual ValueTree exportAsValueTree() const override;;
 
-		v.setProperty("Intensity", getIntensity(), nullptr);
+	virtual void restoreFromValueTree(const ValueTree &v) override;
 
-		if (getMode() != Modulation::GainMode)
-			v.setProperty("Bipolar", isBipolar(), nullptr);
-
-		return v;
-	};
-
-	virtual void restoreFromValueTree(const ValueTree &v) override
-	{
-		Processor::restoreFromValueTree(v);
-
-		setIntensity(v.getProperty("Intensity", 1.0f));
-
-        if (getMode() != Modulation::GainMode)
-        {
-            auto defaultMode = true;
-            
-            if(getMode() == Modulation::GlobalMode)
-                defaultMode = false;
-            
-            setIsBipolar(v.getProperty("Bipolar", defaultMode));
-        }
-	}
-
-	Processor *getProcessor() override { return this; };
+	Processor *getProcessor() override;;
 
 private:
 	
@@ -758,19 +570,11 @@ public:
 	};
 
 	
-	virtual ~EnvelopeModulator() {};
+	virtual ~EnvelopeModulator();;
 
-	static Path getSymbolPath()
-	{
-		ChainBarPathFactory f;
+	static Path getSymbolPath();
 
-		return f.createPath("envelope");
-	}
-
-	Path getSpecialSymbol() const override
-	{
-		return getSymbolPath();
-	};
+	Path getSpecialSymbol() const override;;
 
 
 	//	=========================================================================================================
@@ -779,169 +583,38 @@ public:
     /** Checks if the Envelope is active for the given voice. Overwrite this and return true as long as you want the envelope to sound. */
 	virtual bool isPlaying(int voiceIndex) const = 0;
 
-	float getAttribute(int parameterIndex) const override
-	{
-		switch (parameterIndex)
-		{
-		case Parameters::Monophonic: return isMonophonic;
-		case Parameters::Retrigger:  return shouldRetrigger;
-		default:					 jassertfalse; return 0.0f;
-		}
-	}
+	float getAttribute(int parameterIndex) const override;
 
-	float getDefaultValue(int parameterIndex) const override
-	{
-		switch (parameterIndex)
-		{
-		case Parameters::Monophonic: return 0.0f;
-		case Parameters::Retrigger:  return 1.0f;
-		default:					 jassertfalse; return 0.0f;
-		}
-	}
+	float getDefaultValue(int parameterIndex) const override;
 
-	void setInternalAttribute(int parameterIndex, float newValue) override
-	{
-		switch (parameterIndex)
-		{
-		case Parameters::Monophonic: isMonophonic = newValue > 0.5f; 
-									 sendSynchronousBypassChangeMessage();
-									 break;
-		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f; break;
-		default:
-			break;
-		}
-	}
+	void setInternalAttribute(int parameterIndex, float newValue) override;
 
-	ValueTree exportAsValueTree() const override
-	{
-		ValueTree v(Processor::exportAsValueTree());
+	ValueTree exportAsValueTree() const override;;
 
-		if (dynamic_cast<const Chain*>(this) == nullptr)
-		{
-			saveAttribute(Monophonic, "Monophonic");
-			saveAttribute(Retrigger, "Retrigger");
-
-			if (getMode() != Modulation::GainMode)
-				v.setProperty("Bipolar", isBipolar(), nullptr);
-		}
-		
-		v.setProperty("Intensity", getIntensity(), nullptr);
-
-		return v;
-	};
-
-	void restoreFromValueTree(const ValueTree &v) override
-	{
-		Processor::restoreFromValueTree(v);
-
-		if (dynamic_cast<Chain*>(this) == nullptr)
-		{
-			loadAttribute(Monophonic, "Monophonic");
-			loadAttribute(Retrigger, "Retrigger");
-
-            if (getMode() != Modulation::GainMode)
-            {
-                auto defaultMode = true;
-                
-                if(getMode() == Modulation::GlobalMode)
-                    defaultMode = false;
-                
-                setIsBipolar(v.getProperty("Bipolar", defaultMode));
-            }
-		}
-
-		setIntensity(v.getProperty("Intensity", 1.0f));
-		
-	}
+	void restoreFromValueTree(const ValueTree &v) override;
 
 	/** Overwrite this to reset the envelope. If you want to have the display resetted, call this method from your subclass. */
-	virtual void reset(int voiceIndex)
-	{
-#if ENABLE_ALL_PEAK_METERS
-		if(voiceIndex == polyManager.getLastStartedVoice())
-		{
-			setOutputValue(0.0f);
-		};
-#else
-		ignoreUnused(voiceIndex);
-#endif
-	}
+	virtual void reset(int voiceIndex);
 
-	void handleHiseEvent(const HiseEvent &m)
-	{
-		if (isMonophonic)
-		{
-			if (m.isNoteOn())
-				monophonicKeymap.setBit((uint8)m.getNoteNumber());
-			else if (m.isNoteOff())
-				monophonicKeymap.clearBit((uint8)m.getNoteNumber());
-			if (m.isAllNotesOff())
-				monophonicKeymap.clear();
-		}
+	void handleHiseEvent(const HiseEvent &m);
 
-		if(m.isAllNotesOff())
-		{
-			this->allNotesOff();
-		}
-	}
+	Processor *getProcessor() override;;
 
-	Processor *getProcessor() override { return this; };
+	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override
-	{
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
-		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
-		
-		// Deactivate smoothing for envelopes
-		smoothedIntensity.reset(sampleRate, 0.0);
-	}
+	bool isInMonophonicMode() const;
 
-	bool isInMonophonicMode() const { return isMonophonic; }
+	float startVoice(int /*voiceIndex*/) override;
 
-	float startVoice(int /*voiceIndex*/) override
-	{
-		return 1.0f;
-	}
+	void stopVoice(int /*voiceIndex*/) override;
 
-	void stopVoice(int /*voiceIndex*/) override
-	{
-		
-	}
+	bool shouldUpdatePlotter() const override;
 
-	bool shouldUpdatePlotter() const override
-	{
-		return isMonophonic || polyManager.getLastStartedVoice() == polyManager.getCurrentVoice();
-	}
-
-	void render(int voiceIndex, float* voiceBuffer, float* scratchBuffer, int startSample, int numSamples)
-	{
-		polyManager.setCurrentVoice(voiceIndex);
-
-		setScratchBuffer(scratchBuffer, startSample + numSamples);
-		calculateBlock(startSample, numSamples);
-		applyTimeModulation(voiceBuffer, startSample, numSamples);
-
-#if ENABLE_ALL_PEAK_METERS
-		if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
-		{
-			const float displayValue = scratchBuffer[startSample];// voiceBuffer[startSample];
-			setOutputValue(displayValue);
-
-			pushPlotterValues(scratchBuffer, startSample, numSamples);
-		}
-#endif
-
-		polyManager.clearCurrentVoice();
-	}
+	void render(int voiceIndex, float* voiceBuffer, float* scratchBuffer, int startSample, int numSamples);
 
 protected:
 
-	int getNumPressedKeys() const
-	{
-		jassert(isMonophonic);
-
-		return monophonicKeymap.getNumSetBits();
-	}
+	int getNumPressedKeys() const;
 
 
 	EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m);
@@ -962,12 +635,9 @@ protected:
 		*
 		*	You can pass the voiceIndex (it isn't used yet).
 		*/
-		ModulatorState(int voiceIndex):
-			index(voiceIndex)
-		{
-		};
+		ModulatorState(int voiceIndex);;
 
-		virtual ~ModulatorState() {};
+		virtual ~ModulatorState();;
 
 		int index;
 
@@ -994,43 +664,15 @@ private:
 
 	struct MidiBitmap
 	{
-		MidiBitmap()
-		{
-			clear();
-		}
+		MidiBitmap();
 
-		void clear()
-		{
-			data[0] = 0;
-			data[1] = 0;
-			numBitsSet = 0;
-		}
+		void clear();
 
-		int getNumSetBits() const { return numBitsSet; }
+		int getNumSetBits() const;
 
-		void clearBit(uint8 index)
-		{
-			auto bIndex = (index / 64);
-			auto bMod = index - bIndex;
-			auto before = data[bIndex];
+		void clearBit(uint8 index);
 
-			data[bIndex] = before & ~(uint64)((uint64)(1) << bMod);
-
-			if(before != data[bIndex])
-				numBitsSet = jmax(0, numBitsSet - 1);
-		}
-
-		void setBit(uint8 index)
-		{
-			auto bIndex = (index / 64);
-			auto bMod = index - bIndex;
-			auto before = data[bIndex];
-
-			data[bIndex] = before | (static_cast<uint64>(1) << bMod);
-
-			if(before != data[bIndex])
-				numBitsSet++;
-		}
+		void setBit(uint8 index);
 
 		uint64 data[2];
 		int8 numBitsSet = 0;

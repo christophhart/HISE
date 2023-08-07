@@ -48,7 +48,76 @@ MidiProcessor::~MidiProcessor()
 {
 	ownerSynth = nullptr;
 	masterReference.clear();
-};
+}
+
+void MidiProcessor::setIndexInChain(int chainIndex) noexcept
+{ indexInChain = chainIndex; }
+
+int MidiProcessor::getIndexInChain() const noexcept
+{ return indexInChain; }
+
+Colour MidiProcessor::getColour() const
+{
+	return Colour(MIDI_PROCESSOR_COLOUR);
+}
+
+Path MidiProcessor::getSymbolPath()
+{
+	Path path;
+
+	static const unsigned char pathData[] = { 110, 109, 0, 0, 226, 66, 92, 46, 226, 67, 98, 0, 0, 226, 66, 112, 2, 227, 67, 79, 80, 223, 66, 92, 174, 227, 67, 0, 0, 220, 66, 92, 174, 227, 67, 98, 177, 175, 216, 66, 92, 174, 227, 67, 0, 0, 214, 66, 112, 2, 227, 67, 0, 0, 214, 66, 92, 46, 226, 67, 98, 0, 0, 214, 66, 72, 90, 225, 67, 177, 175, 216, 66, 92, 174, 224, 67, 0, 0,
+		220, 66, 92, 174, 224, 67, 98, 79, 80, 223, 66, 92, 174, 224, 67, 0, 0, 226, 66, 72, 90, 225, 67, 0, 0, 226, 66, 92, 46, 226, 67, 99, 109, 0, 128, 218, 66, 92, 110, 222, 67, 98, 0, 128, 218, 66, 112, 66, 223, 67, 79, 208, 215, 66, 92, 238, 223, 67, 0, 128, 212, 66, 92, 238, 223, 67, 98, 177, 47, 209, 66, 92, 238, 223, 67, 0,
+		128, 206, 66, 112, 66, 223, 67, 0, 128, 206, 66, 92, 110, 222, 67, 98, 0, 128, 206, 66, 72, 154, 221, 67, 177, 47, 209, 66, 92, 238, 220, 67, 0, 128, 212, 66, 92, 238, 220, 67, 98, 79, 208, 215, 66, 92, 238, 220, 67, 0, 128, 218, 66, 72, 154, 221, 67, 0, 128, 218, 66, 92, 110, 222, 67, 99, 109, 0, 128, 203, 66, 92, 142, 220,
+		67, 98, 0, 128, 203, 66, 112, 98, 221, 67, 79, 208, 200, 66, 92, 14, 222, 67, 0, 128, 197, 66, 92, 14, 222, 67, 98, 177, 47, 194, 66, 92, 14, 222, 67, 0, 128, 191, 66, 112, 98, 221, 67, 0, 128, 191, 66, 92, 142, 220, 67, 98, 0, 128, 191, 66, 72, 186, 219, 67, 177, 47, 194, 66, 92, 14, 219, 67, 0, 128, 197, 66, 92, 14, 219,
+		67, 98, 79, 208, 200, 66, 92, 14, 219, 67, 0, 128, 203, 66, 72, 186, 219, 67, 0, 128, 203, 66, 92, 142, 220, 67, 99, 109, 0, 128, 188, 66, 92, 110, 222, 67, 98, 0, 128, 188, 66, 112, 66, 223, 67, 79, 208, 185, 66, 92, 238, 223, 67, 0, 128, 182, 66, 92, 238, 223, 67, 98, 177, 47, 179, 66, 92, 238, 223, 67, 0, 128, 176, 66,
+		112, 66, 223, 67, 0, 128, 176, 66, 92, 110, 222, 67, 98, 0, 128, 176, 66, 72, 154, 221, 67, 177, 47, 179, 66, 92, 238, 220, 67, 0, 128, 182, 66, 92, 238, 220, 67, 98, 79, 208, 185, 66, 92, 238, 220, 67, 0, 128, 188, 66, 72, 154, 221, 67, 0, 128, 188, 66, 92, 110, 222, 67, 99, 109, 0, 0, 181, 66, 92, 46, 226, 67, 98, 0, 0, 181,
+		66, 112, 2, 227, 67, 79, 80, 178, 66, 92, 174, 227, 67, 0, 0, 175, 66, 92, 174, 227, 67, 98, 177, 175, 171, 66, 92, 174, 227, 67, 0, 0, 169, 66, 112, 2, 227, 67, 0, 0, 169, 66, 92, 46, 226, 67, 98, 0, 0, 169, 66, 72, 90, 225, 67, 177, 175, 171, 66, 92, 174, 224, 67, 0, 0, 175, 66, 92, 174, 224, 67, 98, 79, 80, 178, 66, 92, 174,
+		224, 67, 0, 0, 181, 66, 72, 90, 225, 67, 0, 0, 181, 66, 92, 46, 226, 67, 99, 109, 0, 128, 197, 66, 151, 79, 215, 67, 98, 243, 139, 173, 66, 151, 79, 215, 67, 0, 0, 154, 66, 148, 50, 220, 67, 0, 0, 154, 66, 151, 47, 226, 67, 98, 0, 0, 154, 66, 154, 44, 232, 67, 243, 139, 173, 66, 151, 15, 237, 67, 0, 128, 197, 66, 151, 15, 237,
+		67, 98, 12, 116, 221, 66, 151, 15, 237, 67, 0, 0, 241, 66, 154, 44, 232, 67, 0, 0, 241, 66, 151, 47, 226, 67, 98, 0, 0, 241, 66, 148, 50, 220, 67, 13, 116, 221, 66, 151, 79, 215, 67, 0, 128, 197, 66, 151, 79, 215, 67, 99, 109, 0, 128, 197, 66, 151, 79, 218, 67, 98, 209, 247, 214, 66, 151, 79, 218, 67, 0, 0, 229, 66, 163, 209,
+		221, 67, 0, 0, 229, 66, 151, 47, 226, 67, 98, 0, 0, 229, 66, 139, 141, 230, 67, 210, 247, 214, 66, 151, 15, 234, 67, 0, 128, 197, 66, 151, 15, 234, 67, 98, 47, 8, 180, 66, 151, 15, 234, 67, 0, 0, 166, 66, 139, 141, 230, 67, 0, 0, 166, 66, 151, 47, 226, 67, 98, 0, 0, 166, 66, 163, 209, 221, 67, 47, 8, 180, 66, 151, 79, 218, 67,
+		0, 128, 197, 66, 151, 79, 218, 67, 99, 101, 0, 0 };
+
+	path.loadPathFromData(pathData, sizeof(pathData));
+
+	return path;
+}
+
+Path MidiProcessor::getSpecialSymbol() const
+{
+	return getSymbolPath();
+}
+
+bool MidiProcessor::isProcessingWholeBuffer() const
+{ return false; }
+
+Processor* MidiProcessor::getChildProcessor(int)
+{return nullptr;}
+
+const Processor* MidiProcessor::getChildProcessor(int) const
+{return nullptr;}
+
+int MidiProcessor::getNumChildProcessors() const
+{return 0;}
+
+void MidiProcessor::ignoreEvent()
+{ processThisMessage = false; }
+
+void MidiProcessor::preprocessBuffer(HiseEventBuffer& buffer, int numSamples)
+{
+	ignoreUnused(buffer, numSamples);
+}
+
+bool MidiProcessor::isProcessed() const
+{return processThisMessage;}
+
+void MidiProcessor::setOwnerSynth(ModulatorSynth* ownerSynth_)
+{
+	jassert(ownerSynth == nullptr);
+	ownerSynth = ownerSynth_;
+}
+
+ModulatorSynth* MidiProcessor::getOwnerSynth()
+{return ownerSynth;};
 
 #if USE_BACKEND
 struct MidiProcessor::EventLogger
@@ -792,6 +861,150 @@ MidiProcessorChain::MidiProcessorChain(MainController *mc, const String &id, Pro
 	setFactoryType(new MidiProcessorFactoryType(ownerProcessor));
 
 	setEditorState(Processor::Visible, false, dontSendNotification);
+}
+
+MidiProcessorChain::~MidiProcessorChain()
+{
+	getHandler()->clearAsync(this);
+}
+
+int MidiProcessorChain::getNumChildProcessors() const
+{ return handler.getNumProcessors();	}
+
+Processor* MidiProcessorChain::getChildProcessor(int processorIndex)
+{ return handler.getProcessor(processorIndex);	}
+
+Processor* MidiProcessorChain::getParentProcessor()
+{ return parentProcessor; }
+
+const Processor* MidiProcessorChain::getParentProcessor() const
+{ return parentProcessor; }
+
+const Processor* MidiProcessorChain::getChildProcessor(int processorIndex) const
+{ return handler.getProcessor(processorIndex);	}
+
+float MidiProcessorChain::getAttribute(int) const
+{return 1.0f;}
+
+void MidiProcessorChain::setInternalAttribute(int, float)
+{}
+
+Chain::Handler* MidiProcessorChain::getHandler()
+{return &handler;}
+
+const Chain::Handler* MidiProcessorChain::getHandler() const
+{return &handler;}
+
+FactoryType* MidiProcessorChain::getFactoryType() const
+{return midiProcessorFactory;}
+
+void MidiProcessorChain::setFactoryType(FactoryType* newFactoryType)
+{midiProcessorFactory = newFactoryType;}
+
+void MidiProcessorChain::sendAllNoteOffEvent()
+{
+	allNotesOffAtNextBuffer = true;
+}
+
+void MidiProcessorChain::processHiseEvent(HiseEvent& m)
+{
+	if (isBypassed())
+	{
+		if (m.isTimerEvent()) m.ignoreEvent(true);
+		return;
+	}
+	for(int i = 0; (i < processors.size()); i++)
+	{
+		if (processors[i]->isBypassed())
+		{
+			if (m.isTimerEvent() && processors[i]->getIndexInChain() == m.getTimerIndex())
+			{
+				m.ignoreEvent(true);
+			}
+
+			continue;
+		}
+
+		if(!m.isIgnored())
+			processors[i]->processHiseEvent(m);
+	}
+}
+
+void MidiProcessorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	for (auto p : processors)
+		p->prepareToPlay(sampleRate, samplesPerBlock);
+}
+
+void MidiProcessorChain::addWholeBufferProcessor(MidiProcessor* midiProcessor)
+{
+	jassert(midiProcessor->isProcessingWholeBuffer());
+
+	int index = processors.indexOf(midiProcessor);
+
+	jassert(index != -1);
+		
+	// Bubble it up the chain so it will be before any non-whole processor
+	for (int i = index-1; i >= 0 ; i--)
+	{
+		if (!processors[i]->isProcessingWholeBuffer())
+		{
+			processors.swap(i, index);
+			index = i;
+		}
+	}
+
+	wholeBufferProcessors.addIfNotAlreadyThere(midiProcessor);
+}
+
+MidiProcessorChain::MidiProcessorChainHandler::MidiProcessorChainHandler(MidiProcessorChain* c):
+	chain(c)
+{}
+
+void MidiProcessorChain::MidiProcessorChainHandler::remove(Processor* processorToBeRemoved, bool deleteMp)
+{
+	notifyListeners(Listener::ProcessorDeleted, processorToBeRemoved);
+
+	ScopedPointer<MidiProcessor> mp = dynamic_cast<MidiProcessor*>(processorToBeRemoved);
+
+	{
+		LOCK_PROCESSING_CHAIN(chain);
+
+		processorToBeRemoved->setIsOnAir(false);
+
+		if (mp->isProcessingWholeBuffer())
+			chain->wholeBufferProcessors.removeAllInstancesOf(mp.get());
+
+		chain->processors.removeObject(mp.get(), false);
+	}
+
+	if (deleteMp)
+		mp = nullptr;
+	else
+		mp.release();
+}
+
+const Processor* MidiProcessorChain::MidiProcessorChainHandler::getProcessor(int processorIndex) const
+{
+	return chain->processors[processorIndex];
+}
+
+Processor* MidiProcessorChain::MidiProcessorChainHandler::getProcessor(int processorIndex)
+{
+	return chain->processors[processorIndex];
+}
+
+int MidiProcessorChain::MidiProcessorChainHandler::getNumProcessors() const
+{
+	return chain->processors.size();
+}
+
+void MidiProcessorChain::MidiProcessorChainHandler::clear()
+{
+	notifyListeners(Listener::Cleared, nullptr);
+	chain->processors.clear();
 };
 
 

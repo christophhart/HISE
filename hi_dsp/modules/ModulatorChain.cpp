@@ -107,6 +107,185 @@ private:
 	ModulatorSubType ** ende;
 };
 
+ModulatorChain::ModChainWithBuffer::ConstructionData::ConstructionData(Processor* parent_, const String& id_, Type t_,
+	Mode m_):
+	parent(parent_),
+	id(id_),
+	t(t_),
+	m(m_)
+{}
+
+ModulatorChain::ModChainWithBuffer::Buffer::Buffer()
+{}
+
+ModulatorChain* ModulatorChain::ModChainWithBuffer::getChain() noexcept
+{ return c.get(); }
+
+bool ModulatorChain::ModChainWithBuffer::isAudioRateModulation() const noexcept
+{ return options.expandToAudioRate; }
+
+void ModulatorChain::ModChainWithBuffer::setScratchBufferFunction(
+	const std::function<void(int, Modulator* m, float*, int, int)>& f)
+{
+	scratchBufferFunction = f;
+}
+
+void ModulatorChain::ModChainWithBuffer::setConstantVoiceValueInternal(int voiceIndex, float newValue)
+{
+	lastConstantVoiceValue = newValue;
+	currentConstantVoiceValues[voiceIndex] = newValue;
+	currentConstantValue = newValue;
+}
+
+const Chain::Handler* ModulatorChain::getHandler() const
+{return &handler;}
+
+FactoryType* ModulatorChain::getFactoryType() const
+{return modulatorFactory;}
+
+Colour ModulatorChain::getColour() const
+{ 
+	if(Modulator::getColour() != Colours::transparentBlack) return Modulator::getColour();
+	else
+	{
+		//return getMode() == GainMode ? Colour(0xffD9A450) : Colour(0xff628214);
+		if (getMode() == GainMode)
+		{
+			return JUCE_LIVE_CONSTANT_OFF(Colour(0xffbe952c));
+		}
+		else
+		{
+			return JUCE_LIVE_CONSTANT_OFF(Colour(0xff7559a4));
+		}
+	}
+}
+
+void ModulatorChain::setFactoryType(FactoryType* newFactoryType)
+{modulatorFactory = newFactoryType;}
+
+int ModulatorChain::getNumChildProcessors() const
+{ return handler.getNumProcessors();	}
+
+Processor* ModulatorChain::getChildProcessor(int processorIndex)
+{ return handler.getProcessor(processorIndex);	}
+
+Processor* ModulatorChain::getParentProcessor()
+{ return parentProcessor; }
+
+const Processor* ModulatorChain::getParentProcessor() const
+{ return parentProcessor; }
+
+const Processor* ModulatorChain::getChildProcessor(int processorIndex) const
+{ return handler.getProcessor(processorIndex);	}
+
+void ModulatorChain::setInternalAttribute(int i, float x)
+{ jassertfalse; }
+
+float ModulatorChain::getAttribute(int i) const
+{ jassertfalse; return -1.0; }
+
+float ModulatorChain::getCurrentMonophonicStartValue() const noexcept
+{ return monophonicStartValue; }
+
+EnvelopeModulator::ModulatorState* ModulatorChain::createSubclassedState(int) const
+{ jassertfalse; return nullptr; }
+
+void ModulatorChain::calculateBlock(int, int)
+{
+}
+
+Table::ValueTextConverter ModulatorChain::getTableValueConverter() const
+{
+	return handler.tableValueConverter;
+}
+
+void ModulatorChain::setPostEventFunction(const std::function<void(Modulator*, const HiseEvent&)>& pf)
+{
+	postEventFunction = pf;
+}
+
+void ModulatorChain::applyMonoOnOutputValue(float monoValue)
+{
+	ignoreUnused(monoValue);
+
+#if ENABLE_ALL_PEAK_METERS
+	setOutputValue(getOutputValue() * monoValue);
+#endif
+}
+
+void ModulatorChain::setTableValueConverter(const Table::ValueTextConverter& converter)
+{
+	handler.tableValueConverter = converter;
+}
+
+ModulatorChain::ModulatorChainHandler::ModSorter::ModSorter(ModulatorChainHandler& parent_):
+	parent(parent_)
+{}
+
+bool ModulatorChain::ModulatorChainHandler::ModSorter::operator()(Modulator* f, Modulator* s) const
+{
+	auto fi = parent.chain->allModulators.indexOf(f);
+	auto si = parent.chain->allModulators.indexOf(s);
+                
+	return si > fi;
+}
+
+ModulatorChain::ModulatorChainHandler::~ModulatorChainHandler()
+{}
+
+Modulator* ModulatorChain::ModulatorChainHandler::getModulator(int modIndex) const
+{
+	jassert(modIndex < getNumModulators());
+	return chain->allModulators[modIndex];
+}
+
+int ModulatorChain::ModulatorChainHandler::getNumModulators() const
+{ return chain->allModulators.size(); }
+
+Processor* ModulatorChain::ModulatorChainHandler::getProcessor(int processorIndex)
+{
+	return chain->allModulators[processorIndex];
+}
+
+const Processor* ModulatorChain::ModulatorChainHandler::getProcessor(int processorIndex) const
+{
+	return chain->allModulators[processorIndex];
+}
+
+int ModulatorChain::ModulatorChainHandler::getNumProcessors() const
+{
+	return getNumModulators();
+}
+
+void ModulatorChain::ModulatorChainHandler::clear()
+{
+	notifyListeners(Listener::Cleared, nullptr);
+
+	activeEnvelopes = false;
+	activeTimeVariants = false;
+	activeVoiceStarts = false;
+
+	chain->envelopeModulators.clear();
+	chain->variantModulators.clear();
+	chain->voiceStartModulators.clear();
+	chain->allModulators.clear();
+}
+
+bool ModulatorChain::ModulatorChainHandler::hasActiveEnvelopes() const noexcept
+{ return activeEnvelopes; }
+
+bool ModulatorChain::ModulatorChainHandler::hasActiveTimeVariantMods() const noexcept
+{ return activeTimeVariants; }
+
+bool ModulatorChain::ModulatorChainHandler::hasActiveVoiceStartMods() const noexcept
+{ return activeVoiceStarts; }
+
+bool ModulatorChain::ModulatorChainHandler::hasActiveMonophoicEnvelopes() const noexcept
+{ return activeMonophonicEnvelopes; }
+
+bool ModulatorChain::ModulatorChainHandler::hasActiveMods() const noexcept
+{ return anyActive; }
+
 void ModulatorChain::ModChainWithBuffer::Buffer::setMaxSize(int maxSamplesPerBlock_)
 {
 	int requiredSize = (dsp::SIMDRegister<float>::SIMDRegisterSize + maxSamplesPerBlock_) * 3;

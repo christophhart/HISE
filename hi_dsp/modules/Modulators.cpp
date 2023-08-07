@@ -32,6 +32,100 @@
 
 namespace hise { using namespace juce;
 
+	String Modulation::getDomainAsMidiRange(float input)
+	{
+		return String(roundToInt(input*127.0f));
+	}
+
+	String Modulation::getDomainAsPitchBendRange(float input)
+	{
+		auto v = jmap<float>(input, -8192.0f, 8192.0f);
+		return String(roundToInt(v));
+	}
+
+	String Modulation::getDomainAsMidiNote(float input)
+	{
+		return MidiMessage::getMidiNoteName(roundToInt(input*127.0f), true, true, 3);
+	}
+
+	String Modulation::getValueAsDecibel(float input)
+	{
+		return String(Decibels::gainToDecibels(input), 1) + " dB";
+	}
+
+	String Modulation::getValueAsSemitone(float input)
+	{
+		return String(input*12.0f, 2) + " st";
+	}
+
+	void Modulation::applyModulationValue(Mode m, float& target, const float modValue)
+	{
+		if (m == PanMode)
+			target += modValue;
+		else
+			target *= modValue;
+
+		// This should not happen...
+		jassert(m != PitchMode || target > 0.0f);
+	}
+
+	Modulation::Modulation(Mode m): 
+		intensity(m == PitchMode ? 0.0f : 1.0f), 
+		modulationMode(m), 
+		bipolar(m == PitchMode || m == PanMode)
+	{
+		modeBroadcaster.sendMessage(dontSendNotification, m);
+	}
+
+	Modulation::Mode Modulation::getMode() const noexcept
+	{ return modulationMode; }
+
+	float Modulation::PitchConverters::octaveRangeToSignedNormalisedRange(float octaveValue)
+	{
+		return (octaveValue / 12.0f);
+	}
+
+	float Modulation::PitchConverters::normalisedRangeToPitchFactor(float range)
+	{
+		return std::exp2(range);
+	}
+
+	float Modulation::PitchConverters::pitchFactorToNormalisedRange(float pitchFactor)
+	{
+		return std::log2(pitchFactor);
+	}
+
+	float Modulation::PitchConverters::octaveRangeToPitchFactor(float octaveValue)
+	{
+		return std::exp2(octaveValue / 12.0f);
+	}
+
+	void Modulation::PitchConverters::octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues)
+	{
+		FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
+		FloatVectorOperations::add(octaveValues, 0.5f, numValues);
+	}
+
+	void Modulation::PitchConverters::octaveRangeToPitchFactor(float* octaveValues, int numValues)
+	{
+		FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
+	}
+
+	bool Modulation::shouldUpdatePlotter() const
+	{ return true; }
+
+	void Modulation::deactivateIntensitySmoothing()
+	{
+		smoothedIntensity.reset(44100.0, 0.0);
+	}
+
+	void Modulation::setMode(Mode newMode, NotificationType n)
+	{
+		modulationMode = newMode;
+        
+		modeBroadcaster.sendMessage(n, (int)newMode);
+	}
+
 Modulation::~Modulation()
 {
 	attachedPlotter = nullptr;
@@ -180,6 +274,12 @@ Modulator::~Modulator()
 	masterReference.clear();
 }
 
+int Modulator::getNumChildProcessors() const
+{return 0;}
+
+Colour Modulator::getColour() const
+{ return colour; }
+
 void Modulator::setColour(Colour c)
 {
 
@@ -190,6 +290,46 @@ void Modulator::setColour(Colour c)
 		dynamic_cast<Modulator*>(getChildProcessor(i))->setColour(c.withMultipliedAlpha(0.8f));
 	}
 };;;
+
+TimeModulation::~TimeModulation()
+{}
+
+void TimeModulation::setScratchBuffer(float* scratchBuffer, int numSamples)
+{
+	internalBuffer.setDataToReferTo(&scratchBuffer, 1, numSamples);
+}
+
+double TimeModulation::getControlRate() const noexcept
+{ return controlRate; }
+
+VoiceModulation::~VoiceModulation()
+{}
+
+VoiceModulation::PolyphonyManager::PolyphonyManager(int voiceAmount_):
+	voiceAmount(voiceAmount_),
+	currentVoice(-1),
+	lastStartedVoice(0)
+{}
+
+int VoiceModulation::PolyphonyManager::getVoiceAmount() const
+{return voiceAmount;}
+
+void VoiceModulation::PolyphonyManager::clearCurrentVoice() noexcept
+{
+	//jassert(currentVoice != -1);
+	currentVoice = -1;
+}
+
+int VoiceModulation::PolyphonyManager::getCurrentVoice() const noexcept
+{
+	jassert (currentVoice != -1);
+	return currentVoice;
+}
+
+VoiceModulation::VoiceModulation(int numVoices, Modulation::Mode m):
+	Modulation(m),
+	polyManager(numVoices)
+{}
 
 void TimeModulation::applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy)
 {
@@ -579,6 +719,110 @@ VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, i
 		unsavedValue(1.0f)
 {
 	voiceValues.insertMultiple(0, 1.0f, numVoices);
+}
+
+float VoiceStartModulator::startVoice(int voiceIndex)
+{
+	jassert(isOnAir());
+
+	voiceValues.setUnchecked(voiceIndex, unsavedValue);
+
+#if ENABLE_ALL_PEAK_METERS
+	setOutputValue(unsavedValue);
+#endif
+
+	auto v = unsavedValue;
+        
+	if(resetUnsavedValue)
+		unsavedValue = -1.0f;
+        
+	return v;
+}
+
+void VoiceStartModulator::setResetUnsavedValue(bool shouldReset)
+{
+	resetUnsavedValue = shouldReset;
+}
+
+Path VoiceStartModulator::getSymbolPath()
+{
+	ChainBarPathFactory f;
+
+	return f.createPath("voice-start-modulator");
+}
+
+Path VoiceStartModulator::getSpecialSymbol() const
+{
+	return getSymbolPath();
+}
+
+Processor* VoiceStartModulator::getChildProcessor(int)
+{return nullptr;}
+
+const Processor* VoiceStartModulator::getChildProcessor(int) const
+{return nullptr;}
+
+int VoiceStartModulator::getNumChildProcessors() const
+{return 0;}
+
+ValueTree VoiceStartModulator::exportAsValueTree() const
+{
+	ValueTree v(Processor::exportAsValueTree());
+
+	v.setProperty("Intensity", getIntensity(), nullptr);
+
+	if (getMode() != Modulation::GainMode)
+		v.setProperty("Bipolar", isBipolar(), nullptr);
+
+	return v;
+
+}
+
+void VoiceStartModulator::restoreFromValueTree(const ValueTree& v)
+{
+	Processor::restoreFromValueTree(v);
+
+	if (getMode() != Modulation::GainMode)
+	{
+		auto defaultMode = true;
+            
+		if(getMode() == Modulation::GlobalMode)
+			defaultMode = false;
+            
+		setIsBipolar(v.getProperty("Bipolar", defaultMode));
+	}
+			
+
+	setIntensity(v.getProperty("Intensity", 1.0f));
+}
+
+Processor* VoiceStartModulator::getProcessor()
+{ return this; }
+
+void VoiceStartModulator::stopVoice(int voiceIndex)
+{
+	voiceValues.setUnchecked(voiceIndex, -1.0f);
+}
+
+float VoiceStartModulator::getVoiceStartValue(int voiceIndex) const noexcept
+{ return voiceValues.getUnchecked(voiceIndex); }
+
+void VoiceStartModulator::handleHiseEvent(const HiseEvent& m)
+{
+	if(m.isNoteOnOrOff() && m.isNoteOn())
+	{
+		unsavedValue = calculateVoiceStartValue(m);
+	}
+}
+
+float VoiceStartModulator::getUnsavedValue() const
+{
+	return unsavedValue;
+}
+
+bool VoiceStartModulator::lastValueWasSaved() const
+{
+	return unsavedValue == -1.0f;
 };
 
 EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m):
@@ -668,6 +912,294 @@ void VoiceModulation::PolyphonyManager::setLastStartedVoice(int voiceIndex)
 int VoiceModulation::PolyphonyManager::getLastStartedVoice() const
 {
 	return lastStartedVoice;
+}
+
+void TimeVariantModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+	TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
+}
+
+Path TimeVariantModulator::getSymbolPath()
+{
+	ChainBarPathFactory f;
+
+	return f.createPath("time-variant-modulator");
+}
+
+Path TimeVariantModulator::getSpecialSymbol() const
+{
+	return getSymbolPath();
+}
+
+float TimeVariantModulator::getLastConstantValue() const noexcept
+{ return lastConstantValue; }
+
+TimeVariantModulator::TimeVariantModulator(MainController* mc, const String& id, Modulation::Mode m):
+	Modulator(mc, id, 1),
+	TimeModulation(m),
+	Modulation(m)
+{
+	lastConstantValue = getInitialValue();
+	smoothedIntensity.setValueWithoutSmoothing(0);
+}
+
+ValueTree TimeVariantModulator::exportAsValueTree() const
+{
+	ValueTree v(Processor::exportAsValueTree());
+
+	v.setProperty("Intensity", getIntensity(), nullptr);
+
+	if (getMode() != Modulation::GainMode)
+		v.setProperty("Bipolar", isBipolar(), nullptr);
+
+	return v;
+}
+
+void TimeVariantModulator::restoreFromValueTree(const ValueTree& v)
+{
+	Processor::restoreFromValueTree(v);
+
+	setIntensity(v.getProperty("Intensity", 1.0f));
+
+	if (getMode() != Modulation::GainMode)
+	{
+		auto defaultMode = true;
+            
+		if(getMode() == Modulation::GlobalMode)
+			defaultMode = false;
+            
+		setIsBipolar(v.getProperty("Bipolar", defaultMode));
+	}
+}
+
+Processor* TimeVariantModulator::getProcessor()
+{ return this; }
+
+EnvelopeModulator::~EnvelopeModulator()
+{}
+
+Path EnvelopeModulator::getSymbolPath()
+{
+	ChainBarPathFactory f;
+
+	return f.createPath("envelope");
+}
+
+Path EnvelopeModulator::getSpecialSymbol() const
+{
+	return getSymbolPath();
+}
+
+float EnvelopeModulator::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Parameters::Monophonic: return isMonophonic;
+	case Parameters::Retrigger:  return shouldRetrigger;
+	default:					 jassertfalse; return 0.0f;
+	}
+}
+
+float EnvelopeModulator::getDefaultValue(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Parameters::Monophonic: return 0.0f;
+	case Parameters::Retrigger:  return 1.0f;
+	default:					 jassertfalse; return 0.0f;
+	}
+}
+
+void EnvelopeModulator::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case Parameters::Monophonic: isMonophonic = newValue > 0.5f; 
+		sendSynchronousBypassChangeMessage();
+		break;
+	case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f; break;
+	default:
+		break;
+	}
+}
+
+ValueTree EnvelopeModulator::exportAsValueTree() const
+{
+	ValueTree v(Processor::exportAsValueTree());
+
+	if (dynamic_cast<const Chain*>(this) == nullptr)
+	{
+		saveAttribute(Monophonic, "Monophonic");
+		saveAttribute(Retrigger, "Retrigger");
+
+		if (getMode() != Modulation::GainMode)
+			v.setProperty("Bipolar", isBipolar(), nullptr);
+	}
+		
+	v.setProperty("Intensity", getIntensity(), nullptr);
+
+	return v;
+}
+
+void EnvelopeModulator::restoreFromValueTree(const ValueTree& v)
+{
+	Processor::restoreFromValueTree(v);
+
+	if (dynamic_cast<Chain*>(this) == nullptr)
+	{
+		loadAttribute(Monophonic, "Monophonic");
+		loadAttribute(Retrigger, "Retrigger");
+
+		if (getMode() != Modulation::GainMode)
+		{
+			auto defaultMode = true;
+                
+			if(getMode() == Modulation::GlobalMode)
+				defaultMode = false;
+                
+			setIsBipolar(v.getProperty("Bipolar", defaultMode));
+		}
+	}
+
+	setIntensity(v.getProperty("Intensity", 1.0f));
+		
+}
+
+void EnvelopeModulator::reset(int voiceIndex)
+{
+#if ENABLE_ALL_PEAK_METERS
+	if(voiceIndex == polyManager.getLastStartedVoice())
+	{
+		setOutputValue(0.0f);
+	};
+#else
+		ignoreUnused(voiceIndex);
+#endif
+}
+
+void EnvelopeModulator::handleHiseEvent(const HiseEvent& m)
+{
+	if (isMonophonic)
+	{
+		if (m.isNoteOn())
+			monophonicKeymap.setBit((uint8)m.getNoteNumber());
+		else if (m.isNoteOff())
+			monophonicKeymap.clearBit((uint8)m.getNoteNumber());
+		if (m.isAllNotesOff())
+			monophonicKeymap.clear();
+	}
+
+	if(m.isAllNotesOff())
+	{
+		this->allNotesOff();
+	}
+}
+
+Processor* EnvelopeModulator::getProcessor()
+{ return this; }
+
+void EnvelopeModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+	TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
+		
+	// Deactivate smoothing for envelopes
+	smoothedIntensity.reset(sampleRate, 0.0);
+}
+
+bool EnvelopeModulator::isInMonophonicMode() const
+{ return isMonophonic; }
+
+float EnvelopeModulator::startVoice(int)
+{
+	return 1.0f;
+}
+
+void EnvelopeModulator::stopVoice(int)
+{
+		
+}
+
+bool EnvelopeModulator::shouldUpdatePlotter() const
+{
+	return isMonophonic || polyManager.getLastStartedVoice() == polyManager.getCurrentVoice();
+}
+
+void EnvelopeModulator::render(int voiceIndex, float* voiceBuffer, float* scratchBuffer, int startSample,
+	int numSamples)
+{
+	polyManager.setCurrentVoice(voiceIndex);
+
+	setScratchBuffer(scratchBuffer, startSample + numSamples);
+	calculateBlock(startSample, numSamples);
+	applyTimeModulation(voiceBuffer, startSample, numSamples);
+
+#if ENABLE_ALL_PEAK_METERS
+	if (isMonophonic || polyManager.getLastStartedVoice() == voiceIndex)
+	{
+		const float displayValue = scratchBuffer[startSample];// voiceBuffer[startSample];
+		setOutputValue(displayValue);
+
+		pushPlotterValues(scratchBuffer, startSample, numSamples);
+	}
+#endif
+
+	polyManager.clearCurrentVoice();
+}
+
+int EnvelopeModulator::getNumPressedKeys() const
+{
+	jassert(isMonophonic);
+
+	return monophonicKeymap.getNumSetBits();
+}
+
+EnvelopeModulator::ModulatorState::ModulatorState(int voiceIndex):
+	index(voiceIndex)
+{
+}
+
+EnvelopeModulator::ModulatorState::~ModulatorState()
+{}
+
+EnvelopeModulator::MidiBitmap::MidiBitmap()
+{
+	clear();
+}
+
+void EnvelopeModulator::MidiBitmap::clear()
+{
+	data[0] = 0;
+	data[1] = 0;
+	numBitsSet = 0;
+}
+
+int EnvelopeModulator::MidiBitmap::getNumSetBits() const
+{ return numBitsSet; }
+
+void EnvelopeModulator::MidiBitmap::clearBit(uint8 index)
+{
+	auto bIndex = (index / 64);
+	auto bMod = index - bIndex;
+	auto before = data[bIndex];
+
+	data[bIndex] = before & ~(uint64)((uint64)(1) << bMod);
+
+	if(before != data[bIndex])
+		numBitsSet = jmax(0, numBitsSet - 1);
+}
+
+void EnvelopeModulator::MidiBitmap::setBit(uint8 index)
+{
+	auto bIndex = (index / 64);
+	auto bMod = index - bIndex;
+	auto before = data[bIndex];
+
+	data[bIndex] = before | (static_cast<uint64>(1) << bMod);
+
+	if(before != data[bIndex])
+		numBitsSet++;
 }
 
 void TimeVariantModulator::render(float* monoModulationValues, float* scratchBuffer, int startSample, int numSamples)

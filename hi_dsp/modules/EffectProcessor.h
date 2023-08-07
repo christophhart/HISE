@@ -52,11 +52,7 @@ public:
 
 	struct SuspensionState
 	{
-		void reset()
-		{
-			numSilentBuffers = 0;
-			currentlySuspended = false;
-		}
+		void reset();
 
 		int numSilentBuffers = 0;
 		bool currentlySuspended = false;
@@ -67,71 +63,36 @@ public:
 
 	
 
-	EffectProcessor(MainController *mc, const String &uid, int numVoices): 
-		Processor(mc, uid, numVoices),	
-		isTailing(false)
-	{
-		
-	};
+	EffectProcessor(MainController *mc, const String &uid, int numVoices);;
 
-	virtual ~EffectProcessor()
-	{
-
-		modChains.clear();
-	};
+	virtual ~EffectProcessor();;
 
 	/** Renders all chains (envelopes & voicestart are rendered monophonically. */
-	void renderAllChains(int startSample, int numSamples)
-	{
-		for (auto& mb : modChains)
-		{
-			if (!mb.getChain()->shouldBeProcessedAtAll())
-			{
-				mb.clear();
-				continue;
-			}
-
-			mb.calculateMonophonicModulationValues(startSample, numSamples);
-			mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
-
-			if (mb.isAudioRateModulation())
-				mb.expandVoiceValuesToAudioRate(0, startSample, numSamples);
-		}
-	}
+	void renderAllChains(int startSample, int numSamples);
 
 	/** You have to override this method, since almost every effect needs the samplerate anyway. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
-	Colour getColour() const override 
-	{
-		return Colour(EFFECT_PROCESSOR_COLOUR);
-	}
+	Colour getColour() const override;
 
-	virtual void voicesKilled()
-	{
-		jassert(!hasTail());
-	}
+	virtual void voicesKilled();
 
 	/** Overwrite this method if the effect has a tail (produces sound if no input is active */
 	virtual bool hasTail() const = 0;
 
 	/** Overwrite this method and return true if the effect should be suspended when there is no audio input. */
-	virtual bool isSuspendedOnSilence() const { return false; };
+	virtual bool isSuspendedOnSilence() const;;
 
 	/** Overwrite this method and return true if the effect is currently suspended. */
-	virtual bool isCurrentlySuspended() const { return false; };
+	virtual bool isCurrentlySuspended() const;;
 
 	/** Checks if the effect is tailing off. This simply returns the calculated value, but the EffectChain overwrites this. */
-	bool isTailingOff() const {	return isTailing; };
+	bool isTailingOff() const;;
 
 	/** Renders the next block and applies the effect to the buffer. */
 	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) = 0;
 
-	virtual void handleHiseEvent(const HiseEvent &m)
-	{
-		for (auto& mc : modChains)
-			mc.handleHiseEvent(m);
-	};
+	virtual void handleHiseEvent(const HiseEvent &m);;
 
 protected:
 
@@ -140,7 +101,7 @@ protected:
 	int numSilentCallbacksToWait = 86;
 	
 
-	bool isInSendContainer() const noexcept { return isInSend; };
+	bool isInSendContainer() const noexcept;;
 
 	void finaliseModChains();
 
@@ -202,118 +163,42 @@ public:
 		numSoftBypassStates
 	};
 
-	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1)
-	{
-		softBypassRamper.setValueWithoutSmoothing(1.0f);
+	MasterEffectProcessor(MainController *mc, const String &uid);;
 
-		getMatrix().init();
-		getMatrix().setOnlyEnablingAllowed(true);
-		getMatrix().setNumAllowedConnections(2);
-	};
+	virtual ~MasterEffectProcessor();;
 
-	virtual ~MasterEffectProcessor() {};
+	Path getSpecialSymbol() const override;
 
-	Path getSpecialSymbol() const override
-	{
-		Path path;
+	ValueTree exportAsValueTree() const override;
 
-		path.loadPathFromData (HiBinaryData::SpecialSymbols::masterEffect, sizeof (HiBinaryData::SpecialSymbols::masterEffect));
+	void restoreFromValueTree(const ValueTree &v) override;
 
-		return path;
-	}
-
-	ValueTree exportAsValueTree() const override
-	{
-		ValueTree v = Processor::exportAsValueTree();
-		v.addChild(getMatrix().exportAsValueTree(), -1, nullptr);
-
-		return v;
-	}
-
-	void restoreFromValueTree(const ValueTree &v) override
-	{
-		Processor::restoreFromValueTree(v);
-
-		ValueTree r = v.getChildWithName("RoutingMatrix");
-
-		if (r.isValid())
-		{
-			getMatrix().restoreFromValueTree(r);
-		}
-	}
-
-	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept override
-	{
-		Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
-		setSoftBypass(shouldBeBypassed, getMainController()->shouldUseSoftBypassRamps());
-	}
+	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler/* =dontSendNotification */) noexcept override;
 
 	virtual bool isFadeOutPending() const noexcept;
 
-	virtual void updateSoftBypass()
-	{
-		const bool shouldBeBypassed = isBypassed();
+	virtual void updateSoftBypass();
 
-		setSoftBypass(isBypassed(), !shouldBeBypassed);
-	}
-
-	bool isSoftBypassed() const noexcept { return softBypassState == Bypassed; }
+	bool isSoftBypassed() const noexcept;
 
 	virtual void setSoftBypass(bool shouldBeSoftBypassed, bool useRamp=true);
 
-	virtual void numDestinationChannelsChanged() override 
-	{
+	virtual void numDestinationChannelsChanged() override;;
+	virtual void numSourceChannelsChanged() override;;
 
-	};
-	virtual void numSourceChannelsChanged() override
-	{
-		
-	};
+	virtual void startMonophonicVoice();
 
-	virtual void startMonophonicVoice()
-	{
-		for (auto& mb : modChains)
-			mb.startVoice(0);
-	}
-	
-	virtual void stopMonophonicVoice()
-	{
-		for (auto& mb : modChains)
-			mb.stopVoice(0);
-	}
+	virtual void stopMonophonicVoice();
 
-	void setKillBuffer(AudioSampleBuffer& b)
-	{
-		killBuffer = &b;
-	}
+	void setKillBuffer(AudioSampleBuffer& b);
 
-	virtual void resetMonophonicVoice()
-	{
-		for (auto& mb : modChains)
-			mb.resetVoice(0);
-	}
+	virtual void resetMonophonicVoice();
 
-	bool isCurrentlySuspended() const final override
-	{
-		return masterState.currentlySuspended;
-	}
+	bool isCurrentlySuspended() const final override;
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
-	{
-		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
-		if (sampleRate > 0.0 && samplesPerBlock > 0)
-			softBypassRamper.reset(sampleRate / (double)samplesPerBlock, 0.1);
-
-		masterState.reset();
-
-		
-	}
-
-	void setEventBuffer(HiseEventBuffer* eventBufferFromSynth)
-	{
-		eventBuffer = eventBufferFromSynth;
-	}
+	void setEventBuffer(HiseEventBuffer* eventBufferFromSynth);
 
 	/** A wrapper function around the actual processing.
 	*
@@ -327,170 +212,13 @@ public:
 	virtual void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) = 0;
 
 	/** This only renders the modulatorChains. */
-	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override
-	{
-		jassert(isOnAir());
-
-		renderAllChains(startSample, numSamples);
-	}
+	void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override;
 
 	/** This renders the whole buffer. 
 	*
 	*	You can still modulate the wet signal amount or pan effects using multiplications
 	**/
-	virtual void renderWholeBuffer(AudioSampleBuffer &buffer)
-	{
-		if (softBypassState == Bypassed)
-			return;
-
-		auto leftChannel = getLeftSourceChannel();
-		auto rightChannel = getRightSourceChannel();
-		auto numAllowed = getMatrix().getNumAllowedConnections();
-		auto numMax = getMatrix().getNumDestinationChannels();
-
-		auto ok = (leftChannel != -1 && rightChannel != -1) ||
-                  (numAllowed != 2 && (leftChannel != -1 || rightChannel != -1));
-
-		ok &= leftChannel < numMax &&
-			  rightChannel < numMax;
-
-		if (ok)
-		{
-			auto isStereo = rightChannel != -1;
-
-			float *samples[2] = { buffer.getWritePointer(leftChannel), isStereo ? buffer.getWritePointer(rightChannel) : nullptr };
-
-			const int samplesToUse = buffer.getNumSamples();
-
-			AudioSampleBuffer stereoBuffer(samples, isStereo ? 2 : 1, samplesToUse);
-
-			if (softBypassState == Pending)
-			{
-				masterState.reset();
-
-				jassert(stereoBuffer.getNumChannels() <= killBuffer->getNumChannels());
-				jassert(stereoBuffer.getNumSamples() <= killBuffer->getNumSamples());
-
-				int numSamples = stereoBuffer.getNumSamples();
-				int numChannels = isStereo ? 2 : 1;
-
-				float start = jmin<float>(1.0f, softBypassRamper.getCurrentValue());
-				float end = jmax<float>(0.0f, softBypassRamper.getNextValue());
-
-				float start_inv = 1.0f - start;
-				float end_inv = 1.0f - end;
-
-				// We don't want to fade to the input signal in a AUX send context
-				// so in this case we'll skip this loop
-				int numChannelsToFadeIn = numChannels * (int)!isInSendContainer();
-
-				for (int i = 0; i < numChannelsToFadeIn; i++)
-					killBuffer->copyFromWithRamp(i, 0, stereoBuffer.getReadPointer(i), numSamples, start_inv, end_inv);
-
-				applyEffect(stereoBuffer, 0, samplesToUse);
-				isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
-
-				stereoBuffer.applyGainRamp(0, numSamples, start, end);
-
-				for (int i = 0; i < numChannelsToFadeIn; i++)
-					stereoBuffer.addFrom(i, 0, killBuffer->getReadPointer(i), numSamples);
-
-				if (!softBypassRamper.isSmoothing())
-				{
-					if (end < 0.5f)
-					{
-						voicesKilled();
-						softBypassState = Bypassed;
-					}
-					else
-					{
-						softBypassState = Inactive;
-					}
-				}
-
-				currentValues.outL = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(0, 0, samplesToUse);
-
-				if(isStereo)
-					currentValues.outR = softBypassState == Bypassed ? 0.0f : stereoBuffer.getMagnitude(1, 0, samplesToUse);
-			}
-			else
-			{
-				auto suspendAtSilence = isSuspendedOnSilence();
-
-				if (suspendAtSilence && masterState.numSilentBuffers > numSilentCallbacksToWait)
-				{
-					if (isSilent(stereoBuffer, 0, samplesToUse))
-					{
-						if (getMatrix().anyChannelActive())
-						{
-							float gainValues[NUM_MAX_CHANNELS];
-
-							memset(gainValues, 0, getMatrix().getNumSourceChannels() * sizeof(float));
-
-							getMatrix().setGainValues(gainValues, true);
-							getMatrix().setGainValues(gainValues, false);
-						}
-
-#if ENABLE_ALL_PEAK_METERS
-						currentValues.outL = 0.0f;
-						currentValues.outR = 0.0f;
-#endif
-
-						masterState.currentlySuspended = true;
-						return;
-					}
-						
-				}
-
-				masterState.currentlySuspended = false;
-				applyEffect(stereoBuffer, 0, samplesToUse);
-
-				if (suspendAtSilence)
-				{
-					isTailing = !isSilent(stereoBuffer, 0, samplesToUse);
-
-					if (!isTailing)
-						masterState.numSilentBuffers++;
-					else
-						masterState.numSilentBuffers = 0;
-				}
-				else
-				{
-					isTailing = hasTail() && !isSilent(stereoBuffer, 0, samplesToUse);
-					masterState.numSilentBuffers = 0;
-				}
-
-				
-
-#if ENABLE_ALL_PEAK_METERS
-				currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
-
-				if(isStereo)
-					currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
-#endif
-			}
-
-			if (getMatrix().anyChannelActive())
-			{
-				float gainValues[NUM_MAX_CHANNELS];
-
-				jassert(getMatrix().getNumSourceChannels() == buffer.getNumChannels());
-
-				for (int i = 0; i < buffer.getNumChannels(); i++)
-				{
-					if (getMatrix().isEditorShown(i))
-						gainValues[i] = buffer.getMagnitude(i, 0, samplesToUse);
-					else
-						gainValues[i] = 0.0f;
-				}
-
-				getMatrix().setGainValues(gainValues, true);
-				getMatrix().setGainValues(gainValues, false);
-			}
-		}
-
-		
-	};
+	virtual void renderWholeBuffer(AudioSampleBuffer &buffer);;
     
 	AudioSampleBuffer* killBuffer = nullptr;
 
@@ -529,38 +257,17 @@ class MonophonicEffectProcessor: public EffectProcessor
 {
 public:
 
-	MonophonicEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid, 1) {};
+	MonophonicEffectProcessor(MainController *mc, const String &uid);;
 	
-	virtual ~MonophonicEffectProcessor() {};
+	virtual ~MonophonicEffectProcessor();;
 
-	Path getSpecialSymbol() const override
-	{
-		Path path;
+	Path getSpecialSymbol() const override;
 
-		path.loadPathFromData (HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, sizeof (HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));
+	virtual void startMonophonicVoice(const HiseEvent& e);
 
-		return path;
-	}
+	virtual void stopMonophonicVoice();
 
-	virtual void startMonophonicVoice(const HiseEvent& e)
-	{
-		ignoreUnused(e);
-
-		for (auto& mb : modChains)
-			mb.startVoice(0);
-	}
-	
-	virtual void stopMonophonicVoice()
-	{
-		for (auto& mb : modChains)
-			mb.stopVoice(0);
-	}
-
-	virtual void resetMonophonicVoice() 
-	{
-		for (auto& mb : modChains)
-			mb.resetVoice(0);
-	}
+	virtual void resetMonophonicVoice();
 
 	/** A wrapper function around the actual processing.
 	*
@@ -574,32 +281,7 @@ public:
 	virtual void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) = 0;
 
 	/** Renders the next block and applies the effect to the buffer. */
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override
-	{
-		jassert(isOnAir());
-
-		renderAllChains(startSample, numSamples);
-
-		constexpr int stepSize = 64;
-
-		while(numSamples >= stepSize)
-		{
-			applyEffect(buffer, startSample, stepSize);
-
-			startSample += stepSize;
-			numSamples  -= stepSize;
-		}
-
-		if(numSamples != 0)
-		{
-			applyEffect(buffer, startSample, numSamples);
-		}
-
-#if ENABLE_ALL_PEAK_METERS
-		currentValues.outL = buffer.getMagnitude(0, startSample, numSamples);
-		currentValues.outR = buffer.getMagnitude(1, startSample, numSamples);
-#endif
-	}
+	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
 };
 
 
@@ -611,31 +293,14 @@ class VoiceEffectProcessor: public EffectProcessor
 {
 public:
 
-	VoiceEffectProcessor(MainController *mc, const String &uid, int numVoices_): 
-		EffectProcessor(mc, uid, numVoices_)
-	{
-		for (int i = 0; i < numVoices_; i++)
-			polyState.add({});
-	};
+	VoiceEffectProcessor(MainController *mc, const String &uid, int numVoices_);;
 
-	virtual ~VoiceEffectProcessor() {};
+	virtual ~VoiceEffectProcessor();;
 
 	Path getSpecialSymbol() const override;
 
 	/** This is called before every voice is processed. Use this to calculate all non polyphonic modulators in your subclasses chains! */
-	virtual void preRenderCallback(int startSample, int numSamples)
-	{
-		for (auto& mb : modChains)
-			mb.calculateMonophonicModulationValues(startSample, numSamples);
-
-		if (forceMono)
-		{
-			for (auto& mb : modChains)
-			{
-				mb.calculateModulationValuesForCurrentVoice(0, startSample, numSamples);
-			}
-		}
-	}
+	virtual void preRenderCallback(int startSample, int numSamples);
 
 	/** A wrapper function around the actual processing.
 	*
@@ -646,140 +311,28 @@ public:
 	*/
 	virtual void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSample) = 0;
 
-	void preVoiceRendering(int voiceIndex, int startSample, int numSamples)
-	{
-		for (auto& mb : modChains)
-		{
-			mb.calculateModulationValuesForCurrentVoice(voiceIndex, startSample, numSamples);
-			if (mb.isAudioRateModulation())
-				mb.expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
-		}
-	}
+	void preVoiceRendering(int voiceIndex, int startSample, int numSamples);
 
 	/** renders a voice and applies the effect on the voice. */
-	virtual void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
-	{
-		jassert(isOnAir());
+	virtual void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples);
 
-		preVoiceRendering(voiceIndex, startSample, numSamples);
-
-		constexpr int stepSize = 64;
-
-		while(numSamples >= stepSize)
-		{
-			applyEffect(voiceIndex, b, startSample, stepSize);
-
-			startSample += stepSize;
-			numSamples  -= stepSize;
-		}
-
-		if(numSamples != 0)
-		{
-			applyEffect(voiceIndex, b, startSample, numSamples);
-		}
-
-	}
-
-	bool checkPreSuspension(int voiceIndex, ProcessDataDyn& d)
-	{
-		if (isSuspendedOnSilence())
-		{
-			jassert(isPositiveAndBelow(voiceIndex, polyState.size()));
-
-			auto& s = polyState.getReference(voiceIndex);
-
-			if (s.numSilentBuffers > numSilentCallbacksToWait)
-			{
-				if (d.isSilent())
-				{
-					s.currentlySuspended = true;
-					return true;
-				}
-					
-			}
-			else
-			{
-				s.currentlySuspended = false;
-			}
-		}
-
-		return false;
-	}
-
-	
-
-	void checkPostSuspension(int voiceIndex, ProcessDataDyn& data)
-	{
-		if (hasTail() || isSuspendedOnSilence())
-		{
-			isTailing = !data.isSilent();
-
-			if (isTailing)
-				polyState.getReference(voiceIndex).numSilentBuffers = 0;
-			else
-				polyState.getReference(voiceIndex).numSilentBuffers++;
-		}
-	}
-
-	bool isCurrentlySuspended() const final override
-	{
-		if (!isSuspendedOnSilence())
-			return false;
-
-		
-
-		for (const auto& s : polyState)
-		{
-			if (s.playing && !s.currentlySuspended)
-				return false;
-		}
-
-		return true;
-	}
-
-	virtual void startVoice(int voiceIndex, const HiseEvent& e)
-	{
-		ignoreUnused(e);
-
-		for (auto& mb : modChains)
-			mb.startVoice(voiceIndex);
-
-		if (isSuspendedOnSilence())
-		{
-			auto& s = polyState.getReference(voiceIndex);
-			s.playing = true;
-			s.reset();
-		}
-	}
-
-	virtual void stopVoice(int voiceIndex)
-	{
-		for (auto& mb : modChains)
-			mb.stopVoice(voiceIndex);
-	}
-
-	virtual void reset(int voiceIndex)
-	{
-		for (auto& mb : modChains)
-			mb.resetVoice(voiceIndex);
-
-		if (isSuspendedOnSilence())
-		{
-			polyState.getReference(voiceIndex).playing = false;
-		}
-	}
-
-	void handleHiseEvent(const HiseEvent &m) override
-	{
-		for (auto& mb : modChains)
-			mb.handleHiseEvent(m);
-	};
+	bool checkPreSuspension(int voiceIndex, ProcessDataDyn& d);
 
 
-	void setForceMonoMode(bool shouldUseMonoMode)
-	{
-		forceMono = shouldUseMonoMode;
-	}
+	void checkPostSuspension(int voiceIndex, ProcessDataDyn& data);
+
+	bool isCurrentlySuspended() const final override;
+
+	virtual void startVoice(int voiceIndex, const HiseEvent& e);
+
+	virtual void stopVoice(int voiceIndex);
+
+	virtual void reset(int voiceIndex);
+
+	void handleHiseEvent(const HiseEvent &m) override;;
+
+
+	void setForceMonoMode(bool shouldUseMonoMode);
 
 protected:
 

@@ -87,12 +87,7 @@ public:
 
 		struct ConstructionData
 		{
-			ConstructionData(Processor* parent_, const String& id_, Type t_ = Type::Normal, Mode m_ = Mode::GainMode) :
-				parent(parent_),
-				id(id_),
-				t(t_),
-				m(m_)
-			{}
+			ConstructionData(Processor* parent_, const String& id_, Type t_ = Type::Normal, Mode m_ = Mode::GainMode);
 
 			Processor* parent;
 			String id;
@@ -104,7 +99,7 @@ public:
 		{
 		public:
 
-			Buffer() {};
+			Buffer();;
 
 			void setMaxSize(int maxSamplesPerBlock_);
 
@@ -140,7 +135,7 @@ public:
 		void prepareToPlay(double sampleRate, int samplesPerBlock);
 
 		/** Returns the modulator chain. Try to avoid this method when possible. */
-		ModulatorChain* getChain() noexcept { return c.get(); };
+		ModulatorChain* getChain() noexcept;;
 
 		/** Calls the chain method. Use this instead the direct call. */
 		void resetVoice(int voiceIndex);
@@ -267,7 +262,7 @@ public:
 		/** If you're doing the expansion manually, you can update the current ramp value with this method. */
 		void setCurrentRampValueForVoice(int voiceIndex, float value) noexcept;
 
-		bool isAudioRateModulation() const noexcept { return options.expandToAudioRate; }
+		bool isAudioRateModulation() const noexcept;
 
 		struct Options
 		{
@@ -278,10 +273,7 @@ public:
 
 		void setDisplayValue(float v);
 
-		void setScratchBufferFunction(const std::function<void(int, Modulator* m, float*, int, int)>& f)
-		{
-			scratchBufferFunction = f;
-		}
+		void setScratchBufferFunction(const std::function<void(int, Modulator* m, float*, int, int)>& f);
 
 	private:
 
@@ -291,12 +283,7 @@ public:
 
 		void setDisplayValueInternal(int voiceIndex, int startSample, int numSamples);
 
-		void setConstantVoiceValueInternal(int voiceIndex, float newValue)
-		{
-			lastConstantVoiceValue = newValue;
-			currentConstantVoiceValues[voiceIndex] = newValue;
-			currentConstantValue = newValue;
-		}
+		void setConstantVoiceValueInternal(int voiceIndex, float newValue);
 
 		ScopedPointer<ModulatorChain> c;
 
@@ -343,28 +330,13 @@ public:
 	/** Returns the handler that is used to add / delete Modulators in the chain. Use this if you want to change the modulator. */
 	Chain::Handler *getHandler() override;
 
-	const Chain::Handler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override;;
 
-	FactoryType *getFactoryType() const override {return modulatorFactory;};
+	FactoryType *getFactoryType() const override;;
 
-	Colour getColour() const override
-	{ 
-		if(Modulator::getColour() != Colours::transparentBlack) return Modulator::getColour();
-		else
-		{
-			//return getMode() == GainMode ? Colour(0xffD9A450) : Colour(0xff628214);
-			if (getMode() == GainMode)
-			{
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xffbe952c));
-			}
-			else
-			{
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff7559a4));
-			}
-		}
-	};
+	Colour getColour() const override;;
 
-	void setFactoryType(FactoryType *newFactoryType) override {modulatorFactory = newFactoryType;};
+	void setFactoryType(FactoryType *newFactoryType) override;;
 
 	/** Sets the sample rate for all modulators in the chain and initialized the UpdateMerger. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -386,17 +358,17 @@ public:
 	bool shouldBeProcessedAtAll() const noexcept;
 
 	/** Wraps the handlers method. */
-	int getNumChildProcessors() const override { return handler.getNumProcessors();	};
+	int getNumChildProcessors() const override;;
 
 	/** Wraps the handlers method. */
-	Processor *getChildProcessor(int processorIndex) override { return handler.getProcessor(processorIndex);	};
+	Processor *getChildProcessor(int processorIndex) override;;
 
-	Processor *getParentProcessor() override { return parentProcessor; };
+	Processor *getParentProcessor() override;;
 
-	const Processor *getParentProcessor() const override { return parentProcessor; };
+	const Processor *getParentProcessor() const override;;
 
 	/** Wraps the handlers method. */
-	const Processor *getChildProcessor(int processorIndex) const override{ return handler.getProcessor(processorIndex);	};
+	const Processor *getChildProcessor(int processorIndex) const override;;
 
 	/** Resets all envelopes. This can be used for envelopes that do not control the main gain value
 	*	and therefore do not switch back to IDLE if the note stops playing before the envelope is finished.
@@ -426,13 +398,13 @@ public:
 	/** Calls the stopVoice function for all envelope modulators. */
 	void stopVoice(int voiceIndex) override;
 
-	void setInternalAttribute(int, float) override { jassertfalse; }; // nothing to do here!
+	void setInternalAttribute(int, float) override;; // nothing to do here!
 
-	float getAttribute(int) const override { jassertfalse; return -1.0; }; // nothing to do here!
+	float getAttribute(int) const override;; // nothing to do here!
 
-	float getCurrentMonophonicStartValue() const noexcept { return monophonicStartValue; }
+	float getCurrentMonophonicStartValue() const noexcept;
 
-	ModulatorState *createSubclassedState(int) const override { jassertfalse; return nullptr; }; // a chain itself has no states!
+	ModulatorState *createSubclassedState(int) const override;; // a chain itself has no states!
 
 	/** If you want the chain to only process voice start modulators, set this to true. */
 	void setIsVoiceStartChain(bool isVoiceStartChain_);
@@ -446,38 +418,20 @@ public:
 	void newRenderMonophonicValues(int startSample, int numSamples);
 
 	/** Does nothing (the complete renderNextBlock method is overwritten. */
-	void calculateBlock(int /*startSample*/, int /*numSamples*/) override
-	{
-	};
+	void calculateBlock(int /*startSample*/, int /*numSamples*/) override;;
 
 	/** Iterates all voice start modulators and returns the value either between 0.0 and 1.0 (GainMode) or -1.0 ... 1.0 (Pitch Mode). */
 	float getConstantVoiceValue(int voiceIndex) const;
 
-	Table::ValueTextConverter getTableValueConverter() const
-	{
-		return handler.tableValueConverter;
-	}
+	Table::ValueTextConverter getTableValueConverter() const;
 
-    void setPostEventFunction(const std::function<void(Modulator*, const HiseEvent&)>& pf)
-    {
-        postEventFunction = pf;
-    }
-    
-	void applyMonoOnOutputValue(float monoValue)
-	{
-		ignoreUnused(monoValue);
+	void setPostEventFunction(const std::function<void(Modulator*, const HiseEvent&)>& pf);
 
-#if ENABLE_ALL_PEAK_METERS
-		setOutputValue(getOutputValue() * monoValue);
-#endif
-	}
+	void applyMonoOnOutputValue(float monoValue);
 
 public:
 
-	void setTableValueConverter(const Table::ValueTextConverter& converter)
-	{
-		handler.tableValueConverter = converter;
-	};
+	void setTableValueConverter(const Table::ValueTextConverter& converter);;
 
 	/** This class handles the Modulators within the specified ModulatorChain.
 	*
@@ -491,17 +445,9 @@ public:
 
         struct ModSorter
         {
-            ModSorter(ModulatorChainHandler& parent_):
-              parent(parent_)
-            {};
+            ModSorter(ModulatorChainHandler& parent_);;
             
-            bool operator()(Modulator* f, Modulator* s) const
-            {
-                auto fi = parent.chain->allModulators.indexOf(f);
-                auto si = parent.chain->allModulators.indexOf(s);
-                
-                return si > fi;
-            };
+            bool operator()(Modulator* f, Modulator* s) const;;
             
             ModulatorChainHandler& parent;
         };
@@ -509,7 +455,7 @@ public:
 		/** Creates a Chain::Handler. */
 		ModulatorChainHandler(ModulatorChain *handledChain);;
 
-		~ModulatorChainHandler() {};
+		~ModulatorChainHandler();;
 
 		void bypassStateChanged(Processor* p, bool bypassState) override;
 
@@ -530,54 +476,29 @@ public:
 		void remove(Processor *processorToBeRemoved, bool deleteProcessor=true) override;
 
 		/** Returns the modulator at the specified index. */
-		Modulator *getModulator(int modIndex) const
-		{
-			jassert(modIndex < getNumModulators());
-			return chain->allModulators[modIndex];
-		};
+		Modulator *getModulator(int modIndex) const;;
 
 		/** Returns the number of modulators in the chain. */
-		int getNumModulators() const { return chain->allModulators.size(); };
+		int getNumModulators() const;;
 
-		Processor *getProcessor(int processorIndex)
-		{
-			return chain->allModulators[processorIndex];
-		};
+		Processor *getProcessor(int processorIndex);;
 
-		const Processor *getProcessor(int processorIndex) const
-		{
-			return chain->allModulators[processorIndex];
-		};
+		const Processor *getProcessor(int processorIndex) const;;
 
-		virtual int getNumProcessors() const
-		{
-			return getNumModulators();
-		};
+		virtual int getNumProcessors() const;;
 
-		void clear() override
-		{
-			notifyListeners(Listener::Cleared, nullptr);
+		void clear() override;
 
-			activeEnvelopes = false;
-			activeTimeVariants = false;
-			activeVoiceStarts = false;
 
-			chain->envelopeModulators.clear();
-			chain->variantModulators.clear();
-			chain->voiceStartModulators.clear();
-			chain->allModulators.clear();
-		}
+        Table::ValueTextConverter tableValueConverter;
 
-		
-		Table::ValueTextConverter tableValueConverter;
+		bool hasActiveEnvelopes() const noexcept;;
+		bool hasActiveTimeVariantMods() const noexcept;;
+		bool hasActiveVoiceStartMods() const noexcept;;
+		bool hasActiveMonophoicEnvelopes() const noexcept;;
+		bool hasActiveMods() const noexcept;
 
-		bool hasActiveEnvelopes() const noexcept { return activeEnvelopes; };
-		bool hasActiveTimeVariantMods() const noexcept { return activeTimeVariants; };
-		bool hasActiveVoiceStartMods() const noexcept { return activeVoiceStarts; };
-		bool hasActiveMonophoicEnvelopes() const noexcept { return activeMonophonicEnvelopes; };
-		bool hasActiveMods() const noexcept { return anyActive; }
-
-		UnorderedStack<VoiceStartModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeVoiceStartList;
+        UnorderedStack<VoiceStartModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeVoiceStartList;
 		UnorderedStack<TimeVariantModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeTimeVariantsList;
 		UnorderedStack<EnvelopeModulator*, HISE_NUM_MODULATORS_PER_CHAIN> activeEnvelopesList;
 		UnorderedStack<Modulator*, HISE_NUM_MODULATORS_PER_CHAIN*3> activeAllList;

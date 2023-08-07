@@ -63,6 +63,145 @@ isPopupMode(false)
 	body->updateGui();
 }
 
+ProcessorEditor::~ProcessorEditor()
+{
+	// The Editor must be destroyed before the Processor!
+	jassert(processor != nullptr);
+
+	if (processor != nullptr)
+	{
+		processor->removeChangeListener(this);
+	}
+
+	header = nullptr;
+	body = nullptr;
+	panel = nullptr;
+
+}
+
+MarkdownLink ProcessorEditor::getLink() const
+{
+	return ProcessorHelpers::getMarkdownLink(getProcessor());
+}
+
+ProcessorEditorContainer* ProcessorEditor::getRootContainer()
+{
+	return rootContainer.getComponent();
+}
+
+void ProcessorEditor::sendResizedMessage()
+{
+	if (isPopupMode) return;
+
+	if (header == nullptr || body == nullptr || panel == nullptr || chainBar == nullptr) return;
+
+	const bool isPopupEditor = rootContainer.getComponent() == nullptr;
+
+	if (!isPopupEditor)
+	{
+		setResizeFlag();
+		getRootContainer()->refreshSize(false);
+	}
+	else
+	{
+		setSize(ProcessorEditorContainer::getWidthForIntendationLevel(0), getActualHeight());
+	}
+}
+
+void ProcessorEditor::setResizeFlag() noexcept
+{ resizeFlag = true; }
+
+bool ProcessorEditor::shouldBeResized() const noexcept
+{ 
+	return resizeFlag; 
+}
+
+void ProcessorEditor::refreshEditorSize()
+{
+	if (shouldBeResized())
+	{
+		setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+
+		getRootContainer()->refreshSize(false);
+
+		resizeFlag = false;
+	}
+}
+
+void ProcessorEditor::mouseDown(const MouseEvent& event)
+{
+	if (event.mods.isRightButtonDown())
+		CopyPasteTarget::dismissCopyAndPasteFocus();
+	else
+		CopyPasteTarget::grabCopyAndPasteFocus();
+}
+
+String ProcessorEditor::getObjectTypeName()
+{ return getProcessor()->getId(); }
+
+Processor* ProcessorEditor::getProcessor()
+{ return processor.get(); }
+
+const Processor* ProcessorEditor::getProcessor() const
+{ return processor.get(); }
+
+void ProcessorEditor::setIsPopup(bool shouldBePopup) noexcept
+{
+	isPopupMode = shouldBePopup;
+	setFolded(false, sendNotification);
+}
+
+bool ProcessorEditor::isPopup() const noexcept
+{ 
+	return isPopupMode; 
+		
+}
+
+int ProcessorEditor::getIndentationLevel() const
+{ return intendationLevel; }
+
+ProcessorEditorBody* ProcessorEditor::getBody()
+{ return body; }
+
+ProcessorEditorHeader* ProcessorEditor::getHeader()
+{ return header; }
+
+ProcessorEditorChainBar* ProcessorEditor::getChainBar()
+{ return chainBar; }
+
+ProcessorEditorPanel* ProcessorEditor::getPanel()
+{ return panel; }
+
+const ProcessorEditor* ProcessorEditor::getParentEditor() const
+{ return parentEditor.getComponent(); }
+
+ProcessorEditor* ProcessorEditor::getParentEditor()
+{ return parentEditor.getComponent(); }
+
+bool ProcessorEditor::isRootEditor() const
+{ 
+	if (rootContainer.getComponent() != nullptr)
+	{
+		return rootContainer.getComponent()->getRootEditor() == this;
+	}
+	return false;
+}
+
+ProcessorEditor::Iterator::Iterator(ProcessorEditor* rootEditor):
+	index(0)
+{
+	if(rootEditor != nullptr) addChildEditors(rootEditor);
+}
+
+ProcessorEditor* ProcessorEditor::Iterator::getNextEditor()
+{
+	if (index < editors.size())
+	{
+		return editors[index++].getComponent();
+	}
+
+	return nullptr;
+}
 
 
 void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
@@ -830,6 +969,28 @@ void ProcessorEditor::childEditorAmountChanged() const
 	panel->updateChildEditorList();
 }
 
+ProcessorEditorContainer::ProcessorEditorContainer()
+{}
+
+void ProcessorEditorContainer::processorDeleted(Processor*)
+{
+	if (deleteCallback)
+		deleteCallback();
+}
+
+int ProcessorEditorContainer::getWidthForIntendationLevel(int intentationLevel)
+{
+	return CONTAINER_WIDTH - (intentationLevel * INTENDATION_WIDTH*2);
+}
+
+ProcessorEditor* ProcessorEditorContainer::getRootEditor()
+{ return rootProcessorEditor; }
+
+void ProcessorEditorContainer::clearSoloProcessors()
+{
+	soloedProcessors.clear();
+}
+
 ProcessorEditorContainer::~ProcessorEditorContainer()
 {
 	Processor* oldRoot = nullptr;
@@ -1059,6 +1220,14 @@ int ProcessorEditorPanel::getHeightOfAllEditors() const
 	return y;
 }
 
+ProcessorEditor* ProcessorEditorPanel::getChildEditor(int index)
+{
+	return editors[index];
+}
+
+int ProcessorEditorPanel::getNumChildEditors() const
+{ return editors.size(); }
+
 void ProcessorEditorPanel::refreshChildProcessorVisibility()
 {
 	Processor *p = getEditor()->getProcessor();
@@ -1078,6 +1247,23 @@ void ProcessorEditorPanel::setInsertPosition(int position)
 	currentPosition = position;
 	
 	repaint();
+}
+
+ProcessorEditorBody::ProcessorEditorBody(ProcessorEditor* parentEditor):
+	ProcessorEditorChildComponent(parentEditor)
+{}
+
+ProcessorEditorBody::~ProcessorEditorBody()
+{}
+
+void ProcessorEditorBody::refreshBodySize()
+{ 
+	ProcessorEditor *parent = dynamic_cast<ProcessorEditor*>(getParentComponent());
+
+	if (parent != nullptr)
+	{
+		parent->sendResizedMessage();
+	}
 }
 
 void ProcessorEditorPanel::updateChildEditorList(bool forceUpdate)
@@ -1178,6 +1364,30 @@ parentEditor(editor),
 processor(editor->getProcessor())
 {
 
+}
+
+ProcessorEditorChildComponent::~ProcessorEditorChildComponent()
+{
+	masterReference.clear();
+}
+
+Processor* ProcessorEditorChildComponent::getProcessor()
+{ return processor.get(); }
+
+const Processor* ProcessorEditorChildComponent::getProcessor() const
+{ return processor.get(); }
+
+const ProcessorEditor* ProcessorEditorChildComponent::getEditor() const
+{ return parentEditor.getComponent(); }
+
+ProcessorEditor* ProcessorEditorChildComponent::getEditor()
+{ return parentEditor.getComponent(); }
+
+bool ProcessorEditorChildComponent::toggleButton(Button* b)
+{
+	bool on = b->getToggleState();
+	b->setToggleState(!on, dontSendNotification);
+	return on;
 }
 
 void ProcessorEditor::Iterator::addChildEditors(ProcessorEditor *editor)

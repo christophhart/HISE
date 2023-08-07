@@ -58,191 +58,57 @@ public:
 
 	~EffectProcessorChain();
 
-	Chain::Handler *getHandler() override {return &handler;};
+	Chain::Handler *getHandler() override;;
 
-	const Chain::Handler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override;;
 
-	Processor *getParentProcessor() override { return parentProcessor; };
+	Processor *getParentProcessor() override;;
 
-	const Processor *getParentProcessor() const override { return parentProcessor; };
+	const Processor *getParentProcessor() const override;;
 
-	FactoryType *getFactoryType() const override {return effectChainFactory;};
+	FactoryType *getFactoryType() const override;;
 
-	Colour getColour() const { return Colour(0xff3a6666);};
+	Colour getColour() const;;
 
-	void setFactoryType(FactoryType *newFactoryType) override {effectChainFactory = newFactoryType;};
+	void setFactoryType(FactoryType *newFactoryType) override;;
 
-	float getAttribute(int ) const override {return 1.0f;	};
+	float getAttribute(int ) const override;;
 
-	void setInternalAttribute(int , float ) override {};
+	void setInternalAttribute(int , float ) override;;
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
-	{
-		// Skip the effectProcessor's prepareToPlay since it assumes all child processors are ModulatorChains
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
-		for (auto fx : allEffects)
-			fx->prepareToPlay(sampleRate, samplesPerBlock);
+	void handleHiseEvent(const HiseEvent &m);;
 
-		ProcessorHelpers::increaseBufferIfNeeded(killBuffer, samplesPerBlock);
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples);;
 
-		resetCounterStartValue = (int)(0.12 * sampleRate);
+	void preRenderCallback(int startSample, int numSamples);
 
-		for (auto fx : masterEffects)
-			fx->setKillBuffer(killBuffer);
-	};
+	void resetMasterEffects();
 
-	void handleHiseEvent(const HiseEvent &m)
-	{	
-		if(isBypassed()) return;
-		FOR_ALL_EFFECTS(handleHiseEvent(m)); 
-	};
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
 
-	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) 
-	{ 
-		if(isBypassed()) return;
+	bool hasTailingMasterEffects() const noexcept;
 
-        ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::VoiceEffectRendering);
-        
-		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
-	};
+	bool hasTailingPolyEffects() const;
 
-	void preRenderCallback(int startSample, int numSamples)
-	{
-		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
-	}
+	void killMasterEffects();
 
-	void resetMasterEffects()
-	{
-		updateSoftBypassState();
-
-		for (auto fx : masterEffects)
-		{
-			if(fx->hasTail())
-				fx->voicesKilled();
-		}
-
-		resetCounter = -1;
-	}
-
-	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
-	{
-		if(isBypassed()) return;
-
-		if (renderPolyFxAsMono)
-		{
-			// Make sure the modulation values get calculated...
-			FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
-		}
-
-		FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
-
-	};
-
-	bool hasTailingMasterEffects() const noexcept
-	{
-		return resetCounter > 0;
-	}
-
-	bool hasTailingPolyEffects() const
-	{
-		for (int i = 0; i < voiceEffects.size(); i++)
-		{
-			if (voiceEffects[i]->isBypassed())
-				continue;
-
-			if (!voiceEffects[i]->hasTail())
-				continue;
-
-			if (voiceEffects[i]->isTailingOff())
-				return true;
-		}
-
-		return false;
-	}
-
-	void killMasterEffects()
-	{
-		if (hasTailingMasterEffects())
-			return;
-
-		if (isBypassed())
-		{
-			resetCounter = -1;
-			return;
-		}
-
-		bool hasActiveMasterFX = false;
-
-		for (auto& fx : masterEffects)
-		{
-			if (!fx->hasTail())
-				continue;
-
-			if (!fx->isBypassed())
-			{
-				hasActiveMasterFX = true;
-				break;
-			}
-		}
-		
-		if (!hasActiveMasterFX)
-			return;
-
-		ScopedLock sl(getMainController()->getLock());
-
-		for (auto fx : masterEffects)
-		{
-			if (fx->isBypassed())
-				continue;
-
-			fx->setSoftBypass(true, true);
-		}
-			
-
-		resetCounter = resetCounterStartValue;
-	}
-
-	void updateSoftBypassState()
-	{
-		for (auto fx : masterEffects)
-			fx->updateSoftBypass();
-
-		resetCounter = -1;
-	}
+	void updateSoftBypassState();
 
 	void renderMasterEffects(AudioSampleBuffer &b);
 
-	void startVoice(int voiceIndex, const HiseEvent& e) 
-	{
-		if(isBypassed()) return;
-		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, e)); 
-		FOR_EACH_MONO_EFFECT(startMonophonicVoice(e));
-		FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
-	};
+	void startVoice(int voiceIndex, const HiseEvent& e);;
 
-	void stopVoice(int voiceIndex) 
-	{
-		if(isBypassed()) return;
+	void stopVoice(int voiceIndex);;
 
-		FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));
-		FOR_EACH_MONO_EFFECT(stopMonophonicVoice());
-		FOR_EACH_MASTER_EFFECT(stopMonophonicVoice());
-	};
+	void reset(int voiceIndex);;
 
-	void reset(int voiceIndex)
-	{ 
-		if(isBypassed()) return;
-		FOR_EACH_VOICE_EFFECT(reset(voiceIndex));	
-		FOR_EACH_MONO_EFFECT(resetMonophonicVoice());
-		FOR_EACH_MASTER_EFFECT(resetMonophonicVoice());
-	};
+	int getNumChildProcessors() const override;;
 
-	int getNumChildProcessors() const override { return getHandler()->getNumProcessors(); };
+	Processor *getChildProcessor(int processorIndex) override;;
 
-	Processor *getChildProcessor(int processorIndex) override { return getHandler()->getProcessor(processorIndex); };
-
-	const Processor *getChildProcessor(int processorIndex) const override { return getHandler()->getProcessor(processorIndex); };
+	const Processor *getChildProcessor(int processorIndex) const override;;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -251,9 +117,9 @@ public:
 	public:
 
 		/** Creates a Chain::Handler. */
-		EffectChainHandler(EffectProcessorChain *handledChain): chain(handledChain) {};
+		EffectChainHandler(EffectProcessorChain *handledChain);;
 
-		~EffectChainHandler() {};
+		~EffectChainHandler();;
 
 		/** adds a Effect to the chain and calls its prepareToPlay method. 
 		*
@@ -282,10 +148,7 @@ public:
 	};
 
 	/** Enable this to enforce the rendering of polyphonic effects (namely the filter in a container effect chain. */
-	void setForceMonophonicProcessingOfPolyphonicEffects(bool shouldProcessPolyFX)
-	{
-		renderPolyFxAsMono = shouldProcessPolyFX;
-	}
+	void setForceMonophonicProcessingOfPolyphonicEffects(bool shouldProcessPolyFX);
 
 private:
 

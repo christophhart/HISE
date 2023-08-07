@@ -48,6 +48,213 @@ EffectProcessorChain::~EffectProcessorChain()
 	getHandler()->clearAsync(this);
 }
 
+Chain::Handler* EffectProcessorChain::getHandler()
+{return &handler;}
+
+const Chain::Handler* EffectProcessorChain::getHandler() const
+{return &handler;}
+
+Processor* EffectProcessorChain::getParentProcessor()
+{ return parentProcessor; }
+
+const Processor* EffectProcessorChain::getParentProcessor() const
+{ return parentProcessor; }
+
+FactoryType* EffectProcessorChain::getFactoryType() const
+{return effectChainFactory;}
+
+Colour EffectProcessorChain::getColour() const
+{ return Colour(0xff3a6666);}
+
+void EffectProcessorChain::setFactoryType(FactoryType* newFactoryType)
+{effectChainFactory = newFactoryType;}
+
+float EffectProcessorChain::getAttribute(int) const
+{return 1.0f;	}
+
+void EffectProcessorChain::setInternalAttribute(int, float)
+{}
+
+void EffectProcessorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	// Skip the effectProcessor's prepareToPlay since it assumes all child processors are ModulatorChains
+	Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	for (auto fx : allEffects)
+		fx->prepareToPlay(sampleRate, samplesPerBlock);
+
+	ProcessorHelpers::increaseBufferIfNeeded(killBuffer, samplesPerBlock);
+
+	resetCounterStartValue = (int)(0.12 * sampleRate);
+
+	for (auto fx : masterEffects)
+		fx->setKillBuffer(killBuffer);
+}
+
+void EffectProcessorChain::handleHiseEvent(const HiseEvent& m)
+{	
+	if(isBypassed()) return;
+	FOR_ALL_EFFECTS(handleHiseEvent(m)); 
+}
+
+void EffectProcessorChain::renderVoice(int voiceIndex, AudioSampleBuffer& b, int startSample, int numSamples)
+{ 
+	if(isBypassed()) return;
+
+	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::VoiceEffectRendering);
+        
+	FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
+}
+
+void EffectProcessorChain::preRenderCallback(int startSample, int numSamples)
+{
+	FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
+}
+
+void EffectProcessorChain::resetMasterEffects()
+{
+	updateSoftBypassState();
+
+	for (auto fx : masterEffects)
+	{
+		if(fx->hasTail())
+			fx->voicesKilled();
+	}
+
+	resetCounter = -1;
+}
+
+void EffectProcessorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
+{
+	if(isBypassed()) return;
+
+	if (renderPolyFxAsMono)
+	{
+		// Make sure the modulation values get calculated...
+		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
+	}
+
+	FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
+
+}
+
+bool EffectProcessorChain::hasTailingMasterEffects() const noexcept
+{
+	return resetCounter > 0;
+}
+
+bool EffectProcessorChain::hasTailingPolyEffects() const
+{
+	for (int i = 0; i < voiceEffects.size(); i++)
+	{
+		if (voiceEffects[i]->isBypassed())
+			continue;
+
+		if (!voiceEffects[i]->hasTail())
+			continue;
+
+		if (voiceEffects[i]->isTailingOff())
+			return true;
+	}
+
+	return false;
+}
+
+void EffectProcessorChain::killMasterEffects()
+{
+	if (hasTailingMasterEffects())
+		return;
+
+	if (isBypassed())
+	{
+		resetCounter = -1;
+		return;
+	}
+
+	bool hasActiveMasterFX = false;
+
+	for (auto& fx : masterEffects)
+	{
+		if (!fx->hasTail())
+			continue;
+
+		if (!fx->isBypassed())
+		{
+			hasActiveMasterFX = true;
+			break;
+		}
+	}
+		
+	if (!hasActiveMasterFX)
+		return;
+
+	ScopedLock sl(getMainController()->getLock());
+
+	for (auto fx : masterEffects)
+	{
+		if (fx->isBypassed())
+			continue;
+
+		fx->setSoftBypass(true, true);
+	}
+			
+
+	resetCounter = resetCounterStartValue;
+}
+
+void EffectProcessorChain::updateSoftBypassState()
+{
+	for (auto fx : masterEffects)
+		fx->updateSoftBypass();
+
+	resetCounter = -1;
+}
+
+void EffectProcessorChain::startVoice(int voiceIndex, const HiseEvent& e)
+{
+	if(isBypassed()) return;
+	FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, e)); 
+	FOR_EACH_MONO_EFFECT(startMonophonicVoice(e));
+	FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
+}
+
+void EffectProcessorChain::stopVoice(int voiceIndex)
+{
+	if(isBypassed()) return;
+
+	FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));
+	FOR_EACH_MONO_EFFECT(stopMonophonicVoice());
+	FOR_EACH_MASTER_EFFECT(stopMonophonicVoice());
+}
+
+void EffectProcessorChain::reset(int voiceIndex)
+{ 
+	if(isBypassed()) return;
+	FOR_EACH_VOICE_EFFECT(reset(voiceIndex));	
+	FOR_EACH_MONO_EFFECT(resetMonophonicVoice());
+	FOR_EACH_MASTER_EFFECT(resetMonophonicVoice());
+}
+
+int EffectProcessorChain::getNumChildProcessors() const
+{ return getHandler()->getNumProcessors(); }
+
+Processor* EffectProcessorChain::getChildProcessor(int processorIndex)
+{ return getHandler()->getProcessor(processorIndex); }
+
+const Processor* EffectProcessorChain::getChildProcessor(int processorIndex) const
+{ return getHandler()->getProcessor(processorIndex); }
+
+EffectProcessorChain::EffectChainHandler::EffectChainHandler(EffectProcessorChain* handledChain): chain(handledChain)
+{}
+
+EffectProcessorChain::EffectChainHandler::~EffectChainHandler()
+{}
+
+void EffectProcessorChain::setForceMonophonicProcessingOfPolyphonicEffects(bool shouldProcessPolyFX)
+{
+	renderPolyFxAsMono = shouldProcessPolyFX;
+}
+
 void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 {
 	if (isBypassed())

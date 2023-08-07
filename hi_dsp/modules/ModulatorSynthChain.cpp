@@ -96,7 +96,54 @@ ProcessorEditorBody *ModulatorSynthChain::createEditor(ProcessorEditor *parentEd
 	return nullptr;
 
 #endif
-};
+}
+
+Chain::Handler* ModulatorSynthChain::getHandler()
+{ return &handler; }
+
+const Chain::Handler* ModulatorSynthChain::getHandler() const
+{return &handler;}
+
+FactoryType* ModulatorSynthChain::getFactoryType() const
+{return modulatorSynthFactory;}
+
+void ModulatorSynthChain::setFactoryType(FactoryType* newFactoryType)
+{modulatorSynthFactory = newFactoryType;}
+
+int ModulatorSynthChain::getNumChildProcessors() const
+{ return ModulatorSynth::getNumChildProcessors() + handler.getNumProcessors(); }
+
+Processor* ModulatorSynthChain::getParentProcessor()
+{return nullptr;}
+
+const Processor* ModulatorSynthChain::getParentProcessor() const
+{return nullptr;}
+
+void ModulatorSynthChain::setPackageName(const String& newPackageName)
+{ packageName = newPackageName; }
+
+String ModulatorSynthChain::getPackageName() const
+{ return packageName; }
+
+int ModulatorSynthChain::getVoiceAmount() const
+{return numVoices;}
+
+ModulatorSynthChain::ModulatorSynthChainHandler::ModulatorSynthChainHandler(ModulatorSynthChain* synthToHandle):
+	synth(synthToHandle)
+{
+
+}
+
+void ModulatorSynthChain::setActiveChannels(const HiseEvent::ChannelFilterData& newActiveChannels)
+{
+	activeChannels = newActiveChannels;
+}
+
+HiseEvent::ChannelFilterData* ModulatorSynthChain::getActiveChannelData()
+{ return &activeChannels; }
+
+bool ModulatorSynthChain::isUniformVoiceHandlerRoot() const
+{ return ownedUniformVoiceHandler != nullptr; };
 
 
 Processor * ModulatorSynthChain::getChildProcessor(int processorIndex)
@@ -570,6 +617,34 @@ NoMidiInputConstrainer::NoMidiInputConstrainer()
 	forbiddenModulators.addArray(voiceStart.getAllowedTypes());
 }
 
+String NoMidiInputConstrainer::getDescription() const
+{ return "No voice modulators"; }
+
+bool NoMidiInputConstrainer::allowType(const Identifier& typeName)
+{
+	for(int i = 0; i < forbiddenModulators.size(); i++)
+	{
+		if(forbiddenModulators[i].type == typeName) return false;
+	}
+
+	return true;
+}
+
+SynthGroupFXConstrainer::SynthGroupFXConstrainer() = default;
+
+String SynthGroupFXConstrainer::getDescription() const
+{ return "Only Polyphonic FX"; }
+
+bool SynthGroupFXConstrainer::allowType(const Identifier& typeName)
+{
+	auto isPoly = typeName.toString().toLowerCase().contains("poly");
+        
+	// just trying to get through the day...
+	isPoly |= (typeName == Identifier("StereoFX"));
+        
+	return isPoly;
+}
+
 SynthGroupConstrainer::SynthGroupConstrainer()
 {
 	Array<FactoryType::ProcessorEntry> typeNames;
@@ -579,6 +654,19 @@ SynthGroupConstrainer::SynthGroupConstrainer()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 
 	forbiddenModulators.addArray(typeNames);
+}
+
+String SynthGroupConstrainer::getDescription() const
+{ return "No container modules"; }
+
+bool SynthGroupConstrainer::allowType(const Identifier& typeName)
+{
+	for (int i = 0; i < forbiddenModulators.size(); i++)
+	{
+		if (forbiddenModulators[i].type == typeName) return false;
+	}
+
+	return true;
 }
 
 void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)

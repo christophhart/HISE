@@ -76,7 +76,7 @@ public:
 	*/
 	void setLookAndFeel();
 	
-	void displayFoldState(bool shouldBeFolded) { foldButton->setToggleState(shouldBeFolded, dontSendNotification); };
+	void displayFoldState(bool shouldBeFolded);;
 
 	void displayBypassedChain(bool isBypassed);;
 

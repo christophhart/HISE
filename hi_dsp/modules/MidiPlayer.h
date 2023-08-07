@@ -84,85 +84,21 @@ public:
 		double bpm = 120.0;
 		Range<double> normalisedLoopRange = { 0.0, 1.0 };
 
-		void setLoopEnd(double normalisedEnd)
-		{
-			jassert(numBars > 0.0);
-			jassert(denominator != 0.0);
-			auto beatLengthNormalised = 1.0 / (numBars * denominator);
-			normalisedEnd = jmax(normalisedLoopRange.getStart() + beatLengthNormalised, normalisedEnd);
-			normalisedLoopRange.setEnd(normalisedEnd);
-		}
+		void setLoopEnd(double normalisedEnd);
 
-		void setLoopStart(double normalisedStart)
-		{
-			jassert(numBars > 0.0);
-			jassert(denominator != 0.0);
-			auto beatLengthNormalised = 1.0 / (numBars * denominator);
+		void setLoopStart(double normalisedStart);
 
-			normalisedStart = jmin(normalisedStart, normalisedLoopRange.getEnd() - beatLengthNormalised);
-			normalisedLoopRange.setStart(normalisedStart);
-		}
+		void calculateNumBars(double lengthInQuarters, bool roundToQuarter);
 
-		void calculateNumBars(double lengthInQuarters, bool roundToQuarter)
-		{
-			if (roundToQuarter)
-				lengthInQuarters = hmath::ceil(lengthInQuarters);
+		String toString() const;
 
-			numBars = lengthInQuarters * denominator / 4.0 / nominator;
-		}
-		
-		String toString() const
-		{
-			String s;
-			s << roundToInt(numBars) << " of ";
-			s << roundToInt(nominator) << "/";
-			s << roundToInt(denominator);
-			return s;
-		}
+		double getNumQuarters() const;
 
-		double getNumQuarters() const
-		{
-			return numBars / denominator * 4.0 * nominator;
-		}
+		ValueTree exportAsValueTree() const override;
 
-		ValueTree exportAsValueTree() const override
-		{
-			ValueTree v("TimeSignature");
-			v.setProperty(TimeSigIds::NumBars, numBars, nullptr);
-			v.setProperty(TimeSigIds::Nominator, nominator, nullptr);
-			v.setProperty(TimeSigIds::Denominator, denominator, nullptr);
-			v.setProperty(TimeSigIds::LoopStart, normalisedLoopRange.getStart(), nullptr);
-			v.setProperty(TimeSigIds::LoopEnd, normalisedLoopRange.getEnd(), nullptr);
-			v.setProperty(TimeSigIds::Tempo, bpm, nullptr);
+		var getAsJSON() const;
 
-			return v;
-		}
-
-		var getAsJSON() const
-		{
-			DynamicObject::Ptr obj = new DynamicObject();
-			
-			auto v = exportAsValueTree();
-
-			for (int i = 0; i < v.getNumProperties(); i++)
-			{
-				auto id = v.getPropertyName(i);
-				obj->setProperty(id, v[id]);
-			}
-			
-			return var(obj.get());
-		}
-
-		void restoreFromValueTree(const ValueTree &v) override
-		{
-			numBars =					 v.getProperty(TimeSigIds::NumBars, 0.0);
-			nominator =					 v.getProperty(TimeSigIds::Nominator, 4.0);
-			denominator =				 v.getProperty(TimeSigIds::Denominator, 4.0);
-			normalisedLoopRange.setStart(v.getProperty(TimeSigIds::LoopStart, 0.0));
-			normalisedLoopRange.setEnd(	 v.getProperty(TimeSigIds::LoopEnd, 1.0));
-			bpm =						 v.getProperty(TimeSigIds::Tempo, 120.0);
-		}
-
+		void restoreFromValueTree(const ValueTree &v) override;
 	};
 
 	/** The internal resolution (set to a sensible high default). */
@@ -209,12 +145,7 @@ public:
 	void setLengthFromTimeSignature(TimeSignature s);
 
 	/** Clones this sequence into a new object. */
-	HiseMidiSequence::Ptr clone() const
-	{
-		HiseMidiSequence::Ptr newSeq = new HiseMidiSequence();
-		newSeq->restoreFromValueTree(exportAsValueTree());
-		return newSeq;
-	}
+	HiseMidiSequence::Ptr clone() const;
 
 	/** Creates a temporary MIDI file with the content of this sequence.
 		
@@ -222,15 +153,15 @@ public:
 	*/
 	File writeToTempFile();
 
-	TimeSignature getTimeSignature() const { return signature; }
+	TimeSignature getTimeSignature() const;
 
-	TimeSignature* getTimeSignaturePtr() { return &signature; };
+	TimeSignature* getTimeSignaturePtr();;
 
 	/** Sets the ID of this sequence. */
 	void setId(const Identifier& newId);
 
 	/** Returns the ID of this sequence. */
-	Identifier getId() const noexcept { return id; }
+	Identifier getId() const noexcept;
 
 	/** Returns a read only pointer to the given track.
 	
@@ -248,7 +179,7 @@ public:
 	int getNumEvents() const;
 
 	/** Get the number of tracks in this MIDI sequence. */
-	int getNumTracks() const { return sequences.size(); }
+	int getNumTracks() const;
 
 	/** Sets the current track. */
 	void setCurrentTrackIndex(int index);
@@ -281,12 +212,9 @@ public:
 	/** Creates an empty track and selects it. */
 	void createEmptyTrack();
 
-	TimestampEditFormat getTimestampEditFormat() const { return timestampFormat; }
+	TimestampEditFormat getTimestampEditFormat() const;
 
-	void setTimeStampEditFormat(TimestampEditFormat formatToUse)
-	{
-		timestampFormat = formatToUse;
-	}
+	void setTimeStampEditFormat(TimestampEditFormat formatToUse);
 
 private:
 
@@ -332,7 +260,7 @@ public:
 
 	struct PlaybackListener
 	{
-		virtual ~PlaybackListener() {}
+		virtual ~PlaybackListener();
 
 		virtual void playbackChanged(int timestamp, PlayState newState) = 0;
 
@@ -341,7 +269,7 @@ public:
 
 	struct EventRecordProcessor
 	{
-		virtual ~EventRecordProcessor() {};
+		virtual ~EventRecordProcessor();;
 
 		virtual void processRecordedEvent(HiseEvent& e) = 0;
 
@@ -351,7 +279,7 @@ public:
 	/** A Listener that will be notified when a new HiseMidiSequence was loaded. */
 	struct SequenceListener
 	{
-		virtual ~SequenceListener() {};
+		virtual ~SequenceListener();;
 
 		/** Will be called whenever a new sequence is loaded or the current sequence is changed. 
 		
@@ -409,32 +337,11 @@ public:
 	{
 	public:
 
-		SequenceListAction(MidiPlayer* p, HiseMidiSequence::List newList_, int newSeqIndex):
-			player(p),
-			oldList(p->createListOfCurrentSequences()),
-			newList(newList_),
-			newIndex(newSeqIndex)
-		{
-			oldIndex = oldList.indexOf(p->getCurrentSequence());
-		}
+		SequenceListAction(MidiPlayer* p, HiseMidiSequence::List newList_, int newSeqIndex);
 
-		bool perform() override
-		{
-			if (player == nullptr)
-				return false;
+		bool perform() override;
 
-			player->swapSequenceListWithIndex(newList, newIndex);
-			return true;
-		}
-
-		bool undo() override
-		{
-			if (player == nullptr)
-				return false;
-
-			player->swapSequenceListWithIndex(oldList, oldIndex);
-			return true;
-		}
+		bool undo() override;
 
 	private:
 
@@ -450,31 +357,11 @@ public:
 
 	struct TimesigUndo : public UndoableAction
 	{
-		TimesigUndo(MidiPlayer* player_, HiseMidiSequence::TimeSignature newSig_) :
-			player(player_),
-			newSig(newSig_)
-		{
-			if (auto seq = player->getCurrentSequence())
-				oldSig = seq->getTimeSignature();
-		}
+		TimesigUndo(MidiPlayer* player_, HiseMidiSequence::TimeSignature newSig_);
 
-		bool perform() override
-		{
-			if (player == nullptr)
-				return false;
+		bool perform() override;
 
-			player->setLength(newSig, false);
-			return true;
-		}
-
-		bool undo() override
-		{
-			if (player == nullptr)
-				return false;
-
-			player->setLength(oldSig, false);
-			return true;
-		}
+		bool undo() override;
 
 		WeakReference<MidiPlayer> player;
 		HiseMidiSequence::TimeSignature oldSig;
@@ -542,7 +429,7 @@ public:
 	void loadMidiFile(PoolReference reference);
 
 	/**@ internal */
-	bool isProcessingWholeBuffer() const override { return true; }
+	bool isProcessingWholeBuffer() const override;
 
 	/**@ internal */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock_);
@@ -560,10 +447,10 @@ public:
 	void removeSequenceListener(SequenceListener* listenerToRemove);
 
 	/** Returns the play state as integer. */
-	PlayState getPlayState() const { return playState; };
+	PlayState getPlayState() const;;
 
 	/** Returns the number of sequences loaded into this player. */
-	int getNumSequences() const { return currentSequences.size(); }
+	int getNumSequences() const;
 
 	/** Returns the currently played sequence. */
 	HiseMidiSequence::Ptr getCurrentSequence() const;
@@ -578,10 +465,7 @@ public:
 	double getPlayPackPositionInLoop() const;
 
 	/** This will send any CC messages from the MIDI file to the global MIDI handler. */
-	void setMidiControlAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled)
-	{
-		globalMidiHandlerConsumesCC = shouldBeEnabled;
-	}
+	void setMidiControlAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled);
 
 	void swapCurrentSequence(MidiMessageSequence* newSequence);
 	void enableInternalUndoManager(bool shouldBeEnabled);
@@ -604,40 +488,21 @@ public:
 		This differs from the default undo manager for parameter changes because edits might
 		get triggered by UI controls and it would be difficult to deinterleave parameter changes
 		and MIDI edits. */
-	UndoManager* getUndoManager() { return undoManager; };
+	UndoManager* getUndoManager();;
 
-	void setUseExternalUndoManager(UndoManager* externalUndoManagerToUse)
-	{
-		if (externalUndoManagerToUse == nullptr)
-			undoManager = ownedUndoManager.get();
-		else
-			undoManager = externalUndoManagerToUse;
-	}
+	void setUseExternalUndoManager(UndoManager* externalUndoManagerToUse);
 
 	/** If set to false, the recording will not be flushed and you can preprocess it. */
-	void setFlushRecordingOnStop(bool shouldFlushRecording)
-	{
-		flushRecordedEvents = shouldFlushRecording;
-	}
+	void setFlushRecordingOnStop(bool shouldFlushRecording);
 
 	void setLength(HiseMidiSequence::TimeSignature sig, bool useUndoManager=true);
 
-	double getCurrentTicksSincePlaybackStart() const
-	{
-		return ticksSincePlaybackStart;
-	}
+	double getCurrentTicksSincePlaybackStart() const;
 
-	void setPositionWithTicksFromPlaybackStart(double newPos)
-	{
-		ticksSincePlaybackStart = newPos;
-		updatePositionInCurrentSequence();
-	}
+	void setPositionWithTicksFromPlaybackStart(double newPos);
 
-    void onResync(double ppqPos)
-    {
-        setPositionWithTicksFromPlaybackStart(ppqPos * HiseMidiSequence::TicksPerQuarter);
-    }
-    
+	void onResync(double ppqPos);
+
 	/** Resets the current sequence back to its pooled state. This operation is undo-able. */
 	void resetCurrentSequence();
 
@@ -658,9 +523,9 @@ public:
 		by passing in the timestamp of the current event within the buffer. */
 	bool stop(int timestampInBuffer=0);
 
-	double getTicksPerSample() const { return ticksPerSample * getPlaybackSpeed(); }
+	double getTicksPerSample() const;
 
-	double getPlaybackSpeed() const { return playbackSpeed * getMainController()->getGlobalPlaybackSpeed(); }
+	double getPlaybackSpeed() const;
 
 	/** Starts recording. If the sequence is already playing, it switches into overdub mode, otherwise it also starts playing. */
 	bool record(int timestampInBuffer=0);
@@ -675,26 +540,17 @@ public:
 	HiseMidiSequence::Ptr getListOfCurrentlyRecordedEvents();
 
 	/** Returns the array of HiseEvents without conversion to a HiseMidiSequence. */
-	const Array<HiseEvent>& getListOfCurrentlyRecordedEventsRaw() const { return currentlyRecordedEvents; }
+	const Array<HiseEvent>& getListOfCurrentlyRecordedEventsRaw() const;
 
 	bool saveAsMidiFile(const String& fileName, int trackIndex);
 
-	void addPlaybackListener(PlaybackListener* l)
-	{
-		playbackListeners.addIfNotAlreadyThere(l);
-	}
+	void addPlaybackListener(PlaybackListener* l);
 
-	void removePlaybackListener(PlaybackListener* l)
-	{
-		playbackListeners.removeAllInstancesOf(l);
-	}
+	void removePlaybackListener(PlaybackListener* l);
 
 	void sendSequenceUpdateMessage(NotificationType notification);
 
-	void setNoteOffAtStop(bool shouldMoveNotesOfToStop)
-	{
-		noteOffAtStop = shouldMoveNotesOfToStop;
-	}
+	void setNoteOffAtStop(bool shouldMoveNotesOfToStop);
 
 	double getLoopStart() const;
 
@@ -705,73 +561,34 @@ public:
 	void swapSequenceListWithIndex(HiseMidiSequence::List listToSwapWith, int newSequenceIndex);
 
 	/** @internal. */
-	void setReferenceWithoutLoading(PoolReference r)
-	{
-		forcedReference = r;
-	}
+	void setReferenceWithoutLoading(PoolReference r);
 
 	void setSyncToMasterClock(bool shouldSyncToMasterClock);
 
-	void addEventRecordProcessor(EventRecordProcessor* newProcessor)
-	{
-		eventRecordProcessors.addIfNotAlreadyThere(newProcessor);
-	}
+	void addEventRecordProcessor(EventRecordProcessor* newProcessor);
 
-	void removeEventRecordProcessor(EventRecordProcessor* processorToRemove)
-	{
-		eventRecordProcessors.removeAllInstancesOf(processorToRemove);
-	}
+	void removeEventRecordProcessor(EventRecordProcessor* processorToRemove);
 
 private:
 
-	bool processRecordedEvent(HiseEvent& m)
-	{
-		for (auto& p : eventRecordProcessors)
-		{
-			jassert(p != nullptr);
-
-			if (p != nullptr)
-				p->processRecordedEvent(m);
-		}
-
-		return !m.isIgnored();
-	}
+	bool processRecordedEvent(HiseEvent& m);
 
 	Array<WeakReference<EventRecordProcessor>> eventRecordProcessors;
 
 	struct NotePair
 	{
-		bool operator==(const NotePair& other) const { return on == other.on && off == other.off; }
+		bool operator==(const NotePair& other) const;
 		HiseEvent on;
 		HiseEvent off;
 	};
 
 	struct OverdubUpdater : public PooledUIUpdater::SimpleTimer
 	{
-		OverdubUpdater(MidiPlayer& mp) :
-			SimpleTimer(mp.getMainController()->getGlobalUIUpdater()),
-			parent(mp)
-		{};
+		OverdubUpdater(MidiPlayer& mp);;
 
-		void timerCallback() override
-		{
-			if (dirty)
-			{
-				parent.flushOverdubNotes(lastTimestamp);
-				lastTimestamp = -1.0;
-				dirty.store(false);
-			}
-		}
+		void timerCallback() override;
 
-		void setDirty(double activeNoteTimestamp=-1.0)
-		{
-			if (activeNoteTimestamp != lastTimestamp)
-			{
-				lastTimestamp = activeNoteTimestamp;
-			}
-
-			dirty.store(true);
-		}
+		void setDirty(double activeNoteTimestamp=-1.0);
 
 		double lastTimestamp = -1.0;
 		std::atomic<bool> dirty = { false };
@@ -829,7 +646,7 @@ private:
 	bool noteOffAtStop = false;
 
 
-	bool isRecording() const noexcept { return getPlayState() == PlayState::Record; }
+	bool isRecording() const noexcept;
 
 	bool globalMidiHandlerConsumesCC = false;
 
@@ -885,52 +702,36 @@ public:
 	{
 	public:
 
-		String getId() const override { return "MIDI Transport"; }
+		String getId() const override;
 
 		Path createPath(const String& name) const override;
 	};
 
 	// "Overwrite" this with your id for the factory
-	static Identifier getId() { RETURN_STATIC_IDENTIFIER("undefined"); }
+	static Identifier getId();
 
 	// "Overwrite" this and return a new object for the given object for the factory
-	static MidiPlayerBaseType* create(MidiPlayer* player) 
-	{
-		ignoreUnused(player);
-		return nullptr; 
-	};
+	static MidiPlayerBaseType* create(MidiPlayer* player);;
 
 	virtual ~MidiPlayerBaseType();
-	virtual int getPreferredHeight() const { return 0; }
+	virtual int getPreferredHeight() const;
 
-	void setFont(Font f)
-	{
-		font = f;
-	}
+	void setFont(Font f);
 
 	void initMidiPlayer(MidiPlayer* player);
 
 protected:
 
-	void cancelUpdates()
-	{
-		if (player != nullptr)
-		{
-			player->removeSequenceListener(this);
-		}
-	}
+	void cancelUpdates();
 
 	MidiPlayerBaseType(MidiPlayer* player_);;
 
 	
 
-	MidiPlayer* getPlayer() { return player.get(); }
-	const MidiPlayer* getPlayer() const { return player.get(); }
+	MidiPlayer* getPlayer();
+	const MidiPlayer* getPlayer() const;
 
-	Font getFont() const
-	{
-		return font;
-	}
+	Font getFont() const;
 
 private:
 

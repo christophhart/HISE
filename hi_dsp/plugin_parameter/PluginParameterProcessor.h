@@ -60,12 +60,7 @@ public:
     //==============================================================================
     
 	/** You have to create and add all PluginParameters here in order to ensure compatibility with most hosts */
-	PluginParameterAudioProcessor(const String &name_ = "Untitled"):
-		AudioProcessor(getHiseBusProperties()),
-		name(name_)
-	{
-		
-	}
+	PluginParameterAudioProcessor(const String &name_ = "Untitled");
 
 #if HISE_MIDIFX_PLUGIN
 	bool isMidiEffect() const override
@@ -74,81 +69,11 @@ public:
 	}
 #endif
 
-	BusesProperties getHiseBusProperties() const
-	{
-#if HISE_MIDIFX_PLUGIN
-		return BusesProperties();
-#endif
+	BusesProperties getHiseBusProperties() const;
 
-#if FRONTEND_IS_PLUGIN
-#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
-#if HI_SUPPORT_MONO_TO_STEREO
-		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
-#else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());		
-#endif
-#else
+    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
 
-		constexpr int numChannels = HISE_NUM_FX_PLUGIN_CHANNELS;
-
-		auto busProp = BusesProperties();
-
-		for (int i = 0; i < numChannels; i += 2)
-			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
-
-		return busProp;
-		
-#endif
-#else
-auto busProp = BusesProperties();
-
-		// Protools is behaving really nasty and hiding the instrument plugin if it hasn't at least one input bus...
-		if (getWrapperTypeBeingCreated() == wrapperType_AAX || FORCE_INPUT_CHANNELS)
-			busProp = busProp.withInput("Input", AudioChannelSet::stereo());
-		
-#if IS_STANDALONE_FRONTEND
-		constexpr int numChannels = 2;
-#else
-		constexpr int numChannels = HISE_NUM_PLUGIN_CHANNELS;
-#endif
-
-		for (int i = 0; i < numChannels; i += 2)
-			busProp = busProp.withOutput("Channel " + String(i + 1) + "+" + String(i + 2), AudioChannelSet::stereo());
-
-		return busProp;
-
-#endif
-	}
-    
-    bool isBusesLayoutSupported (const BusesLayout& layouts) const override
-    {
-		auto inputs = layouts.getMainInputChannels();
-		auto outputs = layouts.getMainOutputChannels();
-
-#if HISE_MIDIFX_PLUGIN
-		return inputs == 0 && outputs == 0;
-#endif
-
-#if FRONTEND_IS_PLUGIN
-#if HI_SUPPORT_MONO_CHANNEL_LAYOUT
-#if HI_SUPPORT_MONO_TO_STEREO
-		if (outputs == 1) return false; // only mono to stereo support
-		return (outputs == 2) && (inputs == 1 || inputs == 2);
-#else
-		return (inputs == 1 && outputs == 1) ||
-			   (inputs == 2 && outputs == 2);
-#endif
-#else
-		return inputs == 2 && outputs == 2;
-#endif
-#else
-		bool isStereo = (inputs == 2 || inputs == 0) && outputs == 2;
-        bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS || inputs == 0) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
-        return isStereo || isMultiChannel;
-#endif
-    }
-    
-	virtual ~PluginParameterAudioProcessor() {};
+    virtual ~PluginParameterAudioProcessor();;
 
 	void handleLatencyInPrepareToPlay(double samplerate);
 
@@ -158,22 +83,22 @@ auto busProp = BusesProperties();
 	void addScriptedParameters();
 
     //==============================================================================
-	const String getName() const {return name;};
+	const String getName() const;;
 
-	const String getInputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};
-    const String getOutputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};
-	bool isInputChannelStereoPair (int ) const {return true;};
-	bool isOutputChannelStereoPair (int ) const {return true;};
+	const String getInputChannelName (int channelIndex) const;;
+    const String getOutputChannelName (int channelIndex) const;;
+	bool isInputChannelStereoPair (int ) const;;
+	bool isOutputChannelStereoPair (int ) const;;
 
 	void setNonRealtime(bool isNonRealtime) noexcept override;
 
 
     //==============================================================================
-	int getNumPrograms() {return 1;};
-	int getCurrentProgram() {return 0;};
-	void setCurrentProgram (int ) {};
-	const String getProgramName (int ) {return "Default";};
-	void changeProgramName (int , const String& ) {};
+	int getNumPrograms();;
+	int getCurrentProgram();;
+	void setCurrentProgram (int );;
+	const String getProgramName (int );;
+	void changeProgramName (int , const String& );;
     
 	String name;
 

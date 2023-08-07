@@ -163,6 +163,80 @@ ProcessorEditorChainBar::~ProcessorEditorChainBar()
 
 }
 
+int ProcessorEditorChainBar::getActualHeight()
+{ 
+#if HISE_IOS
+		return chainButtons.size() != 0 ? 35 : 0; 
+#else
+	return chainButtons.size() != 0 ? 22 : 0; 
+#endif
+}
+
+String ProcessorEditorChainBar::getShortName(const String identifier) const
+{
+	if(identifier == "GainModulation") return "Gain";
+	else if (identifier == "PitchModulation") return "Pitch";
+	else if (identifier == "Midi Processor") return "MIDI";
+	else return identifier;
+}
+
+void ProcessorEditorChainBar::changeListenerCallback(SafeChangeBroadcaster*)
+{
+	for(int i = 1; i < chainButtons.size(); i++)
+	{
+		checkActiveChilds(i-1);
+	}
+}
+
+Chain* ProcessorEditorChainBar::getChainForButton(Component* checkComponent)
+{
+	int index = chainButtons.indexOf(dynamic_cast<TextButton*>(checkComponent));
+
+	if (index > 0)
+	{
+	
+
+		return dynamic_cast<Chain*>(getEditor()->getProcessor()->getChildProcessor(index - 1));
+	}
+	else return nullptr;
+}
+
+void ProcessorEditorChainBar::setMidiIconActive(bool shouldBeActive) noexcept
+{
+	if (midiButton != nullptr)
+	{
+		if (!shouldBeActive && midiActive)
+		{
+			midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colour(0xaa000000));
+			midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColourOff, Colour(0x99ffffff));
+			repaint();
+		}
+		else if (shouldBeActive && !midiActive)
+		{
+			midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colours::black.withAlpha(0.3f));
+			midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColourOff, Colours::white);
+
+				
+
+			repaint();
+			startTimer(150);
+		}
+
+		midiActive = shouldBeActive;
+	}
+		
+}
+
+void ProcessorEditorChainBar::setDragInsertPosition(int newInsertPosition)
+{
+	if (itemDragging)
+	{
+		insertPosition = newInsertPosition;
+		repaint();
+	}
+	else insertPosition = -1;
+}
+
 
 void ProcessorEditorChainBar::checkActiveChilds(int chainToCheck)
 {

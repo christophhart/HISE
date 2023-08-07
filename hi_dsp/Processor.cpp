@@ -173,6 +173,287 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 			}
 		}	
 	}
+}
+
+ProcessorDocumentation* Processor::createDocumentation() const
+{ return nullptr; }
+
+const Path Processor::getSymbol() const
+{
+	if(symbol.isEmpty())
+	{
+		return getSpecialSymbol();
+	}
+	else return symbol;
+}
+
+void Processor::setSymbol(Path newSymbol)
+{symbol = newSymbol;	}
+
+void Processor::setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor)
+{
+	setInternalAttribute(parameterIndex, newValue);
+	if(notifyEditor == sendNotification) sendPooledChangeMessage();
+}
+
+float Processor::getDefaultValue(int) const
+{ return 1.0f; }
+
+int Processor::getNumInternalChains() const
+{ return 0;}
+
+void Processor::enableConsoleOutput(bool shouldBeEnabled)
+{consoleEnabled = shouldBeEnabled;}
+
+Colour Processor::getColour() const
+{
+	return Colours::grey;
+}
+
+int Processor::getVoiceAmount() const noexcept
+{ return numVoices; }
+
+const String& Processor::getId() const
+{return id;}
+
+const String Processor::getName() const
+{
+	return getType().toString();
+}
+
+void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
+{
+	id = newId;
+
+	if (Identifier::isValidIdentifier(id))
+	{
+		idAsIdentifier = Identifier(id);
+	}
+	else
+	{
+		idAsIdentifier = Identifier();
+	}
+
+	sendChangeMessage();
+
+	if (notifyChangeHandler)
+		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
+			MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
+}
+
+const Identifier& Processor::getIDAsIdentifier() const
+{
+	return idAsIdentifier;
+}
+
+void Processor::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
+{ 
+	if (bypassed != shouldBeBypassed)
+	{
+		bypassed = shouldBeBypassed;
+		currentValues.clear();
+
+		sendSynchronousBypassChangeMessage();
+
+		if (notifyChangeHandler)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
+	}		
+}
+
+bool Processor::isBypassed() const noexcept
+{ return bypassed; }
+
+void Processor::sendSynchronousBypassChangeMessage()
+{
+	for (auto l : bypassListeners)
+		if (l)
+			l->bypassStateChanged(this, bypassed);
+}
+
+void Processor::prepareToPlay(double sampleRate_, int samplesPerBlock_)
+{
+	samplerate = sampleRate_;
+	largestBlockSize = samplesPerBlock_;
+}
+
+double Processor::getSampleRate() const
+{ return samplerate; }
+
+int Processor::getLargestBlockSize() const
+{   
+	return largestBlockSize;
+}
+
+float Processor::getOutputValue() const
+{	return currentValues.outL;	}
+
+float Processor::getInputValue() const
+{
+	return inputValue;
+}
+
+void Processor::setEditorState(int state, bool isOn, NotificationType notifyView)
+{
+	const Identifier stateId = getEditorStateForIndex(state);
+
+	editorStateValueSet.set(stateId, isOn);
+}
+
+const var Processor::getEditorState(Identifier editorStateId) const
+{
+	return editorStateValueSet[editorStateId];
+}
+
+void Processor::setEditorState(Identifier state, var stateValue, NotificationType notifyView)
+{
+	jassert(state.isValid());
+
+	editorStateValueSet.set(state, stateValue);
+}
+
+Identifier Processor::getEditorStateForIndex(int index) const
+{
+	// Did you forget to add the identifier to the id list in your subtype constructor?
+	jassert(index < editorStateIdentifiers.size());
+
+	return editorStateIdentifiers[index];
+}
+
+void Processor::toggleEditorState(int index, NotificationType notifyEditor)
+{
+	bool on = getEditorState(getEditorStateForIndex(index));
+
+	setEditorState(getEditorStateForIndex(index), !on, notifyEditor);
+}
+
+bool Processor::getEditorState(int state) const
+{
+	return editorStateValueSet[getEditorStateForIndex(state)];
+
+	//return editorState[state];
+}
+
+XmlElement* Processor::getCompleteEditorState() const
+{
+	XmlElement *state = new XmlElement("EditorState");
+
+	editorStateValueSet.copyToXmlAttributes(*state);
+
+	return state;
+}
+
+void Processor::restoreCompleteEditorState(const XmlElement* storedState)
+{
+	if(storedState != nullptr)
+	{
+		editorStateValueSet.setFromXmlAttributes(*storedState);
+	}
+}
+
+Processor::DisplayValues::DisplayValues():
+	inL(0.0f),
+	inR(0.0f),
+	outL(0.0f),
+	outR(0.0f)
+{}
+
+void Processor::DisplayValues::clear()
+{
+	inL = 0.0f;
+	inR = 0.0f;
+	outL = 0.0f;
+	outR = 0.0f;
+}
+
+Processor::DisplayValues Processor::getDisplayValues() const
+{ return currentValues;}
+
+Processor::BypassListener::~BypassListener()
+{}
+
+String Processor::getDescriptionForParameters(int parameterIndex)
+{
+	if (parameterNames.size() == parameterDescriptions.size())
+		return parameterDescriptions[parameterIndex];
+
+	return "-";
+}
+
+bool Processor::isOnAir() const noexcept
+{ return onAir; }
+
+Processor::DeleteListener::~DeleteListener()
+{
+	masterReference.clear();
+}
+
+void Processor::addDeleteListener(DeleteListener* listener)
+{
+	deleteListeners.addIfNotAlreadyThere(listener);
+}
+
+void Processor::setIsWaitingForDeletion()
+{
+	// Must be called before this method
+	jassert(!isOnAir());
+	pendingDelete = true;
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+		getChildProcessor(i)->setIsWaitingForDeletion();
+}
+
+bool Processor::isWaitingForDeletion() const noexcept
+{
+	return pendingDelete;
+}
+
+void Processor::removeDeleteListener(DeleteListener* listener)
+{
+	deleteListeners.removeAllInstancesOf(listener);
+}
+
+void Processor::addBypassListener(BypassListener* l)
+{
+	bypassListeners.addIfNotAlreadyThere(l);
+}
+
+void Processor::removeBypassListener(BypassListener* l)
+{
+	bypassListeners.removeAllInstancesOf(l);
+}
+
+void Processor::setParentProcessor(Processor* newParent)
+{
+	// You must call setParentProcessor before locking and inserting to the processing chain
+	jassert(!isOnAir());
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+
+	parentProcessor = newParent;
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+		getChildProcessor(i)->setParentProcessor(this);
+}
+
+Path Processor::getSpecialSymbol() const
+{ return Path(); }
+
+void Processor::setOutputValue(float newValue)
+{
+	currentValues.outL = newValue;
+
+	//outputValue = (double)newValue;
+	//sendChangeMessage();
+}
+
+void Processor::setInputValue(float newValue, NotificationType notify)
+{
+	inputValue = newValue;
+
+	if(notify == sendNotification)
+	{
+		sendPooledChangeMessage();
+	}
 };
 
 void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
@@ -564,6 +845,15 @@ Processor * ProcessorHelpers::findParentProcessor(Processor *childProcessor, boo
 	}
 
 	return nullptr;
+}
+
+juce::NotificationType ProcessorHelpers::getAttributeNotificationType()
+{
+#if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
+        return dontSendNotification;
+#else
+	return sendNotification;
+#endif
 }
 
 template <class ProcessorType>
@@ -1019,6 +1309,18 @@ ValueTree ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(const
 	return {};
 }
 
+void ProcessorHelpers::connectTableEditor(TableEditor& t, Processor* p, int index)
+{
+	if(auto eh = dynamic_cast<snex::ExternalDataHolder*>(p))
+	{
+		t.setEditedTable(eh->getTable(index));
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
+
 hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButtonForParameter(int index, Component* componentToAttachTo)
 {
 	if (index < parameters.size())
@@ -1139,6 +1441,57 @@ void ProcessorDocumentation::fillMissingParameters(Processor* p)
 
     Entry::Sorter s;
 	parameters.sort(s);
+}
+
+int ProcessorDocumentation::Entry::Sorter::compareElements(Entry& first, Entry& second)
+{
+	if (first.index > second.index)
+		return 1;
+	else if (first.index < second.index)
+		return -1;
+	else
+		return 0;
+}
+
+bool ProcessorDocumentation::Entry::operator==(const Entry& other) const
+{ return id == other.id; }
+
+ProcessorDocumentation::~ProcessorDocumentation()
+{}
+
+int ProcessorDocumentation::getNumAttributes() const
+{ return parameters.size(); }
+
+Identifier ProcessorDocumentation::getAttributeId(int index) const
+{ return parameters[index].id; }
+
+void ProcessorDocumentation::setOffset(int pOffset, int cOffset)
+{
+	parameterOffset = pOffset;
+	chainOffset = cOffset;
+}
+
+ProcessorDocumentation::ProcessorDocumentation()
+{}
+
+void ProcessorDocumentation::addParameter(Entry newParameter)
+{
+	parameters.add(newParameter);
+}
+
+void ProcessorDocumentation::addChain(Entry newChain)
+{
+	chains.add(newChain);
+}
+
+void ProcessorDocumentation::addLine(const String& l)
+{
+	description << l << "\n";
+}
+
+void ProcessorDocumentation::setName(const String& name_)
+{
+	name = name_;
 }
 
 juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const

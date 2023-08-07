@@ -210,6 +210,163 @@ const Processor * ModulatorSynth::getChildProcessor(int processorIndex) const
 	}
 }
 
+int ModulatorSynth::getNumChildProcessors() const
+{ return numInternalChains; }
+
+int ModulatorSynth::getNumInternalChains() const
+{ return numInternalChains; }
+
+void ModulatorSynth::setIconColour(Colour newIconColour)
+{ 
+	iconColour = newIconColour; 
+	getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+}
+
+Colour ModulatorSynth::getIconColour() const
+{ return iconColour; }
+
+Colour ModulatorSynth::getColour() const
+{ return HiseColourScheme::getColour(HiseColourScheme::ModulatorSynthBackgroundColourId); }
+
+bool ModulatorSynth::isSoftBypassed() const
+{ return bypassState; }
+
+ModulatorSynth::SoundCollectorBase::~SoundCollectorBase()
+{}
+
+void ModulatorSynth::initRenderCallback()
+{
+	internalBuffer.clear();
+}
+
+void ModulatorSynth::setGain(float newGain)
+{
+	gain = newGain;
+}
+
+void ModulatorSynth::setBalance(float newBalance)
+{
+	const float l = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), true);
+	const float r = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), false);
+
+	balance.store(newBalance);
+	leftBalanceGain.store(l);
+	rightBalanceGain.store(r);
+}
+
+float ModulatorSynth::getBalance(bool getRightChannelGain) const
+{
+	return getRightChannelGain ? rightBalanceGain : leftBalanceGain;
+}
+
+float ModulatorSynth::getGain() const
+{	return gain; }
+
+ModulatorSynthGroup* ModulatorSynth::getGroup() const
+{	return group; }
+
+bool ModulatorSynth::isInGroup() const
+{ return group != nullptr;}
+
+void ModulatorSynth::setClockSpeed(ClockSpeed newClockSpeed)
+{
+	clockSpeed = newClockSpeed;
+}
+
+bool ModulatorSynth::allowEmptyPitchValues() const
+{
+	const bool isGroup = ProcessorHelpers::is<ModulatorSynthGroup>(this);
+
+	return !(isGroup || isInGroup());
+}
+
+const float* ModulatorSynth::getConstantPitchValues() const
+{ return pitchBuffer.getReadPointer(0);	}
+
+double ModulatorSynth::getSampleRate() const
+{ return Processor::getSampleRate(); }
+
+void ModulatorSynth::setKillRetriggeredNote(bool shouldBeKilled)
+{ shouldKillRetriggeredNote = shouldBeKilled; }
+
+float* ModulatorSynth::getPitchValuesForVoice() const
+{
+	if (useScratchBufferForArtificialPitch)
+		return modChains[BasicChains::PitchChain].getScratchBuffer();
+		
+	return modChains[BasicChains::PitchChain].getWritePointerForVoiceValues(0);
+}
+
+void ModulatorSynth::overwritePitchValues(const float* modDataValues, int startSample, int numSamples)
+{
+	useScratchBufferForArtificialPitch = true;
+
+	auto destination = modChains[BasicChains::PitchChain].getScratchBuffer();
+
+	FloatVectorOperations::copy(destination + startSample, modDataValues + startSample, numSamples);
+}
+
+const float* ModulatorSynth::getVoiceGainValues() const
+{
+	return modChains[BasicChains::GainChain].getReadPointerForVoiceValues(0);
+}
+
+float ModulatorSynth::getConstantPitchModValue() const
+{
+	return modChains[BasicChains::PitchChain].getConstantModulationValue();
+}
+
+float ModulatorSynth::getConstantGainModValue() const
+{
+	return modChains[BasicChains::GainChain].getConstantModulationValue();
+}
+
+float ModulatorSynth::getConstantVoicePitchModulationValueDeleteSoon() const
+{
+	// Is applied to uptimeDelta already...
+	jassertfalse;
+
+	return 1.0f;
+}
+
+HiseEventBuffer* ModulatorSynth::getEventBuffer()
+{ return &eventBuffer; }
+
+void ModulatorSynth::setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalHandlerToUse)
+{
+	currentUniformVoiceHandler = shouldUseVoiceHandler ? externalHandlerToUse :
+		                             nullptr;
+}
+
+bool ModulatorSynth::isUsingUniformVoiceHandler() const
+{ return currentUniformVoiceHandler.get() != nullptr; }
+
+UniformVoiceHandler* ModulatorSynth::getUniformVoiceHandler() const
+{
+	return currentUniformVoiceHandler.get();
+        
+}
+
+bool ModulatorSynth::synthNeedsEnvelope() const
+{ return true; }
+
+bool ModulatorSynth::checkTimerCallback(int timerIndex, int numSamplesThisBlock) const noexcept
+{
+	if(!anyTimerActive)
+		return false;
+        
+	auto nextCallbackTime = nextTimerCallbackTimes[timerIndex].load();
+
+	if (nextTimerCallbackTimes[timerIndex] == 0.0)
+		return false;
+
+	auto uptime = getMainController()->getUptime();
+	auto timeThisBlock = (double)numSamplesThisBlock / getSampleRate();
+
+	Range<double> rangeThisBlock(uptime, uptime + timeThisBlock);
+	return uptime > nextCallbackTime || rangeThisBlock.contains(nextCallbackTime);
+}
+
 int ModulatorSynth::getFreeTimerSlot()
 {
 	if (synthTimerIntervals[0] == 0.0) return 0;
@@ -1770,6 +1927,237 @@ hise::ModulatorSynthVoice* ModulatorSynth::getVoiceToStart(const HiseEvent& m)
 	return v;
 }
 
+ModulatorSynthVoice::ModulatorSynthVoice(ModulatorSynth* ownerSynth_):
+	SynthesiserVoice(),
+	ownerSynth(ownerSynth_),
+	voiceIndex(ownerSynth_->getNumVoices()),
+	voiceUptime(0.0),
+	voiceBuffer(2, 0),
+	uptimeDelta(0.0),
+	killThisVoice(false),
+	startUptime(DBL_MAX),
+	killFadeLevel(1.0f),
+	killFadeFactor(0.5f),
+	isTailing(false)
+{
+	pitchFader.setValueWithoutSmoothing(1.0);
+	gainFader.setValue(1.0f);
+}
+
+bool ModulatorSynthVoice::isPitchFadeActive() const noexcept
+{
+	return pitchFader.isSmoothing();
+}
+
+void ModulatorSynthVoice::applyScriptPitchFactors(float* voicePitchModulationData, int numSamples)
+{
+	jassert(pitchFader.isSmoothing());
+
+	float eventPitchFactorFloat = (float)eventPitchFactor;
+
+	while (--numSamples >= 0)
+	{
+		eventPitchFactor = pitchFader.getNextValue();
+		*voicePitchModulationData++ *= eventPitchFactorFloat;
+	}
+}
+
+bool ModulatorSynthVoice::canPlaySound(SynthesiserSound* s)
+{
+	return s != nullptr;
+}
+
+const HiseEvent& ModulatorSynthVoice::getCurrentHiseEvent() const
+{ return currentHiseEvent; }
+
+void ModulatorSynthVoice::addToStartOffset(uint16 delta)
+{
+	currentHiseEvent.setStartOffset(currentHiseEvent.getStartOffset() + delta);
+}
+
+void ModulatorSynthVoice::startNote(int, float, SynthesiserSound*, int)
+{
+	LOG_SYNTH_EVENT("Start Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
+
+	jassert(!currentHiseEvent.isEmpty());
+
+	killThisVoice = false;
+	isTailing = false;
+	voiceUptime = 0.0;
+	uptimeDelta = 0.0;
+	startUptimeDelta = 0.0;
+	isActive = true;
+}
+
+bool ModulatorSynthVoice::isBeingKilled() const
+{
+	return killThisVoice;
+}
+
+bool ModulatorSynthVoice::isTailingOff() const
+{
+	return isTailing;
+}
+
+void ModulatorSynthVoice::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	SynthesiserVoice::setCurrentPlaybackSampleRate(sampleRate);
+
+	ProcessorHelpers::increaseBufferIfNeeded(voiceBuffer, samplesPerBlock);
+}
+
+void ModulatorSynthVoice::setInactive()
+{
+	// Call this only on non active notes!
+	jassert(uptimeDelta == 0.0);
+
+	uptimeDelta = 0.0;
+	isActive = false;
+		
+}
+
+bool ModulatorSynthVoice::isInactive() const noexcept
+{
+	return !isActive; //uptimeDelta == 0.0;
+}
+
+void ModulatorSynthVoice::killVoice()
+{
+	//stopNote(true);
+	killThisVoice = true;	
+}
+
+bool const ModulatorSynthVoice::shouldBeKilled() const
+{
+	return killThisVoice;
+}
+
+void ModulatorSynthVoice::setKillFadeFactor(float newKillFadeFactor)
+{
+	killFadeFactor = newKillFadeFactor;
+}
+
+void ModulatorSynthVoice::applyKillFadeout(int startSample, int numSamples)
+{
+	while(--numSamples >= 0)
+	{
+		killFadeLevel *= killFadeFactor;
+
+		for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+		{
+			voiceBuffer.getWritePointer(i)[startSample] *= killFadeLevel;
+		}
+
+		startSample++;
+	}
+}
+
+void ModulatorSynthVoice::applyEventVolumeFade(int startSample, int numSamples)
+{
+	while (--numSamples >= 0)
+	{
+		eventGainFactor = gainFader.getNextValue();
+
+		for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+		{
+			voiceBuffer.getWritePointer(i)[startSample] *= eventGainFactor;
+		}
+
+		startSample++;
+	}
+}
+
+void ModulatorSynthVoice::applyEventVolumeFactor(int startSample, int numSamples)
+{
+	jassert(eventGainFactor >= 0.0f && eventGainFactor < 20.0f);
+
+	if(eventGainFactor == 0.0f)
+	{
+		killVoice();
+	}
+        
+	for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i) + startSample , eventGainFactor, numSamples);
+	}
+}
+
+void ModulatorSynthVoice::pitchWheelMoved(int)
+{ }
+
+void ModulatorSynthVoice::controllerMoved(int, int)
+{ }
+
+const float* ModulatorSynthVoice::getVoiceValues(int channelIndex, int startSample) const
+{
+	return voiceBuffer.getReadPointer(channelIndex, startSample);
+}
+
+double ModulatorSynthVoice::getVoiceUptime() const noexcept
+{ return startUptime; }
+
+void ModulatorSynthVoice::setStartUptime(double newUptime) noexcept
+{ startUptime = newUptime; }
+
+void ModulatorSynthVoice::setScriptGainValue(float newGainValue)
+{ scriptGainValue = newGainValue; }
+
+void ModulatorSynthVoice::setScriptPitchValue(float newPitchValue)
+{ scriptPitchValue = newPitchValue; }
+
+void ModulatorSynthVoice::setTransposeAmount(int value) noexcept
+{ transposeAmount = value; }
+
+int ModulatorSynthVoice::getTransposeAmount() const noexcept
+{ return transposeAmount; }
+
+void ModulatorSynthVoice::setVolumeFade(double fadeTimeSeconds, float targetVolume)
+{
+	if (fadeTimeSeconds == 0.0)
+	{
+		eventGainFactor = targetVolume;
+		gainFader.setValueWithoutSmoothing(targetVolume);
+	}
+	else
+	{
+		gainFader.setValueAndRampTime(targetVolume, getSampleRate(), fadeTimeSeconds);
+	}
+}
+
+void ModulatorSynthVoice::setPitchFade(double fadeTimeSeconds, double targetPitch)
+{
+	if (fadeTimeSeconds == 0.0)
+	{
+		eventPitchFactor = targetPitch;
+		pitchFader.setValueWithoutSmoothing(eventPitchFactor);
+	}
+	else
+	{
+		pitchFader.setValueAndRampTime(targetPitch, getSampleRate(), fadeTimeSeconds);
+	}
+}
+
+void ModulatorSynthVoice::saveStartUptimeDelta()
+{
+	startUptimeDelta = uptimeDelta;
+}
+
+void ModulatorSynthVoice::setUptimeDeltaValueForBlock()
+{
+	uptimeDelta = startUptimeDelta * (isPitchFadeActive() ? 1.0 : eventPitchFactor);
+}
+
+void ModulatorSynthVoice::applyConstantPitchFactor(double pitchFactorToAdd)
+{
+	uptimeDelta *= pitchFactorToAdd;
+}
+
+const ModulatorSynth* ModulatorSynthVoice::getOwnerSynth() const noexcept
+{ return ownerSynth; }
+
+ModulatorSynth* ModulatorSynthVoice::getOwnerSynth() noexcept
+{ return ownerSynth; }
+
 void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
 {
 	if (isActive)
@@ -1814,6 +2202,15 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 	pitchFader.setValueWithoutSmoothing(eventPitchFactor);
 }
 
+
+UniformVoiceHandler::UniformVoiceHandler(ModulatorSynth* parent_): parent(parent_)
+{ rebuildChildSynthList(); }
+
+UniformVoiceHandler::~UniformVoiceHandler()
+{
+	childSynths.clear();
+	parent = nullptr;
+}
 
 void UniformVoiceHandler::rebuildChildSynthList()
 {
@@ -1931,6 +2328,28 @@ void UniformVoiceHandler::cleanupAfterProcessing()
 
         voiceIndex++;
     }
+}
+
+bool ModulatorSynthSound::appliesToMessage(int midiChannel, const int midiNoteNumber, const int velocity)
+{
+	return appliesToChannel(midiChannel) && appliesToNote(midiNoteNumber) && appliesToVelocity(velocity);
+}
+
+ModulatorSynthChainFactoryType::ModulatorSynthChainFactoryType(int numVoices_, Processor* ownerProcessor):
+	FactoryType(ownerProcessor),
+	numVoices(numVoices_)
+{
+	fillTypeNameList();
+}
+
+void ModulatorSynthChainFactoryType::setNumVoices(int newNumVoices)
+{
+	numVoices = newNumVoices;
+}
+
+const Array<FactoryType::ProcessorEntry>& ModulatorSynthChainFactoryType::getTypeNames() const
+{
+	return typeNames;
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()

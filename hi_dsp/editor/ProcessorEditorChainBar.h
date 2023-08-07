@@ -49,36 +49,17 @@ public:
 
 	
 
-	int getActualHeight()
-	{ 
-#if HISE_IOS
-		return chainButtons.size() != 0 ? 35 : 0; 
-#else
-		return chainButtons.size() != 0 ? 22 : 0; 
-#endif
-	};
+	int getActualHeight();;
 
 	/** This shortens the ModulatorChain ids ("GainModulation" -> "Gain" etc.) for nicer display. */
-	String getShortName(const String identifier) const
-	{
-		if(identifier == "GainModulation") return "Gain";
-		else if (identifier == "PitchModulation") return "Pitch";
-		else if (identifier == "Midi Processor") return "MIDI";
-		else return identifier;
-	}
+	String getShortName(const String identifier) const;
 
-	/** Checks if the hidden Chain contains childs and paints it red if yes. */
+    /** Checks if the hidden Chain contains childs and paints it red if yes. */
 	void checkActiveChilds(int chainToCheck);
 	
-	void changeListenerCallback(SafeChangeBroadcaster *) override
-	{
-		for(int i = 1; i < chainButtons.size(); i++)
-		{
-			checkActiveChilds(i-1);
-		}
-	}
+	void changeListenerCallback(SafeChangeBroadcaster *) override;
 
-	bool isInterestedInDragSource(const SourceDetails & 	dragSourceDetails) override;
+    bool isInterestedInDragSource(const SourceDetails & 	dragSourceDetails) override;
 
 	void itemDragEnter(const SourceDetails &dragSourceDetails) override;
 	void itemDragExit(const SourceDetails &dragSourceDetails) override;
@@ -98,45 +79,9 @@ public:
 
 	void timerCallback() override;
 
-	Chain *getChainForButton(Component *checkComponent)
-	{
-		int index = chainButtons.indexOf(dynamic_cast<TextButton*>(checkComponent));
+	Chain *getChainForButton(Component *checkComponent);
 
-		if (index > 0)
-		{
-	
-
-			return dynamic_cast<Chain*>(getEditor()->getProcessor()->getChildProcessor(index - 1));
-		}
-		else return nullptr;
-	}
-	
-	void setMidiIconActive(bool shouldBeActive) noexcept
-	{
-		if (midiButton != nullptr)
-		{
-			if (!shouldBeActive && midiActive)
-			{
-				midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colour(0xaa000000));
-				midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColourOff, Colour(0x99ffffff));
-				repaint();
-			}
-			else if (shouldBeActive && !midiActive)
-			{
-				midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colours::black.withAlpha(0.3f));
-				midiButton->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColourOff, Colours::white);
-
-				
-
-				repaint();
-				startTimer(150);
-			}
-
-			midiActive = shouldBeActive;
-		}
-		
-	}
-	
+    void setMidiIconActive(bool shouldBeActive) noexcept;
 
 private:
 
@@ -154,17 +99,9 @@ private:
 	bool itemDragging;
 	bool canBeDropped;
 
-	void setDragInsertPosition(int newInsertPosition)
-	{
-		if (itemDragging)
-		{
-			insertPosition = newInsertPosition;
-			repaint();
-		}
-		else insertPosition = -1;
-	}
+	void setDragInsertPosition(int newInsertPosition);
 
-	ScopedPointer<ChainBarButtonLookAndFeel> laf;
+    ScopedPointer<ChainBarButtonLookAndFeel> laf;
 
     bool midiActive = false;
 

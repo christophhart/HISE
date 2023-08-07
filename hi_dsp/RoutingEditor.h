@@ -55,12 +55,12 @@ public:
 
 		void resized();
 
-		Point<int> getConnectionPoint() const {	return Point<int>(getWidth() / 2, isSource ? getHeight() - 3 : 3); }
-		Point<int> getConnectionPointInParent() const { return getParentComponent()->getLocalPoint(this, getConnectionPoint()); }
+		Point<int> getConnectionPoint() const;
+		Point<int> getConnectionPointInParent() const;
 
-		void setUsed(bool shouldBeUsed) { used = shouldBeUsed; repaint(); }
-		void setSelected(bool shouldBeSelected, bool shouldBeSelectedAsSend) { selected = shouldBeSelected; selectedAsSend = shouldBeSelectedAsSend; repaint(); }
-		bool isDifferent(const ChannelConnector *otherConnector) const { return otherConnector->isSource != isSource; }
+		void setUsed(bool shouldBeUsed);
+		void setSelected(bool shouldBeSelected, bool shouldBeSelectedAsSend);
+		bool isDifferent(const ChannelConnector *otherConnector) const;
 
 		void setGainValue(float gainValue);
 
@@ -85,20 +85,7 @@ public:
 	void resized() override;
 	void paint(Graphics& g) override;
 
-	void timerCallback() override
-	{
-		if (data.get() == nullptr)
-			return;
-
-		for (int i = 0; i < sourceChannels.size(); i++)
-		{
-			sourceChannels[i]->setGainValue(data->getGainValue(i, true) * 2.0f);
-		}
-		for (int i = 0; i < destinationChannels.size(); i++)
-		{
-			destinationChannels[i]->setGainValue(data->getGainValue(i, false) * 2.0f);
-		}
-	}
+	void timerCallback() override;
 
 	void deselectAll();
 	void changeListenerCallback(SafeChangeBroadcaster* l) override;

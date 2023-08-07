@@ -45,17 +45,9 @@ public:
 
 	NoMidiInputConstrainer();
 
-	String getDescription() const override { return "No voice modulators"; }
+	String getDescription() const override;
 
-	bool allowType(const Identifier &typeName) override
-	{
-		for(int i = 0; i < forbiddenModulators.size(); i++)
-		{
-			if(forbiddenModulators[i].type == typeName) return false;
-		}
-
-		return true;
-	}
+	bool allowType(const Identifier &typeName) override;
 
 private:
 
@@ -66,19 +58,11 @@ class SynthGroupFXConstrainer : public FactoryType::Constrainer
 {
 public:
 
-    SynthGroupFXConstrainer() = default;
+    SynthGroupFXConstrainer();
 
-    String getDescription() const override { return "Only Polyphonic FX"; }
+    String getDescription() const override;
 
-    bool allowType(const Identifier &typeName) override
-    {
-        auto isPoly = typeName.toString().toLowerCase().contains("poly");
-        
-        // just trying to get through the day...
-        isPoly |= (typeName == Identifier("StereoFX"));
-        
-        return isPoly;
-    }
+    bool allowType(const Identifier &typeName) override;
 };
 
 class SynthGroupConstrainer : public FactoryType::Constrainer
@@ -87,17 +71,9 @@ public:
 
 	SynthGroupConstrainer();
 
-	String getDescription() const override { return "No container modules"; }
+	String getDescription() const override;
 
-	bool allowType(const Identifier &typeName) override
-	{
-		for (int i = 0; i < forbiddenModulators.size(); i++)
-		{
-			if (forbiddenModulators[i].type == typeName) return false;
-		}
-
-		return true;
-	}
+	bool allowType(const Identifier &typeName) override;
 
 private:
 
@@ -137,14 +113,14 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
-	Chain::Handler *getHandler() override { return &handler; };
-	const Chain::Handler *getHandler() const override {return &handler;};
+	Chain::Handler *getHandler() override;;
+	const Chain::Handler *getHandler() const override;;
 
-	FactoryType *getFactoryType() const override {return modulatorSynthFactory;};
-	void setFactoryType(FactoryType *newFactoryType) override {modulatorSynthFactory = newFactoryType;};
+	FactoryType *getFactoryType() const override;;
+	void setFactoryType(FactoryType *newFactoryType) override;;
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
-	int getNumChildProcessors() const override { return ModulatorSynth::getNumChildProcessors() + handler.getNumProcessors(); };
+	int getNumChildProcessors() const override;;
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	const Processor *getChildProcessor(int processorIndex) const override;;
@@ -163,18 +139,18 @@ public:
 
 	void addProcessorsWhenEmpty() override;;
 
-	Processor *getParentProcessor() {return nullptr;};
+	Processor *getParentProcessor();;
 
-	const Processor *getParentProcessor() const {return nullptr;};
+	const Processor *getParentProcessor() const;;
 
 	/** Restores the Processor. Don't forget to call compileAllScripts() !. */
 	void restoreFromValueTree(const ValueTree &v) override;
     
     void reset();
 
-	void setPackageName(const String &newPackageName) { packageName = newPackageName; }
+	void setPackageName(const String &newPackageName);
 
-	String getPackageName() const { return packageName; };
+	String getPackageName() const;;
 	
 	/** Compiles all scripts in this chain. 
 	*
@@ -194,7 +170,7 @@ public:
 	*/
 	void renderNextBlockWithModulators(AudioSampleBuffer &buffer, const HiseEventBuffer &inputMidiBuffer) override;;
 
-	int getVoiceAmount() const {return numVoices;};
+	int getVoiceAmount() const;;
 
 	int getNumActiveVoices() const override;
 
@@ -208,11 +184,7 @@ public:
 	class ModulatorSynthChainHandler: public Chain::Handler
 	{
 	public:
-		ModulatorSynthChainHandler(ModulatorSynthChain *synthToHandle):
-			synth(synthToHandle)
-		{
-
-		};
+		ModulatorSynthChainHandler(ModulatorSynthChain *synthToHandle);;
 
 		/** Adds a new processor to the chain. It must be owned by the chain. */
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
@@ -241,16 +213,13 @@ public:
 
 	void restoreInterfaceValues(const ValueTree &v);
 
-	void setActiveChannels(const HiseEvent::ChannelFilterData& newActiveChannels)
-	{
-		activeChannels = newActiveChannels;
-	}
+	void setActiveChannels(const HiseEvent::ChannelFilterData& newActiveChannels);
 
-	HiseEvent::ChannelFilterData* getActiveChannelData() { return &activeChannels; }
+	HiseEvent::ChannelFilterData* getActiveChannelData();
 
 	void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler) override;
 
-    bool isUniformVoiceHandlerRoot() const { return ownedUniformVoiceHandler != nullptr; };
+    bool isUniformVoiceHandlerRoot() const;;
 	
 private:
 

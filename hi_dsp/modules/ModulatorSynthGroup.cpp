@@ -896,6 +896,57 @@ ProcessorEditorBody *ModulatorSynthGroup::createEditor(ProcessorEditor *parentEd
 	return nullptr;
 
 #endif
+}
+
+Chain::Handler* ModulatorSynthGroup::getHandler()
+{ return &handler; }
+
+const Chain::Handler* ModulatorSynthGroup::getHandler() const
+{ return &handler; }
+
+FactoryType* ModulatorSynthGroup::getFactoryType() const
+{ return modulatorSynthFactory; }
+
+void ModulatorSynthGroup::setFactoryType(FactoryType* newFactoryType)
+{ modulatorSynthFactory = newFactoryType; }
+
+int ModulatorSynthGroup::getNumChildProcessors() const
+{ return numInternalChains + handler.getNumProcessors(); }
+
+int ModulatorSynthGroup::getNumInternalChains() const
+{ return numInternalChains; }
+
+Processor* ModulatorSynthGroup::getParentProcessor()
+{ return nullptr; }
+
+const Processor* ModulatorSynthGroup::getParentProcessor() const
+{ return nullptr; }
+
+float ModulatorSynthGroup::getDetuneModValue(int startSample) const
+{
+	return modChains[ModChains::Detune].getOneModulationValue(startSample);
+}
+
+float ModulatorSynthGroup::getSpreadModValue(int startSample) const noexcept
+{
+	return modChains[ModChains::Spread].getOneModulationValue(startSample);
+}
+
+ModulatorSynthGroup::ModulatorSynthGroupHandler::ModulatorSynthGroupHandler(ModulatorSynthGroup* synthGroupToHandle):
+	group(synthGroupToHandle)
+{
+
+}
+
+String ModulatorSynthGroup::getFMState() const
+{ return getFMStateString(); }
+
+bool ModulatorSynthGroup::fmIsCorrectlySetup() const
+{ return fmCorrectlySetup; }
+
+bool ModulatorSynthGroup::SynthVoiceAmount::operator==(const SynthVoiceAmount& other) const
+{
+	return other.s == s;
 };
 
 void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
@@ -1587,6 +1638,157 @@ bool ModulatorSynthGroup::ChildSynthIterator::getNextAllowedChild(ModulatorSynth
 	jassert(child != nullptr);
 
 	return child != nullptr && counter <= limit;
+}
+
+float ModulatorSynthGroupVoice::DetuneValues::getGainFactor(bool getRightChannel)
+{
+	return gainFactor * (getRightChannel ? balanceRight : balanceLeft);
+}
+
+ModulatorSynthGroupVoice::Iterator::Iterator(ModulatorSynthGroupVoice* v_):
+	v(v_)
+{
+	numSize = v->childSynths.size();
+	mod = v->getFMModulator();
+}
+
+ModulatorSynthGroupVoice::ChildVoiceContainer::ChildVoiceContainer()
+{
+	clear();
+}
+
+void ModulatorSynthGroupVoice::ChildVoiceContainer::addVoice(ModulatorSynthVoice* v)
+{
+	jassert(numVoices < 8);
+	voices[numVoices++] = v;
+}
+
+bool ModulatorSynthGroupVoice::ChildVoiceContainer::removeVoice(ModulatorSynthVoice* v)
+{
+	for (int i = 0; i < numVoices; i++)
+	{
+		if (voices[i] == v)
+		{
+			for (int j = i; j < numVoices-1; j++)
+			{
+				voices[j] = voices[j + 1];
+			}
+
+			voices[numVoices--] = nullptr;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+ModulatorSynthVoice* ModulatorSynthGroupVoice::ChildVoiceContainer::getVoice(int index)
+{
+	if (index < numVoices)
+	{
+		return voices[index];
+	}
+	else
+	{
+		jassertfalse;
+		return nullptr;
+	}
+}
+
+int ModulatorSynthGroupVoice::ChildVoiceContainer::size() const
+{
+	return numVoices;
+}
+
+void ModulatorSynthGroupVoice::ChildVoiceContainer::clear()
+{
+	memset(voices, 0, sizeof(ModulatorSynthGroupVoice*) * 8);
+	numVoices = 0;
+}
+
+ModulatorSynthGroupVoice::ChildVoiceContainer& ModulatorSynthGroupVoice::getChildContainer(int childVoiceIndex)
+{
+	return startedChildVoices[childVoiceIndex % NUM_MAX_UNISONO_VOICES];
+}
+
+uint64 ModulatorSynthGroupVoice::UnisonoState::getIndex(int index) const
+{
+	return static_cast<uint64>(index % bitsPerNumber);
+}
+
+uint64 ModulatorSynthGroupVoice::UnisonoState::getOffset(int index) const
+{
+	return static_cast<uint64>(index / bitsPerNumber);
+}
+
+ModulatorSynthGroupVoice::UnisonoState::UnisonoState()
+{
+	clear();
+}
+
+bool ModulatorSynthGroupVoice::UnisonoState::anyActive() const noexcept
+{
+	bool active = false;
+
+	for (int i = 0; i < getNumInts(); i++)
+	{
+		active |= state[i] != 0;
+	}
+
+	return active;
+}
+
+void ModulatorSynthGroupVoice::UnisonoState::clearBit(int index)
+{
+	auto i = getIndex(index);
+	auto offset = getOffset(index);
+	auto v = ~(uint64(1) << i);
+
+	state[offset] &= v;
+}
+
+bool ModulatorSynthGroupVoice::UnisonoState::isBitSet(int index) const
+{
+	auto i = getIndex(index);
+	auto offset = getOffset(index);
+	auto v = uint64(1) << i;
+
+	return (state[offset] & v) != 0;
+}
+
+void ModulatorSynthGroupVoice::UnisonoState::setBit(int index)
+{
+	auto i = getIndex(index);
+	auto offset = getOffset(index);
+
+	auto v = uint64(1) << i;
+
+	state[offset] |= v;
+}
+
+void ModulatorSynthGroupVoice::UnisonoState::clear()
+{
+	memset(state, 0, sizeof(uint64) * getNumInts());
+}
+
+ModulatorSynthGroupVoice::ChildSynth::ChildSynth():
+	synth(nullptr),
+	isActiveForThisVoice(false)
+{}
+
+ModulatorSynthGroupVoice::ChildSynth::ChildSynth(ModulatorSynth* synth_):
+	synth(synth_),
+	isActiveForThisVoice(false)
+{}
+
+ModulatorSynthGroupVoice::ChildSynth::ChildSynth(const ChildSynth& other):
+	synth(other.synth),
+	isActiveForThisVoice(other.isActiveForThisVoice)
+{}
+
+bool ModulatorSynthGroupVoice::ChildSynth::operator==(const ChildSynth& other) const
+{
+	return synth == other.synth;
 }
 
 ModulatorSynth* ModulatorSynthGroupVoice::Iterator::getNextActiveChildSynth()

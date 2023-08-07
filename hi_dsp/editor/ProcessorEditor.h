@@ -57,15 +57,11 @@ public:
 
 	LambdaBroadcaster<Processor*, Processor*> rootBroadcaster;
 
-	ProcessorEditorContainer() {};
+	ProcessorEditorContainer();;
 
 	~ProcessorEditorContainer();
 
-	void processorDeleted(Processor* /*deletedProcessor*/) override
-	{
-		if (deleteCallback)
-			deleteCallback();
-	}
+	void processorDeleted(Processor* /*deletedProcessor*/) override;
 
 	std::function<void()> deleteCallback;
 
@@ -82,20 +78,14 @@ public:
 
 	void removeSoloProcessor(Processor *p, bool removeAllChildProcessors=false);
 
-	static int getWidthForIntendationLevel(int intentationLevel)
-	{
-		return CONTAINER_WIDTH - (intentationLevel * INTENDATION_WIDTH*2);
-	};
+	static int getWidthForIntendationLevel(int intentationLevel);;
 
-	ProcessorEditor *getRootEditor() { return rootProcessorEditor; };
+	ProcessorEditor *getRootEditor();;
 	void deleteProcessorEditor(const Processor * processorToBeRemoved);
 
 	ProcessorEditor *getFirstEditorOf(const Processor *p);
 
-	void clearSoloProcessors()
-	{
-		soloedProcessors.clear();
-	}
+	void clearSoloProcessors();
 
 private:
 
@@ -122,21 +112,7 @@ public:
 
 	ProcessorEditor(ProcessorEditorContainer *rootContainer, int intendationLevel, Processor *p, ProcessorEditor *parentEditor);
 
-	virtual ~ProcessorEditor()
-	{
-		// The Editor must be destroyed before the Processor!
-		jassert(processor != nullptr);
-
-		if (processor != nullptr)
-		{
-			processor->removeChangeListener(this);
-		}
-
-		header = nullptr;
-		body = nullptr;
-		panel = nullptr;
-
-	};
+	virtual ~ProcessorEditor();;
 
 	static void deleteProcessorFromUI(Component* c, Processor* pToDelete);
 
@@ -154,112 +130,54 @@ public:
 
 	ProcessorEditorPanel *getDragChainPanel();
 
-	MarkdownLink getLink() const override
-	{
-		return ProcessorHelpers::getMarkdownLink(getProcessor());
-	}
+	MarkdownLink getLink() const override;
 
-	
 
-	ProcessorEditorContainer *getRootContainer()
-	{
-		return rootContainer.getComponent();
-	};
+	ProcessorEditorContainer *getRootContainer();;
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;
 
 	/** Resizes itself and sends a message to the root container. */
-	void sendResizedMessage()
-	{
-		if (isPopupMode) return;
-
-		if (header == nullptr || body == nullptr || panel == nullptr || chainBar == nullptr) return;
-
-		const bool isPopupEditor = rootContainer.getComponent() == nullptr;
-
-		if (!isPopupEditor)
-		{
-			setResizeFlag();
-			getRootContainer()->refreshSize(false);
-		}
-		else
-		{
-			setSize(ProcessorEditorContainer::getWidthForIntendationLevel(0), getActualHeight());
-		}
-	}
+	void sendResizedMessage();
 
 	int getActualHeight() const;
 	
-	void setResizeFlag() noexcept { resizeFlag = true; };
+	void setResizeFlag() noexcept;;
 
-	bool shouldBeResized() const noexcept 
-	{ 
-		return resizeFlag; 
-	};
+	bool shouldBeResized() const noexcept;;
 
 	void resized() override;
 
-	void refreshEditorSize()
-	{
-		if (shouldBeResized())
-		{
-			setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
-
-			getRootContainer()->refreshSize(false);
-
-			resizeFlag = false;
-		}
-	}
+	void refreshEditorSize();
 
 	void paint(Graphics &g) override;
 
 	void paintOverChildren(Graphics& g) override;
 
-	void mouseDown(const MouseEvent& event) override
-	{
-		if (event.mods.isRightButtonDown())
-			CopyPasteTarget::dismissCopyAndPasteFocus();
-		else
-			CopyPasteTarget::grabCopyAndPasteFocus();
-	}
+	void mouseDown(const MouseEvent& event) override;
 
-	String getObjectTypeName() { return getProcessor()->getId(); };
+	String getObjectTypeName();;
 	void copyAction();
 	void pasteAction();
 
-	Processor *getProcessor() { return processor.get(); };
+	Processor *getProcessor();;
 
-	const Processor *getProcessor() const { return processor.get(); };
+	const Processor *getProcessor() const;;
 
-	void setIsPopup(bool shouldBePopup) noexcept
-	{
-		isPopupMode = shouldBePopup;
-		setFolded(false, sendNotification);
-	};
+	void setIsPopup(bool shouldBePopup) noexcept;;
 
-	bool isPopup() const noexcept 
-	{ 
-		return isPopupMode; 
-		
-	};
+	bool isPopup() const noexcept;;
 
-	int getIndentationLevel() const { return intendationLevel; };
+	int getIndentationLevel() const;;
 
-	ProcessorEditorBody *getBody() { return body; };
-	ProcessorEditorHeader *getHeader() { return header; };
-	ProcessorEditorChainBar *getChainBar() { return chainBar; };
-	ProcessorEditorPanel *getPanel() { return panel; };
-	const ProcessorEditor *getParentEditor() const { return parentEditor.getComponent(); };
-	ProcessorEditor *getParentEditor() { return parentEditor.getComponent(); };
+	ProcessorEditorBody *getBody();;
+	ProcessorEditorHeader *getHeader();;
+	ProcessorEditorChainBar *getChainBar();;
+	ProcessorEditorPanel *getPanel();;
+	const ProcessorEditor *getParentEditor() const;;
+	ProcessorEditor *getParentEditor();;
 
-	bool isRootEditor() const 
-	{ 
-		if (rootContainer.getComponent() != nullptr)
-		{
-			return rootContainer.getComponent()->getRootEditor() == this;
-		}
-		return false;
-	};
+	bool isRootEditor() const;;
 
 	const Chain *getProcessorAsChain() const;
 	Chain *getProcessorAsChain();
@@ -271,21 +189,9 @@ public:
 	{
 	public:
 
-		Iterator(ProcessorEditor *rootEditor):
-			index(0)
-		{
-			if(rootEditor != nullptr) addChildEditors(rootEditor);
-		}
+		Iterator(ProcessorEditor *rootEditor);
 
-		ProcessorEditor *getNextEditor()
-		{
-			if (index < editors.size())
-			{
-				return editors[index++].getComponent();
-			}
-
-			return nullptr;
-		}
+		ProcessorEditor *getNextEditor();
 
 	private:
 
@@ -339,34 +245,26 @@ public:
 	/** Creates a new child component. */
 	ProcessorEditorChildComponent(ProcessorEditor*editor);;
 
-	virtual ~ProcessorEditorChildComponent()
-	{
-		masterReference.clear();
-	};
+	virtual ~ProcessorEditorChildComponent();;
 
 	/** Returns a pointer to the processor. */
-	Processor *getProcessor() { return processor.get(); };
+	Processor *getProcessor();;
 
 	/** Returns a const pointer to the processor. */
-	const Processor *getProcessor() const { return processor.get(); };
+	const Processor *getProcessor() const;;
 
 protected:
 
 	/** Returns a const pointer to the editor if the component is initialized. */
-	const ProcessorEditor *getEditor() const { return parentEditor.getComponent(); };
+	const ProcessorEditor *getEditor() const;;
 
 	/** Returns a pointer to the editor. */
-	ProcessorEditor *getEditor() { return parentEditor.getComponent(); };
+	ProcessorEditor *getEditor();;
 
 	
 	
 	/** Small helper function, that toggles a button and returns the new toggle value. */
-	static bool toggleButton(Button *b)
-	{
-		bool on = b->getToggleState();
-		b->setToggleState(!on, dontSendNotification);
-		return on;
-	};
+	static bool toggleButton(Button *b);;
 
 private:
 	
@@ -400,12 +298,9 @@ public:
 
 	int getHeightOfAllEditors() const;
 
-	ProcessorEditor *getChildEditor(int index)
-	{
-		return editors[index];
-	}
+	ProcessorEditor *getChildEditor(int index);
 
-	int getNumChildEditors() const { return editors.size(); };
+	int getNumChildEditors() const;;
 
 	void updateChildEditorList(bool forceUpdate=false) override;
 
@@ -429,11 +324,9 @@ class ProcessorEditorBody: public ProcessorEditorChildComponent
 {
 public:
 
-	ProcessorEditorBody(ProcessorEditor *parentEditor):
-		ProcessorEditorChildComponent(parentEditor)
-	{};
+	ProcessorEditorBody(ProcessorEditor *parentEditor);;
 
-	virtual ~ProcessorEditorBody() {};
+	virtual ~ProcessorEditorBody();;
 
 	/** Overwrite this and update all gui elements. 
 	*
@@ -445,15 +338,7 @@ public:
 	*
 	*	It checks if the Body should be displayed.
 	*/
-	void refreshBodySize()
-	{ 
-		ProcessorEditor *parent = dynamic_cast<ProcessorEditor*>(getParentComponent());
-
-		if (parent != nullptr)
-		{
-			parent->sendResizedMessage();
-		}
-	};
+	void refreshBodySize();;
 
 	/** Overwrite this and return the height of the body. 
 	*
