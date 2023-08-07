@@ -482,9 +482,9 @@ public:
 
 			void mouseDown(const MouseEvent& );
 
-			void mouseUp(const MouseEvent& event);
+			void mouseDoubleClick(const MouseEvent& event) override;
 
-            bool keyPressed(const KeyPress& k) override;
+			bool keyPressed(const KeyPress& k) override;
             
 			void paint(Graphics& g) override;
 

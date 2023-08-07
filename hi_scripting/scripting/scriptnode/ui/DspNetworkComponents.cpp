@@ -2511,6 +2511,14 @@ void KeyboardPopup::PopupList::Item::mouseDown(const MouseEvent&)
 	findParentComponentOfClass<PopupList>()->setSelected(this, false);
 }
 
+void KeyboardPopup::PopupList::Item::mouseDoubleClick(const MouseEvent& event)
+{
+	if (!event.mouseWasDraggedSinceMouseDown())
+	{
+		findParentComponentOfClass<KeyboardPopup>()->addNodeAndClose(entry.insertString);
+	}
+}
+
 bool KeyboardPopup::PopupList::Item::keyPressed(const KeyPress& k)
 {
     if(k == KeyPress::upKey)
@@ -2533,13 +2541,7 @@ bool KeyboardPopup::PopupList::Item::keyPressed(const KeyPress& k)
     return false;
 }
 
-void KeyboardPopup::PopupList::Item::mouseUp(const MouseEvent& event)
-{
-	if (!event.mouseWasDraggedSinceMouseDown())
-	{
-		findParentComponentOfClass<KeyboardPopup>()->addNodeAndClose(entry.insertString);
-	}
-}
+
 
 void KeyboardPopup::PopupList::Item::paint(Graphics& g)
 {

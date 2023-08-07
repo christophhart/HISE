@@ -201,7 +201,6 @@ public:
         MenuToolsCreateRnboTemplate,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
-		MenuHelpShowHelpForComponents,
         MenuHelpCheckVersion,
 		numCommands
 	};

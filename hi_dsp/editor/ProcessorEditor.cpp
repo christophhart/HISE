@@ -528,7 +528,9 @@ Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(get
 
 void ProcessorEditor::deleteProcessorFromUI(Component* c, Processor* pToDelete)
 {
-	if (dynamic_cast<ModulatorSynth*>(pToDelete) == nullptr || PresetHandler::showYesNoWindow("Delete " + pToDelete->getId() + "?", "Do you want to delete the Synth module?"))
+	auto dontAskDelete = dynamic_cast<ModulatorSynth*>(pToDelete) == nullptr && dynamic_cast<JavascriptMidiProcessor*>(pToDelete) == nullptr;
+
+	if (dontAskDelete || PresetHandler::showYesNoWindow("Delete " + pToDelete->getId() + "?", "Do you want to delete the Synth module?"))
 	{
 		auto brw = GET_BACKEND_ROOT_WINDOW(c);
 

@@ -192,10 +192,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuToolsSanityCheck,
 		MenuHelpShowAboutPage,
         MenuHelpCheckVersion,
-		MenuHelpShowDocumentation,
-		MenuHelpShowHelpForComponents
+		MenuHelpShowDocumentation
 	};
-
 	commands.addArray(id, numElementsInArray(id));
 }
 
@@ -695,11 +693,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.addDefaultKeypress(KeyPress::F1Key, ModifierKeys::noModifiers);
 		result.categoryName = "Help";
 		break;
-	case MenuHelpShowHelpForComponents:
-		setCommandTarget(result, "Show Live Help", true, bpe->isHelpEnabled(), 'X', false);
-		result.addDefaultKeypress(KeyPress::F1Key, ModifierKeys::commandModifier);
-		result.categoryName = "Help";
-		break;
     case MenuHelpCheckVersion:
         setCommandTarget(result, "Check for newer version", true, false, 'X', false);
 		result.categoryName = "Help";
@@ -844,7 +837,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
 	case MenuHelpShowDocumentation:		Actions::showDocWindow(bpe); return true;
-	case MenuHelpShowHelpForComponents: bpe->toggleHelp(); updateCommands(); return true;
 	}
 
 	return false;
@@ -1105,7 +1097,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_ALL_PLATFORMS(MenuHelpShowAboutPage);
 			ADD_DESKTOP_ONLY(MenuHelpCheckVersion);
 			ADD_ALL_PLATFORMS(MenuHelpShowDocumentation);
-			ADD_ALL_PLATFORMS(MenuHelpShowHelpForComponents);
 		break;
 	default:
 		break;

@@ -49,4 +49,12 @@ Component* WrapperWithMenuBarBase::showPopup(FloatingTile* ft, Component* parent
 	}
 }
 
+void WrapperWithMenuBarBase::paint(Graphics& g)
+{
+	auto top = getLocalBounds().removeFromTop(MenuHeight);
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333)));
+	g.fillRect(top);
+	GlobalHiseLookAndFeel::drawFake3D(g, top);
+}
 }

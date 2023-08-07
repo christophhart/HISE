@@ -135,16 +135,20 @@ struct WrapperWithMenuBarBase : public Component,
 
 			Colour c = findColour(on ? TextButton::ColourIds::buttonOnColourId : TextButton::ColourIds::buttonColourId);
 
-			float alpha = 1.0f;
 
-			if (!enabled)
-				alpha *= 0.6f;
+			float alpha = 0.7f;
 
-			if (!over)
-				alpha *= 0.9f;
-			if (!down)
-				alpha *= 0.9f;
+			if (enabled)
+			{
+				if (over)
+					alpha += 0.2f;
 
+				if (down)
+					alpha += 0.1f;
+			}
+			else
+				alpha = 0.3f;
+			
 			c = c.withAlpha(alpha);
 
 			g.setColour(c);
@@ -325,10 +329,7 @@ struct WrapperWithMenuBarBase : public Component,
 
 	virtual void addButton(const String& name) = 0;
 
-	void paint(Graphics& g) override
-	{
-		GlobalHiseLookAndFeel::drawFake3D(g, getLocalBounds().removeFromTop(MenuHeight));
-	}
+	void paint(Graphics& g) override;
 
 	void addCustomComponent(Component* c)
 	{

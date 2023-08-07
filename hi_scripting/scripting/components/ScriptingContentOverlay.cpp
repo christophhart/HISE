@@ -636,6 +636,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
 				int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
 
+				insertX = jlimit(0, getLocalBounds().getWidth() - 100, insertX);
+				insertY = jlimit(0, getLocalBounds().getWidth() - 50, insertY);
+
 				auto parent = b->getNumSelected() == 1 ? b->getFirstFromSelection() : nullptr;
 
 				if (parent != nullptr)
@@ -650,6 +653,9 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 
 						insertX += bounds.getX();
 						insertY += bounds.getY();
+
+						insertX = jlimit(0, parentBounds.getWidth() - 100, insertX);
+						insertY = jlimit(0, parentBounds.getWidth() - 50, insertY);
 					}
 				}
 

@@ -94,8 +94,18 @@ static bool canConnectToWebsite(const URL& url)
 
 static bool areMajorWebsitesAvailable()
 {
-	if (canConnectToWebsite(URL("http://hartinstruments.net")))
-		return true;
+	const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };
+
+	for (const char** url = urlsToTry; *url != nullptr; ++url)
+	{
+		URL u(*url);
+
+		auto ms = Time::getMillisecondCounter();
+		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr));
+		
+		if (in != nullptr)
+			return true;
+	}
 
 	return false;
 }
@@ -133,24 +143,12 @@ public:
 
 	UpdateChecker() :
 		DialogWindowWithBackgroundThread("Checking for newer version."),
-		updatesAvailable(false),
-		lastUpdate(BUILD_SUB_VERSION)
+		updatesAvailable(false)
 	{
-
-
-		String changelog = getAllChangelogs();
+		updatesAvailable = checkUpdate();
 
 		if (updatesAvailable)
 		{
-			changelogDisplay = new TextEditor("Changelog");
-			changelogDisplay->setSize(500, 300);
-
-			changelogDisplay->setFont(GLOBAL_MONOSPACE_FONT());
-			changelogDisplay->setMultiLine(true);
-			changelogDisplay->setReadOnly(true);
-			changelogDisplay->setText(changelog);
-			addCustomComponent(changelogDisplay);
-
 			filePicker = new FilenameComponent("Download Location", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), false, true, true, "", "", "Choose Download Location");
 			filePicker->setSize(500, 24);
 
@@ -158,12 +156,11 @@ public:
 
 			addBasicComponents();
 
-			showStatusMessage("New build available: " + String(lastUpdate) + ". Press OK to download file to the selected location");
+			showStatusMessage("New build available: " + newVersion + ". Press OK to download file to the selected location");
 		}
 		else
 		{
 			addBasicComponents(false);
-
 			showStatusMessage("Your HISE build is up to date.");
 		}
 	}
@@ -183,17 +180,31 @@ public:
 
 	void run()
 	{
-		static String webFolder("http://hartinstruments.net/hise/download/nightly_builds/");
-
-		static String version = "099";
+		auto assets = obj["assets"];
 
 #if JUCE_WINDOWS
-		String downloadFileName = "HISE_" + version + "_build" + String(lastUpdate) + ".exe";
+		auto extension = ".exe";
+#elif JUCE_MAC
+		auto extension = ".pkg";
 #else
-		String downloadFileName = "HISE_" + version + "_build" + String(lastUpdate) + "_OSX.dmg";
+		auto extension = "david_has_to_build_it_himself";
 #endif
 
-		URL url(webFolder + downloadFileName);
+		URL url;
+
+		if(assets.isArray())
+		{
+			for(auto& a: *assets.getArray())
+			{
+				if(a["name"].toString().endsWith(extension))
+				{
+					url = URL(a["browser_download_url"].toString());
+					break;
+				}
+			}
+		}
+
+		auto downloadFileName = url.getFileName();
 
 		auto stream = url.createInputStream(false, &downloadProgress, this);
 
@@ -256,72 +267,35 @@ public:
 
 private:
 
-	String getAllChangelogs()
+	var obj;
+
+	bool checkUpdate()
 	{
-		int latestVersion = BUILD_SUB_VERSION + 1;
+		URL url("https://api.github.com");
+		url = url.withNewSubPath("repos/christophhart/HISE/releases/latest");
 
-		String completeLog;
+		auto response = url.readEntireTextStream();
 
-		bool lookFurther = true;
+		obj = JSON::parse(response);
 
-		while (lookFurther)
+		if(obj.isObject())
 		{
-			String log = getChangelog(latestVersion);
+			newVersion = obj["tag_name"].toString();
 
-			if (log == "404")
-			{
-				lookFurther = false;
-				continue;
-			}
+			auto thisVersion = "3.4.9";// ProjectInfo::versionString;
 
-			updatesAvailable = true;
+			SemanticVersionChecker svs(thisVersion, newVersion);
 
-			lastUpdate = latestVersion;
-
-			completeLog << log;
-			latestVersion++;
+			return svs.isUpdate();
 		}
 
-		return completeLog;
+		return false;
+		
 	}
 
-	String getChangelog(int i) const
-	{
-		static String webFolder("http://www.hartinstruments.net/hise/download/nightly_builds/");
-
-		String changelogFile("changelog_" + String(i) + ".txt");
-
-		URL url(webFolder + changelogFile);
-
-		String content;
-
-		auto stream = url.createInputStream(false);
-
-		if (stream != nullptr)
-		{
-			String changes = stream->readEntireStreamAsString();
-
-			if (changes.contains("404"))
-			{
-				return "404";
-			}
-			else if (changes.containsNonWhitespaceChars())
-			{
-				content = "Build " + String(i) + ":\n\n" + changes;
-				return content;
-			}
-
-			return String();
-		}
-		else
-		{
-			return "404";
-		}
-	}
+	String newVersion;
 
 	bool updatesAvailable;
-
-	int lastUpdate;
 
 	File target;
 	ScopedPointer<ScopedTempFile> tempFile;
