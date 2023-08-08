@@ -48,7 +48,7 @@
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 
 #if USE_BACKEND
-#include "scripting/components/ScriptingCodeEditor.h"
+
 #include "scripting/components/AutoCompletePopup.h"
 
 #include "scripting/components/ScriptingEditor.h"

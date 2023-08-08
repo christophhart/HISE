@@ -326,11 +326,8 @@ void ComplexDataUIBase::EditorBase::setSpecialLookAndFeel(LookAndFeel* l, bool s
 		asComponent->setLookAndFeel(l);
 }
 
-template <typename T>
-T* ComplexDataUIBase::EditorBase::getSpecialLookAndFeel()
-{
-	return dynamic_cast<T*>(laf);
-}
+
+
 
 void ComplexDataUIBase::SourceWatcher::setNewSource(ComplexDataUIBase* newSource)
 {

@@ -1519,7 +1519,10 @@ struct ComplexDataUIBase : public ReferenceCountedObject
 
 		virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn = false);
 
-		template <typename T> T* getSpecialLookAndFeel();
+		template <typename T> T* getSpecialLookAndFeel()
+        {
+            return dynamic_cast<T*>(laf);
+        }
 
 	private:
 

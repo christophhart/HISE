@@ -90,7 +90,7 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 #endif
 
 #if HISE_INCLUDE_SNEX_FLOATING_TILES
-#include "../hi_snex/hi_snex.h"
+#include "../../hi_snex/hi_snex.h"
 #endif
 
 #include "resizable_height_component/ResizableHeightComponent.h"

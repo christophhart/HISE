@@ -93,6 +93,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/api/DspNetwork.h"
 
 #if USE_BACKEND
+#include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/scriptnode/node_library/BackendHostFactory.h"
 #include "scripting/scriptnode/api/TestClasses.h"
 #endif
