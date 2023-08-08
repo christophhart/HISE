@@ -32,11 +32,27 @@
 
 #pragma once
 
-
-
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
+
+namespace dll
+{
+
+/** This factory will create the project nodes using the dll. */
+struct BackendHostFactory : public scriptnode::NodeFactory
+{
+	BackendHostFactory(DspNetwork* n, dll::ProjectDll::Ptr dll);
+
+	Identifier getId() const override
+	{
+		RETURN_STATIC_IDENTIFIER("project");
+	}
+
+	DynamicLibraryHostFactory dllFactory;
+};
+
+}
 
 namespace jdsp
 {

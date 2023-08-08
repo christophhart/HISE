@@ -113,7 +113,7 @@ namespace ScriptingObjects
 
 		ScriptShader(ProcessorWithScriptingContent* sp);;
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptShader"); }
+		Identifier getObjectName() const override;
 
 		// =============================================================== API Methods
 
@@ -149,55 +149,23 @@ namespace ScriptingObjects
 
 		void makeStatistics();
 
-		void setEnableLineNumbers(bool shouldUseLineNumbers)
-		{
-			useLineNumbers = shouldUseLineNumbers;
-		}
+		void setEnableLineNumbers(bool shouldUseLineNumbers);
 
 		Component* createPopupComponent(const MouseEvent& e, Component *c) override;
 
-		bool compiledOk() const { return r.wasOk(); }
+		bool compiledOk() const;
 
 		String getErrorMessage(bool verbose) const;
 
-		void setCompileResult(Result compileResult)
-		{
-			r = processErrorMessage(compileResult);
+		void setCompileResult(Result compileResult);
 
-			for (auto f : includedFiles)
-				f->setRuntimeErrors(r);
-		}
+		void setGlobalBounds(Rectangle<int> b, float sf);
 
-		void setGlobalBounds(Rectangle<int> b, float sf)
-		{
-			globalRect = b.toFloat();
-			scaleFactor = sf;
-		}
+		bool shouldWriteToBuffer() const;
 
-		bool shouldWriteToBuffer() const
-		{
-			return enableCache || screenshotPending;
-		}
+		void renderWasFinished(ScreenshotListener::CachedImageBuffer::Ptr newData);
 
-		void renderWasFinished(ScreenshotListener::CachedImageBuffer::Ptr newData)
-		{
-			if (screenshotPending)
-			{
-				DBG("REPAINT DONE");
-				screenshotPending = false;
-				lastScreenshot = newData;
-			}
-			else
-				lastScreenshot = nullptr;
-		}
-
-		ScreenshotListener::CachedImageBuffer::Ptr getScreenshotBuffer()
-		{
-			if (isRenderingScreenshot())
-				return lastScreenshot;
-
-			return nullptr;
-		}
+		ScreenshotListener::CachedImageBuffer::Ptr getScreenshotBuffer();
 
 		struct Wrapper;
 
@@ -224,19 +192,13 @@ namespace ScriptingObjects
 		BlendMode src = BlendMode::_GL_SRC_ALPHA;
 		BlendMode dst = BlendMode::_GL_ONE_MINUS_SRC_ALPHA;
 
-		static bool isRenderingScreenshot() { return renderingScreenShot; }
+		static bool isRenderingScreenshot();
 
 		struct ScopedScreenshotRenderer
 		{
-			ScopedScreenshotRenderer()
-			{
-				renderingScreenShot = true;
-			}
+			ScopedScreenshotRenderer();
 
-			~ScopedScreenshotRenderer()
-			{
-				renderingScreenShot = false;
-			}
+			~ScopedScreenshotRenderer();
 		};
 
 	private:
@@ -665,35 +627,23 @@ namespace ScriptingObjects
             public MatrixPeakMeter::LookAndFeelMethods,
 			public WaterfallComponent::LookAndFeelMethods
 		{
-			Laf(MainController* mc) :
-				ControlledObject(mc)
-			{}
+			Laf(MainController* mc);
 
-			virtual ~Laf() {};
+			virtual ~Laf();;
 
-			virtual ScriptedLookAndFeel* get()
-			{
-				return dynamic_cast<ScriptedLookAndFeel*>(getMainController()->getCurrentScriptLookAndFeel());
-			}
+			virtual ScriptedLookAndFeel* get();
 
-			Font getFont()
-			{
-				if (auto l = get())
-					return l->f;
-				else
-					return GLOBAL_BOLD_FONT();
-			}
+			Font getFont();
 
-			
 
 			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
 
-			Font getAlertWindowMessageFont() override { return getFont(); }
-			Font getAlertWindowTitleFont() override { return getFont(); }
-			Font getTextButtonFont(TextButton &, int) override { return getFont(); }
-			Font getComboBoxFont(ComboBox&) override { return getFont(); }
-			Font getPopupMenuFont() override { return getFont(); };
-			Font getAlertWindowFont() override { return getFont(); };
+			Font getAlertWindowMessageFont() override;
+			Font getAlertWindowTitleFont() override;
+			Font getTextButtonFont(TextButton &, int) override;
+			Font getComboBoxFont(ComboBox&) override;
+			Font getPopupMenuFont() override;;
+			Font getAlertWindowFont() override;;
 
 			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
@@ -824,7 +774,7 @@ namespace ScriptingObjects
 
 		~ScriptedLookAndFeel();
 
-		Identifier getObjectName() const override { return "ScriptLookAndFeel"; }
+		Identifier getObjectName() const override;
 
 		// ========================================================================================
 
@@ -849,45 +799,11 @@ namespace ScriptingObjects
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
 
-		int getNumChildElements() const override
-		{
-			if (auto dyn = functions.getDynamicObject())
-				return dyn->getProperties().size();
-            
-            return 0;
-		}
+		int getNumChildElements() const override;
 
 		Location getLocation() const override;
 
-		DebugInformationBase* getChildElement(int index) override
-		{
-			WeakReference<ScriptedLookAndFeel> safeThis(this);
-
-			auto vf = [safeThis, index]()
-			{
-				if (safeThis != nullptr)
-				{
-					if (auto dyn = safeThis->functions.getDynamicObject())
-					{
-						if(isPositiveAndBelow(index, dyn->getProperties().size()))
-							return dyn->getProperties().getValueAt(index);
-					}
-				}
-
-				return var();
-			};
-
-			String id = "%PARENT%.";
-
-			auto mid = functions.getDynamicObject()->getProperties().getName(index);
-
-			id << mid;
-
-			Location l = getLocation();
-
-
-			return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), l);
-		}
+		DebugInformationBase* getChildElement(int index) override;
 
 		static Array<Identifier> getAllFunctionNames();
 
@@ -907,18 +823,7 @@ namespace ScriptingObjects
 
 		var functions;
 
-		Image getLoadedImage(const String& prettyName)
-		{
-			for (auto& img : loadedImages)
-			{
-				if (img.prettyName == prettyName)
-				{
-					return img.image ? *img.image.getData() : Image();
-				}
-			}
-
-			return Image();
-		}
+		Image getLoadedImage(const String& prettyName);
 
 		struct NamedImage
 		{

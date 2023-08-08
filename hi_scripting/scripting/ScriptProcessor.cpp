@@ -32,6 +32,84 @@
 
 namespace hise { using namespace juce;
 
+	ProcessorWithScriptingContent::ProcessorWithScriptingContent(MainController* mc_):
+		restoredContentValues(ValueTree("Content")),
+		mc(mc_),
+		contentParameterHandler(*this)
+	{}
+
+	void ProcessorWithScriptingContent::setAllowObjectConstruction(bool shouldBeAllowed)
+	{
+		allowObjectConstructors = shouldBeAllowed;
+	}
+
+	bool ProcessorWithScriptingContent::objectsCanBeCreated() const
+	{
+		return allowObjectConstructors;
+	}
+
+	int ProcessorWithScriptingContent::getCallbackEditorStateOffset() const
+	{ return Processor::EditorState::numEditorStates; }
+
+	ScriptingApi::Content* ProcessorWithScriptingContent::getScriptingContent() const
+	{
+		return content.get();
+	}
+
+	Identifier ProcessorWithScriptingContent::getContentParameterIdentifier(int parameterIndex) const
+	{
+		if (auto sc = content->getComponent(parameterIndex))
+			return sc->name.toString();
+
+		auto child = content->getContentProperties().getChild(parameterIndex);
+
+		if (child.isValid())
+			return Identifier(child.getProperty("id").toString());
+
+		return Identifier();
+	}
+
+	var ProcessorWithScriptingContent::getSavedValue(Identifier name)
+	{
+		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
+	}
+
+	MainController* ProcessorWithScriptingContent::getMainController_()
+	{ return mc; }
+
+	const MainController* ProcessorWithScriptingContent::getMainController_() const
+	{ return mc; }
+
+	void ProcessorWithScriptingContent::initContent()
+	{
+		content = new ScriptingApi::Content(this);
+	}
+
+	ProcessorWithScriptingContent::ContentParameterHandler::ContentParameterHandler(
+		ProcessorWithScriptingContent& parent):
+		p(parent)
+	{}
+
+	void ProcessorWithScriptingContent::ContentParameterHandler::setParameter(int index, float newValue)
+	{
+		p.setControlValue(index, newValue);
+	}
+
+	float ProcessorWithScriptingContent::ContentParameterHandler::getParameter(int index) const
+	{
+		return p.getControlValue(index);
+	}
+
+	int ProcessorWithScriptingContent::ContentParameterHandler::getNumParameters() const
+	{
+		return p.getNumScriptParameters();
+	}
+
+	Identifier ProcessorWithScriptingContent::ContentParameterHandler::getParameterId(int parameterIndex) const
+	{
+		return p.getContentParameterIdentifier(parameterIndex);
+	}
+
 ProcessorWithScriptingContent::~ProcessorWithScriptingContent()
 {
 	if (content != nullptr)
@@ -416,6 +494,38 @@ void FileChangeListener::setWatchedFilePosition(CodeDocument::Position& newPos)
 	lastPositions.add(newPos);
 }
 
+void FileChangeListener::clearFileWatchers()
+{
+	watchers.clear();
+}
+
+int FileChangeListener::getNumWatchedFiles() const noexcept
+{
+	return watchers.size();
+}
+
+void FileChangeListener::setCurrentPopup(DocumentWindow* window)
+{
+	currentPopups.add(window);
+}
+
+void FileChangeListener::deleteAllPopups()
+{
+	if (currentPopups.size() != 0)
+	{
+		for (int i = 0; i < currentPopups.size(); i++)
+		{
+			if (currentPopups[i].getComponent() != nullptr)
+			{
+				currentPopups[i]->closeButtonPressed();
+			}
+
+		}
+
+		currentPopups.clear();
+	}
+}
+
 File FileChangeListener::getWatchedFile(int index) const
 {
 	if (index < watchers.size())
@@ -618,6 +728,220 @@ void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, Valu
 
 	externalScriptFiles.addChild(script, -1, nullptr);
 }
+
+JavascriptProcessor::ScopedPreprocessorMerger::ScopedPreprocessorMerger(MainController* mc)
+{
+	Processor::Iterator<JavascriptProcessor> iter(mc->getMainSynthChain());
+            
+	while(auto jp = iter.getNextProcessor())
+	{
+		jp->usePreprocessorAtMerge = true;
+		list.add(jp);
+	}
+}
+
+JavascriptProcessor::ScopedPreprocessorMerger::~ScopedPreprocessorMerger()
+{
+	for(auto jp: list)
+		jp->usePreprocessorAtMerge = false;
+}
+
+JavascriptProcessor::SnippetDocument::~SnippetDocument()
+{
+	SpinLock::ScopedLockType sl(pendingLock);
+	notifier.cancelPendingUpdate();
+	pendingNewContent = {};
+}
+
+const Identifier& JavascriptProcessor::SnippetDocument::getCallbackName() const
+{ return callbackName; }
+
+bool JavascriptProcessor::SnippetDocument::isSnippetEmpty() const
+{ return !isActive; }
+
+int JavascriptProcessor::SnippetDocument::getNumArgs() const
+{ return numArgs; }
+
+void JavascriptProcessor::SnippetDocument::replaceContentAsync(String s, bool shouldBeAsync)
+{
+            
+#if USE_FRONTEND
+            // Not important when using compiled plugins because there will be no editor component
+            // being resized...
+            replaceAllContent(s);
+#else
+	{
+		// Makes sure that this won't be accessed during replacement...
+		SpinLock::ScopedLockType sl(pendingLock);
+		pendingNewContent.swapWith(s);
+	}
+            
+	if(shouldBeAsync)
+	{
+		notifier.notify();
+	}
+	else
+	{   
+		notifier.handleAsyncUpdate();
+	}
+#endif
+}
+
+JavascriptProcessor::SnippetDocument::Notifier::Notifier(SnippetDocument& parent_):
+	parent(parent_)
+{
+
+}
+
+void JavascriptProcessor::SnippetDocument::Notifier::notify()
+{
+	triggerAsyncUpdate();
+}
+
+void JavascriptProcessor::SnippetDocument::Notifier::handleAsyncUpdate()
+{
+	String text;
+				
+	{
+		SpinLock::ScopedLockType sl(parent.pendingLock);
+		parent.pendingNewContent.swapWith(text);
+	}
+
+	parent.setDisableUndo(true);
+	parent.replaceAllContent(text);
+	parent.setDisableUndo(false);
+                
+	parent.pendingNewContent = String();
+}
+
+JavascriptProcessor::SnippetResult::SnippetResult(Result r_, int c_): r(r_), c(c_)
+{}
+
+ValueTree JavascriptProcessor::createApiTree()
+{
+#if USE_BACKEND
+	return ApiHelpers::getApiTree();
+#else
+		return {};
+#endif
+}
+
+int JavascriptProcessor::getCodeFontSize() const
+{ return (int)dynamic_cast<const Processor*>(this)->getMainController()->getGlobalCodeFontSize(); }
+
+bool JavascriptProcessor::isConnectedToExternalFile() const
+{ return connectedFileReference.isNotEmpty(); }
+
+const String& JavascriptProcessor::getConnectedFileReference() const
+{ return connectedFileReference; }
+
+bool JavascriptProcessor::wasLastCompileOK() const
+{ return lastCompileWasOK; }
+
+Result JavascriptProcessor::getLastErrorMessage() const
+{ return lastResult; }
+
+ApiProviderBase* JavascriptProcessor::getProviderBase()
+{ return scriptEngine.get(); }
+
+HiseJavascriptEngine* JavascriptProcessor::getScriptEngine()
+{ return scriptEngine; }
+
+void JavascriptProcessor::toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
+{
+	HiseJavascriptEngine::Breakpoint bp(snippetId, "", lineNumber, charNumber, charNumber, breakpoints.size());
+
+	int index = breakpoints.indexOf(bp);
+
+	if (index != -1)
+	{
+		breakpoints.remove(index);
+	}
+	else
+	{
+		breakpoints.add(bp);
+	}
+
+	compileScript();
+}
+
+HiseJavascriptEngine::Breakpoint JavascriptProcessor::getBreakpointForLine(const Identifier& id, int lineIndex)
+{
+	for (int i = 0; i < breakpoints.size(); i++)
+	{
+		if (breakpoints[i].snippetId == id && breakpoints[i].lineNumber == lineIndex)
+			return breakpoints[i];
+	}
+
+	return HiseJavascriptEngine::Breakpoint();
+}
+
+void JavascriptProcessor::getBreakPointsForDisplayedRange(const Identifier& snippetId, Range<int> displayedLineNumbers,
+	Array<int>& lineNumbers)
+{
+	for (int i = 0; i < breakpoints.size(); i++)
+	{
+		if (breakpoints[i].snippetId != snippetId) continue;
+
+		if (displayedLineNumbers.contains(breakpoints[i].lineNumber))
+		{
+			lineNumbers.add(breakpoints[i].lineNumber);
+		}
+	}
+}
+
+bool JavascriptProcessor::anyBreakpointsActive() const
+{ return breakpoints.size() != 0; }
+
+void JavascriptProcessor::removeAllBreakpoints()
+{
+	breakpoints.clear();
+
+	compileScript();
+}
+
+void JavascriptProcessor::addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
+{
+	breakpointListeners.addIfNotAlreadyThere(newListener);
+}
+
+void JavascriptProcessor::removeBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* listenerToRemove)
+{
+	breakpointListeners.removeAllInstancesOf(listenerToRemove);
+}
+
+void JavascriptProcessor::clearPreprocessorFunctions()
+{
+	preprocessorFunctions.clear();
+}
+
+void JavascriptProcessor::addPreprocessorFunction(const PreprocessorFunction& pf)
+{
+	preprocessorFunctions.add(pf);
+}
+
+ScriptingApi::Content* JavascriptProcessor::getContent()
+{
+	return dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent();
+}
+
+const ScriptingApi::Content* JavascriptProcessor::getContent() const
+{
+	return dynamic_cast<const ProcessorWithScriptingContent*>(this)->getScriptingContent();
+}
+
+void JavascriptProcessor::clearContentPropertiesDoc()
+{
+	contentPropertyDocument = nullptr;
+}
+
+void JavascriptProcessor::setOptimisationReport(const String& report)
+{
+	lastOptimisationReport = report;
+}
+
+void JavascriptProcessor::postCompileCallback()
+{}
 
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 	ProcessorWithDynamicExternalData(mc),
@@ -1911,6 +2235,161 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 {
 	startThread(8);
 }
+
+JavascriptThreadPool::~JavascriptThreadPool()
+{
+	globalServer = nullptr;
+	stopThread(1000);
+}
+
+void JavascriptThreadPool::cancelAllJobs()
+{
+	LockHelpers::SafeLock ss(getMainController(), LockHelpers::ScriptLock);
+
+	stopThread(1000);
+	compilationQueue.clear();
+	lowPriorityQueue.clear();
+	highPriorityQueue.clear();
+	deferredPanels.clear();
+}
+
+JavascriptThreadPool::Task::Task() noexcept:
+	type(Free),
+	f(),
+	jp(nullptr)
+{}
+
+JavascriptThreadPool::Task::Task(Type t, JavascriptProcessor* jp_, const Function& functionToExecute) noexcept:
+	type(t),
+	f(functionToExecute),
+	jp(jp_)
+{}
+
+JavascriptProcessor* JavascriptThreadPool::Task::getProcessor() const noexcept
+{ return jp.get(); }
+
+JavascriptThreadPool::Task::Type JavascriptThreadPool::Task::getType() const noexcept
+{ return type; }
+
+bool JavascriptThreadPool::Task::isValid() const noexcept
+{ return (bool)f; }
+
+bool JavascriptThreadPool::Task::isHiPriority() const noexcept
+{ return type == Compilation || type == HiPriorityCallbackExecution; }
+
+const CriticalSection& JavascriptThreadPool::getLock() const noexcept
+{ return scriptLock; }
+
+bool JavascriptThreadPool::isBusy() const noexcept
+{ return busy; }
+
+JavascriptThreadPool::Task::Type JavascriptThreadPool::getCurrentTask() const noexcept
+{ return currentType; }
+
+SimpleReadWriteLock& JavascriptThreadPool::getLookAndFeelRenderLock()
+{
+	return lookAndFeelRenderLock;
+}
+
+GlobalServer* JavascriptThreadPool::getGlobalServer()
+{ return globalServer.get(); }
+
+void JavascriptThreadPool::resume()
+{
+	shouldWakeUp = true;
+}
+
+void JavascriptThreadPool::deactivateSleepUntilCompilation()
+{
+	allowSleep = false;
+}
+
+JavascriptThreadPool::ScopedSleeper::ScopedSleeper(JavascriptThreadPool& p_, const Identifier& id, int lineNumber_):
+	p(p_),
+	wasSleeping(p.isSleeping),
+	cid(id),
+	lineNumber(lineNumber_)
+{
+	if (!p.allowSleep)
+		return;
+
+	sendMessage(true);
+
+	p.isSleeping = true;
+	p.shouldWakeUp = false;
+
+	auto cThread = Thread::getCurrentThread();
+	std::function<bool()> shouldExit;
+
+	if (cThread != nullptr)
+		shouldExit = [cThread](){ return cThread->threadShouldExit(); };
+	else
+	{
+		auto currentThread = p.getMainController()->getKillStateHandler().getCurrentThread();
+
+		if (currentThread == MainController::KillStateHandler::TargetThread::AudioThread)
+		{
+			auto mc = p.getMainController();
+			shouldExit = [mc]() { return mc->getKillStateHandler().hasRequestedQuit(); };
+		}
+	}
+
+	jassert(shouldExit);
+
+	if (!shouldExit)
+		shouldExit = []() { return true; };
+
+	while (p.allowSleep && !p.shouldWakeUp && !shouldExit())
+	{
+		PendingCompilationList l;
+		auto r = p.executeQueue(Task::ReplEvaluation, l);
+                
+		Thread::sleep(200);
+	}
+
+	sendMessage(false);
+}
+
+void JavascriptThreadPool::ScopedSleeper::sendMessage(bool on)
+{
+	JavascriptThreadPool* p_ = &p;
+	auto cid_ = cid;
+	auto ln = lineNumber;
+
+	auto f = [p_, cid_, ln, on]()
+	{
+		for (const auto& s : p_->sleepListeners)
+		{
+			if (s != nullptr)
+				s.get()->sleepStateChanged(cid_, ln, on);
+		}
+	};
+
+	MessageManager::callAsync(f);
+}
+
+JavascriptThreadPool::ScopedSleeper::~ScopedSleeper()
+{
+	p.isSleeping = wasSleeping;
+
+	p.lowPriorityQueue.clear();
+	p.highPriorityQueue.clear();
+			
+	sendMessage(false);
+}
+
+void JavascriptThreadPool::addSleepListener(SleepListener* s)
+{
+	sleepListeners.addIfNotAlreadyThere(s);
+}
+
+void JavascriptThreadPool::removeSleepListener(SleepListener* s)
+{
+	sleepListeners.removeAllInstancesOf(s);
+}
+
+bool JavascriptThreadPool::isCurrentlySleeping() const
+{ return isSleeping; }
 
 void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Task::Function& f)
 {

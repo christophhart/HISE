@@ -43,28 +43,13 @@ class HardcodedScriptEditor: public ProcessorEditorBody
 {
 public:
 
-	HardcodedScriptEditor(ProcessorEditor *p):
-		ProcessorEditorBody(p)
+	HardcodedScriptEditor(ProcessorEditor *p);;
 
-	{
-		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseMidiProcessor*>(getProcessor())));
-		contentComponent->refreshMacroIndexes();
-	};
+	void updateGui() override;;
 
-	void updateGui() override
-	{
-		contentComponent->changeListenerCallback(getProcessor());
-	};
+	int getBodyHeight() const override;;
 
-	int getBodyHeight() const override
-	{
-		return contentComponent->getContentHeight() == 0 ? 0 : contentComponent->getContentHeight() + 38;
-	};
-
-	void resized()
-	{
-		contentComponent->setBounds((getWidth() / 2) - ((getWidth() - 90) / 2), 24 ,getWidth() - 90, contentComponent->getContentHeight());
-	}
+	void resized();
 
 private:
 
@@ -85,80 +70,40 @@ public:
 
     //==============================================================================
 
-	JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
-	ScriptContentComponent* getScriptEditHandlerContent() { return scriptContent.get(); }
-	ScriptingContentOverlay* getScriptEditHandlerOverlay() { return dragOverlay; }
-	CommonEditorFunctions::EditorType* getScriptEditHandlerEditor() { return codeEditor->editor; }
-	
-	void updateGui() override;;
+	JavascriptProcessor* getScriptEditHandlerProcessor();
+    ScriptContentComponent* getScriptEditHandlerContent();
+    ScriptingContentOverlay* getScriptEditHandlerOverlay();
+    CommonEditorFunctions::EditorType* getScriptEditHandlerEditor();
+
+    void updateGui() override;;
 
 	void showCallback(int callbackIndex, int charToScroll=-1);
 	void showOnInitCallback();
 	void gotoChar(int character);
 
-	void editorInitialized()
-	{
-		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
-		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+	void editorInitialized();
 
-		for(int i = 0; i < sp->getNumSnippets(); i++)
-		{
-			if(getProcessor()->getEditorState(editorOffset + i + ProcessorWithScriptingContent::EditorStates::onInitShown))
-				showCallback(i);
-		}
-
-		setSize(getWidth(), getBodyHeight());
-
-		checkActiveSnippets();
-	}
-
-	bool keyPressed(const KeyPress &k) override;
+    bool keyPressed(const KeyPress &k) override;
 
 	void scriptEditHandlerCompileCallback() override;
 
-	bool isInEditMode() const
-	{
-		return codeEditor != nullptr && scriptContent->isVisible() && (getActiveCallback() == 0);
-	}
-	
-	void checkContent()
-	{
-		const bool contentEmpty = scriptContent->getContentHeight() == 0;
+	bool isInEditMode() const;
 
-		if(contentEmpty) contentButton->setToggleState(false, dontSendNotification);
+    void checkContent();
 
-		Button *t = contentButton;
-
-		t->setColour(TextButton::buttonColourId, !contentEmpty ? Colour (0x77cccccc) : Colour (0x4c4b4b4b));
-		t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
-		t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
-		t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
-
-		contentButton->setEnabled(!contentEmpty);
-
-		resized();
-	}
-
-	int getActiveCallback() const;
+    int getActiveCallback() const;
 
 	void checkActiveSnippets();
 
-	Button *getSnippetButton(int i)
-	{
-		return callbackButtons[i];
-	}
+	Button *getSnippetButton(int i);
 
-	int getBodyHeight() const override;;
+    int getBodyHeight() const override;;
 
 	void resized();
     void buttonClicked (Button* buttonThatWasClicked);
 
-	void selectOnInitCallback() override
-	{
-		if (getActiveCallback() != 0)
-			buttonClicked(callbackButtons[0]); // we need synchronous execution here
-	}
-	
+	void selectOnInitCallback() override;
+
 private:
 
 	static constexpr int EditorHeight = 500;

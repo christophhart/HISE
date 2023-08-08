@@ -568,6 +568,9 @@ private:
 	}
 };
 
+
+
+
 #define DECLARE_ID(x) static const Identifier x(#x);
 
 namespace FloatingTileKeyPressIds

@@ -762,6 +762,213 @@ void Parameter::updateConnectionOnRemoval(ValueTree& c)
 		connectionSourceTree.getParent().removeChild(connectionSourceTree, parent->getUndoManager());
 }
 
+NodeBase::Holder::~Holder()
+{
+	root = nullptr;
+	nodes.clear();
+}
+
+NodeBase* NodeBase::Holder::getRootNode() const
+{ return root.get(); }
+
+void NodeBase::Holder::setRootNode(NodeBase::Ptr newRootNode)
+{
+	root = newRootNode;
+}
+
+NodeBase::DynamicBypassParameter::ScopedUndoDeactivator::ScopedUndoDeactivator(NodeBase* n):
+	p(*n)
+{
+	prevState = p.enableUndo;
+	p.enableUndo = false;
+}
+
+NodeBase::DynamicBypassParameter::ScopedUndoDeactivator::~ScopedUndoDeactivator()
+{
+	p.enableUndo = prevState;
+}
+
+NodeBase::DynamicBypassParameter::~DynamicBypassParameter()
+{
+	if (node != nullptr)
+		node->dynamicBypassId = prevId;
+}
+
+void NodeBase::DynamicBypassParameter::call(double v)
+{
+	setDisplayValue(v);
+	bypassed = !enabledRange.contains(v) && enabledRange.getEnd() != v;
+
+	ScopedUndoDeactivator sns(node);
+
+	node->setBypassed(bypassed);
+}
+
+Identifier NodeBase::getObjectName() const
+{ return PropertyIds::Node; }
+
+bool NodeBase::forEach(const std::function<bool(NodeBase::Ptr)>& f)
+{
+	return f(this);
+}
+
+void NodeBase::processMonoFrame(MonoFrameType& data)
+{
+	FrameType dynData(data);
+	processFrame(dynData);
+}
+
+void NodeBase::processStereoFrame(StereoFrameType& data)
+{
+	FrameType dynData(data);
+	processFrame(dynData);
+}
+
+bool NodeBase::isProcessingHiseEvent() const
+{ return false; }
+
+void NodeBase::handleHiseEvent(HiseEvent& e)
+{
+	ignoreUnused(e);
+}
+
+String NodeBase::getNodeDescription() const
+{ return {}; }
+
+ParameterDataList NodeBase::createInternalParameterList()
+{ return {}; }
+
+void NodeBase::processProfileInfo(double cpuUsage, int numSamples)
+{
+	lastBlockSize = numSamples;
+	ignoreUnused(cpuUsage, numSamples);
+}
+
+bool NodeBase::setComplexDataIndex(String dataType, int dataSlot, int indexValue)
+{
+	auto v = getValueTree().getChildWithName(PropertyIds::ComplexData);
+        
+	if(!v.isValid())
+		return false;
+        
+	auto types = dataType + "s";
+	v = v.getChildWithName(Identifier(types));
+        
+	if(!v.isValid())
+		return false;
+        
+	v = v.getChild(dataSlot);
+        
+	if(!v.isValid())
+		return false;
+        
+	v.setProperty(PropertyIds::Index, dataSlot, getUndoManager());
+        
+	return true;
+}
+
+bool NodeBase::isPolyphonic() const
+{ return false; }
+
+bool NodeBase::isBodyShown() const
+{
+	if (v_data[PropertyIds::Folded])
+		return false;
+
+	if (auto p = getParentNode())
+	{
+		return p->isBodyShown();
+	}
+
+	return true;
+}
+
+HelpManager& NodeBase::getHelpManager()
+{ return helpManager; }
+
+ValueTree NodeBase::getParameterTree()
+{ return v_data.getOrCreateChildWithName(PropertyIds::Parameters, getUndoManager()); }
+
+ValueTree NodeBase::getPropertyTree()
+{ return v_data.getOrCreateChildWithName(PropertyIds::Properties, getUndoManager()); }
+
+bool NodeBase::isBeingMoved() const
+{
+	auto pNode = getParentNode();
+
+	while (pNode != nullptr)
+	{
+		if (pNode->isCurrentlyMoved)
+			return true;
+
+		pNode = pNode->getParentNode();
+	}
+
+	return isCurrentlyMoved;
+}
+
+NodeBase::ParameterIterator::ParameterIterator(NodeBase& n): node(n), size(n.getNumParameters())
+{}
+
+Parameter** NodeBase::ParameterIterator::begin() const
+{ return node.parameters.begin(); }
+
+Parameter** NodeBase::ParameterIterator::end() const
+{ return node.parameters.end(); }
+
+void NodeBase::setCurrentId(const String& newId)
+{
+	currentId = newId;
+}
+
+String NodeBase::getCurrentId() const
+{ return currentId; }
+
+Rectangle<int> NodeBase::getExtraComponentBounds() const
+{
+	return {};
+}
+
+double& NodeBase::getCpuFlag()
+{ return cpuUsage; }
+
+bool& NodeBase::getPreserveAutomationFlag()
+{ return preserveAutomation; }
+
+int NodeBase::getCurrentChannelAmount() const
+{ return lastSpecs.numChannels; }
+
+int NodeBase::getNumChannelsToDisplay() const
+{ return getCurrentChannelAmount(); }
+
+int NodeBase::getCurrentBlockRate() const
+{ return lastBlockSize; }
+
+void NodeBase::setSignalPeaks(float* p, int numChannels, bool postSignal)
+{
+	auto& s = signalPeaks[(int)postSignal];
+
+	for(int i = 0; i < numChannels; i++)
+	{
+		s[i] *= 0.5f;
+		s[i] += 0.5f * p[i];
+	}
+}
+
+float NodeBase::getSignalPeak(int channel, bool post) const
+{ return signalPeaks[(int)post][channel]; }
+
+void NodeBase::updateBypassState(Identifier, var newValue)
+{
+	auto shouldBeBypassed = (bool)newValue;
+	setBypassed((bool)newValue);
+
+	ignoreUnused(shouldBeBypassed);
+        
+	// This needs to be set in the virtual method above
+	jassert(shouldBeBypassed == bypassState);
+}
+
 juce::String Parameter::getId() const
 {
 	return data[PropertyIds::ID].toString();
@@ -1468,6 +1675,17 @@ RealNodeProfiler::RealNodeProfiler(NodeBase* n, int numSamples_) :
 {
 	if (enabled)
 		start = Time::getMillisecondCounterHiRes();
+}
+
+RealNodeProfiler::~RealNodeProfiler()
+{
+	if (enabled)
+	{
+		auto delta = Time::getMillisecondCounterHiRes() - start;
+		profileFlag = profileFlag * 0.9 + 0.1 * delta;
+
+		node->processProfileInfo(profileFlag, numSamples);
+	}
 }
 
 Parameter::ScopedAutomationPreserver::ScopedAutomationPreserver(NodeBase* n) :

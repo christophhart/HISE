@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include "hi_scripting/scripting/components/ScriptingContentOverlay.h"
+
 namespace hise { using namespace juce;
 
 

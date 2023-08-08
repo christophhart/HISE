@@ -49,22 +49,11 @@ public:
 
 	~ScriptUserPresetHandler();
 
-	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("UserPresetHandler"); }
+	Identifier getObjectName() const override;
 
-	int getNumChildElements() const override
-	{
-		return 2;
-	}
+	int getNumChildElements() const override;
 
-	DebugInformationBase* getChildElement(int index) override
-	{
-		if (index == 0)
-			return preCallback.createDebugObject("preCallback");
-		if (index == 1)
-			return postCallback.createDebugObject("postCallback");
-        
-        return nullptr;
-	}
+	DebugInformationBase* getChildElement(int index) override;
 
 	// =================================================================================== API Methods
 
@@ -140,43 +129,12 @@ public:
 
 	void presetSaved(const File& newPreset) override;
 
-	void presetListUpdated() override
-	{
+	void presetListUpdated() override;
 
-	}
 
-	
+	void loadCustomUserPreset(const var& dataObject) override;
 
-	void loadCustomUserPreset(const var& dataObject) override
-	{
-		if (customLoadCallback)
-		{
-			var args = dataObject;
-			auto ok = customLoadCallback.callSync(&args, 1, nullptr);
-
-			if (!ok.wasOk())
-				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
-		}
-	}
-
-	var saveCustomUserPreset(const String& presetName) override
-	{
-		if (customSaveCallback)
-		{
-			var rv;
-			var args = presetName;
-			auto ok = customSaveCallback.callSync(&args, 1, &rv);
-
-			if (!ok.wasOk())
-				debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
-
-			return rv;
-		}
-
-		return {};
-	}
-	
-	
+	var saveCustomUserPreset(const String& presetName) override;
 
 private:
 
@@ -411,41 +369,11 @@ public:
 	struct DefaultHandler : public ControlledObject,
 		public ExpansionHandler::Listener
 	{
-		DefaultHandler(MainController* mc, ValueTree t) :
-			ControlledObject(mc),
-			defaultPreset(t),
-			defaultIsLoaded(true)
-		{
-			getMainController()->getExpansionHandler().addListener(this);
-		}
+		DefaultHandler(MainController* mc, ValueTree t);
 
-		~DefaultHandler()
-		{
-			getMainController()->getExpansionHandler().removeListener(this);
-		}
+		~DefaultHandler();
 
-		void expansionPackLoaded(Expansion* e) override
-		{
-			if (e != nullptr)
-			{
-				defaultIsLoaded = false;
-			}
-			else
-			{
-				if (!defaultIsLoaded)
-				{
-					auto copy = defaultPreset.createCopy();
-
-					getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), [copy, this](Processor* p)
-					{
-						defaultIsLoaded = true;
-						p->getMainController()->loadPresetFromValueTree(copy);
-
-						return SafeFunctionCall::OK;
-					}, MainController::KillStateHandler::SampleLoadingThread);
-				}
-			}
-		}
+		void expansionPackLoaded(Expansion* e) override;
 
 	private:
 
@@ -453,16 +381,9 @@ public:
 		bool defaultIsLoaded = true;
 	};
 
-	FullInstrumentExpansion(MainController* mc, const File& f) :
-		ScriptEncryptedExpansion(mc, f)
-	{
+	FullInstrumentExpansion(MainController* mc, const File& f);
 
-	}
-
-	~FullInstrumentExpansion()
-	{
-		getMainController()->getExpansionHandler().removeListener(this);
-	}
+	~FullInstrumentExpansion();
 
 	static void setNewDefault(MainController* mc, ValueTree t);
 
@@ -470,10 +391,7 @@ public:
 
 	static Expansion* getCurrentFullExpansion(const MainController* mc);
 
-	void setIsProjectExporter()
-	{
-		isProjectExport = true;
-	}
+	void setIsProjectExporter();
 
 	ValueTree getValueTreeFromFile(Expansion::ExpansionType type);
 
@@ -485,10 +403,7 @@ public:
 
 	Result encodeExpansion() override;
 
-	ValueTree getEmbeddedNetwork(const String& id) override
-	{
-		return networks.getChildWithProperty("ID", id);
-	}
+	ValueTree getEmbeddedNetwork(const String& id) override;
 
 	bool fullyLoaded = false;
 	ValueTree presetToLoad;

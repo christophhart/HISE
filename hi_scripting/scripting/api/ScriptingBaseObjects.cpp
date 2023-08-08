@@ -880,5 +880,38 @@ void ConstScriptingObject::gotoLocationWithDatabaseLookup()
 	}
 }
 
+DynamicScriptingObject::DynamicScriptingObject(ProcessorWithScriptingContent* p):
+	ScriptingObject(p)
+{
+	setMethod("exists", Wrappers::checkExists);
+		
+}
+
+DynamicScriptingObject::~DynamicScriptingObject()
+{}
+
+String DynamicScriptingObject::getInstanceName() const
+{ return name; }
+
+bool DynamicScriptingObject::checkValidObject() const
+{
+	if(!objectExists())
+	{
+		reportScriptError(getObjectName().toString() + " " + getInstanceName() + " does not exist.");
+		RETURN_IF_NO_THROW(false)
+	}
+
+	if(objectDeleted())
+	{
+		reportScriptError(getObjectName().toString() + " " + getInstanceName() + " was deleted");	
+		RETURN_IF_NO_THROW(false)
+	}
+
+	return true;
+}
+
+void DynamicScriptingObject::setName(const String& name_) noexcept
+{ name = name_; }
+
 } // namespace hise
 

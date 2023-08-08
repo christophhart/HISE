@@ -99,6 +99,58 @@ ScriptUserPresetHandler::~ScriptUserPresetHandler()
 	getMainController()->getUserPresetHandler().removeListener(this);
 }
 
+Identifier ScriptUserPresetHandler::getObjectName() const
+{ RETURN_STATIC_IDENTIFIER("UserPresetHandler"); }
+
+int ScriptUserPresetHandler::getNumChildElements() const
+{
+	return 2;
+}
+
+DebugInformationBase* ScriptUserPresetHandler::getChildElement(int index)
+{
+	if (index == 0)
+		return preCallback.createDebugObject("preCallback");
+	if (index == 1)
+		return postCallback.createDebugObject("postCallback");
+        
+	return nullptr;
+}
+
+void ScriptUserPresetHandler::presetListUpdated()
+{
+
+}
+
+void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
+{
+	if (customLoadCallback)
+	{
+		var args = dataObject;
+		auto ok = customLoadCallback.callSync(&args, 1, nullptr);
+
+		if (!ok.wasOk())
+			debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+	}
+}
+
+var ScriptUserPresetHandler::saveCustomUserPreset(const String& presetName)
+{
+	if (customSaveCallback)
+	{
+		var rv;
+		var args = presetName;
+		auto ok = customSaveCallback.callSync(&args, 1, &rv);
+
+		if (!ok.wasOk())
+			debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+
+		return rv;
+	}
+
+	return {};
+}
+
 void ScriptUserPresetHandler::setUseUndoForPresetLoading(bool shouldUseUndoManager)
 {
 	getMainController()->getUserPresetHandler().setAllowUndoAtUserPresetLoad(shouldUseUndoManager);
@@ -2340,6 +2392,62 @@ juce::Result ScriptEncryptedExpansion::returnFail(const String& errorMessage)
 	return Result::fail(errorMessage);
 }
 
+FullInstrumentExpansion::DefaultHandler::DefaultHandler(MainController* mc, ValueTree t):
+	ControlledObject(mc),
+	defaultPreset(t),
+	defaultIsLoaded(true)
+{
+	getMainController()->getExpansionHandler().addListener(this);
+}
+
+FullInstrumentExpansion::DefaultHandler::~DefaultHandler()
+{
+	getMainController()->getExpansionHandler().removeListener(this);
+}
+
+void FullInstrumentExpansion::DefaultHandler::expansionPackLoaded(Expansion* e)
+{
+	if (e != nullptr)
+	{
+		defaultIsLoaded = false;
+	}
+	else
+	{
+		if (!defaultIsLoaded)
+		{
+			auto copy = defaultPreset.createCopy();
+
+			getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), [copy, this](Processor* p)
+			{
+				defaultIsLoaded = true;
+				p->getMainController()->loadPresetFromValueTree(copy);
+
+				return SafeFunctionCall::OK;
+			}, MainController::KillStateHandler::SampleLoadingThread);
+		}
+	}
+}
+
+FullInstrumentExpansion::FullInstrumentExpansion(MainController* mc, const File& f):
+	ScriptEncryptedExpansion(mc, f)
+{
+
+}
+
+FullInstrumentExpansion::~FullInstrumentExpansion()
+{
+	getMainController()->getExpansionHandler().removeListener(this);
+}
+
+void FullInstrumentExpansion::setIsProjectExporter()
+{
+	isProjectExport = true;
+}
+
+ValueTree FullInstrumentExpansion::getEmbeddedNetwork(const String& id)
+{
+	return networks.getChildWithProperty("ID", id);
+}
 
 
 Result FullInstrumentExpansion::encodeExpansion()

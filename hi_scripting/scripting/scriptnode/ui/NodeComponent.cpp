@@ -880,7 +880,15 @@ void DeactivatedComponent::resized()
 }
 
 
-juce::Array<hise::PathFactory::Description> NodeComponent::Factory::getDescription() const
+Component* NodeComponentFactory::createComponent(NodeBase* node)
+{
+	return dynamic_cast<juce::Component*>(node->createComponent());
+}
+
+String NodeComponentFactory::getId() const
+{ return "Scriptnode"; }
+
+juce::Array<hise::PathFactory::Description> NodeComponentFactory::getDescription() const
 {
 	Array<Description> d;
 
@@ -910,7 +918,7 @@ juce::Array<hise::PathFactory::Description> NodeComponent::Factory::getDescripti
 	return d;
 }
 
-juce::Path NodeComponent::Factory::createPath(const String& id) const
+juce::Path NodeComponentFactory::createPath(const String& id) const
 {
 	Path p;
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);

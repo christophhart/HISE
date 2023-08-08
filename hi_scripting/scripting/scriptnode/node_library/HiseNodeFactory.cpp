@@ -1460,4 +1460,105 @@ Factory::Factory(DspNetwork* n) :
 }
 }
 
+#if USE_BACKEND
+namespace dll
+{
+
+BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
+	NodeFactory(n),
+	dllFactory(dll)
+{
+	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
+	auto numNetworks = networks.size();
+
+	int numNodesInDll = dllFactory.getNumNodes();
+
+	int thirdPartyOffset = 0;
+
+	for (int i = 0; i < numNodesInDll; i++)
+	{
+		if (dllFactory.isThirdPartyNode(i))
+			thirdPartyOffset = i + 1;
+	}
+
+	// Cater in the scenario where we have third party effects...
+	auto numNodesToCreate = jmax(numNetworks + thirdPartyOffset, numNodesInDll);
+
+	for (int i = 0; i < numNodesToCreate; i++)
+	{
+		auto isThirdPartyNode = dllFactory.isThirdPartyNode(i);
+
+		if (isThirdPartyNode)
+		{
+			NodeFactory::Item item;
+			item.id = dllFactory.getId(i);
+
+			dll::FactoryBase* f = &dllFactory;
+
+			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+			{
+				auto isModNode = f->getWrapperType(i) == 1;
+
+				NodeBase* n;
+
+				if (isModNode)
+				{
+					auto mn = new InterpretedModNode(p, v);
+					mn->initFromDll(f, i, true);
+					n = mn;
+				}
+				else
+				{
+					auto in = new InterpretedNode(p, v);
+					in->initFromDll(f, i, false);
+					n = in;
+				}
+
+				return n;
+			};
+
+			monoNodes.add(item);
+
+		}
+		else
+		{
+			auto networkIndex = i - thirdPartyOffset;
+
+			auto f = networks[networkIndex];
+			NodeFactory::Item item;
+			item.id = f.getFileNameWithoutExtension();
+			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+			{
+				auto nodeId = f.getFileNameWithoutExtension();
+				auto networkFile = f;
+
+				if (networkFile.existsAsFile())
+				{
+					if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
+					{
+						auto nv = ValueTree::fromXml(*xml);
+
+						auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
+
+						if (useMod)
+							return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
+						else
+							return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
+					}
+				}
+
+				jassertfalse;
+				NodeBase* n = nullptr;
+				return n;
+			};
+
+			monoNodes.add(item);
+		}
+
+	}
 }
+}
+#endif
+
+}
+

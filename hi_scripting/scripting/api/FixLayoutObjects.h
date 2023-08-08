@@ -40,50 +40,19 @@ struct Allocator : public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<Allocator>;
 
-	uint8* allocate(int numBytesToAllocate)
-	{
-		jassert(numBytesToAllocate % 4 == 0);
+	uint8* allocate(int numBytesToAllocate);
 
-		auto b = new Block(numBytesToAllocate);
-
-		allocatedBlocks.add(b);
-
-		return b->getData();
-	}
-
-	bool validMemoryAccess(uint8* ptr)
-	{
-		bool found = false;
-
-		for (auto b : allocatedBlocks)
-			found |= b->contains(ptr);
-		
-		return found;
-	}
+	bool validMemoryAccess(uint8* ptr);
 
 private:
 
 	struct Block
 	{
-		Block(size_t numBytes_) :
-			numBytes(numBytes_)
-		{
-			data.allocate(numBytes + 16, true);
-			offset = 16 - reinterpret_cast<uint64>(data.get()) % 16;
-		};
+		Block(size_t numBytes_);;
 
-		uint8* getData() const
-		{
-			return data.get() + offset;
-		}
+		uint8* getData() const;
 
-		bool contains(uint8* ptr)
-		{
-			auto s = reinterpret_cast<uint64>(getData());
-			auto e = s + numBytes;
-			auto p = reinterpret_cast<uint64>(ptr);
-			return Range<uint64>(s, e).contains(p);
-		}
+		bool contains(uint8* ptr);
 
 		HeapBlock<uint8> data;
 		size_t numBytes;
@@ -136,17 +105,9 @@ struct LayoutBase
 		static uint32 getTypeSize(DataType type);
 	};
 
-	virtual ~LayoutBase() {};
+	virtual ~LayoutBase();;
 
-	size_t getElementSizeInBytes() const
-	{
-		size_t bytes = 0;
-
-		for (auto l : layout)
-			bytes += l->getByteSize();
-
-		return bytes;
-	}
+	size_t getElementSizeInBytes() const;
 
 	Allocator::Ptr allocator;
 	MemoryLayoutItem::List layout;
@@ -188,14 +149,10 @@ public:
 
 	bool isValid() const;
 
-	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("FixObject"); }
+	Identifier getObjectName() const override;
 
 
-	
-	int getNumChildElements() const override
-	{ 
-		return memberReferences.size();
-	};
+	int getNumChildElements() const override;;
 
 	DebugInformationBase* getChildElement(int index);
 
@@ -205,52 +162,24 @@ public:
 	{
 		using Ptr = ReferenceCountedObjectPtr<MemberReference>;
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("FixObjectMember"); }
+		Identifier getObjectName() const override;
 
 		/** This will be shown as value of the object. */
 		String getDebugValue() const override;;
 
 		/** This will be shown as name of the object. */
-		String getDebugName() const 
-		{   
-			String s;
-			s << "%PARENT%.";
-			s << memberProperties->id.toString(); 
-			return s;
-		};
+		String getDebugName() const;;
 
-		String getDebugDataType() const override
-		{ 
-			String s;
+		String getDebugDataType() const override;
 
-			switch (memberProperties->type)
-			{
-			case LayoutBase::DataType::Integer: s << "int"; break;
-			case LayoutBase::DataType::Float:   s << "float"; break;
-			case LayoutBase::DataType::Boolean: s << "bool"; break;
-            default:                            break;
-			}
-
-			if (!arrayMembers.isEmpty())
-				s << "[" << String(arrayMembers.size()) << "]";
-
-			return s;
-		}
-
-		int getNumChildElements() const override
-		{
-			return arrayMembers.size();
-		}
+		int getNumChildElements() const override;
 
 		DebugInformationBase* getChildElement(int index) override;
 
 
 		MemberReference(MemoryLayoutItem::Ptr p, uint8* data_, int indexInArray_);
 		MemberReference& operator=(var newValue);
-		MemberReference::Ptr operator[](int index) const
-		{
-			return arrayMembers[index];
-		}
+		MemberReference::Ptr operator[](int index) const;
 
 		bool isValid() const;
 
@@ -277,10 +206,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MemberReference);
 	};
 
-	MemberReference::Ptr operator[](const Identifier& id) const
-	{
-		return dynamic_cast<MemberReference*>(memberReferences[id].getObject());
-	}
+	MemberReference::Ptr operator[](const Identifier& id) const;
 
 	void init(LayoutBase* referencedLayout, uint8* preallocatedData, bool resetToDefault);
 
@@ -291,45 +217,6 @@ public:
 	NamedValueSet memberReferences;
 };
 
-#if 0
-struct Stack : public LayoutBase,
-	public hise::UnorderedStack<ObjectReference, 128>,
-	public ReferenceCountedObject
-{
-	Stack(const var& description)
-	{
-		layout = createLayout(allocator, description, &initResult);
-
-		if (initResult.wasOk())
-		{
-			auto ptr = begin();
-
-			for (auto l : layout)
-				elementSize += l->getByteSize();
-
-			numAllocated = elementSize * 128;
-
-			if (numAllocated > 0)
-			{
-				allocatedData.allocate(numAllocated, true);
-				auto dataPtr = allocatedData.get();
-
-				for (int i = 0; i < 128; i++)
-				{
-					ptr[i].init(this, dataPtr, true);
-					dataPtr += elementSize;
-				}
-			}
-		}
-	}
-
-private:
-
-	int numAllocated = 0;
-	int elementSize = 0;
-	HeapBlock<uint8> allocatedData;
-};
-#endif
 
 struct Array : public LayoutBase,
 	public AssignableObject,
@@ -337,58 +224,24 @@ struct Array : public LayoutBase,
 {
 	ObjectReference::CompareFunction compareFunction;
 
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_1(Array, indexOf);
-		API_VOID_METHOD_WRAPPER_1(Array, fill);
-		API_VOID_METHOD_WRAPPER_0(Array, clear);
-		API_METHOD_WRAPPER_2(Array, copy);
-	};
+	struct Wrapper;
+	
 
-	Identifier getObjectName() const override
-	{
-		RETURN_STATIC_IDENTIFIER("FixObjectArray");
-	}
+	Identifier getObjectName() const override;
 
-	int getNumChildElements() const override { return items.size(); }
+	int getNumChildElements() const override;
 
 	DebugInformationBase* getChildElement(int index) override;
 
-	Array(ProcessorWithScriptingContent* s, int numElements):
-		ConstScriptingObject(s, 1)
-	{
-		addConstant("length", numElements);
-
-		ADD_API_METHOD_1(indexOf);
-		ADD_API_METHOD_1(fill);
-		ADD_API_METHOD_0(clear);
-		ADD_API_METHOD_2(copy);
-	};
+	Array(ProcessorWithScriptingContent* s, int numElements);;
 
 	void init(LayoutBase* parentLayout);
 
-	void assign(const int index, var newValue) override
-	{
-		if (auto fo = dynamic_cast<ObjectReference*>(newValue.getObject()))
-		{
-			if (auto i = items[index])
-			{
-				*i = *fo;
-			}
-		}
-	}
+	void assign(const int index, var newValue) override;
 
-	var getAssignedValue(int index) const override
-	{
-		if (isPositiveAndBelow(index, items.size()))
-		{
-			return var(items[index].get());
-		}
+	var getAssignedValue(int index) const override;
 
-		return var();
-	}
-
-	int getCachedIndex(const var &indexExpression) const override { return (int)indexExpression; }
+	int getCachedIndex(const var &indexExpression) const override;
 
 	// =======================================================================================================
 
@@ -427,30 +280,11 @@ protected:
 
 struct Stack : public Array
 {
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_1(Stack, insert);
-		API_METHOD_WRAPPER_1(Stack, remove);
-		API_METHOD_WRAPPER_1(Stack, removeElement);
-		API_METHOD_WRAPPER_0(Stack, size);
-		API_METHOD_WRAPPER_1(Stack, indexOf);
-		API_METHOD_WRAPPER_1(Stack, contains);
-		API_METHOD_WRAPPER_0(Stack, isEmpty);
-	};
+	struct Wrapper;
 
-	Stack(ProcessorWithScriptingContent* s, int numElements) :
-		Array(s, numElements)
-	{
-		ADD_API_METHOD_1(insert);
-		ADD_API_METHOD_1(remove);
-		ADD_API_METHOD_1(removeElement);
-		ADD_API_METHOD_0(size);
-		ADD_API_METHOD_1(indexOf);
-		ADD_API_METHOD_1(contains);
-		ADD_API_METHOD_0(isEmpty);
-	};
+	Stack(ProcessorWithScriptingContent* s, int numElements);;
 
-	Identifier getObjectName() { RETURN_STATIC_IDENTIFIER("FixObjectStack"); }
+	Identifier getObjectName();
 
 	// =======================================================================================================
 
@@ -479,11 +313,8 @@ struct Stack : public Array
 
 private:
 
-	ObjectReference* getRef(const var& obj)
-	{
-		return dynamic_cast<ObjectReference*>(obj.getObject());
-	}
-	
+	ObjectReference* getRef(const var& obj);
+
 	int position = 0;
 };
 
@@ -514,13 +345,8 @@ struct Factory : public LayoutBase,
 
 private:
 
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_0(Factory, create);
-		API_METHOD_WRAPPER_1(Factory, createArray);
-		API_METHOD_WRAPPER_1(Factory, createStack);
-		API_VOID_METHOD_WRAPPER_1(Factory, setCompareFunction);
-	};
+	struct Wrapper;
+	
 
 	WeakCallbackHolder customCompareFunction;
 

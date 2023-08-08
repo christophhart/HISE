@@ -283,6 +283,41 @@ private:
 	ScopedPointer<HardcodedScriptFactoryType> hardcodedScripts;
 };
 
+class HardcodedScriptFactoryType : public FactoryType
+{
+	// private enum for handling
+	enum
+	{
+		legatoWithRetrigger = MidiProcessorFactoryType::numMidiProcessors,
+		ccSwapper,
+		releaseTrigger,
+		cc2Note,
+		channelFilter,
+		channelSetter,
+		muteAll,
+		arpeggiator,
+	};
+
+public:
+
+	HardcodedScriptFactoryType(Processor* p);;
+
+	void fillTypeNameList();
+
+	~HardcodedScriptFactoryType();;
+
+	Processor* createProcessor(int typeIndex, const String& id) override;
+
+	const Array<ProcessorEntry>& getTypeNames() const override;;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HardcodedScriptFactoryType)
+
+		Array<ProcessorEntry> typeNames;
+
+};
+
 class ModulatorSynth;
 
 

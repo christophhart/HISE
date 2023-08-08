@@ -104,7 +104,60 @@ juce::uint32 LayoutBase::Helpers::getTypeSize(DataType type)
 	}
 }
 
+LayoutBase::~LayoutBase()
+{}
 
+size_t LayoutBase::getElementSizeInBytes() const
+{
+	size_t bytes = 0;
+
+	for (auto l : layout)
+		bytes += l->getByteSize();
+
+	return bytes;
+}
+
+
+uint8* Allocator::allocate(int numBytesToAllocate)
+{
+	jassert(numBytesToAllocate % 4 == 0);
+
+	auto b = new Block(numBytesToAllocate);
+
+	allocatedBlocks.add(b);
+
+	return b->getData();
+}
+
+bool Allocator::validMemoryAccess(uint8* ptr)
+{
+	bool found = false;
+
+	for (auto b : allocatedBlocks)
+		found |= b->contains(ptr);
+		
+	return found;
+}
+
+Allocator::Block::Block(size_t numBytes_):
+	numBytes(numBytes_)
+{
+	data.allocate(numBytes + 16, true);
+	offset = 16 - reinterpret_cast<uint64>(data.get()) % 16;
+}
+
+uint8* Allocator::Block::getData() const
+{
+	return data.get() + offset;
+}
+
+bool Allocator::Block::contains(uint8* ptr)
+{
+	auto s = reinterpret_cast<uint64>(getData());
+	auto e = s + numBytes;
+	auto p = reinterpret_cast<uint64>(ptr);
+	return Range<uint64>(s, e).contains(p);
+}
 
 LayoutBase::MemoryLayoutItem::MemoryLayoutItem(Allocator::Ptr allocator_, uint32 offset_, const Identifier& id_, var defaultValue_, Result* r) :
 	id(id_),
@@ -234,6 +287,14 @@ hise::fixobj::LayoutBase::MemoryLayoutItem::List LayoutBase::createLayout(Alloca
 
 	return items;
 }
+
+struct Factory::Wrapper
+{
+	API_METHOD_WRAPPER_0(Factory, create);
+	API_METHOD_WRAPPER_1(Factory, createArray);
+	API_METHOD_WRAPPER_1(Factory, createStack);
+	API_VOID_METHOD_WRAPPER_1(Factory, setCompareFunction);
+};
 
 Factory::Factory(ProcessorWithScriptingContent* s, const var& d) :
 	ConstScriptingObject(s, 0),
@@ -372,6 +433,58 @@ ObjectReference::ObjectReference(const ObjectReference& other)
 bool ObjectReference::isValid() const
 {
 	return layoutReference != nullptr && data != nullptr;
+}
+
+Identifier ObjectReference::getObjectName() const
+{ RETURN_STATIC_IDENTIFIER("FixObject"); }
+
+int ObjectReference::getNumChildElements() const
+{ 
+	return memberReferences.size();
+}
+
+Identifier ObjectReference::MemberReference::getObjectName() const
+{ RETURN_STATIC_IDENTIFIER("FixObjectMember"); }
+
+String ObjectReference::MemberReference::getDebugName() const
+{   
+	String s;
+	s << "%PARENT%.";
+	s << memberProperties->id.toString(); 
+	return s;
+}
+
+String ObjectReference::MemberReference::getDebugDataType() const
+{ 
+	String s;
+
+	switch (memberProperties->type)
+	{
+	case LayoutBase::DataType::Integer: s << "int"; break;
+	case LayoutBase::DataType::Float:   s << "float"; break;
+	case LayoutBase::DataType::Boolean: s << "bool"; break;
+	default:                            break;
+	}
+
+	if (!arrayMembers.isEmpty())
+		s << "[" << String(arrayMembers.size()) << "]";
+
+	return s;
+}
+
+int ObjectReference::MemberReference::getNumChildElements() const
+{
+	return arrayMembers.size();
+}
+
+ObjectReference::MemberReference::Ptr ObjectReference::MemberReference::operator[](int index) const
+{
+	return arrayMembers[index];
+}
+
+ObjectReference::MemberReference::Ptr ObjectReference::operator[](const Identifier& id) const
+{
+	return dynamic_cast<MemberReference*>(memberReferences[id].getObject());
 }
 
 hise::DebugInformationBase* ObjectReference::getChildElement(int index)
@@ -584,6 +697,57 @@ hise::fixobj::ObjectReference::MemberReference& ObjectReference::MemberReference
 }
 
 
+Identifier Array::getObjectName() const
+{
+	RETURN_STATIC_IDENTIFIER("FixObjectArray");
+}
+
+int Array::getNumChildElements() const
+{ return items.size(); }
+
+struct Array::Wrapper
+{
+	API_METHOD_WRAPPER_1(Array, indexOf);
+	API_VOID_METHOD_WRAPPER_1(Array, fill);
+	API_VOID_METHOD_WRAPPER_0(Array, clear);
+	API_METHOD_WRAPPER_2(Array, copy);
+};
+
+Array::Array(ProcessorWithScriptingContent* s, int numElements):
+	ConstScriptingObject(s, 1)
+{
+	addConstant("length", numElements);
+
+	ADD_API_METHOD_1(indexOf);
+	ADD_API_METHOD_1(fill);
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_2(copy);
+}
+
+void Array::assign(const int index, var newValue)
+{
+	if (auto fo = dynamic_cast<ObjectReference*>(newValue.getObject()))
+	{
+		if (auto i = items[index])
+		{
+			*i = *fo;
+		}
+	}
+}
+
+var Array::getAssignedValue(int index) const
+{
+	if (isPositiveAndBelow(index, items.size()))
+	{
+		return var(items[index].get());
+	}
+
+	return var();
+}
+
+int Array::getCachedIndex(const var& indexExpression) const
+{ return (int)indexExpression; }
+
 hise::DebugInformationBase* Array::getChildElement(int index)
 {
 	if (isPositiveAndBelow(index, items.size()))
@@ -743,6 +907,37 @@ int Array::size() const
 bool Array::contains(var obj) const
 {
 	return indexOf(obj) != -1;
+}
+
+struct Stack::Wrapper
+{
+	API_METHOD_WRAPPER_1(Stack, insert);
+	API_METHOD_WRAPPER_1(Stack, remove);
+	API_METHOD_WRAPPER_1(Stack, removeElement);
+	API_METHOD_WRAPPER_0(Stack, size);
+	API_METHOD_WRAPPER_1(Stack, indexOf);
+	API_METHOD_WRAPPER_1(Stack, contains);
+	API_METHOD_WRAPPER_0(Stack, isEmpty);
+};
+
+Stack::Stack(ProcessorWithScriptingContent* s, int numElements):
+	Array(s, numElements)
+{
+	ADD_API_METHOD_1(insert);
+	ADD_API_METHOD_1(remove);
+	ADD_API_METHOD_1(removeElement);
+	ADD_API_METHOD_0(size);
+	ADD_API_METHOD_1(indexOf);
+	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_0(isEmpty);
+}
+
+Identifier Stack::getObjectName()
+{ RETURN_STATIC_IDENTIFIER("FixObjectStack"); }
+
+ObjectReference* Stack::getRef(const var& obj)
+{
+	return dynamic_cast<ObjectReference*>(obj.getObject());
 }
 
 bool Stack::insert(var obj)

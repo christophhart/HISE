@@ -35,6 +35,42 @@
 #include "JuceHeader.h"
 
 
+#include "scripting/scriptnode/ui/NodeComponent.h"
+
+#include "scripting/scriptnode/ui/PropertyEditor.h"
+#include "scripting/scriptnode/dynamic_elements/GlobalRoutingNodes.h"
+
+
+#include "scripting/scriptnode/dynamic_elements/DynamicComplexData.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.h"
+
+#include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.h"
+#include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.h"
+
+#include "scripting/scriptnode/api/StaticNodeWrappers.h"
+
+#include "scripting/scriptnode/node_library/Factories.h"
+
+#if HISE_INCLUDE_SNEX
+#include "scripting/scriptnode/snex_nodes/SnexSource.h"
+
+
+#include "scripting/scriptnode/snex_nodes/SnexShaper.h"
+#include "scripting/scriptnode/snex_nodes/SnexOscillator.h"
+
+#include "scripting/scriptnode/snex_nodes/SnexNode.h"
+#include "scripting/scriptnode/snex_nodes/SnexEnvelope.h"
+#include "scripting/scriptnode/snex_nodes/SnexDynamicExpression.h"
+
+#endif
+
+
+
+
+#include "scripting/scriptnode/snex_nodes/SnexTimer.h"
+#include "scripting/scriptnode/snex_nodes/SnexMidi.h"
+
 #include "scripting/scriptnode/nodes/CodeGenerator.h"
 #include "scripting/scriptnode/nodes/NodeContainer.h"
 #include "scripting/scriptnode/nodes/NodeContainerTypes.h"
@@ -43,7 +79,11 @@
 #include "scripting/scriptnode/nodes/ProcessNodes.h"
 #include "scripting/scriptnode/nodes/DspNode.h"
 
+
+
 #include "scripting/scriptnode/ui/ParameterSlider.h"
+
+
 
 #include "scripting/scriptnode/ui/ModulationSourceComponent.h"
 
@@ -95,7 +135,7 @@
 #include "scripting/scriptnode/dynamic_elements/DynamicEventNodes.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicFaderNode.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicSmootherNode.cpp"
-#include "scripting/scriptnode/dynamic_elements/GlobalRoutingNodes.cpp"
+#include "scripting/scriptnode/dynamic_elements/GlobalRoutingManager.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicRoutingNodes.cpp"
 
 
@@ -119,3 +159,5 @@
 #include "scripting/scriptnode/ui/DspNetworkComponents.cpp"
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.cpp"
 
+#include "hi_scripting/scripting/scriptnode/node_library/HiseNodes.cpp"
+#include "hi_scripting/scripting/scriptnode/node_library/HiseNodeFactory.cpp"

@@ -55,6 +55,105 @@
 namespace hise { using namespace juce;
 
 
+ValueTreeUpdateWatcher::ScopedDelayer::ScopedDelayer(ValueTreeUpdateWatcher* watcher_) :
+	watcher(watcher_)
+{
+	if (watcher != nullptr)
+		watcher->delayCalls = true;
+}
+
+ValueTreeUpdateWatcher::ScopedDelayer::~ScopedDelayer()
+{
+	if (watcher != nullptr)
+	{
+		watcher->delayCalls = false;
+
+		if (watcher->shouldCallAfterDelay)
+			watcher->callListener();
+	}
+}
+
+ValueTreeUpdateWatcher::ScopedSuspender::ScopedSuspender(ValueTreeUpdateWatcher* watcher_) :
+	watcher(watcher_)
+{
+	if (watcher.get() != nullptr)
+	{
+		watcher->isSuspended = true;
+	}
+}
+
+ValueTreeUpdateWatcher::ScopedSuspender::~ScopedSuspender()
+{
+	if (watcher.get() != nullptr)
+	{
+		watcher->isSuspended = false;
+	}
+}
+
+ValueTreeUpdateWatcher::Listener::~Listener()
+{}
+
+ValueTreeUpdateWatcher::ValueTreeUpdateWatcher(ValueTree& v, Listener* l) :
+	state(v),
+	listener(l)
+{
+	state.addListener(this);
+}
+
+void ValueTreeUpdateWatcher::valueTreePropertyChanged(ValueTree& valueTrees, const Identifier& property)
+{
+	if (isCurrentlyUpdating)
+		return;
+
+	static const Identifier id("id");
+	static const Identifier parentComponent("parentComponent");
+
+	if (property == id || property == parentComponent)
+		callListener();
+}
+
+void ValueTreeUpdateWatcher::valueTreeChildAdded(ValueTree& valueTrees, ValueTree& valueTree)
+{
+	callListener();
+}
+
+void ValueTreeUpdateWatcher::valueTreeChildRemoved(ValueTree& valueTrees, ValueTree& valueTree, int i)
+{
+	callListener();
+}
+
+void ValueTreeUpdateWatcher::valueTreeChildOrderChanged(ValueTree& valueTrees, int i, int i1)
+{
+	callListener();
+}
+
+void ValueTreeUpdateWatcher::valueTreeParentChanged(ValueTree& valueTrees)
+{}
+
+void ValueTreeUpdateWatcher::callListener()
+{
+	if (isSuspended)
+		return;
+
+	if (delayCalls)
+	{
+		shouldCallAfterDelay = true;
+		return;
+	}
+
+	if (isCurrentlyUpdating)
+		return;
+
+	isCurrentlyUpdating = true;
+
+
+
+	if (listener.get() != nullptr)
+		listener->valueTreeNeedsUpdate();
+
+	isCurrentlyUpdating = false;
+}
+
 
 #define ID(id) Identifier(#id)
 
@@ -806,6 +905,18 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
+var ScriptComponent::getValue() const
+{
+	var rv;
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(valueLock);
+		rv = value;
+	}
+			
+	jassert(!value.isString());
+	return rv;
+}
+
 
 void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 {
@@ -1481,6 +1592,16 @@ void ScriptingApi::Content::ScriptComponent::handleFocusChange(bool isFocused)
 	}
 }
 
+void ScriptComponent::addSubComponentListener(SubComponentListener* l)
+{
+	subComponentListeners.addIfNotAlreadyThere(l);
+}
+
+void ScriptComponent::removeSubComponentListener(SubComponentListener* l)
+{
+	subComponentListeners.removeAllInstancesOf(l);
+}
+
 void ScriptingApi::Content::ScriptComponent::loseFocus()
 {
 	for (auto l : zLevelListeners)
@@ -1502,6 +1623,21 @@ void ScriptingApi::Content::ScriptComponent::grabFocus()
                     // need to continue the loop
         }
     }
+}
+
+void ScriptComponent::handleScriptPropertyChange(const Identifier& id)
+{
+	if (countJsonSetProperties)
+	{
+		if (searchedProperty.isNull())
+		{
+			scriptChangedProperties.addIfNotAlreadyThere(id);
+		}
+		if (searchedProperty == id)
+		{
+			throw String("Here...");
+		}
+	}
 }
 
 juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel()
@@ -1544,6 +1680,18 @@ bool ScriptingApi::Content::ScriptComponent::isConnectedToGlobalCable() const
 	return globalConnection != nullptr && globalConnection->cable != nullptr;
 }
 
+ScriptComponent::ScopedPropertyEnabler::ScopedPropertyEnabler(ScriptComponent* c_):
+	c(c_)
+{
+	c->countJsonSetProperties = false;
+}
+
+ScriptComponent::ScopedPropertyEnabler::~ScopedPropertyEnabler()
+{
+	c->countJsonSetProperties = true;
+	c = nullptr;
+}
+
 void ScriptingApi::Content::ScriptComponent::repaintThisAndAllChildren()
 {
 	// Call repaint on all children to make sure they are updated...
@@ -1581,6 +1729,35 @@ void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible,
 juce::var ScriptingApi::Content::ScriptComponent::getLookAndFeelObject()
 {
 	return localLookAndFeel;
+}
+
+void ScriptComponent::attachValueListener(WeakCallbackHolder::CallableObject* obj)
+{
+	valueListener = obj;
+	sendValueListenerMessage();
+}
+
+void ScriptComponent::removeMouseListener(WeakCallbackHolder::CallableObject* obj)
+{
+	for (int i = 0; i < mouseListeners.size(); i++)
+	{
+		if (mouseListeners[i].listener == obj)
+			mouseListeners.remove(i--);
+	}
+}
+
+void ScriptComponent::attachMouseListener(WeakCallbackHolder::CallableObject* obj,
+	MouseCallbackComponent::CallbackLevel cl, const MouseListenerData::StateFunction& sf,
+	const MouseListenerData::StateFunction& ef, const MouseListenerData::StateFunction& tf,
+	const std::function<StringArray()>& popupItemFunction, ModifierKeys pm, int delayMs)
+{
+	for (int i = 0; i < mouseListeners.size(); i++)
+	{
+		if (mouseListeners[i].listener == nullptr)
+			mouseListeners.remove(i--);
+	}
+
+	mouseListeners.add({ obj, cl, sf, ef, tf, popupItemFunction, pm, delayMs });
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1789,6 +1966,13 @@ void ScriptingApi::Content::ScriptSlider::restoreFromValueTree(const ValueTree &
 	
 	minimum = v.getProperty("rangeMin", 0.0f);
 	maximum = v.getProperty("rangeMax", 1.0f);
+}
+
+void ScriptingApi::Content::ScriptSlider::resetValueToDefault()
+{
+	auto f = (float)getScriptObjectProperty(ScriptComponent::defaultValue);
+	FloatSanitizers::sanitizeFloatNumber(f);
+	setValue(f);
 }
 
 StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier &id)
@@ -2252,6 +2436,54 @@ ScriptComponent(base, name)
 	ADD_API_METHOD_1(setEditable);
 }
 
+ScriptingApi::Content::ScriptLabel::~ScriptLabel()
+{}
+
+Identifier ScriptingApi::Content::ScriptLabel::getStaticObjectName()
+{ RETURN_STATIC_IDENTIFIER("ScriptLabel"); }
+
+Identifier ScriptingApi::Content::ScriptLabel::getObjectName() const
+{ return getStaticObjectName(); }
+
+var ScriptingApi::Content::ScriptLabel::getValue() const
+{
+	return getScriptObjectProperty(ScriptComponent::Properties::text);
+}
+
+void ScriptingApi::Content::ScriptLabel::setValue(var newValue)
+{
+	jassert(newValue != "internal");
+
+	if (newValue.isString())
+	{
+		setScriptObjectProperty(ScriptComponent::Properties::text, newValue);
+		triggerAsyncUpdate();
+	}
+}
+
+void ScriptingApi::Content::ScriptLabel::resetValueToDefault()
+{
+	setValue("");
+}
+
+void ScriptingApi::Content::ScriptLabel::setScriptObjectPropertyWithChangeMessage(const Identifier& id, var newValue,
+	NotificationType notifyEditor)
+{
+	if (id == getIdFor((int)ScriptComponent::Properties::text))
+	{
+		jassert(isCorrectlyInitialised(ScriptComponent::Properties::text));
+		setValue(newValue.toString());
+	}
+			
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+}
+
+bool ScriptingApi::Content::ScriptLabel::isClickable() const
+{
+	return getScriptObjectProperty(Editable) && ScriptComponent::isClickable();
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptLabel::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::LabelWrapper(content, this, index);
@@ -2301,6 +2533,20 @@ Justification ScriptingApi::Content::ScriptLabel::getJustification()
 	auto justAsString = getScriptObjectProperty(Alignment);
 
 	return ApiHelpers::getJustification(justAsString);
+}
+
+void ScriptingApi::Content::ScriptLabel::restoreFromValueTree(const ValueTree& v)
+{
+	setValue(v.getProperty("value", ""));
+}
+
+ValueTree ScriptingApi::Content::ScriptLabel::exportAsValueTree() const
+{
+	ValueTree v = ScriptComponent::exportAsValueTree();
+
+	v.setProperty("value", getValue(), nullptr);
+			
+	return v;
 }
 
 void ScriptingApi::Content::ScriptLabel::handleDefaultDeactivatedProperties()
@@ -2465,6 +2711,111 @@ ScriptingApi::Content::ComplexDataScriptComponent::ComplexDataScriptComponent(Pr
 	ownedObject = snex::ExternalData::create(type);
 	ownedObject->setGlobalUIUpdater(base->getMainController_()->getGlobalUIUpdater());
 	ownedObject->setUndoManager(base->getMainController_()->getControlUndoManager());
+}
+
+Table* ScriptingApi::Content::ComplexDataScriptComponent::getTable(int)
+{
+	return static_cast<Table*>(getUsedData(snex::ExternalData::DataType::Table));
+}
+
+SliderPackData* ScriptingApi::Content::ComplexDataScriptComponent::getSliderPack(int)
+{
+	return static_cast<SliderPackData*>(getUsedData(snex::ExternalData::DataType::SliderPack));
+}
+
+MultiChannelAudioBuffer* ScriptingApi::Content::ComplexDataScriptComponent::getAudioFile(int)
+{
+	return static_cast<MultiChannelAudioBuffer*>(getUsedData(snex::ExternalData::DataType::AudioFile));
+}
+
+FilterDataObject* ScriptingApi::Content::ComplexDataScriptComponent::getFilterData(int index)
+{
+	jassertfalse;
+	return nullptr; // soon;
+}
+
+SimpleRingBuffer* ScriptingApi::Content::ComplexDataScriptComponent::getDisplayBuffer(int index)
+{
+	jassertfalse;
+	return nullptr; // soon
+}
+
+int ScriptingApi::Content::ComplexDataScriptComponent::getNumDataObjects(ExternalData::DataType t) const
+{
+	return t == type ? 1 : 0;
+}
+
+bool ScriptingApi::Content::ComplexDataScriptComponent::removeDataObject(ExternalData::DataType t, int index)
+{ return true; }
+
+void ScriptingApi::Content::ComplexDataScriptComponent::setScriptObjectPropertyWithChangeMessage(const Identifier& id,
+	var newValue, NotificationType notifyEditor)
+{
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+	if (getIdFor(processorId) == id || getIdFor(getIndexPropertyId()) == id)
+	{
+		updateCachedObjectReference();
+	}
+
+	if (getIdFor(parameterId) == id)
+	{
+		// don't do anything if you try to connect a table to a parameter...
+		return;
+	}
+}
+
+void ScriptingApi::Content::ComplexDataScriptComponent::referToDataBase(var newData)
+{
+	if (auto td = dynamic_cast<ScriptingObjects::ScriptComplexDataReferenceBase*>(newData.getObject()))
+	{
+		if (td->getDataType() != type)
+			reportScriptError("Data Type mismatch");
+
+		otherHolder = td->getHolder();
+
+		setScriptObjectPropertyWithChangeMessage(getIdFor(getIndexPropertyId()), td->getIndex(), sendNotification);
+		updateCachedObjectReference();
+	}
+	else if (auto cd = dynamic_cast<ComplexDataScriptComponent*>(newData.getObject()))
+	{
+		if (cd->type != type)
+			reportScriptError("Data Type mismatch");
+
+		otherHolder = cd;
+		updateCachedObjectReference();
+	}
+	else if ((newData.isInt() || newData.isInt64()) && (int)newData == -1)
+	{
+		// just go back to its own data object
+		otherHolder = nullptr;
+		updateCachedObjectReference();
+	}
+}
+
+ComplexDataUIBase* ScriptingApi::Content::ComplexDataScriptComponent::getCachedDataObject() const
+{ return cachedObjectReference.get(); }
+
+void ScriptingApi::Content::ComplexDataScriptComponent::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t,
+	var data)
+{
+			
+}
+
+ComplexDataUIBase::SourceWatcher& ScriptingApi::Content::ComplexDataScriptComponent::getSourceWatcher()
+{ return sourceWatcher; }
+
+void ScriptingApi::Content::ComplexDataScriptComponent::updateCachedObjectReference()
+{
+	if (cachedObjectReference != nullptr)
+		cachedObjectReference->getUpdater().removeEventListener(this);
+
+	cachedObjectReference = getComplexBaseType(type, 0);
+
+	if (cachedObjectReference != nullptr)
+		cachedObjectReference->getUpdater().addEventListener(this);
+
+	sourceWatcher.setNewSource(cachedObjectReference);
 }
 
 juce::StringArray ScriptingApi::Content::ComplexDataScriptComponent::getOptionsFor(const Identifier &id)
@@ -2665,6 +3016,12 @@ void ScriptingApi::Content::ScriptTable::setTablePopupFunction(var newFunction)
 {
 	tableValueFunction = newFunction;
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
+}
+
+void ScriptingApi::Content::ScriptTable::connectToOtherTable(String processorId, int index)
+{
+	setScriptObjectProperty(ScriptingApi::Content::ScriptComponent::processorId, processorId, dontSendNotification);
+	setScriptObjectProperty(getIndexPropertyId(), index, sendNotification);
 }
 
 void ScriptingApi::Content::ScriptTable::referToData(var tableData)
@@ -2912,6 +3269,13 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 		if (auto d = getCachedSliderPack())
 			d->swapData(newValue, dontSendNotification);
 	}
+}
+
+void ScriptingApi::Content::ScriptSliderPack::resetValueToDefault()
+{
+	auto f = (float)getScriptObjectProperty(defaultValue);
+	FloatSanitizers::sanitizeFloatNumber(f);
+	setAllValues((double)f);
 }
 
 var ScriptingApi::Content::ScriptSliderPack::getValue() const
@@ -3345,6 +3709,165 @@ void ScriptingApi::Content::ScriptImage::updateBlendMode()
 		blendImage = Image(Image::ARGB, original.getWidth(), original.getHeight(), true);
 		gin::applyBlend(blendImage, original, blendMode);
 	}
+}
+
+ScriptingApi::Content::ScriptPanel::MouseCursorInfo::MouseCursorInfo() = default;
+
+ScriptingApi::Content::ScriptPanel::MouseCursorInfo::MouseCursorInfo(MouseCursor::StandardCursorType t):
+	defaultCursorType(t)
+{}
+
+ScriptingApi::Content::ScriptPanel::MouseCursorInfo::MouseCursorInfo(const Path& p, Colour c_, Point<float> hp):
+	path(p),
+	c(c_),
+	hitPoint(hp)
+{}
+
+ScriptingApi::Content::ScriptPanel::AnimationListener::~AnimationListener()
+{}
+
+Identifier ScriptingApi::Content::ScriptPanel::getStaticObjectName()
+{ RETURN_STATIC_IDENTIFIER("ScriptPanel"); }
+
+Identifier ScriptingApi::Content::ScriptPanel::getObjectName() const
+{ return getStaticObjectName(); }
+
+bool ScriptingApi::Content::ScriptPanel::isAutomatable() const
+{ return true; }
+
+void ScriptingApi::Content::ScriptPanel::preRecompileCallback()
+{
+	cachedList.clear();
+
+	ScriptComponent::preRecompileCallback();
+
+            
+	timerRoutine.clear();
+	loadRoutine.clear();
+	mouseRoutine.clear();
+
+	stopTimer();
+}
+
+void ScriptingApi::Content::ScriptPanel::sendRepaintMessage()
+{
+	ScriptComponent::sendRepaintMessage();
+	repaint();
+}
+
+void ScriptingApi::Content::ScriptPanel::setIsModalPopup(bool shouldBeModal)
+{
+	isModalPopup = shouldBeModal;
+}
+
+int ScriptingApi::Content::ScriptPanel::getNumSubPanels() const
+{ return childPanels.size(); }
+
+ScriptingApi::Content::ScriptPanel* ScriptingApi::Content::ScriptPanel::getSubPanel(int index)
+{
+	return childPanels[index].get();
+}
+
+bool ScriptingApi::Content::ScriptPanel::isAnimationActive() const
+{ return animation != nullptr && animation->isValid(); }
+
+RLottieAnimation::Ptr ScriptingApi::Content::ScriptPanel::getAnimation()
+{ return animation.get(); }
+
+void ScriptingApi::Content::ScriptPanel::forcedRepaint()
+{
+}
+
+ScriptingApi::Content::ScriptPanel::MouseCursorInfo ScriptingApi::Content::ScriptPanel::getMouseCursorPath() const
+{
+	return mouseCursorPath;
+}
+
+LambdaBroadcaster<ScriptingApi::Content::ScriptPanel::MouseCursorInfo>& ScriptingApi::Content::ScriptPanel::
+getCursorUpdater()
+{ return cursorUpdater; }
+
+void ScriptingApi::Content::ScriptPanel::setScriptObjectPropertyWithChangeMessage(const Identifier& id, var newValue,
+	NotificationType notifyEditor)
+{
+			
+
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+#if HISE_INCLUDE_RLOTTIE
+	if (id == getIdFor((int)ScriptComponent::height) ||
+		id == getIdFor((int)ScriptComponent::width))
+	{
+		if (animation != nullptr)
+		{
+			auto pos = getPosition();
+			animation->setSize(pos.getWidth(), pos.getHeight());
+		}
+	}
+#endif
+}
+
+bool ScriptingApi::Content::ScriptPanel::isModal() const
+{
+	return isModalPopup;
+}
+
+bool ScriptingApi::Content::ScriptPanel::isUsingCustomPaintRoutine() const
+{ return HiseJavascriptEngine::isJavascriptFunction(paintRoutine); }
+
+bool ScriptingApi::Content::ScriptPanel::isUsingClippedFixedImage() const
+{ return usesClippedFixedImage; }
+
+void ScriptingApi::Content::ScriptPanel::scaleFactorChanged(float)
+{}
+
+var ScriptingApi::Content::ScriptPanel::getJSONPopupData() const
+{ return jsonPopupData; }
+
+void ScriptingApi::Content::ScriptPanel::cancelPendingFunctions()
+{
+	stopTimer();
+}
+
+void ScriptingApi::Content::ScriptPanel::resetValueToDefault()
+{
+	auto f = (float)getScriptObjectProperty(defaultValue);
+	FloatSanitizers::sanitizeFloatNumber(f);
+	setValue(f);
+	repaint();
+}
+
+Rectangle<int> ScriptingApi::Content::ScriptPanel::getPopupSize() const
+{ return popupBounds; }
+
+Image ScriptingApi::Content::ScriptPanel::getLoadedImage(const String& prettyName) const
+{
+	for (const auto& img : loadedImages)
+	{
+		if (img.prettyName == prettyName)
+			return img.image ? *img.image.getData() : Image();
+	}
+
+	return Image();
+}
+
+bool ScriptingApi::Content::ScriptPanel::isShowing(bool checkParentComponentVisibility) const
+{
+	if (!ScriptComponent::isShowing(checkParentComponentVisibility))
+		return false;
+
+	if (!getScriptObjectProperty(isPopupPanel))
+		return true;
+
+	return shownAsPopup;
+}
+
+DrawActions::Handler* ScriptingApi::Content::ScriptPanel::getDrawActionHandler()
+{
+	if (graphics != nullptr)
+		return &graphics->getDrawHandler();
+
+	return nullptr;
 }
 
 struct ScriptingApi::Content::ScriptPanel::Wrapper
@@ -4899,6 +5422,46 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	ADD_API_METHOD_1(setContentData);
 }
 
+ScriptingApi::Content::ScriptFloatingTile::~ScriptFloatingTile()
+{}
+
+Identifier ScriptingApi::Content::ScriptFloatingTile::getStaticObjectName()
+{ RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); }
+
+Identifier ScriptingApi::Content::ScriptFloatingTile::getObjectName() const
+{ return getStaticObjectName(); }
+
+void ScriptingApi::Content::ScriptFloatingTile::setValue(var newValue)
+{
+	value = newValue;
+}
+
+var ScriptingApi::Content::ScriptFloatingTile::getValue() const
+{
+	return value;
+}
+
+var ScriptingApi::Content::ScriptFloatingTile::getContentData()
+{ return jsonData; }
+
+void ScriptingApi::Content::ScriptFloatingTile::setContentData(var data)
+{
+	jsonData = data;
+
+	if (auto obj = jsonData.getDynamicObject())
+	{
+		auto id = obj->getProperty("Type");
+
+		// We need to make sure that the content type is changed so that the floating tile
+		// receives an update message
+		setScriptObjectProperty(Properties::ContentType, "", dontSendNotification);
+
+		setScriptObjectProperty(Properties::ContentType, id, sendNotification);
+	}
+			
+	//triggerAsyncUpdate();
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptFloatingTile::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::FloatingTileWrapper(content, this, index);
@@ -5015,6 +5578,19 @@ void ScriptingApi::Content::ScriptFloatingTile::setScriptObjectPropertyWithChang
 	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+}
+
+DynamicObject* ScriptingApi::Content::ScriptFloatingTile::createOrGetJSONData()
+{
+	auto obj = jsonData.getDynamicObject();
+
+	if (obj == nullptr)
+	{
+		obj = new DynamicObject();
+		jsonData = var(obj);
+	}
+
+	return obj;
 }
 
 void ScriptingApi::Content::ScriptFloatingTile::handleDefaultDeactivatedProperties()
@@ -5971,6 +6547,30 @@ void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 			sp->suspendTimer(shouldBeSuspended);
 		}
 	}
+}
+
+ScriptingApi::Content::AsyncRebuildMessageBroadcaster::AsyncRebuildMessageBroadcaster(Content& parent_):
+	parent(parent_)
+{}
+
+ScriptingApi::Content::AsyncRebuildMessageBroadcaster::~AsyncRebuildMessageBroadcaster()
+{
+	cancelPendingUpdate();
+}
+
+void ScriptingApi::Content::AsyncRebuildMessageBroadcaster::notify()
+{
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		handleAsyncUpdate();
+	}
+	else
+		triggerAsyncUpdate();
+}
+
+void ScriptingApi::Content::AsyncRebuildMessageBroadcaster::handleAsyncUpdate()
+{
+	parent.sendRebuildMessage();
 }
 
 #ifndef HISE_SUPPORT_GLSL_LINE_NUMBERS
@@ -6983,6 +7583,40 @@ var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bo
 	}
 }
 
+bool ScriptingApi::Content::interfaceCreationAllowed() const
+{
+	return allowGuiCreation;
+}
+
+void ScriptingApi::Content::addPanelPopup(ScriptPanel* panel, bool closeOther)
+{
+	if (closeOther)
+	{
+		for (auto p : popupPanels)
+		{
+			if (p == panel)
+				continue;
+
+			p->closeAsPopup();
+		}
+				
+
+		popupPanels.clear();
+	}
+
+	popupPanels.add(panel);
+}
+
+void ScriptingApi::Content::setIsRebuilding(bool isCurrentlyRebuilding)
+{
+	for(auto rl: rebuildListeners)
+	{
+		if(rl.get() != nullptr)
+			rl->contentRebuildStateChanged(isCurrentlyRebuilding);
+	}
+}
+
+
 hise::ScriptComponentPropertyTypeSelector::SelectorTypes ScriptComponentPropertyTypeSelector::getTypeForId(const Identifier &id) const
 {
 	if (toggleProperties.contains(id)) return ToggleSelector;
@@ -7037,6 +7671,91 @@ void ScriptComponentPropertyTypeSelector::addToTypeSelector(SelectorTypes type, 
 	}
 }
 
+
+void ContentValueTreeHelpers::removeFromParent(ValueTree& v)
+{
+	v.getParent().removeChild(v, nullptr);
+}
+
+Result ContentValueTreeHelpers::setNewParent(ValueTree& newParent, ValueTree& child)
+{
+	if (newParent.isAChildOf(child))
+	{
+		return Result::fail("Can't set child as parent of child");
+	}
+
+	if (child.getParent() == newParent)
+		return Result::ok();
+
+	removeFromParent(child);
+	newParent.addChild(child, -1, nullptr);
+
+	return Result::ok();
+}
+
+void ContentValueTreeHelpers::updatePosition(ValueTree& v, Point<int> localPoint, Point<int> oldParentPosition)
+{
+	static const Identifier x("x");
+	static const Identifier y("y");
+
+	auto newPoint = localPoint - oldParentPosition;
+
+	v.setProperty(x, newPoint.getX(), nullptr);
+	v.setProperty(y, newPoint.getY(), nullptr);
+}
+
+Point<int> ContentValueTreeHelpers::getLocalPosition(const ValueTree& v)
+{
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier root("ContentProperties");
+
+	if (v.getType() == root)
+	{
+		return Point<int>();
+	}
+
+	return Point<int>(v.getProperty(x), v.getProperty(y));
+}
+
+bool ContentValueTreeHelpers::isShowing(const ValueTree& v)
+{
+	static const Identifier visible("visible");
+	static const Identifier co("Component");
+
+	if (v.getProperty(visible, true))
+	{
+		auto p = v.getParent();
+
+		if (p.getType() == co)
+			return isShowing(p);
+		else
+			return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool ContentValueTreeHelpers::getAbsolutePosition(const ValueTree& v, Point<int>& offset)
+{
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier root("ContentProperties");
+
+	auto parent = v.getParent();
+
+	bool ok = parent.isValid() && parent.getType() != root;
+
+	while (parent.isValid() && parent.getType() != root)
+	{
+		offset.addXY((int)parent.getProperty(x), (int)parent.getProperty(y));
+		parent = parent.getParent();
+	}
+
+	return ok;
+}
 
 MapItemWithScriptComponentConnection::MapItemWithScriptComponentConnection(ScriptComponent* c, int width, int height) :
 	SimpleTimer(c->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),

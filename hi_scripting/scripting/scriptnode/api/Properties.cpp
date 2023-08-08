@@ -700,8 +700,45 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 	CallOutBox::launchAsynchronously(std::unique_ptr<Component>(bigOne), b, pc);
 }
 #endif
-    
-juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* s, ValueTree& d, const Identifier& id, UndoManager* um)
+
+	Colour PropertyHelpers::getColour(ValueTree data)
+	{
+		while (data.getParent().isValid())
+		{
+			if (data.hasProperty(PropertyIds::NodeColour))
+			{
+				auto c = getColourFromVar(data[PropertyIds::NodeColour]);
+
+				if (!c.isTransparent())
+					return c;
+			}
+
+			data = data.getParent();
+		}
+
+		return Colour();
+	}
+
+	Colour PropertyHelpers::getColourFromVar(const var& value)
+	{
+		int64 colourValue = 0;
+
+		if (value.isInt64() || value.isInt())
+			colourValue = (int64)value;
+		else if (value.isString())
+		{
+			auto string = value.toString();
+
+			if (string.startsWith("0x"))
+				colourValue = string.getHexValue64();
+			else
+				colourValue = string.getLargeIntValue();
+		}
+
+		return Colour((uint32)colourValue);
+	}
+
+	juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* s, ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
 

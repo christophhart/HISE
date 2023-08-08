@@ -39,6 +39,8 @@ namespace hise { using namespace juce;
 class ScriptBaseMidiProcessor;
 class JavascriptMidiProcessor;
 
+
+
 /** This class wraps all available functions for the scripting engine provided by a ScriptProcessor.
 *	@ingroup scripting
 */

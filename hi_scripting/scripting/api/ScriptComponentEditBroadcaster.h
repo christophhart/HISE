@@ -48,10 +48,7 @@ public:
 
 	ScriptComponentEditListener(Processor* p);;
 
-	virtual ~ScriptComponentEditListener()
-	{
-		masterReference.clear();
-	}
+	virtual ~ScriptComponentEditListener();
 
 	/** Overwrite this method and update the component to reflect the selection change. */
 	virtual void scriptComponentSelectionChanged() = 0;
@@ -59,22 +56,16 @@ public:
 	/** Overwrite this method and update the component to reflect the property change. */
 	virtual void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) = 0;
 
-	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() { return broadcaster; }
+	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster();
 
-	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const { return broadcaster; }
+	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const;
 
-	const Processor* getProcessor() const
-	{
-		return editedProcessor.get();
-	}
+	const Processor* getProcessor() const;
 
-	Processor* getProcessor()
-	{
-		return editedProcessor.get();
-	}
+	Processor* getProcessor();
 
 	/** Overwrite this and update the undo description. */
-	virtual void updateUndoDescription() {};
+	virtual void updateUndoDescription();;
 
 protected:
 
@@ -109,72 +100,28 @@ class ScriptComponentEditBroadcaster
 {
 public:
 
-	ScriptComponentEditBroadcaster()
-	{}
+	ScriptComponentEditBroadcaster();
 
-	~ScriptComponentEditBroadcaster()
-	{
-		clearSelection(dontSendNotification);
-		manager.clearUndoHistory();
-	}
+	~ScriptComponentEditBroadcaster();
 
-	
 
 	class Iterator
 	{
 	public:
 
-		Iterator(ScriptComponentEditBroadcaster* parent):
-			broadcaster(parent)
-		{
+		Iterator(ScriptComponentEditBroadcaster* parent);
 
-		}
+		Iterator(const ScriptComponentEditBroadcaster* parent);
 
-		Iterator(const ScriptComponentEditBroadcaster* parent) :
-			broadcaster(const_cast<ScriptComponentEditBroadcaster*>(parent))
-		{
+		ScriptComponent* getNextScriptComponent();
 
-		}
-
-		ScriptComponent* getNextScriptComponent()
-		{
-			while (auto r = getNextInternal())
-				return r;
-
-			return nullptr;
-		}
-
-		const ScriptComponent* getNextScriptComponent() const
-		{
-			while (auto r = getNextInternal())
-				return r;
-
-			return nullptr;
-		}
+		const ScriptComponent* getNextScriptComponent() const;
 
 	private:
 
-		ScriptComponent* getNextInternal()
-		{
-			while (index < broadcaster->currentSelection.size())
-			{
-				if (auto r = broadcaster->currentSelection[index++])
-					return r.get();
-			}
+		ScriptComponent* getNextInternal();
 
-			return nullptr;
-		}
-
-		const ScriptComponent* getNextInternal() const
-		{
-			while (index < broadcaster->currentSelection.size())
-			{
-				if (auto r = broadcaster->currentSelection[index++])
-					return r.get();
-			}
-
-			return nullptr;
-		}
+		const ScriptComponent* getNextInternal() const;
 
 		mutable int index = 0;
 
@@ -200,15 +147,9 @@ public:
 
 	void updateSelectionBasedOnModifier(ScriptComponent* componentToUpdate, const ModifierKeys& mods, NotificationType notifyListeners = sendNotification);
 
-	void addScriptComponentEditListener(ScriptComponentEditListener* listenerToAdd)
-	{
-		listeners.addIfNotAlreadyThere(listenerToAdd);
-	}
+	void addScriptComponentEditListener(ScriptComponentEditListener* listenerToAdd);
 
-	void removeScriptComponentEditListener(ScriptComponentEditListener* listenerToRemove)
-	{
-		listeners.removeAllInstancesOf(listenerToRemove);
-	}
+	void removeScriptComponentEditListener(ScriptComponentEditListener* listenerToRemove);
 
 	void prepareSelectionForDragging(ScriptComponent* source);
 
@@ -224,9 +165,9 @@ public:
 
 	bool isFirstComponentInSelection(ScriptComponent* sc) const;
 
-	ScriptComponentSelection getSelection() { return currentSelection; }
+	ScriptComponentSelection getSelection();
 
-	int getNumSelected() const { return currentSelection.size(); }
+	int getNumSelected() const;
 
 	ScriptComponent* getFirstFromSelection();
 
@@ -234,10 +175,7 @@ public:
 
 	static bool isPositionId(const Identifier& id);
 
-	bool isBeingEdited(const Processor* p) const
-	{
-		return currentlyEditedProcessor.get() == p;
-	}
+	bool isBeingEdited(const Processor* p) const;
 
 	void undo(bool shouldUndo);
 
@@ -249,59 +187,13 @@ public:
 	{
 	public:
 
-		PropertyChange(ScriptComponentEditBroadcaster* b_, ScriptComponent* sc, const Identifier& id_, const var& newValue_, NotificationType notifyListeners_):
-			b(b_),
-			id(id_),
-			newValue(newValue_),
-			notifyListeners(notifyListeners_)
-		{
-			selection.add(sc);
-		}
+		PropertyChange(ScriptComponentEditBroadcaster* b_, ScriptComponent* sc, const Identifier& id_, const var& newValue_, NotificationType notifyListeners_);
 
-		PropertyChange(ScriptComponentEditBroadcaster* b_, ScriptComponentSelection selection_, const Identifier& id_, const var& newValue_, NotificationType notifyListeners_) :
-			b(b_),
-			id(id_),
-			newValue(newValue_),
-			notifyListeners(notifyListeners_)
-		{
-			selection = selection_;
-		}
+		PropertyChange(ScriptComponentEditBroadcaster* b_, ScriptComponentSelection selection_, const Identifier& id_, const var& newValue_, NotificationType notifyListeners_);
 
-		bool perform() override
-		{
-			for (auto sc : selection)
-			{
-				if (sc != nullptr)
-				{
-					oldValues.add(sc->getScriptObjectProperty(id));
-					b->setPropertyInternal(sc, id, newValue, notifyListeners);
-				}
-				else
-				{
-					return false;
-				}
-			}
+		bool perform() override;
 
-			return true;
-		}
-
-		bool undo() override
-		{
-			for (int i = 0; i < selection.size(); i++)
-			{
-				if (auto sc = selection[i])
-				{
-					var oldValue = oldValues[i];
-					b->setPropertyInternal(sc.get(), id, oldValue, notifyListeners);
-				}
-				else
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
+		bool undo() override;
 
 	private:
 
@@ -315,10 +207,7 @@ public:
 		NotificationType notifyListeners;
 	};
 
-	UndoManager& getUndoManager()
-	{
-		return manager;
-	}
+	UndoManager& getUndoManager();
 
 	static String getTransactionName(ScriptComponent* sc, const Identifier& id, const var& newValue);
 
@@ -329,13 +218,13 @@ public:
 
 	void setLearnMode(bool shouldBeEnabled);
 
-	bool learnModeEnabled() const { return learnMode; }
+	bool learnModeEnabled() const;
 
-	ScriptComponent* getCurrentlyLearnedComponent() { return currentlyLearnedComponent.get(); }
+	ScriptComponent* getCurrentlyLearnedComponent();
 
 	using LearnBroadcaster = LambdaBroadcaster<ScriptComponent*>;
 
-	LearnBroadcaster& getLearnBroadcaster() { return learnBroadcaster; }
+	LearnBroadcaster& getLearnBroadcaster();
 
 	void setLearnData(const MacroControlledObject::LearnData& d);
 

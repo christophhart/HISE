@@ -551,6 +551,26 @@ private:
 
 };
 
+// Forward declare a few floating tiles so that we can move the header to the implementation files
+
+namespace ScriptingObjects {
+
+struct ScriptBroadcasterPanel : public PanelWithProcessorConnection
+{
+	ScriptBroadcasterPanel(FloatingTile* parent);;
+
+	SET_PANEL_NAME("ScriptBroadcasterMap");
+
+	Identifier getProcessorTypeId() const override;
+
+	Component* createContentComponent(int) override;
+
+	void fillModuleList(StringArray& moduleList) override;
+};
+
+}
+
+
 struct BackendCommandIcons
 {
 	static Path getIcon(int commandId);

@@ -32,6 +32,156 @@
 
 namespace hise { using namespace juce;
 
+	GlobalServer::Listener::~Listener()
+	{}
+
+	GlobalServer::GlobalServer(MainController* mc):
+		ControlledObject(mc),
+		internalThread(*this)
+	{}
+
+	void GlobalServer::setBaseURL(String url)
+	{
+		startTime = Time::getMillisecondCounter();
+		baseURL = URL(url);
+		internalThread.startThread();
+	}
+
+	bool GlobalServer::resendLastCallback()
+	{
+		if(lastCall != nullptr)
+		{
+			auto r = resendCallback(lastCall.get());
+            
+			return r.wasOk();
+		}
+        
+		return false;
+	}
+
+	void GlobalServer::addListener(Listener* l)
+	{
+		listeners.addIfNotAlreadyThere(l);
+	}
+
+	void GlobalServer::removeListener(Listener* l)
+	{
+		listeners.removeAllInstancesOf(l);
+	}
+
+	void GlobalServer::sendMessage(bool sendDownloadMessage)
+	{
+		int numThisTime = sendDownloadMessage ? internalThread.pendingDownloads.size() : internalThread.pendingCallbacks.size();
+
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+			{
+				if (sendDownloadMessage)
+					l.get()->downloadQueueChanged(numThisTime);
+				else
+					l.get()->queueChanged(numThisTime);
+			}
+		}
+	}
+
+	GlobalServer::State GlobalServer::getServerState() const
+	{
+		if (!internalThread.isThreadRunning())
+			return State::Inactive;
+
+		if (!internalThread.running)
+			return State::Pause;
+
+		if (internalThread.pendingCallbacks.isEmpty())
+			return State::Idle;
+
+		return State::WaitingForResponse;
+	}
+
+	GlobalServer::PendingCallback::PendingCallback(ProcessorWithScriptingContent* p, const var& function):
+		f(p, nullptr, function, 2),
+		creationTimeMs(Time::getMillisecondCounter())
+	{
+		f.setHighPriority();
+		f.incRefCount();
+	}
+
+	void GlobalServer::PendingCallback::reset()
+	{
+		requestTimeMs = 0;
+		completionTimeMs = 0;
+		responseObj = var();
+		status = 0;
+	}
+
+	void GlobalServer::addPendingCallback(PendingCallback::Ptr p)
+	{
+		p->extraHeader = extraHeader;
+		internalThread.pendingCallbacks.add(p);
+		internalThread.notify();
+		lastCall = p;
+		sendMessage(false);
+	}
+
+	int GlobalServer::getNumPendingRequests() const
+	{ return internalThread.pendingCallbacks.size(); }
+
+	String GlobalServer::getExtraHeader() const
+	{ return extraHeader; }
+
+	GlobalServer::PendingCallback::WeakPtr GlobalServer::getPendingCallback(int i) const
+	{
+		return internalThread.pendingCallbacks[i].get();
+	}
+
+	void GlobalServer::cleanFinishedDownloads()
+	{
+		internalThread.cleanDownloads = true;
+	}
+
+	void GlobalServer::stop()
+	{
+		internalThread.running.store(false);
+	}
+
+	void GlobalServer::setTimeoutMessageString(String newTimeoutMessage)
+	{
+		internalThread.timeoutMessage = var(newTimeoutMessage);
+	}
+
+	void GlobalServer::cleanup()
+	{
+		lastCall = nullptr;
+		internalThread.stopThread(HISE_SCRIPT_SERVER_TIMEOUT);
+	}
+
+	void GlobalServer::resume()
+	{
+		internalThread.running.store(true);
+	}
+
+	void GlobalServer::setNumAllowedDownloads(int maxNumberOfParallelDownloads)
+	{
+		internalThread.numMaxDownloads = maxNumberOfParallelDownloads;
+	}
+
+	void GlobalServer::setHttpHeader(String newHeader)
+	{
+		extraHeader = newHeader;
+	}
+
+	void GlobalServer::setInitialised()
+	{
+		initialised = true;
+	}
+
+	GlobalServer::WebThread::WebThread(GlobalServer& p):
+		Thread("Server Thread"),
+		parent(p),
+		timeoutMessage("{}")
+	{}
+
 GlobalServer::~GlobalServer()
 {
 	internalThread.stopThread(HISE_SCRIPT_SERVER_TIMEOUT);

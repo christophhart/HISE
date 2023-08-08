@@ -50,39 +50,14 @@ public:
     Result process(String& code, const String& externalFile);
     
 #if USE_BACKEND
-    void setEnableGlobalPreprocessor(bool shouldBeEnabled)
-    {
-        globalEnabled = shouldBeEnabled;
-    }
+    void setEnableGlobalPreprocessor(bool shouldBeEnabled);
 
-    void reset()
-    {
-        deactivatedLines.clear();
-        definitions.clear();
-    }
-    
-    SparseSet<int> getDeactivatedLinesForFile(const String& fileId)
-    {
-        jassert(fileId.isNotEmpty());
-        return deactivatedLines[fileId];
-    }
+    void reset();
 
-    DebugableObjectBase::Location getLocationForPreprocessor(const String& id) const
-    {
-        for (const auto& d: definitions)
-        {
-            if (d.name == id)
-            {
-                DebugableObjectBase::Location l;
-                l.charNumber = d.charNumber;
-                l.fileName = d.fileName;
-                return l;
-            }
-        }
-        
-        return {};
-    }
-    
+    SparseSet<int> getDeactivatedLinesForFile(const String& fileId);
+
+    DebugableObjectBase::Location getLocationForPreprocessor(const String& id) const;
+
     snex::jit::ExternalPreprocessorDefinition::List definitions;
 
     HashMap<String, SparseSet<int>> deactivatedLines;
@@ -155,22 +130,9 @@ public:
 
 	struct TimeoutExtender
 	{
-		TimeoutExtender(HiseJavascriptEngine* e) :
-			engine(e)
-		{
-			start = Time::getMillisecondCounter();
-		};
+		TimeoutExtender(HiseJavascriptEngine* e);;
 
-		~TimeoutExtender()
-		{
-#if USE_BACKEND
-			if (engine != nullptr)
-			{
-				auto delta = Time::getMillisecondCounter() - start;
-				engine->extendTimeout(delta);
-			}
-#endif
-		}
+		~TimeoutExtender();
 
 		uint32 start;
 		WeakReference<HiseJavascriptEngine> engine;
@@ -190,16 +152,9 @@ public:
 
 		void addTokens(mcl::TokenCollection::List& tokens) override;
 
-        static void precompileCallback(TokenProvider& p, bool unused)
-        {
-            p.signalClear(sendNotificationSync);
-        }
-        
-		void scriptWasCompiled(JavascriptProcessor *processor) override
-		{
-			if (jp == processor)
-				signalRebuild();
-		}
+        static void precompileCallback(TokenProvider& p, bool unused);
+
+		void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 		WeakReference<JavascriptProcessor> jp;
         JUCE_DECLARE_WEAK_REFERENCEABLE(TokenProvider);
@@ -285,10 +240,6 @@ public:
 
 	DebugInformationBase::Ptr getDebugInformation(int index);
 
-#if 0
-	var getDebugObject(const Identifier &id) const;
-#endif
-
 	var getScriptVariableFromRootNamespace(const Identifier & id) const;
 
 	void addShaderFile(const File& f);
@@ -345,27 +296,9 @@ public:
 			numTypes
 		};
 
-		ExternalFileData(Type t_, const File &f_, const String& name_) : t(t_), f(f_), r(Result::ok())
-		{
-			switch (t_)
-			{
-			case HiseJavascriptEngine::ExternalFileData::Type::RelativeFile:
-				scriptName = f.getFileName();
-				break;
-			case HiseJavascriptEngine::ExternalFileData::Type::AbsoluteFile:
-				scriptName = f.getFullPathName();
-				break;
-			case HiseJavascriptEngine::ExternalFileData::Type::EmbeddedScript:
-				scriptName = name_;
-				break;
-			case HiseJavascriptEngine::ExternalFileData::Type::numTypes:
-				break;
-			default:
-				break;
-			}
-		};
+		ExternalFileData(Type t_, const File &f_, const String& name_);;
 
-		ExternalFileData() : f(File()), r(Result::fail("uninitialised")) {}
+		ExternalFileData();
 
 		void setErrorMessage(const String &m)
 		{
@@ -476,11 +409,7 @@ public:
 		var evaluate(const String& code);
 
 		//==============================================================================
-		static bool areTypeEqual(const var& a, const var& b)
-		{
-			return a.hasSameTypeAs(b) && isFunction(a) == isFunction(b)
-				&& (((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid())) || a == b);
-		}
+		static bool areTypeEqual(const var& a, const var& b);
 
 		static String getTokenName(TokenType t);
 		static bool isFunction(const var& v) noexcept;
@@ -496,23 +425,9 @@ public:
 
 		struct ScopedLocalThisObject
 		{
-			ScopedLocalThisObject(RootObject& r_, const var& newObject):
-				r(r_)
-			{
-				if (!newObject.isUndefined())
-				{
-					prevObject = r.localThreadThisObject.get();
-					r.localThreadThisObject = newObject;
-				}
-			}
+			ScopedLocalThisObject(RootObject& r_, const var& newObject);
 
-			~ScopedLocalThisObject()
-			{
-				if (!prevObject.isUndefined())
-				{
-					r.localThreadThisObject = prevObject;
-				}
-			}
+			~ScopedLocalThisObject();
 
 			RootObject& r;
 			var prevObject;
@@ -533,32 +448,9 @@ public:
             
 			struct ScopedSetter
 			{
-				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p):
-					r(r_.get())
-				{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-					auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+				ScopedSetter(ReferenceCountedObjectPtr<RootObject> r_, LocalScopeCreator::Ptr p);
 
-					if (!isMessageThread)
-					{
-						auto& cp = r->currentLocalScopeCreator.get();
-						prevValue = p;
-						std::swap(prevValue, cp);
-						ok = true;
-					}
-#endif
-				}
-
-				~ScopedSetter()
-				{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-					if (ok)
-					{
-						auto& cp = r->currentLocalScopeCreator.get();
-						std::swap(cp, prevValue);
-					}
-#endif
-				};
+				~ScopedSetter();;
 
 				RootObject* r;
 				LocalScopeCreator::Ptr prevValue;
@@ -606,71 +498,17 @@ public:
 
 		struct Error
 		{
-			static Error fromBreakpoint(const Breakpoint &bp)
-			{
-				Error e;
+			static Error fromBreakpoint(const Breakpoint &bp);
 
-				e.errorMessage = "Breakpoint " + String(bp.index + 1) + " was hit";
-				e.externalLocation = bp.externalLocation;
-				e.lineNumber = bp.lineNumber;
-				e.charIndex = bp.charIndex;
-				e.columnNumber = bp.colNumber;
-				
-				return e;
-			}
-
-            static Error fromPreprocessorResult(const Result& r, const String& externalFile);
+			static Error fromPreprocessorResult(const Result& r, const String& externalFile);
             
 			static Error fromLocation(const CodeLocation& location, const String& errorMessage);
 
-			String getLocationString() const
-			{
-				if (externalLocation.isEmpty() || externalLocation.contains("()"))
-					return "Line " + String(lineNumber) + ", column " + String(columnNumber);
-				else
-				{
-#if USE_BACKEND
-					File f(externalLocation);
-					const String fileName = f.getFileName();
-#else
-					const String fileName = externalLocation;
-#endif
+			String getLocationString() const;
 
-					return fileName + " (" + String(lineNumber) + ")"; 
-				}
-			}
+			String getEncodedLocation(Processor* p) const;
 
-			String getEncodedLocation(Processor* p) const
-			{
-				ignoreUnused(p);
-
-#if USE_BACKEND
-				String l;
-
-				l << p->getId() << "|";
-
-				if (externalLocation.contains("()"))
-					l << externalLocation;
-				else if (!externalLocation.isEmpty())
-					l << File(externalLocation).getRelativePathFrom(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
-
-				l << "|" << String(charIndex);
-				l << "|" << String(lineNumber) << "|" << String(columnNumber);
-
-				return "{" + Base64::toBase64(l) + "}";
-#else
-				return {};
-#endif
-			}
-
-			String toString(Processor* p) const
-			{
-				String s;
-				s << getLocationString();
-				s << "\t" << getEncodedLocation(p);
-
-				return s;
-			}
+			String toString(Processor* p) const;
 
 			int charIndex = -1;
 			int lineNumber = -1;
@@ -780,100 +618,37 @@ public:
 
 			void setStatements(BlockStatement *s) noexcept;
 
-			bool isDefined() const noexcept{ return isCallbackDefined; }
+			bool isDefined() const noexcept;
 
-			Identifier getObjectName() const override { return getName(); }
+			Identifier getObjectName() const override;
 
-			const Identifier &getName() const { return callbackName; }
+			const Identifier &getName() const;
 
-			int getNumArgs() const { return numArgs; };
+			int getNumArgs() const;;
 
-			String getDebugDataType() const { return "Callback"; }
+			String getDebugDataType() const;
 
-			String getDebugName() const override { return callbackName.toString() + "()"; }
+			String getDebugName() const override;
 
-            DynamicObject::Ptr createScope(RootObject* r) override
-            {
-                DynamicObject::Ptr obj = new DynamicObject();
-                
-                for (int i = 0; i < numArgs; i++)
-                    obj->setProperty(parameters[i], parameterValues[i]);
+			DynamicObject::Ptr createScope(RootObject* r) override;
 
-                for (int i = 0; i < localProperties.size(); i++)
-                    obj->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
-
-                return obj;
-            }
-            
-			int getNumChildElements() const override
-			{
-				return getNumArgs() + localProperties.size();
-			}
+			int getNumChildElements() const override;
 
 			DebugInformation* getChildElement(int index) override;
 
 			String::CharPointerType getProgramPtr() const;
 
-			void setParameterValue(int parameterIndex, const var& newValue)
-			{
-				parameterValues[parameterIndex] = newValue;
-			}
+			void setParameterValue(int parameterIndex, const var& newValue);
 
-			var* getVarPointer(const Identifier &id)
-			{
-				for (int i = 0; i < 4; i++)
-				{
-					if (id == parameters[i]) return &parameterValues[i];
-				}
+			var* getVarPointer(const Identifier &id);
 
-				return nullptr;
-			}
+			String getDebugValue() const override;
 
-			String getDebugValue() const override 
-			{
-				const double percentage = lastExecutionTime / bufferTime * 100.0;
-				return String(percentage, 2) + "%";
-			}
+			var createDynamicObjectForBreakpoint();
 
-			var createDynamicObjectForBreakpoint()
-			{
-				auto object = new DynamicObject();
-				auto arguments = new DynamicObject();
+			void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) override;
 
-				for (int i = 0; i < numArgs; i++)
-					arguments->setProperty(parameters[i], parameterValues[i]);
-
-				auto locals = new DynamicObject();
-
-				for (int i = 0; i < localProperties.size(); i++)
-					locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
-
-				object->setProperty("args", var(arguments));
-				object->setProperty("locals", var(locals));
-
-				return var(object);
-			}
-
-			void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) override
-			{
-				DBG("JUMP");
-			}
-
-			void cleanLocalProperties()
-			{
-// Only clear the local properties when the breakpoints are disabled
-// to allow the inspection of local variables
-#if !ENABLE_SCRIPTING_BREAKPOINTS
-				if (!localProperties.isEmpty())
-				{
-					for (int i = 0; i < localProperties.size(); i++)
-						*localProperties.getVarPointerAt(i) = var();
-				}
-
-				for (int i = 0; i < numArgs; i++)
-					parameterValues[i] = var();
-#endif
-			}
+			void cleanLocalProperties();
 
 			Identifier parameters[4];
 			var parameterValues[4];
@@ -1126,10 +901,7 @@ public:
 		public:
 			virtual void breakpointWasHit(int breakpointIndex) = 0;
 
-			virtual ~Listener()
-			{
-				masterReference.clear();
-			}
+			virtual ~Listener();
 
 		private:
 
@@ -1138,47 +910,16 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		Breakpoint() : snippetId(Identifier()), lineNumber(-1), colNumber(-1), index(-1), charIndex(-1) {}
-		Breakpoint(const Identifier& snippetId_, const String& externalLocation_, int lineNumber_, int charNumber_, int charIndex_, int index_):
-			snippetId(snippetId_),
-			externalLocation(externalLocation_),
-			lineNumber(lineNumber_), 
-			colNumber(charNumber_), 
-			charIndex(charIndex_), 
-			index(index_) {};
+		Breakpoint();
 
-		~Breakpoint()
-		{
-			localScope = nullptr;
-		}
+		Breakpoint(const Identifier& snippetId_, const String& externalLocation_, int lineNumber_, int charNumber_, int charIndex_, int index_);
+		;
 
-		bool operator ==(const Breakpoint& other) const
-		{
-			return snippetId == other.snippetId && lineNumber == other.lineNumber;
-		}
+		~Breakpoint();
 
-		void copyLocalScopeToRoot(RootObject& r)
-		{
-			if (localScope != nullptr)
-			{
-				static const Identifier thisIdentifier("this");
+		bool operator ==(const Breakpoint& other) const;
 
-				auto properties = localScope->getProperties();
-
-				for (int i = 0; i < properties.size(); i++)
-				{
-					if (properties.getName(i) == thisIdentifier)
-						continue;
-
-					r.setProperty(properties.getName(i), properties.getValueAt(i));
-				}
-			}
-
-			localScope = nullptr;
-
-			r.hiseSpecialData.clearDebugInformation();
-			r.hiseSpecialData.createDebugInformation(&r);
-		}
+		void copyLocalScopeToRoot(RootObject& r);
 
 		const Identifier snippetId;
 		const int lineNumber;
@@ -1212,16 +953,7 @@ public:
 		breakpointListeners.removeAllInstancesOf(listener);
 	}
 
-	void sendBreakpointMessage(int breakpointIndex)
-	{
-		for (int i = 0; i < breakpointListeners.size(); i++)
-		{
-			if (breakpointListeners[i].get() != nullptr)
-			{
-				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
-			}
-		}
-	}
+	void sendBreakpointMessage(int breakpointIndex);
 
 	void setUseCycleReferenceCheckForNextCompilation()
 	{

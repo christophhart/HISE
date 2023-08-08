@@ -77,27 +77,9 @@ class ScriptnodeExceptionHandler
 {
 	struct Item
 	{
-		bool operator==(const Item& other) const
-		{
-			return node.get() == other.node.get();
-		}
+		bool operator==(const Item& other) const;
 
-		String toString(const String& customErrorMessage) const
-		{
-			if (node == nullptr || error.error == Error::OK)
-				return {};
-			else
-			{
-				String s;
-				s << node->getCurrentId() << " - ";
-				
-				if (customErrorMessage.isNotEmpty())
-					s << customErrorMessage;
-				else
-					s << getErrorMessage(error);
-				return s;
-			}
-		}
+		String toString(const String& customErrorMessage) const;
 
 		WeakReference<NodeBase> node;
 		Error error;
@@ -108,124 +90,17 @@ public:
 
 	static void validateMidiProcessingContext(NodeBase* b);
 
-	bool isOk() const noexcept
-	{
-		return items.isEmpty();
-	}
+	bool isOk() const noexcept;
 
-	void addCustomError(NodeBase* n, Error::ErrorCode c, const String& errorMessage)
-	{
-		Error e;
-		e.error = c;
-		addError(n, e, errorMessage);
-	}
+	void addCustomError(NodeBase* n, Error::ErrorCode c, const String& errorMessage);
 
-	void addError(NodeBase* n, Error e, const String& errorMessage = {})
-	{
-		customErrorMessage = errorMessage;
+	void addError(NodeBase* n, Error e, const String& errorMessage = {});
 
-		for (auto& i : items)
-		{
-			if (i.node == n)
-			{
-				i.error = e;
-				return;
-			}
-		}
+	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes);
 
-		items.add({ n, e });
+	static String getErrorMessage(Error e);
 
-		errorBroadcaster.sendMessage(sendNotificationAsync, n, e);
-	}
-
-	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes)
-	{
-		customErrorMessage = {};
-
-		bool didSomething = false;
-
-		for (int i = 0; i < items.size(); i++)
-		{
-			if(items[i].node == nullptr)
-			{
-				items.remove(i--);
-				didSomething = true;
-				continue;
-			}
-
-			auto e = items[i].error.error;
-
-			auto isErrorCode = e == errorToRemove ||
-				(errorToRemove == Error::numErrorCodes && 
-				  e != Error::ErrorCode::DeprecatedNode &&
-				  e != Error::ErrorCode::IllegalBypassConnection);
-
-			if ((n == nullptr || (items[i].node == n)) && isErrorCode)
-			{
-				items.remove(i--);
-				didSomething = true;
-			}
-		}
-
-		auto lastItem = items.getLast();
-
-		if(didSomething)
-			errorBroadcaster.sendMessage(sendNotificationAsync, lastItem.node, lastItem.error);
-	}
-
-	static String getErrorMessage(Error e)
-	{
-		String s;
-
-		s << "**";
-
-		switch (e.error)
-		{
-		case Error::ChannelMismatch: s << "Channel amount mismatch";  break;
-		case Error::BlockSizeMismatch: s << "Blocksize mismatch"; break;
-		case Error::IllegalFrameCall: s << "Can't be used in frame processing context"; return s;
-		case Error::IllegalBlockSize: s << "Illegal block size: " << String(e.actual); return s;
-		case Error::SampleRateMismatch: s << "Samplerate mismatch"; break;
-		case Error::InitialisationError: return "Initialisation error";
-		case Error::TooManyChildNodes: s << "Number of child nodes (" << e.actual << ") exceed channels (" << e.expected << ")."; return s;
-        case Error::TooManyParameters: s << "Number of modulation sources (" << e.actual << ") exceed limit (" << e.expected << ")."; return s;
-		case Error::NoMatchingParent:	 return "Can't find suitable parent node";
-		case Error::RingBufferMultipleWriters: return "Buffer used multiple times";
-		case Error::NodeDebuggerEnabled: return "Node is being debugged";
-		case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
-		case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
-		case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
-		case Error::IllegalFaustChannelCount: 
-			s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
-			s << "  \nActual input channels: `" << String(e.actual / 1000) << "`";
-			s << "  \nActual output channels: `" << String(e.actual % 1000) << "`";
-			return s;
-		case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
-		case Error::CloneMismatch:	return "Clone container must have equal child nodes";
-		case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
-		case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
-		case Error::UnscaledModRangeMismatch: s << "Unscaled mod range mismatch.  \n> Copy range to source"; return s;
-		default:
-			break;
-		}
-
-		s << "**:  \n`" << String(e.actual) << "` (expected: `" << String(e.expected) << "`)";
-
-		return s;
-	}
-
-	String getErrorMessage(const NodeBase* n = nullptr) const
-	{
-		for (auto& i : items)
-		{
-			if (i.node == n || n == nullptr)
-			{
-				return i.toString(customErrorMessage);
-			}
-		}
-
-		return {};
-	}
+	String getErrorMessage(const NodeBase* n = nullptr) const;
 
 	LambdaBroadcaster<NodeBase*, Error> errorBroadcaster;
 
@@ -296,7 +171,7 @@ public:
 
 		Holder();
 
-		virtual ~Holder() {};
+		virtual ~Holder();;
 
 		DspNetwork* getOrCreate(const ValueTree& v);
 
@@ -307,106 +182,36 @@ public:
 		void saveNetworks(ValueTree& d) const;
 		void restoreNetworks(const ValueTree& d);
 
-		virtual bool isPolyphonic() const { return false; };
+		virtual bool isPolyphonic() const;;
 
-		void clearAllNetworks()
-		{
-			ReferenceCountedArray<DspNetwork> oldNetworks;
+		void clearAllNetworks();
 
-			{
-				SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
-				std::swap(networks, oldNetworks);
-				networks.clear();
-				activeNetwork = nullptr;
-			}
-		}
+		void setActiveNetwork(DspNetwork* n);
 
-		void setActiveNetwork(DspNetwork* n)
-		{
-			SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
-			activeNetwork = n;
-		}
+		ScriptParameterHandler* getCurrentNetworkParameterHandler(const ScriptParameterHandler* contentHandler) const;
 
-		ScriptParameterHandler* getCurrentNetworkParameterHandler(const ScriptParameterHandler* contentHandler) const
-		{
-			if (auto n = getActiveOrDebuggedNetwork())
-			{
-				if (n->isForwardingControlsToParameters())
-				{
-					if(n->projectNodeHolder.isActive())
-						return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->projectNodeHolder));
-					else
-						return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
-					
-				}
-			}
+		DspNetwork* getActiveOrDebuggedNetwork() const;
 
-			return const_cast<ScriptParameterHandler*>(contentHandler);
-		}
+		DspNetwork* getActiveNetwork() const;
 
-        DspNetwork* getActiveOrDebuggedNetwork() const
-        {
-            if(activeNetwork.get() != nullptr)
-                return activeNetwork;
-            
-            if(debuggedNetwork != nullptr)
-                return debuggedNetwork;
-            
-            return nullptr;
-        }
-        
-		DspNetwork* getActiveNetwork() const
-		{
-			return activeNetwork.get();
-		}
-
-		void setProjectDll(dll::ProjectDll::Ptr pdll)
-		{
-			projectDll = pdll;
-		}
+		void setProjectDll(dll::ProjectDll::Ptr pdll);
 
 		dll::ProjectDll::Ptr projectDll;
 
-		ExternalDataHolder* getExternalDataHolder()
-		{
-			return dataHolder;
-		}
+		ExternalDataHolder* getExternalDataHolder();
 
-		void setExternalDataHolderToUse(ExternalDataHolder* newHolder)
-		{
-			dataHolder = newHolder;
-		}
+		void setExternalDataHolderToUse(ExternalDataHolder* newHolder);
 
-		void setVoiceKillerToUse(snex::Types::VoiceResetter* vk_)
-		{
-			if (isPolyphonic())
-			{
-				vk = vk_;
+		void setVoiceKillerToUse(snex::Types::VoiceResetter* vk_);
 
-				if (getActiveNetwork())
-					getActiveNetwork()->setVoiceKiller(vk);
-			}
-		}
+		SimpleReadWriteLock& getNetworkLock();
 
-		SimpleReadWriteLock& getNetworkLock() { return connectLock; }
+		DspNetwork* addEmbeddedNetwork(DspNetwork* parent, const ValueTree& v, ExternalDataHolder* holderToUse);
 
-		DspNetwork* addEmbeddedNetwork(DspNetwork* parent, const ValueTree& v, ExternalDataHolder* holderToUse)
-		{
-			auto n = new DspNetwork(parent->getScriptProcessor(), v, parent->isPolyphonic(), holderToUse);
-			embeddedNetworks.add(n);
-			n->setParentNetwork(parent);
-			return n;
-		}
+		DspNetwork* getDebuggedNetwork();;
+		const DspNetwork* getDebuggedNetwork() const;;
 
-		DspNetwork* getDebuggedNetwork() { return debuggedNetwork.get(); };
-		const DspNetwork* getDebuggedNetwork() const { return debuggedNetwork.get(); };
-
-		void toggleDebug()
-		{
-			SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
-
-			std::swap(debuggedNetwork, activeNetwork);
-		}
+		void toggleDebug();
 
 	protected:
 
@@ -497,21 +302,17 @@ public:
 #if HISE_INCLUDE_SNEX
 	struct CodeManager
 	{
-		CodeManager(DspNetwork& p):
-			parent(p)
-		{
-			
-		}
+		CodeManager(DspNetwork& p);
 
 		struct SnexSourceCompileHandler : public snex::ui::WorkbenchData::CompileHandler,
-										  public ControlledObject,
-									      public Thread
+		                                  public ControlledObject,
+		                                  public Thread
 		{
 			using TestBase = snex::ui::WorkbenchData::TestRunnerBase;
 			
 			struct SnexCompileListener
 			{
-				virtual ~SnexCompileListener() {};
+				virtual ~SnexCompileListener();;
 
 				/** This is called directly after the compilation (if it was OK) and can 
 				    be used to run the test and update the UI display. */
@@ -522,37 +323,16 @@ public:
 
 			SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_);;
 
-            ~SnexSourceCompileHandler()
-            {
-                stopThread(1000);
-            }
-            
-			void processTestParameterEvent(int parameterIndex, double value) final override {};
-            Result prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override { return Result::ok(); };
-			void processTest(ProcessDataDyn& data) final override {};
+            ~SnexSourceCompileHandler();
+
+			void processTestParameterEvent(int parameterIndex, double value) final override;;
+            Result prepareTest(PrepareSpecs ps, const Array<snex::ui::WorkbenchData::TestData::ParameterEvent>& initialParameters) final override;
+			;
+			void processTest(ProcessDataDyn& data) final override;;
 
 			void run() override;
 
-			void postCompile(ui::WorkbenchData::CompileResult& lastResult) override
-			{
-				auto currentThread = Thread::getCurrentThread();
-
-				if (currentThread != this)
-				{
-					runTestNext.store(true);
-					startThread();
-					return;
-				}
-
-				if (lastResult.compiledOk() && test != nullptr && getParent()->getGlobalScope().isDebugModeEnabled())
-				{
-					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(currentThread);
-					lastResult.compileResult = test->runTest(lastResult);
-					getParent()->getGlobalScope().getBreakpointHandler().setExecutingThread(nullptr);
-				}
-
-				runTestNext.store(false);
-			}
+			void postCompile(ui::WorkbenchData::CompileResult& lastResult) override;
 
 			bool triggerCompilation() override;
 			
@@ -563,22 +343,13 @@ public:
 				The write lock will be held for a short period before compiling (where you need to reset 
 				the state) and then after the compilation where you need to setup the object.
 			*/
-			SimpleReadWriteLock& getCompileLock() { return compileLock; }
+			SimpleReadWriteLock& getCompileLock();
 
-			void addCompileListener(SnexCompileListener* l)
-			{
-				compileListeners.addIfNotAlreadyThere(l);
-			}
+			void addCompileListener(SnexCompileListener* l);
 
-			void removeCompileListener(SnexCompileListener* l)
-			{
-				compileListeners.removeAllInstancesOf(l);
-			}
+			void removeCompileListener(SnexCompileListener* l);
 
-			void setTestBase(TestBase* ownedTest)
-			{
-				test = ownedTest;
-			}
+			void setTestBase(TestBase* ownedTest);
 
 		private:
 
@@ -593,73 +364,17 @@ public:
 			Array<WeakReference<SnexCompileListener>> compileListeners;
 		};
 
-		snex::ui::WorkbenchData::Ptr getOrCreate(const Identifier& typeId, const Identifier& classId)
-		{
-			using namespace snex::ui;
+		snex::ui::WorkbenchData::Ptr getOrCreate(const Identifier& typeId, const Identifier& classId);
 
-			for (auto e : entries)
-			{
-				if (e->wb->getInstanceId() == classId && e->type == typeId)
-					return e->wb;
-			}
+		ValueTree getParameterTree(const Identifier& typeId, const Identifier& classId);
 
-			auto targetFile = getCodeFolder().getChildFile(typeId.toString()).getChildFile(classId.toString()).withFileExtension("h");
-			entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()));
-			return entries.getLast()->wb;
-		}
-
-		ValueTree getParameterTree(const Identifier& typeId, const Identifier& classId)
-		{
-			for (auto e : entries)
-			{
-				if (e->type == typeId && e->wb->getInstanceId() == classId)
-					return e->parameterTree;
-			}
-
-			jassertfalse;
-			return {};
-		}
-		
-		StringArray getClassList(const Identifier& id, const String& fileExtension = "*.h")
-		{
-			auto f = getCodeFolder();
-
-			if (id.isValid())
-				f = f.getChildFile(id.toString());
-
-			StringArray sa;
-
-			for (auto& l : f.findChildFiles(File::findFiles, true, fileExtension))
-			{
-				sa.add(l.getFileNameWithoutExtension());
-			}
-
-			return sa;
-		}
+		StringArray getClassList(const Identifier& id, const String& fileExtension = "*.h");
 
 	private:
 
 		struct Entry
 		{
-			Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp):
-				type(t),
-				parameterFile(targetFile.withFileExtension("xml"))
-			{
-				targetFile.create();
-
-				cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile);
-				wb = new snex::ui::WorkbenchData();
-				wb->setCodeProvider(cp, dontSendNotification);
-				wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
-
-				if (auto xml = XmlDocument::parse(parameterFile))
-					parameterTree = ValueTree::fromXml(*xml);
-				else
-					parameterTree = ValueTree(PropertyIds::Parameters);
-
-				pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
-				propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
-			}
+			Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp);
 
 			const Identifier type;
 			const File parameterFile;
@@ -670,25 +385,15 @@ public:
 
 			snex::ui::WorkbenchData::Ptr wb;
 
-			void parameterAddedOrRemoved(ValueTree, bool)
-			{
-				updateFile();
-			}
+			void parameterAddedOrRemoved(ValueTree, bool);
 
-			void propertyChanged(ValueTree, Identifier)
-			{
-				updateFile();
-			}
+			void propertyChanged(ValueTree, Identifier);
 
 			ValueTree parameterTree;
 			
 		private:
 
-			void updateFile()
-			{
-				auto xml = parameterTree.createXml();
-				parameterFile.replaceWithText(xml->createDocument(""));
-			}
+			void updateFile();
 
 			valuetree::ChildListener pListener;
 			valuetree::RecursivePropertyListener propListener;
@@ -723,43 +428,15 @@ public:
 
 	void assign(const int, var newValue) override { reportScriptError("Can't assign to this expression"); };
 
-	var getAssignedValue(int index) const override
-	{
-		return var(nodes[index].get());
-	}
+	var getAssignedValue(int index) const override;
 
-	int getCachedIndex(const var &indexExpression) const override
-	{
-		if (indexExpression.isString())
-		{
-			for (int i = 0; i < nodes.size(); i++)
-			{
-				if (nodes[i]->getId() == indexExpression.toString())
-					return i;
-			}
-		}
-
-		return (int)indexExpression;
-	}
+	int getCachedIndex(const var &indexExpression) const override;
 
 	NodeBase::Holder* getCurrentHolder() const;
 
 	void registerOwnedFactory(NodeFactory* ownedFactory);
 
-	NodeBase::List getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes)
-	{
-		NodeBase::List list;
-
-		for (auto n : nodes)
-		{
-			auto path = n->getPath();
-
-			if ((includeUnusedNodes || isInSignalPath(n)) && path == id)
-				list.add(n);
-		}
-
-		return list;
-	}
+	NodeBase::List getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes);
 
 	template <class T> NodeBase::List getListOfNodesWithType(bool includeUsedNodes)
 	{
@@ -788,13 +465,7 @@ public:
 
 	bool isSuspendedOnSilence() const;
 
-	bool handleModulation(double& v)
-	{
-		if (isFrozen())
-			return projectNodeHolder.handleModulation(v);
-		else
-			return networkModValue.getChangedValue(v);
-	}
+	bool handleModulation(double& v);
 
 	Identifier getParameterIdentifier(int parameterIndex);
 
@@ -904,7 +575,9 @@ public:
 	NodeBase::List getSelection() const { return selection.getItemArray(); }
 
     void zoomToSelection(Component* c);
-    
+
+	void fillSnexObjects(StringArray& indexList);
+
 	struct NetworkParameterHandler : public hise::ScriptParameterHandler
 	{
 		int getNumParameters() const final override { return root->getNumParameters(); }
@@ -932,16 +605,7 @@ public:
 
 	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& idChanges, bool changeIds);
 
-	void setEnableUndoManager(bool shouldBeEnabled)
-	{
-		enableUndo = shouldBeEnabled;
-		if (enableUndo)
-		{
-			startTimer(1500);
-		}
-		else
-			stopTimer();
-	}
+	void setEnableUndoManager(bool shouldBeEnabled);
 
 	ScriptnodeExceptionHandler& getExceptionHandler()
 	{
@@ -964,16 +628,7 @@ public:
 
 	void changeNodeId(ValueTree& c, const String& oldId, const String& newId, UndoManager* um);
 
-	UndoManager* getUndoManager(bool returnIfPending=false)
-	{ 
-		if (!enableUndo)
-			return nullptr;
-
-		if (!returnIfPending && um.isPerformingUndoRedo())
-			return nullptr;
-		else
-			return &um;
-	}
+	UndoManager* getUndoManager(bool returnIfPending=false);
 
 	double getOriginalSampleRate() const noexcept { return originalSampleRate; }
 
@@ -1021,21 +676,9 @@ public:
 		parentNetwork = p;
 	}
 
-	PolyHandler* getPolyHandler()
-	{
-		if (auto pn = getParentNetwork())
-			return pn->getPolyHandler();
+	PolyHandler* getPolyHandler();
 
-		return &polyHandler;
-	}
-
-	const PolyHandler* getPolyHandler() const
-	{
-		if (auto pn = getParentNetwork())
-			return pn->getPolyHandler();
-
-		return &polyHandler;
-	}
+	const PolyHandler* getPolyHandler() const;
 
 	ModValue& getNetworkModValue() { return networkModValue; }
 
@@ -1155,86 +798,26 @@ private:
 
 	struct ProjectNodeHolder: public hise::ScriptParameterHandler
 	{
-		ProjectNodeHolder(DspNetwork& parent):
-			network(parent)
-		{
+		ProjectNodeHolder(DspNetwork& parent);
 
-		}
+		Identifier getParameterId(int index) const override;
+		int getNumParameters() const override;
 
-		Identifier getParameterId(int index) const override { return network.networkParameterHandler.getParameterId(index); }
-		int getNumParameters() const override { return n.numParameters; }
+		void setParameter(int index, float newValue) override;
 
-		void setParameter(int index, float newValue) override
-		{
-			if (auto p = n.getParameter(index))
-			{
-				parameterValues[index] = newValue;
-				p->callback.call(newValue);
-			}
-		}
-
-		float getParameter(int index) const override 
-		{ 
-			if(isPositiveAndBelow(index, 16))
-				return parameterValues[index]; 
-
-			return 0.0f;
-		};
+		float getParameter(int index) const override;;
 
 		~ProjectNodeHolder();
 
-		bool isActive() const { return forwardToNode; }
+		bool isActive() const;
 
-		void prepare(PrepareSpecs ps)
-		{
-			if(dll != nullptr)
-				dll->clearError();
-
-			n.prepare(ps);
-
-			if (dll != nullptr)
-			{
-				auto e = dll->getError();
-
-				if (!e.isOk())
-					throw e;
-			}
-
-			n.reset();
-		}
+		void prepare(PrepareSpecs ps);
 
 		void process(ProcessDataDyn& data);
 
-		bool handleModulation(double& modValue)
-		{
-			return n.handleModulation(modValue);
-		}
+		bool handleModulation(double& modValue);
 
-		void setEnabled(bool shouldBeEnabled)
-		{
-			if (!loaded)
-				return;
-
-			if (shouldBeEnabled != forwardToNode)
-			{
-				forwardToNode = shouldBeEnabled;
-
-				auto s1 = static_cast<ScriptParameterHandler*>(&network.networkParameterHandler);
-				auto s2 = static_cast<ScriptParameterHandler*>(this);
-
-				auto oh = forwardToNode ? s1 : s2;
-				auto nh = forwardToNode ? s2 : s1;
-
-				if (forwardToNode && network.currentSpecs)
-				{
-					prepare(network.currentSpecs);
-					n.reset();
-				}
-
-				for (int i = 0; i < nh->getNumParameters(); i++)
-					nh->setParameter(i, oh->getParameter(i));
-			}
-		}
+		void setEnabled(bool shouldBeEnabled);
 
 		void init(dll::StaticLibraryHostFactory* staticLibrary);
 
@@ -1258,40 +841,22 @@ struct OpaqueNetworkHolder
 {
 	SN_GET_SELF_AS_OBJECT(OpaqueNetworkHolder);
 
-	bool isPolyphonic() const { return false; }
+	bool isPolyphonic() const;
 
 	SN_EMPTY_INITIALISE;
 	
 
-	OpaqueNetworkHolder()
-	{
+	OpaqueNetworkHolder();
 
-	}
+	~OpaqueNetworkHolder();
 
-	~OpaqueNetworkHolder()
-	{
-		ownedNetwork = nullptr;
-	}
+	void handleHiseEvent(HiseEvent& e);
 
-	void handleHiseEvent(HiseEvent& e)
-	{
-		ownedNetwork->handleHiseEvent(e);
-	}
+	bool handleModulation(double& modValue);
 
-	bool handleModulation(double& modValue)
-	{
-		return ownedNetwork->handleModulation(modValue);
-	}
+	void process(ProcessDataDyn& d);
 
-	void process(ProcessDataDyn& d)
-	{
-		ownedNetwork->process(d);
-	}
-
-	void reset()
-	{
-		ownedNetwork->reset();
-	}
+	void reset();
 
 	template <typename FrameDataType> void processFrame(FrameDataType& d)
 	{
@@ -1307,12 +872,7 @@ struct OpaqueNetworkHolder
 		ownedNetwork->process(pd);
 	}
 
-	void prepare(PrepareSpecs ps)
-	{
-		snex::Types::DllBoundaryTempoSyncer::ScopedModValueChange smvs(*ps.voiceIndex->getTempoSyncer(), ownedNetwork->getNetworkModValue());
-		ownedNetwork->setNumChannels(ps.numChannels);
-		ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
-	}
+	void prepare(PrepareSpecs ps);
 
 	void createParameters(ParameterDataList& l);
 
@@ -1326,9 +886,7 @@ struct OpaqueNetworkHolder
 
 	void setNetwork(DspNetwork* n);
 
-	DspNetwork* getNetwork() {
-		return ownedNetwork.get();
-	}
+	DspNetwork* getNetwork();
 
 	void setExternalData(const ExternalData& d, int index);
 

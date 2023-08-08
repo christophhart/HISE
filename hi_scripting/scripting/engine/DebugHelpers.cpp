@@ -470,6 +470,23 @@ bool gotoLocationInternal(Processor* processor, DebugableObject::Location locati
 #endif
 }
 
+AttributedString DebugableObject::Helpers::getFunctionDoc(const String& docBody, const Array<Identifier>& parameters)
+{
+	AttributedString info;
+	info.setJustification(Justification::centredLeft);
+
+	info.append("Description: ", GLOBAL_BOLD_FONT(), Colours::black);
+	info.append(docBody, GLOBAL_FONT(), Colours::black.withBrightness(0.2f));
+	info.append("\nParameters: ", GLOBAL_BOLD_FONT(), Colours::black);
+	for (int i = 0; i < parameters.size(); i++)
+	{
+		info.append(parameters[i].toString(), GLOBAL_MONOSPACE_FONT(), Colours::darkblue);
+		if (i != parameters.size() - 1) info.append(", ", GLOBAL_BOLD_FONT(), Colours::black);
+	}
+
+	return info;
+}
+
 bool DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
 {
 #if USE_BACKEND
@@ -661,6 +678,120 @@ DebugInformationBase::List DebugableObject::Helpers::getDebugInformationFromStri
     }
     
     return thisList;
+}
+
+DebugInformation::DebugInformation(Type t): type(t)
+{}
+
+DebugInformation::~DebugInformation()
+{}
+
+String DebugInformation::getTextForDataType() const
+{
+	switch (type)
+	{
+	case Type::RegisterVariable: return "Register";
+	case Type::Variables:		 return "Variables";
+	case Type::Constant:		 return "Constant";
+	case Type::InlineFunction:	 return "InlineFunction";
+	case Type::Globals:			 return "Globals";
+	case Type::Callback:		 return "Callback";
+	case Type::ExternalFunction: return "ExternalFunction";
+	case Type::Namespace:		 return "Namespace";
+	case Type::numTypes:
+	default:                     return {};
+	}
+}
+
+const var DebugInformation::getVariantCopy() const
+{ return var(); }
+
+AttributedString DebugInformation::getDescription() const
+{ return AttributedString(); }
+
+String DebugInformation::getCodeToInsert() const
+{
+	return getTextForName();
+}
+
+String DebugInformation::getTextForType() const
+{
+	return getVarType(getVariantCopy());
+}
+
+int DebugInformation::getType() const
+{ return (int)type; }
+
+String DebugInformation::getVarValue(const var& v) const
+{
+	if (DebugableObjectBase *d = getDebugableObject(v))
+	{
+		return d->getDebugValue();
+	}
+	else if (v.isArray())
+	{
+		return varArrayToString(*v.getArray());
+	}
+	else if (v.isBuffer())
+	{
+		return v.getBuffer()->toDebugString();
+	}
+	else return v.toString();
+}
+
+DebugableObjectBase* DebugInformation::getDebugableObject(const var& v)
+{
+	auto obj = v.getObject();
+	return dynamic_cast<DebugableObjectBase*>(obj);
+}
+
+DynamicObjectDebugInformation::DynamicObjectDebugInformation(DynamicObject* obj_, const Identifier& id_, Type t):
+	DebugInformation(t),
+	obj(obj_),
+	id(id_)
+{}
+
+DynamicObjectDebugInformation::~DynamicObjectDebugInformation()
+{
+	obj = nullptr;
+}
+
+bool DynamicObjectDebugInformation::isWatchable() const
+{
+	static const Array<Identifier> unwatchableIds = 
+	{ 
+		Identifier("Array"), 
+		Identifier("String"), 
+		Identifier("Buffer"),
+		Identifier("Libraries")
+	};
+
+	return !unwatchableIds.contains(id);
+}
+
+String DynamicObjectDebugInformation::getTextForName() const
+{ return id.toString(); }
+
+String DynamicObjectDebugInformation::getTextForDataType() const
+{ return obj != nullptr ? getVarType(obj->getProperty(id)) : "dangling"; }
+
+String DynamicObjectDebugInformation::getTextForValue() const
+{ return obj != nullptr ? getVarValue(obj->getProperty(id)) : ""; }
+
+const var DynamicObjectDebugInformation::getVariantCopy() const
+{ return obj != nullptr ? obj->getProperty(id) : var(); }
+
+DebugableObjectBase* DynamicObjectDebugInformation::getObject()
+{
+	auto v = getVariantCopy();
+
+	if (auto dyn = v.getDynamicObject())
+	{
+		wrapper = new DynamicDebugableObjectWrapper(dyn, id, id);
+		return wrapper.get();
+	}
+
+	return nullptr;
 }
 
 DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(ApiProviderBase* engine, DebugableObjectBase* object)

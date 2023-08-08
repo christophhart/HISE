@@ -273,10 +273,7 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 #if HISE_INCLUDE_SNEX
 			if (auto network = h->getActiveOrDebuggedNetwork())
 			{
-				for (auto so : network->getSnexObjects())
-				{
-					indexList.add("SNEX Node: " + so->getId());
-				}
+				network->fillSnexObjects(indexList);
 			}
 #endif
 		}
@@ -2071,9 +2068,9 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	Path p;
 
 	LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
-	LOAD_PATH_IF_URL("edit", OverlayIcons::penShape);
-	LOAD_PATH_IF_URL("editoff", OverlayIcons::lockShape);
-	LOAD_PATH_IF_URL("lock", OverlayIcons::lockShape);
+	LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape);
+	LOAD_EPATH_IF_URL("editoff", OverlayIcons::lockShape);
+	LOAD_EPATH_IF_URL("lock", OverlayIcons::lockShape);
 	LOAD_EPATH_IF_URL("move", EditorIcons::resizeIcon);
 	LOAD_EPATH_IF_URL("cancel", EditorIcons::cancelIcon);
 	LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);

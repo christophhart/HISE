@@ -52,6 +52,36 @@ dynamic_base::dynamic_base() :
 
 }
 
+dynamic_base::~dynamic_base()
+{}
+
+void dynamic_base::call(double value)
+{
+	setDisplayValue(value);
+        
+	if(obj != nullptr && f)
+		f(obj, lastValue);
+}
+
+double dynamic_base::getDisplayValue() const
+{ 
+	return lastValue; 
+}
+
+InvertableParameterRange dynamic_base::getRange() const
+{ return range; }
+
+void dynamic_base::updateRange(const ValueTree& v)
+{
+	range = RangeHelpers::getDoubleRange(v);
+	range.checkIfIdentity();
+}
+
+void dynamic_base::setDisplayValue(double v)
+{
+	lastValue = v;
+}
+
 
 scriptnode::parameter::dynamic_base::Ptr dynamic_base::createFromConnectionTree(const ValueTree& c, parameter::dynamic& callback, bool allowRange)
 {

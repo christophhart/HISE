@@ -47,22 +47,7 @@ public:
     
 	struct Helpers
 	{
-		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters)
-		{
-			AttributedString info;
-			info.setJustification(Justification::centredLeft);
-
-			info.append("Description: ", GLOBAL_BOLD_FONT(), Colours::black);
-			info.append(docBody, GLOBAL_FONT(), Colours::black.withBrightness(0.2f));
-			info.append("\nParameters: ", GLOBAL_BOLD_FONT(), Colours::black);
-			for (int i = 0; i < parameters.size(); i++)
-			{
-				info.append(parameters[i].toString(), GLOBAL_MONOSPACE_FONT(), Colours::darkblue);
-				if (i != parameters.size() - 1) info.append(", ", GLOBAL_BOLD_FONT(), Colours::black);
-			}
-
-			return info;
-		}
+		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters);
 
 		static bool gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
 
@@ -129,48 +114,27 @@ public:
 
 	static DebugInformation *createDebugInformationFor(var *value, const Identifier &id, Type t);
 
-	DebugInformation(Type t): type(t) {};
+	DebugInformation(Type t);;
 
-	virtual ~DebugInformation() {};
+	virtual ~DebugInformation();;
 
 	static String varArrayToString(const Array<var> &arrayToStringify);;
 
-	String getTextForDataType() const override
-	{
-		switch (type)
-		{
-		case Type::RegisterVariable: return "Register";
-		case Type::Variables:		 return "Variables";
-		case Type::Constant:		 return "Constant";
-		case Type::InlineFunction:	 return "InlineFunction";
-		case Type::Globals:			 return "Globals";
-		case Type::Callback:		 return "Callback";
-		case Type::ExternalFunction: return "ExternalFunction";
-		case Type::Namespace:		 return "Namespace";
-        case Type::numTypes:
-        default:                     return {};
-		}
-	}
+	String getTextForDataType() const override;
 
-	virtual const var getVariantCopy() const { return var(); };
+	virtual const var getVariantCopy() const;;
 
-	virtual AttributedString getDescription() const override { return AttributedString(); };
+	virtual AttributedString getDescription() const;;
 
-	String getCodeToInsert() const override
-	{
-		return getTextForName();
-	}
+	String getCodeToInsert() const override;
 
 	Component* createPopupComponent(const MouseEvent& e, Component* componentToNotify) override;
 
 	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify);
 
-	String getTextForType() const override
-	{
-		return getVarType(getVariantCopy());
-	}
+	String getTextForType() const override;
 
-	int getType() const { return (int)type; }
+	int getType() const;
 
 	String getTextForRow(Row r);
 	String toString();
@@ -181,30 +145,11 @@ public:
 
 protected:
 
-	String getVarValue(const var &v) const
-	{
-		if (DebugableObjectBase *d = getDebugableObject(v))
-		{
-			return d->getDebugValue();
-		}
-		else if (v.isArray())
-		{
-			return varArrayToString(*v.getArray());
-		}
-		else if (v.isBuffer())
-		{
-			return v.getBuffer()->toDebugString();
-		}
-		else return v.toString();
-	}
+	String getVarValue(const var &v) const;
 
-	static DebugableObjectBase *getDebugableObject(const var &v)
-	{
-		auto obj = v.getObject();
-		return dynamic_cast<DebugableObjectBase*>(obj);
-	}
+	static DebugableObjectBase *getDebugableObject(const var &v);
 
-	private:
+private:
 
 	Type type;
 
@@ -215,52 +160,23 @@ class DynamicObjectDebugInformation : public DebugInformation
 {
 public:
 
-	DynamicObjectDebugInformation(DynamicObject *obj_, const Identifier &id_, Type t) :
-		DebugInformation(t),
-		obj(obj_),
-		id(id_)
-	{}
+	DynamicObjectDebugInformation(DynamicObject *obj_, const Identifier &id_, Type t);
 
-	~DynamicObjectDebugInformation()
-	{
-		obj = nullptr;
-	}
+	~DynamicObjectDebugInformation();
 
-	bool isWatchable() const override
-	{
-		static const Array<Identifier> unwatchableIds = 
-		{ 
-			Identifier("Array"), 
-			Identifier("String"), 
-			Identifier("Buffer"),
-			Identifier("Libraries")
-		};
+	bool isWatchable() const override;
 
-		return !unwatchableIds.contains(id);
-	}
+	String getTextForName() const override;
 
-	String getTextForName() const override { return id.toString(); }
+	String getTextForDataType() const override;
 
-	String getTextForDataType() const override { return obj != nullptr ? getVarType(obj->getProperty(id)) : "dangling"; }
+	String getTextForValue() const override;
 
-	String getTextForValue() const override { return obj != nullptr ? getVarValue(obj->getProperty(id)) : ""; }
-
-	const var getVariantCopy() const override { return obj != nullptr ? obj->getProperty(id) : var(); };
+	const var getVariantCopy() const override;;
 
 	AttributedString getDescription() const override;;
 
-	DebugableObjectBase *getObject() override 
-	{
-		auto v = getVariantCopy();
-
-		if (auto dyn = v.getDynamicObject())
-		{
-			wrapper = new DynamicDebugableObjectWrapper(dyn, id, id);
-			return wrapper.get();
-		}
-
-		return nullptr;
-	}
+	DebugableObjectBase *getObject() override;
 
 	DynamicObject::Ptr obj;
 	const Identifier id;
@@ -275,185 +191,31 @@ public:
 
 	using ValueFunction = std::function<var()>;
 
-	LambdaValueInformation(const ValueFunction& f, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_, const String& comment_=String()):
-		DebugInformation(t),
-		vf(f),
-		namespaceId(namespaceId_),
-		id(id_),
-		location(location_)
-	{
-		cachedValue = f();
-		DebugableObjectBase::updateLocation(location, cachedValue);
+	LambdaValueInformation(const ValueFunction& f, const Identifier &id_, const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_, const String& comment_=String());
 
-		if (comment_.isNotEmpty())
-			comment.append(comment_, GLOBAL_FONT(), Colours::white);;
-	}
+	DebugableObjectBase::Location getLocation() const;
 
-	DebugableObjectBase::Location getLocation() const override
-	{
-		return location;
-	}
+	AttributedString getDescription() const override;
 
-	AttributedString getDescription() const override
-	{
-		return comment;
-	}
+	String getTextForDataType() const;
 
-	String getTextForDataType() const override { return getVarType(getCachedValueFunction(false)); }
-	
-	String getTextForName() const override 
-	{ 
-		return namespaceId.isNull() ? id.toString() :
-									  namespaceId.toString() + "." + id.toString(); 
-	}
+	String getTextForName() const;
 
-	int getNumChildElements() const override
-	{
-		auto value = getCachedValueFunction(false);
+	int getNumChildElements() const;
 
-		if (auto obj = getDebugableObject(value))
-		{
-			auto customSize = obj->getNumChildElements();
 
-			if (customSize != -1)
-				return customSize;
-		}
+	DebugInformation::Ptr getChildElement(int index);
 
-		if (value.isBuffer())
-		{
-			auto s = value.getBuffer()->size;
+	var getCachedValueFunction(bool forceLookup) const;
 
-			if (isPositiveAndBelow(s, 513))
-				return s;
+	bool isAutocompleteable() const;
 
-			return 0;
-		}
-		
-		if (auto dyn = value.getDynamicObject())
-			return dyn->getProperties().size();
+	void setAutocompleteable(bool shouldBe);
 
-		if (auto ar = value.getArray())
-			return jmin<int>(128, ar->size());
+	const var getVariantCopy() const override;;
 
-		return 0;
-	}
-
-	 
-	DebugInformation::Ptr getChildElement(int index) override
-	{
-		auto value = getCachedValueFunction(false);
-
-		if (auto obj = getDebugableObject(value))
-		{
-			auto numCustom = obj->getNumChildElements();
-
-			if (isPositiveAndBelow(index, numCustom))
-				return obj->getChildElement(index);
-		}
-
-		WeakReference<LambdaValueInformation> safeThis(this);
-
-		if (value.isBuffer())
-		{
-			auto actualValueFunction = [index, safeThis]()
-			{
-				if (safeThis == nullptr)
-					return var();
-
-				if (auto b = safeThis->getCachedValueFunction(false).getBuffer())
-				{
-					if (isPositiveAndBelow(index, b->size))
-						return var(b->getSample(index));
-				}
-
-				return var(0.0f);
-			};
-
-			String cid = "%PARENT%[" + String(index) + "]";
-
-			return new LambdaValueInformation(actualValueFunction, Identifier(cid), namespaceId, (Type)getType(), location);
-		}
-		else if (auto dyn = value.getDynamicObject())
-		{
-			String cid;
-
-			const NamedValueSet& s = dyn->getProperties();
-
-			if (isPositiveAndBelow(index, s.size()))
-			{
-				auto mid = s.getName(index);
-				cid << id << "." << mid;
-
-				auto cf = [safeThis, mid]()
-				{
-					if (safeThis == nullptr)
-						return var();
-
-					auto v = safeThis->getCachedValueFunction(false);
-					return v.getProperty(mid, {});
-				};
-
-					return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
-			}
-		}
-		else if (auto ar = value.getArray())
-		{
-			String cid;
-			cid << id << "[" << String(index) << "]";
-
-			auto cf = [index, safeThis]()
-			{
-				if (safeThis == nullptr)
-					return var();
-
-				auto a = safeThis->getCachedValueFunction(false);
-
-				if (auto ar = a.getArray())
-					return (*ar)[index];
-
-				return var();
-			};
-
-			return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
-		}
-
-		return new DebugInformationBase();
-	}
-
-	var getCachedValueFunction(bool forceLookup) const
-	{
-		if (forceLookup || cachedValue.isUndefined())
-			cachedValue = vf();
-
-		return cachedValue;
-	}
-
-	bool isAutocompleteable() const override
-	{
-		if (customAutoComplete)
-			return autocompleteable;
-
-		auto v = getCachedValueFunction(false);
-
-		if (v.isObject())
-			return true;
-        
-        return false;
-	}
-
-	void setAutocompleteable(bool shouldBe)
-	{
-		customAutoComplete = true;
-		autocompleteable = shouldBe;
-	}
-
-	const var getVariantCopy() const override { return var(getCachedValueFunction(false)); };
-
-	String getTextForValue() const override {
-		auto v = getCachedValueFunction(true);
-		return getVarValue(v); 
-	}
-	DebugableObjectBase *getObject() override { return getDebugableObject(getCachedValueFunction(false)); }
+	String getTextForValue() const;
+	DebugableObjectBase *getObject();
 
 	mutable var cachedValue;
 	
@@ -476,58 +238,24 @@ private:
 class DebugableObjectInformation : public DebugInformation
 {
 public:
-	DebugableObjectInformation(DebugableObjectBase *object_, const Identifier &id_, Type t, const Identifier& namespaceId_=Identifier(), const String& comment_=String()) :
-		DebugInformation(t),
-		object(object_),
-		id(id_),
-		namespaceId(namespaceId_)
-	{
-		if (comment_.isNotEmpty())
-		{
-			comment.append(comment_, GLOBAL_FONT(), Colours::white);
-		}
-	};
+	DebugableObjectInformation(DebugableObjectBase *object_, const Identifier &id_, Type t, const Identifier& namespaceId_=Identifier(), const String& comment_=String());
+	;
 
-	String getTextForDataType() const override { return object != nullptr ? object->getDebugDataType() : ""; }
-	String getTextForName() const override 
-	{ 
-		if (object == nullptr)
-			return "";
+	String getTextForDataType() const;
 
-		return namespaceId.isNull() ? object->getDebugName() :
-									  namespaceId.toString() + "." + object->getDebugName(); 
-	}
-	String getTextForValue() const override { return object != nullptr ? object->getDebugValue() : ""; }
-	AttributedString getDescription() const override 
-	{ return comment; }
+	String getTextForName() const;
+	String getTextForValue() const;
 
-	bool isWatchable() const override { return object != nullptr ? object->isWatchable() : false; }
+	AttributedString getDescription() const override;
 
-	int getNumChildElements() const override
-	{
-		if (object != nullptr)
-		{
-			auto o = object->getNumChildElements();
+	bool isWatchable() const;
 
-			if (o != -1)
-				return o;
+	int getNumChildElements() const;
 
-			
-		}
+	Ptr getChildElement(int index);
 
-		return 0;
-	}
-
-	Ptr getChildElement(int index) override
-	{
-		if (object != nullptr)
-			return object->getChildElement(index);
-			
-		return nullptr;
-	}
-
-	DebugableObjectBase *getObject() override { return object.get(); }
-	const DebugableObjectBase *getObject() const override { return object.get(); }
+	DebugableObjectBase *getObject();
+	const DebugableObjectBase *getObject() const;
 
 	AttributedString comment;
 	WeakReference<DebugableObjectBase> object;

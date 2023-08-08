@@ -44,13 +44,9 @@ using namespace hise;
 */
 struct NodeProperty
 {
-	NodeProperty(const Identifier& baseId_, const var& defaultValue_, bool isPublic_) :
-		baseId(baseId_),
-		defaultValue(defaultValue_),
-		isPublic(isPublic_)
-	{};
+	NodeProperty(const Identifier& baseId_, const var& defaultValue_, bool isPublic_);;
 
-	virtual ~NodeProperty() {};
+	virtual ~NodeProperty();;
 
 	/** Call this in the initialise() function of your node as well as in the createParameters() function (with nullptr as argument).
 
@@ -66,12 +62,9 @@ struct NodeProperty
 	/** Returns the ID in the ValueTree. */
 	Identifier getValueTreePropertyId() const;
 
-	ValueTree getPropertyTree() const { return d; }
+	ValueTree getPropertyTree() const;
 
-	juce::Value asJuceValue()
-	{
-		return d.getPropertyAsValue(PropertyIds::Value, um);
-	}
+	juce::Value asJuceValue();
 
 private:
 
@@ -91,42 +84,17 @@ template <class T, int Value> struct StaticProperty
 
 template <class T> struct NodePropertyT : public NodeProperty
 {
-	NodePropertyT(const Identifier& id, T defaultValue) :
-		NodeProperty(id, defaultValue, false),
-		value(defaultValue)
-	{};
+	NodePropertyT(const Identifier& id, T defaultValue);;
 
-	void postInit(NodeBase* ) override
-	{
-		updater.setCallback(getPropertyTree(), { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
-			BIND_MEMBER_FUNCTION_2(NodePropertyT::update));
-	}
+	void postInit(NodeBase* ) override;
 
-	void storeValue(const T& newValue, UndoManager* um)
-	{
-		if(getPropertyTree().isValid())
-			getPropertyTree().setPropertyExcludingListener(&updater, PropertyIds::Value, newValue, um);
+	void storeValue(const T& newValue, UndoManager* um);
 
-		value = newValue;
-	}
+	void update(Identifier id, var newValue);
 
-	void update(Identifier id, var newValue)
-	{
-		value = newValue;
+	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c, bool callWithValue=false);
 
-		if (additionalCallback)
-			additionalCallback(id, newValue);
-	}
-
-	void setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c, bool callWithValue=false)
-	{
-		additionalCallback = c;
-
-		if (callWithValue && additionalCallback)
-			additionalCallback(PropertyIds::Value, var(value));
-	}
-
-	T getValue() const { return value; }
+	T getValue() const;
 
 private:
 
@@ -137,8 +105,12 @@ private:
 };
 
 
+extern template struct NodePropertyT<int>;
+extern template struct NodePropertyT<String>;
+extern template struct NodePropertyT<bool>;
+
 struct ComboBoxWithModeProperty : public ComboBox,
-	public ComboBoxListener
+                                  public ComboBoxListener
 {
 	ComboBoxWithModeProperty(String defaultValue, const Identifier& id=PropertyIds::Mode);
 
@@ -161,5 +133,40 @@ struct ComboBoxWithModeProperty : public ComboBox,
     JUCE_DECLARE_WEAK_REFERENCEABLE(ComboBoxWithModeProperty);
 };
 
+
+template <class T> class ScriptnodeExtraComponent : public ComponentWithMiddleMouseDrag,
+public PooledUIUpdater::SimpleTimer
+{
+public:
+
+	using ObjectType = T;
+
+	ObjectType* getObject() const
+	{
+		return object.get();
+	}
+
+protected:
+
+	ScriptnodeExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
+		SimpleTimer(updater),
+		object(t)
+	{};
+
+private:
+
+	WeakReference<ObjectType> object;
+};
+
+struct NodeComponentFactory : public PathFactory
+{
+	static Component* createComponent(NodeBase* node);
+
+	String getId() const;;
+
+	Array<Description> getDescription() const override;
+
+	Path createPath(const String& id) const override;
+};
 
 }

@@ -1915,27 +1915,22 @@ struct JuceDspModuleFactory: public StaticDspFactory
 };
 #endif
 
-class HiseCoreDspFactory : public StaticDspFactory
+void HiseCoreDspFactory::registerModules()
 {
-	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("core") };
-
-	void registerModules() override
-	{
-		registerDspModule<ScriptingDsp::Delay>();
-		registerDspModule<ScriptingDsp::SignalSmoother>();
+	registerDspModule<ScriptingDsp::Delay>();
+	registerDspModule<ScriptingDsp::SignalSmoother>();
 		
-		registerDspModule<ScriptingDsp::SmoothedGainer>();
-		registerDspModule<ScriptingDsp::StereoWidener>();
-        registerDspModule<ScriptingDsp::SineGenerator>();
-		registerDspModule<ScriptingDsp::NoiseGenerator>();
-		registerDspModule<ScriptingDsp::Allpass>();
-		registerDspModule<ScriptingDsp::MidSideEncoder>();
-		registerDspModule<ScriptingDsp::PeakMeter>();
-        registerDspModule<ScriptingDsp::AdditiveSynthesiser>();
-		registerDspModule<ScriptingDsp::GlitchCreator>();
-		registerDspModule<ScriptingDsp::Biquad>();
-	}
-};
+	registerDspModule<ScriptingDsp::SmoothedGainer>();
+	registerDspModule<ScriptingDsp::StereoWidener>();
+	registerDspModule<ScriptingDsp::SineGenerator>();
+	registerDspModule<ScriptingDsp::NoiseGenerator>();
+	registerDspModule<ScriptingDsp::Allpass>();
+	registerDspModule<ScriptingDsp::MidSideEncoder>();
+	registerDspModule<ScriptingDsp::PeakMeter>();
+	registerDspModule<ScriptingDsp::AdditiveSynthesiser>();
+	registerDspModule<ScriptingDsp::GlitchCreator>();
+	registerDspModule<ScriptingDsp::Biquad>();
+}
 
 #undef FILL_PARAMETER_ID
 

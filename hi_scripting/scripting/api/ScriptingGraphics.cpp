@@ -488,6 +488,69 @@ ScriptingObjects::ScriptShader::ScriptShader(ProcessorWithScriptingContent* sp) 
 	ADD_API_METHOD_2(setPreprocessor);
 }
 
+Identifier ScriptingObjects::ScriptShader::getObjectName() const
+{ RETURN_STATIC_IDENTIFIER("ScriptShader"); }
+
+void ScriptingObjects::ScriptShader::setEnableLineNumbers(bool shouldUseLineNumbers)
+{
+	useLineNumbers = shouldUseLineNumbers;
+}
+
+bool ScriptingObjects::ScriptShader::compiledOk() const
+{ return r.wasOk(); }
+
+void ScriptingObjects::ScriptShader::setCompileResult(Result compileResult)
+{
+	r = processErrorMessage(compileResult);
+
+	for (auto f : includedFiles)
+		f->setRuntimeErrors(r);
+}
+
+void ScriptingObjects::ScriptShader::setGlobalBounds(Rectangle<int> b, float sf)
+{
+	globalRect = b.toFloat();
+	scaleFactor = sf;
+}
+
+bool ScriptingObjects::ScriptShader::shouldWriteToBuffer() const
+{
+	return enableCache || screenshotPending;
+}
+
+void ScriptingObjects::ScriptShader::renderWasFinished(ScreenshotListener::CachedImageBuffer::Ptr newData)
+{
+	if (screenshotPending)
+	{
+		DBG("REPAINT DONE");
+		screenshotPending = false;
+		lastScreenshot = newData;
+	}
+	else
+		lastScreenshot = nullptr;
+}
+
+ScreenshotListener::CachedImageBuffer::Ptr ScriptingObjects::ScriptShader::getScreenshotBuffer()
+{
+	if (isRenderingScreenshot())
+		return lastScreenshot;
+
+	return nullptr;
+}
+
+bool ScriptingObjects::ScriptShader::isRenderingScreenshot()
+{ return renderingScreenShot; }
+
+ScriptingObjects::ScriptShader::ScopedScreenshotRenderer::ScopedScreenshotRenderer()
+{
+	renderingScreenShot = true;
+}
+
+ScriptingObjects::ScriptShader::ScopedScreenshotRenderer::~ScopedScreenshotRenderer()
+{
+	renderingScreenShot = false;
+}
+
 bool ScriptingObjects::ScriptShader::renderingScreenShot = false;
 
 String ScriptingObjects::ScriptShader::getHeader()
@@ -2503,6 +2566,98 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::setColourOrBlack(DynamicObject*
 		obj->setProperty(id, c.findColour(colourId).getARGB());
 	else
 		obj->setProperty(id, 0);
+}
+
+ScriptingObjects::ScriptedLookAndFeel::Laf::Laf(MainController* mc):
+	ControlledObject(mc)
+{}
+
+ScriptingObjects::ScriptedLookAndFeel::Laf::~Laf()
+{}
+
+ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFeel::Laf::get()
+{
+	return dynamic_cast<ScriptedLookAndFeel*>(getMainController()->getCurrentScriptLookAndFeel());
+}
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getFont()
+{
+	if (auto l = get())
+		return l->f;
+	else
+		return GLOBAL_BOLD_FONT();
+}
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowMessageFont()
+{ return getFont(); }
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowTitleFont()
+{ return getFont(); }
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getTextButtonFont(TextButton& textButton, int i)
+{ return getFont(); }
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getComboBoxFont(ComboBox& comboBox)
+{ return getFont(); }
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getPopupMenuFont()
+{ return getFont(); }
+
+Font ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowFont()
+{ return getFont(); }
+
+Identifier ScriptingObjects::ScriptedLookAndFeel::getObjectName() const
+{ return "ScriptLookAndFeel"; }
+
+int ScriptingObjects::ScriptedLookAndFeel::getNumChildElements() const
+{
+	if (auto dyn = functions.getDynamicObject())
+		return dyn->getProperties().size();
+            
+	return 0;
+}
+
+DebugInformationBase* ScriptingObjects::ScriptedLookAndFeel::getChildElement(int index)
+{
+	WeakReference<ScriptedLookAndFeel> safeThis(this);
+
+	auto vf = [safeThis, index]()
+	{
+		if (safeThis != nullptr)
+		{
+			if (auto dyn = safeThis->functions.getDynamicObject())
+			{
+				if(isPositiveAndBelow(index, dyn->getProperties().size()))
+					return dyn->getProperties().getValueAt(index);
+			}
+		}
+
+		return var();
+	};
+
+	String id = "%PARENT%.";
+
+	auto mid = functions.getDynamicObject()->getProperties().getName(index);
+
+	id << mid;
+
+	Location l = getLocation();
+
+
+	return new LambdaValueInformation(vf, id, {}, (DebugInformation::Type)getTypeNumber(), l);
+}
+
+Image ScriptingObjects::ScriptedLookAndFeel::getLoadedImage(const String& prettyName)
+{
+	for (auto& img : loadedImages)
+	{
+		if (img.prettyName == prettyName)
+		{
+			return img.image ? *img.image.getData() : Image();
+		}
+	}
+
+	return Image();
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAlertBox(Graphics& g_, AlertWindow& w, const Rectangle<int>& ta, TextLayout& tl)

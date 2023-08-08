@@ -694,7 +694,7 @@ float HardcodedSwappableEffect::getHardcodedAttribute(int index) const
 juce::Path HardcodedSwappableEffect::getHardcodedSymbol() const
 {
 	Path p;
-	p.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+	p.loadPathFromData(HnodeIcons::freezeIcon, SIZE_OF_PATH(HnodeIcons::freezeIcon));
 	return p;
 }
 

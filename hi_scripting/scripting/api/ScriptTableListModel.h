@@ -78,7 +78,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	struct LookAndFeelMethods
 	{
-		virtual ~LookAndFeelMethods() {};
+		virtual ~LookAndFeelMethods();;
 
 		virtual void drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected);
 
@@ -104,43 +104,18 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	ScriptTableListModel(ProcessorWithScriptingContent* p, const var& td);;
 
-	int getNumRows() override
-	{
-		return rowData.size();
-	}
+	int getNumRows() override;
 
 	bool isMultiColumn() const;
 
 	void paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected) override;
 
-	void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
-	{
-		auto lafToUse = laf != nullptr ? laf : &fallback;
+	void paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected);;
 
-		lafToUse->drawTableRowBackground(g, d, rowNumber, width, height, rowIsSelected);
-	};
-
-	var getCellValue(int rowIndex, int columnIndex) const
-	{
-		if(isPositiveAndBelow(columnIndex, columnMetadata.size()))
-        {
-            auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
-            
-            if(isPositiveAndBelow(rowIndex, rowData.size()))
-                return rowData[rowIndex][Identifier(id)];
-            
-            return {};
-        }
-        else
-        {
-            jassertfalse;
-            return {};
-        }
-		
-	}
+	var getCellValue(int rowIndex, int columnIndex) const;
 
 	Component* refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
-		Component* existingComponentToUpdate) override;
+	                                   Component* existingComponentToUpdate) override;
 
 	void setup(juce::TableListBox* t);
 
@@ -148,12 +123,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	void setTableColumnData(var cd);
 
-	void timerCallback() override
-	{
-		for (auto r : repaintedColumns)
-			tableColumnRepaintBroadcaster.sendMessage(sendNotificationSync, r);
-			
-	}
+	void timerCallback() override;
 
 	void setRowData(var rd);
 
@@ -168,10 +138,7 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	LambdaBroadcaster<int> tableRefreshBroadcaster;
 	LambdaBroadcaster<int> tableColumnRepaintBroadcaster;
 
-	int getColumnAutoSizeWidth(int columnId) override
-	{
-		return columnMetadata[columnId - 1].getProperty("MaxWidth", 10000);
-	}
+	int getColumnAutoSizeWidth(int columnId) override;
 
 	void sortOrderChanged(int newSortColumnId, bool isForwards) override;
 
@@ -186,32 +153,21 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	void deleteKeyPressed(int lastRowSelected) override;
 	void returnKeyPressed(int lastRowSelected) override;
 
-	void setExternalLookAndFeel(LookAndFeelMethods* l)
-	{
-		laf = l;
-	}
+	void setExternalLookAndFeel(LookAndFeelMethods* l);
 
-	void addAdditionalCallback(const std::function<void(int columnIndex, int rowIndex)>& f)
-	{
-		additionalCallback = f;
-	}
+	void addAdditionalCallback(const std::function<void(int columnIndex, int rowIndex)>& f);
 
 	using SortFunction = std::function<int(const var&, const var&)>;
 
 	void setTableSortFunction(var newSortFunction);
 
-    var getRowData() const { return rowData.clone(); }
-    
+    var getRowData() const;
+
 private:
 
 	Array<int> repaintedColumns;
 
-	static int defaultSorter(const var& v1, const var& v2)
-	{
-		if (v1 < v2) return -1;
-		else if (v1 > v2) return 1;
-		else return 0;
-	}
+	static int defaultSorter(const var& v1, const var& v2);
 
 	SortFunction sortFunction = defaultSorter;
 
@@ -222,42 +178,22 @@ private:
 	struct TableRepainter : public MouseListener,
 						    public KeyListener
 	{
-		TableRepainter(TableListBox* t_, ScriptTableListModel& parent_):
-			t(t_),
-			parent(parent_)
-		{
-			t_->addMouseListener(this, true);
-			t_->addKeyListener(this);
-		}
+		TableRepainter(TableListBox* t_, ScriptTableListModel& parent_);
 
 		bool keyPressed(const KeyPress& key,
-			Component* originatingComponent) override;
+		                Component* originatingComponent) override;
 
-		~TableRepainter()
-		{
-			if(auto tt = t.getComponent())
-			{
-				tt->removeMouseListener(this);
-				tt->removeKeyListener(this);
-			}
-				
-		}
+		~TableRepainter();
 
 		void mouseDown(const MouseEvent& e) override;
 
 		void mouseExit(const MouseEvent& event) override;
 
-		void mouseEnter(const MouseEvent& e) override
-		{
-			repaintIfCellChange(e);
-		}
+		void mouseEnter(const MouseEvent& e) override;
 
 		void repaintIfCellChange(const MouseEvent& e);
 
-		void mouseMove(const MouseEvent& e) override
-		{
-			repaintIfCellChange(e);
-		}
+		void mouseMove(const MouseEvent& e) override;
 
 		Point<int> hoverCell;
 		Component::SafePointer<TableListBox> t;

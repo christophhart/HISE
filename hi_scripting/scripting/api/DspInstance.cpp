@@ -508,12 +508,43 @@ var DspInstance::getInfo() const
 	return var("No module loaded");
 }
 
+void DspInstance::setProcessor(Processor* p)
+{
+	//jassert(p != nullptr);
+	processor = p;
+        
+	if(p != nullptr)
+	{
+		logger = &processor->getMainController()->getDebugLogger();
+	}
+        
+		
+}
+
+void DspInstance::setId(const String& newName)
+{
+	if (Identifier::isValidIdentifier(newName))
+	{
+		debugId = Identifier(newName);
+	}
+}
+
 void DspInstance::checkPriorityInversion()
 {
 	if (logger != nullptr && logger->isLogging())
 	{
 		logger->checkPriorityInversion(getLock(), DebugLogger::Location::DspInstanceRendering, processor.get(), debugId);
 	}
+}
+
+void DspInstance::addListener(Listener* l)
+{
+	listeners.addIfNotAlreadyThere(l);
+}
+
+void DspInstance::removeListener(Listener* l)
+{
+	listeners.removeAllInstancesOf(l);
 }
 
 void DspInstance::operator>>(const var &data)

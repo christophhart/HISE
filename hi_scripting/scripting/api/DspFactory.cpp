@@ -33,6 +33,42 @@
 namespace hise { using namespace juce;
 
 
+	DspFactory::LibraryLoader::LibraryLoader(Processor* p_):
+		p(p_)
+	{
+		if (p != nullptr)
+		{
+			mc = p->getMainController();
+			handler->setMainController(mc);
+			ADD_DYNAMIC_METHOD(load);
+			ADD_DYNAMIC_METHOD(list);
+		}
+	}
+
+	var DspFactory::LibraryLoader::load(const String& name, const String& password)
+	{
+		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
+
+		f->currentProcessor = p;
+
+		return var(f);
+	}
+
+	var DspFactory::LibraryLoader::list()
+	{
+		StringArray s1, s2;
+
+		handler->getAllStaticLibraries(s1);
+		handler->getAllDynamicLibraries(s2);
+
+		String output = "Available static libraries: \n";
+		output << s1.joinIntoString("\n");
+
+		output << "\nAvailable dynamic libraries: " << "\n";
+		output << s2.joinIntoString("\n");
+
+		return var(output);
+	}
 
 juce::StringArray DspFactory::LibraryLoader::getListOfAllAvailableModules()
 {
@@ -404,6 +440,21 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	
 }
 
+void DspFactory::Handler::getAllStaticLibraries(StringArray& libraries)
+{
+	for (int i = 0; i < staticFactories.size(); i++)
+	{
+		libraries.add(staticFactories[i]->getId().toString());
+	}
+}
+
+void DspFactory::Handler::getAllDynamicLibraries(StringArray& libraries)
+{
+	for (int i = 0; i < loadedPlugins.size(); i++)
+	{
+		libraries.add(loadedPlugins[i]->getId().toString());
+	}
+}
 
 
 void DspFactory::Handler::setMainController(MainController* mc_)

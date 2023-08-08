@@ -11,7 +11,6 @@
 #pragma warning (pop)
 #endif
 
-#include "nodes/HardcodedNetworkModuleBase.cpp"
 
 
 #include "modulators/mods/ConstantModulator.cpp"
@@ -146,5 +145,3 @@
 #include "raw/raw_UserPreset.cpp"
 #include "raw/raw_PluginParameter.cpp"
 
-#include "nodes/HiseNodes.cpp"
-#include "nodes/HiseNodeFactory.cpp"

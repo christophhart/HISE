@@ -32,25 +32,159 @@
 
 #pragma once
 
+
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-/**  TODO SEND STUFF:
+
+namespace parameter
+{
+
+	struct clone_holder : public dynamic_base_holder
+	{
+		clone_holder()
+		{
+			lastValues.ensureStorageAllocated(16);
+		}
+
+		static dynamic_base_holder* getParameterFunctionStatic(void* b);
+
+		void callEachClone(int index, double v);
+
+		void setParameter(NodeBase* n, dynamic_base::Ptr b) override;
+
+		void rebuild(NodeBase* targetContainer);
+
+		ReferenceCountedArray<dynamic_base> cloneTargets;
+		Array<double> lastValues;
+
+		NodeBase::Ptr connectedCloneContainer;
+
+		void setParentNumClonesListener(scriptnode::wrap::clone_manager::Listener* pl)
+		{
+			parentListener = pl;
+		}
+
+		WeakReference<scriptnode::wrap::clone_manager::Listener> parentListener;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_holder);
+	};
+}
+
+namespace duplilogic
+{
+	struct dynamic
+	{
+		enum class DupliMode
+		{
+
+			Spread,
+			Scale,
+			Harmonics,
+			Random,
+			Triangle,
+			Fixed,
+			Nyquist,
+			Ducker
+		};
+
+		using NodeType = control::clone_cable<parameter::clone_holder, dynamic>;
+
+		dynamic() :
+			mode(PropertyIds::Mode, "Spread")
+		{};
+
+		void initialise(NodeBase* n)
+		{
+			mode.initialise(n);
+			mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::updateMode), true);
+		}
+
+		void updateMode(Identifier id, var newValue)
+		{
+			auto m = newValue.toString();
+			currentMode = (DupliMode)getSpreadModes().indexOf(m);
+		}
+
+		static constexpr bool isProcessingHiseEvent() { return true; }
+
+		bool getMidiValue(HiseEvent& e, double& v)
+		{
+			switch (currentMode)
+			{
+			case DupliMode::Random:     return random().getMidiValue(e, v);
+			case DupliMode::Fixed:      return fixed().getMidiValue(e, v);
+			case DupliMode::Harmonics:  return harmonics().getMidiValue(e, v);
+			case DupliMode::Nyquist:    return nyquist().getMidiValue(e, v);
+			default:                    return false;
+			}
+		}
+
+		double getValue(int index, int numDuplicates, double input, double gamma)
+		{
+			switch (currentMode)
+			{
+			case DupliMode::Spread: return spread().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Scale: return scale().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Harmonics: return harmonics().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Random: return random().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Triangle: return triangle().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Fixed: return fixed().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Nyquist: return nyquist().getValue(index, numDuplicates, input, gamma);
+			case DupliMode::Ducker: return ducker().getValue(index, numDuplicates, input, gamma);
+			}
+
+			return 0.0;
+		}
+
+		static StringArray getSpreadModes()
+		{
+			return { "Spread", "Scale", "Harmonics", "Random", "Triangle", "Fixed", "Nyquist", "Ducker" };
+		}
+
+		NodePropertyT<String> mode;
+		DupliMode currentMode;
+
+		struct editor : public ScriptnodeExtraComponent<NodeType>
+		{
+			editor(NodeType* obj, PooledUIUpdater* u);;
+
+			void timerCallback() override;
+
+			static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+			{
+				auto mn = static_cast<mothernode*>(obj);
+				auto typed = dynamic_cast<NodeType*>(mn);
+				return new editor(typed, updater);
+			}
+
+			void paint(Graphics& g) override;
 
 
-- add a dragging icon if not connected
-- add error handling (also while dragging)
 
-- remove old stuff
+			void resized() override
+			{
+				auto b = getLocalBounds();
 
-Refactor ideas:
+				mode.setBounds(b.removeFromTop(28));
+				b.removeFromTop(UIValues::NodeMargin);
 
-- check whether the node property needs the HiseDspBase at all...
-- remove getAsHardcodedNode() once and for all
+				b.removeFromBottom(UIValues::NodeMargin);
+				dragger.setBounds(b.removeFromBottom(28));
+				b.removeFromBottom(UIValues::NodeMargin);
+				area = b.toFloat();
+			}
 
+			Rectangle<float> area;
+			ModulationSourceBaseComponent dragger;
+			ComboBoxWithModeProperty mode;
+			bool initialised = false;
+		};
+	};
+}
 
-*/
 
 namespace cable
 {

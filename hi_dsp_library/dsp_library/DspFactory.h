@@ -123,7 +123,12 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StaticDspFactory)
 };
 
+class HiseCoreDspFactory : public StaticDspFactory
+{
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("core") };
 
+	void registerModules() override;
+};
 
 } // namespace hise
 

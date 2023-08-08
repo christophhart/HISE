@@ -100,7 +100,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
     registerType<scriptnode::FaustEditorPanel>(PopupMenuOptions::DspFaustEditorPanel);
 
-	registerType<ScriptingObjects::ScriptBroadcaster::Panel>(PopupMenuOptions::ScriptBroadcasterMap);
+	registerType<ScriptingObjects::ScriptBroadcasterPanel>(PopupMenuOptions::ScriptBroadcasterMap);
 
 #endif
 
@@ -775,7 +775,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ServerController:	parent->setNewContent(GET_PANEL_NAME(ServerControllerPanel)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
 	case PopupMenuOptions::SnexEditor:			parent->setNewContent(GET_PANEL_NAME(SnexEditorPanel)); break;
-	case PopupMenuOptions::ScriptBroadcasterMap:			parent->setNewContent(GET_PANEL_NAME(ScriptingObjects::ScriptBroadcaster::Panel)); break;
+	case PopupMenuOptions::ScriptBroadcasterMap:			parent->setNewContent(GET_PANEL_NAME(ScriptingObjects::ScriptBroadcasterPanel)); break;
 #if HISE_INCLUDE_RLOTTIE
 	case PopupMenuOptions::RLottieDevPanel:		parent->setNewContent(GET_PANEL_NAME(RLottieFloatingTile));
 		break;

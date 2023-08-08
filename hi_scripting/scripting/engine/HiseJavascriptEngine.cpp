@@ -92,6 +92,23 @@ HiseJavascriptEngine::~HiseJavascriptEngine()
 	breakpointListeners.clear();
 }
 
+HiseJavascriptEngine::TimeoutExtender::TimeoutExtender(HiseJavascriptEngine* e):
+	engine(e)
+{
+	start = Time::getMillisecondCounter();
+}
+
+HiseJavascriptEngine::TimeoutExtender::~TimeoutExtender()
+{
+#if USE_BACKEND
+	if (engine != nullptr)
+	{
+		auto delta = Time::getMillisecondCounter() - start;
+		engine->extendTimeout(delta);
+	}
+#endif
+}
+
 
 void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
 {
@@ -1104,6 +1121,17 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	return returnVal;
 }
 
+void HiseJavascriptEngine::sendBreakpointMessage(int breakpointIndex)
+{
+	for (int i = 0; i < breakpointListeners.size(); i++)
+	{
+		if (breakpointListeners[i].get() != nullptr)
+		{
+			breakpointListeners[i]->breakpointWasHit(breakpointIndex);
+		}
+	}
+}
+
 void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location)
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -1915,6 +1943,17 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 	}
 }
 
+void HiseJavascriptEngine::TokenProvider::precompileCallback(TokenProvider& p, bool unused)
+{
+	p.signalClear(sendNotificationSync);
+}
+
+void HiseJavascriptEngine::TokenProvider::scriptWasCompiled(JavascriptProcessor* processor)
+{
+	if (jp == processor)
+		signalRebuild();
+}
+
 hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult HiseJavascriptEngine::RootObject::OptimizationPass::executePass(Statement* rootStatementToOptimize)
 {
 	OptimizationResult r;
@@ -1945,6 +1984,68 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 	});
 
 	return r;
+}
+
+HiseJavascriptEngine::RootObject::Error HiseJavascriptEngine::RootObject::Error::fromBreakpoint(const Breakpoint& bp)
+{
+	Error e;
+
+	e.errorMessage = "Breakpoint " + String(bp.index + 1) + " was hit";
+	e.externalLocation = bp.externalLocation;
+	e.lineNumber = bp.lineNumber;
+	e.charIndex = bp.charIndex;
+	e.columnNumber = bp.colNumber;
+				
+	return e;
+}
+
+String HiseJavascriptEngine::RootObject::Error::getLocationString() const
+{
+	if (externalLocation.isEmpty() || externalLocation.contains("()"))
+		return "Line " + String(lineNumber) + ", column " + String(columnNumber);
+	else
+	{
+#if USE_BACKEND
+		File f(externalLocation);
+		const String fileName = f.getFileName();
+#else
+					const String fileName = externalLocation;
+#endif
+
+		return fileName + " (" + String(lineNumber) + ")"; 
+	}
+}
+
+String HiseJavascriptEngine::RootObject::Error::getEncodedLocation(Processor* p) const
+{
+	ignoreUnused(p);
+
+#if USE_BACKEND
+	String l;
+
+	l << p->getId() << "|";
+
+	if (externalLocation.contains("()"))
+		l << externalLocation;
+	else if (!externalLocation.isEmpty())
+		l << File(externalLocation).getRelativePathFrom(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+	l << "|" << String(charIndex);
+	l << "|" << String(lineNumber) << "|" << String(columnNumber);
+
+	return "{" + Base64::toBase64(l) + "}";
+#else
+				return {};
+#endif
+}
+
+String HiseJavascriptEngine::RootObject::Error::toString(Processor* p) const
+{
+	String s;
+	s << getLocationString();
+	s << "\t" << getEncodedLocation(p);
+
+	return s;
 }
 
 bool HiseJavascriptEngine::RootObject::OptimizationPass::callForEach(Statement* root, const std::function<bool(Statement* child)>& f)

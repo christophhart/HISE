@@ -58,7 +58,7 @@ public:
 		LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 
 
-		BACKEND_ONLY(LOAD_PATH_IF_URL("edit", OverlayIcons::penShape));
+		BACKEND_ONLY(LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape));
 		LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);
 		LOAD_EPATH_IF_URL("redo", EditorIcons::redoIcon);
 		LOAD_EPATH_IF_URL("encode", SampleMapIcons::monolith);

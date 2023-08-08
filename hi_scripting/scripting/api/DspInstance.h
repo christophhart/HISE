@@ -111,21 +111,9 @@ public:
 	*/
 	DspFactory *getFactory(const String &name, const String& password);
 
-	void getAllStaticLibraries(StringArray &libraries)
-	{
-		for (int i = 0; i < staticFactories.size(); i++)
-		{
-			libraries.add(staticFactories[i]->getId().toString());
-		}
-	};
+	void getAllStaticLibraries(StringArray &libraries);;
 
-	void getAllDynamicLibraries(StringArray &libraries)
-	{
-		for (int i = 0; i < loadedPlugins.size(); i++)
-		{
-			libraries.add(loadedPlugins[i]->getId().toString());
-		}
-	}
+	void getAllDynamicLibraries(StringArray &libraries);
 
 	void setMainController(MainController* mc_);
 
@@ -144,45 +132,13 @@ class DspFactory::LibraryLoader : public DynamicObject
 {
 public:
 
-	LibraryLoader(Processor* p_) :
-		p(p_)
-	{
-		if (p != nullptr)
-		{
-			mc = p->getMainController();
-			handler->setMainController(mc);
-			ADD_DYNAMIC_METHOD(load);
-			ADD_DYNAMIC_METHOD(list);
-		}
-	}
+	LibraryLoader(Processor* p_);
 
 	StringArray getListOfAllAvailableModules();
 
-	var load(const String &name, const String &password)
-	{
-		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
+	var load(const String &name, const String &password);
 
-		f->currentProcessor = p;
-
-		return var(f);
-	}
-
-	var list()
-	{
-		StringArray s1, s2;
-
-		handler->getAllStaticLibraries(s1);
-		handler->getAllDynamicLibraries(s2);
-
-		String output = "Available static libraries: \n";
-		output << s1.joinIntoString("\n");
-
-		output << "\nAvailable dynamic libraries: " << "\n";
-		output << s2.joinIntoString("\n");
-
-		return var(output);
-	}
-
+	var list();
 
 private:
 
@@ -286,38 +242,15 @@ public:
 
 	struct Wrapper;
 
-	void setProcessor(Processor* p)
-	{
-		//jassert(p != nullptr);
-		processor = p;
-        
-        if(p != nullptr)
-        {
-            logger = &processor->getMainController()->getDebugLogger();
-        }
-        
-		
-	}
+	void setProcessor(Processor* p);
 
-	void setId(const String& newName)
-	{
-		if (Identifier::isValidIdentifier(newName))
-		{
-			debugId = Identifier(newName);
-		}
-	}
+	void setId(const String& newName);
 
 	void checkPriorityInversion();
 
-	void addListener(Listener* l)
-	{
-		listeners.addIfNotAlreadyThere(l);
-	}
+	void addListener(Listener* l);
 
-	void removeListener(Listener* l)
-	{
-		listeners.removeAllInstancesOf(l);
-	}
+	void removeListener(Listener* l);
 
 private:
 

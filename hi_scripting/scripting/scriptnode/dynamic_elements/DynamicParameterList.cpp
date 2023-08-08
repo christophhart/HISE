@@ -455,6 +455,8 @@ juce::Path ui::Factory::createPath(const String& url) const
 	return p;
 }
 
+
+
 namespace ui
 {
 	struct dynamic_list_editor::MultiConnectionEditor::ConnectionEditor : public Component,
@@ -655,7 +657,20 @@ namespace ui
         return changedSomething;
     }
 
-	void dynamic_list_editor::timerCallback()
+    void dynamic_list_editor::showEditButtons(bool shouldShowButtons)
+    {
+	    addButton.setVisible(shouldShowButtons);
+	    removeButton.setVisible(shouldShowButtons);
+	    editButton.setVisible(shouldShowButtons);
+	    resized();
+    }
+
+    void dynamic_list_editor::setTextFunction(int index, const std::function<String(int)>& f)
+    {
+	    externalTextFunctions.set(index, f);
+    }
+
+    void dynamic_list_editor::timerCallback()
 	{
         rebuildDraggers();
 	}

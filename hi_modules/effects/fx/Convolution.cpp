@@ -86,10 +86,10 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 	switch (parameterIndex)
 	{
 	case DryGain:		dryGain = Decibels::decibelsToGain(newValue); 
-						smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, dryGain); 
+						smoothedGainerDry.setParameter((int)GainSmoother::Parameters::Gain, dryGain); 
 						break;
 	case WetGain:		wetGain = Decibels::decibelsToGain(newValue);
-						smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, wetGain);
+						smoothedGainerWet.setParameter((int)GainSmoother::Parameters::Gain, wetGain);
 						break;
 	case Latency:		latency = (int)newValue;
 		jassert(isPowerOfTwo(latency));

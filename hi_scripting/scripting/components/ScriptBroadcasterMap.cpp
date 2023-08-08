@@ -204,16 +204,7 @@ bool ScriptBroadcasterMap::MessageWatcher::LastTime::hasChanged()
 	return false;
 }
 
-ScriptBroadcaster::Panel::Panel(FloatingTile* parent) :
-	PanelWithProcessorConnection(parent)
-{
 
-}
-
-juce::Identifier ScriptBroadcaster::Panel::getProcessorTypeId() const
-{
-	return JavascriptProcessor::getConnectorId();
-}
 
 
 
@@ -620,7 +611,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 
 			Path p;
 
-			p.loadPathFromData(EditorIcons::searchIcon, sizeof(EditorIcons::searchIcon));
+			p.loadPathFromData(EditorIcons::searchIcon, SIZE_OF_PATH(EditorIcons::searchIcon));
 			p.applyTransform(AffineTransform::rotation(float_Pi));
 
 			PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(10).toFloat());
@@ -952,7 +943,12 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 	
 };
 
-Component* ScriptBroadcaster::Panel::createContentComponent(int)
+void ScriptBroadcasterPanel::fillModuleList(StringArray& moduleList)
+{
+	fillModuleListWithType<JavascriptProcessor>(moduleList);
+}
+
+Component* ScriptBroadcasterPanel::createContentComponent(int)
 {
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
 	{
@@ -963,7 +959,16 @@ Component* ScriptBroadcaster::Panel::createContentComponent(int)
 	return nullptr;
 }
 
+ScriptBroadcasterPanel::ScriptBroadcasterPanel(FloatingTile* parent) :
+	PanelWithProcessorConnection(parent)
+{
 
+}
+
+juce::Identifier ScriptBroadcasterPanel::getProcessorTypeId() const
+{
+	return JavascriptProcessor::getConnectorId();
+}
 
 juce::Path ScriptBroadcasterMap::ListenerEntry::createPath(const String& url) const
 {

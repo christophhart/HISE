@@ -62,6 +62,37 @@ HardcodedScriptProcessor::~HardcodedScriptProcessor()
 	content = nullptr;
 }
 
+void HardcodedScriptProcessor::restoreFromValueTree(const ValueTree& v)
+{
+	jassert(content.get() != nullptr);
+        
+	MidiProcessor::restoreFromValueTree(v);
+        
+	onInit();
+
+	ScriptBaseMidiProcessor::restoreContent(v);
+
+	if(content.get() != nullptr)
+	{
+		for(int i = 0; i < content->getNumComponents(); i++)
+		{
+			controlCallback(content->getComponent(i), content->getComponent(i)->getValue());
+		}
+	}
+}
+
+void HardcodedScriptProcessor::controlCallback(ScriptingApi::Content::ScriptComponent* component, var controllerValue)
+{
+	try
+	{
+		onControl(component, controllerValue);
+	}
+	catch (String& s)
+	{
+		debugToConsole(this, s);
+	}
+}
+
 ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -140,6 +171,12 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 	
 }
 
+HardcodedScriptFactoryType::HardcodedScriptFactoryType(Processor* p):
+	FactoryType(p)
+{
+	fillTypeNameList();
+}
+
 void HardcodedScriptFactoryType::fillTypeNameList()
 {
 	ADD_NAME_TO_TYPELIST(LegatoProcessor);
@@ -150,6 +187,11 @@ void HardcodedScriptFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ChannelSetterScriptProcessor);
 	ADD_NAME_TO_TYPELIST(MuteAllScriptProcessor);
 	ADD_NAME_TO_TYPELIST(Arpeggiator);
+}
+
+HardcodedScriptFactoryType::~HardcodedScriptFactoryType()
+{
+	typeNames.clear();
 }
 
 Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const String &id) 
@@ -179,4 +221,8 @@ Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const Stri
 	return mp;
 }
 
+const Array<FactoryType::ProcessorEntry>& HardcodedScriptFactoryType::getTypeNames() const
+{
+	return typeNames;
+}
 } // namespace hise

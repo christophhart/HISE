@@ -69,6 +69,44 @@ Result HiseJavascriptPreprocessor::process(String& code, const String& externalF
 }
 
 
+
+#if USE_BACKEND
+
+void HiseJavascriptPreprocessor::setEnableGlobalPreprocessor(bool shouldBeEnabled)
+{
+	globalEnabled = shouldBeEnabled;
+}
+
+void HiseJavascriptPreprocessor::reset()
+{
+	deactivatedLines.clear();
+	definitions.clear();
+}
+
+SparseSet<int> HiseJavascriptPreprocessor::getDeactivatedLinesForFile(const String& fileId)
+{
+	jassert(fileId.isNotEmpty());
+	return deactivatedLines[fileId];
+}
+
+DebugableObjectBase::Location HiseJavascriptPreprocessor::getLocationForPreprocessor(const String& id) const
+{
+	for (const auto& d: definitions)
+	{
+		if (d.name == id)
+		{
+			DebugableObjectBase::Location l;
+			l.charNumber = d.charNumber;
+			l.fileName = d.fileName;
+			return l;
+		}
+	}
+        
+	return {};
+}
+
+#endif
+
 bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
 {
 	if (auto obj = v.getObject())
@@ -87,6 +125,29 @@ bool HiseJavascriptEngine::isInlineFunction(const var& v)
 
 	return false;
 }
+
+HiseJavascriptEngine::ExternalFileData::ExternalFileData(Type t_, const File& f_, const String& name_): t(t_), f(f_), r(Result::ok())
+{
+	switch (t_)
+	{
+	case HiseJavascriptEngine::ExternalFileData::Type::RelativeFile:
+		scriptName = f.getFileName();
+		break;
+	case HiseJavascriptEngine::ExternalFileData::Type::AbsoluteFile:
+		scriptName = f.getFullPathName();
+		break;
+	case HiseJavascriptEngine::ExternalFileData::Type::EmbeddedScript:
+		scriptName = name_;
+		break;
+	case HiseJavascriptEngine::ExternalFileData::Type::numTypes:
+		break;
+	default:
+		break;
+	}
+}
+
+HiseJavascriptEngine::ExternalFileData::ExternalFileData(): f(File()), r(Result::fail("uninitialised"))
+{}
 
 HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p, MainController* mc) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
@@ -955,6 +1016,57 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(
 	l.throwError("Identifier " + name.toString() + " is already defined as " + typeName);
 }
 
+HiseJavascriptEngine::Breakpoint::Listener::~Listener()
+{
+	masterReference.clear();
+}
+
+HiseJavascriptEngine::Breakpoint::Breakpoint(): snippetId(Identifier()), lineNumber(-1), colNumber(-1), index(-1), charIndex(-1)
+{}
+
+HiseJavascriptEngine::Breakpoint::Breakpoint(const Identifier& snippetId_, const String& externalLocation_,
+	int lineNumber_, int charNumber_, int charIndex_, int index_):
+	snippetId(snippetId_),
+	externalLocation(externalLocation_),
+	lineNumber(lineNumber_), 
+	colNumber(charNumber_), 
+	charIndex(charIndex_), 
+	index(index_)
+{}
+
+HiseJavascriptEngine::Breakpoint::~Breakpoint()
+{
+	localScope = nullptr;
+}
+
+bool HiseJavascriptEngine::Breakpoint::operator==(const Breakpoint& other) const
+{
+	return snippetId == other.snippetId && lineNumber == other.lineNumber;
+}
+
+void HiseJavascriptEngine::Breakpoint::copyLocalScopeToRoot(RootObject& r)
+{
+	if (localScope != nullptr)
+	{
+		static const Identifier thisIdentifier("this");
+
+		auto properties = localScope->getProperties();
+
+		for (int i = 0; i < properties.size(); i++)
+		{
+			if (properties.getName(i) == thisIdentifier)
+				continue;
+
+			r.setProperty(properties.getName(i), properties.getValueAt(i));
+		}
+	}
+
+	localScope = nullptr;
+
+	r.hiseSpecialData.clearDebugInformation();
+	r.hiseSpecialData.createDebugInformation(&r);
+}
+
 void HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l)
 {
 	VariableStorageType type = getExistingVariableStorage(name);
@@ -1187,6 +1299,103 @@ void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s
 	isCallbackDefined = s->statements.size() != 0;
 }
 
+bool HiseJavascriptEngine::RootObject::Callback::isDefined() const noexcept
+{ return isCallbackDefined; }
+
+Identifier HiseJavascriptEngine::RootObject::Callback::getObjectName() const
+{ return getName(); }
+
+const Identifier& HiseJavascriptEngine::RootObject::Callback::getName() const
+{ return callbackName; }
+
+int HiseJavascriptEngine::RootObject::Callback::getNumArgs() const
+{ return numArgs; }
+
+String HiseJavascriptEngine::RootObject::Callback::getDebugDataType() const
+{ return "Callback"; }
+
+String HiseJavascriptEngine::RootObject::Callback::getDebugName() const
+{ return callbackName.toString() + "()"; }
+
+DynamicObject::Ptr HiseJavascriptEngine::RootObject::Callback::createScope(RootObject* r)
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+                
+	for (int i = 0; i < numArgs; i++)
+		obj->setProperty(parameters[i], parameterValues[i]);
+
+	for (int i = 0; i < localProperties.size(); i++)
+		obj->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+
+	return obj;
+}
+
+int HiseJavascriptEngine::RootObject::Callback::getNumChildElements() const
+{
+	return getNumArgs() + localProperties.size();
+}
+
+void HiseJavascriptEngine::RootObject::Callback::setParameterValue(int parameterIndex, const var& newValue)
+{
+	parameterValues[parameterIndex] = newValue;
+}
+
+var* HiseJavascriptEngine::RootObject::Callback::getVarPointer(const Identifier& id)
+{
+	for (int i = 0; i < 4; i++)
+	{
+		if (id == parameters[i]) return &parameterValues[i];
+	}
+
+	return nullptr;
+}
+
+String HiseJavascriptEngine::RootObject::Callback::getDebugValue() const
+{
+	const double percentage = lastExecutionTime / bufferTime * 100.0;
+	return String(percentage, 2) + "%";
+}
+
+var HiseJavascriptEngine::RootObject::Callback::createDynamicObjectForBreakpoint()
+{
+	auto object = new DynamicObject();
+	auto arguments = new DynamicObject();
+
+	for (int i = 0; i < numArgs; i++)
+		arguments->setProperty(parameters[i], parameterValues[i]);
+
+	auto locals = new DynamicObject();
+
+	for (int i = 0; i < localProperties.size(); i++)
+		locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+
+	object->setProperty("args", var(arguments));
+	object->setProperty("locals", var(locals));
+
+	return var(object);
+}
+
+void HiseJavascriptEngine::RootObject::Callback::doubleClickCallback(const MouseEvent& mouseEvent, Component* component)
+{
+	DBG("JUMP");
+}
+
+void HiseJavascriptEngine::RootObject::Callback::cleanLocalProperties()
+{
+	// Only clear the local properties when the breakpoints are disabled
+	// to allow the inspection of local variables
+#if !ENABLE_SCRIPTING_BREAKPOINTS
+				if (!localProperties.isEmpty())
+				{
+					for (int i = 0; i < localProperties.size(); i++)
+						*localProperties.getVarPointerAt(i) = var();
+				}
+
+				for (int i = 0; i < numArgs; i++)
+					parameterValues[i] = var();
+#endif
+}
+
 
 var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 {
@@ -1221,6 +1430,254 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 	return AttributedString();
 }
 
+LambdaValueInformation::LambdaValueInformation(const ValueFunction& f, const Identifier& id_,
+	const Identifier& namespaceId_, Type t, DebugableObjectBase::Location location_, const String& comment_):
+	DebugInformation(t),
+	vf(f),
+	namespaceId(namespaceId_),
+	id(id_),
+	location(location_)
+{
+	cachedValue = f();
+	DebugableObjectBase::updateLocation(location, cachedValue);
+
+	if (comment_.isNotEmpty())
+		comment.append(comment_, GLOBAL_FONT(), Colours::white);;
+}
+
+DebugableObjectBase::Location LambdaValueInformation::getLocation() const
+{
+	return location;
+}
+
+AttributedString LambdaValueInformation::getDescription() const
+{
+	return comment;
+}
+
+String LambdaValueInformation::getTextForDataType() const
+{ return getVarType(getCachedValueFunction(false)); }
+
+String LambdaValueInformation::getTextForName() const
+{ 
+	return namespaceId.isNull() ? id.toString() :
+		       namespaceId.toString() + "." + id.toString(); 
+}
+
+int LambdaValueInformation::getNumChildElements() const
+{
+	auto value = getCachedValueFunction(false);
+
+	if (auto obj = getDebugableObject(value))
+	{
+		auto customSize = obj->getNumChildElements();
+
+		if (customSize != -1)
+			return customSize;
+	}
+
+	if (value.isBuffer())
+	{
+		auto s = value.getBuffer()->size;
+
+		if (isPositiveAndBelow(s, 513))
+			return s;
+
+		return 0;
+	}
+		
+	if (auto dyn = value.getDynamicObject())
+		return dyn->getProperties().size();
+
+	if (auto ar = value.getArray())
+		return jmin<int>(128, ar->size());
+
+	return 0;
+}
+
+DebugInformation::Ptr LambdaValueInformation::getChildElement(int index)
+{
+	auto value = getCachedValueFunction(false);
+
+	if (auto obj = getDebugableObject(value))
+	{
+		auto numCustom = obj->getNumChildElements();
+
+		if (isPositiveAndBelow(index, numCustom))
+			return obj->getChildElement(index);
+	}
+
+	WeakReference<LambdaValueInformation> safeThis(this);
+
+	if (value.isBuffer())
+	{
+		auto actualValueFunction = [index, safeThis]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			if (auto b = safeThis->getCachedValueFunction(false).getBuffer())
+			{
+				if (isPositiveAndBelow(index, b->size))
+					return var(b->getSample(index));
+			}
+
+			return var(0.0f);
+		};
+
+		String cid = "%PARENT%[" + String(index) + "]";
+
+		return new LambdaValueInformation(actualValueFunction, Identifier(cid), namespaceId, (Type)getType(), location);
+	}
+	else if (auto dyn = value.getDynamicObject())
+	{
+		String cid;
+
+		const NamedValueSet& s = dyn->getProperties();
+
+		if (isPositiveAndBelow(index, s.size()))
+		{
+			auto mid = s.getName(index);
+			cid << id << "." << mid;
+
+			auto cf = [safeThis, mid]()
+			{
+				if (safeThis == nullptr)
+					return var();
+
+				auto v = safeThis->getCachedValueFunction(false);
+				return v.getProperty(mid, {});
+			};
+
+			return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+		}
+	}
+	else if (auto ar = value.getArray())
+	{
+		String cid;
+		cid << id << "[" << String(index) << "]";
+
+		auto cf = [index, safeThis]()
+		{
+			if (safeThis == nullptr)
+				return var();
+
+			auto a = safeThis->getCachedValueFunction(false);
+
+			if (auto ar = a.getArray())
+				return (*ar)[index];
+
+			return var();
+		};
+
+		return new LambdaValueInformation(cf, Identifier(cid), namespaceId, (Type)getType(), location);
+	}
+
+	return new DebugInformationBase();
+}
+
+var LambdaValueInformation::getCachedValueFunction(bool forceLookup) const
+{
+	if (forceLookup || cachedValue.isUndefined())
+		cachedValue = vf();
+
+	return cachedValue;
+}
+
+bool LambdaValueInformation::isAutocompleteable() const
+{
+	if (customAutoComplete)
+		return autocompleteable;
+
+	auto v = getCachedValueFunction(false);
+
+	if (v.isObject())
+		return true;
+        
+	return false;
+}
+
+void LambdaValueInformation::setAutocompleteable(bool shouldBe)
+{
+	customAutoComplete = true;
+	autocompleteable = shouldBe;
+}
+
+const var LambdaValueInformation::getVariantCopy() const
+{ return var(getCachedValueFunction(false)); }
+
+String LambdaValueInformation::getTextForValue() const
+{
+	auto v = getCachedValueFunction(true);
+	return getVarValue(v); 
+}
+
+DebugableObjectBase* LambdaValueInformation::getObject()
+{ return getDebugableObject(getCachedValueFunction(false)); }
+
+DebugableObjectInformation::DebugableObjectInformation(DebugableObjectBase* object_, const Identifier& id_, Type t,
+	const Identifier& namespaceId_, const String& comment_):
+	DebugInformation(t),
+	object(object_),
+	id(id_),
+	namespaceId(namespaceId_)
+{
+	if (comment_.isNotEmpty())
+	{
+		comment.append(comment_, GLOBAL_FONT(), Colours::white);
+	}
+}
+
+String DebugableObjectInformation::getTextForDataType() const
+{ return object != nullptr ? object->getDebugDataType() : ""; }
+
+String DebugableObjectInformation::getTextForName() const
+{ 
+	if (object == nullptr)
+		return "";
+
+	return namespaceId.isNull() ? object->getDebugName() :
+		       namespaceId.toString() + "." + object->getDebugName(); 
+}
+
+String DebugableObjectInformation::getTextForValue() const
+{ return object != nullptr ? object->getDebugValue() : ""; }
+
+AttributedString DebugableObjectInformation::getDescription() const
+{ return comment; }
+
+bool DebugableObjectInformation::isWatchable() const
+{ return object != nullptr ? object->isWatchable() : false; }
+
+int DebugableObjectInformation::getNumChildElements() const
+{
+	if (object != nullptr)
+	{
+		auto o = object->getNumChildElements();
+
+		if (o != -1)
+			return o;
+
+			
+	}
+
+	return 0;
+}
+
+DebugInformationBase::Ptr DebugableObjectInformation::getChildElement(int index)
+{
+	if (object != nullptr)
+		return object->getChildElement(index);
+			
+	return nullptr;
+}
+
+DebugableObjectBase* DebugableObjectInformation::getObject()
+{ return object.get(); }
+
+const DebugableObjectBase* DebugableObjectInformation::getObject() const
+{ return object.get(); }
+
 void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
 {
 #if USE_BACKEND
@@ -1235,7 +1692,50 @@ void ScriptingObject::logErrorAndContinue(const String &errorMessage) const
     DBG(errorMessage);
 #endif
 }
-    
+
+ConstScriptingObject::ConstScriptingObject(ProcessorWithScriptingContent* p, int numConstants):
+	ScriptingObject(p),
+	ApiClass(numConstants)
+{
+
+}
+
+Identifier ConstScriptingObject::getInstanceName() const
+{ return name.isValid() ? name : getObjectName(); }
+
+bool ConstScriptingObject::objectDeleted() const
+{ return false; }
+
+bool ConstScriptingObject::objectExists() const
+{ return false; }
+
+bool ConstScriptingObject::addLocationForFunctionCall(const Identifier& id,
+	const DebugableObjectBase::Location& location)
+{
+	ignoreUnused(id, location);
+	return false;
+}
+
+bool ConstScriptingObject::checkValidObject() const
+{
+	if (!objectExists())
+	{
+		reportScriptError(getObjectName().toString() + " " + getInstanceName() + " does not exist.");
+		RETURN_IF_NO_THROW(false)
+	}
+
+	if (objectDeleted())
+	{
+		reportScriptError(getObjectName().toString() + " " + getInstanceName() + " was deleted");
+		RETURN_IF_NO_THROW(false)
+	}
+
+	return true;
+}
+
+void ConstScriptingObject::setName(const Identifier& name_) noexcept
+{ name = name_; }
+
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND

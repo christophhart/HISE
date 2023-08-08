@@ -92,6 +92,70 @@ Path JavascriptMidiProcessor::getSpecialSymbol() const
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
+void JavascriptMidiProcessor::suspendStateChanged(bool shouldBeSuspended)
+{
+	ScriptBaseMidiProcessor::suspendStateChanged(shouldBeSuspended);
+
+	deferredExecutioner.suspend(shouldBeSuspended);
+}
+
+int JavascriptMidiProcessor::getNumSnippets() const
+{ return numCallbacks; }
+
+bool JavascriptMidiProcessor::isFront() const
+{ return front; }
+
+bool JavascriptMidiProcessor::isDeferred() const
+{ return deferred; }
+
+void JavascriptMidiProcessor::timerCallback()
+{
+	jassert(isDeferred());
+	runTimerCallback();
+}
+
+ScriptingApi::Server::WeakPtr JavascriptMidiProcessor::getServerObject()
+{ return serverObject; }
+
+JavascriptMidiProcessor::DeferredExecutioner::DeferredExecutioner(JavascriptMidiProcessor* jp):
+	parent(*jp),
+	pendingEvents(512)
+{}
+
+void JavascriptMidiProcessor::DeferredExecutioner::addPendingEvent(const HiseEvent& e)
+{
+	pendingEvents.push(e);
+	triggerAsyncUpdate();
+}
+
+void JavascriptMidiProcessor::DeferredExecutioner::handleAsyncUpdate()
+{
+	jassert(parent.isDeferred());
+			
+	HiseEvent m;
+
+	while (pendingEvents.pop(m))
+	{
+		if (m.isIgnored() || m.isArtificial())
+			continue;
+
+		auto f = [m](JavascriptProcessor* p)
+		{
+			auto jmp = dynamic_cast<JavascriptMidiProcessor*>(p);
+
+			HiseEvent copy(m);
+
+			ScopedValueSetter<HiseEvent*> svs(jmp->currentEvent, &copy);
+			jmp->currentMidiMessage->setHiseEvent(m);
+			jmp->runScriptCallbacks();
+
+			return jmp->lastResult;
+		};
+
+		parent.getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::HiPriorityCallbackExecution, &parent, f);
+	}
+}
+
 ValueTree JavascriptMidiProcessor::exportAsValueTree() const
 {
 	ValueTree v = ScriptBaseMidiProcessor::exportAsValueTree();
@@ -166,6 +230,21 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 		}
 	}
 
+}
+
+JavascriptMidiProcessor* JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(MainController* mc)
+{
+	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+
+	while (auto jsp = iter.getNextProcessor())
+	{
+		if (jsp->isFront())
+		{
+			return jsp;
+		}
+	}
+
+	return nullptr;
 }
 
 void JavascriptMidiProcessor::registerApiClasses()
@@ -703,6 +782,45 @@ const JavascriptProcessor::SnippetDocument * JavascriptMasterEffect::getSnippet(
 	return nullptr;
 }
 
+int JavascriptMasterEffect::getNumSnippets() const
+{ return (int)Callback::numCallbacks; }
+
+Processor* JavascriptMasterEffect::getChildProcessor(int)
+{ return nullptr; }
+
+const Processor* JavascriptMasterEffect::getChildProcessor(int) const
+{ return nullptr; }
+
+int JavascriptMasterEffect::getNumInternalChains() const
+{ return 0; }
+
+int JavascriptMasterEffect::getNumChildProcessors() const
+{ return 0; }
+
+float JavascriptMasterEffect::getAttribute(int index) const
+{ 
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameter(index);
+}
+
+void JavascriptMasterEffect::setInternalAttribute(int index, float newValue)
+{ 
+	getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
+}
+
+Identifier JavascriptMasterEffect::getIdentifierForParameterIndex(int parameterIndex) const
+{
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
+}
+
+ValueTree JavascriptMasterEffect::exportAsValueTree() const
+{ ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+void JavascriptMasterEffect::restoreFromValueTree(const ValueTree& v)
+{ MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+int JavascriptMasterEffect::getControlCallbackIndex() const
+{ return (int)Callback::onControl; }
+
 void JavascriptMasterEffect::registerApiClasses()
 {
 	//content = new ScriptingApi::Content(this);
@@ -1058,6 +1176,51 @@ Path JavascriptTimeVariantModulator::getSpecialSymbol() const
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
+float JavascriptTimeVariantModulator::getAttribute(int index) const
+{
+	if (auto n = getActiveOrDebuggedNetwork())
+		return n->networkParameterHandler.getParameter(index);
+	else
+		return contentParameterHandler.getParameter(index);
+}
+
+void JavascriptTimeVariantModulator::setInternalAttribute(int index, float newValue)
+{
+	if (auto n = getActiveOrDebuggedNetwork())
+		n->networkParameterHandler.setParameter(index, newValue);
+	else
+		contentParameterHandler.setParameter(index, newValue);
+}
+
+Identifier JavascriptTimeVariantModulator::getIdentifierForParameterIndex(int parameterIndex) const
+{
+	if (auto n = getActiveOrDebuggedNetwork())
+		return n->networkParameterHandler.getParameterId(parameterIndex);
+	else
+		return contentParameterHandler.getParameterId(parameterIndex);
+}
+
+ValueTree JavascriptTimeVariantModulator::exportAsValueTree() const
+{ ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+void JavascriptTimeVariantModulator::restoreFromValueTree(const ValueTree& v)
+{ TimeVariantModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+Processor* JavascriptTimeVariantModulator::getChildProcessor(int)
+{ return nullptr; }
+
+const Processor* JavascriptTimeVariantModulator::getChildProcessor(int) const
+{ return nullptr; }
+
+int JavascriptTimeVariantModulator::getNumChildProcessors() const
+{ return 0; }
+
+int JavascriptTimeVariantModulator::getNumSnippets() const
+{ return Callback::numCallbacks; }
+
+int JavascriptTimeVariantModulator::getControlCallbackIndex() const
+{ return (int)Callback::onControl; }
+
 ProcessorEditorBody * JavascriptTimeVariantModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -1255,6 +1418,99 @@ Path JavascriptEnvelopeModulator::getSpecialSymbol() const
 {
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
+
+bool JavascriptEnvelopeModulator::isPolyphonic() const
+{ return true; }
+
+ValueTree JavascriptEnvelopeModulator::exportAsValueTree() const
+{ ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+void JavascriptEnvelopeModulator::restoreFromValueTree(const ValueTree& v)
+{ EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+void JavascriptEnvelopeModulator::onVoiceReset(bool allVoices, int voiceIndex)
+{
+	if (allVoices)
+	{
+		for (int i = 0; i < polyManager.getVoiceAmount(); i++)
+			reset(i);
+	}
+	else
+		reset(voiceIndex);
+}
+
+int JavascriptEnvelopeModulator::getNumParameters() const
+{
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)hise::EnvelopeModulator::Parameters::numParameters;
+}
+
+void JavascriptEnvelopeModulator::setInternalAttribute(int index, float newValue)
+{
+	if (index < hise::EnvelopeModulator::Parameters::numParameters)
+		EnvelopeModulator::setInternalAttribute(index, newValue);
+	else
+	{
+		index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+		if (auto n = getActiveOrDebuggedNetwork())
+			n->networkParameterHandler.setParameter(index, newValue);
+		else
+			contentParameterHandler.setParameter(index, newValue);
+	}
+}
+
+float JavascriptEnvelopeModulator::getAttribute(int index) const
+{
+	if (index < hise::EnvelopeModulator::Parameters::numParameters)
+		return EnvelopeModulator::getAttribute(index);
+	else
+	{
+		index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getParameter(index);
+		else
+			return contentParameterHandler.getParameter(index);
+	}
+}
+
+Identifier JavascriptEnvelopeModulator::getIdentifierForParameterIndex(int index) const
+{
+	if (index < hise::EnvelopeModulator::Parameters::numParameters)
+		return parameterNames[index];
+	else
+	{
+		index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
+
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getParameterId(index);
+		else
+			return contentParameterHandler.getParameterId(index);
+	}
+		
+}
+
+Processor* JavascriptEnvelopeModulator::getChildProcessor(int)
+{ return nullptr; }
+
+const Processor* JavascriptEnvelopeModulator::getChildProcessor(int) const
+{ return nullptr; }
+
+int JavascriptEnvelopeModulator::getNumChildProcessors() const
+{ return 0; }
+
+int JavascriptEnvelopeModulator::getNumSnippets() const
+{ return Callback::numCallbacks; }
+
+int JavascriptEnvelopeModulator::getControlCallbackIndex() const
+{ return (int)Callback::onControl; }
+
+JavascriptEnvelopeModulator::ScriptEnvelopeState::ScriptEnvelopeState(int voiceIndex_):
+	EnvelopeModulator::ModulatorState(voiceIndex_)
+{}
+
+EnvelopeModulator::ModulatorState* JavascriptEnvelopeModulator::createSubclassedState(int voiceIndex) const
+{ return new ScriptEnvelopeState(voiceIndex); }
 
 int JavascriptEnvelopeModulator::getNumActiveVoices() const
 {
@@ -1605,6 +1861,128 @@ void JavascriptSynthesiser::restoreFromValueTree(const ValueTree &v)
 	restoreContent(v);
 }
 
+bool JavascriptSynthesiser::Sound::appliesToNote(int)
+{ return true; }
+
+bool JavascriptSynthesiser::Sound::appliesToChannel(int)
+{ return true; }
+
+bool JavascriptSynthesiser::Sound::appliesToVelocity(int)
+{ return true; }
+
+JavascriptSynthesiser::Voice::Voice(JavascriptSynthesiser* p):
+	ModulatorSynthVoice(p),
+	synth(p)
+{}
+
+void JavascriptSynthesiser::Voice::setVoiceStartDataForNextRenderCallback()
+{
+	isVoiceStart = true;
+}
+
+void JavascriptSynthesiser::Voice::resetVoice()
+{
+	ModulatorSynthVoice::resetVoice();
+	synth->voiceData.reset(getVoiceIndex());
+}
+
+int JavascriptSynthesiser::getNumSnippets() const
+{ return (int)Callback::numCallbacks; }
+
+bool JavascriptSynthesiser::isPolyphonic() const
+{ return true; }
+
+float JavascriptSynthesiser::getModValueForNode(int modIndex, int startSample) const
+{
+	if (startSample == -1)
+		startSample = currentVoiceStartSample;
+
+	if (modIndex == BasicChains::PitchChain)
+	{
+		auto& pc = modChains[BasicChains::PitchChain];
+		if (auto pValues = pc.getReadPointerForVoiceValues(0))
+			return pValues[startSample];
+		else
+			return pc.getConstantModulationValue();
+	}
+	else
+	{
+		return modChains[modIndex].getOneModulationValue(startSample);
+	}
+		
+}
+
+Processor* JavascriptSynthesiser::getChildProcessor(int processorIndex)
+{
+	if (processorIndex < ModulatorSynth::numInternalChains)
+		return ModulatorSynth::getChildProcessor(processorIndex);
+	if (processorIndex == ModulatorSynth::numInternalChains)
+		return modChains[Extra1].getChain();
+	if (processorIndex == ModulatorSynth::numInternalChains + 1)
+		return modChains[Extra2].getChain();
+
+	return nullptr;
+}
+
+const Processor* JavascriptSynthesiser::getChildProcessor(int processorIndex) const
+{
+	return const_cast<JavascriptSynthesiser*>(this)->getChildProcessor(processorIndex);
+}
+
+int JavascriptSynthesiser::getNumInternalChains() const
+{ return ModulatorSynth::numInternalChains + 2; }
+
+int JavascriptSynthesiser::getNumChildProcessors() const
+{ return getNumInternalChains(); }
+
+ValueTree JavascriptSynthesiser::exportAsValueTree() const
+{ ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+int JavascriptSynthesiser::getNumParameters() const
+{
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)ModulatorSynth::Parameters::numModulatorSynthParameters;
+}
+
+float JavascriptSynthesiser::getAttribute(int index) const
+{
+	if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+	{
+		return ModulatorSynth::getAttribute(index);
+	}
+
+	index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameter(index);
+}
+
+void JavascriptSynthesiser::setInternalAttribute(int index, float newValue)
+{
+	if (index < ModulatorSynth::Parameters::numModulatorSynthParameters)
+	{
+		ModulatorSynth::setInternalAttribute(index, newValue);
+		return;
+	}
+
+	index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+	getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
+}
+
+Identifier JavascriptSynthesiser::getIdentifierForParameterIndex(int parameterIndex) const
+{
+	if (parameterIndex < ModulatorSynth::Parameters::numModulatorSynthParameters)
+	{
+		return ModulatorSynth::getIdentifierForParameterIndex(parameterIndex);
+	}
+
+	parameterIndex -= ModulatorSynth::Parameters::numModulatorSynthParameters;
+
+	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
+}
+
+int JavascriptSynthesiser::getControlCallbackIndex() const
+{ return (int)Callback::onControl; }
+
 void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSamples)
 {
 	
@@ -1650,6 +2028,87 @@ void JavascriptSynthesiser::Voice::calculateBlock(int startSample, int numSample
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
 	}
 }
+
+ScriptnodeVoiceKiller::ScriptnodeVoiceKiller(MainController* mc, const String& id, int numVoices):
+	EnvelopeModulator(mc, id, numVoices, Modulation::GainMode),
+	Modulation(Modulation::GainMode)
+{
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
+
+	SafeAsyncCall::callWithDelay<ScriptnodeVoiceKiller>(*this, initialiseNetworks, 300);
+}
+
+void ScriptnodeVoiceKiller::setInternalAttribute(int parameter_index, float newValue)
+{}
+
+float ScriptnodeVoiceKiller::getDefaultValue(int parameterIndex) const
+{ return 0.0f; }
+
+float ScriptnodeVoiceKiller::getAttribute(int parameter_index) const
+{ return 0.0f; }
+
+int ScriptnodeVoiceKiller::getNumInternalChains() const
+{ return 0; }
+
+int ScriptnodeVoiceKiller::getNumChildProcessors() const
+{ return 0; }
+
+Processor* ScriptnodeVoiceKiller::getChildProcessor(int)
+{ return nullptr; }
+
+const Processor* ScriptnodeVoiceKiller::getChildProcessor(int) const
+{ return nullptr; }
+
+void ScriptnodeVoiceKiller::stopVoice(int voiceIndex)
+{}
+
+void ScriptnodeVoiceKiller::reset(int voiceIndex)
+{ getState(voiceIndex)->active = false; }
+
+bool ScriptnodeVoiceKiller::isPlaying(int voiceIndex) const
+{ return getState(voiceIndex)->active; }
+
+void ScriptnodeVoiceKiller::calculateBlock(int startSample, int numSamples)
+{ FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 1.0f, numSamples); }
+
+void ScriptnodeVoiceKiller::handleHiseEvent(const HiseEvent& m)
+{}
+
+ScriptnodeVoiceKiller::State::State(int v): ModulatorState(v)
+{}
+
+int ScriptnodeVoiceKiller::getNumActiveVoices() const
+{
+	int counter = 0;
+
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++)
+	{
+		if (getState(i)->active)
+			counter++;
+	}
+
+	return counter;
+}
+
+void ScriptnodeVoiceKiller::onVoiceReset(bool allVoices, int voiceIndex)
+{
+	if (allVoices)
+	{
+		for (int i = 0; i < polyManager.getVoiceAmount(); i++)
+			getState(i)->active.store(false);
+	}
+	else
+		reset(voiceIndex);
+}
+
+ScriptnodeVoiceKiller::State* ScriptnodeVoiceKiller::getState(int i)
+{ return  static_cast<State*>(states[i]); }
+
+const ScriptnodeVoiceKiller::State* ScriptnodeVoiceKiller::getState(int i) const
+{ return  static_cast<const State*>(states[i]); }
+
+EnvelopeModulator::ModulatorState* ScriptnodeVoiceKiller::createSubclassedState(int voiceIndex) const
+{ return new State(voiceIndex); }
 
 void ScriptnodeVoiceKiller::initialiseNetworks(ScriptnodeVoiceKiller& v)
 {

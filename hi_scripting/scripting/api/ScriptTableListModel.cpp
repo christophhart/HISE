@@ -482,6 +482,100 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 }
 
 
+ScriptTableListModel::LookAndFeelMethods::~LookAndFeelMethods()
+{}
+
+int ScriptTableListModel::getNumRows()
+{
+	return rowData.size();
+}
+
+void ScriptTableListModel::paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
+{
+	auto lafToUse = laf != nullptr ? laf : &fallback;
+
+	lafToUse->drawTableRowBackground(g, d, rowNumber, width, height, rowIsSelected);
+}
+
+var ScriptTableListModel::getCellValue(int rowIndex, int columnIndex) const
+{
+	if(isPositiveAndBelow(columnIndex, columnMetadata.size()))
+	{
+		auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
+            
+		if(isPositiveAndBelow(rowIndex, rowData.size()))
+			return rowData[rowIndex][Identifier(id)];
+            
+		return {};
+	}
+	else
+	{
+		jassertfalse;
+		return {};
+	}
+		
+}
+
+void ScriptTableListModel::timerCallback()
+{
+	for (auto r : repaintedColumns)
+		tableColumnRepaintBroadcaster.sendMessage(sendNotificationSync, r);
+			
+}
+
+int ScriptTableListModel::getColumnAutoSizeWidth(int columnId)
+{
+	return columnMetadata[columnId - 1].getProperty("MaxWidth", 10000);
+}
+
+void ScriptTableListModel::setExternalLookAndFeel(LookAndFeelMethods* l)
+{
+	laf = l;
+}
+
+void ScriptTableListModel::addAdditionalCallback(const std::function<void(int columnIndex, int rowIndex)>& f)
+{
+	additionalCallback = f;
+}
+
+var ScriptTableListModel::getRowData() const
+{ return rowData.clone(); }
+
+int ScriptTableListModel::defaultSorter(const var& v1, const var& v2)
+{
+	if (v1 < v2) return -1;
+	else if (v1 > v2) return 1;
+	else return 0;
+}
+
+ScriptTableListModel::TableRepainter::TableRepainter(TableListBox* t_, ScriptTableListModel& parent_):
+	t(t_),
+	parent(parent_)
+{
+	t_->addMouseListener(this, true);
+	t_->addKeyListener(this);
+}
+
+ScriptTableListModel::TableRepainter::~TableRepainter()
+{
+	if(auto tt = t.getComponent())
+	{
+		tt->removeMouseListener(this);
+		tt->removeKeyListener(this);
+	}
+				
+}
+
+void ScriptTableListModel::TableRepainter::mouseEnter(const MouseEvent& e)
+{
+	repaintIfCellChange(e);
+}
+
+void ScriptTableListModel::TableRepainter::mouseMove(const MouseEvent& e)
+{
+	repaintIfCellChange(e);
+}
+
 void ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected)
 {
 	Rectangle<int> a(0, 0, width, height);

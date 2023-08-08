@@ -36,6 +36,30 @@
 
 #include <regex>
 
+#include "scripting/HardcodedScriptProcessor.h"
+#include "scripting/hardcoded_modules/Arpeggiator.h"
+
+#include "scripting/scripting_audio_processor/ScriptDspModules.h"
+
+#if USE_BACKEND
+#include "scripting/components/ScriptingCodeEditor.h"
+#include "scripting/components/AutoCompletePopup.h"
+
+#include "scripting/components/ScriptingEditor.h"
+#endif 
+
+
+// headers moved from hi_scripting.h
+#include "scripting/api/FixLayoutObjects.h"
+#include "scripting/api/ScriptBroadcaster.h"
+#include "scripting/api/ScriptModulationMatrix.h"
+
+#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "scripting/api/ScriptLorisManager.h"
+#endif
+
+
+
 #include "scripting/api/DspFactory.cpp"
 #include "scripting/api/DspInstance.cpp"
 

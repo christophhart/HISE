@@ -52,40 +52,24 @@ struct dynamic_base: public ReferenceCountedObject
 
 	dynamic_base();
 
-	virtual ~dynamic_base() {};
+	virtual ~dynamic_base();;
 
-	virtual void call(double value)
-	{
-		setDisplayValue(value);
-        
-        if(obj != nullptr && f)
-            f(obj, lastValue);
-	}
+	virtual void call(double value);
 
 	static dynamic_base::Ptr createFromConnectionTree(const ValueTree& v, parameter::dynamic& callback, bool allowRange=true);
 
 	parameter::dynamic::Function f;
 	void* obj;
 
-	virtual double getDisplayValue() const 
-	{ 
-		return lastValue; 
-	}
+	virtual double getDisplayValue() const;
 
-	virtual InvertableParameterRange getRange() const { return range; }
+	virtual InvertableParameterRange getRange() const;
 
-	virtual void updateRange(const ValueTree& v)
-	{
-		range = RangeHelpers::getDoubleRange(v);
-		range.checkIfIdentity();
-	}
+	virtual void updateRange(const ValueTree& v);
 
 protected:
 
-	void setDisplayValue(double v)
-	{
-		lastValue = v;
-	}
+	void setDisplayValue(double v);
 
 private:
 

@@ -35,6 +35,28 @@
 namespace hise { using namespace juce;
 
 
+	HardcodedScriptEditor::HardcodedScriptEditor(ProcessorEditor* p):
+		ProcessorEditorBody(p)
+	{
+		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseMidiProcessor*>(getProcessor())));
+		contentComponent->refreshMacroIndexes();
+	}
+
+	void HardcodedScriptEditor::updateGui()
+	{
+		contentComponent->changeListenerCallback(getProcessor());
+	}
+
+	int HardcodedScriptEditor::getBodyHeight() const
+	{
+		return contentComponent->getContentHeight() == 0 ? 0 : contentComponent->getContentHeight() + 38;
+	}
+
+	void HardcodedScriptEditor::resized()
+	{
+		contentComponent->setBounds((getWidth() / 2) - ((getWidth() - 90) / 2), 24 ,getWidth() - 90, contentComponent->getContentHeight());
+	}
+
 //==============================================================================
 ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p),
@@ -111,6 +133,68 @@ ScriptingEditor::~ScriptingEditor()
     contentButton = nullptr;
 	lastPositions.clear();
     doc = nullptr;
+}
+
+JavascriptProcessor* ScriptingEditor::getScriptEditHandlerProcessor()
+{ return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
+
+ScriptContentComponent* ScriptingEditor::getScriptEditHandlerContent()
+{ return scriptContent.get(); }
+
+ScriptingContentOverlay* ScriptingEditor::getScriptEditHandlerOverlay()
+{ return dragOverlay; }
+
+CommonEditorFunctions::EditorType* ScriptingEditor::getScriptEditHandlerEditor()
+{ return codeEditor->editor; }
+
+void ScriptingEditor::editorInitialized()
+{
+	JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+	int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
+	for(int i = 0; i < sp->getNumSnippets(); i++)
+	{
+		if(getProcessor()->getEditorState(editorOffset + i + ProcessorWithScriptingContent::EditorStates::onInitShown))
+			showCallback(i);
+	}
+
+	setSize(getWidth(), getBodyHeight());
+
+	checkActiveSnippets();
+}
+
+bool ScriptingEditor::isInEditMode() const
+{
+	return codeEditor != nullptr && scriptContent->isVisible() && (getActiveCallback() == 0);
+}
+
+void ScriptingEditor::checkContent()
+{
+	const bool contentEmpty = scriptContent->getContentHeight() == 0;
+
+	if(contentEmpty) contentButton->setToggleState(false, dontSendNotification);
+
+	Button *t = contentButton;
+
+	t->setColour(TextButton::buttonColourId, !contentEmpty ? Colour (0x77cccccc) : Colour (0x4c4b4b4b));
+	t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
+	t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
+	t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
+
+	contentButton->setEnabled(!contentEmpty);
+
+	resized();
+}
+
+Button* ScriptingEditor::getSnippetButton(int i)
+{
+	return callbackButtons[i];
+}
+
+void ScriptingEditor::selectOnInitCallback()
+{
+	if (getActiveCallback() != 0)
+		buttonClicked(callbackButtons[0]); // we need synchronous execution here
 }
 
 int ScriptingEditor::getBodyHeight() const

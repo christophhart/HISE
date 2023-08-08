@@ -40,29 +40,7 @@ using namespace juce;
 
 
 
-template <class T> class ScriptnodeExtraComponent : public ComponentWithMiddleMouseDrag,
-public PooledUIUpdater::SimpleTimer
-{
-public:
 
-	using ObjectType = T;
-
-	ObjectType* getObject() const
-	{
-		return object.get();
-	}
-
-protected:
-
-	ScriptnodeExtraComponent(ObjectType* t, PooledUIUpdater* updater) :
-		SimpleTimer(updater),
-		object(t)
-	{};
-
-private:
-
-	WeakReference<ObjectType> object;
-};
 
 
 class NodeComponent : public ComponentWithMiddleMouseDrag,
@@ -96,14 +74,7 @@ public:
 		numMenuActions
 	};
 
-	struct Factory : public PathFactory
-	{
-		String getId() const { return "Scriptnode"; };
-
-		Array<Description> getDescription() const override;
-		
-		Path createPath(const String& id) const override;
-	};
+	using Factory = NodeComponentFactory;
 
 	struct Header : public Component,
 		public ButtonListener,

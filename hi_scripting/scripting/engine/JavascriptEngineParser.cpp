@@ -2416,6 +2416,12 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, localScope.get()));
 }
 
+bool HiseJavascriptEngine::RootObject::areTypeEqual(const var& a, const var& b)
+{
+	return a.hasSameTypeAs(b) && isFunction(a) == isFunction(b)
+		&& (((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid())) || a == b);
+}
+
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
 	ExpressionTreeBuilder tb(code, String(), preprocessor);

@@ -35,6 +35,22 @@ using namespace juce;
 using namespace hise;
 
 
+NodeProperty::NodeProperty(const Identifier& baseId_, const var& defaultValue_, bool isPublic_):
+	baseId(baseId_),
+	defaultValue(defaultValue_),
+	isPublic(isPublic_)
+{}
+
+NodeProperty::~NodeProperty()
+{}
+
+ValueTree NodeProperty::getPropertyTree() const
+{ return d; }
+
+juce::Value NodeProperty::asJuceValue()
+{
+	return d.getPropertyAsValue(PropertyIds::Value, um);
+}
 
 bool NodeProperty::initialise(NodeBase* n)
 {
@@ -65,6 +81,56 @@ juce::Identifier NodeProperty::getValueTreePropertyId() const
 {
 	return valueTreePropertyid;
 }
+
+template <class T>
+NodePropertyT<T>::NodePropertyT(const Identifier& id, T defaultValue) :
+	NodeProperty(id, defaultValue, false),
+	value(defaultValue)
+{}
+
+template <class T>
+void NodePropertyT<T>::postInit(NodeBase*)
+{
+	updater.setCallback(getPropertyTree(), { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
+		BIND_MEMBER_FUNCTION_2(NodePropertyT::update));
+}
+
+template <class T>
+void NodePropertyT<T>::storeValue(const T& newValue, UndoManager* um)
+{
+	if (getPropertyTree().isValid())
+		getPropertyTree().setPropertyExcludingListener(&updater, PropertyIds::Value, newValue, um);
+
+	value = newValue;
+}
+
+template <class T>
+void NodePropertyT<T>::update(Identifier id, var newValue)
+{
+	value = newValue;
+
+	if (additionalCallback)
+		additionalCallback(id, newValue);
+}
+
+template <class T>
+void NodePropertyT<T>::setAdditionalCallback(const valuetree::PropertyListener::PropertyCallback& c, bool callWithValue)
+{
+	additionalCallback = c;
+
+	if (callWithValue && additionalCallback)
+		additionalCallback(PropertyIds::Value, var(value));
+}
+
+template <class T>
+T NodePropertyT<T>::getValue() const
+{
+	return value;
+}
+
+template struct NodePropertyT<int>;
+template struct NodePropertyT<String>;
+template struct NodePropertyT<bool>;
 
 ComboBoxWithModeProperty::ComboBoxWithModeProperty(String defaultValue, const Identifier& id):
 	ComboBox(),
