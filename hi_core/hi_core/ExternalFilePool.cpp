@@ -31,7 +31,7 @@
 */
 
 #if JUCE_WINDOWS
-#include "ExternFilePool_impl.h"
+#include "ExternalFilePool_impl.h"
 #endif
 
 namespace hise { using namespace juce;
