@@ -1049,10 +1049,12 @@ void BorderPanel::resized()
 		
 }
 
+#if HISE_INCLUDE_RLOTTIE
 void BorderPanel::setAnimation(RLottieAnimation::Ptr newAnimation)
 {
 	animation = newAnimation;
 }
+#endif
 
 void BorderPanel::buttonClicked(Button* /*b*/)
 {

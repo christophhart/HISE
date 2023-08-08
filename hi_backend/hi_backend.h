@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_sampler, hi_scripting, hi_modules, hi_faust_jit
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_scripting, hi_faust_jit
 
 END_JUCE_MODULE_DECLARATION
 
@@ -52,7 +52,8 @@ END_JUCE_MODULE_DECLARATION
 #define HI_BACKEND_INCLUDED
 
 #include "AppConfig.h"
-#include "../hi_modules/hi_modules.h"
+#include "../hi_core/hi_core.h"
+#include "../hi_scripting/hi_scripting.h"
 
 
 /** Config: USE_WORKBENCH_EDITOR
@@ -63,7 +64,6 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #endif
 
 
-#include "snex_workbench/BackendHostFactory.h"
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
 #include "backend/BackendToolbar.h"

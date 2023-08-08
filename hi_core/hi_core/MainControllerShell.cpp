@@ -1,4 +1,3 @@
-#include "JuceHeader.h"
 
 namespace hise {
 using namespace juce;

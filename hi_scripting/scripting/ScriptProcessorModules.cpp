@@ -2152,16 +2152,7 @@ hise::ProcessorEditorBody * ScriptnodeVoiceKiller::createEditor(ProcessorEditor 
 #endif
 }
 
-void VoiceDataStack::reset(int voiceIndex)
-{
-	for (int i = 0; i < voiceNoteOns.size(); i++)
-	{
-		if (voiceNoteOns[i].voiceIndex == voiceIndex)
-		{
-			voiceNoteOns.removeElement(i--);
-			break;
-		}
-	}
-}
+
+
 
 } // namespace hise

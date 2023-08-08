@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef HI_BINARY_DATA_H_INCLUDED
-#define HI_BINARY_DATA_H_INCLUDED
+#pragma once
 
 #define DECLARE_DATA(id, size) extern const char* id; constexpr size_t id##_Size = size;
 #define DEFINE_DATA(id, unused) const char* id = (const char*)data::id;
@@ -44,6 +43,7 @@
 // Use this if you have declared the data array as extern data with a char* and the macro DECLARE_EXTERN_PATH_DATA
 #define LOAD_EPATH_IF_URL(urlName, editorIconName) ids.addIfNotAlreadyThere(urlName); if (url == urlName) p.loadPathFromData(editorIconName, SIZE_OF_PATH(editorIconName));
 
+#if !HISE_NO_GUI_TOOLS
 
 #include "FrontendBinaryData.h"
 #include "ProcessorEditorHeaderBinaryData.h"
@@ -235,4 +235,4 @@ namespace MpeIcons
 	DECLARE_DATA(slide, 150);
 }
 
-#endif  // HI_BINARY_DATA_H_INCLUDED
+#endif

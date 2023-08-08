@@ -50,7 +50,9 @@
 
 #include "hi_tools.h"
 
+#if !HISE_NO_GUI_TOOLS
 #include "hi_binary_data/hi_binary_data.cpp"
+#endif
 
 #if USE_IPP
 #include "hi_tools/IppFFT.cpp"
@@ -114,7 +116,10 @@
 #include "hi_tools/LorisManager.cpp"
 #endif
 
+#if !HISE_NO_GUI_TOOLS
 #include "hi_standalone_components/ZoomableViewport.cpp"
+#endif
+
 #include "hi_standalone_components/SampleDisplayComponent.cpp"
 
 #include "hi_standalone_components/VuMeter.cpp"

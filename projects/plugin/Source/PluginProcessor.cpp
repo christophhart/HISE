@@ -26,3 +26,8 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 };
 
 AudioProcessor* hise::StandaloneProcessor::createProcessor(void) { return nullptr; }
+
+String PresetHandler::getVersionString()
+{
+    return ProjectInfo::versionString;
+}

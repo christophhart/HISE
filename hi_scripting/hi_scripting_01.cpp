@@ -32,7 +32,13 @@
 
 /* HI Module */
 
-#include "JuceHeader.h"
+#include "hi_scripting.h"
+
+#if USE_BACKEND
+#include "../hi_backend/hi_backend.h"
+#else
+#include "../hi_frontend/hi_frontend.h"
+#endif
 
 #include <regex>
 

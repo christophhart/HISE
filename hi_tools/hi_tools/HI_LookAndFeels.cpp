@@ -332,7 +332,7 @@ GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 	ring2.startNewSubPath(0.5f, 1.0f);
 	ring2.addArc(0.0f, 0.0f, 1.0f, 1.0f, -float_Pi * 0.75f - 0.04f, float_Pi * 0.75f + 0.04f, true);
 
-#if INCLUDE_STOCK_FILMSTRIPS
+#if INCLUDE_STOCK_FILMSTRIPS & !HISE_NO_GUI_TOOLS
 	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
 	cachedImage_knobRing_png = ImageProvider::getImage(ImageProvider::ImageType::KnobUnmodulated); // ImageCache::getFromMemory(BinaryData::ring_unmodulated_png, BinaryData::ring_unmodulated_pngSize);
 	ring_modulated = ImageProvider::getImage(ImageProvider::ImageType::KnobModulated); //ImageCache::getFromMemory(BinaryData::ring_modulated_png, BinaryData::ring_modulated_pngSize);
@@ -708,6 +708,7 @@ void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> a
 	}
 }
 
+#if !HISE_NO_GUI_TOOLS
 const char* GlobalHiseLookAndFeel::smalliKnob_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_bg_png;
 const int GlobalHiseLookAndFeel::smalliKnob_pngSize = 16277;
 
@@ -725,6 +726,7 @@ const int GlobalHiseLookAndFeel::slider2_bipolar_pngSize = 87929;
 
 const char* BalanceButtonLookAndFeel::balanceKnob_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Button_balanceKnob_png;
 const int BalanceButtonLookAndFeel::balanceKnob_pngSize = 5215;
+#endif
 
 void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int /*width*/, int /*height*/, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
@@ -821,8 +823,10 @@ void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
 	
 }
 
+#if !HISE_NO_GUI_TOOLS
 const char* MacroKnobLookAndFeel::macroKnob_png = (const char*)HiBinaryData::LookAndFeelBinaryData::resource_Background_macroKnob2_png;
 const int MacroKnobLookAndFeel::macroKnob_pngSize = 241928;
+#endif
 
 
 ImageProvider::DisplayScaleFactor ImageProvider::getScaleFactor()
@@ -2037,7 +2041,9 @@ void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const
 
 BalanceButtonLookAndFeel::BalanceButtonLookAndFeel()
 {
+#if !HISE_NO_GUI_TOOLS
 	cachedImage_balanceKnob_png = ImageCache::getFromMemory (balanceKnob_png, balanceKnob_pngSize);
+#endif
 }
 
 void BalanceButtonLookAndFeel::drawRotarySlider(Graphics& g, int i, int i1, int i2, int i3, float x, float x1, float x2,
@@ -2331,8 +2337,10 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics
     }
 }
 
+
 void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
+#if !HISE_NO_GUI_TOOLS
     float alphaBoost = hover ? 0.1f : 0.0f;
 
     g.setGradientFill(ColourGradient(highlightColour.withAlpha(0.3f + alphaBoost), 0.0f, 0.0f,
@@ -2357,6 +2365,7 @@ void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex,
     g.setColour(textColour);
     g.setFont(font.withHeight(16.0f));
     g.drawText(itemName, columnIndex == 2 ? 10 + 26 : 10, 0, position.getWidth() - 20, position.getHeight(), Justification::centredLeft);
+#endif
 }
 
 void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonText(Graphics& g, TextButton& button, bool isMouseOverButton, bool isButtonDown)

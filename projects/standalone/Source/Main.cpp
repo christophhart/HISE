@@ -542,6 +542,11 @@ REGISTER_STATIC_DSP_LIBRARIES()
 #endif
 }
 
+String hise::PresetHandler::getVersionString()
+{
+	return ProjectInfo::versionString;
+}
+
 AudioProcessor* hise::StandaloneProcessor::createProcessor()
 {
 	return new hise::BackendProcessor(deviceManager, callback);

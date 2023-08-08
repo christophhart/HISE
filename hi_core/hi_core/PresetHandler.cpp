@@ -1375,7 +1375,7 @@ juce::ValueTree FrontendHandler::getEmbeddedNetwork(const String& id)
 	}
 
 #if USE_FRONTEND
-	if (ScopedPointer<scriptnode::dll::FactoryBase> f = FrontendHostFactory::createStaticFactory())
+	if (ScopedPointer<scriptnode::dll::FactoryBase> f = scriptnode::DspNetwork::createStaticFactory())
 	{
 		// We need to look in the compiled networks and return a dummy ValueTree
 		int numNodes = f->getNumNodes();
@@ -2557,7 +2557,7 @@ void AboutPage::refreshText()
 	infoData.append("Hart Instruments Sampler Engine\n", normal, bright);
 
 	infoData.append("\nVersion: ", bold, bright);
-	infoData.append(ProjectInfo::versionString, normal, bright);
+	infoData.append(PresetHandler::getVersionString(), normal, bright);
 	infoData.append("\nBuild time: ", bold, bright);
 	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nBuild version: ", bold, bright);

@@ -1,3 +1,5 @@
+
+
 namespace hise { using namespace juce;
 
 #if ENABLE_STARTUP_LOG
@@ -1115,7 +1117,7 @@ String DebugLogger::getHeader()
 	header << "# Debug Log file\n\n" << nl;
 #if USE_BACKEND
 	header << "Product: **HISE**  " << nl;
-	header << "Version: **" << ProjectInfo::versionString << "**  " << nl;
+	header << "Version: **" << PresetHandler::getVersionString() << "**  " << nl;
 #else
 
 	header << "Product: **" << FrontendHandler::getCompanyName() << " - " << FrontendHandler::getProjectName() << "**  " << nl;

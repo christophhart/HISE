@@ -163,7 +163,7 @@ void AudioProcessorDriver::resetToDefault()
 String GlobalSettingManager::getHiseVersion()
 {
 #if USE_BACKEND
-	return ProjectInfo::versionString;
+	return PresetHandler::getVersionString();
 #else
 	return FrontendHandler::getHiseVersion();
 #endif

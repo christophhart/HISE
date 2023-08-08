@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_dsp_library, hi_sampler
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp_library
 
 END_JUCE_MODULE_DECLARATION
 
@@ -72,12 +72,10 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "AppConfig.h"
 #include "../JUCE/modules/juce_osc/juce_osc.h"
-#include "../hi_sampler/hi_sampler.h"
+#include "../hi_core/hi_core.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 #include "../hi_snex/hi_snex.h"
 #include "../hi_rlottie/hi_rlottie.h"
-
-
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
@@ -87,9 +85,6 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/engine/DebugHelpers.h"
 #include "scripting/api/DspInstance.h"
 
-
-
-
 #include "scripting/scriptnode/api/RangeHelpers.h"
 #include "scripting/scriptnode/api/DynamicProperty.h"
 #include "scripting/scriptnode/api/DspHelpers.h"
@@ -98,12 +93,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/api/DspNetwork.h"
 
 #if USE_BACKEND
+#include "scripting/scriptnode/node_library/BackendHostFactory.h"
 #include "scripting/scriptnode/api/TestClasses.h"
 #endif
-
-
-
-
 
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"
 

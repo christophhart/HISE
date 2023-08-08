@@ -31,7 +31,12 @@
 */
 
 
-#include "JuceHeader.h"
+#include "hi_backend.h"
+#include <BinaryData.h>
+
+#if HISE_INCLUDE_FAUST_JIT
+#include "../hi_faust_jit/hi_faust_jit.h"
+#endif
 
 #include "backend/WinInstallerTemplate.cpp"
 
@@ -71,4 +76,3 @@
 
 #include "snex_workbench/DspNetworkWorkbench.cpp"
 #include "snex_workbench/WorkbenchProcessor.cpp"
-#include "snex_workbench/BackendHostFactory.cpp"

@@ -565,7 +565,8 @@ public:
 	
 
 	void drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
-	
+
+#if !HISE_NO_GUI_TOOLS
 	static const char* smalliKnob_png;
     static const int smalliKnob_pngSize;
 
@@ -578,6 +579,7 @@ public:
     static const int slider_strip2_pngSize;
 	static const char* slider2_bipolar_png;
     static const int slider2_bipolar_pngSize;
+#endif
     
 	static void setDefaultColours(Component& c);
 
@@ -641,8 +643,10 @@ private:
 	Image cachedImage_balanceKnob_png;
 
 
+#if !HISE_NO_GUI_TOOLS
 	static const char* balanceKnob_png;
     static const int balanceKnob_pngSize;
+#endif
 };
 
 class ChainBarButtonLookAndFeel: public LookAndFeel_V3

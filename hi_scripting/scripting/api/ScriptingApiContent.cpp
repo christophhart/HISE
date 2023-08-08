@@ -3768,11 +3768,13 @@ ScriptingApi::Content::ScriptPanel* ScriptingApi::Content::ScriptPanel::getSubPa
 	return childPanels[index].get();
 }
 
+#if HISE_INCLUDE_RLOTTIE
 bool ScriptingApi::Content::ScriptPanel::isAnimationActive() const
 { return animation != nullptr && animation->isValid(); }
 
 RLottieAnimation::Ptr ScriptingApi::Content::ScriptPanel::getAnimation()
 { return animation.get(); }
+#endif
 
 void ScriptingApi::Content::ScriptPanel::forcedRepaint()
 {

@@ -45,22 +45,18 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60104
+#define JUCE_PROJUCER_VERSION 0x60103
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
-#define JUCE_MODULE_AVAILABLE_hi_components               1
 #define JUCE_MODULE_AVAILABLE_hi_core                     1
-#define JUCE_MODULE_AVAILABLE_hi_dsp                      1
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library              1
 #define JUCE_MODULE_AVAILABLE_hi_faust                    1
 #define JUCE_MODULE_AVAILABLE_hi_faust_jit                1
 #define JUCE_MODULE_AVAILABLE_hi_faust_lib                1
 #define JUCE_MODULE_AVAILABLE_hi_faust_types              1
 #define JUCE_MODULE_AVAILABLE_hi_lac                      1
-#define JUCE_MODULE_AVAILABLE_hi_modules                  1
 #define JUCE_MODULE_AVAILABLE_hi_rlottie                  1
-#define JUCE_MODULE_AVAILABLE_hi_sampler                  1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                1
 #define JUCE_MODULE_AVAILABLE_hi_snex                     1
 #define JUCE_MODULE_AVAILABLE_hi_streaming                1
@@ -90,13 +86,6 @@
 
 #ifndef    USE_WORKBENCH_EDITOR
  //#define USE_WORKBENCH_EDITOR 0
-#endif
-
-//==============================================================================
-// hi_components flags:
-
-#ifndef    HISE_INCLUDE_SNEX_FLOATING_TILES
- //#define HISE_INCLUDE_SNEX_FLOATING_TILES 0
 #endif
 
 //==============================================================================

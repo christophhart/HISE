@@ -707,6 +707,7 @@ void TableEditor::DragPoint::resized()
 
 TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
 {
+#if !HISE_NO_GUI_TOOLS
 	table = point->findParentComponentOfClass<TableEditor>();
 
 	addAndMakeVisible(curveSlider = new Slider());
@@ -725,7 +726,6 @@ TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
 	deletePointButton->addListener(this);
 
 	Path p;
-
 	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 
 	setInterceptsMouseClicks(false, true);
@@ -733,6 +733,7 @@ TableEditor::TouchOverlay::TouchOverlay(DragPoint* point)
 	deletePointButton->setShape(p, false, true, true);
 
 	setSize(200, 200);
+#endif
 }
 
 

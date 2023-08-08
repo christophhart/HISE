@@ -32,7 +32,17 @@
 
 /* HI Module */
 
-#include "JuceHeader.h"
+#include "hi_scripting.h"
+
+#if USE_BACKEND
+#include "../hi_backend/hi_backend.h"
+#else
+#include "../hi_frontend/hi_frontend.h"
+#endif
+
+#if HISE_INCLUDE_FAUST_JIT
+#include "../hi_faust_jit/hi_faust_jit.h"
+#endif
 
 
 #include "scripting/scriptnode/ui/NodeComponent.h"
@@ -96,6 +106,14 @@
 #include "scripting/scriptnode/ui/DspNodeComponent.h"
 #include "scripting/scriptnode/ui/DspNetworkComponents.h"
 
+#if USE_BACKEND
+#include "scripting/scriptnode/node_library/BackendHostFactory.cpp"
+#include "scripting/scriptnode/api/TestClasses.cpp"
+#else
+#include "scripting/scriptnode/node_library/FrontendHostFactory.h"
+#include "scripting/scriptnode/node_library/FrontendHostFactory.cpp"
+#endif
+
 
 #include "scripting/scriptnode/api/Properties.cpp"
 #include "scripting/scriptnode/api/DynamicProperty.cpp"
@@ -110,11 +128,11 @@
 #include "scripting/scriptnode/api/ModulationSourceNode.cpp"
 #include "scripting/scriptnode/api/DspNetwork.cpp"
 
-#if USE_BACKEND
-#include "scripting/scriptnode/api/TestClasses.cpp"
-#endif
+
 
 #include "scripting/scriptnode/api/StaticNodeWrappers.cpp"
+
+
 
 #include "scripting/scriptnode/dynamic_elements/DynamicParameterList.cpp"
 #include "scripting/scriptnode/dynamic_elements/DynamicComplexData.cpp"

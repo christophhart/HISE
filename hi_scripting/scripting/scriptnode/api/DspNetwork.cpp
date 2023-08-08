@@ -1048,10 +1048,12 @@ void DspNetwork::zoomToSelection(Component* c)
 
 void DspNetwork::fillSnexObjects(StringArray& indexList)
 {
+#if USE_BACKEND
 	for (auto so : getSnexObjects())
 	{
 		indexList.add("SNEX Node: " + so->getId());
 	}
+#endif
 }
 
 bool DspNetwork::updateIdsInValueTree(ValueTree& v, StringArray& usedIds)

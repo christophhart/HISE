@@ -15,18 +15,14 @@
 #include "AppConfig.h"
 
 #include <hi_backend/hi_backend.h>
-#include <hi_components/hi_components.h>
 #include <hi_core/hi_core.h>
-#include <hi_dsp/hi_dsp.h>
 #include <hi_dsp_library/hi_dsp_library.h>
 #include <hi_faust/hi_faust.h>
 #include <hi_faust_jit/hi_faust_jit.h>
 #include <hi_faust_lib/hi_faust_lib.h>
 #include <hi_faust_types/hi_faust_types.h>
 #include <hi_lac/hi_lac.h>
-#include <hi_modules/hi_modules.h>
 #include <hi_rlottie/hi_rlottie.h>
-#include <hi_sampler/hi_sampler.h>
 #include <hi_scripting/hi_scripting.h>
 #include <hi_snex/hi_snex.h>
 #include <hi_streaming/hi_streaming.h>

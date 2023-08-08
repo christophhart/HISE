@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_dsp, hi_components, hi_sampler, hi_scripting, hi_modules
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, hi_core, hi_scripting
 
 END_JUCE_MODULE_DECLARATION
 
@@ -51,16 +51,13 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_FRONTEND_INCLUDED
 #define HI_FRONTEND_INCLUDED
 
-#include "../hi_modules/hi_modules.h"
+#include "../hi_core/hi_core.h"
+#include "../hi_scripting/hi_scripting.h"
 
 #ifndef USE_FRONTEND
 #define USE_FRONTEND 1
 #endif
 
-
-
-
-#include "frontend/FrontendHostFactory.h"
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
 

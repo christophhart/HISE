@@ -35,11 +35,13 @@
 namespace hise {
 	using namespace juce;
 
+
 	juce::Path ChainBarPathFactory::createPath(const String& id) const
 	{
-		auto url = StringSanitizer::get(id);
-
 		Path p;
+
+#if !HISE_NO_GUI_TOOLS
+		auto url = StringSanitizer::get(id);
 
 		LOAD_EPATH_IF_URL("midi", ProcessorIcons::midiIcon);
 		LOAD_EPATH_IF_URL("gain", ProcessorIcons::gainIcon);
@@ -55,7 +57,7 @@ namespace hise {
 		LOAD_EPATH_IF_URL("voice-start-modulator", ProcessorIcons::voiceStart);
 		LOAD_EPATH_IF_URL("time-variant-modulator", ProcessorIcons::timeVariant);
 		LOAD_EPATH_IF_URL("envelope", ProcessorIcons::envelope);
-
+#endif
 		return p;
 	}
 

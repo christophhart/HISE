@@ -1172,56 +1172,7 @@ void DspNetworkCompileExporter::run()
 		for (auto tpf : thirdPartyFiles)
 		{
 			includedThirdPartyFiles.insert(0, tpf);
-
-#if 0
-			auto target = sourceDir.getChildFile(tpf.getFileName());
-
-			if (target.existsAsFile())
-			{
-				auto sourceContent = tpf.loadFileAsString();
-				auto targetContent = target.loadFileAsString();
-
-				if (sourceContent.compare(targetContent) != 0)
-				{
-					auto sourceTime = tpf.getLastModificationTime();
-					auto targetTime = target.getLastModificationTime();
-
-					if (targetTime > sourceTime)
-					{
-						errorMessage << "A newer version of the file " << tpf.getFileName() << " is already in the target folder.  \n> This file will get overriden by the ";
-						ok = ErrorCodes::SanityCheckFailed;
-						return;
-
-					}
-
-					
-				}
-			}
-
-			tpf.copyFileTo(target);
-			includedThirdPartyFiles.insert(0, target);
-#endif
-
-			
 		}
-
-#if 0
-		auto srcDir = BackendDllManager::getThirdPartyFiles(getMainController(), true).getFirst();
-
-		if (srcDir.isDirectory())
-		{
-			showStatusMessage("Copying /src folder");
-
-			auto targetSrc = sourceDir.getChildFile(srcDir.getFileName());
-			auto additionalSrc = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::AdditionalCode);
-
-			targetSrc.deleteRecursively();
-			additionalSrc.deleteRecursively();
-
-			srcDir.copyDirectoryTo(targetSrc);
-			srcDir.copyDirectoryTo(additionalSrc);
-		}	
-#endif
 	}
 
 	if (!externalSamples.isEmpty())
@@ -1875,7 +1826,7 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 	}
 	else
 	{
-		b << "scriptnode::dll::FactoryBase* hise::FrontendHostFactory::createStaticFactory()";
+		b << "scriptnode::dll::FactoryBase* scriptnode::DspNetwork::createStaticFactory()";
 		{
 			StatementBlock sb(b);
 			b << "return new project::Factory();";

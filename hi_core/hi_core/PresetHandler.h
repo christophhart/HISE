@@ -645,7 +645,11 @@ public:
 	static void saveFile(const String &dataToSave, const String &extension);
 
 	static void setChanged(Processor *p);
-    
+
+#if USE_BACKEND
+	static String getVersionString();
+#endif
+
 	/** Checks if the. */
 	static String getProcessorNameFromClipboard(const FactoryType *t);
 

@@ -10,9 +10,17 @@
 #undef MemoryBlock
 #endif
 
-#include "JuceHeader.h"
+#include <BinaryData.h>
 
-#include "additional_libraries/additional_libraries.cpp"
+#include "hi_core.h"
+
+#if USE_BACKEND
+#include "../hi_backend/hi_backend.h"
+#else
+#include "../hi_frontend/hi_frontend.h"
+#include "../hi_scripting/hi_scripting.h"
+#endif
+
 
 
 #if HISE_IOS
@@ -22,7 +30,9 @@
 
 hise::HiseColourScheme::Scheme hise::HiseColourScheme::currentColourScheme = Dark;
 
-
-
 #include "hi_core/hi_core.cpp"
 
+#include "hi_dsp/hi_dsp.cpp"
+#include "hi_components/hi_components.cpp"
+#include "hi_sampler/hi_sampler.cpp"
+#include "hi_modules/hi_modules_01.cpp"

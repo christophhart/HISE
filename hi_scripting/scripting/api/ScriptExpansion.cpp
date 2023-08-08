@@ -2736,7 +2736,7 @@ void ExpansionEncodingWindow::run()
 		mData.setProperty(ExpansionIds::Description, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::ExpansionSettings::Description), nullptr);
 		mData.setProperty(ExpansionIds::Tags, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::ExpansionSettings::Tags), nullptr);
 		mData.setProperty(ExpansionIds::UUID, GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::ExpansionSettings::UUID), nullptr);
-		mData.setProperty(ExpansionIds::HiseVersion, ProjectInfo::versionString, nullptr);
+		mData.setProperty(ExpansionIds::HiseVersion, PresetHandler::getVersionString(), nullptr);
 
 		if (exportMode == ExportMode::HiseProject)
 		{

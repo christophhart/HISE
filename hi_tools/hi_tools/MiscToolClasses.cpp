@@ -882,6 +882,7 @@ void ScrollbarFader::addScrollBarToAnimate(ScrollBar& b)
 	scrollbars.add({&b});
 }
 
+#if !HISE_NO_GUI_TOOLS
 
 GlContextHolder::GlContextHolder(juce::Component& topLevelComponent): parent(topLevelComponent)
 {
@@ -1084,6 +1085,8 @@ GlContextHolder::Client* GlContextHolder::findClientForComponent(juce::Component
 	return nullptr;
 }
 
+
+
 KeyPress TopLevelWindowWithKeyMappings::getKeyPressFromString(Component* c, const String& s)
 {
 	if (s.isEmpty())
@@ -1242,6 +1245,8 @@ void TopLevelWindowWithOptionalOpenGL::removeChildComponentWithOpenGLRenderer(Co
 	if (contextHolder != nullptr)
 		contextHolder->unregisterOpenGlRenderer(c);
 }
+
+#endif
 
 SuspendableTimer::Manager::~Manager()
 {}

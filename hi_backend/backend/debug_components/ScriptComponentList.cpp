@@ -601,7 +601,7 @@ void ScriptComponentList::mouseUp(const MouseEvent& event)
 		case CreateCppPositionData:
 		{
 
-			raw::Positioner pos(componentListToUse.getFirst());
+			raw::Positioner pos(var(componentListToUse.getFirst().get()));
 
 			SystemClipboard::copyTextToClipboard(pos.toString());
 

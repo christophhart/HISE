@@ -578,6 +578,8 @@ public:
 
 	void fillSnexObjects(StringArray& indexList);
 
+	static scriptnode::dll::FactoryBase* createStaticFactory();
+
 	struct NetworkParameterHandler : public hise::ScriptParameterHandler
 	{
 		int getNumParameters() const final override { return root->getNumParameters(); }

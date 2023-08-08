@@ -2649,7 +2649,7 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 	
 	// We need to add this function body or the linker will complain (if the file exists, it'll be defined
 	if(!nodeIncludeFile.existsAsFile())
-		pluginDataHeaderFile << "scriptnode::dll::FactoryBase* hise::FrontendHostFactory::createStaticFactory() { return nullptr; }\n";
+		pluginDataHeaderFile << "scriptnode::dll::FactoryBase* scriptnode::DspNetwork::createStaticFactory() { return nullptr; }\n";
 }
 
 void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile)
@@ -2687,7 +2687,7 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String expType = exporter->GET_SETTING(HiseSettings::Project::ExpansionType);
 	const String expKey = exporter->GET_SETTING(HiseSettings::Project::EncryptionKey);
 	const String defaultPreset = exporter->GET_SETTING(HiseSettings::Project::DefaultUserPreset);
-	const String hiseVersion = ProjectInfo::versionString;
+	const String hiseVersion = PresetHandler::getVersionString();
 
 	String nl = "\n";
 	

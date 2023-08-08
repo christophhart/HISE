@@ -632,12 +632,12 @@ void FrontendProcessor::setCurrentProgram(int /*index*/)
 
 const String FrontendStandaloneApplication::getApplicationName()
 {
-	return ProjectInfo::projectName;
+	return FrontendHandler::getProjectName();
 }
 
 const String FrontendStandaloneApplication::getApplicationVersion()
 {
-	return ProjectInfo::versionString;
+	return FrontendHandler::getVersionString();
 }
 
 void FrontendStandaloneApplication::AudioWrapper::init()
