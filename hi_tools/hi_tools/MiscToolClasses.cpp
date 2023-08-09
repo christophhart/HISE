@@ -450,6 +450,9 @@ int FuzzySearcher::getLevenshteinDistance(const String &src, const String &dest)
 	const int srcLength = src.length();
 	const int dstLength = dest.length();
 
+    if(srcLength >= NUM_MAX_CHARS || dstLength >= NUM_MAX_CHARS)
+        return INT_MAX;
+    
 	int d[NUM_MAX_CHARS][NUM_MAX_CHARS];
 
 	int i, j, cost;
