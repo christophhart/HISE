@@ -358,7 +358,7 @@ public:
 
 			auto fid = node->getValueTree()[PropertyIds::FactoryPath].toString();
 
-			searchKeywords << " " << fid;
+			searchKeywords << ";" << fid;
 
 
             if(fid.startsWith("container.") && fid != "container.chain")

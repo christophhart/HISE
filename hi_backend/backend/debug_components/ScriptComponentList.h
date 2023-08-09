@@ -156,7 +156,17 @@ public:
 			fitsSearch = hise::RegexFunctions::matchesWildcard(s, getItemIdentifierString());
 		}
 		else
-			fitsSearch = FuzzySearcher::fitsSearch(searchTerm_, getItemIdentifierString().toLowerCase(), 0.8);
+        {
+            auto st = getItemIdentifierString().toLowerCase();
+            
+            auto sa = StringArray::fromTokens(st, "/", "");
+            sa.removeEmptyStrings();
+            fitsSearch = false;
+            
+            for(auto a: sa)
+                fitsSearch |= FuzzySearcher::fitsSearch(searchTerm_, a, 0.4);
+        }
+			
 	}
 
 private:
@@ -289,7 +299,7 @@ public:
 
 	void paint(Graphics& g) override;
 
-	void textEditorReturnKeyPressed(TextEditor&) override
+    void textEditorTextChanged(TextEditor&) override
 	{
 		searchTerm = fuzzySearchBox->getText().toLowerCase();
 

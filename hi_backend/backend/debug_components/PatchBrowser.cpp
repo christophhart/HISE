@@ -1095,12 +1095,12 @@ hierarchy(hierarchy_)
 
 		if (p != nullptr)
 		{
-			searchTerm << p->getId() << " " << p->getType();
+			searchTerm << p->getId() << ";" << p->getType();
 		}
 
 		if (parentSynth != nullptr)
 		{
-			searchTerm << parentSynth->getId() << " " << parentSynth->getType();
+			searchTerm << ";" << parentSynth->getId() << ";" << parentSynth->getType();
 		}
 
 		items.add(new PatchItem(p, parentSynth, iter.getHierarchyForCurrentProcessor(), searchTerm));
