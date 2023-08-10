@@ -44,7 +44,7 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 		PropertyComponent(id.toString()),
 		value(d.getPropertyAsValue(id, um))
 	{
-		addAndMakeVisible(comp);
+        addAndMakeVisible(comp);
 		refresh();
 	}
 
@@ -79,9 +79,22 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 					ColourSelector::ColourSelectorOptions::showColourspace |
 					ColourSelector::ColourSelectorOptions::showSliders)
 			{
-				selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
-				selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+                setLookAndFeel(&laf);
+				
+                selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
+                selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
+                selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
 
+                juce::Component::callRecursive<Component>(&selector, [](Component* s)
+                {
+                    s->setColour(Slider::ColourIds::textBoxTextColourId, Colours::white.withAlpha(0.8f));
+                    s->setColour(Slider::ColourIds::backgroundColourId, Colours::black.withAlpha(0.3f));
+                    s->setColour(Slider::ColourIds::thumbColourId, Colours::white.withAlpha(0.8f));
+                    s->setColour(Slider::ColourIds::trackColourId, Colours::white.withAlpha(0.5f));
+                    return false;
+                });
+                
+                
 				selector.setCurrentColour(parent->colour);
 
 				addAndMakeVisible(selector);
@@ -97,11 +110,12 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 			}
 
 			ColourSelector selector;
+            LookAndFeel_V4 laf;
 		};
 
 		ColourComp()
 		{
-			addAndMakeVisible(l);
+            addAndMakeVisible(l);
 
 			l.setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
 			l.setColour(Label::ColourIds::outlineColourId, Colours::transparentBlack);
@@ -183,6 +197,8 @@ struct ColourSelectorPropertyComponent : public PropertyComponent
 		Label l;
 
 		Colour colour;
+        
+        
 	};
 
 	ColourComp comp;

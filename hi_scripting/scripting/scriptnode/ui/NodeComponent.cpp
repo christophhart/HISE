@@ -314,7 +314,7 @@ void NodeComponent::Header::paint(Graphics& g)
 							 parent.node->findParentNodeOfType<NoMidiChainNode>() == nullptr;
 
 		Path p;
-		p.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, sizeof(HiBinaryData::SpecialSymbols::midiData));
+		p.loadPathFromData(HiBinaryData::SpecialSymbols::midiData, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::midiData));
 
 		PathFactory::scalePath(p, ar.removeFromRight(ar.getHeight()).reduced(4.0f));
 
