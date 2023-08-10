@@ -2508,10 +2508,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			return insert("");
 		}
 
-        if (key.isKeyCode (KeyPress::backspaceKey) && !key.getModifiers().isAnyModifierKeyDown())
+        if (key.isKeyCode (KeyPress::backspaceKey))
+        {
             return (expandBack (Target::commandTokenNav, Direction::backwardCol)
                                                             && insert (""));
-
+        }
+            
 		if (key == KeyPress('e', ModifierKeys::ctrlModifier, 0) ||
 			key == KeyPress('e', ModifierKeys::ctrlModifier | ModifierKeys::shiftModifier, 0))
 		{

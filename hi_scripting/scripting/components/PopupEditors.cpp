@@ -455,9 +455,9 @@ void PopupIncludeEditor::initKeyPresses(Component* root)
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_file, "Goto file", KeyPress('t', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 't'));
     
-    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_undo, "Undo Goto", KeyPress(KeyPress::backspaceKey, ModifierKeys::commandModifier, 0));
+    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_undo, "Undo Goto", KeyPress(KeyPress::F12Key, ModifierKeys::commandModifier, 0));
     
-    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_redo, "Redo Goto", KeyPress(KeyPress::backspaceKey, ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
+    TopLevelWindowWithKeyMappings::addShortcut(root, cat, TextEditorShortcuts::goto_redo, "Redo Goto", KeyPress(KeyPress::F12Key, ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
 }
 
 File PopupIncludeEditor::getFile() const

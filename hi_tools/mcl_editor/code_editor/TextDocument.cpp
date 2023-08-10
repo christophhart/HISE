@@ -837,7 +837,9 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 				break;
 
 			didSomething = true;
-			advance(i);
+            
+			if(!advance(i))
+                break;
 		}
 			
 
