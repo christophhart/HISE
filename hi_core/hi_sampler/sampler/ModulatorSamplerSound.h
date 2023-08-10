@@ -115,9 +115,7 @@ struct MappingData
 namespace SamplerKeyPresses
 {
 	DECLARE_ID(toggle_sample_preview);
-}
-
-namespace SampleIds
+}namespace SampleIds
 {
 DECLARE_ID(Unused);
 DECLARE_ID(ID);
@@ -147,6 +145,7 @@ DECLARE_ID(Reversed);
 DECLARE_ID(GainTable);
 DECLARE_ID(PitchTable);
 DECLARE_ID(LowPassTable);
+DECLARE_ID(NumQuarters);
 
 #undef DECLARE_ID
 
@@ -204,7 +203,7 @@ struct Helpers
 
 };
 
-const int numProperties = 26;
+const int numProperties = 25;
 }
 
 
@@ -639,6 +638,14 @@ public:
 			return nullptr;
 	}
 
+    double getNumQuartersForTimestretch(double fallback) const
+    {
+        if(numQuartersForTimestretch == 0.0)
+            return fallback;
+        
+        return numQuartersForTimestretch;
+    }
+    
 private:
 
 	void clipRangeProperties(const Identifier& id, int value, bool useUndo);
@@ -668,6 +675,8 @@ private:
 	bool purged = false;
 	bool reversed = false;
 	
+    double numQuartersForTimestretch = 0.0;
+    
 	int upperVeloXFadeValue = 0;
 	int lowerVeloXFadeValue = 0;
 	int rrGroup = 1;

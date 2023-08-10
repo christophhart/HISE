@@ -280,7 +280,8 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::UpperVelocityXFade)	return Range < int >(0, (int)getSampleProperty(SampleIds::HiVel) - ((int)getSampleProperty(SampleIds::LoVel) + lowerVeloXFadeValue));
 	else if( id == SampleIds::LowerVelocityXFade)	return Range < int >(0, (int)getSampleProperty(SampleIds::HiVel) - upperVeloXFadeValue - (int)getSampleProperty(SampleIds::LoVel));
 	else if( id == SampleIds::SampleState)			return Range<int>(0, (int)StreamingSamplerSound::numSampleStates - 1);
-	
+    else if (id == SampleIds::NumQuarters) return Range<int>(0, 128);
+    
 	jassertfalse;
 	return {};
 }
@@ -702,6 +703,10 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 			midiNotes.clear();
 			midiNotes.setRange(newValue, high - newValue + 1, true);
 		}
+        else if (id == SampleIds::NumQuarters)
+        {
+            numQuartersForTimestretch = jlimit<double>(0.0, 128.0, (double)newValue);
+        }
 		else if (id == SampleIds::Normalized)
 		{
 			isNormalized = newValue != 0;
@@ -847,6 +852,7 @@ var ModulatorSamplerSound::getDefaultValue(const Identifier& id) const
 	else if (id == SampleIds::LoopEnabled) return var(false);
 	else if (id == SampleIds::LoopEnd) return firstSound != nullptr ? firstSound->getSampleEnd() : 0;
 	else if (id == SampleIds::SampleState) return var(false);
+    else if (id == SampleIds::NumQuarters) return var(0);
 	
 	return var(0);
 }

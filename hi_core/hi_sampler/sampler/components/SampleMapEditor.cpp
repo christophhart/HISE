@@ -608,6 +608,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (lowVelocitySetter = new ValueSettingComponent(s));
     addAndMakeVisible (highVelocitySetter = new ValueSettingComponent(s));
     addAndMakeVisible (rrGroupSetter = new ValueSettingComponent(s));
+    addAndMakeVisible (numQuartersSetter = new ValueSettingComponent(s));
 
 	addAndMakeVisible(newRRDisplay = new RRDisplayComponent(sampler));
 
@@ -661,6 +662,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
 	lowXFadeSetter->setVisible(false);
 	highXFadeSetter->setVisible(false);
 
+    numQuartersSetter->setPropertyType(SampleIds::NumQuarters);
 	rrGroupSetter->setPropertyType(SampleIds::RRGroup);
 	rootNoteSetter->setPropertyType(SampleIds::Root);
 	lowKeySetter->setPropertyType(SampleIds::LoKey);
@@ -771,6 +773,7 @@ SampleMapEditor::~SampleMapEditor()
     lowVelocitySetter = nullptr;
     highVelocitySetter = nullptr;
     rrGroupSetter = nullptr;
+    numQuartersSetter = nullptr;
     viewport = nullptr;
     toolbar = nullptr;
 
@@ -794,14 +797,30 @@ void SampleMapEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
+    auto bb = getLocalBounds().removeFromBottom(64).withSizeKeepingCentre(576 + 76 + 10, 32);
+    
+    rrGroupSetter->setBounds (bb.removeFromLeft(76)); bb.removeFromLeft(10);
+    rootNoteSetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    lowKeySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    highKeySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    lowVelocitySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    highVelocitySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    numQuartersSetter->setBounds (bb.removeFromLeft(76));
+    
+#if 0
+    
     rootNoteSetter->setBounds ((getWidth() / 2) + -107 - (90 / 2), 206, 90, 32);
     lowKeySetter->setBounds ((getWidth() / 2) + -11 - (90 / 2), 206, 90, 32);
     highKeySetter->setBounds ((getWidth() / 2) + 85 - (90 / 2), 206, 90, 32);
     lowVelocitySetter->setBounds ((getWidth() / 2) + 181 - (90 / 2), 206, 90, 32);
     highVelocitySetter->setBounds ((getWidth() / 2) + 277 - (90 / 2), 206, 90, 32);
     rrGroupSetter->setBounds ((getWidth() / 2) + -196 - (76 / 2), 206, 76, 32);
+#endif
+    
     viewport->setBounds ((getWidth() / 2) - (640 / 2), 42, 640, 160);
     toolbar->setBounds (12, 10, getWidth() - 140, 20);
+
+    
     //[UserResized] Add your own custom resize handling here..
 
 	auto b = getLocalBounds().removeFromTop(24);
@@ -907,6 +926,7 @@ void SampleMapEditor::resized()
 
 	int y = getHeight() - JUCE_LIVE_CONSTANT_OFF(46);
 
+#if 0
 	rootNoteSetter->setBounds((getWidth() / 2) + -107 - (90 / 2), y, 90, 32);
 	lowKeySetter->setBounds((getWidth() / 2) + -11 - (90 / 2), y, 90, 32);
 	highKeySetter->setBounds((getWidth() / 2) + 85 - (90 / 2), y, 90, 32);
@@ -916,7 +936,7 @@ void SampleMapEditor::resized()
 	
 	lowXFadeSetter->setBounds(lowKeySetter->getBounds());
 	highXFadeSetter->setBounds(highKeySetter->getBounds());
-
+#endif
 	
     //[/UserResized]
 }
@@ -1336,6 +1356,7 @@ void SampleMapEditor::soundsSelected(int numSelected)
 
 	auto selectionToUse = handler->getSelectionOrMainOnlyInTabMode();
 
+    numQuartersSetter->setCurrentSelection(selectionToUse);
 	rrGroupSetter->setCurrentSelection(selectionToUse);
 	rootNoteSetter->setCurrentSelection(selectionToUse);
 	lowKeySetter->setCurrentSelection(selectionToUse);

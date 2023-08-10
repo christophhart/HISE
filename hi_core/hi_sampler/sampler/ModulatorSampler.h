@@ -741,7 +741,7 @@ public:
 private:
 
 	scriptnode::PolyHandler syncVoiceHandler;
-	scriptnode::core::stretch_player<1>::tempo_syncer syncer;
+	scriptnode::core::stretch_player<NUM_POLYPHONIC_VOICES>::tempo_syncer syncer;
 
 	TimestretchOptions currentTimestretchOptions;
 

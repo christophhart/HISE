@@ -3530,6 +3530,7 @@ sampler(sampler_)
 	sampleIds.add(SampleIds::UpperVelocityXFade);
 	sampleIds.add(SampleIds::SampleState);
 	sampleIds.add(SampleIds::Reversed);
+    sampleIds.add(SampleIds::NumQuarters);
 
 	for (int i = 1; i < sampleIds.size(); i++)
 	{

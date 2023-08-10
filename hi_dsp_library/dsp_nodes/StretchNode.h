@@ -116,9 +116,14 @@ template <int NV> struct stretch_player: public data::base,
         {
             if (enabled)
             {
-                auto bpmRatio = bpm / state.get().sourceBpm;
-                
-                return jmin(bpmRatio, 2.0);
+                for(auto& s: state)
+                {
+                    if(s.sourceBpm != 0.0)
+                    {
+                        auto bpmRatio = bpm / s.sourceBpm;
+                        return jmin(bpmRatio, 2.0);
+                    }
+                }
             }
 
             return fallbackRatio;

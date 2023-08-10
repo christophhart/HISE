@@ -1198,7 +1198,9 @@ void ModulatorSampler::preStartVoice(int voiceIndex, const HiseEvent& e)
 
 			if(auto nextSound = dynamic_cast<ModulatorSamplerSound*>(soundsToBeStarted[0]))
 			{
-				syncer.setSource(nextSound->getSampleRate(), nextSound->getReferenceToSound(0)->getLengthInSamples(), currentTimestretchOptions.numQuarters);
+                auto nq = nextSound->getNumQuartersForTimestretch(currentTimestretchOptions.numQuarters);
+                
+				syncer.setSource(nextSound->getSampleRate(), nextSound->getReferenceToSound(0)->getSampleLength(), nq);
 			}
 				
 			v->setTimestretchRatio(getCurrentTimestretchRatio());

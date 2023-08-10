@@ -664,6 +664,7 @@ private:
     ScopedPointer<ValueSettingComponent> lowVelocitySetter;
     ScopedPointer<ValueSettingComponent> highVelocitySetter;
     ScopedPointer<ValueSettingComponent> rrGroupSetter;
+    ScopedPointer<ValueSettingComponent> numQuartersSetter;
     ScopedPointer<Viewport> viewport;
     ScopedPointer<Toolbar> toolbar;
 
