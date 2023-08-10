@@ -402,6 +402,8 @@ void WavetableSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synt
 
     updateSoundFromPitchFactor(1.0, static_cast<WavetableSound*>(s));
     
+    static_cast<WavetableSynth*>(getOwnerSynth())->tableIndexKnobValue.reset();
+    
 	voiceUptime = (double)getCurrentHiseEvent().getStartOffset() / 441.0 * (double)tableSize;
 }
 
