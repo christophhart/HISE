@@ -153,7 +153,7 @@ public:
 
 	void previewFile(const File& f);
 
-	void textEditorReturnKeyPressed(TextEditor& editor) override;
+	void textEditorTextChanged(TextEditor& editor) override;
 
 	~FileBrowser();
 

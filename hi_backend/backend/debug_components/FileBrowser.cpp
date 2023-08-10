@@ -934,7 +934,7 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     }
 }
 
-void FileBrowser::textEditorReturnKeyPressed(TextEditor& editor)
+void FileBrowser::textEditorTextChanged(TextEditor& editor)
 {
 	if (&editor == textEditor)
 	{

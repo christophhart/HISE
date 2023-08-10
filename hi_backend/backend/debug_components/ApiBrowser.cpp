@@ -168,6 +168,8 @@ description(methodTree_.getProperty(Identifier("description")).toString()),
 arguments(methodTree_.getProperty(Identifier("arguments")).toString()),
 className(className_)
 {
+    searchKeywords = searchKeywords.replaceCharacter('.', ';');
+    
 	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);

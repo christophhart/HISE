@@ -348,7 +348,7 @@ void SearchableListComponent::Item::matchAgainstSearch(const String &stringToMat
         }
 		else
         {
-            includedInSearch |= FuzzySearcher::fitsSearch(stringToMatch, searchKeywords, fuzzyness);
+            includedInSearch = FuzzySearcher::fitsSearch(stringToMatch, searchKeywords, fuzzyness);
         }
 	}
 }
