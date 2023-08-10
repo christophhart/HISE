@@ -430,7 +430,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		}
 
 		Path fp;
-		fp.loadPathFromData(HnodeIcons::freezeIcon, sizeof(HnodeIcons::freezeIcon));
+		fp.loadPathFromData(HnodeIcons::freezeIcon, SIZE_OF_PATH(HnodeIcons::freezeIcon));
 		auto pSize = jmin(200, getWidth(), getHeight());
 		auto bl = b.withSizeKeepingCentre(pSize, pSize).toFloat();
 		PathFactory::scalePath(fp, bl);

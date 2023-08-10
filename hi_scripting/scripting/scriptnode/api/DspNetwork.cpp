@@ -973,7 +973,7 @@ Result DspNetwork::checkBeforeCompilation()
 		auto mustBeWrapped = NodeComponent::PopupHelpers::isWrappable(getNodeWithId(id)) == 2;
 
 		if (mustBeWrapped)
-			return Result::fail(id + " needs to be wrapped into a compileable DSP network");
+			return Result::fail(id + " needs to be wrapped into a compileable DSP network.  \n> If you've already compiled the network try using a Hardcoded module instead of `" + dynamic_cast<Processor*>(getScriptProcessor())->getId() + "` to avoid the scriptnode module overhead.");
 	}
 
 	if (projectNodeHolder.dll != nullptr)
