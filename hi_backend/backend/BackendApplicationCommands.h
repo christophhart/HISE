@@ -180,9 +180,7 @@ public:
 		MenuToolsImportArchivedSamples,
 		MenuToolsCheckUnusedImages,
 		MenuToolsRedirectScriptFolder,
-		MenuToolsCreateUIDataFromDesktop,
-		MenuToolsCheckDeviceSanity,
-        MenuToolsCheckPluginParameterSanity,
+		MenuToolsCheckPluginParameterSanity,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsConvertSampleMapToWavetableBanks,
@@ -197,7 +195,6 @@ public:
 		MenuToolsRecordOneSecond,
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
-		MenuToolsDeviceSimulatorOffset,
         MenuToolsCreateRnboTemplate,
 		MenuHelpShowAboutPage = 0x70000,
 		MenuHelpShowDocumentation,
@@ -303,12 +300,6 @@ public:
 
 	ColumnMode getColumnMode() const noexcept { return currentColumnMode; }
 
-	struct Helpers
-	{
-		static bool deviceTypeHasUIData(BackendRootWindow* bpe);
-		static bool canCopyDeviceType(BackendRootWindow* bpe);
-	};
-
 	class Actions
 	{
 	public:
@@ -400,12 +391,12 @@ public:
 		static void importArchivedSamples(BackendRootWindow * bpe);
 		static void checkCyclicReferences(BackendRootWindow * bpe);
 		static void unloadAllAudioFiles(BackendRootWindow * bpe);
-		static void createUIDataFromDesktop(BackendRootWindow * bpe);
+		
 
 		static String createWindowsInstallerTemplate(MainController* mc, bool includeAAX, bool include32, bool include64, bool includeVST2, bool includeVST3);
 		static void convertSampleMapToWavetableBanks(BackendRootWindow* bpe);
 		static void exportCompileFilesInPool(BackendRootWindow* bpe);
-		static void checkDeviceSanity(BackendRootWindow * bpe);
+		
 		static void copyMissingSampleListToClipboard(BackendRootWindow * bpe);
 		static void createRecoveryXml(BackendRootWindow * bpe);
 		static void showDocWindow(BackendRootWindow * bpe);
