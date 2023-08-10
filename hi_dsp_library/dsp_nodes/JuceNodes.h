@@ -331,15 +331,34 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 		JuceBaseType::prepare(ps);
 		sr = ps.sampleRate;
 
-		if (sr != 0.0 && maxSize != 0.0)
+		if (sr > 0.0)
 		{
-			setParameter<0>(maxSize);
-			maxSize = 0.0;
+            if(maxSize != -1.0)
+            {
+                setParameter<0>(maxSize);
+                maxSize = -1.0;
+            }
+            
+            if(currentSize != -1.0)
+            {
+                setParameter<1>(currentSize);
+                currentSize = -1.0;
+            }
 		}
 	}
 
 	template <int P> void setParameter(double v)
 	{
+        if(sr <= 0.0)
+        {
+            if constexpr (P == 0)
+                maxSize = v;
+            if constexpr (P == 1)
+                currentSize = v;
+            
+            return;
+        }
+        
 		auto sampleValue = jmax(0.0f, (float)(v * 0.001 * sr));
 
 		FloatSanitizers::sanitizeFloatNumber(sampleValue);
@@ -347,22 +366,17 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 		for (auto& obj : objects)
 		{
 			if constexpr (P == 0)
-			{
-				if (sr != 0.0)
-					obj.setMaxDelaySamples(roundToInt(sampleValue));
-				else
-					maxSize = v;
-			}
+				obj.setMaxDelaySamples(roundToInt(sampleValue));
 			if constexpr (P == 1)
-				obj.setDelay(sampleValue);
+                obj.setDelay(sampleValue);
 		}
 	}
 
 	void createParameters(ParameterDataList& d) override;
 
 	double sr = 0.0;
-	double maxSize = 0.0;
-
+	double maxSize = -1.0;
+    double currentSize = -1.0;
 };
 
 struct jchorus: public base::jwrapper<juce::dsp::Chorus<float>, 1>

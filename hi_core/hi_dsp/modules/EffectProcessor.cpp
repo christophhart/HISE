@@ -149,7 +149,7 @@ Path MasterEffectProcessor::getSpecialSymbol() const
 {
 	Path path;
 
-	path.loadPathFromData (HiBinaryData::SpecialSymbols::masterEffect, sizeof (HiBinaryData::SpecialSymbols::masterEffect));
+	path.loadPathFromData (HiBinaryData::SpecialSymbols::masterEffect, SIZE_OF_PATH (HiBinaryData::SpecialSymbols::masterEffect));
 
 	return path;
 }
