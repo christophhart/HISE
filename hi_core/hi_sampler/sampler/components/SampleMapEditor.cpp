@@ -924,20 +924,6 @@ void SampleMapEditor::resized()
 
 	updateMapInViewport();
 
-	int y = getHeight() - JUCE_LIVE_CONSTANT_OFF(46);
-
-#if 0
-	rootNoteSetter->setBounds((getWidth() / 2) + -107 - (90 / 2), y, 90, 32);
-	lowKeySetter->setBounds((getWidth() / 2) + -11 - (90 / 2), y, 90, 32);
-	highKeySetter->setBounds((getWidth() / 2) + 85 - (90 / 2), y, 90, 32);
-	lowVelocitySetter->setBounds((getWidth() / 2) + 181 - (90 / 2), y, 90, 32);
-	highVelocitySetter->setBounds((getWidth() / 2) + 277 - (90 / 2), y, 90, 32);
-	rrGroupSetter->setBounds((getWidth() / 2) + -196 - (76 / 2), y, 76, 32);
-	
-	lowXFadeSetter->setBounds(lowKeySetter->getBounds());
-	highXFadeSetter->setBounds(highKeySetter->getBounds());
-#endif
-	
     //[/UserResized]
 }
 

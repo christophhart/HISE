@@ -238,8 +238,6 @@ template <int NV> struct stretch_player: public data::base,
             if(!s.gate)
                 return;
 
-            auto before = s.currentPosition;
-
             syncer.resync(s.currentPosition);
 
             if (add4096)

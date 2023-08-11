@@ -100,7 +100,6 @@ static bool areMajorWebsitesAvailable()
 	{
 		URL u(*url);
 
-		auto ms = Time::getMillisecondCounter();
 		std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), HISE_SCRIPT_SERVER_TIMEOUT, nullptr));
 		
 		if (in != nullptr)

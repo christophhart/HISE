@@ -451,7 +451,7 @@ void time_stretcher::process(float** input, int numInput, float** originalOutput
                     auto lo = b[loIndex];
                     auto hi = b[hiIndex];
 
-                    auto v = Interpolator::interpolateLinear(b[loIndex], b[hiIndex], alpha);
+                    auto v = Interpolator::interpolateLinear(lo, hi, alpha);
 
                     ptr[i] = v;
                     uptime += playbackRatio;
