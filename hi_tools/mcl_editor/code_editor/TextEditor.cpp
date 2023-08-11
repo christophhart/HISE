@@ -2229,7 +2229,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		if (closeChar == '"')
 			both |= (numAfter % 2 == 0);
 
-        if(!s.isSingular())
+        auto surroundSelection = !s.isSingular();
+        
+        if(this->currentParameter != nullptr)
+            surroundSelection &= !(this->currentParameter->getSelection() == s);
+        
+        if(surroundSelection)
             text << document.getSelectionContent(s);
         
 		if (both)
