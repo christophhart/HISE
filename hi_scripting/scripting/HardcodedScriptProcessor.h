@@ -375,7 +375,6 @@ public:
 
 		messageHolders[number]->setMessage(*getCurrentHiseEvent());
 
-		//velocityValues[Message.getNoteNumber()] = Message.getVelocity();
 		lengthValues[number] = Engine.getUptime();
 	};
 
@@ -389,10 +388,11 @@ public:
 		{
 			double time = Engine.getUptime() - lengthValues[noteNumber];
 		
-			timeIndex = (int)(time / (double)(timeKnob->getValue()) * 127.0);
-			timeIndex = jlimit<int>(0, 127, timeIndex);
-
+			timeIndex = (double)(time / (double)timeKnob->getValue());
+			timeIndex = jlimit<double>(0, 1, timeIndex);
+			
 			attenuationLevel = table->getTableValue(timeIndex);
+			
 		}
 		else
 		{
@@ -405,8 +405,6 @@ public:
 
 		const int v = (int)((float)velocityToUse * attenuationLevel);
 
-		//const int v = (int)(velocityValues[noteNumber] * attenuationLevel);
-
 		if (v > 0)
 		{
 			onEvent.setVelocity((uint8)v);
@@ -417,11 +415,6 @@ public:
 			currentMessageHolder->setMessage(onEvent);
 
 			Synth.addMessageFromHolder(currentMessageVar);
-			
-			
-
-			//Synth.playNote(Message.getNoteNumber(), v);
-
 		}
 			
 	}
@@ -449,7 +442,7 @@ private:
 	ScriptingApi::Content::ScriptSlider *timeKnob;
 	ScriptingApi::Content::ScriptTable *table;
 	float attenuationLevel;
-	int timeIndex;
+	double timeIndex;
 	double lengthValues[128];
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ReleaseTriggerScriptProcessor);
