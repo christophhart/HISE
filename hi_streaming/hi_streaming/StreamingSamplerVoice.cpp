@@ -943,6 +943,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			int numOutput = numSamples;
 
 			stretcher.process(inp, numInput, out, numOutput);
+            
+            if(!sound->isStereo())
+                FloatVectorOperations::copy(out[1], out[0], numOutput);
 		}
 
 		if (!loader.advanceReadIndex(voiceUptime))
