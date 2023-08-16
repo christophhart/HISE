@@ -217,6 +217,33 @@ void CopyPasteTarget::setHandlerFunction(HandlerFunction* f)
 	handlerFunction = f;
 }
 
+Array<Range<int>> RegexFunctions::findRangesThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
+{
+    Array<Range<int>> matches;
+    
+    int pos = 0;
+    
+    String remainingText = stringToTest;
+    StringArray m = getFirstMatch(regexWildCard, remainingText);
+
+    
+    
+    while (m.size() != 0 && m[0].length() != 0)
+    {
+        auto thisPos = remainingText.indexOf(m[0]);
+        
+        matches.add({pos + thisPos, pos + thisPos + m[0].length() });
+        
+        
+        remainingText = remainingText.fromFirstOccurrenceOf(m[0], false, false);
+        pos = matches.getLast().getEnd();
+        
+        m = getFirstMatch(regexWildCard, remainingText);
+    }
+
+    return matches;
+}
+
 Array<StringArray> RegexFunctions::findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
 {
 	Array<StringArray> matches;
@@ -301,8 +328,7 @@ StringArray RegexFunctions::getFirstMatch(const String &wildcard, const String &
 	}
 	catch (std::regex_error e)
 	{
-		jassertfalse;
-
+        jassertfalse;
 		DBG(e.what());
 		return StringArray();
 	}

@@ -1368,6 +1368,7 @@ void TextEditor::selectionChanged()
 				{
 					currentClosure[0] = { pos.getLineNumber(), pos.getIndexInLine() + 1, pos.getLineNumber(), pos.getIndexInLine() + 1 };
 					currentClosure[1] = s;
+                    translateToEnsureCaretIsVisible();
 					showClosures = true;
 					return;
 				}
@@ -1377,6 +1378,7 @@ void TextEditor::selectionChanged()
 		currentClosure[0] = {};
 		currentClosure[1] = s;
 		showClosures = true;
+        translateToEnsureCaretIsVisible();
 		return;
 	}
 
@@ -1482,10 +1484,15 @@ void mcl::TextEditor::translateToEnsureCaretIsVisible()
 		translateView(0.0f, 0.0f);
 	}
 	
+    auto visibleHeight = getHeight();
+    
+    if(currentSearchBox != nullptr)
+        visibleHeight -= currentSearchBox->getHeight() * 2;
+    
     if (t.y < 0.f)
         translateView (0.f, -t.y);
-    else if (b.y > getHeight())
-        translateView (0.f, -b.y + getHeight());
+    else if (b.y > visibleHeight)
+        translateView (0.f, -b.y + visibleHeight);
 
 	if (document.getFoldableLineRangeHolder().isFolded(i.x))
 		document.getFoldableLineRangeHolder().unfold(i.x);
@@ -1519,6 +1526,11 @@ void mcl::TextEditor::resized()
     b2.removeFromLeft(gutter.getGutterWidth());
     horizontalScrollBar.setBounds(b2.removeFromBottom(14));
     gutter.setBounds (b);
+    
+    if(currentSearchBox != nullptr)
+    {
+        currentSearchBox->setBounds(getLocalBounds().removeFromBottom(document.getRowHeight() * transform.getScaleFactor() * 1.2f + 5));
+    }
 }
 
 void mcl::TextEditor::paint (Graphics& g)
@@ -2229,7 +2241,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		if (closeChar == '"')
 			both |= (numAfter % 2 == 0);
 
-        if(!s.isSingular())
+        auto surroundSelection = !s.isSingular();
+        
+        if(this->currentParameter != nullptr)
+            surroundSelection &= !(this->currentParameter->getSelection() == s);
+        
+        if(surroundSelection)
             text << document.getSelectionContent(s);
         
 		if (both)
