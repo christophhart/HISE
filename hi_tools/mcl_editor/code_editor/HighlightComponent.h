@@ -19,7 +19,8 @@ using namespace juce;
 class SearchBoxComponent : public Component,
 					       public KeyListener,
 						   public juce::TextEditor::Listener,
-						   public Button::Listener
+						   public Button::Listener,
+                           public PathFactory
 {
 public:
 
@@ -29,6 +30,8 @@ public:
 
 	void buttonClicked(Button* b) override;
 
+    Path createPath(const String& url) const override;
+    
 	void sendSearchChangeMessage();
 
 	struct Listener
@@ -55,25 +58,14 @@ public:
 
 	void resized() override;
 
-	struct Blaf : public LookAndFeel_V3
-	{
-		void drawButtonBackground(Graphics& g, Button& b, const Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-		void drawButtonText(Graphics& g, TextButton& b, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
-		Font f;
-	};
-
 	TextDocument& doc;
-
-	Blaf laf;
 
 	juce::TextEditor searchField;
 
-	TextButton find;
-	TextButton prev;
-	TextButton findAll;
-
+    HiseShapeButton caseButton, regexButton, wholeButton;
+    
+    HiseShapeButton find, prev, findAll, close;
+	
 	Array<WeakReference<Listener>> listeners;
 };
 

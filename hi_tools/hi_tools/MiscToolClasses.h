@@ -1609,6 +1609,8 @@ public:
 
 	static Array<StringArray> findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest);
 
+    static Array<Range<int>> findRangesThatMatchWildcard(const String& regexWildcard, const String& stringToTest);
+    
 	/** Searches a string and returns a StringArray with all matches.
 	*	You can specify and index of a capture group (if not, the entire match will be used). */
 	static StringArray search(const String& wildcard, const String &stringToTest, int indexInMatch = 0);
