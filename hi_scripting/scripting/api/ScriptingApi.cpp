@@ -898,6 +898,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
+	API_METHOD_WRAPPER_1(Engine, compressJSON);
+	API_METHOD_WRAPPER_1(Engine, uncompressJSON);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
@@ -1118,6 +1120,8 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(decodeBase64ValueTree);
 	ADD_API_METHOD_2(renderAudio);
 	ADD_API_METHOD_3(playBuffer);
+	ADD_API_METHOD_1(compressJSON);
+	ADD_API_METHOD_1(uncompressJSON);
 }
 
 
@@ -3175,6 +3179,39 @@ void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 
 	f.replaceWithText(JSON::toString(object, false, DOUBLE_TO_STRING_DIGITS));
 
+}
+
+String ScriptingApi::Engine::compressJSON(var object)
+{
+	auto x = JSON::toString(object, true);
+
+	zstd::ZDefaultCompressor comp;
+	
+	MemoryBlock data;
+	comp.compress(x, data);
+
+	return data.toBase64Encoding();
+}
+
+var ScriptingApi::Engine::uncompressJSON(const String& b64)
+{
+	MemoryBlock mb;
+	mb.fromBase64Encoding(b64);
+
+	String json;
+
+	zstd::ZDefaultCompressor comp;
+	comp.expand(mb, json);
+
+	var value;
+	auto r = JSON::parse(json, value);
+
+	if(!r.wasOk())
+	{
+		reportScriptError(r.getErrorMessage());
+	}
+
+	return value;
 }
 
 var ScriptingApi::Engine::loadFromJSON(String fileName)

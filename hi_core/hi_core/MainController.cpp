@@ -1995,6 +1995,15 @@ bool MainController::UserPresetHandler::saveStateManager(ValueTree& newPreset, c
 	return processStateManager(true, newPreset, id);
 }
 
+double MainController::UserPresetHandler::getSecondsSinceLastPresetLoad() const
+{
+	auto now = Time::getMillisecondCounter();
+
+	auto delta = now - timeOfLastPresetLoad;
+
+	return (double)delta / 1000.0;
+}
+
 bool MainController::UserPresetHandler::processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId)
 {
 	for (int i = 0; i < stateManagers.size(); i++)

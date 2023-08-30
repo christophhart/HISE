@@ -910,7 +910,7 @@ public:
 
 		void setUseCustomDataModel(bool shouldUseCustomModel, bool usePersistentObject);
 
-		
+		double getSecondsSinceLastPresetLoad() const;
 
 		LambdaBroadcaster<bool> deferredAutomationListener;
 
@@ -981,6 +981,8 @@ public:
 		MainController* mc;
 		bool useUndoForPresetLoads = false;
 
+		
+
 		struct CustomStateManager : public UserPresetStateManager
 		{
 			CustomStateManager(UserPresetHandler& parent_);
@@ -1008,8 +1010,12 @@ public:
 
 		CustomAutomationData::List customAutomationData;
 
+		
+
     private:
-        
+
+		uint32 timeOfLastPresetLoad = 0;
+
         bool processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId);
         
 		JUCE_DECLARE_WEAK_REFERENCEABLE(UserPresetHandler);

@@ -49,6 +49,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptUserPresetHandler, updateAutomationValues);
 	API_METHOD_WRAPPER_1(ScriptUserPresetHandler, getAutomationIndex);
 	API_METHOD_WRAPPER_2(ScriptUserPresetHandler, setAutomationValue);
+	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, getSecondsSinceLastPresetLoad);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, updateSaveInPresetComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, updateConnectedComponentsFromModuleState);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setUseUndoForPresetLoading);
@@ -87,6 +88,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(setUseUndoForPresetLoading);
 	ADD_API_METHOD_0(createObjectForSaveInPresetComponents);
 	ADD_API_METHOD_0(createObjectForAutomationValues);
+	ADD_API_METHOD_0(getSecondsSinceLastPresetLoad);
 	ADD_API_METHOD_0(runTest);
 	
 }
@@ -504,6 +506,12 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
     {
         getMainController()->getControlUndoManager()->perform(new AutomationValueUndoAction(this, data, sendMessage));
     }
+}
+
+double ScriptUserPresetHandler::getSecondsSinceLastPresetLoad()
+{
+	auto& uph = getMainController()->getUserPresetHandler();
+	return uph.getSecondsSinceLastPresetLoad();
 }
 
 juce::var ScriptUserPresetHandler::createObjectForAutomationValues()

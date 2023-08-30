@@ -96,6 +96,9 @@ public:
 	/** Updates the given automation values and optionally sends out a message. */
 	void updateAutomationValues(var data, bool sendMessage, bool useUndoManager);
 
+	/** Returns the amount of seconds since the last preset has been loaded. */
+	double getSecondsSinceLastPresetLoad();
+
 	/** Creates an object containing the values for every automation ID. */
 	var createObjectForAutomationValues();
 

@@ -408,7 +408,7 @@ float MainController::UserPresetHandler::CustomAutomationData::ProcessorConnecti
 MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	mc(mc_)
 {
-	
+	timeOfLastPresetLoad = Time::getMillisecondCounter();
 }
 
 void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled)
@@ -523,7 +523,9 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 	{
 		LockHelpers::freeToGo(mc);
-        
+
+		timeOfLastPresetLoad = Time::getMillisecondCounter();
+
 		ValueTree userPresetToLoad = pendingPreset;
 
 #if USE_BACKEND

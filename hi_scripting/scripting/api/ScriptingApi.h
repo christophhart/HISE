@@ -588,6 +588,12 @@ public:
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
 
+		/** Compresses a JSON object as Base64 string using zstd. */
+		String compressJSON(var object);
+
+		/** Expands a compressed JSON object. */
+		var uncompressJSON(const String& b64);
+
 		/** Imports a JSON file as object. */
 		var loadFromJSON(String fileName);
 
