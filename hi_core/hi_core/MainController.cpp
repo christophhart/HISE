@@ -1008,22 +1008,29 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	
 	if (hostBpm == -1.0)
 	{
-		// We need to get the host bpm again...
-		if (auto ph = thisAsProcessor->getPlayHead())
-		{
-			AudioPlayHead::CurrentPositionInfo bpmInfo;
-			ph->getCurrentPosition(bpmInfo);
+        if(insideInternalExport)
+        {
+            // AU plugins will not catch the correct
+            // tempo so we need to use the one from
+            // the playhead object
+            hostBpm = newTime.bpm;
+        }
+        else
+        {
+            // We need to get the host bpm again...
+            if (auto ph = thisAsProcessor->getPlayHead())
+            {
+                AudioPlayHead::CurrentPositionInfo bpmInfo;
+                ph->getCurrentPosition(bpmInfo);
 
-			hostBpm = bpmInfo.bpm;
-		}
+                hostBpm = bpmInfo.bpm;
+            }
+        }
 	}
 
-	setBpm(getMasterClock().getBpmToUse(hostBpm, *internalBpmPointer));
-	
+    setBpm(getMasterClock().getBpmToUse(hostBpm, *internalBpmPointer));
+    
 #endif
-
-	
-
 
 #if !FRONTEND_IS_PLUGIN
 

@@ -698,6 +698,9 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
     
     auto c = dynamic_cast<Chain*>(parentChainProcessor);
     
+    if(c == nullptr)
+        return;
+    
     jassert(c != nullptr);
     FactoryType *t = c->getFactoryType();
     StringArray types;
