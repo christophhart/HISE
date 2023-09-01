@@ -69,6 +69,15 @@ namespace hise { using namespace juce;
 		return Identifier();
 	}
 
+	int ProcessorWithScriptingContent::getContentParameterIdentifierIndex(const Identifier& id) const
+	{
+		for (int i = 0; i < content->getNumComponents(); i++)
+			if (content->getComponent(i)->getName() == id)
+				return i;
+
+		return -1;
+	}
+
 	var ProcessorWithScriptingContent::getSavedValue(Identifier name)
 	{
 		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
@@ -127,7 +136,7 @@ void ProcessorWithScriptingContent::suspendStateChanged(bool shouldBeSuspended)
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
-	if (content != nullptr && index < content->getNumComponents())
+	if (content != nullptr && isPositiveAndBelow(index, content->getNumComponents()))
 	{
 		ScriptingApi::Content::ScriptComponent *c = content->getComponent(index);
 
@@ -383,6 +392,12 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 #endif
 #endif
 }
+
+ScriptBaseMidiProcessor::ScriptBaseMidiProcessor(MainController* mc, const String& id): 
+	MidiProcessor(mc, id), 
+	ProcessorWithScriptingContent(mc),
+	currentEvent(nullptr)
+{}
 
 void countChildren(const ValueTree& t, int& numChildren)
 {

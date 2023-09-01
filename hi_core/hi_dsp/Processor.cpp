@@ -478,13 +478,19 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 
 Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 {
+	// Use ProcessorWithScriptingContent
+	jassert(dynamic_cast<const ProcessorWithScriptingContent*>(this) == nullptr);
+
 	if (parameterIndex > parameterNames.size()) return Identifier();
 
 	return parameterNames[parameterIndex];
 }
 
-int Processor::getParameterIndexForIdentifier(String id) const
+int Processor::getParameterIndexForIdentifier(const Identifier& id) const
 {
+	// Use ProcessorWithScriptingContent
+	jassert(dynamic_cast<const ProcessorWithScriptingContent*>(this) == nullptr);
+
 	return parameterNames.indexOf(id);
 }
 

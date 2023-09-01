@@ -69,6 +69,8 @@ public:
 
 	Identifier getContentParameterIdentifier(int parameterIndex) const;
 
+	int getContentParameterIdentifierIndex(const Identifier& id) const;
+
 	void setControlValue(int index, float newValue);
 
 	float getControlValue(int index) const;
@@ -120,6 +122,11 @@ protected:
 
 		Identifier getParameterId(int parameterIndex) const final override;
 
+		int getParameterIndexForIdentifier(const Identifier& id) const final override
+		{
+			return p.getContentParameterIdentifierIndex(id);
+		}
+		
 		ProcessorWithScriptingContent& p;
 	} contentParameterHandler;
 
@@ -153,11 +160,7 @@ public:
 		numCallbacks
 	};
 
-	ScriptBaseMidiProcessor(MainController *mc, const String &id): 
-		MidiProcessor(mc, id), 
-		ProcessorWithScriptingContent(mc),
-		currentEvent(nullptr)
-	{};
+	ScriptBaseMidiProcessor(MainController *mc, const String &id);;
 
 	virtual ~ScriptBaseMidiProcessor() { masterReference.clear(); }
 

@@ -588,6 +588,17 @@ public:
 			return Identifier(root->getParameterFromIndex(index)->getId());
 		}
 
+		int getParameterIndexForIdentifier(const Identifier& id) const final override
+		{
+			for(int i = 0; i < root->getNumParameters(); i++)
+			{
+				if (root->getId() == id.toString())
+					return i;
+			}
+
+			return -1;
+		}
+
 		float getParameter(int index) const final override
 		{
 			if(isPositiveAndBelow(index, getNumParameters()))
@@ -803,6 +814,12 @@ private:
 		ProjectNodeHolder(DspNetwork& parent);
 
 		Identifier getParameterId(int index) const override;
+
+		int getParameterIndexForIdentifier(const Identifier& id) const override
+		{
+			return network.networkParameterHandler.getParameterIndexForIdentifier(id);
+		}
+
 		int getNumParameters() const override;
 
 		void setParameter(int index, float newValue) override;

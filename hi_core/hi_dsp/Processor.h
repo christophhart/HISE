@@ -624,7 +624,7 @@ public:
 	*	If you want to use this feature (this lets you access Parameters with the script, you should add the parameter name
 	*	for each parameter in your subtype constructor. */
 	virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;
-	int getParameterIndexForIdentifier(String id) const;
+	virtual int getParameterIndexForIdentifier(const Identifier& id) const;
 
 	String getDescriptionForParameters(int parameterIndex);
 
