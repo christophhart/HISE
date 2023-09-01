@@ -179,7 +179,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MacroControlledParameterData);
 	};
 
-	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded);
+	void sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex, bool wasAdded, NotificationType n = sendNotificationSync);
 
 	void sendMacroConnectionChangeMessageForAll(bool wasAdded);
 
@@ -238,13 +238,13 @@ public:
 		bool hasParameter(Processor *p, int parameterIndex);
 
 		/** adds the parameter to the parameter list and renames the macro if it is the only parameter. */
-		void addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly=true, bool isUsingCustomData=false);
+		void addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly=true, bool isUsingCustomData=false, NotificationType n = sendNotificationSync);
 
 		/** Removes the parameter. */
-		void removeParameter(int parameterIndex);
+		void removeParameter(int parameterIndex, NotificationType n = sendNotificationAsync);
 		
 		/** Removes the parameter with the name. */
-		void removeParameter(const String &parameterName, const Processor *processor=nullptr);
+		void removeParameter(const String &parameterName, const Processor *processor=nullptr, NotificationType n = sendNotificationAsync);
 
 		/** returns the parameter at the supplied index. */
 		MacroControlledParameterData *getParameter(int parameterIndex);

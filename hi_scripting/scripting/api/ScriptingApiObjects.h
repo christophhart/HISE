@@ -2340,30 +2340,13 @@ namespace ScriptingObjects
 		{
 			using List = ReferenceCountedArray<OSCCallback>;
 
-			OSCCallback(GlobalRoutingManagerReference* parent, String& sd, const var& cb) :
-				callback(parent->getScriptProcessor(), parent, cb, 2),
-				subDomain(sd),
-				fullAddress("/*")
-			{
-				callback.incRefCount();
-				callback.setHighPriority();
-			};
+			OSCCallback(GlobalRoutingManagerReference* parent, String& sd, const var& cb);;
 
 			WeakCallbackHolder callback;
 			const String subDomain;
 			OSCAddressPattern fullAddress;
 
-			void rebuildFullAddress(const String& newRoot)
-			{
-				try
-				{
-					fullAddress = OSCAddressPattern(newRoot + subDomain);
-				}
-				catch (OSCFormatError& e)
-				{
-					throw e.description;
-				}
-			}
+			void rebuildFullAddress(const String& newRoot);
 
 			void callForMessage(const OSCMessage& c);
 
@@ -2521,6 +2504,78 @@ namespace ScriptingObjects
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
         JUCE_DECLARE_WEAK_REFERENCEABLE(TimerObject);
+	};
+
+	class ScriptedMacroHandler: public ConstScriptingObject,
+								public AsyncUpdater,
+								public MacroControlBroadcaster::MacroConnectionListener
+	{
+	public:
+		ScriptedMacroHandler(ProcessorWithScriptingContent* sp);
+
+		~ScriptedMacroHandler() override;
+
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("MacroHandler"); };
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MacroHandler"); }
+
+		void macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex, bool wasAdded);
+
+		// ============================================================================================================ API Methods
+
+		/** Returns an object that contains the macro connection data. */
+		var getMacroDataObject();
+
+		/** Rebuilds the macro connections from the JSON object. */
+		void setMacroDataFromObject(var jsonData);
+
+		/** Set a callback to be notified when a macro connection changes. */
+		void setUpdateCallback(var callback);
+
+		/** Enables the "exclusive" mode for MIDI automation (only one active parameter for each controller). */
+		void setExclusiveMode(bool shouldBeExclusive);
+		
+	private:
+
+		void handleAsyncUpdate() override
+		{
+			sendUpdateMessage(sendNotificationAsync);
+		}
+
+		struct ScopedUpdateDelayer
+		{
+			ScopedUpdateDelayer(ScriptedMacroHandler& p, NotificationType n_):
+			  parent(p),
+			  prevValue(p.skipCallback),
+			  n(n_)
+			{
+				parent.skipCallback = true;
+			}
+
+			~ScopedUpdateDelayer()
+			{
+				parent.skipCallback = prevValue;
+
+				if(!parent.skipCallback)
+					parent.sendUpdateMessage(n);
+			};
+
+			ScriptedMacroHandler& parent;
+			bool prevValue = false;
+			NotificationType n;
+		};
+
+		bool skipCallback = false;
+
+		void sendUpdateMessage(NotificationType n);
+
+		void setFromCallbackArg(const var& obj);
+
+		var getCallbackArg(int macroIndex, Processor* p, int parameterIndex, bool wasAdded) const;
+
+		struct Wrapper;
+		WeakCallbackHolder updateCallback;
+		
 	};
 
 	class ScriptedMidiAutomationHandler : public ConstScriptingObject,

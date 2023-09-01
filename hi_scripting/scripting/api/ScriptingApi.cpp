@@ -937,6 +937,7 @@ struct ScriptingApi::Engine::Wrapper
     API_METHOD_WRAPPER_1(Engine, createFixObjectFactory);
 	API_METHOD_WRAPPER_0(Engine, createErrorHandler);
 	API_METHOD_WRAPPER_1(Engine, createModulationMatrix);
+	API_METHOD_WRAPPER_0(Engine, createMacroHandler);
 	API_METHOD_WRAPPER_0(Engine, getWavetableList);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
@@ -1028,6 +1029,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
   ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_0(createUserPresetHandler);
 	ADD_API_METHOD_0(createMidiAutomationHandler);
+	ADD_API_METHOD_0(createMacroHandler);
   ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_1(isUserPresetReadOnly);
@@ -3160,6 +3162,11 @@ var ScriptingApi::Engine::createTransportHandler()
 juce::var ScriptingApi::Engine::createModulationMatrix(String containerId)
 {
 	return new ScriptingObjects::ScriptModulationMatrix(getScriptProcessor(), containerId);
+}
+
+var ScriptingApi::Engine::createMacroHandler()
+{
+	return new ScriptingObjects::ScriptedMacroHandler(getScriptProcessor());
 }
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)

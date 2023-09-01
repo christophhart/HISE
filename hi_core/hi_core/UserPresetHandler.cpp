@@ -539,7 +539,12 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 		// Reload the macro connections before restoring the preset values
 		// so that it will update the correct connections with `setMacroControl()` in a control callback
 		if (mc->getMacroManager().isMacroEnabledOnFrontend())
-			mc->getMacroManager().getMacroChain()->loadMacrosFromValueTree(userPresetToLoad, false);
+		{
+			// If we're in exclusive mode and using the macros as plugin parameter, we will only restore them in internal presets
+			if (!HISE_MACROS_ARE_PLUGIN_PARAMETERS || isInternalPresetLoad() || !mc->getMacroManager().isExclusive())
+				mc->getMacroManager().getMacroChain()->loadMacrosFromValueTree(userPresetToLoad, false);
+		}
+			
 
 #if USE_RAW_FRONTEND
 
@@ -594,7 +599,12 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 		// Now we can restore the values of the macro controls
 		if (mc->getMacroManager().isMacroEnabledOnFrontend())
-			mc->getMacroManager().getMacroChain()->loadMacroValuesFromValueTree(userPresetToLoad);
+		{
+			if(!HISE_MACROS_ARE_PLUGIN_PARAMETERS || isInternalPresetLoad() || !mc->getMacroManager().isExclusive())
+			{
+				mc->getMacroManager().getMacroChain()->loadMacroValuesFromValueTree(userPresetToLoad);
+			}
+		}
 
 		// restore the remaining state managers...
 		restoreStateManager(userPresetToLoad, UserPresetIds::AdditionalStates);

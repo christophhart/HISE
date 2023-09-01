@@ -484,6 +484,10 @@ public:
 
 	void sliderDragEnded(Slider* s) override;
 
+	bool changePluginParameter(AudioProcessor* p, int parameterIndex);
+
+	bool callWhenSingleMacro(const std::function<bool(AudioProcessor* p, int parameterIndex)>& f);
+
 	/** If the slider represents a modulated attribute (eg. LFO Frequency), this can be used to set the displayed value. 
 	*
 	*	In order to use this functionality, add a timer callback to your editor and update the value using the ModulatorChain's getOutputValue().

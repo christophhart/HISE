@@ -386,13 +386,13 @@ public:
 	public:
 
 		MacroManager(MainController *mc_);
-		~MacroManager() {};
+		~MacroManager();;
 
 		// ===========================================================================================================
 
-		ModulatorSynthChain *getMacroChain() { return macroChain; };
-		const ModulatorSynthChain *getMacroChain() const {return macroChain; };
-		void setMacroChain(ModulatorSynthChain *chain) { macroChain = chain; }
+		ModulatorSynthChain *getMacroChain();;
+		const ModulatorSynthChain *getMacroChain() const;;
+		void setMacroChain(ModulatorSynthChain *chain);
 
 		// ===========================================================================================================
 		
@@ -404,7 +404,7 @@ public:
 
 		bool midiMacroControlActive() const;
 		bool midiControlActiveForMacro(int macroIndex) const;;
-		bool macroControlMidiLearnModeActive() { return macroIndexForCurrentMidiLearnMode != -1; }
+		bool macroControlMidiLearnModeActive();
 
 		void setMacroControlLearnMode(ModulatorSynthChain *chain, int index);
 		int getMacroControlLearnMode() const;;
@@ -413,19 +413,30 @@ public:
 		void removeMacroControlsFor(Processor *p);
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
-		bool isMacroEnabledOnFrontend() const { return enableMacroOnFrontend; };
-		void setEnableMacroOnFrontend(bool shouldBeEnabled) { enableMacroOnFrontend = shouldBeEnabled; }
+		bool isMacroEnabledOnFrontend() const;;
+		void setEnableMacroOnFrontend(bool shouldBeEnabled);
 
 		MidiControllerAutomationHandler *getMidiControlAutomationHandler();;
 		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const;;
 
 		// ===========================================================================================================
+		
+		/** If true, then a macro can only be connected to a single target (and connecting it to another target will remove the old connection). */
+		void setExclusiveMode(bool shouldBeExclusive)
+		{
+			exclusiveMode = shouldBeExclusive;
+		}
+
+		bool isExclusive() const { return exclusiveMode; }
+
 
 	private:
 
+		bool exclusiveMode = false;
+		
 		MainController *mc;
-
-		int macroControllerNumbers[8];
+		
+		int macroControllerNumbers[HISE_NUM_MACROS];
 
 		ModulatorSynthChain *macroChain;
 		int macroIndexForCurrentLearnMode;

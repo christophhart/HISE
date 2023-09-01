@@ -86,8 +86,26 @@ namespace hise { using namespace juce;
 	{ return parameterName; }
 
 	void MacroControlBroadcaster::sendMacroConnectionChangeMessage(int macroIndex, Processor* p, int parameterIndex,
-		bool wasAdded)
+		bool wasAdded, NotificationType n)
 	{
+		if (n == dontSendNotification)
+			return;
+
+		if(n == sendNotificationAsync)
+		{
+			WeakReference<MacroControlBroadcaster> safeParent(this);
+			WeakReference<Processor> safeP(p);
+
+			auto f = [safeParent, macroIndex, safeP, parameterIndex, wasAdded]()
+			{
+				if(safeParent && safeP)
+					safeParent->sendMacroConnectionChangeMessage(macroIndex, safeP, parameterIndex, wasAdded, sendNotificationSync);
+			};
+
+			MessageManager::callAsync(f);
+			return;
+		}
+
 		// Should only be called from the message thread
 		jassert(MessageManager::getInstance()->isThisTheMessageThread());
 
@@ -96,6 +114,46 @@ namespace hise { using namespace juce;
 			if (l != nullptr)
 				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
 		}
+
+#if HISE_MACROS_ARE_PLUGIN_PARAMETERS
+		auto ap = dynamic_cast<AudioProcessor*>(dynamic_cast<ControlledObject*>(this)->getMainController());
+
+		jassert(ap != nullptr);
+
+		AudioProcessorListener::ChangeDetails d;
+		ap->updateHostDisplay(d.withParameterInfoChanged(true));
+
+		auto md = getMacroControlData(macroIndex);
+
+		if(wasAdded && md->getNumParameters() == 1)
+		{
+			float newValue;
+
+			auto pd = md->getParameter(0);
+
+			if(pd->isCustomAutomation())
+			{
+				auto& uph = dynamic_cast<ControlledObject*>(this)->getMainController()->getUserPresetHandler();
+
+				if (uph.getCustomAutomationIndex(Identifier(pd->getParameterName())) == pd->getParameter())
+				{
+					newValue = uph.getCustomAutomationData(pd->getParameter())->lastValue;
+				}
+				else
+					newValue = 0.0f;
+			}
+			else
+			{
+				newValue = p->getAttribute(parameterIndex);
+				
+			}
+
+			newValue = pd->getParameterRange().convertTo0to1(newValue);
+			
+			ap->setParameterNotifyingHost(macroIndex, newValue);
+		}
+
+#endif
 	}
 
 	void MacroControlBroadcaster::sendMacroConnectionChangeMessageForAll(bool wasAdded)
@@ -292,6 +350,9 @@ MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterD
 {
 	parameterRange = NormalisableRange<double>(xml.getDoubleAttribute("low", 0.0), xml.getDoubleAttribute("high", 1.0));
 	inverted = xml.getBoolAttribute("inverted", false);
+	parameterRange.skew = xml.getDoubleAttribute("skew", 1.0);
+	parameterRange.interval = xml.getDoubleAttribute("step", 0.0);
+	
 	controlledProcessor = findProcessor(chain, id);
 
 	if (controlledProcessor->getIdentifierForParameterIndex(parameter).toString().compare(parameterName) != 0)
@@ -394,6 +455,8 @@ XmlElement *MacroControlBroadcaster::MacroControlledParameterData::exportAsXml()
 	entry->setAttribute("max", range.end);
 	entry->setAttribute("low", parameterRange.start);
 	entry->setAttribute("high", parameterRange.end);
+	entry->setAttribute("skew", parameterRange.skew);
+	entry->setAttribute("step", parameterRange.interval);
 	entry->setAttribute("inverted", inverted);
 	entry->setAttribute("readonly", readOnly);
 
@@ -663,8 +726,11 @@ bool MacroControlBroadcaster::MacroControlData::hasParameter(Processor *p, int p
 }
 
 
-void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly, bool isUsingCustomData)
+void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly, bool isUsingCustomData, NotificationType n)
 {
+	while (p->getMainController()->getMacroManager().isExclusive() && getNumParameters() > 0)
+		removeParameter(0, n);
+
 	controlledParameters.add(new MacroControlledParameterData(p,
 																parameterId,
 																parameterName,
@@ -673,7 +739,7 @@ void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int p
 
 	controlledParameters.getLast()->setIsCustomAutomation(isUsingCustomData);
 		
-	parent.sendMacroConnectionChangeMessage(macroIndex, p, parameterId, true);
+	parent.sendMacroConnectionChangeMessage(macroIndex, p, parameterId, true, n);
 }
 
 Processor *MacroControlBroadcaster::findProcessor(Processor *p, const String &idToSearch)
@@ -789,7 +855,7 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 	}
 }
 
-void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterIndex)
+void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterIndex, NotificationType n)
 {
     
 	if(parameterIndex != -1 && parameterIndex < controlledParameters.size() && controlledParameters[parameterIndex]->getProcessor() != nullptr)
@@ -809,18 +875,13 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterInd
 	controlledParameters.remove(parameterIndex);
     
     WeakReference<MacroControlBroadcaster> safeParent(&parent);
-    
-    auto mi = macroIndex;
-    MessageManager::callAsync([safeParent, pToRemove, mi, indexToRemove]()
-    {
-        if(safeParent && pToRemove)
-        {
-            safeParent->sendMacroConnectionChangeMessage(mi, pToRemove, indexToRemove, false);
-        }
-    });
+
+	if(pToRemove)
+		parent.sendMacroConnectionChangeMessage(macroIndex, pToRemove, indexToRemove, false, n);
+	
 };
 
-void MacroControlBroadcaster::MacroControlData::removeParameter(const String &parameterName, const Processor *processor)
+void MacroControlBroadcaster::MacroControlData::removeParameter(const String &parameterName, const Processor *processor, NotificationType n)
 { 
 	int index = -1;
 
@@ -852,7 +913,7 @@ void MacroControlBroadcaster::MacroControlData::removeParameter(const String &pa
 
 	if(index == -1) return;
 
-	removeParameter(index);
+	removeParameter(index, n);
 };
 
 } // namespace hise

@@ -61,6 +61,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_script_slider_pack_processor.xml"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_f_f_t.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_automation_handler.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_macro_handler.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_routing_matrix.xml" "xml\selection"
@@ -164,6 +165,8 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_path_object.xml" "Path.xm
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_timer_object.xml" "Timer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_player.xml" "MidiPlayer.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_midi_automation_handler.xml" "MidiAutomationHandler.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_macro_handler.xml" "MacroHandler.xml"
+
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_markdown_object.xml" "MarkdownRenderer.xml"
 
 

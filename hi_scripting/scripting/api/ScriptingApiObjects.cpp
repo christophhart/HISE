@@ -7191,6 +7191,18 @@ bool ScriptingObjects::GlobalRoutingManagerReference::connectToOSC(var connectio
 	return false;
 }
 
+void ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::rebuildFullAddress(const String& newRoot)
+{
+	try
+	{
+		fullAddress = OSCAddressPattern(newRoot + subDomain);
+	}
+	catch (OSCFormatError& e)
+	{
+		throw e.description;
+	}
+}
+
 void ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::callForMessage(const OSCMessage& c)
 {
 	if (c.isEmpty())
@@ -7249,6 +7261,16 @@ bool ScriptingObjects::GlobalRoutingManagerReference::sendOSCMessage(String oscS
 	}
 
 	return false;
+}
+
+ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::OSCCallback(GlobalRoutingManagerReference* parent,
+	String& sd, const var& cb):
+	callback(parent->getScriptProcessor(), parent, cb, 2),
+	subDomain(sd),
+	fullAddress("/*")
+{
+	callback.incRefCount();
+	callback.setHighPriority();
 }
 
 struct ScriptingObjects::GlobalCableReference::Wrapper
@@ -7765,6 +7787,291 @@ void ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::playbackChanged(int 
 		dirty = true;
 }
 
+struct ScriptingObjects::ScriptedMacroHandler::Wrapper
+{
+	API_METHOD_WRAPPER_0(ScriptedMacroHandler, getMacroDataObject);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMacroHandler, setMacroDataFromObject);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMacroHandler, setUpdateCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptedMacroHandler, setExclusiveMode);
+};
+
+ScriptingObjects::ScriptedMacroHandler::ScriptedMacroHandler(ProcessorWithScriptingContent* sp):
+	ConstScriptingObject(sp, 0),
+	updateCallback(getScriptProcessor(), this, var(), 1)
+{
+	ADD_API_METHOD_0(getMacroDataObject);
+	ADD_API_METHOD_1(setMacroDataFromObject);
+	ADD_API_METHOD_1(setUpdateCallback);
+	ADD_API_METHOD_1(setExclusiveMode);
+
+	sp->getMainController_()->getMacroManager().getMacroChain()->addMacroConnectionListener(this);
+}
+
+ScriptingObjects::ScriptedMacroHandler::~ScriptedMacroHandler()
+{
+	getScriptProcessor()->getMainController_()->getMacroManager().getMacroChain()->removeMacroConnectionListener(this);
+}
+
+void ScriptingObjects::ScriptedMacroHandler::macroConnectionChanged(int macroIndex, Processor* p, int parameterIndex,
+	bool wasAdded)
+{
+	triggerAsyncUpdate();
+}
+
+var ScriptingObjects::ScriptedMacroHandler::getMacroDataObject()
+{
+	auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
+
+	Array<var> list;
+
+#if 0
+	for(int i = 0; i < HISE_NUM_MACROS; i++)
+	{
+		auto md = mm.getMacroChain()->getMacroControlData(i);
+
+		ScopedPointer<XmlElement> xml = md->exportAsXml();
+
+		auto v = ValueTree::fromXml(*xml);
+
+		auto nv = valuetree::Helpers::valueTreeToJSON(v);
+
+		if(auto obj = nv.getDynamicObject())
+		{
+			if(nv.hasProperty("Children"))
+			{
+				obj->removeProperty("ChildId");
+				obj->setProperty("ControlledParameters", nv["Children"]);
+				obj->removeProperty("Children");
+			}
+			else
+			{
+				obj->setProperty("ControlledParameters", var(Array<var>()));
+			}
+			
+			obj->removeProperty("midi_cc");
+
+			list.add(nv);
+		}
+	}
+#endif
+
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	{
+		auto md = getScriptProcessor()->getMainController_()->getMacroManager().getMacroChain()->getMacroControlData(i);
+
+		for (int p = 0; p < md->getNumParameters(); p++)
+		{
+			auto pd = md->getParameter(p);
+			list.add(getCallbackArg(i, pd->getProcessor(), pd->getParameter(), true));
+		}
+	}
+	
+	return list;
+}
+
+void ScriptingObjects::ScriptedMacroHandler::setMacroDataFromObject(var jsonData)
+{
+	auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
+
+	if(jsonData.isArray())
+	{
+		ScopedUpdateDelayer sud(*this, dontSendNotification);
+
+		for (int i = 0; i < HISE_NUM_MACROS; i++)
+		{
+			auto md = mm.getMacroChain()->getMacroControlData(i);
+
+			while (md->getNumParameters() > 0)
+				md->removeParameter(0, sendNotificationAsync);
+		}
+
+		for (const auto& a : *jsonData.getArray())
+			setFromCallbackArg(a);
+
+		mm.getMacroChain()->sendMacroConnectionChangeMessageForAll(true);
+	}
+
+#if 0
+	if(jsonData.isArray() && jsonData.size() == HISE_NUM_MACROS)
+	{
+		for(auto& a: *jsonData.getArray())
+		{
+			if (auto obj = a.getDynamicObject())
+			{
+				if(!obj->hasProperty("name") || !obj->hasProperty("value"))
+				{
+					reportScriptError("macro data needs a `name` and `value` element");
+				}
+
+				obj->setProperty("ChildId", "controlled_parameter");
+				
+				obj->setProperty("Children", a["ControlledParameters"]);
+				obj->removeProperty("ControlledParameters");
+				obj->setProperty("midi_cc", -1);
+			}
+		}
+
+		auto vt = valuetree::Helpers::jsonToValueTree(jsonData, "macro_controls", false);
+
+		
+
+		ValueTree v("UserPreset");
+
+		v.addChild(vt, -1, nullptr);
+
+		mm.getMacroChain()->loadMacrosFromValueTree(v, false);
+	}
+	else
+	{
+		reportScriptError("You need to call this method with an array of " + String(HISE_NUM_MACROS) + " elements");
+	}
+#endif
+}
+
+void ScriptingObjects::ScriptedMacroHandler::setUpdateCallback(var callback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(callback))
+	{
+		updateCallback = WeakCallbackHolder(getScriptProcessor(), this, callback, 1);
+		updateCallback.incRefCount();
+		updateCallback.addAsSource(this, "onMacroConnectionUpdate");
+		updateCallback.setThisObject(this);
+
+		sendUpdateMessage(sendNotificationSync);
+	}
+}
+
+void ScriptingObjects::ScriptedMacroHandler::setExclusiveMode(bool shouldBeExclusive)
+{
+	getScriptProcessor()->getMainController_()->getMacroManager().setExclusiveMode(shouldBeExclusive);
+}
+
+namespace MacroIds
+{
+#define DECLARE_ID(x) static const Identifier x(#x);
+	DECLARE_ID(MacroIndex);
+	DECLARE_ID(Processor);
+	DECLARE_ID(Attribute);
+#undef DECLARE_ID
+}
+
+void ScriptingObjects::ScriptedMacroHandler::sendUpdateMessage(NotificationType n)
+{
+	if(updateCallback && n != dontSendNotification)
+	{
+		auto obj = getMacroDataObject();
+
+		if(n == sendNotificationSync)
+		{
+			auto r = updateCallback.callSync(&obj, 1);
+
+			if (!r.wasOk())
+				reportScriptError(r.getErrorMessage());
+		}
+		else
+		{
+			updateCallback.call1(obj);
+		}
+	}
+}
+
+void ScriptingObjects::ScriptedMacroHandler::setFromCallbackArg(const var& obj)
+{
+	auto checkProperty = [&](const Identifier& id)
+	{
+		if (!obj.hasProperty(id))
+			reportScriptError("macro object needs property " + id.toString());
+	};
+
+	checkProperty(MacroIds::MacroIndex);
+	checkProperty(MacroIds::Attribute);
+	checkProperty(MacroIds::Processor);
+
+	auto mIndex = (int)obj[MacroIds::MacroIndex];
+
+	if (isPositiveAndBelow(mIndex, HISE_NUM_MACROS))
+	{
+		auto pId = obj[MacroIds::Processor].toString();
+
+		if (auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId))
+		{
+			auto param = obj[MacroIds::Attribute];
+			int parameterIndex;
+
+			if (param.isString())
+				parameterIndex = var(p->getParameterIndexForIdentifier(param.toString()));
+			else
+				parameterIndex = (int)param;
+
+			auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
+
+			auto fr = RangeHelpers::getDoubleRange(obj, RangeHelpers::IdSet::MidiAutomationFull);
+			auto nr = RangeHelpers::getDoubleRange(obj, RangeHelpers::IdSet::MidiAutomation);
+
+			if (fr.getRange().isEmpty())
+				fr = nr;
+
+			mm.getMacroChain()->getMacroControlData(mIndex)->addParameter(p, parameterIndex, p->getIdentifierForParameterIndex(parameterIndex).toString(), fr.rng, true, false, dontSendNotification);
+
+			auto pd = mm.getMacroChain()->getMacroControlData(mIndex)->getParameterWithProcessorAndIndex(p, parameterIndex);
+
+			jassert(pd != nullptr);
+
+			if(!RangeHelpers::isEqual(fr, nr) && !nr.rng.getRange().isEmpty())
+			{
+				pd->setRangeStart(nr.rng.start);
+				pd->setRangeEnd(nr.rng.end);
+			}
+			
+			if (nr.inv)
+				pd->setInverted(true);
+		}
+		else
+		{
+			reportScriptError("module with ID " + pId + " does not exist");
+		}
+	}
+	else
+	{
+		reportScriptError("macroIndex must be between 0 and " + String(HISE_NUM_MACROS));
+	}
+}
+
+var ScriptingObjects::ScriptedMacroHandler::getCallbackArg(int macroIndex, Processor* p, int parameterIndex,
+                                                           bool wasAdded) const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	var v(obj.get());
+
+	obj->setProperty(MacroIds::MacroIndex, macroIndex);
+	
+	if (p != nullptr)
+	{
+		obj->setProperty(MacroIds::Processor, p->getId());
+		obj->setProperty(MacroIds::Attribute, p->getIdentifierForParameterIndex(parameterIndex).toString());
+
+		auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
+
+		auto md = mm.getMacroChain()->getMacroControlData(macroIndex);
+
+		for (int i = 0; i < md->getNumParameters(); i++)
+		{
+			scriptnode::InvertableParameterRange nr;
+			nr.rng = md->getParameter(i)->getParameterRange();
+			nr.inv = md->getParameter(i)->isInverted();
+
+			scriptnode::InvertableParameterRange fr;
+			fr.rng = md->getParameter(i)->getTotalRange();
+			
+			RangeHelpers::storeDoubleRange(v, fr, RangeHelpers::IdSet::MidiAutomationFull);
+			RangeHelpers::storeDoubleRange(v, nr, RangeHelpers::IdSet::MidiAutomation);
+		}
+	}
+	
+	return v;
+}
+
 struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 {
 	API_METHOD_WRAPPER_0(ScriptedMidiAutomationHandler, getAutomationDataObject);
@@ -7775,6 +8082,8 @@ struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiAutomationHandler, setConsumeAutomatedControllers);
 	API_VOID_METHOD_WRAPPER_2(ScriptedMidiAutomationHandler, setControllerNumberNames);
 };
+
+
 
 ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),

@@ -484,6 +484,15 @@ Set this to false to not give the user the ability to set the sample location on
 #define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 1
 #endif
 
+/** Config: HISE_MACROS_ARE_PLUGIN_PARAMETERS
+
+If enabled, the plugin will ignore any plugin parameter definitions from the script components (or custom automation data) and will only propagate the macros as plugin parameters
+(Note: You might want to define HISE_NUM_MACROS along with the plugin parameters to ensure that it will only use as much parameters as you want).
+
+ */
+#ifndef HISE_MACROS_ARE_PLUGIN_PARAMETERS
+#define HISE_MACROS_ARE_PLUGIN_PARAMETERS 0
+#endif
 
 // for iOS apps, the external files don't need to be embedded. Enable this to simulate this behaviour on desktop projects (not recommended for production)
 //#define DONT_EMBED_FILES_IN_FRONTEND 1

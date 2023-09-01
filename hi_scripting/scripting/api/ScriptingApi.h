@@ -585,6 +585,9 @@ public:
 		/** Creates a modulation matrix object that handles dynamic modulation using the given Global Modulator Container as source. */
 		var createModulationMatrix(String containerId);
 
+		/** Creates a macro handler that lets you programmatically change the macro connections. */
+		var createMacroHandler();
+
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
 

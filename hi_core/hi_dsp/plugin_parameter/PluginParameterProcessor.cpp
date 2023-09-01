@@ -103,8 +103,115 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 };
 
 
+struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
+							 public ControlledObject
+{
+	MacroPluginParameter(MainController* mc, int macroIndex_):
+	   ControlledObject(mc),
+	   macroIndex(macroIndex_)
+	{
+		checkMacro();
+	}
+
+	void checkMacro() const
+	{
+		if(md.get() == nullptr)
+			md = const_cast<MacroControlBroadcaster::MacroControlData*>(getMainController()->getMainSynthChain()->getMacroControlData(macroIndex));
+	}
+
+	String getParameterID() const override { return "P" + String(macroIndex + 1); }
+
+	String getName(int maximumStringLength) const override
+	{
+		checkMacro();
+
+		auto n = md->getMacroName();
+
+		if (md->getNumParameters() == 1)
+			n = md->getParameter(0)->getParameterName();
+
+		if (isPositiveAndBelow(n, maximumStringLength))
+			return n;
+
+		return n.substring(0, maximumStringLength);
+	}
+
+	String getLabel() const override { return {}; }
+
+	String getText(float normalisedValue, int /*maximumStringLength*/) const override
+	{
+		checkMacro();
+
+		if(md->getNumParameters() == 1)
+		{
+			normalisedValue = md->getParameter(0)->getParameterRange().convertFrom0to1(normalisedValue);
+		}
+
+		return String(normalisedValue, 2);
+	}
+
+	
+	float getValueForText(const String& text) const override
+	{
+		checkMacro();
+
+		auto fValue = text.getFloatValue();
+
+		if(md->getNumParameters() == 1)
+		{
+			fValue = md->getParameter(0)->getParameterRange().convertTo0to1(fValue);
+		}
+
+		return fValue;
+	}
+
+	float getValue() const override
+	{
+		checkMacro();
+
+		return md->getCurrentValue() / 127.0;
+	}
+
+	float getDefaultValue() const override
+	{
+		checkMacro();
+
+		if (md->getNumParameters() == 1)
+		{
+			return md->getParameter(0)->getProcessor()->getDefaultValue(md->getParameter(0)->getParameter());
+		}
+
+		return 0.0f;
+	}
+
+	void setValue(float newValue) override
+	{
+		checkMacro();
+
+		if (recursive)
+			return;
+
+		ScopedValueSetter<bool> svs(recursive, true);
+		md->setValue(newValue * 127.0);
+	}
+
+	bool isMetaParameter() const { return false; }
+
+	bool recursive = false;
+	const int macroIndex;
+	mutable WeakReference<MacroControlBroadcaster::MacroControlData> md;
+};
+
 void PluginParameterAudioProcessor::addScriptedParameters()
 {
+#if HISE_MACROS_ARE_PLUGIN_PARAMETERS
+
+	for(int i = 0; i < HISE_NUM_MACROS; i++)
+	{
+		addParameter(new MacroPluginParameter(dynamic_cast<MainController*>(this), i));
+	}
+
+#else
 	auto& uph = dynamic_cast<MainController*>(this)->getUserPresetHandler();
 
 	if (uph.isUsingCustomDataModel())
@@ -120,42 +227,41 @@ void PluginParameterAudioProcessor::addScriptedParameters()
 			}
 		}
 	}
-	else
+
+	ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
+
+	jassert(synthChain != nullptr);
+
+	Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
+
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 	{
-		ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
-
-		jassert(synthChain != nullptr);
-
-		Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
-
-		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+		if (sp->isFront())
 		{
-			if (sp->isFront())
+			ScriptingApi::Content *content = sp->getScriptingContent();
+
+			for (int i = 0; i < content->getNumComponents(); i++)
 			{
-				ScriptingApi::Content *content = sp->getScriptingContent();
+				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
 
-				for (int i = 0; i < content->getNumComponents(); i++)
+				const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
+				const bool isAutomatable = c->isAutomatable();
+
+				if (wantsAutomation && !isAutomatable)
 				{
-					ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
+					// You specified a parameter for a unsupported component type...
+					jassertfalse;
+				}
 
-					const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
-					const bool isAutomatable = c->isAutomatable();
-
-					if (wantsAutomation && !isAutomatable)
-					{
-						// You specified a parameter for a unsupported component type...
-						jassertfalse;
-					}
-
-					if (wantsAutomation && isAutomatable)
-					{
-						ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
-						addParameter(newParameter);
-					}
+				if (wantsAutomation && isAutomatable)
+				{
+					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
+					addParameter(newParameter);
 				}
 			}
 		}
 	}
+#endif
 }
 
 

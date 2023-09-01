@@ -38,11 +38,32 @@ MainController::MacroManager::MacroManager(MainController *mc_) :
 	mc(mc_),
 	midiControllerHandler(mc_)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		macroControllerNumbers[i] = -1;
 	};
 }
+
+MainController::MacroManager::~MacroManager()
+{}
+
+ModulatorSynthChain* MainController::MacroManager::getMacroChain()
+{ return macroChain; }
+
+const ModulatorSynthChain* MainController::MacroManager::getMacroChain() const
+{return macroChain; }
+
+void MainController::MacroManager::setMacroChain(ModulatorSynthChain* chain)
+{ macroChain = chain; }
+
+bool MainController::MacroManager::macroControlMidiLearnModeActive()
+{ return macroIndexForCurrentMidiLearnMode != -1; }
+
+bool MainController::MacroManager::isMacroEnabledOnFrontend() const
+{ return enableMacroOnFrontend; }
+
+void MainController::MacroManager::setEnableMacroOnFrontend(bool shouldBeEnabled)
+{ enableMacroOnFrontend = shouldBeEnabled; }
 
 
 void MainController::MacroManager::removeMacroControlsFor(Processor *p)
@@ -51,7 +72,7 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p)
 
 	if (macroChain == nullptr) return;
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(p);
 	}
@@ -65,7 +86,7 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifi
 
 	if (macroChain == nullptr) return;
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		MacroControlBroadcaster::MacroControlData *data = macroChain->getMacroControlData(i);
 
@@ -107,7 +128,7 @@ void MainController::MacroManager::setMidiControllerForMacro(int midiControllerN
 
 void MainController::MacroManager::setMidiControllerForMacro(int macroIndex, int midiControllerNumber)
 {
-	if (macroIndex < 8)
+	if (isPositiveAndBelow(macroIndex, HISE_NUM_MACROS))
 	{
 		macroControllerNumbers[macroIndex] = midiControllerNumber;
 	}
@@ -115,7 +136,7 @@ void MainController::MacroManager::setMidiControllerForMacro(int macroIndex, int
 
 bool MainController::MacroManager::midiMacroControlActive() const
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		if (macroControllerNumbers[i] != -1) return true;
 	}
@@ -131,7 +152,7 @@ void MainController::MacroManager::setMacroControlMidiLearnMode(ModulatorSynthCh
 
 int MainController::MacroManager::getMacroControlForMidiController(int midiController)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		if (macroControllerNumbers[i] == midiController) return i;
 	}
@@ -141,7 +162,7 @@ int MainController::MacroManager::getMacroControlForMidiController(int midiContr
 
 int MainController::MacroManager::getMidiControllerForMacro(int macroIndex)
 {
-	if (macroIndex < 8)
+	if (isPositiveAndBelow(macroIndex, HISE_NUM_MACROS))
 	{
 		return macroControllerNumbers[macroIndex];
 	}
@@ -153,7 +174,7 @@ int MainController::MacroManager::getMidiControllerForMacro(int macroIndex)
 
 bool MainController::MacroManager::midiControlActiveForMacro(int macroIndex) const
 {
-	if (macroIndex < 8)
+	if (isPositiveAndBelow(macroIndex, HISE_NUM_MACROS))
 	{
 		return macroControllerNumbers[macroIndex] != -1;
 	}
@@ -166,7 +187,7 @@ bool MainController::MacroManager::midiControlActiveForMacro(int macroIndex) con
 
 void MainController::MacroManager::removeMidiController(int macroIndex)
 {
-	if (macroIndex < 8)
+	if (isPositiveAndBelow(macroIndex, HISE_NUM_MACROS))
 	{
 		macroControllerNumbers[macroIndex] = -1;
 	}

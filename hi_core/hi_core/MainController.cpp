@@ -1951,17 +1951,12 @@ void MainController::SampleManager::handleNonRealtimeState()
 
 		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
 
-		
-
 		while (auto nrt = iter.getNextProcessor())
 			nrt->nonRealtimeModeChanged(isNonRealtime());
 
 		internalsSetToNonRealtime = isNonRealtime();
 	}
 }
-
-
-
 
 hise::MainController::UserPresetHandler::CustomAutomationData::Ptr MainController::UserPresetHandler::getCustomAutomationData(int index) const
 {
