@@ -313,7 +313,7 @@ struct SendEffect : public MasterEffectProcessor
         loadAttribute(Gain, "Gain");
         loadAttribute(ChannelOffset, "ChannelOffset");
         loadAttribute(SendIndex, "SendIndex");
-		loadAttributeWithDefault(Smoothing, "Smoothing");
+		loadAttributeWithDefault(Smoothing);
 	};
 
 	ValueTree exportAsValueTree() const override
