@@ -128,7 +128,28 @@ struct OSCConnectionData: public ReferenceCountedObject
 
 struct RangeHelpers
 {
+	// There are multiple id sets used across HISE for defining range IDs so this allows you
+	// to pass in a set identifier into the getDoubleRange() and storeDoubleRange functions
+	enum class IdSet
+	{
+		scriptnode = 0,     ///< (default): MinValue, MaxValue, StepSize, SkewFactor
+		ScriptComponents,   ///< min, max, stepSize, middlePosition
+		MidiAutomation,     ///< Start, End, Interval, Skew
+		MidiAutomationFull, ///< FullStart, FullEnd, Interval, Skew
+		numIdSets
+	};
+
+	enum class RangeIdentifier
+	{
+		Minimum,
+		Maximum,
+		StepSize,
+		SkewFactor
+	};
+
 	static String toDisplayString(InvertableParameterRange d);
+
+
 
 	static bool isRangeId(const Identifier& id);
 
@@ -136,22 +157,21 @@ struct RangeHelpers
 
 	static bool isIdentity(InvertableParameterRange d);
 
-	static void removeRangeProperties(ValueTree v, UndoManager* um);
+	static void removeRangeProperties(ValueTree v, UndoManager* um, IdSet rangeIdSet=IdSet::scriptnode);
 
-	static Array<Identifier> getRangeIds(bool includeValue=false);
+	static Array<Identifier> getRangeIds(bool includeValue=false, IdSet rangeIdSet = IdSet::scriptnode);
 
 	/** Checks if the range should be inverted. */
-	static bool isInverted(const ValueTree& v);
+	static bool isInverted(const ValueTree& v, IdSet rangeIdSet = IdSet::scriptnode);
 
 	/** Creates a NormalisableRange from the ValueTree properties. It doesn't update the Inverted property. */
-	static InvertableParameterRange getDoubleRange(const ValueTree& t);
+	static InvertableParameterRange getDoubleRange(const ValueTree& t, IdSet rangeIdSet = IdSet::scriptnode);
 
+	static InvertableParameterRange getDoubleRange(const var& obj, IdSet rangeIdSet = IdSet::scriptnode);
 
-	static InvertableParameterRange getDoubleRange(const var& obj);
+	static void storeDoubleRange(var& obj, InvertableParameterRange r, IdSet rangeIdSet = IdSet::scriptnode);
 
-	static void storeDoubleRange(var& obj, InvertableParameterRange r);
-
-	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um);
+	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um, IdSet rangeIdSet = IdSet::scriptnode);
 
 	static bool equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError);
 
@@ -167,6 +187,12 @@ struct RangeHelpers
 	static Array<Identifier> getHiddenIds()
 	{
 		return { PropertyIds::NodeId, PropertyIds::ParameterId, Identifier("Enabled") };
+	}
+
+private:
+	static Identifier ri(IdSet set, RangeIdentifier r)
+	{
+		return getRangeIds(false, set)[(int)r];
 	}
 };
 

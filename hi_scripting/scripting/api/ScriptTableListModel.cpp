@@ -48,6 +48,27 @@ ScriptTableListModel::ScriptTableListModel(ProcessorWithScriptingContent* p, con
 	eventTypesForCallback.add(EventType::DoubleClick);
 	eventTypesForCallback.add(EventType::ReturnKey);
 	eventTypesForCallback.add(EventType::SpaceKey);
+
+	if (tableMetadata.hasProperty("SliderRangeIdSet"))
+	{
+		auto sId = tableMetadata.getProperty("SliderRangeIdSet", "scriptnode").toString();
+
+		static const StringArray list = { "scriptnode", "ScriptComponent", "MidiAutomation" , "MidiAutomationFull" };
+
+		auto idx = list.indexOf(sId);
+
+		if (idx == -1)
+			idx = 0;
+
+		String l;
+
+		for (auto& a : RangeHelpers::getRangeIds(false, (RangeHelpers::IdSet)idx))
+			l << a.toString() << ", ";
+
+		debugToConsole(dynamic_cast<Processor*>(p), "using range ids { " + l.upToLastOccurrenceOf(", ", false, false) + " } for table sliders");
+
+		rangeSet = (RangeHelpers::IdSet)idx;
+	}
 }
 
 bool ScriptTableListModel::isMultiColumn() const
@@ -167,16 +188,18 @@ struct ComponentUpdateHelpers
 		}
 	}
 
-	static bool updateSliderProperties(ShiftSlider* s, const var& value)
+	static bool updateSliderProperties(ShiftSlider* s, const var& value, RangeHelpers::IdSet idSet, bool changeOnDrag)
 	{
 		if (value.isObject())
 		{
-			auto r = scriptnode::RangeHelpers::getDoubleRange(value);
+			auto r = scriptnode::RangeHelpers::getDoubleRange(value, idSet);
 
 			s->setRange(r.getRange(), r.rng.interval);
 			s->setSkewFactor(r.rng.skew);
 			s->setTextValueSuffix(value["suffix"]);
 			s->setDoubleClickReturnValue(value.hasProperty("defaultValue"), (double)value["defaultValue"]);
+
+			s->setChangeNotificationOnlyOnRelease(!changeOnDrag);
 
 			s->enableShiftTextInput = value.getProperty("showTextBox", true);
 
@@ -261,7 +284,12 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			{
 				s->getProperties().set("RowIndex", rowNumber);
 
-				ComponentUpdateHelpers::updateSliderProperties(s, value);
+				var vToUse = value;
+
+				if(rangeSet != RangeHelpers::IdSet::scriptnode)
+					vToUse = rowData[rowNumber];
+
+				ComponentUpdateHelpers::updateSliderProperties(s, vToUse, rangeSet, shouldSendCallOnDrag());
 				ComponentUpdateHelpers::updateValue(s, value);
 			}
 			
@@ -366,8 +394,13 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 
 			s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 
-			if (!ComponentUpdateHelpers::updateSliderProperties(s, value))
-				ComponentUpdateHelpers::updateSliderProperties(s, cd);
+			var vToUse = value;
+
+			if (rangeSet != RangeHelpers::IdSet::scriptnode)
+				vToUse = rowData[rowNumber];
+
+			if (!ComponentUpdateHelpers::updateSliderProperties(s, vToUse, rangeSet, shouldSendCallOnDrag()))
+				ComponentUpdateHelpers::updateSliderProperties(s, cd, rangeSet, shouldSendCallOnDrag());
 
 			ComponentUpdateHelpers::updateValue(s, value);
 

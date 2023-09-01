@@ -95,26 +95,36 @@ bool RangeHelpers::isIdentity(InvertableParameterRange d)
 }
 
 
-void RangeHelpers::removeRangeProperties(ValueTree v, UndoManager* um)
+void RangeHelpers::removeRangeProperties(ValueTree v, UndoManager* um, IdSet set)
 {
-	for (auto id : getRangeIds(false))
+	for (auto id : getRangeIds(false, set))
 		v.removeProperty(id, um);
 
 	v.removeProperty(Identifier("Enabled"), um);
 }
 
-juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue)
+juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue, IdSet rangeIdSet)
 {
 	using namespace PropertyIds;
 
-	if(includeValue)
-		return { MinValue, MaxValue, StepSize, SkewFactor, Value};
-	else
-		return { MinValue, MaxValue, StepSize, SkewFactor };
+	Array<Identifier> rangeIds;
+
+	switch(rangeIdSet)
+	{
+	case IdSet::scriptnode:			rangeIds = { MinValue, MaxValue, StepSize, SkewFactor }; break;
+	case IdSet::ScriptComponents:	rangeIds = { Identifier("min"), Identifier("max"), Identifier("stepSize"), Identifier("middlePosition") }; break;
+	case IdSet::MidiAutomation:     rangeIds = { Identifier("Start"), Identifier("End"), Identifier("Interval"), Identifier("Skew") }; break;
+	case IdSet::MidiAutomationFull: rangeIds = { Identifier("FullStart"), Identifier("FullEnd"), Identifier("Interval"), Identifier("Skew") }; break;
+	}
+
+	if (includeValue)
+		rangeIds.add(Value);
+
+	return rangeIds;
 }
 
 
-bool RangeHelpers::isInverted(const ValueTree& v)
+bool RangeHelpers::isInverted(const ValueTree& v, IdSet rangeIdSet)
 {
     if (!v.isValid())
 		return false;
@@ -127,14 +137,21 @@ bool RangeHelpers::isInverted(const ValueTree& v)
         // target's parameter range
         jassertfalse;
     }
-    
-	auto max = (double)v[MaxValue];
-	auto min = (double)v[MinValue];
 
-	return min > max;
+	if(rangeIdSet == IdSet::scriptnode)
+	{
+		auto max = (double)v[ri(rangeIdSet, RangeIdentifier::Maximum)];
+		auto min = (double)v[ri(rangeIdSet, RangeIdentifier::Minimum)];
+
+		return min > max;
+	}
+	else
+	{
+		return v[Inverted];
+	}
 }
 
-void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um)
+void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um, IdSet rangeIdSet)
 {
 	using namespace PropertyIds;
     
@@ -145,24 +162,54 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, Un
         jassertfalse;
     }
 
-	d.setProperty(r.inv ? MaxValue : MinValue, r.rng.start, um);
-	d.setProperty(r.inv ? MinValue : MaxValue, r.rng.end, um);
-	d.setProperty(StepSize, r.rng.interval, um);
-	d.setProperty(SkewFactor, r.rng.skew, um);
+	auto maxId = ri(rangeIdSet, RangeIdentifier::Maximum);
+	auto minId = ri(rangeIdSet, RangeIdentifier::Minimum);
+
+	if(rangeIdSet == IdSet::scriptnode) // we only use the swapped values in the scriptnode set, otherwise we'll set the Inverted property
+	{
+		d.setProperty(r.inv ? maxId : minId, r.rng.start, um);
+		d.setProperty(r.inv ? minId : maxId, r.rng.end, um);
+	}
+	else
+	{
+		d.setProperty(minId, r.rng.start, um);
+		d.setProperty(maxId, r.rng.end, um);
+		d.setProperty(Inverted, r.inv, um);
+	}
+	
+	d.setProperty(ri(rangeIdSet, RangeIdentifier::StepSize), r.rng.interval, um);
+	d.setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew, um);
 }
 
-void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r)
+void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r, IdSet rangeIdSet)
 {
 	using namespace PropertyIds;
 
-	auto d = new DynamicObject();
+	if(obj.getDynamicObject() == nullptr)
+	{
+		obj = var(new DynamicObject());
+	}
 
-	d->setProperty(r.inv ? MaxValue : MinValue, r.rng.start);
-	d->setProperty(r.inv ? MinValue : MaxValue, r.rng.end);
-	d->setProperty(StepSize, r.rng.interval);
-	d->setProperty(SkewFactor, r.rng.skew);
+	auto d = obj.getDynamicObject();
+	jassert(d != nullptr);
 
-	obj = var(d);
+	auto maxId = ri(rangeIdSet, RangeIdentifier::Maximum);
+	auto minId = ri(rangeIdSet, RangeIdentifier::Minimum);
+
+	if (rangeIdSet == IdSet::scriptnode) // we only use the swapped values in the scriptnode set, otherwise we'll set the Inverted property
+	{
+		d->setProperty(r.inv ? maxId : minId, r.rng.start);
+		d->setProperty(r.inv ? minId : maxId, r.rng.end);
+	}
+	else
+	{
+		d->setProperty(minId, r.rng.start);
+		d->setProperty(maxId, r.rng.end);
+		d->setProperty(Inverted, r.inv);
+	}
+
+	d->setProperty(ri(rangeIdSet, RangeIdentifier::StepSize), r.rng.interval);
+	d->setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew);
 }
 
 bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError)
@@ -184,7 +231,7 @@ bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const Inv
 
 }
 
-scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTree& t)
+scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTree& t, IdSet set)
 {
 	using namespace PropertyIds;
 
@@ -197,37 +244,42 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 		jassertfalse;
 	}
 
-	auto minValue = (double)t.getProperty(MinValue, 0.0);
-	auto maxValue = (double)t.getProperty(MaxValue, 1.0);
+	auto minValue = (double)t.getProperty(ri(set, RangeIdentifier::Minimum), 0.0);
+	auto maxValue = (double)t.getProperty(ri(set, RangeIdentifier::Maximum), 1.0);
 
 	if (minValue == maxValue)
 		maxValue += 0.01;
 
-	if (minValue > maxValue)
+	if (set == IdSet::scriptnode)
 	{
-		std::swap(minValue, maxValue);
-		r.inv = true;
+		if (minValue > maxValue)
+		{
+			std::swap(minValue, maxValue);
+			r.inv = true;
+		}
 	}
+	else
+		r.inv = t[Inverted];
 	
 	r.rng.start = minValue;
 	r.rng.end = maxValue;
-	r.rng.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::StepSize));
-	r.rng.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, PropertyIds::SkewFactor));
+	r.rng.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, ri(set, RangeIdentifier::StepSize)));
+	r.rng.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, ri(set, RangeIdentifier::SkewFactor)));
 
 	return r;
 }
 
-scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const var& obj)
+scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const var& obj, IdSet set)
 {
 	ValueTree v(PropertyIds::ID);
 
-	for (auto r : getRangeIds(false))
+	for (auto r : getRangeIds(false, set))
 	{
 		if (obj.hasProperty(r))
 			v.setProperty(r, obj[r], nullptr);
 	}
 
-	return getDoubleRange(v);
+	return getDoubleRange(v, set);
 }
 
 namespace parameter
