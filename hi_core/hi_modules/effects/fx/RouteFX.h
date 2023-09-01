@@ -228,6 +228,7 @@ struct SendEffect : public MasterEffectProcessor
 		Gain,
 		ChannelOffset,
         SendIndex,
+		Smoothing,
 		numParameters
 	};
 
@@ -262,6 +263,7 @@ struct SendEffect : public MasterEffectProcessor
         parameterNames.add("Gain");
         parameterNames.add("ChannelOffset");
         parameterNames.add("SendIndex");
+		parameterNames.add("Smoothing");
 	};
 
     ~SendEffect()
@@ -269,6 +271,17 @@ struct SendEffect : public MasterEffectProcessor
         modChains.clear();
     }
     
+	float getDefaultValue(int index) const override
+	{
+		switch (index)
+		{
+		case Parameters::Gain: return -100.0;
+		case Parameters::ChannelOffset: return 0.0f;
+		case Parameters::SendIndex: return 0.0f;
+		case Parameters::Smoothing: return 1.0f;
+		}
+	}
+
 	float getAttribute(int index) const override 
 	{
 		switch (index)
@@ -276,6 +289,7 @@ struct SendEffect : public MasterEffectProcessor
 		case Parameters::Gain: return Decibels::gainToDecibels(gain.getTargetValue());
 		case Parameters::ChannelOffset: return (float)channelOffset;
         case Parameters::SendIndex: return sendIndex;
+		case Parameters::Smoothing: return (float)(int)isSmoothing;
 		}
         
         return 0.0f;
@@ -288,6 +302,7 @@ struct SendEffect : public MasterEffectProcessor
 		case Parameters::Gain: gain.setValue(Decibels::decibelsToGain(newValue)); break;
         case Parameters::ChannelOffset: channelOffset = (int)newValue; break;
         case Parameters::SendIndex: connect((int)newValue); break;
+		case Parameters::Smoothing: isSmoothing = newValue > 0.5f;
 		}
 	};
 
@@ -298,6 +313,7 @@ struct SendEffect : public MasterEffectProcessor
         loadAttribute(Gain, "Gain");
         loadAttribute(ChannelOffset, "ChannelOffset");
         loadAttribute(SendIndex, "SendIndex");
+		loadAttributeWithDefault(Smoothing, "Smoothing");
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -307,6 +323,7 @@ struct SendEffect : public MasterEffectProcessor
         saveAttribute(Gain, "Gain");
         saveAttribute(ChannelOffset, "ChannelOffset");
         saveAttribute(SendIndex, "SendIndex");
+		saveAttribute(Smoothing, "Smoothing");
         
 		return v;
 	}
@@ -330,11 +347,14 @@ struct SendEffect : public MasterEffectProcessor
 			ProcessorEditorBody(parent),
 			gainSlider("Gain"),
 			offsetSlider("Offset"),
-            connectionBox("SendIndex")
+            connectionBox("SendIndex"),
+			smoothingButton("Smoothing")
 		{
 			gainSlider.setup(parent->getProcessor(), Parameters::Gain, "Gain");
 			
 			gainSlider.setMode(HiSlider::Mode::Decibel);
+
+			smoothingButton.setup(parent->getProcessor(), Parameters::Smoothing, "Smoothing");
 
 			offsetSlider.setup(parent->getProcessor(), Parameters::ChannelOffset, "Channel");
 			offsetSlider.setMode(HiSlider::Mode::Discrete, 0, NUM_MAX_CHANNELS, DBL_MAX, 2);
@@ -346,6 +366,7 @@ struct SendEffect : public MasterEffectProcessor
 
 			addAndMakeVisible(gainSlider);
 			addAndMakeVisible(offsetSlider);
+			addAndMakeVisible(smoothingButton);
 
 			addAndMakeVisible(connectionBox);
 			connectionBox.setLookAndFeel(&claf);
@@ -365,6 +386,7 @@ struct SendEffect : public MasterEffectProcessor
 			gainSlider.updateValue(dontSendNotification);
 			offsetSlider.updateValue(dontSendNotification);
             connectionBox.updateValue(dontSendNotification);
+			smoothingButton.updateValue(dontSendNotification);
 		}
 
 		int getBodyHeight() const override
@@ -380,12 +402,15 @@ struct SendEffect : public MasterEffectProcessor
 			b.removeFromLeft(10);
 			offsetSlider.setBounds(b.removeFromLeft(128));
 			b.removeFromLeft(10);
-			connectionBox.setBounds(b.reduced(10));
+			connectionBox.setBounds(b.removeFromLeft(148).reduced(10));
+			b.removeFromLeft(10);
+			smoothingButton.setBounds(b.removeFromLeft(148).reduced(10));
 		}
 
 		HiSlider gainSlider;
 		HiSlider offsetSlider;
 		HiComboBox connectionBox;
+		HiToggleButton smoothingButton;
 		GlobalHiseLookAndFeel claf;
 	};
 #endif
@@ -408,6 +433,12 @@ struct SendEffect : public MasterEffectProcessor
             auto thisGain = gain.getCurrentValue();
             auto nextGain = gain.getNextValue();
             
+			if (!isSmoothing)
+			{
+				thisGain = gain.getTargetValue();
+				nextGain = gain.getTargetValue();
+			}
+			
             const float startModValue = modChains[(int)InternalChains::SendLevel].getOneModulationValue(startSample);
             const float endModValue = modChains[(int)InternalChains::SendLevel].getOneModulationValue(startSample + numSamples - 1);
             
@@ -478,6 +509,7 @@ struct SendEffect : public MasterEffectProcessor
 	WeakReference<SendContainer> container;
     
     ModulatorChain* sendChain;
+	bool isSmoothing = true;
 };
 
 
