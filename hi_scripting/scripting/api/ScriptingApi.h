@@ -155,8 +155,11 @@ public:
 		/** Stores a copy of the current event into the given holder object. */
 		void store(var messageEventHolder) const;
 
-		/** Creates a artificial copy of this event and returns the new event ID. */
+		/** Creates a artificial copy of this event and returns the new event ID. If the event is already artificial it will return the event ID. */
 		int makeArtificial();
+
+		/** Creates a artificial copy of this event and returns the new event ID. If the event is artificial it will make a new one with a new ID. */
+		int makeArtificialOrLocal();
 
 		/** Checks if the event was created by a script earlier. */
 		bool isArtificial() const;
@@ -186,6 +189,8 @@ public:
 
 	private:
 
+		int makeArtificialInternal(bool makeLocal);
+		
 		WeakCallbackHolder allNotesOffCallback;
 
 		friend class Synth;

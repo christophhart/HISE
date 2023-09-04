@@ -272,6 +272,7 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getTimestamp);
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
+	API_METHOD_WRAPPER_0(Message, makeArtificialOrLocal);
 	API_METHOD_WRAPPER_0(Message, isArtificial);
 	API_VOID_METHOD_WRAPPER_0(Message, sendToMidiOut);
 	API_VOID_METHOD_WRAPPER_1(Message, setAllNotesOffCallback);
@@ -319,6 +320,7 @@ allNotesOffCallback(p, nullptr, var(), 0)
 	ADD_API_METHOD_1(setStartOffset);
 	ADD_API_METHOD_1(store);
 	ADD_API_METHOD_0(makeArtificial);
+	ADD_API_METHOD_0(makeArtificialOrLocal);
 	ADD_API_METHOD_0(isArtificial);
 	ADD_API_METHOD_1(setAllNotesOffCallback);
 	ADD_API_METHOD_0(sendToMidiOut);
@@ -735,11 +737,17 @@ void ScriptingApi::Message::store(var messageEventHolder) const
 
 int ScriptingApi::Message::makeArtificial()
 {
+	return makeArtificialInternal(false);
+}
+
+int ScriptingApi::Message::makeArtificialInternal(bool makeLocal)
+{
 	if (messageHolder != nullptr)
 	{
-		if (messageHolder->isArtificial()) return messageHolder->getEventId();
-
 		HiseEvent copy(*messageHolder);
+
+		if (!makeLocal && copy.isArtificial())
+			return copy.getEventId();
 
 		copy.setArtificial();
 
@@ -767,6 +775,11 @@ int ScriptingApi::Message::makeArtificial()
 	}
 
 	return 0;
+}
+
+int ScriptingApi::Message::makeArtificialOrLocal()
+{
+	return makeArtificialInternal(true);
 }
 
 bool ScriptingApi::Message::isArtificial() const
