@@ -620,4 +620,73 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
 };
 
+/** A wrapper around the beatport authentication system. */
+class BeatportManager: public ConstScriptingObject
+{
+public:
+  
+	BeatportManager(ProcessorWithScriptingContent* sp);
+
+	~BeatportManager();
+
+	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("BeatportManager"); }
+
+	// ======================================================================== API Methods */
+
+	/** Requests DRM validation and returns a JSON object with the validation result. */
+	var validate();
+
+	/** Checks if the beatport access is valid. */
+	bool isBeatportAccess();
+
+	// ===================================================================================== */
+
+	/** Returns the folder inside the project repository where the beatport SDK is located. */
+	static File getBeatportProjectFolder(MainController* mc)
+	{
+#if USE_BACKEND
+		auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::AdditionalSourceCode).getChildFile("beatport");
+
+		if(!f.isDirectory())
+			f.createDirectory();
+
+		return f;
+#else
+		// this function should never be called in a compiled plugin because it will call into the real SDK...
+		jassertfalse;
+		return {};
+#endif
+
+	}
+
+private:
+
+#if HISE_INCLUDE_BEATPORT
+	struct Pimpl
+	{
+		Pimpl();
+
+		~Pimpl();
+
+		var validate();
+
+		bool isBeatportAccess() const;
+
+	private:
+
+		struct Data;
+		
+		// will be created on first usage;
+		Data* data;
+	};
+
+	ScopedPointer<Pimpl> pimpl;
+#endif
+	
+	struct Wrapper;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(BeatportManager);
+};
+
+
 } // namespace hise

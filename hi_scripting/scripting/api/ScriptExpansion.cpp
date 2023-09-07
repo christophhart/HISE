@@ -3024,6 +3024,83 @@ juce::File ScriptUnlocker::getLicenseKeyFile()
 	
 }
 
+struct BeatportManager::Wrapper
+{
+	API_METHOD_WRAPPER_0(BeatportManager, validate);
+	API_METHOD_WRAPPER_0(BeatportManager, isBeatportAccess);
+};
+
+BeatportManager::BeatportManager(ProcessorWithScriptingContent* sp):
+	ConstScriptingObject(sp, 0)
+{
+#if HISE_INCLUDE_BEATPORT
+	pimpl = new Pimpl();
+#endif
+
+	ADD_API_METHOD_0(validate);
+	ADD_API_METHOD_0(isBeatportAccess);
+}
+
+BeatportManager::~BeatportManager()
+{
+#if HISE_INCLUDE_BEATPORT
+	pimpl = nullptr;
+#endif
+}
+
+var BeatportManager::validate()
+{
+	auto t = Time::getMillisecondCounter();
+
+	var obj;
+
+#if HISE_INCLUDE_BEATPORT
+	obj = pimpl->validate();
+#else
+
+	// simulate waiting...
+	Thread::getCurrentThread()->wait(1500);
+
+	auto responseFile = getBeatportProjectFolder(getScriptProcessor()->getMainController_()).getChildFile("validate_response.json");
+
+	if(!responseFile.existsAsFile())
+		reportScriptError("You need to create a validate_response.json file in the beatport folder that simulates a response");
+
+	
+	auto ok = JSON::parse(responseFile.loadFileAsString(), obj);
+
+	if(ok.failed())
+		reportScriptError(ok.getErrorMessage());
+	
+#endif
+
+	auto now = Time::getMillisecondCounter();
+
+	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout((int)(now - t));
+
+	return obj;
+}
+
+bool BeatportManager::isBeatportAccess()
+{
+#if HISE_INCLUDE_BEATPORT
+	return pimpl->isBeatportAccess();
+#else
+	auto t = Time::getMillisecondCounter();
+
+	Thread::getCurrentThread()->wait(500);
+	auto responseFile = getBeatportProjectFolder(getScriptProcessor()->getMainController_()).getChildFile("validate_response.json");
+
+	auto now = Time::getMillisecondCounter();
+
+	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout((int)(now - t));
+
+	return responseFile.existsAsFile();
+#endif
+}
+
+
+
 struct ScriptUnlocker::RefObject::Wrapper
 {
 	API_METHOD_WRAPPER_0(RefObject, isUnlocked);

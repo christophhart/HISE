@@ -903,6 +903,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterRingBuffer);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
+	API_METHOD_WRAPPER_0(Engine, createBeatportManager);
 	API_METHOD_WRAPPER_0(Engine, createUnorderedStack);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
@@ -1097,6 +1098,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(createAndRegisterRingBuffer);
 	ADD_API_METHOD_0(getGlobalRoutingManager);
     ADD_API_METHOD_0(getLorisManager);
+	ADD_API_METHOD_0(createBeatportManager);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_2(loadFontAs);
 	ADD_API_METHOD_1(loadAudioFileIntoBufferArray);
@@ -1814,8 +1816,13 @@ juce::var ScriptingApi::Engine::createLicenseUnlocker()
 	return var(new ScriptUnlocker::RefObject(getScriptProcessor()));
 }
 
+var ScriptingApi::Engine::createBeatportManager()
+{
+	return var(new BeatportManager(getScriptProcessor()));
+}
+
 struct AudioRenderer : public Thread,
-					   public ControlledObject
+                       public ControlledObject
 {
 	static constexpr int NumThrowAwayBuffers = 4;
 

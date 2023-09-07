@@ -494,6 +494,10 @@ If enabled, the plugin will ignore any plugin parameter definitions from the scr
 #define HISE_MACROS_ARE_PLUGIN_PARAMETERS 0
 #endif
 
+#ifndef HISE_INCLUDE_BEATPORT
+#define HISE_INCLUDE_BEATPORT 0
+#endif
+
 // for iOS apps, the external files don't need to be embedded. Enable this to simulate this behaviour on desktop projects (not recommended for production)
 //#define DONT_EMBED_FILES_IN_FRONTEND 1
 

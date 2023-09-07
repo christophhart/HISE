@@ -368,6 +368,9 @@ public:
 		/** Creates a reference to the script license manager. */
 		var createLicenseUnlocker();
 
+		/** Creates a beatport manager object. */
+		var createBeatportManager();
+
 		/** Renders a MIDI event list as audio data on a background thread and calls a function when it's ready. */
 		void renderAudio(var eventList, var finishCallback);
 
