@@ -706,7 +706,7 @@ JavascriptMasterEffect::~JavascriptMasterEffect()
 
 Path JavascriptMasterEffect::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 void JavascriptMasterEffect::connectionChanged()

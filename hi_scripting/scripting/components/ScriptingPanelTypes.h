@@ -233,8 +233,15 @@ public:
 			static bool undo(Editor * e, bool shouldUndo);
 		};
 
+		LambdaBroadcaster<Image, float> overlayBroadcaster;
+		Image currentOverlayImage;
+		Array<File> currentOverlays;
+
 		GlobalHiseLookAndFeel klaf;
+		LookAndFeel_V4 slaf;
 		ComboBox* zoomSelector;
+		ComboBox* overlaySelector;
+		Slider* overlayAlphaSlider;
 	};
 
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
