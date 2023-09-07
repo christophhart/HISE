@@ -3070,7 +3070,7 @@ var BeatportManager::validate()
 	auto ok = JSON::parse(responseFile.loadFileAsString(), obj);
 
 	if(ok.failed())
-		reportScriptError(ok.getErrorMessage());
+		reportScriptError("Error at loading dummy JSON: " + ok.getErrorMessage());
 	
 #endif
 

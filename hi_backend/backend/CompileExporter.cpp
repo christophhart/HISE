@@ -1995,19 +1995,34 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 	if(additionalSourceCodeDirectory.getChildFile("beatport").isDirectory())
 	{
-		beatportLibPath << additionalSourceCodeDirectory.getFullPathName() + "/beatport/lib";
-
-#if JUCE_MAC
-		beatportLibPath << " ";
+#if JUCE_WINDOWS
+        beatportLibPath << additionalSourceCodeDirectory.getFullPathName() + "/beatport/lib";
+        beatportLibPath << ";";
+        beatportLibPath = beatportLibPath.replaceCharacter('/', '\\');
+        
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_DEBUG_LIB%", "");
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_RELEASE_LIB%", "");
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_LIB_MACOS%", "");
 #else
-		beatportLibPath << ";";
-		beatportLibPath = beatportLibPath.replaceCharacter('/', '\\');
+        
+        auto df = additionalSourceCodeDirectory.getChildFile("beatport").getChildFile("lib").getChildFile("macos").getChildFile("Debug");
+        auto rf = additionalSourceCodeDirectory.getChildFile("beatport").getChildFile("lib").getChildFile("macos").getChildFile("Release");
+        
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_DEBUG_LIB%", df.getFullPathName());
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_RELEASE_LIB%", rf.getFullPathName());
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_LIB_MACOS%", "Access");
 #endif
 	}
+    else
+    {
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_DEBUG_LIB%", "");
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_RELEASE_LIB%", "");
+        REPLACE_WILDCARD_WITH_STRING("%BEATPORT_LIB_MACOS%", "");
+    }
 
 #if JUCE_MAC
     const String additionalStaticLibs = exporter->GET_SETTING(HiseSettings::Project::OSXStaticLibs);
-    templateProject = templateProject.replace("%OSX_STATIC_LIBS%", beatportLibPath + additionalStaticLibs);
+    templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
 #else
 
 	auto additionalStaticLibFolder = exporter->GET_SETTING(HiseSettings::Project::WindowsStaticLibFolder);
