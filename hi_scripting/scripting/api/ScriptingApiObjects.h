@@ -1757,6 +1757,9 @@ namespace ScriptingObjects
 		/** Checks if the effect is bypassed. */
 		bool isBypassed() const;
 
+		/** Checks if the effect is currently suspended (= no audio running through it and suspension enabled). */
+		bool isSuspended() const;
+
 		/** Exports the state as base64 string. */
 		String exportState();
 
