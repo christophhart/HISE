@@ -2459,6 +2459,31 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 					var n = c->getParentComponent()->getName();
 					argsObject.getDynamicObject()->setProperty("parentName", n);
 				}
+                
+                static const StringArray hiddenProps = {"jcclr"};
+                
+                if(c != nullptr)
+                {
+                    for(auto& nv: c->getProperties())
+                    {
+                        if(!argsObject.hasProperty(nv.name))
+                        {
+                            bool hidden = false;
+                            
+                            for(const auto& hp: hiddenProps)
+                            {
+                                if(nv.name.toString().contains(hp))
+                                {
+                                    hidden = true;
+                                    break;
+                                }
+                            }
+                            
+                            if(!hidden)
+                                argsObject.getDynamicObject()->setProperty(nv.name, nv.value);
+                        }
+                    }
+                }
 
 				var::NativeFunctionArgs arg(thisObject, args, 2);
 				auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
