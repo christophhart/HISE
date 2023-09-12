@@ -345,12 +345,8 @@ void ScriptingContentOverlay::scriptComponentSelectionChanged()
 
 		if (draggedComponent == nullptr)
 		{
-			PresetHandler::showMessageWindow("Can't select component", "The component " + c->getName() + " can't be selected", PresetHandler::IconType::Error);
-			clearDraggers();
 			return;
 		}
-
-		
 
 		auto d = new Dragger(c, draggedComponent);
 
