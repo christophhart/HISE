@@ -914,7 +914,7 @@ void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
 				data[i] = buffer.getWritePointer(channelIndexes[i]);
 
 			ProcessDataDyn pd(data, numSamples, numChannels);
-			pd.setEventBuffer(eventBuffer);
+			pd.setEventBuffer(*eventBuffer);
 			getActiveNetwork()->process(pd);
 			return;
 		}
