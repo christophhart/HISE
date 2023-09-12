@@ -627,7 +627,7 @@ juce::Path VoiceEffectProcessor::getSpecialSymbol() const
 {
 	Path path;
 
-	path.loadPathFromData(ProcessorIcons::polyFX, sizeof(ProcessorIcons::polyFX));
+	path.loadPathFromData(ProcessorIcons::polyFX, SIZE_OF_PATH(ProcessorIcons::polyFX));
 	return path;
 }
 
