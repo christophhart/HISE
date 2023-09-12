@@ -230,6 +230,8 @@ void dynamic::restoreConnections(Identifier id, var newValue)
 		if (safePtr.get() == nullptr)
 			return true;
 
+        auto ok = false;
+        
 		if (id == PropertyIds::Value && safePtr->parentNode != nullptr)
 		{
 			auto ids = StringArray::fromTokens(newValue.toString(), ";", "");
@@ -237,7 +239,6 @@ void dynamic::restoreConnections(Identifier id, var newValue)
 			ids.removeEmptyStrings(true);
 
 			auto network = safePtr->parentNode->getRootNetwork();
-
 			auto list = network->getListOfNodesWithPath(getReceiveId(), false);
 
 			for (auto n : list)
@@ -252,14 +253,14 @@ void dynamic::restoreConnections(Identifier id, var newValue)
 					{
 						source = safePtr.get();
 						source->connect(ro.as<dynamic_receive>());
-						return true;
+                        ok = true;
 					}
 					else
 					{
 						if (source == safePtr.get())
 						{
 							source = &(ro.as<dynamic_receive>().null);
-							return true;
+                            ok = true;
 						}
 							
 					}
@@ -267,7 +268,7 @@ void dynamic::restoreConnections(Identifier id, var newValue)
 			}
 		}
 
-		return false;
+		return ok;
 	};
 
 	parentNode->getRootNetwork()->addPostInitFunction(f);
