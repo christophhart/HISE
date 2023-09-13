@@ -47,7 +47,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60103
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                    1
@@ -280,6 +280,10 @@
 
 #ifndef    HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON
  //#define HISE_SAMPLE_DIALOG_SHOW_LOCATE_BUTTON 1
+#endif
+
+#ifndef    HISE_MACROS_ARE_PLUGIN_PARAMETERS
+ //#define HISE_MACROS_ARE_PLUGIN_PARAMETERS 0
 #endif
 
 //==============================================================================
