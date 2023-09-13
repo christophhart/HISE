@@ -1135,6 +1135,8 @@ String mcl::TextDocument::getSelectionContent(Selection s) const
 
 mcl::Transaction mcl::TextDocument::fulfill(const Transaction& transaction)
 {
+    setSearchResults({});
+    
 	cachedBounds = {}; // invalidate the bounds
 
 	const auto t = transaction.accountingForSpecialCharacters(*this);
