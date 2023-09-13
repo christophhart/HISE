@@ -2190,7 +2190,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 		return true;
 	};
 
-	auto insertIfNotOpen = [this](juce_wchar openChar, juce_wchar closeChar)
+	auto insertIfNotOpen = [this, skipIfClosure](juce_wchar openChar, juce_wchar closeChar)
 	{
 		auto s = document.getSelection(0);
 
@@ -2255,6 +2255,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 			
 		}
 			
+        if(!both && closeChar =='\"' && skipIfClosure(closeChar))
+        {
+            return both;
+        }
 
 		insert(text);
 
@@ -2789,8 +2793,10 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     if (key == KeyPress ('d', ModifierKeys::ctrlModifier, 0))      return insert (String::charToString (KeyPress::deleteKey));
     if (key.isKeyCode (KeyPress::returnKey))                       return insertTabAfterBracket();
 
-	if(ActionHelpers::isLeftClosure(key.getTextCharacter()))   return insertClosure(key.getTextCharacter());
-	if (ActionHelpers::isRightClosure(key.getTextCharacter())) return skipIfClosure(key.getTextCharacter());
+    if(ActionHelpers::isLeftClosure(key.getTextCharacter()))   return insertClosure(key.getTextCharacter());
+    if (ActionHelpers::isRightClosure(key.getTextCharacter())) return skipIfClosure(key.getTextCharacter());
+	
+	
 
     if (key.getTextCharacter() >= ' ' || isTab)                    return insert (String::charToString (key.getTextCharacter()));
 
