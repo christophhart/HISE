@@ -213,6 +213,8 @@ public:
 	{
 		popoutWindows.add(new FloatingTileDocumentWindow(this));
 
+        popoutWindows.getLast()->addKeyListener(mainCommandManager->getKeyMappings());
+        
 		return popoutWindows.getLast();
 	}
 
