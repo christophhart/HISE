@@ -1325,15 +1325,20 @@ void HiPropertyPanelLookAndFeel::drawLinearSlider(Graphics& g, int i, int i1, in
 		actualWidth = (float)proportion * (float)(width-2);
 	}
 
-	c = s.findColour(Slider::ColourIds::thumbColourId);
+    if(actualWidth > 0.0f)
+    {
+        c = s.findColour(Slider::ColourIds::thumbColourId);
 
-	g.setGradientFill (ColourGradient (c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
-	                                   0.0f, 0.0f,
-	                                   c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
-	                                   0.0f, (float)height,
-	                                   false));
-	g.fillRect(leftX, 2.0f, actualWidth , (float)(height-2));
-
+        g.setGradientFill (ColourGradient (c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
+                                           0.0f, 0.0f,
+                                           c.withMultipliedAlpha(s.isEnabled() ? 0.8f : 0.4f),
+                                           0.0f, (float)height,
+                                           false));
+        
+        
+        
+        g.fillRect(leftX, 2.0f, actualWidth , (float)(height-2));
+    }
 }
 
 Font HiPropertyPanelLookAndFeel::getLabelFont(Label& label)

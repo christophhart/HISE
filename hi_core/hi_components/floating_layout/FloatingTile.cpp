@@ -2168,6 +2168,9 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 {
 	auto pt = t->getParentType();
 
+    if(t->findParentComponentOfClass<ScriptContentComponent>() != nullptr)
+        return false;
+    
 	if (t->closeTogglesVisibility)
 		return true;
 
