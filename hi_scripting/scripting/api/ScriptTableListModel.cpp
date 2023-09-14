@@ -286,9 +286,13 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 
 				var vToUse = value;
 
-				if(rangeSet != RangeHelpers::IdSet::scriptnode)
-					vToUse = rowData[rowNumber];
 
+				if(rangeSet != RangeHelpers::IdSet::scriptnode)
+				{
+					SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+					vToUse = rowData[rowNumber];
+				}
+					
 				ComponentUpdateHelpers::updateSliderProperties(s, vToUse, rangeSet, shouldSendCallOnDrag());
 				ComponentUpdateHelpers::updateValue(s, value);
 			}
@@ -345,6 +349,8 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 				
 				auto r = (int)b->getProperties()["RowIndex"];
 
+				SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+
 				if (auto obj = rowData[r].getDynamicObject())
 				{
 					obj->setProperty(id, b->getToggleState());
@@ -380,6 +386,8 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			{
 				auto id = columnMetadata[c - 1][PropertyIds::ID].toString();
 
+				SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+
 				auto r_ = (int)s_->getProperties()["RowIndex"];
 
 				if (auto obj = rowData[r_].getDynamicObject())
@@ -397,7 +405,11 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 			var vToUse = value;
 
 			if (rangeSet != RangeHelpers::IdSet::scriptnode)
+			{
+				SimpleReadWriteLock::ScopedReadLock sl(rowLock);
 				vToUse = rowData[rowNumber];
+			}
+				
 
 			if (!ComponentUpdateHelpers::updateSliderProperties(s, vToUse, rangeSet, shouldSendCallOnDrag()))
 				ComponentUpdateHelpers::updateSliderProperties(s, cd, rangeSet, shouldSendCallOnDrag());
@@ -433,6 +445,8 @@ Component* ScriptTableListModel::refreshComponentForCell(int rowNumber, int colu
 				auto r_ = (int)cb_->getProperties()["RowIndex"];
 
 				var value = ComponentUpdateHelpers::getValue(cb_, valueMode);
+
+				SimpleReadWriteLock::ScopedReadLock sl(rowLock);
 
 				if (auto obj = rowData[r_].getDynamicObject())
 				{
@@ -520,6 +534,7 @@ ScriptTableListModel::LookAndFeelMethods::~LookAndFeelMethods()
 
 int ScriptTableListModel::getNumRows()
 {
+	SimpleReadWriteLock::ScopedReadLock sl(rowLock);
 	return rowData.size();
 }
 
@@ -534,6 +549,8 @@ var ScriptTableListModel::getCellValue(int rowIndex, int columnIndex) const
 {
 	if(isPositiveAndBelow(columnIndex, columnMetadata.size()))
 	{
+		SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+
 		auto id = columnMetadata[columnIndex][scriptnode::PropertyIds::ID].toString();
             
 		if(isPositiveAndBelow(rowIndex, rowData.size()))
@@ -572,7 +589,11 @@ void ScriptTableListModel::addAdditionalCallback(const std::function<void(int co
 }
 
 var ScriptTableListModel::getRowData() const
-{ return rowData.clone(); }
+{
+	SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+
+	return rowData.clone();
+}
 
 int ScriptTableListModel::defaultSorter(const var& v1, const var& v2)
 {
@@ -812,6 +833,8 @@ void ScriptTableListModel::sortOrderChanged(int newSortColumnId, bool isForwards
 		SortFunction sf;
 	};
 
+	SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+
 	if (auto a = rowData.getArray())
 	{
 		PropertySorter sorter(idToUse, isForwards, sortFunction);
@@ -869,6 +892,7 @@ Result ScriptTableListModel::setEventTypesForValueCallback(var eventTypeList)
 
 int ScriptTableListModel::getOriginalRowIndex(int rowIndex) const
 {
+	SimpleReadWriteLock::ScopedReadLock sl(rowLock);
 	auto item = rowData[rowIndex];
 	return originalRowData.indexOf(item);
 }
@@ -886,7 +910,15 @@ void ScriptTableListModel::cellClicked(int rowNumber, int columnId, const MouseE
 
     
 	TableListBoxModel::cellClicked(rowNumber, columnId, e);
-	sendCallback(rowNumber, columnId, rowData[rowNumber], EventType::SingleClick);
+
+	var c;
+
+    {
+		SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+	    c = rowData[rowNumber];
+    }
+
+	sendCallback(rowNumber, columnId, c, EventType::SingleClick);
 }
 
 void ScriptTableListModel::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e)
@@ -917,19 +949,41 @@ void ScriptTableListModel::selectedRowsChanged(int lastRowSelected)
 	if (lastRowSelected == -1)
 		return;
 
-	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::Selection);
+	var c;
+
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+		c = rowData[lastRowSelected];
+	}
+
+	sendCallback(lastRowSelected, lastClickedCell.x, c, EventType::Selection);
 }
 
 void ScriptTableListModel::deleteKeyPressed(int lastRowSelected)
 {
 	TableListBoxModel::deleteKeyPressed(lastRowSelected);
-	sendCallback(lastRowSelected, 0, rowData[lastRowSelected], EventType::DeleteRow);
+
+	var c;
+
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+		c = rowData[lastRowSelected];
+	}
+
+	sendCallback(lastRowSelected, 0, c, EventType::DeleteRow);
 }
 
 void ScriptTableListModel::returnKeyPressed(int lastRowSelected)
 {
 	TableListBoxModel::returnKeyPressed(lastRowSelected);
-	sendCallback(lastRowSelected, lastClickedCell.x, rowData[lastRowSelected], EventType::ReturnKey);
+
+	var c;
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(rowLock);
+		c = rowData[lastRowSelected];
+	}
+
+	sendCallback(lastRowSelected, lastClickedCell.x, c, EventType::ReturnKey);
 }
 
 void ScriptTableListModel::setTableSortFunction(var newSortFunction)
@@ -960,14 +1014,18 @@ void ScriptTableListModel::setTableSortFunction(var newSortFunction)
 
 void ScriptTableListModel::setRowData(var rd)
 {
-	originalRowData = rd.clone();
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(rowLock);
 
-	Array<var> newData;
+		originalRowData = rd.clone();
 
-	if (auto a = originalRowData.getArray())
-		newData.addArray(*a);
+		Array<var> newData;
 
-	rowData = var(newData);
+		if (auto a = originalRowData.getArray())
+			newData.addArray(*a);
+
+		rowData = var(newData);
+	}
 
 	if (d.sortColumnId != 0)
 	{
@@ -1036,6 +1094,9 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 				return;
 
 			lastClickedCell = newCell;
+
+	
+			SimpleReadWriteLock::ScopedReadLock sl(rowLock);
 
 			if(rowData.isArray() && isPositiveAndBelow(rowId, rowData.size()))
 				value = rowData[rowId];
@@ -1107,7 +1168,13 @@ bool ScriptTableListModel::TableRepainter::keyPressed(const KeyPress& key, Compo
 	{
         if(parent.processSpaceKey)
         {
-            parent.sendCallback(parent.lastClickedCell.x, parent.lastClickedCell.y, parent.rowData[parent.lastClickedCell.y], EventType::SpaceKey);
+			var c;
+			{
+				SimpleReadWriteLock::ScopedReadLock sl(parent.rowLock);
+				c = parent.rowData[parent.lastClickedCell.y];
+			}
+			
+            parent.sendCallback(parent.lastClickedCell.x, parent.lastClickedCell.y, c, EventType::SpaceKey);
             
             return true;
         }

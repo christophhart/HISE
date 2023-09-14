@@ -225,6 +225,9 @@ private:
     
 	var tableMetadata;
 	var columnMetadata;
+
+	mutable hise::SimpleReadWriteLock rowLock;
+
 	var rowData;
 	var originalRowData;
 	WeakCallbackHolder cellCallback;
