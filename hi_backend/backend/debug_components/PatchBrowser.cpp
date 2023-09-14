@@ -1036,7 +1036,7 @@ hierarchy(hierarchy_)
 	addAndMakeVisible(idLabel);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
 
-	foldButton->setVisible(false);
+	foldButton->setVisible(true);
 
     setTooltip("Show " + synth->getId() + " editor");
     
