@@ -2857,6 +2857,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_0(removeAllSources);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_2(sendMessage);
+	ADD_API_METHOD_2(sendMessageWithDelay);
 	ADD_API_METHOD_1(sendAsyncMessage);
 	ADD_API_METHOD_1(sendSyncMessage);
 	ADD_API_METHOD_3(attachToComponentProperties);
