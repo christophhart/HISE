@@ -1198,8 +1198,9 @@ void ScriptTableListModel::TableRepainter::mouseDown(const MouseEvent& e)
 	if (parent.lastClickedCell.y == parent.hoverPos.y)
 		send = true;
 
-	parent.lastClickedCell = parent.hoverPos;
-
+	if(dynamic_cast<ScrollBar*>(e.eventComponent) == nullptr)
+		parent.lastClickedCell = parent.hoverPos;
+	
 	if (send)
 		parent.selectedRowsChanged(parent.lastClickedCell.y);
 

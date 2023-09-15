@@ -6330,13 +6330,21 @@ void ScriptingObjects::ScriptBackgroundTask::sendAbortSignal(bool blockUntilStop
 	{
 		if (blockUntilStopped)
 		{
-			if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
+			if(Thread::getCurrentThread() == this && blockUntilStopped)
+			{
+				signalThreadShouldExit();
+				reportScriptError("Can't stop with blocking on the worker thread");
+			}
+			else
+			{
+				if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
 			{
 				// extend the timeout while we're waiting for the thread to stop
 				engine->extendTimeout(timeOut + 10);
 			}
 
-			stopThread(timeOut);
+				stopThread(timeOut);
+			}
 		}
 		else
 			signalThreadShouldExit();
