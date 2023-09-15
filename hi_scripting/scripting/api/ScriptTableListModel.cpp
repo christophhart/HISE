@@ -86,7 +86,7 @@ void ScriptTableListModel::paintCell(Graphics& g, int rowNumber, int columnId, i
         return;
     
 	auto isClicked = lastClickedCell.y == rowNumber && lastClickedCell.x == columnId;
-	auto isHover = hoverPos.y == rowNumber && hoverPos.x == columnId;
+	auto isHover = hoverPos.y == rowNumber && (hoverPos.x == columnId || !isMultiColumn());
 
 	lafToUse->drawTableCell(g, d, s.toString(), rowNumber, columnId - 1, width, height, rowIsSelected, isClicked, isHover);
 }
@@ -485,8 +485,7 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 
 	t->setLookAndFeel(&fallback);
 
-	if(isMultiColumn())
-		tableRepainters.add(new TableRepainter(t, *this));
+	tableRepainters.add(new TableRepainter(t, *this));
 
 	int idx = 1;
 
@@ -542,7 +541,9 @@ void ScriptTableListModel::paintRowBackground(Graphics& g, int rowNumber, int wi
 {
 	auto lafToUse = laf != nullptr ? laf : &fallback;
 
-	lafToUse->drawTableRowBackground(g, d, rowNumber, width, height, rowIsSelected);
+	auto rowIsHovered = hoverPos.y == rowNumber;
+
+	lafToUse->drawTableRowBackground(g, d, rowNumber, width, height, rowIsSelected, rowIsHovered);
 }
 
 var ScriptTableListModel::getCellValue(int rowIndex, int columnIndex) const
@@ -630,7 +631,7 @@ void ScriptTableListModel::TableRepainter::mouseMove(const MouseEvent& e)
 	repaintIfCellChange(e);
 }
 
-void ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected)
+void ScriptTableListModel::LookAndFeelMethods::drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected, bool rowIsHovered)
 {
 	Rectangle<int> a(0, 0, width, height);
 
@@ -1207,8 +1208,10 @@ void ScriptTableListModel::TableRepainter::mouseDown(const MouseEvent& e)
 
 void ScriptTableListModel::TableRepainter::mouseExit(const MouseEvent& event)
 {
-	t.getComponent()->repaintRow(parent.hoverPos.y);
-	parent.hoverPos = {};
+	if(parent.hoverPos.y != -1)
+		t.getComponent()->repaintRow(parent.hoverPos.y);
+
+	parent.hoverPos = { 0, -1 };
 }
 
 void ScriptTableListModel::TableRepainter::repaintIfCellChange(const MouseEvent& e)
@@ -1217,25 +1220,29 @@ void ScriptTableListModel::TableRepainter::repaintIfCellChange(const MouseEvent&
 	auto pos = te.getPosition();
 
 	Point<int> s;
-
+	
 	s.y = t.getComponent()->getRowContainingPosition(pos.x, pos.y);
 
-	for (int i = 0; i < parent.columnMetadata.size(); i++)
+	if(parent.isMultiColumn())
 	{
-		auto c = t.getComponent()->getCellPosition(i + 1, s.y, true);
-
-		if (c.isEmpty())
-			break;
-
-		if (c.contains(pos))
+		for (int i = 0; i < parent.columnMetadata.size(); i++)
 		{
-			s.x = i + 1;
-			break;
+			auto c = t.getComponent()->getCellPosition(i + 1, s.y, true);
+
+			if (c.isEmpty())
+				break;
+
+			if (c.contains(pos))
+			{
+				s.x = i + 1;
+				break;
+			}
 		}
 	}
 
 	if (parent.hoverPos != s)
 	{
+		if(parent.hoverPos.y != -1)
 		t->repaintRow(parent.hoverPos.y);
 		parent.hoverPos = s;
 		t->repaintRow(parent.hoverPos.y);
