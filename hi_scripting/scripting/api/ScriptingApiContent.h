@@ -2030,6 +2030,27 @@ public:
 		Type t;
 	};
 
+    struct TextInputDataBase: public ReferenceCountedObject
+    {
+        using Ptr = ReferenceCountedObjectPtr<TextInputDataBase>;
+        
+        TextInputDataBase(const String& parentId_):
+          parentId(parentId_)
+        {};
+        
+        virtual ~TextInputDataBase() {};
+        
+        virtual void show(Component* parentComponent) = 0;
+        
+        bool done = false;
+        String parentId;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextInputDataBase);
+    };
+    
+    LambdaBroadcaster<TextInputDataBase::Ptr> textInputBroadcaster;
+    
+    
 	// ================================================================================================================
 
 	Content(ProcessorWithScriptingContent *p);;
@@ -2127,6 +2148,9 @@ public:
 	/** Creates either a line or rectangle with the given colour. */
 	void addVisualGuide(var guideData, var colour);
 
+    /** Opens a text input box with the given properties and executes the callback when finished. */
+    void showModalTextInput(var properties, var callback);
+    
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
     

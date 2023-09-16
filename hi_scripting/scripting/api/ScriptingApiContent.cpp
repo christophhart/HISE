@@ -5708,6 +5708,7 @@ colour(Colour(0xff777777))
 	setMethod("addVisualGuide", Wrapper::addVisualGuide);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
+    setMethod("showModalTextInput", Wrapper::showModalTextInput);
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("getAllComponents", Wrapper::getAllComponents);
@@ -6653,6 +6654,139 @@ void ScriptingApi::Content::createScreenshot(var area, var directory, String nam
 			}
 		}
 	}
+}
+
+
+
+struct TextInputData: public ScriptingApi::Content::TextInputDataBase,
+                      public ControlledObject,
+                      public TextEditor::Listener
+{
+    TextInputData(ProcessorWithScriptingContent* sp, const var& properties, const var& callback_):
+      TextInputDataBase(properties["parentComponent"].toString()),
+      ControlledObject(sp->getMainController_()),
+      callback(sp, nullptr, callback_, 2),
+      alignment(Justification::centred),
+      prop(properties.clone())
+    {
+        callback.incRefCount();
+        
+        if(prop.hasProperty("alignment"))
+        {
+            Result re = Result::ok();
+            alignment = ApiHelpers::getJustification(prop["alignment"], &re);
+
+            if (re.failed())
+                alignment = Justification::centred;
+        }
+    }
+    
+    void textEditorFocusLost(TextEditor&) override
+    {
+        dismissAndCall(false);
+    }
+
+    void textEditorReturnKeyPressed(TextEditor&) override
+    {
+        dismissAndCall(true);
+    }
+
+    void textEditorEscapeKeyPressed(TextEditor&) override
+    {
+        dismissAndCall(false);
+    }
+    
+    void show(Component* parent)
+    {
+        if(done)
+            return;
+        
+        jassert(MessageManager::getInstance()->isThisTheMessageThread());
+        
+        parent->addAndMakeVisible(inputLabel = new TextEditor());
+        inputLabel->addListener(this);
+        
+        Rectangle<int> bounds((int)prop["x"], (int)prop["y"], (int)prop["width"], (int)prop["height"]);
+        
+        if(bounds.isEmpty())
+            inputLabel->centreWithSize(parent->getWidth(), 20);
+        else
+            inputLabel->setBounds(bounds);
+        
+        
+        Colour bgColour, outlineColour, textColour;
+        
+        using namespace scriptnode;
+        
+        bgColour = PropertyHelpers::getColourFromVar(prop.getProperty("bgColour", 0x88000000));
+        outlineColour = PropertyHelpers::getColourFromVar(prop.getProperty("itemColour", 0));
+        textColour = PropertyHelpers::getColourFromVar(prop.getProperty("textColour", 0xAAFFFFFF));
+        
+        inputLabel->setColour(TextEditor::ColourIds::backgroundColourId, bgColour);
+        inputLabel->setColour(TextEditor::ColourIds::textColourId, textColour);
+        inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+        inputLabel->setColour(TextEditor::ColourIds::highlightColourId, textColour.withAlpha(0.5f));
+        inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+        inputLabel->setColour(CaretComponent::ColourIds::caretColourId, textColour);
+
+        auto fontName = prop.getProperty("fontName", "").toString();
+        auto fontStyle = prop.getProperty("fontStyle", "plain").toString();
+        auto fontSize = (float)prop.getProperty("fontSize", 13.0f);
+        
+        if(fontName.isNotEmpty())
+        {
+            const juce::Typeface::Ptr typeface = getMainController()->getFont(fontName);
+
+            if (typeface != nullptr)
+                fontToUse = Font(typeface).withHeight(fontSize);
+            else
+                fontToUse = Font(fontName, fontStyle, fontSize);
+        }
+        else
+        {
+            fontToUse = GLOBAL_BOLD_FONT();
+        }
+        
+        inputLabel->setFont(fontToUse);
+        inputLabel->setBorder(BorderSize<int>());
+        
+        inputLabel->setJustification(alignment);
+        
+        inputLabel->setText(prop["text"].toString(), dontSendNotification);
+        inputLabel->selectAll();
+        inputLabel->grabKeyboardFocus();
+    }
+    
+    void dismissAndCall(bool ok)
+    {
+        var args[2] = {var(ok), var(inputLabel->getText())};
+        
+        inputLabel->getParentComponent()->removeChildComponent(inputLabel);
+        inputLabel = nullptr;
+        
+        if(callback)
+        {
+            callback.call(args, 2);
+        }
+        
+        prop = var();
+        done = true;
+        
+    }
+    
+    ScopedPointer<juce::TextEditor> inputLabel;
+    
+    Justification alignment;
+    Font fontToUse;
+    var prop;
+    WeakCallbackHolder callback;
+};
+
+void ScriptingApi::Content::showModalTextInput(var properties, var callback)
+{
+    TextInputDataBase::Ptr d = new TextInputData(getScriptProcessor(), properties, callback);
+    
+    textInputBroadcaster.sendMessage(sendNotificationAsync, d);
 }
 
 void ScriptingApi::Content::addVisualGuide(var guideData, var colour)
