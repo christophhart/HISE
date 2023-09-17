@@ -1375,8 +1375,18 @@ template <typename...Ps> struct LambdaBroadcaster final
 			valueQueue = nullptr;
 	}
 
+    /** During the execution of the send message the listener list will be locked by default so that
+        adding / removing listeners while the message executes will cause a lock. This can be disabled
+        with this function so that it will take a copy of the listener list before sending the message so
+        that the listener list is not locked during the execution of the listener callbacks.
+    */
+    void setLockListenersDuringMessage(bool lockFreeListener)
+    {
+        lockFreeSendMessage = lockFreeListener;
+    }
+    
 private:
-
+    
 	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
 	{
         if(n == dontSendNotification)
@@ -1408,38 +1418,73 @@ private:
 		}
 	}
 
+    using ListenerType = SafeLambdaBase<void, Ps...>;
+    
 	std::tuple<Ps...> lastValue;
 
+    void sendInternalForArray(ListenerType** l, int numListeners)
+    {
+        if (valueQueue != nullptr)
+        {
+            valueQueue.get()->callForEveryElementInQueue([&](std::tuple<Ps...>& v)
+            {
+                for(int i = 0; i < numListeners; i++)
+                {
+                    if (l[i]->isValid())
+                        std::apply(*l[i], v);
+                }
+                
+                return true;
+            });
+        }
+        else
+        {
+            for(int i = 0; i < numListeners; i++)
+            {
+                if (l[i]->isValid())
+                    std::apply(*l[i], lastValue);
+            }
+        }
+    }
+    
 	void sendInternal()
 	{
 		removeDanglingObjects();
 
-		if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
-		{
-			if (valueQueue != nullptr)
-			{
-				valueQueue.get()->callForEveryElementInQueue([&](std::tuple<Ps...>& v)
-				{
-					for (auto i : listeners)
-					{
-						if (i->isValid())
-							std::apply(*i, v);
-					}
-
-					return true;
-				});
-			}
-			else
-			{
-				for (auto i : listeners)
-				{
-					if (i->isValid())
-						std::apply(*i, lastValue);
-				}
-			}
-		}
-		else
-			updater.triggerAsyncUpdate();
+        if(lockFreeSendMessage)
+        {
+            int numListeners = listeners.size();
+            
+            auto tempData = (ListenerType**)alloca(sizeof(ListenerType*) * numListeners);
+            
+            if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+            {
+                numListeners = jmin(numListeners, listeners.size());
+                memcpy(tempData, listeners.begin(), numListeners * sizeof(ListenerType*));
+            }
+            else
+            {
+                updater.triggerAsyncUpdate();
+                return;
+            }
+            
+            sendInternalForArray(tempData, numListeners);
+        }
+        else
+        {
+            if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+            {
+                sendInternalForArray(listeners.begin(), listeners.size());
+            }
+            else
+                updater.triggerAsyncUpdate();
+        }
+        
+        
+        
+        
+        
+		
 	}
 
 	struct Updater : public AsyncUpdater
@@ -1490,8 +1535,12 @@ private:
 
 	ScopedPointer<hise::LockfreeQueue<std::tuple<Ps...>>> valueQueue;
 
+    bool lockFreeSendMessage = false;
 	hise::SimpleReadWriteLock lock;
-	OwnedArray<SafeLambdaBase<void, Ps...>> listeners;
+                      
+                      
+                      
+	OwnedArray<ListenerType> listeners;
 };
 
 

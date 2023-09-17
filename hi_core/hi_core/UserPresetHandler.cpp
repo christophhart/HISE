@@ -222,6 +222,9 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Cu
 
 	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
 
+    syncListeners.setLockListenersDuringMessage(true);
+    asyncListeners.setLockListenersDuringMessage(true);
+    
 	asyncListeners.sendMessage(dontSendNotification, index, lastValue);
 	syncListeners.sendMessage(dontSendNotification, args);
 }
