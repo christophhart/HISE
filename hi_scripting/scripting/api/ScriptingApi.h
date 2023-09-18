@@ -799,6 +799,9 @@ public:
 		/** Enables or disables debug logging */
 		void setEnableDebugMode(bool shouldBeEnabled);
 
+		/** Changes the sample folder. */
+		void setSampleFolder(var sampleFolder);
+
 		// ============================================================================================================
 
 	private:

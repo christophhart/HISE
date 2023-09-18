@@ -2490,7 +2490,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiInput);
 	API_METHOD_WRAPPER_1(Settings, isMidiInputEnabled);
 	API_VOID_METHOD_WRAPPER_2(Settings, toggleMidiChannel);
-	
+	API_VOID_METHOD_WRAPPER_1(Settings, setSampleFolder);
 	API_METHOD_WRAPPER_1(Settings, isMidiChannelEnabled);
 	API_METHOD_WRAPPER_0(Settings, getUserDesktopSize);
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
@@ -2538,6 +2538,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_0(isOpenGLEnabled);
 	ADD_API_METHOD_1(setEnableOpenGL);
 	ADD_API_METHOD_1(setEnableDebugMode);
+	ADD_API_METHOD_1(setSampleFolder);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -2565,6 +2566,23 @@ void ScriptingApi::Settings::setEnableOpenGL(bool shouldBeEnabled)
 void ScriptingApi::Settings::setEnableDebugMode(bool shouldBeEnabled)
 {
 	shouldBeEnabled ? mc->getDebugLogger().startLogging() : mc->getDebugLogger().stopLogging();	
+}
+
+void ScriptingApi::Settings::setSampleFolder(var sampleFolder)
+{
+	if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(sampleFolder.getObject()))
+	{
+		auto newLocation = sf->f;
+
+		if(newLocation.isDirectory())
+		{
+#if USE_BACKEND
+			getScriptProcessor()->getMainController_()->getCurrentFileHandler().createLinkFile(FileHandlerBase::Samples, newLocation);
+#else
+			FrontendHandler::setSampleLocation(newLocation);
+#endif
+		}
+	}
 }
 
 
