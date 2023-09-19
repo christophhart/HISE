@@ -1471,8 +1471,24 @@ void HiseAudioThumbnail::rebuildPaths(bool synchronously)
 {
 	// refresh the options here...
 	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
-        
+	{
+		if(!optionsInitialised)
+		{
+			currentOptions = laf->getThumbnailRenderOptions(*this, currentOptions);
+			optionsInitialised = !currentOptions.dynamicOptions;
+		}
+	}
+	
+	auto numActualSamples = lengthInSeconds * sampleRate;
+
+	if(currentOptions.manualDownSampleFactor > 0.0)
+		numActualSamples /= currentOptions.manualDownSampleFactor;
+
+	if(roundToInt(numActualSamples) < currentOptions.multithreadThreshold)
+	{
+		synchronously = true;
+	}
+	
 	if (synchronously)
 	{
 		isClear = true;

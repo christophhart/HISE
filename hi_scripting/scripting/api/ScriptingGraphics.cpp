@@ -3738,6 +3738,8 @@ HiseAudioThumbnail::RenderOptions ScriptingObjects::ScriptedLookAndFeel::Laf::ge
         obj->setProperty("displayGain", defaultOptions.displayGain);
         obj->setProperty("useRectList", defaultOptions.useRectList);
         obj->setProperty("forceSymmetry", defaultOptions.forceSymmetry);
+		obj->setProperty("multithreadThreshold", defaultOptions.multithreadThreshold);
+		obj->setProperty("dynamicOptions", defaultOptions.dynamicOptions);
 
         var x = var(obj);
 
@@ -3754,7 +3756,9 @@ HiseAudioThumbnail::RenderOptions ScriptingObjects::ScriptedLookAndFeel::Laf::ge
             newOptions.displayGain = nObj.getProperty("displayGain", defaultOptions.displayGain);
             newOptions.useRectList = nObj.getProperty("useRectList", defaultOptions.useRectList);
             newOptions.forceSymmetry = nObj.getProperty("forceSymmetry", defaultOptions.forceSymmetry);
-            
+			newOptions.multithreadThreshold = (int)nObj.getProperty("multithreadThreshold", defaultOptions.multithreadThreshold);
+			newOptions.dynamicOptions = nObj.getProperty("dynamicOptions", defaultOptions.dynamicOptions);
+
             FloatSanitizers::sanitizeFloatNumber(newOptions.manualDownSampleFactor);
             FloatSanitizers::sanitizeFloatNumber(newOptions.displayGain);
             

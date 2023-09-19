@@ -70,11 +70,13 @@ public:
         
         DisplayMode displayMode = DisplayMode::SymmetricArea;
         float manualDownSampleFactor = -1.0f;
+		int multithreadThreshold = 44100;
         bool drawHorizontalLines = false;
         bool scaleVertically = false;
         float displayGain = 1.0f;
         bool useRectList = false;
         int forceSymmetry = 0;
+		bool dynamicOptions = false;
     };
     
 	struct LookAndFeelMethods
@@ -163,6 +165,7 @@ public:
 private:
 
     RenderOptions currentOptions;
+	bool optionsInitialised = false;
     
 	//float manualDownSampleFactor = -1.0f;
 
