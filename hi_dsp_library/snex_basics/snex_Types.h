@@ -755,6 +755,18 @@ struct VoiceDataStack
 				}
 			}
 		}
+        else if (m.isAllNotesOff())
+        {
+            for(auto vd: voiceNoteOns)
+            {
+                HiseEvent c(vd.noteOn);
+                c.setType(HiseEvent::Type::NoteOff);
+                c.setVelocity(0);
+                
+                PolyHandler::ScopedVoiceSetter vs(ph, vd.voiceIndex);
+                n.handleHiseEvent(c);
+            }
+        }
 		else if (m.isPitchWheel() || m.isAftertouch() || m.isController())
 		{
 			if (voiceNoteOns.isEmpty())
