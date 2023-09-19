@@ -785,6 +785,15 @@ void ScriptTableListModel::setTableColumnData(var cd)
 	}
 }
 
+void ScriptTableListModel::handleAsyncUpdate()
+{
+	if(pendingEvent)
+	{
+		sendCallback(pendingEvent.rowId, pendingEvent.columnId, pendingEvent.value, pendingEvent.type, sendNotificationSync);
+		pendingEvent = {};
+	}
+}
+
 void ScriptTableListModel::setFont(Font f, Justification c)
 {
 	d.f = f;
@@ -1045,10 +1054,23 @@ void ScriptTableListModel::setCallback(var callback)
 	}
 }
 
-void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, EventType type)
+void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, EventType type, NotificationType n)
 {
 	if (cellCallback)
 	{
+		// a click on a cell will fire a selection with the old row index so we have to defer it and be overriden
+		// with the subsequent click event
+		if(isMultiColumn() && (type == EventType::Selection || type == EventType::SingleClick) && n == sendNotificationAsync)
+		{
+			pendingEvent = {};
+			pendingEvent.rowId = rowId;
+			pendingEvent.columnId = columnId;
+			pendingEvent.value = value;
+			pendingEvent.type = type;
+			triggerAsyncUpdate();
+			return;
+		}
+
 		auto obj = new DynamicObject();
 
 		switch (type)

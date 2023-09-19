@@ -36,7 +36,8 @@ namespace hise { using namespace juce;
 
 struct ScriptTableListModel : public juce::TableListBoxModel,
 							  public ReferenceCountedObject,
-							  public PooledUIUpdater::SimpleTimer
+							  public PooledUIUpdater::SimpleTimer,
+							  public AsyncUpdater
 {
 	using Ptr = ReferenceCountedObjectPtr<ScriptTableListModel>;
 
@@ -52,7 +53,8 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 		SpaceKey,
 		SetValue,
 		Undo,
-		DeleteRow
+		DeleteRow,
+		numEventTypes
 	};
 
 	enum class CellType
@@ -129,7 +131,21 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	void setCallback(var callback);
 
-	void sendCallback(int rowId, int columnId, var value, EventType type);
+	void sendCallback(int rowId, int columnId, var value, EventType type, NotificationType notification = sendNotificationAsync);
+
+	struct EventData
+	{
+		operator bool() const { return type != EventType::numEventTypes; };
+
+		int rowId = -1;
+		int columnId = -1;
+		var value;
+		EventType type = EventType::numEventTypes;
+	};
+
+	void handleAsyncUpdate() override;
+
+	EventData pendingEvent;
 
 	void setFont(Font f, Justification c);
 
