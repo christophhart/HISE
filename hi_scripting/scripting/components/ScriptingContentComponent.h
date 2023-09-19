@@ -149,6 +149,8 @@ public:
 
 	void contentWasRebuilt() override;
 
+	ScriptingApi::Content::TextInputDataBase::Ptr currentTextBox;
+
     void contentRebuildStateChanged(bool rebuildState)
     {
         if(rebuildState)

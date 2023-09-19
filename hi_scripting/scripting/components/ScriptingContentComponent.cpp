@@ -530,12 +530,15 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 {
 	if (c == nullptr) return;
 
+	currentTextBox = nullptr;
 	contentData = c;
 
 	deleteAllScriptComponents();
 
     contentData->textInputBroadcaster.addListener(*this, [](ScriptContentComponent& c, ScriptingApi::Content::TextInputDataBase::Ptr ptr)
     {
+		c.currentTextBox = ptr;
+
         if(ptr == nullptr || ptr->done)
             return;
         
@@ -545,7 +548,7 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
         {
             Identifier pid(ptr->parentId);
             
-            for(int i = 0; c.componentWrappers.size(); i++)
+            for(int i = 0; i < c.componentWrappers.size(); i++)
             {
                 if(c.componentWrappers[i]->getScriptComponent()->getName() == pid)
                 {
