@@ -147,7 +147,6 @@ private:
 
 		~AttachedCallback();
 
-		String id;
 		WeakCallbackHolder customUpdateCallback;
 		WeakCallbackHolder customAsyncUpdateCallback;
 
