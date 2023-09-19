@@ -128,6 +128,8 @@ void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
 {
 	if (customLoadCallback)
 	{
+		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
+
 		var args = dataObject;
 		auto ok = customLoadCallback.callSync(&args, 1, nullptr);
 
@@ -140,6 +142,8 @@ var ScriptUserPresetHandler::saveCustomUserPreset(const String& presetName)
 {
 	if (customSaveCallback)
 	{
+		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
+
 		var rv;
 		var args = presetName;
 		auto ok = customSaveCallback.callSync(&args, 1, &rv);
