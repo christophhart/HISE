@@ -1322,6 +1322,8 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 
 	rc.expressionCode = c[PropertyIds::Expression].toString();
 
+    auto connectionTree = c;
+    
 	ValueTreeIterator::forEach(v, [&](ValueTree& t)
 	{
 		if (t.getType() == PropertyIds::Node)
@@ -1362,6 +1364,16 @@ Connection ValueTreeBuilder::getConnection(const ValueTree& c)
 						return false;
 					});
 
+                    if(valuetree::Helpers::isParent(connectionTree, t))
+                    {
+                        Error e;
+                        e.errorMessage = "Recursion in Parameter connection detected: You must not connect a modulation output to a parameter of its parent container.\n";
+                        e.errorMessage << "> `" << t["ID"].toString() << ".";
+                        e.errorMessage << pId << "`";
+                        e.v = t;
+                        throw e;
+                    }
+                    
 					// We allow setting a higher channel count here because the node is not necessarily
 					// inside the current channel container
 					ScopedChannelSetter svs(*this, numChannelsToUse, true);

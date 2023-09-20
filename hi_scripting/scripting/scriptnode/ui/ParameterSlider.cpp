@@ -989,6 +989,15 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 
 	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node.get();
 
+    if(dynamic_cast<NodeContainer*>(node.get()) != nullptr)
+    {
+        if(valuetree::Helpers::isParent(sourceNode->getValueTree(), node->getValueTree()))
+        {
+            illegal = true;
+            return false;
+        }
+    }
+    
 	if (CloneNode::getCloneIndex(sourceNode) > 0)
 	{
 		illegal = true;
