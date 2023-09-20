@@ -161,7 +161,12 @@ namespace control
 			if constexpr (ParameterClass::isStaticList())
 			{
 				if constexpr (P <ParameterClass::getNumParameters())
-					this->getParameter().template getParameter<P>().call(v * b[P]);
+                {
+                    auto& pToCall = this->getParameter().template getParameter<P>();
+                    
+                    if(pToCall.isConnected())
+                        pToCall.call(v * b[P]);
+                }
 			}
 			else
 			{
