@@ -1332,6 +1332,8 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 		while (numToDo > 0)
 		{
+            mc->setSampleOffsetWithinProcessBuffer(start);
+            
 			auto numThisTime = jmin(numToDo, maxBlockSize);
 
 			AudioSampleBuffer chunk(ptrs, numChannels, numThisTime);
@@ -1342,11 +1344,15 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 			start += numThisTime;
 			numToDo -= numThisTime;
 
+            
+            
 			for (int i = 0; i < numChannels; i++)
 				ptrs[i] += numThisTime;
 
 			processWrapped(chunk, delayedMidiBuffer);
 		}
+        
+        mc->setSampleOffsetWithinProcessBuffer(0);
 
 		return;
 	}

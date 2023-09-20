@@ -1941,7 +1941,11 @@ protected:
 
 	void killAndCallOnLoadingThread(const ProcessorFunction& f);
 
-	
+
+    void setSampleOffsetWithinProcessBuffer(int offset)
+    {
+        offsetWithinProcessBuffer = offset;
+    }
 
 	void setMaxEventTimestamp(int newMaxTimestamp)
 	{
@@ -2096,6 +2100,8 @@ private:
 	double fallbackBpm = -1.0;
 	double* internalBpmPointer = &fallbackBpm;
 
+    int offsetWithinProcessBuffer = 0;
+    
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 
 	ScopedPointer<GlobalHiseLookAndFeel> mainLookAndFeel;

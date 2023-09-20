@@ -840,7 +840,7 @@ void MidiPlayer::setPositionWithTicksFromPlaybackStart(double newPos)
 
 void MidiPlayer::onResync(double ppqPos)
 {
-	setPositionWithTicksFromPlaybackStart(ppqPos * HiseMidiSequence::TicksPerQuarter);
+	setPositionWithTicksFromPlaybackStart(ppqPos * HiseMidiSequence::TicksPerQuarter * getPlaybackSpeed());
 }
 
 double MidiPlayer::getTicksPerSample() const

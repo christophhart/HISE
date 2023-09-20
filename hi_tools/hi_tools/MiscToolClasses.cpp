@@ -1799,7 +1799,12 @@ MasterClock::GridInfo MasterClock::processAndCheckGrid(int numSamples,
 
 	if (currentSyncMode == SyncModes::SyncInternal && externalInfo.isPlaying)
 	{
-		uptime = externalInfo.timeInSamples;
+        const auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(externalInfo.bpm, sampleRate, 1.0f);
+        
+        // do not use timeInSamples, it's not accurate if changin
+        // the host tempo
+        uptime = externalInfo.ppqPosition * quarterInSamples;
+        
 		samplesToNextGrid = gridDelta - (uptime % gridDelta);
 	}
 
@@ -1911,7 +1916,11 @@ MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHea
 		
 	Range<int64> estimatedRange(uptime, uptime + currentBlockSize * 3);
         
-	uptime = info.timeInSamples;
+    const auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(info.bpm, sampleRate, 1.0f);
+    
+    // do not use timeInSamples, it's not accurate if changin
+    // the host tempo
+    uptime = info.ppqPosition * quarterInSamples;
 
 	if(!estimatedRange.contains(uptime))
 	{
@@ -1923,7 +1932,7 @@ MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHea
         
 	if (info.isPlaying && gridEnabled)
 	{
-		auto quarterInSamples = (double)TempoSyncer::getTempoInSamples(info.bpm, sampleRate, 1.0f);
+		
 		auto numSamplesInPPQ = (double)numSamples / quarterInSamples;
 		auto ppqBefore = info.ppqPosition;
 		auto ppqAfter = ppqBefore + numSamplesInPPQ;
