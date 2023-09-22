@@ -810,6 +810,14 @@ private:
 	{
 		matchIf(TokenTypes::var);
 
+		if(currentlyParsingInlineFunction || 
+		   currentFunctionObject != nullptr ||
+		   currentInlineFunction != nullptr ||
+		   outerInlineFunction != nullptr)
+		{
+			location.throwError("Can't declare const var statement inside function body");
+		}
+
 		ScopedPointer<ConstVarStatement> s(new ConstVarStatement(location));
 
 		s->name = parseIdentifier();
