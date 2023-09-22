@@ -656,14 +656,15 @@ void Preprocessor::addNewDefinitions(ExternalPreprocessorDefinition::List& a)
 		if (e->externalDef)
 			continue;
 
-		ExternalPreprocessorDefinition newDef;
+		auto t = (dynamic_cast<Macro*>(e) != nullptr) ? ExternalPreprocessorDefinition::Type::Macro :
+														ExternalPreprocessorDefinition::Type::Definition;
+
+		ExternalPreprocessorDefinition newDef(t);
 
 		newDef.description = e->description;
 
-		if (dynamic_cast<Macro*>(e) != nullptr)
-			newDef.t = ExternalPreprocessorDefinition::Type::Macro;
-		else
-			newDef.t = ExternalPreprocessorDefinition::Type::Definition;
+		if(t == ExternalPreprocessorDefinition::Type::Macro)
+			newDef.macroParameters.addArray(dynamic_cast<Macro*>(e)->arguments);
 
 		newDef.value = e->body;
 		newDef.name = e->id.toString();
@@ -723,13 +724,22 @@ void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition:
 	{
 		if (e.t == ExternalPreprocessorDefinition::Type::Macro)
 		{
+			
+			Array<Identifier> ids;
+
 			auto name = e.name.upToFirstOccurrenceOf("(", false, false);
 			auto args = e.name.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
 
-			Array<Identifier> ids;
-
-			for (auto s : StringArray::fromTokens(args, ",", ""))
+			if(e.macroParameters.isEmpty())
+			{
+				for (auto s : StringArray::fromTokens(args, ",", ""))
 				ids.add(s.trim());
+			}
+			else
+			{
+				ids.addArray(e.macroParameters);
+			}
+			
 
 			Item::Ptr newItem = new Macro(ids);
 			newItem->body = e.value;

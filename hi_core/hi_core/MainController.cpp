@@ -1860,9 +1860,7 @@ ReferenceCountedObject* MainController::getGlobalPreprocessor()
             auto key = p.name.toString();
             auto v = p.value.toString();
             
-            snex::jit::ExternalPreprocessorDefinition def;
-            
-            def.t = snex::jit::ExternalPreprocessorDefinition::Type::Definition;
+            snex::jit::ExternalPreprocessorDefinition def(snex::jit::ExternalPreprocessorDefinition::Type::Definition);
             def.name = key;
             def.value = v;
             def.fileName = "EXTERNAL_DEFINITION";

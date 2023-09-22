@@ -564,8 +564,18 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		const String directoryPath = tempDirectory.getFullPathName();
 
         JavascriptProcessor::ScopedPreprocessorMerger sm(chainToExport->getMainController());
-        
-		compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
+
+		try
+		{
+			compressValueTree<PresetDictionaryProvider>(exportPresetFile(), directoryPath, "preset");
+		}
+		catch(Result& r)
+		{
+			std::cout << "Error at exporting preset: " + r.getErrorMessage();
+			return ErrorCodes::CompileError;
+		}
+
+		
 
 #if DONT_EMBED_FILES_IN_FRONTEND
 		const bool embedFiles = false;

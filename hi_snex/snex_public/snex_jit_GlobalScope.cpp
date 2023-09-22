@@ -112,8 +112,7 @@ GlobalScope::GlobalScope() :
 	
 	auto l = getDefaultDefinitions();
 	
-	ExternalPreprocessorDefinition npv;
-	npv.t = ExternalPreprocessorDefinition::Type::Definition;
+	ExternalPreprocessorDefinition npv(ExternalPreprocessorDefinition::Type::Definition);
 	npv.name = "NUM_POLYPHONIC_VOICES";
 	npv.value = String(1);
 	l.add(npv);
@@ -317,11 +316,10 @@ void GlobalScope::setPreprocessorDefinitions(var d, bool clearExisting)
 	{
 		for (auto& o : obj->getProperties())
 		{
-			ExternalPreprocessorDefinition d;
+			ExternalPreprocessorDefinition d(ExternalPreprocessorDefinition::Type::Definition);
 			d.name = o.name.toString();
 			d.value = o.value.toString();
-			d.t = ExternalPreprocessorDefinition::Type::Definition;
-
+			
 			preprocessorDefinitions.addIfNotAlreadyThere(d);
 		}
 	}
@@ -342,48 +340,43 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	ExternalPreprocessorDefinition::List defaultMacros;
 
 	{
-		ExternalPreprocessorDefinition declareNode;
+		ExternalPreprocessorDefinition declareNode(ExternalPreprocessorDefinition::Type::Macro);
 		declareNode.name = "DECLARE_NODE(className)";
 		declareNode.value = "__internal_property(\"IsNode\", 1); __internal_property(\"NodeId\", className);";
-		declareNode.t = ExternalPreprocessorDefinition::Type::Macro;
 		declareNode.description = "Use this macro inside a class to make it a valid node. The `className` must be the exact same ID as the class and you need to define a `template <int P> void setParameter(double v)` method.  ";
 
 		defaultMacros.add(declareNode);
 	}
 
 	{
-		ExternalPreprocessorDefinition son;
+		ExternalPreprocessorDefinition son(ExternalPreprocessorDefinition::Type::Macro);
 		son.name = "SNEX_NODE(className)";
 		son.value = "__internal_property(\"NodeId\", className);";
-		son.t = ExternalPreprocessorDefinition::Type::Macro;
 		defaultMacros.add(son);
 	}
 
 	{
-		ExternalPreprocessorDefinition dpe;
+		ExternalPreprocessorDefinition dpe(ExternalPreprocessorDefinition::Type::Macro);
 		dpe.name = "DECLARE_PARAMETER_EXPRESSION(name, expression)";
 		dpe.value = "struct name { static double op(double input) { return expression; }};";
-		dpe.t = ExternalPreprocessorDefinition::Type::Macro;
-
+		
 		defaultMacros.add(dpe);
 	}
 
 	{
 		// #define SNEX_METADATA_ID(dsp1_t);
-		ExternalPreprocessorDefinition declareId;
+		ExternalPreprocessorDefinition declareId(ExternalPreprocessorDefinition::Type::Macro);
 		declareId.name = "SNEX_METADATA_ID(className)";
 		declareId.value = "__internal_property(\"NodeId\", className);";
-		declareId.t = ExternalPreprocessorDefinition::Type::Macro;
-
+		
 		defaultMacros.add(declareId);
 	}
 
 	{
 		// #define SNEX_METADATA_NUM_CHANNELS(numChannels);
-		ExternalPreprocessorDefinition nc;
+		ExternalPreprocessorDefinition nc(ExternalPreprocessorDefinition::Type::Macro);
 		nc.name = "SNEX_METADATA_NUM_CHANNELS(numChannels)";
 		nc.value = "static const int NumChannels = numChannels;";
-		nc.t = ExternalPreprocessorDefinition::Type::Macro;
 
 		defaultMacros.add(nc);
 	}
@@ -391,17 +384,15 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	
 	{
 		// #define SNEX_METADATA_ENCODED_PARAMETERS(NumElements) static const span<unsigned int, NumElements> encodedParameters =
-		ExternalPreprocessorDefinition pd;
+		ExternalPreprocessorDefinition pd(ExternalPreprocessorDefinition::Type::Macro);
 		pd.name = "SNEX_METADATA_ENCODED_PARAMETERS(NumElements)";
 		pd.value = "const span<int, NumElements> encodedParameters ="; 
-		pd.t = ExternalPreprocessorDefinition::Type::Macro;
 		defaultMacros.add(pd);
 	}
 	
 	{
 		// #define MIN_MAX(minValue, maxValue) static const double min = minValue; static const double max = maxValue;
-		ExternalPreprocessorDefinition mm;
-		mm.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition mm(ExternalPreprocessorDefinition::Type::Macro);
 		mm.name = "MIN_MAX(minValue, maxValue";
 		mm.value = "static const double min = minValue; static const double max = maxValue;";
 		mm.description = "used by DECLARE_PARAMETER_RANGE";
@@ -411,8 +402,7 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	{
 		// #define RANGE_FUNCTION(id) static double id(double input) { return ranges::id(min, max, input); }
 
-		ExternalPreprocessorDefinition rf;
-		rf.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition rf(ExternalPreprocessorDefinition::Type::Macro);
 		rf.name = "RANGE_FUNCTION(id)";
 		rf.value = "static double id(double input) { return ranges::id(min, max, input); }";
 
@@ -422,8 +412,7 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	{
 		// #define RANGE_FUNCTION_3(id) static double id(double input) { return ranges::id(min, max, skew, input); }
 
-		ExternalPreprocessorDefinition rfs;
-		rfs.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition rfs(ExternalPreprocessorDefinition::Type::Macro);
 		rfs.name = "RANGE_FUNCTION_3(id, functionId, thirdParameter)";
 		rfs.value = "static double id(double input) { return ranges::functionId(min, max, thirdParameter, input); }";
 
@@ -433,8 +422,7 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	{
 		// #define DECLARE_PARAMETER_RANGE(name, minValue, maxValue) 
 		// struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };
-		ExternalPreprocessorDefinition dpr;
-		dpr.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition dpr(ExternalPreprocessorDefinition::Type::Macro);
 		dpr.name = "DECLARE_PARAMETER_RANGE(name, minValue, maxValue)";
 		dpr.value = "struct name { MIN_MAX(minValue, maxValue) RANGE_FUNCTION(to0To1); RANGE_FUNCTION(from0To1) };";
 		
@@ -446,8 +434,7 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 		static constexpr double to0To1(double input) {  return RANGE_BASE::to0To1Skew(min, max, skew, input); }\
 		static constexpr double from0To1(double input){ return RANGE_BASE::from0To1Skew(min, max, skew, input);} */
 	
-		ExternalPreprocessorDefinition dprs;
-		dprs.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition dprs(ExternalPreprocessorDefinition::Type::Macro);
 		dprs.name = "DECLARE_PARAMETER_RANGE_SKEW(name, minValue, maxValue, skewValue)";
 		dprs.value = "struct name { MIN_MAX(minValue, maxValue) static const double skew = skewValue; RANGE_FUNCTION_3(to0To1, to0To1Skew, skew); RANGE_FUNCTION_3(from0To1, from0To1Skew, skew) };";
 
@@ -457,8 +444,7 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	{
 		// #define DECLARE_PARAMETER_RANGE_STEP(name, min, max, step) struct name
 
-		ExternalPreprocessorDefinition dprs;
-		dprs.t = ExternalPreprocessorDefinition::Type::Macro;
+		ExternalPreprocessorDefinition dprs(ExternalPreprocessorDefinition::Type::Macro);
 		dprs.name = "DECLARE_PARAMETER_RANGE_STEP(name, minValue, maxValue, stepValue)";
 		dprs.value = "struct name { MIN_MAX(minValue, maxValue) static const double step = stepValue; RANGE_FUNCTION_3(to0To1, to0To1Step, step); RANGE_FUNCTION_3(from0To1, from0To1Step, step) };";
 

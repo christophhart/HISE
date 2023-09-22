@@ -108,10 +108,15 @@ struct ExternalPreprocessorDefinition
 		return name.compareNatural(other.name) == 0;
 	}
 
-	Type t;
+	ExternalPreprocessorDefinition(Type t_ = Type::Empty):
+	  t(t_)
+	{};
+
+	const Type t;
 	String name;
 	String value;
 	String description;
+	Array<Identifier> macroParameters;
 	int charNumber = -1;
 	String fileName;
 };

@@ -2028,6 +2028,10 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepStr
             if(auto e = const_cast<JavascriptProcessor*>(this)->getScriptEngine())
             {
                 auto ok = e->preprocessor->process(code, s->getCallbackName().toString());
+
+				if(!ok.wasOk())
+					throw ok;
+
                 jassert(ok.wasOk());
             }
         }
