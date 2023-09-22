@@ -3032,6 +3032,7 @@ struct BeatportManager::Wrapper
 {
 	API_METHOD_WRAPPER_0(BeatportManager, validate);
 	API_METHOD_WRAPPER_0(BeatportManager, isBeatportAccess);
+	API_VOID_METHOD_WRAPPER_1(BeatportManager, setProductId);
 };
 
 BeatportManager::BeatportManager(ProcessorWithScriptingContent* sp):
@@ -3043,12 +3044,22 @@ BeatportManager::BeatportManager(ProcessorWithScriptingContent* sp):
 
 	ADD_API_METHOD_0(validate);
 	ADD_API_METHOD_0(isBeatportAccess);
+	ADD_API_METHOD_1(setProductId);
 }
 
 BeatportManager::~BeatportManager()
 {
 #if HISE_INCLUDE_BEATPORT
 	pimpl = nullptr;
+#endif
+}
+
+void BeatportManager::setProductId(const String& productId)
+{
+#if HISE_INCLUDE_BEATPORT
+	pimpl->setProductId(productId);
+#else
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Product ID set to " + productId);
 #endif
 }
 
@@ -3104,7 +3115,6 @@ bool BeatportManager::isBeatportAccess()
 }
 
 
-
 struct ScriptUnlocker::RefObject::Wrapper
 {
 	API_METHOD_WRAPPER_0(RefObject, isUnlocked);
@@ -3117,6 +3127,7 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_0(RefObject, getRegisteredMachineId);
 	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
     API_METHOD_WRAPPER_0(RefObject, keyFileExists);
+	API_METHOD_WRAPPER_0(RefObject, getLicenseKeyFile);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -3143,6 +3154,7 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_0(canExpire);
 	ADD_API_METHOD_1(checkExpirationData);
     ADD_API_METHOD_0(keyFileExists);
+	ADD_API_METHOD_0(getLicenseKeyFile);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -3239,6 +3251,13 @@ bool ScriptUnlocker::RefObject::isValidKeyFile(var possibleKeyData)
 	}
 
 	return false;
+}
+
+var ScriptUnlocker::RefObject::getLicenseKeyFile()
+{
+	auto lf = unlocker->getLicenseKeyFile();
+
+	return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), lf));
 }
 
 String ScriptUnlocker::RefObject::getUserEmail() const

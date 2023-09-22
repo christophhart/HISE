@@ -586,6 +586,9 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Checks if the possibleKeyData might contain a key file. */
 		bool isValidKeyFile(var possibleKeyData);
 
+		/** Returns the license key file as File object. */
+		var getLicenseKeyFile();
+
 		/** Returns the user email that was used for the registration. */
 		String getUserEmail() const;
 
@@ -632,6 +635,9 @@ public:
 
 	// ======================================================================== API Methods */
 
+	/** Sets the product ID dynamically. */
+	void setProductId(const String& productId);
+	
 	/** Requests DRM validation and returns a JSON object with the validation result. */
 	var validate();
 
@@ -666,6 +672,8 @@ private:
 		Pimpl();
 
 		~Pimpl();
+
+		void setProductId(const String& productId);
 
 		var validate();
 
