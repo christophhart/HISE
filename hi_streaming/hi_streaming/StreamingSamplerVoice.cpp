@@ -736,7 +736,7 @@ template <typename SignalType, bool isFloat> void interpolateStereoSamples(const
 			outL[i] = l * gainFactor;
 			outR[i] = r * gainFactor;
 
-			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+			//jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
 			indexInBufferFloat += pitchData[i];
 		}
@@ -887,7 +887,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		jassert(tempVoiceBuffer != nullptr);
 		if (!isPositiveAndBelow(pitchCounter + startAlpha, (double)tempVoiceBuffer->getNumSamples()))
 		{
-			jassertfalse;
 			tempVoiceBuffer->setSize(tempVoiceBuffer->getNumChannels(), roundToInt((pitchCounter + startAlpha) * 1.5));
 		}
 

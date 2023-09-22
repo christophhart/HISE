@@ -325,16 +325,11 @@ double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData,
 
 #if USE_IPP
 		float pitchSum = 0.0f;
-		ippsThreshold_32f_I(pitchData, numSamples, (float)MAX_SAMPLER_PITCH, ippCmpGreater);
 		ippsSum_32f(pitchData, numSamples, &pitchSum, ippAlgHintAccurate);
-		
 		pitchCounter = (double)pitchSum;
-
 #else
 		for (int i = 0; i < numSamples; i++)
-		{
-			pitchCounter += jmin<double>((double)MAX_SAMPLER_PITCH, (double)*pitchData++);
-		}
+			pitchCounter += (double)*pitchData++;
 		
 #endif			
 }
