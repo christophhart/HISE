@@ -582,9 +582,17 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		// Embed the user presets and extract them on first load
 		compressValueTree<UserPresetDictionaryProvider>(userPresetTree, directoryPath, "userPresets");
 
-		// Always embed scripts and fonts, but don't embed samplemaps
-		compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
-
+		try
+		{
+			// Always embed scripts and fonts, but don't embed samplemaps
+			compressValueTree<JavascriptDictionaryProvider>(exportEmbeddedFiles(), directoryPath, "externalFiles");
+		}
+		catch(Result& r)
+		{
+			std::cout << "Error at embedding external files: " + r.getErrorMessage();
+			return ErrorCodes::CorruptedPoolFiles;
+		}
+		
 		auto& handler = GET_PROJECT_HANDLER(chainToExport);
 
 		auto iof = handler.getTempFileForPool(FileHandlerBase::Images);

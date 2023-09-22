@@ -253,9 +253,9 @@ juce::ValueTree GlobalScriptCompileBroadcaster::exportWebViewResources()
 
 	for (const auto& wv : webviews)
 	{
-		auto data = std::get<1>(wv);
-
 		auto projectRoot = dynamic_cast<MainController*>(this)->getCurrentFileHandler().getRootFolder();
+
+		auto data = std::get<1>(wv);
 
 		// We only embed file resources that are in the project directory (because then we'll assume
 		// that they are not likely to be installed on the end user's computer).
@@ -264,9 +264,46 @@ juce::ValueTree GlobalScriptCompileBroadcaster::exportWebViewResources()
 		if (shouldEmbedResource)
 		{
 			auto id = std::get<0>(wv).toString();
+
+			auto poolDir = projectRoot.getChildFile("Images").getChildFile("exported_webviews");
+
+#if JUCE_WINDOWS
+			poolDir = poolDir.getChildFile("Windows");
+#else
+			poolDir = poolDir.getChildFile("macOS");
+#endif
+
+			poolDir.createDirectory();
+
+			auto wvFile = poolDir.getChildFile(id).withFileExtension(".dat");
+
+			zstd::ZDefaultCompressor comp;
+
+
+#if USE_BACKEND
+		if(CompileExporter::isExportingFromCommandLine())
+		{
+			if(wvFile.existsAsFile())
+			{
+				ValueTree c;
+				comp.expand(wvFile, c);
+				v.addChild(c, -1, nullptr);
+			}
+			else
+			{
+				throw Result::fail("Can't find preexported web resource for " + id);
+			}
+		}
+		else
+		{
 			auto c = data->exportAsValueTree();
 			c.setProperty("ID", id, nullptr);
+
+			comp.compress(c, wvFile);
+
 			v.addChild(c, -1, nullptr);
+		}
+#endif
 		}
 	}
 
