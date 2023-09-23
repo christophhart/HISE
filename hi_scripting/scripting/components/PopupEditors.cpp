@@ -363,7 +363,8 @@ void PopupIncludeEditor::runTimeErrorsOccured(PopupIncludeEditor& t, Array<Exter
 				if (matchesFile)
 					asmcl->editor.addWarning(e.toString(), false);
 
-				t.bottomBar->setError("GLSL Compile Error");
+				if(t.bottomBar != nullptr)
+					t.bottomBar->setError("GLSL Compile Error");
 			}
 		}
 
