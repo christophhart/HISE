@@ -247,7 +247,9 @@ void MainController::clearPreset()
 		mc->getControlUndoManager()->clearUndoHistory();
         mc->getLocationUndoManager()->clearUndoHistory();
         mc->getMasterClock().reset();
-        
+		mc->customTypeFaces.clear();
+		mc->customTypeFaceData.removeAllChildren(nullptr);
+
         mc->clearWebResources();
 		mc->setGlobalRoutingManager(nullptr);
 
