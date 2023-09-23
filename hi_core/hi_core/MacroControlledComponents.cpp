@@ -587,6 +587,9 @@ void HiSlider::sliderValueChanged(Slider *s)
 {
 	jassert(s == this);
 
+	if(!sendValueOnDrag)
+		return;
+
 	if (callWhenSingleMacro(BIND_MEMBER_FUNCTION_2(HiSlider::changePluginParameter)))
 		return;
 

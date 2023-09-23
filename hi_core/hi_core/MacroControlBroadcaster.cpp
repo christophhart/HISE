@@ -566,7 +566,6 @@ void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
     if(data == nullptr)
     {
         // The macro controls could not be found...
-        jassertfalse;
         return;
     }
     

@@ -1798,6 +1798,7 @@ maximum(1.0f)
 	ADD_SCRIPT_PROPERTY(i14, "showTextBox"); 	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i15, "scrollWheel"); 	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i16, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i17, "sendValueOnDrag"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 #if 0
 	componentProperties->setProperty(getIdFor(Mode), 0);
@@ -1838,7 +1839,8 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::showTextBox, true);
 	setDefaultValue(ScriptSlider::Properties::scrollWheel, true);
 	setDefaultValue(ScriptSlider::Properties::enableMidiLearn, true);
-
+	setDefaultValue(ScriptSlider::Properties::sendValueOnDrag, true);
+	
 	ScopedValueSetter<bool> svs(removePropertyIfDefault, false);
 
 	const bool dontUpdateMode = !getPropertyValueTree().hasProperty(getIdFor(Mode));

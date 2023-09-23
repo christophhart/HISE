@@ -462,6 +462,8 @@ public:
 
 	void onTextValueChange(double newValue) override;
 
+	void setSendValueOnDrag(bool shouldSend) { sendValueOnDrag = shouldSend; }
+
 	void resized() override;
 
 	String getModeId() const;
@@ -517,6 +519,8 @@ public:
 	static String getSuffixForMode(HiSlider::Mode mode, float panValue);
 
 private:
+
+	bool sendValueOnDrag = true;
 
 	String getModeSuffix() const;;
 

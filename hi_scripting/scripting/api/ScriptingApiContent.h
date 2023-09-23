@@ -854,6 +854,7 @@ public:
 			showTextBox,
 			scrollWheel,
 			enableMidiLearn,
+			sendValueOnDrag,
 			numProperties,
 		};
 
