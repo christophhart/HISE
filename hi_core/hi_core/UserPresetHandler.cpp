@@ -673,7 +673,11 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
     PresetBrowser::DataBaseHelpers::cleanFileList(mc, allPresets);
 	allPresets.sort();
-    
+
+	auto expFolder = mc->getExpansionHandler().getExpansionFolder();
+
+	auto wasExpansionPreset = currentlyLoadedFile.isAChildOf(expFolder);
+
 	if (!currentlyLoadedFile.existsAsFile())
 	{
 		currentlyLoadedFile = allPresets.getFirst();
@@ -686,15 +690,24 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
             PresetBrowser::DataBaseHelpers::cleanFileList(mc, allPresets);
 			allPresets.sort();
-            
-            
+		}
+		else if(mc->getExpansionHandler().getNumExpansions() > 0)
+		{
+			for(int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+			{
+				auto expansionPresetFolder = mc->getExpansionHandler().getExpansion(i)->getSubDirectory(FileHandlerBase::UserPresets);
+				auto thisList = expansionPresetFolder.findChildFiles(File::findFiles, true, "*.preset");
+				PresetBrowser::DataBaseHelpers::cleanFileList(mc, thisList);
+				thisList.sort();
+				allPresets.addArray(thisList);
+			}
 		}
 
 		if (allPresets.size() == 1)
 			return;
-
+		
 		const int oldIndex = allPresets.indexOf(currentlyLoadedFile);
-
+		
 		if (next)
 		{
 			const int newIndex = (oldIndex + 1) % allPresets.size();
@@ -709,6 +722,25 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 			currentlyLoadedFile = allPresets[newIndex];
 		}
 	}
+
+	if(currentlyLoadedFile.isAChildOf(expFolder))
+	{
+		for(int i = 0; i < mc->getExpansionHandler().getNumExpansions(); i++)
+		{
+			auto e = mc->getExpansionHandler().getExpansion(i);
+			
+			if(currentlyLoadedFile.isAChildOf(e->getRootFolder()))
+			{
+				mc->getExpansionHandler().setCurrentExpansion(e, sendNotificationAsync);
+				break;
+			}
+		}
+	}
+	else if (wasExpansionPreset)
+	{
+		mc->getExpansionHandler().setCurrentExpansion(nullptr, sendNotificationAsync);
+	}
+
 
 	loadUserPreset(currentlyLoadedFile);
 }

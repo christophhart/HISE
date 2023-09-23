@@ -794,13 +794,18 @@ void PresetBrowserColumn::setSelectedFile(const File& file, NotificationType not
 {
 	const int rowIndex = listModel->getIndexForFile(file);
 
-	if (rowIndex >= 0)
-	{
-		if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+	if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
 			ec->setLastIndex(rowIndex);
 
-		selectedFile = file;
+	selectedFile = file;
 
+	if(rowIndex == -1)
+	{
+		listbox->deselectAllRows();
+		listbox->repaint();
+	}
+	else
+	{
 		SparseSet<int> s;
 		s.addRange(Range<int>(rowIndex, rowIndex + 1));
 		listbox->setSelectedRows(s, dontSendNotification);

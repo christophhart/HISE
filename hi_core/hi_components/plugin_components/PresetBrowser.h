@@ -263,6 +263,8 @@ private:
 	File currentBankFile;
 	File currentCategoryFile;
 
+	bool refreshColumnUpdatesAfterExpansionSwitch = false;
+
 	ScopedPointer<PresetBrowserSearchBar> searchBar;
 	ScopedPointer<PresetBrowserColumn> expansionColumn;
 	ScopedPointer<PresetBrowserColumn> bankColumn;

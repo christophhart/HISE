@@ -538,7 +538,7 @@ expHandler(mc->getExpansionHandler())
 
 	closeButton->addListener(this);
 	Path closeShape;
-	closeShape.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+	closeShape.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	closeButton->setShape(closeShape, true, true, true);
 
 	searchBar->inputLabel->addListener(this);
@@ -620,6 +620,8 @@ bool PresetBrowser::isReadOnly(const File& f)
 
 void PresetBrowser::expansionPackLoaded(Expansion* currentExpansion)
 {
+	refreshColumnUpdatesAfterExpansionSwitch = true;
+
 	if(expansionColumn != nullptr && currentExpansion != nullptr)
 		selectionChanged(-1, -1, currentExpansion->getRootFolder(), false);
 	else
@@ -685,7 +687,10 @@ Point<int> PresetBrowser::getMouseHoverInformation() const
 
 void PresetBrowser::presetChanged(const File& newPreset)
 {
-	if (allPresets[currentlyLoadedPreset] == newPreset)
+	// After we switched the expansions we need to make sure to run this logic so that it ca
+	// set the correct columns for expansion / bank / category at least once
+	if (!refreshColumnUpdatesAfterExpansionSwitch &&
+		allPresets[currentlyLoadedPreset] == newPreset)
 	{
 		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 		return;
@@ -694,6 +699,15 @@ void PresetBrowser::presetChanged(const File& newPreset)
 	File pFile = newPreset;
 	File cFile;
 	File bFile;
+
+
+	if(expansionColumn != nullptr)
+	{
+		if(currentlySelectedExpansion != nullptr)
+			expansionColumn->setSelectedFile(currentlySelectedExpansion->getRootFolder(), sendNotification);
+		else
+			expansionColumn->setSelectedFile(File(), sendNotification);
+	}
 
 	if (numColumns > 2)
 	{
@@ -717,6 +731,8 @@ void PresetBrowser::presetChanged(const File& newPreset)
 	saveButton->setEnabled(!isReadOnly(newPreset));
 
 	noteLabel->setText(DataBaseHelpers::getNoteFromXml(newPreset), dontSendNotification);
+
+	refreshColumnUpdatesAfterExpansionSwitch = false;
 }
 
 void PresetBrowser::presetListUpdated()
@@ -1329,7 +1345,7 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		pc->setDisplayDirectories(false);
 		presetColumn->setModel(pc, rootFile);
 		
-		loadPresetDatabase(file.getChildFile("UserPresets"));
+		loadPresetDatabase(rootFile);
 		presetColumn->setDatabase(getDataBase());
 		rebuildAllPresets();
 	}
