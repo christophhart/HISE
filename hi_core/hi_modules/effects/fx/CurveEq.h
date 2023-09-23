@@ -147,6 +147,8 @@ public:
 
 			FilterHelpers::RenderData r(buffer, i, numThisTime);
 
+			hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
+
 			for (auto filter : filterBands)
 				filter->renderIfEnabled(r);
 		}
@@ -213,11 +215,15 @@ public:
 		f->setGain(gain);
 		f->setFrequency(freq);
 
-		if (insertIndex == -1)
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(bandLock);
+
+			if (insertIndex == -1)
 			filterBands.add(f);
 		else
 			filterBands.insert(insertIndex, f);
-
+		}
+		
 		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
 
 		sendChangeMessage();
@@ -227,8 +233,11 @@ public:
 	{
 		ScopedLock sl(getMainController()->getLock());
 
-		filterBands.remove(filterIndex);
-
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(bandLock);
+			filterBands.remove(filterIndex);
+		}
+		
 		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
 
 		sendChangeMessage();
@@ -243,6 +252,8 @@ public:
 		if (lastSampleRate != sampleRate)
 		{
 			lastSampleRate = sampleRate;
+
+			hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
 
 			for (int i = 0; i < filterBands.size(); i++)
 			{
@@ -273,18 +284,23 @@ public:
 
 		ScopedLock sl(getMainController()->getLock());
 
-		filterBands.clear();
-
+		OwnedArray<StereoFilter> newFilters;
+		
 		const int numFilters = v.getProperty("NumFilters", 0);
 
 		auto sr = getSampleRate();
 
 		for(int i = 0; i < numFilters; i++)
 		{
-			filterBands.add(new StereoFilter());
+			newFilters.add(new StereoFilter());
 
 			if (sr > 0.0)
-				filterBands.getLast()->setSampleRate(sr);
+				newFilters.getLast()->setSampleRate(sr);
+		}
+
+		{
+			hise::SimpleReadWriteLock::ScopedWriteLock sl(bandLock);
+			std::swap(filterBands, newFilters);
 		}
 
 		for(int i = 0; i < numFilters * numBandParameters; i++)
@@ -318,6 +334,8 @@ public:
 
 private:
 
+	friend class FilterDragOverlay;
+
 	SimpleRingBuffer::Ptr fftBuffer;
 
 #if OLD_EQ_FFT
@@ -325,6 +343,8 @@ private:
 	double externalFftData[FFT_SIZE_FOR_EQ];
 	int fftBufferIndex;
 #endif
+
+	mutable hise::SimpleReadWriteLock bandLock;
 
 	OwnedArray<StereoFilter> filterBands;
 	

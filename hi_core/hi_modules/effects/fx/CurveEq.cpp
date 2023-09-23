@@ -77,6 +77,8 @@ float CurveEq::getAttribute(int index) const
 	const int filterIndex = index / BandParameter::numBandParameters;
 	const BandParameter parameter = (BandParameter)(index % numBandParameters);
 
+	hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
+
 	if (auto filter = filterBands[filterIndex])
 	{
 		switch (parameter)
@@ -108,6 +110,8 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 
 	const int filterIndex = index / BandParameter::numBandParameters;
 	const BandParameter parameter = (BandParameter)(index % numBandParameters);
+
+	hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
 
 	StereoFilter *filter = filterBands[filterIndex];
 

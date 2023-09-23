@@ -558,6 +558,8 @@ void FilterDragOverlay::checkEnabledBands()
 
 	numFilters = eq->getNumFilterBands();
 
+	hise::SimpleReadWriteLock::ScopedReadLock sl(eq->bandLock);
+
 	for (int i = 0; i < numFilters; i++)
 		filterGraph.enableBand(i, eq->getFilterBand(i)->isEnabled());
 }
