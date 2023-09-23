@@ -117,7 +117,9 @@
 #define HISE_AUV3_MAX_INSTANCE_COUNT 2
 #endif
 
-
+#ifndef HISE_UNDO_INTERVAL
+#define HISE_UNDO_INTERVAL 500
+#endif
 
 namespace hise { using namespace juce;
 

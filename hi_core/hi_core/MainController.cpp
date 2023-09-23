@@ -105,7 +105,7 @@ MainController::MainController() :
 
 	hostInfo = new DynamicObject();
     
-	startTimer(500);
+	startTimer(HISE_UNDO_INTERVAL);
     
 #if PERFETTO
     MelatoninPerfetto::get().beginSession();

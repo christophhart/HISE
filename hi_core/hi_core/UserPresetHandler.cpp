@@ -418,6 +418,7 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool 
 {
 	if (useUndoManagerIfEnabled && useUndoForPresetLoads)
 	{
+        mc->getControlUndoManager()->beginNewTransaction();
 		mc->getControlUndoManager()->perform(new UndoableUserPresetLoad(mc, v));
 	}
 	else

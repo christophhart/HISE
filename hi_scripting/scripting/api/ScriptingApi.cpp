@@ -1797,7 +1797,6 @@ struct ScriptUndoableAction : public UndoableAction
 
 bool ScriptingApi::Engine::performUndoAction(var thisObject, var undoAction)
 {
-	getScriptProcessor()->getMainController_()->getControlUndoManager()->beginNewTransaction("%SCRIPT_TRANSACTION%");
 	return getScriptProcessor()->getMainController_()->getControlUndoManager()->perform(new ScriptUndoableAction(getScriptProcessor(), undoAction, thisObject));
 }
 
