@@ -98,7 +98,7 @@ public:
 
 	float getValue(int index) const;
 
-	void setFromFloatArray(const Array<float> &valueArray, NotificationType n = NotificationType::sendNotificationAsync);
+	void setFromFloatArray(const Array<float> &valueArray, NotificationType n = NotificationType::sendNotificationAsync, bool useUndoManager=false);
 
 	void writeToFloatArray(Array<float> &valueArray) const;
 
@@ -145,16 +145,20 @@ private:
 	struct SliderPackAction : public UndoableAction
 	{
 		SliderPackAction(SliderPackData* data_, int sliderIndex_, float oldValue_, float newValue_, NotificationType n_);
-		;
 
+		SliderPackAction(SliderPackData* data, const Array<float>& newValues, NotificationType n);
+		
 		bool perform() override;
 
 		bool undo() override;
 
 		WeakReference<SliderPackData> data;
 		int sliderIndex;
-		float oldValue, newValue;
+		float oldValue,newValue;
 		NotificationType n;
+
+		const bool singleValue;
+		Array<float> oldData, newData;
 	};
 
 	bool flashActive;

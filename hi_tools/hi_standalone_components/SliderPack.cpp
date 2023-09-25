@@ -176,6 +176,7 @@ namespace hise { using namespace juce;
 	SliderPackData::SliderPackAction::SliderPackAction(SliderPackData* data_, int sliderIndex_, float oldValue_,
 		float newValue_, NotificationType n_):
 		UndoableAction(),
+		singleValue(true),
 		data(data_),
 		sliderIndex(sliderIndex_),
 		oldValue(oldValue_),
@@ -183,11 +184,33 @@ namespace hise { using namespace juce;
 		n(n_)
 	{}
 
+	SliderPackData::SliderPackAction::SliderPackAction(SliderPackData* data_, const Array<float>& newValues, NotificationType n_):
+		UndoableAction(),
+		singleValue(false),
+		data(data_),
+		n(n_)
+	{
+		newData.addArray(newValues);
+		data->writeToFloatArray(oldData);
+
+		for(int i = 0; i < newValues.size(); i++)
+		{
+			String s;
+			s << String(oldData[i]) + " -> " + String(newData[i]);
+			DBG(s);
+		}
+		
+	}
+
 	bool SliderPackData::SliderPackAction::perform()
 	{
 		if (data != nullptr)
 		{
-			data->setValue(sliderIndex, newValue, n, false);
+			if(singleValue)
+				data->setValue(sliderIndex, newValue, n, false);
+			else
+				data->setFromFloatArray(newData, n, false);
+			
 			return true;
 		}
 
@@ -198,7 +221,11 @@ namespace hise { using namespace juce;
 	{
 		if (data != nullptr)
 		{
-			data->setValue(sliderIndex, oldValue, n, false);
+			if(singleValue)
+				data->setValue(sliderIndex, oldValue, n, false);
+			else
+				data->setFromFloatArray(oldData, n, false);
+
 			return true;
 		}
 
@@ -273,17 +300,29 @@ float SliderPackData::getValue(int index) const
 	return defaultValue;
 }
 
-void SliderPackData::setFromFloatArray(const Array<float> &valueArray, NotificationType n)
+void SliderPackData::setFromFloatArray(const Array<float> &valueArray, NotificationType n, bool useUndoManager)
 {
+	if(auto um = getUndoManager(useUndoManager))
 	{
-        int numToCopy = jmin(valueArray.size(), getNumSliders());
-        FloatSanitizers::sanitizeArray((float*)valueArray.getRawDataPointer(), numToCopy);
-        
-		SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
-        FloatVectorOperations::copy(dataBuffer->buffer.getWritePointer(0), valueArray.begin(), numToCopy);
+		um->perform(new SliderPackAction(this, valueArray, n));
 	}
+	else
+	{
+		{
+			int numToCopy = jmin(valueArray.size(), getNumSliders());
+	        FloatSanitizers::sanitizeArray((float*)valueArray.getRawDataPointer(), numToCopy);
 
-	internalUpdater.sendContentChangeMessage(n, -1);
+			for(int i = 0; i < valueArray.size(); i++)
+			{
+				DBG(valueArray[i]);
+			}
+
+			SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
+	        FloatVectorOperations::copy(dataBuffer->buffer.getWritePointer(0), valueArray.begin(), numToCopy);
+		}
+
+		internalUpdater.sendContentChangeMessage(n, -1);
+	}
 }
 
 void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
@@ -291,8 +330,7 @@ void SliderPackData::writeToFloatArray(Array<float> &valueArray) const
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
 	valueArray.ensureStorageAllocated(getNumSliders());
-
-	memcpy(valueArray.begin(), dataBuffer->buffer.getReadPointer(0), sizeof(float)*getNumSliders());
+	valueArray.addArray(dataBuffer->buffer.getReadPointer(0), getNumSliders());
 }
 
 String SliderPackData::dataVarToBase64(const var& data)
@@ -599,10 +637,15 @@ void SliderPack::sliderValueChanged(Slider *s)
     
 	NotificationType n = sendNotificationSync;
 
-	if (callbackOnMouseUp)
-		n = dontSendNotification;
+	bool useUndo = true;
 
-	data->setValue(index, (float)s->getValue(), n, true);
+	if (callbackOnMouseUp)
+	{
+		n = dontSendNotification;
+		useUndo = false;
+	}
+	
+	data->setValue(index, (float)s->getValue(), n, useUndo);
 }
 
 void SliderPack::mouseDown(const MouseEvent &e)
@@ -613,6 +656,11 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 	int x = e.getEventRelativeTo(this).getMouseDownPosition().getX();
 	int y = e.getEventRelativeTo(this).getMouseDownPosition().getY();
+
+	auto n = sendNotificationSync;
+
+	if(callbackOnMouseUp)
+		n = dontSendNotification;
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
@@ -627,8 +675,8 @@ void SliderPack::mouseDown(const MouseEvent &e)
 		int sliderIndex = getSliderIndexForMouseEvent(e);
 
 		
-
-		getData()->setDisplayedIndex(sliderIndex);
+		if(!callbackOnMouseUp)
+			getData()->setDisplayedIndex(sliderIndex);
 
 		Slider *s = sliders[sliderIndex];
 
@@ -642,7 +690,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 		currentlyDragged = true;
 		currentlyDraggedSlider = sliderIndex;
 
-		s->setValue(value, sendNotificationSync);
+		s->setValue(value, n);
 
 		currentlyDraggedSliderValue = s->getValue();
 
@@ -663,6 +711,11 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 	int y = e.getEventRelativeTo(this).getPosition().getY();
 
 	Rectangle<int> thisBounds(0, 0, getWidth(), getHeight());
+
+	auto n = sendNotificationSync;
+
+	if(callbackOnMouseUp)
+		n = dontSendNotification;
 
 	if (!rightClickLine.getStart().isOrigin())
 	{
@@ -709,7 +762,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			currentlyDraggedSlider = sliderIndex;
 			currentlyDraggedSliderValue = value;
 
-			s->setValue(value, sendNotificationSync);
+			s->setValue(value, n);
 
 			currentlyDraggedSliderValue = s->getValue();
 
@@ -734,7 +787,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 				alpha += delta;
 
 				if (auto s = sliders[i])
-					s->setValue(v, sendNotificationSync);
+					s->setValue(v, n);
 			}
 		}
 
@@ -751,11 +804,23 @@ void SliderPack::mouseUp(const MouseEvent &e)
 
 	currentlyDragged = false;
 
-	if(!rightClickLine.getStart().isOrigin()) setValuesFromLine();
+	if(!rightClickLine.getStart().isOrigin())
+	{
+		setValuesFromLine();
+		return;
+	}
 
 	if (callbackOnMouseUp)
-		getData()->getUpdater().sendContentChangeMessage(sendNotificationSync, -1);
+	{
+		Array<float> newData;
+		newData.ensureStorageAllocated(getNumSliders());
 
+		for(int i = 0; i < getNumSliders(); i++)
+			newData.add((float)sliders[i]->getValue());
+		
+		getData()->setFromFloatArray(newData, sendNotificationAsync, true);
+	}
+	
 	repaint();
 }
 
@@ -833,10 +898,10 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 void SliderPack::setValuesFromLine()
 {
-	data->setNewUndoAction();
+	Array<float> newValues;
 
-    int lastIndex = -1;
-    
+	newValues.ensureStorageAllocated(getNumSliders());
+
 	for (int i = 0; i < sliders.size(); i++)
 	{
 		Slider *s = sliders[i];
@@ -852,14 +917,19 @@ void SliderPack::setValuesFromLine()
 			double normalizedValue = ((double)getHeight() - y) / (double)getHeight();
 			double value = s->proportionOfLengthToValue(normalizedValue);
 
-            data->setValue(i, value, dontSendNotification, true);
-            lastIndex = -1;
+			newValues.add(value);
+		}
+		else
+		{
+			newValues.add((float)s->getValue());
 		}
 	}
-    
-	data->getUpdater().sendContentChangeMessage(sendNotificationAsync, lastIndex);
 
+	data->setFromFloatArray(newValues, sendNotificationAsync, true);
+	
 	rightClickLine = Line<float>(0.0f, 0.0f, 0.0f, 0.0f);
+
+	repaint();
 }
 
 void SliderPack::displayedIndexChanged(SliderPackData* d, int newIndex)

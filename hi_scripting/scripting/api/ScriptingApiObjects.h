@@ -2686,6 +2686,12 @@ namespace ScriptingObjects
 		/** Connects this MIDI player to the given metronome. */
 		void connectToMetronome(var metronome);
 
+		/** Returns the play state (0 = stop, 1 = play, 2 = recording. */
+		int getPlayState() const
+		{
+			return (int)getPlayer()->getPlayState();
+		}
+
 		/** Creates an array containing all MIDI messages wrapped into MessageHolders for processing. */
 		var getEventList();
 

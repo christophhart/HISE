@@ -1295,6 +1295,9 @@ public:
 		/** Sets all slider values to the given value. If value is a number it will be filled with the number. If it's a buffer (or array) it will set the values accordingly (without resizing the slider packs). */
 		void setAllValues(var value);
 
+		/** Like setAllValues, but with undo support (if useUndoManager is enabled). */
+		void setAllValuesWithUndo(var value);
+
 		/** Returns the number of sliders. */
 		int getNumSliders() const;
 

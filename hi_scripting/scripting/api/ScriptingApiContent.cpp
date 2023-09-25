@@ -3042,6 +3042,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptSliderPack, getSliderValueAt);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValues);
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValuesWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setWidthArray);
 	API_METHOD_WRAPPER_1(ScriptSliderPack, registerAtParent);
@@ -3099,6 +3100,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	ADD_API_METHOD_2(setSliderAtIndex);
 	ADD_API_METHOD_1(getSliderValueAt);
 	ADD_API_METHOD_1(setAllValues);
+	ADD_API_METHOD_1(setAllValuesWithUndo);
 	ADD_API_METHOD_0(getNumSliders);
 	ADD_API_METHOD_1(referToData);
     ADD_API_METHOD_1(setWidthArray);
@@ -3106,6 +3108,7 @@ ComplexDataScriptComponent(base, name_, snex::ExternalData::DataType::SliderPack
 	ADD_API_METHOD_0(getDataAsBuffer);
 	ADD_API_METHOD_1(setAllValueChangeCausesCallback);
 	ADD_API_METHOD_1(setUsePreallocatedLength);
+	
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -3147,7 +3150,6 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 	if (auto d = getCachedSliderPack())
 	{
 		auto isMultiValue = value.isBuffer() || value.isArray();
-
 		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : 0);
 
 		for (int i = 0; i < d->getNumSliders(); i++)
@@ -3167,6 +3169,29 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 		}
 		else
 			d->getUpdater().sendDisplayChangeMessage(-1, sendNotificationAsync, true);
+	}
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setAllValuesWithUndo(var value)
+{
+	if (auto d = getCachedSliderPack())
+	{
+		auto isMultiValue = value.isBuffer() || value.isArray();
+		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : d->getNumSliders());
+
+		Array<float> newData;
+		newData.ensureStorageAllocated(maxIndex);
+
+		for(int i = 0; i < maxIndex; i++)
+		{
+			newData.add(isMultiValue ? (float)value[i] : (float)value);
+		}
+
+		// We always want to send a value change when we're performing a undoable action
+		auto n = (true || allValueChangeCausesCallback) ? sendNotificationAsync : dontSendNotification;
+
+		d->setFromFloatArray(newData, n, true);
+
 	}
 }
 
