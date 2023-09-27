@@ -3505,15 +3505,30 @@ void ModuleStateManager::restoreFromValueTree(const ValueTree &v)
 
 	for (auto m : v)
 	{
-		didSomething = true;
-
 		auto id = m["ID"].toString();
+
+		bool isModuleState = false;
+
+		for(auto ms: modules)
+		{
+			if(ms->id == id)
+			{
+				didSomething = true;
+				isModuleState = true;
+				break;
+			}
+				
+		}
+
+		if(!isModuleState)
+			continue;
+		
 		auto p = ProcessorHelpers::getFirstProcessorWithName(chain, id);
 
 		if (p != nullptr)
 		{
 			auto mcopy = m.createCopy();
-
+			
 			for (auto ms : modules)
 			{
 				if (ms->id == id)
