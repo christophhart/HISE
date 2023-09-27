@@ -1753,10 +1753,12 @@ var ScriptingApi::Engine::createGlobalScriptLookAndFeel()
 	}
 }
 
-struct ScriptUndoableAction : public UndoableAction
+struct ScriptUndoableAction : public UndoableAction,
+							  public ControlledObject
 {
 	ScriptUndoableAction(ProcessorWithScriptingContent* p, var f, var thisObject_):
 		UndoableAction(),
+	    ControlledObject(p->getMainController_()),
 		callback(p, nullptr, f, 1),
 		thisObject(thisObject_)
 	{
@@ -1770,8 +1772,8 @@ struct ScriptUndoableAction : public UndoableAction
 		if (callback)
 		{
 			var a(true);
-			var::NativeFunctionArgs args(thisObject, &a, 1);
-			callback.callSync(args);
+
+			callSyncIfScriptingThread(a);
 			return true;
 		}
 
@@ -1783,12 +1785,37 @@ struct ScriptUndoableAction : public UndoableAction
 		if (callback)
 		{
 			var a(false);
-			var::NativeFunctionArgs args(thisObject, &a, 1);
-			callback.callSync(args);
+			
+			callSyncIfScriptingThread(a);
 			return true;
 		}
 
 		return false;
+	}
+
+	void callSyncIfScriptingThread(const var& a)
+	{
+		auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
+
+		var::NativeFunctionArgs args(thisObject, &a, 1);
+
+		switch(currentThread)
+		{
+		case MainController::KillStateHandler::TargetThread::ScriptingThread:
+		case MainController::KillStateHandler::TargetThread::SampleLoadingThread:
+		{
+			auto ok = callback.callSync(args);
+
+			if(!ok.wasOk())
+				throw ok.getErrorMessage();
+
+			break;
+		}
+		case MainController::KillStateHandler::TargetThread::MessageThread:
+		{
+			callback.call(args);
+		}
+		}
 	}
 
 	var thisObject;

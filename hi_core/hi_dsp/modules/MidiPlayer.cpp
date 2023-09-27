@@ -1250,6 +1250,11 @@ float MidiPlayer::getAttribute(int index) const
 
 void MidiPlayer::setInternalAttribute(int index, float newAmount)
 {
+	if(isinf(newAmount))
+	{
+		jassertfalse;
+	}
+
 	auto s = (SpecialParameters)index;
 
 	switch (s)

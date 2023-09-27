@@ -1171,7 +1171,8 @@ namespace ScriptingObjects
 
 	
 
-	class ScriptSliderPackData : public ScriptComplexDataReferenceBase
+	class ScriptSliderPackData : public ScriptComplexDataReferenceBase,
+								 public AssignableObject
 	{
 	public:
 
@@ -1194,6 +1195,24 @@ namespace ScriptingObjects
 
 		/** Sets the value at the given position. */
 		void setValue(int sliderIndex, float value);
+
+		/** Sets a single value at the given position with undo support. */
+		void setValueWithUndo(int sliderIndex, float value);
+
+		/** Sets all values with an undo operation. */
+		void setAllValuesWithUndo(var value);
+
+		/** Sets all values. */
+		void setAllValues(var value);
+
+		/** Returns a Buffer object containing all slider values (as reference). */
+		var getDataAsBuffer()
+		{
+			if(auto d = getSliderPackData())
+				return d->getDataArray();
+
+			return var();
+		}
 
 		/** Returns the value at the given position. */
 		float getValue(int index) const;
@@ -1218,10 +1237,26 @@ namespace ScriptingObjects
         {
             linkToInternal(other);
         }
-        
+
+		/** Enables undo support for []-operator assignments. */
+		void setAssignIsUndoable(bool shouldBeUndoable);
+
+		/** Restores the data from the B64 string. */
+		void fromBase64(const String& b64);
+
+		/** Exports the data to a B64 string. */
+		String toBase64() const;
+
 		// ============================================================================================================
 
+		// operator [] support
+		void assign(const int index, var newValue) override;
+		var getAssignedValue(int index) const override;
+		int getCachedIndex(const var &indexExpression) const override;
+
 	private:
+
+		bool assignIsUndoable = false;
 
 		SliderPackData* getSliderPackData() { return static_cast<SliderPackData*>(complexObject.get()); }
 		const SliderPackData* getSliderPackData() const { return static_cast<const SliderPackData*>(complexObject.get()); }
@@ -2707,8 +2742,24 @@ namespace ScriptingObjects
 		/** Creates an empty sequence with the given length. */
 		void create(int nominator, int denominator, int barLength);
 
+		/** Removes all sequences and tracks. */
+		void clearAllSequences()
+		{
+			if(auto m = getPlayer())
+				m->clearSequences(sendNotificationAsync);
+		}
+
 		/** Checks if the MIDI player contains a sequence to read / write. */
 		bool isEmpty() const;
+
+		/** Returns true if the sequence doesn't contain any midi data. */
+		bool isSequenceEmpty(int index) const
+		{
+			if(auto m = getPlayer())
+				return m->isSequenceEmpty(index);
+
+			return true;
+		}
 
 		/** Resets the current sequence to the last loaded file. */
 		void reset();

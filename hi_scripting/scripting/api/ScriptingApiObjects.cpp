@@ -1991,7 +1991,14 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setDisplayCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setContentCallback);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setUsePreallocatedLength);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setAllValuesWithUndo);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setAllValues);
+	API_VOID_METHOD_WRAPPER_2(ScriptSliderPackData, setValueWithUndo);
+	API_METHOD_WRAPPER_0(ScriptSliderPackData, getDataAsBuffer);
     API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, linkTo);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setAssignIsUndoable);
+	API_METHOD_WRAPPER_0(ScriptSliderPackData, toBase64);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, fromBase64);
 };
 
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc, int dataIndex, ExternalDataHolder* otherHolder) :
@@ -2007,6 +2014,14 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_1(setContentCallback);
     ADD_API_METHOD_1(setUsePreallocatedLength);
     ADD_API_METHOD_1(linkTo);
+	ADD_API_METHOD_1(setAllValuesWithUndo);
+	ADD_API_METHOD_1(setAllValues);
+	ADD_API_METHOD_2(setValueWithUndo);
+	ADD_API_METHOD_0(getDataAsBuffer);
+	ADD_API_METHOD_1(setAssignIsUndoable);
+	ADD_API_METHOD_0(toBase64);
+	ADD_API_METHOD_1(fromBase64);
+	
 }
 
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const
@@ -2037,10 +2052,85 @@ void ScriptingObjects::ScriptSliderPackData::setUsePreallocatedLength(int numUse
         data->setUsePreallocatedLength(32);
 }
 
+void ScriptingObjects::ScriptSliderPackData::setAssignIsUndoable(bool shouldBeUndoable)
+{
+	assignIsUndoable = shouldBeUndoable;
+}
+
+void ScriptingObjects::ScriptSliderPackData::fromBase64(const String& b64)
+{
+	if(auto data = getSliderPackData())
+		data->fromBase64String(b64);
+}
+
+String ScriptingObjects::ScriptSliderPackData::toBase64() const
+{
+	if(auto data = getSliderPackData())
+		return data->toBase64String();
+
+	return "";
+}
+
+void ScriptingObjects::ScriptSliderPackData::assign(const int index, var newValue)
+{
+	if(assignIsUndoable)
+		setValueWithUndo(index, (float)newValue);
+	else
+		setValue(index, (float)newValue);
+}
+
+var ScriptingObjects::ScriptSliderPackData::getAssignedValue(int index) const
+{
+	return getValue(index);
+}
+
+int ScriptingObjects::ScriptSliderPackData::getCachedIndex(const var& indexExpression) const
+{ return (int)indexExpression; }
+
 void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)
 {
 	if(auto data = getSliderPackData())
 		data->setValue(sliderIndex, value, sendNotification);
+}
+
+void ScriptingObjects::ScriptSliderPackData::setValueWithUndo(int sliderIndex, float value)
+{
+	if(auto data = getSliderPackData())
+		data->setValue(sliderIndex, value, sendNotification, true);
+}
+
+void ScriptingObjects::ScriptSliderPackData::setAllValues(var value)
+{
+	if(auto d = getSliderPackData())
+	{
+		auto isMultiValue = value.isBuffer() || value.isArray();
+		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : d->getNumSliders());
+
+		Array<float> newData;
+		newData.ensureStorageAllocated(maxIndex);
+
+		for(int i = 0; i < maxIndex; i++)
+			newData.add(isMultiValue ? (float)value[i] : (float)value);
+		
+		d->setFromFloatArray(newData, sendNotificationAsync, false);
+	}
+}
+
+void ScriptingObjects::ScriptSliderPackData::setAllValuesWithUndo(var value)
+{
+	if(auto d = getSliderPackData())
+	{
+		auto isMultiValue = value.isBuffer() || value.isArray();
+		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : d->getNumSliders());
+
+		Array<float> newData;
+		newData.ensureStorageAllocated(maxIndex);
+
+		for(int i = 0; i < maxIndex; i++)
+			newData.add(isMultiValue ? (float)value[i] : (float)value);
+		
+		d->setFromFloatArray(newData, sendNotificationAsync, true);
+	}
 }
 
 float ScriptingObjects::ScriptSliderPackData::getValue(int index) const
@@ -5069,6 +5159,9 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRecordEventCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setUseGlobalUndoManager);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, connectToMetronome);
+	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, clearAllSequences);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, isSequenceEmpty);
+	
 };
 
 ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingContent* p, MidiPlayer* player_):
@@ -5114,6 +5207,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(setRecordEventCallback);
 	ADD_API_METHOD_1(setUseGlobalUndoManager);
 	ADD_API_METHOD_1(connectToMetronome);
+	ADD_API_METHOD_1(isSequenceEmpty);
+	ADD_API_METHOD_0(clearAllSequences);
 }
 
 ScriptingObjects::ScriptedMidiPlayer::~ScriptedMidiPlayer()

@@ -452,6 +452,17 @@ public:
 	/** Returns the number of sequences loaded into this player. */
 	int getNumSequences() const;
 
+	/** Returns true if the Sequence doesn't exist or doesn't contain any MIDI data. */
+	bool isSequenceEmpty(int index) const
+	{
+		SimpleReadWriteLock::ScopedReadLock sl(sequenceLock);
+
+		if(auto p = currentSequences[index])
+			return p->getNumEvents() == 0;
+
+		return true;
+	}
+
 	/** Returns the currently played sequence. */
 	HiseMidiSequence::Ptr getCurrentSequence() const;
 

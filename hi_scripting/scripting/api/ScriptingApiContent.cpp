@@ -3156,7 +3156,15 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(var value)
 		{
 			if (!isMultiValue || isPositiveAndBelow(i, maxIndex))
 			{
-				auto vToSet = isMultiValue ? (float)value[i] : (float)value;
+				float vToSet;
+
+				if(value.isBuffer())
+					vToSet = value.getBuffer()->getSample(i);
+				else if (value.isArray())
+					vToSet = value[i];
+				else
+					vToSet = (float)value;
+				
 				d->setValue(i, (float)vToSet, dontSendNotification);
 			}
 		}
@@ -3184,14 +3192,22 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValuesWithUndo(var value)
 
 		for(int i = 0; i < maxIndex; i++)
 		{
-			newData.add(isMultiValue ? (float)value[i] : (float)value);
+			float vToSet;
+
+			if(value.isBuffer())
+				vToSet = value.getBuffer()->getSample(i);
+			else if (value.isArray())
+				vToSet = value[i];
+			else
+				vToSet = (float)value;
+
+			newData.add(vToSet);
 		}
 
 		// We always want to send a value change when we're performing a undoable action
 		auto n = (true || allValueChangeCausesCallback) ? sendNotificationAsync : dontSendNotification;
 
 		d->setFromFloatArray(newData, n, true);
-
 	}
 }
 
