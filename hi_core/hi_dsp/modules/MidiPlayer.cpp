@@ -926,42 +926,49 @@ void MidiPlayer::OverdubUpdater::setDirty(double activeNoteTimestamp)
 bool MidiPlayer::isRecording() const noexcept
 { return getPlayState() == PlayState::Record; }
 
-MidiPlayer::EditAction::EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse_) :
+MidiPlayer::EditAction::EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse_, int sequenceIndex_) :
 	UndoableAction(),
 	currentPlayer(currentPlayer_),
 	newEvents(newContent),
 	sampleRate(sampleRate_),
 	bpm(bpm_),
-	formatToUse(formatToUse_)
+	formatToUse(formatToUse_),
+	sequenceIndex(sequenceIndex_)
 {
-	if (auto seq = currentPlayer->getCurrentSequence())
+	if (currentPlayer == nullptr)
+		return;
+
+	if(sequenceIndex == -1)
+		sequenceIndex = currentPlayer->getAttribute(MidiPlayer::CurrentSequence);
+
+	if (auto seq = currentPlayer->getSequenceWithIndex(sequenceIndex))
 	{
 		oldEvents = seq->getEventList(sampleRate, bpm, formatToUse);
 		oldSig = seq->getTimeSignature();
 	}
-		
-	if (currentPlayer == nullptr)
-		return;
-
-	if (auto seq = currentPlayer->getCurrentSequence())
-		sequenceId = seq->getId();
 }
 
 bool MidiPlayer::EditAction::perform()
 {
-	if (currentPlayer != nullptr && currentPlayer->getSequenceId() == sequenceId)
+	if (currentPlayer != nullptr)
 	{
-		writeArrayToSequence(currentPlayer->getCurrentSequence(),
-							 newEvents,
-							 bpm,
-							 sampleRate,
-							 formatToUse);
-
-		if (auto seq = currentPlayer->getCurrentSequence())
+		if(auto seq = currentPlayer->getSequenceWithIndex(sequenceIndex))
 		{
-			currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
-			currentPlayer->updatePositionInCurrentSequence();
-			currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
+			writeArrayToSequence(seq,
+								 newEvents,
+								 bpm,
+								 sampleRate,
+								 formatToUse);
+
+			seq->setLengthFromTimeSignature(oldSig);
+
+			auto isCurrentSequence = ((int)currentPlayer->getAttribute(MidiPlayer::CurrentSequence)) == sequenceIndex;
+
+			if(isCurrentSequence)
+			{
+				currentPlayer->updatePositionInCurrentSequence();
+				currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
+			}
 
 			return true;
 		}
@@ -972,20 +979,30 @@ bool MidiPlayer::EditAction::perform()
 
 bool MidiPlayer::EditAction::undo()
 {
-	if (currentPlayer != nullptr && currentPlayer->getSequenceId() == sequenceId)
+	if (currentPlayer != nullptr)
 	{
-		writeArrayToSequence(currentPlayer->getCurrentSequence(), 
-			                 oldEvents, 
-			                 bpm,
-							 sampleRate,
-							 formatToUse);
+		if(auto seq = currentPlayer->getSequenceWithIndex(sequenceIndex))
+		{
+			writeArrayToSequence(seq,
+								 oldEvents,
+								 bpm,
+								 sampleRate,
+								 formatToUse);
 
-		currentPlayer->getCurrentSequence()->setLengthFromTimeSignature(oldSig);
-		currentPlayer->updatePositionInCurrentSequence();
-		currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
-		return true;
+			seq->setLengthFromTimeSignature(oldSig);
+
+			auto isCurrentSequence = ((int)currentPlayer->getAttribute(MidiPlayer::CurrentSequence)) == sequenceIndex;
+
+			if(isCurrentSequence)
+			{
+				currentPlayer->updatePositionInCurrentSequence();
+				currentPlayer->sendSequenceUpdateMessage(sendNotificationAsync);
+			}
+
+			return true;
+		}
 	}
-
+	
 	return false;
 }
 
@@ -1841,9 +1858,9 @@ void MidiPlayer::setExternalUndoManager(UndoManager* externalUndoManager)
 	undoManager = externalUndoManager;
 }
 
-void MidiPlayer::flushEdit(const Array<HiseEvent>& newEvents, HiseMidiSequence::TimestampEditFormat formatToUse)
+void MidiPlayer::flushEdit(const Array<HiseEvent>& newEvents, HiseMidiSequence::TimestampEditFormat formatToUse, int sequenceIndex)
 {
-	ScopedPointer<EditAction> newAction = new EditAction(this, newEvents, getSampleRate(), getMainController()->getBpm(), formatToUse);
+	ScopedPointer<EditAction> newAction = new EditAction(this, newEvents, getSampleRate(), getMainController()->getBpm(), formatToUse, sequenceIndex);
 
 	if (undoManager != nullptr)
 	{

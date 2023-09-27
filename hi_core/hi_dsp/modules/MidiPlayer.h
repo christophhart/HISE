@@ -309,7 +309,7 @@ public:
 		
 		    Upon construction, it will create a list of events from the current sequence that
 			will be used for undo operations. */
-		EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse);;
+		EditAction(WeakReference<MidiPlayer> currentPlayer_, const Array<HiseEvent>& newContent, double sampleRate_, double bpm_, HiseMidiSequence::TimestampEditFormat formatToUse, int sequenceIndexOneBased=-1);;
 
 		/** Applies the given event list. */
 		bool perform() override;
@@ -328,7 +328,7 @@ public:
 		Array<HiseEvent> oldEvents;
 		double sampleRate;
 		double bpm;
-		Identifier sequenceId;
+		int sequenceIndex = -1;
 		HiseMidiSequence::TimestampEditFormat formatToUse;
 	};
 
@@ -452,14 +452,14 @@ public:
 	/** Returns the number of sequences loaded into this player. */
 	int getNumSequences() const;
 
-	/** Returns true if the Sequence doesn't exist or doesn't contain any MIDI data. */
-	bool isSequenceEmpty(int index) const
+	/** Returns true if the Sequence (not zero based!) doesn't exist or doesn't contain any MIDI data. */
+	bool isSequenceEmpty(int indexBasedOne) const
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(sequenceLock);
-
-		if(auto p = currentSequences[index])
-			return p->getNumEvents() == 0;
-
+		if(auto seq = getSequenceWithIndex(indexBasedOne))
+		{
+			return seq->getNumEvents() == 0;
+		}
+		
 		return true;
 	}
 
@@ -487,7 +487,7 @@ public:
 	
 		It locks the sequence just for a very short time so you should be able to use this from any
 		thread without bothering about multi-threading. */
-	void flushEdit(const Array<HiseEvent>& newEvents, HiseMidiSequence::TimestampEditFormat formatToUse=HiseMidiSequence::TimestampEditFormat::numTimestampFormats);
+	void flushEdit(const Array<HiseEvent>& newEvents, HiseMidiSequence::TimestampEditFormat formatToUse=HiseMidiSequence::TimestampEditFormat::numTimestampFormats, int sequenceIndexOneBased=-1);
 
 	/** Clears the current sequence and any recorded events. */
 	void clearCurrentSequence();
@@ -549,6 +549,24 @@ public:
 
 	/** Creates a temporary sequence containing all the events from the currently recorded event list. */
 	HiseMidiSequence::Ptr getListOfCurrentlyRecordedEvents();
+
+	/** Returns the sequence with the given (one-based!) index (or -1 for the current sequence). */
+	HiseMidiSequence::Ptr getSequenceWithIndex(int indexOneBased) const
+	{
+		if(indexOneBased == -1)
+			return getCurrentSequence();
+
+		jassert(indexOneBased != 0);
+
+		indexOneBased -= 1;
+
+		SimpleReadWriteLock::ScopedReadLock sl(sequenceLock);
+
+		if(isPositiveAndBelow(indexOneBased, currentSequences.size()))
+			return currentSequences[indexOneBased];
+
+		return nullptr;
+	}
 
 	/** Returns the array of HiseEvents without conversion to a HiseMidiSequence. */
 	const Array<HiseEvent>& getListOfCurrentlyRecordedEventsRaw() const;

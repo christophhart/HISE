@@ -5128,6 +5128,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setRepaintOnPositionChange);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, flushMessageList);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getEventList);
+	API_VOID_METHOD_WRAPPER_2(ScriptedMidiPlayer, flushMessageListToSequence);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, getEventListFromSequence);
 	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, convertEventListToNoteRectangles);
 	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, saveAsMidiFile);
 	API_VOID_METHOD_WRAPPER_0(ScriptedMidiPlayer, reset);
@@ -5175,7 +5177,9 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_1(connectToPanel);
 	ADD_API_METHOD_1(setRepaintOnPositionChange);
 	ADD_API_METHOD_0(getEventList);
+	ADD_API_METHOD_1(getEventListFromSequence);
 	ADD_API_METHOD_1(flushMessageList);
+	ADD_API_METHOD_2(flushMessageListToSequence);
 	ADD_API_METHOD_0(reset);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
@@ -5414,38 +5418,45 @@ void ScriptingObjects::ScriptedMidiPlayer::connectToMetronome(var metronome)
 	}
 }
 
-var ScriptingObjects::ScriptedMidiPlayer::getEventList()
+var ScriptingObjects::ScriptedMidiPlayer::getEventListFromSequence(int sequenceIndexOneBased)
 {
+	if(sequenceIndexOneBased == 0)
+		reportScriptError("Nope. One based!!!");
+
 	Array<var> eventHolders;
 
-	if (!sequenceValid())
-		return var(eventHolders);
-
-	auto sr = getPlayer()->getSampleRate();
-	auto bpm = getPlayer()->getMainController()->getBpm();
-
-	getPlayer()->getCurrentSequence()->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
-
-	auto list = getPlayer()->getCurrentSequence()->getEventList(sr, bpm);
-
-	for (const auto& e : list)
+	if(auto seq = getPlayer()->getSequenceWithIndex(sequenceIndexOneBased))
 	{
-		ScopedPointer<ScriptingMessageHolder> holder = new ScriptingMessageHolder(getScriptProcessor());
-		holder->setMessage(e);
-		eventHolders.add(holder.release());
+		auto sr = getPlayer()->getSampleRate();
+		auto bpm = getPlayer()->getMainController()->getBpm();
+
+		seq->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
+
+		auto list = seq->getEventList(sr, bpm);
+
+		for (const auto& e : list)
+		{
+			ScopedPointer<ScriptingMessageHolder> holder = new ScriptingMessageHolder(getScriptProcessor());
+			holder->setMessage(e);
+			eventHolders.add(holder.release());
+		}
 	}
 
 	return var(eventHolders);
 }
 
-void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
+var ScriptingObjects::ScriptedMidiPlayer::getEventList()
 {
-	if (!sequenceValid())
-		return;
+	return getEventListFromSequence(-1);
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::flushMessageListToSequence(var messageList, int sequenceIndex)
+{
+	Array<HiseEvent> events;
 
 	if (auto ar = messageList.getArray())
 	{
-		Array<HiseEvent> events;
+		events.ensureStorageAllocated(messageList.size());
 
 		for (auto e : *ar)
 		{
@@ -5454,14 +5465,31 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
 			else
 				reportScriptError("Illegal item in message list: " + e.toString());
 		}
-
-		if (auto seq = getPlayer()->getCurrentSequence())
-			seq->setTimeStampEditFormat(useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples);
-
-		getPlayer()->flushEdit(events);
 	}
 	else
+	{
 		reportScriptError("Input is not an array");
+	}
+	
+	if(auto seq = getPlayer()->getSequenceWithIndex(sequenceIndex))
+	{
+		auto t = useTicks ? HiseMidiSequence::TimestampEditFormat::Ticks : HiseMidiSequence::TimestampEditFormat::Samples;
+
+		seq->setTimeStampEditFormat(t);
+
+		getPlayer()->flushEdit(events, t, sequenceIndex);
+	}
+	else
+	{
+		reportScriptError("Can't find sequence with one based index " + sequenceIndex);
+	}
+}
+
+void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
+{
+	auto currentSequenceIndex = getPlayer()->getAttribute(MidiPlayer::SpecialParameters::CurrentSequence);
+
+	flushMessageListToSequence(messageList, -1);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setUseTimestampInTicks(bool shouldUseTimestamps)

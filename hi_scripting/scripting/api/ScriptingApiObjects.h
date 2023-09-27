@@ -2730,6 +2730,12 @@ namespace ScriptingObjects
 		/** Creates an array containing all MIDI messages wrapped into MessageHolders for processing. */
 		var getEventList();
 
+		/** Creates an array containing all MIDI messages from the sequence with the given (one-based!) index into Message Holders. */
+		var getEventListFromSequence(int sequenceIndexOneBased);
+
+		/** Writes the given array of MessageHolder objects into the sequence with the given (one-based!) index. This is undoable. */
+		void flushMessageListToSequence(var messageList, int sequenceIndexOneBased);
+		
 		/** Writes the given array of MessageHolder objects into the current sequence. This is undoable. */
 		void flushMessageList(var messageList);
 
@@ -2752,11 +2758,11 @@ namespace ScriptingObjects
 		/** Checks if the MIDI player contains a sequence to read / write. */
 		bool isEmpty() const;
 
-		/** Returns true if the sequence doesn't contain any midi data. */
-		bool isSequenceEmpty(int index) const
+		/** Returns true if the sequence with the given (one-based!) index doesn't contain any midi data. */
+		bool isSequenceEmpty(int indexOneBased) const
 		{
 			if(auto m = getPlayer())
-				return m->isSequenceEmpty(index);
+				return m->isSequenceEmpty(indexOneBased);
 
 			return true;
 		}
@@ -2791,7 +2797,7 @@ namespace ScriptingObjects
 		/** Sets the track index (starting with one). */
 		void setTrack(int trackIndex);
 
-		/** Enables the (previously loaded) sequence with the given index. */
+		/** Enables the (previously loaded) sequence with the given (one-based!) index. */
 		void setSequence(int sequenceIndex);
 
 		/** Returns the number of tracks in the current sequence. */
