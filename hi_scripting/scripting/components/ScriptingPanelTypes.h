@@ -31,6 +31,7 @@
 */
 
 #pragma once
+#include "hi_core/hi_components/floating_layout/PanelWithProcessorConnection.h"
 
 namespace hise { 
 using namespace juce;
@@ -564,6 +565,12 @@ namespace ScriptingObjects {
 
 struct ScriptBroadcasterPanel : public PanelWithProcessorConnection
 {
+	enum SpecialProperties
+	{
+		Active = PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
+		numSpecialProperties
+	};
+
 	ScriptBroadcasterPanel(FloatingTile* parent);;
 
 	SET_PANEL_NAME("ScriptBroadcasterMap");
@@ -573,6 +580,49 @@ struct ScriptBroadcasterPanel : public PanelWithProcessorConnection
 	Component* createContentComponent(int) override;
 
 	void fillModuleList(StringArray& moduleList) override;
+
+	bool active = false;
+
+	void fromDynamicObject(const var& object) override
+	{
+		active = object.getProperty("Active", false);
+		PanelWithProcessorConnection::fromDynamicObject(object);
+	}
+
+	var toDynamicObject() const override
+	{
+		auto obj = PanelWithProcessorConnection::toDynamicObject();
+		obj.getDynamicObject()->setProperty("Active", active);
+
+		return obj;
+	}
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialProperties::numSpecialProperties;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds)
+			return PanelWithProcessorConnection::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::Active, "Active");
+		
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds)
+			return PanelWithProcessorConnection::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::Active, var(false));
+
+		jassertfalse;
+		return{};
+	}
 };
 
 }

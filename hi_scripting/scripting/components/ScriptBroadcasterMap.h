@@ -668,15 +668,13 @@ public:
 
 	void handleAsyncUpdate() override { rebuild(); }
 
-	ScriptBroadcasterMap(JavascriptProcessor* p_);
+	ScriptBroadcasterMap(JavascriptProcessor* p_, bool active_);
 
 	~ScriptBroadcasterMap()
 	{
 		getMainController()->removeScriptListener(this);
 	}
-
 	
-
 	void rebuild();
 
 	void resized() override
@@ -772,7 +770,7 @@ public:
 	void showAll();
 
 	void zoomToWidth();
-
+	
 	StringArray availableTags;
 
 	Array<int64> currentTags;
@@ -793,6 +791,7 @@ public:
 
 	bool ok = true;
 	bool commentsShown = true;
+	bool active = false;
 
 	private:
 
