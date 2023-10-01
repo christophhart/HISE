@@ -61,6 +61,176 @@ public:
 
 #define NUM_VAR_REGISTERS 32
 
+#define DECLARE_ID(id) static const Identifier id(#id);
+
+namespace VarTypeIdentifiers
+{
+    static const Identifier Undefined("undefined");
+    static const Identifier Integer("int");
+    static const Identifier Double("double");
+    static const Identifier Number("number");
+    static const Identifier String("string");
+    DECLARE_ID(Colour);
+    DECLARE_ID(Array);
+    DECLARE_ID(Buffer);
+    DECLARE_ID(ObjectWithLength);
+    DECLARE_ID(JSON);
+    DECLARE_ID(ScriptObject);
+    static const Identifier Object("object");
+    DECLARE_ID(Function);
+    DECLARE_ID(ComplexType);
+    DECLARE_ID(NotUndefined);
+}
+
+#undef DECLARE_ID
+
+/** A helper class that checks the type of var objects. */
+struct VarTypeChecker
+{
+    // This is taken from the inline function
+    static constexpr int NumMaxArgs = 5;
+    
+    enum VarTypes: uint8
+    {
+        Undefined = 0,
+        Integer = 1,
+        Double = 2,
+        Number = 3,
+        String = 4,
+        Colour = String | Number,
+        Array = 8,
+        Buffer = 16,
+        ObjectWithLength = 4 | 8 | 16,
+        JSON = 32,
+        ScriptObject = 64,
+        Object = 32 | 64,
+        Function = 128,
+        ComplexType = 4 | 8 | 16 | 32 | 64 | 128,
+        NotUndefined = ComplexType | Number
+    };
+    
+    using ParameterTypes = std::array<VarTypes, NumMaxArgs>;
+    
+    static Identifier getTypeName(VarTypes type)
+    {
+        switch(type)
+        {
+            case Undefined: return VarTypeIdentifiers::Undefined;
+            case Integer: return VarTypeIdentifiers::Integer;
+            case Double: return VarTypeIdentifiers::Double;
+            case Number: return VarTypeIdentifiers::Number;
+            case String: return VarTypeIdentifiers::String;
+            case Colour: return VarTypeIdentifiers::Colour;
+            case Array: return VarTypeIdentifiers::Array;
+            case Buffer: return VarTypeIdentifiers::Buffer;
+            case ObjectWithLength: return VarTypeIdentifiers::ObjectWithLength;
+            case JSON: return VarTypeIdentifiers::JSON;
+            case ScriptObject: return VarTypeIdentifiers::ScriptObject;
+            case Object: return VarTypeIdentifiers::Object;
+            case Function: return VarTypeIdentifiers::Function;
+            case ComplexType: return VarTypeIdentifiers::ComplexType;
+            default: jassertfalse; return "Unknown";
+        }
+    }
+    
+    static forcedinline VarTypes getTypeFromString(const juce::Identifier& name)
+    {
+        if(name == VarTypeIdentifiers::Undefined) return VarTypes::Undefined;
+        if(name == VarTypeIdentifiers::Integer) return VarTypes::Integer;
+        if(name == VarTypeIdentifiers::Double) return VarTypes::Double;
+        if(name == VarTypeIdentifiers::Number) return VarTypes::Number;
+        if(name == VarTypeIdentifiers::String) return VarTypes::String;
+        if(name == VarTypeIdentifiers::Colour) return VarTypes::Colour;
+        if(name == VarTypeIdentifiers::Array) return VarTypes::Array;
+        if(name == VarTypeIdentifiers::Buffer) return VarTypes::Buffer;
+        if(name == VarTypeIdentifiers::ObjectWithLength) return VarTypes::ObjectWithLength;
+        if(name == VarTypeIdentifiers::JSON) return VarTypes::JSON;
+        if(name == VarTypeIdentifiers::ScriptObject) return VarTypes::ScriptObject;
+        if(name == VarTypeIdentifiers::Object) return VarTypes::Object;
+        if(name == VarTypeIdentifiers::Function) return VarTypes::Function;
+        if(name == VarTypeIdentifiers::ComplexType) return VarTypes::ComplexType;
+        if(name == VarTypeIdentifiers::NotUndefined) return VarTypes::NotUndefined;
+        
+        return VarTypes::Undefined;
+    }
+    
+    static VarTypes getType(const var& value);
+    
+    
+    static ParameterTypes createParameterTypes(VarTypes t1,
+                                               VarTypes t2=VarTypes::Undefined,
+                                               VarTypes t3=VarTypes::Undefined,
+                                               VarTypes t4=VarTypes::Undefined,
+                                               VarTypes t5=VarTypes::Undefined)
+    {
+        return {t1, t2, t3, t4, t5 };
+    }
+    
+    ParameterTypes createParameterTypesFromNames(const StringArray& names)
+    {
+        ParameterTypes t;
+        int index = 0;
+        
+        for(const auto& n: names)
+        {
+            if(index == NumMaxArgs)
+            {
+                jassertfalse;
+                break;
+            }
+            
+            t[index++] = getTypeFromString(n);
+        }
+        
+        return t;
+    }
+    
+    /** Creates a parameter type set for the given*/
+    static ParameterTypes createParameterTypes(const juce::Array<var>& values)
+    {
+        ParameterTypes t;
+        
+        int index = 0;
+        
+        for(const auto& v: values)
+        {
+            if(index == NumMaxArgs)
+            {
+                // You can' use this with more than NumMaxArgs parameters
+                jassertfalse;
+                break;
+            }
+                
+            t[index++] = getType(v);
+        }
+        
+        return t;
+    }
+    
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    static Result checkType(const var& value, VarTypes expectedType, bool allowUndefined=false)
+    {
+        auto t = getType(value);
+        
+        auto matches = (t & expectedType) != 0;
+        
+        if(!matches && allowUndefined)
+            matches = t == VarTypes::Undefined;
+        
+        if(!matches)
+        {
+            juce::String errorMessage;
+            errorMessage << "Illegal type: " << getTypeName(getType(value));
+            errorMessage << ", expected: " << getTypeName(expectedType);
+            
+            return Result::fail(errorMessage);
+        }
+        
+        return Result::ok();
+    }
+#endif
+};
+
 /** A VarRegister is a container with a fixed amount of var slots that can be used for faster variable access in the Javascript engine. */
 class VarRegister
 {
@@ -76,7 +246,7 @@ public:
 
 	// ================================================================================================================
 
-	void addRegister(const Identifier &id, var newValue);
+	void addRegister(const Identifier &id, var newValue, VarTypeChecker::VarTypes expectedType=VarTypeChecker::Undefined);
 	void setRegister(int registerIndex, var newValue);
 
 	const var &getFromRegister(int registerIndex) const;
@@ -86,6 +256,20 @@ public:
 	const var *getVarPointer(int index) const;
 	var *getVarPointer(int index);
 
+    VarTypeChecker::VarTypes getRegisterVarType(int index) const
+    {
+        ignoreUnused(index);
+        
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if(isPositiveAndBelow(index, NUM_VAR_REGISTERS))
+        {
+            return registerTypes[index];
+        }
+#endif
+        
+        return VarTypeChecker::Undefined;
+    }
+    
 	ReadWriteLock& getLock(int index);
 
 private:
@@ -93,6 +277,11 @@ private:
 	// ================================================================================================================
 
 	var registerStack[NUM_VAR_REGISTERS];
+    
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    VarTypeChecker::VarTypes registerTypes[NUM_VAR_REGISTERS];
+#endif
+    
 	Identifier registerStackIds[NUM_VAR_REGISTERS];
 	ReadWriteLock registerLocks[NUM_VAR_REGISTERS];
 
@@ -230,6 +419,46 @@ public:
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_5() for it. */
     void addFunction5(const Identifier &id, call5 newFunction);
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    void addForcedParameterTypes(const Identifier& id, const VarTypeChecker::ParameterTypes& types)
+    {
+        ForcedParameterInfo info;
+        
+        info.id = id;
+        info.types = types;
+        
+        getIndexAndNumArgsForFunction(id, info.index, info.numArgs);
+        forcedParameterTypes.add(info);
+    }
+#endif
+    
+    VarTypeChecker::ParameterTypes getForcedParameterTypes(int index, int numArgs) const
+    {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        for(const auto& t: forcedParameterTypes)
+        {
+            if(t.index == index && t.numArgs == numArgs)
+                return t.types;
+        }
+#endif
+        
+        return {};
+
+    }
+    
+    VarTypeChecker::ParameterTypes getForcedParameterTypes(const Identifier& id) const
+    {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        for(const auto& t: forcedParameterTypes)
+        {
+            if(t.id == id)
+                return t.types;
+        }
+#endif
+        
+        return {};
+    }
+    
     /** This will fill in the information for the given function. 
     *
     *   The JavascriptEngine uses this to resolve the function call into a function pointer at compile time.
@@ -337,6 +566,18 @@ private:
 	call4 functions4[NUM_API_FUNCTION_SLOTS];
 	call5 functions5[NUM_API_FUNCTION_SLOTS];
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    struct ForcedParameterInfo
+    {
+        int numArgs;
+        int index;
+        Identifier id;
+        VarTypeChecker::ParameterTypes types;
+    };
+    
+    Array<ForcedParameterInfo> forcedParameterTypes;
+#endif
+    
 	// ================================================================================================================
 
 	struct Constant

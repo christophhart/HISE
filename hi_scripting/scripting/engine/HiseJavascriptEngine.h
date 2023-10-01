@@ -960,7 +960,7 @@ public:
 		root->setUseCycleReferenceCheckForNextCompilation();
 	}
 
-	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location);
+	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::VarTypes expectedType);
 
     LambdaBroadcaster<bool> preCompileListeners;
     

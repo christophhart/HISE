@@ -6,7 +6,15 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		varRegister->addRegister(name, initialiser->getResult(s));
+        try
+        {
+            varRegister->addRegister(name, initialiser->getResult(s));
+        }
+        catch(String& error)
+        {
+            throw Error::fromLocation(location, error);
+        }
+		
 		return ok;
 	}
 
@@ -41,12 +49,17 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 
 struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 {
-	RegisterName(const CodeLocation& l, const Identifier& n, VarRegister* rootRegister_, int indexInRegister_, var* data_) noexcept : 
+	RegisterName(const CodeLocation& l, const Identifier& n, VarRegister* rootRegister_, int indexInRegister_, var* data_, VarTypeChecker::VarTypes type_) noexcept :
 	  Expression(l), 
 	  rootRegister(rootRegister_),
 	  indexInRegister(indexInRegister_),
-      name(n), 
-	  data(data_) {}
+      name(n),
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+      type(type_),
+#endif
+	  data(data_)
+      
+    {}
 
 	var getResult(const Scope& /*s*/) const override
 	{
@@ -55,6 +68,18 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 
 	void assign(const Scope& /*s*/, const var& newValue) const override
 	{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if(type)
+        {
+            auto ok = VarTypeChecker::checkType(newValue, type, true);
+            
+            if(ok.failed())
+            {
+                throw Error::fromLocation(location, ok.getErrorMessage());
+            }
+        }
+#endif
+        
 		*data = newValue;
 	}
 
@@ -62,6 +87,10 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 
 	VarRegister* rootRegister;
 	int indexInRegister;
+    
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    VarTypeChecker::VarTypes type;
+#endif
 
 	var* data;
 
@@ -83,10 +112,13 @@ struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 
 struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 {
-	ApiCall(const CodeLocation &l, ApiClass *apiClass_, int expectedArguments_, int functionIndex) noexcept:
+	ApiCall(const CodeLocation &l, ApiClass *apiClass_, int expectedArguments_, int functionIndex, const VarTypeChecker::ParameterTypes& types_) noexcept:
 	Expression(l),
 		expectedNumArguments(expectedArguments_),
 		functionIndex(functionIndex),
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        types(types_),
+#endif
 		apiClass(apiClass_)
 	{
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -120,7 +152,9 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		{
 			results[i] = argumentList[i]->getResult(s);
 
-			HiseJavascriptEngine::checkValidParameter(i, results[i], argumentList[i]->location);
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+			HiseJavascriptEngine::checkValidParameter(i, results[i], argumentList[i]->location, types[i]);
+#endif
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
@@ -184,7 +218,10 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	bool isDebugCall = false;
 	int lineNumber;
-	
+#endif
+    
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    VarTypeChecker::ParameterTypes types;
 #endif
 
 	Identifier callbackName;
@@ -228,6 +265,10 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 
 			CHECK_CONDITION_WITH_LOCATION(object != nullptr, "Object doesn't exist");
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+            forcedTypes = object->getForcedParameterTypes(functionIndex, expectedNumArguments);
+#endif
+            
 			object->getIndexAndNumArgsForFunction(functionName, functionIndex, expectedNumArguments);
 
 			CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function " + functionName.toString() + " not found.");
@@ -238,8 +279,10 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
-
-			HiseJavascriptEngine::checkValidParameter(i, results[i], location);
+            
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+			HiseJavascriptEngine::checkValidParameter(i, results[i], location, forcedTypes[i]);
+#endif
 		}
 
 		CHECK_CONDITION_WITH_LOCATION(object != nullptr, "Object does not exist");
@@ -269,6 +312,10 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 	mutable int functionIndex;
 	Identifier functionName;
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    mutable VarTypeChecker::ParameterTypes forcedTypes;
+#endif
+    
 	var* objectPointer;
 
 	mutable ReferenceCountedObjectPtr<ConstScriptingObject> object;
@@ -317,7 +364,57 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	{
 	public:
 
-		Object(Identifier &n, const Array<Identifier> &p) : 
+        struct Argument
+        {
+            Argument(VarTypeChecker::VarTypes type_, const Identifier& id_):
+              type(type_),
+              id(id_)
+            {};
+            
+            Argument(const Identifier& id_):
+              type(VarTypeChecker::Undefined),
+              id(id_)
+            {};
+            
+            Argument():
+              type(VarTypeChecker::Undefined),
+              id(Identifier())
+            {};
+            
+            operator Identifier() const
+            {
+                return id;
+            }
+            
+            bool operator==(const Argument& other) const
+            {
+                return id == other.id;
+            }
+            
+            bool operator!=(const Argument& other) const
+            {
+                return id != other.id;
+            }
+            
+            String toString() const
+            {
+                String s;
+                
+                if(type != VarTypeChecker::Undefined)
+                    s << VarTypeChecker::getTypeName(type) << " ";
+                
+                s << id.toString();
+                
+                return s;
+            }
+            
+            VarTypeChecker::VarTypes type;
+            Identifier id;
+        };
+        
+        using ArgumentList = Array<Argument>;
+        
+		Object(Identifier &n, const ArgumentList &p) :
 			name(n)
 		{
 			parameterNames.addArray(p);
@@ -424,8 +521,13 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		}
 
 		AttributedString getDescription() const override 
-		{ 
-			return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameterNames); 
+		{
+            Array<Identifier> justIds;
+            
+            for(const auto& p: parameterNames)
+                justIds.add((Identifier)p);
+            
+			return DebugableObject::Helpers::getFunctionDoc(commentDoc, justIds);
 		}
 
 		bool updateCyclicReferenceList(ThreadData& data, const Identifier &id) override;
@@ -434,13 +536,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
-#if SEE_YOU_LATER_BUDDY
-			if (e_ != nullptr && e.get() == e_)
-			{
-				e_->location.throwError("Inline functions can't be called recursively");
-			}
-#endif
-
 			e.get() = e_;
 		}
 
@@ -548,7 +643,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		}
 
 		Identifier name;
-		Array<Identifier> parameterNames;
+		ArgumentList parameterNames;
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
 		ScopedPointer<BlockStatement> body;
 
@@ -574,6 +669,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		var lastScopeForCycleCheck;
 
 		Location location;
+        
+        VarTypeChecker::VarTypes returnType;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Object);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Object);
@@ -619,6 +716,19 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			{
                 auto v = parameterExpressions.getUnchecked(i)->getResult(s);
 				parameterResults.setUnchecked(i, v);
+                
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+                if(auto et = f->parameterNames.getReference(i).type)
+                {
+                    auto ok = VarTypeChecker::checkType(v, f->parameterNames.getReference(i).type);
+                    
+                    if(!ok.wasOk())
+                    {
+                        f->setFunctionCall(nullptr);
+                        location.throwError("Parameter #" + String(i) + ": " + ok.getErrorMessage());
+                    }
+                }
+#endif
 			}
 
 			s.root->addToCallStack(f->name, &location);
@@ -639,8 +749,24 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 					parameterResults.setUnchecked(i, var());
 				}
 
-				if (c == Statement::returnWasHit) return returnVar;
-				else return var::undefined();
+                var rv;
+                
+				if (c == Statement::returnWasHit)
+                    rv = returnVar;
+				
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+                if(f->returnType)
+                {
+                    auto ok = VarTypeChecker::checkType(rv, f->returnType);
+                    
+                    if(ok.failed())
+                    {
+                        location.throwError("Return value: " + ok.getErrorMessage());
+                    }
+                }
+#endif
+                
+                return rv;
 			}
 			catch (Breakpoint& bp)
 			{

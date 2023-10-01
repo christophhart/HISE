@@ -436,6 +436,10 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 	mutable ConstScriptingObject* constObject = nullptr;
 	mutable int numArgs = -1;
 	mutable int functionIndex = -1;
+
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    mutable VarTypeChecker::ParameterTypes types;
+#endif
 };
 
 struct HiseJavascriptEngine::RootObject::NewOperator : public FunctionCall

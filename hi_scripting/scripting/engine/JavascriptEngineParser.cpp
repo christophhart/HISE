@@ -60,6 +60,37 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 
 	String lastComment;
 
+    Identifier parseIdentifier()
+    {
+        Identifier i;
+        if (currentType == TokenTypes::identifier)
+            i = currentValue.toString();
+
+        match(TokenTypes::identifier);
+        return i;
+    }
+    
+    VarTypeChecker::VarTypes matchVarType()
+    {
+        if(matchIf(TokenTypes::colon))
+        {
+            auto id = parseIdentifier();
+            
+            VarTypeChecker::VarTypes t = VarTypeChecker::Undefined;
+            
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+            t = VarTypeChecker::getTypeFromString(id);
+            
+            if(t == VarTypeChecker::Undefined)
+                location.throwError("Unknown type " + id.toString());
+#endif
+            
+            return t;
+        }
+        
+        return VarTypeChecker::Undefined;
+    }
+    
 	void skipWhitespaceAndComments()
 	{
 		for (;;)
@@ -851,9 +882,11 @@ private:
 	{
 		if (preparser)
 		{
+            auto varType = preparser->matchVarType();
+            
 			Identifier name = preparser->currentValue.toString();
 
-			ns->varRegister.addRegister(name, var::undefined());
+			ns->varRegister.addRegister(name, var::undefined(), varType);
             ns->registerLocations.add(preparser->createDebugLocation());
 
 			ns->comments.set(name, preparser->lastComment);
@@ -877,6 +910,8 @@ private:
 		{
 			ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
+            matchVarType();
+            
 			s->name = parseIdentifier();
 			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
 			s->varRegister = &ns->varRegister;
@@ -1240,16 +1275,23 @@ private:
 
 			preparser->match(TokenTypes::function);
 			
+            auto returnType = preparser->matchVarType();
+            
 			Identifier name = preparser->currentValue.toString();
 			preparser->match(TokenTypes::identifier);
 			preparser->match(TokenTypes::openParen);
 
-			Array<Identifier> inlineArguments;
+			InlineFunction::Object::ArgumentList inlineArguments;
 
 			while (preparser->currentType != TokenTypes::closeParen)
 			{
-				inlineArguments.add(preparser->currentValue.toString());
+                Identifier pid =preparser->currentValue.toString();
 				preparser->match(TokenTypes::identifier);
+                
+                auto argType = preparser->matchVarType();
+                
+                inlineArguments.add({argType, pid});
+                
 				if (preparser->currentType != TokenTypes::closeParen)
 					preparser->match(TokenTypes::comma);
 			}
@@ -1259,6 +1301,7 @@ private:
 			ScopedPointer<InlineFunction::Object> o = new InlineFunction::Object(name, inlineArguments);
 
 			o->location = loc;
+            o->returnType = returnType;
 
 			ns->inlineFunctions.add(o.release());
 			preparser->matchIf(TokenTypes::semicolon);
@@ -1271,6 +1314,8 @@ private:
 
 			match(TokenTypes::function);
 
+            matchVarType();
+            
 			Identifier name = parseIdentifier();
 
 			match(TokenTypes::openParen);
@@ -1565,16 +1610,6 @@ private:
 		return s.release();
 	}
 
-	Identifier parseIdentifier()
-	{
-		Identifier i;
-		if (currentType == TokenTypes::identifier)
-			i = currentValue.toString();
-
-		match(TokenTypes::identifier);
-		return i;
-	}
-
 	var parseFunctionDefinition(Identifier& functionName)
 	{
 		
@@ -1657,7 +1692,10 @@ private:
 		const String prettyName = apiClass->getObjectName() + "." + functionName.toString();
 
 		if (functionIndex < 0) throwError("Function / constant not found: " + prettyName); // Handle also missing constants here
-		ScopedPointer<ApiCall> s = new ApiCall(location, apiClass, numArgs, functionIndex);
+        
+        auto pt = apiClass->getForcedParameterTypes(functionName);
+        
+		ScopedPointer<ApiCall> s = new ApiCall(location, apiClass, numArgs, functionIndex, pt);
 
 		match(TokenTypes::openParen);
 
@@ -1862,8 +1900,10 @@ private:
 					VarRegister* rootRegister = &regNamespace->varRegister;
 
 					const int registerIndex = rootRegister->getRegisterIndex(id);
+                    
+                    auto type = rootRegister->getRegisterVarType(registerIndex);
 
-					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace)));
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace), type));
 				}
 
 				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);

@@ -62,15 +62,15 @@ struct JavascriptTokeniserFunctions
 
         static const char* const keywords4Char[] =
             { "void", "this", "true", "long", "else", "char",
-              "enum", "case", "goto", "byte", "eval", "null", "with", nullptr };
+              "enum", "case", "goto", "byte", "eval", "null", "with", "JSON", nullptr };
 
         static const char* const keywords5Char[] =
-            { "Synth", "float", "const", "while", "break", "false", "catch", "class", 
+            { "Synth", "float", "const", "while", "break", "false", "catch", "class",
               "final", "catch", "yield", "Array", "local", nullptr };
 
         static const char* const keywords6Char[] =
-            { "Engine", "return","delete", "double", "export", "public", "static",
-              "switch", "global","typeof", "inline", nullptr };
+            { "string", "Engine", "return","delete", "double", "export", "public", "static",
+              "switch", "global","typeof", "inline", "object", "number", nullptr };
 
         static const char* const keywords7Char[] =
             { "Message", "Console", "Content", "default", "finally", "private",

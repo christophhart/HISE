@@ -1,5 +1,27 @@
 namespace hise { using namespace juce;
 
+VarTypeChecker::VarTypes VarTypeChecker::getType(const var& value)
+{
+    if(value.isInt() || value.isInt64() || value.isBool())
+        return VarTypes::Integer;
+    if(value.isDouble())
+        return VarTypes::Double;
+    if(value.isString())
+        return VarTypes::String;
+    if(value.isBuffer())
+        return VarTypes::Buffer;
+    if(value.isArray())
+        return VarTypes::Array;
+    if(value.getDynamicObject() != nullptr)
+        return VarTypes::JSON;
+    if(HiseJavascriptEngine::isJavascriptFunction(value))
+        return VarTypes::Function;
+    if(value.isObject())
+        return VarTypes::ScriptObject;
+    
+    return VarTypes::Undefined;
+}
+
 VarRegister::VarRegister() :
 empty(var())
 {
@@ -7,6 +29,10 @@ empty(var())
 	{
 		registerStack[i] = var();
 		registerStackIds[i] = Identifier();
+        
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        registerTypes[i] = VarTypeChecker::Undefined;
+#endif
 	}
 }
 
@@ -29,19 +55,38 @@ VarRegister::~VarRegister()
 	}
 }
 
-void VarRegister::addRegister(const Identifier &id, var newValue)
+void VarRegister::addRegister(const Identifier &id, var newValue, VarTypeChecker::VarTypes expectedType)
 {
 	for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 	{
 		if (registerStackIds[i] == id)
 		{
 			registerStack[i] = newValue;
+            
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+            if(!registerTypes[i])
+                registerTypes[i] = expectedType;
+            else
+            {
+                auto ok = VarTypeChecker::checkType(newValue, registerTypes[i], true);
+                
+                if(ok.failed())
+                    throw ok.getErrorMessage();
+            }
+                
+#endif
+            
 			break;
 		}
 
 		if (registerStackIds[i].isNull())
 		{
-			registerStackIds[i] = Identifier(id);
+            registerStackIds[i] = id;
+            
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+            registerTypes[i] = expectedType;
+#endif
+            
 			registerStack[i] = newValue;
 			break;
 		}
@@ -52,6 +97,16 @@ void VarRegister::setRegister(int registerIndex, var newValue)
 {
 	if (registerIndex < NUM_VAR_REGISTERS)
 	{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if(registerTypes[registerIndex])
+        {
+            auto ok = VarTypeChecker::checkType(newValue, registerTypes[registerIndex], true);
+            
+            if(ok.failed())
+                throw ok.getErrorMessage();
+        }
+#endif
+        
 		registerStack[registerIndex] = newValue;
 	}
 }

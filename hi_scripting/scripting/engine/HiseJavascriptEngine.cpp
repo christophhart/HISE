@@ -1132,7 +1132,7 @@ void HiseJavascriptEngine::sendBreakpointMessage(int breakpointIndex)
 	}
 }
 
-void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location)
+void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::VarTypes expectedType)
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 
@@ -1140,6 +1140,17 @@ void HiseJavascriptEngine::checkValidParameter(int index, const var& valueToTest
 	{
 		location.throwError("API call with undefined parameter " + String(index));
 	}
+    
+    if(expectedType != VarTypeChecker::Undefined)
+    {
+        auto ok = VarTypeChecker::checkType(valueToTest, expectedType, false);
+        
+        if(ok.failed())
+        {
+            location.throwError(ok.getErrorMessage());
+        }
+    }
+    
 #else
     ignoreUnused(location, index, valueToTest);
 #endif

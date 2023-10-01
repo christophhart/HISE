@@ -21,6 +21,20 @@
 #define ADD_API_METHOD_4(name) static const Identifier name ## _id (#name); addFunction4(name ## _id, &Wrapper::name)
 #define ADD_API_METHOD_5(name) static const Identifier name ## _id (#name); addFunction5(name ## _id, &Wrapper::name)
 
+#if USE_BACKEND
+#define ADD_TYPED_API_METHOD_1(name, t1) static const Identifier name ## _id (#name); addFunction1(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1));
+#define ADD_TYPED_API_METHOD_2(name, t1, t2) static const Identifier name ## _id (#name); addFunction2(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1, t2));
+#define ADD_TYPED_API_METHOD_3(name, t1, t2, t3) static const Identifier name ## _id (#name); addFunction1(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1, t2, t3));
+#define ADD_TYPED_API_METHOD_4(name, t1, t2, t3, t4) static const Identifier name ## _id (#name); addFunction2(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1, t2, t3, t4));
+#define ADD_TYPED_API_METHOD_5(name, t1, t2, t3, t4, t5) static const Identifier name ## _id (#name); addFunction1(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1, t2, t3, t4, t5));
+#else
+#define ADD_TYPED_API_METHOD_1(name, ...) ADD_API_METHOD_1(name)
+#define ADD_TYPED_API_METHOD_2(name, ...) ADD_API_METHOD_2(name)
+#define ADD_TYPED_API_METHOD_3(name, ...) ADD_API_METHOD_3(name)
+#define ADD_TYPED_API_METHOD_4(name, ...) ADD_API_METHOD_4(name)
+#define ADD_TYPED_API_METHOD_5(name, ...) ADD_API_METHOD_5(name)
+#endif
+
 #define ADD_INLINEABLE_API_METHOD_0(name) ADD_API_METHOD(name) setFunctionIsInlineable(name ## _id);
 #define ADD_INLINEABLE_API_METHOD_1(name) addFunction1(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
 #define ADD_INLINEABLE_API_METHOD_2(name) addFunction2(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
