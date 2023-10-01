@@ -3599,7 +3599,7 @@ sampler(sampler_)
     ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
-    ADD_TYPED_API_METHOD_2(setAttribute, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_2(setAttribute, VarTypeChecker::Number, VarTypeChecker::Number);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
 	ADD_API_METHOD_1(loadSfzFile);
