@@ -54,16 +54,16 @@ struct ScriptingObjects::MidiList::Wrapper
 ScriptingObjects::MidiList::MidiList(ProcessorWithScriptingContent *p) :
 ConstScriptingObject(p, 0)
 {
-	ADD_API_METHOD_1(fill);
+	ADD_TYPED_API_METHOD_1(fill, VarTypeChecker::Number);
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getValue);
 	ADD_API_METHOD_1(getValueAmount);
-	ADD_API_METHOD_1(getIndex);
+	ADD_TYPED_API_METHOD_1(getIndex, VarTypeChecker::Number);
 	ADD_API_METHOD_0(isEmpty);
 	ADD_API_METHOD_3(setRange);
 	ADD_API_METHOD_0(getNumSetValues);
 	ADD_API_METHOD_2(setValue);
-	ADD_API_METHOD_1(restoreFromBase64String);
+	ADD_TYPED_API_METHOD_1(restoreFromBase64String, VarTypeChecker::String);
 	ADD_API_METHOD_0(getBase64String);
 
 	clear();
@@ -2020,7 +2020,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 	ADD_API_METHOD_0(getDataAsBuffer);
 	ADD_API_METHOD_1(setAssignIsUndoable);
 	ADD_API_METHOD_0(toBase64);
-	ADD_API_METHOD_1(fromBase64);
+	ADD_TYPED_API_METHOD_1(fromBase64, VarTypeChecker::String);
 	
 }
 
@@ -2648,14 +2648,14 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_0(getType);
-	ADD_API_METHOD_2(setAttribute);
-	ADD_API_METHOD_1(setBypassed);
+    ADD_TYPED_API_METHOD_2(setAttribute, VarTypeChecker::Number, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setBypassed, VarTypeChecker::Number);
 	ADD_API_METHOD_0(isBypassed);
-	ADD_API_METHOD_1(setIntensity);
+	ADD_TYPED_API_METHOD_1(setIntensity, VarTypeChecker::Number);
 	ADD_API_METHOD_0(getIntensity);
-  ADD_API_METHOD_1(getAttribute);
-  ADD_API_METHOD_1(getAttributeId);
-	ADD_API_METHOD_1(getAttributeIndex);
+    ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
 	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -3102,13 +3102,14 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 	}
 
 	ADD_API_METHOD_0(getId);
-	ADD_API_METHOD_2(setAttribute);
-	ADD_API_METHOD_1(setBypassed);
+	ADD_TYPED_API_METHOD_2(setAttribute, VarTypeChecker::Number, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setBypassed, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_0(isSuspended);
-    ADD_API_METHOD_1(getAttribute);
-    ADD_API_METHOD_1(getAttributeId);
-		ADD_API_METHOD_1(getAttributeIndex);
+    
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
@@ -4809,10 +4810,19 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, (int)HiseEvent::Type::numTypes)
 {
-	ADD_API_METHOD_1(setNoteNumber);
-	ADD_API_METHOD_1(setVelocity);
-	ADD_API_METHOD_1(setControllerNumber);
-	ADD_API_METHOD_1(setControllerValue);
+	ADD_TYPED_API_METHOD_1(setNoteNumber, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setVelocity, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setControllerNumber, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setControllerValue, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setChannel, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setGain, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setType, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setTransposeAmount, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setFineDetune, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setCoarseDetune, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setTimestamp, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setStartOffset, VarTypeChecker::Number);
+    
 	ADD_API_METHOD_0(getControllerNumber);
 	ADD_API_METHOD_0(getControllerValue);
 	ADD_API_METHOD_0(getNoteNumber);
@@ -4820,22 +4830,15 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_1(ignoreEvent);
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
-	ADD_API_METHOD_1(setChannel);
 	ADD_API_METHOD_0(getGain);
-	ADD_API_METHOD_1(setGain);
-	ADD_API_METHOD_1(setType);
-	ADD_API_METHOD_1(setTransposeAmount);
 	ADD_API_METHOD_0(getTransposeAmount);
-	ADD_API_METHOD_1(setCoarseDetune);
 	ADD_API_METHOD_0(getCoarseDetune);
-	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
-	ADD_API_METHOD_1(setTimestamp);
 	ADD_API_METHOD_0(isNoteOn);
 	ADD_API_METHOD_0(isNoteOff);
 	ADD_API_METHOD_0(isController);
-	ADD_API_METHOD_1(setStartOffset);
+	
 	ADD_API_METHOD_0(clone);
 	ADD_API_METHOD_0(dump);
 

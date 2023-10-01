@@ -292,10 +292,20 @@ allNotesOffCallback(p, nullptr, var(), 0)
 
 	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
 
-	ADD_API_METHOD_1(setNoteNumber);
-	ADD_API_METHOD_1(setVelocity);
-	ADD_API_METHOD_1(setControllerNumber);
-	ADD_API_METHOD_1(setControllerValue);
+	ADD_TYPED_API_METHOD_1(setNoteNumber, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setVelocity, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setControllerNumber, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setControllerValue, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(delayEvent, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setChannel, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setGain, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setTransposeAmount, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setCoarseDetune, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setFineDetune, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(setStartOffset, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(store, VarTypeChecker::ScriptObject);
+    ADD_TYPED_API_METHOD_1(setAllNotesOffCallback, VarTypeChecker::Function);
+    
 	ADD_API_METHOD_0(getControllerNumber);
 	ADD_API_METHOD_0(getControllerValue);
 	ADD_API_METHOD_0(isProgramChange);
@@ -303,26 +313,24 @@ allNotesOffCallback(p, nullptr, var(), 0)
 	ADD_API_METHOD_0(getNoteNumber);
 	ADD_API_METHOD_0(getVelocity);
 	ADD_API_METHOD_1(ignoreEvent);
-	ADD_API_METHOD_1(delayEvent);
+	
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
-	ADD_API_METHOD_1(setChannel);
+	
 	ADD_API_METHOD_0(getGain);
-	ADD_API_METHOD_1(setGain);
-	ADD_API_METHOD_1(setTransposeAmount);
+	
 	ADD_API_METHOD_0(getTransposeAmount);
-	ADD_API_METHOD_1(setCoarseDetune);
+	
 	ADD_API_METHOD_0(getCoarseDetune);
-	ADD_API_METHOD_1(setFineDetune);
+    
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
 	ADD_API_METHOD_0(getStartOffset);
-	ADD_API_METHOD_1(setStartOffset);
-	ADD_API_METHOD_1(store);
+    
 	ADD_API_METHOD_0(makeArtificial);
 	ADD_API_METHOD_0(makeArtificialOrLocal);
 	ADD_API_METHOD_0(isArtificial);
-	ADD_API_METHOD_1(setAllNotesOffCallback);
+	
 	ADD_API_METHOD_0(sendToMidiOut);
 }
 
@@ -1003,33 +1011,33 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
-	ADD_API_METHOD_1(setHostBpm);
+	ADD_TYPED_API_METHOD_1(setHostBpm, VarTypeChecker::Number);
 	ADD_API_METHOD_0(getCpuUsage);
 	ADD_API_METHOD_0(getNumVoices);
 	ADD_API_METHOD_0(getMemoryUsage);
 	ADD_API_METHOD_1(getTempoName);
-	ADD_API_METHOD_1(getMilliSecondsForTempo);
-	ADD_API_METHOD_1(getSamplesForMilliSeconds);
-	ADD_API_METHOD_1(getMilliSecondsForSamples);
-	ADD_API_METHOD_1(getQuarterBeatsForMilliSeconds);
-	ADD_API_METHOD_1(getQuarterBeatsForSamples);
-	ADD_API_METHOD_1(getSamplesForQuarterBeats);
-	ADD_API_METHOD_1(getMilliSecondsForQuarterBeats);
+	ADD_TYPED_API_METHOD_1(getMilliSecondsForTempo, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getSamplesForMilliSeconds, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getMilliSecondsForSamples, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getQuarterBeatsForMilliSeconds, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getQuarterBeatsForSamples, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getSamplesForQuarterBeats, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getMilliSecondsForQuarterBeats, VarTypeChecker::Number);
 	ADD_API_METHOD_2(getQuarterBeatsForMilliSecondsWithTempo);
 	ADD_API_METHOD_2(getQuarterBeatsForSamplesWithTempo);
 	ADD_API_METHOD_2(getSamplesForQuarterBeatsWithTempo);
 	ADD_API_METHOD_2(getMilliSecondsForQuarterBeatsWithTempo);
-	ADD_API_METHOD_1(getGainFactorForDecibels);
-	ADD_API_METHOD_1(getDecibelsForGainFactor);
-	ADD_API_METHOD_1(getFrequencyForMidiNoteNumber);
-	ADD_API_METHOD_1(getPitchRatioFromSemitones);
-	ADD_API_METHOD_1(getSemitonesFromPitchRatio);
+	ADD_TYPED_API_METHOD_1(getGainFactorForDecibels, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getDecibelsForGainFactor, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getFrequencyForMidiNoteNumber, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getPitchRatioFromSemitones, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(getSemitonesFromPitchRatio, VarTypeChecker::Number);
 	ADD_API_METHOD_1(addModuleStateToUserPreset);
 	ADD_API_METHOD_0(getSampleRate);
 	ADD_API_METHOD_0(getBufferSize);
 	ADD_API_METHOD_0(getNumPluginChannels);
-	ADD_API_METHOD_1(setMinimumSampleRate);
-	ADD_API_METHOD_1(setMaximumBlockSize);
+	ADD_TYPED_API_METHOD_1(setMinimumSampleRate, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setMaximumBlockSize, VarTypeChecker::Number);
 	ADD_API_METHOD_1(getMidiNoteName);
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
@@ -1110,7 +1118,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
     ADD_API_METHOD_0(clearUndoHistory);
-	ADD_API_METHOD_2(performUndoAction);
+	ADD_TYPED_API_METHOD_2(performUndoAction, VarTypeChecker::JSON, VarTypeChecker::Function);
 	ADD_API_METHOD_0(getExtraDefinitionsInBackend);
 	ADD_API_METHOD_0(loadAudioFilesIntoPool);
 	ADD_API_METHOD_0(clearMidiFilePool);
@@ -3588,17 +3596,17 @@ sampler(sampler_)
     ADD_API_METHOD_0(getCurrentSampleMapId);
 	ADD_API_METHOD_0(getSampleMapList);
 	ADD_API_METHOD_0(getNumAttributes);
-    ADD_API_METHOD_1(getAttribute);
-    ADD_API_METHOD_1(getAttributeId);
-		ADD_API_METHOD_1(getAttributeIndex);
-    ADD_API_METHOD_2(setAttribute);
+    ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
+    ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
+    ADD_TYPED_API_METHOD_2(setAttribute, VarTypeChecker::Number);
 	ADD_API_METHOD_1(isNoteNumberMapped);
     ADD_API_METHOD_1(loadSampleForAnalysis);
 	ADD_API_METHOD_1(loadSfzFile);
 	ADD_API_METHOD_1(setUseStaticMatrix);
 	ADD_API_METHOD_1(setSortByRRGroup);
 	ADD_API_METHOD_1(createSelection);
-	ADD_API_METHOD_1(createSelectionFromIndexes);
+	ADD_TYPED_API_METHOD_1(createSelectionFromIndexes, VarTypeChecker::Array);
 	ADD_API_METHOD_1(createSelectionWithFilter);
 	ADD_API_METHOD_0(createListFromGUISelection);
 	ADD_API_METHOD_0(createListFromScriptSelection);
@@ -7187,10 +7195,10 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 	addConstant("StatusAuthenticationFail", StatusAuthenticationFail);
 
 	ADD_API_METHOD_1(setBaseURL);
-	ADD_API_METHOD_3(callWithPOST);
-	ADD_API_METHOD_3(callWithGET);
-	ADD_API_METHOD_1(setHttpHeader);
-	ADD_API_METHOD_4(downloadFile);
+	ADD_TYPED_API_METHOD_3(callWithPOST, VarTypeChecker::String, VarTypeChecker::JSON, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_3(callWithGET, VarTypeChecker::String, VarTypeChecker::JSON, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_1(setHttpHeader, VarTypeChecker::String);
+    ADD_TYPED_API_METHOD_4(downloadFile, VarTypeChecker::String, VarTypeChecker::JSON, VarTypeChecker::ScriptObject, VarTypeChecker::Function);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
@@ -7452,11 +7460,11 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 
 	getMainController()->addTempoListener(this);
 
-	ADD_API_METHOD_2(setOnTempoChange);
-	ADD_API_METHOD_2(setOnBeatChange);
-	ADD_API_METHOD_2(setOnGridChange);
-	ADD_API_METHOD_2(setOnSignatureChange);
-	ADD_API_METHOD_2(setOnTransportChange);
+	ADD_TYPED_API_METHOD_2(setOnTempoChange, VarTypeChecker::Number, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_2(setOnBeatChange, VarTypeChecker::Number, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_2(setOnGridChange, VarTypeChecker::Number, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_2(setOnSignatureChange, VarTypeChecker::Number, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_2(setOnTransportChange, VarTypeChecker::Number, VarTypeChecker::Function);
 	ADD_API_METHOD_1(setSyncMode);
 	ADD_API_METHOD_1(startInternalClock);
 	ADD_API_METHOD_1(stopInternalClock);
