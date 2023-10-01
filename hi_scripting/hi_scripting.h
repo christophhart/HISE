@@ -68,6 +68,19 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define HISE_SCRIPT_SERVER_TIMEOUT 10000
 #endif
 
+/** This preprocessor will prevent throwing compilation errors when calling a dynamic function with a undefined parameter.
+    This is necessary because of a recent change that detects undefined parameters which went unnoticed before.
+ 
+    If you have a big project and you'll experience many of these errors popping up in the latest HISE build, you can enable
+    this preprocessor in order to keep the lights on - in that case it will only print a warning to the console but keep executing
+    the script so you can go through fixing these on a rainy day.
+ 
+    Be aware that this is just a temporar solution and I'll remove this sometime in the future.
+*/
+#ifndef HISE_WARN_UNDEFINED_PARAMETER_CALLS
+#define HISE_WARN_UNDEFINED_PARAMETER_CALLS 0
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
