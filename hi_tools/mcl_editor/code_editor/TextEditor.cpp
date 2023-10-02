@@ -1451,6 +1451,13 @@ void mcl::TextEditor::updateViewTransform()
 	auto rows = document.getRangeOfRowsIntersecting(getLocalBounds().toFloat().transformed(transform.inverted()));
 	ScopedValueSetter<bool> svs(scrollRecursion, true);
 	document.setDisplayedLineRange(rows);
+    
+    if(auto fe = dynamic_cast<FullEditor*>(getParentComponent()))
+    {
+        currentTitles.clearQuick();
+        fe->foldMap.addLineNumbersForParentItems(currentTitles, rows.getStart()+1);
+    }
+    
     repaint();
 }
 
@@ -1645,11 +1652,128 @@ void mcl::TextEditor::paint (Graphics& g)
 		g.setGradientFill(ColourGradient(c.withAlpha(0.6f), b.getX(), 0.0f, c.withAlpha(0.0f), b.getRight(), 0.0f, false));
 		g.fillRect(b);
 	}
+    
+    
 }
 
 void mcl::TextEditor::paintOverChildren (Graphics& g)
 {
-	
+    if(!currentTitles.isEmpty())
+    {
+        auto titleArea = getLocalBounds().toFloat();
+        auto sf = transform.getScaleFactor();
+        auto f = document.getFont();
+        auto f1 = f.withHeight(f.getHeight() * sf * 0.8f);
+        auto f2 = f.withHeight(f.getHeight() * sf);
+        const auto titleHeight = document.getRowHeight() * sf;
+        
+        int idx = 0;
+        
+        auto hitArea = titleArea;
+            
+        hitArea = hitArea.removeFromTop(titleHeight * (currentTitles.size()));
+        
+        for(const auto& s: caret.getCaretRectangles())
+        {
+            if(hitArea.intersects(s))
+                return;
+        }
+        
+        for(const auto& t: currentTitles)
+        {
+            if(idx++ >= 2)
+                break;
+            
+            CodeDocument::Position pos(document.doc, t, 0);
+            CodeDocument::Iterator it(pos);
+            
+            Array<std::array<int, 3>> tokens;
+            
+            int previous = 0;
+            
+            while (it.getLine() == t && !it.isEOF())
+            {
+                int tokenType = -1;
+
+                if (tokeniser != nullptr)
+                    tokenType = tokeniser->readNextToken(it);
+                else
+                    tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+            
+                int now;
+                
+                if(it.getLine() != t)
+                    now = document.getLine(t).length();
+                else
+                    now = it.getIndexInLine();
+
+                if (previous != now)
+                    tokens.add({previous, now, tokenType});
+                else
+                    break;
+
+                previous = now;
+            }
+
+            juce::AttributedString text;
+            
+            auto content = document.doc.getLine(t);
+            
+            int numCharsToPrint = 0;
+            
+            for(auto& tk: tokens)
+            {
+                auto s = content.substring(tk[0], tk[1]);
+                auto c = colourScheme.types[tk[2]].colour;
+                text.append(s.replace("\t", "    "), f2, c);
+                
+                numCharsToPrint += s.length();
+            }
+            
+            if(numCharsToPrint < 3)
+            {
+                continue;
+            }
+            
+            auto ta = titleArea.removeFromTop(titleHeight);
+            
+            g.setColour(Colour(0xFF333333));
+            g.fillRect(ta.reduced(-0.2f));
+            
+            
+            auto la = ta.removeFromLeft(gutter.getGutterWidth());
+            la.removeFromRight(15.0f * sf);
+            
+            g.setColour(Colours::white.withAlpha(0.3f));
+            g.setFont(f1);
+            g.drawText(String(t+1), la.reduced(5.0f, 0.0f), Justification::right);
+            
+            float deltaX = JUCE_LIVE_CONSTANT_OFF(6.0f) * sf;
+            float deltaY = JUCE_LIVE_CONSTANT_OFF(3.0f) * sf;
+            
+            text.draw(g, ta.translated(deltaX, deltaY));
+        
+            g.setColour(Colour(0x44333333));
+            g.fillRect(ta);
+            
+            g.setColour(Colour(0xff454545));
+            g.fillRect(titleArea.removeFromTop(1.0f));
+            //g.setFont(f2);
+            //g.drawText(document.doc.getLine(t), ta, Justification::left);
+        }
+        
+        
+        
+        g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.3f),
+                                         0.0f,
+                                         (float)titleArea.getY(),
+                                         Colours::transparentBlack,
+                                         0.0f,
+                                         (float)titleArea.getY() + 10.0f,
+                                         false));
+        
+        g.fillRect(titleArea.removeFromTop(10.0f));
+    }
 }
 
 void mcl::TextEditor::mouseDown (const MouseEvent& e)

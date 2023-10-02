@@ -83,6 +83,13 @@ public:
 
 	void displayedLineRangeChanged(Range<int> newRange) override;
 
+    void addLineNumbersForParentItems(Array<int>& list, int lineNumber)
+    {
+        for(auto c: items)
+        {
+            c->addLineNumbersForParentItems(list, lineNumber);
+        }
+    }
 
 	String getTextForFoldRange(FoldableLineRange::WeakPtr p);
 
@@ -121,6 +128,19 @@ public:
 		bool onScreen = false;
 		bool edgeOnScreen = false;
 
+        void addLineNumbersForParentItems(Array<int>& list, int lineNumber) const
+        {
+            auto lr = p->getLineRange();
+            
+            if(lr.contains(lineNumber))
+            {
+                list.add(lr.getStart());
+                
+                for(auto c: children)
+                    c->addLineNumbersForParentItems(list, lineNumber);
+            }
+        }
+        
 		String text;
 		EntryType type;
 		FoldableLineRange::WeakPtr p;

@@ -224,6 +224,8 @@ public:
 
 private:
 
+    Array<int> currentTitles;
+    
 	ScopedPointer<LanguageManager> languageManager;
 
 	friend class Autocomplete;
