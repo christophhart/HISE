@@ -32,6 +32,7 @@ xcopy "xml\structhise_1_1_hise_javascript_engine_1_1_root_object_1_1_math_class.
 xcopy "xml\classhise_1_1_doxygen_array_functions.xml" "xml\selection"
 xcopy "xml\classhise_1_1_doxygen_string_functions.xml" "xml\selection"
 
+
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_look_and_feel.xml" "xml\selection"
 
 
@@ -101,6 +102,7 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
 
+xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_1_1_modifier_object.xml" "xml\selection"
 
 xcopy "xml\classhise_1_1_script_user_preset_handler.xml" "xml\selection"
 
@@ -172,6 +174,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_scripted_macro_handler.xm
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_markdown_object.xml" "MarkdownRenderer.xml"
 
+ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_1_1_modifier_object.xml" "Modifiers.xml"
 
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"

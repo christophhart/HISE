@@ -499,9 +499,6 @@ bool  MacroControlledObject::isReadOnly()
 
 bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
 {
-	if (!e.mods.isShiftDown())
-		return false;
-
 	if (asSlider()->getWidth() > 25 && enableShiftTextInput)
 	{
 		asSlider()->addAndMakeVisible(inputLabel = new TextEditor());
@@ -523,9 +520,11 @@ bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
 		inputLabel->setText(asSlider()->getTextFromValue(asSlider()->getValue()), dontSendNotification);
 		inputLabel->selectAll();
 		inputLabel->grabKeyboardFocus();
+        
+        return true;
 	}
 
-	return true;
+    return false;
 }
 
 SliderWithShiftTextBox::~SliderWithShiftTextBox()
@@ -891,35 +890,31 @@ double HiSlider::getFrequencyFromTextString(const String& t)
 		return t.getDoubleValue();
 }
 
+void HiSlider::mouseDoubleClick(const MouseEvent &e)
+{
+    performModifierAction(e, true);
+}
 
 void HiSlider::mouseDown(const MouseEvent &e)
 {
 	CHECK_MIDDLE_MOUSE_DOWN(e);
 
-	if (e.mods.isLeftButtonDown() && !e.mods.isCtrlDown())
-	{
-		if (onShiftClick(e))
-		{
-			return;
-		}
-		else
-		{
-			PresetHandler::setChanged(getProcessor());
+    if(performModifierAction(e, false))
+    {
+        return;
+    }
+    else
+    {
+        PresetHandler::setChanged(getProcessor());
 
-			checkLearnMode();
+        checkLearnMode();
 
-			if (!isConnectedToModulator())
-			{
-				Slider::mouseDown(e);
-				startTouch(e.getMouseDownPosition());
-			}
-		}
-		
-	}
-	else
-	{
-		enableMidiLearnWithPopup();
-	}
+        if (!isConnectedToModulator())
+        {
+            Slider::mouseDown(e);
+            startTouch(e.getMouseDownPosition());
+        }
+    }
 }
 
 void HiSlider::mouseDrag(const MouseEvent& e)

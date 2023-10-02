@@ -461,6 +461,9 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->setup(getProcessor(), getIndex(), sc->name.toString());
 
+    if(auto obj = sc->modObject.getDynamicObject())
+        s->setModifierObject(sc->modObject);
+    
 	component = s;
 
 	initAllProperties();

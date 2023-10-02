@@ -1772,6 +1772,8 @@ struct ScriptingApi::Content::ScriptSlider::Wrapper
 	API_METHOD_WRAPPER_0(ScriptSlider, getMinValue);
 	API_METHOD_WRAPPER_0(ScriptSlider, getMaxValue);
 	API_METHOD_WRAPPER_1(ScriptSlider, contains);
+    API_METHOD_WRAPPER_0(ScriptSlider, createModifiers);
+    API_VOID_METHOD_WRAPPER_2(ScriptSlider, setModifiers);
 };
 
 ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent *base, Content* /*parentContent*/, Identifier name_, int x, int y, int, int) :
@@ -1856,16 +1858,18 @@ maximum(1.0f)
 	initInternalPropertyFromValueTreeOrDefault(Properties::filmstripImage);
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::linkedTo);
 
-	ADD_API_METHOD_1(setValuePopupFunction);
-	ADD_API_METHOD_1(setMidPoint);
+	ADD_TYPED_API_METHOD_1(setValuePopupFunction, VarTypeChecker::Function);
+	ADD_TYPED_API_METHOD_1(setMidPoint, VarTypeChecker::Number);
 	ADD_API_METHOD_3(setRange);
-	ADD_API_METHOD_1(setMode);
-	ADD_API_METHOD_1(setStyle);
-	ADD_API_METHOD_1(setMinValue);
-	ADD_API_METHOD_1(setMaxValue);
+	ADD_TYPED_API_METHOD_1(setMode, VarTypeChecker::String);
+	ADD_TYPED_API_METHOD_1(setStyle, VarTypeChecker::String);
+	ADD_TYPED_API_METHOD_1(setMinValue, VarTypeChecker::Number);
+	ADD_TYPED_API_METHOD_1(setMaxValue, VarTypeChecker::Number);
 	ADD_API_METHOD_0(getMinValue);
 	ADD_API_METHOD_0(getMaxValue);
 	ADD_API_METHOD_1(contains);
+    ADD_API_METHOD_0(createModifiers);
+    ADD_TYPED_API_METHOD_2(setModifiers, VarTypeChecker::String, VarTypeChecker::IndexOrArray);
 
 	//addConstant("Decibel", HiSlider::Mode::Decibel);
 	//addConstant("Discrete", HiSlider::Mode::Discrete);
@@ -2285,6 +2289,26 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 
 	return idList;
 }
+
+void ScriptingApi::Content::ScriptSlider::setModifiers(String x, juce::var modifierData)
+{
+    DynamicObject::Ptr obj;
+    
+    if(modObject.getDynamicObject())
+        obj = modObject.getDynamicObject();
+    else
+        obj = new DynamicObject();
+    
+    obj->setProperty(Identifier(x), modifierData);
+    
+    modObject = var(obj.get());
+}
+
+
+juce::var ScriptingApi::Content::ScriptSlider::createModifiers() { 
+    return var(new ModifierObject(getScriptProcessor()));
+}
+
 
 struct ScriptingApi::Content::ScriptButton::Wrapper
 {

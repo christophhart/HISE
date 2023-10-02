@@ -76,7 +76,9 @@ namespace VarTypeIdentifiers
     DECLARE_ID(ObjectWithLength);
     DECLARE_ID(JSON);
     DECLARE_ID(ScriptObject);
+    DECLARE_ID(IndexOrArray);
     static const Identifier Object("object");
+    DECLARE_ID(AudioData);
     DECLARE_ID(Function);
     DECLARE_ID(ComplexType);
     DECLARE_ID(NotUndefined);
@@ -99,7 +101,9 @@ struct VarTypeChecker
         String = 4,
         Colour = String | Number,
         Array = 8,
+        IndexOrArray = Array | Integer,
         Buffer = 16,
+        AudioData = 8 | 16,
         ObjectWithLength = 4 | 8 | 16,
         JSON = 32,
         ScriptObject = 64,
@@ -122,6 +126,8 @@ struct VarTypeChecker
             case String: return VarTypeIdentifiers::String;
             case Colour: return VarTypeIdentifiers::Colour;
             case Array: return VarTypeIdentifiers::Array;
+            case IndexOrArray: return VarTypeIdentifiers::IndexOrArray;
+            case AudioData: return VarTypeIdentifiers::AudioData;
             case Buffer: return VarTypeIdentifiers::Buffer;
             case ObjectWithLength: return VarTypeIdentifiers::ObjectWithLength;
             case JSON: return VarTypeIdentifiers::JSON;
@@ -141,7 +147,9 @@ struct VarTypeChecker
         if(name == VarTypeIdentifiers::Number) return VarTypes::Number;
         if(name == VarTypeIdentifiers::String) return VarTypes::String;
         if(name == VarTypeIdentifiers::Colour) return VarTypes::Colour;
+        if(name == VarTypeIdentifiers::IndexOrArray) return VarTypes::IndexOrArray;
         if(name == VarTypeIdentifiers::Array) return VarTypes::Array;
+        if(name == VarTypeIdentifiers::AudioData) return VarTypes::AudioData;
         if(name == VarTypeIdentifiers::Buffer) return VarTypes::Buffer;
         if(name == VarTypeIdentifiers::ObjectWithLength) return VarTypes::ObjectWithLength;
         if(name == VarTypeIdentifiers::JSON) return VarTypes::JSON;

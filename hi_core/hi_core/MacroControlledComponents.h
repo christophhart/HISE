@@ -228,6 +228,8 @@ public:
 
 protected:
 
+    friend class SliderWithShiftTextBox;
+    
 	/** checks if the macro learn mode is active.
 	*
 	*	If it is active, it adds this control to the macro and returns true.
@@ -376,8 +378,172 @@ class SliderWithShiftTextBox : public TextEditor::Listener
 {
 public:
 
+    struct ModifierObject
+    {
+        static constexpr int doubleClickModifier = 512;
+        static constexpr int noKeyModifier = 1024;
+        
+        enum class Action
+        {
+            NoAction,
+            TextInput,
+            FineTune,
+            ResetToDefault,
+            ContextMenu,
+            numActions
+        };
+
+        ModifierKeys getModifiers(Action a)
+        {
+            auto f = mods1[(int)a];
+            f &= ~doubleClickModifier;
+            return ModifierKeys((int)f);
+        }
+        
+        void setFromObject(const var& obj)
+        {
+            auto setFromIntOrArray = [&](Action a, const Identifier& id)
+            {
+                if(!obj.hasProperty(id))
+                {
+                    mods1[(int)a] = getDefaultFlags(a);
+                    mods2[(int)a] = 0;
+                    mods3[(int)a] = 0;
+                    return;
+                }
+                
+                auto t = obj.getProperty(id, 0);
+                
+                if(t.isArray())
+                {
+                    mods1[(int)a] = (uint64)(int64)t[0];
+                    mods2[(int)a] = (uint64)(int64)t[1];
+                    
+                    if(t.size() > 2)
+                        mods3[(int)a] = (uint64)(int64)t[2];
+                    else
+                        mods3[(int)a] = 0;
+                }
+                else
+                {
+                    mods1[(int)a] = (uint64)(int64)t;
+                    mods2[(int)a] = 0;
+                    mods3[(int)a] = 0;
+                }
+            };
+            
+            setFromIntOrArray(Action::TextInput, "TextInput");
+            setFromIntOrArray(Action::ResetToDefault, "ResetToDefault");
+            setFromIntOrArray(Action::FineTune, "FineTune");
+            setFromIntOrArray(Action::ContextMenu, "ContextMenu");
+        }
+        
+        static uint64 getDefaultFlags(Action a)
+        {
+            switch(a)
+            {
+                case Action::TextInput:
+                    return ModifierKeys::shiftModifier;
+                case Action::ResetToDefault:
+                    return doubleClickModifier;
+                case Action::FineTune:
+                    return  ModifierKeys::commandModifier |
+                            ModifierKeys::ctrlModifier |
+                            ModifierKeys::altModifier;
+                case Action::ContextMenu:
+                    return ModifierKeys::rightButtonModifier;
+                default: return 0;
+            }
+        }
+        
+        Action getActionForModifier(ModifierKeys m, bool isDoubleClick) const
+        {
+            auto flags = (uint64)m.getRawFlags();
+
+            if(isDoubleClick)
+                flags |= doubleClickModifier;
+
+            if(!m.isAnyModifierKeyDown())
+                flags |= noKeyModifier;
+            
+            for(auto i = (int)Action::TextInput; i < (int)Action::numActions; i++)
+            {
+                auto firstMatch = (mods1[i] & flags) != 0;
+                
+                if(mods2[i])
+                    firstMatch &= (flags & mods2[i]) != 0;
+                
+                if(mods3[i])
+                    firstMatch &= (flags & mods3[i]) != 0;
+                
+                if(firstMatch)
+                    return (Action)i;
+            }
+            
+            return Action::NoAction;
+        }
+
+        ModifierObject()
+        {
+            for(int i = 0; i < (int)Action::numActions; i++)
+            {
+                mods1[i] = getDefaultFlags((Action)i);
+                mods2[i] = 0;
+                mods3[i] = 0;
+            }
+            
+            // make sure it's only the no key modifier when double clicking...
+            mods2[(int)Action::ResetToDefault] = noKeyModifier;
+        }
+
+        uint64 mods1[(int)Action::numActions];
+        uint64 mods2[(int)Action::numActions];
+        uint64 mods3[(int)Action::numActions];
+        
+    } modObject;
+    
+    void setModifierObject(const var& obj)
+    {
+        modObject.setFromObject(obj);
+        
+        auto fineMods = modObject.getModifiers(ModifierObject::Action::FineTune);
+        
+        auto swappable = asSlider()->getVelocityModeIsSwappable();
+        auto threshold = asSlider()->getVelocityThreshold();
+        auto sensitivity = asSlider()->getVelocitySensitivity();
+        auto offset = asSlider()->getVelocityOffset();
+        
+        asSlider()->setVelocityModeParameters (sensitivity, threshold, offset, swappable, (ModifierKeys::Flags)fineMods.getRawFlags());
+    }
+    
 	bool enableShiftTextInput = true;
 
+    bool performModifierAction(const MouseEvent& e, bool isDoubleClick)
+    {
+        auto a = modObject.getActionForModifier(e.mods, isDoubleClick);
+        
+        if(a == ModifierObject::Action::TextInput)
+        {
+            return onShiftClick(e);
+        }
+        if(a == ModifierObject::Action::ResetToDefault)
+        {
+            if(asSlider()->isDoubleClickReturnEnabled())
+            {
+                auto defaultValue = asSlider()->getDoubleClickReturnValue();
+                asSlider()->setValue(defaultValue, sendNotificationSync);
+                return true;
+            }
+        }
+        if(a == ModifierObject::Action::ContextMenu)
+        {
+            dynamic_cast<MacroControlledObject*>(this)->enableMidiLearnWithPopup();
+            return true;
+        }
+        
+        return false;
+    }
+    
 protected:
 
 	virtual ~SliderWithShiftTextBox();;
@@ -457,6 +623,8 @@ public:
 	void mouseUp(const MouseEvent&) override;
 
 	void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
+    
+    void mouseDoubleClick(const MouseEvent& e) override;
 
 	void touchAndHold(Point<int> downPosition) override;
 

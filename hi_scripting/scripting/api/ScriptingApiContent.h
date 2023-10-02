@@ -858,6 +858,43 @@ public:
 			numProperties,
 		};
 
+        struct ModifierObject: public ConstScriptingObject
+        {
+            ModifierObject(ProcessorWithScriptingContent* sp):
+               ConstScriptingObject(sp, 12)
+            {
+                using Action = SliderWithShiftTextBox::ModifierObject::Action;
+                using Flags = ModifierKeys::Flags;
+                
+                addConstant("TextInput", "TextInput");
+                addConstant("FineTune", "FineTune");
+                addConstant("ResetToDefault", "ResetToDefault");
+                addConstant("ContextMenu", "ContextMenu");
+                
+                static const String doubleClick("doubleClick");
+                static const String rightClick("rightClick");
+                static const String shiftDown("shiftDown");
+                static const String cmdDown("cmdDown");
+                static const String altDown("altDown");
+                static const String ctrlDown("ctrlDown");
+                static const String disabled("disabled");
+                static const String noModKey("noKeyModifier");
+                
+                addConstant(disabled, 0);
+                addConstant(noModKey, SliderWithShiftTextBox::ModifierObject::noKeyModifier);
+                addConstant(shiftDown, Flags::shiftModifier);
+                addConstant(rightClick, Flags::rightButtonModifier);
+                addConstant(cmdDown, Flags::commandModifier);
+                addConstant(altDown, Flags::altModifier);
+                addConstant(ctrlDown, Flags::ctrlModifier);
+                addConstant(doubleClick, SliderWithShiftTextBox::ModifierObject::doubleClickModifier);
+            };
+            
+            static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("Modifiers"); }
+            
+            Identifier getObjectName() const override { return getStaticObjectName(); }
+        };
+        
 		ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int);
 		~ScriptSlider();
 
@@ -906,6 +943,12 @@ public:
 		/** Sets the upper range end to the given value. */
 		void setMaxValue(double max) noexcept;
 
+        /** Creates a object with constants for setModifiers(). */
+        var createModifiers();
+        
+        /** Sets the modifiers for different actions using a JSON object. */
+        void setModifiers(String action, var modifiers);
+        
 		/** Returns the lower range end. */
 		double getMinValue() const;
 
@@ -923,9 +966,13 @@ public:
 		Slider::SliderStyle styleId;
 		Image getImage() const { return image ? *image.getData() : Image(); };
 		var sliderValueFunction;
+        var modObject;
 
+        
 	private:
 
+        
+        
 		double minimum, maximum;
 		PooledImage image;
 
