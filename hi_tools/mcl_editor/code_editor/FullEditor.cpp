@@ -106,6 +106,8 @@ void FullEditor::loadSettings(const File& sFile)
 
 	codeMap.allowHover = s.getProperty(TextEditorSettings::EnableHover, true);
 	editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
+    
+    editor.showStickyLines = s.getProperty(TextEditorSettings::ShowStickyLines, true);
 }
 
 void FullEditor::saveSetting(Component* c, const Identifier& id, const var& newValue)
@@ -133,6 +135,10 @@ void FullEditor::saveSetting(Component* c, const Identifier& id, const var& newV
 	{
 		pe->editor.showAutocompleteAfterDelay = (bool)newValue;
 	}
+    if (id == TextEditorSettings::ShowStickyLines)
+    {
+        pe->editor.showStickyLines = (bool)newValue;
+    }
 	if (id == TextEditorSettings::LineBreaks)
 	{
 		pe->editor.setLineBreakEnabled((bool)newValue);

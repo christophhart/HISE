@@ -1452,10 +1452,15 @@ void mcl::TextEditor::updateViewTransform()
 	ScopedValueSetter<bool> svs(scrollRecursion, true);
 	document.setDisplayedLineRange(rows);
     
+    
     if(auto fe = dynamic_cast<FullEditor*>(getParentComponent()))
     {
         currentTitles.clearQuick();
-        fe->foldMap.addLineNumbersForParentItems(currentTitles, rows.getStart()+1);
+        
+        if(showStickyLines)
+        {
+            fe->foldMap.addLineNumbersForParentItems(currentTitles, rows.getStart()+1);
+        }        
     }
     
     repaint();
@@ -1886,6 +1891,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			Goto,
 			LineBreaks,
             AutoAutocomplete,
+            ShowStickyLines,
 			BackgroundParsing,
             FixWeirdTab,
 			Preprocessor,
@@ -1917,6 +1923,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(UnfoldAll, "Unfold all", true, false);
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
+        menu.addItem(ShowStickyLines, "Show sticky lines on top", true, showStickyLines);
         
 		menu.addSeparator();
 
@@ -1955,6 +1962,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 				break;
             case AutoAutocomplete:
 				FullEditor::saveSetting(this, TextEditorSettings::AutoAutocomplete, !showAutocompleteAfterDelay);
+                break;
+            case ShowStickyLines:
+                FullEditor::saveSetting(this, TextEditorSettings::ShowStickyLines, !showStickyLines);
                 break;
         }
 
