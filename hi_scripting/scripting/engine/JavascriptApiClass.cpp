@@ -12,10 +12,10 @@ VarTypeChecker::VarTypes VarTypeChecker::getType(const var& value)
         return VarTypes::Buffer;
     if(value.isArray())
         return VarTypes::Array;
+	if(HiseJavascriptEngine::isJavascriptFunction(value))
+        return VarTypes::Function;
     if(value.getDynamicObject() != nullptr)
         return VarTypes::JSON;
-    if(HiseJavascriptEngine::isJavascriptFunction(value))
-        return VarTypes::Function;
     if(value.isObject())
         return VarTypes::ScriptObject;
     
