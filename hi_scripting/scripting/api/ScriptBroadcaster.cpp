@@ -4273,6 +4273,11 @@ ScriptBroadcaster::Metadata::Metadata(const var& obj, bool mustBeValid) :
 	if (idString.isNotEmpty())
 		id = Identifier(idString);
 
+	if(obj.hasProperty("visible"))
+		visible = (bool)obj["visible"];
+	else
+		visible = true;
+
 	hash = idString.hashCode64();
 
 	if (!obj.hasProperty("colour"))

@@ -279,6 +279,10 @@ void ScriptBroadcasterMap::rebuild()
 		if (filteredBroadcasters.contains(b->metadata))
 			continue;
 
+		if(!b->metadata.visible)
+			continue;
+
+
 		auto be = new BroadcasterRow(factory, b);
 
 		addChildWithPreferredSize(be);

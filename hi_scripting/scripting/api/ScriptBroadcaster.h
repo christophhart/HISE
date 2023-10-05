@@ -69,6 +69,7 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 		Colour c;
 		int priority = 0;
 		Array<Identifier> tags;
+		bool visible;
 	};
 
 	ScriptBroadcaster(ProcessorWithScriptingContent* p, const var& defaultValue);;
