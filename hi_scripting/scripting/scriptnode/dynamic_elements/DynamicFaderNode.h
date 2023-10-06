@@ -150,6 +150,8 @@ struct dynamic
 		Overlap,
 		Squared,
 		RMS,
+        Cosine,
+        CosineHalf,
 		Harmonics,
         Threshold
 	};
@@ -176,7 +178,7 @@ struct dynamic
 
 	static StringArray getFaderModes()
 	{
-		return { "Switch", "Linear", "Overlap", "Squared", "RMS", "Harmonics", "Threshold" };
+		return { "Switch", "Linear", "Overlap", "Squared", "RMS", "Cosine", "Cosine Half", "Harmonics", "Threshold" };
 	}
 
 	template <int Index> double getFadeValue(int numElements, double v)
@@ -190,6 +192,8 @@ struct dynamic
 		case FaderMode::RMS:		return rf.getFadeValue<Index>(numElements, v);
 		case FaderMode::Harmonics:  return hf.getFadeValue<Index>(numElements, v);
         case FaderMode::Threshold:  return tr.getFadeValue<Index>(numElements, v);
+        case FaderMode::Cosine:     return cs.getFadeValue<Index>(numElements, v);
+        case FaderMode::CosineHalf: return ch.getFadeValue<Index>(numElements, v);
 		}
 
 		return 0.0;
@@ -206,6 +210,8 @@ struct dynamic
 	overlap of;
 	squared qf;
     threshold tr;
+    cosine cs;
+    cosine_half ch;
 
 	struct editor : public ScriptnodeExtraComponent<NodeType>
 	{

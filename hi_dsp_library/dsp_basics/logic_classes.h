@@ -588,6 +588,38 @@ struct linear
     hmath Math;
 };
 
+struct cosine
+{
+    SN_EMPTY_INITIALISE;
+    
+    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    {
+        auto lf = linear();
+        
+        auto v = lf.template getFadeValue<Index>(numElements, normalisedInput);
+        
+        return 0.5 * (Math.sin(Math.PI * v - Math.PI / 2.0) + 1.0);
+    }
+    
+    hmath Math;
+};
+
+struct cosine_half
+{
+    SN_EMPTY_INITIALISE;
+    
+    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    {
+        auto lf = linear();
+        
+        auto v = lf.template getFadeValue<Index>(numElements, normalisedInput);
+        
+        return Math.sin(Math.PI * 0.5 * v);
+    }
+    
+    hmath Math;
+};
+
 struct squared
 {
     SN_EMPTY_INITIALISE;
