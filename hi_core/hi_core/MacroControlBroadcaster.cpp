@@ -109,12 +109,16 @@ namespace hise { using namespace juce;
 		// Should only be called from the message thread
 		jassert(MessageManager::getInstance()->isThisTheMessageThread());
 
-		for (auto l : macroListeners)
-		{
-			if (l != nullptr)
-				l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
-		}
-
+        {
+            ScopedLock sl(listenerLock);
+            
+            for (auto l : macroListeners)
+            {
+                if (l != nullptr)
+                    l->macroConnectionChanged(macroIndex, p, parameterIndex, wasAdded);
+            }
+        }
+        
 #if HISE_MACROS_ARE_PLUGIN_PARAMETERS
 		auto ap = dynamic_cast<AudioProcessor*>(dynamic_cast<ControlledObject*>(this)->getMainController());
 
@@ -125,6 +129,8 @@ namespace hise { using namespace juce;
 
 		auto md = getMacroControlData(macroIndex);
 
+        SimpleReadWriteLock::ScopedReadLock sl2(md->parameterLock);
+        
 		if(wasAdded && md->getNumParameters() == 1)
 		{
 			float newValue;
@@ -168,10 +174,10 @@ namespace hise { using namespace juce;
 
 		Array<AsyncData> data;
 
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
 		for (auto m : macroControls)
 		{
+            SimpleReadWriteLock::ScopedReadLock sl(m->parameterLock);
+            
 			auto index = m->macroIndex;
 
 			for (int i = 0; i < m->getNumParameters(); i++)
@@ -204,15 +210,18 @@ namespace hise { using namespace juce;
 
 	void MacroControlBroadcaster::addMacroConnectionListener(MacroConnectionListener* l)
 	{
+        ScopedLock sl(listenerLock);
 		macroListeners.addIfNotAlreadyThere(l);
 	}
 
 	void MacroControlBroadcaster::removeMacroConnectionListener(MacroConnectionListener* l)
 	{
+        ScopedLock sl(listenerLock);
 		macroListeners.removeAllInstancesOf(l);
 	}
 
-	MacroControlBroadcaster::MacroControlData::MacroControlData(int index, MacroControlBroadcaster& parent_):
+	MacroControlBroadcaster::MacroControlData::MacroControlData(int index, MacroControlBroadcaster& parent_, MainController* mc):
+        ControlledObject(mc),
 		macroName("Macro " + String(index + 1)),
 		currentValue(0.0),
 		midiController(-1),
@@ -286,14 +295,12 @@ namespace hise { using namespace juce;
 
 	MacroControlBroadcaster::MacroControlData* MacroControlBroadcaster::getMacroControlData(int index)
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-		return macroControls[index];	
+		return macroControls[index];
 	}
 
 	const MacroControlBroadcaster::MacroControlData* MacroControlBroadcaster::getMacroControlData(int index) const
 	{
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-		return macroControls[index]; 
+		return macroControls[index];
 	}
 
 	void MacroControlBroadcaster::clearAllMacroControls()
@@ -314,18 +321,16 @@ namespace hise { using namespace juce;
 MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 	thisAsSynth(chain)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
-
 	for(int i = 0; i < HISE_NUM_MACROS; i++)
 	{
-		macroControls.add(new MacroControlData(i, *this));
-		
+		macroControls.add(new MacroControlData(i, *this, chain->getMainController()));
 	}
 }
 
 
 /** Creates a new Parameter data object. */
 MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterData(Processor *p, int  parameter_, const String &parameterName_, NormalisableRange<double> range_, bool readOnly):
+    ControlledObject(p->getMainController()),
 	controlledProcessor(p),
 	id(p->getId()),
 	parameter(parameter_),
@@ -336,56 +341,18 @@ MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterD
 	readOnly(readOnly)
 {};
 
-/** Restores a Parameter object from an exported XML document. 
-*
-*	You have to supply the ModulatorSynthChain to find the Processor with the exported ID.
-*/
-MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterData(ModulatorSynthChain *chain, XmlElement &xml):
-	range(NormalisableRange<double>(xml.getDoubleAttribute("min", 0.0),
-							xml.getDoubleAttribute("max", 1.0))),
-	parameter(xml.getIntAttribute("parameter", -1)),
-	parameterName(xml.getStringAttribute("parameter_name", "")),
-	id (xml.getStringAttribute("id", id)),
-	readOnly(xml.getBoolAttribute("readonly", true))
-{
-	parameterRange = NormalisableRange<double>(xml.getDoubleAttribute("low", 0.0), xml.getDoubleAttribute("high", 1.0));
-	inverted = xml.getBoolAttribute("inverted", false);
-	parameterRange.skew = xml.getDoubleAttribute("skew", 1.0);
-	parameterRange.interval = xml.getDoubleAttribute("step", 0.0);
-	
-	controlledProcessor = findProcessor(chain, id);
-
-	if (controlledProcessor->getIdentifierForParameterIndex(parameter).toString().compare(parameterName) != 0)
-	{
-		// parameter name vs id mismatch, we'll resolve it now...
-		
-
-		Identifier pToLookFor(parameterName);
-		auto& uph = controlledProcessor->getMainController()->getUserPresetHandler();
-
-		if (uph.isUsingCustomDataModel())
-		{
-			if (auto d = uph.getCustomAutomationData(pToLookFor))
-			{
-				parameter = d->index;
-				setIsCustomAutomation(true);
-			}
-		}
-		else
-		{
-			int numParameters = controlledProcessor->getNumParameters();
-
-			for (int i = 0; i < numParameters; i++)
-			{
-				if (controlledProcessor->getIdentifierForParameterIndex(i) == pToLookFor)
-				{
-					parameter = i;
-					break;
-				}
-			}
-		}
-	}
-}
+MacroControlBroadcaster::MacroControlledParameterData::MacroControlledParameterData(MainController* mc):
+  ControlledObject(mc),
+  id(""),
+  parameter(-1),
+  parameterName(""),
+  controlledProcessor(nullptr),
+  range(0.0, 1.0),
+  parameterRange(0.0, 1.0),
+  inverted(false),
+  readOnly(true),
+  customAutomation(false)
+{};
 
 /** Allows comparison. This only compares the Processor and the parameter (not the range). */
 bool MacroControlBroadcaster::MacroControlledParameterData::operator== (const MacroControlledParameterData& other) const
@@ -442,111 +409,125 @@ float MacroControlBroadcaster::MacroControlledParameterData::getNormalizedValue(
 
 		
 
-XmlElement *MacroControlBroadcaster::MacroControlledParameterData::exportAsXml()
+ValueTree MacroControlBroadcaster::MacroControlledParameterData::exportAsValueTree() const
 {
-	XmlElement *entry = new XmlElement("controlled_parameter");
+    ValueTree v("controlled_parameter");
 
-	
+	v.setProperty("id", controlledProcessor->getId(), nullptr);
+	v.setProperty("parameter", parameter, nullptr);
+	v.setProperty("parameter_name", parameterName, nullptr);
+	v.setProperty("min", range.start, nullptr);
+	v.setProperty("max", range.end, nullptr);
+	v.setProperty("low", parameterRange.start, nullptr);
+	v.setProperty("high", parameterRange.end, nullptr);
+	v.setProperty("skew", parameterRange.skew, nullptr);
+	v.setProperty("step", parameterRange.interval, nullptr);
+	v.setProperty("inverted", inverted, nullptr);
+	v.setProperty("readonly", readOnly, nullptr);
 
-	entry->setAttribute("id", controlledProcessor->getId());
-	entry->setAttribute("parameter", parameter);
-	entry->setAttribute("parameter_name", parameterName);
-	entry->setAttribute("min", range.start);
-	entry->setAttribute("max", range.end);
-	entry->setAttribute("low", parameterRange.start);
-	entry->setAttribute("high", parameterRange.end);
-	entry->setAttribute("skew", parameterRange.skew);
-	entry->setAttribute("step", parameterRange.interval);
-	entry->setAttribute("inverted", inverted);
-	entry->setAttribute("readonly", readOnly);
+	return v;
+}
 
-	return entry;
+void MacroControlBroadcaster::MacroControlledParameterData::restoreFromValueTree(const ValueTree& v)
+{
+    id = v.getProperty("id", id).toString(),
+    parameter = v.getProperty("parameter", -1);
+    parameterName = v.getProperty("parameter_name", "").toString();
+    
+    range = NormalisableRange<double>(
+                             (double)v.getProperty("min", 0.0),
+                             (double)v.getProperty("max", 1.0));
+    
+    parameterRange = NormalisableRange<double>(
+                                      (double)v.getProperty("low", 0.0),
+                                      (double)v.getProperty("high", 1.0));
+    
+    parameterRange.skew = v.getProperty("skew", 1.0);
+    parameterRange.interval = v.getProperty("step", 0.0);
+    inverted = v.getProperty("inverted", false);
+    readOnly = v.getProperty("readonly", true);
+    
+    controlledProcessor = findProcessor(getMainController()->getMainSynthChain(), id);
+
+    if(controlledProcessor == nullptr)
+        return;
+    
+    if (controlledProcessor->getIdentifierForParameterIndex(parameter).toString().compare(parameterName) != 0)
+    {
+        // parameter name vs id mismatch, we'll resolve it now...
+        
+        Identifier pToLookFor(parameterName);
+        auto& uph = controlledProcessor->getMainController()->getUserPresetHandler();
+
+        if (uph.isUsingCustomDataModel())
+        {
+            if (auto d = uph.getCustomAutomationData(pToLookFor))
+            {
+                parameter = d->index;
+                setIsCustomAutomation(true);
+            }
+        }
+        else
+        {
+            int numParameters = controlledProcessor->getNumParameters();
+
+            for (int i = 0; i < numParameters; i++)
+            {
+                if (controlledProcessor->getIdentifierForParameterIndex(i) == pToLookFor)
+                {
+                    parameter = i;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 
-
-MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain *chain, int index, XmlElement *xml):
-	parent(*chain),
-	macroIndex(index)
-{
-	currentValue = 0.0f;
-
-	jassert(xml->getTagName() == "macro");
-
-	macroName = xml->getStringAttribute("name");
-
-	setValue((float)xml->getDoubleAttribute("value", 0.0));
-
-	setMidiController(xml->getIntAttribute("midi_cc", -1));
-
-	for(int i = 0; i < xml->getNumChildElements(); i++)
-	{
-		controlledParameters.add(new MacroControlledParameterData(chain, *xml->getChildElement(i)));
-	}
-
-};
-
 void MacroControlBroadcaster::saveMacrosToValueTree(ValueTree &v) const
 {
-	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+    ValueTree m("macro_controls");
 
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
+	for (auto macro: macroControls)
+        m.addChild(macro->exportAsValueTree(), -1, nullptr);
 
-	for (int i = 0; i < macroControls.size(); i++)
-	{
-		macroControlData->addChildElement(macroControls[i]->exportAsXml());
-	}
-
-	ValueTree macros = ValueTree::fromXml(*macroControlData);
-
-	v.addChild(macros, -1, nullptr);
+	v.addChild(m, -1, nullptr);
 }
 
 void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
 {
-	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+    ValueTree mData("macro_controls");
 
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
-	for (int i = 0; i < macroControls.size(); i++)
+	for (auto macro: macroControls)
 	{
-		if (getMacroControlData(i)->getNumParameters() > 0)
+        SimpleReadWriteLock::ScopedReadLock sl(macro->parameterLock);
+        
+		if (macro->getNumParameters() > 0)
 		{
-			XmlElement *child = new XmlElement("macro");
-
-			child->setAttribute("value", getMacroControlData(i)->getCurrentValue());
-
-			macroControlData->addChildElement(child);
+			ValueTree child("macro");
+			child.setProperty("value", macro->getCurrentValue(), nullptr);
+            mData.addChild(child, -1, nullptr);
 		}
 	}
 
-	ValueTree macros = ValueTree::fromXml(*macroControlData);
-
-	v.addChild(macros, -1, nullptr);
+	v.addChild(mData, -1, nullptr);
 }
 
 void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool loadMacroValues)
 {
 	ValueTree macroData = v.getChildWithName("macro_controls");
 
-	auto data = macroData.createXml();
-
-	if(data != nullptr && data->getNumChildElements() == HISE_NUM_MACROS)
+	if(macroData.isValid())
 	{
 		sendMacroConnectionChangeMessageForAll(false);
 
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(macroLock);
-
-			macroControls.clear();
-
-			for (int i = 0; i < data->getNumChildElements(); i++)
-			{
-				macroControls.add(new MacroControlData(thisAsSynth, i, data->getChildElement(i)));
-				thisAsSynth->getMainController()->getMacroManager().setMidiControllerForMacro(i, macroControls.getLast()->getMidiController());
-			}
-		}
-
+        int numToRestore = jmin(HISE_NUM_MACROS, macroControls.size(), macroData.getNumChildren());
+        
+        for(int i = 0; i < numToRestore; i++)
+        {
+            macroControls[i]->restoreFromValueTree(macroData.getChild(i));
+        }
+        
 		sendMacroConnectionChangeMessageForAll(true);
 
 		for(int i = 0; i < macroControls.size(); i++)
@@ -561,45 +542,22 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v, bool l
 
 void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
 {
-	auto data = v.getChildWithName("macro_controls").createXml();
+    auto data = v.getChildWithName("macro_controls");
 
-    if(data == nullptr)
+    if(!data.isValid())
     {
         // The macro controls could not be found...
         return;
     }
     
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
-	for (int i = 0; i < macroControls.size(); i++)
+    int numToRestore = jmin(HISE_NUM_MACROS, macroControls.size(), data.getNumChildren());
+    
+	for (int i = 0; i < numToRestore; i++)
 	{
-		XmlElement *child = data->getChildElement(i);
-
-		if (child != nullptr)
-		{
-			const float value = (float)child->getDoubleAttribute("value", 0.0);
-
-			setMacroControl(i, value, sendNotification);
-		}
+        auto value = data.getChild(i).getProperty("value", 0.0);
+        setMacroControl(i, value, sendNotification);
 	}
 }
-
-void MacroControlBroadcaster::replaceMacroControlData(int index, MacroControlData *newData, ModulatorSynthChain *parentChain)
-{
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
-	if(index < macroControls.size())
-	{
-		ScopedPointer<XmlElement> xml = newData->exportAsXml();
-
-		MacroControlData *copy = new MacroControlData(parentChain, index, xml);
-
-		macroControls.set(index, copy);
-	}
-
-	thisAsSynth->sendChangeMessage();
-}
-
 
 float MacroControlBroadcaster::MacroControlData::getCurrentValue() const
 {
@@ -623,28 +581,13 @@ float MacroControlBroadcaster::MacroControlData::getDisplayValue() const
 
 void MacroControlBroadcaster::clearData(int macroIndex)
 {
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
 	MacroControlData *data = macroControls[macroIndex];
-
-	const int numParams = data->getNumParameters();
-
-	if(data != nullptr)
-	{
-		for(int i = 0; i < numParams; i++)
-		{
-			data->removeParameter(0);
-		}
-	}
-
-	jassert(data->getNumParameters() == 0);
-
-	data->setMacroName("Macro " + String(macroIndex + 1));
-
-	data->setValue(0.0);
-
-	data->setMidiController(-1);
-
+    MacroControlData copy(macroIndex, *this, dynamic_cast<ControlledObject*>(this)->getMainController());
+    
+    auto v = copy.exportAsValueTree();
+    
+    data->restoreFromValueTree(v);
+    
 	thisAsSynth->sendChangeMessage();
 }
 
@@ -652,70 +595,158 @@ void MacroControlBroadcaster::MacroControlData::setValue(float newValue)
 {
 	currentValue = newValue;
 
-	for(int i = 0; i < controlledParameters.size(); i++)
-	{
-		MacroControlledParameterData *pData = controlledParameters[i];
-			
-		pData->setAttribute(newValue / 127.0f);
-	}
-
+    SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+    
+	for(auto p: controlledParameters)
+		p->setAttribute(newValue / 127.0f);
 };
 
-bool MacroControlBroadcaster::MacroControlData::isDanglingProcessor(int parameterIndex)
+bool MacroControlBroadcaster::MacroControlData::isDanglingProcessor(int parameterIndex) const
 {
-	jassert( controlledParameters[parameterIndex]->getProcessor() != nullptr);
+    SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+    
+    if(isPositiveAndBelow(parameterIndex, controlledParameters.size()))
+    {
+        jassert( controlledParameters[parameterIndex]->getProcessor() != nullptr);
+        return controlledParameters[parameterIndex]->getProcessor() == nullptr;
+    }
+    
+    return true;
+}
 
-	return controlledParameters[parameterIndex]->getProcessor() == nullptr;
+void MacroControlBroadcaster::MacroControlData::removeParametersFromIndexList(const Array<int>& indexList, NotificationType n)
+{
+    if(indexList.isEmpty())
+        return;
+    
+    OwnedArray<MacroControlledParameterData> pendingDelete;
+    pendingDelete.ensureStorageAllocated(indexList.size());
+    
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+        
+        for(auto i: indexList)
+        {
+            auto cp = controlledParameters[i];
+            
+            if(cp->getProcessor() == nullptr)
+                continue;
+            
+            cp->getProcessor()->sendChangeMessage();
+            
+            parent.sendMacroConnectionChangeMessage(macroIndex, cp->getProcessor(), cp->getParameter(), false, n);
+        }
+    }
+    
+    {
+        SimpleReadWriteLock::ScopedWriteLock sl(parameterLock);
+        
+        for(auto l: indexList)
+        {
+            pendingDelete.add(controlledParameters[l]);
+            controlledParameters.set(l, nullptr, false);
+        }
+        
+        for(int i = 0; i < controlledParameters.size(); i++)
+        {
+            if(controlledParameters[i] == nullptr)
+            {
+                controlledParameters.remove(i--);
+            }
+        }
+    }
+    
+    pendingDelete.clear();
 }
 
 void MacroControlBroadcaster::MacroControlData::clearDanglingProcessors()
 {
-	for(int i = 0; i < controlledParameters.size(); i++)
-	{
-		if(isDanglingProcessor(i))
-		{
-			controlledParameters.remove(i);
-		}
-	}
+    Array<int> indexList;
+    
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+        
+        for(int i = 0; i < controlledParameters.size(); i++)
+        {
+            if(isDanglingProcessor(i))
+            {
+                indexList.add(i);
+            }
+        }
+    }
+    
+    removeParametersFromIndexList(indexList);
 }
 
 void MacroControlBroadcaster::MacroControlData::removeAllParametersWithProcessor(Processor *p)
 {
-	for(int i = 0; i < controlledParameters.size(); i++)
-	{
-		auto cp = controlledParameters[i];
-
-		if (cp->getProcessor() == p)
-		{
-			parent.sendMacroConnectionChangeMessage(macroIndex, cp->getProcessor(), cp->getParameter(), false);
-			controlledParameters.remove(i--);
-		}
-	}		
+    Array<int> indexList;
+    
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+        
+        for(auto cp: controlledParameters)
+        {
+            if (cp->getProcessor() == p)
+                indexList.add(controlledParameters.indexOf(cp));
+        }
+    }
+    
+    removeParametersFromIndexList(indexList);
 }
 
-XmlElement *MacroControlBroadcaster::MacroControlData::exportAsXml()
+ValueTree MacroControlBroadcaster::MacroControlData::exportAsValueTree() const
 {
-	XmlElement *macro = new XmlElement("macro");
-
-	macro->setAttribute("name", macroName);
-
-	macro->setAttribute("value", currentValue);
-	
-	macro->setAttribute("midi_cc", midiController);
+    ValueTree v("macro");
+    v.setProperty("name", macroName, nullptr);
+    v.setProperty("value", currentValue, nullptr);
+    v.setProperty("midi_cc", midiController, nullptr);
 
 	for(int i = 0; i < controlledParameters.size(); i++)
 	{
-		if( !isDanglingProcessor(i)) macro->addChildElement(controlledParameters[i]->exportAsXml());
+		if( !isDanglingProcessor(i))
+            v.addChild(controlledParameters[i]->exportAsValueTree(), -1, nullptr);
+            
 	}
-	return macro;
+	return v;
 };
+
+void MacroControlBroadcaster::MacroControlData::restoreFromValueTree(const ValueTree& v)
+{
+    currentValue = 0.0f;
+
+    jassert(v.getType() == Identifier("macro"));
+
+    macroName = v.getProperty("name", "Macro " + String(macroIndex+1)).toString();
+
+    setValue((float)v.getProperty("value", 0.0));
+
+    setMidiController(v.getProperty("midi_cc", -1));
+
+    OwnedArray<MacroControlledParameterData> newData;
+    
+    for(auto c: v)
+    {
+        auto nd = new MacroControlledParameterData(getMainController());
+        nd->restoreFromValueTree(c);
+        newData.add(nd);
+    }
+    
+    {
+        
+        SimpleReadWriteLock::ScopedWriteLock sl(parameterLock);
+        std::swap(newData, controlledParameters);
+    }
+}
 
 bool MacroControlBroadcaster::MacroControlData::hasParameter(Processor *p, int parameterIndex)
 {
-	for(int i = 0; i < controlledParameters.size(); i++)
+    SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+    
+    for(auto cp: controlledParameters)
 	{
-		if(controlledParameters[i]->getProcessor() == p &&
-			controlledParameters[i]->getParameter() == parameterIndex)
+		if(cp->getProcessor() == p &&
+           cp->getParameter() == parameterIndex)
 		{
 			return true;
 		}
@@ -727,17 +758,35 @@ bool MacroControlBroadcaster::MacroControlData::hasParameter(Processor *p, int p
 
 void MacroControlBroadcaster::MacroControlData::addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly, bool isUsingCustomData, NotificationType n)
 {
-	while (p->getMainController()->getMacroManager().isExclusive() && getNumParameters() > 0)
-		removeParameter(0, n);
-
-	controlledParameters.add(new MacroControlledParameterData(p,
-																parameterId,
-																parameterName,
-																range,
-																readOnly));
-
-	controlledParameters.getLast()->setIsCustomAutomation(isUsingCustomData);
-		
+    if(p->getMainController()->getMacroManager().isExclusive())
+    {
+        Array<int> indexList;
+        
+        {
+            SimpleReadWriteLock::ScopedReadLock sl(parameterLock);
+            
+            for(int i = 1; i < controlledParameters.size(); i++)
+            {
+                indexList.add(i);
+            }
+        }
+        
+        removeParametersFromIndexList(indexList);
+    }
+    
+    auto nd = new MacroControlledParameterData(p,
+                                               parameterId,
+                                               parameterName,
+                                               range,
+                                               readOnly);
+    
+    nd->setIsCustomAutomation(isUsingCustomData);
+    
+    {
+        SimpleReadWriteLock::ScopedWriteLock sl(parameterLock);
+        controlledParameters.add(nd);
+    }
+    
 	parent.sendMacroConnectionChangeMessage(macroIndex, p, parameterId, true, n);
 }
 
@@ -785,10 +834,10 @@ void MacroControlBroadcaster::setMacroControl(int macroIndex, float newValue, No
 
 int MacroControlBroadcaster::getMacroControlIndexForCustomAutomation(const Identifier& customId) const
 {
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
 	for (int i = 0; i < macroControls.size(); i++)
 	{
+        SimpleReadWriteLock::ScopedReadLock sl(macroControls[i]->parameterLock);
+        
 		for (int j = 0; j < macroControls[i]->getNumParameters(); j++)
 		{
 			if (macroControls[i]->getParameter(j)->matchesCustomAutomation(customId))
@@ -801,10 +850,10 @@ int MacroControlBroadcaster::getMacroControlIndexForCustomAutomation(const Ident
 
 int MacroControlBroadcaster::getMacroControlIndexForProcessorParameter(const Processor *p, int parameter) const
 {
-	SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
 	for (int i = 0; i < macroControls.size(); i++)
 	{
+        SimpleReadWriteLock::ScopedReadLock sl(macroControls[i]->parameterLock);
+        
 		for (int j = 0; j < macroControls[i]->getNumParameters(); j++)
 		{
 			auto pa = macroControls[i]->getParameter(j);
@@ -836,8 +885,6 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 	{
 		//if(macroControls[macroControllerIndex]->hasParameter(p, parameterId)) return;
 
-		SimpleReadWriteLock::ScopedReadLock sl(macroLock);
-
 		for(int i = 0; i < macroControls.size(); i++)
 		{
 			if(macroControls[i]->hasParameter(p, parameterId))
@@ -845,7 +892,6 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 				macroControls[i]->removeParameter(parameterName);
 			}
 		}
-
 
 		macroControls[macroControllerIndex]->addParameter(p, parameterId, parameterName, range, readOnly);
 
@@ -856,28 +902,7 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 
 void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterIndex, NotificationType n)
 {
-    
-	if(parameterIndex != -1 && parameterIndex < controlledParameters.size() && controlledParameters[parameterIndex]->getProcessor() != nullptr)
-	{
-		controlledParameters[parameterIndex]->getProcessor()->sendChangeMessage();
-	}
-
-    WeakReference<Processor> pToRemove;
-	auto indexToRemove = -1;
-
-	if (auto cp = controlledParameters[parameterIndex])
-	{
-		pToRemove = cp->getProcessor();
-		indexToRemove = cp->getParameter();
-	}
-
-	controlledParameters.remove(parameterIndex);
-    
-    WeakReference<MacroControlBroadcaster> safeParent(&parent);
-
-	if(pToRemove)
-		parent.sendMacroConnectionChangeMessage(macroIndex, pToRemove, indexToRemove, false, n);
-	
+    removeParametersFromIndexList({parameterIndex}, n);
 };
 
 void MacroControlBroadcaster::MacroControlData::removeParameter(const String &parameterName, const Processor *processor, NotificationType n)

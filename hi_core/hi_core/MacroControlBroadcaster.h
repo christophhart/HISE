@@ -65,19 +65,16 @@ public:
 	*	@ingroup macroControl
 	*
 	*/
-	struct MacroControlledParameterData
+	struct MacroControlledParameterData: public RestorableObject,
+                                         public ControlledObject
 	{
 	public:
 
 		/** Creates a new Parameter data object. */
 		MacroControlledParameterData(Processor *p, int  parameter_, const String &parameterName_, NormalisableRange<double> range_, bool readOnly=true);
 
-		/** Restores a Parameter object from an exported XML document. 
-		*
-		*	You have to supply the ModulatorSynthChain to find the Processor with the exported ID.
-		*/
-		MacroControlledParameterData(ModulatorSynthChain *chain, XmlElement &xml);
-
+        MacroControlledParameterData(MainController* mc);
+        
 		/** Allows comparison. This only compares the Processor and the parameter (not the range). */
 		bool operator== (const MacroControlledParameterData& other) const;
 
@@ -143,19 +140,21 @@ public:
 		/** Returns the parameter name. This is the name of the interface control (Processor parameter have no name per se). */
 		String getParameterName() const;;
 
-		
 		/** Exports all data as xml element which can be added as ValueTreeProperty. */
-		XmlElement *exportAsXml();
-
+        
+        void restoreFromValueTree(const ValueTree& v) override;
+        
+        ValueTree exportAsValueTree() const override;
+        
 	private:
 
 		// The ID of the Processor that is controlled
-		const String id;
+        String id;
 
 		// The controlled parameter
 		int parameter;
 
-		const String parameterName;
+        String parameterName;
 
 		WeakReference<Processor> controlledProcessor;
 
@@ -191,21 +190,16 @@ public:
 	*	@ingroup macroControl
 	*
 	*/
-	struct MacroControlData
+	struct MacroControlData: public RestorableObject,
+                             public ControlledObject
 	{
 		/** Creates an empty data object. */
-		MacroControlData(int index, MacroControlBroadcaster& parent_);;
+		MacroControlData(int index, MacroControlBroadcaster& parent_, MainController* mc);;
 
 		MacroControlBroadcaster& parent;
 		const int macroIndex;
 
 		virtual ~MacroControlData();;
-
-		/** Creates a new data object from an XmlElement. 
-		*
-		*	The chain is used to find the child processor with the given id.
-		*/
-		MacroControlData(ModulatorSynthChain *chain, int index, XmlElement *xml);
 
 		/** Returns the last value. */
 		float getCurrentValue() const;
@@ -223,7 +217,7 @@ public:
 		void setValue(float newValue);
 
 		/** Checks if the processor of the parameter still exists. */
-		bool isDanglingProcessor(int parameterIndex);
+		bool isDanglingProcessor(int parameterIndex) const;
 
 		/** Removes all parameters with deleted processors. */
 		void clearDanglingProcessors();
@@ -231,9 +225,10 @@ public:
 		/** Removes all parameters that control a certain processor. */
 		void removeAllParametersWithProcessor(Processor *p);
 
-		/** Exports the data as XML. */
-		XmlElement *exportAsXml();
-
+        ValueTree exportAsValueTree() const override;
+        
+        void restoreFromValueTree(const ValueTree& v) override;
+        
 		/** checks if the parameter exists. */
 		bool hasParameter(Processor *p, int parameterIndex);
 
@@ -246,6 +241,8 @@ public:
 		/** Removes the parameter with the name. */
 		void removeParameter(const String &parameterName, const Processor *processor=nullptr, NotificationType n = sendNotificationAsync);
 
+        void removeParametersFromIndexList(const Array<int>& indexList, NotificationType n = sendNotificationAsync);
+        
 		/** returns the parameter at the supplied index. */
 		MacroControlledParameterData *getParameter(int parameterIndex);
 
@@ -272,8 +269,10 @@ public:
 
 		int getMidiController() const noexcept;;
 
+        mutable SimpleReadWriteLock parameterLock;
+        
 	private:
-
+        
 		String macroName;
 
 		float currentValue;
@@ -337,19 +336,10 @@ public:
 	/** Checks if the macro control has any parameters. */
 	bool hasActiveParameters(int macroIndex);
 
-	/** this replaces the macro control data object at the specified index with the new one. 
-	*
-	*	@param index the index of the macro control which will be replaced
-	*	@param newData a pointer to the macro control data that should replace the old data
-	*	@param parentChain a pointer to the ModulatorSynthChain where the newData resides. This is used to get the correct Processor for the given ID.
-	*
-	*/
-	void replaceMacroControlData(int index, MacroControlData *newData, ModulatorSynthChain *parentChain);
-
 private:
 
-	mutable hise::SimpleReadWriteLock macroLock;
-
+    CriticalSection listenerLock;
+    
 	Array<WeakReference<MacroConnectionListener>> macroListeners;
 
 	OwnedArray<MacroControlData> macroControls;

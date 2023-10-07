@@ -1327,10 +1327,12 @@ void FrontendMacroPanel::macroConnectionChanged(int macroIndex, Processor* p, in
 
 hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
-		if (macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
-			return macroChain->getMacroControlData(i);
+        auto m = macroChain->getMacroControlData(i);
+        
+		if (m->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
+            return m;
 	}
 
 	return nullptr;
@@ -1338,10 +1340,12 @@ hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(Mac
 
 const hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd) const
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
-		if (macroChain->getMacroControlData(i)->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
-			return macroChain->getMacroControlData(i);
+        auto m = macroChain->getMacroControlData(i);
+        
+		if (m->getParameterWithProcessorAndIndex(pd->getProcessor(), pd->getParameter()))
+            return m;
 	}
 
 	return nullptr;
@@ -1361,6 +1365,8 @@ int FrontendMacroPanel::getNumRows()
 	{
 		auto d = macroChain->getMacroControlData(i);
 
+        SimpleReadWriteLock::ScopedReadLock sl(d->parameterLock);
+        
 		for (int j = 0; j < d->getNumParameters(); j++)
 		{
 			newList.add(d->getParameter(j));
@@ -1379,7 +1385,7 @@ void FrontendMacroPanel::removeEntry(int rowIndex)
 	hise::SimpleReadWriteLock::ScopedReadLock sl(connectionLock);
 
 	if (auto data = connectionList[rowIndex].get())
-		getData(data)->removeParameter(data->getParameterName(), data->getProcessor());
+		getData(data)->removeParameter(data->getParameterName(), data->getProcessor(), sendNotificationAsync);
 }
 
 bool FrontendMacroPanel::setRange(int rowIndex, NormalisableRange<double> newRange)
