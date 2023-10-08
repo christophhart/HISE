@@ -1842,10 +1842,12 @@ struct ShortcutEditor : public QuasiModalComponent,
 		};
 	};
 
-	Path createPath(const String&) const override
+	Path createPath(const String& url) const override
 	{
 		Path p;
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
+        
+        LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+        
 		return p;
 	}
 
