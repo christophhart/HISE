@@ -164,6 +164,7 @@ Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
 	ids.add(EnableDebugMode);
 	ids.add(SaveConnectedFilesOnCompile);
 	ids.add(EnableMousePositioning);
+    ids.add(WarnIfUndefinedParameters);
 
 	return ids;
 }
@@ -431,6 +432,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("> It will grey out the save button for all factory presets");
 		P_();
 
+        P(HiseSettings::Scripting::WarnIfUndefinedParameters);
+        D("If enabled, it will print a warning with a callstack if you try to call a function  on a dynamic object reference with an undefined function.");
+        D("> This only works if you haven't set `HISE_WARN_UNDEFINED_PARAMETER_CALLS` to 0, then it will just abort execution and throw an error");
+        P_();
+        
 		P(HiseSettings::Project::VST3Support);
 		D("If enabled, the exported plugins will use the VST3 SDK standard instead of the VST 2.x SDK. Until further notice, this is a experimental feature so proceed with caution.");
 		D("> Be aware that Steinberg stopped support for the VST 2.4 SDK in October 2018 so if you don't have a valid VST2 license agreement in place, you must use the VST3 SDK.");
@@ -904,6 +910,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
 		id == Scripting::SaveConnectedFilesOnCompile ||
+        id == Scripting::WarnIfUndefinedParameters ||
 		id == Scripting::EnableMousePositioning)
 	    return { "Yes", "No" };
 
@@ -1161,6 +1168,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 		return scriptFolder.getFullPathName();
 	}
 	else if (id == Scripting::EnableDebugMode)		return mc->getDebugLogger().isLogging() ? "Yes" : "No";
+    else if (id == Scripting::WarnIfUndefinedParameters) return "Yes";
 	else if (id == Audio::Driver)					return const_cast<Data*>(this)->getDeviceManager()->getCurrentAudioDeviceType();
 	else if (id == Audio::Device)
 	{

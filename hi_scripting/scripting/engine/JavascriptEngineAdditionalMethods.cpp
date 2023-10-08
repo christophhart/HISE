@@ -433,9 +433,16 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
                     if(parameters[i].isUndefined() || parameters[i].isVoid())
                     {
                         auto p = dynamic_cast<Processor*>(c->getScriptProcessor());
-                        String errorMessage = "Warning: undefined parameter " + String(i);
-                        auto e = Error::fromLocation(location, errorMessage);
-                        debugError(p, errorMessage + "\n:\t\t\t" + e.toString(p));
+                        
+                        auto warn = (bool)GET_HISE_SETTING(p, HiseSettings::Scripting::WarnIfUndefinedParameters);
+                        
+                        if(warn)
+                        {
+                            String errorMessage = "Warning: undefined parameter " + String(i);
+                            auto e = Error::fromLocation(location, errorMessage);
+                            debugError(p, errorMessage + "\n:\t\t\t" + e.toString(p));
+                        }
+                        
                         continue;
                     }
 #endif
