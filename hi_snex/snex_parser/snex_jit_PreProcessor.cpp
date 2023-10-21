@@ -752,7 +752,7 @@ void Preprocessor::addDefinitionsFromScope(const ExternalPreprocessorDefinition:
 		else if (e.t == ExternalPreprocessorDefinition::Type::Empty)
 		{
 			Item::Ptr newItem = new Item();
-			newItem->body == "";
+			newItem->body = "";
 			newItem->id = NamespacedIdentifier(e.name);
 			newItem->lineNumber = -1;
 			newItem->description = "Resolves to nothing (most likely for C++ compatibility)";
