@@ -432,7 +432,6 @@ FoldableLineRange::List XmlLanguageManager::createLineRange(const CodeDocument& 
     
     for(const auto& t: tags)
     {
-        DBG(t.name);
         index++;
         
         if(t.isSelfClose)

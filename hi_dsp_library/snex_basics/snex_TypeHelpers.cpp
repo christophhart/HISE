@@ -77,12 +77,19 @@ juce::String Types::Helpers::getTypeName(ID id)
 
 Colour Types::Helpers::getColourForType(ID type)
 {
+    
+    if(type == Types::ID::Void)
+        return Colours::grey;
+    
+    if(type < (ID)(int)HiseEvent::Type::numTypes)
+        return Colour(0xFFC65638);
+    
 	switch (type)
 	{
 	case Types::ID::Void:			return Colours::white;
 	case Types::ID::Integer:		return Colour(0xffbe952c);
 	case Types::ID::Float:			
-	case Types::ID::Double:			
+    case Types::ID::Double:			return Colour(0xff3a6666);
 	case Types::ID::Block:			return Colour(0xff7559a4);
 	case Types::ID::Pointer:		return Colours::aqua;
 	case Types::ID::Dynamic:		return Colours::white;

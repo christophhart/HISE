@@ -182,6 +182,18 @@ return *this;
 		bool isVoid() const noexcept { return getType() == Types::ID::Void; }
 		size_t getSizeInBytes() const noexcept;
 
+        VariableStorage toTypeDynamic(ID t) const
+        {
+            if(t == ID::Float)
+                return toFloat();
+            if(t == ID::Double)
+                return toDouble();
+            if(t == ID::Integer)
+                return toInt();
+            
+            return *this;
+        }
+        
 		template <ID TypeID> auto toType() const
 		{
 			if (TypeID == ID::Float)
