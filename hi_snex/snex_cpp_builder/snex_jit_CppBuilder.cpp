@@ -543,7 +543,7 @@ Struct::Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>&
 	parent.pushScope(id);
 }
 
-Struct::Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier> baseClasses, const jit::TemplateParameter::List& tp, bool /*useIds*/) :
+Struct::Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier>& baseClasses, const jit::TemplateParameter::List& tp, bool /*useIds*/) :
 	Op(parent),
 	DefinitionBase(parent, id)
 {

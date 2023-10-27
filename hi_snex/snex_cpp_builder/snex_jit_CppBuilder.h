@@ -388,7 +388,7 @@ struct Struct : public Op,
 {
 	Struct(Base& parent, const Identifier& id, const Array<DefinitionBase*>& baseClasses, const jit::TemplateParameter::List& tp);
 
-	Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier> baseClasses, const jit::TemplateParameter::List& tp, bool useIds);
+	Struct(Base& parent, const Identifier& id, const Array<NamespacedIdentifier>& baseClasses, const jit::TemplateParameter::List& tp, bool useIds);
 
 
 
