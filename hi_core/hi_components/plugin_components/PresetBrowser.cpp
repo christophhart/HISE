@@ -794,8 +794,9 @@ void PresetBrowser::resized()
 	int y = 0;
 
 	const bool showCloseButton = closeButton->isVisible();
+	const bool showSearchBar = searchBar->isVisible();
 
-	if (searchBarBounds.size() == 4)
+	if (showSearchBar && searchBarBounds.size() == 4)
 		searchBar->setBounds((int)searchBarBounds[0], (int)searchBarBounds[1], (int)searchBarBounds[2], (int)searchBarBounds[3]);
 		
 	if (showCloseButton)
@@ -813,7 +814,7 @@ void PresetBrowser::resized()
 		saveButton->setBounds(ar.removeFromRight(100));
 		manageButton->setBounds(ar.removeFromLeft(100));
 		
-		if (searchBarBounds.size() != 4)
+		if (showSearchBar && searchBarBounds.size() != 4)
 			searchBar->setBounds(ar);
 
 		y += 40;
@@ -860,13 +861,13 @@ void PresetBrowser::resized()
 
 		ar.removeFromLeft(10);
 
-		if (searchBarBounds.size() != 4)
+		if (showSearchBar && searchBarBounds.size() != 4)
 			searchBar->setBounds(ar);
 
 		somethingInTopRow |= saveButton->isVisible();
 		somethingInTopRow |= manageButton->isVisible();
 		somethingInTopRow |= showFavoritesButton;
-		somethingInTopRow |= searchBar->getHeight() > 0;
+		somethingInTopRow |= showSearchBar && searchBar->getHeight() > 0;
 
 		if(somethingInTopRow)
 			y += 40;
@@ -1057,6 +1058,15 @@ void PresetBrowser::savePresetDatabase(const File& rootDirectory)
 void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 {
 	showFavoritesButton = shouldShowFavorites;
+}
+
+void PresetBrowser::setShowSearchBar(bool shouldBeShown)
+{
+	if (shouldBeShown != searchBar->isVisible())
+	{
+		searchBar->setVisible(shouldBeShown);
+		resized();
+	}
 }
 
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
@@ -1279,6 +1289,7 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowEditButtons(1, newOptions.showAddButton);
 	setShowEditButtons(2, newOptions.showRenameButton);
 	setShowEditButtons(3, newOptions.showDeleteButton);
+	setShowSearchBar(newOptions.showSearchBar);
 	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
 	setEditButtonOffset(newOptions.editButtonOffset);
 	setListAreaOffset(newOptions.listAreaOffset);
