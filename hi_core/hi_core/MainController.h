@@ -1729,6 +1729,11 @@ public:
 	
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
+
+	float getStringWidthFromEmbeddedFont(const String& text, const String& fontName, float fontSize,
+	                                     float kerningFactor);
+	
+
 	ValueTree exportCustomFontsAsValueTree() const;
 	ValueTree exportAllMarkdownDocsAsValueTree() const;
 	void restoreCustomFontValueTree(const ValueTree &v);
@@ -2044,13 +2049,29 @@ private:
 
 	struct CustomTypeFace
 	{
-		CustomTypeFace(ReferenceCountedObjectPtr<juce::Typeface> tf, Identifier id_) :
-			typeface(tf),
-			id(id_)
-		{};
+		CustomTypeFace(ReferenceCountedObjectPtr<juce::Typeface> tf, Identifier id_);;
+
+		float getStringWidthFloat(const String& text, float fontSize, float kerning) const
+		{
+			auto pos = text.begin();
+			auto end = text.end();
+
+			float normalisedLength = 0.0f;
+
+			while(pos != end)
+			{
+				auto c = *pos++;
+				normalisedLength += characterWidths[jlimit<uint8>(31, 128, c)];
+				normalisedLength += kerning;
+			}
+
+			return normalisedLength * fontSize;
+		}
 
 		ReferenceCountedObjectPtr<juce::Typeface> typeface;
 		Identifier id;
+
+		float characterWidths[128];
 	};
 
 	ScopedPointer<juce::dsp::Oversampling<float>> oversampler;

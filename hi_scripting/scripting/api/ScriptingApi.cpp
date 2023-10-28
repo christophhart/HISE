@@ -3379,9 +3379,8 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 
 float ScriptingApi::Engine::getStringWidth(String text, String fontName, float fontSize, float fontSpacing)
 {
-	auto f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize).withExtraKerningFactor(fontSpacing);
-
-	return f.getStringWidthFloat(text);
+	auto mc = getScriptProcessor()->getMainController_();
+	return mc->getStringWidthFromEmbeddedFont(text, fontName, fontSize, fontSpacing);
 }
 
 void ScriptingApi::Engine::quit()
@@ -6918,7 +6917,12 @@ var ScriptingApi::FileSystem::findFiles(var directory, String wildcard, bool rec
 			auto list = root->f.findChildFiles(File::findFilesAndDirectories | File::ignoreHiddenFiles, recursive, wildcard);
 
 			for (auto sf : list)
-                l.add(new ScriptingObjects::ScriptFile(p, sf));
+			{
+				if(sf.getFileName() == ".DS_Store")
+					continue;
+
+				l.add(new ScriptingObjects::ScriptFile(p, sf));
+			}
 		}
 	}
 

@@ -1926,6 +1926,9 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 	MainController *mc = getScriptProcessor()->getMainController_();
 	auto f = mc->getFontFromString(fontName, SANITIZED(fontSize));
 	currentFont = f;
+	currentFontName = fontName;
+	currentKerningFactor = 0.0f;
+	currentFontHeight = fontSize;
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
@@ -1936,6 +1939,9 @@ void ScriptingObjects::GraphicsObject::setFontWithSpacing(String fontName, float
 
 	f.setExtraKerningFactor(spacing);
 	currentFont = f;
+	currentFontName = fontName;
+	currentFontHeight = fontSize;
+	currentKerningFactor = spacing;
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::setFont(f));
 }
 
@@ -2184,7 +2190,8 @@ bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)
 
 float ScriptingObjects::GraphicsObject::getStringWidth(String text)
 {
-	return currentFont.getStringWidthFloat(text);
+	auto mc = getScriptProcessor()->getMainController_();
+	return mc->getStringWidthFromEmbeddedFont(text, currentFontName, currentFontHeight, currentKerningFactor);
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)

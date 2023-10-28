@@ -590,6 +590,9 @@ namespace ScriptingObjects
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 
 		Font currentFont;
+		String currentFontName = "";
+		float currentKerningFactor = 0.0f;
+		float currentFontHeight = 13.0f;
 
 		Result rectangleResult;
 
