@@ -524,7 +524,8 @@ public:
         
         if(a == ModifierObject::Action::TextInput)
         {
-            return onShiftClick(e);
+            onShiftClick(e);
+			return true;
         }
         if(a == ModifierObject::Action::ResetToDefault)
         {
