@@ -143,12 +143,14 @@ If enabled, then the unit test suite will be compiled and added to all unit test
 
 #include <chrono>
 #include <fstream>
-#include <perfetto.h>
+#include "../tools/SDK/perfetto/perfetto.h"
 #include <thread>
 
 PERFETTO_DEFINE_CATEGORIES(
 	perfetto::Category("component")
 	.SetDescription("Component"),
+    perfetto::Category("dispatch")
+    .SetDescription("dispatch"),
 	perfetto::Category("dsp")
 	.SetDescription("dsp"));
 
@@ -171,10 +173,11 @@ public:
 
     static juce::File getDumpFileDirectory();
 
-private:
     MelatoninPerfetto();
 
     juce::File writeFile();
+
+    juce::File lastFile;
 
     std::unique_ptr<perfetto::TracingSession> session;
 };
@@ -292,6 +295,8 @@ namespace melatonin
     #define TRACE_COMPONENT(...)                                                                                                      \
         constexpr auto pf = melatonin::compileTimePrettierFunction (WRAP_COMPILE_TIME_STRING (PERFETTO_DEBUG_FUNCTION_IDENTIFIER())); \
         TRACE_EVENT ("component", perfetto::StaticString (pf.data()), ##__VA_ARGS__)
+	#define TRACE_DISPATCH(message)                                                                                                      \
+        TRACE_EVENT ("dispatch", message)
 
 #else // if PERFETTO
     #define TRACE_EVENT_BEGIN(category, ...)
@@ -299,6 +304,7 @@ namespace melatonin
     #define TRACE_EVENT(category, ...)
     #define TRACE_DSP(...)
     #define TRACE_COMPONENT(...)
+	#define TRACE_DISPATCH(...)
 #endif
 
 

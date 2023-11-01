@@ -108,9 +108,8 @@ juce::File MelatoninPerfetto::writeFile()
 	{
 		output->setPosition(0);
 		output->write(&trace_data[0], trace_data.size() * sizeof(char));
-
 		DBG("Wrote perfetto trace to: " + childFile.getFullPathName());
-
+		lastFile = childFile;
 		return childFile;
 	}
 

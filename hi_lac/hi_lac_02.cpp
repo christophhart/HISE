@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#include <AppConfig.h>
 
 #if PERFETTO
-#include <perfetto.cc>
+#include "../tools/SDK/perfetto/perfetto.cc"
 #endif

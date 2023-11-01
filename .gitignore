@@ -113,3 +113,5 @@ tools/faust/include
 tools/faust/share
 tools/faust/lib
 tools/faust/bin
+tools/minimal_hise_test/Builds/
+tools/minimal_hise_test/JuceLibraryCode/
