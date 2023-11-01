@@ -351,6 +351,7 @@ public:
 			DspNodeParameterEditor,
             DspFaustEditorPanel,
 			ScriptBroadcasterMap,
+			ProjectManagementTable,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,
