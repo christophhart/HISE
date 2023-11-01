@@ -207,6 +207,8 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
+#include "hi_dispatch/hi_dispatch.h"
+
 #if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
 #include "hi_tools/LorisManager.h"
 #endif

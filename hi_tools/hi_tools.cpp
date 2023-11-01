@@ -62,7 +62,7 @@
 #include "hi_tools/HiseEventBuffer.cpp"
 
 #include "hi_tools/MiscToolClasses.cpp"
-
+#include "hi_dispatch/hi_dispatch.cpp"
 
 #include "hi_tools/PathFactory.cpp"
 #include "hi_tools/HI_LookAndFeels.cpp"
