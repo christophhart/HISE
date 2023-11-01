@@ -585,7 +585,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	if (defaultValue >= min && defaultValue <= max)
 	{
-		s->setDoubleClickReturnValue(true, defaultValue);
+		s->setDoubleClickReturnValue(true, defaultValue, ModifierKeys());
 	}
 }
 

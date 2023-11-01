@@ -722,7 +722,7 @@ void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterNa
 		modeValues[i] = 0.0;
 	}
 
-	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex));
+	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex), ModifierKeys());
 
 	setName(parameterName);
 }
