@@ -114,6 +114,27 @@ public:
 		/** Returns the Velocity. */
 		int getVelocity() const;
 
+		/** Checks if the message is a MONOPHONIC aftertouch message. */
+		bool isMonophonicAfterTouch() const;;
+
+		/** Returns the aftertouch value of the monophonic aftertouch message. */
+		int getMonophonicAftertouchPressure() const;;
+
+		/** Sets the pressure value of the monophonic aftertouch message */
+		void setMonophonicAfterTouchPressure(int pressure);;
+
+		/** Checks if the message is a POLYPHONIC aftertouch message (Use isChannelPressure() for monophonic aftertouch). */
+		bool isPolyAftertouch() const;;
+
+		/** Returns the polyphonic aftertouch note number. */
+		int getPolyAfterTouchNoteNumber() const;
+
+		/** Checks if the message is a POLYPHONIC aftertouch message (Use isChannelPressure() for monophonic aftertouch). */
+		int getPolyAfterTouchPressureValue() const;;
+
+		/** Copied from MidiMessage. */
+		void setPolyAfterTouchNoteNumberAndPressureValue(int noteNumber, int aftertouchAmount);;
+
 		/** Ignores the event. */
 		void ignoreEvent(bool shouldBeIgnored=true);;
 

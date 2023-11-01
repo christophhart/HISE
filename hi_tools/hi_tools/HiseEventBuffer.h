@@ -371,6 +371,9 @@ public:
 	bool isAftertouch() const noexcept { return type == Type::Aftertouch; };
 
 	/** Copied from MidiMessage. */
+	int getAfterTouchNumber() const noexcept { return (uint8)number; };
+
+	/** Copied from MidiMessage. */
 	int getAfterTouchValue() const noexcept { return (uint8)value; };
 
 	/** Copied from MidiMessage. */
