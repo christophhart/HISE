@@ -99,6 +99,10 @@ public:
 	/** Returns the amount of seconds since the last preset has been loaded. */
 	double getSecondsSinceLastPresetLoad();
 
+	/** Loads the default user preset (if it's defined in the project). */
+	void resetToDefaultUserPreset();
+	
+
 	/** Creates an object containing the values for every automation ID. */
 	var createObjectForAutomationValues();
 
