@@ -693,21 +693,39 @@ template <int BSize, int Alignment> struct ObjectStorage
 		return objPtr;
 	}
 
-	void setSize(size_t newSize)
+    void ensureAllocated(size_t numToAllocate, bool copyOldContent=false)
+    {
+        if(numToAllocate > allocatedSize)
+            setSize(numToAllocate, copyOldContent);
+    }
+    
+	void setSize(size_t newSize, bool copyOldContent=false)
 	{
 		if (newSize != allocatedSize)
 		{
-			allocatedSize = newSize;
-
-			if (allocatedSize >= (SmallBufferSize))
+            if (newSize >= (SmallBufferSize))
 			{
-				bigBuffer.allocate(newSize + Alignment, true);
+                HeapBlock<uint8> newBuffer;
+                
+				newBuffer.allocate(newSize + Alignment, !copyOldContent);
+                
+                if(copyOldContent && allocatedSize > 0)
+                    memcpy(newBuffer.get() + Alignment, getObjectPtr(), allocatedSize);
+                
+                std::swap(newBuffer, bigBuffer);
 				objPtr = bigBuffer.get();
+                allocatedSize = newSize;
 			}
 			else
 			{
+                if(copyOldContent && allocatedSize > SmallBufferSize)
+                {
+                    memcpy(&smallBuffer + Alignment, bigBuffer.get() + Alignment, newSize);
+                }
+                
 				bigBuffer.free();
 				objPtr = &smallBuffer;
+                allocatedSize = newSize;
 			}
 
 			if constexpr (Alignment != 0)

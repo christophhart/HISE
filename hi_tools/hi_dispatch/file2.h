@@ -31,26 +31,27 @@
 */
 
 #pragma once
+#include "file3.h"
 
 namespace hise {
 namespace dispatch {	
 using namespace juce;
 
 
-struct SourceManager: public Queueable, // not queuable
-					  public PooledUIUpdater
+struct SourceManager final : public Queueable, // not queuable
+                             public PooledUIUpdater
 {
-	SourceManager(RootObject& r, const Identifier& typeId);
-	~SourceManager();
+	SourceManager(RootObject& r, const HashedCharPtr& typeId);
+	~SourceManager() override;
 
-	const Identifier treeId;
+	const HashedCharPtr treeId;
 
-	String getDispatchId() const override { return treeId.toString(); }
+	HashedCharPtr getDispatchId() const override { return treeId; }
 
 	/*+ Sends slot changes (values[0] == slotIndex) to the matching listeners. */
 	void sendSlotChanges(Source& s, const uint8* values, size_t numValues);
 	
-	void timerCallback();
+	void timerCallback() override;
 
 	Queue& getListenerQueue(NotificationType n);
 	const Queue& getListenerQueue(NotificationType n) const;
@@ -72,16 +73,16 @@ private:
 // (the item class will keep a reference to this as member to send)
 struct Source: public Queueable
 {
-	Source(SourceManager& parent_, const String& sourceId );
+	Source(SourceManager& parent_, const String& sourceId_ );
 	~Source() override;
 
-	String getDispatchId() const override { return sourceId; }
+	HashedCharPtr getDispatchId() const override { return sourceId; }
 
 	SourceManager& getParentSourceManager() noexcept { return parent; }
 	const SourceManager& getParentSourceManager() const noexcept { return parent; }
 
 	SourceManager& parent;
-	const String sourceId;
+	const HashedCharPtr sourceId;
 };
 
 // A object that can send slot change messages to a SourceManager
@@ -122,7 +123,7 @@ struct Listener: public Queueable
 	// The listener data that holds information about the source event.
 	struct ListenerData
 	{
-		operator bool() const { return t != EventType::Nothing; }
+		explicit operator bool() const { return t != EventType::Nothing; }
 		Source* s = nullptr;
 		EventType t = EventType::Nothing;
 		uint8 slotIndex;
@@ -130,7 +131,7 @@ struct Listener: public Queueable
 		size_t numBytes;
 	};
 
-	String getDispatchId() const override { return "listener"; }
+	HashedCharPtr getDispatchId() const override { return "listener"; }
 
 	// a function that iterates all children of a source manager and writes the pointers into the byte array
 	// returns the number of bytes written...
@@ -139,7 +140,7 @@ struct Listener: public Queueable
 	/** Used for reading and writing the byte data from the listener event. */
 	struct EventParser
 	{
-		EventParser(Listener& l_);
+		explicit EventParser(Listener& l_);
 		void writeData(Queue& q, EventType t, Queueable* c, uint8* values, uint8 numValues) const;
 
 		/** Parses the data and returns a ListenerData object that is sent to the listener if the listener matches. */
@@ -151,8 +152,8 @@ struct Listener: public Queueable
 		Listener& l;
 	};
 
-	Listener(RootObject& r);
-	~Listener();;
+	explicit Listener(RootObject& r);
+	~Listener() override;;
 
 	/** Override this method and implement whatever you want to do with the notification. */
 	virtual void slotChanged(const ListenerData& d) = 0;

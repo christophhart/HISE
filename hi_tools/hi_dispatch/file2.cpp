@@ -36,14 +36,15 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-SourceManager::SourceManager(RootObject& r, const Identifier& typeId):
+SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   Queueable(r),
+  treeId(typeId),
   asyncQueue(r, 1024),
   deferedSyncEvents(r, 128),
-  syncListeners(r, 128),
   asyncListeners(r, 1024),
-  treeId(typeId)
+  syncListeners(r, 128)
 {
+	jassert(!typeId.isDynamic());
 }
 
 SourceManager::~SourceManager()
@@ -63,14 +64,14 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 	}
 	else
 	{
-		if(auto l = getRootObject().getLogger())
+		if(const auto l = getRootObject().getLogger())
 			l->log(&s, values, numValues, EventType::SlotChange);
 
 		syncListeners.flush([&](const Queue::FlushArgument& f)
 		{
 			auto& l = f.getTypedObject<dispatch::Listener>();
-			dispatch::Listener::EventParser p(l);
-			if(auto ld = p.parseData(f))
+			const dispatch::Listener::EventParser p(l);
+			if(const auto ld = p.parseData(f))
 				l.slotChanged(ld);
 
 			return false;
@@ -92,14 +93,11 @@ void SourceManager::timerCallback()
 	// Implement: flush the queue of async listeners with all pending events that match
 	asyncQueue.flush([&](const Queue::FlushArgument& queuedArgs)
 	{
-		auto& typed = queuedArgs.getTypedObject<Source>();
-		auto slotIndex = (uint8)queuedArgs.eventType & (uint8)EventType::SlotChange;
-
 		asyncListeners.flush([&](const Queue::FlushArgument& f)
 		{
 			auto& l = f.getTypedObject<dispatch::Listener>();
-			dispatch::Listener::EventParser p(l);
-			if(auto ld = p.parseData(f))
+			const dispatch::Listener::EventParser p(l);
+			if(const auto ld = p.parseData(f))
 				l.slotChanged(ld);
 
 			return false;
@@ -129,9 +127,11 @@ Source::~Source()
 {}
 
 SlotSender::SlotSender(Source& s, uint8 slotIndex_):
+	slotIndex(slotIndex_),
 	obj(s),
-	slotIndex(slotIndex_)
-{}
+	numSlots(0)
+{
+}
 
 void SlotSender::setNumSlots(int newNumSlots)
 {
@@ -139,7 +139,7 @@ void SlotSender::setNumSlots(int newNumSlots)
 	{
 		data.setSize(newNumSlots + 1);
 		numSlots = newNumSlots;
-		auto ptr = (uint8*)data.getObjectPtr();
+		const auto ptr = (uint8*)data.getObjectPtr();
 		ptr[0] = slotIndex;
 	}
 }
@@ -160,7 +160,7 @@ bool SlotSender::sendChangeMessage(int indexInSlot, NotificationType notify)
 	jassert(isPositiveAndBelow(indexInSlot, numSlots));
 
 	// data[0] points to the slotIndex
-	auto ptr = static_cast<uint8*>(data.getObjectPtr()) + 1;
+	const auto ptr = static_cast<uint8*>(data.getObjectPtr()) + 1;
 
 	if(ptr[indexInSlot])
 		return false;
@@ -186,7 +186,7 @@ void Listener::EventParser::writeData(Queue& q, EventType t, Queueable* c, uint8
 		// Source* ptr [8 bytes]
 		// uint8 numSlots [1 bytes]
 		// slotIndexes [numValues]
-		auto data = (uint8*)alloca(sizeof(void*) + 1 + numValues);
+		const auto data = (uint8*)alloca(sizeof(void*) + 1 + numValues);
 		auto offset = 0;
 		*reinterpret_cast<RootObject::Child**>(data + offset) = c;
 		offset += sizeof(Source*);
@@ -232,6 +232,7 @@ Listener::ListenerData Listener::EventParser::parseData(const Queue::FlushArgume
 		l.s = nullptr;
 		return l;
 	}
+	return {};
 }
 
 size_t Listener::EventParser::writeSourcePointer(Source* s, uint8** data)
@@ -251,14 +252,14 @@ Listener::~Listener() {}
 
 void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, NotificationType n)
 {
-	EventParser writer(*this);
+	const EventParser writer(*this);
 	auto& q = source->getParentSourceManager().getListenerQueue(n);
 	writer.writeData(q, EventType::SingleListener, source, slotIndexes, numSlots);
 }
 
 void Listener::addListenerToAllSources(SourceManager& sourceManager, NotificationType n)
 {
-	EventParser writer(*this);
+	const EventParser writer(*this);
 	auto& q = sourceManager.getListenerQueue(n);
 	writer.writeData(q, EventType::AllListener, &sourceManager, nullptr, 0);
 }

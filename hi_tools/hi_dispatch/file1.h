@@ -47,7 +47,7 @@ struct RootObject
 		virtual ~Child();
 
 		/** return the ID of this object. */
-		virtual String getDispatchId() const = 0;
+		virtual HashedCharPtr getDispatchId() const = 0;
 
 		RootObject& getRootObject() { return root; }
 		const RootObject& getRootObject() const { return root; }
@@ -59,7 +59,7 @@ struct RootObject
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Child);
 	};
 
-	RootObject(PooledUIUpdater* updater_);
+	explicit RootObject(PooledUIUpdater* updater_);
 	~RootObject();
 
 	void addChild(Child* c);
@@ -71,9 +71,9 @@ struct RootObject
 	/** Call this periodically to ensure that the queues are minimized. */
 	void minimiseQueueOverhead();
 
-	PooledUIUpdater* getUpdater() { return updater; }
+	PooledUIUpdater* getUpdater();
 	void setLogger(Logger* l);
-	Logger* getLogger() { return currentLogger; }
+	Logger* getLogger() const { return currentLogger; }
 
 	int getNumChildren() const { return childObjects.size(); }
 
@@ -96,7 +96,7 @@ private:
 // A subclass of RootObject child that will automatically remove itself from all queues. */
 struct Queueable: public RootObject::Child
 {
-	Queueable(RootObject& r);;
+	explicit Queueable(RootObject& r);;
 	~Queueable() override;
 
 private:
@@ -109,7 +109,7 @@ struct Logger;
 // Possible optimisation for later: use Queue for listeners too
 // optional: pushes of elements with the same source and index will just overwrite the data
 // TODO: add a check that assert a certain type using dynamic_cast
-struct Queue: public Queueable
+struct Queue final : public Queueable
 {
 	enum class FlushType
 	{
@@ -120,7 +120,7 @@ struct Queue: public Queueable
 
 	static constexpr size_t MaxQueueSize = 1024 * 1024 * 4; // 4MB should be enough TODO: add dynamic upper limit with warning
 
-	String getDispatchId() const override { return "queue "; }
+	HashedCharPtr getDispatchId() const override { return HashedCharPtr("queue"); }
 
 	struct QueuedEvent
 	{
@@ -130,7 +130,7 @@ struct Queue: public Queueable
 		//uint8 endMarker = 99;
 		//uint32 u0 = 0;
 
-		operator bool() const { return source != nullptr || eventType == EventType::Nothing; }
+		explicit operator bool() const { return source != nullptr || eventType == EventType::Nothing; }
 
 		size_t getTotalByteSize() const;;
 		static uint8* getValuePointer(uint8* ptr);
@@ -141,7 +141,7 @@ struct Queue: public Queueable
 	/** An iterator object that walks through the data of the queue. */
 	struct Iterator
 	{
-		Iterator(Queue& queueToIterate);;
+		explicit Iterator(Queue& queueToIterate);;
 		bool next(QueuedEvent& e);
 
 		/** Returns the position of the next element. */
@@ -264,25 +264,29 @@ private:
 };
 
 
-struct Logger: public  PooledUIUpdater::SimpleTimer,
-	           public Queueable
+struct Logger final : public  PooledUIUpdater::SimpleTimer,
+                      public Queueable
 {
 	Logger(RootObject& root, size_t numAllocated);;
 
 	void flush();
 
-	String getDispatchId() const override { return "logger"; }
+	HashedCharPtr getDispatchId() const override { return "logger"; }
 
 	void printRaw(const char* rawMessage, size_t numBytes);
 	void printString(const String& message);
 	void log(Queueable* source, const uint8* data, size_t numValues, EventType l=EventType::Log);
 	void printQueue(Queue& queue);
 
+    static void createStringInBuffer(const Queue::FlushArgument& f, uint8* buffer, size_t& numCharactersWritten);
+    
 private:
 
-	void timerCallback();
+	void timerCallback() override;
 
-	static bool debugToConsole(const Queue::FlushArgument& f);
+    
+    
+	static bool logToDebugger(const Queue::FlushArgument& f);
 
 	Queue messageQueue;
 };

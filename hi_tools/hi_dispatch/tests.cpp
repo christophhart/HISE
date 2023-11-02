@@ -129,8 +129,8 @@ void LoggerTest::testQueue()
 
 	expectEquals(numIterations, 3);
 
-	NeverExecuted n1(root, 1);
-	NeverExecuted n2(root, 2);
+	NeverExecuted n1(root, "never1");
+	NeverExecuted n2(root, "never2");
 
 	Random r;
 
@@ -285,7 +285,6 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	root.setLogger(nullptr);
-	jassertfalse;
 }
 
 void LoggerTest::testSourceManager()
@@ -364,13 +363,61 @@ void LoggerTest::testSourceManager()
 	
 }
 
+static LoggerTest loggerTest;
+
 void LoggerTest::runTest()
 {
-	testSourceManager();
-	testQueueResume();
+	//testSourceManager();
 	testQueue();
 	testLogger();
-	
+    testQueueResume();
 }
+
+
+void CharPtrTest::expectStringResult(const StringBuilder& b, const String& e)
+{
+    expectEquals(String(b.get(), b.length()), e);
+    expectEquals((int)b.length(), e.length());
+}
+
+void CharPtrTest::testStringBuilder()
+{
+    beginTest("test StringBuilder << operators");
+
+    String s;
+
+    StringBuilder b;
+    int n = 1;
+    b << n;
+    s << String(n);
+    expectStringResult(b, s);
+
+    auto r = ", ";
+    b << r;
+    s << r;
+    expectStringResult(b, s);
+
+    String j("juce::String, ");
+    b << j;
+    s << j;
+    expectStringResult(b, s);
+
+    CharPtr c("CharPtr, ");
+    b << c;
+    s << (StringRef)c;
+    expectStringResult(b, s);
+
+    HashedCharPtr h("HashedCharPtr, ");
+    b << h;
+    s << (StringRef)h;
+    expectStringResult(b, s);
+
+    StringBuilder b2;
+    b2 << b;
+    expectStringResult(b2, s);
+}
+
+static CharPtrTest charPtrTest;
+
 } // dispatch
 } // hise

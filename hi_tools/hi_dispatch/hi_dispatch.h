@@ -223,7 +223,7 @@ struct FuzzyTester;
 } // dispatch
 } // hise
 
+#include "file3.h"
 #include "file1.h"
 #include "file2.h"
-#include "file3.h"
 #include "tests.h"
