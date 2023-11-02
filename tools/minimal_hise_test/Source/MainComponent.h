@@ -10,6 +10,21 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+
+
+#define DECLARE_HASHED_ID(x)   static const HashedCharPtr x(CharPtr(Identifier(#x)));
+#define DECLARE_HASHED_ENUM(enumclass, x) static const HashedCharPtr x(Identifier(#x));
+namespace enum_strings
+{
+
+
+
+
+}
+
+
+#define USE_JUCE_WEBVIEW2_BROWSER JUCE_WINDOWS
+
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
@@ -29,6 +44,11 @@ public:
 
     void timerCallback() override;;
 
+    void mouseDown(const MouseEvent& e) override
+    {
+        jassertfalse;
+    }
+    
 private:
     //==============================================================================
     // Your private member variables go here...
@@ -38,8 +58,14 @@ private:
     
     TextButton b;
 
+#if USE_JUCE_WEBVIEW2_BROWSER
+    ScopedPointer<WindowsWebView2WebBrowserComponent> browser;
+#else
+
     WebViewData::Ptr data;
-    WebViewWrapper webview;
+    ScopedPointer<WebViewWrapper> browser;
+#endif
+    
     
     struct Paths: public PathFactory
     {
@@ -120,3 +146,5 @@ private:
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
+
+

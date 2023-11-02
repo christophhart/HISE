@@ -264,6 +264,8 @@ public:
 
 	void resized();
 
+    void navigateToURL(const URL& urlToOpen);
+    
 	void call(const String& jsCode);
 
 	void refresh();

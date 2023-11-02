@@ -467,6 +467,34 @@ void WebViewWrapper::call(const String& jsCode)
 }
 
 
+void WebViewWrapper::navigateToURL(const URL& url)
+{
+    jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+    auto currentFocusComponent = Component::getCurrentlyFocusedComponent();
+
+    content = new NativeComponentType();
+
+#if !JUCE_LINUX
+    choc::ui::WebView::Options options;
+    webView = new choc::ui::WebView(options);
+    content->setWindowHandle(webView->getViewHandle());
+#endif
+
+    addAndMakeVisible(content);
+    
+    webView->navigate(url.toString(false).toStdString());
+    
+    
+    
+    
+
+    if(currentFocusComponent != nullptr)
+        currentFocusComponent->grabKeyboardFocusAsync();
+    
+    
+}
+
 void WebViewWrapper::refresh()
 {
 	jassert(MessageManager::getInstance()->isThisTheMessageThread());
