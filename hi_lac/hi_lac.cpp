@@ -57,7 +57,7 @@ void MelatoninPerfetto::beginSession(uint32_t buffer_size_kb /*= 80000*/)
 
 
 
-juce::File MelatoninPerfetto::endSession()
+juce::File MelatoninPerfetto::endSession(bool shouldWriteFile)
 {
 	// Make sure the last event is closed for this example.
 	perfetto::TrackEvent::Flush();
@@ -65,7 +65,10 @@ juce::File MelatoninPerfetto::endSession()
 	// Stop tracing
 	session->StopBlocking();
 
-	return writeFile();
+    if(shouldWriteFile)
+        return writeFile();
+    
+    return juce::File();
 }
 
 juce::File MelatoninPerfetto::getDumpFileDirectory()
@@ -102,8 +105,11 @@ juce::File MelatoninPerfetto::writeFile()
 #endif
 
 	const auto currentTime = juce::Time::getCurrentTime().formatted("%Y-%m-%d_%H%M");
-	const auto childFile = file.getChildFile("perfetto" + mode + currentTime + ".pftrace");
+    auto childFile = file.getChildFile("perfetto" + mode + currentTime + ".pftrace");
 
+    if(tempFile != nullptr)
+        childFile = juce::File(tempFile->getFile());
+    
 	if (auto output = childFile.createOutputStream())
 	{
 		output->setPosition(0);

@@ -169,7 +169,7 @@ public:
 
     // Returns the file where the dump was written to (or a null file if an error occurred)
     // the return value can be ignored if you don't need this information
-    juce::File endSession();
+    juce::File endSession(bool writeFile);
 
     static juce::File getDumpFileDirectory();
 
@@ -178,6 +178,7 @@ public:
     juce::File writeFile();
 
     juce::File lastFile;
+    juce::ScopedPointer<juce::TemporaryFile> tempFile;
 
     std::unique_ptr<perfetto::TracingSession> session;
 };
@@ -295,9 +296,8 @@ namespace melatonin
     #define TRACE_COMPONENT(...)                                                                                                      \
         constexpr auto pf = melatonin::compileTimePrettierFunction (WRAP_COMPILE_TIME_STRING (PERFETTO_DEBUG_FUNCTION_IDENTIFIER())); \
         TRACE_EVENT ("component", perfetto::StaticString (pf.data()), ##__VA_ARGS__)
-	#define TRACE_DISPATCH(message)                                                                                                      \
-        TRACE_EVENT ("dispatch", message)
-
+	#define TRACE_DISPATCH(...)  TRACE_EVENT ("dispatch", __VA_ARGS__)
+    
 #else // if PERFETTO
     #define TRACE_EVENT_BEGIN(category, ...)
     #define TRACE_EVENT_END(category)
