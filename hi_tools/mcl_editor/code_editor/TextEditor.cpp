@@ -2815,8 +2815,8 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 	if (key.isKeyCode(KeyPress::endKey))  return nav(mods, Target::lineUntilBreak, Direction::forwardCol);
 #else
     // Home/End: Scroll to beginning
-    if (key.isKeyCode(KeyPress::homeKey)) return nav (mods, Target::document, Direction::forwardRow);
-    if (key.isKeyCode(KeyPress::endKey))  return nav (mods, Target::document, Direction::backwardRow);
+    if (key.isKeyCode(KeyPress::homeKey)) return nav (mods, Target::document, Direction::backwardRow);
+    if (key.isKeyCode(KeyPress::endKey))  return nav (mods, Target::document, Direction::forwardRow);
 #endif
 
 	if (key == KeyPress('+', ModifierKeys::commandModifier, 0)) { scaleView(1.1f, false); return true; }
