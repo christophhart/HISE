@@ -53,9 +53,6 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_STREAMING_INCLUDED
 #define HI_STREAMING_INCLUDED
 
-
-#include "AppConfig.h"
-
 #include <atomic>
 
 #include "../JUCE/modules/juce_core/juce_core.h"

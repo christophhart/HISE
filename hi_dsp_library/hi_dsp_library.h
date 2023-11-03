@@ -50,7 +50,7 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
-#include "AppConfig.h"
+
 
 #include "../hi_tools/hi_tools.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
