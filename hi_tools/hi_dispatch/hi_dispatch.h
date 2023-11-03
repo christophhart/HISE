@@ -69,7 +69,9 @@ DECLARE_ID(intensity);
 enum class EventType: uint8
 {
 	Nothing,
-	Log,
+	Warning,
+	LogString,
+	LogRawBytes,
 	Add,
 	Remove,
 	SlotChange,
@@ -223,7 +225,8 @@ struct FuzzyTester;
 } // dispatch
 } // hise
 
-#include "file3.h"
-#include "file1.h"
-#include "file2.h"
+#include "file3.h" // contains all String-related classes
+#include "file1.h" // contains the queue, the logger and the Stringbuilder
+#include "file2.h" // contains the Source, SourceManager, Listener stuff
+#include "file4.h" // contains the "library" of subclasses that emulate the HISE logic
 #include "tests.h"

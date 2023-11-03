@@ -31,7 +31,6 @@
 */
 
 #pragma once
-#include "hi_tools/hi_tools/MiscToolClasses.h"
 
 namespace hise {
 namespace dispatch {	
@@ -134,7 +133,7 @@ struct Queue final : public Queueable
 
 		size_t getTotalByteSize() const;;
 		static uint8* getValuePointer(uint8* ptr);
-		size_t write(uint8* ptr, const uint8* dataValues) const;
+		size_t write(uint8* ptr, const void* dataValues) const;
 		static QueuedEvent fromData(uint8* ptr);
 	};
 
@@ -208,7 +207,7 @@ struct Queue final : public Queueable
 	size_t getNumAllocated() const noexcept { return numAllocated; }
 
 	/** pushes a event to the queue. */
-	bool push(Queueable* s, EventType t, const uint8* values, size_t numValues);
+	bool push(Queueable* s, EventType t, const void* values, size_t numValues);
 
 	/** flushes the queue with the given function. If the function returns FALSE, it will abort the iteration and clean the remaining queue. */
 	bool flush(const FlushFunction& f, FlushType flushType=FlushType::Flush);
@@ -263,6 +262,52 @@ private:
 	bool logRecursion = false;
 };
 
+struct StringBuilder
+{
+    static constexpr int SmallBufferSize = 64;
+
+    explicit StringBuilder(size_t numToPreallocate=0);
+    
+    StringBuilder& operator<<(const char* rawLiteral);
+    StringBuilder& operator<<(const CharPtr& p);
+    StringBuilder& operator<<(const HashedCharPtr& p);
+    StringBuilder& operator<<(const String& s);
+    StringBuilder& operator<<(int number);
+    StringBuilder& operator<<(const StringBuilder& other);
+	StringBuilder& operator<<(const Queue::FlushArgument& f);
+    StringBuilder& operator<<(EventType eventType);
+    StringBuilder& appendEventValues(EventType eventType, const uint8* values, size_t numBytes);
+
+    StringBuilder& appendRawByteArray(const uint8* values, size_t numBytes)
+    {
+		auto& s = *this;
+		s << "[ ";
+		for(int i = 0; i < numBytes; i++)
+		{
+			s << (int)values[i];
+
+			if(i != (numBytes-1))
+				s << ", ";
+		}
+		s << " ] (";
+        s << numBytes << " bytes)";
+		return *this;
+    }
+
+    String toString() const noexcept;
+    const char* get() const noexcept;
+    const char* end()   const noexcept;
+    size_t length() const noexcept;
+
+private:
+    
+    void ensureAllocated(size_t num);
+    char* getWriteHead() const;
+    char* getWriteHeadAndAdvance(size_t numToWrite);
+    
+    ObjectStorage<SmallBufferSize, 0> data;
+    int position = 0;
+};
 
 struct Logger final : public  PooledUIUpdater::SimpleTimer,
                       public Queueable
@@ -275,10 +320,8 @@ struct Logger final : public  PooledUIUpdater::SimpleTimer,
 
 	void printRaw(const char* rawMessage, size_t numBytes);
 	void printString(const String& message);
-	void log(Queueable* source, const uint8* data, size_t numValues, EventType l=EventType::Log);
+	void log(Queueable* source, EventType l, const void* data, size_t numBytes);
 	void printQueue(Queue& queue);
-
-    static void createStringInBuffer(const Queue::FlushArgument& f, uint8* buffer, size_t& numCharactersWritten);
     
 private:
 

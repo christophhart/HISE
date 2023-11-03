@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+#include "JuceHeader.h"
 
 namespace hise {
 namespace dispatch {	
@@ -77,7 +77,7 @@ void LoggerTest::testLogger()
 		for(int i = 0; i < r.nextInt(5); i++)
 		{
 			auto never = "never";
-			l.log(&dangling, (uint8*)never, 5);
+			l.log(&dangling, EventType::Warning, never, 5);
 		}
 
 		for(int i = 0; i < thisRandom; i++)
@@ -85,7 +85,7 @@ void LoggerTest::testLogger()
 			buffer[i] = (uint8)r.nextInt({23, 96});
 		}
 
-		l.log(&x, buffer, thisRandom);
+		l.log(&x, EventType::SlotChange, buffer, thisRandom);
 
 	}
 	l.flush();
@@ -134,20 +134,14 @@ void LoggerTest::testQueue()
 
 	Random r;
 
-
 	queue.push(&n1, EventType::SlotChange, buffer, 0);
 	queue.push(&s1, EventType::SlotChange, buffer, 0);
 	queue.push(&s2, EventType::SlotChange, buffer, 0);
 	queue.push(&n2, EventType::SlotChange, buffer, 0);
 	queue.push(&n1, EventType::SlotChange, buffer, 0);
 
-	l.printQueue(queue);
 	queue.removeFirstMatchInQueue(&n2);
-	l.printQueue(queue);
 	queue.removeAllMatches(&n1);
-	l.printQueue(queue);
-
-	l.printQueue(queue);
 
 	auto numIterationsToExpect = 2;
 	numIterations = 0;
@@ -177,11 +171,8 @@ void LoggerTest::testQueue()
 		}
 	}
 
-	l.printQueue(queue);
 	queue.invalidateQueuable(&n1, DanglingBehaviour::CloseGap);
-	l.printQueue(queue);
 	queue.invalidateQueuable(&n2, DanglingBehaviour::Undefined);
-	l.printQueue(queue);
 
 	queue.flush([&](const Queue::FlushArgument& f)
 	{
@@ -324,13 +315,20 @@ void LoggerTest::testSourceManager()
 
 		void slotChanged(const ListenerData& d) override
 		{
-			jassertfalse;
+			changed = true;
 		}
 
 		~MyListener()
 		{
 			
 		}
+
+		void reset()
+		{
+			changed = false;
+		}
+
+		bool changed = false;
 	};
 
 	MyListener l(root);
@@ -339,14 +337,18 @@ void LoggerTest::testSourceManager()
 
 	src.sendHelloMessage();
 
+	expect(l.changed, "message didn't work");
+
 	l.removeListener(sm);
+
+	l.reset();
 
 	src.sendHelloMessage();
 
+	expect(!l.changed, "remove didn't work");
+
 	root.setLogger(nullptr);
-
-	jassertfalse;
-
+	
 #if 0
 	uint8 slots[2];
 	slots[0] = 1;
@@ -367,10 +369,10 @@ static LoggerTest loggerTest;
 
 void LoggerTest::runTest()
 {
-	//testSourceManager();
 	testQueue();
 	testLogger();
     testQueueResume();
+	testSourceManager();
 }
 
 
@@ -415,6 +417,37 @@ void CharPtrTest::testStringBuilder()
     StringBuilder b2;
     b2 << b;
     expectStringResult(b2, s);
+
+    {
+	    struct DummySource: public Queueable
+		{
+			DummySource(RootObject& r):
+			  Queueable(r),
+			  id("dummy_source")
+			{}
+			  
+			const HashedCharPtr id;
+			HashedCharPtr getDispatchId() const override { return id; }
+		};
+
+		RootObject r(nullptr);
+		DummySource ds(r);
+		Queue::FlushArgument f;
+		f.source = &ds;
+		f.eventType = EventType::SlotChange;
+		uint8 buffer[4];
+		memset(buffer, 1, 4);
+		buffer[0] = 70;
+		buffer[1] = 90;
+		f.data = buffer;
+		f.numBytes = 4;
+
+		b << f;
+		s << "dummy_source:\tslotchange [ 70, 90, 1, 1 ] (4 bytes)";
+		expectStringResult(b, s);
+    }
+	
+	
 }
 
 static CharPtrTest charPtrTest;

@@ -65,7 +65,7 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 	else
 	{
 		if(const auto l = getRootObject().getLogger())
-			l->log(&s, values, numValues, EventType::SlotChange);
+			l->log(&s, EventType::SlotChange, values, numValues);
 
 		syncListeners.flush([&](const Queue::FlushArgument& f)
 		{
@@ -117,7 +117,7 @@ const Queue& SourceManager::getListenerQueue(NotificationType n) const
 	return n == sendNotificationAsync ? asyncListeners : syncListeners;
 }
 
-Source::Source(SourceManager& parent_, const String& sourceId_):
+Source::Source(SourceManager& parent_, const HashedCharPtr& sourceId_):
 	Queueable(parent_.getRootObject()),
 	parent(parent_),
 	sourceId(sourceId_)

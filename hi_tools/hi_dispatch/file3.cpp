@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+#include "JuceHeader.h"
 
 namespace hise {
 namespace dispatch {	
@@ -56,9 +56,9 @@ CharPtr::CharPtr(const Identifier& id) noexcept :
 
 /** Creates a CharPtr from a raw literal. */
 
-CharPtr::CharPtr(const char* rawText) noexcept :
+CharPtr::CharPtr(const char* rawText, size_t limit) noexcept :
     ptr(rawText),
-    numCharacters(strlen(ptr)),
+    numCharacters(limit != 0 ? jmin(limit, strlen(ptr)) : strlen(ptr)),
     type(Type::RawString)
 {}
 
@@ -131,75 +131,33 @@ HashedCharPtr::HashedCharPtr(const String & s) noexcept :
     hashed(cpl.hash())
 {}
 
-StringBuilder::StringBuilder(size_t numToPreallocate)
+HashedPath HashedPath::parse(const HashedCharPtr& path)
 {
-    if (numToPreallocate != 0)
-        data.setSize(numToPreallocate);
+#if 0
+    auto pathIsDynamic = path.isDynamic();
+
+	auto ptr = path.get();
+    auto start = ptr;
+    auto end = ptr + path.length();
+
+    char delimiter = '.';
+
+    HashedCharPtr sm, s, sl;
+    
+    while(ptr != end)
+    {
+	    if(*ptr == delimiter)
+	    {
+            
+		    sm = HashedCharPtr(start, ptr - start);
+	    }
+
+        ptr++;
+    }
+#endif
+
+    return {};
 }
-
-StringBuilder& StringBuilder::operator<<(const char* rawLiteral)
-{
-	const auto num = strlen(rawLiteral);
-    memcpy(getWriteHeadAndAdvance(num), rawLiteral, num);
-    return *this;
-}
-
-StringBuilder& StringBuilder::operator<<(const CharPtr& p)
-{
-	const auto num = p.length();
-    memcpy(getWriteHeadAndAdvance(num), p.get(), num);
-    return *this;
-}
-
-StringBuilder& StringBuilder::operator<<(const HashedCharPtr& p)
-{
-	const auto num = p.length();
-    memcpy(getWriteHeadAndAdvance(num), p.get(), num);
-    return *this;
-}
-
-StringBuilder& StringBuilder::operator<<(const String& s)
-{
-	const auto num = s.length();
-    memcpy(getWriteHeadAndAdvance(num), s.getCharPointer().getAddress(), num);
-    return *this;
-}
-
-StringBuilder& StringBuilder::operator<<(int number)
-{
-    ensureAllocated(8); // the limit is 99 999 999 digits yo...
-    const auto ptr = get();
-    getWriteHeadAndAdvance(snprintf(ptr, 8, "%d", number));
-    return *this;
-}
-
-StringBuilder& StringBuilder::operator<<(const StringBuilder& other)
-{
-	const auto num = other.length();
-    memcpy(getWriteHeadAndAdvance(num), other.get(), num);
-    return *this;
-}
-
-void StringBuilder::ensureAllocated(size_t num)
-{
-    data.ensureAllocated(position + num, true);
-}
-
-char* StringBuilder::getWriteHead() const
-{
-    return static_cast<char*>(data.getObjectPtr()) + position;
-}
-
-char* StringBuilder::getWriteHeadAndAdvance(size_t numToWrite)
-{
-    ensureAllocated(numToWrite);
-    const auto ptr = getWriteHead();
-    position += numToWrite;
-    *(ptr + position) = 0;
-    return ptr;
-}
-
-
 
 } // dispatch
 } // hise

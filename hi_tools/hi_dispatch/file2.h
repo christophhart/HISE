@@ -31,7 +31,6 @@
 */
 
 #pragma once
-#include "file3.h"
 
 namespace hise {
 namespace dispatch {	
@@ -73,7 +72,7 @@ private:
 // (the item class will keep a reference to this as member to send)
 struct Source: public Queueable
 {
-	Source(SourceManager& parent_, const String& sourceId_ );
+	Source(SourceManager& parent_, const HashedCharPtr& sourceId_ );
 	~Source() override;
 
 	HashedCharPtr getDispatchId() const override { return sourceId; }

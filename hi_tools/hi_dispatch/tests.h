@@ -240,7 +240,7 @@ void CharPtrTest::testCharPtr()
         expect(!t1.isDynamic());
         expect(!t1.isWildcard());
 
-        same(t1, t0); same_hash(t1, t0); same_length(t1, t0); // cmp to self
+        HASH(t1, t0); same_hash(t1, t0); same_length(t1, t0); // cmp to self
         diff(t1, t2); diff_hash(t1, t2); diff_length(t1, t2);
         diff(t1, t3); diff_hash(t1, t3); same_length(t1, t3);
         HASH(t1, p0); same_hash(t1, p0); same_length(t1, p0); // cmp to original

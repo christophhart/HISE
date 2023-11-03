@@ -30,11 +30,13 @@
 *   ===========================================================================
 */
 
-
+#include "JuceHeader.h"
 
 namespace hise {
 namespace dispatch {	
 using namespace juce;
+
+
 
 RootObject::Child::Child(RootObject& root_):
 root(root_)
@@ -121,7 +123,7 @@ RootObject::Child(r)
     if(auto l = r.getLogger())
     {
         auto index = r.getNumChildren();
-        l->log(l, (uint8*)&index, sizeof(int), EventType::Add);
+        l->log(l, EventType::Add, (uint8*)&index, sizeof(int));
     }
 }
 
@@ -130,7 +132,7 @@ Queueable::~Queueable()
     auto index = getRootObject().clearFromAllQueues(this, danglingBehaviour);
     
     if(auto l = getRootObject().getLogger())
-        l->log(l, (uint8*)&index, sizeof(int), EventType::Remove);
+        l->log(l, EventType::Remove, (uint8*)&index, sizeof(int));
 }
 
 size_t Queue::QueuedEvent::getTotalByteSize() const
@@ -147,7 +149,7 @@ Queue::DataType* Queue::QueuedEvent::getValuePointer(uint8* ptr)
     return ptr + headerSize; //sizeof(QueuedEvent);
 }
 
-size_t Queue::QueuedEvent::write(uint8* ptr, const DataType* dataValues) const
+size_t Queue::QueuedEvent::write(uint8* ptr, const void* dataValues) const
 {
     jassert(isAlignedToPointerSize(ptr));
     memcpy(ptr, this, sizeof(QueuedEvent));
@@ -246,17 +248,14 @@ inline bool Queue::ensureAllocated(size_t numBytesRequired)
             
             if(attachedLogger != nullptr)
             {
-                String m;
-                m << "reallocate " << String(prev) << " -> " << String(numToAllocate);
-                
-                uint8 buffer[256];
-                memset(buffer, 0, sizeof(buffer));
-                memcpy(buffer, m.getCharPointer().getAddress(), m.length());
+                StringBuilder b;
+                b << "reallocate " << prev << " -> " << numToAllocate;
                 
                 QueuedEvent reallocEvent;
                 reallocEvent.source = this;
-                reallocEvent.numBytes = m.length();
-                numUsed += reallocEvent.write(data.get() + numUsed, buffer);
+                reallocEvent.eventType = EventType::LogString;
+                reallocEvent.numBytes = b.length();
+                numUsed += reallocEvent.write(data.get() + numUsed, b.get());
                 numElements++;
             }
             
@@ -269,7 +268,7 @@ inline bool Queue::ensureAllocated(size_t numBytesRequired)
     return true;
 }
 
-bool Queue::push(Queueable* s, EventType t, const uint8* values, size_t numValues)
+bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues)
 {
     // we'll only allow storing data < 256 bytes here...
     jassert(numValues < UINT8_MAX);
@@ -342,9 +341,9 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
     
     if(numDangling != 0 && attachedLogger)
     {
-        String m;
-        m << " dangling elements after flush: " + String(numDangling);
-        attachedLogger->log(this, (uint8*)m.getCharPointer().getAddress(), m.length());
+        StringBuilder m;
+        m << " dangling elements after flush: " << numDangling;
+        attachedLogger->log(this, EventType::Warning, m.get(), m.length());
     }
     
     return true;
@@ -477,6 +476,147 @@ bool Queue::isAlignedToPointerSize(uint8* ptr)
     return address == aligned;
 }
 
+
+StringBuilder::StringBuilder(size_t numToPreallocate)
+{
+    if (numToPreallocate != 0)
+        data.setSize(numToPreallocate);
+}
+
+StringBuilder& StringBuilder::operator<<(const char* rawLiteral)
+{
+	const auto num = strlen(rawLiteral);
+    memcpy(getWriteHeadAndAdvance(num), rawLiteral, num);
+    return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(const CharPtr& p)
+{
+	const auto num = p.length();
+    memcpy(getWriteHeadAndAdvance(num), p.get(), num);
+    return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(const HashedCharPtr& p)
+{
+	const auto num = p.length();
+    memcpy(getWriteHeadAndAdvance(num), p.get(), num);
+    return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(const String& s)
+{
+	const auto num = s.length();
+    memcpy(getWriteHeadAndAdvance(num), s.getCharPointer().getAddress(), num);
+    return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(int number)
+{
+    char buffer[8];
+    auto numWritten = snprintf(buffer, 8, "%d", number);
+    memcpy(getWriteHeadAndAdvance(numWritten), buffer, numWritten);
+    return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(const StringBuilder& other)
+{
+	const auto num = other.length();
+    memcpy(getWriteHeadAndAdvance(num), other.get(), num);
+    return *this;
+}
+
+
+StringBuilder& StringBuilder::operator<<(const Queue::FlushArgument& f)
+{
+	using namespace hise::dispatch;
+	auto& s = *this;
+        
+	s << f.source->getDispatchId() << ":\t";
+	s.appendEventValues(f.eventType, f.data, f.numBytes);
+
+	return *this;
+}
+
+StringBuilder& StringBuilder::operator<<(EventType eventType)
+{
+	auto& s = *this;
+
+	switch (eventType) {
+	case EventType::Nothing:		s << "nop"; break;
+	case EventType::Warning:        s << "warning:  "; break;
+	case EventType::LogString:		s << "log_string"; break;
+	case EventType::LogRawBytes:    s << "log_rbytes"; break;
+	case EventType::Add:			s << "add_source"; break;
+	case EventType::Remove:			s << "rem_source"; break;
+	case EventType::SlotChange:		s << "slotchange"; break;
+	case EventType::SingleListener: s << "listen_one"; break;
+	case EventType::SubsetListener: s << "listen_set"; break;
+	case EventType::AllListener:	s << "listen_all"; break;
+	case EventType::numEventTypes: break;
+
+	default: jassertfalse;
+	}
+	return *this;
+}
+
+StringBuilder& StringBuilder::appendEventValues(EventType eventType, const uint8* values, size_t numBytes)
+{
+	auto& s = *this;
+
+    s << eventType;
+	s << " ";
+    
+	switch (eventType) {
+	case EventType::Nothing:        break;
+	case EventType::Warning:        
+	case EventType::LogString:      s << String::createStringFromData(values, numBytes); break;
+	case EventType::LogRawBytes:    appendRawByteArray(values, numBytes); break;
+	case EventType::Add:            
+	case EventType::Remove:         s << (int)*values; break;
+	case EventType::SlotChange:     appendRawByteArray(values, numBytes); break;
+	case EventType::SingleListener: jassertfalse; break;
+	case EventType::SubsetListener: jassertfalse; break;
+	case EventType::AllListener:    jassertfalse; break;
+	case EventType::numEventTypes:  jassertfalse; break;
+	
+	default: ;
+	}
+    
+	return *this;
+}
+
+String StringBuilder::toString() const noexcept
+{ return String(get(), length()); }
+
+const char* StringBuilder::get() const noexcept
+{ return static_cast<const char*>(data.getObjectPtr()); }
+
+const char* StringBuilder::end() const noexcept
+{ return static_cast<char*>(data.getObjectPtr()) + position; }
+
+size_t StringBuilder::length() const noexcept
+{ return position; }
+
+void StringBuilder::ensureAllocated(size_t num)
+{
+    data.ensureAllocated(position + num + 1, true);
+}
+
+char* StringBuilder::getWriteHead() const
+{
+    return static_cast<char*>(data.getObjectPtr()) + position;
+}
+
+char* StringBuilder::getWriteHeadAndAdvance(size_t numToWrite)
+{
+    ensureAllocated(numToWrite);
+    const auto ptr = getWriteHead();
+    position += numToWrite;
+    *getWriteHead() = 0;
+    return ptr;
+}
+
 Logger::Logger(RootObject& root, size_t numAllocated):
 Queueable(root),
 SimpleTimer(root.getUpdater()),
@@ -492,17 +632,17 @@ void Logger::flush()
 
 void Logger::printRaw(const char* rawMessage, size_t numBytes)
 {
-    messageQueue.push(this, EventType::Log, reinterpret_cast<const uint8*>(rawMessage), numBytes);
+    messageQueue.push(this, EventType::LogRawBytes, reinterpret_cast<const uint8*>(rawMessage), numBytes);
 }
 
 void Logger::printString(const String& message)
 {
-    messageQueue.push(this, EventType::Log, reinterpret_cast<uint8*>(message.getCharPointer().getAddress()), message.length());
+    messageQueue.push(this, EventType::LogString, reinterpret_cast<uint8*>(message.getCharPointer().getAddress()), message.length());
 }
 
-void Logger::log(Queueable* source, const uint8* data, size_t numValues, EventType l)
+void Logger::log(Queueable* source, EventType l, const void* data, size_t numBytes)
 {
-    messageQueue.push(source, l, data, numValues);
+    messageQueue.push(source, l, data, numBytes);
 }
 
 void Logger::printQueue(Queue& queue)
@@ -512,8 +652,8 @@ void Logger::printQueue(Queue& queue)
     queue.flush([&](const Queue::FlushArgument& f)
                 {
         StringBuilder s;
-        s << "  q[" << String(counter++) << "] = " << f.source->getDispatchId();
-        log(this, (uint8*)s.get(), s.length(), EventType::Log);
+        s << "  q[" << String(counter++) << "] = " << f;
+        log(this, EventType::LogString, s.get(), s.length());
         return true;
     }, Queue::FlushType::KeepData);
     printString("end of queue");
@@ -525,27 +665,12 @@ void Logger::timerCallback()
     flush();
 }
 
-
-
-
-
-
-void Logger::createStringInBuffer(const Queue::FlushArgument& f, uint8* buffer, size_t& numCharactersWritten)
-{
-    
-    
-
-    //DBG(s.start);
-}
-
 bool Logger::logToDebugger(const Queue::FlushArgument& f)
 {
-    //StringBuilder s;
-    //s << f;
-    //DBG(s.start);
-    
-	
-	return true;
+    StringBuilder s;
+    s << f;
+    DBG(s.toString());
+    return true;
 }
 
 

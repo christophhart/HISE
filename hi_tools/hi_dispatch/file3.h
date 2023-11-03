@@ -31,7 +31,6 @@
 */
 
 #pragma once
-
 namespace hise {
 namespace dispatch {	
 using namespace juce;
@@ -73,7 +72,7 @@ struct CharPtr
     explicit CharPtr(const Identifier& id) noexcept;
     
     /** Creates a CharPtr from a raw literal. */
-    explicit CharPtr(const char* rawText) noexcept;
+    explicit CharPtr(const char* rawText, size_t numToLimit=0) noexcept;
     
     /** Creates a Wildcard CharPtr. */
     explicit CharPtr(Type t);;
@@ -198,65 +197,60 @@ private:
     const int hashed = 0;
 };
 
-struct StringBuilder
+/** Three hashed pointers that will be used to match the Root::Child objects in the array.
+ *
+ *  modules.*.attributes
+ *  modules.myId.bypassed
+ *  "content.[mySlider, mySlider2].value"
+ *  content..range
+ *  content.*.value
+ *
+ */
+struct HashedPath
 {
-    static constexpr int SmallBufferSize = 64;
+    using Type = CharPtr::Type;
 
-    explicit StringBuilder(size_t numToPreallocate=0);
-    
-    StringBuilder& operator<<(const char* rawLiteral);
-    StringBuilder& operator<<(const CharPtr& p);
-    StringBuilder& operator<<(const HashedCharPtr& p);
-    StringBuilder& operator<<(const String& s);
-    StringBuilder& operator<<(int number);
-    StringBuilder& operator<<(const StringBuilder& other);
-    
-#if 0
-    StringBuilder& operator<<(const hise::dispatch::Queue::FlushArgument& f)
+    HashedPath() = default;
+
+    HashedPath(const HashedCharPtr& sourceManager_, const HashedCharPtr& source_, const HashedCharPtr& slot_):
+	  sourceManager(sourceManager_),
+	  source(source_),
+	  slot(slot_)
     {
-        using namespace hise::dispatch;
-        
-        auto& s = *this;
-        
-        s << f.source->getDispatchId() << ": ";
-
-        if(f.eventType == EventType::Add)
-            s << " ADD " << (int)*f.data;
-        else if (f.eventType == EventType::Remove)
-            s << " REM " << (int)*f.data;
-        else
-        {
-            s << "RAW: ";
-            memcpy(pos, f.data, f.numBytes);
-            pos += f.numBytes;
-            
-            s << "[ ";
-            for(int i = 0; i < f.numBytes; i++)
-            {
-                s << (int)f.data[i];
-
-                if(i != f.numBytes)
-                    s << ", ";
-            }
-            s << " ]";
-        }
-        
-        return *this;
+        jassert(!sourceManager.isDynamic());
+        jassert(!slot.isDynamic());
     }
-#endif
+
+    bool operator==(const HashedPath& other) const noexcept
+    {
+	    return sourceManager == other.sourceManager &&
+               source == other.source &&
+               slot == other.slot;
+    }
+
+    bool operator!=(const HashedPath& other) const noexcept
+    {
+	    return !(*this == other);
+    }
+
+    static HashedPath parse(const HashedCharPtr& path);
     
-    char* get() const noexcept { return static_cast<char*>(data.getObjectPtr()); }
-    char* end()   const noexcept { return static_cast<char*>(data.getObjectPtr()) + position; }
-    size_t length() const noexcept { return position; }
+    static constexpr bool isHashed() { return true; }
+
+    /** Only checks whether the source should be dynamic. */
+    bool isDynamic() const noexcept { return source.isDynamic(); }
     
+    bool isAllWildcard() const noexcept { return sourceManager.isWildcard(); }
+    bool isSourceWildcard() const noexcept { return source.isWildcard(); }
+    bool isSlotWildcard() const noexcept { return slot.isWildcard(); }
+    bool isAnyWildcard() const noexcept { return isAllWildcard() || isSourceWildcard() || isSlotWildcard(); }
+    Type getType() const noexcept { return source.getType(); }
+
 private:
-    
-    void ensureAllocated(size_t num);
-    char* getWriteHead() const;
-    char* getWriteHeadAndAdvance(size_t numToWrite);
-    
-    ObjectStorage<SmallBufferSize, 0> data;
-    int position = 0;
+
+    const HashedCharPtr sourceManager;
+    const HashedCharPtr source;
+    const HashedCharPtr slot;
 };
 
 
