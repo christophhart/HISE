@@ -714,16 +714,21 @@ template <int BSize, int Alignment> struct ObjectStorage
                 
                 std::swap(newBuffer, bigBuffer);
 				objPtr = bigBuffer.get();
+
+				newBuffer.free();
                 allocatedSize = newSize;
 			}
 			else
 			{
                 if(copyOldContent && allocatedSize > SmallBufferSize)
                 {
+					jassert(isPositiveAndBelow(newSize, SmallBufferSize));
                     memcpy(&smallBuffer + Alignment, bigBuffer.get() + Alignment, newSize);
                 }
-                
-				bigBuffer.free();
+
+				if(allocatedSize > SmallBufferSize)
+					bigBuffer.free();
+				
 				objPtr = &smallBuffer;
                 allocatedSize = newSize;
 			}

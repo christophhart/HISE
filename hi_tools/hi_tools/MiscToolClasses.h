@@ -1176,7 +1176,7 @@ struct SimpleReadWriteLock
 
 	LockType mutex;
 
-	std::atomic<std::thread::id> writer;
+    std::atomic<std::thread::id> writer = {};
 	bool enabled = true;
 	bool fakeWriteLock = false;
 };
