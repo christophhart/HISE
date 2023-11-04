@@ -30,10 +30,60 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
-namespace dispatch {	
+namespace dispatch {
+namespace dummy {
+using namespace juce;
 
+struct BuilderFactory: public ControlledObject
+{
+    BuilderFactory(MainController* mc);;
+
+    using CreateFunction = std::function<Action::Builder*(MainController*)>;
+    Action::Builder* createBuilder(const Identifier& id);
+    Action::List create(const var& jsonData);
+    void registerItem(const Identifier& id, const CreateFunction& f);
+
+private:
+
+    struct FactoryItem
+    {
+	    Identifier id;
+        CreateFunction f;
+    };
+
+    Array<FactoryItem> items;
+};
+
+struct MainController
+{
+    CriticalSection audioLock;
+
+    MainController();;
+    ~MainController();
+
+    void setActions(const var& obj);
+    void start();
+	bool isFinished() const;
+
+    PooledUIUpdater updater;
+	RootObject root;
+	library::ProcessorHandler processorHandler;
+
+    OwnedArray<SimulatedThread> threads;
+
+    SimulatedThread* audioThread;
+    SimulatedThread* uiSimThread;
+    BuilderFactory factory;
+
+    bool started = false;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainController);
+};
+
+
+} // dummy
 } // dispatch
 } // hise

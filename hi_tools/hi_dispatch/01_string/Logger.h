@@ -30,10 +30,36 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+
+struct Logger final : public  PooledUIUpdater::SimpleTimer,
+                      public Queueable
+{
+	Logger(RootObject& root, size_t numAllocated);;
+
+	void flush();
+
+	HashedCharPtr getDispatchId() const override { return "logger"; }
+
+	void printRaw(const char* rawMessage, size_t numBytes);
+	void printString(const String& message);
+	void log(Queueable* source, EventType l, const void* data, size_t numBytes);
+	void printQueue(Queue& queue);
+    
+private:
+
+	void timerCallback() override;
+    
+	static bool logToDebugger(const Queue::FlushArgument& f);
+
+	Queue messageQueue;
+};
 
 } // dispatch
 } // hise

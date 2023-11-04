@@ -30,10 +30,11 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
 
 } // dispatch
 } // hise

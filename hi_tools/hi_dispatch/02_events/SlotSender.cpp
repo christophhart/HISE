@@ -30,10 +30,73 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+
+SlotSender::SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_):
+	index(index_),
+	id(id_),
+	obj(s),
+	numSlots(0)
+{
+}
+
+SlotSender::~SlotSender()
+{
+#if JUCE_DEBUG
+
+	// If this happens, you have forgot to call shutdown in the destructor
+	// of your Source subclass' destructor. Make sure to call it there
+	// to ensure correct order of deinitialisation.
+	jassert(shutdownWasCalled);
+#endif
+}
+
+void SlotSender::setNumSlots(int newNumSlots)
+{
+	if((numSlots + 1) < newNumSlots)
+	{
+		data.setSize(newNumSlots + 1);
+		numSlots = newNumSlots;
+		const auto ptr = (uint8*)data.getObjectPtr();
+		ptr[0] = index;
+	}
+}
+
+bool SlotSender::flush()
+{
+	if(!pending)
+		return false;
+			
+	obj.parent.sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1);
+	memset((uint8*)data.getObjectPtr() + 1, 0, numSlots);
+	pending = false;
+	return true;
+}
+
+bool SlotSender::sendChangeMessage(int indexInSlot, NotificationType notify)
+{
+	jassert(isPositiveAndBelow(indexInSlot, numSlots));
+
+	// data[0] points to the slotIndex
+	const auto ptr = static_cast<uint8*>(data.getObjectPtr()) + 1;
+
+	if(ptr[indexInSlot])
+		return false;
+			
+	ptr[indexInSlot] = true;
+	pending = true;
+		
+	if(notify == sendNotificationSync)
+		flush();
+			
+	return true;
+}
 
 } // dispatch
 } // hise

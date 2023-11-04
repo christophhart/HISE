@@ -31,13 +31,59 @@
 */
 
 #pragma once
+
 namespace hise {
 namespace dispatch {	
 using namespace juce;
 
 
 
-// Implementations of template methods
+struct StringBuilder
+{
+    static constexpr int SmallBufferSize = 64;
+
+    explicit StringBuilder(size_t numToPreallocate=0);
+    
+    StringBuilder& operator<<(const char* rawLiteral);
+    StringBuilder& operator<<(const CharPtr& p);
+    StringBuilder& operator<<(const HashedCharPtr& p);
+    StringBuilder& operator<<(const String& s);
+    StringBuilder& operator<<(int number);
+    StringBuilder& operator<<(const StringBuilder& other);
+	StringBuilder& operator<<(const Queue::FlushArgument& f);
+    StringBuilder& operator<<(EventType eventType);
+    StringBuilder& appendEventValues(EventType eventType, const uint8* values, size_t numBytes);
+
+    StringBuilder& appendRawByteArray(const uint8* values, size_t numBytes)
+    {
+		auto& s = *this;
+		s << "[ ";
+		for(int i = 0; i < numBytes; i++)
+		{
+			s << (int)values[i];
+
+			if(i != (numBytes-1))
+				s << ", ";
+		}
+		s << " ] (";
+        s << numBytes << " bytes)";
+		return *this;
+    }
+
+    String toString() const noexcept;
+    const char* get() const noexcept;
+    const char* end()   const noexcept;
+    size_t length() const noexcept;
+
+private:
+    
+    void ensureAllocated(size_t num);
+    char* getWriteHead() const;
+    char* getWriteHeadAndAdvance(size_t numToWrite);
+    
+    ObjectStorage<SmallBufferSize, 0> data;
+    int position = 0;
+};
 
 } // dispatch
 } // hise

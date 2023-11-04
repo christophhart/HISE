@@ -30,10 +30,70 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+LibraryTest::LibraryTest():
+	UnitTest("library test", "dispatch")
+{}
+
+void LibraryTest::init(const var& obj)
+{
+	TRACE_DISPATCH("start library test");
+	MessageManagerLock mm;
+
+	mc = new dummy::MainController();
+
+	try
+	{
+		mc->setActions(obj[dummy::ActionIds::actions]);
+		mc->start();
+	}
+	catch(String& s)
+	{
+		expect(false, s);
+		mc = nullptr;
+	}
+}
+
+void LibraryTest::deinit()
+{
+	if(mc != nullptr)
+	{
+		TRACE_DISPATCH("shutdown library test");
+		MessageManagerLock mm;
+		mc = nullptr;
+	}
+	
+}
+
+void LibraryTest::runTest()
+{
+	File rootDirectory = getTestDirectory();
+
+	auto list = rootDirectory.findChildFiles(File::findFiles, true, "*.json");
+
+	for(auto l: list)
+	{
+		var obj;
+
+		auto r = JSON::parse(l.loadFileAsString(), obj);
+		expect(r.wasOk(), r.getErrorMessage());
+
+		if(r.wasOk())
+		{
+			runEvents(obj);
+		}
+	}
+}
+
+
+static LibraryTest libraryTest;
+
 
 } // dispatch
 } // hise

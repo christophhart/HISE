@@ -59,7 +59,6 @@
         <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
@@ -68,6 +67,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
@@ -89,7 +89,6 @@
         <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -97,6 +96,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE"/>
       </MODULEPATHS>
     </LINUX_MAKE>
     <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
@@ -117,7 +117,6 @@
         <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
@@ -126,6 +125,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE"/>
       </MODULEPATHS>
     </VS2017>
     <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1">
@@ -147,12 +147,12 @@
         <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE"/>
       </MODULEPATHS>
     </VS2019>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-">
@@ -175,11 +175,11 @@
         <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -210,5 +210,6 @@
     <LINUX/>
   </LIVE_SETTINGS>
   <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"
-               SNEX_STANDALONE_PLAYGROUND="1" HISE_INCLUDE_SNEX="0" HISE_INCLUDE_PERFETTO="1"/>
+               SNEX_STANDALONE_PLAYGROUND="1" HISE_INCLUDE_SNEX="0" HISE_INCLUDE_PERFETTO="1"
+               JUCE_USE_WIN_WEBVIEW2="1"/>
 </JUCERPROJECT>

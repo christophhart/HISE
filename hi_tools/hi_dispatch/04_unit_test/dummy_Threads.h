@@ -30,10 +30,64 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
-namespace dispatch {	
+namespace dispatch {
+namespace dummy {
+using namespace juce;
 
+
+struct SimulatedThread: public Thread,
+					    public ControlledObject
+{
+    SimulatedThread(MainController* mc, const String& name);;
+
+    ~SimulatedThread() override;
+
+    virtual void startSimulation();
+    void addAction(Action* a);
+
+protected:
+
+    CriticalSection& audioLock;
+    RootObject& root;
+    Action::List actions;
+
+    Action::Ptr getNextAction();
+
+private:
+
+    uint32 startTime = 0;
+    int actionIndex = 0;
+};
+
+struct AudioThread: public SimulatedThread
+{
+    static constexpr int AudioCallbackLength = 10;
+
+    AudioThread(MainController* mc);
+    ~AudioThread() override;
+
+    void startSimulation() override;
+    void audioCallback();
+    void simulatedAudioThread();
+    void run() override;
+
+    int callbackCounter = 0;
+};
+
+struct UISimulator: public SimulatedThread
+{
+    UISimulator(MainController* mc);
+    ~UISimulator() override;
+
+    void startSimulation() override;
+    void simulateUIEvents();
+    void run() override;
+};
+
+
+} // dummy
 } // dispatch
 } // hise

@@ -30,10 +30,51 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
+#include "dummy_Actions.h"
 
 namespace hise {
-namespace dispatch {	
+namespace dispatch {
+namespace dummy {
+using namespace juce;
 
+struct Processor: public ControlledObject
+{
+    struct AddAction;
+    struct ActionBase;
+    struct RemoveAction;
+    struct SetAttributeAction;
+    struct SetBypassed;
+    struct AddListener;
+    struct RemoveListener;
+
+    struct Builder: public Action::Builder
+    {
+        Builder(MainController* mc):
+          Action::Builder(mc)
+        {};
+
+	    Action::List createActions(const var& jsonData) override;
+        Identifier getId() const override { return ActionIds::processor; }
+        Action::Ptr addAction;
+
+        void expectOrThrow(bool ok, const String& errorMessage)
+        {
+            if(!ok)
+                throw String(errorMessage);
+        }
+    };
+    
+    void setAttribute(int parameterIndex, float newValue, NotificationType n);
+    void setBypassed(bool shouldBeBypassed, NotificationType n);
+
+    Processor(MainController* mc, HashedCharPtr id);;
+    ~Processor() override;
+
+    library::Processor dispatcher;
+};
+
+
+} // dummy
 } // dispatch
 } // hise

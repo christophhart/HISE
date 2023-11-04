@@ -1,0 +1,20 @@
+{
+	"description": "a simple test (hello world style)",
+	"actions":
+	{
+	  "processor": [
+		{ "type": "add_processor", "ts": 0.2, "thread": "audio", "id": "first_test", "num_parameters": 5 },
+		{ "type": "set_attribute", "ts": 0.4, "index": 2, "thread": "audio" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui", "wait":0.5 },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui", "wait": 40.0 },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "set_attribute", "ts": 0.5, "index": 8, "thread": "ui" },
+		{ "type": "rem_processor", "ts": 0.6, "thread": "ui" }
+	  ]
+	}
+}

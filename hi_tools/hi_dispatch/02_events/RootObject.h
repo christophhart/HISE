@@ -31,13 +31,66 @@
 */
 
 #pragma once
+
 namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+struct Queueable;
 
+struct RootObject
+{
+	struct Child
+	{
+		Child(RootObject& root_);;
+		virtual ~Child();
 
-// Implementations of template methods
+		/** return the ID of this object. */
+		virtual HashedCharPtr getDispatchId() const = 0;
+
+		RootObject& getRootObject() { return root; }
+		const RootObject& getRootObject() const { return root; }
+		
+	private:
+
+		RootObject& root;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Child);
+	};
+
+	explicit RootObject(PooledUIUpdater* updater_);
+	~RootObject();
+
+	void addChild(Child* c);
+	void removeChild(Child* c);
+
+	/** Removes the element from all queues. */
+	int clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
+
+	/** Call this periodically to ensure that the queues are minimized. */
+	void minimiseQueueOverhead();
+
+	PooledUIUpdater* getUpdater();
+	void setLogger(Logger* l);
+	Logger* getLogger() const { return currentLogger; }
+
+	int getNumChildren() const { return childObjects.size(); }
+
+	void setState(State newState);
+	State getState() const { return currentState; }
+
+	/** Iterates all registered queues and calls the given function. */
+	bool callForAllQueues(const std::function<bool(Queue&)>& qf);
+
+private:
+
+	State currentState = State::Running;
+
+	Logger* currentLogger = nullptr;
+
+	PooledUIUpdater* updater;
+	Array<Child*> childObjects;
+};
 
 } // dispatch
 } // hise

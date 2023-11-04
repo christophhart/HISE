@@ -228,8 +228,33 @@ struct FuzzyTester;
 } // dispatch
 } // hise
 
+
+
 #include "file3.h" // contains all String-related classes
 #include "file1.h" // contains the queue, the logger and the Stringbuilder
 #include "file2.h" // contains the Source, SourceManager, Listener stuff
 #include "file4.h" // contains the "library" of subclasses that emulate the HISE logic
-#include "tests.h"
+
+#include "01_string/CharPtr.h" // OK
+
+#include "02_events/RootObject.h"
+#include "02_events/Queue.h"
+#include "01_string/Logger.h" // needs Queue
+#include "01_string/StringBuilder.h" // needs Queue
+#include "02_events/SourceManager.h"
+#include "02_events/Source.h"
+#include "02_events/SlotSender.h"
+#include "02_events/Listener.h"
+
+#include "03_library/Library.h"
+#include "03_library/Processor.h"
+
+#include "04_unit_test/tests.h"
+#include "04_unit_test/tests_impl.h"
+#include "04_unit_test/dummy_Actions.h"
+#include "04_unit_test/dummy_Threads.h"
+#include "04_unit_test/dummy_Processor.h"
+#include "04_unit_test/dummy_MainController.h"
+#include "04_unit_test/library_tests.h"
+
+//#include "tests.h"

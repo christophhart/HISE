@@ -36,4 +36,24 @@
 #include "file1.cpp"
 #include "file2.cpp"
 #include "file4.cpp"
-#include "tests.cpp"
+
+#include "01_string/CharPtr.cpp"
+
+#include "02_events/RootObject.cpp"
+#include "02_events/Queue.cpp"
+#include "01_string/StringBuilder.cpp" // needs Queue
+#include "01_string/Logger.cpp" // needs Queue
+#include "02_events/SourceManager.cpp"
+#include "02_events/Source.cpp"
+#include "02_events/SlotSender.cpp"
+#include "02_events/Listener.cpp"
+
+#include "03_library/Library.cpp"
+#include "03_library/Processor.cpp"
+
+#include "04_unit_test/tests.cpp"
+#include "04_unit_test/dummy_Actions.cpp"
+#include "04_unit_test/dummy_Threads.cpp"
+#include "04_unit_test/dummy_Processor.cpp"
+#include "04_unit_test/dummy_MainController.cpp"
+#include "04_unit_test/library_tests.cpp"

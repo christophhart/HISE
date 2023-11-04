@@ -30,10 +30,51 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+// A object that can send slot change messages to a SourceManager
+// Ownership: a member of a subclassed Source object
+// Features: 
+// - dynamic number of slots
+// - a constant sender index (one byte)
+// - no heap allocation for <16 byte senders
+struct SlotSender
+{		
+	SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_);;
+	~SlotSender();
+
+	void setNumSlots(int newNumSlots);
+	bool flush();
+	bool sendChangeMessage(int indexInSlot, NotificationType notify);
+
+	// Todo: clear the parent queue with all pending messages. */
+	void shutdown()
+	{
+#if JUCE_DEBUG
+		shutdownWasCalled = true;
+#endif
+	};
+
+private:
+
+#if JUCE_DEBUG
+	bool shutdownWasCalled = false;
+#endif
+	
+	Source& obj;
+
+	const uint8 index;
+	const HashedCharPtr id;
+
+	ObjectStorage<64, 16> data;
+	size_t numSlots;
+	bool pending = false;
+};
 
 } // dispatch
 } // hise

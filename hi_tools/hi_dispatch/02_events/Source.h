@@ -30,10 +30,38 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+// just a interface class. 
+// Subclass all classes that have a SlotSender from this class
+// (the item class will keep a reference to this as member to send)
+struct Source: public Queueable
+{
+	Source(SourceManager& parent_, const HashedCharPtr& sourceId_ );
+	~Source() override;
+
+	HashedCharPtr getDispatchId() const override { return sourceId; }
+
+	SourceManager& getParentSourceManager() noexcept { return parent; }
+	const SourceManager& getParentSourceManager() const noexcept { return parent; }
+
+	SourceManager& parent;
+	HashedCharPtr sourceId;
+};
+
+// defers listChanged calls until done, then send a EventAction PostDefer message
+// The ScopedDelayer takes the write lock
+// constructor invalidates all indexes
+// deconstructor calls signal rebuild, validates all indexes & calls the listeners
+struct ScopedDelayer
+{
+	
+};
 
 } // dispatch
 } // hise

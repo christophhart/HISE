@@ -30,10 +30,20 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+Source::Source(SourceManager& parent_, const HashedCharPtr& sourceId_):
+	Queueable(parent_.getRootObject()),
+	parent(parent_),
+	sourceId(sourceId_)
+{}
+
+Source::~Source()
+{}
 
 } // dispatch
 } // hise

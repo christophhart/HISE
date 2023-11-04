@@ -36,6 +36,19 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+LoggerTest::MyTestQueuable::MyTestQueuable(RootObject& r):
+	Queueable(r)
+{}
+
+LoggerTest::MyDanglingQueable::MyDanglingQueable(RootObject& r):
+	Queueable(r)
+{}
+
+LoggerTest::NeverExecuted::NeverExecuted(RootObject& r, const HashedCharPtr& id_):
+	Queueable(r),
+	id(id_)
+{}
+
 inline LoggerTest::LoggerTest():
 	UnitTest("testing dispatch logger & queue", "dispatch")
 {}
@@ -381,6 +394,10 @@ void LoggerTest::runTest()
 	testSourceManager();
 }
 
+CharPtrTest::CharPtrTest():
+	UnitTest("testing char pointer classes", "dispatch")
+{}
+
 
 void CharPtrTest::expectStringResult(const StringBuilder& b, const String& e)
 {
@@ -467,58 +484,6 @@ void CharPtrTest::runTest()
 }
 
 static CharPtrTest charPtrTest;
-
-void LibraryTest::runTest()
-{
-	// must not run on the message thread!
-	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
-
-	BEGIN_TEST("test basic processor");
-
-	init();
-
-	{
-		TRACE_DISPATCH("run test");
-		Thread::getCurrentThread()->wait(500);
-
-		while(!mc->isFinished())
-		{
-			Thread::getCurrentThread()->wait(500);
-		}
-	}
-
-	
-	
-	shutdown();
-}
-
-// get a rough estimate of how much overhead there is in calling buzy_sleep()
-std::chrono::nanoseconds calc_overhead() {
-    using namespace std::chrono;
-    constexpr size_t tests = 1001;
-    constexpr auto timer = 200us;
-
-    auto init = [&timer]() {
-        auto end = steady_clock::now() + timer;
-        while(steady_clock::now() < end);
-    };
-
-    time_point<steady_clock> start;
-    nanoseconds dur[tests];
-
-    for(auto& d : dur) {
-        start = steady_clock::now();
-        init();
-        d = steady_clock::now() - start - timer;
-    }
-    std::sort(std::begin(dur), std::end(dur));
-    // get the median value or something a little less as in this example:
-    return dur[tests / 3];
-}
-
-const std::chrono::nanoseconds dummy::Action::overhead = calc_overhead();
-
-static LibraryTest libraryTest;
 
 
 } // dispatch

@@ -30,10 +30,57 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+struct LibraryTest: public UnitTest
+{
+    LibraryTest();;
+    
+    void init(const var& obj);
+    void deinit();
+    void runTest() override;
+
+    static File getTestDirectory()
+    {
+        auto f = File::getSpecialLocation(File::currentExecutableFile);
+        f = f.getParentDirectory().getParentDirectory().getParentDirectory();
+        f = f.getParentDirectory().getParentDirectory().getParentDirectory();
+        f = f.getParentDirectory().getParentDirectory();
+        
+        auto dir = f.getChildFile("hi_tools/hi_dispatch/04_unit_test/json");
+        jassert(dir.isDirectory());
+        return dir;
+    }
+
+    void runEvents(const var& obj)
+    {
+        beginTest(obj[dummy::ActionIds::description].toString());
+
+        // must not run on the message thread!
+		jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+
+		init(obj);
+
+        if(mc != nullptr)
+		{
+			TRACE_DISPATCH("run test");
+			Thread::getCurrentThread()->wait(500);
+
+			while(!mc->isFinished())
+			{
+				Thread::getCurrentThread()->wait(500);
+			}
+		}
+    }
+
+    
+
+    ScopedPointer<dummy::MainController> mc;
+};
 
 } // dispatch
 } // hise

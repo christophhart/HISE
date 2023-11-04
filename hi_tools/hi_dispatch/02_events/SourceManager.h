@@ -30,10 +30,43 @@
 *   ===========================================================================
 */
 
-#include "JuceHeader.h"
+#pragma once
 
 namespace hise {
 namespace dispatch {	
+using namespace juce;
+
+
+struct SourceManager  : public Queueable, // not queuable
+					    public PooledUIUpdater::SimpleTimer
+{
+	SourceManager(RootObject& r, const HashedCharPtr& typeId);
+	~SourceManager() override;
+
+	HashedCharPtr treeId;
+
+	HashedCharPtr getDispatchId() const override { return treeId; }
+
+	/*+ Sends slot changes (values[0] == slotIndex) to the matching listeners. */
+	void sendSlotChanges(Source& s, const uint8* values, size_t numValues);
+	
+	void timerCallback() override;
+
+	Queue& getListenerQueue(NotificationType n);
+	const Queue& getListenerQueue(NotificationType n) const;
+	int getNumChildSources() const { return items.size(); }
+
+private:
+
+	Queue asyncQueue;
+	Queue deferedSyncEvents;
+	Queue asyncListeners;
+	Queue syncListeners;
+	Array<Source*> items;
+};
+
+
+
 
 } // dispatch
 } // hise
