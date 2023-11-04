@@ -297,7 +297,11 @@ namespace melatonin
         constexpr auto pf = melatonin::compileTimePrettierFunction (WRAP_COMPILE_TIME_STRING (PERFETTO_DEBUG_FUNCTION_IDENTIFIER())); \
         TRACE_EVENT ("component", perfetto::StaticString (pf.data()), ##__VA_ARGS__)
 	#define TRACE_DISPATCH(...)  TRACE_EVENT ("dispatch", __VA_ARGS__)
-    
+
+#define DYNAMIC_STRING(x) perfetto::DynamicString(String(x).toStdString())
+#define DYNAMIC_STRING_BUILDER(x) perfetto::DynamicString(x.get(), x.length())
+#define TRACE_DYNAMIC_DISPATCH(x) TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(x));
+
 #else // if PERFETTO
     #define TRACE_EVENT_BEGIN(category, ...)
     #define TRACE_EVENT_END(category)

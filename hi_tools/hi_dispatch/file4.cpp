@@ -30,11 +30,54 @@
 *   ===========================================================================
 */
 
-
+#include "JuceHeader.h"
 
 namespace hise {
 namespace dispatch {	
+namespace library {
 using namespace juce;
 
+ProcessorHandler::BypassListener::BypassListener(RootObject& r, const Callback& f_):
+	Listener(r),
+	f(f_)
+{}
+
+
+void ProcessorHandler::BypassListener::slotChanged(const ListenerData& d)
+{
+	jassert(d.slotIndex == (uint8)SlotTypes::Bypassed);
+	jassert(d.numBytes == 1);
+	jassert(d.t == EventType::SlotChange);
+	jassert(f);
+
+	const auto obj = d.to_static_cast<Processor>();
+	f(obj, obj->isBypassed());
+}
+
+void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
+{
+	jassert(d.slotIndex == (uint8)SlotTypes::Bypassed);
+	jassert(d.numBytes == 1);
+	jassert(d.t == EventType::SlotChange);
+	auto obj = d.to_static_cast<Processor>();
+	d.callForEachSetValue([&](uint8 index){ f(obj, index); });
+}
+
+ProcessorHandler::ProcessorHandler(RootObject& r):
+  SourceManager(r, IDs::source::modules)
+{}
+
+void Processor::addBypassListener(BypassListener* l, NotificationType n)
+{
+	uint8 slotIndex = (uint8)SlotTypes::Bypassed;
+	l->addListenerToSingleSource(this, &slotIndex, 1, n);
+}
+
+void Processor::removeBypassListener(BypassListener* l)
+{
+	l->removeListener(parent, sendNotificationSync);
+	l->removeListener(parent, sendNotificationAsync);
+}
+} // library
 } // dispatch
 } // hise

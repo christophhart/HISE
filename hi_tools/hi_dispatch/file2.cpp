@@ -38,6 +38,7 @@ using namespace juce;
 
 SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   Queueable(r),
+  SimpleTimer(r.getUpdater()),
   treeId(typeId),
   asyncQueue(r, 1024),
   deferedSyncEvents(r, 128),
@@ -86,6 +87,10 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 
 void SourceManager::timerCallback()
 {
+	StringBuilder b;
+	b << "UI timer callback " << getDispatchId();
+	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+
 	// skip
 	if(getRootObject().getState() != State::Running)
 		return;
@@ -126,11 +131,23 @@ Source::Source(SourceManager& parent_, const HashedCharPtr& sourceId_):
 Source::~Source()
 {}
 
-SlotSender::SlotSender(Source& s, uint8 slotIndex_):
-	slotIndex(slotIndex_),
+SlotSender::SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_):
+	index(index_),
+	id(id_),
 	obj(s),
 	numSlots(0)
 {
+}
+
+SlotSender::~SlotSender()
+{
+#if JUCE_DEBUG
+
+	// If this happens, you have forgot to call shutdown in the destructor
+	// of your Source subclass' destructor. Make sure to call it there
+	// to ensure correct order of deinitialisation.
+	jassert(shutdownWasCalled);
+#endif
 }
 
 void SlotSender::setNumSlots(int newNumSlots)
@@ -140,7 +157,7 @@ void SlotSender::setNumSlots(int newNumSlots)
 		data.setSize(newNumSlots + 1);
 		numSlots = newNumSlots;
 		const auto ptr = (uint8*)data.getObjectPtr();
-		ptr[0] = slotIndex;
+		ptr[0] = index;
 	}
 }
 

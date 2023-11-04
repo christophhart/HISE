@@ -12,6 +12,7 @@
 
 //==============================================================================
 MainComponent::MainComponent():
+  Thread("Unit Test thread"),
   startButton("start", nullptr, f),
   cancelButton("cancel", nullptr, f)
 {
@@ -30,17 +31,15 @@ MainComponent::MainComponent():
 
     Timer::callAfterDelay(100, [&]()
     {
-        //webview.navigateToURL(URL("https://ui.perfetto.dev"));
-        browser->navigateToURL(URL("https://google.de"));
+        browser->navigateToURL(URL("https://ui.perfetto.dev"));
         browser->refreshBounds(1.0f);
         resized();
     });
 #endif
+
+	
+
     
-    UnitTestRunner r;
-    r.setAssertOnFailure(true);
-    r.setPassesAreLogged(true);
-    r.runTestsInCategory("dispatch");
     
     //r.runTestsInCategory("dispatch");
     //addAndMakeVisible(webview);
@@ -59,6 +58,7 @@ MainComponent::MainComponent():
 		if(startButton.getToggleState())
 		{
 			MelatoninPerfetto::get().beginSession();
+            startThread(7);
 		}
 		else
 		{
@@ -142,6 +142,7 @@ void MainComponent::resized()
 
 void MainComponent::timerCallback()
 {
+#if 0
     TRACE_DISPATCH(perfetto::DynamicString(String(counter++).toStdString()));
     
 	Random r;
@@ -164,6 +165,7 @@ void MainComponent::timerCallback()
 
 		hmath::sin((float)i);
 	}
+#endif
 }
 
 

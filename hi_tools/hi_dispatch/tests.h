@@ -36,6 +36,9 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+
+#define BEGIN_TEST(x) TRACE_DISPATCH(DYNAMIC_STRING(x)); beginTest(x);
+
 struct LoggerTest: public UnitTest
 {
 	struct MyTestQueuable: public Queueable
@@ -115,13 +118,541 @@ struct CharPtrTest: public UnitTest
     void expectStringResult(const StringBuilder& b, const String& e);
     void testStringBuilder();
     
-    void runTest() override
+    void runTest() override;
+};
+
+
+
+namespace dummy
+{
+
+static constexpr int NumTotalSeconds = 10;
+static constexpr int TimeoutMilliseconds = 200;
+    
+struct Action
+{
+    static const std::chrono::nanoseconds overhead;
+
+    static uint32 normalisedToTimestamp(float normalised)
     {
-        testStringBuilder();
-        testCharPtr<CharPtr>();
-        testCharPtr<HashedCharPtr>();
-        
+	    return (uint32)roundToInt(normalised * (float)(NumTotalSeconds * 1000));
     }
+
+    static void busyWait(float milliseconds)
+	{
+        auto t2 = roundToInt(milliseconds * 1000.0f * 1000.0f);
+
+		std::chrono::nanoseconds t{t2};
+	    auto end = std::chrono::steady_clock::now() + t - overhead;
+	    while(std::chrono::steady_clock::now() < end);
+	}
+
+    struct Sorter
+    {
+        static int compareElements(Action* first, Action* second)
+        {
+            if(first->timestampMilliseconds < second->timestampMilliseconds)
+            {
+	            return -1;
+            }
+            if(first->timestampMilliseconds > second->timestampMilliseconds)
+            {
+                return 1;
+            }
+            return 0;
+        }
+    };
+
+    Action(uint32 ts):
+      timestampMilliseconds(ts)
+    {};
+
+    bool operator<(const Action& other) const
+    {
+        return timestampMilliseconds < other.timestampMilliseconds;
+    }
+
+    bool operator>(const Action& other) const
+    {
+        return timestampMilliseconds > other.timestampMilliseconds;
+    }
+
+    bool operator==(const Action& other) const
+    {
+        return timestampMilliseconds == other.timestampMilliseconds;
+    }
+
+    const uint32 timestampMilliseconds = 0;
+
+    virtual ~Action() {};
+
+    virtual void perform() = 0;
+
+    virtual const StringBuilder& getActionDescription() const = 0;
+};
+
+struct BusyWaitAction: public Action
+{
+	BusyWaitAction(uint32 ts, float milliseconds):
+      Action(ts),
+      duration(milliseconds)
+	{
+		b << "busywait " << roundToInt(milliseconds) << "ms";
+	}
+
+    void perform() override
+	{
+		busyWait(duration);
+	}
+
+    const StringBuilder& getActionDescription() const override
+	{
+		return b;
+	}
+
+    StringBuilder b;
+    const float duration;
+};
+
+struct SleepWait: public Action
+{
+	SleepWait(uint32 ts, int milliseconds):
+      Action(ts),
+      duration(milliseconds)
+	{
+		b << "sleep " << milliseconds << "ms";
+	}
+
+    void perform() override
+	{
+		Thread::getCurrentThread()->wait(duration);
+	}
+
+    const StringBuilder& getActionDescription() const override
+	{
+		return b;
+	}
+
+    StringBuilder b;
+    const int duration;
+};
+
+struct Processor
+{
+    struct AddAction: public Action
+	{
+		AddAction(uint32 ts, library::ProcessorHandler& handler_, HashedCharPtr id_):
+	      Action(ts),
+          id(id_),
+          handler(handler_)
+		{
+			b << "add processor " << id;
+		};
+
+		void perform() override
+		{
+			ownedProcessor = new Processor(handler, id);
+		}
+
+        const StringBuilder& getActionDescription() const override { return b; }
+
+        StringBuilder b;
+        library::ProcessorHandler& handler;
+        HashedCharPtr id;
+        ScopedPointer<Processor> ownedProcessor;
+	};
+
+    struct SetAttributeAction: public Action
+    {
+	    SetAttributeAction(uint32 ts, AddAction* addAction_):
+          Action(ts),
+          addAction(addAction_)
+		{
+			b << addAction->id << "::setAttribute";
+		}
+
+        void perform() override
+		{
+            if(auto a = addAction->ownedProcessor.get())
+            {
+            	a->setAttribute(0, 0, sendNotificationSync);
+            }
+		}
+
+        const StringBuilder& getActionDescription() const override { return b; }
+
+        StringBuilder b;
+        AddAction* addAction;
+    };
+
+    struct RemoveAction: public Action
+	{
+		RemoveAction(uint32 ts, AddAction* addAction_):
+          Action(ts),
+          addAction(addAction_)
+		{
+			b << "remove processor " << addAction->id;
+		}
+
+        void perform() override
+		{
+			addAction->ownedProcessor = nullptr;
+		}
+
+        const StringBuilder& getActionDescription() const override { return b; }
+
+        StringBuilder b;
+        AddAction* addAction;
+	};
+
+    void setAttribute(int parameterIndex, float newValue, NotificationType n)
+    {
+	    dispatcher.setAttribute(parameterIndex, newValue, n);
+    }
+
+    Processor(library::ProcessorHandler& h, HashedCharPtr id):
+      dispatcher(h, id)
+    {
+        dispatcher.setNumAttributes(30);
+	    Action::busyWait(Random::getSystemRandom().nextFloat() * 4.0);
+    };
+
+    ~Processor()
+    {
+	    Action::busyWait(Random::getSystemRandom().nextFloat() * 4.0);
+    }
+
+	library::Processor dispatcher;
+};
+
+
+
+
+
+struct SimulatedThread: public Thread
+{
+    SimulatedThread(RootObject& r, CriticalSection& audioLock_, const String& name):
+      Thread(name),
+      root(r),
+      audioLock(audioLock_)
+    {};
+
+    ~SimulatedThread() override
+    {
+	    stopThread(100);
+    }
+
+    virtual void startSimulation()
+    {
+	    startTime = Time::getMillisecondCounter();
+        actionIndex = 0;
+    }
+
+	void addAction(Action* a)
+    {
+        Action::Sorter sorter;
+        actions.addSorted(sorter, a);
+    }
+
+protected:
+
+    CriticalSection& audioLock;
+    RootObject& root;
+    OwnedArray<dummy::Action> actions;
+
+    Action* getNextAction()
+    {
+	    const auto deltaFromStart = Time::getMillisecondCounter() - startTime;
+
+        if(isPositiveAndBelow(actionIndex, actions.size()) && 
+           actions[actionIndex]->timestampMilliseconds < deltaFromStart )
+        {
+            return actions[actionIndex++];
+        }
+
+        return nullptr;
+    }
+
+private:
+
+    uint32 startTime = 0;
+    int actionIndex = 0;
+};
+
+struct AudioThread: public SimulatedThread
+{
+    static constexpr int AudioCallbackLength = 10;
+
+    AudioThread(RootObject& r, CriticalSection& audioLock_):
+      SimulatedThread(r, audioLock_, "Audio Thread")
+    {}
+
+    void startSimulation() override
+    {
+        SimulatedThread::startSimulation();
+        startThread(Thread::realtimeAudioPriority);
+    }
+    
+    void audioCallback()
+    {
+        TRACE_DISPATCH("audio processing");
+
+        {
+
+            ScopedLock sl(audioLock);
+            TRACE_DISPATCH("locked");
+
+            float microSeconds = Random::getSystemRandom().nextFloat();
+
+            if(auto a = getNextAction())
+            {
+                StringBuilder b;
+                b << "audio thread action: " << a->getActionDescription();
+                TRACE_DYNAMIC_DISPATCH(b);
+                a->perform();
+            }
+
+            auto t2 = microSeconds * 8.0;
+            
+            Action::busyWait(t2);
+        }
+    }
+
+    void simulatedAudioThread()
+    {
+	    static constexpr int NumCallbacks = NumTotalSeconds * 1000 / AudioCallbackLength;
+        
+        TRACE_DSP();
+        
+	    while(!threadShouldExit() && callbackCounter++ < NumCallbacks)
+	    {
+            StringBuilder b;
+            b << "audio callback " << callbackCounter;
+            TRACE_DYNAMIC_DISPATCH(b);
+		    const auto before = Time::getHighResolutionTicks();
+		    audioCallback();
+		    const auto delta = Time::getHighResolutionTicks() - before;
+		    const auto deltaSeconds = (double)delta / (double)Time::getHighResolutionTicksPerSecond();
+		    const auto deltaMilliseconds = deltaSeconds * 1000.0;
+
+		    const auto waitTime = 10 - roundToInt(deltaMilliseconds);
+
+            if(waitTime > 0)
+                wait(waitTime);
+	    }
+    }
+
+    void run() override
+    {
+        simulatedAudioThread();
+    }
+
+    int callbackCounter = 0;
+};
+
+struct UISimulator: public SimulatedThread
+{
+    UISimulator(RootObject& r, CriticalSection& audioLock_):
+      SimulatedThread(r, audioLock_, "UI Simulator Thread")
+    {}
+
+    void startSimulation() override
+    {
+        SimulatedThread::startSimulation();
+        startThread(5);
+    }
+
+    ~UISimulator() override
+    {
+	    stopThread(100);
+    }
+    
+    void run() override
+    {
+        TRACE_DISPATCH("ui event simulator");
+
+	    while(!threadShouldExit())
+	    {
+		    if(auto a = getNextAction())
+            {
+                StringBuilder b;
+                b << "ui simulator action: " << a->getActionDescription();
+                TRACE_DYNAMIC_DISPATCH(b);
+                {
+                    MessageManagerLock mm;
+                    TRACE_DISPATCH("message lock");
+
+                    {
+	                    ScopedLock sl(audioLock);
+                        TRACE_DISPATCH("audio lock");
+                        a->perform();
+                    }
+                }
+            }
+
+            Thread::wait(15);
+	    }
+    }
+};
+
+struct SampleLoadingThread: public Thread
+{
+    void sampleLoadingTask()
+    {
+	    
+    }
+};
+
+struct ScriptingThread: public Thread
+{
+    void scriptingTask()
+    {
+	    
+    }
+};
+
+struct MainController
+{
+    enum class ThreadType
+	{
+		AudioThread,
+	    UIThread,
+        numThreadTypes,
+	    SampleLoadingThread,
+	    ScriptingThread
+	};
+
+    CriticalSection audioLock;
+
+    MainController():
+      root(&updater),
+      processorHandler(root)
+    {
+        audioThread = threads.add(new AudioThread(root, audioLock));
+        uiSimThread = threads.add(new UISimulator(root, audioLock));
+    };
+
+    void addAction(ThreadType t, Action* a)
+    {
+        if(auto th = threads[(int)t])
+        {
+	        th->addAction(a);
+        }
+    }
+
+    void addSetAttributeAction(Processor::AddAction* a, uint32 timestampAfterCreation)
+    {
+	    auto n = new Processor::SetAttributeAction(timestampAfterCreation + a->timestampMilliseconds, a);
+        addAction(ThreadType::AudioThread, n);
+    }
+
+    Processor::AddAction* addAndRemoveProcessor(HashedCharPtr id, Range<float> normalisedLifetime)
+    {
+        auto startLifetime = Action::normalisedToTimestamp(normalisedLifetime.getStart());
+        auto endLifetime = Action::normalisedToTimestamp(normalisedLifetime.getEnd());
+
+        auto s = new Processor::AddAction(startLifetime, processorHandler, "firstProcessor");
+        auto e = new Processor::RemoveAction(endLifetime, s);
+
+	    addAction(ThreadType::UIThread, s);
+        addAction(ThreadType::UIThread, e);
+
+        return s;
+    }
+
+    void addRandomBusyTasks()
+    {
+        Random r;
+	    for(int i = 0; i < r.nextInt(500); i++)
+        {
+            auto ts = r.nextInt(NumTotalSeconds * 1000);
+            auto type = r.nextFloat() > 0.5 ? ThreadType::AudioThread : ThreadType::UIThread;
+            addAction(type, new BusyWaitAction(ts, r.nextFloat() * 12.0f));
+        }
+    }
+
+    void start()
+    {
+        Random r;
+        
+        addRandomBusyTasks();
+        
+        auto p1 = addAndRemoveProcessor("first processor", { 0.2, 0.8});
+        auto p2 = addAndRemoveProcessor("second processor", {0.3, 0.5});
+        
+        for(int i = 0; i < 100; i++)
+        {
+	        addSetAttributeAction(p1, Action::normalisedToTimestamp(r.nextFloat() * 0.6));
+			addSetAttributeAction(p2, Action::normalisedToTimestamp(r.nextFloat() * 0.2));
+        }
+
+        
+
+
+        updater.startTimer(30);
+
+        for(auto& t: threads)
+            t->startSimulation();
+
+        started = true;
+    }
+
+    SimulatedThread* operator[](ThreadType t) const
+    {
+	    return threads[(int)t];
+    }
+
+    bool isFinished() const
+    {
+	    return started && !audioThread->isThreadRunning();
+    }
+
+    ~MainController()
+    {
+        threads.clear();
+    }
+
+    PooledUIUpdater updater;
+	RootObject root;
+	library::ProcessorHandler processorHandler;
+
+    OwnedArray<SimulatedThread> threads;
+
+    SimulatedThread* audioThread;
+    SimulatedThread* uiSimThread;
+
+    bool started = false;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainController);
+};
+
+
+}
+
+struct LibraryTest: public UnitTest
+{
+    LibraryTest():
+      UnitTest("library test", "dispatch")
+    {};
+    
+    void init()
+    {
+        TRACE_DISPATCH("start library test");
+	    MessageManagerLock mm;
+        mc = new dummy::MainController();
+        mc->start();
+    }
+
+    void shutdown()
+    {
+        TRACE_DISPATCH("shutdown library test");
+	    MessageManagerLock mm;
+        mc = nullptr;
+    }
+
+    void runTest() override;
+
+    ScopedPointer<dummy::MainController> mc;
 };
 
 
@@ -185,7 +716,7 @@ void CharPtrTest::testCharPtr()
 {
     String t = CharPtrType::isHashed() ? "HashedCharPtr" : "CharPtr";
 
-    beginTest("test " + t + " juce::Identifier constructor");
+    BEGIN_TEST("test " + t + " juce::Identifier constructor");
 
     // 0 == 1, 1.length() == 3.length()
     CharPtr p1(hise::dispatch::IDs::event::bypassed);
@@ -200,7 +731,7 @@ void CharPtrTest::testCharPtr()
     diff(p1, p2); diff_hash(p1, p2); diff_length(p1, p2);
     diff(p1, p3); diff_hash(p1, p3); same_length(p1, p3);
 
-    beginTest("test " + t + " copy constructor");
+    BEGIN_TEST("test " + t + " copy constructor");
 
     CharPtrType c1(p1);
     CharPtrType c0(p0);
@@ -224,7 +755,7 @@ void CharPtrTest::testCharPtr()
         same(t3, p3); same_hash(t3, p3); same_length(t3, p3);
     }
 
-    beginTest("test " + t + " raw literal constructor");
+    BEGIN_TEST("test " + t + " raw literal constructor");
 
     CharPtrType r1("bypassed");
     CharPtrType r0("bypassed");
@@ -251,7 +782,7 @@ void CharPtrTest::testCharPtr()
         diff(t1, c3); diff_hash(t1, c3); same_length(t1, c3);
     }
 
-    beginTest("test " + t + " constructor from uint8* and size_t");
+    BEGIN_TEST("test " + t + " constructor from uint8* and size_t");
 
     uint8 b1[8]; uint8 b0[8]; uint8 b2[5]; uint8 b3[8];
     memcpy(b1, "bypassed", sizeof(b1));
@@ -287,7 +818,7 @@ void CharPtrTest::testCharPtr()
         diff(t1, r3); diff_hash(t1, r3); same_length(t1, r3);
     }
 
-    beginTest("test " + t + " with juce::String");
+    BEGIN_TEST("test " + t + " with juce::String");
 
     juce::String j1_("bypassed");
     juce::String j0_("bypassed");
@@ -325,7 +856,7 @@ void CharPtrTest::testCharPtr()
         diff(t1, u3); diff_hash(t1, u3); same_length(t1, u3);
     }
 
-    beginTest("test " + t + " Wildcard");
+    BEGIN_TEST("test " + t + " Wildcard");
 
     CharPtrType w1(CharPtrType::Type::Wildcard);
     CharPtrType w0(CharPtrType::Type::Wildcard);

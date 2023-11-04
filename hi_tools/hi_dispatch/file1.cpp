@@ -627,21 +627,27 @@ messageQueue(root, numAllocated)
 
 void Logger::flush()
 {
+    TRACE_DISPATCH("flush logger");
     messageQueue.flush(logToDebugger);
 }
 
 void Logger::printRaw(const char* rawMessage, size_t numBytes)
 {
+    TRACE_DISPATCH("push raw message");
     messageQueue.push(this, EventType::LogRawBytes, reinterpret_cast<const uint8*>(rawMessage), numBytes);
 }
 
 void Logger::printString(const String& message)
 {
+    TRACE_DISPATCH("push string message");
     messageQueue.push(this, EventType::LogString, reinterpret_cast<uint8*>(message.getCharPointer().getAddress()), message.length());
 }
 
 void Logger::log(Queueable* source, EventType l, const void* data, size_t numBytes)
 {
+    StringBuilder b;
+    b << source->getDispatchId() << l;
+    TRACE_DISPATCH(perfetto::DynamicString(b.get(), b.length()));
     messageQueue.push(source, l, data, numBytes);
 }
 

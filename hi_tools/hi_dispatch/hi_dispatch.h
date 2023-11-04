@@ -61,12 +61,14 @@ DECLARE_ID(value);
 DECLARE_ID(property);
 DECLARE_ID(repaint);
 DECLARE_ID(intensity);
+DECLARE_ID(othermod);
+DECLARE_ID(namecolour);
 }
 }
 #undef DECLARE_ID
 
 /* The event types in ascending priority. */
-enum class EventType: uint8
+enum class EventType: uint8 // change to HeaderType
 {
 	Nothing,
 	Warning,
@@ -76,6 +78,7 @@ enum class EventType: uint8
 	Remove,
 	SlotChange,
 	SingleListener,
+	SingleListenerSubset,
 	SubsetListener,
 	AllListener,
 	numEventTypes

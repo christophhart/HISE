@@ -35,4 +35,5 @@
 #include "file3.cpp"
 #include "file1.cpp"
 #include "file2.cpp"
+#include "file4.cpp"
 #include "tests.cpp"

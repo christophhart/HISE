@@ -37,8 +37,8 @@ namespace dispatch {
 using namespace juce;
 
 
-struct SourceManager final : public Queueable, // not queuable
-                             public PooledUIUpdater
+struct SourceManager  : public Queueable, // not queuable
+					    public PooledUIUpdater::SimpleTimer
 {
 	SourceManager(RootObject& r, const HashedCharPtr& typeId);
 	~SourceManager() override;
@@ -92,17 +92,32 @@ struct Source: public Queueable
 // - no heap allocation for <16 byte senders
 struct SlotSender
 {		
-	SlotSender(Source& s, uint8 slotIndex_);;
+	SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_);;
+	~SlotSender();
 
-	const uint8 slotIndex;
-	const Identifier slotId; // REPLACE WITH WILDCARD PARSER
-	static const uint8 senderId; // REMOVE
-	
 	void setNumSlots(int newNumSlots);
 	bool flush();
 	bool sendChangeMessage(int indexInSlot, NotificationType notify);
 
+	// Todo: clear the parent queue with all pending messages. */
+	void shutdown()
+	{
+#if JUCE_DEBUG
+		shutdownWasCalled = true;
+#endif
+	};
+
+private:
+
+#if JUCE_DEBUG
+	bool shutdownWasCalled = false;
+#endif
+	
 	Source& obj;
+
+	const uint8 index;
+	const HashedCharPtr id;
+
 	ObjectStorage<64, 16> data;
 	size_t numSlots;
 	bool pending = false;
@@ -119,11 +134,29 @@ struct SlotSender
 //   5  all slot changes
 struct Listener: public Queueable
 {
+	using ValueChangedFunction = const std::function<void(uint8 index)>;
+
 	// The listener data that holds information about the source event.
 	struct ListenerData
 	{
 		explicit operator bool() const { return t != EventType::Nothing; }
 		Source* s = nullptr;
+
+		template <typename T> T* to_static_cast() const
+		{
+			jassert(dynamic_cast<T*>(s) != nullptr);
+			return static_cast<T*>(s);
+		}
+
+		void callForEachSetValue(const ValueChangedFunction& f) const
+		{
+			for(int i = 0; i < numBytes; i++)
+			{
+				if(changes[i] != 0)
+					f(i);
+			}
+		}
+
 		EventType t = EventType::Nothing;
 		uint8 slotIndex;
 		uint8* changes;
@@ -157,8 +190,15 @@ struct Listener: public Queueable
 	/** Override this method and implement whatever you want to do with the notification. */
 	virtual void slotChanged(const ListenerData& d) = 0;
 	
-	/** Registers the listener to a single source. */
+	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, NotificationType n);
+
+	/** Registers the listener to receive updates from a single slot with a defined slot subset. */
+	void addListenerToSingleSourceAndSlotSubset(Source* source, uint8 slotIndex, const uint8* slotIndexes, uint8 numSlots,
+	                                            NotificationType n)
+	{
+		jassertfalse;
+	}
 
 	/** Registers the listener to all sources of a given source manager. */
 	void addListenerToAllSources(SourceManager& sourceManager, NotificationType n);

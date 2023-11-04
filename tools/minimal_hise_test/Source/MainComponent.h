@@ -31,12 +31,27 @@ namespace enum_strings
     your controls and content.
 */
 class MainComponent   : public Component,
-					    public Timer
+					    public Timer,
+					    public Thread
 {
 public:
     //==============================================================================
     MainComponent();
     ~MainComponent();
+
+    void run() override
+    {
+	    UnitTestRunner r;
+		r.setAssertOnFailure(true);
+		//r.setPassesAreLogged(true);
+		r.runTestsInCategory("dispatch");
+
+        
+        Timer::callAfterDelay(500, [&]()
+        {
+            startButton.setToggleState(false, sendNotificationSync);
+        });
+    }
 
     //==============================================================================
     void paint (Graphics&) override;

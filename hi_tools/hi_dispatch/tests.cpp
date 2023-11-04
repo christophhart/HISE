@@ -42,10 +42,10 @@ inline LoggerTest::LoggerTest():
 
 void LoggerTest::testLogger()
 {
-	beginTest("Testing logger");
+	BEGIN_TEST("Testing logger");
 
 	RootObject root(nullptr);
-	beginTest("testing dispatch logger");
+	BEGIN_TEST("testing dispatch logger");
 	Logger l(root, 0);
 
 	root.setLogger(&l);
@@ -97,7 +97,7 @@ void LoggerTest::testLogger()
 
 void LoggerTest::testQueue()
 {
-	beginTest("Testing queue");
+	BEGIN_TEST("Testing queue");
 
 	RootObject root(nullptr);
 	Logger l(root, 8192);
@@ -187,7 +187,7 @@ void LoggerTest::testQueue()
 
 void LoggerTest::testQueueResume()
 {
-	beginTest("test resuming of queue");
+	BEGIN_TEST("test resuming of queue");
 	RootObject root(nullptr);
 	Logger l(root, 8192);
 	root.setLogger(&l);
@@ -289,10 +289,15 @@ void LoggerTest::testSourceManager()
 	{
 		MySource(SourceManager& sm):
 		  Source(sm, "my_source"),
-		  helloSlot(*this, 13)
+		  helloSlot(*this, 13, "helloSlot")
 		{
 			helloSlot.setNumSlots(8);
 		};
+
+		~MySource()
+		{
+			helloSlot.shutdown();
+		}
 
 		void sendHelloMessage()
 		{
@@ -369,6 +374,7 @@ static LoggerTest loggerTest;
 
 void LoggerTest::runTest()
 {
+	TRACE_DISPATCH("logger test");
 	testQueue();
 	testLogger();
     testQueueResume();
@@ -384,7 +390,7 @@ void CharPtrTest::expectStringResult(const StringBuilder& b, const String& e)
 
 void CharPtrTest::testStringBuilder()
 {
-    beginTest("test StringBuilder << operators");
+    BEGIN_TEST("test StringBuilder << operators");
 
     String s;
 
@@ -450,7 +456,70 @@ void CharPtrTest::testStringBuilder()
 	
 }
 
+void CharPtrTest::runTest()
+{
+	TRACE_DISPATCH("CharPtr test");
+
+	testStringBuilder();
+	testCharPtr<CharPtr>();
+	testCharPtr<HashedCharPtr>();
+        
+}
+
 static CharPtrTest charPtrTest;
+
+void LibraryTest::runTest()
+{
+	// must not run on the message thread!
+	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+
+	BEGIN_TEST("test basic processor");
+
+	init();
+
+	{
+		TRACE_DISPATCH("run test");
+		Thread::getCurrentThread()->wait(500);
+
+		while(!mc->isFinished())
+		{
+			Thread::getCurrentThread()->wait(500);
+		}
+	}
+
+	
+	
+	shutdown();
+}
+
+// get a rough estimate of how much overhead there is in calling buzy_sleep()
+std::chrono::nanoseconds calc_overhead() {
+    using namespace std::chrono;
+    constexpr size_t tests = 1001;
+    constexpr auto timer = 200us;
+
+    auto init = [&timer]() {
+        auto end = steady_clock::now() + timer;
+        while(steady_clock::now() < end);
+    };
+
+    time_point<steady_clock> start;
+    nanoseconds dur[tests];
+
+    for(auto& d : dur) {
+        start = steady_clock::now();
+        init();
+        d = steady_clock::now() - start - timer;
+    }
+    std::sort(std::begin(dur), std::end(dur));
+    // get the median value or something a little less as in this example:
+    return dur[tests / 3];
+}
+
+const std::chrono::nanoseconds dummy::Action::overhead = calc_overhead();
+
+static LibraryTest libraryTest;
+
 
 } // dispatch
 } // hise
