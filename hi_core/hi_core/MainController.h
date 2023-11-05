@@ -1882,6 +1882,9 @@ public:
     
     LambdaBroadcaster<int>& getBlocksizeBroadcaster() { return blocksizeBroadcaster; }
     
+    /** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
+    void setBpm(double bpm_);
+    
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -1895,9 +1898,6 @@ protected:
     void prepareToPlay(double sampleRate_, int samplesPerBlock);
     
 	bool deletePendingFlag = false;
-
-	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
-	void setBpm(double bpm_);
 
 	/** @brief Add this at the beginning of your processBlock() method to enable CPU measurement */
 	void startCpuBenchmark(int bufferSize);
