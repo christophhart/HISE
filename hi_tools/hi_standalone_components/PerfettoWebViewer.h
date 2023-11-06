@@ -42,6 +42,8 @@ struct PerfettoWebviewer: public Component
     PerfettoWebviewer(BackendRootWindow* unused=nullptr);
     ~PerfettoWebviewer();
 
+    static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER("PerfettoWebviewer"); }
+
 	struct Paths: public PathFactory { Path createPath(const String& url) const override; };
 
     void start(bool shouldStart);

@@ -134,11 +134,6 @@ If enabled, then the unit test suite will be compiled and added to all unit test
 
 
 /** Perfetto integration copied from https://github.com/sudara/melatonin_perfetto. */
-
-#ifndef PERFETTO
-    #define PERFETTO 0
-#endif
-
 #if PERFETTO
 
 #include <chrono>
@@ -309,6 +304,7 @@ namespace melatonin
     #define TRACE_DSP(...)
     #define TRACE_COMPONENT(...)
 	#define TRACE_DISPATCH(...)
+	#define TRACE_DYNAMIC_DISPATCH(...)
 #endif
 
 

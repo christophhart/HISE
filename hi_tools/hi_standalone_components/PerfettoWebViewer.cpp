@@ -193,12 +193,23 @@ void PerfettoWebviewer::resized()
 #if !JUCE_USE_WIN_WEBVIEW2
 	    browser->refreshBounds(1.0f);
 #endif
+
+#ifndef PERFETTO
+	browser->setVisible(false);
+#endif
+
 }
 
 void PerfettoWebviewer::paint(Graphics& g)
 {
 	g.fillAll(Colour(0xFF19212b));
-    
+
+#ifndef PERFETTO
+    g.setColour(Colours::white.withAlpha(0.2f));
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText("PERFETTO is diabled. Recompile HISE with the PERFETTO=1 compiler flag...", getLocalBounds().toFloat(), Justification::centred);
+#endif
+
 	if(startButton.getToggleState())
 	{
 		auto b = getLocalBounds().removeFromTop(48).toFloat();

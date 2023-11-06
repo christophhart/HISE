@@ -100,7 +100,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -109,11 +108,12 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=0"
+            extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=0&#10;"
             extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive- /vmg&#10;&#10; "
             IPP1ALibrary="">
       <CONFIGURATIONS>
@@ -135,7 +135,7 @@
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0" libraryPath="C:\Program Files\Faust\lib"
                        postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
         <CONFIGURATION name="Release with Faust" generateManifest="1" winArchitecture="x64"
                        isDebug="0" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
@@ -173,7 +173,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -182,10 +181,11 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" smallIcon="ho3qQy" bigIcon="ho3qQy"
-            useIPP="Sequential" IPPLibrary="" extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=1"
+            useIPP="Sequential" IPPLibrary="" extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=1&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"
             extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive- /vmg&#10;&#10; "
             IPP1ALibrary="Static_Library">
       <CONFIGURATIONS>
@@ -245,7 +245,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -254,6 +253,7 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2022>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
@@ -288,7 +288,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -297,6 +296,7 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
