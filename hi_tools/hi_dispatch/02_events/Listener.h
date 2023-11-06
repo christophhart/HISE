@@ -107,7 +107,7 @@ struct Listener: public Queueable
 		void writeData(Queue& q, EventType t, Queueable* c, uint8* values, uint8 numValues) const;
 
 		/** Parses the data and returns a ListenerData object that is sent to the listener if the listener matches. */
-		ListenerData parseData(const Queue::FlushArgument& f) const;
+		ListenerData parseData(const Queue::FlushArgument& listenerData, const Queue::FlushArgument& eventData) const;
 
 		/** Writes the source pointer to the data slot (and bumps the data pointer). Use inside the Subset function. */
 		static size_t writeSourcePointer(Source* s, uint8** data);

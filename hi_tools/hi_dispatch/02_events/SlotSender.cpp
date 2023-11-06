@@ -59,7 +59,7 @@ SlotSender::~SlotSender()
 
 void SlotSender::setNumSlots(int newNumSlots)
 {
-	if((numSlots + 1) < newNumSlots)
+	if(numSlots < newNumSlots)
 	{
 		data.setSize(newNumSlots + 1);
 		numSlots = newNumSlots;
@@ -68,12 +68,12 @@ void SlotSender::setNumSlots(int newNumSlots)
 	}
 }
 
-bool SlotSender::flush()
+bool SlotSender::flush(NotificationType n)
 {
 	if(!pending)
 		return false;
 			
-	obj.getParentSourceManager().sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1);
+	obj.getParentSourceManager().sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1, n);
 	memset((uint8*)data.getObjectPtr() + 1, 0, numSlots);
 	pending = false;
 	return true;
@@ -98,5 +98,10 @@ bool SlotSender::sendChangeMessage(int indexInSlot, NotificationType notify)
 	return true;
 }
 
+void SlotSender::flushAsyncChanges()
+{
+	if(pending)
+		flush(sendNotificationAsync);
+}
 } // dispatch
 } // hise

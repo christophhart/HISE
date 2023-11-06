@@ -47,13 +47,20 @@ ProcessorHandler::BypassListener::BypassListener(RootObject& r, ListenerOwner& o
 
 void ProcessorHandler::BypassListener::slotChanged(const ListenerData& d)
 {
-	jassert(d.slotIndex == (uint8)SlotTypes::Bypassed);
-	jassert(d.numBytes == 1);
 	jassert(d.t == EventType::SlotChange);
 	jassert(f);
 
-	const auto obj = d.to_static_cast<Processor>();
-	f(obj, obj->isBypassed());
+	auto slotType = (SlotTypes)d.slotIndex;
+
+	if(slotType == SlotTypes::Bypassed)
+	{
+		jassert(d.numBytes == 1);
+
+		TRACE_DISPATCH("onBypass");
+
+		const auto obj = d.to_static_cast<Processor>();
+		f(obj, obj->isBypassed());
+	}
 }
 
 ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
@@ -63,11 +70,40 @@ ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOw
 
 void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 {
-	jassert(d.slotIndex == (uint8)SlotTypes::Bypassed);
-	jassert(d.numBytes == 1);
 	jassert(d.t == EventType::SlotChange);
-	auto obj = d.to_static_cast<Processor>();
-	d.callForEachSetValue([&](uint8 index){ f(obj, index); });
+	jassert(f);
+
+	auto slotType = (SlotTypes)d.slotIndex;
+
+	if(slotType == SlotTypes::Attributes)
+	{
+		auto obj = d.to_static_cast<Processor>();
+		d.callForEachSetValue([&](uint8 index){ f(obj, index); });
+	}
+}
+
+ProcessorHandler::NameAndColourListener::NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
+	Listener(r, owner),
+	f(f_)
+{}
+
+void ProcessorHandler::NameAndColourListener::slotChanged(const ListenerData& d)
+{
+	jassert(d.s != nullptr);
+	jassert(d.t == EventType::SlotChange);
+	auto slotType = (SlotTypes)d.slotIndex;
+
+	if(slotType == SlotTypes::NameAndColour)
+	{
+		jassert(MessageManager::getInstance()->isThisTheMessageThread());
+		jassert(d.numBytes == 2);
+		jassert(f);
+
+		TRACE_DISPATCH("onNameOrColourChange");
+
+		auto obj = d.to_static_cast<Processor>();
+		f(obj);
+	}
 }
 
 ProcessorHandler::ProcessorHandler(RootObject& r):
@@ -101,6 +137,9 @@ void Processor::setBypassed(bool value)
 {
 	if(value != cachedBypassValue)
 	{
+		StringBuilder b;
+		b << getDispatchId() << "::setBypassed()";
+		TRACE_DYNAMIC_DISPATCH(b);
 		cachedBypassValue = value;
 		bypassed.sendChangeMessage(0, sendNotificationSync);
 	}
@@ -123,20 +162,30 @@ void Processor::setNumAttributes(int numAttributes)
 
 void Processor::addBypassListener(BypassListener* l, NotificationType n)
 {
-	uint8 slotIndex = (uint8)SlotTypes::Bypassed;
+	uint8 slotIndex = static_cast<uint8>(SlotTypes::Bypassed);
 	l->addListenerToSingleSource(this, &slotIndex, 1, n);
 }
 
 void Processor::removeBypassListener(BypassListener* l)
 {
-	l->removeListener(getParentSourceManager(), sendNotificationSync);
-	l->removeListener(getParentSourceManager(), sendNotificationAsync);
+	l->removeListener(getParentSourceManager());
 }
 
 void Processor::addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes,
 	NotificationType n)
 {
 	l->addListenerToSingleSourceAndSlotSubset(this, (int)SlotTypes::Attributes, attributeIndexes, numAttributes, n);
+}
+
+void Processor::addNameAndColourListener(NameAndColourListener* l)
+{
+	uint8 slotIndex = static_cast<uint8>(SlotTypes::NameAndColour);
+	l->addListenerToSingleSource(this,  &slotIndex, 1, sendNotificationAsync);
+}
+
+void Processor::removeNameAndColourListener(NameAndColourListener* l)
+{
+	l->removeListener(getParentSourceManager(), sendNotificationAsync);
 }
 
 bool Processor::isBypassed() const noexcept

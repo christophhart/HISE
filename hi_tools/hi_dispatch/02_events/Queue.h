@@ -152,6 +152,8 @@ struct Queue final : public Queueable
 	/** Checks the amount of allocated bytes. */
 	size_t getNumAllocated() const noexcept { return numAllocated; }
 
+	size_t size() const noexcept { return numElements; }
+
 	/** pushes a event to the queue. */
 	bool push(Queueable* s, EventType t, const void* values, size_t numValues);
 

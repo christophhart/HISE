@@ -49,8 +49,11 @@ struct SlotSender
 	~SlotSender();
 
 	void setNumSlots(int newNumSlots);
-	bool flush();
+	bool flush(NotificationType n=sendNotification);
 	bool sendChangeMessage(int indexInSlot, NotificationType notify);
+
+	/** Flushes the change if it's not async. */
+	void flushAsyncChanges();
 
 	// Todo: clear the parent queue with all pending messages. */
 	void shutdown()

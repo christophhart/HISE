@@ -44,10 +44,10 @@ void Listener::EventParser::writeData(Queue& q, EventType t, Queueable* c, uint8
 {
 	if(t == EventType::SingleListener)
 	{
-		// Uses the following byte layout:
-		// Source* ptr [8 bytes]
-		// uint8 numSlots [1 bytes]
-		// slotIndexes [numValues]
+		// The listener data for a single listener uses the following byte layout:
+		// Source* ptr [8 bytes]    - the source that it's listening to
+		// uint8 numSlots [1 bytes] - the number of slots
+		// slotIndexes [numValues]	- the slot indexes it listens to
 		const auto data = (uint8*)alloca(sizeof(void*) + 1 + numValues);
 		auto offset = 0;
 		*reinterpret_cast<RootObject::Child**>(data + offset) = c;
@@ -73,24 +73,66 @@ void Listener::EventParser::writeData(Queue& q, EventType t, Queueable* c, uint8
 	}
 }
 
-Listener::ListenerData Listener::EventParser::parseData(const Queue::FlushArgument& f) const
+Listener::ListenerData Listener::EventParser::parseData(const Queue::FlushArgument& listenerData, const Queue::FlushArgument& eventData) const
 {
-	jassert(f.source == &l);
+	jassert(listenerData.source == &l);
+	jassert(eventData.source != &l);
+	jassert(eventData.eventType == EventType::SlotChange);
+	jassert(eventData.numBytes >= 2); // data[0] = numSlots && data[1] = slotValue with numSlots >= 1
 
-	if(f.eventType == EventType::SingleListener)
+	auto sourceFromEvent = dynamic_cast<Source*>(eventData.source);
+
+	// the slot index of the event (the first byte in the data)
+	auto eventSlotIndex = eventData.data[0];
+
+	// the changed values of the event (offset by 1)
+	auto eventSlotPtr = eventData.data + 1;
+
+	// the number of slots in the data
+	auto numSlotsInEvent = eventData.numBytes - 1;
+
+	if(listenerData.eventType == EventType::SingleListener)
 	{
-		// Extract the Source* pointer and the values
-		// match the source values against the
+		// the single listener pointer is written at the start of the data
+		auto ptr1 = *reinterpret_cast<RootObject::Child**>(listenerData.data);
+		auto sourceFromListener = dynamic_cast<Source*>(ptr1);
+
+		if(sourceFromListener == sourceFromEvent)
+		{
+			// the number of slot indexes that the listener is registered too
+			auto numListenedSlots = *(listenerData.data + sizeof(void*));
+
+			// the pointer to the slot index array
+			uint8* slotPtr = listenerData.data + sizeof(void*) + 1;
+
+			for(int i = 0; i < numListenedSlots; i++)
+			{
+				if(slotPtr[i] == eventSlotIndex)
+				{
+					ListenerData l;
+
+					l.s = sourceFromEvent;
+					l.t = EventType::SlotChange;
+					l.slotIndex = eventSlotIndex;
+					l.numBytes = numSlotsInEvent;
+					l.changes = eventSlotPtr;
+
+					return l;
+				}
+			}
+		}
+
+		return {};
+	}
+	if(listenerData.eventType == EventType::SubsetListener)
+	{
+		jassertfalse;
 		return {}; // TODO
 	}
-	if(f.eventType == EventType::SubsetListener)
-	{
-		return {}; // TODO
-	}
-	if(f.eventType == EventType::AllListener)
+	if(listenerData.eventType == EventType::AllListener)
 	{
 		ListenerData l;
-		l.t = f.eventType;
+		l.t = eventData.eventType;
 		l.s = nullptr;
 		return l;
 	}

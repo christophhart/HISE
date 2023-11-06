@@ -44,7 +44,8 @@ SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   asyncQueue(r, 1024),
   deferedSyncEvents(r, 128),
   asyncListeners(r, 1024),
-  syncListeners(r, 128)
+  syncListeners(r, 128),
+  items(r, sizeof(void*) * 128)
 {
 	jassert(!typeId.isDynamic());
 }
@@ -58,10 +59,13 @@ SourceManager::~SourceManager()
 	deferedSyncEvents.clear();
 }
 
-void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numValues)
+void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numValues, NotificationType n)
 {
+	if(n == sendNotification || n == sendNotificationSync)
 	if(getRootObject().getState() != State::Running)
 	{
+		// TODO: implement flushing the deferred sync events (probably synchronously after resuming the running state)
+		jassertfalse;
 		deferedSyncEvents.push(&s, EventType::SlotChange, values, numValues);
 	}
 	else
@@ -71,18 +75,27 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 
 		syncListeners.flush([&](const Queue::FlushArgument& f)
 		{
+			Queue::FlushArgument eventData;
+			eventData.source = &s;
+			eventData.eventType = EventType::SlotChange;
+			eventData.data = const_cast<uint8*>(values);		// data[0] = slotIndex, data[1+] = the slot values 
+			eventData.numBytes = numValues;
+
 			auto& l = f.getTypedObject<dispatch::Listener>();
 			const dispatch::Listener::EventParser p(l);
-			if(const auto ld = p.parseData(f))
+			if(const auto ld = p.parseData(f, eventData))
 				l.slotChanged(ld);
 
-			return false;
+			return true;
 		}, Queue::FlushType::KeepData);
 	}
 
-	if(!asyncListeners.isEmpty())
+	if(n == sendNotification || n == sendNotificationAsync)
 	{
-		asyncQueue.push(&s, EventType::SlotChange, values, numValues);
+		if(!asyncListeners.isEmpty())
+		{
+			asyncQueue.push(&s, EventType::SlotChange, values, numValues);
+		}
 	}
 }
 
@@ -96,17 +109,25 @@ void SourceManager::timerCallback()
 	if(getRootObject().getState() != State::Running)
 		return;
 
+	// Tell the sources to flush their async changes
+	
+	items.flush([](const Queue::FlushArgument& a)
+	{
+		a.getTypedObject<Source>().flushAsyncChanges();
+		return true;
+	}, Queue::FlushType::KeepData);
+
 	// Implement: flush the queue of async listeners with all pending events that match
-	asyncQueue.flush([&](const Queue::FlushArgument& queuedArgs)
+	asyncQueue.flush([&](const Queue::FlushArgument& eventData)
 	{
 		asyncListeners.flush([&](const Queue::FlushArgument& f)
 		{
 			auto& l = f.getTypedObject<dispatch::Listener>();
 			const dispatch::Listener::EventParser p(l);
-			if(const auto ld = p.parseData(f))
+			if(const auto ld = p.parseData(f, eventData))
 				l.slotChanged(ld);
 
-			return false;
+			return true;
 		}, Queue::FlushType::KeepData);
 
 		return false;
@@ -123,5 +144,10 @@ const Queue& SourceManager::getListenerQueue(NotificationType n) const
 	return n == sendNotificationAsync ? asyncListeners : syncListeners;
 }
 
+void SourceManager::addSource(Source* s)
+{ items.push(s, EventType::SourcePtr, nullptr, 0); }
+
+void SourceManager::removeSource(Source* s)
+{ items.removeAllMatches(s); }
 } // dispatch
 } // hise

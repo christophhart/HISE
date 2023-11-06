@@ -65,7 +65,7 @@ struct ProcessorHandler: public SourceManager
 	 */
 	struct BypassListener final: private dispatch::Listener
 	{
-		using Callback = void(*)(dispatch::library::Processor*, bool);
+		using Callback = std::function<void(dispatch::library::Processor*, bool)>;
 
 		BypassListener(RootObject& r, ListenerOwner& owner, const Callback& f);;
 		~BypassListener() override {};
@@ -95,7 +95,7 @@ struct ProcessorHandler: public SourceManager
 
 	struct NameAndColourListener: private dispatch::Listener
 	{
-		using Callback = void(*)(dispatch::library::Processor*);
+		using Callback = std::function<void(Processor*)>;
 
 		NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~NameAndColourListener() final {};
@@ -120,6 +120,7 @@ struct Processor: public Source
 	using SlotTypes = ProcessorHandler::SlotTypes;
 	using BypassListener = ProcessorHandler::BypassListener;
 	using AttributeListener = ProcessorHandler::AttributeListener;
+	using NameAndColourListener = ProcessorHandler::NameAndColourListener;
 
 	Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id);;
 	~Processor() override;
@@ -152,7 +153,18 @@ struct Processor: public Source
 
 	void addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes, NotificationType n);
 
+	void addNameAndColourListener(NameAndColourListener* l);
+
+	void removeNameAndColourListener(NameAndColourListener* l);
+
 	bool isBypassed() const noexcept;
+
+	void flushAsyncChanges() override
+	{
+		// always sync: attributes.flushAsyncChanges();
+		nameAndColour.flushAsyncChanges();
+		// always sync: bypassed.flushAsyncChanges()
+	}
 
 private:
 

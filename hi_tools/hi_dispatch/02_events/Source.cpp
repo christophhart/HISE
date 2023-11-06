@@ -41,10 +41,14 @@ Source::Source(SourceManager& parent_, SourceOwner& owner_, const HashedCharPtr&
 	parent(parent_),
 	owner(owner_),
 	sourceId(sourceId_)
-{}
+{
+	parent.addSource(this);
+}
 
 Source::~Source()
-{}
+{
+	parent.removeSource(this);
+}
 
 } // dispatch
 } // hise

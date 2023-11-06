@@ -77,6 +77,7 @@ enum class EventType: uint8 // change to HeaderType
 	Add,
 	Remove,
 	SlotChange,
+	SourcePtr,
 	SingleListener,
 	SingleListenerSubset,
 	SubsetListener,

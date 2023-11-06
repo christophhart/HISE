@@ -69,6 +69,8 @@ struct Source: public Queueable
 		return *dynamic_cast<const T*>(&owner);
 	}
 
+	virtual void flushAsyncChanges() {}
+	
 private:
 
 	SourceManager& parent;

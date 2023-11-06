@@ -186,7 +186,7 @@ Action::List Processor::Builder::createActions(const var& jsonData)
 		}
 	}
 
-	jassert(addAction == list.getFirst());
+	jassert(addAction == list.getFirst().get());
 
 	return list;
 }

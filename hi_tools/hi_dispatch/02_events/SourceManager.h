@@ -48,21 +48,24 @@ struct SourceManager  : public Queueable, // not queuable
 	HashedCharPtr getDispatchId() const override { return treeId; }
 
 	/*+ Sends slot changes (values[0] == slotIndex) to the matching listeners. */
-	void sendSlotChanges(Source& s, const uint8* values, size_t numValues);
+	void sendSlotChanges(Source& s, const uint8* values, size_t numValues, NotificationType n=sendNotification);
 	
 	void timerCallback() override;
 
 	Queue& getListenerQueue(NotificationType n);
 	const Queue& getListenerQueue(NotificationType n) const;
-	int getNumChildSources() const { return items.size(); }
+	int getNumChildSources() const { return items.getNumAllocated(); }
 
+	void addSource(Source* s);
+	void removeSource(Source* s);
+	
 private:
 
 	Queue asyncQueue;
 	Queue deferedSyncEvents;
 	Queue asyncListeners;
 	Queue syncListeners;
-	Array<Source*> items;
+	Queue items;
 };
 
 
