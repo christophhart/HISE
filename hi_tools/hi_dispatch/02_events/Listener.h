@@ -36,7 +36,11 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-
+// A base class for all classes that have a Listener as a member
+struct ListenerOwner
+{
+	virtual ~ListenerOwner() {};
+};
 
 // A listener object that receives notifications about events of the SerialisedTree
 // Features:
@@ -78,6 +82,18 @@ struct Listener: public Queueable
 		size_t numBytes;
 	};
 
+	template <typename T> T& getOwner()
+	{
+		static_assert(std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
+		return *dynamic_cast<T*>(&owner);
+	}
+
+	template <typename T> const T& getOwner() const
+	{
+		static_assert(std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
+		return *dynamic_cast<const T*>(&owner);
+	}
+
 	HashedCharPtr getDispatchId() const override { return "listener"; }
 
 	// a function that iterates all children of a source manager and writes the pointers into the byte array
@@ -99,7 +115,7 @@ struct Listener: public Queueable
 		Listener& l;
 	};
 
-	explicit Listener(RootObject& r);
+	explicit Listener(RootObject& r, ListenerOwner& owner);
 	~Listener() override;;
 
 	/** Override this method and implement whatever you want to do with the notification. */
@@ -123,6 +139,10 @@ struct Listener: public Queueable
 
 	/** Removes the listener. */
 	void removeListener(SourceManager& s, NotificationType n = sendNotification);
+
+private:
+
+	ListenerOwner& owner;
 };
 
 using Listener = dispatch::Listener;

@@ -39,7 +39,9 @@ using namespace juce;
 
 #define BEGIN_TEST(x) TRACE_DISPATCH(DYNAMIC_STRING(x)); beginTest(x);
 
-struct LoggerTest: public UnitTest
+struct LoggerTest: public UnitTest,
+				   public SourceOwner,
+				   public ListenerOwner
 {
 	struct MyTestQueuable: public Queueable
 	{

@@ -109,19 +109,9 @@ struct Helpers
 	    }
     }
 
-    static ThreadType getThreadFromName(HashedCharPtr c)
-    {
-        for(int i = 0; i < (int)ThreadType::numThreadTypes; i++)
-        {
-	        if(getThreadName((ThreadType)i) == c)
-                return (ThreadType)i;
-        }
+    static ThreadType getThreadFromName(HashedCharPtr c);
 
-        jassert(c.length() == 0);
-        return ThreadType::Undefined;
-    }
-
-    static uint32 normalisedToTimestamp(float normalised);
+	static uint32 normalisedToTimestamp(float normalised);
 
     /** Use this method whenever you want to simulate a task that
      *  takes a certain amount of time.
@@ -146,9 +136,7 @@ struct Action: public ReferenceCountedObject,
     {
         using Ptr = ReferenceCountedObjectPtr<Builder>;
 
-        Builder(MainController* mc):
-          ControlledObject(mc)
-        {};
+        Builder(MainController* mc);;
 
         virtual ~Builder() {};
 	    virtual Action::List createActions(const var& jsonData) = 0;
@@ -166,49 +154,20 @@ struct Action: public ReferenceCountedObject,
     virtual void perform() = 0;
     StringBuilder& getActionDescription() { return b; }
 
-    void setPreferredThread(ThreadType t)
-    {
-	    preferredThread = t;
-    }
+    void setPreferredThread(ThreadType t);
 
-    void setTimestamp(uint32 newTimestampMilliseconds)
-    {
-	    timestampMilliseconds = newTimestampMilliseconds;
-    }
+    void setTimestamp(uint32 newTimestampMilliseconds);
 
-    void setTimestampNormalised(float normalised)
-    {
-	    timestampMilliseconds = Helpers::normalisedToTimestamp(normalised);
-    }
+    void setTimestampNormalised(float normalised);
 
-    virtual void fromJSON(const var& obj)
-    {
-	    getActionDescription() << obj[ActionIds::id].toString();
-        jassert(obj[ActionIds::type].toString() == type.toString());
+    virtual void fromJSON(const var& obj);;
 
-        auto v = obj[ActionIds::ts];
-
-        if(v.isDouble() && ((double)v < 1.0))
-            setTimestampNormalised((float)v);
-        else
-            setTimestamp((uint32)(int64)v);
-
-        preferredThread = Helpers::getThreadFromName(HashedCharPtr(obj[ActionIds::thread].toString()));
-    };
-
-    virtual var toJSON() const
-    {
-	    auto obj = new DynamicObject();
-        obj->setProperty(ActionIds::type, type.toString());
-        obj->setProperty(ActionIds::id, b.toString());
-        obj->setProperty(ActionIds::ts, (int64)timestampMilliseconds);
-        obj->setProperty(ActionIds::thread, Helpers::getThreadName(preferredThread).toString());
-        return var(obj);
-    }
+    virtual var toJSON() const;
 
     ThreadType getPreferredThread() const { return preferredThread; }
     uint32 getTimestamp() const noexcept { return timestampMilliseconds; }
     Identifier getType() const { return type; }
+
 protected:
 
     const Identifier type;
@@ -223,18 +182,9 @@ struct BusyWaitAction: public Action
 
     void perform() override;
 
-	void fromJSON(const var& obj) override
-	{
-		Action::fromJSON(obj);
-        duration = (float)obj[ActionIds::duration];
-	}
+	void fromJSON(const var& obj) override;
 
-	var toJSON() const override
-	{
-		auto obj = Action::toJSON();
-        obj.getDynamicObject()->setProperty(ActionIds::duration, duration);
-        return obj;
-	}
+	var toJSON() const override;
 
 	float duration;
 };
@@ -248,18 +198,9 @@ struct SleepWait: public Action
 	SleepWait(MainController* mc);
     void perform() override;
 
-    void fromJSON(const var& obj) override
-	{
-		Action::fromJSON(obj);
-        duration = (int)obj[ActionIds::duration];
-	}
+    void fromJSON(const var& obj) override;
 
-	var toJSON() const override
-	{
-		auto obj = Action::toJSON();
-        obj.getDynamicObject()->setProperty(ActionIds::duration, duration);
-        return obj;
-	}
+	var toJSON() const override;
 
 	StringBuilder b;
 	int duration;

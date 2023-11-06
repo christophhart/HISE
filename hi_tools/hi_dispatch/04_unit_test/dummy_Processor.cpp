@@ -205,7 +205,7 @@ void Processor::setBypassed(bool shouldBeBypassed, NotificationType n)
 
 Processor::Processor(MainController* mc, HashedCharPtr id):
 	ControlledObject(mc),
-	dispatcher(mc->processorHandler, id)
+	dispatcher(mc->processorHandler, *this, id)
 {
 	dispatcher.setNumAttributes(30);
 	Helpers::busyWait(Random::getSystemRandom().nextFloat() * 4.0);

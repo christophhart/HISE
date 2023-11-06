@@ -36,13 +36,20 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+// This baseclass will be used by all classes that have a dispatch::Source member
+// for handling the events.
+// You need to pass in a reference to the owner class into the constructor of a Source
+struct SourceOwner
+{
+	virtual ~SourceOwner() {};
+};
 
 // just a interface class. 
 // Subclass all classes that have a SlotSender from this class
 // (the item class will keep a reference to this as member to send)
 struct Source: public Queueable
 {
-	Source(SourceManager& parent_, const HashedCharPtr& sourceId_ );
+	Source(SourceManager& parent_, SourceOwner& owner, const HashedCharPtr& sourceId_ );
 	~Source() override;
 
 	HashedCharPtr getDispatchId() const override { return sourceId; }
@@ -50,8 +57,23 @@ struct Source: public Queueable
 	SourceManager& getParentSourceManager() noexcept { return parent; }
 	const SourceManager& getParentSourceManager() const noexcept { return parent; }
 
+	template <typename T> T& getOwner()
+	{
+		static_assert(std::is_base_of<SourceOwner, T>(), "not a base of source owner");
+		return *dynamic_cast<T*>(&owner);
+	}
+
+	template <typename T> const T& getOwner() const
+	{
+		static_assert(std::is_base_of<SourceOwner, T>(), "not a base of source owner");
+		return *dynamic_cast<const T*>(&owner);
+	}
+
+private:
+
 	SourceManager& parent;
 	HashedCharPtr sourceId;
+	SourceOwner& owner;
 };
 
 // defers listChanged calls until done, then send a EventAction PostDefer message

@@ -38,7 +38,8 @@ namespace dispatch {
 namespace dummy {
 using namespace juce;
 
-struct Processor: public ControlledObject
+struct Processor: public ControlledObject,
+				  public SourceOwner
 {
     struct AddAction;
     struct ActionBase;

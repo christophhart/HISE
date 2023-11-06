@@ -300,8 +300,8 @@ void LoggerTest::testSourceManager()
 
 	struct MySource: public Source
 	{
-		MySource(SourceManager& sm):
-		  Source(sm, "my_source"),
+		MySource(SourceManager& sm, LoggerTest& l):
+		  Source(sm, l, "my_source"),
 		  helloSlot(*this, 13, "helloSlot")
 		{
 			helloSlot.setNumSlots(8);
@@ -321,12 +321,12 @@ void LoggerTest::testSourceManager()
 		SlotSender helloSlot;
 	};
 
-	MySource src(sm);
+	MySource src(sm, *this);
 
 	struct MyListener: public Listener
 	{
-		MyListener(RootObject& r):
-		  Listener(r)
+		MyListener(RootObject& r, ListenerOwner& owner):
+		  Listener(r, owner)
 		{
 			
 		}
@@ -349,7 +349,7 @@ void LoggerTest::testSourceManager()
 		bool changed = false;
 	};
 
-	MyListener l(root);
+	MyListener l(root, *this);
 
 	l.addListenerToAllSources(sm, sendNotificationSync);
 

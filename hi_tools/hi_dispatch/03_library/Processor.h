@@ -59,12 +59,15 @@ struct ProcessorHandler: public SourceManager
 		Bypassed,
 		numSlotTypes
 	};
-
+	
+	/** Add this as a member to your listener class and give it a callback
+	 *  that is executed whenever the bypass state changes
+	 */
 	struct BypassListener final: private dispatch::Listener
 	{
-		using Callback = void(*)(Processor*, bool);
+		using Callback = void(*)(dispatch::library::Processor*, bool);
 
-		BypassListener(RootObject& r, const Callback& f);;
+		BypassListener(RootObject& r, ListenerOwner& owner, const Callback& f);;
 		~BypassListener() override {};
 		
 	private:
@@ -77,10 +80,25 @@ struct ProcessorHandler: public SourceManager
 
 	struct AttributeListener final: private dispatch::Listener
 	{
-		using Callback = void(*)(Processor*, uint8);
+		using Callback = void(*)(dispatch::library::Processor*, uint8);
 
-		AttributeListener(RootObject& r, const Callback& f_);;
+		AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~AttributeListener() final {};
+		
+	private:
+
+		friend class Processor;
+		const Callback f;
+		
+		void slotChanged(const ListenerData& d) final;
+	};
+
+	struct NameAndColourListener: private dispatch::Listener
+	{
+		using Callback = void(*)(dispatch::library::Processor*);
+
+		NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
+		~NameAndColourListener() final {};
 		
 	private:
 
@@ -103,7 +121,7 @@ struct Processor: public Source
 	using BypassListener = ProcessorHandler::BypassListener;
 	using AttributeListener = ProcessorHandler::AttributeListener;
 
-	Processor(ProcessorHandler& h, const HashedCharPtr& id);;
+	Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id);;
 	~Processor() override;
 
 	/** Call this whenever the attributes change. You can specify a notification type
@@ -154,8 +172,13 @@ struct Modulator final: public Processor
 		numModulatorSlotTypes
 	};
 
-	Modulator(ProcessorHandler& h, const HashedCharPtr& id);;
+	Modulator(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id);;
 	~Modulator() override;
+
+	void setIntensity(float newIntensity)
+	{
+		intensity.sendChangeMessage(0, sendNotificationSync);
+	}
 
 	SlotSender intensity;
 	SlotSender other;

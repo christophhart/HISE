@@ -108,7 +108,7 @@ size_t Listener::EventParser::writeSourcePointer(Source* s, uint8** data)
 	return offset + sizeof(Source*);
 }
 
-Listener::Listener(RootObject& r): Queueable(r) {}
+Listener::Listener(RootObject& r, ListenerOwner& owner_): Queueable(r), owner(owner_) {}
 
 Listener::~Listener() {}
 

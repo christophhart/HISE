@@ -73,7 +73,7 @@ bool SlotSender::flush()
 	if(!pending)
 		return false;
 			
-	obj.parent.sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1);
+	obj.getParentSourceManager().sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1);
 	memset((uint8*)data.getObjectPtr() + 1, 0, numSlots);
 	pending = false;
 	return true;

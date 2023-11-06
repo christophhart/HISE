@@ -62,6 +62,18 @@ std::chrono::nanoseconds calc_overhead() {
 
 const std::chrono::nanoseconds dummy::Action::overhead = calc_overhead();
 
+ThreadType Helpers::getThreadFromName(HashedCharPtr c)
+{
+	for(int i = 0; i < (int)ThreadType::numThreadTypes; i++)
+	{
+		if(getThreadName((ThreadType)i) == c)
+			return (ThreadType)i;
+	}
+
+	jassert(c.length() == 0);
+	return ThreadType::Undefined;
+}
+
 inline uint32 Helpers::normalisedToTimestamp(float normalised)
 {
 	return (uint32)roundToInt(normalised * (float)(NumTotalSeconds * 1000));
@@ -75,6 +87,10 @@ void Helpers::busyWait(float milliseconds)
 	auto end = std::chrono::steady_clock::now() + t - Action::overhead;
 	while(std::chrono::steady_clock::now() < end);
 }
+
+Action::Builder::Builder(MainController* mc):
+	ControlledObject(mc)
+{}
 
 int Action::Sorter::compareElements(Action* first, Action* second)
 {
@@ -91,6 +107,46 @@ Action::Action(MainController* mc, const Identifier& type_):
     type(type_)
 {}
 
+void Action::setPreferredThread(ThreadType t)
+{
+	preferredThread = t;
+}
+
+void Action::setTimestamp(uint32 newTimestampMilliseconds)
+{
+	timestampMilliseconds = newTimestampMilliseconds;
+}
+
+void Action::setTimestampNormalised(float normalised)
+{
+	timestampMilliseconds = Helpers::normalisedToTimestamp(normalised);
+}
+
+void Action::fromJSON(const var& obj)
+{
+	getActionDescription() << obj[ActionIds::id].toString();
+	jassert(obj[ActionIds::type].toString() == type.toString());
+
+	auto v = obj[ActionIds::ts];
+
+	if(v.isDouble() && ((double)v < 1.0))
+		setTimestampNormalised((float)v);
+	else
+		setTimestamp((uint32)(int64)v);
+
+	preferredThread = Helpers::getThreadFromName(HashedCharPtr(obj[ActionIds::thread].toString()));
+}
+
+var Action::toJSON() const
+{
+	auto obj = new DynamicObject();
+	obj->setProperty(ActionIds::type, type.toString());
+	obj->setProperty(ActionIds::id, b.toString());
+	obj->setProperty(ActionIds::ts, (int64)timestampMilliseconds);
+	obj->setProperty(ActionIds::thread, Helpers::getThreadName(preferredThread).toString());
+	return var(obj);
+}
+
 BusyWaitAction::BusyWaitAction(MainController* mc):
 	Action(mc, ActionTypes::busywait),
 	duration(0)
@@ -101,6 +157,19 @@ BusyWaitAction::BusyWaitAction(MainController* mc):
 void BusyWaitAction::perform()
 {
 	Helpers::busyWait(duration);
+}
+
+void BusyWaitAction::fromJSON(const var& obj)
+{
+	Action::fromJSON(obj);
+	duration = (float)obj[ActionIds::duration];
+}
+
+var BusyWaitAction::toJSON() const
+{
+	auto obj = Action::toJSON();
+	obj.getDynamicObject()->setProperty(ActionIds::duration, duration);
+	return obj;
 }
 
 SleepWait::SleepWait(MainController* mc):
@@ -115,10 +184,25 @@ void SleepWait::perform()
 	Thread::getCurrentThread()->wait(duration);
 }
 
+void SleepWait::fromJSON(const var& obj)
+{
+	Action::fromJSON(obj);
+	duration = (int)obj[ActionIds::duration];
+}
+
+var SleepWait::toJSON() const
+{
+	auto obj = Action::toJSON();
+	obj.getDynamicObject()->setProperty(ActionIds::duration, duration);
+	return obj;
+}
+
 Action::List RandomActionBuilder::createActions(const var& jsonData)
 {
 	Random r;
 	Action::List list;
+
+	// Create a function that will update the current
 
 	if(jsonData.size() > 0)
 	{

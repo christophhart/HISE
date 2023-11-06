@@ -39,8 +39,8 @@ using namespace juce;
 namespace library {
 using namespace juce;
 
-ProcessorHandler::BypassListener::BypassListener(RootObject& r, const Callback& f_):
-	Listener(r),
+ProcessorHandler::BypassListener::BypassListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
+	Listener(r, owner),
 	f(f_)
 {}
 
@@ -56,8 +56,8 @@ void ProcessorHandler::BypassListener::slotChanged(const ListenerData& d)
 	f(obj, obj->isBypassed());
 }
 
-ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, const Callback& f_):
-	Listener(r),
+ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
+	Listener(r, owner),
 	f(f_)
 {}
 
@@ -74,8 +74,8 @@ ProcessorHandler::ProcessorHandler(RootObject& r):
   SourceManager(r, IDs::source::modules)
 {}
 
-Processor::Processor(ProcessorHandler& h, const HashedCharPtr& id):
-	Source(h, id),
+Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):
+	Source(h, owner, id),
 	attributes(*this, (int)SlotTypes::Attributes, IDs::event::attribute),
 	nameAndColour(*this, (int)SlotTypes::NameAndColour, IDs::event::namecolour),
 	bypassed(*this, (int)SlotTypes::Bypassed, IDs::event::bypassed)
@@ -129,8 +129,8 @@ void Processor::addBypassListener(BypassListener* l, NotificationType n)
 
 void Processor::removeBypassListener(BypassListener* l)
 {
-	l->removeListener(parent, sendNotificationSync);
-	l->removeListener(parent, sendNotificationAsync);
+	l->removeListener(getParentSourceManager(), sendNotificationSync);
+	l->removeListener(getParentSourceManager(), sendNotificationAsync);
 }
 
 void Processor::addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes,
@@ -144,11 +144,14 @@ bool Processor::isBypassed() const noexcept
 	return cachedBypassValue;	
 }
 
-Modulator::Modulator(ProcessorHandler& h, const HashedCharPtr& id):
-	Processor(h, id),
+Modulator::Modulator(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):
+	Processor(h, owner, id),
 	intensity(*this, (int)ModulatorSlotTypes::Intensity, IDs::event::intensity),
 	other(*this, (int)ModulatorSlotTypes::Other, IDs::event::othermod)
-{}
+{
+	intensity.setNumSlots(1);
+	other.setNumSlots(4);
+}
 
 Modulator::~Modulator()
 {
