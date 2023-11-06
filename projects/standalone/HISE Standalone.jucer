@@ -44,7 +44,7 @@
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="ho3qQy" bigIcon="ho3qQy"
                customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"
-               extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000"
+               extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;PERFETTO=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -faligned-allocation -Wno-switch"
                xcodeValidArchs="arm64,arm64e,x86_64" extraLinkerFlags="-rpath $(SRCROOT)/../../../../tools/faust/lib "
                externalLibraries="faust">
@@ -70,7 +70,7 @@
                        enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
                        libraryPath="../../../../tools/faust/lib" binaryPath="Builds/MacOSX/build/Release"
                        headerPath="../../../../tools/faust/include&#10;../../../../tools/SDK/perfetto"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
         <CONFIGURATION name="Debug with Faust" osxCompatibility="10.13 SDK" isDebug="1"
                        optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
                        cppLibType="libc++" enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"

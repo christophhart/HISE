@@ -383,8 +383,18 @@ void Processor::DisplayValues::clear()
 Processor::DisplayValues Processor::getDisplayValues() const
 { return currentValues;}
 
+Processor::BypassListener::BypassListener(dispatch::RootObject& r):
+  dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(BypassListener::onBypassUpdate))
+{}
+
 Processor::BypassListener::~BypassListener()
 {}
+
+void Processor::BypassListener::onBypassUpdate(dispatch::library::Processor* p, bool state)
+{
+    auto pr = &p->getOwner<hise::Processor>();
+    bypassStateChanged(pr, state);
+}
 
 String Processor::getDescriptionForParameters(int parameterIndex)
 {
