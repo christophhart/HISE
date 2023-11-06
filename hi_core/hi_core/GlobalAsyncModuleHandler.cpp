@@ -153,6 +153,10 @@ MainController::ProcessorChangeHandler::Listener::~Listener()
 void MainController::ProcessorChangeHandler::sendProcessorChangeMessage(Processor* changedProcessor, EventType type,
 	bool synchronous)
 {
+	// temporary, just to deactivate all old notifications...
+	if(type == EventType::ProcessorBypassed || type == EventType::ProcessorColourChange || type == EventType::ProcessorRenamed)
+		return;
+	
 	tempProcessor = changedProcessor;
 	tempType = type;
 

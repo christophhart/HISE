@@ -1012,6 +1012,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 																	   public hise::Processor::BypassListener
 {
 	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
+	    BypassListener(p_->getMainController()->getRootDispatcher()),
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
@@ -1046,7 +1047,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
             }
             else
             {
-                p->addBypassListener(this);
+                p->addBypassListener(this, sendNotificationSync);
                 bypassIdAsVar = var(specialId.toString());
             }
 		}

@@ -32,6 +32,7 @@
 
 #ifndef PROCESSOREDITORHEADER_H_INCLUDED
 #define PROCESSOREDITORHEADER_H_INCLUDED
+#include "hi_core/hi_dsp/Processor.h"
 
 namespace hise { using namespace juce;
 
@@ -47,6 +48,7 @@ class VuMeter;
 class ProcessorEditorHeader  : public ProcessorEditorChildComponent,
                                public SliderListener,
 							   public LabelListener,
+							   public Processor::BypassListener,
                                public ButtonListener,
 							   public GlobalScriptCompileListener,
 							   public Timer
@@ -62,7 +64,19 @@ public:
 	void update(bool force);
 	void createProcessorFromPopup(Processor *insertBeforeSibling=nullptr);
 
-	void timerCallback() override;
+    void updateIdAndColour(dispatch::library::Processor* p)
+    {
+		idLabel->setText(p->getOwner<hise::Processor>().getId(), dontSendNotification);
+		repaint();
+		// skip colour, it's a icon colour (ideally the modulator synth should be a listener that updates the icon colour itself)
+    }
+
+	void bypassStateChanged(Processor* p, bool state) override
+	{
+		bypassButton->setToggleState(state, dontSendNotification);
+	}
+
+    void timerCallback() override;
 
 	void refreshShapeButton(ShapeButton *b);
 
@@ -126,6 +140,8 @@ public:
 	void setupButton(DrawableButton *b, ButtonShapes::Symbol s);
 
 private:
+
+	dispatch::library::ProcessorHandler::NameAndColourListener idAndNameListener;
 
 	void addProcessor(Processor *processorToBeAdded, Processor *insertBeforeSibling);
 

@@ -44,6 +44,8 @@ MainController::MainController() :
 
 	sampleManager(new SampleManager(this)),
 	javascriptThreadPool(new JavascriptThreadPool(this)),
+	rootDispatcher(getGlobalUIUpdater()),
+	processorHandler(rootDispatcher),
 	expansionHandler(this),
 	allNotesOffFlag(false),
 	processingBufferSize(-1),
@@ -106,10 +108,6 @@ MainController::MainController() :
 	hostInfo = new DynamicObject();
     
 	startTimer(HISE_UNDO_INTERVAL);
-    
-#if PERFETTO
-    MelatoninPerfetto::get().beginSession();
-#endif
 };
 
 
@@ -131,10 +129,6 @@ MainController::~MainController()
 
 	sampleManager = nullptr;
 	javascriptThreadPool = nullptr;
-    
-#if PERFETTO
-    MelatoninPerfetto::get().endSession();
-#endif
 }
 
 

@@ -36,8 +36,13 @@ namespace hise { using namespace juce;
 
 ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	ProcessorEditorChildComponent(p),
+	BypassListener(p->getProcessor()->getMainController()->getRootDispatcher()),
+	idAndNameListener(p->getProcessor()->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_1(ProcessorEditorHeader::updateIdAndColour)),
 	isSoloHeader(false)
 {
+	p->getProcessor()->addNameAndColourListener(&idAndNameListener);
+	p->getProcessor()->addBypassListener(this, sendNotificationAsync);
+
 	setLookAndFeel();
 
 	p->getProcessor()->getMainController()->addScriptListener(this);
@@ -306,6 +311,12 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 ProcessorEditorHeader::~ProcessorEditorHeader()
 {
+	if(auto p = getProcessor())
+	{
+		p->removeNameAndColourListener(&idAndNameListener);
+		p->removeBypassListener(this);
+	}
+
 	getProcessor()->getMainController()->removeScriptListener(this);
 
     valueMeter = nullptr;
@@ -864,10 +875,12 @@ void ProcessorEditorHeader::update(bool force)
 {
 	Processor *p = getProcessor();
 
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassButton->setToggleState(!p->isBypassed(), dontSendNotification);
 
 	if(!idLabel->isBeingEdited() && force)
 		idLabel->setText(p->getId(), dontSendNotification);
+#endif
 
 	if(isHeaderOfModulator())
 	{
@@ -992,9 +1005,6 @@ void ProcessorEditorHeader::timerCallback()
 			{
 				valueMeter->setPeak(outputValue, -1.0f);
 			}
-
-			
-			
 		}
 		else
 		{

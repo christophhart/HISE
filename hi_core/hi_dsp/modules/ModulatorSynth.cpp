@@ -218,8 +218,14 @@ int ModulatorSynth::getNumInternalChains() const
 
 void ModulatorSynth::setIconColour(Colour newIconColour)
 { 
-	iconColour = newIconColour; 
+	iconColour = newIconColour;
+
+#if HISE_OLD_PROCESSOR_DISPATCH
 	getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setColour(iconColour);
+#endif
 }
 
 Colour ModulatorSynth::getIconColour() const

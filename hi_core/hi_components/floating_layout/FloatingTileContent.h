@@ -352,6 +352,7 @@ public:
             DspFaustEditorPanel,
 			ScriptBroadcasterMap,
 			ProjectManagementTable,
+			PerfettoViewer,
 			ExpansionEditBar,
 			ModuleBrowser,
 			PatchBrowser,

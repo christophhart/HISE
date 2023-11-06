@@ -44,6 +44,7 @@ void Processor::debugProcessor(const String &t)
 
 Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	ControlledObject(m),
+	dispatcher(m->getProcessorDispatchHandler(), *this, dispatch::HashedCharPtr(id_)),
 	id(id_),
 	consoleEnabled(false),
 	bypassed(false),
@@ -234,11 +235,18 @@ void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
 		idAsIdentifier = Identifier();
 	}
 
+#if HISE_OLD_PROCESSOR_DISPATCH
 	sendChangeMessage();
 
 	if (notifyChangeHandler)
 		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
 			MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setId(newId);
+#endif
+
+
 }
 
 const Identifier& Processor::getIDAsIdentifier() const
@@ -253,10 +261,17 @@ void Processor::setBypassed(bool shouldBeBypassed, NotificationType notifyChange
 		bypassed = shouldBeBypassed;
 		currentValues.clear();
 
+#if HISE_OLD_PROCESSOR_DISPATCH
+#if 0
 		sendSynchronousBypassChangeMessage();
 
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
+#endif
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+		dispatcher.setBypassed(shouldBeBypassed);
+#endif
 	}		
 }
 
@@ -412,14 +427,25 @@ void Processor::removeDeleteListener(DeleteListener* listener)
 	deleteListeners.removeAllInstancesOf(listener);
 }
 
-void Processor::addBypassListener(BypassListener* l)
+void Processor::addBypassListener(BypassListener* l, NotificationType n)
 {
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.addBypassListener(&l->dispatcher, n);
+#endif
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassListeners.addIfNotAlreadyThere(l);
+#endif
 }
 
 void Processor::removeBypassListener(BypassListener* l)
 {
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.removeBypassListener(&l->dispatcher);
+#endif
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassListeners.removeAllInstancesOf(l);
+#endif
+	
 }
 
 void Processor::setParentProcessor(Processor* newParent)

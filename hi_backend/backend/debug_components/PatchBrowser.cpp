@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include "PatchBrowser.h"
+
 namespace hise { using namespace juce;
 
 // ====================================================================================================================
@@ -1029,9 +1031,12 @@ void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float
 
 PatchBrowser::PatchCollection::PatchCollection(ModulatorSynth *synth, int hierarchy_, bool showChains) :
 ModuleDragTarget(synth),
+BypassListener(synth->getMainController()->getRootDispatcher()),
+idAndColourDispatcher(synth->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_1(PatchCollection::updateIdAndColour)),
 hierarchy(hierarchy_)
 {
-	synth->addBypassListener(this);
+	synth->addBypassListener(this, sendNotificationAsync);
+	synth->addNameAndColourListener(&idAndColourDispatcher);
 	addAndMakeVisible(peak);
 	addAndMakeVisible(idLabel);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
@@ -1114,7 +1119,10 @@ hierarchy(hierarchy_)
 PatchBrowser::PatchCollection::~PatchCollection()
 {
 	if(getProcessor() != nullptr)
+	{
 		getProcessor()->removeBypassListener(this);
+		getProcessor()->removeNameAndColourListener(&idAndColourDispatcher);
+	}
 }
 
 void PatchBrowser::PatchCollection::mouseDown(const MouseEvent& e)
@@ -1371,6 +1379,7 @@ void PatchBrowser::PatchCollection::toggleShowChains()
 
 PatchBrowser::PatchItem::PatchItem(Processor *p, Processor *parent_, int hierarchy_, const String &searchTerm) :
 Item(searchTerm.toLowerCase()),
+BypassListener(p->getMainController()->getRootDispatcher()),
 ModuleDragTarget(p),
 parent(parent_),
 lastId(String()),
@@ -1381,7 +1390,7 @@ lastMouseDown(0)
     
 	addAndMakeVisible(closeButton);
 	addAndMakeVisible(createButton);
-	p->addBypassListener(this);
+	p->addBypassListener(this, sendNotificationAsync);
 
     addAndMakeVisible(idLabel);
 	addAndMakeVisible(gotoWorkspace);

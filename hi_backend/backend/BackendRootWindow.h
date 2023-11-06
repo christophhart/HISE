@@ -178,7 +178,9 @@ public:
 
 	FloatingTile* getRootFloatingTile() override { return floatingRoot; }
 
+#if HISE_OLD_PROCESSOR_DISPATCH
 	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }
+#endif
 
     void projectChanged(const File& newWorkingDirectory) override
     {

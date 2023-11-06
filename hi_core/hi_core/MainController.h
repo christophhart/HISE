@@ -1077,6 +1077,7 @@ public:
 		MainController * mc;
 	};
 
+	// TODO before remove: implement add / remove listeners for dispatch::library::ProcessorHandler
 	class ProcessorChangeHandler : public AsyncUpdater
 	{
 	public:
@@ -1395,8 +1396,10 @@ public:
 	CodeHandler& getConsoleHandler() noexcept { return codeHandler; };
 	const CodeHandler& getConsoleHandler() const noexcept { return codeHandler; };
 
+#if HISE_OLD_PROCESSOR_DISPATCH
 	ProcessorChangeHandler& getProcessorChangeHandler() noexcept { return processorChangeHandler; }
 	const ProcessorChangeHandler& getProcessorChangeHandler() const noexcept { return processorChangeHandler; }
+#endif
 
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
@@ -1413,9 +1416,14 @@ public:
 	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
 	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
 
+	dispatch::RootObject& getRootDispatcher() { return rootDispatcher; }
+	const dispatch::RootObject& getRootDispatcher() const { return rootDispatcher; }
+
+	dispatch::library::ProcessorHandler& getProcessorDispatchHandler() { return processorHandler; }
+	const dispatch::library::ProcessorHandler& getProcessorDispatchHandler() const { return processorHandler; }
+
 	ProjectDocDatabaseHolder* getProjectDocHolder();
 	
-
 	void initProjectDocsWithURL(const String& projectDocURL);
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
@@ -1992,6 +2000,8 @@ private:
 	bool embedAllResources = false;
 
 	PooledUIUpdater globalUIUpdater;
+	dispatch::RootObject rootDispatcher;
+	dispatch::library::ProcessorHandler processorHandler;
 
 	AudioSampleBuffer previewBuffer;
 	double previewBufferIndex = -1.0;

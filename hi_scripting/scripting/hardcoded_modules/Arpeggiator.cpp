@@ -35,9 +35,10 @@ namespace hise { using namespace juce;
 #define LOG_ARP(x)
 
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
-	HardcodedScriptProcessor(mc, id, ms)
+	HardcodedScriptProcessor(mc, id, ms),
+	BypassListener(mc->getRootDispatcher())
 {
-	addBypassListener(this);
+	addBypassListener(this, sendNotificationSync);
 
 	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
 

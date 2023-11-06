@@ -41,8 +41,10 @@ class BackendProcessorEditor;
 class PatchBrowser : public SearchableListComponent,
 					 public DragAndDropTarget,
 					 public ButtonListener,
-					 public Timer,
-					 public MainController::ProcessorChangeHandler::Listener
+#if HISE_OLD_PROCESSOR_DISPATCH
+				     public MainController::ProcessorChangeHandler::Listener,
+#endif
+					 public Timer
 {
 
 public:
@@ -269,12 +271,21 @@ private:
 	class PatchCollection : public SearchableListComponent::Collection,
 							public ModuleDragTarget,
 							public Processor::BypassListener
+							
 	{
 	public:
 
 		PatchCollection(ModulatorSynth *synth, int hierarchy, bool showChains);
 
 		~PatchCollection();
+
+		void updateIdAndColour(dispatch::library::Processor* p)
+		{
+			jassert(&p->getOwner<hise::Processor>() == getProcessor());
+			idLabel.setText(p->getOwner<hise::Processor>().getId(), dontSendNotification);
+			
+			repaint();
+		}
 
 		void bypassStateChanged(Processor* p, bool bypassState) override
 		{
@@ -334,6 +345,11 @@ private:
 		bool inPopup = false;
 		ScopedPointer<ShapeButton> foldButton;
 		int hierarchy;
+
+		
+#if HISE_NEW_PROCESSOR_DISPATCH
+		dispatch::library::ProcessorHandler::NameAndColourListener idAndColourDispatcher;
+#endif
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchCollection)
         JUCE_DECLARE_WEAK_REFERENCEABLE(PatchCollection);

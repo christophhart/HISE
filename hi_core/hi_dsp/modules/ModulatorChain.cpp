@@ -1159,7 +1159,8 @@ void ModulatorChain::setIsVoiceStartChain(bool isVoiceStartChain_)
 	}
 }
 
-ModulatorChain::ModulatorChainHandler::ModulatorChainHandler(ModulatorChain *handledChain) : 
+ModulatorChain::ModulatorChainHandler::ModulatorChainHandler(ModulatorChain *handledChain) :
+	BypassListener(handledChain->getMainController()->getRootDispatcher()),
 	chain(handledChain),
 	tableValueConverter(Table::getDefaultTextValue)
 {}
@@ -1235,7 +1236,7 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	newModulator->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
-	newModulator->addBypassListener(this);
+	newModulator->addBypassListener(this, sendNotificationSync);
 
 	if (chain->isInitialized())
 		newModulator->prepareToPlay(chain->getSampleRate(), chain->blockSize);

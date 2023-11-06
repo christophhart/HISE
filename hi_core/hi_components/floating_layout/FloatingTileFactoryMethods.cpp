@@ -103,6 +103,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptingObjects::ScriptBroadcasterPanel>(PopupMenuOptions::ScriptBroadcasterMap);
 
 	registerType<GenericPanel<ProjectManagement::TableComponent>>(PopupMenuOptions::ProjectManagementTable);
+	registerType<GenericPanel<PerfettoWebviewer>>(PopupMenuOptions::PerfettoViewer);
 
 #endif
 
@@ -626,6 +627,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
 			addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
 			addToPopupMenu(m, PopupMenuOptions::ProjectManagementTable, "Project Management Tracker");
+			addToPopupMenu(m, PopupMenuOptions::PerfettoViewer, "Perfetto Viewer");
 
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
