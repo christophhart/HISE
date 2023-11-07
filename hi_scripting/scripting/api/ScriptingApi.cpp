@@ -2596,7 +2596,6 @@ void ScriptingApi::Engine::saveUserPreset(var presetName)
 {
 	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(presetName.getObject()))
 	{
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(sf->f);
 		UserPresetHelpers::saveUserPreset(getProcessor()->getMainController()->getMainSynthChain(), sf->f.getFullPathName());
 	}
 	else
@@ -3042,7 +3041,6 @@ void ScriptingApi::Engine::loadUserPreset(var file)
     else if (userPresetToLoad.existsAsFile())
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPresetToLoad);
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPresetToLoad);
 	}
 	else
 	{

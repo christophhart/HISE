@@ -1915,11 +1915,11 @@ float MainController::getGlobalCodeFontSize() const
 }
 
 
-void MainController::loadUserPresetAsync(const ValueTree& v)
+void MainController::loadUserPresetAsync(const File& f)
 {
 	//getMainSynthChain()->killAllVoices();
 	//presetLoadRampFlag.set(OldUserPresetHandler::FadeOut);
-	userPresetHandler.loadUserPreset(v);
+	userPresetHandler.loadUserPreset(f);
 }
 
 #if USE_BACKEND
@@ -2150,12 +2150,9 @@ void MainController::UserPresetHandler::DefaultPresetManager::resetToDefault()
 	{
 		auto& up = getMainController()->getUserPresetHandler();
 		
-		if (defaultFile.existsAsFile())
-			up.setCurrentlyLoadedFile(defaultFile);
-		
 		MainController::ScopedBadBabysitter sbs(getMainController());
 
-		up.loadUserPreset(defaultPreset, false);
+		up.loadUserPresetFromValueTree(defaultPreset, up.currentlyLoadedFile, defaultFile, false);
 	}
 		
 }

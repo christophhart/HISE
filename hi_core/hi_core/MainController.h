@@ -718,9 +718,11 @@ public:
 		struct UndoableUserPresetLoad : public ControlledObject,
 										public UndoableAction
 		{
-			UndoableUserPresetLoad(MainController* mc, ValueTree newPreset_, ValueTree forcedOld=ValueTree()):
+			UndoableUserPresetLoad(MainController* mc, const File& oldFile_, const File& newFile_, ValueTree newPreset_, ValueTree forcedOld=ValueTree()):
 				ControlledObject(mc),
-				newPreset(newPreset_)
+				newPreset(newPreset_),
+			    oldFile(oldFile_),
+			    newFile(newFile_)
 			{
 				if (forcedOld.isValid())
 					oldPreset = forcedOld;
@@ -730,26 +732,28 @@ public:
 
 			bool perform() override
 			{
-				getMainController()->getUserPresetHandler().loadUserPreset(newPreset, false);
+				getMainController()->getUserPresetHandler().loadUserPresetFromValueTree(newPreset, oldFile, newFile, false);
 				return true;
 			}
 
 			bool undo() override
 			{
-				getMainController()->getUserPresetHandler().loadUserPreset(oldPreset, false);
+				getMainController()->getUserPresetHandler().loadUserPresetFromValueTree(oldPreset, newFile, oldFile, false);
 				return true;
 			}
 
 			UndoableAction* createCoalescedAction(UndoableAction* nextAction) override
 			{
 				if (auto upAction = dynamic_cast<UndoableUserPresetLoad*>(nextAction))
-					return new UndoableUserPresetLoad(getMainController(), upAction->newPreset, oldPreset);
+					return new UndoableUserPresetLoad(getMainController(), oldFile, upAction->newFile, upAction->newPreset, oldPreset);
 
 				return nullptr;
 			}
 
 			ValueTree oldPreset;
 			ValueTree newPreset;
+			File oldFile;
+			File newFile;
 		};
 
 		struct TagDataBase
@@ -833,8 +837,8 @@ public:
 		*/
 		void incPreset(bool next, bool stayInSameDirectory);
 
-		void loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled=true);
-		void loadUserPreset(const File& f);
+		void loadUserPresetFromValueTree(const ValueTree& v, const File& oldFile, const File& newFile, bool useUndoManagerIfEnabled=true);
+		void loadUserPreset(const File& f, bool useUndoManagerIfEnabled=true);
 
 		
 
@@ -862,7 +866,7 @@ public:
 		File getCurrentlyLoadedFile() const;;
 
 		/** @internal */
-		void setCurrentlyLoadedFile(const File& f);
+		//void setCurrentlyLoadedFile(const File& f);
 
 		/** @internal */
 		void sendRebuildMessage();
@@ -1024,6 +1028,9 @@ public:
 		
 
     private:
+
+		friend class UserPresetHelpers;
+		friend class FrontendProcessor;
 
 		uint32 timeOfLastPresetLoad = 0;
 
@@ -1833,7 +1840,7 @@ public:
 	}
 
 
-	void loadUserPresetAsync(const ValueTree& v);
+	void loadUserPresetAsync(const File& f);
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
