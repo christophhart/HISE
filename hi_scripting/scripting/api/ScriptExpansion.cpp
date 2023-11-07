@@ -54,6 +54,7 @@ struct ScriptUserPresetHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, updateConnectedComponentsFromModuleState);
 	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setUseUndoForPresetLoading);
 	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForSaveInPresetComponents);
+	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, resetToDefaultUserPreset);
 	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForAutomationValues);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, runTest);
 };
@@ -89,6 +90,7 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_0(createObjectForSaveInPresetComponents);
 	ADD_API_METHOD_0(createObjectForAutomationValues);
 	ADD_API_METHOD_0(getSecondsSinceLastPresetLoad);
+	ADD_API_METHOD_0(resetToDefaultUserPreset);
 	ADD_API_METHOD_0(runTest);
 	
 }
@@ -510,6 +512,22 @@ void ScriptUserPresetHandler::updateAutomationValues(var data, bool sendMessage,
     {
         getMainController()->getControlUndoManager()->perform(new AutomationValueUndoAction(this, data, sendMessage));
     }
+}
+
+
+void ScriptUserPresetHandler::resetToDefaultUserPreset()
+{
+	auto& uph = getMainController()->getUserPresetHandler();
+
+	if(uph.defaultPresetManager != nullptr)
+	{
+		uph.defaultPresetManager->resetToDefault();
+	}
+	else
+	{
+		reportScriptError("You need to set a default user preset in order to user this method");
+	}
+
 }
 
 double ScriptUserPresetHandler::getSecondsSinceLastPresetLoad()
