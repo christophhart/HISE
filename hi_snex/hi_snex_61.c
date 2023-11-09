@@ -1,4 +1,3 @@
-#include "AppConfig.h"
 
 #if (defined (_WIN32) || defined (_WIN64))
 #pragma warning( push )

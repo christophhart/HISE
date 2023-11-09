@@ -1,4 +1,3 @@
-#include <AppConfig.h>
 
 #if defined (__arm__) || defined (__arm64__)
   #define JUCE_ARM 1

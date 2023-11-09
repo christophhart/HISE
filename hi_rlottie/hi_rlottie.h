@@ -52,7 +52,6 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
-#include "AppConfig.h"
 
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_graphics/juce_graphics.h"

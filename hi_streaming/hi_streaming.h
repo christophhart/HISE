@@ -54,7 +54,6 @@ END_JUCE_MODULE_DECLARATION
 #define HI_STREAMING_INCLUDED
 
 
-#include "AppConfig.h"
 
 #include <atomic>
 

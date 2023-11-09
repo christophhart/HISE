@@ -58,7 +58,6 @@ END_JUCE_MODULE_DECLARATION
 
 
 
-#include "AppConfig.h"
 
 
 
