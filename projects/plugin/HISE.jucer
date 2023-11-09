@@ -17,29 +17,16 @@
               pluginAAXDisableBypass="0" pluginAAXDisableMultiMono="0">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
-      <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/balanceKnob_200.png"/>
-      <FILE id="dpVIbz" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
-      <FILE id="Si4Xwd" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
       <FILE id="Q5shCo" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
       <FILE id="IdwCs3" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
       <FILE id="drdy2Q" name="infoQuestion.png" compile="0" resource="1"
             file="../../hi_core/hi_images/infoQuestion.png"/>
       <FILE id="OzgbQ7" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
-      <FILE id="AgEW3K" name="knobEmpty_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobEmpty_200.png"/>
-      <FILE id="P9UAMU" name="knobModulated_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobModulated_200.png"/>
-      <FILE id="RjSKEC" name="knobUnmodulated_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
       <FILE id="eMTXrh" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
       <FILE id="EY7o8N" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="VOoaB8" name="PluginProcessor.h" compile="0" resource="0"
             file="Source/PluginProcessor.h"/>
-      <FILE id="G76jeJ" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
@@ -47,7 +34,7 @@
                postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation"
                customPList="" aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
                smallIcon="" bigIcon="" xcodeValidArchs="arm64,arm64e,x86_64"
-               extraDefs="USE_IPP=0" extraLinkerFlags="">
+               extraDefs="USE_IPP=0&#10;PERFETTO=1" extraLinkerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.13 SDK" isDebug="1" optimisation="1"
                        macOSDeploymentTarget="10.13" targetName="HISE Debug" cppLibType="libc++"
@@ -112,7 +99,7 @@
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
             IPPLibrary="" windowsTargetPlatformVersion="10.0.16299.0" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;"
-            extraDefs="HISE_USE_VS2022=0">
+            extraDefs="HISE_USE_VS2022=0&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE x64 Debug" libraryPath=""
@@ -173,7 +160,7 @@
     <VS2022 targetFolder="Builds/VisualStudio2022" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
             IPPLibrary="" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;"
-            IPP1ALibrary="" extraDefs="HISE_USE_VS2022=1">
+            IPP1ALibrary="" extraDefs="HISE_USE_VS2022=1&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE x64 Debug" libraryPath=""

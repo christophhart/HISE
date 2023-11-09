@@ -259,6 +259,15 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getEventId);
 	API_METHOD_WRAPPER_0(Message, getChannel);
 	API_VOID_METHOD_WRAPPER_1(Message, setChannel);
+
+	API_METHOD_WRAPPER_0(Message, isMonophonicAfterTouch);
+	API_METHOD_WRAPPER_0(Message, getMonophonicAftertouchPressure);
+	API_VOID_METHOD_WRAPPER_1(Message, setMonophonicAfterTouchPressure);
+	API_METHOD_WRAPPER_0(Message, isPolyAftertouch);
+	API_METHOD_WRAPPER_0(Message, getPolyAfterTouchNoteNumber);
+	API_METHOD_WRAPPER_0(Message, getPolyAfterTouchPressureValue);
+	API_VOID_METHOD_WRAPPER_2(Message, setPolyAfterTouchNoteNumberAndPressureValue);
+
 	API_VOID_METHOD_WRAPPER_1(Message, setTransposeAmount);
 	API_METHOD_WRAPPER_0(Message, getTransposeAmount);
 	API_VOID_METHOD_WRAPPER_1(Message, setCoarseDetune);
@@ -316,7 +325,15 @@ allNotesOffCallback(p, nullptr, var(), 0)
 	
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
-	
+
+	ADD_API_METHOD_0(isMonophonicAfterTouch);
+	ADD_API_METHOD_0(getMonophonicAftertouchPressure);
+	ADD_API_METHOD_1(setMonophonicAfterTouchPressure);
+	ADD_API_METHOD_0(isPolyAftertouch);
+	ADD_API_METHOD_0(getPolyAfterTouchNoteNumber);
+	ADD_API_METHOD_0(getPolyAfterTouchPressureValue);
+	ADD_API_METHOD_2(setPolyAfterTouchNoteNumberAndPressureValue);
+
 	ADD_API_METHOD_0(getGain);
 	
 	ADD_API_METHOD_0(getTransposeAmount);
@@ -516,7 +533,100 @@ int ScriptingApi::Message::getVelocity() const
 #endif
 
 	return constMessageHolder->getVelocity();
+}
+
+//               ================================================================================================ AFTERTOUCH BEGIN
+
+bool ScriptingApi::Message::isMonophonicAfterTouch() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("isMonophonicAfterTouch()", "midi event");
+		RETURN_IF_NO_THROW(-1)
+	}
+#endif
+
+	return constMessageHolder->isChannelPressure(); 
+}
+
+int ScriptingApi::Message::getMonophonicAftertouchPressure() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr || !constMessageHolder->isChannelPressure())
+	{
+		reportIllegalCall("getMonophonicAftertouchPressure()", "midi event");
+		RETURN_IF_NO_THROW(-1)
+	}
+#endif
+
+	return constMessageHolder->getChannelPressureValue(); 
+}
+
+void ScriptingApi::Message::setMonophonicAfterTouchPressure(int pressure)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr || !messageHolder->isChannelPressure())
+	{
+		reportIllegalCall("setMonophonicAfterTouchPressure()", "midi event");
+		RETURN_VOID_IF_NO_THROW()
+	}
+#endif
+
+	messageHolder->setChannelPressureValue((uint8)pressure); 
+}
+
+bool ScriptingApi::Message::isPolyAftertouch() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("isPolyAftertouch()", "midi event");
+		RETURN_IF_NO_THROW(-1);
+	}
+#endif
+
+	return constMessageHolder->isAftertouch(); 
+}
+
+int ScriptingApi::Message::getPolyAfterTouchNoteNumber() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr || !constMessageHolder->isAftertouch())
+	{
+		reportIllegalCall("getPolyAfterTouchNoteNumber()", "midi event");
+		RETURN_IF_NO_THROW(-1);
+	}
+#endif
+
+	return messageHolder->getAfterTouchNumber(); 
+}
+
+int ScriptingApi::Message::getPolyAfterTouchPressureValue() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr || !constMessageHolder->isAftertouch())
+	{
+		reportIllegalCall("getPolyAfterTouchPressureValue()", "midi event");
+		RETURN_IF_NO_THROW(-1);
+	}
+#endif
+
+	return messageHolder->getAfterTouchValue(); 
+}
+
+void ScriptingApi::Message::setPolyAfterTouchNoteNumberAndPressureValue(int noteNumber, int aftertouchAmount)
+{
+	if (messageHolder == nullptr || !constMessageHolder->isAftertouch())
+	{
+		reportIllegalCall("setPolyAfterTouchNoteNumberAndPressureValue()", "midi event");
+		RETURN_VOID_IF_NO_THROW()
+	}
+
+	messageHolder->setAfterTouchValue(noteNumber, aftertouchAmount); 
 };
+
+//               ================================================================================================ AFTERTOUCH END
 
 void ScriptingApi::Message::ignoreEvent(bool shouldBeIgnored/*=true*/)
 {
@@ -2486,7 +2596,6 @@ void ScriptingApi::Engine::saveUserPreset(var presetName)
 {
 	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(presetName.getObject()))
 	{
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(sf->f);
 		UserPresetHelpers::saveUserPreset(getProcessor()->getMainController()->getMainSynthChain(), sf->f.getFullPathName());
 	}
 	else
@@ -2932,7 +3041,6 @@ void ScriptingApi::Engine::loadUserPreset(var file)
     else if (userPresetToLoad.existsAsFile())
 	{
 		getProcessor()->getMainController()->getUserPresetHandler().loadUserPreset(userPresetToLoad);
-		getProcessor()->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(userPresetToLoad);
 	}
 	else
 	{

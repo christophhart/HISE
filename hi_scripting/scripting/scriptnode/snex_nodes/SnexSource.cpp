@@ -181,9 +181,8 @@ void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 	}
 }
 
-void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset)
+void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addMod)
 {
-#if SNEX_MIR_BACKEND
 	using namespace cppgen;
 
 	Base b(Base::OutputType::AddTabs);
@@ -204,7 +203,7 @@ void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset)
             StatementBlock sb(b, false);
             b << "instance.setExternalData(d, index);";
         }
-        
+		
 		if (addReset)
 		{
 			b << String("void reset(" + instanceType + "& instance)");
@@ -222,11 +221,19 @@ void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset)
 				b << "instance.handleHiseEvent(e);";
 			}
 		}
+
+		if(addMod)
+		{
+			b << String("bool handleModulation(" + instanceType + "& instance, double& v)");
+			{
+				StatementBlock sb(b, false);
+				b << "return instance.handleModulation(v);";
+			}
+		}
 	}
 
 	auto x = b.toString();
 	s << x;
-#endif
 }
 
 void SnexSource::addDummyProcessFunctions(String& s, bool addFrame, const String& processDataType)

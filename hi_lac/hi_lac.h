@@ -76,7 +76,6 @@ SampleMap bugs:
 
 
 
-#include "AppConfig.h"
 #include "../JUCE/modules/juce_audio_formats/juce_audio_formats.h"
 
 // This is the current HLAC version. HLAC has full backward compatibility.

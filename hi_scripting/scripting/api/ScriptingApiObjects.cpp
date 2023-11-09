@@ -4789,6 +4789,13 @@ struct ScriptingObjects::ScriptingMessageHolder::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getChannel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setType);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setChannel);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isMonophonicAfterTouch);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getMonophonicAftertouchPressure);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setMonophonicAfterTouchPressure);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, isPolyAftertouch);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getPolyAfterTouchNoteNumber);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getPolyAfterTouchPressureValue);
+	API_VOID_METHOD_WRAPPER_2(ScriptingMessageHolder, setPolyAfterTouchNoteNumberAndPressureValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTransposeAmount);
 	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTransposeAmount);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setCoarseDetune);
@@ -4831,6 +4838,15 @@ ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithSc
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
 	ADD_API_METHOD_0(getGain);
+
+	ADD_API_METHOD_0(isMonophonicAfterTouch);
+	ADD_API_METHOD_0(getMonophonicAftertouchPressure);
+	ADD_API_METHOD_1(setMonophonicAfterTouchPressure);
+	ADD_API_METHOD_0(isPolyAftertouch);
+	ADD_API_METHOD_0(getPolyAfterTouchNoteNumber);
+	ADD_API_METHOD_0(getPolyAfterTouchPressureValue);
+	ADD_API_METHOD_2(setPolyAfterTouchNoteNumberAndPressureValue);
+
 	ADD_API_METHOD_0(getTransposeAmount);
 	ADD_API_METHOD_0(getCoarseDetune);
 	ADD_API_METHOD_0(getFineDetune);
@@ -4913,6 +4929,15 @@ juce::var ScriptingObjects::ScriptingMessageHolder::clone()
 }
 
 int ScriptingObjects::ScriptingMessageHolder::getTransposeAmount() const { return (int)e.getTransposeAmount(); }
+
+bool ScriptingObjects::ScriptingMessageHolder::isMonophonicAfterTouch() const{ return e.isChannelPressure(); }
+int ScriptingObjects::ScriptingMessageHolder::getMonophonicAftertouchPressure() const{ return e.getChannelPressureValue(); }
+void ScriptingObjects::ScriptingMessageHolder::setMonophonicAfterTouchPressure(int pressure){ e.setChannelPressureValue((uint8)pressure); }
+bool ScriptingObjects::ScriptingMessageHolder::isPolyAftertouch() const{ return e.isAftertouch(); }
+int ScriptingObjects::ScriptingMessageHolder::getPolyAfterTouchNoteNumber() const{ return e.getAfterTouchNumber(); }
+int ScriptingObjects::ScriptingMessageHolder::getPolyAfterTouchPressureValue() const{ return e.getAfterTouchValue(); }
+void ScriptingObjects::ScriptingMessageHolder::setPolyAfterTouchNoteNumberAndPressureValue(int noteNumber, int aftertouchAmount) { e.setAfterTouchValue(noteNumber, aftertouchAmount); }
+
 void ScriptingObjects::ScriptingMessageHolder::setCoarseDetune(int semiToneDetune) { e.setCoarseDetune(semiToneDetune); }
 int ScriptingObjects::ScriptingMessageHolder::getCoarseDetune() const { return (int)e.getCoarseDetune(); }
 void ScriptingObjects::ScriptingMessageHolder::setFineDetune(int cents) { e.setFineDetune(cents); }

@@ -94,7 +94,8 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 			if (notify)
 			{
-				chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(presetFile);
+
+				chain->getMainController()->getUserPresetHandler().currentlyLoadedFile = presetFile;
 				chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
 			}
 		}
@@ -191,28 +192,17 @@ StringArray UserPresetHelpers::checkRequiredExpansions(MainController* mc, Value
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
-	auto xml = XmlDocument::parse(fileToLoad);
-    
-    if(xml != nullptr)
-    {
-		ValueTree parent = ValueTree::fromXml(*xml);
-        
-		chain->getMainController()->getDebugLogger().logMessage("### Loading user preset " + fileToLoad.getFileNameWithoutExtension() + "\n");
-
-        if (parent.isValid())
-        {
-			chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(fileToLoad);
-
-            loadUserPreset(chain, parent);
-        }
-    }
+	chain->getMainController()->getDebugLogger().logMessage("### Loading user preset " + fileToLoad.getFileNameWithoutExtension() + "\n");
+	chain->getMainController()->loadUserPresetAsync(fileToLoad);
 }
 
+#if 0
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
 }
+#endif
 
 
 

@@ -599,7 +599,7 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 	if (userPresetName.isNotEmpty())
 	{
-		getUserPresetHandler().setCurrentlyLoadedFile(File(userPresetName));
+		getUserPresetHandler().currentlyLoadedFile = (File(userPresetName));
 	}
 
 	if (getUserPresetHandler().isUsingCustomDataModel())

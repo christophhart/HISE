@@ -42,7 +42,7 @@
 
 #include <regex>
 
-#include "scripting/HardcodedScriptProcessor.h"
+
 #include "scripting/hardcoded_modules/Arpeggiator.h"
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"

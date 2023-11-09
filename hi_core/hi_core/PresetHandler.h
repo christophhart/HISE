@@ -533,7 +533,7 @@ public:
 
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 
-	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
+	//static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
 	static Identifier getAutomationIndexFromOldVersion(const String& oldVersion, int oldIndex);
 

@@ -103,12 +103,7 @@ struct snex_node : public SnexSource
 			if (modFunction.isResolved())
 			{
 				auto sigMatch = modFunction.returnType == TypeInfo(Types::ID::Integer);
-
-				sigMatch &= modFunction.args.size() == 1;
-				sigMatch &= modFunction.args[0].typeInfo.getType() == Types::ID::Double;
-				sigMatch &= !modFunction.args[0].typeInfo.isConst();
-				sigMatch &= modFunction.args[0].typeInfo.isRef();
-
+				
 				if (!sigMatch)
 					return Result::fail("wrong signature for " + modFunction.getSignature());
 
@@ -266,7 +261,7 @@ struct snex_node : public SnexSource
 				if (auto s = ScopedCallbackChecker(*this))
 				{
 					auto v = (void*)&value;
-					return f[(int)ScriptnodeCallbacks::HandleModulation - 1].callUnchecked<int>(v);
+					return f[(int)ScriptnodeCallbacks::HandleModulation - 1].callUncheckedWithObject<int>(v);
 				}
 			}
 

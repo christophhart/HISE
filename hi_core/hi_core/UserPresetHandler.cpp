@@ -414,15 +414,16 @@ MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) :
 	timeOfLastPresetLoad = Time::getMillisecondCounter();
 }
 
-void MainController::UserPresetHandler::loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled)
+void MainController::UserPresetHandler::loadUserPresetFromValueTree(const ValueTree& v, const File& oldFile, const File& newFile, bool useUndoManagerIfEnabled)
 {
 	if (useUndoManagerIfEnabled && useUndoForPresetLoads)
 	{
         mc->getControlUndoManager()->beginNewTransaction();
-		mc->getControlUndoManager()->perform(new UndoableUserPresetLoad(mc, v));
+		mc->getControlUndoManager()->perform(new UndoableUserPresetLoad(mc, oldFile, newFile, v));
 	}
 	else
 	{
+		currentlyLoadedFile = newFile;
 		pendingPreset = v;
 
 		auto f = [](Processor*p)
@@ -449,7 +450,7 @@ void MainController::UserPresetHandler::preprocess(ValueTree& presetToLoad)
 	}
 }
 
-void MainController::UserPresetHandler::loadUserPreset(const File& f)
+void MainController::UserPresetHandler::loadUserPreset(const File& f, bool useUndoManagerIfEnabled)
 {
 	auto xml = XmlDocument::parse(f);
 
@@ -459,7 +460,7 @@ void MainController::UserPresetHandler::loadUserPreset(const File& f)
 
 		if (v.isValid())
 		{
-			loadUserPreset(v);
+			loadUserPresetFromValueTree(v, currentlyLoadedFile, f, useUndoManagerIfEnabled);
 		}
 	}
 }
@@ -469,10 +470,12 @@ File MainController::UserPresetHandler::getCurrentlyLoadedFile() const
 	return currentlyLoadedFile;
 }
 
+	/*
 void MainController::UserPresetHandler::setCurrentlyLoadedFile(const File& f)
 {
 	currentlyLoadedFile = f;
 }
+*/
 
 void MainController::UserPresetHandler::sendRebuildMessage()
 {
@@ -514,12 +517,9 @@ void MainController::UserPresetHandler::saveUserPresetInternal(const String& nam
 
 	if (name.isNotEmpty())
 		currentPresetFile = currentPresetFile.getSiblingFile(name + ".preset");
-
-	setCurrentlyLoadedFile(currentPresetFile);
-
+	
 	UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), currentPresetFile.getFullPathName());
 }
-
 
 void MainController::UserPresetHandler::loadUserPresetInternal()
 {

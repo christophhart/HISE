@@ -570,7 +570,9 @@ bool ConvolutionEffectBase::reloadInternal()
 	if (convolverL == nullptr)
 		return true;
 
-	if (getImpulseBufferBase().isEmpty())
+	if (getImpulseBufferBase().isEmpty() || 
+		getImpulseBufferBase().getBuffer().getNumChannels() == 0|| 
+		getImpulseBufferBase().getBuffer().getNumSamples() == 0 )
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
         
