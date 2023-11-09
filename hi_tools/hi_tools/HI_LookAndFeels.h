@@ -565,39 +565,11 @@ public:
 	
 
 	void drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
-
-#if !HISE_NO_GUI_TOOLS
-	static const char* smalliKnob_png;
-    static const int smalliKnob_pngSize;
-
-	static const char* knobRing_png;
-	static const int knobRing_size;
-
-	static const char* toggle_png;
-    static const int toggle_pngSize;
-	static const char* slider_strip2_png;
-    static const int slider_strip2_pngSize;
-	static const char* slider2_bipolar_png;
-    static const int slider2_bipolar_pngSize;
-#endif
     
 	static void setDefaultColours(Component& c);
 
 private:
     
-
-    Image cachedImage_smalliKnob_png;
-	Image cachedImage_knobRing_png;
-	Image cachedImage_toggle_png;
-	Image cachedImage_slider_strip2_png;
-	Image cachedImage_slider2_bipolar_png;
-	
-	Image ring_red;
-	Image ring_green;
-	Image ring_yellow;
-	Image ring_blue;
-	Image ring_modulated;
-
 	Path ring, ring2;
 
 };
@@ -637,16 +609,10 @@ public:
 
 	BalanceButtonLookAndFeel();
 
-	void drawRotarySlider (Graphics &g, int /*x*/, int /*y*/, int /*width*/, int /*height*/, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+	void drawRotarySlider (Graphics& g, int x, int y, int width, int height,
+                           float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle,
+                           Slider& s) override;
 
-private:
-	Image cachedImage_balanceKnob_png;
-
-
-#if !HISE_NO_GUI_TOOLS
-	static const char* balanceKnob_png;
-    static const int balanceKnob_pngSize;
-#endif
 };
 
 class ChainBarButtonLookAndFeel: public LookAndFeel_V3
