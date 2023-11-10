@@ -114,10 +114,12 @@ Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPt
 	Source(h, owner, id),
 	attributes(*this, (int)SlotTypes::Attributes, IDs::event::attribute),
 	nameAndColour(*this, (int)SlotTypes::NameAndColour, IDs::event::namecolour),
-	bypassed(*this, (int)SlotTypes::Bypassed, IDs::event::bypassed)
+	bypassed(*this, (int)SlotTypes::Bypassed, IDs::event::bypassed),
+	otherChange(*this, (int)SlotTypes::OtherChange, IDs::event::other)
 {
 	bypassed.setNumSlots(1);
 	nameAndColour.setNumSlots(2);
+	otherChange.setNumSlots((int)ProcessorChangeEvent::numProcessorChangeEvents);
 }
 
 Processor::~Processor()
@@ -125,6 +127,7 @@ Processor::~Processor()
 	attributes.shutdown();
 	bypassed.shutdown();
 	nameAndColour.shutdown();
+	otherChange.shutdown();
 }
 
 void Processor::setAttribute(int parameterIndex, float, DispatchType n)
@@ -168,13 +171,20 @@ void Processor::addBypassListener(BypassListener* l, DispatchType n)
 
 void Processor::removeBypassListener(BypassListener* l)
 {
-	l->removeListener(getParentSourceManager());
+	l->removeListener(*this);
 }
 
 void Processor::addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes,
-	NotificationType n)
+	DispatchType n)
 {
-	l->addListenerToSingleSourceAndSlotSubset(this, (int)SlotTypes::Attributes, attributeIndexes, numAttributes, n);
+	if(numAttributes == 1)
+	{
+		l->addListenerToSingleSlotIndexWithinSlot(this, (int)SlotTypes::Attributes, *attributeIndexes, n);
+	}
+	else
+	{
+		l->addListenerToSingleSourceAndSlotSubset(this, (int)SlotTypes::Attributes, attributeIndexes, numAttributes, n);
+	}
 }
 
 void Processor::addNameAndColourListener(NameAndColourListener* l)
@@ -185,7 +195,7 @@ void Processor::addNameAndColourListener(NameAndColourListener* l)
 
 void Processor::removeNameAndColourListener(NameAndColourListener* l)
 {
-	l->removeListener(getParentSourceManager(), sendNotificationAsync);
+	l->removeListener(*this, sendNotificationAsync);
 }
 
 bool Processor::isBypassed() const noexcept

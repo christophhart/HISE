@@ -49,12 +49,28 @@ private:
 	DanglingBehaviour danglingBehaviour = DanglingBehaviour::Undefined;
 };
 
+struct Suspendable: public Queueable
+{
+	Suspendable(RootObject& r, Suspendable* parent_):
+	  Queueable(r),
+	  parent(parent_)
+	{};
+	  
+	~Suspendable() override {};
+	virtual void setState(State newState) = 0;
+	virtual State getStateFromParent() const { return parent != nullptr ? parent->getStateFromParent() : State::Running; }
+
+private:
+
+	Suspendable* parent = nullptr;
+};
+
 struct Logger;
 
 // Possible optimisation for later: use Queue for listeners too
 // optional: pushes of elements with the same source and index will just overwrite the data
 // TODO: add a check that assert a certain type using dynamic_cast
-struct Queue final : public Queueable
+struct Queue final : public Suspendable
 {
 	enum class FlushType
 	{
@@ -72,8 +88,6 @@ struct Queue final : public Queueable
 		Queueable* source = nullptr;
 		uint16 numBytes = 0;
 		EventType eventType = EventType::Nothing;
-		//uint8 endMarker = 99;
-		//uint32 u0 = 0;
 
 		explicit operator bool() const { return source != nullptr || eventType == EventType::Nothing; }
 
@@ -107,7 +121,7 @@ struct Queue final : public Queueable
 		uint8* lastPos = nullptr;
 	};
 
-	void setState(State n);
+	void setState(State newState) override;
 
 	/** Packed data structure supplied to the flush function. */
 	struct FlushArgument
@@ -138,7 +152,7 @@ struct Queue final : public Queueable
 	using FlushFunction = std::function<bool(const FlushArgument&)>;
 
 	/** Creates a queue and allocates the given amount of bytes. */
-	Queue(RootObject& root, size_t initAllocatedSize);
+	Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize);
 
 	/** Checks that the allocated storage is enough for the next message.
 	 *  If not, it prints a warning (TODO)
@@ -180,7 +194,11 @@ struct Queue final : public Queueable
 	/** Clears the queue (just moves the pointer to the start, O(1) operation. */
 	void clear() { numUsed = 0; numElements = 0; }
 
+	void addPushCheck(const std::function<bool(Queueable*)>& pc) { pushCheckFunction = pc; }
+
 private:
+
+	std::function<bool(Queueable*)> pushCheckFunction;
 
 	struct ResumeData
 	{
@@ -189,8 +207,6 @@ private:
 		FlushFunction f;
 	};
 	
-	State currentState = State::Running;
-
 	ScopedPointer<ResumeData> resumeData;
 
 	FlushArgument createFlushArgument(const QueuedEvent& e, uint8* eventPos) const noexcept;
@@ -208,6 +224,38 @@ private:
 
 	Logger* attachedLogger = nullptr;
 	bool logRecursion = false;
+};
+
+struct SomethingWithQueues: public Suspendable
+{
+	SomethingWithQueues(RootObject& r);;
+
+	virtual ~SomethingWithQueues();;
+
+	Queue& getEventQueue(DispatchType n);
+	const Queue& getEventQueue(DispatchType n) const;
+	Queue& getListenerQueue(DispatchType n);
+	const Queue& getListenerQueue(DispatchType n) const;
+
+	bool hasListeners(DispatchType n) const { return !getListenerQueue(n).isEmpty(); }
+	bool hasEvents(DispatchType n) const { return !getEventQueue(n).isEmpty(); };
+
+	void processEvents(DispatchType n);
+
+	void setState(State newState) override;
+
+	State getStateFromParent() const override { return currentState; }
+
+private:
+
+	State currentState = State::Running;
+
+	Queue asyncHiPriorityQueue;
+	Queue asyncQueue;
+	Queue deferedSyncEvents;
+	Queue asyncListeners;
+	Queue syncListeners;
+	Queue asyncHighPriorityListeners;
 };
 
 } // dispatch

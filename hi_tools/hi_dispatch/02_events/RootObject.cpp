@@ -50,9 +50,15 @@ RootObject::Child::~Child()
 }
 
 RootObject::RootObject(PooledUIUpdater* updater_):
-updater(updater_)
+  Thread("Dispatch HiPriority Thread"),
+	updater(updater_)
 {
     childObjects.ensureStorageAllocated(8192);
+    sourceManagers.ensureStorageAllocated(64);
+    sources.ensureStorageAllocated(4096);
+    listeners.ensureStorageAllocated(4096);
+
+    startThread(7);
 }
 
 RootObject::~RootObject()
@@ -63,12 +69,51 @@ RootObject::~RootObject()
 void RootObject::addChild(Child* c)
 {
     childObjects.add(c);
+
+    if(auto typed = dynamic_cast<SourceManager*>(c))
+    {
+	    sourceManagers.add(typed);
+    }
+    if(auto typed = dynamic_cast<Source*>(c))
+    {
+	    sources.add(typed);
+    }
+    if(auto typed = dynamic_cast<Queue*>(c))
+    {
+	    queues.add(typed);
+    }
+    if(auto typed = dynamic_cast<Listener*>(c))
+    {
+	    listeners.add(typed);
+    }
+    
 }
 
 void RootObject::removeChild(Child* c)
 {
     int indexInRoot = childObjects.indexOf(c);
     childObjects.remove(indexInRoot);
+
+    if(auto typed = dynamic_cast<SourceManager*>(c))
+    {
+        int indexInTyped = sourceManagers.indexOf(typed);
+	    sourceManagers.remove(indexInTyped);
+    }
+    if(auto typed = dynamic_cast<Source*>(c))
+    {
+	    int indexInTyped = sources.indexOf(typed);
+	    sources.remove(indexInTyped);
+    }
+    if(auto typed = dynamic_cast<Queue*>(c))
+    {
+	    int indexInTyped = queues.indexOf(typed);
+	    queues.remove(indexInTyped);
+    }
+    if(auto typed = dynamic_cast<Listener*>(c))
+    {
+	    int indexInTyped = listeners.indexOf(typed);
+	    listeners.remove(indexInTyped);
+    }
 }
 
 int RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
@@ -94,28 +139,71 @@ void RootObject::setLogger(Logger* l)
     currentLogger = l;
 }
 
-void RootObject::setState(State newState)
+void RootObject::setState(const HashedCharPtr& sourceManagerId, State newState)
 {
-    if(newState != currentState)
-    {
-        currentState = newState;
-        callForAllQueues([newState](Queue& q){ q.setState(newState); return false; });
-    }
+	callForAllSourceManagers([sourceManagerId, newState](SourceManager& sm)
+	{
+		if(sm.getDispatchId() == sourceManagerId)
+		{
+			sm.setState(newState);
+			return true;
+		}
+
+		return false;
+	});
 }
 
-bool RootObject::callForAllQueues(const std::function<bool(Queue&)>& qf)
+bool RootObject::callForAllQueues(const std::function<bool(Queue&)>& qf) const
 {
-    for(auto c: childObjects)
+    for(auto q: queues)
     {
-        if(auto q = dynamic_cast<Queue*>(c))
-        {
-            if(qf(*q))
-                return true;
-        }
+        if(qf(*q))
+        	return true;
     }
     
     return false;
 }
 
+bool RootObject::callForAllSources(const std::function<bool(Source&)>& sf) const
+{
+	for(auto s: sources)
+	{
+		if(sf(*s))
+			return true;
+	}
+	    
+	return false;
+}
+
+bool RootObject::callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const
+{
+	for(auto s: sourceManagers)
+	{
+		if(sf(*s))
+			return true;
+	}
+	    
+	return false;
+}
+
+bool RootObject::callForAllListeners(const std::function<bool(Listener&)>& lf) const
+{
+	for(auto l: listeners)
+	{
+		if(lf(*l))
+			return true;
+	}
+	    
+	return false;
+}
+
+void RootObject::run()
+{
+    while(threadShouldExit())
+    {
+        callForAllSourceManagers([](SourceManager& sm){ sm.flushHiPriorityQueue(); return false; });
+        Thread::sleep(5);
+    }
+}
 } // dispatch
 } // hise

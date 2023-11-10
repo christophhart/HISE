@@ -116,7 +116,7 @@ void LoggerTest::testQueue()
 	Logger l(root, 8192);
 	root.setLogger(&l);
 
-	Queue queue(root, 0);
+	Queue queue(root, nullptr, 0);
 
 	MyTestQueuable s1(root);
 	MyTestQueuable s2(root);
@@ -205,7 +205,7 @@ void LoggerTest::testQueueResume()
 	Logger l(root, 8192);
 	root.setLogger(&l);
 
-	Queue testQueue(root, 40);
+	Queue testQueue(root, nullptr, 40);
 
 	OwnedArray<MyTestQueuable> tests;
 
@@ -262,7 +262,7 @@ void LoggerTest::testQueueResume()
 		auto v = *f.data;
 
 		if(v == 19)
-			root.setState(State::Paused);
+			root.setState("*", State::Paused);
 
 		b.setBit(v, true);
 		return true;
@@ -283,7 +283,7 @@ void LoggerTest::testQueueResume()
 	expectEquals(b.countNumberOfSetBits(), 0, "paused root object didn't work");
 	b.clear();
 
-	root.setState(State::Running);
+	root.setState("*", State::Running);
 	
 	expectEquals(b.countNumberOfSetBits(), 20, "work after resume");
 	b.clear();
@@ -357,7 +357,7 @@ void LoggerTest::testSourceManager()
 
 	expect(l.changed, "message didn't work");
 
-	l.removeListener(sm);
+	l.removeListener(src);
 
 	l.reset();
 

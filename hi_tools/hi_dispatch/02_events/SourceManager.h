@@ -37,7 +37,9 @@ namespace dispatch {
 using namespace juce;
 
 
-struct SourceManager  : public Queueable, // not queuable
+
+
+struct SourceManager  : public SomethingWithQueues,
 					    public PooledUIUpdater::SimpleTimer
 {
 	SourceManager(RootObject& r, const HashedCharPtr& typeId);
@@ -52,20 +54,19 @@ struct SourceManager  : public Queueable, // not queuable
 	
 	void timerCallback() override;
 
-	Queue& getListenerQueue(NotificationType n);
-	const Queue& getListenerQueue(NotificationType n) const;
-	int getNumChildSources() const { return items.getNumAllocated(); }
+	void flushHiPriorityQueue();
+	int getNumChildSources() const { return sources.getNumAllocated(); }
 
 	void addSource(Source* s);
 	void removeSource(Source* s);
-	
+
+	void setState(State newState) override;
+
 private:
 
-	Queue asyncQueue;
-	Queue deferedSyncEvents;
-	Queue asyncListeners;
-	Queue syncListeners;
-	Queue items;
+	Queue sources;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SourceManager);
 };
 
 

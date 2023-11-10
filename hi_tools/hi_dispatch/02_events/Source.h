@@ -47,7 +47,7 @@ struct SourceOwner
 // just a interface class. 
 // Subclass all classes that have a SlotSender from this class
 // (the item class will keep a reference to this as member to send)
-struct Source: public Queueable
+struct Source: public SomethingWithQueues
 {
 	Source(SourceManager& parent_, SourceOwner& owner, const HashedCharPtr& sourceId_ );
 	~Source() override;
@@ -76,6 +76,8 @@ private:
 	SourceManager& parent;
 	HashedCharPtr sourceId;
 	SourceOwner& owner;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Source);
 };
 
 // defers listChanged calls until done, then send a EventAction PostDefer message

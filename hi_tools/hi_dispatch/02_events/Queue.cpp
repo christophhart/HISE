@@ -133,7 +133,6 @@ bool Queue::Iterator::seekTo(size_t position)
 
 void Queue::setState(State n)
 {
-    currentState = n;
     if(n == Running && resumeData != nullptr)
     {
         if(flush(resumeData->f, resumeData->flushType))
@@ -141,9 +140,8 @@ void Queue::setState(State n)
     }
 }
 
-Queue::Queue(RootObject& root, size_t initAllocatedSize):
-Queueable(root),
-currentState(root.getState())
+Queue::Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize):
+Suspendable(root, parent)
 {
     static_assert(sizeof(QueuedEvent) == 16, "must be 16");
     ensureAllocated(initAllocatedSize);
@@ -193,7 +191,8 @@ bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues
 {
     // we'll only allow storing data < 256 bytes here...
     jassert(numValues < UINT8_MAX);
-    
+    jassert(!pushCheckFunction || pushCheckFunction(s));
+
     QueuedEvent e;
     
     e.eventType = t;
@@ -202,15 +201,19 @@ bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues
     
     if(!ensureAllocated(e.getTotalByteSize()))
         return false;
-    
-    numUsed += e.write(data.get() + numUsed, values);
+
+    auto numWritten = e.write(data.get() + numUsed, values);
+
+    jassert(!pushCheckFunction || pushCheckFunction(QueuedEvent::fromData(data.get() + numUsed).source));
+
+	numUsed += numWritten;
     numElements++;
     return true;
 }
 
 bool Queue::flush(const FlushFunction& f, FlushType flushType)
 {
-    if(isEmpty() || currentState == State::Paused)
+    if(isEmpty() || getStateFromParent() == State::Paused)
         return true;
     
     Iterator iter(*this);
@@ -223,7 +226,7 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
     QueuedEvent e;
     while(iter.next(e))
     {
-        if(currentState == State::Paused)
+        if(getStateFromParent() == State::Paused)
         {
             resumeData = new ResumeData();
             resumeData->f = f;
@@ -237,7 +240,9 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
             numDangling++;
             continue;
         }
-        
+
+        jassert(!pushCheckFunction || pushCheckFunction(e.source));
+
         // (eg. a change event can skip slot value changes
         auto ok = f(createFlushArgument(e, iter.getPositionOfCurrentQueuable()));
         

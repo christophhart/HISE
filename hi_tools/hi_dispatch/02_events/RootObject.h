@@ -37,8 +37,12 @@ namespace dispatch {
 using namespace juce;
 
 struct Queueable;
+struct Source;
+struct SourceManager;
+struct Source;
+struct Listener;
 
-struct RootObject
+struct RootObject: public Thread
 {
 	struct Child
 	{
@@ -63,7 +67,7 @@ struct RootObject
 
 	void addChild(Child* c);
 	void removeChild(Child* c);
-
+	
 	/** Removes the element from all queues. */
 	int clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
 
@@ -76,20 +80,31 @@ struct RootObject
 
 	int getNumChildren() const { return childObjects.size(); }
 
-	void setState(State newState);
-	State getState() const { return currentState; }
+	void setState(const HashedCharPtr& sourceManagerId, State newState);
 
 	/** Iterates all registered queues and calls the given function. */
-	bool callForAllQueues(const std::function<bool(Queue&)>& qf);
+	bool callForAllQueues(const std::function<bool(Queue&)>& qf) const;
+
+	/** Iterates all registered sources and calls the given function. */
+	bool callForAllSources(const std::function<bool(Source&)>& sf) const;
+
+	/** Iterates all registered source managers and calls the given function. */
+	bool callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const;
+
+	/** Iterates all registered listener and calls the given function. */
+	bool callForAllListeners(const std::function<bool(Listener&)>& lf) const;
+
+	void run() override;
 
 private:
 
-	State currentState = State::Running;
-
 	Logger* currentLogger = nullptr;
-
 	PooledUIUpdater* updater;
 	Array<Child*> childObjects;
+	Array<SourceManager*> sourceManagers;
+	Array<Queue*> queues;
+	Array<Source*> sources;
+	Array<Listener*> listeners;
 };
 
 } // dispatch

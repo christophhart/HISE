@@ -57,6 +57,7 @@ namespace event
 {
 DECLARE_ID(attribute);
 DECLARE_ID(bypassed);
+DECLARE_ID(other);
 DECLARE_ID(value);
 DECLARE_ID(property);
 DECLARE_ID(repaint);
@@ -79,6 +80,7 @@ enum class EventType: uint8 // change to HeaderType
 	SlotChange,
 	SourcePtr,
 	SingleListener,
+	SingleListenerSingleSlot,
 	SingleListenerSubset,
 	SubsetListener,
 	AllListener,
@@ -96,6 +98,7 @@ enum class DanglingBehaviour
 
 enum State
 {
+	Undefined,   // Not defined
 	Running,	 // Everything's operational
 	Paused,		 // The execution of the queue(s) are currently halted
 	Rebuild,	 // a heavyweight rebuild is in process (?)

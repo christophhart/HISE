@@ -74,9 +74,13 @@ private:
 	const uint8 index;
 	const HashedCharPtr id;
 
-	ObjectStorage<64, 16> data;
+	// TODO: Add async & hiprio sync data slots which are cleared when in use
+	ObjectStorage<64, 0> data;
+	
 	size_t numSlots;
 	bool pending = false;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SlotSender);
 };
 
 } // dispatch

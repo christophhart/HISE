@@ -124,6 +124,10 @@ struct Listener: public Queueable
 	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
 
+	/** Registers the listener to slot changes of a certain index within the given slot. */
+	void addListenerToSingleSlotIndexWithinSlot(Source* source, uint8 slotIndex, uint8 indexWithinSlot,
+	                                            DispatchType n);
+
 	/** Registers the listener to receive updates from a single slot with a defined slot subset. */
 	void addListenerToSingleSourceAndSlotSubset(Source* source, uint8 slotIndex, const uint8* slotIndexes, uint8 numSlots,
 	                                            DispatchType n)
@@ -143,6 +147,9 @@ struct Listener: public Queueable
 private:
 
 	ListenerOwner& owner;
+	bool removed = true;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Listener);
 };
 
 using Listener = dispatch::Listener;

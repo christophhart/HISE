@@ -37,7 +37,7 @@ namespace dispatch {
 using namespace juce;
 
 Source::Source(SourceManager& parent_, SourceOwner& owner_, const HashedCharPtr& sourceId_):
-	Queueable(parent_.getRootObject()),
+	SomethingWithQueues(parent_.getRootObject()),
 	parent(parent_),
 	owner(owner_),
 	sourceId(sourceId_)

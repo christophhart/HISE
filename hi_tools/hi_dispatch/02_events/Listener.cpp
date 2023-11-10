@@ -58,6 +58,27 @@ void Listener::EventParser::writeData(Queue& q, EventType t, Queueable* c, uint8
 		offset += numValues;
 		q.push(&l, t, data, offset);
 	}
+	if(t == EventType::SingleListenerSingleSlot)
+	{
+		DBG("ADD LISTENER");
+		DBG(l.getDispatchId().toString());
+		jassert(numValues == 2);
+
+		// The listener data for a single listener uses the following byte layout:
+		// Source* ptr [8 bytes]     - the source that it's listening to
+		// uint8 slotIndex [1 bytes] - the slot index
+		// uint8 indexWithinSlot	 - the index within the slot
+		const auto data = (uint8*)alloca(sizeof(void*) + 2);
+		
+		auto offset = 0;
+		*reinterpret_cast<RootObject::Child**>(data + offset) = c;
+		offset += sizeof(Source*);
+		data[offset] = values[0];
+		offset += 1;
+		data[offset] = values[1];
+		offset += 1;
+		q.push(&l, t, data, offset);
+	}
 	if(t == EventType::SubsetListener)
 	{
 		// uses the following byte layout:
@@ -124,6 +145,37 @@ Listener::ListenerData Listener::EventParser::parseData(const Queue::FlushArgume
 
 		return {};
 	}
+	if(listenerData.eventType == EventType::SingleListenerSingleSlot)
+	{
+		auto ptr1 = *reinterpret_cast<RootObject::Child**>(listenerData.data);
+		auto sourceFromListener = dynamic_cast<Source*>(ptr1);
+
+		if(sourceFromListener == sourceFromEvent)
+		{
+			// the number of slot indexes that the listener is registered too
+			auto slotIndex = *(listenerData.data + sizeof(void*));
+			auto indexWithinSlot = *(listenerData.data + sizeof(void*) + 1);
+
+			if(eventSlotIndex == slotIndex)
+			{
+				auto wasChanged = eventSlotPtr[indexWithinSlot];
+
+				if(wasChanged)
+				{
+					ListenerData l;
+
+					l.s = sourceFromEvent;
+					l.t = EventType::SlotChange;
+					l.slotIndex = eventSlotIndex;
+					l.numBytes = numSlotsInEvent;
+					l.changes = eventSlotPtr;
+					return l;
+				}
+			}
+		}
+		
+		return {};
+	}
 	if(listenerData.eventType == EventType::SubsetListener)
 	{
 		jassertfalse;
@@ -152,13 +204,30 @@ size_t Listener::EventParser::writeSourcePointer(Source* s, uint8** data)
 
 Listener::Listener(RootObject& r, ListenerOwner& owner_): Queueable(r), owner(owner_) {}
 
-Listener::~Listener() {}
+Listener::~Listener()
+{
+	// Ouch... you need to remove the listener before it gets destroyed!
+	jassert(removed);
+}
 
-void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, NotificationType n)
+void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n)
 {
 	const EventParser writer(*this);
-	auto& q = source->getParentSourceManager().getListenerQueue(n);
+	auto& q = source->getListenerQueue(n);
 	writer.writeData(q, EventType::SingleListener, source, slotIndexes, numSlots);
+	removed = false;
+}
+
+void Listener::addListenerToSingleSlotIndexWithinSlot(Source* source, uint8 slotIndex, uint8 indexWithinSlot,
+	DispatchType n)
+{
+	const EventParser writer(*this);
+	auto& q = source->getListenerQueue(n);
+
+	uint8 data[2] = { slotIndex, indexWithinSlot };
+
+	writer.writeData(q, EventType::SingleListenerSingleSlot, source, data, 2);
+	removed = false;
 }
 
 void Listener::addListenerToAllSources(SourceManager& sourceManager, DispatchType n)
@@ -166,6 +235,7 @@ void Listener::addListenerToAllSources(SourceManager& sourceManager, DispatchTyp
 	const EventParser writer(*this);
 	auto& q = sourceManager.getListenerQueue(n);
 	writer.writeData(q, EventType::AllListener, &sourceManager, nullptr, 0);
+	removed = false;
 }
 
 void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, DispatchType n)
@@ -177,14 +247,28 @@ void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFun
 	auto& q = sourceManager.getListenerQueue(n);
 	writer.writeData(q, EventType::SubsetListener, &sourceManager, ptr, numWritten);
 	q.push(this, EventType::SubsetListener, ptr, numWritten);
+	removed = false;
 }
 
 void Listener::removeListener(Source& s, DispatchType n)
 {
 	if(n == sendNotification || n == sendNotificationSync)
+	{
+		s.getParentSourceManager().getListenerQueue(sendNotificationSync).removeAllMatches(this);
 		s.getListenerQueue(sendNotificationSync).removeAllMatches(this);
+	}
 	if(n == sendNotification || n == sendNotificationAsync)
+	{
+		s.getParentSourceManager().getListenerQueue(sendNotificationAsync).removeAllMatches(this);
 		s.getListenerQueue(sendNotificationAsync).removeAllMatches(this);
+	}
+	if(n == sendNotification || n == sendNotificationAsyncHiPriority)
+	{
+		s.getParentSourceManager().getListenerQueue(sendNotificationAsyncHiPriority).removeAllMatches(this);
+		s.getListenerQueue(sendNotificationAsyncHiPriority).removeAllMatches(this);
+	}
+
+	removed = true;
 }
 
 } // dispatch

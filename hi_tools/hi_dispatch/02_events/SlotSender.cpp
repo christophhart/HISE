@@ -81,7 +81,15 @@ bool SlotSender::flush(DispatchType n)
 
 bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType notify)
 {
-	jassert(isPositiveAndBelow(indexInSlot, numSlots));
+	StringBuilder b;
+	b << "send message" << indexInSlot << ": " << notify;
+	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+
+	if(!isPositiveAndBelow(indexInSlot, numSlots))
+	{
+		jassertfalse;
+		return false;
+	}
 
 	// data[0] points to the slotIndex
 	const auto ptr = static_cast<uint8*>(data.getObjectPtr()) + 1;

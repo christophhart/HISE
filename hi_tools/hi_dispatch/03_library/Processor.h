@@ -47,6 +47,20 @@ using namespace juce;
 
 struct Processor;
 
+enum class ProcessorChangeEvent
+{
+	Any,
+	Macro,
+	Preset,
+	Children,
+	Custom,
+	numProcessorChangeEvents,
+	Attribute, // will be ignored by the new dispatcher
+	Bypassed,
+	Intensity,
+	OtherUnused
+};
+
 /** This will handle the entire processor notification system.
  *  In HISE this will be a member of the MainController
  */
@@ -57,6 +71,7 @@ struct ProcessorHandler: public SourceManager
 		Attributes,
 		NameAndColour,
 		Bypassed,
+		OtherChange,
 		numSlotTypes
 	};
 	
@@ -80,7 +95,7 @@ struct ProcessorHandler: public SourceManager
 
 	struct AttributeListener final: private dispatch::Listener
 	{
-		using Callback = void(*)(dispatch::library::Processor*, uint8);
+		using Callback = std::function<void(dispatch::library::Processor*, uint8)>;
 
 		AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~AttributeListener() final {};
@@ -108,8 +123,55 @@ struct ProcessorHandler: public SourceManager
 		void slotChanged(const ListenerData& d) final;
 	};
 
+	struct OtherChangeListener: private dispatch::Listener
+	{
+		using Callback = std::function<void(Processor*)>;
+
+		OtherChangeListener(RootObject& r, ListenerOwner& owner, const Callback& f_, ProcessorChangeEvent eventToListenTo_):
+		  Listener(r, owner),
+		  f(f_),
+		  eventToListenTo(eventToListenTo_)
+		{
+		}
+
+	private:
+		void slotChanged(const ListenerData& d) final
+		{
+			jassert(d.s != nullptr);
+			jassert(d.t == EventType::SlotChange);
+			auto slotType = (SlotTypes)d.slotIndex;
+
+			if(slotType == SlotTypes::OtherChange)
+			{
+				jassert(MessageManager::getInstance()->isThisTheMessageThread());
+				jassert(d.numBytes == (int)ProcessorChangeEvent::numProcessorChangeEvents);
+				jassert(f);
+
+				auto match = eventToListenTo == ProcessorChangeEvent::Any ||
+					         d.changes[(int)eventToListenTo] || 
+							 d.changes[(int)ProcessorChangeEvent::Any];
+
+				if(match)
+				{
+					TRACE_DISPATCH("otherChange");
+
+					auto obj = d.to_static_cast<Processor>();
+					f(obj);
+				}
+			}
+		}
+
+		const Callback f;
+
+		ProcessorChangeEvent eventToListenTo;
+		
+
+		friend class Processor;
+	};
+
 	ProcessorHandler(RootObject& r);
 };
+
 
 
 /** The communication handler for the hise::Processor base class. It handles changes
@@ -120,6 +182,7 @@ struct Processor: public Source
 	using SlotTypes = ProcessorHandler::SlotTypes;
 	using BypassListener = ProcessorHandler::BypassListener;
 	using AttributeListener = ProcessorHandler::AttributeListener;
+	using OtherChangeListener = ProcessorHandler::OtherChangeListener;
 	using NameAndColourListener = ProcessorHandler::NameAndColourListener;
 
 	Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id);;
@@ -142,6 +205,12 @@ struct Processor: public Source
 	/** Call this in the processor if the colour changes. */
 	void setColour(const Colour& );
 
+	/** Call this if you want to notify the processor listeners about any other change. */
+	void sendChangeMessage(dispatch::library::ProcessorChangeEvent eventType, DispatchType n=sendNotificationAsync)
+	{
+		otherChange.sendChangeMessage(static_cast<int>(eventType), n);
+	}
+
 	/** Call this in the processor if the amount of attributes change. */
 	void setNumAttributes(int numAttributes);
 
@@ -152,6 +221,24 @@ struct Processor: public Source
 	void removeBypassListener(BypassListener* l);
 
 	void addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes, DispatchType n);
+
+	void removeAttributeListener(AttributeListener* l)
+	{
+		l->removeListener(*this);
+	}
+
+	/** Add a listener to be notified about various other events. */
+	void addOtherChangeListener(OtherChangeListener* l, DispatchType n)
+	{
+		uint8 slots = (uint8)SlotTypes::OtherChange;
+		l->addListenerToSingleSource(this, &slots, 1, n);
+	}
+
+	/** Removes a listener that is notified about other events. */
+	void removeOtherChangeListener(OtherChangeListener* l)
+	{
+		l->removeListener(*this);
+	}
 
 	void addNameAndColourListener(NameAndColourListener* l);
 
@@ -173,6 +260,7 @@ private:
 	SlotSender attributes;
 	SlotSender nameAndColour;
 	SlotSender bypassed;
+	SlotSender otherChange;
 };
 
 struct Modulator final: public Processor
