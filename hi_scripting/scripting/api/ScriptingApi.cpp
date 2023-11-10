@@ -4456,7 +4456,7 @@ void ScriptingApi::Sampler::refreshInterface()
 		RETURN_VOID_IF_NO_THROW()
 	}
 
-	s->sendChangeMessage();
+	s->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 	s->getMainController()->getSampleManager().getModulatorSamplerSoundPool2()->sendChangeMessage();
 }
 
@@ -6276,10 +6276,9 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 		}
 	}
 	else if(attributeIndex == -13) modulator->setBypassed(newValue == 1.0f);
-
 	else modulator->setAttribute(attributeIndex, newValue, dontSendNotification);
 
-	modulator->sendChangeMessage();
+	modulator->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute);
 
 
 }

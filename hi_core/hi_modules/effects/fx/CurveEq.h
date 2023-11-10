@@ -226,7 +226,7 @@ public:
 		
 		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
 
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		updateParameterSlots();
 	}
@@ -242,7 +242,7 @@ public:
 		
 		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
 
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		updateParameterSlots();
 	}
@@ -315,7 +315,7 @@ public:
 
 		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
 
-		sendSynchronousChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
 	}
 
 	struct AlignedDouble

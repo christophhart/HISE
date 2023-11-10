@@ -101,8 +101,8 @@ class ProcessorEditorHeader;
 class ProcessorEditorChainBar;
 class ProcessorEditorPanel;
 
-class ProcessorEditor : public Component,
-							  public SafeChangeListener,
+class ProcessorEditor :		  public Component,
+							  public Processor::OtherListener,
 							  public DragAndDropTarget,
 							  public CopyPasteTarget,
 							  public Dispatchable,
@@ -135,7 +135,7 @@ public:
 
 	ProcessorEditorContainer *getRootContainer();;
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override;
+	void otherChange(Processor* p) override;
 
 	/** Resizes itself and sends a message to the root container. */
 	void sendResizedMessage();

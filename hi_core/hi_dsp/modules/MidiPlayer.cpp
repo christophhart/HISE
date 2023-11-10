@@ -1198,7 +1198,7 @@ void MidiPlayer::addSequence(HiseMidiSequence::Ptr newSequence, bool select)
 	if (select)
 	{
 		currentSequenceIndex = currentSequences.size() - 1;
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 
 	sendSequenceUpdateMessage(sendNotificationAsync);
@@ -1993,7 +1993,7 @@ void MidiPlayer::flushOverdubNotes(double timestampForActiveNotes/*=-1.0*/)
 
 bool MidiPlayer::stopInternal(int timestamp)
 {
-	sendAllocationFreeChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 	overdubUpdater.stop();
 
@@ -2023,8 +2023,8 @@ bool MidiPlayer::stopInternal(int timestamp)
 
 bool MidiPlayer::startInternal(int timestamp)
 {
-	sendAllocationFreeChangeMessage();
-
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
+	
 	if (auto seq = getCurrentSequence())
 	{
 		if (isRecording())
@@ -2060,8 +2060,7 @@ bool MidiPlayer::startInternal(int timestamp)
 
 bool MidiPlayer::recordInternal(int timestamp)
 {
-	sendAllocationFreeChangeMessage();
-
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	
 
 	if (overdubMode)

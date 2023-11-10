@@ -179,7 +179,6 @@ public:
 *	There are also some additional interface classes to extend the Processor class with specific features: \ref processor_interfaces
 */
 class Processor: public ControlledObject,
-                 public SafeChangeBroadcaster,
                  public Dispatchable,
 #if HISE_NEW_PROCESSOR_DISPATCH
                  public dispatch::SourceOwner,
@@ -466,6 +465,71 @@ public:
         
         JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
     };
+
+    struct AttributeListener: public dispatch::ListenerOwner
+    {
+	    AttributeListener(dispatch::RootObject& r, const dispatch::library::Processor::AttributeListener::Callback& f)
+          NEW_PROCESSOR_DISPATCH(:dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(AttributeListener::internalUpdate)))
+	    {}
+
+        virtual ~AttributeListener();;
+
+        virtual void onAttributeUpdate(Processor* p, uint8 index) = 0;
+        
+    private:
+
+        void internalUpdate(dispatch::library::Processor* p, uint8 index)
+        {
+			NEW_PROCESSOR_DISPATCH(onAttributeUpdate(&p->getOwner<hise::Processor>(), index));
+        }
+
+        using Callback = void(*)(dispatch::library::Processor*, uint8);
+        
+        NEW_PROCESSOR_DISPATCH(dispatch::library::Processor::AttributeListener dispatcher);
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
+    };
+
+    struct OtherListener: public dispatch::ListenerOwner,
+						  public SafeChangeListener
+    {
+        OtherListener(Processor* p, dispatch::library::ProcessorChangeEvent eventToListenTo):
+#if HISE_NEW_PROCESSOR_DISPATCH
+          dispatcher(p->dispatcher.getRootObject(), *this, BIND_MEMBER_FUNCTION_1(OtherListener::onChange), eventToListenTo),
+#endif
+          processor(p)
+        {
+	        processor->otherBroadcaster.addChangeListener(this);
+            NEW_PROCESSOR_DISPATCH(processor->addOtherChangeListener(&dispatcher, dispatch::sendNotificationAsync));
+        }
+
+        ~OtherListener()
+        {
+	        if(auto p = processor.get())
+	        {
+		        processor->otherBroadcaster.removeChangeListener(this);
+                NEW_PROCESSOR_DISPATCH(p->removeOtherChangeListener(&dispatcher));
+	        }
+        }
+        virtual void otherChange(Processor* p) = 0;
+
+    	void changeListenerCallback(SafeChangeBroadcaster* b) override
+	    {
+		    auto ob = dynamic_cast<OldBroadcaster*>(b);
+            jassert(ob != nullptr);
+            otherChange(&ob->parent);
+	    }
+
+    private:
+
+        void onChange(dispatch::library::Processor* p)
+        {
+	        NEW_PROCESSOR_DISPATCH(otherChange(&p->getOwner<hise::Processor>()));
+        }
+
+        NEW_PROCESSOR_DISPATCH(dispatch::library::Processor::OtherChangeListener dispatcher);
+        WeakReference<Processor> processor;
+    };
     
     /** A iterator over all child processors.
      *
@@ -676,10 +740,32 @@ public:
     
     void sendDeleteMessage();
     
-    void addBypassListener(BypassListener* l, NotificationType n);
+    void addBypassListener(BypassListener* l, dispatch::DispatchType n);
     
     void removeBypassListener(BypassListener* l);
+
+    void sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent eventType, dispatch::DispatchType n=dispatch::sendNotificationAsync);
+
+    void addOtherChangeListener(dispatch::library::Processor::OtherChangeListener* l, dispatch::DispatchType n)
+    {
+        NEW_PROCESSOR_DISPATCH(dispatcher.addOtherChangeListener(l, n));
+    }
     
+    void removeOtherChangeListener(dispatch::library::Processor::OtherChangeListener* l)
+    {
+        NEW_PROCESSOR_DISPATCH(dispatcher.removeOtherChangeListener(l));
+    }
+
+    void addAttributeListener(dispatch::library::Processor::AttributeListener* l, uint8* indexes, uint8 numAttributes, dispatch::DispatchType n)
+    {
+        NEW_PROCESSOR_DISPATCH(dispatcher.addAttributeListener(l, indexes, numAttributes, n));
+    }
+    
+    void removeAttributeListener(dispatch::library::Processor::AttributeListener* l)
+    {
+        NEW_PROCESSOR_DISPATCH(dispatcher.removeAttributeListener(l));
+    }
+
     void addNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l)
     {
         NEW_PROCESSOR_DISPATCH(dispatcher.addNameAndColourListener(l));
@@ -749,7 +835,14 @@ protected:
 
 private:
 
+    struct OldBroadcaster: public SafeChangeBroadcaster
+    {
+	    OldBroadcaster(Processor& parent_):
+          parent(parent_)
+        {};
 
+        Processor& parent;
+    } otherBroadcaster;
     
 	bool rebuildMessagePending = false;
 

@@ -163,7 +163,7 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 			{
 				editorOfParent->getChainBar()->refreshPanel();
 				editorOfParent->sendResizedMessage();
-				editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+				editorOfChain->otherChange(editorOfChain->getProcessor());
 				editorOfChain->childEditorAmountChanged();
 			}
 
@@ -935,7 +935,6 @@ void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 		const bool isHidden = getProcessor()->getEditorState(Processor::EditorState::Visible);
 
 		getProcessor()->setEditorState(Processor::Visible, !isHidden, sendNotification);
-		getProcessor()->sendChangeMessage();
 
 		mainEditor->getRootContainer()->refreshSize(false);
 		
@@ -1483,7 +1482,6 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Visible:
 		getProcessor()->toggleEditorState(Processor::Visible, sendNotification);
-		getProcessor()->sendChangeMessage();
 		mainEditor->getRootContainer()->refreshSize(false);	
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Solo:
@@ -1496,7 +1494,6 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Bypassed:
 		getProcessor()->setBypassed(!getProcessor()->isBypassed());
-		getProcessor()->sendChangeMessage();
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Copy:
 		PresetHandler::copyProcessorToClipboard(getProcessor());
@@ -1535,7 +1532,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 		{
 			editorOfParent->getChainBar()->refreshPanel();
 			editorOfParent->sendResizedMessage();
-			editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+			editorOfChain->otherChange(editorOfChain->getProcessor());
 			editorOfChain->childEditorAmountChanged();
 		}
 
@@ -2098,7 +2095,7 @@ AutomationDataBrowser::AutomationCollection::ConnectionItem::ConnectionItem(Auto
 	if (auto pc = dynamic_cast<AutomationData::ProcessorConnection*>(c.get()))
 	{
 		if (pc->connectedProcessor != nullptr)
-			pc->connectedProcessor->addChangeListener(this);
+			updater = new Updater(*this, pc->connectedProcessor);
 	}
 
 	setSize(380 - 16, ITEM_HEIGHT);
@@ -2106,11 +2103,7 @@ AutomationDataBrowser::AutomationCollection::ConnectionItem::ConnectionItem(Auto
 
 AutomationDataBrowser::AutomationCollection::ConnectionItem::~ConnectionItem()
 {
-	if (auto pc = dynamic_cast<AutomationData::ProcessorConnection*>(c.get()))
-	{
-		if (pc->connectedProcessor != nullptr)
-			pc->connectedProcessor->removeChangeListener(this);
-	}
+	updater = nullptr;
 }
 
 void AutomationDataBrowser::AutomationCollection::ConnectionItem::paint(Graphics& g)

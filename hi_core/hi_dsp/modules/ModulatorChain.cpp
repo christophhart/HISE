@@ -1328,7 +1328,7 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 		ltp->addYValueConverter(f, newModulator);
 	}
 
-	chain->sendChangeMessage();
+	chain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Children);
 };
 
 

@@ -134,7 +134,7 @@ syncVoiceHandler(false)
 
 	setGain(1.0);
 
-	enablePooledUpdate(mc->getGlobalUIUpdater());
+	OLD_PROCESSOR_DISPATCH(enablePooledUpdate(mc->getGlobalUIUpdater()));
 
 	//enableAllocationFreeMessages(50);
 
@@ -362,7 +362,7 @@ void ModulatorSampler::setNumMicPositions(StringArray &micPositions)
 		channelData[i].suffix = micPositions[i];
 	}
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 }
 
@@ -679,7 +679,7 @@ void ModulatorSampler::deleteSound(int index)
 		if (!delayUpdate)
 		{
 			refreshMemoryUsage();
-			sendChangeMessage();
+			sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 		}
 		
 	}
@@ -719,7 +719,7 @@ void ModulatorSampler::deleteAllSounds()
 	}
 	
 	refreshMemoryUsage();
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 }
 
 void ModulatorSampler::refreshPreloadSizes()
@@ -829,7 +829,7 @@ void ModulatorSampler::refreshMemoryUsage(bool fastMode)
 
 	memoryUsage = actualPreloadSize + streamBufferSizePerVoice * getNumVoices();
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 	getSampleMap()->getCurrentSamplePool()->sendChangeMessage();
 }
 
@@ -1111,7 +1111,7 @@ void ModulatorSampler::resetNoteDisplay(int noteNumber)
 	lastStartedVoice = nullptr;
 	samplerDisplayValues.currentNotes[jlimit(0, 127, noteNumber)] = 0;
 	samplerDisplayValues.currentSamplePos = -1.0;
-	sendAllocationFreeChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 }
 
 void ModulatorSampler::resetNotes()
@@ -1315,7 +1315,7 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
             samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = 0;
 		}
 		
-        sendAllocationFreeChangeMessage();
+        sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 	}
 
 	if (!m.isNoteOff() || !oneShotEnabled)
@@ -1794,7 +1794,7 @@ bool ModulatorSampler::preloadAllSamples()
 	refreshMemoryUsage();
 	setShouldUpdateUI(true);
 	setHasPendingSampleLoad(false);
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 	return true;
 }
@@ -1842,7 +1842,7 @@ ModulatorSampler::ScopedUpdateDelayer::~ScopedUpdateDelayer()
 	if (!prevValue)
 	{
 		sampler->refreshMemoryUsage();
-		sampler->sendChangeMessage();
+		sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 		sampler->getSampleMap()->sendSampleMapChangeMessage(sendNotificationAsync);
 	}
 }

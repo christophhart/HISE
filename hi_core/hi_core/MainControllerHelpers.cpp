@@ -366,7 +366,7 @@ struct MidiControllerAutomationHandler::MPEData::Data: public Processor::DeleteL
 			{
 				c->removeDeleteListener(this);
 				c->setBypassed(true);
-				c->sendChangeMessage();
+				c->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 			else
 				jassertfalse;

@@ -105,7 +105,7 @@ void GlobalModulator::connectIfPending()
 void GlobalModulator::processorChanged(EventType /*t*/, Processor* /*p*/)
 {
 	// Just send a regular update message to update the GUI
-	dynamic_cast<Processor*>(this)->sendChangeMessage();
+	dynamic_cast<Processor*>(this)->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Any);
 }
 
 bool isParent(Processor* p, Processor* possibleParent)

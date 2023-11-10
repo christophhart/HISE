@@ -1244,7 +1244,7 @@ public:
 				sound->checkFileReference();
 			}
 
-			s->sendChangeMessage();
+			s->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 			index++;
 		}

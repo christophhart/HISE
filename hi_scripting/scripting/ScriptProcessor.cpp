@@ -226,18 +226,18 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 			if (auto mod = dynamic_cast<Modulation*>(component->getConnectedProcessor()))
 			{
 				mod->setIntensity(v);
-				BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
+				BACKEND_ONLY(component->getConnectedProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Intensity));
 			}
 		}
 		else if (index == -3) // bypassed
 		{
 			component->getConnectedProcessor()->setBypassed(v > 0.5f, sendNotification);
-			BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
+			BACKEND_ONLY(component->getConnectedProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed));
 		}
 		else if (index == -4) // enabled
 		{
 			component->getConnectedProcessor()->setBypassed(v < 0.5f, sendNotification);
-			BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
+			BACKEND_ONLY(component->getConnectedProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed));
 
 		}
 		else
@@ -318,10 +318,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		}
 	}
 
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-		thisAsProcessor->sendSynchronousChangeMessage();
-	else
-		thisAsProcessor->sendChangeMessage();
+	thisAsProcessor->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, MessageManager::getInstance()->isThisTheMessageThread() ? dispatch::sendNotificationSync : dispatch::sendNotificationAsync);
 }
 
 void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r)
@@ -1995,7 +1992,7 @@ void JavascriptProcessor::setConnectedFile(const String& fileReference, bool com
 		if(compileScriptAfterLoad)
 			compileScript();
 
-		dynamic_cast<Processor*>(this)->sendChangeMessage();
+		dynamic_cast<Processor*>(this)->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 }
 
@@ -2003,7 +2000,7 @@ void JavascriptProcessor::disconnectFromFile()
 {
 	connectedFileReference = String();
 
-	dynamic_cast<Processor*>(this)->sendChangeMessage();
+	dynamic_cast<Processor*>(this)->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 void JavascriptProcessor::reloadFromFile()

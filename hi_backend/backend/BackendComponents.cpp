@@ -143,7 +143,7 @@ MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
 
 	}
 
-	changeListenerCallback(synthChain);
+	otherChange(synthChain);
 }
 
 MacroComponent::~MacroComponent()

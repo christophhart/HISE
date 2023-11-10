@@ -308,7 +308,7 @@ void GroupBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     }
 
     //[UsercomboBoxChanged_Post]
-	getProcessor()->sendChangeMessage();
+	getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
     //[/UsercomboBoxChanged_Post]
 }
 
@@ -320,7 +320,7 @@ void GroupBody::buttonClicked (Button* buttonThatWasClicked)
     if (buttonThatWasClicked == fmButton)
     {
         //[UserButtonCode_fmButton] -- add your button handler code here..
-		getProcessor()->sendChangeMessage();
+		getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
         //[/UserButtonCode_fmButton]
     }
     else if (buttonThatWasClicked == forceMonoButton)

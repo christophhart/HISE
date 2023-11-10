@@ -455,7 +455,7 @@ void ModulatorSynthChain::reset()
         setAttribute(i, getDefaultValue(i), dontSendNotification);
     }
     
-    sendChangeMessage();
+    sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
 }
 
 int ModulatorSynthChain::getNumActiveVoices() const

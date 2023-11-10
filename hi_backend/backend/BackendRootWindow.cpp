@@ -493,7 +493,7 @@ void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
 
 	if (editorOfChain != nullptr)
 	{
-		editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+		editorOfChain->otherChange(editorOfChain->getProcessor());
 		editorOfChain->childEditorAmountChanged();
 	}
 }

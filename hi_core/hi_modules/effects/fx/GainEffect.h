@@ -272,7 +272,7 @@ public:
 	void connectToPlayer(MidiPlayer* p)
 	{
 		player = p;
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 
 	void connectToPlayer(const String& playerId)

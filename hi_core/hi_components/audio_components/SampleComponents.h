@@ -38,8 +38,7 @@ using namespace juce;
 
 
 class WaveformComponent : public Component,
-	public RingBufferComponentBase,
-	public SafeChangeListener
+	public RingBufferComponentBase
 {
 public:
 
@@ -138,7 +137,8 @@ public:
 	WaveformComponent(Processor *p, int index = 0);
 	~WaveformComponent();
 
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override;
+	
+
 	void setBypassed(bool shouldBeBypassed);
 	void setUseFlatDesign(bool shouldUseFlatDesign);
 

@@ -588,7 +588,7 @@ void MacroControlBroadcaster::clearData(int macroIndex)
     
     data->restoreFromValueTree(v);
     
-	thisAsSynth->sendChangeMessage();
+	thisAsSynth->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 }
 
 void MacroControlBroadcaster::MacroControlData::setValue(float newValue)
@@ -632,7 +632,7 @@ void MacroControlBroadcaster::MacroControlData::removeParametersFromIndexList(co
             if(cp->getProcessor() == nullptr)
                 continue;
             
-            cp->getProcessor()->sendChangeMessage();
+            cp->getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
             
             parent.sendMacroConnectionChangeMessage(macroIndex, cp->getProcessor(), cp->getParameter(), false, n);
         }
@@ -812,12 +812,12 @@ void MacroControlBroadcaster::setMacroControl(int macroIndex, float newValue, No
 
 	if(notifyEditor == sendNotificationAsync)
 	{
-		thisAsSynth->sendChangeMessage();
+		thisAsSynth->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 
 	}
 	else if (notifyEditor == sendNotification)
 	{
-		thisAsSynth->sendChangeMessage();
+		thisAsSynth->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 
 		AudioProcessor *p = dynamic_cast<AudioProcessor*>(thisAsSynth->getMainController());
 
@@ -895,8 +895,8 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 
 		macroControls[macroControllerIndex]->addParameter(p, parameterId, parameterName, range, readOnly);
 
-		p->sendChangeMessage();
-		thisAsSynth->sendChangeMessage();
+		p->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
+		thisAsSynth->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 	}
 }
 

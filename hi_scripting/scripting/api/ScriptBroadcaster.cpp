@@ -1008,11 +1008,12 @@ juce::Result ScriptBroadcaster::EqListener::callItem(TargetBase* b)
 	return Result::ok();
 }
 
-struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public SafeChangeListener,
+struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hise::Processor::OtherListener,
 																	   public hise::Processor::BypassListener
 {
 	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
 	    BypassListener(p_->getMainController()->getRootDispatcher()),
+	    OtherListener(p_, dispatch::library::ProcessorChangeEvent::Any), // TODO: replace with attribute listener
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
@@ -1032,10 +1033,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 		args.add(p->getId());
 		args.add(0);
 		args.add(0.0f);
-
-		if(!parameterIndexes.isEmpty())
-			p->addChangeListener(this);
-
+		
 		if (specialId.isValid())
 		{
             if(specialId.toString() == "Intensity")
@@ -1047,7 +1045,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
             }
             else
             {
-                p->addBypassListener(this, sendNotificationSync);
+                p->addBypassListener(this, dispatch::sendNotificationAsyncHiPriority);
                 bypassIdAsVar = var(specialId.toString());
             }
 		}
@@ -1089,19 +1087,21 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public Sa
 	{
 		if (p != nullptr)
 		{
-			p->removeChangeListener(this);
 			p->removeBypassListener(this);
 		}
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override
+	void otherChange(Processor *b) override
 	{
+#if HISE_NEW_PROCESSOR_DISPATCH
+		// TODO: Replace with AttributeListener!
+		jassertfalse;
+#endif
 		if (p == nullptr)
 			return;
 
 		for (int i = 0; i < parameterIndexes.size(); i++)
 		{
-			
 			auto newValue = p->getAttribute(parameterIndexes[i]);
 
 			if (lastValues[i] != newValue)

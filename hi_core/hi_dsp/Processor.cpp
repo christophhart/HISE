@@ -76,7 +76,7 @@ Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 		idAsIdentifier = Identifier(id);
 	}
 
-	enablePooledUpdate(getMainController()->getGlobalUIUpdater());
+	otherBroadcaster.enablePooledUpdate(getMainController()->getGlobalUIUpdater());
 
 	//enableAllocationFreeMessages(50);
 }
@@ -85,9 +85,11 @@ Processor::~Processor()
 {
 	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorDestructor);
 
+	otherBroadcaster.removeAllChangeListeners();
+
 	getMainController()->getMacroManager().removeMacroControlsFor(this);
 
-	removeAllChangeListeners();
+	
 
 	masterReference.clear();
 }
@@ -197,7 +199,22 @@ void Processor::setSymbol(Path newSymbol)
 void Processor::setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor)
 {
 	setInternalAttribute(parameterIndex, newValue);
-	if(notifyEditor == sendNotification) sendPooledChangeMessage();
+
+	auto nt = static_cast<dispatch::DispatchType>(notifyEditor);
+
+	
+
+#if HISE_OLD_PROCESSOR_DISPATCH
+	if(notifyEditor == sendNotification)
+	{
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, nt);
+	}
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setAttribute(parameterIndex, newValue, nt);
+#endif
+
+	
 }
 
 float Processor::getDefaultValue(int) const
@@ -239,7 +256,7 @@ void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
 	}
 
 #if HISE_OLD_PROCESSOR_DISPATCH
-	sendChangeMessage();
+	otherBroadcaster.sendChangeMessage();
 
 	if (notifyChangeHandler)
 		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
@@ -300,6 +317,25 @@ double Processor::getSampleRate() const
 int Processor::getLargestBlockSize() const
 {   
 	return largestBlockSize;
+}
+
+void Processor::sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent eventType, dispatch::DispatchType t)
+{
+	#if HISE_OLD_PROCESSOR_DISPATCH
+	if(t == sendNotificationSync)
+		otherBroadcaster.sendSynchronousChangeMessage();
+	else
+		otherBroadcaster.sendChangeMessage();
+	#endif
+	#if HISE_NEW_PROCESSOR_DISPATCH
+
+	if(eventType > dispatch::library::ProcessorChangeEvent::numProcessorChangeEvents)
+	{
+		return;
+	}
+
+	dispatcher.sendChangeMessage(eventType, t);
+	#endif
 }
 
 float Processor::getOutputValue() const
@@ -490,7 +526,8 @@ void Processor::setInputValue(float newValue, NotificationType notify)
 
 	if(notify == sendNotification)
 	{
-		sendPooledChangeMessage();
+		jassertfalse;
+		otherBroadcaster.sendPooledChangeMessage();
 	}
 };
 

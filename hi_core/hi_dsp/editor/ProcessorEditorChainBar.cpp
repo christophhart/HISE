@@ -67,14 +67,15 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 
 	}
 
+	updaters.clear();
+
 	for (int i = 0; i < p->getProcessor()->getNumInternalChains(); i++)
 	{
 		Processor *childProcessor = p->getProcessor()->getChildProcessor(i);
 
 		Chain *chain = dynamic_cast<Chain*>(childProcessor);
 
-		childProcessor->addChangeListener(this);
-		
+		updaters.add(new Updater(*this, childProcessor));
 
 		if(chain == nullptr)
 		{
@@ -149,18 +150,9 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 
 ProcessorEditorChainBar::~ProcessorEditorChainBar()
 {
-	if(getProcessor() != nullptr)
-	{
-		for(int i = 0; i < getProcessor()->getNumInternalChains(); i++)
-		{
-			getProcessor()->getChildProcessor(i)->removeChangeListener(this);
-		}
-	}
-
-	chainButtons.clear();
-
+	updaters.clear();
 	
-
+	chainButtons.clear();
 }
 
 int ProcessorEditorChainBar::getActualHeight()
@@ -180,13 +172,7 @@ String ProcessorEditorChainBar::getShortName(const String identifier) const
 	else return identifier;
 }
 
-void ProcessorEditorChainBar::changeListenerCallback(SafeChangeBroadcaster*)
-{
-	for(int i = 1; i < chainButtons.size(); i++)
-	{
-		checkActiveChilds(i-1);
-	}
-}
+
 
 Chain* ProcessorEditorChainBar::getChainForButton(Component* checkComponent)
 {
@@ -347,7 +333,7 @@ void ProcessorEditorChainBar::itemDropped(const SourceDetails &dragSourceDetails
 				refreshPanel();
 				getEditor()->sendResizedMessage();
 
-				editorToUse->changeListenerCallback(editorToUse->getProcessor());
+				editorToUse->otherChange(editorToUse->getProcessor());
 
 				editorToUse->childEditorAmountChanged();
 			}

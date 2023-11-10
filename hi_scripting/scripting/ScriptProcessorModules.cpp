@@ -418,7 +418,7 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 
 	if (isDeferred())
 	{
-		sendSynchronousChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::OtherUnused, dispatch::sendNotificationSync);
 	}
 
 	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));

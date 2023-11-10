@@ -166,7 +166,7 @@ private:
 
 		class Row : public Component,
 			public ButtonListener,
-			public SafeChangeListener,
+			public Processor::OtherListener,
 			public ComboBoxListener,
 			public Timer
 		{
@@ -177,7 +177,16 @@ private:
 
 			void resized() override;
 			void timerCallback() override;
-			void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override;
+
+			void otherChange(Processor* p) override
+			{
+				smoothingTime.updateValue();
+				selector.updateValue();
+				intensity.updateValue();
+				defaultValue.updateValue();
+				updateEnableState();
+			}
+
 			void paint(Graphics& g) override;
 			void buttonClicked(Button* b) override;
 			void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;

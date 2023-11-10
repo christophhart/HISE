@@ -1440,7 +1440,7 @@ void ModulatorSynthGroup::checkFmState()
 		MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 
@@ -1545,7 +1545,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 		group->checkFmState();
 	}
 
-	group->sendChangeMessage();
+	group->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }

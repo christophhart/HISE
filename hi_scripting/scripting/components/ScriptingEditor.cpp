@@ -44,7 +44,7 @@ namespace hise { using namespace juce;
 
 	void HardcodedScriptEditor::updateGui()
 	{
-		contentComponent->changeListenerCallback(getProcessor());
+		contentComponent->changeListenerCallback(nullptr);
 	}
 
 	int HardcodedScriptEditor::getBodyHeight() const

@@ -41,7 +41,6 @@ Just connect it to a PolyphonicFilterEffect or a CurveEQ and it will automatical
 the filter graph.
 */
 class FilterGraph::Panel : public PanelWithProcessorConnection,
-	public SafeChangeListener,
 	public Timer
 {
 public:
@@ -55,7 +54,7 @@ public:
 
 	SET_PANEL_NAME("FilterDisplay");
 
-	Panel(FloatingTile* parent) :
+	Panel(FloatingTile* parent):
 		PanelWithProcessorConnection(parent)
 	{
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF333333));
@@ -67,10 +66,7 @@ public:
 
 	~Panel()
 	{
-		if (auto p = getProcessor())
-		{
-			p->removeChangeListener(this);
-		}
+		updater = nullptr;
 	}
 
 	int getNumDefaultableProperties() const override
@@ -135,13 +131,6 @@ public:
 		return PolyFilterEffect::getClassType();
 	}
 
-
-
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		updateCoefficients();
-	}
-
 	void timerCallback() override
 	{
 		if (auto filter = dynamic_cast<FilterEffect*>(getProcessor()))
@@ -162,14 +151,30 @@ public:
 		}
 	}
 
+	struct Updater: public Processor::OtherListener
+	{
+		Updater(FilterGraph::Panel& parent_, Processor* p):
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Custom),
+		  parent(parent_)
+		{};
 
+		void otherChange(Processor* p) override
+		{
+			parent.updateCoefficients();
+		}
+
+		FilterGraph::Panel& parent;
+	};
+
+	ScopedPointer<Updater> updater;
 
 	Component* createContentComponent(int index) override
 	{
 		if (auto p = getProcessor())
 		{
-			p->addChangeListener(this);
+			updater = nullptr;
 
+			
 			auto c = new FilterGraph(1);
 
 			c->useFlatDesign = true;
@@ -200,7 +205,9 @@ public:
 					c->setComplexDataUIBase(f);
 				}
 			}
-			
+
+			updater = new Updater(*this, p);
+
 			return c;
 		}
 
@@ -438,6 +445,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 };
 
 FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= false*/) :
+	OtherListener(eq_, dispatch::library::ProcessorChangeEvent::Custom),
 	eq(eq_),
 	fftAnalyser(*this),
 	filterGraph(eq_->getNumFilterBands()),
@@ -470,13 +478,10 @@ FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= fa
 	updatePositions(true);
 
 	startTimer(50);
-	eq->addChangeListener(this);
 }
 
 FilterDragOverlay::~FilterDragOverlay()
 {
-	if(eq.get() != nullptr)
-		eq->removeChangeListener(this);
 }
 
 void FilterDragOverlay::paint(Graphics &g)
@@ -542,13 +547,6 @@ void FilterDragOverlay::paintOverChildren(Graphics& g)
 
 	if (selected != nullptr)
 		draw(selected);
-}
-
-void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *)
-{
-	checkEnabledBands();
-	updateFilters();
-	updatePositions(true);
 }
 
 void FilterDragOverlay::checkEnabledBands()

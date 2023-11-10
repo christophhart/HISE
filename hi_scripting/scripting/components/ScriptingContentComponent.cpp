@@ -48,6 +48,7 @@ mod(m)
 
 ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
 	AsyncValueTreePropertyListener(p_->getScriptingContent()->getContentProperties(), p_->getScriptingContent()->getUpdateDispatcher()),
+	updater(*this, dynamic_cast<Processor*>(p_)),
 	contentRebuildNotifier(*this),
 	modalOverlay(*this),
 	processor(p_),
@@ -117,7 +118,7 @@ void ScriptContentComponent::refreshMacroIndexes()
 
 				mcb->getMacroControlData(macroIndex)->removeParameter(x);
 
-				p->getMainController()->getMacroManager().getMacroChain()->sendChangeMessage();
+				p->getMainController()->getMacroManager().getMacroChain()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 
 				debugToConsole(p, "Index mismatch: Removed Macro Control for " + x);
 			}

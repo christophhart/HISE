@@ -145,7 +145,7 @@ void SampleMap::clear(NotificationType n)
 
 	if (sampler != nullptr)
 	{
-		sampler->sendChangeMessage();
+		sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 		getCurrentSamplePool()->sendChangeMessage();
 	}
 
@@ -552,7 +552,7 @@ void SampleMap::sendSampleAddedMessage()
 
 		ModulatorSamplerSoundPool* pool = sampler->getSampleMap()->getCurrentSamplePool();
 		pool->sendChangeMessage();
-		sampler->sendChangeMessage();
+		sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 

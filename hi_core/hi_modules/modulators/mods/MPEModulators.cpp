@@ -87,7 +87,7 @@ void MPEModulator::mpeModeChanged(bool isEnabled)
 
 	setBypassed(shouldBeBypassed);
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 }
 
 void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
@@ -97,7 +97,7 @@ void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
 		const bool shouldBeBypassed = !isActive || !wasAssigned;
 
 		setBypassed(shouldBeBypassed, sendNotification);
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 	}
 }
 
@@ -220,7 +220,7 @@ void MPEModulator::resetToDefault()
 	smoothedIntensity = getDefaultValue(SpecialParameters::SmoothedIntensity);
 	setIntensity(smoothedIntensity);
 	table->reset();
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 float MPEModulator::getAttribute(int parameterIndex) const

@@ -1776,14 +1776,14 @@ public:
 		void setIntensity(var newValue)
 		{
 			m->setIntensity((float)newValue);
-			BACKEND_ONLY(mod->sendChangeMessage());
+			BACKEND_ONLY(mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Intensity, dispatch::sendNotificationAsync););
 		}
 
 		/** Bypasses the modulator. */
 		void setBypassed(var newValue)
 		{
 			mod->setBypassed((bool)newValue);
-			BACKEND_ONLY(mod->sendChangeMessage());
+			BACKEND_ONLY(mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed, dispatch::sendNotificationAsync););
 		}
 
 	private:

@@ -35,14 +35,13 @@ namespace hise { using namespace juce;
 // ====================================================================================================================== BETTER STUFF
 
 ProcessorEditor::ProcessorEditor(ProcessorEditorContainer *rootContainer_, int intendationLevel_, Processor *p, ProcessorEditor *parentEditor_):
+Processor::OtherListener(p, dispatch::library::ProcessorChangeEvent::Any), // TODO: check if it should be removed
 rootContainer(rootContainer_),
 intendationLevel(intendationLevel_),
 processor(p),
 parentEditor(parentEditor_),
 isPopupMode(false)
 {
-	processor->addChangeListener(this);
-
 	addAndMakeVisible(header = new ProcessorEditorHeader(this));
  	addAndMakeVisible(body = p->createEditor(this));
 	
@@ -67,11 +66,6 @@ ProcessorEditor::~ProcessorEditor()
 {
 	// The Editor must be destroyed before the Processor!
 	jassert(processor != nullptr);
-
-	if (processor != nullptr)
-	{
-		processor->removeChangeListener(this);
-	}
 
 	header = nullptr;
 	body = nullptr;
@@ -204,20 +198,11 @@ ProcessorEditor* ProcessorEditor::Iterator::getNextEditor()
 }
 
 
-void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
+void ProcessorEditor::otherChange(Processor* p)
 {
-	// the ChangeBroadcaster must be the connected Processor!
-
-	if (b != getProcessor())
-	{
-		jassertfalse;
-		return;
-	}
-
 	if (header != nullptr) header->update(false);
 	if (body != nullptr)  body->updateGui();
 }
-
 
 bool ProcessorEditor::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
 {	
@@ -345,7 +330,7 @@ void ProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
 	{
 		chain->getHandler()->add(newProcessor, editorToUse == this ? nullptr : getProcessor());
 
-		editorToUse->changeListenerCallback(editorToUse->getProcessor());
+		editorToUse->otherChange(editorToUse->getProcessor());
 
 		editorToUse->childEditorAmountChanged();
 
@@ -771,7 +756,7 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
             
             if(editor != nullptr)
             {
-                editor->changeListenerCallback(editor->getProcessor());
+                editor->otherChange(editor->getProcessor());
                 editor->childEditorAmountChanged();
             }
            

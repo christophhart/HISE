@@ -2485,19 +2485,19 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateValue(var newValue
 #endif
 }
 
-class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public SafeChangeListener,
+class ScriptCreatedComponentWrappers::AudioWaveformWrapper::SamplerListener : public Processor::OtherListener,
 																			  public SampleMap::Listener,
 																			  public AudioDisplayComponent::Listener
 {
 public:
 
 	SamplerListener(ModulatorSampler* s_, SamplerSoundWaveform* waveform_) :
+	    OtherListener(s_, dispatch::library::ProcessorChangeEvent::Custom),
 		s(s_),
 		samplemap(s->getSampleMap()),
 		waveform(waveform_)
 	{
 		samplemap->addListener(this);
-		s->addChangeListener(this);
 
 		if(waveform->getSampleArea(0)->isAreaEnabled())
 			waveform->addAreaListener(this);
@@ -2509,9 +2509,6 @@ public:
 	~SamplerListener()
 	{
 		lastSound = nullptr;
-
-		if (s != nullptr)
-			s->removeChangeListener(this);
 
 		if (waveform != nullptr)
 			waveform->removeAreaListener(this);
@@ -2597,7 +2594,7 @@ public:
 	active = shouldBeActive;
 	}
 
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
+	void otherChange(Processor* p) override
 	{
 		if (!active)
 			return;

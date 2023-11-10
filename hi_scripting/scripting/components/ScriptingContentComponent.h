@@ -95,6 +95,21 @@ class ScriptContentComponent: public ComponentWithMiddleMouseDrag,
 {
 public:
 
+	struct Updater: public Processor::OtherListener
+	{
+		Updater(ScriptContentComponent& parent_, Processor* p):
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Any), // TODO: check if it should be removed altogheter when the content is implemented properly
+		  parent(parent_)
+		{};
+
+		ScriptContentComponent& parent;
+
+		void otherChange(Processor* p) override
+		{
+			parent.updateContent();
+		}
+	};
+
 	/** Creates a new Content which acts as container for all scripted elements. */
 	ScriptContentComponent(ProcessorWithScriptingContent *p);;
 
@@ -414,6 +429,8 @@ private:
 
 		ScriptContentComponent& parent;
 	};
+
+	Updater updater;
 
 	ModalOverlay modalOverlay;
 	ContentRebuildNotifier contentRebuildNotifier;

@@ -2806,7 +2806,7 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 	if (checkValidObject())
 	{
 		mod->setBypassed(shouldBeBypassed, sendNotification);
-		mod->sendChangeMessage();
+		mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed);
 	}
 }
 
@@ -2842,8 +2842,7 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 		{
 			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
 			m->setIntensity(value);
-
-			mod.get()->sendChangeMessage();
+			mod.get()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Intensity, dispatch::sendNotificationAsync);
 		}
 		else if(mode == Modulation::PitchMode)
 		{
@@ -2851,16 +2850,14 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 			const float pitchFactor = value / 12.0f;
 
 			m->setIntensity(pitchFactor);
-
-			mod.get()->sendChangeMessage();
+			mod.get()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Intensity, dispatch::sendNotificationAsync);
 		}
 		else
 		{
 			const float value = jlimit<float>(-1.0f, 1.0f, newIntensity);
 
 			m->setIntensity(value);
-
-			mod.get()->sendChangeMessage();
+			mod.get()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Intensity, dispatch::sendNotificationAsync);
 		}
 	}
 };
@@ -3186,7 +3183,7 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 	if (checkValidObject())
 	{
 		effect->setBypassed(shouldBeBypassed, sendNotification);
-		effect->sendChangeMessage();
+		effect->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed, dispatch::sendNotificationAsync);
 	}
 }
 
@@ -3918,7 +3915,7 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 	if (checkValidObject())
 	{
 		synth->setBypassed(shouldBeBypassed, sendNotification);
-		synth->sendChangeMessage();
+		synth->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed);
 	}
 }
 
@@ -4244,7 +4241,7 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 	if (checkValidObject())
 	{
 		mp->setBypassed(shouldBeBypassed, sendNotification);
-		mp->sendChangeMessage();
+		mp->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed);
 	}
 }
 
@@ -4427,7 +4424,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeB
 	if (checkValidObject())
 	{
 		audioSampleProcessor->setBypassed(shouldBeBypassed, sendNotification);
-		audioSampleProcessor->sendChangeMessage();
+		audioSampleProcessor->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Bypassed);
 	}
 }
 
@@ -5138,7 +5135,7 @@ hise::Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain
 		auto returnMod = dynamic_cast<Modulator*>(m);
 
 #if USE_BACKEND
-		returnMod->sendChangeMessage();
+		returnMod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Children, dispatch::sendNotificationAsync);
 #endif
 
 		return returnMod;
@@ -8642,7 +8639,7 @@ void ScriptingObjects::ScriptBuilder::setAttributes(int buildIndex, var attribut
 				}
 			}
 
-			p->sendPooledChangeMessage();
+			p->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, dispatch::sendNotificationAsync);
 		}
 	}
 }
