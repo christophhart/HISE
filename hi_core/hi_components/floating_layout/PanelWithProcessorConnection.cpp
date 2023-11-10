@@ -233,6 +233,7 @@ hise::Processor* PanelWithProcessorConnection::createDummyProcessorForDocumentat
 
 void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
 {
+#if USE_OLD_PROCESSOR_DISPATCH
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||
 		type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange)
 		return;
@@ -249,6 +250,7 @@ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainControlle
 		}
 	}
 	else
+#endif
 	{
 		refreshConnectionList();
 	}

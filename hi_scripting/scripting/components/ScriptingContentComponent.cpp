@@ -64,7 +64,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
     
 	p->addDeleteListener(this);
 
-	p->addChangeListener(this);
+	OLD_PROCESSOR_DISPATCH(p->addChangeListener(this));
 	p->getMainController()->addScriptListener(this, true);
 
 	addChildComponent(modalOverlay);
@@ -86,7 +86,7 @@ ScriptContentComponent::~ScriptContentComponent()
 	if (p.get() != nullptr)
 	{
 		p->getMainController()->removeScriptListener(this);
-		p->removeChangeListener(this);
+		OLD_PROCESSOR_DISPATCH(p->removeChangeListener(this));
 		p->removeDeleteListener(this);
 	};
 
@@ -189,7 +189,7 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 
 	if (p == b)
 	{
-#if USE_BACKEND
+#if USE_BACKEND && HISE_OLD_PROCESSOR_DISPATCH
 		updateValues();
 #endif
 	}
@@ -208,7 +208,7 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	}
 	else
 	{
-		updateContent();
+		OLD_PROCESSOR_DISPATCH(updateContent());
 	}
 }
 

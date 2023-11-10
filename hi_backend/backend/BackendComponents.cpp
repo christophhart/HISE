@@ -65,14 +65,13 @@ void MacroComponent::addSynthChainToPopup(ModulatorSynthChain *parent, PopupMenu
 }
 
 MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
+	Processor::OtherListener(rootWindow_->getBackendProcessor()->getMainSynthChain(), dispatch::library::ProcessorChangeEvent::Macro),
 	rootWindow(rootWindow_),
 	processor(rootWindow_->getBackendProcessor()),
 	synthChain(processor->getMainSynthChain())
 {
 	setName("Macro Controls");
-
-	synthChain->addChangeListener(this);
-
+	
 	mlaf = new MacroKnobLookAndFeel();
 
 	for (int i = 0; i < HISE_NUM_MACROS; i++)
@@ -150,8 +149,6 @@ MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
 MacroComponent::~MacroComponent()
 {
 	processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
-
-	if (synthChain != nullptr) synthChain->removeChangeListener(this);
 }
 
 void MacroComponent::mouseDown(const MouseEvent &e)
@@ -197,19 +194,6 @@ void MacroComponent::buttonClicked(Button *b)
 		processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
 	}
 };
-
-
-void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
-{
-	for(int i = 0; i < macroKnobs.size(); i++)
-	{
-		macroKnobs[i]->setValue(synthChain->getMacroControlData(i)->getCurrentValue(), dontSendNotification);
-	}
-
-	
-
-	checkActiveButtons();
-}
 
 
 MacroParameterTable* MacroComponent::getMainTable()
@@ -382,8 +366,14 @@ BreadcrumbComponent::~BreadcrumbComponent()
 
 void BreadcrumbComponent::moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type)
 {
+#if USE_OLD_PROCESSOR_DISPATCH
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
 		refreshBreadcrumbs();
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+	// implement me...
+	jassertfalse;
+#endif
 }
 
 void BreadcrumbComponent::paint(Graphics &g)

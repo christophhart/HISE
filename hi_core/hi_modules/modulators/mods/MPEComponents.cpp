@@ -640,7 +640,7 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 			if (auto m = dynamic_cast<MPEModulator*>(p))
 			{
 				m->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeConnection(m);
-				m->sendChangeMessage();
+				m->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 
 			return SafeFunctionCall::OK;
@@ -701,7 +701,7 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 		else if (result == 3)
 		{
 			mod->getTable(0)->restoreData(clipboardContent);
-			mod->sendChangeMessage();
+			mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		}
 		else if (result == 4)
@@ -718,7 +718,7 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 				ValueTree v = ValueTree::fromXml(*xml);
 
 				mod->restoreFromValueTree(v);
-				mod->sendChangeMessage();
+				mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 			else
 			{
@@ -820,6 +820,7 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 }
 
 MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
+	OtherListener(mod_, dispatch::library::ProcessorChangeEvent::Custom),
 	mod(mod_),
 	curvePreview(nullptr, mod->getTable(0)),
 	deleteButton("Delete", Colours::white, Colours::white, Colours::white),
@@ -917,8 +918,6 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 
 	modeSelector.addListener(this);
 
-	mod->addChangeListener(this);
-
     ProcessorHelpers::connectTableEditor(curvePreview, mod);
 
 	curvePreview.setEnabled(false);
@@ -951,16 +950,10 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 
 MPEPanel::Model::Row::~Row()
 {
-	if (mod != nullptr)
-	{
-		mod->removeChangeListener(this);
-	}
 }
 
 void MPEPanel::Model::Row::resized()
 {
-
-
 	auto ar = getLocalBounds();
 
 	int buttonWidth = getHeight();
@@ -1015,15 +1008,6 @@ void MPEPanel::Model::Row::updateEnableState()
 	}
 }
 
-
-void MPEPanel::Model::Row::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
-{
-	smoothingTime.updateValue();
-	selector.updateValue();
-	intensity.updateValue();
-	defaultValue.updateValue();
-	updateEnableState();
-}
 
 void MPEPanel::Model::Row::paint(Graphics& g)
 {
@@ -1103,7 +1087,7 @@ void MPEPanel::Model::Row::deleteThisRow()
 			if (auto m = dynamic_cast<MPEModulator*>(p))
 			{
 				m->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeConnection(m);
-				m->sendChangeMessage();
+				m->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 
 			return SafeFunctionCall::OK;

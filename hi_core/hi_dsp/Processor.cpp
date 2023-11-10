@@ -44,7 +44,10 @@ void Processor::debugProcessor(const String &t)
 
 Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	ControlledObject(m),
+#if HISE_NEW_PROCESSOR_DISPATCH
 	dispatcher(m->getProcessorDispatchHandler(), *this, dispatch::HashedCharPtr(id_)),
+#endif
+	otherBroadcaster(*this),
 	id(id_),
 	consoleEnabled(false),
 	bypassed(false),
@@ -383,8 +386,8 @@ void Processor::DisplayValues::clear()
 Processor::DisplayValues Processor::getDisplayValues() const
 { return currentValues;}
 
-Processor::BypassListener::BypassListener(dispatch::RootObject& r):
-  dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(BypassListener::onBypassUpdate))
+Processor::BypassListener::BypassListener(dispatch::RootObject& r)
+  NEW_PROCESSOR_DISPATCH(:dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(BypassListener::onBypassUpdate)))
 {}
 
 Processor::BypassListener::~BypassListener()
@@ -392,8 +395,7 @@ Processor::BypassListener::~BypassListener()
 
 void Processor::BypassListener::onBypassUpdate(dispatch::library::Processor* p, bool state)
 {
-    auto pr = &p->getOwner<hise::Processor>();
-    bypassStateChanged(pr, state);
+    NEW_PROCESSOR_DISPATCH(bypassStateChanged(&p->getOwner<hise::Processor>(), state));
 }
 
 String Processor::getDescriptionForParameters(int parameterIndex)

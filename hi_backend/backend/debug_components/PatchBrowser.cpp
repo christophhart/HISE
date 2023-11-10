@@ -1032,11 +1032,13 @@ void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float
 PatchBrowser::PatchCollection::PatchCollection(ModulatorSynth *synth, int hierarchy_, bool showChains) :
 ModuleDragTarget(synth),
 BypassListener(synth->getMainController()->getRootDispatcher()),
+#if HISE_NEW_PROCESSOR_DISPATCH
 idAndColourDispatcher(synth->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_1(PatchCollection::updateIdAndColour)),
+#endif
 hierarchy(hierarchy_)
 {
-	synth->addBypassListener(this, sendNotificationAsync);
-	synth->addNameAndColourListener(&idAndColourDispatcher);
+	synth->addBypassListener(this, dispatch::DispatchType::sendNotificationAsync);
+	NEW_PROCESSOR_DISPATCH(synth->addNameAndColourListener(&idAndColourDispatcher));
 	addAndMakeVisible(peak);
 	addAndMakeVisible(idLabel);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
@@ -1121,7 +1123,7 @@ PatchBrowser::PatchCollection::~PatchCollection()
 	if(getProcessor() != nullptr)
 	{
 		getProcessor()->removeBypassListener(this);
-		getProcessor()->removeNameAndColourListener(&idAndColourDispatcher);
+		NEW_PROCESSOR_DISPATCH(getProcessor()->removeNameAndColourListener(&idAndColourDispatcher));
 	}
 }
 
@@ -1390,7 +1392,7 @@ lastMouseDown(0)
     
 	addAndMakeVisible(closeButton);
 	addAndMakeVisible(createButton);
-	p->addBypassListener(this, sendNotificationAsync);
+	p->addBypassListener(this, dispatch::DispatchType::sendNotificationAsync);
 
     addAndMakeVisible(idLabel);
 	addAndMakeVisible(gotoWorkspace);

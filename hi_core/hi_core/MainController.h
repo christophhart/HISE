@@ -1095,17 +1095,21 @@ public:
 		{
 			ProcessorAdded = 0,
 			ProcessorRemoved,
+			RebuildModuleList,
+#if HISE_OLD_PROCESSOR_DISPATCH
 			ProcessorRenamed,
 			ProcessorColourChange,
 			ProcessorBypassed,
-			RebuildModuleList,
+#endif
 			numEventTypes
 		};
 
 		~ProcessorChangeHandler();
 
 		class Listener
+			: public dispatch::ListenerOwner
 		{
+			
 		public:
 			virtual void moduleListChanged(Processor* processorThatWasChanged, EventType type) = 0;
 
@@ -1403,10 +1407,8 @@ public:
 	CodeHandler& getConsoleHandler() noexcept { return codeHandler; };
 	const CodeHandler& getConsoleHandler() const noexcept { return codeHandler; };
 
-#if HISE_OLD_PROCESSOR_DISPATCH
 	ProcessorChangeHandler& getProcessorChangeHandler() noexcept { return processorChangeHandler; }
 	const ProcessorChangeHandler& getProcessorChangeHandler() const noexcept { return processorChangeHandler; }
-#endif
 
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }

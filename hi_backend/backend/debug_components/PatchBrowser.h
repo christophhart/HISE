@@ -41,9 +41,7 @@ class BackendProcessorEditor;
 class PatchBrowser : public SearchableListComponent,
 					 public DragAndDropTarget,
 					 public ButtonListener,
-#if HISE_OLD_PROCESSOR_DISPATCH
 				     public MainController::ProcessorChangeHandler::Listener,
-#endif
 					 public Timer
 {
 
@@ -130,6 +128,7 @@ public:
 
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
+#if HISE_OLD_PROCESSOR_DISPATCH
 		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed ||
 			type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange ||
 			type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed)
@@ -137,6 +136,7 @@ public:
 			repaintAllItems();
 		}
 		else
+#endif
 		{
 			rebuildModuleList(true);
 		}
@@ -281,8 +281,10 @@ private:
 
 		void updateIdAndColour(dispatch::library::Processor* p)
 		{
+#if HISE_NEW_PROCESSOR_DISPATCH
 			jassert(&p->getOwner<hise::Processor>() == getProcessor());
 			idLabel.setText(p->getOwner<hise::Processor>().getId(), dontSendNotification);
+#endif
 			
 			repaint();
 		}
@@ -484,22 +486,33 @@ public:
 								  public ControlledObject,
 								  public PooledUIUpdater::SimpleTimer
 	{
-		struct ConnectionItem : public SearchableListComponent::Item,
-								public SafeChangeListener
+		struct ConnectionItem : public SearchableListComponent::Item
 		{
 			ConnectionItem(AutomationData::Ptr d_, AutomationData::ConnectionBase::Ptr c_);
 
 			~ConnectionItem();
 
-			void changeListenerCallback(SafeChangeBroadcaster* b) override
-			{
-				repaint();
-			}
-
 			void paint(Graphics& g) override;
 
 			AutomationData::Ptr d;
 			AutomationData::ConnectionBase::Ptr c;
+
+			struct Updater: public Processor::OtherListener
+			{
+				Updater(ConnectionItem& parent_, Processor* p):
+				  OtherListener(p, dispatch::library::ProcessorChangeEvent::Any),
+				  parent(parent_)
+				{};
+
+				void otherChange(Processor* p) override
+				{
+					parent.repaint();
+				}
+
+				ConnectionItem& parent;
+			};
+
+			ScopedPointer<Updater> updater;
 		};
 
 		void paint(Graphics& g) override;

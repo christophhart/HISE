@@ -1236,7 +1236,7 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	newModulator->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
-	newModulator->addBypassListener(this, sendNotificationSync);
+	newModulator->addBypassListener(this, dispatch::sendNotificationSync);
 
 	if (chain->isInitialized())
 		newModulator->prepareToPlay(chain->getSampleRate(), chain->blockSize);

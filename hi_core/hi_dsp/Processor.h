@@ -179,10 +179,8 @@ public:
 *	There are also some additional interface classes to extend the Processor class with specific features: \ref processor_interfaces
 */
 class Processor: public ControlledObject,
-#if HISE_OLD_PROCESSOR_DISPATCH
                  public SafeChangeBroadcaster,
                  public Dispatchable,
-#endif
 #if HISE_NEW_PROCESSOR_DISPATCH
                  public dispatch::SourceOwner,
 #endif
@@ -464,7 +462,7 @@ public:
         void onBypassUpdate(dispatch::library::Processor* p, bool state);
         
         
-        dispatch::library::Processor::BypassListener dispatcher;
+        NEW_PROCESSOR_DISPATCH(dispatch::library::Processor::BypassListener dispatcher);
         
         JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
     };
@@ -684,12 +682,12 @@ public:
     
     void addNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l)
     {
-        dispatcher.addNameAndColourListener(l);
+        NEW_PROCESSOR_DISPATCH(dispatcher.addNameAndColourListener(l));
     }
     
     void removeNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l)
     {
-        dispatcher.removeNameAndColourListener(l);
+		NEW_PROCESSOR_DISPATCH(dispatcher.removeNameAndColourListener(l));
     }
     
 	bool isRebuildMessagePending() const noexcept;
@@ -747,7 +745,7 @@ protected:
 	StringArray parameterDescriptions;
 	Array<Identifier> editorStateIdentifiers;
 
-    dispatch::library::Processor dispatcher;
+	NEW_PROCESSOR_DISPATCH(dispatch::library::Processor dispatcher);
 
 private:
 

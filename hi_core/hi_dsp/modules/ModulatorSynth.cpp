@@ -220,12 +220,8 @@ void ModulatorSynth::setIconColour(Colour newIconColour)
 { 
 	iconColour = newIconColour;
 
-#if HISE_OLD_PROCESSOR_DISPATCH
-	getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
-#endif
-#if HISE_NEW_PROCESSOR_DISPATCH
-	dispatcher.setColour(iconColour);
-#endif
+	OLD_PROCESSOR_DISPATCH(getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false));
+	NEW_PROCESSOR_DISPATCH(dispatcher.setColour(iconColour));
 }
 
 Colour ModulatorSynth::getIconColour() const
