@@ -133,7 +133,7 @@ Processor::~Processor()
 void Processor::setAttribute(int parameterIndex, float, DispatchType n)
 {
 	if(n != dontSendNotification)
-		attributes.sendChangeMessage(parameterIndex, sendNotificationSync);
+		attributes.sendChangeMessage(parameterIndex, n);
 }
 
 void Processor::setBypassed(bool value)

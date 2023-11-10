@@ -51,10 +51,7 @@ struct SlotSender
 	void setNumSlots(int newNumSlots);
 	bool flush(DispatchType n=sendNotification);
 	bool sendChangeMessage(int indexInSlot, DispatchType notify);
-
-	/** Flushes the change if it's not async. */
-	void flushAsyncChanges();
-
+	
 	// Todo: clear the parent queue with all pending messages. */
 	void shutdown()
 	{
@@ -74,12 +71,13 @@ private:
 	const uint8 index;
 	const HashedCharPtr id;
 
+	using DataType = std::pair<ObjectStorage<64, 0>, bool>;
+
 	// TODO: Add async & hiprio sync data slots which are cleared when in use
-	ObjectStorage<64, 0> data;
+	DispatchTypeContainer<DataType> data;
 	
 	size_t numSlots;
-	bool pending = false;
-
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SlotSender);
 };
 

@@ -60,6 +60,8 @@ struct Suspendable: public Queueable
 	virtual void setState(State newState) = 0;
 	virtual State getStateFromParent() const { return parent != nullptr ? parent->getStateFromParent() : State::Running; }
 
+	bool hasParent() const { return parent != nullptr; }
+
 private:
 
 	Suspendable* parent = nullptr;
@@ -154,6 +156,8 @@ struct Queue final : public Suspendable
 	/** Creates a queue and allocates the given amount of bytes. */
 	Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize);
 
+	~Queue() override;
+
 	/** Checks that the allocated storage is enough for the next message.
 	 *  If not, it prints a warning (TODO)
 	 *  and allocates to the next power of two until the MaxQueueSize is reached
@@ -226,6 +230,48 @@ private:
 	bool logRecursion = false;
 };
 
+template <typename T> struct DispatchTypeContainer
+{
+	template <typename... Args> DispatchTypeContainer(Args&&... args):
+	  sync(std::forward<Args>(args)...),
+	  asyncHiPrio(std::forward<Args>(args)...),
+	  async(std::forward<Args>(args)...)
+	{};
+
+	T& get(DispatchType n)
+	{
+		switch(n)
+		{
+		case DispatchType::sendNotificationAsync:			return async;
+		case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPrio;
+		case DispatchType::sendNotificationSync:			return sync;
+		default: jassertfalse; return async;
+		}
+	}
+
+	void forEach(const std::function<void(T&)>& f)
+	{
+		f(sync);
+		f(asyncHiPrio);
+		f(async);
+	}
+
+	const T& get(DispatchType n) const
+	{
+		switch(n)
+		{
+		case DispatchType::sendNotificationAsync:			return async;
+		case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPrio;
+		case DispatchType::sendNotificationSync:			return sync;
+		default: jassertfalse; return async;
+		}
+	}
+
+	T sync;
+	T asyncHiPrio;
+	T async;
+};
+
 struct SomethingWithQueues: public Suspendable
 {
 	SomethingWithQueues(RootObject& r);;
@@ -250,12 +296,8 @@ private:
 
 	State currentState = State::Running;
 
-	Queue asyncHiPriorityQueue;
-	Queue asyncQueue;
-	Queue deferedSyncEvents;
-	Queue asyncListeners;
-	Queue syncListeners;
-	Queue asyncHighPriorityListeners;
+	DispatchTypeContainer<Queue> events;
+	DispatchTypeContainer<Queue> listeners;
 };
 
 } // dispatch

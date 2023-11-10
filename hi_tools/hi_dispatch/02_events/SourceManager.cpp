@@ -43,11 +43,13 @@ SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   treeId(typeId),
   sources(r, nullptr, sizeof(void*) * 128)
 {
+	r.addTypedChild(this);
 	jassert(!typeId.isDynamic());
 }
 
 SourceManager::~SourceManager()
 {
+	getRootObject().removeTypedChild(this);
 	sources.clear();
 	
 }
@@ -66,8 +68,6 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 		{
 			if(const auto l = getRootObject().getLogger())
 				l->log(&s, EventType::SlotChange, values, numValues);
-
-			processEvents(sendNotificationSync);
 
 			auto syncCallback = [&](const Queue::FlushArgument& f)
 			{
@@ -89,18 +89,25 @@ void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numVa
 			getListenerQueue(DispatchType::sendNotificationSync).flush(syncCallback, Queue::FlushType::KeepData);
 		}
 	}
-
-	auto pushIfHasListener = [&](SomethingWithQueues& q, DispatchType t)
+	else
 	{
-		if(q.hasListeners(t))
-			q.getEventQueue(t).push(&s, EventType::SlotChange, values, numValues);
-	};
-	
-	pushIfHasListener(*this, sendNotificationAsync);
-	pushIfHasListener(s, sendNotificationAsync);
+		auto pushIfHasListener = [&](SomethingWithQueues& q, DispatchType t)
+		{
+			if(q.hasListeners(t))
+			{
+				q.getEventQueue(t).push(&s, EventType::SlotChange, values, numValues);
+				return true;
+			}
 
-	pushIfHasListener(*this, sendNotificationAsyncHiPriority);
-	pushIfHasListener(s, sendNotificationAsyncHiPriority);
+			return false;
+		};
+
+		auto doneSomething = pushIfHasListener(*this, n);
+		doneSomething |= pushIfHasListener(s, n);
+
+		if(doneSomething && n == DispatchType::sendNotificationAsyncHiPriority)
+			getRootObject().notify();
+	}
 }
 
 void SourceManager::flushHiPriorityQueue()
@@ -116,15 +123,15 @@ void SourceManager::flushHiPriorityQueue()
 		MessageManagerLock mm;
 
 		// Tell the sources to flush their async changes
-		sources.flush([](const Queue::FlushArgument& a)
+		sources.flush([thisType](const Queue::FlushArgument& a)
 		{
-			a.getTypedObject<Source>().flushAsyncChanges();
-			a.getTypedObject<Source>().processEvents(DispatchType::sendNotificationAsyncHiPriority);
+			a.getTypedObject<Source>().flushChanges(thisType);
+			a.getTypedObject<Source>().processEvents(thisType);
 
 			return true;
 		}, Queue::FlushType::KeepData);
 
-		processEvents(DispatchType::sendNotificationAsyncHiPriority);
+		processEvents(thisType);
 	}
 }
 
@@ -143,143 +150,18 @@ void SourceManager::timerCallback()
 		return;
 
 	// Tell the sources to flush their async changes
-	sources.flush([](const Queue::FlushArgument& a)
+	sources.flush([thisType](const Queue::FlushArgument& a)
 	{
-		a.getTypedObject<Source>().flushAsyncChanges();
-		a.getTypedObject<Source>().processEvents(DispatchType::sendNotificationAsync);
+		a.getTypedObject<Source>().flushChanges(thisType);
+		a.getTypedObject<Source>().processEvents(thisType);
 		return true;
 	}, Queue::FlushType::KeepData);
 
-	processEvents(DispatchType::sendNotificationAsync);
+	processEvents(thisType);
 }
 
 
-SomethingWithQueues::SomethingWithQueues(RootObject& r):
-	Suspendable(r, nullptr),
-	asyncQueue(r, this, 1024),
-	asyncHiPriorityQueue(r, this, 1024),
-	deferedSyncEvents(r, this, 128),
-	asyncListeners(r, nullptr, 8192),
-	syncListeners(r, nullptr, 128),
-	asyncHighPriorityListeners(r, nullptr, 128)
-{
-	asyncListeners.addPushCheck([](Queueable* s)
-	{
-		return dynamic_cast<Listener*>(s) != nullptr;
-	});
 
-	syncListeners.addPushCheck([](Queueable* s)
-	{
-		return dynamic_cast<Listener*>(s) != nullptr;
-	});
-
-	asyncHighPriorityListeners.addPushCheck([](Queueable* s)
-	{
-		return dynamic_cast<Listener*>(s) != nullptr;
-	});
-}
-
-SomethingWithQueues::~SomethingWithQueues()
-{
-	asyncListeners.clear();
-	asyncHighPriorityListeners.clear();
-	syncListeners.clear();
-	asyncQueue.clear();
-	asyncHiPriorityQueue.clear();
-	deferedSyncEvents.clear();
-}
-
-Queue& SomethingWithQueues::getEventQueue(DispatchType n)
-{
-	switch(n)
-	{
-	case DispatchType::sendNotificationAsync:			return asyncQueue;
-	case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPriorityQueue;
-	case DispatchType::sendNotificationSync:			return deferedSyncEvents;
-	default: jassertfalse; return asyncListeners;
-	}
-}
-
-const Queue& SomethingWithQueues::getEventQueue(DispatchType n) const
-{
-	switch(n)
-	{
-	case DispatchType::sendNotificationAsync:			return asyncQueue;
-	case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPriorityQueue;
-	case DispatchType::sendNotificationSync:			return deferedSyncEvents;
-	default: jassertfalse; return asyncListeners;
-	}
-}
-
-Queue& SomethingWithQueues::getListenerQueue(DispatchType n)
-{
-	switch(n)
-	{
-	case DispatchType::sendNotificationAsync:			return asyncListeners;
-	case DispatchType::sendNotificationAsyncHiPriority: return asyncHighPriorityListeners;
-	case DispatchType::sendNotificationSync:			return syncListeners;
-	default: jassertfalse; return asyncListeners;
-	}
-}
-
-const Queue& SomethingWithQueues::getListenerQueue(DispatchType n) const
-{
-	switch(n)
-	{
-	case DispatchType::sendNotificationAsync:			return asyncListeners;
-	case DispatchType::sendNotificationAsyncHiPriority: return asyncHighPriorityListeners;
-	case DispatchType::sendNotificationSync:			return syncListeners;
-	default: jassertfalse; return asyncListeners;
-	}
-}
-
-void SomethingWithQueues::processEvents(DispatchType n)
-{
-	if(hasEvents(n) && hasListeners(n))
-	{
-		StringBuilder b2;
-		b2 << "process " << getDispatchId();
-		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b2));
-
-		getEventQueue(n).flush([&](const Queue::FlushArgument& eventData)
-		{
-			getListenerQueue(n).flush([&](const Queue::FlushArgument& f)
-			{
-				auto& l = f.getTypedObject<dispatch::Listener>();
-				const dispatch::Listener::EventParser p(l);
-				if(const auto ld = p.parseData(f, eventData))
-				{
-					StringBuilder b;
-					b << "process listener " << l.getDispatchId();
-					TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-					l.slotChanged(ld);
-				}
-					
-
-				return true;
-			}, Queue::FlushType::KeepData);
-
-			return true;
-		});
-	}
-}
-
-void SomethingWithQueues::setState(State newState)
-{
-	if(newState != currentState)
-	{
-		newState = currentState;
-			
-		if(hasListeners(DispatchType::sendNotificationAsyncHiPriority))
-			getEventQueue(DispatchType::sendNotificationAsyncHiPriority).setState(newState);
-
-		if(hasListeners(DispatchType::sendNotificationAsync))
-			getEventQueue(DispatchType::sendNotificationAsync).setState(newState);
-
-		if(hasListeners(DispatchType::sendNotificationSync))
-			getEventQueue(DispatchType::sendNotificationSync).setState(newState);
-	}
-}
 
 void SourceManager::addSource(Source* s)
 {

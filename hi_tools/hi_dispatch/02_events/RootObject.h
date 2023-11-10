@@ -67,7 +67,13 @@ struct RootObject: public Thread
 
 	void addChild(Child* c);
 	void removeChild(Child* c);
-	
+
+	// Call this in the constructor / destructor of the subclasses
+	// Source / Queue / SourceManager / Listener
+	void addTypedChild(Child* c);
+
+	void removeTypedChild(Child* c);
+
 	/** Removes the element from all queues. */
 	int clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
 
@@ -78,7 +84,7 @@ struct RootObject: public Thread
 	void setLogger(Logger* l);
 	Logger* getLogger() const { return currentLogger; }
 
-	int getNumChildren() const { return childObjects.size(); }
+	int getNumChildren() const;
 
 	void setState(const HashedCharPtr& sourceManagerId, State newState);
 
@@ -92,7 +98,7 @@ struct RootObject: public Thread
 	bool callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const;
 
 	/** Iterates all registered listener and calls the given function. */
-	bool callForAllListeners(const std::function<bool(Listener&)>& lf) const;
+	bool callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const;
 
 	void run() override;
 
@@ -104,7 +110,7 @@ private:
 	Array<SourceManager*> sourceManagers;
 	Array<Queue*> queues;
 	Array<Source*> sources;
-	Array<Listener*> listeners;
+	Array<dispatch::Listener*> listeners;
 };
 
 } // dispatch

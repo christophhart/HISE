@@ -187,14 +187,6 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 	{
 		setEnabled(false);
 	}
-
-	if (p == b)
-	{
-#if USE_BACKEND && HISE_OLD_PROCESSOR_DISPATCH
-		updateValues();
-#endif
-	}
-	
 	else if (auto sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b))
 	{
 		auto index = contentData->getComponentIndex(sc->name);

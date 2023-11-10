@@ -202,10 +202,14 @@ size_t Listener::EventParser::writeSourcePointer(Source* s, uint8** data)
 	return offset + sizeof(Source*);
 }
 
-Listener::Listener(RootObject& r, ListenerOwner& owner_): Queueable(r), owner(owner_) {}
+Listener::Listener(RootObject& r, ListenerOwner& owner_): Queueable(r), owner(owner_)
+{
+	getRootObject().addTypedChild(this);
+}
 
 Listener::~Listener()
 {
+	getRootObject().removeTypedChild(this);
 	// Ouch... you need to remove the listener before it gets destroyed!
 	jassert(removed);
 }

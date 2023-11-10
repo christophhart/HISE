@@ -58,11 +58,13 @@ RootObject::RootObject(PooledUIUpdater* updater_):
     sources.ensureStorageAllocated(4096);
     listeners.ensureStorageAllocated(4096);
 
-    startThread(7);
+	startThread(7);
 }
 
 RootObject::~RootObject()
 {
+	notify();
+    stopThread(500);
     jassert(childObjects.isEmpty());
 }
 
@@ -70,22 +72,7 @@ void RootObject::addChild(Child* c)
 {
     childObjects.add(c);
 
-    if(auto typed = dynamic_cast<SourceManager*>(c))
-    {
-	    sourceManagers.add(typed);
-    }
-    if(auto typed = dynamic_cast<Source*>(c))
-    {
-	    sources.add(typed);
-    }
-    if(auto typed = dynamic_cast<Queue*>(c))
-    {
-	    queues.add(typed);
-    }
-    if(auto typed = dynamic_cast<Listener*>(c))
-    {
-	    listeners.add(typed);
-    }
+    
     
 }
 
@@ -93,27 +80,54 @@ void RootObject::removeChild(Child* c)
 {
     int indexInRoot = childObjects.indexOf(c);
     childObjects.remove(indexInRoot);
+}
 
-    if(auto typed = dynamic_cast<SourceManager*>(c))
-    {
-        int indexInTyped = sourceManagers.indexOf(typed);
-	    sourceManagers.remove(indexInTyped);
-    }
-    if(auto typed = dynamic_cast<Source*>(c))
-    {
-	    int indexInTyped = sources.indexOf(typed);
-	    sources.remove(indexInTyped);
-    }
-    if(auto typed = dynamic_cast<Queue*>(c))
-    {
-	    int indexInTyped = queues.indexOf(typed);
-	    queues.remove(indexInTyped);
-    }
-    if(auto typed = dynamic_cast<Listener*>(c))
-    {
-	    int indexInTyped = listeners.indexOf(typed);
-	    listeners.remove(indexInTyped);
-    }
+void RootObject::addTypedChild(Child* c)
+{
+	if(auto typed = dynamic_cast<SourceManager*>(c))
+	{
+		sourceManagers.add(typed);
+	}
+	else if(auto typed = dynamic_cast<Source*>(c))
+	{
+		sources.add(typed);
+	}
+	else if(auto typed = dynamic_cast<Queue*>(c))
+	{
+		queues.add(typed);
+	}
+	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
+	{
+		listeners.add(typed);
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
+
+void RootObject::removeTypedChild(Child* c)
+{
+	if(auto typed = dynamic_cast<SourceManager*>(c))
+	{
+		int indexInTyped = sourceManagers.indexOf(typed);
+		sourceManagers.remove(indexInTyped);
+	}
+	else if(auto typed = dynamic_cast<Source*>(c))
+	{
+		int indexInTyped = sources.indexOf(typed);
+		sources.remove(indexInTyped);
+	}
+	else if(auto typed = dynamic_cast<Queue*>(c))
+	{
+		int indexInTyped = queues.indexOf(typed);
+		queues.remove(indexInTyped);
+	}
+	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
+	{
+		int indexInTyped = listeners.indexOf(typed);
+		listeners.remove(indexInTyped);
+	}
 }
 
 int RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
@@ -138,6 +152,9 @@ void RootObject::setLogger(Logger* l)
         currentLogger->flush();
     currentLogger = l;
 }
+
+int RootObject::getNumChildren() const
+{ return childObjects.size(); }
 
 void RootObject::setState(const HashedCharPtr& sourceManagerId, State newState)
 {
@@ -186,7 +203,7 @@ bool RootObject::callForAllSourceManagers(const std::function<bool(SourceManager
 	return false;
 }
 
-bool RootObject::callForAllListeners(const std::function<bool(Listener&)>& lf) const
+bool RootObject::callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const
 {
 	for(auto l: listeners)
 	{
@@ -199,10 +216,20 @@ bool RootObject::callForAllListeners(const std::function<bool(Listener&)>& lf) c
 
 void RootObject::run()
 {
-    while(threadShouldExit())
+    while(!threadShouldExit())
     {
-        callForAllSourceManagers([](SourceManager& sm){ sm.flushHiPriorityQueue(); return false; });
-        Thread::sleep(5);
+        callForAllSourceManagers([&](SourceManager& sm)
+        {
+            if(threadShouldExit())
+                return true;
+
+	        sm.flushHiPriorityQueue(); return false;
+        });
+
+		if(threadShouldExit())
+			break;
+
+		Thread::wait(500);
     }
 }
 } // dispatch

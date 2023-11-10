@@ -42,11 +42,14 @@ Source::Source(SourceManager& parent_, SourceOwner& owner_, const HashedCharPtr&
 	owner(owner_),
 	sourceId(sourceId_)
 {
+	getRootObject().addTypedChild(this);
 	parent.addSource(this);
+	
 }
 
 Source::~Source()
 {
+	getRootObject().removeTypedChild(this);
 	parent.removeSource(this);
 }
 

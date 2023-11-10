@@ -246,11 +246,12 @@ struct Processor: public Source
 
 	bool isBypassed() const noexcept;
 
-	void flushAsyncChanges() override
+	void flushChanges(DispatchType n) override
 	{
-		// always sync: attributes.flushAsyncChanges();
-		nameAndColour.flushAsyncChanges();
-		// always sync: bypassed.flushAsyncChanges()
+		attributes.flush(n);
+		nameAndColour.flush(n);
+		bypassed.flush(n);
+		otherChange.flush(n);
 	}
 
 private:

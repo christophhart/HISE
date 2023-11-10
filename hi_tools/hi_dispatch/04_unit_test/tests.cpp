@@ -205,7 +205,9 @@ void LoggerTest::testQueueResume()
 	Logger l(root, 8192);
 	root.setLogger(&l);
 
-	Queue testQueue(root, nullptr, 40);
+	SourceManager testManager(root, "funky");
+
+	auto& testQueue = testManager.getEventQueue(DispatchType::sendNotificationSync);
 
 	OwnedArray<MyTestQueuable> tests;
 

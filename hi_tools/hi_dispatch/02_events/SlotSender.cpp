@@ -61,28 +61,46 @@ void SlotSender::setNumSlots(int newNumSlots)
 {
 	if(numSlots < newNumSlots)
 	{
-		data.setSize(newNumSlots + 1);
 		numSlots = newNumSlots;
-		const auto ptr = (uint8*)data.getObjectPtr();
-		ptr[0] = index;
+
+		data.forEach([&](DataType& d)
+		{
+			d.first.setSize(newNumSlots+1);
+			const auto ptr = (uint8*)d.first.getObjectPtr();
+			ptr[0] = index;
+			d.second = false;
+		});
 	}
 }
 
 bool SlotSender::flush(DispatchType n)
 {
-	if(!pending)
+	// make sure to flush the other slots first
+	if(n == DispatchType::sendNotificationAsync ||
+	   n == DispatchType::sendNotificationAsyncHiPriority)
+	{
+		flush(DispatchType::sendNotificationSync);
+	}
+
+	if(n == DispatchType::sendNotificationAsync)
+	{
+		flush(DispatchType::sendNotificationAsyncHiPriority);
+	}
+
+	if(!data.get(n).second)
 		return false;
-			
-	obj.getParentSourceManager().sendSlotChanges(obj, static_cast<uint8*>(data.getObjectPtr()), numSlots + 1, n);
-	memset((uint8*)data.getObjectPtr() + 1, 0, numSlots);
-	pending = false;
+
+	auto ptr = static_cast<uint8*>(data.get(n).first.getObjectPtr());
+	obj.getParentSourceManager().sendSlotChanges(obj, ptr, numSlots + 1, n);
+	memset(ptr + 1, 0, numSlots);
+	data.get(n).second = false;
 	return true;
 }
 
-bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType notify)
+bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType n)
 {
 	StringBuilder b;
-	b << "send message" << indexInSlot << ": " << notify;
+	b << "send message" << indexInSlot << ": " << n;
 	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
 
 	if(!isPositiveAndBelow(indexInSlot, numSlots))
@@ -91,25 +109,28 @@ bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType notify)
 		return false;
 	}
 
-	// data[0] points to the slotIndex
-	const auto ptr = static_cast<uint8*>(data.getObjectPtr()) + 1;
+	// Write the change in all slot values
+	data.forEach([indexInSlot](DataType& d)
+	{
+		// d[0] points to the slotIndex
+		const auto ptr = static_cast<uint8*>(d.first.getObjectPtr()) + 1;
 
-	if(ptr[indexInSlot])
-		return false;
-			
-	ptr[indexInSlot] = true;
-	pending = true;
-		
-	if(notify == sendNotificationSync)
-		flush();
-			
+		if(ptr[indexInSlot])
+			return;
+
+		ptr[indexInSlot] = true;
+		d.second = true;
+	});
+
+	// If the message wasn't explicitely sent as sendNotificationAsync, it will flush the sync changes immediately
+	if(n == sendNotification || n == sendNotificationSync)
+	{
+		flush(sendNotificationSync);
+	}
+	
 	return true;
 }
 
-void SlotSender::flushAsyncChanges()
-{
-	if(pending)
-		flush(sendNotificationAsync);
-}
+
 } // dispatch
 } // hise

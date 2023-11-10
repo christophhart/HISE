@@ -143,8 +143,15 @@ void Queue::setState(State n)
 Queue::Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize):
 Suspendable(root, parent)
 {
+    root.addTypedChild(this);
+
     static_assert(sizeof(QueuedEvent) == 16, "must be 16");
     ensureAllocated(initAllocatedSize);
+}
+
+Queue::~Queue()
+{
+    getRootObject().removeTypedChild(this);
 }
 
 inline bool Queue::ensureAllocated(size_t numBytesRequired)
@@ -402,6 +409,84 @@ bool Queue::isAlignedToPointerSize(uint8* ptr)
     return address == aligned;
 }
 
+SomethingWithQueues::SomethingWithQueues(RootObject& r):
+	Suspendable(r, nullptr),
+    events(r, this, 128),
+    listeners(r, nullptr, 128)
+{
+
+    listeners.forEach([](Queue& q)
+    {
+	    q.addPushCheck([](Queueable* s) { return dynamic_cast<Listener*>(s) != nullptr; });
+    });
+
+}
+
+SomethingWithQueues::~SomethingWithQueues()
+{
+    events.forEach([](Queue& q){ q.clear(); });
+    listeners.forEach([](Queue& q){ q.clear(); });
+}
+
+Queue& SomethingWithQueues::getEventQueue(DispatchType n)
+{
+    return events.get(n);
+}
+
+const Queue& SomethingWithQueues::getEventQueue(DispatchType n) const
+{
+	return events.get(n);
+}
+
+Queue& SomethingWithQueues::getListenerQueue(DispatchType n)
+{
+	return listeners.get(n);
+}
+
+const Queue& SomethingWithQueues::getListenerQueue(DispatchType n) const
+{
+	return listeners.get(n);
+}
+
+void SomethingWithQueues::processEvents(DispatchType n)
+{
+	if(hasEvents(n) && hasListeners(n))
+	{
+		StringBuilder b2;
+		b2 << "process " << getDispatchId();
+		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b2));
+
+		getEventQueue(n).flush([&](const Queue::FlushArgument& eventData)
+		{
+			getListenerQueue(n).flush([&](const Queue::FlushArgument& f)
+			{
+				auto& l = f.getTypedObject<dispatch::Listener>();
+				const dispatch::Listener::EventParser p(l);
+				if(const auto ld = p.parseData(f, eventData))
+				{
+					StringBuilder b;
+					b << "process listener " << l.getDispatchId();
+					TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+					l.slotChanged(ld);
+				}
+					
+
+				return true;
+			}, Queue::FlushType::KeepData);
+
+			return true;
+		});
+	}
+}
+
+void SomethingWithQueues::setState(State newState)
+{
+	if(newState != currentState)
+	{
+		currentState = newState;
+        events.forEach([newState](Queue& q) { q.setState(newState); });
+	}
+}
 
 } // dispatch
 } // hise

@@ -69,7 +69,7 @@ struct Source: public SomethingWithQueues
 		return *dynamic_cast<const T*>(&owner);
 	}
 
-	virtual void flushAsyncChanges() {}
+	virtual void flushChanges(DispatchType n) {}
 	
 private:
 

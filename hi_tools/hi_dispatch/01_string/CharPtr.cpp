@@ -57,7 +57,7 @@ CharPtr::CharPtr(const Identifier& id) noexcept :
 CharPtr::CharPtr(const char* rawText, size_t limit) noexcept :
     ptr(rawText),
     numCharacters(limit != 0 ? jmin(limit, strlen(ptr)) : strlen(ptr)),
-    type(Type::RawString)
+    type((numCharacters == 1 && *rawText == '*') ? Type::Wildcard : Type::RawString)
 {}
 
 CharPtr::CharPtr(Type t) :
