@@ -41,7 +41,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	isSoloHeader(false)
 {
 	p->getProcessor()->addNameAndColourListener(&idAndNameListener);
-	p->getProcessor()->addBypassListener(this, sendNotificationAsync);
+	p->getProcessor()->addBypassListener(this, dispatch::sendNotificationAsync);
 
 	setLookAndFeel();
 
@@ -307,6 +307,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	deleteButton->setWantsKeyboardFocus(false);
 	addButton->setWantsKeyboardFocus(false);
 	bypassButton->setWantsKeyboardFocus(false);
+
+	bypassStateChanged(getProcessor(), getProcessor()->isBypassed());
 }
 
 ProcessorEditorHeader::~ProcessorEditorHeader()
@@ -764,14 +766,9 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
         
 		bool shouldBeBypassed = bypassButton->getToggleState();
 		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
-		bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
+		//bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
 		
-		ProcessorEditorPanel *panel = getEditor()->getPanel();
-
-		for(int i = 0; i < panel->getNumChildEditors(); i++)
-		{
-			panel->getChildEditor(i)->setEnabled(!shouldBeBypassed);
-		}
+		
         
         PresetHandler::setChanged(getProcessor());
         
@@ -974,6 +971,19 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 {
 	
 
+}
+
+void ProcessorEditorHeader::bypassStateChanged(Processor* p, bool state)
+{
+	bypassButton->setToggleState(!state, dontSendNotification);
+
+	if(auto panel = getEditor()->getPanel())
+	{
+		for(int i = 0; i < panel->getNumChildEditors(); i++)
+		{
+			panel->getChildEditor(i)->setEnabled(!state);
+		}
+	}
 }
 
 void ProcessorEditorHeader::timerCallback()

@@ -578,8 +578,13 @@ void ModulatorSynthChain::setUseUniformVoiceHandler(bool shouldUseVoiceHandler, 
         auto cs = dynamic_cast<ModulatorSynth*>(getHandler()->getProcessor(i));
         cs->setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
     }
-    
+
+#if USE_OLD_PROCESSOR_DISPATCH
     getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setColour(Colours::black);
+#endif
 }
 
 

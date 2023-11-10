@@ -66,15 +66,12 @@ public:
 
     void updateIdAndColour(dispatch::library::Processor* p)
     {
-		idLabel->setText(p->getOwner<hise::Processor>().getId(), dontSendNotification);
+		NEW_PROCESSOR_DISPATCH(idLabel->setText(p->getOwner<hise::Processor>().getId(), dontSendNotification));
 		repaint();
 		// skip colour, it's a icon colour (ideally the modulator synth should be a listener that updates the icon colour itself)
     }
 
-	void bypassStateChanged(Processor* p, bool state) override
-	{
-		bypassButton->setToggleState(state, dontSendNotification);
-	}
+	void bypassStateChanged(Processor* p, bool state) override;
 
     void timerCallback() override;
 

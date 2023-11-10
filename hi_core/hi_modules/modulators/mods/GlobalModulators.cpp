@@ -204,7 +204,12 @@ void GlobalModulator::disconnect()
 #if USE_BACKEND
     if(auto asP = dynamic_cast<Processor*>(this))
     {
-        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#if USE_OLD_PROCESSOR_DISPATCH
+    asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+	asP->dispatcher.setColour(Colours::black);
+#endif
     }
 #endif
 }
@@ -241,8 +246,15 @@ bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 
 #if USE_BACKEND
         auto asP = dynamic_cast<Processor*>(this);
+
+#if USE_OLD_PROCESSOR_DISPATCH
+	    asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+		asP->dispatcher.setColour(Colours::black);
+#endif
+
         
-        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
 #endif
         
         // return false if the connection can't be established (yet)
