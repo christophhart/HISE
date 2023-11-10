@@ -52,23 +52,12 @@ struct StringBuilder
     StringBuilder& operator<<(const StringBuilder& other);
 	StringBuilder& operator<<(const Queue::FlushArgument& f);
     StringBuilder& operator<<(EventType eventType);
+
+    StringBuilder& operator<<(DispatchType notificationType);
+
     StringBuilder& appendEventValues(EventType eventType, const uint8* values, size_t numBytes);
 
-    StringBuilder& appendRawByteArray(const uint8* values, size_t numBytes)
-    {
-		auto& s = *this;
-		s << "[ ";
-		for(int i = 0; i < numBytes; i++)
-		{
-			s << (int)values[i];
-
-			if(i != (numBytes-1))
-				s << ", ";
-		}
-		s << " ] (";
-        s << numBytes << " bytes)";
-		return *this;
-    }
+    StringBuilder& appendRawByteArray(const uint8* values, size_t numBytes);
 
     String toString() const noexcept;
     const char* get() const noexcept;

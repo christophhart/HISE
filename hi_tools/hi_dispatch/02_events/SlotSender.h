@@ -49,8 +49,8 @@ struct SlotSender
 	~SlotSender();
 
 	void setNumSlots(int newNumSlots);
-	bool flush(NotificationType n=sendNotification);
-	bool sendChangeMessage(int indexInSlot, NotificationType notify);
+	bool flush(DispatchType n=sendNotification);
+	bool sendChangeMessage(int indexInSlot, DispatchType notify);
 
 	/** Flushes the change if it's not async. */
 	void flushAsyncChanges();

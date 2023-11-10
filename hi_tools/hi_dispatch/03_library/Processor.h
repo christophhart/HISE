@@ -129,7 +129,7 @@ struct Processor: public Source
 	 *
 	 *	The notification will always be send out synchronously.
 	 */
-	void setAttribute(int parameterIndex, float, NotificationType n);
+	void setAttribute(int parameterIndex, float, DispatchType n);
 
 	/** Call this in the processor if the bypass state changes. This will cache the value
 	 *  so that the BypassListener API is consistent with the current HISE API.
@@ -146,12 +146,12 @@ struct Processor: public Source
 	void setNumAttributes(int numAttributes);
 
 	/** Adds a Bypass listener to receive notifications. */
-	void addBypassListener(BypassListener* l, NotificationType n);
+	void addBypassListener(BypassListener* l, DispatchType n);
 
 	/** Removes a bypass listener from all listener queues (both sync and async). */
 	void removeBypassListener(BypassListener* l);
 
-	void addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes, NotificationType n);
+	void addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes, DispatchType n);
 
 	void addNameAndColourListener(NameAndColourListener* l);
 

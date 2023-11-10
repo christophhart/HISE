@@ -193,12 +193,12 @@ Action::List Processor::Builder::createActions(const var& jsonData)
 
 
 
-void Processor::setAttribute(int parameterIndex, float newValue, NotificationType n)
+void Processor::setAttribute(int parameterIndex, float newValue, DispatchType n)
 {
 	dispatcher.setAttribute(parameterIndex, newValue, n);
 }
 
-void Processor::setBypassed(bool shouldBeBypassed, NotificationType n)
+void Processor::setBypassed(bool shouldBeBypassed, DispatchType n)
 {
 	dispatcher.setBypassed(shouldBeBypassed);
 }

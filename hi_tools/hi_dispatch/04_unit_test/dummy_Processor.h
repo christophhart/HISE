@@ -66,8 +66,8 @@ struct Processor: public ControlledObject,
         }
     };
     
-    void setAttribute(int parameterIndex, float newValue, NotificationType n);
-    void setBypassed(bool shouldBeBypassed, NotificationType n);
+    void setAttribute(int parameterIndex, float newValue, DispatchType n);
+    void setBypassed(bool shouldBeBypassed, DispatchType n);
 
     Processor(MainController* mc, HashedCharPtr id);;
     ~Processor() override;

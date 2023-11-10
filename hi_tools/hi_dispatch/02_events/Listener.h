@@ -122,23 +122,23 @@ struct Listener: public Queueable
 	virtual void slotChanged(const ListenerData& d) = 0;
 	
 	/** Registers the listener to all slot changes of a subset of source slots. */
-	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, NotificationType n);
+	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
 
 	/** Registers the listener to receive updates from a single slot with a defined slot subset. */
 	void addListenerToSingleSourceAndSlotSubset(Source* source, uint8 slotIndex, const uint8* slotIndexes, uint8 numSlots,
-	                                            NotificationType n)
+	                                            DispatchType n)
 	{
 		jassertfalse;
 	}
 
 	/** Registers the listener to all sources of a given source manager. */
-	void addListenerToAllSources(SourceManager& sourceManager, NotificationType n);
+	void addListenerToAllSources(SourceManager& sourceManager, DispatchType n);
 
 	/** Registers the listener to a subset of sources of the given manager. */ 
-	void addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, NotificationType n);
+	void addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, DispatchType n);
 
 	/** Removes the listener. */
-	void removeListener(SourceManager& s, NotificationType n = sendNotification);
+	void removeListener(Source& s, DispatchType n = sendNotification);
 
 private:
 

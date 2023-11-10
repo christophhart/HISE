@@ -112,6 +112,22 @@ enum TransportCommand // TODO
 	numCommands	
 };
 
+enum DispatchType
+{
+    dontSendNotification = 0,   
+    sendNotification = 1,       
+    sendNotificationSync,       
+	sendNotificationAsync,
+	sendNotificationAsyncHiPriority // These will be executed on a separate thread and faster before
+};
+
+enum ErrorType
+{
+	nothing
+};
+
+using NotificationType = ErrorType;
+
 // forward declarations of all important classes
 
 // Any object that can be put in a Queue

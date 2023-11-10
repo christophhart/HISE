@@ -59,7 +59,7 @@ SourceManager::~SourceManager()
 	deferedSyncEvents.clear();
 }
 
-void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numValues, NotificationType n)
+void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numValues, DispatchType n)
 {
 	if(n == sendNotification || n == sendNotificationSync)
 	if(getRootObject().getState() != State::Running)

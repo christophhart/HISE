@@ -38,7 +38,7 @@ Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *m
 	HardcodedScriptProcessor(mc, id, ms),
 	BypassListener(mc->getRootDispatcher())
 {
-	addBypassListener(this, sendNotificationSync);
+	addBypassListener(this, dispatch::sendNotificationSync);
 
 	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
 

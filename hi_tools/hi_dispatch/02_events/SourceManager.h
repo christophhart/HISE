@@ -48,7 +48,7 @@ struct SourceManager  : public Queueable, // not queuable
 	HashedCharPtr getDispatchId() const override { return treeId; }
 
 	/*+ Sends slot changes (values[0] == slotIndex) to the matching listeners. */
-	void sendSlotChanges(Source& s, const uint8* values, size_t numValues, NotificationType n=sendNotification);
+	void sendSlotChanges(Source& s, const uint8* values, size_t numValues, DispatchType n=sendNotification);
 	
 	void timerCallback() override;
 

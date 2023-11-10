@@ -68,7 +68,7 @@ void SlotSender::setNumSlots(int newNumSlots)
 	}
 }
 
-bool SlotSender::flush(NotificationType n)
+bool SlotSender::flush(DispatchType n)
 {
 	if(!pending)
 		return false;
@@ -79,7 +79,7 @@ bool SlotSender::flush(NotificationType n)
 	return true;
 }
 
-bool SlotSender::sendChangeMessage(int indexInSlot, NotificationType notify)
+bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType notify)
 {
 	jassert(isPositiveAndBelow(indexInSlot, numSlots));
 

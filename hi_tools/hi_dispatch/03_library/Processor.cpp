@@ -127,7 +127,7 @@ Processor::~Processor()
 	nameAndColour.shutdown();
 }
 
-void Processor::setAttribute(int parameterIndex, float, NotificationType n)
+void Processor::setAttribute(int parameterIndex, float, DispatchType n)
 {
 	if(n != dontSendNotification)
 		attributes.sendChangeMessage(parameterIndex, sendNotificationSync);
@@ -160,7 +160,7 @@ void Processor::setNumAttributes(int numAttributes)
 	attributes.setNumSlots(numAttributes);
 }
 
-void Processor::addBypassListener(BypassListener* l, NotificationType n)
+void Processor::addBypassListener(BypassListener* l, DispatchType n)
 {
 	uint8 slotIndex = static_cast<uint8>(SlotTypes::Bypassed);
 	l->addListenerToSingleSource(this, &slotIndex, 1, n);

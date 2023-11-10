@@ -121,6 +121,21 @@ StringBuilder& StringBuilder::operator<<(EventType eventType)
 	return *this;
 }
 
+StringBuilder& StringBuilder::operator<<(DispatchType notificationType)
+{
+	auto& s = *this;
+
+	switch (notificationType) {
+	case dontSendNotification: s << "ignore"; break;
+	case sendNotification: s << "send"; break;
+	case sendNotificationSync: s << "sync"; break;
+	case sendNotificationAsync: s << "async"; break;
+	case sendNotificationAsyncHiPriority: s << "async hiprio"; break;
+	default: break;
+	}
+	return *this;
+}
+
 StringBuilder& StringBuilder::appendEventValues(EventType eventType, const uint8* values, size_t numBytes)
 {
 	auto& s = *this;
@@ -144,6 +159,22 @@ StringBuilder& StringBuilder::appendEventValues(EventType eventType, const uint8
 	default: ;
 	}
     
+	return *this;
+}
+
+StringBuilder& StringBuilder::appendRawByteArray(const uint8* values, size_t numBytes)
+{
+	auto& s = *this;
+	s << "[ ";
+	for(int i = 0; i < numBytes; i++)
+	{
+		s << (int)values[i];
+
+		if(i != (numBytes-1))
+			s << ", ";
+	}
+	s << " ] (";
+	s << numBytes << " bytes)";
 	return *this;
 }
 

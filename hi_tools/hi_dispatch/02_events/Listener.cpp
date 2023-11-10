@@ -161,14 +161,14 @@ void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uin
 	writer.writeData(q, EventType::SingleListener, source, slotIndexes, numSlots);
 }
 
-void Listener::addListenerToAllSources(SourceManager& sourceManager, NotificationType n)
+void Listener::addListenerToAllSources(SourceManager& sourceManager, DispatchType n)
 {
 	const EventParser writer(*this);
 	auto& q = sourceManager.getListenerQueue(n);
 	writer.writeData(q, EventType::AllListener, &sourceManager, nullptr, 0);
 }
 
-void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, NotificationType n)
+void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, DispatchType n)
 {
 	auto numMax = sizeof(Source*) * sourceManager.getNumChildSources();
 	auto ptr = (uint8*)alloca(numMax);
@@ -179,7 +179,7 @@ void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFun
 	q.push(this, EventType::SubsetListener, ptr, numWritten);
 }
 
-void Listener::removeListener(SourceManager& s, NotificationType n)
+void Listener::removeListener(Source& s, DispatchType n)
 {
 	if(n == sendNotification || n == sendNotificationSync)
 		s.getListenerQueue(sendNotificationSync).removeAllMatches(this);
