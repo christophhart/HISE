@@ -59,6 +59,8 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	parameterNames.add("SmoothTime");
 	parameterNames.add("DefaultValue");
 
+	updateParameterSlots();
+
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 

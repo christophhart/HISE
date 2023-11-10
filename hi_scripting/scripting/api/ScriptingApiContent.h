@@ -2432,6 +2432,8 @@ public:
 
 		asyncRebuildBroadcaster.notify();
 
+		updateParameterSlots();
+
 		return newComponent;
 	}
 
@@ -2525,13 +2527,14 @@ private:
 
 		components.add(t);
 
+		updateParameterSlots();
+		
 		restoreSavedValue(name);
-
 		
 		return t;
 	}
 
-	
+	void updateParameterSlots();
 
 	void restoreSavedValue(const Identifier& id);
 

@@ -51,6 +51,8 @@ PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, M
 	parameterNames.add("UseTable");
 	parameterNames.add("SmoothTime");
 
+	updateParameterSlots();
+
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 

@@ -6463,6 +6463,8 @@ void ScriptingApi::Content::rebuildComponentListFromValueTree()
 
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
+	updateParameterSlots();
+
 	if (p->getMainController()->getScriptComponentEditBroadcaster()->isBeingEdited(p))
 	{
 		debugToConsole(p, "Updated Components");
@@ -6534,6 +6536,11 @@ void ScriptingApi::Content::addComponentsFromValueTree(const ValueTree& v)
 	{
 		debugError(getProcessor(), errorMessage);
 	}
+}
+
+void ScriptingApi::Content::updateParameterSlots()
+{
+	dynamic_cast<Processor*>(getScriptProcessor())->updateParameterSlots();
 }
 
 void ScriptingApi::Content::restoreSavedValue(const Identifier& controlId)

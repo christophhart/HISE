@@ -69,7 +69,9 @@ mix(1.0f)
     parameterNames.add("Frequency2");
     parameterNames.add("Feedback");
     parameterNames.add("Mix");
-    
+
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("PhaseModulationChainShown");
 
 }

@@ -264,6 +264,8 @@ struct SendEffect : public MasterEffectProcessor
         parameterNames.add("ChannelOffset");
         parameterNames.add("SendIndex");
 		parameterNames.add("Smoothing");
+
+		updateParameterSlots();
 	};
 
     ~SendEffect()

@@ -67,6 +67,8 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	parameterNames.add("Pan");
 	parameterNames.add("Width");
 
+	updateParameterSlots();
+
 	auto tmp = WeakReference<Processor>(this);
 
 	auto f = [tmp](float input)

@@ -59,6 +59,8 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("DecayCurve");
 	parameterNames.add("EcoMode");
 
+	updateParameterSlots();
+
 	displayBuffer = new SimpleRingBuffer();
 	displayBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 

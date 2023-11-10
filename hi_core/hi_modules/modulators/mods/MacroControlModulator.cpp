@@ -48,6 +48,8 @@ targetValue(1.0f)
 	parameterNames.add("UseTable");
 	parameterNames.add("MacroValue");
 
+	updateParameterSlots();
+
 	setup(this, MacroValue, id);
 }
 

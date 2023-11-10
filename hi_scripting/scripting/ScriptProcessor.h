@@ -69,6 +69,11 @@ public:
 
 	Identifier getContentParameterIdentifier(int parameterIndex) const;
 
+	int getContentParameterAmount() const
+	{
+		return content->getNumComponents();
+	}
+
 	int getContentParameterIdentifierIndex(const Identifier& id) const;
 
 	void setControlValue(int index, float newValue);

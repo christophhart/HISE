@@ -1082,6 +1082,8 @@ MidiPlayer::MidiPlayer(MainController *mc, const String &id, ModulatorSynth*) :
 	addAttributeID(LoopEnd);
 	addAttributeID(PlaybackSpeed);
 
+	updateParameterSlots();
+
 	mc->addTempoListener(this);
 }
 

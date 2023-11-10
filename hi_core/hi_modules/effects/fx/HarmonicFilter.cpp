@@ -51,6 +51,8 @@ filterBanks(numVoices_)
     parameterNames.add("Crossfade");
     parameterNames.add("SemiToneTranspose");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("XFadeChainShown");
 
 	dataA->setRange(-24.0, 24.0, 0.1);

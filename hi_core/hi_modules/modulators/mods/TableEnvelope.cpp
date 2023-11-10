@@ -47,6 +47,8 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("Attack");
 	parameterNames.add("Release");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("AttackChainShown");
 	editorStateIdentifiers.add("ReleaseChainShown");
 

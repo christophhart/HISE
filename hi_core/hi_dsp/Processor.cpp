@@ -437,7 +437,7 @@ void Processor::removeDeleteListener(DeleteListener* listener)
 	deleteListeners.removeAllInstancesOf(listener);
 }
 
-void Processor::addBypassListener(BypassListener* l, NotificationType n)
+void Processor::addBypassListener(BypassListener* l, dispatch::DispatchType n)
 {
 #if HISE_NEW_PROCESSOR_DISPATCH
 	dispatcher.addBypassListener(&l->dispatcher, n);

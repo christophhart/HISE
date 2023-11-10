@@ -65,6 +65,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	effectChain->getFactoryType()->setConstrainer(constrainer, false);
 	effectChain->setForceMonophonicProcessingOfPolyphonicEffects(true);
 
+	updateParameterSlots();
+
 	disableChain(PitchModulation, true);
 }
 

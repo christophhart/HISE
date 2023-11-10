@@ -152,6 +152,8 @@ syncVoiceHandler(false)
 	parameterNames.add("LowPassEnvelopeOrder");
 	parameterNames.add("Timestretching");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("SampleStartChainShown");
 	editorStateIdentifiers.add("SettingsShown");
 	editorStateIdentifiers.add("WaveformShown");

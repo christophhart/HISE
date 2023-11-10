@@ -80,6 +80,7 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
 
+	updateParameterSlots();
 
 	WaveformLookupTables::init();
 

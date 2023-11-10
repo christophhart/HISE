@@ -43,6 +43,8 @@ tempBuffer(2, 0)
 	parameterNames.add("Feedback");	parameterDescriptions.add("The feedback amount of the chorus");
 	parameterNames.add("Delay");	parameterDescriptions.add("The delay amount of the chorus");
 
+	updateParameterSlots();
+
 	bufpos = 0;
 	buffer = new float[BUFMAX];
 	buffer2 = new float[BUFMAX];

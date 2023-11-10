@@ -85,6 +85,8 @@ SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("FineFreqRatio");
 	parameterNames.add("SaturationAmount");
 
+	updateParameterSlots();
+
 	for (int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
 	addSound(new SineWaveSound());
 }

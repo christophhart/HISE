@@ -42,6 +42,8 @@ RandomModulator::RandomModulator(MainController *mc, const String &id, int numVo
 	this->enableConsoleOutput(false);
 
 	parameterNames.add("UseTable");
+
+	updateParameterSlots();
 };
 
 void RandomModulator::restoreFromValueTree(const ValueTree &v)

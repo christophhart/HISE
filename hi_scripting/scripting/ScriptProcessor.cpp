@@ -1445,6 +1445,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 		debugToConsole(thisAsProcessor, "Compiled OK");
 	}
 
+	thisAsProcessor->updateParameterSlots();
+
 	postCompileCallback();
 
 	return SnippetResult(Result::ok(), getNumSnippets());

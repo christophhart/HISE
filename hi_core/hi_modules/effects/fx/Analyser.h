@@ -77,6 +77,8 @@ public:
 		parameterNames.add("BufferSize");
 		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
+		updateParameterSlots();
+
 		ringBuffer->setRingBufferSize(2, 8192);
 	};
 

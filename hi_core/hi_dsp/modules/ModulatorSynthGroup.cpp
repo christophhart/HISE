@@ -859,6 +859,8 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("ForceMono");
 	parameterNames.add("KillSecondVoices");
 
+	updateParameterSlots();
+
 	allowStates.clear();
 
 	for (int i = 0; i < numVoices; i++) addVoice(new ModulatorSynthGroupVoice(this));

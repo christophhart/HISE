@@ -636,7 +636,11 @@ public:
      *	for each parameter in your subtype constructor. */
     virtual Identifier getIdentifierForParameterIndex(int parameterIndex) const;
     virtual int getParameterIndexForIdentifier(const Identifier& id) const;
+
+    virtual int getNumAttributes() const { return parameterNames.size(); }
+
     
+
     String getDescriptionForParameters(int parameterIndex);
     
     /** This returns the number of (named) parameters. */
@@ -701,6 +705,11 @@ public:
 	void setParentProcessor(Processor* newParent);
 
 	Array<Identifier> parameterNames;
+
+    void updateParameterSlots()
+	{
+		NEW_PROCESSOR_DISPATCH(dispatcher.setNumAttributes(getNumAttributes()));
+	}
 
 protected:
 

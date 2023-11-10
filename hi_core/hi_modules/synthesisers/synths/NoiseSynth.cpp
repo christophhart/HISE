@@ -105,6 +105,8 @@ SilentSynth::SilentSynth(MainController *mc, const String &id, int numVoices) :
 	
 	addSound(new SilentSound());
 
+	updateParameterSlots();
+
 	getMatrix().setAllowResizing(true);
 }
 

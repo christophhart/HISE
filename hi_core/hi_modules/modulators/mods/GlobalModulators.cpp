@@ -292,6 +292,7 @@ GlobalModulator(mc)
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
@@ -371,6 +372,7 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 
@@ -450,6 +452,7 @@ currentValue(1.0f)
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 void GlobalTimeVariantModulator::restoreFromValueTree(const ValueTree &v)
@@ -562,7 +565,9 @@ GlobalEnvelopeModulator::GlobalEnvelopeModulator(MainController *mc, const Strin
 	Modulation(m),
 	GlobalModulator(mc)
 {
-
+	parameterNames.add("UseTable");
+	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 void GlobalEnvelopeModulator::restoreFromValueTree(const ValueTree &v)

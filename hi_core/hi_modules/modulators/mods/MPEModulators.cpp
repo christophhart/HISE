@@ -54,6 +54,8 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 	parameterNames.add("DefaultValue");
 	parameterNames.add("SmoothedIntensity");
 
+	updateParameterSlots();
+
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().sendAmountChangeMessage();
 
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);

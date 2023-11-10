@@ -95,6 +95,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("PhaseOffset"));
 	parameterNames.add(Identifier("SyncToMasterClock"));
     parameterNames.add(Identifier("IgnoreNoteOn"));
+	
+	updateParameterSlots();
 
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 

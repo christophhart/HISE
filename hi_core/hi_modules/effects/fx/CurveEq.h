@@ -227,6 +227,8 @@ public:
 		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
 
 		sendChangeMessage();
+
+		updateParameterSlots();
 	}
 
 	void removeFilterBand(int filterIndex)
@@ -241,6 +243,8 @@ public:
 		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
 
 		sendChangeMessage();
+
+		updateParameterSlots();
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -323,6 +327,8 @@ public:
 	bool hasTail() const override {return false;};
 
 	int getNumChildProcessors() const override { return 0; };
+
+	int getNumAttributes() const override { return BandParameter::numBandParameters * filterBands.size(); }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 

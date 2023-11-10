@@ -57,6 +57,8 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	parameterNames.add("TableIndexValue");
 	parameterNames.add("RefreshMipmap");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("TableIndexChainShown");
 
 	for (int i = 0; i < numVoices; i++) 

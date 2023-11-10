@@ -553,6 +553,8 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 			}
 		}
 
+		asProcessor().updateParameterSlots();
+
 		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, somethingChanged, opaqueNode->numParameters);
 
 		

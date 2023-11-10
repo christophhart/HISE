@@ -102,6 +102,8 @@ filterCollection(1)
     parameterNames.add("Quality");
 	parameterNames.add("BipolarIntensity");
 
+	updateParameterSlots();
+
 	setMode((int)getDefaultValue(MonoFilterEffect::Mode));
 }
 
@@ -358,6 +360,8 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
     parameterNames.add("Mode");
     parameterNames.add("Quality");
 	parameterNames.add("BipolarIntensity");
+
+	updateParameterSlots();
 
 	voiceFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
 	monoFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));

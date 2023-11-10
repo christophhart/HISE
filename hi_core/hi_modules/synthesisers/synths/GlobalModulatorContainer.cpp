@@ -110,6 +110,8 @@ ModulatorSynth(mc, id, numVoices)
 	disableChain(PitchModulation, true);
 	disableChain(ModulatorSynth::EffectChain, true);
 
+	updateParameterSlots();
+
 	gainChain->setColour(Colour(0xFF88A3A8));
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");

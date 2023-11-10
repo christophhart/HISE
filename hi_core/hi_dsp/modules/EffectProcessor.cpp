@@ -125,6 +125,7 @@ void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void EffectProcessor::finaliseModChains()
 {
+	updateParameterSlots();
 	modChains.finalise();
 
 	for (auto& mb : modChains)

@@ -320,6 +320,8 @@ rootNote(64)
 	parameterNames.add("SampleStartMod");
 	parameterNames.add("Reversed");
 
+	updateParameterSlots();
+
 	inputMerger.setManualCountLimit(5);
 
 	for (int i = 0; i < numVoices; i++)

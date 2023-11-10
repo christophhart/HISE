@@ -1339,6 +1339,9 @@ void DspNetwork::Holder::setActiveNetwork(DspNetwork* n)
 {
 	SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
 	activeNetwork = n;
+
+	if(auto p = dynamic_cast<Processor*>(this))
+		p->updateParameterSlots();
 }
 
 ScriptParameterHandler* DspNetwork::Holder::getCurrentNetworkParameterHandler(
