@@ -400,6 +400,8 @@ MacroControlledObject::~MacroControlledObject()
     
 	if (auto p = getProcessor())
 	{
+		p->removeAttributeListener(valueListener);
+		valueListener = nullptr;
 		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
 	}
 }
@@ -419,9 +421,21 @@ bool MacroControlledObject::isConnectedToModulator() const
 
 void MacroControlledObject::setup(Processor *p, int parameter_, const String &name_)
 {
+	if(valueListener != nullptr)
+	{
+		p->removeAttributeListener(valueListener);
+		valueListener = nullptr;
+	}
+
+	valueListener = new dispatch::library::ProcessorHandler::AttributeListener(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(MacroControlledObject::onAttributeChange));
+
 	processor = p;
 	parameter = parameter_;
 	name = name_;
+
+	auto a = (uint8)parameter;
+
+	p->addAttributeListener(valueListener, &a, 1, dispatch::DispatchType::sendNotificationAsync);
 
 	initMacroControl(dontSendNotification);
 
@@ -613,7 +627,7 @@ void HiSlider::sliderValueChanged(Slider *s)
 		{
 			modeValues[mode] = s->getValue();
 
-			getProcessor()->setAttribute(parameter, (float)s->getValue(), dontSendNotification);
+			getProcessor()->setAttribute(parameter, (float)s->getValue(), sendNotificationAsync);
 		}
 	}
 }
@@ -1428,6 +1442,19 @@ void HiToggleButton::buttonClicked(Button *b)
 	void MacroControlledObject::setModulationData(ModulationPopupData::Ptr modData)
 	{
 		modulationData = modData;
+	}
+
+	void MacroControlledObject::onAttributeChange(dispatch::library::Processor* p, uint8 index)
+	{
+#if HISE_NEW_PROCESSOR_DISPATCH
+		if(&p->getOwner<hise::Processor>() == getProcessor())
+		{
+			if(index == getParameter())
+			{
+				updateValue(sendNotificationSync);
+			}
+		}
+#endif
 	}
 
 	Processor* MacroControlledObject::getProcessor()

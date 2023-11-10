@@ -130,6 +130,7 @@ private:
 *	
 */
 class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener,
+							 public dispatch::ListenerOwner,
 						     public Learnable
 {
 public:
@@ -226,7 +227,12 @@ public:
 
 	void setModulationData(ModulationPopupData::Ptr modData);
 
+
+	void onAttributeChange(dispatch::library::Processor* p, uint8 index);
+
 protected:
+
+	ScopedPointer<dispatch::library::Processor::AttributeListener> valueListener;
 
     friend class SliderWithShiftTextBox;
     
