@@ -440,17 +440,26 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		lfb = lfb.removeFromRight(15 * transform.getScaleFactor());
 
-		g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.35f));
+		auto c = getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.35f);
 
+		g.setColour(c);
+
+
+
+		if(h.scopeStates[r.rowNumber])
+		{
+			c = JUCE_LIVE_CONSTANT(Colour(0xff88bec5));
+
+			g.setColour(c.withAlpha(0.05f));
+			g.fillRect(b);
+			g.setColour(c);
+		}
 		
-
 		switch (t)
 		{
 		case FoldableLineRange::Holder::RangeStartOpen:
 		case FoldableLineRange::Holder::RangeStartClosed:
 		{
-			g.setColour(getParentComponent()->findColour(CodeEditorComponent::lineNumberTextId).withBrightness(0.35f));
-
 			auto w = lfb.getWidth() - 4.0f * transform.getScaleFactor();
 			auto box = lfb.withSizeKeepingCentre(w, w);
 

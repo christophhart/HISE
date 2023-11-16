@@ -82,9 +82,13 @@ void Source::setState(const HashedPath& p, State newState)
 		if(sender->matchesPath(p, n))
 		{
 			q->setQueueState(newState);
-			sender->flush(n);
+
+			if(newState == State::Running && n == sendNotificationSync)
+			{
+				q->resumeAfterPause();
+				sender->flush(n);
+			}
 		}
-			
 	});
 }
 

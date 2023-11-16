@@ -1,19 +1,310 @@
 namespace hise { using namespace juce;
 
-struct HiseJavascriptEngine::RootObject::LockStatement : public Statement
+struct HiseJavascriptEngine::RootObject::ScopedBlockStatement: public Statement
 {
-	LockStatement(CodeLocation l, bool isReadLock_) : Statement(l), isReadLock(isReadLock_), currentLock(nullptr) {};
+	ScopedBlockStatement(const CodeLocation& l, ExpPtr condition_) noexcept:
+	  Statement(l),
+      condition(condition_)
+	{}
 
-	ResultCode perform(const Scope& s, var*) const override;
+	bool checkCondition(const Scope& s, bool before)
+	{
+		if(before && condition != nullptr)
+			conditionValue = condition->getResult(s);
 
-	Statement* getChildStatement(int index) override { return index == 0 ? lockedObj.get() : nullptr; };
+		return conditionValue;
+	}
 
-	ExpPtr lockedObj;
+	virtual void cleanup(const Scope& s) const = 0;
 
-	mutable ReadWriteLock* currentLock;
-
-	const bool isReadLock;
+	ExpPtr condition;
+	bool conditionValue = true;
 };
+
+struct HiseJavascriptEngine::RootObject::ScopedSetter: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedSetter(CodeLocation l, ExpPtr c):
+	  ScopedBlockStatement(l, c)
+	{}
+
+	SN_NODE_ID("set");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		prevValue = lhs->getResult(s);
+		lhs->assign(s, rhs->getResult(s));
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		lhs->assign(s, prevValue); 
+	}
+
+	ExpPtr lhs, rhs;
+	mutable var prevValue;
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedSuspender: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedSuspender(CodeLocation l, ExpPtr c, const dispatch::HashedPath& path_):
+	  ScopedBlockStatement(l, c),
+	  path(path_)
+	{}
+
+	dispatch::HashedPath path;
+
+	SN_NODE_ID("defer");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		auto& root = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor)->getMainController()->getRootDispatcher();
+		root.setState(path, dispatch::State::Paused);
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		auto& root = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor)->getMainController()->getRootDispatcher();
+		root.setState(path, dispatch::State::Running);
+	}
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedTracer: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedTracer(CodeLocation l, ExpPtr c, const String& v):
+	  ScopedBlockStatement(l, c)
+	{
+		n << v;
+		loc << "goto " << l.externalFile << "@" << (int)(l.location - l.program.getCharPointer());
+	}
+
+	SN_NODE_ID("trace");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		TRACE_EVENT_BEGIN("scripting", DYNAMIC_STRING_BUILDER(n), "location", DYNAMIC_STRING_BUILDER(loc));
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		TRACE_EVENT_END("scripting");
+	}
+
+	dispatch::StringBuilder n, loc;
+
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedDumper: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedDumper(CodeLocation l, ExpPtr c):
+	  ScopedBlockStatement(l, c)
+	{
+		
+	}
+
+	SN_NODE_ID("dump");
+
+	OwnedArray<Expression> dumpObjects;
+
+	void dump(const Scope& s, bool before) const
+	{
+		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+		auto loc = location.getEncodedLocationString(p->getId(), p->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts));
+		String m;
+		m << "dump ";
+
+		if(before) 
+			m << "before: ";
+		else
+			m << "after: ";
+
+		m << loc << "\n";
+
+		int counter = 0;
+
+		for(auto d: dumpObjects)
+		{
+			m << "> ";
+
+			auto id = d->getVariableName();
+			if(id.isNull())
+				m << "args[" << String(counter) << "]";
+			else
+				m << id;
+			
+			m << " = " << JSON::toString(d->getResult(s), true) << "\n";
+
+			counter++;
+		}
+
+		debugToConsole(p, m);
+	}
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		dump(s, true);
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		dump(s, false);
+	}
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedNoop: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedNoop(CodeLocation l, ExpPtr c):
+	  ScopedBlockStatement(l, c)
+	{}
+
+	SN_NODE_ID("noop");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+	}
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedCounter: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedCounter(CodeLocation l, ExpPtr c, const String& name_):
+	  ScopedBlockStatement(l, c),
+	  name(name_)
+	{}
+
+	SN_NODE_ID("count");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+
+		String m;
+		m << "counter " << name << ": " << String(counter++) << " - ";
+		m << location.getEncodedLocationString(p->getId(), p->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts));
+
+		debugToConsole(p, m);
+
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+	}
+
+	const String name;
+	mutable int counter = 0;
+};
+
+
+struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedProfiler(CodeLocation l, ExpPtr c, const String& name_):
+	  ScopedBlockStatement(l, c),
+	  name(name_)
+	{}
+
+	SN_NODE_ID("profile");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		start = Time::getMillisecondCounterHiRes();
+
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		auto delta = Time::getMillisecondCounterHiRes() - start;
+		String m;
+		m << "profile" << name << ": " << String(delta, 3) << " ms";
+		debugToConsole(dynamic_cast<Processor*>(s.root->hiseSpecialData.processor), m);
+	}
+
+	const String name;
+	mutable double start;
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedPrinter: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedPrinter(CodeLocation l, ExpPtr c, const String& v):
+	  ScopedBlockStatement(l, c)
+	{
+		b1 << "enter " << v;
+		b2 << "exit " << v;
+	}
+
+	SN_NODE_ID("print");
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+		debugToConsole(p, b1.toString());
+
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+		debugToConsole(p, b2.toString());
+	}
+
+	dispatch::StringBuilder b1, b2;
+};
+
+template <bool CheckBefore> struct ScopedAssert: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedAssert(HiseJavascriptEngine::RootObject::CodeLocation l, HiseJavascriptEngine::RootObject::ExpPtr c):
+	  ScopedBlockStatement(l, c)
+	{}
+
+	~ScopedAssert() override
+	{
+		expected = nullptr;
+		actual = nullptr;
+	}
+
+	SN_NODE_ID(CheckBefore ? "before" : "after");
+
+	ResultCode perform(const HiseJavascriptEngine::RootObject::Scope& s, var*) const override
+	{
+		if constexpr(CheckBefore)
+			checkOrThrow(s);
+
+		return ResultCode::ok;
+	}
+
+	void checkOrThrow(const HiseJavascriptEngine::RootObject::Scope& s) const
+	{
+		auto v1 = expected->getResult(s);
+		auto v2 = actual->getResult(s);
+
+		if(v1 != v2)
+		{
+			dispatch::StringBuilder n;
+			n << "assert before failed. Expected: " << v1.toString() << ", actual: " << v2.toString();
+			location.throwError(n.toString());
+		}
+	}
+
+	void cleanup(const HiseJavascriptEngine::RootObject::Scope& s) const override
+	{
+		if constexpr (!CheckBefore)
+			checkOrThrow(s);
+	}
+
+	HiseJavascriptEngine::RootObject::ExpPtr expected, actual;
+};
+
+struct HiseJavascriptEngine::RootObject::ScopedBefore: public ScopedAssert<true> { ScopedBefore(CodeLocation l, ExpPtr c): ScopedAssert<true>(l, c) {}; };
+struct HiseJavascriptEngine::RootObject::ScopedAfter:  public ScopedAssert<false> { ScopedAfter(CodeLocation l, ExpPtr c): ScopedAssert<false>(l, c) {}; };
 
 struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 {
@@ -22,10 +313,17 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		
 	}
 
-	ResultCode perform(const Scope& s, var* returnedValue) const override
+	void cleanup(const Scope& s) const
 	{
-		ScopedBlockLock sl(s, lockStatements);
+		for(int i = scopedBlockCounter ; i >= 0; i--)
+		{
+			if(scopedBlockStatements[i]->checkCondition(s, false))
+				scopedBlockStatements[i]->cleanup(s);
+		}
+	}
 
+	ResultCode performWithinScope(const Scope& s, var* returnedValue) const
+	{
 		for (int i = 0; i < statements.size(); ++i)
 		{
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -48,55 +346,58 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 				throw bp;
 			}
 #endif
-
 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
 		}
-			
-
+		
 		return ok;
 	}
 
-	struct ScopedBlockLock
+	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
-		ScopedBlockLock(const Scope& s, const OwnedArray<LockStatement> &statements_):
-			statements(statements_),
-			numLocks(statements_.size())
+		if(scopedBlockStatements.isEmpty())
 		{
-			if (numLocks == 0) return;
-
-			SpinLock::ScopedLockType sl(accessLock);
-
-			for (int i = 0; i < numLocks; i++)
-			{
-				const LockStatement* lock = statements.getUnchecked(i);
-				lock->perform(s, nullptr);
-
-				if (lock->currentLock != nullptr)
-					lock->isReadLock ? lock->currentLock->enterRead() : lock->currentLock->enterWrite();
-			}
+			return performWithinScope(s, returnedValue);
 		}
-
-		~ScopedBlockLock()
+		else try
 		{
-			if (numLocks == 0) return;
+			scopedBlockCounter = 0;
 
-			SpinLock::ScopedLockType sl(accessLock);
-
-			for (int i = 0; i < numLocks; i++)
+			for(int i = 0; i < scopedBlockStatements.size(); i++)
 			{
-				const LockStatement* lock = statements.getUnchecked(i);
+				scopedBlockCounter = i;
 
-				if (lock->currentLock != nullptr)
-					lock->isReadLock ? lock->currentLock->exitRead() : lock->currentLock->exitWrite();
+				if(scopedBlockStatements[i]->checkCondition(s, true))
+					scopedBlockStatements[i]->perform(s, returnedValue);
 			}
+
+			auto rv = performWithinScope(s, returnedValue);
+
+			cleanup(s);
+
+			return rv;
 		}
-
-		const OwnedArray<LockStatement>& statements;
-		const int numLocks;
-
-		SpinLock accessLock;
-	};
+		catch(String& e)
+		{
+			cleanup(s);
+			throw e;
+		}
+		catch(Result& r)
+		{
+			cleanup(s);
+			throw r;
+		}
+		catch(Breakpoint& bp)
+		{
+			cleanup(s);
+			throw bp;
+		}
+		catch(HiseJavascriptEngine::RootObject::Error& e)
+		{
+			cleanup(s);
+			throw e;
+		}
+	}
 
 	bool replaceChildStatement(ScopedPointer<Statement>& newStatement, Statement* childToReplace) override
 	{
@@ -120,14 +421,17 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 		index -= statements.size();
 
-		if (isPositiveAndBelow(index, lockStatements.size()))
-			return lockStatements[index];
+		if (isPositiveAndBelow(index, scopedBlockStatements.size()))
+			return scopedBlockStatements[index];
 
 		return nullptr;
 	};
 
 	OwnedArray<Statement> statements;
-	OwnedArray<LockStatement> lockStatements;
+
+	OwnedArray<ScopedBlockStatement> scopedBlockStatements;
+
+	mutable int scopedBlockCounter = 0;
 };
 
 struct HiseJavascriptEngine::RootObject::IfStatement : public Statement

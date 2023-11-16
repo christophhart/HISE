@@ -373,12 +373,6 @@ void Queue::setQueueState(State newState)
 	if(getState() != newState)
 	{
 		explicitState.store(newState);
-
-		if(newState == Running && resumeData != nullptr)
-		{
-			if(flush(resumeData->f, resumeData->flushType))
-				resumeData = nullptr;
-		}
 	}
 }
 

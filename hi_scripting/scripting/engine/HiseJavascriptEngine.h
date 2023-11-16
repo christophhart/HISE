@@ -543,9 +543,17 @@ public:
 		// Branching
 
 		struct BlockStatement; 			struct IfStatement;			struct ContinueStatement;
-		struct CaseStatement; 			struct SwitchStatement;
+		struct CaseStatement; 			struct SwitchStatement;		struct ScopedBlockStatement;
 		struct ReturnStatement; 		struct BreakStatement;
 		struct NextIteratorStatement; 	struct LoopStatement;
+
+		// ScopedStatements
+
+		struct ScopedSetter;			struct ScopedLocker;		struct ScopedTracer;
+		struct ScopedPrinter;			struct ScopedBefore;		struct ScopedAfter;
+		struct ScopedDumper;			struct ScopedNoop;			struct ScopedCounter;
+		struct ScopedProfiler;			struct ScopedSuspender;
+		
 
 		// Variables
 
@@ -564,9 +572,8 @@ public:
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
-		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
-		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		struct NativeJIT;				struct IsDefinedTest;		
+		struct LocalReference;			struct CallbackParameterReference;
+		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct IsDefinedTest;		
 
 		// Snex stuff
 

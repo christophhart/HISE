@@ -52,6 +52,47 @@ struct JavascriptTokeniserFunctions
                 || c == '_' || c == '@';
     }
 
+    static bool isScopedBlockType(String::CharPointerType token, const int tokenLength) noexcept
+    {
+        static const char* const keywords2Char[] =
+            { "if", nullptr };
+
+        static const char* const keywords3Char[] =
+            { "set", nullptr };
+
+        static const char* const keywords4Char[] =
+            { "lock", "dump", "noop", nullptr };
+
+        static const char* const keywords5Char[] =
+            { "count", "print", "defer", "after", "trace", nullptr };
+
+        static const char* const keywords6Char[] =
+            { "before", nullptr };
+
+        static const char* const keywords7Char[] =
+            { "profile", nullptr };
+
+        const char* const* k;
+
+        switch (tokenLength)
+        {
+            case 2:     k = keywords2Char; break;
+            case 3:     k = keywords3Char; break;
+            case 4:     k = keywords4Char; break;
+            case 5:     k = keywords5Char; break;
+            case 6:     k = keywords6Char; break;
+            case 7:     k = keywords7Char; break;
+            default:
+                return false;
+        }
+
+        for (int i = 0; k[i] != 0; ++i)
+            if (token.compare (CharPointer_ASCII (k[i])) == 0)
+                return true;
+
+        return false;
+    }
+
     static bool isReservedKeyword (String::CharPointerType token, const int tokenLength) noexcept
     {
         static const char* const keywords2Char[] =
@@ -107,7 +148,7 @@ struct JavascriptTokeniserFunctions
     }
 
     template <typename Iterator>
-    static int parseIdentifier (Iterator& source) noexcept
+    static int parseIdentifier (Iterator& source, bool expectScopedId=false) noexcept
     {
         int tokenLength = 0;
         String::CharPointerType::CharType possibleIdentifier [100];
@@ -127,6 +168,13 @@ struct JavascriptTokeniserFunctions
         {
             possible.writeNull();
 
+            if(expectScopedId)
+            {
+	            if(isScopedBlockType(String::CharPointerType (possibleIdentifier), tokenLength))
+                    return JavascriptTokeniser::tokenType_scopedstatement;
+                else
+                    return JavascriptTokeniser::tokenType_error;
+            }
             if (isReservedKeyword (String::CharPointerType (possibleIdentifier), tokenLength))
                 return JavascriptTokeniser::tokenType_keyword;
         }

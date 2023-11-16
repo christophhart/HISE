@@ -82,6 +82,9 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
         case '{':
         {
             auto thisLine = it.getLine();
+            
+            it.skipWhitespace();
+            auto isScoped = it.peekNextChar() == '.';
 
             if (firstInLine)
                 thisLine -= 1;
@@ -89,6 +92,8 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
             Range<int> r(thisLine, thisLine);
 
             mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, r);
+
+            newElement->setScoped(isScoped);
 
             if (currentElement == nullptr)
             {

@@ -97,6 +97,8 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		location.throwError("Can't assign to this expression!");
 	}
 
+	Identifier getVariableName() const override { return ns->constObjects.getName(index); }
+
 	Statement* getChildStatement(int) override { return nullptr; };
 
 	WeakReference<JavascriptNamespace> ns;

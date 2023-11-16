@@ -1386,9 +1386,15 @@ void FoldableLineRange::Holder::unfold(int lineNumber)
 void FoldableLineRange::Holder::updateFoldState(WeakPtr r)
 {
 	lineStates.clear();
+	scopeStates.clear();
 
 	for (auto a : all)
 	{
+		if(a->isScoped())
+		{
+			auto r = a->getLineRange();
+			scopeStates.setRange(r.getStart()+1, r.getLength()-1, true);
+		}
 		if (a->folded)
 		{
 			auto r = a->getLineRange();
@@ -1459,7 +1465,7 @@ Range<int> FoldableLineRange::Holder::getRangeForLineNumber(int lineNumber) cons
 FoldableLineRange::Holder::LineType FoldableLineRange::Holder::getLineType(int lineNumber) const
 {
 	bool isBetween = false;
-			
+
 	for (auto l : all)
 	{
 		auto lineRange = l->getLineRange();
@@ -1498,8 +1504,6 @@ void FoldableLineRange::Holder::addToFlatList(List& flatList, const List& nested
 
 void FoldableLineRange::Holder::setRanges(FoldableLineRange::List newRanges)
 {
-			
-
 	Array<int> foldedLines;
 
 	checkList(newRanges, nullptr);

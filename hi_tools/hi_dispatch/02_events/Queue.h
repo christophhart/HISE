@@ -221,6 +221,15 @@ public:
 
 	void setQueueState(State newState);
 
+	void resumeAfterPause()
+	{
+		if(resumeData != nullptr)
+		{
+			if(flush(resumeData->f, resumeData->flushType))
+				resumeData = nullptr;
+		}
+	}
+
 	State getState() const { return explicitState.load(); }
 
 private:

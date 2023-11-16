@@ -280,40 +280,6 @@ hiseSpecialData(this)
 #endif
 
 
-HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::RootObject::LockStatement::perform(const Scope& /*s*/, var*) const
-{
-	if (RegisterName* r = dynamic_cast<RegisterName*>(lockedObj.get()))
-	{
-		currentLock = &r->rootRegister->getLock(r->indexInRegister);
-		return ResultCode::ok;
-	}
-	else if (ConstReference* cr = dynamic_cast<ConstReference*>(lockedObj.get()))
-	{
-		var* constObj = cr->ns->constObjects.getVarPointerAt(cr->index);
-
-		if (ApiClass* api = dynamic_cast<ApiClass*>(constObj->getObject()))
-		{
-			currentLock = &api->apiClassLock;
-			return ResultCode::ok;
-		}
-		else
-		{
-			currentLock = nullptr;
-			location.throwError("Can't lock this object");
-			return Statement::ok;
-		}
-	}
-	else
-	{
-		currentLock = nullptr;
-		location.throwError("Can't lock this object");
-		return Statement::ok;
-	}
-}
-
-#if JUCE_MSVC
-#pragma warning (pop)
-#endif
 
 
 

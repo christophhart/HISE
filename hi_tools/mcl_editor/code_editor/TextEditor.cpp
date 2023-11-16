@@ -1663,6 +1663,27 @@ void mcl::TextEditor::paint (Graphics& g)
 
 void mcl::TextEditor::paintOverChildren (Graphics& g)
 {
+	
+	auto& h = document.getFoldableLineRangeHolder();
+
+	auto rows = document.getRangeOfRowsIntersecting(g.getClipBounds().toFloat());
+
+	for(int i = rows.getStart(); i < rows.getEnd(); i++)
+	{
+		if(h.scopeStates[i])
+		{
+			g.setColour(Colour(0xff88bec5).withAlpha(JUCE_LIVE_CONSTANT(0.1f)));
+			auto y = document.getVerticalPosition(i, TextDocument::Metric::top);
+			auto b = document.getVerticalPosition(i, TextDocument::Metric::bottom);
+			auto x = 0.0f;
+			auto w = (float)getWidth();
+
+			Rectangle<float> area(x, y, w, b-y);
+			g.fillRect(area.transformedBy(transform));
+		}
+	}
+
+
     if(!currentTitles.isEmpty())
     {
         auto titleArea = getLocalBounds().toFloat();
@@ -3067,20 +3088,21 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
 				zones.add(Selection(previous, now).withStyle(tokenType));
 			else
 				break;
-
+			
 			previous = now;
 		}
-
 		
 		document.clearTokens(rows);
 		document.applyTokens(rows, zones);
 
         for (int i = rows.getStart(); i < rows.getEnd(); i++)
-            document.drawWhitespaceRectangles(i, g);
-
+        {
+	        document.drawWhitespaceRectangles(i, g);
+        }
+            
         for (int n = 0; n < colourScheme.types.size(); ++n)
         {
-            g.setColour (colourScheme.types[n].colour);
+			g.setColour (colourScheme.types[n].colour);
             document.findGlyphsIntersecting (g.getClipBounds().toFloat(), n).draw (g);
         }
     }

@@ -43,6 +43,7 @@ void mcl::CaretComponent::paint(Graphics& g)
 
 	bool drawCaretLine = document.getNumSelections() == 1 && document.getSelections().getFirst().isSingular();
 
+
     for (const auto &r : getCaretRectangles())
 	{
 		g.setColour(colour.withAlpha(squareWave(phase)));

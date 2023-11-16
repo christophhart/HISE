@@ -187,7 +187,8 @@ bool SlotSender::sendChangeMessage(uint8 indexInSlot, DispatchType n)
 
 		d.setBit(indexInSlot, true);
 
-		flowManager.openFlow(sn, indexInSlot);
+		if(!listeners.get(sn).isEmpty())
+			flowManager.openFlow(sn, indexInSlot);
 	});
 
 	// If the message wasn't explicitely sent as sendNotificationAsync, it will flush the sync changes immediately

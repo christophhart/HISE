@@ -83,6 +83,8 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 		*data = newValue;
 	}
 
+	Identifier getVariableName() const override { return name; }
+
 	Statement* getChildStatement(int ) override { return nullptr; };
 
 	VarRegister* rootRegister;
@@ -984,6 +986,9 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Express
 		parentCallback->localProperties.set(name, newValue);
 	}
 
+	Identifier getVariableName() const override { return name; }
+
+
 	Statement* getChildStatement(int) override { return nullptr; };
 
 	Callback* parentCallback;
@@ -1066,7 +1071,7 @@ struct BlockRemover : public HiseJavascriptEngine::RootObject::OptimizationPass
 	{
 		if (auto sb = dynamic_cast<HiseJavascriptEngine::RootObject::BlockStatement*>(statementToOptimize))
 		{
-			if (sb->lockStatements.isEmpty())
+			if (sb->scopedBlockStatements.isEmpty())
 			{
 				if (sb->statements.isEmpty())
 					return nullptr;
