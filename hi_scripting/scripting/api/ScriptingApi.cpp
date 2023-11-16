@@ -6424,13 +6424,12 @@ startTime(0.0)
 
 void ScriptingApi::Console::print(var x)
 {
-	
-
 #if USE_BACKEND
 
 	AudioThreadGuard::Suspender suspender;
 	ignoreUnused(suspender);
-    
+	
+
     auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
     jp->addInplaceDebugValue(id, lineNumber, x.toString());
     
@@ -6486,6 +6485,8 @@ void ScriptingApi::Console::stop(bool condition)
 
 		auto& jtp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
 
+		auto [id, lineNumber] = getDebugLocation();
+
 		JavascriptThreadPool::ScopedSleeper ss(jtp, id, lineNumber);
 
 		n = Time::getMillisecondCounter() - n;
@@ -6509,8 +6510,7 @@ void ScriptingApi::Console::blink()
 #if USE_BACKEND && HISE_USE_NEW_CODE_EDITOR
 	if (auto e = getProcessor()->getMainController()->getLastActiveEditor())
 	{
-		Identifier i = id;
-		int l = lineNumber;
+		auto [i, l] = getDebugLocation();
 
 		MessageManager::callAsync([e, i, l]()
 		{

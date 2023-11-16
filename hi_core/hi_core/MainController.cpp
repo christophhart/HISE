@@ -811,6 +811,8 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+	PerfettoHelpers::setCurrentThreadName("Audio Thread");
+	
     if (getKillStateHandler().getStateLoadFlag())
 		return;
 

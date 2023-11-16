@@ -269,6 +269,7 @@ hiseSpecialData(this)
 
     // These are not constants so if you're evil you can change them...
     setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
+	setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
     setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 }
 

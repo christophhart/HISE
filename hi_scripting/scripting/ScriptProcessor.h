@@ -659,6 +659,11 @@ struct JavascriptSleepListener
 class JavascriptThreadPool : public Thread,
 							 public ControlledObject
 {
+	static constexpr uint64_t ScriptTrackId = 8999;
+	static constexpr uint64_t CompilationTrackId = 9000;
+	static constexpr uint64_t HighPriorityTrackId = 9001;
+	static constexpr uint64_t LowPriorityTrackId = 9002;
+	
 public:
 
 	using SleepListener = JavascriptSleepListener;

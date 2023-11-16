@@ -71,6 +71,7 @@ public:
 
 	static constexpr int SyncMagicNumber = 911;
 	static constexpr int AsyncMagicNumber = 912;
+	static constexpr int AsyncHiPriorityMagicNumber = 913;
 
 	static bool isSynchronous(var syncValue)
 	{
@@ -78,6 +79,9 @@ public:
 			return true;
 
 		if ((int)syncValue == AsyncMagicNumber)
+			return false;
+
+		if ((int)syncValue == AsyncHiPriorityMagicNumber)
 			return false;
 
 		return (bool)syncValue;

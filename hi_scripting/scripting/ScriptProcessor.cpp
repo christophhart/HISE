@@ -2517,11 +2517,11 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	case Task::Type::Compilation:
 	{
 		CompilationTask ct;
-
 		
-
 		allowSleep = true;
 
+		TRACE_EVENT("scripting", "compile queue");//, perfetto::Track(CompilationTrackId));
+		
 		while (compilationQueue.pop(ct))
 		{
             SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
@@ -2529,6 +2529,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 			lowPriorityQueue.clear();
 			highPriorityQueue.clear();
+
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "compile " << dynamic_cast<Processor*>(ct.getFunction().getProcessor())->getId();
+			TRACE_DYNAMIC_SCRIPTING(b);
+#endif
 
 			killVoicesAndExtendTimeOut(ct.getFunction().getProcessor());
 
@@ -2565,6 +2571,8 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
         r = executeQueue(Task::Compilation, pendingCompilations);
 #endif
 
+		TRACE_EVENT("scripting", "high priority queue");//, perfetto::Track(HighPriorityTrackId));
+		
 		CallbackTask hpt;
 
 		while (r.wasOk() && highPriorityQueue.pop(hpt))
@@ -2573,6 +2581,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 			if (alreadyCompiled(hpt))
 				continue;
+
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "hi priority callback " << dynamic_cast<Processor*>(hpt.getFunction().getProcessor())->getId();
+			TRACE_DYNAMIC_SCRIPTING(b);
+#endif
 
 			r = hpt.call();
 		}
@@ -2588,6 +2602,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		CallbackTask lpt;
 
+		auto t = perfetto::Track(LowPriorityTrackId);
+
+		PerfettoHelpers::setTrackNameName(t, "low priority queue");
+
+		TRACE_EVENT_BEGIN("scripting", "low priority queue");//, t);
+
 		while (r.wasOk() && lowPriorityQueue.pop(lpt))
 		{
             // We're trying to leave this unlocked here as the
@@ -2600,8 +2620,16 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			if (alreadyCompiled(lpt))
 				continue;
 
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "low priority callback " << dynamic_cast<Processor*>(lpt.getFunction().getProcessor())->getId();
+			TRACE_DYNAMIC_SCRIPTING(b);
+#endif
+
 			r = lpt.call();
 		}
+
+		TRACE_EVENT_END("scripting");//, t);
 
 		if (!r.wasOk())
 			lowPriorityQueue.clear();
@@ -2615,7 +2643,16 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 				ScopedValueSetter<bool> svs(busy, true);
 
 				if (sp.get() != nullptr)
+				{
+#if PERFETTO
+					dispatch::StringBuilder b;
+					b << "repaint panel " << sp->getName();
+					TRACE_DYNAMIC_SCRIPTING(b);
+#endif
+
 					sp->repaint();
+				}
+					
 			}
 		}
 		else
@@ -2632,19 +2669,30 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	return r;
 }
 
+
+
 void JavascriptThreadPool::run()
 {
 	while (!threadShouldExit())
 	{
-		Array<WeakReference<JavascriptProcessor>> compiledProcessors;
-		compiledProcessors.ensureStorageAllocated(16);
-
-		auto r = executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
-		
-		if (!r.wasOk() && r.getErrorMessage() != "Engine is dangling")
 		{
-			debugError(getMainController()->getMainSynthChain(), r.getErrorMessage());
+			PerfettoHelpers::setCurrentThreadName("Scripting Thread");
+			
+			TRACE_SCRIPTING("script thread execution");
+
+			Array<WeakReference<JavascriptProcessor>> compiledProcessors;
+			compiledProcessors.ensureStorageAllocated(16);
+
+			auto r = executeQueue(Task::LowPriorityCallbackExecution, compiledProcessors);
+			
+			if (!r.wasOk() && r.getErrorMessage() != "Engine is dangling")
+			{
+				debugError(getMainController()->getMainSynthChain(), r.getErrorMessage());
+			}
 		}
+		
+
+		
 
 		wait(500);
 	}

@@ -4082,6 +4082,10 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(setAnimationFrame);
 	ADD_API_METHOD_3(startExternalFileDrag);
 	ADD_API_METHOD_1(startInternalDrag);
+
+#if PERFETTO
+	setWantsCurrentLocation(true);
+#endif
 }
 
 
@@ -4119,6 +4123,30 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 
 void ScriptingApi::Content::ScriptPanel::repaint()
 {
+#if PERFETTO
+	auto thisId = perfettoRepaintId++;
+
+	pendingPerfettoRepaints.insertWithoutSearch(thisId);
+
+	dispatch::StringBuilder b, loc;
+
+	b << "repaint " << getName();
+
+	auto l = getCurrentLocationInFunctionCall();
+
+	loc << "goto ";
+
+	if(l.fileName.isEmpty())
+		loc << "onInit";
+	else
+		loc << l.fileName;
+
+	loc << "@" << l.charNumber;
+
+	TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(thisId), "script_location", DYNAMIC_STRING_BUILDER(loc));
+
+#endif
+
 	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
 	if (threadId == MainController::KillStateHandler::SampleLoadingThread ||
@@ -4186,6 +4214,20 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint(bool forceRepaint/*=fal
 bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, Result& r)
 {
 	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
+
+#if PERFETTO
+
+	dispatch::StringBuilder b;
+	b << "paint callback " << getName();
+
+	for(auto& id: pendingPerfettoRepaints)
+	{
+		TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(id));
+	}
+
+	pendingPerfettoRepaints.clearQuick();
+	
+#endif
 
 	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 

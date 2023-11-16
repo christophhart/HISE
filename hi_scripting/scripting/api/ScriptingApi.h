@@ -1360,14 +1360,14 @@ public:
 			lineNumber = lineNumber_;
 		}
 
-	private:
+		std::pair<Identifier, int> getDebugLocation() const { return {id, lineNumber}; }
+
+private:
 
 		Identifier id;
 		int lineNumber;
 
 		double startTime;
-
-
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Console)
 	};
