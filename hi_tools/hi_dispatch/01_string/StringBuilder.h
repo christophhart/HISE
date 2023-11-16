@@ -49,6 +49,8 @@ struct StringBuilder
     StringBuilder& operator<<(const HashedCharPtr& p);
     StringBuilder& operator<<(const String& s);
     StringBuilder& operator<<(int number);
+    StringBuilder& operator<<(uint8 number);
+    StringBuilder& operator<<(size_t number);
     StringBuilder& operator<<(const StringBuilder& other);
 	StringBuilder& operator<<(const Queue::FlushArgument& f);
     StringBuilder& operator<<(EventType eventType);
@@ -74,7 +76,7 @@ private:
     char* getWriteHeadAndAdvance(size_t numToWrite);
     
     ObjectStorage<SmallBufferSize, 0> data;
-    int position = 0;
+    size_t position = 0;
 };
 
 } // dispatch

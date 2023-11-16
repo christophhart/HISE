@@ -31,7 +31,6 @@
 */
 
 #pragma once
-#include "dummy_Actions.h"
 
 namespace hise {
 namespace dispatch {
@@ -45,9 +44,7 @@ struct Processor: public ControlledObject,
     struct ActionBase;
     struct RemoveAction;
     struct SetAttributeAction;
-    struct SetBypassed;
-    struct AddListener;
-    struct RemoveListener;
+    struct SetBypassedAction;
 
     struct Builder: public Action::Builder
     {
@@ -55,15 +52,9 @@ struct Processor: public ControlledObject,
           Action::Builder(mc)
         {};
 
-	    Action::List createActions(const var& jsonData) override;
+        Action::Ptr createAction(const Identifier& type) override;
         Identifier getId() const override { return ActionIds::processor; }
-        Action::Ptr addAction;
-
-        void expectOrThrow(bool ok, const String& errorMessage)
-        {
-            if(!ok)
-                throw String(errorMessage);
-        }
+        
     };
     
     void setAttribute(int parameterIndex, float newValue, DispatchType n);
@@ -73,6 +64,57 @@ struct Processor: public ControlledObject,
     ~Processor() override;
 
     library::Processor dispatcher;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(Processor);
+};
+
+struct ProcessorListener: public ControlledObject,
+						  public ListenerOwner
+{
+    struct AddAction;
+    struct CountAction;
+    struct RemoveAction;
+
+    struct Builder: public Action::Builder
+    {
+	    Builder(MainController* mc);;
+
+        Identifier getId() const override { return ActionIds::processor_listener; }
+
+	    Action::Ptr createAction(const Identifier& id) override;
+    };
+
+    ProcessorListener(MainController* mc);
+
+    ~ProcessorListener() override;
+
+    void onAttribute(library::Processor* dispatcher, int slotIndex)
+    {
+	    ++numAttributeCallbacks;
+    }
+
+    void onBypassed(library::Processor* dispatcher, bool bypassValue)
+    {
+		currentBypassState = bypassValue;
+        ++numBypassedCallbacks;
+    }
+
+    void onIdOrColourChange(library::Processor* p)
+    {
+	    ++numNameAndColourCallbacks;
+    }
+
+    WeakReference<Processor> connectedProcessor;
+
+    std::atomic<int> numAttributeCallbacks = {0};
+    std::atomic<int> numBypassedCallbacks = {0};
+    std::atomic<int> numNameAndColourCallbacks = {0};
+
+    bool currentBypassState = false;
+    
+	library::ProcessorHandler::AttributeListener attributeListener;
+    library::ProcessorHandler::BypassListener bypassListener;
+    library::ProcessorHandler::NameAndColourListener idListener;
 };
 
 

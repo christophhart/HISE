@@ -225,6 +225,8 @@ bool RootObject::callForAllListeners(const std::function<bool(dispatch::Listener
 	return QueueIteratorHelpers::forEach<dispatch::Listener>(listeners, lf);
 }
 
+uint64 RootObject::flowCounter = 0;
+
 void RootObject::flushHighPriorityQueues(Thread* t)
 {
 	callForAllSourceManagers([&](SourceManager& sm)
@@ -232,8 +234,11 @@ void RootObject::flushHighPriorityQueues(Thread* t)
 		if(t->threadShouldExit())
 			return true;
 
-		sm.flushHiPriorityQueue(); return false;
+		sm.flush(DispatchType::sendNotificationAsyncHiPriority);
+		return false;
 	});
 }
+
+
 } // dispatch
 } // hise

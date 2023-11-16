@@ -208,7 +208,7 @@ public:
     bool isWildcard()       const noexcept { return cpl.isWildcard(); }
     static constexpr bool isHashed() { return true; }
 
-    String toString() const noexcept { return String::createStringFromData(cpl.get(), cpl.length()); }
+    String toString() const noexcept { return String::createStringFromData(cpl.get(), static_cast<int>(cpl.length())); }
 
 private:
     
@@ -261,7 +261,7 @@ struct HashedPath
         if(*pos == delimiter)
             throw Result::fail("expected token");
 
-        while(pos != end || tokenIndex > 3)
+        while(pos < end && tokenIndex < 4)
         {
             if(*pos == delimiter)
             {
@@ -269,14 +269,28 @@ struct HashedPath
                 tokenStart = ++pos;
             }
 
-	        while(pos != end && *pos != delimiter)
+	        while(pos < end && *pos != delimiter)
 	        {
+                if(*pos == '*')
+                {
+	                tokens[tokenIndex++] = HashedCharPtr(CharPtr::Type::Wildcard);
+					++pos;
+
+                    if(pos < end && *pos != delimiter)
+                    {
+	                    throw Result::fail("expected '.'");
+                    }
+                    
+                    tokenStart = ++pos;
+
+                    break;
+                }
+
 		        pos++;
-                continue;
 	        }
         }
 
-        if(tokenStart != end && tokenIndex < 4)
+        if(tokenStart < end && tokenIndex < 4)
         {
 	        tokens[tokenIndex] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
         }

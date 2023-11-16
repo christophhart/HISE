@@ -36,16 +36,20 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-struct Queueable;
-struct Source;
-struct SourceManager;
-struct Source;
-struct Listener;
+class Queueable;
+class Source;
+class SourceManager;
+class Source;
+class Listener;
 
-struct RootObject
+class RootObject
 {
-	struct Child
+public:
+
+	class Child
 	{
+	public:
+
 		Child(RootObject& root_);;
 		virtual ~Child();
 
@@ -116,9 +120,11 @@ struct RootObject
 
 	uint64_t bumpFlowCounter() { return ++flowCounter; }
 
-private:
+	
 
-	uint64_t flowCounter = 0;
+private:
+	
+	static uint64_t flowCounter;
 
 	struct HiPriorityThread: public Thread
 	{

@@ -43,24 +43,33 @@ SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   treeId(typeId),
   sources(r, sizeof(void*) * 128)
 {
+	messageCounterId << typeId << "messages";
+	skippedCounterId << "skipped " << typeId << "messages";
+
 	r.addTypedChild(this);
 	jassert(!typeId.isDynamic());
 }
 
 SourceManager::~SourceManager()
 {
+	resetMessageCounter();
 	getRootObject().removeTypedChild(this);
 	sources.clear();
-	
 }
 
-void SourceManager::flushHiPriorityQueue()
+void SourceManager::resetMessageCounter()
 {
-	
+	messageCounter = 0;
+	skippedCounter = 0;
+
+	TRACE_COUNTER("dispatch", perfetto::CounterTrack(messageCounterId.get()), 0);
+	TRACE_COUNTER("dispatch", perfetto::CounterTrack(skippedCounterId.get()), 0);
 }
 
 void SourceManager::timerCallback()
 {
+	resetMessageCounter();
+
 	flush(DispatchType::sendNotificationAsyncHiPriority);
 	flush(DispatchType::sendNotificationAsync);
 }
@@ -91,7 +100,7 @@ void SourceManager::flush(DispatchType n)
 {
 	if(getStateFromParent() == State::Running)
 	{
-		TRACE_FLUSH(getDispatchId());
+		//TRACE_FLUSH(getDispatchId());
 		
 		sources.flush([n](const Queue::FlushArgument& f)
 		{

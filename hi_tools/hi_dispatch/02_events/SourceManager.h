@@ -36,9 +36,11 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-struct SourceManager  : public Suspendable,
+class SourceManager  : public Suspendable,
 					    public PooledUIUpdater::SimpleTimer
 {
+public:
+
 	SourceManager(RootObject& r, const HashedCharPtr& typeId);
 	~SourceManager() override;
 
@@ -53,8 +55,7 @@ struct SourceManager  : public Suspendable,
 	
 	void timerCallback() override;
 
-	void flushHiPriorityQueue();
-	int getNumChildSources() const { return sources.getNumAllocated(); }
+	size_t getNumChildSources() const { return sources.getNumAllocated(); }
 
 	void addSource(Source* s);
 	void removeSource(Source* s);
@@ -70,10 +71,23 @@ struct SourceManager  : public Suspendable,
 		}, Queue::FlushType::KeepData);
 	}
 
-private:
+	void resetMessageCounter();
+
+	void bumpMessageCounter(bool used)
+	{
+		auto& v = used ? messageCounter :		  skippedCounter;
+		auto b = used ?  messageCounterId.get() : skippedCounterId.get();
+		TRACE_COUNTER("dispatch", perfetto::CounterTrack(b), ++v);
+	}
 
 	void flush(DispatchType n);
 
+private:
+
+	int messageCounter = 0;
+	int skippedCounter = 0;
+
+	StringBuilder messageCounterId, skippedCounterId;
 	Queue sources;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SourceManager);

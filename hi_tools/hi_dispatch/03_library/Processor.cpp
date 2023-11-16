@@ -65,6 +65,8 @@ ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOw
 	f(f_)
 {}
 
+#define TRACE_DISPATCH_CALLBACK(obj, callbackName, arg) StringBuilder n; n << (obj).getDispatchId() << "." << callbackName << "(" << (int)arg << ")"; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(n));
+
 void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 {
 	auto obj = d.to_static_cast<Processor>();
@@ -73,6 +75,7 @@ void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 
 	if(d.numBytes == 1)
 	{
+		TRACE_DISPATCH_CALLBACK(*obj, "onAttribute", d.toSingleSlotIndex());
 		f(obj, d.toSingleSlotIndex());
 	}
 	else
@@ -82,7 +85,10 @@ void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 		for(int i = 0; i < bm.getNumBits(); i++)
 		{
 			if(bm[i])
+			{
+				TRACE_DISPATCH_CALLBACK(*obj, "onAttribute", i);
 				f(obj, i);
+			}
 		}
 	}
 
@@ -158,7 +164,14 @@ Processor::~Processor()
 void Processor::setAttribute(int parameterIndex, float, DispatchType n)
 {
 	if(n != dontSendNotification)
-		attributes.sendChangeMessage(parameterIndex, n);
+	{
+		if(auto a = getAttributeSender(parameterIndex))
+			a->sendChangeMessage(static_cast<uint8>(parameterIndex % SlotBitmap::getNumBits()), n);
+		else
+		{
+			jassertfalse;
+		}
+	}
 }
 
 void Processor::setBypassed(bool value)
@@ -191,13 +204,13 @@ void Processor::setNumAttributes(uint16 numAttributes)
 	}
 	else
 	{
-		int numAttributeSlotsRequired = (numAttributes / SlotBitmap::getNumBits()) + 1;
-		int lastSlotAmount = numAttributeSlotsRequired % SlotBitmap::getNumBits();
+		auto numAttributeSlotsRequired = (static_cast<size_t>(numAttributes) / SlotBitmap::getNumBits()) + 1;
+		auto lastSlotAmount = static_cast<uint8>(numAttributes % SlotBitmap::getNumBits());
 
 		for(int i = additionalAttributes.size(); i < numAttributeSlotsRequired; i++)
 		{
 			additionalAttributes.add(new SlotSender(*this, (uint8)i + (uint8)SlotTypes::numSlotTypes, IDs::event::attribute));
-			additionalAttributes.getLast()->setNumSlots(i == numAttributeSlotsRequired-1 ? lastSlotAmount : SlotBitmap::getNumBits());
+			additionalAttributes.getLast()->setNumSlots(i == numAttributeSlotsRequired-1 ? lastSlotAmount : static_cast<uint8>(SlotBitmap::getNumBits()));
 		}
 	}
 }

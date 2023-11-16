@@ -105,7 +105,9 @@ struct CharPtrTest: public UnitTest
     
     void expectStringResult(const StringBuilder& b, const String& e);
     void testStringBuilder();
-    
+
+    void testHashedPath();
+
     void runTest() override;
 };
 

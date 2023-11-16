@@ -39,8 +39,10 @@ using namespace juce;
 
 
 // A subclass of RootObject child that will automatically remove itself from all queues. */
-struct Queueable: public RootObject::Child
+class Queueable: public RootObject::Child
 {
+public:
+
 	explicit Queueable(RootObject& r);;
 	~Queueable() override;
 
@@ -49,8 +51,10 @@ private:
 	DanglingBehaviour danglingBehaviour = DanglingBehaviour::Undefined;
 };
 
-struct Suspendable: public Queueable
+class Suspendable: public Queueable
 {
+public:
+
 	Suspendable(RootObject& r, Suspendable* parent_):
 	  Queueable(r),
 	  parent(parent_)
@@ -67,10 +71,12 @@ private:
 	Suspendable* parent = nullptr;
 };
 
-struct Logger;
+class Logger;
 
-struct Queue final : public Queueable
+class Queue final : public Queueable
 {
+public:
+
 	enum class FlushType
 	{
 		Flush,
@@ -240,9 +246,9 @@ private:
 	static bool isAlignedToPointerSize(uint8* ptr);
 
 	HeapBlock<uint8> data;
-	int numUsed = 0;		// the amount of bytes used
-	int numAllocated = 0;	// the amount of bytes allocated
-	int numElements = 0;	// the amount of events in the queue
+	size_t numUsed = 0;		// the amount of bytes used
+	size_t numAllocated = 0;	// the amount of bytes allocated
+	size_t numElements = 0;	// the amount of events in the queue
 	DanglingBehaviour queueBehaviour = DanglingBehaviour::Undefined; // overrides the incoming behaviour request if not undefined
 
 	Logger* attachedLogger = nullptr;
@@ -292,6 +298,8 @@ template <typename T> struct DispatchTypeContainer
 		default: jassertfalse; return async;
 		}
 	}
+
+private:
 
 	T sync;
 	T asyncHiPrio;

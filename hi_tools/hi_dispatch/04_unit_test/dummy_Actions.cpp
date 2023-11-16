@@ -70,13 +70,42 @@ ThreadType Helpers::getThreadFromName(HashedCharPtr c)
 			return (ThreadType)i;
 	}
 
-	jassert(c.length() == 0);
+	expectOrThrow(c.length() == 0, "Can't find thread name " + c.toString());
 	return ThreadType::Undefined;
 }
 
-inline uint32 Helpers::normalisedToTimestamp(float normalised)
+DispatchType Helpers::getDispatchFromJSON(const var& obj, DispatchType defaultValue)
 {
-	return (uint32)roundToInt(normalised * (float)(NumTotalSeconds * 1000));
+	if(!obj.hasProperty(ActionIds::notify))
+		return defaultValue;
+
+	auto d = obj[ActionIds::notify].toString();
+
+	static const StringArray types = { "sync", "async_low", "async_high", "none" };
+
+	auto idx = types.indexOf(d);
+
+	expectOrThrow(idx != -1, "Can't find notification type: " + d);
+
+	if(idx == 0)
+		return DispatchType::sendNotificationSync;
+	if(idx == 1)
+		return DispatchType::sendNotificationAsync;
+	if(idx == 2)
+		return DispatchType::sendNotificationAsyncHiPriority;
+	if(idx == 3)
+		return DispatchType::dontSendNotification;
+
+	jassertfalse;
+	return DispatchType::dontSendNotification;
+}
+
+inline uint32 Helpers::normalisedToTimestamp(float normalised, float NumTotalSeconds)
+{
+	if(normalised > 1.0)
+		return (uint32)roundToInt(normalised);
+	
+	return (uint32)roundToInt(normalised * (NumTotalSeconds * 1000.0f));
 }
 
 void Helpers::busyWait(float milliseconds)
@@ -91,6 +120,32 @@ void Helpers::busyWait(float milliseconds)
 Action::Builder::Builder(MainController* mc):
 	ControlledObject(mc)
 {}
+
+Action::List Action::Builder::createActions(const var& jsonData)
+{
+	Action::List list;
+
+	if(jsonData.isArray())
+	{
+		for(const auto& obj: *jsonData.getArray())
+		{
+			Identifier type(obj[ActionIds::type].toString());
+			auto newObject = createAction(type);
+			newObject->fromJSON(obj);
+
+			if(list.isEmpty())
+				addAction = newObject;
+
+			list.add(newObject);
+		}
+	}
+
+	Helpers::expectOrThrow(list.size() >= 2, "must have at least an add and a rem event");
+	Helpers::expectOrThrow(list.getFirst()->getType() == ActionTypes::add, "first action must be add action");
+	Helpers::expectOrThrow(list.getLast()->getType() == ActionTypes::rem, "last action must be rem action");
+
+	return list;
+}
 
 int Action::Sorter::compareElements(Action* first, Action* second)
 {
@@ -119,7 +174,26 @@ void Action::setTimestamp(uint32 newTimestampMilliseconds)
 
 void Action::setTimestampNormalised(float normalised)
 {
-	timestampMilliseconds = Helpers::normalisedToTimestamp(normalised);
+	timestampMilliseconds = Helpers::normalisedToTimestamp(normalised, (float)getMainController()->totalDurationMilliseconds * 0.001f);
+}
+
+void Action::expectOrThrowRuntimeError(bool condition, const String& message)
+{
+	Helpers::expectOrThrow(condition, Helpers::ErrorType::RuntimeError, getActionDescription(), message);
+}
+
+void Action::expectAfter(Action::Ptr addAction, bool expectSameThread)
+{
+	auto thisTime = getTimestamp();
+	auto addTime = addAction->getTimestamp();
+
+	auto d1 = getActionDescription().toString();
+	auto d2 = addAction->getActionDescription().toString();
+        
+	Helpers::expectOrThrow(thisTime > addTime, Helpers::ErrorType::DataError, getActionDescription(), "timestamp < add event");
+
+	if(expectSameThread)
+		Helpers::expectOrThrow(getPreferredThread() == addAction->getPreferredThread(), Helpers::ErrorType::DataError, getActionDescription(), "thread mismatch to add event");
 }
 
 void Action::fromJSON(const var& obj)
@@ -210,6 +284,8 @@ Action::List RandomActionBuilder::createActions(const var& jsonData)
 	}
 	else
 	{
+		jassertfalse;
+#if 0
 		for(int i = 0; i < r.nextInt(500); i++)
 		{
 			auto ts = r.nextInt(NumTotalSeconds * 1000);
@@ -217,10 +293,13 @@ Action::List RandomActionBuilder::createActions(const var& jsonData)
 
 			auto na = new BusyWaitAction(getMainController());
 
+			
+
 			na->setTimestamp(ts);
 			na->setPreferredThread(type);
 			list.add(na);
 		}
+#endif
 	}
 	
 	return list;

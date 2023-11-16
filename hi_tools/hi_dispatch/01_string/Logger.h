@@ -38,9 +38,11 @@ using namespace juce;
 
 
 
-struct Logger final : public  PooledUIUpdater::SimpleTimer,
+class Logger final : public  PooledUIUpdater::SimpleTimer,
                       public Queueable
 {
+public:
+
 	Logger(RootObject& root, size_t numAllocated);;
 
 	void flush();

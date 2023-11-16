@@ -45,7 +45,7 @@ namespace dispatch {
 namespace library {
 using namespace juce;
 
-struct Processor;
+class Processor;
 
 enum class ProcessorChangeEvent
 {
@@ -64,8 +64,10 @@ enum class ProcessorChangeEvent
 /** This will handle the entire processor notification system.
  *  In HISE this will be a member of the MainController
  */
-struct ProcessorHandler: public SourceManager
+class ProcessorHandler: public SourceManager
 {
+public:
+
 	enum class SlotTypes
 	{
 		NameAndColour,
@@ -78,8 +80,10 @@ struct ProcessorHandler: public SourceManager
 	/** Add this as a member to your listener class and give it a callback
 	 *  that is executed whenever the bypass state changes
 	 */
-	struct BypassListener final: private dispatch::Listener
+	class BypassListener final: private dispatch::Listener
 	{
+	public:
+
 		using Callback = std::function<void(dispatch::library::Processor*, bool)>;
 
 		BypassListener(RootObject& r, ListenerOwner& owner, const Callback& f);;
@@ -93,8 +97,10 @@ struct ProcessorHandler: public SourceManager
 		void slotChanged(const ListenerData& d) override;
 	};
 
-	struct AttributeListener final: private dispatch::Listener
+	class AttributeListener final: private dispatch::Listener
 	{
+	public:
+
 		using Callback = std::function<void(dispatch::library::Processor*, uint8)>;
 
 		AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
@@ -108,8 +114,10 @@ struct ProcessorHandler: public SourceManager
 		void slotChanged(const ListenerData& d) final;
 	};
 
-	struct NameAndColourListener: private dispatch::Listener
+	class NameAndColourListener: private dispatch::Listener
 	{
+	public:
+
 		using Callback = std::function<void(Processor*)>;
 
 		NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
@@ -123,8 +131,10 @@ struct ProcessorHandler: public SourceManager
 		void slotChanged(const ListenerData& d) final;
 	};
 
-	struct OtherChangeListener: private dispatch::Listener
+	class OtherChangeListener: private dispatch::Listener
 	{
+	public:
+
 		using Callback = std::function<void(Processor*)>;
 
 		OtherChangeListener(RootObject& r, ListenerOwner& owner, const Callback& f_, ProcessorChangeEvent eventToListenTo_):
@@ -177,8 +187,10 @@ struct ProcessorHandler: public SourceManager
 /** The communication handler for the hise::Processor base class. It handles changes
  *  to attributes, bypass state and name / ID changes in separate slots
  */
-struct Processor: public Source
+class Processor: public Source
 {
+public:
+
 	using SlotTypes = ProcessorHandler::SlotTypes;
 	using BypassListener = ProcessorHandler::BypassListener;
 	using AttributeListener = ProcessorHandler::AttributeListener;
@@ -253,7 +265,7 @@ private:
 
 	SlotSender* getAttributeSender(uint16 attributeIndex)
 	{
-		auto slotIndex = (uint8)attributeIndex / SlotBitmap::getNumBits();
+		auto slotIndex = (uint8)(attributeIndex / SlotBitmap::getNumBits());
 		if(slotIndex == 0)
 			return &attributes;
 		else
@@ -276,8 +288,10 @@ private:
 	OwnedArray<SlotSender> additionalAttributes;
 };
 
-struct Modulator final: public Processor
+class Modulator final: public Processor
 {
+public:
+
 	enum class ModulatorSlotTypes
 	{
 		Intensity,

@@ -141,23 +141,23 @@ using NotificationType = ErrorType;
 // Any object that can be put in a Queue
 // Subclassed from RootObject::Child
 // Will automatically clean itself from all pending queued messages
-struct Queueable; // => file1.h OK
+class Queueable; // => file1.h OK
 
 // A queue with preallocated data storage that can hold items with varying size
-struct Queue; // => file1.h OK
+class Queue; // => file1.h OK
 
 // A logger interface that can print out a serialised list of events
 // TODO: make createString a static method, add a static dump(QueueEvent) function with a breakpointable condition
-struct Logger; // => file1.h/cpp OK
+class Logger; // => file1.h/cpp OK
 
 // parses the wildcard to a Source object
 // usable for scope statements and the Logger class
-struct IdParser; //=> file1.h // TODO
+class IdParser; //=> file1.h // TODO
 
 // The root manager that manages the serial
 // lifetime == app runtime
 // multithreading (TODO): holds a read/write lock that is locked while the queues are cleared
-struct RootObject; // => file1.h OK
+class RootObject; // => file1.h OK
 
 // A data object holding references to tree elements in a serialised order
 // has a constant ID
@@ -170,7 +170,7 @@ struct RootObject; // => file1.h OK
 // - UserPresetHandler			   (IDs::source::automation)
 // - Samplemap					   (IDs::source::samplemap)
 //
-struct SourceManager;  // file2.h (SourceManager in gist)
+class SourceManager;  // file2.h (SourceManager in gist)
 
 // A class that can have multiple slots sending out change notifications
 // has a SourceManager parent
@@ -183,7 +183,7 @@ struct SourceManager;  // file2.h (SourceManager in gist)
 // - CustomAutomationData,
 // - SampleMap
 //
-struct Source; // => file2.h
+class Source; // => file2.h
 
 // A object that sends change notification through the parent SourceManager
 // has a constant ID
@@ -195,7 +195,7 @@ struct Source; // => file2.h
 // - ScriptComponent::changed()			(IDs::event::value)
 // - SampleMap::PropertyListener		(IDs::event::samplemap)
 //
-struct Slot; // => file2.h
+class SlotSender; // => file2.h
 
 using SlotBitmap = VoiceBitMap<32, uint32>;
 
@@ -208,12 +208,12 @@ using SlotBitmap = VoiceBitMap<32, uint32>;
 // - ProcessorEditor:	modules.id.*, async
 // - Bypass button of processor editor header: modules.id.bypassed
 // - ScriptComponentWrapper: content.id.property
-struct Listener; // => file2.h
+class Listener; // => file2.h
 
 // defers notifications until it goes out of scope
 // can be scoped to a Source and Slot using the wildcard
 // lifetime < Source (usually block scope)
-struct ScopedDelayer; // => file2.h
+class ScopedDelayer; // => file2.h
 
 // dummy objects that test the system using fuzzy testing and unit tests.
 // TODO: Replicate the entire HISE system with dummy classes here
@@ -256,9 +256,13 @@ struct FuzzyTester;
 } // hise
 
 #if PERFETTO
-#define TRACE_FLUSH(x) StringBuilder b; b << "flush " << x << n; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#define TRACE_FLUSH(x) StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#define TRACE_FLUSH_FLOW(x, flow) StringBuilder b; b << "flush " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
+#define TRACE_DISPATCH_CALLBACK(obj, callbackName, arg) StringBuilder n; n << (obj).getDispatchId() << "." << callbackName << "(" << (int)arg << ")"; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(n));
 #else
-#define TRACE_FLUSH(x)
+#define TRACE_FLUSH(x);
+#define TRACE_FLUSH_FLOW(x, flow);
+#define TRACE_DISPATCH_CALLBACK(obj, callbackName, arg);
 #endif
 
 #include "file3.h" // contains all String-related classes

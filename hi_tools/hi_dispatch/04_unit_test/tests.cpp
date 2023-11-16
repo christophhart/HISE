@@ -116,7 +116,7 @@ void LoggerTest::testQueue()
 	Logger l(root, 8192);
 	root.setLogger(&l);
 
-	Queue queue(root, nullptr, 0);
+	Queue queue(root, 0);
 
 	MyTestQueuable s1(root);
 	MyTestQueuable s2(root);
@@ -207,20 +207,43 @@ void LoggerTest::testQueueResume()
 
 	SourceManager testManager(root, "funky");
 
-	auto& testQueue = testManager.getEventQueue(DispatchType::sendNotificationSync);
+	struct MyTestSource: public Source
+	{
+		MyTestSource(SourceManager& p, SourceOwner& owner):
+		  Source(p, owner, "test source"),
+		  testSlot(*this, 0, "test slot")
+		{}
 
-	OwnedArray<MyTestQueuable> tests;
+		int getNumSlotSenders() const override { return 1; }
+		SlotSender* getSlotSender(uint8 slotSenderIndex) final { return &testSlot; };
+		SlotSender testSlot;
+	};
+
+	struct MyTestListener: public Listener
+	{
+		MyTestListener(RootObject& r, ListenerOwner& owner):
+		  Listener(r, owner)
+		{};
+
+		void slotChanged(const ListenerData& d) override {};
+	};
+
+	MyTestSource testSource(testManager, *this);
+	
+	auto testQueue = testSource.getListenerQueue(0, sendNotificationSync);
+
+	OwnedArray<MyTestListener> tests;
 
 	uint8 i = 0;
 	for(i = 0; i < 40; i++)
 	{
-		tests.add(new MyTestQueuable(root));
-		testQueue.push(tests.getLast(), EventType::SlotChange, (uint8*)&i, 1);
+		tests.add(new MyTestListener(root, *this));
+		testQueue->push(tests.getLast(), EventType::SlotChange, (uint8*)&i, 1);
 	}
 
 	BigInteger b;
 		
-	testQueue.flush([&](const Queue::FlushArgument& f)
+	testQueue->flush([&](const Queue::FlushArgument& f)
 	{
 		auto v = *f.data;
 		b.setBit(v, true);
@@ -233,7 +256,7 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	// This tests that KeepData retains the elements
-	testQueue.flush([&](const Queue::FlushArgument& f)
+	testQueue->flush([&](const Queue::FlushArgument& f)
 	{
 		auto v = *f.data;
 		b.setBit(v, true);
@@ -244,7 +267,7 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	// This tests the abortion if you return false
-	testQueue.flush([&](const Queue::FlushArgument& f)
+	testQueue->flush([&](const Queue::FlushArgument& f)
 	{
 		auto v = *f.data;
 
@@ -259,12 +282,12 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	// Now we test the pause function of the root manager
-	testQueue.flush([&](const Queue::FlushArgument& f)
+	testQueue->flush([&](const Queue::FlushArgument& f)
 	{
 		auto v = *f.data;
 
 		if(v == 19)
-			root.setState("*", State::Paused);
+			root.setState({}, State::Paused);
 
 		b.setBit(v, true);
 		return true;
@@ -274,7 +297,7 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	// Now we test that calling flush while the root object is paused doesn't exeucte anything.
-	testQueue.flush([&](const Queue::FlushArgument& f)
+	testQueue->flush([&](const Queue::FlushArgument& f)
 	{
 		auto v = *f.data;
 		
@@ -285,7 +308,7 @@ void LoggerTest::testQueueResume()
 	expectEquals(b.countNumberOfSetBits(), 0, "paused root object didn't work");
 	b.clear();
 
-	root.setState("*", State::Running);
+	root.setState({}, State::Running);
 	
 	expectEquals(b.countNumberOfSetBits(), 20, "work after resume");
 	b.clear();
@@ -313,6 +336,9 @@ void LoggerTest::testSourceManager()
 		{
 			helloSlot.shutdown();
 		}
+
+		int getNumSlotSenders() const override { return 1; }
+		SlotSender* getSlotSender(uint8 slotSenderIndex) override { return &helloSlot; }
 
 		void sendHelloMessage()
 		{
@@ -475,10 +501,110 @@ void CharPtrTest::testStringBuilder()
 	
 }
 
+void CharPtrTest::testHashedPath()
+{
+	TRACE_DISPATCH("Hashed Path test");
+
+	auto expectPathMatch = [&](const HashedCharPtr& left, const HashedCharPtr& right)
+	{
+		try
+		{
+			auto lp = HashedPath::parse(left);
+			auto rp = HashedPath::parse(right);
+
+			expect(lp == lp);
+			expect(rp == rp);
+			expect(lp == rp);
+			expect(rp == lp);
+		}
+		catch(Result& r)
+		{
+			String s;
+			s << left.toString() << "==" << right.toString() << ": " << r.getErrorMessage();
+			expect(false, s);
+		}
+	};
+
+	auto expectPathMismatch = [&](const HashedCharPtr& left, const HashedCharPtr& right)
+	{
+		try
+		{
+			auto lp = HashedPath::parse(left);
+			auto rp = HashedPath::parse(right);
+
+			expect(lp == lp);
+			expect(rp == rp);
+			expect(lp != rp);
+			expect(rp != lp);
+		}
+		catch(Result& r)
+		{
+			String s;
+			s << left.toString() << "!=" << right.toString() << ": " << r.getErrorMessage();
+			expect(false, s);
+		}
+	};
+
+	auto expectValidPath = [&](const HashedCharPtr& p)
+	{
+		try
+		{
+			auto p1 = HashedPath::parse(p);
+			expect(true, "worked");
+		}
+		catch(Result& r)
+		{
+			expect(false, r.getErrorMessage());
+		}
+	};
+
+	auto expectInvalidPath = [&](const HashedCharPtr& p, const String& expectedError)
+	{
+		try
+		{
+			auto p1 = HashedPath::parse(p);
+			expect(false, "didn't complain: " + p.toString());
+		}
+		catch(Result& r)
+		{
+			expect(r.getErrorMessage() == expectedError, r.getErrorMessage());
+		}
+	};
+
+	auto lp = HashedPath::parse("modules.first.bypassed");
+	auto rp = HashedPath::parse("modules.*.attributes");
+
+	expect(lp == lp);
+	expect(rp == rp);
+	expect(lp != rp);
+	expect(rp != lp);
+
+	
+
+	expectValidPath("*");
+	expectValidPath("modules.*");
+	expectValidPath("modules.attributes.funky.async");
+
+	expectInvalidPath(".", "expected token");
+	expectInvalidPath("**", "expected '.'");
+	expectInvalidPath("*modules", "expected '.'");
+
+	expectPathMatch("modules", "*");
+	expectPathMatch("modules.*.*.*", "*");
+	expectPathMatch("modules.funky", "*");
+	expectPathMatch("modules.funky.*", "modules.*.*");
+	expectPathMatch("modules.first", "modules.*");
+	expectPathMismatch("modules.first", "modules.second");
+	expectPathMismatch("modules.first", "modules.second.*");
+	expectPathMismatch("modules.first.bypassed", "modules.*.attributes");
+	expectPathMatch("modules.first", "modules.first.attributes.async");
+}
+
 void CharPtrTest::runTest()
 {
 	TRACE_DISPATCH("CharPtr test");
 
+	testHashedPath();
 	testStringBuilder();
 	testCharPtr<CharPtr>();
 	testCharPtr<HashedCharPtr>();

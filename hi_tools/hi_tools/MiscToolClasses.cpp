@@ -1419,6 +1419,10 @@ bool PooledUIUpdater::Broadcaster::isHandlerInitialised() const
 
 void PooledUIUpdater::timerCallback()
 {
+	PerfettoHelpers::setCurrentThreadName("UI Timer Thread");
+
+	TRACE_DISPATCH("UI Timer callback");
+
 	{
 		ScopedLock sl(simpleTimers.getLock());
 

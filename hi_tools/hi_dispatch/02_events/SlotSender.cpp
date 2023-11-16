@@ -58,102 +58,111 @@ void SlotSender::setNumSlots(uint8 newNumSlots)
 	if(numSlots < newNumSlots)
 	{
 		numSlots = newNumSlots;
-
-		data.forEach([&](SlotBitmap& d)
-		{
-			d.setBit(numSlots, true);
-			d.setBit(numSlots, false);
-		});
 	}
 }
 
 bool SlotSender::flush(DispatchType n)
 {
+	auto doneSomething = false;
+
 	// make sure to flush the other slots first
 	if(n == DispatchType::sendNotificationAsync ||
 	   n == DispatchType::sendNotificationAsyncHiPriority)
 	{
-		flush(DispatchType::sendNotificationSync);
+		doneSomething |= flush(DispatchType::sendNotificationSync);
 	}
 
 	if(n == DispatchType::sendNotificationAsync)
 	{
-		flush(DispatchType::sendNotificationAsyncHiPriority);
+		doneSomething |= flush(DispatchType::sendNotificationAsyncHiPriority);
 	}
 
 	auto& thisBitmap = data.get(n);
 
 	if(thisBitmap.isEmpty())
-		return false;
+		return doneSomething;
 
 	auto& listenerList = listeners.get(n);
 
-	flowManager.closeFlow(n);
-
-	TRACE_FLUSH(id);
-
-	listenerList.flush([&](const Queue::FlushArgument& f)
+	if(!listenerList.isEmpty())
 	{
-		switch(f.eventType)
-		{
-		case EventType::Listener: jassertfalse; break;
-		case EventType::ListenerAnySlot: break;
-		case EventType::ListenerSingleSlot: jassertfalse; break;
-		case EventType::SingleListener: jassertfalse; break;
-		case EventType::SingleListenerSingleSlot:
-		{
-			jassert(f.numBytes == 1);
-			auto slotIndex = *f.data;
+		doneSomething = true;
 
-			if(thisBitmap[slotIndex])
+		TRACE_FLUSH_FLOW(id, flowManager.closeFlow(n));
+
+		listenerList.flush([&](const Queue::FlushArgument& f)
+		{
+			switch(f.eventType)
 			{
-				Listener::ListenerData d;
-				d.s = &obj;
-				d.slotIndex = index;
-				d.numBytes = 1;
-				d.changes = &slotIndex;
+			case EventType::Listener: jassertfalse; break;
+			case EventType::ListenerAnySlot: break;
+			case EventType::ListenerSingleSlot: jassertfalse; break;
+			case EventType::SingleListener: jassertfalse; break;
+			case EventType::SingleListenerSingleSlot:
+			{
+				jassert(f.numBytes == 1);
+				auto slotIndex = *f.data;
 
-				auto& l = f.getTypedObject<Listener>();
+				if(thisBitmap[slotIndex])
+				{
+					Listener::ListenerData d;
+					d.s = &obj;
+					d.slotIndex = index;
+					d.numBytes = 1;
+					d.changes = &slotIndex;
 
-				TRACE_FLUSH(l.getDispatchId());
-				l.slotChanged(d);
+					auto& l = f.getTypedObject<Listener>();
+					l.slotChanged(d);
+				}
+
+				break;
 			}
+			case EventType::SingleListenerSubset:
+			{
+				jassert(f.numBytes == SlotBitmap::getNumBytes());
+				auto listenerSlots = SlotBitmap::fromData(f.data, f.numBytes);
 
-			break;
-		}
-		case EventType::SingleListenerSubset:
-		{
-			jassert(f.numBytes == SlotBitmap::getNumBytes());
-			auto listenerSlots = SlotBitmap::fromData(f.data, f.numBytes);
+				if(listenerSlots.hasSomeBitsAs(thisBitmap))
+				{
+					Listener::ListenerData d;
+					d.s = &obj;
+					d.numBytes = thisBitmap.getNumBytes();
+					d.slotIndex = index;
+					d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
 
-			if(listenerSlots.hasSomeBitsAs(thisBitmap))
+					auto& l = f.getTypedObject<Listener>();
+					l.slotChanged(d);
+				}
+
+				break;
+			}
+			case EventType::SubsetListener: jassertfalse; break;
+ 			case EventType::AllListener: 
 			{
 				Listener::ListenerData d;
 				d.s = &obj;
-				d.numBytes = thisBitmap.getNumBytes();
 				d.slotIndex = index;
+				d.numBytes = thisBitmap.getNumBytes();
 				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
 
 				auto& l = f.getTypedObject<Listener>();
-
-				TRACE_FLUSH(l.getDispatchId());
 				l.slotChanged(d);
+ 				break;
 			}
 
-			break;
-		}
-		case EventType::SubsetListener: jassertfalse; break;
- 		case EventType::AllListener: jassertfalse; break;
-		default: jassertfalse; break;
-		}
+			default: jassertfalse; break;
+			}
 
-		
+			
 
-		return true;
-	}, Queue::FlushType::KeepData);
+			return true;
+		}, Queue::FlushType::KeepData);
+	}
 
 	if(listenerList.getState() == State::Running)
 		thisBitmap.clear();
+
+	return doneSomething;
 }
 
 bool SlotSender::sendChangeMessage(uint8 indexInSlot, DispatchType n)
@@ -167,10 +176,17 @@ bool SlotSender::sendChangeMessage(uint8 indexInSlot, DispatchType n)
 	// Write the change in all slot values
 	data.forEachWithDispatchType([&](DispatchType sn, SlotBitmap& d)
 	{
+		if(sn == DispatchType::sendNotificationSync)
+			obj.getParentSourceManager().bumpMessageCounter(false);
+
 		if(d[indexInSlot])
 			return;
 
+		if(sn == DispatchType::sendNotificationSync)
+			obj.getParentSourceManager().bumpMessageCounter(true);
+
 		d.setBit(indexInSlot, true);
+
 		flowManager.openFlow(sn, indexInSlot);
 	});
 

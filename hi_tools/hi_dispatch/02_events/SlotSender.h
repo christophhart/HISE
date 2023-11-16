@@ -37,8 +37,12 @@ namespace dispatch {
 using namespace juce;
 
 #if PERFETTO
-struct PerfettoFlowManager
+class PerfettoFlowManager
 {
+public:
+
+	using PerfettoFlowType = std::function<void(perfetto::EventContext&)>;
+
 	PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent_, const HashedCharPtr& object_):
 	  root(r),
 	  parent(parent_),
@@ -51,37 +55,39 @@ struct PerfettoFlowManager
 	{
 		b.clearQuick();
 		b << "send " << n << " " << parent << "::" << object << "[" << (int)slotIndex << "]";
-		auto newId = root.bumpFlowCounter();
-		pendingFlows.get(n).insertWithoutSearch(newId);
-		TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(newId));
+
+		auto& p = pendingFlows.get(n);
+
+		if(p == 0)
+			p = root.bumpFlowCounter();
+		
+		TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(p));
 	}
 
-	void closeFlow(DispatchType n)
+	PerfettoFlowType closeFlow(DispatchType n)
 	{
-		b.clearQuick();
-		b << "flush " << n << " " << parent << "::" << object;
+		//b.clearQuick();
+		//b << "flush " << n << " " << parent << "::" << object;
 
-		auto& pending = pendingFlows.get(n);
+		auto pending = pendingFlows.get(n);
 
-		for(auto& id: pending)
-		{
-			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(id));
-		}
-
-		pending.clearQuick();
+		pendingFlows.get(n) = 0;
+		return perfetto::TerminatingFlow::ProcessScoped(pending);
 	}
 
 private:
 
 	HashedCharPtr parent, object;
 	StringBuilder b;
-	DispatchTypeContainer<UnorderedStack<uint64_t, 32>> pendingFlows;
+	DispatchTypeContainer<uint64_t> pendingFlows;
 	std::function<uint64_t()> requestFunction;
 	RootObject& root;
 };
 #else
-struct PerfettoFlowManager
+class PerfettoFlowManager
 {
+public:
+
 	PerfettoFlowManager(RootObject& r) {};
 
 	void openFlow(DispatchType n) {};
@@ -95,8 +101,10 @@ struct PerfettoFlowManager
 // - dynamic number of slots
 // - a constant sender index (one byte)
 // - no heap allocation for <16 byte senders
-struct SlotSender
+class SlotSender
 {
+public:
+
 	SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_);;
 	~SlotSender();
 

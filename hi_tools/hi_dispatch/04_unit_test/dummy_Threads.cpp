@@ -112,13 +112,26 @@ void AudioThread::audioCallback()
 	}
 }
 
+void AudioThread::prepareToPlay(double newSampleRate, int newBufferSize)
+{
+    if(newSampleRate != 0.0)
+        sampleRate = newSampleRate;
+
+    if(newBufferSize != 0)
+        bufferSize = newBufferSize;
+
+    auto callbacksPerSecond = sampleRate / (double)bufferSize;
+
+    auto durationSeconds = (double)getMainController()->totalDurationMilliseconds  * 0.001;
+    numCallbacksToExecute = roundToInt(durationSeconds * callbacksPerSecond);
+}
+
+
 void AudioThread::simulatedAudioThread()
 {
-	static constexpr int NumCallbacks = NumTotalSeconds * 1000 / AudioCallbackLength;
-        
 	TRACE_DSP();
         
-	while(!threadShouldExit() && callbackCounter++ < NumCallbacks)
+	while(!threadShouldExit() && callbackCounter++ < numCallbacksToExecute)
 	{
 		StringBuilder b;
 		b << "audio callback " << callbackCounter;
@@ -129,7 +142,8 @@ void AudioThread::simulatedAudioThread()
 		const auto deltaSeconds = (double)delta / (double)Time::getHighResolutionTicksPerSecond();
 		const auto deltaMilliseconds = deltaSeconds * 1000.0;
 
-		const auto waitTime = 10 - roundToInt(deltaMilliseconds);
+		auto bufferTime = roundToInt(1000.0 * (double)bufferSize / sampleRate);
+		const auto waitTime = bufferTime - roundToInt(deltaMilliseconds);
 
 		if(waitTime > 0)
 			wait(waitTime);
@@ -138,7 +152,14 @@ void AudioThread::simulatedAudioThread()
 
 void AudioThread::run()
 {
-	simulatedAudioThread();
+	try
+	{
+		simulatedAudioThread();
+	}
+	catch(String& e)
+	{
+		getMainController()->currentTest->expect(false, e);
+	}
 }
 
 UISimulator::UISimulator(MainController* mc):
@@ -171,10 +192,12 @@ void UISimulator::simulateUIEvents()
 				MessageManagerLock mm;
 				TRACE_DISPATCH("message lock");
 
+				a->perform();
+
 				{
-					ScopedLock sl(audioLock);
-					TRACE_DISPATCH("audio lock");
-					a->perform();
+					//ScopedLock sl(audioLock);
+					//TRACE_DISPATCH("audio lock");
+					
 				}
 			}
 		}
@@ -185,7 +208,15 @@ void UISimulator::simulateUIEvents()
 
 void UISimulator::run()
 {
-	simulateUIEvents();
+	try
+	{
+		simulateUIEvents();
+	}
+	catch(String& e)
+	{
+		getMainController()->currentTest->expect(false, e);
+	}
+	
 }
 } // dummy
 } // dispatch

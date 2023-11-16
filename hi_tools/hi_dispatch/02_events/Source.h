@@ -39,18 +39,21 @@ using namespace juce;
 // This baseclass will be used by all classes that have a dispatch::Source member
 // for handling the events.
 // You need to pass in a reference to the owner class into the constructor of a Source
-struct SourceOwner
+class SourceOwner
 {
+public:
 	virtual ~SourceOwner() {};
 };
 
-struct SlotSender;
+class SlotSender;
 
 // just a interface class. 
 // Subclass all classes that have a SlotSender from this class
 // (the item class will keep a reference to this as member to send)
-struct Source: public Suspendable
+class Source: public Suspendable
 {
+public:
+
 	Source(SourceManager& parent_, SourceOwner& owner, const HashedCharPtr& sourceId_ );
 	~Source() override;
 
@@ -101,8 +104,10 @@ private:
 // The ScopedDelayer takes the write lock
 // constructor invalidates all indexes
 // deconstructor calls signal rebuild, validates all indexes & calls the listeners
-struct ScopedDelayer
+class ScopedDelayer
 {
+public:
+
 	
 };
 

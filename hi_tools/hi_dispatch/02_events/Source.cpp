@@ -57,10 +57,12 @@ Source::~Source()
 
 void Source::flushChanges(DispatchType n)
 {
-	TRACE_FLUSH(getDispatchId());
-
+	//TRACE_FLUSH(getDispatchId());
+	
 	for(int i = 0; i < getNumSlotSenders(); i++)
+	{
 		getSlotSender(i)->flush(n);
+	}
 }
 
 Queue* Source::getListenerQueue(uint8 slotSenderIndex, DispatchType n)

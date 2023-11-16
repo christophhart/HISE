@@ -603,7 +603,7 @@ public:
 		if(empty)
 			return false;
 
-        if(isPositiveAndBelow(index, getNumElements()))
+        if(isPositiveAndBelow(index, getNumBits()))
         {
             auto bIndex = index % getElementSize();
             auto dIndex = index / getElementSize();
@@ -623,7 +623,7 @@ public:
 	    return data.data();
     }
 
-	static constexpr int getNumBits() { return getNumBytes() * 8; }
+	static constexpr size_t getNumBits() { return getNumBytes() * 8; }
 
     int getFirstFreeBit() const
     {

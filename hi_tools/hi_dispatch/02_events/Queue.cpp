@@ -153,7 +153,7 @@ inline bool Queue::ensureAllocated(size_t numBytesRequired)
         if(attachedLogger != nullptr)
             numBytesRequired += 128; // give a bit more for the logger reallocation message...
         
-        auto numToAllocate = nextPowerOfTwo(numUsed + numBytesRequired);
+        auto numToAllocate = static_cast<size_t>(nextPowerOfTwo((int)(numUsed + numBytesRequired)));
         
         if(isPositiveAndBelow(numToAllocate, MaxQueueSize))
         {
@@ -172,7 +172,7 @@ inline bool Queue::ensureAllocated(size_t numBytesRequired)
                 QueuedEvent reallocEvent;
                 reallocEvent.source = this;
                 reallocEvent.eventType = EventType::LogString;
-                reallocEvent.numBytes = b.length();
+                reallocEvent.numBytes = static_cast<uint16>(b.length());
                 numUsed += reallocEvent.write(data.get() + numUsed, b.get());
                 numElements++;
             }
@@ -195,7 +195,7 @@ bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues
     QueuedEvent e;
     
     e.eventType = t;
-    e.numBytes = numValues;
+    e.numBytes = static_cast<uint16>(numValues);
     e.source = s;
     
     if(!ensureAllocated(e.getTotalByteSize()))

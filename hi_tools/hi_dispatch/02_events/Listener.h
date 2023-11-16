@@ -51,8 +51,10 @@ struct ListenerOwner
 //   3. multiple slot changes of a single source
 //   4. slot changes to a subset of Sources
 //   5  all slot changes
-struct Listener: public Queueable
+class Listener: public Queueable
 {
+public:
+
 	using ValueChangedFunction = const std::function<void(uint8 index)>;
 
 	// The listener data that holds information about the source event.

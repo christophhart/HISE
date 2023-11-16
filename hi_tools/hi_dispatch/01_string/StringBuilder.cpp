@@ -80,6 +80,16 @@ StringBuilder& StringBuilder::operator<<(int number)
     return *this;
 }
 
+StringBuilder& StringBuilder::operator<<(uint8 number)
+{
+	return *this << (int)number;
+}
+
+StringBuilder& StringBuilder::operator<<(size_t number)
+{
+	return *this << (int)number;
+}
+
 StringBuilder& StringBuilder::operator<<(const StringBuilder& other)
 {
 	const auto num = other.length();
@@ -146,7 +156,7 @@ StringBuilder& StringBuilder::appendEventValues(EventType eventType, const uint8
 	switch (eventType) {
 	case EventType::Nothing:        break;
 	case EventType::Warning:        
-	case EventType::LogString:      s << String::createStringFromData(values, numBytes); break;
+	case EventType::LogString:      s << String::createStringFromData(values, (int)numBytes); break;
 	case EventType::LogRawBytes:    appendRawByteArray(values, numBytes); break;
 	case EventType::Add:            
 	case EventType::Remove:         s << (int)*values; break;

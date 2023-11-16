@@ -29,7 +29,7 @@ public:
     {
 	    UnitTestRunner r;
 		r.setAssertOnFailure(true);
-		//r.setPassesAreLogged(true);
+		r.setPassesAreLogged(false);
 		r.runTestsInCategory("dispatch");
         
         Timer::callAfterDelay(500, [&]()

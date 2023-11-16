@@ -74,6 +74,12 @@ struct AudioThread: public SimulatedThread
     void simulatedAudioThread();
     void run() override;
 
+    void prepareToPlay(double newSampleRate, int newBufferSize);
+
+    double sampleRate = 44100.0;
+    int bufferSize = 512;
+    int numCallbacksToExecute = 0;
+
     int callbackCounter = 0;
 };
 

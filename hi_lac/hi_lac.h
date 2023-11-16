@@ -145,6 +145,8 @@ PERFETTO_DEFINE_CATEGORIES(
 	.SetDescription("Component"),
     perfetto::Category("dispatch")
     .SetDescription("dispatch"),
+    perfetto::Category("scripting")
+    .SetDescription("scripting"),
 	perfetto::Category("dsp")
 	.SetDescription("dsp"));
 
@@ -295,6 +297,8 @@ namespace melatonin
 #define DYNAMIC_STRING(x) perfetto::DynamicString(String(x).toStdString())
 #define DYNAMIC_STRING_BUILDER(x) perfetto::DynamicString(x.get(), x.length())
 #define TRACE_DYNAMIC_DISPATCH(x) TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(x));
+#define TRACE_SCRIPTING(...) TRACE_EVENT ("scripting", __VA_ARGS__)
+#define TRACE_DYNAMIC_SCRIPTING(x) TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(x));
 
 #else // if PERFETTO
     #define TRACE_EVENT_BEGIN(category, ...)
@@ -304,8 +308,42 @@ namespace melatonin
     #define TRACE_COMPONENT(...)
 	#define TRACE_DISPATCH(...)
 	#define TRACE_DYNAMIC_DISPATCH(...)
+	#define TRACE_SCRIPTING(...) 
+	#define TRACE_DYNAMIC_SCRIPTING(...)
 #endif
 
+struct PerfettoHelpers
+{
+    #if PERFETTO
+    static void setTrackNameName(perfetto::Track& t, const char* name)
+	{
+		if (perfetto::Tracing::IsInitialized()) 
+		{
+			auto desc = t.Serialize();
+
+            auto threadId = perfetto::ThreadTrack::Current().uuid;
+            
+			desc.set_name(name);
+            desc.set_parent_uuid(threadId);
+			perfetto::TrackEvent::SetTrackDescriptor(t, desc);
+		}
+	}
+    #endif
+
+	static void setCurrentThreadName(const char* name)
+	{
+#if PERFETTO
+			if (perfetto::Tracing::IsInitialized()) 
+			{
+				auto t = perfetto::ThreadTrack::Current();
+
+				auto desc = t.Serialize();
+				desc.mutable_thread()->set_thread_name(name);
+				perfetto::TrackEvent::SetTrackDescriptor(t, desc);
+			}
+#endif
+	}
+};
 
 
 
