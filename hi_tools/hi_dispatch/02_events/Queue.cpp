@@ -43,15 +43,17 @@ RootObject::Child(r)
 {
     if(auto l = r.getLogger())
     {
-        auto index = r.getNumChildren();
+        int index = 0;
         l->log(l, EventType::Add, (uint8*)&index, sizeof(int));
     }
 }
 
 Queueable::~Queueable()
 {
-    auto index = getRootObject().clearFromAllQueues(this, danglingBehaviour);
-    
+    getRootObject().clearFromAllQueues(this, danglingBehaviour);
+
+    int index = 0;
+
     if(auto l = getRootObject().getLogger())
         l->log(l, EventType::Remove, (uint8*)&index, sizeof(int));
 }
@@ -131,20 +133,10 @@ bool Queue::Iterator::seekTo(size_t position)
     
 }
 
-void Queue::setState(State n)
-{
-    if(n == Running && resumeData != nullptr)
-    {
-        if(flush(resumeData->f, resumeData->flushType))
-            resumeData = nullptr;
-    }
-}
-
-Queue::Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize):
-Suspendable(root, parent)
+Queue::Queue(RootObject& root, size_t initAllocatedSize):
+  Queueable(root)
 {
     root.addTypedChild(this);
-
     static_assert(sizeof(QueuedEvent) == 16, "must be 16");
     ensureAllocated(initAllocatedSize);
 }
@@ -220,7 +212,12 @@ bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues
 
 bool Queue::flush(const FlushFunction& f, FlushType flushType)
 {
-    if(isEmpty() || getStateFromParent() == State::Paused)
+    if(isEmpty())
+        return true;
+
+	auto state = getState();
+
+	if(state != State::Running)
         return true;
     
     Iterator iter(*this);
@@ -233,7 +230,12 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
     QueuedEvent e;
     while(iter.next(e))
     {
-        if(getStateFromParent() == State::Paused)
+        state = getState();
+
+        if(state == State::Shutdown)
+            return false;
+
+        if(state == State::Paused)
         {
             resumeData = new ResumeData();
             resumeData->f = f;
@@ -366,6 +368,20 @@ bool Queue::removeAllMatches(Queueable* q)
     return found;
 }
 
+void Queue::setQueueState(State newState)
+{
+	if(getState() != newState)
+	{
+		explicitState.store(newState);
+
+		if(newState == Running && resumeData != nullptr)
+		{
+			if(flush(resumeData->f, resumeData->flushType))
+				resumeData = nullptr;
+		}
+	}
+}
+
 Queue::FlushArgument Queue::createFlushArgument(const QueuedEvent& e, uint8* eventPos) const noexcept
 {
     FlushArgument f;
@@ -407,85 +423,6 @@ bool Queue::isAlignedToPointerSize(uint8* ptr)
     auto address = reinterpret_cast<uint64>(ptr);
     auto aligned = alignedToPointerSize(address);
     return address == aligned;
-}
-
-SomethingWithQueues::SomethingWithQueues(RootObject& r):
-	Suspendable(r, nullptr),
-    events(r, this, 128),
-    listeners(r, nullptr, 128)
-{
-
-    listeners.forEach([](Queue& q)
-    {
-	    q.addPushCheck([](Queueable* s) { return dynamic_cast<Listener*>(s) != nullptr; });
-    });
-
-}
-
-SomethingWithQueues::~SomethingWithQueues()
-{
-    events.forEach([](Queue& q){ q.clear(); });
-    listeners.forEach([](Queue& q){ q.clear(); });
-}
-
-Queue& SomethingWithQueues::getEventQueue(DispatchType n)
-{
-    return events.get(n);
-}
-
-const Queue& SomethingWithQueues::getEventQueue(DispatchType n) const
-{
-	return events.get(n);
-}
-
-Queue& SomethingWithQueues::getListenerQueue(DispatchType n)
-{
-	return listeners.get(n);
-}
-
-const Queue& SomethingWithQueues::getListenerQueue(DispatchType n) const
-{
-	return listeners.get(n);
-}
-
-void SomethingWithQueues::processEvents(DispatchType n)
-{
-	if(hasEvents(n) && hasListeners(n))
-	{
-		StringBuilder b2;
-		b2 << "process " << getDispatchId();
-		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b2));
-
-		getEventQueue(n).flush([&](const Queue::FlushArgument& eventData)
-		{
-			getListenerQueue(n).flush([&](const Queue::FlushArgument& f)
-			{
-				auto& l = f.getTypedObject<dispatch::Listener>();
-				const dispatch::Listener::EventParser p(l);
-				if(const auto ld = p.parseData(f, eventData))
-				{
-					StringBuilder b;
-					b << "process listener " << l.getDispatchId();
-					TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-					l.slotChanged(ld);
-				}
-					
-
-				return true;
-			}, Queue::FlushType::KeepData);
-
-			return true;
-		});
-	}
-}
-
-void SomethingWithQueues::setState(State newState)
-{
-	if(newState != currentState)
-	{
-		currentState = newState;
-        events.forEach([newState](Queue& q) { q.setState(newState); });
-	}
 }
 
 } // dispatch

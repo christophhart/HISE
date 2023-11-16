@@ -36,10 +36,7 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-
-
-
-struct SourceManager  : public SomethingWithQueues,
+struct SourceManager  : public Suspendable,
 					    public PooledUIUpdater::SimpleTimer
 {
 	SourceManager(RootObject& r, const HashedCharPtr& typeId);
@@ -49,8 +46,10 @@ struct SourceManager  : public SomethingWithQueues,
 
 	HashedCharPtr getDispatchId() const override { return treeId; }
 
-	/*+ Sends slot changes (values[0] == slotIndex) to the matching listeners. */
-	void sendSlotChanges(Source& s, const uint8* values, size_t numValues, DispatchType n=sendNotification);
+	bool matchesPath(const HashedPath& p) const override
+	{
+		return p.handler == getDispatchId();
+	}
 	
 	void timerCallback() override;
 
@@ -60,9 +59,20 @@ struct SourceManager  : public SomethingWithQueues,
 	void addSource(Source* s);
 	void removeSource(Source* s);
 
-	void setState(State newState) override;
+	void setState(const HashedPath& p, State newState) override;
+
+	void forEachSource(const std::function<void(Source&)>& sf)
+	{
+		sources.flush([sf](const Queue::FlushArgument& f)
+		{
+			sf(f.getTypedObject<Source>());
+			return true;
+		}, Queue::FlushType::KeepData);
+	}
 
 private:
+
+	void flush(DispatchType n);
 
 	Queue sources;
 

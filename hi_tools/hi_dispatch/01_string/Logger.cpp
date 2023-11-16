@@ -40,7 +40,7 @@ using namespace juce;
 Logger::Logger(RootObject& root, size_t numAllocated):
 Queueable(root),
 SimpleTimer(root.getUpdater()),
-messageQueue(root, nullptr, numAllocated)
+messageQueue(root, numAllocated)
 {
     messageQueue.setLogger(this);
 }

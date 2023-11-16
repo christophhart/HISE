@@ -57,7 +57,7 @@ struct Suspendable: public Queueable
 	{};
 	  
 	~Suspendable() override {};
-	virtual void setState(State newState) = 0;
+	virtual void setState(const HashedPath& p, State newState) = 0;
 	virtual State getStateFromParent() const { return parent != nullptr ? parent->getStateFromParent() : State::Running; }
 
 	bool hasParent() const { return parent != nullptr; }
@@ -69,10 +69,7 @@ private:
 
 struct Logger;
 
-// Possible optimisation for later: use Queue for listeners too
-// optional: pushes of elements with the same source and index will just overwrite the data
-// TODO: add a check that assert a certain type using dynamic_cast
-struct Queue final : public Suspendable
+struct Queue final : public Queueable
 {
 	enum class FlushType
 	{
@@ -84,6 +81,24 @@ struct Queue final : public Suspendable
 	static constexpr size_t MaxQueueSize = 1024 * 1024 * 4; // 4MB should be enough TODO: add dynamic upper limit with warning
 
 	HashedCharPtr getDispatchId() const override { return HashedCharPtr("queue"); }
+
+	struct ScopedExplicitSuspender
+	{
+		ScopedExplicitSuspender(Queue& q):
+		  queue(q)
+		{
+			prevState = queue.getState();
+			queue.setQueueState(State::Paused);
+		}
+
+		~ScopedExplicitSuspender()
+		{
+			queue.setQueueState(prevState);
+		}
+
+		State prevState;
+		Queue& queue;
+	};
 
 	struct QueuedEvent
 	{
@@ -123,8 +138,6 @@ struct Queue final : public Suspendable
 		uint8* lastPos = nullptr;
 	};
 
-	void setState(State newState) override;
-
 	/** Packed data structure supplied to the flush function. */
 	struct FlushArgument
 	{
@@ -154,7 +167,7 @@ struct Queue final : public Suspendable
 	using FlushFunction = std::function<bool(const FlushArgument&)>;
 
 	/** Creates a queue and allocates the given amount of bytes. */
-	Queue(RootObject& root, Suspendable* parent, size_t initAllocatedSize);
+	Queue(RootObject& root, size_t initAllocatedSize);
 
 	~Queue() override;
 
@@ -200,7 +213,13 @@ struct Queue final : public Suspendable
 
 	void addPushCheck(const std::function<bool(Queueable*)>& pc) { pushCheckFunction = pc; }
 
+	void setQueueState(State newState);
+
+	State getState() const { return explicitState.load(); }
+
 private:
+
+	std::atomic<State> explicitState = { State::Running };
 
 	std::function<bool(Queueable*)> pushCheckFunction;
 
@@ -256,6 +275,13 @@ template <typename T> struct DispatchTypeContainer
 		f(async);
 	}
 
+	void forEachWithDispatchType(const std::function<void(DispatchType n, T&)>& f)
+	{
+		f(DispatchType::sendNotificationSync,  sync);
+		f(DispatchType::sendNotificationAsyncHiPriority, asyncHiPrio);
+		f(DispatchType::sendNotificationAsync, async);
+	}
+
 	const T& get(DispatchType n) const
 	{
 		switch(n)
@@ -272,33 +298,6 @@ template <typename T> struct DispatchTypeContainer
 	T async;
 };
 
-struct SomethingWithQueues: public Suspendable
-{
-	SomethingWithQueues(RootObject& r);;
-
-	virtual ~SomethingWithQueues();;
-
-	Queue& getEventQueue(DispatchType n);
-	const Queue& getEventQueue(DispatchType n) const;
-	Queue& getListenerQueue(DispatchType n);
-	const Queue& getListenerQueue(DispatchType n) const;
-
-	bool hasListeners(DispatchType n) const { return !getListenerQueue(n).isEmpty(); }
-	bool hasEvents(DispatchType n) const { return !getEventQueue(n).isEmpty(); };
-
-	void processEvents(DispatchType n);
-
-	void setState(State newState) override;
-
-	State getStateFromParent() const override { return currentState; }
-
-private:
-
-	State currentState = State::Running;
-
-	DispatchTypeContainer<Queue> events;
-	DispatchTypeContainer<Queue> listeners;
-};
 
 } // dispatch
 } // hise

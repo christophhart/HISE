@@ -756,7 +756,7 @@ public:
         NEW_PROCESSOR_DISPATCH(dispatcher.removeOtherChangeListener(l));
     }
 
-    void addAttributeListener(dispatch::library::Processor::AttributeListener* l, uint8* indexes, uint8 numAttributes, dispatch::DispatchType n)
+    void addAttributeListener(dispatch::library::Processor::AttributeListener* l, uint16* indexes, size_t numAttributes, dispatch::DispatchType n)
     {
         NEW_PROCESSOR_DISPATCH(dispatcher.addAttributeListener(l, indexes, numAttributes, n));
     }

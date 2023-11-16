@@ -64,9 +64,12 @@ struct StringBuilder
     const char* end()   const noexcept;
     size_t length() const noexcept;
 
+    void clearQuick() { position = 0; }
+
+    void ensureAllocated(size_t num);
+
 private:
     
-    void ensureAllocated(size_t num);
     char* getWriteHead() const;
     char* getWriteHeadAndAdvance(size_t numToWrite);
     

@@ -36,172 +36,6 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
-Listener::EventParser::EventParser(Listener& l_):
-	l(l_)
-{}
-
-void Listener::EventParser::writeData(Queue& q, EventType t, Queueable* c, uint8* values, uint8 numValues) const
-{
-	if(t == EventType::SingleListener)
-	{
-		// The listener data for a single listener uses the following byte layout:
-		// Source* ptr [8 bytes]    - the source that it's listening to
-		// uint8 numSlots [1 bytes] - the number of slots
-		// slotIndexes [numValues]	- the slot indexes it listens to
-		const auto data = (uint8*)alloca(sizeof(void*) + 1 + numValues);
-		auto offset = 0;
-		*reinterpret_cast<RootObject::Child**>(data + offset) = c;
-		offset += sizeof(Source*);
-		data[offset] = numValues;
-		offset += 1;
-		memcpy(data + offset, values, numValues);
-		offset += numValues;
-		q.push(&l, t, data, offset);
-	}
-	if(t == EventType::SingleListenerSingleSlot)
-	{
-		DBG("ADD LISTENER");
-		DBG(l.getDispatchId().toString());
-		jassert(numValues == 2);
-
-		// The listener data for a single listener uses the following byte layout:
-		// Source* ptr [8 bytes]     - the source that it's listening to
-		// uint8 slotIndex [1 bytes] - the slot index
-		// uint8 indexWithinSlot	 - the index within the slot
-		const auto data = (uint8*)alloca(sizeof(void*) + 2);
-		
-		auto offset = 0;
-		*reinterpret_cast<RootObject::Child**>(data + offset) = c;
-		offset += sizeof(Source*);
-		data[offset] = values[0];
-		offset += 1;
-		data[offset] = values[1];
-		offset += 1;
-		q.push(&l, t, data, offset);
-	}
-	if(t == EventType::SubsetListener)
-	{
-		// uses the following byte layout:
-		// Source* ptr [8 bytes]
-		// uint8 numSources [1 byte]
-		// sources [numSources bytes * sizeof(void*)]
-		// uint8 numSlots [1 byte]
-		// slotIndexes [numSlots bytes]
-	}
-	if(t == EventType::AllListener)
-	{
-		q.push(&l, t, nullptr, 0);
-	}
-}
-
-Listener::ListenerData Listener::EventParser::parseData(const Queue::FlushArgument& listenerData, const Queue::FlushArgument& eventData) const
-{
-	jassert(listenerData.source == &l);
-	jassert(eventData.source != &l);
-	jassert(eventData.eventType == EventType::SlotChange);
-	jassert(eventData.numBytes >= 2); // data[0] = numSlots && data[1] = slotValue with numSlots >= 1
-
-	auto sourceFromEvent = dynamic_cast<Source*>(eventData.source);
-
-	// the slot index of the event (the first byte in the data)
-	auto eventSlotIndex = eventData.data[0];
-
-	// the changed values of the event (offset by 1)
-	auto eventSlotPtr = eventData.data + 1;
-
-	// the number of slots in the data
-	auto numSlotsInEvent = eventData.numBytes - 1;
-
-	if(listenerData.eventType == EventType::SingleListener)
-	{
-		// the single listener pointer is written at the start of the data
-		auto ptr1 = *reinterpret_cast<RootObject::Child**>(listenerData.data);
-		auto sourceFromListener = dynamic_cast<Source*>(ptr1);
-
-		if(sourceFromListener == sourceFromEvent)
-		{
-			// the number of slot indexes that the listener is registered too
-			auto numListenedSlots = *(listenerData.data + sizeof(void*));
-
-			// the pointer to the slot index array
-			uint8* slotPtr = listenerData.data + sizeof(void*) + 1;
-
-			for(int i = 0; i < numListenedSlots; i++)
-			{
-				if(slotPtr[i] == eventSlotIndex)
-				{
-					ListenerData l;
-
-					l.s = sourceFromEvent;
-					l.t = EventType::SlotChange;
-					l.slotIndex = eventSlotIndex;
-					l.numBytes = numSlotsInEvent;
-					l.changes = eventSlotPtr;
-
-					return l;
-				}
-			}
-		}
-
-		return {};
-	}
-	if(listenerData.eventType == EventType::SingleListenerSingleSlot)
-	{
-		auto ptr1 = *reinterpret_cast<RootObject::Child**>(listenerData.data);
-		auto sourceFromListener = dynamic_cast<Source*>(ptr1);
-
-		if(sourceFromListener == sourceFromEvent)
-		{
-			// the number of slot indexes that the listener is registered too
-			auto slotIndex = *(listenerData.data + sizeof(void*));
-			auto indexWithinSlot = *(listenerData.data + sizeof(void*) + 1);
-
-			if(eventSlotIndex == slotIndex)
-			{
-				auto wasChanged = eventSlotPtr[indexWithinSlot];
-
-				if(wasChanged)
-				{
-					ListenerData l;
-
-					l.s = sourceFromEvent;
-					l.t = EventType::SlotChange;
-					l.slotIndex = eventSlotIndex;
-					l.numBytes = numSlotsInEvent;
-					l.changes = eventSlotPtr;
-					return l;
-				}
-			}
-		}
-		
-		return {};
-	}
-	if(listenerData.eventType == EventType::SubsetListener)
-	{
-		jassertfalse;
-		return {}; // TODO
-	}
-	if(listenerData.eventType == EventType::AllListener)
-	{
-		ListenerData l;
-		l.t = eventData.eventType;
-		l.s = nullptr;
-		return l;
-	}
-	return {};
-}
-
-size_t Listener::EventParser::writeSourcePointer(Source* s, uint8** data)
-{
-	auto offset = 0;
-	// align...
-
-	// aligned:
-	*reinterpret_cast<Source**>(data) = s;
-	*data += sizeof(Source*);
-	return offset + sizeof(Source*);
-}
-
 Listener::Listener(RootObject& r, ListenerOwner& owner_): Queueable(r), owner(owner_)
 {
 	getRootObject().addTypedChild(this);
@@ -216,61 +50,54 @@ Listener::~Listener()
 
 void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n)
 {
-	const EventParser writer(*this);
-	auto& q = source->getListenerQueue(n);
-	writer.writeData(q, EventType::SingleListener, source, slotIndexes, numSlots);
+	for(int i = 0; i < numSlots; i++)
+		source->getListenerQueue(i, n)->push(this, EventType::ListenerAnySlot, nullptr, 0);
+
 	removed = false;
 }
 
 void Listener::addListenerToSingleSlotIndexWithinSlot(Source* source, uint8 slotIndex, uint8 indexWithinSlot,
 	DispatchType n)
 {
-	const EventParser writer(*this);
-	auto& q = source->getListenerQueue(n);
-
-	uint8 data[2] = { slotIndex, indexWithinSlot };
-
-	writer.writeData(q, EventType::SingleListenerSingleSlot, source, data, 2);
+	uint8 data[1] = { indexWithinSlot };
+	auto q = source->getListenerQueue(slotIndex, n);
+	q->push(this, EventType::SingleListenerSingleSlot, data, 1);
 	removed = false;
+}
+
+void Listener::addListenerToSingleSourceAndSlotSubset(Source* source, uint8 slotIndex, const uint8* slotIndexes,
+	uint8 numSlots, DispatchType n)
+{
+	auto q = source->getListenerQueue(slotIndex, n);
+
+	SlotBitmap bitmask;
+
+	for(int i = 0; i < numSlots; i++)
+		bitmask.setBit(slotIndexes[i], true);
+
+	q->push(this, EventType::SingleListenerSubset, bitmask.getData(), bitmask.getNumBytes());
 }
 
 void Listener::addListenerToAllSources(SourceManager& sourceManager, DispatchType n)
 {
-	const EventParser writer(*this);
-	auto& q = sourceManager.getListenerQueue(n);
-	writer.writeData(q, EventType::AllListener, &sourceManager, nullptr, 0);
-	removed = false;
-}
+	auto l = this;
+	sourceManager.forEachSource([n, l](Source& s)
+	{
+		s.forEachListenerQueue(n, [l](uint8, DispatchType, Queue* q)
+		{
+			q->push(l, EventType::AllListener, nullptr, 0);
+		});
+	});
 
-void Listener::addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, DispatchType n)
-{
-	auto numMax = sizeof(Source*) * sourceManager.getNumChildSources();
-	auto ptr = (uint8*)alloca(numMax);
-	auto numWritten = sf(&ptr);
-	EventParser writer(*this);
-	auto& q = sourceManager.getListenerQueue(n);
-	writer.writeData(q, EventType::SubsetListener, &sourceManager, ptr, numWritten);
-	q.push(this, EventType::SubsetListener, ptr, numWritten);
 	removed = false;
 }
 
 void Listener::removeListener(Source& s, DispatchType n)
 {
-	if(n == sendNotification || n == sendNotificationSync)
+	s.forEachListenerQueue(n, [&](uint8, DispatchType, Queue* q)
 	{
-		s.getParentSourceManager().getListenerQueue(sendNotificationSync).removeAllMatches(this);
-		s.getListenerQueue(sendNotificationSync).removeAllMatches(this);
-	}
-	if(n == sendNotification || n == sendNotificationAsync)
-	{
-		s.getParentSourceManager().getListenerQueue(sendNotificationAsync).removeAllMatches(this);
-		s.getListenerQueue(sendNotificationAsync).removeAllMatches(this);
-	}
-	if(n == sendNotification || n == sendNotificationAsyncHiPriority)
-	{
-		s.getParentSourceManager().getListenerQueue(sendNotificationAsyncHiPriority).removeAllMatches(this);
-		s.getListenerQueue(sendNotificationAsyncHiPriority).removeAllMatches(this);
-	}
+		q->removeAllMatches(this);
+	});
 
 	removed = true;
 }

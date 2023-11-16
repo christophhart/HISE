@@ -37,14 +37,13 @@ namespace dispatch {
 using namespace juce;
 
 Source::Source(SourceManager& parent_, SourceOwner& owner_, const HashedCharPtr& sourceId_):
-	SomethingWithQueues(parent_.getRootObject()),
+	Suspendable(parent_.getRootObject(), &parent_),
 	parent(parent_),
 	owner(owner_),
 	sourceId(sourceId_)
 {
 	getRootObject().addTypedChild(this);
 	parent.addSource(this);
-	
 }
 
 Source::~Source()
@@ -53,5 +52,56 @@ Source::~Source()
 	parent.removeSource(this);
 }
 
+
+
+
+void Source::flushChanges(DispatchType n)
+{
+	TRACE_FLUSH(getDispatchId());
+
+	for(int i = 0; i < getNumSlotSenders(); i++)
+		getSlotSender(i)->flush(n);
+}
+
+Queue* Source::getListenerQueue(uint8 slotSenderIndex, DispatchType n)
+{
+	return getSlotSender(slotSenderIndex)->getListenerQueue(n);
+}
+
+void Source::setState(const HashedPath& p, State newState)
+{
+	if(!matchesPath(p))
+		return;
+
+	forEachListenerQueue(DispatchType::sendNotification, [p, newState, this](uint8 s, DispatchType n, Queue* q)
+	{
+		auto sender = this->getSlotSender(s);
+
+		if(sender->matchesPath(p, n))
+		{
+			q->setQueueState(newState);
+			sender->flush(n);
+		}
+			
+	});
+}
+
+void Source::forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, Queue* q)>& f)
+{
+	for(int i = 0; i < getNumSlotSenders(); i++)
+	{
+		if (n != DispatchType::sendNotification)
+		{
+			f(i, n, getListenerQueue(i, n));
+			continue;
+		}
+		else
+		{
+			f(i, DispatchType::sendNotificationSync, getListenerQueue(i, DispatchType::sendNotificationSync));
+			f(i, DispatchType::sendNotificationAsync, getListenerQueue(i, DispatchType::sendNotificationAsync));
+			f(i, DispatchType::sendNotificationAsyncHiPriority, getListenerQueue(i, DispatchType::sendNotificationAsyncHiPriority));
+		}
+	}
+}
 } // dispatch
 } // hise

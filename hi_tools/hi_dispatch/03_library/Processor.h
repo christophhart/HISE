@@ -68,10 +68,10 @@ struct ProcessorHandler: public SourceManager
 {
 	enum class SlotTypes
 	{
-		Attributes,
 		NameAndColour,
 		Bypassed,
 		OtherChange,
+		AttributeOffset,
 		numSlotTypes
 	};
 	
@@ -99,7 +99,7 @@ struct ProcessorHandler: public SourceManager
 
 		AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~AttributeListener() final {};
-		
+
 	private:
 
 		friend class Processor;
@@ -212,7 +212,7 @@ struct Processor: public Source
 	}
 
 	/** Call this in the processor if the amount of attributes change. */
-	void setNumAttributes(int numAttributes);
+	void setNumAttributes(uint16 numAttributes);
 
 	/** Adds a Bypass listener to receive notifications. */
 	void addBypassListener(BypassListener* l, DispatchType n);
@@ -220,12 +220,11 @@ struct Processor: public Source
 	/** Removes a bypass listener from all listener queues (both sync and async). */
 	void removeBypassListener(BypassListener* l);
 
-	void addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes, DispatchType n);
+	void addAttributeListener(AttributeListener* l, uint16 singleIndex, DispatchType n);
 
-	void removeAttributeListener(AttributeListener* l)
-	{
-		l->removeListener(*this);
-	}
+	void addAttributeListener(AttributeListener* l, const uint16* attributeIndexes, size_t numAttributes, DispatchType n);
+
+	void removeAttributeListener(AttributeListener* l, DispatchType n=DispatchType::sendNotification);
 
 	/** Add a listener to be notified about various other events. */
 	void addOtherChangeListener(OtherChangeListener* l, DispatchType n)
@@ -245,23 +244,36 @@ struct Processor: public Source
 	void removeNameAndColourListener(NameAndColourListener* l);
 
 	bool isBypassed() const noexcept;
+	
+	int getNumSlotSenders() const override;
 
-	void flushChanges(DispatchType n) override
-	{
-		attributes.flush(n);
-		nameAndColour.flush(n);
-		bypassed.flush(n);
-		otherChange.flush(n);
-	}
+	SlotSender* getSlotSender(uint8 slotSenderIndex) override;
 
 private:
 
-	bool cachedBypassValue = false;
+	SlotSender* getAttributeSender(uint16 attributeIndex)
+	{
+		auto slotIndex = (uint8)attributeIndex / SlotBitmap::getNumBits();
+		if(slotIndex == 0)
+			return &attributes;
+		else
+		{
+			jassert(isPositiveAndBelow(slotIndex-1, additionalAttributes.size()));
+			return additionalAttributes[slotIndex - 1];
+		}
+	}
 
-	SlotSender attributes;
+	bool cachedBypassValue = false;
+	
 	SlotSender nameAndColour;
 	SlotSender bypassed;
 	SlotSender otherChange;
+
+	// the first 32 attribute slots are a class member
+	SlotSender attributes;
+
+	// further attributes are stored in a dynamic array
+	OwnedArray<SlotSender> additionalAttributes;
 };
 
 struct Modulator final: public Processor

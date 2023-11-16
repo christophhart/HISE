@@ -44,10 +44,12 @@ struct SourceOwner
 	virtual ~SourceOwner() {};
 };
 
+struct SlotSender;
+
 // just a interface class. 
 // Subclass all classes that have a SlotSender from this class
 // (the item class will keep a reference to this as member to send)
-struct Source: public SomethingWithQueues
+struct Source: public Suspendable
 {
 	Source(SourceManager& parent_, SourceOwner& owner, const HashedCharPtr& sourceId_ );
 	~Source() override;
@@ -69,8 +71,23 @@ struct Source: public SomethingWithQueues
 		return *dynamic_cast<const T*>(&owner);
 	}
 
-	virtual void flushChanges(DispatchType n) {}
+	void flushChanges(DispatchType n);
+
+	virtual int getNumSlotSenders() const = 0;
+
+	virtual SlotSender* getSlotSender(uint8 slotSenderIndex) = 0;
 	
+	Queue* getListenerQueue(uint8 slotSenderIndex, DispatchType n);
+
+	void setState(const HashedPath& p, State newState) override;
+
+	void forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, Queue* q)>& f);
+
+	bool matchesPath(const HashedPath& p) const override
+	{
+		return parent.matchesPath(p) && p.source == getDispatchId();
+	}
+
 private:
 
 	SourceManager& parent;

@@ -543,9 +543,19 @@ public:
         clear();
     }
 
+	static VoiceBitMap<NV, DataType> fromData(const void* data, size_t numBytes)
+    {
+		jassert(numBytes == sizeof(data));
+		VoiceBitMap c;
+		memcpy(c.data.data(), data, numBytes);
+		c.checkEmpty();
+		return c;
+    }
+
     void clear()
     {
         memset(data.data(), 0, sizeof(data));
+		empty = true;
     }
 
     void setBit(int voiceIndex, bool value)
@@ -557,11 +567,13 @@ public:
         {
             auto mask = 1 << bIndex;
             data[dIndex] |= mask;
+			empty = false;
         }
         else
         {
             auto mask = 1 << bIndex;
             data[dIndex] &= ~mask;
+			checkEmpty();
         }
     }
 
@@ -571,13 +583,15 @@ public:
         return mb.toBase64Encoding();
     }
     
-    bool fromBase64(const String& b64) const
+    bool fromBase64(const String& b64)
     {
         MemoryBlock mb;
         
         if(mb.fromBase64Encoding(b64) && mb.getSize() == sizeof(data))
         {
-            memcpy(data, mb.getData(), sizeof(data));
+			memcpy(data, mb.getData(), mb.getSize());
+			checkEmpty();
+			
             return true;
         }
         
@@ -586,6 +600,9 @@ public:
     
     bool operator[](int index) const
     {
+		if(empty)
+			return false;
+
         if(isPositiveAndBelow(index, getNumElements()))
         {
             auto bIndex = index % getElementSize();
@@ -598,9 +615,21 @@ public:
         
         return false;
     }
-    
+
+	static constexpr size_t getNumBytes() { return sizeof(data); };
+
+	const void* getData() const
+    {
+	    return data.data();
+    }
+
+	static constexpr int getNumBits() { return getNumBytes() * 8; }
+
     int getFirstFreeBit() const
     {
+		if(empty)
+			return -1;
+
         for (int i = 0; i < getNumElements(); i++)
         {
             if (data[i] != getMaxValue())
@@ -618,19 +647,47 @@ public:
         return -1;
     }
 
-    VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV>& other)
+    VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV, DataType>& other)
     {
-        for (int i = 0; i < getNumElements(); i++)
+		if(other.empty)
+			return *this;
+
+		for (int i = 0; i < getNumElements(); i++)
             data[i] |= other.data[i];
 
         return *this;
     }
 
+	bool hasSomeBitsAs(const VoiceBitMap<NV, DataType>& other) const
+    {
+		if(empty)
+			return false;
+
+	    for(int i = 0; i < getNumElements(); i++)
+	    {
+		    if(data[i] & other.data[i])
+				return true;
+	    }
+
+		return false;
+    }
+
+	bool isEmpty() const noexcept { return empty; }
+
 private:
+
+	void checkEmpty()
+	{
+		empty = true;
+
+		for(int i = 0; i < getNumElements(); i++)
+			empty &= (data[i] == DataType(0));
+	}
 
     static constexpr int NumElements = getNumElements();
 
     std::array<DataType, NumElements> data;
+	bool empty = true;
 };
 
 

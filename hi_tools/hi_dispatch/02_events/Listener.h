@@ -67,18 +67,21 @@ struct Listener: public Queueable
 			return static_cast<T*>(s);
 		}
 
-		void callForEachSetValue(const ValueChangedFunction& f) const
+		SlotBitmap toBitMap() const
 		{
-			for(int i = 0; i < numBytes; i++)
-			{
-				if(changes[i] != 0)
-					f(i);
-			}
+			jassert(numBytes == sizeof(SlotBitmap::getNumBytes()));
+			return SlotBitmap::fromData(changes, SlotBitmap::getNumBytes());
+		}
+
+		uint8 toSingleSlotIndex() const
+		{
+			jassert(numBytes == 1);
+			return *changes;
 		}
 
 		EventType t = EventType::Nothing;
 		uint8 slotIndex;
-		uint8* changes;
+		const uint8* changes;
 		size_t numBytes;
 	};
 
@@ -95,32 +98,13 @@ struct Listener: public Queueable
 	}
 
 	HashedCharPtr getDispatchId() const override { return "listener"; }
-
-	// a function that iterates all children of a source manager and writes the pointers into the byte array
-	// returns the number of bytes written...
-	using SubsetFunction = std::function<size_t(uint8**)>;
-
-	/** Used for reading and writing the byte data from the listener event. */
-	struct EventParser
-	{
-		explicit EventParser(Listener& l_);
-		void writeData(Queue& q, EventType t, Queueable* c, uint8* values, uint8 numValues) const;
-
-		/** Parses the data and returns a ListenerData object that is sent to the listener if the listener matches. */
-		ListenerData parseData(const Queue::FlushArgument& listenerData, const Queue::FlushArgument& eventData) const;
-
-		/** Writes the source pointer to the data slot (and bumps the data pointer). Use inside the Subset function. */
-		static size_t writeSourcePointer(Source* s, uint8** data);
-
-		Listener& l;
-	};
-
+	
 	explicit Listener(RootObject& r, ListenerOwner& owner);
 	~Listener() override;;
 
 	/** Override this method and implement whatever you want to do with the notification. */
 	virtual void slotChanged(const ListenerData& d) = 0;
-	
+
 	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
 
@@ -130,17 +114,12 @@ struct Listener: public Queueable
 
 	/** Registers the listener to receive updates from a single slot with a defined slot subset. */
 	void addListenerToSingleSourceAndSlotSubset(Source* source, uint8 slotIndex, const uint8* slotIndexes, uint8 numSlots,
-	                                            DispatchType n)
-	{
-		jassertfalse;
-	}
+	                                            DispatchType n);
+	;
 
 	/** Registers the listener to all sources of a given source manager. */
 	void addListenerToAllSources(SourceManager& sourceManager, DispatchType n);
-
-	/** Registers the listener to a subset of sources of the given manager. */ 
-	void addListenerToSubset(SourceManager& sourceManager, const SubsetFunction& sf, DispatchType n);
-
+	
 	/** Removes the listener. */
 	void removeListener(Source& s, DispatchType n = sendNotification);
 

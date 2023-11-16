@@ -74,7 +74,10 @@ CharPtr::CharPtr(const uint8* byteData, size_t numBytes) noexcept :
     ptr(reinterpret_cast<const char*>(byteData)),
     numCharacters(numBytes),
     type(Type::ByteArray)
-{}
+{
+	if(numCharacters == 1 && *byteData == '*')
+        type = Type::Wildcard;
+}
 
 CharPtr::CharPtr(const String & s) :
     ptr(s.getCharPointer().getAddress()),
@@ -128,34 +131,6 @@ HashedCharPtr::HashedCharPtr(const String & s) noexcept :
     cpl(s),
     hashed(cpl.hash())
 {}
-
-HashedPath HashedPath::parse(const HashedCharPtr& path)
-{
-#if 0
-    auto pathIsDynamic = path.isDynamic();
-
-	auto ptr = path.get();
-    auto start = ptr;
-    auto end = ptr + path.length();
-
-    char delimiter = '.';
-
-    HashedCharPtr sm, s, sl;
-    
-    while(ptr != end)
-    {
-	    if(*ptr == delimiter)
-	    {
-            
-		    sm = HashedCharPtr(start, ptr - start);
-	    }
-
-        ptr++;
-    }
-#endif
-
-    return {};
-}
 
 } // dispatch
 } // hise

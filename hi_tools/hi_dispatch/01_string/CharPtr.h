@@ -68,7 +68,15 @@ struct CharPtr
     
     constexpr CharPtr(const CharPtr& other) = default;
     constexpr CharPtr(CharPtr&& other) = default;
-    
+
+    CharPtr operator=(CharPtr&& other)
+    {
+	    ptr = std::move(other.ptr);
+    	numCharacters = other.numCharacters;
+        type = other.type;
+        return *this;
+    }
+
     /** Creates a CharPtr from a juce::Identifier. This will take the address of the pooled string. */
     explicit CharPtr(const Identifier& id) noexcept;
     
@@ -145,7 +153,7 @@ private:
     
     const char* ptr;
     size_t numCharacters;
-    const Type type;
+    Type type;
     static char nothing;
 };
 
@@ -156,7 +164,14 @@ struct HashedCharPtr
 public:
     
     using Type = CharPtr::Type;
-    
+
+    HashedCharPtr& operator=(HashedCharPtr&& other) noexcept
+    {
+	    cpl = std::move(other.cpl);
+        hashed = std::move(other.hashed);
+        return *this;
+    }
+
     HashedCharPtr();
     explicit HashedCharPtr(Type);
 	HashedCharPtr(const HashedCharPtr& other) = default;
@@ -198,65 +213,93 @@ public:
 private:
     
     CharPtr cpl;
-    const int hashed = 0;
+    int hashed = 0;
 };
 
-/** Three hashed pointers that will be used to match the Root::Child objects in the array.
- *
- *  modules.*.attributes
- *  modules.myId.bypassed
- *  "content.[mySlider, mySlider2].value"
- *  content..range
- *  content.*.value
- *
- */
 struct HashedPath
 {
-    using Type = CharPtr::Type;
+	HashedPath():
+	  handler(CharPtr::Type::Wildcard),
+	  source(CharPtr::Type::Wildcard),
+	  slot(CharPtr::Type::Wildcard),
+	  dispatchType(CharPtr::Type::Wildcard)
+	{};
 
-    HashedPath() = default;
+    HashedPath(const HashedCharPtr* tokens):
+	  handler(tokens[0] ? tokens[0] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	  source(tokens[1] ? tokens[1] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	  slot(tokens[2] ? tokens[2] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	  dispatchType(tokens[3] ? tokens[3] : HashedCharPtr(CharPtr::Type::Wildcard))
+	{};
 
-    HashedPath(const HashedCharPtr& sourceManager_, const HashedCharPtr& source_, const HashedCharPtr& slot_):
-	  sourceManager(sourceManager_),
-	  source(source_),
-	  slot(slot_)
+    bool operator==(const HashedPath& otherPath) const
     {
-        jassert(!sourceManager.isDynamic());
-        jassert(!slot.isDynamic());
+	    return handler == otherPath.handler &&
+               source == otherPath.source &&
+               slot == otherPath.slot &&
+               dispatchType == otherPath.dispatchType;
     }
 
-    bool operator==(const HashedPath& other) const noexcept
+    bool operator!=(const HashedPath& otherPath) const
     {
-	    return sourceManager == other.sourceManager &&
-               source == other.source &&
-               slot == other.slot;
+	    return !(*this == otherPath);
     }
 
-    bool operator!=(const HashedPath& other) const noexcept
+	static HashedPath parse(const HashedCharPtr& fullPath)
+	{
+        auto start = const_cast<char*>(fullPath.get());
+        auto end = start + fullPath.length();
+        auto pos = start;
+        auto tokenStart = start;
+
+        auto delimiter = '.';
+
+        int tokenIndex = 0;
+
+        HashedCharPtr tokens[4];
+
+        if(*pos == delimiter)
+            throw Result::fail("expected token");
+
+        while(pos != end || tokenIndex > 3)
+        {
+            if(*pos == delimiter)
+            {
+	            tokens[tokenIndex++] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (pos - tokenStart));
+                tokenStart = ++pos;
+            }
+
+	        while(pos != end && *pos != delimiter)
+	        {
+		        pos++;
+                continue;
+	        }
+        }
+
+        if(tokenStart != end && tokenIndex < 4)
+        {
+	        tokens[tokenIndex] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
+        }
+
+        return HashedPath(tokens);
+	}
+
+    explicit operator String() const noexcept
     {
-	    return !(*this == other);
+	    String s;
+        s << handler.toString() << '.';
+        s << source.toString() << '.';
+        s << slot.toString() << '.';
+        s << dispatchType.toString() << '.';
+
+        return s;
     }
 
-    static HashedPath parse(const HashedCharPtr& path);
-    
-    static constexpr bool isHashed() { return true; }
-
-    /** Only checks whether the source should be dynamic. */
-    bool isDynamic() const noexcept { return source.isDynamic(); }
-    
-    bool isAllWildcard() const noexcept { return sourceManager.isWildcard(); }
-    bool isSourceWildcard() const noexcept { return source.isWildcard(); }
-    bool isSlotWildcard() const noexcept { return slot.isWildcard(); }
-    bool isAnyWildcard() const noexcept { return isAllWildcard() || isSourceWildcard() || isSlotWildcard(); }
-    Type getType() const noexcept { return source.getType(); }
-
-private:
-
-    const HashedCharPtr sourceManager;
-    const HashedCharPtr source;
-    const HashedCharPtr slot;
+	HashedCharPtr handler;
+	HashedCharPtr source;
+	HashedCharPtr slot;
+	HashedCharPtr dispatchType;
 };
-
 
 } // dispatch
 } // hise

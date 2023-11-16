@@ -51,16 +51,13 @@ void ProcessorHandler::BypassListener::slotChanged(const ListenerData& d)
 	jassert(f);
 
 	auto slotType = (SlotTypes)d.slotIndex;
+	jassert(slotType == SlotTypes::Bypassed);
+	jassert(d.numBytes == 1);
 
-	if(slotType == SlotTypes::Bypassed)
-	{
-		jassert(d.numBytes == 1);
+	TRACE_DISPATCH("onBypass");
 
-		TRACE_DISPATCH("onBypass");
-
-		const auto obj = d.to_static_cast<Processor>();
-		f(obj, obj->isBypassed());
-	}
+	const auto obj = d.to_static_cast<Processor>();
+	f(obj, obj->isBypassed());
 }
 
 ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
@@ -70,6 +67,26 @@ ProcessorHandler::AttributeListener::AttributeListener(RootObject& r, ListenerOw
 
 void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 {
+	auto obj = d.to_static_cast<Processor>();
+
+	jassert(d.slotIndex >= (uint8)SlotTypes::AttributeOffset);
+
+	if(d.numBytes == 1)
+	{
+		f(obj, d.toSingleSlotIndex());
+	}
+	else
+	{
+		auto bm = d.toBitMap();
+
+		for(int i = 0; i < bm.getNumBits(); i++)
+		{
+			if(bm[i])
+				f(obj, i);
+		}
+	}
+
+#if 0
 	jassert(d.t == EventType::SlotChange);
 	jassert(f);
 
@@ -78,8 +95,16 @@ void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 	if(slotType == SlotTypes::Attributes)
 	{
 		auto obj = d.to_static_cast<Processor>();
-		d.callForEachSetValue([&](uint8 index){ f(obj, index); });
+
+		auto bm = d.toBitMap();
+
+		for(int i = 0; i < bm.getNumBits(); i++)
+		{
+			if(bm[i])
+				f(obj, i);
+		}
 	}
+#endif
 }
 
 ProcessorHandler::NameAndColourListener::NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_):
@@ -112,7 +137,7 @@ ProcessorHandler::ProcessorHandler(RootObject& r):
 
 Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):
 	Source(h, owner, id),
-	attributes(*this, (int)SlotTypes::Attributes, IDs::event::attribute),
+	attributes(*this, (int)SlotTypes::AttributeOffset, IDs::event::attribute),
 	nameAndColour(*this, (int)SlotTypes::NameAndColour, IDs::event::namecolour),
 	bypassed(*this, (int)SlotTypes::Bypassed, IDs::event::bypassed),
 	otherChange(*this, (int)SlotTypes::OtherChange, IDs::event::other)
@@ -158,9 +183,23 @@ void Processor::setColour(const Colour&)
 	nameAndColour.sendChangeMessage(1, sendNotificationAsync);
 }
 
-void Processor::setNumAttributes(int numAttributes)
+void Processor::setNumAttributes(uint16 numAttributes)
 {
-	attributes.setNumSlots(numAttributes);
+	if(isPositiveAndBelow(numAttributes, SlotBitmap::getNumBits()))
+	{
+		attributes.setNumSlots(numAttributes);
+	}
+	else
+	{
+		int numAttributeSlotsRequired = (numAttributes / SlotBitmap::getNumBits()) + 1;
+		int lastSlotAmount = numAttributeSlotsRequired % SlotBitmap::getNumBits();
+
+		for(int i = additionalAttributes.size(); i < numAttributeSlotsRequired; i++)
+		{
+			additionalAttributes.add(new SlotSender(*this, (uint8)i + (uint8)SlotTypes::numSlotTypes, IDs::event::attribute));
+			additionalAttributes.getLast()->setNumSlots(i == numAttributeSlotsRequired-1 ? lastSlotAmount : SlotBitmap::getNumBits());
+		}
+	}
 }
 
 void Processor::addBypassListener(BypassListener* l, DispatchType n)
@@ -174,17 +213,34 @@ void Processor::removeBypassListener(BypassListener* l)
 	l->removeListener(*this);
 }
 
-void Processor::addAttributeListener(AttributeListener* l, const uint8* attributeIndexes, size_t numAttributes,
+void Processor::addAttributeListener(AttributeListener* l, const uint16* attributeIndexes, size_t numAttributes,
 	DispatchType n)
 {
 	if(numAttributes == 1)
 	{
-		l->addListenerToSingleSlotIndexWithinSlot(this, (int)SlotTypes::Attributes, *attributeIndexes, n);
+		auto a = *attributeIndexes;
+
+		if(auto s = getAttributeSender(a))
+		{
+			auto indexWithinSlot = (uint8)(a % SlotBitmap::getNumBits());
+
+			l->addListenerToSingleSlotIndexWithinSlot(this, s->getSlotIndex(), indexWithinSlot, n);
+		}
+		else
+		{
+			jassertfalse;
+		}
 	}
 	else
 	{
-		l->addListenerToSingleSourceAndSlotSubset(this, (int)SlotTypes::Attributes, attributeIndexes, numAttributes, n);
+		jassertfalse;
+		//l->addListenerToSingleSourceAndSlotSubset(this, (int)SlotTypes::AttributeOffset, attributeIndexes, numAttributes, n);
 	}
+}
+
+void Processor::removeAttributeListener(AttributeListener* l, DispatchType n)
+{
+	l->removeListener(*this, n);
 }
 
 void Processor::addNameAndColourListener(NameAndColourListener* l)
@@ -201,6 +257,28 @@ void Processor::removeNameAndColourListener(NameAndColourListener* l)
 bool Processor::isBypassed() const noexcept
 {
 	return cachedBypassValue;	
+}
+
+int Processor::getNumSlotSenders() const
+{
+	return (int)SlotTypes::numSlotTypes + additionalAttributes.size();
+}
+
+SlotSender* Processor::getSlotSender(uint8 slotSenderIndex)
+{
+	if(isPositiveAndBelow(slotSenderIndex, SlotTypes::numSlotTypes))
+	{
+		switch((SlotTypes)slotSenderIndex)
+		{
+		case SlotTypes::AttributeOffset:		return &attributes;
+		case SlotTypes::NameAndColour:  return &nameAndColour;
+		case SlotTypes::Bypassed:		return &bypassed;
+		case SlotTypes::OtherChange:	return &otherChange;
+		default: jassertfalse;			return nullptr;
+		}
+	}
+
+	return additionalAttributes[slotSenderIndex - (uint8)SlotTypes::numSlotTypes];
 }
 
 Modulator::Modulator(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):

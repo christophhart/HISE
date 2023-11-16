@@ -433,7 +433,7 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 	parameter = parameter_;
 	name = name_;
 
-	auto a = (uint8)parameter;
+	auto a = (uint16)parameter;
 
 	p->addAttributeListener(valueListener, &a, 1, dispatch::DispatchType::sendNotificationAsync);
 

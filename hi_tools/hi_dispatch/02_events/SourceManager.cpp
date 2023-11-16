@@ -38,10 +38,10 @@ using namespace juce;
 
 
 SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
-  SomethingWithQueues(r),
+  Suspendable(r, nullptr),
   SimpleTimer(r.getUpdater()),
   treeId(typeId),
-  sources(r, nullptr, sizeof(void*) * 128)
+  sources(r, sizeof(void*) * 128)
 {
 	r.addTypedChild(this);
 	jassert(!typeId.isDynamic());
@@ -54,114 +54,16 @@ SourceManager::~SourceManager()
 	
 }
 
-void SourceManager::sendSlotChanges(Source& s, const uint8* values, size_t numValues, DispatchType n)
-{
-	if(n == sendNotificationSync)
-	{
-		if(getStateFromParent() != State::Running)
-		{
-			// TODO: implement flushing the deferred sync events (probably synchronously after resuming the running state)
-			jassertfalse;
-			getEventQueue(DispatchType::sendNotificationSync).push(&s, EventType::SlotChange, values, numValues);
-		}
-		else
-		{
-			if(const auto l = getRootObject().getLogger())
-				l->log(&s, EventType::SlotChange, values, numValues);
-
-			auto syncCallback = [&](const Queue::FlushArgument& f)
-			{
-				Queue::FlushArgument eventData;
-				eventData.source = &s;
-				eventData.eventType = EventType::SlotChange;
-				eventData.data = const_cast<uint8*>(values);		// data[0] = slotIndex, data[1+] = the slot values 
-				eventData.numBytes = numValues;
-
-				auto& l = f.getTypedObject<dispatch::Listener>();
-				const dispatch::Listener::EventParser p(l);
-				if(const auto ld = p.parseData(f, eventData))
-					l.slotChanged(ld);
-
-				return true;
-			};
-
-			s.getListenerQueue(DispatchType::sendNotificationSync).flush(syncCallback, Queue::FlushType::KeepData);
-			getListenerQueue(DispatchType::sendNotificationSync).flush(syncCallback, Queue::FlushType::KeepData);
-		}
-	}
-	else
-	{
-		auto pushIfHasListener = [&](SomethingWithQueues& q, DispatchType t)
-		{
-			if(q.hasListeners(t))
-			{
-				q.getEventQueue(t).push(&s, EventType::SlotChange, values, numValues);
-				return true;
-			}
-
-			return false;
-		};
-
-		auto doneSomething = pushIfHasListener(*this, n);
-		doneSomething |= pushIfHasListener(s, n);
-
-		if(doneSomething && n == DispatchType::sendNotificationAsyncHiPriority)
-			getRootObject().notify();
-	}
-}
-
 void SourceManager::flushHiPriorityQueue()
 {
-	auto thisType = DispatchType::sendNotificationAsyncHiPriority;
-
-	if(hasEvents(thisType) && getStateFromParent() == State::Running)
-	{
-		StringBuilder b;
-		b << "Hi priority async callback " << getDispatchId();
-		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-
-		MessageManagerLock mm;
-
-		// Tell the sources to flush their async changes
-		sources.flush([thisType](const Queue::FlushArgument& a)
-		{
-			a.getTypedObject<Source>().flushChanges(thisType);
-			a.getTypedObject<Source>().processEvents(thisType);
-
-			return true;
-		}, Queue::FlushType::KeepData);
-
-		processEvents(thisType);
-	}
+	
 }
 
 void SourceManager::timerCallback()
 {
-	flushHiPriorityQueue();
-
-	auto thisType = DispatchType::sendNotificationAsync;
-
-	StringBuilder b;
-	b << "UI timer callback " << getDispatchId();
-	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-
-	// skip
-	if(getStateFromParent() != State::Running)
-		return;
-
-	// Tell the sources to flush their async changes
-	sources.flush([thisType](const Queue::FlushArgument& a)
-	{
-		a.getTypedObject<Source>().flushChanges(thisType);
-		a.getTypedObject<Source>().processEvents(thisType);
-		return true;
-	}, Queue::FlushType::KeepData);
-
-	processEvents(thisType);
+	flush(DispatchType::sendNotificationAsyncHiPriority);
+	flush(DispatchType::sendNotificationAsync);
 }
-
-
-
 
 void SourceManager::addSource(Source* s)
 {
@@ -173,16 +75,35 @@ void SourceManager::removeSource(Source* s)
 	sources.removeAllMatches(s);
 }
 
-void SourceManager::setState(State newState)
+void SourceManager::setState(const HashedPath& p, State newState)
 {
-	SomethingWithQueues::setState(newState);
+	if(!matchesPath(p))
+		return;
 
-	sources.flush([newState](const Queue::FlushArgument& f)
+	sources.flush([newState, p](const Queue::FlushArgument& f)
 	{
-		f.getTypedObject<Source>().setState(newState);
+		f.getTypedObject<Source>().setState(p, newState);
 		return true;
 	}, Queue::FlushType::KeepData);
 }
 
+void SourceManager::flush(DispatchType n)
+{
+	if(getStateFromParent() == State::Running)
+	{
+		TRACE_FLUSH(getDispatchId());
+		
+		sources.flush([n](const Queue::FlushArgument& f)
+		{
+			auto& typed = f.getTypedObject<Source>();
+
+			typed.flushChanges(n);
+
+			return true;
+		}, Queue::FlushType::KeepData);
+	}
+
+	
+}
 } // dispatch
 } // hise

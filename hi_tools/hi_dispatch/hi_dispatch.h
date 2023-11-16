@@ -79,9 +79,14 @@ enum class EventType: uint8 // change to HeaderType
 	Remove,
 	SlotChange,
 	SourcePtr,
-	SingleListener,
+
+	Listener,
+	ListenerAnySlot,
+	ListenerSingleSlot,
+	SingleListener,				// TODO: remove all those weird sub stuff?
 	SingleListenerSingleSlot,
 	SingleListenerSubset,
+	
 	SubsetListener,
 	AllListener,
 	numEventTypes
@@ -192,6 +197,8 @@ struct Source; // => file2.h
 //
 struct Slot; // => file2.h
 
+using SlotBitmap = VoiceBitMap<32, uint32>;
+
 // A listener object that receives notifications about events of the SourceManager
 // lifetime < SourceManager
 // subclass of queuable (later)
@@ -248,7 +255,11 @@ struct FuzzyTester;
 } // dispatch
 } // hise
 
-
+#if PERFETTO
+#define TRACE_FLUSH(x) StringBuilder b; b << "flush " << x << n; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#else
+#define TRACE_FLUSH(x)
+#endif
 
 #include "file3.h" // contains all String-related classes
 #include "file1.h" // contains the queue, the logger and the Stringbuilder

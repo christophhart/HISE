@@ -42,7 +42,7 @@ struct SourceManager;
 struct Source;
 struct Listener;
 
-struct RootObject: public Thread
+struct RootObject
 {
 	struct Child
 	{
@@ -51,6 +51,8 @@ struct RootObject: public Thread
 
 		/** return the ID of this object. */
 		virtual HashedCharPtr getDispatchId() const = 0;
+
+		virtual bool matchesPath(const HashedPath& p) const { return false; }
 
 		RootObject& getRootObject() { return root; }
 		const RootObject& getRootObject() const { return root; }
@@ -75,7 +77,7 @@ struct RootObject: public Thread
 	void removeTypedChild(Child* c);
 
 	/** Removes the element from all queues. */
-	int clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
+	void clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
 
 	/** Call this periodically to ensure that the queues are minimized. */
 	void minimiseQueueOverhead();
@@ -86,7 +88,7 @@ struct RootObject: public Thread
 
 	int getNumChildren() const;
 
-	void setState(const HashedCharPtr& sourceManagerId, State newState);
+	void setState(const HashedPath& path, State newState);
 
 	/** Iterates all registered queues and calls the given function. */
 	bool callForAllQueues(const std::function<bool(Queue&)>& qf) const;
@@ -100,17 +102,60 @@ struct RootObject: public Thread
 	/** Iterates all registered listener and calls the given function. */
 	bool callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const;
 
-	void run() override;
+	/** Call this from a thread that is running periodically. */
+	void flushHighPriorityQueues(Thread* t);
+
+	/** Call this if you want the root object to use its own background thread for flushing the high priority queue. */
+	void setUseHighPriorityThread(bool shouldUse)
+	{
+		if(shouldUse)
+			ownedHighPriorityThread = new HiPriorityThread(*this);
+		else
+			ownedHighPriorityThread = nullptr;
+	}
+
+	uint64_t bumpFlowCounter() { return ++flowCounter; }
 
 private:
 
+	uint64_t flowCounter = 0;
+
+	struct HiPriorityThread: public Thread
+	{
+		HiPriorityThread(RootObject& r):
+		  Thread("Dispatch HiPriority Thread"),
+		  parent(r)
+		{
+			startThread(7);
+		}
+
+		~HiPriorityThread()
+		{
+			notify();
+			stopThread(500);
+		}
+		  
+		void run() override
+		{
+			while(!threadShouldExit())
+			{
+				parent.flushHighPriorityQueues(this);
+
+				wait(500);
+			}
+		}
+
+		RootObject& parent;
+	};
+
+	ScopedPointer<HiPriorityThread> ownedHighPriorityThread;
+
 	Logger* currentLogger = nullptr;
 	PooledUIUpdater* updater;
-	Array<Child*> childObjects;
-	Array<SourceManager*> sourceManagers;
-	Array<Queue*> queues;
-	Array<Source*> sources;
-	Array<dispatch::Listener*> listeners;
+
+	std::atomic<int> numChildObjects = { 0 };
+
+	ScopedPointer<Queue> sourceManagers, queues, sources, listeners;
 };
 
 } // dispatch

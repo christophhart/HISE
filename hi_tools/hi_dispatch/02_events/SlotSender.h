@@ -36,6 +36,58 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+#if PERFETTO
+struct PerfettoFlowManager
+{
+	PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent_, const HashedCharPtr& object_):
+	  root(r),
+	  parent(parent_),
+	  object(object_)
+	{
+		b.ensureAllocated(256);
+	}
+
+	void openFlow(DispatchType n, uint8 slotIndex)
+	{
+		b.clearQuick();
+		b << "send " << n << " " << parent << "::" << object << "[" << (int)slotIndex << "]";
+		auto newId = root.bumpFlowCounter();
+		pendingFlows.get(n).insertWithoutSearch(newId);
+		TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(newId));
+	}
+
+	void closeFlow(DispatchType n)
+	{
+		b.clearQuick();
+		b << "flush " << n << " " << parent << "::" << object;
+
+		auto& pending = pendingFlows.get(n);
+
+		for(auto& id: pending)
+		{
+			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(id));
+		}
+
+		pending.clearQuick();
+	}
+
+private:
+
+	HashedCharPtr parent, object;
+	StringBuilder b;
+	DispatchTypeContainer<UnorderedStack<uint64_t, 32>> pendingFlows;
+	std::function<uint64_t()> requestFunction;
+	RootObject& root;
+};
+#else
+struct PerfettoFlowManager
+{
+	PerfettoFlowManager(RootObject& r) {};
+
+	void openFlow(DispatchType n) {};
+	void closeFlow(DispatchType n) {};
+};
+#endif
 
 // A object that can send slot change messages to a SourceManager
 // Ownership: a member of a subclassed Source object
@@ -44,38 +96,54 @@ using namespace juce;
 // - a constant sender index (one byte)
 // - no heap allocation for <16 byte senders
 struct SlotSender
-{		
+{
 	SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_);;
 	~SlotSender();
 
-	void setNumSlots(int newNumSlots);
+	void setNumSlots(uint8 newNumSlots);
 	bool flush(DispatchType n=sendNotification);
-	bool sendChangeMessage(int indexInSlot, DispatchType notify);
-	
-	// Todo: clear the parent queue with all pending messages. */
+	bool sendChangeMessage(uint8 indexInSlot, DispatchType notify);
+
+	bool matchesPath(const HashedPath& p, DispatchType n) const
+	{
+		if(p.slot == id)
+		{
+			if(p.dispatchType.isWildcard())
+				return true;
+			else
+			{
+				// TODO: implement me...
+				jassertfalse;
+				return false;
+			}
+		}
+
+		return false;
+	}
+
+	Queue* getListenerQueue(DispatchType n) { return &listeners.get(n); }
+
 	void shutdown()
 	{
-#if JUCE_DEBUG
-		shutdownWasCalled = true;
-#endif
-	};
+		data.forEach([](SlotBitmap& d) { d.clear(); });
+		
+		listeners.forEach([](Queue& q) { q.clear(); });
+	}
+
+	uint8 getSlotIndex() const noexcept { return index; }
 
 private:
 
-#if JUCE_DEBUG
-	bool shutdownWasCalled = false;
-#endif
-	
+	PerfettoFlowManager flowManager;
+
 	Source& obj;
 
 	const uint8 index;
 	const HashedCharPtr id;
-
-	using DataType = std::pair<ObjectStorage<64, 0>, bool>;
-
-	// TODO: Add async & hiprio sync data slots which are cleared when in use
-	DispatchTypeContainer<DataType> data;
 	
+	DispatchTypeContainer<SlotBitmap> data;
+	DispatchTypeContainer<Queue> listeners;
+
 	size_t numSlots;
 	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SlotSender);

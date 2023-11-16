@@ -42,33 +42,27 @@ SlotSender::SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_):
 	index(index_),
 	id(id_),
 	obj(s),
-	numSlots(0)
+	listeners(s.getRootObject(), 128),
+	numSlots(0),
+	flowManager(s.getRootObject(), s.getDispatchId(), id_)
 {
+	
 }
 
 SlotSender::~SlotSender()
 {
-#if JUCE_DEBUG
-
-	// If this happens, you have forgot to call shutdown in the destructor
-	// of your Source subclass' destructor. Make sure to call it there
-	// to ensure correct order of deinitialisation.
-	jassert(shutdownWasCalled);
-#endif
 }
 
-void SlotSender::setNumSlots(int newNumSlots)
+void SlotSender::setNumSlots(uint8 newNumSlots)
 {
 	if(numSlots < newNumSlots)
 	{
 		numSlots = newNumSlots;
 
-		data.forEach([&](DataType& d)
+		data.forEach([&](SlotBitmap& d)
 		{
-			d.first.setSize(newNumSlots+1);
-			const auto ptr = (uint8*)d.first.getObjectPtr();
-			ptr[0] = index;
-			d.second = false;
+			d.setBit(numSlots, true);
+			d.setBit(numSlots, false);
 		});
 	}
 }
@@ -87,22 +81,83 @@ bool SlotSender::flush(DispatchType n)
 		flush(DispatchType::sendNotificationAsyncHiPriority);
 	}
 
-	if(!data.get(n).second)
+	auto& thisBitmap = data.get(n);
+
+	if(thisBitmap.isEmpty())
 		return false;
 
-	auto ptr = static_cast<uint8*>(data.get(n).first.getObjectPtr());
-	obj.getParentSourceManager().sendSlotChanges(obj, ptr, numSlots + 1, n);
-	memset(ptr + 1, 0, numSlots);
-	data.get(n).second = false;
-	return true;
+	auto& listenerList = listeners.get(n);
+
+	flowManager.closeFlow(n);
+
+	TRACE_FLUSH(id);
+
+	listenerList.flush([&](const Queue::FlushArgument& f)
+	{
+		switch(f.eventType)
+		{
+		case EventType::Listener: jassertfalse; break;
+		case EventType::ListenerAnySlot: break;
+		case EventType::ListenerSingleSlot: jassertfalse; break;
+		case EventType::SingleListener: jassertfalse; break;
+		case EventType::SingleListenerSingleSlot:
+		{
+			jassert(f.numBytes == 1);
+			auto slotIndex = *f.data;
+
+			if(thisBitmap[slotIndex])
+			{
+				Listener::ListenerData d;
+				d.s = &obj;
+				d.slotIndex = index;
+				d.numBytes = 1;
+				d.changes = &slotIndex;
+
+				auto& l = f.getTypedObject<Listener>();
+
+				TRACE_FLUSH(l.getDispatchId());
+				l.slotChanged(d);
+			}
+
+			break;
+		}
+		case EventType::SingleListenerSubset:
+		{
+			jassert(f.numBytes == SlotBitmap::getNumBytes());
+			auto listenerSlots = SlotBitmap::fromData(f.data, f.numBytes);
+
+			if(listenerSlots.hasSomeBitsAs(thisBitmap))
+			{
+				Listener::ListenerData d;
+				d.s = &obj;
+				d.numBytes = thisBitmap.getNumBytes();
+				d.slotIndex = index;
+				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
+
+				auto& l = f.getTypedObject<Listener>();
+
+				TRACE_FLUSH(l.getDispatchId());
+				l.slotChanged(d);
+			}
+
+			break;
+		}
+		case EventType::SubsetListener: jassertfalse; break;
+ 		case EventType::AllListener: jassertfalse; break;
+		default: jassertfalse; break;
+		}
+
+		
+
+		return true;
+	}, Queue::FlushType::KeepData);
+
+	if(listenerList.getState() == State::Running)
+		thisBitmap.clear();
 }
 
-bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType n)
+bool SlotSender::sendChangeMessage(uint8 indexInSlot, DispatchType n)
 {
-	StringBuilder b;
-	b << "send message" << indexInSlot << ": " << n;
-	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-
 	if(!isPositiveAndBelow(indexInSlot, numSlots))
 	{
 		jassertfalse;
@@ -110,16 +165,13 @@ bool SlotSender::sendChangeMessage(int indexInSlot, DispatchType n)
 	}
 
 	// Write the change in all slot values
-	data.forEach([indexInSlot](DataType& d)
+	data.forEachWithDispatchType([&](DispatchType sn, SlotBitmap& d)
 	{
-		// d[0] points to the slotIndex
-		const auto ptr = static_cast<uint8*>(d.first.getObjectPtr()) + 1;
-
-		if(ptr[indexInSlot])
+		if(d[indexInSlot])
 			return;
 
-		ptr[indexInSlot] = true;
-		d.second = true;
+		d.setBit(indexInSlot, true);
+		flowManager.openFlow(sn, indexInSlot);
 	});
 
 	// If the message wasn't explicitely sent as sendNotificationAsync, it will flush the sync changes immediately

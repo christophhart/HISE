@@ -50,55 +50,65 @@ RootObject::Child::~Child()
 }
 
 RootObject::RootObject(PooledUIUpdater* updater_):
-  Thread("Dispatch HiPriority Thread"),
+  
 	updater(updater_)
 {
-    childObjects.ensureStorageAllocated(8192);
-    sourceManagers.ensureStorageAllocated(64);
-    sources.ensureStorageAllocated(4096);
-    listeners.ensureStorageAllocated(4096);
-
-	startThread(7);
+	queues = new Queue(*this, 4096);
+	sourceManagers = new Queue(*this, 64);
+	sources = new Queue(*this, 4096);
+	listeners = new Queue(*this, 4096);
 }
 
 RootObject::~RootObject()
 {
-	notify();
-    stopThread(500);
-    jassert(childObjects.isEmpty());
+	ownedHighPriorityThread = nullptr;
+
+	sources->setQueueState(State::Shutdown);
+	sourceManagers->setQueueState(State::Shutdown);
+	listeners->setQueueState(State::Shutdown);
+	queues->setQueueState(State::Shutdown);
+
+	sources = nullptr;
+	sourceManagers = nullptr;
+	listeners = nullptr;
+	queues = nullptr;
+
+    jassert(numChildObjects == 0);
 }
 
 void RootObject::addChild(Child* c)
 {
-    childObjects.add(c);
-
-    
-    
+	++numChildObjects;
 }
 
 void RootObject::removeChild(Child* c)
 {
-    int indexInRoot = childObjects.indexOf(c);
-    childObjects.remove(indexInRoot);
+	--numChildObjects;
 }
 
 void RootObject::addTypedChild(Child* c)
 {
+	if(queues == nullptr)
+	{
+		jassert(numChildObjects == 1);
+		return;
+	}
+
 	if(auto typed = dynamic_cast<SourceManager*>(c))
 	{
-		sourceManagers.add(typed);
+		sourceManagers->push(typed, EventType::SourcePtr, nullptr, 0);
 	}
 	else if(auto typed = dynamic_cast<Source*>(c))
 	{
-		sources.add(typed);
+		sources->push(typed, EventType::SourcePtr, nullptr, 0);
 	}
 	else if(auto typed = dynamic_cast<Queue*>(c))
 	{
-		queues.add(typed);
+		queues->push(typed, EventType::SourcePtr, nullptr, 0);
 	}
 	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
 	{
-		listeners.add(typed);
+		listeners->push(typed, EventType::SourcePtr, nullptr, 0);
 	}
 	else
 	{
@@ -108,34 +118,45 @@ void RootObject::addTypedChild(Child* c)
 
 void RootObject::removeTypedChild(Child* c)
 {
+	if(queues == nullptr)
+	{
+		jassert(numChildObjects == 1);
+		return;
+	}
+		
+
 	if(auto typed = dynamic_cast<SourceManager*>(c))
 	{
-		int indexInTyped = sourceManagers.indexOf(typed);
-		sourceManagers.remove(indexInTyped);
+		Queue::ScopedExplicitSuspender ses(*sourceManagers);
+		sourceManagers->removeFirstMatchInQueue(typed);
 	}
 	else if(auto typed = dynamic_cast<Source*>(c))
 	{
-		int indexInTyped = sources.indexOf(typed);
-		sources.remove(indexInTyped);
+		Queue::ScopedExplicitSuspender ses(*sources);
+		sources->removeFirstMatchInQueue(typed);
 	}
 	else if(auto typed = dynamic_cast<Queue*>(c))
 	{
-		int indexInTyped = queues.indexOf(typed);
-		queues.remove(indexInTyped);
+		Queue::ScopedExplicitSuspender ses(*queues);
+		queues->removeFirstMatchInQueue(typed);
 	}
 	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
 	{
-		int indexInTyped = listeners.indexOf(typed);
-		listeners.remove(indexInTyped);
+		Queue::ScopedExplicitSuspender ses(*listeners);
+		listeners->removeFirstMatchInQueue(typed);
+	}
+	else
+	{
+		jassertfalse;
 	}
 }
 
-int RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
+void RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
 {
-    jassert(childObjects.contains(objectToBeDeleted));
-    int indexInRoot = childObjects.indexOf(objectToBeDeleted);
-    callForAllQueues([behaviour, objectToBeDeleted](Queue& q){ q.invalidateQueuable(objectToBeDeleted, behaviour); return false; });
-    return indexInRoot;
+    callForAllQueues([behaviour, objectToBeDeleted](Queue& q)
+    {
+	    q.invalidateQueuable(objectToBeDeleted, behaviour); return false;
+    });
 }
 
 void RootObject::minimiseQueueOverhead()
@@ -154,83 +175,65 @@ void RootObject::setLogger(Logger* l)
 }
 
 int RootObject::getNumChildren() const
-{ return childObjects.size(); }
+{ return numChildObjects; }
 
-void RootObject::setState(const HashedCharPtr& sourceManagerId, State newState)
+void RootObject::setState(const HashedPath& path, State newState)
 {
-	callForAllSourceManagers([sourceManagerId, newState](SourceManager& sm)
+	callForAllSourceManagers([path, newState](SourceManager& sm)
 	{
-		if(sm.getDispatchId() == sourceManagerId)
-		{
-			sm.setState(newState);
-			return true;
-		}
-
+		sm.setState(path, newState);
 		return false;
 	});
 }
 
+struct QueueIteratorHelpers
+{
+	template <typename T> static bool forEach(Queue* q, const std::function<bool(T&)>& objectFunction)
+	{
+		return !q->flush([objectFunction](const Queue::FlushArgument& f)
+		{
+			auto& s = f.getTypedObject<T>();
+
+			if(objectFunction(s))
+				return false;
+
+			return true;
+		}, Queue::FlushType::KeepData);
+	}
+};
+
 bool RootObject::callForAllQueues(const std::function<bool(Queue&)>& qf) const
 {
-    for(auto q: queues)
-    {
-        if(qf(*q))
-        	return true;
-    }
-    
-    return false;
+	if(queues == nullptr)
+		return false;
+
+	return QueueIteratorHelpers::forEach<Queue>(queues, qf);
 }
 
 bool RootObject::callForAllSources(const std::function<bool(Source&)>& sf) const
 {
-	for(auto s: sources)
-	{
-		if(sf(*s))
-			return true;
-	}
-	    
-	return false;
+	return QueueIteratorHelpers::forEach<Source>(sources, sf);
 }
 
 bool RootObject::callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const
 {
-	for(auto s: sourceManagers)
-	{
-		if(sf(*s))
-			return true;
-	}
-	    
-	return false;
+	return QueueIteratorHelpers::forEach<SourceManager>(sourceManagers, sf);
 }
 
 bool RootObject::callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const
 {
-	for(auto l: listeners)
-	{
-		if(lf(*l))
-			return true;
-	}
-	    
-	return false;
+	return QueueIteratorHelpers::forEach<dispatch::Listener>(listeners, lf);
 }
 
-void RootObject::run()
+void RootObject::flushHighPriorityQueues(Thread* t)
 {
-    while(!threadShouldExit())
-    {
-        callForAllSourceManagers([&](SourceManager& sm)
-        {
-            if(threadShouldExit())
-                return true;
+	callForAllSourceManagers([&](SourceManager& sm)
+	{
+		if(t->threadShouldExit())
+			return true;
 
-	        sm.flushHiPriorityQueue(); return false;
-        });
-
-		if(threadShouldExit())
-			break;
-
-		Thread::wait(500);
-    }
+		sm.flushHiPriorityQueue(); return false;
+	});
 }
 } // dispatch
 } // hise
