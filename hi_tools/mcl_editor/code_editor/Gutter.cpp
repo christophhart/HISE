@@ -448,7 +448,7 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 		if(h.scopeStates[r.rowNumber])
 		{
-			c = JUCE_LIVE_CONSTANT(Colour(0xff88bec5));
+			c = JUCE_LIVE_CONSTANT_OFF(Colour(0xff88bec5));
 
 			g.setColour(c.withAlpha(0.05f));
 			g.fillRect(b);
@@ -462,6 +462,11 @@ void mcl::GutterComponent::paint(Graphics& g)
 		{
 			auto w = lfb.getWidth() - 4.0f * transform.getScaleFactor();
 			auto box = lfb.withSizeKeepingCentre(w, w);
+
+			if(h.scopeStates[r.rowNumber+1])
+			{
+				g.setColour(Colour(0xff88bec5));
+			}
 
 			box = ug.getRectangleWithFixedPixelWidth(box, (int)box.getWidth());
 

@@ -1672,7 +1672,7 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
 	{
 		if(h.scopeStates[i])
 		{
-			g.setColour(Colour(0xff88bec5).withAlpha(JUCE_LIVE_CONSTANT(0.1f)));
+			g.setColour(Colour(0xff88bec5).withAlpha(JUCE_LIVE_CONSTANT_OFF(0.03f)));
 			auto y = document.getVerticalPosition(i, TextDocument::Metric::top);
 			auto b = document.getVerticalPosition(i, TextDocument::Metric::bottom);
 			auto x = 0.0f;
