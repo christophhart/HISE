@@ -6485,8 +6485,6 @@ void ScriptingApi::Console::stop(bool condition)
 
 		auto& jtp = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
 
-		auto [id, lineNumber] = getDebugLocation();
-
 		JavascriptThreadPool::ScopedSleeper ss(jtp, id, lineNumber);
 
 		n = Time::getMillisecondCounter() - n;
@@ -6510,7 +6508,8 @@ void ScriptingApi::Console::blink()
 #if USE_BACKEND && HISE_USE_NEW_CODE_EDITOR
 	if (auto e = getProcessor()->getMainController()->getLastActiveEditor())
 	{
-		auto [i, l] = getDebugLocation();
+        auto i = id;
+        auto l = lineNumber;
 
 		MessageManager::callAsync([e, i, l]()
 		{

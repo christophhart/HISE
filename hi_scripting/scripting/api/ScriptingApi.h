@@ -1360,8 +1360,6 @@ public:
 			lineNumber = lineNumber_;
 		}
 
-		std::pair<Identifier, int> getDebugLocation() const { return {id, lineNumber}; }
-
 private:
 
 		Identifier id;

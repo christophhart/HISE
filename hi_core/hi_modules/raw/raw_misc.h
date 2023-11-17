@@ -158,7 +158,7 @@ private:
 	struct Updater: public Processor::OtherListener
 	{
 		Updater(Reference& parent_, Processor* p):
-		  OtherListener(p),
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Any),
 		  parent(parent_)
 		{};
 

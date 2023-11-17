@@ -105,6 +105,11 @@ PerfettoWebviewer::PerfettoWebviewer(BackendRootWindow* unused):
 
 	addAndMakeVisible(browser = new WindowsWebView2WebBrowserComponent(true, pref));
 	browser->goToURL("https://ui.perfetto.dev");
+#elif JUCE_MAC
+    
+    addAndMakeVisible(browser = new WebBrowserComponent(true));
+    browser->goToURL("https://ui.perfetto.dev");
+    
 #else
     data = new hise::WebViewData(File());
     addAndMakeVisible(browser = new WebViewWrapper(data));
@@ -190,7 +195,7 @@ void PerfettoWebviewer::resized()
 	dragger->setBounds(top.removeFromRight(180));
 	browser->setBounds(area);
 
-#if !JUCE_USE_WIN_WEBVIEW2
+#if !JUCE_USE_WIN_WEBVIEW2 && !JUCE_MAC
 	    browser->refreshBounds(1.0f);
 #endif
 
