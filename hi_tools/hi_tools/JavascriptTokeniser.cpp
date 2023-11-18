@@ -132,11 +132,15 @@ int JavascriptTokeniser::readNextToken (CodeDocument::Iterator& source)
 		return JavascriptTokeniserFunctions::parseIdentifier(source, true);
 	}
 
-	checkDot = false;
-	
-	
-
-	return JavascriptTokeniserFunctions::readNextToken (source);
+    auto t = JavascriptTokeniserFunctions::readNextToken (source);
+    
+    if(t != tokenType_preprocessor &&
+       t != tokenType_comment)
+    {
+        checkDot = false;
+    }
+    
+    return t;
 }
 
 CodeEditorComponent::ColourScheme JavascriptTokeniser::getDefaultColourScheme()
