@@ -370,16 +370,26 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 			if (auto sbs = dynamic_cast<ScopedBlockStatement*>(s.get()))
 			{
-				b->scopedBlockStatements.add(sbs);
-				s.release();
+				if(!allowScopedBlockStatements)
+				{
+					location.throwError("Scoped block statements must be added at the scope start.");
+				}
+
+				if(auto shouldBeUsed = (USE_BACKEND || !sbs->isDebugStatement()))
+				{
+					b->scopedBlockStatements.add(sbs);
+					s.release();
+				}
+				else
+				{
+					s = nullptr;
+				}
 			}
 			else
 			{
 				b->statements.add(s.release());
 				allowScopedBlockStatements = false;
 			}
-
-			
 		}
 
 		return b.release();

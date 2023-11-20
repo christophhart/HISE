@@ -7,6 +7,8 @@ struct HiseJavascriptEngine::RootObject::ScopedBlockStatement: public Statement
       condition(condition_)
 	{}
 
+	virtual bool isDebugStatement() const = 0;
+
 	bool checkCondition(const Scope& s, bool before)
 	{
 		if(before && condition != nullptr)
@@ -28,6 +30,8 @@ struct HiseJavascriptEngine::RootObject::ScopedSetter: public HiseJavascriptEngi
 	{}
 
 	SN_NODE_ID("set");
+
+	bool isDebugStatement() const override { return false; }
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
@@ -56,6 +60,8 @@ struct HiseJavascriptEngine::RootObject::ScopedSuspender: public HiseJavascriptE
 
 	SN_NODE_ID("defer");
 
+	bool isDebugStatement() const override { return false; }
+
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		auto& root = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor)->getMainController()->getRootDispatcher();
@@ -81,6 +87,12 @@ struct HiseJavascriptEngine::RootObject::ScopedTracer: public HiseJavascriptEngi
 
 	SN_NODE_ID("trace");
 
+#if PERFETTO
+	bool isDebugStatement() const override { return false; }
+#else
+	bool isDebugStatement() const override { return true; }
+#endif
+
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		TRACE_EVENT_BEGIN("scripting", DYNAMIC_STRING_BUILDER(n), "location", DYNAMIC_STRING_BUILDER(loc));
@@ -105,6 +117,8 @@ struct HiseJavascriptEngine::RootObject::ScopedDumper: public HiseJavascriptEngi
 	}
 
 	SN_NODE_ID("dump");
+
+	bool isDebugStatement() const override { return true; }
 
 	OwnedArray<Expression> dumpObjects;
 
@@ -162,6 +176,8 @@ struct HiseJavascriptEngine::RootObject::ScopedNoop: public HiseJavascriptEngine
 
 	SN_NODE_ID("noop");
 
+	bool isDebugStatement() const override { return true; }
+
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		return ResultCode::ok;
@@ -180,6 +196,8 @@ struct HiseJavascriptEngine::RootObject::ScopedCounter: public HiseJavascriptEng
 	{}
 
 	SN_NODE_ID("count");
+
+	bool isDebugStatement() const override { return true; }
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
@@ -212,6 +230,8 @@ struct HiseJavascriptEngine::RootObject::ScopedProfiler: public HiseJavascriptEn
 
 	SN_NODE_ID("profile");
 
+	bool isDebugStatement() const override { return true; }
+
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		start = Time::getMillisecondCounterHiRes();
@@ -241,6 +261,8 @@ struct HiseJavascriptEngine::RootObject::ScopedPrinter: public HiseJavascriptEng
 	}
 
 	SN_NODE_ID("print");
+
+	bool isDebugStatement() const override { return true; }
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
@@ -272,6 +294,8 @@ template <bool CheckBefore> struct ScopedAssert: public HiseJavascriptEngine::Ro
 	}
 
 	SN_NODE_ID(CheckBefore ? "before" : "after");
+
+	bool isDebugStatement() const override { return true; }
 
 	ResultCode perform(const HiseJavascriptEngine::RootObject::Scope& s, var*) const override
 	{
@@ -315,10 +339,40 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 	void cleanup(const Scope& s) const
 	{
+		auto reportLocation = [&](ScopedBlockStatement * sbs, const String& message)
+		{
+			String m;
+			m << sbs->location.getLocationString() << " - Error at scope cleanup: " << message;
+			auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+			debugError(p, message);
+		};
+
 		for(int i = scopedBlockCounter ; i >= 0; i--)
 		{
-			if(scopedBlockStatements[i]->checkCondition(s, false))
-				scopedBlockStatements[i]->cleanup(s);
+			auto sbs = scopedBlockStatements[i];
+
+			try
+			{
+				if(sbs->checkCondition(s, false))
+					sbs->cleanup(s);
+			}
+			catch(const String& e)
+			{
+				reportLocation(sbs, e);
+			}
+			catch(const Result& r)
+			{
+				reportLocation(sbs, r.getErrorMessage());
+			}
+			catch(const Breakpoint& bp)
+			{
+				reportLocation(sbs, "BREAKPOINT");
+			}
+			catch(const HiseJavascriptEngine::RootObject::Error& e)
+			{
+				auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+				reportLocation(sbs, e.errorMessage);
+			}
 		}
 	}
 
@@ -377,22 +431,22 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 			return rv;
 		}
-		catch(String& e)
+		catch(const String& e)
 		{
 			cleanup(s);
 			throw e;
 		}
-		catch(Result& r)
+		catch(const Result& r)
 		{
 			cleanup(s);
 			throw r;
 		}
-		catch(Breakpoint& bp)
+		catch(const Breakpoint& bp)
 		{
 			cleanup(s);
 			throw bp;
 		}
-		catch(HiseJavascriptEngine::RootObject::Error& e)
+		catch(const HiseJavascriptEngine::RootObject::Error& e)
 		{
 			cleanup(s);
 			throw e;
